@@ -73,8 +73,19 @@ def bump_pubspec(content: str) -> tuple[str, str]:
 
 
 def run(*cmd: str) -> str:
-    result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        # Surface the actual error in the workflow log before failing.
+        print(f"::error::Command failed: {' '.join(cmd)}\n{result.stderr}",
+              file=sys.stderr)
+        raise subprocess.CalledProcessError(result.returncode, cmd)
     return result.stdout.strip()
+
+
+def issue_exists(title: str) -> bool:
+    out = run("gh", "issue", "list", "--state", "all", "--limit", "100",
+              "--search", title, "--json", "title")
+    return any(item["title"] == title for item in json.loads(out or "[]"))
 
 
 def api(method: str, path: str, body=None):
@@ -92,6 +103,14 @@ def api(method: str, path: str, body=None):
         return json.loads(text) if text else None
 
 
+def mark_processed(row_ids: list[str]) -> None:
+    if not row_ids:
+        return
+    now = datetime.now(timezone.utc).isoformat()
+    api("PATCH", f"/rest/v1/feedback?id=in.({','.join(row_ids)})",
+        {"processed_at": now})
+
+
 def main() -> None:
     rows = api(
         "GET",
@@ -102,7 +121,7 @@ def main() -> None:
         print("No unprocessed feedback.")
         return
 
-    processed_ids = []
+    species_ids: list[str] = []
     species_additions: list[tuple[str, str]] = []
     species_authors: list[str] = []
 
@@ -118,22 +137,27 @@ def main() -> None:
         if is_species:
             if name.lower() in known:
                 print(f"Skip (already known): {name}")
+                mark_processed([row["id"]])
             else:
                 species_additions.append((name, group_for(name)))
                 species_authors.append(f"{name} (von {username})")
                 known.add(name.lower())
+                species_ids.append(row["id"])
         else:
             title = row["message"].strip().replace("\n", " ")
-            title = title[:60] + ("…" if len(title) > 60 else "")
-            body = (
-                f"> {row['message']}\n\n"
-                f"Eingereicht in der App von **{username}** am {row['created_at'][:10]}.\n\n"
-                f"_Automatisch erstellt vom Feedback-Bot._"
-            )
-            run("gh", "issue", "create", "--title", f"Feature request: {title}",
-                "--body", body)
-            print(f"Issue created: {title}")
-        processed_ids.append(row["id"])
+            title = "Feature request: " + title[:60] + ("…" if len(title) > 60 else "")
+            if issue_exists(title):
+                print(f"Skip (issue already exists): {title}")
+            else:
+                body = (
+                    f"> {row['message']}\n\n"
+                    f"Eingereicht in der App von **{username}** am {row['created_at'][:10]}.\n\n"
+                    f"_Automatisch erstellt vom Feedback-Bot._"
+                )
+                run("gh", "issue", "create", "--title", title, "--body", body)
+                print(f"Issue created: {title}")
+            # Stamp each row right away so a later crash never duplicates it.
+            mark_processed([row["id"]])
 
     if species_additions:
         new_species = insert_species(species_content, species_additions)
@@ -166,11 +190,9 @@ def main() -> None:
         # dispatch it explicitly so the required checks appear on the PR.
         run("gh", "workflow", "run", "ci.yml", "--ref", branch)
         print(f"Species PR created for: {names}")
+        mark_processed(species_ids)
 
-    now = datetime.now(timezone.utc).isoformat()
-    id_list = ",".join(processed_ids)
-    api("PATCH", f"/rest/v1/feedback?id=in.({id_list})", {"processed_at": now})
-    print(f"Marked {len(processed_ids)} row(s) as processed.")
+    print("Done.")
 
 
 def self_test(names: list[str]) -> None:
