@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 
+import '../../core/app_info.dart';
 import '../../data/providers.dart';
 import '../../models/friendship.dart';
+import '../profile/profile_providers.dart';
 import 'friend_providers.dart';
 
 class FriendsScreen extends ConsumerStatefulWidget {
@@ -47,6 +51,22 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
     }
   }
 
+  /// Einladung teilen; wo das System-Teilen nicht verfügbar ist
+  /// (z. B. Desktop-Browser), landet der Text in der Zwischenablage.
+  Future<void> _invite() async {
+    final username = ref.read(myProfileProvider).valueOrNull?.username;
+    final text = AppInfo.inviteText(username);
+    try {
+      final result = await SharePlus.instance.share(ShareParams(text: text));
+      if (result.status == ShareResultStatus.unavailable) {
+        throw StateError('share unavailable');
+      }
+    } catch (_) {
+      await Clipboard.setData(ClipboardData(text: text));
+      _showMessage('Einladungstext in die Zwischenablage kopiert.');
+    }
+  }
+
   Future<void> _sendRequest(ProfileSearchResult result) async {
     try {
       await ref.read(friendshipsProvider.notifier).sendRequest(result.id);
@@ -79,6 +99,15 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            OutlinedButton.icon(
+              onPressed: _invite,
+              icon: const Icon(Icons.share),
+              label: const Text('Freunde zu PilzBuddy einladen'),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+            ),
+            const SizedBox(height: 16),
             TextField(
               controller: _searchController,
               onSubmitted: (_) => _search(),

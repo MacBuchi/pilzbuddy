@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/router.dart';
+import 'features/intro/intro_overlay.dart';
 
 class PilzBuddyApp extends ConsumerWidget {
   const PilzBuddyApp({super.key});
@@ -13,6 +14,8 @@ class PilzBuddyApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'PilzBuddy',
       routerConfig: router,
+      builder: (context, child) =>
+          IntroOverlay(child: child ?? const SizedBox.shrink()),
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF2E7D32),

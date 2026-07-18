@@ -4,9 +4,9 @@ import '../../../core/mushroom_species.dart';
 import '../species_suggestions.dart';
 
 /// Pilzart-Eingabe: Chips mit den eigenen Arten (zuletzt benutzt zuerst),
-/// darunter Textfeld mit Inline-Vorschlägen aus eigenen + bekannten Arten.
-/// Freitext bleibt erlaubt — er wird beim Speichern automatisch zur
-/// eigenen Art des Users.
+/// darunter Textfeld mit Inline-Vorschlägen aus eigenen + bekannten Arten
+/// inklusive Kategorie (Speisepilz/Giftpilz). Freitext bleibt erlaubt —
+/// er wird beim Speichern automatisch zur eigenen Art des Users.
 class SpeciesField extends StatefulWidget {
   const SpeciesField({
     super.key,
@@ -28,13 +28,27 @@ class _SpeciesFieldState extends State<SpeciesField> {
   @override
   void initState() {
     super.initState();
-    _focusNode.addListener(() {
-      setState(() => _showSuggestions = _focusNode.hasFocus);
-    });
+    _focusNode.addListener(_onFocusChange);
+  }
+
+  void _onFocusChange() {
+    if (_focusNode.hasFocus) {
+      setState(() => _showSuggestions = true);
+    } else {
+      // Verzögert ausblenden, damit ein Tap auf einen Vorschlag noch
+      // ankommt, bevor die Liste verschwindet (sonst schluckt der
+      // Fokuswechsel den Klick — besonders auf Web).
+      Future.delayed(const Duration(milliseconds: 250), () {
+        if (mounted && !_focusNode.hasFocus) {
+          setState(() => _showSuggestions = false);
+        }
+      });
+    }
   }
 
   @override
   void dispose() {
+    _focusNode.removeListener(_onFocusChange);
     _focusNode.dispose();
     super.dispose();
   }
@@ -42,16 +56,35 @@ class _SpeciesFieldState extends State<SpeciesField> {
   void _select(String name) {
     widget.controller.text = name;
     _focusNode.unfocus();
-    setState(() {});
+    setState(() => _showSuggestions = false);
+  }
+
+  Widget _categoryBadge(SpeciesCategory category) {
+    final giftig = category == SpeciesCategory.giftpilz;
+    final color = giftig ? const Color(0xFFC62828) : const Color(0xFF2E7D32);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        category.label,
+        style: TextStyle(
+            fontSize: 11, color: color, fontWeight: FontWeight.w600),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final current = widget.controller.text.trim().toLowerCase();
     final suggestions = _showSuggestions
-        ? suggestSpecies(widget.controller.text, widget.ownSpecies,
-            kBekannteArten)
-        : const <String>[];
+        ? suggestSpecies(
+            widget.controller.text, widget.ownSpecies, kBekannteArten)
+        : const <SpeciesSuggestion>[];
+    final onlyExactMatch = suggestions.length == 1 &&
+        suggestions.first.name.toLowerCase() == current;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -93,27 +126,27 @@ class _SpeciesFieldState extends State<SpeciesField> {
                   ),
           ),
         ),
-        if (suggestions.isNotEmpty &&
-            !(suggestions.length == 1 &&
-                suggestions.first.toLowerCase() == current))
+        if (suggestions.isNotEmpty && !onlyExactMatch)
           Card(
             margin: const EdgeInsets.only(top: 4),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                for (final name in suggestions)
-                  ListTile(
-                    dense: true,
-                    visualDensity: VisualDensity.compact,
-                    leading: Text(
-                      widget.ownSpecies
-                              .any((o) => o.toLowerCase() == name.toLowerCase())
-                          ? '🍄'
-                          : '📖',
-                      style: const TextStyle(fontSize: 16),
+                for (final s in suggestions)
+                  // Listener statt onTap: onPointerDown feuert VOR dem
+                  // Fokusverlust des Textfelds — der Klick geht nie verloren.
+                  Listener(
+                    behavior: HitTestBehavior.opaque,
+                    onPointerDown: (_) => _select(s.name),
+                    child: ListTile(
+                      dense: true,
+                      visualDensity: VisualDensity.compact,
+                      leading: Text(s.isOwn ? '🍄' : '📖',
+                          style: const TextStyle(fontSize: 16)),
+                      title: Text(s.name),
+                      trailing:
+                          s.category == null ? null : _categoryBadge(s.category!),
                     ),
-                    title: Text(name),
-                    onTap: () => _select(name),
                   ),
               ],
             ),

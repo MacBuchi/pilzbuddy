@@ -1,29 +1,44 @@
+import '../../core/mushroom_species.dart';
+
+/// Ein Vorschlag für das Pilzart-Feld.
+class SpeciesSuggestion {
+  final String name;
+  final bool isOwn;
+  final SpeciesCategory? category;
+
+  const SpeciesSuggestion(this.name, {required this.isOwn, this.category});
+}
+
 /// Vorschläge für das Pilzart-Feld: eigene Arten zuerst, dann bekannte
-/// Arten; case-insensitive Contains-Match, dedupliziert.
-List<String> suggestSpecies(
+/// Arten; case-insensitive Contains-Match, dedupliziert. Eigene Arten
+/// bekommen ihre Kategorie per Lookup (sofern bekannt).
+List<SpeciesSuggestion> suggestSpecies(
   String query,
   List<String> own,
-  List<String> builtin, {
+  List<KnownSpecies> builtin, {
   int limit = 6,
 }) {
   final q = query.trim().toLowerCase();
-  final result = <String>[];
+  final result = <SpeciesSuggestion>[];
   final seen = <String>{};
 
-  void addMatches(Iterable<String> source) {
-    for (final name in source) {
-      if (result.length >= limit) return;
-      final key = name.toLowerCase();
-      if (seen.contains(key)) continue;
-      if (q.isEmpty || key.contains(q)) {
-        result.add(name);
-        seen.add(key);
-      }
-    }
-  }
+  bool matches(String name) => q.isEmpty || name.toLowerCase().contains(q);
 
-  addMatches(own);
-  addMatches(builtin);
+  for (final name in own) {
+    if (result.length >= limit) return result;
+    final key = name.toLowerCase();
+    if (seen.contains(key) || !matches(name)) continue;
+    seen.add(key);
+    result.add(SpeciesSuggestion(name, isOwn: true, category: categoryFor(name)));
+  }
+  for (final species in builtin) {
+    if (result.length >= limit) return result;
+    final key = species.name.toLowerCase();
+    if (seen.contains(key) || !matches(species.name)) continue;
+    seen.add(key);
+    result.add(
+        SpeciesSuggestion(species.name, isOwn: false, category: species.category));
+  }
   return result;
 }
 
