@@ -9,6 +9,7 @@ create table public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   username text unique not null,
   display_name text,
+  avatar int not null default 0,               -- Index im Pilz-Avatar-Katalog
   share_spots_default boolean not null default true,   -- "Alle Spots mit Freunden teilen"
   share_details boolean not null default true,          -- auch Art/Anzahl/Datum teilen, nicht nur Standort
   created_at timestamptz not null default now()
@@ -116,9 +117,9 @@ $$;
 
 -- Freundesuche: exakte E-Mail oder Username-Präfix; gibt nie E-Mails zurück.
 create or replace function public.search_profiles(query text)
-returns table (id uuid, username text, display_name text)
+returns table (id uuid, username text, display_name text, avatar int)
 language sql stable security definer set search_path = public as $$
-  select p.id, p.username, p.display_name
+  select p.id, p.username, p.display_name, p.avatar
   from profiles p
   left join auth.users u on u.id = p.id
   where p.id <> auth.uid()

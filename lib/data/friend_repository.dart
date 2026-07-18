@@ -20,8 +20,8 @@ class FriendRepository {
   Future<List<FriendshipEntry>> fetchFriendships() async {
     final rows = await _client.from('friendships').select(
         'id, status, requester_id, addressee_id, '
-        'requester:profiles!friendships_requester_id_fkey(username), '
-        'addressee:profiles!friendships_addressee_id_fkey(username)');
+        'requester:profiles!friendships_requester_id_fkey(username, avatar), '
+        'addressee:profiles!friendships_addressee_id_fkey(username, avatar)');
     return rows.map((r) => FriendshipEntry.fromJson(r)).toList();
   }
 

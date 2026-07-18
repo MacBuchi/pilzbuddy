@@ -24,7 +24,7 @@ class SpotRepository {
   Future<List<Spot>> fetchFriendSpots() async {
     final rows = await _client
         .from('spots')
-        .select('*, finds(*), profiles(username)')
+        .select('*, finds(*), profiles(username, avatar)')
         .neq('owner_id', _uid);
     return rows.map((r) => Spot.fromJson(r, currentUserId: _uid)).toList();
   }

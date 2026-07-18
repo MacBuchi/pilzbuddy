@@ -25,6 +25,7 @@ class MushroomIcon extends StatelessWidget {
     this.size = 44,
     this.friend = false,
     this.group,
+    this.ground = true,
   });
 
   final int seed;
@@ -32,11 +33,16 @@ class MushroomIcon extends StatelessWidget {
   final bool friend;
   final SpeciesGroup? group;
 
+  /// Boden-Ellipse zeichnen? Auf der Karte ja (zeigt Besitz: grün/blau),
+  /// in Porträts wie Avataren nein.
+  final bool ground;
+
   @override
   Widget build(BuildContext context) {
     return CustomPaint(
       size: Size(size, size),
-      painter: _MushroomPainter(seed: seed, friend: friend, group: group),
+      painter: _MushroomPainter(
+          seed: seed, friend: friend, group: group, ground: ground),
     );
   }
 }
@@ -55,11 +61,17 @@ class _Style {
 }
 
 class _MushroomPainter extends CustomPainter {
-  _MushroomPainter({required this.seed, required this.friend, this.group});
+  _MushroomPainter({
+    required this.seed,
+    required this.friend,
+    this.group,
+    this.ground = true,
+  });
 
   final int seed;
   final bool friend;
   final SpeciesGroup? group;
+  final bool ground;
 
   static const _fallbackColors = [
     Color(0xFFE53935),
@@ -207,12 +219,15 @@ class _MushroomPainter extends CustomPainter {
 
     // Boden-Ellipse zuerst (liegt hinter dem Pilz): grün = eigener Spot,
     // blau = Community/Freund — die Herkunft ist so auf einen Blick klar.
-    final baseColor =
-        friend ? const Color(0xFF1565C0) : const Color(0xFF2E7D32);
-    canvas.drawOval(
-      Rect.fromCenter(center: p(0.5, 0.925), width: u(0.66), height: u(0.15)),
-      Paint()..color = baseColor.withValues(alpha: 0.55),
-    );
+    if (ground) {
+      final baseColor =
+          friend ? const Color(0xFF1565C0) : const Color(0xFF2E7D32);
+      canvas.drawOval(
+        Rect.fromCenter(
+            center: p(0.5, 0.925), width: u(0.66), height: u(0.15)),
+        Paint()..color = baseColor.withValues(alpha: 0.55),
+      );
+    }
 
     // Halo → Füllung → Details → Kontur
     canvas.drawPath(stemPath, halo);
@@ -275,5 +290,6 @@ class _MushroomPainter extends CustomPainter {
   bool shouldRepaint(covariant _MushroomPainter oldDelegate) =>
       oldDelegate.seed != seed ||
       oldDelegate.friend != friend ||
-      oldDelegate.group != group;
+      oldDelegate.group != group ||
+      oldDelegate.ground != ground;
 }

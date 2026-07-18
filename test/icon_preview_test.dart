@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/mushroom_species.dart';
+import 'package:pilzbuddy/core/widgets/mushroom_avatar.dart';
 import 'package:pilzbuddy/core/widgets/mushroom_icon.dart';
 
 /// Smoke-Test: Alle Icon-Varianten rendern ohne Fehler.
@@ -73,6 +74,46 @@ void main() {
         final image = await boundary.toImage(pixelRatio: 2);
         final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
         File('$previewDir/mushroom_preview.png')
+            .writeAsBytesSync(bytes!.buffer.asUint8List());
+      });
+    }
+  });
+
+  testWidgets('alle Avatare rendern (Katalog + Picker-Größen)', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(560, 560));
+    final key = GlobalKey();
+
+    await tester.pumpWidget(MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: RepaintBoundary(
+        key: key,
+        child: Container(
+          color: const Color(0xFFF1F8E9),
+          padding: const EdgeInsets.all(12),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (var i = 0; i < kAvatarCatalog.length; i++)
+                MushroomAvatar(index: i, size: 64),
+              // Robustheit: Index außerhalb des Katalogs fällt auf 0 zurück
+              const MushroomAvatar(index: 999, size: 22),
+              const MushroomAvatar(index: -1, size: 22),
+            ],
+          ),
+        ),
+      ),
+    ));
+    await tester.pump();
+
+    const previewDir = String.fromEnvironment('PILZ_PREVIEW_DIR');
+    if (previewDir.isNotEmpty) {
+      await tester.runAsync(() async {
+        final boundary =
+            key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+        final image = await boundary.toImage(pixelRatio: 2);
+        final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+        File('$previewDir/avatar_preview.png')
             .writeAsBytesSync(bytes!.buffer.asUint8List());
       });
     }

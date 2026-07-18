@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/mushroom_species.dart';
+import '../../../core/widgets/mushroom_avatar.dart';
 import '../../../core/widgets/mushroom_icon.dart';
+import '../../profile/profile_providers.dart';
 import '../../../models/spot.dart';
 import '../spot_providers.dart';
 import 'add_find_sheet.dart';
@@ -120,12 +122,13 @@ class _SpotDetailSheet extends ConsumerWidget {
             padding: const EdgeInsets.only(top: 4),
             child: Row(
               children: [
-                Icon(Icons.person,
-                    size: 14,
-                    color: spot.isOwn
-                        ? const Color(0xFF2E7D32)
-                        : const Color(0xFF1565C0)),
-                const SizedBox(width: 4),
+                MushroomAvatar(
+                  index: spot.isOwn
+                      ? (ref.watch(myProfileProvider).valueOrNull?.avatar ?? 0)
+                      : spot.ownerAvatar,
+                  size: 22,
+                ),
+                const SizedBox(width: 6),
                 Text(
                   spot.isOwn
                       ? 'Dein Spot'

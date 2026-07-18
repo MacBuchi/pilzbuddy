@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/app_info.dart';
+import '../../core/widgets/mushroom_avatar.dart';
 import '../../data/providers.dart';
 import '../../models/friendship.dart';
 import '../profile/profile_providers.dart';
@@ -137,9 +138,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
               else
                 for (final result in _results)
                   ListTile(
-                    leading: CircleAvatar(
-                        child: Text(
-                            result.username.substring(0, 1).toUpperCase())),
+                    leading: MushroomAvatar(index: result.avatar, size: 40),
                     title: Text(result.username),
                     subtitle: result.displayName != null
                         ? Text(result.displayName!)
@@ -159,7 +158,8 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
               for (final f in incoming)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.person_add_alt),
+                  leading:
+                      MushroomAvatar(index: f.otherAvatar(uid), size: 40),
                   title: Text(f.otherUsername(uid)),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -188,7 +188,8 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
               for (final f in outgoing)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.hourglass_top),
+                  leading:
+                      MushroomAvatar(index: f.otherAvatar(uid), size: 40),
                   title: Text(f.otherUsername(uid)),
                   subtitle: const Text('Ausstehend'),
                   trailing: IconButton(
@@ -217,11 +218,8 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
               for (final f in accepted)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: CircleAvatar(
-                      child: Text(f
-                          .otherUsername(uid)
-                          .substring(0, 1)
-                          .toUpperCase())),
+                  leading:
+                      MushroomAvatar(index: f.otherAvatar(uid), size: 40),
                   title: Text(f.otherUsername(uid)),
                   trailing: IconButton(
                     onPressed: () async {
