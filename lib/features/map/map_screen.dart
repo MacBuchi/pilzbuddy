@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../core/widgets/mushroom_icon.dart';
 import '../../models/spot.dart';
 import '../spots/spot_providers.dart';
 import '../spots/widgets/spot_detail_sheet.dart';
@@ -118,7 +119,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   }
 
   Marker _spotMarker(Spot spot) {
-    final color = spot.isOwn ? const Color(0xFF2E7D32) : Colors.blue.shade700;
     return Marker(
       point: spot.position,
       width: 44,
@@ -130,7 +130,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           message: spot.isOwn
               ? spot.displayName
               : '${spot.displayName} (${spot.ownerUsername ?? 'Freund'})',
-          child: Icon(Icons.location_on, size: 40, color: color),
+          child: MushroomIcon(
+            seed: stableSeed(spot.id),
+            size: 44,
+            friend: !spot.isOwn,
+          ),
         ),
       ),
     );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/widgets/mushroom_icon.dart';
 import '../../../models/spot.dart';
 import '../spot_providers.dart';
 import 'add_find_sheet.dart';
@@ -95,9 +96,10 @@ class _SpotDetailSheet extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Icon(
-                Icons.location_on,
-                color: spot.isOwn ? const Color(0xFF2E7D32) : Colors.blue,
+              MushroomIcon(
+                seed: stableSeed(spot.id),
+                size: 30,
+                friend: !spot.isOwn,
               ),
               const SizedBox(width: 8),
               Expanded(
