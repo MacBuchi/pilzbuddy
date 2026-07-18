@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/mushroom_species.dart';
 import '../../../core/widgets/mushroom_icon.dart';
 import '../../../models/spot.dart';
 import '../spot_providers.dart';
@@ -100,6 +101,7 @@ class _SpotDetailSheet extends ConsumerWidget {
                 seed: stableSeed(spot.id),
                 size: 30,
                 friend: !spot.isOwn,
+                group: groupFor(spot.lastFind?.species),
               ),
               const SizedBox(width: 8),
               Expanded(

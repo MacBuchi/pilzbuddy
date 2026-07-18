@@ -7,10 +7,10 @@ void main() {
   group('suggestSpecies', () {
     const own = ['Steinpilz', 'Pfifferling'];
     const builtin = [
-      KnownSpecies('Steinpilz', SpeciesCategory.speisepilz),
-      KnownSpecies('Maronenröhrling', SpeciesCategory.speisepilz),
-      KnownSpecies('Fliegenpilz', SpeciesCategory.giftpilz),
-      KnownSpecies('Parasol', SpeciesCategory.speisepilz),
+      KnownSpecies('Steinpilz', SpeciesGroup.roehrlinge),
+      KnownSpecies('Maronenröhrling', SpeciesGroup.roehrlinge),
+      KnownSpecies('Fliegenpilz', SpeciesGroup.wulstlinge),
+      KnownSpecies('Parasol', SpeciesGroup.schirmlinge),
     ];
 
     test('eigene Arten kommen vor bekannten', () {
@@ -25,16 +25,16 @@ void main() {
       expect(result.map((s) => s.name), ['steinpilz']);
     });
 
-    test('Kategorien werden zugeordnet — auch für eigene Arten', () {
+    test('Gruppen werden zugeordnet — auch für eigene Arten', () {
       final result = suggestSpecies('fliegen', ['Fliegenpilz'], builtin);
       expect(result.single.isOwn, isTrue);
-      // Kategorie kommt per Lookup aus der bekannten Liste
-      expect(result.single.category, SpeciesCategory.giftpilz);
+      // Gruppe kommt per Lookup aus der eingebauten Artenliste
+      expect(result.single.group, SpeciesGroup.wulstlinge);
     });
 
-    test('unbekannte eigene Art hat keine Kategorie', () {
+    test('unbekannte eigene Art hat keine Gruppe', () {
       final result = suggestSpecies('geheim', ['Geheimpilz'], builtin);
-      expect(result.single.category, isNull);
+      expect(result.single.group, isNull);
     });
 
     test('Contains-Match, nicht nur Präfix', () {
@@ -53,11 +53,15 @@ void main() {
     });
   });
 
-  group('categoryFor', () {
-    test('findet Kategorien case-insensitiv, unbekannt → null', () {
-      expect(categoryFor('steinpilz'), SpeciesCategory.speisepilz);
-      expect(categoryFor('FLIEGENPILZ'), SpeciesCategory.giftpilz);
-      expect(categoryFor('Geheimpilz'), isNull);
+  group('groupFor', () {
+    test('findet Gruppen case-insensitiv, unbekannt/leer → null', () {
+      expect(groupFor('steinpilz'), SpeciesGroup.roehrlinge);
+      expect(groupFor('PFIFFERLING'), SpeciesGroup.leistlinge);
+      expect(groupFor('Fliegenpilz'), SpeciesGroup.wulstlinge);
+      expect(groupFor('Riesenbovist'), SpeciesGroup.boviste);
+      expect(groupFor('Geheimpilz'), isNull);
+      expect(groupFor(null), isNull);
+      expect(groupFor('  '), isNull);
     });
   });
 

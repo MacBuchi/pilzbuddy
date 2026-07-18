@@ -1,110 +1,138 @@
-/// Die bekanntesten Pilzarten (deutsche Namen) mit Kategorie für die
-/// Vorschlagsliste. Eigene Arten des Users entstehen automatisch aus
-/// seinen Funden (Freitext bleibt immer möglich).
-enum SpeciesCategory {
-  speisepilz('Speisepilz'),
-  giftpilz('Giftpilz');
+/// Die bekanntesten Pilzarten (deutsche Namen), eingeordnet in anschauliche
+/// Gruppen. Die Gruppe bestimmt auch das Aussehen des Karten-Icons —
+/// ein Röhrlings-Spot sieht aus wie ein Steinpilz, ein Leistlings-Spot
+/// wie ein gelber Trichter. Eigene Arten des Users entstehen automatisch
+/// aus seinen Funden (Freitext bleibt immer möglich).
+enum SpeciesGroup {
+  roehrlinge('Röhrling'),
+  leistlinge('Pfifferlingsartig'),
+  champignons('Champignon'),
+  schirmlinge('Schirmling'),
+  wulstlinge('Wulstling'),
+  taeublinge('Täubling/Milchling'),
+  morcheln('Morchel/Lorchel'),
+  boviste('Bovist'),
+  baumpilze('Baumpilz'),
+  sonstige('Lamellenpilz');
 
-  const SpeciesCategory(this.label);
+  const SpeciesGroup(this.label);
 
   final String label;
 }
 
 class KnownSpecies {
   final String name;
-  final SpeciesCategory category;
+  final SpeciesGroup group;
 
-  const KnownSpecies(this.name, this.category);
+  const KnownSpecies(this.name, this.group);
 }
 
-const _e = SpeciesCategory.speisepilz;
-const _g = SpeciesCategory.giftpilz;
+const _roe = SpeciesGroup.roehrlinge;
+const _lei = SpeciesGroup.leistlinge;
+const _cha = SpeciesGroup.champignons;
+const _sch = SpeciesGroup.schirmlinge;
+const _wul = SpeciesGroup.wulstlinge;
+const _tae = SpeciesGroup.taeublinge;
+const _mor = SpeciesGroup.morcheln;
+const _bov = SpeciesGroup.boviste;
+const _bau = SpeciesGroup.baumpilze;
+const _son = SpeciesGroup.sonstige;
 
 const kBekannteArten = <KnownSpecies>[
-  // Beliebte Speisepilze
-  KnownSpecies('Steinpilz', _e),
-  KnownSpecies('Sommersteinpilz', _e),
-  KnownSpecies('Kiefernsteinpilz', _e),
-  KnownSpecies('Bronzeröhrling', _e),
-  KnownSpecies('Pfifferling', _e),
-  KnownSpecies('Trompetenpfifferling', _e),
-  KnownSpecies('Maronenröhrling', _e),
-  KnownSpecies('Birkenpilz', _e),
-  KnownSpecies('Rotkappe', _e),
-  KnownSpecies('Espenrotkappe', _e),
-  KnownSpecies('Birkenrotkappe', _e),
-  KnownSpecies('Butterpilz', _e),
-  KnownSpecies('Goldröhrling', _e),
-  KnownSpecies('Sandröhrling', _e),
-  KnownSpecies('Ziegenlippe', _e),
-  KnownSpecies('Flockenstieliger Hexenröhrling', _e),
-  KnownSpecies('Parasol', _e),
-  KnownSpecies('Safranschirmling', _e),
-  KnownSpecies('Wiesenchampignon', _e),
-  KnownSpecies('Stadtchampignon', _e),
-  KnownSpecies('Anischampignon', _e),
-  KnownSpecies('Waldchampignon', _e),
-  KnownSpecies('Krause Glucke', _e),
-  KnownSpecies('Herbsttrompete', _e),
-  KnownSpecies('Semmelstoppelpilz', _e),
-  KnownSpecies('Austernseitling', _e),
-  KnownSpecies('Stockschwämmchen', _e),
-  KnownSpecies('Hallimasch', _e),
-  KnownSpecies('Dunkler Hallimasch', _e),
-  KnownSpecies('Violetter Rötelritterling', _e),
-  KnownSpecies('Nebelkappe', _e),
-  KnownSpecies('Mönchskopf', _e),
-  KnownSpecies('Reifpilz', _e),
-  KnownSpecies('Perlpilz', _e),
-  KnownSpecies('Speisemorchel', _e),
-  KnownSpecies('Spitzmorchel', _e),
-  KnownSpecies('Schopftintling', _e),
-  KnownSpecies('Riesenbovist', _e),
-  KnownSpecies('Flaschenstäubling', _e),
-  KnownSpecies('Judasohr', _e),
-  KnownSpecies('Samtfußrübling', _e),
-  KnownSpecies('Winterrübling', _e),
-  KnownSpecies('Fichtenreizker', _e),
-  KnownSpecies('Edelreizker', _e),
-  KnownSpecies('Lachsreizker', _e),
-  KnownSpecies('Mohrenkopfmilchling', _e),
-  KnownSpecies('Brätling', _e),
-  KnownSpecies('Frauentäubling', _e),
-  KnownSpecies('Speisetäubling', _e),
-  KnownSpecies('Ledertäubling', _e),
-  KnownSpecies('Schwefelporling', _e),
-  KnownSpecies('Leberpilz', _e),
-  KnownSpecies('Igelstachelbart', _e),
-  KnownSpecies('Riesenschirmling', _e),
-  // Bekannte Gift- und Verwechslungspilze (fürs Dokumentieren)
-  KnownSpecies('Fliegenpilz', _g),
-  KnownSpecies('Grüner Knollenblätterpilz', _g),
-  KnownSpecies('Kegelhütiger Knollenblätterpilz', _g),
-  KnownSpecies('Frühjahrsknollenblätterpilz', _g),
-  KnownSpecies('Pantherpilz', _g),
-  KnownSpecies('Karbolchampignon', _g),
-  KnownSpecies('Gifthäubling', _g),
-  KnownSpecies('Grünblättriger Schwefelkopf', _g),
-  KnownSpecies('Kahler Krempling', _g),
-  KnownSpecies('Satansröhrling', _g),
-  KnownSpecies('Gallenröhrling', _g),
-  KnownSpecies('Spitzgebuckelter Raukopf', _g),
-  KnownSpecies('Orangefuchsiger Raukopf', _g),
-  KnownSpecies('Riesenrötling', _g),
-  KnownSpecies('Tigerritterling', _g),
-  KnownSpecies('Ziegelroter Risspilz', _g),
-  KnownSpecies('Fuchsiger Rötelritterling', _g),
-  KnownSpecies('Falscher Pfifferling', _g),
-  KnownSpecies('Frühjahrslorchel', _g),
-  KnownSpecies('Grünling', _g),
+  // Röhrlinge
+  KnownSpecies('Steinpilz', _roe),
+  KnownSpecies('Sommersteinpilz', _roe),
+  KnownSpecies('Kiefernsteinpilz', _roe),
+  KnownSpecies('Bronzeröhrling', _roe),
+  KnownSpecies('Maronenröhrling', _roe),
+  KnownSpecies('Birkenpilz', _roe),
+  KnownSpecies('Rotkappe', _roe),
+  KnownSpecies('Espenrotkappe', _roe),
+  KnownSpecies('Birkenrotkappe', _roe),
+  KnownSpecies('Butterpilz', _roe),
+  KnownSpecies('Goldröhrling', _roe),
+  KnownSpecies('Sandröhrling', _roe),
+  KnownSpecies('Ziegenlippe', _roe),
+  KnownSpecies('Flockenstieliger Hexenröhrling', _roe),
+  KnownSpecies('Gallenröhrling', _roe),
+  KnownSpecies('Satansröhrling', _roe),
+  // Pfifferlingsartige (Leistlinge)
+  KnownSpecies('Pfifferling', _lei),
+  KnownSpecies('Trompetenpfifferling', _lei),
+  KnownSpecies('Herbsttrompete', _lei),
+  KnownSpecies('Falscher Pfifferling', _lei),
+  // Champignons
+  KnownSpecies('Wiesenchampignon', _cha),
+  KnownSpecies('Stadtchampignon', _cha),
+  KnownSpecies('Anischampignon', _cha),
+  KnownSpecies('Waldchampignon', _cha),
+  KnownSpecies('Karbolchampignon', _cha),
+  // Schirmlinge
+  KnownSpecies('Parasol', _sch),
+  KnownSpecies('Safranschirmling', _sch),
+  KnownSpecies('Riesenschirmling', _sch),
+  KnownSpecies('Schopftintling', _sch),
+  // Wulstlinge (Amanita)
+  KnownSpecies('Fliegenpilz', _wul),
+  KnownSpecies('Perlpilz', _wul),
+  KnownSpecies('Pantherpilz', _wul),
+  KnownSpecies('Grüner Knollenblätterpilz', _wul),
+  KnownSpecies('Kegelhütiger Knollenblätterpilz', _wul),
+  KnownSpecies('Frühjahrsknollenblätterpilz', _wul),
+  // Täublinge & Milchlinge
+  KnownSpecies('Frauentäubling', _tae),
+  KnownSpecies('Speisetäubling', _tae),
+  KnownSpecies('Ledertäubling', _tae),
+  KnownSpecies('Fichtenreizker', _tae),
+  KnownSpecies('Edelreizker', _tae),
+  KnownSpecies('Lachsreizker', _tae),
+  KnownSpecies('Mohrenkopfmilchling', _tae),
+  KnownSpecies('Brätling', _tae),
+  // Morcheln & Lorcheln
+  KnownSpecies('Speisemorchel', _mor),
+  KnownSpecies('Spitzmorchel', _mor),
+  KnownSpecies('Frühjahrslorchel', _mor),
+  // Boviste & Stäublinge
+  KnownSpecies('Riesenbovist', _bov),
+  KnownSpecies('Flaschenstäubling', _bov),
+  // Baumpilze
+  KnownSpecies('Austernseitling', _bau),
+  KnownSpecies('Schwefelporling', _bau),
+  KnownSpecies('Leberpilz', _bau),
+  KnownSpecies('Igelstachelbart', _bau),
+  KnownSpecies('Judasohr', _bau),
+  // Sonstige Lamellenpilze & Spezialisten
+  KnownSpecies('Krause Glucke', _son),
+  KnownSpecies('Semmelstoppelpilz', _son),
+  KnownSpecies('Stockschwämmchen', _son),
+  KnownSpecies('Hallimasch', _son),
+  KnownSpecies('Dunkler Hallimasch', _son),
+  KnownSpecies('Violetter Rötelritterling', _son),
+  KnownSpecies('Fuchsiger Rötelritterling', _son),
+  KnownSpecies('Nebelkappe', _son),
+  KnownSpecies('Mönchskopf', _son),
+  KnownSpecies('Reifpilz', _son),
+  KnownSpecies('Winterrübling', _son),
+  KnownSpecies('Samtfußrübling', _son),
+  KnownSpecies('Gifthäubling', _son),
+  KnownSpecies('Grünblättriger Schwefelkopf', _son),
+  KnownSpecies('Kahler Krempling', _son),
+  KnownSpecies('Spitzgebuckelter Raukopf', _son),
+  KnownSpecies('Orangefuchsiger Raukopf', _son),
+  KnownSpecies('Riesenrötling', _son),
+  KnownSpecies('Tigerritterling', _son),
+  KnownSpecies('Ziegelroter Risspilz', _son),
+  KnownSpecies('Grünling', _son),
 ];
 
-/// Kategorie einer Art nachschlagen (case-insensitiv), z. B. um auch
-/// eigene Einträge des Users einzuordnen. `null` = unbekannte/eigene Art.
-SpeciesCategory? categoryFor(String name) {
+/// Gruppe einer Art nachschlagen (case-insensitiv), z. B. um auch eigene
+/// Einträge des Users einzuordnen. `null` = unbekannte/eigene Art.
+SpeciesGroup? groupFor(String? name) {
+  if (name == null) return null;
   final key = name.trim().toLowerCase();
+  if (key.isEmpty) return null;
   for (final s in kBekannteArten) {
-    if (s.name.toLowerCase() == key) return s.category;
+    if (s.name.toLowerCase() == key) return s.group;
   }
   return null;
 }
