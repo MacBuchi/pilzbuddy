@@ -116,12 +116,25 @@ class _SpotDetailSheet extends ConsumerWidget {
                 ),
             ],
           ),
-          if (!spot.isOwn)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text('Spot von ${spot.ownerUsername ?? 'einem Freund'}',
-                  style: Theme.of(context).textTheme.bodySmall),
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Row(
+              children: [
+                Icon(Icons.person,
+                    size: 14,
+                    color: spot.isOwn
+                        ? const Color(0xFF2E7D32)
+                        : const Color(0xFF1565C0)),
+                const SizedBox(width: 4),
+                Text(
+                  spot.isOwn
+                      ? 'Dein Spot'
+                      : 'Gefunden von ${spot.ownerUsername ?? 'einem Pilzfreund'}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
             ),
+          ),
           const SizedBox(height: 12),
           if (spot.finds.isEmpty)
             Padding(
