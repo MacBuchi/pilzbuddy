@@ -99,8 +99,9 @@ class _MushroomPainter extends CustomPainter {
           Color(0xFFCB6D80),
         ]);
       case SpeciesGroup.morcheln:
+        // Hut heller als bei Röhrlingen, damit die Waben-Punkte lesbar sind
         return const _Style(_CapShape.cone,
-            [Color(0xFF6D4C41), Color(0xFF5D4037)],
+            [Color(0xFF8D6E63), Color(0xFF7D5F52)],
             darkDots: true);
       case SpeciesGroup.boviste:
         return const _Style(_CapShape.ball, [Color(0xFFF3F1E7)]);
@@ -224,7 +225,7 @@ class _MushroomPainter extends CustomPainter {
       canvas.save();
       canvas.clipPath(cap);
       final dot = Paint()
-        ..color = const Color(0xFF3E2723).withValues(alpha: 0.45);
+        ..color = const Color(0xFF3E2723).withValues(alpha: 0.55);
       canvas.drawCircle(p(0.34, 0.26), u(0.04), dot);
       canvas.drawCircle(p(0.56, 0.16), u(0.035), dot);
       canvas.drawCircle(p(0.70, 0.32), u(0.04), dot);
