@@ -16,8 +16,8 @@ int stableSeed(String input) {
 /// Aussehen (Röhrling = braune Kuppel, Pfifferling = gelber Trichter,
 /// Wulstling = rot mit Punkten, Bovist = Kugel, Baumpilz = Konsole …) —
 /// so erkennt man die Pilzart auf der Karte auf den ersten Blick.
-/// Ohne Gruppe sorgt [seed] für bunte Vielfalt. Freundes-Pilze bekommen
-/// einen blauen Punkt am Hut.
+/// Ohne Gruppe sorgt [seed] für bunte Vielfalt. Der Boden unter dem Pilz
+/// zeigt die Herkunft: grün = eigener Spot, blau = von einem Freund.
 class MushroomIcon extends StatelessWidget {
   const MushroomIcon({
     super.key,
@@ -205,6 +205,15 @@ class _MushroomPainter extends CustomPainter {
         faceY = 0.50;
     }
 
+    // Boden-Ellipse zuerst (liegt hinter dem Pilz): grün = eigener Spot,
+    // blau = Community/Freund — die Herkunft ist so auf einen Blick klar.
+    final baseColor =
+        friend ? const Color(0xFF1565C0) : const Color(0xFF2E7D32);
+    canvas.drawOval(
+      Rect.fromCenter(center: p(0.5, 0.925), width: u(0.66), height: u(0.15)),
+      Paint()..color = baseColor.withValues(alpha: 0.55),
+    );
+
     // Halo → Füllung → Details → Kontur
     canvas.drawPath(stemPath, halo);
     canvas.drawPath(cap, halo);
@@ -260,12 +269,6 @@ class _MushroomPainter extends CustomPainter {
       canvas.drawCircle(p(0.615, faceY + 0.06), u(0.028), cheek);
     }
 
-    // Blauer Freundes-Punkt am Hutrand
-    if (friend) {
-      canvas.drawCircle(p(0.84, 0.14), u(0.115), Paint()..color = Colors.white);
-      canvas.drawCircle(
-          p(0.84, 0.14), u(0.085), Paint()..color = const Color(0xFF1565C0));
-    }
   }
 
   @override

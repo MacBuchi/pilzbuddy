@@ -8,8 +8,10 @@ import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../core/mushroom_species.dart';
+import '../../core/update_check.dart';
 import '../../core/widgets/mushroom_icon.dart';
 import '../../models/spot.dart';
+import '../friends/friend_providers.dart';
 import '../spots/spot_providers.dart';
 import '../spots/widgets/spot_detail_sheet.dart';
 import 'widgets/add_spot_sheet.dart';
@@ -22,7 +24,8 @@ class MapScreen extends ConsumerStatefulWidget {
   ConsumerState<MapScreen> createState() => _MapScreenState();
 }
 
-class _MapScreenState extends ConsumerState<MapScreen> {
+class _MapScreenState extends ConsumerState<MapScreen>
+    with WidgetsBindingObserver {
   final _mapController = MapController();
 
   // Fallback: Mitte Deutschlands, bis die GPS-Position bekannt ist.
@@ -30,9 +33,31 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   static const _fallbackZoom = 6.5;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _mapController.dispose();
     super.dispose();
+  }
+
+  /// Android hält die App lange im Hintergrund am Leben — beim
+  /// Zurückkehren alles neu laden, damit z. B. neue Freundes-Spots
+  /// und Anfragen ohne App-Neustart erscheinen.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refreshData();
+  }
+
+  void _refreshData() {
+    ref.invalidate(mySpotsProvider);
+    ref.invalidate(friendSpotsProvider);
+    ref.invalidate(friendshipsProvider);
+    ref.invalidate(updateInfoProvider);
   }
 
   Future<Position?> _currentPosition() async {
@@ -192,6 +217,16 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
+          FloatingActionButton.small(
+            heroTag: 'refresh',
+            onPressed: () {
+              _refreshData();
+              _showMessage('Karte aktualisiert');
+            },
+            tooltip: 'Aktualisieren',
+            child: const Icon(Icons.refresh),
+          ),
+          const SizedBox(height: 12),
           FloatingActionButton.small(
             heroTag: 'locate',
             onPressed: _centerOnMe,

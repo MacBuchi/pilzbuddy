@@ -20,8 +20,10 @@ The app is about sharing mushroom spots with friends — the artwork must radiat
 4. **White halo + soft outline.** All silhouettes get a white halo stroke
    (~0.09 of the width) so they pop on any map background, plus a soft
    dark-brown outline (`#4E342E` at 75% opacity, ~0.025 width).
-5. **Friend badge.** Mushrooms belonging to friends carry a blue dot
-   (`#1565C0`) with a white ring near the cap's top-right edge.
+5. **Ground ellipse shows ownership.** Every mushroom stands on a soft
+   ground ellipse: green (`#2E7D32`) for the user's own spots, blue
+   (`#1565C0`) for community/friend spots — drawn behind the mushroom
+   at ~55% opacity.
 
 ## Where the code lives
 
