@@ -13,6 +13,7 @@ import '../../models/spot.dart';
 import '../spots/spot_providers.dart';
 import '../spots/widgets/spot_detail_sheet.dart';
 import 'widgets/add_spot_sheet.dart';
+import 'widgets/map_banners.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key});
@@ -161,19 +162,27 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           SafeArea(
             child: Align(
               alignment: Alignment.topCenter,
-              child: Container(
-                margin: const EdgeInsets.only(top: 8),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .surface
-                      .withValues(alpha: 0.9),
-                  borderRadius: BorderRadius.circular(20),
+              child: Padding(
+                padding: const EdgeInsets.only(top: 8, left: 12, right: 12),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surface
+                            .withValues(alpha: 0.9),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Text(
+                          'Gedrückt halten richtet das Fadenkreuz aus'),
+                    ),
+                    const MapBanners(),
+                  ],
                 ),
-                child:
-                    const Text('Gedrückt halten richtet das Fadenkreuz aus'),
               ),
             ),
           ),

@@ -48,6 +48,14 @@ create table public.friendships (
 create unique index friendships_pair_uidx on public.friendships
   (least(requester_id, addressee_id), greatest(requester_id, addressee_id));
 
+-- Feature-Wünsche / Feedback aus der App (liest der Betreiber im Dashboard)
+create table public.feedback (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  message text not null check (char_length(message) between 3 and 2000),
+  created_at timestamptz not null default now()
+);
+
 -- ============================================================
 -- Profil automatisch bei Registrierung anlegen
 -- (Username kommt aus den Signup-Metadaten der App)
@@ -121,6 +129,13 @@ alter table public.profiles    enable row level security;
 alter table public.spots       enable row level security;
 alter table public.finds       enable row level security;
 alter table public.friendships enable row level security;
+alter table public.feedback    enable row level security;
+
+-- feedback: eigene Wünsche einreichen und nachlesen
+create policy feedback_insert on public.feedback for insert
+  with check (user_id = auth.uid());
+create policy feedback_select_own on public.feedback for select
+  using (user_id = auth.uid());
 
 -- profiles: ich selbst + alle, mit denen eine (auch offene) Freundschaft
 -- besteht (Suche läuft über search_profiles)
