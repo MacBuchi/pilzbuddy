@@ -163,6 +163,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
             options: MapOptions(
               initialCenter: _fallbackCenter,
               initialZoom: _fallbackZoom,
+              // Karte bleibt fest nach Norden ausgerichtet — Drehen per
+              // Zwei-Finger-Geste verwirrt nur und bringt keinen Mehrwert.
+              interactionOptions: const InteractionOptions(
+                flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+              ),
               // Long-Press richtet das Fadenkreuz auf die gedrückte Stelle aus.
               onLongPress: (tapPosition, latLng) => _mapController.move(
                   latLng, math.max(_mapController.camera.zoom, 16)),
