@@ -16,7 +16,9 @@ Riverpod ohne Codegen, go_router, deutsche UI-Strings direkt im Code.
   z. B. `1.0.1+2`). Der Release-Workflow taggt dann `v<version>`, veröffentlicht
   die signierte APK als GitHub-Release und deployt Web auf GitHub Pages
   (https://macbuchi.github.io/pilzbuddy/). Kein Bump = kein Release.
-- Version Guard in CI: Code-Änderung ohne Bump → Warnung im PR, Fehler auf main.
+- Version Guard in CI: Code-Änderung ohne Versions-Bump blockiert den Merge
+  (Pflicht-Check schlägt fehl); nur `*.md` und `.github/` sind ausgenommen.
+- Gemergte Branches löscht GitHub automatisch (delete_branch_on_merge).
 
 ## Technik-Notizen
 
