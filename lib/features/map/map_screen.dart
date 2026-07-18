@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_cancellable_tile_provider/flutter_map_cancellable_tile_provider.dart';
@@ -23,6 +25,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   // Fallback: Mitte Deutschlands, bis die GPS-Position bekannt ist.
   static const _fallbackCenter = LatLng(51.1634, 10.4477);
   static const _fallbackZoom = 6.5;
+
+  /// Fadenkreuz-Modus: Karte wird unter dem fixen Fadenkreuz in der
+  /// Mitte verschoben, bis die Position passt.
+  bool _picking = false;
 
   @override
   void dispose() {
@@ -64,13 +70,41 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     _mapController.move(LatLng(position.latitude, position.longitude), 15);
   }
 
-  Future<void> _addSpotAt(LatLng position) async {
-    final data = await showAddSpotSheet(context, position);
+  /// Fadenkreuz-Modus starten — zentriert auf [target] (falls gegeben).
+  void _startPicking({LatLng? target}) {
+    if (target != null) {
+      _mapController.move(
+          target, math.max(_mapController.camera.zoom, 16));
+    }
+    setState(() => _picking = true);
+  }
+
+  /// FAB „Neuer Spot": erst zur GPS-Position springen (Fallback:
+  /// aktuelle Kartenmitte), dann Fadenkreuz zeigen.
+  Future<void> _startPickingAtMyPosition() async {
+    final position = await _currentPosition();
+    if (!mounted) return;
+    _startPicking(
+        target: position == null
+            ? null
+            : LatLng(position.latitude, position.longitude));
+  }
+
+  Future<void> _confirmPick() async {
+    final center = _mapController.camera.center;
+    setState(() => _picking = false);
+    final ownSpecies = ref.read(ownSpeciesProvider);
+    final data = await showAddSpotSheet(
+      context,
+      center,
+      ownSpecies: ownSpecies,
+      defaultSpecies: ownSpecies.firstOrNull,
+    );
     if (data == null) return;
     try {
       await ref.read(mySpotsProvider.notifier).addSpot(
-            lat: position.latitude,
-            lng: position.longitude,
+            lat: center.latitude,
+            lng: center.longitude,
             name: data.name,
             species: data.species,
             count: data.count,
@@ -83,18 +117,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     }
   }
 
-  Future<void> _addSpotAtMyPosition() async {
-    final position = await _currentPosition();
-    if (position == null) {
-      _showMessage(
-          'Standort nicht verfügbar – halte stattdessen die Karte an der Fundstelle gedrückt.');
-      return;
-    }
-    final latLng = LatLng(position.latitude, position.longitude);
-    _mapController.move(latLng, 15);
-    if (mounted) await _addSpotAt(latLng);
-  }
-
   Marker _spotMarker(Spot spot) {
     final color = spot.isOwn ? const Color(0xFF2E7D32) : Colors.blue.shade700;
     return Marker(
@@ -103,7 +125,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       height: 44,
       alignment: Alignment.topCenter,
       child: GestureDetector(
-        onTap: () => showSpotDetailSheet(context, spot.id),
+        onTap: _picking ? null : () => showSpotDetailSheet(context, spot.id),
         child: Tooltip(
           message: spot.isOwn
               ? spot.displayName
@@ -128,7 +150,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             options: MapOptions(
               initialCenter: _fallbackCenter,
               initialZoom: _fallbackZoom,
-              onLongPress: (tapPosition, latLng) => _addSpotAt(latLng),
+              onLongPress: (tapPosition, latLng) {
+                if (!_picking) _startPicking(target: latLng);
+              },
             ),
             children: [
               TileLayer(
@@ -147,45 +171,157 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               ),
             ],
           ),
-          SafeArea(
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: Container(
-                margin: const EdgeInsets.only(top: 8),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .surface
-                      .withValues(alpha: 0.9),
-                  borderRadius: BorderRadius.circular(20),
+          if (!_picking)
+            SafeArea(
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: Container(
+                  margin: const EdgeInsets.only(top: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .surface
+                        .withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text('Karte gedrückt halten = neuer Spot'),
                 ),
-                child: const Text('Karte gedrückt halten = neuer Spot'),
               ),
             ),
-          ),
+          if (_picking) ...[
+            // Fadenkreuz fix in der Kartenmitte
+            const IgnorePointer(
+              child: Center(
+                child: _Crosshair(),
+              ),
+            ),
+            SafeArea(
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: Container(
+                  margin: const EdgeInsets.only(top: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .surface
+                        .withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                      'Karte verschieben, bis das Fadenkreuz passt'),
+                ),
+              ),
+            ),
+            SafeArea(
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: Container(
+                  margin: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: kElevationToShadow[3],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      OutlinedButton(
+                        onPressed: () => setState(() => _picking = false),
+                        child: const Text('Abbrechen'),
+                      ),
+                      const SizedBox(width: 12),
+                      FilledButton.icon(
+                        onPressed: _confirmPick,
+                        icon: const Icon(Icons.check),
+                        label: const Text('Hier speichern'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          FloatingActionButton.small(
-            heroTag: 'locate',
-            onPressed: _centerOnMe,
-            tooltip: 'Meine Position',
-            child: const Icon(Icons.my_location),
-          ),
-          const SizedBox(height: 12),
-          FloatingActionButton.extended(
-            heroTag: 'add',
-            onPressed: _addSpotAtMyPosition,
-            icon: const Icon(Icons.add_location_alt),
-            label: const Text('Spot hier'),
-          ),
-        ],
-      ),
+      floatingActionButton: _picking
+          ? null
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                FloatingActionButton.small(
+                  heroTag: 'locate',
+                  onPressed: _centerOnMe,
+                  tooltip: 'Meine Position',
+                  child: const Icon(Icons.my_location),
+                ),
+                const SizedBox(height: 12),
+                FloatingActionButton.extended(
+                  heroTag: 'add',
+                  onPressed: _startPickingAtMyPosition,
+                  icon: const Icon(Icons.add_location_alt),
+                  label: const Text('Neuer Spot'),
+                ),
+              ],
+            ),
     );
   }
+}
+
+/// Fadenkreuz: Ring + Haarlinien, grün mit weißem Halo für Sichtbarkeit
+/// auf hellen wie dunklen Kartenteilen.
+class _Crosshair extends StatelessWidget {
+  const _Crosshair();
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      size: const Size(56, 56),
+      painter: _CrosshairPainter(),
+    );
+  }
+}
+
+class _CrosshairPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final halo = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 5
+      ..strokeCap = StrokeCap.round;
+    final line = Paint()
+      ..color = const Color(0xFF2E7D32)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5
+      ..strokeCap = StrokeCap.round;
+
+    const radius = 14.0;
+    const arm = 10.0;
+
+    for (final paint in [halo, line]) {
+      canvas.drawCircle(center, radius, paint);
+      // vier Haarlinien außerhalb des Rings
+      canvas.drawLine(center - const Offset(0, radius + arm),
+          center - const Offset(0, radius + 2), paint);
+      canvas.drawLine(center + const Offset(0, radius + 2),
+          center + const Offset(0, radius + arm), paint);
+      canvas.drawLine(center - const Offset(radius + arm, 0),
+          center - const Offset(radius + 2, 0), paint);
+      canvas.drawLine(center + const Offset(radius + 2, 0),
+          center + const Offset(radius + arm, 0), paint);
+    }
+    // Punkt exakt im Zentrum
+    canvas.drawCircle(center, 2.5, Paint()..color = Colors.white);
+    canvas.drawCircle(center, 1.5, Paint()..color = const Color(0xFF2E7D32));
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

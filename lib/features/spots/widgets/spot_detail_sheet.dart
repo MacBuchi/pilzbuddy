@@ -27,7 +27,13 @@ class _SpotDetailSheet extends ConsumerWidget {
   }
 
   Future<void> _addFind(BuildContext context, WidgetRef ref, Spot spot) async {
-    final data = await showAddFindSheet(context, lastFind: spot.lastFind);
+    final ownSpecies = ref.read(ownSpeciesProvider);
+    final data = await showAddFindSheet(
+      context,
+      lastFind: spot.lastFind,
+      ownSpecies: ownSpecies,
+      fallbackSpecies: ownSpecies.firstOrNull,
+    );
     if (data == null) return;
     try {
       await ref.read(mySpotsProvider.notifier).addFind(

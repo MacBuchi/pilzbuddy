@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
 import '../../models/spot.dart';
+import 'species_suggestions.dart';
 
 /// Eigene Spots aus Supabase. Mutationen laufen über den Notifier und
 /// laden anschließend neu — bei Hobby-Datenmengen völlig ausreichend.
@@ -75,4 +76,16 @@ final mySpotsProvider =
 final friendSpotsProvider = FutureProvider<List<Spot>>((ref) {
   if (ref.watch(currentUserIdProvider) == null) return Future.value([]);
   return ref.watch(spotRepositoryProvider).fetchFriendSpots();
+});
+
+/// Eigene Pilzarten, zuletzt benutzt zuerst — abgeleitet aus allen Funden.
+/// Erster Eintrag = Default-Vorauswahl für neue Spots/Funde.
+final ownSpeciesProvider = Provider<List<String>>((ref) {
+  final spots = ref.watch(mySpotsProvider).valueOrNull ?? const <Spot>[];
+  final finds = [for (final s in spots) ...s.finds]..sort((a, b) {
+      final aTime = a.createdAt ?? a.foundOn;
+      final bTime = b.createdAt ?? b.foundOn;
+      return bTime.compareTo(aTime);
+    });
+  return ownSpeciesFromSortedNames(finds.map((f) => f.species));
 });
