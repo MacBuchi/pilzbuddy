@@ -1,0 +1,32 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'auth_repository.dart';
+import 'friend_repository.dart';
+import 'profile_repository.dart';
+import 'spot_repository.dart';
+
+final supabaseClientProvider =
+    Provider<SupabaseClient>((ref) => Supabase.instance.client);
+
+final authRepositoryProvider =
+    Provider((ref) => AuthRepository(ref.watch(supabaseClientProvider)));
+
+final spotRepositoryProvider =
+    Provider((ref) => SpotRepository(ref.watch(supabaseClientProvider)));
+
+final profileRepositoryProvider =
+    Provider((ref) => ProfileRepository(ref.watch(supabaseClientProvider)));
+
+final friendRepositoryProvider =
+    Provider((ref) => FriendRepository(ref.watch(supabaseClientProvider)));
+
+/// Auth-Zustand als Stream — steuert den Router-Redirect und sorgt dafür,
+/// dass alle Daten-Provider bei Login/Logout neu laden.
+final authStateProvider = StreamProvider<AuthState>(
+    (ref) => ref.watch(authRepositoryProvider).onAuthStateChange);
+
+final currentUserIdProvider = Provider<String?>((ref) {
+  ref.watch(authStateProvider);
+  return ref.watch(authRepositoryProvider).currentUserId;
+});

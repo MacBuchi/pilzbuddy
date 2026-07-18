@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<g transform="translate(163.84 163.84) scale(0.68)">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4CAF50"/>
+      <stop offset="1" stop-color="#1B5E20"/>
+    </linearGradient>
+    <linearGradient id="cap1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8D6E63"/>
+      <stop offset="1" stop-color="#5D4037"/>
+    </linearGradient>
+    <linearGradient id="cap2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#EF5350"/>
+      <stop offset="1" stop-color="#C62828"/>
+    </linearGradient>
+  </defs>
+
+
+  <!-- geteilter Fundort-Pin -->
+  <g>
+    <path d="M 512 150 C 575 150 618 198 618 258 C 618 332 512 412 512 412 C 512 412 406 332 406 258 C 406 198 449 150 512 150 Z"
+          fill="#FFFFFF"/>
+    <circle cx="512" cy="262" r="40" fill="#2E7D32"/>
+    <!-- Funkeln -->
+    <path d="M 350 200 l 0 44 M 328 222 l 44 0" stroke="#FFF9C4" stroke-width="14" stroke-linecap="round"/>
+    <path d="M 682 320 l 0 34 M 665 337 l 34 0" stroke="#FFF9C4" stroke-width="11" stroke-linecap="round"/>
+  </g>
+
+  <!-- Buddy 1: Steinpilz (links, groß) -->
+  <g>
+    <path d="M 310 640 Q 310 875 358 892 Q 382 900 406 892 Q 454 875 454 640 Z" fill="#FFF8E1"/>
+    <path d="M 222 648 Q 222 452 382 452 Q 542 452 542 648 Q 462 678 382 678 Q 302 678 222 648 Z" fill="url(#cap1)"/>
+    <ellipse cx="330" cy="520" rx="52" ry="26" fill="#A1887F" opacity="0.75" transform="rotate(-18 330 520)"/>
+    <!-- Gesicht -->
+    <circle cx="356" cy="742" r="11" fill="#3E2723"/>
+    <circle cx="410" cy="742" r="11" fill="#3E2723"/>
+    <path d="M 350 778 Q 383 804 416 778" stroke="#3E2723" stroke-width="9" stroke-linecap="round" fill="none"/>
+    <circle cx="336" cy="768" r="9" fill="#F8BBD0" opacity="0.85"/>
+    <circle cx="430" cy="768" r="9" fill="#F8BBD0" opacity="0.85"/>
+  </g>
+
+  <!-- Buddy 2: Fliegenpilz (rechts, klein) -->
+  <g>
+    <path d="M 618 730 Q 618 892 656 906 Q 676 913 696 906 Q 734 892 734 730 Z" fill="#FFFDE7"/>
+    <path d="M 552 738 Q 552 576 676 576 Q 800 576 800 738 Q 738 764 676 764 Q 614 764 552 738 Z" fill="url(#cap2)"/>
+    <circle cx="612" cy="660" r="17" fill="#FFFFFF"/>
+    <circle cx="676" cy="616" r="14" fill="#FFFFFF"/>
+    <circle cx="742" cy="668" r="15" fill="#FFFFFF"/>
+    <circle cx="668" cy="712" r="10" fill="#FFFFFF"/>
+    <!-- Gesicht -->
+    <circle cx="654" cy="800" r="9" fill="#3E2723"/>
+    <circle cx="698" cy="800" r="9" fill="#3E2723"/>
+    <path d="M 650 828 Q 676 848 702 828" stroke="#3E2723" stroke-width="8" stroke-linecap="round" fill="none"/>
+    <circle cx="638" cy="820" r="7" fill="#F8BBD0" opacity="0.85"/>
+    <circle cx="714" cy="820" r="7" fill="#F8BBD0" opacity="0.85"/>
+  </g>
+</g>
+</svg>
