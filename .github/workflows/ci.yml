@@ -66,6 +66,23 @@ jobs:
           path: build/app/outputs/flutter-apk/app-release.apk
           retention-days: 14
 
+  # Spielt neue supabase/patch_NNN_*.sql direkt aus dem PR in die Live-DB
+  # ein und prüft danach, ob alle App-Queries zum Live-Schema passen.
+  # Pflicht-Check: ein PR, dessen Code neues Schema braucht, kann erst
+  # gemergt werden, wenn der Patch wirklich in der Datenbank ist (#27).
+  schema-check:
+    name: Schema Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Neue DB-Patches einspielen
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: bash tool/db_migrate.sh
+      - name: Live-Schema gegen die App-Queries prüfen
+        run: bash tool/schema_check.sh
+
   housekeeping:
     name: Version Guard
     runs-on: ubuntu-latest

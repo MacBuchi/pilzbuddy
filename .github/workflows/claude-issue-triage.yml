@@ -66,7 +66,8 @@ jobs:
                labels (the feedback bot may have set bug/enhancement already).
             4. For bugs: locate the probable cause in the code (Read/Grep/Glob)
                and name concrete files and line ranges.
-            5. Post ONE comment in German via
+            5. MANDATORY — never skip this step, even if the issue looks like
+               a test, duplicate or trivial request: post ONE comment in German via
                `gh issue comment $ISSUE_NUMBER --body "..."` containing:
                - Kurzfassung + Einordnung (one line each)
                - Bei Bugs: wahrscheinliche Ursache mit Datei-/Zeilenangaben

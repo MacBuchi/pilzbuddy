@@ -17,6 +17,11 @@ import '../spots/widgets/spot_detail_sheet.dart';
 import 'widgets/add_spot_sheet.dart';
 import 'widgets/map_banners.dart';
 
+/// Fabrik für den Karten-Kachel-Provider. Tests ersetzen sie durch einen
+/// Offline-Fake, damit keine echten OSM-Requests laufen.
+final tileProviderFactoryProvider = Provider<TileProvider Function()>(
+    (ref) => CancellableNetworkTileProvider.new);
+
 class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key});
 
@@ -171,7 +176,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'de.marcusbucher.pilzbuddy',
-                tileProvider: CancellableNetworkTileProvider(),
+                tileProvider: ref.watch(tileProviderFactoryProvider)(),
               ),
               MarkerLayer(markers: [
                 for (final s in friendSpots) _spotMarker(s),

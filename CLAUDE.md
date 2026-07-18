@@ -28,8 +28,18 @@ Riverpod ohne Codegen, go_router, deutsche UI-Strings direkt im Code.
 - Web-Builds für Pages brauchen `--base-href /pilzbuddy/` und eine `404.html`
   (Kopie von `index.html`) als SPA-Fallback.
 - Datenbank-Änderungen: `supabase/schema.sql` aktuell halten (Frischinstallation)
-  UND als nummeriertes `supabase/patch_NNN_*.sql` ablegen (Bestandsprojekt);
-  Patches führt der Betreiber manuell im Supabase-SQL-Editor aus.
+  UND als nummeriertes `supabase/patch_NNN_*.sql` ablegen (Bestandsprojekt).
+  Patches ab Nr. 006 spielt der Pflicht-Check „Schema Check" (ci.yml →
+  `tool/db_migrate.sh`) direkt aus dem PR in die Live-DB ein (Tracking in
+  `public.applied_patches`, Baseline 001–005 = manuell eingespielt) und
+  prüft danach mit `tool/schema_check.sh`, ob alle App-Queries zum
+  Live-Schema passen — ohne eingespielten Patch ist kein Merge möglich
+  (Lehre aus Issue #27). Der Release-Workflow wiederholt beides als
+  Sicherheitsnetz vor dem Ausliefern. Braucht das Repo-Secret
+  `SUPABASE_DB_URL` (Supabase Session-Pooler-URI inkl. DB-Passwort; der
+  Schema Check selbst läuft ohne Secret über den Publishable Key).
+  Nutzt ein Repository in `lib/data/` neue Spalten/Embeds/RPCs, die
+  Checks in `tool/schema_check.sh` entsprechend erweitern.
 - Flutter-Version in CI gepinnt (subosito/flutter-action, aktuell 3.41.2) —
   bei lokalem Flutter-Upgrade auch `.github/workflows/*.yml` anpassen.
 - Supabase-Keys in `lib/core/supabase_config.dart` sind bewusst öffentlich
