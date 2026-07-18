@@ -48,6 +48,9 @@ create table public.friendships (
 -- verhindert doppelte Paare in beiden Richtungen
 create unique index friendships_pair_uidx on public.friendships
   (least(requester_id, addressee_id), greatest(requester_id, addressee_id));
+-- RLS-Policies und are_friends filtern über diese Spalten (Patch 006)
+create index friendships_requester_idx on public.friendships (requester_id);
+create index friendships_addressee_idx on public.friendships (addressee_id);
 
 -- Feature-Wünsche / Feedback aus der App. Der Feedback-Bot
 -- (.github/workflows/feedback.yml) macht daraus GitHub-Issues bzw.
