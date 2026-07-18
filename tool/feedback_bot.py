@@ -80,11 +80,11 @@ def run(*cmd: str) -> str:
 def api(method: str, path: str, body=None):
     url = os.environ["SUPABASE_URL"] + path
     key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
-    headers = {
-        "apikey": key,
-        "Authorization": f"Bearer {key}",
-        "Content-Type": "application/json",
-    }
+    headers = {"apikey": key, "Content-Type": "application/json"}
+    # Legacy service_role keys are JWTs and additionally go into the
+    # Authorization header; new sb_secret_* keys must only use apikey.
+    if key.startswith("eyJ"):
+        headers["Authorization"] = f"Bearer {key}"
     data = json.dumps(body).encode() if body is not None else None
     request = urllib.request.Request(url, data=data, headers=headers, method=method)
     with urllib.request.urlopen(request) as response:
