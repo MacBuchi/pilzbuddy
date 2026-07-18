@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/widgets/buddy_mushrooms.dart';
 import '../../data/providers.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -61,8 +62,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text('🍄', textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 64)),
+                const BuddyMushrooms(height: 110),
+                const SizedBox(height: 12),
                 Text('PilzBuddy',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineMedium),
