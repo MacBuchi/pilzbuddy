@@ -46,11 +46,34 @@ flutter run -d <device-id>
 4. Project-URL + Publishable Key in `lib/core/supabase_config.dart` eintragen
    (der Publishable Key ist öffentlich; die Sicherheit liegt in den RLS-Policies)
 
-## Release-Builds
+## Mitmachen & Release-Prozess
+
+Kein direkter Push auf `main` — Änderungen laufen so:
+
+1. Feature-Branch von `main` (`feat/<thema>` oder `fix/<thema>`)
+2. Pull Request öffnen; Commit-/PR-Titel im Conventional-Commits-Stil
+   (`feat:`, `fix:`, `chore:`, `ci:`, `docs:`, `test:`, `refactor:`)
+3. CI muss grün sein (Analyze & Test, Build Web, Build Android APK, Version Guard)
+4. Squash-Merge
+
+**Release:** Die Version in `pubspec.yaml` ist die einzige Quelle der Wahrheit
+(`version: x.y.z+buildNr` — bei jedem Bump beide Teile erhöhen). Landet ein
+Versions-Bump auf `main`, taggt der Release-Workflow automatisch `vx.y.z`,
+baut die **signierte** APK, hängt sie an ein GitHub-Release und deployt die
+Web-App auf GitHub Pages. Kein Bump = kein Release (der Version Guard warnt
+im PR daran zu denken).
+
+Die APK ist mit dem PilzBuddy-Release-Key signiert — Updates lassen sich
+direkt über die alte Version installieren. Keystore-Sicherung liegt außerhalb
+des Repos (`~/pilzbuddy-keys/`); CI bezieht ihn aus den Repo-Secrets
+`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_PASSWORD`,
+`ANDROID_KEY_ALIAS`.
+
+Lokale Release-Builds:
 
 ```bash
 flutter build web --release     # Ergebnis in build/web
-flutter build apk --release     # Ergebnis in build/app/outputs/flutter-apk
+flutter build apk --release     # signiert, wenn android/key.properties existiert
 ```
 
 Hinweis: Das Supabase-Free-Tier pausiert Projekte nach ca. einer Woche ohne
