@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/mushroom_species.dart';
 import '../../core/widgets/mushroom_icon.dart';
 
 /// Kurze Start-Animation: freundliche Pilze wachsen nacheinander aus dem
@@ -21,8 +22,13 @@ class _IntroOverlayState extends State<IntroOverlay>
   );
   bool _done = false;
 
-  // (Seed, Größe) der wachsenden Pilze
-  static const _mushrooms = [(3, 58.0), (7, 92.0), (11, 68.0), (17, 80.0)];
+  // (Seed, Größe, Gruppe) der wachsenden Pilze — bewusst gemischte Formen
+  static const _mushrooms = [
+    (3, 58.0, SpeciesGroup.leistlinge),
+    (7, 92.0, SpeciesGroup.roehrlinge),
+    (11, 68.0, SpeciesGroup.wulstlinge),
+    (17, 80.0, SpeciesGroup.taeublinge),
+  ];
 
   @override
   void initState() {
@@ -96,6 +102,7 @@ class _IntroOverlayState extends State<IntroOverlay>
                                 child: MushroomIcon(
                                   seed: _mushrooms[i].$1,
                                   size: _mushrooms[i].$2,
+                                  group: _mushrooms[i].$3,
                                 ),
                               ),
                             ),

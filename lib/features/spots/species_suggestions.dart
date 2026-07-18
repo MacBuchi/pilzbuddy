@@ -4,14 +4,14 @@ import '../../core/mushroom_species.dart';
 class SpeciesSuggestion {
   final String name;
   final bool isOwn;
-  final SpeciesCategory? category;
+  final SpeciesGroup? group;
 
-  const SpeciesSuggestion(this.name, {required this.isOwn, this.category});
+  const SpeciesSuggestion(this.name, {required this.isOwn, this.group});
 }
 
 /// Vorschläge für das Pilzart-Feld: eigene Arten zuerst, dann bekannte
 /// Arten; case-insensitive Contains-Match, dedupliziert. Eigene Arten
-/// bekommen ihre Kategorie per Lookup (sofern bekannt).
+/// bekommen ihre Gruppe per Lookup (sofern bekannt).
 List<SpeciesSuggestion> suggestSpecies(
   String query,
   List<String> own,
@@ -29,7 +29,7 @@ List<SpeciesSuggestion> suggestSpecies(
     final key = name.toLowerCase();
     if (seen.contains(key) || !matches(name)) continue;
     seen.add(key);
-    result.add(SpeciesSuggestion(name, isOwn: true, category: categoryFor(name)));
+    result.add(SpeciesSuggestion(name, isOwn: true, group: groupFor(name)));
   }
   for (final species in builtin) {
     if (result.length >= limit) return result;
@@ -37,7 +37,7 @@ List<SpeciesSuggestion> suggestSpecies(
     if (seen.contains(key) || !matches(species.name)) continue;
     seen.add(key);
     result.add(
-        SpeciesSuggestion(species.name, isOwn: false, category: species.category));
+        SpeciesSuggestion(species.name, isOwn: false, group: species.group));
   }
   return result;
 }

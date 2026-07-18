@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../core/mushroom_species.dart';
 import '../../core/widgets/mushroom_icon.dart';
 import '../../models/spot.dart';
 import '../spots/spot_providers.dart';
@@ -134,6 +135,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             seed: stableSeed(spot.id),
             size: 44,
             friend: !spot.isOwn,
+            group: groupFor(spot.lastFind?.species),
           ),
         ),
       ),

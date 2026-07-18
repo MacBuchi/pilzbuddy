@@ -59,18 +59,17 @@ class _SpeciesFieldState extends State<SpeciesField> {
     setState(() => _showSuggestions = false);
   }
 
-  Widget _categoryBadge(SpeciesCategory category) {
-    final giftig = category == SpeciesCategory.giftpilz;
-    final color = giftig ? const Color(0xFFC62828) : const Color(0xFF2E7D32);
+  Widget _groupBadge(SpeciesGroup group) {
+    const color = Color(0xFF6D5D4B);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Text(
-        category.label,
-        style: TextStyle(
+        group.label,
+        style: const TextStyle(
             fontSize: 11, color: color, fontWeight: FontWeight.w600),
       ),
     );
@@ -144,8 +143,7 @@ class _SpeciesFieldState extends State<SpeciesField> {
                       leading: Text(s.isOwn ? '🍄' : '📖',
                           style: const TextStyle(fontSize: 16)),
                       title: Text(s.name),
-                      trailing:
-                          s.category == null ? null : _categoryBadge(s.category!),
+                      trailing: s.group == null ? null : _groupBadge(s.group!),
                     ),
                   ),
               ],

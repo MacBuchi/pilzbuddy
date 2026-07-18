@@ -9,6 +9,9 @@ Riverpod ohne Codegen, go_router, deutsche UI-Strings direkt im Code.
 - Kein direkter Push auf `main` (Branch ist geschützt): Feature-Branch
   (`feat/<thema>` / `fix/<thema>`) → PR → CI grün → Squash-Merge.
 - Commit-/PR-Titel: Conventional Commits (`feat:`, `fix:`, `chore:`, `ci:`, …).
+- Sprache: Auf GitHub wird Englisch gesprochen — Commit-Messages, PR-Titel und
+  -Beschreibungen, Issues und Kommentare auf Englisch. Deutsch bleibt für
+  UI-Strings, Nutzer-Doku (README) und die Kommunikation mit dem Betreiber.
 - Release = Versions-Bump in `pubspec.yaml` auf `main` (beide Teile erhöhen,
   z. B. `1.0.1+2`). Der Release-Workflow taggt dann `v<version>`, veröffentlicht
   die signierte APK als GitHub-Release und deployt Web auf GitHub Pages
