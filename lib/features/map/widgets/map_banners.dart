@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/update_check.dart';
 import '../../../data/providers.dart';
 import '../../friends/friend_providers.dart';
 
@@ -9,10 +11,57 @@ import '../../friends/friend_providers.dart';
 /// nachdem es weggeklickt oder ein Wunsch abgeschickt wurde.
 final featureBannerDismissedProvider = StateProvider<bool>((ref) => false);
 
+/// Update-Banner für diese Sitzung ausgeblendet?
+final updateBannerDismissedProvider = StateProvider<bool>((ref) => false);
+
 /// Banner oben im Hauptfenster: Neuigkeiten (offene Freundschaftsanfragen)
 /// und — solange die App jung ist — ein prominentes Feature-Wunsch-Feld.
 class MapBanners extends ConsumerWidget {
   const MapBanners({super.key});
+
+  Future<void> _openUpdateDialog(BuildContext context, UpdateInfo info) async {
+    final download = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Update auf v${info.latestVersion}'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                  'Nach dem Download fragt Android, ob die App aktualisiert '
+                  'werden soll — deine Spots bleiben natürlich erhalten.'),
+              if (info.releaseNotes != null &&
+                  info.releaseNotes!.trim().isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text('Was ist neu:',
+                    style: Theme.of(context).textTheme.titleSmall),
+                const SizedBox(height: 4),
+                Text(info.releaseNotes!.trim(),
+                    style: Theme.of(context).textTheme.bodySmall),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Später'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.of(context).pop(true),
+            icon: const Icon(Icons.download, size: 18),
+            label: const Text('Herunterladen'),
+          ),
+        ],
+      ),
+    );
+    if (download == true) {
+      await launchUrl(Uri.parse(info.downloadUrl),
+          mode: LaunchMode.externalApplication);
+    }
+  }
 
   Future<void> _openFeedbackDialog(BuildContext context, WidgetRef ref) async {
     final result = await showDialog<_FeedbackInput>(
@@ -98,9 +147,24 @@ class MapBanners extends ConsumerWidget {
     final incoming = friendships.where((f) => f.isIncomingFor(uid)).length;
     final featureDismissed = ref.watch(featureBannerDismissedProvider);
 
+    final updateInfo = ref.watch(updateInfoProvider).valueOrNull;
+    final updateDismissed = ref.watch(updateBannerDismissedProvider);
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        if (updateInfo != null && !updateDismissed)
+          _banner(
+            context,
+            background: const Color(0xFF2E7D32),
+            foreground: Colors.white,
+            onTap: () => _openUpdateDialog(context, updateInfo),
+            onDismiss: () => ref
+                .read(updateBannerDismissedProvider.notifier)
+                .state = true,
+            content: Text(
+                '🔄 Update auf v${updateInfo.latestVersion} verfügbar'),
+          ),
         if (incoming > 0)
           _banner(
             context,
