@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.9.5+20
+version: 1.10.0+21
 
 environment:
   sdk: ^3.11.0
@@ -41,6 +41,17 @@ dependencies:
   flutter_map: ^8.2.2
   flutter_map_cancellable_tile_provider: ^3.1.0
   latlong2: ^0.9.1
+
+  # Offline-Karten (Android): Vector-Tiles aus lokalen PMTiles-Dateien.
+  # Nur Beta-Versionen von vector_map_tiles unterstützen flutter_map 8 —
+  # deshalb exakt gepinnt. 9.0.0-beta.9 nutzt bewusst noch den stabilen
+  # Canvas-Renderer (die 10er-Linie zieht den experimentellen GPU-Stack
+  # samt Native-Builds nach sich); Online-OSM bleibt immer Fallback.
+  vector_map_tiles: 9.0.0-beta.9
+  vector_tile_renderer: ^6.1.0
+  pmtiles: ^1.3.0
+  path_provider: ^2.1.5
+  connectivity_plus: ^7.0.0
 
   # Standort (GPS)
   geolocator: ^14.0.2
@@ -92,6 +103,11 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  assets:
+    # MapLibre-Style für die Offline-Karte (generiert aus @protomaps/basemaps,
+    # Flavor LIGHT, deutsche Labels — siehe lib/features/offline_maps/).
+    - assets/map_style/protomaps_light_de.json
 
   # To add assets to your application, add an assets section, like this:
   # assets:

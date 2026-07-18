@@ -13,8 +13,10 @@ import 'package:pilzbuddy/app.dart';
 import 'package:pilzbuddy/core/update_check.dart';
 import 'package:pilzbuddy/data/providers.dart';
 import 'package:pilzbuddy/features/map/map_screen.dart';
+import 'package:pilzbuddy/features/offline_maps/offline_map_providers.dart';
 
 import 'fake_backend.dart';
+import 'fake_offline_maps.dart';
 
 /// 1×1 transparentes PNG als Offline-Kartenkachel.
 final Uint8List kTransparentTile = Uint8List.fromList(const [
@@ -32,7 +34,11 @@ class FakeTileProvider extends TileProvider {
       MemoryImage(kTransparentTile);
 }
 
-List<Override> overridesFor(FakeBackend backend) => [
+List<Override> overridesFor(FakeBackend backend,
+        {FakeOfflineMapRepository? offlineMaps}) =>
+    [
+      offlineMapRepositoryProvider
+          .overrideWithValue(offlineMaps ?? FakeOfflineMapRepository()),
       authRepositoryProvider.overrideWithValue(FakeAuthRepository(backend)),
       spotRepositoryProvider.overrideWithValue(FakeSpotRepository(backend)),
       profileRepositoryProvider
@@ -45,10 +51,11 @@ List<Override> overridesFor(FakeBackend backend) => [
     ];
 
 /// App starten und die Intro-Animation (2,6 s) durchlaufen lassen.
-Future<void> pumpApp(WidgetTester tester, FakeBackend backend) async {
+Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
+    {FakeOfflineMapRepository? offlineMaps}) async {
   addTearDown(backend.dispose);
   await tester.pumpWidget(ProviderScope(
-    overrides: overridesFor(backend),
+    overrides: overridesFor(backend, offlineMaps: offlineMaps),
     child: const PilzBuddyApp(),
   ));
   await tester.pump();
