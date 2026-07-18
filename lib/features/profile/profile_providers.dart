@@ -22,6 +22,12 @@ class MyProfileNotifier extends AsyncNotifier<Profile?> {
     ref.invalidateSelf();
     await future;
   }
+
+  Future<void> updateAvatar(int avatar) async {
+    await ref.read(profileRepositoryProvider).updateAvatar(avatar);
+    ref.invalidateSelf();
+    await future;
+  }
 }
 
 final myProfileProvider =

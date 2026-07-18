@@ -15,6 +15,10 @@ class ProfileRepository {
     return Profile.fromJson(row);
   }
 
+  Future<void> updateAvatar(int avatar) async {
+    await _client.from('profiles').update({'avatar': avatar}).eq('id', _uid);
+  }
+
   Future<void> updateSharing({
     bool? shareSpotsDefault,
     bool? shareDetails,

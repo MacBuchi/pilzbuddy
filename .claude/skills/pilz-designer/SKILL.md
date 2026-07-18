@@ -61,6 +61,17 @@ Variation within a group comes from the spot's stable seed
 (`stableSeed(spotId)`): color pick, dots on/off (where optional), cheeks.
 Same spot → same look, forever.
 
+## Avatars (portraits)
+
+- `lib/core/widgets/mushroom_avatar.dart` — `MushroomAvatar` renders a buddy
+  as a round portrait: warm cream circle (`#FDF6E3`), soft brown ring, **no
+  ground ellipse** (that is map-ownership language; pass `ground: false`).
+- The selectable catalog is `kAvatarCatalog` (seed + group pairs covering all
+  ten cap shapes plus seed-random free spirits). **Never reorder or remove
+  entries** — the index is persisted in `profiles.avatar`; append only.
+- Shown in: profile header (picker via tap), friends lists, spot detail
+  finder row. Sizes range 22–64 px — check readability at 22 px.
+
 ## Animation rules
 
 - Subtle and organic: sway, breathe, or grow — never spin, bounce hard, or flash.

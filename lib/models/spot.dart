@@ -11,6 +11,7 @@ class Spot {
   final bool sharingExcluded;
   final bool isOwn;
   final String? ownerUsername;
+  final int ownerAvatar;
   final List<Find> finds;
 
   const Spot({
@@ -22,6 +23,7 @@ class Spot {
     this.sharingExcluded = false,
     this.isOwn = true,
     this.ownerUsername,
+    this.ownerAvatar = 0,
     this.finds = const [],
   });
 
@@ -52,6 +54,7 @@ class Spot {
         sharingExcluded: sharingExcluded ?? this.sharingExcluded,
         isOwn: isOwn,
         ownerUsername: ownerUsername,
+        ownerAvatar: ownerAvatar,
         finds: finds ?? this.finds,
       );
 
@@ -67,6 +70,8 @@ class Spot {
       isOwn: json['owner_id'] == currentUserId,
       ownerUsername:
           (json['profiles'] as Map<String, dynamic>?)?['username'] as String?,
+      ownerAvatar:
+          (json['profiles'] as Map<String, dynamic>?)?['avatar'] as int? ?? 0,
       finds: findsJson
           .map((f) => Find.fromJson(f as Map<String, dynamic>))
           .toList(),

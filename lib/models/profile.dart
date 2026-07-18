@@ -4,6 +4,7 @@ class Profile {
   final String? displayName;
   final bool shareSpotsDefault;
   final bool shareDetails;
+  final int avatar;
 
   const Profile({
     required this.id,
@@ -11,6 +12,7 @@ class Profile {
     this.displayName,
     required this.shareSpotsDefault,
     required this.shareDetails,
+    this.avatar = 0,
   });
 
   factory Profile.fromJson(Map<String, dynamic> json) => Profile(
@@ -19,5 +21,6 @@ class Profile {
         displayName: json['display_name'] as String?,
         shareSpotsDefault: json['share_spots_default'] as bool? ?? true,
         shareDetails: json['share_details'] as bool? ?? true,
+        avatar: json['avatar'] as int? ?? 0,
       );
 }

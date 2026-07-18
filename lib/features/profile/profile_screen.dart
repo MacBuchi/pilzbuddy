@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/widgets/mushroom_avatar.dart';
 import '../../data/providers.dart';
 import '../../models/find.dart';
 import '../spots/spot_providers.dart';
@@ -36,9 +37,28 @@ class ProfileScreen extends ConsumerWidget {
           if (profile != null) ...[
             Row(
               children: [
-                CircleAvatar(
-                  radius: 24,
-                  child: Text(profile.username.substring(0, 1).toUpperCase()),
+                // Avatar antippen = neuen Pilz-Buddy aussuchen
+                InkWell(
+                  borderRadius: BorderRadius.circular(32),
+                  onTap: () => _pickAvatar(context, ref, profile.avatar),
+                  child: Stack(
+                    children: [
+                      MushroomAvatar(index: profile.avatar, size: 56),
+                      Positioned(
+                        right: 0,
+                        bottom: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.primary,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.edit,
+                              size: 11, color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -107,6 +127,57 @@ class ProfileScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+}
+
+/// Bottom-Sheet mit dem Avatar-Katalog — Tap wählt den neuen Buddy.
+Future<void> _pickAvatar(
+    BuildContext context, WidgetRef ref, int current) async {
+  final selected = await showModalBottomSheet<int>(
+    context: context,
+    isScrollControlled: true,
+    builder: (context) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Such dir deinen Pilz-Buddy aus!',
+                style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 12),
+            Flexible(
+              child: GridView.count(
+                shrinkWrap: true,
+                crossAxisCount: 4,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                children: [
+                  for (var i = 0; i < kAvatarCatalog.length; i++)
+                    InkWell(
+                      borderRadius: BorderRadius.circular(40),
+                      onTap: () => Navigator.of(context).pop(i),
+                      child: Container(
+                        decoration: i == current
+                            ? BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                    color: const Color(0xFF2E7D32), width: 3),
+                              )
+                            : null,
+                        child: MushroomAvatar(index: i, size: 64),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+  if (selected != null && selected != current) {
+    await ref.read(myProfileProvider.notifier).updateAvatar(selected);
   }
 }
 
