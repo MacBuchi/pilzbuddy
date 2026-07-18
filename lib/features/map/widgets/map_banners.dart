@@ -7,6 +7,7 @@ import 'package:ota_update/ota_update.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/update_check.dart';
+import '../../../data/feedback_repository.dart';
 import '../../../data/providers.dart';
 import '../../friends/friend_providers.dart';
 
@@ -37,19 +38,25 @@ class MapBanners extends ConsumerWidget {
     if (result == null) return;
 
     try {
-      if (result.isSpecies) {
+      if (result.type == FeedbackType.species) {
         await ref
             .read(feedbackRepositoryProvider)
             .submitSpecies(result.text, note: result.note);
       } else {
-        await ref.read(feedbackRepositoryProvider).submitFeature(result.text);
+        await ref
+            .read(feedbackRepositoryProvider)
+            .submit(result.type, result.text);
       }
       ref.read(featureBannerDismissedProvider.notifier).state = true;
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(result.isSpecies
-                ? 'Danke! Die Pilzart wird geprüft und kommt dann per Update. 🍄'
-                : 'Danke für deinen Wunsch! 🍄')));
+            content: Text(switch (result.type) {
+          FeedbackType.species =>
+            'Danke! Die Pilzart wird geprüft und kommt dann per Update. 🍄',
+          FeedbackType.bug =>
+            'Danke für die Meldung — wir schauen uns das an! 🐛',
+          FeedbackType.feature => 'Danke für deinen Wunsch! 🍄',
+        })));
       }
     } catch (_) {
       if (context.mounted) {
@@ -150,8 +157,7 @@ class MapBanners extends ConsumerWidget {
             onDismiss: () => ref
                 .read(featureBannerDismissedProvider.notifier)
                 .state = true,
-            content:
-                const Text('💡 Feature-Wunsch oder Pilzart vorschlagen!'),
+            content: const Text('💡 Wunsch, Fehler oder Pilzart melden!'),
           ),
       ],
     );
@@ -295,11 +301,11 @@ class _UpdateDialogState extends State<_UpdateDialog> {
 }
 
 class _FeedbackInput {
-  final bool isSpecies;
+  final FeedbackType type;
   final String text;
   final String? note;
 
-  const _FeedbackInput(this.isSpecies, this.text, this.note);
+  const _FeedbackInput(this.type, this.text, this.note);
 }
 
 class _FeedbackDialog extends StatefulWidget {
@@ -310,9 +316,11 @@ class _FeedbackDialog extends StatefulWidget {
 }
 
 class _FeedbackDialogState extends State<_FeedbackDialog> {
-  bool _isSpecies = false;
+  FeedbackType _type = FeedbackType.feature;
   final _textController = TextEditingController();
   final _noteController = TextEditingController();
+
+  bool get _isSpecies => _type == FeedbackType.species;
 
   @override
   void dispose() {
@@ -331,7 +339,7 @@ class _FeedbackDialogState extends State<_FeedbackDialog> {
       return;
     }
     Navigator.of(context).pop(_FeedbackInput(
-      _isSpecies,
+      _type,
       text,
       _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
     ));
@@ -346,23 +354,32 @@ class _FeedbackDialogState extends State<_FeedbackDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            SegmentedButton<bool>(
+            SegmentedButton<FeedbackType>(
               segments: const [
-                ButtonSegment(value: false, label: Text('💡 Feature')),
-                ButtonSegment(value: true, label: Text('🍄 Pilzart')),
+                ButtonSegment(
+                    value: FeedbackType.feature, label: Text('💡 Feature')),
+                ButtonSegment(value: FeedbackType.bug, label: Text('🐛 Bug')),
+                ButtonSegment(
+                    value: FeedbackType.species, label: Text('🍄 Pilzart')),
               ],
-              selected: {_isSpecies},
+              selected: {_type},
               onSelectionChanged: (selection) =>
-                  setState(() => _isSpecies = selection.first),
+                  setState(() => _type = selection.first),
             ),
             const SizedBox(height: 12),
             Text(
-              _isSpecies
-                  ? 'Welche Pilzart fehlt in der Auswahlliste? Nach kurzer '
-                      'Prüfung kommt sie automatisch mit dem nächsten Update.'
-                  : 'PilzBuddy ist noch ganz frisch — was fehlt dir, was '
+              switch (_type) {
+                FeedbackType.species =>
+                  'Welche Pilzart fehlt in der Auswahlliste? Nach kurzer '
+                      'Prüfung kommt sie automatisch mit dem nächsten Update.',
+                FeedbackType.bug =>
+                  'Was funktioniert nicht? Beschreibe kurz, was du gemacht '
+                      'hast und was stattdessen passiert ist.',
+                FeedbackType.feature =>
+                  'PilzBuddy ist noch ganz frisch — was fehlt dir, was '
                       'nervt, was wäre praktisch? Jede Idee landet direkt '
                       'beim Entwickler.',
+              },
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 12),
@@ -373,10 +390,17 @@ class _FeedbackDialogState extends State<_FeedbackDialog> {
               maxLength: _isSpecies ? 80 : 2000,
               textCapitalization: TextCapitalization.sentences,
               decoration: InputDecoration(
-                labelText: _isSpecies ? 'Name der Pilzart' : 'Dein Wunsch',
-                hintText: _isSpecies
-                    ? 'z. B. Violetter Lacktrichterling'
-                    : 'z. B. „Fotos zu Funden wären toll!"',
+                labelText: switch (_type) {
+                  FeedbackType.species => 'Name der Pilzart',
+                  FeedbackType.bug => 'Was ist passiert?',
+                  FeedbackType.feature => 'Dein Wunsch',
+                },
+                hintText: switch (_type) {
+                  FeedbackType.species => 'z. B. Violetter Lacktrichterling',
+                  FeedbackType.bug =>
+                    'z. B. „Beim Löschen eines Spots bleibt der Marker stehen"',
+                  FeedbackType.feature => 'z. B. „Fotos zu Funden wären toll!"',
+                },
                 border: const OutlineInputBorder(),
               ),
             ),

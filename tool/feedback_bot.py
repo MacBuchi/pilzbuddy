@@ -144,8 +144,11 @@ def main() -> None:
                 known.add(name.lower())
                 species_ids.append(row["id"])
         else:
+            is_bug = row["type"] == "bug"
+            prefix = "Bug report: " if is_bug else "Feature request: "
+            label = "bug" if is_bug else "enhancement"
             title = row["message"].strip().replace("\n", " ")
-            title = "Feature request: " + title[:60] + ("…" if len(title) > 60 else "")
+            title = prefix + title[:60] + ("…" if len(title) > 60 else "")
             if issue_exists(title):
                 print(f"Skip (issue already exists): {title}")
             else:
@@ -154,8 +157,9 @@ def main() -> None:
                     f"Eingereicht in der App von **{username}** am {row['created_at'][:10]}.\n\n"
                     f"_Automatisch erstellt vom Feedback-Bot._"
                 )
-                run("gh", "issue", "create", "--title", title, "--body", body)
-                print(f"Issue created: {title}")
+                run("gh", "issue", "create", "--title", title, "--body", body,
+                    "--label", label)
+                print(f"Issue created [{label}]: {title}")
             # Stamp each row right away so a later crash never duplicates it.
             mark_processed([row["id"]])
 
