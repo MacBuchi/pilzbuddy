@@ -32,3 +32,8 @@ Riverpod ohne Codegen, go_router, deutsche UI-Strings direkt im Code.
   bei lokalem Flutter-Upgrade auch `.github/workflows/*.yml` anpassen.
 - Supabase-Keys in `lib/core/supabase_config.dart` sind bewusst öffentlich
   (Publishable Key); niemals den service_role-Key einchecken.
+- Feedback-Bot (`.github/workflows/feedback.yml` + `tool/feedback_bot.py`,
+  Cron alle 2 h): macht aus In-App-Feedback GitHub-Issues (Features) bzw.
+  fertige Arten-PRs (Merge = annehmen mit Auto-Release, Close = ablehnen).
+  Braucht das Repo-Secret `SUPABASE_SERVICE_ROLE_KEY`. Selbsttest:
+  `python3 tool/feedback_bot.py --test-insert "Name"`.
