@@ -48,11 +48,16 @@ create table public.friendships (
 create unique index friendships_pair_uidx on public.friendships
   (least(requester_id, addressee_id), greatest(requester_id, addressee_id));
 
--- Feature-Wünsche / Feedback aus der App (liest der Betreiber im Dashboard)
+-- Feature-Wünsche / Feedback aus der App. Der Feedback-Bot
+-- (.github/workflows/feedback.yml) macht daraus GitHub-Issues bzw.
+-- Pilzart-PRs und setzt processed_at.
 create table public.feedback (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
   message text not null check (char_length(message) between 3 and 2000),
+  type text not null default 'feature' check (type in ('feature', 'species')),
+  species_name text,
+  processed_at timestamptz,
   created_at timestamptz not null default now()
 );
 
