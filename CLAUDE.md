@@ -38,9 +38,9 @@ Riverpod ohne Codegen, go_router, deutsche UI-Strings direkt im Code.
   jedes neue Issue (Einordnung, Labels, Ursache, Umsetzungsvorschlag als
   Kommentar) — darf aber NUR lesen/labeln/kommentieren. Umsetzung erst nach
   Freigabe-Kommentar `@claude …` (claude.yml, Branch + PR, Merge manuell).
-  Braucht Repo-Secret `ANTHROPIC_API_KEY` (oder `CLAUDE_CODE_OAUTH_TOKEN`,
-  dann Input in beiden Workflows tauschen) und die Claude GitHub App
-  (github.com/apps/claude). Bot-Issues werden per workflow_dispatch triagiert
+  Braucht Repo-Secret `CLAUDE_CODE_OAUTH_TOKEN` (Abo; alternativ
+  `ANTHROPIC_API_KEY`, dann Input in beiden Workflows tauschen) und die
+  Claude GitHub App (github.com/apps/claude). Bot-Issues werden per workflow_dispatch triagiert
   (GITHUB_TOKEN-Events triggern keine Folge-Workflows). Temporär aus:
   `gh workflow disable "Claude Issue Triage"`.
 - Feedback-Bot (`.github/workflows/feedback.yml` + `tool/feedback_bot.py`,

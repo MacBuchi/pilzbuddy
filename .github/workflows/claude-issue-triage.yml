@@ -29,18 +29,18 @@ jobs:
     steps:
       - name: Check prerequisites
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
-          if [ -z "$ANTHROPIC_API_KEY" ]; then
-            echo "::error::Repository secret ANTHROPIC_API_KEY is missing — see README/CLAUDE.md for setup."
+          if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
+            echo "::error::Repository secret CLAUDE_CODE_OAUTH_TOKEN is missing — see CLAUDE.md for setup."
             exit 1
           fi
       - uses: actions/checkout@v7
       - uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          # Alternative for Pro/Max subscriptions (instead of the API key):
-          # claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Alternative with API billing (instead of the subscription token):
+          # anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |
             You are the issue triage assistant for this repository (PilzBuddy,
             a Flutter + Supabase app; see CLAUDE.md for conventions).
