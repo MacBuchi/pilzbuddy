@@ -34,6 +34,15 @@ Riverpod ohne Codegen, go_router, deutsche UI-Strings direkt im Code.
   bei lokalem Flutter-Upgrade auch `.github/workflows/*.yml` anpassen.
 - Supabase-Keys in `lib/core/supabase_config.dart` sind bewusst öffentlich
   (Publishable Key); niemals den service_role-Key einchecken.
+- Issue-Triage (`.github/workflows/claude-issue-triage.yml`): Claude analysiert
+  jedes neue Issue (Einordnung, Labels, Ursache, Umsetzungsvorschlag als
+  Kommentar) — darf aber NUR lesen/labeln/kommentieren. Umsetzung erst nach
+  Freigabe-Kommentar `@claude …` (claude.yml, Branch + PR, Merge manuell).
+  Braucht Repo-Secret `ANTHROPIC_API_KEY` (oder `CLAUDE_CODE_OAUTH_TOKEN`,
+  dann Input in beiden Workflows tauschen) und die Claude GitHub App
+  (github.com/apps/claude). Bot-Issues werden per workflow_dispatch triagiert
+  (GITHUB_TOKEN-Events triggern keine Folge-Workflows). Temporär aus:
+  `gh workflow disable "Claude Issue Triage"`.
 - Feedback-Bot (`.github/workflows/feedback.yml` + `tool/feedback_bot.py`,
   Cron alle 2 h): macht aus In-App-Feedback GitHub-Issues (Features) bzw.
   fertige Arten-PRs (Merge = annehmen mit Auto-Release, Close = ablehnen).

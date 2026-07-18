@@ -157,9 +157,18 @@ def main() -> None:
                     f"Eingereicht in der App von **{username}** am {row['created_at'][:10]}.\n\n"
                     f"_Automatisch erstellt vom Feedback-Bot._"
                 )
-                run("gh", "issue", "create", "--title", title, "--body", body,
-                    "--label", label)
+                issue_url = run("gh", "issue", "create", "--title", title,
+                                "--body", body, "--label", label)
                 print(f"Issue created [{label}]: {title}")
+                # Issues created with GITHUB_TOKEN do not emit workflow
+                # triggers — dispatch the Claude triage explicitly.
+                issue_number = issue_url.rstrip("/").rsplit("/", 1)[-1]
+                try:
+                    run("gh", "workflow", "run", "claude-issue-triage.yml",
+                        "-f", f"issue_number={issue_number}")
+                    print(f"Triage dispatched for #{issue_number}")
+                except subprocess.CalledProcessError:
+                    print(f"::warning::Could not dispatch triage for #{issue_number}")
             # Stamp each row right away so a later crash never duplicates it.
             mark_processed([row["id"]])
 
