@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../spots/widgets/species_field.dart';
+
 /// Ergebnis des Anlege-Formulars.
 class NewSpotData {
   final String? name;
@@ -20,19 +22,35 @@ class NewSpotData {
 }
 
 /// Bottom-Sheet zum schnellen Anlegen eines Spots. Alle Felder optional,
-/// Datum ist mit heute vorbelegt — Long-Press + „Speichern" reicht.
-Future<NewSpotData?> showAddSpotSheet(BuildContext context, LatLng position) {
+/// Datum ist mit heute vorbelegt, Pilzart mit der zuletzt benutzten Art —
+/// Fadenkreuz platzieren + „Speichern" reicht.
+Future<NewSpotData?> showAddSpotSheet(
+  BuildContext context,
+  LatLng position, {
+  List<String> ownSpecies = const [],
+  String? defaultSpecies,
+}) {
   return showModalBottomSheet<NewSpotData>(
     context: context,
     isScrollControlled: true,
-    builder: (context) => _AddSpotSheet(position: position),
+    builder: (context) => _AddSpotSheet(
+      position: position,
+      ownSpecies: ownSpecies,
+      defaultSpecies: defaultSpecies,
+    ),
   );
 }
 
 class _AddSpotSheet extends StatefulWidget {
-  const _AddSpotSheet({required this.position});
+  const _AddSpotSheet({
+    required this.position,
+    required this.ownSpecies,
+    this.defaultSpecies,
+  });
 
   final LatLng position;
+  final List<String> ownSpecies;
+  final String? defaultSpecies;
 
   @override
   State<_AddSpotSheet> createState() => _AddSpotSheetState();
@@ -40,7 +58,8 @@ class _AddSpotSheet extends StatefulWidget {
 
 class _AddSpotSheetState extends State<_AddSpotSheet> {
   final _nameController = TextEditingController();
-  final _speciesController = TextEditingController();
+  late final TextEditingController _speciesController =
+      TextEditingController(text: widget.defaultSpecies ?? '');
   final _noteController = TextEditingController();
   int? _count;
   DateTime _foundOn = DateTime.now();
@@ -118,14 +137,9 @@ class _AddSpotSheetState extends State<_AddSpotSheet> {
               ),
             ),
             const SizedBox(height: 12),
-            TextField(
+            SpeciesField(
               controller: _speciesController,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                labelText: 'Pilzart (optional)',
-                hintText: 'z. B. Steinpilz',
-                border: OutlineInputBorder(),
-              ),
+              ownSpecies: widget.ownSpecies,
             ),
             const SizedBox(height: 12),
             Row(

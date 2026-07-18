@@ -5,6 +5,7 @@ class Find {
   final int? count;
   final DateTime foundOn;
   final String? note;
+  final DateTime? createdAt;
 
   const Find({
     required this.id,
@@ -13,6 +14,7 @@ class Find {
     this.count,
     required this.foundOn,
     this.note,
+    this.createdAt,
   });
 
   factory Find.fromJson(Map<String, dynamic> json) => Find(
@@ -22,6 +24,9 @@ class Find {
         count: json['count'] as int?,
         foundOn: DateTime.parse(json['found_on'] as String),
         note: json['note'] as String?,
+        createdAt: json['created_at'] == null
+            ? null
+            : DateTime.parse(json['created_at'] as String),
       );
 
   Map<String, dynamic> toJson() => {

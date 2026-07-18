@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../../models/find.dart';
+import 'species_field.dart';
 
 class NewFindData {
   final String? species;
@@ -13,19 +14,35 @@ class NewFindData {
 }
 
 /// Sheet für den Wiederbesuch: Art und Anzahl sind mit dem letzten Fund
-/// vorbelegt, Datum ist heute — zwei Taps genügen.
-Future<NewFindData?> showAddFindSheet(BuildContext context, {Find? lastFind}) {
+/// vorbelegt (Fallback: global zuletzt benutzte Art), Datum ist heute —
+/// zwei Taps genügen.
+Future<NewFindData?> showAddFindSheet(
+  BuildContext context, {
+  Find? lastFind,
+  List<String> ownSpecies = const [],
+  String? fallbackSpecies,
+}) {
   return showModalBottomSheet<NewFindData>(
     context: context,
     isScrollControlled: true,
-    builder: (context) => _AddFindSheet(lastFind: lastFind),
+    builder: (context) => _AddFindSheet(
+      lastFind: lastFind,
+      ownSpecies: ownSpecies,
+      fallbackSpecies: fallbackSpecies,
+    ),
   );
 }
 
 class _AddFindSheet extends StatefulWidget {
-  const _AddFindSheet({this.lastFind});
+  const _AddFindSheet({
+    this.lastFind,
+    this.ownSpecies = const [],
+    this.fallbackSpecies,
+  });
 
   final Find? lastFind;
+  final List<String> ownSpecies;
+  final String? fallbackSpecies;
 
   @override
   State<_AddFindSheet> createState() => _AddFindSheetState();
@@ -40,8 +57,8 @@ class _AddFindSheetState extends State<_AddFindSheet> {
   @override
   void initState() {
     super.initState();
-    _speciesController =
-        TextEditingController(text: widget.lastFind?.species ?? '');
+    _speciesController = TextEditingController(
+        text: widget.lastFind?.species ?? widget.fallbackSpecies ?? '');
     _noteController = TextEditingController();
     _count = widget.lastFind?.count;
   }
@@ -99,13 +116,9 @@ class _AddFindSheetState extends State<_AddFindSheet> {
               ],
             ),
             const SizedBox(height: 16),
-            TextField(
+            SpeciesField(
               controller: _speciesController,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                labelText: 'Pilzart (optional)',
-                border: OutlineInputBorder(),
-              ),
+              ownSpecies: widget.ownSpecies,
             ),
             const SizedBox(height: 12),
             Row(
