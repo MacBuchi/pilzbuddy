@@ -94,11 +94,10 @@ jobs:
               changed=$(git diff --name-only "$latest"..HEAD -- . ':!*.md' ':!.github' || true)
             fi
             if [ -n "$changed" ]; then
-              if [ "${{ github.event_name }}" = "pull_request" ]; then
-                echo "::warning::Code geändert, aber version in pubspec.yaml ($version) ist nicht größer als $latest. Vor dem Merge bumpen, sonst gibt es kein Release."
-              else
-                echo "::error::Code auf main geändert ohne Versions-Bump (pubspec: $version, letzter Tag: $latest)."
-                exit 1
-              fi
+              # Blockiert den Merge (Pflicht-Check): Code-Änderungen brauchen
+              # immer einen Versions-Bump, sonst entsteht kein Release.
+              # Reine Doku (*.md) und .github/ sind ausgenommen.
+              echo "::error::Code geändert, aber version in pubspec.yaml ($version) ist nicht größer als $latest. Bitte Version bumpen (beide Teile, z. B. 1.2.3+4 → 1.2.4+5) — ohne Bump gibt es kein Release."
+              exit 1
             fi
           fi
