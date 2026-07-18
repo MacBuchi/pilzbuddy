@@ -1,15 +1,18 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+enum FeedbackType { feature, bug, species }
+
 class FeedbackRepository {
   FeedbackRepository(this._client);
 
   final SupabaseClient _client;
 
-  /// Feature-Wunsch einreichen — wird vom Feedback-Bot als GitHub-Issue angelegt.
-  Future<void> submitFeature(String message) async {
+  /// Feature-Wunsch oder Bug-Meldung einreichen — der Feedback-Bot legt
+  /// daraus ein passend gelabeltes GitHub-Issue an.
+  Future<void> submit(FeedbackType type, String message) async {
     await _client.from('feedback').insert({
       'user_id': _client.auth.currentUser!.id,
-      'type': 'feature',
+      'type': type == FeedbackType.bug ? 'bug' : 'feature',
       'message': message.trim(),
     });
   }
