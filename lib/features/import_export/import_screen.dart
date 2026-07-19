@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../core/mushroom_species.dart';
 import '../map/widgets/add_spot_sheet.dart';
 import '../spots/spot_providers.dart';
 import 'waypoint_parser.dart';
@@ -61,8 +62,12 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
       context,
       LatLng(waypoint.lat, waypoint.lng),
       ownSpecies: ownSpecies,
-      defaultSpecies: ownSpecies.firstOrNull,
+      // Steht die Art im Punktnamen („Edelreizker Spechbach"), ist sie
+      // schon vorausgewählt — sonst wie üblich die zuletzt benutzte.
+      defaultSpecies:
+          speciesFromText(waypoint.name) ?? ownSpecies.firstOrNull,
       initialName: waypoint.name,
+      initialFoundOn: waypoint.time,
     );
     if (data == null) return;
     try {

@@ -4,6 +4,24 @@ import 'package:pilzbuddy/features/spots/species_suggestions.dart';
 import 'package:pilzbuddy/models/find.dart';
 
 void main() {
+  group('speciesFromText (Art im GPX-Punktnamen erkennen)', () {
+    test('findet Arten in echten Punktnamen aus Karten-Apps', () {
+      expect(speciesFromText('Edelreizker Spechbach'), 'Edelreizker');
+      expect(speciesFromText('Steinpilz am Windrad'), 'Steinpilz');
+      expect(speciesFromText('Wo du hin guckst, totentrompeten'),
+          'Totentrompete');
+      expect(speciesFromText('6 Maronenbäume'), 'Marone');
+      expect(speciesFromText('Austernseitling am Stamm'), 'Austernseitling');
+    });
+
+    test('längster Treffer gewinnt, kein Treffer bleibt null', () {
+      expect(speciesFromText('Maronenröhrling im Moos'), 'Maronenröhrling');
+      expect(speciesFromText('Wasserturmweg, Bad Rappenau'), isNull);
+      expect(speciesFromText('Semmelstoppelpipz'), isNull); // Tippfehler
+      expect(speciesFromText(null), isNull);
+    });
+  });
+
   group('suggestSpecies', () {
     const own = ['Steinpilz', 'Pfifferling'];
     const builtin = [

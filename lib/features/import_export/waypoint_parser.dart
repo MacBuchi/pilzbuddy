@@ -10,7 +10,12 @@ class ImportedWaypoint {
   final double lat;
   final double lng;
 
-  const ImportedWaypoint({this.name, required this.lat, required this.lng});
+  /// Zeitstempel des Punkts (GPX `<time>`) — wird beim Anlegen als
+  /// Funddatum vorbelegt.
+  final DateTime? time;
+
+  const ImportedWaypoint(
+      {this.name, required this.lat, required this.lng, this.time});
 }
 
 bool _validCoords(double lat, double lng) =>
@@ -77,8 +82,12 @@ List<ImportedWaypoint> _parseGpx(XmlDocument doc) {
     final lat = double.tryParse(wpt.getAttribute('lat') ?? '');
     final lng = double.tryParse(wpt.getAttribute('lon') ?? '');
     if (lat == null || lng == null || !_validCoords(lat, lng)) continue;
+    final time = DateTime.tryParse(_childText(wpt, 'time') ?? '');
     points.add(ImportedWaypoint(
-        name: _childText(wpt, 'name'), lat: lat, lng: lng));
+        name: _childText(wpt, 'name'),
+        lat: lat,
+        lng: lng,
+        time: time?.toLocal()));
   }
   return points;
 }

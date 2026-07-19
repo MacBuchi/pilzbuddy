@@ -30,6 +30,7 @@ Future<NewSpotData?> showAddSpotSheet(
   List<String> ownSpecies = const [],
   String? defaultSpecies,
   String? initialName,
+  DateTime? initialFoundOn,
 }) {
   return showModalBottomSheet<NewSpotData>(
     context: context,
@@ -39,6 +40,7 @@ Future<NewSpotData?> showAddSpotSheet(
       ownSpecies: ownSpecies,
       defaultSpecies: defaultSpecies,
       initialName: initialName,
+      initialFoundOn: initialFoundOn,
     ),
   );
 }
@@ -49,6 +51,7 @@ class _AddSpotSheet extends StatefulWidget {
     required this.ownSpecies,
     this.defaultSpecies,
     this.initialName,
+    this.initialFoundOn,
   });
 
   final LatLng position;
@@ -57,6 +60,9 @@ class _AddSpotSheet extends StatefulWidget {
 
   /// Vorbelegter Spot-Name (z. B. Punktname aus einem GPX-Import).
   final String? initialName;
+
+  /// Vorbelegtes Funddatum (z. B. Zeitstempel aus einem GPX-Import).
+  final DateTime? initialFoundOn;
 
   @override
   State<_AddSpotSheet> createState() => _AddSpotSheetState();
@@ -69,7 +75,7 @@ class _AddSpotSheetState extends State<_AddSpotSheet> {
       TextEditingController(text: widget.defaultSpecies ?? '');
   final _noteController = TextEditingController();
   int? _count;
-  DateTime _foundOn = DateTime.now();
+  late DateTime _foundOn = widget.initialFoundOn ?? DateTime.now();
 
   @override
   void dispose() {
