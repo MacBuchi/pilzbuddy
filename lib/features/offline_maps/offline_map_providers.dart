@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart';
@@ -42,6 +43,34 @@ final installedMapsProvider =
 /// Kartenquelle der Hauptkarte: false = Online-OSM (Default), true = Offline.
 final offlineMapEnabledProvider = StateProvider<bool>((ref) => false);
 
+/// Verbindungsstatus des Geräts (connectivity_plus).
+final connectivityProvider = StreamProvider<List<ConnectivityResult>>(
+    (ref) => Connectivity().onConnectivityChanged);
+
+/// Kein Empfang? Dann schaltet die Karte automatisch auf offline,
+/// sobald eine Karte installiert ist — im Wald muss man nichts tun.
+final noConnectivityProvider = Provider<bool>((ref) {
+  final results = ref.watch(connectivityProvider).valueOrNull;
+  if (results == null) return false;
+  return results.isEmpty ||
+      results.every((r) => r == ConnectivityResult.none);
+});
+
+/// Das „Karten-Abo": installierte Regionen, für die die Quelle eine
+/// neuere Version anbietet (Vergleich über den Datumsstempel im Namen).
+final outdatedMapsProvider = Provider<List<AvailableMap>>((ref) {
+  final installed = ref.watch(installedMapsProvider).valueOrNull ?? const [];
+  if (installed.isEmpty) return const [];
+  final available = ref.watch(availableMapsProvider).valueOrNull ?? const [];
+  final installedByKey = {for (final m in installed) m.key: m};
+  return [
+    for (final map in available)
+      if (installedByKey[map.key] != null &&
+          installedByKey[map.key]!.dateStamp.compareTo(map.dateStamp) < 0)
+        map,
+  ];
+});
+
 /// Alles, was der Offline-Layer zum Rendern braucht.
 class OfflineMapStyle {
   final vtr.Theme theme;
@@ -55,7 +84,9 @@ class OfflineMapStyle {
 /// Fehler führen bewusst zu null (= Online-Fallback), nie zu einer roten
 /// Karte: Der Vector-Stack ist Beta, Online-OSM bleibt das Sicherheitsnetz.
 final offlineMapStyleProvider = FutureProvider<OfflineMapStyle?>((ref) async {
-  if (!ref.watch(offlineMapEnabledProvider)) return null;
+  final manuallyEnabled = ref.watch(offlineMapEnabledProvider);
+  final autoOffline = ref.watch(noConnectivityProvider);
+  if (!manuallyEnabled && !autoOffline) return null;
   final installed = ref.watch(installedMapsProvider).valueOrNull ?? const [];
   if (installed.isEmpty) return null;
   try {

@@ -5,6 +5,7 @@
 // (Login → Karte → Spot → Teilen) als schnelle Widget-Tests.
 import 'dart:typed_data';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -35,10 +36,14 @@ class FakeTileProvider extends TileProvider {
 }
 
 List<Override> overridesFor(FakeBackend backend,
-        {FakeOfflineMapRepository? offlineMaps}) =>
+        {FakeOfflineMapRepository? offlineMaps,
+        List<ConnectivityResult> connectivity = const [
+          ConnectivityResult.wifi
+        ]}) =>
     [
       offlineMapRepositoryProvider
           .overrideWithValue(offlineMaps ?? FakeOfflineMapRepository()),
+      connectivityProvider.overrideWith((ref) => Stream.value(connectivity)),
       authRepositoryProvider.overrideWithValue(FakeAuthRepository(backend)),
       spotRepositoryProvider.overrideWithValue(FakeSpotRepository(backend)),
       profileRepositoryProvider
@@ -52,10 +57,14 @@ List<Override> overridesFor(FakeBackend backend,
 
 /// App starten und die Intro-Animation (2,6 s) durchlaufen lassen.
 Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
-    {FakeOfflineMapRepository? offlineMaps}) async {
+    {FakeOfflineMapRepository? offlineMaps,
+    List<ConnectivityResult> connectivity = const [
+      ConnectivityResult.wifi
+    ]}) async {
   addTearDown(backend.dispose);
   await tester.pumpWidget(ProviderScope(
-    overrides: overridesFor(backend, offlineMaps: offlineMaps),
+    overrides: overridesFor(backend,
+        offlineMaps: offlineMaps, connectivity: connectivity),
     child: const PilzBuddyApp(),
   ));
   await tester.pump();
