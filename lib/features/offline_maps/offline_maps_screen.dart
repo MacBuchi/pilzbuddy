@@ -105,12 +105,15 @@ class _OfflineMapsScreenState extends ConsumerState<OfflineMapsScreen> {
   }
 
   Widget _mapTile(AvailableMap map, InstalledMap? installedVersion) {
-    final progress = ref.watch(mapDownloadsProvider)[map.key];
+    final download = ref.watch(mapDownloadsProvider)[map.key];
     final isCurrent = installedVersion?.dateStamp == map.dateStamp;
     final hasUpdate = installedVersion != null && !isCurrent;
 
-    final subtitle = progress != null
-        ? 'Lädt … ${(progress * 100).round()} %'
+    final subtitle = download != null
+        ? download.waitingForNetwork
+            ? 'Wartet auf Netz … '
+                '(${(download.progress * 100).round()} % geladen)'
+            : 'Lädt … ${(download.progress * 100).round()} %'
         : installedVersion != null
             ? 'Installiert (Stand ${formatDateStamp(installedVersion.dateStamp)})'
                 '${hasUpdate ? ' — Update verfügbar' : ''}'
@@ -123,7 +126,7 @@ class _OfflineMapsScreenState extends ConsumerState<OfflineMapsScreen> {
         color: installedVersion != null ? const Color(0xFF2E7D32) : null,
       ),
       title: Text(map.label),
-      subtitle: progress != null
+      subtitle: download != null
           ? Padding(
               padding: const EdgeInsets.only(top: 6),
               child: Column(
@@ -131,13 +134,22 @@ class _OfflineMapsScreenState extends ConsumerState<OfflineMapsScreen> {
                 children: [
                   Text(subtitle),
                   const SizedBox(height: 4),
-                  LinearProgressIndicator(value: progress > 0 ? progress : null),
+                  LinearProgressIndicator(
+                      value: download.waitingForNetwork ||
+                              download.progress <= 0
+                          ? null
+                          : download.progress),
                 ],
               ),
             )
           : Text(subtitle),
-      trailing: progress != null
-          ? null
+      trailing: download != null
+          ? IconButton(
+              onPressed: () =>
+                  ref.read(mapDownloadsProvider.notifier).cancel(map.key),
+              icon: const Icon(Icons.close),
+              tooltip: '${map.label} anhalten',
+            )
           : Row(
               mainAxisSize: MainAxisSize.min,
               children: [

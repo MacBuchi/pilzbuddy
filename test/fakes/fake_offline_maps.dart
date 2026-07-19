@@ -2,6 +2,8 @@
 // Download "gelingt" sofort und registriert die Karte mit einem
 // Fantasie-Pfad — der Offline-Style-Provider fällt dadurch in Tests
 // bewusst auf die Online-Karte zurück (Datei existiert nicht).
+import 'dart:io' show HttpException;
+
 import 'package:pilzbuddy/features/offline_maps/offline_map_repository.dart';
 
 class FakeOfflineMapRepository implements OfflineMapRepository {
@@ -32,10 +34,21 @@ class FakeOfflineMapRepository implements OfflineMapRepository {
   /// zu navigieren (Abbruch-Regression #38), kurz genug für settle().
   Duration stepDelay = const Duration(milliseconds: 150);
 
+  /// So viele Download-Aufrufe schlagen fehl, bevor einer gelingt —
+  /// simuliert schlechtes Netz für den geduldigen Download-Manager.
+  int failuresBeforeSuccess = 0;
+  int downloadCalls = 0;
+
   @override
-  Stream<double> download(AvailableMap map) async* {
+  Stream<double> download(AvailableMap map,
+      {bool Function()? isCancelled}) async* {
+    downloadCalls++;
     yield 0.5;
     await Future<void>.delayed(stepDelay);
+    if (isCancelled?.call() ?? false) throw const DownloadCancelled();
+    if (downloadCalls <= failuresBeforeSuccess) {
+      throw const HttpException('Verbindung abgerissen (Fake)');
+    }
     installed.removeWhere((m) => m.key == map.key);
     installed.add(InstalledMap(
       key: map.key,

@@ -68,6 +68,12 @@ class InstalledMap {
       );
 }
 
+/// Vom Nutzer angehaltener Download — kein Fehler: Die .part-Datei
+/// bleibt liegen, der nächste Start setzt fort.
+class DownloadCancelled implements Exception {
+  const DownloadCancelled();
+}
+
 /// Verwaltet Offline-Karten: verfügbare Regionen von der Quelle abfragen,
 /// Dateien herunterladen/löschen und die Registry der installierten Karten
 /// pflegen. Quelle: fertige Bundesland-PMTiles (Protomaps Basemap v4,
@@ -159,9 +165,10 @@ class OfflineMapRepository {
   /// bleibt bei Fehlschlägen liegen und der nächste Versuch setzt auf.
   /// Ersetzt eine ältere Version derselben Region atomar (erst temporäre
   /// Datei, dann umbenennen), damit nie eine halbe Karte aktiv ist.
-  Stream<double> download(AvailableMap map) {
+  Stream<double> download(AvailableMap map,
+      {bool Function()? isCancelled}) {
     final controller = StreamController<double>();
-    _runDownload(map, controller).then(
+    _runDownload(map, controller, isCancelled ?? () => false).then(
       (_) => controller.close(),
       onError: (Object error, StackTrace stackTrace) {
         controller.addError(error, stackTrace);
@@ -171,8 +178,8 @@ class OfflineMapRepository {
     return controller.stream;
   }
 
-  Future<void> _runDownload(
-      AvailableMap map, StreamController<double> progress) async {
+  Future<void> _runDownload(AvailableMap map,
+      StreamController<double> progress, bool Function() isCancelled) async {
     final dir = await _mapsDir();
     final targetPath = '${dir.path}/${map.key}_${map.dateStamp}.pmtiles';
     final tempFile = File('$targetPath.part');
@@ -203,6 +210,7 @@ class OfflineMapRepository {
         try {
           await for (final chunk
               in response.stream.timeout(_inactivityTimeout)) {
+            if (isCancelled()) throw const DownloadCancelled();
             sink.add(chunk);
             received += chunk.length;
             if (total > 0) progress.add(received / total);
@@ -232,14 +240,16 @@ class OfflineMapRepository {
 
         if (total <= 0) break; // Größe unbekannt — Stream-Ende zählt.
       } catch (e) {
-        if (e is FileSystemException) rethrow;
+        if (e is FileSystemException || e is DownloadCancelled) rethrow;
         if (received > receivedBefore) stalledAttempts = 0;
         stalledAttempts++;
         if (stalledAttempts >= _maxStalledAttempts) {
-          // .part bleibt liegen: der nächste Download-Tap setzt hier fort.
+          // .part bleibt liegen: der Download-Manager (oder der nächste
+          // Tap) setzt hier fort.
           rethrow;
         }
         await Future<void>.delayed(Duration(seconds: 2 * stalledAttempts));
+        if (isCancelled()) throw const DownloadCancelled();
       }
     }
 

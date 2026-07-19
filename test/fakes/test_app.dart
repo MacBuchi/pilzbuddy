@@ -44,6 +44,11 @@ List<Override> overridesFor(FakeBackend backend,
       offlineMapRepositoryProvider
           .overrideWithValue(offlineMaps ?? FakeOfflineMapRepository()),
       connectivityProvider.overrideWith((ref) => Stream.value(connectivity)),
+      // Wartezeiten des Download-Managers testtauglich verkürzen.
+      mapDownloadDelaysProvider.overrideWithValue((
+        retry: const Duration(milliseconds: 50),
+        networkPoll: const Duration(milliseconds: 50),
+      )),
       authRepositoryProvider.overrideWithValue(FakeAuthRepository(backend)),
       spotRepositoryProvider.overrideWithValue(FakeSpotRepository(backend)),
       profileRepositoryProvider
