@@ -14,6 +14,9 @@ eintragen und Spots mit Freunden teilen.
   Art und Anzahl sind vom letzten Fund vorbelegt.
 - **Freunde:** Suche per Benutzername oder genauer E-Mail, Anfrage → Annahme.
   Freundes-Spots erscheinen blau auf der Karte.
+- **Live-Standort teilen:** Auf der Karte den Teilen-Button tippen → 1, 2 oder
+  4 Stunden. Freunde sehen dich für die gewählte Dauer als Buddy-Avatar live auf
+  ihrer Karte; die Freigabe läuft automatisch ab und lässt sich jederzeit beenden.
 - **Teilen-Einstellungen** (im Profil):
   - „Meine Spots mit Freunden teilen" (globaler Standard)
   - „Auch Art, Anzahl und Funddatum teilen" — sonst nur der Standort
@@ -53,7 +56,8 @@ Kein direkter Push auf `main` — Änderungen laufen so:
 1. Feature-Branch von `main` (`feat/<thema>` oder `fix/<thema>`)
 2. Pull Request öffnen; Commit-/PR-Titel im Conventional-Commits-Stil
    (`feat:`, `fix:`, `chore:`, `ci:`, `docs:`, `test:`, `refactor:`)
-3. CI muss grün sein (Analyze & Test, Build Web, Build Android APK, Version Guard)
+3. CI muss grün sein (Analyze & Test, Build Web, Build Android APK, Version Guard,
+   Schema Check)
 4. Squash-Merge
 
 **Release:** Die Version in `pubspec.yaml` ist die einzige Quelle der Wahrheit
