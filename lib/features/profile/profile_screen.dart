@@ -2,7 +2,10 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/app_info.dart';
+import '../../core/update_check.dart';
 import '../../core/widgets/mushroom_avatar.dart';
 import '../../data/providers.dart';
 import '../../models/find.dart';
@@ -143,8 +146,63 @@ class ProfileScreen extends ConsumerWidget {
                     'Noch keine Funde – halte auf der Karte gedrückt, um deinen ersten Pilz-Spot anzulegen! 🍄'),
               ),
             ),
+          const Divider(height: 40),
+          const _AboutSection(),
         ],
       ),
+    );
+  }
+}
+
+/// Dezente „Über"-Sektion am Ende des Profils: Version, Update-Status
+/// und die öffentlichen Links der App.
+class _AboutSection extends ConsumerWidget {
+  const _AboutSection();
+
+  Future<void> _open(String url) =>
+      launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final version = ref.watch(appVersionProvider).valueOrNull ?? '–';
+    final updateInfo = ref.watch(updateInfoProvider).valueOrNull;
+    final updateStatus = kIsWeb
+        ? 'Die Web-App ist immer aktuell.'
+        : updateInfo != null
+            ? 'Neueste Version: v${updateInfo.latestVersion} — Update über '
+                'das Banner auf der Karte.'
+            : 'Du bist auf dem aktuellen Stand.';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Über PilzBuddy',
+            style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 4),
+        Text('Version $version — $updateStatus',
+            style: Theme.of(context).textTheme.bodySmall),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          leading: const Icon(Icons.code),
+          title: const Text('GitHub-Projekt & Dokumentation'),
+          subtitle: const Text(AppInfo.githubUrl),
+          onTap: () => _open(AppInfo.githubUrl),
+        ),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          leading: const Icon(Icons.public),
+          title: const Text('Web-App'),
+          subtitle: const Text(AppInfo.webAppUrl),
+          onTap: () => _open(AppInfo.webAppUrl),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Kartendaten: © OpenStreetMap-Mitwirkende',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ],
     );
   }
 }

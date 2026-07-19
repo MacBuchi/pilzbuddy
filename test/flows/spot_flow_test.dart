@@ -167,5 +167,11 @@ void main() {
     await tester.scrollUntilVisible(find.text('Top-Arten'), 200,
         scrollable: find.byType(Scrollable).first);
     expect(find.text('Top-Arten'), findsOneWidget);
+
+    // Ganz unten: die „Über"-Sektion mit Version und Links.
+    await tester.scrollUntilVisible(find.text('Über PilzBuddy'), 200,
+        scrollable: find.byType(Scrollable).first);
+    expect(find.text('GitHub-Projekt & Dokumentation'), findsOneWidget);
+    expect(find.text('Web-App'), findsOneWidget);
   });
 }
