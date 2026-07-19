@@ -28,9 +28,14 @@ class FakeOfflineMapRepository implements OfflineMapRepository {
   @override
   Future<List<InstalledMap>> listInstalled() async => List.of(installed);
 
+  /// Simulierte Download-Dauer — lang genug, um in Tests währenddessen
+  /// zu navigieren (Abbruch-Regression #38), kurz genug für settle().
+  Duration stepDelay = const Duration(milliseconds: 150);
+
   @override
   Stream<double> download(AvailableMap map) async* {
     yield 0.5;
+    await Future<void>.delayed(stepDelay);
     installed.removeWhere((m) => m.key == map.key);
     installed.add(InstalledMap(
       key: map.key,

@@ -80,6 +80,32 @@ void main() {
     await drainSnackbars(tester);
   });
 
+  testWidgets('Download läuft beim Tab-Wechsel weiter (#38)', (tester) async {
+    final (backend, _) = loggedInBackend();
+    final offlineMaps = FakeOfflineMapRepository()
+      ..stepDelay = const Duration(milliseconds: 400);
+    await pumpApp(tester, backend, offlineMaps: offlineMaps);
+
+    await tester.tap(find.text('Profil'));
+    await settle(tester);
+    await tester.tap(find.text('Offline-Karten'));
+    await settle(tester);
+
+    await tester.tap(find.byTooltip('Berlin herunterladen'));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.textContaining('Lädt …'), findsOneWidget);
+
+    // Mitten im Download den Tab wechseln — früher brach das den
+    // Download ab, jetzt läuft er im app-weiten Provider weiter.
+    await tester.tap(find.text('Karte'));
+    await settle(tester);
+
+    expect(offlineMaps.installed.single.key, 'de_berlin');
+    // Der Umschalt-FAB erscheint, sobald der Download durch ist.
+    expect(find.byTooltip('Zur Offline-Karte'), findsOneWidget);
+    await drainSnackbars(tester);
+  });
+
   testWidgets('Im Web gibt es keinen Offline-Karten-Einstieg',
       (tester) async {
     // kIsWeb lässt sich im Test nicht umschalten — dieser Test dokumentiert

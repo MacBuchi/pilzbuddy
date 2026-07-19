@@ -40,6 +40,36 @@ final installedMapsProvider =
     AsyncNotifierProvider<InstalledMapsNotifier, List<InstalledMap>>(
         InstalledMapsNotifier.new);
 
+/// Laufende Karten-Downloads (Region-Key → Fortschritt 0..1). Lebt im
+/// Root-ProviderScope und damit unabhängig vom Verwaltungs-Screen:
+/// Tab-Wechsel oder Navigation brechen einen Download nicht mehr ab (#38).
+class MapDownloadsNotifier extends Notifier<Map<String, double>> {
+  @override
+  Map<String, double> build() => const {};
+
+  /// Startet den Download; wirft bei Fehlern weiter, damit die UI (falls
+  /// noch sichtbar) eine Meldung zeigen kann. Läuft die Region schon,
+  /// passiert nichts.
+  Future<void> start(AvailableMap map) async {
+    if (state.containsKey(map.key)) return;
+    state = {...state, map.key: 0};
+    try {
+      await for (final progress
+          in ref.read(offlineMapRepositoryProvider).download(map)) {
+        state = {...state, map.key: progress};
+      }
+      // Registry neu laden — auch wenn der Screen längst zu ist.
+      ref.invalidate(installedMapsProvider);
+    } finally {
+      state = {...state}..remove(map.key);
+    }
+  }
+}
+
+final mapDownloadsProvider =
+    NotifierProvider<MapDownloadsNotifier, Map<String, double>>(
+        MapDownloadsNotifier.new);
+
 /// Kartenquelle der Hauptkarte: false = Online-OSM (Default), true = Offline.
 final offlineMapEnabledProvider = StateProvider<bool>((ref) => false);
 
