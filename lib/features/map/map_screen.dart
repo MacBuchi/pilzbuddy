@@ -66,6 +66,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
     ref.invalidate(friendSpotsProvider);
     ref.invalidate(friendshipsProvider);
     ref.invalidate(updateInfoProvider);
+    // Karten-Abo: prüfen, ob es neuere Offline-Karten gibt.
+    ref.invalidate(availableMapsProvider);
+    ref.invalidate(installedMapsProvider);
   }
 
   Future<Position?> _currentPosition() async {

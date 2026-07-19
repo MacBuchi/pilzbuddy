@@ -10,6 +10,8 @@ import '../../../core/update_check.dart';
 import '../../../data/feedback_repository.dart';
 import '../../../data/providers.dart';
 import '../../friends/friend_providers.dart';
+import '../../offline_maps/offline_map_providers.dart';
+import '../../offline_maps/offline_maps_screen.dart';
 
 /// Feature-Wunsch-Banner nur einmal pro App-Start anzeigen,
 /// nachdem es weggeklickt oder ein Wunsch abgeschickt wurde.
@@ -17,6 +19,9 @@ final featureBannerDismissedProvider = StateProvider<bool>((ref) => false);
 
 /// Update-Banner für diese Sitzung ausgeblendet?
 final updateBannerDismissedProvider = StateProvider<bool>((ref) => false);
+
+/// Karten-Update-Banner für diese Sitzung ausgeblendet?
+final mapUpdateBannerDismissedProvider = StateProvider<bool>((ref) => false);
 
 /// Banner oben im Hauptfenster: Neuigkeiten (offene Freundschaftsanfragen)
 /// und — solange die App jung ist — ein prominentes Feature-Wunsch-Feld.
@@ -138,6 +143,28 @@ class MapBanners extends ConsumerWidget {
             content: Text(
                 '🔄 Update auf v${updateInfo.latestVersion} verfügbar'),
           ),
+        // Das „Karten-Abo": installierte Offline-Regionen, für die es eine
+        // neuere Version gibt — Antippen öffnet die Verwaltung.
+        if (!ref.watch(mapUpdateBannerDismissedProvider))
+          Builder(builder: (context) {
+            final outdated = ref.watch(outdatedMapsProvider);
+            if (outdated.isEmpty) return const SizedBox.shrink();
+            return _banner(
+              context,
+              background: const Color(0xFF6D4C41),
+              foreground: Colors.white,
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (context) => const OfflineMapsScreen())),
+              onDismiss: () => ref
+                  .read(mapUpdateBannerDismissedProvider.notifier)
+                  .state = true,
+              content: Text(outdated.length == 1
+                  ? '🗺️ Neue Offline-Karte für ${outdated.first.label} '
+                      'verfügbar — antippen'
+                  : '🗺️ ${outdated.length} neue Offline-Karten verfügbar '
+                      '— antippen'),
+            );
+          }),
         if (incoming > 0)
           _banner(
             context,
