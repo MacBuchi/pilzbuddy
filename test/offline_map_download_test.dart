@@ -4,6 +4,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -83,5 +84,61 @@ void main() {
     expect(rangeHeader, 'bytes=700-');
     final installed = await repo.listInstalled();
     expect(await File(installed.single.filePath).readAsBytes(), _mapBytes);
+  });
+
+  test('Korrupte Datei fällt durch die Prüfsumme und wird neu geladen',
+      () async {
+    final mapWithChecksum = AvailableMap(
+      key: _map.key,
+      dateStamp: _map.dateStamp,
+      sizeBytes: _map.sizeBytes,
+      downloadUrl: _map.downloadUrl,
+      sha256: 'sha256:${sha256.convert(_mapBytes)}',
+    );
+
+    var call = 0;
+    final client = MockClient.streaming((request, bodyStream) async {
+      call++;
+      if (call == 1) {
+        // Richtige Länge, aber ein gekipptes Byte — z. B. weil die Quelle
+        // das Asset ersetzt hat, während eine .part-Datei fortgesetzt wurde.
+        final corrupt = List<int>.of(_mapBytes);
+        corrupt[500] = (corrupt[500] + 1) % 256;
+        return http.StreamedResponse(Stream.value(corrupt), 200,
+            contentLength: corrupt.length);
+      }
+      return http.StreamedResponse(Stream.value(_mapBytes), 200,
+          contentLength: _mapBytes.length);
+    });
+
+    final repo = OfflineMapRepository(
+        client: client, baseDirOverride: await _tempDir());
+    await repo.download(mapWithChecksum).drain<void>();
+
+    expect(call, 2); // Erster Download verworfen, zweiter sauber.
+    final installed = await repo.listInstalled();
+    expect(await File(installed.single.filePath).readAsBytes(), _mapBytes);
+    expect(installed.single.sha256, mapWithChecksum.sha256);
+  });
+
+  test('Dauerhaft falsche Prüfsumme bricht mit Fehler ab statt zu installieren',
+      () async {
+    final mapWithChecksum = AvailableMap(
+      key: _map.key,
+      dateStamp: _map.dateStamp,
+      sizeBytes: _map.sizeBytes,
+      downloadUrl: _map.downloadUrl,
+      sha256: 'sha256:${'0' * 64}',
+    );
+    final client = MockClient.streaming((request, bodyStream) async =>
+        http.StreamedResponse(Stream.value(_mapBytes), 200,
+            contentLength: _mapBytes.length));
+
+    final repo = OfflineMapRepository(
+        client: client, baseDirOverride: await _tempDir());
+
+    await expectLater(repo.download(mapWithChecksum).drain<void>(),
+        throwsA(isA<FileSystemException>()));
+    expect(await repo.listInstalled(), isEmpty);
   });
 }
