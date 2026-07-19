@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/errors.dart';
 import 'offline_map_providers.dart';
 import 'offline_map_repository.dart';
 import 'region_catalog.dart';
@@ -31,11 +32,12 @@ class _OfflineMapsScreenState extends ConsumerState<OfflineMapsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text('${map.label} ist jetzt offline verfügbar 🗺️')));
       }
-    } catch (_) {
+    } catch (e, stackTrace) {
+      logError('Karten-Download ${map.key}', e, stackTrace);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(
-                'Download von ${map.label} fehlgeschlagen. Internet verfügbar?')));
+            content:
+                Text('Download von ${map.label}: ${friendlyError(e)}')));
       }
     }
   }

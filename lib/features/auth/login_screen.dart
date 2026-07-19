@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/errors.dart';
 import '../../core/widgets/buddy_mushrooms.dart';
 import '../../data/providers.dart';
 
@@ -34,16 +35,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           );
     } on AuthException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(e.statusCode == '400'
-              ? 'E-Mail oder Passwort falsch.'
-              : 'Anmeldung fehlgeschlagen: ${e.message}'),
-        ));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(loginErrorMessage(e))));
       }
-    } catch (_) {
+    } catch (e, stackTrace) {
+      logError('Login', e, stackTrace);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Anmeldung fehlgeschlagen. Internet verfügbar?')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(friendlyError(e))));
       }
     } finally {
       if (mounted) setState(() => _busy = false);

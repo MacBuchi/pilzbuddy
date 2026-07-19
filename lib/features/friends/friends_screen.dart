@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/app_info.dart';
+import '../../core/errors.dart';
 import '../../core/widgets/mushroom_avatar.dart';
 import '../../data/providers.dart';
 import '../../models/friendship.dart';
@@ -45,8 +46,9 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
         _results = results;
         _searched = true;
       });
-    } catch (_) {
-      _showMessage('Suche fehlgeschlagen. Internet verfügbar?');
+    } catch (e, stackTrace) {
+      logError('Freundesuche', e, stackTrace);
+      _showMessage(friendlyError(e));
     } finally {
       if (mounted) setState(() => _searching = false);
     }
@@ -63,6 +65,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
         throw StateError('share unavailable');
       }
     } catch (_) {
+      // Kein Fehlerfall: Desktop-Browser haben kein System-Teilen.
       await Clipboard.setData(ClipboardData(text: text));
       _showMessage('Einladungstext in die Zwischenablage kopiert.');
     }
@@ -73,7 +76,9 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
       await ref.read(friendshipsProvider.notifier).sendRequest(result.id);
       _showMessage('Anfrage an ${result.username} gesendet.');
       setState(() => _results = _results.where((r) => r.id != result.id).toList());
-    } catch (_) {
+    } catch (e, stackTrace) {
+      logError('Freundschaftsanfrage', e, stackTrace);
+      // Unique-Verletzung = Paar existiert schon — die häufigste Ursache.
       _showMessage(
           'Anfrage nicht möglich – vielleicht seid ihr schon verbunden?');
     }

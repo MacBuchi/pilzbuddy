@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/errors.dart';
 import '../../data/providers.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
@@ -49,17 +50,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             username: username,
           );
     } on AuthException catch (e) {
-      if (mounted) {
-        // "Database error saving new user" = Trigger konnte das Profil nicht
-        // anlegen, praktisch immer weil der Benutzername schon vergeben ist.
-        _showError(e.message.contains('Database error')
-            ? 'Dieser Benutzername ist schon vergeben.'
-            : 'Registrierung fehlgeschlagen: ${e.message}');
-      }
-    } catch (_) {
-      if (mounted) {
-        _showError('Registrierung fehlgeschlagen. Internet verfügbar?');
-      }
+      if (mounted) _showError(signupErrorMessage(e));
+    } catch (e, stackTrace) {
+      logError('Registrierung', e, stackTrace);
+      if (mounted) _showError(friendlyError(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }

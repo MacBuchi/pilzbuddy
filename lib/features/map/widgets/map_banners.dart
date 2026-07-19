@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:ota_update/ota_update.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/errors.dart';
 import '../../../core/update_check.dart';
 import '../../../data/feedback_repository.dart';
 import '../../../data/providers.dart';
@@ -63,10 +64,11 @@ class MapBanners extends ConsumerWidget {
           FeedbackType.feature => 'Danke für deinen Wunsch! 🍄',
         })));
       }
-    } catch (_) {
+    } catch (e, stackTrace) {
+      logError('Feedback senden', e, stackTrace);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Senden fehlgeschlagen. Internet verfügbar?')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(friendlyError(e))));
       }
     }
   }
@@ -241,7 +243,8 @@ class _UpdateDialogState extends State<_UpdateDialog> {
           if (mounted) setState(() => _phase = _UpdatePhase.error);
         },
       );
-    } catch (_) {
+    } catch (e, stackTrace) {
+      logError('Update-Download', e, stackTrace);
       setState(() => _phase = _UpdatePhase.error);
     }
   }
