@@ -10,9 +10,11 @@ import 'dart:async';
 import 'package:pilzbuddy/data/auth_repository.dart';
 import 'package:pilzbuddy/data/feedback_repository.dart';
 import 'package:pilzbuddy/data/friend_repository.dart';
+import 'package:pilzbuddy/data/live_share_repository.dart';
 import 'package:pilzbuddy/data/profile_repository.dart';
 import 'package:pilzbuddy/data/spot_repository.dart';
 import 'package:pilzbuddy/models/find.dart';
+import 'package:pilzbuddy/models/friend_location.dart';
 import 'package:pilzbuddy/models/friendship.dart';
 import 'package:pilzbuddy/models/profile.dart';
 import 'package:pilzbuddy/models/spot.dart';
@@ -71,10 +73,25 @@ class FakeFriendshipRow {
   String status; // 'pending' | 'accepted'
 }
 
+class FakeLiveShareRow {
+  FakeLiveShareRow({
+    required this.userId,
+    required this.lat,
+    required this.lng,
+    required this.expiresAt,
+  });
+
+  final String userId;
+  double lat;
+  double lng;
+  DateTime expiresAt;
+}
+
 class FakeBackend {
   final users = <FakeUser>[];
   final spots = <FakeSpotRow>[];
   final friendships = <FakeFriendshipRow>[];
+  final liveLocations = <FakeLiveShareRow>[];
   final feedback = <Map<String, dynamic>>[];
 
   String? currentUserId;
@@ -166,6 +183,22 @@ class FakeBackend {
     );
     friendships.add(row);
     return row.id;
+  }
+
+  /// Live-Standort-Freigabe eines Nutzers (Standard: läuft in 1 h ab).
+  void addLiveShare(
+    String userId, {
+    double lat = 51.1634,
+    double lng = 10.4477,
+    DateTime? expiresAt,
+  }) {
+    liveLocations.add(FakeLiveShareRow(
+      userId: userId,
+      lat: lat,
+      lng: lng,
+      expiresAt:
+          expiresAt ?? DateTime.now().toUtc().add(const Duration(hours: 1)),
+    ));
   }
 
   /// Test-Setup: Nutzer direkt anmelden, ohne den Login-Screen zu bedienen.
@@ -417,6 +450,63 @@ class FakeFriendRepository implements FriendRepository {
   @override
   Future<void> remove(String friendshipId) async =>
       backend.friendships.removeWhere((f) => f.id == friendshipId);
+}
+
+class FakeLiveShareRepository implements LiveShareRepository {
+  FakeLiveShareRepository(this.backend);
+
+  final FakeBackend backend;
+
+  String get _uid => backend.currentUserId!;
+
+  @override
+  Future<void> upsertMyLocation({
+    required double lat,
+    required double lng,
+    required DateTime expiresAt,
+  }) async {
+    final existing =
+        backend.liveLocations.where((r) => r.userId == _uid).firstOrNull;
+    if (existing == null) {
+      backend.liveLocations.add(FakeLiveShareRow(
+          userId: _uid, lat: lat, lng: lng, expiresAt: expiresAt));
+    } else {
+      existing
+        ..lat = lat
+        ..lng = lng
+        ..expiresAt = expiresAt;
+    }
+  }
+
+  @override
+  Future<DateTime?> fetchMyShare() async {
+    final row =
+        backend.liveLocations.where((r) => r.userId == _uid).firstOrNull;
+    if (row == null) return null;
+    return row.expiresAt.isAfter(DateTime.now().toUtc()) ? row.expiresAt : null;
+  }
+
+  @override
+  Future<void> stopSharing() async =>
+      backend.liveLocations.removeWhere((r) => r.userId == _uid);
+
+  /// Spiegelt die RLS-Policy: sichtbar sind nicht abgelaufene Freigaben
+  /// akzeptierter Freunde (die eigene ausgeblendet).
+  @override
+  Future<List<FriendLocation>> fetchFriendLocations() async => [
+        for (final row in backend.liveLocations)
+          if (row.userId != _uid &&
+              backend.areFriends(_uid, row.userId) &&
+              row.expiresAt.isAfter(DateTime.now().toUtc()))
+            FriendLocation(
+              userId: row.userId,
+              lat: row.lat,
+              lng: row.lng,
+              expiresAt: row.expiresAt,
+              username: backend.userById(row.userId).username,
+              avatar: backend.userById(row.userId).avatar,
+            ),
+      ];
 }
 
 class FakeFeedbackRepository implements FeedbackRepository {

@@ -15,14 +15,18 @@ import '../../core/mushroom_species.dart';
 import '../../core/update_check.dart';
 import '../../core/widgets/mushroom_avatar.dart';
 import '../../core/widgets/mushroom_icon.dart';
+import '../../data/providers.dart';
+import '../../models/friend_location.dart';
 import '../../models/spot.dart';
 import '../friends/friend_providers.dart';
 import '../profile/profile_providers.dart';
 import '../spots/spot_providers.dart';
 import '../spots/widgets/spot_detail_sheet.dart';
+import 'live_share_providers.dart';
 import 'position_provider.dart';
 import 'widgets/add_spot_sheet.dart';
 import 'widgets/map_banners.dart';
+import 'widgets/share_location_sheet.dart';
 import '../../core/app_colors.dart';
 
 /// Fabrik für den Karten-Kachel-Provider. Tests ersetzen sie durch einen
@@ -118,6 +122,77 @@ class _MapScreenState extends ConsumerState<MapScreen>
     ref.invalidate(positionStreamProvider);
   }
 
+  /// Sheet zum Starten/Verlängern/Beenden des Standort-Teilens.
+  Future<void> _openShareSheet() async {
+    final expiresAt = ref.read(myShareProvider).valueOrNull;
+    final active = ref.read(isSharingProvider);
+    final action = await showShareLocationSheet(context,
+        active: active, expiresAt: expiresAt);
+    if (action == null || !mounted) return;
+    final duration = action.duration;
+    if (duration == null) {
+      await _stopSharing();
+    } else {
+      await _startSharing(duration);
+    }
+  }
+
+  Future<void> _startSharing(Duration duration) async {
+    // Bevorzugt die bereits laufende Live-Position; sonst einmalig anfragen
+    // (fragt ggf. nach der Berechtigung, wie „Meine Position").
+    var position = ref.read(positionStreamProvider).valueOrNull;
+    position ??= await _currentPosition();
+    if (position == null) {
+      _showMessage('Standort nicht verfügbar. Berechtigung erteilt?');
+      return;
+    }
+    try {
+      await ref.read(myShareProvider.notifier).share(
+            duration: duration,
+            lat: position.latitude,
+            lng: position.longitude,
+          );
+      // Berechtigung ggf. gerade erteilt → eigenen Live-Marker starten.
+      ref.invalidate(positionStreamProvider);
+      if (!mounted) return;
+      final until = ref.read(myShareProvider).valueOrNull;
+      _showMessage(until == null
+          ? 'Standort wird geteilt 📍'
+          : 'Standort geteilt bis '
+              '${TimeOfDay.fromDateTime(until.toLocal()).format(context)} Uhr 📍');
+    } catch (e, stackTrace) {
+      logError('Standort teilen', e, stackTrace);
+      _showMessage(friendlyError(e));
+    }
+  }
+
+  Future<void> _stopSharing() async {
+    try {
+      await ref.read(myShareProvider.notifier).stop();
+      _showMessage('Standort-Teilen beendet');
+    } catch (e, stackTrace) {
+      logError('Standort-Teilen beenden', e, stackTrace);
+      _showMessage(friendlyError(e));
+    }
+  }
+
+  /// Bei aktiver Freigabe jede neue Position hochschieben, damit Freunde
+  /// die Bewegung sehen. `expires_at` bleibt dabei unverändert.
+  void _maybeUploadLocation(Position? position) {
+    if (position == null || !ref.read(isSharingProvider)) return;
+    final expiresAt = ref.read(myShareProvider).valueOrNull;
+    if (expiresAt == null) return;
+    ref
+        .read(liveShareRepositoryProvider)
+        .upsertMyLocation(
+          lat: position.latitude,
+          lng: position.longitude,
+          expiresAt: expiresAt,
+        )
+        .catchError((Object e, StackTrace st) =>
+            logError('Live-Standort aktualisieren', e, st));
+  }
+
   /// Neuer Spot an der aktuellen Fadenkreuz-Position (Kartenmitte).
   Future<void> _addSpotAtCrosshair() async {
     final center = _mapController.camera.center;
@@ -170,11 +245,41 @@ class _MapScreenState extends ConsumerState<MapScreen>
     );
   }
 
+  /// Live-Standort eines Freundes: sein Avatar mit blauem Ring.
+  Marker _friendLocationMarker(FriendLocation loc) {
+    return Marker(
+      point: loc.position,
+      width: 44,
+      height: 44,
+      child: Tooltip(
+        message: '${loc.username ?? 'Freund'} (live)',
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: AppColors.friendBlue, width: 2.5),
+            boxShadow: const [
+              BoxShadow(
+                  color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
+            ],
+          ),
+          child: MushroomAvatar(index: loc.avatar, size: 39),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final mySpots = ref.watch(mySpotsProvider).valueOrNull ?? const <Spot>[];
     final friendSpots =
         ref.watch(friendSpotsProvider).valueOrNull ?? const <Spot>[];
+    final friendLocations = ref.watch(friendLocationsProvider).valueOrNull ??
+        const <FriendLocation>[];
+    final isSharing = ref.watch(isSharingProvider);
+    final shareUntil = ref.watch(myShareProvider).valueOrNull;
+    // Solange ich teile, jede neue Position hochschieben (Bewegung sichtbar).
+    ref.listen(positionStreamProvider,
+        (_, next) => _maybeUploadLocation(next.valueOrNull));
     // Offline-Layer nur, wenn eingeschaltet UND Karte + Style geladen werden
     // konnten — sonst immer Online-OSM (Sicherheitsnetz um den Beta-Renderer).
     final offlineStyle = ref.watch(offlineMapStyleProvider).valueOrNull;
@@ -250,6 +355,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   ),
                 ]);
               }),
+              // Live-Standorte von Freunden — blau umrandet, unter den
+              // Spot-Markern, damit die tappbar bleiben.
+              if (friendLocations.isNotEmpty)
+                MarkerLayer(markers: [
+                  for (final loc in friendLocations) _friendLocationMarker(loc),
+                ]),
               MarkerLayer(markers: [
                 for (final s in friendSpots) _spotMarker(s),
                 for (final s in mySpots) _spotMarker(s),
@@ -290,6 +401,27 @@ class _MapScreenState extends ConsumerState<MapScreen>
                           'Gedrückt halten richtet das Fadenkreuz aus'),
                     ),
                     const MapBanners(),
+                    if (isSharing && shareUntil != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: GestureDetector(
+                          onTap: _openShareSheet,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color:
+                                  AppColors.friendBlue.withValues(alpha: 0.9),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              '📍 Du teilst deinen Standort bis '
+                              '${TimeOfDay.fromDateTime(shareUntil.toLocal()).format(context)} Uhr — antippen',
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -327,6 +459,19 @@ class _MapScreenState extends ConsumerState<MapScreen>
             },
             tooltip: 'Aktualisieren',
             child: const Icon(Icons.refresh),
+          ),
+          const SizedBox(height: 12),
+          FloatingActionButton.small(
+            heroTag: 'share-location',
+            onPressed: _openShareSheet,
+            tooltip: isSharing
+                ? 'Standort-Teilen verwalten'
+                : 'Standort mit Buddies teilen',
+            backgroundColor: isSharing ? AppColors.friendBlue : null,
+            foregroundColor: isSharing ? Colors.white : null,
+            child: Icon(isSharing
+                ? Icons.share_location
+                : Icons.share_location_outlined),
           ),
           const SizedBox(height: 12),
           FloatingActionButton.small(

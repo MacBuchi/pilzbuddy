@@ -14,6 +14,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:pilzbuddy/app.dart';
 import 'package:pilzbuddy/core/update_check.dart';
 import 'package:pilzbuddy/data/providers.dart';
+import 'package:pilzbuddy/features/map/live_share_providers.dart';
 import 'package:pilzbuddy/features/map/map_screen.dart';
 import 'package:pilzbuddy/features/map/position_provider.dart';
 import 'package:pilzbuddy/features/offline_maps/offline_map_providers.dart';
@@ -74,6 +75,16 @@ List<Override> overridesFor(FakeBackend backend,
       friendRepositoryProvider.overrideWithValue(FakeFriendRepository(backend)),
       feedbackRepositoryProvider
           .overrideWithValue(FakeFeedbackRepository(backend)),
+      liveShareRepositoryProvider
+          .overrideWithValue(FakeLiveShareRepository(backend)),
+      // Kein 15-Sekunden-Poll im Test: einmal laden statt Dauerschleife.
+      friendLocationsProvider.overrideWith((ref) {
+        if (ref.watch(currentUserIdProvider) == null) {
+          return Stream.value(const []);
+        }
+        return Stream.fromFuture(
+            ref.watch(liveShareRepositoryProvider).fetchFriendLocations());
+      }),
       tileProviderFactoryProvider.overrideWithValue(FakeTileProvider.new),
       updateInfoProvider.overrideWith((ref) => Future.value(null)),
     ];

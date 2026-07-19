@@ -52,6 +52,19 @@ create unique index friendships_pair_uidx on public.friendships
 create index friendships_requester_idx on public.friendships (requester_id);
 create index friendships_addressee_idx on public.friendships (addressee_id);
 
+-- Zeitlich begrenztes Live-Standort-Teilen: genau eine Zeile pro Nutzer
+-- (Upsert bei jeder Positionsänderung). Freunde sehen die Zeile nur, solange
+-- expires_at in der Zukunft liegt; „Teilen beenden" löscht sie.
+create table public.live_locations (
+  user_id uuid primary key references public.profiles(id) on delete cascade,
+  lat double precision not null,
+  lng double precision not null,
+  updated_at timestamptz not null default now(),
+  expires_at timestamptz not null
+);
+-- Die Freundes-Select-Policy filtert über expires_at.
+create index live_locations_expires_idx on public.live_locations (expires_at);
+
 -- Feature-Wünsche / Feedback aus der App. Der Feedback-Bot
 -- (.github/workflows/feedback.yml) macht daraus GitHub-Issues bzw.
 -- Pilzart-PRs und setzt processed_at.
@@ -134,11 +147,12 @@ $$;
 -- Row Level Security
 -- ============================================================
 
-alter table public.profiles    enable row level security;
-alter table public.spots       enable row level security;
-alter table public.finds       enable row level security;
-alter table public.friendships enable row level security;
-alter table public.feedback    enable row level security;
+alter table public.profiles       enable row level security;
+alter table public.spots          enable row level security;
+alter table public.finds          enable row level security;
+alter table public.friendships    enable row level security;
+alter table public.live_locations enable row level security;
+alter table public.feedback       enable row level security;
 
 -- feedback: eigene Wünsche einreichen und nachlesen
 create policy feedback_insert on public.feedback for insert
@@ -189,3 +203,12 @@ create policy fr_accept on public.friendships for update
   with check (status = 'accepted');
 create policy fr_delete on public.friendships for delete   -- ablehnen / zurückziehen / entfreunden
   using (requester_id = auth.uid() or addressee_id = auth.uid());
+
+-- live_locations: eigene Zeile voll verwalten (upsert/löschen/lesen),
+-- Freunde sehen sie nur, solange die Freigabe nicht abgelaufen ist.
+create policy ll_owner_all on public.live_locations for all
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy ll_friend_select on public.live_locations for select
+  using (user_id <> auth.uid()
+     and public.are_friends(user_id, auth.uid())
+     and expires_at > now());

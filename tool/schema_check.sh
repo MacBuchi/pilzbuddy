@@ -59,6 +59,10 @@ check_get "friendships-Embed" \
 check_get "finds-Spalten" \
   "/rest/v1/finds?select=id,spot_id,species,count,found_on,note,created_at&limit=1"
 
+# live_locations: exakt die Query aus LiveShareRepository.fetchFriendLocations
+check_get "live_locations-Embed (Freundes-Standorte)" \
+  "/rest/v1/live_locations?select=user_id,lat,lng,expires_at,profiles(username,avatar)&limit=1"
+
 # feedback: Spalten, die App (Insert) und Feedback-Bot (Select) nutzen
 check_get "feedback-Spalten" \
   "/rest/v1/feedback?select=id,user_id,type,message,species_name,created_at,processed_at&limit=1"
