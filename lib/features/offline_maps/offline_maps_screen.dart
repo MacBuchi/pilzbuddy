@@ -15,24 +15,18 @@ class OfflineMapsScreen extends ConsumerStatefulWidget {
 }
 
 class _OfflineMapsScreenState extends ConsumerState<OfflineMapsScreen> {
-  /// Region-Key → Fortschritt (0..1) der laufenden Downloads.
-  final _downloads = <String, double>{};
-
   String _formatSize(int bytes) {
     final mb = bytes / (1024 * 1024);
     if (mb >= 1000) return '${(mb / 1024).toStringAsFixed(1)} GB';
     return '${mb.round()} MB';
   }
 
+  /// Der Download selbst läuft im app-weiten [mapDownloadsProvider] und
+  /// überlebt damit Tab-Wechsel und Navigation (#38) — hier bleiben nur
+  /// die Erfolgs-/Fehlermeldungen, falls der Screen noch offen ist.
   Future<void> _download(AvailableMap map) async {
-    setState(() => _downloads[map.key] = 0);
     try {
-      await for (final progress
-          in ref.read(offlineMapRepositoryProvider).download(map)) {
-        if (!mounted) return;
-        setState(() => _downloads[map.key] = progress);
-      }
-      await ref.read(installedMapsProvider.notifier).refresh();
+      await ref.read(mapDownloadsProvider.notifier).start(map);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text('${map.label} ist jetzt offline verfügbar 🗺️')));
@@ -43,8 +37,6 @@ class _OfflineMapsScreenState extends ConsumerState<OfflineMapsScreen> {
             content: Text(
                 'Download von ${map.label} fehlgeschlagen. Internet verfügbar?')));
       }
-    } finally {
-      if (mounted) setState(() => _downloads.remove(map.key));
     }
   }
 
@@ -113,7 +105,7 @@ class _OfflineMapsScreenState extends ConsumerState<OfflineMapsScreen> {
   }
 
   Widget _mapTile(AvailableMap map, InstalledMap? installedVersion) {
-    final progress = _downloads[map.key];
+    final progress = ref.watch(mapDownloadsProvider)[map.key];
     final isCurrent = installedVersion?.dateStamp == map.dateStamp;
     final hasUpdate = installedVersion != null && !isCurrent;
 
