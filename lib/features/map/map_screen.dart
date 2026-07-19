@@ -23,6 +23,7 @@ import '../spots/widgets/spot_detail_sheet.dart';
 import 'position_provider.dart';
 import 'widgets/add_spot_sheet.dart';
 import 'widgets/map_banners.dart';
+import '../../core/app_colors.dart';
 
 /// Fabrik für den Karten-Kachel-Provider. Tests ersetzen sie durch einen
 /// Offline-Fake, damit keine echten OSM-Requests laufen.
@@ -236,7 +237,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
-                            color: const Color(0xFF2E7D32), width: 2.5),
+                            color: AppColors.forestGreen, width: 2.5),
                         boxShadow: const [
                           BoxShadow(
                               color: Colors.black26,
@@ -370,7 +371,7 @@ class _CrosshairPainter extends CustomPainter {
       ..strokeWidth = 3.5
       ..strokeCap = StrokeCap.round;
     final line = Paint()
-      ..color = const Color(0xFF2E7D32).withValues(alpha: 0.9)
+      ..color = AppColors.forestGreen.withValues(alpha: 0.9)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.8
       ..strokeCap = StrokeCap.round;
@@ -390,7 +391,7 @@ class _CrosshairPainter extends CustomPainter {
           center + const Offset(radius + arm, 0), paint);
     }
     canvas.drawCircle(center, 1.8, Paint()..color = Colors.white);
-    canvas.drawCircle(center, 1.1, Paint()..color = const Color(0xFF2E7D32));
+    canvas.drawCircle(center, 1.1, Paint()..color = AppColors.forestGreen);
   }
 
   @override

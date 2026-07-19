@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/router.dart';
 import 'features/intro/intro_overlay.dart';
+import 'core/app_colors.dart';
 
 class PilzBuddyApp extends ConsumerWidget {
   const PilzBuddyApp({super.key});
@@ -18,7 +19,7 @@ class PilzBuddyApp extends ConsumerWidget {
           IntroOverlay(child: child ?? const SizedBox.shrink()),
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF2E7D32),
+          seedColor: AppColors.forestGreen,
           brightness: Brightness.light,
         ),
         useMaterial3: true,

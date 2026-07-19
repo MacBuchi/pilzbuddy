@@ -12,7 +12,7 @@ import '../../../data/feedback_repository.dart';
 import '../../../data/providers.dart';
 import '../../friends/friend_providers.dart';
 import '../../offline_maps/offline_map_providers.dart';
-import '../../offline_maps/offline_maps_screen.dart';
+import '../../../core/app_colors.dart';
 
 /// Feature-Wunsch-Banner nur einmal pro App-Start anzeigen,
 /// nachdem es weggeklickt oder ein Wunsch abgeschickt wurde.
@@ -136,7 +136,7 @@ class MapBanners extends ConsumerWidget {
         if (updateInfo != null && !updateDismissed)
           _banner(
             context,
-            background: const Color(0xFF2E7D32),
+            background: AppColors.forestGreen,
             foreground: Colors.white,
             onTap: () => _openUpdateDialog(context, updateInfo),
             onDismiss: () => ref
@@ -153,10 +153,9 @@ class MapBanners extends ConsumerWidget {
             if (outdated.isEmpty) return const SizedBox.shrink();
             return _banner(
               context,
-              background: const Color(0xFF6D4C41),
+              background: AppColors.warmBrown,
               foreground: Colors.white,
-              onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                  builder: (context) => const OfflineMapsScreen())),
+              onTap: () => context.push('/profile/offline-maps'),
               onDismiss: () => ref
                   .read(mapUpdateBannerDismissedProvider.notifier)
                   .state = true,
@@ -170,7 +169,7 @@ class MapBanners extends ConsumerWidget {
         if (incoming > 0)
           _banner(
             context,
-            background: const Color(0xFF1565C0),
+            background: AppColors.friendBlue,
             foreground: Colors.white,
             onTap: () => context.go('/friends'),
             content: Text(incoming == 1
@@ -180,8 +179,8 @@ class MapBanners extends ConsumerWidget {
         if (!featureDismissed)
           _banner(
             context,
-            background: const Color(0xFFFFF8E1),
-            foreground: const Color(0xFF6D4C41),
+            background: AppColors.sunshine,
+            foreground: AppColors.warmBrown,
             onTap: () => _openFeedbackDialog(context, ref),
             onDismiss: () => ref
                 .read(featureBannerDismissedProvider.notifier)

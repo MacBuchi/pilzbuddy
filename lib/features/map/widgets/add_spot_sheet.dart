@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../spots/widgets/species_field.dart';
+import '../../../core/app_colors.dart';
 
 /// Ergebnis des Anlege-Formulars.
 class NewSpotData {
@@ -127,7 +128,7 @@ class _AddSpotSheetState extends State<_AddSpotSheet> {
           children: [
             Row(
               children: [
-                const Icon(Icons.add_location_alt, color: Color(0xFF2E7D32)),
+                const Icon(Icons.add_location_alt, color: AppColors.forestGreen),
                 const SizedBox(width: 8),
                 Text('Neuer Pilz-Spot',
                     style: Theme.of(context).textTheme.titleLarge),

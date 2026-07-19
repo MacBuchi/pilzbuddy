@@ -5,6 +5,7 @@ import '../../core/errors.dart';
 import 'offline_map_providers.dart';
 import 'offline_map_repository.dart';
 import 'region_catalog.dart';
+import '../../core/app_colors.dart';
 
 /// Verwaltung der Offline-Karten: Regionen herunterladen, aktualisieren
 /// und löschen. Nur auf Android erreichbar (Einstieg im Profil).
@@ -125,7 +126,7 @@ class _OfflineMapsScreenState extends ConsumerState<OfflineMapsScreen> {
       contentPadding: EdgeInsets.zero,
       leading: Icon(
         installedVersion != null ? Icons.download_done : Icons.map_outlined,
-        color: installedVersion != null ? const Color(0xFF2E7D32) : null,
+        color: installedVersion != null ? AppColors.forestGreen : null,
       ),
       title: Text(map.label),
       subtitle: download != null
