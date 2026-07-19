@@ -29,6 +29,7 @@ Future<NewSpotData?> showAddSpotSheet(
   LatLng position, {
   List<String> ownSpecies = const [],
   String? defaultSpecies,
+  String? initialName,
 }) {
   return showModalBottomSheet<NewSpotData>(
     context: context,
@@ -37,6 +38,7 @@ Future<NewSpotData?> showAddSpotSheet(
       position: position,
       ownSpecies: ownSpecies,
       defaultSpecies: defaultSpecies,
+      initialName: initialName,
     ),
   );
 }
@@ -46,18 +48,23 @@ class _AddSpotSheet extends StatefulWidget {
     required this.position,
     required this.ownSpecies,
     this.defaultSpecies,
+    this.initialName,
   });
 
   final LatLng position;
   final List<String> ownSpecies;
   final String? defaultSpecies;
 
+  /// Vorbelegter Spot-Name (z. B. Punktname aus einem GPX-Import).
+  final String? initialName;
+
   @override
   State<_AddSpotSheet> createState() => _AddSpotSheetState();
 }
 
 class _AddSpotSheetState extends State<_AddSpotSheet> {
-  final _nameController = TextEditingController();
+  late final _nameController =
+      TextEditingController(text: widget.initialName ?? '');
   late final TextEditingController _speciesController =
       TextEditingController(text: widget.defaultSpecies ?? '');
   final _noteController = TextEditingController();

@@ -152,18 +152,22 @@ void main() {
     await settle(tester);
 
     expect(find.text('testpilz'), findsOneWidget);
-    expect(find.text('Spots'), findsOneWidget);
-    expect(find.text('Funde'), findsOneWidget);
-    // 2 Spots, 3 Funde, 1 mehrfach besuchter Spot
-    expect(find.text('2'), findsAtLeastNWidgets(1));
-    expect(find.text('3'), findsAtLeastNWidgets(1));
 
     // Detail-Freigabe umschalten, solange der Schalter oben sichtbar ist.
     await tester.tap(find.text('Auch Art, Anzahl und Funddatum teilen'));
     await settle(tester);
     expect(me.shareDetails, isFalse);
 
-    // Top-Arten liegt weiter unten im ListView — hinscrollen.
+    // Statistik liegt unter Offline-Karten/Import/Export — hinscrollen.
+    await tester.scrollUntilVisible(find.text('Spots'), 200,
+        scrollable: find.byType(Scrollable).first);
+    expect(find.text('Spots'), findsOneWidget);
+    expect(find.text('Funde'), findsOneWidget);
+    // 2 Spots, 3 Funde, 1 mehrfach besuchter Spot
+    expect(find.text('2'), findsAtLeastNWidgets(1));
+    expect(find.text('3'), findsAtLeastNWidgets(1));
+
+    // Top-Arten liegt noch weiter unten im ListView.
     await tester.scrollUntilVisible(find.text('Top-Arten'), 200,
         scrollable: find.byType(Scrollable).first);
     expect(find.text('Top-Arten'), findsOneWidget);
