@@ -6,6 +6,9 @@ import 'package:flutter_map_cancellable_tile_provider/flutter_map_cancellable_ti
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:vector_map_tiles/vector_map_tiles.dart' as vmt;
+
+import '../offline_maps/offline_map_providers.dart';
 
 import '../../core/mushroom_species.dart';
 import '../../core/update_check.dart';
@@ -154,6 +157,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final mySpots = ref.watch(mySpotsProvider).valueOrNull ?? const <Spot>[];
     final friendSpots =
         ref.watch(friendSpotsProvider).valueOrNull ?? const <Spot>[];
+    // Offline-Layer nur, wenn eingeschaltet UND Karte + Style geladen werden
+    // konnten — sonst immer Online-OSM (Sicherheitsnetz um den Beta-Renderer).
+    final offlineStyle = ref.watch(offlineMapStyleProvider).valueOrNull;
+    final hasInstalledMaps =
+        (ref.watch(installedMapsProvider).valueOrNull ?? const []).isNotEmpty;
+    final offlineActive = offlineStyle != null;
 
     return Scaffold(
       body: Stack(
@@ -173,18 +182,30 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   latLng, math.max(_mapController.camera.zoom, 16)),
             ),
             children: [
-              TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'de.marcusbucher.pilzbuddy',
-                tileProvider: ref.watch(tileProviderFactoryProvider)(),
-              ),
+              if (offlineActive)
+                vmt.VectorTileLayer(
+                  tileProviders: offlineStyle.tileProviders,
+                  theme: offlineStyle.theme,
+                  // Vector-Modus rendert scharf in jeder Zoomstufe; die
+                  // Kartendaten reichen bis Zoom ~15, darüber wird skaliert.
+                  layerMode: vmt.VectorTileLayerMode.vector,
+                  maximumZoom: 19,
+                )
+              else
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'de.marcusbucher.pilzbuddy',
+                  tileProvider: ref.watch(tileProviderFactoryProvider)(),
+                ),
               MarkerLayer(markers: [
                 for (final s in friendSpots) _spotMarker(s),
                 for (final s in mySpots) _spotMarker(s),
               ]),
-              const RichAttributionWidget(
+              RichAttributionWidget(
                 attributions: [
-                  TextSourceAttribution('OpenStreetMap-Mitwirkende'),
+                  const TextSourceAttribution('OpenStreetMap-Mitwirkende'),
+                  if (offlineActive)
+                    const TextSourceAttribution('Protomaps (Offline-Karte)'),
                 ],
               ),
             ],
@@ -227,6 +248,24 @@ class _MapScreenState extends ConsumerState<MapScreen>
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
+          // Umschalter Online/Offline — erst sichtbar, wenn mindestens
+          // eine Offline-Karte heruntergeladen wurde.
+          if (hasInstalledMaps) ...[
+            FloatingActionButton.small(
+              heroTag: 'offline',
+              onPressed: () {
+                final enabled = ref.read(offlineMapEnabledProvider.notifier);
+                enabled.state = !enabled.state;
+                _showMessage(enabled.state
+                    ? 'Offline-Karte aktiv 🗺️'
+                    : 'Online-Karte aktiv');
+              },
+              tooltip:
+                  offlineActive ? 'Zur Online-Karte' : 'Zur Offline-Karte',
+              child: Icon(offlineActive ? Icons.cloud_queue : Icons.cloud_off),
+            ),
+            const SizedBox(height: 12),
+          ],
           FloatingActionButton.small(
             heroTag: 'refresh',
             onPressed: () {

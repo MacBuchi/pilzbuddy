@@ -1,10 +1,12 @@
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/widgets/mushroom_avatar.dart';
 import '../../data/providers.dart';
 import '../../models/find.dart';
+import '../offline_maps/offline_maps_screen.dart';
 import '../spots/spot_providers.dart';
 import 'profile_providers.dart';
 
@@ -94,6 +96,23 @@ class ProfileScreen extends ConsumerWidget {
             ),
             const Divider(height: 32),
           ] else if (profileAsync.isLoading)
+            const SizedBox.shrink(),
+          // Offline-Karten gibt es nur in der Android-App — im Web ist
+          // die Online-Karte ohnehin immer da.
+          if (!kIsWeb) ...[
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.map_outlined),
+              title: const Text('Offline-Karten'),
+              subtitle:
+                  const Text('Deine Region herunterladen — Karte ohne Empfang'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (context) => const OfflineMapsScreen())),
+            ),
+            const Divider(height: 32),
+          ],
+          if (profile == null && profileAsync.isLoading)
             const Padding(
               padding: EdgeInsets.all(16),
               child: Center(child: CircularProgressIndicator()),

@@ -44,6 +44,17 @@ Riverpod ohne Codegen, go_router, deutsche UI-Strings direkt im Code.
   bei lokalem Flutter-Upgrade auch `.github/workflows/*.yml` anpassen.
 - Supabase-Keys in `lib/core/supabase_config.dart` sind bewusst öffentlich
   (Publishable Key); niemals den service_role-Key einchecken.
+- Offline-Karten (`lib/features/offline_maps/`, nur Android): Bundesland-
+  PMTiles (Protomaps Basemap v4, ODbL) aus den GitHub-Releases von
+  `whitespring/project-nomad-maps-europe`; Katalog entsteht dynamisch aus
+  der Release-Asset-Liste (`<key>_<JJJJMMTT>.pmtiles`). Rendering über
+  vector_map_tiles (exakt gepinnte Beta — nur Beta-Versionen können
+  flutter_map 8; bewusst die 9er-Linie mit Canvas-Renderer, die 10er zieht
+  den GPU-Stack samt CMake-Native-Builds nach sich). Style-Asset
+  `assets/map_style/protomaps_light_de.json` ist generiert
+  (npm `@protomaps/basemaps`, Flavor LIGHT, lang de) — nicht von Hand
+  editieren, sondern neu generieren. Offline-Layer ist strikt optional:
+  Fehler beim Laden ⇒ stiller Fallback auf Online-OSM.
 - Issue-Triage (`.github/workflows/claude-issue-triage.yml`): Claude analysiert
   jedes neue Issue (Einordnung, Labels, Ursache, Umsetzungsvorschlag als
   Kommentar) — darf aber NUR lesen/labeln/kommentieren. Umsetzung erst nach
