@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.12.2+26
+version: 1.13.0+27
 
 environment:
   sdk: ^3.11.0
@@ -109,6 +109,10 @@ flutter:
     # MapLibre-Style für die Offline-Karte (generiert aus @protomaps/basemaps,
     # Flavor LIGHT, deutsche Labels — siehe lib/features/offline_maps/).
     - assets/map_style/protomaps_light_de.json
+    # Eingebaute Übersichts-Basiskarte (DACH, Zoom 0–7, ~9 MB): Fallback im
+    # Offline-Modus für Bereiche ohne installierte Regionskarte. Generiert mit
+    # `pmtiles extract <Protomaps-Daily-Build> --bbox=5.5,45.5,17.5,55.5 --maxzoom=7`.
+    - assets/offline_maps/overview_dach.pmtiles
 
   # To add assets to your application, add an assets section, like this:
   # assets:
