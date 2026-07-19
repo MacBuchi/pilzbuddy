@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../mushroom_species.dart';
+import '../app_colors.dart';
 
 /// Stabiler Hash für Strings über App-Neustarts hinweg (String.hashCode
 /// ist dafür nicht garantiert) — bestimmt die Icon-Variante eines Spots.
@@ -205,7 +206,7 @@ class _MushroomPainter extends CustomPainter {
       ..strokeWidth = u(0.09)
       ..strokeJoin = StrokeJoin.round;
     final outline = Paint()
-      ..color = const Color(0xFF4E342E).withValues(alpha: 0.75)
+      ..color = AppColors.barkBrown.withValues(alpha: 0.75)
       ..style = PaintingStyle.stroke
       ..strokeWidth = u(0.025);
 
@@ -304,7 +305,7 @@ class _MushroomPainter extends CustomPainter {
     // blau = Community/Freund — die Herkunft ist so auf einen Blick klar.
     if (ground) {
       final baseColor =
-          friend ? const Color(0xFF1565C0) : const Color(0xFF2E7D32);
+          friend ? AppColors.friendBlue : AppColors.forestGreen;
       canvas.drawOval(
         Rect.fromCenter(
             center: p(0.5, 0.925), width: u(0.66), height: u(0.15)),
@@ -316,7 +317,7 @@ class _MushroomPainter extends CustomPainter {
     canvas.drawPath(stemPath, halo);
     canvas.drawPath(cap, halo);
     canvas.drawPath(stemPath,
-        Paint()..color = style.stemColor ?? const Color(0xFFFFF6E3));
+        Paint()..color = style.stemColor ?? AppColors.cream);
     canvas.drawPath(cap, Paint()..color = capColor);
 
     if (style.rings) {
@@ -352,7 +353,7 @@ class _MushroomPainter extends CustomPainter {
       canvas.save();
       canvas.clipPath(cap);
       final dot = Paint()
-        ..color = const Color(0xFF3E2723).withValues(alpha: 0.55);
+        ..color = AppColors.faceBrown.withValues(alpha: 0.55);
       canvas.drawCircle(p(0.34, 0.26), u(0.04), dot);
       canvas.drawCircle(p(0.56, 0.16), u(0.035), dot);
       canvas.drawCircle(p(0.70, 0.32), u(0.04), dot);
@@ -365,7 +366,7 @@ class _MushroomPainter extends CustomPainter {
     canvas.drawPath(cap, outline);
 
     // Gesicht — immer freundlich
-    final faceColor = const Color(0xFF3E2723);
+    final faceColor = AppColors.faceBrown;
     final face = Paint()..color = faceColor;
     canvas.drawCircle(p(0.44, faceY), u(0.032), face);
     canvas.drawCircle(p(0.56, faceY), u(0.032), face);
@@ -382,7 +383,7 @@ class _MushroomPainter extends CustomPainter {
           ..strokeCap = StrokeCap.round);
     if (hasCheeks) {
       final cheek =
-          Paint()..color = const Color(0xFFF8BBD0).withValues(alpha: 0.9);
+          Paint()..color = AppColors.cheekPink.withValues(alpha: 0.9);
       canvas.drawCircle(p(0.385, faceY + 0.06), u(0.028), cheek);
       canvas.drawCircle(p(0.615, faceY + 0.06), u(0.028), cheek);
     }

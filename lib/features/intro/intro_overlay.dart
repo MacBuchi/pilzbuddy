@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/mushroom_species.dart';
 import '../../core/widgets/mushroom_icon.dart';
+import '../../core/app_colors.dart';
 
 /// Kurze Start-Animation: freundliche Pilze wachsen nacheinander aus dem
 /// Boden, dann blendet das Overlay aus. Tippen überspringt sie.
@@ -117,7 +118,7 @@ class _IntroOverlayState extends State<IntroOverlay>
                               .textTheme
                               .headlineMedium
                               ?.copyWith(
-                                color: const Color(0xFF2E7D32),
+                                color: AppColors.forestGreen,
                                 fontWeight: FontWeight.bold,
                               ),
                         ),

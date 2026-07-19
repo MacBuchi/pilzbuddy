@@ -10,6 +10,7 @@ import '../../data/providers.dart';
 import '../../models/friendship.dart';
 import '../profile/profile_providers.dart';
 import 'friend_providers.dart';
+import '../../core/app_colors.dart';
 
 class FriendsScreen extends ConsumerStatefulWidget {
   const FriendsScreen({super.key});
@@ -173,7 +174,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
                         onPressed: () =>
                             ref.read(friendshipsProvider.notifier).accept(f.id),
                         icon: const Icon(Icons.check_circle,
-                            color: Color(0xFF2E7D32)),
+                            color: AppColors.forestGreen),
                         tooltip: 'Annehmen',
                       ),
                       IconButton(

@@ -9,6 +9,7 @@ import '../../core/mushroom_species.dart';
 import '../map/widgets/add_spot_sheet.dart';
 import '../spots/spot_providers.dart';
 import 'waypoint_parser.dart';
+import '../../core/app_colors.dart';
 
 /// Punkte aus GPX/KML/KMZ importieren: Datei wählen, dann für jeden
 /// gefundenen Punkt einzeln den Pilz-Spot anlegen (bekanntes
@@ -161,7 +162,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
                           ? Icons.check_circle
                           : Icons.place_outlined,
                       color: _created.contains(i)
-                          ? const Color(0xFF2E7D32)
+                          ? AppColors.forestGreen
                           : null,
                     ),
                     title: Text(waypoints[i].name ?? 'Punkt ${i + 1}'),

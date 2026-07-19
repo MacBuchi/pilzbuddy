@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../mushroom_species.dart';
 import 'mushroom_icon.dart';
+import '../app_colors.dart';
 
 /// Ein Avatar-Eintrag: bestimmt Seed (Farbe/Punkte/Wangen) und Gruppe
 /// (Hutform) des Pilz-Porträts.
@@ -64,9 +65,9 @@ class MushroomAvatar extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: const Color(0xFFFDF6E3),
+        color: AppColors.creamPortrait,
         border: Border.all(
-          color: const Color(0xFF4E342E).withValues(alpha: 0.25),
+          color: AppColors.barkBrown.withValues(alpha: 0.25),
           width: size * 0.03,
         ),
       ),

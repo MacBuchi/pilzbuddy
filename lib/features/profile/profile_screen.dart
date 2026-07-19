@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -14,10 +15,9 @@ import '../../core/widgets/mushroom_avatar.dart';
 import '../../data/providers.dart';
 import '../../models/find.dart';
 import '../import_export/gpx_export.dart';
-import '../import_export/import_screen.dart';
-import '../offline_maps/offline_maps_screen.dart';
 import '../spots/spot_providers.dart';
 import 'profile_providers.dart';
+import '../../core/app_colors.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -116,8 +116,7 @@ class ProfileScreen extends ConsumerWidget {
               subtitle:
                   const Text('Deine Region herunterladen — Karte ohne Empfang'),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                  builder: (context) => const OfflineMapsScreen())),
+              onTap: () => context.push('/profile/offline-maps'),
             ),
           ],
           ListTile(
@@ -127,8 +126,7 @@ class ProfileScreen extends ConsumerWidget {
             subtitle: const Text(
                 'GPX/KML aus anderen Karten-Apps — je Punkt einen Spot anlegen'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                builder: (context) => const ImportScreen())),
+            onTap: () => context.push('/profile/import'),
           ),
           ListTile(
             contentPadding: EdgeInsets.zero,
@@ -300,7 +298,7 @@ Future<void> _pickAvatar(
                             ? BoxDecoration(
                                 shape: BoxShape.circle,
                                 border: Border.all(
-                                    color: const Color(0xFF2E7D32), width: 3),
+                                    color: AppColors.forestGreen, width: 3),
                               )
                             : null,
                         child: MushroomAvatar(index: i, size: 64),

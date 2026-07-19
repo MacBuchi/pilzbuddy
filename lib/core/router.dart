@@ -8,7 +8,9 @@ import '../data/providers.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/signup_screen.dart';
 import '../features/friends/friends_screen.dart';
+import '../features/import_export/import_screen.dart';
 import '../features/map/map_screen.dart';
+import '../features/offline_maps/offline_maps_screen.dart';
 import '../features/profile/profile_screen.dart';
 
 /// Stößt den Router-Redirect an, sobald sich der Auth-Zustand ändert.
@@ -44,6 +46,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     },
     routes: [
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+
       GoRoute(
           path: '/signup', builder: (context, state) => const SignupScreen()),
       StatefulShellRoute.indexedStack(
@@ -61,7 +64,19 @@ final routerProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(routes: [
             GoRoute(
                 path: '/profile',
-                builder: (context, state) => const ProfileScreen()),
+                builder: (context, state) => const ProfileScreen(),
+                // Unterrouten des Profil-Tabs (statt imperativem
+                // Navigator.push, Issue #56) — die Tab-Leiste bleibt
+                // sichtbar, Downloads laufen beim Tab-Wechsel weiter.
+                routes: [
+                  GoRoute(
+                      path: 'offline-maps',
+                      builder: (context, state) =>
+                          const OfflineMapsScreen()),
+                  GoRoute(
+                      path: 'import',
+                      builder: (context, state) => const ImportScreen()),
+                ]),
           ]),
         ],
       ),
