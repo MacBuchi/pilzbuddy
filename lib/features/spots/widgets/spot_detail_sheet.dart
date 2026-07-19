@@ -104,6 +104,7 @@ class _SpotDetailSheet extends ConsumerWidget {
                 size: 30,
                 friend: !spot.isOwn,
                 group: groupFor(spot.lastFind?.species),
+                species: spot.lastFind?.species,
               ),
               const SizedBox(width: 8),
               Expanded(

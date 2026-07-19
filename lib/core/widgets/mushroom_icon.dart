@@ -16,6 +16,8 @@ int stableSeed(String input) {
 /// Aussehen (Röhrling = braune Kuppel, Pfifferling = gelber Trichter,
 /// Wulstling = rot mit Punkten, Bovist = Kugel, Baumpilz = Konsole …) —
 /// so erkennt man die Pilzart auf der Karte auf den ersten Blick.
+/// Einige bekannte Arten ([species]) bekommen zusätzlich ein eigenes
+/// Aussehen (Pfifferling, Herbsttrompete, Reizker, Marone).
 /// Ohne Gruppe sorgt [seed] für bunte Vielfalt. Der Boden unter dem Pilz
 /// zeigt die Herkunft: grün = eigener Spot, blau = von einem Freund.
 class MushroomIcon extends StatelessWidget {
@@ -25,6 +27,7 @@ class MushroomIcon extends StatelessWidget {
     this.size = 44,
     this.friend = false,
     this.group,
+    this.species,
     this.ground = true,
   });
 
@@ -32,6 +35,10 @@ class MushroomIcon extends StatelessWidget {
   final double size;
   final bool friend;
   final SpeciesGroup? group;
+
+  /// Artname des letzten Funds — schaltet für bekannte Arten die
+  /// art-spezifische Form/Farbe frei (Fallback: [group]).
+  final String? species;
 
   /// Boden-Ellipse zeichnen? Auf der Karte ja (zeigt Besitz: grün/blau),
   /// in Porträts wie Avataren nein.
@@ -42,22 +49,32 @@ class MushroomIcon extends StatelessWidget {
     return CustomPaint(
       size: Size(size, size),
       painter: _MushroomPainter(
-          seed: seed, friend: friend, group: group, ground: ground),
+          seed: seed,
+          friend: friend,
+          group: group,
+          species: species,
+          ground: ground),
     );
   }
 }
 
-enum _CapShape { dome, cone, flat, funnel, ball, shelf }
+enum _CapShape { dome, cone, flat, funnel, ball, shelf, chanterelle, trumpet }
 
 class _Style {
   final _CapShape shape;
   final List<Color> capColors;
   final bool whiteDots;
   final bool darkDots; // Morchel-Waben / Schirmling-Schuppen
+  final bool rings; // Reizker: konzentrische dunklere Zonen auf dem Hut
   final double stemTop; // obere Stielkante (relativ), für hohe Schirmlinge
+  final Color? stemColor; // abweichende Stielfarbe (Pfifferling gelb …)
 
   const _Style(this.shape, this.capColors,
-      {this.whiteDots = false, this.darkDots = false, this.stemTop = 0.42});
+      {this.whiteDots = false,
+      this.darkDots = false,
+      this.rings = false,
+      this.stemTop = 0.42,
+      this.stemColor});
 }
 
 class _MushroomPainter extends CustomPainter {
@@ -65,13 +82,54 @@ class _MushroomPainter extends CustomPainter {
     required this.seed,
     required this.friend,
     this.group,
+    this.species,
     this.ground = true,
   });
 
   final int seed;
   final bool friend;
   final SpeciesGroup? group;
+  final String? species;
   final bool ground;
+
+  /// Art-spezifische Looks für besonders charakteristische Pilze —
+  /// Details siehe .claude/skills/pilz-designer. Matcht per Namensteil,
+  /// damit auch „Echter Pfifferling" oder „Kiefernreizker" greifen.
+  static _Style? _speciesStyleFor(String? name) {
+    if (name == null) return null;
+    final key = name.toLowerCase();
+    if (key.contains('pfifferling')) {
+      // Dottergelber Trichter, Hut und Stiel gehen ineinander über.
+      return const _Style(_CapShape.chanterelle,
+          [Color(0xFFF9A825), Color(0xFFFBC02D)],
+          stemColor: Color(0xFFFFD54F));
+    }
+    if (key.contains('trompete')) {
+      // Herbsttrompete: tiefe dunkle Trompete mit ausgestelltem Rand.
+      return const _Style(_CapShape.trumpet,
+          [Color(0xFF6D5F57), Color(0xFF75655C)],
+          stemColor: Color(0xFF8D7F76));
+    }
+    if (key.contains('reizker')) {
+      // Orangene Milchlinge mit konzentrischen Zonen; Farbton je Art.
+      final cap = key.contains('lachs')
+          ? const Color(0xFFEF8A66) // Lachsreizker: lachsrosa
+          : key.contains('fichten')
+              ? const Color(0xFFD9702E) // Fichtenreizker: kräftig orange
+              : key.contains('kiefern')
+                  ? const Color(0xFFC96A2E) // Kiefernreizker: rotbraun-orange
+                  : const Color(0xFFE8833A); // Edelreizker: klassisch orange
+      return _Style(_CapShape.flat, [cap],
+          rings: true, stemColor: const Color(0xFFF8CBA4));
+    }
+    if (key.contains('marone') || key.contains('braunkappe')) {
+      // Marone/Braunkappe: kastanienbrauner Hut, gelbliche Röhren/Stiel.
+      return const _Style(_CapShape.dome,
+          [Color(0xFF6B4423), Color(0xFF5D3A21)],
+          stemColor: Color(0xFFF5EDCB));
+    }
+    return null;
+  }
 
   static const _fallbackColors = [
     Color(0xFFE53935),
@@ -137,7 +195,7 @@ class _MushroomPainter extends CustomPainter {
     double u(double v) => v * w;
     Offset p(double x, double y) => Offset(u(x), u(y));
 
-    final style = _styleFor(group);
+    final style = _speciesStyleFor(species) ?? _styleFor(group);
     final capColor = style.capColors[seed % style.capColors.length];
     final hasCheeks = (seed ~/ 42) % 2 == 0;
 
@@ -161,6 +219,8 @@ class _MushroomPainter extends CustomPainter {
       case _CapShape.cone:
       case _CapShape.flat:
       case _CapShape.funnel:
+      case _CapShape.chanterelle:
+      case _CapShape.trumpet:
         stemPath = Path()
           ..addRRect(RRect.fromLTRBR(u(0.36), u(style.stemTop), u(0.64),
               u(0.96), Radius.circular(u(0.13))));
@@ -186,13 +246,36 @@ class _MushroomPainter extends CustomPainter {
               ..quadraticBezierTo(u(0.5), u(0.54), u(0.02), u(0.46))
               ..close();
           case _CapShape.funnel:
-            // Trichter: oben eingedellt, geschwungener Rand (Pfifferling)
+            // Trichter: oben eingedellt, geschwungener Rand (Leistlinge)
             cap
               ..moveTo(u(0.08), u(0.20))
               ..quadraticBezierTo(u(0.5), u(0.40), u(0.92), u(0.20))
               ..quadraticBezierTo(u(0.94), u(0.44), u(0.70), u(0.52))
               ..quadraticBezierTo(u(0.5), u(0.57), u(0.30), u(0.52))
               ..quadraticBezierTo(u(0.06), u(0.44), u(0.08), u(0.20))
+              ..close();
+          case _CapShape.chanterelle:
+            // Pfifferling: tiefer dottergelber Trichter mit welligem
+            // Rand, der weich in den (gelben) Stiel übergeht.
+            cap
+              ..moveTo(u(0.04), u(0.18))
+              ..quadraticBezierTo(u(0.18), u(0.32), u(0.34), u(0.26))
+              ..quadraticBezierTo(u(0.5), u(0.38), u(0.66), u(0.26))
+              ..quadraticBezierTo(u(0.82), u(0.32), u(0.96), u(0.18))
+              ..quadraticBezierTo(u(0.92), u(0.50), u(0.68), u(0.58))
+              ..quadraticBezierTo(u(0.5), u(0.63), u(0.32), u(0.58))
+              ..quadraticBezierTo(u(0.08), u(0.50), u(0.04), u(0.18))
+              ..close();
+          case _CapShape.trumpet:
+            // Herbsttrompete: schlanke, tiefe Trompete mit ausgestelltem
+            // welligem Rand — der ganze Pilz ist ein dunkles Horn.
+            cap
+              ..moveTo(u(0.14), u(0.10))
+              ..quadraticBezierTo(u(0.30), u(0.22), u(0.5), u(0.18))
+              ..quadraticBezierTo(u(0.70), u(0.22), u(0.86), u(0.10))
+              ..quadraticBezierTo(u(0.86), u(0.42), u(0.64), u(0.54))
+              ..quadraticBezierTo(u(0.5), u(0.60), u(0.36), u(0.54))
+              ..quadraticBezierTo(u(0.14), u(0.42), u(0.14), u(0.10))
               ..close();
           default:
             break;
@@ -232,8 +315,28 @@ class _MushroomPainter extends CustomPainter {
     // Halo → Füllung → Details → Kontur
     canvas.drawPath(stemPath, halo);
     canvas.drawPath(cap, halo);
-    canvas.drawPath(stemPath, Paint()..color = const Color(0xFFFFF6E3));
+    canvas.drawPath(stemPath,
+        Paint()..color = style.stemColor ?? const Color(0xFFFFF6E3));
     canvas.drawPath(cap, Paint()..color = capColor);
+
+    if (style.rings) {
+      // Reizker: konzentrische dunklere Zonen auf dem Hut.
+      canvas.save();
+      canvas.clipPath(cap);
+      final ring = Paint()
+        ..color = const Color(0xFF9C4A12).withValues(alpha: 0.45)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = u(0.035);
+      final ring1 = Path()
+        ..moveTo(u(0.10), u(0.40))
+        ..quadraticBezierTo(u(0.5), u(0.22), u(0.90), u(0.40));
+      final ring2 = Path()
+        ..moveTo(u(0.24), u(0.46))
+        ..quadraticBezierTo(u(0.5), u(0.33), u(0.76), u(0.46));
+      canvas.drawPath(ring1, ring);
+      canvas.drawPath(ring2, ring);
+      canvas.restore();
+    }
 
     if (style.whiteDots) {
       canvas.save();
@@ -291,5 +394,6 @@ class _MushroomPainter extends CustomPainter {
       oldDelegate.seed != seed ||
       oldDelegate.friend != friend ||
       oldDelegate.group != group ||
+      oldDelegate.species != species ||
       oldDelegate.ground != ground;
 }

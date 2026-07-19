@@ -61,6 +61,22 @@ Variation within a group comes from the spot's stable seed
 (`stableSeed(spotId)`): color pick, dots on/off (where optional), cheeks.
 Same spot → same look, forever.
 
+## Species-specific looks (override the group)
+
+`MushroomIcon(species: …)` — matched by name substring in
+`_speciesStyleFor` (`mushroom_icon.dart`); falls back to the group style:
+
+| Species contains | Shape | Look |
+|---|---|---|
+| pfifferling | chanterelle | deep wavy egg-yellow funnel, **yellow stem** (cap flows into stem) |
+| trompete | trumpet | slim dark gray-brown horn with flared wavy rim, dark stem (face stays readable, morel precedent) |
+| reizker | flat + rings | concentric darker ring zones, light-orange stem; cap tone per variant: edel `#E8833A`, lachs `#EF8A66`, kiefern `#C96A2E`, fichten `#D9702E` |
+| marone / braunkappe | dome | chestnut cap `#6B4423/#5D3A21`, pale-yellow stem (vs. Steinpilz: lighter browns, cream stem) |
+
+Wire-up: map markers and the spot detail sheet pass
+`species: spot.lastFind?.species`. When adding a species look, extend the
+preview rows in `test/icon_preview_test.dart` and re-render the sheet.
+
 ## Avatars (portraits)
 
 - `lib/core/widgets/mushroom_avatar.dart` — `MushroomAvatar` renders a buddy
