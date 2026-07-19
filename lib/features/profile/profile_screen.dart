@@ -1,7 +1,11 @@
+import 'dart:convert';
+
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/app_info.dart';
@@ -9,6 +13,8 @@ import '../../core/update_check.dart';
 import '../../core/widgets/mushroom_avatar.dart';
 import '../../data/providers.dart';
 import '../../models/find.dart';
+import '../import_export/gpx_export.dart';
+import '../import_export/import_screen.dart';
 import '../offline_maps/offline_maps_screen.dart';
 import '../spots/spot_providers.dart';
 import 'profile_providers.dart';
@@ -113,8 +119,26 @@ class ProfileScreen extends ConsumerWidget {
               onTap: () => Navigator.of(context).push(MaterialPageRoute(
                   builder: (context) => const OfflineMapsScreen())),
             ),
-            const Divider(height: 32),
           ],
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.file_download_outlined),
+            title: const Text('Punkte importieren'),
+            subtitle: const Text(
+                'GPX/KML aus anderen Karten-Apps — je Punkt einen Spot anlegen'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (context) => const ImportScreen())),
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.file_upload_outlined),
+            title: const Text('Eigene Spots als GPX exportieren'),
+            subtitle: const Text(
+                'Alle deine Spots samt Fundhistorie für andere Karten-Apps'),
+            onTap: () => _exportGpx(context, ref),
+          ),
+          const Divider(height: 32),
           if (profile == null && profileAsync.isLoading)
             const Padding(
               padding: EdgeInsets.all(16),
@@ -204,6 +228,43 @@ class _AboutSection extends ConsumerWidget {
         ),
       ],
     );
+  }
+}
+
+/// Eigene Spots als GPX teilen; wo das System-Teilen nicht verfügbar ist
+/// (z. B. Desktop-Browser), landet das GPX in der Zwischenablage.
+Future<void> _exportGpx(BuildContext context, WidgetRef ref) async {
+  void message(String text) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(text)));
+    }
+  }
+
+  final spots = ref.read(mySpotsProvider).valueOrNull ?? [];
+  if (spots.isEmpty) {
+    message('Noch keine eigenen Spots zum Exportieren.');
+    return;
+  }
+  final gpx = buildGpx(spots);
+  try {
+    final result = await SharePlus.instance.share(ShareParams(
+      files: [
+        XFile.fromData(
+          utf8.encode(gpx),
+          name: 'pilzbuddy-spots.gpx',
+          mimeType: 'application/gpx+xml',
+        ),
+      ],
+      fileNameOverrides: ['pilzbuddy-spots.gpx'],
+    ));
+    if (result.status == ShareResultStatus.unavailable) {
+      throw StateError('share unavailable');
+    }
+  } catch (_) {
+    await Clipboard.setData(ClipboardData(text: gpx));
+    message('GPX in die Zwischenablage kopiert '
+        '(${spots.length} Spots).');
   }
 }
 
