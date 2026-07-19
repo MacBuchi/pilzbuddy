@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/errors.dart';
 import '../../../core/mushroom_species.dart';
 import '../../../core/widgets/mushroom_avatar.dart';
 import '../../../core/widgets/mushroom_icon.dart';
@@ -25,9 +26,11 @@ class _SpotDetailSheet extends ConsumerWidget {
 
   final String spotId;
 
-  void _showError(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Aktion fehlgeschlagen. Internet verfügbar?')));
+  void _showError(BuildContext context, String action, Object error,
+      StackTrace stackTrace) {
+    logError(action, error, stackTrace);
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(friendlyError(error))));
   }
 
   Future<void> _addFind(BuildContext context, WidgetRef ref, Spot spot) async {
@@ -47,8 +50,10 @@ class _SpotDetailSheet extends ConsumerWidget {
             foundOn: data.foundOn,
             note: data.note,
           );
-    } catch (_) {
-      if (context.mounted) _showError(context);
+    } catch (e, stackTrace) {
+      if (context.mounted) {
+        _showError(context, 'Fund eintragen', e, stackTrace);
+      }
     }
   }
 
@@ -75,8 +80,10 @@ class _SpotDetailSheet extends ConsumerWidget {
     try {
       await ref.read(mySpotsProvider.notifier).deleteSpot(spotId);
       if (context.mounted) Navigator.of(context).pop();
-    } catch (_) {
-      if (context.mounted) _showError(context);
+    } catch (e, stackTrace) {
+      if (context.mounted) {
+        _showError(context, 'Spot löschen', e, stackTrace);
+      }
     }
   }
 
@@ -182,8 +189,11 @@ class _SpotDetailSheet extends ConsumerWidget {
                   await ref
                       .read(mySpotsProvider.notifier)
                       .setSharingExcluded(spot.id, value);
-                } catch (_) {
-                  if (context.mounted) _showError(context);
+                } catch (e, stackTrace) {
+                  if (context.mounted) {
+                    _showError(
+                        context, 'Freigabe umschalten', e, stackTrace);
+                  }
                 }
               },
             ),

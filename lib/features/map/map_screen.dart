@@ -10,6 +10,7 @@ import 'package:vector_map_tiles/vector_map_tiles.dart' as vmt;
 
 import '../offline_maps/offline_map_providers.dart';
 
+import '../../core/errors.dart';
 import '../../core/mushroom_species.dart';
 import '../../core/update_check.dart';
 import '../../core/widgets/mushroom_avatar.dart';
@@ -138,8 +139,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
             note: data.note,
           );
       _showMessage('Spot gespeichert 🍄');
-    } catch (_) {
-      _showMessage('Speichern fehlgeschlagen. Internet verfügbar?');
+    } catch (e, stackTrace) {
+      logError('Spot speichern', e, stackTrace);
+      _showMessage(friendlyError(e));
     }
   }
 

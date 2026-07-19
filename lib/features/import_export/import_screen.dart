@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../core/errors.dart';
 import '../../core/mushroom_species.dart';
 import '../map/widgets/add_spot_sheet.dart';
 import '../spots/spot_providers.dart';
@@ -61,7 +62,8 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
       });
     } on FormatException catch (e) {
       setState(() => _error = e.message);
-    } catch (_) {
+    } catch (e, stackTrace) {
+      logError('Import-Datei lesen', e, stackTrace);
       setState(() => _error = 'Datei konnte nicht gelesen werden.');
     }
   }
@@ -91,10 +93,11 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
             note: data.note,
           );
       setState(() => _created.add(index));
-    } catch (_) {
+    } catch (e, stackTrace) {
+      logError('Import-Spot speichern', e, stackTrace);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Speichern fehlgeschlagen. Internet verfügbar?')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(friendlyError(e))));
       }
     }
   }
