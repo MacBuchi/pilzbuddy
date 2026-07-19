@@ -62,6 +62,7 @@ const kBekannteArten = <KnownSpecies>[
   KnownSpecies('Pfifferling', _lei),
   KnownSpecies('Trompetenpfifferling', _lei),
   KnownSpecies('Herbsttrompete', _lei),
+  KnownSpecies('Totentrompete', _lei),
   KnownSpecies('Falscher Pfifferling', _lei),
   // Champignons
   KnownSpecies('Wiesenchampignon', _cha),
@@ -131,6 +132,23 @@ const kBekannteArten = <KnownSpecies>[
 
 /// Gruppe einer Art nachschlagen (case-insensitiv), z. B. um auch eigene
 /// Einträge des Users einzuordnen. `null` = unbekannte/eigene Art.
+/// Findet eine bekannte Pilzart in einem Freitext (z. B. dem Punktnamen
+/// eines GPX-Imports wie „Edelreizker Spechbach"). Bei mehreren Treffern
+/// gewinnt der längste — „Maronenröhrling" schlägt „Marone". Erkennt auch
+/// einfache Plurale („Totentrompeten", „Steinpilze").
+String? speciesFromText(String? text) {
+  if (text == null) return null;
+  final key = text.toLowerCase();
+  String? best;
+  for (final s in kBekannteArten) {
+    final name = s.name.toLowerCase();
+    if (key.contains(name) && (best == null || name.length > best.length)) {
+      best = s.name;
+    }
+  }
+  return best;
+}
+
 SpeciesGroup? groupFor(String? name) {
   if (name == null) return null;
   final key = name.trim().toLowerCase();

@@ -11,10 +11,27 @@ import 'package:pilzbuddy/models/spot.dart';
 
 Uint8List _utf8(String s) => Uint8List.fromList(utf8.encode(s));
 
+// Nachbau eines echten Locus-Map-Exports: Namespaces, Garmin-Extensions,
+// CDATA-Beschreibung, sym-Element, Zeitstempel.
 const _gpx = '''
-<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="Locus" xmlns="http://www.topografix.com/GPX/1/1">
-  <wpt lat="53.0793" lon="8.8017"><name>Bürgerpark &amp; Wald</name></wpt>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<gpx version="1.1" creator="Locus Map, Android"
+ xmlns="http://www.topografix.com/GPX/1/1"
+ xmlns:gpxx="http://www.garmin.com/xmlschemas/GpxExtensions/v3"
+ xmlns:locus="http://www.locusmap.eu">
+  <metadata><time>2026-07-19T17:35:09.694Z</time></metadata>
+  <wpt lat="53.0793" lon="8.8017">
+    <ele>300.00</ele>
+    <time>2024-10-27T15:25:21.735Z</time>
+    <name>Bürgerpark &amp; Wald</name>
+    <desc><![CDATA[mehrere im Wald]]></desc>
+    <sym>nature-geyser</sym>
+    <extensions>
+      <gpxx:WaypointExtension>
+        <gpxx:Address><gpxx:City>Bremen</gpxx:City></gpxx:Address>
+      </gpxx:WaypointExtension>
+    </extensions>
+  </wpt>
   <wpt lat="51.5" lon="10.1"/>
   <wpt lat="999" lon="8.8"><name>kaputt</name></wpt>
 </gpx>
@@ -34,13 +51,17 @@ const _kml = '''
 
 void main() {
   group('parseWaypoints', () {
-    test('liest GPX-Wegpunkte, überspringt kaputte Koordinaten', () {
+    test('liest Locus-GPX (Extensions, CDATA, sym), überspringt Kaputtes',
+        () {
       final points = parseWaypoints('spots.gpx', _utf8(_gpx));
       expect(points, hasLength(2));
       expect(points.first.name, 'Bürgerpark & Wald');
       expect(points.first.lat, closeTo(53.0793, 1e-6));
       expect(points.first.lng, closeTo(8.8017, 1e-6));
+      expect(points.first.time,
+          DateTime.parse('2024-10-27T15:25:21.735Z').toLocal());
       expect(points[1].name, isNull);
+      expect(points[1].time, isNull);
     });
 
     test('liest KML-Punkt-Placemarks (lon,lat-Reihenfolge!), keine Linien',
