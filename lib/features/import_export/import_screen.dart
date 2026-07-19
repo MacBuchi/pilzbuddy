@@ -1,4 +1,5 @@
 import 'package:file_selector/file_selector.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
@@ -33,11 +34,20 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
   }
 
   Future<void> _pickFile() async {
-    const typeGroup = XTypeGroup(
-      label: 'Karten-Dateien',
-      extensions: ['gpx', 'kml', 'kmz', 'zip'],
-    );
-    final file = await openFile(acceptedTypeGroups: const [typeGroup]);
+    // Android blendet im SAF-Picker alles aus, was nicht zu den
+    // MIME-Typen passt — und für .gpx/.kml gibt es keine registrierten
+    // Typen, die Dateien wären ausgegraut. Deshalb dort ohne Filter
+    // (der Parser validiert ohnehin); nur im Web filtern wir bequem
+    // nach Endungen.
+    const typeGroups = kIsWeb
+        ? [
+            XTypeGroup(
+              label: 'Karten-Dateien',
+              extensions: ['gpx', 'kml', 'kmz', 'zip'],
+            ),
+          ]
+        : [XTypeGroup(label: 'Alle Dateien', mimeTypes: ['*/*'])];
+    final file = await openFile(acceptedTypeGroups: typeGroups);
     if (file == null) return;
     try {
       final bytes = await file.readAsBytes();
