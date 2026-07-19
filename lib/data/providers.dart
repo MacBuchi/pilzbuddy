@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'auth_repository.dart';
 import 'feedback_repository.dart';
 import 'friend_repository.dart';
+import 'live_share_repository.dart';
 import 'profile_repository.dart';
 import 'spot_repository.dart';
 
@@ -24,6 +25,9 @@ final friendRepositoryProvider =
 
 final feedbackRepositoryProvider =
     Provider((ref) => FeedbackRepository(ref.watch(supabaseClientProvider)));
+
+final liveShareRepositoryProvider =
+    Provider((ref) => LiveShareRepository(ref.watch(supabaseClientProvider)));
 
 /// Auth-Zustand als Stream — steuert den Router-Redirect und sorgt dafür,
 /// dass alle Daten-Provider bei Login/Logout neu laden.
