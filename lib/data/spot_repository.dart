@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/dates.dart';
 import '../models/spot.dart';
 
 class SpotRepository {
@@ -63,8 +64,7 @@ class SpotRepository {
       'spot_id': spotId,
       'species': species,
       'count': count,
-      'found_on':
-          '${foundOn.year.toString().padLeft(4, '0')}-${foundOn.month.toString().padLeft(2, '0')}-${foundOn.day.toString().padLeft(2, '0')}',
+      'found_on': isoDate(foundOn),
       'note': note,
     });
   }
