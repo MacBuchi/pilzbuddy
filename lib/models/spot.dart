@@ -78,11 +78,4 @@ class Spot {
     );
   }
 
-  Map<String, dynamic> toJson() => {
-        'owner_id': ownerId,
-        'name': name,
-        'lat': lat,
-        'lng': lng,
-        'sharing_excluded': sharingExcluded,
-      };
 }

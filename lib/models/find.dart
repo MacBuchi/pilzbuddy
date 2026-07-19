@@ -29,15 +29,6 @@ class Find {
             : DateTime.parse(json['created_at'] as String),
       );
 
-  Map<String, dynamic> toJson() => {
-        'spot_id': spotId,
-        'species': species,
-        'count': count,
-        'found_on':
-            '${foundOn.year.toString().padLeft(4, '0')}-${foundOn.month.toString().padLeft(2, '0')}-${foundOn.day.toString().padLeft(2, '0')}',
-        'note': note,
-      };
-
   /// Kurzbeschreibung wie "Steinpilz, 5 Stück" für Listen.
   String get label {
     final parts = <String>[

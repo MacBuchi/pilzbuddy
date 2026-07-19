@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pilzbuddy/core/dates.dart';
 import 'package:pilzbuddy/models/find.dart';
 import 'package:pilzbuddy/models/friendship.dart';
 import 'package:pilzbuddy/models/spot.dart';
@@ -17,9 +18,9 @@ void main() {
       expect(find.label, 'Fund');
     });
 
-    test('toJson formatiert found_on als ISO-Datum mit führenden Nullen', () {
-      final find = Find(id: '1', spotId: 's', foundOn: DateTime(2026, 3, 7));
-      expect(find.toJson()['found_on'], '2026-03-07');
+    test('isoDate formatiert mit führenden Nullen (DB-Format found_on)', () {
+      expect(isoDate(DateTime(2026, 3, 7)), '2026-03-07');
+      expect(isoDate(DateTime(999, 12, 31)), '0999-12-31');
     });
 
     test('fromJson liest alle Felder', () {
