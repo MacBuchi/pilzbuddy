@@ -193,6 +193,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   // Kartendaten reichen bis Zoom ~15, darüber wird skaliert.
                   layerMode: vmt.VectorTileLayerMode.vector,
                   maximumZoom: 19,
+                  // Fehlende Kacheln maximal weit durch niedrigere
+                  // Zoomstufen ersetzen (Ränder der Regionskarten und
+                  // die eingebaute Übersichts-Basiskarte).
+                  maximumTileSubstitutionDifference: 3,
                 )
               else
                 TileLayer(

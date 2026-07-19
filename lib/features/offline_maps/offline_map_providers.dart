@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart';
 import 'package:vector_tile_renderer/vector_tile_renderer.dart' as vtr;
 
@@ -109,6 +111,26 @@ class OfflineMapStyle {
   const OfflineMapStyle({required this.theme, required this.tileProviders});
 }
 
+/// Entpackt die mitgelieferte Übersichts-Basiskarte (DACH, Zoom 0–7)
+/// einmalig aus den Assets ins Dateisystem und öffnet sie. Liefert null,
+/// wenn das schiefgeht — die Übersicht ist nice-to-have, nie Pflicht.
+Future<PmTilesVectorTileProvider?> _openBundledOverview() async {
+  try {
+    final data =
+        await rootBundle.load('assets/offline_maps/overview_dach.pmtiles');
+    final dir = await getApplicationSupportDirectory();
+    final file = File('${dir.path}/offline_maps/overview_dach.pmtiles');
+    if (!await file.exists() || await file.length() != data.lengthInBytes) {
+      await file.create(recursive: true);
+      await file.writeAsBytes(
+          data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes));
+    }
+    return await PmTilesVectorTileProvider.open(file.path);
+  } catch (_) {
+    return null;
+  }
+}
+
 /// Baut Theme + Tile-Provider für die installierten Karten auf — oder null,
 /// wenn Offline aus ist, nichts installiert ist oder das Laden fehlschlägt.
 /// Fehler führen bewusst zu null (= Online-Fallback), nie zu einer roten
@@ -124,9 +146,14 @@ final offlineMapStyleProvider = FutureProvider<OfflineMapStyle?>((ref) async {
         .loadString('assets/map_style/protomaps_light_de.json');
     final styleJson = jsonDecode(styleText) as Map<String, dynamic>;
     final theme = vtr.ThemeReader().read(styleJson);
+    // Regionskarten zuerst (liefern das Detail), die eingebaute
+    // DACH-Übersicht als letzte Quelle — sie füllt alle Bereiche, für
+    // die keine Region installiert ist, statt sie grau zu lassen.
+    final overview = await _openBundledOverview();
     final providers = <PmTilesVectorTileProvider>[
       for (final map in installed)
         await PmTilesVectorTileProvider.open(map.filePath),
+      ?overview,
     ];
     return OfflineMapStyle(
       theme: theme,
