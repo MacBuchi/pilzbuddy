@@ -13,12 +13,23 @@ import 'package:pilzbuddy/core/widgets/mushroom_icon.dart';
 /// Übersichtsbild (PNG) für den Design-Review gespeichert.
 void main() {
   testWidgets('alle Pilz-Icon-Varianten rendern', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(760, 1080));
+    await tester.binding.setSurfaceSize(const Size(760, 1560));
     final key = GlobalKey();
 
     final groups = <(String, SpeciesGroup?)>[
       for (final g in SpeciesGroup.values) (g.label, g),
       ('Unbekannt', null),
+    ];
+
+    // Arten mit eigenem Look (zusätzlich zur Gruppen-Zeile)
+    const speciesRows = [
+      'Pfifferling',
+      'Herbsttrompete',
+      'Edelreizker',
+      'Lachsreizker',
+      'Kiefernreizker',
+      'Fichtenreizker',
+      'Marone',
     ];
 
     await tester.pumpWidget(MaterialApp(
@@ -56,6 +67,53 @@ void main() {
                       ),
                       MushroomIcon(
                           seed: 20, size: 44, group: group, friend: true),
+                    ],
+                  ),
+                ),
+              const Divider(height: 8),
+              for (final name in speciesRows)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 130,
+                        child: Text(name,
+                            style: const TextStyle(fontSize: 11),
+                            overflow: TextOverflow.ellipsis),
+                      ),
+                      for (var seed = 0; seed < 3; seed++)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 3),
+                          child: MushroomIcon(
+                              seed: seed * 17 + 3,
+                              size: 44,
+                              group: groupFor(name),
+                              species: name),
+                        ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        child: MushroomIcon(
+                            seed: 3,
+                            size: 72,
+                            group: groupFor(name),
+                            species: name),
+                      ),
+                      MushroomIcon(
+                          seed: 20,
+                          size: 44,
+                          group: groupFor(name),
+                          species: name,
+                          friend: true),
+                      // Detail-Sheet-Größe: muss auch bei 30 px lesbar sein
+                      Padding(
+                        padding: const EdgeInsets.only(left: 6),
+                        child: MushroomIcon(
+                            seed: 3,
+                            size: 30,
+                            group: groupFor(name),
+                            species: name),
+                      ),
                     ],
                   ),
                 ),

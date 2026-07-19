@@ -149,6 +149,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
             size: 44,
             friend: !spot.isOwn,
             group: groupFor(spot.lastFind?.species),
+            species: spot.lastFind?.species,
           ),
         ),
       ),

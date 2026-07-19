@@ -45,6 +45,8 @@ const kBekannteArten = <KnownSpecies>[
   KnownSpecies('Kiefernsteinpilz', _roe),
   KnownSpecies('Bronzeröhrling', _roe),
   KnownSpecies('Maronenröhrling', _roe),
+  KnownSpecies('Marone', _roe),
+  KnownSpecies('Braunkappe', _roe),
   KnownSpecies('Birkenpilz', _roe),
   KnownSpecies('Rotkappe', _roe),
   KnownSpecies('Espenrotkappe', _roe),
@@ -86,6 +88,7 @@ const kBekannteArten = <KnownSpecies>[
   KnownSpecies('Fichtenreizker', _tae),
   KnownSpecies('Edelreizker', _tae),
   KnownSpecies('Lachsreizker', _tae),
+  KnownSpecies('Kiefernreizker', _tae),
   KnownSpecies('Mohrenkopfmilchling', _tae),
   KnownSpecies('Brätling', _tae),
   // Morcheln & Lorcheln
