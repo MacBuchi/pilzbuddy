@@ -112,6 +112,8 @@ void main() {
     await tester.tap(find.text('💡 Wunsch, Fehler oder Pilzart melden!'));
     await settle(tester);
     expect(find.text('Wünsch dir was!'), findsOneWidget);
+    // Transparenz-Hinweis: Feedback landet öffentlich auf GitHub.
+    expect(find.textContaining('öffentlich im GitHub-Projekt'), findsOneWidget);
 
     await tester.tap(find.text('🐛 Bug'));
     await settle(tester, frames: 4);

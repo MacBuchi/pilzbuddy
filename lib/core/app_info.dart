@@ -1,6 +1,10 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+
 /// Öffentliche Links der App — für Einladungen und Hilfetexte.
 class AppInfo {
   static const webAppUrl = 'https://macbuchi.github.io/pilzbuddy/';
+  static const githubUrl = 'https://github.com/MacBuchi/pilzbuddy';
   static const apkDownloadUrl =
       'https://github.com/MacBuchi/pilzbuddy/releases/latest';
 
@@ -12,3 +16,13 @@ class AppInfo {
           'Registriere dich und such mich dort als „$username", dann können wir uns verbinden.',
       ].join('\n');
 }
+
+/// Installierte App-Version für die „Über"-Sektion im Profil.
+final appVersionProvider = FutureProvider<String>((ref) async {
+  try {
+    final info = await PackageInfo.fromPlatform();
+    return info.version;
+  } catch (_) {
+    return '–';
+  }
+});

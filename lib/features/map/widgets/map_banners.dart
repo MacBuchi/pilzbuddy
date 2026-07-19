@@ -443,6 +443,16 @@ class _FeedbackDialogState extends State<_FeedbackDialog> {
                 ),
               ),
             ],
+            const SizedBox(height: 12),
+            Text(
+              'ℹ️ Dein Text erscheint zusammen mit deinem Benutzernamen '
+              'öffentlich im GitHub-Projekt der App — bitte keine '
+              'persönlichen Daten hineinschreiben.',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(fontStyle: FontStyle.italic),
+            ),
           ],
         ),
       ),
