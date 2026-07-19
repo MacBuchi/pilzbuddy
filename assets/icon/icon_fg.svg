@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-<g transform="translate(163.84 163.84) scale(0.68)">
+<!-- Adaptive-Icon-Vordergrund: Die beiden Pilz-Buddies füllen die runde
+     Safe-Zone maximal aus (Cluster-Bounds 222..800 x 452..906, Skalierung
+     0.90 um die Cluster-Mitte). Der Fundort-Pin lebt nur im Vollbild-Icon
+     (icon.svg) — im Launcher zählt Erkennbarkeit. -->
+<g transform="translate(52.1 -99.1) scale(0.90)">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#4CAF50"/>
-      <stop offset="1" stop-color="#1B5E20"/>
-    </linearGradient>
     <linearGradient id="cap1" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#8D6E63"/>
       <stop offset="1" stop-color="#5D4037"/>
@@ -15,16 +15,9 @@
     </linearGradient>
   </defs>
 
-
-  <!-- geteilter Fundort-Pin -->
-  <g>
-    <path d="M 512 150 C 575 150 618 198 618 258 C 618 332 512 412 512 412 C 512 412 406 332 406 258 C 406 198 449 150 512 150 Z"
-          fill="#FFFFFF"/>
-    <circle cx="512" cy="262" r="40" fill="#2E7D32"/>
-    <!-- Funkeln -->
-    <path d="M 350 200 l 0 44 M 328 222 l 44 0" stroke="#FFF9C4" stroke-width="14" stroke-linecap="round"/>
-    <path d="M 682 320 l 0 34 M 665 337 l 34 0" stroke="#FFF9C4" stroke-width="11" stroke-linecap="round"/>
-  </g>
+  <!-- Funkeln als kleine Akzente neben den Hüten -->
+  <path d="M 300 400 l 0 44 M 278 422 l 44 0" stroke="#FFF9C4" stroke-width="14" stroke-linecap="round"/>
+  <path d="M 710 420 l 0 34 M 693 437 l 34 0" stroke="#FFF9C4" stroke-width="11" stroke-linecap="round"/>
 
   <!-- Buddy 1: Steinpilz (links, groß) -->
   <g>
