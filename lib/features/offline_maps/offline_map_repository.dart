@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
@@ -14,11 +15,16 @@ class AvailableMap {
   final int sizeBytes;
   final String downloadUrl;
 
+  /// Erwartete Prüfsumme im GitHub-Format `sha256:<hex>` — null, wenn
+  /// die Quelle keine liefert (dann wird ohne Validierung installiert).
+  final String? sha256;
+
   const AvailableMap({
     required this.key,
     required this.dateStamp,
     required this.sizeBytes,
     required this.downloadUrl,
+    this.sha256,
   });
 
   String get label => regionLabel(key);
@@ -31,11 +37,16 @@ class InstalledMap {
   final int sizeBytes;
   final String filePath;
 
+  /// Prüfsumme der installierten Datei (`sha256:<hex>`), falls die
+  /// Quelle beim Download eine geliefert hat.
+  final String? sha256;
+
   const InstalledMap({
     required this.key,
     required this.dateStamp,
     required this.sizeBytes,
     required this.filePath,
+    this.sha256,
   });
 
   String get label => regionLabel(key);
@@ -45,6 +56,7 @@ class InstalledMap {
         'date_stamp': dateStamp,
         'size_bytes': sizeBytes,
         'file_path': filePath,
+        'sha256': sha256,
       };
 
   factory InstalledMap.fromJson(Map<String, dynamic> json) => InstalledMap(
@@ -52,6 +64,7 @@ class InstalledMap {
         dateStamp: json['date_stamp'] as String,
         sizeBytes: json['size_bytes'] as int? ?? 0,
         filePath: json['file_path'] as String,
+        sha256: json['sha256'] as String?,
       );
 }
 
@@ -96,11 +109,15 @@ class OfflineMapRepository {
     for (final asset in assets.cast<Map<String, dynamic>>()) {
       final parsed = parseMapAssetName(asset['name'] as String? ?? '');
       if (parsed == null) continue;
+      final digest = asset['digest'] as String?;
       maps.add(AvailableMap(
         key: parsed.key,
         dateStamp: parsed.dateStamp,
         sizeBytes: asset['size'] as int? ?? 0,
         downloadUrl: asset['browser_download_url'] as String,
+        sha256: (digest != null && digest.startsWith('sha256:'))
+            ? digest
+            : null,
       ));
     }
     maps.sort((a, b) => compareRegionKeys(a.key, b.key));
@@ -165,6 +182,7 @@ class OfflineMapRepository {
     if (total > 0 && received > 0) progress.add(received / total);
 
     var stalledAttempts = 0;
+    var checksumFailures = 0;
     while (total <= 0 || received < total) {
       final receivedBefore = received;
       try {
@@ -194,8 +212,27 @@ class OfflineMapRepository {
           await sink.close();
         }
 
+        // Prüfsummen-Validierung (#41-Nachzug): fängt korrupte Dateien,
+        // bevor sie installiert werden — vor allem den Fall, dass die
+        // Quelle das Asset ersetzt hat, während eine .part-Datei per
+        // Range fortgesetzt wurde (alte + neue Hälfte = Datenmüll).
+        if ((total <= 0 || received >= total) && map.sha256 != null) {
+          final actual = await _fileSha256(tempFile);
+          if (actual != map.sha256) {
+            checksumFailures++;
+            await tempFile.delete();
+            received = 0;
+            if (checksumFailures >= 2) {
+              throw const FileSystemException(
+                  'Prüfsumme stimmt nicht — Download verworfen');
+            }
+            continue; // Einmal komplett neu laden.
+          }
+        }
+
         if (total <= 0) break; // Größe unbekannt — Stream-Ende zählt.
       } catch (e) {
+        if (e is FileSystemException) rethrow;
         if (received > receivedBefore) stalledAttempts = 0;
         stalledAttempts++;
         if (stalledAttempts >= _maxStalledAttempts) {
@@ -223,10 +260,18 @@ class OfflineMapRepository {
         dateStamp: map.dateStamp,
         sizeBytes: received,
         filePath: targetPath,
+        sha256: map.sha256,
       ),
     ];
     await _writeRegistry(updated);
     progress.add(1.0);
+  }
+
+  /// SHA-256 einer Datei im GitHub-Digest-Format `sha256:<hex>` —
+  /// gestreamt, damit auch 1,7-GB-Karten nicht in den Speicher müssen.
+  Future<String> _fileSha256(File file) async {
+    final digest = await sha256.bind(file.openRead()).first;
+    return 'sha256:$digest';
   }
 
   Future<void> delete(String key) async {
