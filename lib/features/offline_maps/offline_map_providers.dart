@@ -198,35 +198,60 @@ Future<PmTilesVectorTileProvider?> _openBundledOverview() async {
   }
 }
 
-/// Baut Theme + Tile-Provider für die installierten Karten auf — oder null,
-/// wenn Offline aus ist, nichts installiert ist oder das Laden fehlschlägt.
+/// Das Renderthema — einmal geladen, für immer gecacht (statisches Asset).
+final _offlineThemeProvider = FutureProvider<vtr.Theme>((ref) async {
+  final styleText =
+      await rootBundle.loadString('assets/map_style/protomaps_light_de.json');
+  return vtr.ThemeReader().read(jsonDecode(styleText) as Map<String, dynamic>);
+});
+
+/// Die Offline-Kachelquellen. Hängt NUR an den installierten Karten —
+/// Verbindungswechsel oder das Umschalten online/offline öffnen die
+/// Archive nicht neu. Beim Neuaufbau (Karte installiert/gelöscht) werden
+/// die alten Archive geschlossen, sonst leaken Dateihandles
+/// (#Karten-Freezes).
+final _offlineTileSourceProvider =
+    FutureProvider<MultiPmTilesVectorTileProvider?>((ref) async {
+  final installed = ref.watch(installedMapsProvider).valueOrNull ?? const [];
+  if (installed.isEmpty) return null;
+  final providers = <PmTilesVectorTileProvider>[];
+  ref.onDispose(() {
+    for (final provider in providers) {
+      provider.close();
+    }
+  });
+  try {
+    // Regionskarten zuerst (liefern das Detail), die eingebaute
+    // DACH-Übersicht als letzte Quelle — sie füllt alle Bereiche, für
+    // die keine Region installiert ist, statt sie grau zu lassen.
+    for (final map in installed) {
+      providers.add(await PmTilesVectorTileProvider.open(map.filePath));
+    }
+    final overview = await _openBundledOverview();
+    if (overview != null) providers.add(overview);
+    return MultiPmTilesVectorTileProvider(providers);
+  } catch (_) {
+    return null;
+  }
+});
+
+/// Kombiniert Theme + Kachelquellen zum Offline-Style — oder null, wenn
+/// Offline aus ist, nichts installiert ist oder das Laden fehlschlägt.
 /// Fehler führen bewusst zu null (= Online-Fallback), nie zu einer roten
 /// Karte: Der Vector-Stack ist Beta, Online-OSM bleibt das Sicherheitsnetz.
+/// Theme und Quellen sind gecacht — dieser Provider selbst macht kein I/O.
 final offlineMapStyleProvider = FutureProvider<OfflineMapStyle?>((ref) async {
   final manuallyEnabled = ref.watch(offlineMapEnabledProvider);
   final autoOffline = ref.watch(noConnectivityProvider);
   if (!manuallyEnabled && !autoOffline) return null;
-  final installed = ref.watch(installedMapsProvider).valueOrNull ?? const [];
-  if (installed.isEmpty) return null;
   try {
-    final styleText = await rootBundle
-        .loadString('assets/map_style/protomaps_light_de.json');
-    final styleJson = jsonDecode(styleText) as Map<String, dynamic>;
-    final theme = vtr.ThemeReader().read(styleJson);
-    // Regionskarten zuerst (liefern das Detail), die eingebaute
-    // DACH-Übersicht als letzte Quelle — sie füllt alle Bereiche, für
-    // die keine Region installiert ist, statt sie grau zu lassen.
-    final overview = await _openBundledOverview();
-    final providers = <PmTilesVectorTileProvider>[
-      for (final map in installed)
-        await PmTilesVectorTileProvider.open(map.filePath),
-      ?overview,
-    ];
+    final tiles = await ref.watch(_offlineTileSourceProvider.future);
+    if (tiles == null) return null;
+    final theme = await ref.watch(_offlineThemeProvider.future);
     return OfflineMapStyle(
       theme: theme,
       // Quellname "protomaps" entspricht `sources.protomaps` im Style-JSON.
-      tileProviders: TileProviders(
-          {'protomaps': MultiPmTilesVectorTileProvider(providers)}),
+      tileProviders: TileProviders({'protomaps': tiles}),
     );
   } catch (_) {
     return null;

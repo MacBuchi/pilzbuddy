@@ -39,6 +39,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
     with WidgetsBindingObserver {
   final _mapController = MapController();
 
+  /// GENAU EINE Provider-Instanz pro Karten-Screen: flutter_map entsorgt
+  /// den TileProvider nur beim Layer-Dispose — eine neue Instanz je
+  /// Rebuild (Positions-Ticks!) würde bei jeder Bewegung einen
+  /// HTTP-Client samt Verbindungen leaken (#Karten-Freezes).
+  late final _tileProvider = ref.read(tileProviderFactoryProvider)();
+
   // Fallback: Mitte Deutschlands, bis die GPS-Position bekannt ist.
   static const _fallbackCenter = LatLng(51.1634, 10.4477);
   static const _fallbackZoom = 6.5;
@@ -208,7 +214,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 TileLayer(
                   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                   userAgentPackageName: 'de.marcusbucher.pilzbuddy',
-                  tileProvider: ref.watch(tileProviderFactoryProvider)(),
+                  tileProvider: _tileProvider,
                 ),
               // Eigene Live-Position als Avatar — liegt UNTER den
               // Spot-Markern, damit die tappbar bleiben.
