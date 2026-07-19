@@ -12,11 +12,14 @@ import '../offline_maps/offline_map_providers.dart';
 
 import '../../core/mushroom_species.dart';
 import '../../core/update_check.dart';
+import '../../core/widgets/mushroom_avatar.dart';
 import '../../core/widgets/mushroom_icon.dart';
 import '../../models/spot.dart';
 import '../friends/friend_providers.dart';
+import '../profile/profile_providers.dart';
 import '../spots/spot_providers.dart';
 import '../spots/widgets/spot_detail_sheet.dart';
+import 'position_provider.dart';
 import 'widgets/add_spot_sheet.dart';
 import 'widgets/map_banners.dart';
 
@@ -103,6 +106,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
       return;
     }
     _mapController.move(LatLng(position.latitude, position.longitude), 15);
+    // Berechtigung wurde ggf. gerade erteilt → Live-Marker starten.
+    ref.invalidate(positionStreamProvider);
   }
 
   /// Neuer Spot an der aktuellen Fadenkreuz-Position (Kartenmitte).
@@ -205,6 +210,37 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   userAgentPackageName: 'de.marcusbucher.pilzbuddy',
                   tileProvider: ref.watch(tileProviderFactoryProvider)(),
                 ),
+              // Eigene Live-Position als Avatar — liegt UNTER den
+              // Spot-Markern, damit die tappbar bleiben.
+              Builder(builder: (context) {
+                final position =
+                    ref.watch(positionStreamProvider).valueOrNull;
+                if (position == null) return const SizedBox.shrink();
+                final avatar =
+                    ref.watch(myProfileProvider).valueOrNull?.avatar ?? 0;
+                return MarkerLayer(markers: [
+                  Marker(
+                    point:
+                        LatLng(position.latitude, position.longitude),
+                    width: 40,
+                    height: 40,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                            color: const Color(0xFF2E7D32), width: 2.5),
+                        boxShadow: const [
+                          BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 6,
+                              offset: Offset(0, 2)),
+                        ],
+                      ),
+                      child: MushroomAvatar(index: avatar, size: 35),
+                    ),
+                  ),
+                ]);
+              }),
               MarkerLayer(markers: [
                 for (final s in friendSpots) _spotMarker(s),
                 for (final s in mySpots) _spotMarker(s),

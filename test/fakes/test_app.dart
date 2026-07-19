@@ -10,10 +10,12 @@ import 'package:flutter/painting.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:pilzbuddy/app.dart';
 import 'package:pilzbuddy/core/update_check.dart';
 import 'package:pilzbuddy/data/providers.dart';
 import 'package:pilzbuddy/features/map/map_screen.dart';
+import 'package:pilzbuddy/features/map/position_provider.dart';
 import 'package:pilzbuddy/features/offline_maps/offline_map_providers.dart';
 
 import 'fake_backend.dart';
@@ -35,12 +37,28 @@ class FakeTileProvider extends TileProvider {
       MemoryImage(kTransparentTile);
 }
 
+/// Test-Position ohne Geolocator-Plugin (alle Pflichtfelder gefüllt).
+Position fakePosition(double lat, double lng) => Position(
+      latitude: lat,
+      longitude: lng,
+      timestamp: DateTime.fromMillisecondsSinceEpoch(0),
+      accuracy: 5,
+      altitude: 0,
+      altitudeAccuracy: 1,
+      heading: 0,
+      headingAccuracy: 1,
+      speed: 0,
+      speedAccuracy: 1,
+    );
+
 List<Override> overridesFor(FakeBackend backend,
         {FakeOfflineMapRepository? offlineMaps,
         List<ConnectivityResult> connectivity = const [
           ConnectivityResult.wifi
-        ]}) =>
+        ],
+        Position? position}) =>
     [
+      positionStreamProvider.overrideWith((ref) => Stream.value(position)),
       offlineMapRepositoryProvider
           .overrideWithValue(offlineMaps ?? FakeOfflineMapRepository()),
       connectivityProvider.overrideWith((ref) => Stream.value(connectivity)),
@@ -65,11 +83,14 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
     {FakeOfflineMapRepository? offlineMaps,
     List<ConnectivityResult> connectivity = const [
       ConnectivityResult.wifi
-    ]}) async {
+    ],
+    Position? position}) async {
   addTearDown(backend.dispose);
   await tester.pumpWidget(ProviderScope(
     overrides: overridesFor(backend,
-        offlineMaps: offlineMaps, connectivity: connectivity),
+        offlineMaps: offlineMaps,
+        connectivity: connectivity,
+        position: position),
     child: const PilzBuddyApp(),
   ));
   await tester.pump();

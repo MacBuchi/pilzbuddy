@@ -2,6 +2,7 @@
 // Vorbelegung, Wiederbesuch (Fund eintragen), Freigabe-Ausschluss, Löschen.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pilzbuddy/core/widgets/mushroom_avatar.dart';
 import 'package:pilzbuddy/core/widgets/mushroom_icon.dart';
 
 import '../fakes/fake_backend.dart';
@@ -14,6 +15,20 @@ void main() {
     backend.signInAs(me.id);
     return (backend, me);
   }
+
+  testWidgets('Eigene Position erscheint als Avatar auf der Karte',
+      (tester) async {
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend,
+        position: fakePosition(51.16, 10.45)); // nahe Kartenmitte
+    expect(find.byType(MushroomAvatar), findsOneWidget);
+  });
+
+  testWidgets('Ohne Standortfreigabe kein Positions-Avatar', (tester) async {
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend); // position: null
+    expect(find.byType(MushroomAvatar), findsNothing);
+  });
 
   testWidgets('Eigene Spots erscheinen als Marker auf der Karte',
       (tester) async {
