@@ -20,6 +20,10 @@ class PmTilesVectorTileProvider extends VectorTileProvider {
         archive, archive.header.minZoom, archive.header.maxZoom);
   }
 
+  /// Gibt das Dateihandle des Archivs frei — beim Neuaufbau der
+  /// Offline-Quellen aufrufen, sonst leaken Handles (#Karten-Freezes).
+  Future<void> close() => _archive.close();
+
   @override
   Future<Uint8List> provide(TileIdentity tile) async {
     final t = await _archive.tile(ZXY(tile.z, tile.x, tile.y).toTileId());
@@ -55,6 +59,12 @@ class MultiPmTilesVectorTileProvider extends VectorTileProvider {
       : assert(_providers.isNotEmpty);
 
   final List<PmTilesVectorTileProvider> _providers;
+
+  Future<void> close() async {
+    for (final provider in _providers) {
+      await provider.close();
+    }
+  }
 
   @override
   Future<Uint8List> provide(TileIdentity tile) async {
