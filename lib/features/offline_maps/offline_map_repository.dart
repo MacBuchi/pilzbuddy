@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -124,31 +125,85 @@ class OfflineMapRepository {
     await file.writeAsString(jsonEncode([for (final m in maps) m.toJson()]));
   }
 
+  /// Nach so vielen Versuchen ohne jeden Fortschritt wird aufgegeben.
+  /// Solange Bytes fließen, zählt der Zähler immer wieder von vorn —
+  /// ein wackliges WLAN bricht einen langen Download damit nicht ab.
+  static const _maxStalledAttempts = 5;
+
+  /// Wartet keine Ewigkeit auf tote Verbindungen: kommt so lange kein
+  /// einziges Byte, gilt der Versuch als gescheitert (→ Retry).
+  static const _inactivityTimeout = Duration(seconds: 45);
+
   /// Lädt eine Karte herunter und meldet den Fortschritt (0..1).
+  ///
+  /// Robust für große Karten (#41): Verbindungsabrisse werden mit
+  /// HTTP-Range-Requests automatisch dort fortgesetzt, wo der Download
+  /// stand — auch über App-Neustarts hinweg, denn die .part-Datei
+  /// bleibt bei Fehlschlägen liegen und der nächste Versuch setzt auf.
   /// Ersetzt eine ältere Version derselben Region atomar (erst temporäre
   /// Datei, dann umbenennen), damit nie eine halbe Karte aktiv ist.
-  Stream<double> download(AvailableMap map) async* {
+  Stream<double> download(AvailableMap map) {
+    final controller = StreamController<double>();
+    _runDownload(map, controller).then(
+      (_) => controller.close(),
+      onError: (Object error, StackTrace stackTrace) {
+        controller.addError(error, stackTrace);
+        controller.close();
+      },
+    );
+    return controller.stream;
+  }
+
+  Future<void> _runDownload(
+      AvailableMap map, StreamController<double> progress) async {
     final dir = await _mapsDir();
     final targetPath = '${dir.path}/${map.key}_${map.dateStamp}.pmtiles';
     final tempFile = File('$targetPath.part');
 
-    final request = http.Request('GET', Uri.parse(map.downloadUrl));
-    final response = await _client.send(request);
-    if (response.statusCode != 200) {
-      throw HttpException('Download: HTTP ${response.statusCode}');
-    }
-    final total = response.contentLength ?? map.sizeBytes;
-    var received = 0;
-    final sink = tempFile.openWrite();
-    try {
-      await for (final chunk in response.stream) {
-        sink.add(chunk);
-        received += chunk.length;
-        if (total > 0) yield received / total;
+    final total = map.sizeBytes;
+    var received = await tempFile.exists() ? await tempFile.length() : 0;
+    if (total > 0 && received > 0) progress.add(received / total);
+
+    var stalledAttempts = 0;
+    while (total <= 0 || received < total) {
+      final receivedBefore = received;
+      try {
+        final request = http.Request('GET', Uri.parse(map.downloadUrl));
+        if (received > 0) request.headers['range'] = 'bytes=$received-';
+        final response =
+            await _client.send(request).timeout(_inactivityTimeout);
+
+        if (received > 0 && response.statusCode == 200) {
+          // Server kann kein Range → noch einmal von vorn.
+          received = 0;
+        } else if (response.statusCode != 200 && response.statusCode != 206) {
+          throw HttpException('Download: HTTP ${response.statusCode}');
+        }
+
+        final sink = tempFile.openWrite(
+            mode: received > 0 ? FileMode.append : FileMode.write);
+        try {
+          await for (final chunk
+              in response.stream.timeout(_inactivityTimeout)) {
+            sink.add(chunk);
+            received += chunk.length;
+            if (total > 0) progress.add(received / total);
+          }
+          await sink.flush();
+        } finally {
+          await sink.close();
+        }
+
+        if (total <= 0) break; // Größe unbekannt — Stream-Ende zählt.
+      } catch (e) {
+        if (received > receivedBefore) stalledAttempts = 0;
+        stalledAttempts++;
+        if (stalledAttempts >= _maxStalledAttempts) {
+          // .part bleibt liegen: der nächste Download-Tap setzt hier fort.
+          rethrow;
+        }
+        await Future<void>.delayed(Duration(seconds: 2 * stalledAttempts));
       }
-      await sink.flush();
-    } finally {
-      await sink.close();
     }
 
     await tempFile.rename(targetPath);
@@ -171,7 +226,7 @@ class OfflineMapRepository {
       ),
     ];
     await _writeRegistry(updated);
-    yield 1.0;
+    progress.add(1.0);
   }
 
   Future<void> delete(String key) async {
