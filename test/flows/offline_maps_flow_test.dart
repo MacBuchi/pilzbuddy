@@ -106,6 +106,51 @@ void main() {
     await drainSnackbars(tester);
   });
 
+  testWidgets(
+      'Schlechtes Netz: Download setzt automatisch fort statt aufzugeben',
+      (tester) async {
+    final (backend, _) = loggedInBackend();
+    final offlineMaps = FakeOfflineMapRepository()..failuresBeforeSuccess = 2;
+    await pumpApp(tester, backend, offlineMaps: offlineMaps);
+
+    await tester.tap(find.text('Profil'));
+    await settle(tester);
+    await tester.tap(find.text('Offline-Karten'));
+    await settle(tester);
+    await tester.tap(find.byTooltip('Berlin herunterladen'));
+    // Zwei simulierte Abbrüche + automatische Wiederaufnahmen abwarten.
+    await settle(tester, frames: 15);
+
+    // Kein manueller Neustart nötig: drei Versuche, am Ende installiert.
+    expect(offlineMaps.downloadCalls, 3);
+    expect(offlineMaps.installed.single.key, 'de_berlin');
+    expect(find.text('Installiert (Stand 20.3.2026)'), findsOneWidget);
+    await drainSnackbars(tester);
+  });
+
+  testWidgets('Download lässt sich anhalten — Fortschritt bleibt',
+      (tester) async {
+    final (backend, _) = loggedInBackend();
+    final offlineMaps = FakeOfflineMapRepository()
+      ..stepDelay = const Duration(milliseconds: 500);
+    await pumpApp(tester, backend, offlineMaps: offlineMaps);
+
+    await tester.tap(find.text('Profil'));
+    await settle(tester);
+    await tester.tap(find.text('Offline-Karten'));
+    await settle(tester);
+    await tester.tap(find.byTooltip('Berlin herunterladen'));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.textContaining('Lädt …'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Berlin anhalten'));
+    await settle(tester);
+
+    expect(offlineMaps.installed, isEmpty);
+    expect(find.textContaining('Lädt …'), findsNothing);
+    expect(find.text('76 MB'), findsOneWidget);
+  });
+
   testWidgets('Im Web gibt es keinen Offline-Karten-Einstieg',
       (tester) async {
     // kIsWeb lässt sich im Test nicht umschalten — dieser Test dokumentiert

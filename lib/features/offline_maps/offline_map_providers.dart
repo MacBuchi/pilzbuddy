@@ -42,34 +42,101 @@ final installedMapsProvider =
     AsyncNotifierProvider<InstalledMapsNotifier, List<InstalledMap>>(
         InstalledMapsNotifier.new);
 
-/// Laufende Karten-Downloads (Region-Key → Fortschritt 0..1). Lebt im
-/// Root-ProviderScope und damit unabhängig vom Verwaltungs-Screen:
-/// Tab-Wechsel oder Navigation brechen einen Download nicht mehr ab (#38).
-class MapDownloadsNotifier extends Notifier<Map<String, double>> {
-  @override
-  Map<String, double> build() => const {};
+/// Wartezeiten des Download-Managers — in Tests auf Millisekunden
+/// überschreibbar.
+final mapDownloadDelaysProvider =
+    Provider<({Duration retry, Duration networkPoll})>((ref) =>
+        (retry: const Duration(seconds: 5),
+        networkPoll: const Duration(seconds: 3)));
 
-  /// Startet den Download; wirft bei Fehlern weiter, damit die UI (falls
-  /// noch sichtbar) eine Meldung zeigen kann. Läuft die Region schon,
+/// Zustand eines laufenden Karten-Downloads.
+class MapDownloadState {
+  final double progress;
+
+  /// true, wenn gerade kein Netz da ist und der Download auf die
+  /// Rückkehr der Verbindung wartet (statt aufzugeben).
+  final bool waitingForNetwork;
+
+  const MapDownloadState(this.progress, {this.waitingForNetwork = false});
+}
+
+/// Laufende Karten-Downloads (Region-Key → Zustand). Lebt im
+/// Root-ProviderScope und damit unabhängig vom Verwaltungs-Screen:
+/// Tab-Wechsel oder Navigation brechen einen Download nicht ab (#38).
+///
+/// Geduldig bei schlechtem Netz: Gibt das Repository nach mehreren
+/// fortschrittslosen Versuchen auf, übernimmt dieser Manager — er wartet
+/// auf die Rückkehr der Verbindung und setzt automatisch fort, statt den
+/// Nutzer neu tippen zu lassen. Nur nicht-netzwerkbedingte Fehler
+/// (z. B. wiederholt falsche Prüfsumme) brechen wirklich ab.
+class MapDownloadsNotifier extends Notifier<Map<String, MapDownloadState>> {
+  final _cancelled = <String>{};
+
+  /// Notbremse gegen Endlosschleifen bei dauerhaft kaputtem Server.
+  static const _maxResumeRounds = 30;
+
+  @override
+  Map<String, MapDownloadState> build() => const {};
+
+  void _set(String key, MapDownloadState value) =>
+      state = {...state, key: value};
+
+  /// Startet (oder setzt fort); wirft bei endgültigen Fehlern weiter,
+  /// damit die UI eine Meldung zeigen kann. Läuft die Region schon,
   /// passiert nichts.
   Future<void> start(AvailableMap map) async {
     if (state.containsKey(map.key)) return;
-    state = {...state, map.key: 0};
+    _cancelled.remove(map.key);
+    _set(map.key, const MapDownloadState(0));
     try {
-      await for (final progress
-          in ref.read(offlineMapRepositoryProvider).download(map)) {
-        state = {...state, map.key: progress};
+      var resumeRounds = 0;
+      while (true) {
+        try {
+          await for (final progress in ref
+              .read(offlineMapRepositoryProvider)
+              .download(map,
+                  isCancelled: () => _cancelled.contains(map.key))) {
+            _set(map.key, MapDownloadState(progress));
+          }
+          break; // Fertig.
+        } catch (e) {
+          if (e is DownloadCancelled || e is FileSystemException) rethrow;
+          resumeRounds++;
+          if (resumeRounds >= _maxResumeRounds) rethrow;
+          final delays = ref.read(mapDownloadDelaysProvider);
+          // Ohne Netz warten wir sichtbar, statt Fehler zu zeigen …
+          while (ref.read(noConnectivityProvider)) {
+            if (_cancelled.contains(map.key)) {
+              throw const DownloadCancelled();
+            }
+            _set(map.key,
+                MapDownloadState(state[map.key]?.progress ?? 0,
+                    waitingForNetwork: true));
+            await Future<void>.delayed(delays.networkPoll);
+          }
+          // … und setzen mit Netz nach kurzer Pause automatisch fort.
+          await Future<void>.delayed(delays.retry);
+          if (_cancelled.contains(map.key)) {
+            throw const DownloadCancelled();
+          }
+          _set(map.key, MapDownloadState(state[map.key]?.progress ?? 0));
+        }
       }
       // Registry neu laden — auch wenn der Screen längst zu ist.
       ref.invalidate(installedMapsProvider);
+    } on DownloadCancelled {
+      // Kein Fehler: .part bleibt liegen, nächster Start setzt fort.
     } finally {
       state = {...state}..remove(map.key);
     }
   }
+
+  /// Hält den Download an. Der Fortschritt bleibt gespeichert.
+  void cancel(String key) => _cancelled.add(key);
 }
 
 final mapDownloadsProvider =
-    NotifierProvider<MapDownloadsNotifier, Map<String, double>>(
+    NotifierProvider<MapDownloadsNotifier, Map<String, MapDownloadState>>(
         MapDownloadsNotifier.new);
 
 /// Kartenquelle der Hauptkarte: false = Online-OSM (Default), true = Offline.
