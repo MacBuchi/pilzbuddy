@@ -55,6 +55,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
   static const _fallbackCenter = LatLng(51.1634, 10.4477);
   static const _fallbackZoom = 6.5;
 
+  // Grenzen des Karten-Zooms — 19 ist die höchste Stufe, für die es sowohl
+  // OSM-Kacheln als auch Offline-Vektordaten gibt (siehe VectorTileLayer).
+  static const _minZoom = 3.0;
+  static const _maxZoom = 19.0;
+
   @override
   void initState() {
     super.initState();
@@ -295,6 +300,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
             options: MapOptions(
               initialCenter: _fallbackCenter,
               initialZoom: _fallbackZoom,
+              // Zoom hart begrenzen: OSM liefert Kacheln nur bis Zoom 19,
+              // darüber skaliert flutter_map die z19-Kachel hoch (256 px ×
+              // 2^(zoom−19)). Ohne Obergrenze wächst die gerenderte Kachel
+              // ins Absurde und die Karte bleibt leer, bis man weit genug
+              // herauszoomt. Unten reicht Zoom 3 (Kontinent) locker aus.
+              minZoom: _minZoom,
+              maxZoom: _maxZoom,
               // Karte bleibt fest nach Norden ausgerichtet — Drehen per
               // Zwei-Finger-Geste verwirrt nur und bringt keinen Mehrwert.
               interactionOptions: const InteractionOptions(
@@ -365,6 +377,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 for (final s in friendSpots) _spotMarker(s),
                 for (final s in mySpots) _spotMarker(s),
               ]),
+              // Maßstab unten links — rechts sitzen Attribution und FABs.
+              const Scalebar(
+                alignment: Alignment.bottomLeft,
+                padding: EdgeInsets.only(left: 12, bottom: 12),
+              ),
               RichAttributionWidget(
                 attributions: [
                   const TextSourceAttribution('OpenStreetMap-Mitwirkende'),
