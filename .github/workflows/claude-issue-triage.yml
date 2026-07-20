@@ -17,6 +17,13 @@ on:
         description: "Issue number to triage (for bot-created issues)"
         required: true
 
+# Pro Issue serialisieren, damit ein Issue nicht doppelt triagiert wird
+# (z. B. `issues: opened` und ein nachgeschobener workflow_dispatch).
+# Nicht abbrechen: ein gekappter Lauf hinterlässt gar keinen Kommentar.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.issue.number || inputs.issue_number }}
+  cancel-in-progress: false
+
 permissions:
   contents: read # read the code to localize probable causes
   issues: write # set labels, post the triage comment

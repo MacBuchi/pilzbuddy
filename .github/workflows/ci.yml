@@ -6,6 +6,13 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Ein Folge-Commit auf demselben Branch macht den laufenden Check wertlos —
+# abbrechen statt parallel weiterlaufen lassen (spart vor allem den 6–7
+# Minuten langen Android-Build).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     name: Analyze & Test
