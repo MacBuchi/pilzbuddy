@@ -124,7 +124,11 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
 
 ## Tests
 
-- `flutter analyze` + `flutter test` nach jeder Änderung.
+- `flutter analyze` + `flutter test` nach jeder Änderung. **Kein `dart format .`**
+  — die CI prüft die Formatierung nicht, und der Formatter aus Flutter 3.41
+  bricht 68 Dateien anders um (2264+/1582−). Der Aufruf schreibt sofort in die
+  Dateien; ein versehentliches `dart format` ist mit `git checkout -- lib test`
+  rückgängig zu machen. Umstellen wäre ein eigener PR, kein Nebeneffekt.
 - Harness: `test/fakes/test_app.dart` (`pumpApp`) startet die echte App gegen
   die Fakes in `test/fakes/fake_backend.dart` (spiegeln auch die RLS-Regeln).
   Neue Repository-Methoden dort mit abbilden.
