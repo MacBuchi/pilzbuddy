@@ -78,6 +78,25 @@ create table public.feedback (
   created_at timestamptz not null default now()
 );
 
+-- Gefangene Fehler aus dem Feld (Patch 009). Android Vitals sieht nur harte
+-- Abstürze auf Play-Installationen — die abgefangenen Fehler, bei denen die
+-- App mit einer SnackBar weiterläuft, landen hier. Absichtlich ohne
+-- Nutzdaten: kein Standort, keine Namen.
+create table public.error_reports (
+  id uuid primary key default gen_random_uuid(),
+  -- Nullable: die wertvollsten Fehler passieren vor der Anmeldung.
+  user_id uuid references public.profiles(id) on delete cascade,
+  context text not null check (char_length(context) between 1 and 100),
+  error_type text not null check (char_length(error_type) <= 100),
+  message text check (char_length(message) <= 1000),
+  stack text check (char_length(stack) <= 4000),
+  app_version text check (char_length(app_version) <= 40),
+  platform text check (char_length(platform) <= 20),
+  created_at timestamptz not null default now()
+);
+create index error_reports_created_idx
+  on public.error_reports (created_at desc);
+
 -- ============================================================
 -- Profil automatisch bei Registrierung anlegen
 -- (Username kommt aus den Signup-Metadaten der App)
@@ -172,6 +191,15 @@ alter table public.finds          enable row level security;
 alter table public.friendships    enable row level security;
 alter table public.live_locations enable row level security;
 alter table public.feedback       enable row level security;
+alter table public.error_reports  enable row level security;
+
+-- error_reports: schreiben darf jeder, auch anon — sonst fehlen genau die
+-- Fehler aus Login und Registrierung. Eine fremde user_id lässt sich nicht
+-- unterschieben. LESEN darf niemand über die API: es gibt bewusst keine
+-- select-Policy, die Auswertung läuft über das Dashboard.
+create policy er_insert on public.error_reports for insert
+  with check (user_id is null or user_id = auth.uid());
+grant insert on public.error_reports to anon, authenticated;
 
 -- feedback: eigene Wünsche einreichen und nachlesen
 create policy feedback_insert on public.feedback for insert

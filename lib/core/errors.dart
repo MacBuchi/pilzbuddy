@@ -6,15 +6,35 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+/// Empfänger für Fehlerberichte. `main()` hängt hier das Schreiben nach
+/// Supabase ein (siehe `ErrorReportRepository`); in Tests bleibt der Haken
+/// leer, damit `flutter test` ohne Netz auskommt.
+typedef ErrorSink = void Function(
+    String context, Object error, StackTrace? stackTrace);
+
+ErrorSink? _sink;
+
+/// Einmalig in `main()` setzen. `null` schaltet das Melden wieder ab.
+void setErrorSink(ErrorSink? sink) => _sink = sink;
+
 /// Zentrales, bewusst minimales Logging: gefangene Fehler landen mit
 /// Stacktrace im Log (dart:developer → adb logcat / DevTools), statt
 /// still in generischen SnackBars zu verschwinden. Optionale Features
 /// (Offline-Karten, Update-Check, GPS) degradieren weiterhin still —
 /// aber auch dort darf geloggt werden.
+///
+/// Zusätzlich geht der Fehler an den [ErrorSink], falls einer gesetzt ist.
+/// Der Aufruf darf unter keinen Umständen werfen: ein Fehler beim Melden
+/// eines Fehlers würde sonst erneut hier landen und sich aufschaukeln.
 void logError(String context, Object error, [StackTrace? stackTrace]) {
   developer.log(context,
       name: 'pilzbuddy', error: error, stackTrace: stackTrace);
   if (kDebugMode) debugPrint('[$context] $error');
+  try {
+    _sink?.call(context, error, stackTrace);
+  } catch (_) {
+    // Bewusst still: hier zu loggen wäre genau die Endlosschleife.
+  }
 }
 
 /// Nutzerfreundliche Meldung nach Fehlerklasse statt pauschalem

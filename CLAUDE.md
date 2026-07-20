@@ -97,6 +97,17 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   Der `<queries>`-Eintrag VIEW/https im Manifest bleibt nötig, sonst kann
   die App den Browser nicht öffnen.
 
+- Fehlerberichte: `logError` (`lib/core/errors.dart`) schreibt zusätzlich
+  über einen optionalen `ErrorSink` nach `public.error_reports` (Patch 009,
+  `ErrorReportRepository`). Eingehängt in `main()`, in Tests leer — deshalb
+  bleibt `flutter test` netzfrei. Der Sink darf niemals werfen: ein Fehler
+  beim Melden würde sonst wieder in `logError` landen. Bewusst kein
+  Crash-Dienst: Abstürze zeigt Android Vitals in der Play Console ohnehin
+  (nur Play-Installationen, nur Android); die Lücke sind die *gefangenen*
+  Fehler, bei denen die App mit einer SnackBar weiterläuft — und Web sowie
+  GitHub-APK, die Vitals nie sieht. Auswertung per SQL im Dashboard: die
+  Tabelle hat absichtlich keine select-Policy.
+
 ## Code-Konventionen
 
 - Business-Logik in Repositories/Services, nicht in Providern oder Widgets.
