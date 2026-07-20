@@ -14,9 +14,10 @@ import '../../friends/friend_providers.dart';
 import '../../offline_maps/offline_map_providers.dart';
 import '../../../core/app_colors.dart';
 
-/// Feature-Wunsch-Banner nur einmal pro App-Start anzeigen,
-/// nachdem es weggeklickt oder ein Wunsch abgeschickt wurde.
-final featureBannerDismissedProvider = StateProvider<bool>((ref) => false);
+/// Feedback-Banner für diese Sitzung ausgeblendet? Wird nur durch das X
+/// gesetzt: nach dem Absenden bleibt das Banner stehen, sonst wirkt es, als
+/// wäre die Meldemöglichkeit verschwunden (Issue #72).
+final feedbackBannerDismissedProvider = StateProvider<bool>((ref) => false);
 
 /// Update-Banner für diese Sitzung ausgeblendet?
 final updateBannerDismissedProvider = StateProvider<bool>((ref) => false);
@@ -53,7 +54,6 @@ class MapBanners extends ConsumerWidget {
             .read(feedbackRepositoryProvider)
             .submit(result.type, result.text);
       }
-      ref.read(featureBannerDismissedProvider.notifier).state = true;
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(switch (result.type) {
@@ -125,7 +125,7 @@ class MapBanners extends ConsumerWidget {
     final uid = ref.watch(currentUserIdProvider) ?? '';
     final friendships = ref.watch(friendshipsProvider).valueOrNull ?? [];
     final incoming = friendships.where((f) => f.isIncomingFor(uid)).length;
-    final featureDismissed = ref.watch(featureBannerDismissedProvider);
+    final feedbackDismissed = ref.watch(feedbackBannerDismissedProvider);
 
     final updateInfo = ref.watch(updateInfoProvider).valueOrNull;
     final updateDismissed = ref.watch(updateBannerDismissedProvider);
@@ -176,14 +176,14 @@ class MapBanners extends ConsumerWidget {
                 ? '🔔 1 offene Freundschaftsanfrage — antippen'
                 : '🔔 $incoming offene Freundschaftsanfragen — antippen'),
           ),
-        if (!featureDismissed)
+        if (!feedbackDismissed)
           _banner(
             context,
             background: AppColors.sunshine,
             foreground: AppColors.warmBrown,
             onTap: () => _openFeedbackDialog(context, ref),
             onDismiss: () => ref
-                .read(featureBannerDismissedProvider.notifier)
+                .read(feedbackBannerDismissedProvider.notifier)
                 .state = true,
             content: const Text('💡 Wunsch, Fehler oder Pilzart melden!'),
           ),
