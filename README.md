@@ -11,6 +11,8 @@ eintragen und Spots mit Freunden teilen.
 
 - **Karte:** Karte gedrückt halten → neuer Spot (Art, Anzahl, Funddatum, Notiz optional).
   Alternativ „Spot hier" für die aktuelle GPS-Position.
+  Maßstab unten links; der Zoom ist auf den Bereich begrenzt, für den es
+  Kartendaten gibt.
 - **Wiederbesuch:** Marker antippen → „Fund eintragen" → Speichern.
   Art und Anzahl sind vom letzten Fund vorbelegt.
 - **Freunde:** Suche per Benutzername oder genauer E-Mail, Anfrage → Annahme.
