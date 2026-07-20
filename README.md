@@ -3,7 +3,7 @@
 Pilz-Fundorte („Spots") auf einer Karte festhalten, Wiederbesuche mit zwei Taps
 eintragen und Spots mit Freunden teilen.
 
-**Plattformen:** Android (ab Android 6 / API 23) und Web (PWA)
+**Plattformen:** Android (ab Android 7 / API 24) und Web (PWA)
 **Web-App:** <https://macbuchi.github.io/pilzbuddy/>
 **Technik:** Flutter · OpenStreetMap (`flutter_map`) · Supabase (Auth + PostgreSQL) · Riverpod
 

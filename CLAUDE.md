@@ -20,6 +20,8 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
 - Release = Versions-Bump in `pubspec.yaml` auf `main` (beide Teile erhöhen,
   z. B. `1.0.1+2`). Der Release-Workflow taggt dann `v<version>`, veröffentlicht
   die signierte APK als GitHub-Release und deployt Web auf GitHub Pages
+  (zusätzlich entsteht ein signiertes AAB als Workflow-Artefakt `android-aab`
+  für den Play Store — noch NICHT einreichbar, siehe Play-Store-Notiz unten)
   (https://macbuchi.github.io/pilzbuddy/). Kein Bump = kein Release.
 - Version Guard in CI: Code-Änderung ohne Versions-Bump blockiert den Merge
   (Pflicht-Check schlägt fehl); nur `*.md` und `.github/` sind ausgenommen.
@@ -118,3 +120,26 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
 - Kein Netzwerk in Tests (Update-Check ist im Harness auf `null` überschrieben,
   Kartenkacheln werden durch eine transparente 1×1-PNG ersetzt).
 - Die Fakes ersetzen keinen echten RLS-Test — das leistet der Schema Check.
+
+## Play Store — offene Blocker
+
+Die App soll in den Play Store; das AAB entsteht bereits, ist aber noch
+nicht einreichbar. Vier Punkte stehen aus (Stand 2026-07-20):
+
+1. **In-App-Updater.** `ota_update` lädt und installiert eine APK — Play
+   verbietet Selbst-Updates („Device and Network Abuse"). Sein Plugin-Manifest
+   zieht zudem `INSTALL_PACKAGES` (Signatur-Berechtigung!),
+   `REQUEST_INSTALL_PACKAGES` und `WRITE_EXTERNAL_STORAGE` in **jeden** Build.
+   Plugin-Berechtigungen landen in allen Varianten — Flavors allein entfernen
+   sie nicht, das braucht `tools:node="remove"` im Play-Manifest. Alternative:
+   `ota_update` ganz entfernen, Banner öffnet die Release-Seite im Browser.
+2. **Konto-Löschung** fehlt komplett. Play verlangt sie in der App *und* über
+   eine Web-URL; serverseitig braucht es einen Schema-Patch (Auth-User plus
+   abhängige Zeilen).
+3. **Datenschutzerklärung** fehlt. Pflicht für die Konsole, inhaltlich nicht
+   trivial: Spot-Koordinaten, Live-Standort, E-Mail, Benutzername — und
+   Feedback, das mit Benutzernamen öffentlich auf GitHub landet.
+4. **Data-Safety-Formular** in der Konsole, abgeleitet aus `supabase/schema.sql`.
+
+Unkritisch: `targetSdk` = 36 erfüllt die aktuelle Play-Anforderung,
+`minSdk` = 24 (Android 7).
