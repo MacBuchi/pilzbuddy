@@ -219,6 +219,19 @@ class _AboutSection extends ConsumerWidget {
           subtitle: const Text(AppInfo.webAppUrl),
           onTap: () => _open(AppInfo.webAppUrl),
         ),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          leading: const Icon(Icons.description_outlined),
+          title: const Text('Open-Source-Lizenzen'),
+          subtitle: const Text('PilzBuddy steht unter der MIT-Lizenz'),
+          onTap: () => showLicensePage(
+            context: context,
+            applicationName: 'PilzBuddy',
+            applicationVersion: version,
+            applicationLegalese: '© 2026 Marcus Bucher — MIT-Lizenz',
+          ),
+        ),
         const SizedBox(height: 8),
         Text(
           'Kartendaten: © OpenStreetMap-Mitwirkende',
