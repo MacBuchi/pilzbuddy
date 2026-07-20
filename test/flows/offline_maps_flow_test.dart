@@ -129,7 +129,7 @@ void main() {
     await drainSnackbars(tester);
   });
 
-  testWidgets('Foreground-Service läuft nur während des Downloads (#77)',
+  testWidgets('Foreground-Service läuft nur während des Downloads',
       (tester) async {
     // Ohne laufenden Service friert Android den Prozess beim App-Wechsel
     // ein und der Download steht still. Danach muss der Service aber auch

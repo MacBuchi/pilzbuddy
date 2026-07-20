@@ -121,7 +121,7 @@ class MapDownloadsNotifier extends Notifier<Map<String, MapDownloadState>> {
     _cancelled.remove(map.key);
     _set(map.key, const MapDownloadState(0));
     // Ohne Foreground-Service friert Android den Prozess ein, sobald der
-    // Nutzer die App wechselt — der Download stünde still (#77).
+    // Nutzer die App wechselt — der Download stünde still.
     final keepAlive = ref.read(downloadKeepAliveProvider);
     await keepAlive.start(_notificationText());
     try {
