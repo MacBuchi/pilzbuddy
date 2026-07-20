@@ -96,6 +96,35 @@ void main() {
     await drainSnackbars(tester);
   });
 
+  testWidgets('Login- und Registrier-Felder hängen in einer AutofillGroup',
+      (tester) async {
+    // Ohne AutofillGroup meldet Flutter die Felder nicht beim Autofill-Dienst
+    // an — Passwortmanager sehen das Formular dann gar nicht (Issue #68).
+    void expectInAutofillGroup(String label) {
+      expect(
+        find.ancestor(
+          of: find.widgetWithText(TextField, label),
+          matching: find.byType(AutofillGroup),
+        ),
+        findsOneWidget,
+        reason: 'Feld „$label" braucht eine AutofillGroup',
+      );
+    }
+
+    final backend = FakeBackend();
+    await pumpApp(tester, backend);
+
+    expectInAutofillGroup('E-Mail');
+    expectInAutofillGroup('Passwort');
+
+    await tester.tap(find.text('Noch kein Konto? Registrieren'));
+    await settle(tester);
+
+    expectInAutofillGroup('Benutzername');
+    expectInAutofillGroup('E-Mail');
+    expectInAutofillGroup('Passwort (mind. 6 Zeichen)');
+  });
+
   testWidgets('Abmelden führt zurück zum Login-Screen', (tester) async {
     final backend = FakeBackend();
     final me = backend.addUser(username: 'testpilz');

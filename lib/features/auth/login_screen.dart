@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -33,6 +34,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             email: _emailController.text.trim(),
             password: _passwordController.text,
           );
+      // Erst nach erfolgreicher Anmeldung darf der Passwortmanager speichern.
+      TextInput.finishAutofillContext();
     } on AuthException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -67,24 +70,38 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineMedium),
                 const SizedBox(height: 32),
-                TextField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  autofillHints: const [AutofillHints.email],
-                  decoration: const InputDecoration(
-                    labelText: 'E-Mail',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _passwordController,
-                  obscureText: true,
-                  autofillHints: const [AutofillHints.password],
-                  onSubmitted: (_) => _busy ? null : _signIn(),
-                  decoration: const InputDecoration(
-                    labelText: 'Passwort',
-                    border: OutlineInputBorder(),
+                // Ohne AutofillGroup registrieren sich die Felder nicht beim
+                // Autofill-Dienst — Passwortmanager sehen das Formular sonst
+                // gar nicht. Abbruch beim Verlassen, gespeichert wird erst
+                // nach erfolgreicher Anmeldung (finishAutofillContext).
+                AutofillGroup(
+                  onDisposeAction: AutofillContextAction.cancel,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      TextField(
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        textInputAction: TextInputAction.next,
+                        autofillHints: const [AutofillHints.email],
+                        decoration: const InputDecoration(
+                          labelText: 'E-Mail',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _passwordController,
+                        obscureText: true,
+                        textInputAction: TextInputAction.done,
+                        autofillHints: const [AutofillHints.password],
+                        onSubmitted: (_) => _busy ? null : _signIn(),
+                        decoration: const InputDecoration(
+                          labelText: 'Passwort',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 20),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -49,6 +50,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             password: _passwordController.text,
             username: username,
           );
+      // Erst nach erfolgreicher Registrierung darf der Passwortmanager
+      // speichern.
+      TextInput.finishAutofillContext();
     } on AuthException catch (e) {
       if (mounted) _showError(signupErrorMessage(e));
     } catch (e, stackTrace) {
@@ -72,33 +76,46 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                TextField(
-                  controller: _usernameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Benutzername',
-                    helperText: 'Darüber können Freunde dich finden.',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  autofillHints: const [AutofillHints.email],
-                  decoration: const InputDecoration(
-                    labelText: 'E-Mail',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _passwordController,
-                  obscureText: true,
-                  autofillHints: const [AutofillHints.newPassword],
-                  onSubmitted: (_) => _busy ? null : _signUp(),
-                  decoration: const InputDecoration(
-                    labelText: 'Passwort (mind. 6 Zeichen)',
-                    border: OutlineInputBorder(),
+                // Siehe login_screen.dart: ohne AutofillGroup kein Autofill.
+                AutofillGroup(
+                  onDisposeAction: AutofillContextAction.cancel,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      TextField(
+                        controller: _usernameController,
+                        textInputAction: TextInputAction.next,
+                        autofillHints: const [AutofillHints.newUsername],
+                        decoration: const InputDecoration(
+                          labelText: 'Benutzername',
+                          helperText: 'Darüber können Freunde dich finden.',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        textInputAction: TextInputAction.next,
+                        autofillHints: const [AutofillHints.email],
+                        decoration: const InputDecoration(
+                          labelText: 'E-Mail',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _passwordController,
+                        obscureText: true,
+                        textInputAction: TextInputAction.done,
+                        autofillHints: const [AutofillHints.newPassword],
+                        onSubmitted: (_) => _busy ? null : _signUp(),
+                        decoration: const InputDecoration(
+                          labelText: 'Passwort (mind. 6 Zeichen)',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 20),
