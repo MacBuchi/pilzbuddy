@@ -26,6 +26,29 @@ Set<(String, String)> _excludes(XmlElement parent) => {
     };
 
 void main() {
+  test('Keine Berechtigungen rund um APK-Installation', () {
+    // Play verbietet Selbst-Updates („Device and Network Abuse"). Der
+    // Auslöser war nie eigener Code, sondern das Manifest von `ota_update`:
+    // es zog INSTALL_PACKAGES (Signatur-Berechtigung!),
+    // REQUEST_INSTALL_PACKAGES und WRITE_EXTERNAL_STORAGE in JEDEN Build.
+    // Deshalb wacht dieser Test über die Abhängigkeit, nicht nur übers
+    // Manifest — eine wieder eingefügte Abhängigkeit brächte alles zurück.
+    final pubspec = File('pubspec.yaml').readAsStringSync();
+    expect(pubspec.contains('ota_update'), isFalse,
+        reason: 'ota_update zieht INSTALL_PACKAGES & Co. in jeden Build');
+
+    final manifest =
+        File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
+    for (final permission in const [
+      'REQUEST_INSTALL_PACKAGES',
+      'INSTALL_PACKAGES',
+      'WRITE_EXTERNAL_STORAGE',
+    ]) {
+      expect(manifest.contains(permission), isFalse,
+          reason: '$permission gehört nicht ins Manifest');
+    }
+  });
+
   test('Manifest verweist auf beide Backup-Regelwerke', () {
     final app = _load('android/app/src/main/AndroidManifest.xml')
         .rootElement

@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/app_distribution.dart';
 import '../../core/app_info.dart';
 import '../../core/update_check.dart';
 import '../../core/widgets/mushroom_avatar.dart';
@@ -190,10 +191,13 @@ class _AboutSection extends ConsumerWidget {
     final updateInfo = ref.watch(updateInfoProvider).valueOrNull;
     final updateStatus = kIsWeb
         ? 'Die Web-App ist immer aktuell.'
-        : updateInfo != null
-            ? 'Neueste Version: v${updateInfo.latestVersion} — Update über '
-                'das Banner auf der Karte.'
-            : 'Du bist auf dem aktuellen Stand.';
+        : !AppDistribution.showsUpdateHints
+            // Play-Build: der Store aktualisiert selbst, die App prüft nichts.
+            ? 'Updates kommen über den Play Store.'
+            : updateInfo != null
+                ? 'Neueste Version: v${updateInfo.latestVersion} — Update über '
+                    'das Banner auf der Karte.'
+                : 'Du bist auf dem aktuellen Stand.';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

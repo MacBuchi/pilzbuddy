@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:ota_update/ota_update.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/errors.dart';
@@ -192,70 +191,23 @@ class MapBanners extends ConsumerWidget {
   }
 }
 
-/// Update-Dialog: lädt die APK mit Fortschrittsbalken direkt in der App
-/// herunter und öffnet anschließend den Android-Installer. Schlägt das
-/// fehl, bleibt der Browser-Download als Fallback.
-class _UpdateDialog extends StatefulWidget {
+/// Update-Dialog: zeigt die Release-Notes und schickt zum Download im
+/// Browser. Bewusst KEIN Download-und-Installieren in der App — der Play
+/// Store verbietet Selbst-Updates („Device and Network Abuse"), und das
+/// dafür nötige `ota_update` zog `INSTALL_PACKAGES` samt
+/// `WRITE_EXTERNAL_STORAGE` in jeden Build. Erscheint ohnehin nur in der
+/// GitHub-Variante (siehe [AppDistribution]).
+class _UpdateDialog extends StatelessWidget {
   const _UpdateDialog({required this.info});
 
   final UpdateInfo info;
 
-  @override
-  State<_UpdateDialog> createState() => _UpdateDialogState();
-}
-
-enum _UpdatePhase { idle, downloading, installing, error }
-
-class _UpdateDialogState extends State<_UpdateDialog> {
-  _UpdatePhase _phase = _UpdatePhase.idle;
-  double _progress = 0;
-  StreamSubscription<OtaEvent>? _subscription;
-
-  @override
-  void dispose() {
-    _subscription?.cancel();
-    super.dispose();
-  }
-
-  void _start() {
-    setState(() => _phase = _UpdatePhase.downloading);
-    try {
-      _subscription = OtaUpdate()
-          .execute(widget.info.downloadUrl,
-              destinationFilename: 'pilzbuddy-update.apk')
-          .listen(
-        (event) {
-          if (!mounted) return;
-          switch (event.status) {
-            case OtaStatus.DOWNLOADING:
-              setState(() {
-                _phase = _UpdatePhase.downloading;
-                _progress = (double.tryParse(event.value ?? '') ?? 0) / 100;
-              });
-            case OtaStatus.INSTALLING:
-              setState(() => _phase = _UpdatePhase.installing);
-            default:
-              setState(() => _phase = _UpdatePhase.error);
-          }
-        },
-        onError: (Object _) {
-          if (mounted) setState(() => _phase = _UpdatePhase.error);
-        },
-      );
-    } catch (e, stackTrace) {
-      logError('Update-Download', e, stackTrace);
-      setState(() => _phase = _UpdatePhase.error);
-    }
-  }
-
-  Future<void> _browserFallback() async {
-    await launchUrl(Uri.parse(widget.info.downloadUrl),
-        mode: LaunchMode.externalApplication);
-  }
+  Future<void> _download() => launchUrl(Uri.parse(info.downloadUrl),
+      mode: LaunchMode.externalApplication);
 
   @override
   Widget build(BuildContext context) {
-    final info = widget.info;
+    final notes = info.releaseNotes?.trim();
     return AlertDialog(
       title: Text('Update auf v${info.latestVersion}'),
       content: SingleChildScrollView(
@@ -263,67 +215,30 @@ class _UpdateDialogState extends State<_UpdateDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            switch (_phase) {
-              _UpdatePhase.idle => const Text(
-                  'Das Update lädt direkt in der App und öffnet dann den '
-                  'Android-Installer — deine Spots bleiben erhalten. '
-                  'Beim ersten Mal fragt Android einmalig um Erlaubnis.'),
-              _UpdatePhase.downloading => Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Lade herunter … ${(_progress * 100).round()} %'),
-                    const SizedBox(height: 8),
-                    LinearProgressIndicator(
-                        value: _progress > 0 ? _progress : null),
-                  ],
-                ),
-              _UpdatePhase.installing => const Text(
-                  'Download fertig — Android fragt jetzt, ob PilzBuddy '
-                  'aktualisiert werden soll. Einfach bestätigen!'),
-              _UpdatePhase.error => const Text(
-                  'Der Direkt-Download hat nicht geklappt. Du kannst das '
-                  'Update stattdessen über den Browser laden — nach dem '
-                  'Download in der Benachrichtigung auf die Datei tippen.'),
-            },
-            if (_phase == _UpdatePhase.idle &&
-                info.releaseNotes != null &&
-                info.releaseNotes!.trim().isNotEmpty) ...[
+            const Text(
+                'Der Download startet im Browser. Danach in der '
+                'Benachrichtigung auf die Datei tippen, um zu installieren — '
+                'deine Spots bleiben erhalten.'),
+            if (notes != null && notes.isNotEmpty) ...[
               const SizedBox(height: 12),
               Text('Was ist neu:',
                   style: Theme.of(context).textTheme.titleSmall),
               const SizedBox(height: 4),
-              Text(info.releaseNotes!.trim(),
-                  style: Theme.of(context).textTheme.bodySmall),
+              Text(notes, style: Theme.of(context).textTheme.bodySmall),
             ],
           ],
         ),
       ),
       actions: [
-        if (_phase == _UpdatePhase.idle) ...[
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Später'),
-          ),
-          FilledButton.icon(
-            onPressed: _start,
-            icon: const Icon(Icons.download, size: 18),
-            label: const Text('Jetzt aktualisieren'),
-          ),
-        ] else if (_phase == _UpdatePhase.error) ...[
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Schließen'),
-          ),
-          FilledButton.icon(
-            onPressed: _browserFallback,
-            icon: const Icon(Icons.open_in_browser, size: 18),
-            label: const Text('Im Browser laden'),
-          ),
-        ] else
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Schließen'),
-          ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Später'),
+        ),
+        FilledButton.icon(
+          onPressed: _download,
+          icon: const Icon(Icons.open_in_browser, size: 18),
+          label: const Text('Im Browser laden'),
+        ),
       ],
     );
   }
