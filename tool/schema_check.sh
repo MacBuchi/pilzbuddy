@@ -87,6 +87,12 @@ check_get "live_locations-Embed (Freundes-Standorte)" \
 check_get "feedback-Spalten" \
   "/rest/v1/feedback?select=id,user_id,type,message,species_name,created_at,processed_at&limit=1"
 
+# error_reports: die Spalten, die ErrorReportRepository schreibt. RLS gibt
+# anon keine Zeilen zurück — eine unbekannte Spalte im select quittiert
+# PostgREST aber trotzdem mit einem Fehler, genau darum geht es hier.
+check_get "error_reports-Spalten" \
+  "/rest/v1/error_reports?select=id,user_id,context,error_type,message,stack,app_version,platform,created_at&limit=1"
+
 # RPC der Freundesuche (Signatur + Rückgabetyp)
 check_rpc "search_profiles-RPC" "search_profiles" '{"query":"schema-check"}'
 
