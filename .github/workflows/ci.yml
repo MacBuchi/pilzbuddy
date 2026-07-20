@@ -112,15 +112,18 @@ jobs:
              || [ "${latest#v}" = "$version" ]; then
             # Version ist nicht größer als der letzte Tag → nur relevant,
             # wenn sich seither Nicht-Doku-Dateien geändert haben.
+            # store/ ist ausgenommen: Store-Grafiken stecken in keiner
+            # Asset-Liste, gehen also nie in ein Binary ein — ein neuer
+            # Screenshot soll kein Release auslösen.
             if [ "${{ github.event_name }}" = "pull_request" ]; then
-              changed=$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD -- . ':!*.md' ':!.github' || true)
+              changed=$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD -- . ':!*.md' ':!.github' ':!store' || true)
             else
-              changed=$(git diff --name-only "$latest"..HEAD -- . ':!*.md' ':!.github' || true)
+              changed=$(git diff --name-only "$latest"..HEAD -- . ':!*.md' ':!.github' ':!store' || true)
             fi
             if [ -n "$changed" ]; then
               # Blockiert den Merge (Pflicht-Check): Code-Änderungen brauchen
               # immer einen Versions-Bump, sonst entsteht kein Release.
-              # Reine Doku (*.md) und .github/ sind ausgenommen.
+              # Reine Doku (*.md), .github/ und store/ sind ausgenommen.
               echo "::error::Code geändert, aber version in pubspec.yaml ($version) ist nicht größer als $latest. Bitte Version bumpen (beide Teile, z. B. 1.2.3+4 → 1.2.4+5) — ohne Bump gibt es kein Release."
               exit 1
             fi
