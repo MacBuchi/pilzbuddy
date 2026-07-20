@@ -7,6 +7,13 @@ on:
     - cron: "23 */2 * * *" # every two hours
   workflow_dispatch:
 
+# Zwei überlappende Läufe würden dieselben unverarbeiteten Zeilen lesen.
+# Das `processed_at`-Stempeln pro Zeile fängt das heute ab — hier wird es
+# explizit. Nicht abbrechen: ein halb verarbeiteter Lauf wäre schlimmer.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 permissions:
   contents: write
   issues: write

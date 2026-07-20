@@ -14,6 +14,13 @@ on:
   pull_request_review:
     types: [submitted]
 
+# Pro Issue/PR serialisieren, damit zwei Freigabe-Kommentare nicht
+# gleichzeitig am selben Branch arbeiten. Nicht abbrechen: ein gekappter
+# Lauf könnte einen halb gepushten Branch ohne PR hinterlassen.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: false
+
 jobs:
   claude:
     if: |

@@ -9,6 +9,12 @@ on:
     branches: [main]
     tags: ["v*"]
 
+# Releases nacheinander, aber NIEMALS abbrechen: ein mittendrin gekappter
+# Lauf hinterlässt einen gepushten Tag ohne APK und ohne Web-Deploy.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
