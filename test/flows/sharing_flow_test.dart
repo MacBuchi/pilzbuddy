@@ -1,5 +1,6 @@
 // Szenarien rund ums Teilen: Sichtbarkeit von Freundes-Spots je nach
-// Freigabe-Einstellungen, Freundschaftsanfragen und das Feedback-Banner.
+// Freigabe-Einstellungen und Freundschaftsanfragen.
+// (Das Melde-Banner liegt in feedback_flow_test.dart.)
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/widgets/mushroom_icon.dart';
@@ -102,33 +103,6 @@ void main() {
     await tester.tap(find.text('Karte'));
     await settle(tester);
     expect(find.byTooltip('Pilz-Spot (bobby)'), findsOneWidget);
-  });
-
-  testWidgets('Feedback-Banner sendet eine Bug-Meldung ans Backend',
-      (tester) async {
-    final (backend, _) = loggedInBackend();
-    await pumpApp(tester, backend);
-
-    await tester.tap(find.text('💡 Wunsch, Fehler oder Pilzart melden!'));
-    await settle(tester);
-    expect(find.text('Wünsch dir was!'), findsOneWidget);
-    // Transparenz-Hinweis: Feedback landet öffentlich auf GitHub.
-    expect(find.textContaining('öffentlich im GitHub-Projekt'), findsOneWidget);
-
-    await tester.tap(find.text('🐛 Bug'));
-    await settle(tester, frames: 4);
-    await tester.enterText(
-        find.widgetWithText(TextField, 'Was ist passiert?'),
-        'Beim Löschen eines Spots bleibt der Marker stehen');
-    await tester.tap(find.text('Senden'));
-    await settle(tester);
-
-    expect(backend.feedback.single['type'], 'bug');
-    expect(backend.feedback.single['message'],
-        'Beim Löschen eines Spots bleibt der Marker stehen');
-    // Banner ist nach dem Absenden für diese Sitzung ausgeblendet.
-    expect(find.text('💡 Wunsch, Fehler oder Pilzart melden!'), findsNothing);
-    await drainSnackbars(tester);
   });
 
   testWidgets('Freundesuche findet Nutzer und sendet eine Anfrage',
