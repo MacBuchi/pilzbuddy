@@ -4,10 +4,10 @@
   `flutter build web` unter /pilzbuddy/datenschutz.html erreichbar — als
   echte Datei vor dem SPA-Fallback (404.html).
 
-  ACHTUNG: Die doppelt eckig geklammerten Stellen müssen vor der
-  Veröffentlichung ersetzt werden — test/privacy_policy_test.dart bleibt so
-  lange rot. Der Text ist aus supabase/schema.sql und dem Code abgeleitet
-  und juristisch nicht geprüft.
+  Der Text ist aus supabase/schema.sql und dem Code abgeleitet und
+  juristisch nicht geprüft. test/privacy_policy_test.dart wacht darüber,
+  dass keine Platzhalter der Form [[...]] übrig bleiben und die heiklen
+  Punkte benannt sind — beim Ergänzen also nichts davon herauslöschen.
 -->
 <html lang="de">
 <head>
