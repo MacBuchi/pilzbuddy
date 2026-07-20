@@ -504,6 +504,31 @@ class _StatTile extends StatelessWidget {
   }
 }
 
+/// Höchstens so viele Beschriftungen auf der Y-Achse des Balkendiagramms.
+const _maxYAxisLabels = 5;
+
+/// Achsenschritt für [maxY], der auf einer runden Zahl landet (1, 2, 5, 10,
+/// 20, 50, …) und höchstens [_maxYAxisLabels] Beschriftungen erzeugt.
+///
+/// Vorher stand hier fest `interval: 1`: bei 50 Funden im besten Jahr wurde
+/// jede einzelne Zahl beschriftet, die Achse war zugelaufen (Issue #97).
+/// Funde sind ganzzahlig, deshalb ist der kleinste Schritt 1 — eine Achse
+/// mit 0,5-Schritten wäre für Stückzahlen unsinnig.
+@visibleForTesting
+double yAxisStep(double maxY) {
+  final target = maxY / _maxYAxisLabels;
+  if (target <= 1) return 1;
+  var magnitude = 1.0;
+  while (magnitude * 10 < target) {
+    magnitude *= 10;
+  }
+  for (final factor in const [1, 2, 5]) {
+    final step = magnitude * factor;
+    if (step >= target) return step;
+  }
+  return magnitude * 10;
+}
+
 class _FindsPerYearChart extends StatelessWidget {
   const _FindsPerYearChart({required this.finds});
 
@@ -519,6 +544,8 @@ class _FindsPerYearChart extends StatelessWidget {
     final maxCount =
         byYear.values.reduce((a, b) => a > b ? a : b).toDouble();
     final barColor = Theme.of(context).colorScheme.primary;
+    final maxY = maxCount * 1.2;
+    final step = yAxisStep(maxY);
 
     return Card(
       child: Padding(
@@ -533,7 +560,7 @@ class _FindsPerYearChart extends StatelessWidget {
               height: 160,
               child: BarChart(
                 BarChartData(
-                  maxY: maxCount * 1.2,
+                  maxY: maxY,
                   barGroups: [
                     for (final year in years)
                       BarChartGroupData(x: year, barRods: [
@@ -549,9 +576,15 @@ class _FindsPerYearChart extends StatelessWidget {
                   titlesData: FlTitlesData(
                     topTitles: const AxisTitles(),
                     rightTitles: const AxisTitles(),
-                    leftTitles: const AxisTitles(
+                    leftTitles: AxisTitles(
                       sideTitles: SideTitles(
-                          showTitles: true, reservedSize: 30, interval: 1),
+                        showTitles: true,
+                        reservedSize: 30,
+                        interval: step,
+                        getTitlesWidget: (value, meta) => Text(
+                            value.toInt().toString(),
+                            style: Theme.of(context).textTheme.bodySmall),
+                      ),
                     ),
                     bottomTitles: AxisTitles(
                       sideTitles: SideTitles(
@@ -565,7 +598,10 @@ class _FindsPerYearChart extends StatelessWidget {
                       ),
                     ),
                   ),
-                  gridData: const FlGridData(drawVerticalLine: false),
+                  // Ohne festes Intervall zieht fl_chart die Linien in einem
+                  // eigenen Raster — sie lägen dann neben den Beschriftungen.
+                  gridData: FlGridData(
+                      drawVerticalLine: false, horizontalInterval: step),
                   borderData: FlBorderData(show: false),
                 ),
               ),
