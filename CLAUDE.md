@@ -24,7 +24,9 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   für den Play Store — noch NICHT einreichbar, siehe Play-Store-Notiz unten)
   (https://macbuchi.github.io/pilzbuddy/). Kein Bump = kein Release.
 - Version Guard in CI: Code-Änderung ohne Versions-Bump blockiert den Merge
-  (Pflicht-Check schlägt fehl); nur `*.md` und `.github/` sind ausgenommen.
+  (Pflicht-Check schlägt fehl); nur `*.md`, `.github/` und `store/` sind
+  ausgenommen (Store-Grafiken stecken in keiner Asset-Liste, siehe
+  `store/README.md`).
 - Gemergte Branches löscht GitHub automatisch (delete_branch_on_merge).
 
 ## Technik-Notizen
