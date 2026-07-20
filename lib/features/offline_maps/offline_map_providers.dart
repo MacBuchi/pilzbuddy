@@ -8,8 +8,10 @@ import 'package:path_provider/path_provider.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart';
 import 'package:vector_tile_renderer/vector_tile_renderer.dart' as vtr;
 
+import 'download_keep_alive.dart';
 import 'offline_map_repository.dart';
 import 'pmtiles_tile_provider.dart';
+import 'region_catalog.dart';
 
 final offlineMapRepositoryProvider =
     Provider<OfflineMapRepository>((ref) => OfflineMapRepository());
@@ -78,8 +80,38 @@ class MapDownloadsNotifier extends Notifier<Map<String, MapDownloadState>> {
   @override
   Map<String, MapDownloadState> build() => const {};
 
-  void _set(String key, MapDownloadState value) =>
-      state = {...state, key: value};
+  /// Zuletzt gezeigter Benachrichtigungstext — verhindert, dass jeder
+  /// einzelne Chunk eine Aktualisierung über den Platform-Channel schickt.
+  String? _lastText;
+
+  void _set(String key, MapDownloadState value) {
+    state = {...state, key: value};
+    _syncNotification();
+  }
+
+  /// Text der Service-Benachrichtigung aus dem aktuellen Zustand.
+  String _notificationText() {
+    final entries = state.entries.toList();
+    if (entries.isEmpty) return 'Wird vorbereitet …';
+    if (entries.length == 1) {
+      final download = entries.single.value;
+      final percent = (download.progress * 100).round();
+      return download.waitingForNetwork
+          ? 'Wartet auf Verbindung … $percent %'
+          : '${regionLabel(entries.single.key)} — $percent %';
+    }
+    final average =
+        entries.map((e) => e.value.progress).reduce((a, b) => a + b) /
+            entries.length;
+    return '${entries.length} Karten — ${(average * 100).round()} %';
+  }
+
+  void _syncNotification() {
+    final text = _notificationText();
+    if (text == _lastText) return;
+    _lastText = text;
+    ref.read(downloadKeepAliveProvider).update(text);
+  }
 
   /// Startet (oder setzt fort); wirft bei endgültigen Fehlern weiter,
   /// damit die UI eine Meldung zeigen kann. Läuft die Region schon,
@@ -88,6 +120,10 @@ class MapDownloadsNotifier extends Notifier<Map<String, MapDownloadState>> {
     if (state.containsKey(map.key)) return;
     _cancelled.remove(map.key);
     _set(map.key, const MapDownloadState(0));
+    // Ohne Foreground-Service friert Android den Prozess ein, sobald der
+    // Nutzer die App wechselt — der Download stünde still.
+    final keepAlive = ref.read(downloadKeepAliveProvider);
+    await keepAlive.start(_notificationText());
     try {
       var resumeRounds = 0;
       while (true) {
@@ -128,6 +164,14 @@ class MapDownloadsNotifier extends Notifier<Map<String, MapDownloadState>> {
       // Kein Fehler: .part bleibt liegen, nächster Start setzt fort.
     } finally {
       state = {...state}..remove(map.key);
+      // Service nur beenden, wenn wirklich nichts mehr lädt — parallele
+      // Downloads teilen sich einen Service.
+      if (state.isEmpty) {
+        _lastText = null;
+        await keepAlive.stop();
+      } else {
+        _syncNotification();
+      }
     }
   }
 

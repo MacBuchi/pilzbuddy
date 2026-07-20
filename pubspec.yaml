@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.20.0+44
+version: 1.21.0+45
 
 environment:
   sdk: ^3.11.0
@@ -53,6 +53,10 @@ dependencies:
   path_provider: ^2.1.5
   connectivity_plus: ^7.0.0
   crypto: ^3.0.6
+  # Hält den Prozess während des Karten-Downloads wach (Foreground-Service,
+  # Android). Kein Web-Support — deshalb nur über bedingten Import in
+  # lib/features/offline_maps/download_keep_alive.dart eingebunden.
+  flutter_foreground_task: ^10.0.0
 
   # Standort (GPS)
   geolocator: ^14.0.2

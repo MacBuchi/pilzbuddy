@@ -4,6 +4,11 @@ Flutter-App (Android + Web): Pilz-Spots auf OpenStreetMap-Karte, Supabase-Backen
 (Auth + PostgreSQL, Freigabe-Regeln komplett über RLS in `supabase/schema.sql`),
 Riverpod ohne Codegen, go_router, deutsche UI-Strings direkt im Code.
 
+Projektübergreifende Guidelines (Architektur, State, Testing, CI, Signing,
+In-App-Update/-Feedback) liegen im DocuHub:
+`/Volumes/MacStore/Programming/ProgrammingGuidelineDocuHub/`. Diese Datei
+beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
+
 ## Workflow
 
 - Kein direkter Push auf `main` (Branch ist geschützt): Feature-Branch
@@ -55,6 +60,13 @@ Riverpod ohne Codegen, go_router, deutsche UI-Strings direkt im Code.
   (npm `@protomaps/basemaps`, Flavor LIGHT, lang de) — nicht von Hand
   editieren, sondern neu generieren. Offline-Layer ist strikt optional:
   Fehler beim Laden ⇒ stiller Fallback auf Online-OSM.
+  Der Download läuft im Main-Isolate und braucht deshalb einen
+  Foreground-Service (`flutter_foreground_task`, Typ `dataSync`) —
+  ohne den friert Android den Prozess beim App-Wechsel ein und der
+  Download steht still. Eingebunden über `downloadKeepAliveProvider`
+  mit bedingtem Import (`download_keep_alive_stub.dart` für Web, sonst
+  `download_keep_alive_service.dart`), damit der Web-Build das
+  Android-Paket nie sieht; Tests überschreiben den Provider.
 - Issue-Triage (`.github/workflows/claude-issue-triage.yml`): Claude analysiert
   jedes neue Issue (Einordnung, Labels, Ursache, Umsetzungsvorschlag als
   Kommentar) — darf aber NUR lesen/labeln/kommentieren. Umsetzung erst nach
@@ -69,3 +81,40 @@ Riverpod ohne Codegen, go_router, deutsche UI-Strings direkt im Code.
   fertige Arten-PRs (Merge = annehmen mit Auto-Release, Close = ablehnen).
   Braucht das Repo-Secret `SUPABASE_SERVICE_ROLE_KEY`. Selbsttest:
   `python3 tool/feedback_bot.py --test-insert "Name"`.
+- In-App-Update (`lib/core/update_check.dart`, Banner in `map_banners.dart`):
+  tokenlos gegen `releases/latest`, Installation per `ota_update`. Der
+  AndroidManifest-Block ist vollständig und muss es bleiben — FileProvider
+  mit Authority `${applicationId}.ota_update_provider` + `res/xml/filepaths.xml`
+  (`files-path ota_update/`), `INTERNET`, `REQUEST_INSTALL_PACKAGES`, plus
+  `<queries>`-Eintrag VIEW/https für den Browser-Fallback. Fehlt der
+  FileProvider, stürzt die App nach abgeschlossenem Download ab — genau das
+  war Issue #21 (Commit 4d697e5); der Fehler tritt nie im Debug-Lauf auf,
+  sondern erst beim ersten echten Update. Änderungen daran nur mit
+  Verifikation auf einem echten Gerät.
+
+## Code-Konventionen
+
+- Business-Logik in Repositories/Services, nicht in Providern oder Widgets.
+- Mutations-Muster: Repo-Call, dann `ref.invalidateSelf(); await future;`
+  (Read-after-write statt optimistischem Update).
+- `mounted`/`context.mounted` nach jedem `await` prüfen.
+- `catch (_) {}` nur mit Begründungskommentar und nie im Kernpfad. Optionale
+  Features (Offline-Karte, Update-Check, GPS) dürfen still degradieren.
+- Bekannte Schuld: Farben sind als Hex-Literale über viele Dateien verstreut.
+  Neuen Code nicht so schreiben — Farben/Abstände zentral halten und bei
+  Berührung schrittweise auf Konstanten umstellen (Issue #53).
+- Fehlermeldungen differenzieren; „Internet verfügbar?" ist nicht für jeden
+  Fehlerfall der richtige Text (Issue #59).
+
+## Tests
+
+- `flutter analyze` + `flutter test` nach jeder Änderung.
+- Harness: `test/fakes/test_app.dart` (`pumpApp`) startet die echte App gegen
+  die Fakes in `test/fakes/fake_backend.dart` (spiegeln auch die RLS-Regeln).
+  Neue Repository-Methoden dort mit abbilden.
+- Widget-/Flow-Tests sind der Schwerpunkt — Layout, Zustände und Breakpoints
+  pixelfrei prüfen statt per Screenshot. `pumpAndSettle` funktioniert wegen
+  der Endlos-Animationen nicht; die `settle()`-Helfer mit festen Frames nutzen.
+- Kein Netzwerk in Tests (Update-Check ist im Harness auf `null` überschrieben,
+  Kartenkacheln werden durch eine transparente 1×1-PNG ersetzt).
+- Die Fakes ersetzen keinen echten RLS-Test — das leistet der Schema Check.

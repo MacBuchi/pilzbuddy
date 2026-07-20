@@ -4,6 +4,12 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <!-- In-App-Update: heruntergeladene APK direkt installieren -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+    <!-- Karten-Download: hält den Prozess wach, solange geladen wird.
+         Ohne Foreground-Service friert Android den Prozess beim
+         App-Wechsel ein und der Download steht still. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
         android:label="PilzBuddy"
         android:name="${applicationName}"
@@ -30,6 +36,12 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- Foreground-Service für den Karten-Download (flutter_foreground_task).
+             Der Klassenname stammt aus dem Paket und darf nicht geändert werden. -->
+        <service
+            android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
+            android:foregroundServiceType="dataSync"
+            android:exported="false"/>
         <!-- FileProvider für das In-App-Update: übergibt die heruntergeladene
              APK sicher an den Android-Installer (Pflicht für ota_update) -->
         <provider

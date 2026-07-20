@@ -4,6 +4,7 @@ import 'package:flutter/material.dart' show BackButton;
 import 'package:flutter_test/flutter_test.dart';
 
 import '../fakes/fake_backend.dart';
+import '../fakes/fake_keep_alive.dart';
 import '../fakes/fake_offline_maps.dart';
 import '../fakes/test_app.dart';
 
@@ -126,6 +127,59 @@ void main() {
     expect(offlineMaps.installed.single.key, 'de_berlin');
     expect(find.text('Installiert (Stand 20.3.2026)'), findsOneWidget);
     await drainSnackbars(tester);
+  });
+
+  testWidgets('Foreground-Service läuft nur während des Downloads',
+      (tester) async {
+    // Ohne laufenden Service friert Android den Prozess beim App-Wechsel
+    // ein und der Download steht still. Danach muss der Service aber auch
+    // wieder weg sein — eine Dauerbenachrichtigung wäre grob unhöflich.
+    final (backend, _) = loggedInBackend();
+    final offlineMaps = FakeOfflineMapRepository()
+      ..stepDelay = const Duration(milliseconds: 400);
+    final keepAlive = FakeKeepAlive();
+    await pumpApp(tester, backend,
+        offlineMaps: offlineMaps, keepAlive: keepAlive);
+
+    await tester.tap(find.text('Profil'));
+    await settle(tester);
+    await tester.tap(find.text('Offline-Karten'));
+    await settle(tester);
+    expect(keepAlive.running, isFalse);
+
+    await tester.tap(find.byTooltip('Berlin herunterladen'));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(keepAlive.running, isTrue);
+    expect(keepAlive.starts, 1);
+    expect(keepAlive.texts.first, contains('Berlin'));
+
+    await settle(tester);
+    expect(offlineMaps.installed.single.key, 'de_berlin');
+    expect(keepAlive.running, isFalse);
+    await drainSnackbars(tester);
+  });
+
+  testWidgets('Abgebrochener Download beendet den Service ebenfalls',
+      (tester) async {
+    final (backend, _) = loggedInBackend();
+    final offlineMaps = FakeOfflineMapRepository()
+      ..stepDelay = const Duration(milliseconds: 500);
+    final keepAlive = FakeKeepAlive();
+    await pumpApp(tester, backend,
+        offlineMaps: offlineMaps, keepAlive: keepAlive);
+
+    await tester.tap(find.text('Profil'));
+    await settle(tester);
+    await tester.tap(find.text('Offline-Karten'));
+    await settle(tester);
+    await tester.tap(find.byTooltip('Berlin herunterladen'));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(keepAlive.running, isTrue);
+
+    await tester.tap(find.byTooltip('Berlin anhalten'));
+    await settle(tester);
+
+    expect(keepAlive.running, isFalse);
   });
 
   testWidgets('Download lässt sich anhalten — Fortschritt bleibt',
