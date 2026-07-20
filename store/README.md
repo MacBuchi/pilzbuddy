@@ -13,6 +13,7 @@ Die Antworten für das Data-Safety-Formular und die Listing-Texte stehen in
 | `icon-512.png` | 512 × 512, 32-Bit PNG | App-Symbol |
 | `feature-graphic.png` | 1024 × 500 PNG | Feature-Grafik |
 | `feature-graphic.svg` | Quelle | — |
+| `screenshots/01…05` | 1080 × 1920 (9:16) PNG | Telefon-Screenshots |
 
 ## Neu erzeugen
 
@@ -32,16 +33,38 @@ Die Buddies in `feature-graphic.svg` sind unverändert aus
 `assets/icon/icon_fg.svg` übernommen. Ändert sich das Icon, muss die
 Feature-Grafik mit — im Store stehen beide nebeneinander.
 
-## Noch offen: Screenshots
+## Screenshots
 
-Play verlangt mindestens zwei Telefon-Screenshots (16:9 oder 9:16, Kante
-320–3840 px). Sinnvolle Auswahl:
+| Datei | Zeigt |
+|---|---|
+| `01-karte.png` | Karte mit Spots — eigene mit grüner, Freundes-Spots mit blauer Boden-Ellipse |
+| `02-spot-detail.png` | Spot-Detail mit Fundhistorie über vier Jahre |
+| `03-freunde.png` | Freundesliste mit vier Buddies |
+| `04-statistik.png` | Spots/Funde/Mehrfach besucht, „Funde pro Jahr", Top-Arten |
+| `05-live-standort.png` | Live-Standort teilen (1/2/4 Stunden) |
 
-1. Karte mit mehreren Spots (eigene grün, Freundes-Spots blau)
-2. Spot-Detail mit Fundhistorie
-3. Freundesliste oder geteilter Live-Standort
-4. Statistik (Funde pro Jahr)
+Play verlangt mindestens zwei, 16:9 oder 9:16, Kante 320–3840 px.
 
-**Mit einem Wegwerf-Konto aufnehmen**, nicht mit dem eigenen — sonst stehen die
-echten Fundorte im Store. Aus demselben Grund die Karte auf eine unverfängliche
-Gegend schieben.
+### Wie sie entstanden sind
+
+Alle mit **Wegwerf-Konten in einer erfundenen Gegend im Schwarzwald** — nie mit
+einem echten Konto, sonst stehen die eigenen Fundorte im Store. Die Konten
+(`*.shots@example.com`, `example.com` ist von der IANA reserviert) und ihre
+Spots wurden danach über `delete_own_account()` wieder gelöscht.
+
+```bash
+# Emulator auf 9:16 zwingen — Pixel 7 Pro liefert sonst 1440x3120,
+# und das ist kein von Play akzeptiertes Seitenverhältnis.
+adb -s emulator-5554 shell wm size 1080x1920
+adb -s emulator-5554 shell wm density 420
+# Play-Build, damit der Update-Banner fehlt (den gibt es im Play-Build nicht)
+flutter build apk --release --dart-define=PLAY_BUILD=true
+adb -s emulator-5554 install -r build/app/outputs/flutter-apk/app-release.apk
+adb -s emulator-5554 emu geo fix 8.1305 47.9052   # Standort für „auf mich zentrieren"
+adb -s emulator-5554 exec-out screencap -p > store/screenshots/xx.png
+adb -s emulator-5554 shell wm size reset          # hinterher aufräumen
+```
+
+Ein Screenshot ist übrigens die beste Bug-Suche: Issue #97 (zugelaufene
+Y-Achse) und ein doppeltes Label an der Achsenspitze sind erst hier
+aufgefallen, nicht im Test.
