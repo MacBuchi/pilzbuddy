@@ -17,9 +17,11 @@ import 'package:pilzbuddy/data/providers.dart';
 import 'package:pilzbuddy/features/map/live_share_providers.dart';
 import 'package:pilzbuddy/features/map/map_screen.dart';
 import 'package:pilzbuddy/features/map/position_provider.dart';
+import 'package:pilzbuddy/features/offline_maps/download_keep_alive.dart';
 import 'package:pilzbuddy/features/offline_maps/offline_map_providers.dart';
 
 import 'fake_backend.dart';
+import 'fake_keep_alive.dart';
 import 'fake_offline_maps.dart';
 
 /// 1×1 transparentes PNG als Offline-Kartenkachel.
@@ -54,6 +56,7 @@ Position fakePosition(double lat, double lng) => Position(
 
 List<Override> overridesFor(FakeBackend backend,
         {FakeOfflineMapRepository? offlineMaps,
+        FakeKeepAlive? keepAlive,
         List<ConnectivityResult> connectivity = const [
           ConnectivityResult.wifi
         ],
@@ -62,6 +65,10 @@ List<Override> overridesFor(FakeBackend backend,
       positionStreamProvider.overrideWith((ref) => Stream.value(position)),
       offlineMapRepositoryProvider
           .overrideWithValue(offlineMaps ?? FakeOfflineMapRepository()),
+      // Kein Foreground-Service im Test — den Platform-Channel gibt es hier
+      // nicht.
+      downloadKeepAliveProvider
+          .overrideWithValue(keepAlive ?? FakeKeepAlive()),
       connectivityProvider.overrideWith((ref) => Stream.value(connectivity)),
       // Wartezeiten des Download-Managers testtauglich verkürzen.
       mapDownloadDelaysProvider.overrideWithValue((
@@ -92,6 +99,7 @@ List<Override> overridesFor(FakeBackend backend,
 /// App starten und die Intro-Animation (2,6 s) durchlaufen lassen.
 Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
     {FakeOfflineMapRepository? offlineMaps,
+    FakeKeepAlive? keepAlive,
     List<ConnectivityResult> connectivity = const [
       ConnectivityResult.wifi
     ],
@@ -100,6 +108,7 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
   await tester.pumpWidget(ProviderScope(
     overrides: overridesFor(backend,
         offlineMaps: offlineMaps,
+        keepAlive: keepAlive,
         connectivity: connectivity,
         position: position),
     child: const PilzBuddyApp(),
