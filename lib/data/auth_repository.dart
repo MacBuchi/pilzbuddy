@@ -28,4 +28,19 @@ class AuthRepository {
   }
 
   Future<void> signOut() => _client.auth.signOut();
+
+  /// Löscht das eigene Konto endgültig — sofort, ohne Karenzzeit.
+  ///
+  /// Serverseitig genügt eine Zeile: alle Tabellen hängen per
+  /// `on delete cascade` an `profiles`, das wiederum an `auth.users`
+  /// (siehe `supabase/patch_008_konto_loeschen.sql`). Die RPC nimmt
+  /// bewusst keine id entgegen — sie löscht immer nur `auth.uid()`.
+  ///
+  /// Danach lokal abmelden: die Sitzung auf dem Gerät bliebe sonst liegen
+  /// und würde bei jedem Request auf einen Nutzer zeigen, den es nicht
+  /// mehr gibt.
+  Future<void> deleteAccount() async {
+    await _client.rpc<void>('delete_own_account');
+    await _client.auth.signOut();
+  }
 }

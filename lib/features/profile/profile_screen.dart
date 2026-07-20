@@ -11,6 +11,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/app_distribution.dart';
 import '../../core/app_info.dart';
+import '../../core/errors.dart';
 import '../../core/update_check.dart';
 import '../../core/widgets/mushroom_avatar.dart';
 import '../../data/providers.dart';
@@ -171,8 +172,142 @@ class ProfileScreen extends ConsumerWidget {
             ),
           const Divider(height: 40),
           const _AboutSection(),
+          const Divider(height: 40),
+          _DeleteAccountTile(username: profile?.username),
         ],
       ),
+    );
+  }
+}
+
+/// Konto endgültig löschen — bewusst ganz unten und optisch abgesetzt.
+class _DeleteAccountTile extends ConsumerWidget {
+  const _DeleteAccountTile({required this.username});
+
+  final String? username;
+
+  Future<void> _confirmAndDelete(BuildContext context, WidgetRef ref) async {
+    final name = username;
+    if (name == null) return;
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => _DeleteAccountDialog(username: name),
+        ) ??
+        false;
+    if (!confirmed || !context.mounted) return;
+
+    try {
+      await ref.read(authRepositoryProvider).deleteAccount();
+      // Der Router schickt nach dem Abmelden automatisch auf /login.
+    } catch (e, stackTrace) {
+      logError('Konto löschen', e, stackTrace);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(friendlyError(e))));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final error = Theme.of(context).colorScheme.error;
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      dense: true,
+      leading: Icon(Icons.no_accounts_outlined, color: error),
+      title: Text('Konto löschen', style: TextStyle(color: error)),
+      subtitle: const Text(
+          'Entfernt dich und alle deine Spots endgültig — ohne Karenzzeit.'),
+      // Ohne geladenes Profil fehlt der Benutzername für die Bestätigung.
+      enabled: username != null,
+      onTap: () => _confirmAndDelete(context, ref),
+    );
+  }
+}
+
+/// Bestätigung durch Abtippen des Benutzernamens. Ein Ja/Nein-Dialog wäre
+/// für eine unwiderrufliche Aktion zu leicht versehentlich zu treffen.
+class _DeleteAccountDialog extends StatefulWidget {
+  const _DeleteAccountDialog({required this.username});
+
+  final String username;
+
+  @override
+  State<_DeleteAccountDialog> createState() => _DeleteAccountDialogState();
+}
+
+class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
+  final _controller = TextEditingController();
+  bool _busy = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  bool get _matches => _controller.text.trim() == widget.username;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Konto endgültig löschen?'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+                'Sofort und unwiderruflich gelöscht werden: dein Profil, '
+                'alle Spots samt Fundhistorie, deine Freundschaften und ein '
+                'laufend geteilter Standort.'),
+            const SizedBox(height: 12),
+            const Text(
+                'Deine Spots verschwinden damit auch von den Karten deiner '
+                'Freunde — geteilte Spots sind Kopien deiner Daten, keine '
+                'eigenen.'),
+            const SizedBox(height: 12),
+            Text(
+              'Bereits abgeschicktes Feedback bleibt bestehen: es steht mit '
+              'deinem Benutzernamen öffentlich im GitHub-Projekt und lässt '
+              'sich von hier aus nicht zurückholen.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 16),
+            Text('Tippe „${widget.username}" ein, um zu bestätigen:'),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _controller,
+              autofocus: true,
+              autocorrect: false,
+              enableSuggestions: false,
+              decoration: const InputDecoration(
+                labelText: 'Benutzername',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed:
+              _busy ? null : () => Navigator.of(context).pop(false),
+          child: const Text('Abbrechen'),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error),
+          onPressed: (!_matches || _busy)
+              ? null
+              : () {
+                  setState(() => _busy = true);
+                  Navigator.of(context).pop(true);
+                },
+          child: const Text('Endgültig löschen'),
+        ),
+      ],
     );
   }
 }

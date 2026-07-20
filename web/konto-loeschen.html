@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<!--
+  Öffentliche Lösch-Anleitung. Google Play verlangt neben dem Weg in der App
+  eine Web-URL, die OHNE installierte App erreichbar ist — diese Datei landet
+  über `flutter build web` unter /pilzbuddy/konto-loeschen.html und wird als
+  echte Datei vor dem SPA-Fallback (404.html) ausgeliefert.
+-->
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PilzBuddy — Konto löschen</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      line-height: 1.6;
+      max-width: 42rem;
+      margin: 0 auto;
+      padding: 2rem 1.25rem 4rem;
+      color: #2e2a26;
+      background: #fdf6e3;
+    }
+    h1 { font-size: 1.6rem; margin-bottom: .25rem; }
+    h2 { font-size: 1.15rem; margin-top: 2rem; }
+    .lead { color: #6d5c4d; margin-top: 0; }
+    ol { padding-left: 1.25rem; }
+    li { margin: .4rem 0; }
+    .note {
+      background: #f6ecd2;
+      border-left: 4px solid #c8a165;
+      padding: .75rem 1rem;
+      margin: 1.5rem 0;
+      border-radius: 0 6px 6px 0;
+    }
+    a { color: #2e7d32; }
+    @media (prefers-color-scheme: dark) {
+      body { color: #ece5db; background: #221f1c; }
+      .lead { color: #b6a795; }
+      .note { background: #2e2a25; border-left-color: #8d6e63; }
+      a { color: #81c784; }
+    }
+  </style>
+</head>
+<body>
+  <h1>🍄 PilzBuddy — Konto löschen</h1>
+  <p class="lead">So löschst du dein Konto und alle zugehörigen Daten.</p>
+
+  <h2>In der App</h2>
+  <ol>
+    <li>PilzBuddy öffnen und anmelden.</li>
+    <li>Unten rechts auf <strong>Profil</strong> tippen.</li>
+    <li>Ganz nach unten scrollen bis <strong>Konto löschen</strong>.</li>
+    <li>Zur Bestätigung den eigenen Benutzernamen eintippen und
+      <strong>Endgültig löschen</strong> wählen.</li>
+  </ol>
+  <p>Der gleiche Weg funktioniert in der
+    <a href="./">Web-App</a> — dort ohne Installation.</p>
+
+  <h2>Was gelöscht wird</h2>
+  <p>Sofort und unwiderruflich, ohne Karenzzeit:</p>
+  <ul>
+    <li>dein Profil samt Benutzername und E-Mail-Adresse,</li>
+    <li>alle deine Spots einschließlich der gesamten Fundhistorie,</li>
+    <li>deine Freundschaften und offenen Anfragen,</li>
+    <li>ein gerade laufend geteilter Live-Standort.</li>
+  </ul>
+  <p>Deine Spots verschwinden damit auch von den Karten deiner Freunde —
+    geteilte Spots sind keine Kopien, sondern deine eigenen Daten.</p>
+
+  <div class="note">
+    <strong>Eine Ausnahme:</strong> Feedback, das du über die App abgeschickt
+    hast, bleibt bestehen. Es wird mit deinem Benutzernamen öffentlich im
+    GitHub-Projekt veröffentlicht und lässt sich durch das Löschen des Kontos
+    nicht zurückholen. Wende dich in dem Fall bitte direkt an den Betreiber.
+  </div>
+
+  <h2>Kein Zugriff mehr auf das Konto?</h2>
+  <p>Wenn du dich nicht mehr anmelden kannst, schreib eine Nachricht über das
+    <a href="https://github.com/MacBuchi/pilzbuddy/issues">GitHub-Projekt</a>.
+    Die Löschung erfolgt dann manuell.</p>
+
+  <p><a href="./">← Zurück zu PilzBuddy</a></p>
+</body>
+</html>

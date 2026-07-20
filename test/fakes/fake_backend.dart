@@ -277,6 +277,24 @@ class FakeAuthRepository implements AuthRepository {
   @override
   Future<void> signOut() async =>
       backend.setCurrentUser(null, AuthChangeEvent.signedOut);
+
+  /// Bildet die Kaskade aus `supabase/schema.sql` nach: alle Tabellen hängen
+  /// per `on delete cascade` an profiles, profiles an auth.users. Echt räumt
+  /// deshalb eine einzige Zeile alles ab — hier muss es von Hand passieren,
+  /// damit Tests den tatsächlichen Effekt prüfen können und nicht nur, dass
+  /// die Methode aufgerufen wurde.
+  @override
+  Future<void> deleteAccount() async {
+    final uid = backend.currentUserId;
+    if (uid == null) return;
+    backend.spots.removeWhere((s) => s.ownerId == uid);
+    backend.friendships
+        .removeWhere((f) => f.requesterId == uid || f.addresseeId == uid);
+    backend.liveLocations.removeWhere((l) => l.userId == uid);
+    backend.feedback.removeWhere((f) => f['user_id'] == uid);
+    backend.users.removeWhere((u) => u.id == uid);
+    backend.setCurrentUser(null, AuthChangeEvent.signedOut);
+  }
 }
 
 class FakeSpotRepository implements SpotRepository {

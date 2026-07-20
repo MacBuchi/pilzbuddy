@@ -33,6 +33,26 @@ check_rpc() {
   verdict "$name" "$out"
 }
 
+# Für RPCs, die anon NICHT aufrufen darf (z. B. Konto-Löschung). Ein Fehler
+# ist hier der Erfolgsfall — aber nur der richtige: PGRST202 hieße „Funktion
+# fehlt" (Patch nicht eingespielt), und eine erfolgreiche Antwort hieße, dass
+# anon die Funktion ausführen darf. Beides muss auffallen.
+check_rpc_protected() {
+  local name="$1" fn="$2" out
+  out=$(curl -s --max-time 20 -X POST "$URL/rest/v1/rpc/$fn" \
+    -H "apikey: $KEY" -H "Content-Type: application/json" -d '{}' \
+    || echo '{"code":"curl","message":"Verbindung fehlgeschlagen"}')
+  if printf '%s' "$out" | grep -q 'PGRST202'; then
+    echo "::error::Schema-Check fehlgeschlagen: $name — Funktion fehlt in der Live-DB: $out"
+    fail=1
+  elif printf '%s' "$out" | grep -q '"code"'; then
+    echo "✓ $name (vorhanden und für anon gesperrt)"
+  else
+    echo "::error::Schema-Check fehlgeschlagen: $name — anon darf die Funktion ausführen!"
+    fail=1
+  fi
+}
+
 verdict() {
   local name="$1" out="$2"
   if printf '%s' "$out" | grep -q '"code"'; then
@@ -69,6 +89,11 @@ check_get "feedback-Spalten" \
 
 # RPC der Freundesuche (Signatur + Rückgabetyp)
 check_rpc "search_profiles-RPC" "search_profiles" '{"query":"schema-check"}'
+
+# Konto-Löschung (Patch 008): muss existieren und darf nur für Angemeldete
+# aufrufbar sein. Deshalb nicht mit check_rpc — der würde den erwarteten
+# 403 als Fehler werten.
+check_rpc_protected "delete_own_account-RPC" "delete_own_account"
 
 if [ "$fail" -ne 0 ]; then
   echo "::error::Live-Schema passt nicht zu den App-Queries. Fehlt ein supabase/patch_NNN_*.sql bzw. wurde er noch nicht eingespielt (tool/db_migrate.sh, Secret SUPABASE_DB_URL)?"
