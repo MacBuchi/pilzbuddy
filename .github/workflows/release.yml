@@ -73,7 +73,7 @@ jobs:
         run: bash tool/schema_check.sh
 
   build-android:
-    name: Build Android APK (signed)
+    name: Build Android APK + AAB (signed)
     needs: [version, migrate]
     if: needs.version.outputs.release == 'true'
     runs-on: ubuntu-latest
@@ -111,6 +111,23 @@ jobs:
         with:
           name: android-apk
           path: pilzbuddy-${{ needs.version.outputs.tag }}.apk
+      # AAB für den Play Store — dasselbe Signing wie die APK. Bewusst NICHT
+      # am GitHub-Release: ein .aab lässt sich nicht installieren und würde
+      # neben der APK nur verwirren. Liegt als Workflow-Artefakt bereit.
+      #
+      # ACHTUNG: dieses AAB ist noch nicht einreichbar. Über das Manifest von
+      # ota_update erbt jeder Build INSTALL_PACKAGES, REQUEST_INSTALL_PACKAGES
+      # und WRITE_EXTERNAL_STORAGE; Self-Update ist auf Play verboten
+      # (Device and Network Abuse). Vor der ersten Einreichung muss der
+      # Updater raus oder in eine eigene Variante wandern.
+      - run: flutter build appbundle --release
+      - name: Bundle benennen
+        run: cp build/app/outputs/bundle/release/app-release.aab "pilzbuddy-${{ needs.version.outputs.tag }}.aab"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: android-aab
+          path: pilzbuddy-${{ needs.version.outputs.tag }}.aab
+          retention-days: 90
 
   deploy-web:
     name: Deploy Web (GitHub Pages)
