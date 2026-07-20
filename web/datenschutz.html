@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<!--
+  Datenschutzerklärung. Pflichtangabe für die Play Console und über
+  `flutter build web` unter /pilzbuddy/datenschutz.html erreichbar — als
+  echte Datei vor dem SPA-Fallback (404.html).
+
+  ACHTUNG: Die doppelt eckig geklammerten Stellen müssen vor der
+  Veröffentlichung ersetzt werden — test/privacy_policy_test.dart bleibt so
+  lange rot. Der Text ist aus supabase/schema.sql und dem Code abgeleitet
+  und juristisch nicht geprüft.
+-->
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PilzBuddy — Datenschutzerklärung</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      line-height: 1.6;
+      max-width: 44rem;
+      margin: 0 auto;
+      padding: 2rem 1.25rem 4rem;
+      color: #2e2a26;
+      background: #fdf6e3;
+    }
+    h1 { font-size: 1.6rem; margin-bottom: .25rem; }
+    h2 { font-size: 1.15rem; margin-top: 2.2rem; }
+    h3 { font-size: 1rem; margin-top: 1.5rem; }
+    .lead { color: #6d5c4d; margin-top: 0; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: .95rem; }
+    th, td { text-align: left; vertical-align: top; padding: .5rem .6rem; border-bottom: 1px solid #e0d6bd; }
+    th { font-weight: 600; }
+    .note {
+      background: #f6ecd2;
+      border-left: 4px solid #c8a165;
+      padding: .75rem 1rem;
+      margin: 1.5rem 0;
+      border-radius: 0 6px 6px 0;
+    }
+    .todo { background: #ffe0b2; padding: 0 .25rem; border-radius: 3px; font-weight: 600; }
+    a { color: #2e7d32; }
+    .wrap { overflow-x: auto; }
+    @media (prefers-color-scheme: dark) {
+      body { color: #ece5db; background: #221f1c; }
+      .lead { color: #b6a795; }
+      .note { background: #2e2a25; border-left-color: #8d6e63; }
+      th, td { border-bottom-color: #3d372f; }
+      .todo { background: #6d4c1b; }
+      a { color: #81c784; }
+    }
+  </style>
+</head>
+<body>
+  <h1>🍄 Datenschutzerklärung</h1>
+  <p class="lead">Was PilzBuddy speichert, warum, und wie du es wieder loswirst.</p>
+
+  <h2>Verantwortlicher</h2>
+  <p>
+    <span class="todo">[[NAME]]</span><br>
+    <span class="todo">[[ANSCHRIFT]]</span><br>
+    E-Mail: <span class="todo">[[KONTAKT-E-MAIL]]</span>
+  </p>
+
+  <h2>Der kurze Überblick</h2>
+  <p>PilzBuddy speichert deine Pilz-Fundorte, damit du sie wiederfindest und
+    mit Freunden teilen kannst. Es gibt <strong>keine Werbung, kein Tracking,
+    keine Analyse-SDKs und keine Weitergabe zu Werbezwecken</strong>. Erhoben
+    wird nur, was die App zum Funktionieren braucht.</p>
+
+  <div class="note">
+    <strong>Der wichtigste Punkt vorweg:</strong> Deine Fundorte sind
+    Standortdaten und liegen auf einem Server, nicht nur auf deinem Gerät.
+    Wer sie sieht, bestimmst du über die Freigabe-Einstellungen — sie werden
+    ausschließlich Nutzern gezeigt, deren Freundschaftsanfrage du angenommen
+    hast.
+  </div>
+
+  <h2>Welche Daten, wozu, auf welcher Grundlage</h2>
+  <div class="wrap">
+  <table>
+    <tr><th>Daten</th><th>Wozu</th><th>Rechtsgrundlage</th></tr>
+    <tr>
+      <td>E-Mail-Adresse</td>
+      <td>Konto und Anmeldung; Freunde können dich über die exakte Adresse finden</td>
+      <td>Art. 6 Abs. 1 lit. b DSGVO (Vertrag)</td>
+    </tr>
+    <tr>
+      <td>Benutzername, Anzeigename, Avatar</td>
+      <td>Darstellung gegenüber Freunden; über den Benutzernamen bist du
+        <strong>für alle Nutzer suchbar</strong></td>
+      <td>Art. 6 Abs. 1 lit. b DSGVO</td>
+    </tr>
+    <tr>
+      <td>Spots: Koordinaten, Name, Pilzart, Anzahl, Funddatum, Notiz</td>
+      <td>Kern der App — deine Fundorte samt Historie</td>
+      <td>Art. 6 Abs. 1 lit. b DSGVO</td>
+    </tr>
+    <tr>
+      <td>Live-Standort (nur wenn du ihn teilst)</td>
+      <td>Freunde sehen dich für die von dir gewählte Dauer auf der Karte</td>
+      <td>Art. 6 Abs. 1 lit. a DSGVO (Einwilligung durch Aktivierung)</td>
+    </tr>
+    <tr>
+      <td>Freundschaften und offene Anfragen</td>
+      <td>Steuert, wer welche Spots sehen darf</td>
+      <td>Art. 6 Abs. 1 lit. b DSGVO</td>
+    </tr>
+    <tr>
+      <td>Feedback: dein Text und dein Benutzername</td>
+      <td>Fehler und Wünsche bearbeiten — <strong>wird öffentlich
+        veröffentlicht</strong>, siehe unten</td>
+      <td>Art. 6 Abs. 1 lit. a DSGVO (freiwillige Angabe)</td>
+    </tr>
+    <tr>
+      <td>Fehlerberichte: Fehlertyp, Meldung, Stacktrace, App-Version,
+        Plattform, ggf. Konto-Kennung</td>
+      <td>Fehler in der App finden, die sonst unbemerkt bleiben. Keine
+        Koordinaten, keine Namen</td>
+      <td>Art. 6 Abs. 1 lit. f DSGVO (funktionsfähige App)</td>
+    </tr>
+  </table>
+  </div>
+
+  <h2>Standortberechtigung auf dem Gerät</h2>
+  <p>Die App fragt nach der Standortberechtigung, um dich auf der Karte
+    anzuzeigen und Spots an deiner Position anzulegen. Ohne die Berechtigung
+    funktioniert die App weiter — du legst Spots dann über das Fadenkreuz an.
+    Eine Standortermittlung im Hintergrund findet nicht statt.</p>
+
+  <h2>Feedback wird öffentlich</h2>
+  <div class="note">
+    Feedback, das du in der App abschickst, wird zusammen mit deinem
+    Benutzernamen <strong>öffentlich im GitHub-Projekt der App</strong>
+    veröffentlicht. Das steht auch im Absende-Dialog. Es lässt sich später
+    nicht zurückholen — auch nicht durch das Löschen deines Kontos. Bitte
+    schreibe dort keine persönlichen Daten hinein.
+  </div>
+
+  <h2>Wer die Daten verarbeitet</h2>
+  <h3>Supabase (Auftragsverarbeiter)</h3>
+  <p>Konto, Spots, Freundschaften und Fehlerberichte liegen bei Supabase.
+    Serverstandort: <span class="todo">[[SUPABASE-REGION]]</span>.</p>
+
+  <h3>Verbindungen, die die App aufbaut</h3>
+  <p>Bei diesen Aufrufen wird technisch bedingt deine IP-Adresse an den
+    jeweiligen Anbieter übertragen:</p>
+  <ul>
+    <li><strong>tile.openstreetmap.org</strong> — Kartenkacheln der
+      Online-Karte (OpenStreetMap Foundation). Wer das vermeiden möchte,
+      kann eine Offline-Karte installieren; dann bleibt die Darstellung
+      auf dem Gerät.</li>
+    <li><strong>github.com und api.github.com</strong> — Prüfung auf neue
+      App-Versionen und Herunterladen der Offline-Karten.</li>
+    <li><strong>macbuchi.github.io</strong> — Auslieferung der Web-App über
+      GitHub Pages.</li>
+  </ul>
+  <p>Es werden dabei keine Konten oder Standorte übermittelt, sondern nur
+    das, was für den Abruf technisch nötig ist.</p>
+
+  <h2>Speicherdauer</h2>
+  <ul>
+    <li>Konto- und Spot-Daten: bis du sie löschst oder dein Konto löschst.</li>
+    <li>Live-Standort: läuft automatisch nach der von dir gewählten Dauer ab
+      und wird gelöscht.</li>
+    <li>Fehlerberichte: werden regelmäßig aufgeräumt.</li>
+    <li>Bereits veröffentlichtes Feedback: bleibt öffentlich bestehen.</li>
+  </ul>
+
+  <h2>Konto löschen</h2>
+  <p>Im Profil ganz unten unter <em>Konto löschen</em> — sofort und ohne
+    Karenzzeit. Profil, Spots, Funde, Freundschaften und ein laufender
+    Live-Standort verschwinden dabei vollständig, auch von den Karten deiner
+    Freunde. Die ausführliche Anleitung, auch ohne installierte App, steht
+    unter <a href="konto-loeschen.html">Konto löschen</a>.</p>
+
+  <h2>Deine Rechte</h2>
+  <p>Du hast das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung
+    der Verarbeitung, Datenübertragbarkeit und Widerspruch (Art. 15–21
+    DSGVO) sowie das Recht, dich bei einer Datenschutz-Aufsichtsbehörde zu
+    beschweren. Eine Kopie deiner Spots kannst du dir jederzeit selbst
+    ziehen: im Profil unter <em>Eigene Spots als GPX exportieren</em>.</p>
+
+  <h2>Änderungen</h2>
+  <p>Stand: <span class="todo">[[DATUM]]</span>. Bei Änderungen an der App
+    wird auch diese Erklärung angepasst.</p>
+
+  <p><a href="./">← Zurück zu PilzBuddy</a></p>
+</body>
+</html>
