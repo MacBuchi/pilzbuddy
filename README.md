@@ -86,6 +86,13 @@ flutter build apk --release     # signiert, wenn android/key.properties existier
 Hinweis: Das Supabase-Free-Tier pausiert Projekte nach ca. einer Woche ohne
 Zugriffe — im Dashboard lässt sich das Projekt mit einem Klick reaktivieren.
 
+## Datenschutz
+
+[Datenschutzerklärung](https://macbuchi.github.io/pilzbuddy/datenschutz.html)
+— kurz gefasst: keine Werbung, kein Tracking, keine Analyse-SDKs. Deine Spots
+sehen nur Freunde, deren Anfrage du angenommen hast. Abgeschicktes Feedback
+wird mit Benutzernamen öffentlich im GitHub-Projekt veröffentlicht.
+
 ## Konto löschen
 
 Im Profil ganz unten unter *Konto löschen* — sofort und ohne Karenzzeit.
