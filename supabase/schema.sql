@@ -143,6 +143,25 @@ language sql stable security definer set search_path = public as $$
   limit 10;
 $$;
 
+-- Konto-Löschung durch den Nutzer selbst (Play-Anforderung, Patch 008).
+-- Alle Tabellen hängen per `on delete cascade` an profiles und profiles an
+-- auth.users — das Löschen des Auth-Users räumt daher alles mit ab.
+-- Kein Parameter: auth.uid() kommt aus dem JWT, eine übergebene id wäre eine
+-- Einladung, fremde Konten zu löschen.
+create or replace function public.delete_own_account()
+returns void
+language plpgsql security definer set search_path = public, auth as $$
+begin
+  if auth.uid() is null then
+    raise exception 'Nicht angemeldet' using errcode = '28000';
+  end if;
+  delete from auth.users where id = auth.uid();
+end;
+$$;
+revoke all on function public.delete_own_account() from public;
+revoke all on function public.delete_own_account() from anon;
+grant execute on function public.delete_own_account() to authenticated;
+
 -- ============================================================
 -- Row Level Security
 -- ============================================================

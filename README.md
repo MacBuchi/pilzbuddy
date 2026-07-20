@@ -86,6 +86,12 @@ flutter build apk --release     # signiert, wenn android/key.properties existier
 Hinweis: Das Supabase-Free-Tier pausiert Projekte nach ca. einer Woche ohne
 Zugriffe — im Dashboard lässt sich das Projekt mit einem Klick reaktivieren.
 
+## Konto löschen
+
+Im Profil ganz unten unter *Konto löschen* — sofort und ohne Karenzzeit.
+Anleitung ohne installierte App:
+[macbuchi.github.io/pilzbuddy/konto-loeschen.html](https://macbuchi.github.io/pilzbuddy/konto-loeschen.html)
+
 ## Lizenz
 
 Der Code steht unter der [MIT-Lizenz](LICENSE).

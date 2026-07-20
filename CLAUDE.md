@@ -128,17 +128,25 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
 
 Fahrplan und Reihenfolge: Issue #92. Stand 2026-07-20 — noch offen:
 
-1. **Konto-Löschung** (#89) fehlt komplett. Play verlangt sie in der App *und*
-   über eine Web-URL; serverseitig braucht es einen Schema-Patch (Auth-User
-   plus abhängige Zeilen).
-2. **Datenschutzerklärung** (#90) fehlt. Pflicht für die Konsole, inhaltlich
+Im Binary steckt kein Blocker mehr — offen ist nur noch Papierkram:
+
+1. **Datenschutzerklärung** (#90) fehlt. Pflicht für die Konsole, inhaltlich
    nicht trivial: Spot-Koordinaten, Live-Standort, E-Mail, Benutzername — und
    Feedback, das mit Benutzernamen öffentlich auf GitHub landet.
-3. **Data-Safety-Formular** (#91) in der Konsole, abgeleitet aus
+2. **Data-Safety-Formular** (#91) in der Konsole, abgeleitet aus
    `supabase/schema.sql`.
 
-Erledigt: In-App-Updater entfernt (#88), AAB-Build (#87), Backup-Ausschluss
-(#78). Der Build deklariert jetzt nur noch acht Berechtigungen, alle genutzt.
+Erledigt: Konto-Löschung (#89), In-App-Updater entfernt (#88), AAB-Build
+(#87), Backup-Ausschluss (#78). Der Build deklariert nur noch acht
+Berechtigungen, alle genutzt.
+
+Konto-Löschung: `public.delete_own_account()` (Patch 008), `security definer`
+ohne Parameter — die id kommt aus `auth.uid()`, ein Argument wäre eine
+Einladung, fremde Konten zu löschen. Löscht nur `auth.users`; alles andere
+hängt per `on delete cascade` daran. Gegen die Live-DB mit einem
+Wegwerf-Konto verifiziert (RPC 204, danach `invalid_credentials`).
+Öffentliche Anleitung unter `web/konto-loeschen.html` (Play verlangt eine
+URL ohne installierte App).
 
 Unkritisch: `targetSdk` = 36 erfüllt die aktuelle Play-Anforderung,
 `minSdk` = 24 (Android 7).
