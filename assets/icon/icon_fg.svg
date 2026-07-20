@@ -1,9 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-<!-- Adaptive-Icon-Vordergrund: Die beiden Pilz-Buddies füllen die runde
-     Safe-Zone maximal aus (Cluster-Bounds 222..800 x 452..906, Skalierung
-     0.90 um die Cluster-Mitte). Der Fundort-Pin lebt nur im Vollbild-Icon
-     (icon.svg) — im Launcher zählt Erkennbarkeit. -->
-<g transform="translate(52.1 -99.1) scale(0.90)">
+<!-- Adaptive-Icon-Vordergrund. Der Launcher maskiert auf Kreis oder Squircle
+     und zeigt garantiert nur die mittleren 66 % (Kreis um 512,512 mit r=341).
+     Die Cluster-Bounds sind 222..800 x 452..913 (Mitte 511 / 682,5); bei
+     Faktor 1,12 um die Bildmitte liegt der äußerste gezeichnete Punkt bei
+     r≈330 — also noch innerhalb der Maske, aber deutlich größer als die
+     frühere 0,90-Fassung, in der die Buddies nach dem Maskieren verloren
+     wirkten. Der Fundort-Pin lebt nur im Vollbild-Icon (icon.svg); im
+     Launcher zählt Erkennbarkeit. -->
   <defs>
     <linearGradient id="cap1" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#8D6E63"/>
@@ -15,37 +18,38 @@
     </linearGradient>
   </defs>
 
-  <!-- Funkeln als kleine Akzente neben den Hüten -->
-  <path d="M 300 400 l 0 44 M 278 422 l 44 0" stroke="#FFF9C4" stroke-width="14" stroke-linecap="round"/>
-  <path d="M 710 420 l 0 34 M 693 437 l 34 0" stroke="#FFF9C4" stroke-width="11" stroke-linecap="round"/>
+  <!-- Funkeln in Bildkoordinaten: in den freien Ecken zwischen den Hüten,
+       bewusst innerhalb der Maske platziert. -->
+  <path d="M 700 268 l 0 46 M 677 291 l 46 0" stroke="#FFF9C4" stroke-width="15" stroke-linecap="round"/>
+  <path d="M 244 622 l 0 38 M 225 641 l 38 0" stroke="#FFF9C4" stroke-width="13" stroke-linecap="round"/>
 
-  <!-- Buddy 1: Steinpilz (links, groß) -->
-  <g>
-    <path d="M 310 640 Q 310 875 358 892 Q 382 900 406 892 Q 454 875 454 640 Z" fill="#FFF8E1"/>
-    <path d="M 222 648 Q 222 452 382 452 Q 542 452 542 648 Q 462 678 382 678 Q 302 678 222 648 Z" fill="url(#cap1)"/>
-    <ellipse cx="330" cy="520" rx="52" ry="26" fill="#A1887F" opacity="0.75" transform="rotate(-18 330 520)"/>
-    <!-- Gesicht -->
-    <circle cx="356" cy="742" r="11" fill="#3E2723"/>
-    <circle cx="410" cy="742" r="11" fill="#3E2723"/>
-    <path d="M 350 778 Q 383 804 416 778" stroke="#3E2723" stroke-width="9" stroke-linecap="round" fill="none"/>
-    <circle cx="336" cy="768" r="9" fill="#F8BBD0" opacity="0.85"/>
-    <circle cx="430" cy="768" r="9" fill="#F8BBD0" opacity="0.85"/>
+  <g transform="translate(-60.3 -252.4) scale(1.12)">
+    <!-- Buddy 1: Steinpilz (links, groß) -->
+    <g>
+      <path d="M 310 640 Q 310 875 358 892 Q 382 900 406 892 Q 454 875 454 640 Z" fill="#FFF8E1"/>
+      <path d="M 222 648 Q 222 452 382 452 Q 542 452 542 648 Q 462 678 382 678 Q 302 678 222 648 Z" fill="url(#cap1)"/>
+      <ellipse cx="330" cy="520" rx="52" ry="26" fill="#A1887F" opacity="0.75" transform="rotate(-18 330 520)"/>
+      <!-- Gesicht -->
+      <circle cx="356" cy="742" r="11" fill="#3E2723"/>
+      <circle cx="410" cy="742" r="11" fill="#3E2723"/>
+      <path d="M 350 778 Q 383 804 416 778" stroke="#3E2723" stroke-width="9" stroke-linecap="round" fill="none"/>
+      <circle cx="336" cy="768" r="9" fill="#F8BBD0" opacity="0.85"/>
+      <circle cx="430" cy="768" r="9" fill="#F8BBD0" opacity="0.85"/>
+    </g>
+    <!-- Buddy 2: Fliegenpilz (rechts, klein) -->
+    <g>
+      <path d="M 618 730 Q 618 892 656 906 Q 676 913 696 906 Q 734 892 734 730 Z" fill="#FFFDE7"/>
+      <path d="M 552 738 Q 552 576 676 576 Q 800 576 800 738 Q 738 764 676 764 Q 614 764 552 738 Z" fill="url(#cap2)"/>
+      <circle cx="612" cy="660" r="17" fill="#FFFFFF"/>
+      <circle cx="676" cy="616" r="14" fill="#FFFFFF"/>
+      <circle cx="742" cy="668" r="15" fill="#FFFFFF"/>
+      <circle cx="668" cy="712" r="10" fill="#FFFFFF"/>
+      <!-- Gesicht -->
+      <circle cx="654" cy="800" r="9" fill="#3E2723"/>
+      <circle cx="698" cy="800" r="9" fill="#3E2723"/>
+      <path d="M 650 828 Q 676 848 702 828" stroke="#3E2723" stroke-width="8" stroke-linecap="round" fill="none"/>
+      <circle cx="638" cy="820" r="7" fill="#F8BBD0" opacity="0.85"/>
+      <circle cx="714" cy="820" r="7" fill="#F8BBD0" opacity="0.85"/>
+    </g>
   </g>
-
-  <!-- Buddy 2: Fliegenpilz (rechts, klein) -->
-  <g>
-    <path d="M 618 730 Q 618 892 656 906 Q 676 913 696 906 Q 734 892 734 730 Z" fill="#FFFDE7"/>
-    <path d="M 552 738 Q 552 576 676 576 Q 800 576 800 738 Q 738 764 676 764 Q 614 764 552 738 Z" fill="url(#cap2)"/>
-    <circle cx="612" cy="660" r="17" fill="#FFFFFF"/>
-    <circle cx="676" cy="616" r="14" fill="#FFFFFF"/>
-    <circle cx="742" cy="668" r="15" fill="#FFFFFF"/>
-    <circle cx="668" cy="712" r="10" fill="#FFFFFF"/>
-    <!-- Gesicht -->
-    <circle cx="654" cy="800" r="9" fill="#3E2723"/>
-    <circle cx="698" cy="800" r="9" fill="#3E2723"/>
-    <path d="M 650 828 Q 676 848 702 828" stroke="#3E2723" stroke-width="8" stroke-linecap="round" fill="none"/>
-    <circle cx="638" cy="820" r="7" fill="#F8BBD0" opacity="0.85"/>
-    <circle cx="714" cy="820" r="7" fill="#F8BBD0" opacity="0.85"/>
-  </g>
-</g>
 </svg>

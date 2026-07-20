@@ -38,8 +38,16 @@ The app is about sharing mushroom spots with friends — the artwork must radiat
   ±0.05 rad max, phase-shifted between buddies, 4 s loop.
 - `lib/features/intro/intro_overlay.dart` — grow-from-the-ground intro
   (elastic scale from `bottomCenter`, staggered, ~2.6 s, tap to skip).
-- `assets/icon/icon.svg` — app icon source (two buddies sharing a location
-  pin). Regenerate PNGs via `qlmanage -t -s 1024` + `dart run flutter_launcher_icons`.
+- `assets/icon/icon.svg` — full-bleed app icon source (the two buddies in a
+  close crop, scaled 1.9 around the cluster centre; the location pin no
+  longer fits and was dropped). `assets/icon/icon_fg.svg` is the Android
+  adaptive foreground: same buddies on transparent ground, scaled 1.12 and
+  centred so the outermost painted point stays inside the launcher mask
+  (circle r=341 around 512,512 — only the middle 66 % is guaranteed visible).
+  Regenerate with `rsvg-convert -w 1024 -h 1024 <in>.svg -o <out>.png`, then
+  `dart run flutter_launcher_icons`. **Do not use `qlmanage` for this** — it
+  flattens alpha onto white, which turns the adaptive foreground into an
+  opaque white tile instead of letting the green background show through.
 
 ## Group looks (keep icons true to the species group)
 
