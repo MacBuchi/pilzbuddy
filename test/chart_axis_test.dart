@@ -34,6 +34,18 @@ void main() {
     }
   });
 
+  test('Die Achsenspitze bekommt keine zweite Beschriftung', () {
+    // 7 Funde ⇒ maxY 8,4 bei Schritt 2. fl_chart beschriftet zusätzlich die
+    // Spitze; ohne Filter stünden dort zwei „8" übereinander (im ersten
+    // Store-Screenshot aufgefallen).
+    expect(showsYAxisLabel(8, 2), isTrue);
+    expect(showsYAxisLabel(8.4, 2), isFalse);
+    expect(showsYAxisLabel(0, 2), isTrue);
+    expect(showsYAxisLabel(3, 2), isFalse);
+    // Rundungsreste dürfen keine Beschriftung verschlucken.
+    expect(showsYAxisLabel(0.1 + 0.2 + 0.7, 1), isTrue);
+  });
+
   test('Nie mehr als sechs Beschriftungen, egal wie viele Funde', () {
     for (var count = 1; count <= 1000; count++) {
       final maxY = count * 1.2;

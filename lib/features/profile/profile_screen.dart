@@ -529,6 +529,17 @@ double yAxisStep(double maxY) {
   return magnitude * 10;
 }
 
+/// Gehört [value] auf die Achse — also auf ein Vielfaches von [step]?
+///
+/// fl_chart beschriftet zusätzlich zur Schrittweite die Achsenspitze. Bei
+/// maxY = 8,4 und Schritt 2 stünde dort ein zweites „8" wenige Pixel über dem
+/// echten — im Store-Screenshot sah das aus wie ein Druckfehler.
+@visibleForTesting
+bool showsYAxisLabel(double value, double step) {
+  final steps = value / step;
+  return (steps - steps.round()).abs() < 0.001;
+}
+
 class _FindsPerYearChart extends StatelessWidget {
   const _FindsPerYearChart({required this.finds});
 
@@ -581,9 +592,12 @@ class _FindsPerYearChart extends StatelessWidget {
                         showTitles: true,
                         reservedSize: 30,
                         interval: step,
-                        getTitlesWidget: (value, meta) => Text(
-                            value.toInt().toString(),
-                            style: Theme.of(context).textTheme.bodySmall),
+                        getTitlesWidget: (value, meta) =>
+                            showsYAxisLabel(value, step)
+                                ? Text(value.toInt().toString(),
+                                    style:
+                                        Theme.of(context).textTheme.bodySmall)
+                                : const SizedBox.shrink(),
                       ),
                     ),
                     bottomTitles: AxisTitles(
