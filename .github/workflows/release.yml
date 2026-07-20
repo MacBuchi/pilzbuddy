@@ -115,12 +115,11 @@ jobs:
       # am GitHub-Release: ein .aab lässt sich nicht installieren und würde
       # neben der APK nur verwirren. Liegt als Workflow-Artefakt bereit.
       #
-      # ACHTUNG: dieses AAB ist noch nicht einreichbar. Über das Manifest von
-      # ota_update erbt jeder Build INSTALL_PACKAGES, REQUEST_INSTALL_PACKAGES
-      # und WRITE_EXTERNAL_STORAGE; Self-Update ist auf Play verboten
-      # (Device and Network Abuse). Vor der ersten Einreichung muss der
-      # Updater raus oder in eine eigene Variante wandern.
-      - run: flutter build appbundle --release
+      # PLAY_BUILD=true blendet den Update-Hinweis aus: im Store aktualisiert
+      # Play selbst, und Nutzer zu APK-Downloads zu schicken wäre dort ein
+      # Richtlinienverstoß. Die APK oben wird ohne das Flag gebaut und behält
+      # den Hinweis.
+      - run: flutter build appbundle --release --dart-define=PLAY_BUILD=true
       - name: Bundle benennen
         run: cp build/app/outputs/bundle/release/app-release.aab "pilzbuddy-${{ needs.version.outputs.tag }}.aab"
       - uses: actions/upload-artifact@v7

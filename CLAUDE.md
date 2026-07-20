@@ -83,16 +83,19 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   fertige Arten-PRs (Merge = annehmen mit Auto-Release, Close = ablehnen).
   Braucht das Repo-Secret `SUPABASE_SERVICE_ROLE_KEY`. Selbsttest:
   `python3 tool/feedback_bot.py --test-insert "Name"`.
-- In-App-Update (`lib/core/update_check.dart`, Banner in `map_banners.dart`):
-  tokenlos gegen `releases/latest`, Installation per `ota_update`. Der
-  AndroidManifest-Block ist vollständig und muss es bleiben — FileProvider
-  mit Authority `${applicationId}.ota_update_provider` + `res/xml/filepaths.xml`
-  (`files-path ota_update/`), `INTERNET`, `REQUEST_INSTALL_PACKAGES`, plus
-  `<queries>`-Eintrag VIEW/https für den Browser-Fallback. Fehlt der
-  FileProvider, stürzt die App nach abgeschlossenem Download ab — genau das
-  war Issue #21 (Commit 4d697e5); der Fehler tritt nie im Debug-Lauf auf,
-  sondern erst beim ersten echten Update. Änderungen daran nur mit
-  Verifikation auf einem echten Gerät.
+- Update-Hinweis (`lib/core/update_check.dart`, Banner in `map_banners.dart`):
+  tokenlos gegen `releases/latest`; der Dialog schickt zum Download in den
+  Browser, die Installation macht der Nutzer. **Kein `ota_update` mehr** —
+  dessen Plugin-Manifest zog `INSTALL_PACKAGES` (Signatur-Berechtigung),
+  `REQUEST_INSTALL_PACKAGES` und `WRITE_EXTERNAL_STORAGE` in jeden Build,
+  und Play verbietet Selbst-Updates. `test/android_manifest_test.dart`
+  wacht darüber, dass die Abhängigkeit nicht zurückkommt.
+  Der ganze Pfad hängt an `AppDistribution.showsUpdateHints`
+  (`lib/core/app_distribution.dart`): im Play-Build via
+  `--dart-define=PLAY_BUILD=true` abgeschaltet, weil Play dort selbst
+  aktualisiert und Verweise auf APK-Downloads unzulässig sind.
+  Der `<queries>`-Eintrag VIEW/https im Manifest bleibt nötig, sonst kann
+  die App den Browser nicht öffnen.
 
 ## Code-Konventionen
 
@@ -123,23 +126,19 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
 
 ## Play Store — offene Blocker
 
-Die App soll in den Play Store; das AAB entsteht bereits, ist aber noch
-nicht einreichbar. Vier Punkte stehen aus (Stand 2026-07-20):
+Fahrplan und Reihenfolge: Issue #92. Stand 2026-07-20 — noch offen:
 
-1. **In-App-Updater.** `ota_update` lädt und installiert eine APK — Play
-   verbietet Selbst-Updates („Device and Network Abuse"). Sein Plugin-Manifest
-   zieht zudem `INSTALL_PACKAGES` (Signatur-Berechtigung!),
-   `REQUEST_INSTALL_PACKAGES` und `WRITE_EXTERNAL_STORAGE` in **jeden** Build.
-   Plugin-Berechtigungen landen in allen Varianten — Flavors allein entfernen
-   sie nicht, das braucht `tools:node="remove"` im Play-Manifest. Alternative:
-   `ota_update` ganz entfernen, Banner öffnet die Release-Seite im Browser.
-2. **Konto-Löschung** fehlt komplett. Play verlangt sie in der App *und* über
-   eine Web-URL; serverseitig braucht es einen Schema-Patch (Auth-User plus
-   abhängige Zeilen).
-3. **Datenschutzerklärung** fehlt. Pflicht für die Konsole, inhaltlich nicht
-   trivial: Spot-Koordinaten, Live-Standort, E-Mail, Benutzername — und
+1. **Konto-Löschung** (#89) fehlt komplett. Play verlangt sie in der App *und*
+   über eine Web-URL; serverseitig braucht es einen Schema-Patch (Auth-User
+   plus abhängige Zeilen).
+2. **Datenschutzerklärung** (#90) fehlt. Pflicht für die Konsole, inhaltlich
+   nicht trivial: Spot-Koordinaten, Live-Standort, E-Mail, Benutzername — und
    Feedback, das mit Benutzernamen öffentlich auf GitHub landet.
-4. **Data-Safety-Formular** in der Konsole, abgeleitet aus `supabase/schema.sql`.
+3. **Data-Safety-Formular** (#91) in der Konsole, abgeleitet aus
+   `supabase/schema.sql`.
+
+Erledigt: In-App-Updater entfernt (#88), AAB-Build (#87), Backup-Ausschluss
+(#78). Der Build deklariert jetzt nur noch acht Berechtigungen, alle genutzt.
 
 Unkritisch: `targetSdk` = 36 erfüllt die aktuelle Play-Anforderung,
 `minSdk` = 24 (Android 7).

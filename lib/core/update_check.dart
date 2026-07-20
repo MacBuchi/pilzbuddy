@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 
+import 'app_distribution.dart';
+
 /// Informationen über ein verfügbares Update von GitHub Releases.
 class UpdateInfo {
   final String latestVersion;
@@ -36,9 +38,11 @@ bool isNewerVersion(String latest, String current) {
 }
 
 /// Fragt das neueste GitHub-Release ab und vergleicht mit der installierten
-/// Version. Nur relevant für die Android-App — Web ist immer aktuell.
+/// Version. Nur relevant für die per APK verteilte Android-App — Web ist
+/// immer aktuell, und im Play-Build übernimmt der Store das Aktualisieren.
 /// Liefert `null`, wenn kein Update verfügbar ist oder der Check fehlschlägt.
 final updateInfoProvider = FutureProvider<UpdateInfo?>((ref) async {
+  if (!AppDistribution.showsUpdateHints) return null;
   if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return null;
   try {
     final packageInfo = await PackageInfo.fromPlatform();

@@ -1,9 +1,13 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- flutter_foreground_task deklariert das für autoRunOnBoot; wir starten
+         nie beim Booten (autoRunOnBoot bleibt false). Nicht deklarierte
+         Berechtigungen muss man bei der Play-Prüfung auch nicht erklären. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"
+        tools:node="remove"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
-    <!-- In-App-Update: heruntergeladene APK direkt installieren -->
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
     <!-- Karten-Download: hält den Prozess wach, solange geladen wird.
          Ohne Foreground-Service friert Android den Prozess beim
          App-Wechsel ein und der Download steht still. -->
@@ -44,17 +48,6 @@
             android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
             android:foregroundServiceType="dataSync"
             android:exported="false"/>
-        <!-- FileProvider für das In-App-Update: übergibt die heruntergeladene
-             APK sicher an den Android-Installer (Pflicht für ota_update) -->
-        <provider
-            android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.ota_update_provider"
-            android:exported="false"
-            android:grantUriPermissions="true">
-            <meta-data
-                android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/filepaths" />
-        </provider>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
