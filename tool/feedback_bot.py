@@ -18,7 +18,7 @@ import re
 import subprocess
 import sys
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 SPECIES_FILE = "lib/core/mushroom_species.dart"
 PUBSPEC = "pubspec.yaml"
@@ -111,7 +111,30 @@ def mark_processed(row_ids: list[str]) -> None:
         {"processed_at": now})
 
 
+# The privacy policy promises error reports are cleaned up regularly, so
+# something has to actually do it. This runs on the existing two-hourly cron
+# rather than pg_cron: no extension to enable, no second schedule, and the
+# service_role key is already here.
+ERROR_REPORT_RETENTION_DAYS = 90
+
+
+def purge_error_reports() -> None:
+    # Formatted with a literal Z instead of isoformat(): the "+00:00" an
+    # aware datetime produces would be read as a space in a query string and
+    # the filter would silently not match what we mean.
+    cutoff = (datetime.now(timezone.utc)
+              - timedelta(days=ERROR_REPORT_RETENTION_DAYS)
+              ).strftime("%Y-%m-%dT%H:%M:%SZ")
+    # The filter is what keeps this from emptying the table.
+    api("DELETE", f"/rest/v1/error_reports?created_at=lt.{cutoff}")
+    print(f"Purged error reports older than {ERROR_REPORT_RETENTION_DAYS} days.")
+
+
 def main() -> None:
+    # Before the early return below — otherwise the purge would only ever run
+    # on the rare tick that also has unprocessed feedback.
+    purge_error_reports()
+
     rows = api(
         "GET",
         "/rest/v1/feedback?processed_at=is.null&order=created_at"
