@@ -141,19 +141,20 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
 
 ## Play Store — offene Blocker
 
-Fahrplan und Reihenfolge: Issue #92. Stand 2026-07-20 — noch offen:
+Fahrplan und Reihenfolge: Issue #92. Stand 2026-07-21 — noch offen:
 
-Im Binary steckt kein Blocker mehr — offen ist nur noch Papierkram:
+Im Repo steckt kein Blocker mehr. Offen ist nur noch, was in der Play Console
+passiert (#91): Data-Safety-Formular, Inhaltsbewertung, Store-Listing und die
+Grafiken (Feature-Grafik 1024×500, Screenshots, Icon 512×512).
 
-1. **Datenschutzerklärung** (#90) fehlt. Pflicht für die Konsole, inhaltlich
-   nicht trivial: Spot-Koordinaten, Live-Standort, E-Mail, Benutzername — und
-   Feedback, das mit Benutzernamen öffentlich auf GitHub landet.
-2. **Data-Safety-Formular** (#91) in der Konsole, abgeleitet aus
-   `supabase/schema.sql`.
+Die Antworten dafür sind vorbereitet und aus dem Code abgeleitet:
+**`docs/play-console.md`**. Ändert sich, was die App erhebt oder wohin sie
+verbindet, gehört diese Datei in denselben PR — sonst laufen Formular und
+Binary auseinander, und genau daran scheitern Play-Reviews.
 
-Erledigt: Konto-Löschung (#89), In-App-Updater entfernt (#88), AAB-Build
-(#87), Backup-Ausschluss (#78). Der Build deklariert nur noch acht
-Berechtigungen, alle genutzt.
+Erledigt: Datenschutzerklärung (#90, `web/datenschutz.html`), Konto-Löschung
+(#89), In-App-Updater entfernt (#88), AAB-Build (#87), Backup-Ausschluss
+(#78). Der Build deklariert nur noch acht Berechtigungen, alle genutzt.
 
 Konto-Löschung: `public.delete_own_account()` (Patch 008), `security definer`
 ohne Parameter — die id kommt aus `auth.uid()`, ein Argument wäre eine
