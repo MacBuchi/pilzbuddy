@@ -49,6 +49,22 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   Schema Check selbst läuft ohne Secret über den Publishable Key).
   Nutzt ein Repository in `lib/data/` neue Spalten/Embeds/RPCs, die
   Checks in `tool/schema_check.sh` entsprechend erweitern.
+  Patches > Baseline laufen bei einer Frischinstallation NACH dem aktuellen
+  `schema.sql` erneut — sie müssen dagegen idempotent bleiben; notfalls einen
+  alten Patch rückwirkend anpassen (so geschehen in `patch_007`, als
+  Patch 011 die Helfer verschob).
+- Neue DB-Funktionen: Sichtbarkeit explizit entscheiden — jede Funktion im
+  public-Schema ist automatisch ein API-Endpunkt (`/rest/v1/rpc/…`) für anon
+  UND authenticated (Default-Grant an PUBLIC; Supabase-Advisor-Funde vom
+  20.07.2026). RPCs für die App: `revoke … from public, anon` plus gezielter
+  Grant (Muster: `delete_own_account`, `search_profiles` — anon wäre dort ein
+  E-Mail-Orakel). Policy-Helfer gehören ins nicht exponierte Schema
+  `app_internal` (Patch 011); EXECUTE entziehen geht bei ihnen nicht, weil
+  Policies die Funktionen mit den Rechten der anfragenden Rolle auswerten.
+  Trigger-Funktionen: alle API-Grants entziehen (der Trigger feuert trotzdem).
+  Nach jeder Schema-Änderung den Security Advisor im Supabase-Dashboard
+  gegenprüfen; bewusste Reste (RLS ohne Policy auf `applied_patches`,
+  `authenticated` auf `search_profiles`/`delete_own_account`) dort dismissen.
 - Flutter-Version in CI gepinnt (subosito/flutter-action, aktuell 3.41.2) —
   bei lokalem Flutter-Upgrade auch `.github/workflows/*.yml` anpassen.
 - Supabase-Keys in `lib/core/supabase_config.dart` sind bewusst öffentlich
