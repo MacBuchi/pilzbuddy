@@ -20,7 +20,13 @@ create policy ll_owner_all on public.live_locations for all
   using (user_id = auth.uid()) with check (user_id = auth.uid());
 
 drop policy if exists ll_friend_select on public.live_locations;
+-- Rückwirkend angepasst mit Patch 011: are_friends liegt seitdem in
+-- app_internal statt public. In die Live-DB ging dieser Patch 2026-07-19
+-- noch mit public.are_friends — die Policy dort folgte dem Umzug per OID
+-- automatisch. Die Änderung hier braucht nur die Frischinstallation, bei
+-- der dieser Patch NACH dem aktuellen schema.sql erneut läuft und
+-- public.are_friends nicht mehr existiert.
 create policy ll_friend_select on public.live_locations for select
   using (user_id <> auth.uid()
-     and public.are_friends(user_id, auth.uid())
+     and app_internal.are_friends(user_id, auth.uid())
      and expires_at > now());

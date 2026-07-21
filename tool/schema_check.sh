@@ -33,14 +33,16 @@ check_rpc() {
   verdict "$name" "$out"
 }
 
-# Für RPCs, die anon NICHT aufrufen darf (z. B. Konto-Löschung). Ein Fehler
-# ist hier der Erfolgsfall — aber nur der richtige: PGRST202 hieße „Funktion
-# fehlt" (Patch nicht eingespielt), und eine erfolgreiche Antwort hieße, dass
-# anon die Funktion ausführen darf. Beides muss auffallen.
+# Für RPCs, die anon NICHT aufrufen darf (Konto-Löschung, Freundesuche).
+# Ein Fehler ist hier der Erfolgsfall — aber nur der richtige: PGRST202
+# hieße „Funktion fehlt" (Patch nicht eingespielt), und eine erfolgreiche
+# Antwort hieße, dass anon die Funktion ausführen darf. Beides muss
+# auffallen. Der Body muss zur Signatur passen, sonst antwortet PostgREST
+# mit PGRST202 statt mit dem erwarteten Rechte-Fehler.
 check_rpc_protected() {
-  local name="$1" fn="$2" out
+  local name="$1" fn="$2" body="$3" out
   out=$(curl -s --max-time 20 -X POST "$URL/rest/v1/rpc/$fn" \
-    -H "apikey: $KEY" -H "Content-Type: application/json" -d '{}' \
+    -H "apikey: $KEY" -H "Content-Type: application/json" -d "$body" \
     || echo '{"code":"curl","message":"Verbindung fehlgeschlagen"}')
   if printf '%s' "$out" | grep -q 'PGRST202'; then
     echo "::error::Schema-Check fehlgeschlagen: $name — Funktion fehlt in der Live-DB: $out"
@@ -93,13 +95,14 @@ check_get "feedback-Spalten" \
 check_get "error_reports-Spalten" \
   "/rest/v1/error_reports?select=id,user_id,context,error_type,message,stack,app_version,platform,created_at&limit=1"
 
-# RPC der Freundesuche (Signatur + Rückgabetyp)
-check_rpc "search_profiles-RPC" "search_profiles" '{"query":"schema-check"}'
+# RPC der Freundesuche (Patch 011): muss existieren, ist aber für anon
+# gesperrt — sonst wäre der exakte E-Mail-Vergleich ein E-Mail-Orakel.
+check_rpc_protected "search_profiles-RPC" "search_profiles" '{"query":"schema-check"}'
 
 # Konto-Löschung (Patch 008): muss existieren und darf nur für Angemeldete
 # aufrufbar sein. Deshalb nicht mit check_rpc — der würde den erwarteten
 # 403 als Fehler werten.
-check_rpc_protected "delete_own_account-RPC" "delete_own_account"
+check_rpc_protected "delete_own_account-RPC" "delete_own_account" '{}'
 
 if [ "$fail" -ne 0 ]; then
   echo "::error::Live-Schema passt nicht zu den App-Queries. Fehlt ein supabase/patch_NNN_*.sql bzw. wurde er noch nicht eingespielt (tool/db_migrate.sh, Secret SUPABASE_DB_URL)?"

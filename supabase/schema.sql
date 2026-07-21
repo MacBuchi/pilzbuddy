@@ -112,6 +112,11 @@ begin
   return new;
 end $$;
 
+-- Nur der Trigger ruft die Funktion — die Default-Grants an die API-Rollen
+-- sind unnötig (EXECUTE wird beim Anlegen des Triggers geprüft, nicht beim
+-- Feuern).
+revoke all on function public.handle_new_user() from public, anon, authenticated;
+
 create trigger on_auth_user_created
 after insert on auth.users
 for each row execute function public.handle_new_user();
@@ -119,9 +124,18 @@ for each row execute function public.handle_new_user();
 -- ============================================================
 -- Hilfsfunktionen (SECURITY DEFINER, damit RLS-Policies andere
 -- Tabellen lesen können, ohne zu rekursieren)
+--
+-- Bewusst NICHT in public: PostgREST exponiert jede Funktion im
+-- public-Schema als /rest/v1/rpc/-Endpunkt für anon+authenticated.
+-- EXECUTE entziehen geht nicht — die Policies werten die Funktionen
+-- mit den Rechten der anfragenden Rolle aus. Deshalb liegen sie in
+-- app_internal, das die API nie sieht (Patch 011).
 -- ============================================================
 
-create or replace function public.are_friends(a uuid, b uuid)
+create schema if not exists app_internal;
+grant usage on schema app_internal to anon, authenticated;
+
+create or replace function app_internal.are_friends(a uuid, b uuid)
 returns boolean language sql stable security definer set search_path = public as $$
   select exists (
     select 1 from friendships
@@ -132,7 +146,7 @@ $$;
 
 -- Auch offene Anfragen zählen — nötig, damit man den Namen des
 -- Absenders einer Freundschaftsanfrage sehen kann.
-create or replace function public.involved_in_friendship(a uuid, b uuid)
+create or replace function app_internal.involved_in_friendship(a uuid, b uuid)
 returns boolean language sql stable security definer set search_path = public as $$
   select exists (
     select 1 from friendships
@@ -140,12 +154,12 @@ returns boolean language sql stable security definer set search_path = public as
        or (requester_id = b and addressee_id = a));
 $$;
 
-create or replace function public.owner_shares_spots(owner uuid)
+create or replace function app_internal.owner_shares_spots(owner uuid)
 returns boolean language sql stable security definer set search_path = public as $$
   select share_spots_default from profiles where id = owner;
 $$;
 
-create or replace function public.owner_shares_details(owner uuid)
+create or replace function app_internal.owner_shares_details(owner uuid)
 returns boolean language sql stable security definer set search_path = public as $$
   select share_details from profiles where id = owner;
 $$;
@@ -161,6 +175,10 @@ language sql stable security definer set search_path = public as $$
     and (lower(u.email) = lower(query) or p.username ilike query || '%')
   limit 10;
 $$;
+-- Nur für Angemeldete: für anon wäre der exakte E-Mail-Vergleich ein
+-- E-Mail-Orakel (verrät ohne Konto, ob eine Adresse registriert ist).
+revoke all on function public.search_profiles(text) from public, anon;
+grant execute on function public.search_profiles(text) to authenticated;
 
 -- Konto-Löschung durch den Nutzer selbst (Play-Anforderung, Patch 008).
 -- Alle Tabellen hängen per `on delete cascade` an profiles und profiles an
@@ -210,7 +228,7 @@ create policy feedback_select_own on public.feedback for select
 -- profiles: ich selbst + alle, mit denen eine (auch offene) Freundschaft
 -- besteht (Suche läuft über search_profiles)
 create policy profiles_select on public.profiles for select
-  using (id = auth.uid() or public.involved_in_friendship(id, auth.uid()));
+  using (id = auth.uid() or app_internal.involved_in_friendship(id, auth.uid()));
 create policy profiles_update on public.profiles for update
   using (id = auth.uid()) with check (id = auth.uid());
 
@@ -220,9 +238,9 @@ create policy spots_owner_all on public.spots for all
 -- spots: Freunde sehen geteilte, nicht ausgeschlossene Spots (nur Standort-Ebene)
 create policy spots_friend_select on public.spots for select
   using (owner_id <> auth.uid()
-     and public.are_friends(owner_id, auth.uid())
+     and app_internal.are_friends(owner_id, auth.uid())
      and not sharing_excluded
-     and public.owner_shares_spots(owner_id));
+     and app_internal.owner_shares_spots(owner_id));
 
 -- finds: Besitzer hat Vollzugriff über den Spot
 create policy finds_owner_all on public.finds for all
@@ -235,10 +253,10 @@ create policy finds_friend_select on public.finds for select
   using (exists (select 1 from public.spots s
                  where s.id = spot_id
                    and s.owner_id <> auth.uid()
-                   and public.are_friends(s.owner_id, auth.uid())
+                   and app_internal.are_friends(s.owner_id, auth.uid())
                    and not s.sharing_excluded
-                   and public.owner_shares_spots(s.owner_id)
-                   and public.owner_shares_details(s.owner_id)));
+                   and app_internal.owner_shares_spots(s.owner_id)
+                   and app_internal.owner_shares_details(s.owner_id)));
 
 -- friendships
 create policy fr_select on public.friendships for select
@@ -257,5 +275,5 @@ create policy ll_owner_all on public.live_locations for all
   using (user_id = auth.uid()) with check (user_id = auth.uid());
 create policy ll_friend_select on public.live_locations for select
   using (user_id <> auth.uid()
-     and public.are_friends(user_id, auth.uid())
+     and app_internal.are_friends(user_id, auth.uid())
      and expires_at > now());
