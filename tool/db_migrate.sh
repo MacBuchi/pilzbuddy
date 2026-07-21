@@ -44,10 +44,16 @@ if ! run_sql -c "select 1" >/dev/null; then
   exit 1
 fi
 
+# RLS + Revoke gehören zum Bootstrap (idempotent), nicht nur zu Patch 010:
+# die Tabelle entsteht hier VOR dem ersten Patch-Lauf und wäre auf einer
+# Frischinstallation sonst wieder offen (Supabase-Advisor:
+# rls_disabled_in_public — über die API voll les- und schreibbar).
 run_sql -c "create table if not exists public.applied_patches (
   filename text primary key,
   applied_at timestamptz not null default now()
-);" >/dev/null
+);
+alter table public.applied_patches enable row level security;
+revoke all on table public.applied_patches from anon, authenticated;" >/dev/null
 
 for f in $files; do
   name=$(basename "$f")
