@@ -69,6 +69,14 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   bei lokalem Flutter-Upgrade auch `.github/workflows/*.yml` anpassen.
 - Supabase-Keys in `lib/core/supabase_config.dart` sind bewusst öffentlich
   (Publishable Key); niemals den service_role-Key einchecken.
+- Supabase-Auth-Härtung im Dashboard (seit 2026-07-22 aktiv): Leaked Password
+  Protection (HaveIBeenPwned-Abgleich bei Registrierung) und „Secure password
+  change" — Passwort-Änderungen über die Auth-API verlangen das aktuelle
+  Passwort bzw. eine frische Re-Authentifizierung, ein gestohlenes
+  Session-Token allein reicht nicht für eine Kontoübernahme. Die App hat
+  bewusst weder Passwort-Ändern- noch Passwort-Vergessen-Flow; wer einen
+  baut, muss die Re-Authentifizierung mitdenken (`reauthenticate()` +
+  `updateUser`) und gegen die Live-Einstellung testen.
 - Offline-Karten (`lib/features/offline_maps/`, nur Android): Bundesland-
   PMTiles (Protomaps Basemap v4, ODbL) aus den GitHub-Releases von
   `whitespring/project-nomad-maps-europe`; Katalog entsteht dynamisch aus
