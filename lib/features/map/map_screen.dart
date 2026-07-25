@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:flutter_map_cancellable_tile_provider/flutter_map_cancellable_tile_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
@@ -31,8 +30,18 @@ import '../../core/app_colors.dart';
 
 /// Fabrik für den Karten-Kachel-Provider. Tests ersetzen sie durch einen
 /// Offline-Fake, damit keine echten OSM-Requests laufen.
-final tileProviderFactoryProvider = Provider<TileProvider Function()>(
-    (ref) => CancellableNetworkTileProvider.new);
+///
+/// `NetworkTileProvider` aus flutter_map selbst statt des früheren
+/// `CancellableNetworkTileProvider`: Beides, was dessen Paket beitrug, ist
+/// inzwischen eingebaut — überholte Anfragen werden abgebrochen
+/// (`abortObsoleteRequests`, Vorgabe) und geladene Kacheln landen in einem
+/// Platten-Cache (`BuiltInMapCachingProvider`, Vorgabe, bis 1 GB). Der
+/// Cache ist hier der eigentliche Gewinn: Beim zweiten Besuch einer
+/// Gegend steht die Karte sofort, und bei schwachem Empfang bleibt das
+/// zuletzt Gesehene sichtbar, statt grau zu werden. Das alte Paket ist
+/// upstream als „prepare for deprecation" markiert.
+final tileProviderFactoryProvider =
+    Provider<TileProvider Function()>((ref) => NetworkTileProvider.new);
 
 class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key});
@@ -307,6 +316,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
               // herauszoomt. Unten reicht Zoom 3 (Kontinent) locker aus.
               minZoom: _minZoom,
               maxZoom: _maxZoom,
+              // Statt flutter_maps Standard-Grau (0xFFE0E0E0): der Landton
+              // des Offline-Styles. Wo noch keine Kachel liegt, sieht die
+              // Fläche dann nach „Karte lädt" aus und nicht nach „kaputt" —
+              // und der Übergang zur fertigen Kachel fällt kaum auf.
+              backgroundColor: AppColors.mapBackground,
               // Karte bleibt fest nach Norden ausgerichtet — Drehen per
               // Zwei-Finger-Geste verwirrt nur und bringt keinen Mehrwert.
               interactionOptions: const InteractionOptions(
@@ -335,6 +349,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                   userAgentPackageName: 'de.marcusbucher.pilzbuddy',
                   tileProvider: _tileProvider,
+                  // Großzügiger als die Vorgabe (2/1): flutter_map behält
+                  // damit mehr schon geladene Kacheln — auch die der
+                  // Nachbar-Zoomstufen, die es beim Warten hochskaliert
+                  // einblendet — und lädt einen Ring um den Bildausschnitt
+                  // vor. Beides zahlt auf dasselbe Ziel ein: lieber grob
+                  // weiterzeichnen als auf die scharfe Kachel warten.
+                  keepBuffer: 3,
+                  panBuffer: 2,
                 ),
               // Eigene Live-Position als Avatar — liegt UNTER den
               // Spot-Markern, damit die tappbar bleiben.
