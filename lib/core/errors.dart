@@ -60,6 +60,14 @@ String friendlyError(Object error) {
 /// Login-Fehler → Meldung. Bevorzugt den typisierten Supabase-Fehlercode;
 /// der HTTP-Status bleibt als Fallback für ältere Server.
 String loginErrorMessage(AuthException error) {
+  // Vor der Standardmeldung prüfen: Die unbestätigte Adresse kommt zwar
+  // auch als 400, ist aber etwas völlig anderes als ein falsches Passwort
+  // — wer hier „E-Mail oder Passwort falsch" liest, sucht den Fehler an
+  // der falschen Stelle (Issue #129).
+  if (error.code == 'email_not_confirmed') {
+    return 'Bitte bestätige zuerst deine E-Mail-Adresse — die Mail dazu '
+        'liegt in deinem Postfach.';
+  }
   if (error.code == 'invalid_credentials' || error.statusCode == '400') {
     return 'E-Mail oder Passwort falsch.';
   }

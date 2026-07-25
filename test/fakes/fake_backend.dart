@@ -30,6 +30,7 @@ class FakeUser {
     this.avatar = 0,
     this.shareSpotsDefault = true,
     this.shareDetails = true,
+    this.emailConfirmed = true,
   });
 
   final String id;
@@ -41,6 +42,8 @@ class FakeUser {
   int avatar;
   bool shareSpotsDefault;
   bool shareDetails;
+  /// Bestandsnutzer sind alle bestätigt (Autoconfirm), deshalb Vorgabe true.
+  bool emailConfirmed;
 }
 
 class FakeSpotRow {
@@ -105,6 +108,13 @@ class FakeBackend {
   /// damit Tests ihn kennen; echt sind es sechs Ziffern von GoTrue.
   static const resetCode = '123456';
 
+  /// Spiegelt „Confirm email" im Supabase-Dashboard. Vorgabe false = wie
+  /// heute live; Tests, die den Bestätigungs-Weg prüfen, schalten es an.
+  bool requireEmailConfirmation = false;
+
+  /// Adressen, an die eine Bestätigungsmail rausging (auch erneut).
+  final confirmationMails = <String>[];
+
   String? currentUserId;
   final _authEvents = StreamController<AuthState>.broadcast();
   var _nextId = 0;
@@ -122,6 +132,7 @@ class FakeBackend {
     int avatar = 0,
     bool shareSpotsDefault = true,
     bool shareDetails = true,
+    bool emailConfirmed = true,
   }) {
     final user = FakeUser(
       id: _newId('user'),
@@ -131,6 +142,7 @@ class FakeBackend {
       avatar: avatar,
       shareSpotsDefault: shareSpotsDefault,
       shareDetails: shareDetails,
+      emailConfirmed: emailConfirmed,
     );
     users.add(user);
     return user;
@@ -265,11 +277,17 @@ class FakeAuthRepository implements AuthRepository {
     if (user == null) {
       throw const AuthException('Invalid login credentials', statusCode: '400');
     }
+    // Wie GoTrue mit Bestätigungspflicht: eigener Fehlercode, damit die
+    // App nicht „E-Mail oder Passwort falsch" behauptet.
+    if (!user.emailConfirmed) {
+      throw const AuthException('Email not confirmed',
+          statusCode: '400', code: 'email_not_confirmed');
+    }
     backend.setCurrentUser(user, AuthChangeEvent.signedIn);
   }
 
   @override
-  Future<void> signUp({
+  Future<bool> signUp({
     required String email,
     required String password,
     required String username,
@@ -279,9 +297,37 @@ class FakeAuthRepository implements AuthRepository {
       throw const AuthException('Database error saving new user',
           statusCode: '500');
     }
-    final user =
-        backend.addUser(username: username, email: email, password: password);
-    // "Confirm email" ist im Supabase-Projekt aus — Signup meldet direkt an.
+    final user = backend.addUser(
+        username: username,
+        email: email,
+        password: password,
+        emailConfirmed: !backend.requireEmailConfirmation);
+    if (backend.requireEmailConfirmation) {
+      // Wie echt: Konto ja, Sitzung nein — erst die Bestätigung öffnet es.
+      backend.confirmationMails.add(email);
+      return true;
+    }
+    backend.setCurrentUser(user, AuthChangeEvent.signedIn);
+    return false;
+  }
+
+  @override
+  Future<void> resendConfirmation(String email) async {
+    backend.confirmationMails.add(email);
+  }
+
+  @override
+  Future<void> confirmEmailWithCode({
+    required String email,
+    required String code,
+  }) async {
+    final user = backend.users.where((u) => u.email == email).firstOrNull;
+    if (user == null || code != FakeBackend.resetCode) {
+      throw const AuthException('Token has expired or is invalid',
+          statusCode: '403', code: 'otp_expired');
+    }
+    // Wie echt: verifyOTP bestätigt UND meldet an.
+    user.emailConfirmed = true;
     backend.setCurrentUser(user, AuthChangeEvent.signedIn);
   }
 

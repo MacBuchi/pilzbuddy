@@ -11,15 +11,49 @@ class AuthRepository {
 
   Stream<AuthState> get onAuthStateChange => _client.auth.onAuthStateChange;
 
-  Future<void> signUp({
+  /// Legt ein Konto an. Liefert `true`, wenn die Adresse erst bestätigt
+  /// werden muss.
+  ///
+  /// Steht „Confirm email" im Dashboard an, kommt aus `signUp` ein Nutzer
+  /// OHNE Sitzung zurück — niemand ist danach angemeldet, und der Router
+  /// bewegt sich nicht. Genau darauf verlässt sich der Registrieren-Screen
+  /// sonst; ohne diese Rückgabe bliebe er stumm stehen (Issue #129). Der
+  /// Rückgabewert macht beide Dashboard-Einstellungen bedienbar, ohne dass
+  /// die App wissen muss, welche gerade gilt.
+  Future<bool> signUp({
     required String email,
     required String password,
     required String username,
   }) async {
-    await _client.auth.signUp(
+    final response = await _client.auth.signUp(
       email: email,
       password: password,
       data: {'username': username},
+    );
+    return response.session == null;
+  }
+
+  /// Schickt die Bestätigungsmail noch einmal — für den häufigsten Fall,
+  /// dass sie im Spam landet oder gelöscht wurde. Ohne das bliebe nur,
+  /// ein zweites Konto anzulegen, und die Adresse ist schon vergeben.
+  Future<void> resendConfirmation(String email) =>
+      _client.auth.resend(type: OtpType.signup, email: email);
+
+  /// Bestätigt die Adresse mit dem Code aus der Mail und meldet an.
+  ///
+  /// Wie beim Reset bewusst der Code und nicht der Link aus der Mail:
+  /// `signUp` legt genauso einen PKCE-Verifier auf dem anfordernden Gerät
+  /// ab (`gotrue_client.dart`), der Link wäre also gerätegebunden und
+  /// stürbe beim Öffnen im Handy-Browser. Der Code funktioniert überall
+  /// und meldet direkt an — `verifyOTP` liefert die Sitzung mit.
+  Future<void> confirmEmailWithCode({
+    required String email,
+    required String code,
+  }) async {
+    await _client.auth.verifyOTP(
+      email: email,
+      token: code,
+      type: OtpType.signup,
     );
   }
 

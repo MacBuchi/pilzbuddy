@@ -136,13 +136,24 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   Reset-Vorlage, NICHT aus „Magic link or OTP" — `/recover` verschickt,
   `verifyOTP` prüft nur. Wer „Confirm sign up" anschaltet, muss den
   Registrierungs-Screen mitziehen: `signUp` liefert dann keine Sitzung
-  mehr, und genau darauf verlässt sich `signup_screen.dart` (ohne Anpassung
-  bleibt die Registrierung stumm stehen). Anschalten ist dennoch fällig
-  vor dem Play-Rollout (Issue #129): Freundessuche läuft über die exakte
+  mehr — `AuthRepository.signUp` gibt deshalb zurück, ob bestätigt werden
+  muss, und der Registrieren-Screen zeigt dann die Code-Eingabe statt
+  stumm stehenzubleiben (Issue #129, seit 1.30.0). Bestätigt wird wie beim
+  Reset über den **Code** aus der Mail (`verifyOTP` mit `OtpType.signup`),
+  nicht über deren Link: `signUp` legt denselben PKCE-Verifier auf dem
+  anfordernden Gerät ab, der Link wäre also wieder gerätegebunden.
+  `verifyOTP` meldet direkt an, die Registrierung endet also auf der Karte.
+  Warum überhaupt Pflicht: Freundessuche läuft über die exakte
   E-Mail-Adresse, und der Reset-Code geht an ein Postfach — beides
-  verlässt sich darauf, dass die Adresse dem Konto wirklich gehört.
-  Mitfahrbar hat die Bestätigungspflicht seit 2026-07-23 an; hier ist
-  PilzBuddy der Nachzügler, nicht umgekehrt.
+  verlässt sich darauf, dass die Adresse dem Konto gehört. Am 2026-07-25
+  ist genau das passiert: eine Registrierung auf eine `+`-Alias-Adresse,
+  die web.de nicht zustellt, hinterließ ein dauerhaft unrettbares Konto;
+  solche Zustellversuche zählen bei Brevo zusätzlich als Hard Bounce
+  gegen die Absender-Reputation.
+  **Reihenfolge beim Umstellen im Dashboard:** erst diese App-Version
+  ausliefern, dann die Vorlage „Confirm sign up" auf `{{ .Token }}` ohne
+  Link setzen, dann „Confirm email" anschalten. Andersherum bricht die
+  Registrierung still.
   Geprüft wird der Flow von `tool/auth_reset_check.sh` im Job „Schema Dry
   Run" — gegen echtes GoTrue im lokalen Stack, inklusive Mailabholung aus
   Mailpit. `supabase/config.toml` spiegelt dafür die Dashboard-Härtung

@@ -102,11 +102,11 @@ jobs:
           SUPABASE_URL=http://127.0.0.1:54321 \
           SUPABASE_KEY=$(supabase status -o json | jq -r '.ANON_KEY') \
           bash tool/schema_check.sh
-      # Der Reset ist der einzige Flow, dessen Kern außerhalb der App liegt
-      # (Mail-Vorlage, verifyOTP, Passwortänderung trotz
+      # Registrierung und Reset sind die Flows, deren Kern außerhalb der
+      # App liegt (Mail-Vorlagen, verifyOTP, Passwortänderung trotz
       # secure_password_change). Die Fakes können das nicht abdecken —
-      # hier läuft er gegen echtes GoTrue samt Mailabholung.
-      - name: Passwort-Reset end-to-end prüfen
+      # hier laufen sie gegen echtes GoTrue samt Mailabholung.
+      - name: Auth-Mail-Flows end-to-end prüfen
         run: bash tool/auth_reset_check.sh
 
   # Spielt neue supabase/patch_NNN_*.sql direkt aus dem PR in die Live-DB
