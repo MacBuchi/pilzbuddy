@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/router.dart';
+import 'core/widgets/update_gate.dart';
 import 'features/intro/intro_overlay.dart';
 import 'core/app_colors.dart';
 
@@ -15,8 +16,10 @@ class PilzBuddyApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'PilzBuddy',
       routerConfig: router,
-      builder: (context, child) =>
-          IntroOverlay(child: child ?? const SizedBox.shrink()),
+      // UpdateGate innen: ist die App zu alt, ersetzt er den Router-Inhalt
+      // komplett — die Intro-Animation läuft trotzdem einmal durch.
+      builder: (context, child) => IntroOverlay(
+          child: UpdateGate(child: child ?? const SizedBox.shrink())),
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: AppColors.forestGreen,

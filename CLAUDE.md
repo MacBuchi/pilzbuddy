@@ -53,6 +53,19 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   `schema.sql` erneut — sie müssen dagegen idempotent bleiben; notfalls einen
   alten Patch rückwirkend anpassen (so geschehen in `patch_007`, als
   Patch 011 die Helfer verschob).
+- Breaking-Migration (Spalte/Embed/RPC umbenannt oder entfernt): im selben PR
+  `public.app_config.minimum_supported_version` auf die Version dieses PRs
+  hochsetzen — per `patch_NNN`, NIE von Hand im Dashboard. Der Schema Check
+  garantiert nur, dass die *aktuelle* App passt; ältere Clients im Feld
+  scheitern sonst still mit „Internet verfügbar?" (Issue #80). Die App liest
+  den Wert beim Start (`updateRequiredProvider`, `UpdateGate` in `app.dart`)
+  und sperrt sich per Vollbild darunter. Zwei Leitplanken: die Sperre greift
+  nur bei eindeutiger Antwort (fehlgeschlagener Abruf, fehlende Zeile oder
+  unbekannte eigene Version ⇒ App läuft normal — sie wird im Wald ohne
+  Empfang benutzt), und `tool/schema_check.sh` bricht ab, wenn die
+  Mindestversion über `version:` aus `pubspec.yaml` liegt: dieser Wert würde
+  auch den neuesten Client aussperren. `app_config` ist bewusst für anon
+  lesbar, weil die Prüfung vor der Anmeldung läuft.
 - Neue DB-Funktionen: Sichtbarkeit explizit entscheiden — jede Funktion im
   public-Schema ist automatisch ein API-Endpunkt (`/rest/v1/rpc/…`) für anon
   UND authenticated (Default-Grant an PUBLIC; Supabase-Advisor-Funde vom

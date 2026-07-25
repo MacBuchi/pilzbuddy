@@ -95,6 +95,33 @@ check_get "feedback-Spalten" \
 check_get "error_reports-Spalten" \
   "/rest/v1/error_reports?select=id,user_id,context,error_type,message,stack,app_version,platform,created_at&limit=1"
 
+# app_config (Patch 012): die Zeile, aus der die App die Mindestversion
+# liest. Anders als bei den anderen Tabellen darf anon hier tatsächlich
+# lesen — ein leeres Ergebnis wäre also ein echter Befund: ohne Zeile
+# erfährt die App nie, dass sie zu alt ist.
+app_config=$(curl -s --max-time 20 \
+  "$URL/rest/v1/app_config?select=id,minimum_supported_version,updated_at&limit=1" \
+  -H "apikey: $KEY" || echo '{"code":"curl","message":"Verbindung fehlgeschlagen"}')
+verdict "app_config-Spalten" "$app_config"
+min_version=$(printf '%s' "$app_config" \
+  | sed -n 's/.*"minimum_supported_version":"\([^"]*\)".*/\1/p')
+if [ -z "$min_version" ]; then
+  echo "::error::Schema-Check fehlgeschlagen: app_config hat keine Zeile — die Mindestversion kann nie greifen."
+  fail=1
+else
+  # Aussperr-Schutz: die Mindestversion darf nie über der Version liegen,
+  # die dieser PR ausliefert — sonst sperrt die App auch den neuesten
+  # Client aus, und niemand käme mehr rein (Issue #80).
+  app_version=$(sed -n 's/^version: \([0-9][0-9.]*\).*/\1/p' pubspec.yaml)
+  if [ "$min_version" = "$app_version" ] || \
+     [ "$(printf '%s\n%s\n' "$min_version" "$app_version" | sort -V | head -1)" = "$min_version" ]; then
+    echo "✓ Mindestversion $min_version ≤ App-Version $app_version"
+  else
+    echo "::error::Schema-Check fehlgeschlagen: Mindestversion $min_version liegt ÜBER der App-Version $app_version — das würde jeden Client aussperren."
+    fail=1
+  fi
+fi
+
 # RPC der Freundesuche (Patch 011): muss existieren, ist aber für anon
 # gesperrt — sonst wäre der exakte E-Mail-Vergleich ein E-Mail-Orakel.
 check_rpc_protected "search_profiles-RPC" "search_profiles" '{"query":"schema-check"}'

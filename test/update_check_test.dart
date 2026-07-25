@@ -25,5 +25,16 @@ void main() {
       expect(isNewerVersion('1.4', '1.4.0'), isFalse);
       expect(isNewerVersion('kaputt', '1.0.0'), isFalse);
     });
+
+    // Früher fiel 1.5.1-rc1 still auf 1.5.0 zurück, weil int.tryParse
+    // ('1-rc1') null liefert — der Suffix hat den Vergleich verfälscht
+    // statt ignoriert zu werden (Issue #80).
+    test('Vorabversions- und Build-Suffixe zählen nicht mit', () {
+      expect(isNewerVersion('1.5.1-rc1', '1.5.0'), isTrue);
+      expect(isNewerVersion('1.5.1-rc1', '1.5.1'), isFalse);
+      expect(isNewerVersion('1.26.4+55', '1.26.4'), isFalse);
+      expect(isNewerVersion('1.26.5+56', '1.26.4+55'), isTrue);
+      expect(isNewerVersion('2.0.0-beta.1', '1.9.9'), isTrue);
+    });
   });
 }

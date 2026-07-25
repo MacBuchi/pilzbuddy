@@ -8,6 +8,16 @@ class AppInfo {
   static const apkDownloadUrl =
       'https://github.com/MacBuchi/pilzbuddy/releases/latest';
 
+  /// Play-Store-Eintrag (applicationId aus android/app/build.gradle.kts).
+  /// Nur für Play-Builds: dort sind Verweise auf APK-Downloads unzulässig.
+  static const playStoreUrl =
+      'https://play.google.com/store/apps/details?id=de.marcusbucher.pilzbuddy';
+
+  /// Platzhalter, wenn sich die installierte Version nicht ermitteln lässt.
+  /// Wer damit rechnet, darf daraus keine Entscheidung ableiten — siehe
+  /// `updateRequiredProvider`, der in dem Fall bewusst nicht sperrt.
+  static const unknownVersion = '–';
+
   /// Liegen als statische Seiten neben der Web-App (`web/*.html`) und sind
   /// damit auch ohne installierte App erreichbar — für die Konto-Löschung
   /// verlangt Google Play genau das.
@@ -31,6 +41,6 @@ final appVersionProvider = FutureProvider<String>((ref) async {
     final info = await PackageInfo.fromPlatform();
     return info.version;
   } catch (_) {
-    return '–';
+    return AppInfo.unknownVersion;
   }
 });

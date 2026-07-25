@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:pilzbuddy/app.dart';
+import 'package:pilzbuddy/core/app_info.dart';
 import 'package:pilzbuddy/core/update_check.dart';
 import 'package:pilzbuddy/data/providers.dart';
 import 'package:pilzbuddy/features/map/live_share_providers.dart';
@@ -60,6 +61,8 @@ List<Override> overridesFor(FakeBackend backend,
         List<ConnectivityResult> connectivity = const [
           ConnectivityResult.wifi
         ],
+        FakeAppConfigRepository? appConfig,
+        String appVersion = '1.0.0',
         Position? position}) =>
     [
       positionStreamProvider.overrideWith((ref) => Stream.value(position)),
@@ -94,6 +97,11 @@ List<Override> overridesFor(FakeBackend backend,
       }),
       tileProviderFactoryProvider.overrideWithValue(FakeTileProvider.new),
       updateInfoProvider.overrideWith((ref) => Future.value(null)),
+      // Mindestversion: ohne Angabe sperrt nichts. PackageInfo gibt es im
+      // Test nicht, deshalb kommt die eigene Version aus dem Harness.
+      appConfigRepositoryProvider
+          .overrideWithValue(appConfig ?? FakeAppConfigRepository()),
+      appVersionProvider.overrideWith((ref) => Future.value(appVersion)),
     ];
 
 /// App starten und die Intro-Animation (2,6 s) durchlaufen lassen.
@@ -103,6 +111,8 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
     List<ConnectivityResult> connectivity = const [
       ConnectivityResult.wifi
     ],
+    FakeAppConfigRepository? appConfig,
+    String appVersion = '1.0.0',
     Position? position}) async {
   addTearDown(backend.dispose);
   await tester.pumpWidget(ProviderScope(
@@ -110,6 +120,8 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
         offlineMaps: offlineMaps,
         keepAlive: keepAlive,
         connectivity: connectivity,
+        appConfig: appConfig,
+        appVersion: appVersion,
         position: position),
     child: const PilzBuddyApp(),
   ));
