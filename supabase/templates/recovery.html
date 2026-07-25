@@ -1,0 +1,20 @@
+<!--
+  Reset-Mail („Passwort vergessen"). Diese Datei ist die versionierte Kopie
+  der Vorlage, die im Supabase-Dashboard unter Authentication → Emails →
+  Templates → Reset Password hinterlegt ist. Das Dashboard ist die
+  wirksame Quelle; hier steht sie, damit sie überhaupt sichtbar und
+  vergleichbar ist — und damit der lokale Stack dieselbe Mail verschickt.
+  Änderungen also IMMER an beiden Stellen.
+
+  Entscheidend: {{ .Token }} und KEIN {{ .ConfirmationURL }}. Der Link wäre
+  an das Gerät gebunden, das den Reset angefordert hat (PKCE-Verifier im
+  lokalen Speicher) und stirbt beim Öffnen im Browser — Begründung in
+  CLAUDE.md und AuthRepository.sendPasswordResetCode.
+-->
+<h2>Passwort zurücksetzen</h2>
+<p>Dein Code lautet:</p>
+<p style="font-size:28px;letter-spacing:4px"><strong>{{ .Token }}</strong></p>
+<p>Gib ihn in PilzBuddy ein, um ein neues Passwort zu setzen.
+   Der Code gilt eine Stunde.</p>
+<p>Wenn du das nicht angefordert hast, ignoriere diese Mail einfach —
+   dein Passwort bleibt dann unverändert.</p>

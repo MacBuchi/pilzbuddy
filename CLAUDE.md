@@ -143,6 +143,15 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   verlässt sich darauf, dass die Adresse dem Konto wirklich gehört.
   Mitfahrbar hat die Bestätigungspflicht seit 2026-07-23 an; hier ist
   PilzBuddy der Nachzügler, nicht umgekehrt.
+  Geprüft wird der Flow von `tool/auth_reset_check.sh` im Job „Schema Dry
+  Run" — gegen echtes GoTrue im lokalen Stack, inklusive Mailabholung aus
+  Mailpit. `supabase/config.toml` spiegelt dafür die Dashboard-Härtung
+  (`[auth.email] secure_password_change = true`), damit lokal nicht laxer
+  geprüft wird als live; die Mail-Vorlage liegt als versionierte Kopie in
+  `supabase/templates/recovery.html`. **Blinder Fleck:** Die im Dashboard
+  hinterlegte Vorlage sieht CI nie. Wer sie dort auf den Link zurückstellt,
+  bricht „Passwort vergessen" in Produktion, während CI grün bleibt —
+  Vorlage also immer an beiden Stellen ändern.
 - Offline-Karten (`lib/features/offline_maps/`, nur Android): Bundesland-
   PMTiles (Protomaps Basemap v4, ODbL) aus den GitHub-Releases von
   `whitespring/project-nomad-maps-europe`; Katalog entsteht dynamisch aus
