@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pilzbuddy/features/offline_maps/offline_map_providers.dart';
 import 'package:vector_tile_renderer/vector_tile_renderer.dart';
 
 void main() {
@@ -27,5 +28,30 @@ void main() {
     // Die Namens-Ebenen (Städte, Straßen, Gewässer) müssen dabei sein.
     final ids = theme.layers.map((l) => l.id).toSet();
     expect(ids, containsAll(['places_locality', 'roads_labels_major']));
+  });
+
+
+  test('Ohne Hintergrund-Ebene bleibt der Rest des Styles unangetastet', () {
+    // Die background-Ebene malt #cccccc deckend über die ganze Kachel —
+    // auch für Kacheln ohne Daten. Im Detail-Layer würde sie damit genau
+    // dort die Basiskarte zudecken, wo diese gebraucht wird (#118).
+    final raw =
+        File('assets/map_style/protomaps_light_de.json').readAsStringSync();
+    final styleJson = jsonDecode(raw) as Map<String, dynamic>;
+    final layers = styleJson['layers'] as List;
+    expect(layers.any((l) => (l as Map)['type'] == 'background'), isTrue,
+        reason: 'Ohne background-Ebene im Style wäre das Filtern sinnlos — '
+            'dann stimmt die Annahme in offline_map_providers.dart nicht mehr');
+
+    final stripped = styleWithoutBackground(styleJson);
+    final strippedLayers = stripped['layers'] as List;
+    expect(strippedLayers.length, layers.length - 1);
+    expect(strippedLayers.any((l) => (l as Map)['type'] == 'background'),
+        isFalse);
+    // Das Original darf die Funktion nicht verändern: Die Basiskarte
+    // braucht die Ebene weiterhin.
+    expect((styleJson['layers'] as List).length, layers.length);
+    // Und der Renderer muss den Rest weiterhin vollständig parsen.
+    expect(ThemeReader().read(stripped).layers.length, strippedLayers.length);
   });
 }

@@ -297,6 +297,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
     // Offline-Layer nur, wenn eingeschaltet UND Karte + Style geladen werden
     // konnten — sonst immer Online-OSM (Sicherheitsnetz um den Beta-Renderer).
     final offlineStyle = ref.watch(offlineMapStyleProvider).valueOrNull;
+    // Die Basiskarte hängt an nichts: kein Schalter, keine Installation.
+    // Fehlt sie (Ladefehler), bleibt es beim Hintergrundton.
+    final baseStyle = ref.watch(baseMapStyleProvider).valueOrNull;
     final hasInstalledMaps =
         (ref.watch(installedMapsProvider).valueOrNull ?? const []).isNotEmpty;
     final offlineActive = offlineStyle != null;
@@ -331,8 +334,23 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   latLng, math.max(_mapController.camera.zoom, 16)),
             ),
             children: [
+              // Unterste Schicht, immer da: die mitgelieferte
+              // DACH-Übersicht. Sie füllt jede Stelle, die weder eine
+              // OSM-Kachel noch eine Regionskarte abdeckt — auch beim
+              // Kaltstart und mitten im Wald (#118/#119). Der Renderer
+              // holt dafür die z7-Kachel und skaliert sie hoch; scharf
+              // wird es, sobald die Schicht darüber geladen hat.
+              if (baseStyle != null)
+                vmt.VectorTileLayer(
+                  key: const ValueKey('base-map'),
+                  tileProviders: baseStyle.tileProviders,
+                  theme: baseStyle.theme,
+                  layerMode: vmt.VectorTileLayerMode.vector,
+                  maximumTileSubstitutionDifference: 3,
+                ),
               if (offlineActive)
                 vmt.VectorTileLayer(
+                  key: const ValueKey('detail-map'),
                   tileProviders: offlineStyle.tileProviders,
                   theme: offlineStyle.theme,
                   // Vector-Modus rendert scharf in jeder Zoomstufe; die
