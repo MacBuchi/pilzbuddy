@@ -17,7 +17,14 @@
 #
 # Local dry run (dump + verify + encrypt, no upload):
 #     SUPABASE_DB_URL=... bash tool/db_backup.sh --no-upload
+#
+# pg_dump must not be older than the server (17.x) or it refuses to run.
+# Where the default one is too old, point at the right binary:
+#     PG_DUMP=/opt/homebrew/opt/postgresql@17/bin/pg_dump
 set -euo pipefail
+
+PG_DUMP="${PG_DUMP:-pg_dump}"
+PSQL="${PSQL:-psql}"
 
 # Öffentlicher age-Schlüssel — Chiffrat, kein Geheimnis. Der private Teil
 # liegt ausschließlich in ~/pilzbuddy-keys/pilzbuddy-backup.agekey.
@@ -50,7 +57,7 @@ echo "→ Dump wird gezogen (Schemata public + auth) …"
 # Ownership/Grants bleiben drin — die Rollen (anon, authenticated,
 # service_role) heißen in jedem Supabase-Projekt gleich, und ohne die
 # Grants wäre die wiederhergestellte DB ohne RLS-Rechte.
-pg_dump "$DB_URL" \
+$PG_DUMP "$DB_URL" \
   --schema=public \
   --schema=auth \
   --no-comments \
@@ -73,9 +80,9 @@ if [ -n "$missing" ]; then
   exit 1
 fi
 
-rows=$(psql "$DB_URL" -qtA -c \
+rows=$("$PSQL" "$DB_URL" -qtA -c \
   "select count(*) from public.spots" 2>/dev/null || echo "?")
-db_size=$(psql "$DB_URL" -qtA -c \
+db_size=$("$PSQL" "$DB_URL" -qtA -c \
   "select pg_size_pretty(pg_database_size(current_database()))" 2>/dev/null || echo "?")
 dump_size=$(du -h "$dump" | cut -f1)
 
