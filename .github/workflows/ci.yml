@@ -73,6 +73,36 @@ jobs:
           path: build/app/outputs/flutter-apk/app-release.apk
           retention-days: 14
 
+  # Probelauf VOR der Produktion: baut auf dem Runner einen lokalen
+  # Supabase-Stack (supabase/config.toml, bewusst minimal) und stellt die
+  # Frischinstallation exakt nach — schema.sql einspielen, dieselben
+  # Patches mit demselben Skript obendrauf (beweist die Idempotenz, die
+  # CLAUDE.md fordert), dann die App-Queries gegen das frische Schema.
+  # Erst wenn das durchläuft, fasst schema-check die Live-DB an.
+  schema-dry-run:
+    name: Schema Dry Run
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: supabase/setup-cli@v1
+        with:
+          # Wie lokal beim Betreiber — bei lokalem CLI-Upgrade mitziehen.
+          version: 2.109.1
+      - name: Lokalen Supabase-Stack starten
+        run: supabase start
+      - name: schema.sql einspielen (Frischinstallation)
+        run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -q -f supabase/schema.sql
+      - name: Patches obendrauf einspielen (Idempotenz-Beweis)
+        env:
+          SUPABASE_DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+        run: bash tool/db_migrate.sh
+      - name: App-Queries gegen das frische Schema prüfen
+        run: |
+          SUPABASE_URL=http://127.0.0.1:54321 \
+          SUPABASE_KEY=$(supabase status -o json | jq -r '.ANON_KEY') \
+          bash tool/schema_check.sh
+
   # Spielt neue supabase/patch_NNN_*.sql direkt aus dem PR in die Live-DB
   # ein und prüft danach, ob alle App-Queries zum Live-Schema passen.
   # Pflicht-Check: ein PR, dessen Code neues Schema braucht, kann erst
@@ -81,6 +111,9 @@ jobs:
     name: Schema Check
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Die Produktion wird erst angefasst, wenn der Aufbau von null
+    # durchgelaufen ist — das ist der eigentliche Gewinn des Dry Runs.
+    needs: schema-dry-run
     steps:
       - uses: actions/checkout@v7
       - name: Neue DB-Patches einspielen
@@ -112,16 +145,18 @@ jobs:
              || [ "${latest#v}" = "$version" ]; then
             # Version ist nicht größer als der letzte Tag → nur relevant,
             # wenn sich seither Nicht-Doku-Dateien geändert haben.
-            # store/ und tool/ sind ausgenommen, aus demselben Grund:
-            # Store-Grafiken stecken in keiner Asset-Liste und die Skripte
-            # in tool/ laufen nur in CI — beides landet nie in einem Binary,
-            # ein neuer Screenshot oder ein Backup-Skript soll also kein
-            # Release auslösen. Die Checks selbst (schema_check.sh,
-            # db_migrate.sh) laufen davon unberührt weiter.
+            # store/, tool/ und supabase/ sind ausgenommen, aus demselben
+            # Grund: Store-Grafiken stecken in keiner Asset-Liste, die
+            # Skripte in tool/ laufen nur in CI, und SQL/Stack-Config aus
+            # supabase/ läuft in der Datenbank — nichts davon landet je in
+            # einem Binary, soll also kein Release auslösen. (Ein Patch,
+            # dessen Schema die App auch nutzt, ändert lib/ mit und bumpt
+            # darüber.) Die Checks selbst (schema_check.sh, db_migrate.sh)
+            # laufen davon unberührt weiter.
             if [ "${{ github.event_name }}" = "pull_request" ]; then
-              changed=$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD -- . ':!*.md' ':!.github' ':!store' ':!tool' || true)
+              changed=$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD -- . ':!*.md' ':!.github' ':!store' ':!tool' ':!supabase' || true)
             else
-              changed=$(git diff --name-only "$latest"..HEAD -- . ':!*.md' ':!.github' ':!store' ':!tool' || true)
+              changed=$(git diff --name-only "$latest"..HEAD -- . ':!*.md' ':!.github' ':!store' ':!tool' ':!supabase' || true)
             fi
             if [ -n "$changed" ]; then
               # Blockiert den Merge (Pflicht-Check): Code-Änderungen brauchen
