@@ -8,9 +8,16 @@ Reads unprocessed rows from the Supabase `feedback` table and
   maintainer accepts by merging or rejects by closing the PR),
 then stamps the rows with processed_at.
 
+On the same two-hourly tick it also keeps `public.error_reports` visible
+(one issue per ISO week) and prunes it. Both live here rather than in their
+own workflow: the schedule, the service_role key and the GitHub token are
+already in place, and `error_reports` deliberately has no select policy, so
+whatever reads it needs that key anyway.
+
 Required environment: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, GH_TOKEN
-(the workflow provides these). Self-test without any network access:
+(the workflow provides these). Self-tests without any network access:
     python3 tool/feedback_bot.py --test-insert "Violetter Lacktrichterling"
+    python3 tool/feedback_bot.py --test-digest
 """
 import json
 import os
@@ -118,6 +125,99 @@ def mark_processed(row_ids: list[str]) -> None:
 ERROR_REPORT_RETENTION_DAYS = 90
 
 
+def digest_body(rows: list[dict], week: str) -> str:
+    """Group error reports by (context, error_type) into an issue body.
+
+    Grouped here rather than in the query because PostgREST has no GROUP BY.
+    """
+    groups: dict[tuple[str, str], dict] = {}
+    for row in rows:
+        key = (row.get("context") or "?", row.get("error_type") or "?")
+        group = groups.setdefault(key, {
+            "count": 0, "versions": set(), "platforms": set(), "example": "",
+        })
+        group["count"] += 1
+        if row.get("app_version"):
+            group["versions"].add(row["app_version"])
+        if row.get("platform"):
+            group["platforms"].add(row["platform"])
+        if not group["example"] and row.get("message"):
+            group["example"] = row["message"].strip().replace("\n", " ")[:200]
+
+    ranked = sorted(groups.items(), key=lambda kv: -kv[1]["count"])
+    lines = [
+        f"{len(rows)} caught errors reached `public.error_reports` in {week}.",
+        "",
+        "These are errors the app **survived** — the user saw a snackbar and "
+        "carried on. Android Vitals never sees them, and neither does anyone "
+        "else unless it is written down here.",
+        "",
+        "| # | Context | Type | Versions | Platforms |",
+        "|--:|---|---|---|---|",
+    ]
+    for (context, error_type), group in ranked:
+        lines.append(
+            f"| {group['count']} | {context} | `{error_type}` | "
+            f"{', '.join(sorted(group['versions'])) or '–'} | "
+            f"{', '.join(sorted(group['platforms'])) or '–'} |"
+        )
+    lines.append("")
+    for (context, error_type), group in ranked:
+        if group["example"]:
+            lines.append(f"**{context} · {error_type}**")
+            lines.append(f"> {group['example']}")
+            lines.append("")
+    lines.append("_Automatically created by the feedback bot; "
+                 "updated in place while the week runs. Close when triaged._")
+    return "\n".join(lines)
+
+
+def report_error_digest() -> None:
+    """One issue per ISO week, rewritten in place on every two-hourly tick.
+
+    Rewritten rather than commented on: 84 comments a week would bury the
+    numbers instead of showing them. No errors means no issue — nothing to
+    report is not worth an issue.
+    """
+    now = datetime.now(timezone.utc)
+    year, week_no, _ = now.isocalendar()
+    week = f"{year}-W{week_no:02d}"
+    # Montag 00:00 UTC dieser ISO-Woche.
+    start = (now - timedelta(days=now.isoweekday() - 1)).replace(
+        hour=0, minute=0, second=0, microsecond=0)
+
+    rows = api(
+        "GET",
+        "/rest/v1/error_reports?created_at=gte."
+        + start.strftime("%Y-%m-%dT%H:%M:%SZ")
+        + "&select=context,error_type,message,app_version,platform,created_at"
+        "&order=created_at",
+    ) or []
+    if not rows:
+        print(f"No error reports in {week}.")
+        return
+
+    title = f"Error reports {week}"
+    body = digest_body(rows, week)
+    # Label idempotent anlegen — gh issue create scheitert an einem
+    # unbekannten Label.
+    subprocess.run(["gh", "label", "create", "ops", "--color", "5319E7",
+                    "--description", "Betrieb, Monitoring, Backups"],
+                   capture_output=True, text=True)
+
+    existing = json.loads(run("gh", "issue", "list", "--state", "open",
+                              "--label", "ops", "--limit", "50",
+                              "--json", "number,title") or "[]")
+    match = next((i for i in existing if i["title"] == title), None)
+    if match:
+        run("gh", "issue", "edit", str(match["number"]), "--body", body)
+        print(f"Error digest updated: {title} ({len(rows)} reports)")
+    else:
+        run("gh", "issue", "create", "--title", title, "--body", body,
+            "--label", "ops")
+        print(f"Error digest created: {title} ({len(rows)} reports)")
+
+
 def purge_error_reports() -> None:
     # Formatted with a literal Z instead of isoformat(): the "+00:00" an
     # aware datetime produces would be read as a space in a query string and
@@ -131,8 +231,9 @@ def purge_error_reports() -> None:
 
 
 def main() -> None:
-    # Before the early return below — otherwise the purge would only ever run
-    # on the rare tick that also has unprocessed feedback.
+    # Before the early return below — otherwise digest and purge would only
+    # ever run on the rare tick that also has unprocessed feedback.
+    report_error_digest()
     purge_error_reports()
 
     rows = api(
@@ -253,8 +354,34 @@ def self_test(names: list[str]) -> None:
     print("self-test passed (no files were written)")
 
 
+def self_test_digest() -> None:
+    """Grouping and body rendering without any network access."""
+    rows = [
+        {"context": "Spots laden", "error_type": "PostgrestException",
+         "message": "column spots.foo does not exist",
+         "app_version": "1.26.4", "platform": "android"},
+        {"context": "Spots laden", "error_type": "PostgrestException",
+         "message": "column spots.foo does not exist",
+         "app_version": "1.27.0", "platform": "web"},
+        {"context": "Fund eintragen", "error_type": "SocketException",
+         "message": "Failed host lookup", "app_version": "1.27.0",
+         "platform": "android"},
+    ]
+    body = digest_body(rows, "2026-W31")
+    assert "3 caught errors" in body, body
+    # Häufigste Gruppe zuerst — sonst muss man die Tabelle lesen, um zu
+    # sehen, was am meisten weh tut.
+    assert body.index("Spots laden") < body.index("Fund eintragen"), body
+    assert "1.26.4, 1.27.0" in body, body
+    assert "android, web" in body, body
+    print(body)
+    print("\nself-test passed (no network, nothing written)")
+
+
 if __name__ == "__main__":
     if len(sys.argv) > 2 and sys.argv[1] == "--test-insert":
         self_test(sys.argv[2].split(","))
+    elif len(sys.argv) > 1 and sys.argv[1] == "--test-digest":
+        self_test_digest()
     else:
         main()

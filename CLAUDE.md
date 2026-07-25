@@ -24,9 +24,10 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   für den Play Store — noch NICHT einreichbar, siehe Play-Store-Notiz unten)
   (https://macbuchi.github.io/pilzbuddy/). Kein Bump = kein Release.
 - Version Guard in CI: Code-Änderung ohne Versions-Bump blockiert den Merge
-  (Pflicht-Check schlägt fehl); nur `*.md`, `.github/` und `store/` sind
-  ausgenommen (Store-Grafiken stecken in keiner Asset-Liste, siehe
-  `store/README.md`).
+  (Pflicht-Check schlägt fehl); nur `*.md`, `.github/`, `store/` und `tool/`
+  sind ausgenommen — nichts davon landet je in einem Binary (Store-Grafiken
+  stecken in keiner Asset-Liste, siehe `store/README.md`; die Skripte in
+  `tool/` laufen nur in CI).
 - Gemergte Branches löscht GitHub automatisch (delete_branch_on_merge).
 
 ## Technik-Notizen
@@ -120,8 +121,36 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
 - Feedback-Bot (`.github/workflows/feedback.yml` + `tool/feedback_bot.py`,
   Cron alle 2 h): macht aus In-App-Feedback GitHub-Issues (Features) bzw.
   fertige Arten-PRs (Merge = annehmen mit Auto-Release, Close = ablehnen).
-  Braucht das Repo-Secret `SUPABASE_SERVICE_ROLE_KEY`. Selbsttest:
-  `python3 tool/feedback_bot.py --test-insert "Name"`.
+  Auf demselben Tick läuft der **Fehlerbericht-Digest**: ein Issue pro
+  ISO-Woche (Label `ops`, Titel `Error reports JJJJ-Wnn`), das bei jedem
+  Lauf neu geschrieben statt kommentiert wird; keine Fehler ⇒ kein Issue.
+  Dazu die 90-Tage-Bereinigung von `error_reports`. Beides liegt hier und
+  nicht in einem eigenen Workflow, weil Zeitplan, service_role-Key und
+  GitHub-Token schon da sind — und `error_reports` bewusst keine
+  select-Policy hat, ein Leser also ohnehin den Key braucht.
+  Braucht das Repo-Secret `SUPABASE_SERVICE_ROLE_KEY`. Selbsttests:
+  `python3 tool/feedback_bot.py --test-insert "Name"` und `--test-digest`.
+- Backup (`.github/workflows/backup.yml` + `tool/db_backup.sh`, montags plus
+  `workflow_dispatch` vor größeren Migrationen): `pg_dump` von `public` und
+  `auth`, mit age verschlüsselt, als Release-Asset im **privaten** Repo
+  `pilzbuddy-backups` (dieses Repo ist öffentlich, seine Artefakte wären es
+  auch). Verschlüsselt wird asymmetrisch — der öffentliche Schlüssel steht
+  im Skript, der private liegt **nur** in
+  `~/pilzbuddy-keys/pilzbuddy-backup.agekey` und nie in GitHub; sein Verlust
+  macht alle Backups wertlos. Vor dem Hochladen prüft das Skript, ob die
+  erwarteten Tabellen (inkl. `auth.users`) wirklich im Dump stehen — ein
+  halber Dump wird nicht abgelegt. Aufbewahrung: die letzten 12 Läufe.
+  Braucht zusätzlich das Repo-Secret `BACKUP_REPO_TOKEN` (fein granulares
+  PAT, nur `contents:write` auf das Backup-Repo). Verfahren und
+  Restore-Übung: `docs/backup-restore.md` — ein nie zurückgespieltes Backup
+  zählt nicht.
+- Supabase-Free-Plan: Projekte werden nach ~1 Woche ohne Zugriff pausiert.
+  Der Feedback-Bot-Cron (alle 2 h) und der Backup-Job halten das Projekt
+  wach — das ist ab jetzt eine bewusste Zusage, kein Zufall: Wer beide
+  Crons abschaltet, riskiert ein pausiertes Projekt und eine tote App.
+  Grenzen: 500 MB Datenbank, 5 GB Egress. Die aktuelle Datenbankgröße steht
+  wöchentlich in der Summary des Backup-Jobs — dort nachsehen, statt zu
+  schätzen.
 - Update-Hinweis (`lib/core/update_check.dart`, Banner in `map_banners.dart`):
   tokenlos gegen `releases/latest`; der Dialog schickt zum Download in den
   Browser, die Installation macht der Nutzer. **Kein `ota_update` mehr** —

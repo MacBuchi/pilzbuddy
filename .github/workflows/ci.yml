@@ -112,18 +112,21 @@ jobs:
              || [ "${latest#v}" = "$version" ]; then
             # Version ist nicht größer als der letzte Tag → nur relevant,
             # wenn sich seither Nicht-Doku-Dateien geändert haben.
-            # store/ ist ausgenommen: Store-Grafiken stecken in keiner
-            # Asset-Liste, gehen also nie in ein Binary ein — ein neuer
-            # Screenshot soll kein Release auslösen.
+            # store/ und tool/ sind ausgenommen, aus demselben Grund:
+            # Store-Grafiken stecken in keiner Asset-Liste und die Skripte
+            # in tool/ laufen nur in CI — beides landet nie in einem Binary,
+            # ein neuer Screenshot oder ein Backup-Skript soll also kein
+            # Release auslösen. Die Checks selbst (schema_check.sh,
+            # db_migrate.sh) laufen davon unberührt weiter.
             if [ "${{ github.event_name }}" = "pull_request" ]; then
-              changed=$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD -- . ':!*.md' ':!.github' ':!store' || true)
+              changed=$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD -- . ':!*.md' ':!.github' ':!store' ':!tool' || true)
             else
-              changed=$(git diff --name-only "$latest"..HEAD -- . ':!*.md' ':!.github' ':!store' || true)
+              changed=$(git diff --name-only "$latest"..HEAD -- . ':!*.md' ':!.github' ':!store' ':!tool' || true)
             fi
             if [ -n "$changed" ]; then
               # Blockiert den Merge (Pflicht-Check): Code-Änderungen brauchen
               # immer einen Versions-Bump, sonst entsteht kein Release.
-              # Reine Doku (*.md), .github/ und store/ sind ausgenommen.
+              # Reine Doku (*.md), .github/, store/ und tool/ sind ausgenommen.
               echo "::error::Code geändert, aber version in pubspec.yaml ($version) ist nicht größer als $latest. Bitte Version bumpen (beide Teile, z. B. 1.2.3+4 → 1.2.4+5) — ohne Bump gibt es kein Release."
               exit 1
             fi
