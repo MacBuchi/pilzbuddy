@@ -127,6 +127,17 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   Mitfahrbar löst denselben Fall über den Mail-Link und hat damit genau die
   Lücke, die PilzBuddy hier umgeht (dort `MacBuchi/MitFahrBar` Issue #102) —
   beim nächsten Anfassen dort gleich mitziehen.
+  Von den sechs Mail-Vorlagen im Dashboard ist **nur „Reset password"**
+  angepasst (deutsch, mit Code) — es ist die einzige, die die App auslöst.
+  „Confirm sign up" (Bestätigung ist aus), „Magic link or OTP", „Invite
+  user", „Change email address" und „Reauthentication" schlafen und stehen
+  bewusst auf englischem Standardtext: Eine fertig aussehende Vorlage würde
+  vortäuschen, das Feature existiere. Der Zahlencode kommt aus der
+  Reset-Vorlage, NICHT aus „Magic link or OTP" — `/recover` verschickt,
+  `verifyOTP` prüft nur. Wer „Confirm sign up" anschaltet, muss den
+  Registrierungs-Screen mitziehen: `signUp` liefert dann keine Sitzung
+  mehr, und genau darauf verlässt er sich (derselbe Drift brach bei
+  Mitfahrbar am 2026-07-23 die Registrierung).
 - Offline-Karten (`lib/features/offline_maps/`, nur Android): Bundesland-
   PMTiles (Protomaps Basemap v4, ODbL) aus den GitHub-Releases von
   `whitespring/project-nomad-maps-europe`; Katalog entsteht dynamisch aus
