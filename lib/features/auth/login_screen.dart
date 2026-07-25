@@ -8,6 +8,13 @@ import '../../core/errors.dart';
 import '../../core/widgets/buddy_mushrooms.dart';
 import '../../data/providers.dart';
 
+/// Drei Zustände statt zwei: „Passwort vergessen" ist ein eigener Modus, der
+/// nur die E-Mail abfragt — ein sichtbares Passwortfeld daneben verleitet
+/// dazu, dort das (vergessene) Passwort einzutippen. Nach dem Anfordern
+/// folgt [_Mode.code], wo Code aus der Mail und neues Passwort zusammen
+/// eingegeben werden.
+enum _Mode { signIn, forgot, code }
+
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -18,13 +25,105 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _codeController = TextEditingController();
+  final _newPasswordController = TextEditingController();
+  final _repeatController = TextEditingController();
+  _Mode _mode = _Mode.signIn;
+  String? _notice;
   bool _busy = false;
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _codeController.dispose();
+    _newPasswordController.dispose();
+    _repeatController.dispose();
     super.dispose();
+  }
+
+  void _switchTo(_Mode mode) => setState(() {
+        _mode = mode;
+        _notice = null;
+        _codeController.clear();
+        _newPasswordController.clear();
+        _repeatController.clear();
+      });
+
+  /// Fordert den Code an. Erfolg und Fehlschlag melden dasselbe: Ein
+  /// Unterschied würde verraten, ob es zu der Adresse ein Konto gibt.
+  Future<void> _sendResetCode() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty || !email.contains('@')) {
+      setState(() => _notice = 'Bitte eine gültige E-Mail-Adresse angeben.');
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      await ref.read(authRepositoryProvider).sendPasswordResetCode(email);
+    } catch (e, stackTrace) {
+      // Nur protokollieren, nicht zeigen — siehe oben.
+      logError('Passwort-Reset anfordern', e, stackTrace);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _mode = _Mode.code;
+          _notice = 'Wenn es zu $email ein Konto gibt, ist ein Code '
+              'unterwegs. Er gilt eine Stunde.';
+        });
+      }
+    }
+  }
+
+  Future<void> _resetPassword() async {
+    final code = _codeController.text.trim();
+    if (code.isEmpty) {
+      setState(() => _notice = 'Bitte den Code aus der Mail eingeben.');
+      return;
+    }
+    if (_newPasswordController.text.length < 8) {
+      setState(() => _notice = 'Das neue Passwort braucht mindestens '
+          '8 Zeichen.');
+      return;
+    }
+    if (_newPasswordController.text != _repeatController.text) {
+      setState(() => _notice = 'Die beiden Passwörter stimmen nicht '
+          'überein.');
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      await ref.read(authRepositoryProvider).resetPasswordWithCode(
+            email: _emailController.text.trim(),
+            code: code,
+            newPassword: _newPasswordController.text,
+          );
+      // Kein Erfolgs-Hinweis nötig: Das geänderte Passwort meldet die
+      // Sitzung an, der Router führt zur Karte.
+    } on AuthException catch (e) {
+      // Die Recovery-Sitzung darf nicht liegen bleiben, wenn das Ändern
+      // scheiterte — sonst steckt jemand halb angemeldet fest.
+      await _discardRecoverySession();
+      if (mounted) setState(() => _notice = resetErrorMessage(e));
+    } catch (e, stackTrace) {
+      logError('Passwort zurücksetzen', e, stackTrace);
+      await _discardRecoverySession();
+      if (mounted) setState(() => _notice = friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _discardRecoverySession() async {
+    final auth = ref.read(authRepositoryProvider);
+    if (auth.currentSession == null) return;
+    try {
+      await auth.signOut();
+    } catch (e, stackTrace) {
+      // Aufräumen darf den Fehlerfall nicht überdecken.
+      logError('Recovery-Sitzung verwerfen', e, stackTrace);
+    }
   }
 
   Future<void> _signIn() async {
@@ -51,6 +150,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (mounted) setState(() => _busy = false);
     }
   }
+
+  String get _primaryLabel => switch (_mode) {
+        _Mode.signIn => 'Anmelden',
+        _Mode.forgot => 'Code anfordern',
+        _Mode.code => 'Neues Passwort speichern',
+      };
+
+  VoidCallback get _primaryAction => switch (_mode) {
+        _Mode.signIn => _signIn,
+        _Mode.forgot => _sendResetCode,
+        _Mode.code => _resetPassword,
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -89,24 +200,63 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           border: OutlineInputBorder(),
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: _passwordController,
-                        obscureText: true,
-                        textInputAction: TextInputAction.done,
-                        autofillHints: const [AutofillHints.password],
-                        onSubmitted: (_) => _busy ? null : _signIn(),
-                        decoration: const InputDecoration(
-                          labelText: 'Passwort',
-                          border: OutlineInputBorder(),
+                      if (_mode == _Mode.signIn) ...[
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _passwordController,
+                          obscureText: true,
+                          textInputAction: TextInputAction.done,
+                          autofillHints: const [AutofillHints.password],
+                          onSubmitted: (_) => _busy ? null : _signIn(),
+                          decoration: const InputDecoration(
+                            labelText: 'Passwort',
+                            border: OutlineInputBorder(),
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ),
+                if (_mode == _Mode.code) ...[
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _codeController,
+                    keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: 'Code aus der Mail',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _newPasswordController,
+                    obscureText: true,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: 'Neues Passwort',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _repeatController,
+                    obscureText: true,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _busy ? null : _resetPassword(),
+                    decoration: const InputDecoration(
+                      labelText: 'Neues Passwort wiederholen',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+                if (_notice != null) ...[
+                  const SizedBox(height: 16),
+                  Text(_notice!, textAlign: TextAlign.center),
+                ],
                 const SizedBox(height: 20),
                 FilledButton(
-                  onPressed: _busy ? null : _signIn,
+                  onPressed: _busy ? null : _primaryAction,
                   style: FilledButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16)),
                   child: _busy
@@ -114,12 +264,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           width: 20,
                           height: 20,
                           child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Text('Anmelden'),
+                      : Text(_primaryLabel),
                 ),
-                TextButton(
-                  onPressed: () => context.go('/signup'),
-                  child: const Text('Noch kein Konto? Registrieren'),
-                ),
+                if (_mode == _Mode.signIn) ...[
+                  TextButton(
+                    onPressed: () => _switchTo(_Mode.forgot),
+                    child: const Text('Passwort vergessen?'),
+                  ),
+                  TextButton(
+                    onPressed: () => context.go('/signup'),
+                    child: const Text('Noch kein Konto? Registrieren'),
+                  ),
+                ] else
+                  TextButton(
+                    onPressed: () => _switchTo(_Mode.signIn),
+                    child: const Text('Zurück zur Anmeldung'),
+                  ),
               ],
             ),
           ),

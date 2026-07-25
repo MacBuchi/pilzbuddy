@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../data/providers.dart';
 import '../features/auth/login_screen.dart';
@@ -30,7 +31,16 @@ class _AuthRefresh extends ChangeNotifier {
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authRepository = ref.watch(authRepositoryProvider);
-  final refresh = _AuthRefresh(authRepository.onAuthStateChange);
+  // `passwordRecovery` bewusst nicht durchlassen: Ein eingelöster
+  // Reset-Code erzeugt eine gültige Sitzung, BEVOR das neue Passwort
+  // gesetzt ist. Würde der Router darauf reagieren, läge die Karte
+  // mitten im Reset offen und die Nutzerin wäre angemeldet, ohne ihr
+  // Passwort zu kennen. Der Login-Screen bleibt deshalb stehen, bis
+  // `updateUser` das Passwort wirklich geändert hat — dessen
+  // `userUpdated`-Ereignis öffnet die App dann (siehe
+  // AuthRepository.resetPasswordWithCode).
+  final refresh = _AuthRefresh(authRepository.onAuthStateChange
+      .where((state) => state.event != AuthChangeEvent.passwordRecovery));
   ref.onDispose(refresh.dispose);
 
   return GoRouter(

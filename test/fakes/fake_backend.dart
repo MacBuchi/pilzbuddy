@@ -34,7 +34,9 @@ class FakeUser {
 
   final String id;
   final String email;
-  final String password;
+  // Nicht final: der Passwort-Reset ändert es wirklich, damit Tests den
+  // Effekt prüfen können und nicht nur den Aufruf.
+  String password;
   final String username;
   int avatar;
   bool shareSpotsDefault;
@@ -94,6 +96,14 @@ class FakeBackend {
   final friendships = <FakeFriendshipRow>[];
   final liveLocations = <FakeLiveShareRow>[];
   final feedback = <Map<String, dynamic>>[];
+
+  /// Adressen, für die ein Reset-Code angefordert wurde — auch solche ohne
+  /// Konto, denn die App darf beide Fälle nicht unterscheiden.
+  final passwordResets = <String>[];
+
+  /// Der Code, den der Fake in der „Mail" verschickt. Fest statt zufällig,
+  /// damit Tests ihn kennen; echt sind es sechs Ziffern von GoTrue.
+  static const resetCode = '123456';
 
   String? currentUserId;
   final _authEvents = StreamController<AuthState>.broadcast();
@@ -278,6 +288,35 @@ class FakeAuthRepository implements AuthRepository {
   @override
   Future<void> signOut() async =>
       backend.setCurrentUser(null, AuthChangeEvent.signedOut);
+
+  /// Nimmt jede Adresse an — auch unbekannte. Genau so verhält sich
+  /// Supabase, damit die Antwort kein Konto-Orakel wird.
+  @override
+  Future<void> sendPasswordResetCode(String email) async {
+    backend.passwordResets.add(email);
+  }
+
+  /// Spiegelt die echte Reihenfolge: `verifyOTP` meldet die Sitzung mit
+  /// `passwordRecovery` an, erst `updateUser` setzt das Passwort und meldet
+  /// `userUpdated`. Der Router hängt an genau diesem Unterschied — hier
+  /// beides zu verschmelzen würde den Test am Kernpunkt vorbeiführen.
+  @override
+  Future<void> resetPasswordWithCode({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    final user = backend.users.where((u) => u.email == email).firstOrNull;
+    if (user == null || code != FakeBackend.resetCode) {
+      // Wie GoTrue: derselbe Fehler für falschen Code und unbekannte
+      // Adresse — sonst wäre auch das ein Konto-Orakel.
+      throw const AuthException('Token has expired or is invalid',
+          statusCode: '403', code: 'otp_expired');
+    }
+    backend.setCurrentUser(user, AuthChangeEvent.passwordRecovery);
+    user.password = newPassword;
+    backend.setCurrentUser(user, AuthChangeEvent.userUpdated);
+  }
 
   /// Bildet die Kaskade aus `supabase/schema.sql` nach: alle Tabellen hängen
   /// per `on delete cascade` an profiles, profiles an auth.users. Echt räumt

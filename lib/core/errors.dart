@@ -66,6 +66,27 @@ String loginErrorMessage(AuthException error) {
   return 'Anmeldung fehlgeschlagen: ${error.message}';
 }
 
+/// Fehler beim Einlösen eines Reset-Codes → Meldung.
+///
+/// Der falsche oder abgelaufene Code ist der Normalfall (abgetippt), er
+/// braucht eine Meldung, die zum nächsten Schritt führt. `weak_password`
+/// kommt aus der Passwort-Prüfung von Supabase (Leaked Password Protection
+/// ist im Dashboard aktiv, siehe CLAUDE.md) — dort ist „zu kurz" falsch,
+/// das Passwort kann auch bekannt geleakt sein.
+String resetErrorMessage(AuthException error) {
+  if (error.code == 'otp_expired' || error.statusCode == '403') {
+    return 'Der Code ist falsch oder abgelaufen — bitte einen neuen '
+        'anfordern.';
+  }
+  if (error.code == 'weak_password') {
+    return 'Dieses Passwort ist zu unsicher — bitte ein anderes wählen.';
+  }
+  if (error.code == 'same_password') {
+    return 'Das ist das bisherige Passwort — bitte ein neues wählen.';
+  }
+  return 'Zurücksetzen fehlgeschlagen: ${error.message}';
+}
+
 /// Registrierungs-Fehler → Meldung. `user_already_exists` ist typisiert;
 /// der "Database error saving new user"-Fall ist ein 500 aus dem
 /// Profil-Trigger OHNE Fehlercode (unique-Verletzung am Benutzernamen) —
