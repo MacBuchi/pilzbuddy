@@ -45,8 +45,23 @@ jobs:
             | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
           sudo apt-get update -qq
           sudo apt-get install -y -qq postgresql-client-17 age
+          # Das Paket zu installieren genügt nicht: /usr/bin/pg_dump zeigt
+          # weiter auf den vorinstallierten 16er-Client des Runners. Die
+          # versionierten Binaries müssen vorn auf den PATH.
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+
+      # Eigener Schritt, weil $GITHUB_PATH erst ab dem nächsten Schritt wirkt.
+      # Passt die Hauptversion nicht zum Server, soll das hier auffallen und
+      # nicht erst mitten im Dump.
+      - name: Client-Versionen prüfen
+        run: |
+          set -euo pipefail
           pg_dump --version
           age --version
+          case "$(pg_dump --version)" in
+            *"PostgreSQL) 17."*) ;;
+            *) echo "::error::pg_dump ist nicht Version 17 — der Dump würde am Server-Versionsvergleich scheitern."; exit 1 ;;
+          esac
 
       - name: Dump ziehen, prüfen, verschlüsseln und ablegen
         env:
