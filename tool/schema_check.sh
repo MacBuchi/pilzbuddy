@@ -7,13 +7,17 @@
 # This is the guard for the bug class behind issue #27: app code that
 # expects schema the live DB does not have. Extend the checks below
 # whenever a repository in lib/data/ starts using new columns/embeds.
+#
+# Default target is the live project (URL/key from supabase_config.dart).
+# SUPABASE_URL/SUPABASE_KEY override it — the Schema Dry Run job in ci.yml
+# points them at the local stack built from schema.sql + patches.
 set -euo pipefail
 
 CONFIG=lib/core/supabase_config.dart
-URL=$(sed -n "s/.*'\(https:[^']*supabase[^']*\)'.*/\1/p" "$CONFIG")
-KEY=$(sed -n "s/.*'\(sb_publishable_[^']*\)'.*/\1/p" "$CONFIG")
+URL="${SUPABASE_URL:-$(sed -n "s/.*'\(https:[^']*supabase[^']*\)'.*/\1/p" "$CONFIG")}"
+KEY="${SUPABASE_KEY:-$(sed -n "s/.*'\(sb_publishable_[^']*\)'.*/\1/p" "$CONFIG")}"
 if [ -z "$URL" ] || [ -z "$KEY" ]; then
-  echo "::error::Konnte URL/Key nicht aus $CONFIG lesen."
+  echo "::error::Konnte URL/Key nicht aus $CONFIG lesen (oder SUPABASE_URL/SUPABASE_KEY setzen)."
   exit 1
 fi
 

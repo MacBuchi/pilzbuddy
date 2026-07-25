@@ -1,0 +1,54 @@
+# Lokaler Supabase-Stack — nur für den CI-Job „Schema Dry Run" (und
+# denselben Ablauf von Hand, siehe .github/workflows/ci.yml). Die Produktion
+# wird davon nicht berührt; sie wird weiter über tool/db_migrate.sh +
+# supabase/patch_NNN_*.sql migriert.
+#
+# Bewusst minimal: nur Datenbank, Auth und PostgREST. schema.sql braucht
+# Auth zwingend (references auth.users, auth.uid() in Policies, Trigger auf
+# auth.users) — alles andere kostet auf dem CI-Runner nur Startzeit.
+project_id = "PilzBuddy"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+extra_search_path = ["public"]
+# Wie das Live-Projekt (Bestandsprojekt, Legacy-Verhalten): Tabellen im
+# public-Schema sind ohne explizite Grants über die API erreichbar. Ohne
+# diese Zeile prüft der Dry Run strengere Regeln als die Produktion und
+# schlägt an Stellen fehl, die live funktionieren. Das Feld fällt am
+# 2026-10-30 weg — bis dahin gehören explizite Grants in schema.sql,
+# dann kann die Zeile raus.
+auto_expose_new_tables = true
+
+[db]
+port = 54322
+# Wie die Live-DB (Server 17.x) — sonst prüft der Dry Run ein anderes Postgres.
+major_version = 17
+
+[db.pooler]
+enabled = false
+
+[auth]
+enabled = true
+# Der Dry Run legt keine Nutzer an, aber GoTrue muss das auth-Schema
+# anlegen, damit schema.sql durchläuft.
+site_url = "http://127.0.0.1:3000"
+
+[local_smtp]
+enabled = false
+
+[studio]
+enabled = false
+
+[realtime]
+enabled = false
+
+[storage]
+enabled = false
+
+[edge_runtime]
+enabled = false
+
+[analytics]
+enabled = false

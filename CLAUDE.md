@@ -24,10 +24,12 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   für den Play Store — noch NICHT einreichbar, siehe Play-Store-Notiz unten)
   (https://macbuchi.github.io/pilzbuddy/). Kein Bump = kein Release.
 - Version Guard in CI: Code-Änderung ohne Versions-Bump blockiert den Merge
-  (Pflicht-Check schlägt fehl); nur `*.md`, `.github/`, `store/` und `tool/`
-  sind ausgenommen — nichts davon landet je in einem Binary (Store-Grafiken
-  stecken in keiner Asset-Liste, siehe `store/README.md`; die Skripte in
-  `tool/` laufen nur in CI).
+  (Pflicht-Check schlägt fehl); nur `*.md`, `.github/`, `store/`, `tool/`
+  und `supabase/` sind ausgenommen — nichts davon landet je in einem Binary
+  (Store-Grafiken stecken in keiner Asset-Liste, siehe `store/README.md`;
+  die Skripte in `tool/` laufen nur in CI; SQL und Stack-Config aus
+  `supabase/` laufen in der Datenbank — ein Patch, dessen Schema die App
+  nutzt, ändert `lib/` mit und bumpt darüber).
 - Gemergte Branches löscht GitHub automatisch (delete_branch_on_merge).
 
 ## Technik-Notizen
@@ -45,7 +47,21 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   prüft danach mit `tool/schema_check.sh`, ob alle App-Queries zum
   Live-Schema passen — ohne eingespielten Patch ist kein Merge möglich
   (Lehre aus Issue #27). Der Release-Workflow wiederholt beides als
-  Sicherheitsnetz vor dem Ausliefern. Braucht das Repo-Secret
+  Sicherheitsnetz vor dem Ausliefern.
+  Vorgeschaltet ist der Pflicht-Check „Schema Dry Run" (`needs:` am Schema
+  Check): ein lokaler Supabase-Stack auf dem Runner (`supabase/config.toml`,
+  bewusst minimal — nur db, auth, api) stellt die Frischinstallation nach:
+  `schema.sql` einspielen, dieselben Patches per `db_migrate.sh` obendrauf
+  (beweist die geforderte Idempotenz), dann `schema_check.sh` mit
+  `SUPABASE_URL`/`SUPABASE_KEY`-Override gegen den frischen Stack. Erst
+  wenn das grün ist, fasst der Schema Check die Live-DB an — ein kaputtes
+  `schema.sql` oder ein fehlerhafter Patch fällt damit VOR der Produktion
+  auf. Lokal derselbe Ablauf: `supabase start`, dann die drei Schritte
+  (psql via `brew install libpq`; lokalen anon-Key liefert
+  `supabase status -o json`). Achtung: `config.toml` setzt
+  `auto_expose_new_tables = true` (Legacy-Verhalten des Bestandsprojekts);
+  das Feld fällt am 2026-10-30 weg — bis dahin gehören explizite Grants in
+  `schema.sql`, dann kann die Zeile raus. Braucht das Repo-Secret
   `SUPABASE_DB_URL` (Supabase Session-Pooler-URI inkl. DB-Passwort; der
   Schema Check selbst läuft ohne Secret über den Publishable Key).
   Nutzt ein Repository in `lib/data/` neue Spalten/Embeds/RPCs, die
