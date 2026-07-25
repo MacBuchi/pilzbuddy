@@ -51,14 +51,19 @@ workdir=$(mktemp -d)
 trap 'rm -rf "$workdir"' EXIT
 dump="$workdir/pilzbuddy-$stamp.sql"
 
-echo "→ Dump wird gezogen (Schemata public + auth) …"
+echo "→ Dump wird gezogen (Schemata public + app_internal + auth) …"
 # auth muss mit: ohne auth.users kann sich nach einer Wiederherstellung
 # niemand mehr anmelden, und public.profiles hängt per Fremdschlüssel daran.
+# app_internal muss mit: dort liegen seit Patch 011 die Policy-Helfer —
+# ohne sie schlägt schon CREATE POLICY beim Einspielen fehl. Gefunden vom
+# allerersten automatisierten Restore-Drill am 2026-07-25: das Backup ließ
+# sich entschlüsseln, aber nicht wiederherstellen.
 # Ownership/Grants bleiben drin — die Rollen (anon, authenticated,
 # service_role) heißen in jedem Supabase-Projekt gleich, und ohne die
 # Grants wäre die wiederhergestellte DB ohne RLS-Rechte.
 $PG_DUMP "$DB_URL" \
   --schema=public \
+  --schema=app_internal \
   --schema=auth \
   --no-comments \
   --quote-all-identifiers \
@@ -75,8 +80,12 @@ for table in public.profiles public.spots public.finds \
   name=${table#*.}
   grep -q "CREATE TABLE \"$schema\".\"$name\"" "$dump" || missing="$missing $table"
 done
+# Nicht nur Tabellen: die Policy-Helfer aus app_internal sind Bedingung
+# dafür, dass der Dump überhaupt einspielbar ist (siehe oben).
+grep -q 'CREATE FUNCTION "app_internal"."are_friends"' "$dump" \
+  || missing="$missing app_internal.are_friends()"
 if [ -n "$missing" ]; then
-  echo "::error::Dump unvollständig — diese Tabellen fehlen:$missing. Nichts hochgeladen."
+  echo "::error::Dump unvollständig — das fehlt:$missing. Nichts hochgeladen."
   exit 1
 fi
 

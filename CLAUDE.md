@@ -147,8 +147,8 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   Braucht das Repo-Secret `SUPABASE_SERVICE_ROLE_KEY`. Selbsttests:
   `python3 tool/feedback_bot.py --test-insert "Name"` und `--test-digest`.
 - Backup (`.github/workflows/backup.yml` + `tool/db_backup.sh`, montags plus
-  `workflow_dispatch` vor größeren Migrationen): `pg_dump` von `public` und
-  `auth`, mit age verschlüsselt, als Release-Asset im **privaten** Repo
+  `workflow_dispatch` vor größeren Migrationen): `pg_dump` von `public`,
+  `app_internal` und `auth`, mit age verschlüsselt, als Release-Asset im **privaten** Repo
   `pilzbuddy-backups` (dieses Repo ist öffentlich, seine Artefakte wären es
   auch). Verschlüsselt wird asymmetrisch — der öffentliche Schlüssel steht
   im Skript, der private liegt **nur** in
