@@ -32,4 +32,12 @@ abstract final class AppColors {
 
   /// Heller Feedback-Banner-Hintergrund.
   static const sunshine = Color(0xFFFFF8E1);
+
+  /// Fläche unter der Karte, solange dort noch keine Kachel liegt.
+  ///
+  /// Derselbe Landton wie die `earth`-Ebene des Offline-Styles
+  /// (`assets/map_style/protomaps_light_de.json`) — eine wartende Fläche
+  /// soll nach Karte aussehen, nicht nach Fehler. Ändert sich der Style,
+  /// gehört dieser Wert nachgezogen.
+  static const mapBackground = Color(0xFFE2DFDA);
 }

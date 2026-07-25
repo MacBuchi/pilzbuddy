@@ -163,6 +163,23 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   (npm `@protomaps/basemaps`, Flavor LIGHT, lang de) — nicht von Hand
   editieren, sondern neu generieren. Offline-Layer ist strikt optional:
   Fehler beim Laden ⇒ stiller Fallback auf Online-OSM.
+  Die Karte hat drei Schichten (Issues #118/#119): **unterste** die
+  mitgelieferte DACH-Übersicht (`baseMapStyleProvider`, z0–7, ~9 MB im
+  APK) — immer aktiv, unabhängig von Schalter und installierten Regionen,
+  damit unter dem Finger nie eine leere Fläche liegt; **darüber** je nach
+  Modus die Regionskarten oder OSM-Raster; **darüber** die Marker.
+  Zwei Dinge machen das erst möglich und dürfen nicht zurückgedreht
+  werden: Die Übersicht ist eine **eigene** Quelle (in der gemeinsamen
+  Quelle mit den Regionen galt deren `maximumZoom`, und sie wurde nach
+  Kacheln gefragt, die es in ihr nie gab — genau daher kam das Grau), und
+  der Detail-Layer rendert mit einem Theme **ohne** `background`-Ebene
+  (`styleWithoutBackground`), weil die sonst mit deckendem `#cccccc`
+  genau dort die Basis zudeckt, wo sie gebraucht wird. Über seine
+  Datentiefe hinaus skaliert der Renderer selbst hoch
+  (`SlippyMapTranslator`) — deshalb reicht z7 für jede Zoomstufe.
+  Folge fürs Risiko: Der Beta-Vektor-Renderer läuft jetzt bei allen, nicht
+  nur bei Offline-Nutzern. Abgesichert bleibt es durch dieselbe Regel —
+  lädt die Übersicht nicht, fällt der Layer weg (dann Hintergrundton).
   Der Download läuft im Main-Isolate und braucht deshalb einen
   Foreground-Service (`flutter_foreground_task`, Typ `dataSync`) —
   ohne den friert Android den Prozess beim App-Wechsel ein und der

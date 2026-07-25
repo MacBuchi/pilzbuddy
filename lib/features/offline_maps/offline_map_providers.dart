@@ -249,6 +249,61 @@ final _offlineThemeProvider = FutureProvider<vtr.Theme>((ref) async {
   return vtr.ThemeReader().read(jsonDecode(styleText) as Map<String, dynamic>);
 });
 
+/// Dasselbe Thema ohne die `background`-Ebene — für jeden Layer, unter dem
+/// noch etwas liegt.
+///
+/// Die Ebene malt `#cccccc` deckend über die volle Kachelfläche, auch für
+/// Kacheln ganz ohne Daten (der Renderer zeichnet ein leeres Tileset gegen
+/// dasselbe Thema). Im Detail-Layer würde sie damit exakt dort die
+/// Basiskarte zudecken, wo diese gebraucht wird — an den Rändern der
+/// Regionskarten. Das Style-Asset selbst bleibt unangetastet: Es ist
+/// generiert (siehe CLAUDE.md), gefiltert wird beim Laden.
+final _offlineThemeWithoutBackgroundProvider =
+    FutureProvider<vtr.Theme>((ref) async {
+  final styleText =
+      await rootBundle.loadString('assets/map_style/protomaps_light_de.json');
+  final style = jsonDecode(styleText) as Map<String, dynamic>;
+  return vtr.ThemeReader().read(styleWithoutBackground(style));
+});
+
+/// Entfernt die `background`-Ebene aus einem Style-JSON (Kopie, das
+/// Original bleibt unberührt). Eigene Funktion, damit prüfbar ist, dass
+/// wirklich nur diese eine Ebene verschwindet — siehe map_style_test.dart.
+Map<String, dynamic> styleWithoutBackground(Map<String, dynamic> style) => {
+      ...style,
+      'layers': (style['layers'] as List)
+          .where((layer) => (layer as Map)['type'] != 'background')
+          .toList(),
+    };
+
+/// Die mitgelieferte Übersichtskarte als eigene, IMMER verfügbare Quelle.
+///
+/// Sie hängt weder am Offline-Schalter noch an installierten Regionen:
+/// Sie ist die unterste Schicht der Karte und sorgt dafür, dass unter dem
+/// Finger nie eine leere Fläche liegt (Issues #118/#119). Weil sie ein
+/// eigener Layer mit eigenem Provider ist, meldet dieser `maximumZoom = 7`
+/// — und genau daran erkennt der Renderer, dass er für höhere Zoomstufen
+/// die z7-Kachel holen und hochskalieren soll (`SlippyMapTranslator` in
+/// `vector_tile_loading_cache.dart`). In der gemeinsamen Quelle mit den
+/// Regionen ging das nicht: Dort galt deren `maximumZoom`, und die
+/// Übersicht wurde nach Kacheln gefragt, die es in ihr nie gab.
+final baseMapStyleProvider = FutureProvider<OfflineMapStyle?>((ref) async {
+  try {
+    final overview = await _openBundledOverview();
+    if (overview == null) return null;
+    ref.onDispose(overview.close);
+    final theme = await ref.watch(_offlineThemeProvider.future);
+    return OfflineMapStyle(
+      theme: theme,
+      tileProviders: TileProviders({'protomaps': overview}),
+    );
+  } catch (_) {
+    // Wie überall im Offline-Pfad: still degradieren. Ohne Basiskarte
+    // sieht man den Hintergrundton, aber nie einen Fehler.
+    return null;
+  }
+});
+
 /// Die Offline-Kachelquellen. Hängt NUR an den installierten Karten —
 /// Verbindungswechsel oder das Umschalten online/offline öffnen die
 /// Archive nicht neu. Beim Neuaufbau (Karte installiert/gelöscht) werden
@@ -265,14 +320,14 @@ final _offlineTileSourceProvider =
     }
   });
   try {
-    // Regionskarten zuerst (liefern das Detail), die eingebaute
-    // DACH-Übersicht als letzte Quelle — sie füllt alle Bereiche, für
-    // die keine Region installiert ist, statt sie grau zu lassen.
+    // Nur die Regionskarten: Die DACH-Übersicht liegt seit #118 als
+    // eigener Layer darunter (baseMapStyleProvider). Hier mit drin wäre
+    // sie wirkungslos — die Quelle meldet dann das Maximum aller Archive
+    // als maximumZoom, und die Übersicht würde nach z12-Kacheln gefragt,
+    // die es in ihr nicht gibt.
     for (final map in installed) {
       providers.add(await PmTilesVectorTileProvider.open(map.filePath));
     }
-    final overview = await _openBundledOverview();
-    if (overview != null) providers.add(overview);
     return MultiPmTilesVectorTileProvider(providers);
   } catch (_) {
     return null;
@@ -291,7 +346,9 @@ final offlineMapStyleProvider = FutureProvider<OfflineMapStyle?>((ref) async {
   try {
     final tiles = await ref.watch(_offlineTileSourceProvider.future);
     if (tiles == null) return null;
-    final theme = await ref.watch(_offlineThemeProvider.future);
+    // Ohne Hintergrund-Ebene: Unter dem Detail-Layer liegt die Basiskarte.
+    final theme =
+        await ref.watch(_offlineThemeWithoutBackgroundProvider.future);
     return OfflineMapStyle(
       theme: theme,
       // Quellname "protomaps" entspricht `sources.protomaps` im Style-JSON.
