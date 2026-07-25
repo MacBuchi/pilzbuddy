@@ -101,6 +101,13 @@ void main() {
     await settle(tester);
     expect(find.text('Dein Spot'), findsOneWidget);
     expect(find.text('Maronenröhrling, 3 Stück'), findsOneWidget);
+    // Die Fund-Zeile trägt das Art-Icon statt eines generischen 🍄 (#103).
+    expect(find.text('🍄'), findsNothing);
+    expect(
+        find.descendant(
+            of: find.widgetWithText(ListTile, 'Maronenröhrling, 3 Stück'),
+            matching: find.byType(MushroomIcon)),
+        findsOneWidget);
 
     await tester.tap(find.text('Fund eintragen'));
     await settle(tester);
@@ -115,6 +122,11 @@ void main() {
     expect(backend.spots.single.finds.last.species, 'Maronenröhrling');
     // Das Detail-Sheet zeigt jetzt beide Funde.
     expect(find.text('Maronenröhrling, 3 Stück'), findsNWidgets(2));
+    expect(
+        find.descendant(
+            of: find.widgetWithText(ListTile, 'Maronenröhrling, 3 Stück'),
+            matching: find.byType(MushroomIcon)),
+        findsNWidgets(2));
   });
 
   testWidgets('Freigabe-Ausschluss lässt sich am Spot umschalten',
@@ -186,6 +198,14 @@ void main() {
     await tester.scrollUntilVisible(find.text('Top-Arten'), 200,
         scrollable: find.byType(Scrollable).first);
     expect(find.text('Top-Arten'), findsOneWidget);
+    // Jede Art-Zeile zeigt ihr eigenes Icon — vorher fünf gleiche 🍄 (#103).
+    expect(
+        find.descendant(
+          of: find.ancestor(
+              of: find.text('Top-Arten'), matching: find.byType(Card)),
+          matching: find.byType(MushroomIcon),
+        ),
+        findsNWidgets(2)); // Steinpilz, Pfifferling
 
     // Ganz unten: die „Über"-Sektion mit Version und Links.
     await tester.scrollUntilVisible(find.text('Über PilzBuddy'), 200,

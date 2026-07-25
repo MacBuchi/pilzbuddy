@@ -166,7 +166,8 @@ class _SpotDetailSheet extends ConsumerWidget {
                   for (final find in spot.findsSorted)
                     ListTile(
                       dense: true,
-                      leading: const Text('🍄', style: TextStyle(fontSize: 20)),
+                      leading: MushroomIcon.forSpecies(find.species,
+                          fallbackSeed: find.id),
                       title: Text(find.label),
                       subtitle: Text([
                         dateFormat.format(find.foundOn),

@@ -464,7 +464,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
               },
               tooltip:
                   offlineActive ? 'Zur Online-Karte' : 'Zur Offline-Karte',
-              child: Icon(offlineActive ? Icons.cloud_queue : Icons.cloud_off),
+              // Icon zeigt den Zustand (durchgestrichener Erdball = offline),
+              // der Tooltip die Aktion.
+              child: Icon(offlineActive ? Icons.public_off : Icons.public),
             ),
             const SizedBox(height: 12),
           ],
