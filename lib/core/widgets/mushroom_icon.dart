@@ -32,6 +32,23 @@ class MushroomIcon extends StatelessWidget {
     this.ground = true,
   });
 
+  /// Art-Icon für Listenzeilen. Kein Boden — die Ellipse ist Kartensprache
+  /// für Besitz (grün/blau) und in einer Liste bedeutungslos. Der Seed kommt
+  /// aus dem Artnamen, damit dieselbe Art in jeder Liste gleich aussieht;
+  /// aus der Fund-id gezogen bekämen zwei Steinpilz-Zeilen verschiedene
+  /// Brauntöne aus der Röhrlings-Palette. [fallbackSeed] (z. B. die Fund-id)
+  /// hält Einträge ohne Art auseinander.
+  MushroomIcon.forSpecies(
+    String? name, {
+    super.key,
+    this.size = 28,
+    String? fallbackSeed,
+  })  : seed = stableSeed(name ?? fallbackSeed ?? ''),
+        friend = false,
+        group = groupFor(name),
+        species = name,
+        ground = false;
+
   final int seed;
   final double size;
   final bool friend;
@@ -313,11 +330,15 @@ class _MushroomPainter extends CustomPainter {
       );
     }
 
-    // Halo → Füllung → Details → Kontur
+    // Halo → Füllung → Details → Kontur. Die Stiel-Kontur muss VOR die
+    // Hut-Füllung: der Stiel reicht bei jeder Form unter den Hut, und eine
+    // danach gezogene Kontur läge sichtbar auf dem Hut (#115). Die
+    // Hut-Farben sind alle deckend, decken den verborgenen Teil also ab.
     canvas.drawPath(stemPath, halo);
     canvas.drawPath(cap, halo);
     canvas.drawPath(stemPath,
         Paint()..color = style.stemColor ?? AppColors.cream);
+    canvas.drawPath(stemPath, outline);
     canvas.drawPath(cap, Paint()..color = capColor);
 
     if (style.rings) {
@@ -362,7 +383,6 @@ class _MushroomPainter extends CustomPainter {
       canvas.restore();
     }
 
-    canvas.drawPath(stemPath, outline);
     canvas.drawPath(cap, outline);
 
     // Gesicht — immer freundlich

@@ -14,6 +14,7 @@ import '../../core/app_info.dart';
 import '../../core/errors.dart';
 import '../../core/update_check.dart';
 import '../../core/widgets/mushroom_avatar.dart';
+import '../../core/widgets/mushroom_icon.dart';
 import '../../data/providers.dart';
 import '../../models/find.dart';
 import '../import_export/gpx_export.dart';
@@ -657,7 +658,8 @@ class _TopSpecies extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Row(
                   children: [
-                    const Text('🍄 '),
+                    MushroomIcon.forSpecies(entry.key, size: 24),
+                    const SizedBox(width: 6),
                     Expanded(child: Text(entry.key)),
                     Text('${entry.value}×',
                         style: Theme.of(context).textTheme.titleSmall),

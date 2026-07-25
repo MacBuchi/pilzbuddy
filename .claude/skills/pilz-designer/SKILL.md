@@ -85,6 +85,19 @@ Wire-up: map markers and the spot detail sheet pass
 `species: spot.lastFind?.species`. When adding a species look, extend the
 preview rows in `test/icon_preview_test.dart` and re-render the sheet.
 
+**List rows** use `MushroomIcon.forSpecies(name)` (24–28 px): no ground
+ellipse, and the seed comes from the species name so the same species looks
+identical in every list. Never put a bare `🍄` in a species row — most systems
+render it as a red fly agaric, which makes every mushroom look poisonous.
+
+## Paint order (do not reshuffle)
+
+`_MushroomPainter.paint` draws: ground → halo (stem, cap) → stem fill →
+**stem outline** → cap fill → cap details (clipped to the cap) → cap outline →
+face. The stem outline has to come *before* the cap fill: the stem runs under
+the cap in every shape, and an outline stroked afterwards sits visibly on top
+of the cap (#115).
+
 ## Avatars (portraits)
 
 - `lib/core/widgets/mushroom_avatar.dart` — `MushroomAvatar` renders a buddy

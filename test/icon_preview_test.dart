@@ -114,6 +114,16 @@ void main() {
                             group: groupFor(name),
                             species: name),
                       ),
+                      // Listen-Größen (Fund-Zeile 28, Top-Arten 24) — ohne
+                      // Boden, weil die Ellipse Karten-Sprache ist.
+                      Padding(
+                        padding: const EdgeInsets.only(left: 6),
+                        child: MushroomIcon.forSpecies(name),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 4),
+                        child: MushroomIcon.forSpecies(name, size: 24),
+                      ),
                     ],
                   ),
                 ),

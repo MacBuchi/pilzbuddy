@@ -1,6 +1,6 @@
 // Szenarien für die Offline-Karten: Verwaltung (Download/Löschen) und
 // der Umschalter auf der Karte.
-import 'package:flutter/material.dart' show BackButton;
+import 'package:flutter/material.dart' show BackButton, Icons;
 import 'package:flutter_test/flutter_test.dart';
 
 import '../fakes/fake_backend.dart';
@@ -73,11 +73,18 @@ void main() {
     await tester.tap(find.text('Karte'));
     await settle(tester);
 
-    // Jetzt ist der Umschalter da.
+    // Jetzt ist der Umschalter da — und zeigt den Zustand: Erdball = online,
+    // durchgestrichener Erdball = offline (#104, #114 — war invertiert).
     expect(find.byTooltip('Zur Offline-Karte'), findsOneWidget);
+    expect(find.byIcon(Icons.public), findsOneWidget);
+    expect(find.byIcon(Icons.public_off), findsNothing);
     await tester.tap(find.byTooltip('Zur Offline-Karte'));
     await settle(tester);
     expect(find.text('Offline-Karte aktiv 🗺️'), findsOneWidget);
+    // Das Icon hängt am geladenen Offline-Style, nicht am Schalter: im Test
+    // gibt es keine echten PMTiles, die Karte bleibt also online — und das
+    // Icon muss das zeigen, statt Offline zu behaupten (stiller Fallback).
+    expect(find.byIcon(Icons.public), findsOneWidget);
     await drainSnackbars(tester);
   });
 
