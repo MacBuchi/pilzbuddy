@@ -101,6 +101,32 @@ Ein nie zurückgespieltes Backup ist kein Backup.
 - Die vier Zähl-Queries oben ausführen und mit der Produktion vergleichen
 - Projekt wieder löschen
 
-**Letzte durchgeführte Übung: _noch keine_.**
-Datum und Ergebnis hier eintragen, sobald sie gelaufen ist. Solange diese
-Zeile leer ist, gilt das Backup als ungeprüft.
+### Stand 2026-07-25: Inhalt geprüft, Einspielen noch nicht
+
+Das erste Backup (`backup-2026-07-25`) wurde heruntergeladen und mit
+`~/pilzbuddy-keys/pilzbuddy-backup.agekey` entschlüsselt. Der Klartext enthielt:
+
+| Prüfung | Ergebnis |
+|---|---|
+| Chiffrat-Kopfzeile | `age-encryption.org/v1` |
+| Entschlüsselung mit dem privaten Schlüssel | erfolgreich, 160 926 Bytes |
+| Schema `public` | alle Tabellen inkl. `app_config`, `applied_patches`, `error_reports`, `feedback`, `live_locations` |
+| Schema `auth` | 23 Tabellen inkl. `users`, `identities`, `refresh_tokens`, `sessions` |
+| Nutzdaten | 6 profiles, 6 auth.users, 32 spots, 32 finds, 1 friendship, 1 app_config |
+| RLS | 16 Policies, RLS auf 25 Tabellen aktiviert |
+
+Die Zahlen sind in sich stimmig (6 profiles ↔ 6 auth.users, weil das Profil
+per Trigger aus `auth.users` entsteht) und decken sich mit dem, was der Job
+aus der Live-Datenbank gemeldet hat (32 Spots).
+
+**Damit ist bewiesen: Das Backup ist entschlüsselbar und inhaltlich
+vollständig.** Der entschlüsselte Dump wurde nach der Prüfung sofort
+gelöscht — er enthält E-Mail-Adressen, Passwort-Hashes und Koordinaten.
+
+**Offen bleibt der eigentliche Restore:** Der Dump wurde noch in kein
+Zielprojekt eingespielt. Erst das beweist, dass das SQL auch durchläuft
+(Reihenfolge, Rollen, Extensions). Dafür braucht es ein Wegwerf-Projekt im
+Supabase-Dashboard.
+
+**Letzter vollständiger Restore: _noch keiner_.**
+Datum und Ergebnis hier eintragen, sobald er gelaufen ist.
