@@ -136,8 +136,13 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   Reset-Vorlage, NICHT aus „Magic link or OTP" — `/recover` verschickt,
   `verifyOTP` prüft nur. Wer „Confirm sign up" anschaltet, muss den
   Registrierungs-Screen mitziehen: `signUp` liefert dann keine Sitzung
-  mehr, und genau darauf verlässt er sich (derselbe Drift brach bei
-  Mitfahrbar am 2026-07-23 die Registrierung).
+  mehr, und genau darauf verlässt sich `signup_screen.dart` (ohne Anpassung
+  bleibt die Registrierung stumm stehen). Anschalten ist dennoch fällig
+  vor dem Play-Rollout (Issue #129): Freundessuche läuft über die exakte
+  E-Mail-Adresse, und der Reset-Code geht an ein Postfach — beides
+  verlässt sich darauf, dass die Adresse dem Konto wirklich gehört.
+  Mitfahrbar hat die Bestätigungspflicht seit 2026-07-23 an; hier ist
+  PilzBuddy der Nachzügler, nicht umgekehrt.
 - Offline-Karten (`lib/features/offline_maps/`, nur Android): Bundesland-
   PMTiles (Protomaps Basemap v4, ODbL) aus den GitHub-Releases von
   `whitespring/project-nomad-maps-europe`; Katalog entsteht dynamisch aus
