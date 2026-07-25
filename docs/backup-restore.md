@@ -96,6 +96,13 @@ Reihenfolge, wenn die echte Datenbank beschädigt ist:
 
 Ein nie zurückgespieltes Backup ist kein Backup.
 
+Seit 2026-07-25 läuft die Übung automatisiert und wöchentlich auf eigener
+Hardware des Betreibers: Das jeweils neueste Backup wird entschlüsselt, in
+eine lokale PostgreSQL 17 eingespielt (`ON_ERROR_STOP`) und gegen die
+Zählwerte aus dem Release-Text geprüft; Ablauf, Skripte und Protokoll
+liegen bewusst im privaten Repo `pilzbuddy-backups`. Die manuelle Übung
+unten bleibt der Weg für den Restore in ein echtes Supabase-Projekt.
+
 - Wegwerf-Supabase-Projekt anlegen (Free Plan, beliebige Region)
 - Neuestes Backup wie oben entschlüsseln und einspielen
 - Die vier Zähl-Queries oben ausführen und mit der Produktion vergleichen
