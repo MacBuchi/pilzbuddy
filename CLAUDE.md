@@ -103,10 +103,55 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   Protection (HaveIBeenPwned-Abgleich bei Registrierung) und „Secure password
   change" — Passwort-Änderungen über die Auth-API verlangen das aktuelle
   Passwort bzw. eine frische Re-Authentifizierung, ein gestohlenes
-  Session-Token allein reicht nicht für eine Kontoübernahme. Die App hat
-  bewusst weder Passwort-Ändern- noch Passwort-Vergessen-Flow; wer einen
-  baut, muss die Re-Authentifizierung mitdenken (`reauthenticate()` +
-  `updateUser`) und gegen die Live-Einstellung testen.
+  Session-Token allein reicht nicht für eine Kontoübernahme. Eine frisch per
+  Reset-Code angelegte Sitzung gilt als frische Authentifizierung, deshalb
+  funktioniert der Reset-Flow damit. Einen „Passwort ändern"-Dialog für
+  Angemeldete gibt es weiter NICHT (Issue #127) — wer ihn baut, muss das
+  aktuelle Passwort abfragen (erneutes `signIn`) und gegen die
+  Live-Einstellung testen, `updateUser` allein scheitert dort.
+- Passwort-Reset (`lib/features/auth/login_screen.dart`, drei Modi;
+  `AuthRepository.sendPasswordResetCode` / `resetPasswordWithCode`): läuft
+  über den **Zahlencode** aus der Mail (`verifyOTP` mit
+  `OtpType.recovery`), nicht über deren Link. Grund: Im PKCE-Standardflow
+  legt das SDK beim Anfordern einen „code verifier" im Speicher des
+  anfragenden Geräts ab und verlangt ihn beim Einlösen wieder — wer in der
+  App anfordert und die Mail im Browser öffnet, scheitert an
+  „Code verifier could not be found in local storage.". Daraus folgen zwei
+  Pflichten im Dashboard: eigenes SMTP (Brevo Free, der Standardversand
+  liefert nur an Projekt-Mitglieder) und eine Reset-Mail-Vorlage, die
+  `{{ .Token }}` zeigt und **keinen** Link enthält — bleibt der Link drin,
+  existiert der kaputte Weg weiter. Der Router lässt eine
+  `passwordRecovery`-Sitzung bewusst nicht in die App (`lib/core/router.dart`
+  filtert das Ereignis), sonst läge die Karte mitten im Reset offen, bevor
+  das neue Passwort gesetzt ist.
+  Mitfahrbar löst denselben Fall über den Mail-Link und hat damit genau die
+  Lücke, die PilzBuddy hier umgeht (dort `MacBuchi/MitFahrBar` Issue #102) —
+  beim nächsten Anfassen dort gleich mitziehen.
+  Von den sechs Mail-Vorlagen im Dashboard ist **nur „Reset password"**
+  angepasst (deutsch, mit Code) — es ist die einzige, die die App auslöst.
+  „Confirm sign up" (Bestätigung ist aus), „Magic link or OTP", „Invite
+  user", „Change email address" und „Reauthentication" schlafen und stehen
+  bewusst auf englischem Standardtext: Eine fertig aussehende Vorlage würde
+  vortäuschen, das Feature existiere. Der Zahlencode kommt aus der
+  Reset-Vorlage, NICHT aus „Magic link or OTP" — `/recover` verschickt,
+  `verifyOTP` prüft nur. Wer „Confirm sign up" anschaltet, muss den
+  Registrierungs-Screen mitziehen: `signUp` liefert dann keine Sitzung
+  mehr, und genau darauf verlässt sich `signup_screen.dart` (ohne Anpassung
+  bleibt die Registrierung stumm stehen). Anschalten ist dennoch fällig
+  vor dem Play-Rollout (Issue #129): Freundessuche läuft über die exakte
+  E-Mail-Adresse, und der Reset-Code geht an ein Postfach — beides
+  verlässt sich darauf, dass die Adresse dem Konto wirklich gehört.
+  Mitfahrbar hat die Bestätigungspflicht seit 2026-07-23 an; hier ist
+  PilzBuddy der Nachzügler, nicht umgekehrt.
+  Geprüft wird der Flow von `tool/auth_reset_check.sh` im Job „Schema Dry
+  Run" — gegen echtes GoTrue im lokalen Stack, inklusive Mailabholung aus
+  Mailpit. `supabase/config.toml` spiegelt dafür die Dashboard-Härtung
+  (`[auth.email] secure_password_change = true`), damit lokal nicht laxer
+  geprüft wird als live; die Mail-Vorlage liegt als versionierte Kopie in
+  `supabase/templates/recovery.html`. **Blinder Fleck:** Die im Dashboard
+  hinterlegte Vorlage sieht CI nie. Wer sie dort auf den Link zurückstellt,
+  bricht „Passwort vergessen" in Produktion, während CI grün bleibt —
+  Vorlage also immer an beiden Stellen ändern.
 - Offline-Karten (`lib/features/offline_maps/`, nur Android): Bundesland-
   PMTiles (Protomaps Basemap v4, ODbL) aus den GitHub-Releases von
   `whitespring/project-nomad-maps-europe`; Katalog entsteht dynamisch aus

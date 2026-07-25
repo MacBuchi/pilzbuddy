@@ -38,6 +38,9 @@ void main() {
     expect(html, contains('Konto löschen'));
     expect(html, contains('Fehlerberichte'));
     expect(html, contains('Supabase'));
+    expect(html, contains('Brevo'),
+        reason: 'Der Mailversand beim Passwort-Reset gibt die Adresse an '
+            'einen weiteren Auftragsverarbeiter — das muss dort stehen');
   });
 
   test('Keine unersetzten Platzhalter mehr', () {

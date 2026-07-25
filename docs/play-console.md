@@ -8,7 +8,7 @@ und den tatsächlich aufgerufenen Endpunkten abgeleitet — nicht aus einer Vorl
 > Formular und Binary auseinanderlaufen. Ändert sich die App, muss diese Datei
 > mitwandern — dann sieht man beim Review des PRs, dass die Konsole nachzuziehen ist.
 
-Stand: 21. Juli 2026, App-Version 1.26.0+51.
+Stand: 25. Juli 2026, App-Version 1.28.0+57.
 
 ---
 
@@ -19,7 +19,7 @@ Stand: 21. Juli 2026, App-Version 1.26.0+51.
 | Frage | Antwort | Begründung |
 |---|---|---|
 | Erhebt oder teilt deine App die geforderten Nutzerdatentypen? | **Ja** | Konto, Spots, Fehlerberichte |
-| Werden alle Daten bei der Übertragung verschlüsselt? | **Ja** | Alle Endpunkte sind HTTPS: Supabase, `tile.openstreetmap.org`, `github.com`, `api.github.com`, `macbuchi.github.io`. Kein einziges `http://` im Code |
+| Werden alle Daten bei der Übertragung verschlüsselt? | **Ja** | Alle Endpunkte sind HTTPS: Supabase, `tile.openstreetmap.org`, `github.com`, `api.github.com`, `macbuchi.github.io`. Kein einziges `http://` im Code. Die Reset-Mail verschickt Supabase serverseitig über Brevo — die App selbst spricht nie mit dem Mail-Anbieter, die Liste bleibt also vollständig |
 | Können Nutzer die Löschung ihrer Daten beantragen? | **Ja** | In-App unter *Profil → Konto löschen* (`delete_own_account()`, sofort, ohne Karenzzeit) **und** ohne installierte App über die URL unten |
 | URL zum Löschen des Kontos | `https://macbuchi.github.io/pilzbuddy/konto-loeschen.html` | |
 | Unabhängige Sicherheitsüberprüfung? | **Nein** | |
@@ -34,7 +34,7 @@ verarbeitet*, *erforderlich oder optional* — plus die Zwecke.
 |---|---|---|---|---|---|
 | **Standort → Genauer Standort** | Ja | Nein¹ | Optional | App-Funktionalität | `spots.lat/lng`, `live_locations` |
 | **Standort → Ungefährer Standort** | Ja | Nein¹ | Optional | App-Funktionalität | `ACCESS_COARSE_LOCATION` ist deklariert; ein grober Fix wird genauso gespeichert |
-| **Persönliche Infos → E-Mail-Adresse** | Ja | Nein | Erforderlich | App-Funktionalität, Kontoverwaltung | Supabase Auth; zusätzlich Freundessuche über die exakte Adresse |
+| **Persönliche Infos → E-Mail-Adresse** | Ja | Nein³ | Erforderlich | App-Funktionalität, Kontoverwaltung | Supabase Auth; zusätzlich Freundessuche über die exakte Adresse; beim Passwort-Reset Versand über Brevo |
 | **Persönliche Infos → Name** | Ja | Nein¹ | Erforderlich | App-Funktionalität, Kontoverwaltung | `profiles.username` (nicht null) und `display_name`; der Benutzername ist für alle Nutzer suchbar |
 | **Persönliche Infos → Nutzer-IDs** | Ja | Nein | Erforderlich | App-Funktionalität, Kontoverwaltung | `profiles.id` (UUID aus `auth.users`) |
 | **App-Aktivität → Andere nutzergenerierte Inhalte** | Ja | **Ja²** | Optional | App-Funktionalität, Entwicklerkommunikation | Spot-Name, Art, Notiz (`spots`, `finds`) und Feedback-Text (`feedback`) |
@@ -50,7 +50,7 @@ lokal auf dem Gerät; es werden dabei keine Dateien hochgeladen.
 **Kurzzeitige Verarbeitung („processed ephemerally"):** bei allen Typen **nein**
 — alles wird in PostgreSQL gespeichert.
 
-### Die zwei Ermessensfragen — hier lohnt der zweite Blick
+### Die drei Ermessensfragen — hier lohnt der zweite Blick
 
 **¹ Zählt „Freunde sehen meine Spots" als *geteilt*?**
 Empfehlung: **nein**. Google meint mit *geteilt* die Weitergabe an einen Dritten;
@@ -68,6 +68,19 @@ unwiderruflich. Das ist eine Weitergabe an einen Dritten (GitHub), auch wenn der
 Nutzer sie auslöst. Der Absende-Dialog, die Datenschutzerklärung und die
 Löschseite sagen es; das Formular sollte es auch sagen. Untertreiben ist hier
 das teurere Risiko.
+
+**³ Der Mailversand über Brevo — *geteilt*?**
+Empfehlung: **nein**. Brevo ist Auftragsverarbeiter für einen einzigen Zweck:
+die Reset-Mail zustellen, die der Nutzer selbst angefordert hat. Google nimmt
+Dienstanbieter, die Daten nur im Auftrag und für diesen Zweck verarbeiten,
+ausdrücklich von *geteilt* aus — anders als Fußnote 2, wo der Inhalt öffentlich
+und dauerhaft sichtbar wird. Übermittelt wird nur die E-Mail-Adresse, nie Spots
+oder Standorte, und nur auf Auslösung durch den Nutzer. In der
+Datenschutzerklärung ist Brevo als Auftragsverarbeiter benannt — das ist die
+Bedingung dafür, diese Antwort zu geben.
+
+Weiterhin **nicht** erhoben: E-Mail-*Inhalte*. Die App liest keine Mails; sie
+schickt nur den Anlass und liest den Code, den der Nutzer abtippt.
 
 ### Prominent Disclosure für den Standort
 

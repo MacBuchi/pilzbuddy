@@ -35,8 +35,31 @@ enabled = true
 # anlegen, damit schema.sql durchläuft.
 site_url = "http://127.0.0.1:3000"
 
+# Mailpit fängt die Auth-Mails lokal ab (Web-UI und REST-API unter diesem
+# Port) — damit ist „Passwort vergessen" komplett ohne Brevo prüfbar:
+# Mail abholen, Code auslesen, einlösen. Der Dry Run selbst braucht das
+# nicht, kostet aber nur wenige Sekunden Startzeit.
 [local_smtp]
-enabled = false
+enabled = true
+port = 54324
+
+# Spiegelt die Härtung im Dashboard, damit lokal nicht laxer geprüft wird
+# als in Produktion — genau solcher Drift bleibt sonst unbemerkt.
+[auth.email]
+# Wie live: Passwort-Änderungen verlangen eine frische Anmeldung. Der
+# Reset-Flow lebt davon, dass die eben per Code eingelöste Sitzung als
+# frisch gilt — mit dieser Zeile beweist der lokale Lauf das mit.
+secure_password_change = true
+# Wie live: noch aus. Anschalten ist fällig, braucht aber Code am
+# Registrieren-Screen (Issue #129) — dann hier UND im Dashboard.
+enable_confirmations = false
+
+# Dieselbe Vorlage wie im Dashboard (versionierte Kopie, siehe die Datei):
+# Code statt Link. Ohne diesen Block verschickt der lokale Stack GoTrues
+# englische Standard-Mail mit Link — dann prüft man lokal etwas anderes.
+[auth.email.template.recovery]
+subject = "PilzBuddy: Code zum Zurücksetzen"
+content_path = "./supabase/templates/recovery.html"
 
 [studio]
 enabled = false

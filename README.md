@@ -51,6 +51,16 @@ flutter run -d <device-id>
    (für die Entwicklung; später mit konfigurierten Redirect-URLs wieder aktivierbar)
 4. Project-URL + Publishable Key in `lib/core/supabase_config.dart` eintragen
    (der Publishable Key ist öffentlich; die Sicherheit liegt in den RLS-Policies)
+5. Für „Passwort vergessen" zwei Einstellungen, ohne die der Flow nicht
+   funktioniert:
+   - Authentication → Emails → **SMTP Settings**: eigenen Anbieter eintragen
+     (Brevo Free reicht). Supabases eingebauter Versand liefert nur an
+     Projekt-Mitglieder und ist auf wenige Mails pro Stunde begrenzt.
+   - Authentication → Emails → Templates → **Reset Password**: Vorlage auf den
+     Code umstellen, also `{{ .Token }}` anzeigen und den Link
+     (`{{ .ConfirmationURL }}`) **entfernen**. Die App löst den Reset über den
+     Code ein; der Link wäre an das anfordernde Gerät gebunden und würde beim
+     Öffnen im Browser scheitern (Begründung in `CLAUDE.md`).
 
 ## Mitmachen & Release-Prozess
 
