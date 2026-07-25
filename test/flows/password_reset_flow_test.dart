@@ -7,6 +7,7 @@
 // woanders geöffnet wird. Siehe AuthRepository.sendPasswordResetCode.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../fakes/fake_backend.dart';
 import '../fakes/test_app.dart';
@@ -136,6 +137,25 @@ void main() {
     expect(backend.currentUserId, isNotNull);
     // Der Effekt, nicht nur der Aufruf: das Passwort ist wirklich neu.
     expect(backend.users.single.password, 'NeuesPilz#2026!');
+  });
+
+  testWidgets('Eine Recovery-Sitzung allein öffnet die App nicht',
+      (tester) async {
+    final backend = FakeBackend();
+    final user = backend.addUser(username: 'testpilz');
+    await pumpApp(tester, backend);
+
+    // Genau der Zustand direkt nach dem Einlösen des Codes: gültige
+    // Sitzung, aber das neue Passwort ist noch nicht gesetzt. Reagierte
+    // der Router darauf, läge die Karte mitten im Reset offen — und die
+    // Nutzerin wäre angemeldet, ohne ihr Passwort zu kennen. Ohne den
+    // Filter in lib/core/router.dart wird dieser Test rot.
+    backend.setCurrentUser(user, AuthChangeEvent.passwordRecovery);
+    await settle(tester);
+
+    expect(find.text('Neuer Spot'), findsNothing);
+    expect(find.text('Anmelden'), findsOneWidget,
+        reason: 'Erst das geänderte Passwort (userUpdated) darf hereinlassen.');
   });
 
   testWidgets('Zurück zur Anmeldung stellt das Passwortfeld wieder her',
