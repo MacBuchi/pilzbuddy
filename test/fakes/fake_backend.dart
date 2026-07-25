@@ -7,6 +7,7 @@
 // keinen RLS-Test (dafür gibt es die REST-Skripte gegen das Live-Projekt).
 import 'dart:async';
 
+import 'package:pilzbuddy/data/app_config_repository.dart';
 import 'package:pilzbuddy/data/auth_repository.dart';
 import 'package:pilzbuddy/data/feedback_repository.dart';
 import 'package:pilzbuddy/data/friend_repository.dart';
@@ -549,5 +550,25 @@ class FakeFeedbackRepository implements FeedbackRepository {
       'species_name': speciesName.trim(),
       'message': note,
     });
+  }
+}
+
+/// Server-seitige Mindestversion (`app_config`, Patch 012).
+///
+/// Ohne Angabe liefert die Fake keine Mindestversion — so verhält sich der
+/// Harness wie eine Datenbank, die nichts sperrt, und die übrigen Tests
+/// merken von der Sperre nichts.
+class FakeAppConfigRepository implements AppConfigRepository {
+  FakeAppConfigRepository({this.minimumSupportedVersion, this.fails = false});
+
+  final String? minimumSupportedVersion;
+
+  /// Abruf scheitern lassen — der Fall, in dem die App trotzdem starten muss.
+  final bool fails;
+
+  @override
+  Future<String?> fetchMinimumSupportedVersion() async {
+    if (fails) throw Exception('kein Netz');
+    return minimumSupportedVersion;
   }
 }

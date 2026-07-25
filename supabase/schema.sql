@@ -97,6 +97,18 @@ create table public.error_reports (
 create index error_reports_created_idx
   on public.error_reports (created_at desc);
 
+-- Server-seitige App-Konfiguration (Patch 012). Einzeilige Tabelle: der
+-- check lässt nur id = true zu. minimum_supported_version sperrt Clients
+-- aus, die zu alt für das aktuelle Schema sind — jede Breaking-Migration
+-- setzt den Wert im selben PR hoch (Issue #80).
+create table public.app_config (
+  id boolean primary key default true check (id),
+  minimum_supported_version text not null default '0.0.0'
+    check (minimum_supported_version ~ '^[0-9]+\.[0-9]+\.[0-9]+$'),
+  updated_at timestamptz not null default now()
+);
+insert into public.app_config (id) values (true);
+
 -- ============================================================
 -- Profil automatisch bei Registrierung anlegen
 -- (Username kommt aus den Signup-Metadaten der App)
@@ -210,6 +222,13 @@ alter table public.friendships    enable row level security;
 alter table public.live_locations enable row level security;
 alter table public.feedback       enable row level security;
 alter table public.error_reports  enable row level security;
+alter table public.app_config     enable row level security;
+
+-- app_config: lesen darf jeder, auch anon — die Mindestversion wird beim
+-- Start und damit vor der Anmeldung geprüft. Geändert wird der Wert über
+-- einen Patch, deshalb kein insert/update/delete-Grant.
+create policy app_config_read on public.app_config for select using (true);
+grant select on public.app_config to anon, authenticated;
 
 -- error_reports: schreiben darf jeder, auch anon — sonst fehlen genau die
 -- Fehler aus Login und Registrierung. Eine fremde user_id lässt sich nicht

@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 
+import '../data/providers.dart';
 import 'app_distribution.dart';
+import 'app_info.dart';
 
 /// Informationen über ein verfügbares Update von GitHub Releases.
 class UpdateInfo {
@@ -22,8 +24,17 @@ class UpdateInfo {
 
 /// `true`, wenn [latest] eine neuere Version als [current] ist
 /// (numerischer Vergleich je Segment, z. B. 1.10.0 > 1.9.2).
+///
+/// Vorab wird alles ab `-` oder `+` abgeschnitten: `1.5.1-rc1` und
+/// `1.5.1+42` sind für den Vergleich 1.5.1. Ohne das würde
+/// `int.tryParse('1-rc1')` null liefern und die Version stillschweigend auf
+/// 1.5.0 zurückfallen — ein Vorabversion-Suffix hätte den Vergleich also
+/// verfälscht statt ihn nur zu ignorieren.
 bool isNewerVersion(String latest, String current) {
   List<int> parse(String v) => v
+      .trim()
+      .split(RegExp(r'[-+]'))
+      .first
       .split('.')
       .map((part) => int.tryParse(part.trim()) ?? 0)
       .toList();
@@ -73,4 +84,40 @@ final updateInfoProvider = FutureProvider<UpdateInfo?>((ref) async {
   } catch (_) {
     return null; // Update-Check darf die App nie stören
   }
+});
+
+/// Kleinste Version, die noch zum Live-Schema passt (`public.app_config`,
+/// Patch 012) — oder `null`, wenn sie sich nicht ermitteln lässt.
+///
+/// `null` heißt „unbekannt", nicht „0.0.0": ein fehlgeschlagener Abruf darf
+/// nie zu einer Sperre führen.
+final minimumSupportedVersionProvider = FutureProvider<String?>((ref) async {
+  try {
+    return await ref
+        .watch(appConfigRepositoryProvider)
+        .fetchMinimumSupportedVersion();
+  } catch (_) {
+    return null;
+  }
+});
+
+/// Ist die installierte App zu alt für das Live-Schema?
+///
+/// Der Schema Check garantiert nur, dass die *aktuelle* App zu den Tabellen
+/// passt. Ein älterer Client fragt nach einer Breaking-Migration Spalten ab,
+/// die es nicht mehr gibt, und scheitert still — deshalb sperrt die App sich
+/// hier selbst (Issue #80).
+///
+/// Sperrt ausschließlich bei einer eindeutigen Antwort: fehlt die
+/// Mindestversion oder die eigene Version, läuft die App normal weiter. Die
+/// App wird im Wald ohne Empfang benutzt; jemanden dort auszusperren, weil
+/// eine Abfrage nicht durchkam, wäre schlimmer als ein veralteter Client.
+/// Das Ergebnis wird bewusst nicht persistiert — beim nächsten Start wird
+/// wieder frisch gefragt.
+final updateRequiredProvider = FutureProvider<bool>((ref) async {
+  final minimum = await ref.watch(minimumSupportedVersionProvider.future);
+  if (minimum == null || minimum.isEmpty) return false;
+  final current = await ref.watch(appVersionProvider.future);
+  if (current == AppInfo.unknownVersion) return false;
+  return isNewerVersion(minimum, current);
 });
