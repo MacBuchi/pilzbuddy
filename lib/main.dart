@@ -6,10 +6,15 @@ import 'app.dart';
 import 'core/errors.dart';
 import 'core/map_data_license.dart';
 import 'core/supabase_config.dart';
+import 'core/tile_memory.dart';
 import 'data/error_report_repository.dart';
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  final binding = WidgetsFlutterBinding.ensureInitialized();
+  // Vor dem ersten Frame: sonst füllt sich der Bild-Cache noch mit der
+  // großzügigen Vorgabe (siehe lib/core/tile_memory.dart, Issue #142).
+  applyTileImageBudget(
+      binding.platformDispatcher.views.firstOrNull?.physicalSize);
   registerMapDataLicense();
   await Supabase.initialize(
     url: SupabaseConfig.url,
