@@ -307,6 +307,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final hasInstalledMaps =
         (ref.watch(installedMapsProvider).valueOrNull ?? const []).isNotEmpty;
     final offlineActive = offlineStyle != null;
+    // Die Basiskarte NICHT mehr unter die Online-Kacheln legen (#137): Wo
+    // eine OSM-Kachel schon liegt und die nächste noch fehlt, standen zwei
+    // verschiedene Kartenstile nebeneinander — das sah kaputter aus als die
+    // leere Fläche, die es verhindern sollte. Ohne Empfang bleibt sie
+    // dagegen drin: Dann kommt gar keine Kachel, es gibt also nichts, womit
+    // sie sich mischen könnte — und genau dieser Fall (Wald, kein Netz, noch
+    // keine Region geladen) war der Anlass für #118.
+    final showBaseMap = offlineActive || ref.watch(noConnectivityProvider);
 
     return Scaffold(
       body: Stack(
@@ -338,13 +346,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   latLng, math.max(_mapController.camera.zoom, 16)),
             ),
             children: [
-              // Unterste Schicht, immer da: die mitgelieferte
-              // DACH-Übersicht. Sie füllt jede Stelle, die weder eine
-              // OSM-Kachel noch eine Regionskarte abdeckt — auch beim
-              // Kaltstart und mitten im Wald (#118/#119). Der Renderer
+              // Unterste Schicht: die mitgelieferte DACH-Übersicht. Sie
+              // füllt jede Stelle, die die Regionskarte nicht abdeckt —
+              // beim Kaltstart und mitten im Wald (#118/#119). Der Renderer
               // holt dafür die z7-Kachel und skaliert sie hoch; scharf
-              // wird es, sobald die Schicht darüber geladen hat.
-              if (baseStyle != null)
+              // wird es, sobald die Schicht darüber geladen hat. Unter den
+              // Online-Kacheln liegt sie bewusst NICHT (siehe showBaseMap).
+              if (baseStyle != null && showBaseMap)
                 vmt.VectorTileLayer(
                   key: const ValueKey('base-map'),
                   tileProviders: baseStyle.tileProviders,

@@ -186,11 +186,21 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   (npm `@protomaps/basemaps`, Flavor LIGHT, lang de) — nicht von Hand
   editieren, sondern neu generieren. Offline-Layer ist strikt optional:
   Fehler beim Laden ⇒ stiller Fallback auf Online-OSM.
-  Die Karte hat drei Schichten (Issues #118/#119): **unterste** die
+  Die Karte hat drei Schichten (Issues #118/#119/#137): **unterste** die
   mitgelieferte DACH-Übersicht (`baseMapStyleProvider`, z0–7, ~9 MB im
-  APK) — immer aktiv, unabhängig von Schalter und installierten Regionen,
-  damit unter dem Finger nie eine leere Fläche liegt; **darüber** je nach
-  Modus die Regionskarten oder OSM-Raster; **darüber** die Marker.
+  APK); **darüber** je nach Modus die Regionskarten oder OSM-Raster;
+  **darüber** die Marker.
+  Die Übersicht liegt **nicht** unter den Online-Kacheln (`showBaseMap` in
+  `map_screen.dart`): Wo eine OSM-Kachel schon lag und die nächste fehlte,
+  standen zwei verschiedene Kartenstile nebeneinander, und das sah kaputter
+  aus als die leere Fläche, die sie verhindern sollte — Rückmeldung des
+  Betreibers in #137, nachdem #118/#119 zunächst das Gegenteil verlangt
+  hatten. Sie liegt drin, sobald die Offline-Karte aktiv ist ODER kein
+  Empfang besteht: Dann kommt gar keine OSM-Kachel, es gibt also nichts,
+  womit sie sich mischen könnte, und genau dieser Fall (Wald, kein Netz,
+  noch keine Region geladen) war der Anlass für #118. Beide Richtungen
+  hält `test/base_map_layer_test.dart` fest — wer eine davon aufgibt,
+  bricht die andere.
   Zwei Dinge machen das erst möglich und dürfen nicht zurückgedreht
   werden: Die Übersicht ist eine **eigene** Quelle (in der gemeinsamen
   Quelle mit den Regionen galt deren `maximumZoom`, und sie wurde nach
@@ -200,9 +210,10 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   genau dort die Basis zudeckt, wo sie gebraucht wird. Über seine
   Datentiefe hinaus skaliert der Renderer selbst hoch
   (`SlippyMapTranslator`) — deshalb reicht z7 für jede Zoomstufe.
-  Folge fürs Risiko: Der Beta-Vektor-Renderer läuft jetzt bei allen, nicht
-  nur bei Offline-Nutzern. Abgesichert bleibt es durch dieselbe Regel —
-  lädt die Übersicht nicht, fällt der Layer weg (dann Hintergrundton).
+  Folge fürs Risiko: Der Beta-Vektor-Renderer läuft auch ohne installierte
+  Region, sobald der Empfang wegfällt — nicht nur bei Offline-Nutzern.
+  Abgesichert bleibt es durch dieselbe Regel: lädt die Übersicht nicht,
+  fällt der Layer weg (dann Hintergrundton).
   Deshalb rendert die Übersicht seit 1.31.3 mit
   `VectorTileLayerMode.raster`, die Detailkarte weiter mit `vector`: Der
   Vektor-Modus rendert bei jeder Zwischen-Zoomstufe neu („can result in
