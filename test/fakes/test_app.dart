@@ -138,6 +138,16 @@ Future<void> settle(WidgetTester tester, {int frames = 8}) async {
   }
 }
 
+/// Lässt die Wartezeit des „Erneut senden"-Knopfes ablaufen (ResendButton
+/// startet gesperrt, weil gerade eine Mail rausging). Sekundenweise pumpen,
+/// damit der Timer wirklich jede Sekunde feuert — ein Sprung um 60 s würde
+/// nur einen Tick auslösen und den Countdown bei 59 stehen lassen.
+Future<void> passResendCooldown(WidgetTester tester, {int seconds = 61}) async {
+  for (var i = 0; i < seconds; i++) {
+    await tester.pump(const Duration(seconds: 1));
+  }
+}
+
 /// SnackBar-Timer auslaufen lassen, damit am Testende nichts mehr tickt.
 Future<void> drainSnackbars(WidgetTester tester) async {
   await tester.pump(const Duration(seconds: 5));

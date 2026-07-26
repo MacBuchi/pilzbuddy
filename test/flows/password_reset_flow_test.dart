@@ -197,6 +197,38 @@ void main() {
     expect(find.text('Neuer Spot'), findsNothing);
   });
 
+  testWidgets('Der Code lässt sich erneut anfordern', (tester) async {
+    // Ohne diesen Knopf ist eine im Spam gelandete Mail eine Sackgasse:
+    // Die Registrierung hat ihn seit 1.31.0, der Reset fehlte.
+    final backend = FakeBackend()..addUser(username: 'testpilz');
+    await pumpApp(tester, backend);
+    await _requestCode(tester, 'testpilz@test.de');
+
+    // Gerade ist eine Mail rausgegangen — erst läuft die Wartezeit.
+    expect(find.textContaining('Erneut senden in'), findsOneWidget);
+    await passResendCooldown(tester);
+
+    await _tap(tester, find.text('Code nicht angekommen? Erneut senden'));
+
+    expect(backend.passwordResets, ['testpilz@test.de', 'testpilz@test.de']);
+    expect(find.textContaining('ein neuer Code'), findsOneWidget);
+  });
+
+  testWidgets('Auch das erneute Anfordern verrät kein Konto', (tester) async {
+    // Dieselbe Meldung wie bei einer bekannten Adresse — sonst wäre der
+    // zweite Tap das Orakel, das der erste vermeidet.
+    final backend = FakeBackend()..addUser(username: 'testpilz');
+    await pumpApp(tester, backend);
+    await _requestCode(tester, 'gibtesnicht@test.de');
+    await passResendCooldown(tester);
+
+    await _tap(tester, find.text('Code nicht angekommen? Erneut senden'));
+
+    expect(find.textContaining('Wenn es zu gibtesnicht@test.de ein Konto gibt'),
+        findsOneWidget);
+    expect(backend.passwordResets.length, 2);
+  });
+
   group('Transparenz im Formular (Issue #131)', () {
     testWidgets('Das Auge macht das Passwort sichtbar', (tester) async {
       final backend = FakeBackend()..addUser(username: 'testpilz');

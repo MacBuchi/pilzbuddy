@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/errors.dart';
 import '../../core/widgets/form_notice.dart';
 import '../../core/widgets/password_field.dart';
+import '../../core/widgets/resend_button.dart';
 import '../../data/providers.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
@@ -184,9 +185,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2))
                 : const Text('Adresse bestätigen'),
           ),
-          TextButton(
-            onPressed: _busy ? null : _resend,
-            child: const Text('Mail nicht angekommen? Erneut senden'),
+          ResendButton(
+            onResend: _resend,
+            enabled: !_busy,
+            label: 'Mail nicht angekommen? Erneut senden',
           ),
         ],
       );
