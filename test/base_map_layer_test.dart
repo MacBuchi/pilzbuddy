@@ -12,70 +12,31 @@
 //
 // Ihr Render-Modus ist `raster`, weil sie bei allen mitläuft und ihre
 // Daten bei Zoom 7 enden — hochskaliert wird ohnehin (#119).
-import 'dart:convert';
-import 'dart:typed_data';
-
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/features/offline_maps/offline_map_providers.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart' as vmt;
-import 'package:vector_tile_renderer/vector_tile_renderer.dart' as vtr;
 
 import 'fakes/fake_backend.dart';
 import 'fakes/test_app.dart';
-
-/// Liefert leere Kacheln. Reicht: Geprüft wird die Verdrahtung des Layers,
-/// nicht das Zeichnen — und der Renderer kommt mit leeren Tilesets klar.
-class _EmptyTileProvider implements vmt.VectorTileProvider {
-  @override
-  Future<Uint8List> provide(vmt.TileIdentity tile) async => Uint8List(0);
-
-  @override
-  int get maximumZoom => 7;
-
-  @override
-  int get minimumZoom => 0;
-
-  @override
-  vmt.TileOffset get tileOffset => vmt.TileOffset.DEFAULT;
-
-  @override
-  vmt.TileProviderType get type => vmt.TileProviderType.vector;
-}
-
-/// Minimal, aber mit der Quelle „protomaps" — der Layer besteht sonst auf
-/// einem Provider, der zum Thema passt.
-vtr.Theme _theme() => vtr.ThemeReader().read(jsonDecode('''
-{
-  "version": 8,
-  "layers": [
-    {
-      "id": "erde",
-      "type": "fill",
-      "source": "protomaps",
-      "source-layer": "earth",
-      "paint": {"fill-color": "#e2dfda"}
-    }
-  ]
-}
-''') as Map<String, dynamic>);
+import 'fakes/vector_map_fakes.dart';
 
 /// Der echte Provider entpackt ein Asset über `path_provider` — im Test
 /// gibt es den Platform-Channel nicht, und die Schicht fiele still weg.
 Override _baseMapAvailable() =>
     baseMapStyleProvider.overrideWith((ref) async => OfflineMapStyle(
-          theme: _theme(),
-          tileProviders: vmt.TileProviders({'protomaps': _EmptyTileProvider()}),
+          theme: protomapsTestTheme(),
+          tileProviders: vmt.TileProviders({'protomaps': EmptyTileProvider()}),
         ));
 
 /// Stellt eine geladene Offline-Karte nach (sonst hängt der Detail-Layer
 /// an Archiven auf der Platte).
 Override _offlineMapActive() =>
     offlineMapStyleProvider.overrideWith((ref) async => OfflineMapStyle(
-          theme: _theme(),
-          tileProviders: vmt.TileProviders({'protomaps': _EmptyTileProvider()}),
+          theme: protomapsTestTheme(),
+          tileProviders: vmt.TileProviders({'protomaps': EmptyTileProvider()}),
         ));
 
 Finder get _baseMap => find.byKey(const ValueKey('base-map'));

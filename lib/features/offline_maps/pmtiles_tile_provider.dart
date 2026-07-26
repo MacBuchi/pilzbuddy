@@ -26,14 +26,28 @@ class PmTilesVectorTileProvider extends VectorTileProvider {
 
   @override
   Future<Uint8List> provide(TileIdentity tile) async {
-    final t = await _archive.tile(ZXY(tile.z, tile.x, tile.y).toTileId());
     try {
+      final t = await _archive.tile(ZXY(tile.z, tile.x, tile.y).toTileId());
       return Uint8List.fromList(t.bytes());
     } on TileNotFoundException {
       throw ProviderException(
         message: 'Tile ${tile.key()} nicht in der Offline-Karte',
         retryable: Retryable.none,
         statusCode: 404,
+      );
+    } on StateError catch (e) {
+      // Das Archiv ist geschlossen — gefragt wird eine ältere Generation der
+      // Quelle, die ein Layer noch in seinen Caches hält (Issue #144). Der
+      // Lesepool von `pmtiles` wirft dann „withResource() may not be called
+      // on a closed Pool". Ungefangen ist das ein unbehandelter Fehler pro
+      // Kachel: auf dem Pixel 7 Pro 121 Stück in einem Stresslauf, jeder
+      // davon eine Zeile in `error_reports` und im Wochendigest. Als
+      // ProviderException degradiert es zu „Kachel fehlt", und die Schicht
+      // darunter (die Übersicht) bleibt sichtbar.
+      throw ProviderException(
+        message: 'Offline-Karte bereits geschlossen (${tile.key()}): $e',
+        retryable: Retryable.none,
+        statusCode: 410,
       );
     }
   }
