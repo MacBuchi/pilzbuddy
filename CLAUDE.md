@@ -134,18 +134,20 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   Mitfahrbar löst denselben Fall über den Mail-Link und hat damit genau die
   Lücke, die PilzBuddy hier umgeht (dort `MacBuchi/MitFahrBar` Issue #102) —
   beim nächsten Anfassen dort gleich mitziehen.
-  Von den sechs Mail-Vorlagen im Dashboard ist **nur „Reset password"**
-  angepasst (deutsch, mit Code) — es ist die einzige, die die App auslöst.
-  „Confirm sign up" (Bestätigung ist aus), „Magic link or OTP", „Invite
-  user", „Change email address" und „Reauthentication" schlafen und stehen
-  bewusst auf englischem Standardtext: Eine fertig aussehende Vorlage würde
-  vortäuschen, das Feature existiere. Der Zahlencode kommt aus der
-  Reset-Vorlage, NICHT aus „Magic link or OTP" — `/recover` verschickt,
-  `verifyOTP` prüft nur. Wer „Confirm sign up" anschaltet, muss den
-  Registrierungs-Screen mitziehen: `signUp` liefert dann keine Sitzung
-  mehr — `AuthRepository.signUp` gibt deshalb zurück, ob bestätigt werden
-  muss, und der Registrieren-Screen zeigt dann die Code-Eingabe statt
-  stumm stehenzubleiben (Issue #129, seit 1.30.0). Bestätigt wird wie beim
+  Von den sechs Mail-Vorlagen im Dashboard sind **zwei** angepasst (deutsch,
+  mit Code): „Reset password" und „Confirm sign up" — genau die beiden, die
+  die App auslöst. „Magic link or OTP", „Invite user", „Change email address"
+  und „Reauthentication" schlafen und stehen bewusst auf englischem
+  Standardtext: Eine fertig aussehende Vorlage würde vortäuschen, das Feature
+  existiere. Der Zahlencode kommt aus der jeweiligen Vorlage, NICHT aus
+  „Magic link or OTP" — `/recover` bzw. `/signup` verschickt, `verifyOTP`
+  prüft nur. „Confirm email" ist seit 2026-07-26 **an**; damit liefert
+  `signUp` keine Sitzung mehr — `AuthRepository.signUp` gibt deshalb zurück,
+  ob bestätigt werden muss, und der Registrieren-Screen zeigt dann die
+  Code-Eingabe statt stumm stehenzubleiben (Issue #129, seit 1.30.0). Beide
+  Wege haben ein „Erneut senden" mit 60-Sekunden-Sperre (`ResendButton`);
+  im Reset meldet es bewusst immer dasselbe, ein Rate-Limit-Hinweis käme nur
+  bei existierendem Konto und wäre damit ein Orakel. Bestätigt wird wie beim
   Reset über den **Code** aus der Mail (`verifyOTP` mit `OtpType.signup`),
   nicht über deren Link: `signUp` legt denselben PKCE-Verifier auf dem
   anfordernden Gerät ab, der Link wäre also wieder gerätegebunden.
@@ -157,10 +159,11 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   die web.de nicht zustellt, hinterließ ein dauerhaft unrettbares Konto;
   solche Zustellversuche zählen bei Brevo zusätzlich als Hard Bounce
   gegen die Absender-Reputation.
-  **Reihenfolge beim Umstellen im Dashboard:** erst diese App-Version
-  ausliefern, dann die Vorlage „Confirm sign up" auf `{{ .Token }}` ohne
-  Link setzen, dann „Confirm email" anschalten. Andersherum bricht die
-  Registrierung still.
+  **Reihenfolge beim Umstellen im Dashboard** (am 2026-07-26 so gemacht,
+  hier als Muster für den nächsten Schalter dieser Art): erst die App-Version
+  ausliefern, die beide Einstellungen beherrscht, dann die Vorlage „Confirm
+  sign up" auf `{{ .Token }}` ohne Link setzen, dann „Confirm email"
+  anschalten. Andersherum bricht die Registrierung still.
   Geprüft werden die Flows von `tool/auth_reset_check.sh` im Job „Schema Dry
   Run" — gegen echtes GoTrue im lokalen Stack, inklusive Mailabholung aus
   Mailpit: Registrierung samt Bestätigung, Reset und Passwortwechsel (der
@@ -288,8 +291,10 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   aber nicht überall durch); bei Berührung schrittweise umstellen. Abstände
   haben noch gar keine Konstanten.
 - Formular-Bausteine liegen in `lib/core/widgets/`: `PasswordField` (mit
-  Auge-Toggle, `minPasswordLength`) und `FormNotice` (Erfolg/Fehler
-  unterscheidbar). Neue Passwortfelder und Formular-Rückmeldungen darüber
+  Auge-Toggle, `minPasswordLength`), `FormNotice` (Erfolg/Fehler
+  unterscheidbar) und `ResendButton` (startet gesperrt und zählt 60 s
+  herunter — GoTrue lehnt die zweite Mail an dieselbe Adresse so lange ab,
+  ein immer aktiver Knopf würde einen Versand bestätigen, den es nie gab). Neue Passwortfelder und Formular-Rückmeldungen darüber
   bauen, nicht wieder per Hand — vorher gab es vier Kopien mit
   `obscureText: true` und ein nacktes `Text` als Rückmeldung (Issue #131).
   Ein `inputDecorationTheme` gibt es weiterhin nicht; die 19 inline

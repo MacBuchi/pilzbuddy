@@ -262,6 +262,11 @@ void main() {
       await tester.tap(find.text('Konto erstellen'));
       await settle(tester);
 
+      // Direkt nach der Registrierung ist gerade eine Mail rausgegangen —
+      // der Knopf wartet erst einmal ab.
+      expect(find.textContaining('Erneut senden in'), findsOneWidget);
+      await passResendCooldown(tester);
+
       await tester.tap(find.text('Mail nicht angekommen? Erneut senden'));
       await settle(tester);
 
@@ -276,6 +281,7 @@ void main() {
       final backend = FakeBackend()..requireEmailConfirmation = true;
       await pumpApp(tester, backend);
       await _signUpWithConfirmation(tester);
+      await passResendCooldown(tester);
 
       await tester.tap(find.text('Mail nicht angekommen? Erneut senden'));
       await settle(tester);
@@ -299,6 +305,7 @@ void main() {
         ..confirmationMailLimit = 1;
       await pumpApp(tester, backend);
       await _signUpWithConfirmation(tester);
+      await passResendCooldown(tester);
 
       await tester.tap(find.text('Mail nicht angekommen? Erneut senden'));
       await settle(tester);

@@ -8,6 +8,7 @@ import '../../core/errors.dart';
 import '../../core/widgets/buddy_mushrooms.dart';
 import '../../core/widgets/form_notice.dart';
 import '../../core/widgets/password_field.dart';
+import '../../core/widgets/resend_button.dart';
 import '../../data/providers.dart';
 
 /// Drei Zustände statt zwei: „Passwort vergessen" ist ein eigener Modus, der
@@ -83,6 +84,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               'unterwegs. Er gilt eine Stunde.';
           _noticeTone = NoticeTone.success;
         });
+      }
+    }
+  }
+
+  /// Schickt den Code noch einmal — für den häufigsten Fall, dass die Mail
+  /// im Spam liegt oder gelöscht wurde. Ohne das bliebe nur, den Reset ganz
+  /// von vorn zu beginnen.
+  ///
+  /// Meldet wie [_sendResetCode] in jedem Fall dasselbe: Ein Unterschied
+  /// zwischen Erfolg und Fehlschlag würde hier verraten, ob es zu der
+  /// Adresse ein Konto gibt — auch ein Rate-Limit-Hinweis täte das, denn er
+  /// käme nur, wenn wirklich eine Mail rausging.
+  Future<void> _resendResetCode() async {
+    final email = _emailController.text.trim();
+    setState(() => _busy = true);
+    try {
+      await ref.read(authRepositoryProvider).sendPasswordResetCode(email);
+    } catch (e, stackTrace) {
+      logError('Reset-Code erneut anfordern', e, stackTrace);
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+        _setNotice('Wenn es zu $email ein Konto gibt, ist ein neuer Code '
+            'unterwegs. Er gilt eine Stunde.', NoticeTone.success);
       }
     }
   }
@@ -279,11 +304,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     onPressed: () => context.go('/signup'),
                     child: const Text('Noch kein Konto? Registrieren'),
                   ),
-                ] else
+                ] else ...[
+                  if (_mode == _Mode.code)
+                    ResendButton(
+                      onResend: _resendResetCode,
+                      enabled: !_busy,
+                      label: 'Code nicht angekommen? Erneut senden',
+                    ),
                   TextButton(
                     onPressed: () => _switchTo(_Mode.signIn),
                     child: const Text('Zurück zur Anmeldung'),
                   ),
+                ],
               ],
             ),
           ),
