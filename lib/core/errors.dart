@@ -37,6 +37,21 @@ void logError(String context, Object error, [StackTrace? stackTrace]) {
   }
 }
 
+/// Es gibt gerade keine angemeldete Sitzung.
+///
+/// Kein Fehler im eigentlichen Sinn: Beim Abmelden und beim Ablaufen eines
+/// Tokens laufen Hintergrundabfragen noch einen Moment weiter und greifen
+/// dann ins Leere. Vorher war das ein `Null check operator used on a null
+/// value` aus `currentUser!` — 37 Fehlerberichte in einer Woche für einen
+/// völlig normalen Vorgang (Issue #124). Als eigener Typ, damit genau die
+/// Stellen ihn erkennen und still aufhören können, statt zu melden.
+class NotSignedInException implements Exception {
+  const NotSignedInException();
+
+  @override
+  String toString() => 'NotSignedInException: keine angemeldete Sitzung';
+}
+
 /// Nutzerfreundliche Meldung nach Fehlerklasse statt pauschalem
 /// „… Internet verfügbar?": Netzwerk, Server und Unerwartetes werden
 /// unterschieden, damit Problemberichte diagnostizierbar sind.
@@ -45,6 +60,9 @@ String friendlyError(Object error) {
       error is TimeoutException ||
       error is http.ClientException) {
     return 'Keine Verbindung — bitte Internet prüfen.';
+  }
+  if (error is NotSignedInException) {
+    return 'Nicht mehr angemeldet — bitte neu anmelden.';
   }
   if (error is PostgrestException) {
     return 'Serverfehler (${error.code ?? 'unbekannt'}) — '

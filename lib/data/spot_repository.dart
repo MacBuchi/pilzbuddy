@@ -2,13 +2,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/dates.dart';
 import '../models/spot.dart';
+import 'session.dart';
 
 class SpotRepository {
   SpotRepository(this._client);
 
   final SupabaseClient _client;
 
-  String get _uid => _client.auth.currentUser!.id;
+  String get _uid => _client.requireUid;
 
   Future<List<Spot>> fetchMySpots() async {
     final rows = await _client

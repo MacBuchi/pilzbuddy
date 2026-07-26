@@ -1,5 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'session.dart';
+
 enum FeedbackType { feature, bug, species }
 
 class FeedbackRepository {
@@ -11,7 +13,7 @@ class FeedbackRepository {
   /// daraus ein passend gelabeltes GitHub-Issue an.
   Future<void> submit(FeedbackType type, String message) async {
     await _client.from('feedback').insert({
-      'user_id': _client.auth.currentUser!.id,
+      'user_id': _client.requireUid,
       'type': type == FeedbackType.bug ? 'bug' : 'feature',
       'message': message.trim(),
     });
@@ -22,7 +24,7 @@ class FeedbackRepository {
   Future<void> submitSpecies(String speciesName, {String? note}) async {
     final name = speciesName.trim();
     await _client.from('feedback').insert({
-      'user_id': _client.auth.currentUser!.id,
+      'user_id': _client.requireUid,
       'type': 'species',
       'species_name': name,
       'message': [

@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/friend_location.dart';
+import 'session.dart';
 
 /// Zeitlich begrenztes Live-Standort-Teilen. Genau eine Zeile pro Nutzer
 /// (Upsert); die RLS-Policies erledigen die Sichtbarkeit — Freunde sehen
@@ -10,7 +11,7 @@ class LiveShareRepository {
 
   final SupabaseClient _client;
 
-  String get _uid => _client.auth.currentUser!.id;
+  String get _uid => _client.requireUid;
 
   /// Meine aktuelle Position teilen (bzw. aktualisieren). `expiresAt` legt
   /// fest, bis wann Freunde mich sehen; bei jedem Positions-Tick erneut.
