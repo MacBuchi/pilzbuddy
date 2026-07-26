@@ -366,7 +366,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   // hochskaliert, es gibt also keine Schärfe zu verlieren.
                   // Die Detailkarte unten bleibt bewusst auf Vektor.
                   layerMode: vmt.VectorTileLayerMode.raster,
-                  maximumTileSubstitutionDifference: 3,
+                  maximumTileSubstitutionDifference: 1,
                 ),
               if (offlineActive)
                 vmt.VectorTileLayer(
@@ -380,7 +380,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   // Fehlende Kacheln maximal weit durch niedrigere
                   // Zoomstufen ersetzen (Ränder der Regionskarten und
                   // die eingebaute Übersichts-Basiskarte).
-                  maximumTileSubstitutionDifference: 3,
+                  maximumTileSubstitutionDifference: 1,
                 )
               else
                 TileLayer(
