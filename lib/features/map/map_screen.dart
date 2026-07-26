@@ -370,7 +370,20 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 ),
               if (offlineActive)
                 vmt.VectorTileLayer(
-                  key: const ValueKey('detail-map'),
+                  // Der Schlüssel hängt an der QUELLE, nicht an einem festen
+                  // Namen (Issue #144). `vector_map_tiles` vergleicht beim
+                  // Aktualisieren nur Theme, Sprites, tileOffset, layerMode
+                  // und maximumZoom (`hasRenderDifferences` in options.dart)
+                  // — ein Wechsel der `tileProviders` fällt dort durch. Der
+                  // Layer behielte also seine Caches und damit die Archive,
+                  // die `_offlineTileSourceProvider` beim Neuaufbau schließt
+                  // (jeder Resume invalidiert `installedMapsProvider`).
+                  // Danach wirft jede Kachel „withResource() may not be
+                  // called on a closed Pool", übrig bleibt die hochskalierte
+                  // Übersicht, und nur ein App-Neustart half. Ein neuer
+                  // Schlüssel erzwingt stattdessen einen frischen Layer mit
+                  // frischen Caches auf den neu geöffneten Archiven.
+                  key: ValueKey(offlineStyle.tileProviders),
                   tileProviders: offlineStyle.tileProviders,
                   theme: offlineStyle.theme,
                   // Vector-Modus rendert scharf in jeder Zoomstufe; die
