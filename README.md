@@ -26,6 +26,9 @@ eintragen und Spots mit Freunden teilen.
   - einzelne Spots lassen sich im Spot-Detail von der Freigabe ausschließen
 - **Statistik:** Spots, Funde, mehrfach besuchte Spots, Funde pro Jahr,
   Top-Arten, Jahreszeiten-Verteilung.
+- **Konto:** Registrierung mit Bestätigungscode aus der Mail, „Passwort
+  vergessen" ebenfalls per Code, „Passwort ändern" im Profil (fragt das
+  aktuelle Passwort ab).
 
 Alle Freigabe-Regeln werden serverseitig per Row-Level Security erzwungen
 (`supabase/schema.sql`) — der Client kann sie nicht umgehen.
@@ -47,8 +50,10 @@ flutter run -d <device-id>
 1. Projekt auf [supabase.com](https://supabase.com) anlegen
 2. `supabase/schema.sql` im SQL-Editor ausführen (bei Bestandsprojekten
    zusätzlich vorhandene `patch_*.sql` in Nummernreihenfolge)
-3. Authentication → Sign In / Providers → Email: **„Confirm email" ausschalten**
-   (für die Entwicklung; später mit konfigurierten Redirect-URLs wieder aktivierbar)
+3. Authentication → Sign In / Providers → Email: **„Confirm email" einschalten**.
+   Ohne Bestätigung entstehen Konten auf Adressen, die niemand liest — der
+   Reset-Code erreicht sie nie, und unzustellbare Mails schlagen als Hard
+   Bounce auf die Absender-Reputation.
 4. Project-URL + Publishable Key in `lib/core/supabase_config.dart` eintragen
    (der Publishable Key ist öffentlich; die Sicherheit liegt in den RLS-Policies)
 5. Für „Passwort vergessen" zwei Einstellungen, ohne die der Flow nicht
@@ -56,11 +61,14 @@ flutter run -d <device-id>
    - Authentication → Emails → **SMTP Settings**: eigenen Anbieter eintragen
      (Brevo Free reicht). Supabases eingebauter Versand liefert nur an
      Projekt-Mitglieder und ist auf wenige Mails pro Stunde begrenzt.
-   - Authentication → Emails → Templates → **Reset Password**: Vorlage auf den
-     Code umstellen, also `{{ .Token }}` anzeigen und den Link
-     (`{{ .ConfirmationURL }}`) **entfernen**. Die App löst den Reset über den
-     Code ein; der Link wäre an das anfordernde Gerät gebunden und würde beim
-     Öffnen im Browser scheitern (Begründung in `CLAUDE.md`).
+   - Authentication → Emails → Templates: **beide** Vorlagen auf den Code
+     umstellen — **Reset Password** und **Confirm sign up**. Also
+     `{{ .Token }}` anzeigen und den Link (`{{ .ConfirmationURL }}`)
+     **entfernen**. Die App löst beides über den Code ein; der Link wäre an
+     das anfordernde Gerät gebunden und würde beim Öffnen im Browser
+     scheitern (Begründung in `CLAUDE.md`). Die versionierten Kopien der
+     Vorlagen liegen in `supabase/templates/` — Änderungen gehören an beide
+     Stellen.
 
 ## Mitmachen & Release-Prozess
 

@@ -11,15 +11,49 @@ class AuthRepository {
 
   Stream<AuthState> get onAuthStateChange => _client.auth.onAuthStateChange;
 
-  Future<void> signUp({
+  /// Legt ein Konto an. Liefert `true`, wenn die Adresse erst bestätigt
+  /// werden muss.
+  ///
+  /// Steht „Confirm email" im Dashboard an, kommt aus `signUp` ein Nutzer
+  /// OHNE Sitzung zurück — niemand ist danach angemeldet, und der Router
+  /// bewegt sich nicht. Genau darauf verlässt sich der Registrieren-Screen
+  /// sonst; ohne diese Rückgabe bliebe er stumm stehen (Issue #129). Der
+  /// Rückgabewert macht beide Dashboard-Einstellungen bedienbar, ohne dass
+  /// die App wissen muss, welche gerade gilt.
+  Future<bool> signUp({
     required String email,
     required String password,
     required String username,
   }) async {
-    await _client.auth.signUp(
+    final response = await _client.auth.signUp(
       email: email,
       password: password,
       data: {'username': username},
+    );
+    return response.session == null;
+  }
+
+  /// Schickt die Bestätigungsmail noch einmal — für den häufigsten Fall,
+  /// dass sie im Spam landet oder gelöscht wurde. Ohne das bliebe nur,
+  /// ein zweites Konto anzulegen, und die Adresse ist schon vergeben.
+  Future<void> resendConfirmation(String email) =>
+      _client.auth.resend(type: OtpType.signup, email: email);
+
+  /// Bestätigt die Adresse mit dem Code aus der Mail und meldet an.
+  ///
+  /// Wie beim Reset bewusst der Code und nicht der Link aus der Mail:
+  /// `signUp` legt genauso einen PKCE-Verifier auf dem anfordernden Gerät
+  /// ab (`gotrue_client.dart`), der Link wäre also gerätegebunden und
+  /// stürbe beim Öffnen im Handy-Browser. Der Code funktioniert überall
+  /// und meldet direkt an — `verifyOTP` liefert die Sitzung mit.
+  Future<void> confirmEmailWithCode({
+    required String email,
+    required String code,
+  }) async {
+    await _client.auth.verifyOTP(
+      email: email,
+      token: code,
+      type: OtpType.signup,
     );
   }
 
@@ -65,6 +99,33 @@ class AuthRepository {
       token: code,
       type: OtpType.recovery,
     );
+    await _client.auth.updateUser(UserAttributes(password: newPassword));
+  }
+
+  /// Ändert das Passwort einer laufenden Sitzung (Issue #127).
+  ///
+  /// Der Umweg über eine erneute Anmeldung ist kein Sicherheitstheater,
+  /// sondern Pflicht: Im Dashboard ist „Secure password change" aktiv
+  /// (gespiegelt in `supabase/config.toml`), und dann lehnt GoTrue ein
+  /// `updateUser(password:)` ohne frische Authentifizierung ab. Genau das
+  /// ist der Unterschied zum Reset-Flow, dessen Sitzung frisch aus dem
+  /// eingelösten Code stammt. Wer den `signInWithPassword`-Schritt hier
+  /// wegkürzt, bekommt live einen 403 — lokal beweist das
+  /// `tool/auth_reset_check.sh`.
+  ///
+  /// Nebeneffekt mit Absicht: Das falsche aktuelle Passwort scheitert schon
+  /// an dieser Anmeldung, das Konto ist also nie einen Moment lang offen für
+  /// jemanden, der es nicht kennt.
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final email = _client.auth.currentUser?.email;
+    if (email == null) {
+      throw const AuthException('Keine angemeldete Sitzung.');
+    }
+    await _client.auth
+        .signInWithPassword(email: email, password: currentPassword);
     await _client.auth.updateUser(UserAttributes(password: newPassword));
   }
 

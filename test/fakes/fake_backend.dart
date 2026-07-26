@@ -30,6 +30,7 @@ class FakeUser {
     this.avatar = 0,
     this.shareSpotsDefault = true,
     this.shareDetails = true,
+    this.emailConfirmed = true,
   });
 
   final String id;
@@ -41,6 +42,8 @@ class FakeUser {
   int avatar;
   bool shareSpotsDefault;
   bool shareDetails;
+  /// Bestandsnutzer sind alle bestätigt (Autoconfirm), deshalb Vorgabe true.
+  bool emailConfirmed;
 }
 
 class FakeSpotRow {
@@ -105,6 +108,28 @@ class FakeBackend {
   /// damit Tests ihn kennen; echt sind es sechs Ziffern von GoTrue.
   static const resetCode = '123456';
 
+  /// Bewusst ein ANDERER Code als [resetCode]: Echt sind Bestätigung
+  /// (`OtpType.signup`) und Reset (`OtpType.recovery`) zwei Paar Schuhe.
+  /// Mit einem gemeinsamen Code käme ein Screen, der versehentlich die
+  /// falsche Repository-Methode ruft, im Test trotzdem durch.
+  static const signupCode = '654321';
+
+  /// Spiegelt „Confirm email" im Supabase-Dashboard. Vorgabe false = wie
+  /// heute live; Tests, die den Bestätigungs-Weg prüfen, schalten es an.
+  bool requireEmailConfirmation = false;
+
+  /// Adressen, an die eine Bestätigungsmail rausging (auch erneut).
+  final confirmationMails = <String>[];
+
+  /// Wie oft dieselbe Adresse eine Bestätigungsmail bekommen darf, bevor
+  /// GoTrues Rate Limit greift. Vorgabe hoch genug, dass bestehende Tests
+  /// nichts davon merken; der Rate-Limit-Test setzt sie herunter.
+  int confirmationMailLimit = 100;
+
+  /// Steht für die „Leaked Password Protection" im Dashboard: Passwörter,
+  /// die HaveIBeenPwned kennt, lehnt Supabase mit `weak_password` ab.
+  final weakPasswords = <String>{'passwort123'};
+
   String? currentUserId;
   final _authEvents = StreamController<AuthState>.broadcast();
   var _nextId = 0;
@@ -122,6 +147,7 @@ class FakeBackend {
     int avatar = 0,
     bool shareSpotsDefault = true,
     bool shareDetails = true,
+    bool emailConfirmed = true,
   }) {
     final user = FakeUser(
       id: _newId('user'),
@@ -131,6 +157,7 @@ class FakeBackend {
       avatar: avatar,
       shareSpotsDefault: shareSpotsDefault,
       shareDetails: shareDetails,
+      emailConfirmed: emailConfirmed,
     );
     users.add(user);
     return user;
@@ -265,11 +292,17 @@ class FakeAuthRepository implements AuthRepository {
     if (user == null) {
       throw const AuthException('Invalid login credentials', statusCode: '400');
     }
+    // Wie GoTrue mit Bestätigungspflicht: eigener Fehlercode, damit die
+    // App nicht „E-Mail oder Passwort falsch" behauptet.
+    if (!user.emailConfirmed) {
+      throw const AuthException('Email not confirmed',
+          statusCode: '400', code: 'email_not_confirmed');
+    }
     backend.setCurrentUser(user, AuthChangeEvent.signedIn);
   }
 
   @override
-  Future<void> signUp({
+  Future<bool> signUp({
     required String email,
     required String password,
     required String username,
@@ -279,9 +312,43 @@ class FakeAuthRepository implements AuthRepository {
       throw const AuthException('Database error saving new user',
           statusCode: '500');
     }
-    final user =
-        backend.addUser(username: username, email: email, password: password);
-    // "Confirm email" ist im Supabase-Projekt aus — Signup meldet direkt an.
+    final user = backend.addUser(
+        username: username,
+        email: email,
+        password: password,
+        emailConfirmed: !backend.requireEmailConfirmation);
+    if (backend.requireEmailConfirmation) {
+      // Wie echt: Konto ja, Sitzung nein — erst die Bestätigung öffnet es.
+      backend.confirmationMails.add(email);
+      return true;
+    }
+    backend.setCurrentUser(user, AuthChangeEvent.signedIn);
+    return false;
+  }
+
+  @override
+  Future<void> resendConfirmation(String email) async {
+    final sent = backend.confirmationMails.where((m) => m == email).length;
+    if (sent >= backend.confirmationMailLimit) {
+      throw const AuthException('For security purposes, you can only request '
+          'this after 60 seconds.',
+          statusCode: '429', code: 'over_email_send_rate_limit');
+    }
+    backend.confirmationMails.add(email);
+  }
+
+  @override
+  Future<void> confirmEmailWithCode({
+    required String email,
+    required String code,
+  }) async {
+    final user = backend.users.where((u) => u.email == email).firstOrNull;
+    if (user == null || code != FakeBackend.signupCode) {
+      throw const AuthException('Token has expired or is invalid',
+          statusCode: '403', code: 'otp_expired');
+    }
+    // Wie echt: verifyOTP bestätigt UND meldet an.
+    user.emailConfirmed = true;
     backend.setCurrentUser(user, AuthChangeEvent.signedIn);
   }
 
@@ -314,6 +381,42 @@ class FakeAuthRepository implements AuthRepository {
           statusCode: '403', code: 'otp_expired');
     }
     backend.setCurrentUser(user, AuthChangeEvent.passwordRecovery);
+    if (backend.weakPasswords.contains(newPassword)) {
+      throw const AuthException('Password is known to be weak and easy to '
+          'guess, please choose a different one.',
+          statusCode: '422', code: 'weak_password');
+    }
+    user.password = newPassword;
+    backend.setCurrentUser(user, AuthChangeEvent.userUpdated);
+  }
+
+  /// Spiegelt „Secure password change": Ohne das aktuelle Passwort geht
+  /// nichts, denn die echte Methode meldet sich damit zuerst neu an. Der
+  /// Fake kann diese Härtung nur behaupten — bewiesen wird sie gegen echtes
+  /// GoTrue in `tool/auth_reset_check.sh`.
+  @override
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final uid = backend.currentUserId;
+    if (uid == null) {
+      throw const AuthException('Keine angemeldete Sitzung.');
+    }
+    final user = backend.userById(uid);
+    if (user.password != currentPassword) {
+      throw const AuthException('Invalid login credentials',
+          statusCode: '400', code: 'invalid_credentials');
+    }
+    if (newPassword == currentPassword) {
+      throw const AuthException('New password should be different',
+          statusCode: '422', code: 'same_password');
+    }
+    if (backend.weakPasswords.contains(newPassword)) {
+      throw const AuthException('Password is known to be weak and easy to '
+          'guess, please choose a different one.',
+          statusCode: '422', code: 'weak_password');
+    }
     user.password = newPassword;
     backend.setCurrentUser(user, AuthChangeEvent.userUpdated);
   }

@@ -39,8 +39,13 @@ void main() {
     expect(html, contains('Fehlerberichte'));
     expect(html, contains('Supabase'));
     expect(html, contains('Brevo'),
-        reason: 'Der Mailversand beim Passwort-Reset gibt die Adresse an '
-            'einen weiteren Auftragsverarbeiter — das muss dort stehen');
+        reason: 'Der Mailversand gibt die Adresse an einen weiteren '
+            'Auftragsverarbeiter — das muss dort stehen');
+    expect(html, contains('Bestätigungsmail'),
+        reason: 'Seit der Bestätigungspflicht (#129) geht bei JEDER '
+            'Registrierung eine Mail über Brevo — nicht mehr nur beim '
+            'Reset. Wer den Abschnitt darauf zurückdreht, macht die '
+            'Erklärung wieder falsch');
   });
 
   test('Keine unersetzten Platzhalter mehr', () {

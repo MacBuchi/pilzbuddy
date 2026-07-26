@@ -50,13 +50,22 @@ port = 54324
 # Reset-Flow lebt davon, dass die eben per Code eingelöste Sitzung als
 # frisch gilt — mit dieser Zeile beweist der lokale Lauf das mit.
 secure_password_change = true
-# Wie live: noch aus. Anschalten ist fällig, braucht aber Code am
-# Registrieren-Screen (Issue #129) — dann hier UND im Dashboard.
-enable_confirmations = false
+# So, wie es nach dem Umschalten im Dashboard live ist (Reihenfolge in
+# CLAUDE.md: erst diese Version ausliefern, dann Vorlage, dann Schalter).
+# Bis dahin prüft CI hier bewusst den Zielzustand — die App beherrscht
+# beide Einstellungen, weil `signUp` zurückgibt, ob bestätigt werden muss.
+# Warum überhaupt: Sonst entstehen Konten auf Adressen, die niemand liest —
+# der Reset-Code kann sie nie erreichen, und unzustellbare Mails schlagen
+# als Hard Bounce auf die Absender-Reputation bei Brevo.
+enable_confirmations = true
 
 # Dieselbe Vorlage wie im Dashboard (versionierte Kopie, siehe die Datei):
 # Code statt Link. Ohne diesen Block verschickt der lokale Stack GoTrues
 # englische Standard-Mail mit Link — dann prüft man lokal etwas anderes.
+[auth.email.template.confirmation]
+subject = "PilzBuddy: Bitte bestätige deine Adresse"
+content_path = "./supabase/templates/confirmation.html"
+
 [auth.email.template.recovery]
 subject = "PilzBuddy: Code zum Zurücksetzen"
 content_path = "./supabase/templates/recovery.html"

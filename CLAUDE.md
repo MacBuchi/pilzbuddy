@@ -105,10 +105,17 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   Passwort bzw. eine frische Re-Authentifizierung, ein gestohlenes
   Session-Token allein reicht nicht für eine Kontoübernahme. Eine frisch per
   Reset-Code angelegte Sitzung gilt als frische Authentifizierung, deshalb
-  funktioniert der Reset-Flow damit. Einen „Passwort ändern"-Dialog für
-  Angemeldete gibt es weiter NICHT (Issue #127) — wer ihn baut, muss das
-  aktuelle Passwort abfragen (erneutes `signIn`) und gegen die
-  Live-Einstellung testen, `updateUser` allein scheitert dort.
+  funktioniert der Reset-Flow damit.
+- Passwort ändern für Angemeldete (`AuthRepository.changePassword`, Dialog im
+  Profil, Issue #127, seit 1.31.0): meldet sich zuerst mit dem **aktuellen**
+  Passwort neu an (`signInWithPassword`) und ruft erst dann `updateUser` —
+  wegen „Secure password change" scheitert `updateUser` allein mit 403. Wer
+  den Zwischenschritt wegkürzt, merkt es nur live; deshalb prüft ihn
+  `tool/auth_reset_check.sh` gegen echtes GoTrue. Nebeneffekt mit Absicht:
+  Ein falsches aktuelles Passwort scheitert schon an der Anmeldung.
+  Mitfahrbars `_AdminPasswordDialog` fragt das aktuelle Passwort NICHT ab —
+  das geht dort nur, solange die Einstellung aus ist; beim nächsten Anfassen
+  mitziehen.
 - Passwort-Reset (`lib/features/auth/login_screen.dart`, drei Modi;
   `AuthRepository.sendPasswordResetCode` / `resetPasswordWithCode`): läuft
   über den **Zahlencode** aus der Mail (`verifyOTP` mit
@@ -136,16 +143,29 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   Reset-Vorlage, NICHT aus „Magic link or OTP" — `/recover` verschickt,
   `verifyOTP` prüft nur. Wer „Confirm sign up" anschaltet, muss den
   Registrierungs-Screen mitziehen: `signUp` liefert dann keine Sitzung
-  mehr, und genau darauf verlässt sich `signup_screen.dart` (ohne Anpassung
-  bleibt die Registrierung stumm stehen). Anschalten ist dennoch fällig
-  vor dem Play-Rollout (Issue #129): Freundessuche läuft über die exakte
+  mehr — `AuthRepository.signUp` gibt deshalb zurück, ob bestätigt werden
+  muss, und der Registrieren-Screen zeigt dann die Code-Eingabe statt
+  stumm stehenzubleiben (Issue #129, seit 1.30.0). Bestätigt wird wie beim
+  Reset über den **Code** aus der Mail (`verifyOTP` mit `OtpType.signup`),
+  nicht über deren Link: `signUp` legt denselben PKCE-Verifier auf dem
+  anfordernden Gerät ab, der Link wäre also wieder gerätegebunden.
+  `verifyOTP` meldet direkt an, die Registrierung endet also auf der Karte.
+  Warum überhaupt Pflicht: Freundessuche läuft über die exakte
   E-Mail-Adresse, und der Reset-Code geht an ein Postfach — beides
-  verlässt sich darauf, dass die Adresse dem Konto wirklich gehört.
-  Mitfahrbar hat die Bestätigungspflicht seit 2026-07-23 an; hier ist
-  PilzBuddy der Nachzügler, nicht umgekehrt.
-  Geprüft wird der Flow von `tool/auth_reset_check.sh` im Job „Schema Dry
+  verlässt sich darauf, dass die Adresse dem Konto gehört. Am 2026-07-25
+  ist genau das passiert: eine Registrierung auf eine `+`-Alias-Adresse,
+  die web.de nicht zustellt, hinterließ ein dauerhaft unrettbares Konto;
+  solche Zustellversuche zählen bei Brevo zusätzlich als Hard Bounce
+  gegen die Absender-Reputation.
+  **Reihenfolge beim Umstellen im Dashboard:** erst diese App-Version
+  ausliefern, dann die Vorlage „Confirm sign up" auf `{{ .Token }}` ohne
+  Link setzen, dann „Confirm email" anschalten. Andersherum bricht die
+  Registrierung still.
+  Geprüft werden die Flows von `tool/auth_reset_check.sh` im Job „Schema Dry
   Run" — gegen echtes GoTrue im lokalen Stack, inklusive Mailabholung aus
-  Mailpit. `supabase/config.toml` spiegelt dafür die Dashboard-Härtung
+  Mailpit: Registrierung samt Bestätigung, Reset und Passwortwechsel (der
+  Name des Skripts ist seit #127/#129 zu eng). `supabase/config.toml`
+  spiegelt dafür die Dashboard-Härtung
   (`[auth.email] secure_password_change = true`), damit lokal nicht laxer
   geprüft wird als live; die Mail-Vorlage liegt als versionierte Kopie in
   `supabase/templates/recovery.html`. **Blinder Fleck:** Die im Dashboard
@@ -263,8 +283,17 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
 - `catch (_) {}` nur mit Begründungskommentar und nie im Kernpfad. Optionale
   Features (Offline-Karte, Update-Check, GPS) dürfen still degradieren.
 - Bekannte Schuld: Farben sind als Hex-Literale über viele Dateien verstreut.
-  Neuen Code nicht so schreiben — Farben/Abstände zentral halten und bei
-  Berührung schrittweise auf Konstanten umstellen (Issue #53).
+  Neuen Code nicht so schreiben — die Marken-Töne stehen in
+  `lib/core/app_colors.dart` (Issue #53 hat die Datei angelegt, der Umbau ist
+  aber nicht überall durch); bei Berührung schrittweise umstellen. Abstände
+  haben noch gar keine Konstanten.
+- Formular-Bausteine liegen in `lib/core/widgets/`: `PasswordField` (mit
+  Auge-Toggle, `minPasswordLength`) und `FormNotice` (Erfolg/Fehler
+  unterscheidbar). Neue Passwortfelder und Formular-Rückmeldungen darüber
+  bauen, nicht wieder per Hand — vorher gab es vier Kopien mit
+  `obscureText: true` und ein nacktes `Text` als Rückmeldung (Issue #131).
+  Ein `inputDecorationTheme` gibt es weiterhin nicht; die 19 inline
+  gebauten `InputDecoration` sind ein eigener PR wert, kein Nebeneffekt.
 - Fehlermeldungen differenzieren; „Internet verfügbar?" ist nicht für jeden
   Fehlerfall der richtige Text (Issue #59).
 

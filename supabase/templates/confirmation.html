@@ -1,0 +1,17 @@
+<!--
+  Bestätigungsmail bei der Registrierung. Versionierte Kopie der Vorlage
+  aus dem Supabase-Dashboard (Authentication → Emails → Templates →
+  Confirm sign up); das Dashboard ist die wirksame Quelle, hier steht sie,
+  damit sie sichtbar ist und der lokale Stack dieselbe Mail schickt.
+  Änderungen also IMMER an beiden Stellen.
+
+  Wie bei der Reset-Mail: {{ .Token }} und KEIN {{ .ConfirmationURL }}.
+  Auch signUp legt einen PKCE-Verifier auf dem anfordernden Gerät ab, der
+  Link wäre also gerätegebunden und stürbe im Handy-Browser.
+-->
+<h2>Willkommen bei PilzBuddy</h2>
+<p>Bestätige deine Adresse mit diesem Code:</p>
+<p style="font-size:28px;letter-spacing:4px"><strong>{{ .Token }}</strong></p>
+<p>Gib ihn in der App ein — danach bist du direkt angemeldet.
+   Der Code gilt eine Stunde.</p>
+<p>Wenn du dich nicht registriert hast, ignoriere diese Mail einfach.</p>

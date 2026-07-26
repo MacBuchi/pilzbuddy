@@ -60,6 +60,14 @@ String friendlyError(Object error) {
 /// Login-Fehler → Meldung. Bevorzugt den typisierten Supabase-Fehlercode;
 /// der HTTP-Status bleibt als Fallback für ältere Server.
 String loginErrorMessage(AuthException error) {
+  // Vor der Standardmeldung prüfen: Die unbestätigte Adresse kommt zwar
+  // auch als 400, ist aber etwas völlig anderes als ein falsches Passwort
+  // — wer hier „E-Mail oder Passwort falsch" liest, sucht den Fehler an
+  // der falschen Stelle (Issue #129).
+  if (error.code == 'email_not_confirmed') {
+    return 'Bitte bestätige zuerst deine E-Mail-Adresse — die Mail dazu '
+        'liegt in deinem Postfach.';
+  }
   if (error.code == 'invalid_credentials' || error.statusCode == '400') {
     return 'E-Mail oder Passwort falsch.';
   }
@@ -99,4 +107,45 @@ String signupErrorMessage(AuthException error) {
     return 'Dieser Benutzername ist schon vergeben.';
   }
   return 'Registrierung fehlgeschlagen: ${error.message}';
+}
+
+/// Fehler beim Bestätigen der Adresse (Code aus der Mail) und beim erneuten
+/// Anfordern dieser Mail → Meldung.
+///
+/// Eigene Funktion statt `resetErrorMessage`: Deren Fallback sagt
+/// „Zurücksetzen fehlgeschlagen" — mitten in der Registrierung schickt das
+/// den Leser in die falsche Richtung. Dazu kommt das Rate Limit, das es beim
+/// Reset praktisch nicht gibt, beim „Erneut senden" aber der häufigste Fall
+/// ist (Issue #129/#131).
+String confirmErrorMessage(AuthException error) {
+  if (error.code == 'otp_expired' || error.statusCode == '403') {
+    return 'Der Code ist falsch oder abgelaufen — bitte einen neuen '
+        'anfordern.';
+  }
+  if (error.code == 'over_email_send_rate_limit' ||
+      error.statusCode == '429') {
+    return 'Es ist gerade eine Mail rausgegangen — bitte eine Minute warten.';
+  }
+  return 'Bestätigung fehlgeschlagen: ${error.message}';
+}
+
+/// Fehler beim Ändern des Passworts durch Angemeldete → Meldung (Issue #127).
+///
+/// Der erste Schritt des Ändern-Flows ist eine erneute Anmeldung mit dem
+/// aktuellen Passwort. Deren `invalid_credentials` heißt hier deshalb NICHT
+/// „E-Mail oder Passwort falsch", sondern genau eines von beidem.
+/// Die typisierten Codes stehen bewusst VOR dem Status-Fallback: Ein
+/// abgelehntes neues Passwort kommt je nach Server-Version auch als 400 an
+/// und läse sich sonst als „aktuelles Passwort falsch".
+String changePasswordErrorMessage(AuthException error) {
+  if (error.code == 'weak_password') {
+    return 'Dieses Passwort ist zu unsicher — bitte ein anderes wählen.';
+  }
+  if (error.code == 'same_password') {
+    return 'Das ist das bisherige Passwort — bitte ein neues wählen.';
+  }
+  if (error.code == 'invalid_credentials' || error.statusCode == '400') {
+    return 'Das aktuelle Passwort stimmt nicht.';
+  }
+  return 'Ändern fehlgeschlagen: ${error.message}';
 }

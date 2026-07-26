@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# End-to-end check of the password reset against a real GoTrue in the local
-# Supabase stack (started by the Schema Dry Run job): sign up → request a
-# code → fetch the mail from Mailpit → redeem the code → set a new password
-# → sign in with it.
+# End-to-end check of the auth flows against a real GoTrue in the local
+# Supabase stack (started by the Schema Dry Run job):
+#   sign up → confirm the address with the code from the mail
+#           → request a reset code → redeem it → sign in with the new one
+#           → change the password from a signed-in session (Issue #127).
 #
 # Why this exists as its own check: the widget tests run against fakes and
 # can only prove the app's own logic. Everything that makes this flow
@@ -36,33 +37,63 @@ hdr=(-H "apikey: $KEY" -H "Content-Type: application/json")
 
 fail() { echo "::error::Passwort-Reset-Prüfung fehlgeschlagen: $1"; exit 1; }
 
+# Holt eine Mail an $EMAIL, deren Betreff das Muster enthält. Nach Betreff
+# statt „die neueste": Mit Bestätigungspflicht liegen zwei Mails im
+# Postfach, und die falsche zu nehmen macht den Test zum Zufallsspiel.
+fetch_mail() {
+  local pattern="$1" id=""
+  for _ in $(seq 1 30); do
+    id=$(curl -s "$MAIL/api/v1/search?query=to:$EMAIL" \
+      | jq -r --arg p "$pattern" \
+        '[.messages[] | select(.Subject | test($p))] | .[0].ID // empty')
+    [ -n "$id" ] && break
+    sleep 1
+  done
+  [ -n "$id" ] || return 1
+  curl -s "$MAIL/api/v1/message/$id" | jq -r '.HTML'
+}
+
+# Prüft, dass eine Mail den Code zeigt und keinen Link — der wäre an das
+# anfordernde Gerät gebunden (PKCE) und stürbe im Browser.
+code_from() {
+  local body="$1" what="$2" code
+  code=$(printf '%s' "$body" | grep -oE '[0-9]{6}' | head -1)
+  [ -n "$code" ] || fail "kein sechsstelliger Code in der $what — zeigt die Vorlage {{ .Token }}?"
+  if printf '%s' "$body" | grep -qi 'auth/v1/verify'; then
+    fail "die $what enthält einen Link — die Vorlage darf nur den Code zeigen"
+  fi
+  printf '%s' "$code"
+}
+
 signup=$(curl -s "$URL/auth/v1/signup" "${hdr[@]}" \
   -d "{\"email\":\"$EMAIL\",\"password\":\"$OLD\",\"data\":{\"username\":\"$USERNAME\"}}")
 grep -q '"id"' <<<"$signup" || fail "Konto konnte nicht angelegt werden: $signup"
-echo "✓ Testkonto angelegt"
+# Mit Bestätigungspflicht darf signUp KEINE Sitzung liefern — genau darauf
+# stützt sich der Registrieren-Screen (Issue #129).
+grep -q '"access_token"' <<<"$signup" \
+  && fail "signUp lieferte eine Sitzung — ist enable_confirmations aus? Der Registrieren-Screen erwartet die Bestätigung."
+echo "✓ Testkonto angelegt, noch ohne Sitzung"
+
+confirm_body=$(fetch_mail 'bestätige|Willkommen') \
+  || fail "keine Bestätigungsmail eingetroffen (Mailpit unter $MAIL)"
+confirm_code=$(code_from "$confirm_body" "Bestätigungsmail")
+echo "✓ Bestätigungsmail enthält einen Code und keinen Link"
+
+confirmed=$(curl -s "$URL/auth/v1/verify" "${hdr[@]}" \
+  -d "{\"type\":\"signup\",\"email\":\"$EMAIL\",\"token\":\"$confirm_code\"}" \
+  | jq -r '.access_token // empty')
+[ -n "$confirmed" ] || fail "Bestätigungs-Code wurde nicht akzeptiert"
+echo "✓ Adresse bestätigt, Sitzung kam direkt mit"
 
 status=$(curl -s -o /dev/null -w '%{http_code}' "$URL/auth/v1/recover" "${hdr[@]}" \
   -d "{\"email\":\"$EMAIL\"}")
 [ "$status" = "200" ] || fail "recover antwortete mit HTTP $status"
 echo "✓ Reset-Code angefordert"
 
-id=""
-for _ in $(seq 1 30); do
-  id=$(curl -s "$MAIL/api/v1/search?query=to:$EMAIL" | jq -r '.messages[0].ID // empty')
-  [ -n "$id" ] && break
-  sleep 1
-done
-[ -n "$id" ] || fail "keine Reset-Mail eingetroffen (Mailpit unter $MAIL)"
-body=$(curl -s "$MAIL/api/v1/message/$id" | jq -r '.HTML')
-
-code=$(printf '%s' "$body" | grep -oE '[0-9]{6}' | head -1)
-[ -n "$code" ] || fail "kein sechsstelliger Code in der Mail — zeigt die Vorlage {{ .Token }}?"
-# Ein Link in der Mail wäre der Weg, den die App bewusst NICHT geht: Er ist
-# an das anfordernde Gerät gebunden (PKCE) und stirbt im Browser.
-if printf '%s' "$body" | grep -qi 'auth/v1/verify'; then
-  fail "die Reset-Mail enthält einen Link — die Vorlage muss nur den Code zeigen"
-fi
-echo "✓ Mail enthält einen Code und keinen Link"
+body=$(fetch_mail 'zurücksetzen|Zurücksetzen') \
+  || fail "keine Reset-Mail eingetroffen (Mailpit unter $MAIL)"
+code=$(code_from "$body" "Reset-Mail")
+echo "✓ Reset-Mail enthält einen Code und keinen Link"
 
 verify=$(curl -s "$URL/auth/v1/verify" "${hdr[@]}" \
   -d "{\"type\":\"recovery\",\"email\":\"$EMAIL\",\"token\":\"$code\"}")
@@ -92,4 +123,39 @@ bad=$(curl -s "$URL/auth/v1/verify" "${hdr[@]}" \
   || fail "falscher Code liefert '$bad' statt 'otp_expired' — die Meldung in lib/core/errors.dart passt dann nicht mehr"
 echo "✓ Falscher Code wird als otp_expired abgelehnt"
 
-echo "Passwort-Reset läuft end-to-end gegen echtes GoTrue."
+# --- Passwort ändern durch Angemeldete (Issue #127) -------------------------
+# AuthRepository.changePassword meldet sich zuerst mit dem aktuellen Passwort
+# neu an und ändert danach — genau diese Reihenfolge steht hier. Sie ist der
+# ganze Trick: „Secure password change" verlangt eine frische
+# Authentifizierung, und die frische Anmeldung liefert sie. Kürzt jemand den
+# Schritt weg, fällt es live als 403 auf und sonst nirgends.
+#
+# Bewusst NICHT geprüft: dass eine „alte" Sitzung abgelehnt wird. Jede
+# Sitzung, die dieses Skript erzeugen kann, ist frisch — der Test wäre ein
+# Zufallsgenerator.
+THIRD='DrittesPilz#2026!'
+status=$(curl -s -o /tmp/change_update.out -w '%{http_code}' -X PUT "$URL/auth/v1/user" \
+  "${hdr[@]}" -H "Authorization: Bearer $new" -d "{\"password\":\"$THIRD\"}")
+[ "$status" = "200" ] \
+  || fail "Passwortwechsel nach frischer Anmeldung abgelehnt (HTTP $status): $(cat /tmp/change_update.out). Dann reicht signInWithPassword nicht mehr als frische Authentifizierung und AuthRepository.changePassword braucht reauthenticate() (Issue #127)."
+echo "✓ Passwortwechsel nach frischer Anmeldung angenommen"
+
+third=$(curl -s "$URL/auth/v1/token?grant_type=password" "${hdr[@]}" \
+  -d "{\"email\":\"$EMAIL\",\"password\":\"$THIRD\"}" | jq -r '.access_token // empty')
+[ -n "$third" ] || fail "Anmeldung mit dem geänderten Passwort schlug fehl"
+gone=$(curl -s "$URL/auth/v1/token?grant_type=password" "${hdr[@]}" \
+  -d "{\"email\":\"$EMAIL\",\"password\":\"$NEW\"}" | jq -r '.error_code // empty')
+[ "$gone" = "invalid_credentials" ] \
+  || fail "das vorige Passwort gilt nach dem Wechsel noch ($gone)"
+echo "✓ Geändertes Passwort gilt, das vorige nicht mehr"
+
+# Nur zur Information: Ob GoTrue ein unverändertes Passwort mit
+# `same_password` ablehnt, hängt an der Plattform-Einstellung. Die App bildet
+# den Code ab (changePasswordErrorMessage) — hier nur protokollieren, statt
+# einen Lauf daran scheitern zu lassen.
+same=$(curl -s -X PUT "$URL/auth/v1/user" "${hdr[@]}" \
+  -H "Authorization: Bearer $third" -d "{\"password\":\"$THIRD\"}" \
+  | jq -r '.error_code // "akzeptiert"')
+echo "ℹ Unverändertes Passwort meldet: $same (App erwartet same_password)"
+
+echo "Registrierung, Passwort-Reset und Passwortwechsel laufen end-to-end gegen echtes GoTrue."

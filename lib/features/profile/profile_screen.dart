@@ -7,14 +7,17 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show AuthException;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/app_distribution.dart';
 import '../../core/app_info.dart';
 import '../../core/errors.dart';
 import '../../core/update_check.dart';
+import '../../core/widgets/form_notice.dart';
 import '../../core/widgets/mushroom_avatar.dart';
 import '../../core/widgets/mushroom_icon.dart';
+import '../../core/widgets/password_field.dart';
 import '../../data/providers.dart';
 import '../../models/find.dart';
 import '../import_export/gpx_export.dart';
@@ -139,6 +142,7 @@ class ProfileScreen extends ConsumerWidget {
                 'Alle deine Spots samt Fundhistorie für andere Karten-Apps'),
             onTap: () => _exportGpx(context, ref),
           ),
+          const _ChangePasswordTile(),
           const Divider(height: 32),
           if (profile == null && profileAsync.isLoading)
             const Padding(
@@ -177,6 +181,143 @@ class ProfileScreen extends ConsumerWidget {
           _DeleteAccountTile(username: profile?.username),
         ],
       ),
+    );
+  }
+}
+
+/// Passwort ändern für Angemeldete (Issue #127). Der Reset-Flow auf dem
+/// Login-Screen hilft nur, wer ausgesperrt ist — wer drin ist, hatte bisher
+/// keinen Weg.
+class _ChangePasswordTile extends ConsumerWidget {
+  const _ChangePasswordTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.lock_outline),
+      title: const Text('Passwort ändern'),
+      subtitle: const Text(
+          'Braucht dein aktuelles Passwort — so ist ein fremdes Gerät '
+          'allein nicht genug'),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => showDialog<void>(
+        context: context,
+        builder: (_) => const _ChangePasswordDialog(),
+      ),
+    );
+  }
+}
+
+class _ChangePasswordDialog extends ConsumerStatefulWidget {
+  const _ChangePasswordDialog();
+
+  @override
+  ConsumerState<_ChangePasswordDialog> createState() =>
+      _ChangePasswordDialogState();
+}
+
+class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
+  final _currentController = TextEditingController();
+  final _newController = TextEditingController();
+  final _repeatController = TextEditingController();
+  String? _error;
+  bool _busy = false;
+
+  @override
+  void dispose() {
+    _currentController.dispose();
+    _newController.dispose();
+    _repeatController.dispose();
+    super.dispose();
+  }
+
+  bool get _canSave =>
+      _currentController.text.isNotEmpty &&
+      _newController.text.length >= minPasswordLength &&
+      _newController.text == _repeatController.text;
+
+  Future<void> _save() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await ref.read(authRepositoryProvider).changePassword(
+            currentPassword: _currentController.text,
+            newPassword: _newController.text,
+          );
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Dein Passwort ist geändert.')),
+      );
+    } on AuthException catch (e) {
+      if (mounted) setState(() => _error = changePasswordErrorMessage(e));
+    } catch (e, stackTrace) {
+      logError('Passwort ändern', e, stackTrace);
+      if (mounted) setState(() => _error = friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Passwort ändern'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            PasswordField(
+              controller: _currentController,
+              label: 'Aktuelles Passwort',
+              textInputAction: TextInputAction.next,
+              autofocus: true,
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 12),
+            PasswordField(
+              controller: _newController,
+              label: 'Neues Passwort (mind. $minPasswordLength Zeichen)',
+              textInputAction: TextInputAction.next,
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 12),
+            PasswordField(
+              controller: _repeatController,
+              label: 'Neues Passwort wiederholen',
+              onSubmitted: (_) => (_canSave && !_busy) ? _save() : null,
+              onChanged: (_) => setState(() {}),
+            ),
+            PasswordMatchHint(
+              password: _newController.text,
+              repeated: _repeatController.text,
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 16),
+              FormNotice(message: _error!, tone: NoticeTone.error),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _busy ? null : () => Navigator.of(context).pop(),
+          child: const Text('Abbrechen'),
+        ),
+        FilledButton(
+          onPressed: (!_canSave || _busy) ? null : _save,
+          child: _busy
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2))
+              : const Text('Speichern'),
+        ),
+      ],
     );
   }
 }
