@@ -1,13 +1,21 @@
-// Die unterste Kartenschicht (Issues #118/#119).
+// Die unterste Kartenschicht (Issues #118/#119/#137).
 //
-// Sie liegt seit #130 bei ALLEN Nutzern unter der Karte, nicht nur bei
-// Offline-Nutzern — deshalb entscheidet ihr Render-Modus über die
-// Bildrate der ganzen App. `raster` ist laut Paket-Doku der schnellste
-// Modus; Schärfe verliert sie dabei nicht, weil ihre Daten bei Zoom 7
-// enden und ohnehin immer hochskaliert werden.
+// Zwei Regeln, die sich widersprechen könnten, und deshalb beide hier
+// festgenagelt sind:
+//
+// * Unter den ONLINE-Kacheln liegt sie nicht (#137). Wo eine OSM-Kachel
+//   schon lag und die nächste fehlte, standen zwei Kartenstile
+//   nebeneinander — das sah kaputter aus als die leere Fläche.
+// * Ohne Empfang liegt sie drin (#118). Dann kommt keine Kachel, es gibt
+//   also nichts, womit sie sich mischen könnte, und sie ist der
+//   Unterschied zwischen einer groben Karte und einer leeren Fläche.
+//
+// Ihr Render-Modus ist `raster`, weil sie bei allen mitläuft und ihre
+// Daten bei Zoom 7 enden — hochskaliert wird ohnehin (#119).
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -37,12 +45,9 @@ class _EmptyTileProvider implements vmt.VectorTileProvider {
   vmt.TileProviderType get type => vmt.TileProviderType.vector;
 }
 
-/// Der echte Provider entpackt ein Asset über `path_provider` — im Test
-/// gibt es den Platform-Channel nicht, und die Schicht fiele still weg.
-List<Override> _withBaseMap() {
-  // Minimal, aber mit der Quelle „protomaps" — der Layer besteht sonst auf
-  // einem Provider, der zum Thema passt.
-  final theme = vtr.ThemeReader().read(jsonDecode('''
+/// Minimal, aber mit der Quelle „protomaps" — der Layer besteht sonst auf
+/// einem Provider, der zum Thema passt.
+vtr.Theme _theme() => vtr.ThemeReader().read(jsonDecode('''
 {
   "version": 8,
   "layers": [
@@ -56,45 +61,82 @@ List<Override> _withBaseMap() {
   ]
 }
 ''') as Map<String, dynamic>);
-  return [
+
+/// Der echte Provider entpackt ein Asset über `path_provider` — im Test
+/// gibt es den Platform-Channel nicht, und die Schicht fiele still weg.
+Override _baseMapAvailable() =>
     baseMapStyleProvider.overrideWith((ref) async => OfflineMapStyle(
-          theme: theme,
+          theme: _theme(),
           tileProviders: vmt.TileProviders({'protomaps': _EmptyTileProvider()}),
-        )),
-  ];
+        ));
+
+/// Stellt eine geladene Offline-Karte nach (sonst hängt der Detail-Layer
+/// an Archiven auf der Platte).
+Override _offlineMapActive() =>
+    offlineMapStyleProvider.overrideWith((ref) async => OfflineMapStyle(
+          theme: _theme(),
+          tileProviders: vmt.TileProviders({'protomaps': _EmptyTileProvider()}),
+        ));
+
+Finder get _baseMap => find.byKey(const ValueKey('base-map'));
+
+FakeBackend _signedIn() {
+  final backend = FakeBackend();
+  final me = backend.addUser(username: 'testpilz');
+  backend.signInAs(me.id);
+  return backend;
 }
 
 void main() {
-  testWidgets('Die Basiskarte rendert als Raster, nicht als Vektor',
+  testWidgets('Mit Empfang und Online-Karte liegt keine Basiskarte darunter',
       (tester) async {
-    final backend = FakeBackend();
-    final me = backend.addUser(username: 'testpilz');
-    backend.signInAs(me.id);
-    await pumpApp(tester, backend, extraOverrides: _withBaseMap());
+    await pumpApp(tester, _signedIn(),
+        extraOverrides: [_baseMapAvailable()]);
     await settle(tester);
 
-    final layer = tester.widget<vmt.VectorTileLayer>(
-        find.byKey(const ValueKey('base-map')));
+    expect(_baseMap, findsNothing,
+        reason: 'Zwei Kartenstile nebeneinander sahen kaputter aus als die '
+            'leere Fläche, die die Schicht verhindern sollte (Issue #137).');
+  });
+
+  testWidgets('Ohne Empfang liegt die Basiskarte drin', (tester) async {
+    // Der Anlass von #118: Wald, kein Netz, noch keine Region geladen.
+    await pumpApp(tester, _signedIn(),
+        connectivity: const [ConnectivityResult.none],
+        extraOverrides: [_baseMapAvailable()]);
+    await settle(tester);
+
+    expect(_baseMap, findsOneWidget,
+        reason: 'Ohne Netz kommt keine OSM-Kachel — dann ist die Übersicht '
+            'der Unterschied zwischen Karte und leerer Fläche.');
+  });
+
+  testWidgets('Bei aktiver Offline-Karte liegt sie ebenfalls drin',
+      (tester) async {
+    // Hier mischt sich nichts: Detailkarte und Übersicht nutzen dasselbe
+    // Protomaps-Thema.
+    await pumpApp(tester, _signedIn(),
+        extraOverrides: [_baseMapAvailable(), _offlineMapActive()]);
+    await settle(tester);
+
+    expect(_baseMap, findsOneWidget);
+  });
+
+  testWidgets('Die Basiskarte rendert als Raster, nicht als Vektor',
+      (tester) async {
+    await pumpApp(tester, _signedIn(),
+        connectivity: const [ConnectivityResult.none],
+        extraOverrides: [_baseMapAvailable()]);
+    await settle(tester);
+
+    final layer = tester.widget<vmt.VectorTileLayer>(_baseMap);
 
     expect(layer.layerMode, vmt.VectorTileLayerMode.raster,
         reason: 'Der Vektor-Modus rendert bei jeder Zwischen-Zoomstufe neu '
             '("can result in low frame rates", Paket-Doku) und kostet hier '
             'nichts an Schärfe — die Daten enden bei Zoom 7 (Issue #119).');
-  });
-
-  testWidgets('Die Basiskarte ersetzt fehlende Kacheln aus tieferen Stufen',
-      (tester) async {
-    // Ohne das läge unter dem Finger wieder eine leere Fläche — der
-    // Kern von #118/#119.
-    final backend = FakeBackend();
-    final me = backend.addUser(username: 'testpilz');
-    backend.signInAs(me.id);
-    await pumpApp(tester, backend, extraOverrides: _withBaseMap());
-    await settle(tester);
-
-    final layer = tester.widget<vmt.VectorTileLayer>(
-        find.byKey(const ValueKey('base-map')));
-
-    expect(layer.maximumTileSubstitutionDifference, greaterThanOrEqualTo(3));
+    expect(layer.maximumTileSubstitutionDifference, greaterThanOrEqualTo(3),
+        reason: 'Ohne Ersatz aus tieferen Stufen läge unter dem Finger '
+            'wieder eine leere Fläche (Issue #118).');
   });
 }
