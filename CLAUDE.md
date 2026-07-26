@@ -144,7 +144,7 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   prüft nur. „Confirm email" ist seit 2026-07-26 **an**; damit liefert
   `signUp` keine Sitzung mehr — `AuthRepository.signUp` gibt deshalb zurück,
   ob bestätigt werden muss, und der Registrieren-Screen zeigt dann die
-  Code-Eingabe statt stumm stehenzubleiben (Issue #129, seit 1.30.0). Beide
+  Code-Eingabe statt stumm stehenzubleiben (Issue #129, seit 1.31.0). Beide
   Wege haben ein „Erneut senden" mit 60-Sekunden-Sperre (`ResendButton`);
   im Reset meldet es bewusst immer dasselbe, ein Rate-Limit-Hinweis käme nur
   bei existierendem Konto und wäre damit ein Orakel. Bestätigt wird wie beim
