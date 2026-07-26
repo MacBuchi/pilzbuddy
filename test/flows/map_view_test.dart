@@ -41,14 +41,18 @@ void main() {
     expect(options.backgroundColor, isNot(const Color(0xFFE0E0E0)));
   });
 
-  testWidgets('Die Kachel-Puffer sind größer als die Vorgabe',
+  testWidgets('Die Kachel-Puffer bleiben bei der Paketvorgabe',
       (tester) async {
-    // Mehr behaltene Kacheln = beim Warten wird die grobe Nachbarstufe
-    // hochskaliert weitergezeichnet, statt eine Lücke zu zeigen (#119).
+    // #130 hatte sie auf 3/2 erhöht, damit beim Warten die grobe
+    // Nachbarstufe weitergezeichnet wird statt einer Lücke (#119). Das
+    // wurde in #142 zurückgenommen: Jede gehaltene Kachel ist eine
+    // GPU-Textur, und `flutter_map` gibt sie beim Ausdünnen nicht frei —
+    // gemessen wuchs der Texturspeicher auf 257 MB, in den ANR-Berichten
+    // auf 1,7–1,9 GB. Wer die Werte wieder anhebt, muss vorher messen.
     await pumpApp(tester, loggedInBackend());
 
     final layer = tester.widget<TileLayer>(find.byType(TileLayer));
-    expect(layer.keepBuffer, greaterThan(2));
-    expect(layer.panBuffer, greaterThan(1));
+    expect(layer.keepBuffer, 2);
+    expect(layer.panBuffer, 1);
   });
 }

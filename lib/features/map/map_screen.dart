@@ -387,14 +387,19 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                   userAgentPackageName: 'de.marcusbucher.pilzbuddy',
                   tileProvider: _tileProvider,
-                  // Großzügiger als die Vorgabe (2/1): flutter_map behält
-                  // damit mehr schon geladene Kacheln — auch die der
-                  // Nachbar-Zoomstufen, die es beim Warten hochskaliert
-                  // einblendet — und lädt einen Ring um den Bildausschnitt
-                  // vor. Beides zahlt auf dasselbe Ziel ein: lieber grob
-                  // weiterzeichnen als auf die scharfe Kachel warten.
-                  keepBuffer: 3,
-                  panBuffer: 2,
+                  // Zurück auf die Paketvorgabe (Issue #142). #130 hatte
+                  // 3/2 gesetzt, um lieber grob weiterzuzeichnen als auf
+                  // die scharfe Kachel zu warten. Der Preis war zu hoch:
+                  // Jede gehaltene Kachel ist eine GPU-Textur, und
+                  // `flutter_map` gibt sie beim Ausdünnen nicht frei
+                  // (`evictImageFromCache = false`). Gemessen wuchs der
+                  // Texturspeicher beim Bedienen von 89 auf 257 MB und fiel
+                  // erst beim Neustart — in den ANR-Berichten stand er bei
+                  // 1,7–1,9 GB. Eine Karte, die nach zehn Minuten die App
+                  // abwürgt, ist schlechter als eine, die beim Nachladen
+                  // kurz blass ist.
+                  keepBuffer: 2,
+                  panBuffer: 1,
                 ),
               // Eigene Live-Position als Avatar — liegt UNTER den
               // Spot-Markern, damit die tappbar bleiben.
