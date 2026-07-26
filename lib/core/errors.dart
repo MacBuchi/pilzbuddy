@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:developer' as developer;
 import 'dart:io';
 
+import 'package:executor_lib/executor_lib.dart' show CancellationException;
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -36,6 +37,28 @@ void logError(String context, Object error, [StackTrace? stackTrace]) {
     // Bewusst still: hier zu loggen wäre genau die Endlosschleife.
   }
 }
+
+/// Gehört dieser Fehler in `error_reports`?
+///
+/// Für die globalen Handler in `main()`, die alles melden, was ihnen vor die
+/// Füße fällt. Zwei Dinge fallen dort regelmäßig hin, ohne dass etwas kaputt
+/// ist — und 193 Meldungen pro Woche für einen Normalfall begraben im
+/// Wochendigest die echten Funde (Issue #136, gleiche Lehre wie #124):
+///
+/// * `CancellationException` aus `executor_lib`: Der Kartenrenderer bricht
+///   Kachel-Aufträge ab, sobald die Kachel aus dem Bild gewandert ist
+///   (`vector_map_tiles`, u. a. `raster/tile_loader.dart`). Das Paket
+///   filtert sie an einer Stelle selbst weg — an anderer entkommt sie als
+///   unbehandelter async-Fehler. Genau dafür ist sie gedacht: abgebrochen
+///   heißt abgebrochen.
+/// * [NotSignedInException]: Hintergrundabfragen, die nach dem Abmelden
+///   noch einen Moment weiterlaufen.
+///
+/// Bewusst NICHT in `logError` selbst: Wer einen Fehler mit eigenem Kontext
+/// meldet, hat sich für das Melden entschieden — diese Entscheidung darf ein
+/// Filter nicht überstimmen.
+bool worthReporting(Object error) =>
+    error is! CancellationException && error is! NotSignedInException;
 
 /// Es gibt gerade keine angemeldete Sitzung.
 ///

@@ -311,7 +311,14 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   Merksatz aus Issue #124: **Nicht jeder gefangene Fehler gehört in
   `error_reports`.** Ein normaler Vorgang, der dort landet, ersäuft im
   Wochendigest die echten Funde — 37 Berichte in einer Woche für ein
-  Abmelden.
+  Abmelden, 193 für abgebrochene Kachel-Aufträge (#136). Die globalen
+  Handler in `main()` sieben deshalb über `worthReporting`
+  (`lib/core/errors.dart`) aus: `CancellationException` aus `executor_lib`
+  (der Kartenrenderer bricht Kacheln ab, sobald sie aus dem Bild wandern)
+  und `NotSignedInException`. `executor_lib` ist genau dafür eine direkte
+  Abhängigkeit, damit die Prüfung typisiert bleibt. Ein `logError` mit
+  eigenem Kontext meldet weiterhin alles — dort hat sich der Aufrufer
+  bewusst für das Melden entschieden.
 - Bekannte Schuld: Farben sind als Hex-Literale über viele Dateien verstreut.
   Neuen Code nicht so schreiben — die Marken-Töne stehen in
   `lib/core/app_colors.dart` (Issue #53 hat die Datei angelegt, der Umbau ist

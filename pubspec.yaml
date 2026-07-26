@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.31.4+64
+version: 1.31.5+65
 
 environment:
   sdk: ^3.11.0
@@ -47,6 +47,12 @@ dependencies:
   # Canvas-Renderer (die 10er-Linie zieht den experimentellen GPU-Stack
   # samt Native-Builds nach sich); Online-OSM bleibt immer Fallback.
   vector_map_tiles: 9.0.0-beta.9
+  # Direkt (statt nur transitiv über vector_map_tiles), damit
+  # `worthReporting` in lib/core/errors.dart typisiert auf
+  # CancellationException prüfen kann statt auf den Klassennamen als
+  # Zeichenkette. Dieselbe Schranke wie dort, damit die Auflösung nicht
+  # auseinanderläuft.
+  executor_lib: ^1.1.1
   vector_tile_renderer: ^6.1.0
   pmtiles: ^1.3.0
   path_provider: ^2.1.5

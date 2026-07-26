@@ -26,13 +26,22 @@ Future<void> main() async {
 
   // Auch nicht gefangene Fehler melden. Android Vitals sieht davon nur die
   // Play-Installationen; Web und die GitHub-APK bleiben sonst blind.
+  //
+  // `worthReporting` siebt vorher aus, was hier regelmäßig landet, ohne dass
+  // etwas kaputt ist (abgebrochene Kachel-Aufträge, Abfragen nach dem
+  // Abmelden) — dann auch nicht ins Log: Bei 193 Fällen pro Woche wäre es
+  // dort genauso Rauschen wie in der Datenbank (Issue #136). Nur diese
+  // globalen Handler filtern; ein `logError` mit eigenem Kontext meldet
+  // weiterhin alles.
   final previousOnError = FlutterError.onError;
   FlutterError.onError = (details) {
     previousOnError?.call(details);
-    logError('Flutter-Fehler', details.exception, details.stack);
+    if (worthReporting(details.exception)) {
+      logError('Flutter-Fehler', details.exception, details.stack);
+    }
   };
   WidgetsBinding.instance.platformDispatcher.onError = (error, stack) {
-    logError('Unbehandelter Fehler', error, stack);
+    if (worthReporting(error)) logError('Unbehandelter Fehler', error, stack);
     return false; // false: Standardbehandlung nicht unterdrücken.
   };
 

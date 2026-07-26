@@ -1,6 +1,9 @@
 // Der Weg vom gefangenen Fehler zum Bericht. Der Versand selbst ist nicht
 // testbar ohne Netz — die Verdrahtung und ihre Sicherungen dagegen schon,
 // und genau dort steckt das Risiko.
+import 'dart:io';
+
+import 'package:executor_lib/executor_lib.dart' show CancellationException;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/errors.dart';
 
@@ -32,6 +35,36 @@ void main() {
   test('Ohne Sink bleibt logError reines Logging', () {
     setErrorSink(null);
     expect(() => logError('Egal', Exception('x')), returnsNormally);
+  });
+
+  group('worthReporting — was die globalen Handler aussieben (#136)', () {
+    test('Abgebrochene Kachel-Aufträge nicht melden', () {
+      // 193 Fälle in einer Woche: Der Kartenrenderer bricht Kacheln ab,
+      // sobald sie aus dem Bild wandern. Genau dafür ist die Ausnahme da.
+      expect(worthReporting(CancellationException()), isFalse);
+    });
+
+    test('Abfragen nach dem Abmelden nicht melden', () {
+      expect(worthReporting(const NotSignedInException()), isFalse);
+    });
+
+    test('Alles andere weiterhin melden', () {
+      // Die Gegenprobe: Der Filter darf nicht zur Stille führen.
+      expect(worthReporting(const FormatException('kaputt')), isTrue);
+      expect(worthReporting(StateError('kaputt')), isTrue);
+      expect(worthReporting(const SocketException('weg')), isTrue);
+    });
+  });
+
+  test('logError meldet auch Ausgesiebtes, wenn es direkt gerufen wird', () {
+    // worthReporting sitzt bewusst NUR in den globalen Handlern: Wer mit
+    // eigenem Kontext meldet, hat sich für das Melden entschieden.
+    final seen = <String>[];
+    setErrorSink((context, _, _) => seen.add(context));
+
+    logError('Kachel laden', CancellationException());
+
+    expect(seen, ['Kachel laden']);
   });
 
   test('Ein abgemeldeter Sink bekommt nichts mehr', () {
