@@ -135,8 +135,12 @@ void main() {
         reason: 'Der Vektor-Modus rendert bei jeder Zwischen-Zoomstufe neu '
             '("can result in low frame rates", Paket-Doku) und kostet hier '
             'nichts an Schärfe — die Daten enden bei Zoom 7 (Issue #119).');
-    expect(layer.maximumTileSubstitutionDifference, greaterThanOrEqualTo(3),
-        reason: 'Ohne Ersatz aus tieferen Stufen läge unter dem Finger '
-            'wieder eine leere Fläche (Issue #118).');
+    expect(layer.maximumTileSubstitutionDifference, 1,
+        reason: 'In #118 stand hier 3, um graue Löcher zu schließen. Gemessen '
+            'war genau das der Haupttreiber des Vektor-Speichers: Spitze '
+            '512 → 224 MB, GPU 188 → 37 MB (Issue #142). Löcher entstehen '
+            'dadurch keine — das Hochskalieren der Übersicht kommt vom '
+            '`maximumZoom = 7` des Providers, nicht von der Substitution. '
+            'Wer den Wert wieder anhebt, muss vorher messen.');
   });
 }
