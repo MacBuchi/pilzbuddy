@@ -203,6 +203,13 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   Folge fürs Risiko: Der Beta-Vektor-Renderer läuft jetzt bei allen, nicht
   nur bei Offline-Nutzern. Abgesichert bleibt es durch dieselbe Regel —
   lädt die Übersicht nicht, fällt der Layer weg (dann Hintergrundton).
+  Deshalb rendert die Übersicht seit 1.31.3 mit
+  `VectorTileLayerMode.raster`, die Detailkarte weiter mit `vector`: Der
+  Vektor-Modus rendert bei jeder Zwischen-Zoomstufe neu („can result in
+  low frame rates", Paket-Doku) und bringt der Übersicht nichts, deren
+  Daten bei z7 enden und ohnehin hochskaliert werden — bei der
+  Detailkarte dagegen ist die Schärfe der Grund für den Modus.
+  `test/base_map_layer_test.dart` nagelt beides fest (Issue #119).
   Der Download läuft im Main-Isolate und braucht deshalb einen
   Foreground-Service (`flutter_foreground_task`, Typ `dataSync`) —
   ohne den friert Android den Prozess beim App-Wechsel ein und der
