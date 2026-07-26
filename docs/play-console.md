@@ -8,7 +8,7 @@ und den tatsächlich aufgerufenen Endpunkten abgeleitet — nicht aus einer Vorl
 > Formular und Binary auseinanderlaufen. Ändert sich die App, muss diese Datei
 > mitwandern — dann sieht man beim Review des PRs, dass die Konsole nachzuziehen ist.
 
-Stand: 26. Juli 2026, App-Version 1.31.0+60.
+Stand: 26. Juli 2026, App-Version 1.32.0+68.
 
 ---
 
@@ -83,6 +83,33 @@ Bedingung dafür, diese Antwort zu geben.
 
 Weiterhin **nicht** erhoben: E-Mail-*Inhalte*. Die App liest keine Mails; sie
 schickt nur den Anlass und liest den Code, den der Nutzer abtippt.
+
+### Berechtigungen im Build
+
+Die gebaute APK deklariert **acht** Android-Berechtigungen (plus die
+app-eigene `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`, die Android selbst
+erzeugt). Nachprüfbar mit:
+
+```bash
+aapt2 dump badging build/app/outputs/flutter-apk/app-release.apk | grep uses-permission
+```
+
+| Berechtigung | Wofür | Herkunft |
+|---|---|---|
+| `INTERNET` | Supabase, Kartenkacheln, Update-Check | Manifest |
+| `ACCESS_FINE_LOCATION` | eigene Position, „Spot hier", Live-Standort | Manifest |
+| `ACCESS_COARSE_LOCATION` | dasselbe, grob | Manifest |
+| `FOREGROUND_SERVICE` | Karten-Download hält den Prozess wach | Manifest |
+| `FOREGROUND_SERVICE_DATA_SYNC` | Typ des Dienstes (ab Android 14 Pflicht) | Manifest |
+| `POST_NOTIFICATIONS` | Fortschrittsmeldung des Downloads | Manifest |
+| `ACCESS_NETWORK_STATE` | Verbindungsstatus (Auto-Offline) | `connectivity_plus` |
+| `WAKE_LOCK` | Download über den Bildschirm-Timeout hinaus | `flutter_foreground_task` |
+
+**Kein Hintergrund-Standort** (`ACCESS_BACKGROUND_LOCATION` fehlt bewusst),
+und `RECEIVE_BOOT_COMPLETED` wird per `tools:node="remove"` wieder
+**entfernt** — `flutter_foreground_task` bringt es für einen Autostart mit,
+den die App nicht nutzt. `test/android_manifest_test.dart` wacht darüber,
+dass keine Installations-Berechtigungen zurückkommen (Lehre aus #88).
 
 ### Prominent Disclosure für den Standort
 
@@ -168,11 +195,14 @@ Play-Build hat den Update-Pfad über `--dart-define=PLAY_BUILD=true` abgeschalte
 
 ### Grafiken
 
-| Asset | Format | Status |
+Alle Assets liegen fertig im Repo — beim Ausfüllen nur noch hochladen.
+Erzeugen lassen sie sich neu nach `store/README.md`.
+
+| Asset | Datei | Format |
 |---|---|---|
-| App-Icon | 512 × 512 PNG, 32 Bit | aus `assets/` ableiten |
-| Feature-Grafik | 1024 × 500 PNG/JPG | offen |
-| Screenshots Telefon | mind. 2, 16:9 oder 9:16, Kante 320–3840 px | offen — Karte mit Spots, Spot-Detail, Freundesliste, Statistik |
+| App-Icon | `store/icon-512.png` | 512 × 512 PNG, 32 Bit ✓ |
+| Feature-Grafik | `store/feature-graphic.png` | 1024 × 500 PNG ✓ |
+| Screenshots Telefon | `store/screenshots/01…05-*.png` | 5 × 1080 × 1920 (9:16) ✓ — Karte, Spot-Detail, Freunde, Statistik, Live-Standort |
 
 Screenshots ohne echte Fundorte aufnehmen (Testkonto), sonst stehen die eigenen
 Spots im Store.

@@ -370,20 +370,39 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
 
 ## Play Store — offene Blocker
 
-Fahrplan und Reihenfolge: Issue #92. Stand 2026-07-21 — noch offen:
+Fahrplan und Reihenfolge: Issue #92. Stand 2026-07-26 — noch offen:
 
-Im Repo steckt kein Blocker mehr. Offen ist nur noch, was in der Play Console
-passiert (#91): Data-Safety-Formular, Inhaltsbewertung, Store-Listing und die
-Grafiken (Feature-Grafik 1024×500, Screenshots, Icon 512×512).
+Im Repo steckt kein Blocker mehr, und auch die Grafiken sind fertig
+(`store/`: Icon 512×512, Feature-Grafik 1024×500, fünf Screenshots
+1080×1920). Offen ist nur noch, was in der Play Console passiert (#108, #91):
+App-Eintrag anlegen, Data-Safety-Formular, Inhaltsbewertung, Store-Listing,
+AAB hochladen.
 
 Die Antworten dafür sind vorbereitet und aus dem Code abgeleitet:
 **`docs/play-console.md`**. Ändert sich, was die App erhebt oder wohin sie
 verbindet, gehört diese Datei in denselben PR — sonst laufen Formular und
 Binary auseinander, und genau daran scheitern Play-Reviews.
 
+**Die Frage, die den Zeitplan bestimmt** (#108): Gilt für das Konto die Regel
+„12 Tester, 14 Tage durchgehend"? Persönliche Konten ab 2023-11-13 brauchen
+das vor dem Produktions-Zugang. Die Antwort zeigt die Konsole erst nach dem
+Anlegen des App-Eintrags, und die 14 Tage sind Kalenderzeit — alles andere
+lässt sich parallel erledigen, das nicht.
+
+**Play App Signing** (Rest aus #111): Beim ersten AAB-Upload wird unser
+Keystore zum *Upload-Key*, signiert wird danach von Google. Folge: Der
+Play-Build hat eine **andere Signatur** als die GitHub-APK. Wer die APK
+installiert hat, muss zum Wechsel einmal deinstallieren — Konto und Spots
+liegen in Supabase und bleiben, verloren gehen nur heruntergeladene
+Offline-Karten. Das gehört in die Tester-Einladung, sonst scheitert die
+Installation wortlos mit „App nicht installiert".
+
 Erledigt: Datenschutzerklärung (#90, `web/datenschutz.html`), Konto-Löschung
 (#89), In-App-Updater entfernt (#88), AAB-Build (#87), Backup-Ausschluss
-(#78). Der Build deklariert nur noch acht Berechtigungen, alle genutzt.
+(#78). Der Build deklariert acht Berechtigungen, alle genutzt — einzeln
+aufgeschlüsselt samt Herkunft in `docs/play-console.md`; zwei davon bringen
+Plugins mit, und `RECEIVE_BOOT_COMPLETED` wird per `tools:node="remove"`
+aktiv wieder entfernt.
 
 Konto-Löschung: `public.delete_own_account()` (Patch 008), `security definer`
 ohne Parameter — die id kommt aus `auth.uid()`, ein Argument wäre eine

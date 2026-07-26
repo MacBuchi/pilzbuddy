@@ -7,6 +7,12 @@ eintragen und Spots mit Freunden teilen.
 **Web-App:** <https://macbuchi.github.io/pilzbuddy/>
 **Technik:** Flutter · OpenStreetMap (`flutter_map`) · Supabase (Auth + PostgreSQL) · Riverpod
 
+## Screenshots
+
+| Karte mit Spots | Spot-Detail | Freunde | Statistik | Live-Standort |
+|---|---|---|---|---|
+| <img src="store/screenshots/01-karte.png" width="170" alt="Karte mit Pilz-Markern"> | <img src="store/screenshots/02-spot-detail.png" width="170" alt="Spot-Detail mit Fundhistorie"> | <img src="store/screenshots/03-freunde.png" width="170" alt="Freundesliste"> | <img src="store/screenshots/04-statistik.png" width="170" alt="Statistik mit Funden pro Jahr"> | <img src="store/screenshots/05-live-standort.png" width="170" alt="Geteilter Live-Standort"> |
+
 ## Funktionen
 
 - **Karte:** Karte gedrückt halten → neuer Spot (Art, Anzahl, Funddatum, Notiz optional).
@@ -24,11 +30,17 @@ eintragen und Spots mit Freunden teilen.
   - „Meine Spots mit Freunden teilen" (globaler Standard)
   - „Auch Art, Anzahl und Funddatum teilen" — sonst nur der Standort
   - einzelne Spots lassen sich im Spot-Detail von der Freigabe ausschließen
+- **Offline-Karten** (nur Android): Bundesland-Karten im Profil herunterladen,
+  danach funktioniert die Karte ohne Empfang. Ohne Netz schaltet die App von
+  selbst um; mit heruntergeladener Karte erscheint auf der Karte ein
+  Globus-Knopf zum manuellen Wechseln.
 - **Statistik:** Spots, Funde, mehrfach besuchte Spots, Funde pro Jahr,
   Top-Arten, Jahreszeiten-Verteilung.
+- **Import & Export:** GPX/KML aus anderen Karten-Apps importieren, eigene
+  Spots samt Fundhistorie als GPX exportieren.
 - **Konto:** Registrierung mit Bestätigungscode aus der Mail, „Passwort
   vergessen" ebenfalls per Code, „Passwort ändern" im Profil (fragt das
-  aktuelle Passwort ab).
+  aktuelle Passwort ab), Konto-Löschung sofort und ohne Karenzzeit.
 
 Alle Freigabe-Regeln werden serverseitig per Row-Level Security erzwungen
 (`supabase/schema.sql`) — der Client kann sie nicht umgehen.
@@ -56,8 +68,8 @@ flutter run -d <device-id>
    Bounce auf die Absender-Reputation.
 4. Project-URL + Publishable Key in `lib/core/supabase_config.dart` eintragen
    (der Publishable Key ist öffentlich; die Sicherheit liegt in den RLS-Policies)
-5. Für „Passwort vergessen" zwei Einstellungen, ohne die der Flow nicht
-   funktioniert:
+5. Für die Konto-Mails (Bestätigung bei der Registrierung und „Passwort
+   vergessen") zwei Einstellungen, ohne die beide Abläufe scheitern:
    - Authentication → Emails → **SMTP Settings**: eigenen Anbieter eintragen
      (Brevo Free reicht). Supabases eingebauter Versand liefert nur an
      Projekt-Mitglieder und ist auf wenige Mails pro Stunde begrenzt.
@@ -77,8 +89,8 @@ Kein direkter Push auf `main` — Änderungen laufen so:
 1. Feature-Branch von `main` (`feat/<thema>` oder `fix/<thema>`)
 2. Pull Request öffnen; Commit-/PR-Titel im Conventional-Commits-Stil
    (`feat:`, `fix:`, `chore:`, `ci:`, `docs:`, `test:`, `refactor:`)
-3. CI muss grün sein (Analyze & Test, Build Web, Build Android APK, Version Guard,
-   Schema Check)
+3. CI muss grün sein — sechs Pflicht-Checks: Analyze & Test, Build Web,
+   Build Android APK, Version Guard, Schema Dry Run und Schema Check
 4. Squash-Merge
 
 **Release:** Die Version in `pubspec.yaml` ist die einzige Quelle der Wahrheit
