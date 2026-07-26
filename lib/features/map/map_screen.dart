@@ -349,7 +349,15 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   key: const ValueKey('base-map'),
                   tileProviders: baseStyle.tileProviders,
                   theme: baseStyle.theme,
-                  layerMode: vmt.VectorTileLayerMode.vector,
+                  // Raster, nicht Vektor (#119): Der Vektor-Modus rendert
+                  // bei jeder Zwischen-Zoomstufe neu — laut Paket-Doku
+                  // „can result in low frame rates", und diese Schicht
+                  // läuft seit #118/#119 bei ALLEN mit, nicht nur bei
+                  // Offline-Nutzern. Hier kostet der Wechsel nichts: Die
+                  // Daten enden bei Zoom 7 und werden ohnehin immer
+                  // hochskaliert, es gibt also keine Schärfe zu verlieren.
+                  // Die Detailkarte unten bleibt bewusst auf Vektor.
+                  layerMode: vmt.VectorTileLayerMode.raster,
                   maximumTileSubstitutionDifference: 3,
                 ),
               if (offlineActive)

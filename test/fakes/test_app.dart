@@ -63,7 +63,8 @@ List<Override> overridesFor(FakeBackend backend,
         ],
         FakeAppConfigRepository? appConfig,
         String appVersion = '1.0.0',
-        Position? position}) =>
+        Position? position,
+        List<Override> extra = const []}) =>
     [
       positionStreamProvider.overrideWith((ref) => Stream.value(position)),
       offlineMapRepositoryProvider
@@ -102,6 +103,9 @@ List<Override> overridesFor(FakeBackend backend,
       appConfigRepositoryProvider
           .overrideWithValue(appConfig ?? FakeAppConfigRepository()),
       appVersionProvider.overrideWith((ref) => Future.value(appVersion)),
+      // Zuletzt, damit ein Test gezielt etwas aus der Liste oben ersetzen
+      // kann — bei Riverpod gewinnt der spätere Eintrag.
+      ...extra,
     ];
 
 /// App starten und die Intro-Animation (2,6 s) durchlaufen lassen.
@@ -113,7 +117,8 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
     ],
     FakeAppConfigRepository? appConfig,
     String appVersion = '1.0.0',
-    Position? position}) async {
+    Position? position,
+    List<Override> extraOverrides = const []}) async {
   addTearDown(backend.dispose);
   await tester.pumpWidget(ProviderScope(
     overrides: overridesFor(backend,
@@ -122,7 +127,8 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
         connectivity: connectivity,
         appConfig: appConfig,
         appVersion: appVersion,
-        position: position),
+        position: position,
+        extra: extraOverrides),
     child: const PilzBuddyApp(),
   ));
   await tester.pump();
