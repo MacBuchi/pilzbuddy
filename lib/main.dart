@@ -7,6 +7,9 @@ import 'core/errors.dart';
 import 'core/map_data_license.dart';
 import 'core/supabase_config.dart';
 import 'data/error_report_repository.dart';
+// TEMPORÄR (Absturzsuche Vektor-Karte) — siehe die Datei. Ohne
+// `--dart-define=SENTRY_DSN=…` bleibt das wirkungslos.
+import 'debug/sentry_crash_hunt.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -45,5 +48,10 @@ Future<void> main() async {
     return false; // false: Standardbehandlung nicht unterdrücken.
   };
 
-  runApp(const ProviderScope(child: PilzBuddyApp()));
+  // TEMPORÄR: Mit mitgegebener DSN läuft die App in Sentry, sonst genau wie
+  // vorher. Der Observer legt die Kartenmodus-Wechsel als Spur ab.
+  await runWithCrashHunt(() => runApp(ProviderScope(
+        observers: const [CrashHuntObserver()],
+        child: const PilzBuddyApp(),
+      )));
 }
