@@ -203,8 +203,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
           lng: position.longitude,
           expiresAt: expiresAt,
         )
-        .catchError((Object e, StackTrace st) =>
-            logError('Live-Standort aktualisieren', e, st));
+        // Ein Positions-Tick, der nach dem Abmelden noch eintrudelt, ist
+        // kein Fehler — siehe friendLocationsProvider (Issue #124).
+        .catchError((Object e, StackTrace st) {
+      if (e is NotSignedInException) return;
+      logError('Live-Standort aktualisieren', e, st);
+    });
   }
 
   /// Neuer Spot an der aktuellen Fadenkreuz-Position (Kartenmitte).

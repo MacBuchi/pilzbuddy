@@ -1,13 +1,14 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/profile.dart';
+import 'session.dart';
 
 class ProfileRepository {
   ProfileRepository(this._client);
 
   final SupabaseClient _client;
 
-  String get _uid => _client.auth.currentUser!.id;
+  String get _uid => _client.requireUid;
 
   Future<Profile> fetchMyProfile() async {
     final row =

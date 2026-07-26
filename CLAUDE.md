@@ -285,6 +285,15 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
 - `mounted`/`context.mounted` nach jedem `await` prüfen.
 - `catch (_) {}` nur mit Begründungskommentar und nie im Kernpfad. Optionale
   Features (Offline-Karte, Update-Check, GPS) dürfen still degradieren.
+- Die eigene Nutzer-id kommt aus `_client.requireUid` (`lib/data/session.dart`),
+  nie aus `auth.currentUser!.id`. Das `!` warf beim Abmelden und beim
+  Token-Ablauf ein nichtssagendes „Null check operator used on a null value";
+  `requireUid` wirft stattdessen `NotSignedInException`, und Hintergrund-
+  schleifen (Standort-Poll, Positions-Tick) hören daraufhin still auf.
+  Merksatz aus Issue #124: **Nicht jeder gefangene Fehler gehört in
+  `error_reports`.** Ein normaler Vorgang, der dort landet, ersäuft im
+  Wochendigest die echten Funde — 37 Berichte in einer Woche für ein
+  Abmelden.
 - Bekannte Schuld: Farben sind als Hex-Literale über viele Dateien verstreut.
   Neuen Code nicht so schreiben — die Marken-Töne stehen in
   `lib/core/app_colors.dart` (Issue #53 hat die Datei angelegt, der Umbau ist

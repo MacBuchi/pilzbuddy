@@ -1,13 +1,14 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/friendship.dart';
+import 'session.dart';
 
 class FriendRepository {
   FriendRepository(this._client);
 
   final SupabaseClient _client;
 
-  String get _uid => _client.auth.currentUser!.id;
+  String get _uid => _client.requireUid;
 
   Future<List<ProfileSearchResult>> search(String query) async {
     final rows = await _client

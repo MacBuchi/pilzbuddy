@@ -66,6 +66,14 @@ final friendLocationsProvider =
   while (true) {
     try {
       yield await repo.fetchFriendLocations();
+    } on NotSignedInException {
+      // Abmelden ist kein Fehler. Die Schleife läuft noch einen Moment
+      // weiter, während die Sitzung schon weg ist — das hier als
+      // Fehlerbericht zu schreiben, füllte den Wochendigest mit einem
+      // völlig normalen Vorgang (Issue #124). Still aufhören; der
+      // Provider baut sich neu auf, sobald wieder jemand angemeldet ist.
+      yield const [];
+      return;
     } catch (e, stackTrace) {
       logError('Freundes-Standorte laden', e, stackTrace);
     }
