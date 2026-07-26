@@ -50,4 +50,32 @@ class ErrorReportRepository {
       'platform': _platform,
     });
   }
+
+  /// Meldet, warum die App beim letzten Mal beendet wurde (Issue #147).
+  ///
+  /// Eigener Weg statt [report], weil hier kein Dart-Fehler vorliegt: Der
+  /// Typ ist Androids Grund (`ANR`, `LOW_MEMORY` …), und `created_at` ist
+  /// der Todeszeitpunkt und nicht der Meldezeitpunkt — sonst landet ein
+  /// Absturz von Freitagnacht im Digest der Folgewoche.
+  Future<void> reportExit({
+    required String reason,
+    required String summary,
+    required DateTime when,
+    String? trace,
+  }) async {
+    final version = await PackageInfo.fromPlatform()
+        .then<String?>((info) => info.version)
+        .catchError((Object _) => null);
+
+    await _client.from('error_reports').insert({
+      'user_id': _client.auth.currentUser?.id,
+      'context': 'App-Ende',
+      'error_type': _clip(reason, 100),
+      'message': _clip(summary, 1000),
+      'stack': _clip(trace, 4000),
+      'app_version': version,
+      'platform': _platform,
+      'created_at': when.toUtc().toIso8601String(),
+    });
+  }
 }

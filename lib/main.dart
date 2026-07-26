@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -8,6 +10,8 @@ import 'core/map_data_license.dart';
 import 'core/supabase_config.dart';
 import 'core/tile_memory.dart';
 import 'data/error_report_repository.dart';
+import 'data/exit_info_repository.dart';
+import 'data/exit_reporting.dart';
 
 Future<void> main() async {
   final binding = WidgetsFlutterBinding.ensureInitialized();
@@ -49,6 +53,13 @@ Future<void> main() async {
     if (worthReporting(error)) logError('Unbehandelter Fehler', error, stack);
     return false; // false: Standardbehandlung nicht unterdrücken.
   };
+
+  // Warum die App beim letzten Mal starb (Issue #147). Bewusst ohne await:
+  // Der Start darf darauf nicht warten, und scheitern darf es sowieso.
+  unawaited(ExitReporter(
+    exits: ExitInfoRepository(),
+    reports: reports,
+  ).reportPending());
 
   runApp(const ProviderScope(child: PilzBuddyApp()));
 }
