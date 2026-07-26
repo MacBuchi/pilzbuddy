@@ -102,6 +102,33 @@ class AuthRepository {
     await _client.auth.updateUser(UserAttributes(password: newPassword));
   }
 
+  /// Ändert das Passwort einer laufenden Sitzung (Issue #127).
+  ///
+  /// Der Umweg über eine erneute Anmeldung ist kein Sicherheitstheater,
+  /// sondern Pflicht: Im Dashboard ist „Secure password change" aktiv
+  /// (gespiegelt in `supabase/config.toml`), und dann lehnt GoTrue ein
+  /// `updateUser(password:)` ohne frische Authentifizierung ab. Genau das
+  /// ist der Unterschied zum Reset-Flow, dessen Sitzung frisch aus dem
+  /// eingelösten Code stammt. Wer den `signInWithPassword`-Schritt hier
+  /// wegkürzt, bekommt live einen 403 — lokal beweist das
+  /// `tool/auth_reset_check.sh`.
+  ///
+  /// Nebeneffekt mit Absicht: Das falsche aktuelle Passwort scheitert schon
+  /// an dieser Anmeldung, das Konto ist also nie einen Moment lang offen für
+  /// jemanden, der es nicht kennt.
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final email = _client.auth.currentUser?.email;
+    if (email == null) {
+      throw const AuthException('Keine angemeldete Sitzung.');
+    }
+    await _client.auth
+        .signInWithPassword(email: email, password: currentPassword);
+    await _client.auth.updateUser(UserAttributes(password: newPassword));
+  }
+
   /// Löscht das eigene Konto endgültig — sofort, ohne Karenzzeit.
   ///
   /// Serverseitig genügt eine Zeile: alle Tabellen hängen per

@@ -50,8 +50,11 @@ port = 54324
 # Reset-Flow lebt davon, dass die eben per Code eingelöste Sitzung als
 # frisch gilt — mit dieser Zeile beweist der lokale Lauf das mit.
 secure_password_change = true
-# Wie live (seit #129): Die Adresse muss bestätigt werden, bevor jemand
-# hineinkommt. Sonst entstehen Konten auf Adressen, die niemand liest —
+# So, wie es nach dem Umschalten im Dashboard live ist (Reihenfolge in
+# CLAUDE.md: erst diese Version ausliefern, dann Vorlage, dann Schalter).
+# Bis dahin prüft CI hier bewusst den Zielzustand — die App beherrscht
+# beide Einstellungen, weil `signUp` zurückgibt, ob bestätigt werden muss.
+# Warum überhaupt: Sonst entstehen Konten auf Adressen, die niemand liest —
 # der Reset-Code kann sie nie erreichen, und unzustellbare Mails schlagen
 # als Hard Bounce auf die Absender-Reputation bei Brevo.
 enable_confirmations = true

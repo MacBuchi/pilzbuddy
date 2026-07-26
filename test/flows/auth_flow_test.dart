@@ -2,9 +2,26 @@
 // komplette App gegen das In-Memory-Backend (siehe test/fakes/).
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pilzbuddy/core/widgets/form_notice.dart';
 
 import '../fakes/fake_backend.dart';
 import '../fakes/test_app.dart';
+
+/// Führt eine Registrierung bis zur Code-Eingabe durch — der Vorlauf, den
+/// die Tests mit Bestätigungspflicht alle brauchen.
+Future<void> _signUpWithConfirmation(WidgetTester tester) async {
+  await tester.tap(find.text('Noch kein Konto? Registrieren'));
+  await settle(tester);
+  await tester.enterText(
+      find.widgetWithText(TextField, 'Benutzername'), 'neuerpilz');
+  await tester.enterText(
+      find.widgetWithText(TextField, 'E-Mail'), 'neu@test.de');
+  await tester.enterText(
+      find.widgetWithText(TextField, 'Passwort (mind. 8 Zeichen)'),
+      'geheim123');
+  await tester.tap(find.text('Konto erstellen'));
+  await settle(tester);
+}
 
 void main() {
   testWidgets('Ausgeloggt startet die App auf dem Login-Screen',
@@ -64,7 +81,7 @@ void main() {
     await tester.enterText(
         find.widgetWithText(TextField, 'E-Mail'), 'neu@test.de');
     await tester.enterText(
-        find.widgetWithText(TextField, 'Passwort (mind. 6 Zeichen)'),
+        find.widgetWithText(TextField, 'Passwort (mind. 8 Zeichen)'),
         'geheim123');
     await tester.tap(find.text('Konto erstellen'));
     await settle(tester);
@@ -86,7 +103,7 @@ void main() {
     await tester.enterText(
         find.widgetWithText(TextField, 'E-Mail'), 'zweit@test.de');
     await tester.enterText(
-        find.widgetWithText(TextField, 'Passwort (mind. 6 Zeichen)'),
+        find.widgetWithText(TextField, 'Passwort (mind. 8 Zeichen)'),
         'geheim123');
     await tester.tap(find.text('Konto erstellen'));
     await settle(tester);
@@ -122,7 +139,7 @@ void main() {
 
     expectInAutofillGroup('Benutzername');
     expectInAutofillGroup('E-Mail');
-    expectInAutofillGroup('Passwort (mind. 6 Zeichen)');
+    expectInAutofillGroup('Passwort (mind. 8 Zeichen)');
   });
 
   testWidgets('Abmelden führt zurück zum Login-Screen', (tester) async {
@@ -157,7 +174,7 @@ void main() {
       await tester.enterText(
           find.widgetWithText(TextField, 'E-Mail'), 'neu@test.de');
       await tester.enterText(
-          find.widgetWithText(TextField, 'Passwort (mind. 6 Zeichen)'),
+          find.widgetWithText(TextField, 'Passwort (mind. 8 Zeichen)'),
           'geheim123');
       await tester.tap(find.text('Konto erstellen'));
       await settle(tester);
@@ -184,14 +201,14 @@ void main() {
       await tester.enterText(
           find.widgetWithText(TextField, 'E-Mail'), 'neu@test.de');
       await tester.enterText(
-          find.widgetWithText(TextField, 'Passwort (mind. 6 Zeichen)'),
+          find.widgetWithText(TextField, 'Passwort (mind. 8 Zeichen)'),
           'geheim123');
       await tester.tap(find.text('Konto erstellen'));
       await settle(tester);
 
       await tester.enterText(
           find.widgetWithText(TextField, 'Code aus der Mail'),
-          FakeBackend.resetCode);
+          FakeBackend.signupCode);
       await tester.tap(find.text('Adresse bestätigen'));
       await settle(tester);
 
@@ -211,7 +228,7 @@ void main() {
       await tester.enterText(
           find.widgetWithText(TextField, 'E-Mail'), 'neu@test.de');
       await tester.enterText(
-          find.widgetWithText(TextField, 'Passwort (mind. 6 Zeichen)'),
+          find.widgetWithText(TextField, 'Passwort (mind. 8 Zeichen)'),
           'geheim123');
       await tester.tap(find.text('Konto erstellen'));
       await settle(tester);
@@ -240,7 +257,7 @@ void main() {
       await tester.enterText(
           find.widgetWithText(TextField, 'E-Mail'), 'neu@test.de');
       await tester.enterText(
-          find.widgetWithText(TextField, 'Passwort (mind. 6 Zeichen)'),
+          find.widgetWithText(TextField, 'Passwort (mind. 8 Zeichen)'),
           'geheim123');
       await tester.tap(find.text('Konto erstellen'));
       await settle(tester);
@@ -250,6 +267,44 @@ void main() {
 
       expect(backend.confirmationMails, ['neu@test.de', 'neu@test.de']);
       await drainSnackbars(tester);
+    });
+
+    testWidgets('Erneut senden und falscher Code sehen verschieden aus',
+        (tester) async {
+      // Issue #131: Vorher lief beides durch dieselbe SnackBar — die
+      // Erfolgsmeldung sogar durch eine Methode namens _showError.
+      final backend = FakeBackend()..requireEmailConfirmation = true;
+      await pumpApp(tester, backend);
+      await _signUpWithConfirmation(tester);
+
+      await tester.tap(find.text('Mail nicht angekommen? Erneut senden'));
+      await settle(tester);
+      expect(tester.widget<FormNotice>(find.byType(FormNotice)).tone,
+          NoticeTone.success);
+
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Code aus der Mail'), '000000');
+      await tester.tap(find.text('Adresse bestätigen'));
+      await settle(tester);
+      expect(tester.widget<FormNotice>(find.byType(FormNotice)).tone,
+          NoticeTone.error);
+    });
+
+    testWidgets('Zu häufiges Erneut-Senden nennt das Rate-Limit',
+        (tester) async {
+      // Vorher lief dieser Fall durch loginErrorMessage und behauptete
+      // „Anmeldung fehlgeschlagen" — mitten in der Registrierung.
+      final backend = FakeBackend()
+        ..requireEmailConfirmation = true
+        ..confirmationMailLimit = 1;
+      await pumpApp(tester, backend);
+      await _signUpWithConfirmation(tester);
+
+      await tester.tap(find.text('Mail nicht angekommen? Erneut senden'));
+      await settle(tester);
+
+      expect(find.textContaining('bitte eine Minute warten'), findsOneWidget);
+      expect(find.textContaining('Anmeldung fehlgeschlagen'), findsNothing);
     });
 
     testWidgets('Anmeldung ohne Bestätigung nennt den echten Grund',

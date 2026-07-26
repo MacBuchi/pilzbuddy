@@ -6,6 +6,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/errors.dart';
 import '../../core/widgets/buddy_mushrooms.dart';
+import '../../core/widgets/form_notice.dart';
+import '../../core/widgets/password_field.dart';
 import '../../data/providers.dart';
 
 /// Drei Zustände statt zwei: „Passwort vergessen" ist ein eigener Modus, der
@@ -30,6 +32,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _repeatController = TextEditingController();
   _Mode _mode = _Mode.signIn;
   String? _notice;
+  NoticeTone _noticeTone = NoticeTone.info;
   bool _busy = false;
 
   @override
@@ -50,12 +53,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         _repeatController.clear();
       });
 
+  /// Hinweis samt Tonfall setzen. Erfolg und Fehlschlag sahen vorher gleich
+  /// aus — ein blankes `Text` unter dem Formular (Issue #131).
+  void _setNotice(String message, NoticeTone tone) => setState(() {
+        _notice = message;
+        _noticeTone = tone;
+      });
+
   /// Fordert den Code an. Erfolg und Fehlschlag melden dasselbe: Ein
   /// Unterschied würde verraten, ob es zu der Adresse ein Konto gibt.
   Future<void> _sendResetCode() async {
     final email = _emailController.text.trim();
     if (email.isEmpty || !email.contains('@')) {
-      setState(() => _notice = 'Bitte eine gültige E-Mail-Adresse angeben.');
+      _setNotice('Bitte eine gültige E-Mail-Adresse angeben.', NoticeTone.error);
       return;
     }
     setState(() => _busy = true);
@@ -71,6 +81,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           _mode = _Mode.code;
           _notice = 'Wenn es zu $email ein Konto gibt, ist ein Code '
               'unterwegs. Er gilt eine Stunde.';
+          _noticeTone = NoticeTone.success;
         });
       }
     }
@@ -79,17 +90,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _resetPassword() async {
     final code = _codeController.text.trim();
     if (code.isEmpty) {
-      setState(() => _notice = 'Bitte den Code aus der Mail eingeben.');
+      _setNotice('Bitte den Code aus der Mail eingeben.', NoticeTone.error);
       return;
     }
-    if (_newPasswordController.text.length < 8) {
-      setState(() => _notice = 'Das neue Passwort braucht mindestens '
-          '8 Zeichen.');
+    if (_newPasswordController.text.length < minPasswordLength) {
+      _setNotice(
+          'Das neue Passwort braucht mindestens $minPasswordLength Zeichen.',
+          NoticeTone.error);
       return;
     }
     if (_newPasswordController.text != _repeatController.text) {
-      setState(() => _notice = 'Die beiden Passwörter stimmen nicht '
-          'überein.');
+      _setNotice(
+          'Die beiden Passwörter stimmen nicht überein.', NoticeTone.error);
       return;
     }
     setState(() => _busy = true);
@@ -105,11 +117,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       // Die Recovery-Sitzung darf nicht liegen bleiben, wenn das Ändern
       // scheiterte — sonst steckt jemand halb angemeldet fest.
       await _discardRecoverySession();
-      if (mounted) setState(() => _notice = resetErrorMessage(e));
+      if (mounted) _setNotice(resetErrorMessage(e), NoticeTone.error);
     } catch (e, stackTrace) {
       logError('Passwort zurücksetzen', e, stackTrace);
       await _discardRecoverySession();
-      if (mounted) setState(() => _notice = friendlyError(e));
+      if (mounted) _setNotice(friendlyError(e), NoticeTone.error);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -202,16 +214,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       if (_mode == _Mode.signIn) ...[
                         const SizedBox(height: 12),
-                        TextField(
+                        PasswordField(
                           controller: _passwordController,
-                          obscureText: true,
-                          textInputAction: TextInputAction.done,
+                          label: 'Passwort',
                           autofillHints: const [AutofillHints.password],
                           onSubmitted: (_) => _busy ? null : _signIn(),
-                          decoration: const InputDecoration(
-                            labelText: 'Passwort',
-                            border: OutlineInputBorder(),
-                          ),
                         ),
                       ],
                     ],
@@ -229,30 +236,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  TextField(
+                  PasswordField(
                     controller: _newPasswordController,
-                    obscureText: true,
+                    label: 'Neues Passwort (mind. $minPasswordLength Zeichen)',
                     textInputAction: TextInputAction.next,
-                    decoration: const InputDecoration(
-                      labelText: 'Neues Passwort',
-                      border: OutlineInputBorder(),
-                    ),
+                    onChanged: (_) => setState(() {}),
                   ),
                   const SizedBox(height: 12),
-                  TextField(
+                  PasswordField(
                     controller: _repeatController,
-                    obscureText: true,
-                    textInputAction: TextInputAction.done,
+                    label: 'Neues Passwort wiederholen',
                     onSubmitted: (_) => _busy ? null : _resetPassword(),
-                    decoration: const InputDecoration(
-                      labelText: 'Neues Passwort wiederholen',
-                      border: OutlineInputBorder(),
-                    ),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  PasswordMatchHint(
+                    password: _newPasswordController.text,
+                    repeated: _repeatController.text,
                   ),
                 ],
                 if (_notice != null) ...[
                   const SizedBox(height: 16),
-                  Text(_notice!, textAlign: TextAlign.center),
+                  FormNotice(message: _notice!, tone: _noticeTone),
                 ],
                 const SizedBox(height: 20),
                 FilledButton(

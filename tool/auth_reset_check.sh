@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# End-to-end check of both auth mail flows against a real GoTrue in the
-# local Supabase stack (started by the Schema Dry Run job):
+# End-to-end check of the auth flows against a real GoTrue in the local
+# Supabase stack (started by the Schema Dry Run job):
 #   sign up → confirm the address with the code from the mail
-#           → request a reset code → redeem it → sign in with the new one.
+#           → request a reset code → redeem it → sign in with the new one
+#           → change the password from a signed-in session (Issue #127).
 #
 # Why this exists as its own check: the widget tests run against fakes and
 # can only prove the app's own logic. Everything that makes this flow
@@ -122,4 +123,39 @@ bad=$(curl -s "$URL/auth/v1/verify" "${hdr[@]}" \
   || fail "falscher Code liefert '$bad' statt 'otp_expired' — die Meldung in lib/core/errors.dart passt dann nicht mehr"
 echo "✓ Falscher Code wird als otp_expired abgelehnt"
 
-echo "Registrierung und Passwort-Reset laufen end-to-end gegen echtes GoTrue."
+# --- Passwort ändern durch Angemeldete (Issue #127) -------------------------
+# AuthRepository.changePassword meldet sich zuerst mit dem aktuellen Passwort
+# neu an und ändert danach — genau diese Reihenfolge steht hier. Sie ist der
+# ganze Trick: „Secure password change" verlangt eine frische
+# Authentifizierung, und die frische Anmeldung liefert sie. Kürzt jemand den
+# Schritt weg, fällt es live als 403 auf und sonst nirgends.
+#
+# Bewusst NICHT geprüft: dass eine „alte" Sitzung abgelehnt wird. Jede
+# Sitzung, die dieses Skript erzeugen kann, ist frisch — der Test wäre ein
+# Zufallsgenerator.
+THIRD='DrittesPilz#2026!'
+status=$(curl -s -o /tmp/change_update.out -w '%{http_code}' -X PUT "$URL/auth/v1/user" \
+  "${hdr[@]}" -H "Authorization: Bearer $new" -d "{\"password\":\"$THIRD\"}")
+[ "$status" = "200" ] \
+  || fail "Passwortwechsel nach frischer Anmeldung abgelehnt (HTTP $status): $(cat /tmp/change_update.out). Dann reicht signInWithPassword nicht mehr als frische Authentifizierung und AuthRepository.changePassword braucht reauthenticate() (Issue #127)."
+echo "✓ Passwortwechsel nach frischer Anmeldung angenommen"
+
+third=$(curl -s "$URL/auth/v1/token?grant_type=password" "${hdr[@]}" \
+  -d "{\"email\":\"$EMAIL\",\"password\":\"$THIRD\"}" | jq -r '.access_token // empty')
+[ -n "$third" ] || fail "Anmeldung mit dem geänderten Passwort schlug fehl"
+gone=$(curl -s "$URL/auth/v1/token?grant_type=password" "${hdr[@]}" \
+  -d "{\"email\":\"$EMAIL\",\"password\":\"$NEW\"}" | jq -r '.error_code // empty')
+[ "$gone" = "invalid_credentials" ] \
+  || fail "das vorige Passwort gilt nach dem Wechsel noch ($gone)"
+echo "✓ Geändertes Passwort gilt, das vorige nicht mehr"
+
+# Nur zur Information: Ob GoTrue ein unverändertes Passwort mit
+# `same_password` ablehnt, hängt an der Plattform-Einstellung. Die App bildet
+# den Code ab (changePasswordErrorMessage) — hier nur protokollieren, statt
+# einen Lauf daran scheitern zu lassen.
+same=$(curl -s -X PUT "$URL/auth/v1/user" "${hdr[@]}" \
+  -H "Authorization: Bearer $third" -d "{\"password\":\"$THIRD\"}" \
+  | jq -r '.error_code // "akzeptiert"')
+echo "ℹ Unverändertes Passwort meldet: $same (App erwartet same_password)"
+
+echo "Registrierung, Passwort-Reset und Passwortwechsel laufen end-to-end gegen echtes GoTrue."

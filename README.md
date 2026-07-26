@@ -26,6 +26,9 @@ eintragen und Spots mit Freunden teilen.
   - einzelne Spots lassen sich im Spot-Detail von der Freigabe ausschließen
 - **Statistik:** Spots, Funde, mehrfach besuchte Spots, Funde pro Jahr,
   Top-Arten, Jahreszeiten-Verteilung.
+- **Konto:** Registrierung mit Bestätigungscode aus der Mail, „Passwort
+  vergessen" ebenfalls per Code, „Passwort ändern" im Profil (fragt das
+  aktuelle Passwort ab).
 
 Alle Freigabe-Regeln werden serverseitig per Row-Level Security erzwungen
 (`supabase/schema.sql`) — der Client kann sie nicht umgehen.

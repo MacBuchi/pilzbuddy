@@ -66,7 +66,8 @@ void main() {
     await tester.enterText(
         find.widgetWithText(TextField, 'Code aus der Mail'), '000000');
     await tester.enterText(
-        find.widgetWithText(TextField, 'Neues Passwort'), 'NeuesPilz#2026!');
+        find.widgetWithText(TextField, 'Neues Passwort (mind. 8 Zeichen)'),
+        'NeuesPilz#2026!');
     await tester.enterText(
         find.widgetWithText(TextField, 'Neues Passwort wiederholen'),
         'NeuesPilz#2026!');
@@ -88,7 +89,8 @@ void main() {
     await tester.enterText(find.widgetWithText(TextField, 'Code aus der Mail'),
         FakeBackend.resetCode);
     await tester.enterText(
-        find.widgetWithText(TextField, 'Neues Passwort'), 'NeuesPilz#2026!');
+        find.widgetWithText(TextField, 'Neues Passwort (mind. 8 Zeichen)'),
+        'NeuesPilz#2026!');
     await tester.enterText(
         find.widgetWithText(TextField, 'Neues Passwort wiederholen'),
         'Tippfehler#2026!');
@@ -107,7 +109,8 @@ void main() {
     await tester.enterText(find.widgetWithText(TextField, 'Code aus der Mail'),
         FakeBackend.resetCode);
     await tester.enterText(
-        find.widgetWithText(TextField, 'Neues Passwort'), 'kurz');
+        find.widgetWithText(TextField, 'Neues Passwort (mind. 8 Zeichen)'),
+        'kurz');
     await tester.enterText(
         find.widgetWithText(TextField, 'Neues Passwort wiederholen'), 'kurz');
     await _tap(tester, find.text('Neues Passwort speichern'));
@@ -126,7 +129,8 @@ void main() {
     await tester.enterText(find.widgetWithText(TextField, 'Code aus der Mail'),
         FakeBackend.resetCode);
     await tester.enterText(
-        find.widgetWithText(TextField, 'Neues Passwort'), 'NeuesPilz#2026!');
+        find.widgetWithText(TextField, 'Neues Passwort (mind. 8 Zeichen)'),
+        'NeuesPilz#2026!');
     await tester.enterText(
         find.widgetWithText(TextField, 'Neues Passwort wiederholen'),
         'NeuesPilz#2026!');
@@ -169,5 +173,73 @@ void main() {
     expect(find.widgetWithText(TextField, 'Passwort'), findsOneWidget);
     expect(find.text('Anmelden'), findsOneWidget);
     expect(find.text('Passwort vergessen?'), findsOneWidget);
+  });
+
+  testWidgets('Ein bekannt unsicheres Passwort wird abgelehnt',
+      (tester) async {
+    // Leaked Password Protection ist im Dashboard aktiv — „zu kurz" wäre
+    // hier die falsche Erklärung, das Passwort ist lang genug.
+    final backend = FakeBackend()..addUser(username: 'testpilz');
+    await pumpApp(tester, backend);
+    await _requestCode(tester, 'testpilz@test.de');
+
+    await tester.enterText(find.widgetWithText(TextField, 'Code aus der Mail'),
+        FakeBackend.resetCode);
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Neues Passwort (mind. 8 Zeichen)'),
+        'passwort123');
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Neues Passwort wiederholen'),
+        'passwort123');
+    await _tap(tester, find.text('Neues Passwort speichern'));
+
+    expect(find.textContaining('zu unsicher'), findsOneWidget);
+    expect(find.text('Neuer Spot'), findsNothing);
+  });
+
+  group('Transparenz im Formular (Issue #131)', () {
+    testWidgets('Das Auge macht das Passwort sichtbar', (tester) async {
+      final backend = FakeBackend()..addUser(username: 'testpilz');
+      await pumpApp(tester, backend);
+
+      final field = find.widgetWithText(TextField, 'Passwort');
+      expect(tester.widget<TextField>(field).obscureText, isTrue);
+
+      await _tap(
+          tester,
+          find.descendant(
+              of: field, matching: find.byIcon(Icons.visibility_outlined)));
+
+      expect(tester.widget<TextField>(field).obscureText, isFalse,
+          reason: 'Wer sein Passwort nicht sehen kann, tippt es blind falsch.');
+    });
+
+    testWidgets('Die Übereinstimmung wird schon beim Tippen angezeigt',
+        (tester) async {
+      final backend = FakeBackend()..addUser(username: 'testpilz');
+      await pumpApp(tester, backend);
+      await _requestCode(tester, 'testpilz@test.de');
+
+      // Solange nichts wiederholt wurde, ist Schweigen richtig.
+      expect(find.textContaining('stimmen'), findsNothing);
+
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Neues Passwort (mind. 8 Zeichen)'),
+          'NeuesPilz#2026!');
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Neues Passwort wiederholen'),
+          'NeuesPilz#202');
+      await settle(tester);
+      expect(find.text('Passwörter stimmen noch nicht überein'), findsOneWidget);
+
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Neues Passwort wiederholen'),
+          'NeuesPilz#2026!');
+      await settle(tester);
+
+      expect(find.text('Passwörter stimmen überein'), findsOneWidget,
+          reason: 'Ohne Live-Abgleich merkt man den Tippfehler erst beim '
+              'Absenden (Issue #131).');
+    });
   });
 }
