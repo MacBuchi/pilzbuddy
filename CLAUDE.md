@@ -284,6 +284,21 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   Der `<queries>`-Eintrag VIEW/https im Manifest bleibt nötig, sonst kann
   die App den Browser nicht öffnen.
 
+- Beendigungsgründe (`lib/data/exit_info_repository.dart` + `exit_reporting.dart`,
+  Issue #147): Beim Start liest die App über einen MethodChannel Androids
+  eigene Historie (`getHistoricalProcessExitReasons`, ab Android 11, keine
+  Berechtigung nötig für die eigenen Einträge) und meldet ANRs, Abstürze und
+  Speicher-Kills nach `error_reports` — bei ANR mit dem Haupt-Thread-Abschnitt
+  des Thread-Dumps. Das schließt die Lücke, die `logError` prinzipbedingt hat:
+  Dort landet nur, was die App **überlebt**; ein ANR hinterlässt nichts, und
+  genau deshalb blieb #142 unsichtbar, bis jemand ein USB-Kabel angesteckt hat.
+  **Der einzige native Code im Projekt** (`MainActivity.kt`) — wer ihn anfasst,
+  hat keinen Test als Netz, die Dart-Seite dagegen schon. Normale
+  Beendigungen (`USER_REQUESTED`, `EXIT_SELF` …) werden bewusst NICHT
+  gemeldet, sonst füllt jedes Wegwischen den Wochendigest (Lehre aus
+  #124/#136). `created_at` ist der Todes-, nicht der Meldezeitpunkt. Ein
+  Merker im App-Verzeichnis verhindert Doppelmeldungen; sein Verlust kostet
+  nur eine doppelte Zeile. Web und Android < 11 liefern nichts.
 - Fehlerberichte: `logError` (`lib/core/errors.dart`) schreibt zusätzlich
   über einen optionalen `ErrorSink` nach `public.error_reports` (Patch 009,
   `ErrorReportRepository`). Eingehängt in `main()`, in Tests leer — deshalb

@@ -1,0 +1,116 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+
+/// Ein Eintrag aus Androids Beendigungs-Historie.
+class AppExit {
+  const AppExit({
+    required this.timestamp,
+    required this.reason,
+    this.description,
+    this.rssKb = 0,
+    this.pssKb = 0,
+    this.importance = 0,
+    this.hasTrace = false,
+  });
+
+  /// Wann der Prozess starb.
+  final DateTime timestamp;
+
+  /// `ANR`, `CRASH`, `CRASH_NATIVE`, `LOW_MEMORY`, `USER_REQUESTED` …
+  final String reason;
+
+  final String? description;
+  final int rssKb;
+  final int pssKb;
+  final int importance;
+
+  /// Nur bei ANR legt Android einen Thread-Dump dazu.
+  final bool hasTrace;
+
+  /// Ein normales Beenden ist kein Fehler und gehört nicht gemeldet —
+  /// sonst füllt jedes Wegwischen aus der Übersicht den Wochendigest
+  /// (dieselbe Lehre wie #124/#136).
+  bool get isFailure => const {
+        'ANR',
+        'CRASH',
+        'CRASH_NATIVE',
+        'LOW_MEMORY',
+        'EXCESSIVE_RESOURCE_USAGE',
+        'INITIALIZATION_FAILURE',
+      }.contains(reason);
+
+  /// Was im Bericht steht: RSS ist der wichtigste Wert — bei #142 zeigten
+  /// 1,7–1,9 GB die Ursache, bevor irgendein Stacktrace gelesen war.
+  String get summary {
+    final parts = <String>[
+      if (description != null && description!.isNotEmpty) description!,
+      'RSS ${(rssKb / 1024).round()} MB',
+      'PSS ${(pssKb / 1024).round()} MB',
+      'importance $importance',
+    ];
+    return parts.join(' · ');
+  }
+
+  static AppExit? fromMap(Map<Object?, Object?> map) {
+    final timestamp = map['timestamp'];
+    final reason = map['reasonName'];
+    if (timestamp is! int || reason is! String) return null;
+    return AppExit(
+      timestamp: DateTime.fromMillisecondsSinceEpoch(timestamp),
+      reason: reason,
+      description: map['description'] as String?,
+      rssKb: (map['rssKb'] as int?) ?? 0,
+      pssKb: (map['pssKb'] as int?) ?? 0,
+      importance: (map['importance'] as int?) ?? 0,
+      hasTrace: map['hasTrace'] == true,
+    );
+  }
+}
+
+/// Warum die App beim letzten Mal beendet wurde (Issue #147).
+///
+/// Android führt diese Liste selbst; eine App darf ihre eigenen Einträge ab
+/// Version 11 ohne Berechtigung lesen. Das ist die einzige Quelle, die auch
+/// ANRs und Abstürze erfasst — `error_reports` sieht nur, was die App
+/// überlebt, und Android Vitals gibt es erst mit Play und nur dort.
+///
+/// Auf Web und älteren Androids liefert das schlicht nichts; der Aufrufer
+/// merkt keinen Unterschied.
+class ExitInfoRepository {
+  ExitInfoRepository({MethodChannel? channel})
+      : _channel = channel ??
+            const MethodChannel('de.marcusbucher.pilzbuddy/exit_info');
+
+  final MethodChannel _channel;
+
+  bool get _supported => !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+  /// Die letzten Beendigungen, neueste zuerst.
+  Future<List<AppExit>> recentExits({int limit = 10}) async {
+    if (!_supported) return const [];
+    try {
+      final raw = await _channel
+          .invokeMethod<List<Object?>>('exitReasons', {'limit': limit});
+      return (raw ?? const [])
+          .whereType<Map<Object?, Object?>>()
+          .map(AppExit.fromMap)
+          .whereType<AppExit>()
+          .toList();
+    } catch (_) {
+      // Diagnose darf den Start nie gefährden: Fehlt der Kanal (alter
+      // Build, anderes Gerät), ist die Liste eben leer.
+      return const [];
+    }
+  }
+
+  /// Der Haupt-Thread-Abschnitt des ANR-Dumps, oder null.
+  Future<String?> traceFor(AppExit exit) async {
+    if (!_supported || !exit.hasTrace) return null;
+    try {
+      return await _channel.invokeMethod<String>(
+          'exitTrace', {'timestamp': exit.timestamp.millisecondsSinceEpoch});
+    } catch (_) {
+      return null;
+    }
+  }
+}
