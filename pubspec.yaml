@@ -85,7 +85,7 @@ dependencies:
   file_selector: ^1.0.3
   xml: ^6.5.0
   archive: ^3.4.10
-  sentry_flutter: ^8.14.2
+  sentry_flutter: ^9.25.0
 
 dev_dependencies:
   flutter_test:
