@@ -128,6 +128,10 @@ const kBekannteArten = <KnownSpecies>[
   KnownSpecies('Ziegelroter Risspilz', _son),
   KnownSpecies('Grünling', _son),
   KnownSpecies('Violetter Lacktrichterling', _son), // via In-App-Wunsch
+  KnownSpecies('Netzstieliger Hexenröhrling', _roe), // via In-App-Wunsch
+  KnownSpecies('Käppchenmorchel', _mor), // via In-App-Wunsch
+  KnownSpecies('Morchelbecherling', _mor), // via In-App-Wunsch
+  KnownSpecies('Böhmische Verpel', _son), // via In-App-Wunsch
 ];
 
 /// Gruppe einer Art nachschlagen (case-insensitiv), z. B. um auch eigene
