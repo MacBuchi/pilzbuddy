@@ -296,3 +296,42 @@ create policy ll_friend_select on public.live_locations for select
   using (user_id <> auth.uid()
      and app_internal.are_friends(user_id, auth.uid())
      and expires_at > now());
+
+-- ---------------------------------------------------------------------------
+-- Patch-Buchführung
+-- ---------------------------------------------------------------------------
+-- Dieselbe Tabelle legt auch tool/db_migrate.sh an (`if not exists`) — sie
+-- muss dort stehen, weil die Live-Datenbank diese Datei nie im Ganzen sieht.
+create table if not exists public.applied_patches (
+  filename text primary key,
+  applied_at timestamptz not null default now()
+);
+alter table public.applied_patches enable row level security;
+revoke all on table public.applied_patches from anon, authenticated;
+
+-- Diese Datei bildet den Stand NACH den folgenden Patches ab. Sie werden
+-- deshalb nur eingetragen, nicht ausgeführt: Ein erneuter Lauf über ein
+-- Schema, das ihr Ergebnis schon enthält, verlangte von jedem alten Patch
+-- auf Dauer Idempotenz — und zwang dazu, alte Patches nachträglich zu
+-- ändern, sobald ein neuerer ihre Voraussetzungen verschob (so geschehen
+-- bei patch_007, als patch_011 die Helfer nach app_internal zog). Genau das
+-- ist gefährlich: Live läuft ein bereits eingespielter Patch nie wieder, die
+-- Änderung landet also ausschließlich in Frischinstallationen, und beide
+-- Welten driften still auseinander.
+--
+-- Folge: Ein neuer patch_NNN gehört im selben PR HIER in die Liste und in
+-- die Struktur oben. `tool/patch_guard.sh` erzwingt beides.
+insert into public.applied_patches (filename) values
+  ('patch_001_anfragen_namen.sql'),
+  ('patch_002_feedback.sql'),
+  ('patch_003_feedback_typen.sql'),
+  ('patch_004_feedback_bug.sql'),
+  ('patch_005_avatare.sql'),
+  ('patch_006_friendship_indexe.sql'),
+  ('patch_007_live_locations.sql'),
+  ('patch_008_konto_loeschen.sql'),
+  ('patch_009_fehlerberichte.sql'),
+  ('patch_010_applied_patches_rls.sql'),
+  ('patch_011_interne_funktionen.sql'),
+  ('patch_012_mindestversion.sql')
+on conflict do nothing;
