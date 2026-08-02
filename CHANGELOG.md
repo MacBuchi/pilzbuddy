@@ -9,7 +9,7 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Mehrere Pilzarten gleichzeitig filtern
 
-*2. August 2026 · Version 1.38.0*
+*2. August 2026 · Versionen 1.38.0 und 1.38.1*
 
 Im Filter-Blatt lässt sich jetzt mehr als eine Art anhaken. Wer im Herbst
 sowohl nach Maronen als auch nach Pfifferlingen unterwegs ist, sieht beide

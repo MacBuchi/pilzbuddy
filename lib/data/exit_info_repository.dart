@@ -41,15 +41,26 @@ class AppExit {
 
   /// Was im Bericht steht: RSS ist der wichtigste Wert — bei #142 zeigten
   /// 1,7–1,9 GB die Ursache, bevor irgendein Stacktrace gelesen war.
+  ///
+  /// Eine 0 heißt bei Android NICHT „hat keinen Speicher gebraucht", sondern
+  /// „wurde nicht gemessen": Stirbt der Prozess, bevor das System eine
+  /// Stichprobe genommen hat, bleiben beide Werte leer (Doku zu `getRss()`
+  /// und `getPss()`). Als „0 MB" gedruckt liest sich das wie eine Messung —
+  /// in #151 stand genau das im Bericht, während `dumpsys` 1,7–1,9 GB
+  /// zeigte, und der Speicher schied als Ursache aus, ohne je gemessen
+  /// worden zu sein.
   String get summary {
     final parts = <String>[
       if (description != null && description!.isNotEmpty) description!,
-      'RSS ${(rssKb / 1024).round()} MB',
-      'PSS ${(pssKb / 1024).round()} MB',
+      'RSS ${_megabytes(rssKb)}',
+      'PSS ${_megabytes(pssKb)}',
       'importance $importance',
     ];
     return parts.join(' · ');
   }
+
+  static String _megabytes(int kb) =>
+      kb > 0 ? '${(kb / 1024).round()} MB' : 'unbekannt';
 
   static AppExit? fromMap(Map<Object?, Object?> map) {
     final timestamp = map['timestamp'];
