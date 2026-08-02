@@ -287,7 +287,16 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   GitHub-Token schon da sind — und `error_reports` bewusst keine
   select-Policy hat, ein Leser also ohnehin den Key braucht.
   Braucht das Repo-Secret `SUPABASE_SERVICE_ROLE_KEY`. Selbsttests:
-  `python3 tool/feedback_bot.py --test-insert "Name"` und `--test-digest`.
+  `python3 tool/feedback_bot.py --test-insert "Name"` und `--test-digest`;
+  seit #151 laufen sie im Job „Analyze & Test" mit, sonst verrotten sie.
+  Jede Gruppe im Digest zeigt neben der Meldung den **obersten Frame im
+  eigenen Code** (`top_frame`). Ohne den stand in KW30 61-mal
+  `Infinity or NaN toInt`, ohne dass jemand die Datei benennen konnte —
+  der Stack lag die ganze Zeit in der Tabelle. Vergangene Wochen
+  (Rohdaten: 90 Tage) rendert `--digest-week 2026-W30`; wer den Schlüssel
+  nicht zur Hand hat, startet den Workflow von Hand mit der Eingabe
+  `digest_week`, dann steht der Digest in der Run-Summary. Beides liest
+  nur — kein Issue, keine Bereinigung.
 - Backup (`.github/workflows/backup.yml` + `tool/db_backup.sh`, montags plus
   `workflow_dispatch` vor größeren Migrationen): `pg_dump` von `public`,
   `app_internal` und `auth`, mit age verschlüsselt, als Release-Asset im **privaten** Repo
@@ -348,6 +357,19 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   #124/#136). `created_at` ist der Todes-, nicht der Meldezeitpunkt. Ein
   Merker im App-Verzeichnis verhindert Doppelmeldungen; sein Verlust kostet
   nur eine doppelte Zeile. Web und Android < 11 liefern nichts.
+  Die nativen Frames eines solchen Dumps übersetzt
+  `python3 tool/symbolize_anr.py v1.32.0 dump.txt` — ohne dass beim Bauen
+  irgendetwas aufgehoben werden muss: `(offset …)` im Dump ist die Position
+  der Bibliothek in der APK (native Libs liegen dort unkomprimiert), das
+  Release-Asset liefert die APK, und zu jedem Engine-Build veröffentlicht
+  Flutter eine ungestrippte `libflutter.so`. Die Flutter-Version nimmt das
+  Skript aus `release.yml` **im Tag selbst** — die Datei hat den Build
+  gemacht, sie kann nicht danebenliegen. So kam in #151 heraus, dass der
+  Haupt-Thread in `dart::MarkingVisitor::ProcessOldMarkingStack` stand,
+  also im GC und nicht im Kartenrenderer. **Grenze:** `libapp.so` trägt im
+  Release-Build gar keine Funktionssymbole (nur die vier Snapshot-Blobs);
+  Frames im eigenen Dart-Code bleiben unbenannt, solange nicht mit
+  `--split-debug-info` gebaut wird.
 - Fehlerberichte: `logError` (`lib/core/errors.dart`) schreibt zusätzlich
   über einen optionalen `ErrorSink` nach `public.error_reports` (Patch 009,
   `ErrorReportRepository`). Eingehängt in `main()`, in Tests leer — deshalb

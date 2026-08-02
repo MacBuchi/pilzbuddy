@@ -28,6 +28,14 @@ jobs:
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
+      # Die Skripte in tool/ hatten Selbsttests, aber niemanden, der sie
+      # ausführt — sie wären still verrottet. Beide laufen ohne Netz,
+      # ohne Schlüssel und in Sekunden.
+      - name: Tool self-tests
+        run: |
+          python3 tool/feedback_bot.py --test-digest > /dev/null
+          python3 tool/feedback_bot.py --test-insert "Violetter Lacktrichterling" > /dev/null
+          python3 tool/symbolize_anr.py --self-test > /dev/null
 
   build-web:
     name: Build Web
