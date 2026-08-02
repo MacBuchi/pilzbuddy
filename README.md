@@ -19,6 +19,10 @@ eintragen und Spots mit Freunden teilen.
   Alternativ „Spot hier" für die aktuelle GPS-Position.
   Maßstab unten links; der Zoom ist auf den Bereich begrenzt, für den es
   Kartendaten gibt.
+- **Filtern:** Trichter-Knopf auf der Karte → nur eine Pilzart anzeigen
+  (über alle Funde einer Stelle, nicht nur den letzten) und/oder „Nur meine
+  Spots". Gilt für die laufende Sitzung; ein aktiver Filter steht oben auf
+  der Karte.
 - **Wiederbesuch:** Marker antippen → „Fund eintragen" → Speichern.
   Art und Anzahl sind vom letzten Fund vorbelegt.
 - **Freunde:** Suche per Benutzername oder genauer E-Mail, Anfrage → Annahme.

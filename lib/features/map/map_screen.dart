@@ -23,9 +23,11 @@ import '../spots/spot_providers.dart';
 import '../spots/widgets/spot_detail_sheet.dart';
 import 'live_share_providers.dart';
 import 'position_provider.dart';
+import 'spot_filter.dart';
 import 'widgets/add_spot_sheet.dart';
 import 'widgets/map_banners.dart';
 import 'widgets/share_location_sheet.dart';
+import 'widgets/spot_filter_sheet.dart';
 import '../../core/app_colors.dart';
 
 /// Fabrik für den Karten-Kachel-Provider. Tests ersetzen sie durch einen
@@ -242,6 +244,16 @@ class _MapScreenState extends ConsumerState<MapScreen>
     }
   }
 
+  /// Beschriftung der Filter-Zeile — nennt beide Bedingungen, sonst
+  /// wundert man sich über fehlende Freundes-Spots.
+  String _filterLabel(SpotFilter filter) {
+    final parts = [
+      if (filter.species != null) 'nur ${filter.species}',
+      if (filter.onlyMine) 'nur meine',
+    ];
+    return '🔍 Gefiltert: ${parts.join(', ')}';
+  }
+
   Marker _spotMarker(Spot spot) {
     return Marker(
       point: spot.position,
@@ -291,9 +303,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   @override
   Widget build(BuildContext context) {
-    final mySpots = ref.watch(mySpotsProvider).valueOrNull ?? const <Spot>[];
-    final friendSpots =
-        ref.watch(friendSpotsProvider).valueOrNull ?? const <Spot>[];
+    // Gefiltert statt roh (#154): Der Filter gilt für diese Sitzung und
+    // steckt in visibleSpotsProvider, damit die Regel testbar bleibt.
+    final visible = ref.watch(visibleSpotsProvider);
+    final mySpots = visible.mine;
+    final friendSpots = visible.friends;
+    final filter = ref.watch(spotFilterProvider);
     final friendLocations = ref.watch(friendLocationsProvider).valueOrNull ??
         const <FriendLocation>[];
     final isSharing = ref.watch(isSharingProvider);
@@ -499,6 +514,48 @@ class _MapScreenState extends ConsumerState<MapScreen>
                           'Gedrückt halten richtet das Fadenkreuz aus'),
                     ),
                     const MapBanners(),
+                    // Ein aktiver Filter versteckt Spots — das muss man
+                    // sehen, ohne das Blatt zu öffnen, sonst sucht man eine
+                    // Fundstelle, die nur ausgeblendet ist (#154).
+                    if (filter.isActive)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: GestureDetector(
+                          onTap: () => showSpotFilterSheet(context),
+                          child: Container(
+                            padding: const EdgeInsets.only(
+                                left: 12, right: 4, top: 2, bottom: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.forestGreen
+                                  .withValues(alpha: 0.9),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    _filterLabel(filter),
+                                    style:
+                                        const TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                                IconButton(
+                                  onPressed: () => ref
+                                      .read(spotFilterProvider.notifier)
+                                      .clear(),
+                                  icon: const Icon(Icons.close,
+                                      size: 18, color: Colors.white),
+                                  tooltip: 'Filter aufheben',
+                                  visualDensity: VisualDensity.compact,
+                                  constraints: const BoxConstraints(),
+                                  padding: const EdgeInsets.all(6),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                     if (isSharing && shareUntil != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 8),
@@ -550,6 +607,17 @@ class _MapScreenState extends ConsumerState<MapScreen>
             ),
             const SizedBox(height: 12),
           ],
+          FloatingActionButton.small(
+            heroTag: 'filter',
+            onPressed: () => showSpotFilterSheet(context),
+            tooltip: 'Karte filtern',
+            backgroundColor: filter.isActive ? AppColors.forestGreen : null,
+            foregroundColor: filter.isActive ? Colors.white : null,
+            child: Icon(filter.isActive
+                ? Icons.filter_alt
+                : Icons.filter_alt_outlined),
+          ),
+          const SizedBox(height: 12),
           FloatingActionButton.small(
             heroTag: 'refresh',
             onPressed: () {
