@@ -3,11 +3,16 @@ package de.marcusbucher.pilzbuddy
 import android.app.ActivityManager
 import android.app.ApplicationExitInfo
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
+import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.io.InputStream
 import java.util.zip.GZIPInputStream
 
@@ -29,6 +34,9 @@ class MainActivity : FlutterActivity() {
     private companion object {
         const val CHANNEL = "de.marcusbucher.pilzbuddy/exit_info"
 
+        /** Update der GitHub-APK: fertige Datei an den System-Installer geben. */
+        const val INSTALL_CHANNEL = "de.marcusbucher.pilzbuddy/apk_install"
+
         /** Genug für den Haupt-Thread; das Schema erlaubt 4000 Zeichen. */
         const val TRACE_CHARS = 6000
 
@@ -48,6 +56,90 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, INSTALL_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "canInstall" -> result.success(canInstall())
+                    "openInstallSettings" -> {
+                        openInstallSettings()
+                        result.success(null)
+                    }
+                    "install" -> {
+                        val path = call.argument<String>("path")
+                        if (path.isNullOrEmpty()) {
+                            result.error("no_path", "Pfad fehlt", null)
+                        } else {
+                            installApk(path, result)
+                        }
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+    }
+
+    /**
+     * Darf die App eine APK installieren?
+     *
+     * Ab Android 8 hängt das an einer Freigabe pro App („Unbekannte Apps
+     * installieren"). Darunter genügt die Manifest-Berechtigung, deshalb dort
+     * immer true — `canRequestPackageInstalls` gibt es erst ab API 26, und
+     * minSdk ist 24.
+     */
+    private fun canInstall(): Boolean =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            packageManager.canRequestPackageInstalls()
+        } else {
+            true
+        }
+
+    /** Systemeinstellung für genau diese App öffnen, nicht die globale Liste. */
+    private fun openInstallSettings() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        startActivity(
+            Intent(
+                Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                Uri.parse("package:$packageName"),
+            ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+    }
+
+    /**
+     * Übergibt die geladene Datei dem System-Installer.
+     *
+     * Über einen FileProvider statt `file://`: Ab Android 7 wirft eine
+     * herausgereichte Datei-URI eine FileUriExposedException, und der
+     * Installer läuft in einem fremden Prozess — er braucht die per
+     * `FLAG_GRANT_READ_URI_PERMISSION` erteilte Leseerlaubnis.
+     *
+     * Installiert wird NICHT still: Das System fragt, die App entscheidet
+     * nichts allein. Genau deshalb reicht REQUEST_INSTALL_PACKAGES und es
+     * braucht kein INSTALL_PACKAGES (Signatur-Berechtigung, siehe #88).
+     */
+    private fun installApk(path: String, result: MethodChannel.Result) {
+        val file = File(path)
+        if (!file.exists()) {
+            result.error("missing_file", "Datei nicht gefunden: $path", null)
+            return
+        }
+        try {
+            val uri = FileProvider.getUriForFile(
+                this,
+                "$packageName.fileprovider",
+                file,
+            )
+            startActivity(
+                Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(uri, "application/vnd.android.package-archive")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+            )
+            result.success(true)
+        } catch (e: Exception) {
+            // Dart fällt daraufhin auf den Browser-Download zurück.
+            result.error("install_failed", e.message, null)
+        }
     }
 
     /** Übersicht ohne Thread-Dump — billig genug für jeden App-Start. */

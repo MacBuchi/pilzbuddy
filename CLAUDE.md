@@ -291,12 +291,22 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   wöchentlich in der Summary des Backup-Jobs — dort nachsehen, statt zu
   schätzen.
 - Update-Hinweis (`lib/core/update_check.dart`, Banner in `map_banners.dart`):
-  tokenlos gegen `releases/latest`; der Dialog schickt zum Download in den
-  Browser, die Installation macht der Nutzer. **Kein `ota_update` mehr** —
-  dessen Plugin-Manifest zog `INSTALL_PACKAGES` (Signatur-Berechtigung),
-  `REQUEST_INSTALL_PACKAGES` und `WRITE_EXTERNAL_STORAGE` in jeden Build,
-  und Play verbietet Selbst-Updates. `test/android_manifest_test.dart`
-  wacht darüber, dass die Abhängigkeit nicht zurückkommt.
+  tokenlos gegen `releases/latest`. Der Dialog lädt die APK seit #161 wieder
+  **in der App** (`lib/features/update/update_installer.dart`) und übergibt
+  sie Androids System-Installer (`MainActivity.kt`, Kanal `apk_install`,
+  FileProvider auf `updates/`); der Browser bleibt als Rückfallweg für jeden
+  Fehlschlag stehen, weil er als einziger ohne Berechtigung und ohne Kanal
+  auskommt. **Kein `ota_update`** — dessen Plugin-Manifest zog
+  `INSTALL_PACKAGES` (Signatur-Berechtigung), `READ/WRITE_EXTERNAL_STORAGE`
+  und `RECEIVE_BOOT_COMPLETED` in jeden Build (14 statt 8 Berechtigungen).
+  Der eigene Weg braucht genau eine: `REQUEST_INSTALL_PACKAGES` — die App
+  *bietet* eine Datei an, den Installationsdialog zeigt Android.
+  `test/android_manifest_test.dart` wacht über beides: dass die Abhängigkeit
+  wegbleibt und dass genau diese eine Berechtigung dasteht.
+  **Offener Play-Punkt:** Diese Zeile darf nicht ins AAB. Der Dart-Pfad ist
+  im Play-Build über `AppDistribution.showsUpdateHints` komplett aus, das
+  Manifest ist es nicht — vor einer Einreichung Produkt-Flavors anlegen
+  (Anleitung in `docs/play-console.md`).
   Der ganze Pfad hängt an `AppDistribution.showsUpdateHints`
   (`lib/core/app_distribution.dart`): im Play-Build via
   `--dart-define=PLAY_BUILD=true` abgeschaltet, weil Play dort selbst

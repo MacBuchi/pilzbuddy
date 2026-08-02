@@ -5,8 +5,13 @@
   * FlutterSharedPreferences.xml — darin liegt ausschließlich der
     Supabase-Session-Token (`flutter.sb-<projekt>-auth-token`). Ein
     Auth-Credential hat weder in der Google-Cloud noch auf einem anderen
-    Gerät etwas verloren. Die App legt sonst nichts in SharedPreferences ab,
-    es geht also nichts weiter verloren.
+    Gerät etwas verloren. Seit #145 liegt in derselben Datei die gemerkte
+    Kartenquelle (online/offline) — ein Gerätewechsel setzt sie also auf
+    Online zurück. Das ist der richtige Tausch: Der Token wiegt schwerer,
+    und ohne heruntergeladene Regionskarte (die ebenfalls nicht mitkommt)
+    wäre eine gemerkte Offline-Karte auf dem neuen Gerät ohnehin leer.
+  * updates/ — die geladene Update-APK (~60 MB). Reiner Zwischenschritt,
+    beim nächsten Update ohnehin neu geladen.
   * offline_maps/ — die Bundesland-PMTiles sind 44 MB bis 1,7 GB groß und
     jederzeit neu ladbar. Auto-Backup hat ein Kontingent von 25 MB pro App;
     eine einzige Regionskarte sprengt es und lässt das Backup scheitern.
@@ -17,9 +22,11 @@
     <cloud-backup>
         <exclude domain="sharedpref" path="FlutterSharedPreferences.xml"/>
         <exclude domain="file" path="offline_maps"/>
+        <exclude domain="file" path="updates"/>
     </cloud-backup>
     <device-transfer>
         <exclude domain="sharedpref" path="FlutterSharedPreferences.xml"/>
         <exclude domain="file" path="offline_maps"/>
+        <exclude domain="file" path="updates"/>
     </device-transfer>
 </data-extraction-rules>

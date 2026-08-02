@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Was der FileProvider herausgeben darf — bewusst nur der Ordner mit der
+  geladenen Update-APK, nicht das ganze App-Verzeichnis. Dort liegen sonst
+  auch die Offline-Karten und der Session-Token.
+
+  `files-path` entspricht `getFilesDir()`, und genau das liefert
+  path_provider unter Android für `getApplicationSupportDirectory()` —
+  dasselbe Verzeichnis, in dem `updates/` angelegt wird
+  (lib/features/update/update_installer.dart).
+-->
+<paths>
+    <files-path name="updates" path="updates/"/>
+</paths>

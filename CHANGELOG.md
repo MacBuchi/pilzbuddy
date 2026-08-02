@@ -7,6 +7,24 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Updates wieder in der App
+
+*2. August 2026 · Version 1.34.0 · nur Android, nur die Version von GitHub*
+
+Bisher öffnete „Update" den Browser; die geladene Datei musste man dann
+selbst finden und antippen. Das geht wieder direkt in der App.
+
+- Im Update-Hinweis auf „Jetzt aktualisieren" tippen: Die App lädt die neue
+  Version mit Fortschrittsanzeige und übergibt sie an Android, das wie
+  gewohnt nach der Bestätigung fragt.
+- Beim ersten Mal fragt Android einmalig, ob PilzBuddy Apps installieren
+  darf. Der Dialog führt mit einem Tipp zu dieser Einstellung — danach ist
+  jedes weitere Update ein Tipp.
+- Der Weg über den Browser bleibt daneben stehen. Wenn beim Laden etwas
+  schiefgeht, sagt der Dialog, was los war, und bietet ihn an.
+- Deine Spots und heruntergeladenen Karten bleiben bei einem Update
+  selbstverständlich erhalten.
+
 ## Zwei Kleinigkeiten aus dem Wald
 
 *2. August 2026 · Version 1.33.1*
