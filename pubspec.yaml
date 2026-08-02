@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.32.1+69
+version: 1.33.0+70
 
 environment:
   sdk: ^3.11.0
@@ -119,6 +119,13 @@ flutter:
   uses-material-design: true
 
   assets:
+    # Änderungsliste für „Was ist neu" im Profil. Mitgeliefert statt aus dem
+    # Netz geholt, damit sie ohne Empfang lesbar bleibt — und weil sie die
+    # installierte Version beschreibt, nicht die neueste im Netz.
+    # ACHTUNG: Damit steckt eine *.md-Datei im Binary. Der Version Guard in
+    # ci.yml nimmt Markdown sonst aus und macht für genau diese eine Datei
+    # eine Ausnahme.
+    - CHANGELOG.md
     # MapLibre-Style für die Offline-Karte (generiert aus @protomaps/basemaps,
     # Flavor LIGHT, deutsche Labels — siehe lib/features/offline_maps/).
     - assets/map_style/protomaps_light_de.json

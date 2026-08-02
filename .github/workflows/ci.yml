@@ -159,15 +159,32 @@ jobs:
             # dessen Schema die App auch nutzt, ändert lib/ mit und bumpt
             # darüber.) Die Checks selbst (schema_check.sh, db_migrate.sh)
             # laufen davon unberührt weiter.
+            #
+            # CHANGELOG.md ist die Ausnahme von der *.md-Regel: Sie steht in
+            # der Asset-Liste (pubspec.yaml) und wird als „Was ist neu" in
+            # der App angezeigt — sie liegt also im Binary. Ohne diese
+            # Ausnahme könnte man den ausgelieferten Text ändern, ohne dass
+            # ein Release entsteht, und die App zeigte eine Liste, die zu
+            # keiner veröffentlichten Version gehört. Ein zweites `git diff`
+            # statt eines Pathspecs, weil Ausschlüsse in git immer gewinnen:
+            # ein einmal per ':!*.md' ausgeschlossener Pfad lässt sich nicht
+            # wieder hereinholen.
             if [ "${{ github.event_name }}" = "pull_request" ]; then
-              changed=$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD -- . ':!*.md' ':!.github' ':!store' ':!tool' ':!supabase' || true)
+              range="origin/${{ github.base_ref }}...HEAD"
             else
-              changed=$(git diff --name-only "$latest"..HEAD -- . ':!*.md' ':!.github' ':!store' ':!tool' ':!supabase' || true)
+              range="$latest..HEAD"
             fi
+            changed=$(
+              {
+                git diff --name-only "$range" -- . ':!*.md' ':!.github' ':!store' ':!tool' ':!supabase' || true
+                git diff --name-only "$range" -- CHANGELOG.md || true
+              } | grep -v '^$' || true
+            )
             if [ -n "$changed" ]; then
               # Blockiert den Merge (Pflicht-Check): Code-Änderungen brauchen
               # immer einen Versions-Bump, sonst entsteht kein Release.
-              # Reine Doku (*.md), .github/, store/ und tool/ sind ausgenommen.
+              # Reine Doku (*.md außer CHANGELOG.md), .github/, store/ und
+              # tool/ sind ausgenommen.
               echo "::error::Code geändert, aber version in pubspec.yaml ($version) ist nicht größer als $latest. Bitte Version bumpen (beide Teile, z. B. 1.2.3+4 → 1.2.4+5) — ohne Bump gibt es kein Release."
               exit 1
             fi

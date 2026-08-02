@@ -23,8 +23,28 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   (zusätzlich entsteht ein signiertes AAB als Workflow-Artefakt `android-aab`
   für den Play Store — noch NICHT einreichbar, siehe Play-Store-Notiz unten)
   (https://macbuchi.github.io/pilzbuddy/). Kein Bump = kein Release.
+- Nutzer-Changelog (`CHANGELOG.md`, Issue #113): Jede Version, die etwas
+  Sichtbares ändert, bekommt hier einen Eintrag — in Alltagssprache und nach
+  Themen gegliedert statt nach Versionsnummern (68 Releases in neun Tagen
+  wären als Liste wertlos, deshalb nennt jeder Block seine Versionen in einer
+  Metazeile). Die Datei wird als Asset ausgeliefert und im Profil unter
+  „Was ist neu" angezeigt (`lib/features/changelog/`), ist also ohne Empfang
+  lesbar. Drei Folgen daraus:
+  - `test/changelog_test.dart` verlangt, dass die Version aus `pubspec.yaml`
+    in der Datei vorkommt — als neuer Block oder indem der oberste Block
+    seine Versionszeile erweitert. Ein Bump ohne Changelog-Eintrag macht
+    `flutter test` rot; das ist der Mechanismus, der die Datei am Leben hält.
+  - Der Version Guard nimmt `*.md` aus, `CHANGELOG.md` aber ausdrücklich
+    nicht — sie liegt im Binary, eine Änderung an ihr braucht denselben
+    Versions-Bump wie Code.
+  - Erlaubte Auszeichnung: `##`-Überschrift, kursive Metazeile mit Datum und
+    Versionen, Absätze, `-`-Aufzählungen, `**fett**`. Mehr rendert
+    `changelog_parser.dart` nicht (bewusst kein Markdown-Paket für eine
+    Datei, die wir selbst schreiben). Markdown-Links gehören nicht hinein —
+    nackte URL schreiben, ein Test wacht darüber.
 - Version Guard in CI: Code-Änderung ohne Versions-Bump blockiert den Merge
-  (Pflicht-Check schlägt fehl); nur `*.md`, `.github/`, `store/`, `tool/`
+  (Pflicht-Check schlägt fehl); nur `*.md` (außer `CHANGELOG.md`, siehe
+  oben), `.github/`, `store/`, `tool/`
   und `supabase/` sind ausgenommen — nichts davon landet je in einem Binary
   (Store-Grafiken stecken in keiner Asset-Liste, siehe `store/README.md`;
   die Skripte in `tool/` laufen nur in CI; SQL und Stack-Config aus

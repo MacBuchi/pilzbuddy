@@ -38,6 +38,9 @@ eintragen und Spots mit Freunden teilen.
   Top-Arten, Jahreszeiten-Verteilung.
 - **Import & Export:** GPX/KML aus anderen Karten-Apps importieren, eigene
   Spots samt Fundhistorie als GPX exportieren.
+- **Was ist neu:** Die Änderungsliste ([CHANGELOG.md](CHANGELOG.md)) steckt
+  in der App — Profil → „Über PilzBuddy" → „Was ist neu". Mitgeliefert, also
+  auch ohne Empfang lesbar.
 - **Konto:** Registrierung mit Bestätigungscode aus der Mail, „Passwort
   vergessen" ebenfalls per Code, „Passwort ändern" im Profil (fragt das
   aktuelle Passwort ab), Konto-Löschung sofort und ohne Karenzzeit.
