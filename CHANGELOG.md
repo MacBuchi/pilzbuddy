@@ -7,6 +7,21 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Karte nach Pilzart filtern
+
+*2. August 2026 · Version 1.35.0*
+
+- Der neue Knopf mit dem Trichter öffnet ein Blatt mit allen Arten, zu denen
+  du Funde hast — samt Zahl der Fundstellen. Eine antippen, und die Karte
+  zeigt nur noch diese.
+- Gefiltert wird über **alle** Funde einer Stelle, nicht nur den letzten:
+  Wenn du dort einmal Pfifferlinge gefunden hast, findest du sie unter
+  „Pfifferling" wieder — auch wenn zuletzt etwas anderes dort stand.
+- Getrennt davon schaltbar: „Nur meine Spots" blendet die deiner Freunde aus.
+- Solange gefiltert ist, steht das oben auf der Karte, mit einem Kreuz zum
+  Aufheben. Beim nächsten Start liegt wieder alles auf der Karte — ein
+  vergessener Filter, der Fundstellen versteckt, wäre der teurere Fehler.
+
 ## Updates wieder in der App
 
 *2. August 2026 · Version 1.34.0 · nur Android, nur die Version von GitHub*
