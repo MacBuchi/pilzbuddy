@@ -246,9 +246,16 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   /// Beschriftung der Filter-Zeile — nennt beide Bedingungen, sonst
   /// wundert man sich über fehlende Freundes-Spots.
+  ///
+  /// Ab drei Arten steht die Zahl statt der Namen: Die Zeile teilt sich den
+  /// Platz mit den übrigen Bannern, und fünf ausgeschriebene Artnamen
+  /// machen daraus einen Absatz.
   String _filterLabel(SpotFilter filter) {
+    final names = filter.species.toList()..sort();
     final parts = [
-      if (filter.species != null) 'nur ${filter.species}',
+      if (names.length == 1) 'nur ${names.single}',
+      if (names.length == 2) 'nur ${names.join(', ')}',
+      if (names.length > 2) '${names.length} Arten',
       if (filter.onlyMine) 'nur meine',
     ];
     return '🔍 Gefiltert: ${parts.join(', ')}';

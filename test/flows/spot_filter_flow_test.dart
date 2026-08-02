@@ -81,6 +81,70 @@ void main() {
     expect(find.textContaining('Gefiltert'), findsNothing);
   });
 
+  testWidgets('Zwei Arten anhaken zeigt beide, „Alle Arten" hebt es auf',
+      (tester) async {
+    final (backend, me) = backendWithSpots();
+    // Eine dritte Art, damit sich „beide" von „alle" unterscheiden lässt.
+    backend.addSpot(
+        ownerId: me.id,
+        lat: 51.1654,
+        species: 'Steinpilz',
+        foundOn: DateTime(2026, 7, 4));
+    await pumpApp(tester, backend);
+    expect(find.byType(MushroomIcon), findsNWidgets(4));
+
+    await tester.tap(find.byTooltip('Karte filtern'));
+    await settle(tester);
+    await tester.tap(find.text('Maronenröhrling'));
+    await settle(tester);
+    await tester.tap(find.text('Pfifferling'));
+    await settle(tester);
+    Navigator.of(tester.element(find.text('Karte filtern'))).pop();
+    await settle(tester);
+
+    // Zwei Maronen + ein Pfifferling; der Steinpilz fehlt.
+    expect(find.byType(MushroomIcon), findsNWidgets(3));
+    // Bei zwei Arten stehen beide Namen da, alphabetisch.
+    expect(find.textContaining('Gefiltert: nur Maronenröhrling, Pfifferling'),
+        findsOneWidget);
+
+    // „Alle Arten" räumt die ganze Auswahl weg — ein Tipp, nicht zwei.
+    await tester.tap(find.byTooltip('Karte filtern'));
+    await settle(tester);
+    await tester.tap(find.text('Alle Arten'));
+    await settle(tester);
+    Navigator.of(tester.element(find.text('Karte filtern'))).pop();
+    await settle(tester);
+
+    expect(find.byType(MushroomIcon), findsNWidgets(4));
+    expect(find.textContaining('Gefiltert'), findsNothing);
+  });
+
+  testWidgets('Ab drei Arten nennt die Karte die Zahl statt der Namen',
+      (tester) async {
+    // Sonst wächst die Zeile über die Karte; sie teilt sich den Platz mit
+    // den übrigen Bannern.
+    final (backend, me) = backendWithSpots();
+    backend.addSpot(
+        ownerId: me.id,
+        lat: 51.1654,
+        species: 'Steinpilz',
+        foundOn: DateTime(2026, 7, 4));
+    await pumpApp(tester, backend);
+
+    await tester.tap(find.byTooltip('Karte filtern'));
+    await settle(tester);
+    for (final name in ['Maronenröhrling', 'Pfifferling', 'Steinpilz']) {
+      await tester.tap(find.text(name));
+      await settle(tester);
+    }
+    Navigator.of(tester.element(find.text('Karte filtern'))).pop();
+    await settle(tester);
+
+    expect(find.textContaining('Gefiltert: 3 Arten'), findsOneWidget);
+    expect(find.textContaining('Pfifferling'), findsNothing);
+  });
+
   testWidgets('„Nur meine Spots" blendet die der Freundin aus',
       (tester) async {
     final (backend, _) = backendWithSpots();

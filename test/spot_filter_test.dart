@@ -1,5 +1,6 @@
 // Die Filterregeln als reine Funktionen — hier liegt die Substanz von
 // #154, nicht in der Oberfläche.
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/features/map/spot_filter.dart';
 import 'package:pilzbuddy/models/find.dart';
@@ -46,10 +47,10 @@ void main() {
       // eine Marone zeigt.
       final s = spot(species: ['Marone', 'Pfifferling']);
       expect(s.lastFind?.species, 'Marone');
-      expect(matchesSpotFilter(s, const SpotFilter(species: 'Pfifferling')),
+      expect(matchesSpotFilter(s, const SpotFilter(species: {'Pfifferling'})),
           isTrue);
       expect(
-          matchesSpotFilter(s, const SpotFilter(species: 'Steinpilz')),
+          matchesSpotFilter(s, const SpotFilter(species: {'Steinpilz'})),
           isFalse);
     });
 
@@ -57,7 +58,7 @@ void main() {
       // Die Art ist ein Freitextfeld — „marone" und „Marone" sind dieselbe.
       expect(
           matchesSpotFilter(
-              spot(species: ['marone']), const SpotFilter(species: 'Marone')),
+              spot(species: ['marone']), const SpotFilter(species: {'Marone'})),
           isTrue);
     });
 
@@ -66,18 +67,36 @@ void main() {
       // Zweitnamen. Fänden sie den Filter nicht, wäre eine Fundstelle im
       // Wald nicht auffindbar — der teuerste Fehler dieser App.
       final alt = spot(species: ['Totentrompete']);
-      expect(matchesSpotFilter(alt, const SpotFilter(species: 'Herbsttrompete')),
+      expect(matchesSpotFilter(alt, const SpotFilter(species: {'Herbsttrompete'})),
           isTrue);
       // …und andersherum genauso.
       final neu = spot(species: ['Herbsttrompete']);
-      expect(matchesSpotFilter(neu, const SpotFilter(species: 'Totentrompete')),
+      expect(matchesSpotFilter(neu, const SpotFilter(species: {'Totentrompete'})),
           isTrue);
+    });
+
+    test('Mehrere Arten wirken als ODER, nicht als UND', () {
+      // Zwei Arten heißt „zeig mir beides", nicht „zeig, wo beides steht".
+      // Als UND wäre die Karte bei zwei Arten fast immer leer.
+      const beide = SpotFilter(species: {'Marone', 'Pfifferling'});
+      expect(matchesSpotFilter(spot(species: ['Marone']), beide), isTrue);
+      expect(matchesSpotFilter(spot(species: ['Pfifferling']), beide), isTrue);
+      expect(matchesSpotFilter(spot(species: ['Steinpilz']), beide), isFalse);
+    });
+
+    test('Eine leere Auswahl heißt alle Arten, nicht keine', () {
+      // Sonst wäre ein Filter ohne Auswahl von „nichts gefunden" nicht zu
+      // unterscheiden — und die Karte bliebe wortlos leer.
+      expect(matchesSpotFilter(spot(species: ['Marone']), const SpotFilter()),
+          isTrue);
+      expect(const SpotFilter().isActive, isFalse);
+      expect(const SpotFilter(species: {'Marone'}).isActive, isTrue);
     });
 
     test('Spots ohne Art fallen bei gesetzter Art heraus', () {
       expect(
           matchesSpotFilter(
-              spot(species: [null]), const SpotFilter(species: 'Marone')),
+              spot(species: [null]), const SpotFilter(species: {'Marone'})),
           isFalse);
     });
 
@@ -87,7 +106,7 @@ void main() {
           isFalse);
       expect(
           matchesSpotFilter(friends,
-              const SpotFilter(species: 'Marone', onlyMine: true)),
+              const SpotFilter(species: {'Marone'}, onlyMine: true)),
           isFalse,
           reason: 'Beide Bedingungen gelten zusammen, nicht alternativ');
     });
@@ -144,6 +163,44 @@ void main() {
     });
   });
 
+  group('SpotFilterNotifier', () {
+    SpotFilterNotifier notifierOf(ProviderContainer c) =>
+        c.read(spotFilterProvider.notifier);
+
+    test('toggleSpecies wählt an und wieder ab', () {
+      final c = ProviderContainer();
+      addTearDown(c.dispose);
+      notifierOf(c).toggleSpecies('Pfifferling');
+      notifierOf(c).toggleSpecies('Steinpilz');
+      expect(c.read(spotFilterProvider).species, {'Pfifferling', 'Steinpilz'});
+      notifierOf(c).toggleSpecies('Pfifferling');
+      expect(c.read(spotFilterProvider).species, {'Steinpilz'});
+    });
+
+    test('Zweitnamen landen nicht doppelt in der Auswahl', () {
+      // „Marone" und „Maronenröhrling" sind dieselbe Art; zweimal in der
+      // Menge hieße, sie stünde im Kartenhinweis zweimal.
+      final c = ProviderContainer();
+      addTearDown(c.dispose);
+      notifierOf(c).toggleSpecies('Marone');
+      expect(c.read(spotFilterProvider).species, {'Maronenröhrling'});
+      // Derselbe Pilz unter dem anderen Namen wählt ihn wieder ab.
+      notifierOf(c).toggleSpecies('Maronenröhrling');
+      expect(c.read(spotFilterProvider).species, isEmpty);
+    });
+
+    test('„Alle Arten" räumt die Arten weg, nicht „Nur meine"', () {
+      final c = ProviderContainer();
+      addTearDown(c.dispose);
+      notifierOf(c).setOnlyMine(true);
+      notifierOf(c).toggleSpecies('Pfifferling');
+      notifierOf(c).clearSpecies();
+      expect(c.read(spotFilterProvider).species, isEmpty);
+      expect(c.read(spotFilterProvider).onlyMine, isTrue,
+          reason: 'Die beiden Bedingungen sind getrennt bedienbar');
+    });
+  });
+
   test('applySpotFilter behält die Reihenfolge', () {
     final spots = [
       spot(species: ['Marone']),
@@ -151,7 +208,7 @@ void main() {
       spot(species: ['Marone']),
     ];
     final filtered =
-        applySpotFilter(spots, const SpotFilter(species: 'Marone'));
+        applySpotFilter(spots, const SpotFilter(species: {'Marone'}));
     expect(filtered.map((s) => s.id), [spots[0].id, spots[2].id]);
   });
 }
