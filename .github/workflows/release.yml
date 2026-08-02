@@ -104,7 +104,12 @@ jobs:
           keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
           storeFile=pilzbuddy-release.jks
           EOF
-      - run: flutter build apk --release
+      # Nur arm64: Alle bekannten Zielgeräte sind arm64, und die
+      # Universal-APK würde mit der MapLibre-Engine (libmaplibre.so,
+      # 12,7 MB je ABI) um ~36 MB wachsen. Ohne die beiden ungenutzten
+      # ABIs wird die APK sogar kleiner als bisher. Das AAB unten bleibt
+      # universal — Play splittet selbst pro Gerät.
+      - run: flutter build apk --release --target-platform android-arm64
       - name: Artefakt benennen
         run: cp build/app/outputs/flutter-apk/app-release.apk "pilzbuddy-${{ needs.version.outputs.tag }}.apk"
       - uses: actions/upload-artifact@v7
