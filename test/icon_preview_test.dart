@@ -13,7 +13,7 @@ import 'package:pilzbuddy/core/widgets/mushroom_icon.dart';
 /// Übersichtsbild (PNG) für den Design-Review gespeichert.
 void main() {
   testWidgets('alle Pilz-Icon-Varianten rendern', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(760, 1860));
+    await tester.binding.setSurfaceSize(const Size(760, 1940));
     final key = GlobalKey();
 
     final groups = <(String, SpeciesGroup?)>[
@@ -35,6 +35,7 @@ void main() {
       'Käppchenmorchel',
       'Morchelbecherling',
       'Böhmische Verpel',
+      'Semmelstoppelpilz',
     ];
 
     await tester.pumpWidget(MaterialApp(

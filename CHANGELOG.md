@@ -32,6 +32,11 @@ Die Verpel lag außerdem in der falschen Schublade und wurde als grauer
 Lamellenpilz gezeichnet. Sie steht jetzt bei den Morcheln und Lorcheln, wo
 sie hingehört.
 
+Dabei ist noch einer aufgefallen: Der **Semmelstoppelpilz** war ebenfalls
+ein grauer Lamellenpilz — obwohl er gar keine Lamellen hat und semmelfarben
+ist. Er hat jetzt seinen flachen, hell gebackenen Hut, und darunter sitzen
+die Stoppeln, die ihm den Namen geben.
+
 ## Karte nach Pilzart filtern
 
 *2. August 2026 · Version 1.35.0*

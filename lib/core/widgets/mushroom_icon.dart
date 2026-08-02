@@ -19,7 +19,8 @@ int stableSeed(String input) {
 /// so erkennt man die Pilzart auf der Karte auf den ersten Blick.
 /// Einige bekannte Arten ([species]) bekommen zusätzlich ein eigenes
 /// Aussehen (Pfifferling, Herbsttrompete, Reizker, Marone, Hexenröhrlinge,
-/// Käppchenmorchel, Morchelbecherling, Böhmische Verpel).
+/// Käppchenmorchel, Morchelbecherling, Böhmische Verpel,
+/// Semmelstoppelpilz).
 /// Ohne Gruppe sorgt [seed] für bunte Vielfalt. Der Boden unter dem Pilz
 /// zeigt die Herkunft: grün = eigener Spot, blau = von einem Freund.
 class MushroomIcon extends StatelessWidget {
@@ -89,6 +90,7 @@ enum _CapShape {
   semifreeCone, // Käppchenmorchel: kleiner Kegel auf langem Stiel
   thimble, // Böhmische Verpel: Fingerhut-Glocke, hängt am Stielende
   cup, // Morchelbecherling: nach oben offene Schale
+  toothed, // Semmelstoppelpilz: welliger Hut mit Stoppeln darunter
 }
 
 /// Stielzeichnung der Hexenröhrlinge — in echt das Merkmal, an dem man die
@@ -199,6 +201,14 @@ class _MushroomPainter extends CustomPainter {
           [Color(0xFF8A6D3B), Color(0xFF7A5F33)],
           ridges: true, stemTop: 0.34, stemColor: Color(0xFFF5EDCB));
     }
+    if (key.contains('stoppelpilz')) {
+      // Semmelstoppelpilz: semmelfarben — der Name sagt es — und unter dem
+      // Hut sitzen Stoppeln statt Lamellen. Das Gruppen-Icon „Lamellenpilz"
+      // behauptete beides Gegenteilige: grau und mit Lamellen.
+      return const _Style(_CapShape.toothed,
+          [Color(0xFFE3B981), Color(0xFFD9A96C), Color(0xFFE8C593)],
+          stemColor: Color(0xFFF7EFDC));
+    }
     if (key.contains('käppchenmorchel')) {
       // Käppchenmorchel: kleines Wabenkäppchen auf auffällig langem, blassem
       // Stiel — die Speisemorchel ist dagegen fast nur Hut.
@@ -301,6 +311,7 @@ class _MushroomPainter extends CustomPainter {
       case _CapShape.trumpet:
       case _CapShape.semifreeCone:
       case _CapShape.thimble:
+      case _CapShape.toothed:
         stemPath = Path()
           ..addRRect(RRect.fromLTRBR(u(0.36), u(style.stemTop), u(0.64),
               u(0.96), Radius.circular(u(0.13))));
@@ -374,6 +385,26 @@ class _MushroomPainter extends CustomPainter {
               ..cubicTo(u(0.27), u(0.06), u(0.73), u(0.06), u(0.71), u(0.44))
               ..quadraticBezierTo(u(0.5), u(0.60), u(0.29), u(0.44))
               ..close();
+          case _CapShape.toothed:
+            // Semmelstoppelpilz: breiter, leicht unregelmäßiger Hut, dessen
+            // Unterkante die namensgebenden Stoppeln trägt. Die Zähne
+            // stecken im Hut-Pfad selbst — so nehmen Halo, Füllung und
+            // Kontur sie ohne Sonderbehandlung mit.
+            // Flacher als eine Kuppel und links höher als rechts: der Hut
+            // ist in echt niedrig und unregelmäßig gewellt. Gewölbt sähe er
+            // aus wie ein Steinpilz mit Zacken.
+            cap
+              ..moveTo(u(0.03), u(0.42))
+              ..cubicTo(u(0.05), u(0.22), u(0.36), u(0.18), u(0.55), u(0.22))
+              ..cubicTo(u(0.76), u(0.26), u(0.97), u(0.30), u(0.97), u(0.46));
+            const teeth = 8;
+            for (var i = 2 * teeth; i >= 0; i--) {
+              final t = i / (2 * teeth);
+              // Unterkante wie bei den anderen Hüten zur Mitte hin tiefer
+              final base = 0.42 + 0.07 * 4 * t * (1 - t) + 0.04 * t;
+              cap.lineTo(u(0.03 + t * 0.94), u(i.isEven ? base : base + 0.07));
+            }
+            cap.close();
           default:
             break;
         }
