@@ -78,10 +78,13 @@ class _SpotFilterSheet extends ConsumerWidget {
                   : ListView(
                       shrinkWrap: true,
                       children: [
+                        // Bleibt oben stehen und ist angehakt, solange
+                        // nichts gewählt ist: ein Tipp zurück auf „zeig
+                        // alles", egal wie viele Arten angehakt sind.
                         _SpeciesTile(
                           label: 'Alle Arten',
-                          selected: filter.species == null,
-                          onTap: () => notifier.setSpecies(null),
+                          selected: filter.species.isEmpty,
+                          onTap: notifier.clearSpecies,
                         ),
                         for (final entry in species)
                           _SpeciesTile(
@@ -89,8 +92,8 @@ class _SpotFilterSheet extends ConsumerWidget {
                             subtitle: entry.spots == 1
                                 ? '1 Fundstelle'
                                 : '${entry.spots} Fundstellen',
-                            selected: filter.species == entry.name,
-                            onTap: () => notifier.setSpecies(entry.name),
+                            selected: filter.species.contains(entry.name),
+                            onTap: () => notifier.toggleSpecies(entry.name),
                             leading: MushroomIcon(
                               seed: entry.name.hashCode,
                               size: 32,

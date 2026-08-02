@@ -7,6 +7,24 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Mehrere Pilzarten gleichzeitig filtern
+
+*2. August 2026 · Version 1.38.0*
+
+Im Filter-Blatt lässt sich jetzt mehr als eine Art anhaken. Wer im Herbst
+sowohl nach Maronen als auch nach Pfifferlingen unterwegs ist, sieht beide
+Sorten Fundstellen auf einer Karte statt nacheinander.
+
+- Angehakt wird durch Antippen, noch einmal antippen nimmt die Art wieder
+  raus.
+- **„Alle Arten"** ganz oben räumt die Auswahl in einem Tipp weg — egal wie
+  viele Häkchen gesetzt sind. „Nur meine Spots" bleibt davon unberührt, das
+  sind zwei getrennte Schalter.
+- Gezeigt wird, was zu **einer** der gewählten Arten passt. Nicht: wo alle
+  gewählten zusammen vorkommen — das wäre fast immer die leere Karte.
+- Oben auf der Karte stehen bei einer oder zwei Arten die Namen, ab drei die
+  Zahl. Sonst wüchse die Zeile über die Karte.
+
 ## Zweitnamen: „Totentrompete" findet jetzt auch „Herbsttrompete"
 
 *2. August 2026 · Version 1.37.0*

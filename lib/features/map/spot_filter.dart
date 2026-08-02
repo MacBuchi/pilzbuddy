@@ -11,19 +11,20 @@ import '../spots/spot_providers.dart';
 /// der teurere Fehler. Nach dem Start liegt wieder alles auf der Karte —
 /// anders als beim Offline-Schalter (#145), der nichts verbirgt.
 class SpotFilter {
-  const SpotFilter({this.species, this.onlyMine = false});
+  const SpotFilter({this.species = const {}, this.onlyMine = false});
 
-  /// Nur Spots mit einem Fund dieser Art; `null` = alle.
-  final String? species;
+  /// Nur Spots mit einem Fund einer dieser Arten. **Leer = alle Arten** —
+  /// nicht „keine". Ein Filter, der nichts durchlässt, wäre auf der Karte
+  /// nicht von „nichts gefunden" zu unterscheiden.
+  final Set<String> species;
 
   /// Freundes-Spots ausblenden.
   final bool onlyMine;
 
-  bool get isActive => species != null || onlyMine;
+  bool get isActive => species.isNotEmpty || onlyMine;
 
-  SpotFilter copyWith({String? species, bool? onlyMine, bool clearSpecies = false}) =>
-      SpotFilter(
-        species: clearSpecies ? null : (species ?? this.species),
+  SpotFilter copyWith({Set<String>? species, bool? onlyMine}) => SpotFilter(
+        species: species ?? this.species,
         onlyMine: onlyMine ?? this.onlyMine,
       );
 }
@@ -32,9 +33,17 @@ class SpotFilterNotifier extends Notifier<SpotFilter> {
   @override
   SpotFilter build() => const SpotFilter();
 
-  void setSpecies(String? species) => state = species == null
-      ? state.copyWith(clearSpecies: true)
-      : state.copyWith(species: species);
+  /// Art an-/abwählen. Verglichen wird über die Hauptbezeichnung, damit
+  /// dieselbe Art nicht zweimal in der Menge landen kann.
+  void toggleSpecies(String species) {
+    final key = canonicalSpecies(species) ?? species;
+    final next = {...state.species};
+    if (!next.remove(key)) next.add(key);
+    state = state.copyWith(species: next);
+  }
+
+  /// „Alle Arten": hebt die Artenauswahl auf, lässt „Nur meine" stehen.
+  void clearSpecies() => state = state.copyWith(species: const {});
 
   void setOnlyMine(bool value) => state = state.copyWith(onlyMine: value);
 
@@ -55,13 +64,17 @@ final spotFilterProvider =
 /// Vereinheitlichung als „Totentrompete" angelegt wurde, gehört zur
 /// „Herbsttrompete" — sonst wäre er unauffindbar, obwohl er dieselbe Art
 /// meint.
+/// Mehrere Arten wirken als ODER: gezeigt wird, was zu **einer** von ihnen
+/// passt. Ein UND wäre eine andere Frage („wo habe ich beides gefunden") und
+/// bei zwei Arten meist die leere Karte.
 bool matchesSpotFilter(Spot spot, SpotFilter filter) {
   if (filter.onlyMine && !spot.isOwn) return false;
-  final species = filter.species;
-  if (species == null) return true;
-  final wanted = canonicalSpecies(species)?.toLowerCase();
+  if (filter.species.isEmpty) return true;
+  final wanted = {
+    for (final s in filter.species) canonicalSpecies(s)?.toLowerCase(),
+  };
   return spot.finds
-      .any((f) => canonicalSpecies(f.species)?.toLowerCase() == wanted);
+      .any((f) => wanted.contains(canonicalSpecies(f.species)?.toLowerCase()));
 }
 
 List<Spot> applySpotFilter(List<Spot> spots, SpotFilter filter) =>
