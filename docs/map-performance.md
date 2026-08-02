@@ -2,10 +2,10 @@
 
 Die Karte ist der einzige Teil der App, der sie umbringen kann. Diese Seite
 sammelt, welche Stellschrauben es gibt, welche Zahl hinter ihrem heutigen Wert
-steht, und wie die eine Messung geht, die noch fehlt. Sie existiert, weil in
-#157 ein Vorschlag gemacht wurde, der genau die Einstellung zurückgedreht
-hätte, die #142 nach einer Messung gesetzt hat — und weil das ohne diese Seite
-wieder passiert.
+steht, und wie die eine Messung geht, die noch fehlt. Sie existiert, weil die
+Triage zu #157 einen Vorschlag gemacht hat, der genau die Einstellung
+zurückgedreht hätte, die #142 nach einer Messung gesetzt hat — und weil das
+ohne diese Seite wieder passiert.
 
 ## Die Grundregel
 
@@ -68,21 +68,57 @@ anderer Speicherbereich und wurde nie angesehen.
 
 Zu übersetzen ist der Dump mit `tool/symbolize_anr.py` (siehe CLAUDE.md).
 
+### Die eine Zahl, die es dazu schon gibt — und die gegen das Naheliegende spricht
+
+Am 2026-07-26, bei der Arbeit an #142, wurde der Dart-Heap einmal mitgemessen:
+**flach bei 42 MB**. Damals galt „Leck im Dart-Heap" als widerlegt, und dabei
+ist es geblieben. Zwei Einschränkungen: Die Messung entstand, bevor #150 den
+Detail-Layer wiederbelebt hat (er renderte nichts und kostete nichts, siehe
+die Korrektur in PR #150), und sie ging auf die *Größe*, nicht auf die
+Häufigkeit.
+
+Nimmt man sie trotzdem ernst — und das sollte man —, dann ist die naheliegende
+Erklärung („der Heap ist riesig geworden, deshalb dauert das Markieren
+Sekunden") **unwahrscheinlich**: 42 MB markiert man in Millisekunden.
+
+Übrig bleibt die bessere Erklärung: nicht **eine** lange Markierung, sondern
+**viele**. Läuft der GC bei hoher Müllrate ununterbrochen, verbringt der
+Thread den größten Teil seiner Zeit darin — und genau dann landet eine
+einzelne Stichprobe mit hoher Wahrscheinlichkeit in `ProcessOldMarkingStack`.
+Das passt auch besser zu den 35 s aufgelaufener CPU-Zeit als eine einzelne
+Pause.
+
 ### Die Frage
 
-Wächst der Dart-Heap (Old Space) mit der Zahl berührter Kacheln, und wie lange
-dauert eine einzelne Markierungsphase?
+Nicht „wie groß ist der Heap", sondern **wie viel Müll erzeugt eine Geste** —
+Zuweisungsrate und GC-Häufigkeit, dazu die längste einzelne Pause zur
+Gegenprobe.
 
 Eine ANR entsteht nicht aus Dauerlast: 15 s CPU über 90 s Gestik sind ~17 %
-Auslastung. Sie entsteht aus **einer** Operation, die 5 s am Stück blockiert.
-Gesucht ist also die längste einzelne GC-Pause, nicht die Summe.
+Auslastung. Sie entsteht daraus, dass der Thread 5 s am Stück nicht antwortet
+— das kann eine lange Operation sein oder eine Kette kurzer ohne Luft
+dazwischen.
 
 ### Vorhersage, an der sich das widerlegen lässt
 
-Trifft die Vermutung zu, wächst Old Space beim Pannen und Zoomen in die
-Hunderte MB und die längste Markierungspause wächst mit. Bleibt Old Space
-klein und flach, während die App trotzdem hängt, **ist die Vermutung falsch**
-und der Grund steckt woanders in der Engine.
+Trifft es zu, steigt beim Pannen und Zoomen die GC-Häufigkeit deutlich, während
+Old Space klein bleibt. Bleiben **beide** unauffällig, während die App
+trotzdem hängt, **ist die Vermutung falsch** und der Grund steckt woanders in
+der Engine.
+
+### Was daraus für die Cache-Grenzen folgt — und warum es der Intuition widerspricht
+
+Wenn die Müllrate der Treiber ist, dann ist ein **größerer** Kachel-Cache der
+Hebel, nicht ein kleinerer: Jede verdrängte Kachel muss neu geparst werden,
+und jedes Parsen erzeugt genau den Objektgraphen, der kurz darauf wieder Müll
+ist. Wer „GC-Problem" liest und reflexhaft Caches verkleinert, macht es
+schlimmer. Auch deshalb wird hier nichts vor der Messung gedreht.
+
+Weitere Verdächtige auf demselben Weg, alle pro Kachel und alle im
+Haupt-Isolate: die gzip-Entpackung in `PmTilesVectorTileProvider.provide`, die
+Kopie in `Uint8List.fromList(t.bytes())`, und
+`MultiPmTilesVectorTileProvider`, das bei einem Fehlschlag jede installierte
+Region der Reihe nach durchprobiert.
 
 ### Ablauf
 
@@ -94,7 +130,9 @@ und der Grund steckt woanders in der Engine.
    Dauer. Das ist die Zahl, um die es geht.
 4. Gestik: vier Runden aus Pannen **und** durchgehendem Zoomen in beide
    Richtungen.
-5. Nach jeder Runde Old Space und die längste GC-Pause notieren.
+5. Nach jeder Runde drei Zahlen notieren: Old Space, **Zahl der GC-Ereignisse
+   in der Runde** und die längste einzelne Pause. Die mittlere ist nach dem
+   Abschnitt oben die wichtigste.
 
 **Zur Gestik, weil daran schon zwei Messungen gescheitert sind (#151):**
 `adb input tap; input swipe` liest `flutter_map` als Doppeltipp-und-Ziehen und
@@ -125,4 +163,4 @@ alles, denn es sind zwei verschiedene Layer:
   `maximumTileSubstitutionDifference: 1`.
 
 In beiden Fällen ist der naheliegende Griff eine Rücknahme von #142. Solange
-#151 offen ist, heißt das: nicht anfassen.
+die Messung aus #151 fehlt, heißt das: nicht anfassen.
