@@ -1,11 +1,16 @@
 // Szenarien für die Offline-Karten: Verwaltung (Download/Löschen) und
 // der Umschalter auf der Karte.
 import 'package:flutter/material.dart' show BackButton, Icons;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pilzbuddy/core/settings.dart';
+import 'package:pilzbuddy/features/offline_maps/offline_map_repository.dart';
+import 'package:pilzbuddy/features/offline_maps/offline_map_providers.dart';
 
 import '../fakes/fake_backend.dart';
 import '../fakes/fake_keep_alive.dart';
 import '../fakes/fake_offline_maps.dart';
+import '../fakes/fake_settings.dart';
 import '../fakes/test_app.dart';
 
 void main() {
@@ -210,6 +215,57 @@ void main() {
     expect(offlineMaps.installed, isEmpty);
     expect(find.textContaining('Lädt …'), findsNothing);
     expect(find.text('76 MB'), findsOneWidget);
+  });
+
+  testWidgets('Der Umschalter merkt sich die Wahl (#145)', (tester) async {
+    final settings = FakeSettings();
+    final (backend, _) = loggedInBackend();
+    final offlineMaps = FakeOfflineMapRepository()
+      ..installed.add(const InstalledMap(
+        key: 'de_berlin',
+        dateStamp: '20260320',
+        sizeBytes: 70 * 1024 * 1024,
+        filePath: '/fake/offline_maps/de_berlin_20260320.pmtiles',
+      ));
+    await pumpApp(tester, backend,
+        offlineMaps: offlineMaps, settings: settings);
+
+    expect(settings.offlineMapEnabled, isFalse);
+
+    await tester.tap(find.byTooltip('Zur Offline-Karte'));
+    await settle(tester);
+    expect(settings.offlineMapEnabled, isTrue,
+        reason: 'Die Wahl muss gespeichert werden, nicht nur im Speicher '
+            'stehen — sonst ist sie beim nächsten Start wieder weg');
+
+    // Und zurück: Auch das Ausschalten wird gemerkt, sonst bliebe man
+    // nach einem einzigen Versehen dauerhaft offline. Der Tooltip heißt
+    // weiterhin „Zur Offline-Karte", weil er am *geladenen* Offline-Style
+    // hängt (map_screen.dart: `offlineActive = offlineStyle != null`) und
+    // es im Test keine echten PMTiles gibt — die Karte bleibt online,
+    // der Schalter steht trotzdem auf offline.
+    await tester.tap(find.byTooltip('Zur Offline-Karte'));
+    await settle(tester);
+    expect(settings.offlineMapEnabled, isFalse);
+    await drainSnackbars(tester);
+  });
+
+  test('Nach dem Neustart gilt die gemerkte Kartenquelle (#145)', () {
+    // Der Kern der Regression: Vorher war das ein StateProvider mit
+    // Startwert false — die Wahl war nach jedem Kaltstart weg, und zwar
+    // im Wald, wo sie gebraucht wird.
+    final offline = ProviderContainer(overrides: [
+      settingsProvider
+          .overrideWithValue(FakeSettings(offlineMapEnabled: true)),
+    ]);
+    addTearDown(offline.dispose);
+    expect(offline.read(offlineMapEnabledProvider), isTrue);
+
+    final online = ProviderContainer(overrides: [
+      settingsProvider.overrideWithValue(FakeSettings()),
+    ]);
+    addTearDown(online.dispose);
+    expect(online.read(offlineMapEnabledProvider), isFalse);
   });
 
   testWidgets('Im Web gibt es keinen Offline-Karten-Einstieg',

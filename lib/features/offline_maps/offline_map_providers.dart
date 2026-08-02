@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -8,6 +9,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart';
 import 'package:vector_tile_renderer/vector_tile_renderer.dart' as vtr;
 
+import '../../core/errors.dart';
+import '../../core/settings.dart';
 import 'download_keep_alive.dart';
 import 'offline_map_repository.dart';
 import 'pmtiles_tile_provider.dart';
@@ -184,7 +187,35 @@ final mapDownloadsProvider =
         MapDownloadsNotifier.new);
 
 /// Kartenquelle der Hauptkarte: false = Online-OSM (Default), true = Offline.
-final offlineMapEnabledProvider = StateProvider<bool>((ref) => false);
+///
+/// Überdauert den Neustart (Issue #145). Vorher war das ein reiner
+/// Speicherzustand — wer im Wald bewusst umschaltete, stand nach jedem
+/// Neustart wieder auf Online. Die Wahl gilt bewusst unverfallbar weiter,
+/// auch bei gutem Empfang: Sie überraschend zurückzudrehen wäre schlimmer
+/// als eine Offline-Karte trotz Netz, und der Weg zurück ist ein Tipp.
+class OfflineMapEnabledNotifier extends Notifier<bool> {
+  @override
+  bool build() => ref.read(settingsProvider).offlineMapEnabled;
+
+  /// Wechselt die Quelle. Der Zustand springt sofort, das Speichern läuft
+  /// nach — eine Karte, die auf einen Schreibvorgang wartet, wäre für die
+  /// Nutzerin ein Hänger. Scheitert das Speichern, bleibt die Umschaltung
+  /// für diese Sitzung trotzdem gültig; verloren geht nur das Merken.
+  void toggle() {
+    final value = !state;
+    state = value;
+    unawaited(ref
+        .read(settingsProvider)
+        .setOfflineMapEnabled(value)
+        .catchError((Object e, StackTrace stackTrace) {
+      logError('Kartenquelle merken', e, stackTrace);
+    }));
+  }
+}
+
+final offlineMapEnabledProvider =
+    NotifierProvider<OfflineMapEnabledNotifier, bool>(
+        OfflineMapEnabledNotifier.new);
 
 /// Verbindungsstatus des Geräts (connectivity_plus).
 final connectivityProvider = StreamProvider<List<ConnectivityResult>>(

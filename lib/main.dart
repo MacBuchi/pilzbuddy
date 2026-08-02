@@ -2,11 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app.dart';
 import 'core/errors.dart';
 import 'core/map_data_license.dart';
+import 'core/settings.dart';
 import 'core/supabase_config.dart';
 import 'core/tile_memory.dart';
 import 'data/error_report_repository.dart';
@@ -61,5 +63,13 @@ Future<void> main() async {
     reports: reports,
   ).reportPending());
 
-  runApp(const ProviderScope(child: PilzBuddyApp()));
+  // Vor runApp, damit die gespeicherte Kartenquelle schon im ersten Frame
+  // gilt (Issue #145). Der Aufruf liest eine kleine lokale Datei — er darf
+  // den Start aufhalten, ein sichtbares Umschalten der Karte nicht.
+  final settings = PrefsSettings(await SharedPreferences.getInstance());
+
+  runApp(ProviderScope(
+    overrides: [settingsProvider.overrideWithValue(settings)],
+    child: const PilzBuddyApp(),
+  ));
 }
