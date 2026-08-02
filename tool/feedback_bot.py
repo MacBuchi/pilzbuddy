@@ -41,7 +41,10 @@ GROUP_RULES = [
     (("schirmling", "parasol", "tintling"), "_sch"),
     (("knollenblätterpilz", "wulstling", "fliegenpilz", "pantherpilz"), "_wul"),
     (("täubling", "reizker", "milchling"), "_tae"),
-    (("morchel", "lorchel"), "_mor"),
+    # "verpel" and "becherling" are morel relatives without "morchel" in the
+    # name — without them "Böhmische Verpel" fell through to _son and got a
+    # grey gilled-mushroom icon (#153).
+    (("morchel", "lorchel", "verpel", "becherling"), "_mor"),
     (("porling", "seitling", "judasohr", "zunderschwamm", "stachelbart"), "_bau"),
 ]
 

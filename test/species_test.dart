@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/mushroom_species.dart';
+import 'package:pilzbuddy/core/widgets/mushroom_avatar.dart';
 import 'package:pilzbuddy/features/spots/species_suggestions.dart';
 import 'package:pilzbuddy/models/find.dart';
 
@@ -80,6 +81,44 @@ void main() {
       expect(groupFor('Geheimpilz'), isNull);
       expect(groupFor(null), isNull);
       expect(groupFor('  '), isNull);
+    });
+
+    test('Böhmische Verpel ist eine Lorchel, kein Lamellenpilz', () {
+      // Der Feedback-Bot ordnet nach Stichwort ein und kannte „Verpel" nicht;
+      // die Art landete deshalb in `sonstige` und bekam ein graues
+      // Lamellenpilz-Icon. Diese Zeile hält die Korrektur fest.
+      expect(groupFor('Böhmische Verpel'), SpeciesGroup.morcheln);
+      expect(groupFor('Morchelbecherling'), SpeciesGroup.morcheln);
+      expect(groupFor('Netzstieliger Hexenröhrling'), SpeciesGroup.roehrlinge);
+    });
+
+    test('Pilze ohne Lamellen stehen nicht unter „Lamellenpilz"', () {
+      // Die Gruppen-Aufschrift steht im Vorschlagsfeld sichtbar am Eintrag.
+      // Für diese vier wäre „Lamellenpilz" schlicht falsch — keiner hat
+      // welche.
+      for (final name in const [
+        'Krause Glucke',
+        'Semmelstoppelpilz',
+        'Habichtspilz',
+        'Ziegenbart',
+      ]) {
+        expect(groupFor(name), SpeciesGroup.stachelpilze, reason: name);
+      }
+      expect(SpeciesGroup.stachelpilze.label, isNot('Lamellenpilz'));
+    });
+  });
+
+  group('Avatar-Katalog', () {
+    test('wächst nur am Ende — bestehende Indizes bleiben, wo sie sind', () {
+      // Der gewählte Index steht in `profiles.avatar`. Ein Eintrag, der
+      // mittendrin eingeschoben wird, gibt jedem Nutzer dahinter ein anderes
+      // Porträt. Diese Zeilen nageln die Stellen fest, an denen so ein
+      // Einschub zuerst auffiele: den Vorgabe-Eintrag und den Beginn der
+      // Freigeister ohne Gruppe.
+      expect(kAvatarCatalog.first.group, SpeciesGroup.roehrlinge);
+      expect(kAvatarCatalog[15].group, SpeciesGroup.boviste);
+      expect(kAvatarCatalog[16].group, isNull);
+      expect(kAvatarCatalog[23].group, isNull);
     });
   });
 
