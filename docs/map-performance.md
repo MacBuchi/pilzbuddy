@@ -1,11 +1,11 @@
-# Karte, Speicher und ANRs — was gemessen ist und was noch nicht
+# Karte, Speicher und ANRs — was gemessen ist
 
 Die Karte ist der einzige Teil der App, der sie umbringen kann. Diese Seite
 sammelt, welche Stellschrauben es gibt, welche Zahl hinter ihrem heutigen Wert
-steht, und wie die eine Messung geht, die noch fehlt. Sie existiert, weil die
-Triage zu #157 einen Vorschlag gemacht hat, der genau die Einstellung
-zurückgedreht hätte, die #142 nach einer Messung gesetzt hat — und weil das
-ohne diese Seite wieder passiert.
+steht — und wie die ANR-Frage (#151) am 2026-08-02 durch eine Live-Messung
+aufgelöst wurde. Sie existiert, weil die Triage zu #157 einen Vorschlag
+gemacht hat, der genau die Einstellung zurückgedreht hätte, die #142 nach
+einer Messung gesetzt hat — und weil das ohne diese Seite wieder passiert.
 
 ## Die Grundregel
 
@@ -58,109 +58,70 @@ die läuft synchron im Haupt-Isolate. Auch das ist ein Tausch, kein Aufräumen.
   geforderten −50 %. Dazu lieferten die Regionsdateien gar keine Kacheln.
   Kein Migrations-PR.
 
-## Was noch nicht gemessen ist — und die eine offene Messung
+## Die Auflösung der ANRs (#151, gemessen am 2026-08-02)
 
-Der ANR-Thread-Dump aus #151 zeigt den Haupt-Thread in
-`dart::MarkingVisitor::ProcessOldMarkingStack` — in einer
-Garbage-Collection-Markierungsphase des Dart-Heaps. Alle Messungen bisher
-gingen auf GL/mtrack, also auf **GPU-Texturen**. Der Dart-Heap ist ein
-anderer Speicherbereich und wurde nie angesehen.
+Der ANR-Thread-Dump aus #151 zeigte den Haupt-Thread in
+`dart::MarkingVisitor::ProcessOldMarkingStack` (übersetzt mit
+`tool/symbolize_anr.py`) — also im GC, nicht im Kartenrenderer. Die
+Live-Messung auf dem Pixel 7 Pro (GC-Rekorder am VM-Service, zwei
+Reproduktionen) fand dann die ganze Kette; Beweisstücke im Issue:
+<https://github.com/MacBuchi/pilzbuddy/issues/151>
 
-Zu übersetzen ist der Dump mit `tool/symbolize_anr.py` (siehe CLAUDE.md).
+1. Ein Gesten-Grenzfall macht die flutter_map-Kamera **nicht-endlich**
+   (NaN/Infinity in Zoom oder Center). Feldbeleg: Alle 61 „Infinity or NaN
+   toInt"-Berichte aus KW30 (#141) tragen als obersten Frame `_floor` aus
+   flutter_maps `tile_range.dart`.
+2. Die Kachelschicht wirft dann nur eine Exception (sichtbar als graue
+   Flächen, weil keine Kacheln mehr angefordert werden). Der **MarkerLayer**
+   aber wiederholt jeden Marker über alle Weltkopien, und sein Abbruch-Test
+   (`Rect.overlaps`) ist mit NaN per IEEE-Vergleich immer wahr: Die Schleife
+   endet nie.
+3. Gemessen: ~150 MB/s Allokationen (134 MB → 3,8 GB in 24 s), 31 Mio.
+   `Positioned`-Widgets mit je 4 geboxten Doubles. Der GC kommt nie
+   hinterher (was während der Markierung allokiert wird, gilt konservativ
+   als lebendig), der Haupt-Thread assistiert dauernd — daher die
+   MarkingVisitor-Frames. Ende durch ANR oder OOM (die Marker-Liste wollte
+   auf 256 MB verdoppeln); danach kollabierte der Heap auf ~70 MB.
+4. **Kein Leck.** Deshalb konnte der Dart-Heap am 2026-07-26 „flach bei
+   42 MB" liegen UND die ANR-Berichte 1,7–1,9 GB zeigen: Der Heap ist
+   gesund, außer während eines Sturms — und ein Sturm braucht nur einen
+   kaputten Kamera-Frame.
 
-### Die eine Zahl, die es dazu schon gibt — und die gegen das Naheliegende spricht
+Konsequenzen:
 
-Am 2026-07-26, bei der Arbeit an #142, wurde der Dart-Heap einmal mitgemessen:
-**flach bei 42 MB**. Damals galt „Leck im Dart-Heap" als widerlegt, und dabei
-ist es geblieben. Zwei Einschränkungen: Die Messung entstand, bevor #150 den
-Detail-Layer wiederbelebt hat (er renderte nichts und kostete nichts, siehe
-die Korrektur in PR #150), und sie ging auf die *Größe*, nicht auf die
-Häufigkeit.
+- **Der Fix** ist `FiniteCameraConstraint`
+  (`lib/features/map/finite_camera_constraint.dart`, seit 1.38.2): Jede
+  Kamerabewegung — auch aus Gesten — läuft durch
+  `MapOptions.cameraConstraint.constrain()`; nicht-endliche Zustände werden
+  verworfen, die Kamera bleibt auf dem letzten guten Stand. Drei Tests
+  sichern Verhalten, Engstelle und Verdrahtung.
+- **Die Stellschrauben unten waren die falsche Achse.** Raster vs. Vektor,
+  MapLibre, Cache-Grenzen — alles zielte auf das Rendern; der Sturm saß in
+  der Marker-Schicht. Dass an den gemessenen Werten nie „auf Verdacht"
+  gedreht wurde, hat verhindert, dass ein Symptomtausch die Spur verwischt.
+  Die Grundregel oben bleibt deshalb unverändert in Kraft.
+- **Verifikation im Feld:** Die Gruppe „Infinity or NaN toInt" muss aus dem
+  Wochendigest verschwinden; greift der Wächter, meldet er sich dort
+  einmal pro App-Lauf als „Kamera-Bewegung verworfen".
 
-Nimmt man sie trotzdem ernst — und das sollte man —, dann ist die naheliegende
-Erklärung („der Heap ist riesig geworden, deshalb dauert das Markieren
-Sekunden") **unwahrscheinlich**: 42 MB markiert man in Millisekunden.
+## Rückfrage zu #157 — nach 1.38.2 neu bewerten
 
-Übrig bleibt die bessere Erklärung: nicht **eine** lange Markierung, sondern
-**viele**. Läuft der GC bei hoher Müllrate ununterbrochen, verbringt der
-Thread den größten Teil seiner Zeit darin — und genau dann landet eine
-einzelne Stichprobe mit hoher Wahrscheinlichkeit in `ProcessOldMarkingStack`.
-Das passt auch besser zu den 35 s aufgelaufener CPU-Zeit als eine einzelne
-Pause.
+„Je nach Zoomstufe erscheinen oder verschwinden Bereiche der Karte" — das
+passiert laut Betreiber teils auch **online**. Graue Flächen online haben
+seit der Auflösung oben einen Hauptverdächtigen: eine nicht-endliche Kamera
+lässt die Kachelberechnung werfen, bis die nächste Geste sie repariert.
+Genau das fängt 1.38.2 ab. Deshalb: **erst mit 1.38.2 erneut testen**, dann
+weitersehen.
 
-### Die Frage
+Bleibt das Symptom, sind die Kandidaten die zwei Layer-Welten:
 
-Nicht „wie groß ist der Heap", sondern **wie viel Müll erzeugt eine Geste** —
-Zuweisungsrate und GC-Häufigkeit, dazu die längste einzelne Pause zur
-Gegenprobe.
-
-Eine ANR entsteht nicht aus Dauerlast: 15 s CPU über 90 s Gestik sind ~17 %
-Auslastung. Sie entsteht daraus, dass der Thread 5 s am Stück nicht antwortet
-— das kann eine lange Operation sein oder eine Kette kurzer ohne Luft
-dazwischen.
-
-### Vorhersage, an der sich das widerlegen lässt
-
-Trifft es zu, steigt beim Pannen und Zoomen die GC-Häufigkeit deutlich, während
-Old Space klein bleibt. Bleiben **beide** unauffällig, während die App
-trotzdem hängt, **ist die Vermutung falsch** und der Grund steckt woanders in
-der Engine.
-
-### Was daraus für die Cache-Grenzen folgt — und warum es der Intuition widerspricht
-
-Wenn die Müllrate der Treiber ist, dann ist ein **größerer** Kachel-Cache der
-Hebel, nicht ein kleinerer: Jede verdrängte Kachel muss neu geparst werden,
-und jedes Parsen erzeugt genau den Objektgraphen, der kurz darauf wieder Müll
-ist. Wer „GC-Problem" liest und reflexhaft Caches verkleinert, macht es
-schlimmer. Auch deshalb wird hier nichts vor der Messung gedreht.
-
-Weitere Verdächtige auf demselben Weg, alle pro Kachel und alle im
-Haupt-Isolate: die gzip-Entpackung in `PmTilesVectorTileProvider.provide`, die
-Kopie in `Uint8List.fromList(t.bytes())`, und
-`MultiPmTilesVectorTileProvider`, das bei einem Fehlschlag jede installierte
-Region der Reihe nach durchprobiert.
-
-### Ablauf
-
-1. `flutter run --profile` auf dem Gerät, mit installierter Regionskarte und
-   eingeschalteter Offline-Karte.
-2. DevTools → **Memory**: „Dart Heap" beobachten, nicht RSS. Vor der Gestik
-   einen Schnappschuss nehmen.
-3. DevTools → **Performance**: Die GC-Spur zeigt einzelne Ereignisse mit
-   Dauer. Das ist die Zahl, um die es geht.
-4. Gestik: vier Runden aus Pannen **und** durchgehendem Zoomen in beide
-   Richtungen.
-5. Nach jeder Runde drei Zahlen notieren: Old Space, **Zahl der GC-Ereignisse
-   in der Runde** und die längste einzelne Pause. Die mittlere ist nach dem
-   Abschnitt oben die wichtigste.
-
-**Zur Gestik, weil daran schon zwei Messungen gescheitert sind (#151):**
-`adb input tap; input swipe` liest `flutter_map` als Doppeltipp-und-Ziehen und
-fährt bis an die Zoomgrenze — danach tut jeder weitere Versuch nichts, und
-MapLibre liest dieselbe Geste gar nicht als Zoom. Vor jeder Auswertung
-prüfen, dass sich die Maßstabsleiste tatsächlich bewegt hat.
-
-### Wenn die Vorhersage zutrifft
-
-Dann sind `memoryTileDataCacheMaxSize` und `textCacheMaxSize` die ersten
-Kandidaten — aber die Richtung ist **nicht** offensichtlich: Ein kleinerer
-Cache hält weniger Zeiger am Leben (kürzere Markierung), erzeugt dafür mehr
-Neuparsen, also mehr Müll und mehr Beförderungen ins Old Space. Beide
-Richtungen können schaden. Deshalb: eine Änderung, ein Lauf, dieselbe Gestik.
-
-## Offene Rückfrage zu #157
-
-„Je nach Zoomstufe erscheinen oder verschwinden Bereiche der Karte" — es fehlt
-die Angabe, ob online oder mit eingeschalteter Offline-Karte. Das entscheidet
-alles, denn es sind zwei verschiedene Layer:
-
-- **Online** (Standard): `TileLayer` mit `keepBuffer: 2` / `panBuffer: 1`. Der
-  Wechsel von 3/2 auf 2/1 in #142 ist genau der Grund, warum die Karte beim
+- **Online** (Standard): `TileLayer` mit `keepBuffer: 2` / `panBuffer: 1`.
+  Der Wechsel von 3/2 auf 2/1 in #142 ist der Grund, warum die Karte beim
   Nachladen kurz blass ist — bewusst in Kauf genommen („eine Karte, die nach
   zehn Minuten die App abwürgt, ist schlechter als eine, die beim Nachladen
   kurz blass ist").
 - **Offline**: die beiden Vektor-Layer mit
   `maximumTileSubstitutionDifference: 1`.
 
-In beiden Fällen ist der naheliegende Griff eine Rücknahme von #142. Solange
-die Messung aus #151 fehlt, heißt das: nicht anfassen.
+Der naheliegende Griff wäre in beiden Fällen eine Rücknahme von #142 —
+und der bleibt an eine Messung gebunden (Grundregel oben).

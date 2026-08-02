@@ -21,6 +21,7 @@ import '../friends/friend_providers.dart';
 import '../profile/profile_providers.dart';
 import '../spots/spot_providers.dart';
 import '../spots/widgets/spot_detail_sheet.dart';
+import 'finite_camera_constraint.dart';
 import 'live_share_providers.dart';
 import 'position_provider.dart';
 import 'spot_filter.dart';
@@ -366,6 +367,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
               interactionOptions: const InteractionOptions(
                 flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
               ),
+              // NaN-/Infinity-Kamerazustände aus Gesten-Grenzfällen an der
+              // einzigen Engstelle verwerfen — sonst ANR über die
+              // MarkerLayer-Endlosschleife (#151) und graue Kacheln über
+              // die Kachelberechnung (#141). Details am Wächter selbst.
+              cameraConstraint: const FiniteCameraConstraint(),
               // Long-Press richtet das Fadenkreuz auf die gedrückte Stelle aus.
               onLongPress: (tapPosition, latLng) => _mapController.move(
                   latLng, math.max(_mapController.camera.zoom, 16)),

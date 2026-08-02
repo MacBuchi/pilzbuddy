@@ -277,10 +277,22 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   in #142 der Haupttreiber des Vektor-Speichers. Die Seite listet alle
   Werte samt Herkunft — und die Grenzen, die noch Paket-Defaults sind und
   nie gemessen wurden (`memoryTileDataCacheMaxSize` & Co., die seit #118
-  für **zwei** gleichzeitige Layer gelten). Dort steht auch die eine
-  offene Messung: der **Dart-Heap**, nicht GL — der ANR-Dump aus #151
-  zeigt den Haupt-Thread in einer GC-Markierungsphase, und dieser
-  Speicherbereich wurde nie angesehen.
+  für **zwei** gleichzeitige Layer gelten). Dort steht auch die Auflösung
+  der Karten-ANRs (#151, Live-Messung 2026-08-02): Die Stellschrauben
+  waren die falsche Achse, siehe Kamera-Wächter direkt hierunter.
+- **Kamera-Wächter** (`FiniteCameraConstraint` in
+  `lib/features/map/finite_camera_constraint.dart`, seit 1.38.2): verwirft
+  NaN-/Infinity-Kamerazustände aus Gesten-Grenzfällen an der einzigen
+  Engstelle (`MapOptions.cameraConstraint`; `null` macht die Bewegung zum
+  No-op). Ohne ihn wirft die Kachelberechnung „Infinity or NaN toInt"
+  (graue Flächen, 61 Feldberichte in KW30, #141) und flutter_maps
+  MarkerLayer dreht seine Weltkopien-Schleife endlos, weil `Rect.overlaps`
+  mit NaN per IEEE-Vergleich immer wahr ist — gemessen ~150 MB/s
+  Allokationen, GC-Sturm, ANR (#151). Im Debug-Build fängt flutter_map
+  nicht-endlichen Zoom selbst per Assert; im Release ist der Wächter das
+  einzige Netz. Drei Tests sichern Verhalten, Engstelle und Verdrahtung
+  (`test/finite_camera_constraint_test.dart`, `test/flows/map_view_test.dart`)
+  — wer ihn aus den `MapOptions` entfernt, holt beide Fehler zurück.
 - Issue-Triage (`.github/workflows/claude-issue-triage.yml`): Claude analysiert
   jedes neue Issue (Einordnung, Labels, Ursache, Umsetzungsvorschlag als
   Kommentar) — darf aber NUR lesen/labeln/kommentieren. Umsetzung erst nach

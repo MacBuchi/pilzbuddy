@@ -7,6 +7,17 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Karte friert nicht mehr ein
+
+*3. August 2026 · Version 1.38.2*
+
+Ein seltener Grenzfall bei den Fingergesten konnte die Kartenansicht in
+einen kaputten Zustand bringen. Die Folgen kannten manche schon: Die App
+fror mitten in der Bewegung ein, bis Android sie zum Schließen vorschlug —
+oder Teile der Karte blieben grau, obwohl Empfang da war. Die Ursache ist
+gefunden und wird jetzt an der Wurzel abgefangen; der kaputte Zustand kann
+gar nicht mehr entstehen.
+
 ## Mehrere Pilzarten gleichzeitig filtern
 
 *2. August 2026 · Versionen 1.38.0 und 1.38.1*

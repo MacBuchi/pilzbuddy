@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/app_colors.dart';
+import 'package:pilzbuddy/features/map/finite_camera_constraint.dart';
 
 import '../fakes/fake_backend.dart';
 import '../fakes/test_app.dart';
@@ -29,6 +30,19 @@ void main() {
   testWidgets('Die Karte zeigt einen Maßstab an', (tester) async {
     await pumpApp(tester, loggedInBackend());
     expect(find.byType(Scalebar), findsOneWidget);
+  });
+
+  testWidgets('Die Karte verwirft nicht-endliche Kamerazustände',
+      (tester) async {
+    // Ein NaN-Kamerazustand aus einem Gesten-Grenzfall lässt den
+    // MarkerLayer endlos Weltkopien erzeugen (ANR, #151) und die
+    // Kachelberechnung werfen (graue Flächen, #141). Der Wächter ist die
+    // einzige Stelle, die beides verhindert — wer ihn aus den MapOptions
+    // entfernt, holt beide Fehler zurück.
+    await pumpApp(tester, loggedInBackend());
+
+    final options = tester.widget<FlutterMap>(find.byType(FlutterMap)).options;
+    expect(options.cameraConstraint, isA<FiniteCameraConstraint>());
   });
 
   testWidgets('Wartende Flächen sind Landton, nicht Grau', (tester) async {
