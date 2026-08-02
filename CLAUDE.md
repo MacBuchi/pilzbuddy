@@ -70,15 +70,22 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   Sicherheitsnetz vor dem Ausliefern.
   Vorgeschaltet ist der Pflicht-Check „Schema Dry Run" (`needs:` am Schema
   Check): ein lokaler Supabase-Stack auf dem Runner (`supabase/config.toml`,
-  bewusst minimal — nur db, auth, api) stellt die Frischinstallation nach:
-  `schema.sql` einspielen, dieselben Patches per `db_migrate.sh` obendrauf
-  (beweist die geforderte Idempotenz), dann `schema_check.sh` mit
-  `SUPABASE_URL`/`SUPABASE_KEY`-Override gegen den frischen Stack. Erst
-  wenn das grün ist, fasst der Schema Check die Live-DB an — ein kaputtes
-  `schema.sql` oder ein fehlerhafter Patch fällt damit VOR der Produktion
-  auf. Lokal derselbe Ablauf: `supabase start`, dann die drei Schritte
-  (psql via `brew install libpq`; lokalen anon-Key liefert
-  `supabase status -o json`). Achtung: `config.toml` setzt
+  bewusst minimal — nur db, auth, api) fährt **beide** Wege, die es in der
+  Wirklichkeit gibt:
+  1. **Bestandsprojekt** — `schema.sql` **aus dem Ziel-Branch** einspielen,
+     dann nur die Patches dieses PRs per `db_migrate.sh` obendrauf, dann
+     `schema_check.sh`. Das ist der Weg, den die Produktion nimmt.
+  2. **Frischinstallation** — `supabase db reset`, dann **nur** `schema.sql`,
+     dann `db_migrate.sh` (das jetzt nichts mehr tun darf), dann
+     `schema_check.sh`. Beweist, dass die Datei für sich vollständig ist.
+  Erst wenn beides grün ist, fasst der Schema Check die Live-DB an. Lokal
+  derselbe Ablauf: `supabase start`, dann die Schritte von Hand (psql via
+  `brew install libpq`; lokalen anon-Key liefert `supabase status -o json`).
+  **Warum getrennt:** Bis 1.35.0 lief nur ein Weg — `schema.sql`, dann *alle*
+  Patches erneut darüber. Das verlangte von jedem alten Patch auf Dauer
+  Idempotenz und verdeckte zugleich eine unvollständige `schema.sql`: Fehlte
+  dort etwas, flickte der wiederholte Patch es stillschweigend, und niemand
+  erfuhr, dass die Frischinstallation aus `schema.sql` allein kaputt war. Achtung: `config.toml` setzt
   `auto_expose_new_tables = true` (Legacy-Verhalten des Bestandsprojekts);
   das Feld fällt am 2026-10-30 weg — bis dahin gehören explizite Grants in
   `schema.sql`, dann kann die Zeile raus. Braucht das Repo-Secret
@@ -86,10 +93,22 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   Schema Check selbst läuft ohne Secret über den Publishable Key).
   Nutzt ein Repository in `lib/data/` neue Spalten/Embeds/RPCs, die
   Checks in `tool/schema_check.sh` entsprechend erweitern.
-  Patches > Baseline laufen bei einer Frischinstallation NACH dem aktuellen
-  `schema.sql` erneut — sie müssen dagegen idempotent bleiben; notfalls einen
-  alten Patch rückwirkend anpassen (so geschehen in `patch_007`, als
-  Patch 011 die Helfer verschob).
+- **Ein eingespielter Patch wird nie wieder angefasst** (Pflicht-Check
+  „Patch-Buchführung", `tool/patch_guard.sh`, im Schema Dry Run): Ändern,
+  Löschen oder Umbenennen einer Patch-Datei, die es im Ziel-Branch schon
+  gibt, macht CI rot. Grund: `applied_patches` sorgt dafür, dass er live
+  **nie** erneut läuft — die Änderung käme also ausschließlich in
+  Frischinstallationen an, und beide Welten driften still auseinander. Der
+  Weg ist immer ein NEUER `patch_NNN`.
+  Damit das durchhaltbar ist, laufen alte Patches bei der Frischinstallation
+  gar nicht mehr: `schema.sql` trägt sie am Ende selbst in
+  `applied_patches` ein (Saat-Liste). **Ein neuer Patch gehört deshalb im
+  selben PR an drei Stellen**: als `patch_NNN_*.sql`, in die Struktur von
+  `schema.sql` und in dessen Saat-Liste. Die letzten beiden erzwingt
+  `patch_guard.sh` ebenfalls — er vergleicht Liste und Dateien.
+  Die frühere Regel („Patches müssen idempotent bleiben, notfalls einen alten
+  rückwirkend anpassen — so geschehen in `patch_007`") ist damit **aufgehoben**;
+  genau dieses Anpassen war der Fall, den der Wächter jetzt verhindert.
 - Breaking-Migration (Spalte/Embed/RPC umbenannt oder entfernt): im selben PR
   `public.app_config.minimum_supported_version` auf die Version dieses PRs
   hochsetzen — per `patch_NNN`, NIE von Hand im Dashboard. Der Schema Check

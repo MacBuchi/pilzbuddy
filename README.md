@@ -67,8 +67,12 @@ flutter run -d <device-id>
 ## Supabase-Setup (einmalig)
 
 1. Projekt auf [supabase.com](https://supabase.com) anlegen
-2. `supabase/schema.sql` im SQL-Editor ausführen (bei Bestandsprojekten
-   zusätzlich vorhandene `patch_*.sql` in Nummernreihenfolge)
+2. `supabase/schema.sql` im SQL-Editor ausführen. **Das ist alles** — die
+   Datei bildet den Stand nach allen bisherigen `patch_*.sql` ab und trägt
+   sie am Ende selbst als eingespielt ein. Die Patch-Dateien sind für
+   *bestehende* Datenbanken da und werden dort von CI eingespielt
+   (`tool/db_migrate.sh`); auf einer frischen laufen sie bewusst nicht
+   erneut.
 3. Authentication → Sign In / Providers → Email: **„Confirm email" einschalten**.
    Ohne Bestätigung entstehen Konten auf Adressen, die niemand liest — der
    Reset-Code erreicht sie nie, und unzustellbare Mails schlagen als Hard
