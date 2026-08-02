@@ -37,8 +37,14 @@ class MainActivity : FlutterActivity() {
         /** Update der GitHub-APK: fertige Datei an den System-Installer geben. */
         const val INSTALL_CHANNEL = "de.marcusbucher.pilzbuddy/apk_install"
 
-        /** Genug für den Haupt-Thread; das Schema erlaubt 4000 Zeichen. */
-        const val TRACE_CHARS = 6000
+        /**
+         * Genug für den Haupt-Thread — und zugleich die Grenze der Spalte
+         * `stack`. Vorher standen hier 6000: `ErrorReportRepository` schnitt
+         * danach auf 4000 ab, die 2000 Zeichen dazwischen gingen still
+         * verloren. Wer mehr braucht (etwa weitere Threads), erweitert
+         * beides zusammen — die Spalte per patch_NNN.
+         */
+        const val TRACE_CHARS = 4000
 
         /** Obergrenze beim Lesen, damit ein Riesen-Dump nichts blockiert. */
         const val TRACE_BYTES = 4 * 1024 * 1024
@@ -152,8 +158,14 @@ class MainActivity : FlutterActivity() {
                 "reasonName" to reasonName(info.reason),
                 "description" to info.description,
                 "importance" to info.importance,
-                "rssKb" to info.rss / 1024,
-                "pssKb" to info.pss / 1024,
+                // getRss() und getPss() liefern BEREITS kB. Hier stand ein
+                // zusätzliches / 1024, und AppExit.summary teilte danach
+                // noch einmal für seine MB-Anzeige — ein 1,9-GB-Prozess kam
+                // damit als "RSS 2 MB" an, alles unter einem halben GB als
+                // "RSS 0 MB". Genau das ließ in #151 den Speicher als
+                // Ursache ausscheiden, bevor er je gemessen war.
+                "rssKb" to info.rss,
+                "pssKb" to info.pss,
                 // Nur bei ANR liefert Android überhaupt einen Dump.
                 "hasTrace" to (info.reason == ApplicationExitInfo.REASON_ANR),
             )

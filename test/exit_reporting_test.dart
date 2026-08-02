@@ -182,4 +182,49 @@ void main() {
 
     expect(reports.exits.single.trace, isNull);
   });
+
+  // Die Speicherzahlen im Bericht — die Stelle, an der die Auswertung von
+  // #151 in die Irre lief: Dort stand „RSS 0 MB · PSS 0 MB", während
+  // `dumpsys` für denselben Prozess 1,7–1,9 GB zeigte. Der Speicher schied
+  // damit als Ursache aus, ohne je gemessen worden zu sein.
+  group('AppExit.summary', () {
+    AppExit exitWith({int rssKb = 0, int pssKb = 0}) => AppExit(
+          timestamp: DateTime(2026, 7, 26, 22, 25),
+          reason: 'ANR',
+          rssKb: rssKb,
+          pssKb: pssKb,
+          importance: 100,
+        );
+
+    test('Der Kanal liefert kB, der Bericht zeigt MB — genau einmal geteilt',
+        () {
+      // Androids getRss()/getPss() liefern kB. Diese eine Umrechnung ist
+      // die einzige, die es geben darf: MainActivity.kt teilte vorher
+      // schon einmal, und aus 1,9 GB wurden dadurch „2 MB".
+      final exit = exitWith(rssKb: 1900 * 1024, pssKb: 1000 * 1024);
+      expect(exit.summary, contains('RSS 1900 MB'));
+      expect(exit.summary, contains('PSS 1000 MB'));
+    });
+
+    test('Nicht gemessen ist etwas anderes als null Megabyte', () {
+      // Stirbt der Prozess, bevor das System eine Stichprobe nimmt, sind
+      // beide Werte 0 (so dokumentiert). „0 MB" liest sich wie eine
+      // Messung und ist keine.
+      final exit = exitWith();
+      expect(exit.summary, contains('RSS unbekannt'));
+      expect(exit.summary, contains('PSS unbekannt'));
+      expect(exit.summary, isNot(contains('0 MB')));
+    });
+
+    test('fromMap skaliert nichts — was der Kanal schickt, sind kB', () {
+      final exit = AppExit.fromMap({
+        'timestamp': DateTime(2026, 7, 26, 22, 25).millisecondsSinceEpoch,
+        'reasonName': 'ANR',
+        'rssKb': 1900 * 1024,
+        'pssKb': 1000 * 1024,
+      })!;
+      expect(exit.rssKb, 1900 * 1024);
+      expect(exit.pssKb, 1000 * 1024);
+    });
+  });
 }
