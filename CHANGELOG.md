@@ -7,6 +7,43 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Zweitnamen: „Totentrompete" findet jetzt auch „Herbsttrompete"
+
+*2. August 2026 · Version 1.37.0*
+
+Viele Pilze haben zwei geläufige Namen, und für die App waren das bisher
+zwei verschiedene Arten. Wer seine Fundstellen als „Totentrompete"
+eingetragen hatte und später nach „Herbsttrompete" filterte, sah sie nicht.
+
+- Beim Eintragen kannst du **beide Namen** tippen. Gespeichert wird immer
+  derselbe — die Hauptbezeichnung. Darunter steht dann, wie der Pilz sonst
+  noch heißt, damit du siehst, dass du richtig lagst.
+- Der Filter auf der Karte, die Zahl der Fundstellen und die Top-Arten im
+  Profil ziehen beide Namen zusammen. Das gilt auch für deine **alten**
+  Funde: Du musst nichts nachtragen.
+- In der Fundliste einer Stelle steht weiterhin, was du damals geschrieben
+  hast. Der Eintrag ist dein Protokoll, den benennen wir nicht nachträglich
+  um.
+- Erkannt werden unter anderem: Totentrompete, Marone, Herrenpilz,
+  Fichtensteinpilz, Riesenschirmling, Fette Henne, Austernpilz,
+  Mairitterling, Butterröhrling, Rötender Wulstling, Flaschenbovist,
+  Riesenstäubling, Nebelgrauer Trichterling, Winterrübling, Rotfüßchen und
+  Spargelpilz.
+
+**Eine Art wechselt die Zuordnung:** „Braunkappe" ist in der App bisher als
+Marone geführt worden. Gemeint ist damit der Riesenträuschling — so heißt er
+auch. Deine Spots mit diesem Namen bekommen deshalb ein anderes Symbol und
+zählen ab jetzt zum Riesenträuschling.
+
+**Der Igelstachelbart sieht endlich aus wie einer.** Er stand bei den
+Baumpilzen und wurde als orange Konsole gezeichnet. Er wächst zwar an Holz,
+ist aber ein weißlicher Knollen mit langen hängenden Stacheln — genau so
+steht er jetzt auf der Karte. „Affenkopfpilz" und „Löwenmähne" werden als
+Namen dafür erkannt.
+
+Auch behoben: Im Profil zählten „Steinpilz" und „steinpilz" als zwei
+verschiedene Arten und standen getrennt untereinander.
+
 ## Vier neue Pilzarten — und Hexenröhrlinge, die man unterscheidet
 
 *2. August 2026 · Version 1.36.0*

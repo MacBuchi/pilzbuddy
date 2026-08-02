@@ -26,6 +26,15 @@ class _SpotDetailSheet extends ConsumerWidget {
 
   final String spotId;
 
+  /// „Herbsttrompete · auch: Totentrompete" — oder `null`, wenn die Art
+  /// unbekannt ist oder keine Zweitnamen hat.
+  String? _synonymLine(Spot spot) {
+    final species = spot.lastFind?.species;
+    final synonyms = synonymsOf(species);
+    if (synonyms.isEmpty) return null;
+    return '${canonicalSpecies(species)} · auch: ${synonyms.join(', ')}';
+  }
+
   void _showError(BuildContext context, String action, Object error,
       StackTrace stackTrace) {
     logError(action, error, stackTrace);
@@ -146,6 +155,15 @@ class _SpotDetailSheet extends ConsumerWidget {
               ],
             ),
           ),
+          // Zweitnamen der zuletzt gefundenen Art. Gespeichert ist die
+          // Hauptbezeichnung; wer die Stelle als „Totentrompete" angelegt
+          // hat, findet hier wieder, dass es dieselbe Art ist.
+          if (_synonymLine(spot) case final line?)
+            Padding(
+              padding: const EdgeInsets.only(top: 4, left: 28),
+              child: Text(line,
+                  style: Theme.of(context).textTheme.bodySmall),
+            ),
           const SizedBox(height: 12),
           if (spot.finds.isEmpty)
             Padding(

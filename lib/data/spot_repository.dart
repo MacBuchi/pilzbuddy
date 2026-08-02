@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/dates.dart';
+import '../core/mushroom_species.dart';
 import '../models/spot.dart';
 import 'session.dart';
 
@@ -54,6 +55,13 @@ class SpotRepository {
     );
   }
 
+  /// Legt einen Fund an. Der Artname wird dabei auf die Hauptbezeichnung
+  /// gebracht ([canonicalSpecies]) — „Totentrompete" wird als
+  /// „Herbsttrompete" gespeichert. Das ist die einzige Schreibstelle für
+  /// Funde, [addSpot] und der GPX-Import laufen ebenfalls hier durch;
+  /// deshalb genügt diese eine Zeile, damit in der Datenbank keine zwei
+  /// Namen für dieselbe Art nebeneinander liegen. Eigene Arten der Nutzer
+  /// bleiben unverändert.
   Future<void> addFind({
     required String spotId,
     String? species,
@@ -63,7 +71,7 @@ class SpotRepository {
   }) async {
     await _client.from('finds').insert({
       'spot_id': spotId,
-      'species': species,
+      'species': canonicalSpecies(species),
       'count': count,
       'found_on': isoDate(foundOn),
       'note': note,

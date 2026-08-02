@@ -107,7 +107,9 @@ Bot output is a starting point, not a decision. Check every species it files.
 | unknown/own species (`group == null`) | — | seed-random dome/cone/flat | 7-color fun palette |
 
 `stachelpilze` exists because `sonstige` says "Lamellenpilz" out loud. Anything
-without gills belongs here: tooth fungi, corals, the Krause Glucke.
+without gills belongs here: tooth fungi, corals, the Krause Glucke. **Growing on
+wood does not make it a `baumpilze`** — that group is for brackets. The
+Igelstachelbart sits on deadwood and is still a tooth fungus.
 
 Variation within a group comes from the spot's stable seed
 (`stableSeed(spotId)`): color pick, dots on/off (where optional), cheeks.
@@ -128,11 +130,17 @@ Same spot → same look, forever.
 | stoppelpilz | toothed | low irregular bread-crust cap `#E3B981/#D9A96C/#E8C593`, pale stem |
 | habichtspilz | toothed + `darkDots` | same cap, dark brown `#8A6A45/#77593A` with coarse scales |
 | glucke | ruffle + `folds` | pale lobed mass `#EBD9A8/#E0C88F/#F0E3BC`, **no stem** |
+| stachelbart | beard | whitish knob `#F7F1E3/#F0E8D6/#FBF6EA` with a mane of hanging spines, **no stem**; the spines hang off a closed body — notches cut into the body read as a jester's collar |
 | ziegenbart | coral | ochre trunk with five splayed clubs `#E0B355/#D3A247/#E8C778`, **no stem** |
 | becherling | cup + `veins` | ochre bowl `#C9A87C/#BE9B6E`, dark interior with radiating veins, stub foot |
 | verpel | thimble + `ridges` | olive-brown bell `#8A6D3B/#7A5F33`, longitudinal wrinkles, long pale stem |
 | käppchenmorchel | semifreeCone + `darkDots` | small honeycombed cap `#7D6552/#6E5949` on a long pale stem |
 | scheidenstreifling | dome + `ridges` | grey-brown `#9C9184/#8B8175`, striate margin, **no dots** — the group's red-with-white-dots would be the most misleading thing an icon could say about it |
+
+**Second names need no entry of their own.** `_speciesStyleFor` resolves the
+name through `canonicalSpecies` before matching, so a species look is inherited
+by every `sameAs` pointing at it — „Löwenmähne" arrives as „Igelstachelbart",
+„Marone" as „Maronenröhrling". Add the look for the main name only.
 
 **Match order matters.** The checks run top to bottom and the first hit wins, so
 a broad name must never sit above a longer one that contains it. `becherling`
@@ -155,7 +163,7 @@ render it as a red fly agaric, which makes every mushroom look poisonous.
 ## Building a new shape
 
 `_CapShape` today: `dome cone flat funnel ball shelf chanterelle trumpet
-semifreeCone thimble cup toothed ruffle coral`.
+semifreeCone thimble cup toothed ruffle coral beard`.
 
 Three idioms worth reusing:
 
@@ -243,12 +251,9 @@ a stemless shape covering its own ownership ellipse, a coral that was a hand.
 
 ## Known debt
 
-- **Igelstachelbart** is still in `baumpilze` and drawn as an orange bracket.
-  It is a tooth fungus and belongs in `stachelpilze`; it was left alone because
-  moving it changes an existing species' icon, which was out of scope when the
-  group was created. Fix it when the file is next touched.
 - The `becherling`/`morchel` comment in `_speciesStyleFor` (see above).
 
-Neither is worth a version bump on its own: any edit under `lib/` trips the
-version guard, and a bump publishes a release and an update prompt to every
-user. Ride along with the next real change.
+Not worth a version bump on its own: any edit under `lib/` trips the version
+guard, and a bump publishes a release and an update prompt to every user. Ride
+along with the next real change — that is how the Igelstachelbart got fixed,
+in the PR that was already touching the species list.

@@ -7,6 +7,7 @@
 // keinen RLS-Test (dafür gibt es die REST-Skripte gegen das Live-Projekt).
 import 'dart:async';
 
+import 'package:pilzbuddy/core/mushroom_species.dart';
 import 'package:pilzbuddy/data/app_config_repository.dart';
 import 'package:pilzbuddy/data/auth_repository.dart';
 import 'package:pilzbuddy/data/feedback_repository.dart';
@@ -502,10 +503,22 @@ class FakeSpotRepository implements SpotRepository {
     String? note,
   }) async {
     final id = backend.addSpot(ownerId: _uid, lat: lat, lng: lng, name: name);
-    backend.addFindRow(id,
-        species: species, count: count, foundOn: foundOn, note: note);
+    // Wie im echten Repository über addFind, damit die Normalisierung des
+    // Artnamens nur an einer Stelle steht.
+    await addFind(
+        spotId: id,
+        species: species,
+        count: count,
+        foundOn: foundOn,
+        note: note);
   }
 
+  /// Spiegelt `SpotRepository.addFind`: gespeichert wird die
+  /// Hauptbezeichnung der Art. Ohne das verhielte sich der Harness anders
+  /// als die App — ein Fund, den die App als „Herbsttrompete" ablegt, läge
+  /// hier als „Totentrompete", und kein Test würde den Unterschied sehen.
+  /// `FakeBackend.addSpot` normalisiert bewusst NICHT: damit legen Tests
+  /// Bestandsdaten aus der Zeit vor der Vereinheitlichung an.
   @override
   Future<void> addFind({
     required String spotId,
@@ -515,7 +528,10 @@ class FakeSpotRepository implements SpotRepository {
     String? note,
   }) async {
     backend.addFindRow(spotId,
-        species: species, count: count, foundOn: foundOn, note: note);
+        species: canonicalSpecies(species),
+        count: count,
+        foundOn: foundOn,
+        note: note);
   }
 
   @override

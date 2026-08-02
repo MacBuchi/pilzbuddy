@@ -61,6 +61,19 @@ void main() {
           isTrue);
     });
 
+    test('Ein Zweitname im Bestand passt zur Hauptbezeichnung', () {
+      // Spots aus der Zeit vor der Vereinheitlichung tragen noch den
+      // Zweitnamen. Fänden sie den Filter nicht, wäre eine Fundstelle im
+      // Wald nicht auffindbar — der teuerste Fehler dieser App.
+      final alt = spot(species: ['Totentrompete']);
+      expect(matchesSpotFilter(alt, const SpotFilter(species: 'Herbsttrompete')),
+          isTrue);
+      // …und andersherum genauso.
+      final neu = spot(species: ['Herbsttrompete']);
+      expect(matchesSpotFilter(neu, const SpotFilter(species: 'Totentrompete')),
+          isTrue);
+    });
+
     test('Spots ohne Art fallen bei gesetzter Art heraus', () {
       expect(
           matchesSpotFilter(
@@ -83,31 +96,46 @@ void main() {
   group('speciesTally', () {
     test('zählt Fundstellen, nicht Funde', () {
       final tally = speciesTally([
-        spot(species: ['Marone', 'Marone', 'Marone']),
-        spot(species: ['Marone']),
+        spot(species: ['Birkenpilz', 'Birkenpilz', 'Birkenpilz']),
+        spot(species: ['Birkenpilz']),
         spot(species: ['Pfifferling']),
       ]);
       expect(tally.map((t) => (t.name, t.spots)),
-          [('Marone', 2), ('Pfifferling', 1)]);
+          [('Birkenpilz', 2), ('Pfifferling', 1)]);
     });
 
     test('sortiert nach Häufigkeit, bei Gleichstand alphabetisch', () {
       final tally = speciesTally([
         spot(species: ['Steinpilz']),
-        spot(species: ['Marone']),
+        spot(species: ['Birkenpilz']),
         spot(species: ['Pfifferling']),
         spot(species: ['Pfifferling']),
       ]);
-      expect(tally.map((t) => t.name), ['Pfifferling', 'Marone', 'Steinpilz']);
+      expect(
+          tally.map((t) => t.name), ['Pfifferling', 'Birkenpilz', 'Steinpilz']);
     });
 
-    test('fasst Schreibweisen zusammen und behält die erste', () {
+    test('legt Zweitnamen mit der Hauptbezeichnung zusammen', () {
+      // Der Kern der Sache: Zwei Fundstellen, zwei Namen, eine Art. Ohne
+      // das stünden sie im Filterblatt getrennt untereinander und keiner
+      // der beiden Einträge zeigte alle Spots.
       final tally = speciesTally([
-        spot(species: ['Marone']),
-        spot(species: ['marone']),
+        spot(species: ['Totentrompete']),
+        spot(species: ['Herbsttrompete']),
       ]);
       expect(tally, hasLength(1));
-      expect(tally.single.name, 'Marone');
+      expect(tally.single.name, 'Herbsttrompete');
+      expect(tally.single.spots, 2);
+    });
+
+    test('eigene Arten: Schreibweisen zusammen, die erste gewinnt', () {
+      // Freitext wird nicht umbenannt — nur zusammengefasst.
+      final tally = speciesTally([
+        spot(species: ['Geheimpilz']),
+        spot(species: ['geheimpilz']),
+      ]);
+      expect(tally, hasLength(1));
+      expect(tally.single.name, 'Geheimpilz');
       expect(tally.single.spots, 2);
     });
 

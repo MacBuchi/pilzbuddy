@@ -43,7 +43,12 @@ void main() {
     expect(find.text('2 Fundstellen'), findsOneWidget);
     expect(find.text('1 Fundstelle'), findsOneWidget);
 
-    await tester.tap(find.text('Marone'));
+    // Die Spots liegen als „Marone" im Backend — angelegt am Repository
+    // vorbei, also so, wie Bestandsdaten aus der Zeit vor 1.37.0 aussehen.
+    // Das Blatt zeigt trotzdem die Hauptbezeichnung; genau daran hängt,
+    // dass alte Funde nicht neben den neuen als eigene Art landen.
+    expect(find.text('Marone'), findsNothing);
+    await tester.tap(find.text('Maronenröhrling'));
     await settle(tester);
     Navigator.of(tester.element(find.text('Karte filtern'))).pop();
     await settle(tester);
