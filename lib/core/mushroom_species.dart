@@ -13,6 +13,11 @@ enum SpeciesGroup {
   morcheln('Morchel/Lorchel'),
   boviste('Bovist'),
   baumpilze('Baumpilz'),
+  // Pilze ohne Lamellen und ohne den üblichen Hut-Stiel-Bau: Stoppeln
+  // unter dem Hut, Korallen-Äste, krause Wülste. Sie lagen vorher in
+  // `sonstige` — und dessen Aufschrift „Lamellenpilz" steht im
+  // Vorschlagsfeld sichtbar am Eintrag, war für sie also schlicht falsch.
+  stachelpilze('Stachel-/Korallenpilz'),
   sonstige('Lamellenpilz');
 
   const SpeciesGroup(this.label);
@@ -36,6 +41,7 @@ const _tae = SpeciesGroup.taeublinge;
 const _mor = SpeciesGroup.morcheln;
 const _bov = SpeciesGroup.boviste;
 const _bau = SpeciesGroup.baumpilze;
+const _sta = SpeciesGroup.stachelpilze;
 const _son = SpeciesGroup.sonstige;
 
 const kBekannteArten = <KnownSpecies>[
@@ -55,6 +61,8 @@ const kBekannteArten = <KnownSpecies>[
   KnownSpecies('Goldröhrling', _roe),
   KnownSpecies('Sandröhrling', _roe),
   KnownSpecies('Ziegenlippe', _roe),
+  KnownSpecies('Rotfußröhrling', _roe),
+  KnownSpecies('Körnchenröhrling', _roe),
   KnownSpecies('Flockenstieliger Hexenröhrling', _roe),
   KnownSpecies('Netzstieliger Hexenröhrling', _roe), // via In-App-Wunsch
   KnownSpecies('Gallenröhrling', _roe),
@@ -83,10 +91,13 @@ const kBekannteArten = <KnownSpecies>[
   KnownSpecies('Grüner Knollenblätterpilz', _wul),
   KnownSpecies('Kegelhütiger Knollenblätterpilz', _wul),
   KnownSpecies('Frühjahrsknollenblätterpilz', _wul),
+  KnownSpecies('Scheidenstreifling', _wul),
   // Täublinge & Milchlinge
   KnownSpecies('Frauentäubling', _tae),
   KnownSpecies('Speisetäubling', _tae),
   KnownSpecies('Ledertäubling', _tae),
+  KnownSpecies('Grüngefelderter Täubling', _tae),
+  KnownSpecies('Speitäubling', _tae),
   KnownSpecies('Fichtenreizker', _tae),
   KnownSpecies('Edelreizker', _tae),
   KnownSpecies('Lachsreizker', _tae),
@@ -103,16 +114,25 @@ const kBekannteArten = <KnownSpecies>[
   // Boviste & Stäublinge
   KnownSpecies('Riesenbovist', _bov),
   KnownSpecies('Flaschenstäubling', _bov),
+  KnownSpecies('Birnenstäubling', _bov),
   // Baumpilze
   KnownSpecies('Austernseitling', _bau),
+  KnownSpecies('Lungenseitling', _bau),
   KnownSpecies('Schwefelporling', _bau),
   KnownSpecies('Leberpilz', _bau),
   KnownSpecies('Igelstachelbart', _bau),
   KnownSpecies('Judasohr', _bau),
+  // Stachel- & Korallenpilze (keine Lamellen, kein Hut-Stiel-Bau)
+  KnownSpecies('Krause Glucke', _sta),
+  KnownSpecies('Semmelstoppelpilz', _sta),
+  KnownSpecies('Habichtspilz', _sta),
+  KnownSpecies('Ziegenbart', _sta),
   // Sonstige Lamellenpilze & Spezialisten
-  KnownSpecies('Krause Glucke', _son),
-  KnownSpecies('Semmelstoppelpilz', _son),
   KnownSpecies('Stockschwämmchen', _son),
+  KnownSpecies('Maipilz', _son),
+  KnownSpecies('Nelkenschwindling', _son),
+  KnownSpecies('Rehbrauner Dachpilz', _son),
+  KnownSpecies('Riesenträuschling', _son),
   KnownSpecies('Hallimasch', _son),
   KnownSpecies('Dunkler Hallimasch', _son),
   KnownSpecies('Violetter Rötelritterling', _son),

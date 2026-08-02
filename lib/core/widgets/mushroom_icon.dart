@@ -19,8 +19,9 @@ int stableSeed(String input) {
 /// so erkennt man die Pilzart auf der Karte auf den ersten Blick.
 /// Einige bekannte Arten ([species]) bekommen zusätzlich ein eigenes
 /// Aussehen (Pfifferling, Herbsttrompete, Reizker, Marone, Hexenröhrlinge,
-/// Käppchenmorchel, Morchelbecherling, Böhmische Verpel,
-/// Semmelstoppelpilz).
+/// Käppchenmorchel, Morchelbecherling, Böhmische Verpel, Semmelstoppelpilz,
+/// Habichtspilz, Krause Glucke, Ziegenbart, Scheidenstreifling). Glucke und
+/// Ziegenbart werden ohne Stiel gezeichnet — sie haben keinen.
 /// Ohne Gruppe sorgt [seed] für bunte Vielfalt. Der Boden unter dem Pilz
 /// zeigt die Herkunft: grün = eigener Spot, blau = von einem Freund.
 class MushroomIcon extends StatelessWidget {
@@ -91,6 +92,8 @@ enum _CapShape {
   thimble, // Böhmische Verpel: Fingerhut-Glocke, hängt am Stielende
   cup, // Morchelbecherling: nach oben offene Schale
   toothed, // Semmelstoppelpilz: welliger Hut mit Stoppeln darunter
+  ruffle, // Krause Glucke: krauser Wulst, ohne Stiel
+  coral, // Ziegenbart: verzweigte Äste auf gemeinsamem Fuß, ohne Stiel
 }
 
 /// Stielzeichnung der Hexenröhrlinge — in echt das Merkmal, an dem man die
@@ -103,7 +106,8 @@ class _Style {
   final bool whiteDots;
   final bool darkDots; // Morchel-Waben / Schirmling-Schuppen
   final bool rings; // Reizker: konzentrische dunklere Zonen auf dem Hut
-  final bool ridges; // Verpel: senkrechte Längsrunzeln statt Waben
+  final bool ridges; // Verpel: Längsrunzeln, Scheidenstreifling: Riefenrand
+  final bool folds; // Krause Glucke: die krausen Falten im Wulst
   final bool veins; // Becherling: strahlende Adern in der Schale
   final bool poreBand; // Hexenröhrling: rote Poren an der Hutunterkante
   final double stemTop; // obere Stielkante (relativ), für hohe Schirmlinge
@@ -115,6 +119,7 @@ class _Style {
       this.darkDots = false,
       this.rings = false,
       this.ridges = false,
+      this.folds = false,
       this.veins = false,
       this.poreBand = false,
       this.stemTop = 0.42,
@@ -209,6 +214,33 @@ class _MushroomPainter extends CustomPainter {
           [Color(0xFFE3B981), Color(0xFFD9A96C), Color(0xFFE8C593)],
           stemColor: Color(0xFFF7EFDC));
     }
+    if (key.contains('glucke')) {
+      // Krause Glucke: ein krauser, blass gebackener Wulst am Boden —
+      // ohne Stiel, weil sie keinen hat.
+      return const _Style(_CapShape.ruffle,
+          [Color(0xFFEBD9A8), Color(0xFFE0C88F), Color(0xFFF0E3BC)],
+          folds: true);
+    }
+    if (key.contains('ziegenbart')) {
+      // Ziegenbart: aufrechte Äste auf gemeinsamem Fuß, ockergelb.
+      return const _Style(_CapShape.coral,
+          [Color(0xFFE0B355), Color(0xFFD3A247), Color(0xFFE8C778)]);
+    }
+    if (key.contains('habichtspilz')) {
+      // Habichtspilz: derselbe Stoppelhut wie beim Semmelstoppelpilz, aber
+      // dunkelbraun und grob geschuppt — daher dieselbe Form, andere Haut.
+      return const _Style(_CapShape.toothed,
+          [Color(0xFF8A6A45), Color(0xFF77593A)],
+          darkDots: true, stemColor: Color(0xFFC9B79B));
+    }
+    if (key.contains('scheidenstreifling')) {
+      // Scheidenstreifling: grauer Wulstling OHNE Hutflocken — die roten
+      // Punkte der Gruppe wären hier das falscheste Merkmal überhaupt.
+      // Charakteristisch ist stattdessen der geriefte Hutrand.
+      return const _Style(_CapShape.dome,
+          [Color(0xFF9C9184), Color(0xFF8B8175), Color(0xFFA9A091)],
+          ridges: true, stemTop: 0.36, stemColor: Color(0xFFF2ECE0));
+    }
     if (key.contains('käppchenmorchel')) {
       // Käppchenmorchel: kleines Wabenkäppchen auf auffällig langem, blassem
       // Stiel — die Speisemorchel ist dagegen fast nur Hut.
@@ -266,6 +298,13 @@ class _MushroomPainter extends CustomPainter {
       case SpeciesGroup.baumpilze:
         return const _Style(_CapShape.shelf,
             [Color(0xFFEF6C00), Color(0xFFD18B47), Color(0xFFC77E3D)]);
+      case SpeciesGroup.stachelpilze:
+        // Rückfall der Gruppe: Stoppelhut in gedeckten Ockertönen. Alle
+        // vier heutigen Mitglieder haben einen eigenen Look, das hier
+        // greift also nur für später Dazukommende.
+        return const _Style(_CapShape.toothed,
+            [Color(0xFFD9C39A), Color(0xFFC9B184), Color(0xFFE0CFAA)],
+            stemColor: Color(0xFFF3EAD6));
       case SpeciesGroup.sonstige:
         return const _Style(_CapShape.cone,
             [Color(0xFFBCAAA4), Color(0xFFA1887F), Color(0xFF90A4AE)]);
@@ -422,6 +461,53 @@ class _MushroomPainter extends CustomPainter {
           ..close();
         // Gesicht auf die Vorderwand, unterhalb der Innenfläche
         faceY = 0.56;
+      case _CapShape.ruffle:
+        // Krause Glucke: krauser Wulst, der ohne Stiel am Boden sitzt.
+        // Ein leerer Pfad ist hier die ganze Umsetzung von „hat keinen
+        // Stiel" — Halo, Füllung und Kontur zeichnen dann schlicht nichts.
+        stemPath = Path();
+        cap
+          ..moveTo(u(0.06), u(0.66))
+          ..cubicTo(u(0.03), u(0.44), u(0.16), u(0.32), u(0.28), u(0.40))
+          ..cubicTo(u(0.28), u(0.20), u(0.50), u(0.16), u(0.52), u(0.34))
+          ..cubicTo(u(0.62), u(0.18), u(0.84), u(0.24), u(0.78), u(0.42))
+          ..cubicTo(u(0.90), u(0.38), u(0.96), u(0.52), u(0.92), u(0.68))
+          // Unterkante bewusst bei 0.87 statt am Boden: die Ellipse darunter
+          // zeigt, wem der Spot gehört, und ein bodentiefer Wulst deckt sie zu.
+          ..quadraticBezierTo(u(0.88), u(0.86), u(0.50), u(0.87))
+          ..quadraticBezierTo(u(0.12), u(0.86), u(0.06), u(0.66))
+          ..close();
+        faceY = 0.60;
+      case _CapShape.coral:
+        // Ziegenbart: vier aufrechte Äste auf gemeinsamem Fuß, ebenfalls
+        // ohne Stiel. Das Gesicht sitzt unten auf dem Fuß.
+        stemPath = Path();
+        // Aus mehreren Teilpfaden statt einer Silhouette: Strunk plus fünf
+        // Keulen, die einander überlappen. Halo und Kontur umfahren jeden
+        // Teilpfad einzeln, und genau die Linien ZWISCHEN den Ästen machen
+        // die Koralle aus. Eine einzige geschlossene Kontur — auch mit
+        // tiefen Kerben — liest sich immer als Hand.
+        cap.addRRect(RRect.fromLTRBR(
+            u(0.36), u(0.56), u(0.64), u(0.96), Radius.circular(u(0.12))));
+        for (final (tipX, tipY, baseX) in const [
+          (0.15, 0.36, 0.42),
+          (0.30, 0.22, 0.45),
+          (0.50, 0.13, 0.50),
+          (0.70, 0.21, 0.55),
+          (0.85, 0.35, 0.58),
+        ]) {
+          const halfW = 0.075;
+          // Die Äste enden bei 0.62 — knapp unter der Strunkkante. Reichten
+          // sie tiefer, kreuzten sich ihre Konturen quer über dem Gesicht.
+          cap
+            ..moveTo(u(baseX - halfW), u(0.62))
+            ..quadraticBezierTo(
+                u(tipX - halfW * 1.4), u(tipY + 0.12), u(tipX), u(tipY))
+            ..quadraticBezierTo(u(tipX + halfW * 1.4), u(tipY + 0.12),
+                u(baseX + halfW), u(0.62))
+            ..close();
+        }
+        faceY = 0.76;
       case _CapShape.ball:
         // Bovist: große Kugel, Mini-Fuß, Gesicht auf der Kugel
         stemPath = Path()
@@ -551,8 +637,6 @@ class _MushroomPainter extends CustomPainter {
     }
 
     if (style.ridges) {
-      // Verpel: senkrechte Längsrunzeln. Der Unterschied zur echten Morchel
-      // ist genau dieser — Rillen längs statt Waben.
       canvas.save();
       canvas.clipPath(cap);
       final ridge = Paint()
@@ -560,12 +644,49 @@ class _MushroomPainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeWidth = u(0.022)
         ..strokeCap = StrokeCap.round;
-      for (final x in const [0.35, 0.43, 0.51, 0.59, 0.66]) {
+      if (style.shape == _CapShape.thimble) {
+        // Verpel: senkrechte Längsrunzeln über den ganzen Fingerhut. Der
+        // Unterschied zur echten Morchel ist genau dieser — Rillen längs
+        // statt Waben.
+        for (final x in const [0.35, 0.43, 0.51, 0.59, 0.66]) {
+          canvas.drawPath(
+              Path()
+                ..moveTo(u(x), u(0.10))
+                ..quadraticBezierTo(u(x - 0.02), u(0.32), u(x), u(0.56)),
+              ridge);
+        }
+      } else {
+        // Scheidenstreifling: gerieft ist nur der Hut**rand**. Die Striche
+        // laufen strahlend nach außen und enden am Rand, weil der Hut sie
+        // wegclippt — auf der Kuppe bleibt es glatt.
+        ridge.strokeWidth = u(0.016);
+        for (final x in const [
+          0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90,
+        ]) {
+          canvas.drawLine(
+              p(0.5 + (x - 0.5) * 0.72, 0.34), p(x, 0.64), ridge);
+        }
+      }
+      canvas.restore();
+    }
+
+    if (style.folds) {
+      // Krause Glucke: die krausen Falten, die ihr den Namen geben.
+      canvas.save();
+      canvas.clipPath(cap);
+      final fold = Paint()
+        ..color = const Color(0xFF8D6E4A).withValues(alpha: 0.45)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = u(0.020)
+        ..strokeCap = StrokeCap.round;
+      for (final y in const [0.42, 0.58, 0.74]) {
         canvas.drawPath(
             Path()
-              ..moveTo(u(x), u(0.10))
-              ..quadraticBezierTo(u(x - 0.02), u(0.32), u(x), u(0.56)),
-            ridge);
+              ..moveTo(u(0.08), u(y))
+              ..quadraticBezierTo(u(0.26), u(y - 0.07), u(0.44), u(y))
+              ..quadraticBezierTo(u(0.62), u(y + 0.07), u(0.80), u(y - 0.02))
+              ..quadraticBezierTo(u(0.88), u(y - 0.04), u(0.93), u(y)),
+            fold);
       }
       canvas.restore();
     }

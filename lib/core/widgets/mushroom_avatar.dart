@@ -42,6 +42,10 @@ const kAvatarCatalog = <AvatarSpec>[
   AvatarSpec(10),
   AvatarSpec(12),
   AvatarSpec(16),
+  // Ans Ende angehängt, nicht einsortiert: der Index steckt in
+  // `profiles.avatar`, ein Einschub würde allen Bestandsnutzern hinter der
+  // Einfügestelle ein anderes Porträt geben.
+  AvatarSpec(34, SpeciesGroup.stachelpilze), // Stoppelhut
 ];
 
 /// Liefert den Katalog-Eintrag zu einem gespeicherten Index — robust

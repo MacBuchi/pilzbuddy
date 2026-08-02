@@ -37,6 +37,21 @@ ein grauer Lamellenpilz — obwohl er gar keine Lamellen hat und semmelfarben
 ist. Er hat jetzt seinen flachen, hell gebackenen Hut, und darunter sitzen
 die Stoppeln, die ihm den Namen geben.
 
+**Pilze ohne Lamellen haben jetzt eine eigene Schublade.** Sie hieß bisher
+für alle „Lamellenpilz", und das steht sichtbar am Vorschlag, wenn du eine
+Art eintippst. Für vier stimmte es nicht: Krause Glucke, Semmelstoppelpilz,
+Habichtspilz und Ziegenbart heißen jetzt „Stachel-/Korallenpilz" und sehen
+auch so aus. Die **Krause Glucke** und der **Ziegenbart** werden dabei ohne
+Stiel gezeichnet — die haben nämlich keinen.
+
+**Und die Artenliste ist gewachsen.** Dreizehn geläufige Pilze fehlten
+schlicht: Maipilz, Nelkenschwindling, Rehbrauner Dachpilz,
+Riesenträuschling, Rotfußröhrling, Körnchenröhrling, Grüngefelderter
+Täubling, Speitäubling, Birnenstäubling, Lungenseitling, Habichtspilz,
+Ziegenbart und Scheidenstreifling. Der Scheidenstreifling hat ein eigenes
+Bild bekommen, weil er als Wulstling sonst rot mit weißen Punkten wäre —
+und das ist er gerade nicht.
+
 ## Karte nach Pilzart filtern
 
 *2. August 2026 · Version 1.35.0*
