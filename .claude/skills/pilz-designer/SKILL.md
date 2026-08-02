@@ -1,12 +1,49 @@
 ---
 name: pilz-designer
-description: Design language and how-to for PilzBuddy's cute mushroom artwork — use whenever creating or changing mushroom icons, map markers, animations, app icons, or any mushroom illustration in this project.
+description: Design language and how-to for PilzBuddy's cute mushroom artwork — use whenever creating or changing mushroom icons, map markers, animations, app icons, or any mushroom illustration in this project. Also covers adding a species to the list, because the group you file it under decides what it looks like and what the app tells the user about it.
 ---
 
 # PilzBuddy Mushroom Design Language
 
 Every mushroom in PilzBuddy is a **buddy**: small, chubby, colorful, and friendly.
 The app is about sharing mushroom spots with friends — the artwork must radiate that.
+
+## Look the mushroom up before you draw it or file it
+
+**Never design from the name, and never pick a group from a keyword.** Read up
+on the actual species first. Four things decide four different parts of the
+work:
+
+| What to look up | What it decides |
+|---|---|
+| Cap shape and profile (domed? flat? bell? none at all?) | the `_CapShape` — or whether a new one is needed |
+| Cap colour, in the mushroom's own terms | the palette |
+| **The underside — gills, tubes, spines, or none** | **the `SpeciesGroup`** |
+| Stem — stout, slender, tall, or absent | `stemTop`, `stemColor`, or an empty stem path |
+
+Then find the **one field mark** a picker uses to tell it from its look-alike.
+That mark is what the icon has to carry at 44 px; everything else is decoration.
+Netted vs flecked stem on the two Hexenröhrlinge, spines vs gills on the
+Semmelstoppelpilz, a striate margin on the Scheidenstreifling.
+
+**The group is not just an icon switch — its label is shown to the user**, as a
+badge next to the entry in the species field (`_groupBadge` in
+`species_field.dart`). Filing a tooth fungus under `sonstige` does not merely
+give it a grey cone; it prints "Lamellenpilz" next to a mushroom that has no
+gills.
+
+This is where things have actually gone wrong. `tool/feedback_bot.py` files
+requested species by keyword, and a keyword cannot know what is under the cap:
+
+- "Böhmische Verpel" matched nothing → `sonstige` → a grey gilled mushroom,
+  though it is a morel relative.
+- "Morchelbecherling" matched `morchel` → right group, but the group icon is a
+  cone and the mushroom is a bowl.
+- "Netzstieliger Hexenröhrling" matched `röhrling` → right group, but drawn as
+  a plain brown bolete, i.e. as a Steinpilz. That is the one confusion that
+  matters in the field.
+
+Bot output is a starting point, not a decision. Check every species it files.
 
 ## Character rules (never break these)
 
@@ -23,7 +60,9 @@ The app is about sharing mushroom spots with friends — the artwork must radiat
 5. **Ground ellipse shows ownership.** Every mushroom stands on a soft
    ground ellipse: green (`#2E7D32`) for the user's own spots, blue
    (`#1565C0`) for community/friend spots — drawn behind the mushroom
-   at ~55% opacity.
+   at ~55% opacity. **It has to stay visible.** A stemless shape that sits
+   flat on the ground covers it and loses the green/blue signal — end its
+   lower edge around 0.87 instead (see `ruffle`).
 
 ## Where the code lives
 
@@ -32,7 +71,8 @@ The app is about sharing mushroom spots with friends — the artwork must radiat
   coordinates via `u(v) = v * width` on a square canvas; the mushroom stands
   on the bottom edge (map markers use `alignment: Alignment.topCenter`).
 - `lib/core/mushroom_species.dart` — species list and `SpeciesGroup` enum;
-  `groupFor(name)` maps a species name to its group.
+  `groupFor(name)` maps a species name to its group. The enum is **never
+  persisted** — it is derived from the name — so adding a value is safe.
 - `lib/core/widgets/buddy_mushrooms.dart` — the animated pair from the app
   icon (login screen). Gentle sway only: rotate around `bottomCenter`,
   ±0.05 rad max, phase-shifted between buddies, 4 s loop.
@@ -51,19 +91,23 @@ The app is about sharing mushroom spots with friends — the artwork must radiat
 
 ## Group looks (keep icons true to the species group)
 
-| Group (`SpeciesGroup`) | Shape | Palette |
-|---|---|---|
-| roehrlinge | round dome, thick stem | browns `#795548 #8D6E63 #5D4037` |
-| leistlinge | wavy funnel (concave top) | yellows `#F9A825 #FBC02D #F57F17` |
-| champignons | dome | cream whites `#F0EAD8 #EDE3CE` |
-| schirmlinge | wide flat cap, tall stem, dark scales | tans `#C8A165 #B78F5C` |
-| wulstlinge | dome **with white dots** | reds `#E53935 #D32F2F #C62828` |
-| taeublinge | flat cap | vivid mix red/violet/green/amber/pink |
-| morcheln | cone with dark honeycomb dots | dark browns `#6D4C41 #5D4037` |
-| boviste | ball (face on the ball, mini foot) | off-white `#F3F1E7` |
-| baumpilze | shelf/bracket on a short base, face on cap | oranges `#EF6C00 #D18B47` |
-| sonstige | dome/cone | muted `#BCAAA4 #A1887F #90A4AE` |
-| unknown/own species (`group == null`) | seed-random dome/cone/flat | 7-color fun palette |
+| Group (`SpeciesGroup`) | Label shown to the user | Shape | Palette |
+|---|---|---|---|
+| roehrlinge | Röhrling | round dome, thick stem | browns `#795548 #8D6E63 #5D4037` |
+| leistlinge | Pfifferlingsartig | wavy funnel (concave top) | yellows `#F9A825 #FBC02D #F57F17` |
+| champignons | Champignon | dome | cream whites `#F0EAD8 #EDE3CE` |
+| schirmlinge | Schirmling | wide flat cap, tall stem, dark scales | tans `#C8A165 #B78F5C` |
+| wulstlinge | Wulstling | dome **with white dots** | reds `#E53935 #D32F2F #C62828` |
+| taeublinge | Täubling/Milchling | flat cap | vivid mix red/violet/green/amber/pink |
+| morcheln | Morchel/Lorchel | cone with dark honeycomb dots | dark browns `#8D6E63 #7D5F52` |
+| boviste | Bovist | ball (face on the ball, mini foot) | off-white `#F3F1E7` |
+| baumpilze | Baumpilz | shelf/bracket on a short base, face on cap | oranges `#EF6C00 #D18B47` |
+| stachelpilze | Stachel-/Korallenpilz | toothed cap | muted ochres `#D9C39A #C9B184 #E0CFAA` |
+| sonstige | Lamellenpilz | dome/cone | muted `#BCAAA4 #A1887F #90A4AE` |
+| unknown/own species (`group == null`) | — | seed-random dome/cone/flat | 7-color fun palette |
+
+`stachelpilze` exists because `sonstige` says "Lamellenpilz" out loud. Anything
+without gills belongs here: tooth fungi, corals, the Krause Glucke.
 
 Variation within a group comes from the spot's stable seed
 (`stableSeed(spotId)`): color pick, dots on/off (where optional), cheeks.
@@ -77,35 +121,84 @@ Same spot → same look, forever.
 | Species contains | Shape | Look |
 |---|---|---|
 | pfifferling | chanterelle | deep wavy egg-yellow funnel, **yellow stem** (cap flows into stem) |
-| trompete | trumpet | slim dark gray-brown horn with flared wavy rim, dark stem (face stays readable, morel precedent) |
-| reizker | flat + rings | concentric darker ring zones, light-orange stem; cap tone per variant: edel `#E8833A`, lachs `#EF8A66`, kiefern `#C96A2E`, fichten `#D9702E` |
+| trompete | trumpet | slim dark gray-brown horn with flared wavy rim, dark stem |
+| reizker | flat + `rings` | concentric darker zones, light-orange stem; cap tone per variant: edel `#E8833A`, lachs `#EF8A66`, kiefern `#C96A2E`, fichten `#D9702E` |
 | marone / braunkappe | dome | chestnut cap `#6B4423/#5D3A21`, pale-yellow stem (vs. Steinpilz: lighter browns, cream stem) |
+| hexenröhrling | dome + `poreBand` | olive-brown cap `#8D7040/#9A7B4F`, red pore band, yellow stem; `stemPattern` splits the pair — `net` if the name contains "netz", else `flecks` |
+| stoppelpilz | toothed | low irregular bread-crust cap `#E3B981/#D9A96C/#E8C593`, pale stem |
+| habichtspilz | toothed + `darkDots` | same cap, dark brown `#8A6A45/#77593A` with coarse scales |
+| glucke | ruffle + `folds` | pale lobed mass `#EBD9A8/#E0C88F/#F0E3BC`, **no stem** |
+| ziegenbart | coral | ochre trunk with five splayed clubs `#E0B355/#D3A247/#E8C778`, **no stem** |
+| becherling | cup + `veins` | ochre bowl `#C9A87C/#BE9B6E`, dark interior with radiating veins, stub foot |
+| verpel | thimble + `ridges` | olive-brown bell `#8A6D3B/#7A5F33`, longitudinal wrinkles, long pale stem |
+| käppchenmorchel | semifreeCone + `darkDots` | small honeycombed cap `#7D6552/#6E5949` on a long pale stem |
+| scheidenstreifling | dome + `ridges` | grey-brown `#9C9184/#8B8175`, striate margin, **no dots** — the group's red-with-white-dots would be the most misleading thing an icon could say about it |
+
+**Match order matters.** The checks run top to bottom and the first hit wins, so
+a broad name must never sit above a longer one that contains it. `becherling`
+is placed above the morel branches for that reason: "Morchelbecherling" would
+be swallowed whole by a plain `morchel` matcher. Today's matcher is the narrow
+`käppchenmorchel`, so that collision is latent rather than live — the comment
+in `_speciesStyleFor` states it as if it were live and should be corrected the
+next time the file is edited for a real reason.
 
 Wire-up: map markers and the spot detail sheet pass
 `species: spot.lastFind?.species`. When adding a species look, extend the
-preview rows in `test/icon_preview_test.dart` and re-render the sheet.
+preview rows in `test/icon_preview_test.dart` (and raise the surface height —
+the column overflows and the test fails, which is the reminder).
 
 **List rows** use `MushroomIcon.forSpecies(name)` (24–28 px): no ground
 ellipse, and the seed comes from the species name so the same species looks
 identical in every list. Never put a bare `🍄` in a species row — most systems
 render it as a red fly agaric, which makes every mushroom look poisonous.
 
+## Building a new shape
+
+`_CapShape` today: `dome cone flat funnel ball shelf chanterelle trumpet
+semifreeCone thimble cup toothed ruffle coral`.
+
+Three idioms worth reusing:
+
+- **No stem is an empty path.** `stemPath = Path()` — halo, fill and outline
+  then draw nothing, and no branch is needed anywhere else. `ruffle` and
+  `coral` do this. Use it when the mushroom genuinely has no stem; do not fake
+  one to keep the code uniform.
+- **Details that belong to the silhouette go into the cap path.** The
+  Semmelstoppelpilz's spines are a zigzag on the cap's lower edge, not a
+  separate detail pass — so halo, fill and outline pick them up for free.
+- **A bundle of branches needs subpaths, not a clever outline.** The Ziegenbart
+  is a trunk plus five clubs added to the same `Path`. The outlines *between*
+  the parts are what makes it read as a coral. A single closed silhouette reads
+  as a **hand** no matter how deep the notches — two attempts confirmed that
+  before switching. If a shape needs to look like separate pieces, draw
+  separate subpaths.
+
+**Detail flags are shape-aware where they have to be.** `darkDots` and `ridges`
+each carry two idioms, branched on `style.shape`: the full-size morel dot
+layout vs the denser one for the small `semifreeCone` cap; the thimble's
+full-height wrinkles vs the dome's short radial grooves at the rim. Adding a
+third idiom to an existing flag is fine; silently retuning a shared one is not
+— it would change every icon already using it.
+
 ## Paint order (do not reshuffle)
 
 `_MushroomPainter.paint` draws: ground → halo (stem, cap) → stem fill →
-**stem outline** → cap fill → cap details (clipped to the cap) → cap outline →
-face. The stem outline has to come *before* the cap fill: the stem runs under
-the cap in every shape, and an outline stroked afterwards sits visibly on top
-of the cap (#115).
+**stem pattern** → **stem outline** → cap fill → cap details (clipped to the
+cap) → cap outline → face. The stem outline has to come *before* the cap fill:
+the stem runs under the cap in every shape, and an outline stroked afterwards
+sits visibly on top of the cap (#115).
 
 ## Avatars (portraits)
 
 - `lib/core/widgets/mushroom_avatar.dart` — `MushroomAvatar` renders a buddy
   as a round portrait: warm cream circle (`#FDF6E3`), soft brown ring, **no
   ground ellipse** (that is map-ownership language; pass `ground: false`).
-- The selectable catalog is `kAvatarCatalog` (seed + group pairs covering all
-  ten cap shapes plus seed-random free spirits). **Never reorder or remove
-  entries** — the index is persisted in `profiles.avatar`; append only.
+- The selectable catalog is `kAvatarCatalog` (seed + group pairs covering the
+  cap shapes plus seed-random free spirits). **Never reorder or remove
+  entries, and never insert one in the middle** — the index is persisted in
+  `profiles.avatar`, so an insert silently repaints every user behind it.
+  Append only. `test/species_test.dart` ("Avatar-Katalog") pins the boundary
+  where such an insert would first show up.
 - Shown in: profile header (picker via tap), friends lists, spot detail
   finder row. Sizes range 22–64 px — check readability at 22 px.
 
@@ -116,11 +209,46 @@ of the cap (#115).
 - Loops ≥ 3 s; entrance animations ≤ 3 s and skippable.
 - Keep it cheap: one `AnimationController`, `AnimatedBuilder`, no rebuild storms.
 
+## The design review loop
+
+Render the overview sheet and **look at it** — this is the review, not a
+formality:
+
+```
+flutter test test/icon_preview_test.dart --dart-define=PILZ_PREVIEW_DIR=<dir>
+```
+
+That writes `mushroom_preview.png` (every group in five seed variants, plus one
+row per species-specific look at 44/72/30/28/24 px, including the friend
+variant). Crop into it to judge a single row —
+`sips -c <h> <w> --cropOffset <top> <left> file.png`, then `sips -Z 1400`.
+Labels render as red bars: no font is loaded in the test environment, which is
+expected.
+
+Expect to iterate. Every icon in this project needed at least one pass after
+looking at it — flecks too faint at 24 px, a skirt too flat, a cap too domed,
+a stemless shape covering its own ownership ellipse, a coral that was a hand.
+
 ## Checklist for any new mushroom artwork
 
+- [ ] Looked the species up first — cap, colour, underside, stem
+- [ ] Group chosen from the underside, and its **label** is true for this mushroom
+- [ ] The field mark that distinguishes it from its look-alike is visible at 44 px
 - [ ] Friendly face, correct proportions, halo + outline
-- [ ] Recognizable at 44 px (markers) and 30 px (detail sheet)
-- [ ] Group-faithful shape/palette (table above) or seed-driven for unknown
+- [ ] Ground ellipse still visible (matters for stemless shapes)
+- [ ] Recognizable at 44 px (markers), 30 px (detail sheet), 24 px (list rows)
+- [ ] Row added to `test/icon_preview_test.dart`, preview rendered **and viewed**
 - [ ] Deterministic from seed — no `Random()` without a seed
-- [ ] `flutter analyze` clean; verify visually in Chrome
-      (`flutter run -d chrome --web-port 3000`), ideally with a screenshot
+- [ ] `flutter analyze` clean, `flutter test` green
+
+## Known debt
+
+- **Igelstachelbart** is still in `baumpilze` and drawn as an orange bracket.
+  It is a tooth fungus and belongs in `stachelpilze`; it was left alone because
+  moving it changes an existing species' icon, which was out of scope when the
+  group was created. Fix it when the file is next touched.
+- The `becherling`/`morchel` comment in `_speciesStyleFor` (see above).
+
+Neither is worth a version bump on its own: any edit under `lib/` trips the
+version guard, and a bump publishes a release and an update prompt to every
+user. Ride along with the next real change.
