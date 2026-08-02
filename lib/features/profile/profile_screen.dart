@@ -487,6 +487,14 @@ class _AboutSection extends ConsumerWidget {
         ListTile(
           contentPadding: EdgeInsets.zero,
           dense: true,
+          leading: const Icon(Icons.auto_stories_outlined),
+          title: const Text('Was ist neu'),
+          subtitle: const Text('Was sich in welcher Version geändert hat'),
+          onTap: () => context.push('/profile/changelog'),
+        ),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
           leading: const Icon(Icons.code),
           title: const Text('GitHub-Projekt & Dokumentation'),
           subtitle: const Text(AppInfo.githubUrl),

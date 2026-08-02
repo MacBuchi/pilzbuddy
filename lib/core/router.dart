@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/providers.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/signup_screen.dart';
+import '../features/changelog/changelog_screen.dart';
 import '../features/friends/friends_screen.dart';
 import '../features/import_export/import_screen.dart';
 import '../features/map/map_screen.dart';
@@ -86,6 +87,9 @@ final routerProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                       path: 'import',
                       builder: (context, state) => const ImportScreen()),
+                  GoRoute(
+                      path: 'changelog',
+                      builder: (context, state) => const ChangelogScreen()),
                 ]),
           ]),
         ],
