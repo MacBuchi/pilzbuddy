@@ -153,7 +153,7 @@ Same spot → same look, forever.
 | pfifferling | chanterelle | deep wavy egg-yellow funnel, **yellow stem** (cap flows into stem) |
 | trompete | trumpet | slim dark gray-brown horn with flared wavy rim, dark stem |
 | reizker | flat + `rings` | concentric darker zones, light-orange stem; cap tone per variant: edel `#E8833A`, lachs `#EF8A66`, kiefern `#C96A2E`, fichten `#D9702E` |
-| marone / braunkappe | dome | chestnut cap `#6B4423/#5D3A21`, pale-yellow stem (vs. Steinpilz: lighter browns, cream stem) |
+| marone | dome | chestnut cap `#6B4423/#5D3A21`, pale-yellow stem (vs. Steinpilz: lighter browns, cream stem). „Braunkappe" was matched here until 1.37.0 and is now the Riesenträuschling — see the Wikipedia rule above |
 | hexenröhrling | dome + `poreBand` | olive-brown cap `#8D7040/#9A7B4F`, red pore band, yellow stem; `stemPattern` splits the pair — `net` if the name contains "netz", else `flecks` |
 | stoppelpilz | toothed | low irregular bread-crust cap `#E3B981/#D9A96C/#E8C593`, pale stem |
 | habichtspilz | toothed + `darkDots` | same cap, dark brown `#8A6A45/#77593A` with coarse scales |
