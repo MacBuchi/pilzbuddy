@@ -18,7 +18,8 @@ import 'package:pilzbuddy/core/update_check.dart';
 import 'package:pilzbuddy/data/apk_installer.dart';
 import 'package:pilzbuddy/data/providers.dart';
 import 'package:pilzbuddy/features/map/live_share_providers.dart';
-import 'package:pilzbuddy/features/map/map_screen.dart';
+import 'package:pilzbuddy/features/map/map_view/flutter_map_view.dart';
+import 'package:pilzbuddy/features/map/map_view/map_view.dart';
 import 'package:pilzbuddy/features/map/position_provider.dart';
 import 'package:pilzbuddy/features/offline_maps/download_keep_alive.dart';
 import 'package:pilzbuddy/features/offline_maps/offline_map_providers.dart';
@@ -26,6 +27,7 @@ import 'package:pilzbuddy/features/offline_maps/offline_map_providers.dart';
 import 'fake_apk_installer.dart';
 import 'fake_backend.dart';
 import 'fake_keep_alive.dart';
+import 'fake_map_view.dart';
 import 'fake_offline_maps.dart';
 import 'fake_settings.dart';
 
@@ -70,8 +72,21 @@ List<Override> overridesFor(FakeBackend backend,
         Position? position,
         Settings? settings,
         FakeApkInstaller? apkInstaller,
+        bool useRealMap = false,
         List<Override> extra = const []}) =>
     [
+      // Die Karten-Engine ist standardmäßig die Fake (rendert Marker in
+      // einem Wrap, Kamera synchron simuliert) — die Flow-Suiten beweisen
+      // Verhalten, nicht Rendering. Tests, die flutter_map-Interna prüfen
+      // (Layer, Puffer, Kamera-Wächter), pumpen mit `useRealMap: true`.
+      if (!useRealMap)
+        mapViewBuilderProvider.overrideWithValue(
+          (config, controller, markers) => FakeMapView(
+            config: config,
+            controller: controller,
+            markers: markers,
+          ),
+        ),
       settingsProvider.overrideWithValue(settings ?? FakeSettings()),
       // Kein Method-Channel im Test: Der Update-Dialog würde sonst gegen
       // Androids System-Installer laufen.
@@ -130,6 +145,7 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
     Position? position,
     Settings? settings,
     FakeApkInstaller? apkInstaller,
+    bool useRealMap = false,
     List<Override> extraOverrides = const []}) async {
   addTearDown(backend.dispose);
   await tester.pumpWidget(ProviderScope(
@@ -142,6 +158,7 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
         position: position,
         settings: settings,
         apkInstaller: apkInstaller,
+        useRealMap: useRealMap,
         extra: extraOverrides),
     child: const PilzBuddyApp(),
   ));

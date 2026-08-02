@@ -20,7 +20,7 @@ void main() {
       (tester) async {
     // Ohne Obergrenze skaliert flutter_map die z19-Kachel ins Absurde und
     // die Karte bleibt leer, bis man weit herauszoomt (Issue #71).
-    await pumpApp(tester, loggedInBackend());
+    await pumpApp(tester, loggedInBackend(), useRealMap: true);
 
     final options = tester.widget<FlutterMap>(find.byType(FlutterMap)).options;
     expect(options.minZoom, 3);
@@ -28,7 +28,7 @@ void main() {
   });
 
   testWidgets('Die Karte zeigt einen Maßstab an', (tester) async {
-    await pumpApp(tester, loggedInBackend());
+    await pumpApp(tester, loggedInBackend(), useRealMap: true);
     expect(find.byType(Scalebar), findsOneWidget);
   });
 
@@ -39,7 +39,7 @@ void main() {
     // Kachelberechnung werfen (graue Flächen, #141). Der Wächter ist die
     // einzige Stelle, die beides verhindert — wer ihn aus den MapOptions
     // entfernt, holt beide Fehler zurück.
-    await pumpApp(tester, loggedInBackend());
+    await pumpApp(tester, loggedInBackend(), useRealMap: true);
 
     final options = tester.widget<FlutterMap>(find.byType(FlutterMap)).options;
     expect(options.cameraConstraint, isA<FiniteCameraConstraint>());
@@ -48,7 +48,7 @@ void main() {
   testWidgets('Wartende Flächen sind Landton, nicht Grau', (tester) async {
     // flutter_maps Vorgabe ist 0xFFE0E0E0 — das liest sich wie ein Fehler.
     // Wo noch keine Kachel liegt, soll es nach Karte aussehen (#119).
-    await pumpApp(tester, loggedInBackend());
+    await pumpApp(tester, loggedInBackend(), useRealMap: true);
 
     final options = tester.widget<FlutterMap>(find.byType(FlutterMap)).options;
     expect(options.backgroundColor, AppColors.mapBackground);
@@ -63,7 +63,7 @@ void main() {
     // GPU-Textur, und `flutter_map` gibt sie beim Ausdünnen nicht frei —
     // gemessen wuchs der Texturspeicher auf 257 MB, in den ANR-Berichten
     // auf 1,7–1,9 GB. Wer die Werte wieder anhebt, muss vorher messen.
-    await pumpApp(tester, loggedInBackend());
+    await pumpApp(tester, loggedInBackend(), useRealMap: true);
 
     final layer = tester.widget<TileLayer>(find.byType(TileLayer));
     expect(layer.keepBuffer, 2);
