@@ -267,6 +267,20 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   mit bedingtem Import (`download_keep_alive_stub.dart` für Web, sonst
   `download_keep_alive_service.dart`), damit der Web-Build das
   Android-Paket nie sieht; Tests überschreiben den Provider.
+- **Karten-Stellschrauben werden nicht ohne Messung verändert**
+  (`docs/map-performance.md`): Puffer, Substitutionsweite und Layer-Modus
+  stehen auf Werten, die #142/#143/#119 *gemessen* haben — jede davon ist
+  ein Tausch zwischen Speicher und Nachladen. Wer eine anfasst, weil ein
+  Symptom danach klingt, tauscht ein sichtbares Problem gegen ein
+  tödliches: Genau das schlug die Triage zu #157 vor
+  (`maximumTileSubstitutionDifference` erhöhen), und genau dieser Wert war
+  in #142 der Haupttreiber des Vektor-Speichers. Die Seite listet alle
+  Werte samt Herkunft — und die Grenzen, die noch Paket-Defaults sind und
+  nie gemessen wurden (`memoryTileDataCacheMaxSize` & Co., die seit #118
+  für **zwei** gleichzeitige Layer gelten). Dort steht auch die eine
+  offene Messung: der **Dart-Heap**, nicht GL — der ANR-Dump aus #151
+  zeigt den Haupt-Thread in einer GC-Markierungsphase, und dieser
+  Speicherbereich wurde nie angesehen.
 - Issue-Triage (`.github/workflows/claude-issue-triage.yml`): Claude analysiert
   jedes neue Issue (Einordnung, Labels, Ursache, Umsetzungsvorschlag als
   Kommentar) — darf aber NUR lesen/labeln/kommentieren. Umsetzung erst nach
