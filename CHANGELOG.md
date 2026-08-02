@@ -35,6 +35,12 @@ Marone geführt worden. Gemeint ist damit der Riesenträuschling — so heißt e
 auch. Deine Spots mit diesem Namen bekommen deshalb ein anderes Symbol und
 zählen ab jetzt zum Riesenträuschling.
 
+**Der Igelstachelbart sieht endlich aus wie einer.** Er stand bei den
+Baumpilzen und wurde als orange Konsole gezeichnet. Er wächst zwar an Holz,
+ist aber ein weißlicher Knollen mit langen hängenden Stacheln — genau so
+steht er jetzt auf der Karte. „Affenkopfpilz" und „Löwenmähne" werden als
+Namen dafür erkannt.
+
 Auch behoben: Im Profil zählten „Steinpilz" und „steinpilz" als zwei
 verschiedene Arten und standen getrennt untereinander.
 

@@ -108,6 +108,12 @@ void main() {
         'Semmelstoppelpilz',
         'Habichtspilz',
         'Ziegenbart',
+        // Stand bis 1.37.0 bei den Baumpilzen und war eine orange Konsole.
+        // Er wächst zwar an Holz, hat aber weder Hut noch Konsolenform —
+        // ein Stachelpilz mit hängenden Nadeln.
+        'Igelstachelbart',
+        'Löwenmähne',
+        'Affenkopfpilz',
       ]) {
         expect(groupFor(name), SpeciesGroup.stachelpilze, reason: name);
       }

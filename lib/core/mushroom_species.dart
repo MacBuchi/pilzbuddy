@@ -135,7 +135,6 @@ const kBekannteArten = <KnownSpecies>[
   KnownSpecies('Lungenseitling', _bau),
   KnownSpecies('Schwefelporling', _bau),
   KnownSpecies('Leberpilz', _bau),
-  KnownSpecies('Igelstachelbart', _bau),
   KnownSpecies('Judasohr', _bau),
   // Stachel- & Korallenpilze (keine Lamellen, kein Hut-Stiel-Bau)
   KnownSpecies('Krause Glucke', _sta),
@@ -143,6 +142,9 @@ const kBekannteArten = <KnownSpecies>[
   KnownSpecies('Semmelstoppelpilz', _sta),
   KnownSpecies('Habichtspilz', _sta),
   KnownSpecies('Ziegenbart', _sta),
+  KnownSpecies('Igelstachelbart', _sta),
+  KnownSpecies('Affenkopfpilz', _sta, sameAs: 'Igelstachelbart'),
+  KnownSpecies('Löwenmähne', _sta, sameAs: 'Igelstachelbart'),
   // Sonstige Lamellenpilze & Spezialisten
   KnownSpecies('Stockschwämmchen', _son),
   KnownSpecies('Maipilz', _son),

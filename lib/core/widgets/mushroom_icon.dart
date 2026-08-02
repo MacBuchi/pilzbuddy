@@ -94,6 +94,7 @@ enum _CapShape {
   toothed, // Semmelstoppelpilz: welliger Hut mit Stoppeln darunter
   ruffle, // Krause Glucke: krauser Wulst, ohne Stiel
   coral, // Ziegenbart: verzweigte Äste auf gemeinsamem Fuß, ohne Stiel
+  beard, // Igelstachelbart: weißer Knollen mit hängenden Stacheln, ohne Stiel
 }
 
 /// Stielzeichnung der Hexenröhrlinge — in echt das Merkmal, an dem man die
@@ -147,7 +148,10 @@ class _MushroomPainter extends CustomPainter {
   /// damit auch „Echter Pfifferling" oder „Kiefernreizker" greifen.
   static _Style? _speciesStyleFor(String? name) {
     if (name == null) return null;
-    final key = name.toLowerCase();
+    // Erst auf die Hauptbezeichnung bringen: dann erbt jeder Zweitname den
+    // Look seiner Art, ohne dass er hier eigens auftauchen muss. „Marone"
+    // kommt als „Maronenröhrling" an, „Löwenmähne" als „Igelstachelbart".
+    final key = (canonicalSpecies(name) ?? name).toLowerCase();
     if (key.contains('pfifferling')) {
       // Dottergelber Trichter, Hut und Stiel gehen ineinander über.
       return const _Style(_CapShape.chanterelle,
@@ -222,6 +226,12 @@ class _MushroomPainter extends CustomPainter {
       return const _Style(_CapShape.ruffle,
           [Color(0xFFEBD9A8), Color(0xFFE0C88F), Color(0xFFF0E3BC)],
           folds: true);
+    }
+    if (key.contains('stachelbart')) {
+      // Igelstachelbart: weißlicher Knollen mit Mähne. Als Baumpilz war er
+      // eine orange Konsole — er hat aber weder Hut noch Konsolenform.
+      return const _Style(_CapShape.beard,
+          [Color(0xFFF7F1E3), Color(0xFFF0E8D6), Color(0xFFFBF6EA)]);
     }
     if (key.contains('ziegenbart')) {
       // Ziegenbart: aufrechte Äste auf gemeinsamem Fuß, ockergelb.
@@ -510,6 +520,29 @@ class _MushroomPainter extends CustomPainter {
             ..close();
         }
         faceY = 0.76;
+      case _CapShape.beard:
+        // Igelstachelbart: knolliger, weißlicher Körper, dessen Unterseite
+        // dicht mit herabhängenden Stacheln besetzt ist — in der Mitte am
+        // längsten, wie bei einer Mähne. Kein Stiel; er sitzt am Totholz.
+        // Die Stacheln stecken im Pfad selbst, damit Halo und Kontur sie
+        // mitnehmen (dasselbe Vorgehen wie beim Semmelstoppelpilz).
+        stemPath = Path();
+        cap
+          ..moveTo(u(0.12), u(0.50))
+          ..cubicTo(u(0.08), u(0.12), u(0.92), u(0.12), u(0.88), u(0.50));
+        const spikes = 9;
+        for (var i = 2 * spikes; i >= 0; i--) {
+          final t = i / (2 * spikes);
+          // Die Kerben bleiben flach (0.58): der Knollen soll geschlossen
+          // wirken und die Nadeln daran hängen. Schnitten sie bis in den
+          // Körper, läse sich das Ganze als Zackenkragen.
+          // Außen kurz, zur Mitte hin lang — wie eine Mähne.
+          final drop = 0.08 + 0.16 * (1 - (2 * t - 1).abs());
+          cap.lineTo(
+              u(0.12 + t * 0.76), u(i.isEven ? 0.58 : 0.58 + drop));
+        }
+        cap.close();
+        faceY = 0.34;
       case _CapShape.ball:
         // Bovist: große Kugel, Mini-Fuß, Gesicht auf der Kugel
         stemPath = Path()
