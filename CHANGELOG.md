@@ -7,6 +7,19 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Zwei Kleinigkeiten aus dem Wald
+
+*2. August 2026 · Version 1.33.1*
+
+- Beim Anlegen eines **neuen** Spots ist das Artenfeld jetzt leer, statt die
+  zuletzt gemeldete Art vorzuschlagen. Die musste man vorher jedes Mal
+  löschen, wenn der nächste Fund eine andere Art war. Deine eigenen Arten
+  stehen weiter als Knöpfe darüber — ein Tipp statt Tippen. Beim
+  **Wiederbesuch** bleibt die Art des Spots wie bisher vorbelegt.
+- Der Umschalter zwischen Online- und Offline-Karte merkt sich deine Wahl
+  über den Neustart hinweg. Vorher stand die App nach jedem Start wieder auf
+  Online — ausgerechnet dort, wo man sie bewusst umgestellt hatte.
+
 ## Versionshistorie in der App
 
 *2. August 2026 · Version 1.33.0*

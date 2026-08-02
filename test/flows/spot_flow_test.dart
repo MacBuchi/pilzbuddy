@@ -71,8 +71,10 @@ void main() {
     await drainSnackbars(tester);
   });
 
-  testWidgets('Zuletzt benutzte Art ist beim nächsten Spot vorbelegt',
-      (tester) async {
+  testWidgets('Neuer Spot startet ohne vorbelegte Art (#155)', (tester) async {
+    // Umgekehrt zur früheren Erwartung: Bis 1.33.0 stand die zuletzt
+    // gemeldete Art schon im Feld und musste gelöscht werden, wenn der
+    // nächste Fund eine andere Art war — der Normalfall.
     final (backend, me) = loggedInBackend();
     backend.addSpot(
         ownerId: me.id,
@@ -83,7 +85,13 @@ void main() {
     await tester.tap(find.text('Neuer Spot'));
     await settle(tester);
 
-    expect(find.widgetWithText(TextField, 'Pfifferling'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Pfifferling'), findsNothing);
+    final field = tester.widget<TextField>(
+        find.widgetWithText(TextField, 'Pilzart (optional)'));
+    expect(field.controller?.text, isEmpty);
+
+    // Als Vorschlag bleibt die eigene Art erreichbar — ein Tipp statt
+    // Löschen plus Tippen.
     expect(find.widgetWithText(ChoiceChip, 'Pfifferling'), findsOneWidget);
   });
 

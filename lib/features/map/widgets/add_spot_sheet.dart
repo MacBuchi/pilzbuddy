@@ -23,8 +23,14 @@ class NewSpotData {
 }
 
 /// Bottom-Sheet zum schnellen Anlegen eines Spots. Alle Felder optional,
-/// Datum ist mit heute vorbelegt, Pilzart mit der zuletzt benutzten Art —
-/// Fadenkreuz platzieren + „Speichern" reicht.
+/// Datum ist mit heute vorbelegt — Fadenkreuz platzieren + „Speichern"
+/// reicht.
+///
+/// `defaultSpecies` bleibt bewusst leer, wo nichts über die Art bekannt
+/// ist: Ein neuer Spot ist meist eine andere Art als der zuletzt gemeldete,
+/// und eine falsche Vorbelegung muss jedes Mal gelöscht werden (Issue
+/// #155). Gesetzt wird sie nur, wenn die Art aus dem Punktnamen eines
+/// Imports hervorgeht.
 Future<NewSpotData?> showAddSpotSheet(
   BuildContext context,
   LatLng position, {

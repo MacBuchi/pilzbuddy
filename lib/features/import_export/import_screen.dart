@@ -76,9 +76,10 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
       LatLng(waypoint.lat, waypoint.lng),
       ownSpecies: ownSpecies,
       // Steht die Art im Punktnamen („Edelreizker Spechbach"), ist sie
-      // schon vorausgewählt — sonst wie üblich die zuletzt benutzte.
-      defaultSpecies:
-          speciesFromText(waypoint.name) ?? ownSpecies.firstOrNull,
+      // schon vorausgewählt — sonst bleibt das Feld leer. Die zuletzt
+      // benutzte Art wäre hier dieselbe falsche Annahme wie beim Anlegen
+      // auf der Karte (Issue #155).
+      defaultSpecies: speciesFromText(waypoint.name),
       initialName: waypoint.name,
       initialFoundOn: waypoint.time,
     );

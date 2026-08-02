@@ -215,11 +215,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
   Future<void> _addSpotAtCrosshair() async {
     final center = _mapController.camera.center;
     final ownSpecies = ref.read(ownSpeciesProvider);
+    // Ohne `defaultSpecies`: Ein neuer Spot ist meist eine andere Art als
+    // der letzte, und die Vorbelegung musste erst gelöscht werden
+    // (Issue #155). Beim Wiederbesuch bleibt sie — dort ist die Art des
+    // Spots die richtige Annahme (add_find_sheet.dart).
     final data = await showAddSpotSheet(
       context,
       center,
       ownSpecies: ownSpecies,
-      defaultSpecies: ownSpecies.firstOrNull,
     );
     if (data == null) return;
     try {
@@ -534,9 +537,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
             FloatingActionButton.small(
               heroTag: 'offline',
               onPressed: () {
-                final enabled = ref.read(offlineMapEnabledProvider.notifier);
-                enabled.state = !enabled.state;
-                _showMessage(enabled.state
+                ref.read(offlineMapEnabledProvider.notifier).toggle();
+                _showMessage(ref.read(offlineMapEnabledProvider)
                     ? 'Offline-Karte aktiv 🗺️'
                     : 'Online-Karte aktiv');
               },

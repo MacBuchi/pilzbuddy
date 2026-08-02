@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:pilzbuddy/app.dart';
 import 'package:pilzbuddy/core/app_info.dart';
+import 'package:pilzbuddy/core/settings.dart';
 import 'package:pilzbuddy/core/update_check.dart';
 import 'package:pilzbuddy/data/providers.dart';
 import 'package:pilzbuddy/features/map/live_share_providers.dart';
@@ -24,6 +25,7 @@ import 'package:pilzbuddy/features/offline_maps/offline_map_providers.dart';
 import 'fake_backend.dart';
 import 'fake_keep_alive.dart';
 import 'fake_offline_maps.dart';
+import 'fake_settings.dart';
 
 /// 1×1 transparentes PNG als Offline-Kartenkachel.
 final Uint8List kTransparentTile = Uint8List.fromList(const [
@@ -64,8 +66,10 @@ List<Override> overridesFor(FakeBackend backend,
         FakeAppConfigRepository? appConfig,
         String appVersion = '1.0.0',
         Position? position,
+        Settings? settings,
         List<Override> extra = const []}) =>
     [
+      settingsProvider.overrideWithValue(settings ?? FakeSettings()),
       positionStreamProvider.overrideWith((ref) => Stream.value(position)),
       offlineMapRepositoryProvider
           .overrideWithValue(offlineMaps ?? FakeOfflineMapRepository()),
@@ -118,6 +122,7 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
     FakeAppConfigRepository? appConfig,
     String appVersion = '1.0.0',
     Position? position,
+    Settings? settings,
     List<Override> extraOverrides = const []}) async {
   addTearDown(backend.dispose);
   await tester.pumpWidget(ProviderScope(
@@ -128,6 +133,7 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
         appConfig: appConfig,
         appVersion: appVersion,
         position: position,
+        settings: settings,
         extra: extraOverrides),
     child: const PilzBuddyApp(),
   ));
