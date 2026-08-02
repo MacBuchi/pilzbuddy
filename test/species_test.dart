@@ -9,10 +9,15 @@ void main() {
     test('findet Arten in echten Punktnamen aus Karten-Apps', () {
       expect(speciesFromText('Edelreizker Spechbach'), 'Edelreizker');
       expect(speciesFromText('Steinpilz am Windrad'), 'Steinpilz');
-      expect(speciesFromText('Wo du hin guckst, totentrompeten'),
-          'Totentrompete');
-      expect(speciesFromText('6 Maronenbäume'), 'Marone');
       expect(speciesFromText('Austernseitling am Stamm'), 'Austernseitling');
+    });
+
+    test('ein Zweitname im Punktnamen liefert die Hauptbezeichnung', () {
+      // Der Import legt daraus einen Fund an; stünde hier der Zweitname,
+      // käme er als eigene Art in die Datenbank.
+      expect(speciesFromText('Wo du hin guckst, totentrompeten'),
+          'Herbsttrompete');
+      expect(speciesFromText('6 Maronenbäume'), 'Maronenröhrling');
     });
 
     test('längster Treffer gewinnt, kein Treffer bleibt null', () {
@@ -41,7 +46,9 @@ void main() {
 
     test('dedupliziert case-insensitiv über beide Listen', () {
       final result = suggestSpecies('stein', ['steinpilz'], builtin);
-      expect(result.map((s) => s.name), ['steinpilz']);
+      // Ein Eintrag statt zwei — und in der Schreibweise der Artenliste,
+      // weil genau die gespeichert wird.
+      expect(result.map((s) => s.name), ['Steinpilz']);
     });
 
     test('Gruppen werden zugeordnet — auch für eigene Arten', () {
@@ -108,6 +115,56 @@ void main() {
     });
   });
 
+  group('Zweitnamen (sameAs)', () {
+    test('jedes sameAs zeigt auf einen Eintrag, der selbst keines hat', () {
+      final byName = {
+        for (final s in kBekannteArten) s.name.toLowerCase(): s,
+      };
+      for (final s in kBekannteArten.where((s) => s.isSynonym)) {
+        final target = byName[s.sameAs!.toLowerCase()];
+        expect(target, isNotNull,
+            reason: '${s.name}: „${s.sameAs}" steht nicht in der Liste');
+        // Keine Ketten: Sonst hinge das Ergebnis davon ab, wie oft
+        // aufgelöst wird, und damit von der Reihenfolge der Liste.
+        expect(target!.sameAs, isNull,
+            reason: '${s.name} → ${target.name} → ${target.sameAs}');
+      }
+    });
+
+    test('ein Zweitname erbt die Gruppe seiner Hauptbezeichnung', () {
+      for (final s in kBekannteArten.where((s) => s.isSynonym)) {
+        expect(groupFor(s.name), groupFor(s.sameAs), reason: s.name);
+      }
+    });
+
+    test('canonicalSpecies löst auf, zieht Schreibweise nach, lässt Eigenes', () {
+      expect(canonicalSpecies('Totentrompete'), 'Herbsttrompete');
+      expect(canonicalSpecies('  totentrompete '), 'Herbsttrompete');
+      expect(canonicalSpecies('Herbsttrompete'), 'Herbsttrompete');
+      expect(canonicalSpecies('steinpilz'), 'Steinpilz');
+      // Eigene Arten sind Freitext und werden nicht umbenannt.
+      expect(canonicalSpecies('Geheimpilz'), 'Geheimpilz');
+      expect(canonicalSpecies('  '), isNull);
+      expect(canonicalSpecies(null), isNull);
+    });
+
+    test('synonymsOf nimmt beide Richtungen entgegen', () {
+      expect(synonymsOf('Herbsttrompete'), ['Totentrompete']);
+      expect(synonymsOf('Totentrompete'), ['Totentrompete']);
+      expect(synonymsOf('Steinpilz'), ['Herrenpilz', 'Fichtensteinpilz']);
+      expect(synonymsOf('Pfifferling'), isEmpty);
+      expect(synonymsOf('Geheimpilz'), isEmpty);
+    });
+
+    test('Braunkappe ist der Riesenträuschling, nicht die Marone', () {
+      // Sie stand bis 1.37.0 bei den Röhrlingen und bekam den Maronen-Hut.
+      expect(canonicalSpecies('Braunkappe'), 'Riesenträuschling');
+      expect(groupFor('Braunkappe'), SpeciesGroup.sonstige);
+      expect(canonicalSpecies('Marone'), 'Maronenröhrling');
+      expect(groupFor('Marone'), SpeciesGroup.roehrlinge);
+    });
+  });
+
   group('Avatar-Katalog', () {
     test('wächst nur am Ende — bestehende Indizes bleiben, wo sie sind', () {
       // Der gewählte Index steht in `profiles.avatar`. Ein Eintrag, der
@@ -126,7 +183,9 @@ void main() {
     test('dedupliziert case-insensitiv und behält Reihenfolge', () {
       final result = ownSpeciesFromSortedNames(
           ['Marone', 'steinpilz', null, 'Steinpilz', '  ', 'Pfifferling']);
-      expect(result, ['Marone', 'steinpilz', 'Pfifferling']);
+      // Auf die Hauptbezeichnung gebracht: sonst stünden „Marone" und
+      // „Maronenröhrling" als zwei Vorschläge nebeneinander.
+      expect(result, ['Maronenröhrling', 'Steinpilz', 'Pfifferling']);
     });
   });
 

@@ -13,6 +13,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/app_distribution.dart';
 import '../../core/app_info.dart';
 import '../../core/errors.dart';
+import '../../core/mushroom_species.dart';
 import '../../core/update_check.dart';
 import '../../core/widgets/form_notice.dart';
 import '../../core/widgets/mushroom_avatar.dart';
@@ -777,6 +778,32 @@ class _FindsPerYearChart extends StatelessWidget {
   }
 }
 
+/// Häufigste Arten über alle Funde, mit Stückzahl — anders als
+/// `speciesTally` (Karte) zählt das die Funde selbst, nicht die Fundstellen.
+///
+/// Zusammengefasst wird über die Hauptbezeichnung. Bis 1.37.0 steckte das im
+/// Widget und gruppierte über den rohen String: „steinpilz" und „Steinpilz"
+/// standen getrennt untereinander, Zweitnamen sowieso.
+List<({String name, int count})> topSpecies(List<Find> finds) {
+  final counts = <String, int>{};
+  final labels = <String, String>{};
+  for (final f in finds) {
+    final name = canonicalSpecies(f.species);
+    if (name == null) continue;
+    final key = name.toLowerCase();
+    counts[key] = (counts[key] ?? 0) + (f.count ?? 1);
+    labels[key] ??= name;
+  }
+  final top = [
+    for (final e in counts.entries) (name: labels[e.key]!, count: e.value),
+  ];
+  top.sort((a, b) {
+    final byCount = b.count.compareTo(a.count);
+    return byCount != 0 ? byCount : a.name.compareTo(b.name);
+  });
+  return top;
+}
+
 class _TopSpecies extends StatelessWidget {
   const _TopSpecies({required this.finds});
 
@@ -784,15 +811,8 @@ class _TopSpecies extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bySpecies = <String, int>{};
-    for (final f in finds) {
-      final species = f.species;
-      if (species == null || species.isEmpty) continue;
-      bySpecies[species] = (bySpecies[species] ?? 0) + (f.count ?? 1);
-    }
-    if (bySpecies.isEmpty) return const SizedBox.shrink();
-    final top = bySpecies.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
+    final top = topSpecies(finds);
+    if (top.isEmpty) return const SizedBox.shrink();
 
     return Card(
       child: Padding(
@@ -807,10 +827,10 @@ class _TopSpecies extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Row(
                   children: [
-                    MushroomIcon.forSpecies(entry.key, size: 24),
+                    MushroomIcon.forSpecies(entry.name, size: 24),
                     const SizedBox(width: 6),
-                    Expanded(child: Text(entry.key)),
-                    Text('${entry.value}×',
+                    Expanded(child: Text(entry.name)),
+                    Text('${entry.count}×',
                         style: Theme.of(context).textTheme.titleSmall),
                   ],
                 ),

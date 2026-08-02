@@ -68,6 +68,59 @@ void main() {
     expect(backend.spots.single.lat, closeTo(51.1634, 0.01));
     expect(find.text('Spot gespeichert 🍄'), findsOneWidget);
     expect(find.byType(MushroomIcon), findsOneWidget);
+  });
+
+  testWidgets('Ein Zweitname landet als Hauptbezeichnung — und sagt es',
+      (tester) async {
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend);
+
+    await tester.tap(find.text('Neuer Spot'));
+    await settle(tester);
+
+    // „Herrenpilz" ist der Steinpilz. Der Vorschlag zeigt die
+    // Hauptbezeichnung und nennt den getippten Namen als Grund.
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Pilzart (optional)'), 'Herrenpilz');
+    await settle(tester, frames: 4);
+    expect(find.widgetWithText(ListTile, 'Steinpilz'), findsOneWidget);
+    expect(find.text('auch: Herrenpilz'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(ListTile, 'Steinpilz').first);
+    await settle(tester, frames: 4);
+
+    // Nach der Auswahl steht im Feld „Steinpilz" — ohne die Zeile darunter
+    // sähe das aus, als hätte die App die Eingabe verschluckt.
+    expect(find.text('auch: Herrenpilz, Fichtensteinpilz'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Speichern'));
+    await tester.tap(find.text('Speichern'));
+    await settle(tester);
+
+    expect(backend.spots.single.finds.single.species, 'Steinpilz');
+    await drainSnackbars(tester);
+  });
+
+  testWidgets('Auch frei getippt wird der Zweitname zur Hauptbezeichnung',
+      (tester) async {
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend);
+
+    await tester.tap(find.text('Neuer Spot'));
+    await settle(tester);
+
+    // Ohne den Vorschlag anzutippen: eintippen und direkt speichern. Wer
+    // den Namen kennt, tut genau das — dann muss die Umsetzung auf die
+    // Hauptbezeichnung beim Schreiben greifen, nicht erst bei der Auswahl.
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Pilzart (optional)'), 'Totentrompete');
+    await settle(tester, frames: 4);
+
+    await tester.ensureVisible(find.text('Speichern'));
+    await tester.tap(find.text('Speichern'), warnIfMissed: false);
+    await settle(tester);
+
+    expect(backend.spots.single.finds.single.species, 'Herbsttrompete');
     await drainSnackbars(tester);
   });
 

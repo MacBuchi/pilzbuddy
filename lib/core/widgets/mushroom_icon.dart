@@ -172,8 +172,10 @@ class _MushroomPainter extends CustomPainter {
       return _Style(_CapShape.flat, [cap],
           rings: true, stemColor: const Color(0xFFF8CBA4));
     }
-    if (key.contains('marone') || key.contains('braunkappe')) {
-      // Marone/Braunkappe: kastanienbrauner Hut, gelbliche Röhren/Stiel.
+    if (key.contains('marone')) {
+      // Marone: kastanienbrauner Hut, gelbliche Röhren/Stiel.
+      // „Braunkappe" gehörte früher hierher; sie ist der Riesenträuschling
+      // und darf deshalb keinen Röhrlings-Hut mehr bekommen.
       return const _Style(_CapShape.dome,
           [Color(0xFF6B4423), Color(0xFF5D3A21)],
           stemColor: Color(0xFFF5EDCB));

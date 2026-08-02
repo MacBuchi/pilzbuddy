@@ -84,6 +84,7 @@ class _SpeciesFieldState extends State<SpeciesField> {
         : const <SpeciesSuggestion>[];
     final onlyExactMatch = suggestions.length == 1 &&
         suggestions.first.name.toLowerCase() == current;
+    final synonyms = synonymsOf(widget.controller.text);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -125,6 +126,19 @@ class _SpeciesFieldState extends State<SpeciesField> {
                   ),
           ),
         ),
+        // Zweitnamen der gewählten Art. Wer „Totentrompete" tippt, findet
+        // hier wieder, dass er richtig lag — im Feld steht ab der Auswahl
+        // „Herbsttrompete", und ohne diese Zeile sähe das nach einem
+        // verschluckten Eintrag aus. Nur zeigen, wenn die Vorschlagsliste
+        // zu ist: dort steht der Hinweis schon am Treffer selbst.
+        if (synonyms.isNotEmpty && (suggestions.isEmpty || onlyExactMatch))
+          Padding(
+            padding: const EdgeInsets.only(top: 4, left: 12),
+            child: Text(
+              'auch: ${synonyms.join(', ')}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
         if (suggestions.isNotEmpty && !onlyExactMatch)
           Card(
             margin: const EdgeInsets.only(top: 4),
@@ -143,6 +157,9 @@ class _SpeciesFieldState extends State<SpeciesField> {
                       leading: Text(s.isOwn ? '🍄' : '📖',
                           style: const TextStyle(fontSize: 16)),
                       title: Text(s.name),
+                      subtitle: s.matchedSynonym == null
+                          ? null
+                          : Text('auch: ${s.matchedSynonym}'),
                       trailing: s.group == null ? null : _groupBadge(s.group!),
                     ),
                   ),

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/mushroom_species.dart';
 import '../../models/spot.dart';
 import '../spots/spot_providers.dart';
 
@@ -50,12 +51,17 @@ final spotFilterProvider =
 /// mit einem solchen Fund — auch die, an der zuletzt etwas anderes stand.
 /// (Das Marker-Bild zeigt weiterhin den letzten Fund; die beiden Fragen
 /// sind verschieden.)
+/// Verglichen wird über die Hauptbezeichnung: Ein Spot, der vor der
+/// Vereinheitlichung als „Totentrompete" angelegt wurde, gehört zur
+/// „Herbsttrompete" — sonst wäre er unauffindbar, obwohl er dieselbe Art
+/// meint.
 bool matchesSpotFilter(Spot spot, SpotFilter filter) {
   if (filter.onlyMine && !spot.isOwn) return false;
   final species = filter.species;
   if (species == null) return true;
-  final wanted = species.toLowerCase();
-  return spot.finds.any((f) => f.species?.toLowerCase() == wanted);
+  final wanted = canonicalSpecies(species)?.toLowerCase();
+  return spot.finds
+      .any((f) => canonicalSpecies(f.species)?.toLowerCase() == wanted);
 }
 
 List<Spot> applySpotFilter(List<Spot> spots, SpotFilter filter) =>
@@ -67,14 +73,19 @@ typedef SpeciesTally = ({String name, int spots});
 /// Arten der übergebenen Spots, häufigste zuerst, bei Gleichstand
 /// alphabetisch. Ein Spot zählt je Art nur einmal, egal wie oft dort
 /// gefunden wurde — gezählt werden Fundstellen, nicht Funde.
+///
+/// Zusammengefasst wird über die Hauptbezeichnung, damit ältere Funde unter
+/// einem Zweitnamen nicht als eigene Art danebenstehen. Eigene Arten der
+/// Nutzer bleiben, wie sie getippt wurden; bei mehreren Schreibweisen
+/// gewinnt die erste.
 List<SpeciesTally> speciesTally(List<Spot> spots) {
   final counts = <String, int>{};
   final labels = <String, String>{};
   for (final spot in spots) {
     final seen = <String>{};
     for (final find in spot.finds) {
-      final name = find.species?.trim();
-      if (name == null || name.isEmpty) continue;
+      final name = canonicalSpecies(find.species);
+      if (name == null) continue;
       final key = name.toLowerCase();
       if (!seen.add(key)) continue;
       counts[key] = (counts[key] ?? 0) + 1;
