@@ -104,7 +104,11 @@ Web-App auf GitHub Pages. Kein Bump = kein Release (der Version Guard warnt
 im PR daran zu denken).
 
 Die APK ist mit dem PilzBuddy-Release-Key signiert — Updates lassen sich
-direkt über die alte Version installieren. Keystore-Sicherung liegt außerhalb
+direkt über die alte Version installieren. Die App merkt selbst, wenn ein
+Release neuer ist als die installierte Version, lädt es auf Wunsch herunter
+und übergibt es dem System-Installer; der Browser-Download bleibt als
+Rückfallweg. Im Play-Build ist dieser ganze Pfad aus
+(`AppDistribution.showsUpdateHints`). Keystore-Sicherung liegt außerhalb
 des Repos (`~/pilzbuddy-keys/`); CI bezieht ihn aus den Repo-Secrets
 `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_PASSWORD`,
 `ANDROID_KEY_ALIAS`.

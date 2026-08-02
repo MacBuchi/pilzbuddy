@@ -15,6 +15,7 @@ import 'package:pilzbuddy/app.dart';
 import 'package:pilzbuddy/core/app_info.dart';
 import 'package:pilzbuddy/core/settings.dart';
 import 'package:pilzbuddy/core/update_check.dart';
+import 'package:pilzbuddy/data/apk_installer.dart';
 import 'package:pilzbuddy/data/providers.dart';
 import 'package:pilzbuddy/features/map/live_share_providers.dart';
 import 'package:pilzbuddy/features/map/map_screen.dart';
@@ -22,6 +23,7 @@ import 'package:pilzbuddy/features/map/position_provider.dart';
 import 'package:pilzbuddy/features/offline_maps/download_keep_alive.dart';
 import 'package:pilzbuddy/features/offline_maps/offline_map_providers.dart';
 
+import 'fake_apk_installer.dart';
 import 'fake_backend.dart';
 import 'fake_keep_alive.dart';
 import 'fake_offline_maps.dart';
@@ -67,9 +69,13 @@ List<Override> overridesFor(FakeBackend backend,
         String appVersion = '1.0.0',
         Position? position,
         Settings? settings,
+        FakeApkInstaller? apkInstaller,
         List<Override> extra = const []}) =>
     [
       settingsProvider.overrideWithValue(settings ?? FakeSettings()),
+      // Kein Method-Channel im Test: Der Update-Dialog würde sonst gegen
+      // Androids System-Installer laufen.
+      apkInstallerProvider.overrideWithValue(apkInstaller ?? FakeApkInstaller()),
       positionStreamProvider.overrideWith((ref) => Stream.value(position)),
       offlineMapRepositoryProvider
           .overrideWithValue(offlineMaps ?? FakeOfflineMapRepository()),
@@ -123,6 +129,7 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
     String appVersion = '1.0.0',
     Position? position,
     Settings? settings,
+    FakeApkInstaller? apkInstaller,
     List<Override> extraOverrides = const []}) async {
   addTearDown(backend.dispose);
   await tester.pumpWidget(ProviderScope(
@@ -134,6 +141,7 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
         appVersion: appVersion,
         position: position,
         settings: settings,
+        apkInstaller: apkInstaller,
         extra: extraOverrides),
     child: const PilzBuddyApp(),
   ));

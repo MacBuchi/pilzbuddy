@@ -2,8 +2,12 @@
 // echte CHANGELOG.md aus dem Asset-Bundle — fehlt der Eintrag in
 // pubspec.yaml, schlägt er fehl, statt die Lücke erst auf dem Gerät zu
 // zeigen.
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pilzbuddy/features/changelog/changelog_parser.dart';
+import 'package:pilzbuddy/features/changelog/changelog_screen.dart';
 
 import '../fakes/fake_backend.dart';
 import '../fakes/test_app.dart';
@@ -30,9 +34,12 @@ void main() {
     await tester.tap(find.text('Was ist neu'));
     await settle(tester, frames: 20);
 
-    // Der neueste Block steht oben und ist ohne Scrollen sichtbar.
-    expect(find.text('Versionshistorie in der App'), findsOneWidget);
-    expect(find.textContaining('Version 1.33.0'), findsOneWidget);
+    // Der neueste Block steht oben und ist ohne Scrollen sichtbar. Die
+    // Überschrift kommt aus der Datei statt fest im Test zu stehen — sonst
+    // bricht dieser Test bei jedem Release, das einen Block ergänzt.
+    final newest = parseChangelog(File(changelogAsset).readAsStringSync())
+        .firstWhere((line) => line.kind == ChangelogLineKind.section);
+    expect(find.text(newest.text), findsOneWidget);
 
     // Titel und Vorspann der Datei gehören nicht auf diesen Bildschirm —
     // sie erklären Lesern auf GitHub den Weg hierher.

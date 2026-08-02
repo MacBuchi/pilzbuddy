@@ -86,7 +86,7 @@ schickt nur den Anlass und liest den Code, den der Nutzer abtippt.
 
 ### Berechtigungen im Build
 
-Die gebaute APK deklariert **acht** Android-Berechtigungen (plus die
+Die gebaute APK deklariert **neun** Android-Berechtigungen (plus die
 app-eigene `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`, die Android selbst
 erzeugt). Nachprüfbar mit:
 
@@ -104,12 +104,36 @@ aapt2 dump badging build/app/outputs/flutter-apk/app-release.apk | grep uses-per
 | `POST_NOTIFICATIONS` | Fortschrittsmeldung des Downloads | Manifest |
 | `ACCESS_NETWORK_STATE` | Verbindungsstatus (Auto-Offline) | `connectivity_plus` |
 | `WAKE_LOCK` | Download über den Bildschirm-Timeout hinaus | `flutter_foreground_task` |
+| `REQUEST_INSTALL_PACKAGES` | Update der GitHub-APK in der App | Manifest — **vor der Einreichung entfernen, siehe unten** |
 
 **Kein Hintergrund-Standort** (`ACCESS_BACKGROUND_LOCATION` fehlt bewusst),
 und `RECEIVE_BOOT_COMPLETED` wird per `tools:node="remove"` wieder
 **entfernt** — `flutter_foreground_task` bringt es für einen Autostart mit,
 den die App nicht nutzt. `test/android_manifest_test.dart` wacht darüber,
-dass keine Installations-Berechtigungen zurückkommen (Lehre aus #88).
+dass `INSTALL_PACKAGES` und die Speicher-Berechtigungen nicht
+zurückkommen (Lehre aus #88).
+
+#### Offener Punkt: `REQUEST_INSTALL_PACKAGES` gehört nicht ins AAB
+
+Der In-App-Updater ist seit #161 wieder da, weil der Browser-Umweg im Alltag
+zu umständlich war — er betrifft aber ausschließlich die **GitHub-APK**.
+Play verbietet Selbst-Updates („Device and Network Abuse").
+
+Der Dart-Pfad ist im Play-Build bereits vollständig aus
+(`AppDistribution.showsUpdateHints`, gesetzt über
+`--dart-define=PLAY_BUILD=true`): kein Update-Check, kein Banner, kein
+Dialog. **Die Manifest-Zeile bleibt davon aber unberührt** und läge im
+hochgeladenen AAB — Play fragt danach, und eine Berechtigung ohne
+zugehörige Funktion ist die schlechtestmögliche Antwort.
+
+Zu erledigen, bevor ein AAB hochgeladen wird: Produkt-Flavors
+(`github`/`play`) in `android/app/build.gradle.kts` anlegen und im
+Play-Manifest (`android/app/src/play/AndroidManifest.xml`) die Zeile per
+`tools:node="remove"` entfernen — dasselbe Muster wie bei
+`RECEIVE_BOOT_COMPLETED`. Der Release-Workflow braucht dann `--flavor play`
+beim AAB- und `--flavor github` beim APK-Bau. Bewusst nicht sofort gemacht:
+Die Play-Strecke ist zurückgestellt (#92), und Flutter-Flavors greifen in
+jeden Build-Aufruf ein.
 
 ### Prominent Disclosure für den Standort
 

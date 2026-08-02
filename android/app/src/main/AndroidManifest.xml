@@ -14,6 +14,18 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- Update der GitHub-APK in der App laden und dem System-Installer
+         übergeben (Issue #88 hatte das entfernt, #161 baut es ohne
+         `ota_update` neu auf). Bewusst NUR diese eine: INSTALL_PACKAGES
+         (Signatur-Berechtigung) und READ/WRITE_EXTERNAL_STORAGE brachte
+         allein das Manifest jenes Pakets mit.
+
+         ACHTUNG Play: Selbst-Updates verstoßen gegen „Device and Network
+         Abuse". Der Update-Pfad ist im Play-Build über
+         AppDistribution.showsUpdateHints komplett aus, diese Zeile bliebe im
+         AAB aber stehen. Vor einer Play-Einreichung muss sie raus — per
+         Produkt-Flavor mit eigenem Manifest. Siehe docs/play-console.md. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
     <application
         android:label="PilzBuddy"
         android:name="${applicationName}"
@@ -48,6 +60,21 @@
             android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
             android:foregroundServiceType="dataSync"
             android:exported="false"/>
+        <!-- Reicht die geladene APK an den System-Installer heraus. Ab
+             Android 7 ist eine `file://`-URI dafür verboten; der Installer
+             läuft in einem fremden Prozess und bekommt die Datei über eine
+             content-URI mit erteilter Leseerlaubnis.
+             `exported="false"`: Nur wer die Erlaubnis erteilt bekommt, darf
+             lesen — die Datei ist nicht für Dritte offen. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths"/>
+        </provider>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
