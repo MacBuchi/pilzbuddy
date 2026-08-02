@@ -45,6 +45,34 @@ requested species by keyword, and a keyword cannot know what is under the cap:
 
 Bot output is a starting point, not a decision. Check every species it files.
 
+## Verify every name against German Wikipedia
+
+Not just the shape — the **names** too. Before adding a species or a `sameAs`
+second name, open the German Wikipedia article and read the lead: the trivial
+names are listed there, and it also tells you when a name is shared by two
+species.
+
+**If the article does not corroborate the name, drop it.** A wrong synonym
+merges two species permanently — in the filter, in the tally, in the
+statistics, and for every spot already logged. A missing one merely misses.
+
+Real outcomes of doing this (1.37.0):
+
+- `Grünreizker` → Grünling: **dropped.** No Wikipedia entry at all, and the
+  Grünling article does not know the name. „Reizker" otherwise always means a
+  *Lactarius*, so the name may well point somewhere else entirely.
+- `Stockschwamm` → Stockschwämmchen: **dropped.** Not corroborated for
+  *Kuehneromyces*. It had already been added on a hunch — the check caught it.
+- `Braunkappe`: the article lists it for **both** Maronenröhrling and
+  Riesenträuschling. Genuinely ambiguous, so it is not a fact to look up but a
+  decision to put to the operator — which reading do they use?
+- `Winterrübling`: a redirect to Gemeiner Samtfußrübling. The species list had
+  carried both as separate entries all along.
+
+Names Wikipedia writes with a hyphen (`Butter-Röhrling`, `Mai-Ritterling`,
+`Fichten-Steinpilz`) go into the list unhyphenated — the file's own style, and
+`Maronenröhrling` sets the precedent.
+
 ## Character rules (never break these)
 
 1. **Always a friendly face.** Two round dark eyes (`#3E2723`) and an upward
