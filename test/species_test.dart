@@ -81,6 +81,15 @@ void main() {
       expect(groupFor(null), isNull);
       expect(groupFor('  '), isNull);
     });
+
+    test('Böhmische Verpel ist eine Lorchel, kein Lamellenpilz', () {
+      // Der Feedback-Bot ordnet nach Stichwort ein und kannte „Verpel" nicht;
+      // die Art landete deshalb in `sonstige` und bekam ein graues
+      // Lamellenpilz-Icon. Diese Zeile hält die Korrektur fest.
+      expect(groupFor('Böhmische Verpel'), SpeciesGroup.morcheln);
+      expect(groupFor('Morchelbecherling'), SpeciesGroup.morcheln);
+      expect(groupFor('Netzstieliger Hexenröhrling'), SpeciesGroup.roehrlinge);
+    });
   });
 
   group('ownSpeciesFromSortedNames', () {

@@ -7,6 +7,31 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Vier neue Pilzarten — und Hexenröhrlinge, die man unterscheidet
+
+*2. August 2026 · Version 1.36.0*
+
+Vier Arten, die ihr euch über das Rückmeldeformular gewünscht habt, stehen
+jetzt in der Vorschlagsliste: **Netzstieliger Hexenröhrling**,
+**Käppchenmorchel**, **Morchelbecherling** und **Böhmische Verpel**.
+
+Jede hat ein eigenes Kartensymbol bekommen, statt nur das ihrer Gruppe:
+
+- Die beiden **Hexenröhrlinge** sehen jetzt aus, wie sie im Wald aussehen —
+  olivbrauner Hut über roten Poren auf gelbem Stiel. Auseinanderhalten kann
+  man sie am Stiel: rotes Netz beim Netzstieligen, rote Flocken beim
+  Flockenstieligen. Vorher waren beide ein brauner Pilz wie jeder andere,
+  und der sah aus wie ein Steinpilz.
+- Der **Morchelbecherling** steht als offene Schale mit Adern auf der Karte,
+  nicht mehr als Morchelkegel.
+- **Käppchenmorchel** und **Böhmische Verpel** haben beide ihren kleinen Hut
+  auf dem langen blassen Stiel — die eine mit Waben, die andere mit
+  Längsrillen.
+
+Die Verpel lag außerdem in der falschen Schublade und wurde als grauer
+Lamellenpilz gezeichnet. Sie steht jetzt bei den Morcheln und Lorcheln, wo
+sie hingehört.
+
 ## Karte nach Pilzart filtern
 
 *2. August 2026 · Version 1.35.0*

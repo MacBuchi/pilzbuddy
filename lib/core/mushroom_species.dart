@@ -56,6 +56,7 @@ const kBekannteArten = <KnownSpecies>[
   KnownSpecies('Sandröhrling', _roe),
   KnownSpecies('Ziegenlippe', _roe),
   KnownSpecies('Flockenstieliger Hexenröhrling', _roe),
+  KnownSpecies('Netzstieliger Hexenröhrling', _roe), // via In-App-Wunsch
   KnownSpecies('Gallenröhrling', _roe),
   KnownSpecies('Satansröhrling', _roe),
   // Pfifferlingsartige (Leistlinge)
@@ -96,6 +97,9 @@ const kBekannteArten = <KnownSpecies>[
   KnownSpecies('Speisemorchel', _mor),
   KnownSpecies('Spitzmorchel', _mor),
   KnownSpecies('Frühjahrslorchel', _mor),
+  KnownSpecies('Käppchenmorchel', _mor), // via In-App-Wunsch
+  KnownSpecies('Morchelbecherling', _mor), // via In-App-Wunsch
+  KnownSpecies('Böhmische Verpel', _mor), // via In-App-Wunsch
   // Boviste & Stäublinge
   KnownSpecies('Riesenbovist', _bov),
   KnownSpecies('Flaschenstäubling', _bov),
@@ -128,10 +132,6 @@ const kBekannteArten = <KnownSpecies>[
   KnownSpecies('Ziegelroter Risspilz', _son),
   KnownSpecies('Grünling', _son),
   KnownSpecies('Violetter Lacktrichterling', _son), // via In-App-Wunsch
-  KnownSpecies('Netzstieliger Hexenröhrling', _roe), // via In-App-Wunsch
-  KnownSpecies('Käppchenmorchel', _mor), // via In-App-Wunsch
-  KnownSpecies('Morchelbecherling', _mor), // via In-App-Wunsch
-  KnownSpecies('Böhmische Verpel', _son), // via In-App-Wunsch
 ];
 
 /// Gruppe einer Art nachschlagen (case-insensitiv), z. B. um auch eigene
