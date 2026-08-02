@@ -18,6 +18,10 @@ Required environment: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, GH_TOKEN
 (the workflow provides these). Self-tests without any network access:
     python3 tool/feedback_bot.py --test-insert "Violetter Lacktrichterling"
     python3 tool/feedback_bot.py --test-digest
+
+Eine vergangene Woche nachträglich ansehen (liest nur, schreibt nichts —
+die Rohdaten liegen 90 Tage):
+    python3 tool/feedback_bot.py --digest-week 2026-W30
 """
 import json
 import os
@@ -127,6 +131,34 @@ def mark_processed(row_ids: list[str]) -> None:
 # service_role key is already here.
 ERROR_REPORT_RETENTION_DAYS = 90
 
+# Woran ein Frame im eigenen Code zu erkennen ist.
+APP_FRAME = "package:pilzbuddy/"
+
+
+def top_frame(stack: str | None) -> str | None:
+    """The one line of a stack trace worth putting in the digest.
+
+    Prefers the topmost frame inside our own code: a Dart stack almost
+    always starts in the framework, and `#0 List.reduce` says nothing about
+    which of our widgets got there. Without such a frame the topmost of any
+    kind will do — an ANR thread dump has no other kind.
+
+    Warum überhaupt: Bis hierhin zeigte der Digest nur Typ und Meldung. In
+    KW30 standen dort 61-mal `Infinity or NaN toInt` — eine Woche lang,
+    ohne dass jemand sagen konnte, aus welcher Datei. Der Stack lag die
+    ganze Zeit in der Tabelle.
+    """
+    if not stack:
+        return None
+    lines = [line.strip() for line in stack.splitlines() if line.strip()]
+    for line in lines:
+        if APP_FRAME in line:
+            return line[:200]
+    for line in lines:
+        if line.startswith("#") or " pc " in line:
+            return line[:200]
+    return None
+
 
 def digest_body(rows: list[dict], week: str) -> str:
     """Group error reports by (context, error_type) into an issue body.
@@ -138,6 +170,7 @@ def digest_body(rows: list[dict], week: str) -> str:
         key = (row.get("context") or "?", row.get("error_type") or "?")
         group = groups.setdefault(key, {
             "count": 0, "versions": set(), "platforms": set(), "example": "",
+            "frame": "",
         })
         group["count"] += 1
         if row.get("app_version"):
@@ -146,6 +179,13 @@ def digest_body(rows: list[dict], week: str) -> str:
             group["platforms"].add(row["platform"])
         if not group["example"] and row.get("message"):
             group["example"] = row["message"].strip().replace("\n", " ")[:200]
+        frame = top_frame(row.get("stack"))
+        # Ein Frame aus unserem Code sticht einen aus dem Framework, auch
+        # wenn er später kommt: Von zehn Zeilen derselben Gruppe trägt oft
+        # nur eine überhaupt einen Stack, der bis zu uns reicht.
+        if frame and (not group["frame"] or (APP_FRAME in frame
+                                             and APP_FRAME not in group["frame"])):
+            group["frame"] = frame
 
     ranked = sorted(groups.items(), key=lambda kv: -kv[1]["count"])
     lines = [
@@ -154,6 +194,12 @@ def digest_body(rows: list[dict], week: str) -> str:
         "These are errors the app **survived** — the user saw a snackbar and "
         "carried on. Android Vitals never sees them, and neither does anyone "
         "else unless it is written down here.",
+        "",
+        "Each group below shows its message and, where the stack reaches our "
+        "own code, the topmost frame in it. Rows stay in the table for "
+        f"{ERROR_REPORT_RETENTION_DAYS} days, so any past week can be "
+        "re-rendered from them: "
+        "`python3 tool/feedback_bot.py --digest-week " + week + "`.",
         "",
         "| # | Context | Type | Versions | Platforms |",
         "|--:|---|---|---|---|",
@@ -166,13 +212,55 @@ def digest_body(rows: list[dict], week: str) -> str:
         )
     lines.append("")
     for (context, error_type), group in ranked:
+        if not group["example"] and not group["frame"]:
+            continue
+        lines.append(f"**{context} · {error_type}**")
         if group["example"]:
-            lines.append(f"**{context} · {error_type}**")
             lines.append(f"> {group['example']}")
+        if group["frame"]:
             lines.append("")
+            lines.append(f"`{group['frame']}`")
+        lines.append("")
     lines.append("_Automatically created by the feedback bot; "
                  "updated in place while the week runs. Close when triaged._")
     return "\n".join(lines)
+
+
+# Formatted with a literal Z instead of isoformat(): the "+00:00" an aware
+# datetime produces would be read as a space in a query string.
+def _stamp(when: datetime) -> str:
+    return when.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def week_bounds(week: str) -> tuple[datetime, datetime]:
+    """Monday 00:00 UTC and the Monday after, for an ISO week label."""
+    match = re.fullmatch(r"(\d{4})-W(\d{1,2})", week)
+    if not match:
+        raise SystemExit(f"Not an ISO week label: {week} (expected 2026-W30)")
+    start = datetime.fromisocalendar(
+        int(match.group(1)), int(match.group(2)), 1).replace(tzinfo=timezone.utc)
+    return start, start + timedelta(days=7)
+
+
+def fetch_error_rows(start: datetime, end: datetime) -> list[dict]:
+    return api(
+        "GET",
+        f"/rest/v1/error_reports?created_at=gte.{_stamp(start)}"
+        f"&created_at=lt.{_stamp(end)}"
+        "&select=context,error_type,message,stack,app_version,platform,created_at"
+        "&order=created_at",
+    ) or []
+
+
+def print_past_digest(week: str) -> None:
+    """Render a past week to stdout. Reads only — touches no issue."""
+    start, end = week_bounds(week)
+    rows = fetch_error_rows(start, end)
+    if not rows:
+        print(f"No error reports in {week} "
+              f"(rows older than {ERROR_REPORT_RETENTION_DAYS} days are purged).")
+        return
+    print(digest_body(rows, week))
 
 
 def report_error_digest() -> None:
@@ -182,20 +270,9 @@ def report_error_digest() -> None:
     numbers instead of showing them. No errors means no issue — nothing to
     report is not worth an issue.
     """
-    now = datetime.now(timezone.utc)
-    year, week_no, _ = now.isocalendar()
+    year, week_no, _ = datetime.now(timezone.utc).isocalendar()
     week = f"{year}-W{week_no:02d}"
-    # Montag 00:00 UTC dieser ISO-Woche.
-    start = (now - timedelta(days=now.isoweekday() - 1)).replace(
-        hour=0, minute=0, second=0, microsecond=0)
-
-    rows = api(
-        "GET",
-        "/rest/v1/error_reports?created_at=gte."
-        + start.strftime("%Y-%m-%dT%H:%M:%SZ")
-        + "&select=context,error_type,message,app_version,platform,created_at"
-        "&order=created_at",
-    ) or []
+    rows = fetch_error_rows(*week_bounds(week))
     if not rows:
         print(f"No error reports in {week}.")
         return
@@ -222,12 +299,8 @@ def report_error_digest() -> None:
 
 
 def purge_error_reports() -> None:
-    # Formatted with a literal Z instead of isoformat(): the "+00:00" an
-    # aware datetime produces would be read as a space in a query string and
-    # the filter would silently not match what we mean.
-    cutoff = (datetime.now(timezone.utc)
-              - timedelta(days=ERROR_REPORT_RETENTION_DAYS)
-              ).strftime("%Y-%m-%dT%H:%M:%SZ")
+    cutoff = _stamp(datetime.now(timezone.utc)
+                    - timedelta(days=ERROR_REPORT_RETENTION_DAYS))
     # The filter is what keeps this from emptying the table.
     api("DELETE", f"/rest/v1/error_reports?created_at=lt.{cutoff}")
     print(f"Purged error reports older than {ERROR_REPORT_RETENTION_DAYS} days.")
@@ -359,12 +432,19 @@ def self_test(names: list[str]) -> None:
 
 def self_test_digest() -> None:
     """Grouping and body rendering without any network access."""
+    framework_stack = (
+        "#0      List.reduce (dart:core/list.dart:120:5)\n"
+        "#1      _Chart.build (package:flutter/src/widgets/framework.dart:12:3)")
+    app_stack = (
+        "#0      List.reduce (dart:core/list.dart:120:5)\n"
+        "#1      _FindsPerYearChart.build "
+        "(package:pilzbuddy/features/profile/profile_screen.dart:707:38)")
     rows = [
         {"context": "Spots laden", "error_type": "PostgrestException",
-         "message": "column spots.foo does not exist",
+         "message": "column spots.foo does not exist", "stack": framework_stack,
          "app_version": "1.26.4", "platform": "android"},
         {"context": "Spots laden", "error_type": "PostgrestException",
-         "message": "column spots.foo does not exist",
+         "message": "column spots.foo does not exist", "stack": app_stack,
          "app_version": "1.27.0", "platform": "web"},
         {"context": "Fund eintragen", "error_type": "SocketException",
          "message": "Failed host lookup", "app_version": "1.27.0",
@@ -377,6 +457,29 @@ def self_test_digest() -> None:
     assert body.index("Spots laden") < body.index("Fund eintragen"), body
     assert "1.26.4, 1.27.0" in body, body
     assert "android, web" in body, body
+    # Der Frame aus unserem Code gewinnt gegen den aus dem Framework, obwohl
+    # die Framework-Zeile zuerst kommt — daran hängt der ganze Nutzen.
+    assert "profile_screen.dart:707:38" in body, body
+    assert "framework.dart:12:3" not in body, body
+
+    # Ein ANR-Dump hat keinen Dart-Frame; dann ist der oberste native einer
+    # besser als gar keiner.
+    dump = ('"main" prio=5 tid=1 Native\n'
+            "  | state=R schedstat=( 43932117853 1289361403 181077 )\n"
+            "  native: #00 pc 00984478  base.apk (offset 9c0000)")
+    assert top_frame(dump) == "native: #00 pc 00984478  base.apk (offset 9c0000)"
+    # Kein Frame ist kein Frame — lieber nichts zeigen als eine beliebige
+    # Zeile, die nach einem aussieht.
+    assert top_frame("Error\n    at Object.wl (main.dart.js:1:2)") is None
+    assert top_frame(None) is None
+    assert top_frame("") is None
+
+    # Wochengrenzen: KW30 2026 beginnt Montag, den 20. Juli.
+    start, end = week_bounds("2026-W30")
+    assert (start.year, start.month, start.day) == (2026, 7, 20), start
+    assert (end - start).days == 7, (start, end)
+    assert _stamp(start) == "2026-07-20T00:00:00Z", _stamp(start)
+
     print(body)
     print("\nself-test passed (no network, nothing written)")
 
@@ -386,5 +489,7 @@ if __name__ == "__main__":
         self_test(sys.argv[2].split(","))
     elif len(sys.argv) > 1 and sys.argv[1] == "--test-digest":
         self_test_digest()
+    elif len(sys.argv) > 2 and sys.argv[1] == "--digest-week":
+        print_past_digest(sys.argv[2])
     else:
         main()

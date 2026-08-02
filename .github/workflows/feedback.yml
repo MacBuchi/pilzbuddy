@@ -6,6 +6,14 @@ on:
   schedule:
     - cron: "23 */2 * * *" # every two hours
   workflow_dispatch:
+    inputs:
+      digest_week:
+        # Der Schlüssel für error_reports ist ein Repo-Secret; ohne diesen
+        # Weg müsste man ihn von Hand exportieren, um in eine vergangene
+        # Woche zu sehen. Liest nur — kein Issue, keine Bereinigung.
+        description: "Render a past week's error digest into the run summary (e.g. 2026-W30) instead of the regular run"
+        required: false
+        type: string
 
 # Zwei überlappende Läufe würden dieselben unverarbeiteten Zeilen lesen.
 # Das `processed_at`-Stempeln pro Zeile fängt das heute ab — hier wird es
@@ -33,9 +41,17 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SUPABASE_URL: https://tntlujexvdtkynxbrdsn.supabase.co
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # Über die Umgebung statt direkt in die Zeile: eine Eingabe, die
+          # als Shell-Text eingesetzt wird, ist eine Einladung.
+          DIGEST_WEEK: ${{ inputs.digest_week }}
         run: |
           if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
             echo "::error::Repository secret SUPABASE_SERVICE_ROLE_KEY is missing."
             exit 1
+          fi
+          if [ -n "$DIGEST_WEEK" ]; then
+            python3 tool/feedback_bot.py --digest-week "$DIGEST_WEEK" \
+              | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
           fi
           python3 tool/feedback_bot.py
