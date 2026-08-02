@@ -293,6 +293,15 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   einzige Netz. Drei Tests sichern Verhalten, Engstelle und Verdrahtung
   (`test/finite_camera_constraint_test.dart`, `test/flows/map_view_test.dart`)
   — wer ihn aus den `MapOptions` entfernt, holt beide Fehler zurück.
+- TileProvider-Lebenszyklus (`map_screen.dart`, seit 1.38.2): GENAU eine
+  Instanz pro **eingehängtem** TileLayer. flutter_map schließt beim
+  Aushängen den HTTP-Client des Providers — und ausgehängt wird bei jedem
+  Auto-Offline-Wechsel (Empfangsverlust bei installierten Regionen). Die
+  frühere screen-weite Instanz (`late final`) war danach tot: frische
+  Online-Kacheln blieben bis zum Neustart grau, nur der Platten-Cache
+  lieferte (#157). Pro Rebuild neu wäre das andere Extrem (HTTP-Client-Leak
+  je Positions-Tick). `test/online_tile_provider_swap_test.dart` nagelt den
+  Wechsel fest.
 - Issue-Triage (`.github/workflows/claude-issue-triage.yml`): Claude analysiert
   jedes neue Issue (Einordnung, Labels, Ursache, Umsetzungsvorschlag als
   Kommentar) — darf aber NUR lesen/labeln/kommentieren. Umsetzung erst nach

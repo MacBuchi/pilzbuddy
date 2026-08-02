@@ -57,11 +57,21 @@ class _MapScreenState extends ConsumerState<MapScreen>
     with WidgetsBindingObserver {
   final _mapController = MapController();
 
-  /// GENAU EINE Provider-Instanz pro Karten-Screen: flutter_map entsorgt
-  /// den TileProvider nur beim Layer-Dispose — eine neue Instanz je
-  /// Rebuild (Positions-Ticks!) würde bei jeder Bewegung einen
-  /// HTTP-Client samt Verbindungen leaken (#Karten-Freezes).
-  late final _tileProvider = ref.read(tileProviderFactoryProvider)();
+  /// GENAU EINE Provider-Instanz pro **eingehängtem TileLayer** — nicht
+  /// mehr und nicht weniger. Nicht mehr: Eine neue Instanz je Rebuild
+  /// (Positions-Ticks!) würde bei jeder Bewegung einen HTTP-Client samt
+  /// Verbindungen leaken (#Karten-Freezes). Nicht weniger: flutter_map
+  /// ruft beim Aushängen des TileLayer `tileProvider.dispose()` auf und
+  /// schließt damit den HTTP-Client — und ausgehängt wird er bei JEDEM
+  /// Wechsel in den Offline-Modus, auch dem automatischen bei
+  /// Empfangsverlust (`offlineMapStyleProvider`). Eine über den Wechsel
+  /// hinweg festgehaltene Instanz (früher `late final`) war danach eine
+  /// Leiche: Jede frische Kachel scheiterte bis zum App-Neustart, nur der
+  /// Platten-Cache lieferte noch — Bereiche erschienen und verschwanden
+  /// je nach Zoomstufe und Gegend (#157, „graue Kacheln auch online").
+  /// Deshalb: Referenz beim Wechsel auf Offline fallen lassen (im build),
+  /// beim nächsten Online-Einbau frisch erzeugen.
+  TileProvider? _tileProvider;
 
   // Fallback: Mitte Deutschlands, bis die GPS-Position bekannt ist.
   static const _fallbackCenter = LatLng(51.1634, 10.4477);
@@ -341,6 +351,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
     // sie sich mischen könnte — und genau dieser Fall (Wald, kein Netz, noch
     // keine Region geladen) war der Anlass für #118.
     final showBaseMap = offlineActive || ref.watch(noConnectivityProvider);
+    if (offlineActive) {
+      // Der TileLayer, der die Instanz hält, verschwindet mit diesem Frame
+      // und entsorgt sie dabei — siehe Kommentar am Feld.
+      _tileProvider = null;
+    }
 
     return Scaffold(
       body: Stack(
@@ -430,7 +445,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 TileLayer(
                   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                   userAgentPackageName: 'de.marcusbucher.pilzbuddy',
-                  tileProvider: _tileProvider,
+                  tileProvider: _tileProvider ??=
+                      ref.read(tileProviderFactoryProvider)(),
                   // Zurück auf die Paketvorgabe (Issue #142). #130 hatte
                   // 3/2 gesetzt, um lieber grob weiterzuzeichnen als auf
                   // die scharfe Kachel zu warten. Der Preis war zu hoch:

@@ -110,8 +110,19 @@ Konsequenzen:
 passiert laut Betreiber teils auch **online**. Graue Flächen online haben
 seit der Auflösung oben einen Hauptverdächtigen: eine nicht-endliche Kamera
 lässt die Kachelberechnung werfen, bis die nächste Geste sie repariert.
-Genau das fängt 1.38.2 ab. Deshalb: **erst mit 1.38.2 erneut testen**, dann
-weitersehen.
+Genau das fängt 1.38.2 ab.
+
+Der zweite Verdächtige ist ebenfalls seit 1.38.2 behoben: Beim
+Auto-Offline-Wechsel (Empfangsverlust bei installierten Regionen) hängt die
+Karte den Online-`TileLayer` aus, und flutter_map entsorgt dabei dessen
+TileProvider **samt HTTP-Client**. Die früher screen-weit festgehaltene
+Instanz (`late final`) war danach eine Leiche: Frische Kacheln scheiterten
+bis zum App-Neustart, nur der Platten-Cache lieferte noch — Bereiche
+erschienen und verschwanden je nach Zoomstufe und Gegend. Seit 1.38.2
+bekommt jeder Online-Einbau eine frische Instanz
+(`test/online_tile_provider_swap_test.dart` nagelt das fest).
+
+Deshalb: **erst mit 1.38.2 erneut testen**, dann weitersehen.
 
 Bleibt das Symptom, sind die Kandidaten die zwei Layer-Welten:
 
