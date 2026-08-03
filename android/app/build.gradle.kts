@@ -14,6 +14,16 @@ val keystoreProperties = Properties().apply {
     if (f.exists()) f.inputStream().use { load(it) }
 }
 
+/// Flutters Plattformnamen auf Android-ABIs (dieselbe Zuordnung wie
+/// `FlutterPluginConstants.PLATFORM_ARCH_MAP`; hier gespiegelt, weil das
+/// Objekt intern ist).
+val platformToAbi =
+    mapOf(
+        "android-arm" to "armeabi-v7a",
+        "android-arm64" to "arm64-v8a",
+        "android-x64" to "x86_64",
+    )
+
 android {
     namespace = "de.marcusbucher.pilzbuddy"
     compileSdk = flutter.compileSdkVersion
@@ -39,6 +49,27 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // `--target-platform android-arm64` beschränkt nur FLUTTERS eigene
+        // Artefakte; die nativen Teile der Plugins packt Gradle weiter für
+        // alle ABIs ein. In 1.42.0 waren das 22,4 MB von 66,7 MB — vor
+        // allem `libmaplibre.so` dreimal, zweimal davon ohne passende
+        // `libflutter.so` und damit nicht startfähig.
+        //
+        // Der Filter leitet sich aus derselben Eigenschaft ab, die Flutter
+        // für `--target-platform` ohnehin an Gradle durchreicht. Damit gilt
+        // er genau dort, wo er soll: Das AAB (ohne `--target-platform`)
+        // bleibt vollständig, weil Play selbst pro Gerät splittet.
+        //
+        // Nicht `--split-per-abi` nehmen: Das überschreibt den versionCode
+        // mit `ABI-Nummer * 1000 + versionCode` (FlutterPlugin.kt), aus 84
+        // würde 2084 — dauerhaft, unumkehrbar (Android aktualisiert nur
+        // aufwärts) und verschieden vom AAB.
+        (project.findProperty("target-platform") as String?)
+            ?.split(",")
+            ?.mapNotNull { platformToAbi[it.trim()] }
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { ndk.abiFilters.addAll(it) }
     }
 
     signingConfigs {

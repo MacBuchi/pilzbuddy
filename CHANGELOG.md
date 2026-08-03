@@ -9,7 +9,7 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Eine neue Karten-Engine — erst zum Ausprobieren, jetzt Standard
 
-*3. August 2026 · Versionen 1.39.0 bis 1.43.0*
+*3. August 2026 · Versionen 1.39.0 bis 1.43.1*
 
 Im Profil gibt es einen Schalter **„Neue Karten-Engine"** — nur in der
 Android-App. Er stellt die Karte auf einen anderen Renderer um, der die
@@ -24,6 +24,10 @@ und Wischen.
   auf deine heruntergeladenen Regionen um — nach denselben Regeln wie die
   bisherige Karte. Maßstab und Kartenhinweis sind auch da. Damit kann die
   neue Engine alles, was die alte kann.
+- Mit 1.43.1 ist der Download der App wieder **ein Drittel kleiner**
+  (45 statt 67 MB): Im Paket steckten Programmteile für Handy-Prozessoren,
+  auf denen PilzBuddy gar nicht läuft. Sie sind jetzt draußen — an der App
+  selbst ändert sich nichts.
 - Seit 1.43.0 ist die neue Engine **Standard**: Im nachgemessenen
   Direktvergleich zeichnet sie beim Wischen rund fünfmal so viele Bilder
   pro Sekunde und braucht unter Dauerlast nur gut ein Drittel des
