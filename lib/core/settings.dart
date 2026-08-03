@@ -17,11 +17,13 @@ abstract interface class Settings {
 
   Future<void> setOfflineMapEnabled(bool value);
 
-  /// Neue Karten-Engine (MapLibre, Beta) eingeschaltet? Opt-in bis zur
-  /// Abnahme des Direktvergleichs — flutter_map bleibt Standard.
-  bool get mapLibreEnabled;
+  /// Bisherige Karten-Engine (flutter_map) statt der neuen (MapLibre)?
+  /// Seit der Abnahme des Direktvergleichs (docs/map-performance.md) ist
+  /// MapLibre auf Android Standard; dieser Schalter ist das Opt-out und
+  /// bleibt mindestens eine Release-Reihe als Rückfalllinie.
+  bool get classicMapEnabled;
 
-  Future<void> setMapLibreEnabled(bool value);
+  Future<void> setClassicMapEnabled(bool value);
 }
 
 /// Umsetzung auf SharedPreferences (Android: XML im App-Verzeichnis).
@@ -31,7 +33,13 @@ class PrefsSettings implements Settings {
   final SharedPreferences _prefs;
 
   static const _offlineMapEnabledKey = 'offline_map_enabled';
-  static const _mapLibreEnabledKey = 'maplibre_enabled';
+
+  /// Bewusst ein NEUER Schlüssel: Der Beta-Schalter (1.39.0–1.42.0)
+  /// speicherte ein Opt-in unter 'maplibre_enabled', und ein dort
+  /// hinterlegtes false hieß nur „Beta nicht angefasst" — es darf die
+  /// neue Standard-Engine nicht abschalten. Das Opt-out ist eine
+  /// frische, bewusste Entscheidung; der alte Schlüssel wird ignoriert.
+  static const _classicMapEnabledKey = 'classic_map_enabled';
 
   @override
   bool get offlineMapEnabled => _prefs.getBool(_offlineMapEnabledKey) ?? false;
@@ -41,11 +49,11 @@ class PrefsSettings implements Settings {
       _prefs.setBool(_offlineMapEnabledKey, value);
 
   @override
-  bool get mapLibreEnabled => _prefs.getBool(_mapLibreEnabledKey) ?? false;
+  bool get classicMapEnabled => _prefs.getBool(_classicMapEnabledKey) ?? false;
 
   @override
-  Future<void> setMapLibreEnabled(bool value) =>
-      _prefs.setBool(_mapLibreEnabledKey, value);
+  Future<void> setClassicMapEnabled(bool value) =>
+      _prefs.setBool(_classicMapEnabledKey, value);
 }
 
 /// Wird in `main()` mit den geladenen Einstellungen überschrieben, in Tests

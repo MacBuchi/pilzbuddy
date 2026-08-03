@@ -1,6 +1,8 @@
-// Die Engine-Wahl der MapView-Fassade: flutter_map ist Standard, MapLibre
-// kommt nur per Opt-in-Schalter (Beta) — und die Wahl ist ein Provider,
-// damit ein Umschalten im Profil die Karte sofort wechselt.
+// Die Engine-Wahl der MapView-Fassade: Seit der Abnahme des
+// Direktvergleichs (docs/map-performance.md) ist MapLibre auf Android
+// Standard; der Profil-Schalter ist ein Opt-out zur bisherigen
+// flutter_map-Karte (Rückfalllinie). Die Wahl ist ein Provider, damit
+// ein Umschalten im Profil die Karte sofort wechselt.
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,6 +13,7 @@ import 'package:pilzbuddy/features/map/map_view/flutter_map_view.dart';
 import 'package:pilzbuddy/features/map/map_view/map_engine.dart';
 import 'package:pilzbuddy/features/map/map_view/map_view.dart';
 import 'package:pilzbuddy/features/map/map_view/maplibre_map_view.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fakes/fake_settings.dart';
 
@@ -23,10 +26,10 @@ void main() {
     backgroundColor: AppColors.mapBackground,
   );
 
-  Widget buildWith({required bool mapLibreEnabled}) {
+  Widget buildWith({required bool classicMapEnabled}) {
     final container = ProviderContainer(overrides: [
-      settingsProvider
-          .overrideWithValue(FakeSettings(mapLibreEnabled: mapLibreEnabled)),
+      settingsProvider.overrideWithValue(
+          FakeSettings(classicMapEnabled: classicMapEnabled)),
     ]);
     addTearDown(container.dispose);
     final controller =
@@ -35,25 +38,38 @@ void main() {
         config, controller, const MapViewMarkers());
   }
 
-  test('Standard bleibt flutter_map', () {
-    expect(buildWith(mapLibreEnabled: false), isA<FlutterMapView>());
+  test('Standard ist die MapLibre-Engine', () {
+    expect(buildWith(classicMapEnabled: false), isA<MapLibreMapView>());
   });
 
-  test('Opt-in-Schalter wählt die MapLibre-Engine', () {
-    expect(buildWith(mapLibreEnabled: true), isA<MapLibreMapView>());
+  test('Opt-out wählt die bisherige flutter_map-Karte (Rückfalllinie)', () {
+    expect(buildWith(classicMapEnabled: true), isA<FlutterMapView>());
   });
 
   test('Schalter-Zustand kommt aus den Einstellungen und lässt sich togglen',
       () {
-    final settings = FakeSettings(mapLibreEnabled: false);
+    final settings = FakeSettings();
     final container = ProviderContainer(
         overrides: [settingsProvider.overrideWithValue(settings)]);
     addTearDown(container.dispose);
-    expect(container.read(mapLibreEnabledProvider), isFalse);
-    container.read(mapLibreEnabledProvider.notifier).toggle();
     expect(container.read(mapLibreEnabledProvider), isTrue);
-    expect(settings.mapLibreEnabled, isTrue,
+    container.read(mapLibreEnabledProvider.notifier).toggle();
+    expect(container.read(mapLibreEnabledProvider), isFalse);
+    expect(settings.classicMapEnabled, isTrue,
         reason: 'Die Wahl muss den Neustart überdauern (gleiches Muster '
             'wie die Offline-Karte, Issue #145).');
+  });
+
+  test('Der alte Beta-Schlüssel wird ignoriert — jedes Gerät landet beim '
+      'Update auf der neuen Engine', () async {
+    // Während der Beta-Phase (1.39.0–1.42.0) speicherte der Opt-in-Schalter
+    // unter 'maplibre_enabled'. Ein dort hinterlegtes false darf die neue
+    // Standard-Engine NICHT abschalten: Das Opt-out ist eine frische,
+    // bewusste Entscheidung unter neuem Schlüssel.
+    SharedPreferences.setMockInitialValues({'maplibre_enabled': false});
+    final prefs = await SharedPreferences.getInstance();
+    final settings = PrefsSettings(prefs);
+    expect(settings.classicMapEnabled, isFalse,
+        reason: 'Der Beta-Schlüssel darf nicht als Opt-out weiterwirken.');
   });
 }

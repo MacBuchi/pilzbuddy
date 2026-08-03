@@ -133,10 +133,10 @@ class ProfileScreen extends ConsumerWidget {
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               secondary: const Icon(Icons.speed_outlined),
-              title: const Text('Neue Karten-Engine (Beta)'),
+              title: const Text('Neue Karten-Engine'),
               subtitle: const Text(
-                  'Flüssigere Karte mit nativem Renderer — zum Vergleichen. '
-                  'Ausgeschaltet gilt die bewährte Karte.'),
+                  'Seit dem Direktvergleich der Standard. Ausgeschaltet '
+                  'gilt die bisherige Karte als Rückfalllinie.'),
               value: ref.watch(mapLibreEnabledProvider),
               onChanged: (_) =>
                   ref.read(mapLibreEnabledProvider.notifier).toggle(),
