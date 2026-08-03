@@ -21,6 +21,7 @@ import 'package:maplibre/maplibre.dart' as ml;
 import 'flutter_map_view.dart';
 import 'map_view.dart';
 import 'maplibre_style_provider.dart';
+import 'marker_culling.dart';
 
 /// Bau-Funktion für die Engine-Wahl in `map_view.dart` — Stub und echte
 /// Datei müssen dieselbe Signatur exportieren (bedingter Import).
@@ -55,6 +56,40 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
   /// GPS-Zentrierung beim Start): wird bei `onMapCreated` nachgeholt,
   /// statt still verloren zu gehen.
   (LatLng, double)? _pendingMove;
+
+  /// Sichtfenster vom letzten Kamera-Idle — Grundlage des
+  /// Marker-Cullings. Vorher (Karte noch nicht bereit) werden KEINE
+  /// Marker eingebaut: `WidgetLayer` positioniert jeden Marker in jedem
+  /// Frame auf dem UI-Isolate, und der volle Bestand ungefiltert war der
+  /// Grund, warum der Spike nur −28 % Haupt-Thread-Last gemessen hat.
+  MapViewBounds? _visibleBounds;
+
+  /// Liest das Sichtfenster der Engine und stößt bei Änderung den
+  /// Rebuild an, der die Markerliste neu filtert.
+  void _updateVisibleBounds() {
+    final controller = _ml;
+    if (controller == null || !mounted) return;
+    final region = controller.getVisibleRegion();
+    setState(() {
+      _visibleBounds = MapViewBounds(
+        west: region.longitudeWest,
+        east: region.longitudeEast,
+        south: region.latitudeSouth,
+        north: region.latitudeNorth,
+      );
+    });
+  }
+
+  /// Übersetzt einen Fassaden-Marker in einen MapLibre-Marker — die
+  /// Kind-Widgets (MushroomIcon, Avatare, Tooltips, Taps) bleiben
+  /// unangetastet.
+  static ml.Marker asMapLibreMarker(MapViewMarker marker) => ml.Marker(
+        point: ml.Geographic(
+            lon: marker.point.longitude, lat: marker.point.latitude),
+        size: Size(marker.width, marker.height),
+        alignment: marker.alignment,
+        child: marker.child,
+      );
 
   /// Der zuletzt an die Engine gegebene Style. `initStyle` wird von
   /// `maplibre_android` genau EINMAL bei Map-Ready angewendet — jede
@@ -157,6 +192,10 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
           _pendingMove = null;
           move(pending.$1, pending.$2);
         }
+        // Erstes Sichtfenster nach dem Aufbau — ohne diesen Aufruf
+        // erschienen Marker erst nach der ersten Geste.
+        WidgetsBinding.instance
+            .addPostFrameCallback((_) => _updateVisibleBounds());
       },
       onEvent: (event) {
         if (event is ml.MapEventLongClick) {
@@ -164,7 +203,29 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
               ?.call(LatLng(event.point.lat.toDouble(),
                   event.point.lon.toDouble()));
         }
+        // Culling bei Kamera-Idle, NICHT pro Frame: Zwischen zwei
+        // Idle-Momenten bewegt die Engine die eingebauten Marker selbst.
+        if (event is ml.MapEventCameraIdle) _updateVisibleBounds();
       },
+      children: [
+        if (_visibleBounds != null)
+          ml.WidgetLayer(
+            // Ohne dieses Flag kommen keine Taps an den Markern an.
+            allowInteraction: true,
+            markers: [
+              // Feste Stapelung der Fassade: Position < Freunde < Spots.
+              for (final marker in visibleMarkers(
+                  widget.markers.myPosition, _visibleBounds!))
+                asMapLibreMarker(marker),
+              for (final marker in visibleMarkers(
+                  widget.markers.friendLocations, _visibleBounds!))
+                asMapLibreMarker(marker),
+              for (final marker in visibleMarkers(
+                  widget.markers.spots, _visibleBounds!))
+                asMapLibreMarker(marker),
+            ],
+          ),
+      ],
     );
   }
 }
