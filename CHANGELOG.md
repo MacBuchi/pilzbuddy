@@ -9,7 +9,7 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Die Karte friert nicht mehr ein — und bleibt nicht mehr grau
 
-*3. August 2026 · Version 1.38.2*
+*3. August 2026 · Versionen 1.38.2 und 1.38.3*
 
 Zwei Karten-Fehler, deren Folgen manche schon kannten, sind gefunden und
 behoben:

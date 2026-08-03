@@ -60,7 +60,7 @@ FakeBackend _signedIn() {
 void main() {
   testWidgets('Eine neue Kachelquelle ersetzt den Detail-Layer',
       (tester) async {
-    await pumpApp(tester, _signedIn(),
+    await pumpApp(tester, _signedIn(), useRealMap: true,
         extraOverrides: [_swappableOfflineMap()]);
     await settle(tester);
 

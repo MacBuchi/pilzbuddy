@@ -9,7 +9,7 @@
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pilzbuddy/features/map/map_screen.dart';
+import 'package:pilzbuddy/features/map/map_view/flutter_map_view.dart';
 import 'package:pilzbuddy/features/offline_maps/offline_map_providers.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart' as vmt;
 
@@ -32,7 +32,7 @@ void main() {
     final backend = FakeBackend();
     backend.signInAs(backend.addUser(username: 'testpilz').id);
     var created = 0;
-    await pumpApp(tester, backend, extraOverrides: [
+    await pumpApp(tester, backend, useRealMap: true, extraOverrides: [
       tileProviderFactoryProvider.overrideWithValue(() {
         created++;
         return FakeTileProvider();

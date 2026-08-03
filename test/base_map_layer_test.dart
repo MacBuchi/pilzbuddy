@@ -51,7 +51,7 @@ FakeBackend _signedIn() {
 void main() {
   testWidgets('Mit Empfang und Online-Karte liegt keine Basiskarte darunter',
       (tester) async {
-    await pumpApp(tester, _signedIn(),
+    await pumpApp(tester, _signedIn(), useRealMap: true,
         extraOverrides: [_baseMapAvailable()]);
     await settle(tester);
 
@@ -62,7 +62,7 @@ void main() {
 
   testWidgets('Ohne Empfang liegt die Basiskarte drin', (tester) async {
     // Der Anlass von #118: Wald, kein Netz, noch keine Region geladen.
-    await pumpApp(tester, _signedIn(),
+    await pumpApp(tester, _signedIn(), useRealMap: true,
         connectivity: const [ConnectivityResult.none],
         extraOverrides: [_baseMapAvailable()]);
     await settle(tester);
@@ -76,7 +76,7 @@ void main() {
       (tester) async {
     // Hier mischt sich nichts: Detailkarte und Übersicht nutzen dasselbe
     // Protomaps-Thema.
-    await pumpApp(tester, _signedIn(),
+    await pumpApp(tester, _signedIn(), useRealMap: true,
         extraOverrides: [_baseMapAvailable(), _offlineMapActive()]);
     await settle(tester);
 
@@ -85,7 +85,7 @@ void main() {
 
   testWidgets('Die Basiskarte rendert als Raster, nicht als Vektor',
       (tester) async {
-    await pumpApp(tester, _signedIn(),
+    await pumpApp(tester, _signedIn(), useRealMap: true,
         connectivity: const [ConnectivityResult.none],
         extraOverrides: [_baseMapAvailable()]);
     await settle(tester);

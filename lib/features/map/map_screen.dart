@@ -1,11 +1,9 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:vector_map_tiles/vector_map_tiles.dart' as vmt;
 
 import '../offline_maps/offline_map_providers.dart';
 
@@ -21,8 +19,8 @@ import '../friends/friend_providers.dart';
 import '../profile/profile_providers.dart';
 import '../spots/spot_providers.dart';
 import '../spots/widgets/spot_detail_sheet.dart';
-import 'finite_camera_constraint.dart';
 import 'live_share_providers.dart';
+import 'map_view/map_view.dart';
 import 'position_provider.dart';
 import 'spot_filter.dart';
 import 'widgets/add_spot_sheet.dart';
@@ -30,21 +28,6 @@ import 'widgets/map_banners.dart';
 import 'widgets/share_location_sheet.dart';
 import 'widgets/spot_filter_sheet.dart';
 import '../../core/app_colors.dart';
-
-/// Fabrik für den Karten-Kachel-Provider. Tests ersetzen sie durch einen
-/// Offline-Fake, damit keine echten OSM-Requests laufen.
-///
-/// `NetworkTileProvider` aus flutter_map selbst statt des früheren
-/// `CancellableNetworkTileProvider`: Beides, was dessen Paket beitrug, ist
-/// inzwischen eingebaut — überholte Anfragen werden abgebrochen
-/// (`abortObsoleteRequests`, Vorgabe) und geladene Kacheln landen in einem
-/// Platten-Cache (`BuiltInMapCachingProvider`, Vorgabe, bis 1 GB). Der
-/// Cache ist hier der eigentliche Gewinn: Beim zweiten Besuch einer
-/// Gegend steht die Karte sofort, und bei schwachem Empfang bleibt das
-/// zuletzt Gesehene sichtbar, statt grau zu werden. Das alte Paket ist
-/// upstream als „prepare for deprecation" markiert.
-final tileProviderFactoryProvider =
-    Provider<TileProvider Function()>((ref) => NetworkTileProvider.new);
 
 class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key});
@@ -55,32 +38,22 @@ class MapScreen extends ConsumerStatefulWidget {
 
 class _MapScreenState extends ConsumerState<MapScreen>
     with WidgetsBindingObserver {
-  final _mapController = MapController();
-
-  /// GENAU EINE Provider-Instanz pro **eingehängtem TileLayer** — nicht
-  /// mehr und nicht weniger. Nicht mehr: Eine neue Instanz je Rebuild
-  /// (Positions-Ticks!) würde bei jeder Bewegung einen HTTP-Client samt
-  /// Verbindungen leaken (#Karten-Freezes). Nicht weniger: flutter_map
-  /// ruft beim Aushängen des TileLayer `tileProvider.dispose()` auf und
-  /// schließt damit den HTTP-Client — und ausgehängt wird er bei JEDEM
-  /// Wechsel in den Offline-Modus, auch dem automatischen bei
-  /// Empfangsverlust (`offlineMapStyleProvider`). Eine über den Wechsel
-  /// hinweg festgehaltene Instanz (früher `late final`) war danach eine
-  /// Leiche: Jede frische Kachel scheiterte bis zum App-Neustart, nur der
-  /// Platten-Cache lieferte noch — Bereiche erschienen und verschwanden
-  /// je nach Zoomstufe und Gegend (#157, „graue Kacheln auch online").
-  /// Deshalb: Referenz beim Wechsel auf Offline fallen lassen (im build),
-  /// beim nächsten Online-Einbau frisch erzeugen.
-  TileProvider? _tileProvider;
-
   // Fallback: Mitte Deutschlands, bis die GPS-Position bekannt ist.
   static const _fallbackCenter = LatLng(51.1634, 10.4477);
   static const _fallbackZoom = 6.5;
 
   // Grenzen des Karten-Zooms — 19 ist die höchste Stufe, für die es sowohl
-  // OSM-Kacheln als auch Offline-Vektordaten gibt (siehe VectorTileLayer).
+  // OSM-Kacheln als auch Offline-Vektordaten gibt (Engine-Detailkommentare
+  // in map_view/flutter_map_view.dart).
   static const _minZoom = 3.0;
   static const _maxZoom = 19.0;
+
+  /// Engine-unabhängiger Kamerazugriff; die Engine hängt sich beim Einbau
+  /// selbst ein (map_view.dart).
+  final _map = MapViewController(
+    initialCenter: _fallbackCenter,
+    initialZoom: _fallbackZoom,
+  );
 
   @override
   void initState() {
@@ -91,7 +64,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _mapController.dispose();
     super.dispose();
   }
 
@@ -144,7 +116,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
       _showMessage('Standort nicht verfügbar. Berechtigung erteilt?');
       return;
     }
-    _mapController.move(LatLng(position.latitude, position.longitude), 15);
+    _map.move(LatLng(position.latitude, position.longitude), 15);
     // Berechtigung wurde ggf. gerade erteilt → Live-Marker starten.
     ref.invalidate(positionStreamProvider);
   }
@@ -226,7 +198,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   /// Neuer Spot an der aktuellen Fadenkreuz-Position (Kartenmitte).
   Future<void> _addSpotAtCrosshair() async {
-    final center = _mapController.camera.center;
+    final center = _map.center;
     final ownSpecies = ref.read(ownSpeciesProvider);
     // Ohne `defaultSpecies`: Ein neuer Spot ist meist eine andere Art als
     // der letzte, und die Vorbelegung musste erst gelöscht werden
@@ -272,8 +244,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
     return '🔍 Gefiltert: ${parts.join(', ')}';
   }
 
-  Marker _spotMarker(Spot spot) {
-    return Marker(
+  MapViewMarker _spotMarker(Spot spot) {
+    return MapViewMarker(
       point: spot.position,
       width: 44,
       height: 44,
@@ -297,8 +269,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 
   /// Live-Standort eines Freundes: sein Avatar mit blauem Ring.
-  Marker _friendLocationMarker(FriendLocation loc) {
-    return Marker(
+  MapViewMarker _friendLocationMarker(FriendLocation loc) {
+    return MapViewMarker(
       point: loc.position,
       width: 44,
       height: 44,
@@ -319,6 +291,27 @@ class _MapScreenState extends ConsumerState<MapScreen>
     );
   }
 
+  /// Eigene Live-Position als Avatar — liegt UNTER den Spot-Markern,
+  /// damit die tappbar bleiben.
+  MapViewMarker _myPositionMarker(Position position, int avatar) {
+    return MapViewMarker(
+      point: LatLng(position.latitude, position.longitude),
+      width: 40,
+      height: 40,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: AppColors.forestGreen, width: 2.5),
+          boxShadow: const [
+            BoxShadow(
+                color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
+          ],
+        ),
+        child: MushroomAvatar(index: avatar, size: 35),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Gefiltert statt roh (#154): Der Filter gilt für diese Sitzung und
@@ -334,187 +327,43 @@ class _MapScreenState extends ConsumerState<MapScreen>
     // Solange ich teile, jede neue Position hochschieben (Bewegung sichtbar).
     ref.listen(positionStreamProvider,
         (_, next) => _maybeUploadLocation(next.valueOrNull));
-    // Offline-Layer nur, wenn eingeschaltet UND Karte + Style geladen werden
-    // konnten — sonst immer Online-OSM (Sicherheitsnetz um den Beta-Renderer).
-    final offlineStyle = ref.watch(offlineMapStyleProvider).valueOrNull;
-    // Die Basiskarte hängt an nichts: kein Schalter, keine Installation.
-    // Fehlt sie (Ladefehler), bleibt es beim Hintergrundton.
-    final baseStyle = ref.watch(baseMapStyleProvider).valueOrNull;
+    // Eigene Live-Position (Marker erscheint erst mit GPS-Fix).
+    final myPosition = ref.watch(positionStreamProvider).valueOrNull;
+    final myAvatar = ref.watch(myProfileProvider).valueOrNull?.avatar ?? 0;
+    // Für FAB-Zustand/Umschalter — die Engine wertet die Provider für ihre
+    // Schichten selbst aus (map_view/flutter_map_view.dart).
+    final offlineActive =
+        ref.watch(offlineMapStyleProvider).valueOrNull != null;
     final hasInstalledMaps =
         (ref.watch(installedMapsProvider).valueOrNull ?? const []).isNotEmpty;
-    final offlineActive = offlineStyle != null;
-    // Die Basiskarte NICHT mehr unter die Online-Kacheln legen (#137): Wo
-    // eine OSM-Kachel schon liegt und die nächste noch fehlt, standen zwei
-    // verschiedene Kartenstile nebeneinander — das sah kaputter aus als die
-    // leere Fläche, die es verhindern sollte. Ohne Empfang bleibt sie
-    // dagegen drin: Dann kommt gar keine Kachel, es gibt also nichts, womit
-    // sie sich mischen könnte — und genau dieser Fall (Wald, kein Netz, noch
-    // keine Region geladen) war der Anlass für #118.
-    final showBaseMap = offlineActive || ref.watch(noConnectivityProvider);
-    if (offlineActive) {
-      // Der TileLayer, der die Instanz hält, verschwindet mit diesem Frame
-      // und entsorgt sie dabei — siehe Kommentar am Feld.
-      _tileProvider = null;
-    }
 
     return Scaffold(
       body: Stack(
         children: [
-          FlutterMap(
-            mapController: _mapController,
-            options: MapOptions(
+          MapView(
+            controller: _map,
+            config: MapViewConfig(
               initialCenter: _fallbackCenter,
               initialZoom: _fallbackZoom,
-              // Zoom hart begrenzen: OSM liefert Kacheln nur bis Zoom 19,
-              // darüber skaliert flutter_map die z19-Kachel hoch (256 px ×
-              // 2^(zoom−19)). Ohne Obergrenze wächst die gerenderte Kachel
-              // ins Absurde und die Karte bleibt leer, bis man weit genug
-              // herauszoomt. Unten reicht Zoom 3 (Kontinent) locker aus.
               minZoom: _minZoom,
               maxZoom: _maxZoom,
-              // Statt flutter_maps Standard-Grau (0xFFE0E0E0): der Landton
-              // des Offline-Styles. Wo noch keine Kachel liegt, sieht die
-              // Fläche dann nach „Karte lädt" aus und nicht nach „kaputt" —
-              // und der Übergang zur fertigen Kachel fällt kaum auf.
               backgroundColor: AppColors.mapBackground,
-              // Karte bleibt fest nach Norden ausgerichtet — Drehen per
-              // Zwei-Finger-Geste verwirrt nur und bringt keinen Mehrwert.
-              interactionOptions: const InteractionOptions(
-                flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
-              ),
-              // NaN-/Infinity-Kamerazustände aus Gesten-Grenzfällen an der
-              // einzigen Engstelle verwerfen — sonst ANR über die
-              // MarkerLayer-Endlosschleife (#151) und graue Kacheln über
-              // die Kachelberechnung (#141). Details am Wächter selbst.
-              cameraConstraint: const FiniteCameraConstraint(),
-              // Long-Press richtet das Fadenkreuz auf die gedrückte Stelle aus.
-              onLongPress: (tapPosition, latLng) => _mapController.move(
-                  latLng, math.max(_mapController.camera.zoom, 16)),
+              // Long-Press richtet das Fadenkreuz auf die gedrückte Stelle.
+              onLongPress: (latLng) =>
+                  _map.move(latLng, math.max(_map.zoom, 16)),
             ),
-            children: [
-              // Unterste Schicht: die mitgelieferte DACH-Übersicht. Sie
-              // füllt jede Stelle, die die Regionskarte nicht abdeckt —
-              // beim Kaltstart und mitten im Wald (#118/#119). Der Renderer
-              // holt dafür die z7-Kachel und skaliert sie hoch; scharf
-              // wird es, sobald die Schicht darüber geladen hat. Unter den
-              // Online-Kacheln liegt sie bewusst NICHT (siehe showBaseMap).
-              if (baseStyle != null && showBaseMap)
-                vmt.VectorTileLayer(
-                  key: const ValueKey('base-map'),
-                  tileProviders: baseStyle.tileProviders,
-                  theme: baseStyle.theme,
-                  // Raster, nicht Vektor (#119): Der Vektor-Modus rendert
-                  // bei jeder Zwischen-Zoomstufe neu — laut Paket-Doku
-                  // „can result in low frame rates", und diese Schicht
-                  // läuft seit #118/#119 bei ALLEN mit, nicht nur bei
-                  // Offline-Nutzern. Hier kostet der Wechsel nichts: Die
-                  // Daten enden bei Zoom 7 und werden ohnehin immer
-                  // hochskaliert, es gibt also keine Schärfe zu verlieren.
-                  // Die Detailkarte unten bleibt bewusst auf Vektor.
-                  layerMode: vmt.VectorTileLayerMode.raster,
-                  maximumTileSubstitutionDifference: 1,
-                ),
-              if (offlineActive)
-                vmt.VectorTileLayer(
-                  // Der Schlüssel hängt an der QUELLE, nicht an einem festen
-                  // Namen (Issue #144). `vector_map_tiles` vergleicht beim
-                  // Aktualisieren nur Theme, Sprites, tileOffset, layerMode
-                  // und maximumZoom (`hasRenderDifferences` in options.dart)
-                  // — ein Wechsel der `tileProviders` fällt dort durch. Der
-                  // Layer behielte also seine Caches und damit die Archive,
-                  // die `_offlineTileSourceProvider` beim Neuaufbau schließt
-                  // (jeder Resume invalidiert `installedMapsProvider`).
-                  // Danach wirft jede Kachel „withResource() may not be
-                  // called on a closed Pool", übrig bleibt die hochskalierte
-                  // Übersicht, und nur ein App-Neustart half. Ein neuer
-                  // Schlüssel erzwingt stattdessen einen frischen Layer mit
-                  // frischen Caches auf den neu geöffneten Archiven.
-                  key: ValueKey(offlineStyle.tileProviders),
-                  tileProviders: offlineStyle.tileProviders,
-                  theme: offlineStyle.theme,
-                  // Vector-Modus rendert scharf in jeder Zoomstufe; die
-                  // Kartendaten reichen bis Zoom ~15, darüber wird skaliert.
-                  layerMode: vmt.VectorTileLayerMode.vector,
-                  maximumZoom: 19,
-                  // Fehlende Kacheln maximal weit durch niedrigere
-                  // Zoomstufen ersetzen (Ränder der Regionskarten und
-                  // die eingebaute Übersichts-Basiskarte).
-                  maximumTileSubstitutionDifference: 1,
-                )
-              else
-                TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'de.marcusbucher.pilzbuddy',
-                  tileProvider: _tileProvider ??=
-                      ref.read(tileProviderFactoryProvider)(),
-                  // Zurück auf die Paketvorgabe (Issue #142). #130 hatte
-                  // 3/2 gesetzt, um lieber grob weiterzuzeichnen als auf
-                  // die scharfe Kachel zu warten. Der Preis war zu hoch:
-                  // Jede gehaltene Kachel ist eine GPU-Textur, und
-                  // `flutter_map` gibt sie beim Ausdünnen nicht frei
-                  // (`evictImageFromCache = false`). Gemessen wuchs der
-                  // Texturspeicher beim Bedienen von 89 auf 257 MB und fiel
-                  // erst beim Neustart — in den ANR-Berichten stand er bei
-                  // 1,7–1,9 GB. Eine Karte, die nach zehn Minuten die App
-                  // abwürgt, ist schlechter als eine, die beim Nachladen
-                  // kurz blass ist.
-                  keepBuffer: 2,
-                  panBuffer: 1,
-                ),
-              // Eigene Live-Position als Avatar — liegt UNTER den
-              // Spot-Markern, damit die tappbar bleiben.
-              Builder(builder: (context) {
-                final position =
-                    ref.watch(positionStreamProvider).valueOrNull;
-                if (position == null) return const SizedBox.shrink();
-                final avatar =
-                    ref.watch(myProfileProvider).valueOrNull?.avatar ?? 0;
-                return MarkerLayer(markers: [
-                  Marker(
-                    point:
-                        LatLng(position.latitude, position.longitude),
-                    width: 40,
-                    height: 40,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                            color: AppColors.forestGreen, width: 2.5),
-                        boxShadow: const [
-                          BoxShadow(
-                              color: Colors.black26,
-                              blurRadius: 6,
-                              offset: Offset(0, 2)),
-                        ],
-                      ),
-                      child: MushroomAvatar(index: avatar, size: 35),
-                    ),
-                  ),
-                ]);
-              }),
-              // Live-Standorte von Freunden — blau umrandet, unter den
-              // Spot-Markern, damit die tappbar bleiben.
-              if (friendLocations.isNotEmpty)
-                MarkerLayer(markers: [
-                  for (final loc in friendLocations) _friendLocationMarker(loc),
-                ]),
-              MarkerLayer(markers: [
+            markers: MapViewMarkers(
+              myPosition: [
+                if (myPosition != null) _myPositionMarker(myPosition, myAvatar),
+              ],
+              friendLocations: [
+                for (final loc in friendLocations) _friendLocationMarker(loc),
+              ],
+              spots: [
                 for (final s in friendSpots) _spotMarker(s),
                 for (final s in mySpots) _spotMarker(s),
-              ]),
-              // Maßstab unten links — rechts sitzen Attribution und FABs.
-              const Scalebar(
-                alignment: Alignment.bottomLeft,
-                padding: EdgeInsets.only(left: 12, bottom: 12),
-              ),
-              RichAttributionWidget(
-                attributions: [
-                  const TextSourceAttribution('OpenStreetMap-Mitwirkende'),
-                  if (offlineActive)
-                    const TextSourceAttribution('Protomaps (Offline-Karte)'),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
           // Dauerhaftes, dezentes Fadenkreuz in der Kartenmitte —
           // „Neuer Spot" speichert genau dort.
