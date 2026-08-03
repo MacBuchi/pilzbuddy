@@ -1,8 +1,14 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 
 import 'flutter_map_view.dart';
+import 'map_engine.dart';
+// Web darf `package:maplibre` nie sehen — der Stub liefert dieselbe
+// Signatur, die Engine-Wahl unten verzweigt dank `!kIsWeb` nie dorthin.
+import 'maplibre_view_stub.dart'
+    if (dart.library.io) 'maplibre_map_view.dart';
 
 /// Engine-neutrale Fassade der Kartenansicht.
 ///
@@ -128,15 +134,20 @@ typedef MapViewBuilder = Widget Function(
   MapViewMarkers markers,
 );
 
-/// Die Engine-Wahl. Heute immer flutter_map; Tests überschreiben mit der
-/// Fake, und die MapLibre-Engine kommt als weitere Implementierung dazu.
-final mapViewBuilderProvider = Provider<MapViewBuilder>(
-  (ref) => (config, controller, markers) => FlutterMapView(
+/// Die Engine-Wahl: flutter_map ist Standard, MapLibre kommt nur per
+/// Opt-in-Schalter (Beta, Profil) und nie im Web. Tests überschreiben den
+/// Provider mit der Fake (`test/fakes/fake_map_view.dart`).
+final mapViewBuilderProvider = Provider<MapViewBuilder>((ref) {
+  if (!kIsWeb && ref.watch(mapLibreEnabledProvider)) {
+    return (config, controller, markers) => createMapLibreMapView(
+        config: config, controller: controller, markers: markers);
+  }
+  return (config, controller, markers) => FlutterMapView(
         config: config,
         controller: controller,
         markers: markers,
-      ),
-);
+      );
+});
 
 /// Das Fassaden-Widget, das `MapScreen` einbaut.
 class MapView extends ConsumerWidget {

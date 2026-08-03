@@ -22,6 +22,7 @@ import '../../core/widgets/password_field.dart';
 import '../../data/providers.dart';
 import '../../models/find.dart';
 import '../import_export/gpx_export.dart';
+import '../map/map_view/map_engine.dart';
 import '../spots/spot_providers.dart';
 import 'profile_providers.dart';
 import '../../core/app_colors.dart';
@@ -124,6 +125,20 @@ class ProfileScreen extends ConsumerWidget {
                   const Text('Deine Region herunterladen — Karte ohne Empfang'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => context.push('/profile/offline-maps'),
+            ),
+            // Opt-in zur MapLibre-Engine (Migrationsplan „Lupo → Porsche"):
+            // ehrlich beschriftet, solange ihr Funktionsumfang hinter der
+            // alten Karte zurückbleibt. Standard bleibt flutter_map.
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              secondary: const Icon(Icons.speed_outlined),
+              title: const Text('Neue Karten-Engine (Beta)'),
+              subtitle: const Text(
+                  'Flüssigere Offline-Karte — zeigt aber noch keine Spots '
+                  'und keine Online-Karte.'),
+              value: ref.watch(mapLibreEnabledProvider),
+              onChanged: (_) =>
+                  ref.read(mapLibreEnabledProvider.notifier).toggle(),
             ),
           ],
           ListTile(

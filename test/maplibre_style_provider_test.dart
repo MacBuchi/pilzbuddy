@@ -1,0 +1,122 @@
+// Der Style-Provider ist die I/O-Schicht über dem puren Composer. Sein
+// wichtigstes Verhalten ist das Anti-Race aus der Spike-Autopsie: Der
+// Style darf erst entstehen, wenn die Regionsliste GELADEN ist —
+// `maplibre_android` wendet `initStyle` genau einmal bei Map-Ready an,
+// ein zu früher Style ließe alle Regionen für immer unsichtbar.
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:pilzbuddy/features/map/map_view/maplibre_style_provider.dart';
+import 'package:pilzbuddy/features/offline_maps/offline_map_providers.dart';
+import 'package:pilzbuddy/features/offline_maps/offline_map_repository.dart';
+
+/// I/O-Fake: liefert feste Pfade und Header-Zoombereiche, merkt sich, für
+/// welche Dateien der Header gelesen wurde.
+class _FakeIo extends MapLibreStyleIo {
+  final readHeaders = <String>[];
+  bool failOverview = false;
+
+  @override
+  Future<String> loadBaseStyle() async => jsonEncode({
+        'version': 8,
+        'sources': {},
+        'layers': [
+          {
+            'id': 'earth',
+            'type': 'fill',
+            'source': 'protomaps',
+            'source-layer': 'earth',
+          },
+        ],
+      });
+
+  @override
+  Future<String> materializeOverview() async {
+    if (failOverview) throw StateError('Asset kaputt');
+    return '/fake/offline_maps/overview_dach.pmtiles';
+  }
+
+  @override
+  Future<String> materializeGlyphs() async =>
+      'file:///fake/map_glyphs/{fontstack}/{range}.pbf';
+
+  @override
+  Future<({int min, int max})> readZoomRange(String path) async {
+    readHeaders.add(path);
+    // Übersicht 0–7, Regionen 0–15 — wie die echten Archiv-Header.
+    return path.contains('overview') ? (min: 0, max: 7) : (min: 0, max: 15);
+  }
+}
+
+/// Regionsliste, die erst auf Kommando fertig lädt.
+class _GatedInstalledMaps extends InstalledMapsNotifier {
+  _GatedInstalledMaps(this._gate);
+  final Completer<List<InstalledMap>> _gate;
+
+  @override
+  Future<List<InstalledMap>> build() => _gate.future;
+}
+
+const _bayern = InstalledMap(
+  key: 'de_bayern',
+  dateStamp: '20260320',
+  sizeBytes: 1789952894,
+  filePath: '/fake/offline_maps/de_bayern_20260320.pmtiles',
+);
+
+void main() {
+  (ProviderContainer, _FakeIo, Completer<List<InstalledMap>>) makeContainer() {
+    final io = _FakeIo();
+    final gate = Completer<List<InstalledMap>>();
+    final container = ProviderContainer(overrides: [
+      maplibreStyleIoProvider.overrideWithValue(io),
+      installedMapsProvider.overrideWith(() => _GatedInstalledMaps(gate)),
+    ]);
+    addTearDown(container.dispose);
+    return (container, io, gate);
+  }
+
+  test('Anti-Race: kein Style, bevor die Regionsliste geladen ist', () async {
+    final (container, _, gate) = makeContainer();
+    final styleFuture = container.read(maplibreStyleProvider.future);
+    var done = false;
+    unawaited(styleFuture.whenComplete(() => done = true));
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+    expect(done, isFalse,
+        reason: 'Der Style darf nicht vor der Regionsliste fertig sein — '
+            'genau dieses Race machte im Spike alle Regionen unsichtbar.');
+
+    gate.complete(const [_bayern]);
+    final style = jsonDecode((await styleFuture)!) as Map<String, dynamic>;
+    final sources = style['sources'] as Map<String, dynamic>;
+    expect(sources.keys, ['overview', 'region_de_bayern']);
+  });
+
+  test('Zoombereiche kommen aus dem Archiv-Header jeder Datei', () async {
+    final (container, io, gate) = makeContainer();
+    gate.complete(const [_bayern]);
+    final style =
+        jsonDecode((await container.read(maplibreStyleProvider.future))!)
+            as Map<String, dynamic>;
+    expect(
+        io.readHeaders,
+        containsAll([
+          '/fake/offline_maps/overview_dach.pmtiles',
+          '/fake/offline_maps/de_bayern_20260320.pmtiles',
+        ]));
+    final sources = style['sources'] as Map<String, dynamic>;
+    expect((sources['overview'] as Map)['maxzoom'], 7);
+    expect((sources['region_de_bayern'] as Map)['maxzoom'], 15);
+  });
+
+  test('I/O-Fehler ⇒ null statt Wurf (Engine fällt auf flutter_map zurück)',
+      () async {
+    final (container, io, gate) = makeContainer();
+    io.failOverview = true;
+    gate.complete(const [_bayern]);
+    expect(await container.read(maplibreStyleProvider.future), isNull);
+  });
+}

@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.38.3+79
+version: 1.39.0+80
 
 environment:
   sdk: ^3.11.0
@@ -55,6 +55,12 @@ dependencies:
   executor_lib: ^1.1.1
   vector_tile_renderer: ^6.1.0
   pmtiles: ^1.3.0
+  # Zweite Karten-Engine (nativer GPU-Renderer maplibre-native, Android),
+  # hinter der MapView-Fassade und einem Opt-in-Schalter — Migrationsplan
+  # „Lupo → Porsche". 0.x und jung, deshalb exakt gepinnt; Upgrades nur
+  # bewusst. Web sieht das Paket nie (bedingter Import in
+  # lib/features/map/map_view/map_view.dart).
+  maplibre: 0.3.5
   path_provider: ^2.1.5
   connectivity_plus: ^7.0.0
   crypto: ^3.0.6
@@ -140,6 +146,13 @@ flutter:
     # Offline-Modus für Bereiche ohne installierte Regionskarte. Generiert mit
     # `pmtiles extract <Protomaps-Daily-Build> --bbox=5.5,45.5,17.5,55.5 --maxzoom=7`.
     - assets/offline_maps/overview_dach.pmtiles
+    # Schriftzeichen (Glyph-PBFs) für die MapLibre-Engine: selbst erzeugte
+    # Noto-Sans-Stacks (SIL OFL, siehe assets/map_glyphs/OFL.txt), fünf
+    # Unicode-Bereiche — reicht für deutsche Kartenbeschriftung. MapLibre
+    # lädt Glyphs nur von Platte/URL, deshalb werden sie beim Start ins
+    # App-Verzeichnis materialisiert (maplibre_style_provider.dart).
+    - assets/map_glyphs/noto-sans-regular/
+    - assets/map_glyphs/noto-sans-medium/
 
   # To add assets to your application, add an assets section, like this:
   # assets:
