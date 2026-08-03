@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
@@ -20,6 +21,7 @@ import '../profile/profile_providers.dart';
 import '../spots/spot_providers.dart';
 import '../spots/widgets/spot_detail_sheet.dart';
 import 'live_share_providers.dart';
+import 'map_view/camera_tour.dart';
 import 'map_view/map_view.dart';
 import 'position_provider.dart';
 import 'spot_filter.dart';
@@ -532,6 +534,15 @@ class _MapScreenState extends ConsumerState<MapScreen>
             icon: const Icon(Icons.add_location_alt),
             label: const Text('Neuer Spot'),
           ),
+          // Messhaken des Engine-Direktvergleichs: deterministische
+          // Kamerafahrt gegen die Fassade — identisch auf beiden
+          // Engines. `!kReleaseMode`, nicht `kDebugMode`: Die
+          // Perfetto-Läufe (Stufe 7) messen im PROFILE-Build, dort
+          // muss der Knopf da sein; nur das Release bleibt sauber.
+          if (!kReleaseMode) ...[
+            const SizedBox(height: 12),
+            CameraTourButton(controller: _map),
+          ],
         ],
       ),
     );
