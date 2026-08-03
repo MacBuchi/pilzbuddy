@@ -19,7 +19,7 @@ Stand: 26. Juli 2026, App-Version 1.32.0+68.
 | Frage | Antwort | Begründung |
 |---|---|---|
 | Erhebt oder teilt deine App die geforderten Nutzerdatentypen? | **Ja** | Konto, Spots, Fehlerberichte |
-| Werden alle Daten bei der Übertragung verschlüsselt? | **Ja** | Alle Endpunkte sind HTTPS: Supabase, `tile.openstreetmap.org`, `github.com`, `api.github.com`, `macbuchi.github.io`. Kein einziges `http://` im Code. Die Bestätigungs- und Reset-Mails verschickt Supabase serverseitig über Brevo — die App selbst spricht nie mit dem Mail-Anbieter, die Liste bleibt also vollständig |
+| Werden alle Daten bei der Übertragung verschlüsselt? | **Ja** | Alle Endpunkte sind HTTPS: Supabase, `tile.openstreetmap.org`, `github.com`, `api.github.com`, `macbuchi.github.io`, `maps.dwd.de`. Kein einziges `http://` im Code. Die Bestätigungs- und Reset-Mails verschickt Supabase serverseitig über Brevo — die App selbst spricht nie mit dem Mail-Anbieter, die Liste bleibt also vollständig |
 | Können Nutzer die Löschung ihrer Daten beantragen? | **Ja** | In-App unter *Profil → Konto löschen* (`delete_own_account()`, sofort, ohne Karenzzeit) **und** ohne installierte App über die URL unten |
 | URL zum Löschen des Kontos | `https://macbuchi.github.io/pilzbuddy/konto-loeschen.html` | |
 | Unabhängige Sicherheitsüberprüfung? | **Nein** | |
@@ -83,6 +83,16 @@ Bedingung dafür, diese Antwort zu geben.
 
 Weiterhin **nicht** erhoben: E-Mail-*Inhalte*. Die App liest keine Mails; sie
 schickt nur den Anlass und liest den Code, den der Nutzer abtippt.
+
+**Die Regenebene (`maps.dwd.de`) ändert an all dem nichts.** Sie holt ein
+**festes** Bild über Deutschland bzw. den Alpenraum — dieselbe Anfrage bei
+jedem Nutzer, unabhängig davon, wo er steht oder hinschaut. Weder Standort
+noch Kartenausschnitt gehen an den DWD; übertragen wird technisch nur die
+IP-Adresse, wie bei den OSM-Kacheln. Genau deshalb ist der Ausschnitt fest
+und wandert nicht mit der Karte mit — die Alternative hätte bei jedem
+Verschieben verraten, in welcher Gegend jemand sucht, und das ist bei einer
+App für geheime Fundstellen der falsche Handel. Der Abruf läuft nur, solange
+die Ebene eingeschaltet ist; Vorgabe ist aus.
 
 ### Berechtigungen im Build
 

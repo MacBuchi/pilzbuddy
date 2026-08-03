@@ -21,6 +21,7 @@ import 'package:pilzbuddy/features/map/live_share_providers.dart';
 import 'package:pilzbuddy/features/map/map_view/flutter_map_view.dart';
 import 'package:pilzbuddy/features/map/map_view/map_view.dart';
 import 'package:pilzbuddy/features/map/position_provider.dart';
+import 'package:pilzbuddy/features/map/rain_layer.dart';
 import 'package:pilzbuddy/features/offline_maps/download_keep_alive.dart';
 import 'package:pilzbuddy/features/offline_maps/offline_map_providers.dart';
 
@@ -132,6 +133,10 @@ List<Override> overridesFor(FakeBackend backend,
             ref.watch(liveShareRepositoryProvider).fetchFriendLocations());
       }),
       tileProviderFactoryProvider.overrideWithValue(FakeTileProvider.new),
+      // Auch die Regenebene und ihre Legende holen sonst echte Bilder vom
+      // DWD — dieselbe Naht wie beim Kachel-Provider.
+      rainImageProviderFactory
+          .overrideWithValue((url) => MemoryImage(kTransparentTile)),
       updateInfoProvider.overrideWith((ref) => Future.value(null)),
       // Mindestversion: ohne Angabe sperrt nichts. PackageInfo gibt es im
       // Test nicht, deshalb kommt die eigene Version aus dem Harness.

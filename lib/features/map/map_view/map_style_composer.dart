@@ -177,7 +177,15 @@ String composeMapLibreStyle({
       'id': overlay.id,
       'type': 'raster',
       'source': overlay.id,
-      'paint': {'raster-opacity': overlay.opacity},
+      'paint': {
+        'raster-opacity': overlay.opacity,
+        // Nächster Nachbar statt Interpolation: Die DWD-Produkte sind ein
+        // 1-km-Raster (nachgemessen, siehe rain_layer.dart). Beim
+        // Hineinzoomen bleiben so die Zellen sichtbar, aus denen die
+        // Daten wirklich bestehen — weichgezeichnet sähe die Ebene nach
+        // einer Genauigkeit aus, die sie nicht hat.
+        'raster-resampling': 'nearest',
+      },
     });
   }
 

@@ -22,12 +22,13 @@ import '../spots/spot_providers.dart';
 import '../spots/widgets/spot_detail_sheet.dart';
 import 'live_share_providers.dart';
 import 'map_view/camera_tour.dart';
-import 'map_view/map_engine.dart';
 import 'map_view/map_view.dart';
 import 'position_provider.dart';
+import 'rain_layer.dart';
 import 'spot_filter.dart';
 import 'widgets/add_spot_sheet.dart';
 import 'widgets/map_banners.dart';
+import 'widgets/rain_layer_sheet.dart';
 import 'widgets/share_location_sheet.dart';
 import 'widgets/spot_filter_sheet.dart';
 import '../../core/app_colors.dart';
@@ -339,6 +340,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
         ref.watch(offlineMapStyleProvider).valueOrNull != null;
     final hasInstalledMaps =
         (ref.watch(installedMapsProvider).valueOrNull ?? const []).isNotEmpty;
+    final rainActive = ref.watch(rainLayerProvider) != RainLayer.off;
 
     return Scaffold(
       body: Stack(
@@ -488,6 +490,19 @@ class _MapScreenState extends ConsumerState<MapScreen>
             ),
             const SizedBox(height: 12),
           ],
+          // Genau EIN neuer Dauerknopf für die Regenebene (#156) — die
+          // Karte trägt nicht mehr; Zeitraum und Legende stecken im
+          // Blatt dahinter, wie beim Filter.
+          FloatingActionButton.small(
+            heroTag: 'rain',
+            onPressed: () => showRainLayerSheet(context),
+            tooltip: 'Regen',
+            backgroundColor: rainActive ? AppColors.friendBlue : null,
+            foregroundColor: rainActive ? Colors.white : null,
+            child: Icon(
+                rainActive ? Icons.water_drop : Icons.water_drop_outlined),
+          ),
+          const SizedBox(height: 12),
           FloatingActionButton.small(
             heroTag: 'filter',
             onPressed: () => showSpotFilterSheet(context),
@@ -540,23 +555,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
           // Engines. `!kReleaseMode`, nicht `kDebugMode`: Die
           // Perfetto-Läufe (Stufe 7) messen im PROFILE-Build, dort
           // muss der Knopf da sein; nur das Release bleibt sauber.
-          // Daneben der Regenradar-Beweis (Stufe 6): wirkt nur auf der
-          // MapLibre-Engine — Overlays sind ihr Erweiterungsweg.
           if (!kReleaseMode) ...[
-            const SizedBox(height: 12),
-            FloatingActionButton.small(
-              heroTag: 'radar',
-              onPressed: () => ref
-                  .read(rainRadarEnabledProvider.notifier)
-                  .update((value) => !value),
-              tooltip: 'Regenradar (Debug)',
-              backgroundColor: ref.watch(rainRadarEnabledProvider)
-                  ? AppColors.friendBlue
-                  : null,
-              foregroundColor:
-                  ref.watch(rainRadarEnabledProvider) ? Colors.white : null,
-              child: const Icon(Icons.water_drop_outlined),
-            ),
             const SizedBox(height: 12),
             CameraTourButton(controller: _map),
           ],

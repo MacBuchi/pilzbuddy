@@ -242,9 +242,17 @@ void main() {
     test('halbtransparent: raster-opacity aus dem Overlay-Objekt', () {
       final layers =
           (compose()['layers'] as List).cast<Map<String, dynamic>>();
-      expect(layers.last['paint'], {'raster-opacity': 0.6},
+      expect((layers.last['paint'] as Map)['raster-opacity'], 0.6,
           reason: 'Deckend würde das Radar die Karte darunter auslöschen — '
               'der Regen soll ÜBER der Landschaft liegen, nicht statt ihr.');
+    });
+
+    test('nächster Nachbar statt Interpolation', () {
+      final layers =
+          (compose()['layers'] as List).cast<Map<String, dynamic>>();
+      expect((layers.last['paint'] as Map)['raster-resampling'], 'nearest',
+          reason: 'Die DWD-Produkte sind ein 1-km-Raster. Weichgezeichnet '
+              'sähe die Ebene genauer aus, als sie ist.');
     });
 
     test('IMAGE-Source mit vier Ecken im Uhrzeigersinn ab oben links — '

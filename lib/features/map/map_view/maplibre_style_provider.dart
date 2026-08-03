@@ -19,7 +19,7 @@ import 'package:pmtiles/pmtiles.dart';
 import '../../../core/app_colors.dart';
 import '../../../core/errors.dart';
 import '../../offline_maps/offline_map_providers.dart';
-import 'map_engine.dart';
+import '../rain_layer.dart';
 import 'map_style_composer.dart';
 
 /// Die fünf Unicode-Bereiche, die für deutsche Kartenbeschriftung reichen
@@ -95,27 +95,27 @@ final maplibreStyleIoProvider =
 String _cssColor(int argb) =>
     '#${(argb & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
 
-/// Das DWD-Niederschlagsradar als georeferenziertes WMS-Einzelbild
-/// (Fees: none, 5-Minuten-Takt, DACH-Abdeckung — live geprüft am
-/// 2026-08-03): EIN GetMap über den DACH-Ausschnitt der Übersichtskarte
-/// (lon 5,5–17,5, lat 45,5–55,5; BBOX ist derselbe Ausschnitt in
-/// EPSG:3857, Bildhöhe = Breite × 1,317 wegen Mercator-Streckung).
-/// Warum kein Kachel-Template: siehe MapImageOverlay — maplibre-native
+/// Die Regenebene als georeferenziertes WMS-Einzelbild — welcher Layer,
+/// welcher Ausschnitt und warum ein festes Bild: `rain_layer.dart`.
+/// Warum kein Kachel-Template: siehe [MapImageOverlay] — maplibre-native
 /// kennt `{bbox-epsg-3857}` nicht.
-const _dwdRadar = MapImageOverlay(
-  id: 'regenradar',
-  url: 'https://maps.dwd.de/geoserver/dwd/wms?SERVICE=WMS&VERSION=1.3.0'
-      '&REQUEST=GetMap&LAYERS=dwd:Niederschlagsradar&STYLES=&CRS=EPSG:3857'
-      '&BBOX=612257,5700583,1948091,7459517&WIDTH=1024&HEIGHT=1348'
-      '&FORMAT=image/png&TRANSPARENT=true',
-  west: 5.5,
-  south: 45.5,
-  east: 17.5,
-  north: 55.5,
-  // Halbtransparent: Der Regen liegt ÜBER der Landschaft, nicht statt ihr.
-  opacity: 0.6,
-  attribution: '© Deutscher Wetterdienst',
-);
+MapImageOverlay? _rainOverlay(RainLayer layer, DateTime now) {
+  final url = rainLayerUrl(layer, now: now);
+  if (url == null) return null;
+  final b = layer.bounds;
+  return MapImageOverlay(
+    id: 'regen',
+    url: url,
+    west: b.west,
+    south: b.south,
+    east: b.east,
+    north: b.north,
+    opacity: layer.opacity,
+    // Pflichtangabe nach GeoNutzV; der Dienst nennt als
+    // AccessConstraints https://www.dwd.de/copyright.
+    attribution: '© Deutscher Wetterdienst',
+  );
+}
 
 /// Das Online-Raster (OSM) — dieselbe Quelle wie der TileLayer der
 /// flutter_map-Engine.
@@ -188,8 +188,10 @@ final maplibreStyleProvider = FutureProvider<String?>((ref) async {
       backgroundColor: _cssColor(AppColors.mapBackground.toARGB32()),
       sources: sources,
       rasterSources: offlineActive ? const [] : const [_osmRaster],
-      overlays:
-          ref.watch(rainRadarEnabledProvider) ? const [_dwdRadar] : const [],
+      // `DateTime.now()` nur für die Vorhersage-Ebene, siehe rain_layer.dart.
+      overlays: [
+        ?_rainOverlay(ref.watch(rainLayerProvider), DateTime.now()),
+      ],
     );
   } catch (e, stackTrace) {
     logError('MapLibre-Style bauen', e, stackTrace);
