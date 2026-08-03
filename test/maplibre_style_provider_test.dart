@@ -8,9 +8,12 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pilzbuddy/core/settings.dart';
 import 'package:pilzbuddy/features/map/map_view/maplibre_style_provider.dart';
 import 'package:pilzbuddy/features/offline_maps/offline_map_providers.dart';
 import 'package:pilzbuddy/features/offline_maps/offline_map_repository.dart';
+
+import 'fakes/fake_settings.dart';
 
 /// I/O-Fake: liefert feste Pfade und Header-Zoombereiche, merkt sich, für
 /// welche Dateien der Header gelesen wurde.
@@ -73,6 +76,11 @@ void main() {
     final container = ProviderContainer(overrides: [
       maplibreStyleIoProvider.overrideWithValue(io),
       installedMapsProvider.overrideWith(() => _GatedInstalledMaps(gate)),
+      // Offline-Modus an: Diese Tests prüfen den Regions-Pfad des
+      // Providers; die Quellen-Wahlregel selbst prüft die Matrix unten.
+      settingsProvider
+          .overrideWithValue(FakeSettings(offlineMapEnabled: true)),
+      noConnectivityProvider.overrideWithValue(false),
     ]);
     addTearDown(container.dispose);
     return (container, io, gate);
@@ -118,5 +126,80 @@ void main() {
     io.failOverview = true;
     gate.complete(const [_bayern]);
     expect(await container.read(maplibreStyleProvider.future), isNull);
+  });
+
+  // Die Quellen-Wahl folgt EXAKT der heutigen Regel der flutter_map-Engine
+  // (offlineMapStyleProvider + showBaseMap): offline aktiv = (Schalter ODER
+  // kein Empfang) UND Regionen installiert; die Übersicht liegt nie unter
+  // funktionierenden Online-Kacheln (#137).
+  group('Quellen-Matrix', () {
+    Future<Map<String, dynamic>> styleFor({
+      required bool offlineEnabled,
+      required bool noConnectivity,
+      required List<InstalledMap> installed,
+    }) async {
+      final io = _FakeIo();
+      final gate = Completer<List<InstalledMap>>()..complete(installed);
+      final container = ProviderContainer(overrides: [
+        maplibreStyleIoProvider.overrideWithValue(io),
+        installedMapsProvider.overrideWith(() => _GatedInstalledMaps(gate)),
+        settingsProvider.overrideWithValue(
+            FakeSettings(offlineMapEnabled: offlineEnabled)),
+        noConnectivityProvider.overrideWithValue(noConnectivity),
+      ]);
+      addTearDown(container.dispose);
+      return jsonDecode((await container.read(maplibreStyleProvider.future))!)
+          as Map<String, dynamic>;
+    }
+
+    test('Schalter an + Regionen ⇒ offline: Übersicht + Regionen, KEIN '
+        'Online-Raster', () async {
+      final style = await styleFor(
+          offlineEnabled: true,
+          noConnectivity: false,
+          installed: const [_bayern]);
+      final sources = style['sources'] as Map<String, dynamic>;
+      expect(sources.keys, ['overview', 'region_de_bayern']);
+    });
+
+    test('alles aus + Empfang ⇒ online: NUR das OSM-Raster — die Übersicht '
+        'läge sonst unter fremdem Kartenstil (#137)', () async {
+      final style = await styleFor(
+          offlineEnabled: false,
+          noConnectivity: false,
+          installed: const [_bayern]);
+      final sources = style['sources'] as Map<String, dynamic>;
+      expect(sources.keys, ['osm']);
+      expect((sources['osm'] as Map)['type'], 'raster');
+    });
+
+    test('kein Empfang + Regionen ⇒ automatisch offline (im Wald muss man '
+        'nichts tun)', () async {
+      final style = await styleFor(
+          offlineEnabled: false,
+          noConnectivity: true,
+          installed: const [_bayern]);
+      final sources = style['sources'] as Map<String, dynamic>;
+      expect(sources.keys, ['overview', 'region_de_bayern']);
+    });
+
+    test('kein Empfang + KEINE Regionen ⇒ Übersicht unter dem (hungernden) '
+        'Raster — der #118-Fall: Wald, kein Netz, nichts installiert',
+        () async {
+      final style = await styleFor(
+          offlineEnabled: false, noConnectivity: true, installed: const []);
+      final sources = style['sources'] as Map<String, dynamic>;
+      expect(sources.keys, ['overview', 'osm']);
+      final layers = (style['layers'] as List).cast<Map<String, dynamic>>();
+      expect(layers.last['type'], 'raster');
+    });
+
+    test('Schalter an, aber KEINE Regionen + Empfang ⇒ online (heutiges '
+        'Verhalten: ohne Kacheln kein Offline-Modus)', () async {
+      final style = await styleFor(
+          offlineEnabled: true, noConnectivity: false, installed: const []);
+      final sources = style['sources'] as Map<String, dynamic>;
+      expect(sources.keys, ['osm']);
+    });
   });
 }

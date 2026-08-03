@@ -27,11 +27,28 @@ class MapStyleSource {
   final int maxZoom;
 }
 
+/// Eine Online-Raster-Quelle (Kachel-URL-Vorlage, z. B. OSM).
+class MapRasterSource {
+  const MapRasterSource({
+    required this.id,
+    required this.urlTemplate,
+    required this.maxZoom,
+  });
+
+  final String id;
+  final String urlTemplate;
+  final int maxZoom;
+}
+
 /// Setzt aus dem generierten Protomaps-Basis-Style und den Quellen EIN
 /// Style-Dokument zusammen: eine background-Ebene im Landton, dann für
 /// jede Quelle alle Nicht-background-Ebenen des Basis-Styles — in der
 /// Reihenfolge der Quellenliste (Übersicht zuerst = unterste Schicht,
 /// Regionen darüber; dieselbe Schichtung wie heute bei flutter_map).
+/// [rasterSources] liegen als oberste Kartenschicht ÜBER allen
+/// Vektor-Ebenen: Wo eine Online-Kachel lädt, deckt sie den fremden
+/// Kartenstil darunter ab — zwei Stile nebeneinander sahen kaputter aus
+/// als die leere Fläche, die sie verhindern sollten (#137).
 ///
 /// Die background-Ebene des Basis-Styles wird bewusst NICHT je Quelle
 /// übernommen: Sie malt deckend über die volle Kachelfläche und würde
@@ -42,8 +59,17 @@ String composeMapLibreStyle({
   required String glyphsUrl,
   required String backgroundColor,
   required List<MapStyleSource> sources,
+  List<MapRasterSource> rasterSources = const [],
 }) {
   final baseLayers = baseStyle['layers'] as List<dynamic>? ?? const [];
+
+  // Attribution nur an der ERSTEN Quelle mit diesem Text: Das
+  // Attributions-Widget listet jede Quellen-Attribution einzeln — vier
+  // Quellen ergäben vier identische „© OpenStreetMap"-Zeilen
+  // übereinander (am Gerät gesehen). Rechtlich genügt eine.
+  final seenAttributions = <String>{};
+  String? attributionOnce(String text) =>
+      seenAttributions.add(text) ? text : null;
 
   final styleSources = <String, dynamic>{};
   final layers = <Map<String, dynamic>>[
@@ -58,16 +84,35 @@ String composeMapLibreStyle({
   ];
 
   for (final source in sources) {
+    // Rechtspflicht (ODbL): der Text hängt an der Quelle, das
+    // SourceAttribution-Widget zeigt ihn dauerhaft an.
+    final attribution = attributionOnce('© OpenStreetMap contributors');
     styleSources[source.id] = {
       'type': 'vector',
       'url': 'pmtiles://file://${source.filePath}',
       'minzoom': source.minZoom,
       'maxzoom': source.maxZoom,
-      // Rechtspflicht (ODbL) — die Attributions-Anzeige kommt in PR 5,
-      // die Quelle trägt den Text schon jetzt.
-      'attribution': '© OpenStreetMap contributors',
+      'attribution': ?attribution,
     };
     layers.addAll(_layersFor(baseLayers, source.id));
+  }
+
+  for (final raster in rasterSources) {
+    final attribution = attributionOnce('© OpenStreetMap contributors');
+    styleSources[raster.id] = {
+      'type': 'raster',
+      'tiles': [raster.urlTemplate],
+      // OSM liefert 256er-Kacheln; MapLibres Standard sind 512 — ohne
+      // die Angabe läge die Beschriftungsgröße eine Zoomstufe daneben.
+      'tileSize': 256,
+      'maxzoom': raster.maxZoom,
+      'attribution': ?attribution,
+    };
+    layers.add({
+      'id': raster.id,
+      'type': 'raster',
+      'source': raster.id,
+    });
   }
 
   return jsonEncode({

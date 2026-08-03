@@ -9,7 +9,7 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Zum Ausprobieren: eine neue Karten-Engine (Beta)
 
-*3. August 2026 · Versionen 1.39.0 und 1.40.0*
+*3. August 2026 · Versionen 1.39.0 bis 1.41.0*
 
 Im Profil gibt es einen neuen Schalter **„Neue Karten-Engine (Beta)"** —
 nur in der Android-App. Er stellt die Karte auf einen anderen Renderer um,
@@ -19,9 +19,11 @@ Zoomen und Wischen.
 - Seit 1.40.0 zeigt die neue Engine auch **deine Spots, die Positionen
   deiner Freunde und deinen eigenen Standort** — antippen funktioniert wie
   gewohnt.
-- Was noch fehlt: die **Online-Karte** (die neue Engine zeigt nur
-  Offline-Regionen und die eingebaute Übersicht), Maßstab und
-  Kartenhinweis. Das kommt in den nächsten Versionen.
+- Seit 1.41.0 kann sie auch die **Online-Karte**: Mit Empfang kommen die
+  gewohnten OpenStreetMap-Kacheln, ohne Empfang springt sie automatisch
+  auf deine heruntergeladenen Regionen um — nach denselben Regeln wie die
+  bisherige Karte. Maßstab und Kartenhinweis sind auch da. Damit kann die
+  neue Engine alles, was die alte kann.
 - Ausgeschaltet bleibt alles wie bisher — der Schalter ist zum Anschauen
   und Vergleichen da, nicht Pflicht.
 

@@ -208,6 +208,12 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
         if (event is ml.MapEventCameraIdle) _updateVisibleBounds();
       },
       children: [
+        // Maßstab und dauerhafte Quellen-Attribution (ODbL-Rechtspflicht;
+        // die Texte liefert der Style-Composer an jeder Quelle mit) —
+        // die fertigen Widgets des Pakets, Positionen wie bei der
+        // flutter_map-Engine: Maßstab unten links, Hinweis unten rechts.
+        const ml.MapScalebar(alignment: Alignment.bottomLeft),
+        const ml.SourceAttribution(alignment: Alignment.bottomRight),
         if (_visibleBounds != null)
           ml.WidgetLayer(
             // Ohne dieses Flag kommen keine Taps an den Markern an.
