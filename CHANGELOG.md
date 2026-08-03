@@ -9,7 +9,7 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Zum Ausprobieren: eine neue Karten-Engine (Beta)
 
-*3. August 2026 · Versionen 1.39.0 bis 1.41.0*
+*3. August 2026 · Versionen 1.39.0 bis 1.42.0*
 
 Im Profil gibt es einen neuen Schalter **„Neue Karten-Engine (Beta)"** —
 nur in der Android-App. Er stellt die Karte auf einen anderen Renderer um,

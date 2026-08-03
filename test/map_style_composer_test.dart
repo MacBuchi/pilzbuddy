@@ -67,6 +67,18 @@ const _osm = MapRasterSource(
   maxZoom: 19,
 );
 
+const _radar = MapImageOverlay(
+  id: 'regenradar',
+  url: 'https://maps.dwd.de/geoserver/dwd/wms?REQUEST=GetMap'
+      '&BBOX=612257,5700583,1948091,7459517&WIDTH=1024&HEIGHT=1348',
+  west: 5.5,
+  south: 45.5,
+  east: 17.5,
+  north: 55.5,
+  opacity: 0.6,
+  attribution: '© Deutscher Wetterdienst',
+);
+
 Map<String, dynamic> _compose({List<MapStyleSource>? sources}) =>
     jsonDecode(composeMapLibreStyle(
       baseStyle: _baseStyle(),
@@ -203,5 +215,78 @@ void main() {
     expect(layers, hasLength(2));
     expect(layers.first['type'], 'background');
     expect(layers.last['type'], 'raster');
+  });
+
+  // Der Flexibilitätsbeweis der Migration: ein halbtransparentes
+  // Raster-Overlay (DWD-Regenradar) als OBERSTE Kartenschicht — der Weg,
+  // über den später Niederschlag (#156/#158) und Waldarten hereinkommen.
+  group('Overlay', () {
+    Map<String, dynamic> compose() => jsonDecode(composeMapLibreStyle(
+          baseStyle: _baseStyle(),
+          glyphsUrl: 'file:///glyphs/{fontstack}/{range}.pbf',
+          backgroundColor: '#e2dfda',
+          sources: const [_overview],
+          rasterSources: const [_osm],
+          overlays: const [_radar],
+        )) as Map<String, dynamic>;
+
+    test('liegt als oberste Ebene über Basis-Raster und Vektor', () {
+      final layers =
+          (compose()['layers'] as List).cast<Map<String, dynamic>>();
+      expect(layers.last['id'], 'regenradar');
+      expect(layers.last['type'], 'raster');
+      // Direkt darunter das Basis-Raster — Overlay schlägt alles.
+      expect(layers[layers.length - 2]['source'], 'osm');
+    });
+
+    test('halbtransparent: raster-opacity aus dem Overlay-Objekt', () {
+      final layers =
+          (compose()['layers'] as List).cast<Map<String, dynamic>>();
+      expect(layers.last['paint'], {'raster-opacity': 0.6},
+          reason: 'Deckend würde das Radar die Karte darunter auslöschen — '
+              'der Regen soll ÜBER der Landschaft liegen, nicht statt ihr.');
+    });
+
+    test('IMAGE-Source mit vier Ecken im Uhrzeigersinn ab oben links — '
+        'maplibre-native kennt keine WMS-Kachel-Vorlagen', () {
+      final sources = compose()['sources'] as Map<String, dynamic>;
+      final radar = sources['regenradar'] as Map<String, dynamic>;
+      expect(radar['type'], 'image');
+      expect(radar['url'], contains('maps.dwd.de'));
+      expect(radar['coordinates'], [
+        [5.5, 55.5],
+        [17.5, 55.5],
+        [17.5, 45.5],
+        [5.5, 45.5],
+      ]);
+    });
+
+    test('Overlay-Attribution fährt bei der ersten Quelle mit — eine '
+        'image-Source kennt kein attribution-Feld', () {
+      final sources = compose()['sources'] as Map<String, dynamic>;
+      final overview = sources['overview'] as Map<String, dynamic>;
+      expect(overview['attribution'], contains('OpenStreetMap'));
+      expect(overview['attribution'], contains('Wetterdienst'));
+      expect(sources['regenradar'], isNot(contains('attribution')));
+    });
+
+    test('ohne Overlay-Liste ändert sich nichts am Style', () {
+      final without = composeMapLibreStyle(
+        baseStyle: _baseStyle(),
+        glyphsUrl: 'file:///glyphs/{fontstack}/{range}.pbf',
+        backgroundColor: '#e2dfda',
+        sources: const [_overview],
+        rasterSources: const [_osm],
+      );
+      final withEmpty = composeMapLibreStyle(
+        baseStyle: _baseStyle(),
+        glyphsUrl: 'file:///glyphs/{fontstack}/{range}.pbf',
+        backgroundColor: '#e2dfda',
+        sources: const [_overview],
+        rasterSources: const [_osm],
+        overlays: const [],
+      );
+      expect(withEmpty, without);
+    });
   });
 }

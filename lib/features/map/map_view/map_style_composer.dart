@@ -40,6 +40,39 @@ class MapRasterSource {
   final int maxZoom;
 }
 
+/// Ein halbtransparentes Overlay als OBERSTE Kartenschicht — der
+/// Erweiterungsweg der Engine (Regenradar heute, Waldarten und
+/// Niederschlagssummen morgen, #156/#158).
+///
+/// Bewusst eine IMAGE-Source (ein georeferenziertes Einzelbild mit
+/// vier Ecken), keine Kachel-Vorlage: maplibre-native kennt den
+/// WMS-Platzhalter `{bbox-epsg-3857}` NICHT (nur GL JS tut das; die
+/// Token-Literale fehlen in libmaplibre.so, und am Gerät blieb das
+/// Overlay pixelgleich unsichtbar). Ein WMS liefert dasselbe Bild
+/// aber problemlos mit fester BBOX — und die künftigen eigenen
+/// Raster (Ampel-Grid aus dem Cron) sind ohnehin Einzelbilder.
+class MapImageOverlay {
+  const MapImageOverlay({
+    required this.id,
+    required this.url,
+    required this.west,
+    required this.south,
+    required this.east,
+    required this.north,
+    required this.opacity,
+    required this.attribution,
+  });
+
+  final String id;
+  final String url;
+  final double west;
+  final double south;
+  final double east;
+  final double north;
+  final double opacity;
+  final String attribution;
+}
+
 /// Setzt aus dem generierten Protomaps-Basis-Style und den Quellen EIN
 /// Style-Dokument zusammen: eine background-Ebene im Landton, dann für
 /// jede Quelle alle Nicht-background-Ebenen des Basis-Styles — in der
@@ -60,6 +93,7 @@ String composeMapLibreStyle({
   required String backgroundColor,
   required List<MapStyleSource> sources,
   List<MapRasterSource> rasterSources = const [],
+  List<MapImageOverlay> overlays = const [],
 }) {
   final baseLayers = baseStyle['layers'] as List<dynamic>? ?? const [];
 
@@ -67,9 +101,18 @@ String composeMapLibreStyle({
   // Attributions-Widget listet jede Quellen-Attribution einzeln — vier
   // Quellen ergäben vier identische „© OpenStreetMap"-Zeilen
   // übereinander (am Gerät gesehen). Rechtlich genügt eine.
+  //
+  // Die Overlay-Attributionen fahren bei der ersten Quelle mit: Eine
+  // IMAGE-Source kennt im Style-Schema kein attribution-Feld.
   final seenAttributions = <String>{};
-  String? attributionOnce(String text) =>
-      seenAttributions.add(text) ? text : null;
+  final overlayCredits = [
+    for (final overlay in overlays)
+      if (seenAttributions.add(overlay.attribution)) overlay.attribution,
+  ];
+  String? attributionOnce(String text) {
+    if (!seenAttributions.add(text)) return null;
+    return ([text, ...overlayCredits]..remove('')).join(' · ');
+  }
 
   final styleSources = <String, dynamic>{};
   final layers = <Map<String, dynamic>>[
@@ -112,6 +155,29 @@ String composeMapLibreStyle({
       'id': raster.id,
       'type': 'raster',
       'source': raster.id,
+    });
+  }
+
+  // Overlays zuletzt = zuoberst: Sie liegen ÜBER Basis-Raster und
+  // Vektor-Ebenen, halbtransparent — der Regen gehört über die
+  // Landschaft, nicht an ihre Stelle. Ecken im Uhrzeigersinn ab
+  // oben links, wie es das Style-Schema für image-Sources verlangt.
+  for (final overlay in overlays) {
+    styleSources[overlay.id] = {
+      'type': 'image',
+      'url': overlay.url,
+      'coordinates': [
+        [overlay.west, overlay.north],
+        [overlay.east, overlay.north],
+        [overlay.east, overlay.south],
+        [overlay.west, overlay.south],
+      ],
+    };
+    layers.add({
+      'id': overlay.id,
+      'type': 'raster',
+      'source': overlay.id,
+      'paint': {'raster-opacity': overlay.opacity},
     });
   }
 

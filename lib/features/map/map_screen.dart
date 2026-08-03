@@ -22,6 +22,7 @@ import '../spots/spot_providers.dart';
 import '../spots/widgets/spot_detail_sheet.dart';
 import 'live_share_providers.dart';
 import 'map_view/camera_tour.dart';
+import 'map_view/map_engine.dart';
 import 'map_view/map_view.dart';
 import 'position_provider.dart';
 import 'spot_filter.dart';
@@ -539,7 +540,23 @@ class _MapScreenState extends ConsumerState<MapScreen>
           // Engines. `!kReleaseMode`, nicht `kDebugMode`: Die
           // Perfetto-Läufe (Stufe 7) messen im PROFILE-Build, dort
           // muss der Knopf da sein; nur das Release bleibt sauber.
+          // Daneben der Regenradar-Beweis (Stufe 6): wirkt nur auf der
+          // MapLibre-Engine — Overlays sind ihr Erweiterungsweg.
           if (!kReleaseMode) ...[
+            const SizedBox(height: 12),
+            FloatingActionButton.small(
+              heroTag: 'radar',
+              onPressed: () => ref
+                  .read(rainRadarEnabledProvider.notifier)
+                  .update((value) => !value),
+              tooltip: 'Regenradar (Debug)',
+              backgroundColor: ref.watch(rainRadarEnabledProvider)
+                  ? AppColors.friendBlue
+                  : null,
+              foregroundColor:
+                  ref.watch(rainRadarEnabledProvider) ? Colors.white : null,
+              child: const Icon(Icons.water_drop_outlined),
+            ),
             const SizedBox(height: 12),
             CameraTourButton(controller: _map),
           ],
