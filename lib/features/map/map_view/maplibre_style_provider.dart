@@ -94,35 +94,69 @@ final maplibreStyleIoProvider =
 String _cssColor(int argb) =>
     '#${(argb & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
 
+/// Das Online-Raster (OSM) — dieselbe Quelle wie der TileLayer der
+/// flutter_map-Engine.
+const _osmRaster = MapRasterSource(
+  id: 'osm',
+  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  // OSM liefert Kacheln nur bis Zoom 19 (siehe _maxZoom in map_screen).
+  maxZoom: 19,
+);
+
 /// Das fertige Style-Dokument — oder null, wenn etwas fehlt: Dann fällt
 /// die MapLibre-Engine auf flutter_map zurück (maplibre_map_view.dart),
 /// die Karte bleibt benutzbar. Optionales Feature, still degradieren.
+///
+/// Die Quellen-Wahl folgt EXAKT der Regel der flutter_map-Engine
+/// (`offlineMapStyleProvider` + `showBaseMap`):
+///
+/// - offline aktiv = (Schalter ODER kein Empfang) UND Regionen
+///   installiert ⇒ Übersicht + Regionen, kein Raster;
+/// - sonst das OSM-Raster — und die Übersicht liegt NUR dann darunter,
+///   wenn kein Empfang besteht: Dann kommt keine Kachel, es gibt nichts,
+///   womit sie sich mischen könnte (#118). Unter funktionierenden
+///   Online-Kacheln sähen zwei Kartenstile nebeneinander kaputter aus
+///   als die leere Fläche (#137).
+///
+/// Ein Wechsel (Schalter, Empfangsverlust) erzeugt einen neuen
+/// Style-String; die Engine spielt ihn per `setStyle` ein — es gibt
+/// keinen TileProvider-Lebenszyklus, der dabei sterben könnte (die
+/// #157-Fehlerklasse der alten Engine existiert hier nicht).
 final maplibreStyleProvider = FutureProvider<String?>((ref) async {
   // ANTI-RACE: warten, nicht `valueOrNull` — siehe Kopfkommentar.
   final installed = await ref.watch(installedMapsProvider.future);
+  final manuallyEnabled = ref.watch(offlineMapEnabledProvider);
+  final noConnectivity = ref.watch(noConnectivityProvider);
   final io = ref.watch(maplibreStyleIoProvider);
   try {
-    final overviewPath = await io.materializeOverview();
-    final glyphsUrl = await io.materializeGlyphs();
-    final base = jsonDecode(await io.loadBaseStyle()) as Map<String, dynamic>;
+    final offlineActive =
+        (manuallyEnabled || noConnectivity) && installed.isNotEmpty;
+    final showOverview = offlineActive || noConnectivity;
 
-    final overviewZoom = await io.readZoomRange(overviewPath);
-    final sources = <MapStyleSource>[
-      MapStyleSource(
+    final base = jsonDecode(await io.loadBaseStyle()) as Map<String, dynamic>;
+    final glyphsUrl = await io.materializeGlyphs();
+
+    final sources = <MapStyleSource>[];
+    if (showOverview) {
+      final overviewPath = await io.materializeOverview();
+      final overviewZoom = await io.readZoomRange(overviewPath);
+      sources.add(MapStyleSource(
         id: 'overview',
         filePath: overviewPath,
         minZoom: overviewZoom.min,
         maxZoom: overviewZoom.max,
-      ),
-    ];
-    for (final map in installed) {
-      final zoom = await io.readZoomRange(map.filePath);
-      sources.add(MapStyleSource(
-        id: 'region_${map.key}',
-        filePath: map.filePath,
-        minZoom: zoom.min,
-        maxZoom: zoom.max,
       ));
+    }
+    if (offlineActive) {
+      for (final map in installed) {
+        final zoom = await io.readZoomRange(map.filePath);
+        sources.add(MapStyleSource(
+          id: 'region_${map.key}',
+          filePath: map.filePath,
+          minZoom: zoom.min,
+          maxZoom: zoom.max,
+        ));
+      }
     }
 
     return composeMapLibreStyle(
@@ -130,6 +164,7 @@ final maplibreStyleProvider = FutureProvider<String?>((ref) async {
       glyphsUrl: glyphsUrl,
       backgroundColor: _cssColor(AppColors.mapBackground.toARGB32()),
       sources: sources,
+      rasterSources: offlineActive ? const [] : const [_osmRaster],
     );
   } catch (e, stackTrace) {
     logError('MapLibre-Style bauen', e, stackTrace);

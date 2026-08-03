@@ -127,15 +127,16 @@ class ProfileScreen extends ConsumerWidget {
               onTap: () => context.push('/profile/offline-maps'),
             ),
             // Opt-in zur MapLibre-Engine (Migrationsplan „Lupo → Porsche"):
-            // ehrlich beschriftet, solange ihr Funktionsumfang hinter der
-            // alten Karte zurückbleibt. Standard bleibt flutter_map.
+            // seit 1.41.0 funktional gleichauf (Spots, Online-Karte,
+            // Maßstab, Hinweis) — Beta bleibt sie bis zur Abnahme des
+            // Direktvergleichs. Standard bleibt flutter_map.
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               secondary: const Icon(Icons.speed_outlined),
               title: const Text('Neue Karten-Engine (Beta)'),
               subtitle: const Text(
-                  'Flüssigere Offline-Karte — zeigt aber noch keine Spots '
-                  'und keine Online-Karte.'),
+                  'Flüssigere Karte mit nativem Renderer — zum Vergleichen. '
+                  'Ausgeschaltet gilt die bewährte Karte.'),
               value: ref.watch(mapLibreEnabledProvider),
               onChanged: (_) =>
                   ref.read(mapLibreEnabledProvider.notifier).toggle(),
