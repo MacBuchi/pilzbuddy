@@ -109,7 +109,21 @@ jobs:
       # 12,7 MB je ABI) um ~36 MB wachsen. Ohne die beiden ungenutzten
       # ABIs wird die APK sogar kleiner als bisher. Das AAB unten bleibt
       # universal — Play splittet selbst pro Gerät.
-      - run: flutter build apk --release --target-platform android-arm64
+      #
+      # `disable-abi-filtering` gehört zwingend dazu: Ohne den Schalter
+      # setzt der Flutter-Gradle-Plugin die ABI-Filter selbst — und zwar
+      # per `abiFilters.clear()` auf ALLE drei (FlutterPlugin.kt,
+      # configureAbiWithoutSplits), womit auch ein in build.gradle.kts
+      # gesetzter Filter wieder weg wäre. `--target-platform` allein
+      # beschränkt nur Flutters eigene Artefakte; die nativen Teile der
+      # Plugins kamen weiter für alle ABIs mit. In 1.43.0 waren das
+      # 22,4 MB von 66,8 MB — nicht startfähig, weil dazu die passende
+      # libflutter.so fehlt. `test/release_build_test.dart` hält beide
+      # Schalter zusammen.
+      - run: >
+          flutter build apk --release
+          --target-platform android-arm64
+          -Pdisable-abi-filtering=true
       - name: Artefakt benennen
         run: cp build/app/outputs/flutter-apk/app-release.apk "pilzbuddy-${{ needs.version.outputs.tag }}.apk"
       - uses: actions/upload-artifact@v7
