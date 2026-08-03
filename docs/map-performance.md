@@ -56,7 +56,11 @@ die läuft synchron im Haupt-Isolate. Auch das ist ein Tausch, kein Aufräumen.
 - **MapLibre statt flutter_map (#151, Spike).** Gesamt-CPU identisch, die
   Arbeit wandert nur auf einen anderen Thread; Haupt-Thread −28 % statt der
   geforderten −50 %. Dazu lieferten die Regionsdateien gar keine Kacheln.
-  Kein Migrations-PR.
+  Kein Migrations-PR — **so stand es hier bis zur Autopsie**: Beide
+  K.-o.-Befunde waren Spike-Bugs (leere Kacheln = Style-Race vor geladener
+  Regionsliste; −28 % = ungecullte Marker pro Frame auf dem UI-Isolate).
+  Die echte Migration lief danach in Stufen (PR #174–#179); das Ergebnis
+  steht unten unter „Der Engine-Direktvergleich".
 
 ## Die Auflösung der ANRs (#151, gemessen am 2026-08-02)
 
@@ -136,3 +140,103 @@ Bleibt das Symptom, sind die Kandidaten die zwei Layer-Welten:
 
 Der naheliegende Griff wäre in beiden Fällen eine Rücknahme von #142 —
 und der bleibt an eine Messung gebunden (Grundregel oben).
+
+## Der Engine-Direktvergleich (Migrationsstufe 7, gemessen am 2026-08-03)
+
+Aufbau: Pixel 7 Pro (LTPO-Panel bis 120 Hz), Profile-Build 1.42.0 mit
+Release-Signatur, Offline-Modus mit vier installierten Regionen —
+darunter Bayern mit 1,79 GB, also die Leaf-Directory-Klasse, die das
+H2-Gate isoliert bewiesen hatte. Gleiches Gerät, gleiches Konto,
+gleicher Spot-Bestand; der Engine-Wechsel ist nur der Beta-Schalter im
+Profil, jeder Schaltzustand vor der Messung per Screenshot verifiziert.
+
+Werkzeuge: `tool/measure_map.sh` (Perfetto-Trace, deterministische
+Gesten-Choreographie, Speicher-Verlauf) und `tool/analyze_map_trace.py`
+(Auswertung). Gemessen wird mit SurfaceFlingers **FrameTimeline
+end-to-end pro präsentiertem Display-Frame**: Flutters Frame-Timings
+und `gfxinfo` sehen den nativen GL-Thread der MapLibre-Engine nicht,
+und App-eigene Surface-Frames existieren in der FrameTimeline für
+BEIDE Engines nicht (weder Flutter noch die GL-Surface taggen ihre
+Buffer mit Vsync-IDs — im Trace tut das nur die StatusBar, zwei
+Frames). Während der Messläufe animiert nichts außer der Karte; die
+Display-Kadenz ist also die Karten-Kadenz. Die reale Refresh-Rate wird
+aus dem Trace gelesen, nicht angenommen.
+
+Zwei deterministische Lasten, auf beiden Engines exakt gleich:
+
+- **Kamerafahrt** (`CameraTourButton`, 15 harte Sprünge, ~55 s):
+  misst die Nachlade-Bursts nach Sprüngen.
+- **Gesten-Choreographie** (`tool/measure_map.sh gestures`, ~30 s bei
+  München z14: zwölf Pans, vier Flings): misst das Wischen — den
+  Moment, in dem Ruckeln spürbar ist.
+
+### Frame-Abstände (präsentierte Frames, aktive Phasen < 250 ms)
+
+| | flutter_map | MapLibre |
+|---|---|---|
+| **Gesten** p50/p95/p99 | 58,3 / 141,6 / 223,8 ms | 8,33 / 16,7 / 25,0 ms |
+| präsentierte Frames in ~29 s | 322 | 1621 |
+| Panel-Takt im Lauf | 40 Hz (heruntergetaktet) | 120 Hz durchgehend |
+| SF-Jank-Frames / längster Burst | 102 / 9 | 0 / 0 |
+| **Kamerafahrt** p50/p95/p99 | 8,3 / 124,1 / 204,7 ms | 8,3 / 25,0 / 33,3 ms |
+| SF-Jank-Frames / längster Burst | 30 / 5 | 3 / 2 |
+
+Lesart: Beim Wischen liefert die alte Engine im Median alle 58 ms ein
+Bild (~17 fps) — das LTPO-Panel findet im gesamten Lauf keinen Grund,
+über 40 Hz zu takten. Die neue liefert im Median jeden 120-Hz-Takt
+(fünfmal so viele Frames in derselben Choreographie), und
+SurfaceFlinger klassifiziert keinen einzigen Frame als Jank. Nach
+Kamera-Sprüngen steht die alte Engine im p99 205 ms, die neue 33 ms.
+
+### Kaltstart (Splash → Karte steht; screenrecord, kodierte Frames + pts)
+
+| | Lauf 1 | Lauf 2 |
+|---|---|---|
+| flutter_map | 2,20 s | 2,22 s |
+| MapLibre | 2,18 s | 2,23 s |
+
+Identisch. Die ~2,2 s sind gemeinsamer App-Bootstrap
+(Session-Wiederherstellung übers Netz, Provider, Splash); der
+Engine-Anteil der neuen Karte ist ≈ 0 — die 2-GB-Region im Style
+kostet beim Start nichts Messbares. Kalte Sprünge in Bayerns
+Leaf-Directories hatte das H2-Gate bereits mit < 3 s belegt.
+
+### Speicher (10-Minuten-Fenster, Kamerafahrt im Loop, dumpsys meminfo)
+
+| | flutter_map | MapLibre |
+|---|---|---|
+| Total PSS unter Last | 0,61–1,54 GB, stark schwankend | 530–570 MB, stabil |
+| Grafik-Spitze | 873 MB | 262 MB |
+| nach Lastende | ~680 MB | ~450 MB, fallend |
+
+Die alte Engine erreicht unter der Dauerlast Spitzen von 1,5 GB Total
+PSS — die Gegend, aus der die ANR-Berichte in #142 kamen (1,7–1,9 GB).
+Die neue hält ein Plateau bei gut einem Drittel davon, ohne monotones
+Wachstum, und gibt nach Lastende Speicher zurück. (Transparenz: Im
+MapLibre-Fenster liefen die ersten ~2 Minuten ohne Last, weil das
+Display kurz dozte; Plateau- und Spitzenwerte stammen aus den ~8
+Minuten unter Last. Der flutter_map-Lauf lief volle 10 Minuten unter
+verifizierter Last.)
+
+### Bewertung gegen die Wett-Kriterien aus dem Migrationsplan
+
+- **p99 ≤ 1 Vsync der realen Refresh-Rate:** Wörtlich erfüllt keine
+  Engine (1 Takt bei 120 Hz = 8,3 ms). MapLibre hält den **Median**
+  exakt auf dem Takt, p95 im 60-Hz-Budget (16,7 ms), p99 bei 25 ms —
+  und SurfaceFlinger zählt null Jank-Frames; das Kriterium war strenger
+  formuliert als das, was der Compositor selbst als ruckelfrei wertet.
+  flutter_map verfehlt es bereits im Median um Faktor 7.
+- **Keine Jank-Bursts > 3 Frames:** MapLibre erfüllt (längster Burst
+  2, in den Gesten 0). flutter_map verfehlt (Bursts von 5 und 9).
+- **Kaltstart 2-GB-Region < 2 s:** Der Engine-Anteil ist ≈ 0; die
+  gemessenen 2,2 s sind App-Bootstrap und für beide Engines identisch.
+- **Speicher nach 10 min gedeckelt:** MapLibre erfüllt (Plateau,
+  danach fallend). flutter_map schwankt bis 1,5 GB.
+
+Die Rohdaten (Traces, CSVs) entstehen unter `build/map_traces/`; die
+Prozedur ist mit `tool/measure_map.sh` wiederholbar — womit die
+Grundregel oben („keine Stellschraube ohne Messung") erstmals ein
+wiederholbares Werkzeug hat. Was die Zahlen nicht entscheiden können,
+entscheidet der Betreiber im Alltag: der Beta-Schalter bleibt, bis der
+Direktvergleich mit dem Daumen gesprochen hat; erst dann dreht ein
+eigener PR den Default.
