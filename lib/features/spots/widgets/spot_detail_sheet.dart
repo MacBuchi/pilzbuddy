@@ -98,7 +98,7 @@ class _SpotDetailSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final mySpots = ref.watch(mySpotsProvider).valueOrNull ?? const <Spot>[];
+    final mySpots = ref.watch(mySpotListProvider);
     final friendSpots =
         ref.watch(friendSpotsProvider).valueOrNull ?? const <Spot>[];
     final spot = [...mySpots, ...friendSpots]

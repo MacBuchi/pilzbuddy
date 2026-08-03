@@ -33,7 +33,7 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(myProfileProvider);
-    final spots = ref.watch(mySpotsProvider).valueOrNull ?? [];
+    final spots = ref.watch(mySpotListProvider);
     final profile = profileAsync.valueOrNull;
 
     final allFinds = [for (final s in spots) ...s.finds];
@@ -44,7 +44,13 @@ class ProfileScreen extends ConsumerWidget {
         title: const Text('Profil'),
         actions: [
           IconButton(
-            onPressed: () => ref.read(authRepositoryProvider).signOut(),
+            // Erst die lokale Kopie der Spots wegwerfen, dann abmelden:
+            // Danach leitet der Router sofort auf /login um, und `ref`
+            // wäre nicht mehr benutzbar.
+            onPressed: () async {
+              await ref.read(mySpotsProvider.notifier).forgetCache();
+              await ref.read(authRepositoryProvider).signOut();
+            },
             icon: const Icon(Icons.logout),
             tooltip: 'Abmelden',
           ),
@@ -356,6 +362,9 @@ class _DeleteAccountTile extends ConsumerWidget {
     if (!confirmed || !context.mounted) return;
 
     try {
+      // Dieselbe Reihenfolge wie beim Abmelden — und hier zwingend: Ein
+      // gelöschtes Konto darf keine Fundstellen auf dem Gerät hinterlassen.
+      await ref.read(mySpotsProvider.notifier).forgetCache();
       await ref.read(authRepositoryProvider).deleteAccount();
       // Der Router schickt nach dem Abmelden automatisch auf /login.
     } catch (e, stackTrace) {
@@ -566,7 +575,7 @@ Future<void> _exportGpx(BuildContext context, WidgetRef ref) async {
     }
   }
 
-  final spots = ref.read(mySpotsProvider).valueOrNull ?? [];
+  final spots = ref.read(mySpotListProvider);
   if (spots.isEmpty) {
     message('Noch keine eigenen Spots zum Exportieren.');
     return;

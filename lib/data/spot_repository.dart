@@ -4,21 +4,60 @@ import '../core/dates.dart';
 import '../core/mushroom_species.dart';
 import '../models/spot.dart';
 import 'session.dart';
+import 'spot_cache.dart';
+
+/// Die eigenen Spots samt Herkunft: `cachedAt == null` heißt frisch aus
+/// dem Netz, sonst stammen sie aus dem Zwischenspeicher und sind von
+/// diesem Zeitpunkt.
+typedef SpotsSnapshot = ({List<Spot> spots, DateTime? cachedAt});
 
 class SpotRepository {
-  SpotRepository(this._client);
+  SpotRepository(this._client, {SpotCache? cache}) : _cache = cache;
 
   final SupabaseClient _client;
+  final SpotCache? _cache;
+
+  /// Nach dieser Zeit gilt der Abruf als gescheitert und der
+  /// Zwischenspeicher übernimmt.
+  ///
+  /// Nötig, weil postgrest GET-Anfragen von sich aus dreimal wiederholt
+  /// (Backoff 1+2+4 s). Ohne Deckel wartet die Karte im Funkloch alle
+  /// vier Versuche ab — und bei „ein Balken, keine Daten" hängt jeder
+  /// davon am Zeitlimit des Systems, was Minuten bedeuten kann. Genau
+  /// dann soll die Offline-Kopie zügig einspringen.
+  static const fetchTimeout = Duration(seconds: 10);
 
   String get _uid => _client.requireUid;
 
-  Future<List<Spot>> fetchMySpots() async {
-    final rows = await _client
-        .from('spots')
-        .select('*, finds(*)')
-        .eq('owner_id', _uid)
-        .order('created_at');
-    return rows.map((r) => Spot.fromJson(r, currentUserId: _uid)).toList();
+  /// Eigene Spots. Ohne Empfang kommen sie aus dem Zwischenspeicher —
+  /// siehe `spot_cache.dart` für den Grund.
+  Future<SpotsSnapshot> fetchMySpots() async {
+    final uid = _uid;
+    Future<List<Map<String, dynamic>>> fetch() async {
+      final rows = await _client
+          .from('spots')
+          .select('*, finds(*)')
+          .eq('owner_id', uid)
+          .order('created_at')
+          .timeout(fetchTimeout);
+      return rows.cast<Map<String, dynamic>>();
+    }
+
+    final cache = _cache;
+    final result = cache == null
+        ? (rows: await fetch(), cachedAt: null)
+        : await fetchSpotRowsWithCache(
+            fetch: fetch,
+            cache: cache,
+            uid: uid,
+            now: DateTime.now(),
+          );
+    return (
+      spots: [
+        for (final row in result.rows) Spot.fromJson(row, currentUserId: uid),
+      ],
+      cachedAt: result.cachedAt,
+    );
   }
 
   /// Von Freunden geteilte Spots. Die RLS-Policies liefern nur, was der

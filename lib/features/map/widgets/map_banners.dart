@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/errors.dart';
@@ -13,8 +14,13 @@ import '../../../data/feedback_repository.dart';
 import '../../../data/providers.dart';
 import '../../friends/friend_providers.dart';
 import '../../offline_maps/offline_map_providers.dart';
+import '../../spots/spot_providers.dart';
 import '../../update/update_installer.dart';
 import '../../../core/app_colors.dart';
+
+/// Datum ohne Uhrzeit: Der Zwischenspeicher ist tagesgenau interessant
+/// („von gestern"), die Minute hilft niemandem.
+final _dayMonth = DateFormat('d.M.y');
 
 /// Feedback-Banner für diese Sitzung ausgeblendet? Wird nur durch das X
 /// gesetzt: nach dem Absenden bleibt das Banner stehen, sonst wirkt es, als
@@ -132,9 +138,40 @@ class MapBanners extends ConsumerWidget {
     final updateInfo = ref.watch(updateInfoProvider).valueOrNull;
     final updateDismissed = ref.watch(updateBannerDismissedProvider);
 
+    // Ohne Empfang kommen die Spots aus dem Zwischenspeicher. Das gehört
+    // dazugesagt: Wer im Wald einen Spot vermisst, den er gestern angelegt
+    // hat, soll den Grund sehen und nicht an der App zweifeln. Ganz oben
+    // und ohne X — es ist kein Hinweis, den man wegwischt, sondern der
+    // Zustand der angezeigten Daten.
+    final cachedAt = ref.watch(mySpotsCachedAtProvider);
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        if (cachedAt != null)
+          _banner(
+            context,
+            background: AppColors.warmBrown,
+            foreground: Colors.white,
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('📴 Ohne Empfang — deine Spots vom '
+                    '${_dayMonth.format(cachedAt)}'),
+                // Die zweite Zeile ist keine Zierde: Freundes-Spots werden
+                // bewusst NICHT zwischengespeichert (fremde Standorte, und
+                // deren Freigabe entscheidet der Server bei jeder Abfrage
+                // neu). Ohne diesen Satz sähe ihr Fehlen nach einem Fehler
+                // aus.
+                Text('Freundes-Spots fehlen, bis du wieder Empfang hast.',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: Colors.white70)),
+              ],
+            ),
+          ),
         if (updateInfo != null && !updateDismissed)
           _banner(
             context,
