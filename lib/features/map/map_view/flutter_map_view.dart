@@ -6,6 +6,7 @@ import 'package:vector_map_tiles/vector_map_tiles.dart' as vmt;
 
 import '../../offline_maps/offline_map_providers.dart';
 import '../finite_camera_constraint.dart';
+import '../rain_layer.dart';
 import 'map_view.dart';
 
 /// Fabrik für den Karten-Kachel-Provider. Tests ersetzen sie durch einen
@@ -114,6 +115,12 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
     // sie sich mischen könnte — und genau dieser Fall (Wald, kein Netz, noch
     // keine Region geladen) war der Anlass für #118.
     final showBaseMap = offlineActive || ref.watch(noConnectivityProvider);
+    // Die Regenebene liegt auch auf diesem Pfad — er ist der einzige im
+    // Web, und die PWA ist ein erklärtes Ziel. Ein Knopf, der nur auf
+    // Android etwas tut, wäre ein Fehler ohne Fehlermeldung.
+    final rainLayer = ref.watch(rainLayerProvider);
+    final rainBounds = rainLayer.bounds;
+    final rainUrl = rainLayerUrl(rainLayer, now: DateTime.now());
     if (offlineActive) {
       // Der TileLayer, der die Instanz hält, verschwindet mit diesem Frame
       // und entsorgt sie dabei — siehe Kommentar am Feld.
@@ -219,6 +226,32 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
             // kurz blass ist.
             keepBuffer: 2,
             panBuffer: 1,
+          ),
+        // Die Regenebene über der Karte, aber UNTER den Markern: Ein
+        // Spot, der hinter dem Regen verschwindet, wäre genau dann
+        // unauffindbar, wenn man ihn braucht. Dieselbe Schichtung wie
+        // in der MapLibre-Engine (map_style_composer.dart).
+        //
+        // `filterQuality: none` = nächster Nachbar, aus demselben Grund
+        // wie `raster-resampling: nearest` dort: Die Daten sind ein
+        // 1-km-Raster, und ein weichgezeichnetes Bild sähe genauer aus,
+        // als sie sind. `gaplessPlayback`, damit beim Ebenenwechsel
+        // nicht kurz gar nichts liegt.
+        if (rainUrl != null)
+          OverlayImageLayer(
+            overlayImages: [
+              OverlayImage(
+                bounds: LatLngBounds(
+                  LatLng(rainBounds.south, rainBounds.west),
+                  LatLng(rainBounds.north, rainBounds.east),
+                ),
+                opacity: rainLayer.opacity,
+                filterQuality: FilterQuality.none,
+                gaplessPlayback: true,
+                imageProvider:
+                    ref.read(rainImageProviderFactory)(rainUrl),
+              ),
+            ],
           ),
         // Markergruppen in fester Reihenfolge (unten → oben), damit
         // Spots über den Live-Positionen liegen und tappbar bleiben.

@@ -48,6 +48,64 @@ void main() {
             'Erklärung wieder falsch');
   });
 
+  // Die Regel aus CLAUDE.md — „ändert sich, wohin die App verbindet,
+  // gehört die Erklärung in denselben PR" — als Wächter statt als
+  // Vorsatz. Nicht die Erklärung wird auf Vollständigkeit geprüft (das
+  // kann kein Test), sondern der umgekehrte Weg: Taucht in `lib/` ein
+  // Ziel auf, das hier niemand eingetragen hat, bricht der Test.
+  test('Kein neues Netzziel ohne Eintrag in der Datenschutzerklärung', () {
+    /// Ziele, die die App von sich aus abruft — sie MÜSSEN in der
+    /// Erklärung stehen.
+    const fetched = {
+      'tile.openstreetmap.org',
+      'api.github.com',
+      'github.com',
+      'macbuchi.github.io',
+      'maps.dwd.de',
+    };
+
+    /// Ziele, die erst der Nutzer mit einem Tipp öffnet (Lizenz- und
+    /// Impressumslinks im Attributions-Bereich, Store-Seite). Sie
+    /// erzeugen keine Verbindung, solange niemand sie antippt.
+    const onTapOnly = {
+      'opendatacommons.org',
+      'protomaps.com',
+      'www.openstreetmap.org',
+      'www.dwd.de',
+      'play.google.com',
+    };
+
+    /// Supabase steht in der Erklärung mit Namen statt mit Hostnamen —
+    /// die Projekt-Kennung im Host sagt einem Leser nichts.
+    const namedInstead = {'supabase.co'};
+
+    final hosts = <String>{};
+    for (final file in Directory('lib')
+        .listSync(recursive: true)
+        .whereType<File>()
+        .where((f) => f.path.endsWith('.dart'))) {
+      for (final match in RegExp(r'https://([a-zA-Z0-9.\-]+)')
+          .allMatches(file.readAsStringSync())) {
+        hosts.add(match.group(1)!);
+      }
+    }
+
+    final unknown = hosts.where((h) =>
+        !fetched.contains(h) &&
+        !onTapOnly.contains(h) &&
+        !namedInstead.any(h.endsWith));
+    expect(unknown, isEmpty,
+        reason: 'Neues Ziel in lib/: ${unknown.join(", ")}. Entscheide, ob '
+            'die App es von sich aus abruft — dann gehört es in '
+            '$_privacy und in docs/play-console.md — oder ob es nur ein '
+            'Link ist. Danach hier eintragen.');
+
+    final html = _read(_privacy);
+    for (final host in fetched) {
+      expect(html, contains(host), reason: '$host fehlt in der Erklärung');
+    }
+  });
+
   test('Keine unersetzten Platzhalter mehr', () {
     // ABSICHTLICH ROT, solange Name, Anschrift, Kontakt, Supabase-Region und
     // Datum fehlen. Dieser Test ist die Bremse davor, eine unfertige

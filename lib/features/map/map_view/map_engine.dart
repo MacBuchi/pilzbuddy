@@ -29,12 +29,3 @@ class MapLibreEnabledNotifier extends Notifier<bool> {
 
 final mapLibreEnabledProvider =
     NotifierProvider<MapLibreEnabledNotifier, bool>(MapLibreEnabledNotifier.new);
-
-/// Debug-Schalter für das Regenradar-Overlay — der Flexibilitätsbeweis
-/// der Migration (Stufe 6): ein Umschalten erzeugt nur einen neuen
-/// Style-String, den die Engine per `setStyle` einspielt — kein
-/// Widget-Neuaufbau. Bewusst NICHT persistiert und ohne Release-UI;
-/// die Nutzer-Features dazu (#156/#158) bleiben eigene Issues.
-/// Liegt HIER statt im Style-Provider, damit `map_screen.dart` (läuft
-/// auch im Web) ihn ohne dart:io-Import erreicht.
-final rainRadarEnabledProvider = StateProvider<bool>((ref) => false);

@@ -7,6 +7,31 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Regen auf der Karte
+
+*4. August 2026 · Version 1.45.0*
+
+Der neue Tropfen-Knopf an der Karte legt Regendaten des Deutschen
+Wetterdienstes über die Landschaft. Drei Zeiträume stehen zur Wahl, und
+sie beantworten verschiedene Fragen:
+
+- **Jetzt** und **in einer Stunde** — das Regenradar. Nützlich für die
+  Frage, ob man jetzt losgeht oder lieber nicht.
+- **Letzte 24 Stunden** — wo es seit gestern geregnet hat.
+- **Letzte 30 Tage** — die wichtigste der drei. Daran sieht man, ob der
+  Boden über den Monat wirklich durchfeuchtet wurde, und nicht nur, ob
+  es einmal kurz geschüttet hat.
+
+Bewusst zeigt die Ebene nur **Messwerte** und sagt nirgends „hier stehen
+jetzt Pilze". Was daraus folgt, weißt du für deine Wälder besser als
+jede Formel.
+
+Zwei Dinge, die man wissen sollte: Die Summen gibt es nur für
+Deutschland, und das Radar reicht nicht bis in den Osten Österreichs
+oder den Westen der Schweiz — dort bleibt die Fläche grau, und die
+Legende sagt das auch. Und die Ebene ist beim Start immer aus: Sie lädt
+ein Bild aus dem Netz, und das soll im Wald niemand ungefragt tun.
+
 ## Deine Spots sind jetzt auch ohne Empfang da
 
 *4. August 2026 · Version 1.44.0*

@@ -9,8 +9,8 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/settings.dart';
-import 'package:pilzbuddy/features/map/map_view/map_engine.dart';
 import 'package:pilzbuddy/features/map/map_view/maplibre_style_provider.dart';
+import 'package:pilzbuddy/features/map/rain_layer.dart';
 import 'package:pilzbuddy/features/offline_maps/offline_map_providers.dart';
 import 'package:pilzbuddy/features/offline_maps/offline_map_repository.dart';
 
@@ -219,18 +219,20 @@ void main() {
     final without =
         jsonDecode((await container.read(maplibreStyleProvider.future))!)
             as Map<String, dynamic>;
-    expect((without['sources'] as Map).keys, isNot(contains('regenradar')));
+    expect((without['sources'] as Map).keys, isNot(contains('regen')));
 
-    container.read(rainRadarEnabledProvider.notifier).state = true;
+    container.read(rainLayerProvider.notifier).state = RainLayer.last30d;
     final style =
         jsonDecode((await container.read(maplibreStyleProvider.future))!)
             as Map<String, dynamic>;
     final sources = style['sources'] as Map<String, dynamic>;
-    expect(sources.keys, contains('regenradar'));
-    final radar = sources['regenradar'] as Map<String, dynamic>;
-    expect(radar['type'], 'image');
-    expect(radar['url'], contains('maps.dwd.de'));
+    expect(sources.keys, contains('regen'));
+    final rain = sources['regen'] as Map<String, dynamic>;
+    expect(rain['type'], 'image');
+    expect(rain['url'], contains('RADOLAN-W4'),
+        reason: 'Die gewählte Ebene muss im Style landen — sonst schaltet '
+            'das Blatt sichtbar um und zeigt weiter dasselbe Bild.');
     final layers = (style['layers'] as List).cast<Map<String, dynamic>>();
-    expect(layers.last['id'], 'regenradar');
+    expect(layers.last['id'], 'regen');
   });
 }

@@ -172,8 +172,9 @@ für Waldpilze gibt es nicht.
 | Quelle | Was | Lizenz/Kosten | Geprüft |
 |---|---|---|---|
 | **Open-Meteo** | Ein Request liefert 31 Tage Rückschau + 14 Tage Vorhersage: Niederschlag, Temperatur, **Bodenfeuchte, Bodentemperatur**. Mehrere Orte pro Request. | CC BY 4.0, ohne Schlüssel, 10.000 Aufrufe/Tag — **nicht-kommerziell** | ja, live |
-| **DWD Radar-WMS** (`dwd:Niederschlagsradar`) | Radar + 2-Stunden-Vorhersage, 5-Minuten-Takt, 1 km, mm/h. Deckt **ganz DACH** ab (45,7–56,2 N / 1,5–18,7 O), Web-Mercator, Zeitdimension | „Fees: none", DWD-Copyright/GeoNutzV | ja, live |
-| **DWD `SF-Produkt (0-24)`** | fertige 24-Stunden-Niederschlagssumme als Kartenebene | wie oben | ja, gelistet |
+| **DWD Radar-WMS** (`dwd:Niederschlagsradar`) | Radar + 2-Stunden-Vorhersage, 5-Minuten-Takt, 1 km, mm/h. Der *deklarierte* Ausschnitt umfasst DACH (45,7–56,2 N / 1,5–18,7 O), die **Daten** aber nicht: punktweise nachgemessen am 2026-08-04 liegen Salzburg, Innsbruck, Zürich, Bern und Chur drin, Wien, Graz, Klagenfurt und Genf **nicht** — dort malt das Produkt seine „Keine Daten"-Fläche. Bounding Box ≠ Abdeckung | „Fees: none", DWD-Copyright/GeoNutzV | ja, live (eingebaut in 1.45.0) |
+| **DWD `SF-Produkt`** | gleitende 24-Stunden-Niederschlagssumme als Kartenebene, stündlich; nur Deutschland | wie oben | ja, live (eingebaut in 1.45.0) |
+| **DWD `RADOLAN-W4`** | **auf 30 Tage aufsummierte** angeeichte Radardaten, täglich, nur Deutschland — genau die Größe, mit der Sammler rechnen und auf der der tschechische Pilzindex aufsetzt | wie oben | ja, live (eingebaut in 1.45.0) |
 | **DWD Open Data (Raster)** | Tages-Bodenfeuchte 1×1 km ab 1991, Bodentemperatur in 5–100 cm | frei | dokumentiert |
 | **GBIF** | Funddaten für die Saisonkurven; SwissFungi (927 k) und ÖMG (537 k) unter CC BY 4.0 | frei | ja, per API |
 | ~~RainViewer~~ | — | **API im Januar 2026 eingestellt bzw. kostenpflichtig** | — |
