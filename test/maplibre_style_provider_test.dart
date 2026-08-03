@@ -9,6 +9,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/settings.dart';
+import 'package:pilzbuddy/features/map/map_view/map_engine.dart';
 import 'package:pilzbuddy/features/map/map_view/maplibre_style_provider.dart';
 import 'package:pilzbuddy/features/offline_maps/offline_map_providers.dart';
 import 'package:pilzbuddy/features/offline_maps/offline_map_repository.dart';
@@ -201,5 +202,35 @@ void main() {
       final sources = style['sources'] as Map<String, dynamic>;
       expect(sources.keys, ['osm']);
     });
+  });
+
+  test('Radar-Flag hängt das DWD-Overlay als oberste Ebene an — aus bleibt '
+      'der Style unverändert', () async {
+    final io = _FakeIo();
+    final gate = Completer<List<InstalledMap>>()..complete(const []);
+    final container = ProviderContainer(overrides: [
+      maplibreStyleIoProvider.overrideWithValue(io),
+      installedMapsProvider.overrideWith(() => _GatedInstalledMaps(gate)),
+      settingsProvider.overrideWithValue(FakeSettings()),
+      noConnectivityProvider.overrideWithValue(false),
+    ]);
+    addTearDown(container.dispose);
+
+    final without =
+        jsonDecode((await container.read(maplibreStyleProvider.future))!)
+            as Map<String, dynamic>;
+    expect((without['sources'] as Map).keys, isNot(contains('regenradar')));
+
+    container.read(rainRadarEnabledProvider.notifier).state = true;
+    final style =
+        jsonDecode((await container.read(maplibreStyleProvider.future))!)
+            as Map<String, dynamic>;
+    final sources = style['sources'] as Map<String, dynamic>;
+    expect(sources.keys, contains('regenradar'));
+    final radar = sources['regenradar'] as Map<String, dynamic>;
+    expect(radar['type'], 'image');
+    expect(radar['url'], contains('maps.dwd.de'));
+    final layers = (style['layers'] as List).cast<Map<String, dynamic>>();
+    expect(layers.last['id'], 'regenradar');
   });
 }
