@@ -267,6 +267,21 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   mit bedingtem Import (`download_keep_alive_stub.dart` für Web, sonst
   `download_keep_alive_service.dart`), damit der Web-Build das
   Android-Paket nie sieht; Tests überschreiben den Provider.
+- **Karten-Engine:** Seit 1.43.0 rendert Android standardmäßig mit
+  MapLibre (nativer Renderer, `maplibre` 0.3.5 exakt gepinnt) hinter der
+  MapView-Fassade (`lib/features/map/map_view/`); Grundlage ist der
+  nachgemessene Direktvergleich in `docs/map-performance.md`
+  (Wiederholung: `tool/measure_map.sh`). Der Profil-Schalter ist ein
+  OPT-OUT zur bisherigen flutter_map-Karte (`classicMapEnabled`,
+  bewusst neuer Prefs-Schlüssel — der alte Beta-Schlüssel
+  `maplibre_enabled` wird ignoriert, sonst bliebe ein nie angefasstes
+  Beta-„aus" als Opt-out kleben). Die Rückfalllinie bleibt mindestens
+  eine Release-Reihe; der flutter_map-Android-Pfad wird erst nach einer
+  Beobachtungsphase über den Wochendigest aufgeräumt. Web rendert
+  weiterhin flutter_map (bedingter Import, Web-Build sieht
+  `package:maplibre` nie). Die folgenden flutter_map-Notizen
+  (Stellschrauben, Kamera-Wächter, TileProvider-Lebenszyklus) gelten
+  für diesen Rückfall- und den Web-Pfad.
 - **Karten-Stellschrauben werden nicht ohne Messung verändert**
   (`docs/map-performance.md`): Puffer, Substitutionsweite und Layer-Modus
   stehen auf Werten, die #142/#143/#119 *gemessen* haben — jede davon ist

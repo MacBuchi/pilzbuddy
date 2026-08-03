@@ -87,7 +87,12 @@ List<Override> overridesFor(FakeBackend backend,
             markers: markers,
           ),
         ),
-      settingsProvider.overrideWithValue(settings ?? FakeSettings()),
+      // `useRealMap` heißt flutter_map-Interna prüfen (Layer, Puffer,
+      // Kamera-Wächter) — seit dem Default-Flip wählt es die klassische
+      // Engine ausdrücklich: Die MapLibre-Platform-View ist im Widget-Test
+      // nicht renderbar, ihr Gate ist das Gerät.
+      settingsProvider.overrideWithValue(
+          settings ?? FakeSettings(classicMapEnabled: useRealMap)),
       // Kein Method-Channel im Test: Der Update-Dialog würde sonst gegen
       // Androids System-Installer laufen.
       apkInstallerProvider.overrideWithValue(apkInstaller ?? FakeApkInstaller()),

@@ -4,7 +4,7 @@ import 'package:pilzbuddy/core/settings.dart';
 /// im Widget-Test nicht; ein Test, der den Neustart nachstellt, gibt die
 /// Instanz einfach an den zweiten `pumpApp`-Aufruf weiter.
 class FakeSettings implements Settings {
-  FakeSettings({this.offlineMapEnabled = false, this.mapLibreEnabled = false});
+  FakeSettings({this.offlineMapEnabled = false, this.classicMapEnabled = false});
 
   @override
   bool offlineMapEnabled;
@@ -15,10 +15,10 @@ class FakeSettings implements Settings {
   }
 
   @override
-  bool mapLibreEnabled;
+  bool classicMapEnabled;
 
   @override
-  Future<void> setMapLibreEnabled(bool value) async {
-    mapLibreEnabled = value;
+  Future<void> setClassicMapEnabled(bool value) async {
+    classicMapEnabled = value;
   }
 }
