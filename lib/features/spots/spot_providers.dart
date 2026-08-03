@@ -1,19 +1,38 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
+import '../../data/spot_repository.dart';
 import '../../models/spot.dart';
 import 'species_suggestions.dart';
 
 /// Eigene Spots aus Supabase. Mutationen laufen über den Notifier und
 /// laden anschließend neu — bei Hobby-Datenmengen völlig ausreichend.
-class MySpotsNotifier extends AsyncNotifier<List<Spot>> {
+///
+/// Der Zustand trägt die Herkunft mit ([SpotsSnapshot]): Ohne Empfang
+/// kommen die Spots aus dem Zwischenspeicher, und die Karte sagt das
+/// dazu, statt veraltete Daten als aktuell auszugeben.
+class MySpotsNotifier extends AsyncNotifier<SpotsSnapshot> {
   @override
-  Future<List<Spot>> build() {
+  Future<SpotsSnapshot> build() async {
     // Bei Login/Logout automatisch neu laden.
     ref.watch(currentUserIdProvider);
-    if (ref.read(currentUserIdProvider) == null) return Future.value([]);
+    if (ref.read(currentUserIdProvider) == null) {
+      return (spots: const <Spot>[], cachedAt: null);
+    }
     return ref.read(spotRepositoryProvider).fetchMySpots();
   }
+
+  /// Wirft die lokale Kopie weg — beim Abmelden und beim Löschen des
+  /// Kontos.
+  ///
+  /// Bewusst hier und nicht in `build()`, wenn die Nutzer-id null wird:
+  /// Der Passwort-Reset meldet sich zwischendurch ebenfalls ab
+  /// (`login_screen.dart` filtert das Ereignis), und dort bleibt es
+  /// dasselbe Konto. Und gäbe es beim Start je ein kurzes Fenster ohne
+  /// Nutzer-id, würde ein Löschen an dieser Stelle den Zwischenspeicher
+  /// bei JEDEM Kaltstart vernichten — also genau dann, wenn er gebraucht
+  /// wird. Gegen fremde Konten schützt ohnehin die id-Prüfung beim Lesen.
+  Future<void> forgetCache() => ref.read(spotCacheProvider).clear();
 
   Future<void> addSpot({
     required double lat,
@@ -69,7 +88,17 @@ class MySpotsNotifier extends AsyncNotifier<List<Spot>> {
 }
 
 final mySpotsProvider =
-    AsyncNotifierProvider<MySpotsNotifier, List<Spot>>(MySpotsNotifier.new);
+    AsyncNotifierProvider<MySpotsNotifier, SpotsSnapshot>(MySpotsNotifier.new);
+
+/// Nur die Spots, ohne Herkunft — das ist, was fast alle Aufrufer wollen.
+/// Die Herkunft interessiert allein das Banner auf der Karte.
+final mySpotListProvider = Provider<List<Spot>>(
+    (ref) => ref.watch(mySpotsProvider).valueOrNull?.spots ?? const <Spot>[]);
+
+/// Zeitpunkt der zwischengespeicherten Daten — `null`, solange die Spots
+/// frisch aus dem Netz kommen.
+final mySpotsCachedAtProvider = Provider<DateTime?>(
+    (ref) => ref.watch(mySpotsProvider).valueOrNull?.cachedAt);
 
 /// Von Freunden geteilte Spots. Wird nach Freundschafts-Änderungen
 /// invalidiert (siehe FriendsScreen) und lädt bei Login/Logout neu.
@@ -81,7 +110,7 @@ final friendSpotsProvider = FutureProvider<List<Spot>>((ref) {
 /// Eigene Pilzarten, zuletzt benutzt zuerst — abgeleitet aus allen Funden.
 /// Erster Eintrag = Default-Vorauswahl für neue Spots/Funde.
 final ownSpeciesProvider = Provider<List<String>>((ref) {
-  final spots = ref.watch(mySpotsProvider).valueOrNull ?? const <Spot>[];
+  final spots = ref.watch(mySpotListProvider);
   final finds = [for (final s in spots) ...s.finds]..sort((a, b) {
       final aTime = a.createdAt ?? a.foundOn;
       final bTime = b.createdAt ?? b.foundOn;

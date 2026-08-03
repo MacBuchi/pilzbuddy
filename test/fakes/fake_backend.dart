@@ -6,6 +6,7 @@
 // spiegeln sie nur, damit die UI-Reaktion darauf testbar ist — sie ersetzen
 // keinen RLS-Test (dafür gibt es die REST-Skripte gegen das Live-Projekt).
 import 'dart:async';
+import 'dart:io';
 
 import 'package:pilzbuddy/core/mushroom_species.dart';
 import 'package:pilzbuddy/data/app_config_repository.dart';
@@ -461,11 +462,29 @@ class FakeSpotRepository implements SpotRepository {
         finds: List.of(row.finds),
       );
 
+  /// Setzt die Herkunft, die `fetchMySpots` meldet: nicht `null` heißt
+  /// „aus dem Zwischenspeicher, von diesem Zeitpunkt" — damit sich das
+  /// Offline-Banner prüfen lässt, ohne echte Dateien anzufassen.
+  DateTime? cachedAt;
+
+  /// Lässt den nächsten Abruf scheitern — für den Fall „kein Empfang und
+  /// auch nichts zwischengespeichert".
+  bool failNextFetch = false;
+
   @override
-  Future<List<Spot>> fetchMySpots() async => [
+  Future<SpotsSnapshot> fetchMySpots() async {
+    if (failNextFetch) {
+      failNextFetch = false;
+      throw const SocketException('kein Netz (Fake)');
+    }
+    return (
+      spots: [
         for (final row in backend.spots)
           if (row.ownerId == _uid) _toSpot(row, own: true),
-      ];
+      ],
+      cachedAt: cachedAt,
+    );
+  }
 
   /// Spiegelt die RLS-Policy: sichtbar sind Spots akzeptierter Freunde,
   /// wenn deren globales Teilen an ist und der Spot nicht ausgeschlossen

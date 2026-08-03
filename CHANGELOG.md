@@ -7,6 +7,23 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Deine Spots sind jetzt auch ohne Empfang da
+
+*4. August 2026 · Version 1.44.0*
+
+Wer die App im Wald **neu startete**, wo kein Netz war, sah bisher eine
+Karte ohne einen einzigen Spot — ohne Hinweis, woran es lag. Genau dort,
+wo die heruntergeladenen Offline-Karten eigentlich helfen sollen.
+
+- Deine eigenen Spots samt Funden liegen jetzt zusätzlich **auf dem Handy**.
+  Ohne Empfang zeigt die Karte diesen Stand, statt leer zu bleiben.
+- Ein Hinweis oben sagt dir dabei, **von wann** die Daten sind — so weißt
+  du, ob der Spot von gestern schon dabei ist.
+- Sobald du wieder Empfang hast, aktualisiert sich alles von selbst und der
+  Hinweis verschwindet.
+- Beim Abmelden wird der Zwischenspeicher gelöscht, und in Googles
+  Handy-Backup landet er nie: Deine Fundstellen bleiben deine.
+
 ## Eine neue Karten-Engine — erst zum Ausprobieren, jetzt Standard
 
 *3. August 2026 · Versionen 1.39.0 bis 1.43.1*

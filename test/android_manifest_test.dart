@@ -16,6 +16,10 @@ const _mapsDir = 'offline_maps';
 /// Verzeichnis der geladenen Update-APK (~60 MB, reiner Zwischenschritt).
 const _updatesDir = 'updates';
 
+/// Verzeichnis der zwischengespeicherten eigenen Spots — die geheimen
+/// Fundstellen samt Koordinaten (`SpotCache.dirName`).
+const _spotCacheDir = 'spot_cache';
+
 XmlDocument _load(String path) {
   final file = File(path);
   expect(file.existsSync(), isTrue, reason: '$path fehlt');
@@ -126,6 +130,10 @@ void main() {
           reason: '$section: Update-APK nicht ausgeschlossen — 60 MB '
               'sprengen das 25-MB-Kontingent und lassen das ganze Backup '
               'scheitern');
+      expect(excludes, contains(('file', _spotCacheDir)),
+          reason: '$section: Spot-Zwischenspeicher nicht ausgeschlossen — '
+              'darin stehen die geheimen Fundstellen samt Koordinaten, und '
+              'Googles Cloud ist in der Datenschutzerklärung kein Empfänger');
     }
   });
 
@@ -137,5 +145,6 @@ void main() {
     expect(excludes, contains(('sharedpref', _sessionPrefs)));
     expect(excludes, contains(('file', _mapsDir)));
     expect(excludes, contains(('file', _updatesDir)));
+    expect(excludes, contains(('file', _spotCacheDir)));
   });
 }

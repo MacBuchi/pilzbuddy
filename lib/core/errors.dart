@@ -75,13 +75,23 @@ class NotSignedInException implements Exception {
   String toString() => 'NotSignedInException: keine angemeldete Sitzung';
 }
 
+/// Sieht dieser Fehler nach fehlendem Empfang aus?
+///
+/// Bewusst eng: Der Spot-Zwischenspeicher (`spot_cache.dart`) springt NUR
+/// dafür ein. Ein Schema- oder Rechtefehler darf sich nicht hinter einer
+/// alten Kopie verstecken — sonst bliebe ein kaputtes Deployment
+/// unsichtbar, während alle Geräte stillschweigend veraltete Daten
+/// zeigen. Dieselbe Lehre wie Issue #80.
+bool looksOffline(Object error) =>
+    error is SocketException ||
+    error is TimeoutException ||
+    error is http.ClientException;
+
 /// Nutzerfreundliche Meldung nach Fehlerklasse statt pauschalem
 /// „… Internet verfügbar?": Netzwerk, Server und Unerwartetes werden
 /// unterschieden, damit Problemberichte diagnostizierbar sind.
 String friendlyError(Object error) {
-  if (error is SocketException ||
-      error is TimeoutException ||
-      error is http.ClientException) {
+  if (looksOffline(error)) {
     return 'Keine Verbindung — bitte Internet prüfen.';
   }
   if (error is NotSignedInException) {

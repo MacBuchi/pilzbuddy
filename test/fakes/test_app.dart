@@ -30,6 +30,7 @@ import 'fake_keep_alive.dart';
 import 'fake_map_view.dart';
 import 'fake_offline_maps.dart';
 import 'fake_settings.dart';
+import 'fake_spot_cache.dart';
 
 /// 1×1 transparentes PNG als Offline-Kartenkachel.
 final Uint8List kTransparentTile = Uint8List.fromList(const [
@@ -72,6 +73,7 @@ List<Override> overridesFor(FakeBackend backend,
         Position? position,
         Settings? settings,
         FakeApkInstaller? apkInstaller,
+        FakeSpotCache? spotCache,
         bool useRealMap = false,
         List<Override> extra = const []}) =>
     [
@@ -96,6 +98,9 @@ List<Override> overridesFor(FakeBackend backend,
       // Kein Method-Channel im Test: Der Update-Dialog würde sonst gegen
       // Androids System-Installer laufen.
       apkInstallerProvider.overrideWithValue(apkInstaller ?? FakeApkInstaller()),
+      // Ohne diesen Override fragt FileSpotCache path_provider nach dem
+      // App-Verzeichnis — den Kanal gibt es im Widget-Test nicht.
+      spotCacheProvider.overrideWithValue(spotCache ?? FakeSpotCache()),
       positionStreamProvider.overrideWith((ref) => Stream.value(position)),
       offlineMapRepositoryProvider
           .overrideWithValue(offlineMaps ?? FakeOfflineMapRepository()),
@@ -150,6 +155,7 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
     Position? position,
     Settings? settings,
     FakeApkInstaller? apkInstaller,
+    FakeSpotCache? spotCache,
     bool useRealMap = false,
     List<Override> extraOverrides = const []}) async {
   addTearDown(backend.dispose);
@@ -163,6 +169,7 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
         position: position,
         settings: settings,
         apkInstaller: apkInstaller,
+        spotCache: spotCache,
         useRealMap: useRealMap,
         extra: extraOverrides),
     child: const PilzBuddyApp(),

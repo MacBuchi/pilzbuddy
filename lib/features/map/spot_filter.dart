@@ -121,7 +121,7 @@ List<SpeciesTally> speciesTally(List<Spot> spots) {
 final visibleSpotsProvider =
     Provider<({List<Spot> mine, List<Spot> friends})>((ref) {
   final filter = ref.watch(spotFilterProvider);
-  final mine = ref.watch(mySpotsProvider).valueOrNull ?? const <Spot>[];
+  final mine = ref.watch(mySpotListProvider);
   final friends =
       ref.watch(friendSpotsProvider).valueOrNull ?? const <Spot>[];
   return (
@@ -138,7 +138,7 @@ final visibleSpotsProvider =
 /// übrig und es gäbe keinen Weg zu einer anderen.
 final filterSpeciesProvider = Provider<List<SpeciesTally>>((ref) {
   final onlyMine = ref.watch(spotFilterProvider).onlyMine;
-  final mine = ref.watch(mySpotsProvider).valueOrNull ?? const <Spot>[];
+  final mine = ref.watch(mySpotListProvider);
   final friends =
       ref.watch(friendSpotsProvider).valueOrNull ?? const <Spot>[];
   return speciesTally([...mine, if (!onlyMine) ...friends]);
