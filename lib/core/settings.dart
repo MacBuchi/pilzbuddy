@@ -16,6 +16,12 @@ abstract interface class Settings {
   bool get offlineMapEnabled;
 
   Future<void> setOfflineMapEnabled(bool value);
+
+  /// Neue Karten-Engine (MapLibre, Beta) eingeschaltet? Opt-in bis zur
+  /// Abnahme des Direktvergleichs — flutter_map bleibt Standard.
+  bool get mapLibreEnabled;
+
+  Future<void> setMapLibreEnabled(bool value);
 }
 
 /// Umsetzung auf SharedPreferences (Android: XML im App-Verzeichnis).
@@ -25,6 +31,7 @@ class PrefsSettings implements Settings {
   final SharedPreferences _prefs;
 
   static const _offlineMapEnabledKey = 'offline_map_enabled';
+  static const _mapLibreEnabledKey = 'maplibre_enabled';
 
   @override
   bool get offlineMapEnabled => _prefs.getBool(_offlineMapEnabledKey) ?? false;
@@ -32,6 +39,13 @@ class PrefsSettings implements Settings {
   @override
   Future<void> setOfflineMapEnabled(bool value) =>
       _prefs.setBool(_offlineMapEnabledKey, value);
+
+  @override
+  bool get mapLibreEnabled => _prefs.getBool(_mapLibreEnabledKey) ?? false;
+
+  @override
+  Future<void> setMapLibreEnabled(bool value) =>
+      _prefs.setBool(_mapLibreEnabledKey, value);
 }
 
 /// Wird in `main()` mit den geladenen Einstellungen überschrieben, in Tests
