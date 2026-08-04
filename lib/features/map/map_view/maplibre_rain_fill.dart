@@ -22,11 +22,6 @@ import '../rain_data_providers.dart';
 const rainFillSourceId = 'regen-flaeche';
 const rainFillLayerId = 'regen-flaeche';
 
-/// Die erste Ebene, die `MapLibreMap.layers` anlegt (LayerManager im
-/// Paket zählt ab null). Das sind unsere Höhenlinien — die Fläche gehört
-/// darunter.
-const firstAnnotationLayerId = 'maplibre-layer-0';
-
 /// Die Bildquelle: das eingefärbte Gitter, verortet auf **seinen**
 /// Grenzen. Nicht auf denen der DWD-Bildebene — das Gitter ist auf seine
 /// Zellen mit Daten beschnitten, die Bildebene deckt etwas mehr ab, und
@@ -49,13 +44,27 @@ ml.ImageSource rainFillSource(String url, RainFill fill) => ml.ImageSource(
 /// den Bildpunkten (`rainFillAlpha`). Zweimal abgeschwächt wäre die
 /// Fläche nicht mehr zu sehen.
 ///
-/// `raster-resampling: nearest` wie beim DWD-Bild und wie
-/// `FilterQuality.none` auf dem flutter_map-Pfad: Die Daten sind ein
-/// 1-km-Raster, weichgezeichnet sähen sie genauer aus, als sie sind.
+/// `raster-resampling: linear` — **anders als beim DWD-Bild**, und die
+/// Abweichung ist eine bewusste Kehrtwende:
+///
+/// Solange die Fläche nur ein Hauch unter den Linien war, galt dieselbe
+/// Regel wie für das DWD-Bild — hart lassen, denn weichgezeichnet sieht
+/// ein 1-km-Raster genauer aus, als es ist. Seit die Fläche die Aussage
+/// trägt, kippt die Abwägung: Am Gerät gemessen (2026-08-04) traten bei
+/// 55 % Deckkraft die 1-km-Treppenstufen an jeder Bandgrenze hervor —
+/// grob, und im Widerspruch zu den geglätteten Konturen, die aus
+/// **demselben** Feld kommen und die Beschriftung tragen. Zwei
+/// Darstellungen desselben Felds dürfen nicht verschieden aussehen.
+///
+/// Die Genauigkeit geht dabei nicht verloren: Der Wert am Spot kommt aus
+/// dem ROHEN Gitter (`rain_stack.dart`), nicht aus diesem Bild. Weich
+/// ist hier eine Aussage über die Darstellung, nicht über die Daten.
+///
+/// Das Radarbild des DWD bleibt hart — dort zeichnen wir nicht selbst.
 ml.RasterStyleLayer rainFillStyleLayer() => const ml.RasterStyleLayer(
       id: rainFillLayerId,
       sourceId: rainFillSourceId,
-      paint: {'raster-opacity': 1.0, 'raster-resampling': 'nearest'},
+      paint: {'raster-opacity': 1.0, 'raster-resampling': 'linear'},
     );
 
 /// Hängt die Fläche ein, tauscht sie aus oder nimmt sie weg — und
@@ -66,11 +75,11 @@ ml.RasterStyleLayer rainFillStyleLayer() => const ml.RasterStyleLayer(
 /// nichts. Nach einem `setStyle` ist alles Imperative weg — dann ruft die
 /// Ansicht mit `appliedUrl: null` erneut auf.
 ///
-/// **Die Reihenfolge ist der ganze Punkt.** Die Fläche muss unter die
-/// Höhenlinien: Sie ist Orientierung, die Linien sind die Aussage. Der
-/// Versuch mit [firstAnnotationLayerId] deckt den Fall ab, dass die
-/// Linien schon liegen; scheitert er, gibt es noch keine, und Anhängen
-/// ist genau richtig — der LayerManager legt sie gleich darüber.
+/// Seit 1.48.0 wird die Fläche schlicht angehängt: Über ihr liegt nichts
+/// Eigenes mehr. Bis 1.47.0 musste sie unter die Höhenlinien, die der
+/// LayerManager des Pakets als `maplibre-layer-0` anlegte — die gibt es
+/// nicht mehr. Die Marker sind Flutter-Widgets und liegen ohnehin über
+/// der ganzen Karte.
 Future<String?> applyRainFill(
   ml.StyleController style, {
   required ({String url, RainFill fill})? fill,
@@ -85,15 +94,6 @@ Future<String?> applyRainFill(
   if (fill == null) return null;
 
   await style.addSource(rainFillSource(fill.url, fill.fill));
-  try {
-    await style.addLayer(rainFillStyleLayer(),
-        belowLayerId: firstAnnotationLayerId);
-  } catch (_) {
-    // Es gibt noch keine Linienebene, unter die die Fläche gehört (die
-    // Engine wirft dann beim Einordnen). Anhängen ist hier kein
-    // Notbehelf, sondern dasselbe Ergebnis: Die Linien kommen danach
-    // und landen von selbst darüber.
-    await style.addLayer(rainFillStyleLayer());
-  }
+  await style.addLayer(rainFillStyleLayer());
   return fill.url;
 }

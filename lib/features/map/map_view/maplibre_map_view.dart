@@ -18,8 +18,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:maplibre/maplibre.dart' as ml;
 
-import '../../../core/app_colors.dart';
-import '../rain_contours.dart';
 import '../rain_data_providers.dart';
 import '../rain_layer.dart';
 import 'flutter_map_view.dart';
@@ -70,9 +68,18 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
   MapViewBounds? _visibleBounds;
 
   /// Die Zoomstufe beim letzten Kamera-Stillstand. Sie entscheidet, welche
-  /// Höhenlinien noch etwas aussagen — dieselbe Stelle und derselbe Takt
+  /// Höhenstufen noch etwas aussagen — dieselbe Stelle und derselbe Takt
   /// wie das Marker-Culling: bei Idle, nicht je Bild.
-  double _idleZoom = 0;
+  ///
+  /// **Nicht 0 als Startwert** (Fehler bis 1.47.0, am Gerät gefunden):
+  /// `rainContoursAtZoom` rechnet daraus, wie lang eine Linie auf dem
+  /// Schirm wäre. Bei Zoom 0 sind das 0,01 Bildpunkte je Kilometer —
+  /// eine Kontur müsste rund 3900 km lang sein, um die 40-Pixel-Hürde zu
+  /// nehmen. Es überlebte fast nichts, und weil ein Kamera-Idle beim
+  /// ersten Aufbau nicht zwingend feuert, blieb es dabei, bis jemand die
+  /// Karte bewegte. Der Startwert ist deshalb die Zoomstufe, mit der die
+  /// Karte tatsächlich aufgebaut wird.
+  late double _idleZoom = widget.controller.zoom;
 
   /// Liest das Sichtfenster der Engine und stößt bei Änderung den
   /// Rebuild an, der die Markerliste neu filtert.
@@ -90,11 +97,6 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
       );
     });
   }
-
-  /// Die Höhenlinien, die bei der aktuellen Zoomstufe etwas aussagen.
-  List<ContourLine> _visibleRainLines(WidgetRef ref) =>
-      rainContoursAtZoom(_rainLines(ref), _idleZoom,
-          levels: _rainLevels(ref));
 
   /// Übersetzt einen Fassaden-Marker in einen MapLibre-Marker — die
   /// Kind-Widgets (MushroomIcon, Avatare, Tooltips, Taps) bleiben
@@ -276,6 +278,7 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
       onMapCreated: (controller) {
         _ml = controller;
         _appliedStyle = style;
+        _idleZoom = controller.camera?.zoom ?? _idleZoom;
         final pending = _pendingMove;
         if (pending != null) {
           _pendingMove = null;
@@ -296,30 +299,6 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
         // Idle-Momenten bewegt die Engine die eingebauten Marker selbst.
         if (event is ml.MapEventCameraIdle) _updateVisibleBounds();
       },
-      // Vektor-Ebenen der Engine (nicht `children` — das sind Widgets):
-      // die eigenen Regen-Höhenlinien, eine Ebene je Höhenstufe, weil
-      // MapLibres PolylineLayer wie flutter_maps eine Farbe je Ebene
-      // kennt. Sie liegen unter dem WidgetLayer und damit unter den
-      // Markern.
-      layers: [
-        for (final (index, level) in _rainLevels(ref).indexed)
-          if (_visibleRainLines(ref).any((line) => line.mm == level))
-            ml.PolylineLayer(
-              polylines: [
-                for (final line in _visibleRainLines(ref))
-                  if (line.mm == level)
-                    ml.Feature(
-                      geometry: ml.LineString.from([
-                        for (final point in line.points)
-                          ml.Geographic(
-                              lon: point.longitude, lat: point.latitude),
-                      ]),
-                    ),
-              ],
-              color: AppColors.rainLine(index),
-              width: 2,
-            ),
-      ],
       children: [
         // Maßstab und dauerhafte Quellen-Attribution (ODbL-Rechtspflicht;
         // die Texte liefert der Style-Composer an jeder Quelle mit) —
@@ -349,9 +328,4 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
   }
 }
 
-List<ContourLine> _rainLines(WidgetRef ref) =>
-    ref.watch(rainContoursProvider(ref.watch(rainLayerProvider))).value ??
-    const [];
 
-List<int> _rainLevels(WidgetRef ref) =>
-    rainLevelsFor(ref.watch(rainLayerProvider));

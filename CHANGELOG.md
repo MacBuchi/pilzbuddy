@@ -7,6 +7,30 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Der Regen ist jetzt zu lesen
+
+*4. August 2026 · Version 1.48.0*
+
+Die Regensummen auf der Karte sahen bisher so aus: dünne Linien, und
+dazwischen ein Farbton, den man kaum sah. Wer nicht wusste, was gemeint
+ist, konnte es auch nicht herausfinden — eine Legende gab es nicht.
+
+Jetzt sind es **Flächen**. Jedes Band hat seine Farbe, von sandgelb
+(wenig) über grün bis blau (viel), und man erkennt auf einen Blick, wo
+mehr und wo weniger gefallen ist. Die Linien dazwischen sind weg; sie
+werden nicht mehr gebraucht.
+
+Damit klar ist, was die Farben bedeuten, gibt es jetzt **eine Legende
+unten links**. Sie erscheint, sobald du eine Regenebene einschaltest, und
+verschwindet wieder, wenn du sie ausschaltest.
+
+Wie stark die Farbe sein darf, ist auf dem Gerät ausprobiert worden: zu
+blass, und man sieht die Bänder nicht; zu kräftig, und die Ortsnamen
+verschwinden darunter. Der jetzige Wert liegt bewusst dazwischen.
+
+Das **Regenradar** („jetzt" und „in einer Stunde") ist unverändert und
+behält die Farben und die Legende des Wetterdienstes.
+
 ## Wie viel Regen an genau diesem Spot — Tag für Tag
 
 *4. August 2026 · Version 1.47.0*

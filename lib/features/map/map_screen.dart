@@ -29,6 +29,7 @@ import 'spot_filter.dart';
 import 'widgets/add_spot_sheet.dart';
 import 'widgets/map_banners.dart';
 import 'widgets/rain_layer_sheet.dart';
+import 'widgets/rain_legend.dart';
 import 'widgets/share_location_sheet.dart';
 import 'widgets/spot_filter_sheet.dart';
 import '../../core/app_colors.dart';
@@ -374,6 +375,16 @@ class _MapScreenState extends ConsumerState<MapScreen>
           // „Neuer Spot" speichert genau dort.
           const IgnorePointer(
             child: Center(child: _Crosshair()),
+          ),
+          // Die Legende zur Regenebene, links unten über dem Maßstab.
+          // Sie erscheint nur, wenn die Karte in UNSEREN Farben zeichnet
+          // — beim Radar liegt das DWD-Bild in DWD-Farben, und dafür
+          // wäre diese Skala falsch.
+          const SafeArea(
+            child: Align(
+              alignment: Alignment.bottomLeft,
+              child: RainLegend(),
+            ),
           ),
           SafeArea(
             child: Align(

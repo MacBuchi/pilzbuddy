@@ -8,7 +8,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pilzbuddy/core/app_colors.dart';
 import 'package:pilzbuddy/features/map/rain_data_providers.dart';
 import 'package:pilzbuddy/features/map/rain_grid.dart';
 import 'package:pilzbuddy/features/map/rain_layer.dart';
@@ -152,27 +151,35 @@ void main() {
     expect(rain, lessThan(children.lastIndexOf(MarkerLayer)));
   });
 
-  testWidgets('Mit Gitter zeichnet die App eigene Linien statt DWD-Bild',
+  testWidgets('Mit Gitter zeichnet die App die eigene Fläche statt DWD-Bild',
       (tester) async {
-    // Der ganze Weg: Gitter → Höhenlinien → Karte. Die Teile sind je
-    // einzeln geprüft (rain_contours_test), aber keiner von ihnen beweist,
-    // dass die Linien den Renderer erreichen — und genau das ist die
-    // Stelle, an der ein falsch verdrahteter Provider still nichts tut.
+    // Der ganze Weg: Gitter → Bänder → Karte. Die Teile sind je einzeln
+    // geprüft, aber keiner von ihnen beweist, dass die Fläche den
+    // Renderer erreicht — und genau das ist die Stelle, an der ein falsch
+    // verdrahteter Provider still nichts tut.
+    //
+    // Seit 1.48.0 werden KEINE Höhenlinien mehr gezeichnet: Bei 55 %
+    // Deckkraft tragen die Bänder die Aussage allein, und die Konturen
+    // dienen nur noch als Geometrie für die Beschriftung (MapLibre).
     await pumpApp(tester, loggedIn(),
         useRealMap: true, extraOverrides: withGrid());
-    expect(find.byType(PolylineLayer), findsNothing);
 
     containerOf(tester).read(rainLayerProvider.notifier).state =
         RainLayer.last30d;
     await settleRain(tester, RainLayer.last30d);
 
-    final layers = tester.widgetList<PolylineLayer>(find.byType(PolylineLayer));
-    expect(layers, isNotEmpty,
-        reason: 'ohne Linien wäre der ganze Umbau wirkungslos');
-    final lowest = layers.first.polylines.first;
-    expect(lowest.color, AppColors.rainLine(0),
-        reason: 'die unterste Höhenstufe hat den ersten Farbton der Rampe');
-    expect(lowest.points.length, greaterThan(2));
+    expect(find.byType(PolylineLayer), findsNothing,
+        reason: 'die Linien sind bewusst weg — sie waren der Grund, warum '
+            'die Fläche so blass sein musste');
+    final image = tester
+        .widget<OverlayImageLayer>(find.byType(OverlayImageLayer))
+        .overlayImages
+        .single as OverlayImage;
+    expect(image.imageProvider, isA<MemoryImage>(),
+        reason: 'das eigene Gitter, nicht das DWD-Bild');
+    expect(image.filterQuality, FilterQuality.medium,
+        reason: 'als Hauptdarstellung dürfen die 1-km-Treppenstufen nicht '
+            'hervortreten — sie widersprächen den geglätteten Konturen');
   });
 
   testWidgets('Die eigene Fläche ersetzt das DWD-Bild — auf IHREN Grenzen',
@@ -200,11 +207,11 @@ void main() {
     expect(image.bounds.north, isNot(RainLayer.last30d.bounds.north));
   });
 
-  testWidgets('Die Fläche liegt UNTER den Linien', (tester) async {
-    // Die Fläche ist Orientierung, die Linien sind die Aussage. Läge sie
-    // darüber, schwächte ein halbdurchsichtiger Schleier genau das ab,
-    // wofür es die Linien gibt. Dieselbe Reihenfolge stellt
-    // maplibre_rain_fill.dart in der anderen Engine her.
+  testWidgets('Die eigene Fläche liegt UNTER den Spot-Markern',
+      (tester) async {
+    // Ein Spot, der hinter dem Regen verschwindet, wäre genau dann
+    // unauffindbar, wenn man ihn braucht — und die Fläche ist seit
+    // 1.48.0 deutlich kräftiger als vorher.
     await pumpApp(tester, loggedIn(),
         useRealMap: true, extraOverrides: withGrid());
     containerOf(tester).read(rainLayerProvider.notifier).state =
@@ -223,10 +230,10 @@ void main() {
 
     visit(tester.element(find.byType(FlutterMap)));
     final fill = order.indexWhere((w) => w is OverlayImageLayer);
-    final lines = order.indexWhere((w) => w is PolylineLayer);
+    final markers = order.lastIndexWhere((w) => w is MarkerLayer);
     expect(fill, isNonNegative);
-    expect(lines, isNonNegative);
-    expect(fill, lessThan(lines));
+    expect(markers, isNonNegative);
+    expect(fill, lessThan(markers));
   });
 
   testWidgets('Das Blatt zeigt zu eigenen Linien die eigene Legende',
