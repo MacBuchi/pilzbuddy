@@ -129,6 +129,7 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
     // vorberechnen.
     final rainLines =
         ref.watch(rainContoursProvider(rainLayer)).value ?? const [];
+    final rainFill = ref.watch(rainFillProvider(rainLayer)).value;
     final rainUrl = rainLines.isNotEmpty
         ? null
         : rainLayerUrl(rainLayer, now: DateTime.now());
@@ -267,6 +268,23 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
         // Die eigenen Höhenlinien: eine Ebene je Höhenstufe, weil
         // flutter_maps PolylineLayer eine Farbe je Ebene kennt. Unter
         // den Markern, wie das Bild darüber.
+        // Die eigene Fläche: dasselbe Bild-Overlay wie beim DWD, nur mit
+        // einem selbst eingefärbten Gitter. Sie liegt UNTER den Linien —
+        // die Fläche ist Orientierung, die Linien sind die Aussage.
+        if (rainLines.isNotEmpty && rainFill != null)
+          OverlayImageLayer(
+            overlayImages: [
+              OverlayImage(
+                bounds: LatLngBounds(
+                  LatLng(rainFill.south, rainFill.west),
+                  LatLng(rainFill.north, rainFill.east),
+                ),
+                filterQuality: FilterQuality.none,
+                gaplessPlayback: true,
+                imageProvider: MemoryImage(rainFill.png),
+              ),
+            ],
+          ),
         if (rainLines.isNotEmpty)
           // Der Builder liest die Kamera und wird damit bei jedem
           // Zoomwechsel neu gebaut — nur so kann die Dichte dem Maßstab

@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/rain_grid_repository.dart';
 import 'rain_contours.dart';
+import 'rain_fill.dart';
 import 'rain_grid.dart';
 import 'rain_layer.dart';
 
@@ -60,3 +61,50 @@ final rainContoursProvider =
 
 List<ContourLine> _contours(({RainGrid grid, List<int> levels}) input) =>
     rainContours(input.grid, levels: input.levels);
+
+/// Die eingefärbte Fläche zwischen den Höhenlinien, als PNG — **samt
+/// ihrer Ausdehnung**.
+///
+/// Die Grenzen kommen mit, weil sie NICHT die der DWD-Bildebene sind:
+/// Das Gitter ist auf seine Zellen mit Daten beschnitten (w4:
+/// 5,73–15,17°), die Bildebene deckt bewusst etwas mehr ab
+/// (5,6–15,4°). Wer hier `RainLayer.bounds` einsetzt, verschiebt die
+/// Fläche um rund zwanzig Kilometer gegen die Linien — sichtbar erst,
+/// wenn man genau hinsieht, und dann falsch.
+///
+/// Im Isolate, wie die Linien: Es sind 550 000 Zellen, und das ist
+/// Rechenzeit im Kartenpfad. Beide Provider hängen am selben Gitter,
+/// geladen wird es also einmal und zweimal ausgewertet.
+final rainFillProvider = FutureProvider.family<RainFill?, RainLayer>(
+    (ref, layer) async {
+  final grid = await ref.watch(rainGridProvider(layer).future);
+  if (grid == null) return null;
+  final png = await compute(_fill, (grid: grid, levels: rainLevelsFor(layer)));
+  return RainFill(
+    png: png,
+    west: grid.west,
+    east: grid.east,
+    north: grid.north,
+    south: grid.south,
+  );
+});
+
+/// Die Fläche und der Ausschnitt, auf den sie gehört.
+class RainFill {
+  const RainFill({
+    required this.png,
+    required this.west,
+    required this.east,
+    required this.north,
+    required this.south,
+  });
+
+  final Uint8List png;
+  final double west;
+  final double east;
+  final double north;
+  final double south;
+}
+
+Uint8List _fill(({RainGrid grid, List<int> levels}) input) =>
+    rainFillPng(input.grid, levels: input.levels);
