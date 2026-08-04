@@ -21,6 +21,7 @@ import 'package:pilzbuddy/features/map/live_share_providers.dart';
 import 'package:pilzbuddy/features/map/map_view/flutter_map_view.dart';
 import 'package:pilzbuddy/features/map/map_view/map_view.dart';
 import 'package:pilzbuddy/features/map/position_provider.dart';
+import 'package:pilzbuddy/features/map/rain_data_providers.dart';
 import 'package:pilzbuddy/features/map/rain_layer.dart';
 import 'package:pilzbuddy/features/offline_maps/download_keep_alive.dart';
 import 'package:pilzbuddy/features/offline_maps/offline_map_providers.dart';
@@ -135,6 +136,11 @@ List<Override> overridesFor(FakeBackend backend,
       tileProviderFactoryProvider.overrideWithValue(FakeTileProvider.new),
       // Auch die Regenebene und ihre Legende holen sonst echte Bilder vom
       // DWD — dieselbe Naht wie beim Kachel-Provider.
+      // Ohne diese Naht ginge jeder Test, der eine Regensumme wählt,
+      // wirklich zu GitHub. Kein Gitter heißt: keine Höhenlinien, und die
+      // Ebene fällt auf das DWD-Bild zurück — genau der Weg, den ein
+      // Gerät ohne Empfang nimmt.
+      rainGridLoaderProvider.overrideWithValue((_) async => null),
       rainImageProviderFactory
           .overrideWithValue((url) => MemoryImage(kTransparentTile)),
       updateInfoProvider.overrideWith((ref) => Future.value(null)),

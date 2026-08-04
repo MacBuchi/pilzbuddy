@@ -18,6 +18,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:maplibre/maplibre.dart' as ml;
 
+import '../../../core/app_colors.dart';
+import '../rain_contours.dart';
+import '../rain_data_providers.dart';
+import '../rain_layer.dart';
 import 'flutter_map_view.dart';
 import 'map_view.dart';
 import 'maplibre_style_provider.dart';
@@ -207,6 +211,30 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
         // Idle-Momenten bewegt die Engine die eingebauten Marker selbst.
         if (event is ml.MapEventCameraIdle) _updateVisibleBounds();
       },
+      // Vektor-Ebenen der Engine (nicht `children` — das sind Widgets):
+      // die eigenen Regen-Höhenlinien, eine Ebene je Höhenstufe, weil
+      // MapLibres PolylineLayer wie flutter_maps eine Farbe je Ebene
+      // kennt. Sie liegen unter dem WidgetLayer und damit unter den
+      // Markern.
+      layers: [
+        for (final (index, level) in _rainLevels(ref).indexed)
+          if (_rainLines(ref).any((line) => line.mm == level))
+            ml.PolylineLayer(
+              polylines: [
+                for (final line in _rainLines(ref))
+                  if (line.mm == level)
+                    ml.Feature(
+                      geometry: ml.LineString.from([
+                        for (final point in line.points)
+                          ml.Geographic(
+                              lon: point.longitude, lat: point.latitude),
+                      ]),
+                    ),
+              ],
+              color: AppColors.rainLine(index),
+              width: 2,
+            ),
+      ],
       children: [
         // Maßstab und dauerhafte Quellen-Attribution (ODbL-Rechtspflicht;
         // die Texte liefert der Style-Composer an jeder Quelle mit) —
@@ -235,3 +263,10 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
     );
   }
 }
+
+List<ContourLine> _rainLines(WidgetRef ref) =>
+    ref.watch(rainContoursProvider(ref.watch(rainLayerProvider))).value ??
+    const [];
+
+List<int> _rainLevels(WidgetRef ref) =>
+    rainLevelsFor(ref.watch(rainLayerProvider));
