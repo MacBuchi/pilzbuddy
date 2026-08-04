@@ -40,7 +40,8 @@ class FakeUser {
   // Nicht final: der Passwort-Reset ändert es wirklich, damit Tests den
   // Effekt prüfen können und nicht nur den Aufruf.
   String password;
-  final String username;
+  // Nicht final: „Benutzername ändern" — gleiche Begründung.
+  String username;
   int avatar;
   bool shareSpotsDefault;
   bool shareDetails;
@@ -246,6 +247,11 @@ class FakeBackend {
 
   FakeUser userById(String id) => users.firstWhere((u) => u.id == id);
 
+  /// Wie der unique-Index `profiles_username_lower_key` (Patch 013):
+  /// Vergeben ist ein Name auch, wenn er nur anders geschrieben ist.
+  bool usernameTaken(String username) => users
+      .any((u) => u.username.toLowerCase() == username.toLowerCase());
+
   /// Wie die SQL-Funktion `are_friends`: nur akzeptierte Freundschaften.
   bool areFriends(String a, String b) => friendships.any((f) =>
       f.status == 'accepted' &&
@@ -309,8 +315,9 @@ class FakeAuthRepository implements AuthRepository {
     required String password,
     required String username,
   }) async {
-    if (backend.users.any((u) => u.username == username)) {
-      // Wie in echt: der Profil-Trigger scheitert am unique-Benutzernamen.
+    if (backend.usernameTaken(username)) {
+      // Wie in echt: der Profil-Trigger scheitert am unique-Benutzernamen —
+      // seit Patch 013 auch über Groß-/Kleinschreibung hinweg.
       throw const AuthException('Database error saving new user',
           statusCode: '500');
     }
@@ -581,6 +588,23 @@ class FakeProfileRepository implements ProfileRepository {
 
   @override
   Future<void> updateAvatar(int avatar) async => _me.avatar = avatar;
+
+  @override
+  Future<void> updateUsername(String username) async {
+    // Wie in echt: die unique-Verletzung kommt als PostgREST-Fehler mit
+    // SQLSTATE 23505, nicht als Auth-Fehler — und sie greift über
+    // Groß-/Kleinschreibung hinweg (Patch 013). Der eigene alte Name
+    // zählt nicht als Kollision.
+    if (backend.users.any((u) =>
+        u.id != _me.id &&
+        u.username.toLowerCase() == username.toLowerCase())) {
+      throw const PostgrestException(
+          message: 'duplicate key value violates unique constraint '
+              '"profiles_username_lower_key"',
+          code: '23505');
+    }
+    _me.username = username;
+  }
 
   @override
   Future<void> updateSharing({

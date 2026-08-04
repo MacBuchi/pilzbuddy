@@ -1,6 +1,11 @@
 // Hinweis: `profiles.display_name` existiert weiter in der Datenbank und
 // wird in der Freundesuche angezeigt (ProfileSearchResult) — im eigenen
 // Profil wird es nirgends genutzt und ist deshalb hier bewusst weggelassen.
+
+/// Mindestlänge des Benutzernamens — EINE Quelle für Registrierung und
+/// „Benutzername ändern" (Muster `minPasswordLength`).
+const minUsernameLength = 3;
+
 class Profile {
   final String id;
   final String username;

@@ -160,6 +160,21 @@ String signupErrorMessage(AuthException error) {
   return 'Registrierung fehlgeschlagen: ${error.message}';
 }
 
+/// Fehler beim Ändern des Benutzernamens → Meldung.
+///
+/// Anders als bei der Registrierung kommt der Konflikt hier nicht als
+/// Auth-Fehler aus dem Profil-Trigger, sondern direkt aus PostgREST:
+/// unique-Verletzung = SQLSTATE 23505 (`profiles_username_key` bzw. seit
+/// Patch 013 `profiles_username_lower_key`). Derselbe Text wie bei der
+/// Registrierung — es ist derselbe Fall, und zwei Formulierungen für
+/// eine Ursache wären Rätselraten.
+String usernameChangeErrorMessage(Object error) {
+  if (error is PostgrestException && error.code == '23505') {
+    return 'Dieser Benutzername ist schon vergeben.';
+  }
+  return friendlyError(error);
+}
+
 /// Fehler beim Bestätigen der Adresse (Code aus der Mail) und beim erneuten
 /// Anfordern dieser Mail → Meldung.
 ///

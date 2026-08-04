@@ -62,6 +62,23 @@ void main() {
     });
   });
 
+  group('usernameChangeErrorMessage', () {
+    test('23505 aus PostgREST heißt: Name vergeben — derselbe Text wie '
+        'bei der Registrierung', () {
+      expect(
+          usernameChangeErrorMessage(const PostgrestException(
+              message: 'duplicate key value violates unique constraint '
+                  '"profiles_username_lower_key"',
+              code: '23505')),
+          'Dieser Benutzername ist schon vergeben.');
+    });
+
+    test('alles andere fällt auf friendlyError zurück', () {
+      const other = PostgrestException(message: 'kaputt', code: '42501');
+      expect(usernameChangeErrorMessage(other), friendlyError(other));
+    });
+  });
+
   group('loginErrorMessage: unbestätigte Adresse', () {
     test('email_not_confirmed geht dem 400-Fallback vor', () {
       // Der Fall kommt AUCH als 400. Ohne Vorrang läse er sich als
