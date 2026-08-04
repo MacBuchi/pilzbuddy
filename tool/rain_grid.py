@@ -36,6 +36,7 @@ import random
 import re
 import struct
 import sys
+import time
 import urllib.request
 
 WCS = "https://maps.dwd.de/geoserver/dwd/wcs"
@@ -59,13 +60,45 @@ LAYERS = {
     },
 }
 
+# The daily stack behind the 14 day course at a spot.
+#
+# `SF-Produkt_(0-24)` is the DWD's own fixed 00-24 UTC daily sum, and the
+# service keeps 366 of them (measured 2026-08-04). So the days do not have
+# to be summed out of hourly products, and a full year of history is there
+# for the backward validation later.
+#
+# Why a stack instead of ready-made 7 and 14 day sums: a sum cannot tell
+# whether the 40 mm fell eleven days ago or yesterday, and for mushrooms
+# that is the whole difference. From the stack the app derives any window
+# up to 14 days AND the course — one product instead of three.
+DAILY = {
+    "coverage": "dwd__SF-Produkt_(0-24)",
+    "label": "Tagessummen",
+    "days": 14,
+}
+
 NO_DATA = 255  # in the quantised grid; the DWD marks it as -1.0 or NaN
 MAX_MM = 254  # anything above is clamped — see _quantise
 
 
-def _fetch(url, timeout=180):
-    with urllib.request.urlopen(url, timeout=timeout) as response:
-        return response.read()
+def _fetch(url, timeout=180, tries=4):
+    """GET with a few retries.
+
+    The daily stack makes fourteen requests of about nine megabytes in a
+    row, and a single dropped TLS connection used to end the whole run
+    (measured 2026-08-04: `SSL: UNEXPECTED_EOF_WHILE_READING` on the
+    ninth day). Nothing is corrupted when that happens — the manifest is
+    written last — but a nightly job that gives up on one flaky socket is
+    a nightly job that is red every few days.
+    """
+    for attempt in range(tries):
+        try:
+            with urllib.request.urlopen(url, timeout=timeout) as response:
+                return response.read()
+        except Exception:
+            if attempt == tries - 1:
+                raise
+            time.sleep(2 ** attempt)
 
 
 def default_time(coverage):
@@ -81,6 +114,26 @@ def default_time(coverage):
     if not match:
         raise SystemExit(f"{coverage}: no default time in DescribeCoverage")
     return match.group(1)
+
+
+def available_times(coverage):
+    """Every granule the service offers, oldest first.
+
+    Read, not computed: the daily product has gaps when the radar
+    composite failed, and a date the service does not have comes back as
+    an exception. Guessing "yesterday minus n days" would turn one bad
+    night at the DWD into a broken pipeline.
+    """
+    xml = _fetch(f"{WCS}?service=WCS&version=2.0.1&request=DescribeCoverage"
+                 f"&coverageId={coverage}").decode("utf-8", "replace")
+    return _parse_times(xml, coverage)
+
+
+def _parse_times(xml, coverage="<coverage>"):
+    times = re.findall(r"<gml:timePosition>([^<]+)</gml:timePosition>", xml)
+    if not times:
+        raise SystemExit(f"{coverage}: DescribeCoverage lists no time instants")
+    return sorted(times)
 
 
 def coverage_url(coverage, when, bounds):
@@ -232,6 +285,115 @@ def build(layer, out_dir, bounds=BOUNDS):
     return entry
 
 
+def _rows(grid):
+    """Quantise a whole raster, one byte per cell, row by row.
+
+    Its own function so the self-test can reach it: everything around it
+    in [build_day] needs the network, and this is where an off-by-one
+    would live.
+    """
+    return [bytes(bytearray(_quantise(v) for v in row)) for row in grid]
+
+
+def _geometry(transform, width, height):
+    """Corner coordinates in degrees for an UNCROPPED raster."""
+    left, top = transform[3], transform[7]
+    right = left + width * transform[0]
+    bottom = top + height * transform[5]
+    return {
+        "width": width,
+        "height": height,
+        "west": round(_to_lon(left), 6),
+        "east": round(_to_lon(right), 6),
+        "north": round(_to_lat(top), 6),
+        "south": round(_to_lat(bottom), 6),
+    }
+
+
+def build_day(when, out_dir, bounds=BOUNDS):
+    """One day of the stack. **Deliberately not cropped.**
+
+    The other layers drop their empty border, which saves bytes. Here it
+    would be poison: measured 2026-08-04, the cropped height varies from
+    day to day (891-895 rows) because the edge with data moves. A stack
+    whose days have different geometry cannot be read cell by cell, and
+    the app would silently compare a spot against a shifted grid. The
+    empty rows cost almost nothing after row-delta and gzip — a fully dry
+    day came to 3.4 KB.
+    """
+    raw = _fetch(coverage_url(DAILY["coverage"], when, bounds))
+    grid, transform = read_geotiff(raw)
+    height, width = len(grid), len(grid[0])
+    payload = encode(_rows(grid))
+    values = [v for row in grid for v in row if _has_value(v)]
+    entry = {
+        "date": when[:10],
+        "time": when,
+        "file": f"rain_day_{when[:10].replace('-', '')}.bin.gz",
+        "bytes": len(payload),
+        "sha256": hashlib.sha256(payload).hexdigest(),
+        "max_mm": round(max(values), 1) if values else 0,
+        "wet_percent": round(100 * sum(1 for v in values if v >= 0.5)
+                             / max(1, len(values)), 1),
+    }
+    os.makedirs(out_dir, exist_ok=True)
+    with open(os.path.join(out_dir, entry["file"]), "wb") as handle:
+        handle.write(payload)
+    return entry, _geometry(transform, width, height)
+
+
+def build_daily(out_dir, previous=None, days=None, bounds=BOUNDS,
+                times=None, fetch_day=None):
+    """The last `days` daily grids — fetching only what is missing.
+
+    A run normally adds ONE day. Rebuilding all fourteen every night
+    would be fourteen 8 MB GeoTIFFs for one new file, every night,
+    forever. `previous` is the manifest section from the last run; days
+    already in it are carried over untouched.
+
+    The geometry is shared by all days and checked against the carried
+    ones. If the service ever changes it, everything is rebuilt rather
+    than mixed — a stack of two geometries is the failure this whole
+    function exists to prevent.
+    """
+    days = days or DAILY["days"]
+    fetch_day = fetch_day or (lambda when: build_day(when, out_dir, bounds))
+    wanted = (times if times is not None
+              else available_times(DAILY["coverage"]))[-days:]
+    if not wanted:
+        raise SystemExit("the daily product offers no granules at all")
+
+    known = {entry["date"]: entry
+             for entry in (previous or {}).get("days", [])}
+    geometry = {key: (previous or {}).get(key)
+                for key in ("width", "height", "west", "east", "north", "south")}
+    geometry = geometry if all(v is not None for v in geometry.values()) else None
+
+    entries, fresh = [], []
+    for when in wanted:
+        carried = known.get(when[:10])
+        if carried is not None and geometry is not None:
+            entries.append(carried)
+            continue
+        entry, built = fetch_day(when)
+        if geometry is None:
+            geometry = built
+        elif built != geometry:
+            # Do not mix. Start over with the new geometry — the carried
+            # entries describe files whose cells no longer line up.
+            return build_daily(out_dir, previous=None, days=days, bounds=bounds,
+                               times=times, fetch_day=fetch_day)
+        entries.append(entry)
+        fresh.append(entry)
+
+    return {
+        "coverage": DAILY["coverage"],
+        "label": DAILY["label"],
+        **geometry,
+        "days": entries,
+    }, fresh
+
+
 def decode(payload, width, height):
     """Undo encode(). The app does exactly this, in Dart."""
     flat = gzip.decompress(payload)
@@ -312,14 +474,81 @@ def verify(out_dir, layer, samples=24):
             "is subset=time(...) still in the request?")
 
 
-def _feature_info(coverage, lat, lon):
+def verify_daily(out_dir, samples=8):
+    """Check that each day really is the day it claims to be.
+
+    The stack has a failure mode the single grids do not: ask for the
+    wrong date and the values are still plausible rain over Germany, the
+    course still looks like weather, and nothing anywhere says otherwise.
+    Only the service can tell us — so the comparison passes `time=`, and
+    it runs on the OLDEST and the NEWEST day. An off-by-one in the day
+    list moves both; a swap shows up in at least one.
+    """
+    with open(os.path.join(out_dir, "rain_manifest.json")) as handle:
+        section = json.load(handle)["daily"]
+    days = section["days"]
+    if len(days) < 2:
+        raise SystemExit("the stack has fewer than two days to check")
+
+    width, height = section["width"], section["height"]
+    top, bottom = _to_y(section["north"]), _to_y(section["south"])
+    total_checked, total_outside, lines = 0, 0, []
+    for day in (days[0], days[-1]):
+        path = os.path.join(out_dir, day["file"])
+        if not os.path.exists(path):
+            # Carried over from an earlier run and not downloaded again.
+            lines.append(f"- {day['date']}: nicht lokal, übersprungen\n")
+            continue
+        with open(path, "rb") as handle:
+            rows = decode(handle.read(), width, height)
+        random.seed(20260804)
+        checked, outside, attempts = 0, 0, 0
+        while checked < samples and attempts < samples * 10:
+            attempts += 1
+            lon = random.uniform(section["west"] + 0.3, section["east"] - 0.3)
+            lat = random.uniform(section["south"] + 0.3, section["north"] - 0.3)
+            x = int((lon - section["west"])
+                    / (section["east"] - section["west"]) * width)
+            y = int((_to_y(lat) - top) / (bottom - top) * height)
+            if rows[y][x] == NO_DATA:
+                continue
+            reference = _feature_info(section["coverage"], lat, lon, day["time"])
+            if reference is None:
+                continue
+            checked += 1
+            near = [rows[j][i]
+                    for j in range(max(0, y - 1), min(height, y + 2))
+                    for i in range(max(0, x - 1), min(width, x + 2))
+                    if rows[j][i] != NO_DATA]
+            if not min(near) - 0.5 <= reference <= max(near) + 0.5:
+                outside += 1
+        total_checked += checked
+        total_outside += outside
+        lines.append(f"- {day['date']}: {checked - outside}/{checked} Punkte "
+                     f"stimmen mit dem Dienst überein\n")
+
+    report = "".join(lines)
+    print(report, end="")
+    if os.environ.get("GITHUB_STEP_SUMMARY"):
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as handle:
+            handle.write(report)
+    if total_checked < samples:
+        raise SystemExit(f"only {total_checked} points could be checked")
+    if total_outside > max(2, total_checked // 5):
+        raise SystemExit(
+            f"{total_outside} of {total_checked} points disagree with the "
+            "service — is the day being requested the day being stored?")
+
+
+def _feature_info(coverage, lat, lon, when=None):
     layer = coverage.replace("__", ":")
     x, y = _to_x(lon), _to_y(lat)
     url = ("https://maps.dwd.de/geoserver/dwd/wms?service=WMS&version=1.3.0"
            f"&request=GetFeatureInfo&layers={layer}&query_layers={layer}"
            "&crs=EPSG:3857&info_format=application/json"
            "&width=3&height=3&i=1&j=1"
-           f"&bbox={x - 150:.1f},{y - 150:.1f},{x + 150:.1f},{y + 150:.1f}")
+           + (f"&time={when}" if when else "")
+           + f"&bbox={x - 150:.1f},{y - 150:.1f},{x + 150:.1f},{y + 150:.1f}")
     try:
         features = json.loads(_fetch(url, timeout=30))["features"]
         return features[0]["properties"]["GRAY_INDEX"] if features else None
@@ -426,7 +655,92 @@ def self_test():
             continue
         raise AssertionError("a non-TIFF was accepted")
 
+    _self_test_daily()
     print("rain_grid self-test: ok")
+
+
+def _self_test_daily():
+    """The daily stack, without touching the network."""
+    domain = ("""<wcsgs:TimeDomain default="2026-08-03T00:00:00.000Z">
+      <gml:TimeInstant><gml:timePosition>2026-08-03T00:00:00.000Z"""
+              """</gml:timePosition></gml:TimeInstant>
+      <gml:TimeInstant><gml:timePosition>2026-08-01T00:00:00.000Z"""
+              """</gml:timePosition></gml:TimeInstant>
+    </wcsgs:TimeDomain>""")
+    assert _parse_times(domain) == ["2026-08-01T00:00:00.000Z",
+                                    "2026-08-03T00:00:00.000Z"], \
+        "the time domain must come back sorted, oldest first"
+    try:
+        _parse_times("<wcsgs:TimeDomain/>")
+    except SystemExit:
+        pass
+    else:
+        raise AssertionError("an empty time domain was accepted")
+
+    # Geometry of an UNCROPPED raster: north-west corner from the tie
+    # point, the other two by stepping. Checked against degrees, because
+    # that is what the app gets.
+    # Raster to bytes: every row, every cell, both spellings of no data
+    # and the clamp. Two rows of three, so a dropped row shows.
+    raster = [[0.4, 1.6, float("nan")], [-1.0, 300.0, 2.0]]
+    assert _rows(raster) == [bytes([0, 2, NO_DATA]),
+                             bytes([NO_DATA, MAX_MM, 2])], _rows(raster)
+
+    # Width and height are deliberately different (4 x 2): with a square
+    # test raster, swapping them would go unnoticed.
+    left, top = _to_x(6.0), _to_y(55.0)
+    geo = _geometry([1000.0, 0, 0, left, 0, -1000.0, 0, top], 4, 2)
+    assert geo["width"] == 4 and geo["height"] == 2
+    assert abs(geo["west"] - 6.0) < 1e-6, geo
+    assert abs(geo["north"] - 55.0) < 1e-6, geo
+    assert abs(geo["east"] - round(_to_lon(left + 4 * 1000.0), 6)) < 1e-9, geo
+    assert abs(geo["south"] - round(_to_lat(top - 2 * 1000.0), 6)) < 1e-9, geo
+
+    # The stack: only missing days are fetched, and only the last N kept.
+    times = [f"2026-07-{day:02d}T00:00:00.000Z" for day in range(20, 30)]
+    shape = {"width": 4, "height": 2, "west": 6.0, "east": 6.1,
+             "north": 55.0, "south": 54.9}
+    calls = []
+
+    def fake(when, geometry=shape):
+        calls.append(when[:10])
+        return {"date": when[:10], "time": when,
+                "file": f"rain_day_{when[:10].replace('-', '')}.bin.gz",
+                "bytes": 1, "sha256": "x", "max_mm": 0, "wet_percent": 0.0}, \
+            dict(geometry)
+
+    section, fresh = build_daily(".", previous=None, days=3, times=times,
+                                 fetch_day=fake)
+    assert [d["date"] for d in section["days"]] == \
+        ["2026-07-27", "2026-07-28", "2026-07-29"], section["days"]
+    assert len(fresh) == 3 and len(calls) == 3
+
+    calls.clear()
+    times.append("2026-07-30T00:00:00.000Z")
+    section2, fresh2 = build_daily(".", previous=section, days=3, times=times,
+                                   fetch_day=fake)
+    assert calls == ["2026-07-30"], \
+        f"a day already in the manifest was fetched again: {calls}"
+    assert [d["date"] for d in section2["days"]] == \
+        ["2026-07-28", "2026-07-29", "2026-07-30"], section2["days"]
+    assert len(fresh2) == 1
+
+    # A changed geometry must discard the carried days rather than mix
+    # two rasters in one stack — the whole reason this stack is not
+    # cropped per day. It can only show up on a day that is actually
+    # fetched, so the run needs a new one; a run that fetches nothing
+    # changes nothing, and that is correct.
+    calls.clear()
+    times.append("2026-07-31T00:00:00.000Z")
+    moved = dict(shape, height=3)
+    section3, _ = build_daily(".", previous=section2, days=3, times=times,
+                              fetch_day=lambda when: fake(when, moved))
+    assert calls == ["2026-07-31",
+                     "2026-07-29", "2026-07-30", "2026-07-31"], \
+        f"the stack was not rebuilt after the geometry changed: {calls}"
+    assert section3["height"] == 3, section3
+    assert [d["date"] for d in section3["days"]] == \
+        ["2026-07-29", "2026-07-30", "2026-07-31"], section3["days"]
 
 
 def _fake_tiff(values, tile_w, tile_h, bits=64, sample_format=3,
@@ -483,13 +797,52 @@ def _fake_tiff(values, tile_w, tile_h, bits=64, sample_format=3,
     return b"MM\x00\x2a" + struct.pack(">I", 8) + ifd + bytes(extra) + b"".join(tiles)
 
 
+def _build_daily_cli(args, manifest, manifest_path):
+    section, fresh = build_daily(args.out, previous=manifest.get("daily"),
+                                 days=args.days)
+    manifest["daily"] = section
+    with open(manifest_path, "w") as handle:
+        json.dump(manifest, handle, indent=2, sort_keys=True)
+
+    total = sum(day["bytes"] for day in section["days"])
+    summary = (
+        f"### Tagesraster ({len(section['days'])} Tage)\n\n"
+        f"- Zeitraum: {section['days'][0]['date']} bis "
+        f"{section['days'][-1]['date']}\n"
+        f"- Neu geholt: {len(fresh)} "
+        f"({', '.join(day['date'] for day in fresh) if fresh else 'nichts'})\n"
+        f"- Gitter: {section['width']} x {section['height']} Zellen, "
+        f"ungeschnitten (feste Geometrie für den ganzen Stapel)\n"
+        f"- Stapel gesamt: {total / 1024:.0f} KB\n"
+    )
+    for day in section["days"]:
+        summary += (f"  - {day['date']}: {day['bytes'] / 1024:.1f} KB, "
+                    f"{day['wet_percent']} % nass, max {day['max_mm']} mm\n")
+    print(summary)
+    if os.environ.get("GITHUB_STEP_SUMMARY"):
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as handle:
+            handle.write(summary)
+
+    # Which day files the stack still needs, so the workflow can delete
+    # the rest from the release. Named here rather than guessed there:
+    # this function knows what the stack keeps, a shell glob does not.
+    # Written NEXT TO the output directory, not into it — everything in
+    # there gets uploaded as an asset.
+    keep = sorted(day["file"] for day in section["days"])
+    with open(os.path.join(os.path.dirname(args.out) or ".", "keep.txt"),
+              "w") as handle:
+        handle.write("\n".join(keep) + "\n")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--layer", choices=sorted(LAYERS))
+    parser.add_argument("--layer", choices=sorted(LAYERS) + ["daily"])
     parser.add_argument("--out", default="build/rain")
     parser.add_argument("--self-test", action="store_true")
     parser.add_argument("--verify", action="store_true",
                         help="compare the built grid against the live service")
+    parser.add_argument("--days", type=int, default=DAILY["days"],
+                        help="how many days the stack keeps (--layer daily)")
     args = parser.parse_args()
 
     if args.self_test:
@@ -498,16 +851,21 @@ def main():
     if not args.layer:
         parser.error("--layer is required unless --self-test is given")
     if args.verify:
-        verify(args.out, args.layer)
+        verify_daily(args.out) if args.layer == "daily" \
+            else verify(args.out, args.layer)
         return
-
-    entry = build(args.layer, args.out)
 
     manifest_path = os.path.join(args.out, "rain_manifest.json")
     manifest = {"layers": {}}
     if os.path.exists(manifest_path):
         with open(manifest_path) as handle:
             manifest = json.load(handle)
+
+    if args.layer == "daily":
+        _build_daily_cli(args, manifest, manifest_path)
+        return
+
+    entry = build(args.layer, args.out)
     manifest.setdefault("layers", {})[args.layer] = entry
     with open(manifest_path, "w") as handle:
         json.dump(manifest, handle, indent=2, sort_keys=True)
