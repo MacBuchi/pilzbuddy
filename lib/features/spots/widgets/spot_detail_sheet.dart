@@ -10,6 +10,7 @@ import '../../profile/profile_providers.dart';
 import '../../../models/spot.dart';
 import '../spot_providers.dart';
 import 'add_find_sheet.dart';
+import 'spot_rain_section.dart';
 
 /// Detail-Sheet für einen Spot: Fundhistorie, „Fund eintragen",
 /// Freigabe-Ausschluss und Löschen.
@@ -107,7 +108,17 @@ class _SpotDetailSheet extends ConsumerWidget {
     if (spot == null) return const SizedBox.shrink();
 
     final dateFormat = DateFormat('d.M.y');
-    return Padding(
+    return ConstrainedBox(
+      // Der Regenabschnitt hat das Blatt über die Bildschirmhöhe hinaus
+      // wachsen lassen. Zwei Änderungen statt einer Kürzung: eine
+      // Obergrenze, damit die Karte dahinter sichtbar bleibt (dieselbe
+      // Begründung wie im Filter- und Regen-Blatt), und Scrollen, damit
+      // nichts abgeschnitten wird, was jemand lesen will.
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.9,
+      ),
+      child: SingleChildScrollView(
+        child: Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -226,8 +237,15 @@ class _SpotDetailSheet extends ConsumerWidget {
               ),
             ),
           ],
+          // Ganz unten, nicht oben: Die Fundhistorie ist der Inhalt des
+          // Blatts, der Regen ist die Zusatzfrage „ist der Spot dran?".
+          // Oben stünde er über der Antwort, für die man das Blatt
+          // geöffnet hat.
+          SpotRainSection(lat: spot.lat, lon: spot.lng),
           SizedBox(height: MediaQuery.of(context).viewPadding.bottom),
         ],
+      ),
+    ),
       ),
     );
   }

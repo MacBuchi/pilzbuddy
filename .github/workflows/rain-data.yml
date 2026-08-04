@@ -18,13 +18,19 @@ on:
     # SF-Produkt (rolling 24 h sum) is hourly; every three hours is plenty
     # for a number nobody watches minute by minute.
     - cron: "47 */3 * * *"
+    # The daily stack behind the 14 day course at a spot. SF-Produkt_(0-24)
+    # is a completed 00-24 UTC day, so it appears with roughly a day's lag
+    # — the exact hour does not matter, and a run that finds nothing new
+    # simply carries the manifest over. A missed day is caught by the next
+    # run, because the tool always takes the last 14 the service offers.
+    - cron: "23 7 * * *"
   workflow_dispatch:
     inputs:
       layer:
-        description: "Which layer to rebuild (empty = both)"
+        description: "Which layer to rebuild (empty = w4 and sf)"
         required: false
         type: choice
-        options: ["", "w4", "sf"]
+        options: ["", "w4", "sf", "daily"]
         default: ""
 
 # Never two runs at once — they would race on the shared manifest. Not
@@ -58,6 +64,7 @@ jobs:
           case "${{ github.event.schedule }}" in
             "17 6 * * *") layers="w4" ;;
             "47 */3 * * *") layers="sf" ;;
+            "23 7 * * *") layers="daily" ;;
             *) layers="${{ inputs.layer }}" ;;
           esac
           [ -n "$layers" ] || layers="w4 sf"
@@ -100,5 +107,25 @@ jobs:
             gh release create rain-data \
               --title "Regen-Gitter" \
               --notes "Niederschlagssummen des Deutschen Wetterdienstes als Wertegitter, ein Byte je Quadratkilometer (Datenbasis: DWD, GeoNutzV). Wird mehrmals täglich überschrieben — die Release-Beschreibung gehört zur Datenstrecke, nicht zu einer App-Version."
+          # Only what this run actually built is in build/rain: the daily
+          # stack carries unchanged days over without downloading them.
           gh release upload rain-data build/rain/* --clobber
           ls -la build/rain
+
+      - name: Drop day files the stack no longer keeps
+        # Without this the release grows by one file a day forever. The
+        # list comes from the tool, not from a date-shaped glob here —
+        # the tool is what decides how long the stack is.
+        if: hashFiles('build/keep.txt') != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view rain-data --json assets \
+            --jq '.assets[].name' | grep '^rain_day_' > published.txt || true
+          while read -r asset; do
+            if ! grep -qx "$asset" build/keep.txt; then
+              echo "Entferne $asset"
+              gh release delete-asset rain-data "$asset" --yes
+            fi
+          done < published.txt
+          echo "Im Stapel: $(wc -l < build/keep.txt) Tage"

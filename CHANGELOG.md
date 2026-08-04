@@ -7,6 +7,36 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Wie viel Regen an genau diesem Spot — Tag für Tag
+
+*4. August 2026 · Version 1.47.0*
+
+Im Blatt eines Spots steht jetzt ganz unten, wie viel Regen dort gefallen
+ist: als Summe über 7, 14 und 30 Tage — und als **Balken für jeden
+einzelnen der letzten 14 Tage**.
+
+Der Verlauf ist der eigentliche Punkt. Eine Summe kann nicht
+unterscheiden, ob die 40 Millimeter vor elf Tagen fielen oder gestern, und
+für Pilze ist genau das der Unterschied. Darum steht unter den Balken auch
+ein Satz wie „Letzter nennenswerter Regen vor 3 Tagen".
+
+**Deine Fundstelle bleibt geheim.** Das ist keine Nebensache, sondern der
+Grund, warum das Ganze so umständlich gebaut ist: Die App fragt *niemanden*
+nach dem Wetter an deinem Spot. Sie lädt die Messwerte für ganz Deutschland
+herunter und schlägt die Stelle **auf deinem Gerät** nach. Es gibt keine
+Anfrage, in der deine Koordinate steht — auch nicht beim Wetterdienst.
+
+Der Preis dafür sind Daten: Beim ersten Mal rund 0,9 MB, danach täglich ein
+kleines Stück. Deshalb wird vorher gefragt, und erst nach deinem Tippen
+geladen — im Wald gibt man das nicht ungefragt aus. Wer einmal zugestimmt
+hat, wird nicht wieder gefragt.
+
+Zwei Dinge, die dazugehören: Die Messung deckt **nur Deutschland** ab, und
+sie endet **gestern** — der Wetterdienst rechnet ganze Tage ab. Was heute
+vom Himmel kommt, zeigt weiterhin das Regenradar auf der Karte. Liegt ein
+Spot außerhalb der Messung, bleibt der Abschnitt einfach weg statt eine
+leere Zeile zu zeigen.
+
 ## Der Regen liegt jetzt in unseren Farben
 
 *4. August 2026 · Version 1.46.0*

@@ -73,6 +73,72 @@ class RainGridInfo {
       '${layer}_${measured.toUtc().toIso8601String().replaceAll(RegExp(r'[:.]'), '-')}.bin.gz';
 }
 
+/// Was das Manifest über den Tagesstapel sagt.
+///
+/// Alle Tage teilen sich eine Geometrie — das Werkzeug schneidet sie
+/// deshalb nicht zu. Stünde sie je Tag im Manifest, wäre der erste Tag
+/// mit abweichender Größe ein Verlauf, der stillschweigend den falschen
+/// Punkt liest.
+class RainStackInfo {
+  const RainStackInfo({
+    required this.width,
+    required this.height,
+    required this.west,
+    required this.east,
+    required this.north,
+    required this.south,
+    required this.days,
+  });
+
+  final int width;
+  final int height;
+  final double west;
+  final double east;
+  final double north;
+  final double south;
+  final List<({DateTime date, String file})> days;
+
+  static RainStackInfo? tryParse(Map<String, dynamic> json) {
+    try {
+      final days = [
+        for (final day in json['days'] as List)
+          (
+            date: DateTime.parse((day as Map)['date'] as String),
+            file: day['file'] as String,
+          ),
+      ]..sort((a, b) => a.date.compareTo(b.date));
+      if (days.isEmpty) return null;
+      return RainStackInfo(
+        width: json['width'] as int,
+        height: json['height'] as int,
+        west: (json['west'] as num).toDouble(),
+        east: (json['east'] as num).toDouble(),
+        north: (json['north'] as num).toDouble(),
+        south: (json['south'] as num).toDouble(),
+        days: days,
+      );
+    } catch (_) {
+      // Ein Manifest, das wir nicht verstehen, ist kein Grund für eine
+      // Fehlermeldung — dann gibt es eben keinen Verlauf.
+      return null;
+    }
+  }
+}
+
+/// Der geladene Stapel: die Geometrie und je Tag die **gepackten** Bytes.
+///
+/// Gepackt mit Absicht. Entpackt wären es 14 × 752 000 Zellen, also gut
+/// zehn Megabyte, die dauerhaft im Speicher lägen — in einer App, die
+/// schon einmal an Speicherdruck gestorben ist (#142/#151), ist das kein
+/// vertretbarer Preis für vierzehn Zahlen. Gepackt sind es 646 KB, und
+/// ausgepackt wird im Isolate, ein Tag nach dem anderen.
+class RainStackData {
+  const RainStackData({required this.info, required this.days});
+
+  final RainStackInfo info;
+  final List<({DateTime date, List<int> gzipped})> days;
+}
+
 class RainGridRepository {
   RainGridRepository({http.Client? client, Directory? baseDirOverride})
       : _client = client ?? http.Client(),
@@ -133,6 +199,126 @@ class RainGridRepository {
     }
 
     return _newestOnDisk(layer);
+  }
+
+  /// Der Tagesstapel — `null`, wenn weder Netz noch Platte etwas hergeben.
+  ///
+  /// Lädt **inkrementell**: Was schon auf Platte liegt, wird nicht erneut
+  /// geholt. Beim ersten Mal sind das bis zu vierzehn Dateien (~646 KB),
+  /// danach eine am Tag (~50 KB im Mittel). [onProgress] meldet den
+  /// Fortschritt, damit das Blatt nicht stumm dasteht.
+  ///
+  /// Ohne Empfang wird genommen, was da ist: Ein Verlauf aus zwölf
+  /// gespeicherten Tagen ist im Wald mehr wert als gar keiner. Fehlende
+  /// Tage fehlen dann eben — [RainCourse.sumOfLast] gibt für ein
+  /// unvollständiges Fenster ohnehin keine Zahl aus.
+  Future<RainStackData?> loadDailyStack({
+    void Function(int done, int total)? onProgress,
+  }) async {
+    RainStackInfo? info;
+    try {
+      info = await _fetchStackInfo();
+    } catch (_) {
+      // Still: kein Empfang oder GitHub weg. Unten wird versucht, was auf
+      // Platte liegt. Kein `logError` — ein Abruf im Wald ohne Netz ist
+      // ein normaler Vorgang (#124/#136).
+    }
+    if (info != null) {
+      await _rememberStackInfo(info);
+    } else {
+      info = await _lastStackInfo();
+    }
+    if (info == null) return null;
+
+    final dir = await _dir();
+    final days = <({DateTime date, List<int> gzipped})>[];
+    for (final (index, day) in info.days.indexed) {
+      onProgress?.call(index, info.days.length);
+      final file = File('${dir.path}/${day.file}');
+      List<int>? bytes;
+      if (await file.exists()) {
+        try {
+          bytes = await file.readAsBytes();
+        } catch (_) {
+          // Datei verschwunden oder unlesbar — behandeln wie „nicht da".
+        }
+      }
+      if (bytes == null) {
+        try {
+          bytes = await _download('$rainDataBaseUrl/${day.file}');
+          await file.writeAsBytes(bytes, flush: true);
+        } catch (_) {
+          // Dieser Tag fehlt eben. Weitermachen: Ein Verlauf mit einer
+          // Lücke ist brauchbar, ein Abbruch nicht.
+          continue;
+        }
+      }
+      days.add((date: day.date, gzipped: bytes));
+    }
+    onProgress?.call(info.days.length, info.days.length);
+    await _pruneStack(dir, {for (final day in info.days) day.file});
+    if (days.isEmpty) return null;
+    return RainStackData(info: info, days: days);
+  }
+
+  Future<RainStackInfo?> _fetchStackInfo() async {
+    final response = await _client
+        .get(Uri.parse('$rainDataBaseUrl/rain_manifest.json'))
+        .timeout(const Duration(seconds: 15));
+    if (response.statusCode != 200) {
+      throw HttpException('Manifest: HTTP ${response.statusCode}');
+    }
+    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    final daily = json['daily'] as Map<String, dynamic>?;
+    return daily == null ? null : RainStackInfo.tryParse(daily);
+  }
+
+  /// Tagesdateien wegräumen, die der Stapel nicht mehr führt. Ohne das
+  /// wächst das App-Verzeichnis um eine Datei am Tag, für immer.
+  Future<void> _pruneStack(Directory dir, Set<String> keep) async {
+    try {
+      for (final entry in dir.listSync().whereType<File>()) {
+        final name = entry.path.split('/').last;
+        if (!name.startsWith('rain_day_')) continue;
+        if (keep.contains(name)) continue;
+        await entry.delete();
+      }
+    } catch (_) {
+      // Aufräumen ist Kür.
+    }
+  }
+
+  Future<File> _stackInfoFile() async =>
+      File('${(await _dir()).path}/stack.json');
+
+  Future<void> _rememberStackInfo(RainStackInfo info) async {
+    try {
+      await (await _stackInfoFile()).writeAsString(jsonEncode({
+        'width': info.width,
+        'height': info.height,
+        'west': info.west,
+        'east': info.east,
+        'north': info.north,
+        'south': info.south,
+        'days': [
+          for (final day in info.days)
+            {'date': day.date.toIso8601String(), 'file': day.file},
+        ],
+      }));
+    } catch (_) {
+      // Ohne gemerktes Manifest fehlt nur der Weg ohne Empfang.
+    }
+  }
+
+  Future<RainStackInfo?> _lastStackInfo() async {
+    try {
+      final file = await _stackInfoFile();
+      if (!await file.exists()) return null;
+      return RainStackInfo.tryParse(
+          jsonDecode(await file.readAsString()) as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<RainGridInfo?> _fetchInfo(String layer) async {
