@@ -7,6 +7,7 @@ import 'package:vector_map_tiles/vector_map_tiles.dart' as vmt;
 import '../../offline_maps/offline_map_providers.dart';
 import '../../../core/app_colors.dart';
 import '../finite_camera_constraint.dart';
+import '../rain_contours.dart';
 import '../rain_data_providers.dart';
 import '../rain_layer.dart';
 import 'map_view.dart';
@@ -266,19 +267,30 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
         // Die eigenen Höhenlinien: eine Ebene je Höhenstufe, weil
         // flutter_maps PolylineLayer eine Farbe je Ebene kennt. Unter
         // den Markern, wie das Bild darüber.
-        for (final (index, level) in rainLevelsFor(rainLayer).indexed)
-          if (rainLines.any((line) => line.mm == level))
-            PolylineLayer(
-              polylines: [
-                for (final line in rainLines)
-                  if (line.mm == level)
-                    Polyline(
-                      points: line.points,
-                      color: AppColors.rainLine(index),
-                      strokeWidth: 2,
-                    ),
-              ],
-            ),
+        if (rainLines.isNotEmpty)
+          // Der Builder liest die Kamera und wird damit bei jedem
+          // Zoomwechsel neu gebaut — nur so kann die Dichte dem Maßstab
+          // folgen (siehe `rainContoursAtZoom`).
+          Builder(builder: (context) {
+            final visible =
+                rainContoursAtZoom(rainLines, MapCamera.of(context).zoom,
+                    levels: rainLevelsFor(rainLayer));
+            return Stack(children: [
+              for (final (index, level) in rainLevelsFor(rainLayer).indexed)
+                if (visible.any((line) => line.mm == level))
+                  PolylineLayer(
+                    polylines: [
+                      for (final line in visible)
+                        if (line.mm == level)
+                          Polyline(
+                            points: line.points,
+                            color: AppColors.rainLine(index),
+                            strokeWidth: 2,
+                          ),
+                    ],
+                  ),
+            ]);
+          }),
         // Markergruppen in fester Reihenfolge (unten → oben), damit
         // Spots über den Live-Positionen liegen und tappbar bleiben.
         if (markers.myPosition.isNotEmpty)

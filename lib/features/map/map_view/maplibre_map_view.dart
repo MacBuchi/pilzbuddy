@@ -68,6 +68,11 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
   /// Grund, warum der Spike nur −28 % Haupt-Thread-Last gemessen hat.
   MapViewBounds? _visibleBounds;
 
+  /// Die Zoomstufe beim letzten Kamera-Stillstand. Sie entscheidet, welche
+  /// Höhenlinien noch etwas aussagen — dieselbe Stelle und derselbe Takt
+  /// wie das Marker-Culling: bei Idle, nicht je Bild.
+  double _idleZoom = 0;
+
   /// Liest das Sichtfenster der Engine und stößt bei Änderung den
   /// Rebuild an, der die Markerliste neu filtert.
   void _updateVisibleBounds() {
@@ -75,6 +80,7 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
     if (controller == null || !mounted) return;
     final region = controller.getVisibleRegion();
     setState(() {
+      _idleZoom = controller.camera?.zoom ?? _idleZoom;
       _visibleBounds = MapViewBounds(
         west: region.longitudeWest,
         east: region.longitudeEast,
@@ -83,6 +89,11 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
       );
     });
   }
+
+  /// Die Höhenlinien, die bei der aktuellen Zoomstufe etwas aussagen.
+  List<ContourLine> _visibleRainLines(WidgetRef ref) =>
+      rainContoursAtZoom(_rainLines(ref), _idleZoom,
+          levels: _rainLevels(ref));
 
   /// Übersetzt einen Fassaden-Marker in einen MapLibre-Marker — die
   /// Kind-Widgets (MushroomIcon, Avatare, Tooltips, Taps) bleiben
@@ -218,10 +229,10 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
       // Markern.
       layers: [
         for (final (index, level) in _rainLevels(ref).indexed)
-          if (_rainLines(ref).any((line) => line.mm == level))
+          if (_visibleRainLines(ref).any((line) => line.mm == level))
             ml.PolylineLayer(
               polylines: [
-                for (final line in _rainLines(ref))
+                for (final line in _visibleRainLines(ref))
                   if (line.mm == level)
                     ml.Feature(
                       geometry: ml.LineString.from([

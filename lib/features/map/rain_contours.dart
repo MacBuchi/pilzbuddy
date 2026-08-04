@@ -17,13 +17,83 @@ import 'rain_grid.dart';
 
 /// Eine Höhenlinie: alle Punkte liegen auf derselben Niederschlagsmenge.
 class ContourLine {
-  const ContourLine({required this.mm, required this.points});
+  const ContourLine({
+    required this.mm,
+    required this.points,
+    required this.cells,
+  });
 
   /// Die Niederschlagsmenge, auf der diese Linie liegt.
   final int mm;
 
   final List<LatLng> points;
+
+  /// Wie viele Gitterzellen die Linie VOR der Vereinfachung lang war —
+  /// eine Zelle ist ungefähr ein Kilometer. Nach der Vereinfachung ist
+  /// die Länge nicht mehr an der Punktzahl abzulesen (eine Gerade quer
+  /// durch Deutschland hat zwei Punkte), und genau die braucht
+  /// [rainContoursAtZoom].
+  final int cells;
 }
+
+/// Die Linien, die bei dieser Zoomstufe überhaupt etwas aussagen.
+///
+/// **Warum es das braucht** (am Pixel 7 gesehen, 2026-08-04): In der
+/// Deutschlandübersicht zeichnen alle Linien zusammen ein Geflecht statt
+/// Höhenlinien — nicht weil es zu viele Stufen sind, sondern weil
+/// hunderte kurze Ringe je wenige Pixel groß sind. Eingezoomt, wo die
+/// Fläche versagt hat, sind dieselben Daten sparsam und klar.
+///
+/// Die Regel ist deshalb keine Zoomstufen-Tabelle, sondern ein Satz:
+/// **Eine Linie, die auf dem Schirm kürzer als [minPixels] ist, sagt
+/// nichts.** Das ist dieselbe Größe bei jedem Maßstab und braucht keine
+/// Schwellenwerte, die jemand später raten muss.
+///
+/// Die Umrechnung nimmt Breite 51° an — die Daten sind Deutschland, und
+/// über dessen Nord-Süd-Ausdehnung schwankt der Faktor um weniger als
+/// ein Fünftel.
+List<ContourLine> rainContoursAtZoom(
+  List<ContourLine> lines,
+  double zoom, {
+  required List<int> levels,
+  double minPixels = 40,
+}) {
+  final pixelsPerKm = 256 * math.pow(2, zoom) / _germanyCircumferenceKm;
+  final minCells = minPixels / pixelsPerKm;
+  final shown = rainLevelsAtZoom(levels, zoom).toSet();
+  return [
+    for (final line in lines)
+      if (line.cells >= minCells && shown.contains(line.mm)) line,
+  ];
+}
+
+/// Welche Höhenstufen bei dieser Zoomstufe gezeichnet werden.
+///
+/// **Der zweite Befund vom Pixel 7:** Die kurzen Ringe wegzulassen reicht
+/// nicht. In der Übersicht ist die Dichte kein Rauschen, sondern echte
+/// Struktur — acht Stufen über einem Feld, das zwischen 8 und 112 mm
+/// liegt, laufen dort streckenweise parallel und zeichnen ein Geflecht.
+///
+/// Das ist derselbe Fall, den jede topografische Karte kennt, und die
+/// Antwort ist dieselbe: **Die Äquidistanz wächst mit dem Maßstab.** Aus
+/// der Ferne jede vierte Linie, dann jede zweite, aus der Nähe alle. Der
+/// Schwellenwert ist bewusst an die Bildschirmbreite gekoppelt und nicht
+/// an geratene Zoomstufen: Unter ~150 km Breite sind alle Stufen
+/// lesbar, über ~600 km nur noch jede vierte.
+List<int> rainLevelsAtZoom(List<int> levels, double zoom) {
+  final kmAcross = _germanyCircumferenceKm / math.pow(2, zoom) * 4;
+  final step = kmAcross > 600
+      ? 4
+      : kmAcross > 150
+          ? 2
+          : 1;
+  return [
+    for (var i = 0; i < levels.length; i += step) levels[i],
+  ];
+}
+
+/// Erdumfang auf Breite 51°, in Kilometern.
+const _germanyCircumferenceKm = 25220.0;
 
 /// Die Höhenstufen der 30-Tage-Summe in Millimetern.
 ///
@@ -87,6 +157,7 @@ List<ContourLine> rainContours(
       if (simplified.length < 2) continue;
       lines.add(ContourLine(
         mm: level,
+        cells: chain.length,
         points: [
           for (final point in simplified)
             LatLng(source.latAtRow(point.dy + 0.5),

@@ -307,6 +307,60 @@ void main() {
     });
   });
 
+  group('Dichte nach Maßstab', () {
+    // Der Befund vom Pixel 7 (2026-08-04): Eingezoomt sind die Linien
+    // sparsam und klar, in der Deutschlandübersicht zeichnen dieselben
+    // Daten ein Geflecht — hunderte Ringe von je wenigen Pixeln.
+    const short = ContourLine(mm: 30, points: [], cells: 4);
+    const long = ContourLine(mm: 30, points: [], cells: 400);
+
+    test('wirft in der Übersicht die kurzen Ringe weg', () {
+      final visible = rainContoursAtZoom([short, long], 6, levels: const [30]);
+      expect(visible, [long]);
+    });
+
+    test('zeigt eingezoomt auch die kurzen', () {
+      final visible = rainContoursAtZoom([short, long], 13, levels: const [30]);
+      expect(visible, hasLength(2));
+    });
+
+    test('hängt an der Bildschirmlänge, nicht an Zoom-Schwellen', () {
+      // Dieselbe Linie muss genau dann sichtbar werden, wenn sie die
+      // geforderte Pixellänge erreicht — nicht bei einer geratenen
+      // Zoomstufe. Bei doppelter Mindestlänge braucht es eine
+      // Zoomstufe mehr, weil jede Stufe die Pixel verdoppelt.
+      double firstVisibleZoom(double minPixels) {
+        for (var z = 0.0; z < 22; z += 0.05) {
+          if (rainContoursAtZoom([short], z, levels: const [30], minPixels: minPixels)
+              .isNotEmpty) {
+            return z;
+          }
+        }
+        return 22;
+      }
+      expect(firstVisibleZoom(80) - firstVisibleZoom(40), closeTo(1.0, 0.06));
+    });
+
+    test('dünnt die Höhenstufen mit dem Maßstab aus', () {
+      // Dieselbe Regel wie auf jeder topografischen Karte: Die
+      // Äquidistanz wächst, wenn der Maßstab kleiner wird. Aus der Ferne
+      // jede vierte Linie, aus der Nähe alle.
+      const levels = [10, 20, 30, 40, 50, 75, 100, 150];
+      expect(rainLevelsAtZoom(levels, 13), levels);
+      expect(rainLevelsAtZoom(levels, 9), [10, 30, 50, 100]);
+      expect(rainLevelsAtZoom(levels, 6), [10, 50]);
+      // Und sie beginnt immer bei der untersten Stufe, damit die Karte
+      // beim Zoomen nicht die Farben wechselt.
+      for (final zoom in [5.0, 7.0, 9.0, 11.0, 14.0]) {
+        expect(rainLevelsAtZoom(levels, zoom).first, 10, reason: '$zoom');
+      }
+    });
+
+    test('lässt bei Null-Schranke alles durch', () {
+      expect(rainContoursAtZoom([short, long], 0, levels: const [30], minPixels: 0), hasLength(2));
+    });
+  });
+
   group('Höhenstufen', () {
     test('sind aufsteigend und ohne Wertung benannt', () {
       for (final levels in [rainLevels30d, rainLevels24h]) {
