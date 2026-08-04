@@ -91,7 +91,14 @@ class _RainLayerSheet extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
               child: Text(
-                'Daten: Deutscher Wetterdienst',
+                // GeoNutzV verlangt bei veränderten Daten den Hinweis
+                // darauf — die Summen kommen als Rohwerte und werden von
+                // uns quantisiert, geglättet und neu eingefärbt. Beim
+                // Radar liegt das Bild des DWD unverändert auf der Karte.
+                current == RainLayer.last24h || current == RainLayer.last30d
+                    ? 'Datenbasis: Deutscher Wetterdienst, '
+                        'Werte verändert'
+                    : 'Daten: Deutscher Wetterdienst',
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: theme.hintColor),
               ),
