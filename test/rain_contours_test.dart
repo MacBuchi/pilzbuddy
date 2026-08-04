@@ -6,6 +6,8 @@
 // die Umrechnung in Grad danebenliegt. Sie läuft deshalb mit
 // `smooth: false` — geglättet wären es andere Werte als die, die im Test
 // stehen.
+import 'dart:math' as math;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/features/map/rain_contours.dart';
 import 'package:pilzbuddy/features/map/rain_grid.dart';
@@ -27,7 +29,8 @@ void main() {
         levels: levels,
         toleranceCells: 0,
         minChainCells: 0,
-        smooth: false);
+        smooth: false,
+        roundingPasses: 0);
 
     test('liegt an der richtigen Stelle', () {
       final lines = plain(grid, [15]);
@@ -98,7 +101,11 @@ void main() {
         [x, x, x, x, x, x, x, x, x],
       ]);
       final lines = rainContours(roof,
-          levels: [15], toleranceCells: 0, minChainCells: 0, smooth: false);
+          levels: [15],
+          toleranceCells: 0,
+          minChainCells: 0,
+          smooth: false,
+          roundingPasses: 0);
       expect(lines, hasLength(1),
           reason: 'zwei Linien heißt: in der Mitte losgelaufen');
     });
@@ -132,7 +139,11 @@ void main() {
         rows, rows, rows,
       ]);
       final lines = rainContours(grid,
-          levels: [15], toleranceCells: 0, minChainCells: 0, smooth: false);
+          levels: [15],
+          toleranceCells: 0,
+          minChainCells: 0,
+          smooth: false,
+          roundingPasses: 0);
       expect(lines, hasLength(2), reason: 'ein Zug ober-, einer unterhalb');
       for (final line in lines) {
         expect(line.points, hasLength(3));
@@ -163,9 +174,9 @@ void main() {
       // Punkte, also scheinbar ein Fragment.
       final grid = gridOf([for (var i = 0; i < 40; i++) [0, 10, 20, 30]]);
       final full = rainContours(grid,
-          levels: [15], toleranceCells: 0, smooth: false);
+          levels: [15], toleranceCells: 0, smooth: false, roundingPasses: 0);
       final simple = rainContours(grid,
-          levels: [15], toleranceCells: 2, smooth: false);
+          levels: [15], toleranceCells: 2, smooth: false, roundingPasses: 0);
       expect(full.single.points, hasLength(40));
       expect(simple.single.points, hasLength(2));
       // Die Enden bleiben, wo sie waren — eine Vereinfachung, die die
@@ -185,7 +196,7 @@ void main() {
               ]
           ];
       List<ContourLine> run(int depth) => rainContours(gridOf(zigzag(depth)),
-          levels: [15], toleranceCells: 2, smooth: false);
+          levels: [15], toleranceCells: 2, smooth: false, roundingPasses: 0);
       expect(run(4).single.points.length,
           greaterThan(run(0).single.points.length),
           reason: 'die Zacke muss die Vereinfachung überleben');
@@ -210,7 +221,11 @@ void main() {
       expect(stats.rawPoints, greaterThan(0),
           reason: 'gefunden wurden sie schon — sie fielen nur weg');
       expect(
-          rainContours(grid, levels: [15], toleranceCells: 2, smooth: false),
+          rainContours(grid,
+              levels: [15],
+              toleranceCells: 2,
+              smooth: false,
+              roundingPasses: 0),
           isEmpty);
       // Ohne die Schranke sind sie da.
       expect(
@@ -218,7 +233,8 @@ void main() {
               levels: [15],
               toleranceCells: 2,
               minChainCells: 0,
-              smooth: false),
+              smooth: false,
+              roundingPasses: 0),
           isNotEmpty);
     });
   });
@@ -304,6 +320,63 @@ void main() {
       final unsmoothed = rainContours(grid,
           levels: [15], minChainCells: 0, smooth: false);
       expect(byDefault.length, lessThan(unsmoothed.length));
+    });
+  });
+
+  group('Ecken runden', () {
+    final grid = gridOf([for (var i = 0; i < 12; i++) [0, 10, 20, 30]]);
+
+    test('erfindet keine Punkte außerhalb des Zuges', () {
+      // Chaikin schneidet Ecken ab. Jeder neue Punkt liegt auf der
+      // Verbindung zweier vorhandener, die Kurve verlässt die konvexe
+      // Hülle also nie — das ist der Grund, warum das Runden hier
+      // vertretbar ist und beim Raster nicht.
+      final zig = gridOf([
+        for (var y = 0; y < 12; y++)
+          [for (var x = 0; x < 12; x++) (y == 6 && x > 4) ? 30 : (x < 6 ? 0 : 30)]
+      ]);
+      final plainLine = rainContours(zig,
+          levels: [15], toleranceCells: 2, smooth: false, roundingPasses: 0);
+      final round = rainContours(zig,
+          levels: [15], toleranceCells: 2, smooth: false, roundingPasses: 2);
+      double minLon(List<ContourLine> l) =>
+          l.expand((c) => c.points).map((p) => p.longitude).reduce(math.min);
+      double maxLon(List<ContourLine> l) =>
+          l.expand((c) => c.points).map((p) => p.longitude).reduce(math.max);
+      expect(minLon(round), greaterThanOrEqualTo(minLon(plainLine) - 1e-9));
+      expect(maxLon(round), lessThanOrEqualTo(maxLon(plainLine) + 1e-9));
+    });
+
+    test('lässt die Enden liegen, wo sie waren', () {
+      final plainLine = rainContours(grid,
+          levels: [15], toleranceCells: 0, smooth: false, roundingPasses: 0);
+      final round = rainContours(grid,
+          levels: [15], toleranceCells: 0, smooth: false, roundingPasses: 2);
+      expect(round.single.points.first.latitude,
+          closeTo(plainLine.single.points.first.latitude, 1e-9));
+      expect(round.single.points.last.latitude,
+          closeTo(plainLine.single.points.last.latitude, 1e-9));
+    });
+
+    test('vervierfacht die Punktzahl bei zwei Durchgängen', () {
+      // Die Kosten stehen im Kommentar der Funktion — hier werden sie
+      // festgenagelt, damit ein dritter Durchgang nicht unbemerkt
+      // hineinrutscht.
+      final none = rainContours(grid,
+          levels: [15], toleranceCells: 0, smooth: false, roundingPasses: 0);
+      final two = rainContours(grid,
+          levels: [15], toleranceCells: 0, smooth: false, roundingPasses: 2);
+      expect(two.single.points.length,
+          closeTo(none.single.points.length * 4, none.single.points.length));
+    });
+
+    test('ist die Vorgabe', () {
+      final byDefault = rainContours(grid,
+          levels: [15], toleranceCells: 0, smooth: false);
+      final none = rainContours(grid,
+          levels: [15], toleranceCells: 0, smooth: false, roundingPasses: 0);
+      expect(byDefault.single.points.length,
+          greaterThan(none.single.points.length));
     });
   });
 

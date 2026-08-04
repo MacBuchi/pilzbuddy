@@ -147,6 +147,7 @@ List<ContourLine> rainContours(
   double toleranceCells = 2,
   int minChainCells = 6,
   bool smooth = true,
+  int roundingPasses = 2,
 }) {
   final source = smooth ? grid.smoothed() : grid;
   final lines = <ContourLine>[];
@@ -155,11 +156,12 @@ List<ContourLine> rainContours(
       if (chain.length < minChainCells) continue;
       final simplified = _simplify(chain, toleranceCells);
       if (simplified.length < 2) continue;
+      final rounded = _round(simplified, roundingPasses);
       lines.add(ContourLine(
         mm: level,
         cells: chain.length,
         points: [
-          for (final point in simplified)
+          for (final point in rounded)
             LatLng(source.latAtRow(point.dy + 0.5),
                 source.lonAtColumn(point.dx + 0.5)),
         ],
@@ -406,6 +408,44 @@ List<_Point> _simplify(List<_Point> points, double tolerance) {
     for (var i = 0; i < points.length; i++)
       if (keep[i]) points[i],
   ];
+}
+
+/// Rundet die Ecken, die die Vereinfachung hinterlässt — Chaikin.
+///
+/// **Warum überhaupt:** Douglas-Peucker macht aus vierzig Punkten zwei
+/// und hinterlässt Polygonzüge mit sichtbaren Knicken. Die sehen nach
+/// Konstruktion aus, nicht nach Höhenlinie (Befund des Betreibers,
+/// 2026-08-04, an gerenderten Ausschnitten verglichen).
+///
+/// **Und warum das ehrlich bleibt:** Chaikin schneidet Ecken ab, es
+/// erfindet keine neuen Züge — jeder erzeugte Punkt liegt auf der
+/// Verbindung zweier vorhandener. Die Kurve bleibt innerhalb der
+/// konvexen Hülle des Polygonzugs und weicht nie weiter ab als dessen
+/// eigene Vereinfachungstoleranz. Sie ist damit glatter als das
+/// 1-km-Gitter, aber nicht falscher als die Vereinfachung, die ohnehin
+/// davor liegt. Bei der Rasterdarstellung ist das anders entschieden
+/// (`raster-resampling: nearest`): Dort tut Weichzeichnen so, als
+/// stünden zwischen den Zellen Messwerte. Eine Isolinie ist von Haus aus
+/// eine Interpolation, ein Klötzchen nicht.
+///
+/// Zwei Durchgänge vervierfachen die Punktzahl (an echten Daten
+/// 10 238 → 40 952). Das ist Renderlast, keine Übertragung: Geglättet
+/// wird, was auf dem Gerät entsteht.
+List<_Point> _round(List<_Point> points, int passes) {
+  var current = points;
+  for (var pass = 0; pass < passes; pass++) {
+    if (current.length < 3) break;
+    final next = <_Point>[current.first];
+    for (var i = 0; i < current.length - 1; i++) {
+      final a = current[i];
+      final b = current[i + 1];
+      next.add(_Point(a.dx * 0.75 + b.dx * 0.25, a.dy * 0.75 + b.dy * 0.25));
+      next.add(_Point(a.dx * 0.25 + b.dx * 0.75, a.dy * 0.25 + b.dy * 0.75));
+    }
+    next.add(current.last);
+    current = next;
+  }
+  return current;
 }
 
 /// Ein Punkt in Gitterkoordinaten (Spalte, Zeile) — bewusst nicht
