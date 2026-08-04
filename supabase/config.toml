@@ -58,6 +58,10 @@ secure_password_change = true
 # der Reset-Code kann sie nie erreichen, und unzustellbare Mails schlagen
 # als Hard Bounce auf die Absender-Reputation bei Brevo.
 enable_confirmations = true
+# Wie live („Secure email change", Dashboard-Default): Eine neue Adresse
+# braucht Codes aus BEIDEN Postfächern — ein gestohlenes Session-Token
+# allein kann das Konto nicht auf eine fremde Adresse umziehen.
+double_confirm_changes = true
 
 # Dieselbe Vorlage wie im Dashboard (versionierte Kopie, siehe die Datei):
 # Code statt Link. Ohne diesen Block verschickt der lokale Stack GoTrues
@@ -69,6 +73,10 @@ content_path = "./supabase/templates/confirmation.html"
 [auth.email.template.recovery]
 subject = "PilzBuddy: Code zum Zurücksetzen"
 content_path = "./supabase/templates/recovery.html"
+
+[auth.email.template.email_change]
+subject = "PilzBuddy: Code für die neue Adresse"
+content_path = "./supabase/templates/email_change.html"
 
 [studio]
 enabled = false

@@ -140,6 +140,53 @@ class AuthRepository {
     await _client.auth.updateUser(UserAttributes(password: newPassword));
   }
 
+  /// Die Adresse der laufenden Sitzung — die UI zeigt sie im
+  /// „E-Mail ändern"-Dialog an, damit klar ist, WOVON gewechselt wird.
+  String? get currentEmail => _client.auth.currentUser?.email;
+
+  /// Stößt den Wechsel der E-Mail-Adresse an.
+  ///
+  /// Erst die frische Anmeldung mit dem aktuellen Passwort (dasselbe
+  /// Muster wie [changePassword] — ein gestohlenes Session-Token allein
+  /// darf das Konto nicht umziehen; das falsche Passwort scheitert schon
+  /// hier), dann `updateUser(email:)`. GoTrue verschickt daraufhin ZWEI
+  /// Mails mit je eigenem Code — an die alte UND die neue Adresse
+  /// („Secure email change"). Eingelöst wird mit
+  /// [confirmEmailChange]; gemessen und festgenagelt in
+  /// `tool/auth_reset_check.sh`.
+  Future<void> changeEmail({
+    required String currentPassword,
+    required String newEmail,
+  }) async {
+    final email = currentEmail;
+    if (email == null) {
+      throw const AuthException('Keine angemeldete Sitzung.');
+    }
+    await _client.auth
+        .signInWithPassword(email: email, password: currentPassword);
+    await _client.auth.updateUser(UserAttributes(email: newEmail));
+  }
+
+  /// Löst EINEN der beiden Wechsel-Codes ein — [email] ist die Adresse,
+  /// an deren Postfach der Code ging (alte oder neue).
+  ///
+  /// Gemessen (2026-08-05, echtes GoTrue): Der erste Code wird nur
+  /// quittiert und ändert nichts; erst der zweite vollzieht den Wechsel
+  /// und liefert eine frische Sitzung, die das SDK übernimmt. Der Dialog
+  /// löst fest erst den Code der ALTEN, dann den der NEUEN Adresse ein —
+  /// exakt der Weg, den `auth_reset_check.sh` beweist; eine andere
+  /// Reihenfolge ist nicht vermessen.
+  Future<void> confirmEmailChange({
+    required String email,
+    required String code,
+  }) async {
+    await _client.auth.verifyOTP(
+      email: email,
+      token: code,
+      type: OtpType.emailChange,
+    );
+  }
+
   /// Löscht das eigene Konto endgültig — sofort, ohne Karenzzeit.
   ///
   /// Serverseitig genügt eine Zeile: alle Tabellen hängen per

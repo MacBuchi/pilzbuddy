@@ -173,12 +173,13 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   Mitfahrbar löst denselben Fall über den Mail-Link und hat damit genau die
   Lücke, die PilzBuddy hier umgeht (dort `MacBuchi/MitFahrBar` Issue #102) —
   beim nächsten Anfassen dort gleich mitziehen.
-  Von den sechs Mail-Vorlagen im Dashboard sind **zwei** angepasst (deutsch,
-  mit Code): „Reset password" und „Confirm sign up" — genau die beiden, die
-  die App auslöst. „Magic link or OTP", „Invite user", „Change email address"
-  und „Reauthentication" schlafen und stehen bewusst auf englischem
-  Standardtext: Eine fertig aussehende Vorlage würde vortäuschen, das Feature
-  existiere. Der Zahlencode kommt aus der jeweiligen Vorlage, NICHT aus
+  Von den sechs Mail-Vorlagen im Dashboard sind **drei** angepasst (deutsch,
+  mit Code, im Stil von #192): „Reset password", „Confirm sign up" und seit
+  #193 „Change email address" — genau die drei, die die App auslöst.
+  „Magic link or OTP", „Invite user" und „Reauthentication" schlafen und
+  stehen bewusst auf englischem Standardtext: Eine fertig aussehende
+  Vorlage würde vortäuschen, das Feature existiere (Einladen läuft über
+  das System-Teilen-Blatt, nicht über eine Server-Mail). Der Zahlencode kommt aus der jeweiligen Vorlage, NICHT aus
   „Magic link or OTP" — `/recover` bzw. `/signup` verschickt, `verifyOTP`
   prüft nur. „Confirm email" ist seit 2026-07-26 **an**; damit liefert
   `signUp` keine Sitzung mehr — `AuthRepository.signUp` gibt deshalb zurück,
@@ -203,17 +204,27 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   ausliefern, die beide Einstellungen beherrscht, dann die Vorlage „Confirm
   sign up" auf `{{ .Token }}` ohne Link setzen, dann „Confirm email"
   anschalten. Andersherum bricht die Registrierung still.
+  E-Mail ändern (Issue #193, seit 1.52.0): `AuthRepository.changeEmail`
+  meldet sich wie beim Passwortwechsel erst mit dem aktuellen Passwort neu
+  an, dann verschickt `updateUser(email:)` ZWEI Mails mit je eigenem Code
+  (alte und neue Adresse, „Secure email change"/`double_confirm_changes`).
+  Der erste eingelöste Code wird nur quittiert, erst der zweite vollzieht
+  den Wechsel und bringt eine frische Sitzung — die Profil-Kachel hört auf
+  `authStateProvider`, sonst zeigt sie die alte Adresse weiter (am
+  Emulator gefunden). Ein Postfach allein reicht also nie, und genau das
+  prüft der Wächter mit.
   Geprüft werden die Flows von `tool/auth_reset_check.sh` im Job „Schema Dry
   Run" — gegen echtes GoTrue im lokalen Stack, inklusive Mailabholung aus
-  Mailpit: Registrierung samt Bestätigung, Reset und Passwortwechsel (der
-  Name des Skripts ist seit #127/#129 zu eng). `supabase/config.toml`
-  spiegelt dafür die Dashboard-Härtung
-  (`[auth.email] secure_password_change = true`), damit lokal nicht laxer
-  geprüft wird als live; die Mail-Vorlage liegt als versionierte Kopie in
-  `supabase/templates/recovery.html`. **Blinder Fleck:** Die im Dashboard
+  Mailpit: Registrierung samt Bestätigung, Reset, Passwortwechsel und
+  E-Mail-Wechsel (der Name des Skripts ist seit #127/#129/#193 zu eng).
+  `supabase/config.toml` spiegelt dafür die Dashboard-Härtung
+  (`[auth.email] secure_password_change = true`,
+  `double_confirm_changes = true`), damit lokal nicht laxer
+  geprüft wird als live; die Mail-Vorlagen liegen als versionierte Kopien
+  unter `supabase/templates/`. **Blinder Fleck:** Die im Dashboard
   hinterlegte Vorlage sieht CI nie. Wer sie dort auf den Link zurückstellt,
-  bricht „Passwort vergessen" in Produktion, während CI grün bleibt —
-  Vorlage also immer an beiden Stellen ändern.
+  bricht „Passwort vergessen" oder den Adresswechsel in Produktion,
+  während CI grün bleibt — Vorlagen also immer an beiden Stellen ändern.
 - Offline-Karten (`lib/features/offline_maps/`, nur Android): Bundesland-
   PMTiles (Protomaps Basemap v4, ODbL) aus den GitHub-Releases von
   `whitespring/project-nomad-maps-europe`; Katalog entsteht dynamisch aus

@@ -173,6 +173,7 @@ class ProfileScreen extends ConsumerWidget {
             onTap: () => _exportGpx(context, ref),
           ),
           ChangeUsernameTile(username: profile?.username),
+          const ChangeEmailTile(),
           const _ChangePasswordTile(),
           const SignOutOtherDevicesTile(),
           const Divider(height: 32),
