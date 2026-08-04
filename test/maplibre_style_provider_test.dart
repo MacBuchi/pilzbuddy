@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/settings.dart';
 import 'package:pilzbuddy/features/map/map_view/maplibre_style_provider.dart';
+import 'package:pilzbuddy/features/map/rain_data_providers.dart';
 import 'package:pilzbuddy/features/map/rain_layer.dart';
 import 'package:pilzbuddy/features/offline_maps/offline_map_providers.dart';
 import 'package:pilzbuddy/features/offline_maps/offline_map_repository.dart';
@@ -75,6 +76,9 @@ void main() {
     final io = _FakeIo();
     final gate = Completer<List<InstalledMap>>();
     final container = ProviderContainer(overrides: [
+      // Ohne diese Naht zöge der Style über die Regenfläche das
+      // Wertegitter aus dem Netz — `flutter test` ist netzfrei.
+      rainGridLoaderProvider.overrideWithValue((_) async => null),
       maplibreStyleIoProvider.overrideWithValue(io),
       installedMapsProvider.overrideWith(() => _GatedInstalledMaps(gate)),
       // Offline-Modus an: Diese Tests prüfen den Regions-Pfad des
@@ -142,6 +146,9 @@ void main() {
       final io = _FakeIo();
       final gate = Completer<List<InstalledMap>>()..complete(installed);
       final container = ProviderContainer(overrides: [
+      // Ohne diese Naht zöge der Style über die Regenfläche das
+      // Wertegitter aus dem Netz — `flutter test` ist netzfrei.
+      rainGridLoaderProvider.overrideWithValue((_) async => null),
         maplibreStyleIoProvider.overrideWithValue(io),
         installedMapsProvider.overrideWith(() => _GatedInstalledMaps(gate)),
         settingsProvider.overrideWithValue(
@@ -209,6 +216,9 @@ void main() {
     final io = _FakeIo();
     final gate = Completer<List<InstalledMap>>()..complete(const []);
     final container = ProviderContainer(overrides: [
+      // Ohne diese Naht zöge der Style über die Regenfläche das
+      // Wertegitter aus dem Netz — `flutter test` ist netzfrei.
+      rainGridLoaderProvider.overrideWithValue((_) async => null),
       maplibreStyleIoProvider.overrideWithValue(io),
       installedMapsProvider.overrideWith(() => _GatedInstalledMaps(gate)),
       settingsProvider.overrideWithValue(FakeSettings()),

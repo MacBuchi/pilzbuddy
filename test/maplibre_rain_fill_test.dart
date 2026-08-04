@@ -1,0 +1,208 @@
+// Die Regenfläche in der MapLibre-Engine.
+//
+// Die Ansicht selbst ist im Widget-Test nicht erreichbar (Platform-Views
+// rendern dort nicht) — deshalb liegt alles Prüfbare im Applier, und der
+// bekommt hier einen Style-Controller, der mitschreibt statt zu zeichnen.
+// Dieselbe Arbeitsteilung wie beim Style-Composer.
+import 'dart:typed_data';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:maplibre/maplibre.dart' as ml;
+import 'package:pilzbuddy/features/map/map_view/maplibre_rain_fill.dart';
+import 'package:pilzbuddy/features/map/rain_data_providers.dart';
+
+/// Ein Style-Controller, der nur Buch führt.
+class RecordingStyle extends ml.StyleController {
+  RecordingStyle({this.rejectBelow = false});
+
+  /// Ahmt die Engine nach, solange es die Linienebene noch nicht gibt:
+  /// `addLayerBelow` mit unbekannter Id scheitert.
+  final bool rejectBelow;
+
+  final calls = <String>[];
+  final sources = <ml.Source>[];
+  final layers = <ml.StyleLayer>[];
+  final below = <String, String?>{};
+
+  @override
+  Future<void> addSource(ml.Source source) async {
+    calls.add('addSource:${source.id}');
+    sources.add(source);
+  }
+
+  @override
+  Future<void> addLayer(
+    ml.StyleLayer layer, {
+    String? belowLayerId,
+    String? aboveLayerId,
+    int? atIndex,
+  }) async {
+    if (belowLayerId != null && rejectBelow) {
+      throw Exception('No layer with id $belowLayerId');
+    }
+    calls.add('addLayer:${layer.id}');
+    layers.add(layer);
+    below[layer.id] = belowLayerId;
+  }
+
+  @override
+  Future<void> removeLayer(String id) async {
+    calls.add('removeLayer:$id');
+    layers.removeWhere((l) => l.id == id);
+  }
+
+  @override
+  Future<void> removeSource(String id) async {
+    calls.add('removeSource:$id');
+    sources.removeWhere((s) => s.id == id);
+  }
+
+  @override
+  Future<void> updateGeoJsonSource(
+      {required String id, required String data}) async {}
+
+  @override
+  Future<void> addImage(String id, Uint8List bytes) async {}
+
+  @override
+  Future<void> removeImage(String id) async {}
+
+  @override
+  Future<List<String>> getAttributions() async => const [];
+
+  @override
+  List<String> getAttributionsSync() => const [];
+
+  @override
+  List<String> getLayerIds() => [for (final layer in layers) layer.id];
+
+  @override
+  void setProjection(ml.MapProjection projection) {}
+
+  @override
+  void dispose() {}
+}
+
+void main() {
+  ({String url, RainFill fill}) fillAt(String url,
+          {DateTime? measured,
+          double west = 5.73,
+          double east = 15.17,
+          double north = 55.06,
+          double south = 47.07}) =>
+      (
+        url: url,
+        fill: RainFill(
+          png: Uint8List(0),
+          west: west,
+          east: east,
+          north: north,
+          south: south,
+          measured: measured ?? DateTime.utc(2026, 8, 4),
+        ),
+      );
+
+  test('legt die Fläche UNTER die Höhenlinien', () async {
+    // Die Fläche ist Orientierung, die Linien sind die Aussage. Läge sie
+    // darüber, würde ein halbdurchsichtiger Schleier genau das
+    // abschwächen, wofür es die Linien gibt.
+    final style = RecordingStyle();
+    await applyRainFill(style, fill: fillAt('file:///a.png'), appliedUrl: null);
+
+    expect(style.below[rainFillLayerId], firstAnnotationLayerId);
+    expect(style.calls,
+        ['addSource:$rainFillSourceId', 'addLayer:$rainFillLayerId']);
+  });
+
+  test('hängt an, solange es noch keine Linienebene gibt', () async {
+    // Kommt die Fläche vor den Linien an, gibt es nichts, worunter man
+    // sie legen könnte — dann ist Anhängen richtig: Der LayerManager
+    // legt die Linien gleich darüber.
+    final style = RecordingStyle(rejectBelow: true);
+    final url =
+        await applyRainFill(style, fill: fillAt('file:///a.png'), appliedUrl: null);
+
+    expect(url, 'file:///a.png');
+    expect(style.layers.single.id, rainFillLayerId);
+    expect(style.below[rainFillLayerId], isNull);
+  });
+
+  test('tauscht einen neuen Messstand aus, statt ihn danebenzulegen',
+      () async {
+    final style = RecordingStyle();
+    await applyRainFill(style, fill: fillAt('file:///alt.png'), appliedUrl: null);
+    style.calls.clear();
+
+    final url = await applyRainFill(style,
+        fill: fillAt('file:///neu.png'), appliedUrl: 'file:///alt.png');
+
+    expect(url, 'file:///neu.png');
+    expect(style.calls, [
+      'removeLayer:$rainFillLayerId',
+      'removeSource:$rainFillSourceId',
+      'addSource:$rainFillSourceId',
+      'addLayer:$rainFillLayerId',
+    ]);
+    expect(style.sources.single, isA<ml.ImageSource>());
+    expect((style.sources.single as ml.ImageSource).url, 'file:///neu.png');
+  });
+
+  test('rührt nichts an, wenn derselbe Stand schon liegt', () async {
+    // Ein Rebuild je Kamerabewegung darf die Bildquelle nicht jedes Mal
+    // neu aufbauen — das ist ein Dekodier-Auftrag für 550 000 Zellen.
+    final style = RecordingStyle();
+    final url = await applyRainFill(style,
+        fill: fillAt('file:///a.png'), appliedUrl: 'file:///a.png');
+
+    expect(url, 'file:///a.png');
+    expect(style.calls, isEmpty);
+  });
+
+  test('nimmt Ebene UND Quelle weg, wenn die Regenebene ausgeht', () async {
+    // Nur die Ebene zu entfernen ließe die Bildquelle im Style stehen —
+    // sie hält das dekodierte Bild und damit den Speicher.
+    final style = RecordingStyle();
+    await applyRainFill(style, fill: fillAt('file:///a.png'), appliedUrl: null);
+    style.calls.clear();
+
+    final url =
+        await applyRainFill(style, fill: null, appliedUrl: 'file:///a.png');
+
+    expect(url, isNull);
+    expect(style.calls,
+        ['removeLayer:$rainFillLayerId', 'removeSource:$rainFillSourceId']);
+    expect(style.sources, isEmpty);
+    expect(style.layers, isEmpty);
+  });
+
+  test('verortet die Fläche auf den Grenzen des GITTERS', () async {
+    // Nicht auf denen der DWD-Bildebene: Das Gitter ist auf seine Zellen
+    // mit Daten beschnitten, die Bildebene deckt mehr ab — der
+    // Unterschied wären rund zwanzig Kilometer Versatz gegen die eigenen
+    // Linien.
+    final style = RecordingStyle();
+    await applyRainFill(style,
+        fill: fillAt('file:///a.png',
+            west: 5.73, east: 15.17, north: 55.06, south: 47.07),
+        appliedUrl: null);
+
+    final source = style.sources.single as ml.ImageSource;
+    expect(source.coordinates.topLeft.lon, 5.73);
+    expect(source.coordinates.topLeft.lat, 55.06);
+    expect(source.coordinates.bottomRight.lon, 15.17);
+    expect(source.coordinates.bottomRight.lat, 47.07);
+  });
+
+  test('lässt die Durchsichtigkeit im Bild, nicht in der Ebene', () async {
+    // Die Deckkraft steckt schon in den Bildpunkten (rainFillAlpha).
+    // Zweimal abgeschwächt wäre die Fläche nicht mehr zu sehen.
+    final style = RecordingStyle();
+    await applyRainFill(style, fill: fillAt('file:///a.png'), appliedUrl: null);
+
+    final paint = style.layers.single.paint;
+    expect(paint['raster-opacity'], 1.0);
+    expect(paint['raster-resampling'], 'nearest',
+        reason: 'weichgezeichnet sähe das 1-km-Raster genauer aus, als es '
+            'ist — dieselbe Regel wie FilterQuality.none bei flutter_map');
+  });
+}

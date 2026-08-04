@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/app_colors.dart';
+import '../rain_data_providers.dart';
+import '../rain_fill.dart';
 import '../rain_layer.dart';
 
 /// Blatt zur Wahl der Regenebene (#156).
@@ -91,7 +93,14 @@ class _RainLayerSheet extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
               child: Text(
-                'Daten: Deutscher Wetterdienst',
+                // GeoNutzV verlangt bei veränderten Daten den Hinweis
+                // darauf — die Summen kommen als Rohwerte und werden von
+                // uns quantisiert, geglättet und neu eingefärbt. Beim
+                // Radar liegt das Bild des DWD unverändert auf der Karte.
+                current == RainLayer.last24h || current == RainLayer.last30d
+                    ? 'Datenbasis: Deutscher Wetterdienst, '
+                        'Werte verändert'
+                    : 'Daten: Deutscher Wetterdienst',
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: theme.hintColor),
               ),
@@ -113,6 +122,12 @@ class _Details extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final url = rainLegendUrl(layer);
+    // Welche Legende stimmt, hängt daran, was wirklich auf der Karte
+    // liegt: eigene Höhenlinien oder — solange (oder falls) kein Gitter
+    // ankommt — das DWD-Bild. Dieselbe Bedingung wie in beiden Engines,
+    // damit das Blatt nie etwas anderes erklärt als die Karte zeigt.
+    final ownLines =
+        ref.watch(rainContoursProvider(layer)).value?.isNotEmpty ?? false;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
       child: Column(
@@ -122,7 +137,9 @@ class _Details extends ConsumerWidget {
           const SizedBox(height: 6),
           Text(layer.coverage, style: theme.textTheme.bodySmall),
           const SizedBox(height: 12),
-          if (url != null)
+          if (ownLines)
+            _OwnLegend(levels: rainLevelsFor(layer))
+          else if (url != null)
             DecoratedBox(
               // Heller Grund unter der Legende: Der DWD liefert sie mit
               // schwarzer Schrift auf Weiß — im dunklen Thema wäre sie
@@ -149,6 +166,78 @@ class _Details extends ConsumerWidget {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// Die Legende zu unseren eigenen Höhenlinien.
+///
+/// Selbst gebaut statt DWD-Bild, weil die Karte hier nicht mehr in
+/// DWD-Farben zeichnet — eine fremde Legende neben eigenen Farben wäre
+/// schlimmer als gar keine.
+///
+/// Von oben nach unten absteigend wie jede Höhenskala. Jede Zeile zeigt,
+/// was sie auf der Karte auch ist: die Fläche in ihrer Deckkraft, unten
+/// begrenzt von der Linie derselben Stufe.
+class _OwnLegend extends StatelessWidget {
+  const _OwnLegend({required this.levels});
+
+  final List<int> levels;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return DecoratedBox(
+      // Heller Grund wie beim DWD-Bild: Die Flächen sind absichtlich
+      // durchsichtig, sie brauchen etwas darunter, sonst sieht man im
+      // dunklen Thema nichts.
+      decoration: BoxDecoration(
+        color: AppColors.cream,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (final (index, level) in levels.indexed.toList().reversed)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 1),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 16,
+                      decoration: BoxDecoration(
+                        color: AppColors.rainLine(index)
+                            .withAlpha(rainFillAlpha),
+                        border: Border(
+                          bottom: BorderSide(
+                              color: AppColors.rainLine(index), width: 2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text('ab $level mm',
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(color: AppColors.barkBrown)),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 6),
+            Text(
+              // Wichtig genug für eine eigene Zeile: Ohne Farbe heißt
+              // „weniger als die unterste Stufe" und NICHT „keine Daten".
+              // Wo Daten fehlen, fehlen auch die Linien.
+              'Ohne Farbe: weniger als ${levels.first} mm.\n'
+              'Weit herausgezoomt zeigt die Karte nur jede zweite oder '
+              'vierte Linie — sonst läge Deutschland unter einem Netz.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                  color: AppColors.barkBrown.withValues(alpha: 0.7)),
+            ),
+          ],
+        ),
       ),
     );
   }

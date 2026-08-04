@@ -2,14 +2,20 @@
 // auf der Karte. Der Weg wird hier ganz gegangen, weil die einzelnen
 // Teile ihn nicht beweisen: Ein korrekt gebautes GetMap nützt nichts,
 // wenn der Knopf das falsche Blatt öffnet oder die Wahl nirgends ankommt.
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pilzbuddy/core/app_colors.dart';
+import 'package:pilzbuddy/features/map/rain_data_providers.dart';
+import 'package:pilzbuddy/features/map/rain_grid.dart';
 import 'package:pilzbuddy/features/map/rain_layer.dart';
 
 import '../fakes/fake_backend.dart';
 import '../fakes/test_app.dart';
+import '../rain_grid_test.dart' show gridOf;
 
 void main() {
   FakeBackend loggedIn() {
@@ -21,6 +27,34 @@ void main() {
 
   ProviderContainer containerOf(WidgetTester tester) =>
       ProviderScope.containerOf(tester.element(find.byType(Scaffold).first));
+
+  /// Ein Kegel: in der Mitte 200 mm, zum Rand hin auf 0. Ergibt
+  /// geschlossene Ringe um die Mitte — jede Höhenstufe kommt genau einmal
+  /// vor und ist lang genug, um nicht als Fragment wegzufallen.
+  RainGrid coneGrid() => gridOf([
+        for (var y = 0; y < 40; y++)
+          [
+            for (var x = 0; x < 40; x++)
+              math.max(
+                  0,
+                  200 -
+                      10 * math.max((x - 20).abs(), (y - 20).abs())),
+          ],
+      ]);
+
+  /// Wartet, bis Gitter, Linien und Fläche gerechnet sind — beides läuft
+  /// im Isolate, dafür braucht der Test echte Zeit.
+  Future<void> settleRain(WidgetTester tester, RainLayer layer) async {
+    final container = containerOf(tester);
+    await tester.runAsync(() async {
+      await container.read(rainContoursProvider(layer).future);
+      await container.read(rainFillProvider(layer).future);
+    });
+    await settle(tester);
+  }
+
+  List<Override> withGrid() =>
+      [rainGridLoaderProvider.overrideWithValue((_) async => coneGrid())];
 
   testWidgets('Vorgabe ist aus — niemand lädt ungefragt ein Regenbild',
       (tester) async {
@@ -116,5 +150,100 @@ void main() {
     // Test ginge also gerade dann durch, wenn nichts mehr funktioniert.
     expect(rain, isNonNegative);
     expect(rain, lessThan(children.lastIndexOf(MarkerLayer)));
+  });
+
+  testWidgets('Mit Gitter zeichnet die App eigene Linien statt DWD-Bild',
+      (tester) async {
+    // Der ganze Weg: Gitter → Höhenlinien → Karte. Die Teile sind je
+    // einzeln geprüft (rain_contours_test), aber keiner von ihnen beweist,
+    // dass die Linien den Renderer erreichen — und genau das ist die
+    // Stelle, an der ein falsch verdrahteter Provider still nichts tut.
+    await pumpApp(tester, loggedIn(),
+        useRealMap: true, extraOverrides: withGrid());
+    expect(find.byType(PolylineLayer), findsNothing);
+
+    containerOf(tester).read(rainLayerProvider.notifier).state =
+        RainLayer.last30d;
+    await settleRain(tester, RainLayer.last30d);
+
+    final layers = tester.widgetList<PolylineLayer>(find.byType(PolylineLayer));
+    expect(layers, isNotEmpty,
+        reason: 'ohne Linien wäre der ganze Umbau wirkungslos');
+    final lowest = layers.first.polylines.first;
+    expect(lowest.color, AppColors.rainLine(0),
+        reason: 'die unterste Höhenstufe hat den ersten Farbton der Rampe');
+    expect(lowest.points.length, greaterThan(2));
+  });
+
+  testWidgets('Die eigene Fläche ersetzt das DWD-Bild — auf IHREN Grenzen',
+      (tester) async {
+    // Zwei Dinge in einem, weil sie zusammengehören: Sobald eigene Linien
+    // liegen, darf das DWD-Bild NICHT mehr darunter liegen (zwei
+    // Darstellungen derselben Zahlen), und die Fläche muss auf den
+    // Grenzen des Gitters sitzen, nicht auf denen der Bildebene — die
+    // Bildebene deckt mehr ab, der Unterschied wären rund zwanzig
+    // Kilometer Versatz gegen die eigenen Linien.
+    await pumpApp(tester, loggedIn(),
+        useRealMap: true, extraOverrides: withGrid());
+    containerOf(tester).read(rainLayerProvider.notifier).state =
+        RainLayer.last30d;
+    await settleRain(tester, RainLayer.last30d);
+
+    final overlays =
+        tester.widgetList<OverlayImageLayer>(find.byType(OverlayImageLayer));
+    expect(overlays.length, 1,
+        reason: 'zwei Bildebenen hieße: DWD-Bild UND eigene Fläche');
+    final image = overlays.single.overlayImages.single as OverlayImage;
+    final grid = coneGrid();
+    expect(image.bounds.north, grid.north);
+    expect(image.bounds.west, grid.west);
+    expect(image.bounds.north, isNot(RainLayer.last30d.bounds.north));
+  });
+
+  testWidgets('Die Fläche liegt UNTER den Linien', (tester) async {
+    // Die Fläche ist Orientierung, die Linien sind die Aussage. Läge sie
+    // darüber, schwächte ein halbdurchsichtiger Schleier genau das ab,
+    // wofür es die Linien gibt. Dieselbe Reihenfolge stellt
+    // maplibre_rain_fill.dart in der anderen Engine her.
+    await pumpApp(tester, loggedIn(),
+        useRealMap: true, extraOverrides: withGrid());
+    containerOf(tester).read(rainLayerProvider.notifier).state =
+        RainLayer.last30d;
+    await settleRain(tester, RainLayer.last30d);
+
+    // Die Linien stecken in einem Builder (er liest die Kamera), stehen
+    // also nicht selbst in der `children`-Liste. Deshalb über den
+    // Elementbaum: Geschwister werden der Reihe nach besucht, und in
+    // einem Stack ist diese Reihe die Malreihenfolge.
+    final order = <Widget>[];
+    void visit(Element element) {
+      order.add(element.widget);
+      element.visitChildren(visit);
+    }
+
+    visit(tester.element(find.byType(FlutterMap)));
+    final fill = order.indexWhere((w) => w is OverlayImageLayer);
+    final lines = order.indexWhere((w) => w is PolylineLayer);
+    expect(fill, isNonNegative);
+    expect(lines, isNonNegative);
+    expect(fill, lessThan(lines));
+  });
+
+  testWidgets('Das Blatt zeigt zu eigenen Linien die eigene Legende',
+      (tester) async {
+    // Die DWD-Legende neben unseren Farben wäre schlimmer als gar keine.
+    await pumpApp(tester, loggedIn(),
+        useRealMap: true, extraOverrides: withGrid());
+    containerOf(tester).read(rainLayerProvider.notifier).state =
+        RainLayer.last30d;
+    await settleRain(tester, RainLayer.last30d);
+
+    await tester.tap(find.byTooltip('Regen'));
+    await settle(tester);
+
+    expect(find.text('ab 10 mm'), findsOneWidget);
+    expect(find.text('ab 150 mm'), findsOneWidget);
+    expect(find.textContaining('weniger als 10 mm'), findsOneWidget,
+        reason: 'ohne Farbe heißt „wenig", nicht „keine Daten"');
   });
 }

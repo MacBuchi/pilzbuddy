@@ -5,7 +5,10 @@ import 'package:latlong2/latlong.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart' as vmt;
 
 import '../../offline_maps/offline_map_providers.dart';
+import '../../../core/app_colors.dart';
 import '../finite_camera_constraint.dart';
+import '../rain_contours.dart';
+import '../rain_data_providers.dart';
 import '../rain_layer.dart';
 import 'map_view.dart';
 
@@ -120,7 +123,16 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
     // Android etwas tut, wäre ein Fehler ohne Fehlermeldung.
     final rainLayer = ref.watch(rainLayerProvider);
     final rainBounds = rainLayer.bounds;
-    final rainUrl = rainLayerUrl(rainLayer, now: DateTime.now());
+    // Die eigenen Höhenlinien haben Vorrang; das DWD-Bild ist die
+    // Rückfalllinie, solange (oder falls) kein Gitter da ist. Beim Radar
+    // gibt es nie eines — der 5-Minuten-Takt lässt sich nicht
+    // vorberechnen.
+    final rainLines =
+        ref.watch(rainContoursProvider(rainLayer)).value ?? const [];
+    final rainFill = ref.watch(rainFillProvider(rainLayer)).value;
+    final rainUrl = rainLines.isNotEmpty
+        ? null
+        : rainLayerUrl(rainLayer, now: DateTime.now());
     if (offlineActive) {
       // Der TileLayer, der die Instanz hält, verschwindet mit diesem Frame
       // und entsorgt sie dabei — siehe Kommentar am Feld.
@@ -253,6 +265,50 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
               ),
             ],
           ),
+        // Die eigenen Höhenlinien: eine Ebene je Höhenstufe, weil
+        // flutter_maps PolylineLayer eine Farbe je Ebene kennt. Unter
+        // den Markern, wie das Bild darüber.
+        // Die eigene Fläche: dasselbe Bild-Overlay wie beim DWD, nur mit
+        // einem selbst eingefärbten Gitter. Sie liegt UNTER den Linien —
+        // die Fläche ist Orientierung, die Linien sind die Aussage.
+        if (rainLines.isNotEmpty && rainFill != null)
+          OverlayImageLayer(
+            overlayImages: [
+              OverlayImage(
+                bounds: LatLngBounds(
+                  LatLng(rainFill.south, rainFill.west),
+                  LatLng(rainFill.north, rainFill.east),
+                ),
+                filterQuality: FilterQuality.none,
+                gaplessPlayback: true,
+                imageProvider: MemoryImage(rainFill.png),
+              ),
+            ],
+          ),
+        if (rainLines.isNotEmpty)
+          // Der Builder liest die Kamera und wird damit bei jedem
+          // Zoomwechsel neu gebaut — nur so kann die Dichte dem Maßstab
+          // folgen (siehe `rainContoursAtZoom`).
+          Builder(builder: (context) {
+            final visible =
+                rainContoursAtZoom(rainLines, MapCamera.of(context).zoom,
+                    levels: rainLevelsFor(rainLayer));
+            return Stack(children: [
+              for (final (index, level) in rainLevelsFor(rainLayer).indexed)
+                if (visible.any((line) => line.mm == level))
+                  PolylineLayer(
+                    polylines: [
+                      for (final line in visible)
+                        if (line.mm == level)
+                          Polyline(
+                            points: line.points,
+                            color: AppColors.rainLine(index),
+                            strokeWidth: 2,
+                          ),
+                    ],
+                  ),
+            ]);
+          }),
         // Markergruppen in fester Reihenfolge (unten → oben), damit
         // Spots über den Live-Positionen liegen und tappbar bleiben.
         if (markers.myPosition.isNotEmpty)

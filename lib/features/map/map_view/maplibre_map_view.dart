@@ -18,8 +18,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:maplibre/maplibre.dart' as ml;
 
+import '../../../core/app_colors.dart';
+import '../rain_contours.dart';
+import '../rain_data_providers.dart';
+import '../rain_layer.dart';
 import 'flutter_map_view.dart';
 import 'map_view.dart';
+import 'maplibre_rain_fill.dart';
 import 'maplibre_style_provider.dart';
 import 'marker_culling.dart';
 
@@ -64,6 +69,11 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
   /// Grund, warum der Spike nur −28 % Haupt-Thread-Last gemessen hat.
   MapViewBounds? _visibleBounds;
 
+  /// Die Zoomstufe beim letzten Kamera-Stillstand. Sie entscheidet, welche
+  /// Höhenlinien noch etwas aussagen — dieselbe Stelle und derselbe Takt
+  /// wie das Marker-Culling: bei Idle, nicht je Bild.
+  double _idleZoom = 0;
+
   /// Liest das Sichtfenster der Engine und stößt bei Änderung den
   /// Rebuild an, der die Markerliste neu filtert.
   void _updateVisibleBounds() {
@@ -71,6 +81,7 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
     if (controller == null || !mounted) return;
     final region = controller.getVisibleRegion();
     setState(() {
+      _idleZoom = controller.camera?.zoom ?? _idleZoom;
       _visibleBounds = MapViewBounds(
         west: region.longitudeWest,
         east: region.longitudeEast,
@@ -79,6 +90,11 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
       );
     });
   }
+
+  /// Die Höhenlinien, die bei der aktuellen Zoomstufe etwas aussagen.
+  List<ContourLine> _visibleRainLines(WidgetRef ref) =>
+      rainContoursAtZoom(_rainLines(ref), _idleZoom,
+          levels: _rainLevels(ref));
 
   /// Übersetzt einen Fassaden-Marker in einen MapLibre-Marker — die
   /// Kind-Widgets (MushroomIcon, Avatare, Tooltips, Taps) bleiben
@@ -97,6 +113,63 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
   /// invalidiert `installedMapsProvider`) muss über `setStyle` laufen,
   /// und der String-Vergleich erspart der Engine die unveränderten Fälle.
   String? _appliedStyle;
+
+  /// Der Style, wie ihn die Engine gerade hält — Zugang für alles, was
+  /// NICHT im Style-Dokument steht. Genau ein Fall bisher: die
+  /// Regenfläche (`maplibre_rain_fill.dart`, dort steht das Warum).
+  ml.StyleController? _style;
+
+  /// Die zuletzt eingehängte Fläche. Nach einem `setStyle` ist sie weg,
+  /// ohne dass jemand sie entfernt hätte — deshalb wird sie bei jedem
+  /// Style-Laden zurückgesetzt und neu gelegt.
+  String? _appliedFillUrl;
+
+  /// Reiht die Änderungen der Fläche auf. Ohne das könnten zwei rasch
+  /// aufeinanderfolgende Wechsel (Ebene umschalten, während die Fläche
+  /// noch lädt) sich überholen — und übrig bliebe eine Quelle ohne
+  /// Ebene oder eine Ebene ohne Quelle.
+  Future<void> _fillWork = Future.value();
+
+  /// Bittet die Engine um ein neues Bild.
+  ///
+  /// **Warum das nötig ist** (am Emulator gemessen, 2026-08-04):
+  /// maplibre-native zeichnet nach dem *Entfernen* einer Ebene nicht von
+  /// selbst neu. „Regen aus" ließ Linien und Fläche stehen, bis jemand
+  /// die Karte verschob — ein Rebuild ohne Kamerabewegung reichte
+  /// nachweislich nicht (Banner weggeklickt, Bild pixelgleich). Beim
+  /// *Hinzufügen* passiert es von selbst, weil die neue Quelle lädt und
+  /// dabei anstößt. Ein öffentliches `triggerRepaint` hat das Paket
+  /// nicht; die Kamera auf ihren eigenen Wert zu setzen ist der
+  /// vorhandene Weg.
+  ///
+  /// Nach dem Frame, nicht in ihm: Entfernt werden die Linienebenen im
+  /// `didUpdateWidget` des Pakets, also erst nach diesem Build.
+  void _requestRepaint() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final controller = _ml;
+      final camera = controller?.camera;
+      if (controller == null || camera == null || !mounted) return;
+      unawaited(
+          controller.moveCamera(center: camera.center, zoom: camera.zoom));
+    });
+  }
+
+  void _syncRainFill() {
+    final style = _style;
+    if (style == null) return;
+    final fill = ref.read(rainFillFileProvider).valueOrNull;
+    _fillWork = _fillWork.then((_) async {
+      try {
+        _appliedFillUrl = await applyRainFill(style,
+            fill: fill, appliedUrl: _appliedFillUrl);
+      } catch (_) {
+        // Die Fläche ist eine Zugabe zu den Linien; ein Fehlschlag beim
+        // Ein- oder Aushängen darf die Karte nicht mitnehmen. Still,
+        // weil ein Eintrag je Kartenwechsel den Wochendigest zuschüttet
+        // (Lehre aus #124/#136).
+      }
+    });
+  }
 
   @override
   void initState() {
@@ -147,6 +220,14 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
         controller.setStyle(style);
       }
     });
+    // Die Fläche hängt NICHT im Style (Begründung in
+    // maplibre_rain_fill.dart) — sie wird nachgetragen, sobald der
+    // Provider einen neuen Stand hat.
+    ref.listen(rainFillFileProvider, (previous, next) => _syncRainFill());
+    // Jeder Wechsel der Regenebene nimmt etwas von der Karte: die Fläche
+    // hier, die Linienebenen im LayerManager des Pakets. Beides braucht
+    // danach einen Anstoß — siehe [_requestRepaint].
+    ref.listen(rainLayerProvider, (previous, next) => _requestRepaint());
 
     final styleAsync = ref.watch(maplibreStyleProvider);
     final style = styleAsync.valueOrNull;
@@ -184,6 +265,14 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
         gestures: const ml.MapGestures(
             rotate: false, pan: true, zoom: true, pitch: false),
       ),
+      // Läuft bei jedem Style-Laden, also auch nach jedem `setStyle`.
+      // Alles Imperative ist dann weg — die Fläche wird deshalb hier neu
+      // gelegt und nicht bloß beim ersten Mal.
+      onStyleLoaded: (style) {
+        _style = style;
+        _appliedFillUrl = null;
+        _syncRainFill();
+      },
       onMapCreated: (controller) {
         _ml = controller;
         _appliedStyle = style;
@@ -207,6 +296,30 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
         // Idle-Momenten bewegt die Engine die eingebauten Marker selbst.
         if (event is ml.MapEventCameraIdle) _updateVisibleBounds();
       },
+      // Vektor-Ebenen der Engine (nicht `children` — das sind Widgets):
+      // die eigenen Regen-Höhenlinien, eine Ebene je Höhenstufe, weil
+      // MapLibres PolylineLayer wie flutter_maps eine Farbe je Ebene
+      // kennt. Sie liegen unter dem WidgetLayer und damit unter den
+      // Markern.
+      layers: [
+        for (final (index, level) in _rainLevels(ref).indexed)
+          if (_visibleRainLines(ref).any((line) => line.mm == level))
+            ml.PolylineLayer(
+              polylines: [
+                for (final line in _visibleRainLines(ref))
+                  if (line.mm == level)
+                    ml.Feature(
+                      geometry: ml.LineString.from([
+                        for (final point in line.points)
+                          ml.Geographic(
+                              lon: point.longitude, lat: point.latitude),
+                      ]),
+                    ),
+              ],
+              color: AppColors.rainLine(index),
+              width: 2,
+            ),
+      ],
       children: [
         // Maßstab und dauerhafte Quellen-Attribution (ODbL-Rechtspflicht;
         // die Texte liefert der Style-Composer an jeder Quelle mit) —
@@ -235,3 +348,10 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
     );
   }
 }
+
+List<ContourLine> _rainLines(WidgetRef ref) =>
+    ref.watch(rainContoursProvider(ref.watch(rainLayerProvider))).value ??
+    const [];
+
+List<int> _rainLevels(WidgetRef ref) =>
+    rainLevelsFor(ref.watch(rainLayerProvider));

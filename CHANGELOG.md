@@ -7,6 +7,38 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Der Regen liegt jetzt in unseren Farben
+
+*4. August 2026 · Version 1.46.0*
+
+Die beiden Regensummen — **letzte 24 Stunden** und **letzte 30 Tage** —
+sehen anders aus als gestern. Statt einer deckenden Fläche liegen dort
+jetzt **Höhenlinien**, so wie auf einer Wanderkarte die Höhe: Jede Linie
+verbindet Orte mit gleich viel Regen, von sandgelb (wenig) über grün bis
+blau (viel). Zwischen den Linien liegt derselbe Ton noch einmal ganz
+zart, damit man auf einen Blick sieht, wo mehr und wo weniger war.
+
+Der Grund ist praktisch. Die alte Fläche legte sich über alles, und beim
+Hineinzoomen waren Wege und Ortsnamen kaum noch zu lesen. Eine Ebene, die
+einen daran hindert, zum Spot zu finden, ist keine Hilfe. Jetzt bleibt
+die Karte darunter vollständig sichtbar.
+
+Je weiter man herauszoomt, desto weniger Linien zeigt die Karte — sonst
+läge über Deutschland ein Netz, in dem nichts mehr zu erkennen wäre. Was
+welche Farbe bedeutet, steht im Regen-Blatt unter der Ebenenwahl.
+
+Nebenbei sind die Daten dabei rund zehnmal kleiner geworden, was im Wald
+am Datenvolumen zählt.
+
+Das **Regenradar** („jetzt" und „in einer Stunde") bleibt unverändert in
+den Farben des Wetterdienstes: Blau-Grün-Gelb-Rot ist die Darstellung,
+die man aus jeder Wetter-App kennt, und daran soll nicht herumgebastelt
+werden.
+
+Wenn die neuen Daten einmal nicht erreichbar sind, erscheint
+stillschweigend wieder die bisherige Darstellung. Die Regenkarte ist eine
+Zugabe und darf nichts kaputt machen.
+
 ## Regen auf der Karte
 
 *4. August 2026 · Version 1.45.0*

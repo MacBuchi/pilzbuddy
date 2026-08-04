@@ -19,6 +19,7 @@ import 'package:pmtiles/pmtiles.dart';
 import '../../../core/app_colors.dart';
 import '../../../core/errors.dart';
 import '../../offline_maps/offline_map_providers.dart';
+import '../rain_data_providers.dart';
 import '../rain_layer.dart';
 import 'map_style_composer.dart';
 
@@ -190,7 +191,13 @@ final maplibreStyleProvider = FutureProvider<String?>((ref) async {
       rasterSources: offlineActive ? const [] : const [_osmRaster],
       // `DateTime.now()` nur für die Vorhersage-Ebene, siehe rain_layer.dart.
       overlays: [
-        ?_rainOverlay(ref.watch(rainLayerProvider), DateTime.now()),
+        // Das DWD-Bild ist die Rückfalllinie: Sobald die eigenen
+        // Höhenlinien vorliegen, liegt es nicht mehr darunter — sonst
+        // stünden zwei Darstellungen derselben Zahlen übereinander.
+        if (ref.watch(rainContoursProvider(ref.watch(rainLayerProvider)))
+            .value?.isNotEmpty !=
+            true)
+          ?_rainOverlay(ref.watch(rainLayerProvider), DateTime.now()),
       ],
     );
   } catch (e, stackTrace) {
