@@ -37,13 +37,15 @@ hdr=(-H "apikey: $KEY" -H "Content-Type: application/json")
 
 fail() { echo "::error::Passwort-Reset-Prüfung fehlgeschlagen: $1"; exit 1; }
 
-# Holt eine Mail an $EMAIL, deren Betreff das Muster enthält. Nach Betreff
-# statt „die neueste": Mit Bestätigungspflicht liegen zwei Mails im
-# Postfach, und die falsche zu nehmen macht den Test zum Zufallsspiel.
+# Holt eine Mail an den Empfänger (Vorgabe: $EMAIL), deren Betreff das
+# Muster enthält. Nach Betreff statt „die neueste": Mit Bestätigungspflicht
+# liegen mehrere Mails im Postfach, und die falsche zu nehmen macht den
+# Test zum Zufallsspiel. Der Empfänger ist ein Parameter, weil der
+# E-Mail-Wechsel an die NEUE Adresse schreibt.
 fetch_mail() {
-  local pattern="$1" id=""
+  local pattern="$1" recipient="${2:-$EMAIL}" id=""
   for _ in $(seq 1 30); do
-    id=$(curl -s "$MAIL/api/v1/search?query=to:$EMAIL" \
+    id=$(curl -s "$MAIL/api/v1/search?query=to:$recipient" \
       | jq -r --arg p "$pattern" \
         '[.messages[] | select(.Subject | test($p))] | .[0].ID // empty')
     [ -n "$id" ] && break
@@ -158,4 +160,61 @@ same=$(curl -s -X PUT "$URL/auth/v1/user" "${hdr[@]}" \
   | jq -r '.error_code // "akzeptiert"')
 echo "ℹ Unverändertes Passwort meldet: $same (App erwartet same_password)"
 
-echo "Registrierung, Passwort-Reset und Passwortwechsel laufen end-to-end gegen echtes GoTrue."
+# --- E-Mail ändern (Issue #193) ---------------------------------------------
+# Gemessen 2026-08-05 gegen echtes GoTrue: updateUser(email) verschickt mit
+# double_confirm_changes ZWEI Mails mit je eigenem Code (alte und neue
+# Adresse, beide aus der email_change-Vorlage). Der erste eingelöste Code
+# wird nur quittiert („proceed to confirm … other email"), die Adresse
+# bleibt; erst der zweite vollzieht den Wechsel und liefert eine FRISCHE
+# Sitzung. AuthRepository.changeEmail baut exakt auf diese Reihenfolge —
+# ändert eine GoTrue-Version sie, fällt es hier auf und nicht live.
+NEWMAIL="gewechselt-$RANDOM$RANDOM@test.de"
+status=$(curl -s -o /tmp/email_change.out -w '%{http_code}' -X PUT "$URL/auth/v1/user" \
+  "${hdr[@]}" -H "Authorization: Bearer $third" -d "{\"email\":\"$NEWMAIL\"}")
+[ "$status" = "200" ] \
+  || fail "E-Mail-Wechsel nicht angestoßen (HTTP $status): $(cat /tmp/email_change.out)"
+echo "✓ E-Mail-Wechsel angestoßen"
+
+old_body=$(fetch_mail 'neue Adresse' "$EMAIL") \
+  || fail "keine Wechsel-Mail an die ALTE Adresse (double_confirm_changes aus?)"
+old_code=$(code_from "$old_body" "Wechsel-Mail an die alte Adresse")
+new_body=$(fetch_mail 'neue Adresse' "$NEWMAIL") \
+  || fail "keine Wechsel-Mail an die NEUE Adresse"
+new_code=$(code_from "$new_body" "Wechsel-Mail an die neue Adresse")
+[ "$old_code" != "$new_code" ] \
+  || fail "beide Wechsel-Mails tragen denselben Code — dann schützt die zweite nichts"
+echo "✓ Zwei Wechsel-Mails, verschiedene Codes, ohne Link"
+
+first=$(curl -s "$URL/auth/v1/verify" "${hdr[@]}" \
+  -d "{\"type\":\"email_change\",\"email\":\"$EMAIL\",\"token\":\"$old_code\"}")
+grep -qi 'proceed' <<<"$first" \
+  || fail "erster Wechsel-Code nicht angenommen: $first"
+mid=$(curl -s "$URL/auth/v1/user" "${hdr[@]}" -H "Authorization: Bearer $third" \
+  | jq -r '.email')
+[ "$mid" = "$EMAIL" ] \
+  || fail "Adresse schon nach EINEM Code umgestellt — ein gestohlenes Postfach dürfte das Konto so allein umziehen"
+echo "✓ Ein Code allein ändert nichts"
+
+changed=$(curl -s "$URL/auth/v1/verify" "${hdr[@]}" \
+  -d "{\"type\":\"email_change\",\"email\":\"$NEWMAIL\",\"token\":\"$new_code\"}" \
+  | jq -r '.access_token // empty')
+[ -n "$changed" ] || fail "zweiter Wechsel-Code wurde nicht akzeptiert"
+final=$(curl -s "$URL/auth/v1/user" "${hdr[@]}" -H "Authorization: Bearer $changed" \
+  | jq -r '.email')
+[ "$final" = "$NEWMAIL" ] \
+  || fail "Adresse nach beiden Codes nicht umgestellt ($final)"
+echo "✓ Beide Codes zusammen vollziehen den Wechsel, Sitzung kommt frisch"
+
+# Der typisierte Fehler, auf den emailChangeErrorMessage() baut.
+OTHER="belegt-$RANDOM$RANDOM@test.de"
+curl -s "$URL/auth/v1/signup" "${hdr[@]}" \
+  -d "{\"email\":\"$OTHER\",\"password\":\"$THIRD\",\"data\":{\"username\":\"belegt$RANDOM\"}}" \
+  > /dev/null
+exists=$(curl -s -X PUT "$URL/auth/v1/user" "${hdr[@]}" \
+  -H "Authorization: Bearer $changed" -d "{\"email\":\"$OTHER\"}" \
+  | jq -r '.error_code // empty')
+[ "$exists" = "email_exists" ] \
+  || fail "vergebene Adresse liefert '$exists' statt 'email_exists' — die Meldung in lib/core/errors.dart passt dann nicht mehr"
+echo "✓ Vergebene Adresse wird als email_exists abgelehnt"
+
+echo "Registrierung, Passwort-Reset, Passwortwechsel und E-Mail-Wechsel laufen end-to-end gegen echtes GoTrue."

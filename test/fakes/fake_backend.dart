@@ -36,9 +36,10 @@ class FakeUser {
   });
 
   final String id;
-  final String email;
-  // Nicht final: der Passwort-Reset ändert es wirklich, damit Tests den
-  // Effekt prüfen können und nicht nur den Aufruf.
+  // Nicht final: der Passwort-Reset bzw. der E-Mail-Wechsel ändern sie
+  // wirklich, damit Tests den Effekt prüfen können und nicht nur den
+  // Aufruf.
+  String email;
   String password;
   // Nicht final: „Benutzername ändern" — gleiche Begründung.
   String username;
@@ -257,6 +258,15 @@ class FakeBackend {
   /// sein und die eigene Sitzung unangetastet bleiben.
   int otherSessionsRevoked = 0;
 
+  /// Der laufende E-Mail-Wechsel — wie in echt („Secure email change")
+  /// mit ZWEI Codes, je einem pro Postfach. Erst wenn beide eingelöst
+  /// sind, wird die Adresse wirklich umgestellt.
+  String? pendingEmailChange;
+  final emailChangeOldCode = '111222';
+  final emailChangeNewCode = '333444';
+  bool emailChangeOldConfirmed = false;
+  bool emailChangeNewConfirmed = false;
+
   /// Wie die SQL-Funktion `are_friends`: nur akzeptierte Freundschaften.
   bool areFriends(String a, String b) => friendships.any((f) =>
       f.status == 'accepted' &&
@@ -369,6 +379,73 @@ class FakeAuthRepository implements AuthRepository {
   @override
   Future<void> signOut() async =>
       backend.setCurrentUser(null, AuthChangeEvent.signedOut);
+
+  @override
+  String? get currentEmail {
+    final uid = backend.currentUserId;
+    return uid == null ? null : backend.userById(uid).email;
+  }
+
+  @override
+  Future<void> changeEmail({
+    required String currentPassword,
+    required String newEmail,
+  }) async {
+    final uid = backend.currentUserId;
+    if (uid == null) {
+      throw const AuthException('Keine angemeldete Sitzung.');
+    }
+    final user = backend.userById(uid);
+    // Wie in echt: erst die frische Anmeldung — das falsche Passwort
+    // scheitert, BEVOR irgendetwas angestoßen wird.
+    if (user.password != currentPassword) {
+      throw const AuthException('Invalid login credentials',
+          statusCode: '400', code: 'invalid_credentials');
+    }
+    if (backend.users.any(
+        (u) => u.email.toLowerCase() == newEmail.toLowerCase())) {
+      throw const AuthException(
+          'A user with this email address has already been registered',
+          statusCode: '422',
+          code: 'email_exists');
+    }
+    backend.pendingEmailChange = newEmail;
+    backend.emailChangeOldConfirmed = false;
+    backend.emailChangeNewConfirmed = false;
+  }
+
+  @override
+  Future<void> confirmEmailChange({
+    required String email,
+    required String code,
+  }) async {
+    final uid = backend.currentUserId;
+    final pending = backend.pendingEmailChange;
+    if (uid == null || pending == null) {
+      throw const AuthException('Kein laufender Adresswechsel.');
+    }
+    final user = backend.userById(uid);
+    // Wie gemessen: je Postfach ein eigener Code; erst BEIDE zusammen
+    // vollziehen den Wechsel. Ein falscher Code ist otp_expired — wie
+    // bei Reset und Registrierung.
+    if (email == user.email && code == backend.emailChangeOldCode) {
+      backend.emailChangeOldConfirmed = true;
+    } else if (email == pending && code == backend.emailChangeNewCode) {
+      backend.emailChangeNewConfirmed = true;
+    } else {
+      throw const AuthException('Token has expired or is invalid',
+          statusCode: '403', code: 'otp_expired');
+    }
+    if (backend.emailChangeOldConfirmed &&
+        backend.emailChangeNewConfirmed) {
+      user.email = pending;
+      backend.pendingEmailChange = null;
+      // Wie in echt: der zweite Code bringt eine frische Sitzung mit —
+      // das SDK feuert ein Auth-Event, und die Profil-Kachel hört
+      // darauf (Read-after-write der neuen Adresse).
+      backend.setCurrentUser(user, AuthChangeEvent.userUpdated);
+    }
+  }
 
   @override
   Future<void> signOutOtherDevices() async {

@@ -7,9 +7,12 @@
 // nach dem Schließen.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show AuthException;
 
 import '../../core/errors.dart';
 import '../../core/widgets/form_notice.dart';
+import '../../core/widgets/password_field.dart';
+import '../../core/widgets/resend_button.dart';
 import '../../data/providers.dart';
 import '../../models/profile.dart';
 import 'profile_providers.dart';
@@ -37,6 +40,234 @@ class ChangeUsernameTile extends ConsumerWidget {
                 context: context,
                 builder: (_) => _ChangeUsernameDialog(current: name),
               ),
+    );
+  }
+}
+
+/// Kachel „E-Mail-Adresse ändern" — die Adresse ist die Konto-Identität:
+/// Die Freundessuche matcht auf sie, und der Reset-Code geht an ihr
+/// Postfach. Wer den Zugriff auf das alte Postfach verliert, ist ein
+/// vergessenes Passwort vom ausgesperrten Konto entfernt.
+class ChangeEmailTile extends ConsumerWidget {
+  const ChangeEmailTile({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Auf die Sitzungs-Events hören: Der vollzogene Wechsel bringt eine
+    // frische Sitzung mit (verifyOTP), und die Kachel muss die neue
+    // Adresse SOFORT zeigen. Ohne diese Zeile stand am Emulator die
+    // alte Adresse da, bis irgendetwas anderes neu baute —
+    // Read-after-write gilt auch hier.
+    ref.watch(authStateProvider);
+    final email = ref.watch(authRepositoryProvider).currentEmail;
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.alternate_email),
+      title: const Text('E-Mail-Adresse ändern'),
+      subtitle: Text(email ?? 'Die Adresse deines Kontos'),
+      trailing: const Icon(Icons.chevron_right),
+      enabled: email != null,
+      onTap: email == null
+          ? null
+          : () => showDialog<void>(
+                context: context,
+                builder: (_) => _ChangeEmailDialog(current: email),
+              ),
+    );
+  }
+}
+
+/// Zwei Phasen wie der Registrieren-Screen: erst aktuelles Passwort und
+/// neue Adresse, dann die Codes aus BEIDEN Postfächern („Secure email
+/// change" — ein gestohlenes Session-Token allein kann das Konto nicht
+/// umziehen). Erst der zweite Code vollzieht den Wechsel; gemessen und
+/// festgenagelt in tool/auth_reset_check.sh.
+class _ChangeEmailDialog extends ConsumerStatefulWidget {
+  const _ChangeEmailDialog({required this.current});
+
+  final String current;
+
+  @override
+  ConsumerState<_ChangeEmailDialog> createState() =>
+      _ChangeEmailDialogState();
+}
+
+class _ChangeEmailDialogState extends ConsumerState<_ChangeEmailDialog> {
+  final _passwordController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _oldCodeController = TextEditingController();
+  final _newCodeController = TextEditingController();
+  bool _codesPhase = false;
+  String? _error;
+  bool _busy = false;
+
+  @override
+  void dispose() {
+    _passwordController.dispose();
+    _emailController.dispose();
+    _oldCodeController.dispose();
+    _newCodeController.dispose();
+    super.dispose();
+  }
+
+  String get _newEmail => _emailController.text.trim();
+
+  bool get _canRequest =>
+      _passwordController.text.isNotEmpty &&
+      _newEmail.contains('@') &&
+      _newEmail.toLowerCase() != widget.current.toLowerCase();
+
+  bool get _canConfirm =>
+      _oldCodeController.text.trim().length == 6 &&
+      _newCodeController.text.trim().length == 6;
+
+  Future<void> _request() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await ref.read(authRepositoryProvider).changeEmail(
+            currentPassword: _passwordController.text,
+            newEmail: _newEmail,
+          );
+      if (mounted) setState(() => _codesPhase = true);
+    } on AuthException catch (e) {
+      if (mounted) setState(() => _error = emailChangeErrorMessage(e));
+    } catch (e, stackTrace) {
+      logError('E-Mail ändern', e, stackTrace);
+      if (mounted) setState(() => _error = friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _confirm() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final auth = ref.read(authRepositoryProvider);
+      // Feste Reihenfolge: erst der Code der ALTEN Adresse (wird nur
+      // quittiert), dann der der NEUEN — der vollzieht den Wechsel und
+      // bringt die frische Sitzung mit.
+      await auth.confirmEmailChange(
+          email: widget.current, code: _oldCodeController.text.trim());
+      await auth.confirmEmailChange(
+          email: _newEmail, code: _newCodeController.text.trim());
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Deine E-Mail-Adresse ist geändert.')),
+      );
+    } on AuthException catch (e) {
+      if (mounted) setState(() => _error = emailChangeErrorMessage(e));
+    } catch (e, stackTrace) {
+      logError('E-Mail ändern bestätigen', e, stackTrace);
+      if (mounted) setState(() => _error = friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hint = Theme.of(context)
+        .textTheme
+        .bodySmall
+        ?.copyWith(color: Theme.of(context).hintColor);
+    return AlertDialog(
+      title: const Text('E-Mail-Adresse ändern'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: _codesPhase
+              ? [
+                  const FormNotice(
+                    message: 'Zwei Mails sind unterwegs — eine an deine '
+                        'bisherige, eine an deine neue Adresse. Beide '
+                        'Codes gehören hierher.',
+                    tone: NoticeTone.info,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _oldCodeController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                        labelText: 'Code an die bisherige Adresse'),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _newCodeController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                        labelText: 'Code an die neue Adresse'),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: 8),
+                  ResendButton(
+                    label: 'Codes erneut senden',
+                    onResend: _request,
+                  ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 8),
+                    FormNotice(message: _error!, tone: NoticeTone.error),
+                  ],
+                ]
+              : [
+                  Text('Bisher: ${widget.current}', style: hint),
+                  const SizedBox(height: 12),
+                  PasswordField(
+                    controller: _passwordController,
+                    label: 'Aktuelles Passwort',
+                    textInputAction: TextInputAction.next,
+                    autofocus: true,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
+                        labelText: 'Neue E-Mail-Adresse'),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    // Die Suche matcht auf die exakte Adresse — das
+                    // gehört gesagt, BEVOR jemand wechselt.
+                    'Freunde finden dich danach über die neue Adresse — '
+                    'die alte kennt die Suche nicht mehr.',
+                    style: hint,
+                  ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 16),
+                    FormNotice(message: _error!, tone: NoticeTone.error),
+                  ],
+                ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _busy ? null : () => Navigator.of(context).pop(),
+          child: const Text('Abbrechen'),
+        ),
+        FilledButton(
+          onPressed: _busy ||
+                  (_codesPhase ? !_canConfirm : !_canRequest)
+              ? null
+              : (_codesPhase ? _confirm : _request),
+          child: _busy
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2))
+              : Text(_codesPhase ? 'Bestätigen' : 'Weiter'),
+        ),
+      ],
     );
   }
 }

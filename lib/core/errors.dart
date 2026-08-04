@@ -175,6 +175,28 @@ String usernameChangeErrorMessage(Object error) {
   return friendlyError(error);
 }
 
+/// Fehler beim Ändern der E-Mail-Adresse → Meldung.
+///
+/// `email_exists` ist typisiert (gemessen: 422, `auth_reset_check.sh`
+/// nagelt ihn fest). Der offene Text ist Absicht und KEIN neues Orakel:
+/// Die Registrierung nennt eine vergebene Adresse längst beim Namen —
+/// Konsistenz statt Scheinschutz. `invalid_credentials` kommt aus der
+/// vorgeschalteten frischen Anmeldung (Muster Passwortwechsel),
+/// `otp_expired` aus einem falsch abgetippten Code.
+String emailChangeErrorMessage(AuthException error) {
+  if (error.code == 'email_exists') {
+    return 'Für diese Adresse gibt es schon ein Konto.';
+  }
+  if (error.code == 'invalid_credentials' || error.statusCode == '400') {
+    return 'Das aktuelle Passwort stimmt nicht.';
+  }
+  if (error.code == 'otp_expired' || error.statusCode == '403') {
+    return 'Der Code ist falsch oder abgelaufen — bitte einen neuen '
+        'anfordern.';
+  }
+  return 'Adresswechsel fehlgeschlagen: ${error.message}';
+}
+
 /// Fehler beim Bestätigen der Adresse (Code aus der Mail) und beim erneuten
 /// Anfordern dieser Mail → Meldung.
 ///

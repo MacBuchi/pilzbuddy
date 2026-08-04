@@ -7,6 +7,23 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Deine E-Mail-Adresse lässt sich jetzt ändern
+
+*5. August 2026 · Version 1.52.0*
+
+Die dritte neue Konto-Option im Profil: **„E-Mail-Adresse ändern"**.
+Wichtig ist das, weil an der Adresse mehr hängt, als man denkt — Freunde
+finden dich darüber, und der Code bei „Passwort vergessen" geht an genau
+dieses Postfach. Wer sein altes Postfach verliert, wäre sonst irgendwann
+ausgesperrt.
+
+Der Wechsel ist bewusst gründlich abgesichert: Er verlangt dein
+aktuelles Passwort, und danach kommen **zwei Mails mit zwei
+verschiedenen Codes** — eine an die bisherige, eine an die neue Adresse.
+Erst beide Codes zusammen vollziehen den Wechsel. So kann niemand, der
+nur kurz an dein entsperrtes Handy oder an eines deiner Postfächer
+kommt, dein Konto auf eine fremde Adresse umziehen.
+
 ## Andere Geräte abmelden
 
 *5. August 2026 · Version 1.51.0*

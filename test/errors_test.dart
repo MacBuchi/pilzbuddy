@@ -79,6 +79,33 @@ void main() {
     });
   });
 
+  group('emailChangeErrorMessage', () {
+    test('email_exists nennt die vergebene Adresse beim Namen', () {
+      // Kein neues Orakel: Die Registrierung sagt es längst genauso.
+      expect(
+          emailChangeErrorMessage(
+              const AuthException('x', code: 'email_exists')),
+          'Für diese Adresse gibt es schon ein Konto.');
+    });
+
+    test('invalid_credentials heißt: das aktuelle Passwort', () {
+      // Der Fehler kommt aus der vorgeschalteten frischen Anmeldung —
+      // „E-Mail oder Passwort falsch" schickte den Leser zur falschen
+      // Maske.
+      expect(
+          emailChangeErrorMessage(
+              const AuthException('x', code: 'invalid_credentials')),
+          'Das aktuelle Passwort stimmt nicht.');
+    });
+
+    test('otp_expired ist der abgetippte Code', () {
+      expect(
+          emailChangeErrorMessage(
+              const AuthException('x', code: 'otp_expired')),
+          contains('falsch oder abgelaufen'));
+    });
+  });
+
   group('loginErrorMessage: unbestätigte Adresse', () {
     test('email_not_confirmed geht dem 400-Fallback vor', () {
       // Der Fall kommt AUCH als 400. Ohne Vorrang läse er sich als
