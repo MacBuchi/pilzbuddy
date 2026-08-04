@@ -12,6 +12,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:archive/archive.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
@@ -259,6 +260,73 @@ class RainGridRepository {
     await _pruneStack(dir, {for (final day in info.days) day.file});
     if (days.isEmpty) return null;
     return RainStackData(info: info, days: days);
+  }
+
+  /// Die Stationstabelle (Temperatur) — als **gepackte** Bytes, `null`,
+  /// wenn weder Netz noch Platte etwas hergeben. Ausgepackt wird im
+  /// Isolate des Aufrufers (`weatherTableFrom`), nicht hier.
+  ///
+  /// Der Zwischenspeichername trägt den jüngsten Tag der Tabelle
+  /// (`weather_2026-08-03.json.gz`): Das Release-Asset heißt jeden Tag
+  /// gleich, und unter einem gleichbleibenden Namen wäre ein alter Stand
+  /// nicht von einem neuen zu unterscheiden. Ohne Empfang wird der
+  /// jüngste Stand von Platte genommen — zwölf Tage alte Temperaturen
+  /// sind im Wald mehr wert als keine, und das Datum steht im Diagramm.
+  Future<List<int>?> loadWeatherTable() async {
+    String? newestDay;
+    try {
+      final response = await _client
+          .get(Uri.parse('$rainDataBaseUrl/rain_manifest.json'))
+          .timeout(const Duration(seconds: 15));
+      if (response.statusCode != 200) {
+        throw HttpException('Manifest: HTTP ${response.statusCode}');
+      }
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+      final days = (json['weather'] as Map<String, dynamic>?)?['days'];
+      if (days is List && days.isNotEmpty) newestDay = days.last as String;
+    } catch (_) {
+      // Still: kein Empfang oder GitHub weg — unten liegt vielleicht
+      // noch ein Stand auf Platte. Kein `logError` (#124/#136).
+    }
+
+    final dir = await _dir();
+    if (newestDay != null) {
+      final cached = File('${dir.path}/weather_$newestDay.json.gz');
+      if (await cached.exists()) {
+        try {
+          return await cached.readAsBytes();
+        } catch (_) {
+          // Unlesbar — behandeln wie „nicht da" und neu laden.
+        }
+      }
+      try {
+        final bytes = await _download('$rainDataBaseUrl/weather_stations.json.gz');
+        // Erst prüfen, dann schreiben — ein abgebrochener Download, der
+        // sich nicht auspacken lässt, darf nicht als Zwischenspeicher
+        // liegen bleiben und jeden weiteren Versuch vergiften (dasselbe
+        // Muster wie beim Gitter). Die inhaltliche Prüfung macht der
+        // Parser im Isolate des Aufrufers.
+        GZipDecoder().decodeBytes(bytes);
+        await cached.writeAsBytes(bytes, flush: true);
+        await _pruneOthers(cached.path, prefix: 'weather_');
+        return bytes;
+      } catch (_) {
+        // Still, wie beim Gitter: unten der Weg über die Platte.
+      }
+    }
+
+    try {
+      final files = dir
+          .listSync()
+          .whereType<File>()
+          .where((f) => f.path.split('/').last.startsWith('weather_'))
+          .toList()
+        ..sort((a, b) => b.path.compareTo(a.path));
+      if (files.isEmpty) return null;
+      return await files.first.readAsBytes();
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<RainStackInfo?> _fetchStackInfo() async {

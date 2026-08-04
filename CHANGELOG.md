@@ -7,6 +7,29 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Wie warm war es an deinem Spot
+
+*4. August 2026 · Version 1.49.0*
+
+Zum Regen im Spot-Blatt kommt jetzt die **Temperatur**: Über den blauen
+Balken liegen dünne Linien — die **Bodentemperatur in 5 cm Tiefe** (dort
+lebt das Pilzgeflecht) und die Tageshöchst- und Tiefstwerte der Luft.
+Beide Achsen sind beschriftet: links Grad, rechts Millimeter. Und an den
+Enden der Zeitskala steht jetzt das Datum, rechts zum Beispiel
+„gestern, 3.8." — damit klar ist, in welche Richtung sie läuft.
+
+Die Werte kommen von der **nächstgelegenen Wetterstation** des Deutschen
+Wetterdienstes, und genau die steht auch dabei: Name, Entfernung und
+Höhe. Die Höhe gehört dazu, weil sie den größten Unterschied macht —
+eine Station 300 Meter tiefer ist gut zwei Grad wärmer, und das rechnet
+die App bewusst nicht heraus, sondern schreibt es dir hin.
+
+Wie beim Regen gilt: Die Suche nach der nächsten Station läuft
+**auf deinem Gerät**. Kein Wetterdienst erfährt, wo deine Spots liegen.
+Die Frage im Spot-Blatt heißt jetzt „Wetterdaten laden" und deckt beides
+ab — wer dem Regen schon zugestimmt hat, bekommt die Temperatur ohne
+neue Frage dazu.
+
 ## Der Regen ist jetzt zu lesen
 
 *4. August 2026 · Version 1.48.0*

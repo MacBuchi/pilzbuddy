@@ -14,6 +14,7 @@ import 'rain_fill.dart';
 import 'rain_grid.dart';
 import 'rain_layer.dart';
 import 'rain_stack.dart';
+import 'spot_weather.dart';
 
 final rainGridRepositoryProvider = Provider<RainGridRepository>(
     (ref) => RainGridRepository());
@@ -193,6 +194,40 @@ RainCourse _course(({RainStackData stack, double lat, double lon}) input) =>
       lat: input.lat,
       lon: input.lon,
     );
+
+/// Wie die Stationstabelle beschafft wird. Dieselbe Test-Naht wie
+/// [rainStackLoaderProvider] — ohne sie ginge jeder Flow-Test, der ein
+/// Spot-Blatt mit erteilter Zustimmung öffnet, ins Netz.
+final weatherTableLoaderProvider =
+    Provider<Future<List<int>?> Function()>((ref) {
+  final repository = ref.watch(rainGridRepositoryProvider);
+  return () => repository.loadWeatherTable();
+});
+
+/// Die geladene Stationstabelle — `null`, solange niemand zugestimmt hat.
+///
+/// Dieselbe Zustimmung wie der Regenverlauf, kein zweiter Dialog: „Wetter
+/// an diesem Spot" ist EIN Angebot, und die 45 KB Stationswerte ändern
+/// an dessen Größenordnung nichts. Geparst wird im Isolate — ~760
+/// Stationen à 14 Tage sind wenig, aber es ist Arbeit in einem Blatt,
+/// das sich sofort öffnen soll.
+final weatherTableProvider = FutureProvider<WeatherTable?>((ref) async {
+  if (!ref.watch(rainCourseEnabledProvider)) return null;
+  final bytes = await ref.watch(weatherTableLoaderProvider)();
+  if (bytes == null) return null;
+  return compute(weatherTableFrom, bytes);
+});
+
+/// Die Temperatur an einem Punkt: je Netz (Luft, Boden) die nächste
+/// Station mit genug gemessenen Tagen — oder `null`, wenn keine in
+/// Reichweite ist. Kein Mitteln über Stationen; die Begründung steht in
+/// `spot_weather.dart`.
+final spotTemperatureProvider =
+    FutureProvider.family<SpotTemperature?, ({double lat, double lon})>(
+        (ref, at) async {
+  final table = await ref.watch(weatherTableProvider.future);
+  return table?.at(at.lat, at.lon);
+});
 
 /// Die 30-Tage-Summe an einem Punkt, aus dem vorhandenen W4-Gitter.
 ///

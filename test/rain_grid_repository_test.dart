@@ -5,9 +5,13 @@
 // hier, was NICHT still degradiert, sondern still FALSCH wäre: eine
 // Fläche, die als Datei liegen bleibt, obwohl die App sie inzwischen
 // anders zeichnet.
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:pilzbuddy/data/rain_grid_repository.dart';
 
 void main() {
@@ -21,7 +25,8 @@ void main() {
     if (await base.exists()) await base.delete(recursive: true);
   });
 
-  RainGridRepository repo() => RainGridRepository(baseDirOverride: base);
+  RainGridRepository repo({http.Client? client}) =>
+      RainGridRepository(baseDirOverride: base, client: client);
 
   final measured = DateTime.utc(2026, 8, 4, 5, 50);
 
@@ -77,5 +82,87 @@ void main() {
 
     final dir = Directory('${base.path}/rain');
     expect(dir.listSync().length, 2);
+  });
+
+  group('loadWeatherTable', () {
+    final goodBytes = GZipEncoder().encode(utf8.encode('{"days":[]}'))!;
+    const manifest =
+        '{"weather": {"file": "weather_stations.json.gz", '
+        '"days": ["2026-07-21", "2026-08-03"]}}';
+
+    http.Client serving({List<int>? asset, String? manifestBody}) =>
+        MockClient((request) async {
+          if (request.url.path.endsWith('rain_manifest.json')) {
+            return http.Response(manifestBody ?? manifest, 200);
+          }
+          if (request.url.path.endsWith('weather_stations.json.gz')) {
+            return http.Response.bytes(asset ?? goodBytes, 200);
+          }
+          return http.Response('nicht da', 404);
+        });
+
+    Directory dir() => Directory('${base.path}/rain');
+    List<String> onDisk() => dir()
+        .listSync()
+        .map((e) => e.path.split('/').last)
+        .toList()
+      ..sort();
+
+    test('lädt, legt unter dem jüngsten Tag ab und räumt Ältere weg',
+        () async {
+      dir().createSync(recursive: true);
+      File('${dir().path}/weather_2026-08-01.json.gz').writeAsBytesSync([1]);
+      // Ein Tagesstapel-Nachbar im selben Ordner: Das Aufräumen darf nur
+      // die eigene Sorte anfassen.
+      File('${dir().path}/rain_day_2026-08-01.bin.gz').writeAsBytesSync([2]);
+
+      final bytes = await repo(client: serving()).loadWeatherTable();
+
+      expect(bytes, goodBytes);
+      expect(onDisk(),
+          ['rain_day_2026-08-01.bin.gz', 'weather_2026-08-03.json.gz'],
+          reason: 'der alte Stand muss weg, der Nachbar bleiben');
+    });
+
+    test('nimmt den Zwischenspeicher, statt neu zu laden', () async {
+      dir().createSync(recursive: true);
+      File('${dir().path}/weather_2026-08-03.json.gz')
+          .writeAsBytesSync([7, 7, 7]);
+
+      final bytes = await repo(client: serving()).loadWeatherTable();
+
+      expect(bytes, [7, 7, 7],
+          reason: 'derselbe Stand liegt schon da — 45 KB je Blattöffnung '
+              'wären der Preis');
+    });
+
+    test('ohne Netz kommt der jüngste Stand von der Platte', () async {
+      dir().createSync(recursive: true);
+      File('${dir().path}/weather_2026-08-01.json.gz').writeAsBytesSync([1]);
+      File('${dir().path}/weather_2026-08-02.json.gz').writeAsBytesSync([2]);
+      final offline = MockClient((_) async => throw const SocketException(''));
+
+      expect(await repo(client: offline).loadWeatherTable(), [2]);
+    });
+
+    test('ein Download, der sich nicht auspacken lässt, wird nicht '
+        'abgelegt', () async {
+      // Sonst vergiftete ein abgebrochener Download jeden weiteren
+      // Versuch bis zum nächsten Tabellenstand.
+      dir().createSync(recursive: true);
+      File('${dir().path}/weather_2026-08-01.json.gz').writeAsBytesSync([1]);
+
+      final bytes = await repo(client: serving(asset: [9, 9, 9]))
+          .loadWeatherTable();
+
+      expect(bytes, [1], reason: 'der letzte gute Stand ist die Antwort');
+      expect(onDisk(), ['weather_2026-08-01.json.gz'],
+          reason: 'der kaputte Download darf nicht liegen bleiben');
+    });
+
+    test('ohne Netz und ohne Platte gibt es nichts — still', () async {
+      final offline = MockClient((_) async => throw const SocketException(''));
+      expect(await repo(client: offline).loadWeatherTable(), isNull);
+    });
   });
 }
