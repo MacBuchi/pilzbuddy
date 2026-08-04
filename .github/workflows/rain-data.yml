@@ -3,6 +3,8 @@ name: Rain Data
 # Publishes the DWD rainfall sums as a compact value grid, so the app can
 # draw contour lines in its own palette and answer "how much rain fell at
 # this spot" without sending a coordinate anywhere. See tool/rain_grid.py.
+# The station temperature table (tool/spot_weather.py) rides along on the
+# daily run — same rule, same release, same manifest.
 #
 # Why its own workflow and not a passenger on feedback.yml: different
 # cadence, and this one needs no secret at all — feedback.yml carries the
@@ -23,6 +25,9 @@ on:
     # — the exact hour does not matter, and a run that finds nothing new
     # simply carries the manifest over. A missed day is caught by the next
     # run, because the tool always takes the last 14 the service offers.
+    # The station temperature table rides on this run: its newest row is
+    # also yesterday (CDC updates around 08:30 UTC+2), so one cadence
+    # fits both.
     - cron: "23 7 * * *"
   workflow_dispatch:
     inputs:
@@ -30,7 +35,7 @@ on:
         description: "Which layer to rebuild (empty = w4 and sf)"
         required: false
         type: choice
-        options: ["", "w4", "sf", "daily"]
+        options: ["", "w4", "sf", "daily", "weather"]
         default: ""
 
 # Never two runs at once — they would race on the shared manifest. Not
@@ -47,7 +52,9 @@ jobs:
   publish:
     name: Build and publish rain grids
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # The daily run now also walks two station networks (~900 small ZIPs,
+    # sequential with retries) on top of the day grids.
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v5
 
@@ -56,7 +63,9 @@ jobs:
         # A helper that only ever runs against the live service is a
         # helper whose edge cases nobody has looked at since the day it
         # was written.
-        run: python3 tool/rain_grid.py --self-test
+        run: |
+          python3 tool/rain_grid.py --self-test
+          python3 tool/spot_weather.py --self-test
 
       - name: Pick layers
         id: pick
@@ -64,7 +73,7 @@ jobs:
           case "${{ github.event.schedule }}" in
             "17 6 * * *") layers="w4" ;;
             "47 */3 * * *") layers="sf" ;;
-            "23 7 * * *") layers="daily" ;;
+            "23 7 * * *") layers="daily weather" ;;
             *) layers="${{ inputs.layer }}" ;;
           esac
           [ -n "$layers" ] || layers="w4 sf"
@@ -85,7 +94,11 @@ jobs:
       - name: Build
         run: |
           for layer in ${{ steps.pick.outputs.layers }}; do
-            python3 tool/rain_grid.py --layer "$layer" --out build/rain
+            if [ "$layer" = "weather" ]; then
+              python3 tool/spot_weather.py --out build/rain
+            else
+              python3 tool/rain_grid.py --layer "$layer" --out build/rain
+            fi
           done
 
       - name: Verify against the service
@@ -94,8 +107,12 @@ jobs:
         # roughly double the values, in a grid of the right size with a
         # plausible-looking median. Only asking the service what it says at
         # a given point exposes it.
+        # The station table has no verify pass: its values come straight
+        # out of the produkt files, and those files ARE the service's
+        # answer — there is no second channel to cross-check against.
         run: |
           for layer in ${{ steps.pick.outputs.layers }}; do
+            [ "$layer" = "weather" ] && continue
             python3 tool/rain_grid.py --layer "$layer" --verify --out build/rain
           done
 

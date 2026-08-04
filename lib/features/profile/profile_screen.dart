@@ -12,6 +12,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/app_distribution.dart';
 import '../../core/app_info.dart';
+import '../../core/axis_scale.dart';
 import '../../core/errors.dart';
 import '../../core/mushroom_species.dart';
 import '../../core/update_check.dart';
@@ -26,6 +27,11 @@ import '../map/map_view/map_engine.dart';
 import '../spots/spot_providers.dart';
 import 'profile_providers.dart';
 import '../../core/app_colors.dart';
+
+// Re-Export mit Absicht: Die Achsen-Helfer sind nach core/ gezogen (das
+// Wetterdiagramm am Spot nutzt sie mit), aber ihre Tests und ihr
+// bisheriger Ort bleiben gültig.
+export '../../core/axis_scale.dart' show yAxisStep, showsYAxisLabel;
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -678,42 +684,6 @@ class _StatTile extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Höchstens so viele Beschriftungen auf der Y-Achse des Balkendiagramms.
-const _maxYAxisLabels = 5;
-
-/// Achsenschritt für [maxY], der auf einer runden Zahl landet (1, 2, 5, 10,
-/// 20, 50, …) und höchstens [_maxYAxisLabels] Beschriftungen erzeugt.
-///
-/// Vorher stand hier fest `interval: 1`: bei 50 Funden im besten Jahr wurde
-/// jede einzelne Zahl beschriftet, die Achse war zugelaufen (Issue #97).
-/// Funde sind ganzzahlig, deshalb ist der kleinste Schritt 1 — eine Achse
-/// mit 0,5-Schritten wäre für Stückzahlen unsinnig.
-@visibleForTesting
-double yAxisStep(double maxY) {
-  final target = maxY / _maxYAxisLabels;
-  if (target <= 1) return 1;
-  var magnitude = 1.0;
-  while (magnitude * 10 < target) {
-    magnitude *= 10;
-  }
-  for (final factor in const [1, 2, 5]) {
-    final step = magnitude * factor;
-    if (step >= target) return step;
-  }
-  return magnitude * 10;
-}
-
-/// Gehört [value] auf die Achse — also auf ein Vielfaches von [step]?
-///
-/// fl_chart beschriftet zusätzlich zur Schrittweite die Achsenspitze. Bei
-/// maxY = 8,4 und Schritt 2 stünde dort ein zweites „8" wenige Pixel über dem
-/// echten — im Store-Screenshot sah das aus wie ein Druckfehler.
-@visibleForTesting
-bool showsYAxisLabel(double value, double step) {
-  final steps = value / step;
-  return (steps - steps.round()).abs() < 0.001;
 }
 
 class _FindsPerYearChart extends StatelessWidget {

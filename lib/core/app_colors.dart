@@ -64,6 +64,14 @@ abstract final class AppColors {
   static Color rainLine(int index) =>
       rainRamp[index.clamp(0, rainRamp.length - 1)];
 
+  /// Die Temperaturlinien im Wetterdiagramm am Spot. Boden ist der
+  /// erdige Marken-Braunton und die pilz-relevante Hauptlinie; die
+  /// Luftwerte bekommen einen warmen und einen kühlen Ton, der sich von
+  /// den [friendBlue]-Regenbalken darunter absetzt.
+  static const tempSoil = warmBrown;
+  static const tempAirMax = Color(0xFFD84315);
+  static const tempAirMin = Color(0xFF00838F);
+
   /// Fläche unter der Karte, solange dort noch keine Kachel liegt.
   ///
   /// Derselbe Landton wie die `earth`-Ebene des Offline-Styles

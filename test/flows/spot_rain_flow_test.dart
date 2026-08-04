@@ -1,14 +1,19 @@
-// Der Regen am Spot, vom Blatt aus: fragen → laden → Zahlen und Balken.
+// Das Wetter am Spot, vom Blatt aus: fragen → laden → Zahlen, Balken und
+// Temperaturlinien.
 //
 // Der Weg wird ganz gegangen, weil die Teile ihn nicht beweisen: Eine
 // korrekt gerechnete Summe nützt nichts, wenn der Abschnitt nie erscheint
 // oder ungefragt lädt — und „lädt nicht ungefragt" ist hier eine Zusage
 // an die Nutzerin, keine Feinheit.
+import 'dart:convert';
+
+import 'package:archive/archive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/data/rain_grid_repository.dart';
 import 'package:pilzbuddy/features/map/rain_data_providers.dart';
+import 'package:pilzbuddy/features/spots/widgets/weather_chart.dart';
 
 import '../fakes/fake_backend.dart';
 import '../fakes/fake_settings.dart';
@@ -20,7 +25,8 @@ void main() {
   const spotLng = 11.0;
 
   /// Ein Stapel über Deutschland: eine Zelle, alle Tage am selben Punkt.
-  RainStackData stackOf(List<int> mmPerDay) => RainStackData(
+  RainStackData stackOf(List<int> mmPerDay, {DateTime? firstDay}) =>
+      RainStackData(
         info: RainStackInfo(
           width: 1,
           height: 1,
@@ -33,13 +39,47 @@ void main() {
         days: [
           for (final (index, mm) in mmPerDay.indexed)
             (
-              date: DateTime.utc(2026, 7, 21).add(Duration(days: index)),
+              date: (firstDay ?? DateTime.utc(2026, 7, 21))
+                  .add(Duration(days: index)),
               gzipped: encode([
                 [mm]
               ]),
             ),
         ],
       );
+
+  /// Die Stationstabelle, wie sie das Werkzeug packt — eine Luft- und
+  /// eine Bodenstation nahe am Spot.
+  List<int> weatherBytes(List<DateTime> days) {
+    String iso(DateTime d) => '${d.year.toString().padLeft(4, '0')}-'
+        '${d.month.toString().padLeft(2, '0')}-'
+        '${d.day.toString().padLeft(2, '0')}';
+    final json = {
+      'days': [for (final day in days) iso(day)],
+      'stations': [
+        {
+          'id': 1270,
+          'lat': 51.1,
+          'lon': 11.0,
+          'h': 316,
+          'name': 'Erfurt-Weimar',
+          'max': [for (var i = 0; i < days.length; i++) 20.0 + i],
+          'min': [for (var i = 0; i < days.length; i++) 10.0 + i],
+        },
+      ],
+      'soil': [
+        {
+          'id': 3821,
+          'lat': 51.2,
+          'lon': 11.1,
+          'h': 250,
+          'name': 'Weimarer Land',
+          'soil': [for (var i = 0; i < days.length; i++) 15.0 + i],
+        },
+      ],
+    };
+    return GZipEncoder().encode(utf8.encode(jsonEncode(json)))!;
+  }
 
   FakeBackend loggedInWithSpot() {
     final backend = FakeBackend();
@@ -55,14 +95,18 @@ void main() {
     return backend;
   }
 
-  /// Wartet, bis der Verlauf gerechnet ist. Er läuft im Isolate, dafür
-  /// braucht der Test echte Zeit — `settle` pumpt nur Bilder.
-  Future<void> settleCourse(WidgetTester tester,
+  /// Wartet, bis Verlauf und Temperatur gerechnet sind. Beide laufen im
+  /// Isolate, dafür braucht der Test echte Zeit — `settle` pumpt nur
+  /// Bilder.
+  Future<void> settleWeather(WidgetTester tester,
       {double lat = spotLat, double lon = spotLng}) async {
     final container = ProviderScope.containerOf(
         tester.element(find.byType(Scaffold).first));
-    await tester.runAsync(
-        () => container.read(rainCourseProvider((lat: lat, lon: lon)).future));
+    await tester.runAsync(() async {
+      await container.read(rainCourseProvider((lat: lat, lon: lon)).future);
+      await container
+          .read(spotTemperatureProvider((lat: lat, lon: lon)).future);
+    });
     await settle(tester);
   }
 
@@ -74,20 +118,26 @@ void main() {
   }
 
   testWidgets('lädt nichts, bevor jemand zustimmt', (tester) async {
-    // Rund 0,9 MB gibt man im Wald nicht ungefragt aus — dieselbe Zusage
-    // wie bei der Regenebene seit 1.45.0.
-    var calls = 0;
+    // Rund 1 MB gibt man im Wald nicht ungefragt aus — dieselbe Zusage
+    // wie bei der Regenebene seit 1.45.0, und sie gilt für BEIDE Teile:
+    // Stapel und Stationstabelle.
+    var stackCalls = 0, weatherCalls = 0;
     final backend = loggedInWithSpot();
     await pumpApp(tester, backend, extraOverrides: [
       rainStackLoaderProvider.overrideWithValue(() async {
-        calls++;
+        stackCalls++;
         return stackOf([5]);
+      }),
+      weatherTableLoaderProvider.overrideWithValue(() async {
+        weatherCalls++;
+        return weatherBytes([DateTime.utc(2026, 7, 21)]);
       }),
     ]);
     await openSpot(tester);
 
-    expect(find.text('Regendaten laden'), findsOneWidget);
-    expect(calls, 0, reason: 'ungefragt geladen');
+    expect(find.text('Wetterdaten laden'), findsOneWidget);
+    expect(stackCalls, 0, reason: 'Stapel ungefragt geladen');
+    expect(weatherCalls, 0, reason: 'Stationstabelle ungefragt geladen');
     expect(find.textContaining('mm'), findsNothing);
   });
 
@@ -98,8 +148,8 @@ void main() {
           () async => stackOf([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14])),
     ]);
     await openSpot(tester);
-    await tester.tap(find.text('Regendaten laden'));
-    await settleCourse(tester);
+    await tester.tap(find.text('Wetterdaten laden'));
+    await settleWeather(tester);
 
     // 7 Tage = 8+9+…+14 = 77, 14 Tage = 1+2+…+14 = 105.
     //
@@ -119,6 +169,78 @@ void main() {
             'nach einem Fehler der App aus');
   });
 
+  testWidgets('mit Stationstabelle stehen Linien, Legende und Station da',
+      (tester) async {
+    // Tage bis gestern, damit auch das „gestern" der Zeitachse
+    // mitgeprüft ist — mit festen Daten stimmte es nur heute.
+    final now = DateTime.now();
+    final yesterday = DateTime.utc(now.year, now.month, now.day)
+        .subtract(const Duration(days: 1));
+    final firstDay = yesterday.subtract(const Duration(days: 13));
+    final days = [
+      for (var i = 0; i < 14; i++) firstDay.add(Duration(days: i)),
+    ];
+    final backend = loggedInWithSpot();
+    await pumpApp(tester, backend, extraOverrides: [
+      rainStackLoaderProvider.overrideWithValue(() async =>
+          stackOf(List.filled(14, 3), firstDay: firstDay)),
+      weatherTableLoaderProvider
+          .overrideWithValue(() async => weatherBytes(days)),
+    ]);
+    await openSpot(tester);
+    await tester.tap(find.text('Wetterdaten laden'));
+    await settleWeather(tester);
+
+    // Die Legende — drei unbeschriftete Linien wären Rätselraten.
+    expect(find.text('Boden 5 cm'), findsOneWidget);
+    expect(find.text('Luft max'), findsOneWidget);
+    expect(find.text('Luft min'), findsOneWidget);
+
+    // Die Herkunftszeile, wörtlich: Name, Entfernung, Höhe UND das
+    // richtige Netz-Etikett. Vertauschte Etiketten („Luft" an der
+    // Bodenstation) sähen mit bloßem textContaining-Namen richtig aus.
+    expect(
+        find.textContaining('Temperatur: Erfurt-Weimar '
+            '(11 km, 316 m ü. NN, Luft) '
+            'und Weimarer Land (23 km, 250 m ü. NN, Boden).'),
+        findsOneWidget);
+
+    // Achsen und Zeitrichtung stecken im Painter, nicht im Widget-Baum.
+    final paint = tester.widget<CustomPaint>(find.byWidgetPredicate(
+        (w) => w is CustomPaint && w.painter is WeatherChartPainter));
+    final painter = paint.painter as WeatherChartPainter;
+    expect(painter.axis, isNotNull, reason: '°C-Achse fehlt');
+    expect(painter.soil, isNotNull);
+    expect(painter.airMax, isNotNull);
+    expect(painter.airMin, isNotNull);
+    expect(painter.endLabel, startsWith('gestern, '),
+        reason: 'die Richtung der Zeitskala muss benannt sein');
+  });
+
+  testWidgets('ohne Stationstabelle bleibt der Regen-Teil vollständig',
+      (tester) async {
+    // Die Temperatur ist eine Zugabe: Fehlt sie (kein Empfang beim
+    // ersten Laden, altes Asset), stehen Summen und Balken trotzdem da
+    // — ohne Legende, ohne Stationszeile, ohne Platzhalter.
+    final backend = loggedInWithSpot();
+    await pumpApp(tester, backend, extraOverrides: [
+      rainStackLoaderProvider.overrideWithValue(
+          () async => stackOf([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14])),
+      weatherTableLoaderProvider.overrideWithValue(() async => null),
+    ]);
+    await openSpot(tester);
+    await tester.tap(find.text('Wetterdaten laden'));
+    await settleWeather(tester);
+
+    expect(find.textContaining('77 mm'), findsOneWidget);
+    expect(find.textContaining('nur Deutschland'), findsOneWidget);
+    expect(find.text('Boden 5 cm'), findsNothing);
+    expect(find.textContaining('Temperatur:'), findsNothing);
+    final paint = tester.widget<CustomPaint>(find.byWidgetPredicate(
+        (w) => w is CustomPaint && w.painter is WeatherChartPainter));
+    expect((paint.painter as WeatherChartPainter).axis, isNull);
+  });
+
   testWidgets('die Zustimmung wird gemerkt, nicht bei jedem Spot neu gefragt',
       (tester) async {
     final settings = FakeSettings();
@@ -128,7 +250,7 @@ void main() {
           rainStackLoaderProvider.overrideWithValue(() async => stackOf([5])),
         ]);
     await openSpot(tester);
-    await tester.tap(find.text('Regendaten laden'));
+    await tester.tap(find.text('Wetterdaten laden'));
     await settle(tester);
 
     expect(settings.rainCourseEnabled, isTrue,
@@ -154,10 +276,10 @@ void main() {
       rainStackLoaderProvider.overrideWithValue(() async => stackOf([5])),
     ]);
     await openSpot(tester, 'Sächsischer Hang');
-    await tester.tap(find.text('Regendaten laden'));
-    await settleCourse(tester, lat: 51.0, lon: 13.5);
+    await tester.tap(find.text('Wetterdaten laden'));
+    await settleWeather(tester, lat: 51.0, lon: 13.5);
 
-    expect(find.text('Regen an diesem Spot'), findsNothing);
+    expect(find.text('Wetter an diesem Spot'), findsNothing);
     expect(find.textContaining('mm'), findsNothing);
   });
 }
