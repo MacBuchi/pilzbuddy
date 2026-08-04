@@ -63,6 +63,17 @@ class AuthRepository {
 
   Future<void> signOut() => _client.auth.signOut();
 
+  /// Meldet alle ANDEREN Geräte ab — die eigene Sitzung bleibt.
+  ///
+  /// Der Fall dahinter: Passwort auf einem verlorenen oder geteilten
+  /// Gerät geändert — das alte Passwort gilt dort nicht mehr, die
+  /// laufende Sitzung aber schon, bis ihr Refresh-Token stirbt. Dieser
+  /// Aufruf beendet sie sofort. Eine Geräteliste mit Einzel-Abmeldung
+  /// gibt GoTrue clientseitig nicht her; „alle anderen" ist das
+  /// ehrliche Maximum.
+  Future<void> signOutOtherDevices() =>
+      _client.auth.signOut(scope: SignOutScope.others);
+
   /// Schickt einen Zahlencode zum Zurücksetzen des Passworts per Mail.
   ///
   /// Bewusst der Code aus der Mail und NICHT der enthaltene Link: Im

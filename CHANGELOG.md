@@ -7,6 +7,18 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Andere Geräte abmelden
+
+*5. August 2026 · Version 1.51.0*
+
+Im Profil gibt es jetzt **„Andere Geräte abmelden"**. Der Handgriff für
+den Fall, dass ein Handy verloren geht oder ein geteiltes Tablet noch
+angemeldet ist: Nach einer Rückfrage wird die Anmeldung überall beendet
+— nur auf dem Gerät, auf dem du gerade bist, bleibst du drin.
+
+Gut zu wissen: Ein Passwortwechsel allein beendet laufende Anmeldungen
+nicht sofort. Erst dieser Knopf wirft sie wirklich raus.
+
 ## Dein Benutzername lässt sich jetzt ändern
 
 *5. August 2026 · Version 1.50.0*
