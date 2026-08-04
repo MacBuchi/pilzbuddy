@@ -67,7 +67,7 @@ void main() {
       [5, 15],
       [25, 35],
     ]);
-    final image = decodePng(rainFillPng(grid, levels: levels));
+    final image = decodePng(rainFillPng(grid, levels: levels, smooth: false));
     expect(image.width, 2);
     expect(image.height, 2);
 
@@ -98,9 +98,29 @@ void main() {
     final grid = gridOf([
       [rainNoData, 35],
     ]);
-    final image = decodePng(rainFillPng(grid, levels: levels));
+    final image =
+        decodePng(rainFillPng(grid, levels: levels, smooth: false));
     expect(image.pixels[3], 0, reason: 'keine Daten ⇒ keine Farbe');
     expect(image.pixels[7], rainFillAlpha);
+  });
+
+  test('zeichnet dasselbe Feld wie die Höhenlinien — also geglättet', () {
+    // Die Linien entstehen aus `grid.smoothed()`. Zeichnete die Fläche
+    // das rohe Gitter, stünden zwei verschiedene Wahrheiten übereinander:
+    // eine Linie „30 mm" mitten in einer Fläche, die dort schon zum
+    // nächsten Band gehört — und Sprenkel genau dort, wo bewusst keine
+    // Linie gezogen wird.
+    final grid = gridOf([
+      [0, 0, 0, 0, 0],
+      [0, 40, 0, 90, 0],
+      [0, 0, 0, 0, 0],
+    ]);
+    expect(rainFillPng(grid, levels: levels),
+        rainFillPng(grid.smoothed(), levels: levels, smooth: false),
+        reason: 'Glätten ist die Vorgabe, nicht die Ausnahme');
+    expect(rainFillPng(grid, levels: levels),
+        isNot(rainFillPng(grid, levels: levels, smooth: false)),
+        reason: 'sonst prüft die Zeile darüber nichts');
   });
 
   test('bleibt deutlich unter der Deckkraft, an der die Karte verschwand', () {

@@ -33,14 +33,26 @@ const rainFillAlpha = 82;
 /// Daten" — Letzteres ist ebenfalls durchsichtig, aber dort fehlen auch
 /// die Linien, und die Legende sagt, wo die Messung aufhört.
 ///
+/// [smooth] mittelt vorher über 3×3 — **dieselbe Vorgabe wie bei
+/// [rainContours], und aus demselben Grund zwingend**: Die Linien
+/// entstehen aus dem geglätteten Feld. Zeichnete die Fläche das rohe,
+/// stünden zwei verschiedene Wahrheiten übereinander — eine Linie „50 mm"
+/// mitten in einer Fläche, die dort schon zum nächsten Band gehört, und
+/// Sprenkel genau dort, wo bewusst keine Linie gezogen wird (gemessen:
+/// 3×3 entfernt 95 % der Einzelzellen). Die *exakten* Werte bleiben
+/// davon unberührt — die liest die Regensumme am Spot aus dem rohen
+/// Gitter.
+///
 /// Reines Dart samt PNG-Kodierung (zlib und CRC aus `package:archive`,
 /// das für den KMZ-Import ohnehin im Projekt liegt) — damit läuft es im
 /// Isolate, im Web und im Test, ohne `dart:ui` und ohne Canvas.
 Uint8List rainFillPng(
-  RainGrid grid, {
+  RainGrid rawGrid, {
   required List<int> levels,
   int alpha = rainFillAlpha,
+  bool smooth = true,
 }) {
+  final grid = smooth ? rawGrid.smoothed() : rawGrid;
   final width = grid.width;
   final height = grid.height;
   // Eine Nachschlagetabelle statt einer Schleife je Zelle: 550 000 Zellen
