@@ -5,9 +5,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart' as vmt;
 
 import '../../offline_maps/offline_map_providers.dart';
-import '../../../core/app_colors.dart';
 import '../finite_camera_constraint.dart';
-import '../rain_contours.dart';
 import '../rain_data_providers.dart';
 import '../rain_layer.dart';
 import 'map_view.dart';
@@ -265,12 +263,22 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
               ),
             ],
           ),
-        // Die eigenen Höhenlinien: eine Ebene je Höhenstufe, weil
-        // flutter_maps PolylineLayer eine Farbe je Ebene kennt. Unter
-        // den Markern, wie das Bild darüber.
         // Die eigene Fläche: dasselbe Bild-Overlay wie beim DWD, nur mit
-        // einem selbst eingefärbten Gitter. Sie liegt UNTER den Linien —
-        // die Fläche ist Orientierung, die Linien sind die Aussage.
+        // einem selbst eingefärbten Gitter. Seit 1.48.0 trägt SIE die
+        // Aussage — die Höhenlinien werden nicht mehr gezeichnet, weil
+        // die Fläche bei 32 % Deckkraft unlesbar war und bei 55 % keine
+        // Linien mehr braucht (am Gerät verglichen, 2026-08-04).
+        //
+        // `filterQuality: medium` statt `none` — dieselbe Kehrtwende und
+        // dieselbe Begründung wie `raster-resampling: linear` bei
+        // MapLibre: Als Hauptdarstellung traten die 1-km-Treppenstufen
+        // hervor und widersprachen den geglätteten Konturen, aus denen
+        // die Beschriftung kommt. Der Wert am Spot bleibt davon
+        // unberührt, der kommt aus dem rohen Gitter.
+        //
+        // Was hier fehlt und auf MapLibre steht: die Millimeterzahlen in
+        // der Karte. flutter_map kennt keine Beschriftung entlang einer
+        // Linie; auf diesem Pfad trägt die Legende die Bedeutung allein.
         if (rainLines.isNotEmpty && rainFill != null)
           OverlayImageLayer(
             overlayImages: [
@@ -279,36 +287,12 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
                   LatLng(rainFill.south, rainFill.west),
                   LatLng(rainFill.north, rainFill.east),
                 ),
-                filterQuality: FilterQuality.none,
+                filterQuality: FilterQuality.medium,
                 gaplessPlayback: true,
                 imageProvider: MemoryImage(rainFill.png),
               ),
             ],
           ),
-        if (rainLines.isNotEmpty)
-          // Der Builder liest die Kamera und wird damit bei jedem
-          // Zoomwechsel neu gebaut — nur so kann die Dichte dem Maßstab
-          // folgen (siehe `rainContoursAtZoom`).
-          Builder(builder: (context) {
-            final visible =
-                rainContoursAtZoom(rainLines, MapCamera.of(context).zoom,
-                    levels: rainLevelsFor(rainLayer));
-            return Stack(children: [
-              for (final (index, level) in rainLevelsFor(rainLayer).indexed)
-                if (visible.any((line) => line.mm == level))
-                  PolylineLayer(
-                    polylines: [
-                      for (final line in visible)
-                        if (line.mm == level)
-                          Polyline(
-                            points: line.points,
-                            color: AppColors.rainLine(index),
-                            strokeWidth: 2,
-                          ),
-                    ],
-                  ),
-            ]);
-          }),
         // Markergruppen in fester Reihenfolge (unten → oben), damit
         // Spots über den Live-Positionen liegen und tappbar bleiben.
         if (markers.myPosition.isNotEmpty)

@@ -123,12 +123,25 @@ void main() {
         reason: 'sonst prüft die Zeile darüber nichts');
   });
 
-  test('bleibt deutlich unter der Deckkraft, an der die Karte verschwand', () {
-    // Am Pixel 7 war eine Vollfläche mit 0,4 (102 von 255) so dicht, dass
-    // keine Ortsbeschriftung mehr lesbar war. Die Fläche hier ist
-    // Orientierung, nicht Aussage — wer diesen Wert hochdreht, holt genau
-    // den Befund zurück, wegen dem es überhaupt Linien gibt.
-    expect(rainFillAlpha, lessThan(102));
+  test('bleibt in dem Fenster, das am Gerät lesbar war', () {
+    // Beide Grenzen sind gemessen, keine Geschmacksfrage (2026-08-04,
+    // Ausschnitt Kassel–Göttingen, drei gebaute Varianten):
+    //
+    // - Bei 82 (32 %) verschob die Fläche die Kartenfarben nur um
+    //   (−33, −20, −31) von 255. Der Betreiber las das als „die Flächen
+    //   sind gar nicht ausgefüllt" — zwei benachbarte Bänder waren nicht
+    //   zu unterscheiden.
+    // - Bei 190 (75 %) waren die Bänder sehr klar und die Ortsnamen
+    //   verblasst. Das ist derselbe Befund, an dem die Vollfläche in
+    //   1.45.0 gescheitert ist.
+    //
+    // Dazwischen liegt das Fenster. Wer hier hinausläuft, macht die
+    // Karte unlesbar oder die Bänder unsichtbar — beides ist am Gerät
+    // schon einmal passiert.
+    expect(rainFillAlpha, greaterThan(102),
+        reason: 'darunter sind die Bänder nicht zu unterscheiden');
+    expect(rainFillAlpha, lessThan(190),
+        reason: 'darüber verschwindet die Karte — der Befund aus 1.45.0');
   });
 
   test('hat für jede Höhenstufe eine eigene Farbe', () {

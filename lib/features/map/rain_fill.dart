@@ -20,11 +20,22 @@ import 'rain_grid.dart';
 
 /// Deckkraft der Fläche, 0–255.
 ///
-/// 82 ≈ 32 %. Vom Betreiber am gerenderten Ausschnitt gewählt (2026-08-04,
-/// „könnte sogar minimal weniger Transparenz sein" gegenüber 27 %).
-/// Die Wahl fiel über leerem Grund — über einer Karte mit Wegen und
-/// Ortsnamen ist sie noch nicht bestätigt.
-const rainFillAlpha = 82;
+/// 140 ≈ 55 %. **Die Fläche ist seit 1.48.0 die Aussage, nicht mehr die
+/// Orientierung** — die Höhenlinien werden nicht mehr gezeichnet.
+///
+/// Der Weg dorthin, gemessen statt geschätzt: Bei 82 (32 %) verschob die
+/// Fläche die Kartenfarben um (−33, −20, −31) von 255. Das ist da, aber
+/// zu wenig, um zwei benachbarte Bänder zu unterscheiden — der Betreiber
+/// las es als „die Flächen sind gar nicht ausgefüllt", und für die
+/// Nutzerin ist das dasselbe. Drei Varianten am Gerät verglichen
+/// (2026-08-04, Ausschnitt Kassel–Göttingen): 32 % unsichtbar, 55 %
+/// Bänder klar und Ortsnamen lesbar, 75 % Bänder sehr klar und Ortsnamen
+/// verblasst — Letzteres genau der Befund, an dem die Vollfläche in
+/// 1.45.0 gescheitert war. Der Betreiber hat 55 % gewählt.
+///
+/// **Die Obergrenze bleibt die Karte darunter.** Wer diesen Wert
+/// hochdreht, holt 1.45.0 zurück.
+const rainFillAlpha = 140;
 
 /// Färbt das Gitter ein und gibt ein PNG zurück.
 ///

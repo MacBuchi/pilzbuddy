@@ -57,9 +57,15 @@ class RecordingStyle extends ml.StyleController {
     sources.removeWhere((s) => s.id == id);
   }
 
+  /// Die zuletzt über [updateGeoJsonSource] gesetzten Daten — die
+  /// Beschriftung tauscht bei jedem Zoomwechsel nur diese aus.
+  String? updated;
+
   @override
   Future<void> updateGeoJsonSource(
-      {required String id, required String data}) async {}
+      {required String id, required String data}) async {
+    updated = data;
+  }
 
   @override
   Future<void> addImage(String id, Uint8List bytes) async {}
@@ -102,29 +108,17 @@ void main() {
         ),
       );
 
-  test('legt die Fläche UNTER die Höhenlinien', () async {
-    // Die Fläche ist Orientierung, die Linien sind die Aussage. Läge sie
-    // darüber, würde ein halbdurchsichtiger Schleier genau das
-    // abschwächen, wofür es die Linien gibt.
+  test('hängt Quelle und Ebene ein', () async {
     final style = RecordingStyle();
-    await applyRainFill(style, fill: fillAt('file:///a.png'), appliedUrl: null);
-
-    expect(style.below[rainFillLayerId], firstAnnotationLayerId);
-    expect(style.calls,
-        ['addSource:$rainFillSourceId', 'addLayer:$rainFillLayerId']);
-  });
-
-  test('hängt an, solange es noch keine Linienebene gibt', () async {
-    // Kommt die Fläche vor den Linien an, gibt es nichts, worunter man
-    // sie legen könnte — dann ist Anhängen richtig: Der LayerManager
-    // legt die Linien gleich darüber.
-    final style = RecordingStyle(rejectBelow: true);
     final url =
         await applyRainFill(style, fill: fillAt('file:///a.png'), appliedUrl: null);
 
     expect(url, 'file:///a.png');
-    expect(style.layers.single.id, rainFillLayerId);
-    expect(style.below[rainFillLayerId], isNull);
+    expect(style.calls,
+        ['addSource:$rainFillSourceId', 'addLayer:$rainFillLayerId']);
+    expect(style.below[rainFillLayerId], isNull,
+        reason: 'seit 1.48.0 liegt nichts Eigenes mehr über der Fläche — '
+            'die Höhenlinien sind weg, die Marker sind Flutter-Widgets');
   });
 
   test('tauscht einen neuen Messstand aus, statt ihn danebenzulegen',
@@ -199,10 +193,22 @@ void main() {
     final style = RecordingStyle();
     await applyRainFill(style, fill: fillAt('file:///a.png'), appliedUrl: null);
 
-    final paint = style.layers.single.paint;
-    expect(paint['raster-opacity'], 1.0);
-    expect(paint['raster-resampling'], 'nearest',
-        reason: 'weichgezeichnet sähe das 1-km-Raster genauer aus, als es '
-            'ist — dieselbe Regel wie FilterQuality.none bei flutter_map');
+    expect(style.layers.single.paint['raster-opacity'], 1.0);
+  });
+
+  test('zeichnet die Bandränder weich', () async {
+    // Bewusste Kehrtwende gegenüber dem DWD-Bild, das hart bleibt: Seit
+    // die Fläche die Aussage trägt (1.48.0, keine Linien mehr), traten
+    // bei 55 % Deckkraft die 1-km-Treppenstufen an jeder Bandgrenze
+    // hervor — grob, und im Widerspruch zu den geglätteten Konturen, aus
+    // denen die Beschriftung in der Karte kommt. Zwei Darstellungen
+    // desselben Felds dürfen nicht verschieden aussehen.
+    //
+    // Die Genauigkeit leidet nicht: Der Wert am Spot kommt aus dem rohen
+    // Gitter, nicht aus diesem Bild.
+    final style = RecordingStyle();
+    await applyRainFill(style, fill: fillAt('file:///a.png'), appliedUrl: null);
+
+    expect(style.layers.single.paint['raster-resampling'], 'linear');
   });
 }
