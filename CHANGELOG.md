@@ -7,6 +7,20 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Dein Benutzername lässt sich jetzt ändern
+
+*5. August 2026 · Version 1.50.0*
+
+Im Profil gibt es neben „Passwort ändern" jetzt **„Benutzername
+ändern"**. Der Name ist das, worunter Freunde dich in der Suche finden —
+deshalb steht im Dialog auch dabei: Nach der Änderung finden sie dich
+unter dem neuen Namen.
+
+Nebenbei ist eine Lücke geschlossen: Benutzernamen sind jetzt auch dann
+einmalig, wenn sie sich nur in Groß- und Kleinschreibung unterscheiden.
+Ein zweiter „marcus" neben einem „Marcus" wäre für alle, die suchen,
+dasselbe Konto gewesen.
+
 ## Wie warm war es an deinem Spot
 
 *4. August 2026 · Version 1.49.0*

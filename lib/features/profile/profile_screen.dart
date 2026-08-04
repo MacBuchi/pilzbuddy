@@ -25,6 +25,7 @@ import '../../models/find.dart';
 import '../import_export/gpx_export.dart';
 import '../map/map_view/map_engine.dart';
 import '../spots/spot_providers.dart';
+import 'account_dialogs.dart';
 import 'profile_providers.dart';
 import '../../core/app_colors.dart';
 
@@ -171,6 +172,7 @@ class ProfileScreen extends ConsumerWidget {
                 'Alle deine Spots samt Fundhistorie für andere Karten-Apps'),
             onTap: () => _exportGpx(context, ref),
           ),
+          ChangeUsernameTile(username: profile?.username),
           const _ChangePasswordTile(),
           const Divider(height: 32),
           if (profile == null && profileAsync.isLoading)

@@ -14,6 +14,11 @@ create table public.profiles (
   share_details boolean not null default true,          -- auch Art/Anzahl/Datum teilen, nicht nur Standort
   created_at timestamptz not null default now()
 );
+-- Einmalig auch über Groß-/Kleinschreibung hinweg (Patch 013): Die
+-- Freundessuche matcht per ilike auf das Namens-Präfix, „Marcus" und
+-- „marcus" wären für Suchende dasselbe Konto.
+create unique index profiles_username_lower_key
+  on public.profiles (lower(username));
 
 create table public.spots (
   id uuid primary key default gen_random_uuid(),
@@ -333,5 +338,6 @@ insert into public.applied_patches (filename) values
   ('patch_009_fehlerberichte.sql'),
   ('patch_010_applied_patches_rls.sql'),
   ('patch_011_interne_funktionen.sql'),
-  ('patch_012_mindestversion.sql')
+  ('patch_012_mindestversion.sql'),
+  ('patch_013_username_gross_klein.sql')
 on conflict do nothing;

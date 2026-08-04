@@ -28,6 +28,12 @@ class MyProfileNotifier extends AsyncNotifier<Profile?> {
     ref.invalidateSelf();
     await future;
   }
+
+  Future<void> updateUsername(String username) async {
+    await ref.read(profileRepositoryProvider).updateUsername(username);
+    ref.invalidateSelf();
+    await future;
+  }
 }
 
 final myProfileProvider =

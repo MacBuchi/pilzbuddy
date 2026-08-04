@@ -98,8 +98,12 @@ void main() {
 
     await tester.tap(find.text('Noch kein Konto? Registrieren'));
     await settle(tester);
+    // Nur anders geschrieben ist trotzdem vergeben: Seit Patch 013 ist
+    // der Name auch über Groß-/Kleinschreibung hinweg einmalig — für
+    // die Freundessuche (Präfix, ilike) wären „TestPilz" und „testpilz"
+    // dasselbe Konto.
     await tester.enterText(
-        find.widgetWithText(TextField, 'Benutzername'), 'testpilz');
+        find.widgetWithText(TextField, 'Benutzername'), 'TestPilz');
     await tester.enterText(
         find.widgetWithText(TextField, 'E-Mail'), 'zweit@test.de');
     await tester.enterText(
