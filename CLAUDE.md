@@ -317,6 +317,51 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   lieferte (#157). Pro Rebuild neu wäre das andere Extrem (HTTP-Client-Leak
   je Positions-Tick). `test/online_tile_provider_swap_test.dart` nagelt den
   Wechsel fest.
+- **Regen auf der Karte** (#156, seit 1.45.0): vier Ebenen hinter einem
+  eigenen FAB (`rain_layer.dart`, `widgets/rain_layer_sheet.dart`) — Radar
+  jetzt und +1 h, dazu die Summen über 24 h (`dwd:SF-Produkt`) und 30 Tage
+  (`dwd:RADOLAN-W4`). Bewusst ein **festes Bild** je Ebene, kein
+  mitwandernder Ausschnitt: Die Produkte sind ein 1-km-Raster (20 km auf
+  512 px = 20×20 Blöcke, gemessen), ein mitwanderndes Bild fügte also
+  nichts hinzu — kostete aber eine Anfrage je Kartenverschiebung und
+  schickte das Sichtfenster des Nutzers an den DWD. Deshalb auch
+  `raster-resampling: nearest`: die Klötzchen sind die Daten.
+  Die **Abdeckung ist punktweise nachgemessen**, nicht aus der Bounding
+  Box gelesen — Salzburg, Innsbruck, Zürich, Bern und Chur liegen im
+  Radar, Wien, Graz, Klagenfurt und Genf nicht; die Summen sind
+  Deutschland allein. Das steht im Blatt, sonst sieht eine graue Fläche
+  in Wien nach einem Fehler der App aus.
+  `test/privacy_policy_test.dart` erzwingt seither die CLAUDE.md-Regel
+  „neues Netzziel ⇒ Datenschutzerklärung im selben PR" als Wächter:
+  Jeder Host, der in `lib/` auftaucht und dort nicht eingeordnet ist,
+  macht CI rot.
+- **Regen-Wertegitter** (`tool/rain_grid.py` + `.github/workflows/rain-data.yml`):
+  Damit die Summen in **unseren** Farben liegen und die Regenmenge am Spot
+  beantwortbar wird, ohne dass eine Koordinate das Gerät verlässt, holt CI
+  die Rohwerte über WCS und legt sie als Wertegitter (1 Byte je km²,
+  Zeilen-Delta + gzip, ~216 KB) samt `rain_manifest.json` auf den **festen
+  Tag `rain-data`** — kein Versions-Bump, deshalb kein Konflikt mit dem
+  Version Guard, und für die App kein neues Netzziel (GitHub-Releases
+  stehen längst in der Datenschutzerklärung). Nur Standardbibliothek, wie
+  `feedback_bot.py`; der GeoTIFF-Leser akzeptiert ausdrücklich nur
+  unkomprimierte 64-Bit-Floats mit einem Band und bricht sonst ab, statt
+  Zahlen zu raten.
+  **Die Falle, und sie ist still:** Eine `GetCoverage`-Anfrage **ohne**
+  `subset=time(…)` schlägt nicht fehl — GeoServer verschmilzt alle
+  Granulate des Mosaiks und liefert etwa doppelte Werte, in einem Gitter
+  richtiger Größe mit plausiblem Median. Mit der Zeitangabe stimmen die
+  Werte auf die Nachkommastelle mit `GetFeatureInfo` überein. Deshalb
+  läuft nach jedem Bau `--verify`: 24 zufällige Punkte gegen den Dienst,
+  und der Lauf bricht ab, wenn zu viele außerhalb der 3×3-Nachbarschaft
+  ihrer Zelle liegen (mit Zeitangabe 23/24 drin, ohne 7/24 — gemessen).
+  Zwei weitere Eigenheiten des Dienstes: der native `outputCrs` scheitert
+  („Unable to map projection Stereographic_North_Pole"), es muss
+  `EPSG:3857` mitgegeben werden; und Nichtdaten kommen sowohl als `-1.0`
+  als auch als `NaN`.
+  `--self-test` läuft netzfrei im Job „Analyze & Test" mit.
+  **Nicht** `GetFeatureInfo` je Spot benutzen, so verlockend es ist: Das
+  wäre die geheime Fundstelle, an den DWD geschickt. Genau dafür liegt das
+  Gitter auf dem Gerät.
 - Issue-Triage (`.github/workflows/claude-issue-triage.yml`): Claude analysiert
   jedes neue Issue (Einordnung, Labels, Ursache, Umsetzungsvorschlag als
   Kommentar) — darf aber NUR lesen/labeln/kommentieren. Umsetzung erst nach

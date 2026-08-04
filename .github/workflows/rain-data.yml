@@ -1,0 +1,104 @@
+name: Rain Data
+
+# Publishes the DWD rainfall sums as a compact value grid, so the app can
+# draw contour lines in its own palette and answer "how much rain fell at
+# this spot" without sending a coordinate anywhere. See tool/rain_grid.py.
+#
+# Why its own workflow and not a passenger on feedback.yml: different
+# cadence, and this one needs no secret at all — feedback.yml carries the
+# service_role key, and nothing that does not need it should run beside it.
+#
+# The assets live on a FIXED tag (rain-data), not on a version tag: the
+# data changes several times a day and the app does not. That also keeps
+# the Version Guard out of it — no file in a binary changes here.
+on:
+  schedule:
+    # RADOLAN-W4 (30 day sum) is published once a day around 05:50 UTC.
+    - cron: "17 6 * * *"
+    # SF-Produkt (rolling 24 h sum) is hourly; every three hours is plenty
+    # for a number nobody watches minute by minute.
+    - cron: "47 */3 * * *"
+  workflow_dispatch:
+    inputs:
+      layer:
+        description: "Which layer to rebuild (empty = both)"
+        required: false
+        type: choice
+        options: ["", "w4", "sf"]
+        default: ""
+
+# Never two runs at once — they would race on the shared manifest. Not
+# cancel-in-progress: a half-finished run would leave the manifest naming
+# a grid it never uploaded.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Build and publish rain grids
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Self-test
+        # Runs on every scheduled build, not just in CI on a pull request.
+        # A helper that only ever runs against the live service is a
+        # helper whose edge cases nobody has looked at since the day it
+        # was written.
+        run: python3 tool/rain_grid.py --self-test
+
+      - name: Pick layers
+        id: pick
+        run: |
+          case "${{ github.event.schedule }}" in
+            "17 6 * * *") layers="w4" ;;
+            "47 */3 * * *") layers="sf" ;;
+            *) layers="${{ inputs.layer }}" ;;
+          esac
+          [ -n "$layers" ] || layers="w4 sf"
+          echo "layers=$layers" >> "$GITHUB_OUTPUT"
+          echo "Building: $layers"
+
+      - name: Fetch the current manifest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p build/rain
+          # The two layers are built on different schedules, so a run must
+          # merge into what is already published instead of replacing it.
+          # Missing on the very first run — that is not an error.
+          gh release download rain-data --pattern rain_manifest.json \
+            --dir build/rain || echo "no manifest yet (first run)"
+
+      - name: Build
+        run: |
+          for layer in ${{ steps.pick.outputs.layers }}; do
+            python3 tool/rain_grid.py --layer "$layer" --out build/rain
+          done
+
+      - name: Verify against the service
+        # The guard against the one failure mode that is otherwise silent:
+        # without subset=time(...) the WCS merges every granule and returns
+        # roughly double the values, in a grid of the right size with a
+        # plausible-looking median. Only asking the service what it says at
+        # a given point exposes it.
+        run: |
+          for layer in ${{ steps.pick.outputs.layers }}; do
+            python3 tool/rain_grid.py --layer "$layer" --verify --out build/rain
+          done
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view rain-data >/dev/null 2>&1 || \
+            gh release create rain-data \
+              --title "Regen-Gitter" \
+              --notes "Niederschlagssummen des Deutschen Wetterdienstes als Wertegitter, ein Byte je Quadratkilometer (Datenbasis: DWD, GeoNutzV). Wird mehrmals täglich überschrieben — die Release-Beschreibung gehört zur Datenstrecke, nicht zu einer App-Version."
+          gh release upload rain-data build/rain/* --clobber
+          ls -la build/rain
