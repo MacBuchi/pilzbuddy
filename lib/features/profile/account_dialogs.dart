@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/errors.dart';
 import '../../core/widgets/form_notice.dart';
+import '../../data/providers.dart';
 import '../../models/profile.dart';
 import 'profile_providers.dart';
 
@@ -36,6 +37,101 @@ class ChangeUsernameTile extends ConsumerWidget {
                 context: context,
                 builder: (_) => _ChangeUsernameDialog(current: name),
               ),
+    );
+  }
+}
+
+/// Kachel „Andere Geräte abmelden" — der Handgriff nach einem
+/// Passwortwechsel auf verlorenem oder geteiltem Gerät: Das alte
+/// Passwort gilt dort nicht mehr, die laufende Sitzung aber schon.
+class SignOutOtherDevicesTile extends StatelessWidget {
+  const SignOutOtherDevicesTile({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.phonelink_erase_outlined),
+      title: const Text('Andere Geräte abmelden'),
+      subtitle: const Text('Beendet deine Anmeldung überall außer hier'),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => showDialog<void>(
+        context: context,
+        builder: (_) => const _SignOutOtherDevicesDialog(),
+      ),
+    );
+  }
+}
+
+/// Mit Rückfrage: Ein Fehltipp würde sonst still das Tablet zu Hause
+/// abmelden, und dort sieht es aus wie ein Fehler der App.
+class _SignOutOtherDevicesDialog extends ConsumerStatefulWidget {
+  const _SignOutOtherDevicesDialog();
+
+  @override
+  ConsumerState<_SignOutOtherDevicesDialog> createState() =>
+      _SignOutOtherDevicesDialogState();
+}
+
+class _SignOutOtherDevicesDialogState
+    extends ConsumerState<_SignOutOtherDevicesDialog> {
+  String? _error;
+  bool _busy = false;
+
+  Future<void> _confirm() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await ref.read(authRepositoryProvider).signOutOtherDevices();
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Alle anderen Geräte wurden abgemeldet.')),
+      );
+    } catch (e, stackTrace) {
+      logError('Andere Geräte abmelden', e, stackTrace);
+      if (mounted) setState(() => _error = friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Andere Geräte abmelden'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+              'Auf allen anderen Geräten wird die Anmeldung beendet — dort '
+              'ist danach eine neue Anmeldung nötig. Dieses Gerät bleibt '
+              'angemeldet.'),
+          if (_error != null) ...[
+            const SizedBox(height: 16),
+            FormNotice(message: _error!, tone: NoticeTone.error),
+          ],
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: _busy ? null : () => Navigator.of(context).pop(),
+          child: const Text('Abbrechen'),
+        ),
+        FilledButton(
+          onPressed: _busy ? null : _confirm,
+          child: _busy
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2))
+              : const Text('Abmelden'),
+        ),
+      ],
     );
   }
 }

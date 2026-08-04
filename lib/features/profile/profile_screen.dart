@@ -174,6 +174,7 @@ class ProfileScreen extends ConsumerWidget {
           ),
           ChangeUsernameTile(username: profile?.username),
           const _ChangePasswordTile(),
+          const SignOutOtherDevicesTile(),
           const Divider(height: 32),
           if (profile == null && profileAsync.isLoading)
             const Padding(

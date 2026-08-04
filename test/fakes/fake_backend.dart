@@ -252,6 +252,11 @@ class FakeBackend {
   bool usernameTaken(String username) => users
       .any((u) => u.username.toLowerCase() == username.toLowerCase());
 
+  /// Wie oft „andere Geräte abmelden" widerrufen hat — einzelne fremde
+  /// Sitzungen modelliert der Fake nicht, aber der Effekt muss prüfbar
+  /// sein und die eigene Sitzung unangetastet bleiben.
+  int otherSessionsRevoked = 0;
+
   /// Wie die SQL-Funktion `are_friends`: nur akzeptierte Freundschaften.
   bool areFriends(String a, String b) => friendships.any((f) =>
       f.status == 'accepted' &&
@@ -364,6 +369,14 @@ class FakeAuthRepository implements AuthRepository {
   @override
   Future<void> signOut() async =>
       backend.setCurrentUser(null, AuthChangeEvent.signedOut);
+
+  @override
+  Future<void> signOutOtherDevices() async {
+    // Andere Sitzungen modelliert der Fake nicht einzeln — der Zähler
+    // hält fest, DASS widerrufen wurde, und die eigene Sitzung bleibt
+    // unangetastet (kein setCurrentUser, kein Event).
+    backend.otherSessionsRevoked++;
+  }
 
   /// Nimmt jede Adresse an — auch unbekannte. Genau so verhält sich
   /// Supabase, damit die Antwort kein Konto-Orakel wird.
