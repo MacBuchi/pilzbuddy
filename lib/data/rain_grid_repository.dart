@@ -123,7 +123,7 @@ class RainGridRepository {
         final grid = _decode(bytes, info);
         if (grid != null) {
           await cached.writeAsBytes(bytes, flush: true);
-          await _pruneOthers(cached.path);
+          await _pruneOthers(cached.path, prefix: '${info.layer}_');
           return grid;
         }
       } catch (_) {
@@ -188,13 +188,16 @@ class RainGridRepository {
   /// Alles außer dem gerade geschriebenen Stand derselben Ebene weg. Ohne
   /// das sammelt sich je Messzeitpunkt eine Datei an — bei der
   /// 24-Stunden-Summe achtmal am Tag.
-  Future<void> _pruneOthers(String keep) async {
+  ///
+  /// Der Namensanfang kommt von außen und wird nicht aus [keep] geraten:
+  /// Gitter (`w4_…`) und Flächen (`fill_w4_…`) liegen im selben Ordner,
+  /// und ein geratener Anfang würde die jeweils andere Sorte mitreißen.
+  Future<void> _pruneOthers(String keep, {required String prefix}) async {
     try {
       final dir = await _dir();
-      final layer = keep.split('/').last.split('_').first;
       for (final entry in dir.listSync().whereType<File>()) {
         if (entry.path == keep) continue;
-        if (!entry.path.split('/').last.startsWith('${layer}_')) continue;
+        if (!entry.path.split('/').last.startsWith(prefix)) continue;
         await entry.delete();
       }
     } catch (_) {
@@ -235,6 +238,35 @@ class RainGridRepository {
       return RainGridInfo.tryParse(
           jsonDecode(await file.readAsString()) as Map<String, dynamic>);
     } catch (_) {
+      return null;
+    }
+  }
+
+  /// Legt die eingefärbte Fläche als PNG auf Platte und liefert die
+  /// `file://`-URL — oder `null`, wenn das Schreiben scheitert.
+  ///
+  /// Warum überhaupt eine Datei: MapLibres `image`-Quelle nimmt eine URL,
+  /// keine Bytes (flutter_map bekommt dieselben Bytes direkt als
+  /// `MemoryImage`). Der Messzeitpunkt steckt im Namen, damit ein neuer
+  /// Stand nie unter derselben URL liegt — die Engine würde sonst das
+  /// alte Bild behalten und die Fläche wäre still veraltet.
+  Future<String?> writeFill(
+      String layer, DateTime measured, List<int> png) async {
+    try {
+      final dir = await _dir();
+      final stamp =
+          measured.toUtc().toIso8601String().replaceAll(RegExp(r'[:.]'), '-');
+      final file = File('${dir.path}/fill_${layer}_$stamp.png');
+      if (!await file.exists()) {
+        await file.writeAsBytes(png, flush: true);
+        await _pruneOthers(file.path, prefix: 'fill_${layer}_');
+      }
+      return 'file://${file.path}';
+    } catch (_) {
+      // Kein Platz, kein Schreibrecht: Dann bleibt es bei den Linien
+      // ohne Fläche. Die Aussage steckt in den Linien, die Fläche ist
+      // Orientierung — das ist ein hinnehmbarer Verlust und kein Fall
+      // für `error_reports`.
       return null;
     }
   }

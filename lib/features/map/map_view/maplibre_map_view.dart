@@ -24,6 +24,7 @@ import '../rain_data_providers.dart';
 import '../rain_layer.dart';
 import 'flutter_map_view.dart';
 import 'map_view.dart';
+import 'maplibre_rain_fill.dart';
 import 'maplibre_style_provider.dart';
 import 'marker_culling.dart';
 
@@ -113,6 +114,39 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
   /// und der String-Vergleich erspart der Engine die unveränderten Fälle.
   String? _appliedStyle;
 
+  /// Der Style, wie ihn die Engine gerade hält — Zugang für alles, was
+  /// NICHT im Style-Dokument steht. Genau ein Fall bisher: die
+  /// Regenfläche (`maplibre_rain_fill.dart`, dort steht das Warum).
+  ml.StyleController? _style;
+
+  /// Die zuletzt eingehängte Fläche. Nach einem `setStyle` ist sie weg,
+  /// ohne dass jemand sie entfernt hätte — deshalb wird sie bei jedem
+  /// Style-Laden zurückgesetzt und neu gelegt.
+  String? _appliedFillUrl;
+
+  /// Reiht die Änderungen der Fläche auf. Ohne das könnten zwei rasch
+  /// aufeinanderfolgende Wechsel (Ebene umschalten, während die Fläche
+  /// noch lädt) sich überholen — und übrig bliebe eine Quelle ohne
+  /// Ebene oder eine Ebene ohne Quelle.
+  Future<void> _fillWork = Future.value();
+
+  void _syncRainFill() {
+    final style = _style;
+    if (style == null) return;
+    final fill = ref.read(rainFillFileProvider).valueOrNull;
+    _fillWork = _fillWork.then((_) async {
+      try {
+        _appliedFillUrl = await applyRainFill(style,
+            fill: fill, appliedUrl: _appliedFillUrl);
+      } catch (_) {
+        // Die Fläche ist eine Zugabe zu den Linien; ein Fehlschlag beim
+        // Ein- oder Aushängen darf die Karte nicht mitnehmen. Still,
+        // weil ein Eintrag je Kartenwechsel den Wochendigest zuschüttet
+        // (Lehre aus #124/#136).
+      }
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -162,6 +196,10 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
         controller.setStyle(style);
       }
     });
+    // Die Fläche hängt NICHT im Style (Begründung in
+    // maplibre_rain_fill.dart) — sie wird nachgetragen, sobald der
+    // Provider einen neuen Stand hat.
+    ref.listen(rainFillFileProvider, (previous, next) => _syncRainFill());
 
     final styleAsync = ref.watch(maplibreStyleProvider);
     final style = styleAsync.valueOrNull;
@@ -199,6 +237,14 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
         gestures: const ml.MapGestures(
             rotate: false, pan: true, zoom: true, pitch: false),
       ),
+      // Läuft bei jedem Style-Laden, also auch nach jedem `setStyle`.
+      // Alles Imperative ist dann weg — die Fläche wird deshalb hier neu
+      // gelegt und nicht bloß beim ersten Mal.
+      onStyleLoaded: (style) {
+        _style = style;
+        _appliedFillUrl = null;
+        _syncRainFill();
+      },
       onMapCreated: (controller) {
         _ml = controller;
         _appliedStyle = style;

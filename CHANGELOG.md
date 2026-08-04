@@ -12,15 +12,20 @@ https://github.com/MacBuchi/pilzbuddy/releases
 *4. August 2026 · Version 1.46.0*
 
 Die beiden Regensummen — **letzte 24 Stunden** und **letzte 30 Tage** —
-sehen anders aus als gestern. Statt einer eingefärbten Fläche liegen dort
+sehen anders aus als gestern. Statt einer deckenden Fläche liegen dort
 jetzt **Höhenlinien**, so wie auf einer Wanderkarte die Höhe: Jede Linie
 verbindet Orte mit gleich viel Regen, von sandgelb (wenig) über grün bis
-blau (viel).
+blau (viel). Zwischen den Linien liegt derselbe Ton noch einmal ganz
+zart, damit man auf einen Blick sieht, wo mehr und wo weniger war.
 
-Der Grund ist praktisch. Die eingefärbte Fläche legte sich über alles,
-und beim Hineinzoomen waren Wege und Ortsnamen kaum noch zu lesen. Eine
-Ebene, die einen daran hindert, zum Spot zu finden, ist keine Hilfe.
-Linien decken nichts zu — die Karte darunter bleibt vollständig sichtbar.
+Der Grund ist praktisch. Die alte Fläche legte sich über alles, und beim
+Hineinzoomen waren Wege und Ortsnamen kaum noch zu lesen. Eine Ebene, die
+einen daran hindert, zum Spot zu finden, ist keine Hilfe. Jetzt bleibt
+die Karte darunter vollständig sichtbar.
+
+Je weiter man herauszoomt, desto weniger Linien zeigt die Karte — sonst
+läge über Deutschland ein Netz, in dem nichts mehr zu erkennen wäre. Was
+welche Farbe bedeutet, steht im Regen-Blatt unter der Ebenenwahl.
 
 Nebenbei sind die Daten dabei rund zehnmal kleiner geworden, was im Wald
 am Datenvolumen zählt.

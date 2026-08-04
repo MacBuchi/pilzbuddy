@@ -86,6 +86,7 @@ final rainFillProvider = FutureProvider.family<RainFill?, RainLayer>(
     east: grid.east,
     north: grid.north,
     south: grid.south,
+    measured: grid.measured,
   );
 });
 
@@ -97,6 +98,7 @@ class RainFill {
     required this.east,
     required this.north,
     required this.south,
+    required this.measured,
   });
 
   final Uint8List png;
@@ -104,7 +106,34 @@ class RainFill {
   final double east;
   final double north;
   final double south;
+
+  /// Der Messzeitpunkt des zugrunde liegenden Gitters — er unterscheidet
+  /// zwei Flächen derselben Ebene und wird deshalb zum Dateinamen.
+  final DateTime measured;
 }
+
+/// Dieselbe Fläche, aber als Datei auf Platte — der Weg für MapLibre,
+/// dessen `image`-Quelle eine URL nimmt und keine Bytes.
+///
+/// Bewusst OHNE `family`: Die MapLibre-Ansicht hängt sich per `ref.listen`
+/// daran, und ein Familienschlüssel, der beim Ebenenwechsel wechselt,
+/// wäre dort ein zweiter Zuhörer statt eines geänderten Werts — die alte
+/// Fläche bliebe auf der Karte liegen.
+///
+/// Auf dem Web-Pfad wird dieser Provider nie beobachtet; dort nimmt
+/// flutter_map die Bytes direkt.
+final rainFillFileProvider =
+    FutureProvider<({String url, RainFill fill})?>((ref) async {
+  final layer = ref.watch(rainLayerProvider);
+  final key = rainGridKeyFor(layer);
+  if (key == null) return null;
+  final fill = await ref.watch(rainFillProvider(layer).future);
+  if (fill == null) return null;
+  final url = await ref
+      .watch(rainGridRepositoryProvider)
+      .writeFill(key, fill.measured, fill.png);
+  return url == null ? null : (url: url, fill: fill);
+});
 
 Uint8List _fill(({RainGrid grid, List<int> levels}) input) =>
     rainFillPng(input.grid, levels: input.levels);
