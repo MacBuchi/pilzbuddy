@@ -8,10 +8,40 @@
   Wie bei der Reset-Mail: {{ .Token }} und KEIN {{ .ConfirmationURL }}.
   Auch signUp legt einen PKCE-Verifier auf dem anfordernden Gerät ab, der
   Link wäre also gerätegebunden und stürbe im Handy-Browser.
+
+  Der Code steckt in einem <a> OHNE href gegen die Telefonnummer-Erkennung
+  der Mail-Programme; Aufbau und Farben wie recovery.html — die Gründe
+  stehen dort.
 -->
-<h2>Willkommen bei PilzBuddy</h2>
-<p>Bestätige deine Adresse mit diesem Code:</p>
-<p style="font-size:28px;letter-spacing:4px"><strong>{{ .Token }}</strong></p>
-<p>Gib ihn in der App ein — danach bist du direkt angemeldet.
-   Der Code gilt eine Stunde.</p>
-<p>Wenn du dich nicht registriert hast, ignoriere diese Mail einfach.</p>
+<div style="font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; max-width: 480px; color: #1c1b1f; line-height: 1.5;">
+  <h2 style="color: #2E7D32; font-size: 20px; margin: 0 0 16px;">
+    Willkommen bei PilzBuddy
+  </h2>
+
+  <p style="margin: 0 0 16px;">
+    Schön, dass du dabei bist. Bestätige deine Adresse mit diesem Code:
+  </p>
+
+  <p style="font-size: 32px; font-weight: 700; letter-spacing: 6px;
+            background: #FFF6E3; color: #2E7D32; padding: 16px;
+            text-align: center; border-radius: 8px; margin: 0 0 16px;">
+    <a style="color: #2E7D32; text-decoration: none;">{{ .Token }}</a>
+  </p>
+
+  <p style="margin: 0 0 16px;">
+    Gib ihn in der App ein — danach bist du direkt angemeldet. Der Code
+    gilt eine Stunde.
+  </p>
+
+  <p style="margin: 0 0 16px; color: #49454f; font-size: 14px;">
+    Du hast dich nicht registriert? Dann ist nichts passiert — ohne den
+    Code entsteht kein nutzbares Konto. Diese Mail kannst du löschen.
+  </p>
+
+  <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 24px 0;">
+
+  <p style="color: #79747e; font-size: 12px; margin: 0;">
+    PilzBuddy — deine Pilz-Spots, mit Freunden geteilt. Diese Nachricht
+    wurde automatisch verschickt, eine Antwort darauf liest niemand.
+  </p>
+</div>
