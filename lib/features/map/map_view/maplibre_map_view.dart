@@ -130,6 +130,30 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
   /// Ebene oder eine Ebene ohne Quelle.
   Future<void> _fillWork = Future.value();
 
+  /// Bittet die Engine um ein neues Bild.
+  ///
+  /// **Warum das nötig ist** (am Emulator gemessen, 2026-08-04):
+  /// maplibre-native zeichnet nach dem *Entfernen* einer Ebene nicht von
+  /// selbst neu. „Regen aus" ließ Linien und Fläche stehen, bis jemand
+  /// die Karte verschob — ein Rebuild ohne Kamerabewegung reichte
+  /// nachweislich nicht (Banner weggeklickt, Bild pixelgleich). Beim
+  /// *Hinzufügen* passiert es von selbst, weil die neue Quelle lädt und
+  /// dabei anstößt. Ein öffentliches `triggerRepaint` hat das Paket
+  /// nicht; die Kamera auf ihren eigenen Wert zu setzen ist der
+  /// vorhandene Weg.
+  ///
+  /// Nach dem Frame, nicht in ihm: Entfernt werden die Linienebenen im
+  /// `didUpdateWidget` des Pakets, also erst nach diesem Build.
+  void _requestRepaint() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final controller = _ml;
+      final camera = controller?.camera;
+      if (controller == null || camera == null || !mounted) return;
+      unawaited(
+          controller.moveCamera(center: camera.center, zoom: camera.zoom));
+    });
+  }
+
   void _syncRainFill() {
     final style = _style;
     if (style == null) return;
@@ -200,6 +224,10 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
     // maplibre_rain_fill.dart) — sie wird nachgetragen, sobald der
     // Provider einen neuen Stand hat.
     ref.listen(rainFillFileProvider, (previous, next) => _syncRainFill());
+    // Jeder Wechsel der Regenebene nimmt etwas von der Karte: die Fläche
+    // hier, die Linienebenen im LayerManager des Pakets. Beides braucht
+    // danach einen Anstoß — siehe [_requestRepaint].
+    ref.listen(rainLayerProvider, (previous, next) => _requestRepaint());
 
     final styleAsync = ref.watch(maplibreStyleProvider);
     final style = styleAsync.valueOrNull;

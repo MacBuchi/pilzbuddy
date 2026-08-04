@@ -250,6 +250,13 @@ class RainGridRepository {
   /// `MemoryImage`). Der Messzeitpunkt steckt im Namen, damit ein neuer
   /// Stand nie unter derselben URL liegt — die Engine würde sonst das
   /// alte Bild behalten und die Fläche wäre still veraltet.
+  ///
+  /// **Geschrieben wird immer**, auch wenn die Datei schon da ist: Der
+  /// Name kennt den Messzeitpunkt, nicht die Darstellung. Ändert eine
+  /// neue App-Version Farben, Deckkraft oder Glättung, läge sonst bis zur
+  /// nächsten Messung das alte Bild auf der Karte — am Emulator genau so
+  /// passiert (2026-08-04: das geglättete Bild war pixelgleich zum
+  /// ungeglätteten, weil die Datei von vorher wiederverwendet wurde).
   Future<String?> writeFill(
       String layer, DateTime measured, List<int> png) async {
     try {
@@ -257,10 +264,8 @@ class RainGridRepository {
       final stamp =
           measured.toUtc().toIso8601String().replaceAll(RegExp(r'[:.]'), '-');
       final file = File('${dir.path}/fill_${layer}_$stamp.png');
-      if (!await file.exists()) {
-        await file.writeAsBytes(png, flush: true);
-        await _pruneOthers(file.path, prefix: 'fill_${layer}_');
-      }
+      await file.writeAsBytes(png, flush: true);
+      await _pruneOthers(file.path, prefix: 'fill_${layer}_');
       return 'file://${file.path}';
     } catch (_) {
       // Kein Platz, kein Schreibrecht: Dann bleibt es bei den Linien
