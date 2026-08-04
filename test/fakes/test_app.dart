@@ -141,6 +141,10 @@ List<Override> overridesFor(FakeBackend backend,
       // Ebene fällt auf das DWD-Bild zurück — genau der Weg, den ein
       // Gerät ohne Empfang nimmt.
       rainGridLoaderProvider.overrideWithValue((_) async => null),
+      // Dieselbe Naht für den Tagesstapel am Spot. Er lädt zwar erst nach
+      // ausdrücklicher Zustimmung — aber ein Test, der die erteilt, ginge
+      // ohne diese Zeile wirklich zu GitHub.
+      rainStackLoaderProvider.overrideWithValue(() async => null),
       rainImageProviderFactory
           .overrideWithValue((url) => MemoryImage(kTransparentTile)),
       updateInfoProvider.overrideWith((ref) => Future.value(null)),

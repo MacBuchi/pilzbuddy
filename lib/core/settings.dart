@@ -24,6 +24,16 @@ abstract interface class Settings {
   bool get classicMapEnabled;
 
   Future<void> setClassicMapEnabled(bool value);
+
+  /// Darf der Regenverlauf am Spot Daten nachladen?
+  ///
+  /// Standardmäßig NEIN — dieselbe Zusage wie bei der Regenebene: Der
+  /// Stapel kostet beim ersten Mal rund 0,9 MB, und das gibt man im Wald
+  /// nicht ungefragt aus. Wer einmal zugestimmt hat, wird nicht wieder
+  /// gefragt; danach ist es eine Datei am Tag.
+  bool get rainCourseEnabled;
+
+  Future<void> setRainCourseEnabled(bool value);
 }
 
 /// Umsetzung auf SharedPreferences (Android: XML im App-Verzeichnis).
@@ -48,12 +58,21 @@ class PrefsSettings implements Settings {
   Future<void> setOfflineMapEnabled(bool value) =>
       _prefs.setBool(_offlineMapEnabledKey, value);
 
+  static const _rainCourseEnabledKey = 'rain_course_enabled';
+
   @override
   bool get classicMapEnabled => _prefs.getBool(_classicMapEnabledKey) ?? false;
 
   @override
   Future<void> setClassicMapEnabled(bool value) =>
       _prefs.setBool(_classicMapEnabledKey, value);
+
+  @override
+  bool get rainCourseEnabled => _prefs.getBool(_rainCourseEnabledKey) ?? false;
+
+  @override
+  Future<void> setRainCourseEnabled(bool value) =>
+      _prefs.setBool(_rainCourseEnabledKey, value);
 }
 
 /// Wird in `main()` mit den geladenen Einstellungen überschrieben, in Tests
