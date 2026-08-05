@@ -34,6 +34,27 @@ abstract interface class Settings {
   bool get rainCourseEnabled;
 
   Future<void> setRainCourseEnabled(bool value);
+
+  /// Bis zu welchem Zeitpunkt Buddy-Funde als gesehen gelten (#202).
+  ///
+  /// Gerätelokal mit Absicht: Der Hinweis ist eine Bequemlichkeit dieses
+  /// Geräts, kein Konto-Zustand. Verglichen wird gegen die SERVER-Zeit
+  /// der Funde (`created_at`), nicht gegen die Geräteuhr. `null` heißt
+  /// „nie initialisiert" — das Banner bleibt dann aus, siehe
+  /// [ensureFindSeenMarker].
+  DateTime? get lastFindSeenAt;
+
+  Future<void> setLastFindSeenAt(DateTime value);
+}
+
+/// Erstlauf-Schutz für das Buddy-Fund-Banner: Ohne Marker gälte ALLES als
+/// neu — auf geteilten Spots liegen seit jeher fremde (Besitzer-)Funde,
+/// und das Banner schriee beim ersten Start nach dem Update über den
+/// kompletten Bestand. Deshalb setzt `main()` den Marker einmalig auf
+/// „jetzt"; ab da zählt nur, was danach dazukommt.
+Future<void> ensureFindSeenMarker(Settings settings, {DateTime? now}) async {
+  if (settings.lastFindSeenAt != null) return;
+  await settings.setLastFindSeenAt(now ?? DateTime.now().toUtc());
 }
 
 /// Umsetzung auf SharedPreferences (Android: XML im App-Verzeichnis).
@@ -73,6 +94,20 @@ class PrefsSettings implements Settings {
   @override
   Future<void> setRainCourseEnabled(bool value) =>
       _prefs.setBool(_rainCourseEnabledKey, value);
+
+  // Die erste Nicht-Bool-Einstellung: als ISO-8601-UTC-String, dasselbe
+  // Format, das auch die Fehlerberichte schreiben.
+  static const _lastFindSeenAtKey = 'last_find_seen_at';
+
+  @override
+  DateTime? get lastFindSeenAt {
+    final raw = _prefs.getString(_lastFindSeenAtKey);
+    return raw == null ? null : DateTime.tryParse(raw)?.toUtc();
+  }
+
+  @override
+  Future<void> setLastFindSeenAt(DateTime value) =>
+      _prefs.setString(_lastFindSeenAtKey, value.toUtc().toIso8601String());
 }
 
 /// Wird in `main()` mit den geladenen Einstellungen überschrieben, in Tests

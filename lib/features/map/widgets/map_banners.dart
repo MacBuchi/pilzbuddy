@@ -7,14 +7,18 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/errors.dart';
+import '../../../core/settings.dart';
 import '../../../core/update_check.dart';
 import '../../../core/widgets/form_notice.dart';
 import '../../../data/apk_installer.dart';
 import '../../../data/feedback_repository.dart';
 import '../../../data/providers.dart';
+import '../../../models/find.dart';
+import '../../../models/spot.dart';
 import '../../friends/friend_providers.dart';
 import '../../offline_maps/offline_map_providers.dart';
 import '../../spots/spot_providers.dart';
+import '../../spots/widgets/spot_detail_sheet.dart';
 import '../../update/update_installer.dart';
 import '../../../core/app_colors.dart';
 
@@ -33,10 +37,60 @@ final updateBannerDismissedProvider = StateProvider<bool>((ref) => false);
 /// Karten-Update-Banner für diese Sitzung ausgeblendet?
 final mapUpdateBannerDismissedProvider = StateProvider<bool>((ref) => false);
 
+/// Bis wann Buddy-Funde als gesehen gelten (#202) — gerätelokal und
+/// über den Neustart hinaus (Muster `rainCourseEnabledProvider`:
+/// Startwert aus den Settings, geschrieben wird am Aufrufort).
+final lastFindSeenAtProvider = StateProvider<DateTime?>(
+    (ref) => ref.watch(settingsProvider).lastFindSeenAt);
+
+/// Die Server-Zeit eines Funds. `foundOn` nur als Rückfall — `created_at`
+/// ist in der DB not null, auch alte Cache-Zeilen tragen es.
+DateTime _findStamp(Find find) => (find.createdAt ?? find.foundOn).toUtc();
+
+/// Fremde Funde, die seit dem Marker dazukamen — neuester zuerst, von
+/// eigenen UND von geteilten Spots (beide Fälle aus Wunsch #202).
+///
+/// `null`-Marker heißt „nie initialisiert" und defensiv „nichts Neues":
+/// `main()` setzt ihn beim ersten Start ([ensureFindSeenMarker]) — ohne
+/// den Schutz schriee das Banner nach dem Update über den kompletten
+/// Bestand an Besitzer-Funden auf geteilten Spots.
+final newBuddyFindsProvider = Provider<List<({Find find, Spot spot})>>((ref) {
+  final seenUntil = ref.watch(lastFindSeenAtProvider);
+  if (seenUntil == null) return const [];
+  final spots = [
+    ...ref.watch(mySpotListProvider),
+    ...ref.watch(friendSpotsProvider).valueOrNull ?? const <Spot>[],
+  ];
+  return [
+    for (final spot in spots)
+      for (final find in spot.finds)
+        if (!find.isOwn && _findStamp(find).isAfter(seenUntil))
+          (find: find, spot: spot),
+  ]..sort((a, b) => _findStamp(b.find).compareTo(_findStamp(a.find)));
+});
+
 /// Banner oben im Hauptfenster: Neuigkeiten (offene Freundschaftsanfragen)
 /// und — solange die App jung ist — ein prominentes Feature-Wunsch-Feld.
 class MapBanners extends ConsumerWidget {
   const MapBanners({super.key});
+
+  /// Markiert die gerade angezeigten Buddy-Funde als gesehen: Der Marker
+  /// springt auf die SERVER-Zeit des neuesten Funds — nicht auf die
+  /// Geräteuhr, sonst verschluckte eine nachgehende Uhr Funde, die
+  /// zwischen Anzeige und Tipp eintrafen. Persistenz-Fehler werden nur
+  /// protokolliert; der Banner-Pfad darf nie werfen.
+  void _markFindsSeen(WidgetRef ref, List<({Find find, Spot spot})> fresh) {
+    if (fresh.isEmpty) return;
+    final newest = fresh
+        .map((e) => _findStamp(e.find))
+        .reduce((a, b) => a.isAfter(b) ? a : b);
+    ref.read(lastFindSeenAtProvider.notifier).state = newest;
+    unawaited(ref
+        .read(settingsProvider)
+        .setLastFindSeenAt(newest)
+        .catchError((Object e, StackTrace s) =>
+            logError('Fund-Marker speichern', e, s)));
+  }
 
   Future<void> _openUpdateDialog(BuildContext context, UpdateInfo info) {
     return showDialog<void>(
@@ -137,6 +191,7 @@ class MapBanners extends ConsumerWidget {
 
     final updateInfo = ref.watch(updateInfoProvider).valueOrNull;
     final updateDismissed = ref.watch(updateBannerDismissedProvider);
+    final freshFinds = ref.watch(newBuddyFindsProvider);
 
     // Ohne Empfang kommen die Spots aus dem Zwischenspeicher. Das gehört
     // dazugesagt: Wer im Wald einen Spot vermisst, den er gestern angelegt
@@ -214,6 +269,27 @@ class MapBanners extends ConsumerWidget {
             content: Text(incoming == 1
                 ? '🔔 1 offene Freundschaftsanfrage — antippen'
                 : '🔔 $incoming offene Freundschaftsanfragen — antippen'),
+          ),
+        // Neue Buddy-Funde (#202) — NACH den Anfragen (dort wartet eine
+        // Entscheidung, hier nur eine Neuigkeit), in derselben Buddy-
+        // Farbe. Antippen öffnet den Spot des neuesten Funds und markiert
+        // ALLE aktuellen als gesehen; das X markiert ohne Öffnen.
+        if (freshFinds.isNotEmpty)
+          _banner(
+            context,
+            background: AppColors.friendBlue,
+            foreground: Colors.white,
+            onTap: () {
+              _markFindsSeen(ref, freshFinds);
+              showSpotDetailSheet(context, freshFinds.first.spot.id);
+            },
+            onDismiss: () => _markFindsSeen(ref, freshFinds),
+            content: Text(freshFinds.length == 1
+                ? '🔔 Neuer Fund von '
+                    '${freshFinds.first.find.authorUsername ?? 'deinem Buddy'}'
+                    ' — antippen'
+                : '🔔 ${freshFinds.length} neue Funde deiner Buddys '
+                    '— antippen'),
           ),
         if (!feedbackDismissed)
           _banner(

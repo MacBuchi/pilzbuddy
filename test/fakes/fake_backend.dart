@@ -195,6 +195,8 @@ class FakeBackend {
 
   /// [authorId] wie `finds.author_id` (Patch 014) — ohne Angabe der
   /// Spot-Besitzer, wie es der Backfill für Bestandsdaten macht.
+  /// [createdAt] für Tests, die das Buddy-Fund-Banner (#202) gegen einen
+  /// festen „gesehen bis"-Marker prüfen.
   void addFindRow(
     String spotId, {
     String? species,
@@ -202,6 +204,7 @@ class FakeBackend {
     DateTime? foundOn,
     String? note,
     String? authorId,
+    DateTime? createdAt,
   }) {
     final row = spots.firstWhere((s) => s.id == spotId);
     row.finds.add(Find(
@@ -211,7 +214,7 @@ class FakeBackend {
       count: count,
       foundOn: foundOn ?? DateTime.now(),
       note: note,
-      createdAt: DateTime.now(),
+      createdAt: createdAt ?? DateTime.now(),
       authorId: authorId ?? row.ownerId,
     ));
   }

@@ -67,6 +67,8 @@ Future<void> main() async {
   // gilt (Issue #145). Der Aufruf liest eine kleine lokale Datei — er darf
   // den Start aufhalten, ein sichtbares Umschalten der Karte nicht.
   final settings = PrefsSettings(await SharedPreferences.getInstance());
+  // Erstlauf-Schutz fürs Buddy-Fund-Banner — Begründung an der Funktion.
+  await ensureFindSeenMarker(settings);
 
   runApp(ProviderScope(
     overrides: [settingsProvider.overrideWithValue(settings)],

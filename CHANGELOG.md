@@ -7,6 +7,20 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Karte sagt dir, wenn ein Buddy einen Fund eingetragen hat
+
+*5. August 2026 · Version 1.55.0*
+
+Trägt ein Pilz-Buddy einen Fund ein — auf einem deiner Spots oder auf
+einem, den er mit dir geteilt hat —, zeigt die Karte oben ein blaues
+Banner: **„Neuer Fund von …"**. Antippen öffnet direkt den Spot mit dem
+neuesten Fund; das X blendet den Hinweis aus. Beides merkt sich die App
+auf dem Gerät, der Hinweis kommt also nicht nach jedem Neustart wieder.
+
+Es gibt dafür keine Push-Nachrichten und keine E-Mails — der Hinweis
+erscheint nur in der App, und es verlässt dafür kein einziges neues
+Datum dein Gerät.
+
 ## Pilz-Buddies können Funde zu geteilten Spots eintragen
 
 *5. August 2026 · Version 1.54.0*
