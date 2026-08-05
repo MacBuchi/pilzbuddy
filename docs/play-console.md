@@ -59,7 +59,9 @@ auslöst und darüber informiert wird, sind ausgenommen. Genau das ist es hier:
 die Freigabe passiert nur nach angenommener Freundschaftsanfrage, ist pro Spot
 und global abschaltbar, und der Live-Standort läuft von selbst ab. Trotzdem muss
 es in der Beschreibung und in der Datenschutzerklärung stehen — beides ist der
-Fall.
+Fall. Dasselbe gilt für Funde, die man selbst an geteilten Spots von Freunden
+einträgt (seit 1.54.0): sichtbar nur für den Eintrager und den Spot-Besitzer,
+nie für Dritte — die Freundesgruppe verlässt auch das nicht.
 
 **² Feedback landet öffentlich auf GitHub — *geteilt*.**
 Empfehlung: **ja, als geteilt deklarieren.** Der Feedback-Bot macht daraus

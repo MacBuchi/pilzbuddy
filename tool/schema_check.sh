@@ -73,9 +73,12 @@ verdict() {
 check_get "profiles-Spalten" \
   "/rest/v1/profiles?select=id,username,display_name,share_spots_default,share_details,avatar&limit=1"
 
-# spots: exakt die Freundes-Spots-Query aus SpotRepository.fetchFriendSpots
+# spots: exakt die Freundes-Spots-Query aus SpotRepository.fetchFriendSpots.
+# Der Fund-Autor (Patch 014) wird mit explizitem FK-Namen embeddet —
+# Vorbild friendships: Benennt jemand den Constraint um, fällt es HIER
+# auf und nicht als leises PGRST200 im Feld.
 check_get "spots-Embed (Freundes-Spots)" \
-  "/rest/v1/spots?select=*,finds(*),profiles(username,avatar)&limit=1"
+  "/rest/v1/spots?select=*,finds(*,author:profiles!finds_author_id_fkey(username,avatar)),profiles(username,avatar)&limit=1"
 
 # friendships: exakt die Query aus FriendRepository.fetchFriendships
 check_get "friendships-Embed" \
@@ -83,7 +86,7 @@ check_get "friendships-Embed" \
 
 # finds: Spalten aus Find.fromJson / SpotRepository.addFind
 check_get "finds-Spalten" \
-  "/rest/v1/finds?select=id,spot_id,species,count,found_on,note,created_at&limit=1"
+  "/rest/v1/finds?select=id,spot_id,author_id,species,count,found_on,note,created_at&limit=1"
 
 # live_locations: exakt die Query aus LiveShareRepository.fetchFriendLocations
 check_get "live_locations-Embed (Freundes-Standorte)" \

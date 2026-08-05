@@ -38,7 +38,26 @@ class Spot {
     return sorted;
   }
 
+  /// Neuester Fund ÜBERHAUPT — egal von wem. Bewusst die Quelle für
+  /// Marker-Icon, Blattkopf und Synonymzeile: Sie beschreiben den Spot,
+  /// nicht die Autorschaft. Wo es um MEINE Daten geht (Vorbelegung,
+  /// Statistik, GPX-Export), gilt stattdessen [lastOwnFind]/[ownFinds].
   Find? get lastFind => findsSorted.isEmpty ? null : findsSorted.first;
+
+  /// Nur die eigenen Funde (seit Patch 014 können an geteilten Spots
+  /// auch Buddies eintragen).
+  List<Find> get ownFinds => [
+        for (final find in finds)
+          if (find.isOwn) find,
+      ];
+
+  /// Neuester EIGENER Fund — die richtige Vorbelegung für „Fund
+  /// eintragen": Am Freundes-Spot soll nicht dessen letzter Fund im
+  /// Formular stehen.
+  Find? get lastOwnFind {
+    final own = ownFinds..sort((a, b) => b.foundOn.compareTo(a.foundOn));
+    return own.isEmpty ? null : own.first;
+  }
 
   Spot copyWith({
     String? name,
@@ -73,7 +92,8 @@ class Spot {
       ownerAvatar:
           (json['profiles'] as Map<String, dynamic>?)?['avatar'] as int? ?? 0,
       finds: findsJson
-          .map((f) => Find.fromJson(f as Map<String, dynamic>))
+          .map((f) => Find.fromJson(f as Map<String, dynamic>,
+              currentUserId: currentUserId))
           .toList(),
     );
   }

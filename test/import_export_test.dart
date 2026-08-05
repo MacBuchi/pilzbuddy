@@ -122,5 +122,26 @@ void main() {
       expect(reimported.first.lat, closeTo(53.0793, 1e-5));
       expect(reimported[1].name, 'Pilz-Spot');
     });
+
+    test('fremde Funde bleiben draußen — Buddy-Daten verlassen die App '
+        'nicht per Datei', () {
+      final spot = Spot(id: 's1', ownerId: 'me', lat: 51, lng: 10, finds: [
+        Find(
+            id: 'f1',
+            spotId: 's1',
+            species: 'Steinpilz',
+            foundOn: DateTime(2026, 7, 1)),
+        Find(
+            id: 'f2',
+            spotId: 's1',
+            species: 'Parasol',
+            foundOn: DateTime(2026, 7, 5),
+            authorId: 'lilli',
+            isOwn: false),
+      ]);
+      final gpx = buildGpx([spot]);
+      expect(gpx, contains('Steinpilz'));
+      expect(gpx, isNot(contains('Parasol')));
+    });
   });
 }

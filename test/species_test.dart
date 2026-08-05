@@ -202,12 +202,13 @@ void main() {
         'spot_id': 's1',
         'found_on': '2026-09-01',
         'created_at': '2026-09-01T14:30:00+00:00',
-      });
+      }, currentUserId: 'ich');
       expect(mitTimestamp.createdAt, isNotNull);
       expect(mitTimestamp.createdAt!.toUtc().hour, 14);
 
       final ohne = Find.fromJson(
-          {'id': 'f2', 'spot_id': 's1', 'found_on': '2026-09-01'});
+          {'id': 'f2', 'spot_id': 's1', 'found_on': '2026-09-01'},
+          currentUserId: 'ich');
       expect(ohne.createdAt, isNull);
     });
   });

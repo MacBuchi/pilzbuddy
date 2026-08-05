@@ -71,6 +71,12 @@ class MySpotsNotifier extends AsyncNotifier<SpotsSnapshot> {
           note: note,
         );
     ref.invalidateSelf();
+    // Seit #190 kann der Fund an einem FREUNDES-Spot hängen — dann muss
+    // dessen Liste neu laden, sonst erscheint er erst beim App-Resume.
+    // Immer statt fallweise: Der Notifier kennt die Zuordnung nicht, und
+    // ein überflüssiger Refetch bei Hobby-Datenmengen ist billiger als
+    // eine Fallunterscheidung.
+    ref.invalidate(friendSpotsProvider);
     await future;
   }
 
@@ -107,11 +113,12 @@ final friendSpotsProvider = FutureProvider<List<Spot>>((ref) {
   return ref.watch(spotRepositoryProvider).fetchFriendSpots();
 });
 
-/// Eigene Pilzarten, zuletzt benutzt zuerst — abgeleitet aus allen Funden.
+/// Eigene Pilzarten, zuletzt benutzt zuerst — abgeleitet aus den EIGENEN
+/// Funden (Buddy-Funde auf eigenen Spots sind nicht „meine Arten").
 /// Erster Eintrag = Default-Vorauswahl für neue Spots/Funde.
 final ownSpeciesProvider = Provider<List<String>>((ref) {
   final spots = ref.watch(mySpotListProvider);
-  final finds = [for (final s in spots) ...s.finds]..sort((a, b) {
+  final finds = [for (final s in spots) ...s.ownFinds]..sort((a, b) {
       final aTime = a.createdAt ?? a.foundOn;
       final bTime = b.createdAt ?? b.foundOn;
       return bTime.compareTo(aTime);

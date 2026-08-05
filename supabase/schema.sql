@@ -34,6 +34,13 @@ create index spots_owner_idx on public.spots (owner_id);
 create table public.finds (
   id uuid primary key default gen_random_uuid(),
   spot_id uuid not null references public.spots(id) on delete cascade,
+  -- Jeder Fund gehört seinem Eintrager (Patch 014): Buddies dürfen an
+  -- geteilten Spots Funde anlegen. Default auth.uid(), weil ältere
+  -- Clients keine author_id senden; der Constraint-Name ist API-Vertrag
+  -- (App und schema_check.sh embedden profiles!finds_author_id_fkey).
+  author_id uuid not null default auth.uid()
+    constraint finds_author_id_fkey
+    references public.profiles(id) on delete cascade,
   species text,
   count int check (count is null or count > 0),
   found_on date not null default current_date,
@@ -41,6 +48,7 @@ create table public.finds (
   created_at timestamptz not null default now()
 );
 create index finds_spot_idx on public.finds (spot_id, found_on desc);
+create index finds_author_idx on public.finds (author_id);
 
 create table public.friendships (
   id uuid primary key default gen_random_uuid(),
@@ -266,17 +274,44 @@ create policy spots_friend_select on public.spots for select
      and not sharing_excluded
      and app_internal.owner_shares_spots(owner_id));
 
--- finds: Besitzer hat Vollzugriff über den Spot
-create policy finds_owner_all on public.finds for all
-  using (exists (select 1 from public.spots s
-                 where s.id = spot_id and s.owner_id = auth.uid()))
-  with check (exists (select 1 from public.spots s
-                 where s.id = spot_id and s.owner_id = auth.uid()));
--- finds: Freunde sehen Details NUR wenn der Besitzer Details teilt
+-- finds: Jeder Fund gehört seinem EINTRAGER (Patch 014). Eigene Funde:
+-- voller Zugriff, überall — auch wenn die Freigabe später endet (jeder
+-- behält die eigenen Funde). Der with check bindet das ANLEGEN an die
+-- Sichtbarkeit des Spots: eigener Spot oder volle Freigabe-Beziehung
+-- zum Besitzer. Die Bedingungen stehen absichtlich ausgeschrieben,
+-- obwohl die spots-RLS im Subselect ohnehin greift — eine später
+-- großzügigere spots-Sichtbarkeit soll das Schreibrecht nicht
+-- stillschweigend mitweiten.
+create policy finds_author_all on public.finds for all
+  using (author_id = auth.uid())
+  with check (author_id = auth.uid()
+    and exists (select 1 from public.spots s
+                where s.id = spot_id
+                  and (s.owner_id = auth.uid()
+                    or (app_internal.are_friends(s.owner_id, auth.uid())
+                        and not s.sharing_excluded
+                        and app_internal.owner_shares_spots(s.owner_id)))));
+-- finds: Der Spot-Besitzer sieht fremde Funde nur, solange die
+-- Freigabe-Beziehung zum AUTOR besteht — symmetrisch zur Sicht des
+-- Freundes auf den Spot. Kein owner_shares_details-Gate: Der Autor hat
+-- den Fund wissentlich auf diesen Spot geschrieben.
+create policy finds_owner_select on public.finds for select
+  using (author_id <> auth.uid()
+    and exists (select 1 from public.spots s
+                where s.id = spot_id
+                  and s.owner_id = auth.uid()
+                  and not s.sharing_excluded)
+    and app_internal.are_friends(author_id, auth.uid())
+    and app_internal.owner_shares_spots(auth.uid()));
+-- finds: Freunde sehen Fund-Details nur mit Detail-Freigabe des
+-- Besitzers — beschränkt auf dessen EIGENE Funde (author_id =
+-- s.owner_id): Funde dritter Buddies wandern nie zu Nicht-Freunden.
+-- Die eigenen Funde am Freundes-Spot liefert finds_author_all.
 create policy finds_friend_select on public.finds for select
   using (exists (select 1 from public.spots s
                  where s.id = spot_id
                    and s.owner_id <> auth.uid()
+                   and author_id = s.owner_id
                    and app_internal.are_friends(s.owner_id, auth.uid())
                    and not s.sharing_excluded
                    and app_internal.owner_shares_spots(s.owner_id)
@@ -339,5 +374,6 @@ insert into public.applied_patches (filename) values
   ('patch_010_applied_patches_rls.sql'),
   ('patch_011_interne_funktionen.sql'),
   ('patch_012_mindestversion.sql'),
-  ('patch_013_username_gross_klein.sql')
+  ('patch_013_username_gross_klein.sql'),
+  ('patch_014_buddy_funde.sql')
 on conflict do nothing;
