@@ -80,6 +80,39 @@ class MySpotsNotifier extends AsyncNotifier<SpotsSnapshot> {
     await future;
   }
 
+  /// Stellt mehrere Spots aus einer GPX-Sicherung wieder her (#112).
+  ///
+  /// Nimmt die ganze Liste und lädt **einmal** am Ende neu — bei
+  /// dreißig Spots wären dreißig Read-after-write dreißig volle Abrufe
+  /// der Spot-Liste, und nichts davon sieht jemand, bevor der letzte
+  /// durch ist.
+  ///
+  /// Gibt zurück, wie viele angelegt wurden. Ein Fehler in der Mitte
+  /// bricht ab und wirft — was bis dahin geschrieben ist, bleibt und
+  /// erscheint nach dem Neuladen. Das ist besser als still
+  /// weiterzumachen: Wer die Hälfte seiner Sicherung importiert hat,
+  /// muss das erfahren.
+  Future<int> restoreSpots(List<RestorableSpot> spots) async {
+    final repository = ref.read(spotRepositoryProvider);
+    var created = 0;
+    try {
+      for (final spot in spots) {
+        await repository.restoreSpot(
+          lat: spot.lat,
+          lng: spot.lng,
+          name: spot.name,
+          sharingExcluded: spot.sharingExcluded,
+          finds: spot.finds,
+        );
+        created++;
+      }
+    } finally {
+      ref.invalidateSelf();
+      await future;
+    }
+    return created;
+  }
+
   Future<void> deleteSpot(String spotId) async {
     await ref.read(spotRepositoryProvider).deleteSpot(spotId);
     ref.invalidateSelf();

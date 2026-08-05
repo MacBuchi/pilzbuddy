@@ -683,6 +683,44 @@ class FakeSpotRepository implements SpotRepository {
         note: note);
   }
 
+  /// Spiegelt `SpotRepository.restoreSpot` (#112): ein Spot mit beliebig
+  /// vielen Funden, mit Freigabe-Flag, auch ganz ohne Fund.
+  ///
+  /// Normalisiert die Artnamen genau wie das echte Repository — das ist
+  /// der Grund, warum dieser Weg hier überhaupt nachgebaut wird und nicht
+  /// einfach `backend.addSpot` mehrfach aufruft.
+  ///
+  /// **Grenze, gemessen mit einer Gegenprobe:** Was hier steht, ersetzt
+  /// das echte Repository — läuft ein Test grün, ist damit die *Absicht*
+  /// belegt, nicht die Zuordnung der Felder im echten Insert. Wer dort
+  /// `sharing_excluded` auf einen festen Wert setzt, bleibt für jeden
+  /// Flow-Test unsichtbar. Gegen die Fehlerklasse, die sich prüfen lässt
+  /// (falscher Spaltenname), steht `tool/schema_check.sh` mit den
+  /// Schreibspalten von `spots` und `finds`.
+  @override
+  Future<void> restoreSpot({
+    required double lat,
+    required double lng,
+    String? name,
+    bool sharingExcluded = false,
+    required List<RestorableFind> finds,
+  }) async {
+    final id = backend.addSpot(
+        ownerId: _uid,
+        lat: lat,
+        lng: lng,
+        name: name,
+        sharingExcluded: sharingExcluded);
+    for (final find in finds) {
+      backend.addFindRow(id,
+          species: canonicalSpecies(find.species),
+          count: find.count,
+          foundOn: find.foundOn,
+          note: find.note,
+          authorId: _uid);
+    }
+  }
+
   /// Spiegelt `SpotRepository.addFind`: gespeichert wird die
   /// Hauptbezeichnung der Art. Ohne das verhielte sich der Harness anders
   /// als die App — ein Fund, den die App als „Herbsttrompete" ablegt, läge

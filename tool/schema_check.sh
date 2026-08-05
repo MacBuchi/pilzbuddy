@@ -84,7 +84,16 @@ check_get "spots-Embed (Freundes-Spots)" \
 check_get "friendships-Embed" \
   "/rest/v1/friendships?select=id,status,requester_id,addressee_id,requester:profiles!friendships_requester_id_fkey(username,avatar),addressee:profiles!friendships_addressee_id_fkey(username,avatar)&limit=1"
 
-# finds: Spalten aus Find.fromJson / SpotRepository.addFind
+# spots: die Spalten, die SpotRepository SCHREIBT — addSpot und seit
+# #112 restoreSpot (das als einziges `sharing_excluded` schon beim
+# Anlegen mitgibt statt per Update hinterher). Der Embed-Check oben holt
+# `*` und würde eine umbenannte Spalte deshalb nicht bemerken; hier
+# stehen sie namentlich.
+check_get "spots-Schreibspalten" \
+  "/rest/v1/spots?select=id,owner_id,name,lat,lng,sharing_excluded&limit=1"
+
+# finds: Spalten aus Find.fromJson / SpotRepository.addFind und dem
+# Batch-Insert aus restoreSpot (#112)
 check_get "finds-Spalten" \
   "/rest/v1/finds?select=id,spot_id,author_id,species,count,found_on,note,created_at&limit=1"
 

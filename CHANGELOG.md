@@ -7,6 +7,31 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Deine Spots vollständig sichern und umziehen
+
+*6. August 2026 · Version 1.57.0*
+
+Der GPX-Export im Profil nimmt jetzt **alles** mit: nicht nur die
+Fundorte, sondern jeden einzelnen Fund mit Art, Anzahl, Datum und Notiz,
+dazu die Einstellung „Von Freigabe ausschließen". Liest du die Datei
+wieder ein, steht dein Revier so da, wie du es verlassen hast — auch in
+einem **anderen Konto**. Genau dafür ist es gedacht.
+
+Beim Import erkennt die App eine solche Datei von selbst und zeigt eine
+Liste zum Abhaken: alle auf einmal oder einzeln. Spots, die du schon
+hast, sind vermerkt und nicht angehakt — dieselbe Datei zweimal
+einzuspielen legt also nichts doppelt an. Anhaken kannst du sie trotzdem.
+
+Die Datei bleibt gleichzeitig eine ganz normale GPX-Datei: Jede
+Karten- oder Navi-App zeigt weiterhin deine Wegpunkte mit Namen und
+Fundhistorie. Nebenbei behoben — die Fundliste stand dort bisher als
+Fließtext in einer Zeile, jetzt steht sie untereinander.
+
+**Ein Hinweis, den du vor dem Teilen bekommst:** Weil in der Datei auch
+deine **Notizen** stehen, fragt die App jetzt nach, bevor sie das
+Teilen-Fenster öffnet. Als Sicherung für dich selbst ist das gewollt —
+weitergeben solltest du sie nur, wenn die Notizen jemand lesen darf.
+
 ## Wann welche Art gemeldet wird
 
 *5. August 2026 · Version 1.56.0*

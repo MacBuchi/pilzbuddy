@@ -4,6 +4,19 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:xml/xml.dart';
 
+import 'gpx_export.dart' show kPilzBuddyGpxNamespace;
+
+/// Ein Fund aus den PilzBuddy-Erweiterungen einer GPX-Datei.
+class ImportedFind {
+  final String? species;
+  final int? count;
+  final DateTime foundOn;
+  final String? note;
+
+  const ImportedFind(
+      {this.species, this.count, required this.foundOn, this.note});
+}
+
 /// Ein importierter Punkt aus einer GPX-/KML-Datei.
 class ImportedWaypoint {
   final String? name;
@@ -14,8 +27,27 @@ class ImportedWaypoint {
   /// Funddatum vorbelegt.
   final DateTime? time;
 
-  const ImportedWaypoint(
-      {this.name, required this.lat, required this.lng, this.time});
+  /// Die Funde aus den PilzBuddy-Erweiterungen. `null`, wenn der Punkt
+  /// keine trägt — das ist der Unterschied zwischen „aus PilzBuddy" und
+  /// „aus irgendeiner Karten-App", und daran hängt der ganze
+  /// Wiederherstellungspfad. Eine **leere** Liste ist etwas anderes: ein
+  /// eigener Spot, der (noch) keinen Fund hat.
+  final List<ImportedFind>? finds;
+
+  /// Ob der Spot von der Freigabe ausgenommen war.
+  final bool sharingExcluded;
+
+  const ImportedWaypoint({
+    this.name,
+    required this.lat,
+    required this.lng,
+    this.time,
+    this.finds,
+    this.sharingExcluded = false,
+  });
+
+  /// Trägt dieser Punkt vollständige PilzBuddy-Daten?
+  bool get isRestorable => finds != null;
 }
 
 bool _validCoords(double lat, double lng) =>
@@ -83,13 +115,67 @@ List<ImportedWaypoint> _parseGpx(XmlDocument doc) {
     final lng = double.tryParse(wpt.getAttribute('lon') ?? '');
     if (lat == null || lng == null || !_validCoords(lat, lng)) continue;
     final time = DateTime.tryParse(_childText(wpt, 'time') ?? '');
+    final spot = _pilzBuddySpot(wpt);
     points.add(ImportedWaypoint(
-        name: _childText(wpt, 'name'),
-        lat: lat,
-        lng: lng,
-        time: time?.toLocal()));
+      // Aus den Erweiterungen kommt der SELBST vergebene Name (dort
+      // fehlt er, wenn der Spot keinen hat); `<name>` trägt dagegen
+      // immer etwas, notfalls einen erzeugten Anzeigenamen.
+      name: spot == null
+          ? _childText(wpt, 'name')
+          : spot.getAttribute('name'),
+      lat: lat,
+      lng: lng,
+      time: time?.toLocal(),
+      finds: spot == null ? null : _parseFinds(spot),
+      sharingExcluded: spot?.getAttribute('sharingExcluded') == 'true',
+    ));
   }
   return points;
+}
+
+/// Das `<pb:spot>`-Element eines Wegpunkts — oder `null`, wenn die Datei
+/// nicht aus PilzBuddy stammt.
+///
+/// **Erkannt wird an der Namensraum-URI, niemals am Präfix oder am bloßen
+/// Vorhandensein von `<extensions>`.** Locus Map und Garmin hängen dort
+/// ihre eigenen Erweiterungen hinein (Adressen, Symbole); ein Treffer
+/// darauf würde einen fremden Export als PilzBuddy-Sicherung ausgeben und
+/// den Nutzer in den falschen Ablauf schicken. Das Präfix wiederum darf
+/// jede Datei frei wählen — `pb:` ist eine Gewohnheit, keine Zusage.
+XmlElement? _pilzBuddySpot(XmlElement wpt) {
+  for (final element in wpt.descendants.whereType<XmlElement>()) {
+    if (element.name.local == 'spot' &&
+        element.name.namespaceUri == kPilzBuddyGpxNamespace) {
+      return element;
+    }
+  }
+  return null;
+}
+
+/// Die Funde aus einem `<pb:spot>`. Einzelne kaputte Einträge werden
+/// übersprungen — dieselbe Haltung wie beim Rest des Parsers: Eine
+/// Sicherung, die an einer krummen Zeile ganz scheitert, ist keine.
+List<ImportedFind> _parseFinds(XmlElement spot) {
+  final finds = <ImportedFind>[];
+  for (final element in spot.descendants.whereType<XmlElement>()) {
+    if (element.name.local != 'find' ||
+        element.name.namespaceUri != kPilzBuddyGpxNamespace) {
+      continue;
+    }
+    final foundOn = DateTime.tryParse(element.getAttribute('foundOn') ?? '');
+    if (foundOn == null) continue;
+    final count = int.tryParse(element.getAttribute('count') ?? '');
+    finds.add(ImportedFind(
+      species: element.getAttribute('species'),
+      // Die Datenbank verlangt `count > 0` — eine 0 oder ein negativer
+      // Wert aus einer verbogenen Datei würde den Import erst beim
+      // Schreiben scheitern lassen.
+      count: count != null && count > 0 ? count : null,
+      foundOn: foundOn,
+      note: _childText(element, 'note'),
+    ));
+  }
+  return finds;
 }
 
 List<ImportedWaypoint> _parseKml(XmlDocument doc) {
