@@ -283,8 +283,14 @@ Was die recherchierten Dienste vorbildlich machen und was schiefgeht:
    gebaut werden (Migrationsplan), nicht auf flutter_map — dort war eine
    zweite Kachelebene schon einmal ein Speicherproblem
    (`docs/map-performance.md`).
-3. **Validierung vor Modell** — die Rückwärtsprüfung an den vorhandenen
-   Funden. Ergebnis entscheidet, ob Baustein B überhaupt kommt.
+3. **Validierung vor Modell** — die Rückwärtsprüfung. Ergebnis entscheidet,
+   ob Baustein B überhaupt kommt. **Werkzeug gebaut** (2026-08-06):
+   `tool/ampel_validate.py`, Methode und Grenzen in
+   `docs/pilzampel-validierung.md`. Geprüft wird an **GBIF**-Meldungen, nicht
+   an den eigenen Funden: Davon gibt es noch zu wenige, und GBIF liefert
+   Tausende mit Koordinate (Median 250 m) und taggenauem Datum. Die eigenen
+   Funde bleiben damit als *unabhängiger* Prüfstein für später übrig — das
+   ist sauberer, als mit ihnen zu entwickeln und zu prüfen.
 4. **B — Ampel**, wenn Schritt 3 trägt: Raster-Cron, Gilden-Modell,
    Anzeige je Spot und je Art. Die **Saisonkurven** sind seit 1.56.0
    gebaut und stehen bereits im Spot-Blatt — als Beschreibung, nicht als
