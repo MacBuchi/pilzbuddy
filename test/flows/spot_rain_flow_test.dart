@@ -134,6 +134,21 @@ void main() {
     await settle(tester);
   }
 
+  /// Tippt auf „Wetterdaten laden" — nachdem der Knopf ins Bild geholt
+  /// wurde.
+  ///
+  /// Der Regenabschnitt steht ganz unten im Blatt, und das Blatt scrollt
+  /// (Obergrenze 90 % der Bildschirmhöhe). Alles, was darüber wächst,
+  /// schiebt den Knopf hinaus: Seit dem Saison-Abschnitt (1.56.0) lag er
+  /// außerhalb, `tap` warnte nur über den fehlgeschlagenen Hit-Test und
+  /// tat nichts — sieben Tests scheiterten danach an Werten, die nie
+  /// geladen wurden.
+  Future<void> acceptWeather(WidgetTester tester) async {
+    await tester.ensureVisible(find.text('Wetterdaten laden'));
+    await settle(tester);
+    await tester.tap(find.text('Wetterdaten laden'));
+  }
+
   testWidgets('lädt nichts, bevor jemand zustimmt', (tester) async {
     // Rund 1 MB gibt man im Wald nicht ungefragt aus — dieselbe Zusage
     // wie bei der Regenebene seit 1.45.0, und sie gilt für BEIDE Teile:
@@ -165,7 +180,7 @@ void main() {
           () async => stackOf([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14])),
     ]);
     await openSpot(tester);
-    await tester.tap(find.text('Wetterdaten laden'));
+    await acceptWeather(tester);
     await settleWeather(tester);
 
     // 7 Tage = 8+9+…+14 = 77, 14 Tage = 1+2+…+14 = 105.
@@ -202,7 +217,7 @@ void main() {
           ])),
     ]);
     await openSpot(tester);
-    await tester.tap(find.text('Wetterdaten laden'));
+    await acceptWeather(tester);
     await settleWeather(tester);
     await tester.runAsync(() => ProviderScope.containerOf(
             tester.element(find.byType(Scaffold).first))
@@ -248,7 +263,7 @@ void main() {
           .overrideWithValue(() async => weatherBytes(days)),
     ]);
     await openSpot(tester);
-    await tester.tap(find.text('Wetterdaten laden'));
+    await acceptWeather(tester);
     await settleWeather(tester);
 
     // Die Legende — drei unbeschriftete Linien wären Rätselraten.
@@ -289,7 +304,7 @@ void main() {
       weatherTableLoaderProvider.overrideWithValue(() async => null),
     ]);
     await openSpot(tester);
-    await tester.tap(find.text('Wetterdaten laden'));
+    await acceptWeather(tester);
     await settleWeather(tester);
 
     expect(find.textContaining('77 mm'), findsOneWidget);
@@ -310,7 +325,7 @@ void main() {
           rainStackLoaderProvider.overrideWithValue(() async => stackOf([5])),
         ]);
     await openSpot(tester);
-    await tester.tap(find.text('Wetterdaten laden'));
+    await acceptWeather(tester);
     await settle(tester);
 
     expect(settings.rainCourseEnabled, isTrue,
@@ -336,7 +351,7 @@ void main() {
       rainStackLoaderProvider.overrideWithValue(() async => stackOf([5])),
     ]);
     await openSpot(tester, 'Sächsischer Hang');
-    await tester.tap(find.text('Wetterdaten laden'));
+    await acceptWeather(tester);
     await settleWeather(tester, lat: 51.0, lon: 13.5);
 
     expect(find.text('Wetter an diesem Spot'), findsNothing);

@@ -24,6 +24,11 @@ void main() {
     expect(text, contains('WITHOUT WARRANTY OF ANY KIND'));
   });
 
+  // Die Registry ist global und ADDIERT bei jedem Aufruf. Ohne das
+  // Zurücksetzen fände der zweite Test jeden Eintrag doppelt — und
+  // scheiterte an einer Zahl, die mit der Sache nichts zu tun hat.
+  setUp(LicenseRegistry.reset);
+
   test('Kartendaten-Lizenz landet in der LicenseRegistry', () async {
     // Flutter sammelt nur LICENSE-Dateien von pub-Paketen ein; ODbL und
     // Protomaps müssen wir selbst eintragen.
@@ -39,6 +44,25 @@ void main() {
     expect(text, contains('OpenStreetMap'));
     expect(text, contains('ODbL'));
     expect(text, contains('Protomaps'));
+  });
+
+  test('GBIF-Funddaten landen in der LicenseRegistry', () async {
+    // Die Saisonkurven stehen auf CC-BY-Daten. Namensnennung ist dort
+    // die Bedingung, unter der wir sie ausliefern dürfen — und die
+    // Lizenzseite ist der Ort, an dem ein Nutzer sie sucht.
+    registerMapDataLicense();
+
+    final entries = await LicenseRegistry.licenses.toList();
+    final gbif =
+        entries.where((e) => e.packages.any((p) => p.contains('GBIF')));
+    expect(gbif, hasLength(1), reason: 'GBIF-Eintrag fehlt');
+
+    final text = gbif.single.paragraphs.map((p) => p.text).join(' ');
+    expect(text, contains('Global Biodiversity Information Facility'));
+    expect(text, contains('CC BY 4.0'));
+    // Der Lizenzfilter ist eine bewusste Entscheidung (26 % weniger
+    // Daten). Wer ihn im Skript entfernt, muss auch hier vorbeikommen.
+    expect(text, contains('nicht-kommerziell'));
   });
 
   testWidgets('Profil führt zur Lizenzseite', (tester) async {

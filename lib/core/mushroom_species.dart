@@ -34,7 +34,28 @@ class KnownSpecies {
   /// der Zweitname existiert nur, damit die Eingabe ihn findet.
   final String? sameAs;
 
-  const KnownSpecies(this.name, this.group, {this.sameAs});
+  /// Der wissenschaftliche Name — der einzige Schlüssel, mit dem sich
+  /// eine Art in einer Funddatenbank nachschlagen lässt. Deutsche
+  /// Trivialnamen taugen dafür nicht: Sie sind mehrdeutig („Rotkappe"
+  /// meint eine ganze Gattung) und regional verschieden.
+  ///
+  /// Steht hier eine **Gattung** (`Leccinum`, `Armillaria`, `Ramaria`,
+  /// `Chlorophyllum`), ist das Absicht — der deutsche Name ist dort ein
+  /// Sammelbegriff, und eine einzelne Art unterzuschieben wäre eine
+  /// Genauigkeit, die es nicht gibt.
+  ///
+  /// `null` bei Zweitnamen (sie erben über [sameAs]) und bei Arten, deren
+  /// Zuordnung nicht zweifelsfrei ist. Ohne diesen Namen gibt es keine
+  /// Saisonkurve — eine falsche wäre schlimmer als keine.
+  ///
+  /// Gepflegt wird das Feld von Hand und gegen GBIF geprüft; die Regeln
+  /// dafür stehen in `docs/pilzampel-saisonkurven.md`. Kurzfassung: Der
+  /// Name muss dort **akzeptiert** sein, kein Synonym — GBIF zählt unter
+  /// einem Synonym nur die Meldungen, die genau diesen Namen tragen
+  /// (`Lactarius volemus`: 54 statt 909).
+  final String? sci;
+
+  const KnownSpecies(this.name, this.group, {this.sameAs, this.sci});
 
   bool get isSynonym => sameAs != null;
 }
@@ -53,126 +74,126 @@ const _son = SpeciesGroup.sonstige;
 
 const kBekannteArten = <KnownSpecies>[
   // Röhrlinge
-  KnownSpecies('Steinpilz', _roe),
+  KnownSpecies('Steinpilz', _roe, sci: 'Boletus edulis'),
   KnownSpecies('Herrenpilz', _roe, sameAs: 'Steinpilz'),
   KnownSpecies('Fichtensteinpilz', _roe, sameAs: 'Steinpilz'),
-  KnownSpecies('Sommersteinpilz', _roe),
-  KnownSpecies('Kiefernsteinpilz', _roe),
-  KnownSpecies('Bronzeröhrling', _roe),
-  KnownSpecies('Maronenröhrling', _roe),
+  KnownSpecies('Sommersteinpilz', _roe, sci: 'Boletus reticulatus'),
+  KnownSpecies('Kiefernsteinpilz', _roe, sci: 'Boletus pinophilus'),
+  KnownSpecies('Bronzeröhrling', _roe, sci: 'Boletus aereus'),
+  KnownSpecies('Maronenröhrling', _roe, sci: 'Imleria badia'),
   KnownSpecies('Marone', _roe, sameAs: 'Maronenröhrling'),
-  KnownSpecies('Birkenpilz', _roe),
-  KnownSpecies('Rotkappe', _roe),
-  KnownSpecies('Espenrotkappe', _roe),
-  KnownSpecies('Birkenrotkappe', _roe),
-  KnownSpecies('Butterpilz', _roe),
+  KnownSpecies('Birkenpilz', _roe, sci: 'Leccinum scabrum'),
+  KnownSpecies('Rotkappe', _roe, sci: 'Leccinum'),
+  KnownSpecies('Espenrotkappe', _roe, sci: 'Leccinum aurantiacum'),
+  KnownSpecies('Birkenrotkappe', _roe, sci: 'Leccinum versipelle'),
+  KnownSpecies('Butterpilz', _roe, sci: 'Suillus luteus'),
   KnownSpecies('Butterröhrling', _roe, sameAs: 'Butterpilz'),
-  KnownSpecies('Goldröhrling', _roe),
-  KnownSpecies('Sandröhrling', _roe),
-  KnownSpecies('Ziegenlippe', _roe),
-  KnownSpecies('Rotfußröhrling', _roe),
+  KnownSpecies('Goldröhrling', _roe, sci: 'Suillus grevillei'),
+  KnownSpecies('Sandröhrling', _roe, sci: 'Suillus variegatus'),
+  KnownSpecies('Ziegenlippe', _roe, sci: 'Xerocomus subtomentosus'),
+  KnownSpecies('Rotfußröhrling', _roe, sci: 'Xerocomellus chrysenteron'),
   KnownSpecies('Rotfüßchen', _roe, sameAs: 'Rotfußröhrling'),
-  KnownSpecies('Körnchenröhrling', _roe),
-  KnownSpecies('Flockenstieliger Hexenröhrling', _roe),
-  KnownSpecies('Netzstieliger Hexenröhrling', _roe), // via In-App-Wunsch
-  KnownSpecies('Gallenröhrling', _roe),
-  KnownSpecies('Satansröhrling', _roe),
+  KnownSpecies('Körnchenröhrling', _roe, sci: 'Suillus granulatus'),
+  KnownSpecies('Flockenstieliger Hexenröhrling', _roe, sci: 'Neoboletus luridiformis'),
+  KnownSpecies('Netzstieliger Hexenröhrling', _roe, sci: 'Suillellus luridus'), // via In-App-Wunsch
+  KnownSpecies('Gallenröhrling', _roe, sci: 'Tylopilus felleus'),
+  KnownSpecies('Satansröhrling', _roe, sci: 'Rubroboletus satanas'),
   // Pfifferlingsartige (Leistlinge)
-  KnownSpecies('Pfifferling', _lei),
-  KnownSpecies('Trompetenpfifferling', _lei),
-  KnownSpecies('Herbsttrompete', _lei),
+  KnownSpecies('Pfifferling', _lei, sci: 'Cantharellus cibarius'),
+  KnownSpecies('Trompetenpfifferling', _lei, sci: 'Craterellus tubaeformis'),
+  KnownSpecies('Herbsttrompete', _lei, sci: 'Craterellus cornucopioides'),
   KnownSpecies('Totentrompete', _lei, sameAs: 'Herbsttrompete'),
-  KnownSpecies('Falscher Pfifferling', _lei),
+  KnownSpecies('Falscher Pfifferling', _lei, sci: 'Hygrophoropsis aurantiaca'),
   // Champignons
-  KnownSpecies('Wiesenchampignon', _cha),
-  KnownSpecies('Stadtchampignon', _cha),
-  KnownSpecies('Anischampignon', _cha),
-  KnownSpecies('Waldchampignon', _cha),
-  KnownSpecies('Karbolchampignon', _cha),
+  KnownSpecies('Wiesenchampignon', _cha, sci: 'Agaricus campestris'),
+  KnownSpecies('Stadtchampignon', _cha, sci: 'Agaricus bitorquis'),
+  KnownSpecies('Anischampignon', _cha, sci: 'Agaricus arvensis'),
+  KnownSpecies('Waldchampignon', _cha, sci: 'Agaricus sylvaticus'),
+  KnownSpecies('Karbolchampignon', _cha, sci: 'Agaricus xanthodermus'),
   // Schirmlinge
-  KnownSpecies('Parasol', _sch),
-  KnownSpecies('Safranschirmling', _sch),
+  KnownSpecies('Parasol', _sch, sci: 'Macrolepiota procera'),
+  KnownSpecies('Safranschirmling', _sch, sci: 'Chlorophyllum'),
   KnownSpecies('Riesenschirmling', _sch, sameAs: 'Parasol'),
-  KnownSpecies('Schopftintling', _sch),
+  KnownSpecies('Schopftintling', _sch, sci: 'Coprinus comatus'),
   KnownSpecies('Spargelpilz', _sch, sameAs: 'Schopftintling'),
   // Wulstlinge (Amanita)
-  KnownSpecies('Fliegenpilz', _wul),
-  KnownSpecies('Perlpilz', _wul),
+  KnownSpecies('Fliegenpilz', _wul, sci: 'Amanita muscaria'),
+  KnownSpecies('Perlpilz', _wul, sci: 'Amanita rubescens'),
   KnownSpecies('Rötender Wulstling', _wul, sameAs: 'Perlpilz'),
-  KnownSpecies('Pantherpilz', _wul),
-  KnownSpecies('Grüner Knollenblätterpilz', _wul),
-  KnownSpecies('Kegelhütiger Knollenblätterpilz', _wul),
-  KnownSpecies('Frühjahrsknollenblätterpilz', _wul),
-  KnownSpecies('Scheidenstreifling', _wul),
+  KnownSpecies('Pantherpilz', _wul, sci: 'Amanita pantherina'),
+  KnownSpecies('Grüner Knollenblätterpilz', _wul, sci: 'Amanita phalloides'),
+  KnownSpecies('Kegelhütiger Knollenblätterpilz', _wul, sci: 'Amanita virosa'),
+  KnownSpecies('Frühjahrsknollenblätterpilz', _wul, sci: 'Amanita verna'),
+  KnownSpecies('Scheidenstreifling', _wul, sci: 'Amanita vaginata'),
   // Täublinge & Milchlinge
-  KnownSpecies('Frauentäubling', _tae),
-  KnownSpecies('Speisetäubling', _tae),
-  KnownSpecies('Ledertäubling', _tae),
-  KnownSpecies('Grüngefelderter Täubling', _tae),
-  KnownSpecies('Speitäubling', _tae),
-  KnownSpecies('Fichtenreizker', _tae),
-  KnownSpecies('Edelreizker', _tae),
-  KnownSpecies('Lachsreizker', _tae),
-  KnownSpecies('Kiefernreizker', _tae),
-  KnownSpecies('Mohrenkopfmilchling', _tae),
-  KnownSpecies('Brätling', _tae),
+  KnownSpecies('Frauentäubling', _tae, sci: 'Russula cyanoxantha'),
+  KnownSpecies('Speisetäubling', _tae, sci: 'Russula vesca'),
+  KnownSpecies('Ledertäubling', _tae, sci: 'Russula integra'),
+  KnownSpecies('Grüngefelderter Täubling', _tae, sci: 'Russula virescens'),
+  KnownSpecies('Speitäubling', _tae, sci: 'Russula emetica'),
+  KnownSpecies('Fichtenreizker', _tae, sci: 'Lactarius deterrimus'),
+  KnownSpecies('Edelreizker', _tae, sci: 'Lactarius deliciosus'),
+  KnownSpecies('Lachsreizker', _tae, sci: 'Lactarius salmonicolor'),
+  KnownSpecies('Kiefernreizker', _tae, sci: 'Lactarius sanguifluus'),
+  KnownSpecies('Mohrenkopfmilchling', _tae, sci: 'Lactarius lignyotus'),
+  KnownSpecies('Brätling', _tae, sci: 'Lactifluus volemus'),
   // Morcheln & Lorcheln
-  KnownSpecies('Speisemorchel', _mor),
-  KnownSpecies('Spitzmorchel', _mor),
-  KnownSpecies('Frühjahrslorchel', _mor),
-  KnownSpecies('Käppchenmorchel', _mor), // via In-App-Wunsch
-  KnownSpecies('Morchelbecherling', _mor), // via In-App-Wunsch
-  KnownSpecies('Böhmische Verpel', _mor), // via In-App-Wunsch
+  KnownSpecies('Speisemorchel', _mor, sci: 'Morchella esculenta'),
+  KnownSpecies('Spitzmorchel', _mor, sci: 'Morchella elata'),
+  KnownSpecies('Frühjahrslorchel', _mor, sci: 'Gyromitra esculenta'),
+  KnownSpecies('Käppchenmorchel', _mor, sci: 'Morchella semilibera'), // via In-App-Wunsch
+  KnownSpecies('Morchelbecherling', _mor, sci: 'Disciotis venosa'), // via In-App-Wunsch
+  KnownSpecies('Böhmische Verpel', _mor, sci: 'Verpa bohemica'), // via In-App-Wunsch
   // Boviste & Stäublinge
-  KnownSpecies('Riesenbovist', _bov),
+  KnownSpecies('Riesenbovist', _bov, sci: 'Calvatia gigantea'),
   KnownSpecies('Riesenstäubling', _bov, sameAs: 'Riesenbovist'),
-  KnownSpecies('Flaschenstäubling', _bov),
+  KnownSpecies('Flaschenstäubling', _bov, sci: 'Lycoperdon perlatum'),
   KnownSpecies('Flaschenbovist', _bov, sameAs: 'Flaschenstäubling'),
-  KnownSpecies('Birnenstäubling', _bov),
+  KnownSpecies('Birnenstäubling', _bov, sci: 'Apioperdon pyriforme'),
   // Baumpilze
-  KnownSpecies('Austernseitling', _bau),
+  KnownSpecies('Austernseitling', _bau, sci: 'Pleurotus ostreatus'),
   KnownSpecies('Austernpilz', _bau, sameAs: 'Austernseitling'),
-  KnownSpecies('Lungenseitling', _bau),
-  KnownSpecies('Schwefelporling', _bau),
-  KnownSpecies('Leberpilz', _bau),
-  KnownSpecies('Judasohr', _bau),
+  KnownSpecies('Lungenseitling', _bau, sci: 'Pleurotus pulmonarius'),
+  KnownSpecies('Schwefelporling', _bau, sci: 'Laetiporus sulphureus'),
+  KnownSpecies('Leberpilz', _bau, sci: 'Fistulina hepatica'),
+  KnownSpecies('Judasohr', _bau, sci: 'Auricularia auricula-judae'),
   // Stachel- & Korallenpilze (keine Lamellen, kein Hut-Stiel-Bau)
-  KnownSpecies('Krause Glucke', _sta),
+  KnownSpecies('Krause Glucke', _sta, sci: 'Sparassis crispa'),
   KnownSpecies('Fette Henne', _sta, sameAs: 'Krause Glucke'),
-  KnownSpecies('Semmelstoppelpilz', _sta),
-  KnownSpecies('Habichtspilz', _sta),
-  KnownSpecies('Ziegenbart', _sta),
-  KnownSpecies('Igelstachelbart', _sta),
+  KnownSpecies('Semmelstoppelpilz', _sta, sci: 'Hydnum repandum'),
+  KnownSpecies('Habichtspilz', _sta, sci: 'Sarcodon imbricatus'),
+  KnownSpecies('Ziegenbart', _sta, sci: 'Ramaria'),
+  KnownSpecies('Igelstachelbart', _sta, sci: 'Hericium erinaceus'),
   KnownSpecies('Affenkopfpilz', _sta, sameAs: 'Igelstachelbart'),
   KnownSpecies('Löwenmähne', _sta, sameAs: 'Igelstachelbart'),
   // Sonstige Lamellenpilze & Spezialisten
-  KnownSpecies('Stockschwämmchen', _son),
-  KnownSpecies('Maipilz', _son),
+  KnownSpecies('Stockschwämmchen', _son, sci: 'Kuehneromyces mutabilis'),
+  KnownSpecies('Maipilz', _son, sci: 'Calocybe gambosa'),
   KnownSpecies('Mairitterling', _son, sameAs: 'Maipilz'),
-  KnownSpecies('Nelkenschwindling', _son),
-  KnownSpecies('Rehbrauner Dachpilz', _son),
-  KnownSpecies('Riesenträuschling', _son),
+  KnownSpecies('Nelkenschwindling', _son, sci: 'Marasmius oreades'),
+  KnownSpecies('Rehbrauner Dachpilz', _son, sci: 'Pluteus cervinus'),
+  KnownSpecies('Riesenträuschling', _son, sci: 'Stropharia rugosoannulata'),
   KnownSpecies('Braunkappe', _son, sameAs: 'Riesenträuschling'),
-  KnownSpecies('Hallimasch', _son),
-  KnownSpecies('Dunkler Hallimasch', _son),
-  KnownSpecies('Violetter Rötelritterling', _son),
-  KnownSpecies('Fuchsiger Rötelritterling', _son),
-  KnownSpecies('Nebelkappe', _son),
+  KnownSpecies('Hallimasch', _son, sci: 'Armillaria'),
+  KnownSpecies('Dunkler Hallimasch', _son, sci: 'Armillaria ostoyae'),
+  KnownSpecies('Violetter Rötelritterling', _son, sci: 'Lepista nuda'),
+  KnownSpecies('Fuchsiger Rötelritterling', _son, sci: 'Paralepista flaccida'),
+  KnownSpecies('Nebelkappe', _son, sci: 'Clitocybe nebularis'),
   KnownSpecies('Nebelgrauer Trichterling', _son, sameAs: 'Nebelkappe'),
-  KnownSpecies('Mönchskopf', _son),
-  KnownSpecies('Reifpilz', _son),
+  KnownSpecies('Mönchskopf', _son, sci: 'Infundibulicybe geotropa'),
+  KnownSpecies('Reifpilz', _son, sci: 'Cortinarius caperatus'),
   KnownSpecies('Winterrübling', _son, sameAs: 'Samtfußrübling'),
-  KnownSpecies('Samtfußrübling', _son),
-  KnownSpecies('Gifthäubling', _son),
-  KnownSpecies('Grünblättriger Schwefelkopf', _son),
-  KnownSpecies('Kahler Krempling', _son),
-  KnownSpecies('Spitzgebuckelter Raukopf', _son),
-  KnownSpecies('Orangefuchsiger Raukopf', _son),
-  KnownSpecies('Riesenrötling', _son),
-  KnownSpecies('Tigerritterling', _son),
-  KnownSpecies('Ziegelroter Risspilz', _son),
-  KnownSpecies('Grünling', _son),
-  KnownSpecies('Violetter Lacktrichterling', _son), // via In-App-Wunsch
+  KnownSpecies('Samtfußrübling', _son, sci: 'Flammulina velutipes'),
+  KnownSpecies('Gifthäubling', _son, sci: 'Galerina marginata'),
+  KnownSpecies('Grünblättriger Schwefelkopf', _son, sci: 'Hypholoma fasciculare'),
+  KnownSpecies('Kahler Krempling', _son, sci: 'Paxillus involutus'),
+  KnownSpecies('Spitzgebuckelter Raukopf', _son, sci: 'Cortinarius rubellus'),
+  KnownSpecies('Orangefuchsiger Raukopf', _son, sci: 'Cortinarius orellanus'),
+  KnownSpecies('Riesenrötling', _son, sci: 'Entoloma sinuatum'),
+  KnownSpecies('Tigerritterling', _son, sci: 'Tricholoma pardinum'),
+  KnownSpecies('Ziegelroter Risspilz', _son, sci: 'Inosperma erubescens'),
+  KnownSpecies('Grünling', _son, sci: 'Tricholoma equestre'),
+  KnownSpecies('Violetter Lacktrichterling', _son, sci: 'Laccaria amethystina'), // via In-App-Wunsch
 ];
 
 /// Findet eine bekannte Pilzart in einem Freitext (z. B. dem Punktnamen
