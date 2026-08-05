@@ -39,6 +39,49 @@ String? rainGridKeyFor(RainLayer layer) => switch (layer) {
 List<int> rainLevelsFor(RainLayer layer) =>
     layer == RainLayer.last24h ? rainLevels24h : rainLevels30d;
 
+/// Wer die aktive Regenebene zeichnet — und damit, welche Legende gilt.
+///
+/// Die EINE Bedingung für beide Engines und beide Legenden. Vorher stand
+/// sie vierfach kopiert als `value?.isNotEmpty ?? false` da und las „lädt
+/// noch" als „kein Gitter": Jede Erstaktivierung einer Summenebene zeigte
+/// erst das DWD-Bild samt DWD-Legende und sprang dann auf die eigenen
+/// Farben um — der Umschalt-Moment, den der Betreiber am 2026-08-05
+/// gemeldet hat. Nebenbei war das DWD-Bild (187–568 KB) dann umsonst
+/// geladen.
+enum RainPaint {
+  /// Eigene Farben: Gitter da, Bänder berechnet und nicht leer.
+  own,
+
+  /// Summenebene gewählt, Gitter lädt noch: NICHTS zeichnen — aber schon
+  /// die eigene Legende zeigen, denn die ist statisch ([rainLevelsFor] und
+  /// die Farbrampe hängen nicht an den geladenen Daten).
+  pending,
+
+  /// DWD-Bild in DWD-Farben: beim Radar immer (der 5-Minuten-Takt lässt
+  /// sich nicht vorberechnen), bei den Summen als Rückfalllinie, wenn
+  /// kein Gitter zu bekommen war.
+  dwd,
+}
+
+final rainPaintProvider = Provider.family<RainPaint, RainLayer>((ref, layer) {
+  // `off` und Radar: kein Gitter-Schlüssel → immer dwd, OHNE die
+  // Gitter-Provider je zu instanziieren. Bei `off` ist der Wert egal —
+  // rainLayerUrl(off) ist null, und die Legenden prüfen die Ebene selbst.
+  if (rainGridKeyFor(layer) == null) return RainPaint.dwd;
+  final contours = ref.watch(rainContoursProvider(layer));
+  // `hasError` VOR `hasValue`: Riverpod behält bei Fehlern den Vorwert —
+  // der darf nicht als `own` durchgehen. Ein Fehler entstünde nur aus
+  // einem Bug in der Bandberechnung (das Laden selbst degradiert still zu
+  // null); dann ist das DWD-Bild die einzige funktionierende Darstellung.
+  if (contours.hasError) return RainPaint.dwd;
+  // `hasValue` statt `when`: Beim Neuladen mit Vorwert bleibt es wahr —
+  // ein Rückfall auf `pending` wäre Flackern bei jedem Reload.
+  if (contours.hasValue) {
+    return contours.requireValue.isNotEmpty ? RainPaint.own : RainPaint.dwd;
+  }
+  return RainPaint.pending;
+});
+
 /// Das rohe Wertegitter der aktiven Ebene — `null`, wenn es für sie
 /// keines gibt oder nichts geladen werden konnte.
 final rainGridProvider = FutureProvider.family<RainGrid?, RainLayer>(

@@ -11,6 +11,7 @@ import 'package:archive/archive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pilzbuddy/core/app_colors.dart';
 import 'package:pilzbuddy/data/rain_grid_repository.dart';
 import 'package:pilzbuddy/features/map/rain_data_providers.dart';
 import 'package:pilzbuddy/features/spots/widgets/weather_chart.dart';
@@ -18,7 +19,23 @@ import 'package:pilzbuddy/features/spots/widgets/weather_chart.dart';
 import '../fakes/fake_backend.dart';
 import '../fakes/fake_settings.dart';
 import '../fakes/test_app.dart';
-import '../rain_grid_test.dart' show encode;
+import '../rain_grid_test.dart' show encode, gridOf;
+
+/// Prüft, dass [value] in der Zelle mit der Beschriftung [label] steht —
+/// über die NÄCHSTE Column um den Wert, nicht über einen Vorfahren-Finder:
+/// Die Kachel legt alle Zellen in eine Row, ein `widgetWithText`-Vorfahre
+/// fände deshalb zu jedem Wert jede Beschriftung.
+void expectSumCell(WidgetTester tester, String label, String value) {
+  final cell = tester.widget<Column>(
+    find.ancestor(of: find.text(value), matching: find.byType(Column)).first,
+  );
+  final texts = [
+    for (final child in cell.children)
+      if (child is Text) child.data,
+  ];
+  expect(texts, contains(label),
+      reason: 'der Wert $value muss in der Zelle „$label" stehen');
+}
 
 void main() {
   const spotLat = 51.0;
@@ -155,18 +172,61 @@ void main() {
     //
     // Geprüft wird das PAAR aus Beschriftung und Zahl, nicht nur, dass
     // beide Zahlen irgendwo stehen: Vertauschte Fenster zeigen dieselben
-    // zwei Zahlen an den falschen Zeilen, und niemand sieht es.
-    Finder sumRow(String label, String value) => find.ancestor(
-          of: find.text(value),
-          matching: find.widgetWithText(Row, label),
-        );
-    expect(sumRow('7 Tage', '77 mm'), findsOneWidget);
-    expect(sumRow('14 Tage', '105 mm'), findsOneWidget);
+    // zwei Zahlen an den falschen Zellen, und niemand sieht es. Über die
+    // NÄCHSTE Column statt einen Finder: Seit die Summen in einer Kachel
+    // stehen, enthält die eine äußere Row alle Beschriftungen UND alle
+    // Zahlen — ein Row-/widgetWithText-Finder fände jede Kombination und
+    // winkte Vertauschungen still durch.
+    expectSumCell(tester, '7 Tage', '77 mm');
+    expectSumCell(tester, '14 Tage', '105 mm');
     expect(find.textContaining('höchster Tageswert'), findsOneWidget,
         reason: 'der Satz, den eine Summe nicht sagen kann');
     expect(find.textContaining('nur Deutschland'), findsOneWidget,
         reason: 'ohne diesen Satz sieht ein leerer Abschnitt in Österreich '
             'nach einem Fehler der App aus');
+  });
+
+  testWidgets('die Summen stehen in einer Kachel im PilzBuddy-Stil',
+      (tester) async {
+    // Der Style-Vorschlag des Betreibers (2026-08-05): Cream-Kachel mit
+    // runden Ecken, Wert fett in Grün — wie der Code-Block der Auth-Mails.
+    // Mit W4-Gitter, damit auch die 30-Tage-Zelle da ist: Sie kommt aus
+    // einer anderen Quelle als die beiden Stapel-Fenster.
+    final backend = loggedInWithSpot();
+    await pumpApp(tester, backend, extraOverrides: [
+      rainStackLoaderProvider.overrideWithValue(
+          () async => stackOf([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14])),
+      rainGridLoaderProvider.overrideWithValue((_) async => gridOf([
+            [80, 80],
+            [80, 80],
+          ])),
+    ]);
+    await openSpot(tester);
+    await tester.tap(find.text('Wetterdaten laden'));
+    await settleWeather(tester);
+    await tester.runAsync(() => ProviderScope.containerOf(
+            tester.element(find.byType(Scaffold).first))
+        .read(rainMonthAtProvider((lat: spotLat, lon: spotLng)).future));
+    await settle(tester);
+
+    expectSumCell(tester, '30 Tage', '80 mm');
+
+    final tile = tester.widget<Container>(
+      find
+          .ancestor(of: find.text('77 mm'), matching: find.byType(Container))
+          .first,
+    );
+    final decoration = tile.decoration as BoxDecoration;
+    expect(decoration.color, AppColors.cream);
+    expect(decoration.borderRadius, BorderRadius.circular(8));
+
+    final value = tester.widget<Text>(find.text('77 mm'));
+    expect(value.style?.fontWeight, FontWeight.w700,
+        reason: 'der Wert ist die Aussage, die Beschriftung die Zugabe');
+    final theme = Theme.of(tester.element(find.text('77 mm')));
+    expect(value.style?.color, theme.colorScheme.primary,
+        reason: 'Theme-Grün statt rohem forestGreen — im dunklen Thema '
+            'käme sonst ein zu dunkler Ton auf dunklem Grund');
   });
 
   testWidgets('mit Stationstabelle stehen Linien, Legende und Station da',

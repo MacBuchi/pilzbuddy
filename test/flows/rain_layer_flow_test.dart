@@ -2,6 +2,7 @@
 // auf der Karte. Der Weg wird hier ganz gegangen, weil die einzelnen
 // Teile ihn nicht beweisen: Ein korrekt gebautes GetMap nützt nichts,
 // wenn der Knopf das falsche Blatt öffnet oder die Wahl nirgends ankommt.
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -234,6 +235,95 @@ void main() {
     expect(fill, isNonNegative);
     expect(markers, isNonNegative);
     expect(fill, lessThan(markers));
+  });
+
+  testWidgets(
+      'Während das Gitter lädt: kein DWD-Bild, aber schon die eigene Legende',
+      (tester) async {
+    // Der Umschalt-Moment, den der Betreiber gemeldet hat: Solange das
+    // Gitter lädt, zeigte die App erst das DWD-Bild samt DWD-Legende und
+    // sprang dann auf die eigenen Farben um. Richtig ist: Während des
+    // Ladens liegt NICHTS auf der Karte (auch kein umsonst geladenes
+    // DWD-Bild), und beide Legenden stehen sofort — sie sind statisch.
+    final gate = Completer<RainGrid?>();
+    var imageRequests = 0;
+    await pumpApp(tester, loggedIn(), useRealMap: true, extraOverrides: [
+      rainGridLoaderProvider.overrideWithValue((_) => gate.future),
+      rainImageProviderFactory.overrideWithValue((url) {
+        imageRequests++;
+        return MemoryImage(kTransparentTile);
+      }),
+    ]);
+    // Das Gate nicht offen über das Testende hinaus stehen lassen.
+    addTearDown(() {
+      if (!gate.isCompleted) gate.complete(null);
+    });
+
+    containerOf(tester).read(rainLayerProvider.notifier).state =
+        RainLayer.last30d;
+    await settle(tester);
+
+    expect(find.byType(OverlayImageLayer), findsNothing,
+        reason: 'das DWD-Bild wäre der Farbblitz, der gleich wieder '
+            'verschwindet');
+    expect(imageRequests, 0,
+        reason: 'ein Bild, das gleich ersetzt wird, darf gar nicht erst '
+            'angefragt werden — 187–568 KB je Erstaktivierung');
+    expect(find.text('150+ mm'), findsOneWidget,
+        reason: 'die Karten-Legende ist statisch und steht sofort');
+
+    await tester.tap(find.byTooltip('Regen'));
+    await settle(tester);
+    expect(find.text('ab 10 mm'), findsOneWidget,
+        reason: 'das Blatt zeigt sofort die eigene Legende, nicht erst '
+            'die des DWD');
+    expect(
+        find.descendant(
+            of: find.byType(BottomSheet), matching: find.byType(Image)),
+        findsNothing,
+        reason: 'kein DWD-Legendenbild während des Ladens');
+  });
+
+  testWidgets('Kommt kein Gitter, fällt die Ebene aufs DWD-Bild zurück',
+      (tester) async {
+    // Die Rückfalllinie bleibt: Ohne Gitter (kein Empfang, kein Cache)
+    // ist das DWD-Bild die einzige Darstellung — dann gehört auch die
+    // DWD-Legende ins Blatt und die eigene Karten-Legende verschwindet.
+    final gate = Completer<RainGrid?>();
+    var imageRequests = 0;
+    await pumpApp(tester, loggedIn(), useRealMap: true, extraOverrides: [
+      rainGridLoaderProvider.overrideWithValue((_) => gate.future),
+      rainImageProviderFactory.overrideWithValue((url) {
+        imageRequests++;
+        return MemoryImage(kTransparentTile);
+      }),
+    ]);
+
+    containerOf(tester).read(rainLayerProvider.notifier).state =
+        RainLayer.last30d;
+    await settle(tester);
+
+    gate.complete(null);
+    await tester.runAsync(() => containerOf(tester)
+        .read(rainContoursProvider(RainLayer.last30d).future));
+    await settle(tester);
+
+    final overlays =
+        tester.widgetList<OverlayImageLayer>(find.byType(OverlayImageLayer));
+    expect(overlays.length, 1,
+        reason: 'jetzt — und erst jetzt — liegt das DWD-Bild da');
+    expect(imageRequests, greaterThan(0));
+    expect(find.text('150+ mm'), findsNothing,
+        reason: 'die eigene Skala neben DWD-Farben wäre schlicht falsch');
+
+    await tester.tap(find.byTooltip('Regen'));
+    await settle(tester);
+    expect(find.text('ab 10 mm'), findsNothing);
+    expect(
+        find.descendant(
+            of: find.byType(BottomSheet), matching: find.byType(Image)),
+        findsOneWidget,
+        reason: 'zur DWD-Darstellung gehört die DWD-Legende');
   });
 
   testWidgets('Das Blatt zeigt zu eigenen Linien die eigene Legende',

@@ -7,6 +7,25 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Regenkarte ohne Farbblitz, Wetter am Spot aufgeräumt
+
+*5. August 2026 · Version 1.53.0*
+
+Beim Einschalten von **„Letzte 24 Stunden"** oder **„Letzte 30 Tage"**
+blitzte bisher kurz die Karte des Wetterdienstes in fremden Farben auf,
+bevor unsere eigene Darstellung sie ersetzte — samt falscher Legende im
+Regen-Blatt. Das ist bereinigt: Während die Daten laden, bleibt die
+Karte ruhig, und die richtige Legende steht sofort da. Nebenbei spart
+das bei jedem Einschalten einen unnötigen Download von bis zu einem
+halben Megabyte. Kommen gar keine Daten an (kein Empfang), zeigt die
+App wie bisher das Bild des Wetterdienstes samt seiner Legende.
+
+Dazu ein aufgeräumtes Erscheinungsbild im PilzBuddy-Stil, wie man ihn
+aus den Anmelde-Mails kennt: Die Regensummen im Spot-Blatt stehen jetzt
+**in einer cremefarbenen Kachel** mit den Werten fett in Grün, und die
+Überschriften von Regen-Blatt, Legende und Wetter-Abschnitt tragen das
+PilzBuddy-Grün.
+
 ## Deine E-Mail-Adresse lässt sich jetzt ändern
 
 *5. August 2026 · Version 1.52.0*
