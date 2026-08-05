@@ -138,16 +138,31 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   bei lokalem Flutter-Upgrade auch `.github/workflows/*.yml` anpassen.
 - Supabase-Keys in `lib/core/supabase_config.dart` sind bewusst öffentlich
   (Publishable Key); niemals den service_role-Key einchecken.
-- Supabase-Auth-Härtung im Dashboard (seit 2026-07-22 aktiv): Leaked Password
-  Protection (HaveIBeenPwned-Abgleich bei Registrierung; der Security Advisor
-  fand sie am 2026-08-05 AUS — vermutlich bei einem Dashboard-Umbau verloren,
-  vom Betreiber wieder angeschaltet; nach Dashboard-Arbeiten an Auth
-  gegenprüfen) und „Secure password
-  change" — Passwort-Änderungen über die Auth-API verlangen das aktuelle
-  Passwort bzw. eine frische Re-Authentifizierung, ein gestohlenes
-  Session-Token allein reicht nicht für eine Kontoübernahme. Eine frisch per
-  Reset-Code angelegte Sitzung gilt als frische Authentifizierung, deshalb
-  funktioniert der Reset-Flow damit.
+- Supabase-Auth-Härtung im Dashboard: „Secure password change" ist **an** —
+  Passwort-Änderungen über die Auth-API verlangen das aktuelle Passwort bzw.
+  eine frische Re-Authentifizierung, ein gestohlenes Session-Token allein
+  reicht nicht für eine Kontoübernahme. Eine frisch per Reset-Code angelegte
+  Sitzung gilt als frische Authentifizierung, deshalb funktioniert der
+  Reset-Flow damit.
+- **Leaked Password Protection gibt es auf diesem Projekt NICHT** (geklärt
+  2026-08-06): Der HaveIBeenPwned-Abgleich ist ein **Pro-Plan-Feature**,
+  PilzBuddy läuft auf Free. Frühere Fassungen dieser Datei behaupteten, sie
+  sei „seit 2026-07-22 aktiv" — das war falsch bzw. hat nie getragen, und der
+  Security-Advisor-Fund vom 2026-08-05 war kein verlorener Schalter, sondern
+  der Normalzustand.
+  **Folgen, die man kennen muss:**
+  - Der Advisor-Fund bleibt dauerhaft stehen und gehört dismissed — nicht
+    gesucht. Wer ihn das nächste Mal sieht, soll nicht wieder eine halbe
+    Stunde nach dem Schalter suchen.
+  - Der einzige Passwortschutz ist damit `minPasswordLength = 8`
+    (`lib/core/widgets/password_field.dart`). „passwort" hat acht Zeichen —
+    die Grenze hält also niemanden auf, der ein bekanntes Leak-Passwort
+    wählt.
+  - Ersatz wäre ohne Pro-Plan machbar: Die HIBP-Pwned-Passwords-API ist
+    kostenlos und arbeitet mit k-Anonymity (nur die ersten fünf Zeichen des
+    SHA-1-Hashes gehen raus, das Passwort selbst nie). Das wäre ein eigenes
+    Feature mit neuem Netzziel — also Datenschutzerklärung und
+    `docs/play-console.md` im selben PR. Bisher nicht gebaut, bewusst offen.
 - Passwort ändern für Angemeldete (`AuthRepository.changePassword`, Dialog im
   Profil, Issue #127, seit 1.31.0): meldet sich zuerst mit dem **aktuellen**
   Passwort neu an (`signInWithPassword`) und ruft erst dann `updateUser` —
