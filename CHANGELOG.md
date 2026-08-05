@@ -7,6 +7,33 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Wann welche Art gemeldet wird
+
+*5. August 2026 · Version 1.56.0*
+
+Im Spot-Blatt steht jetzt über dem Wetter ein neuer Abschnitt: **„Wann
+diese Art gemeldet wird"** — zwölf Balken, einer je Monat, der laufende
+hervorgehoben, dazu ein Satz wie „Steinpilz wird am häufigsten im August
+bis September gemeldet."
+
+Die Zahlen stammen aus echten Fundmeldungen aus Deutschland, Österreich
+und der Schweiz — rund 300 000 Beobachtungen für die 89 Arten, für die es
+genug davon gibt. Sie sind gegen den allgemeinen Meldeeifer verrechnet:
+Im September und Oktober wird schlicht am meisten gesammelt und gemeldet,
+und ohne diese Korrektur sähe jede Art gleich aus. Danach liegt zum
+Beispiel die Zeit des Pfifferlings im **Juli**, nicht im August.
+
+**Was der Abschnitt nicht ist:** eine Vorhersage. Er beschreibt frühere
+Jahre, nicht dieses Wochenende — es steht kein Prozentzeichen darin und
+keine Bewertung. Ob es sich gerade lohnt, hängt am Wetter, und das ist
+eine andere Frage, an der noch gearbeitet wird.
+
+Drei Dinge, die dazugehören: Die Kurven liegen **in der App**, sind also
+ohne Empfang da und verraten niemandem, wonach du suchst. Arten mit zu
+wenigen Meldungen bekommen bewusst gar keinen Abschnitt statt einer
+Zackenlinie. Und wo ein Name für mehrere Arten steht — „Rotkappe",
+„Hallimasch" —, sagt die App das dazu.
+
 ## Die Karte sagt dir, wenn ein Buddy einen Fund eingetragen hat
 
 *5. August 2026 · Version 1.55.0*

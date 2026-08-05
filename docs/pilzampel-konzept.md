@@ -111,13 +111,23 @@ Reihenfolge belastbar:
 
 ### Stufe 2: Saisonkurve je Art — aus echten Funddaten, nicht geschätzt
 
+**Gebaut und ausgeliefert seit 1.56.0** — `tool/season_curves.py`,
+`lib/core/season_curves.g.dart`, Anzeige im Spot-Blatt. Methode, alle 91
+Zuordnungen und die beiden Fallen, die dabei aufgeschlagen sind, stehen in
+`docs/pilzampel-saisonkurven.md`. Der Abschnitt hier beschreibt die
+Vorüberlegung; **maßgeblich ist die andere Datei**.
+
 Aus GBIF (DE+AT+CH, nur menschliche Beobachtungen) lässt sich pro Art eine
 Monatskurve rechnen. **Entscheidend ist die Effort-Korrektur:** September
 und Oktober enthalten 41 % aller Pilzmeldungen überhaupt — wer die Rohkurve
 nimmt, baut die Gewohnheiten der Melder ins Modell. Nach Korrektur
 verschiebt sich zum Beispiel der Pfifferling-Peak von August auf **Juli**.
 
-Effort-korrigierte Kurven (Index, Maximum = 100):
+Effort-korrigierte Kurven (Index, Maximum = 100). Diese Zahlen sind
+ungefiltert; die ausgelieferten liegen wegen des Lizenzfilters (nur CC0 und
+CC BY) um ein bis zwei Punkte daneben — beim Steinpilz etwa Aug 100 · Sep 96
+statt Aug 98 · Sep 100. Der netzfreie Selbsttest des Skripts rechnet gegen
+**diese** Tabelle, weil sie dokumentiert ist:
 
 | Art | Jahresgang |
 |---|---|
@@ -176,7 +186,7 @@ für Waldpilze gibt es nicht.
 | **DWD `SF-Produkt`** | gleitende 24-Stunden-Niederschlagssumme als Kartenebene, stündlich; nur Deutschland | wie oben | ja, live (eingebaut in 1.45.0) |
 | **DWD `RADOLAN-W4`** | **auf 30 Tage aufsummierte** angeeichte Radardaten, täglich, nur Deutschland — genau die Größe, mit der Sammler rechnen und auf der der tschechische Pilzindex aufsetzt | wie oben | ja, live (eingebaut in 1.45.0) |
 | **DWD Open Data (Raster)** | Tages-Bodenfeuchte 1×1 km ab 1991, Bodentemperatur in 5–100 cm | frei | dokumentiert |
-| **GBIF** | Funddaten für die Saisonkurven; SwissFungi (927 k) und ÖMG (537 k) unter CC BY 4.0 | frei | ja, per API |
+| **GBIF** | Funddaten für die Saisonkurven; SwissFungi (927 k) und ÖMG (537 k) unter CC BY 4.0. Nur CC0 und CC BY werden ausgewertet — der Filter kostet gemessen 26 % der Meldungen und erspart die NC-Frage | frei | ja, live (eingebaut in 1.56.0) |
 | ~~RainViewer~~ | — | **API im Januar 2026 eingestellt bzw. kostenpflichtig** | — |
 
 **Zu klären, bevor gebaut wird:** Open-Meteo ist nur für
@@ -275,8 +285,12 @@ Was die recherchierten Dienste vorbildlich machen und was schiefgeht:
    (`docs/map-performance.md`).
 3. **Validierung vor Modell** — die Rückwärtsprüfung an den vorhandenen
    Funden. Ergebnis entscheidet, ob Baustein B überhaupt kommt.
-4. **B — Ampel**, wenn Schritt 3 trägt: Raster-Cron, Saisonkurven,
-   Gilden-Modell, Anzeige je Spot und je Art.
+4. **B — Ampel**, wenn Schritt 3 trägt: Raster-Cron, Gilden-Modell,
+   Anzeige je Spot und je Art. Die **Saisonkurven** sind seit 1.56.0
+   gebaut und stehen bereits im Spot-Blatt — als Beschreibung, nicht als
+   Bewertung (`docs/pilzampel-saisonkurven.md`). Sie vorzuziehen war
+   möglich, weil sie keine Modellannahme enthalten: Sie sagen, wann eine
+   Art gemeldet wurde, nicht ob heute etwas wächst.
 5. **Waldtyp** (zweiter Teil von #158) — bewusst zurückgestellt. Er ist bei
    Holzbewohnern wichtiger als das Wetter, aber flächige Waldtyp-Daten für
    DACH sind ein eigenes Beschaffungsprojekt (Copernicus-Landbedeckung wäre

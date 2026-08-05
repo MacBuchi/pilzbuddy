@@ -75,6 +75,20 @@ void main() {
       'play.google.com',
     };
 
+    /// Ziele, die nur als **Text** vorkommen und nicht einmal tippbar
+    /// sind: die Quellenangaben im Lizenz-Eintrag der GBIF-Funddaten
+    /// (`map_data_license.dart`). Die Kurven liegen im Binary — die App
+    /// verbindet sich zu GBIF zu keinem Zeitpunkt; abgerufen wird nur
+    /// beim Bauen, von `tool/season_curves.py`.
+    ///
+    /// Eigene Kategorie und nicht in [onTapOnly] gestopft: Der
+    /// Unterschied zwischen „öffnet sich auf Tipp" und „ist reiner Text"
+    /// ist genau die Entscheidung, die dieser Wächter einfordert.
+    const textOnly = {
+      'www.gbif.org',
+      'creativecommons.org',
+    };
+
     /// Supabase steht in der Erklärung mit Namen statt mit Hostnamen —
     /// die Projekt-Kennung im Host sagt einem Leser nichts.
     const namedInstead = {'supabase.co'};
@@ -93,6 +107,7 @@ void main() {
     final unknown = hosts.where((h) =>
         !fetched.contains(h) &&
         !onTapOnly.contains(h) &&
+        !textOnly.contains(h) &&
         !namedInstead.any(h.endsWith));
     expect(unknown, isEmpty,
         reason: 'Neues Ziel in lib/: ${unknown.join(", ")}. Entscheide, ob '

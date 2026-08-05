@@ -10,6 +10,7 @@ import '../../profile/profile_providers.dart';
 import '../../../models/spot.dart';
 import '../spot_providers.dart';
 import 'add_find_sheet.dart';
+import 'species_season_section.dart';
 import 'spot_rain_section.dart';
 
 /// Detail-Sheet für einen Spot: Fundhistorie, „Fund eintragen",
@@ -250,9 +251,14 @@ class _SpotDetailSheet extends ConsumerWidget {
             ),
           ),
           // Ganz unten, nicht oben: Die Fundhistorie ist der Inhalt des
-          // Blatts, der Regen ist die Zusatzfrage „ist der Spot dran?".
-          // Oben stünde er über der Antwort, für die man das Blatt
-          // geöffnet hat.
+          // Blatts, Saison und Regen sind die Zusatzfrage „ist der Spot
+          // dran?". Oben stünden sie über der Antwort, für die man das
+          // Blatt geöffnet hat.
+          //
+          // Die Art vor dem Wetter: Sie gehört zur Fundliste darüber,
+          // und ihre Kurve steht ohne Netz sofort da — der Regen kommt
+          // je nach Empfang später oder gar nicht.
+          SpeciesSeasonSection(species: spot.lastFind?.species),
           SpotRainSection(lat: spot.lat, lon: spot.lng),
           SizedBox(height: MediaQuery.of(context).viewPadding.bottom),
         ],
