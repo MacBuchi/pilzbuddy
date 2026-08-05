@@ -98,6 +98,12 @@ String friendlyError(Object error) {
     return 'Nicht mehr angemeldet — bitte neu anmelden.';
   }
   if (error is PostgrestException) {
+    // 42501 = RLS-Verbot. Der reale Fall seit #190: Das Spot-Blatt ist
+    // offen, während die Freigabe endet (Entfreundet, Schalter, Spot
+    // ausgeschlossen) — „Serverfehler" wäre die falsche Fährte.
+    if (error.code == '42501') {
+      return 'Dieser Spot wird nicht mehr mit dir geteilt.';
+    }
     return 'Serverfehler (${error.code ?? 'unbekannt'}) — '
         'bitte später erneut versuchen.';
   }

@@ -54,8 +54,10 @@ Datenschutzerklärung). Vorgehen:
      from auth.users u where u.id = '<uid>';
    select * from public.profiles     where id = '<uid>';
    select * from public.spots        where owner_id = '<uid>';
-   select * from public.finds
-     where spot_id in (select id from public.spots where owner_id = '<uid>');
+   -- Funde über den AUTOR, nicht über den Spot (Patch 014): Eigene Funde
+   -- an fremden Spots gehören in den Export hinein; fremde Funde auf den
+   -- eigenen Spots sind Daten der anderen und gehören NICHT hinein.
+   select * from public.finds        where author_id = '<uid>';
    select * from public.friendships
      where requester_id = '<uid>' or addressee_id = '<uid>';
    select * from public.live_locations where user_id = '<uid>';

@@ -33,9 +33,116 @@ void main() {
 
     expect(find.text('Gefunden von lilli92'), findsOneWidget);
     expect(find.text('Steinpilz, 2 Stück'), findsOneWidget);
-    // Fremde Spots kann man weder ergänzen noch löschen.
-    expect(find.text('Fund eintragen'), findsNothing);
+    // Eintragen darf man am geteilten Spot seit #190 — löschen und die
+    // Freigabe schalten weiterhin nur der Besitzer.
+    expect(find.text('Fund eintragen'), findsOneWidget);
     expect(find.byTooltip('Spot löschen'), findsNothing);
+  });
+
+  testWidgets('Freund trägt am geteilten Spot einen eigenen Fund ein',
+      (tester) async {
+    // Der Kern von #190: Sichtbarkeit des Spots impliziert das
+    // Schreibrecht — der Fund gehört aber dem Eintrager, nicht dem
+    // Spot-Besitzer.
+    final (backend, me) = loggedInBackend();
+    final lilli = backend.addUser(username: 'lilli92');
+    backend.addFriendship(lilli.id, me.id);
+    backend.addSpot(
+        ownerId: lilli.id,
+        species: 'Steinpilz',
+        count: 2,
+        foundOn: DateTime(2026, 7, 10));
+    await pumpApp(tester, backend);
+
+    await tester.tap(find.byTooltip('Pilz-Spot (lilli92)'));
+    await settle(tester);
+
+    // Besitzer-Rechte bleiben beim Besitzer.
+    expect(find.text('Von Freigabe ausschließen'), findsNothing);
+    expect(find.byTooltip('Spot löschen'), findsNothing);
+
+    await tester.tap(find.text('Fund eintragen'));
+    await settle(tester);
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Pilzart (optional)'), 'Pfifferling');
+    await tester.ensureVisible(find.text('Speichern'));
+    await tester.tap(find.text('Speichern'));
+    await settle(tester);
+
+    final saved = backend.spots.single.finds.last;
+    expect(saved.authorId, me.id,
+        reason: 'der Fund gehört dem Eintrager, nicht dem Spot-Besitzer');
+    // Das Blatt zeigt beide Funde — lillis mit Zuschreibung in der
+    // Fundzeile (exakter Text, denn „Gefunden von lilli92" steht auch im
+    // Kopf), meiner ohne. Die Aktualisierung beweist nebenbei die
+    // friendSpots-Invalidierung.
+    expect(find.text('Pfifferling'), findsOneWidget);
+    expect(find.text('Steinpilz, 2 Stück'), findsOneWidget);
+    expect(find.text('10.7.2026 – von lilli92'), findsOneWidget);
+  });
+
+  testWidgets(
+      'Vorbelegung am Freundes-Spot nimmt den letzten EIGENEN Fund',
+      (tester) async {
+    // Lillis Fund ist neuer — trotzdem darf nicht IHR Steinpilz im
+    // Formular stehen, sondern mein älterer Pfifferling.
+    final (backend, me) = loggedInBackend();
+    final lilli = backend.addUser(username: 'lilli92');
+    backend.addFriendship(lilli.id, me.id);
+    final spotId = backend.addSpot(
+        ownerId: lilli.id,
+        species: 'Steinpilz',
+        count: 2,
+        foundOn: DateTime(2026, 7, 20));
+    backend.addFindRow(spotId,
+        species: 'Pfifferling',
+        count: 4,
+        foundOn: DateTime(2026, 6, 1),
+        authorId: me.id);
+    await pumpApp(tester, backend);
+
+    await tester.tap(find.byTooltip('Pilz-Spot (lilli92)'));
+    await settle(tester);
+    await tester.tap(find.text('Fund eintragen'));
+    await settle(tester);
+
+    expect(find.widgetWithText(TextField, 'Pfifferling'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Steinpilz'), findsNothing);
+  });
+
+  testWidgets(
+      'Buddy-Fund am eigenen Spot: Zuschreibung im Blatt, Statistik '
+      'zählt nur eigene Funde', (tester) async {
+    final (backend, me) = loggedInBackend();
+    final lilli = backend.addUser(username: 'lilli92');
+    backend.addFriendship(lilli.id, me.id);
+    final spotId = backend.addSpot(
+        ownerId: me.id,
+        species: 'Steinpilz',
+        count: 1,
+        foundOn: DateTime(2026, 7, 1));
+    backend.addFindRow(spotId,
+        species: 'Parasol',
+        count: 2,
+        foundOn: DateTime(2026, 7, 5),
+        authorId: lilli.id);
+    await pumpApp(tester, backend);
+
+    await tester.tap(find.byTooltip('Pilz-Spot'));
+    await settle(tester);
+    expect(find.textContaining('von lilli92'), findsOneWidget,
+        reason: 'fremde Funde tragen ihren Eintrager');
+
+    // Blatt schließen, dann die Statistik: Lillis Parasol ist ihr Fund,
+    // nicht meiner — er gehört nicht in meine Top-Arten.
+    await tester.tapAt(const Offset(20, 20));
+    await settle(tester);
+    await tester.tap(find.text('Profil'));
+    await settle(tester);
+    await tester.scrollUntilVisible(find.text('Top-Arten'), 200,
+        scrollable: find.byType(Scrollable).first);
+    expect(find.text('Parasol'), findsNothing,
+        reason: 'fremde Funde zählen nicht zu meinen Top-Arten');
   });
 
   testWidgets('Ohne Detail-Freigabe sehen Freunde nur den Standort',

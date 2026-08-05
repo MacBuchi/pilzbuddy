@@ -34,9 +34,13 @@ class SpotRepository {
   Future<SpotsSnapshot> fetchMySpots() async {
     final uid = _uid;
     Future<List<Map<String, dynamic>>> fetch() async {
+      // Der Autor kommt als benannter Embed über den FK-Namen mit —
+      // seit Patch 014 können auch Buddies an eigenen Spots Funde haben,
+      // und die Fundliste nennt dann, von wem einer stammt.
       final rows = await _client
           .from('spots')
-          .select('*, finds(*)')
+          .select(
+              '*, finds(*, author:profiles!finds_author_id_fkey(username, avatar))')
           .eq('owner_id', uid)
           .order('created_at')
           .timeout(fetchTimeout);
@@ -61,12 +65,14 @@ class SpotRepository {
   }
 
   /// Von Freunden geteilte Spots. Die RLS-Policies liefern nur, was der
-  /// jeweilige Besitzer freigegeben hat; ohne Detail-Freigabe kommt das
-  /// finds-Array leer zurück.
+  /// jeweilige Besitzer freigegeben hat; ohne Detail-Freigabe kommen von
+  /// seinen Funden keine — die EIGENEN am Freundes-Spot liefert
+  /// `finds_author_all` immer (Patch 014).
   Future<List<Spot>> fetchFriendSpots() async {
     final rows = await _client
         .from('spots')
-        .select('*, finds(*), profiles(username, avatar)')
+        .select(
+            '*, finds(*, author:profiles!finds_author_id_fkey(username, avatar)), profiles(username, avatar)')
         .neq('owner_id', _uid);
     return rows.map((r) => Spot.fromJson(r, currentUserId: _uid)).toList();
   }
@@ -101,6 +107,10 @@ class SpotRepository {
   /// deshalb genügt diese eine Zeile, damit in der Datenbank keine zwei
   /// Namen für dieselbe Art nebeneinander liegen. Eigene Arten der Nutzer
   /// bleiben unverändert.
+  ///
+  /// `author_id` wird bewusst NICHT mitgesendet: Der Spalten-Default
+  /// `auth.uid()` füllt ihn serverseitig (Patch 014) — derselbe Weg, den
+  /// auch ältere Clients nehmen, die die Spalte gar nicht kennen.
   Future<void> addFind({
     required String spotId,
     String? species,

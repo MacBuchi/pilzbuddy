@@ -20,8 +20,20 @@ void main() {
     });
 
     test('Serverfehler → Code sichtbar', () {
-      expect(friendlyError(const PostgrestException(message: 'x', code: '42501')),
-          contains('42501'));
+      expect(
+          friendlyError(
+              const PostgrestException(message: 'x', code: 'PGRST301')),
+          contains('PGRST301'));
+    });
+
+    test('42501 (RLS-Verbot) heißt: nicht mehr geteilt — kein Serverfehler',
+        () {
+      // Der reale Fall seit #190: Blatt offen, Freigabe endet, Speichern
+      // scheitert an der RLS. „Serverfehler" wäre die falsche Fährte.
+      expect(
+          friendlyError(
+              const PostgrestException(message: 'x', code: '42501')),
+          contains('nicht mehr mit dir geteilt'));
     });
 
     test('Unerwartetes → Typ sichtbar (diagnostizierbar)', () {

@@ -193,12 +193,15 @@ class FakeBackend {
     return row.id;
   }
 
+  /// [authorId] wie `finds.author_id` (Patch 014) — ohne Angabe der
+  /// Spot-Besitzer, wie es der Backfill für Bestandsdaten macht.
   void addFindRow(
     String spotId, {
     String? species,
     int? count,
     DateTime? foundOn,
     String? note,
+    String? authorId,
   }) {
     final row = spots.firstWhere((s) => s.id == spotId);
     row.finds.add(Find(
@@ -209,6 +212,7 @@ class FakeBackend {
       foundOn: foundOn ?? DateTime.now(),
       note: note,
       createdAt: DateTime.now(),
+      authorId: authorId ?? row.ownerId,
     ));
   }
 
@@ -529,6 +533,11 @@ class FakeAuthRepository implements AuthRepository {
   Future<void> deleteAccount() async {
     final uid = backend.currentUserId;
     if (uid == null) return;
+    // Spiegel der finds_author_id_fkey-Kaskade (Patch 014): Auch Funde,
+    // die der Nutzer an FREMDEN Spots eingetragen hat, verschwinden.
+    for (final s in backend.spots) {
+      s.finds.removeWhere((f) => f.authorId == uid);
+    }
     backend.spots.removeWhere((s) => s.ownerId == uid);
     backend.friendships
         .removeWhere((f) => f.requesterId == uid || f.addresseeId == uid);
@@ -546,7 +555,9 @@ class FakeSpotRepository implements SpotRepository {
 
   String get _uid => backend.currentUserId!;
 
-  Spot _toSpot(FakeSpotRow row, {required bool own, FakeUser? owner}) => Spot(
+  Spot _toSpot(FakeSpotRow row,
+          {required bool own, FakeUser? owner, required List<Find> finds}) =>
+      Spot(
         id: row.id,
         ownerId: row.ownerId,
         name: row.name,
@@ -556,8 +567,28 @@ class FakeSpotRepository implements SpotRepository {
         isOwn: own,
         ownerUsername: owner?.username,
         ownerAvatar: owner?.avatar ?? 0,
-        finds: List.of(row.finds),
+        finds: finds,
       );
+
+  /// Baut einen gespeicherten Fund aus Sicht des Betrachters neu — wie
+  /// `Find.fromJson` mit dem author-Embed: `isOwn` und die Zuschreibung
+  /// entstehen erst beim Lesen, nicht beim Speichern.
+  Find _viewFind(Find f) {
+    final author = f.authorId == null ? null : backend.userById(f.authorId!);
+    return Find(
+      id: f.id,
+      spotId: f.spotId,
+      species: f.species,
+      count: f.count,
+      foundOn: f.foundOn,
+      note: f.note,
+      createdAt: f.createdAt,
+      authorId: f.authorId,
+      authorUsername: author?.username,
+      authorAvatar: author?.avatar ?? 0,
+      isOwn: f.authorId == null || f.authorId == _uid,
+    );
+  }
 
   /// Setzt die Herkunft, die `fetchMySpots` meldet: nicht `null` heißt
   /// „aus dem Zwischenspeicher, von diesem Zeitpunkt" — damit sich das
@@ -577,15 +608,31 @@ class FakeSpotRepository implements SpotRepository {
     return (
       spots: [
         for (final row in backend.spots)
-          if (row.ownerId == _uid) _toSpot(row, own: true),
+          if (row.ownerId == _uid)
+            _toSpot(row, own: true, finds: [
+              // Spiegel von finds_author_all + finds_owner_select
+              // (Patch 014): eigene Funde immer, fremde nur solange die
+              // Freigabe-Beziehung zum Autor besteht — dieselbe
+              // Freundschaft, der EIGENE globale Schalter, derselbe
+              // Spot-Ausschluss.
+              for (final f in row.finds)
+                if (f.authorId == null ||
+                    f.authorId == _uid ||
+                    (backend.areFriends(_uid, f.authorId!) &&
+                        backend.userById(_uid).shareSpotsDefault &&
+                        !row.sharingExcluded))
+                  _viewFind(f),
+            ]),
       ],
       cachedAt: cachedAt,
     );
   }
 
-  /// Spiegelt die RLS-Policy: sichtbar sind Spots akzeptierter Freunde,
+  /// Spiegelt die RLS-Policies: sichtbar sind Spots akzeptierter Freunde,
   /// wenn deren globales Teilen an ist und der Spot nicht ausgeschlossen
-  /// wurde; ohne Detail-Freigabe kommt das finds-Array leer.
+  /// wurde. Von den Funden kommen die des BESITZERS nur mit dessen
+  /// Detail-Freigabe, die EIGENEN immer (finds_author_all) — und die
+  /// dritter Buddies nie (Patch 014).
   @override
   Future<List<Spot>> fetchFriendSpots() async => [
         for (final row in backend.spots)
@@ -602,9 +649,13 @@ class FakeSpotRepository implements SpotRepository {
               isOwn: false,
               ownerUsername: backend.userById(row.ownerId).username,
               ownerAvatar: backend.userById(row.ownerId).avatar,
-              finds: backend.userById(row.ownerId).shareDetails
-                  ? List.of(row.finds)
-                  : const [],
+              finds: [
+                for (final f in row.finds)
+                  if (f.authorId == _uid ||
+                      ((f.authorId == null || f.authorId == row.ownerId) &&
+                          backend.userById(row.ownerId).shareDetails))
+                    _viewFind(f),
+              ],
             ),
       ];
 
@@ -643,11 +694,26 @@ class FakeSpotRepository implements SpotRepository {
     required DateTime foundOn,
     String? note,
   }) async {
+    // Spiegel des with check von finds_author_all (Patch 014): Schreiben
+    // darf, wer den Spot besitzt ODER ihn über die volle Freigabe-
+    // Beziehung sieht. Alles andere beantwortet die echte RLS mit 42501.
+    final row = backend.spots.firstWhere((s) => s.id == spotId);
+    final allowed = row.ownerId == _uid ||
+        (backend.areFriends(row.ownerId, _uid) &&
+            !row.sharingExcluded &&
+            backend.userById(row.ownerId).shareSpotsDefault);
+    if (!allowed) {
+      throw const PostgrestException(
+          message:
+              'new row violates row-level security policy for table "finds"',
+          code: '42501');
+    }
     backend.addFindRow(spotId,
         species: canonicalSpecies(species),
         count: count,
         foundOn: foundOn,
-        note: note);
+        note: note,
+        authorId: _uid);
   }
 
   @override

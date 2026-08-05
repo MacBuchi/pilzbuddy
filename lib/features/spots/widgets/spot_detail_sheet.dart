@@ -47,7 +47,9 @@ class _SpotDetailSheet extends ConsumerWidget {
     final ownSpecies = ref.read(ownSpeciesProvider);
     final data = await showAddFindSheet(
       context,
-      lastFind: spot.lastFind,
+      // Der letzte EIGENE Fund, nicht der letzte überhaupt: Am
+      // Freundes-Spot soll nicht dessen Art im Formular vorstehen.
+      lastFind: spot.lastOwnFind,
       ownSpecies: ownSpecies,
       fallbackSpecies: ownSpecies.firstOrNull,
     );
@@ -202,7 +204,14 @@ class _SpotDetailSheet extends ConsumerWidget {
                         dateFormat.format(find.foundOn),
                         if (find.note != null && find.note!.isNotEmpty)
                           find.note!,
+                        // Fremde Funde nennen ihren Eintrager (#190) —
+                        // unmarkiert heißt: meiner.
+                        if (!find.isOwn)
+                          'von ${find.authorUsername ?? 'einem Pilzfreund'}',
                       ].join(' – ')),
+                      trailing: find.isOwn
+                          ? null
+                          : MushroomAvatar(index: find.authorAvatar, size: 22),
                     ),
                 ],
               ),
@@ -228,15 +237,18 @@ class _SpotDetailSheet extends ConsumerWidget {
               },
             ),
             const SizedBox(height: 4),
-            FilledButton.icon(
-              onPressed: () => _addFind(context, ref, spot),
-              icon: const Icon(Icons.add),
-              label: const Text('Fund eintragen'),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-              ),
-            ),
           ],
+          // Auch am Freundes-Spot (#190): Wer den Spot sehen darf, darf
+          // dort eigene Funde eintragen — die RLS zieht dieselbe Grenze.
+          // Freigabe-Schalter und Löschen bleiben dagegen beim Besitzer.
+          FilledButton.icon(
+            onPressed: () => _addFind(context, ref, spot),
+            icon: const Icon(Icons.add),
+            label: const Text('Fund eintragen'),
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+          ),
           // Ganz unten, nicht oben: Die Fundhistorie ist der Inhalt des
           // Blatts, der Regen ist die Zusatzfrage „ist der Spot dran?".
           // Oben stünde er über der Antwort, für die man das Blatt

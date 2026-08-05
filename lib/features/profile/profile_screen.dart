@@ -43,8 +43,11 @@ class ProfileScreen extends ConsumerWidget {
     final spots = ref.watch(mySpotListProvider);
     final profile = profileAsync.valueOrNull;
 
-    final allFinds = [for (final s in spots) ...s.finds];
-    final revisited = spots.where((s) => s.finds.length > 1).length;
+    // Nur die EIGENEN Funde: Seit #190 können auch Buddies an geteilten
+    // Spots eintragen, und deren Funde sind nicht meine Statistik — ein
+    // Spot ist auch nicht „mehrfach besucht", weil ein Buddy dort war.
+    final allFinds = [for (final s in spots) ...s.ownFinds];
+    final revisited = spots.where((s) => s.ownFinds.length > 1).length;
 
     return Scaffold(
       appBar: AppBar(

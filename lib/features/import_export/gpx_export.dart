@@ -19,7 +19,10 @@ String buildGpx(List<Spot> spots) {
         builder.attribute('lat', spot.lat.toStringAsFixed(6));
         builder.attribute('lon', spot.lng.toStringAsFixed(6));
         builder.element('name', nest: spot.displayName);
-        final finds = spot.findsSorted;
+        // Nur die eigenen Funde: Buddy-Funde (#190) sind fremde Daten
+        // und verlassen die App nicht per Datei.
+        final finds =
+            spot.findsSorted.where((f) => f.isOwn).toList(growable: false);
         if (finds.isNotEmpty) {
           builder.element('desc',
               nest: finds

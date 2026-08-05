@@ -7,6 +7,22 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Pilz-Buddies können Funde zu geteilten Spots eintragen
+
+*5. August 2026 · Version 1.54.0*
+
+Wenn ein Freund einen Spot mit dir teilt, kannst du dort jetzt **eigene
+Funde eintragen** — dein Fund gehört dir, der Spot weiterhin deinem
+Freund. In der Fundliste steht bei fremden Funden, von wem sie stammen.
+
+Endet die Freundschaft oder das Teilen, sieht jeder wieder nur die
+eigenen Funde — nichts wird gelöscht, und wer sich wieder anfreundet,
+sieht auch die Funde des anderen wieder. Funde dritter Freunde bekommt
+niemand zu sehen: Was du einträgst, sehen nur du und die Besitzerin
+oder der Besitzer des Spots.
+
+Statistik und GPX-Export zählen wie bisher nur deine eigenen Funde.
+
 ## Regenkarte ohne Farbblitz, Wetter am Spot aufgeräumt
 
 *5. August 2026 · Version 1.53.0*
