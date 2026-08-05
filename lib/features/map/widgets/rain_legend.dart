@@ -27,12 +27,14 @@ class RainLegend extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final layer = ref.watch(rainLayerProvider);
-    // Nur zu den eigenen Farben. Beim Radar liegt das DWD-Bild in
-    // DWD-Farben auf der Karte — dafür wäre diese Skala schlicht falsch,
-    // und die richtige steht als Bild im Blatt.
-    final ownColours =
-        ref.watch(rainContoursProvider(layer)).value?.isNotEmpty ?? false;
-    if (!ownColours) return const SizedBox.shrink();
+    // Nur zu den eigenen Farben — auch schon, während das Gitter lädt:
+    // Die Skala ist statisch, so erscheint die Legende sofort mit der
+    // Auswahl und die Fläche einen Moment später. Beim Radar und im
+    // Rückfall liegt das DWD-Bild in DWD-Farben auf der Karte — dafür
+    // wäre diese Skala schlicht falsch, die richtige steht im Blatt.
+    if (ref.watch(rainPaintProvider(layer)) == RainPaint.dwd) {
+      return const SizedBox.shrink();
+    }
 
     final levels = rainLevelsFor(layer);
     final theme = Theme.of(context);
@@ -43,7 +45,7 @@ class RainLegend extends ConsumerWidget {
         child: DecoratedBox(
           decoration: BoxDecoration(
             color: AppColors.cream.withValues(alpha: 0.88),
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(8),
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -53,8 +55,11 @@ class RainLegend extends ConsumerWidget {
               children: [
                 Text(
                   layer.label,
+                  // Grün wie die anderen Überschriften seit dem
+                  // Betreiber-Vorschlag 2026-08-05; die Ticks darunter
+                  // bleiben barkBrown — Text auf Cream, beide Themen.
                   style: theme.textTheme.labelSmall?.copyWith(
-                    color: AppColors.barkBrown,
+                    color: theme.colorScheme.primary,
                     fontSize: 10,
                   ),
                 ),

@@ -121,16 +121,15 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
     // Android etwas tut, wäre ein Fehler ohne Fehlermeldung.
     final rainLayer = ref.watch(rainLayerProvider);
     final rainBounds = rainLayer.bounds;
-    // Die eigenen Höhenlinien haben Vorrang; das DWD-Bild ist die
-    // Rückfalllinie, solange (oder falls) kein Gitter da ist. Beim Radar
-    // gibt es nie eines — der 5-Minuten-Takt lässt sich nicht
-    // vorberechnen.
-    final rainLines =
-        ref.watch(rainContoursProvider(rainLayer)).value ?? const [];
+    // Der Dreizustand entscheidet: eigene Fläche, noch nichts (Gitter
+    // lädt — KEIN DWD-Bild, das gleich wieder verschwände), oder das
+    // DWD-Bild als Rückfalllinie. Beim Radar immer das DWD-Bild — der
+    // 5-Minuten-Takt lässt sich nicht vorberechnen.
+    final rainPaint = ref.watch(rainPaintProvider(rainLayer));
     final rainFill = ref.watch(rainFillProvider(rainLayer)).value;
-    final rainUrl = rainLines.isNotEmpty
-        ? null
-        : rainLayerUrl(rainLayer, now: DateTime.now());
+    final rainUrl = rainPaint == RainPaint.dwd
+        ? rainLayerUrl(rainLayer, now: DateTime.now())
+        : null;
     if (offlineActive) {
       // Der TileLayer, der die Instanz hält, verschwindet mit diesem Frame
       // und entsorgt sie dabei — siehe Kommentar am Feld.
@@ -279,7 +278,7 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
         // Was hier fehlt und auf MapLibre steht: die Millimeterzahlen in
         // der Karte. flutter_map kennt keine Beschriftung entlang einer
         // Linie; auf diesem Pfad trägt die Legende die Bedeutung allein.
-        if (rainLines.isNotEmpty && rainFill != null)
+        if (rainPaint == RainPaint.own && rainFill != null)
           OverlayImageLayer(
             overlayImages: [
               OverlayImage(

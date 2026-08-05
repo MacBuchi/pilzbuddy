@@ -39,7 +39,9 @@ class _RainLayerSheet extends ConsumerWidget {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-              child: Text('Regen', style: theme.textTheme.titleLarge),
+              child: Text('Regen',
+                  style: theme.textTheme.titleLarge
+                      ?.copyWith(color: theme.colorScheme.primary)),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
@@ -122,12 +124,12 @@ class _Details extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final url = rainLegendUrl(layer);
-    // Welche Legende stimmt, hängt daran, was wirklich auf der Karte
-    // liegt: eigene Höhenlinien oder — solange (oder falls) kein Gitter
-    // ankommt — das DWD-Bild. Dieselbe Bedingung wie in beiden Engines,
-    // damit das Blatt nie etwas anderes erklärt als die Karte zeigt.
-    final ownLines =
-        ref.watch(rainContoursProvider(layer)).value?.isNotEmpty ?? false;
+    // Welche Legende stimmt, entscheidet der Dreizustand — dieselbe
+    // Quelle wie in beiden Engines, damit das Blatt nie etwas anderes
+    // erklärt als die Karte zeigt. Bei `pending` steht die eigene
+    // Legende SOFORT da: Sie ist statisch und verspricht, was gleich
+    // gezeichnet wird. Nur der Rückfall zeigt die DWD-Legende.
+    final paint = ref.watch(rainPaintProvider(layer));
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
       child: Column(
@@ -137,7 +139,7 @@ class _Details extends ConsumerWidget {
           const SizedBox(height: 6),
           Text(layer.coverage, style: theme.textTheme.bodySmall),
           const SizedBox(height: 12),
-          if (ownLines)
+          if (paint != RainPaint.dwd)
             _OwnLegend(levels: rainLevelsFor(layer))
           else if (url != null)
             DecoratedBox(

@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/app_colors.dart';
 import '../../../core/settings.dart';
 import '../../map/rain_data_providers.dart';
 import '../../map/spot_weather.dart';
@@ -96,10 +97,13 @@ class SpotRainSection extends ConsumerWidget {
           children: [
             const Divider(height: 24),
             Text('Wetter an diesem Spot',
-                style: theme.textTheme.titleSmall),
+                style: theme.textTheme.titleSmall
+                    ?.copyWith(color: theme.colorScheme.primary)),
             const SizedBox(height: 8),
-            for (final row in rows)
-              if (row.mm case final mm?) _SumRow(label: row.label, mm: mm),
+            _SumTile(rows: [
+              for (final row in rows)
+                if (row.mm case final mm?) (label: row.label, mm: mm),
+            ]),
             const SizedBox(height: 10),
             WeatherChart(course: data, temperature: temperature),
             const SizedBox(height: 6),
@@ -159,7 +163,8 @@ class _Offer extends StatelessWidget {
       children: [
         const Divider(height: 24),
         Text('Wetter an diesem Spot',
-            style: Theme.of(context).textTheme.titleSmall),
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                color: Theme.of(context).colorScheme.primary)),
         const SizedBox(height: 4),
         Text(
           'Wie viel Regen hier gefallen ist und wie warm es war — Tag '
@@ -207,22 +212,48 @@ class _Loading extends StatelessWidget {
   }
 }
 
-class _SumRow extends StatelessWidget {
-  const _SumRow({required this.label, required this.mm});
+/// Die Summen als Kachel im Stil der Auth-Mails (Betreiber-Vorschlag
+/// 2026-08-05): Cream-Grund, runde Ecken, der Wert fett in Grün — er ist
+/// die Aussage, die Beschriftung die Zugabe.
+///
+/// Grün über `colorScheme.primary`, nicht als rohes [AppColors.forestGreen]:
+/// Das Theme ist daraus geseedet, und ein dunkles Thema bekäme sonst einen
+/// zu dunklen Ton. Die Beschriftung dagegen fest [AppColors.barkBrown] —
+/// die Kachel ist in jedem Thema hell, ein Theme-Grau wäre auf Cream
+/// unlesbar (dasselbe Muster wie der Fußtext der Regen-Legende).
+class _SumTile extends StatelessWidget {
+  const _SumTile({required this.rows});
 
-  final String label;
-  final int mm;
+  final List<({String label, int mm})> rows;
 
   @override
   Widget build(BuildContext context) {
-    final style = Theme.of(context).textTheme.bodyMedium;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 1),
+    final theme = Theme.of(context);
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.cream,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Row(
         children: [
-          SizedBox(width: 96, child: Text(label, style: style)),
-          Text('$mm mm',
-              style: style?.copyWith(fontWeight: FontWeight.w600)),
+          for (final row in rows)
+            Expanded(
+              child: Column(
+                children: [
+                  Text('${row.mm} mm',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: theme.colorScheme.primary,
+                      )),
+                  const SizedBox(height: 2),
+                  Text(row.label,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                          color: AppColors.barkBrown
+                              .withValues(alpha: 0.7))),
+                ],
+              ),
+            ),
         ],
       ),
     );

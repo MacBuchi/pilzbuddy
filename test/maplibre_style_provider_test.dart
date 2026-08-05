@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/settings.dart';
 import 'package:pilzbuddy/features/map/map_view/maplibre_style_provider.dart';
 import 'package:pilzbuddy/features/map/rain_data_providers.dart';
+import 'package:pilzbuddy/features/map/rain_grid.dart';
 import 'package:pilzbuddy/features/map/rain_layer.dart';
 import 'package:pilzbuddy/features/offline_maps/offline_map_providers.dart';
 import 'package:pilzbuddy/features/offline_maps/offline_map_repository.dart';
@@ -232,6 +233,9 @@ void main() {
     expect((without['sources'] as Map).keys, isNot(contains('regen')));
 
     container.read(rainLayerProvider.notifier).state = RainLayer.last30d;
+    // Erst das (leere) Gitter zu Ende laden lassen: Solange es lädt, hält
+    // der Style das DWD-Bild bewusst draußen (siehe den Test darunter).
+    await container.read(rainContoursProvider(RainLayer.last30d).future);
     final style =
         jsonDecode((await container.read(maplibreStyleProvider.future))!)
             as Map<String, dynamic>;
@@ -244,5 +248,40 @@ void main() {
             'das Blatt sichtbar um und zeigt weiter dasselbe Bild.');
     final layers = (style['layers'] as List).cast<Map<String, dynamic>>();
     expect(layers.last['id'], 'regen');
+  });
+
+  test('Solange das Gitter lädt, bleibt das DWD-Bild draußen — erst der '
+      'Fehlschlag holt es als Rückfall in den Style', () async {
+    // Der Umschalt-Moment auf dem MapLibre-Pfad: Das DWD-Bild lag im
+    // Style, solange das Gitter lud, und flog beim Eintreffen der eigenen
+    // Fläche wieder raus — sichtbar als Farbblitz samt doppeltem
+    // Style-Rebuild.
+    final io = _FakeIo();
+    final installed = Completer<List<InstalledMap>>()..complete(const []);
+    final gate = Completer<RainGrid?>();
+    final container = ProviderContainer(overrides: [
+      rainGridLoaderProvider.overrideWithValue((_) => gate.future),
+      maplibreStyleIoProvider.overrideWithValue(io),
+      installedMapsProvider.overrideWith(() => _GatedInstalledMaps(installed)),
+      settingsProvider.overrideWithValue(FakeSettings()),
+      noConnectivityProvider.overrideWithValue(false),
+    ]);
+    addTearDown(container.dispose);
+    container.read(rainLayerProvider.notifier).state = RainLayer.last30d;
+
+    final pending =
+        jsonDecode((await container.read(maplibreStyleProvider.future))!)
+            as Map<String, dynamic>;
+    expect((pending['sources'] as Map).keys, isNot(contains('regen')),
+        reason: 'ein Bild, das gleich ersetzt wird, gehört nicht in den '
+            'Style — es wäre der Farbblitz');
+
+    gate.complete(null);
+    await container.read(rainContoursProvider(RainLayer.last30d).future);
+    final fallback =
+        jsonDecode((await container.read(maplibreStyleProvider.future))!)
+            as Map<String, dynamic>;
+    expect((fallback['sources'] as Map).keys, contains('regen'),
+        reason: 'ohne Gitter bleibt das DWD-Bild die Rückfalllinie');
   });
 }

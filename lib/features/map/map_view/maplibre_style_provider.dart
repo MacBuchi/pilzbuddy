@@ -191,12 +191,16 @@ final maplibreStyleProvider = FutureProvider<String?>((ref) async {
       rasterSources: offlineActive ? const [] : const [_osmRaster],
       // `DateTime.now()` nur für die Vorhersage-Ebene, siehe rain_layer.dart.
       overlays: [
-        // Das DWD-Bild ist die Rückfalllinie: Sobald die eigenen
-        // Höhenlinien vorliegen, liegt es nicht mehr darunter — sonst
-        // stünden zwei Darstellungen derselben Zahlen übereinander.
-        if (ref.watch(rainContoursProvider(ref.watch(rainLayerProvider)))
-            .value?.isNotEmpty !=
-            true)
+        // Das DWD-Bild nur im dwd-Zustand: beim Radar immer, bei den
+        // Summen als Rückfalllinie. Während das Gitter lädt (pending)
+        // bleibt es bewusst draußen — es wäre der Farbblitz, der beim
+        // Eintreffen der eigenen Fläche gleich wieder verschwände.
+        // `select` mit Absicht: pending→own ändert den Bool nicht, ohne
+        // select baute jede Summenaktivierung den Style zweimal komplett
+        // neu (inkl. Glyph-I/O), und jeder Rebuild geht per setStyle an
+        // die Engine.
+        if (ref.watch(rainPaintProvider(ref.watch(rainLayerProvider))
+            .select((paint) => paint == RainPaint.dwd)))
           ?_rainOverlay(ref.watch(rainLayerProvider), DateTime.now()),
       ],
     );
