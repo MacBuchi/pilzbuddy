@@ -139,7 +139,10 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
 - Supabase-Keys in `lib/core/supabase_config.dart` sind bewusst öffentlich
   (Publishable Key); niemals den service_role-Key einchecken.
 - Supabase-Auth-Härtung im Dashboard (seit 2026-07-22 aktiv): Leaked Password
-  Protection (HaveIBeenPwned-Abgleich bei Registrierung) und „Secure password
+  Protection (HaveIBeenPwned-Abgleich bei Registrierung; der Security Advisor
+  fand sie am 2026-08-05 AUS — vermutlich bei einem Dashboard-Umbau verloren,
+  vom Betreiber wieder angeschaltet; nach Dashboard-Arbeiten an Auth
+  gegenprüfen) und „Secure password
   change" — Passwort-Änderungen über die Auth-API verlangen das aktuelle
   Passwort bzw. eine frische Re-Authentifizierung, ein gestohlenes
   Session-Token allein reicht nicht für eine Kontoübernahme. Eine frisch per

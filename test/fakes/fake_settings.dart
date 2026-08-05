@@ -8,6 +8,11 @@ class FakeSettings implements Settings {
     this.offlineMapEnabled = false,
     this.classicMapEnabled = false,
     this.rainCourseEnabled = false,
+    // Bewusst null: In echt initialisiert main() den Marker beim ersten
+    // Start (ensureFindSeenMarker) — im Harness bleibt er aus, damit kein
+    // Bestandstest ungefragt ein Buddy-Fund-Banner bekommt. Tests, die
+    // das Banner wollen, geben einen alten Zeitstempel mit.
+    this.lastFindSeenAt,
   });
 
   @override
@@ -32,5 +37,13 @@ class FakeSettings implements Settings {
   @override
   Future<void> setRainCourseEnabled(bool value) async {
     rainCourseEnabled = value;
+  }
+
+  @override
+  DateTime? lastFindSeenAt;
+
+  @override
+  Future<void> setLastFindSeenAt(DateTime value) async {
+    lastFindSeenAt = value;
   }
 }
