@@ -11,6 +11,28 @@ import 'spot_cache.dart';
 /// diesem Zeitpunkt.
 typedef SpotsSnapshot = ({List<Spot> spots, DateTime? cachedAt});
 
+/// Ein Fund, wie ihn [SpotRepository.restoreSpot] entgegennimmt.
+///
+/// Ein Record und nicht `ImportedFind` aus `features/import_export/`:
+/// Die Datenschicht kennt keine Features. Dass beide dieselben Felder
+/// tragen, ist der Punkt — hier endet der Import und beginnt die
+/// Datenbank.
+typedef RestorableFind = ({
+  String? species,
+  int? count,
+  DateTime foundOn,
+  String? note,
+});
+
+/// Ein Spot samt Funden, wie ihn der GPX-Import wiederherstellt.
+typedef RestorableSpot = ({
+  double lat,
+  double lng,
+  String? name,
+  bool sharingExcluded,
+  List<RestorableFind> finds,
+});
+
 class SpotRepository {
   SpotRepository(this._client, {SpotCache? cache}) : _cache = cache;
 
@@ -100,13 +122,62 @@ class SpotRepository {
     );
   }
 
+  /// Stellt einen Spot samt seiner Funde wieder her — der Weg für den
+  /// verlustfreien GPX-Import (#112).
+  ///
+  /// Eigene Methode und nicht [addSpot], weil dort genau **ein** Fund
+  /// entsteht, `sharing_excluded` nicht vorkommt und ein Spot ganz ohne
+  /// Fund unmöglich wäre. Alle drei Fälle gehören zu einer Sicherung.
+  ///
+  /// Die Funde gehen in **einem** Insert raus: Ein Spot mit zwanzig
+  /// Funden wären sonst zwanzig Rundreisen, und ein Import bringt
+  /// mehrere Spots mit.
+  ///
+  /// `created_at` setzt der Server neu. Das ist Absicht — `found_on` ist
+  /// das biologische Datum und die Größe, an der später gerechnet wird
+  /// (#199); wann die Zeile eingefügt wurde, ist keine Eigenschaft des
+  /// Fundes.
+  Future<void> restoreSpot({
+    required double lat,
+    required double lng,
+    String? name,
+    bool sharingExcluded = false,
+    required List<RestorableFind> finds,
+  }) async {
+    final spot = await _client
+        .from('spots')
+        .insert({
+          'owner_id': _uid,
+          'name': name,
+          'lat': lat,
+          'lng': lng,
+          'sharing_excluded': sharingExcluded,
+        })
+        .select('id')
+        .single();
+    if (finds.isEmpty) return;
+    await _client.from('finds').insert([
+      for (final find in finds)
+        {
+          'spot_id': spot['id'] as String,
+          // Dieselbe Normalisierung wie in [addFind] — siehe dort.
+          'species': canonicalSpecies(find.species),
+          'count': find.count,
+          'found_on': isoDate(find.foundOn),
+          'note': find.note,
+        },
+    ]);
+  }
+
   /// Legt einen Fund an. Der Artname wird dabei auf die Hauptbezeichnung
   /// gebracht ([canonicalSpecies]) — „Totentrompete" wird als
-  /// „Herbsttrompete" gespeichert. Das ist die einzige Schreibstelle für
-  /// Funde, [addSpot] und der GPX-Import laufen ebenfalls hier durch;
-  /// deshalb genügt diese eine Zeile, damit in der Datenbank keine zwei
-  /// Namen für dieselbe Art nebeneinander liegen. Eigene Arten der Nutzer
+  /// „Herbsttrompete" gespeichert. Damit liegen in der Datenbank keine
+  /// zwei Namen für dieselbe Art nebeneinander; eigene Arten der Nutzer
   /// bleiben unverändert.
+  ///
+  /// **Jede Schreibstelle für Funde muss das tun.** Es sind drei: diese
+  /// hier (über die auch [addSpot] und der einfache GPX-Import laufen)
+  /// und [restoreSpot], das seinen eigenen Batch-Insert braucht.
   ///
   /// `author_id` wird bewusst NICHT mitgesendet: Der Spalten-Default
   /// `auth.uid()` füllt ihn serverseitig (Patch 014) — derselbe Weg, den

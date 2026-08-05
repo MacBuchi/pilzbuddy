@@ -593,6 +593,38 @@ Future<void> _exportGpx(BuildContext context, WidgetRef ref) async {
     message('Noch keine eigenen Spots zum Exportieren.');
     return;
   }
+
+  // Seit #112 trägt die Datei die vollen Daten — inklusive der Notizen.
+  // Das muss vorher dastehen: Der Export geht über das System-Teilen-
+  // Blatt, landet also womöglich in einem Chat. Wer eine Datei
+  // weitergibt, soll wissen, was drinsteht; hinterher ist sie weg.
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Spots exportieren'),
+      content: Text(
+        'Die Datei enthält alle ${spots.length} eigenen Spots mit '
+        'Fundorten, Arten, Daten und deinen Notizen.\n\n'
+        'Sie ist als Sicherung gedacht — damit ziehst du deine Spots in '
+        'ein anderes Konto um. Gib sie nur weiter, wenn die Notizen '
+        'jemand lesen darf.\n\n'
+        'Karten-Apps können die Datei ebenfalls öffnen und zeigen dann '
+        'die Fundorte.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Abbrechen'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: const Text('Weiter'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true) return;
+
   final gpx = buildGpx(spots);
   try {
     final result = await SharePlus.instance.share(ShareParams(
