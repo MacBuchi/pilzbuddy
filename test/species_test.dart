@@ -119,6 +119,18 @@ void main() {
       }
       expect(SpeciesGroup.stachelpilze.label, isNot('Lamellenpilz'));
     });
+
+    test('der Samtfußrübling bleibt ein Lamellenpilz', () {
+      // Er wächst büschelig an Holz — und genau daran ist der
+      // Igelstachelbart schon einmal falsch einsortiert worden. „An Holz"
+      // macht keinen Baumpilz: Die Gruppe kommt von der Hutunterseite, und
+      // die trägt hier Lamellen. Hängt an der Einordnung auch sein Icon
+      // (orange Kappe auf dünnem dunklem Stiel, #208).
+      expect(groupFor('Samtfußrübling'), SpeciesGroup.sonstige);
+      expect(groupFor('Winterrübling'), SpeciesGroup.sonstige,
+          reason: 'Zweitname erbt die Gruppe');
+      expect(SpeciesGroup.sonstige.label, 'Lamellenpilz');
+    });
   });
 
   group('Zweitnamen (sameAs)', () {

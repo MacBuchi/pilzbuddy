@@ -274,10 +274,57 @@ class WeatherChartPainter extends CustomPainter {
   Offset linePoint(int index, double value, Size size) =>
       Offset(centerX(index, size), temperatureY(value, size));
 
+  /// Die °C-Werte, an denen beschriftet wird — leer ohne Temperaturachse.
+  ///
+  /// Eine Stelle für Beschriftung UND Referenzlinien: Getrennt gerechnet
+  /// driften sie beim ersten Eingriff auseinander, und eine Linie neben
+  /// ihrer Zahl ist schlimmer als gar keine. Gebildet als `low + i * step`
+  /// statt aufaddiert, damit sich kein Fließkomma-Fehler ansammelt und die
+  /// 0 wirklich 0 ist.
+  @visibleForTesting
+  List<double> temperatureTicks() {
+    final a = axis;
+    if (a == null) return const [];
+    final steps = ((a.high - a.low) / a.step).round();
+    return [for (var i = 0; i <= steps; i++) a.low + i * a.step];
+  }
+
+  /// Ob die gestrichelte Frostgrenze gezeichnet wird — nur wenn die Spanne
+  /// 0 °C wirklich überquert.
+  bool get _showsFrostLine {
+    final a = axis;
+    return a != null && a.low < 0 && a.high > 0;
+  }
+
+  /// Die Werte, auf deren Höhe eine feine Referenzlinie liegt (#212).
+  ///
+  /// Wie [temperatureTicks], aber **ohne die 0**, sobald die Frostgrenze
+  /// dort ohnehin gestrichelt liegt: Zwei Linien übereinander nehmen der
+  /// Frostaussage ihre Sonderstellung, und genau die ist im Herbst die
+  /// Information, für die jemand hinsieht.
+  @visibleForTesting
+  List<double> gridTicks() => [
+        for (final value in temperatureTicks())
+          if (!(_showsFrostLine && value == 0)) value,
+      ];
+
   @override
   void paint(Canvas canvas, Size size) {
     if (mm.isEmpty) return;
     final plot = plotArea(size);
+
+    // Referenzlinien auf Höhe der °C-Beschriftungen (#212): Ohne sie muss
+    // man einen Temperaturwert quer durch die Fläche zur Achse
+    // zurückverfolgen. Ganz zuerst gezeichnet, damit sie hinter Balken und
+    // Linien bleiben — Hintergrund, nicht Inhalt. Die unterste fällt mit
+    // der Balken-Grundlinie zusammen; die hatte das Diagramm bisher nicht.
+    final gridPaint = Paint()
+      ..color = hintColor.withValues(alpha: 0.22)
+      ..strokeWidth = 1;
+    for (final value in gridTicks()) {
+      final y = temperatureY(value, size);
+      canvas.drawLine(Offset(plot.left, y), Offset(plot.right, y), gridPaint);
+    }
 
     // Regenbalken — dieselbe Farbsprache wie der bisherige Verlauf.
     for (final (index, value) in mm.indexed) {
@@ -306,7 +353,7 @@ class WeatherChartPainter extends CustomPainter {
       // °C-Achse links.
       _text(canvas, '°C', 8, hintColor, Offset(plot.left - _gutter + 2,
           plot.top - 12));
-      for (var value = a.low; value <= a.high + 0.001; value += a.step) {
+      for (final value in temperatureTicks()) {
         final y = temperatureY(value, size);
         _text(canvas, value.toStringAsFixed(0), 9, hintColor,
             Offset(plot.left - 4, y - 5),
@@ -314,7 +361,9 @@ class WeatherChartPainter extends CustomPainter {
       }
 
       // Frostgrenze: fein gestrichelt, nur wenn die Spanne 0° überquert.
-      if (a.low < 0 && a.high > 0) {
+      // Beschriftet wird die 0 trotzdem (siehe temperatureTicks) — nur die
+      // durchgezogene Referenzlinie tritt hier zurück.
+      if (_showsFrostLine) {
         final y = temperatureY(0, size);
         final paint = Paint()
           ..color = hintColor.withValues(alpha: 0.6)

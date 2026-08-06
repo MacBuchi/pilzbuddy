@@ -78,6 +78,11 @@ Names Wikipedia writes with a hyphen (`Butter-Röhrling`, `Mai-Ritterling`,
 1. **Always a friendly face.** Two round dark eyes (`#3E2723`) and an upward
    smile (stroked quadratic curve, round caps). Roughly half of the variants
    get rosy cheeks (`#F8BBD0` at ~90% opacity). No angry, sad, or neutral faces.
+   **On the nine straight cap shapes the face sits on the STEM**, so a dark
+   stem swallows it — the Samtfußrübling's first render had nothing left but
+   the cheeks at 44 px. Such a style needs `lightFace: true` (cream instead
+   of `faceBrown`). Set it explicitly per species; a brightness threshold
+   would also repaint the Herbsttrompete, which nobody asked for.
 2. **Chubby proportions.** Cap clearly wider than the stem; stem short and
    plump with rounded corners. Think plush toy, not botanical drawing.
 3. **Readable at 44 px.** Icons are used as map markers at 44 logical pixels.
@@ -154,6 +159,8 @@ Same spot → same look, forever.
 | trompete | trumpet | slim dark gray-brown horn with flared wavy rim, dark stem |
 | reizker | flat + `rings` | concentric darker zones, light-orange stem; cap tone per variant: edel `#E8833A`, lachs `#EF8A66`, kiefern `#C96A2E`, fichten `#D9702E` |
 | marone | dome | chestnut cap `#6B4423/#5D3A21`, pale-yellow stem (vs. Steinpilz: lighter browns, cream stem). „Braunkappe" was matched here until 1.37.0 and is now the Riesenträuschling — see the Wikipedia rule above |
+| steinpilz | dome + `stemBulge` | the group's browns and cream stem unchanged — the difference to the Marone stays the lighter cap. What is its own is the **club-shaped stem**, its loudest field mark. Also catches Fichten-/Sommersteinpilz |
+| samtfußrübling | dome + thin `stemWidth` | honey-orange cap `#F0A030/#E8912A/#F5B950` on a slim dark stem `#5D4037` — the velvet foot is the name *and* the mark against the deadly Gifthäubling. Needs `lightFace`, see below. Stays in `sonstige`: it has gills |
 | hexenröhrling | dome + `poreBand` | olive-brown cap `#8D7040/#9A7B4F`, red pore band, yellow stem; `stemPattern` splits the pair — `net` if the name contains "netz", else `flecks` |
 | stoppelpilz | toothed | low irregular bread-crust cap `#E3B981/#D9A96C/#E8C593`, pale stem |
 | habichtspilz | toothed + `darkDots` | same cap, dark brown `#8A6A45/#77593A` with coarse scales |

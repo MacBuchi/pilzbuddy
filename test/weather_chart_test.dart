@@ -154,4 +154,77 @@ void main() {
       expect(without.plotArea(size).left, lessThan(with_.plotArea(size).left));
     });
   });
+
+  group('Referenzlinien (#212)', () {
+    const size = Size(340, 112);
+
+    WeatherChartPainter painterOf(
+            ({double low, double high, double step})? withAxis) =>
+        WeatherChartPainter(
+          mm: List<int?>.filled(14, 3),
+          weekdays: List.filled(14, 'Mo'),
+          startLabel: '21.7.',
+          endLabel: 'gestern, 3.8.',
+          mmStep: 1,
+          mmMax: 5,
+          axis: withAxis,
+          soil: null,
+          airMax: null,
+          airMin: null,
+          barColor: AppColors.friendBlue,
+          hintColor: Colors.grey,
+          textColor: Colors.black87,
+        );
+
+    test('eine Linie je Beschriftung, von low bis high', () {
+      final axis = temperatureAxis(8, 24);
+      final ticks = painterOf(axis).temperatureTicks();
+      expect(ticks.first, axis.low);
+      expect(ticks.last, axis.high);
+      for (var i = 1; i < ticks.length; i++) {
+        expect(ticks[i] - ticks[i - 1], closeTo(axis.step, 1e-9));
+      }
+    });
+
+    test('die Werte sind exakt, nicht aufaddiert', () {
+      // `value += step` sammelt bei krummen Schritten einen Fehler an, und
+      // dann ist die „0" plötzlich 1e-16 — die Auslassung unten griffe
+      // nicht mehr, und zwei Linien lägen übereinander.
+      final axis = temperatureAxis(-7, 9);
+      expect(painterOf(axis).temperatureTicks(), contains(0.0));
+    });
+
+    test('bei Frost zeichnet nur die gestrichelte Linie die 0', () {
+      final frost = temperatureAxis(-7, 9);
+      expect(frost.low, lessThan(0));
+      expect(frost.high, greaterThan(0));
+      final painter = painterOf(frost);
+      // Beschriftet wird die 0 weiterhin …
+      expect(painter.temperatureTicks(), contains(0.0));
+      // … aber sie bekommt keine zweite, durchgezogene Linie.
+      expect(painter.gridTicks(), isNot(contains(0.0)));
+      expect(painter.gridTicks().length,
+          painter.temperatureTicks().length - 1);
+    });
+
+    test('ohne Frost bleibt jede Beschriftung eine Linie', () {
+      final mild = temperatureAxis(4, 20);
+      final painter = painterOf(mild);
+      expect(painter.gridTicks(), painter.temperatureTicks());
+    });
+
+    test('ohne Temperaturachse gibt es keine Linien', () {
+      // Ohne Station in Reichweite fehlt der Bezug — Linien wären
+      // Dekoration über den Regenbalken.
+      expect(painterOf(null).temperatureTicks(), isEmpty);
+      expect(painterOf(null).gridTicks(), isEmpty);
+    });
+
+    test('die unterste Linie liegt auf der Balken-Grundlinie', () {
+      final axis = temperatureAxis(4, 20);
+      final painter = painterOf(axis);
+      expect(painter.temperatureY(painter.gridTicks().first, size),
+          closeTo(painter.plotArea(size).bottom, 0.001));
+    });
+  });
 }

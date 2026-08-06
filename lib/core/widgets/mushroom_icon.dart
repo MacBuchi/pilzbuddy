@@ -18,10 +18,11 @@ int stableSeed(String input) {
 /// Wulstling = rot mit Punkten, Bovist = Kugel, Baumpilz = Konsole …) —
 /// so erkennt man die Pilzart auf der Karte auf den ersten Blick.
 /// Einige bekannte Arten ([species]) bekommen zusätzlich ein eigenes
-/// Aussehen (Pfifferling, Herbsttrompete, Reizker, Marone, Hexenröhrlinge,
-/// Käppchenmorchel, Morchelbecherling, Böhmische Verpel, Semmelstoppelpilz,
-/// Habichtspilz, Krause Glucke, Ziegenbart, Scheidenstreifling). Glucke und
-/// Ziegenbart werden ohne Stiel gezeichnet — sie haben keinen.
+/// Aussehen (Pfifferling, Herbsttrompete, Reizker, Marone, Steinpilz,
+/// Samtfußrübling, Hexenröhrlinge, Käppchenmorchel, Morchelbecherling,
+/// Böhmische Verpel, Semmelstoppelpilz, Habichtspilz, Krause Glucke,
+/// Ziegenbart, Scheidenstreifling). Glucke und Ziegenbart werden ohne
+/// Stiel gezeichnet — sie haben keinen.
 /// Ohne Gruppe sorgt [seed] für bunte Vielfalt. Der Boden unter dem Pilz
 /// zeigt die Herkunft: grün = eigener Spot, blau = von einem Freund.
 class MushroomIcon extends StatelessWidget {
@@ -115,6 +116,27 @@ class _Style {
   final Color? stemColor; // abweichende Stielfarbe (Pfifferling gelb …)
   final _StemPattern? stemPattern;
 
+  /// Stielbreite, symmetrisch um die Mitte. Der Vorgabewert ist die
+  /// Breite, die neun Hutformen sich teilen; kleiner macht ihn dünn
+  /// (Samtfußrübling), und nur dafür gibt es das Feld.
+  final double stemWidth;
+
+  /// Bauchiger Stiel: `> 0` ersetzt das gerade Rechteck durch eine Keule,
+  /// die nach unten um diesen Betrag breiter wird (Steinpilz, #208). Der
+  /// Wert ist die zusätzliche Halbbreite an der dicksten Stelle.
+  ///
+  /// Die Obergrenze ist **gemessen, nicht gerechnet**: Die Besitz-Ellipse
+  /// ist zwar 0.66 breit, aber nur 0.15 hoch — ein Stiel, der rechnerisch
+  /// noch in ihre Breite passt, deckt ihren sichtbaren Teil längst zu. Bei
+  /// 0.235 Halbbreite blitzte in der Vorschau links und rechts nur noch ein
+  /// Rand hervor, und damit ist die Grün/Blau-Aussage (eigener Spot vs.
+  /// Freundes-Spot) dahin. 0.22 ist der Wert, bei dem sie klar bleibt.
+  final double stemBulge;
+
+  /// Helles Gesicht statt des dunklen Standards — für dunkle Flächen, auf
+  /// denen `faceBrown` verschwindet.
+  final bool lightFace;
+
   const _Style(this.shape, this.capColors,
       {this.whiteDots = false,
       this.darkDots = false,
@@ -125,7 +147,12 @@ class _Style {
       this.poreBand = false,
       this.stemTop = 0.42,
       this.stemColor,
-      this.stemPattern});
+      this.stemPattern,
+      this.stemWidth = 0.28,
+      this.stemBulge = 0.0,
+      this.lightFace = false})
+      : assert(stemWidth / 2 + stemBulge <= 0.22,
+            'Stiel deckt die Besitz-Ellipse zu');
 }
 
 class _MushroomPainter extends CustomPainter {
@@ -183,6 +210,27 @@ class _MushroomPainter extends CustomPainter {
       return const _Style(_CapShape.dome,
           [Color(0xFF6B4423), Color(0xFF5D3A21)],
           stemColor: Color(0xFFF5EDCB));
+    }
+    if (key.contains('steinpilz')) {
+      // Steinpilz: Hutfarben und Cremestiel bleiben die der Röhrlings-
+      // Gruppe — der Unterschied zur Marone soll die hellere Kappe bleiben.
+      // Neu ist allein der bauchige Stiel (#208): In echt ist die keulige
+      // Knolle sein auffälligstes Merkmal, und im Bild trennt sie ihn von
+      // jedem anderen Röhrling. Greift auch für Fichten- und
+      // Sommersteinpilz, die den Namensteil tragen.
+      return const _Style(_CapShape.dome,
+          [Color(0xFF795548), Color(0xFF8D6E63), Color(0xFF5D4037)],
+          stemBulge: 0.07);
+    }
+    if (key.contains('samtfußrübling')) {
+      // Samtfußrübling: honig-orange Kappe auf dünnem, dunklem Stiel.
+      // Der samtige dunkle Fuß ist sein Name und zugleich das Merkmal
+      // gegen den tödlichen Gifthäubling — deshalb der durchgehend dunkle
+      // Stiel: zweifarbig wäre er bei 24 px vier Pixel hoch und damit
+      // unsichtbar. Bleibt bei den Lamellenpilzen, denn er hat Lamellen.
+      return const _Style(_CapShape.dome,
+          [Color(0xFFF0A030), Color(0xFFE8912A), Color(0xFFF5B950)],
+          stemColor: Color(0xFF5D4037), stemWidth: 0.18, lightFace: true);
     }
     if (key.contains('hexenröhrling')) {
       // Beide Hexenröhrlinge: olivbrauner Hut über roten Poren, gelber
@@ -328,6 +376,42 @@ class _MushroomPainter extends CustomPainter {
     }
   }
 
+  /// Der Stiel, den sich die neun geraden Hutformen teilen.
+  ///
+  /// Gerade ist er ein abgerundetes Rechteck um die Mitte. Mit
+  /// [_Style.stemBulge] wird daraus eine Keule: oben bleibt er schmal,
+  /// zur Basis hin wächst er — das ist der Bauch, an dem man den
+  /// Steinpilz von der Marone unterscheidet (#208). Die dickste Stelle
+  /// liegt bewusst tief (0.82) und nicht mittig; ein Stiel, der in der
+  /// Mitte am dicksten ist, sieht aus wie ein Fass, nicht wie ein
+  /// Steinpilz.
+  static Path _stemFor(_Style style, double Function(double) u) {
+    final half = style.stemWidth / 2;
+    final top = style.stemTop;
+    if (style.stemBulge <= 0) {
+      return Path()
+        ..addRRect(RRect.fromLTRBR(u(0.5 - half), u(top), u(0.5 + half),
+            u(0.96), Radius.circular(u(0.13))));
+    }
+    final wide = half + style.stemBulge;
+    // Rechte Kante von oben nach unten, dann gespiegelt zurück. Der
+    // Kontrollpunkt bei 0.82 zieht die Ausbuchtung nach unten, die Basis
+    // zieht sich wieder leicht ein.
+    return Path()
+      ..moveTo(u(0.5 - half), u(top))
+      ..lineTo(u(0.5 + half), u(top))
+      ..cubicTo(u(0.5 + half), u(top + 0.20), u(0.5 + wide), u(0.72),
+          u(0.5 + wide), u(0.82))
+      ..cubicTo(u(0.5 + wide), u(0.92), u(0.5 + wide - 0.02), u(0.96),
+          u(0.5 + wide - 0.05), u(0.96))
+      ..lineTo(u(0.5 - wide + 0.05), u(0.96))
+      ..cubicTo(u(0.5 - wide + 0.02), u(0.96), u(0.5 - wide), u(0.92),
+          u(0.5 - wide), u(0.82))
+      ..cubicTo(u(0.5 - wide), u(0.72), u(0.5 - half), u(top + 0.20),
+          u(0.5 - half), u(top))
+      ..close();
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
@@ -363,9 +447,7 @@ class _MushroomPainter extends CustomPainter {
       case _CapShape.semifreeCone:
       case _CapShape.thimble:
       case _CapShape.toothed:
-        stemPath = Path()
-          ..addRRect(RRect.fromLTRBR(u(0.36), u(style.stemTop), u(0.64),
-              u(0.96), Radius.circular(u(0.13))));
+        stemPath = _stemFor(style, u);
         switch (style.shape) {
           case _CapShape.dome:
             cap
@@ -775,8 +857,14 @@ class _MushroomPainter extends CustomPainter {
 
     canvas.drawPath(cap, outline);
 
-    // Gesicht — immer freundlich
-    final faceColor = AppColors.faceBrown;
+    // Gesicht — immer freundlich, und immer sichtbar. Bei den geraden
+    // Hutformen sitzt es auf dem STIEL; ist der dunkel (Samtfußrübling),
+    // verschluckt er das Dunkelbraun bis zur Unkenntlichkeit — gemessen
+    // in der Vorschau, bei 44 px blieben nur die Wangen übrig. Deshalb
+    // die helle Variante, ausdrücklich am Stil gesetzt statt über eine
+    // Helligkeitsschwelle geraten: eine Schwelle würde auch die
+    // Herbsttrompete umfärben, die niemand angefasst hat.
+    final faceColor = style.lightFace ? AppColors.cream : AppColors.faceBrown;
     final face = Paint()..color = faceColor;
     canvas.drawCircle(p(0.44, faceY), u(0.032), face);
     canvas.drawCircle(p(0.56, faceY), u(0.032), face);
