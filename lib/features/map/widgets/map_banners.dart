@@ -63,7 +63,10 @@ final newBuddyFindsProvider = Provider<List<({Find find, Spot spot})>>((ref) {
   ];
   return [
     for (final spot in spots)
-      for (final find in spot.finds)
+      // `findsSorted` siebt die Leergänge aus (#211): Das Banner meldet
+      // „Neuer Fund von …" — ein Buddy, der nichts gefunden hat, ist
+      // keine Nachricht, die jemanden in den Wald schickt.
+      for (final find in spot.findsSorted)
         if (!find.isOwn && _findStamp(find).isAfter(seenUntil))
           (find: find, spot: spot),
   ]..sort((a, b) => _findStamp(b.find).compareTo(_findStamp(a.find)));

@@ -92,10 +92,10 @@ check_get "friendships-Embed" \
 check_get "spots-Schreibspalten" \
   "/rest/v1/spots?select=id,owner_id,name,lat,lng,sharing_excluded&limit=1"
 
-# finds: Spalten aus Find.fromJson / SpotRepository.addFind und dem
-# Batch-Insert aus restoreSpot (#112)
+# finds: Spalten aus Find.fromJson / SpotRepository.addFinds und dem
+# Batch-Insert aus restoreSpot (#112). `blank` seit Patch 015 (#211).
 check_get "finds-Spalten" \
-  "/rest/v1/finds?select=id,spot_id,author_id,species,count,found_on,note,created_at&limit=1"
+  "/rest/v1/finds?select=id,spot_id,author_id,species,count,found_on,note,created_at,blank&limit=1"
 
 # live_locations: exakt die Query aus LiveShareRepository.fetchFriendLocations
 check_get "live_locations-Embed (Freundes-Standorte)" \

@@ -110,6 +110,28 @@ void main() {
           isFalse,
           reason: 'Beide Bedingungen gelten zusammen, nicht alternativ');
     });
+
+    test('Ein Leergang bringt keinen Spot in den Artfilter (#211)', () {
+      // Der Steinpilz von 2025 ist der Grund, warum der Spot zum Filter
+      // gehört. Dass zuletzt nichts da war, ändert die Frage nicht — wohl
+      // aber ein Spot, an dem NUR nichts gefunden wurde.
+      final besucht = Spot(id: 'a', ownerId: 'me', lat: 51, lng: 10, finds: [
+        Find(
+            id: 'a1',
+            spotId: 'a',
+            species: 'Steinpilz',
+            foundOn: DateTime(2025, 9, 1)),
+        Find(id: 'a2', spotId: 'a', foundOn: DateTime(2026, 8, 1), blank: true),
+      ]);
+      final nurLeer = Spot(id: 'b', ownerId: 'me', lat: 51, lng: 10, finds: [
+        Find(id: 'b1', spotId: 'b', foundOn: DateTime(2026, 8, 1), blank: true),
+      ]);
+      const filter = SpotFilter(species: {'Steinpilz'});
+      expect(matchesSpotFilter(besucht, filter), isTrue);
+      expect(matchesSpotFilter(nurLeer, filter), isFalse);
+      expect(speciesTally([besucht, nurLeer]),
+          [(name: 'Steinpilz', spots: 1)]);
+    });
   });
 
   group('speciesTally', () {

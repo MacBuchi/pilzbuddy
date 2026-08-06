@@ -11,26 +11,48 @@ import 'spot_cache.dart';
 /// diesem Zeitpunkt.
 typedef SpotsSnapshot = ({List<Spot> spots, DateTime? cachedAt});
 
-/// Ein Fund, wie ihn [SpotRepository.restoreSpot] entgegennimmt.
+/// Ein zu schreibender Eintrag — der Transporttyp ALLER Schreibwege:
+/// Fund-Blatt, Anlege-Blatt und GPX-Import.
 ///
-/// Ein Record und nicht `ImportedFind` aus `features/import_export/`:
+/// Eigener Typ und nicht `ImportedFind` aus `features/import_export/`:
 /// Die Datenschicht kennt keine Features. Dass beide dieselben Felder
 /// tragen, ist der Punkt — hier endet der Import und beginnt die
 /// Datenbank.
-typedef RestorableFind = ({
-  String? species,
-  int? count,
-  DateTime foundOn,
-  String? note,
-});
+///
+/// Eine Klasse und kein Record, weil die Bedingung aus [blank] mitgeprüft
+/// werden soll: Ein Leergang mit Artangabe wäre live ein
+/// Constraint-Verstoß (`finds_blank_leer`, Patch 015), und der soll nicht
+/// erst beim Insert auffallen.
+class NewFind {
+  final String? species;
+  final int? count;
+  final DateTime foundOn;
+  final String? note;
 
-/// Ein Spot samt Funden, wie ihn der GPX-Import wiederherstellt.
+  /// „Nichts gefunden" — siehe `Find.blank` in `models/find.dart`.
+  final bool blank;
+
+  const NewFind({
+    this.species,
+    this.count,
+    required this.foundOn,
+    this.note,
+    this.blank = false,
+  }) : assert(!blank || (species == null && count == null),
+            'Ein Leergang trägt weder Art noch Anzahl (finds_blank_leer).');
+
+  /// „War da, nichts da." Bewusst ohne Art: Die Aussage gilt dem Ort.
+  const NewFind.blank({required DateTime foundOn, String? note})
+      : this(foundOn: foundOn, note: note, blank: true);
+}
+
+/// Ein Spot samt Einträgen, wie ihn der GPX-Import wiederherstellt.
 typedef RestorableSpot = ({
   double lat,
   double lng,
   String? name,
   bool sharingExcluded,
-  List<RestorableFind> finds,
+  List<NewFind> finds,
 });
 
 class SpotRepository {
@@ -99,39 +121,29 @@ class SpotRepository {
     return rows.map((r) => Spot.fromJson(r, currentUserId: _uid)).toList();
   }
 
+  /// Neuer Spot samt seiner ersten Einträge. Mehrere, weil an einem Ort
+  /// mehrere Arten stehen können (#211) — der Sammler im Anlege-Blatt gibt
+  /// sie in einem Rutsch her.
   Future<void> addSpot({
     required double lat,
     required double lng,
     String? name,
-    String? species,
-    int? count,
-    required DateTime foundOn,
-    String? note,
+    required List<NewFind> finds,
   }) async {
     final spot = await _client
         .from('spots')
         .insert({'owner_id': _uid, 'name': name, 'lat': lat, 'lng': lng})
         .select('id')
         .single();
-    await addFind(
-      spotId: spot['id'] as String,
-      species: species,
-      count: count,
-      foundOn: foundOn,
-      note: note,
-    );
+    await addFinds(spotId: spot['id'] as String, finds: finds);
   }
 
   /// Stellt einen Spot samt seiner Funde wieder her — der Weg für den
   /// verlustfreien GPX-Import (#112).
   ///
-  /// Eigene Methode und nicht [addSpot], weil dort genau **ein** Fund
-  /// entsteht, `sharing_excluded` nicht vorkommt und ein Spot ganz ohne
-  /// Fund unmöglich wäre. Alle drei Fälle gehören zu einer Sicherung.
-  ///
-  /// Die Funde gehen in **einem** Insert raus: Ein Spot mit zwanzig
-  /// Funden wären sonst zwanzig Rundreisen, und ein Import bringt
-  /// mehrere Spots mit.
+  /// Eigene Methode und nicht [addSpot], weil dort `sharing_excluded`
+  /// nicht vorkommt und ein Spot ganz ohne Eintrag unmöglich wäre. Beide
+  /// Fälle gehören zu einer Sicherung.
   ///
   /// `created_at` setzt der Server neu. Das ist Absicht — `found_on` ist
   /// das biologische Datum und die Größe, an der später gerechnet wird
@@ -142,7 +154,7 @@ class SpotRepository {
     required double lng,
     String? name,
     bool sharingExcluded = false,
-    required List<RestorableFind> finds,
+    required List<NewFind> finds,
   }) async {
     final spot = await _client
         .from('spots')
@@ -155,47 +167,42 @@ class SpotRepository {
         })
         .select('id')
         .single();
-    if (finds.isEmpty) return;
-    await _client.from('finds').insert([
-      for (final find in finds)
-        {
-          'spot_id': spot['id'] as String,
-          // Dieselbe Normalisierung wie in [addFind] — siehe dort.
-          'species': canonicalSpecies(find.species),
-          'count': find.count,
-          'found_on': isoDate(find.foundOn),
-          'note': find.note,
-        },
-    ]);
+    await addFinds(spotId: spot['id'] as String, finds: finds);
   }
 
-  /// Legt einen Fund an. Der Artname wird dabei auf die Hauptbezeichnung
-  /// gebracht ([canonicalSpecies]) — „Totentrompete" wird als
-  /// „Herbsttrompete" gespeichert. Damit liegen in der Datenbank keine
+  /// Legt Einträge an einem Spot an. Der Artname wird dabei auf die
+  /// Hauptbezeichnung gebracht ([canonicalSpecies]) — „Totentrompete" wird
+  /// als „Herbsttrompete" gespeichert. Damit liegen in der Datenbank keine
   /// zwei Namen für dieselbe Art nebeneinander; eigene Arten der Nutzer
   /// bleiben unverändert.
   ///
-  /// **Jede Schreibstelle für Funde muss das tun.** Es sind drei: diese
-  /// hier (über die auch [addSpot] und der einfache GPX-Import laufen)
-  /// und [restoreSpot], das seinen eigenen Batch-Insert braucht.
+  /// **Die einzige Schreibstelle für Funde** — [addSpot], [restoreSpot]
+  /// und das Fund-Blatt laufen alle hier durch. Vorher gab es zwei, und
+  /// die Normalisierung musste an beiden stehen.
+  ///
+  /// Alles geht in **einem** Insert raus: Drei Arten an einem Spot (#211)
+  /// oder ein importierter Spot mit zwanzig Funden wären sonst ebenso
+  /// viele Rundreisen.
   ///
   /// `author_id` wird bewusst NICHT mitgesendet: Der Spalten-Default
   /// `auth.uid()` füllt ihn serverseitig (Patch 014) — derselbe Weg, den
   /// auch ältere Clients nehmen, die die Spalte gar nicht kennen.
-  Future<void> addFind({
+  Future<void> addFinds({
     required String spotId,
-    String? species,
-    int? count,
-    required DateTime foundOn,
-    String? note,
+    required List<NewFind> finds,
   }) async {
-    await _client.from('finds').insert({
-      'spot_id': spotId,
-      'species': canonicalSpecies(species),
-      'count': count,
-      'found_on': isoDate(foundOn),
-      'note': note,
-    });
+    if (finds.isEmpty) return;
+    await _client.from('finds').insert([
+      for (final find in finds)
+        {
+          'spot_id': spotId,
+          'species': canonicalSpecies(find.species),
+          'count': find.count,
+          'found_on': isoDate(find.foundOn),
+          'note': find.note,
+          'blank': find.blank,
+        },
+    ]);
   }
 
   Future<void> deleteSpot(String spotId) async {

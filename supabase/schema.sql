@@ -45,7 +45,13 @@ create table public.finds (
   count int check (count is null or count > 0),
   found_on date not null default current_date,
   note text,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  -- „Nichts gefunden" (Patch 015): ein Fund ohne Fund — die Aussage gilt
+  -- dem Ort, nicht einer Art. Weder Art noch Anzahl, sonst würde daraus
+  -- über die Jahre ein schwächeres „keine Steinpilze".
+  blank boolean not null default false,
+  constraint finds_blank_leer
+    check (not blank or (species is null and count is null))
 );
 create index finds_spot_idx on public.finds (spot_id, found_on desc);
 create index finds_author_idx on public.finds (author_id);
@@ -375,5 +381,6 @@ insert into public.applied_patches (filename) values
   ('patch_011_interne_funktionen.sql'),
   ('patch_012_mindestversion.sql'),
   ('patch_013_username_gross_klein.sql'),
-  ('patch_014_buddy_funde.sql')
+  ('patch_014_buddy_funde.sql'),
+  ('patch_015_leergang.sql')
 on conflict do nothing;

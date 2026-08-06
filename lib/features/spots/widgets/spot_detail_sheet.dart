@@ -44,28 +44,31 @@ class _SpotDetailSheet extends ConsumerWidget {
         .showSnackBar(SnackBar(content: Text(friendlyError(error))));
   }
 
-  Future<void> _addFind(BuildContext context, WidgetRef ref, Spot spot) async {
+  /// Öffnet das Eingabeblatt und schreibt, was zurückkommt. [blank] macht
+  /// daraus „Nichts gefunden" (#211) — derselbe Weg, weil sich nur das
+  /// Blatt unterscheidet, nicht das Schreiben.
+  Future<void> _addFinds(BuildContext context, WidgetRef ref, Spot spot,
+      {bool blank = false}) async {
     final ownSpecies = ref.read(ownSpeciesProvider);
-    final data = await showAddFindSheet(
+    final finds = await showAddFindSheet(
       context,
       // Der letzte EIGENE Fund, nicht der letzte überhaupt: Am
       // Freundes-Spot soll nicht dessen Art im Formular vorstehen.
       lastFind: spot.lastOwnFind,
       ownSpecies: ownSpecies,
       fallbackSpecies: ownSpecies.firstOrNull,
+      blank: blank,
     );
-    if (data == null) return;
+    if (finds == null) return;
     try {
-      await ref.read(mySpotsProvider.notifier).addFind(
-            spotId: spot.id,
-            species: data.species,
-            count: data.count,
-            foundOn: data.foundOn,
-            note: data.note,
-          );
+      await ref
+          .read(mySpotsProvider.notifier)
+          .addFinds(spotId: spot.id, finds: finds);
     } catch (e, stackTrace) {
       if (context.mounted) {
-        _showError(context, 'Fund eintragen', e, stackTrace);
+        _showError(
+            context, blank ? 'Leergang eintragen' : 'Fund eintragen', e,
+            stackTrace);
       }
     }
   }
@@ -179,7 +182,7 @@ class _SpotDetailSheet extends ConsumerWidget {
                   style: Theme.of(context).textTheme.bodySmall),
             ),
           const SizedBox(height: 12),
-          if (spot.finds.isEmpty)
+          if (spot.entriesSorted.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Text(
@@ -195,12 +198,24 @@ class _SpotDetailSheet extends ConsumerWidget {
               child: ListView(
                 shrinkWrap: true,
                 children: [
-                  for (final find in spot.findsSorted)
+                  // Leergänge stehen mit in der Liste: Sie gehören zur
+                  // Besuchshistorie des Spots („am 12.9. war nichts da").
+                  // Gedämpft und mit anderem Zeichen, damit die Liste auf
+                  // einen Blick zeigt, was ein Fund war und was nicht.
+                  for (final find in spot.entriesSorted)
                     ListTile(
                       dense: true,
-                      leading: MushroomIcon.forSpecies(find.species,
-                          fallbackSeed: find.id),
-                      title: Text(find.label),
+                      leading: find.blank
+                          ? Icon(Icons.search_off,
+                              color: Theme.of(context).disabledColor)
+                          : MushroomIcon.forSpecies(find.species,
+                              fallbackSeed: find.id),
+                      title: Text(
+                        find.label,
+                        style: find.blank
+                            ? TextStyle(color: Theme.of(context).hintColor)
+                            : null,
+                      ),
                       subtitle: Text([
                         dateFormat.format(find.foundOn),
                         if (find.note != null && find.note!.isNotEmpty)
@@ -242,13 +257,42 @@ class _SpotDetailSheet extends ConsumerWidget {
           // Auch am Freundes-Spot (#190): Wer den Spot sehen darf, darf
           // dort eigene Funde eintragen — die RLS zieht dieselbe Grenze.
           // Freigabe-Schalter und Löschen bleiben dagegen beim Besitzer.
-          FilledButton.icon(
-            onPressed: () => _addFind(context, ref, spot),
-            icon: const Icon(Icons.add),
-            label: const Text('Fund eintragen'),
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-            ),
+          //
+          // „Nichts gefunden" steht bewusst gleichberechtigt daneben und
+          // nicht im Fund-Blatt versteckt (#211): Es ist der Eintrag, den
+          // man macht, wenn man gerade enttäuscht ist — er muss ohne
+          // Suchen erreichbar sein. Zurückhaltender Stil, weil er
+          // seltener gemeint ist als der Fund.
+          //
+          // Zwei lange deutsche Beschriftungen nebeneinander sind eng.
+          // Nachgemessen bis 320 dp und Schriftskalierung 1,3: Material
+          // bricht die Beschriftung dann auf zwei Zeilen um, statt
+          // überzulaufen — ein Überlauf ist hier also kein Risiko, und
+          // deshalb steht auch kein Test dafür.
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: () => _addFinds(context, ref, spot),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Fund eintragen'),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _addFinds(context, ref, spot, blank: true),
+                  icon: const Icon(Icons.search_off, size: 18),
+                  label: const Text('Nichts gefunden'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                ),
+              ),
+            ],
           ),
           // Ganz unten, nicht oben: Die Fundhistorie ist der Inhalt des
           // Blatts, Saison und Regen sind die Zusatzfrage „ist der Spot

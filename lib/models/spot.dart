@@ -32,11 +32,24 @@ class Spot {
   String get displayName =>
       (name != null && name!.isNotEmpty) ? name! : 'Pilz-Spot';
 
-  /// Neuester Fund zuerst.
-  List<Find> get findsSorted {
+  /// Alle Einträge, neuester zuerst — Funde UND Leergänge (Patch 015).
+  /// Das ist die Besuchshistorie des Spots: die Fundliste im Blatt und der
+  /// GPX-Export zeigen sie, weil „am 12.9. war nichts da" eine Aussage
+  /// über den Spot ist.
+  ///
+  /// Wer über FUNDE auswertet, nimmt [findsSorted] / [ownFinds] — die
+  /// sieben Leergänge aus. Das ist die Trennlinie, an der Statistik,
+  /// Marker-Icon, Art-Filter und Buddy-Banner hängen.
+  List<Find> get entriesSorted {
     final sorted = [...finds]..sort((a, b) => b.foundOn.compareTo(a.foundOn));
     return sorted;
   }
+
+  /// Neuester Fund zuerst — **ohne Leergänge**.
+  List<Find> get findsSorted => [
+        for (final find in entriesSorted)
+          if (!find.blank) find,
+      ];
 
   /// Neuester Fund ÜBERHAUPT — egal von wem. Bewusst die Quelle für
   /// Marker-Icon, Blattkopf und Synonymzeile: Sie beschreiben den Spot,
@@ -44,11 +57,20 @@ class Spot {
   /// Statistik, GPX-Export), gilt stattdessen [lastOwnFind]/[ownFinds].
   Find? get lastFind => findsSorted.isEmpty ? null : findsSorted.first;
 
-  /// Nur die eigenen Funde (seit Patch 014 können an geteilten Spots
-  /// auch Buddies eintragen).
-  List<Find> get ownFinds => [
+  /// Alle eigenen Einträge inklusive Leergänge (seit Patch 014 können an
+  /// geteilten Spots auch Buddies eintragen). Für den GPX-Export: Ein
+  /// Leergang ist erhebenswerte eigene Beobachtung, sonst wäre der Export
+  /// nicht mehr verlustfrei (#112).
+  List<Find> get ownEntries => [
         for (final find in finds)
           if (find.isOwn) find,
+      ];
+
+  /// Nur die eigenen FUNDE — ohne Leergänge. Grundlage von Statistik und
+  /// Art-Vorschlägen.
+  List<Find> get ownFinds => [
+        for (final find in ownEntries)
+          if (!find.blank) find,
       ];
 
   /// Neuester EIGENER Fund — die richtige Vorbelegung für „Fund

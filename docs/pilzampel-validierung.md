@@ -118,10 +118,28 @@ Anforderung (`CONTROL_MIN_GAP >= RAIN_WINDOW // 2`).
 
 ## Was diese Validierung nicht kann
 
-- **Keine Negativbeispiele.** Weder GBIF noch die App kennen „war da, nichts
-  gefunden". Der Test misst deshalb, ob Fundtage wetterseitig *auffällig*
-  sind — nicht, wie oft die Ampel richtig liegt. Für eine Kalibrierung
-  bräuchte es Leergänge (offene Entscheidung 2 im Konzeptpapier).
+- **Keine Negativbeispiele — noch nicht.** GBIF kennt „war da, nichts
+  gefunden" nicht, und dieser Test kennt es auch nicht: Er misst, ob
+  Fundtage wetterseitig *auffällig* sind — nicht, wie oft die Ampel
+  richtig liegt.
+  Die App sammelt seit **1.58.0** Leergänge (#211, `finds.blank`). Das
+  ändert am Werkzeug hier vorerst nichts, und zwar aus zwei Gründen:
+  1. **Das Prüfdesign passt nicht.** `validate_species` paart jeden Fund
+     mit einem *synthetischen* Kontrolltag am selben Ort
+     (`CONTROL_MIN_GAP` 14–45 Tage). Genau diese Paarung kürzt Standort
+     und Saison heraus. Ein echter Leergang ist ein anderes Ort-Tag-Paar
+     und passt nicht hinein — man bräuchte entweder Fund/Leergang am
+     **selben** Spot (selten) oder eine ungepaarte AUC, die beide
+     Kürzungen und damit das Anti-Zirkularitäts-Argument aufgibt.
+  2. **Die Menge fehlt.** Bei 500 Paaren liegt der AUC-Standardfehler bei
+     ~0,02; ein paar Dutzend Leergänge tragen keinen vergleichbaren
+     Befund. Erst wenn über eine ganze Saison dreistellig viele
+     zusammenkommen, lohnt ein zweiter, ungepaarter Test daneben — der
+     dann die andere Frage beantwortet: **wie oft die Ampel richtig
+     liegt.**
+  Bis dahin gilt: Die Daten entstehen, ausgewertet werden sie später.
+  Genau darum musste das Feature vor der Saison kommen und nicht nach
+  der Auswertung.
 - **Kein Waldtyp.** Der ist hier zwar herausgekürzt, aber er ist der zweite
   Teil von #158 und für die Ampel selbst offen: Sie wird nie sagen können
   „hier stehen Pilze", solange sie Nadel-, Laub- und Mischwald nicht

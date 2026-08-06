@@ -7,6 +7,32 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Mehrere Arten auf einmal — und „nichts gefunden"
+
+*6. August 2026 · Version 1.58.0*
+
+Standen an einem Spot Steinpilze **und** Maronen, musstest du das Blatt
+bisher zweimal ausfüllen. Jetzt legst du mit **„weitere Art"** die
+fertige Zeile ab und tippst gleich die nächste; Datum und Notiz gelten
+für alle. Trägst du nur eine Art ein, ändert sich für dich nichts —
+„Speichern" nimmt die offene Zeile ohnehin mit.
+
+Neu daneben: **„Nichts gefunden"**. Warst du an einem Spot und stand
+dort nichts, kannst du das jetzt festhalten — mit Datum und wenn du
+magst einer Notiz, mehr fragt die App nicht. Solche Einträge zählen
+**nirgends als Fund**: Deine Statistik bleibt, wie sie ist, das
+Pilz-Bild auf der Karte auch, und der Artfilter zeigt den Spot weiterhin
+unter der Art, die dort mal stand.
+
+Warum es das gibt: Die App kennt bisher nur Erfolge. Für eine ehrliche
+Wachstums-Vorhersage fehlt genau die andere Hälfte — „war da, war
+nichts". Ohne sie lässt sich nie prüfen, ob eine Vorhersage stimmt.
+Deine Buddys sehen solche Einträge an geteilten Spots übrigens mit, aber
+sie lösen keine Fund-Meldung aus.
+
+Beides steckt auch im GPX-Export: Deine Leergänge kommen beim
+Wiedereinlesen zurück.
+
 ## Deine Spots vollständig sichern und umziehen
 
 *6. August 2026 · Version 1.57.0*

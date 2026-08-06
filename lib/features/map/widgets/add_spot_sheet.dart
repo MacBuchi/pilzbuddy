@@ -2,24 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 
-import '../../spots/widgets/species_field.dart';
+import '../../spots/widgets/species_collector.dart';
 import '../../../core/app_colors.dart';
+import '../../../data/spot_repository.dart';
 
 /// Ergebnis des Anlege-Formulars.
+///
+/// [finds] statt einzelner Fund-Felder seit #211: An einem Ort stehen oft
+/// mehrere Arten, und wer sie einzeln einträgt, legt sonst fünf Meter
+/// weiter den nächsten Spot an.
 class NewSpotData {
   final String? name;
-  final String? species;
-  final int? count;
-  final DateTime foundOn;
-  final String? note;
+  final List<NewFind> finds;
 
-  const NewSpotData({
-    this.name,
-    this.species,
-    this.count,
-    required this.foundOn,
-    this.note,
-  });
+  const NewSpotData({this.name, required this.finds});
 }
 
 /// Bottom-Sheet zum schnellen Anlegen eines Spots. Alle Felder optional,
@@ -78,16 +74,17 @@ class _AddSpotSheet extends StatefulWidget {
 class _AddSpotSheetState extends State<_AddSpotSheet> {
   late final _nameController =
       TextEditingController(text: widget.initialName ?? '');
-  late final TextEditingController _speciesController =
-      TextEditingController(text: widget.defaultSpecies ?? '');
   final _noteController = TextEditingController();
-  int? _count;
   late DateTime _foundOn = widget.initialFoundOn ?? DateTime.now();
+
+  /// Letzter Stand aus dem Sammler, vorbelegt wie dessen erste Zeile.
+  late List<SpeciesEntry> _entries = [
+    (species: widget.defaultSpecies, count: null),
+  ];
 
   @override
   void dispose() {
     _nameController.dispose();
-    _speciesController.dispose();
     _noteController.dispose();
     super.dispose();
   }
@@ -103,17 +100,22 @@ class _AddSpotSheetState extends State<_AddSpotSheet> {
   }
 
   void _save() {
+    final note =
+        _noteController.text.trim().isEmpty ? null : _noteController.text.trim();
     Navigator.of(context).pop(NewSpotData(
       name: _nameController.text.trim().isEmpty
           ? null
           : _nameController.text.trim(),
-      species: _speciesController.text.trim().isEmpty
-          ? null
-          : _speciesController.text.trim(),
-      count: _count,
-      foundOn: _foundOn,
-      note:
-          _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
+      // Datum und Notiz gelten für alle Arten, die hier zusammenkommen.
+      finds: [
+        for (final entry in _entries)
+          NewFind(
+            species: entry.species,
+            count: entry.count,
+            foundOn: _foundOn,
+            note: note,
+          ),
+      ],
     ));
   }
 
@@ -157,54 +159,18 @@ class _AddSpotSheetState extends State<_AddSpotSheet> {
               ),
             ),
             const SizedBox(height: 12),
-            SpeciesField(
-              controller: _speciesController,
+            SpeciesCollector(
               ownSpecies: widget.ownSpecies,
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: InputDecorator(
-                    decoration: const InputDecoration(
-                      labelText: 'Anzahl',
-                      border: OutlineInputBorder(),
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        IconButton(
-                          onPressed: _count == null || _count == 0
-                              ? null
-                              : () => setState(() =>
-                                  _count = _count! > 1 ? _count! - 1 : null),
-                          icon: const Icon(Icons.remove),
-                        ),
-                        Text(_count?.toString() ?? '–',
-                            style: Theme.of(context).textTheme.titleMedium),
-                        IconButton(
-                          onPressed: () =>
-                              setState(() => _count = (_count ?? 0) + 1),
-                          icon: const Icon(Icons.add),
-                        ),
-                      ],
-                    ),
-                  ),
+              initialSpecies: widget.defaultSpecies,
+              onChanged: (entries) => _entries = entries,
+              trailing: OutlinedButton.icon(
+                onPressed: _pickDate,
+                icon: const Icon(Icons.calendar_today, size: 18),
+                label: Text(dateFormat.format(_foundOn)),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _pickDate,
-                    icon: const Icon(Icons.calendar_today, size: 18),
-                    label: Text(dateFormat.format(_foundOn)),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 20),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
             const SizedBox(height: 12),
             TextField(

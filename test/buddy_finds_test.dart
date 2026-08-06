@@ -3,6 +3,7 @@
 // lokale Stack (siehe PR); hier steht sicher, dass der Fake dieselben
 // Regeln spricht — sonst testen die Flow-Tests eine andere Welt.
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pilzbuddy/data/spot_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'fakes/fake_backend.dart';
@@ -74,21 +75,24 @@ void main() {
         reason: 'lillis Funde sind gesperrt, meine eigenen nicht');
   });
 
-  test('addFind ohne Freigabe-Beziehung wirft wie die RLS (42501)', () async {
+  test('addFinds ohne Freigabe-Beziehung wirft wie die RLS (42501)', () async {
     final (backend, me, lilli) = withFriend();
     final excluded = backend.addSpot(ownerId: lilli.id, sharingExcluded: true);
     final repo = FakeSpotRepository(backend);
 
     expect(
-        () => repo.addFind(spotId: excluded, foundOn: DateTime(2026, 8, 5)),
+        () => repo.addFinds(
+            spotId: excluded,
+            finds: [NewFind(foundOn: DateTime(2026, 8, 5))]),
         throwsA(isA<PostgrestException>()
             .having((e) => e.code, 'code', '42501')));
 
     // Und die Gegenprobe in Grün: am geteilten Spot geht es, mit dem
     // Eintrager als Autor.
     final shared = backend.addSpot(ownerId: lilli.id, lat: 51.5);
-    await repo.addFind(
-        spotId: shared, species: 'Steinpilz', foundOn: DateTime(2026, 8, 5));
+    await repo.addFinds(spotId: shared, finds: [
+      NewFind(species: 'Steinpilz', foundOn: DateTime(2026, 8, 5)),
+    ]);
     final saved =
         backend.spots.firstWhere((s) => s.id == shared).finds.single;
     expect(saved.authorId, me.id);

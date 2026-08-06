@@ -510,6 +510,16 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
 - Business-Logik in Repositories/Services, nicht in Providern oder Widgets.
 - Mutations-Muster: Repo-Call, dann `ref.invalidateSelf(); await future;`
   (Read-after-write statt optimistischem Update).
+- **Fund ≠ Eintrag** (seit 1.58.0, #211): `finds` trägt neben Funden auch
+  Leergänge (`blank`, „Nichts gefunden"). Über `Spot` gibt es deshalb zwei
+  Familien von Zugängen, und die Wahl entscheidet über die Richtigkeit:
+  `findsSorted`/`ownFinds`/`lastFind`/`lastOwnFind` sind **leergangsfrei**
+  (Statistik, Marker-Icon, Art-Filter, Art-Vorschläge, Buddy-Banner),
+  `entriesSorted`/`ownEntries` enthalten **alles** (Fundliste im Blatt,
+  GPX-Export). Direkt auf `spot.finds` zuzugreifen ist fast immer der
+  Fehler — die Rohliste gehört dem Cache. Ein Leergang trägt weder Art
+  noch Anzahl; der Constraint `finds_blank_leer` hält das fest, der Fake
+  spiegelt ihn.
 - `mounted`/`context.mounted` nach jedem `await` prüfen.
 - `catch (_) {}` nur mit Begründungskommentar und nie im Kernpfad. Optionale
   Features (Offline-Karte, Update-Check, GPS) dürfen still degradieren.

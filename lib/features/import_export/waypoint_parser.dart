@@ -13,8 +13,16 @@ class ImportedFind {
   final DateTime foundOn;
   final String? note;
 
-  const ImportedFind(
-      {this.species, this.count, required this.foundOn, this.note});
+  /// „Nichts gefunden" (#211) — im GPX das Attribut `blank="true"`.
+  final bool blank;
+
+  const ImportedFind({
+    this.species,
+    this.count,
+    required this.foundOn,
+    this.note,
+    this.blank = false,
+  });
 }
 
 /// Ein importierter Punkt aus einer GPX-/KML-Datei.
@@ -165,14 +173,20 @@ List<ImportedFind> _parseFinds(XmlElement spot) {
     final foundOn = DateTime.tryParse(element.getAttribute('foundOn') ?? '');
     if (foundOn == null) continue;
     final count = int.tryParse(element.getAttribute('count') ?? '');
+    final blank = element.getAttribute('blank') == 'true';
     finds.add(ImportedFind(
-      species: element.getAttribute('species'),
+      // Ein Leergang trägt weder Art noch Anzahl — die Datenbank lässt
+      // beides nicht zu (`finds_blank_leer`). Eine Datei, die trotzdem
+      // beides mitbringt, wird hier bereinigt statt beim Schreiben
+      // abgewiesen: Ein Import scheitert nicht an einer krummen Zeile.
+      species: blank ? null : element.getAttribute('species'),
       // Die Datenbank verlangt `count > 0` — eine 0 oder ein negativer
       // Wert aus einer verbogenen Datei würde den Import erst beim
       // Schreiben scheitern lassen.
-      count: count != null && count > 0 ? count : null,
+      count: blank || count == null || count <= 0 ? null : count,
       foundOn: foundOn,
       note: _childText(element, 'note'),
+      blank: blank,
     ));
   }
   return finds;

@@ -73,7 +73,9 @@ bool matchesSpotFilter(Spot spot, SpotFilter filter) {
   final wanted = {
     for (final s in filter.species) canonicalSpecies(s)?.toLowerCase(),
   };
-  return spot.finds
+  // `findsSorted` und nicht `finds`: Leergänge tragen ohnehin keine Art
+  // (#211) und haben in der Frage „wo stand diese Art" nichts zu suchen.
+  return spot.findsSorted
       .any((f) => wanted.contains(canonicalSpecies(f.species)?.toLowerCase()));
 }
 
@@ -96,7 +98,7 @@ List<SpeciesTally> speciesTally(List<Spot> spots) {
   final labels = <String, String>{};
   for (final spot in spots) {
     final seen = <String>{};
-    for (final find in spot.finds) {
+    for (final find in spot.findsSorted) {
       final name = canonicalSpecies(find.species);
       if (name == null) continue;
       final key = name.toLowerCase();
