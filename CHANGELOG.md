@@ -7,6 +7,22 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Zwei Pilze sehen richtiger aus, das Wetter liest sich leichter
+
+*6. August 2026 · Version 1.59.0*
+
+Der **Steinpilz** hat jetzt den dicken, bauchigen Stiel, den er in echt
+auch hat — damit ist er auf der Karte nicht mehr mit der Marone zu
+verwechseln. Der **Samtfußrübling** war bisher grau und sah aus wie
+irgendein Blätterpilz; er ist jetzt honig-orange und steht auf einem
+dünnen dunklen Stiel, genau wie im Winterwald am Totholz.
+
+Im Diagramm unter „Wetter an diesem Spot" liegen jetzt **feine
+Hilfslinien** auf Höhe der Gradzahlen. Du musst einen Punkt der
+Temperaturkurve nicht mehr quer durchs Bild bis zur Achse verfolgen, um
+ihn abzulesen. Die gestrichelte Frostlinie bei 0 °C bleibt dabei die
+auffälligste — sie ist im Herbst die Zahl, auf die es ankommt.
+
 ## Mehrere Arten auf einmal — und „nichts gefunden"
 
 *6. August 2026 · Version 1.58.0*
