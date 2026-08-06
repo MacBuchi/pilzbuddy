@@ -131,6 +131,10 @@ void main() {
     final (backend, me) = loggedInBackend();
     backend.addSpot(
         ownerId: me.id,
+        // Weit weg vom Fadenkreuz: Seit #215 fragt die App nach, wenn in
+        // 20 m schon ein eigener Spot liegt — hier geht es aber um die
+        // Art-Vorbelegung, nicht um die Nachbarschaft.
+        lat: 51.5,
         species: 'Pfifferling',
         foundOn: DateTime(2026, 7, 1));
     await pumpApp(tester, backend);

@@ -7,6 +7,28 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Fundorte stapeln sich nicht mehr
+
+*6. August 2026 · Version 1.61.0*
+
+Gehst du fünf Meter weiter und trägst den nächsten Pilz ein, entstand
+bisher ein **zweiter Fundort** — auf der Karte liegen die Marker dann
+übereinander, obwohl es im Wald dieselbe Stelle ist.
+
+Jetzt fragt die App nach: Liegt in **20 m** schon einer deiner Spots,
+kannst du den Fund **dort eintragen** statt einen neuen anzulegen. Willst
+du trotzdem einen zweiten, geht das mit einem Tipp daneben — die
+Entscheidung bleibt bei dir, die App legt nichts still zusammen.
+
+Für das, was sich schon gestapelt hat, gibt es im Profil einen neuen
+Punkt: **„Dicht beieinander"**. Er erscheint nur, wenn es wirklich etwas
+zu tun gibt, listet die betroffenen Paare mit ihrem Abstand und führt sie
+auf Wunsch zusammen — du sagst, welcher Name bleibt.
+
+Ein Fall bleibt außen vor, und zwar mit Absicht: Hat ein Pilz-Buddy an
+einem der beiden Spots eingetragen, wird das Paar nicht angeboten. Seine
+Funde könnten nicht mitwandern und gingen beim Zusammenführen verloren.
+
 ## Kein versehentlicher Sprung mehr auf der Karte
 
 *6. August 2026 · Version 1.60.0*

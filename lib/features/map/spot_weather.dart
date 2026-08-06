@@ -28,6 +28,8 @@ import 'dart:math' as math;
 
 import 'package:archive/archive.dart';
 
+import '../../core/geo.dart';
+
 /// Eine Wetterstation: Ort, Höhe — und wie viele Tage sie im Fenster
 /// wirklich gemessen hat.
 abstract class WeatherStation {
@@ -147,21 +149,6 @@ class WeatherTable {
     if (airPick == null && soilPick == null) return null;
     return SpotTemperature(days: days, air: airPick, soil: soilPick);
   }
-}
-
-/// Entfernung in Kilometern, eben gerechnet.
-///
-/// Reicht für diesen Zweck: Über die paar Dutzend Kilometer bis zur
-/// nächsten Station liegt der Fehler gegenüber der Kugelformel weit unter
-/// einem Prozent — und verglichen wird ohnehin nur, welche Station näher
-/// ist.
-double distanceKm(double lat1, double lon1, double lat2, double lon2) {
-  const kmPerDegree = 111.2;
-  final dy = (lat1 - lat2) * kmPerDegree;
-  final dx = (lon1 - lon2) *
-      kmPerDegree *
-      math.cos((lat1 + lat2) / 2 * math.pi / 180);
-  return math.sqrt(dx * dx + dy * dy);
 }
 
 /// Was am Spot angezeigt wird: je Netz die Station, ihre Entfernung und
