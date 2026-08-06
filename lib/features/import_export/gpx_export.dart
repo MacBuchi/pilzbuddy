@@ -46,8 +46,12 @@ String buildGpx(List<Spot> spots) {
         builder.attribute('lat', spot.lat.toStringAsFixed(6));
         builder.attribute('lon', spot.lng.toStringAsFixed(6));
         builder.element('name', nest: spot.displayName);
-        final finds =
-            spot.findsSorted.where((f) => f.isOwn).toList(growable: false);
+        // `ownEntries` und nicht `ownFinds`: Ein Leergang ist eine eigene
+        // Beobachtung (#211) — bliebe er draußen, wäre der Export nicht
+        // mehr verlustfrei. Damit ist `<time>` unten der letzte BESUCH
+        // statt des letzten Fundes; für einen Wegpunkt ist das richtiger.
+        final finds = spot.ownEntries.toList(growable: false)
+          ..sort((a, b) => b.foundOn.compareTo(a.foundOn));
         if (finds.isNotEmpty) {
           builder.element('desc',
               nest: finds
@@ -74,6 +78,12 @@ String buildGpx(List<Spot> spots) {
             for (final find in finds) {
               builder.element('find', namespace: kPilzBuddyGpxNamespace,
                   nest: () {
+                // Nur wenn gesetzt: Dateien ohne Leergänge sehen aus wie
+                // vor #211, und ein älterer Leser bekommt kein Attribut
+                // zu sehen, das er nicht kennt.
+                if (find.blank) {
+                  builder.attribute('blank', 'true');
+                }
                 if (find.species != null && find.species!.isNotEmpty) {
                   builder.attribute('species', find.species!);
                 }

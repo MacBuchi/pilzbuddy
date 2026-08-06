@@ -1,34 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../data/spot_repository.dart';
 import '../../../models/find.dart';
-import 'species_field.dart';
-
-class NewFindData {
-  final String? species;
-  final int? count;
-  final DateTime foundOn;
-  final String? note;
-
-  const NewFindData({this.species, this.count, required this.foundOn, this.note});
-}
+import 'species_collector.dart';
 
 /// Sheet für den Wiederbesuch: Art und Anzahl sind mit dem letzten Fund
 /// vorbelegt (Fallback: global zuletzt benutzte Art), Datum ist heute —
-/// zwei Taps genügen.
-Future<NewFindData?> showAddFindSheet(
+/// zwei Taps genügen. Mehrere Arten sammelt [SpeciesCollector] ein.
+///
+/// Mit [blank] wird daraus das Blatt für „Nichts gefunden" (#211): kein
+/// Artfeld, keine Anzahl, kein Sammler — nur Datum und Notiz. Der Leergang
+/// ist eine Aussage über den ORT, nicht über eine Art; die Datenbank hält
+/// das mit einem Constraint fest (`finds_blank_leer`, Patch 015).
+Future<List<NewFind>?> showAddFindSheet(
   BuildContext context, {
   Find? lastFind,
   List<String> ownSpecies = const [],
   String? fallbackSpecies,
+  bool blank = false,
 }) {
-  return showModalBottomSheet<NewFindData>(
+  return showModalBottomSheet<List<NewFind>>(
     context: context,
     isScrollControlled: true,
     builder: (context) => _AddFindSheet(
       lastFind: lastFind,
       ownSpecies: ownSpecies,
       fallbackSpecies: fallbackSpecies,
+      blank: blank,
     ),
   );
 }
@@ -38,34 +37,32 @@ class _AddFindSheet extends StatefulWidget {
     this.lastFind,
     this.ownSpecies = const [],
     this.fallbackSpecies,
+    this.blank = false,
   });
 
   final Find? lastFind;
   final List<String> ownSpecies;
   final String? fallbackSpecies;
+  final bool blank;
 
   @override
   State<_AddFindSheet> createState() => _AddFindSheetState();
 }
 
 class _AddFindSheetState extends State<_AddFindSheet> {
-  late final TextEditingController _speciesController;
-  late final TextEditingController _noteController;
-  int? _count;
+  final _noteController = TextEditingController();
   DateTime _foundOn = DateTime.now();
 
-  @override
-  void initState() {
-    super.initState();
-    _speciesController = TextEditingController(
-        text: widget.lastFind?.species ?? widget.fallbackSpecies ?? '');
-    _noteController = TextEditingController();
-    _count = widget.lastFind?.count;
-  }
+  /// Der letzte Stand aus dem Sammler. Vorbelegt mit dem, was der Sammler
+  /// selbst als erste Zeile zeigt — sonst ginge ein „Speichern" ohne jede
+  /// Berührung des Feldes mit leeren Händen aus.
+  late List<SpeciesEntry> _entries = [
+    (species: widget.lastFind?.species ?? widget.fallbackSpecies,
+     count: widget.lastFind?.count),
+  ];
 
   @override
   void dispose() {
-    _speciesController.dispose();
     _noteController.dispose();
     super.dispose();
   }
@@ -81,20 +78,34 @@ class _AddFindSheetState extends State<_AddFindSheet> {
   }
 
   void _save() {
-    Navigator.of(context).pop(NewFindData(
-      species: _speciesController.text.trim().isEmpty
-          ? null
-          : _speciesController.text.trim(),
-      count: _count,
-      foundOn: _foundOn,
-      note:
-          _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
-    ));
+    final note =
+        _noteController.text.trim().isEmpty ? null : _noteController.text.trim();
+    // Datum und Notiz gelten für alle Zeilen. Jede Zeile bekommt sie
+    // eingetragen und bleibt damit für sich vollständig — darauf bauen
+    // GPX-Export und die Sicht der Buddys auf.
+    Navigator.of(context).pop(widget.blank
+        ? [NewFind.blank(foundOn: _foundOn, note: note)]
+        : [
+            for (final entry in _entries)
+              NewFind(
+                species: entry.species,
+                count: entry.count,
+                foundOn: _foundOn,
+                note: note,
+              ),
+          ]);
   }
 
   @override
   Widget build(BuildContext context) {
-    final dateFormat = DateFormat('d.M.y');
+    final dateButton = OutlinedButton.icon(
+      onPressed: _pickDate,
+      icon: const Icon(Icons.calendar_today, size: 18),
+      label: Text(DateFormat('d.M.y').format(_foundOn)),
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+      ),
+    );
     return Padding(
       padding: EdgeInsets.only(
         left: 16,
@@ -109,62 +120,35 @@ class _AddFindSheetState extends State<_AddFindSheet> {
           children: [
             Row(
               children: [
-                const Text('🍄', style: TextStyle(fontSize: 22)),
+                if (widget.blank)
+                  const Icon(Icons.search_off, size: 22)
+                else
+                  const Text('🍄', style: TextStyle(fontSize: 22)),
                 const SizedBox(width: 8),
-                Text('Fund eintragen',
+                Text(widget.blank ? 'Nichts gefunden' : 'Fund eintragen',
                     style: Theme.of(context).textTheme.titleLarge),
               ],
             ),
+            if (widget.blank) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Hält fest, dass du hier warst und nichts stand. Zählt nicht '
+                'als Fund — hilft aber, die Vorhersage zu lernen.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
             const SizedBox(height: 16),
-            SpeciesField(
-              controller: _speciesController,
-              ownSpecies: widget.ownSpecies,
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: InputDecorator(
-                    decoration: const InputDecoration(
-                      labelText: 'Anzahl',
-                      border: OutlineInputBorder(),
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        IconButton(
-                          onPressed: _count == null || _count == 0
-                              ? null
-                              : () => setState(() =>
-                                  _count = _count! > 1 ? _count! - 1 : null),
-                          icon: const Icon(Icons.remove),
-                        ),
-                        Text(_count?.toString() ?? '–',
-                            style: Theme.of(context).textTheme.titleMedium),
-                        IconButton(
-                          onPressed: () =>
-                              setState(() => _count = (_count ?? 0) + 1),
-                          icon: const Icon(Icons.add),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _pickDate,
-                    icon: const Icon(Icons.calendar_today, size: 18),
-                    label: Text(dateFormat.format(_foundOn)),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 20),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            if (widget.blank)
+              dateButton
+            else
+              SpeciesCollector(
+                ownSpecies: widget.ownSpecies,
+                initialSpecies:
+                    widget.lastFind?.species ?? widget.fallbackSpecies,
+                initialCount: widget.lastFind?.count,
+                trailing: dateButton,
+                onChanged: (entries) => _entries = entries,
+              ),
             const SizedBox(height: 12),
             TextField(
               controller: _noteController,

@@ -19,6 +19,12 @@ class Find {
   /// Vorschlägen und GPX-Export heraus — sie sind Daten des Autors.
   final bool isOwn;
 
+  /// „Nichts gefunden" (Patch 015, Issue #211): ein Besuch ohne Fund. Trägt
+  /// weder Art noch Anzahl — die Aussage gilt dem Ort. Solche Einträge
+  /// zählen NIRGENDS als Fund; wer über Funde auswertet, nimmt die Zugänge
+  /// aus [Spot], die sie schon aussieben.
+  final bool blank;
+
   const Find({
     required this.id,
     required this.spotId,
@@ -31,6 +37,7 @@ class Find {
     this.authorUsername,
     this.authorAvatar = 0,
     this.isOwn = true,
+    this.blank = false,
   });
 
   factory Find.fromJson(Map<String, dynamic> json,
@@ -51,11 +58,15 @@ class Find {
       authorUsername: author?['username'] as String?,
       authorAvatar: author?['avatar'] as int? ?? 0,
       isOwn: authorId == null || authorId == currentUserId,
+      // Fehlt die Spalte, ist die Zeile älter als Patch 015 — und älter
+      // als „nichts gefunden" heißt: ein echter Fund.
+      blank: json['blank'] as bool? ?? false,
     );
   }
 
   /// Kurzbeschreibung wie "Steinpilz, 5 Stück" für Listen.
   String get label {
+    if (blank) return 'Nichts gefunden';
     final parts = <String>[
       if (species != null && species!.isNotEmpty) species!,
       if (count != null) '$count Stück',

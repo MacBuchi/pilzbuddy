@@ -70,6 +70,26 @@ void main() {
         findsOneWidget);
   });
 
+  testWidgets('Ein Leergang des Buddys bringt kein Banner (#211)',
+      (tester) async {
+    // Das Banner schickt jemanden in den Wald („Neuer Fund von …").
+    // Dass ein Buddy NICHTS gefunden hat, ist keine solche Nachricht —
+    // sonst meldet die App jeden erfolglosen Spaziergang als Neuigkeit.
+    final (backend, me, lilli) = withFriend();
+    final spotId = backend.addSpot(
+        ownerId: me.id, species: 'Steinpilz', foundOn: DateTime(2026, 7, 1));
+    backend.addFindRow(spotId,
+        foundOn: DateTime(2026, 8, 1),
+        createdAt: DateTime.utc(2026, 8, 1, 12),
+        authorId: lilli.id,
+        blank: true);
+    await pumpApp(tester, backend, settings: seenLongAgo());
+
+    // Derselbe Aufbau mit einem echten Fund meldet sich sehr wohl — das
+    // ist der erste Test in dieser Datei.
+    expect(bannerWith('🔔'), findsNothing);
+  });
+
   testWidgets('Eigene Funde zählen nie', (tester) async {
     final (backend, me, _) = withFriend();
     backend.addSpot(

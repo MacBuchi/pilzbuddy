@@ -38,38 +38,22 @@ class MySpotsNotifier extends AsyncNotifier<SpotsSnapshot> {
     required double lat,
     required double lng,
     String? name,
-    String? species,
-    int? count,
-    required DateTime foundOn,
-    String? note,
+    required List<NewFind> finds,
   }) async {
-    await ref.read(spotRepositoryProvider).addSpot(
-          lat: lat,
-          lng: lng,
-          name: name,
-          species: species,
-          count: count,
-          foundOn: foundOn,
-          note: note,
-        );
+    await ref
+        .read(spotRepositoryProvider)
+        .addSpot(lat: lat, lng: lng, name: name, finds: finds);
     ref.invalidateSelf();
     await future;
   }
 
-  Future<void> addFind({
+  Future<void> addFinds({
     required String spotId,
-    String? species,
-    int? count,
-    required DateTime foundOn,
-    String? note,
+    required List<NewFind> finds,
   }) async {
-    await ref.read(spotRepositoryProvider).addFind(
-          spotId: spotId,
-          species: species,
-          count: count,
-          foundOn: foundOn,
-          note: note,
-        );
+    await ref
+        .read(spotRepositoryProvider)
+        .addFinds(spotId: spotId, finds: finds);
     ref.invalidateSelf();
     // Seit #190 kann der Fund an einem FREUNDES-Spot hängen — dann muss
     // dessen Liste neu laden, sonst erscheint er erst beim App-Resume.

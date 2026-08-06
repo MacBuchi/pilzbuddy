@@ -18,6 +18,31 @@ void main() {
       expect(find.label, 'Fund');
     });
 
+    test('label eines Leergangs nennt keine Art (#211)', () {
+      final leergang = Find(
+          id: '1', spotId: 's', foundOn: DateTime(2026, 9, 23), blank: true);
+      expect(leergang.label, 'Nichts gefunden');
+    });
+
+    test('fromJson ohne blank-Spalte liest einen echten Fund', () {
+      // Zeilen aus dem Offline-Cache einer Version vor Patch 015 tragen
+      // die Spalte nicht. Ohne diesen Rückfall würde `null as bool` werfen.
+      final find = Find.fromJson(
+          {'id': 'f1', 'spot_id': 's1', 'found_on': '2026-08-01'},
+          currentUserId: 'ich');
+      expect(find.blank, isFalse);
+    });
+
+    test('fromJson liest blank', () {
+      final find = Find.fromJson({
+        'id': 'f1',
+        'spot_id': 's1',
+        'found_on': '2026-08-01',
+        'blank': true,
+      }, currentUserId: 'ich');
+      expect(find.blank, isTrue);
+    });
+
     test('isoDate formatiert mit führenden Nullen (DB-Format found_on)', () {
       expect(isoDate(DateTime(2026, 3, 7)), '2026-03-07');
       expect(isoDate(DateTime(999, 12, 31)), '0999-12-31');
@@ -106,6 +131,47 @@ void main() {
       expect(spot.lastFind!.species, 'Steinpilz');
       expect(spot.lastOwnFind!.species, 'Pfifferling');
       expect(spot.ownFinds.map((f) => f.species), ['Pfifferling']);
+    });
+
+    test('Leergänge zählen nirgends als Fund, stehen aber in der Historie',
+        () {
+      // Die Trennlinie aus #211: `entriesSorted` ist die Besuchshistorie
+      // (Fundliste im Blatt, GPX), alles andere sind Funde. Wer eine der
+      // Zusicherungen aufgibt, macht entweder die Statistik falsch oder
+      // verliert den Leergang aus der Anzeige.
+      final spot = Spot(id: 's', ownerId: 'me', lat: 51, lng: 10, finds: [
+        Find(
+            id: 'leer',
+            spotId: 's',
+            foundOn: DateTime(2026, 10, 5),
+            blank: true),
+        Find(
+            id: 'fund',
+            spotId: 's',
+            species: 'Steinpilz',
+            foundOn: DateTime(2026, 9, 1)),
+      ]);
+      expect(spot.entriesSorted.map((f) => f.id), ['leer', 'fund']);
+      expect(spot.findsSorted.map((f) => f.id), ['fund']);
+      expect(spot.ownEntries.map((f) => f.id), ['leer', 'fund']);
+      expect(spot.ownFinds.map((f) => f.id), ['fund']);
+      // Der Marker soll seinen Steinpilz behalten, obwohl zuletzt nichts
+      // da war.
+      expect(spot.lastFind!.species, 'Steinpilz');
+      expect(spot.lastOwnFind!.species, 'Steinpilz');
+    });
+
+    test('Spot mit ausschließlich Leergängen hat keinen lastFind', () {
+      final spot = Spot(id: 's', ownerId: 'me', lat: 51, lng: 10, finds: [
+        Find(
+            id: 'leer',
+            spotId: 's',
+            foundOn: DateTime(2026, 10, 5),
+            blank: true),
+      ]);
+      expect(spot.lastFind, isNull);
+      expect(spot.ownFinds, isEmpty);
+      expect(spot.entriesSorted, hasLength(1));
     });
 
     test('displayName fällt ohne Namen auf "Pilz-Spot" zurück', () {

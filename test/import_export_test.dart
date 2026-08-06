@@ -253,6 +253,87 @@ void main() {
       expect(steinpilz.note, 'am umgestürzten Baum\nzweite Zeile');
     });
 
+    test('VERLUSTFREI auch für „Nichts gefunden" (#211)', () {
+      // Ein Leergang ist eine eigene Beobachtung. Bliebe er beim Export
+      // draußen, wäre die Sicherung genau um das ärmer, was die Pilzampel
+      // später braucht.
+      final spots = [
+        Spot(id: 's1', ownerId: 'u1', lat: 51, lng: 10, finds: [
+          Find(
+              id: 'f1',
+              spotId: 's1',
+              species: 'Steinpilz',
+              count: 2,
+              foundOn: DateTime(2026, 7, 12)),
+          Find(
+              id: 'f2',
+              spotId: 's1',
+              foundOn: DateTime(2026, 8, 1),
+              note: 'alles abgesammelt',
+              blank: true),
+        ]),
+      ];
+
+      final gpx = buildGpx(spots);
+      expect(gpx, contains('blank="true"'));
+      // Auch für fremde Karten-Apps lesbar, die nur <desc> zeigen.
+      expect(gpx, contains('Nichts gefunden – 1.8.2026'));
+
+      final finds = parseWaypoints('export.gpx', _utf8(gpx)).single.finds!;
+      expect(finds, hasLength(2));
+      final leergang = finds.first;
+      expect(leergang.blank, isTrue);
+      expect(leergang.species, isNull);
+      expect(leergang.count, isNull);
+      expect(leergang.foundOn, DateTime(2026, 8, 1));
+      expect(leergang.note, 'alles abgesammelt');
+      expect(finds[1].blank, isFalse);
+      expect(finds[1].count, 2);
+    });
+
+    test('Eine Datei ohne blank-Attribut bleibt ein echter Fund', () {
+      // Sicherungen aus der Zeit vor #211 dürfen sich nicht plötzlich in
+      // Leergänge verwandeln.
+      const alt = '''
+<?xml version="1.0"?>
+<gpx version="1.1" creator="PilzBuddy"
+ xmlns="http://www.topografix.com/GPX/1/1"
+ xmlns:pb="$kPilzBuddyGpxNamespace">
+  <wpt lat="51.0" lon="10.0"><name>Alt</name><extensions>
+    <pb:spot version="1" sharingExcluded="false">
+      <pb:find species="Steinpilz" count="3" foundOn="2026-07-12"/>
+    </pb:spot>
+  </extensions></wpt>
+</gpx>
+''';
+      final find = parseWaypoints('alt.gpx', _utf8(alt)).single.finds!.single;
+      expect(find.blank, isFalse);
+      expect(find.species, 'Steinpilz');
+      expect(find.count, 3);
+    });
+
+    test('Ein Leergang mit Art in der Datei wird bereinigt', () {
+      // Die Datenbank lässt das nicht zu (`finds_blank_leer`). Eine von
+      // Hand gebastelte Datei soll den Import trotzdem nicht sprengen —
+      // die widersprüchlichen Felder fallen weg, der Leergang bleibt.
+      const krumm = '''
+<?xml version="1.0"?>
+<gpx version="1.1" creator="PilzBuddy"
+ xmlns="http://www.topografix.com/GPX/1/1"
+ xmlns:pb="$kPilzBuddyGpxNamespace">
+  <wpt lat="51.0" lon="10.0"><extensions>
+    <pb:spot version="1">
+      <pb:find blank="true" species="Steinpilz" count="3" foundOn="2026-07-12"/>
+    </pb:spot>
+  </extensions></wpt>
+</gpx>
+''';
+      final find = parseWaypoints('krumm.gpx', _utf8(krumm)).single.finds!.single;
+      expect(find.blank, isTrue);
+      expect(find.species, isNull);
+      expect(find.count, isNull);
+    });
+
     test('das Funddatum verschiebt sich nicht um einen Tag', () {
       // `found_on` ist ein reines Datum. Als Zeitstempel geschrieben,
       // schöbe eine Zeitzonen-Umrechnung den Fund über Mitternacht — bei

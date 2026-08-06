@@ -243,11 +243,20 @@ Zwei Schritte dorthin:
    nachrechnen (Open-Meteo hat die Historie). Steht die Ampel an Fundtagen
    höher als an zufälligen Tagen derselben Saison? Wenn nicht, taugt das
    Modell nichts — und das merkt man **vor** dem Ausliefern.
-2. **Die fehlende Hälfte erheben:** Die App kennt nur Erfolge. Ein
-   optionales „war da, nichts gefunden" (ein Fund mit Anzahl 0, oder ein
-   eigener Leergang-Eintrag) wäre die einzige Möglichkeit, die Ampel
-   *wirklich* zu kalibrieren. Das ist ein eigenes, kleines Feature — aber es
-   ist der Unterschied zwischen Statistik und Bauchgefühl.
+2. **Die fehlende Hälfte erheben:** Die App kannte nur Erfolge. Ein
+   optionales „war da, nichts gefunden" ist die einzige Möglichkeit, die
+   Ampel *wirklich* zu kalibrieren — der Unterschied zwischen Statistik
+   und Bauchgefühl. **Gebaut** (2026-08-06, #211, ab 1.58.0): eigener
+   Knopf im Spot-Blatt, `finds.blank` (Patch 015).
+   **Ohne Art**, und das ist eine inhaltliche Festlegung, kein Sparen am
+   Formular: Man sucht im Wald nicht sortenrein, und „keine Steinpilze"
+   von jemandem, der an Pfifferlingen vorbeigelaufen ist, wäre eine
+   Aussage, die niemand so gemeint hat. Der Leergang gilt dem **Ort** —
+   ein Constraint (`finds_blank_leer`) hält das fest.
+   Für die Auswertung heißt das: ein Ort-Tag-Paar mit Ausgang „nichts",
+   vergleichbar mit dem Wetter dieses Tages. Die Menge entsteht erst mit
+   der Zeit; wie viele es für eine belastbare Kalibrierung braucht, steht
+   in `pilzampel-validierung.md`.
 
 Zusätzlich fehlt heute jede Möglichkeit, einen einzelnen Fund zu
 **korrigieren** (nur der ganze Spot lässt sich löschen). Falsche Daten
@@ -306,9 +315,11 @@ Was die recherchierten Dienste vorbildlich machen und was schiefgeht:
 
 1. Ist **nicht-kommerziell** dauerhaft die richtige Zusage (Open-Meteo)? Bei
    einer Play-Veröffentlichung ohne Werbung und ohne Abo: ja — aber bewusst.
-2. **Leergang erfassen** ja/nein? Ohne ihn bleibt die Ampel unkalibrierbar.
-   Mit ihm wird die App ein bisschen mehr Erfassungswerkzeug und ein bisschen
-   weniger Schatzkarte.
+2. ~~**Leergang erfassen** ja/nein?~~ **Entschieden (2026-08-06): ja**,
+   ausgeliefert mit 1.58.0 (#211). Die Sorge „mehr Erfassungswerkzeug,
+   weniger Schatzkarte" ist mit dem Zuschnitt beantwortet: ein Knopf
+   neben „Fund eintragen", zwei Taps, ohne Art — wer ihn nicht drückt,
+   merkt nichts von ihm.
 3. Wie viel **Raster-Auflösung** ist genug? 0,25° (~20 km) ist grob, aber
    ehrlich — Mikroklima kann die Ampel ohnehin nicht sehen.
 4. **Nur DACH oder mehr?** Der DWD-Radar deckt DACH ab, Open-Meteo die Welt.

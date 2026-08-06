@@ -220,10 +220,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
             lat: center.latitude,
             lng: center.longitude,
             name: data.name,
-            species: data.species,
-            count: data.count,
-            foundOn: data.foundOn,
-            note: data.note,
+            finds: data.finds,
           );
       _showMessage('Spot gespeichert 🍄');
     } catch (e, stackTrace) {

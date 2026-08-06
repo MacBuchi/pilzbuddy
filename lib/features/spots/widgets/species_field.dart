@@ -12,10 +12,18 @@ class SpeciesField extends StatefulWidget {
     super.key,
     required this.controller,
     this.ownSpecies = const [],
+    this.onChanged,
   });
 
   final TextEditingController controller;
   final List<String> ownSpecies;
+
+  /// Wird nach jeder Änderung des Feldes gerufen — auch bei Auswahl über
+  /// Chip oder Vorschlag und beim Leeren. Für Aufrufer, deren eigene
+  /// Oberfläche davon abhängt, ob eine Art dasteht (der Sammler im
+  /// Fund-Blatt, #211): Ein Listener auf dem Controller allein bekäme die
+  /// Chip-Auswahl mit, aber der Aufrufer müsste ihn selbst verwalten.
+  final VoidCallback? onChanged;
 
   @override
   State<SpeciesField> createState() => _SpeciesFieldState();
@@ -57,6 +65,7 @@ class _SpeciesFieldState extends State<SpeciesField> {
     widget.controller.text = name;
     _focusNode.unfocus();
     setState(() => _showSuggestions = false);
+    widget.onChanged?.call();
   }
 
   Widget _groupBadge(SpeciesGroup group) {
@@ -109,7 +118,10 @@ class _SpeciesFieldState extends State<SpeciesField> {
           controller: widget.controller,
           focusNode: _focusNode,
           textCapitalization: TextCapitalization.sentences,
-          onChanged: (_) => setState(() {}),
+          onChanged: (_) {
+            setState(() {});
+            widget.onChanged?.call();
+          },
           decoration: InputDecoration(
             labelText: 'Pilzart (optional)',
             hintText: 'z. B. Steinpilz',
@@ -122,6 +134,7 @@ class _SpeciesFieldState extends State<SpeciesField> {
                     onPressed: () {
                       widget.controller.clear();
                       setState(() {});
+                      widget.onChanged?.call();
                     },
                   ),
           ),

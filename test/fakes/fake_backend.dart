@@ -197,6 +197,7 @@ class FakeBackend {
   /// Spot-Besitzer, wie es der Backfill für Bestandsdaten macht.
   /// [createdAt] für Tests, die das Buddy-Fund-Banner (#202) gegen einen
   /// festen „gesehen bis"-Marker prüfen.
+  /// [blank] wie `finds.blank` (Patch 015): „Nichts gefunden".
   void addFindRow(
     String spotId, {
     String? species,
@@ -205,8 +206,16 @@ class FakeBackend {
     String? note,
     String? authorId,
     DateTime? createdAt,
+    bool blank = false,
   }) {
     final row = spots.firstWhere((s) => s.id == spotId);
+    // Spiegelt den Constraint `finds_blank_leer`: Ein Leergang trägt
+    // weder Art noch Anzahl. Ohne diese Prüfung könnte ein Test einen
+    // Zustand herstellen, den die Datenbank ablehnt.
+    if (blank && (species != null || count != null)) {
+      throw ArgumentError(
+          'Ein Leergang trägt weder Art noch Anzahl (finds_blank_leer).');
+    }
     row.finds.add(Find(
       id: _newId('find'),
       spotId: spotId,
@@ -216,6 +225,7 @@ class FakeBackend {
       note: note,
       createdAt: createdAt ?? DateTime.now(),
       authorId: authorId ?? row.ownerId,
+      blank: blank,
     ));
   }
 
@@ -590,6 +600,7 @@ class FakeSpotRepository implements SpotRepository {
       authorUsername: author?.username,
       authorAvatar: author?.avatar ?? 0,
       isOwn: f.authorId == null || f.authorId == _uid,
+      blank: f.blank,
     );
   }
 
@@ -667,20 +678,12 @@ class FakeSpotRepository implements SpotRepository {
     required double lat,
     required double lng,
     String? name,
-    String? species,
-    int? count,
-    required DateTime foundOn,
-    String? note,
+    required List<NewFind> finds,
   }) async {
     final id = backend.addSpot(ownerId: _uid, lat: lat, lng: lng, name: name);
-    // Wie im echten Repository über addFind, damit die Normalisierung des
+    // Wie im echten Repository über addFinds, damit die Normalisierung des
     // Artnamens nur an einer Stelle steht.
-    await addFind(
-        spotId: id,
-        species: species,
-        count: count,
-        foundOn: foundOn,
-        note: note);
+    await addFinds(spotId: id, finds: finds);
   }
 
   /// Spiegelt `SpotRepository.restoreSpot` (#112): ein Spot mit beliebig
@@ -703,7 +706,7 @@ class FakeSpotRepository implements SpotRepository {
     required double lng,
     String? name,
     bool sharingExcluded = false,
-    required List<RestorableFind> finds,
+    required List<NewFind> finds,
   }) async {
     final id = backend.addSpot(
         ownerId: _uid,
@@ -711,30 +714,21 @@ class FakeSpotRepository implements SpotRepository {
         lng: lng,
         name: name,
         sharingExcluded: sharingExcluded);
-    for (final find in finds) {
-      backend.addFindRow(id,
-          species: canonicalSpecies(find.species),
-          count: find.count,
-          foundOn: find.foundOn,
-          note: find.note,
-          authorId: _uid);
-    }
+    await addFinds(spotId: id, finds: finds);
   }
 
-  /// Spiegelt `SpotRepository.addFind`: gespeichert wird die
+  /// Spiegelt `SpotRepository.addFinds`: gespeichert wird die
   /// Hauptbezeichnung der Art. Ohne das verhielte sich der Harness anders
   /// als die App — ein Fund, den die App als „Herbsttrompete" ablegt, läge
   /// hier als „Totentrompete", und kein Test würde den Unterschied sehen.
   /// `FakeBackend.addSpot` normalisiert bewusst NICHT: damit legen Tests
   /// Bestandsdaten aus der Zeit vor der Vereinheitlichung an.
   @override
-  Future<void> addFind({
+  Future<void> addFinds({
     required String spotId,
-    String? species,
-    int? count,
-    required DateTime foundOn,
-    String? note,
+    required List<NewFind> finds,
   }) async {
+    if (finds.isEmpty) return;
     // Spiegel des with check von finds_author_all (Patch 014): Schreiben
     // darf, wer den Spot besitzt ODER ihn über die volle Freigabe-
     // Beziehung sieht. Alles andere beantwortet die echte RLS mit 42501.
@@ -749,12 +743,15 @@ class FakeSpotRepository implements SpotRepository {
               'new row violates row-level security policy for table "finds"',
           code: '42501');
     }
-    backend.addFindRow(spotId,
-        species: canonicalSpecies(species),
-        count: count,
-        foundOn: foundOn,
-        note: note,
-        authorId: _uid);
+    for (final find in finds) {
+      backend.addFindRow(spotId,
+          species: canonicalSpecies(find.species),
+          count: find.count,
+          foundOn: find.foundOn,
+          note: find.note,
+          authorId: _uid,
+          blank: find.blank);
+    }
   }
 
   @override

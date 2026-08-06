@@ -132,11 +132,12 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
           sharingExcluded: waypoints[index].sharingExcluded,
           finds: [
             for (final find in waypoints[index].finds ?? const <ImportedFind>[])
-              (
+              NewFind(
                 species: find.species,
                 count: find.count,
                 foundOn: find.foundOn,
                 note: find.note,
+                blank: find.blank,
               ),
           ],
         ),
@@ -219,10 +220,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
             lat: waypoint.lat,
             lng: waypoint.lng,
             name: data.name,
-            species: data.species,
-            count: data.count,
-            foundOn: data.foundOn,
-            note: data.note,
+            finds: data.finds,
           );
       setState(() => _created.add(index));
     } catch (e, stackTrace) {
