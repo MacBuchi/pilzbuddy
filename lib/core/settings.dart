@@ -25,6 +25,23 @@ abstract interface class Settings {
 
   Future<void> setClassicMapEnabled(bool value);
 
+  /// Richtet langes Draufhalten das Fadenkreuz aus? (#210)
+  ///
+  /// Standardmäßig NEIN. Die Geste sprang auf die gedrückte Stelle **und**
+  /// auf Zoom 16; ein Fehlgriff aus der Übersicht warf einen damit
+  /// woanders hin und viel zu nah heran. Entschärfen ließ sie sich nicht:
+  /// Weder flutter_map noch MapLibre lassen Haltedauer oder
+  /// Bewegungstoleranz einstellen. Zum Heranzoomen gibt es den Doppeltipp,
+  /// den beide Engines ohnehin können.
+  ///
+  /// Gespeichert wird das FEATURE, nicht sein Opt-out — anders als bei
+  /// [classicMapEnabled]. Dort war „aus" der Sonderfall, hier ist es der
+  /// Normalzustand, und ein doppelt verneinter Schlüssel wäre beim Lesen
+  /// eine Stolperfalle.
+  bool get mapLongPressEnabled;
+
+  Future<void> setMapLongPressEnabled(bool value);
+
   /// Darf der Regenverlauf am Spot Daten nachladen?
   ///
   /// Standardmäßig NEIN — dieselbe Zusage wie bei der Regenebene: Der
@@ -81,8 +98,18 @@ class PrefsSettings implements Settings {
 
   static const _rainCourseEnabledKey = 'rain_course_enabled';
 
+  static const _mapLongPressEnabledKey = 'map_long_press_enabled';
+
   @override
   bool get classicMapEnabled => _prefs.getBool(_classicMapEnabledKey) ?? false;
+
+  @override
+  bool get mapLongPressEnabled =>
+      _prefs.getBool(_mapLongPressEnabledKey) ?? false;
+
+  @override
+  Future<void> setMapLongPressEnabled(bool value) =>
+      _prefs.setBool(_mapLongPressEnabledKey, value);
 
   @override
   Future<void> setClassicMapEnabled(bool value) =>

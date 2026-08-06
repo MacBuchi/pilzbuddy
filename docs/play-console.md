@@ -198,7 +198,8 @@ PilzBuddy hält deine Spots auf einer Karte fest, sammelt die Funde dazu und
 zeigt dir nach ein paar Saisons, was sich wann und wo lohnt.
 
 KARTE
-• Karte gedrückt halten, Spot anlegen: Art, Anzahl, Funddatum, Notiz.
+• Fadenkreuz auf die Stelle schieben, „Neuer Spot": Art, Anzahl,
+  Funddatum, Notiz — auch mehrere Arten auf einmal.
 • Oder „Spot hier" für deine aktuelle Position.
 • Wiederbesuch mit zwei Taps — Art und Anzahl sind vom letzten Fund vorbelegt.
 

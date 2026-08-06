@@ -7,6 +7,7 @@ class FakeSettings implements Settings {
   FakeSettings({
     this.offlineMapEnabled = false,
     this.classicMapEnabled = false,
+    this.mapLongPressEnabled = false,
     this.rainCourseEnabled = false,
     // Bewusst null: In echt initialisiert main() den Marker beim ersten
     // Start (ensureFindSeenMarker) — im Harness bleibt er aus, damit kein
@@ -29,6 +30,14 @@ class FakeSettings implements Settings {
   @override
   Future<void> setClassicMapEnabled(bool value) async {
     classicMapEnabled = value;
+  }
+
+  @override
+  bool mapLongPressEnabled;
+
+  @override
+  Future<void> setMapLongPressEnabled(bool value) async {
+    mapLongPressEnabled = value;
   }
 
   @override

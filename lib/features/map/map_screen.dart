@@ -21,6 +21,7 @@ import '../profile/profile_providers.dart';
 import '../spots/spot_providers.dart';
 import '../spots/widgets/spot_detail_sheet.dart';
 import 'live_share_providers.dart';
+import 'map_gestures.dart';
 import 'map_view/camera_tour.dart';
 import 'map_view/map_view.dart';
 import 'position_provider.dart';
@@ -339,6 +340,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final hasInstalledMaps =
         (ref.watch(installedMapsProvider).valueOrNull ?? const []).isNotEmpty;
     final rainActive = ref.watch(rainLayerProvider) != RainLayer.off;
+    final longPressEnabled = ref.watch(mapLongPressEnabledProvider);
 
     return Scaffold(
       body: Stack(
@@ -351,9 +353,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
               minZoom: _minZoom,
               maxZoom: _maxZoom,
               backgroundColor: AppColors.mapBackground,
-              // Long-Press richtet das Fadenkreuz auf die gedrückte Stelle.
-              onLongPress: (latLng) =>
-                  _map.move(latLng, math.max(_map.zoom, 16)),
+              // Long-Press richtet das Fadenkreuz auf die gedrückte Stelle
+              // — ab Werk aus (#210), Begründung am Schalter im Profil.
+              // `null` heißt für beide Engines schon „nichts tun", die
+              // Geste wird also gar nicht erst weitergereicht.
+              onLongPress: longPressEnabled
+                  ? (latLng) => _map.move(latLng, math.max(_map.zoom, 16))
+                  : null,
             ),
             markers: MapViewMarkers(
               myPosition: [
@@ -391,19 +397,24 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .surface
-                            .withValues(alpha: 0.9),
-                        borderRadius: BorderRadius.circular(20),
+                    // Nur solange es die Geste gibt (#210): Eine
+                    // dauerhafte Zeile, die eine abgeschaltete Bedienung
+                    // erklärt, wäre schlicht falsch — und sie kostet auf
+                    // jedem Bildschirm Platz über den Bannern.
+                    if (longPressEnabled)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surface
+                              .withValues(alpha: 0.9),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Text(
+                            'Gedrückt halten richtet das Fadenkreuz aus'),
                       ),
-                      child: const Text(
-                          'Gedrückt halten richtet das Fadenkreuz aus'),
-                    ),
                     const MapBanners(),
                     // Ein aktiver Filter versteckt Spots — das muss man
                     // sehen, ohne das Blatt zu öffnen, sonst sucht man eine
