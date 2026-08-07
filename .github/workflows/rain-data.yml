@@ -56,7 +56,7 @@ jobs:
     # sequential with retries) on top of the day grids.
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Self-test
         # Runs on every scheduled build, not just in CI on a pull request.
