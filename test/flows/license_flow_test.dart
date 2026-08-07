@@ -56,13 +56,12 @@ List<String> _declaredAssets() {
 }
 
 void main() {
-  // Ohne die Binding wirft `rootBundle` — und seit 1.61.1 lädt
-  // `registerMapDataLicense()` den OFL-Text aus dem Asset-Bundle. Die
-  // beiden Registry-Tests unten sind einfache `test()`, sie ziehen den
-  // Generator leer und lösen den Zugriff damit aus. Ohne diese Zeile
-  // kompiliert alles sauber und scheitert erst zur Laufzeit.
-  TestWidgetsFlutterBinding.ensureInitialized();
-
+  // Seit 1.61.1 lädt `registerMapDataLicense()` den OFL-Text über
+  // `rootBundle`, und die Registry-Tests unten sind einfache `test()` ohne
+  // Widget-Kontext. Das geht trotzdem: `flutter test` initialisiert die
+  // Binding in seinem eigenen Bootstrap, bevor irgendein Test läuft — ein
+  // `TestWidgetsFlutterBinding.ensureInitialized()` hier wäre wirkungslos.
+  // Nachgemessen, nicht angenommen: mit und ohne die Zeile identisch grün.
   test('Das Repo hat eine LICENSE-Datei mit MIT-Text', () {
     // Ohne LICENSE gilt in einem öffentlichen Repo „alle Rechte
     // vorbehalten" — niemand dürfte den Code legal weiterverwenden.
