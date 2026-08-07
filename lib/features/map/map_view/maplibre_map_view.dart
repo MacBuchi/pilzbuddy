@@ -18,10 +18,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:maplibre/maplibre.dart' as ml;
 
+import '../forest_data_providers.dart';
 import '../rain_data_providers.dart';
 import '../rain_layer.dart';
 import 'flutter_map_view.dart';
 import 'map_view.dart';
+import 'maplibre_forest_fill.dart';
 import 'maplibre_rain_fill.dart';
 import 'maplibre_style_provider.dart';
 import 'marker_culling.dart';
@@ -126,10 +128,15 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
   /// Style-Laden zurückgesetzt und neu gelegt.
   String? _appliedFillUrl;
 
-  /// Reiht die Änderungen der Fläche auf. Ohne das könnten zwei rasch
+  /// Dasselbe für die Waldfläche (#213) — eigener Merker, weil beide
+  /// Ebenen unabhängig kommen und gehen.
+  String? _appliedForestUrl;
+
+  /// Reiht die Änderungen BEIDER Flächen auf. Ohne das könnten zwei rasch
   /// aufeinanderfolgende Wechsel (Ebene umschalten, während die Fläche
   /// noch lädt) sich überholen — und übrig bliebe eine Quelle ohne
-  /// Ebene oder eine Ebene ohne Quelle.
+  /// Ebene oder eine Ebene ohne Quelle. EINE Warteschlange für beide:
+  /// Auch Regen-gegen-Wald-Wechsel sollen sich nicht überholen können.
   Future<void> _fillWork = Future.value();
 
   /// Bittet die Engine um ein neues Bild.
@@ -169,6 +176,20 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
         // Ein- oder Aushängen darf die Karte nicht mitnehmen. Still,
         // weil ein Eintrag je Kartenwechsel den Wochendigest zuschüttet
         // (Lehre aus #124/#136).
+      }
+    });
+  }
+
+  void _syncForestFill() {
+    final style = _style;
+    if (style == null) return;
+    final fill = ref.read(forestFillFileProvider).valueOrNull;
+    _fillWork = _fillWork.then((_) async {
+      try {
+        _appliedForestUrl = await applyForestFill(style,
+            fill: fill, appliedUrl: _appliedForestUrl);
+      } catch (_) {
+        // Wie beim Regen: still degradieren, Begründung oben.
       }
     });
   }
@@ -226,10 +247,13 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
     // maplibre_rain_fill.dart) — sie wird nachgetragen, sobald der
     // Provider einen neuen Stand hat.
     ref.listen(rainFillFileProvider, (previous, next) => _syncRainFill());
+    ref.listen(forestFillFileProvider, (previous, next) => _syncForestFill());
     // Jeder Wechsel der Regenebene nimmt etwas von der Karte: die Fläche
     // hier, die Linienebenen im LayerManager des Pakets. Beides braucht
     // danach einen Anstoß — siehe [_requestRepaint].
     ref.listen(rainLayerProvider, (previous, next) => _requestRepaint());
+    ref.listen(
+        forestLayerEnabledProvider, (previous, next) => _requestRepaint());
 
     final styleAsync = ref.watch(maplibreStyleProvider);
     final style = styleAsync.valueOrNull;
@@ -273,7 +297,9 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
       onStyleLoaded: (style) {
         _style = style;
         _appliedFillUrl = null;
+        _appliedForestUrl = null;
         _syncRainFill();
+        _syncForestFill();
       },
       onMapCreated: (controller) {
         _ml = controller;

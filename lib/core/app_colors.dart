@@ -64,6 +64,19 @@ abstract final class AppColors {
   static Color rainLine(int index) =>
       rainRamp[index.clamp(0, rainRamp.length - 1)];
 
+  /// Die Waldtypen-Ebene (#213): drei Töne für Laub → Misch → Nadel.
+  ///
+  /// Alle drei grün — es ist Wald, keine Wertung. Laub warm und hell
+  /// (Herbstlaub-Assoziation), Nadel dunkel und kühl (Fichtenschatten),
+  /// Misch dazwischen. Bewusst NICHT die [rainRamp]: Die beiden Ebenen
+  /// schließen sich zwar aus, aber ein Ton, der auf der Regenkarte
+  /// „30 mm" hieß, darf auf der Waldkarte nicht „Misch" heißen.
+  /// Abstand zu [forestGreen] (Besitz-Ellipse der Marker!) hält der
+  /// Gelb- bzw. Blauanteil.
+  static const forestBroadleaf = Color(0xFF9CCC65); // helles Laubgrün
+  static const forestMixed = Color(0xFF4E9A63); // Mittelgrün
+  static const forestConifer = Color(0xFF1B5E52); // dunkles Blaugrün
+
   /// Die Temperaturlinien im Wetterdiagramm am Spot. Boden ist der
   /// erdige Marken-Braunton und die pilz-relevante Hauptlinie; die
   /// Luftwerte bekommen einen warmen und einen kühlen Ton, der sich von

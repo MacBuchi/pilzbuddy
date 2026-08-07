@@ -11,6 +11,7 @@ import '../../../models/spot.dart';
 import '../spot_providers.dart';
 import 'add_find_sheet.dart';
 import 'species_season_section.dart';
+import 'spot_forest_section.dart';
 import 'spot_rain_section.dart';
 
 /// Detail-Sheet für einen Spot: Fundhistorie, „Fund eintragen",
@@ -303,6 +304,11 @@ class _SpotDetailSheet extends ConsumerWidget {
           // und ihre Kurve steht ohne Netz sofort da — der Regen kommt
           // je nach Empfang später oder gar nicht.
           SpeciesSeasonSection(species: spot.lastFind?.species),
+          // Der Waldtyp zwischen Saison und Wetter: Er gehört wie die
+          // Saison zur Frage „was für eine Stelle ist das", und er steht
+          // ohne Netz sofort da (Asset), während der Regen je nach
+          // Empfang später kommt.
+          SpotForestSection(lat: spot.lat, lon: spot.lng),
           SpotRainSection(lat: spot.lat, lon: spot.lng),
           SizedBox(height: MediaQuery.of(context).viewPadding.bottom),
         ],

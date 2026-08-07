@@ -23,6 +23,7 @@ import '../spots/spot_providers.dart';
 import '../spots/widgets/add_find_sheet.dart';
 import '../spots/widgets/spot_detail_sheet.dart';
 import 'live_share_providers.dart';
+import 'forest_data_providers.dart';
 import 'map_gestures.dart';
 import 'map_view/camera_tour.dart';
 import 'map_view/map_view.dart';
@@ -31,6 +32,7 @@ import 'rain_layer.dart';
 import 'spot_filter.dart';
 import 'widgets/add_spot_sheet.dart';
 import 'widgets/map_banners.dart';
+import 'widgets/forest_layer_sheet.dart';
 import 'widgets/rain_layer_sheet.dart';
 import 'widgets/rain_legend.dart';
 import 'widgets/share_location_sheet.dart';
@@ -410,6 +412,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final hasInstalledMaps =
         (ref.watch(installedMapsProvider).valueOrNull ?? const []).isNotEmpty;
     final rainActive = ref.watch(rainLayerProvider) != RainLayer.off;
+    final forestActive = ref.watch(forestLayerEnabledProvider);
+    // Der Wald-FAB erscheint erst, wenn das Gitter geladen werden
+    // konnte — im Ladefenster (Bruchteil einer Sekunde) fehlt er kurz,
+    // das ist billiger als ein Knopf, der ins Leere führt.
+    final forestAvailable =
+        ref.watch(forestGridProvider).valueOrNull != null;
     final longPressEnabled = ref.watch(mapLongPressEnabledProvider);
 
     return Scaffold(
@@ -576,6 +584,22 @@ class _MapScreenState extends ConsumerState<MapScreen>
               // Icon zeigt den Zustand (durchgestrichener Erdball = offline),
               // der Tooltip die Aktion.
               child: Icon(offlineActive ? Icons.public_off : Icons.public),
+            ),
+            const SizedBox(height: 12),
+          ],
+          // Die Waldtypen-Ebene (#213) — nur wenn das Gitter da ist:
+          // Ein Knopf auf ein fehlendes Asset wäre ein Fehler ohne
+          // Fehlermeldung.
+          if (forestAvailable) ...[
+            FloatingActionButton.small(
+              heroTag: 'forest',
+              onPressed: () => showForestLayerSheet(context),
+              tooltip: 'Waldtypen',
+              backgroundColor:
+                  forestActive ? AppColors.forestMixed : null,
+              foregroundColor: forestActive ? Colors.white : null,
+              child:
+                  Icon(forestActive ? Icons.forest : Icons.forest_outlined),
             ),
             const SizedBox(height: 12),
           ],

@@ -17,6 +17,7 @@ import 'package:pilzbuddy/core/settings.dart';
 import 'package:pilzbuddy/core/update_check.dart';
 import 'package:pilzbuddy/data/apk_installer.dart';
 import 'package:pilzbuddy/data/providers.dart';
+import 'package:pilzbuddy/features/map/forest_data_providers.dart';
 import 'package:pilzbuddy/features/map/live_share_providers.dart';
 import 'package:pilzbuddy/features/map/map_view/flutter_map_view.dart';
 import 'package:pilzbuddy/features/map/map_view/map_view.dart';
@@ -141,6 +142,11 @@ List<Override> overridesFor(FakeBackend backend,
       // Ebene fällt auf das DWD-Bild zurück — genau der Weg, den ein
       // Gerät ohne Empfang nimmt.
       rainGridLoaderProvider.overrideWithValue((_) async => null),
+      // Dieselbe Naht für das Waldtypen-Gitter (#213): Ohne sie läse
+      // jeder Test echte Assets — und bevor die existieren (Phase C),
+      // schlüge jeder Kartenaufbau fehl. Kein Gitter heißt: kein
+      // Wald-FAB, keine Fläche, keine Spot-Zeile.
+      forestGridLoaderProvider.overrideWithValue(() async => null),
       // Dieselbe Naht für den Tagesstapel am Spot. Er lädt zwar erst nach
       // ausdrücklicher Zustimmung — aber ein Test, der die erteilt, ginge
       // ohne diese Zeile wirklich zu GitHub.

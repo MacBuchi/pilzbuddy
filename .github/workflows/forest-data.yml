@@ -1,0 +1,77 @@
+name: Forest Data
+
+# Builds the forest-type grid (#213) from the Copernicus HRL "Dominant
+# Leaf Type" via the CLMS download API. See tool/forest_grid.py.
+#
+# Unlike rain-data.yml this does NOT publish to a release tag: the grid
+# ships as an APK asset, so an update belongs in a human-reviewed PR with
+# a version bump and a changelog line (the changelog test enforces that
+# anyway). The run uploads a workflow ARTIFACT plus a verify report in
+# the summary; a person downloads it, looks at it, and commits it.
+#
+# Quarterly, not daily: forests change slowly. A run that finds no newer
+# reference year than the one already committed still produces the
+# artifact — comparing years is the reviewer's one-line job, and the
+# verify report is worth having either way.
+#
+# Needs the repo secret CLMS_SERVICE_KEY: the service-key JSON issued in
+# the CLMS portal under the operator's (free) EU Login. Rotate it there
+# if it ever leaks — it can order data downloads, nothing more.
+on:
+  schedule:
+    # Quarterly, first day of Jan/Apr/Jul/Oct, off the full hour.
+    - cron: "41 5 1 1,4,7,10 *"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Fetch DLT and build the forest grid
+    runs-on: ubuntu-latest
+    # The DACH cutout is a few GB compressed and ~13 gigapixels; the tool
+    # processes it in bands. Fetching waits on the CLMS queue (up to two
+    # hours), the aggregation itself is minutes.
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Self-test first
+        run: python3 tool/forest_grid.py --self-test
+
+      # The two declared deviations from the rain tool's stdlib rule
+      # (documented in tool/forest_grid.py): RS256 for the CLMS token,
+      # GDAL as the decompressor for the delivered GeoTIFF.
+      - name: Install GDAL and JWT libraries
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q gdal-bin unzip
+          pip install --quiet pyjwt cryptography
+
+      - name: Fetch, aggregate, verify
+        env:
+          CLMS_SERVICE_KEY: ${{ secrets.CLMS_SERVICE_KEY }}
+        run: |
+          if [ -z "$CLMS_SERVICE_KEY" ]; then
+            echo "::error::Repository secret CLMS_SERVICE_KEY is missing — see tool/forest_grid.py for how to create it."
+            exit 1
+          fi
+          printf '%s' "$CLMS_SERVICE_KEY" > "$RUNNER_TEMP/clms_key.json"
+          python3 tool/forest_grid.py fetch \
+            --key "$RUNNER_TEMP/clms_key.json" --out build/forest
+          rm -f "$RUNNER_TEMP/clms_key.json"
+
+      - name: Upload the grid as an artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: forest-grid
+          path: |
+            build/forest/forest_grid.bin.gz
+            build/forest/forest_manifest.json
+          retention-days: 30
+          if-no-files-found: error

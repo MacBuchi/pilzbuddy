@@ -306,10 +306,19 @@ Was die recherchierten Dienste vorbildlich machen und was schiefgeht:
    Bewertung (`docs/pilzampel-saisonkurven.md`). Sie vorzuziehen war
    möglich, weil sie keine Modellannahme enthalten: Sie sagen, wann eine
    Art gemeldet wurde, nicht ob heute etwas wächst.
-5. **Waldtyp** (zweiter Teil von #158) — bewusst zurückgestellt. Er ist bei
-   Holzbewohnern wichtiger als das Wetter, aber flächige Waldtyp-Daten für
-   DACH sind ein eigenes Beschaffungsprojekt (Copernicus-Landbedeckung wäre
-   der Einstieg).
+5. **Waldtyp** (zweiter Teil von #158) — ~~bewusst zurückgestellt~~
+   **Stufe 1 gebaut** (2026-08-07, #213, ab 1.62.0): Laub/Misch/Nadel für
+   DACH als 250-m-Gitter aus dem Copernicus-HRL „Dominant Leaf Type"
+   (jährlich gepflegt, besteht den Borkenkäfer-Aktualitätstest), als
+   Asset im APK — Kartenebene plus „Wald hier"-Zeile im Spot-Blatt.
+   Die befürchtete Beschaffung war keine: `tool/forest_grid.py` ist die
+   zweite Anwendung der Regengitter-Maschinerie. Für die Ampel steht
+   damit der Waldtyp am Spot als lokale Abfrage bereit
+   (`ForestGrid.classAt`), ohne dass eine Koordinate das Gerät verlässt.
+   Quellenwahl und Stufung (Artebene = Stufe 2, nur bei Bedarf) sind am
+   Issue #213 dokumentiert. Er ist bei Holzbewohnern wichtiger als das
+   Wetter — was FEHLT, ist seine Verrechnung im Modell, nicht mehr die
+   Datenlage.
 
 ## Offene Entscheidungen
 
