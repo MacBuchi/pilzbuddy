@@ -6,6 +6,16 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Ohne diesen Block erbt jeder Job die Repo-Vorgabe — je nach Einstellung
+# Schreibrechte auf Inhalte, Issues und Releases. Dieser Workflow braucht
+# davon nichts: Er liest den Code, baut ihn und lädt Artefakte hoch
+# (actions/upload-artifact kommt ohne contents:write aus). Die Rechte hier
+# klein zu halten begrenzt den Schaden, den eine kompromittierte
+# Third-Party-Action anrichten könnte — und in diesem Workflow laufen mit
+# den Schema-Checks echte Datenbank-Zugangsdaten.
+permissions:
+  contents: read
+
 # Ein Folge-Commit auf demselben Branch macht den laufenden Check wertlos —
 # abbrechen statt parallel weiterlaufen lassen (spart vor allem den 6–7
 # Minuten langen Android-Build).
@@ -20,7 +30,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
-      - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
           flutter-version: 3.41.2
@@ -47,7 +57,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
-      - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
           flutter-version: 3.41.2
@@ -70,7 +80,7 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
           flutter-version: 3.41.2
@@ -105,7 +115,7 @@ jobs:
         env:
           BASE_REF: origin/${{ github.base_ref || 'main' }}
         run: bash tool/patch_guard.sh
-      - uses: supabase/setup-cli@v1
+      - uses: supabase/setup-cli@ab058987d8d6c725971f6cf9d0b5c98467e30bd1 # v1
         with:
           # Wie lokal beim Betreiber — bei lokalem CLI-Upgrade mitziehen.
           version: 2.109.1
@@ -190,6 +200,15 @@ jobs:
         with:
           fetch-depth: 0
       - name: Versions-Bump prüfen
+        # Über `env:` statt direkt in den `run:`-Block interpoliert: Ein
+        # Branch-Name ist von außen wählbar, und `${{ }}` wird VOR der Shell
+        # ersetzt — ein Branch namens `a";rm -rf /;#` würde sonst als Code
+        # ausgeführt. In der Umgebungsvariable ist er nur noch eine
+        # Zeichenkette. Beim Schema Dry Run oben steht es aus demselben
+        # Grund schon so.
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
         run: |
           set -euo pipefail
           version=$(sed -n 's/^version: \([0-9][0-9.]*\).*/\1/p' pubspec.yaml)
@@ -221,8 +240,8 @@ jobs:
             # statt eines Pathspecs, weil Ausschlüsse in git immer gewinnen:
             # ein einmal per ':!*.md' ausgeschlossener Pfad lässt sich nicht
             # wieder hereinholen.
-            if [ "${{ github.event_name }}" = "pull_request" ]; then
-              range="origin/${{ github.base_ref }}...HEAD"
+            if [ "$EVENT_NAME" = "pull_request" ]; then
+              range="origin/$BASE_REF...HEAD"
             else
               range="$latest..HEAD"
             fi
