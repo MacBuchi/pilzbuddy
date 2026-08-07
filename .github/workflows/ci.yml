@@ -6,6 +6,16 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Ohne diesen Block erbt jeder Job die Repo-Vorgabe — je nach Einstellung
+# Schreibrechte auf Inhalte, Issues und Releases. Dieser Workflow braucht
+# davon nichts: Er liest den Code, baut ihn und lädt Artefakte hoch
+# (actions/upload-artifact kommt ohne contents:write aus). Die Rechte hier
+# klein zu halten begrenzt den Schaden, den eine kompromittierte
+# Third-Party-Action anrichten könnte — und in diesem Workflow laufen mit
+# den Schema-Checks echte Datenbank-Zugangsdaten.
+permissions:
+  contents: read
+
 # Ein Folge-Commit auf demselben Branch macht den laufenden Check wertlos —
 # abbrechen statt parallel weiterlaufen lassen (spart vor allem den 6–7
 # Minuten langen Android-Build).

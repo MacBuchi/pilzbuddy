@@ -1,0 +1,78 @@
+name: Security
+
+# Schwachstellen-Scan über die Lockfiles (OSV-Datenbank).
+#
+# Der Lauf hat ZWEI Gesichter, und der Unterschied ist der ganze Punkt:
+#
+# 1. „OSV (PR)" scannt Ziel-Branch UND PR-Stand und meldet nur, was DIESER
+#    PR neu einführt. Er darf deshalb blockieren (Pflicht-Check): Eine
+#    frisch veröffentlichte CVE in einer transitiven Abhängigkeit kann ihn
+#    konstruktionsbedingt nicht rot färben — sie steht auf beiden Seiten
+#    des Vergleichs.
+# 2. „OSV (wöchentlich)" scannt den Gesamtbestand. Er ist bewusst KEIN
+#    Pflicht-Check und hängt an keinem PR: Genau dort würde eine alte CVE
+#    ohne verfügbaren Fix jeden unbeteiligten PR blockieren, bis jemand
+#    aufräumt. Als Wochenlauf meldet GitHub den Fehlschlag per Mail an den
+#    Maintainer — das passt zum Solo-Betrieb und hält niemanden auf.
+#
+# Ergänzt Dependabot statt es zu ersetzen: Dependabot kann für `pub` auch
+# Sicherheits-Updates, zieht seine Funde aber aus der GitHub Advisory
+# Database, die für Dart dünn besetzt ist. OSV.dev führt deutlich mehr.
+#
+# `-r ./` bleibt als Standardargument stehen: Der Scanner findet
+# pubspec.lock selbst.
+
+on:
+  schedule:
+    - cron: "17 5 * * 1" # montags früh
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  # Für den SARIF-Upload nach Security → Code Scanning (im öffentlichen Repo
+  # kostenlos). Die aufgerufenen Workflow-Dateien fordern genau diese drei an.
+  security-events: write
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Pflicht-Check. Nur neu eingeführte Funde, siehe Kopf.
+  osv-scan-pr:
+    name: OSV (PR)
+    if: github.event_name == 'pull_request'
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@v2.3.8
+
+  # Berichtend, nie blockierend, siehe Kopf.
+  osv-scan-full:
+    name: OSV (wöchentlich)
+    if: github.event_name != 'pull_request'
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.3.8
+
+  # Der Lizenz-Riegel. Prüft ausschließlich die im PR NEU hinzukommenden
+  # Abhängigkeiten (GitHubs Dependency Graph wertet pubspec.yaml +
+  # pubspec.lock aus — Dart wird unterstützt, die Lockfile ist eingecheckt).
+  #
+  # Bewusst eine DENY- und keine ALLOW-Liste: Eine Allowliste macht jede
+  # unbekannte oder nicht auflösbare Lizenz zum Merge-Blocker, und genau das
+  # passiert bei pub-Paketen regelmäßig. Verboten ist damit nur, was mit der
+  # MIT-Auslieferung und dem Play Store wirklich kollidiert.
+  #
+  # Der Gesamtbestand — nicht nur das Neue — wird separat geprüft; dafür ist
+  # `license_checker` vorgesehen (liest die echten LICENSE-Dateien aus dem
+  # pub-Cache, statt sich auf Lizenz-Metadaten Dritter zu verlassen).
+  dependency-review:
+    name: Dependency Review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          deny-licenses: GPL-2.0, GPL-3.0, AGPL-3.0, SSPL-1.0
+          comment-summary-in-pr: never

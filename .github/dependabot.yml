@@ -1,0 +1,61 @@
+# Abhängigkeits-Updates. Bewusst gebündelt und monatlich:
+#
+# `pubspec.yaml` ist NICHT vom Version Guard ausgenommen, jeder pub-PR
+# verlangt also einen Versions-Bump und veröffentlicht damit ein Release an
+# die Nutzer. Ohne `groups:` wären das bis zu einem halben Dutzend Releases
+# im Monat nur für Abhängigkeiten. Mit Bündelung bleibt es ein PR — und die
+# Guard-Regel darf bleiben, wie sie ist: Ein Dependency-Wechsel geht
+# tatsächlich an die Nutzer raus.
+#
+# `.github/` ist ausgenommen, die Actions-PRs kommen also ohne Bump durch.
+# Sie sind zugleich die Pflege der SHA-Pins: Third-Party-Actions sind auf
+# Commit-SHA festgenagelt, und ohne Dependabot fröre dieser Stand ein.
+version: 2
+updates:
+  - package-ecosystem: "pub"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore"
+    groups:
+      pub-dependencies:
+        patterns: ["*"]
+    ignore:
+      # Beide Pakete stehen in pubspec.yaml EXAKT gepinnt (ohne `^`), und das
+      # ist dort ausführlich begründet. Ein exakter Pin heißt für Dependabot
+      # trotzdem „schlag mir jede neuere Version vor" — die Vorschläge wären
+      # also genau die Sprünge, die die Pins verhindern sollen. Ein einziges
+      # nicht anhebbares Paket macht zudem den ganzen Sammel-PR rot, die
+      # brauchbaren Updates darin kämen nicht durch.
+      #
+      # vector_map_tiles: Nur Beta-Versionen können flutter_map 8. Die
+      # 9er-Linie nutzt bewusst den stabilen Canvas-Renderer; die 10er zieht
+      # den experimentellen GPU-Stack samt CMake-Native-Builds nach sich.
+      - dependency-name: "vector_map_tiles"
+      # maplibre: 0.x und jung, seit 1.43.0 der Standard-Renderer auf
+      # Android. Ein Upgrade ist eine Messung wert (docs/map-performance.md),
+      # keine automatische PR.
+      - dependency-name: "maplibre"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    commit-message:
+      prefix: "ci"
+    groups:
+      github-actions:
+        patterns: ["*"]
+
+# Bewusst NICHT aktiviert: package-ecosystem "gradle". Die Android-Seite
+# eines Flutter-Projekts zieht ihre Versionen größtenteils aus dem
+# Flutter-SDK (compileSdk/minSdk/targetSdk kommen aus flutter.*Version).
+# Dependabot sieht davon nur AGP und Kotlin und schlägt dort gern Sprünge
+# vor, die das Flutter-Gradle-Plugin noch nicht verträgt. Diese beiden
+# Versionen werden stattdessen beim Flutter-Upgrade von Hand mitgezogen.
+# (Dieselbe Entscheidung wie in FWApp, dort an PR #88 belegt.)
+#
+# Ebenfalls nicht aktiviert: "pip". Die Skripte in tool/ kommen ohne
+# Fremdpakete aus — es gibt keine requirements.txt, die man scannen könnte.
