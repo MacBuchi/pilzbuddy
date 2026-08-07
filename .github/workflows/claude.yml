@@ -14,6 +14,14 @@ on:
   pull_request_review:
     types: [submitted]
 
+# Vorgabe für den ganzen Workflow: nichts. Der `claude`-Job setzt sich
+# darunter ausdrücklich die Rechte, die er wirklich braucht — und weil
+# Job-Rechte die Vorgabe ersetzen statt sie zu ergänzen, ändert diese Zeile
+# an ihm nichts. Sie wirkt auf den nächsten Job, den jemand hier ergänzt:
+# Ohne sie erbte der stillschweigend die Repo-Vorgabe. Dieser Workflow
+# reagiert auf Kommentare von außen und ist damit der exponierteste im Repo.
+permissions: {}
+
 # Pro Issue/PR serialisieren, damit zwei Freigabe-Kommentare nicht
 # gleichzeitig am selben Branch arbeiten. Nicht abbrechen: ein gekappter
 # Lauf könnte einen halb gepushten Branch ohne PR hinterlassen.

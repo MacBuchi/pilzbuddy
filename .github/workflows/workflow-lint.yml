@@ -1,0 +1,65 @@
+name: Workflow Lint
+
+# Statische Prüfung der Workflows selbst — nicht des App-Codes.
+#
+# Warum das hier mehr wiegt als in einem beliebigen Repo: In diesen
+# Workflows liegen der Android-Keystore (ANDROID_KEYSTORE_*), der
+# Supabase-service_role-Key, die Datenbank-URI mit Passwort, das
+# Backup-Repo-Token und der Claude-OAuth-Token. Eine gekaperte
+# Third-Party-Action oder eine Template-Injection in einem `run:`-Block
+# liest die direkt aus. Der App-Code kann noch so sauber sein — dieser Weg
+# geht an ihm vorbei.
+#
+# Werkzeug ist zizmor: Template-Injection, zu weite Berechtigungen,
+# ungepinnte Actions, gefährliche Trigger.
+#
+# **Bewusst ohne actionlint**, obwohl es gut hierher passen würde: Sein
+# üblicher Installationsweg ist ein `curl | bash` gegen ein Skript im
+# `main`-Branch — also genau die ungepinnte Fremdausführung, die dieser
+# Workflow aufspüren soll. Ein Linter, der die eigene Regel bricht, ist
+# keiner. Kommt zurück, sobald er als versionierte Release-Binärdatei mit
+# Prüfsumme eingebunden wird.
+#
+# **Bewusst noch nicht blockierend.** Der erste Lauf wird die ungepinnten
+# Actions melden — alle Third-Party-Actions hängen derzeit an beweglichen
+# Tags. Diese Befundklasse ist die lauteste und wird zuerst abgearbeitet
+# (Pinning auf Commit-SHA, gepflegt über die Dependabot-Gruppe
+# `github-actions`). Erst danach wird `continue-on-error` entfernt und der
+# Job zum Pflicht-Check. Andersherum stünde hier ab Tag eins eine rote CI,
+# und der übliche Ausgang davon ist, dass die Prüfung abgeschaltet wird.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+      - ".github/dependabot.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: workflow-lint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Workflow Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      # Über PyPI statt über die Action: Eine Action, die die anderen
+      # Actions auf Pinning prüft, müsste sonst selbst ungepinnt hier
+      # stehen. Die Version ist bewusst gedeckelt — ein neuer Audit in
+      # einer neuen zizmor-Fassung soll nicht unangekündigt die Befundlage
+      # ändern.
+      - name: zizmor installieren
+        run: pipx install 'zizmor>=1.0,<2.0'
+
+      - name: zizmor
+        continue-on-error: true # siehe Kopf
+        run: zizmor --persona regular .github/workflows/
