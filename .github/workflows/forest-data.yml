@@ -22,6 +22,11 @@ on:
     # Quarterly, first day of Jan/Apr/Jul/Oct, off the full hour.
     - cron: "41 5 1 1,4,7,10 *"
   workflow_dispatch:
+  # TEMPORARY, remove before merge: workflow_dispatch only sees workflows
+  # on the default branch, so the very first run (phase C of #213) needs
+  # a push trigger on the feature branch.
+  push:
+    branches: [feat/waldtypen-ebene]
 
 concurrency:
   group: ${{ github.workflow }}
