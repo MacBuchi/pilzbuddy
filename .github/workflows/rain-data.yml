@@ -69,12 +69,19 @@ jobs:
 
       - name: Pick layers
         id: pick
+        # Über `env:` statt direkt interpoliert: `${{ }}` wird vor der Shell
+        # ersetzt, der Wert stünde also als Code im Skript. Der Cron-String
+        # kommt zwar aus dieser Datei selbst, `inputs.layer` aber von dem,
+        # der den Lauf von Hand startet.
+        env:
+          SCHEDULE: ${{ github.event.schedule }}
+          LAYER_INPUT: ${{ inputs.layer }}
         run: |
-          case "${{ github.event.schedule }}" in
+          case "$SCHEDULE" in
             "17 6 * * *") layers="w4" ;;
             "47 */3 * * *") layers="sf" ;;
             "23 7 * * *") layers="daily weather" ;;
-            *) layers="${{ inputs.layer }}" ;;
+            *) layers="$LAYER_INPUT" ;;
           esac
           [ -n "$layers" ] || layers="w4 sf"
           echo "layers=$layers" >> "$GITHUB_OUTPUT"

@@ -20,13 +20,25 @@ name: Workflow Lint
 # keiner. Kommt zurück, sobald er als versionierte Release-Binärdatei mit
 # Prüfsumme eingebunden wird.
 #
-# **Bewusst noch nicht blockierend.** Der erste Lauf wird die ungepinnten
-# Actions melden — alle Third-Party-Actions hängen derzeit an beweglichen
-# Tags. Diese Befundklasse ist die lauteste und wird zuerst abgearbeitet
-# (Pinning auf Commit-SHA, gepflegt über die Dependabot-Gruppe
-# `github-actions`). Erst danach wird `continue-on-error` entfernt und der
-# Job zum Pflicht-Check. Andersherum stünde hier ab Tag eins eine rote CI,
-# und der übliche Ausgang davon ist, dass die Prüfung abgeschaltet wird.
+# **Bewusst noch nicht blockierend — der Stand ist nachgemessen.** Ein
+# lokaler Lauf derselben Fassung meldete zunächst 28 Befunde der höchsten
+# Stufe, praktisch alle „ungepinnte Action". Die sind abgearbeitet:
+# Fremd-Actions hängen jetzt an Commit-SHAs, `.github/zizmor.yml` hält
+# fest, dass `actions/*` bewusst am Tag bleiben darf, und zwei
+# Template-Injections (Branch-Name bzw. Cron-String direkt im
+# `run:`-Block) sind über `env:` entschärft. Übrig bleibt EIN hoher
+# Befund: `contents: write` auf Workflow-Ebene in `release.yml`.
+#
+# Der bleibt offen, und zwar mit Grund: Diese Rechte auf die Jobs zu
+# verteilen, die sie wirklich brauchen, lässt sich nur an einem echten
+# Release prüfen. Greift man daneben, scheitert der Lauf NACH dem Taggen —
+# zurück bliebe ein Tag ohne Release, den die Tag-Entscheidung fortan für
+# „schon veröffentlicht" hält. Heilbar nur von Hand.
+#
+# Solange dieser Befund steht, bleibt `continue-on-error`. Wer ihn löst,
+# nimmt es weg und macht den Job zum Pflicht-Check. Andersherum stünde
+# hier eine dauerhaft rote CI, und der übliche Ausgang davon ist, dass die
+# Prüfung abgeschaltet wird.
 
 on:
   push:
@@ -62,4 +74,13 @@ jobs:
 
       - name: zizmor
         continue-on-error: true # siehe Kopf
+        # Ohne Token bricht der Lauf ab, statt Befunde zu melden: Audits wie
+        # `ref-confusion` und `impostor-commit` fragen GitHub, und ohne
+        # Anmeldung antwortet der 401 — „fatal: no audit was performed"
+        # (lokal nachgestellt). Gerade `impostor-commit` ist der Audit, der
+        # die SHA-Pins gegenprüft, also genau der, den man hier will.
+        # `GITHUB_TOKEN` reicht dafür und braucht im öffentlichen Repo keine
+        # zusätzliche Berechtigung.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: zizmor --persona regular .github/workflows/

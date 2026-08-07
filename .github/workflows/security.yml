@@ -44,13 +44,13 @@ jobs:
   osv-scan-pr:
     name: OSV (PR)
     if: github.event_name == 'pull_request'
-    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@v2.3.8
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@9a498708959aeaef5ef730655706c5a1df1edbc2 # v2.3.8
 
   # Berichtend, nie blockierend, siehe Kopf.
   osv-scan-full:
     name: OSV (wöchentlich)
     if: github.event_name != 'pull_request'
-    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.3.8
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@9a498708959aeaef5ef730655706c5a1df1edbc2 # v2.3.8
 
   # Der Lizenz-Riegel. Prüft ausschließlich die im PR NEU hinzukommenden
   # Abhängigkeiten (GitHubs Dependency Graph wertet pubspec.yaml +
