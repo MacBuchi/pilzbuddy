@@ -435,8 +435,17 @@ def clms_json(path, token=None, payload=None):
         data = json.dumps(payload).encode()
     request = urllib.request.Request(CLMS_BASE + path, data=data,
                                      headers=headers)
-    with urllib.request.urlopen(request, timeout=120) as response:
-        return json.load(response)
+    try:
+        with urllib.request.urlopen(request, timeout=120) as response:
+            return json.load(response)
+    except urllib.error.HTTPError as error:
+        # Der Fehlertext der API ist die einzige Diagnose, die es gibt —
+        # verschluckt kostete er beim ersten Echtlauf eine ganze Runde.
+        body = error.read().decode(errors="replace")[:2000]
+        raise SystemExit(
+            f"CLMS {error.code} auf {path}\n"
+            f"Anfrage: {json.dumps(payload)[:500] if payload else '-'}\n"
+            f"Antwort: {body}")
 
 
 def find_dataset(token):
@@ -481,8 +490,12 @@ def request_download(token, uid, download_id):
             "DatasetDownloadInformationID": download_id,
             "OutputFormat": "Geotiff",
             "OutputGCS": "EPSG:4326",
-            # Reihenfolge laut API-Doku: [N, E, S, W].
-            "BoundingBox": [north, east, south, west],
+            # Reihenfolge nach dem KONKRETEN BEISPIEL der API-Doku:
+            # [W, N, E, S]. Deren Prosa behauptet [max.lat, max.lon,
+            # min.lat, min.lon] und widerspricht dem eigenen Beispiel
+            # ([2.35, 46.85, 4.64, 45.88] ist erkennbar Frankreich,
+            # also Länge, Breite, Länge, Breite).
+            "BoundingBox": [west, north, east, south],
         }],
     })
     return str(result["TaskIds"][0]["TaskID"]) if "TaskIds" in result \
@@ -507,7 +520,11 @@ def poll_download(token, task_id, timeout_minutes=120):
 def fetch(key_path, out_dir):
     token = clms_token(key_path)
     year, uid, download_id = find_dataset(token)
-    print(f"fetch: DLT {year} (UID {uid})", file=sys.stderr)
+    print(f"fetch: DLT {year} (UID {uid}, Download {download_id})",
+          file=sys.stderr)
+    if not download_id:
+        raise SystemExit("fetch: Datensatz ohne Download-Information — "
+                         "Suchantwort prüfen")
     task = request_download(token, uid, download_id)
     url = poll_download(token, task)
     os.makedirs(out_dir, exist_ok=True)
@@ -620,11 +637,12 @@ def self_test():
         except (ValueError, struct.error, KeyError, IndexError):
             pass
 
-    # Anfragebau: Bounding Box in API-Reihenfolge [N, E, S, W].
+    # Anfragebau: Bounding Box in API-Reihenfolge [W, N, E, S] — die
+    # des BEISPIELS der Doku, nicht ihrer (widersprüchlichen) Prosa.
     west, south, east, north = BOUNDS
     assert north > south and east > west
-    box = [north, east, south, west]
-    assert box[0] == 55.1 and box[3] == 5.8
+    box = [west, north, east, south]
+    assert box[0] == 5.8 and box[1] == 55.1
 
     # Die Kachel-Rechnung: 25er-Blöcke, Rand fällt weg.
     assert 107 // CELL_FACTOR == 4
