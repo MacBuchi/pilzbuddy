@@ -64,6 +64,15 @@ jobs:
   # Der Gesamtbestand — nicht nur das Neue — wird separat geprüft; dafür ist
   # `license_checker` vorgesehen (liest die echten LICENSE-Dateien aus dem
   # pub-Cache, statt sich auf Lizenz-Metadaten Dritter zu verlassen).
+  #
+  # **VORBEDINGUNG, und sie ist eine Repo-Einstellung, kein Code:** Der
+  # Dependency Graph muss unter Settings → Code security eingeschaltet sein
+  # (https://github.com/MacBuchi/pilzbuddy/settings/security_analysis).
+  # Ist er aus, bricht dieser Job binnen Sekunden ab mit „Dependency review
+  # is not supported on this repository" — so geschehen im ersten Lauf von
+  # PR #223. Das sieht nach einem kaputten Workflow aus und ist keiner.
+  # Code Scanning kann dabei durchaus schon an sein: Der SARIF-Upload von
+  # OSV lief im selben Lauf durch.
   dependency-review:
     name: Dependency Review
     if: github.event_name == 'pull_request'
@@ -86,13 +95,22 @@ jobs:
   # nicht vom Version Guard ausgenommen, eine Zeile dort löste ein Release
   # an die Nutzer aus, nur um einen Linter zu installieren.
   #
-  # Noch `continue-on-error`: Die Konfiguration ist zwar gegen den echten
-  # Baum abgestimmt (174 Pakete, sauber grün) und einmal rot verifiziert,
-  # aber der erste scharfe Befund wäre ein Dependabot-PR mit einem Paket,
-  # dessen Lizenz der Detektor nicht liest — und der gehört mit einem
-  # nachgesehenen Override beantwortet, nicht mit einem blockierten Merge.
-  # Nach einem ruhigen Dependabot-Zyklus wegnehmen und zum Pflicht-Check
-  # machen.
+  # **Blockierend, und das ist eine Korrektur.** Ursprünglich stand hier
+  # `continue-on-error` mit der Begründung, ein Dependabot-PR mit einer
+  # unlesbaren Lizenz solle nicht gleich den Merge sperren. Der erste echte
+  # Lauf hat die Begründung widerlegt — und zwar teuer: Der Aufruf war
+  # falsch (`license_checker:lic_ck`; `lic_ck` ist der Name der
+  # INSTALLIERTEN Binärdatei, `dart pub global run` will aber den
+  # SKRIPTnamen, und der ist `license_checker`). Das Werkzeug brach mit
+  # Exit 66 ab, und `continue-on-error` machte daraus einen grünen Haken.
+  # Ein Check, der Erfolg meldet, ohne etwas geprüft zu haben, ist
+  # schlechter als gar keiner.
+  #
+  # Die Konfiguration ist gegen alle 174 Pakete abgestimmt und rot
+  # verifiziert; sie darf blockieren. Ein neues Paket mit unlesbarer Lizenz
+  # macht CI dann rot und wird mit einem **nachgesehenen** Override in
+  # tool/license_config.yaml beantwortet — das ist der vorgesehene Ablauf,
+  # nicht der Ausnahmefall.
   licenses:
     name: Lizenzen (Gesamtbestand)
     runs-on: ubuntu-latest
@@ -108,6 +126,6 @@ jobs:
       # LICENSE-Dateien, nicht irgendwelche Metadaten.
       - run: flutter pub get
       - run: dart pub global activate license_checker
+      # `paket:skript`, NICHT `paket:binärname` — siehe Kopf.
       - name: Lizenzen prüfen
-        continue-on-error: true # siehe oben
-        run: dart pub global run license_checker:lic_ck -c tool/license_config.yaml check-licenses
+        run: dart pub global run license_checker:license_checker -c tool/license_config.yaml check-licenses
