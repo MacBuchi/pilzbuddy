@@ -76,3 +76,38 @@ jobs:
           fail-on-severity: high
           deny-licenses: GPL-2.0, GPL-3.0, AGPL-3.0, SSPL-1.0
           comment-summary-in-pr: never
+
+  # Das Gegenstück zu dependency-review: Der prüft nur, was ein PR NEU
+  # hinzufügt, und würde einen Lizenzwechsel in einer bestehenden
+  # transitiven Abhängigkeit nie bemerken. Dieser Job prüft den GANZEN
+  # Baum — Regeln und Begründungen in tool/license_config.yaml.
+  #
+  # `dart pub global activate` statt dev_dependency: `pubspec.yaml` ist
+  # nicht vom Version Guard ausgenommen, eine Zeile dort löste ein Release
+  # an die Nutzer aus, nur um einen Linter zu installieren.
+  #
+  # Noch `continue-on-error`: Die Konfiguration ist zwar gegen den echten
+  # Baum abgestimmt (174 Pakete, sauber grün) und einmal rot verifiziert,
+  # aber der erste scharfe Befund wäre ein Dependabot-PR mit einem Paket,
+  # dessen Lizenz der Detektor nicht liest — und der gehört mit einem
+  # nachgesehenen Override beantwortet, nicht mit einem blockierten Merge.
+  # Nach einem ruhigen Dependabot-Zyklus wegnehmen und zum Pflicht-Check
+  # machen.
+  licenses:
+    name: Lizenzen (Gesamtbestand)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          flutter-version: 3.41.2
+          cache: true
+      # Die Pakete müssen im Cache liegen: Das Werkzeug liest die echten
+      # LICENSE-Dateien, nicht irgendwelche Metadaten.
+      - run: flutter pub get
+      - run: dart pub global activate license_checker
+      - name: Lizenzen prüfen
+        continue-on-error: true # siehe oben
+        run: dart pub global run license_checker:lic_ck -c tool/license_config.yaml check-licenses
