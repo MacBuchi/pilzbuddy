@@ -45,6 +45,30 @@ void main() {
     expect(options.cameraConstraint, isA<FiniteCameraConstraint>());
   });
 
+  testWidgets('Doppeltippen zoomt, Drehen bleibt aus', (tester) async {
+    // Seit #210 ist der Long-Press ab Werk aus, und der Doppeltipp ist
+    // damit der Weg, an einer Stelle heranzuzoomen. Bis dahin prüfte
+    // NICHTS die Gesten-Flags — fiele `doubleTapZoom` still weg (etwa
+    // weil jemand die Flags aufzählt statt `all` zu nehmen), stünde
+    // genau dieser Wunsch wieder da.
+    //
+    // Das Nicht-Drehen gehört mit in denselben Test: Es ist die erklärte
+    // Invariante beider Engines (MapLibre setzt `rotate: false`), und wer
+    // die Flags anfasst, soll beides auf einmal sehen.
+    await pumpApp(tester, loggedInBackend(), useRealMap: true);
+
+    final flags = tester
+        .widget<FlutterMap>(find.byType(FlutterMap))
+        .options
+        .interactionOptions
+        .flags;
+    expect(InteractiveFlag.hasDoubleTapZoom(flags), isTrue);
+    expect(InteractiveFlag.hasRotate(flags), isFalse);
+    expect(InteractiveFlag.hasDrag(flags), isTrue,
+        reason: 'Schieben ist der Weg, das Fadenkreuz zu setzen');
+    expect(InteractiveFlag.hasPinchZoom(flags), isTrue);
+  });
+
   testWidgets('Wartende Flächen sind Landton, nicht Grau', (tester) async {
     // flutter_maps Vorgabe ist 0xFFE0E0E0 — das liest sich wie ein Fehler.
     // Wo noch keine Kachel liegt, soll es nach Karte aussehen (#119).

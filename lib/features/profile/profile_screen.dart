@@ -23,6 +23,7 @@ import '../../core/widgets/password_field.dart';
 import '../../data/providers.dart';
 import '../../models/find.dart';
 import '../import_export/gpx_export.dart';
+import '../map/map_gestures.dart';
 import '../map/map_view/map_engine.dart';
 import '../spots/spot_providers.dart';
 import 'account_dialogs.dart';
@@ -158,6 +159,25 @@ class ProfileScreen extends ConsumerWidget {
                   ref.read(mapLibreEnabledProvider.notifier).toggle(),
             ),
           ],
+          // Außerhalb des Android-Blocks: Die Geste gibt es auch im Web.
+          //
+          // Ab Werk aus (#210) — sie sprang auf die gedrückte Stelle UND
+          // auf Zoom 16, und ein Fehlgriff aus der Übersicht warf einen
+          // woanders hin. Wer sie mag, holt sie hier zurück; entschärfen
+          // ließ sie sich nicht, keine der beiden Karten-Bibliotheken
+          // lässt Haltedauer oder Toleranz einstellen.
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            secondary: const Icon(Icons.touch_app_outlined),
+            title: const Text('Karte gedrückt halten'),
+            subtitle: const Text(
+                'Setzt das Fadenkreuz auf die gedrückte Stelle und zoomt '
+                'heran. Aus, weil das leicht versehentlich auslöst — zum '
+                'Heranzoomen genügt ein Doppeltipp.'),
+            value: ref.watch(mapLongPressEnabledProvider),
+            onChanged: (_) =>
+                ref.read(mapLongPressEnabledProvider.notifier).toggle(),
+          ),
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.file_download_outlined),

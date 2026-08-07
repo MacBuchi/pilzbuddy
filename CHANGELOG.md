@@ -7,6 +7,22 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Kein versehentlicher Sprung mehr auf der Karte
+
+*6. August 2026 · Version 1.60.0*
+
+Langes Draufhalten setzte das Fadenkreuz auf die gedrückte Stelle **und**
+zoomte weit heran. Das löste zu leicht aus: Aus der Übersicht landete man
+plötzlich woanders und viel zu nah dran, und der Weg zurück war
+rauszoomen und wiederfinden. **Ab jetzt ist die Geste aus.**
+
+Zum Heranzoomen genügt ein **Doppeltipp** auf die Stelle — das konnte die
+Karte schon immer, es ging nur unter. Das Fadenkreuz stellst du wie bisher
+durchs Schieben ein.
+
+Wer die alte Bedienung mochte, holt sie im Profil unter **„Karte gedrückt
+halten"** zurück; dann arbeitet sie wieder genau wie vorher.
+
 ## Zwei Pilze sehen richtiger aus, das Wetter liest sich leichter
 
 *6. August 2026 · Version 1.59.0*
