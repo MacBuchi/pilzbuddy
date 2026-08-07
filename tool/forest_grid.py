@@ -425,6 +425,34 @@ def clms_token(key_path):
         return json.load(response)["access_token"]
 
 
+class ClmsSession:
+    """Hält das Bearer-Token frisch, statt eines durchzureichen.
+
+    CLMS-Tokens leben eine Stunde, die Download-Queue braucht gern
+    länger: Der erste Echtlauf bestellte korrekt, pollte 61 Minuten
+    „In_progress" und starb dann an einem 401 — abgelaufenes Token,
+    kein Rechteproblem. fresh() mintet deshalb nach 45 Minuten neu,
+    deutlich vor dem Ablauf; ein Mint ist ein einzelner HTTPS-Aufruf.
+    """
+
+    refresh_after_seconds = 45 * 60
+
+    def __init__(self, key_path, now_fn=time.time, mint_fn=None):
+        # now_fn/mint_fn nur für den Selbsttest — wie info_fn/band_fn
+        # beim Build: die Logik läuft netzfrei, der Echtweg unverändert.
+        self._now = now_fn
+        self._mint = mint_fn or (lambda: clms_token(key_path))
+        self._token = None
+        self._minted = 0.0
+
+    def fresh(self):
+        age = self._now() - self._minted
+        if self._token is None or age > self.refresh_after_seconds:
+            self._token = self._mint()
+            self._minted = self._now()
+        return self._token
+
+
 def clms_json(path, token=None, payload=None):
     headers = {"Accept": "application/json"}
     if token:
@@ -448,14 +476,14 @@ def clms_json(path, token=None, payload=None):
             f"Antwort: {body}")
 
 
-def find_dataset(token):
+def find_dataset(session):
     """Neuestes DLT-Jahr samt UID und Download-Information-Id."""
     result = clms_json(
         "/api/@search?portal_type=DataSet"
         "&SearchableText=dominant+leaf+type"
         "&metadata_fields=UID&metadata_fields=dataset_download_information"
         "&b_size=50",
-        token=token)
+        token=session.fresh())
     best = None
     for item in result.get("items", []):
         title = item.get("title", "")
@@ -482,9 +510,10 @@ def find_dataset(token):
     return best
 
 
-def request_download(token, uid, download_id):
+def request_download(session, uid, download_id):
     west, south, east, north = BOUNDS
-    result = clms_json("/api/@datarequest_post", token=token, payload={
+    result = clms_json("/api/@datarequest_post", token=session.fresh(),
+                       payload={
         "Datasets": [{
             "DatasetID": uid,
             "DatasetDownloadInformationID": download_id,
@@ -502,11 +531,11 @@ def request_download(token, uid, download_id):
         else str(result["TaskID"])
 
 
-def poll_download(token, task_id, timeout_minutes=120):
+def poll_download(session, task_id, timeout_minutes=120):
     deadline = time.time() + timeout_minutes * 60
     while time.time() < deadline:
         status = clms_json("/api/@datarequest_status_get?TaskID=" + task_id,
-                           token=token)
+                           token=session.fresh())
         state = status.get("Status", status.get("status", ""))
         if state.lower() in ("finished_ok", "finished", "done"):
             return status["DownloadURL"]
@@ -518,15 +547,15 @@ def poll_download(token, task_id, timeout_minutes=120):
 
 
 def fetch(key_path, out_dir):
-    token = clms_token(key_path)
-    year, uid, download_id = find_dataset(token)
+    session = ClmsSession(key_path)
+    year, uid, download_id = find_dataset(session)
     print(f"fetch: DLT {year} (UID {uid}, Download {download_id})",
           file=sys.stderr)
     if not download_id:
         raise SystemExit("fetch: Datensatz ohne Download-Information — "
                          "Suchantwort prüfen")
-    task = request_download(token, uid, download_id)
-    url = poll_download(token, task)
+    task = request_download(session, uid, download_id)
+    url = poll_download(session, task)
     os.makedirs(out_dir, exist_ok=True)
     archive = os.path.join(out_dir, "dlt_download.zip")
     print(f"fetch: lade {url}", file=sys.stderr)
@@ -646,6 +675,26 @@ def self_test():
 
     # Die Kachel-Rechnung: 25er-Blöcke, Rand fällt weg.
     assert 107 // CELL_FACTOR == 4
+
+    # Token-Verwaltung: Der erste Echtlauf bestellte korrekt, pollte
+    # 61 Minuten und starb an einem 401 — das Token lebt nur eine
+    # Stunde. fresh() muss also innerhalb der Frist dasselbe Token
+    # liefern (kein Mint je Anfrage) und nach der Frist neu minten.
+    clock = [0.0]
+    mints = []
+
+    def _fake_mint():
+        mints.append(clock[0])
+        return f"token-{len(mints)}"
+
+    session = ClmsSession("unbenutzt", now_fn=lambda: clock[0],
+                          mint_fn=_fake_mint)
+    assert session.fresh() == "token-1"
+    clock[0] = ClmsSession.refresh_after_seconds - 1
+    assert session.fresh() == "token-1", "vor der Frist neu gemintet"
+    clock[0] = ClmsSession.refresh_after_seconds + 1
+    assert session.fresh() == "token-2", "nach der Frist nicht erneuert"
+    assert mints == [0.0, ClmsSession.refresh_after_seconds + 1]
 
     _self_test_build()
 
