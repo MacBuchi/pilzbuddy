@@ -7,6 +7,19 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Vollständige Lizenzangaben
+
+*7. August 2026 · Version 1.61.1*
+
+Die Seite „Open-Source-Lizenzen" im Profil nennt jetzt auch die
+**Kartenschrift** und die **Regendaten**. Beide waren längst in der App,
+standen dort aber nicht — bei der Schrift fehlte sogar der Lizenztext
+selbst, obwohl ihre Lizenz genau den verlangt.
+
+Für dich ändert sich am Verhalten der App nichts. Es ist trotzdem kein
+Schönheitsfehler gewesen: Kartendaten, Wetterdaten und Schriften dürfen wir
+nur unter der Bedingung verwenden, dass wir ihre Herkunft nennen.
+
 ## Fundorte stapeln sich nicht mehr
 
 *6. August 2026 · Version 1.61.0*

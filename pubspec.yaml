@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.61.0+103
+version: 1.61.1+104
 
 environment:
   sdk: ^3.11.0
@@ -153,6 +153,12 @@ flutter:
     # App-Verzeichnis materialisiert (maplibre_style_provider.dart).
     - assets/map_glyphs/noto-sans-regular/
     - assets/map_glyphs/noto-sans-medium/
+    # Der OFL-Text zu genau diesen Glyphen. Eigene Zeile, weil die beiden
+    # Verzeichnis-Einträge darüber ihn NICHT mitnehmen — Flutter erfasst
+    # damit nur Dateien direkt im jeweiligen Verzeichnis, und OFL.txt liegt
+    # eine Ebene höher. Bis 1.61.1 fehlte die Zeile: Die Schrift wurde
+    # ausgeliefert, ihre Lizenz nicht. Die OFL verlangt aber genau das.
+    - assets/map_glyphs/OFL.txt
 
   # To add assets to your application, add an assets section, like this:
   # assets:
