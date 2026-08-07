@@ -14,6 +14,7 @@ import '../features/import_export/import_screen.dart';
 import '../features/map/map_screen.dart';
 import '../features/offline_maps/offline_maps_screen.dart';
 import '../features/profile/profile_screen.dart';
+import '../features/spots/spot_cleanup_screen.dart';
 
 /// Stößt den Router-Redirect an, sobald sich der Auth-Zustand ändert.
 class _AuthRefresh extends ChangeNotifier {
@@ -87,6 +88,9 @@ final routerProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                       path: 'import',
                       builder: (context, state) => const ImportScreen()),
+                  GoRoute(
+                      path: 'spot-cleanup',
+                      builder: (context, state) => const SpotCleanupScreen()),
                   GoRoute(
                       path: 'changelog',
                       builder: (context, state) => const ChangelogScreen()),

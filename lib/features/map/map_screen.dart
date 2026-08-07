@@ -18,7 +18,9 @@ import '../../models/friend_location.dart';
 import '../../models/spot.dart';
 import '../friends/friend_providers.dart';
 import '../profile/profile_providers.dart';
+import '../spots/nearby_spots.dart';
 import '../spots/spot_providers.dart';
+import '../spots/widgets/add_find_sheet.dart';
 import '../spots/widgets/spot_detail_sheet.dart';
 import 'live_share_providers.dart';
 import 'map_gestures.dart';
@@ -34,6 +36,9 @@ import 'widgets/rain_legend.dart';
 import 'widgets/share_location_sheet.dart';
 import 'widgets/spot_filter_sheet.dart';
 import '../../core/app_colors.dart';
+
+/// Antwort auf „hier liegt schon ein Spot" (#215).
+enum _NearbyChoice { existingSpot, newSpot }
 
 class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key});
@@ -202,9 +207,74 @@ class _MapScreenState extends ConsumerState<MapScreen>
     });
   }
 
+  /// Fragt nach, wenn schon ein eigener Spot in Reichweite liegt (#215).
+  ///
+  /// Gibt zurück, ob weiter ein NEUER Spot entstehen soll. Ist die Antwort
+  /// „dort eintragen", übernimmt diese Methode gleich den Fund und liefert
+  /// `false` — der Aufrufer ist dann fertig.
+  ///
+  /// Erst fragen, dann das Blatt öffnen: Die beiden Wege brauchen
+  /// verschiedene Formulare (Fund am bestehenden Spot vs. neuer Spot), und
+  /// ein Hinweis im schon offenen Anlege-Blatt hieße, das falsche steht
+  /// bereits da.
+  Future<bool> _confirmNewSpotNear(LatLng center) async {
+    final near = nearestOwnSpot(ref.read(mySpotListProvider), center);
+    if (near == null) return true;
+
+    final choice = await showDialog<_NearbyChoice>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hier liegt schon ein Spot'),
+        content: Text(
+            '${near.meters.round()} m entfernt liegt „${near.spot.displayName}". '
+            'Gehört dein Fund dorthin?'),
+        actions: [
+          TextButton(
+            onPressed: () =>
+                Navigator.of(context).pop(_NearbyChoice.newSpot),
+            child: const Text('Trotzdem neuer Spot'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.of(context).pop(_NearbyChoice.existingSpot),
+            child: const Text('Dort eintragen'),
+          ),
+        ],
+      ),
+    );
+    if (choice == null || !mounted) return false;
+    if (choice == _NearbyChoice.newSpot) return true;
+
+    await _addFindTo(near.spot);
+    return false;
+  }
+
+  /// „Dort eintragen": derselbe Weg wie „Fund eintragen" im Spot-Blatt.
+  Future<void> _addFindTo(Spot spot) async {
+    final ownSpecies = ref.read(ownSpeciesProvider);
+    final finds = await showAddFindSheet(
+      context,
+      lastFind: spot.lastOwnFind,
+      ownSpecies: ownSpecies,
+      fallbackSpecies: ownSpecies.firstOrNull,
+    );
+    if (finds == null) return;
+    try {
+      await ref
+          .read(mySpotsProvider.notifier)
+          .addFinds(spotId: spot.id, finds: finds);
+      _showMessage('Fund bei „${spot.displayName}" eingetragen 🍄');
+    } catch (e, stackTrace) {
+      logError('Fund eintragen', e, stackTrace);
+      _showMessage(friendlyError(e));
+    }
+  }
+
   /// Neuer Spot an der aktuellen Fadenkreuz-Position (Kartenmitte).
   Future<void> _addSpotAtCrosshair() async {
     final center = _map.center;
+    if (!await _confirmNewSpotNear(center)) return;
+    if (!mounted) return;
     final ownSpecies = ref.read(ownSpeciesProvider);
     // Ohne `defaultSpecies`: Ein neuer Spot ist meist eine andere Art als
     // der letzte, und die Vorbelegung musste erst gelöscht werden

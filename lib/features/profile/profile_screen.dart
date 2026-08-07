@@ -25,6 +25,7 @@ import '../../models/find.dart';
 import '../import_export/gpx_export.dart';
 import '../map/map_gestures.dart';
 import '../map/map_view/map_engine.dart';
+import '../spots/nearby_spots.dart';
 import '../spots/spot_providers.dart';
 import 'account_dialogs.dart';
 import 'profile_providers.dart';
@@ -195,6 +196,19 @@ class ProfileScreen extends ConsumerWidget {
                 'Alle deine Spots samt Fundhistorie für andere Karten-Apps'),
             onTap: () => _exportGpx(context, ref),
           ),
+          // Nur zeigen, wenn es etwas aufzuräumen gibt (#215) — ein
+          // Eintrag, der auf eine leere Seite führt, ist eine Sackgasse.
+          if (ref.watch(overlappingSpotPairsProvider).isNotEmpty)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.join_full_outlined),
+              title: const Text('Dicht beieinander'),
+              subtitle: Text(
+                  '${ref.watch(overlappingSpotPairsProvider).length} Spot-Paare '
+                  'liegen unter ${kNearbySpotMeters.round()} m auseinander'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push('/profile/spot-cleanup'),
+            ),
           ChangeUsernameTile(username: profile?.username),
           const ChangeEmailTile(),
           const _ChangePasswordTile(),

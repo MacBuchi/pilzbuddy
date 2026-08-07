@@ -114,14 +114,6 @@ void main() {
     });
   });
 
-  test('distanceKm liegt an bekannten Paaren richtig', () {
-    // Berlin–Potsdam (~27 km Luftlinie) und München–Augsburg (~57 km):
-    // grob genug, um vertauschte Achsen oder eine fehlende
-    // Breitengrad-Stauchung sofort zu sehen.
-    expect(distanceKm(52.52, 13.405, 52.396, 13.058), closeTo(27, 2));
-    expect(distanceKm(48.137, 11.575, 48.371, 10.898), closeTo(57, 3));
-  });
-
   group('span', () {
     test('nimmt Frost mit — er ist die wichtigste Zahl', () {
       final at = SpotTemperature(

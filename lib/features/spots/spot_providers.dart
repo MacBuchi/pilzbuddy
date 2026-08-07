@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/providers.dart';
 import '../../data/spot_repository.dart';
 import '../../models/spot.dart';
+import 'nearby_spots.dart';
 import 'species_suggestions.dart';
 
 /// Eigene Spots aus Supabase. Mutationen laufen über den Notifier und
@@ -97,6 +98,17 @@ class MySpotsNotifier extends AsyncNotifier<SpotsSnapshot> {
     return created;
   }
 
+  /// Zwei eigene Spots zu einem machen (#215). Lädt danach neu — die
+  /// Karte verliert einen Marker und ein anderer erbt die Funde.
+  Future<void> mergeSpots(
+      {required String intoId, required String fromId}) async {
+    await ref
+        .read(spotRepositoryProvider)
+        .mergeSpots(intoId: intoId, fromId: fromId);
+    ref.invalidateSelf();
+    await future;
+  }
+
   Future<void> deleteSpot(String spotId) async {
     await ref.read(spotRepositoryProvider).deleteSpot(spotId);
     ref.invalidateSelf();
@@ -117,6 +129,15 @@ final mySpotsProvider =
 /// Die Herkunft interessiert allein das Banner auf der Karte.
 final mySpotListProvider = Provider<List<Spot>>(
     (ref) => ref.watch(mySpotsProvider).valueOrNull?.spots ?? const <Spot>[]);
+
+/// Eigene Spot-Paare, die dichter als [kNearbySpotMeters] beieinander
+/// liegen (#215) — nächstes zuerst.
+///
+/// Als Provider, damit Profil-Eintrag und Aufräum-Seite dieselbe Liste
+/// sehen: Der Eintrag erscheint nur, wenn es wirklich etwas zu tun gibt,
+/// und nach dem Zusammenführen verschwindet beides zusammen.
+final overlappingSpotPairsProvider = Provider<List<SpotPair>>(
+    (ref) => overlappingPairs(ref.watch(mySpotListProvider)));
 
 /// Zeitpunkt der zwischengespeicherten Daten — `null`, solange die Spots
 /// frisch aus dem Netz kommen.

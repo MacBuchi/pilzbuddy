@@ -209,6 +209,30 @@ class SpotRepository {
     await _client.from('spots').delete().eq('id', spotId);
   }
 
+  /// Führt zwei eigene Spots zusammen (#215): Die Funde von [fromId]
+  /// wandern nach [intoId], danach verschwindet [fromId].
+  ///
+  /// **Reihenfolge ist hier alles.** Erst umhängen, dann löschen — die
+  /// umgekehrte Folge löscht die Funde mit
+  /// (`finds.spot_id … on delete cascade`), und danach gibt es nichts mehr
+  /// umzuhängen. Schlägt das Löschen fehl, stehen die Funde bereits am
+  /// Ziel und der leere Quell-Spot bleibt übrig: sichtbar und von Hand
+  /// löschbar, also der harmlosere der beiden Halbzustände.
+  ///
+  /// **Fremde Funde wandern nicht mit.** `finds_author_all` erlaubt das
+  /// Update nur für `author_id = auth.uid()`; ein Buddy-Fund bliebe still
+  /// liegen und fiele beim Löschen der Kaskade zum Opfer. Deshalb bietet
+  /// die Oberfläche solche Paare gar nicht erst an (`canMerge` in
+  /// `features/spots/nearby_spots.dart`) — hier steht der Grund, warum
+  /// diese Methode sich darauf verlassen darf.
+  Future<void> mergeSpots(
+      {required String intoId, required String fromId}) async {
+    await _client
+        .from('finds')
+        .update({'spot_id': intoId}).eq('spot_id', fromId);
+    await deleteSpot(fromId);
+  }
+
   Future<void> setSharingExcluded(String spotId, bool excluded) async {
     await _client
         .from('spots')

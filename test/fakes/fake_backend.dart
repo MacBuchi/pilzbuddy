@@ -754,9 +754,42 @@ class FakeSpotRepository implements SpotRepository {
     }
   }
 
+  /// Löschen nimmt die Funde mit — `finds.spot_id … on delete cascade`.
+  ///
+  /// Die Funde werden ausdrücklich geleert und nicht bloß mit der Zeile
+  /// aus der Liste genommen: Wer noch eine Referenz auf die Zeile hält,
+  /// bekäme sonst eine Fundliste zu sehen, die es live nicht mehr gibt —
+  /// und genau daran hing beim Zusammenführen (#215) die Frage, ob die
+  /// Reihenfolge „erst umhängen, dann löschen" wirklich nötig ist. Ohne
+  /// diese Zeile bliebe sie ungeprüft.
   @override
-  Future<void> deleteSpot(String spotId) async =>
-      backend.spots.removeWhere((s) => s.id == spotId && s.ownerId == _uid);
+  Future<void> deleteSpot(String spotId) async {
+    for (final row in backend.spots) {
+      if (row.id == spotId && row.ownerId == _uid) row.finds.clear();
+    }
+    backend.spots.removeWhere((s) => s.id == spotId && s.ownerId == _uid);
+  }
+
+  /// Spiegelt `SpotRepository.mergeSpots` (#215) — inklusive der Grenze,
+  /// die live die RLS zieht: `finds_author_all` erlaubt das Umhängen nur
+  /// für `author_id = auth.uid()`, ein FREMDER Fund bleibt also liegen und
+  /// fällt danach der Lösch-Kaskade zum Opfer. Ohne diesen Nachbau bewiese
+  /// ein grüner Test eine Vollständigkeit, die es live nicht gibt.
+  ///
+  /// Die Oberfläche bietet solche Paare nicht an (`canMerge`); dieser
+  /// Nachbau ist der Beleg, dass sie es auch besser nicht täte.
+  @override
+  Future<void> mergeSpots(
+      {required String intoId, required String fromId}) async {
+    final from = backend.spots.firstWhere((s) => s.id == fromId);
+    final into = backend.spots.firstWhere((s) => s.id == intoId);
+    final mine = from.finds.where((f) => f.authorId == _uid).toList();
+    for (final find in mine) {
+      from.finds.remove(find);
+      into.finds.add(find);
+    }
+    await deleteSpot(fromId);
+  }
 
   @override
   Future<void> setSharingExcluded(String spotId, bool excluded) async =>
