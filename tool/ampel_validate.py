@@ -252,10 +252,41 @@ def _get(url, params, retries=6, timeout=90):
             with urllib.request.urlopen(f"{url}?{query}", timeout=timeout) as r:
                 return json.load(r)
         except urllib.error.HTTPError as error:
-            if error.code != 429 or attempt == retries - 1:
-                raise
-            pause = min(15 * (attempt + 1), 60)
-            print(f"      Rate-Limit, warte {pause}s", file=sys.stderr)
+            # 5xx ist ein Serverproblem und so flüchtig wie ein
+            # Netzfehler — der zweite Echtlauf verlor zwei Jahre an
+            # einzelne 502 direkt nach Rate-Limit-Wartezeiten. Nur 4xx
+            # (außer 429) ist ein Urteil über die ANFRAGE und fliegt
+            # sofort — mitsamt Fehlertext: ihn zu verschlucken kostete
+            # beim CLMS eine Runde und hier den ersten Echtlauf
+            # (nackter 400, Ursache Schaltjahr).
+            body = error.read().decode(errors="replace")[:300]
+            transient = error.code == 429 or error.code >= 500
+            if error.code == 429 and "Daily" in body:
+                # Das TAGES-Limit: „try again tomorrow" wartet niemand
+                # im Prozess ab. Sofort und deutlich scheitern — der
+                # Cache trägt alles Geholte in den nächsten Lauf
+                # (vierter Echtlauf: fünf vergebliche Wartezyklen je
+                # Jahr, bevor das hier stand).
+                transient = False
+            if not transient or attempt == retries - 1:
+                raise RuntimeError(
+                    f"HTTP {error.code} auf {url}: {body}") from error
+            if error.code == 429 and "Hourly" in body:
+                # Das STUNDEN-Limit — 60 Sekunden später anzuklopfen
+                # ist zwecklos (dritter Echtlauf: fünf vergebliche
+                # Wartezyklen, dann vier verlorene Jahre). Die API sagt
+                # selbst „try again in the next hour": bis zur nächsten
+                # vollen Stunde schlafen, mit einer Minute Puffer.
+                pause = 3600 - int(time.time()) % 3600 + 60
+                print(f"      Stundenlimit, warte {pause // 60} min",
+                      file=sys.stderr)
+            elif error.code == 429:
+                pause = min(15 * (attempt + 1), 60)
+                print(f"      Rate-Limit, warte {pause}s", file=sys.stderr)
+            else:
+                pause = 5 * (attempt + 1)
+                print(f"      HTTP {error.code}, warte {pause}s",
+                      file=sys.stderr)
             time.sleep(pause)
         except (urllib.error.URLError, TimeoutError, json.JSONDecodeError):
             if attempt == retries - 1:
@@ -350,16 +381,24 @@ def _leap(year):
     return year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
 
 
-def season_span(days_of_year):
+def season_span(days_of_year, year=None):
     """Der Zeitraum, den ein Jahrgang wirklich braucht — nicht mehr.
 
     Vom frühesten Fund minus dem längsten Rückblick (Vergleichstag plus
     Regenfenster) bis zum spätesten Fund plus dem längsten Vorgriff. Alles
     darüber hinaus wäre bezahlte Luft: Open-Meteo rechnet die Tage in
     seine Aufrufe ein.
+
+    Die Obergrenze hängt am JAHR: Index 365 existiert nur in
+    Schaltjahren. Die frühere feste Klemme auf 365 machte aus späten
+    Funden in Nicht-Schaltjahren ein end_date „JJJJ-13-01" — Open-Meteo
+    antwortete mit einem 400, und beim ersten Echtlauf fehlten dadurch
+    ZWÖLF von zwanzig Steinpilz-Jahren, exakt die Nicht-Schaltjahre mit
+    Spätfunden.
     """
+    last_index = 365 if year is not None and _leap(year) else 364
     first = max(1, min(days_of_year) - CONTROL_MAX_GAP - RAIN_WINDOW - 1)
-    last = min(365, max(days_of_year) + CONTROL_MAX_GAP * 2 + 1)
+    last = min(last_index, max(days_of_year) + CONTROL_MAX_GAP * 2 + 1)
     return first, last
 
 
@@ -510,7 +549,8 @@ def validate_species(name, sci, cache_dir=None, seed=42, progress=True):
         group = by_year[year]
         points = [(f["lat"], f["lon"]) for f in group]
         span = season_span(
-            [day_index(year, f["month"], f["day"]) for f in group])
+            [day_index(year, f["month"], f["day"]) for f in group],
+            year=year)
         try:
             series = fetch_weather(points, year, cache_dir,
                                    progress=progress, span=span)
@@ -769,6 +809,16 @@ def self_test():
     # Auch am Rand der Saison bleibt es im Jahr.
     assert season_span([5])[0] >= 1
     assert season_span([360])[1] <= 365
+    # Und zwar im RICHTIGEN Jahr: Index 365 gibt es nur im Schaltjahr.
+    # Die feste Klemme auf 365 machte in Nicht-Schaltjahren aus
+    # Spätfunden ein end_date „JJJJ-13-01" — der 400er, der dem ersten
+    # Echtlauf zwölf von zwanzig Steinpilz-Jahren kostete.
+    assert season_span([360], year=2009)[1] == 364
+    assert season_span([360], year=2008)[1] == 365
+    assert _date_from_index(
+        2009, season_span([360], year=2009)[1]) == "2009-12-31"
+    assert _date_from_index(
+        2008, season_span([360], year=2008)[1]) == "2008-12-31"
 
     # Tagesnummer zurück in ein Datum — die Umkehrung von day_index.
     assert _date_from_index(2026, 0) == "2026-01-01"
