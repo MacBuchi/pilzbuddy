@@ -76,10 +76,12 @@ void main() {
     };
 
     /// Ziele, die nur als **Text** vorkommen und nicht einmal tippbar
-    /// sind: die Quellenangaben im Lizenz-Eintrag der GBIF-Funddaten
-    /// (`map_data_license.dart`). Die Kurven liegen im Binary — die App
-    /// verbindet sich zu GBIF zu keinem Zeitpunkt; abgerufen wird nur
-    /// beim Bauen, von `tool/season_curves.py`.
+    /// sind: die Quellenangaben in den Lizenz-Einträgen der
+    /// GBIF-Funddaten und des Waldtypen-Gitters
+    /// (`map_data_license.dart`). Kurven wie Gitter liegen im Binary —
+    /// die App verbindet sich zu GBIF und Copernicus zu keinem
+    /// Zeitpunkt; abgerufen wird nur in CI (`tool/season_curves.py`,
+    /// `tool/forest_grid.py`).
     ///
     /// Eigene Kategorie und nicht in [onTapOnly] gestopft: Der
     /// Unterschied zwischen „öffnet sich auf Tipp" und „ist reiner Text"
@@ -87,6 +89,7 @@ void main() {
     const textOnly = {
       'www.gbif.org',
       'creativecommons.org',
+      'land.copernicus.eu',
     };
 
     /// Supabase steht in der Erklärung mit Namen statt mit Hostnamen —

@@ -13,9 +13,8 @@
 // nie so weit hochgedreht werden, dass man die Linien nicht mehr braucht.
 import 'dart:typed_data';
 
-import 'package:archive/archive.dart';
-
 import '../../core/app_colors.dart';
+import 'overlay_png.dart';
 import 'rain_grid.dart';
 
 /// Deckkraft der Fläche, 0–255.
@@ -54,9 +53,7 @@ const rainFillAlpha = 140;
 /// davon unberührt — die liest die Regensumme am Spot aus dem rohen
 /// Gitter.
 ///
-/// Reines Dart samt PNG-Kodierung (zlib und CRC aus `package:archive`,
-/// das für den KMZ-Import ohnehin im Projekt liegt) — damit läuft es im
-/// Isolate, im Web und im Test, ohne `dart:ui` und ohne Canvas.
+/// Reines Dart; die PNG-Kodierung selbst liegt in `overlay_png.dart`.
 Uint8List rainFillPng(
   RainGrid rawGrid, {
   required List<int> levels,
@@ -97,33 +94,7 @@ Uint8List rainFillPng(
     }
   }
 
-  return _png(width, height, raw);
-}
-
-Uint8List _png(int width, int height, Uint8List scanlines) {
-  final header = BytesBuilder()
-    ..add([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
-  final ihdr = Uint8List(13);
-  final view = ByteData.view(ihdr.buffer);
-  view.setUint32(0, width);
-  view.setUint32(4, height);
-  ihdr[8] = 8; // Bittiefe
-  ihdr[9] = 6; // RGBA
-  header.add(_chunk('IHDR', ihdr));
-  header.add(_chunk(
-      'IDAT', Uint8List.fromList(const ZLibEncoder().encode(scanlines))));
-  header.add(_chunk('IEND', Uint8List(0)));
-  return header.toBytes();
-}
-
-Uint8List _chunk(String type, Uint8List data) {
-  final out = Uint8List(data.length + 12);
-  final view = ByteData.view(out.buffer);
-  view.setUint32(0, data.length);
-  for (var i = 0; i < 4; i++) {
-    out[4 + i] = type.codeUnitAt(i);
-  }
-  out.setRange(8, 8 + data.length, data);
-  view.setUint32(8 + data.length, getCrc32(out.sublist(4, 8 + data.length)));
-  return out;
+  // Kodierung in `overlay_png.dart` — seit dem Waldgitter (#213) ein
+  // geteilter Schreiber.
+  return overlayPng(width, height, raw);
 }

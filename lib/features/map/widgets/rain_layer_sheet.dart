@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/app_colors.dart';
+import '../forest_data_providers.dart';
 import '../rain_data_providers.dart';
 import '../rain_fill.dart';
 import '../rain_layer.dart';
@@ -82,8 +83,17 @@ class _RainLayerSheet extends ConsumerWidget {
                       selected: layer == current,
                       dense: true,
                       visualDensity: VisualDensity.compact,
-                      onTap: () =>
-                          ref.read(rainLayerProvider.notifier).state = layer,
+                      onTap: () {
+                        ref.read(rainLayerProvider.notifier).state = layer;
+                        // Regen und Wald schließen sich aus (#213): zwei
+                        // halbtransparente Flächen übereinander sind
+                        // unlesbar. Das Wald-Blatt schaltet umgekehrt
+                        // den Regen ab.
+                        if (layer != RainLayer.off) {
+                          ref.read(forestLayerEnabledProvider.notifier).state =
+                              false;
+                        }
+                      },
                     ),
                   if (current != RainLayer.off) ...[
                     const Divider(height: 16),

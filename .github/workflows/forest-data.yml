@@ -1,0 +1,78 @@
+name: Forest Data
+
+# Builds the forest-type grid (#213) from the Copernicus HRL "Dominant
+# Leaf Type" via the CLMS download API. See tool/forest_grid.py.
+#
+# Unlike rain-data.yml this does NOT publish to a release tag: the grid
+# ships as an APK asset, so an update belongs in a human-reviewed PR with
+# a version bump and a changelog line (the changelog test enforces that
+# anyway). The run uploads a workflow ARTIFACT plus a verify report in
+# the summary; a person downloads it, looks at it, and commits it.
+#
+# Quarterly, not daily: forests change slowly. A run that finds no newer
+# reference year than the one already committed still produces the
+# artifact — comparing years is the reviewer's one-line job, and the
+# verify report is worth having either way.
+#
+# Needs the repo secrets CDSE_S3_ACCESS_KEY and CDSE_S3_SECRET_KEY: an
+# S3 key pair generated under the operator's (free) CDSE account at
+# eodata-s3keysmanager.dataspace.copernicus.eu — note the expiry date
+# chosen at creation; rotation means a new pair plus new secrets. The
+# keys can read EO data, nothing more. (The former ordering path via
+# the CLMS download API is gone; its CLMS_SERVICE_KEY repo secret can
+# be deleted.)
+on:
+  schedule:
+    # Quarterly, first day of Jan/Apr/Jul/Oct, off the full hour.
+    - cron: "41 5 1 1,4,7,10 *"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Fetch DLT and build the forest grid
+    runs-on: ubuntu-latest
+    # ~700 MB tiles, one big gdalwarp (8.5 gigapixels) and the band-wise
+    # aggregation — no ordering queue anymore. Generous headroom; minutes
+    # are free on public repositories.
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Self-test first
+        run: python3 tool/forest_grid.py --self-test
+
+      # The one declared deviation from the rain tool's stdlib rule
+      # (documented in tool/forest_grid.py): GDAL as mosaic/reprojection
+      # tool for the LAEA tiles. The AWS CLI is preinstalled.
+      - name: Install GDAL
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q gdal-bin
+
+      - name: Fetch, aggregate, verify
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.CDSE_S3_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.CDSE_S3_SECRET_KEY }}
+        run: |
+          if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
+            echo "::error::Repository secrets CDSE_S3_ACCESS_KEY/CDSE_S3_SECRET_KEY are missing — create an S3 key pair under the (free) CDSE account at eodata-s3keysmanager.dataspace.copernicus.eu."
+            exit 1
+          fi
+          python3 tool/forest_grid.py fetch --out build/forest
+
+      - name: Upload the grid as an artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: forest-grid
+          path: |
+            build/forest/forest_grid.bin.gz
+            build/forest/forest_manifest.json
+          retention-days: 30
+          if-no-files-found: error

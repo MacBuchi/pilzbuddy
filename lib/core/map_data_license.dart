@@ -78,6 +78,20 @@ void registerMapDataLicense() {
       '– Version 2.0; die Namensnennung ist die Bedingung, unter der wir '
       'sie zeigen dürfen.',
     );
+    yield const LicenseEntryWithLineBreaks(
+      ['Waldtypen (Copernicus Land Monitoring Service)'],
+      'Die Waldtypen-Ebene der Karte und die „Wald hier"-Zeile im '
+      'Spot-Blatt beruhen auf dem Produkt „High Resolution Layer '
+      'Dominant Leaf Type" des Copernicus Land Monitoring Service, '
+      'zusammengefasst auf ein 250-m-Raster für Deutschland, Österreich '
+      'und die Schweiz.\n'
+      '© Europäische Union, Copernicus Land Monitoring Service, '
+      'Europäische Umweltagentur (EEA).\n'
+      'https://land.copernicus.eu\n\n'
+      'Die Copernicus-Daten stehen unter der Politik des freien, '
+      'vollständigen und offenen Zugangs der EU; die Quellennennung ist '
+      'die Bedingung ihrer Nutzung.',
+    );
     // Als einziger Eintrag nicht `const`: Die OFL verlangt die Weitergabe
     // ihres WORTLAUTS, nicht nur einen Verweis — also wird die
     // mitgelieferte Datei gelesen statt der Text hier nachgetippt. Sonst

@@ -1,0 +1,1085 @@
+#!/usr/bin/env python3
+"""Baut das Waldtypen-Gitter der App (#213) aus dem Copernicus-HRL
+„Dominant Leaf Type" (DLT, 10 m, jährlich).
+
+Läuft in CI (.github/workflows/forest-data.yml), quartalsweise und von
+Hand. Ergebnis ist ein Workflow-Artefakt — KEIN Release-Tag: Das Gitter
+ist ein Asset im APK, sein Update gehört in einen menschengeprüften PR
+mit Versions-Bump (der Changelog-Test erzwingt das ohnehin).
+
+Datenweg (Standard): **Direktdownload** der COG-Kacheln aus dem
+CDSE-Objektspeicher (s3://eodata) — die anonyme Granulat-Liste nennt
+Kacheln, Größen, MD5 und Bounding Boxes, bestellt wird nichts. Braucht
+das CDSE-S3-Schlüsselpaar (Secrets CDSE_S3_ACCESS_KEY/_SECRET_KEY).
+Der frühere Bestell-Weg über die CLMS-Download-API (JWT-Service-Key,
+@datarequest_post, stundenlanges Queue-Polling) wurde nach dem ersten
+erfolgreichen Direktweg-Lauf entfernt; die Git-Historie der sechs
+Echtläufe dokumentiert ihn samt aller Fallen.
+
+Erklärte Abweichung von der Stdlib-Regel des Regen-Werkzeugs
+(`rain_grid.py`), nur im Quartals-Workflow und nie in der App:
+GDAL als Mosaik- und Reprojektionswerkzeug. Die Kacheln sind EPSG:3035
+(LAEA) und die App rechnet linear in Grad — `gdalwarp -r near` macht
+daraus einmal ein EPSG:4326-Raster (nearest, weil die Werte Klassen
+sind). Danach bandweise `gdal_translate -srcwin`, der eigene strenge
+Reader, Aggregation von Hand — GDAL ist nie der Rechner, und --verify
+rechnet gegen das gewarpte Raster nach. Der Download läuft über die
+AWS-CLI (auf den Runnern vorinstalliert), verifiziert gegen HeadObject
+des TIFF-Objekts (Größe, plus MD5 übers ETag bei Nicht-Multipart).
+
+Byte-Vertrag je 250-m-Zelle (das Pendant liest
+`lib/features/map/forest_grid.dart`):
+  0        kein Wald (Baumanteil unter TREE_THRESHOLD)
+  1..101   Zelle ist Wald, Wert−1 = Nadelanteil in Prozent
+  255      keine Daten (alle Quellpixel außerhalb/unklassifizierbar)
+
+DLT-Pixelwerte der Quelle: 0 = kein Baum, 1 = Laub, 2 = Nadel,
+254 = unklassifizierbar, 255 = außerhalb.
+
+Nutzung:
+  python3 tool/forest_grid.py --self-test
+  python3 tool/forest_grid.py build --source dlt.tif --year 2024 --out build/forest
+  python3 tool/forest_grid.py fetch --out build/forest   # braucht S3-Env
+  python3 tool/forest_grid.py verify --source dlt.tif --out build/forest
+"""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import gzip
+import hashlib
+import io
+import json
+import os
+import random
+import re
+import struct
+import subprocess
+import sys
+import tempfile
+import urllib.error
+import urllib.request
+
+CLMS_BASE = "https://land.copernicus.eu"
+
+# Ehrlicher Absender für die Downloads — urllib meldet sich sonst als
+# „Python-urllib", und genau solche Standard-UAs filtern CDNs gern weg.
+USER_AGENT = "pilzbuddy-forest-grid (github.com/MacBuchi/pilzbuddy)"
+
+# DACH — weiter als die Regen-Box: ganz Österreich (bis 17,2° O), die
+# Schweiz (ab 45,8° N). west, south, east, north.
+BOUNDS = (5.8, 45.7, 17.3, 55.1)
+
+# Aggregation: 25 × 25 Quellpixel (10 m) je Zelle ≈ 250 m.
+CELL_FACTOR = 25
+
+# Ab diesem Baumanteil (unter den gültigen Pixeln der Zelle) gilt sie als
+# Wald. 20 %: Ein lichter Bestand zählt noch, eine Baumreihe am Feldrand
+# nicht mehr. Steht im Manifest, damit die Zahl nie geraten werden muss.
+TREE_THRESHOLD = 0.20
+
+NO_DATA = 255
+NO_FOREST = 0
+
+# DLT-Klassen der Quelle.
+DLT_NO_TREE = 0
+DLT_BROADLEAF = 1
+DLT_CONIFER = 2
+
+
+# ---------------------------------------------------------------------------
+# Aggregation: DLT-Pixelblock → ein Byte
+# ---------------------------------------------------------------------------
+
+def aggregate_block(pixels):
+    """Ein Byte für einen Block von DLT-Pixelwerten.
+
+    `pixels` ist eine flache Folge. 254/255 sind keine Aussage und zählen
+    nicht als „gültig" — eine Zelle ganz ohne gültige Pixel ist NO_DATA,
+    nicht „kein Wald": Der Unterschied entscheidet in der App, ob die
+    Ebene schweigt oder „kein Wald" sagt.
+    """
+    valid = 0
+    broadleaf = 0
+    conifer = 0
+    for value in pixels:
+        if value == DLT_NO_TREE:
+            valid += 1
+        elif value == DLT_BROADLEAF:
+            valid += 1
+            broadleaf += 1
+        elif value == DLT_CONIFER:
+            valid += 1
+            conifer += 1
+    if valid == 0:
+        return NO_DATA
+    trees = broadleaf + conifer
+    if trees / valid < TREE_THRESHOLD:
+        return NO_FOREST
+    share = round(100 * conifer / trees)
+    return 1 + share
+
+
+# ---------------------------------------------------------------------------
+# Kodierung — wortgleich mit rain_grid.py: Zeilen-Delta, dann gzip.
+# ---------------------------------------------------------------------------
+
+def encode(rows):
+    delta = bytearray()
+    for row in rows:
+        previous = 0
+        for byte in row:
+            delta.append((byte - previous) & 0xFF)
+            previous = byte
+    # mtime=0: Ohne das stempelt gzip die Bauzeit in den Header und
+    # identische Nutzdaten bekommen je Lauf eine neue Prüfsumme — der
+    # Quartals-Review soll aber an der SHA ablesen können, ob sich
+    # überhaupt etwas geändert hat (Lauf 9 und 10 lieferten identische
+    # Nutzdaten mit verschiedenen Hashes, nur wegen dieses Felds).
+    return gzip.compress(bytes(delta), 9, mtime=0)
+
+
+def decode(payload, width, height):
+    """Referenz-Umkehrung für Tests und verify."""
+    flat = gzip.decompress(payload)
+    if len(flat) != width * height:
+        raise ValueError(f"{len(flat)} Bytes, erwartet {width * height}")
+    rows = []
+    index = 0
+    for _ in range(height):
+        previous = 0
+        row = bytearray()
+        for _ in range(width):
+            previous = (previous + flat[index]) & 0xFF
+            row.append(previous)
+            index += 1
+        rows.append(bytes(row))
+    return rows
+
+
+# ---------------------------------------------------------------------------
+# Strenger uint8-GeoTIFF-Reader für die unkomprimierten Streifen aus
+# gdal_translate. Wie beim Regen: Alles, was nicht exakt dem erwarteten
+# Format entspricht, wird abgelehnt statt geraten.
+# ---------------------------------------------------------------------------
+
+def read_geotiff_u8(data):
+    """Liest ein unkomprimiertes 1-Band-uint8-GeoTIFF (Streifen ODER
+    Kacheln). Gibt (rows, transform) zurück; transform ist der
+    ModelTransformation/ModelTiepoint-Auszug als (origin_x, origin_y,
+    pixel_w, pixel_h)."""
+    if data[:2] == b"II":
+        endian = "<"
+    elif data[:2] == b"MM":
+        endian = ">"
+    else:
+        raise ValueError("kein TIFF")
+    magic, offset = struct.unpack(endian + "HI", data[2:8])
+    if magic != 42:
+        raise ValueError("kein klassisches TIFF")
+
+    (count,) = struct.unpack(endian + "H", data[offset:offset + 2])
+    tags = {}
+    for i in range(count):
+        entry = data[offset + 2 + i * 12:offset + 14 + i * 12]
+        tag, kind, num = struct.unpack(endian + "HHI", entry[:8])
+        size = {1: 1, 3: 2, 4: 4, 12: 8}.get(kind)
+        if size is None:
+            continue
+        if size * num <= 4:
+            raw = entry[8:8 + size * num]
+        else:
+            (pointer,) = struct.unpack(endian + "I", entry[8:12])
+            raw = data[pointer:pointer + size * num]
+        fmt = {1: "B", 3: "H", 4: "I", 12: "d"}[kind]
+        tags[tag] = struct.unpack(endian + fmt * num, raw)
+
+    width = tags[256][0]
+    height = tags[257][0]
+    if tags.get(258, (0,))[0] != 8:
+        raise ValueError("nicht 8 Bit")
+    if tags.get(259, (0,))[0] != 1:
+        raise ValueError("komprimiert — erwartet war ein Streifen aus "
+                         "gdal_translate -co COMPRESS=NONE")
+    if tags.get(277, (1,))[0] != 1:
+        raise ValueError("mehr als ein Band")
+
+    rows = [bytearray(width) for _ in range(height)]
+    if 322 in tags:  # gekachelt
+        tile_w = tags[322][0]
+        tile_h = tags[323][0]
+        offsets = tags[324]
+        across = (width + tile_w - 1) // tile_w
+        for index, pointer in enumerate(offsets):
+            tx = (index % across) * tile_w
+            ty = (index // across) * tile_h
+            for line in range(min(tile_h, height - ty)):
+                start = pointer + line * tile_w
+                chunk = data[start:start + min(tile_w, width - tx)]
+                rows[ty + line][tx:tx + len(chunk)] = chunk
+    else:  # Streifen
+        rows_per_strip = tags.get(278, (height,))[0]
+        offsets = tags[273]
+        for index, pointer in enumerate(offsets):
+            top = index * rows_per_strip
+            for line in range(min(rows_per_strip, height - top)):
+                start = pointer + line * width
+                rows[top + line][:] = data[start:start + width]
+
+    if 34264 in tags:  # ModelTransformation
+        t = tags[34264]
+        transform = (t[3], t[7], t[0], t[5])
+    elif 33922 in tags and 33550 in tags:  # Tiepoint + PixelScale
+        tie = tags[33922]
+        scale = tags[33550]
+        transform = (tie[3], tie[4], scale[0], -scale[1])
+    else:
+        raise ValueError("keine Georeferenz")
+    return [bytes(r) for r in rows], (width, height, transform)
+
+
+# ---------------------------------------------------------------------------
+# GDAL-Umweg: Metadaten und unkomprimierte Streifen
+# ---------------------------------------------------------------------------
+
+def gdal_info(path):
+    out = subprocess.run(["gdalinfo", "-json", path], capture_output=True,
+                         check=True, text=True)
+    info = json.loads(out.stdout)
+    width, height = info["size"]
+    gt = info["geoTransform"]
+    return width, height, gt
+
+
+def gdal_band(path, x, y, w, h, out_path):
+    subprocess.run([
+        "gdal_translate", "-q", "-srcwin", str(x), str(y), str(w), str(h),
+        "-co", "COMPRESS=NONE", "-co", "TILED=NO", path, out_path,
+    ], check=True)
+
+
+# ---------------------------------------------------------------------------
+# build: Quell-Raster → Gitter + Manifest
+# ---------------------------------------------------------------------------
+
+def build(source, year, out_dir, band_rows=2000,
+          info_fn=None, band_fn=None):
+    """Aggregiert das (komprimierte) Quell-GeoTIFF bandweise.
+
+    `band_rows` ist ein Vielfaches von CELL_FACTOR (geprüft), damit keine
+    Zelle über eine Bandgrenze läuft.
+    """
+    if band_rows % CELL_FACTOR:
+        raise ValueError("band_rows muss ein Vielfaches von CELL_FACTOR sein")
+    os.makedirs(out_dir, exist_ok=True)
+    info_fn = info_fn or gdal_info
+    band_fn = band_fn or gdal_band
+
+    src_w, src_h, gt = info_fn(source)
+    # Nur volle Zellen — der Rand, der keine 25 Pixel mehr füllt, fällt weg.
+    grid_w = src_w // CELL_FACTOR
+    grid_h = src_h // CELL_FACTOR
+
+    grid_rows = []
+    with tempfile.TemporaryDirectory() as tmp:
+        strip = os.path.join(tmp, "strip.tif")
+        y = 0
+        while y + CELL_FACTOR <= src_h:
+            h = min(band_rows, (src_h - y) // CELL_FACTOR * CELL_FACTOR)
+            band_fn(source, 0, y, grid_w * CELL_FACTOR, h, strip)
+            with open(strip, "rb") as f:
+                rows, _ = read_geotiff_u8(f.read())
+            for cell_y in range(h // CELL_FACTOR):
+                out_row = bytearray(grid_w)
+                block_rows = rows[cell_y * CELL_FACTOR:(cell_y + 1) * CELL_FACTOR]
+                for cell_x in range(grid_w):
+                    x0 = cell_x * CELL_FACTOR
+                    pixels = bytearray()
+                    for r in block_rows:
+                        pixels += r[x0:x0 + CELL_FACTOR]
+                    out_row[cell_x] = aggregate_block(pixels)
+                grid_rows.append(bytes(out_row))
+            y += h
+            print(f"  {y}/{src_h} Zeilen", file=sys.stderr)
+
+    payload = encode(grid_rows)
+    grid_path = os.path.join(out_dir, "forest_grid.bin.gz")
+    with open(grid_path, "wb") as f:
+        f.write(payload)
+
+    origin_x, origin_y, px_w, px_h = gt[0], gt[3], gt[1], gt[5]
+    west = origin_x
+    north = origin_y
+    east = origin_x + grid_w * CELL_FACTOR * px_w
+    south = origin_y + grid_h * CELL_FACTOR * px_h
+
+    counts = {"no_data": 0, "no_forest": 0, "forest": 0}
+    conifer_values = []
+    for row in grid_rows:
+        for byte in row:
+            if byte == NO_DATA:
+                counts["no_data"] += 1
+            elif byte == NO_FOREST:
+                counts["no_forest"] += 1
+            else:
+                counts["forest"] += 1
+                conifer_values.append(byte - 1)
+    conifer_values.sort()
+    known = counts["no_forest"] + counts["forest"]
+    manifest = {
+        "source": "Copernicus HRL Dominant Leaf Type",
+        "reference_year": year,
+        "width": grid_w,
+        "height": grid_h,
+        "west": round(west, 6),
+        "east": round(east, 6),
+        "north": round(north, 6),
+        "south": round(south, 6),
+        "cell_factor": CELL_FACTOR,
+        "tree_threshold": TREE_THRESHOLD,
+        "bytes": len(payload),
+        "sha256": hashlib.sha256(payload).hexdigest(),
+        "forest_percent":
+            round(100 * counts["forest"] / known, 1) if known else None,
+        "median_conifer_percent":
+            conifer_values[len(conifer_values) // 2] if conifer_values else None,
+    }
+    with open(os.path.join(out_dir, "forest_manifest.json"), "w") as f:
+        json.dump(manifest, f, indent=2)
+    return manifest
+
+
+# ---------------------------------------------------------------------------
+# verify: N Zufallszellen aus dem QUELL-Raster nachrechnen
+# ---------------------------------------------------------------------------
+
+def verify(source, out_dir, samples=24, band_fn=None):
+    """Rechnet Zellen direkt aus der Quelle nach — fängt Indexfehler und
+    verrutschte Geometrie in der Bandschleife.
+
+    Fester Seed wie beim Regen: Eine Prüfung, die jede Nacht andere
+    Punkte zieht, scheitert jedes Mal woanders und wird zu Rauschen.
+
+    KEIN GetFeatureInfo-Zweitkanal wie beim Regen: Die anonymen Dienste
+    enden 2018 und weichen nach der Borkenkäfer-Kalamität legitim ab.
+    Plausibilität stattdessen über den Waldanteil (DACH grob 30–40 %).
+    """
+    with open(os.path.join(out_dir, "forest_manifest.json")) as f:
+        manifest = json.load(f)
+    with open(os.path.join(out_dir, "forest_grid.bin.gz"), "rb") as f:
+        rows = decode(f.read(), manifest["width"], manifest["height"])
+
+    band_fn = band_fn or gdal_band
+    rng = random.Random(20260807)
+    mismatches = 0
+    with tempfile.TemporaryDirectory() as tmp:
+        window = os.path.join(tmp, "window.tif")
+        for _ in range(samples):
+            cx = rng.randrange(manifest["width"])
+            cy = rng.randrange(manifest["height"])
+            band_fn(source, cx * CELL_FACTOR, cy * CELL_FACTOR,
+                    CELL_FACTOR, CELL_FACTOR, window)
+            with open(window, "rb") as f:
+                block, _ = read_geotiff_u8(f.read())
+            expected = aggregate_block(b"".join(block))
+            actual = rows[cy][cx]
+            if expected != actual:
+                mismatches += 1
+                print(f"  Zelle ({cx},{cy}): Gitter {actual}, "
+                      f"Quelle {expected}", file=sys.stderr)
+
+    forest_percent = manifest.get("forest_percent")
+    report = [
+        f"verify: {samples} Zellen, {mismatches} Abweichungen",
+        f"Waldanteil: {forest_percent} % "
+        f"(plausibel: 25–50), Median Nadel: "
+        f"{manifest.get('median_conifer_percent')} %",
+    ]
+    print("\n".join(report))
+    summary = os.environ.get("GITHUB_STEP_SUMMARY")
+    if summary:
+        with open(summary, "a") as f:
+            f.write("\n".join(report) + "\n")
+    if mismatches:
+        raise SystemExit("verify: Gitter weicht von der Quelle ab")
+    if forest_percent is not None and not 25 <= forest_percent <= 50:
+        raise SystemExit(
+            f"verify: Waldanteil {forest_percent} % außerhalb 25–50 — "
+            "Klassenzuordnung oder Schwelle prüfen")
+
+
+# ---------------------------------------------------------------------------
+# fetch: Direktweg über den CDSE-Objektspeicher (nur im Workflow)
+# ---------------------------------------------------------------------------
+# Der frühere Bestell-Weg über die CLMS-Download-API (JWT-Token,
+# @datarequest_post, Polling, Auftrags-Übernahme) wurde nach dem ersten
+# erfolgreichen Direktweg-Lauf entfernt — die FME-Queue brauchte für den
+# 10-m-Jahrgang über sechs Stunden ohne Zusage. Die Git-Historie der
+# sechs Echtläufe dokumentiert ihn samt seiner Fallen.
+
+def clms_json(path, token=None, payload=None):
+    headers = {"Accept": "application/json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    data = None
+    if payload is not None:
+        headers["Content-Type"] = "application/json"
+        data = json.dumps(payload).encode()
+    request = urllib.request.Request(CLMS_BASE + path, data=data,
+                                     headers=headers)
+    try:
+        with urllib.request.urlopen(request, timeout=120) as response:
+            return json.load(response)
+    except urllib.error.HTTPError as error:
+        # Der Fehlertext der API ist die einzige Diagnose, die es gibt —
+        # verschluckt kostete er beim ersten Echtlauf eine ganze Runde.
+        body = error.read().decode(errors="replace")[:2000]
+        raise SystemExit(
+            f"CLMS {error.code} auf {path}\n"
+            f"Anfrage: {json.dumps(payload)[:500] if payload else '-'}\n"
+            f"Antwort: {body}")
+
+
+def parse_title_year(title):
+    """(offene Reihe?, Jahr) aus dem Katalog-Titel, (False, None) ohne Jahr.
+
+    Die gepflegte Reihe heißt „Dominant Leaf Type 2018-present … yearly"
+    — „2018-present" ist kein isdigit()-Wort. Genau daran lief der erste
+    Echtlauf vorbei und bestellte den festen Jahrgang 2015.
+    """
+    open_ended = False
+    year = None
+    for word in title.replace("(", " ").replace(")", " ").split():
+        if word.isdigit() and 2012 <= int(word) <= 2100:
+            year = int(word)
+        elif word.endswith("-present"):
+            head = word[:-len("-present")]
+            if head.isdigit() and 2012 <= int(head) <= 2100:
+                year = int(head)
+                open_ended = True
+    return open_ended, year
+
+
+def pick_download(downloads):
+    """Das Geotiff-Download-Item der eigentlichen DLT-Kachel.
+
+    Der Datensatz führt ZWEI Geotiff-Items: die DLT-Werte und den
+    Confidence-Layer. „Erstes Geotiff" wäre reine Reihenfolgen-Lotterie
+    — deshalb nach der Collection wählen.
+    """
+    geotiffs = [d for d in downloads if d.get("full_format") == "Geotiff"]
+    for d in geotiffs:
+        if "leaf type" in (d.get("collection") or "").lower():
+            return d
+    if geotiffs:
+        return geotiffs[0]
+    return downloads[0] if downloads else None
+
+
+def pick_dataset(items):
+    """Wählt aus der Katalog-Suche: offene Reihe vor festem Jahrgang.
+
+    Nur die jährlich fortgeschriebene Reihe besteht den Borkenkäfer-Test
+    (#213); die festen Jahrgänge 2012/2015 sind 20-m-Altbestand.
+    Rückgabe (open_ended, jahr, uid, download_item) oder None.
+    """
+    best = None
+    for item in items:
+        title = item.get("title", "").lower()
+        if "dominant leaf type" not in title:
+            continue
+        if "change" in title:
+            continue  # die Änderungs-Produkte sind ein anderes Raster
+        open_ended, year = parse_title_year(item.get("title", ""))
+        if year is None:
+            continue
+        if best is None or (open_ended, year) > (best[0], best[1]):
+            downloads = (item.get("dataset_download_information") or
+                         {}).get("items", [])
+            best = (open_ended, year, item["UID"], pick_download(downloads))
+    return best
+
+
+def newest_year_in_csv(text):
+    """Neuestes Bezugsjahr aus der Granulat-Liste des CDSE-Spiegels."""
+    years = set()
+    for row in csv.DictReader(io.StringIO(text), delimiter=";"):
+        start = (row.get("content_date_start") or "")[:4]
+        if start.isdigit():
+            years.add(int(start))
+    if not years:
+        raise SystemExit("fetch: Granulat-Liste ohne Bezugsjahre — "
+                         "hat sich das CSV-Format geändert?")
+    return max(years)
+
+
+def granule_csv_text(full_path, fetch_fn=None):
+    """Die Granulat-Liste hinter der CSV-Verzeichnisseite von full_path.
+
+    full_path zeigt auf eine HTML-Seite des CDSE-CSV-Katalogs mit genau
+    einem Link auf das CSV; beides ist anonym abrufbar.
+    """
+    fetch_fn = fetch_fn or _http_text
+    page = fetch_fn(full_path)
+    match = re.search(r'href="([^"]+\.csv)"', page)
+    if not match:
+        raise SystemExit("fetch: keine Granulat-Liste unter " + full_path)
+    return fetch_fn(match.group(1))
+
+
+def select_tiles(csv_text, year, bounds):
+    """Kacheln des Jahres, deren Bounding Box das Zielgebiet schneidet.
+
+    Die bbox-Spalte ist ein POLYGON in Länge/Breite; der grobe
+    Rechteck-Schnitt reicht, weil gdalwarp auf BOUNDS zuschneidet und
+    Fehlendes als NO_DATA endet. content_length/checksum der CSV
+    beziffern das GANZE Granulat-Bündel (tif + XML + Legende) und
+    taugen deshalb nur für die Info-Zeile — verifiziert wird der
+    Download in download_tiles gegen HeadObject des TIFF-Objekts.
+    """
+    west, south, east, north = bounds
+    tiles = []
+    for row in csv.DictReader(io.StringIO(csv_text), delimiter=";"):
+        if (row.get("content_date_start") or "")[:4] != str(year):
+            continue
+        s3_path = row.get("s3_path") or ""
+        numbers = [float(x) for x in
+                   re.findall(r"-?\d+\.?\d*", row.get("bbox") or "")]
+        if len(numbers) < 8 or not s3_path:
+            raise SystemExit("fetch: Granulat-Zeile ohne bbox/s3_path "
+                             f"({row.get('name')}) — CSV-Format geändert?")
+        lons, lats = numbers[0::2], numbers[1::2]
+        if (min(lons) > east or max(lons) < west or
+                min(lats) > north or max(lats) < south):
+            continue
+        tiles.append({
+            "name": row.get("name") or os.path.basename(s3_path),
+            "s3_path": s3_path,
+            "bytes": int(row.get("content_length") or 0),
+        })
+    if not tiles:
+        raise SystemExit(f"fetch: keine Kacheln für {year} im Zielgebiet "
+                         "— CSV-Format geändert?")
+    return sorted(tiles, key=lambda tile: tile["name"])
+
+
+def _http_text(url):
+    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    with urllib.request.urlopen(request, timeout=120) as response:
+        return response.read().decode("utf-8", errors="replace")
+
+
+def search_dataset(token=None):
+    """Datensatz und Download-Item aus der Katalog-Suche.
+
+    Die Suche ist anonym abrufbar — der Direktweg braucht deshalb gar
+    kein CLMS-Token mehr, nur der Bestell-Weg reicht seines durch.
+    """
+    result = clms_json(
+        "/api/@search?portal_type=DataSet"
+        "&SearchableText=dominant+leaf+type"
+        "&metadata_fields=UID&metadata_fields=dataset_download_information"
+        "&b_size=50",
+        token=token)
+    best = pick_dataset(result.get("items", []))
+    if best is None:
+        raise SystemExit("fetch: kein DLT-Datensatz gefunden — "
+                         "hat sich die Katalogstruktur geändert?")
+    open_ended, year, uid, download = best
+    if download is None:
+        raise SystemExit("fetch: Datensatz ohne Download-Information — "
+                         "Suchantwort prüfen")
+    return open_ended, year, uid, download
+
+
+CDSE_S3_ENDPOINT = "https://eodata.dataspace.copernicus.eu"
+
+
+def tile_object_key(tile):
+    """S3-Schlüssel des TIFF-Objekts einer Kachel.
+
+    Der s3_path der Granulat-Liste ist ein ORDNER (tif + Metadaten +
+    Legende) — der erste Direktweg-Lauf scheiterte mit HeadObject-404,
+    weil er den Ordnerpfad als Objekt ansprach. Das Datenobjekt darin
+    heißt <name>.tif (per OData-Nodes nachgesehen).
+    """
+    prefix = tile["s3_path"].split("s3://eodata/", 1)[-1].rstrip("/")
+    return f"{prefix}/{tile['name']}.tif"
+
+
+def download_tiles(tiles, tiles_dir, copy_fn=None, head_fn=None):
+    """Jede Kachel einzeln per AWS CLI, verifiziert gegen HeadObject.
+
+    Größe muss immer stimmen; das ETag ist bei Nicht-Multipart-Uploads
+    das MD5 des Inhalts und wird dann mitgeprüft (ein „…-N"-ETag ist
+    Multipart, da bleibt die Größe). Eine Wiederholung je Kachel;
+    unvollständig nach zwei Versuchen bricht ab. Die CLI ist auf den
+    GitHub-Runnern vorinstalliert; Zugang über das CDSE-Schlüsselpaar
+    in AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY.
+    """
+    copy_fn = copy_fn or _aws_copy
+    head_fn = head_fn or _aws_head
+    os.makedirs(tiles_dir, exist_ok=True)
+    paths = []
+    for index, tile in enumerate(tiles, 1):
+        key = tile_object_key(tile)
+        expected_size, etag = head_fn(key)
+        target = os.path.join(tiles_dir, tile["name"] + ".tif")
+        for attempt in (1, 2):
+            try:
+                copy_fn("s3://eodata/" + key, target)
+            except subprocess.CalledProcessError:
+                pass  # zählt wie eine unvollständige Datei: neuer Versuch
+            if tile_ok(target, expected_size, etag):
+                break
+            print(f"  {tile['name']}: unvollständig (Versuch {attempt})",
+                  file=sys.stderr)
+        else:
+            raise SystemExit(f"fetch: Kachel {tile['name']} nach zwei "
+                             "Versuchen unvollständig")
+        paths.append(target)
+        print(f"  {index}/{len(tiles)} {tile['name']}", file=sys.stderr)
+    return paths
+
+
+def tile_ok(path, expected_size, etag):
+    if not os.path.exists(path) or os.path.getsize(path) != expected_size:
+        return False
+    if not etag or "-" in etag:
+        return True
+    digest = hashlib.md5()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest() == etag
+
+
+def _aws_copy(s3_path, target):
+    subprocess.run(
+        ["aws", "s3", "cp", "--only-show-errors",
+         "--endpoint-url", CDSE_S3_ENDPOINT, s3_path, target],
+        check=True)
+
+
+def _aws_head(key):
+    result = subprocess.run(
+        ["aws", "s3api", "head-object", "--bucket", "eodata",
+         "--key", key, "--endpoint-url", CDSE_S3_ENDPOINT],
+        check=True, capture_output=True, text=True)
+    info = json.loads(result.stdout)
+    return int(info["ContentLength"]), info.get("ETag", "").strip('"').lower()
+
+
+# Zielraster der Reprojektion: ~10 m am mittleren Breitengrad, beide
+# Achsen Vielfache von CELL_FACTOR (81600/25 = 3264, 104000/25 = 4160
+# Zellen). Die Zellweite in Metern variiert mit der Breite — echte
+# 250 m nur in der Mitte; das Manifest trägt die Geometrie, die App
+# rechnet linear in Grad, dieselbe bewusste Gröbe wie beim Regen.
+WARP_WIDTH = 81600
+WARP_HEIGHT = 104000
+
+
+def warp_mosaic(tile_paths, out_dir):
+    """Mosaik der LAEA-Kacheln (EPSG:3035), einmal nach EPSG:4326.
+
+    -r near, weil die Werte Klassen sind (0/1/2/254/255) — jede andere
+    Interpolation erfände Werte. GDAL ist hier Reprojektor, nicht
+    Rechner: Aggregation und Kodierung bleiben handgeschrieben und
+    selbstgetestet, und --verify rechnet gegen das GEWARPTE Raster
+    nach, sieht also alles ab diesem Punkt.
+    """
+    west, south, east, north = BOUNDS
+    vrt = os.path.join(out_dir, "dlt_tiles.vrt")
+    subprocess.run(["gdalbuildvrt", "-q", vrt] + sorted(tile_paths),
+                   check=True)
+    warped = os.path.join(out_dir, "dlt_4326.tif")
+    subprocess.run([
+        "gdalwarp", "-q", "-overwrite",
+        "-t_srs", "EPSG:4326",
+        "-te", str(west), str(south), str(east), str(north),
+        "-ts", str(WARP_WIDTH), str(WARP_HEIGHT),
+        "-r", "near", "-ot", "Byte", "-dstnodata", "255",
+        "-multi", "-wo", "NUM_THREADS=ALL_CPUS", "-wm", "1024",
+        "-co", "COMPRESS=DEFLATE", "-co", "TILED=YES",
+        "-co", "BIGTIFF=YES", "-co", "NUM_THREADS=ALL_CPUS",
+        vrt, warped], check=True)
+    return warped
+
+
+def fetch_direct(out_dir):
+    """Direktweg (Standard): COG-Kacheln aus dem CDSE-Objektspeicher.
+
+    Kein Bestellen, keine Queue: Die anonyme Granulat-Liste nennt die
+    Kacheln samt Bounding Box; geladen wird direkt aus s3://eodata,
+    verifiziert gegen HeadObject.
+    """
+    for var in ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"):
+        if not os.environ.get(var):
+            raise SystemExit(
+                f"fetch: {var} fehlt — CDSE-Konto anlegen "
+                "(dataspace.copernicus.eu), dort S3-Schlüssel erzeugen "
+                "(eodata-s3keysmanager.dataspace.copernicus.eu) und als "
+                "Repo-Secrets CDSE_S3_ACCESS_KEY/CDSE_S3_SECRET_KEY "
+                "hinterlegen.")
+    open_ended, _title_year, _uid, download = search_dataset()
+    if not open_ended:
+        raise SystemExit("fetch: Katalog nennt keine offene Reihe mehr — "
+                         "Datensatz-Wahl prüfen")
+    full_path = download.get("full_path")
+    if not full_path:
+        raise SystemExit("fetch: offene Reihe ohne full_path — "
+                         "Suchantwort prüfen")
+    csv_text = granule_csv_text(full_path)
+    year = newest_year_in_csv(csv_text)
+    tiles = select_tiles(csv_text, year, BOUNDS)
+    total = sum(tile["bytes"] for tile in tiles)
+    print(f"fetch: DLT {year}, {len(tiles)} Kacheln, {total / 1e6:.0f} MB",
+          file=sys.stderr)
+    os.makedirs(out_dir, exist_ok=True)
+    tile_paths = download_tiles(tiles, os.path.join(out_dir, "tiles"))
+    source = warp_mosaic(tile_paths, out_dir)
+    print(f"fetch: Quelle {source}", file=sys.stderr)
+    return source, year
+
+
+# ---------------------------------------------------------------------------
+# Selbsttest — netzfrei, ohne GDAL.
+# ---------------------------------------------------------------------------
+
+def _fake_tiff_u8(rows, tiled=False):
+    """Minimales unkomprimiertes uint8-TIFF, little-endian, Streifen."""
+    width = len(rows[0])
+    height = len(rows)
+    pixel_data = b"".join(bytes(r) for r in rows)
+    # Header (8) + Pixel + IFD danach.
+    data_offset = 8
+    ifd_offset = data_offset + len(pixel_data)
+    tags = [
+        (256, 3, 1, width),
+        (257, 3, 1, height),
+        (258, 3, 1, 8),
+        (259, 3, 1, 1),
+        (262, 3, 1, 1),
+        (273, 4, 1, data_offset),
+        (277, 3, 1, 1),
+        (278, 3, 1, height),
+        (279, 4, 1, len(pixel_data)),
+    ]
+    # Georeferenz: Tiepoint (0,0 → 10° O, 55° N) + PixelScale, als
+    # nachgestellte Double-Blöcke. Der Offset ist NACHGERECHNET, nicht
+    # geschätzt: IFD = Zähler (2) + Einträge (n × 12) + Nächster-IFD-
+    # Zeiger (4); die Blöcke folgen direkt dahinter.
+    total_tags = len(tags) + 2
+    extra_offset = ifd_offset + 2 + total_tags * 12 + 4
+    tie = struct.pack("<6d", 0, 0, 0, 10.0, 55.0, 0)
+    scale = struct.pack("<3d", 0.0001, 0.0001, 0)
+    all_tags = tags + [
+        (33550, 12, 3, extra_offset),
+        (33922, 12, 6, extra_offset + len(scale)),
+    ]
+    all_tags.sort()
+    out = bytearray(b"II*\x00")
+    out += struct.pack("<I", ifd_offset)
+    out += pixel_data
+    out += struct.pack("<H", len(all_tags))
+    for tag, kind, num, value in all_tags:
+        out += struct.pack("<HHI", tag, kind, num)
+        out += struct.pack("<I", value)
+    out += struct.pack("<I", 0)
+    out += scale
+    out += tie
+    return bytes(out)
+
+
+def self_test():
+    # Kodierung: Roundtrip mit Zeilen, die verschieden anfangen.
+    rows = [bytes([0, 50, 101]), bytes([101, 1, 0]), bytes([255, 255, 80])]
+    assert decode(encode(rows), 3, 3) == rows
+    # Deterministisch: Bytes 4–7 des gzip-Headers sind das mtime-Feld —
+    # genullt, damit identische Nutzdaten identische Dateien ergeben
+    # (der Quartals-Review vergleicht Prüfsummen).
+    assert encode(rows)[4:8] == b"\x00\x00\x00\x00", \
+        "gzip-Header trägt eine Bauzeit"
+    try:
+        decode(encode(rows), 2, 2)
+        raise AssertionError("falsche Größe nicht erkannt")
+    except ValueError:
+        pass
+
+    # Aggregation: der Byte-Vertrag.
+    assert aggregate_block([255] * 625) == NO_DATA
+    assert aggregate_block([254] * 625) == NO_DATA
+    assert aggregate_block([0] * 625) == NO_FOREST
+    # 19 % Baum → kein Wald; 20 % → Wald.
+    assert aggregate_block([1] * 19 + [0] * 81) == NO_FOREST
+    assert aggregate_block([1] * 20 + [0] * 80) == 1  # 0 % Nadel
+    assert aggregate_block([2] * 20 + [0] * 80) == 101  # 100 % Nadel
+    assert aggregate_block([1] * 10 + [2] * 10 + [0] * 80) == 51  # 50 %
+    # Ungültige Pixel verschieben den Anteil nicht.
+    assert aggregate_block([1] * 10 + [2] * 10 + [255] * 80) == 51
+
+    # Reader: Roundtrip über das Fake-TIFF, inkl. Georeferenz.
+    tiff = _fake_tiff_u8(rows)
+    read_rows, (w, h, transform) = read_geotiff_u8(tiff)
+    assert read_rows == rows, read_rows
+    assert (w, h) == (3, 3)
+    assert transform[0] == 10.0 and transform[1] == 55.0
+    assert abs(transform[2] - 0.0001) < 1e-12
+    assert transform[3] < 0, "Pixelhöhe muss nach Süden zeigen"
+    # Ablehnungen.
+    for broken in [b"PNG?", tiff[:40]]:
+        try:
+            read_geotiff_u8(broken)
+            raise AssertionError("kaputtes TIFF nicht erkannt")
+        except (ValueError, struct.error, KeyError, IndexError):
+            pass
+
+    # Anfragebau: Bounding Box in API-Reihenfolge [W, N, E, S] — die
+    # des BEISPIELS der Doku, nicht ihrer (widersprüchlichen) Prosa.
+    west, south, east, north = BOUNDS
+    assert north > south and east > west
+    box = [west, north, east, south]
+    assert box[0] == 5.8 and box[1] == 55.1
+
+    # Die Kachel-Rechnung: 25er-Blöcke, Rand fällt weg.
+    assert 107 // CELL_FACTOR == 4
+
+    # Datensatz-Wahl: Die offene Reihe („2018-present") schlägt jeden
+    # festen Jahrgang — der erste Echtlauf bestellte 2015, weil ihr
+    # Titel kein isdigit()-Jahr trägt und sie übersprungen wurde.
+    assert parse_title_year("Dominant Leaf Type 2015 (raster 20 m)") == \
+        (False, 2015)
+    assert parse_title_year(
+        "Dominant Leaf Type 2018-present (raster 10 m), Europe, yearly") == \
+        (True, 2018)
+    assert parse_title_year("Dominant Leaf Type") == (False, None)
+    items = [
+        {"title": "Dominant Leaf Type 2015 (raster 20 m)", "UID": "alt",
+         "dataset_download_information": {"items": [
+             {"@id": "alt-dl", "full_format": "Geotiff",
+              "collection": "Dominant Leaf Type"}]}},
+        {"title": "Dominant Leaf Type Change 2018-2021", "UID": "change",
+         "dataset_download_information": {"items": []}},
+        {"title": "Dominant Leaf Type 2018-present (raster 10 m), yearly",
+         "UID": "reihe",
+         "dataset_download_information": {"items": [
+             # Confidence-Layer ZUERST — die Wahl darf nicht an der
+             # Reihenfolge hängen.
+             {"@id": "conf-dl", "full_format": "Geotiff",
+              "collection": "Confidence Layer"},
+             {"@id": "dlt-dl", "full_format": "Geotiff",
+              "collection": "Dominant Leaf Type",
+              "full_path": "https://beispiel/pfad/"}]}},
+    ]
+    open_ended, year, uid, download = pick_dataset(items)
+    assert (open_ended, year, uid) == (True, 2018, "reihe"), (year, uid)
+    assert download["@id"] == "dlt-dl", download
+
+    # Bezugsjahr: aus der Granulat-Liste, nicht aus der Plan-Abdeckung.
+    csv_text = ("id;name;content_date_start;s3_path\n"
+                "a;K1;2018-01-01T00:00:00.000;s3://x\n"
+                "b;K2;2024-01-01T00:00:00.000;s3://y\n"
+                "c;K3;2021-01-01T00:00:00.000;s3://z\n")
+    assert newest_year_in_csv(csv_text) == 2024
+    try:
+        newest_year_in_csv("id;name\n1;kaputt\n")
+        raise AssertionError("leere Jahresliste nicht erkannt")
+    except SystemExit:
+        pass
+    pages = {"seite": '<a href="https://s3/granulate.csv">liste</a>',
+             "https://s3/granulate.csv": csv_text}
+    assert newest_year_in_csv(
+        granule_csv_text("seite", fetch_fn=pages.__getitem__)) == 2024
+
+    # Direktweg: Zielraster muss in CELL_FACTOR-Blöcke teilbar sein,
+    # sonst verwirft die Aggregation stillschweigend den Rand.
+    assert WARP_WIDTH % CELL_FACTOR == 0
+    assert WARP_HEIGHT % CELL_FACTOR == 0
+
+    # Kachel-Auswahl: Jahr-Filter und bbox-Schnitt gegen BOUNDS-artige
+    # Grenzen; teilweise Überlappung bleibt, ganz außerhalb fliegt.
+    kachel_csv = (
+        "id;name;content_length;content_date_start;checksum_algorithm;"
+        "checksum_value;s3_path;bbox\n"
+        "a;DRIN;100;2024-01-01T00:00:00.000;MD5;ABCD12;s3://e/drin;"
+        "POLYGON((9.7 41.1,9.7 40.1,10.9 40.1,10.9 41.1,9.7 41.1))\n"
+        "b;RAND;200;2024-01-01T00:00:00.000;MD5;ffee99;s3://e/rand;"
+        "POLYGON((11.5 39.9,11.5 40.2,12.5 40.2,12.5 39.9,11.5 39.9))\n"
+        "c;WEIT_WEG;300;2024-01-01T00:00:00.000;MD5;aa;s3://e/weit;"
+        "POLYGON((32.5 34.7,32.5 33.5,33.8 33.5,33.8 34.7,32.5 34.7))\n"
+        "d;ALTES_JAHR;400;2018-01-01T00:00:00.000;MD5;bb;s3://e/alt;"
+        "POLYGON((9.7 41.1,9.7 40.1,10.9 40.1,10.9 41.1,9.7 41.1))\n"
+        "e;OHNE_MD5;500;2024-01-01T00:00:00.000;SHA1;cc;s3://e/ohne;"
+        "POLYGON((9.0 40.5,9.0 40.6,9.1 40.6,9.1 40.5,9.0 40.5))\n")
+    testgebiet = (8.9, 40.0, 12.0, 41.0)
+    tiles = select_tiles(kachel_csv, 2024, testgebiet)
+    assert [t["name"] for t in tiles] == ["DRIN", "OHNE_MD5", "RAND"], tiles
+    assert tiles[0]["bytes"] == 100
+    try:
+        select_tiles(kachel_csv, 2030, testgebiet)
+        raise AssertionError("leere Kachelliste nicht erkannt")
+    except SystemExit:
+        pass
+
+    # Objektschlüssel: der s3_path ist ein ORDNER, das Datenobjekt
+    # heißt <name>.tif darin — Lauf 7 scheiterte am Ordnerpfad (404).
+    assert tile_object_key({"name": "K1",
+                            "s3_path": "s3://eodata/pfad/K1"}) == \
+        "pfad/K1/K1.tif"
+
+    # Download: HeadObject liefert Größe + ETag, danach wird geprüft —
+    # ein Retry, dann Abbruch.
+    with tempfile.TemporaryDirectory() as tiles_tmp:
+        inhalt = b"kacheldaten"
+        etag = hashlib.md5(inhalt).hexdigest()
+        kachel = {"name": "K1", "s3_path": "s3://eodata/pfad/K1",
+                  "bytes": 999}
+        heads = []
+
+        def _head(key):
+            heads.append(key)
+            return len(inhalt), etag
+
+        versuche = []
+
+        def _copy_kaputt_dann_gut(_s3, target):
+            versuche.append(target)
+            data = b"kaputt" if len(versuche) < 2 else inhalt
+            with open(target, "wb") as f:
+                f.write(data)
+
+        paths = download_tiles([kachel], tiles_tmp,
+                               copy_fn=_copy_kaputt_dann_gut, head_fn=_head)
+        assert heads == ["pfad/K1/K1.tif"], heads
+        assert len(versuche) == 2 and paths[0].endswith("K1.tif")
+        with open(paths[0], "rb") as f:
+            assert f.read() == inhalt
+
+        # Multipart-ETag („…-N") ist kein MD5 — dann zählt die Größe.
+        download_tiles([dict(kachel, name="K2")], tiles_tmp,
+                       copy_fn=lambda _s3, t: open(t, "wb").write(inhalt),
+                       head_fn=lambda _k: (len(inhalt), etag + "-2"))
+
+        # Richtige Größe, falscher Inhalt → das ETag muss es fangen.
+        try:
+            download_tiles([dict(kachel, name="K3")], tiles_tmp,
+                           copy_fn=lambda _s3, t: open(t, "wb").write(
+                               b"x" * len(inhalt)),
+                           head_fn=_head)
+            raise AssertionError("falsches ETag nicht erkannt")
+        except SystemExit:
+            pass
+
+    _self_test_build()
+
+    print("self-test: ok")
+
+
+def _self_test_build():
+    """Build + verify einmal komplett, mit gefakten GDAL-Aufrufen — die
+    Bandschleife, der Zellzusammenbau und die Manifest-Ecken sind sonst
+    erst im Echtlauf dran, und dort ist ein Indexfehler nicht von einer
+    komischen Quelle zu unterscheiden."""
+    # Synthetische Quelle: 100 × 75 Pixel → 4 × 3 Zellen. Jede Zelle
+    # bekommt ein bekanntes Muster; Zelle (0,0) reiner Nadelwald, (1,0)
+    # reines Laub, (2,0) 50/50, (3,0) baumlos, zweite Zeile NO_DATA,
+    # dritte Zeile wieder Wald — Waldanteil unter den bekannten Zellen:
+    # 7 von 8 = 87,5 %? Nein: verify prüft 25–50 — deshalb unten mehr
+    # baumlose Zellen.
+    patterns = [
+        [2, 1, [1, 2], 0],       # Nadel, Laub, Misch, baumlos
+        [255, 255, 255, 255],    # keine Daten
+        [0, 0, [1, 2], 0],       # baumlos, baumlos, Misch, baumlos
+    ]
+    src_rows = []
+    for cell_row in patterns:
+        for _ in range(CELL_FACTOR):
+            row = bytearray()
+            for pattern in cell_row:
+                if isinstance(pattern, list):
+                    for i in range(CELL_FACTOR):
+                        row.append(pattern[i % len(pattern)])
+                else:
+                    row += bytes([pattern]) * CELL_FACTOR
+            src_rows.append(bytes(row))
+
+    def info_fn(_source):
+        return 100, 75, [10.0, 0.0001, 0, 55.0, 0, -0.0001]
+
+    def band_fn(_source, x, y, w, h, out_path):
+        window = [r[x:x + w] for r in src_rows[y:y + h]]
+        with open(out_path, "wb") as f:
+            f.write(_fake_tiff_u8(window))
+
+    import tempfile as _tempfile
+    with _tempfile.TemporaryDirectory() as out:
+        manifest = build("fake", 2021, out, band_rows=50,
+                         info_fn=info_fn, band_fn=band_fn)
+        assert (manifest["width"], manifest["height"]) == (4, 3), manifest
+        assert manifest["west"] == 10.0 and manifest["north"] == 55.0
+        assert abs(manifest["east"] - 10.01) < 1e-9
+        assert abs(manifest["south"] - 54.9925) < 1e-9
+        with open(os.path.join(out, "forest_grid.bin.gz"), "rb") as f:
+            rows = decode(f.read(), 4, 3)
+        # Das 1/2-Wechselmuster ist bei 25 Pixeln je Zeile UNGERADE:
+        # 13 Laub + 12 Nadel je Zeile, über 25 Zeilen 325:300 →
+        # 300/625 = 48 % Nadel → Byte 49. Wer hier 51 erwartet, hat
+        # die ungerade Kachelbreite übersehen (so geschehen).
+        assert rows[0] == bytes([101, 1, 49, 0]), rows[0]
+        assert rows[1] == bytes([255] * 4), rows[1]
+        assert rows[2] == bytes([0, 0, 49, 0]), rows[2]
+        # Waldanteil: 4 Wald von 4+4=8 bekannten Zellen = 50 % → passiert
+        # die Plausibilität knapp.
+        assert manifest["forest_percent"] == 50.0, manifest
+
+        verify("fake", out, samples=12, band_fn=band_fn)
+
+        # Gegenprobe: ein verfälschtes Gitter fällt auf. ALLE Zellen
+        # verfälscht, nicht eine — eine einzelne können die Stichproben
+        # verfehlen (mit diesem Seed taten sie es). verify fängt
+        # SYSTEMATISCHE Fehler (verrutschte Geometrie, vertauschte
+        # Klassen), keine Einzelzelle.
+        broken = [bytes([7] * len(r)) for r in rows]
+        with open(os.path.join(out, "forest_grid.bin.gz"), "wb") as f:
+            f.write(encode(broken))
+        try:
+            verify("fake", out, samples=12, band_fn=band_fn)
+            raise AssertionError("verify hat das kaputte Gitter geschluckt")
+        except SystemExit:
+            pass
+
+
+# ---------------------------------------------------------------------------
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("command", nargs="?", default="",
+                        choices=["", "build", "fetch", "verify"])
+    parser.add_argument("--self-test", action="store_true")
+    parser.add_argument("--source")
+    parser.add_argument("--year", type=int)
+    parser.add_argument("--key")
+    parser.add_argument("--out", default="build/forest")
+    parser.add_argument("--samples", type=int, default=24)
+    args = parser.parse_args()
+
+    if args.self_test:
+        self_test()
+        return
+    if args.command == "build":
+        manifest = build(args.source, args.year, args.out)
+        print(json.dumps(manifest, indent=2))
+    elif args.command == "fetch":
+        source, year = fetch_direct(args.out)
+        manifest = build(source, year, args.out)
+        print(json.dumps(manifest, indent=2))
+        verify(source, args.out, samples=args.samples)
+    elif args.command == "verify":
+        verify(args.source, args.out, samples=args.samples)
+    else:
+        parser.error("Kommando oder --self-test angeben")
+
+
+if __name__ == "__main__":
+    main()

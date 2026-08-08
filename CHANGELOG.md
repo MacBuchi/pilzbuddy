@@ -7,6 +7,27 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Welcher Wald ist das? Die Karte weiß es jetzt
+
+*8. August 2026 · Version 1.62.0*
+
+Wer Sommersteinpilze sucht, will nicht im reinsten Fichtenforst landen.
+Die Karte hat dafür einen neuen Knopf: **Waldtypen** färbt den Wald in
+drei Grüntönen ein — hell für Laub, mittel für Misch, dunkel für Nadel.
+Die Daten kommen aus dem Copernicus-Satellitenprogramm der EU, decken
+Deutschland, Österreich und die Schweiz ab und sind aktuell genug, dass
+die Käferflächen der letzten Jahre nicht mehr als Fichtenwald auftauchen.
+
+Im Spot-Blatt steht dazu eine neue Zeile: **„Wald hier"** nennt den
+Waldtyp an der Stelle, samt Nadelanteil in Prozent. Beides funktioniert
+komplett **offline** — die Waldkarte steckt in der App, es wird nichts
+geladen und nichts gesendet.
+
+Ehrlich gesagt dazu: Das Raster ist 250 m grob. Es zeigt dir, in welche
+Richtung sich die Fahrt lohnt — den einzelnen Buchenhang im Fichtenwald
+zeigt es nicht. Regen- und Waldebene wechseln sich ab, weil beide
+halbtransparent sind und übereinander nichts mehr zu lesen wäre.
+
 ## Vollständige Lizenzangaben
 
 *7. August 2026 · Version 1.61.1*

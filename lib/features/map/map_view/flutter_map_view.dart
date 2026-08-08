@@ -6,6 +6,7 @@ import 'package:vector_map_tiles/vector_map_tiles.dart' as vmt;
 
 import '../../offline_maps/offline_map_providers.dart';
 import '../finite_camera_constraint.dart';
+import '../forest_data_providers.dart';
 import '../rain_data_providers.dart';
 import '../rain_layer.dart';
 import 'map_view.dart';
@@ -130,6 +131,9 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
     final rainUrl = rainPaint == RainPaint.dwd
         ? rainLayerUrl(rainLayer, now: DateTime.now())
         : null;
+    // Die Waldtypen-Fläche (#213) — wie der Regen auch auf diesem Pfad,
+    // denn er ist der einzige im Web.
+    final forestFill = ref.watch(forestFillProvider).valueOrNull;
     if (offlineActive) {
       // Der TileLayer, der die Instanz hält, verschwindet mit diesem Frame
       // und entsorgt sie dabei — siehe Kommentar am Feld.
@@ -289,6 +293,26 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
                 filterQuality: FilterQuality.medium,
                 gaplessPlayback: true,
                 imageProvider: MemoryImage(rainFill.png),
+              ),
+            ],
+          ),
+        // Die Waldtypen-Fläche (#213) — drittes Bild-Overlay, gleiche
+        // Strecke. `filterQuality: none`, ANDERS als der Regen-Fill und
+        // wie das DWD-Bild: Die 250-m-Klötzchen sind die Daten, und ein
+        // weiches Bild sähe genauer aus, als sie sind. Regen und Wald
+        // schließen sich im Zustand aus (forest_layer_sheet.dart), hier
+        // muss also keine Reihenfolge entschieden werden.
+        if (forestFill != null)
+          OverlayImageLayer(
+            overlayImages: [
+              OverlayImage(
+                bounds: LatLngBounds(
+                  LatLng(forestFill.south, forestFill.west),
+                  LatLng(forestFill.north, forestFill.east),
+                ),
+                filterQuality: FilterQuality.none,
+                gaplessPlayback: true,
+                imageProvider: MemoryImage(forestFill.png),
               ),
             ],
           ),
