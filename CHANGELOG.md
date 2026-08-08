@@ -7,6 +7,24 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## „Was ist hier?" — für jede Stelle, nicht nur für deine Spots
+
+*9. August 2026 · Version 1.68.0*
+
+Regen, Temperatur und Waldtyp gab es bisher nur dort, wo schon ein Spot
+liegt — also nur für Stellen, an denen du warst. Zum Erkunden brauchst du
+es genau andersherum.
+
+Tipp jetzt auf die kleine Legende links unten auf der Karte: Ein Blatt
+zeigt für die Stelle unter dem Fadenkreuz den Waldtyp, den Laubfaktor im
+Kilometer ringsum, den Regenverlauf der letzten Wochen und die
+Temperaturkurve — dieselben Angaben wie im Spot-Blatt.
+
+Das kostet keine Daten: Alle Werte stammen aus den Gittern, die ohnehin
+schon auf dem Gerät liegen. Deine Position und die betrachtete Stelle
+verlassen das Handy nicht, und im Funkloch steht dort dasselbe wie
+zu Hause.
+
 ## Der Laubfaktor misst jetzt einen Kilometer
 
 *9. August 2026 · Version 1.67.0*

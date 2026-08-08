@@ -28,6 +28,7 @@ import '../forest_grid.dart';
 import '../rain_data_providers.dart';
 import '../rain_fill.dart';
 import '../rain_layer.dart';
+import 'here_sheet.dart';
 
 /// Muster wie `MapLongPressEnabledNotifier`: Zustand springt sofort,
 /// Speichern läuft nach, ein Fehler beim Merken wird nur protokolliert —
@@ -105,15 +106,29 @@ class MapLegend extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (showRain) _RainSection(layer: rainLayer, mm: rainMm),
-                  if (showRain && showForest) const SizedBox(height: 6),
-                  if (showForest)
-                    _ForestSection(classes: forestClasses, around: around),
-                ],
+              // Tipp auf die Werte öffnet „Was ist hier?" (#245): Wer die
+              // Zahl am Fadenkreuz liest, ist genau der, der als Nächstes
+              // Verlauf und Temperatur wissen will. Nur die Skalen sind
+              // antippbar — das X daneben behält seine eigene Aufgabe.
+              //
+              // Ohne Stillstand (`center == null`) gibt es nichts zu
+              // zeigen: `onTap: null` lässt den Tipp dann an die Karte
+              // durch, statt ein leeres Blatt zu öffnen.
+              InkWell(
+                onTap: center == null
+                    ? null
+                    : () => showHereSheet(context, center),
+                borderRadius: BorderRadius.circular(6),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (showRain) _RainSection(layer: rainLayer, mm: rainMm),
+                    if (showRain && showForest) const SizedBox(height: 6),
+                    if (showForest)
+                      _ForestSection(classes: forestClasses, around: around),
+                  ],
+                ),
               ),
               // Das X merkt sich die Entscheidung (persistent); zurück
               // geht es über den Schalter im Ebenen-Blatt.
