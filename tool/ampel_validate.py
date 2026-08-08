@@ -864,6 +864,12 @@ def render_report(mycorrhizal, wood, crosscheck, fetched_on):
         f"Stand: {fetched_on} · Erzeugt von `tool/ampel_validate.py` · "
         "Konzept: `docs/pilzampel-konzept.md`",
         "",
+        "Datenquellen: Fundmeldungen aus [GBIF](https://www.gbif.org) "
+        "(nur CC0 1.0 und CC BY 4.0); Wetter-Rückrechnung mit Daten von "
+        "[Open-Meteo](https://open-meteo.com) (CC BY 4.0, "
+        "nicht-kommerzielle Nutzung — die Zusage dazu steht im README "
+        "und im Konzeptpapier, entschieden 2026-08-08).",
+        "",
         "Die Bedingung aus dem Konzeptpapier, bevor eine Ampel gebaut wird:",
         "**Steht das Modell an Fundtagen höher als an zufälligen Tagen",
         "derselben Saison?** Diese Seite beantwortet das mit Zahlen.",

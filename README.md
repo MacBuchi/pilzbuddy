@@ -144,11 +144,36 @@ Im Profil ganz unten unter *Konto löschen* — sofort und ohne Karenzzeit.
 Anleitung ohne installierte App:
 [macbuchi.github.io/pilzbuddy/konto-loeschen.html](https://macbuchi.github.io/pilzbuddy/konto-loeschen.html)
 
-## Lizenz
+## Lizenz und Datenquellen
 
 Der Code steht unter der [MIT-Lizenz](LICENSE).
 
-Die Kartendaten stammen von OpenStreetMap (© OpenStreetMap-Mitwirkende,
-[ODbL](https://www.openstreetmap.org/copyright)); die Offline-Karten sind
-PMTiles der Protomaps Basemap, ebenfalls unter ODbL. Die Lizenzen aller
-verwendeten Pakete zeigt die App unter *Profil → Open-Source-Lizenzen*.
+Die App verwendet Daten aus mehreren offenen Quellen — die Namensnennung
+ist jeweils die Bedingung, unter der wir sie ausliefern dürfen:
+
+- **Kartendaten:** OpenStreetMap (© OpenStreetMap-Mitwirkende,
+  [ODbL](https://www.openstreetmap.org/copyright)); die Offline-Karten
+  sind PMTiles der Protomaps Basemap, ebenfalls unter ODbL.
+- **Regendaten:** Deutscher Wetterdienst (RADOLAN-Produkte,
+  Datenlizenz Deutschland – Namensnennung – 2.0), eigene Darstellung
+  und Aufbereitung.
+- **Waldtypen:** © Europäische Union, Copernicus Land Monitoring
+  Service, Europäische Umweltagentur (EEA) — „High Resolution Layer
+  Dominant Leaf Type", zusammengefasst auf ein 250-m-Raster.
+- **Saisonkurven:** gerechnet aus Beobachtungsdaten der Global
+  Biodiversity Information Facility (GBIF), ausschließlich Datensätze
+  unter CC0 1.0 und CC BY 4.0 — darunter SwissFungi und die
+  Österreichische Mykologische Gesellschaft.
+- **Kartenschrift:** Noto Sans (SIL Open Font License); der volle
+  Lizenztext wird mit der App ausgeliefert.
+- **Wetter-Rückrechnung** (nur Entwicklung, nicht in der App): Die
+  Validierung der Pilzampel (`tool/ampel_validate.py`) nutzt
+  [Open-Meteo](https://open-meteo.com) (CC BY 4.0, nur für
+  nicht-kommerzielle Nutzung frei — PilzBuddy ist und bleibt kostenlos
+  und werbefrei; sollte sich das je ändern, muss diese Zusage neu
+  entschieden werden).
+
+Dieselben Angaben samt Lizenztexten zeigt die App unter
+*Profil → Open-Source-Lizenzen*; ein Test
+(`test/flows/license_flow_test.dart`) erzwingt, dass kein
+mitgeliefertes Asset ohne Lizenz-Entscheidung bleibt.
