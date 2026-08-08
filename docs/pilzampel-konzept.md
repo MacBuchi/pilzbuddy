@@ -258,9 +258,13 @@ Zwei Schritte dorthin:
    der Zeit; wie viele es für eine belastbare Kalibrierung braucht, steht
    in `pilzampel-validierung.md`.
 
-Zusätzlich fehlt heute jede Möglichkeit, einen einzelnen Fund zu
+~~Zusätzlich fehlt heute jede Möglichkeit, einen einzelnen Fund zu
 **korrigieren** (nur der ganze Spot lässt sich löschen). Falsche Daten
-bleiben für immer im Trainingsmaterial.
+bleiben für immer im Trainingsmaterial.~~
+**Erledigt in 1.66.0 (#240):** Jeder eigene Eintrag lässt sich im
+Spot-Blatt antippen und dort in Art, Anzahl, Datum und Notiz korrigieren
+oder einzeln löschen. Nötig war dafür kein Schema-Patch — `finds_author_all`
+(Patch 014) erlaubt beides seit jeher, es wurde nur nie benutzt.
 
 ## Ehrlichkeit im UI — nicht verhandelbar
 

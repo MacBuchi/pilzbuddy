@@ -36,6 +36,16 @@ void main() {
           contains('nicht mehr mit dir geteilt'));
     });
 
+    test('Still verworfene Änderung heißt nicht „unerwarteter Fehler"', () {
+      // Der stille No-op einer von RLS abgelehnten Zeile (#240). Ohne
+      // eigenen Zweig läse der Nutzer „Unerwarteter Fehler
+      // (WriteRejectedException)" — richtig, aber unbrauchbar.
+      final message =
+          friendlyError(const WriteRejectedException('Fund ändern'));
+      expect(message, contains('nicht speichern'));
+      expect(message, isNot(contains('WriteRejectedException')));
+    });
+
     test('Unerwartetes → Typ sichtbar (diagnostizierbar)', () {
       expect(friendlyError(StateError('kaputt')), contains('StateError'));
     });

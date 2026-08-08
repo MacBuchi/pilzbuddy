@@ -7,6 +7,19 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Funde lassen sich korrigieren
+
+*8. August 2026 · Version 1.66.0*
+
+Vertippt, falsches Datum, zweimal dasselbe eingetragen? Tipp im Spot-Blatt
+einfach den Eintrag an: Art, Anzahl, Datum und Notiz lassen sich ändern —
+oder der Eintrag verschwindet einzeln, ohne dass der ganze Spot mit seiner
+Historie dran glauben muss. Das gilt auch für „Nichts gefunden"-Einträge;
+dort lassen sich Datum und Notiz richtigstellen.
+
+Was Pilzfreunde an deinen Spots eingetragen haben, bleibt unangetastet —
+ihre Funde gehören ihnen.
+
 ## „Hier warst du letztes Jahr erfolgreich"
 
 *8. August 2026 · Version 1.65.0*

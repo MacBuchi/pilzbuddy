@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'count_field.dart';
 import 'species_field.dart';
 
 /// Eine erfasste Zeile: Art und Anzahl, beide für sich optional.
@@ -122,41 +123,10 @@ class _SpeciesCollectorState extends State<SpeciesCollector> {
           },
         ),
         const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: InputDecorator(
-                decoration: const InputDecoration(
-                  labelText: 'Anzahl',
-                  border: OutlineInputBorder(),
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    IconButton(
-                      // Unter 1 geht es auf „keine Angabe", nicht auf 0:
-                      // Die Datenbank lässt 0 nicht zu (`count > 0`), und
-                      // „nichts gefunden" ist ein eigener Eintrag.
-                      onPressed: _count == null
-                          ? null
-                          : () => _setCount(_count! > 1 ? _count! - 1 : null),
-                      icon: const Icon(Icons.remove),
-                    ),
-                    Text(_count?.toString() ?? '–',
-                        style: Theme.of(context).textTheme.titleMedium),
-                    IconButton(
-                      onPressed: () => _setCount((_count ?? 0) + 1),
-                      icon: const Icon(Icons.add),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: widget.trailing),
-          ],
+        CountField(
+          count: _count,
+          onChanged: _setCount,
+          trailing: widget.trailing,
         ),
         const SizedBox(height: 12),
         OutlinedButton.icon(

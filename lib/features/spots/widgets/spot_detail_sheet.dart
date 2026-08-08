@@ -7,9 +7,11 @@ import '../../../core/mushroom_species.dart';
 import '../../../core/widgets/mushroom_avatar.dart';
 import '../../../core/widgets/mushroom_icon.dart';
 import '../../profile/profile_providers.dart';
+import '../../../models/find.dart';
 import '../../../models/spot.dart';
 import '../spot_providers.dart';
 import 'add_find_sheet.dart';
+import 'edit_find_sheet.dart';
 import 'species_season_section.dart';
 import 'spot_forest_section.dart';
 import 'spot_rain_section.dart';
@@ -69,6 +71,36 @@ class _SpotDetailSheet extends ConsumerWidget {
       if (context.mounted) {
         _showError(
             context, blank ? 'Leergang eintragen' : 'Fund eintragen', e,
+            stackTrace);
+      }
+    }
+  }
+
+  /// Öffnet das Korrektur-Blatt für einen eigenen Eintrag (#240) und
+  /// führt aus, was von dort zurückkommt.
+  ///
+  /// Nur für eigene Einträge verdrahtet: `finds_author_all` erlaubt
+  /// Ändern und Löschen ausschließlich dem Autor — was die Datenbank
+  /// ohnehin ablehnt, darf die Oberfläche gar nicht erst anbieten.
+  Future<void> _editFind(
+      BuildContext context, WidgetRef ref, Find find) async {
+    final result = await showEditFindSheet(
+      context,
+      find: find,
+      ownSpecies: ref.read(ownSpeciesProvider),
+    );
+    if (result == null || !context.mounted) return;
+    try {
+      if (result.delete) {
+        await ref.read(mySpotsProvider.notifier).deleteFind(find.id);
+      } else if (result.changed case final changed?) {
+        await ref
+            .read(mySpotsProvider.notifier)
+            .updateFind(findId: find.id, find: changed);
+      }
+    } catch (e, stackTrace) {
+      if (context.mounted) {
+        _showError(context, result.delete ? 'Fund löschen' : 'Fund ändern', e,
             stackTrace);
       }
     }
@@ -226,8 +258,16 @@ class _SpotDetailSheet extends ConsumerWidget {
                         if (!find.isOwn)
                           'von ${find.authorUsername ?? 'einem Pilzfreund'}',
                       ].join(' – ')),
+                      // Eigene Einträge lassen sich antippen und
+                      // korrigieren (#240); der Stift sagt das. Fremde
+                      // zeigen weiter ihren Eintrager und bleiben stumm
+                      // — die RLS zieht dieselbe Grenze.
+                      onTap: find.isOwn
+                          ? () => _editFind(context, ref, find)
+                          : null,
                       trailing: find.isOwn
-                          ? null
+                          ? Icon(Icons.edit_outlined,
+                              size: 18, color: Theme.of(context).hintColor)
                           : MushroomAvatar(index: find.authorAvatar, size: 22),
                     ),
                 ],

@@ -8,6 +8,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:pilzbuddy/core/errors.dart';
 import 'package:pilzbuddy/core/mushroom_species.dart';
 import 'package:pilzbuddy/data/app_config_repository.dart';
 import 'package:pilzbuddy/data/auth_repository.dart';
@@ -752,6 +753,65 @@ class FakeSpotRepository implements SpotRepository {
           authorId: _uid,
           blank: find.blank);
     }
+  }
+
+  /// Spiegelt `SpotRepository.updateFind` (#240) samt der Grenze, die
+  /// live `finds_author_all` zieht: geändert werden darf nur der EIGENE
+  /// Fund (`using`), und nur solange der Spot sichtbar ist (`with check`
+  /// — derselbe Ausdruck wie beim Anlegen).
+  ///
+  /// Ein abgelehnter Fall wirft hier [WriteRejectedException] und keinen
+  /// Postgrest-Fehler: Live trifft die Anfrage einfach keine Zeile, und
+  /// genau dieses stille Nichts fängt das echte Repository mit `.select()`
+  /// ab. Ein PostgrestException an dieser Stelle wäre bequemer und würde
+  /// eine Sicherung vortäuschen, die es nicht gibt.
+  @override
+  Future<void> updateFind({
+    required String findId,
+    required NewFind find,
+  }) async {
+    for (final row in backend.spots) {
+      final index = row.finds.indexWhere((f) => f.id == findId);
+      if (index < 0) continue;
+      final old = row.finds[index];
+      final visible = row.ownerId == _uid ||
+          (backend.areFriends(row.ownerId, _uid) &&
+              !row.sharingExcluded &&
+              backend.userById(row.ownerId).shareSpotsDefault);
+      if (old.authorId != _uid || !visible) break;
+      row.finds[index] = Find(
+        id: old.id,
+        spotId: old.spotId,
+        // Normalisiert wie das echte Repository — sonst käme über den
+        // Korrekturweg eine Schreibweise in den Bestand, die der
+        // Anlegeweg nie erzeugt.
+        species: canonicalSpecies(find.species),
+        count: find.count,
+        foundOn: find.foundOn,
+        note: find.note,
+        createdAt: old.createdAt,
+        authorId: old.authorId,
+        blank: find.blank,
+      );
+      return;
+    }
+    throw const WriteRejectedException('Fund ändern');
+  }
+
+  /// Spiegelt `SpotRepository.deleteFind` (#240). Anders als beim Ändern
+  /// zählt hier NUR der Autor: Das `using` von `finds_author_all` fragt
+  /// nicht nach dem Spot, wer seine Daten zurückziehen will, kann das
+  /// also auch nach dem Ende einer Freigabe.
+  @override
+  Future<void> deleteFind(String findId) async {
+    for (final row in backend.spots) {
+      final index = row.finds.indexWhere((f) => f.id == findId);
+      if (index < 0) continue;
+      if (row.finds[index].authorId != _uid) break;
+      row.finds.removeAt(index);
+      return;
+    }
+    throw const WriteRejectedException('Fund löschen');
   }
 
   /// Löschen nimmt die Funde mit — `finds.spot_id … on delete cascade`.
