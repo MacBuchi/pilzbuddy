@@ -159,6 +159,13 @@ flutter:
     # eine Ebene höher. Bis 1.61.1 fehlte die Zeile: Die Schrift wurde
     # ausgeliefert, ihre Lizenz nicht. Die OFL verlangt aber genau das.
     - assets/map_glyphs/OFL.txt
+    # Waldtypen-Gitter (#213): Copernicus HRL Dominant Leaf Type 2024,
+    # 250-m-Zellen für DACH (~5,8 MB, bewusst so beschlossen — volle
+    # Nadelanteil-Prozente statt kleinerer Klassenwerte). Erzeugt vom
+    # Workflow forest-data.yml (tool/forest_grid.py); ein Update ist
+    # ein neues Artefakt + Versions-Bump, nie ein Handstand hier.
+    - assets/forest/forest_grid.bin.gz
+    - assets/forest/forest_manifest.json
 
   # To add assets to your application, add an assets section, like this:
   # assets:
