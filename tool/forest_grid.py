@@ -132,7 +132,12 @@ def encode(rows):
         for byte in row:
             delta.append((byte - previous) & 0xFF)
             previous = byte
-    return gzip.compress(bytes(delta), 9)
+    # mtime=0: Ohne das stempelt gzip die Bauzeit in den Header und
+    # identische Nutzdaten bekommen je Lauf eine neue Prüfsumme — der
+    # Quartals-Review soll aber an der SHA ablesen können, ob sich
+    # überhaupt etwas geändert hat (Lauf 9 und 10 lieferten identische
+    # Nutzdaten mit verschiedenen Hashes, nur wegen dieses Felds).
+    return gzip.compress(bytes(delta), 9, mtime=0)
 
 
 def decode(payload, width, height):
@@ -791,6 +796,11 @@ def self_test():
     # Kodierung: Roundtrip mit Zeilen, die verschieden anfangen.
     rows = [bytes([0, 50, 101]), bytes([101, 1, 0]), bytes([255, 255, 80])]
     assert decode(encode(rows), 3, 3) == rows
+    # Deterministisch: Bytes 4–7 des gzip-Headers sind das mtime-Feld —
+    # genullt, damit identische Nutzdaten identische Dateien ergeben
+    # (der Quartals-Review vergleicht Prüfsummen).
+    assert encode(rows)[4:8] == b"\x00\x00\x00\x00", \
+        "gzip-Header trägt eine Bauzeit"
     try:
         decode(encode(rows), 2, 2)
         raise AssertionError("falsche Größe nicht erkannt")
