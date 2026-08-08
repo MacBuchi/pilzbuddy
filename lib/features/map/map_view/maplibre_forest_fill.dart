@@ -18,10 +18,15 @@ const forestFillResampling = 'nearest';
 
 /// Hängt die Waldfläche ein, tauscht sie aus oder nimmt sie weg —
 /// Verhalten wie [applyImageFill], siehe dort.
+///
+/// [belowLayerId]: Liegt die Regenfläche schon, gehört der Wald
+/// DARUNTER (#232) — Regen ist die flüchtige Information, sie bleibt
+/// obenauf lesbar.
 Future<String?> applyForestFill(
   ml.StyleController style, {
   required ({String url, ForestFillImage fill})? fill,
   required String? appliedUrl,
+  String? belowLayerId,
 }) =>
     applyImageFill(
       style,
@@ -38,4 +43,5 @@ Future<String?> applyForestFill(
             ),
       appliedUrl: appliedUrl,
       resampling: forestFillResampling,
+      belowLayerId: belowLayerId,
     );

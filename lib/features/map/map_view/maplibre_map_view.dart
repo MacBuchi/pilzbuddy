@@ -206,7 +206,14 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
       try {
         final before = _appliedForestUrl;
         _appliedForestUrl = await applyForestFill(style,
-            fill: fill, appliedUrl: _appliedForestUrl);
+            fill: fill,
+            appliedUrl: _appliedForestUrl,
+            // Liegt die Regenfläche, kommt der Wald darunter (#232) —
+            // sonst landete er beim Einschalten obenauf. Umgekehrt ist
+            // nichts zu tun: Ein späterer Regen wird angehängt und
+            // liegt damit von selbst über dem Wald.
+            belowLayerId:
+                _appliedFillUrl != null ? rainFillLayerId : null);
         if (fillRemovalNeedsNudge(
             before: before, after: _appliedForestUrl)) {
           _nudgeEngine();

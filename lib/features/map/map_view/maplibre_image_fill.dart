@@ -90,6 +90,7 @@ Future<String?> applyImageFill(
   required ImageFill? fill,
   required String? appliedUrl,
   required String resampling,
+  String? belowLayerId,
 }) async {
   if (fill?.url == appliedUrl) return appliedUrl;
 
@@ -100,7 +101,12 @@ Future<String?> applyImageFill(
   if (fill == null) return null;
 
   await style.addSource(imageFillSource(sourceId, fill));
+  // [belowLayerId] nur setzen, wenn die Ziel-Ebene wirklich liegt — der
+  // Aufrufer weiß das (#232: Wald unter Regen, damit die Regenfläche
+  // beim Kombinieren obenauf bleibt). Ein Verweis auf eine fehlende
+  // Ebene wäre plattformabhängiges Verhalten, das niemand testet.
   await style.addLayer(
-      imageFillStyleLayer(layerId, sourceId, resampling: resampling));
+      imageFillStyleLayer(layerId, sourceId, resampling: resampling),
+      belowLayerId: belowLayerId);
   return fill.url;
 }

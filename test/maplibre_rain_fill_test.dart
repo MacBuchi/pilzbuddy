@@ -8,6 +8,11 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:maplibre/maplibre.dart' as ml;
+import 'package:pilzbuddy/features/map/forest_data_providers.dart'
+    show ForestFillImage;
+import 'package:pilzbuddy/features/map/forest_fill.dart'
+    show allForestClasses;
+import 'package:pilzbuddy/features/map/map_view/maplibre_forest_fill.dart';
 import 'package:pilzbuddy/features/map/map_view/maplibre_image_fill.dart'
     show fillRemovalNeedsNudge;
 import 'package:pilzbuddy/features/map/map_view/maplibre_rain_fill.dart';
@@ -193,6 +198,40 @@ void main() {
             before: 'file:///a.png', after: 'file:///a.png'),
         isFalse);
     expect(fillRemovalNeedsNudge(before: null, after: null), isFalse);
+  });
+
+  ForestFillImage forestFillImageAt() => ForestFillImage(
+        png: Uint8List(0),
+        west: 5.8,
+        east: 17.3,
+        north: 55.1,
+        south: 45.7,
+        referenceYear: 2024,
+        classes: allForestClasses,
+      );
+
+  test('der Wald legt sich UNTER eine liegende Regenfläche (#232)',
+      () async {
+    // Regen ist die flüchtige Information — er bleibt obenauf lesbar.
+    // Ohne belowLayerId landete ein später eingeschalteter Wald über
+    // dem Regen, weil neue Ebenen schlicht angehängt werden.
+    final style = RecordingStyle();
+    await applyRainFill(style, fill: fillAt('file:///r.png'),
+        appliedUrl: null);
+
+    await applyForestFill(style,
+        fill: (url: 'file:///w.png', fill: forestFillImageAt()),
+        appliedUrl: null,
+        belowLayerId: rainFillLayerId);
+    expect(style.below[forestFillLayerId], rainFillLayerId);
+
+    // Ohne liegenden Regen wird KEIN belowLayerId übergeben — ein
+    // Verweis auf eine fehlende Ebene wäre plattformabhängig.
+    final alone = RecordingStyle(rejectBelow: true);
+    await applyForestFill(alone,
+        fill: (url: 'file:///w.png', fill: forestFillImageAt()),
+        appliedUrl: null);
+    expect(alone.below[forestFillLayerId], isNull);
   });
 
   test('verortet die Fläche auf den Grenzen des GITTERS', () async {

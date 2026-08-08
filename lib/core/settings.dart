@@ -25,6 +25,17 @@ abstract interface class Settings {
 
   Future<void> setClassicMapEnabled(bool value);
 
+  /// Liegt die Legende aktiver Ebenen auf der Karte? (#231)
+  ///
+  /// Standardmäßig JA — eine Fläche ohne Legende bedeutet nichts, das
+  /// war die erste Feld-Rückmeldung zur Regenfläche (2026-08-04) und
+  /// zur Waldebene gleich noch einmal. Das X an der Legende schaltet
+  /// diese Einstellung aus (persistent); wieder an geht sie im
+  /// Ebenen-Blatt.
+  bool get mapLegendEnabled;
+
+  Future<void> setMapLegendEnabled(bool value);
+
   /// Richtet langes Draufhalten das Fadenkreuz aus? (#210)
   ///
   /// Standardmäßig NEIN. Die Geste sprang auf die gedrückte Stelle **und**
@@ -99,6 +110,15 @@ class PrefsSettings implements Settings {
   static const _rainCourseEnabledKey = 'rain_course_enabled';
 
   static const _mapLongPressEnabledKey = 'map_long_press_enabled';
+
+  static const _mapLegendEnabledKey = 'map_legend_enabled';
+
+  @override
+  bool get mapLegendEnabled => _prefs.getBool(_mapLegendEnabledKey) ?? true;
+
+  @override
+  Future<void> setMapLegendEnabled(bool value) =>
+      _prefs.setBool(_mapLegendEnabledKey, value);
 
   @override
   bool get classicMapEnabled => _prefs.getBool(_classicMapEnabledKey) ?? false;
