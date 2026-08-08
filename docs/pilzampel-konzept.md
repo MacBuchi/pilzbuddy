@@ -322,8 +322,15 @@ Was die recherchierten Dienste vorbildlich machen und was schiefgeht:
 
 ## Offene Entscheidungen
 
-1. Ist **nicht-kommerziell** dauerhaft die richtige Zusage (Open-Meteo)? Bei
-   einer Play-Veröffentlichung ohne Werbung und ohne Abo: ja — aber bewusst.
+1. ~~Ist **nicht-kommerziell** dauerhaft die richtige Zusage
+   (Open-Meteo)?~~ **Entschieden (2026-08-08, Betreiber): ja.** Die App
+   ist und bleibt komplett kostenlos und werbefrei — auch mit Blick auf
+   den Play Store. **Vermerk des Betreibers:** Sollte sich daran je
+   etwas ändern (Werbung, Abo, Bezahlversion), MUSS die
+   Open-Meteo-Nutzung neu entschieden werden — sie ist nur für
+   nicht-kommerzielle Nutzung frei. Die Zusage steht seither auch im
+   README (Abschnitt „Lizenz und Datenquellen"); wer monetarisiert,
+   findet sie dort.
 2. ~~**Leergang erfassen** ja/nein?~~ **Entschieden (2026-08-06): ja**,
    ausgeliefert mit 1.58.0 (#211). Die Sorge „mehr Erfassungswerkzeug,
    weniger Schatzkarte" ist mit dem Zuschnitt beantwortet: ein Knopf
