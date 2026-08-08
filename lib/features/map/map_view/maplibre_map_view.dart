@@ -24,6 +24,7 @@ import '../rain_layer.dart';
 import 'flutter_map_view.dart';
 import 'map_view.dart';
 import 'maplibre_forest_fill.dart';
+import 'maplibre_image_fill.dart' show fillRemovalNeedsNudge;
 import 'maplibre_rain_fill.dart';
 import 'maplibre_style_provider.dart';
 import 'marker_culling.dart';
@@ -154,13 +155,21 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
   /// Nach dem Frame, nicht in ihm: Entfernt werden die Linienebenen im
   /// `didUpdateWidget` des Pakets, also erst nach diesem Build.
   void _requestRepaint() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final controller = _ml;
-      final camera = controller?.camera;
-      if (controller == null || camera == null || !mounted) return;
-      unawaited(
-          controller.moveCamera(center: camera.center, zoom: camera.zoom));
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _nudgeEngine());
+  }
+
+  /// Der eigentliche Stups: Kamera auf ihren eigenen Wert setzen.
+  ///
+  /// Aus der [_fillWork]-Kette DIREKT aufrufen, nicht über
+  /// [_requestRepaint]: Ein Post-Frame-Callback wartet auf den nächsten
+  /// Frame — und nach dem asynchronen Entfernen einer Fläche ist keiner
+  /// geplant, genau deshalb blieb sie ja stehen (#230).
+  void _nudgeEngine() {
+    final controller = _ml;
+    final camera = controller?.camera;
+    if (controller == null || camera == null || !mounted) return;
+    unawaited(
+        controller.moveCamera(center: camera.center, zoom: camera.zoom));
   }
 
   void _syncRainFill() {
@@ -169,8 +178,17 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
     final fill = ref.read(rainFillFileProvider).valueOrNull;
     _fillWork = _fillWork.then((_) async {
       try {
+        final before = _appliedFillUrl;
         _appliedFillUrl = await applyRainFill(style,
             fill: fill, appliedUrl: _appliedFillUrl);
+        // Nach dem WIRKLICHEN Entfernen anstoßen — der Listener-Stups
+        // beim Provider-Wechsel kommt zu früh, weil diese Kette
+        // asynchron hinterherläuft (#230: „Ebene aus" ließ die Fläche
+        // stehen, bis jemand zoomte).
+        if (fillRemovalNeedsNudge(
+            before: before, after: _appliedFillUrl)) {
+          _nudgeEngine();
+        }
       } catch (_) {
         // Die Fläche ist eine Zugabe zu den Linien; ein Fehlschlag beim
         // Ein- oder Aushängen darf die Karte nicht mitnehmen. Still,
@@ -186,8 +204,13 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
     final fill = ref.read(forestFillFileProvider).valueOrNull;
     _fillWork = _fillWork.then((_) async {
       try {
+        final before = _appliedForestUrl;
         _appliedForestUrl = await applyForestFill(style,
             fill: fill, appliedUrl: _appliedForestUrl);
+        if (fillRemovalNeedsNudge(
+            before: before, after: _appliedForestUrl)) {
+          _nudgeEngine();
+        }
       } catch (_) {
         // Wie beim Regen: still degradieren, Begründung oben.
       }
