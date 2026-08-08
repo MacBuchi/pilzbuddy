@@ -7,6 +7,20 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## „Hier warst du letztes Jahr erfolgreich"
+
+*8. August 2026 · Version 1.65.0*
+
+Die Karte erinnert dich jetzt an deine eigenen guten Tage: Hattest du an
+einem Spot **um diese Jahreszeit** in einem früheren Jahr Erfolg,
+erscheint oben ein grüner Hinweis — mit Ort, Art und Jahr. Antippen
+öffnet den Spot.
+
+Das ist keine Vorhersage, sondern deine eigene Geschichte: gerechnet
+allein aus deinen Funden, ohne Netz, auch tief im Wald. Das X blendet
+den Hinweis für die nächsten zwei Wochen aus — die Erinnerung des
+nächsten Zeitfensters kommt dann wieder.
+
 ## Die Legende misst jetzt mit
 
 *8. August 2026 · Version 1.64.0*
