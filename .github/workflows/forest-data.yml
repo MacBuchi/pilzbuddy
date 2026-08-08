@@ -40,9 +40,12 @@ jobs:
     name: Fetch DLT and build the forest grid
     runs-on: ubuntu-latest
     # The DACH cutout is a few GB compressed and ~13 gigapixels; the tool
-    # processes it in bands. Fetching waits on the CLMS queue (up to two
-    # hours), the aggregation itself is minutes.
-    timeout-minutes: 180
+    # processes it in bands. Fetching waits on the CLMS queue — run 4
+    # showed the 10 m cutout takes MORE than two hours to prepare, so
+    # the tool polls up to four (and picks up a still-cooking order from
+    # a previous run instead of re-ordering). Minutes are free on public
+    # repositories; the aggregation itself is the small part.
+    timeout-minutes: 330
     steps:
       - uses: actions/checkout@v5
 

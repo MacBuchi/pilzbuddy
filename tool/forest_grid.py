@@ -42,6 +42,7 @@ from __future__ import annotations
 import argparse
 import calendar
 import csv
+import datetime
 import gzip
 import hashlib
 import io
@@ -644,7 +645,81 @@ def request_download(session, uid, download_id, year_filter=None):
         else str(result["TaskID"])
 
 
-def poll_download(session, task_id, timeout_minutes=120):
+def task_matches(task, uid, year_filter):
+    """Ist dieser Auftrag unsere Bestellung (Datensatz + Jahrgang)?
+
+    Der Service-Key wird ausschließlich von diesem Workflow benutzt,
+    eine andere Bounding Box kann es unter ihm also nicht geben —
+    geprüft wird, was die Bestellung eindeutig macht: Datensatz-UID
+    und, bei der Jahres-Reihe, das Jahr des Zeitfensters. Ein Auftrag
+    der Reihe OHNE erkennbares Jahr wird nicht angefasst.
+    """
+    datasets = task.get("Datasets") or []
+    if not any(d.get("DatasetID") == uid for d in datasets):
+        return False
+    if year_filter is None:
+        return True
+    for d in datasets:
+        start = (d.get("TemporalFilter") or {}).get("StartDate")
+        if start is None:
+            continue
+        try:
+            return time.gmtime(int(start) / 1000).tm_year == year_filter
+        except (ValueError, OverflowError, OSError):
+            continue
+    return False
+
+
+def pick_existing_task(finished, in_progress, uid, year_filter,
+                       now_s, max_age_days=7):
+    """Wiederverwendbaren Auftrag wählen: fertig vor laufend, neu vor alt.
+
+    Lauf 4 bestellte korrekt, lief nach 120 Minuten in sein
+    Poll-Timeout — und der Auftrag kochte serverseitig weiter. Neu
+    bestellen hieße, die CLMS-Queue mit Duplikaten zu füllen und
+    jedes Mal bei null zu warten. Fertige Aufträge nur, solange ihr
+    Ergebnis-Zip plausibel noch liegt (max_age_days); das
+    RegistrationDateTime kommt ohne Zeitzone und gilt als UTC.
+    """
+    def _fresh(task):
+        stamp = task.get("RegistrationDateTime")
+        if not stamp:
+            return False
+        try:
+            registered = datetime.datetime.fromisoformat(stamp).replace(
+                tzinfo=datetime.timezone.utc)
+        except ValueError:
+            return False
+        age = now_s - registered.timestamp()
+        return 0 <= age <= max_age_days * 86400
+
+    candidates = [
+        (task.get("RegistrationDateTime") or "", task_id, task)
+        for task_id, task in (finished or {}).items()
+        if task_matches(task, uid, year_filter) and _fresh(task)
+        and task.get("DownloadURL")]
+    if candidates:
+        _, task_id, task = max(candidates)
+        return "finished", str(task_id), task["DownloadURL"]
+    running = [
+        (task.get("RegistrationDateTime") or "", task_id)
+        for task_id, task in (in_progress or {}).items()
+        if task_matches(task, uid, year_filter)]
+    if running:
+        return "in_progress", str(max(running)[1]), None
+    return None
+
+
+def find_existing_task(session, uid, year_filter):
+    finished = clms_json("/api/@datarequest_search?status=Finished_ok",
+                         token=session.fresh())
+    in_progress = clms_json("/api/@datarequest_search?status=In_progress",
+                            token=session.fresh())
+    return pick_existing_task(finished, in_progress, uid, year_filter,
+                              now_s=time.time())
+
+
+def poll_download(session, task_id, timeout_minutes=240):
     deadline = time.time() + timeout_minutes * 60
     while time.time() < deadline:
         status = clms_json("/api/@datarequest_status_get?TaskID=" + task_id,
@@ -704,9 +779,18 @@ def fetch(key_path, out_dir):
     if not download_id:
         raise SystemExit("fetch: Datensatz ohne Download-Information — "
                          "Suchantwort prüfen")
-    task = request_download(session, uid, download_id,
-                            year_filter=year if open_ended else None)
-    url = poll_download(session, task)
+    year_filter = year if open_ended else None
+    url = None
+    existing = find_existing_task(session, uid, year_filter)
+    if existing is not None:
+        kind, task, url = existing
+        print(f"fetch: übernehme Auftrag {task} ({kind})", file=sys.stderr)
+    else:
+        task = request_download(session, uid, download_id,
+                                year_filter=year_filter)
+        print(f"fetch: neuer Auftrag {task}", file=sys.stderr)
+    if url is None:
+        url = poll_download(session, task)
     os.makedirs(out_dir, exist_ok=True)
     archive = os.path.join(out_dir, "dlt_download.zip")
     print(f"fetch: lade {url}", file=sys.stderr)
@@ -908,6 +992,48 @@ def self_test():
         raise AssertionError("hartes 403 nicht gemeldet")
     except SystemExit as error:
         assert "403" in str(error)
+
+    # Wiederaufnahme: Lauf 4 lief ins Poll-Timeout, der Auftrag kochte
+    # serverseitig weiter — der nächste Lauf muss ihn übernehmen statt
+    # die Queue mit einem Duplikat zu füllen.
+    jan_2024_ms = year_window_ms(2024)[0]
+    passend = {"Datasets": [{"DatasetID": "uid1",
+                             "TemporalFilter": {"StartDate": jan_2024_ms}}],
+               "RegistrationDateTime": "2026-08-08T00:36:00"}
+    anderes_jahr = {"Datasets": [{
+        "DatasetID": "uid1",
+        "TemporalFilter": {"StartDate": year_window_ms(2023)[0]}}],
+        "RegistrationDateTime": "2026-08-08T00:36:00"}
+    ohne_jahr = {"Datasets": [{"DatasetID": "uid1"}],
+                 "RegistrationDateTime": "2026-08-08T00:36:00"}
+    assert task_matches(passend, "uid1", 2024)
+    assert not task_matches(passend, "anderes-uid", 2024)
+    assert not task_matches(anderes_jahr, "uid1", 2024)
+    assert not task_matches(ohne_jahr, "uid1", 2024), \
+        "Reihe ohne erkennbares Jahr darf nicht übernommen werden"
+    assert task_matches(ohne_jahr, "uid1", None)
+
+    now_s = datetime.datetime(2026, 8, 8, 3, 0,
+                              tzinfo=datetime.timezone.utc).timestamp()
+    fertig = dict(passend, DownloadURL="https://ergebnis/1.zip")
+    # Fertig schlägt laufend; unter mehreren fertigen gewinnt der neueste.
+    aelter = dict(fertig, RegistrationDateTime="2026-08-07T00:00:00",
+                  DownloadURL="https://ergebnis/alt.zip")
+    picked = pick_existing_task({"7": aelter, "9": fertig}, {"5": passend},
+                                "uid1", 2024, now_s)
+    assert picked == ("finished", "9", "https://ergebnis/1.zip"), picked
+    # Laufender Auftrag, wenn nichts Fertiges passt.
+    picked = pick_existing_task({}, {"5": passend}, "uid1", 2024, now_s)
+    assert picked == ("in_progress", "5", None), picked
+    # Zu alt (Ergebnis-Zip liegt nicht mehr) → nicht übernehmen.
+    veraltet = dict(fertig, RegistrationDateTime="2026-07-20T00:00:00")
+    assert pick_existing_task({"7": veraltet}, {}, "uid1", 2024,
+                              now_s) is None
+    # Fertig ohne DownloadURL ist nichts wert.
+    kaputt = dict(passend)
+    assert pick_existing_task({"7": kaputt}, {}, "uid1", 2024, now_s) is None
+    # Nichts vorhanden → None (dann wird bestellt).
+    assert pick_existing_task({}, {}, "uid1", 2024, now_s) is None
 
     # Token-Verwaltung: Der erste Echtlauf bestellte korrekt, pollte
     # 61 Minuten und starb an einem 401 — das Token lebt nur eine
