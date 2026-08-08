@@ -43,7 +43,7 @@ jobs:
     # are free on public repositories.
     timeout-minutes: 180
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Self-test first
         run: python3 tool/forest_grid.py --self-test
@@ -68,7 +68,7 @@ jobs:
           python3 tool/forest_grid.py fetch --out build/forest
 
       - name: Upload the grid as an artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: forest-grid
           path: |
