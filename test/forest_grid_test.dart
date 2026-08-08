@@ -180,22 +180,48 @@ void main() {
 
     test('der Umkreis mittelt über die Zellen, die der Kreis schneidet',
         () {
-      // Mittelzelle reiner Laub, acht Nachbarn reiner Nadel: Mit den
-      // 200 m Standard sind alle neun drin → 1/9. Mit kleinem Radius
-      // zählt nur die Mittelzelle → 1,0. DER Unterschied ist die
-      // Rechteck-Schnitt-Regel: Nur Zell-MITTELPUNKTE im Radius wären
-      // bei 250-m-Zellen fast immer eine einzige Zelle.
+      // Mittelzelle reiner Laub, acht Nachbarn reiner Nadel: Schon mit
+      // 200 m Radius sind alle neun drin → 1/9 (Kanten-Nachbarn ab
+      // 125 m, Ecken ab ~177 m). Mit kleinem Radius zählt nur die
+      // Mittelzelle → 1,0. DER Unterschied ist die Rechteck-Schnitt-
+      // Regel: Nur Zell-MITTELPUNKTE im Radius wären bei 250-m-Zellen
+      // fast immer eine einzige Zelle.
       final grid = gridOf([
         [101, 101, 101],
         [101, 1, 101],
         [101, 101, 101],
       ]);
-      final wide = grid.broadleafFactorAround(centerLat, centerLon);
+      final wide = grid.broadleafFactorAround(centerLat, centerLon,
+          radiusMeters: 200);
       expect(wide!.factor, closeTo(1 / 9, 1e-9));
       expect(wide.forestShare, 1.0);
       final narrow = grid.broadleafFactorAround(centerLat, centerLon,
           radiusMeters: 50);
       expect(narrow!.factor, 1.0);
+    });
+
+    test('der Standard-Umkreis ist groß gegen die Zelle', () {
+      // Der Grund für 1 km (1.67.0): Bei 250-m-Zellen fasste der frühere
+      // 200-m-Radius vier bis sechs Zellen — die eigene plus ein paar
+      // Nachbarn. Der „Umkreis" war damit im Wesentlichen die Zelle, auf
+      // der man stand, und sprang beim Schieben der Karte.
+      //
+      // 9×9 Zellen, Mitte Laub, alles andere Nadel: Der Standardradius
+      // muss so weit reichen, dass die Mittelzelle im Ergebnis
+      // untergeht. Mit 200 m stünde hier 1/9 = 0,111 und der Test wäre
+      // rot.
+      final grid = gridOf([
+        for (var y = 0; y < 9; y++)
+          [for (var x = 0; x < 9; x++) x == 4 && y == 4 ? 1 : 101],
+      ]);
+      final around = grid.broadleafFactorAround(
+          50 + 4.5 * cellLatDeg, 10 + 4.5 * cellLonDeg);
+      expect(around!.factor, lessThan(0.05),
+          reason: 'die eine Laubzelle darf den Kilometer nicht bestimmen');
+      expect(around.factor, closeTo(1 / 69, 1e-9),
+          reason: '1 km fasst 69 der 81 Zellen — die vier Ecken des '
+              'Quadrats liegen außerhalb des KREISES, und genau das '
+              'soll er tun');
     });
 
     test('kein Wald, keine Daten, außerhalb', () {
