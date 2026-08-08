@@ -30,7 +30,8 @@ Erklärte Abweichungen von der Stdlib-Regel des Regen-Werkzeugs
    eigene strenge Reader, Aggregation von Hand — GDAL ist nie der
    Rechner, und --verify rechnet gegen das gewarpte Raster nach.
    Der Download läuft über die AWS-CLI (auf den Runnern
-   vorinstalliert), verifiziert per MD5 aus der Granulat-Liste.
+   vorinstalliert), verifiziert gegen HeadObject des TIFF-Objekts
+   (Größe, plus MD5 übers ETag bei Nicht-Multipart-Uploads).
 
 Byte-Vertrag je 250-m-Zelle (das Pendant liest
 `lib/features/map/forest_grid.dart`):
@@ -602,8 +603,10 @@ def select_tiles(csv_text, year, bounds):
 
     Die bbox-Spalte ist ein POLYGON in Länge/Breite; der grobe
     Rechteck-Schnitt reicht, weil gdalwarp auf BOUNDS zuschneidet und
-    Fehlendes als NO_DATA endet. MD5 kommt mit — damit wird jeder
-    Download verifiziert statt nur über die Größe geraten.
+    Fehlendes als NO_DATA endet. content_length/checksum der CSV
+    beziffern das GANZE Granulat-Bündel (tif + XML + Legende) und
+    taugen deshalb nur für die Info-Zeile — verifiziert wird der
+    Download in download_tiles gegen HeadObject des TIFF-Objekts.
     """
     west, south, east, north = bounds
     tiles = []
@@ -620,13 +623,10 @@ def select_tiles(csv_text, year, bounds):
         if (min(lons) > east or max(lons) < west or
                 min(lats) > north or max(lats) < south):
             continue
-        is_md5 = (row.get("checksum_algorithm") or "").upper() == "MD5"
         tiles.append({
             "name": row.get("name") or os.path.basename(s3_path),
             "s3_path": s3_path,
             "bytes": int(row.get("content_length") or 0),
-            "md5": (row.get("checksum_value") or "").lower()
-                   if is_md5 else "",
         })
     if not tiles:
         raise SystemExit(f"fetch: keine Kacheln für {year} im Zielgebiet "
@@ -870,27 +870,45 @@ def _open_stream(url):
     return urllib.request.urlopen(request, timeout=600)
 
 
-def download_tiles(tiles, tiles_dir, copy_fn=None):
-    """Jede Kachel einzeln per AWS CLI, MD5 gegen die Granulat-Liste.
+CDSE_S3_ENDPOINT = "https://eodata.dataspace.copernicus.eu"
 
-    Ein Granulat ist genau EIN Objekt — das GeoTIFF ohne Endung, laut
-    OData-Katalog ContentType application/tiff —, deshalb schlichtes
-    cp je Kachel statt --recursive. Die CLI ist auf den GitHub-Runnern
-    vorinstalliert; Zugang über das CDSE-Schlüsselpaar in
-    AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY. Eine Wiederholung je
-    Kachel; unvollständig nach zwei Versuchen bricht ab.
+
+def tile_object_key(tile):
+    """S3-Schlüssel des TIFF-Objekts einer Kachel.
+
+    Der s3_path der Granulat-Liste ist ein ORDNER (tif + Metadaten +
+    Legende) — der erste Direktweg-Lauf scheiterte mit HeadObject-404,
+    weil er den Ordnerpfad als Objekt ansprach. Das Datenobjekt darin
+    heißt <name>.tif (per OData-Nodes nachgesehen).
+    """
+    prefix = tile["s3_path"].split("s3://eodata/", 1)[-1].rstrip("/")
+    return f"{prefix}/{tile['name']}.tif"
+
+
+def download_tiles(tiles, tiles_dir, copy_fn=None, head_fn=None):
+    """Jede Kachel einzeln per AWS CLI, verifiziert gegen HeadObject.
+
+    Größe muss immer stimmen; das ETag ist bei Nicht-Multipart-Uploads
+    das MD5 des Inhalts und wird dann mitgeprüft (ein „…-N"-ETag ist
+    Multipart, da bleibt die Größe). Eine Wiederholung je Kachel;
+    unvollständig nach zwei Versuchen bricht ab. Die CLI ist auf den
+    GitHub-Runnern vorinstalliert; Zugang über das CDSE-Schlüsselpaar
+    in AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY.
     """
     copy_fn = copy_fn or _aws_copy
+    head_fn = head_fn or _aws_head
     os.makedirs(tiles_dir, exist_ok=True)
     paths = []
     for index, tile in enumerate(tiles, 1):
+        key = tile_object_key(tile)
+        expected_size, etag = head_fn(key)
         target = os.path.join(tiles_dir, tile["name"] + ".tif")
         for attempt in (1, 2):
             try:
-                copy_fn(tile["s3_path"], target)
+                copy_fn("s3://eodata/" + key, target)
             except subprocess.CalledProcessError:
                 pass  # zählt wie eine unvollständige Datei: neuer Versuch
-            if tile_checksum_ok(target, tile):
+            if tile_ok(target, expected_size, etag):
                 break
             print(f"  {tile['name']}: unvollständig (Versuch {attempt})",
                   file=sys.stderr)
@@ -902,24 +920,32 @@ def download_tiles(tiles, tiles_dir, copy_fn=None):
     return paths
 
 
-def tile_checksum_ok(path, tile):
-    if not os.path.exists(path) or os.path.getsize(path) != tile["bytes"]:
+def tile_ok(path, expected_size, etag):
+    if not os.path.exists(path) or os.path.getsize(path) != expected_size:
         return False
-    if not tile["md5"]:
+    if not etag or "-" in etag:
         return True
     digest = hashlib.md5()
     with open(path, "rb") as f:
         for chunk in iter(lambda: f.read(1024 * 1024), b""):
             digest.update(chunk)
-    return digest.hexdigest() == tile["md5"]
+    return digest.hexdigest() == etag
 
 
 def _aws_copy(s3_path, target):
     subprocess.run(
         ["aws", "s3", "cp", "--only-show-errors",
-         "--endpoint-url", "https://eodata.dataspace.copernicus.eu",
-         s3_path, target],
+         "--endpoint-url", CDSE_S3_ENDPOINT, s3_path, target],
         check=True)
+
+
+def _aws_head(key):
+    result = subprocess.run(
+        ["aws", "s3api", "head-object", "--bucket", "eodata",
+         "--key", key, "--endpoint-url", CDSE_S3_ENDPOINT],
+        check=True, capture_output=True, text=True)
+    info = json.loads(result.stdout)
+    return int(info["ContentLength"]), info.get("ETag", "").strip('"').lower()
 
 
 # Zielraster der Reprojektion: ~10 m am mittleren Breitengrad, beide
@@ -962,8 +988,8 @@ def fetch_direct(out_dir):
     """Direktweg (Standard): COG-Kacheln aus dem CDSE-Objektspeicher.
 
     Kein Bestellen, keine Queue: Die anonyme Granulat-Liste nennt die
-    Kacheln samt Größe, MD5 und Bounding Box; geladen wird direkt aus
-    s3://eodata. Der Bestell-Weg (fetch-order) bleibt übergangsweise
+    Kacheln samt Bounding Box; geladen wird direkt aus s3://eodata,
+    verifiziert gegen HeadObject. Der Bestell-Weg (fetch-order) bleibt übergangsweise
     erreichbar — warum er verlassen wurde, steht in der Git-Historie
     der sechs Echtläufe: eine FME-Queue mit Stunden-Latenz und ohne
     Zusage, bei jedem Quartalslauf aufs Neue.
@@ -1249,8 +1275,6 @@ def self_test():
     testgebiet = (8.9, 40.0, 12.0, 41.0)
     tiles = select_tiles(kachel_csv, 2024, testgebiet)
     assert [t["name"] for t in tiles] == ["DRIN", "OHNE_MD5", "RAND"], tiles
-    assert tiles[0]["md5"] == "abcd12", "MD5 muss kleingeschrieben sein"
-    assert tiles[1]["md5"] == "", "fremder Algorithmus ist kein MD5"
     assert tiles[0]["bytes"] == 100
     try:
         select_tiles(kachel_csv, 2030, testgebiet)
@@ -1258,12 +1282,25 @@ def self_test():
     except SystemExit:
         pass
 
-    # Download: MD5 aus der Liste entscheidet, ein Retry, dann Abbruch.
+    # Objektschlüssel: der s3_path ist ein ORDNER, das Datenobjekt
+    # heißt <name>.tif darin — Lauf 7 scheiterte am Ordnerpfad (404).
+    assert tile_object_key({"name": "K1",
+                            "s3_path": "s3://eodata/pfad/K1"}) == \
+        "pfad/K1/K1.tif"
+
+    # Download: HeadObject liefert Größe + ETag, danach wird geprüft —
+    # ein Retry, dann Abbruch.
     with tempfile.TemporaryDirectory() as tiles_tmp:
         inhalt = b"kacheldaten"
-        richtig = {"name": "K1", "s3_path": "s3://e/k1",
-                   "bytes": len(inhalt),
-                   "md5": hashlib.md5(inhalt).hexdigest()}
+        etag = hashlib.md5(inhalt).hexdigest()
+        kachel = {"name": "K1", "s3_path": "s3://eodata/pfad/K1",
+                  "bytes": 999}
+        heads = []
+
+        def _head(key):
+            heads.append(key)
+            return len(inhalt), etag
+
         versuche = []
 
         def _copy_kaputt_dann_gut(_s3, target):
@@ -1272,17 +1309,25 @@ def self_test():
             with open(target, "wb") as f:
                 f.write(data)
 
-        paths = download_tiles([richtig], tiles_tmp,
-                               copy_fn=_copy_kaputt_dann_gut)
+        paths = download_tiles([kachel], tiles_tmp,
+                               copy_fn=_copy_kaputt_dann_gut, head_fn=_head)
+        assert heads == ["pfad/K1/K1.tif"], heads
         assert len(versuche) == 2 and paths[0].endswith("K1.tif")
         with open(paths[0], "rb") as f:
             assert f.read() == inhalt
 
-        falsch = dict(richtig, md5="0" * 32)
+        # Multipart-ETag („…-N") ist kein MD5 — dann zählt die Größe.
+        download_tiles([dict(kachel, name="K2")], tiles_tmp,
+                       copy_fn=lambda _s3, t: open(t, "wb").write(inhalt),
+                       head_fn=lambda _k: (len(inhalt), etag + "-2"))
+
+        # Richtige Größe, falscher Inhalt → das ETag muss es fangen.
         try:
-            download_tiles([falsch], tiles_tmp,
-                           copy_fn=lambda _s3, t: open(t, "wb").write(inhalt))
-            raise AssertionError("falsche Prüfsumme nicht erkannt")
+            download_tiles([dict(kachel, name="K3")], tiles_tmp,
+                           copy_fn=lambda _s3, t: open(t, "wb").write(
+                               b"x" * len(inhalt)),
+                           head_fn=_head)
+            raise AssertionError("falsches ETag nicht erkannt")
         except SystemExit:
             pass
 
