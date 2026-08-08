@@ -69,6 +69,20 @@ ml.RasterStyleLayer imageFillStyleLayer(String layerId, String sourceId,
 ///
 /// Die Fläche wird schlicht angehängt: Über ihr liegt nichts Eigenes,
 /// die Marker sind Flutter-Widgets über der ganzen Karte.
+/// Braucht die Engine nach diesem [applyImageFill]-Ausgang einen Stups?
+///
+/// maplibre-native zeichnet nach dem ENTFERNEN einer Ebene nicht von
+/// selbst neu (am Emulator gemessen, 2026-08-04) — beim Hinzufügen
+/// schon, weil die ladende Quelle anstößt. Also: Stups genau dann, wenn
+/// vorher etwas lag, das jetzt weg oder ersetzt ist. Beim Ersetzen ist
+/// er überflüssig, aber harmlos — die Bedingung bleibt dafür simpel.
+/// Der Stups gehört HINTER das tatsächliche Entfernen: Der frühere
+/// Anstoß beim Provider-Wechsel kam der asynchronen Arbeit zuvor, und
+/// die Fläche blieb bis zur nächsten Kamerabewegung stehen (#230).
+bool fillRemovalNeedsNudge({String? before, String? after}) =>
+    before != null && before != after;
+
+
 Future<String?> applyImageFill(
   ml.StyleController style, {
   required String sourceId,

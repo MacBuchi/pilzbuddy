@@ -8,6 +8,8 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:maplibre/maplibre.dart' as ml;
+import 'package:pilzbuddy/features/map/map_view/maplibre_image_fill.dart'
+    show fillRemovalNeedsNudge;
 import 'package:pilzbuddy/features/map/map_view/maplibre_rain_fill.dart';
 import 'package:pilzbuddy/features/map/rain_data_providers.dart';
 
@@ -167,6 +169,30 @@ void main() {
         ['removeLayer:$rainFillLayerId', 'removeSource:$rainFillSourceId']);
     expect(style.sources, isEmpty);
     expect(style.layers, isEmpty);
+  });
+
+  test('nach dem Entfernen braucht die Engine einen Stups — nach dem '
+      'Hinzufügen nicht', () {
+    // maplibre-native zeichnet nach dem Entfernen einer Ebene nicht von
+    // selbst neu; der Stups muss HINTER dem tatsächlichen Entfernen
+    // kommen, nicht beim Provider-Wechsel davor (#230: „Ebene aus" ließ
+    // die Fläche stehen, bis jemand zoomte).
+    // Entfernen und Ersetzen: Stups.
+    expect(fillRemovalNeedsNudge(before: 'file:///a.png', after: null),
+        isTrue);
+    expect(
+        fillRemovalNeedsNudge(
+            before: 'file:///a.png', after: 'file:///b.png'),
+        isTrue);
+    // Erstes Hinzufügen und Unverändert: die ladende Quelle stößt
+    // selbst an bzw. es gibt nichts anzustoßen.
+    expect(fillRemovalNeedsNudge(before: null, after: 'file:///a.png'),
+        isFalse);
+    expect(
+        fillRemovalNeedsNudge(
+            before: 'file:///a.png', after: 'file:///a.png'),
+        isFalse);
+    expect(fillRemovalNeedsNudge(before: null, after: null), isFalse);
   });
 
   test('verortet die Fläche auf den Grenzen des GITTERS', () async {

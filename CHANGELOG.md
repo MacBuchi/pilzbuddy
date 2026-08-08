@@ -7,6 +7,15 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Ebene aus heißt jetzt sofort aus
+
+*8. August 2026 · Version 1.62.2*
+
+Wer die Wald- oder Regenebene abgeschaltet hat, sah sie trotzdem noch —
+bis zur nächsten Kartenbewegung. Jetzt verschwindet die Fläche in dem
+Moment, in dem du den Schalter umlegst. Danke für die schnelle
+Rückmeldung aus dem Feld!
+
 ## Welcher Wald ist das? Die Karte weiß es jetzt
 
 *8. August 2026 · Versionen 1.62.0 und 1.62.1 (1.62.1: nur aktualisierte Bibliotheken, nichts Sichtbares)*
