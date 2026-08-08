@@ -645,6 +645,33 @@ def request_download(session, uid, download_id, year_filter=None):
         else str(result["TaskID"])
 
 
+def filter_year(value):
+    """Jahr aus einem TemporalFilter-Datum der API.
+
+    Bestellt wird in Epoch-Millisekunden, aber @datarequest_search gibt
+    Strings wie „2019-01-01 10:00:00" zurück — genau daran scheiterte
+    Lauf 5: int() warf, der laufende Auftrag galt als fremd, die
+    Neubestellung wurde von CLMS als Duplikat abgewiesen.
+    """
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        try:
+            return time.gmtime(value / 1000).tm_year
+        except (ValueError, OverflowError, OSError):
+            return None
+    text = str(value).strip()
+    match = re.match(r"(\d{4})-", text)
+    if match:
+        return int(match.group(1))
+    if text.isdigit():
+        try:
+            return time.gmtime(int(text) / 1000).tm_year
+        except (ValueError, OverflowError, OSError):
+            return None
+    return None
+
+
 def task_matches(task, uid, year_filter):
     """Ist dieser Auftrag unsere Bestellung (Datensatz + Jahrgang)?
 
@@ -660,38 +687,44 @@ def task_matches(task, uid, year_filter):
     if year_filter is None:
         return True
     for d in datasets:
-        start = (d.get("TemporalFilter") or {}).get("StartDate")
-        if start is None:
+        window = d.get("TemporalFilter") or {}
+        year = filter_year(window.get("StartDate"))
+        if year is None:
+            # Falls eine Zeitzonen-Verschiebung den Jahresanfang
+            # verrückt hätte: das Ende desselben Fensters liegt bei
+            # Ganzjahres-Bestellungen sicher im richtigen Jahr.
+            year = filter_year(window.get("EndDate"))
+        if year is None:
             continue
-        try:
-            return time.gmtime(int(start) / 1000).tm_year == year_filter
-        except (ValueError, OverflowError, OSError):
-            continue
+        return year == year_filter
     return False
 
 
 def pick_existing_task(finished, in_progress, uid, year_filter,
-                       now_s, max_age_days=7):
+                       now_s, max_age_hours=66):
     """Wiederverwendbaren Auftrag wählen: fertig vor laufend, neu vor alt.
 
     Lauf 4 bestellte korrekt, lief nach 120 Minuten in sein
     Poll-Timeout — und der Auftrag kochte serverseitig weiter. Neu
-    bestellen hieße, die CLMS-Queue mit Duplikaten zu füllen und
-    jedes Mal bei null zu warten. Fertige Aufträge nur, solange ihr
-    Ergebnis-Zip plausibel noch liegt (max_age_days); das
-    RegistrationDateTime kommt ohne Zeitzone und gilt als UTC.
+    bestellen hieße, die CLMS-Queue mit Duplikaten zu füllen (CLMS
+    weist das ohnehin als Duplikat ab, siehe Lauf 5) und jedes Mal bei
+    null zu warten. Fertige Aufträge nur, solange ihr Ergebnis-Zip
+    noch liegt: laut Doku 72 Stunden ab Fertigstellung, hier mit
+    Sicherheitsabstand ab FinalizationDateTime gerechnet (Zeitstempel
+    kommen ohne Zeitzone und gelten als UTC).
     """
     def _fresh(task):
-        stamp = task.get("RegistrationDateTime")
+        stamp = (task.get("FinalizationDateTime") or
+                 task.get("RegistrationDateTime"))
         if not stamp:
             return False
         try:
-            registered = datetime.datetime.fromisoformat(stamp).replace(
+            finished_at = datetime.datetime.fromisoformat(stamp).replace(
                 tzinfo=datetime.timezone.utc)
         except ValueError:
             return False
-        age = now_s - registered.timestamp()
-        return 0 <= age <= max_age_days * 86400
+        age = now_s - finished_at.timestamp()
+        return 0 <= age <= max_age_hours * 3600
 
     candidates = [
         (task.get("RegistrationDateTime") or "", task_id, task)
@@ -1012,6 +1045,20 @@ def self_test():
     assert not task_matches(ohne_jahr, "uid1", 2024), \
         "Reihe ohne erkennbares Jahr darf nicht übernommen werden"
     assert task_matches(ohne_jahr, "uid1", None)
+    # Die Live-Gestalt: @datarequest_search liefert Datums-STRINGS
+    # („2019-01-01 10:00:00"), bestellt wird in Epoch-Millisekunden —
+    # Lauf 5 scheiterte, weil nur Letzteres verstanden wurde.
+    live = {"Datasets": [{"DatasetID": "uid1",
+                          "TemporalFilter": {
+                              "StartDate": "2024-01-01 01:00:00",
+                              "EndDate": "2024-12-31 01:00:00"}}],
+            "RegistrationDateTime": "2026-08-08T00:36:00"}
+    assert task_matches(live, "uid1", 2024)
+    assert not task_matches(live, "uid1", 2023)
+    assert filter_year("2019-01-01 10:00:00") == 2019
+    assert filter_year(1704067200000) == 2024
+    assert filter_year("1704067200000") == 2024
+    assert filter_year("gestern") is None and filter_year(None) is None
 
     now_s = datetime.datetime(2026, 8, 8, 3, 0,
                               tzinfo=datetime.timezone.utc).timestamp()
@@ -1028,6 +1075,19 @@ def self_test():
     # Zu alt (Ergebnis-Zip liegt nicht mehr) → nicht übernehmen.
     veraltet = dict(fertig, RegistrationDateTime="2026-07-20T00:00:00")
     assert pick_existing_task({"7": veraltet}, {}, "uid1", 2024,
+                              now_s) is None
+    # Die 72-h-Frist zählt ab FERTIGSTELLUNG, nicht ab Bestellung: ein
+    # vor fünf Tagen bestellter, vor einer Stunde fertig gewordener
+    # Auftrag ist frisch — andersherum nicht.
+    frisch_fertig = dict(passend, DownloadURL="https://ergebnis/2.zip",
+                         RegistrationDateTime="2026-08-03T00:00:00",
+                         FinalizationDateTime="2026-08-08T02:00:00")
+    picked = pick_existing_task({"11": frisch_fertig}, {}, "uid1", 2024,
+                                now_s)
+    assert picked == ("finished", "11", "https://ergebnis/2.zip"), picked
+    lang_fertig = dict(frisch_fertig,
+                       FinalizationDateTime="2026-08-04T00:00:00")
+    assert pick_existing_task({"11": lang_fertig}, {}, "uid1", 2024,
                               now_s) is None
     # Fertig ohne DownloadURL ist nichts wert.
     kaputt = dict(passend)
