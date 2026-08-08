@@ -1,6 +1,8 @@
 // Das Waldtypen-Gitter (#213): Format, Punktabfrage, Klassen-Schwellen.
 // Die Helfer hier spiegeln test/rain_grid_test.dart — mit dem einen
 // gewollten Unterschied, dass die Zeilen LINEAR in der Breite liegen.
+import 'dart:math' as math;
+
 import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/features/map/forest_grid.dart';
@@ -134,6 +136,103 @@ void main() {
       expect(classOfByte(77), ForestClass.conifer); // 76 %
       expect(classOfByte(101), ForestClass.conifer); // 100 %
       expect(classOfByte(255), ForestClass.none);
+    });
+  });
+
+  group('broadleafFactorAround (#235)', () {
+    // Ein 3×3-Gitter mit ECHTEN 250-m-Zellen: Der Punkt liegt exakt in
+    // der Mitte der Mittelzelle; mit 200 m Radius schneidet der Kreis
+    // alle neun Zellen (Kanten-Nachbarn ab 125 m, Ecken ab ~177 m).
+    const cellLatDeg = 250 / 111320;
+    final cellLonDeg = 250 / (111320 * math.cos(50 * math.pi / 180));
+    ForestGrid gridOf(List<List<int>> rows) => forestOf(rows,
+        west: 10,
+        east: 10 + rows.first.length * cellLonDeg,
+        north: 50 + rows.length * cellLatDeg,
+        south: 50);
+    final centerLat = 50 + 1.5 * cellLatDeg;
+    final centerLon = 10 + 1.5 * cellLonDeg;
+
+    test('reiner Laub, reiner Nadel, Misch', () {
+      // Byte 1 = 0 % Nadel, 101 = 100 %, 51 = 50 %.
+      expect(
+          gridOf([
+            [1, 1, 1],
+            [1, 1, 1],
+            [1, 1, 1],
+          ]).broadleafFactorAround(centerLat, centerLon),
+          (factor: 1.0, forestShare: 1.0));
+      expect(
+          gridOf([
+            [101, 101, 101],
+            [101, 101, 101],
+            [101, 101, 101],
+          ]).broadleafFactorAround(centerLat, centerLon),
+          (factor: 0.0, forestShare: 1.0));
+      final misch = gridOf([
+        [51, 51, 51],
+        [51, 51, 51],
+        [51, 51, 51],
+      ]).broadleafFactorAround(centerLat, centerLon);
+      expect(misch!.factor, closeTo(0.5, 1e-9),
+          reason: 'Misch zählt wie 50/50 — die Idee des Betreibers');
+    });
+
+    test('der Umkreis mittelt über die Zellen, die der Kreis schneidet',
+        () {
+      // Mittelzelle reiner Laub, acht Nachbarn reiner Nadel: Mit den
+      // 200 m Standard sind alle neun drin → 1/9. Mit kleinem Radius
+      // zählt nur die Mittelzelle → 1,0. DER Unterschied ist die
+      // Rechteck-Schnitt-Regel: Nur Zell-MITTELPUNKTE im Radius wären
+      // bei 250-m-Zellen fast immer eine einzige Zelle.
+      final grid = gridOf([
+        [101, 101, 101],
+        [101, 1, 101],
+        [101, 101, 101],
+      ]);
+      final wide = grid.broadleafFactorAround(centerLat, centerLon);
+      expect(wide!.factor, closeTo(1 / 9, 1e-9));
+      expect(wide.forestShare, 1.0);
+      final narrow = grid.broadleafFactorAround(centerLat, centerLon,
+          radiusMeters: 50);
+      expect(narrow!.factor, 1.0);
+    });
+
+    test('kein Wald, keine Daten, außerhalb', () {
+      final baumlos = gridOf([
+        [0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0],
+      ]).broadleafFactorAround(centerLat, centerLon);
+      expect(baumlos, (factor: null, forestShare: 0.0),
+          reason: '„kein Wald" ist eine Aussage, kein Fehlen');
+      expect(
+          gridOf([
+            [255, 255, 255],
+            [255, 255, 255],
+            [255, 255, 255],
+          ]).broadleafFactorAround(centerLat, centerLon),
+          isNull,
+          reason: 'ohne Daten gibt es nichts zu behaupten');
+      expect(
+          gridOf([
+            [1, 1, 1],
+            [1, 1, 1],
+            [1, 1, 1],
+          ]).broadleafFactorAround(20, -30),
+          isNull);
+    });
+
+    test('Waldanteil zählt getrennt vom Faktor', () {
+      // Vier Waldzellen (Laub) unter neun: Faktor bleibt 1,0 — der
+      // Wald, den es gibt, IST Laub — und der Anteil sagt 4/9.
+      final result = gridOf([
+        [1, 0, 1],
+        [0, 0, 0],
+        [1, 0, 1],
+      ]).broadleafFactorAround(centerLat, centerLon);
+      expect(result!.factor, 1.0);
+      expect(result.forestShare, closeTo(4 / 9, 1e-9));
     });
   });
 }

@@ -7,6 +7,25 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Legende misst jetzt mit
+
+*8. August 2026 · Version 1.64.0*
+
+Die Legende zeigt jetzt die Werte an der Stelle des Fadenkreuzes — als
+Strich direkt auf ihren Skalen, sobald die Karte zum Stehen kommt:
+
+- **Regen:** Bei den Summen-Ebenen steht der Millimeterwert der
+  Kartenmitte im Titel, und ein Strich markiert ihn auf der Farbskala.
+- **Wald:** Die Waldtypen-Legende ist zu einer Skala von Laub bis Nadel
+  geworden. Ein Strich zeigt den **Laubfaktor** im 200-m-Umkreis des
+  Fadenkreuzes (1 = reiner Laubwald, 0 = reiner Nadelwald — Mischwald
+  zählt anteilig), daneben steht, wie viel der Umgebung überhaupt Wald
+  ist. So siehst du beim Verschieben der Karte sofort, ob sich die
+  Fahrt in dieses Waldstück lohnt.
+
+Gerechnet wird bewusst erst, wenn die Karte stillsteht — das Schieben
+selbst bleibt flüssig.
+
 ## Wald und Regen zusammen, klarere Farben, Legende auf der Karte
 
 *8. August 2026 · Version 1.63.0*

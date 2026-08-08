@@ -19,6 +19,7 @@
 // verschifft lassen sie sich in Dart nachstellen, ohne dass CI neu
 // rechnet. Dieselbe Begründung, mit der das Regen-Gitter Werte statt
 // Konturlinien transportiert.
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
@@ -148,7 +149,77 @@ class ForestGrid {
 
   /// Rohwert einer Zelle, für Tests und Werkzeuge.
   int byteAt(int x, int y) => values[y * width + x];
+
+  /// Der Laubfaktor des Waldes im Umkreis (#235): 1 = reiner Laub-,
+  /// 0 = reiner Nadelwald. Je Waldzelle zählt ihr ECHTER Nadelanteil —
+  /// eine 60/40-Zelle geht mit 0,4 ein statt pauschal als „Misch 0,5";
+  /// die Idee des Betreibers (Misch = 50/50) ist damit der Spezialfall.
+  ///
+  /// [forestShare] ist der Waldanteil an der Umkreisfläche — getrennt
+  /// vom Faktor, damit Zusammensetzung und Bedeckung nicht in einer
+  /// Zahl verschwimmen (Entscheidung 2026-08-08). `factor` ist `null`,
+  /// wenn im Umkreis kein Wald steht; Rückgabe insgesamt `null`, wenn
+  /// dort gar keine Daten liegen (außerhalb DACH, Gitterrand).
+  ///
+  /// Gezählt wird jede Zelle, deren FLÄCHE den Kreis schneidet — nicht
+  /// nur die, deren Mittelpunkt hineinfällt: Bei 250-m-Zellen und
+  /// 200 m Radius wäre das sonst oft eine einzige Zelle, und der
+  /// „Umkreis" stünde nur auf dem Papier. Gerechnet lokal flach in
+  /// Metern; auf 200 m ist die Erdkrümmung kein Argument.
+  ({double? factor, double forestShare})? broadleafFactorAround(
+      double lat, double lon,
+      {double radiusMeters = crosshairRadiusMeters}) {
+    const metersPerDegree = 111320.0;
+    final cellHeightMeters = (north - south) / height * metersPerDegree;
+    final cellWidthMeters = (east - west) /
+        width *
+        metersPerDegree *
+        math.cos(lat * math.pi / 180);
+    if (cellHeightMeters <= 0 || cellWidthMeters <= 0) return null;
+
+    final centerX = (lon - west) / (east - west) * width;
+    final centerY = (north - lat) / (north - south) * height;
+    final spanX = (radiusMeters / cellWidthMeters).ceil() + 1;
+    final spanY = (radiusMeters / cellHeightMeters).ceil() + 1;
+
+    var counted = 0;
+    var forest = 0;
+    var broadleafSum = 0.0;
+    for (var y = (centerY - spanY).floor();
+        y <= (centerY + spanY).floor();
+        y++) {
+      if (y < 0 || y >= height) continue;
+      for (var x = (centerX - spanX).floor();
+          x <= (centerX + spanX).floor();
+          x++) {
+        if (x < 0 || x >= width) continue;
+        // Abstand Punkt ↔ Zellrechteck in Metern; 0 heißt „Punkt liegt
+        // in der Zelle". Schneidet das Rechteck den Kreis nicht, ist
+        // die Zelle draußen.
+        final dx = math.max(0.0, ((centerX - (x + 0.5)).abs() - 0.5)) *
+            cellWidthMeters;
+        final dy = math.max(0.0, ((centerY - (y + 0.5)).abs() - 0.5)) *
+            cellHeightMeters;
+        if (dx * dx + dy * dy > radiusMeters * radiusMeters) continue;
+        final value = values[y * width + x];
+        if (value == forestNoData) continue;
+        counted++;
+        if (value == forestNoForest) continue;
+        forest++;
+        broadleafSum += 1 - (value - 1) / 100;
+      }
+    }
+    if (counted == 0) return null;
+    return (
+      factor: forest == 0 ? null : broadleafSum / forest,
+      forestShare: forest / counted,
+    );
+  }
 }
+
+/// Der Umkreis der Fadenkreuz-Werte (#235). Fest statt einstellbar —
+/// ein Regler kommt erst, wenn das Feld zeigt, dass 200 m nicht passen.
+const crosshairRadiusMeters = 200.0;
 
 /// Byte → Klasse, die EINE Stelle für die Schwellen.
 ForestClass classOfByte(int value) {

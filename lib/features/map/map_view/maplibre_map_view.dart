@@ -353,7 +353,16 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
         }
         // Culling bei Kamera-Idle, NICHT pro Frame: Zwischen zwei
         // Idle-Momenten bewegt die Engine die eingebauten Marker selbst.
-        if (event is ml.MapEventCameraIdle) _updateVisibleBounds();
+        // Am selben Ereignis hängen die Fadenkreuz-Werte (#235) — auch
+        // sie rechnen bewusst nur bei Stillstand.
+        if (event is ml.MapEventCameraIdle) {
+          _updateVisibleBounds();
+          final camera = _ml?.camera;
+          if (camera != null) {
+            widget.config.onCameraIdle?.call(LatLng(
+                camera.center.lat.toDouble(), camera.center.lon.toDouble()));
+          }
+        }
       },
       children: [
         // Maßstab und dauerhafte Quellen-Attribution (ODbL-Rechtspflicht;

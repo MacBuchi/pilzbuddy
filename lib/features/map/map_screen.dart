@@ -438,6 +438,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
               onLongPress: longPressEnabled
                   ? (latLng) => _map.move(latLng, math.max(_map.zoom, 16))
                   : null,
+              // Fadenkreuz-Werte (#235): Die Legende rechnet an dieser
+              // Mitte — nur bei Stillstand, nie während der Geste.
+              onCameraIdle: (center) =>
+                  ref.read(mapIdleCenterProvider.notifier).state = center,
             ),
             markers: MapViewMarkers(
               myPosition: [

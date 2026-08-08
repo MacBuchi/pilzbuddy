@@ -18,6 +18,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../../core/app_colors.dart';
 import '../../../core/errors.dart';
@@ -50,6 +51,12 @@ final mapLegendEnabledProvider =
     NotifierProvider<MapLegendEnabledNotifier, bool>(
         MapLegendEnabledNotifier.new);
 
+/// Die Kartenmitte beim letzten Kamera-Stillstand (#235) — gesetzt vom
+/// Karten-Screen über [MapViewConfig.onCameraIdle], `null` bis zum
+/// ersten Stillstand. BEWUSST nicht die laufende Kameraposition: Die
+/// Fadenkreuz-Werte rechnen nur, wenn die Karte steht.
+final mapIdleCenterProvider = StateProvider<LatLng?>((ref) => null);
+
 class MapLegend extends ConsumerWidget {
   const MapLegend({super.key});
 
@@ -69,6 +76,21 @@ class MapLegend extends ConsumerWidget {
         ref.watch(forestGridProvider).valueOrNull != null;
     if (!showRain && !showForest) return const SizedBox.shrink();
 
+    // Die Fadenkreuz-Werte (#235): gerechnet an der Mitte des LETZTEN
+    // Kamera-Stillstands — nicht an der laufenden Position, das wäre
+    // eine Rechnung pro Frame während der Geste.
+    final center = ref.watch(mapIdleCenterProvider);
+    final grid = ref.watch(forestGridProvider).valueOrNull;
+    final around = (showForest && center != null && grid != null)
+        ? grid.broadleafFactorAround(center.latitude, center.longitude)
+        : null;
+    final rainMm = (showRain && center != null)
+        ? ref
+            .watch(rainGridProvider(rainLayer))
+            .valueOrNull
+            ?.mmAt(center.latitude, center.longitude)
+        : null;
+
     return Padding(
       // Über dem Maßstab, der unten links sitzt.
       padding: const EdgeInsets.only(left: 12, bottom: 44),
@@ -87,9 +109,10 @@ class MapLegend extends ConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (showRain) _RainSection(layer: rainLayer),
+                  if (showRain) _RainSection(layer: rainLayer, mm: rainMm),
                   if (showRain && showForest) const SizedBox(height: 6),
-                  if (showForest) _ForestSection(classes: forestClasses),
+                  if (showForest)
+                    _ForestSection(classes: forestClasses, around: around),
                 ],
               ),
               // Das X merkt sich die Entscheidung (persistent); zurück
@@ -114,21 +137,45 @@ class MapLegend extends ConsumerWidget {
   }
 }
 
+/// Wo auf der Stufenskala ein Messwert liegt, als Anteil 0..1 — `null`
+/// unterhalb der ersten Stufe (dort ist die Karte farblos, ein Strich
+/// am Skalenanfang behauptete sonst „mindestens Stufe eins").
+///
+/// Innerhalb eines Bandes linear, oberhalb der letzten Stufe ans Ende
+/// geklemmt — die Skala endet dort ohnehin mit „+".
+double? rainMarkerFraction(int mm, List<int> levels) {
+  if (levels.isEmpty || mm < levels.first) return null;
+  for (var i = levels.length - 1; i >= 0; i--) {
+    if (mm >= levels[i]) {
+      if (i == levels.length - 1) return 1;
+      final band = (mm - levels[i]) / (levels[i + 1] - levels[i]);
+      return (i + band) / levels.length;
+    }
+  }
+  return null;
+}
+
 class _RainSection extends ConsumerWidget {
-  const _RainSection({required this.layer});
+  const _RainSection({required this.layer, required this.mm});
 
   final RainLayer layer;
+
+  /// Der Wert am Fadenkreuz (#235) — `null` ohne Gitter oder außerhalb.
+  final int? mm;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final levels = rainLevelsFor(layer);
     final theme = Theme.of(context);
+    final barWidth = 16.0 * levels.length;
+    final fraction = mm == null ? null : rainMarkerFraction(mm!, levels);
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          layer.label,
+          // Der Messwert direkt im Titel — die Zahl zum Strich unten.
+          mm == null ? layer.label : '${layer.label} · hier $mm mm',
           // Grün wie die anderen Überschriften seit dem
           // Betreiber-Vorschlag 2026-08-05; die Ticks darunter bleiben
           // barkBrown — Text auf Cream, beide Themen.
@@ -138,16 +185,38 @@ class _RainSection extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 3),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final (index, _) in levels.indexed)
-              Container(
-                width: 16,
-                height: 9,
-                color: AppColors.rainLine(index).withAlpha(rainFillAlpha),
+        SizedBox(
+          width: barWidth,
+          height: 11,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned(
+                top: 1,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (final (index, _) in levels.indexed)
+                      Container(
+                        width: 16,
+                        height: 9,
+                        color: AppColors.rainLine(index)
+                            .withAlpha(rainFillAlpha),
+                      ),
+                  ],
+                ),
               ),
-          ],
+              // Der Strich zum Fadenkreuz-Wert (#235).
+              if (fraction != null)
+                Positioned(
+                  key: const Key('legend-rain-marker'),
+                  left: (fraction * barWidth).clamp(1.0, barWidth - 1) - 1,
+                  top: -1,
+                  child: Container(
+                      width: 2, height: 13, color: AppColors.barkBrown),
+                ),
+            ],
+          ),
         ),
         const SizedBox(height: 2),
         Row(
@@ -158,7 +227,7 @@ class _RainSection extends ConsumerWidget {
             // übereinander, und die genauen Werte stehen ohnehin an den
             // Bandgrenzen in der Karte.
             Text('${levels.first}', style: _tick(theme)),
-            SizedBox(width: 16.0 * levels.length - 34),
+            SizedBox(width: barWidth - 34),
             Text('${levels.last}+ mm', style: _tick(theme)),
           ],
         ),
@@ -170,48 +239,96 @@ class _RainSection extends ConsumerWidget {
 /// Die eingeblendeten Waldklassen — nur die gewählten (#231): Eine
 /// Legende, die Farben erklärt, die gerade gar nicht auf der Karte
 /// liegen, wäre eine kleine Lüge.
+/// Die Wald-Sektion als SKALA von Laub (links) nach Nadel (rechts) —
+/// seit #235 mit dem Messstrich des Fadenkreuz-Umkreises direkt darauf.
+/// Abgewählte Klassen (#231) bleiben als blasse Segmente stehen: Die
+/// Skala ist die Achse des Laubfaktors, sie darf keine Lücken haben —
+/// aber sie sagt ehrlich, welche Farben gerade NICHT auf der Karte
+/// liegen.
 class _ForestSection extends StatelessWidget {
-  const _ForestSection({required this.classes});
+  const _ForestSection({required this.classes, required this.around});
 
   final Set<ForestClass> classes;
+
+  /// Ergebnis von [ForestGrid.broadleafFactorAround] am Fadenkreuz —
+  /// `null` ohne Stillstand oder außerhalb der Abdeckung.
+  final ({double? factor, double forestShare})? around;
+
+  static const _segmentWidth = 36.0;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    const barWidth = _segmentWidth * 3;
+    final factor = around?.factor;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Waldtypen',
+          switch (around) {
+            null => 'Waldtypen',
+            (factor: null, forestShare: _) => 'Waldtypen · hier kein Wald',
+            (:final factor?, :final forestShare) => 'Waldtypen · Laubfaktor '
+                '${factor.toStringAsFixed(2).replaceAll('.', ',')}'
+                ' · Wald ${(forestShare * 100).round()} %',
+          },
           style: theme.textTheme.labelSmall?.copyWith(
             color: theme.colorScheme.primary,
             fontSize: 10,
           ),
         ),
         const SizedBox(height: 3),
-        for (final (forestClass, label) in const [
-          (ForestClass.broadleaf, 'Laub'),
-          (ForestClass.mixed, 'Misch'),
-          (ForestClass.conifer, 'Nadel'),
-        ])
-          if (classes.contains(forestClass))
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 1),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 16,
-                    height: 9,
-                    color: forestClassColor(forestClass)
-                        .withValues(alpha: 0.55),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(label, style: _tick(theme)),
-                ],
+        SizedBox(
+          width: barWidth,
+          height: 11,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned(
+                top: 1,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (final forestClass in const [
+                      ForestClass.broadleaf,
+                      ForestClass.mixed,
+                      ForestClass.conifer,
+                    ])
+                      Container(
+                        width: _segmentWidth,
+                        height: 9,
+                        color: forestClassColor(forestClass).withValues(
+                            alpha:
+                                classes.contains(forestClass) ? 0.55 : 0.15),
+                      ),
+                  ],
+                ),
               ),
-            ),
+              // Der Messstrich (#235): Faktor 1 = Laub = linkes Ende.
+              if (factor != null)
+                Positioned(
+                  key: const Key('legend-forest-marker'),
+                  left:
+                      ((1 - factor) * barWidth).clamp(1.0, barWidth - 1) - 1,
+                  top: -1,
+                  child: Container(
+                      width: 2, height: 13, color: AppColors.barkBrown),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 2),
+        SizedBox(
+          width: barWidth,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Laub', style: _tick(theme)),
+              Text('Nadel', style: _tick(theme)),
+            ],
+          ),
+        ),
       ],
     );
   }

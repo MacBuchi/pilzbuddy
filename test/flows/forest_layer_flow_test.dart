@@ -5,9 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pilzbuddy/core/app_colors.dart';
 import 'package:pilzbuddy/features/map/forest_data_providers.dart';
 import 'package:pilzbuddy/features/map/forest_grid.dart';
 import 'package:pilzbuddy/features/map/rain_layer.dart';
+import 'package:pilzbuddy/features/map/widgets/map_legend.dart'
+    show mapIdleCenterProvider;
 
 import '../fakes/fake_backend.dart';
 import '../fakes/fake_settings.dart';
@@ -140,9 +143,18 @@ void main() {
     expect(png.pixels[png.width * 4 + 3], isPositive,
         reason: 'Zeile 1 (Nadel) bleibt');
 
-    // Und die Karten-Legende nennt nur noch die gewählte Klasse.
-    expect(find.text('Nadel'), findsOneWidget);
-    expect(find.text('Laub'), findsNothing);
+    // Die Karten-Legende ist seit #235 eine Skala: Ihre Achsen-Enden
+    // bleiben stehen, aber die abgewählten Segmente sind blass.
+    expect(find.text('Laub'), findsOneWidget,
+        reason: 'Achsen-Label der Skala, keine Klassen-Zeile');
+    Container segmentOf(Color colour, double alpha) =>
+        tester.widget<Container>(find.byWidgetPredicate((w) =>
+            w is Container &&
+            w.color == colour.withValues(alpha: alpha)));
+    expect(segmentOf(AppColors.forestConifer, 0.55), isNotNull,
+        reason: 'gewählte Klasse voll sichtbar');
+    expect(segmentOf(AppColors.forestBroadleaf, 0.15), isNotNull,
+        reason: 'abgewählte Klasse blass');
   });
 
   testWidgets('die Karten-Legende zeigt aktive Ebenen; das X merkt sich '
@@ -157,13 +169,13 @@ void main() {
     await tester.runAsync(() => container.read(forestGridProvider.future));
     container.read(forestLayerEnabledProvider.notifier).state = true;
     await settle(tester);
-    expect(find.text('Misch'), findsOneWidget,
+    expect(find.text('Waldtypen'), findsOneWidget,
         reason: 'Legende liegt auf der Karte');
 
     // Das X blendet aus — persistent.
     await tester.tap(find.byTooltip('Legende ausblenden'));
     await settle(tester);
-    expect(find.text('Misch'), findsNothing);
+    expect(find.text('Waldtypen'), findsNothing);
     expect(settings.mapLegendEnabled, isFalse,
         reason: 'das X überlebt den Neustart');
 
@@ -178,8 +190,35 @@ void main() {
     await settle(tester);
     await tester.tapAt(const Offset(20, 20));
     await settle(tester);
-    expect(find.text('Misch'), findsOneWidget);
+    expect(find.text('Waldtypen'), findsOneWidget);
     expect(settings.mapLegendEnabled, isTrue);
+  });
+
+  testWidgets('Fadenkreuz-Werte: Kamera-Stillstand setzt den Messstrich '
+      'in die Legende (#235)', (tester) async {
+    // Echte Karte: flutter_map meldet onMapReady und MoveEnd — daran
+    // hängt der Idle-Provider, an dem die Legende rechnet.
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend,
+        useRealMap: true, extraOverrides: withGrid(testGrid()));
+    final container = containerOf(tester);
+
+    await tester.runAsync(() => container.read(forestGridProvider.future));
+    container.read(forestLayerEnabledProvider.notifier).state = true;
+    await settle(tester);
+
+    // onMapReady hat die Startmitte gemeldet (Zeile 0 des Gitters:
+    // Byte 11 = 10 % Nadel → Laubfaktor 0,90) — Strich und Titelwert da.
+    expect(container.read(mapIdleCenterProvider), isNotNull,
+        reason: 'die Karte meldet ihre Mitte beim Bereitwerden');
+    expect(find.textContaining('Laubfaktor 0,90'), findsOneWidget);
+    expect(find.byKey(const Key('legend-forest-marker')), findsOneWidget);
+
+    // Karte nach Norden ziehen → Mitte wandert nach SÜDEN in Zeile 1
+    // (Byte 96 = 95 % Nadel → 0,05). Der Wert folgt dem Stillstand.
+    await tester.drag(find.byType(FlutterMap), const Offset(0, -220));
+    await settle(tester);
+    expect(find.textContaining('Laubfaktor 0,05'), findsOneWidget);
   });
 
   testWidgets('Die Spot-Zeile nennt die Klasse am Spot', (tester) async {
