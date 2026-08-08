@@ -72,7 +72,27 @@ USER_AGENT = "pilzbuddy-forest-grid (github.com/MacBuchi/pilzbuddy)"
 BOUNDS = (5.8, 45.7, 17.3, 55.1)
 
 # Aggregation: 25 × 25 Quellpixel (10 m) je Zelle ≈ 250 m.
+#
+# Über `--cell-factor` umstellbar, weil die Quelle 10 m liefert und die
+# Frage „wie fein geht es, und was kostet das?" nur eine Messung
+# beantwortet (Feldbericht 2026-08-09: 250-m-Zellen sind auf der Karte
+# grob, und der Laubfaktor-Umkreis muss deshalb groß sein). Beide
+# Warp-Achsen müssen durch den Faktor teilbar bleiben — sonst fielen am
+# Rand Pixel unter den Tisch, ohne dass es jemand merkt; `set_cell_factor`
+# prüft das.
 CELL_FACTOR = 25
+
+
+def set_cell_factor(factor):
+    """Stellt die Aggregation um und prüft, ob das Zielraster aufgeht."""
+    global CELL_FACTOR
+    if factor < 1:
+        raise ValueError("cell-factor muss mindestens 1 sein")
+    if WARP_WIDTH % factor or WARP_HEIGHT % factor:
+        raise ValueError(
+            f"cell-factor {factor} teilt das Zielraster nicht glatt "
+            f"({WARP_WIDTH}×{WARP_HEIGHT}) — am Rand fielen Pixel weg")
+    CELL_FACTOR = factor
 
 # Ab diesem Baumanteil (unter den gültigen Pixeln der Zelle) gilt sie als
 # Wald. 20 %: Ein lichter Bestand zählt noch, eine Baumreihe am Feldrand
@@ -263,13 +283,17 @@ def gdal_band(path, x, y, w, h, out_path):
 # build: Quell-Raster → Gitter + Manifest
 # ---------------------------------------------------------------------------
 
-def build(source, year, out_dir, band_rows=2000,
+def build(source, year, out_dir, band_rows=None,
           info_fn=None, band_fn=None):
     """Aggregiert das (komprimierte) Quell-GeoTIFF bandweise.
 
     `band_rows` ist ein Vielfaches von CELL_FACTOR (geprüft), damit keine
-    Zelle über eine Bandgrenze läuft.
+    Zelle über eine Bandgrenze läuft. Ohne Angabe rund 2000 Zeilen, auf
+    das nächste Vielfache abgerundet — sonst müsste jeder neue
+    `--cell-factor` auch noch diese Zahl mitbringen.
     """
+    if band_rows is None:
+        band_rows = max(CELL_FACTOR, 2000 // CELL_FACTOR * CELL_FACTOR)
     if band_rows % CELL_FACTOR:
         raise ValueError("band_rows muss ein Vielfaches von CELL_FACTOR sein")
     os.makedirs(out_dir, exist_ok=True)
@@ -793,6 +817,19 @@ def _fake_tiff_u8(rows, tiled=False):
 
 
 def self_test():
+    # Die Selbsttests rechnen gegen den STANDARD-Faktor, auch wenn der
+    # Aufruf einen anderen mitbringt: Ihre erwarteten Zahlen (Zellgrößen,
+    # Blockmuster) gehören zu 25 — mit einem umgestellten Faktor prüften
+    # sie nichts mehr, sondern scheiterten nur anders.
+    previous = CELL_FACTOR
+    set_cell_factor(25)
+    try:
+        _self_test()
+    finally:
+        set_cell_factor(previous)
+
+
+def _self_test():
     # Kodierung: Roundtrip mit Zeilen, die verschieden anfangen.
     rows = [bytes([0, 50, 101]), bytes([101, 1, 0]), bytes([255, 255, 80])]
     assert decode(encode(rows), 3, 3) == rows
@@ -1062,7 +1099,14 @@ def main():
     parser.add_argument("--key")
     parser.add_argument("--out", default="build/forest")
     parser.add_argument("--samples", type=int, default=24)
+    parser.add_argument("--cell-factor", type=int, default=CELL_FACTOR,
+                        help="Quellpixel je Zelle (25 = ~250 m, "
+                             "10 = ~100 m). Größere Gitter sind größere "
+                             "Dateien — genau deshalb messbar.")
     args = parser.parse_args()
+
+    if args.cell_factor != CELL_FACTOR:
+        set_cell_factor(args.cell_factor)
 
     if args.self_test:
         self_test()
