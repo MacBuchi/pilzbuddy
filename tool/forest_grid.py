@@ -11,27 +11,21 @@ Datenweg (Standard): **Direktdownload** der COG-Kacheln aus dem
 CDSE-Objektspeicher (s3://eodata) — die anonyme Granulat-Liste nennt
 Kacheln, Größen, MD5 und Bounding Boxes, bestellt wird nichts. Braucht
 das CDSE-S3-Schlüsselpaar (Secrets CDSE_S3_ACCESS_KEY/_SECRET_KEY).
-Der frühere Bestell-Weg über die CLMS-Download-API (`fetch-order`,
-Secret CLMS_SERVICE_KEY) bleibt übergangsweise erhalten; warum er
-verlassen wurde, dokumentieren die sechs Echtläufe in der Git-Historie
-(FME-Queue mit Stunden-Latenz, bei jedem Quartalslauf erneut).
+Der frühere Bestell-Weg über die CLMS-Download-API (JWT-Service-Key,
+@datarequest_post, stundenlanges Queue-Polling) wurde nach dem ersten
+erfolgreichen Direktweg-Lauf entfernt; die Git-Historie der sechs
+Echtläufe dokumentiert ihn samt aller Fallen.
 
-Erklärte Abweichungen von der Stdlib-Regel des Regen-Werkzeugs
-(`rain_grid.py`), alle nur im Quartals-Workflow und nie in der App:
-
-1. Nur noch fetch-order: Der Token-Tausch der CLMS-API ist ein
-   RS256-signiertes JWT → `pip install pyjwt cryptography` im Workflow.
-   RSA von Hand wäre Leichtsinn. Der Import liegt in der Funktion,
-   damit `--self-test` ohne die Pakete läuft. Stirbt mit fetch-order.
-2. GDAL als Dekompressor UND Reprojektor: Die Kacheln sind EPSG:3035
-   (LAEA) und die App rechnet linear in Grad — `gdalwarp -r near`
-   macht daraus einmal ein EPSG:4326-Raster (nearest, weil die Werte
-   Klassen sind). Danach bandweise `gdal_translate -srcwin`, der
-   eigene strenge Reader, Aggregation von Hand — GDAL ist nie der
-   Rechner, und --verify rechnet gegen das gewarpte Raster nach.
-   Der Download läuft über die AWS-CLI (auf den Runnern
-   vorinstalliert), verifiziert gegen HeadObject des TIFF-Objekts
-   (Größe, plus MD5 übers ETag bei Nicht-Multipart-Uploads).
+Erklärte Abweichung von der Stdlib-Regel des Regen-Werkzeugs
+(`rain_grid.py`), nur im Quartals-Workflow und nie in der App:
+GDAL als Mosaik- und Reprojektionswerkzeug. Die Kacheln sind EPSG:3035
+(LAEA) und die App rechnet linear in Grad — `gdalwarp -r near` macht
+daraus einmal ein EPSG:4326-Raster (nearest, weil die Werte Klassen
+sind). Danach bandweise `gdal_translate -srcwin`, der eigene strenge
+Reader, Aggregation von Hand — GDAL ist nie der Rechner, und --verify
+rechnet gegen das gewarpte Raster nach. Der Download läuft über die
+AWS-CLI (auf den Runnern vorinstalliert), verifiziert gegen HeadObject
+des TIFF-Objekts (Größe, plus MD5 übers ETag bei Nicht-Multipart).
 
 Byte-Vertrag je 250-m-Zelle (das Pendant liest
 `lib/features/map/forest_grid.dart`):
@@ -45,17 +39,14 @@ DLT-Pixelwerte der Quelle: 0 = kein Baum, 1 = Laub, 2 = Nadel,
 Nutzung:
   python3 tool/forest_grid.py --self-test
   python3 tool/forest_grid.py build --source dlt.tif --year 2024 --out build/forest
-  python3 tool/forest_grid.py fetch --out build/forest          # Direktweg (S3-Env)
-  python3 tool/forest_grid.py fetch-order --key service_key.json --out build/forest
+  python3 tool/forest_grid.py fetch --out build/forest   # braucht S3-Env
   python3 tool/forest_grid.py verify --source dlt.tif --out build/forest
 """
 
 from __future__ import annotations
 
 import argparse
-import calendar
 import csv
-import datetime
 import gzip
 import hashlib
 import io
@@ -63,14 +54,11 @@ import json
 import os
 import random
 import re
-import shutil
 import struct
 import subprocess
 import sys
 import tempfile
-import time
 import urllib.error
-import urllib.parse
 import urllib.request
 
 CLMS_BASE = "https://land.copernicus.eu"
@@ -417,65 +405,13 @@ def verify(source, out_dir, samples=24, band_fn=None):
 
 
 # ---------------------------------------------------------------------------
-# fetch: CLMS-Download-API (braucht Service-Key; nur im Workflow)
+# fetch: Direktweg über den CDSE-Objektspeicher (nur im Workflow)
 # ---------------------------------------------------------------------------
-
-def clms_token(key_path):
-    """Service-Key-JSON → kurzlebiges Bearer-Token (RS256-JWT-Grant)."""
-    import jwt  # noqa: PLC0415 — bewusst hier, siehe Kopfkommentar
-
-    with open(key_path) as f:
-        key = json.load(f)
-    now = int(time.time())
-    grant = jwt.encode(
-        {
-            "iss": key["client_id"],
-            "sub": key["user_id"],
-            "aud": key["token_uri"],
-            "iat": now,
-            "exp": now + 3600,
-        },
-        key["private_key"],
-        algorithm="RS256",
-    )
-    body = urllib.parse.urlencode({
-        "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
-        "assertion": grant,
-    }).encode()
-    request = urllib.request.Request(
-        key["token_uri"], data=body,
-        headers={"Content-Type": "application/x-www-form-urlencoded"})
-    with urllib.request.urlopen(request, timeout=60) as response:
-        return json.load(response)["access_token"]
-
-
-class ClmsSession:
-    """Hält das Bearer-Token frisch, statt eines durchzureichen.
-
-    CLMS-Tokens leben eine Stunde, die Download-Queue braucht gern
-    länger: Der erste Echtlauf bestellte korrekt, pollte 61 Minuten
-    „In_progress" und starb dann an einem 401 — abgelaufenes Token,
-    kein Rechteproblem. fresh() mintet deshalb nach 45 Minuten neu,
-    deutlich vor dem Ablauf; ein Mint ist ein einzelner HTTPS-Aufruf.
-    """
-
-    refresh_after_seconds = 45 * 60
-
-    def __init__(self, key_path, now_fn=time.time, mint_fn=None):
-        # now_fn/mint_fn nur für den Selbsttest — wie info_fn/band_fn
-        # beim Build: die Logik läuft netzfrei, der Echtweg unverändert.
-        self._now = now_fn
-        self._mint = mint_fn or (lambda: clms_token(key_path))
-        self._token = None
-        self._minted = 0.0
-
-    def fresh(self):
-        age = self._now() - self._minted
-        if self._token is None or age > self.refresh_after_seconds:
-            self._token = self._mint()
-            self._minted = self._now()
-        return self._token
-
+# Der frühere Bestell-Weg über die CLMS-Download-API (JWT-Token,
+# @datarequest_post, Polling, Auftrags-Übernahme) wurde nach dem ersten
+# erfolgreichen Direktweg-Lauf entfernt — die FME-Queue brauchte für den
+# 10-m-Jahrgang über sechs Stunden ohne Zusage. Die Git-Historie der
+# sechs Echtläufe dokumentiert ihn samt seiner Fallen.
 
 def clms_json(path, token=None, payload=None):
     headers = {"Accept": "application/json"}
@@ -587,17 +523,6 @@ def granule_csv_text(full_path, fetch_fn=None):
     return fetch_fn(match.group(1))
 
 
-def newest_reference_year(full_path, fetch_fn=None):
-    """Neuestes WIRKLICH vorhandenes Jahr der offenen Reihe.
-
-    Der Katalogeintrag nennt als Abdeckung auch geplante Jahre (Stand
-    2026-08 listet er bis „2026", Granulate liegen bis 2024). Was es
-    gibt, steht in der Granulat-Liste — ein geratenes Jahr kostet beim
-    Bestell-Weg einen ganzen Queue-Umlauf, deshalb nachsehen.
-    """
-    return newest_year_in_csv(granule_csv_text(full_path, fetch_fn))
-
-
 def select_tiles(csv_text, year, bounds):
     """Kacheln des Jahres, deren Bounding Box das Zielgebiet schneidet.
 
@@ -661,213 +586,6 @@ def search_dataset(token=None):
         raise SystemExit("fetch: Datensatz ohne Download-Information — "
                          "Suchantwort prüfen")
     return open_ended, year, uid, download
-
-
-def find_dataset(session):
-    """Bestell-Weg: Datensatz, Download-Id und echtes Bezugsjahr."""
-    open_ended, year, uid, download = search_dataset(session.fresh())
-    if open_ended:
-        full_path = download.get("full_path")
-        if not full_path:
-            raise SystemExit("fetch: offene Reihe ohne full_path — "
-                             "Suchantwort prüfen")
-        year = newest_reference_year(full_path)
-    return open_ended, year, uid, download["@id"]
-
-
-def year_window_ms(year):
-    """Epoch-Millisekunden [1. Jan, 31. Dez] eines Jahres in UTC.
-
-    Das Format des TemporalFilter laut API-Doku; das Fenster bleibt
-    unter deren Grenze von 366 Tagen (download_limit_temporal_extent).
-    """
-    start = calendar.timegm((year, 1, 1, 0, 0, 0, 0, 0, 0))
-    end = calendar.timegm((year, 12, 31, 0, 0, 0, 0, 0, 0))
-    return start * 1000, end * 1000
-
-
-def request_download(session, uid, download_id, year_filter=None):
-    west, south, east, north = BOUNDS
-    dataset = {
-        "DatasetID": uid,
-        "DatasetDownloadInformationID": download_id,
-        "OutputFormat": "Geotiff",
-        "OutputGCS": "EPSG:4326",
-        # Reihenfolge nach dem KONKRETEN BEISPIEL der API-Doku:
-        # [W, N, E, S]. Deren Prosa behauptet [max.lat, max.lon,
-        # min.lat, min.lon] und widerspricht dem eigenen Beispiel
-        # ([2.35, 46.85, 4.64, 45.88] ist erkennbar Frankreich,
-        # also Länge, Breite, Länge, Breite).
-        "BoundingBox": [west, north, east, south],
-    }
-    if year_filter is not None:
-        # Ohne Zeitfenster wäre bei der Jahres-Reihe unklar, welcher
-        # Jahrgang kommt — dieselbe stille Falle wie beim Regen-WCS
-        # (dort verschmolz GeoServer kommentarlos alle Granulate).
-        start, end = year_window_ms(year_filter)
-        dataset["TemporalFilter"] = {"StartDate": start, "EndDate": end}
-    result = clms_json("/api/@datarequest_post", token=session.fresh(),
-                       payload={"Datasets": [dataset]})
-    return str(result["TaskIds"][0]["TaskID"]) if "TaskIds" in result \
-        else str(result["TaskID"])
-
-
-def filter_year(value):
-    """Jahr aus einem TemporalFilter-Datum der API.
-
-    Bestellt wird in Epoch-Millisekunden, aber @datarequest_search gibt
-    Strings wie „2019-01-01 10:00:00" zurück — genau daran scheiterte
-    Lauf 5: int() warf, der laufende Auftrag galt als fremd, die
-    Neubestellung wurde von CLMS als Duplikat abgewiesen.
-    """
-    if value is None:
-        return None
-    if isinstance(value, (int, float)):
-        try:
-            return time.gmtime(value / 1000).tm_year
-        except (ValueError, OverflowError, OSError):
-            return None
-    text = str(value).strip()
-    match = re.match(r"(\d{4})-", text)
-    if match:
-        return int(match.group(1))
-    if text.isdigit():
-        try:
-            return time.gmtime(int(text) / 1000).tm_year
-        except (ValueError, OverflowError, OSError):
-            return None
-    return None
-
-
-def task_matches(task, uid, year_filter):
-    """Ist dieser Auftrag unsere Bestellung (Datensatz + Jahrgang)?
-
-    Der Service-Key wird ausschließlich von diesem Workflow benutzt,
-    eine andere Bounding Box kann es unter ihm also nicht geben —
-    geprüft wird, was die Bestellung eindeutig macht: Datensatz-UID
-    und, bei der Jahres-Reihe, das Jahr des Zeitfensters. Ein Auftrag
-    der Reihe OHNE erkennbares Jahr wird nicht angefasst.
-    """
-    datasets = task.get("Datasets") or []
-    if not any(d.get("DatasetID") == uid for d in datasets):
-        return False
-    if year_filter is None:
-        return True
-    for d in datasets:
-        window = d.get("TemporalFilter") or {}
-        year = filter_year(window.get("StartDate"))
-        if year is None:
-            # Falls eine Zeitzonen-Verschiebung den Jahresanfang
-            # verrückt hätte: das Ende desselben Fensters liegt bei
-            # Ganzjahres-Bestellungen sicher im richtigen Jahr.
-            year = filter_year(window.get("EndDate"))
-        if year is None:
-            continue
-        return year == year_filter
-    return False
-
-
-def pick_existing_task(finished, in_progress, uid, year_filter,
-                       now_s, max_age_hours=66):
-    """Wiederverwendbaren Auftrag wählen: fertig vor laufend, neu vor alt.
-
-    Lauf 4 bestellte korrekt, lief nach 120 Minuten in sein
-    Poll-Timeout — und der Auftrag kochte serverseitig weiter. Neu
-    bestellen hieße, die CLMS-Queue mit Duplikaten zu füllen (CLMS
-    weist das ohnehin als Duplikat ab, siehe Lauf 5) und jedes Mal bei
-    null zu warten. Fertige Aufträge nur, solange ihr Ergebnis-Zip
-    noch liegt: laut Doku 72 Stunden ab Fertigstellung, hier mit
-    Sicherheitsabstand ab FinalizationDateTime gerechnet (Zeitstempel
-    kommen ohne Zeitzone und gelten als UTC).
-    """
-    def _fresh(task):
-        stamp = (task.get("FinalizationDateTime") or
-                 task.get("RegistrationDateTime"))
-        if not stamp:
-            return False
-        try:
-            finished_at = datetime.datetime.fromisoformat(stamp).replace(
-                tzinfo=datetime.timezone.utc)
-        except ValueError:
-            return False
-        age = now_s - finished_at.timestamp()
-        return 0 <= age <= max_age_hours * 3600
-
-    candidates = [
-        (task.get("RegistrationDateTime") or "", task_id, task)
-        for task_id, task in (finished or {}).items()
-        if task_matches(task, uid, year_filter) and _fresh(task)
-        and task.get("DownloadURL")]
-    if candidates:
-        _, task_id, task = max(candidates)
-        return "finished", str(task_id), task["DownloadURL"]
-    running = [
-        (task.get("RegistrationDateTime") or "", task_id)
-        for task_id, task in (in_progress or {}).items()
-        if task_matches(task, uid, year_filter)]
-    if running:
-        return "in_progress", str(max(running)[1]), None
-    return None
-
-
-def find_existing_task(session, uid, year_filter):
-    finished = clms_json("/api/@datarequest_search?status=Finished_ok",
-                         token=session.fresh())
-    in_progress = clms_json("/api/@datarequest_search?status=In_progress",
-                            token=session.fresh())
-    return pick_existing_task(finished, in_progress, uid, year_filter,
-                              now_s=time.time())
-
-
-def poll_download(session, task_id, timeout_minutes=240):
-    deadline = time.time() + timeout_minutes * 60
-    while time.time() < deadline:
-        status = clms_json("/api/@datarequest_status_get?TaskID=" + task_id,
-                           token=session.fresh())
-        state = status.get("Status", status.get("status", ""))
-        if state.lower() in ("finished_ok", "finished", "done"):
-            return status["DownloadURL"]
-        if state.lower() in ("finished_nok", "cancelled", "rejected"):
-            raise SystemExit(f"fetch: Auftrag {task_id} gescheitert: {status}")
-        print(f"  Warte auf Auftrag {task_id}: {state}", file=sys.stderr)
-        time.sleep(60)
-    raise SystemExit("fetch: Zeitüberschreitung beim Warten auf den Download")
-
-
-def download_archive(url, archive, attempts=10, sleep_fn=time.sleep,
-                     open_fn=None):
-    """Lädt das Ergebnis-Zip — mit Wiederholung im Minutenabstand.
-
-    Der dritte Echtlauf bekam auf die frisch gemeldete DownloadURL ein
-    403; dieselbe URL lieferte Minuten später anonym 200 mit vollem
-    Inhalt. FME meldet den Auftrag also fertig, bevor die Datei
-    abrufbar ist. Ein hartes 403 (etwa IP-Sperre) fällt nach zehn
-    Versuchen trotzdem auf — mitsamt letztem Fehler.
-    """
-    open_fn = open_fn or _open_stream
-    last = None
-    for attempt in range(attempts):
-        if attempt:
-            sleep_fn(60)
-        try:
-            stream = open_fn(url)
-        except urllib.error.HTTPError as error:
-            last = f"HTTP {error.code}"
-        except urllib.error.URLError as error:
-            last = str(error.reason)
-        else:
-            with stream, open(archive, "wb") as out:
-                shutil.copyfileobj(stream, out, 1024 * 1024)
-            return
-        print(f"  Download-Versuch {attempt + 1}/{attempts}: {last}",
-              file=sys.stderr)
-    raise SystemExit(
-        f"fetch: Download nach {attempts} Versuchen gescheitert ({last})")
-
-
-def _open_stream(url):
-    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    return urllib.request.urlopen(request, timeout=600)
 
 
 CDSE_S3_ENDPOINT = "https://eodata.dataspace.copernicus.eu"
@@ -989,10 +707,7 @@ def fetch_direct(out_dir):
 
     Kein Bestellen, keine Queue: Die anonyme Granulat-Liste nennt die
     Kacheln samt Bounding Box; geladen wird direkt aus s3://eodata,
-    verifiziert gegen HeadObject. Der Bestell-Weg (fetch-order) bleibt übergangsweise
-    erreichbar — warum er verlassen wurde, steht in der Git-Historie
-    der sechs Echtläufe: eine FME-Queue mit Stunden-Latenz und ohne
-    Zusage, bei jedem Quartalslauf aufs Neue.
+    verifiziert gegen HeadObject.
     """
     for var in ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"):
         if not os.environ.get(var):
@@ -1023,59 +738,8 @@ def fetch_direct(out_dir):
     return source, year
 
 
-def fetch_order(key_path, out_dir):
-    """Übergangsweise erhaltener Bestell-Weg über die CLMS-Download-API.
-
-    Fliegt raus, sobald der Direktweg einmal verifiziert geliefert hat
-    — zusammen mit ClmsSession, dem JWT-Tausch und dem Secret
-    CLMS_SERVICE_KEY.
-    """
-    session = ClmsSession(key_path)
-    open_ended, year, uid, download_id = find_dataset(session)
-    print(f"fetch: DLT {year} (UID {uid}, Download {download_id}, "
-          f"{'offene Reihe' if open_ended else 'fester Jahrgang'})",
-          file=sys.stderr)
-    if not download_id:
-        raise SystemExit("fetch: Datensatz ohne Download-Information — "
-                         "Suchantwort prüfen")
-    year_filter = year if open_ended else None
-    url = None
-    existing = find_existing_task(session, uid, year_filter)
-    if existing is not None:
-        kind, task, url = existing
-        print(f"fetch: übernehme Auftrag {task} ({kind})", file=sys.stderr)
-    else:
-        task = request_download(session, uid, download_id,
-                                year_filter=year_filter)
-        print(f"fetch: neuer Auftrag {task}", file=sys.stderr)
-    if url is None:
-        url = poll_download(session, task)
-    os.makedirs(out_dir, exist_ok=True)
-    archive = os.path.join(out_dir, "dlt_download.zip")
-    print(f"fetch: lade {url}", file=sys.stderr)
-    download_archive(url, archive)
-    print(f"fetch: {os.path.getsize(archive)} Bytes", file=sys.stderr)
-    subprocess.run(["unzip", "-o", "-d",
-                    os.path.join(out_dir, "dlt_source"), archive], check=True)
-    tifs = []
-    for root, _, files in os.walk(os.path.join(out_dir, "dlt_source")):
-        tifs += [os.path.join(root, f) for f in files
-                 if f.lower().endswith((".tif", ".tiff"))]
-    if not tifs:
-        raise SystemExit("fetch: kein GeoTIFF im Download")
-    if len(tifs) > 1:
-        # Mehrere Kacheln → zu einem virtuellen Raster zusammenfassen.
-        vrt = os.path.join(out_dir, "dlt_source.vrt")
-        subprocess.run(["gdalbuildvrt", vrt] + sorted(tifs), check=True)
-        source = vrt
-    else:
-        source = tifs[0]
-    print(f"fetch: Quelle {source}", file=sys.stderr)
-    return source, year
-
-
 # ---------------------------------------------------------------------------
-# Selbsttest — netzfrei, ohne GDAL, ohne pyjwt.
+# Selbsttest — netzfrei, ohne GDAL.
 # ---------------------------------------------------------------------------
 
 def _fake_tiff_u8(rows, tiled=False):
@@ -1215,42 +879,8 @@ def self_test():
         pass
     pages = {"seite": '<a href="https://s3/granulate.csv">liste</a>',
              "https://s3/granulate.csv": csv_text}
-    assert newest_reference_year("seite", fetch_fn=pages.__getitem__) == 2024
-
-    # Zeitfenster: Epoch-Millisekunden in UTC, Jahresanfang und -ende.
-    start, end = year_window_ms(2024)
-    assert start == 1704067200000, start  # 2024-01-01T00:00:00Z
-    assert end == 1735603200000, end      # 2024-12-31T00:00:00Z
-    assert end - start < 366 * 86400 * 1000
-
-    # Download-Retry: 403 beim Fertigmelden ist ein Race, kein Urteil —
-    # der dritte Echtlauf scheiterte daran, Minuten später kam 200.
-    calls = []
-
-    def _flaky_open(_url):
-        calls.append("versuch")
-        if len(calls) < 3:
-            raise urllib.error.HTTPError("u", 403, "Forbidden", None, None)
-        return io.BytesIO(b"zipdaten")
-
-    naps = []
-    with tempfile.TemporaryDirectory() as tmp:
-        target = os.path.join(tmp, "a.zip")
-        download_archive("u", target, attempts=5,
-                         sleep_fn=naps.append, open_fn=_flaky_open)
-        with open(target, "rb") as f:
-            assert f.read() == b"zipdaten"
-    assert len(calls) == 3 and naps == [60, 60], (calls, naps)
-
-    def _dead_open(_url):
-        raise urllib.error.HTTPError("u", 403, "Forbidden", None, None)
-
-    try:
-        download_archive("u", "/unbenutzt", attempts=2,
-                         sleep_fn=lambda _s: None, open_fn=_dead_open)
-        raise AssertionError("hartes 403 nicht gemeldet")
-    except SystemExit as error:
-        assert "403" in str(error)
+    assert newest_year_in_csv(
+        granule_csv_text("seite", fetch_fn=pages.__getitem__)) == 2024
 
     # Direktweg: Zielraster muss in CELL_FACTOR-Blöcke teilbar sein,
     # sonst verwirft die Aggregation stillschweigend den Rand.
@@ -1330,95 +960,6 @@ def self_test():
             raise AssertionError("falsches ETag nicht erkannt")
         except SystemExit:
             pass
-
-    # Wiederaufnahme: Lauf 4 lief ins Poll-Timeout, der Auftrag kochte
-    # serverseitig weiter — der nächste Lauf muss ihn übernehmen statt
-    # die Queue mit einem Duplikat zu füllen.
-    jan_2024_ms = year_window_ms(2024)[0]
-    passend = {"Datasets": [{"DatasetID": "uid1",
-                             "TemporalFilter": {"StartDate": jan_2024_ms}}],
-               "RegistrationDateTime": "2026-08-08T00:36:00"}
-    anderes_jahr = {"Datasets": [{
-        "DatasetID": "uid1",
-        "TemporalFilter": {"StartDate": year_window_ms(2023)[0]}}],
-        "RegistrationDateTime": "2026-08-08T00:36:00"}
-    ohne_jahr = {"Datasets": [{"DatasetID": "uid1"}],
-                 "RegistrationDateTime": "2026-08-08T00:36:00"}
-    assert task_matches(passend, "uid1", 2024)
-    assert not task_matches(passend, "anderes-uid", 2024)
-    assert not task_matches(anderes_jahr, "uid1", 2024)
-    assert not task_matches(ohne_jahr, "uid1", 2024), \
-        "Reihe ohne erkennbares Jahr darf nicht übernommen werden"
-    assert task_matches(ohne_jahr, "uid1", None)
-    # Die Live-Gestalt: @datarequest_search liefert Datums-STRINGS
-    # („2019-01-01 10:00:00"), bestellt wird in Epoch-Millisekunden —
-    # Lauf 5 scheiterte, weil nur Letzteres verstanden wurde.
-    live = {"Datasets": [{"DatasetID": "uid1",
-                          "TemporalFilter": {
-                              "StartDate": "2024-01-01 01:00:00",
-                              "EndDate": "2024-12-31 01:00:00"}}],
-            "RegistrationDateTime": "2026-08-08T00:36:00"}
-    assert task_matches(live, "uid1", 2024)
-    assert not task_matches(live, "uid1", 2023)
-    assert filter_year("2019-01-01 10:00:00") == 2019
-    assert filter_year(1704067200000) == 2024
-    assert filter_year("1704067200000") == 2024
-    assert filter_year("gestern") is None and filter_year(None) is None
-
-    now_s = datetime.datetime(2026, 8, 8, 3, 0,
-                              tzinfo=datetime.timezone.utc).timestamp()
-    fertig = dict(passend, DownloadURL="https://ergebnis/1.zip")
-    # Fertig schlägt laufend; unter mehreren fertigen gewinnt der neueste.
-    aelter = dict(fertig, RegistrationDateTime="2026-08-07T00:00:00",
-                  DownloadURL="https://ergebnis/alt.zip")
-    picked = pick_existing_task({"7": aelter, "9": fertig}, {"5": passend},
-                                "uid1", 2024, now_s)
-    assert picked == ("finished", "9", "https://ergebnis/1.zip"), picked
-    # Laufender Auftrag, wenn nichts Fertiges passt.
-    picked = pick_existing_task({}, {"5": passend}, "uid1", 2024, now_s)
-    assert picked == ("in_progress", "5", None), picked
-    # Zu alt (Ergebnis-Zip liegt nicht mehr) → nicht übernehmen.
-    veraltet = dict(fertig, RegistrationDateTime="2026-07-20T00:00:00")
-    assert pick_existing_task({"7": veraltet}, {}, "uid1", 2024,
-                              now_s) is None
-    # Die 72-h-Frist zählt ab FERTIGSTELLUNG, nicht ab Bestellung: ein
-    # vor fünf Tagen bestellter, vor einer Stunde fertig gewordener
-    # Auftrag ist frisch — andersherum nicht.
-    frisch_fertig = dict(passend, DownloadURL="https://ergebnis/2.zip",
-                         RegistrationDateTime="2026-08-03T00:00:00",
-                         FinalizationDateTime="2026-08-08T02:00:00")
-    picked = pick_existing_task({"11": frisch_fertig}, {}, "uid1", 2024,
-                                now_s)
-    assert picked == ("finished", "11", "https://ergebnis/2.zip"), picked
-    lang_fertig = dict(frisch_fertig,
-                       FinalizationDateTime="2026-08-04T00:00:00")
-    assert pick_existing_task({"11": lang_fertig}, {}, "uid1", 2024,
-                              now_s) is None
-    # Fertig ohne DownloadURL ist nichts wert.
-    kaputt = dict(passend)
-    assert pick_existing_task({"7": kaputt}, {}, "uid1", 2024, now_s) is None
-    # Nichts vorhanden → None (dann wird bestellt).
-    assert pick_existing_task({}, {}, "uid1", 2024, now_s) is None
-
-    # Token-Verwaltung: Der erste Echtlauf bestellte korrekt, pollte
-    # 61 Minuten und starb an einem 401 — das Token lebt nur eine
-    # Stunde. fresh() muss also innerhalb der Frist dasselbe Token
-    # liefern (kein Mint je Anfrage) und nach der Frist neu minten.
-    clock = [0.0]
-    mints = []
-
-    def _fake_mint():
-        mints.append(clock[0])
-        return f"token-{len(mints)}"
-
-    session = ClmsSession("unbenutzt", now_fn=lambda: clock[0],
-                          mint_fn=_fake_mint)
-    assert session.fresh() == "token-1"
-    clock[0] = ClmsSession.refresh_after_seconds - 1
-    assert session.fresh() == "token-1", "vor der Frist neu gemintet"
-    clock[0] = ClmsSession.refresh_after_seconds + 1
-    assert session.fresh() == "token-2", "nach der Frist nicht erneuert"
-    assert mints == [0.0, ClmsSession.refresh_after_seconds + 1]
 
     _self_test_build()
 
@@ -1504,8 +1045,7 @@ def _self_test_build():
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("command", nargs="?", default="",
-                        choices=["", "build", "fetch", "fetch-order",
-                                 "verify"])
+                        choices=["", "build", "fetch", "verify"])
     parser.add_argument("--self-test", action="store_true")
     parser.add_argument("--source")
     parser.add_argument("--year", type=int)
@@ -1522,13 +1062,6 @@ def main():
         print(json.dumps(manifest, indent=2))
     elif args.command == "fetch":
         source, year = fetch_direct(args.out)
-        manifest = build(source, year, args.out)
-        print(json.dumps(manifest, indent=2))
-        verify(source, args.out, samples=args.samples)
-    elif args.command == "fetch-order":
-        if not args.key:
-            raise SystemExit("fetch-order braucht --key (Service-Key-JSON)")
-        source, year = fetch_order(args.key, args.out)
         manifest = build(source, year, args.out)
         print(json.dumps(manifest, indent=2))
         verify(source, args.out, samples=args.samples)

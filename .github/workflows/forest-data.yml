@@ -18,9 +18,9 @@ name: Forest Data
 # S3 key pair generated under the operator's (free) CDSE account at
 # eodata-s3keysmanager.dataspace.copernicus.eu — note the expiry date
 # chosen at creation; rotation means a new pair plus new secrets. The
-# keys can read EO data, nothing more. (The former ordering path and
-# its CLMS_SERVICE_KEY are still reachable as `fetch-order` until the
-# direct path has delivered once — then both get removed.)
+# keys can read EO data, nothing more. (The former ordering path via
+# the CLMS download API is gone; its CLMS_SERVICE_KEY repo secret can
+# be deleted.)
 on:
   schedule:
     # Quarterly, first day of Jan/Apr/Jul/Oct, off the full hour.
@@ -53,15 +53,13 @@ jobs:
       - name: Self-test first
         run: python3 tool/forest_grid.py --self-test
 
-      # Declared deviations from the rain tool's stdlib rule (documented
-      # in tool/forest_grid.py): GDAL as mosaic/reprojection tool for the
-      # LAEA tiles. pyjwt only serves the transitional fetch-order path
-      # and leaves with it.
-      - name: Install GDAL and JWT libraries
+      # The one declared deviation from the rain tool's stdlib rule
+      # (documented in tool/forest_grid.py): GDAL as mosaic/reprojection
+      # tool for the LAEA tiles. The AWS CLI is preinstalled.
+      - name: Install GDAL
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y -q gdal-bin unzip
-          pip install --quiet pyjwt cryptography
+          sudo apt-get install -y -q gdal-bin
 
       - name: Fetch, aggregate, verify
         env:
