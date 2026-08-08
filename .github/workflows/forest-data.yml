@@ -14,9 +14,13 @@ name: Forest Data
 # artifact — comparing years is the reviewer's one-line job, and the
 # verify report is worth having either way.
 #
-# Needs the repo secret CLMS_SERVICE_KEY: the service-key JSON issued in
-# the CLMS portal under the operator's (free) EU Login. Rotate it there
-# if it ever leaks — it can order data downloads, nothing more.
+# Needs the repo secrets CDSE_S3_ACCESS_KEY and CDSE_S3_SECRET_KEY: an
+# S3 key pair generated under the operator's (free) CDSE account at
+# eodata-s3keysmanager.dataspace.copernicus.eu — note the expiry date
+# chosen at creation; rotation means a new pair plus new secrets. The
+# keys can read EO data, nothing more. (The former ordering path and
+# its CLMS_SERVICE_KEY are still reachable as `fetch-order` until the
+# direct path has delivered once — then both get removed.)
 on:
   schedule:
     # Quarterly, first day of Jan/Apr/Jul/Oct, off the full hour.
@@ -39,22 +43,20 @@ jobs:
   build:
     name: Fetch DLT and build the forest grid
     runs-on: ubuntu-latest
-    # The DACH cutout is a few GB compressed and ~13 gigapixels; the tool
-    # processes it in bands. Fetching waits on the CLMS queue — run 4
-    # showed the 10 m cutout takes MORE than two hours to prepare, so
-    # the tool polls up to four (and picks up a still-cooking order from
-    # a previous run instead of re-ordering). Minutes are free on public
-    # repositories; the aggregation itself is the small part.
-    timeout-minutes: 330
+    # ~700 MB tiles, one big gdalwarp (8.5 gigapixels) and the band-wise
+    # aggregation — no ordering queue anymore. Generous headroom; minutes
+    # are free on public repositories.
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v5
 
       - name: Self-test first
         run: python3 tool/forest_grid.py --self-test
 
-      # The two declared deviations from the rain tool's stdlib rule
-      # (documented in tool/forest_grid.py): RS256 for the CLMS token,
-      # GDAL as the decompressor for the delivered GeoTIFF.
+      # Declared deviations from the rain tool's stdlib rule (documented
+      # in tool/forest_grid.py): GDAL as mosaic/reprojection tool for the
+      # LAEA tiles. pyjwt only serves the transitional fetch-order path
+      # and leaves with it.
       - name: Install GDAL and JWT libraries
         run: |
           sudo apt-get update -q
@@ -63,16 +65,14 @@ jobs:
 
       - name: Fetch, aggregate, verify
         env:
-          CLMS_SERVICE_KEY: ${{ secrets.CLMS_SERVICE_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.CDSE_S3_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.CDSE_S3_SECRET_KEY }}
         run: |
-          if [ -z "$CLMS_SERVICE_KEY" ]; then
-            echo "::error::Repository secret CLMS_SERVICE_KEY is missing — see tool/forest_grid.py for how to create it."
+          if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
+            echo "::error::Repository secrets CDSE_S3_ACCESS_KEY/CDSE_S3_SECRET_KEY are missing — create an S3 key pair under the (free) CDSE account at eodata-s3keysmanager.dataspace.copernicus.eu."
             exit 1
           fi
-          printf '%s' "$CLMS_SERVICE_KEY" > "$RUNNER_TEMP/clms_key.json"
-          python3 tool/forest_grid.py fetch \
-            --key "$RUNNER_TEMP/clms_key.json" --out build/forest
-          rm -f "$RUNNER_TEMP/clms_key.json"
+          python3 tool/forest_grid.py fetch --out build/forest
 
       - name: Upload the grid as an artifact
         uses: actions/upload-artifact@v4

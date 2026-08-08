@@ -7,19 +7,30 @@ Hand. Ergebnis ist ein Workflow-Artefakt — KEIN Release-Tag: Das Gitter
 ist ein Asset im APK, sein Update gehört in einen menschengeprüften PR
 mit Versions-Bump (der Changelog-Test erzwingt das ohnehin).
 
-Zwei erklärte Abweichungen von der Stdlib-Regel des Regen-Werkzeugs
-(`rain_grid.py`), beide nur im Quartals-Workflow und nie in der App:
+Datenweg (Standard): **Direktdownload** der COG-Kacheln aus dem
+CDSE-Objektspeicher (s3://eodata) — die anonyme Granulat-Liste nennt
+Kacheln, Größen, MD5 und Bounding Boxes, bestellt wird nichts. Braucht
+das CDSE-S3-Schlüsselpaar (Secrets CDSE_S3_ACCESS_KEY/_SECRET_KEY).
+Der frühere Bestell-Weg über die CLMS-Download-API (`fetch-order`,
+Secret CLMS_SERVICE_KEY) bleibt übergangsweise erhalten; warum er
+verlassen wurde, dokumentieren die sechs Echtläufe in der Git-Historie
+(FME-Queue mit Stunden-Latenz, bei jedem Quartalslauf erneut).
 
-1. Der Token-Tausch der CLMS-API ist ein RS256-signiertes JWT →
-   `pip install pyjwt cryptography` im Workflow. RSA von Hand wäre
-   Leichtsinn. Der Import liegt in der Funktion, damit `--self-test`
-   ohne die Pakete läuft (er läuft in „Analyze & Test" mit).
-2. Das gelieferte GeoTIFF ist komprimiert und mit ~13 Gigapixeln zu
-   groß, um es am Stück zu entpacken (unkomprimiert ~13 GB, der Runner
-   trägt das nicht). Deshalb bandweise: `gdal_translate -srcwin` schneidet
-   einen unkomprimierten Streifen, der eigene strenge Reader liest ihn,
-   aggregiert wird von Hand — GDAL ist nur der Dekompressor, nie der
-   Rechner. Wie beim Regen gilt: lieber ablehnen als raten.
+Erklärte Abweichungen von der Stdlib-Regel des Regen-Werkzeugs
+(`rain_grid.py`), alle nur im Quartals-Workflow und nie in der App:
+
+1. Nur noch fetch-order: Der Token-Tausch der CLMS-API ist ein
+   RS256-signiertes JWT → `pip install pyjwt cryptography` im Workflow.
+   RSA von Hand wäre Leichtsinn. Der Import liegt in der Funktion,
+   damit `--self-test` ohne die Pakete läuft. Stirbt mit fetch-order.
+2. GDAL als Dekompressor UND Reprojektor: Die Kacheln sind EPSG:3035
+   (LAEA) und die App rechnet linear in Grad — `gdalwarp -r near`
+   macht daraus einmal ein EPSG:4326-Raster (nearest, weil die Werte
+   Klassen sind). Danach bandweise `gdal_translate -srcwin`, der
+   eigene strenge Reader, Aggregation von Hand — GDAL ist nie der
+   Rechner, und --verify rechnet gegen das gewarpte Raster nach.
+   Der Download läuft über die AWS-CLI (auf den Runnern
+   vorinstalliert), verifiziert per MD5 aus der Granulat-Liste.
 
 Byte-Vertrag je 250-m-Zelle (das Pendant liest
 `lib/features/map/forest_grid.dart`):
@@ -32,8 +43,9 @@ DLT-Pixelwerte der Quelle: 0 = kein Baum, 1 = Laub, 2 = Nadel,
 
 Nutzung:
   python3 tool/forest_grid.py --self-test
-  python3 tool/forest_grid.py build --source dlt.tif --year 2021 --out build/forest
-  python3 tool/forest_grid.py fetch --key service_key.json --out build/forest
+  python3 tool/forest_grid.py build --source dlt.tif --year 2024 --out build/forest
+  python3 tool/forest_grid.py fetch --out build/forest          # Direktweg (S3-Env)
+  python3 tool/forest_grid.py fetch-order --key service_key.json --out build/forest
   python3 tool/forest_grid.py verify --source dlt.tif --out build/forest
 """
 
@@ -560,21 +572,66 @@ def newest_year_in_csv(text):
     return max(years)
 
 
-def newest_reference_year(full_path, fetch_fn=None):
-    """Neuestes WIRKLICH vorhandenes Jahr der offenen Reihe.
+def granule_csv_text(full_path, fetch_fn=None):
+    """Die Granulat-Liste hinter der CSV-Verzeichnisseite von full_path.
 
-    Der Katalogeintrag nennt als Abdeckung auch geplante Jahre (Stand
-    2026-08 listet er bis „2026", Granulate liegen bis 2024). Was es
-    gibt, steht in der Granulat-Liste, auf die full_path zeigt: eine
-    HTML-Seite mit einem Link auf ein CSV. Ein geratenes Jahr kostet
-    einen ganzen Queue-Umlauf (eine Stunde) — deshalb nachsehen.
+    full_path zeigt auf eine HTML-Seite des CDSE-CSV-Katalogs mit genau
+    einem Link auf das CSV; beides ist anonym abrufbar.
     """
     fetch_fn = fetch_fn or _http_text
     page = fetch_fn(full_path)
     match = re.search(r'href="([^"]+\.csv)"', page)
     if not match:
         raise SystemExit("fetch: keine Granulat-Liste unter " + full_path)
-    return newest_year_in_csv(fetch_fn(match.group(1)))
+    return fetch_fn(match.group(1))
+
+
+def newest_reference_year(full_path, fetch_fn=None):
+    """Neuestes WIRKLICH vorhandenes Jahr der offenen Reihe.
+
+    Der Katalogeintrag nennt als Abdeckung auch geplante Jahre (Stand
+    2026-08 listet er bis „2026", Granulate liegen bis 2024). Was es
+    gibt, steht in der Granulat-Liste — ein geratenes Jahr kostet beim
+    Bestell-Weg einen ganzen Queue-Umlauf, deshalb nachsehen.
+    """
+    return newest_year_in_csv(granule_csv_text(full_path, fetch_fn))
+
+
+def select_tiles(csv_text, year, bounds):
+    """Kacheln des Jahres, deren Bounding Box das Zielgebiet schneidet.
+
+    Die bbox-Spalte ist ein POLYGON in Länge/Breite; der grobe
+    Rechteck-Schnitt reicht, weil gdalwarp auf BOUNDS zuschneidet und
+    Fehlendes als NO_DATA endet. MD5 kommt mit — damit wird jeder
+    Download verifiziert statt nur über die Größe geraten.
+    """
+    west, south, east, north = bounds
+    tiles = []
+    for row in csv.DictReader(io.StringIO(csv_text), delimiter=";"):
+        if (row.get("content_date_start") or "")[:4] != str(year):
+            continue
+        s3_path = row.get("s3_path") or ""
+        numbers = [float(x) for x in
+                   re.findall(r"-?\d+\.?\d*", row.get("bbox") or "")]
+        if len(numbers) < 8 or not s3_path:
+            raise SystemExit("fetch: Granulat-Zeile ohne bbox/s3_path "
+                             f"({row.get('name')}) — CSV-Format geändert?")
+        lons, lats = numbers[0::2], numbers[1::2]
+        if (min(lons) > east or max(lons) < west or
+                min(lats) > north or max(lats) < south):
+            continue
+        is_md5 = (row.get("checksum_algorithm") or "").upper() == "MD5"
+        tiles.append({
+            "name": row.get("name") or os.path.basename(s3_path),
+            "s3_path": s3_path,
+            "bytes": int(row.get("content_length") or 0),
+            "md5": (row.get("checksum_value") or "").lower()
+                   if is_md5 else "",
+        })
+    if not tiles:
+        raise SystemExit(f"fetch: keine Kacheln für {year} im Zielgebiet "
+                         "— CSV-Format geändert?")
+    return sorted(tiles, key=lambda tile: tile["name"])
 
 
 def _http_text(url):
@@ -583,14 +640,18 @@ def _http_text(url):
         return response.read().decode("utf-8", errors="replace")
 
 
-def find_dataset(session):
-    """Datensatz, Download-Item und echtes Bezugsjahr bestimmen."""
+def search_dataset(token=None):
+    """Datensatz und Download-Item aus der Katalog-Suche.
+
+    Die Suche ist anonym abrufbar — der Direktweg braucht deshalb gar
+    kein CLMS-Token mehr, nur der Bestell-Weg reicht seines durch.
+    """
     result = clms_json(
         "/api/@search?portal_type=DataSet"
         "&SearchableText=dominant+leaf+type"
         "&metadata_fields=UID&metadata_fields=dataset_download_information"
         "&b_size=50",
-        token=session.fresh())
+        token=token)
     best = pick_dataset(result.get("items", []))
     if best is None:
         raise SystemExit("fetch: kein DLT-Datensatz gefunden — "
@@ -599,6 +660,12 @@ def find_dataset(session):
     if download is None:
         raise SystemExit("fetch: Datensatz ohne Download-Information — "
                          "Suchantwort prüfen")
+    return open_ended, year, uid, download
+
+
+def find_dataset(session):
+    """Bestell-Weg: Datensatz, Download-Id und echtes Bezugsjahr."""
+    open_ended, year, uid, download = search_dataset(session.fresh())
     if open_ended:
         full_path = download.get("full_path")
         if not full_path:
@@ -803,7 +870,140 @@ def _open_stream(url):
     return urllib.request.urlopen(request, timeout=600)
 
 
-def fetch(key_path, out_dir):
+def download_tiles(tiles, tiles_dir, copy_fn=None):
+    """Jede Kachel einzeln per AWS CLI, MD5 gegen die Granulat-Liste.
+
+    Ein Granulat ist genau EIN Objekt — das GeoTIFF ohne Endung, laut
+    OData-Katalog ContentType application/tiff —, deshalb schlichtes
+    cp je Kachel statt --recursive. Die CLI ist auf den GitHub-Runnern
+    vorinstalliert; Zugang über das CDSE-Schlüsselpaar in
+    AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY. Eine Wiederholung je
+    Kachel; unvollständig nach zwei Versuchen bricht ab.
+    """
+    copy_fn = copy_fn or _aws_copy
+    os.makedirs(tiles_dir, exist_ok=True)
+    paths = []
+    for index, tile in enumerate(tiles, 1):
+        target = os.path.join(tiles_dir, tile["name"] + ".tif")
+        for attempt in (1, 2):
+            try:
+                copy_fn(tile["s3_path"], target)
+            except subprocess.CalledProcessError:
+                pass  # zählt wie eine unvollständige Datei: neuer Versuch
+            if tile_checksum_ok(target, tile):
+                break
+            print(f"  {tile['name']}: unvollständig (Versuch {attempt})",
+                  file=sys.stderr)
+        else:
+            raise SystemExit(f"fetch: Kachel {tile['name']} nach zwei "
+                             "Versuchen unvollständig")
+        paths.append(target)
+        print(f"  {index}/{len(tiles)} {tile['name']}", file=sys.stderr)
+    return paths
+
+
+def tile_checksum_ok(path, tile):
+    if not os.path.exists(path) or os.path.getsize(path) != tile["bytes"]:
+        return False
+    if not tile["md5"]:
+        return True
+    digest = hashlib.md5()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest() == tile["md5"]
+
+
+def _aws_copy(s3_path, target):
+    subprocess.run(
+        ["aws", "s3", "cp", "--only-show-errors",
+         "--endpoint-url", "https://eodata.dataspace.copernicus.eu",
+         s3_path, target],
+        check=True)
+
+
+# Zielraster der Reprojektion: ~10 m am mittleren Breitengrad, beide
+# Achsen Vielfache von CELL_FACTOR (81600/25 = 3264, 104000/25 = 4160
+# Zellen). Die Zellweite in Metern variiert mit der Breite — echte
+# 250 m nur in der Mitte; das Manifest trägt die Geometrie, die App
+# rechnet linear in Grad, dieselbe bewusste Gröbe wie beim Regen.
+WARP_WIDTH = 81600
+WARP_HEIGHT = 104000
+
+
+def warp_mosaic(tile_paths, out_dir):
+    """Mosaik der LAEA-Kacheln (EPSG:3035), einmal nach EPSG:4326.
+
+    -r near, weil die Werte Klassen sind (0/1/2/254/255) — jede andere
+    Interpolation erfände Werte. GDAL ist hier Reprojektor, nicht
+    Rechner: Aggregation und Kodierung bleiben handgeschrieben und
+    selbstgetestet, und --verify rechnet gegen das GEWARPTE Raster
+    nach, sieht also alles ab diesem Punkt.
+    """
+    west, south, east, north = BOUNDS
+    vrt = os.path.join(out_dir, "dlt_tiles.vrt")
+    subprocess.run(["gdalbuildvrt", "-q", vrt] + sorted(tile_paths),
+                   check=True)
+    warped = os.path.join(out_dir, "dlt_4326.tif")
+    subprocess.run([
+        "gdalwarp", "-q", "-overwrite",
+        "-t_srs", "EPSG:4326",
+        "-te", str(west), str(south), str(east), str(north),
+        "-ts", str(WARP_WIDTH), str(WARP_HEIGHT),
+        "-r", "near", "-ot", "Byte", "-dstnodata", "255",
+        "-multi", "-wo", "NUM_THREADS=ALL_CPUS", "-wm", "1024",
+        "-co", "COMPRESS=DEFLATE", "-co", "TILED=YES",
+        "-co", "BIGTIFF=YES", "-co", "NUM_THREADS=ALL_CPUS",
+        vrt, warped], check=True)
+    return warped
+
+
+def fetch_direct(out_dir):
+    """Direktweg (Standard): COG-Kacheln aus dem CDSE-Objektspeicher.
+
+    Kein Bestellen, keine Queue: Die anonyme Granulat-Liste nennt die
+    Kacheln samt Größe, MD5 und Bounding Box; geladen wird direkt aus
+    s3://eodata. Der Bestell-Weg (fetch-order) bleibt übergangsweise
+    erreichbar — warum er verlassen wurde, steht in der Git-Historie
+    der sechs Echtläufe: eine FME-Queue mit Stunden-Latenz und ohne
+    Zusage, bei jedem Quartalslauf aufs Neue.
+    """
+    for var in ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"):
+        if not os.environ.get(var):
+            raise SystemExit(
+                f"fetch: {var} fehlt — CDSE-Konto anlegen "
+                "(dataspace.copernicus.eu), dort S3-Schlüssel erzeugen "
+                "(eodata-s3keysmanager.dataspace.copernicus.eu) und als "
+                "Repo-Secrets CDSE_S3_ACCESS_KEY/CDSE_S3_SECRET_KEY "
+                "hinterlegen.")
+    open_ended, _title_year, _uid, download = search_dataset()
+    if not open_ended:
+        raise SystemExit("fetch: Katalog nennt keine offene Reihe mehr — "
+                         "Datensatz-Wahl prüfen")
+    full_path = download.get("full_path")
+    if not full_path:
+        raise SystemExit("fetch: offene Reihe ohne full_path — "
+                         "Suchantwort prüfen")
+    csv_text = granule_csv_text(full_path)
+    year = newest_year_in_csv(csv_text)
+    tiles = select_tiles(csv_text, year, BOUNDS)
+    total = sum(tile["bytes"] for tile in tiles)
+    print(f"fetch: DLT {year}, {len(tiles)} Kacheln, {total / 1e6:.0f} MB",
+          file=sys.stderr)
+    os.makedirs(out_dir, exist_ok=True)
+    tile_paths = download_tiles(tiles, os.path.join(out_dir, "tiles"))
+    source = warp_mosaic(tile_paths, out_dir)
+    print(f"fetch: Quelle {source}", file=sys.stderr)
+    return source, year
+
+
+def fetch_order(key_path, out_dir):
+    """Übergangsweise erhaltener Bestell-Weg über die CLMS-Download-API.
+
+    Fliegt raus, sobald der Direktweg einmal verifiziert geliefert hat
+    — zusammen mit ClmsSession, dem JWT-Tausch und dem Secret
+    CLMS_SERVICE_KEY.
+    """
     session = ClmsSession(key_path)
     open_ended, year, uid, download_id = find_dataset(session)
     print(f"fetch: DLT {year} (UID {uid}, Download {download_id}, "
@@ -1026,6 +1226,66 @@ def self_test():
     except SystemExit as error:
         assert "403" in str(error)
 
+    # Direktweg: Zielraster muss in CELL_FACTOR-Blöcke teilbar sein,
+    # sonst verwirft die Aggregation stillschweigend den Rand.
+    assert WARP_WIDTH % CELL_FACTOR == 0
+    assert WARP_HEIGHT % CELL_FACTOR == 0
+
+    # Kachel-Auswahl: Jahr-Filter und bbox-Schnitt gegen BOUNDS-artige
+    # Grenzen; teilweise Überlappung bleibt, ganz außerhalb fliegt.
+    kachel_csv = (
+        "id;name;content_length;content_date_start;checksum_algorithm;"
+        "checksum_value;s3_path;bbox\n"
+        "a;DRIN;100;2024-01-01T00:00:00.000;MD5;ABCD12;s3://e/drin;"
+        "POLYGON((9.7 41.1,9.7 40.1,10.9 40.1,10.9 41.1,9.7 41.1))\n"
+        "b;RAND;200;2024-01-01T00:00:00.000;MD5;ffee99;s3://e/rand;"
+        "POLYGON((11.5 39.9,11.5 40.2,12.5 40.2,12.5 39.9,11.5 39.9))\n"
+        "c;WEIT_WEG;300;2024-01-01T00:00:00.000;MD5;aa;s3://e/weit;"
+        "POLYGON((32.5 34.7,32.5 33.5,33.8 33.5,33.8 34.7,32.5 34.7))\n"
+        "d;ALTES_JAHR;400;2018-01-01T00:00:00.000;MD5;bb;s3://e/alt;"
+        "POLYGON((9.7 41.1,9.7 40.1,10.9 40.1,10.9 41.1,9.7 41.1))\n"
+        "e;OHNE_MD5;500;2024-01-01T00:00:00.000;SHA1;cc;s3://e/ohne;"
+        "POLYGON((9.0 40.5,9.0 40.6,9.1 40.6,9.1 40.5,9.0 40.5))\n")
+    testgebiet = (8.9, 40.0, 12.0, 41.0)
+    tiles = select_tiles(kachel_csv, 2024, testgebiet)
+    assert [t["name"] for t in tiles] == ["DRIN", "OHNE_MD5", "RAND"], tiles
+    assert tiles[0]["md5"] == "abcd12", "MD5 muss kleingeschrieben sein"
+    assert tiles[1]["md5"] == "", "fremder Algorithmus ist kein MD5"
+    assert tiles[0]["bytes"] == 100
+    try:
+        select_tiles(kachel_csv, 2030, testgebiet)
+        raise AssertionError("leere Kachelliste nicht erkannt")
+    except SystemExit:
+        pass
+
+    # Download: MD5 aus der Liste entscheidet, ein Retry, dann Abbruch.
+    with tempfile.TemporaryDirectory() as tiles_tmp:
+        inhalt = b"kacheldaten"
+        richtig = {"name": "K1", "s3_path": "s3://e/k1",
+                   "bytes": len(inhalt),
+                   "md5": hashlib.md5(inhalt).hexdigest()}
+        versuche = []
+
+        def _copy_kaputt_dann_gut(_s3, target):
+            versuche.append(target)
+            data = b"kaputt" if len(versuche) < 2 else inhalt
+            with open(target, "wb") as f:
+                f.write(data)
+
+        paths = download_tiles([richtig], tiles_tmp,
+                               copy_fn=_copy_kaputt_dann_gut)
+        assert len(versuche) == 2 and paths[0].endswith("K1.tif")
+        with open(paths[0], "rb") as f:
+            assert f.read() == inhalt
+
+        falsch = dict(richtig, md5="0" * 32)
+        try:
+            download_tiles([falsch], tiles_tmp,
+                           copy_fn=lambda _s3, t: open(t, "wb").write(inhalt))
+            raise AssertionError("falsche Prüfsumme nicht erkannt")
+        except SystemExit:
+            pass
+
     # Wiederaufnahme: Lauf 4 lief ins Poll-Timeout, der Auftrag kochte
     # serverseitig weiter — der nächste Lauf muss ihn übernehmen statt
     # die Queue mit einem Duplikat zu füllen.
@@ -1199,7 +1459,8 @@ def _self_test_build():
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("command", nargs="?", default="",
-                        choices=["", "build", "fetch", "verify"])
+                        choices=["", "build", "fetch", "fetch-order",
+                                 "verify"])
     parser.add_argument("--self-test", action="store_true")
     parser.add_argument("--source")
     parser.add_argument("--year", type=int)
@@ -1215,7 +1476,14 @@ def main():
         manifest = build(args.source, args.year, args.out)
         print(json.dumps(manifest, indent=2))
     elif args.command == "fetch":
-        source, year = fetch(args.key, args.out)
+        source, year = fetch_direct(args.out)
+        manifest = build(source, year, args.out)
+        print(json.dumps(manifest, indent=2))
+        verify(source, args.out, samples=args.samples)
+    elif args.command == "fetch-order":
+        if not args.key:
+            raise SystemExit("fetch-order braucht --key (Service-Key-JSON)")
+        source, year = fetch_order(args.key, args.out)
         manifest = build(source, year, args.out)
         print(json.dumps(manifest, indent=2))
         verify(source, args.out, samples=args.samples)
