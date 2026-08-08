@@ -30,6 +30,7 @@ class MapViewConfig {
     required this.maxZoom,
     required this.backgroundColor,
     this.onLongPress,
+    this.onCameraIdle,
   });
 
   final LatLng initialCenter;
@@ -42,6 +43,13 @@ class MapViewConfig {
 
   /// Long-Press auf die Karte (richtet das Fadenkreuz aus).
   final void Function(LatLng latLng)? onLongPress;
+
+  /// Die Karte ist zum Stehen gekommen — mit der neuen Mitte.
+  ///
+  /// BEWUSST nur bei Stillstand und nicht bei jeder Bewegung: Die
+  /// Fadenkreuz-Werte der Legende (#235) rechnen daraufhin nach, und
+  /// das soll die Gesten nicht begleiten, sondern ihnen folgen.
+  final void Function(LatLng center)? onCameraIdle;
 }
 
 /// Ein Marker: Position, Maße, Widget-Kind. Wie er auf die Karte kommt

@@ -169,6 +169,20 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
         cameraConstraint: const FiniteCameraConstraint(),
         onLongPress: (tapPosition, latLng) =>
             config.onLongPress?.call(latLng),
+        // „Zum Stehen gekommen" (#235): Gesten- und Animationsenden,
+        // nicht jede Bewegung — die Fadenkreuz-Werte rechnen daraufhin.
+        // Das Mausrad hat kein Ende-Ereignis, sein Einzelschritt IST
+        // der Stillstand.
+        onMapReady: () =>
+            config.onCameraIdle?.call(_mapController.camera.center),
+        onMapEvent: (event) {
+          if (event is MapEventMoveEnd ||
+              event is MapEventFlingAnimationEnd ||
+              event is MapEventDoubleTapZoomEnd ||
+              event is MapEventScrollWheelZoom) {
+            config.onCameraIdle?.call(event.camera.center);
+          }
+        },
       ),
       children: [
         // Unterste Schicht: die mitgelieferte DACH-Übersicht. Sie
