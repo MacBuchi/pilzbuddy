@@ -21,21 +21,40 @@ import 'overlay_png.dart';
 /// (Wege! Ortsnamen!) muss lesbar bleiben.
 const forestFillAlpha = 140;
 
+/// Alle drei Waldklassen — der Standard der Ebene und zugleich die
+/// Schreibweise für „nichts abgewählt".
+const allForestClasses = {
+  ForestClass.broadleaf,
+  ForestClass.mixed,
+  ForestClass.conifer,
+};
+
 /// Färbt das Waldgitter ein und gibt ein PNG zurück.
 ///
 /// „Kein Wald" bleibt durchsichtig — die Ebene sagt, wo Wald steht,
 /// nicht, wo keiner steht. „Keine Daten" ist ebenfalls durchsichtig;
 /// den Unterschied erklärt das Blatt (Abdeckung: DACH).
-Uint8List forestFillPng(ForestGrid grid, {int alpha = forestFillAlpha}) {
+///
+/// [classes] sind die eingeblendeten Teil-Ebenen (#231): Abgewählte
+/// Klassen werden durchsichtig wie „kein Wald". So bleibt neben der
+/// Regenfläche (#232) genau die Klasse stehen, die einen interessiert,
+/// statt dass die ganze Karte unter zwei Schleiern abstumpft.
+Uint8List forestFillPng(ForestGrid grid,
+    {int alpha = forestFillAlpha,
+    Set<ForestClass> classes = allForestClasses}) {
   final width = grid.width;
   final height = grid.height;
   // Nachschlagetabelle wie beim Regen: Millionen Zellen, 256 Einträge.
   final palette = Uint8List(256 * 4);
   for (var value = 0; value < 256; value++) {
+    final forestClass = classOfByte(value);
+    if (forestClass == ForestClass.none || !classes.contains(forestClass)) {
+      continue; // durchsichtig
+    }
     final Color colour;
-    switch (classOfByte(value)) {
+    switch (forestClass) {
       case ForestClass.none:
-        continue; // durchsichtig
+        continue; // oben schon behandelt — der Vollständigkeit halber
       case ForestClass.broadleaf:
         colour = AppColors.forestBroadleaf;
       case ForestClass.mixed:

@@ -34,7 +34,7 @@ import 'widgets/add_spot_sheet.dart';
 import 'widgets/map_banners.dart';
 import 'widgets/forest_layer_sheet.dart';
 import 'widgets/rain_layer_sheet.dart';
-import 'widgets/rain_legend.dart';
+import 'widgets/map_legend.dart';
 import 'widgets/share_location_sheet.dart';
 import 'widgets/spot_filter_sheet.dart';
 import '../../core/app_colors.dart';
@@ -457,14 +457,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
           const IgnorePointer(
             child: Center(child: _Crosshair()),
           ),
-          // Die Legende zur Regenebene, links unten über dem Maßstab.
-          // Sie erscheint nur, wenn die Karte in UNSEREN Farben zeichnet
-          // — beim Radar liegt das DWD-Bild in DWD-Farben, und dafür
-          // wäre diese Skala falsch.
+          // Die Legende zu den aktiven Ebenen (#231), links unten über
+          // dem Maßstab. Nicht mehr in einem IgnorePointer: Das X zum
+          // Ausblenden braucht den Tipp — die Karte dahinter verliert
+          // nur die kleine Kartenfläche der Legende selbst.
           const SafeArea(
             child: Align(
               alignment: Alignment.bottomLeft,
-              child: RainLegend(),
+              child: MapLegend(),
             ),
           ),
           SafeArea(

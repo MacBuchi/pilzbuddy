@@ -7,6 +7,25 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Wald und Regen zusammen, klarere Farben, Legende auf der Karte
+
+*8. August 2026 · Version 1.63.0*
+
+Gleich drei Wünsche aus dem Feld in einem Update:
+
+- **Neue Waldfarben:** Laubwald ist jetzt herbst-ocker, Mischwald
+  gelbgrün, Nadelwald dunkel blaugrün — die drei sind endlich auf einen
+  Blick zu unterscheiden.
+- **Waldklassen einzeln schaltbar:** Im Waldtypen-Blatt gibt es drei
+  Häkchen. Wer nur wissen will, wo Laubwald steht, blendet den Rest aus.
+- **Regen und Wald gleichzeitig:** Die beiden Ebenen schließen sich
+  nicht mehr aus. Der Regen liegt über dem Wald — und wer es übersichtlich
+  mag, lässt vom Wald nur die eine Klasse stehen, die ihn interessiert.
+- **Legende auf der Karte:** Solange eine Ebene aktiv ist, liegt ihre
+  Legende klein links unten auf der Karte. Das X daran merkt sich das
+  Ausblenden; zurück geht es im Ebenen-Blatt über „Legende in Karte
+  anzeigen".
+
 ## Ebene aus heißt jetzt sofort aus
 
 *8. August 2026 · Version 1.62.2*

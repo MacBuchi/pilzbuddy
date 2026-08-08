@@ -10,8 +10,10 @@ import 'package:pilzbuddy/features/map/forest_grid.dart';
 import 'package:pilzbuddy/features/map/rain_layer.dart';
 
 import '../fakes/fake_backend.dart';
+import '../fakes/fake_settings.dart';
 import '../fakes/test_app.dart';
 import '../forest_grid_test.dart' show forestOf;
+import '../rain_fill_test.dart' show decodePng;
 
 void main() {
   ProviderContainer containerOf(WidgetTester tester) =>
@@ -70,7 +72,11 @@ void main() {
     expect(image.bounds.west, 5.8);
   });
 
-  testWidgets('Wald an schaltet Regen ab — und umgekehrt', (tester) async {
+  testWidgets('Regen und Wald liegen GLEICHZEITIG auf der Karte (#232)',
+      (tester) async {
+    // Die Umkehrung der früheren Exklusivität: Mit den Teil-Ebenen
+    // (#231) ist die Kombination lesbar — Regen über der Waldklasse,
+    // die einen interessiert, ist genau die Pilzfrage.
     final (backend, _) = loggedInBackend();
     await pumpApp(tester, backend, extraOverrides: withGrid(testGrid()));
     final container = containerOf(tester);
@@ -81,23 +87,99 @@ void main() {
 
     await tester.tap(find.byTooltip('Waldtypen'));
     await settle(tester);
-    expect(find.text('Blendet dafür die Regenebene aus.'), findsOneWidget);
+    expect(find.text('Blendet dafür die Regenebene aus.'), findsNothing,
+        reason: 'der Hinweis auf die alte Exklusivität wäre eine Lüge');
     await tester.tap(find.text('Waldtypen einblenden'));
     await settle(tester);
 
     expect(container.read(forestLayerEnabledProvider), isTrue);
-    expect(container.read(rainLayerProvider), RainLayer.off,
-        reason: 'zwei halbtransparente Flächen übereinander sind unlesbar');
+    expect(container.read(rainLayerProvider), RainLayer.last30d,
+        reason: 'Wald an darf den Regen nicht mehr abschalten');
 
-    // Umgekehrt: Regen wieder an nimmt den Wald raus (Regen-Blatt-Weg).
+    // Und im Regen-Blatt schaltet eine Ebenen-Wahl den Wald nicht ab.
     await tester.tapAt(const Offset(20, 20));
     await settle(tester);
     await tester.tap(find.byTooltip('Regen'));
     await settle(tester);
-    await tester.tap(find.text('Letzte 30 Tage'));
+    await tester.tap(find.text('Letzte 24 Stunden'));
     await settle(tester);
-    expect(container.read(forestLayerEnabledProvider), isFalse);
-    expect(container.read(rainLayerProvider), RainLayer.last30d);
+    expect(container.read(forestLayerEnabledProvider), isTrue);
+    expect(container.read(rainLayerProvider), RainLayer.last24h);
+  });
+
+  testWidgets('abgewählte Klassen verschwinden aus Fläche und Legende '
+      '(#231)', (tester) async {
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend,
+        useRealMap: true, extraOverrides: withGrid(testGrid()));
+    final container = containerOf(tester);
+
+    await tester.tap(find.byTooltip('Waldtypen'));
+    await settle(tester);
+    await tester.tap(find.text('Waldtypen einblenden'));
+    await tester.runAsync(() => container.read(forestFillProvider.future));
+    await settle(tester);
+
+    // Laub und Misch abwählen — übrig bleibt Nadel.
+    await tester.tap(find.text('Laubwald'));
+    await tester.runAsync(() => container.read(forestFillProvider.future));
+    await settle(tester);
+    await tester.tap(find.text('Mischwald'));
+    await tester.runAsync(() => container.read(forestFillProvider.future));
+    await settle(tester);
+    expect(container.read(forestClassesProvider), {ForestClass.conifer});
+
+    // Auf der Karte ist die Laub-Zeile des Gitters jetzt durchsichtig,
+    // die Nadel-Zeile nicht — die Checkbox wirkt bis ins Bild.
+    await tester.tapAt(const Offset(20, 20));
+    await settle(tester);
+    final fill = container.read(forestFillProvider).valueOrNull;
+    expect(fill, isNotNull);
+    final png = decodePng(fill!.png);
+    expect(png.pixels[3], 0, reason: 'Zeile 0 (Laub) ist abgewählt');
+    expect(png.pixels[png.width * 4 + 3], isPositive,
+        reason: 'Zeile 1 (Nadel) bleibt');
+
+    // Und die Karten-Legende nennt nur noch die gewählte Klasse.
+    expect(find.text('Nadel'), findsOneWidget);
+    expect(find.text('Laub'), findsNothing);
+  });
+
+  testWidgets('die Karten-Legende zeigt aktive Ebenen; das X merkt sich '
+      'das Aus (#231)', (tester) async {
+    final (backend, _) = loggedInBackend();
+    final settings = FakeSettings();
+    await pumpApp(tester, backend,
+        settings: settings, extraOverrides: withGrid(testGrid()));
+    final container = containerOf(tester);
+
+    // Ebene direkt am Zustand an (den Blatt-Weg prüft der Test oben).
+    await tester.runAsync(() => container.read(forestGridProvider.future));
+    container.read(forestLayerEnabledProvider.notifier).state = true;
+    await settle(tester);
+    expect(find.text('Misch'), findsOneWidget,
+        reason: 'Legende liegt auf der Karte');
+
+    // Das X blendet aus — persistent.
+    await tester.tap(find.byTooltip('Legende ausblenden'));
+    await settle(tester);
+    expect(find.text('Misch'), findsNothing);
+    expect(settings.mapLegendEnabled, isFalse,
+        reason: 'das X überlebt den Neustart');
+
+    // Zurück geht es über den Schalter im Ebenen-Blatt (im Blatt muss
+    // man dafür ans Ende scrollen — das Blatt ist seit den Checkboxen
+    // scrollbar).
+    await tester.tap(find.byTooltip('Waldtypen'));
+    await settle(tester);
+    await tester.drag(find.byType(ListView).last, const Offset(0, -220));
+    await settle(tester);
+    await tester.tap(find.text('Legende in Karte anzeigen'));
+    await settle(tester);
+    await tester.tapAt(const Offset(20, 20));
+    await settle(tester);
+    expect(find.text('Misch'), findsOneWidget);
+    expect(settings.mapLegendEnabled, isTrue);
   });
 
   testWidgets('Die Spot-Zeile nennt die Klasse am Spot', (tester) async {

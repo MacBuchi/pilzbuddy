@@ -19,6 +19,15 @@ import 'rain_data_providers.dart' show rainGridRepositoryProvider;
 /// verwirrt mehr, als der eine Tipp zum Wiedereinschalten kostet.
 final forestLayerEnabledProvider = StateProvider<bool>((ref) => false);
 
+/// Welche Waldklassen als Teil-Ebenen eingeblendet sind (#231).
+///
+/// Standard: alle drei. Session-lokal wie der Schalter darüber — und
+/// der eigentliche Zweck ist #232: Neben der Regenfläche lässt man nur
+/// die Klasse stehen, die einen interessiert, statt dass die ganze
+/// Karte unter zwei Schleiern abstumpft.
+final forestClassesProvider =
+    StateProvider<Set<ForestClass>>((ref) => allForestClasses);
+
 /// Wie das Gitter beschafft wird — die Test-Naht, exakt das Muster der
 /// drei Regen-Loader: `test/fakes/test_app.dart` überschreibt sie auf
 /// `null`, sonst läse jeder Flow-Test echte Assets.
@@ -73,9 +82,11 @@ final forestGridProvider = FutureProvider<ForestGrid?>(
 /// einschaltet, zahlt weder Rechenzeit noch Speicher.
 final forestFillProvider = FutureProvider<ForestFillImage?>((ref) async {
   if (!ref.watch(forestLayerEnabledProvider)) return null;
+  final classes = ref.watch(forestClassesProvider);
+  if (classes.isEmpty) return null; // alles abgewählt = nichts zu zeichnen
   final grid = await ref.watch(forestGridProvider.future);
   if (grid == null) return null;
-  final png = await compute(_fill, grid);
+  final png = await compute(_fill, (grid: grid, classes: classes));
   return ForestFillImage(
     png: png,
     west: grid.west,
@@ -83,10 +94,30 @@ final forestFillProvider = FutureProvider<ForestFillImage?>((ref) async {
     north: grid.north,
     south: grid.south,
     referenceYear: grid.referenceYear,
+    classes: classes,
   );
 });
 
-Uint8List _fill(ForestGrid grid) => forestFillPng(grid);
+Uint8List _fill(({ForestGrid grid, Set<ForestClass> classes}) input) =>
+    forestFillPng(input.grid, classes: input.classes);
+
+
+/// Der „Stand" für den Dateinamen der Fläche — kodiert Jahr UND
+/// Klassenwahl.
+///
+/// Die MapLibre-Strecke ist idempotent auf der URL: Ein PNG mit anderer
+/// Klassenwahl unter demselben Namen würde schlicht nicht getauscht,
+/// und die Karte zeigte still die alte Auswahl. Deshalb wandert die
+/// Wahl als Bitmaske in den Tag des Stempels (1 + Maske ⇒ 2.–8. Januar
+/// des Referenzjahres); [RainGridRepository.writeFill] räumt dabei wie
+/// immer die vorigen Stände desselben Prefixes weg.
+DateTime forestFillStamp(int referenceYear, Set<ForestClass> classes) {
+  var mask = 0;
+  if (classes.contains(ForestClass.broadleaf)) mask |= 1;
+  if (classes.contains(ForestClass.mixed)) mask |= 2;
+  if (classes.contains(ForestClass.conifer)) mask |= 4;
+  return DateTime.utc(referenceYear, 1, 1 + mask);
+}
 
 /// Dieselbe Fläche als Datei auf Platte — der Weg für MapLibre, dessen
 /// `image`-Quelle eine URL nimmt und keine Bytes.
@@ -106,7 +137,7 @@ final forestFillFileProvider =
   final fill = await ref.watch(forestFillProvider.future);
   if (fill == null) return null;
   final url = await ref.watch(rainGridRepositoryProvider).writeFill(
-      'forest', DateTime.utc(fill.referenceYear), fill.png);
+      'forest', forestFillStamp(fill.referenceYear, fill.classes), fill.png);
   return url == null ? null : (url: url, fill: fill);
 });
 
@@ -122,6 +153,7 @@ class ForestFillImage {
     required this.north,
     required this.south,
     required this.referenceYear,
+    required this.classes,
   });
 
   final Uint8List png;
@@ -130,4 +162,9 @@ class ForestFillImage {
   final double north;
   final double south;
   final int referenceYear;
+
+  /// Die Klassenwahl, mit der dieses PNG gerechnet wurde — sie gehört
+  /// zum Bild wie seine Grenzen und bestimmt den Datei-Stand
+  /// ([forestFillStamp]), sonst tauscht MapLibre das Bild nicht.
+  final Set<ForestClass> classes;
 }

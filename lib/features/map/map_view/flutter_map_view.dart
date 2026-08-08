@@ -240,6 +240,26 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
             keepBuffer: 2,
             panBuffer: 1,
           ),
+        // Die Waldtypen-Fläche (#213) — VOR den Regen-Overlays, damit
+        // der Regen beim Kombinieren (#232) obenauf liegt: Er ist die
+        // flüchtige Information, der Wald die Kulisse.
+        // `filterQuality: none`, anders als der Regen-Fill und wie das
+        // DWD-Bild: Die 250-m-Klötzchen sind die Daten, und ein weiches
+        // Bild sähe genauer aus, als sie sind.
+        if (forestFill != null)
+          OverlayImageLayer(
+            overlayImages: [
+              OverlayImage(
+                bounds: LatLngBounds(
+                  LatLng(forestFill.south, forestFill.west),
+                  LatLng(forestFill.north, forestFill.east),
+                ),
+                filterQuality: FilterQuality.none,
+                gaplessPlayback: true,
+                imageProvider: MemoryImage(forestFill.png),
+              ),
+            ],
+          ),
         // Die Regenebene über der Karte, aber UNTER den Markern: Ein
         // Spot, der hinter dem Regen verschwindet, wäre genau dann
         // unauffindbar, wenn man ihn braucht. Dieselbe Schichtung wie
@@ -293,26 +313,6 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
                 filterQuality: FilterQuality.medium,
                 gaplessPlayback: true,
                 imageProvider: MemoryImage(rainFill.png),
-              ),
-            ],
-          ),
-        // Die Waldtypen-Fläche (#213) — drittes Bild-Overlay, gleiche
-        // Strecke. `filterQuality: none`, ANDERS als der Regen-Fill und
-        // wie das DWD-Bild: Die 250-m-Klötzchen sind die Daten, und ein
-        // weiches Bild sähe genauer aus, als sie sind. Regen und Wald
-        // schließen sich im Zustand aus (forest_layer_sheet.dart), hier
-        // muss also keine Reihenfolge entschieden werden.
-        if (forestFill != null)
-          OverlayImageLayer(
-            overlayImages: [
-              OverlayImage(
-                bounds: LatLngBounds(
-                  LatLng(forestFill.south, forestFill.west),
-                  LatLng(forestFill.north, forestFill.east),
-                ),
-                filterQuality: FilterQuality.none,
-                gaplessPlayback: true,
-                imageProvider: MemoryImage(forestFill.png),
               ),
             ],
           ),

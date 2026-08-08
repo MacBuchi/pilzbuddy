@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/app_colors.dart';
-import '../forest_data_providers.dart';
 import '../rain_data_providers.dart';
 import '../rain_fill.dart';
 import '../rain_layer.dart';
+import 'map_legend.dart';
 
 /// Blatt zur Wahl der Regenebene (#156).
 ///
@@ -83,21 +83,23 @@ class _RainLayerSheet extends ConsumerWidget {
                       selected: layer == current,
                       dense: true,
                       visualDensity: VisualDensity.compact,
-                      onTap: () {
-                        ref.read(rainLayerProvider.notifier).state = layer;
-                        // Regen und Wald schließen sich aus (#213): zwei
-                        // halbtransparente Flächen übereinander sind
-                        // unlesbar. Das Wald-Blatt schaltet umgekehrt
-                        // den Regen ab.
-                        if (layer != RainLayer.off) {
-                          ref.read(forestLayerEnabledProvider.notifier).state =
-                              false;
-                        }
-                      },
+                      // Seit #232 OHNE Wald-Abschaltung: Der Regen liegt
+                      // ÜBER der Waldfläche, und die Teil-Ebenen im
+                      // Wald-Blatt halten die Kombination lesbar.
+                      onTap: () =>
+                          ref.read(rainLayerProvider.notifier).state = layer,
                     ),
                   if (current != RainLayer.off) ...[
                     const Divider(height: 16),
                     _Details(layer: current),
+                    SwitchListTile(
+                      dense: true,
+                      title: const Text('Legende in Karte anzeigen'),
+                      value: ref.watch(mapLegendEnabledProvider),
+                      onChanged: (value) => ref
+                          .read(mapLegendEnabledProvider.notifier)
+                          .set(value),
+                    ),
                   ],
                 ],
               ),

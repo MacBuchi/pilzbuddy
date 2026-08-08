@@ -5,9 +5,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/app_colors.dart';
 import '../forest_data_providers.dart';
-import '../rain_layer.dart';
+import '../forest_grid.dart';
+import 'map_legend.dart';
 
 Future<void> showForestLayerSheet(BuildContext context) =>
     showModalBottomSheet(
@@ -55,25 +55,40 @@ class _ForestLayerSheet extends ConsumerWidget {
                     ?.copyWith(color: theme.hintColor),
               ),
             ),
-            SwitchListTile(
-              title: const Text('Waldtypen einblenden'),
-              // Schaltet die Regenfläche ab (siehe onChanged): Zwei
-              // halbtransparente Flächen übereinander sind unlesbar.
-              subtitle: ref.watch(rainLayerProvider) != RainLayer.off
-                  ? const Text('Blendet dafür die Regenebene aus.')
-                  : null,
-              value: enabled,
-              onChanged: (value) {
-                ref.read(forestLayerEnabledProvider.notifier).state = value;
-                if (value) {
-                  ref.read(rainLayerProvider.notifier).state = RainLayer.off;
-                }
-              },
+            // Scrollbar wie im Regen-Blatt: Mit Checkliste und
+            // Legenden-Schalter passt das Blatt sonst nicht mehr auf
+            // kleine Schirme.
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  SwitchListTile(
+                    title: const Text('Waldtypen einblenden'),
+                    // Seit #232 OHNE Regen-Abschaltung: Die Teil-Ebenen
+                    // unten machen die Kombination lesbar — wer Regen
+                    // über Wald will, lässt nur die Klasse stehen, die
+                    // ihn interessiert.
+                    value: enabled,
+                    onChanged: (value) => ref
+                        .read(forestLayerEnabledProvider.notifier)
+                        .state = value,
+                  ),
+                  if (enabled) ...[
+                    const Divider(height: 16),
+                    const _ClassChecklist(),
+                    const Divider(height: 16),
+                    SwitchListTile(
+                      dense: true,
+                      title: const Text('Legende in Karte anzeigen'),
+                      value: ref.watch(mapLegendEnabledProvider),
+                      onChanged: (value) => ref
+                          .read(mapLegendEnabledProvider.notifier)
+                          .set(value),
+                    ),
+                  ],
+                ],
+              ),
             ),
-            if (enabled) ...[
-              const Divider(height: 16),
-              const _Legend(),
-            ],
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
               child: Text(
@@ -92,45 +107,56 @@ class _ForestLayerSheet extends ConsumerWidget {
   }
 }
 
-class _Legend extends StatelessWidget {
-  const _Legend();
+/// Die drei Klassen als Teil-Ebenen (#231): Häkchen statt bloßer
+/// Legende — abgewählte Klassen verschwinden von der Karte. Der
+/// Farbchip macht die Zeile zugleich zur Legende des Blatts.
+class _ClassChecklist extends ConsumerWidget {
+  const _ClassChecklist();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          for (final (colour, label) in [
-            (AppColors.forestBroadleaf, 'Laubwald'),
-            (AppColors.forestMixed, 'Mischwald'),
-            (AppColors.forestConifer, 'Nadelwald'),
-          ])
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 2),
-              child: Row(children: [
-                Container(
-                  width: 18,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: colour.withValues(alpha: 0.55),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(label, style: theme.textTheme.bodySmall),
-              ]),
+    final selected = ref.watch(forestClassesProvider);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final (forestClass, label) in const [
+          (ForestClass.broadleaf, 'Laubwald'),
+          (ForestClass.mixed, 'Mischwald'),
+          (ForestClass.conifer, 'Nadelwald'),
+        ])
+          CheckboxListTile(
+            dense: true,
+            visualDensity: VisualDensity.compact,
+            controlAffinity: ListTileControlAffinity.leading,
+            secondary: Container(
+              width: 18,
+              height: 12,
+              decoration: BoxDecoration(
+                color: forestClassColor(forestClass)
+                    .withValues(alpha: 0.55),
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text('Ohne Farbe: kein Wald.',
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.hintColor)),
+            title: Text(label, style: theme.textTheme.bodyMedium),
+            value: selected.contains(forestClass),
+            onChanged: (checked) {
+              final next = {...selected};
+              if (checked == true) {
+                next.add(forestClass);
+              } else {
+                next.remove(forestClass);
+              }
+              ref.read(forestClassesProvider.notifier).state = next;
+            },
           ),
-        ],
-      ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+          child: Text('Ohne Farbe: kein Wald.',
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.hintColor)),
+        ),
+      ],
     );
   }
 }
