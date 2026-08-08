@@ -65,6 +65,29 @@ class MySpotsNotifier extends AsyncNotifier<SpotsSnapshot> {
     await future;
   }
 
+  /// Korrigiert einen einzelnen Eintrag (#240) — und löscht einen
+  /// einzelnen (dito). Beide laden danach neu wie [addFinds], und aus
+  /// demselben Grund auch die Freundes-Spots: Der Eintrag kann an einem
+  /// fremden Spot hängen.
+  Future<void> updateFind({
+    required String findId,
+    required NewFind find,
+  }) async {
+    await ref
+        .read(spotRepositoryProvider)
+        .updateFind(findId: findId, find: find);
+    ref.invalidateSelf();
+    ref.invalidate(friendSpotsProvider);
+    await future;
+  }
+
+  Future<void> deleteFind(String findId) async {
+    await ref.read(spotRepositoryProvider).deleteFind(findId);
+    ref.invalidateSelf();
+    ref.invalidate(friendSpotsProvider);
+    await future;
+  }
+
   /// Stellt mehrere Spots aus einer GPX-Sicherung wieder her (#112).
   ///
   /// Nimmt die ganze Liste und lädt **einmal** am Ende neu — bei

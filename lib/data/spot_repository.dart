@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/dates.dart';
+import '../core/errors.dart';
 import '../core/mushroom_species.dart';
 import '../models/spot.dart';
 import 'session.dart';
@@ -203,6 +204,55 @@ class SpotRepository {
           'blank': find.blank,
         },
     ]);
+  }
+
+  /// Ändert einen einzelnen Eintrag (#240): der Weg, einen Vertipper in
+  /// der Art, ein falsches Datum oder eine Notiz zu korrigieren, ohne den
+  /// ganzen Spot samt Historie zu löschen.
+  ///
+  /// Braucht KEINEN neuen Patch: `finds_author_all` (Patch 014) ist `for
+  /// all` mit `using (author_id = auth.uid())` — Ändern und Löschen
+  /// eigener Funde waren seit jeher erlaubt, nur nie benutzt.
+  ///
+  /// `spot_id` bleibt außen vor: Ein Fund wandert nicht per Korrektur an
+  /// einen anderen Ort, dafür gibt es [mergeSpots].
+  ///
+  /// Die Normalisierung läuft wie beim Anlegen ([addFinds]) über
+  /// [canonicalSpecies] — sonst entstünden über den Korrekturweg
+  /// Schreibweisen, die der Anlegeweg nie erzeugt.
+  Future<void> updateFind({
+    required String findId,
+    required NewFind find,
+  }) async {
+    final rows = await _client
+        .from('finds')
+        .update({
+          'species': canonicalSpecies(find.species),
+          'count': find.count,
+          'found_on': isoDate(find.foundOn),
+          'note': find.note,
+          'blank': find.blank,
+        })
+        .eq('id', findId)
+        // `.select()` ist hier keine Zierde, sondern die einzige
+        // Rückmeldung: Trifft die Anfrage wegen RLS keine Zeile, ist das
+        // für PostgREST kein Fehler — ohne die zurückgegebene Liste
+        // meldete die App Erfolg für einen Vorgang, der nie stattfand.
+        .select('id');
+    if (rows.isEmpty) throw const WriteRejectedException('Fund ändern');
+  }
+
+  /// Löscht einen einzelnen Eintrag (#240).
+  ///
+  /// Anders als [updateFind] gelingt das auch an einem Freundes-Spot,
+  /// dessen Freigabe endet: Das `using` von `finds_author_all` fragt nur
+  /// nach dem Autor, der `with check` mit dem Spot-Zugang gilt allein
+  /// fürs Schreiben. Wer seine Daten zurückziehen will, kann das also
+  /// immer.
+  Future<void> deleteFind(String findId) async {
+    final rows =
+        await _client.from('finds').delete().eq('id', findId).select('id');
+    if (rows.isEmpty) throw const WriteRejectedException('Fund löschen');
   }
 
   Future<void> deleteSpot(String spotId) async {

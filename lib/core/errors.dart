@@ -75,6 +75,24 @@ class NotSignedInException implements Exception {
   String toString() => 'NotSignedInException: keine angemeldete Sitzung';
 }
 
+/// Die Datenbank hat eine Änderung stillschweigend verworfen.
+///
+/// PostgREST meldet eine von RLS abgelehnte Zeile NICHT als Fehler: Die
+/// Anfrage gelingt, sie trifft nur keine Zeile. Ohne diesen Typ würde die
+/// App „gespeichert" melden, während in der Datenbank nichts passiert ist
+/// — der schlechteste aller Ausgänge, weil niemand ihn bemerkt. Die
+/// Schreibwege prüfen deshalb die zurückgegebenen Zeilen und werfen das
+/// hier, wenn keine dabei ist.
+class WriteRejectedException implements Exception {
+  const WriteRejectedException(this.what);
+
+  /// Was nicht geschrieben wurde, für Protokoll und Fehlerbericht.
+  final String what;
+
+  @override
+  String toString() => 'WriteRejectedException: $what';
+}
+
 /// Sieht dieser Fehler nach fehlendem Empfang aus?
 ///
 /// Bewusst eng: Der Spot-Zwischenspeicher (`spot_cache.dart`) springt NUR
@@ -96,6 +114,15 @@ String friendlyError(Object error) {
   }
   if (error is NotSignedInException) {
     return 'Nicht mehr angemeldet — bitte neu anmelden.';
+  }
+  // Der reale Fall: ein eigener Fund an einem Freundes-Spot, dessen
+  // Freigabe inzwischen endet. Die Policy `finds_author_all` lässt ihn
+  // dann noch löschen, aber nicht mehr ändern (ihr `with check` verlangt
+  // einen sichtbaren Spot). Deshalb nennt der Text beide Möglichkeiten,
+  // statt eine zu raten.
+  if (error is WriteRejectedException) {
+    return 'Das ließ sich nicht speichern — der Eintrag gehört dir nicht '
+        'mehr oder der Spot wird nicht mehr geteilt.';
   }
   if (error is PostgrestException) {
     // 42501 = RLS-Verbot. Der reale Fall seit #190: Das Spot-Blatt ist
