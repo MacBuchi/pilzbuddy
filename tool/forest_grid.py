@@ -40,20 +40,30 @@ Nutzung:
 from __future__ import annotations
 
 import argparse
+import calendar
+import csv
 import gzip
 import hashlib
+import io
 import json
 import os
 import random
+import re
+import shutil
 import struct
 import subprocess
 import sys
 import tempfile
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 
 CLMS_BASE = "https://land.copernicus.eu"
+
+# Ehrlicher Absender für die Downloads — urllib meldet sich sonst als
+# „Python-urllib", und genau solche Standard-UAs filtern CDNs gern weg.
+USER_AGENT = "pilzbuddy-forest-grid (github.com/MacBuchi/pilzbuddy)"
 
 # DACH — weiter als die Regen-Box: ganz Österreich (bis 17,2° O), die
 # Schweiz (ab 45,8° N). west, south, east, north.
@@ -476,57 +486,160 @@ def clms_json(path, token=None, payload=None):
             f"Antwort: {body}")
 
 
+def parse_title_year(title):
+    """(offene Reihe?, Jahr) aus dem Katalog-Titel, (False, None) ohne Jahr.
+
+    Die gepflegte Reihe heißt „Dominant Leaf Type 2018-present … yearly"
+    — „2018-present" ist kein isdigit()-Wort. Genau daran lief der erste
+    Echtlauf vorbei und bestellte den festen Jahrgang 2015.
+    """
+    open_ended = False
+    year = None
+    for word in title.replace("(", " ").replace(")", " ").split():
+        if word.isdigit() and 2012 <= int(word) <= 2100:
+            year = int(word)
+        elif word.endswith("-present"):
+            head = word[:-len("-present")]
+            if head.isdigit() and 2012 <= int(head) <= 2100:
+                year = int(head)
+                open_ended = True
+    return open_ended, year
+
+
+def pick_download(downloads):
+    """Das Geotiff-Download-Item der eigentlichen DLT-Kachel.
+
+    Der Datensatz führt ZWEI Geotiff-Items: die DLT-Werte und den
+    Confidence-Layer. „Erstes Geotiff" wäre reine Reihenfolgen-Lotterie
+    — deshalb nach der Collection wählen.
+    """
+    geotiffs = [d for d in downloads if d.get("full_format") == "Geotiff"]
+    for d in geotiffs:
+        if "leaf type" in (d.get("collection") or "").lower():
+            return d
+    if geotiffs:
+        return geotiffs[0]
+    return downloads[0] if downloads else None
+
+
+def pick_dataset(items):
+    """Wählt aus der Katalog-Suche: offene Reihe vor festem Jahrgang.
+
+    Nur die jährlich fortgeschriebene Reihe besteht den Borkenkäfer-Test
+    (#213); die festen Jahrgänge 2012/2015 sind 20-m-Altbestand.
+    Rückgabe (open_ended, jahr, uid, download_item) oder None.
+    """
+    best = None
+    for item in items:
+        title = item.get("title", "").lower()
+        if "dominant leaf type" not in title:
+            continue
+        if "change" in title:
+            continue  # die Änderungs-Produkte sind ein anderes Raster
+        open_ended, year = parse_title_year(item.get("title", ""))
+        if year is None:
+            continue
+        if best is None or (open_ended, year) > (best[0], best[1]):
+            downloads = (item.get("dataset_download_information") or
+                         {}).get("items", [])
+            best = (open_ended, year, item["UID"], pick_download(downloads))
+    return best
+
+
+def newest_year_in_csv(text):
+    """Neuestes Bezugsjahr aus der Granulat-Liste des CDSE-Spiegels."""
+    years = set()
+    for row in csv.DictReader(io.StringIO(text), delimiter=";"):
+        start = (row.get("content_date_start") or "")[:4]
+        if start.isdigit():
+            years.add(int(start))
+    if not years:
+        raise SystemExit("fetch: Granulat-Liste ohne Bezugsjahre — "
+                         "hat sich das CSV-Format geändert?")
+    return max(years)
+
+
+def newest_reference_year(full_path, fetch_fn=None):
+    """Neuestes WIRKLICH vorhandenes Jahr der offenen Reihe.
+
+    Der Katalogeintrag nennt als Abdeckung auch geplante Jahre (Stand
+    2026-08 listet er bis „2026", Granulate liegen bis 2024). Was es
+    gibt, steht in der Granulat-Liste, auf die full_path zeigt: eine
+    HTML-Seite mit einem Link auf ein CSV. Ein geratenes Jahr kostet
+    einen ganzen Queue-Umlauf (eine Stunde) — deshalb nachsehen.
+    """
+    fetch_fn = fetch_fn or _http_text
+    page = fetch_fn(full_path)
+    match = re.search(r'href="([^"]+\.csv)"', page)
+    if not match:
+        raise SystemExit("fetch: keine Granulat-Liste unter " + full_path)
+    return newest_year_in_csv(fetch_fn(match.group(1)))
+
+
+def _http_text(url):
+    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    with urllib.request.urlopen(request, timeout=120) as response:
+        return response.read().decode("utf-8", errors="replace")
+
+
 def find_dataset(session):
-    """Neuestes DLT-Jahr samt UID und Download-Information-Id."""
+    """Datensatz, Download-Item und echtes Bezugsjahr bestimmen."""
     result = clms_json(
         "/api/@search?portal_type=DataSet"
         "&SearchableText=dominant+leaf+type"
         "&metadata_fields=UID&metadata_fields=dataset_download_information"
         "&b_size=50",
         token=session.fresh())
-    best = None
-    for item in result.get("items", []):
-        title = item.get("title", "")
-        if "dominant leaf type" not in title.lower():
-            continue
-        if "change" in title.lower():
-            continue  # die Änderungs-Produkte sind ein anderes Raster
-        year = None
-        for word in title.replace("(", " ").split():
-            if word.isdigit() and 2015 <= int(word) <= 2100:
-                year = int(word)
-        if year is None:
-            continue
-        if best is None or year > best[0]:
-            downloads = (item.get("dataset_download_information") or
-                         {}).get("items", [])
-            full = next((d["@id"] for d in downloads
-                         if d.get("full_format") == "Geotiff"),
-                        downloads[0]["@id"] if downloads else None)
-            best = (year, item["UID"], full)
+    best = pick_dataset(result.get("items", []))
     if best is None:
         raise SystemExit("fetch: kein DLT-Datensatz gefunden — "
                          "hat sich die Katalogstruktur geändert?")
-    return best
+    open_ended, year, uid, download = best
+    if download is None:
+        raise SystemExit("fetch: Datensatz ohne Download-Information — "
+                         "Suchantwort prüfen")
+    if open_ended:
+        full_path = download.get("full_path")
+        if not full_path:
+            raise SystemExit("fetch: offene Reihe ohne full_path — "
+                             "Suchantwort prüfen")
+        year = newest_reference_year(full_path)
+    return open_ended, year, uid, download["@id"]
 
 
-def request_download(session, uid, download_id):
+def year_window_ms(year):
+    """Epoch-Millisekunden [1. Jan, 31. Dez] eines Jahres in UTC.
+
+    Das Format des TemporalFilter laut API-Doku; das Fenster bleibt
+    unter deren Grenze von 366 Tagen (download_limit_temporal_extent).
+    """
+    start = calendar.timegm((year, 1, 1, 0, 0, 0, 0, 0, 0))
+    end = calendar.timegm((year, 12, 31, 0, 0, 0, 0, 0, 0))
+    return start * 1000, end * 1000
+
+
+def request_download(session, uid, download_id, year_filter=None):
     west, south, east, north = BOUNDS
+    dataset = {
+        "DatasetID": uid,
+        "DatasetDownloadInformationID": download_id,
+        "OutputFormat": "Geotiff",
+        "OutputGCS": "EPSG:4326",
+        # Reihenfolge nach dem KONKRETEN BEISPIEL der API-Doku:
+        # [W, N, E, S]. Deren Prosa behauptet [max.lat, max.lon,
+        # min.lat, min.lon] und widerspricht dem eigenen Beispiel
+        # ([2.35, 46.85, 4.64, 45.88] ist erkennbar Frankreich,
+        # also Länge, Breite, Länge, Breite).
+        "BoundingBox": [west, north, east, south],
+    }
+    if year_filter is not None:
+        # Ohne Zeitfenster wäre bei der Jahres-Reihe unklar, welcher
+        # Jahrgang kommt — dieselbe stille Falle wie beim Regen-WCS
+        # (dort verschmolz GeoServer kommentarlos alle Granulate).
+        start, end = year_window_ms(year_filter)
+        dataset["TemporalFilter"] = {"StartDate": start, "EndDate": end}
     result = clms_json("/api/@datarequest_post", token=session.fresh(),
-                       payload={
-        "Datasets": [{
-            "DatasetID": uid,
-            "DatasetDownloadInformationID": download_id,
-            "OutputFormat": "Geotiff",
-            "OutputGCS": "EPSG:4326",
-            # Reihenfolge nach dem KONKRETEN BEISPIEL der API-Doku:
-            # [W, N, E, S]. Deren Prosa behauptet [max.lat, max.lon,
-            # min.lat, min.lon] und widerspricht dem eigenen Beispiel
-            # ([2.35, 46.85, 4.64, 45.88] ist erkennbar Frankreich,
-            # also Länge, Breite, Länge, Breite).
-            "BoundingBox": [west, north, east, south],
-        }],
-    })
+                       payload={"Datasets": [dataset]})
     return str(result["TaskIds"][0]["TaskID"]) if "TaskIds" in result \
         else str(result["TaskID"])
 
@@ -546,20 +659,59 @@ def poll_download(session, task_id, timeout_minutes=120):
     raise SystemExit("fetch: Zeitüberschreitung beim Warten auf den Download")
 
 
+def download_archive(url, archive, attempts=10, sleep_fn=time.sleep,
+                     open_fn=None):
+    """Lädt das Ergebnis-Zip — mit Wiederholung im Minutenabstand.
+
+    Der dritte Echtlauf bekam auf die frisch gemeldete DownloadURL ein
+    403; dieselbe URL lieferte Minuten später anonym 200 mit vollem
+    Inhalt. FME meldet den Auftrag also fertig, bevor die Datei
+    abrufbar ist. Ein hartes 403 (etwa IP-Sperre) fällt nach zehn
+    Versuchen trotzdem auf — mitsamt letztem Fehler.
+    """
+    open_fn = open_fn or _open_stream
+    last = None
+    for attempt in range(attempts):
+        if attempt:
+            sleep_fn(60)
+        try:
+            stream = open_fn(url)
+        except urllib.error.HTTPError as error:
+            last = f"HTTP {error.code}"
+        except urllib.error.URLError as error:
+            last = str(error.reason)
+        else:
+            with stream, open(archive, "wb") as out:
+                shutil.copyfileobj(stream, out, 1024 * 1024)
+            return
+        print(f"  Download-Versuch {attempt + 1}/{attempts}: {last}",
+              file=sys.stderr)
+    raise SystemExit(
+        f"fetch: Download nach {attempts} Versuchen gescheitert ({last})")
+
+
+def _open_stream(url):
+    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    return urllib.request.urlopen(request, timeout=600)
+
+
 def fetch(key_path, out_dir):
     session = ClmsSession(key_path)
-    year, uid, download_id = find_dataset(session)
-    print(f"fetch: DLT {year} (UID {uid}, Download {download_id})",
+    open_ended, year, uid, download_id = find_dataset(session)
+    print(f"fetch: DLT {year} (UID {uid}, Download {download_id}, "
+          f"{'offene Reihe' if open_ended else 'fester Jahrgang'})",
           file=sys.stderr)
     if not download_id:
         raise SystemExit("fetch: Datensatz ohne Download-Information — "
                          "Suchantwort prüfen")
-    task = request_download(session, uid, download_id)
+    task = request_download(session, uid, download_id,
+                            year_filter=year if open_ended else None)
     url = poll_download(session, task)
     os.makedirs(out_dir, exist_ok=True)
     archive = os.path.join(out_dir, "dlt_download.zip")
     print(f"fetch: lade {url}", file=sys.stderr)
-    urllib.request.urlretrieve(url, archive)
+    download_archive(url, archive)
+    print(f"fetch: {os.path.getsize(archive)} Bytes", file=sys.stderr)
     subprocess.run(["unzip", "-o", "-d",
                     os.path.join(out_dir, "dlt_source"), archive], check=True)
     tifs = []
@@ -675,6 +827,87 @@ def self_test():
 
     # Die Kachel-Rechnung: 25er-Blöcke, Rand fällt weg.
     assert 107 // CELL_FACTOR == 4
+
+    # Datensatz-Wahl: Die offene Reihe („2018-present") schlägt jeden
+    # festen Jahrgang — der erste Echtlauf bestellte 2015, weil ihr
+    # Titel kein isdigit()-Jahr trägt und sie übersprungen wurde.
+    assert parse_title_year("Dominant Leaf Type 2015 (raster 20 m)") == \
+        (False, 2015)
+    assert parse_title_year(
+        "Dominant Leaf Type 2018-present (raster 10 m), Europe, yearly") == \
+        (True, 2018)
+    assert parse_title_year("Dominant Leaf Type") == (False, None)
+    items = [
+        {"title": "Dominant Leaf Type 2015 (raster 20 m)", "UID": "alt",
+         "dataset_download_information": {"items": [
+             {"@id": "alt-dl", "full_format": "Geotiff",
+              "collection": "Dominant Leaf Type"}]}},
+        {"title": "Dominant Leaf Type Change 2018-2021", "UID": "change",
+         "dataset_download_information": {"items": []}},
+        {"title": "Dominant Leaf Type 2018-present (raster 10 m), yearly",
+         "UID": "reihe",
+         "dataset_download_information": {"items": [
+             # Confidence-Layer ZUERST — die Wahl darf nicht an der
+             # Reihenfolge hängen.
+             {"@id": "conf-dl", "full_format": "Geotiff",
+              "collection": "Confidence Layer"},
+             {"@id": "dlt-dl", "full_format": "Geotiff",
+              "collection": "Dominant Leaf Type",
+              "full_path": "https://beispiel/pfad/"}]}},
+    ]
+    open_ended, year, uid, download = pick_dataset(items)
+    assert (open_ended, year, uid) == (True, 2018, "reihe"), (year, uid)
+    assert download["@id"] == "dlt-dl", download
+
+    # Bezugsjahr: aus der Granulat-Liste, nicht aus der Plan-Abdeckung.
+    csv_text = ("id;name;content_date_start;s3_path\n"
+                "a;K1;2018-01-01T00:00:00.000;s3://x\n"
+                "b;K2;2024-01-01T00:00:00.000;s3://y\n"
+                "c;K3;2021-01-01T00:00:00.000;s3://z\n")
+    assert newest_year_in_csv(csv_text) == 2024
+    try:
+        newest_year_in_csv("id;name\n1;kaputt\n")
+        raise AssertionError("leere Jahresliste nicht erkannt")
+    except SystemExit:
+        pass
+    pages = {"seite": '<a href="https://s3/granulate.csv">liste</a>',
+             "https://s3/granulate.csv": csv_text}
+    assert newest_reference_year("seite", fetch_fn=pages.__getitem__) == 2024
+
+    # Zeitfenster: Epoch-Millisekunden in UTC, Jahresanfang und -ende.
+    start, end = year_window_ms(2024)
+    assert start == 1704067200000, start  # 2024-01-01T00:00:00Z
+    assert end == 1735603200000, end      # 2024-12-31T00:00:00Z
+    assert end - start < 366 * 86400 * 1000
+
+    # Download-Retry: 403 beim Fertigmelden ist ein Race, kein Urteil —
+    # der dritte Echtlauf scheiterte daran, Minuten später kam 200.
+    calls = []
+
+    def _flaky_open(_url):
+        calls.append("versuch")
+        if len(calls) < 3:
+            raise urllib.error.HTTPError("u", 403, "Forbidden", None, None)
+        return io.BytesIO(b"zipdaten")
+
+    naps = []
+    with tempfile.TemporaryDirectory() as tmp:
+        target = os.path.join(tmp, "a.zip")
+        download_archive("u", target, attempts=5,
+                         sleep_fn=naps.append, open_fn=_flaky_open)
+        with open(target, "rb") as f:
+            assert f.read() == b"zipdaten"
+    assert len(calls) == 3 and naps == [60, 60], (calls, naps)
+
+    def _dead_open(_url):
+        raise urllib.error.HTTPError("u", 403, "Forbidden", None, None)
+
+    try:
+        download_archive("u", "/unbenutzt", attempts=2,
+                         sleep_fn=lambda _s: None, open_fn=_dead_open)
+        raise AssertionError("hartes 403 nicht gemeldet")
+    except SystemExit as error:
+        assert "403" in str(error)
 
     # Token-Verwaltung: Der erste Echtlauf bestellte korrekt, pollte
     # 61 Minuten und starb an einem 401 — das Token lebt nur eine
