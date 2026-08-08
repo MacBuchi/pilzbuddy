@@ -9,7 +9,7 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Welcher Wald ist das? Die Karte weiß es jetzt
 
-*8. August 2026 · Version 1.62.0*
+*8. August 2026 · Versionen 1.62.0 und 1.62.1 (1.62.1: nur aktualisierte Bibliotheken, nichts Sichtbares)*
 
 Wer Sommersteinpilze sucht, will nicht im reinsten Fichtenforst landen.
 Die Karte hat dafür einen neuen Knopf: **Waldtypen** färbt den Wald in
