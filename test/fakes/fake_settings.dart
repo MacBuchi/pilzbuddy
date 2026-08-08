@@ -64,4 +64,12 @@ class FakeSettings implements Settings {
   Future<void> setLastFindSeenAt(DateTime value) async {
     lastFindSeenAt = value;
   }
+
+  @override
+  DateTime? spotMemoryDismissedUntil;
+
+  @override
+  Future<void> setSpotMemoryDismissedUntil(DateTime value) async {
+    spotMemoryDismissedUntil = value;
+  }
 }

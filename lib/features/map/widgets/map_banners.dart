@@ -17,6 +17,7 @@ import '../../../models/find.dart';
 import '../../../models/spot.dart';
 import '../../friends/friend_providers.dart';
 import '../../offline_maps/offline_map_providers.dart';
+import '../spot_memory.dart';
 import '../../spots/spot_providers.dart';
 import '../../spots/widgets/spot_detail_sheet.dart';
 import '../../update/update_installer.dart';
@@ -46,6 +47,11 @@ final lastFindSeenAtProvider = StateProvider<DateTime?>(
 /// Die Server-Zeit eines Funds. `foundOn` nur als Rückfall — `created_at`
 /// ist in der DB not null, auch alte Cache-Zeilen tragen es.
 DateTime _findStamp(Find find) => (find.createdAt ?? find.foundOn).toUtc();
+
+/// Bis wann die Spot-Erinnerung stummgeschaltet ist — gerätelokal und
+/// über den Neustart hinaus, Muster wie [lastFindSeenAtProvider].
+final spotMemoryDismissedProvider = StateProvider<DateTime?>(
+    (ref) => ref.watch(settingsProvider).spotMemoryDismissedUntil);
 
 /// Fremde Funde, die seit dem Marker dazukamen — neuester zuerst, von
 /// eigenen UND von geteilten Spots (beide Fälle aus Wunsch #202).
@@ -93,6 +99,32 @@ class MapBanners extends ConsumerWidget {
         .setLastFindSeenAt(newest)
         .catchError((Object e, StackTrace s) =>
             logError('Fund-Marker speichern', e, s)));
+  }
+
+  /// Schaltet die Spot-Erinnerung bis zum Ende des laufenden Fensters
+  /// stumm: Dieselbe Erinnerung soll nicht jeden Morgen wiederkommen —
+  /// die des nächsten Zeitfensters aber schon.
+  void _dismissMemory(WidgetRef ref) {
+    final until = DateTime.now()
+        .toUtc()
+        .add(const Duration(days: spotMemoryWindowDays));
+    ref.read(spotMemoryDismissedProvider.notifier).state = until;
+    unawaited(ref
+        .read(settingsProvider)
+        .setSpotMemoryDismissedUntil(until)
+        .catchError((Object e, StackTrace s) =>
+            logError('Erinnerung stummschalten', e, s)));
+  }
+
+  /// Der Text der Erinnerung. Nennt die Art nur, wenn ALLE Funde des
+  /// Fensters dieselbe tragen — „Steinpilz" über einem gemischten
+  /// Fenster wäre eine Behauptung, die die Daten nicht hergeben.
+  String _memoryText(SpotMemory memory) {
+    final place = memory.spot.name ?? 'Dein Spot';
+    final what = memory.species ?? 'Funde';
+    final many = memory.count > 1 ? '${memory.count}× ' : '';
+    return '🍄 Erinnerung: $place — um diese Zeit ${memory.year} '
+        'hattest du dort $many$what';
   }
 
   Future<void> _openUpdateDialog(BuildContext context, UpdateInfo info) {
@@ -203,6 +235,13 @@ class MapBanners extends ConsumerWidget {
     // Zustand der angezeigten Daten.
     final cachedAt = ref.watch(mySpotsCachedAtProvider);
 
+    // Die Erinnerung ans Vorjahr — stumm, solange das X-Fenster läuft.
+    final dismissedUntil = ref.watch(spotMemoryDismissedProvider);
+    final memory = (dismissedUntil != null &&
+            dismissedUntil.isAfter(DateTime.now().toUtc()))
+        ? null
+        : ref.watch(spotMemoryProvider);
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -293,6 +332,22 @@ class MapBanners extends ConsumerWidget {
                     ' — antippen'
                 : '🔔 ${freshFinds.length} neue Funde deiner Buddys '
                     '— antippen'),
+          ),
+        // Die Spot-Erinnerung (Baustein C des Ampel-Konzepts): keine
+        // Prognose, sondern die eigene Historie. Ganz unten in der
+        // Reihe — Anfragen und Buddy-Funde sind Neuigkeiten von heute,
+        // das hier ist ein Wink aus dem Vorjahr.
+        if (memory != null)
+          _banner(
+            context,
+            background: AppColors.forestGreen,
+            foreground: Colors.white,
+            onTap: () {
+              _dismissMemory(ref);
+              showSpotDetailSheet(context, memory.spot.id);
+            },
+            onDismiss: () => _dismissMemory(ref),
+            content: Text(_memoryText(memory)),
           ),
         if (!feedbackDismissed)
           _banner(

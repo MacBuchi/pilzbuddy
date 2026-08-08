@@ -63,6 +63,14 @@ abstract interface class Settings {
 
   Future<void> setRainCourseEnabled(bool value);
 
+  /// Bis wann die Spot-Erinnerung stummgeschaltet ist (Baustein C des
+  /// Ampel-Konzepts): Das X am Banner setzt den Zeitpunkt ans Ende des
+  /// laufenden ±14-Tage-Fensters — dieselbe Erinnerung soll nicht jeden
+  /// Morgen wiederkommen, die des nächsten Fensters aber schon.
+  DateTime? get spotMemoryDismissedUntil;
+
+  Future<void> setSpotMemoryDismissedUntil(DateTime value);
+
   /// Bis zu welchem Zeitpunkt Buddy-Funde als gesehen gelten (#202).
   ///
   /// Gerätelokal mit Absicht: Der Hinweis ist eine Bequemlichkeit dieses
@@ -141,6 +149,19 @@ class PrefsSettings implements Settings {
   @override
   Future<void> setRainCourseEnabled(bool value) =>
       _prefs.setBool(_rainCourseEnabledKey, value);
+
+  static const _spotMemoryDismissedUntilKey = 'spot_memory_dismissed_until';
+
+  @override
+  DateTime? get spotMemoryDismissedUntil {
+    final raw = _prefs.getString(_spotMemoryDismissedUntilKey);
+    return raw == null ? null : DateTime.tryParse(raw)?.toUtc();
+  }
+
+  @override
+  Future<void> setSpotMemoryDismissedUntil(DateTime value) =>
+      _prefs.setString(
+          _spotMemoryDismissedUntilKey, value.toUtc().toIso8601String());
 
   // Die erste Nicht-Bool-Einstellung: als ISO-8601-UTC-String, dasselbe
   // Format, das auch die Fehlerberichte schreiben.
