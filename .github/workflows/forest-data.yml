@@ -40,13 +40,23 @@ on:
           hexes aggregated honestly from the 10 m source).
         required: false
         default: "square"
+      publish_blocks:
+        description: >-
+          Cut the built hex grid into ~2° blocks and upload them to the
+          fixed release tag forest-data (#253) — the download channel
+          for finer levels. Only valid with lattice=hex.
+        required: false
+        default: "false"
 
 concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
 
+# contents:write NUR für den Block-Upload auf den festen Tag
+# forest-data (#253) — dasselbe Muster und dieselbe Begründung wie
+# rain-data.yml: Release-Assets sind der Verteilweg, kein Code-Push.
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -82,6 +92,21 @@ jobs:
           python3 tool/forest_grid.py fetch --out build/forest \
             --cell-factor "${{ inputs.cell_factor || '25' }}" \
             --lattice "${{ inputs.lattice || 'square' }}"
+
+      - name: Cut and publish blocks to the forest-data release
+        if: inputs.publish_blocks == 'true' && inputs.lattice == 'hex'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 tool/forest_grid.py blocks --out build/forest
+          gh release view forest-data >/dev/null 2>&1 || \
+            gh release create forest-data \
+              --title "Forest data (rolling)" \
+              --notes "Nachladbare Wald-Stufen (#253). Fester Tag, wird ueberschrieben - kein App-Release." \
+              --latest=false
+          gh release upload forest-data \
+            build/forest/forest_block_*.bin.gz \
+            build/forest/forest_blocks.json --clobber
 
       - name: Upload the grid as an artifact
         uses: actions/upload-artifact@v7

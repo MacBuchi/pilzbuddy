@@ -548,6 +548,73 @@ def build_hex(source, year, out_dir, band_rows=2048,
     return manifest
 
 
+def cut_blocks(out_dir, block_deg=2.0):
+    """Schneidet das gebaute HEX-Gitter in nachladbare Blöcke (#253).
+
+    Für die 100-m-Stufe: 27+ MB am Stück lädt niemand für einen
+    Waldspaziergang — Blöcke von ~2° Kantenlänge schon. Geschnitten wird
+    an GERADEN Hexzeilen (odd-r-Parität!) und ganzen Spalten, damit
+    jeder Block für sich ein gültiges Hex-Gitter mit denselben
+    Mittelpunkten ist: Sein Anker ist der globale Anker plus
+    Indexversatz, die Formel der App ändert sich nicht.
+
+    Ergebnis: forest_block_x<i>_y<j>.bin.gz je Block plus der Katalog
+    forest_blocks.json (Bbox, Maße, Prüfsumme je Block) — das Pendant
+    zur Release-Asset-Liste des Regens.
+    """
+    with open(os.path.join(out_dir, "forest_manifest.json")) as f:
+        manifest = json.load(f)
+    if manifest.get("lattice") != "hex-odd-r":
+        raise SystemExit("cut_blocks: nur für Hex-Gitter gedacht")
+    with open(os.path.join(out_dir, "forest_grid.bin.gz"), "rb") as f:
+        rows = decode(f.read(), manifest["width"], manifest["height"])
+    lon_step = manifest["hex_lon_step"]
+    lat_step = manifest["hex_lat_step"]
+    width, height = manifest["width"], manifest["height"]
+    west, north = manifest["west"], manifest["north"]
+
+    step_x = max(2, int(round(block_deg / lon_step)))
+    step_y = max(2, int(round(block_deg / lat_step)) // 2 * 2)  # gerade!
+
+    catalog = []
+    for by, hy0 in enumerate(range(0, height, step_y)):
+        h = min(step_y, height - hy0)
+        for bx, hx0 in enumerate(range(0, width, step_x)):
+            w = min(step_x, width - hx0)
+            block_rows = [rows[hy0 + j][hx0:hx0 + w] for j in range(h)]
+            payload = encode(block_rows)
+            name = f"forest_block_x{bx}_y{by}.bin.gz"
+            with open(os.path.join(out_dir, name), "wb") as f:
+                f.write(payload)
+            catalog.append({
+                "file": name,
+                "width": w,
+                "height": h,
+                "west": round(west + hx0 * lon_step, 9),
+                "north": round(north - hy0 * lat_step, 9),
+                "east": round(west + (hx0 + w + 0.5) * lon_step, 9),
+                "south": round(north - (hy0 + h + 1) * lat_step, 9),
+                "bytes": len(payload),
+                "sha256": hashlib.sha256(payload).hexdigest(),
+            })
+    index = {
+        "source": manifest["source"],
+        "reference_year": manifest["reference_year"],
+        "lattice": manifest["lattice"],
+        "hex_lon_step": lon_step,
+        "hex_lat_step": lat_step,
+        "cell_factor": manifest["cell_factor"],
+        "tree_threshold": manifest["tree_threshold"],
+        "blocks": catalog,
+    }
+    with open(os.path.join(out_dir, "forest_blocks.json"), "w") as f:
+        json.dump(index, f, indent=2)
+    total = sum(b["bytes"] for b in catalog)
+    print(f"blocks: {len(catalog)} Stück, gesamt {total/1e6:.1f} MB, "
+          f"größter {max(b['bytes'] for b in catalog)/1e6:.1f} MB")
+    return index
+
+
 def build(source, year, out_dir, band_rows=None,
           info_fn=None, band_fn=None):
     """Aggregiert das (komprimierte) Quell-GeoTIFF bandweise.
@@ -1354,8 +1421,46 @@ def _self_test():
     _self_test_build()
     _self_test_hex_assign()
     _self_test_hex_build()
+    _self_test_blocks()
 
     print("self-test: ok")
+
+
+
+def _self_test_blocks():
+    """Der Block-Schneider: Jeder Block ist die exakte Teilmatrix, die
+    Parität stimmt (Schnitt an geraden Zeilen), und die Katalog-Bboxen
+    decken den Block samt odd-r-Überhang."""
+    import tempfile as _tempfile
+    rows = [bytes((x + y) % 103 for x in range(37)) for y in range(29)]
+    with _tempfile.TemporaryDirectory() as out:
+        payload = encode(rows)
+        with open(os.path.join(out, "forest_grid.bin.gz"), "wb") as f:
+            f.write(payload)
+        with open(os.path.join(out, "forest_manifest.json"), "w") as f:
+            json.dump({
+                "source": "t", "reference_year": 2024,
+                "lattice": "hex-odd-r", "width": 37, "height": 29,
+                "west": 5.8, "north": 55.1,
+                "hex_lon_step": 0.1, "hex_lat_step": 0.15,
+                "cell_factor": 25, "tree_threshold": 0.2,
+            }, f)
+        index = cut_blocks(out, block_deg=1.0)
+        assert index["lattice"] == "hex-odd-r"
+        seen = bytearray(37 * 29)
+        for block in index["blocks"]:
+            with open(os.path.join(out, block["file"]), "rb") as f:
+                got = decode(f.read(), block["width"], block["height"])
+            # Anker zurück auf globale Indizes rechnen.
+            hx0 = round((block["west"] - 5.8) / 0.1)
+            hy0 = round((55.1 - block["north"]) / 0.15)
+            assert hy0 % 2 == 0, "Block beginnt an UNGERADER Zeile"
+            for j, row in enumerate(got):
+                assert row == rows[hy0 + j][hx0:hx0 + block["width"]], \
+                    (block["file"], j)
+                for i in range(block["width"]):
+                    seen[(hy0 + j) * 37 + hx0 + i] += 1
+        assert all(v == 1 for v in seen), "Lücke oder Überlappung"
 
 
 def _self_test_hex_assign():
@@ -1505,7 +1610,7 @@ def _self_test_build():
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("command", nargs="?", default="",
-                        choices=["", "build", "fetch", "verify"])
+                        choices=["", "build", "fetch", "verify", "blocks"])
     parser.add_argument("--self-test", action="store_true")
     parser.add_argument("--source")
     parser.add_argument("--year", type=int)
@@ -1516,6 +1621,8 @@ def main():
                         help="Quellpixel je Zelle (25 = ~250 m, "
                              "10 = ~100 m). Größere Gitter sind größere "
                              "Dateien — genau deshalb messbar.")
+    parser.add_argument("--block-deg", type=float, default=2.0,
+                        help="Blockkante in Grad für das Kommando blocks.")
     parser.add_argument("--lattice", choices=["square", "hex"],
                         default="square",
                         help="Zellform des Gitters: square (Bestand) "
@@ -1541,6 +1648,8 @@ def main():
     elif args.command == "verify":
         verify_fn = verify_hex if args.lattice == "hex" else verify
         verify_fn(args.source, args.out, samples=args.samples)
+    elif args.command == "blocks":
+        cut_blocks(args.out, block_deg=args.block_deg)
     else:
         parser.error("Kommando oder --self-test angeben")
 
