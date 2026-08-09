@@ -26,6 +26,14 @@ on:
     # Quarterly, first day of Jan/Apr/Jul/Oct, off the full hour.
     - cron: "41 5 1 1,4,7,10 *"
   workflow_dispatch:
+    inputs:
+      cell_factor:
+        description: >-
+          Source pixels per cell (25 = ~250 m, the shipped grid;
+          10 = ~100 m). Only for measuring what a finer grid costs —
+          the answer is a file size, and guessing it is not a method.
+        required: false
+        default: "25"
 
 concurrency:
   group: ${{ github.workflow }}
@@ -65,12 +73,15 @@ jobs:
             echo "::error::Repository secrets CDSE_S3_ACCESS_KEY/CDSE_S3_SECRET_KEY are missing — create an S3 key pair under the (free) CDSE account at eodata-s3keysmanager.dataspace.copernicus.eu."
             exit 1
           fi
-          python3 tool/forest_grid.py fetch --out build/forest
+          python3 tool/forest_grid.py fetch --out build/forest \
+            --cell-factor "${{ inputs.cell_factor || '25' }}"
 
       - name: Upload the grid as an artifact
         uses: actions/upload-artifact@v7
         with:
-          name: forest-grid
+          # Der Faktor gehört in den Namen: Ein Messlauf und der
+          # Quartalslauf dürfen nicht dasselbe Artefakt heißen.
+          name: forest-grid-${{ inputs.cell_factor || '25' }}
           path: |
             build/forest/forest_grid.bin.gz
             build/forest/forest_manifest.json
