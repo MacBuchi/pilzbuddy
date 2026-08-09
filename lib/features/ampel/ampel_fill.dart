@@ -1,35 +1,24 @@
-// Die Pilzwetter-Fläche (Frage b der Ampel-Vorschau, 2026-08-09):
-// „Wo in meiner Umgebung ist es zurzeit besonders gut?" — als Ebene
-// über Deutschland, gerechnet aus denselben lokalen Gittern wie die
-// Spot-Ampel. KEINE fremden Spots, keine Koordinate verlässt das
-// Gerät: Es ist reine Wetterfläche.
+// Die Pilzwetter-Rechnung für die Karte (Frage b der Ampel-Vorschau,
+// 2026-08-09): „Wo in meiner Umgebung ist es zurzeit besonders gut?" —
+// gerechnet aus denselben lokalen Gittern wie die Spot-Ampel. KEINE
+// fremden Spots, keine Koordinate verlässt das Gerät.
 //
-// Dieselbe Bild-Overlay-Strecke wie Regen (#156) und Wald (#213): das
-// Stapel-Gitter direkt eingefärbt, ein Pixel je Zelle, als PNG. Das
-// Regen-Gitter hat ~550 000 Zellen — der Puffer ist mit ~2 MB der
-// bewährte Normalfall dieser Strecke, kein Fensterproblem wie beim
-// 100-m-Wald.
+// **Die Ampel färbt nur noch WALD** (Betreiber, 2026-08-10: „ich würde
+// die Pilzampel auch nur mit dem Wald überlagern, es gibt keinen Grund,
+// warum man andere Bereiche damit einfärben sollte"). Bis 1.75.0 lag sie
+// als eigene Fläche über allem — auch über Feldern, Städten und Seen, wo
+// die Aussage niemanden interessiert. Seit 1.76.0 gibt es nur noch die
+// Kombi-Ebene: Der Wabenzeichner der Waldfläche
+// (`forestAmpelFillPng`) lässt die Waben leuchten, wo das Wetter stimmt.
 //
-// **Farben aus einer wählbaren Familie** ([AmpelPalette]), Deckkraft die
-// der Regenfläche (140, gemessen in 1.48.0). Bis 1.74.0 lieh sich die
-// Fläche die Töne der Stufen-Worte (forestGreen / forestBroadleaf) —
-// und stand damit im selben Grün-Ocker wie die Waldebene, mit der man
-// sie kombinieren WILL: Über Laubwald war „verhalten" nicht mehr zu
-// erkennen (Betreiber-Rückmeldung zur 1.73.0). Seither bricht die
-// Ampel aus den Erdtönen aus; die Begründung je Familie steht an
-// [AmpelPalette].
-//
-// „Ungünstig" bleibt TRANSPARENT: Die Karte hebt hervor, wo es sich
-// lohnt, statt das Land braun zu färben — „keine Stufe heißt
-// aussichtslos" gilt auf der Karte wörtlich.
+// Übrig bleibt hier die RECHNUNG — die Stufe je Zelle, ohne Farbe. Genau
+// das ist auch das, was der Betreiber als Zukunftsbild beschrieben hat:
+// dieselben Sechsecke, auf Array-Ebene gefärbt, ein Rendern statt zwei
+// Ebenen übereinander.
 import 'dart:typed_data';
 
-import 'package:flutter/painting.dart' show Color;
-
-import '../../core/app_colors.dart';
 import '../../core/geo.dart' show distanceKm;
 import '../../data/rain_grid_repository.dart' show RainStackData;
-import '../map/overlay_png.dart';
 import '../map/rain_grid.dart';
 import '../map/spot_weather.dart';
 import 'ampel_model.dart';
@@ -65,34 +54,6 @@ class AmpelFill {
   final double south;
   final DateTime newest;
 }
-
-/// Färbt die Fläche ein — `null`, wenn der Stapel die 26 Modell-Tage
-/// nicht lückenlos trägt (dieselbe Strenge wie die Sektion: lieber
-/// keine Ebene als eine mit still verschobenen Altersgewichten; ein
-/// DWD-Lückentag heilt sich am Folgetag von selbst).
-AmpelFill? ampelFillFrom(RainStackData stack, WeatherTable? table,
-    {int alpha = ampelFillAlpha,
-    AmpelPalette palette = defaultAmpelPalette}) {
-  final grid = ampelLevelsFrom(stack, table);
-  return grid == null
-      ? null
-      : ampelFillOfLevels(grid, palette: palette, alpha: alpha);
-}
-
-/// Dasselbe Bild aus einem fertigen Stufen-Gitter — der Weg der App:
-/// Die Stufen rechnet ein Isolate einmal, das Einfärben läuft danach je
-/// Farbwahl neu, ohne die 26 Gitter noch einmal auszupacken.
-AmpelFill ampelFillOfLevels(AmpelLevelGrid grid,
-        {AmpelPalette palette = defaultAmpelPalette,
-        int alpha = ampelFillAlpha}) =>
-    AmpelFill(
-      png: overlayPng(grid.width, grid.height, grid.paint(palette, alpha)),
-      west: grid.west,
-      east: grid.east,
-      north: grid.north,
-      south: grid.south,
-      newest: grid.newest,
-    );
 
 /// Dasselbe Ergebnis eine Stufe früher: die STUFE je Zelle, noch ohne
 /// Farbe. Zwei Kunden — die Fläche oben und die Kombi-Ebene „Wald +
@@ -313,37 +274,5 @@ class AmpelLevelGrid {
   AmpelLevel? levelAtCell(int row, int column) {
     final value = levels[row * width + column];
     return value == 0 ? null : AmpelLevel.values[value - 1];
-  }
-
-  /// Die Fläche als PNG-Scanlines: drei Stufen, „ungünstig" und alles
-  /// Unbeantwortbare transparent.
-  Uint8List paint(AmpelPalette palette, int alpha) {
-    Color colour(AmpelLevel level) => switch (level) {
-          AmpelLevel.guenstig => palette.strong,
-          AmpelLevel.verhalten => palette.mild,
-          AmpelLevel.unguenstig => const Color(0x00000000),
-        };
-    final raw = Uint8List(height * (width * 4 + 1));
-    var cursor = 0;
-    for (var y = 0; y < height; y++) {
-      raw[cursor++] = 0; // Filter „None"
-      for (var x = 0; x < width; x++) {
-        final value = levels[y * width + x];
-        if (value == 0) {
-          cursor += 4;
-          continue;
-        }
-        final c = colour(AmpelLevel.values[value - 1]);
-        if (c.a == 0) {
-          cursor += 4;
-          continue;
-        }
-        raw[cursor++] = (c.r * 255).round();
-        raw[cursor++] = (c.g * 255).round();
-        raw[cursor++] = (c.b * 255).round();
-        raw[cursor++] = alpha;
-      }
-    }
-    return raw;
   }
 }

@@ -231,7 +231,7 @@ Uint8List forestAmpelFillPng(List<ForestGrid> grids,
       window.height,
       coverage.resolve([
         ..._forestBandColours,
-        palette.highlight,
+        palette.mild,
         palette.highlight,
       ], const [
         forestCombinedAlpha,
@@ -262,12 +262,18 @@ const _bandGuenstig = 4;
 /// Zusammenhang, in dem die leuchtenden Waben stehen.
 const forestCombinedAlpha = 95;
 
-/// Und die beiden Leuchtstufen. Eine Farbe, zwei Stärken — nicht zwei
-/// Farbtöne: Über hellem Laub-Ocker UND über fast schwarzem Nadelgrün
-/// muss dasselbe „hier lohnt es sich" lesbar bleiben, und ein zweiter
-/// Ton hieße im Blatt eine zweite Bedeutung.
-const ampelHighlightVerhaltenAlpha = 150;
-const ampelHighlightGuenstigAlpha = 225;
+/// Und die beiden Leuchtstufen.
+///
+/// **Zwei Töne DERSELBEN Familie, nicht einer in zwei Stärken**
+/// (Betreiber, 2026-08-10: „die Abstufung ist noch nicht groß genug"):
+/// Ein Alpha-Unterschied allein geht unter, weil die Waben auf sehr
+/// verschieden hellem Untergrund liegen — dieselbe Farbe bei 150 über
+/// Laub-Ocker ist heller als bei 225 über Nadelgrün. Die milde Stufe
+/// nimmt deshalb den hellen Ton der Familie, die günstige den Leuchtton;
+/// die Bedeutung bleibt dabei geordnet, weil in beiden Ebenen das
+/// KRÄFTIGERE „besser" heißt.
+const ampelHighlightVerhaltenAlpha = 170;
+const ampelHighlightGuenstigAlpha = 235;
 
 /// Der Wabenzeichner: sammelt je Ausgabepixel, wie viel Fläche jedes
 /// BAND dort bedeckt. Bänder sind normalerweise die drei Waldklassen

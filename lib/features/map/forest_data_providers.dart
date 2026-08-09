@@ -13,7 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/app_colors.dart' show AmpelPalette;
 import '../ampel/ampel_fill.dart' show AmpelLevelGrid;
 import '../ampel/ampel_map_providers.dart'
-    show ampelForestCombinedProvider, ampelLevelGridProvider;
+    show ampelLayerEnabledProvider, ampelLevelGridProvider;
 import '../ampel/ampel_providers.dart'
     show ampelPaletteProvider, ampelPreviewEnabledProvider;
 import 'forest_block_providers.dart' show forestBlocksReadyProvider;
@@ -161,7 +161,7 @@ final forestFillProvider = FutureProvider<ForestFillImage?>((ref) async {
   // die Watch-vor-Await-Regel — deshalb wird der Zukunftswert nur
   // GEHOLT, nicht schon erwartet.
   final combined = ref.watch(ampelPreviewEnabledProvider) &&
-      ref.watch(ampelForestCombinedProvider);
+      ref.watch(ampelLayerEnabledProvider);
   final palette = ref.watch(ampelPaletteProvider);
   final levelsFuture =
       combined ? ref.watch(ampelLevelGridProvider.future) : null;

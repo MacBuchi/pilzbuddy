@@ -90,10 +90,14 @@ void main() {
     expect(good.r, (AmpelPalette.violett.highlight.r * 255).round(),
         reason: 'günstig leuchtet im Highlight-Ton');
     expect(good.a, ampelHighlightGuenstigAlpha);
-    expect(fair.r, (AmpelPalette.violett.highlight.r * 255).round(),
-        reason: 'verhalten leuchtet in derselben Farbe …');
+    expect(fair.r, (AmpelPalette.violett.mild.r * 255).round(),
+        reason: 'verhalten leuchtet im hellen Ton derselben Familie …');
     expect(fair.a, ampelHighlightVerhaltenAlpha,
-        reason: '… nur schwächer — eine Farbe, zwei Stärken');
+        reason: '… und schwächer. Zwei Töne, weil ein Alpha-Unterschied '
+            'allein auf verschieden hellem Wald untergeht (Betreiber, '
+            '2026-08-10)');
+    expect(fair.r, isNot(good.r),
+        reason: 'genau das ist die Abstufung, die vorher fehlte');
 
     expect(none.r, (AppColors.forestBroadleaf.r * 255).round(),
         reason: 'ungünstig heißt: bleibt Wald');
@@ -132,6 +136,19 @@ void main() {
       ));
       expect(at(png, latOf(1), lonOf(1, 1)).b,
           (palette.highlight.b * 255).round(),
+          reason: palette.label);
+      // Und die milde Stufe kommt aus derselben Familie.
+      final mild = decodePng(forestAmpelFillPng(
+        [forest],
+        window: window,
+        levels: levelsOf([
+          [AmpelLevel.verhalten, AmpelLevel.verhalten],
+          [AmpelLevel.verhalten, AmpelLevel.verhalten],
+        ]),
+        palette: palette,
+      ));
+      expect(at(mild, latOf(1), lonOf(1, 1)).b,
+          (palette.mild.b * 255).round(),
           reason: palette.label);
     }
   });

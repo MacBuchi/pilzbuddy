@@ -5,18 +5,23 @@
 // als erfunden; und ohne den Experimentell-Schalter existiert nichts
 // davon.
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/app_colors.dart' show AmpelPalette;
-import 'package:pilzbuddy/core/settings.dart' show settingsProvider;
 import 'package:pilzbuddy/data/rain_grid_repository.dart';
 import 'package:pilzbuddy/features/ampel/ampel_map_providers.dart';
 import 'package:pilzbuddy/features/ampel/ampel_providers.dart';
 import 'package:pilzbuddy/features/map/forest_data_providers.dart'
-    show forestLayerEnabledProvider;
+    show
+        ForestFillImage,
+        forestFillVariant,
+        forestLayerEnabledProvider;
+import 'package:pilzbuddy/features/map/forest_fill.dart'
+    show allForestClasses;
 import 'package:pilzbuddy/features/map/rain_data_providers.dart';
 import 'package:pilzbuddy/features/map/rain_layer.dart';
 import 'package:pilzbuddy/features/spots/widgets/weather_chart.dart';
@@ -223,7 +228,7 @@ void main() {
     expect(find.textContaining(': günstig'), findsNothing);
   });
 
-  testWidgets('Karten-Ampel im Regen-Blatt: exklusiv zum Regen, '
+  testWidgets('Karten-Ampel im Regen-Blatt: schaltet den Wald ein, '
       'Zustimmung fährt mit', (tester) async {
     final settings = FakeSettings(ampelPreviewEnabled: true);
     final backend = FakeBackend();
@@ -241,13 +246,17 @@ void main() {
     final container = ProviderScope.containerOf(
         tester.element(find.byType(Scaffold).first));
     expect(container.read(ampelLayerEnabledProvider), isTrue);
+    expect(container.read(forestLayerEnabledProvider), isTrue,
+        reason: 'die Ampel leuchtet IN den Waldwaben — ohne Waldebene '
+            'hätte sie nichts, worauf sie liegen könnte');
     expect(settings.rainCourseEnabled, isTrue,
         reason: 'dieselbe Zustimmung wie der Regen-Verlauf — EIN '
             'Angebot, kein zweiter Dialog; die Kosten stehen am '
             'Schalter');
 
-    // Eine Regenfläche wählen schaltet die Ampel aus — zwei
-    // Deutungs-Flächen übereinander wären Matsch.
+    // Eine Regenfläche darf daneben liegen: Seit 1.76.0 gibt es keine
+    // zweite Deutungs-FLÄCHE mehr, die sich mit dem Regen beißen
+    // könnte — die Ampel steckt in den Waben.
     //
     // Zurückgescrollt wird ausdrücklich: Das Blatt ist eine lazy Liste,
     // und nach dem Weg zum Ampel-Schalter liegen die Regen-Einträge
@@ -262,58 +271,7 @@ void main() {
     await tester.tap(find.text('Letzte 30 Tage'));
     await settle(tester);
     expect(container.read(rainLayerProvider), RainLayer.last30d);
-    expect(container.read(ampelLayerEnabledProvider), isFalse);
-  });
-
-  testWidgets('Kombi „Wald + Pilzwetter": schaltet den Wald ein, die '
-      'Ampel-Fläche aus — und umgekehrt', (tester) async {
-    // Die Kombi ist ein MODUS der Waldfläche, kein zweites Bild. Wer
-    // beide Flächen gleichzeitig zuließe, malte den Wald doppelt.
-    final settings = FakeSettings(ampelPreviewEnabled: true);
-    final backend = FakeBackend();
-    backend.signInAs(backend.addUser(username: 'testpilz').id);
-    await pumpApp(tester, backend, settings: settings);
-
-    await tester.tap(find.byTooltip('Regen'));
-    await settle(tester);
-    final scrollable = find
-        .descendant(
-            of: find.byType(BottomSheet), matching: find.byType(Scrollable))
-        .first;
-
-    // Erst die reine Ampel-Fläche …
-    final ampel = find.text('Pilzwetter-Ampel (experimentell)');
-    await tester.scrollUntilVisible(ampel, 120, scrollable: scrollable);
-    await settle(tester);
-    await tester.tap(ampel);
-    await settle(tester);
-
-    final container = ProviderScope.containerOf(
-        tester.element(find.byType(Scaffold).first));
     expect(container.read(ampelLayerEnabledProvider), isTrue);
-
-    // … dann die Kombi: Wald an, Ampel-Fläche aus.
-    final kombi = find.text('Wald + Pilzwetter kombinieren');
-    await tester.scrollUntilVisible(kombi, 120, scrollable: scrollable);
-    await settle(tester);
-    await tester.tap(kombi);
-    await settle(tester);
-
-    expect(container.read(ampelForestCombinedProvider), isTrue);
-    expect(container.read(forestLayerEnabledProvider), isTrue,
-        reason: 'die Kombi IST die Waldfläche — ohne sie malt sie nichts');
-    expect(container.read(ampelLayerEnabledProvider), isFalse,
-        reason: 'zwei Deutungs-Flächen übereinander wären Matsch');
-    expect(settings.rainCourseEnabled, isTrue,
-        reason: 'dieselbe Zustimmung wie überall beim Wetter');
-
-    // Und zurück: Die Ampel-Fläche wählen nimmt die Kombi weg.
-    await tester.scrollUntilVisible(ampel, -120, scrollable: scrollable);
-    await settle(tester);
-    await tester.tap(ampel);
-    await settle(tester);
-    expect(container.read(ampelLayerEnabledProvider), isTrue);
-    expect(container.read(ampelForestCombinedProvider), isFalse);
   });
 
   testWidgets('die Farbfamilie lässt sich wählen und wird gemerkt',
@@ -393,37 +351,67 @@ void main() {
         reason: 'die Vorschau überlebt den Neustart');
   });
 
-  test('die Farbfamilie steht im DATEINAMEN der Fläche', () async {
+  test('die Farbfamilie steht im DATEINAMEN der Fläche', () {
     // Die MapLibre-Strecke ist idempotent auf der URL: Ohne die Familie
     // im Namen würde das neu gefärbte Bild schlicht nicht getauscht,
     // und die Karte zeigte still die alte Wahl weiter. Genau dieser
     // Fehler ist beim Wald mit der Klassenwahl passiert
     // (`forestFillStamp`), deshalb hier ein eigener Wächter.
-    Future<String?> urlFor(AmpelPalette palette) async {
-      final repository = _CapturingRepository();
-      final container = ProviderContainer(overrides: [
-        settingsProvider.overrideWithValue(FakeSettings(
-            ampelPreviewEnabled: true,
-            rainCourseEnabled: true,
-            ampelPalette: palette)),
-        rainGridRepositoryProvider.overrideWithValue(repository),
-        rainStackLoaderProvider
-            .overrideWithValue(() async => stackOf(days: 26)),
-        weatherTableLoaderProvider
-            .overrideWithValue(() async => weatherBytes()),
-      ]);
-      addTearDown(container.dispose);
-      container.read(ampelLayerEnabledProvider.notifier).state = true;
-      final result = await container.read(ampelFillFileProvider.future);
-      return result?.url;
-    }
+    ForestFillImage imageOf(AmpelPalette palette) => ForestFillImage(
+          png: Uint8List(0),
+          west: 10,
+          east: 11,
+          north: 50,
+          south: 49,
+          referenceYear: 2024,
+          classes: allForestClasses,
+          windowKey: 'k1',
+          fine: false,
+          ampel: (palette: palette, newest: DateTime.utc(2026, 8, 9)),
+        );
 
-    final violett = await urlFor(AmpelPalette.violett);
-    final magenta = await urlFor(AmpelPalette.magenta);
-    expect(violett, contains('violett'));
-    expect(magenta, contains('magenta'));
-    expect(violett, isNot(magenta),
+    final names = {
+      for (final palette in AmpelPalette.values)
+        palette: forestFillVariant(imageOf(palette))
+    };
+    expect(names[AmpelPalette.violett], contains('violett'));
+    expect(names.values.toSet(), hasLength(3),
         reason: 'gleicher Name ⇒ MapLibre tauscht das Bild nicht');
+
+    // Und der Datentag zählt mit: Ein neuer Stapel-Stand muss ein neues
+    // Bild ergeben, sonst klebt die Karte am Wetter von gestern.
+    final morgen = ForestFillImage(
+      png: Uint8List(0),
+      west: 10,
+      east: 11,
+      north: 50,
+      south: 49,
+      referenceYear: 2024,
+      classes: allForestClasses,
+      windowKey: 'k1',
+      fine: false,
+      ampel: (
+        palette: AmpelPalette.violett,
+        newest: DateTime.utc(2026, 8, 10)
+      ),
+    );
+    expect(forestFillVariant(morgen),
+        isNot(names[AmpelPalette.violett]));
+
+    // Ohne Ampel bleibt der Name, was er seit #249 ist.
+    expect(
+        forestFillVariant(ForestFillImage(
+          png: Uint8List(0),
+          west: 10,
+          east: 11,
+          north: 50,
+          south: 49,
+          referenceYear: 2024,
+          classes: allForestClasses,
+          windowKey: 'k1',
+          fine: false,
+        )),
+        'k1');
   });
 
   testWidgets('das Diagramm bleibt beim 14-Tage-Fenster, auch wenn der '
@@ -443,13 +431,4 @@ void main() {
         reason: '26 Balken auf Handybreite wären Streichhölzer — die '
             'zusätzlichen Tage füttern das Modell, nicht das Auge');
   });
-}
-
-/// Fängt nur den Dateinamen ab — geschrieben wird im Test nichts
-/// (`path_provider` gibt es hier nicht).
-class _CapturingRepository extends RainGridRepository {
-  @override
-  Future<String?> writeFill(String layer, DateTime measured, List<int> png,
-          {String variant = ''}) async =>
-      'file:///nirgends/fill_${layer}_$variant.png';
 }

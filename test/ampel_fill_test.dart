@@ -1,18 +1,20 @@
-// Die Pilzwetter-Fläche (Ampel-Vorschau): zurückdekodiert und gegen
-// das MODELL selbst geprüft — der Zeichner rechnet je Zelle dieselbe
+// Die Pilzwetter-RECHNUNG (Ampel-Vorschau): die Stufe je Zelle, gegen
+// das MODELL selbst geprüft — das Gitter rechnet je Zelle dieselbe
 // Reihe, die auch `ampelRainFactor`/`ampelLevelOf` bekämen; jede
 // Abweichung (Gewichtung, Sättigung, Schwellen) reißt den Vergleich.
+//
+// Seit 1.76.0 malt hier nichts mehr: Die Ampel färbt nur noch Waldwaben
+// (`forestAmpelFillPng`, siehe `forest_ampel_fill_test.dart`). Geprüft
+// wird deshalb das Stufen-Gitter, nicht mehr das Bild.
 import 'dart:convert';
 
 import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pilzbuddy/core/app_colors.dart';
 import 'package:pilzbuddy/data/rain_grid_repository.dart';
 import 'package:pilzbuddy/features/ampel/ampel_fill.dart';
 import 'package:pilzbuddy/features/ampel/ampel_model.dart';
 import 'package:pilzbuddy/features/map/spot_weather.dart';
 
-import 'rain_fill_test.dart' show decodePng;
 import 'rain_grid_test.dart' show encode;
 
 /// Ein Stapel: 3 Spalten × 1 Zeile, je Zelle die eigene Regenreihe
@@ -75,12 +77,9 @@ WeatherTable tableOf({double meanC = 13, double lat = 51, double lon = 11}) {
 }
 
 void main() {
-  ({int r, int g, int b, int a}) pixel(dynamic png, int x) => (
-        r: png.pixels[x * 4] as int,
-        g: png.pixels[x * 4 + 1] as int,
-        b: png.pixels[x * 4 + 2] as int,
-        a: png.pixels[x * 4 + 3] as int,
-      );
+  /// Die Stufe der Zelle [x] in der einzigen Zeile — `null` heißt
+  /// „keine Aussage" (zu wenige Regentage, keine Station in Reichweite).
+  AmpelLevel? levelOf(AmpelLevelGrid grid, int x) => grid.levelAtCell(0, x);
 
   test('je Zelle exakt die Stufe, die das Modell für ihre Reihe nennt',
       () {
@@ -91,32 +90,19 @@ void main() {
       List.filled(26, 1),
       List.filled(26, 0),
     ];
-    final fill = ampelFillFrom(stackOf(series), tableOf())!;
-    final png = decodePng(fill.png);
-    expect(png.width, 3);
+    final grid = ampelLevelsFrom(stackOf(series), tableOf())!;
+    expect(grid.width, 3);
 
     for (final (x, cell) in series.indexed) {
       // Der Maßstab ist das MODELL selbst: dieselbe Reihe, Vortag
       // zuerst, durch dieselben Funktionen.
       final expected = ampelLevelOf(ampelRainFactor(
           [for (final mm in cell.reversed) mm.toDouble()]));
-      final p = pixel(png, x);
-      switch (expected) {
-        case AmpelLevel.guenstig:
-          expect(p.a, ampelFillAlpha, reason: 'Zelle $x');
-          expect(p.r, (defaultAmpelPalette.strong.r * 255).round());
-        case AmpelLevel.verhalten:
-          expect(p.a, ampelFillAlpha, reason: 'Zelle $x');
-          expect(p.r, (defaultAmpelPalette.mild.r * 255).round());
-        case AmpelLevel.unguenstig:
-          expect(p.a, 0,
-              reason: 'Zelle $x: ungünstig ist auf der Karte transparent '
-                  '— keine Stufe heißt aussichtslos');
-      }
+      expect(levelOf(grid, x), expected, reason: 'Zelle $x');
     }
-    expect(fill.newest, DateTime.utc(2026, 7, 26));
-    expect(fill.west, 10);
-    expect(fill.south, 50);
+    expect(grid.newest, DateTime.utc(2026, 7, 26));
+    expect(grid.west, 10);
+    expect(grid.south, 50);
   });
 
   test('die Altersgewichtung zählt: gleicher Regen, anderes Alter, '
@@ -126,27 +112,24 @@ void main() {
     // weglässt, malt beide gleich.
     final young = [...List.filled(18, 0), ...List.filled(8, 8)];
     final old = [...List.filled(8, 8), ...List.filled(18, 0)];
-    final fill = ampelFillFrom(stackOf([young, old]), tableOf())!;
-    final png = decodePng(fill.png);
+    final grid = ampelLevelsFrom(stackOf([young, old]), tableOf())!;
     final expectedYoung = ampelLevelOf(ampelRainFactor(
         [for (final mm in young.reversed) mm.toDouble()]));
     final expectedOld = ampelLevelOf(ampelRainFactor(
         [for (final mm in old.reversed) mm.toDouble()]));
     expect(expectedYoung, isNot(expectedOld),
         reason: 'sonst prüft dieser Test nichts');
-    // Jung: günstig (Grün) — alt: nur noch verhalten (Ocker). Die
-    // Farben kommen aus dem Modell-Urteil, nicht aus einer Vermutung.
     expect(expectedYoung, AmpelLevel.guenstig);
     expect(expectedOld, AmpelLevel.verhalten);
-    expect(pixel(png, 0).r, (defaultAmpelPalette.strong.r * 255).round());
-    expect(pixel(png, 1).r, (defaultAmpelPalette.mild.r * 255).round());
+    expect(levelOf(grid, 0), AmpelLevel.guenstig);
+    expect(levelOf(grid, 1), AmpelLevel.verhalten);
   });
 
   test('die Temperatur dämpft: 27 °C macht aus sattem Regen ungünstig',
       () {
-    final fill = ampelFillFrom(
+    final grid = ampelLevelsFrom(
         stackOf([List.filled(26, 5)]), tableOf(meanC: 27))!;
-    expect(pixel(decodePng(fill.png), 0).a, 0,
+    expect(levelOf(grid, 0), AmpelLevel.unguenstig,
         reason: 'Glocke bei 27 °C ≈ 0,0004 — Score unter jeder Schwelle');
   });
 
@@ -154,64 +137,19 @@ void main() {
     // 25 statt 26 Tage: Die Altersgewichte wären still verschoben —
     // dieselbe Strenge wie die graue Sektion, heilt sich am Folgetag.
     expect(
-        ampelFillFrom(
+        ampelLevelsFrom(
             stackOf([List.filled(25, 5)], days: 25), tableOf()),
         isNull);
   });
 
   test('ohne Station in 100 km bleibt die Zelle transparent', () {
-    final fill = ampelFillFrom(
+    final grid = ampelLevelsFrom(
         stackOf([List.filled(26, 5)]), tableOf(lat: 40, lon: 3))!;
-    expect(pixel(decodePng(fill.png), 0).a, 0,
+    expect(levelOf(grid, 0), isNull,
         reason: 'keine Temperatur, keine Aussage — kein geratener Wert');
   });
 
   test('ganz ohne Stationstabelle gibt es keine Ebene', () {
-    expect(ampelFillFrom(stackOf([List.filled(26, 5)]), null), isNull);
-  });
-
-  group('Farbfamilie (Betreiber-Wunsch 2026-08-09)', () {
-    // Bis 1.74.0 malte die Fläche in den Tönen der Waldebene — über
-    // Laubwald war „verhalten" nicht mehr zu erkennen. Seither wählt
-    // man die Familie; diese Gruppe hält fest, dass die Wahl auch
-    // wirklich bis in die Pixel durchschlägt.
-    test('jede Familie malt ihre eigenen Töne', () {
-      for (final palette in AmpelPalette.values) {
-        final fill = ampelFillFrom(
-            stackOf([List.filled(26, 5), List.filled(26, 1)]), tableOf(),
-            palette: palette)!;
-        final png = decodePng(fill.png);
-        expect(pixel(png, 0).r, (palette.strong.r * 255).round(),
-            reason: '„günstig" in ${palette.label}');
-        expect(pixel(png, 1).r, (palette.mild.r * 255).round(),
-            reason: '„verhalten" in ${palette.label}');
-      }
-    });
-
-    test('die drei Familien sind auch wirklich drei Bilder', () {
-      // Sonst wäre die Auswahl Dekoration — und der Dateiname (der die
-      // Familie trägt) verspräche einen Wechsel, den es nicht gibt.
-      final bytes = {
-        for (final palette in AmpelPalette.values)
-          palette: ampelFillFrom(
-                  stackOf([List.filled(26, 5)]), tableOf(),
-                  palette: palette)!
-              .png
-      };
-      expect(bytes[AmpelPalette.violett], isNot(bytes[AmpelPalette.magenta]));
-      expect(bytes[AmpelPalette.magenta], isNot(bytes[AmpelPalette.tuerkis]));
-    });
-
-    test('„ungünstig" bleibt in jeder Familie durchsichtig', () {
-      // Die Farbwahl darf die eine Regel nicht kippen, die auf der
-      // Karte wörtlich gilt: keine Stufe heißt aussichtslos.
-      for (final palette in AmpelPalette.values) {
-        final fill = ampelFillFrom(
-            stackOf([List.filled(26, 0)]), tableOf(),
-            palette: palette)!;
-        expect(pixel(decodePng(fill.png), 0).a, 0,
-            reason: palette.label);
-      }
-    });
+    expect(ampelLevelsFrom(stackOf([List.filled(26, 5)]), null), isNull);
   });
 }

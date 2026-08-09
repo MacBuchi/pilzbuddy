@@ -89,46 +89,43 @@ class _RainLayerSheet extends ConsumerWidget {
                       visualDensity: VisualDensity.compact,
                       // Seit #232 OHNE Wald-Abschaltung: Der Regen liegt
                       // ÜBER der Waldfläche, und die Teil-Ebenen im
-                      // Wald-Blatt halten die Kombination lesbar. Die
-                      // Pilzwetter-Fläche dagegen geht AUS — zwei
-                      // Deutungs-Flächen übereinander wären Matsch.
-                      onTap: () {
-                        ref.read(rainLayerProvider.notifier).state = layer;
-                        if (layer != RainLayer.off) {
-                          ref
-                              .read(ampelLayerEnabledProvider.notifier)
-                              .state = false;
-                        }
-                      },
+                      // Wald-Blatt halten die Kombination lesbar. Seit
+                      // 1.76.0 gilt das auch für die Ampel — sie IST
+                      // die Waldfläche, es gibt keine zweite Fläche
+                      // mehr, die sich mit dem Regen beißen könnte.
+                      onTap: () =>
+                          ref.read(rainLayerProvider.notifier).state = layer,
                     ),
                   if (ref.watch(ampelPreviewEnabledProvider)) ...[
                     const Divider(height: 16),
-                    // Die Umgebungs-Frage der Ampel-Vorschau: „Wo ist es
-                    // zurzeit gut?" — eine reine Wetterfläche, KEINE
-                    // fremden Spots. Nur sichtbar mit dem
-                    // Experimentell-Schalter im Profil; wechselseitig
-                    // exklusiv mit den Regenflächen (oben).
+                    // Die Umgebungs-Frage der Ampel-Vorschau: „Wo lohnt
+                    // sich der Wald gerade?" Seit 1.76.0 färbt sie NUR
+                    // den Wald ein (Betreiber: „es gibt keinen Grund,
+                    // warum man andere Bereiche damit einfärben
+                    // sollte") — also ein Modus der Waldfläche, kein
+                    // eigenes Bild. Nur sichtbar mit dem
+                    // Experimentell-Schalter im Profil.
                     SwitchListTile(
                       dense: true,
                       title:
                           const Text('Pilzwetter-Ampel (experimentell)'),
                       subtitle: const Text(
-                          'Färbt ein, wo die Wetter-Bedingungen für '
-                          'Steinpilz & Co. gerade günstig sind — nur '
-                          'Deutschland, bewertet Bedingungen, nicht '
-                          'Vorkommen. Nutzt die Wetterdaten vom Spot '
-                          '(beim ersten Mal knapp 2 MB).'),
+                          'Lässt die Waldwaben dort leuchten, wo die '
+                          'Bedingungen für Steinpilz & Co. gerade '
+                          'stimmen — nur Deutschland, bewertet '
+                          'Bedingungen, nicht Vorkommen. Nutzt die '
+                          'Wetterdaten vom Spot (beim ersten Mal knapp '
+                          '2 MB).'),
                       value: ref.watch(ampelLayerEnabledProvider),
                       onChanged: (value) async {
                         ref
                             .read(ampelLayerEnabledProvider.notifier)
                             .state = value;
                         if (!value) return;
-                        ref.read(rainLayerProvider.notifier).state =
-                            RainLayer.off;
-                        ref
-                            .read(ampelForestCombinedProvider.notifier)
-                            .state = false;
+                        // Ohne Waldebene hätte das Leuchten nichts, worauf
+                        // es liegen könnte.
+                        ref.read(forestLayerEnabledProvider.notifier).state =
+                            true;
                         // Dieselbe Zustimmung wie der Regen-Verlauf —
                         // EIN Angebot, kein zweiter Dialog: Die Fläche
                         // rechnet aus genau dem Stapel, den das
@@ -144,40 +141,7 @@ class _RainLayerSheet extends ConsumerWidget {
                         }
                       },
                     ),
-                    // Die zweite Frage der Ampel, und die eigentliche:
-                    // „Wo lohnt sich der WALD gerade?" Ein Modus der
-                    // Waldfläche, deshalb schaltet er sie mit ein und
-                    // die reine Ampel-Fläche aus.
-                    SwitchListTile(
-                      dense: true,
-                      title: const Text('Wald + Pilzwetter kombinieren'),
-                      subtitle: const Text(
-                          'Zeigt die Waldwaben — und lässt die leuchten, '
-                          'wo das Wetter gerade mitspielt. Waldwetter '
-                          'gibt es nur für Deutschland; außerhalb bleibt '
-                          'der Wald normal eingefärbt.'),
-                      value: ref.watch(ampelForestCombinedProvider),
-                      onChanged: (value) async {
-                        ref
-                            .read(ampelForestCombinedProvider.notifier)
-                            .state = value;
-                        if (!value) return;
-                        ref.read(forestLayerEnabledProvider.notifier).state =
-                            true;
-                        ref.read(ampelLayerEnabledProvider.notifier).state =
-                            false;
-                        if (!ref.read(rainCourseEnabledProvider)) {
-                          ref
-                              .read(rainCourseEnabledProvider.notifier)
-                              .state = true;
-                          await ref
-                              .read(settingsProvider)
-                              .setRainCourseEnabled(true);
-                        }
-                      },
-                    ),
-                    if (ref.watch(ampelLayerEnabledProvider) ||
-                        ref.watch(ampelForestCombinedProvider))
+                    if (ref.watch(ampelLayerEnabledProvider))
                       const _AmpelPaletteChips(),
                   ],
                   if (current != RainLayer.off) ...[

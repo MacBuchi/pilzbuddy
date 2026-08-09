@@ -81,9 +81,8 @@ class MapLegend extends ConsumerWidget {
     final showForest = ref.watch(forestLayerEnabledProvider) &&
         forestClasses.isNotEmpty &&
         ref.watch(forestGridProvider).valueOrNull != null;
-    final combined = ref.watch(ampelForestCombinedProvider);
     final showAmpel = ref.watch(ampelPreviewEnabledProvider) &&
-        (ref.watch(ampelLayerEnabledProvider) || combined);
+        ref.watch(ampelLayerEnabledProvider);
     if (!showRain && !showForest && !showAmpel) {
       return const SizedBox.shrink();
     }
@@ -151,8 +150,7 @@ class MapLegend extends ConsumerWidget {
                     if (showAmpel)
                       _AmpelSection(
                           reading: ampelAt,
-                          palette: ref.watch(ampelPaletteProvider),
-                          combined: combined),
+                          palette: ref.watch(ampelPaletteProvider)),
                     if (showAmpel && showForest)
                       const SizedBox(height: 6),
                     if (showRain) _RainSection(layer: rainLayer, mm: rainMm),
@@ -203,24 +201,17 @@ double? rainMarkerFraction(int mm, List<int> levels) {
 }
 
 /// Die Pilzwetter-Zeile der Legende: das Wort am Fadenkreuz plus die
-/// zwei Farbchips — „ungünstig" hat bewusst keinen Chip, es ist auf der
-/// Karte transparent („keine Stufe heißt aussichtslos").
+/// zwei Farbchips — „ungünstig" hat bewusst keinen Chip, denn dort
+/// leuchtet nichts, die Wabe bleibt schlicht Wald („keine Stufe heißt
+/// aussichtslos").
 class _AmpelSection extends StatelessWidget {
-  const _AmpelSection(
-      {required this.reading,
-      required this.palette,
-      required this.combined});
+  const _AmpelSection({required this.reading, required this.palette});
 
   final AmpelReading? reading;
 
   /// Dieselbe Familie, in der die Fläche malt — die Legende erklärt
   /// die Karte, nicht eine zweite Farbwelt.
   final AmpelPalette palette;
-
-  /// Kombi-Ebene: Dann steht das Wetter nicht als eigene Fläche da,
-  /// sondern in den leuchtenden WABEN — und die Chips zeigen genau die
-  /// beiden Leuchtstärken, in denen die Karte sie malt.
-  final bool combined;
 
   @override
   Widget build(BuildContext context) {
@@ -232,11 +223,9 @@ class _AmpelSection extends StatelessWidget {
       children: [
         Text(
           switch (level) {
-            null => combined
-                ? 'Wald + Pilzwetter (experimentell) · Steinpilz & Co.'
-                : 'Pilzwetter (experimentell) · Steinpilz & Co.',
-            _ => '${combined ? 'Wald + Pilzwetter' : 'Pilzwetter'} '
-                '(experimentell) · hier: ${ampelLevelWord(level)}',
+            null => 'Wald + Pilzwetter (experimentell) · Steinpilz & Co.',
+            _ => 'Wald + Pilzwetter (experimentell) · hier: '
+                '${ampelLevelWord(level)}',
           },
           style: theme.textTheme.labelSmall?.copyWith(
             color: theme.colorScheme.primary,
@@ -247,19 +236,13 @@ class _AmpelSection extends StatelessWidget {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            for (final (colour, opacity, word) in combined
-                // In der Kombi leuchtet EINE Farbe in zwei Stärken —
-                // genau die Werte, mit denen der Zeichner malt.
-                ? [
-                    (palette.highlight,
-                        ampelHighlightVerhaltenAlpha / 255, 'verhalten'),
-                    (palette.highlight,
-                        ampelHighlightGuenstigAlpha / 255, 'günstig'),
-                  ]
-                : [
-                    (palette.mild, 0.55, 'verhalten'),
-                    (palette.strong, 0.55, 'günstig'),
-                  ]) ...[
+            // Genau die Töne und Stärken, mit denen der Zeichner die
+            // Waben leuchten lässt — die Legende erklärt die Karte.
+            for (final (colour, opacity, word) in [
+              (palette.mild, ampelHighlightVerhaltenAlpha / 255, 'verhalten'),
+              (palette.highlight,
+                  ampelHighlightGuenstigAlpha / 255, 'günstig'),
+            ]) ...[
               Container(
                 width: 12,
                 height: 9,
