@@ -7,6 +7,26 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Waldkarte bleibt beim Rauszoomen stehen
+
+*9. August 2026 · Version 1.74.0*
+
+Die Waben der Waldkarte verschwanden beim Rauszoomen: erst Lücken, dann
+Streifen, und in der Deutschland-Übersicht war gar nichts mehr zu sehen.
+Grund war der Zeichner — Waben, die kleiner als ein Bildpunkt wurden,
+fielen beim Runden einfach heraus.
+
+Jetzt zählt jede Wabe mit der Fläche, die sie bedeckt. Damit stimmt die
+Karte auf jeder Zoomstufe: In der Übersicht sind Harz, Thüringer Wald,
+Bayerischer Wald und die Alpen wieder als das zu erkennen, was sie sind,
+und beim Hineinzoomen wachsen daraus dieselben scharfen Waben wie bisher.
+Nebenbei laufen Wabenränder jetzt weich aus statt zu treppen, und
+zwischen gleichfarbigen Nachbarn ist keine helle Naht mehr.
+
+Und die Karte färbt schneller ein — das Zusammenpacken der Bilder war
+dreimal so aufwendig eingestellt, wie es sein musste. Das merkt man auch
+bei den Regen- und Ampel-Flächen.
+
 ## Zum Ausprobieren: die Pilzwetter-Ampel
 
 *9. August 2026 · Versionen 1.72.0 und 1.73.0*

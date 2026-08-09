@@ -7,6 +7,30 @@
 // einzelner Zellen verschwinden — Wald hat keine Linien, und eine
 // 250-m-Zelle Laubwald im Fichtenhang ist keine Störung, sondern genau
 // die Information, nach der jemand sucht. Die Klötzchen sind die Daten.
+//
+// **Waben tragen DECKUNG bei, statt gefüllt zu werden** (Feldbericht des
+// Betreibers 2026-08-09: „relativ weit rausgezoomt entstehen Lücken, dann
+// Streifen, in der Deutschland-Gesamtansicht ist gar nichts mehr zu
+// erkennen"). Der erste Sechseck-Zeichner (#251) malte VORWÄRTS: Wabe →
+// Pixelzeilen. Ist eine Wabe schmaler als ein Pixel, fällt beim Runden
+// `von-Zeile > bis-Zeile` heraus — und sie wird gar nicht gemalt. Am
+// echten Asset gemessen (Waldanteil des Ausschnitts gegen die gemalte
+// Fläche, `docs/map-performance.md`):
+//
+//   Sichtfenster   Wabe im Bild   Wahrheit   gefüllt   Deckung
+//   852 km (DACH)      0,39 px      47,8 %     0,0 %    43,5 %
+//   199 km             1,04 px      51,4 %    31,3 %    54,1 %
+//   50 km              4,15 px      53,4 %    51,9 %    53,6 %
+//
+// Seither trägt jede Wabe ihren FLÄCHENANTEIL zu den Pixeln bei, die sie
+// berührt; die Farbe eines Pixels ist die deckungsstärkste Klasse, seine
+// Deckkraft die Gesamtdeckung. Das ist Kantenglättung, keine
+// Datenerfindung: dieselbe Mittelung, die `tool/forest_grid.py` beim Bau
+// eines gröberen Gitters macht — nur auf die Auflösung, die der
+// Bildschirm gerade zeigt. Zwei Nebenwirkungen mit Absicht: Wabenränder
+// laufen weich aus statt zu treppen, und aneinander grenzende Waben
+// derselben Klasse haben KEINE Naht mehr (ihre Anteile addieren sich zu
+// einem vollen Pixel).
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -75,18 +99,21 @@ Uint8List forestFillPng(ForestGrid grid,
     height: grid.height,
   );
   final width = window.width;
-  final palette = _paletteFor(alpha, classes);
-
   final rows = window.height;
-  final mercNorth = mercatorY(window.north);
-  final mercSpan = mercatorY(window.south) - mercNorth;
 
   if (grid.isHex) {
-    final raw = _emptyRaster(window);
-    _paintHexes(raw, grid, window, palette,
-        mercNorth: mercNorth, mercSpan: mercSpan);
-    return overlayPng(window.width, rows, raw);
+    final coverage = _HexCoverage(window)..add(grid, classes);
+    return overlayPng(width, rows, coverage.resolve(alpha));
   }
+
+  // Ab hier das QUADRAT-Gitter: je Ausgabepixel die Zelle unter seinem
+  // Mittelpunkt. Das Asset und die Blöcke sind seit #251 Waben, dieser
+  // Weg trägt nur noch Gitter ohne `lattice` im Manifest — er kann nicht
+  // leer laufen (jedes Pixel bekommt eine Zelle) und braucht die
+  // Deckungsrechnung deshalb nicht.
+  final palette = _paletteFor(alpha, classes);
+  final mercNorth = mercatorY(window.north);
+  final mercSpan = mercatorY(window.south) - mercNorth;
 
   // Spalte -> Gitterspalte, einmal statt je Zeile: Die Länge ist in
   // beiden Abbildungen linear, nur der Ausschnitt verschiebt sie.
@@ -154,107 +181,267 @@ Uint8List _paletteFor(int alpha, Set<ForestClass> classes) {
 }
 
 /// Die feine Stufe (#253): mehrere Blockgitter in EIN Fensterbild. Die
-/// Blöcke kacheln das globale Gitter ohne Überlappung, jeder malt seine
-/// Waben mit seinem eigenen Anker — die Naht zwischen zwei Blöcken ist
-/// damit dieselbe Wabenkante wie mitten im Block, und
+/// Blöcke kacheln das globale Gitter ohne Überlappung, jeder trägt seine
+/// Waben mit seinem eigenen Anker bei — die Naht zwischen zwei Blöcken
+/// ist damit dieselbe Wabenkante wie mitten im Block, und
 /// `test/forest_fill_test.dart` hält fest, dass das Ergebnis pixelgleich
-/// zum Ganzgitter ist.
+/// zum Ganzgitter ist. Dass Deckung ADDIERT wird, macht das robuster als
+/// vorher: An der Naht zählen beide Seiten mit, statt dass der spätere
+/// Block den früheren überschreibt.
 Uint8List forestFillPngMulti(List<ForestGrid> grids,
     {int alpha = forestFillAlpha,
     Set<ForestClass> classes = allForestClasses,
     required FillWindow window}) {
-  final palette = _paletteFor(alpha, classes);
-  final mercNorth = mercatorY(window.north);
-  final mercSpan = mercatorY(window.south) - mercNorth;
-  final raw = _emptyRaster(window);
+  final coverage = _HexCoverage(window);
   for (final grid in grids) {
-    _paintHexes(raw, grid, window, palette,
-        mercNorth: mercNorth, mercSpan: mercSpan);
+    coverage.add(grid, classes);
   }
-  return overlayPng(window.width, window.height, raw);
+  return overlayPng(window.width, window.height, coverage.resolve(alpha));
 }
 
-/// Der leere RGBA-Rasterpuffer im PNG-Zeilenformat (1 Filterbyte je
-/// Zeile, dann `width` Pixel).
-Uint8List _emptyRaster(FillWindow window) =>
-    Uint8List(window.height * (window.width * 4 + 1));
+/// Deckung als Festkomma: [_coverageUnit] Einheiten sind ein GANZES
+/// Pixel. `Uint16` statt `Float32` halbiert den Puffer (14 statt 28 MB
+/// beim größten Fenster, siehe `docs/map-performance.md`), und die
+/// Auflösung reicht mit Abstand: Selbst im Übersichtszoom, wo sieben
+/// Waben in einem Pixel liegen, bringt jede noch ~130 Einheiten mit.
+/// Überlaufen kann der Wert nicht — die Waben kacheln, die Summe je
+/// Pixel liegt also bei ~1024 und nicht bei 65535.
+const _coverageUnit = 1024;
 
-/// Der Sechseck-Zeichner (#251): je Hex ein konvexes Polygon per
-/// Scanline, Spitze oben. Die sechs Eckpunkte werden EINZELN durch die
+/// Der Wabenzeichner: sammelt je Ausgabepixel, wie viel Fläche jede
+/// Waldklasse dort bedeckt (drei Bänder: Laub, Misch, Nadel).
+///
+/// Die vier Höhenlinien eines Sechsecks werden EINZELN durch die
 /// Mercator-Abbildung geschickt (innerhalb eines ~250-m-Hexes ist die
 /// Krümmung belanglos, aber die LAGE muss stimmen — die Lehre aus #247).
 ///
-/// Geteilte Kantenpixel malt der jeweils spätere Nachbar — bei
-/// Datengrenzen gewinnt also eine Seite; das ist eine halbe Pixelbreite
-/// und keine Aussage. Der Prototyp dieses Zeichners ist gemessen: ~8 ms
-/// Rasterarbeit gegen ~150 ms PNG-Kompression, das Performance-Tor des
-/// Betreibers ist bestanden.
-///
-/// Malt in [raw] hinein statt ein PNG zu liefern, damit die feine Stufe
-/// (#253) mehrere Blockgitter in dasselbe Bild setzen kann.
-void _paintHexes(
-    Uint8List raw, ForestGrid grid, FillWindow window, Uint8List palette,
-    {required double mercNorth, required double mercSpan}) {
-  final width = window.width;
-  final rows = window.height;
-  final lonStep = grid.hexLonStep!;
-  final latStep = grid.hexLatStep!;
-  final rDeg = latStep / 1.5; // Umkreisradius in Grad Breite
+/// Zwei Wege, ein Ergebnis: Waben ab Pixelgröße laufen über Zeilen
+/// (Scanline) mit anteiligen Rand-Pixeln, kleinere werfen ihre ganze
+/// Fläche bilinear auf die vier Nachbarpixel ihres Mittelpunkts. Der
+/// zweite Weg ist der, den es vorher nicht gab — und ohne ihn
+/// verschwindet die Karte beim Rauszoomen (Kopfkommentar).
+class _HexCoverage {
+  _HexCoverage(this.window)
+      : _bands = Uint16List(window.width * window.height * 3),
+        _mercNorth = mercatorY(window.north),
+        _mercSpan = mercatorY(window.south) - mercatorY(window.north);
 
-  final lonSpan = window.east - window.west;
-  double xOf(double lon) => (lon - window.west) / lonSpan * width;
-  double yOf(double lat) =>
-      (mercatorY(lat) - mercNorth) / mercSpan * rows;
+  final FillWindow window;
 
-  // Hex-Zeilen/-Spalten, die das Fenster berühren (plus Rand).
-  final hy0 = (((grid.north - window.north) / latStep) - 2).floor();
-  final hy1 = (((grid.north - window.south) / latStep) + 2).ceil();
-  final hx0 = (((window.west - grid.west) / lonStep) - 2).floor();
-  final hx1 = (((window.east - grid.west) / lonStep) + 2).ceil();
-  final wPx = lonStep / lonSpan * width;
+  /// Drei Werte je Pixel, in der Reihenfolge von [ForestClass] ohne
+  /// `none`: Laub, Misch, Nadel.
+  final Uint16List _bands;
+  final double _mercNorth;
+  final double _mercSpan;
 
-  for (var hy = hy0; hy <= hy1; hy++) {
-    if (hy < 0 || hy >= grid.height) continue;
-    final odd = hy.isOdd ? 0.5 : 0.0;
-    final latC = grid.north - latStep * (hy + 2 / 3);
-    // Die vier Höhenlinien des Sechsecks, einzeln projiziert.
-    final yTop = yOf(latC + rDeg);
-    final yUp = yOf(latC + rDeg / 2);
-    final yLow = yOf(latC - rDeg / 2);
-    final yBot = yOf(latC - rDeg);
-    if (yBot < 0 || yTop >= rows) continue;
-    final rowBase = hy * grid.width;
-    for (var hx = hx0; hx <= hx1; hx++) {
-      if (hx < 0 || hx >= grid.width) continue;
-      final offset = grid.values[rowBase + hx] * 4;
-      if (palette[offset + 3] == 0) continue; // durchsichtig
-      final cx = xOf(grid.west + lonStep * (hx + 0.5 + odd));
-      if (cx + wPx / 2 < 0 || cx - wPx / 2 >= width) continue;
-      final py0 = math.max(0, yTop.ceil());
-      final py1 = math.min(rows - 1, yBot.floor());
-      for (var py = py0; py <= py1; py++) {
-        final yc = py + 0.5;
-        double half;
-        if (yc <= yUp) {
-          final t = (yc - yTop) / (yUp - yTop);
-          half = wPx / 2 * t;
-        } else if (yc >= yLow) {
-          final t = (yBot - yc) / (yBot - yLow);
-          half = wPx / 2 * t;
-        } else {
-          half = wPx / 2;
-        }
-        if (half <= 0) continue;
-        final x0 = math.max(0, (cx - half).round());
-        final x1 = math.min(width - 1, (cx + half).round() - 1);
-        var cursor = py * (width * 4 + 1) + 1 + x0 * 4;
-        for (var px = x0; px <= x1; px++) {
-          raw[cursor++] = palette[offset];
-          raw[cursor++] = palette[offset + 1];
-          raw[cursor++] = palette[offset + 2];
-          raw[cursor++] = palette[offset + 3];
+  /// Trägt alle Waben von [grid] bei, die das Fenster berühren.
+  void add(ForestGrid grid, Set<ForestClass> classes) {
+    final width = window.width;
+    final rows = window.height;
+    final lonStep = grid.hexLonStep!;
+    final latStep = grid.hexLatStep!;
+    final rDeg = latStep / 1.5; // Umkreisradius in Grad Breite
+    final lonSpan = window.east - window.west;
+    final wPx = lonStep / lonSpan * width;
+
+    // Byte -> Band (0 Laub, 1 Misch, 2 Nadel) oder -1 für „trägt nichts
+    // bei": kein Wald, keine Daten, abgewählte Klasse (#231). Einmal
+    // statt je Zelle — im Übersichtszoom läuft die Schleife über 13,6
+    // Millionen Waben, da zählt jeder Aufruf.
+    final bandOf = Int8List(256);
+    for (var value = 0; value < 256; value++) {
+      final forestClass = classOfByte(value);
+      bandOf[value] =
+          forestClass == ForestClass.none || !classes.contains(forestClass)
+              ? -1
+              : forestClass.index - 1;
+    }
+
+    double xOf(double lon) => (lon - window.west) / lonSpan * width;
+    double yOf(double lat) =>
+        (mercatorY(lat) - _mercNorth) / _mercSpan * rows;
+
+    // Hex-Zeilen/-Spalten, die das Fenster berühren (plus Rand).
+    final hy0 =
+        math.max(0, (((grid.north - window.north) / latStep) - 2).floor());
+    final hy1 = math.min(
+        grid.height - 1, (((grid.north - window.south) / latStep) + 2).ceil());
+    final hx0 =
+        math.max(0, (((window.west - grid.west) / lonStep) - 2).floor());
+    final hx1 = math.min(
+        grid.width - 1, (((window.east - grid.west) / lonStep) + 2).ceil());
+
+    for (var hy = hy0; hy <= hy1; hy++) {
+      final odd = hy.isOdd ? 0.5 : 0.0;
+      final latC = grid.north - latStep * (hy + 2 / 3);
+      final yTop = yOf(latC + rDeg);
+      final yUp = yOf(latC + rDeg / 2);
+      final yLow = yOf(latC - rDeg / 2);
+      final yBot = yOf(latC - rDeg);
+      if (yBot < 0 || yTop >= rows) continue;
+      final rowBase = hy * grid.width;
+      final cxFirst = xOf(grid.west + lonStep * (hx0 + 0.5 + odd));
+
+      if (wPx < 1.0 || yBot - yTop < 1.0) {
+        _addSmallRow(grid, bandOf, rowBase, hx0, hx1,
+            cxFirst: cxFirst,
+            wPx: wPx,
+            // Sechseckfläche = 0,75 · Breite · Höhe.
+            area: 0.75 * wPx * (yBot - yTop),
+            yMid: (yTop + yBot) / 2);
+        continue;
+      }
+
+      var cx = cxFirst;
+      for (var hx = hx0; hx <= hx1; hx++, cx += wPx) {
+        final band = bandOf[grid.values[rowBase + hx]];
+        if (band < 0) continue;
+        if (cx + wPx / 2 <= 0 || cx - wPx / 2 >= width) continue;
+        final py0 = math.max(0, yTop.floor());
+        final py1 = math.min(rows - 1, yBot.floor());
+        for (var py = py0; py <= py1; py++) {
+          // Anteil DIESER Pixelzeile, den die Wabe überdeckt.
+          final top = math.max(yTop, py.toDouble());
+          final bottom = math.min(yBot, py + 1.0);
+          final vertical = bottom - top;
+          if (vertical <= 0) continue;
+          // Halbbreite auf halber Höhe des überdeckten Streifens: oben
+          // und unten verjüngt sich das Sechseck linear zur Spitze.
+          final yc = (top + bottom) / 2;
+          final double half;
+          if (yc <= yUp) {
+            half = wPx / 2 * ((yc - yTop) / (yUp - yTop));
+          } else if (yc >= yLow) {
+            half = wPx / 2 * ((yBot - yc) / (yBot - yLow));
+          } else {
+            half = wPx / 2;
+          }
+          if (half <= 0) continue;
+          final x0 = cx - half;
+          final x1 = cx + half;
+          final px0 = math.max(0, x0.floor());
+          final px1 = math.min(width - 1, x1.floor());
+          final rowOffset = py * width;
+          for (var px = px0; px <= px1; px++) {
+            final left = math.max(x0, px.toDouble());
+            final right = math.min(x1, px + 1.0);
+            if (right <= left) continue;
+            _bands[(rowOffset + px) * 3 + band] +=
+                (vertical * (right - left) * _coverageUnit).round();
+          }
         }
       }
     }
+  }
+
+  /// Eine Wabenzeile, die kleiner als ein Pixel ist: Jede Wabe wirft
+  /// ihre ganze Fläche bilinear auf die vier Pixel um ihren Mittelpunkt.
+  /// Bilinear und nicht in EIN Pixel, weil die Waben sonst je nach
+  /// Rundung mal zusammenklumpen und mal nicht — die Deckung fleckte
+  /// dann sichtbar (gemessen: 42,3 % statt 43,5 % bei 47,8 % Wahrheit).
+  ///
+  /// Alles, was für die ganze Zeile gilt, ist hier schon ausgerechnet;
+  /// die Spaltenschleife ist der heiße Pfad des Übersichtszooms.
+  void _addSmallRow(
+    ForestGrid grid,
+    Int8List bandOf,
+    int rowBase,
+    int hx0,
+    int hx1, {
+    required double cxFirst,
+    required double wPx,
+    required double area,
+    required double yMid,
+  }) {
+    final width = window.width;
+    final rows = window.height;
+    final fy = yMid - 0.5;
+    final rowA = fy.floor();
+    final ty = fy - rowA;
+    final weightA = (1 - ty) * area * _coverageUnit;
+    final weightB = ty * area * _coverageUnit;
+    final hasA = rowA >= 0 && rowA < rows;
+    final hasB = rowA + 1 >= 0 && rowA + 1 < rows;
+    if (!hasA && !hasB) return;
+    final offsetA = rowA * width;
+    final offsetB = (rowA + 1) * width;
+
+    var cx = cxFirst - 0.5; // Pixelmitten-Koordinaten
+    for (var hx = hx0; hx <= hx1; hx++, cx += wPx) {
+      final band = bandOf[grid.values[rowBase + hx]];
+      if (band < 0) continue;
+      final px = cx.floor();
+      if (px < -1 || px >= width) continue;
+      final tx = cx - px;
+      if (hasA) {
+        if (px >= 0) {
+          _bands[(offsetA + px) * 3 + band] += (weightA * (1 - tx)).round();
+        }
+        if (px + 1 < width) {
+          _bands[(offsetA + px + 1) * 3 + band] += (weightA * tx).round();
+        }
+      }
+      if (hasB) {
+        if (px >= 0) {
+          _bands[(offsetB + px) * 3 + band] += (weightB * (1 - tx)).round();
+        }
+        if (px + 1 < width) {
+          _bands[(offsetB + px + 1) * 3 + band] += (weightB * tx).round();
+        }
+      }
+    }
+  }
+
+  /// Deckung → Bild: Farbe der deckungsstärksten Klasse, Deckkraft nach
+  /// Gesamtdeckung.
+  ///
+  /// Die Farbe eines gemischten Pixels ist die MEHRHEITSKLASSE, nicht
+  /// ein gemittelter Farbton: Ein Mischton stünde in keiner Legende, und
+  /// eine abgewählte Klasse (#231) darf nicht durch die Hintertür wieder
+  /// auftauchen. Bei Gleichstand gewinnt die hellere Klasse (Laub vor
+  /// Misch vor Nadel) — irgendeine feste Reihenfolge braucht es, damit
+  /// dasselbe Gitter dasselbe Bild ergibt.
+  Uint8List resolve(int alpha) {
+    final width = window.width;
+    final rows = window.height;
+    final red = Uint8List(3), green = Uint8List(3), blue = Uint8List(3);
+    const colours = [
+      AppColors.forestBroadleaf,
+      AppColors.forestMixed,
+      AppColors.forestConifer,
+    ];
+    for (var i = 0; i < 3; i++) {
+      red[i] = (colours[i].r * 255).round();
+      green[i] = (colours[i].g * 255).round();
+      blue[i] = (colours[i].b * 255).round();
+    }
+
+    final raw = Uint8List(rows * (width * 4 + 1));
+    var cursor = 0;
+    var band = 0;
+    for (var y = 0; y < rows; y++) {
+      raw[cursor++] = 0; // Filter „None"
+      for (var x = 0; x < width; x++) {
+        final broadleaf = _bands[band];
+        final mixed = _bands[band + 1];
+        final conifer = _bands[band + 2];
+        band += 3;
+        final total = broadleaf + mixed + conifer;
+        if (total == 0) {
+          cursor += 4; // durchsichtig: kein Wald, keine Daten, abgewählt
+          continue;
+        }
+        final best = broadleaf >= mixed
+            ? (broadleaf >= conifer ? 0 : 2)
+            : (mixed >= conifer ? 1 : 2);
+        raw[cursor++] = red[best];
+        raw[cursor++] = green[best];
+        raw[cursor++] = blue[best];
+        raw[cursor++] = total >= _coverageUnit
+            ? alpha
+            : (alpha * total / _coverageUnit).round();
+      }
+    }
+    return raw;
   }
 }

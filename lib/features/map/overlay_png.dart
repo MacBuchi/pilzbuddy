@@ -13,6 +13,14 @@ import 'package:archive/archive.dart';
 /// [scanlines] ist `height * (width * 4 + 1)` Bytes: je Zeile ein
 /// Filter-Byte (0 = „None" — die Flächen sind gleichförmig, ein Filter
 /// brächte nichts) gefolgt von `width` RGBA-Quadrupeln.
+///
+/// **zlib-Stufe 1, nicht die voreingestellte 6** (gemessen 2026-08-09 an
+/// einem 1193×1536-Bild: 222 ms statt 645 ms, dafür 2,2 statt 2,0 MB).
+/// Diese Bilder werden in eine Datei geschrieben und sofort wieder
+/// gelesen — sie wandern nie durchs Netz, 10 % mehr Bytes kosten also
+/// nichts, während die Kompression bis dahin der TEUERSTE Schritt des
+/// Einfärbens war (mehr als Rasterarbeit und Auflösen zusammen). Gilt
+/// für Wald, Regen und Ampel gleichermaßen.
 Uint8List overlayPng(int width, int height, Uint8List scanlines) {
   final header = BytesBuilder()
     ..add([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
@@ -23,8 +31,8 @@ Uint8List overlayPng(int width, int height, Uint8List scanlines) {
   ihdr[8] = 8; // Bittiefe
   ihdr[9] = 6; // RGBA
   header.add(pngChunk('IHDR', ihdr));
-  header.add(pngChunk(
-      'IDAT', Uint8List.fromList(const ZLibEncoder().encode(scanlines))));
+  header.add(pngChunk('IDAT',
+      Uint8List.fromList(const ZLibEncoder().encode(scanlines, level: 1))));
   header.add(pngChunk('IEND', Uint8List(0)));
   return header.toBytes();
 }

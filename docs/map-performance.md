@@ -278,3 +278,71 @@ wird nur bei neuem Fenster-Plan — kleines Schieben löst über die
 #249-Hysterese weder Malen noch Laden aus. Wer den Deckel anfasst,
 misst vorher (`tool/measure_map.sh`); die Lehre aus #142 gilt auch für
 diesen Cache.
+
+## Nachtrag 2026-08-09 (3): Waben unter Pixelgröße — Deckung statt Füllung
+
+Feldbericht des Betreibers: „relativ weit rausgezoomt entstehen Lücken,
+dann Streifen, und in der Deutschland-Gesamtansicht ist gar nichts mehr
+zu erkennen. Das war vorher viel besser." Stimmt, und die Ursache war
+**nicht** das Pixelbudget aus #249, sondern der Sechseck-Zeichner aus
+#251: Er malte vorwärts (Wabe → Pixelzeilen), und eine Wabe schmaler als
+ein Pixel fiel beim Runden komplett heraus (`ceil(oben) > floor(unten)`).
+
+Gemessen am **echten Asset** (3038 × 4470 Waben, 250 m), Fenster um
+50 °N/10 °E, „Wahrheit" = Waldanteil der Waben im Ausschnitt, „gemalt" =
+mittlere Deckkraft des PNGs:
+
+| Sichtfenster | Wabe im Bild | Wahrheit | alt (Füllung) | neu (Deckung) |
+|---|---|---|---|---|
+| 852 km (DACH-Übersicht) | 0,39 px | 47,8 % | **0,0 %** | 43,5 % |
+| 398 km | 0,54 px | 49,6 % | **5,0 %** | 49,2 % |
+| 199 km | 1,04 px | 51,4 % | **31,3 %** | 54,1 % |
+| 99 km | 2,08 px | 54,2 % | 48,0 % | 55,1 % |
+| 50 km | 4,15 px | 53,4 % | 51,9 % | 53,6 % |
+| 20 km | 10,4 px | 42,4 % | 42,1 % | 42,4 % |
+| 5 km | 41,5 px | 30,6 % | 30,8 % | 30,8 % |
+
+Der Bruch beginnt exakt unter **2 px Wabenbreite** — deshalb war unterhalb
+von ~100 km Sichtfenster nie etwas zu sehen und darüber alles. Seit
+1.74.0 trägt jede Wabe ihren Flächenanteil zu den Pixeln bei, die sie
+berührt (`_HexCoverage` in `forest_fill.dart`); die Farbe ist die
+deckungsstärkste Klasse, die Deckkraft die Gesamtdeckung. Das ist
+Kantenglättung, keine Mittelung von Daten — und exakt die Aggregation,
+die `tool/forest_grid.py` beim Bau eines gröberen Gitters ohnehin macht.
+`test/forest_fill_test.dart` nagelt beide Enden fest (0,4 px und 1 px je
+Wabe ⇒ ≥ 95 % Fläche; halber Wald ⇒ halbe Deckkraft, damit „einfach alles
+vollmalen" nicht durchgeht).
+
+**Kosten, je Phase gemessen** (1193 × 1536, Übersichtszoom, MacBook):
+
+| Phase | vorher | nachher |
+|---|---|---|
+| Rasterarbeit | ~110 ms | ~110 ms |
+| Deckung auflösen | — | ~60 ms |
+| PNG-Kompression | 645 ms (zlib 6) | 222 ms (zlib 1) |
+
+Zwei Erkenntnisse daraus, beide gegen die Intuition:
+
+1. **Die Rasterarbeit war nie das Problem.** Der teuerste Schritt des
+   Einfärbens ist die PNG-Kompression — und sie stand ohne Grund auf der
+   zlib-Voreinstellung 6. Stufe 1 kostet 10 % mehr Bytes (2,2 statt
+   2,0 MB) in einer Datei, die sofort wieder gelesen wird und nie durchs
+   Netz geht. Gilt jetzt für Wald, Regen und Ampel (`overlay_png.dart`).
+2. **Der alte Zeichner war im Übersichtszoom nur deshalb „schnell",
+   weil er nichts malte** — ein leeres PNG komprimiert in Nullzeit. Wer
+   künftig Zeiten vergleicht, prüft zuerst, ob überhaupt Fläche im Bild
+   ist.
+
+Neuer Puffer: drei `Uint16`-Deckungsbänder je Pixel, **14 MB beim
+größten Fenster** (1536² × 3 × 2 B) zusätzlich zum RGBA-Raster von
+9,4 MB — beides kurzlebig im `compute`-Isolat. `Float32` wäre 28 MB und
+brächte nichts: Selbst im Übersichtszoom, wo sieben Waben in einem Pixel
+liegen, trägt jede noch ~130 der 1024 Einheiten bei.
+
+**Was NICHT angefasst wurde:** Rand (50 %) und Zoom-Faktor (3,5) des
+Fensterplaners. Beide bestimmen, wie scharf die Fläche zwischen zwei
+Neuplanungen aussieht (bei Budget 1536 und 50 % Rand liegen ~768 Bildpixel
+auf der Sichtfensterbreite, also ~1,9× hochskaliert auf einem
+1440-px-Schirm). Das ist die nächste Schraube, wenn die Kanten beim Zoomen
+weiter stören — aber sie wird gemessen, nicht gedreht, weil sie Speicher
+gegen Nachladen tauscht (die Regel oben).
