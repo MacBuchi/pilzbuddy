@@ -5,6 +5,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/settings.dart';
+import '../forest_block_providers.dart';
 import '../forest_data_providers.dart';
 import '../forest_grid.dart';
 import 'map_legend.dart';
@@ -77,6 +79,28 @@ class _ForestLayerSheet extends ConsumerWidget {
                     const Divider(height: 16),
                     const _ClassChecklist(),
                     const Divider(height: 16),
+                    // Der Schalter IST die Zustimmung (#253), wie beim
+                    // Regenverlauf: Der Text nennt die Kosten, mehr
+                    // Dialog braucht es nicht. Persistent — einmal
+                    // zustimmen, nicht jede Wanderung neu.
+                    SwitchListTile(
+                      dense: true,
+                      title: const Text('Feine Waben (≈ 100 m) nachladen'),
+                      subtitle: const Text(
+                          'Holt fürs sichtbare Gebiet ein feineres Gitter '
+                          'aus dem Netz — je Gebiet rund 1 MB, bleibt '
+                          'gespeichert. Ohne Empfang gilt die eingebaute '
+                          'Karte (≈ 250 m).'),
+                      value: ref.watch(forestFineEnabledProvider),
+                      onChanged: (value) async {
+                        ref
+                            .read(forestFineEnabledProvider.notifier)
+                            .state = value;
+                        await ref
+                            .read(settingsProvider)
+                            .setForestFineEnabled(value);
+                      },
+                    ),
                     SwitchListTile(
                       dense: true,
                       title: const Text('Legende in Karte anzeigen'),
@@ -93,8 +117,9 @@ class _ForestLayerSheet extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
               child: Text(
                 // Lizenzpflicht der Quelle — gehört hierher, nicht in
-                // die Datenschutzerklärung: Die App verbindet sich
-                // nirgendwohin, das Gitter liegt im APK.
+                // die Datenschutzerklärung: Das Gitter liegt im APK,
+                // und die feinen Blöcke (#253) kommen von den
+                // GitHub-Releases, die dort längst stehen.
                 '© Europäische Union, Copernicus Land Monitoring Service',
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: theme.hintColor),

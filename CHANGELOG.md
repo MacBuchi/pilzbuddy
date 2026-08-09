@@ -7,6 +7,28 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Waldkarte kann feiner — wenn du willst
+
+*9. August 2026 · Version 1.71.0*
+
+Im Waldtypen-Blatt gibt es einen neuen Schalter: **„Feine Waben
+(≈ 100 m) nachladen"**. Eingeschaltet holt die App für das sichtbare
+Gebiet eine deutlich feinere Waldkarte aus dem Netz — je Gebiet rund
+1 MB, einmal geladen bleibt es auf dem Gerät. Auch „Wald hier" im
+Spot-Blatt, der Laubfaktor am Fadenkreuz und „Was ist hier?" rechnen
+dann auf den feinen Waben.
+
+- Ohne den Schalter ändert sich nichts: Die eingebaute 250-m-Karte
+  bleibt und funktioniert wie bisher ganz ohne Empfang. Fehlt unterwegs
+  das Netz, springt sie auch bei eingeschaltetem Schalter still ein.
+- Die feine Karte ist nicht nur schärfer, sondern ehrlicher: Bei 250 m
+  macht schon eine Baumreihe die ganze Wabe zu „Wald" — auf 100 m
+  schrumpft der Waldanteil von 48 auf ehrliche 44 Prozent. Werte können
+  sich also leicht ändern; das ist die feinere Messung, keine neuen
+  Daten.
+- Die feinen Karten werden zentral gepflegt und beim vierteljährlichen
+  Daten-Update automatisch erneuert — dafür ist kein App-Update nötig.
+
 ## Die Waldkarte hat jetzt Waben
 
 *9. August 2026 · Version 1.70.0*

@@ -7,7 +7,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../map/forest_data_providers.dart';
+import '../../map/forest_block_providers.dart';
 import '../../map/forest_grid.dart';
 
 class SpotForestSection extends ConsumerWidget {
@@ -18,7 +18,9 @@ class SpotForestSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final grid = ref.watch(forestGridProvider).valueOrNull;
+    // Die kombinierte Sicht (#253): feine Wabe, wo ein Block geladen
+    // ist, sonst das Asset — je Antwort, nicht je App-Lauf.
+    final grid = ref.watch(forestViewProvider);
     // Kein Gitter oder außerhalb der Abdeckung: nichts — eine Zeile
     // „keine Daten" an jedem Spot außerhalb DACHs wäre Lärm (dieselbe
     // Entscheidung wie beim Regen).
@@ -28,8 +30,10 @@ class SpotForestSection extends ConsumerWidget {
     final share = grid.shareAt(lat, lon);
     final text = switch (forestClass) {
       // „Kein Wald" wird gezeigt: Am Wiesenrand-Spot ist das eine
-      // ehrliche Auskunft über die 250-m-Zelle, kein Fehler.
-      ForestClass.none => 'kein Wald (Wabe ≈ 250 m)',
+      // ehrliche Auskunft über die Wabe, kein Fehler — und die
+      // Wabengröße steht dabei, weil sie die Aussage bemisst.
+      ForestClass.none =>
+        'kein Wald (Wabe ≈ ${grid.usesFineAt(lat, lon) ? 100 : 250} m)',
       ForestClass.broadleaf => 'überwiegend Laubwald'
           '${share == null ? '' : ' ($share % Nadel)'}',
       ForestClass.mixed =>
@@ -47,7 +51,7 @@ class SpotForestSection extends ConsumerWidget {
           const SizedBox(width: 6),
           Expanded(
             child: Text(
-              'Wald hier: $text · Stand ${grid.referenceYear}',
+              'Wald hier: $text · Stand ${grid.referenceYearAt(lat, lon)}',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),

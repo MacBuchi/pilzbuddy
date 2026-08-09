@@ -63,6 +63,17 @@ abstract interface class Settings {
 
   Future<void> setRainCourseEnabled(bool value);
 
+  /// Darf die Waldkarte feine Waben (≈ 100 m) nachladen? (#253)
+  ///
+  /// Standardmäßig NEIN, dieselbe Zusage wie beim Regenverlauf: Ein
+  /// Block kostet rund 1 MB, und das gibt man im Wald nicht ungefragt
+  /// aus. Der Schalter im Waldtypen-Blatt IST die Zustimmung — sein
+  /// Text nennt die Kosten. Geladene Blöcke bleiben auf Platte, ohne
+  /// Empfang gilt die eingebaute 250-m-Karte.
+  bool get forestFineEnabled;
+
+  Future<void> setForestFineEnabled(bool value);
+
   /// Bis wann die Spot-Erinnerung stummgeschaltet ist (Baustein C des
   /// Ampel-Konzepts): Das X am Banner setzt den Zeitpunkt ans Ende des
   /// laufenden ±14-Tage-Fensters — dieselbe Erinnerung soll nicht jeden
@@ -149,6 +160,16 @@ class PrefsSettings implements Settings {
   @override
   Future<void> setRainCourseEnabled(bool value) =>
       _prefs.setBool(_rainCourseEnabledKey, value);
+
+  static const _forestFineEnabledKey = 'forest_fine_enabled';
+
+  @override
+  bool get forestFineEnabled =>
+      _prefs.getBool(_forestFineEnabledKey) ?? false;
+
+  @override
+  Future<void> setForestFineEnabled(bool value) =>
+      _prefs.setBool(_forestFineEnabledKey, value);
 
   static const _spotMemoryDismissedUntilKey = 'spot_memory_dismissed_until';
 

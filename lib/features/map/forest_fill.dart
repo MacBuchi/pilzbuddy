@@ -75,38 +75,17 @@ Uint8List forestFillPng(ForestGrid grid,
     height: grid.height,
   );
   final width = window.width;
-  // Nachschlagetabelle wie beim Regen: Millionen Zellen, 256 Einträge.
-  final palette = Uint8List(256 * 4);
-  for (var value = 0; value < 256; value++) {
-    final forestClass = classOfByte(value);
-    if (forestClass == ForestClass.none || !classes.contains(forestClass)) {
-      continue; // durchsichtig
-    }
-    final Color colour;
-    switch (forestClass) {
-      case ForestClass.none:
-        continue; // oben schon behandelt — der Vollständigkeit halber
-      case ForestClass.broadleaf:
-        colour = AppColors.forestBroadleaf;
-      case ForestClass.mixed:
-        colour = AppColors.forestMixed;
-      case ForestClass.conifer:
-        colour = AppColors.forestConifer;
-    }
-    final offset = value * 4;
-    palette[offset] = (colour.r * 255).round();
-    palette[offset + 1] = (colour.g * 255).round();
-    palette[offset + 2] = (colour.b * 255).round();
-    palette[offset + 3] = alpha;
-  }
+  final palette = _paletteFor(alpha, classes);
 
   final rows = window.height;
   final mercNorth = mercatorY(window.north);
   final mercSpan = mercatorY(window.south) - mercNorth;
 
   if (grid.isHex) {
-    return _hexFillPng(grid, window, palette,
+    final raw = _emptyRaster(window);
+    _paintHexes(raw, grid, window, palette,
         mercNorth: mercNorth, mercSpan: mercSpan);
+    return overlayPng(window.width, rows, raw);
   }
 
   // Spalte -> Gitterspalte, einmal statt je Zeile: Die Länge ist in
@@ -145,6 +124,61 @@ Uint8List forestFillPng(ForestGrid grid,
   return overlayPng(width, rows, raw);
 }
 
+/// Nachschlagetabelle wie beim Regen: Millionen Zellen, 256 Einträge.
+/// Abgewählte Klassen und „kein Wald" bleiben durchsichtig (Alpha 0).
+Uint8List _paletteFor(int alpha, Set<ForestClass> classes) {
+  final palette = Uint8List(256 * 4);
+  for (var value = 0; value < 256; value++) {
+    final forestClass = classOfByte(value);
+    if (forestClass == ForestClass.none || !classes.contains(forestClass)) {
+      continue; // durchsichtig
+    }
+    final Color colour;
+    switch (forestClass) {
+      case ForestClass.none:
+        continue; // oben schon behandelt — der Vollständigkeit halber
+      case ForestClass.broadleaf:
+        colour = AppColors.forestBroadleaf;
+      case ForestClass.mixed:
+        colour = AppColors.forestMixed;
+      case ForestClass.conifer:
+        colour = AppColors.forestConifer;
+    }
+    final offset = value * 4;
+    palette[offset] = (colour.r * 255).round();
+    palette[offset + 1] = (colour.g * 255).round();
+    palette[offset + 2] = (colour.b * 255).round();
+    palette[offset + 3] = alpha;
+  }
+  return palette;
+}
+
+/// Die feine Stufe (#253): mehrere Blockgitter in EIN Fensterbild. Die
+/// Blöcke kacheln das globale Gitter ohne Überlappung, jeder malt seine
+/// Waben mit seinem eigenen Anker — die Naht zwischen zwei Blöcken ist
+/// damit dieselbe Wabenkante wie mitten im Block, und
+/// `test/forest_fill_test.dart` hält fest, dass das Ergebnis pixelgleich
+/// zum Ganzgitter ist.
+Uint8List forestFillPngMulti(List<ForestGrid> grids,
+    {int alpha = forestFillAlpha,
+    Set<ForestClass> classes = allForestClasses,
+    required FillWindow window}) {
+  final palette = _paletteFor(alpha, classes);
+  final mercNorth = mercatorY(window.north);
+  final mercSpan = mercatorY(window.south) - mercNorth;
+  final raw = _emptyRaster(window);
+  for (final grid in grids) {
+    _paintHexes(raw, grid, window, palette,
+        mercNorth: mercNorth, mercSpan: mercSpan);
+  }
+  return overlayPng(window.width, window.height, raw);
+}
+
+/// Der leere RGBA-Rasterpuffer im PNG-Zeilenformat (1 Filterbyte je
+/// Zeile, dann `width` Pixel).
+Uint8List _emptyRaster(FillWindow window) =>
+    Uint8List(window.height * (window.width * 4 + 1));
+
 /// Der Sechseck-Zeichner (#251): je Hex ein konvexes Polygon per
 /// Scanline, Spitze oben. Die sechs Eckpunkte werden EINZELN durch die
 /// Mercator-Abbildung geschickt (innerhalb eines ~250-m-Hexes ist die
@@ -155,7 +189,11 @@ Uint8List forestFillPng(ForestGrid grid,
 /// und keine Aussage. Der Prototyp dieses Zeichners ist gemessen: ~8 ms
 /// Rasterarbeit gegen ~150 ms PNG-Kompression, das Performance-Tor des
 /// Betreibers ist bestanden.
-Uint8List _hexFillPng(ForestGrid grid, FillWindow window, Uint8List palette,
+///
+/// Malt in [raw] hinein statt ein PNG zu liefern, damit die feine Stufe
+/// (#253) mehrere Blockgitter in dasselbe Bild setzen kann.
+void _paintHexes(
+    Uint8List raw, ForestGrid grid, FillWindow window, Uint8List palette,
     {required double mercNorth, required double mercSpan}) {
   final width = window.width;
   final rows = window.height;
@@ -167,11 +205,6 @@ Uint8List _hexFillPng(ForestGrid grid, FillWindow window, Uint8List palette,
   double xOf(double lon) => (lon - window.west) / lonSpan * width;
   double yOf(double lat) =>
       (mercatorY(lat) - mercNorth) / mercSpan * rows;
-
-  final raw = Uint8List(rows * (width * 4 + 1));
-  for (var y = 0; y < rows; y++) {
-    raw[y * (width * 4 + 1)] = 0; // Filter „None"
-  }
 
   // Hex-Zeilen/-Spalten, die das Fenster berühren (plus Rand).
   final hy0 = (((grid.north - window.north) / latStep) - 2).floor();
@@ -224,5 +257,4 @@ Uint8List _hexFillPng(ForestGrid grid, FillWindow window, Uint8List palette,
       }
     }
   }
-  return overlayPng(width, rows, raw);
 }

@@ -6,6 +6,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/app_colors.dart';
+import 'package:pilzbuddy/features/map/forest_block_providers.dart';
 import 'package:pilzbuddy/features/map/forest_data_providers.dart';
 import 'package:pilzbuddy/features/map/forest_grid.dart';
 import 'package:pilzbuddy/features/map/rain_grid.dart' show mercatorY;
@@ -256,6 +257,45 @@ void main() {
         findsOneWidget);
     expect(find.textContaining('(10 % Nadel)'), findsOneWidget);
     expect(find.textContaining('Stand 2021'), findsOneWidget);
+  });
+
+  testWidgets('der Fein-Schalter ist die Zustimmung und wird gemerkt (#253)',
+      (tester) async {
+    // Hoher Schirm: Das Blatt deckelt bei zwei Dritteln der Höhe, und
+    // seine ListView baut lazy — auf 600 px läge der Fein-Schalter
+    // unterhalb der Falte und existierte im Baum gar nicht.
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final (backend, _) = loggedInBackend();
+    final settings = FakeSettings();
+    await pumpApp(tester, backend,
+        useRealMap: true,
+        settings: settings,
+        extraOverrides: withGrid(testGrid()));
+
+    await tester.tap(find.byTooltip('Waldtypen'));
+    await settle(tester);
+    await tester.tap(find.text('Waldtypen einblenden'));
+    await settle(tester);
+
+    final fineSwitch = find.text('Feine Waben (≈ 100 m) nachladen');
+    expect(fineSwitch, findsOneWidget);
+    expect(find.textContaining('rund 1 MB'), findsOneWidget,
+        reason: 'die Kosten stehen AM Schalter — er ist die Zustimmung');
+    await tester.tap(fineSwitch);
+    await settle(tester);
+
+    expect(settings.forestFineEnabled, isTrue,
+        reason: 'die Zustimmung überlebt den Neustart');
+    final container = containerOf(tester);
+    expect(container.read(forestFineEnabledProvider), isTrue);
+
+    // Und wieder aus: derselbe Schalter, keine Einbahnstraße.
+    await tester.tap(fineSwitch);
+    await settle(tester);
+    expect(settings.forestFineEnabled, isFalse);
   });
 
   testWidgets('Ohne Gitter fehlt alles still', (tester) async {

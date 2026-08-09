@@ -101,32 +101,12 @@ class ForestGrid {
     final latStep = hexLatStep;
     if (lonStep == null || latStep == null) return null;
     if (lon < west || lon > east || lat > north || lat < south) return null;
-    // In Hex-Einheiten: u in Breiten (Spalten), v in Zeilenschritten.
-    final u = (lon - west) / lonStep;
-    final v = (north - lat) / latStep;
-    // Rückverhältnis der Achsen im regelmäßigen Raum: eine Breite w
-    // entspricht √3·R, ein Zeilenschritt 1,5·R.
-    const uScale = 1.7320508075688772; // √3
-    const vScale = 1.5;
-    (int, int)? best;
-    double? bestD;
-    final hy0 = (v - 2 / 3).round();
-    for (var hy = hy0 - 1; hy <= hy0 + 1; hy++) {
-      if (hy < 0 || hy >= height) continue;
-      final odd = hy.isOdd ? 0.5 : 0.0;
-      final hx0 = (u - 0.5 - odd).round();
-      for (var hx = hx0 - 1; hx <= hx0 + 1; hx++) {
-        if (hx < 0 || hx >= width) continue;
-        final du = (u - (hx + 0.5 + odd)) * uScale;
-        final dv = (v - (hy + 2 / 3)) * vScale;
-        final d = du * du + dv * dv;
-        if (bestD == null || d < bestD) {
-          bestD = d;
-          best = (hx, hy);
-        }
-      }
-    }
-    return best;
+    return hexNearestCell(
+      u: (lon - west) / lonStep,
+      v: (north - lat) / latStep,
+      width: width,
+      height: height,
+    );
   }
 
   /// Packt aus, was `tool/forest_grid.py` geschrieben hat: gzip,
@@ -295,49 +275,114 @@ class ForestGrid {
 /// ist monoton, symmetrisch und bei ~70 Hexen im Kilometer belanglos.
 extension on ForestGrid {
   ({double? factor, double forestShare})? _broadleafFactorAroundHex(
-      double lat, double lon, double radiusMeters) {
-    final lonStep = hexLonStep!;
-    final latStep = hexLatStep!;
-    const metersPerDegree = 111320.0;
-    final rowMeters = latStep * metersPerDegree;
-    final colMeters =
-        lonStep * metersPerDegree * math.cos(lat * math.pi / 180);
-    if (rowMeters <= 0 || colMeters <= 0) return null;
-    // Umkreisradius R in Metern: Zeilenschritt = 1,5·R.
-    final hexR = rowMeters / 1.5;
-    final reach = radiusMeters + hexR;
+          double lat, double lon, double radiusMeters) =>
+      hexFactorAround(
+        lat: lat,
+        lon: lon,
+        radiusMeters: radiusMeters,
+        west: west,
+        north: north,
+        lonStep: hexLonStep!,
+        latStep: hexLatStep!,
+        width: width,
+        height: height,
+        byteAt: (hx, hy) => values[hy * width + hx],
+      );
+}
 
-    final u = (lon - west) / lonStep;
-    final v = (north - lat) / latStep;
-    final spanRows = (reach / rowMeters).ceil() + 1;
-    final spanCols = (reach / colMeters).ceil() + 1;
-    var counted = 0;
-    var forest = 0;
-    var broadleafSum = 0.0;
-    for (var hy = (v - spanRows).floor(); hy <= (v + spanRows).ceil(); hy++) {
-      if (hy < 0 || hy >= height) continue;
-      final odd = hy.isOdd ? 0.5 : 0.0;
-      for (var hx = (u - spanCols).floor();
-          hx <= (u + spanCols).ceil();
-          hx++) {
-        if (hx < 0 || hx >= width) continue;
-        final dx = (u - (hx + 0.5 + odd)) * colMeters;
-        final dy = (v - (hy + 2 / 3)) * rowMeters;
-        if (dx * dx + dy * dy > reach * reach) continue;
-        final value = values[hy * width + hx];
-        if (value == forestNoData) continue;
-        counted++;
-        if (value == forestNoForest) continue;
-        forest++;
-        broadleafSum += 1 - (value - 1) / 100;
+/// Das Hex mit dem nächsten Mittelpunkt zu (u, v) — beides in
+/// Gittereinheiten (u: Hexbreiten ab Westkante, v: Zeilenschritte ab
+/// Nordkante). Gemessen im Raum, in dem die Hexe regelmäßig sind
+/// (Breite w, Zeilenschritt 1,5·R — Verhältnis w : 1,5R = √3 : 1,5).
+///
+/// Herausgelöst aus [ForestGrid.hexCellAt], weil der Blockverbund
+/// (`forest_blocks.dart`, #253) EXAKT dieselbe Zuordnung treffen muss —
+/// zwei Kopien dieser Rechnung, die auseinanderlaufen, hießen: Die
+/// nachgeladene Karte färbt ein anderes Hex, als „Wald hier" benennt.
+(int, int)? hexNearestCell({
+  required double u,
+  required double v,
+  required int width,
+  required int height,
+}) {
+  // Rückverhältnis der Achsen im regelmäßigen Raum: eine Breite w
+  // entspricht √3·R, ein Zeilenschritt 1,5·R.
+  const uScale = 1.7320508075688772; // √3
+  const vScale = 1.5;
+  (int, int)? best;
+  double? bestD;
+  final hy0 = (v - 2 / 3).round();
+  for (var hy = hy0 - 1; hy <= hy0 + 1; hy++) {
+    if (hy < 0 || hy >= height) continue;
+    final odd = hy.isOdd ? 0.5 : 0.0;
+    final hx0 = (u - 0.5 - odd).round();
+    for (var hx = hx0 - 1; hx <= hx0 + 1; hx++) {
+      if (hx < 0 || hx >= width) continue;
+      final du = (u - (hx + 0.5 + odd)) * uScale;
+      final dv = (v - (hy + 2 / 3)) * vScale;
+      final d = du * du + dv * dv;
+      if (bestD == null || d < bestD) {
+        bestD = d;
+        best = (hx, hy);
       }
     }
-    if (counted == 0) return null;
-    return (
-      factor: forest == 0 ? null : broadleafSum / forest,
-      forestShare: forest / counted,
-    );
   }
+  return best;
+}
+
+/// Der Laubfaktor-Umkreis auf einem Hex-Gitter, gegen einen
+/// Byte-Nachschlag statt eines Arrays — die EINE Rechnung für
+/// [ForestGrid] und den Blockverbund. [byteAt] wird nur mit Indizes
+/// innerhalb von `width`/`height` gerufen; wer Blöcke dahinterlegt, muss
+/// deren Abdeckung VORHER prüfen (`ForestBlockSet` tut das).
+({double? factor, double forestShare})? hexFactorAround({
+  required double lat,
+  required double lon,
+  required double radiusMeters,
+  required double west,
+  required double north,
+  required double lonStep,
+  required double latStep,
+  required int width,
+  required int height,
+  required int Function(int hx, int hy) byteAt,
+}) {
+  const metersPerDegree = 111320.0;
+  final rowMeters = latStep * metersPerDegree;
+  final colMeters = lonStep * metersPerDegree * math.cos(lat * math.pi / 180);
+  if (rowMeters <= 0 || colMeters <= 0) return null;
+  // Umkreisradius R in Metern: Zeilenschritt = 1,5·R.
+  final hexR = rowMeters / 1.5;
+  final reach = radiusMeters + hexR;
+
+  final u = (lon - west) / lonStep;
+  final v = (north - lat) / latStep;
+  final spanRows = (reach / rowMeters).ceil() + 1;
+  final spanCols = (reach / colMeters).ceil() + 1;
+  var counted = 0;
+  var forest = 0;
+  var broadleafSum = 0.0;
+  for (var hy = (v - spanRows).floor(); hy <= (v + spanRows).ceil(); hy++) {
+    if (hy < 0 || hy >= height) continue;
+    final odd = hy.isOdd ? 0.5 : 0.0;
+    for (var hx = (u - spanCols).floor(); hx <= (u + spanCols).ceil(); hx++) {
+      if (hx < 0 || hx >= width) continue;
+      final dx = (u - (hx + 0.5 + odd)) * colMeters;
+      final dy = (v - (hy + 2 / 3)) * rowMeters;
+      if (dx * dx + dy * dy > reach * reach) continue;
+      final value = byteAt(hx, hy);
+      if (value == forestNoData) continue;
+      counted++;
+      if (value == forestNoForest) continue;
+      forest++;
+      broadleafSum += 1 - (value - 1) / 100;
+    }
+  }
+  if (counted == 0) return null;
+  return (
+    factor: forest == 0 ? null : broadleafSum / forest,
+    forestShare: forest / counted,
+  );
 }
 
 /// Der Umkreis der Fadenkreuz-Werte (#235). Fest statt einstellbar —
