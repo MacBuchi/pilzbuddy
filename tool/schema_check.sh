@@ -125,15 +125,38 @@ if [ -z "$min_version" ]; then
   echo "::error::Schema-Check fehlgeschlagen: app_config hat keine Zeile — die Mindestversion kann nie greifen."
   fail=1
 else
-  # Aussperr-Schutz: die Mindestversion darf nie über der Version liegen,
-  # die dieser PR ausliefert — sonst sperrt die App auch den neuesten
-  # Client aus, und niemand käme mehr rein (Issue #80).
+  # Aussperr-Schutz (Issue #80): Die Mindestversion darf nie über dem
+  # Stand liegen, den die Nutzer bekommen können — sonst sperrt die App
+  # sie aus, und niemand käme mehr rein.
+  #
+  # **Der Maßstab ist seit #262 der STABILE Stand, nicht `pubspec.yaml`.**
+  # Migrationen spielen beim Merge ein, der Client kommt erst mit der
+  # Beförderung: Zwischen beidem liegen jetzt Wochen statt Minuten. Ein
+  # Patch, der die Mindestversion auf die Entwicklungsversion hebt,
+  # sperrte also genau die Leute aus, die auf stabil sind — und zwar
+  # sofort beim Merge.
   app_version=$(sed -n 's/^version: \([0-9][0-9.]*\).*/\1/p' pubspec.yaml)
-  if [ "$min_version" = "$app_version" ] || \
-     [ "$(printf '%s\n%s\n' "$min_version" "$app_version" | sort -V | head -1)" = "$min_version" ]; then
-    echo "✓ Mindestversion $min_version ≤ App-Version $app_version"
+  stable_version=$(curl -s --max-time 20 \
+    -H "Accept: application/vnd.github+json" \
+    ${GITHUB_TOKEN:+-H "Authorization: Bearer $GITHUB_TOKEN"} \
+    "https://api.github.com/repos/${GITHUB_REPOSITORY:-MacBuchi/pilzbuddy}/releases/latest" \
+    | sed -n 's/.*"tag_name": *"v\{0,1\}\([0-9][0-9.]*\)".*/\1/p' | head -1)
+  if [ -z "$stable_version" ]; then
+    # Kein stabiles Release (frisches Repo) oder GitHub nicht erreichbar:
+    # Dann gilt der alte Maßstab. Ein wackeliger API-Aufruf darf keinen
+    # Merge blockieren — die Grenze, die wirklich zählt, prüft die
+    # Beförderung ohnehin erneut.
+    echo "::warning::Kein stabiles Release gefunden — prüfe gegen pubspec.yaml ($app_version)."
+    stable_version="$app_version"
+    scale="App-Version"
   else
-    echo "::error::Schema-Check fehlgeschlagen: Mindestversion $min_version liegt ÜBER der App-Version $app_version — das würde jeden Client aussperren."
+    scale="stabile Version"
+  fi
+  if [ "$min_version" = "$stable_version" ] || \
+     [ "$(printf '%s\n%s\n' "$min_version" "$stable_version" | sort -V | head -1)" = "$min_version" ]; then
+    echo "✓ Mindestversion $min_version ≤ $scale $stable_version"
+  else
+    echo "::error::Schema-Check fehlgeschlagen: Mindestversion $min_version liegt ÜBER der $scale $stable_version — das würde alle aussperren, die auf stabil sind (#262)."
     fail=1
   fi
 fi

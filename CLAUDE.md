@@ -17,12 +17,37 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
 - Sprache: Auf GitHub wird Englisch gesprochen — Commit-Messages, PR-Titel und
   -Beschreibungen, Issues und Kommentare auf Englisch. Deutsch bleibt für
   UI-Strings, Nutzer-Doku (README) und die Kommunikation mit dem Betreiber.
-- Release = Versions-Bump in `pubspec.yaml` auf `main` (beide Teile erhöhen,
-  z. B. `1.0.1+2`). Der Release-Workflow taggt dann `v<version>`, veröffentlicht
-  die signierte APK als GitHub-Release und deployt Web auf GitHub Pages
-  (zusätzlich entsteht ein signiertes AAB als Workflow-Artefakt `android-aab`
-  für den Play Store — noch NICHT einreichbar, siehe Play-Store-Notiz unten)
-  (https://macbuchi.github.io/pilzbuddy/). Kein Bump = kein Release.
+- **Zwei Release-Kanäle, ein Branch** (#262, seit 1.77.0): Ein
+  Versions-Bump in `pubspec.yaml` auf `main` (beide Teile erhöhen, z. B.
+  `1.0.1+2`) taggt weiterhin `v<version>` und baut die signierte APK —
+  aber als **Prerelease**. Für die Nutzer ist der Stand damit unsichtbar:
+  `update_check.dart` fragt `/releases/latest`, und GitHub liefert dort
+  grundsätzlich keine Prereleases. Kein Bump = kein Build.
+  **Freigegeben wird von Hand:** `promote.yml` (workflow_dispatch, ohne
+  Eingabe = jüngstes Prerelease) nimmt die Markierung weg, setzt „latest",
+  sammelt die Release-Notizen aus ALLEN Changelog-Blöcken seit dem letzten
+  stabilen Stand (`tool/release_notes.py` — unser Changelog ist nach
+  Themen gegliedert, ein Zeilenschnitt wie im Nachbarrepo reicht dafür
+  nicht) und deployt **erst dann** Web auf GitHub Pages, gebaut aus dem
+  beförderten Tag (https://macbuchi.github.io/pilzbuddy/). Das Web hat
+  eine Adresse: Deployte jeder Merge, gälte die Trennung nur für Android.
+  Rhythmus nach Änderungsgrad, nicht nach Kalender (Betreiber, 2026-08-10).
+  Das AAB entsteht weiter je Bump als Workflow-Artefakt `android-aab` —
+  noch NICHT einreichbar, siehe Play-Store-Notiz unten.
+  Drei Folgen, die man wissen muss:
+  - **`minimum_supported_version` darf nie über den STABILEN Stand
+    steigen.** Migrationen spielen beim Merge ein, der Client kommt erst
+    mit der Beförderung — der Abstand ist jetzt Wochen statt Minuten.
+    `tool/schema_check.sh` misst deshalb gegen das letzte stabile Release
+    (Rückfall auf `pubspec.yaml`, wenn die GitHub-API schweigt).
+  - **Brechende Schema-Änderungen brauchen erweitern → ausliefern →
+    entfernen** (DocuHub `datenhaltung.md`), sonst erzwingen sie sofort
+    eine Beförderung und die Bündelung ist hinfällig.
+  - Wer den neuesten Stand testen will, lädt das **Prerelease-Artefakt**
+    von Hand; der In-App-Weg führt bewusst nur zu stabilen Ständen.
+  Die Riegel sind je ein Wort YAML — `test/release_workflow_test.dart`
+  wacht über beide, über den fehlenden Pages-Deploy in `release.yml` und
+  über die Aussperr-Grenze.
 - Nutzer-Changelog (`CHANGELOG.md`, Issue #113): Jede Version, die etwas
   Sichtbares ändert, bekommt hier einen Eintrag — in Alltagssprache und nach
   Themen gegliedert statt nach Versionsnummern (68 Releases in neun Tagen
