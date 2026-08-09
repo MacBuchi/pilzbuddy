@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/app_colors.dart';
+import '../../../core/settings.dart';
+import '../../ampel/ampel_map_providers.dart';
+import '../../ampel/ampel_providers.dart';
 import '../rain_data_providers.dart';
 import '../rain_fill.dart';
 import '../rain_layer.dart';
@@ -85,10 +88,59 @@ class _RainLayerSheet extends ConsumerWidget {
                       visualDensity: VisualDensity.compact,
                       // Seit #232 OHNE Wald-Abschaltung: Der Regen liegt
                       // ÜBER der Waldfläche, und die Teil-Ebenen im
-                      // Wald-Blatt halten die Kombination lesbar.
-                      onTap: () =>
-                          ref.read(rainLayerProvider.notifier).state = layer,
+                      // Wald-Blatt halten die Kombination lesbar. Die
+                      // Pilzwetter-Fläche dagegen geht AUS — zwei
+                      // Deutungs-Flächen übereinander wären Matsch.
+                      onTap: () {
+                        ref.read(rainLayerProvider.notifier).state = layer;
+                        if (layer != RainLayer.off) {
+                          ref
+                              .read(ampelLayerEnabledProvider.notifier)
+                              .state = false;
+                        }
+                      },
                     ),
+                  if (ref.watch(ampelPreviewEnabledProvider)) ...[
+                    const Divider(height: 16),
+                    // Die Umgebungs-Frage der Ampel-Vorschau: „Wo ist es
+                    // zurzeit gut?" — eine reine Wetterfläche, KEINE
+                    // fremden Spots. Nur sichtbar mit dem
+                    // Experimentell-Schalter im Profil; wechselseitig
+                    // exklusiv mit den Regenflächen (oben).
+                    SwitchListTile(
+                      dense: true,
+                      title:
+                          const Text('Pilzwetter-Ampel (experimentell)'),
+                      subtitle: const Text(
+                          'Färbt ein, wo die Wetter-Bedingungen für '
+                          'Steinpilz & Co. gerade günstig sind — nur '
+                          'Deutschland, bewertet Bedingungen, nicht '
+                          'Vorkommen. Nutzt die Wetterdaten vom Spot '
+                          '(beim ersten Mal knapp 2 MB).'),
+                      value: ref.watch(ampelLayerEnabledProvider),
+                      onChanged: (value) async {
+                        ref
+                            .read(ampelLayerEnabledProvider.notifier)
+                            .state = value;
+                        if (!value) return;
+                        ref.read(rainLayerProvider.notifier).state =
+                            RainLayer.off;
+                        // Dieselbe Zustimmung wie der Regen-Verlauf —
+                        // EIN Angebot, kein zweiter Dialog: Die Fläche
+                        // rechnet aus genau dem Stapel, den das
+                        // Spot-Blatt lädt, und der Untertitel nennt
+                        // die Kosten.
+                        if (!ref.read(rainCourseEnabledProvider)) {
+                          ref
+                              .read(rainCourseEnabledProvider.notifier)
+                              .state = true;
+                          await ref
+                              .read(settingsProvider)
+                              .setRainCourseEnabled(true);
+                        }
+                      },
+                    ),
+                  ],
                   if (current != RainLayer.off) ...[
                     const Divider(height: 16),
                     _Details(layer: current),
