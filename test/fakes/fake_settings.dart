@@ -10,6 +10,7 @@ class FakeSettings implements Settings {
     this.mapLongPressEnabled = false,
     this.mapLegendEnabled = true,
     this.rainCourseEnabled = false,
+    this.forestFineEnabled = false,
     // Bewusst null: In echt initialisiert main() den Marker beim ersten
     // Start (ensureFindSeenMarker) — im Harness bleibt er aus, damit kein
     // Bestandstest ungefragt ein Buddy-Fund-Banner bekommt. Tests, die
@@ -55,6 +56,14 @@ class FakeSettings implements Settings {
   @override
   Future<void> setRainCourseEnabled(bool value) async {
     rainCourseEnabled = value;
+  }
+
+  @override
+  bool forestFineEnabled;
+
+  @override
+  Future<void> setForestFineEnabled(bool value) async {
+    forestFineEnabled = value;
   }
 
   @override

@@ -10,6 +10,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'forest_block_providers.dart' show forestBlocksReadyProvider;
 import 'forest_fill.dart';
 import 'forest_fill_window.dart';
 import 'forest_grid.dart';
@@ -143,8 +144,34 @@ final forestFillProvider = FutureProvider<ForestFillImage?>((ref) async {
   if (classes.isEmpty) return null; // alles abgewählt = nichts zu zeichnen
   final window = ref.watch(forestFillWindowProvider);
   if (window == null) return null; // noch kein Kamera-Stillstand
+  // VOR dem await beobachten — nach einem await ist `ref.watch` in
+  // Riverpod unbestimmt (gelernt am 10-Minuten-Timeout im Widget-Test:
+  // der Provider kam nie zur Ruhe). Während Blöcke laden, ist das hier
+  // `null` und das Asset malt; sind sie da, rechnet der Provider von
+  // selbst neu.
+  final blocks = ref.watch(forestBlocksReadyProvider);
   final grid = await ref.watch(forestGridProvider.future);
   if (grid == null) return null;
+
+  // Die feine Stufe (#253) malt nur, wenn sie das GANZE Fenster deckt —
+  // halb fein, halb grob wäre eine sichtbare Naht aus zwei Wabengrößen
+  // mitten im Bild.
+  if (blocks != null && blocks.covers(window)) {
+    final png = await compute(_fillFine,
+        (grids: blocks.gridsFor(window), classes: classes, window: window));
+    return ForestFillImage(
+      png: png,
+      west: window.west,
+      east: window.east,
+      north: window.north,
+      south: window.south,
+      referenceYear: blocks.referenceYear,
+      classes: classes,
+      windowKey: window.key,
+      fine: true,
+    );
+  }
+
   final png =
       await compute(_fill, (grid: grid, classes: classes, window: window));
   return ForestFillImage(
@@ -156,6 +183,7 @@ final forestFillProvider = FutureProvider<ForestFillImage?>((ref) async {
     referenceYear: grid.referenceYear,
     classes: classes,
     windowKey: window.key,
+    fine: false,
   );
 });
 
@@ -163,6 +191,12 @@ Uint8List _fill(
         ({ForestGrid grid, Set<ForestClass> classes, FillWindow window})
             input) =>
     forestFillPng(input.grid, classes: input.classes, window: input.window);
+
+Uint8List _fillFine(
+        ({List<ForestGrid> grids, Set<ForestClass> classes, FillWindow window})
+            input) =>
+    forestFillPngMulti(input.grids,
+        classes: input.classes, window: input.window);
 
 
 /// Der „Stand" für den Dateinamen der Fläche — kodiert Jahr UND
@@ -201,7 +235,7 @@ final forestFillFileProvider =
   if (fill == null) return null;
   final url = await ref.watch(rainGridRepositoryProvider).writeFill(
       'forest', forestFillStamp(fill.referenceYear, fill.classes), fill.png,
-      variant: fill.windowKey);
+      variant: forestFillVariant(fill));
   return url == null ? null : (url: url, fill: fill);
 });
 
@@ -219,6 +253,7 @@ class ForestFillImage {
     required this.referenceYear,
     required this.classes,
     required this.windowKey,
+    required this.fine,
   });
 
   final Uint8List png;
@@ -238,4 +273,15 @@ class ForestFillImage {
   /// Ein neuer Ausschnitt unter altem Namen würde von MapLibre schlicht
   /// nicht getauscht.
   final String windowKey;
+
+  /// Kam das Bild aus der feinen Stufe (#253)? Gehört in den Dateinamen
+  /// ([forestFillVariant]): Fenster, Jahr und Klassenwahl sind beim
+  /// Wechsel grob → fein IDENTISCH — ohne Markierung bliebe das grobe
+  /// Bild liegen, wenn die Blöcke fertig geladen sind.
+  final bool fine;
 }
+
+/// Die Dateinamens-Variante eines Wald-Fills — Ausschnitt plus
+/// Fein-Markierung, siehe [ForestFillImage.fine].
+String forestFillVariant(ForestFillImage fill) =>
+    fill.fine ? '${fill.windowKey}_fein' : fill.windowKey;

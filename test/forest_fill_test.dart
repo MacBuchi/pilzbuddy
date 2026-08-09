@@ -1,10 +1,12 @@
 // Die Waldtypen-Fläche (#213): zurückdekodiert statt längengeprüft —
 // dieselbe Begründung wie beim Regen-Fill: „durchsichtig, weil kein Wald"
 // und „durchsichtig, weil kaputt" sehen auf der Karte gleich aus.
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/app_colors.dart';
 import 'package:pilzbuddy/features/map/forest_data_providers.dart'
-    show forestFillStamp;
+    show ForestFillImage, forestFillStamp, forestFillVariant;
 import 'package:pilzbuddy/features/map/forest_fill.dart';
 import 'package:pilzbuddy/features/map/forest_grid.dart'
     show ForestClass, ForestGrid;
@@ -12,6 +14,7 @@ import 'package:pilzbuddy/features/map/forest_grid.dart'
 import 'package:pilzbuddy/features/map/forest_fill_window.dart';
 import 'package:pilzbuddy/features/map/rain_grid.dart' show mercatorY;
 
+import 'forest_blocks_test.dart' show cutHexGrid;
 import 'forest_grid_test.dart' show encodeForest, forestOf;
 import 'rain_fill_test.dart' show decodePng;
 
@@ -163,6 +166,60 @@ void main() {
     // Gitter-Update.
     expect(forestFillStamp(2025, allForestClasses),
         isNot(forestFillStamp(2024, allForestClasses)));
+  });
+
+  test('die feine Stufe malt blockweise PIXELGLEICH zum Ganzgitter (#253)',
+      () {
+    // Der Naht-Test des Mehr-Gitter-Zeichners: 6×6 Waben mit allen vier
+    // Zuständen, in sechs Blöcke geschnitten. Jeder Block malt mit
+    // seinem eigenen Anker — kommt dabei auch nur ein Pixel anders
+    // heraus als beim Gitter am Stück, läuft an den Blocknähten eine
+    // sichtbare Linie durch die Karte.
+    final rows = [
+      for (var hy = 0; hy < 6; hy++)
+        [
+          for (var hx = 0; hx < 6; hx++)
+            const [0, 11, 51, 96, 255][(hy * 6 + hx) % 5],
+        ],
+    ];
+    final cut = cutHexGrid(rows);
+    const window = FillWindow(
+        west: 10.001,
+        east: 10.024,
+        north: 49.999,
+        south: 49.981,
+        width: 96,
+        height: 72);
+    final whole = forestFillPng(cut.whole, window: window);
+    final blockwise =
+        forestFillPngMulti(cut.grids.values.toList(), window: window);
+    expect(blockwise, whole,
+        reason: 'Byte für Byte dasselbe PNG — die Naht ist keine');
+    // Und nicht leer: ein Test, der zwei leere Bilder vergleicht,
+    // prüft nichts.
+    final png = decodePng(blockwise);
+    expect(png.pixels.where((byte) => byte != 0), isNotEmpty);
+  });
+
+  test('fein und grob bekommen verschiedene Dateinamen (#253)', () {
+    // Fenster, Jahr und Klassenwahl sind beim Wechsel grob → fein
+    // identisch — nur die Markierung unterscheidet die URLs, und die
+    // MapLibre-Strecke tauscht ein Bild nur bei neuer URL.
+    ForestFillImage imageOf({required bool fine}) => ForestFillImage(
+          png: Uint8List(0),
+          west: 10,
+          east: 11,
+          north: 50,
+          south: 49,
+          referenceYear: 2024,
+          classes: allForestClasses,
+          windowKey: 'k1',
+          fine: fine,
+        );
+    expect(forestFillVariant(imageOf(fine: true)),
+        isNot(forestFillVariant(imageOf(fine: false))));
+    expect(forestFillVariant(imageOf(fine: false)), 'k1',
+        reason: 'der grobe Name bleibt, was er seit #249 ist');
   });
 
   test('ein reines Nicht-Wald-Gitter ergibt ein vollständig transparentes '

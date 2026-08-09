@@ -17,7 +17,7 @@ import 'package:latlong2/latlong.dart';
 
 import '../../spots/widgets/spot_forest_section.dart';
 import '../../spots/widgets/spot_rain_section.dart';
-import '../forest_data_providers.dart';
+import '../forest_block_providers.dart';
 
 /// Öffnet das Blatt für [point].
 Future<void> showHereSheet(BuildContext context, LatLng point) {
@@ -35,7 +35,9 @@ class _HereSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final grid = ref.watch(forestGridProvider).valueOrNull;
+    // Die kombinierte Sicht (#253): feine Waben, wo Blöcke geladen
+    // sind, sonst das Asset — dieselbe Quelle wie die Legende.
+    final grid = ref.watch(forestViewProvider);
     final around = grid?.broadleafFactorAround(point.latitude, point.longitude);
     return ConstrainedBox(
       // Wie das Spot-Blatt: gedeckelt, damit die Karte dahinter sichtbar

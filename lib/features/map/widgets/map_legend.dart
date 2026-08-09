@@ -23,6 +23,7 @@ import 'package:latlong2/latlong.dart';
 import '../../../core/app_colors.dart';
 import '../../../core/errors.dart';
 import '../../../core/settings.dart';
+import '../forest_block_providers.dart';
 import '../forest_data_providers.dart';
 import '../forest_grid.dart';
 import '../rain_data_providers.dart';
@@ -79,11 +80,13 @@ class MapLegend extends ConsumerWidget {
 
     // Die Fadenkreuz-Werte (#235): gerechnet an der Mitte des LETZTEN
     // Kamera-Stillstands — nicht an der laufenden Position, das wäre
-    // eine Rechnung pro Frame während der Geste.
+    // eine Rechnung pro Frame während der Geste. Seit #253 über die
+    // kombinierte Sicht: Liegt ein feiner Block unterm Fadenkreuz,
+    // zählt der Kilometer auf 100-m-Waben.
     final center = ref.watch(mapIdleCenterProvider);
-    final grid = ref.watch(forestGridProvider).valueOrNull;
-    final around = (showForest && center != null && grid != null)
-        ? grid.broadleafFactorAround(center.latitude, center.longitude)
+    final forest = ref.watch(forestViewProvider);
+    final around = (showForest && center != null && forest != null)
+        ? forest.broadleafFactorAround(center.latitude, center.longitude)
         : null;
     final rainMm = (showRain && center != null)
         ? ref

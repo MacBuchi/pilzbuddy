@@ -265,3 +265,16 @@ kleines Schieben behält dieselbe Bild-Instanz. Beim Hineinzoomen wird die
 Fläche damit erstmals SCHÄRFER statt hochskaliert. Die Zeilen bleiben
 Mercator-verteilt (#247) — der Fenster-Renderer verallgemeinert genau
 diese Korrektur.
+
+## Nachtrag 2026-08-09 (2): Feine Wald-Blöcke ändern am Bildpuffer nichts (#253)
+
+Die nachladbare 100-m-Stufe malt durch DENSELBEN Fenster-Renderer mit
+demselben Pixelbudget — der Bildpuffer bleibt bei ≤ ~9,4 MB, egal wie
+fein das Gitter ist (genau dafür wurde #249 vorgezogen). Neu ist nur der
+Speicher der GITTER selbst: Ein ~2°-Block sind roh ~3 MB (Bytes je
+Wabe); der Dekodier-Cache im `ForestBlockRepository` ist auf **8 Blöcke
+(~25 MB Obergrenze)** gedeckelt, zuletzt benutzte überleben. Geladen
+wird nur bei neuem Fenster-Plan — kleines Schieben löst über die
+#249-Hysterese weder Malen noch Laden aus. Wer den Deckel anfasst,
+misst vorher (`tool/measure_map.sh`); die Lehre aus #142 gilt auch für
+diesen Cache.
