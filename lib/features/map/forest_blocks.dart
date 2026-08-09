@@ -95,6 +95,40 @@ class ForestBlockCatalog {
   double get east => west + (gridWidth + 0.5) * hexLonStep;
   double get south => north - (gridHeight + 1) * hexLatStep;
 
+  /// Wie breit eine feine Wabe im geplanten Bild wäre — in Pixeln.
+  double hexPixelsIn(FillWindow window) =>
+      hexLonStep / (window.east - window.west) * window.width;
+
+  /// Lohnt die feine Stufe in diesem Ausschnitt überhaupt?
+  ///
+  /// Erst, wenn eine 100-m-Wabe im Bild mindestens [minHexPixels] breit
+  /// ist. Auf einem Hochkant-Schirm ist das etwa ab 4–5 km
+  /// Sichtfensterbreite der Fall (Maßstabsleiste um 1 km), quer oder auf
+  /// dem Tablet ab ~8 km.
+  ///
+  /// **Warum das eine Schranke braucht** (Rückfrage des Betreibers am
+  /// 2026-08-09): Ohne sie hing das Nachladen allein am Schnitt mit dem
+  /// Fenster. Wer mit eingeschalteter Feinstufe auf Deutschland
+  /// herauszoomte, holte damit JEDEN Block des Katalogs — 30 Stück,
+  /// ~26 MB — für ein Bild, das vom groben nicht zu unterscheiden ist:
+  /// Eine feine Wabe misst dort 0,06 px, sie verschwindet also in
+  /// derselben Deckung, die das 250-m-Asset ohnehin liefert. Die feinen
+  /// Daten sind erst dort eine Information, wo man sie sehen kann.
+  bool paysOffIn(FillWindow window) => hexPixelsIn(window) >= minHexPixels;
+
+  /// Die Schwelle aus [paysOffIn], in Bildpixeln je feiner Wabe.
+  ///
+  /// **10 und nicht knapp über 1** (Betreiber, 2026-08-09: „das kannst
+  /// du locker auf 10 Pixel aufweiten"): Sichtbar ist eine Wabe schon ab
+  /// zwei, aber sichtbar heißt nicht nützlich. Bei zwei Pixeln steht
+  /// neben ihr eine 250-m-Wabe aus dem Asset mit fünf — die feine Stufe
+  /// zeigt dort dasselbe Bild und kostet nur Downloads. Bei zehn
+  /// Bildpixeln (≈ 20–30 Bildschirmpixel) sieht man tatsächlich, was sie
+  /// besser weiß: den Laubstreifen am Bach, den Fichtenriegel im
+  /// Buchenhang. Das ist der Zoom, in dem jemand einen Waldrand
+  /// absucht — und genau dann darf sie kosten.
+  static const minHexPixels = 10.0;
+
   /// `null` bei allem, was dieser Stand der App nicht versteht — ein
   /// unbekanntes `lattice` heißt, der Katalog ist neuer als die App;
   /// dann lieber keine feine Stufe als eine falsch zugeordnete

@@ -59,6 +59,11 @@ final forestBlockSetProvider = FutureProvider<ForestBlockSet?>((ref) async {
   if (window == null) return null; // noch kein Kamera-Stillstand
   final catalog = await ref.watch(forestBlockCatalogProvider.future);
   if (catalog == null) return null;
+  // Zu weit draußen: Blöcke werden erst geholt, wenn ihre Waben im Bild
+  // überhaupt zu sehen wären ([ForestBlockCatalog.paysOffIn]). Sonst
+  // kostete ein Rauszoomen den ganzen Katalog — für ein Bild, das vom
+  // groben nicht zu unterscheiden ist.
+  if (!catalog.paysOffIn(window)) return null;
   final loadBlock = ref.watch(forestBlockGridLoaderProvider);
   final loaded = <String, ForestGrid>{};
   for (final block in catalog.blocksIntersecting(

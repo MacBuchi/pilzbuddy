@@ -206,7 +206,17 @@ void main() {
     // scrollbar).
     await tester.tap(find.byTooltip('Waldtypen'));
     await settle(tester);
-    await tester.drag(find.byType(ListView).last, const Offset(0, -220));
+    // Gescrollt wird, bis die Zeile wirklich sichtbar ist — nicht um
+    // einen festen Weg. Der frühere feste Wisch (−220 px) reißt bei
+    // jedem Satz mehr im Fein-Schalter-Text; so geschehen, als der die
+    // Zoom-Schranke erklärt bekam.
+    await tester.scrollUntilVisible(
+        find.text('Legende in Karte anzeigen'), 120,
+        scrollable: find
+            .descendant(
+                of: find.byType(ListView).last,
+                matching: find.byType(Scrollable))
+            .first);
     await settle(tester);
     await tester.tap(find.text('Legende in Karte anzeigen'));
     await settle(tester);

@@ -1,6 +1,7 @@
 // Die Waldtypen-Fläche (#213): zurückdekodiert statt längengeprüft —
 // dieselbe Begründung wie beim Regen-Fill: „durchsichtig, weil kein Wald"
 // und „durchsichtig, weil kaputt" sehen auf der Karte gleich aus.
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -234,6 +235,129 @@ void main() {
     }
   });
 
+
+  group('Waben unter Pixelgröße — der Rauszoom-Fehler (Feldbericht '
+      '2026-08-09)', () {
+    // Der erste Sechseck-Zeichner malte VORWÄRTS (Wabe → Pixelzeilen).
+    // War eine Wabe schmaler als ein Pixel, fiel beim Runden
+    // `von-Zeile > bis-Zeile` heraus und sie wurde gar nicht gemalt:
+    // erst Lücken, dann Streifen, in der Deutschland-Übersicht gar
+    // nichts (am echten Asset gemessen: 0,0 % gemalt bei 47,8 %
+    // Waldanteil). Diese Gruppe ist der Wächter dagegen — sie prüft
+    // FLÄCHE, nicht Farbe, und darf nie wieder still durchrutschen.
+    const lonStep = 0.004, latStep = 0.003;
+
+    ForestGrid hexGridOf(List<List<int>> rows) => ForestGrid.decode(
+          encodeForest(rows),
+          width: rows.first.length,
+          height: rows.length,
+          west: 10,
+          east: 10 + lonStep * (rows.first.length + 0.5),
+          north: 50,
+          south: 50 - latStep * (rows.length + 1),
+          referenceYear: 2024,
+          hexLonStep: lonStep,
+          hexLatStep: latStep,
+        );
+
+    /// Ein Fenster mitten im Gitter (Rand ausgespart, damit nur der
+    /// Zeichner und nicht die Gitterkante gemessen wird), dessen Bild
+    /// [hexPixels] Pixel je Wabenbreite hat.
+    FillWindow windowIn(ForestGrid grid, double hexPixels) {
+      const inset = 8;
+      final west = grid.west + lonStep * inset;
+      final east = grid.east - lonStep * inset;
+      final north = grid.north - latStep * inset;
+      final south = grid.south + latStep * inset;
+      final width = ((east - west) / lonStep * hexPixels).round();
+      final mercHeight = (mercatorY(north) - mercatorY(south)).abs();
+      final mercWidth = (east - west) * math.pi / 180 * 6378137.0;
+      return FillWindow(
+        west: west,
+        east: east,
+        north: north,
+        south: south,
+        width: width,
+        height: (width * mercHeight / mercWidth).round(),
+      );
+    }
+
+    ({double mean, double opaqueShare}) coverage(Uint8List png) {
+      final image = decodePng(png);
+      var sum = 0, opaque = 0;
+      for (var i = 3; i < image.pixels.length; i += 4) {
+        sum += image.pixels[i];
+        if (image.pixels[i] >= forestFillAlpha * 0.9) opaque++;
+      }
+      final pixels = image.width * image.height;
+      return (
+        mean: sum / pixels / forestFillAlpha,
+        opaqueShare: opaque / pixels,
+      );
+    }
+
+    // 60×80 Waben reichen: Bei 0,4 px je Wabe sind das ~24×32 Pixel
+    // Bildfläche — genug, um Streifen und Löcher statistisch zu sehen,
+    // und klein genug für einen schnellen Test.
+    final full = hexGridOf([
+      for (var hy = 0; hy < 80; hy++) [for (var hx = 0; hx < 60; hx++) 11],
+    ]);
+
+    test('0,4 px je Wabe: die Fläche bleibt vollständig', () {
+      final result =
+          coverage(forestFillPng(full, window: windowIn(full, 0.4)));
+      expect(result.mean, greaterThan(0.95),
+          reason: 'lückenloser Wald muss lückenlos ankommen — hier stand '
+              'vorher 0,0 %');
+      expect(result.opaqueShare, greaterThan(0.95),
+          reason: 'und zwar Pixel für Pixel, nicht im Mittel über Löcher');
+    });
+
+    test('1 px je Wabe: keine Streifen', () {
+      // Der Bereich, in dem die Karte „gestreift" aussah: Wabenhöhe um
+      // ein Pixel, mal traf eine Zeile die Pixelmitte, mal nicht.
+      final result =
+          coverage(forestFillPng(full, window: windowIn(full, 1.05)));
+      expect(result.opaqueShare, greaterThan(0.95),
+          reason: 'jede zweite Wabenzeile fehlte — gemessen 31 % Fläche '
+              'statt 51 %');
+    });
+
+    test('halber Wald bleibt halber Wald — auch unter Pixelgröße', () {
+      // Der Gegenbeweis zum Test darüber: Der Zeichner darf nicht
+      // einfach alles vollmalen. Jede zweite Wabe ist Wald, die
+      // Deckkraft muss auf die Hälfte fallen.
+      final half = hexGridOf([
+        for (var hy = 0; hy < 80; hy++)
+          [for (var hx = 0; hx < 60; hx++) (hx + hy).isEven ? 11 : 0],
+      ]);
+      final result =
+          coverage(forestFillPng(half, window: windowIn(half, 0.4)));
+      expect(result.mean, closeTo(0.5, 0.06),
+          reason: 'Deckung ist der Flächenanteil, nicht „irgendwas malen"');
+    });
+
+    test('aneinander grenzende Waben derselben Klasse haben keine Naht', () {
+      // Deckung wird ADDIERT: Ein Pixel auf der gemeinsamen Kante
+      // bekommt von beiden Nachbarn seinen Anteil und wird voll. Wer
+      // hier wieder „der spätere gewinnt" einbaut, bekommt bei jeder
+      // Wabenkante eine helle Linie ins Bild.
+      final window = windowIn(full, 40);
+      final png = decodePng(forestFillPng(full, window: window));
+      var thin = 0;
+      // Nur das Innere ansehen: Am Bildrand ist eine angeschnittene
+      // Wabe selbstverständlich nicht voll gedeckt.
+      for (var y = 4; y < png.height - 4; y++) {
+        for (var x = 4; x < png.width - 4; x++) {
+          if (png.pixels[(y * png.width + x) * 4 + 3] < forestFillAlpha) {
+            thin++;
+          }
+        }
+      }
+      expect(thin, 0,
+          reason: 'im geschlossenen Wald darf kein Pixel durchscheinen');
+    });
+  });
 
   test('Hex-Gitter wird als Sechsecke gemalt (#251)', () {
     // 3×3-Hexe: Mitte Laub (1), Rest Nadel (96), eine Ecke kein Wald.

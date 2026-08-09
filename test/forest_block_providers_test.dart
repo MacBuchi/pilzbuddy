@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/settings.dart';
 import 'package:pilzbuddy/features/map/forest_block_providers.dart';
+import 'package:pilzbuddy/features/map/forest_blocks.dart'
+    show ForestBlockCatalog;
 import 'package:pilzbuddy/features/map/forest_data_providers.dart';
 import 'package:pilzbuddy/features/map/forest_fill_window.dart';
 import 'package:pilzbuddy/features/map/forest_grid.dart';
@@ -28,13 +30,16 @@ class _FixedWindow extends ForestFillWindowNotifier {
   FillWindow? build() => window;
 }
 
+// 72 px auf 0,024° Länge sind 12 Bildpixel je Test-Wabe (Schrittweite
+// 0,004°) — über der Schranke [ForestBlockCatalog.minHexPixels], die
+// feine Blöcke erst nah dran laden lässt.
 const _smallWindow = FillWindow(
     west: 10.0,
     east: 10.024,
     north: 49.999,
     south: 49.981,
-    width: 24,
-    height: 18);
+    width: 72,
+    height: 54);
 
 void main() {
   // Basis: 6×6 Nadel-Waben (Asset). Feine Stufe: dieselbe Box in
@@ -154,6 +159,82 @@ void main() {
     final fill = await container.read(forestFillProvider.future);
     expect(fill!.fine, isFalse);
     expect(fill.referenceYear, 2024);
+  });
+
+  test('zu weit rausgezoomt: kein Block wird auch nur angefragt', () async {
+    // Rückfrage des Betreibers am 2026-08-09 — „die 100-m-Waben können
+    // ja erst ab einer Zoomstufe kommen, wo sie mehrere Pixel breit
+    // sind". Ohne Schranke hing das Laden allein am Schnitt mit dem
+    // Fenster: Rauszoomen auf Deutschland holte JEDEN Block (30 Stück,
+    // ~26 MB) für ein Bild, in dem eine feine Wabe 0,06 px misst.
+    //
+    // Dasselbe Fenster wie oben, nur zehnmal so weit: 0,4 statt 12 px je
+    // Wabe.
+    const wide = FillWindow(
+        west: 10.0,
+        east: 10.24,
+        north: 49.999,
+        south: 49.88,
+        width: 24,
+        height: 12);
+    final blockLog = <String>[];
+    final catalogLog = <String>[];
+    final container = containerWith(
+        consent: true,
+        window: wide,
+        blockLog: blockLog,
+        catalogLog: catalogLog);
+    container.read(forestLayerEnabledProvider.notifier).state = true;
+    await container.read(forestGridProvider.future);
+
+    expect(await container.read(forestBlockSetProvider.future), isNull);
+    expect(blockLog, isEmpty, reason: 'kein Byte für unsichtbare Waben');
+    expect(catalogLog, isNotEmpty,
+        reason: 'der Katalog selbst darf kommen — er ist die Antwort auf '
+            '„lohnt es sich?" und kostet ein paar Kilobyte');
+
+    // Und die Karte bleibt trotzdem eingefärbt: das Asset malt.
+    final fill = await container.read(forestFillProvider.future);
+    expect(fill!.fine, isFalse);
+    expect(fill.referenceYear, 2024);
+  });
+
+  test('die Schwelle sitzt an der Sichtbarkeit, nicht an der Zoomstufe',
+      () async {
+    // Direkt am Katalog geprüft, mit den ECHTEN Schrittweiten des
+    // veröffentlichten Gitters (100 m ⇒ 0,0015° Länge): Ein Fenster über
+    // ganz Deutschland lohnt nie, eines über 20 km immer.
+    const catalog = ForestBlockCatalog(
+      referenceYear: 2024,
+      hexLonStep: 0.001514406,
+      hexLatStep: 0.000841124,
+      west: 5.8,
+      north: 55.1,
+      gridWidth: 7594,
+      gridHeight: 11175,
+      blocks: [],
+    );
+    const germany = FillWindow(
+        west: 5.8, east: 17.3, north: 55.1, south: 45.7,
+        width: 1193, height: 1536);
+    expect(catalog.paysOffIn(germany), isFalse);
+    expect(catalog.hexPixelsIn(germany), lessThan(0.2));
+
+    // Nahzoom, wie ihn jemand am Waldrand hat: ~8 km Sichtfenster plus
+    // Rand ⇒ 0,2° Spanne, volle Budget-Kante. 11,6 px je feiner Wabe.
+    const close = FillWindow(
+        west: 10.0, east: 10.2, north: 50.1, south: 49.98,
+        width: 1536, height: 1180);
+    expect(catalog.paysOffIn(close), isTrue);
+    expect(catalog.hexPixelsIn(close), greaterThan(10));
+
+    // Und die Stufe dazwischen, die vorher noch geladen hätte: 33 km
+    // Sichtfenster ⇒ 0,9° Spanne, knapp 2,6 px je Wabe. Sichtbar, aber
+    // neben einer 250-m-Wabe mit 6,5 px ohne Mehrwert.
+    const middle = FillWindow(
+        west: 10.0, east: 10.9, north: 50.5, south: 49.9,
+        width: 1536, height: 1180);
+    expect(catalog.paysOffIn(middle), isFalse);
   });
 
   test('ohne Zustimmung malt der Zeichner grob — wie bisher', () async {
