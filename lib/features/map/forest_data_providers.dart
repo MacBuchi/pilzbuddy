@@ -11,7 +11,9 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'forest_fill.dart';
+import 'forest_fill_window.dart';
 import 'forest_grid.dart';
+import 'map_view/marker_culling.dart' show MapViewBounds;
 import 'rain_data_providers.dart' show rainGridRepositoryProvider;
 
 /// Ob die Waldebene auf der Karte liegt. Session-lokal wie der
@@ -77,29 +79,80 @@ ForestGrid? _decode(({String manifest, Uint8List bytes}) input) {
 final forestGridProvider = FutureProvider<ForestGrid?>(
     (ref) => ref.watch(forestGridLoaderProvider)());
 
-/// Das eingefärbte PNG samt seiner Grenzen — gerechnet im Isolate
-/// (Millionen Zellen), und nur wenn die Ebene an ist: Wer sie nie
-/// einschaltet, zahlt weder Rechenzeit noch Speicher.
+/// Das Sichtfenster beim letzten Kamera-Stillstand — gesetzt vom
+/// Karten-Screen über `MapViewConfig.onCameraIdle`, das Geschwister der
+/// Stillstands-Mitte (`mapIdleCenterProvider` in `widgets/map_legend.dart`).
+/// Hier und nicht dort, weil sein einziger Kunde der Wald-Bildausschnitt
+/// ist (#249).
+final mapIdleBoundsProvider = StateProvider<MapViewBounds?>((ref) => null);
+
+/// Der geplante Bildausschnitt der Waldfläche (#249).
+///
+/// Ein Notifier statt eines abgeleiteten Providers, weil die Hysterese
+/// GEDÄCHTNIS braucht: Kleines Schieben innerhalb des gerenderten
+/// Kastens gibt DIESELBE Instanz zurück, und Riverpod lässt dann alles
+/// stromabwärts in Ruhe — sonst wäre jeder Kamera-Stillstand ein
+/// Isolate-Lauf mit Megapixel-PNG.
+class ForestFillWindowNotifier extends Notifier<FillWindow?> {
+  FillWindow? _last;
+
+  @override
+  FillWindow? build() {
+    final bounds = ref.watch(mapIdleBoundsProvider);
+    final grid = ref.watch(forestGridProvider).valueOrNull;
+    if (bounds == null || grid == null) return _last;
+    _last = planFillWindow(
+          previous: _last,
+          viewport: bounds,
+          gridWest: grid.west,
+          gridEast: grid.east,
+          gridNorth: grid.north,
+          gridSouth: grid.south,
+        ) ??
+        _last;
+    return _last;
+  }
+}
+
+final forestFillWindowProvider =
+    NotifierProvider<ForestFillWindowNotifier, FillWindow?>(
+        ForestFillWindowNotifier.new);
+
+/// Das eingefärbte PNG samt seiner Grenzen — gerechnet im Isolate, und
+/// nur wenn die Ebene an ist: Wer sie nie einschaltet, zahlt weder
+/// Rechenzeit noch Speicher.
+///
+/// Seit #249 wird nur der geplante BILDAUSSCHNITT gemalt (höchstens
+/// [fillWindowBudget] Pixel Kantenlänge, ~9 MB Puffer) statt ganz DACH
+/// (52 MB). Während der Neurechnung behält `valueOrNull` den alten Stand
+/// — das alte Bild bleibt also stehen, bis das neue fertig ist, statt
+/// bei jeder Verschiebung durchzublitzen.
 final forestFillProvider = FutureProvider<ForestFillImage?>((ref) async {
   if (!ref.watch(forestLayerEnabledProvider)) return null;
   final classes = ref.watch(forestClassesProvider);
   if (classes.isEmpty) return null; // alles abgewählt = nichts zu zeichnen
+  final window = ref.watch(forestFillWindowProvider);
+  if (window == null) return null; // noch kein Kamera-Stillstand
   final grid = await ref.watch(forestGridProvider.future);
   if (grid == null) return null;
-  final png = await compute(_fill, (grid: grid, classes: classes));
+  final png =
+      await compute(_fill, (grid: grid, classes: classes, window: window));
   return ForestFillImage(
     png: png,
-    west: grid.west,
-    east: grid.east,
-    north: grid.north,
-    south: grid.south,
+    west: window.west,
+    east: window.east,
+    north: window.north,
+    south: window.south,
     referenceYear: grid.referenceYear,
     classes: classes,
+    windowKey: window.key,
   );
 });
 
-Uint8List _fill(({ForestGrid grid, Set<ForestClass> classes}) input) =>
-    forestFillPng(input.grid, classes: input.classes);
+Uint8List _fill(
+        ({ForestGrid grid, Set<ForestClass> classes, FillWindow window})
+            input) =>
+    forestFillPng(input.grid, classes: input.classes, window: input.window);
 
 
 /// Der „Stand" für den Dateinamen der Fläche — kodiert Jahr UND
@@ -137,7 +190,8 @@ final forestFillFileProvider =
   final fill = await ref.watch(forestFillProvider.future);
   if (fill == null) return null;
   final url = await ref.watch(rainGridRepositoryProvider).writeFill(
-      'forest', forestFillStamp(fill.referenceYear, fill.classes), fill.png);
+      'forest', forestFillStamp(fill.referenceYear, fill.classes), fill.png,
+      variant: fill.windowKey);
   return url == null ? null : (url: url, fill: fill);
 });
 
@@ -154,6 +208,7 @@ class ForestFillImage {
     required this.south,
     required this.referenceYear,
     required this.classes,
+    required this.windowKey,
   });
 
   final Uint8List png;
@@ -167,4 +222,10 @@ class ForestFillImage {
   /// zum Bild wie seine Grenzen und bestimmt den Datei-Stand
   /// ([forestFillStamp]), sonst tauscht MapLibre das Bild nicht.
   final Set<ForestClass> classes;
+
+  /// Der Schlüssel des gemalten Ausschnitts ([FillWindow.key], #249) —
+  /// aus demselben Grund im Dateinamen wie die Klassenwahl im Stempel:
+  /// Ein neuer Ausschnitt unter altem Namen würde von MapLibre schlicht
+  /// nicht getauscht.
+  final String windowKey;
 }

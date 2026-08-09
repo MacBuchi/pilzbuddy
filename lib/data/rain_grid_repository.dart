@@ -511,13 +511,19 @@ class RainGridRepository {
   /// nächsten Messung das alte Bild auf der Karte — am Emulator genau so
   /// passiert (2026-08-04: das geglättete Bild war pixelgleich zum
   /// ungeglätteten, weil die Datei von vorher wiederverwendet wurde).
-  Future<String?> writeFill(
-      String layer, DateTime measured, List<int> png) async {
+  /// [variant] unterscheidet Bilder desselben Stands, die trotzdem
+  /// verschieden sind — beim Wald der gemalte AUSSCHNITT (#249). Er
+  /// gehört in den Dateinamen, weil die MapLibre-Strecke idempotent auf
+  /// der URL ist; das Wegräumen läuft weiter über den Layer-Prefix, ein
+  /// neuer Ausschnitt verdrängt also die alten.
+  Future<String?> writeFill(String layer, DateTime measured, List<int> png,
+      {String variant = ''}) async {
     try {
       final dir = await _dir();
       final stamp =
           measured.toUtc().toIso8601String().replaceAll(RegExp(r'[:.]'), '-');
-      final file = File('${dir.path}/fill_${layer}_$stamp.png');
+      final suffix = variant.isEmpty ? '' : '_$variant';
+      final file = File('${dir.path}/fill_${layer}_$stamp$suffix.png');
       await file.writeAsBytes(png, flush: true);
       await _pruneOthers(file.path, prefix: 'fill_${layer}_');
       return 'file://${file.path}';

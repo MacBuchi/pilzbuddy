@@ -12,6 +12,7 @@ import 'dart:typed_data';
 import 'package:flutter/painting.dart' show Color;
 
 import '../../core/app_colors.dart';
+import 'forest_fill_window.dart';
 import 'forest_grid.dart';
 import 'overlay_png.dart';
 import 'rain_grid.dart' show latFromMercatorY, mercatorY;
@@ -52,16 +53,27 @@ const allForestClasses = {
 /// Pixelfarben nachgemessen). Der Regen-Fill braucht keine Umrechnung,
 /// weil sein Gitter SELBST Mercator-Zeilen hat.
 ///
-/// Je Ausgabezeile wird die Gitterzeile unter ihrer Breite gewählt
+/// Je Ausgabepixel wird die Zelle unter seinem Mittelpunkt gewählt
 /// (nearest) — die Werte sind Klassen, Mitteln wäre Datenerfindung.
-/// [outHeight] ist eine Testnaht; ohne Angabe bleibt die Zeilenzahl des
-/// Gitters (genau genug: Nachbarzeilen liegen 250 m auseinander).
+///
+/// [window] ist der zu malende AUSSCHNITT samt Pixelmaßen (#249) — der
+/// Planer (`forest_fill_window.dart`) hält ihn im Budget. Ohne Angabe
+/// wird das ganze Gitter gemalt, ein Pixel je Spalte und Zeile — der Weg
+/// der Bestandstests, und mit dem 250-m-Asset noch tragbar (52 MB
+/// Puffer); die Karte selbst geht seit #249 immer über ein Fenster.
 Uint8List forestFillPng(ForestGrid grid,
     {int alpha = forestFillAlpha,
     Set<ForestClass> classes = allForestClasses,
-    int? outHeight}) {
-  final width = grid.width;
-  final height = grid.height;
+    FillWindow? window}) {
+  window ??= FillWindow(
+    west: grid.west,
+    east: grid.east,
+    north: grid.north,
+    south: grid.south,
+    width: grid.width,
+    height: grid.height,
+  );
+  final width = window.width;
   // Nachschlagetabelle wie beim Regen: Millionen Zellen, 256 Einträge.
   final palette = Uint8List(256 * 4);
   for (var value = 0; value < 256; value++) {
@@ -87,21 +99,36 @@ Uint8List forestFillPng(ForestGrid grid,
     palette[offset + 3] = alpha;
   }
 
-  final rows = outHeight ?? height;
-  final mercNorth = mercatorY(grid.north);
-  final mercSpan = mercatorY(grid.south) - mercNorth;
+  final rows = window.height;
+  final mercNorth = mercatorY(window.north);
+  final mercSpan = mercatorY(window.south) - mercNorth;
+
+  // Spalte -> Gitterspalte, einmal statt je Zeile: Die Länge ist in
+  // beiden Abbildungen linear, nur der Ausschnitt verschiebt sie.
+  final columnMap = Int32List(width);
+  for (var x = 0; x < width; x++) {
+    final lon =
+        window.west + (x + 0.5) / width * (window.east - window.west);
+    final gridX = ((lon - grid.west) / (grid.east - grid.west) * grid.width)
+        .floor()
+        .clamp(0, grid.width - 1);
+    columnMap[x] = gridX;
+  }
+
   final raw = Uint8List(rows * (width * 4 + 1));
   var cursor = 0;
   for (var y = 0; y < rows; y++) {
     raw[cursor++] = 0; // Filter „None"
     // Zeilenmitte in Mercator -> Breite -> Gitterzeile (nearest).
     final lat = latFromMercatorY(mercNorth + (y + 0.5) / rows * mercSpan);
-    final gridY = ((grid.north - lat) / (grid.north - grid.south) * height)
+    final gridY = ((grid.north - lat) /
+            (grid.north - grid.south) *
+            grid.height)
         .floor()
-        .clamp(0, height - 1);
-    final row = gridY * width;
+        .clamp(0, grid.height - 1);
+    final row = gridY * grid.width;
     for (var x = 0; x < width; x++) {
-      final offset = grid.values[row + x] * 4;
+      final offset = grid.values[row + columnMap[x]] * 4;
       raw[cursor++] = palette[offset];
       raw[cursor++] = palette[offset + 1];
       raw[cursor++] = palette[offset + 2];

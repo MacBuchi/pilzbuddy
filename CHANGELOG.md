@@ -7,6 +7,17 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Waldkarte wird beim Heranzoomen scharf
+
+*9. August 2026 · Version 1.69.0*
+
+Die Waldtypen-Fläche wird jetzt nur noch für den sichtbaren
+Kartenausschnitt gezeichnet statt für ganz DACH auf einmal. Für dich
+heißt das: Beim Heranzoomen werden die Kacheln **schärfer** statt
+verwaschener, und die App braucht dabei nur noch einen Bruchteil des
+Speichers. Beim Schieben bleibt alles flüssig — neu gezeichnet wird
+erst, wenn du den vorbereiteten Bereich wirklich verlässt.
+
 ## Die Waldfarben lagen daneben — jetzt sitzen sie
 
 *9. August 2026 · Version 1.68.1*

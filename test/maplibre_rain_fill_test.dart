@@ -208,6 +208,7 @@ void main() {
         south: 45.7,
         referenceYear: 2024,
         classes: allForestClasses,
+        windowKey: 'test',
       );
 
   test('der Wald legt sich UNTER eine liegende Regenfläche (#232)',
