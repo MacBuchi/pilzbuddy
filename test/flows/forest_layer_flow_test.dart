@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/app_colors.dart';
 import 'package:pilzbuddy/features/map/forest_data_providers.dart';
 import 'package:pilzbuddy/features/map/forest_grid.dart';
+import 'package:pilzbuddy/features/map/rain_grid.dart' show mercatorY;
 import 'package:pilzbuddy/features/map/rain_layer.dart';
 import 'package:pilzbuddy/features/map/widgets/map_legend.dart'
     show mapIdleCenterProvider;
@@ -63,7 +64,9 @@ void main() {
     // Legende erscheint im Blatt …
     expect(find.text('Nadelwald'), findsOneWidget);
 
-    // … und auf der Karte liegt das Overlay mit den GITTER-Grenzen.
+    // … und auf der Karte liegt das Overlay mit den Grenzen SEINES
+    // Fensters (#249): Das Sichtfenster plus Rand, aufs Gitter
+    // beschnitten — nicht mehr ganz DACH und nicht irgendeine Konstante.
     await tester.tapAt(const Offset(20, 20)); // Blatt schließen
     await settle(tester);
     final overlays = tester
@@ -71,8 +74,14 @@ void main() {
         .toList();
     expect(overlays, hasLength(1));
     final image = overlays.single.overlayImages.single as OverlayImage;
-    expect(image.bounds.north, 55.1);
-    expect(image.bounds.west, 5.8);
+    final fill = container.read(forestFillProvider).valueOrNull!;
+    expect(image.bounds.north, fill.north);
+    expect(image.bounds.west, fill.west);
+    // Das Fenster liegt im Gitter und umfasst die Kartenmitte.
+    expect(fill.north, lessThanOrEqualTo(55.1));
+    expect(fill.west, greaterThanOrEqualTo(5.8));
+    expect(fill.north, greaterThan(51.1634));
+    expect(fill.south, lessThan(51.1634));
   });
 
   testWidgets('Regen und Wald liegen GLEICHZEITIG auf der Karte (#232)',
@@ -132,16 +141,28 @@ void main() {
     await settle(tester);
     expect(container.read(forestClassesProvider), {ForestClass.conifer});
 
-    // Auf der Karte ist die Laub-Zeile des Gitters jetzt durchsichtig,
-    // die Nadel-Zeile nicht — die Checkbox wirkt bis ins Bild.
+    // Auf der Karte ist die Laub-Hälfte des Gitters jetzt durchsichtig,
+    // die Nadel-Hälfte nicht — die Checkbox wirkt bis ins Bild. Seit
+    // #249 ist das Bild ein Sichtfenster-Ausschnitt; geprüft wird
+    // deshalb je ein Pixel BEIDERSEITS der Gittergrenze (51,05°), über
+    // die Mercator-Zeilenlage des Fensters angesteuert.
     await tester.tapAt(const Offset(20, 20));
     await settle(tester);
     final fill = container.read(forestFillProvider).valueOrNull;
     expect(fill, isNotNull);
     final png = decodePng(fill!.png);
-    expect(png.pixels[3], 0, reason: 'Zeile 0 (Laub) ist abgewählt');
-    expect(png.pixels[png.width * 4 + 3], isPositive,
-        reason: 'Zeile 1 (Nadel) bleibt');
+    int alphaAtLat(double lat) {
+      final f = (mercatorY(fill.north) - mercatorY(lat)) /
+          (mercatorY(fill.north) - mercatorY(fill.south));
+      final row = (f * png.height).floor().clamp(0, png.height - 1);
+      return png.pixels[(row * png.width + png.width ~/ 2) * 4 + 3];
+    }
+
+    final broadleafLat = (fill.north + 51.05) / 2;
+    final coniferLat = (fill.south + 51.05) / 2;
+    expect(alphaAtLat(broadleafLat), 0,
+        reason: 'die Laub-Hälfte ist abgewählt');
+    expect(alphaAtLat(coniferLat), isPositive, reason: 'Nadel bleibt');
 
     // Die Karten-Legende ist seit #235 eine Skala: Ihre Achsen-Enden
     // bleiben stehen, aber die abgewählten Segmente sind blass.

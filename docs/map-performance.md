@@ -240,3 +240,28 @@ wiederholbares Werkzeug hat. Was die Zahlen nicht entscheiden können,
 entscheidet der Betreiber im Alltag: der Beta-Schalter bleibt, bis der
 Direktvergleich mit dem Daumen gesprochen hat; erst dann dreht ein
 eigener PR den Default.
+
+## Nachtrag 2026-08-09: Die Waldfläche malt nur noch das Sichtfenster (#249)
+
+Die Waldtypen-Fläche (#213) entstand bis 1.68.x als EIN Bild über ganz
+DACH, ein Pixel je 250-m-Zelle: 3264 × 4160 → **52 MB RGBA-Puffer je
+Einfärbung** — der größte Einzelpuffer der App, bei jedem Klassenwechsel
+neu gerechnet. Zwei beschlossene Ausbauten sprengen dieses Modell
+unabhängig voneinander (gerechnet, nicht geraten):
+
+| Variante | Bildgröße | RGBA-Puffer |
+|---|---|---|
+| 250 m, ganz DACH (bis 1.68.x) | 3264 × 4160 | 52 MB |
+| 100 m, ganz DACH (Gitter gemessen: 27,2 MB) | 8160 × 10400 | 324 MB |
+| 250-m-Sechsecke à 4 px, ganz DACH | 13056 × 16640 | 829 MB |
+
+Seit 1.69.0 plant `forest_fill_window.dart` einen AUSSCHNITT: Sichtfenster
+plus 50 % Rand, aufs Gitter beschnitten, längste Kante 1536 px ⇒
+**höchstens ~9,4 MB Puffer**, unabhängig von Gitterauflösung und
+Zellform. Neu gemalt wird nur, wenn das Sichtfenster den gerenderten
+Kasten verlässt oder tief hineinzoomt (Faktor 3,5 — bewusst nicht 3,0,
+sonst malte jede Zoom-Raste neu, weil der Rand genau Faktor 3 ergibt);
+kleines Schieben behält dieselbe Bild-Instanz. Beim Hineinzoomen wird die
+Fläche damit erstmals SCHÄRFER statt hochskaliert. Die Zeilen bleiben
+Mercator-verteilt (#247) — der Fenster-Renderer verallgemeinert genau
+diese Korrektur.

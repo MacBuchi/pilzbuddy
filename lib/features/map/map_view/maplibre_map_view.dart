@@ -358,9 +358,12 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
         if (event is ml.MapEventCameraIdle) {
           _updateVisibleBounds();
           final camera = _ml?.camera;
-          if (camera != null) {
-            widget.config.onCameraIdle?.call(LatLng(
-                camera.center.lat.toDouble(), camera.center.lon.toDouble()));
+          final bounds = _visibleBounds;
+          if (camera != null && bounds != null) {
+            widget.config.onCameraIdle?.call(
+                LatLng(camera.center.lat.toDouble(),
+                    camera.center.lon.toDouble()),
+                bounds);
           }
         }
       },

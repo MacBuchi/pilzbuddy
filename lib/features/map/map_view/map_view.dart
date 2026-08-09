@@ -5,6 +5,8 @@ import 'package:latlong2/latlong.dart';
 
 import 'flutter_map_view.dart';
 import 'map_engine.dart';
+import 'marker_culling.dart' show MapViewBounds;
+export 'marker_culling.dart' show MapViewBounds;
 // Web darf `package:maplibre` nie sehen — der Stub liefert dieselbe
 // Signatur, die Engine-Wahl unten verzweigt dank `!kIsWeb` nie dorthin.
 import 'maplibre_view_stub.dart'
@@ -44,12 +46,14 @@ class MapViewConfig {
   /// Long-Press auf die Karte (richtet das Fadenkreuz aus).
   final void Function(LatLng latLng)? onLongPress;
 
-  /// Die Karte ist zum Stehen gekommen — mit der neuen Mitte.
+  /// Die Karte ist zum Stehen gekommen — mit der neuen Mitte und dem
+  /// Sichtfenster.
   ///
   /// BEWUSST nur bei Stillstand und nicht bei jeder Bewegung: Die
-  /// Fadenkreuz-Werte der Legende (#235) rechnen daraufhin nach, und
-  /// das soll die Gesten nicht begleiten, sondern ihnen folgen.
-  final void Function(LatLng center)? onCameraIdle;
+  /// Fadenkreuz-Werte der Legende (#235) rechnen daraufhin nach, und die
+  /// Waldfläche plant daran ihren Bildausschnitt (#249) — beides soll die
+  /// Gesten nicht begleiten, sondern ihnen folgen.
+  final void Function(LatLng center, MapViewBounds bounds)? onCameraIdle;
 }
 
 /// Ein Marker: Position, Maße, Widget-Kind. Wie er auf die Karte kommt

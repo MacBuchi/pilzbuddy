@@ -8,6 +8,7 @@ import 'package:pilzbuddy/features/map/forest_data_providers.dart'
 import 'package:pilzbuddy/features/map/forest_fill.dart';
 import 'package:pilzbuddy/features/map/forest_grid.dart' show ForestClass;
 
+import 'package:pilzbuddy/features/map/forest_fill_window.dart';
 import 'package:pilzbuddy/features/map/rain_grid.dart' show mercatorY;
 
 import 'forest_grid_test.dart' show forestOf;
@@ -62,7 +63,14 @@ void main() {
     ], west: 5.8, east: 17.3, north: 55.1, south: 45.7);
 
     const outRows = 940;
-    final png = decodePng(forestFillPng(grid, outHeight: outRows));
+    final png = decodePng(forestFillPng(grid,
+        window: const FillWindow(
+            west: 5.8,
+            east: 17.3,
+            north: 55.1,
+            south: 45.7,
+            width: 1,
+            height: outRows)));
     expect(png.height, outRows);
 
     // Wo ZEIGT die Engine die Breite 51,746° an? Linear in Mercator.
@@ -84,6 +92,31 @@ void main() {
     expect(redAt(degreeRow), broadleaf,
         reason: 'die grad-lineare Zeile zeigt auf der Karte ~52,0°N — '
             'dort steht Laub; wer hier Nadel malt, malt grad-linear');
+  });
+
+  test('ein Fenster malt genau seinen Ausschnitt (#249)', () {
+    // Vier Spalten mit vier verschiedenen Zuständen; das Fenster liegt
+    // über den mittleren beiden. Wer trotzdem ab Spalte 0 malt,
+    // zeichnet den falschen Ausschnitt — genau die Fehlerklasse, die
+    // beim Mercator-Bug (#247) erst auf dem Gerät auffiel.
+    final grid = forestOf([
+      [11, 51, 96, 0], // Laub, Misch, Nadel, kein Wald
+    ], west: 10, east: 14, north: 50.01, south: 50);
+    final png = decodePng(forestFillPng(grid,
+        window: const FillWindow(
+            west: 11, east: 13, north: 50.01, south: 50,
+            width: 8, height: 1)));
+    expect(png.width, 8);
+
+    int red(int x) => png.pixels[x * 4];
+    int alphaAt(int x) => png.pixels[x * 4 + 3];
+    // Linke Hälfte: Spalte 1 (Misch), rechte: Spalte 2 (Nadel).
+    expect(red(0), (AppColors.forestMixed.r * 255).round());
+    expect(red(3), (AppColors.forestMixed.r * 255).round());
+    expect(red(4), (AppColors.forestConifer.r * 255).round());
+    expect(red(7), (AppColors.forestConifer.r * 255).round());
+    expect(alphaAt(0), forestFillAlpha);
+    expect(alphaAt(7), forestFillAlpha);
   });
 
   test('abgewählte Klassen werden durchsichtig wie kein Wald (#231)', () {

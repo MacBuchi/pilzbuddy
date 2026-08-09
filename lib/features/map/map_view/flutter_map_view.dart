@@ -50,6 +50,21 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
     implements MapViewCameraDelegate {
   final _mapController = MapController();
 
+  /// Stillstand melden — Mitte UND Sichtfenster, für Fadenkreuz-Werte
+  /// (#235) und den Bildausschnitt der Waldfläche (#249).
+  void _reportIdle(MapCamera camera) {
+    final bounds = camera.visibleBounds;
+    widget.config.onCameraIdle?.call(
+      camera.center,
+      MapViewBounds(
+        west: bounds.west,
+        east: bounds.east,
+        south: bounds.south,
+        north: bounds.north,
+      ),
+    );
+  }
+
   /// GENAU EINE Provider-Instanz pro **eingehängtem TileLayer** — nicht
   /// mehr und nicht weniger. Nicht mehr: Eine neue Instanz je Rebuild
   /// (Positions-Ticks!) würde bei jeder Bewegung einen HTTP-Client samt
@@ -173,14 +188,13 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
         // nicht jede Bewegung — die Fadenkreuz-Werte rechnen daraufhin.
         // Das Mausrad hat kein Ende-Ereignis, sein Einzelschritt IST
         // der Stillstand.
-        onMapReady: () =>
-            config.onCameraIdle?.call(_mapController.camera.center),
+        onMapReady: () => _reportIdle(_mapController.camera),
         onMapEvent: (event) {
           if (event is MapEventMoveEnd ||
               event is MapEventFlingAnimationEnd ||
               event is MapEventDoubleTapZoomEnd ||
               event is MapEventScrollWheelZoom) {
-            config.onCameraIdle?.call(event.camera.center);
+            _reportIdle(event.camera);
           }
         },
       ),
