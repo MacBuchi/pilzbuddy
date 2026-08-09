@@ -339,6 +339,30 @@ größten Fenster** (1536² × 3 × 2 B) zusätzlich zum RGBA-Raster von
 brächte nichts: Selbst im Übersichtszoom, wo sieben Waben in einem Pixel
 liegen, trägt jede noch ~130 der 1024 Einheiten bei.
 
+### Und die feine Stufe lädt erst, wenn man sie sehen kann
+
+Rückfrage des Betreibers zum selben Thema: „Die 100-m-Waben können ja
+erst ab einer Zoomstufe kommen, die Sinn macht — wo eine Wabe mehrere
+Pixel breit ist." Genau so war es NICHT: Das Nachladen (#253) hing allein
+am Schnitt der Blöcke mit dem geplanten Fenster. **Am Emulator
+nachgemessen** — nach einem Zoom auf die Deutschland-Übersicht mit
+eingeschalteter Feinstufe lagen im App-Verzeichnis:
+
+    31 Dateien, 26 MB   (= der GANZE Katalog, 30 Blöcke plus Katalogdatei)
+
+Für ein Bild, in dem eine feine Wabe 0,06 px misst und in derselben
+Deckung verschwindet, die das eingebaute 250-m-Asset ohnehin liefert.
+Seit 1.74.0 lädt `forestBlockSetProvider` nur noch, wenn
+`ForestBlockCatalog.paysOffIn(window)` gilt: mindestens **2,5 Bildpixel je
+feiner Wabe** (~5 Bildschirmpixel nach dem Hochskalieren), erreicht ab
+etwa 33 km Sichtfensterbreite. Dieselbe Strecke, erneut gemessen:
+
+    3 Dateien, 2,0 MB   (Katalog + die zwei Blöcke unterm Nahzoom)
+    → nach dem Rauszoomen auf Deutschland: unverändert 3 / 2,0 MB
+
+Der Katalog selbst darf weiterhin kommen — er ist die Antwort auf „lohnt
+es sich?" und kostet ein paar Kilobyte.
+
 **Was NICHT angefasst wurde:** Rand (50 %) und Zoom-Faktor (3,5) des
 Fensterplaners. Beide bestimmen, wie scharf die Fläche zwischen zwei
 Neuplanungen aussieht (bei Budget 1536 und 50 % Rand liegen ~768 Bildpixel

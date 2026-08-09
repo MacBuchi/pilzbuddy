@@ -89,7 +89,9 @@ class _ForestLayerSheet extends ConsumerWidget {
                       subtitle: const Text(
                           'Holt fürs sichtbare Gebiet ein feineres Gitter '
                           'aus dem Netz — je Gebiet rund 1 MB, bleibt '
-                          'gespeichert. Ohne Empfang gilt die eingebaute '
+                          'gespeichert. Kommt erst beim Hineinzoomen: '
+                          'Weiter draußen wäre eine 100-m-Wabe kleiner als '
+                          'ein Bildpunkt. Ohne Empfang gilt die eingebaute '
                           'Karte (≈ 250 m).'),
                       value: ref.watch(forestFineEnabledProvider),
                       onChanged: (value) async {

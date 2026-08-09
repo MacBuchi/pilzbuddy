@@ -95,6 +95,32 @@ class ForestBlockCatalog {
   double get east => west + (gridWidth + 0.5) * hexLonStep;
   double get south => north - (gridHeight + 1) * hexLatStep;
 
+  /// Wie breit eine feine Wabe im geplanten Bild wäre — in Pixeln.
+  double hexPixelsIn(FillWindow window) =>
+      hexLonStep / (window.east - window.west) * window.width;
+
+  /// Lohnt die feine Stufe in diesem Ausschnitt überhaupt?
+  ///
+  /// Erst, wenn eine 100-m-Wabe im Bild mindestens [minHexPixels] breit
+  /// ist — nach dem Hochskalieren aufs Display ~5 Bildschirmpixel, also
+  /// tatsächlich als Wabe erkennbar. Das ist etwa ab 33 km
+  /// Sichtfensterbreite der Fall.
+  ///
+  /// **Warum das eine Schranke braucht** (Rückfrage des Betreibers am
+  /// 2026-08-09): Ohne sie hing das Nachladen allein am Schnitt mit dem
+  /// Fenster. Wer mit eingeschalteter Feinstufe auf Deutschland
+  /// herauszoomte, holte damit JEDEN Block des Katalogs — 30 Stück,
+  /// ~26 MB — für ein Bild, das vom groben nicht zu unterscheiden ist:
+  /// Eine feine Wabe misst dort 0,06 px, sie verschwindet also in
+  /// derselben Deckung, die das 250-m-Asset ohnehin liefert. Die feinen
+  /// Daten sind erst dort eine Information, wo man sie sehen kann.
+  bool paysOffIn(FillWindow window) => hexPixelsIn(window) >= minHexPixels;
+
+  /// Die Schwelle aus [paysOffIn]. Bewusst knapp über 2: Bei genau einem
+  /// Pixel je Wabe zeigt die feine Stufe dasselbe Bild wie die grobe,
+  /// nur mit vier Downloads davor.
+  static const minHexPixels = 2.5;
+
   /// `null` bei allem, was dieser Stand der App nicht versteht — ein
   /// unbekanntes `lattice` heißt, der Katalog ist neuer als die App;
   /// dann lieber keine feine Stufe als eine falsch zugeordnete
