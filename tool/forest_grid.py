@@ -51,6 +51,7 @@ import gzip
 import hashlib
 import io
 import json
+import math
 import os
 import random
 import re
@@ -98,6 +99,154 @@ def set_cell_factor(factor):
 # Wald. 20 %: Ein lichter Bestand zählt noch, eine Baumreihe am Feldrand
 # nicht mehr. Steht im Manifest, damit die Zahl nie geraten werden muss.
 TREE_THRESHOLD = 0.20
+
+
+# ---------------------------------------------------------------------------
+# Hex-Gitter (#251): Sechsecke MIT SPITZE OBEN, versetzte Zeilen (odd-r),
+# regelmäßig im PIXELRAUM des gewarpten Rasters — dieselbe bewusste
+# Gröbe wie beim Quadrat (Meter je Grad variieren mit der Breite).
+#
+# Ehrlich heißt: Jedes 10-m-Quellpixel fällt über seinen MITTELPUNKT in
+# genau ein Sechseck; die Sechsecke SIND dann die Daten, keine Umdeutung
+# quadratischer Zellen (Entscheid des Betreibers 2026-08-09; das
+# Performance-Tor des Zeichners ist gemessen und bestanden).
+#
+# Die Fläche eines Hexes entspricht der Fläche der Quadratzelle
+# (CELL_FACTOR² Pixel), damit das Asset gleich groß bleibt:
+#   Breite w = CELL_FACTOR·√(2/√3) ≈ 1,0746·CELL_FACTOR
+#   Umkreisradius R = w/√3, Zeilenschritt 1,5·R, ungerade Zeilen +w/2.
+#
+# Warum die Zuordnung über LÄUFE statt je Pixel: 81600 × 104000 Pixel je
+# Pixel in Python zuzuordnen wäre der Tod des Quartalsjobs. Eine
+# Pixelzeile zerfällt aber in zusammenhängende Läufe je Hex — im
+# Mittelband einer Hexzeile gehört jeweils eine ganze Hexbreite einem
+# Hex, im Übergangsband wechseln Ober- und Unterzeile in Segmenten,
+# deren Grenzen linear mit y wandern (die Schrägkanten). Gezählt wird je
+# Lauf mit bytes.count — C-Geschwindigkeit.
+
+def hex_metrics(cell_factor=None):
+    """(w, r) in Quellpixeln: Hexbreite und Umkreisradius."""
+    f = CELL_FACTOR if cell_factor is None else cell_factor
+    w = f * math.sqrt(2 / math.sqrt(3))
+    return w, w / math.sqrt(3)
+
+
+def hex_center(hx, hy, w, r):
+    """Mittelpunkt des Hexes (Spalte hx, Zeile hy) in Quellpixeln."""
+    return w * (hx + 0.5 + 0.5 * (hy & 1)), r + hy * 1.5 * r
+
+
+def hex_at(x, y, w, r, rows, cols):
+    """Hexindex (hx, hy) unter dem Punkt — Referenz über den nächsten
+    Mittelpunkt, für Tests und kleine Mengen (--verify). Prüft die drei
+    Kandidatzeilen um die grobe Schätzung."""
+    best = None
+    best_d = None
+    hy0 = int((y - r) / (1.5 * r) + 0.5)
+    for hy in range(max(0, hy0 - 1), min(rows, hy0 + 2)):
+        odd = 0.5 * (hy & 1)
+        hx0 = int(x / w - 0.5 - odd + 0.5)
+        for hx in range(max(0, hx0 - 1), min(cols, hx0 + 2)):
+            cx, cy = hex_center(hx, hy, w, r)
+            d = (x - cx) ** 2 + (y - cy) ** 2
+            if best_d is None or d < best_d:
+                best_d = d
+                best = (hx, hy)
+    return best
+
+
+def hex_runs(y, src_w, w, r, rows, cols):
+    """Zerlegt die Pixelzeile mit Mittelpunkt-y in Läufe [(hx, hy, x0, x1)],
+    x1 exklusiv. Jeder Pixel (über seinen Mittelpunkt x+0,5) gehört zu
+    genau einem Lauf.
+
+    Mittelband einer Hexzeile (|dy| ≤ r/2): alles gehört dieser Zeile,
+    Grenzen bei den Hexkanten. Übergangsband: Ober- und Unterzeile
+    wechseln sich ab; die Oberzeile reicht bis Halbbreite
+    (w/2)·(1 − t/(r/2)) um ihre Mittelpunkte, t = Abstand unter ihrem
+    Mittelband."""
+    runs = []
+    band = 1.5 * r
+    hy_upper = int((y - r) / band + 0.5)  # Zeile, deren Mitte am nächsten
+    cy_upper = r + hy_upper * band
+    dy = y - cy_upper
+    if abs(dy) <= r / 2 or (dy < 0 and hy_upper == 0) or (
+            dy > 0 and hy_upper >= rows - 1):
+        # Mittelband (oder Randzeile: nichts darüber/darunter).
+        hy = max(0, min(rows - 1, hy_upper))
+        shift = w * (0.5 * (hy & 1))
+        x = 0.0
+        if shift > 0:
+            # Links vor dem ersten Hex dieser (ungeraden) Zeile liegt
+            # ein Keil, der zu einer NACHBARZEILE gehört. Er ist eine
+            # halbe Hexbreite schmal — pixelweise über die Referenz
+            # zuordnen ist billiger als jede Sonderfall-Geometrie.
+            while x + 0.5 < shift and x < src_w:
+                target = hex_at(x + 0.5, y, w, r, rows, cols)
+                runs.append((target[0], target[1], int(x), int(x) + 1))
+                x += 1
+        while x < src_w:
+            hx = int((x + 0.5 - shift) // w) if x + 0.5 >= shift else 0
+            hx = max(0, min(cols - 1, hx))
+            edge = min(src_w, shift + (hx + 1) * w)
+            x1 = int(math.ceil(edge - 0.5)) if edge < src_w else src_w
+            x0 = int(x)
+            if x1 > x0:
+                runs.append((hx, hy, x0, x1))
+            if x1 <= x0:
+                x1 = x0 + 1
+            x = x1
+        return runs
+
+    # Übergangsband zwischen hy_upper und der Nachbarzeile.
+    if dy > 0:
+        hy_a, cy_a = hy_upper, cy_upper
+    else:
+        hy_a = hy_upper - 1
+        cy_a = r + hy_a * band
+    hy_b = hy_a + 1
+    t = y - (cy_a + r / 2)  # 0..r/2 unterhalb des Mittelbands von a
+    half = (w / 2) * (1 - t / (r / 2))
+    shift_a = w * (0.5 * (hy_a & 1))
+    x = 0
+    while x < src_w:
+        px = x + 0.5
+        # Nächster a-Mittelpunkt und seine Spanne auf dieser Höhe.
+        hx_a = int(round((px - shift_a) / w - 0.5))
+        hx_a = max(0, min(cols - 1, hx_a))
+        cx_a = shift_a + (hx_a + 0.5) * w
+        left_a, right_a = cx_a - half, cx_a + half
+        if left_a <= px <= right_a:
+            # Im a-Hex bis zu dessen rechter Schräge.
+            x1 = int(math.floor(right_a - 0.5)) + 1
+            hx, hy = hx_a, hy_a
+        else:
+            # Dazwischen: das b-Hex (versetzt um w/2) bis zur linken
+            # Schräge des NÄCHSTEN a-Hexes.
+            shift_b = w * (0.5 * (hy_b & 1))
+            hx_b = int(round((px - shift_b) / w - 0.5))
+            if px < left_a:
+                x1 = int(math.ceil(left_a - 0.5))
+            else:
+                x1 = int(math.ceil(left_a + w - 0.5))
+            if 0 <= hx_b < cols and 0 <= hy_b < rows:
+                hx, hy = hx_b, hy_b
+            else:
+                # Rand: Das versetzte Nachbar-Hex existiert nicht (erste/
+                # letzte Bandzeile, linker/rechter Rand). Der Lauf kann
+                # dann ZWEI a-Hexen gehören (Teilung am Mittelpunkt) —
+                # pixelweise über die Referenz zuordnen; es betrifft nur
+                # wenige Randzeilen und ist damit billig und exakt.
+                x1 = max(x + 1, min(src_w, x1))
+                for i in range(x, x1):
+                    t_hx, t_hy = hex_at(i + 0.5, y, w, r, rows, cols)
+                    runs.append((t_hx, t_hy, i, i + 1))
+                x = x1
+                continue
+        x1 = max(x + 1, min(src_w, x1))
+        runs.append((hx, hy, x, x1))
+        x = x1
+    return runs
 
 NO_DATA = 255
 NO_FOREST = 0
@@ -283,6 +432,122 @@ def gdal_band(path, x, y, w, h, out_path):
 # build: Quell-Raster → Gitter + Manifest
 # ---------------------------------------------------------------------------
 
+def build_hex(source, year, out_dir, band_rows=2048,
+              info_fn=None, band_fn=None):
+    """Aggregiert das Quell-GeoTIFF in das Hex-Gitter (#251).
+
+    Bandweise wie [build]; weil Hexzeilen Pixelzeilen ÜBERLAPPEN, laufen
+    Akkumulatoren je Hexzeile mit (valid/broadleaf/conifer je Hex) und
+    werden erst ausgegeben, wenn kein Pixel mehr hineinfallen kann.
+    """
+    os.makedirs(out_dir, exist_ok=True)
+    info_fn = info_fn or gdal_info
+    band_fn = band_fn or gdal_band
+
+    src_w, src_h, gt = info_fn(source)
+    w, r = hex_metrics()
+    rows = max(1, int((src_h - r) / (1.5 * r)) + 1)
+    cols = int(src_w / w) + 1
+
+    acc = {}  # hy -> (valid[], broadleaf[], conifer[])
+    grid_rows = [None] * rows
+
+    def flush(hy):
+        valid, broad, conif = acc.pop(hy)
+        out = bytearray(cols)
+        for hx in range(cols):
+            v = valid[hx]
+            if v == 0:
+                out[hx] = NO_DATA
+                continue
+            trees = broad[hx] + conif[hx]
+            if trees / v < TREE_THRESHOLD:
+                out[hx] = NO_FOREST
+            else:
+                out[hx] = 1 + round(100 * conif[hx] / trees)
+        grid_rows[hy] = bytes(out)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        strip = os.path.join(tmp, "strip.tif")
+        y0 = 0
+        while y0 < src_h:
+            h = min(band_rows, src_h - y0)
+            band_fn(source, 0, y0, src_w, h, strip)
+            with open(strip, "rb") as f:
+                pixel_rows, _ = read_geotiff_u8(f.read())
+            for j, row_bytes in enumerate(pixel_rows):
+                y = y0 + j + 0.5
+                for hx, hy, x0, x1 in hex_runs(y, src_w, w, r, rows, cols):
+                    if hy not in acc:
+                        acc[hy] = ([0] * cols, [0] * cols, [0] * cols)
+                    valid, broad, conif = acc[hy]
+                    seg = row_bytes[x0:x1]
+                    b = seg.count(DLT_BROADLEAF)
+                    c = seg.count(DLT_CONIFER)
+                    valid[hx] += seg.count(DLT_NO_TREE) + b + c
+                    broad[hx] += b
+                    conif[hx] += c
+            # Hexzeile hy endet bei r + hy*1,5r + r — alles darüber
+            # hinaus bekommt keine Pixel mehr.
+            done_before = int(((y0 + h) - 2 * r) / (1.5 * r))
+            for hy in [k for k in acc if k < done_before]:
+                flush(hy)
+            y0 += h
+            print(f"  {y0}/{src_h} Zeilen (hex)", file=sys.stderr)
+    for hy in list(acc):
+        flush(hy)
+    if any(row is None for row in grid_rows):
+        raise RuntimeError("Hexzeile ohne Pixel — Geometriefehler")
+
+    payload = encode(grid_rows)
+    with open(os.path.join(out_dir, "forest_grid.bin.gz"), "wb") as f:
+        f.write(payload)
+
+    origin_x, origin_y, px_w, px_h = gt[0], gt[3], gt[1], gt[5]
+    counts = {"no_data": 0, "no_forest": 0, "forest": 0}
+    conifer_values = []
+    for row in grid_rows:
+        for byte in row:
+            if byte == NO_DATA:
+                counts["no_data"] += 1
+            elif byte == NO_FOREST:
+                counts["no_forest"] += 1
+            else:
+                counts["forest"] += 1
+                conifer_values.append(byte - 1)
+    conifer_values.sort()
+    known = counts["no_forest"] + counts["forest"]
+    manifest = {
+        "source": "Copernicus HRL Dominant Leaf Type",
+        "reference_year": year,
+        "lattice": "hex-odd-r",
+        "width": cols,
+        "height": rows,
+        "west": round(origin_x, 6),
+        "east": round(origin_x + src_w * px_w, 6),
+        "north": round(origin_y, 6),
+        "south": round(origin_y + src_h * px_h, 6),
+        # Hexbreite (Länge) und Zeilenschritt (Breite) in Grad — daraus
+        # rekonstruiert die App jeden Mittelpunkt:
+        #   lon = west + lon_step*(hx + 0,5 + 0,5*(hy&1))
+        #   lat = north − lat_step/1,5 − hy*lat_step   (R = lat_step/1,5)
+        "hex_lon_step": round(w * px_w, 9),
+        "hex_lat_step": round(1.5 * r * abs(px_h), 9),
+        "cell_factor": CELL_FACTOR,
+        "tree_threshold": TREE_THRESHOLD,
+        "bytes": len(payload),
+        "sha256": hashlib.sha256(payload).hexdigest(),
+        "forest_percent": round(100 * counts["forest"] / known, 1)
+        if known else None,
+        "median_conifer_percent":
+            conifer_values[len(conifer_values) // 2]
+            if conifer_values else None,
+    }
+    with open(os.path.join(out_dir, "forest_manifest.json"), "w") as f:
+        json.dump(manifest, f, indent=2)
+    return manifest
+
+
 def build(source, year, out_dir, band_rows=None,
           info_fn=None, band_fn=None):
     """Aggregiert das (komprimierte) Quell-GeoTIFF bandweise.
@@ -377,6 +642,84 @@ def build(source, year, out_dir, band_rows=None,
 # ---------------------------------------------------------------------------
 # verify: N Zufallszellen aus dem QUELL-Raster nachrechnen
 # ---------------------------------------------------------------------------
+
+def verify_hex(source, out_dir, samples=24, band_fn=None):
+    """Wie [verify], aber für das Hex-Gitter (#251): Zufalls-Hexe werden
+    über die Lauf-Zerlegung ihrer Pixelzeilen direkt aus der Quelle
+    nachgerechnet — dieselbe Zerlegung wie im Bau, aber je Hex isoliert
+    und gegen den gespeicherten Byte verglichen."""
+    band_fn = band_fn or gdal_band
+    with open(os.path.join(out_dir, "forest_manifest.json")) as f:
+        manifest = json.load(f)
+    assert manifest.get("lattice") == "hex-odd-r", "kein Hex-Manifest"
+    with open(os.path.join(out_dir, "forest_grid.bin.gz"), "rb") as f:
+        rows = decode(f.read(), manifest["width"], manifest["height"])
+    src_w, src_h, _ = gdal_info(source)
+    w, r = hex_metrics()
+    hrows, hcols = manifest["height"], manifest["width"]
+
+    rng = random.Random(20260809)
+    checked = 0
+    bad = 0
+    with tempfile.TemporaryDirectory() as tmp:
+        strip = os.path.join(tmp, "strip.tif")
+        while checked < samples:
+            hx = rng.randrange(hcols)
+            hy = rng.randrange(hrows)
+            stored = rows[hy][hx]
+            if stored in (NO_DATA,):
+                continue
+            _, cy = hex_center(hx, hy, w, r)
+            y0 = max(0, int(cy - r))
+            y1 = min(src_h, int(math.ceil(cy + r)) + 1)
+            band_fn(source, 0, y0, src_w, y1 - y0, strip)
+            with open(strip, "rb") as f:
+                pixel_rows, _ = read_geotiff_u8(f.read())
+            valid = broad = conif = 0
+            for j, row_bytes in enumerate(pixel_rows):
+                y = y0 + j + 0.5
+                for rhx, rhy, x0, x1 in hex_runs(
+                        y, src_w, w, r, hrows, hcols):
+                    if (rhx, rhy) != (hx, hy):
+                        continue
+                    seg = row_bytes[x0:x1]
+                    b = seg.count(DLT_BROADLEAF)
+                    c = seg.count(DLT_CONIFER)
+                    valid += seg.count(DLT_NO_TREE) + b + c
+                    broad += b
+                    conif += c
+            if valid == 0:
+                expect = NO_DATA
+            else:
+                trees = broad + conif
+                if trees / valid < TREE_THRESHOLD:
+                    expect = NO_FOREST
+                else:
+                    expect = 1 + round(100 * conif / trees)
+            if expect != stored:
+                bad += 1
+                print(f"  Hex ({hx},{hy}): gespeichert {stored}, "
+                      f"nachgerechnet {expect}", file=sys.stderr)
+            checked += 1
+    forest_percent = manifest.get("forest_percent")
+    report = [
+        f"verify (hex): {checked} Hexe, {bad} Abweichungen",
+        f"Waldanteil: {forest_percent} % "
+        f"(plausibel: 25–50), Median Nadel: "
+        f"{manifest.get('median_conifer_percent')} %",
+    ]
+    print("\n".join(report))
+    summary = os.environ.get("GITHUB_STEP_SUMMARY")
+    if summary:
+        with open(summary, "a") as f:
+            f.write("\n".join(report) + "\n")
+    if bad:
+        raise SystemExit("verify (hex): Gitter weicht von der Quelle ab")
+    if forest_percent is not None and not 25 <= forest_percent <= 50:
+        raise SystemExit(
+            f"verify (hex): Waldanteil {forest_percent} % außerhalb "
+            "25–50 — Klassenzuordnung oder Schwelle prüfen")
+
 
 def verify(source, out_dir, samples=24, band_fn=None):
     """Rechnet Zellen direkt aus der Quelle nach — fängt Indexfehler und
@@ -1009,8 +1352,78 @@ def _self_test():
             pass
 
     _self_test_build()
+    _self_test_hex_assign()
+    _self_test_hex_build()
 
     print("self-test: ok")
+
+
+def _self_test_hex_assign():
+    """Die Lauf-Zerlegung gegen die Referenz (nächster Mittelpunkt):
+    jedes Pixel genau einmal, im richtigen Hex. Der Lauf-Weg existiert
+    nur der Geschwindigkeit wegen — weicht er ab, gewinnt der falsche
+    Nachbar still ein paar Pixel, und niemand sieht es je."""
+    for factor in (25, 10):
+        w = factor * math.sqrt(2 / math.sqrt(3))
+        r = w / math.sqrt(3)
+        src_w, src_h = 160, 140
+        rows = max(1, int((src_h - r) / (1.5 * r)) + 1)
+        cols = int(src_w / w) + 1
+        for j in range(src_h):
+            y = j + 0.5
+            seen = [0] * src_w
+            for hx, hy, x0, x1 in hex_runs(y, src_w, w, r, rows, cols):
+                for i in range(x0, x1):
+                    seen[i] += 1
+                    assert hex_at(i + 0.5, y, w, r, rows, cols) == (hx, hy), \
+                        (factor, i, j, (hx, hy))
+            assert all(v == 1 for v in seen), (factor, j)
+
+
+def _self_test_hex_build():
+    """build_hex auf synthetischer Quelle: linke Hälfte Laub, rechte
+    Nadel, oben ein NoData-Streifen — die Grenz-Hexe sind gemischt, die
+    Fläche bleibt erhalten (jedes gültige Pixel zählt genau einmal)."""
+    src_w, src_h = 200, 150
+    src_rows = []
+    for j in range(src_h):
+        if j < 8:
+            src_rows.append(bytes([255]) * src_w)
+        else:
+            src_rows.append(
+                bytes([1]) * (src_w // 2) + bytes([2]) * (src_w - src_w // 2))
+
+    def info_fn(_source):
+        return src_w, src_h, [10.0, 0.0001, 0, 55.0, 0, -0.0001]
+
+    def band_fn(_source, x, y, bw, bh, out_path):
+        window = [row[x:x + bw] for row in src_rows[y:y + bh]]
+        with open(out_path, "wb") as f:
+            f.write(_fake_tiff_u8(window))
+
+    import tempfile as _tempfile
+    with _tempfile.TemporaryDirectory() as out:
+        manifest = build_hex("fake", 2024, out, band_rows=64,
+                             info_fn=info_fn, band_fn=band_fn)
+        assert manifest["lattice"] == "hex-odd-r", manifest
+        assert manifest["hex_lon_step"] > 0
+        assert manifest["hex_lat_step"] > 0
+        with open(os.path.join(out, "forest_grid.bin.gz"), "rb") as f:
+            rows = decode(f.read(), manifest["width"], manifest["height"])
+        mid = manifest["height"] // 2
+        assert rows[mid][0] == 1, rows[mid][0]  # reiner Laub
+        assert rows[mid][manifest["width"] - 2] == 101  # reiner Nadel
+        w, _ = hex_metrics()
+        boundary = rows[mid][int((src_w / 2) / w)]
+        assert 1 < boundary < 101, boundary  # Grenz-Hex gemischt
+        # Bandgrenzen quer testen: andere Bandhöhe, identisches Ergebnis
+        # — sonst hinge der Inhalt an der Lesefenstergröße.
+        with _tempfile.TemporaryDirectory() as out2:
+            build_hex("fake", 2024, out2, band_rows=17,
+                      info_fn=info_fn, band_fn=band_fn)
+            with open(os.path.join(out2, "forest_grid.bin.gz"), "rb") as f2:
+                assert f2.read() == encode(rows), \
+                    "Bandhöhe ändert das Ergebnis"
 
 
 def _self_test_build():
@@ -1103,6 +1516,10 @@ def main():
                         help="Quellpixel je Zelle (25 = ~250 m, "
                              "10 = ~100 m). Größere Gitter sind größere "
                              "Dateien — genau deshalb messbar.")
+    parser.add_argument("--lattice", choices=["square", "hex"],
+                        default="square",
+                        help="Zellform des Gitters: square (Bestand) "
+                             "oder hex (#251, odd-r, flächengleich).")
     args = parser.parse_args()
 
     if args.cell_factor != CELL_FACTOR:
@@ -1111,16 +1528,19 @@ def main():
     if args.self_test:
         self_test()
         return
+    build_fn = build_hex if args.lattice == "hex" else build
     if args.command == "build":
-        manifest = build(args.source, args.year, args.out)
+        manifest = build_fn(args.source, args.year, args.out)
         print(json.dumps(manifest, indent=2))
     elif args.command == "fetch":
         source, year = fetch_direct(args.out)
-        manifest = build(source, year, args.out)
+        manifest = build_fn(source, year, args.out)
         print(json.dumps(manifest, indent=2))
-        verify(source, args.out, samples=args.samples)
+        verify_fn = verify_hex if args.lattice == "hex" else verify
+        verify_fn(source, args.out, samples=args.samples)
     elif args.command == "verify":
-        verify(args.source, args.out, samples=args.samples)
+        verify_fn = verify_hex if args.lattice == "hex" else verify
+        verify_fn(args.source, args.out, samples=args.samples)
     else:
         parser.error("Kommando oder --self-test angeben")
 

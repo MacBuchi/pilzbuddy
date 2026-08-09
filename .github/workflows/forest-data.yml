@@ -34,6 +34,12 @@ on:
           the answer is a file size, and guessing it is not a method.
         required: false
         default: "25"
+      lattice:
+        description: >-
+          Cell shape: square (shipped) or hex (#251, odd-r, equal-area
+          hexes aggregated honestly from the 10 m source).
+        required: false
+        default: "square"
 
 concurrency:
   group: ${{ github.workflow }}
@@ -74,14 +80,15 @@ jobs:
             exit 1
           fi
           python3 tool/forest_grid.py fetch --out build/forest \
-            --cell-factor "${{ inputs.cell_factor || '25' }}"
+            --cell-factor "${{ inputs.cell_factor || '25' }}" \
+            --lattice "${{ inputs.lattice || 'square' }}"
 
       - name: Upload the grid as an artifact
         uses: actions/upload-artifact@v7
         with:
-          # Der Faktor gehört in den Namen: Ein Messlauf und der
-          # Quartalslauf dürfen nicht dasselbe Artefakt heißen.
-          name: forest-grid-${{ inputs.cell_factor || '25' }}
+          # Faktor und Zellform gehören in den Namen: Ein Messlauf und
+          # der Quartalslauf dürfen nicht dasselbe Artefakt heißen.
+          name: forest-grid-${{ inputs.cell_factor || '25' }}${{ (inputs.lattice == 'hex' && '-hex') || '' }}
           path: |
             build/forest/forest_grid.bin.gz
             build/forest/forest_manifest.json
