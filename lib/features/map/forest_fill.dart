@@ -37,6 +37,8 @@ import 'dart:typed_data';
 import 'package:flutter/painting.dart' show Color;
 
 import '../../core/app_colors.dart';
+import '../ampel/ampel_fill.dart' show AmpelLevelGrid;
+import '../ampel/ampel_model.dart' show AmpelLevel;
 import 'forest_fill_window.dart';
 import 'forest_grid.dart';
 import 'overlay_png.dart';
@@ -103,7 +105,8 @@ Uint8List forestFillPng(ForestGrid grid,
 
   if (grid.isHex) {
     final coverage = _HexCoverage(window)..add(grid, classes);
-    return overlayPng(width, rows, coverage.resolve(alpha));
+    return overlayPng(width, rows,
+        coverage.resolve(_forestBandColours, List.filled(3, alpha)));
   }
 
   // Ab hier das QUADRAT-Gitter: je Ausgabepixel die Zelle unter seinem
@@ -196,7 +199,47 @@ Uint8List forestFillPngMulti(List<ForestGrid> grids,
   for (final grid in grids) {
     coverage.add(grid, classes);
   }
-  return overlayPng(window.width, window.height, coverage.resolve(alpha));
+  return overlayPng(window.width, window.height,
+      coverage.resolve(_forestBandColours, List.filled(3, alpha)));
+}
+
+/// Die Kombi-Ebene „Wald + Pilzwetter" (Betreiber-Wunsch 2026-08-09):
+/// dieselben Waben, aber die mit gutem Wetter LEUCHTEN.
+///
+/// Warum als ein Bild und nicht als zwei Ebenen übereinander: Zwei
+/// Schleier ergeben Matsch, und die Frage lautet nicht „wo ist Wald und
+/// wo ist Wetter", sondern „wo ist beides". Genau das kann nur ein
+/// Zeichner beantworten, der beim Malen jeder Wabe ihr Wetter kennt.
+///
+/// Der Wald bleibt sichtbar (schwächer, [forestCombinedAlpha]) — sonst
+/// stünden die Leuchtpunkte ohne den Zusammenhang da, in dem man sie
+/// liest. Wo [levels] nichts sagt (außerhalb Deutschlands, Radarrand),
+/// bleibt die Wabe schlicht Wald; „leuchtet nicht" heißt dort also
+/// weder schlecht noch unbekannt, und deshalb nennt das Blatt die
+/// Abdeckung.
+Uint8List forestAmpelFillPng(List<ForestGrid> grids,
+    {required FillWindow window,
+    required AmpelLevelGrid levels,
+    required AmpelPalette palette,
+    Set<ForestClass> classes = allForestClasses}) {
+  final coverage = _HexCoverage(window, bandCount: 5);
+  for (final grid in grids) {
+    coverage.add(grid, classes, highlight: levels);
+  }
+  return overlayPng(
+      window.width,
+      window.height,
+      coverage.resolve([
+        ..._forestBandColours,
+        palette.mild,
+        palette.highlight,
+      ], const [
+        forestCombinedAlpha,
+        forestCombinedAlpha,
+        forestCombinedAlpha,
+        ampelHighlightVerhaltenAlpha,
+        ampelHighlightGuenstigAlpha,
+      ]));
 }
 
 /// Deckung als Festkomma: [_coverageUnit] Einheiten sind ein GANZES
@@ -208,8 +251,35 @@ Uint8List forestFillPngMulti(List<ForestGrid> grids,
 /// Pixel liegt also bei ~1024 und nicht bei 65535.
 const _coverageUnit = 1024;
 
-/// Der Wabenzeichner: sammelt je Ausgabepixel, wie viel Fläche jede
-/// Waldklasse dort bedeckt (drei Bänder: Laub, Misch, Nadel).
+/// Die Bänder des Zeichners. Die ersten drei sind die Waldklassen in der
+/// Reihenfolge von [ForestClass] (ohne `none`); die beiden letzten
+/// kommen nur in der Kombi-Ebene vor.
+const _bandVerhalten = 3;
+const _bandGuenstig = 4;
+
+/// Deckkraft der Waldwaben in der KOMBI-Ebene — schwächer als die 140
+/// der reinen Waldfläche: Dort ist der Wald die Aussage, hier ist er der
+/// Zusammenhang, in dem die leuchtenden Waben stehen.
+const forestCombinedAlpha = 95;
+
+/// Und die beiden Leuchtstufen.
+///
+/// **Zwei Töne DERSELBEN Familie, nicht einer in zwei Stärken**
+/// (Betreiber, 2026-08-10: „die Abstufung ist noch nicht groß genug"):
+/// Ein Alpha-Unterschied allein geht unter, weil die Waben auf sehr
+/// verschieden hellem Untergrund liegen — dieselbe Farbe bei 150 über
+/// Laub-Ocker ist heller als bei 225 über Nadelgrün. Die milde Stufe
+/// nimmt deshalb den hellen Ton der Familie, die günstige den Leuchtton;
+/// die Bedeutung bleibt dabei geordnet, weil in beiden Ebenen das
+/// KRÄFTIGERE „besser" heißt.
+const ampelHighlightVerhaltenAlpha = 170;
+const ampelHighlightGuenstigAlpha = 235;
+
+/// Der Wabenzeichner: sammelt je Ausgabepixel, wie viel Fläche jedes
+/// BAND dort bedeckt. Bänder sind normalerweise die drei Waldklassen
+/// (Laub, Misch, Nadel); die Kombi-Ebene „Wald + Pilzwetter" hängt zwei
+/// Leucht-Bänder an (verhalten, günstig), in die eine Wabe wandert,
+/// wenn an ihrem Mittelpunkt das Wetter stimmt.
 ///
 /// Die vier Höhenlinien eines Sechsecks werden EINZELN durch die
 /// Mercator-Abbildung geschickt (innerhalb eines ~250-m-Hexes ist die
@@ -221,21 +291,35 @@ const _coverageUnit = 1024;
 /// zweite Weg ist der, den es vorher nicht gab — und ohne ihn
 /// verschwindet die Karte beim Rauszoomen (Kopfkommentar).
 class _HexCoverage {
-  _HexCoverage(this.window)
-      : _bands = Uint16List(window.width * window.height * 3),
+  _HexCoverage(this.window, {this.bandCount = 3})
+      : _bands = Uint16List(window.width * window.height * bandCount),
         _mercNorth = mercatorY(window.north),
         _mercSpan = mercatorY(window.south) - mercatorY(window.north);
 
   final FillWindow window;
 
-  /// Drei Werte je Pixel, in der Reihenfolge von [ForestClass] ohne
-  /// `none`: Laub, Misch, Nadel.
+  /// Wie viele Bänder je Pixel: 3 für die reine Waldfläche, 5 mit den
+  /// beiden Leucht-Bändern der Kombi-Ebene. Jedes Band kostet 2 Bytes
+  /// je Pixel (14 bzw. 23 MB beim größten Fenster).
+  final int bandCount;
+
+  /// [bandCount] Werte je Pixel: erst die Klassen in der Reihenfolge von
+  /// [ForestClass] ohne `none` (Laub, Misch, Nadel), dann die
+  /// Leucht-Bänder (verhalten, günstig).
   final Uint16List _bands;
   final double _mercNorth;
   final double _mercSpan;
 
   /// Trägt alle Waben von [grid] bei, die das Fenster berühren.
-  void add(ForestGrid grid, Set<ForestClass> classes) {
+  ///
+  /// [highlight] schaltet die Kombi-Ebene ein: Jede Wabe fragt an ihrem
+  /// MITTELPUNKT die Ampel-Stufe ab und wandert bei „verhalten"/
+  /// „günstig" in Band 3 bzw. 4 statt in ihr Klassenband. Die
+  /// Gitterzeile wird dabei je WABENZEILE gerechnet, nicht je Wabe —
+  /// die Breite ist dort konstant, und zwei Logarithmen je Wabe wären
+  /// bei Millionen Waben der Unterschied zwischen läuft und ruckelt.
+  void add(ForestGrid grid, Set<ForestClass> classes,
+      {AmpelLevelGrid? highlight}) {
     final width = window.width;
     final rows = window.height;
     final lonStep = grid.hexLonStep!;
@@ -274,6 +358,8 @@ class _HexCoverage {
     for (var hy = hy0; hy <= hy1; hy++) {
       final odd = hy.isOdd ? 0.5 : 0.0;
       final latC = grid.north - latStep * (hy + 2 / 3);
+      // Die Ampel-Gitterzeile dieser Wabenzeile — einmal, nicht je Wabe.
+      final ampelRow = highlight?.rowAt(latC);
       final yTop = yOf(latC + rDeg);
       final yUp = yOf(latC + rDeg / 2);
       final yLow = yOf(latC - rDeg / 2);
@@ -282,21 +368,28 @@ class _HexCoverage {
       final rowBase = hy * grid.width;
       final cxFirst = xOf(grid.west + lonStep * (hx0 + 0.5 + odd));
 
+      final lonFirst = grid.west + lonStep * (hx0 + 0.5 + odd);
       if (wPx < 1.0 || yBot - yTop < 1.0) {
         _addSmallRow(grid, bandOf, rowBase, hx0, hx1,
             cxFirst: cxFirst,
             wPx: wPx,
             // Sechseckfläche = 0,75 · Breite · Höhe.
             area: 0.75 * wPx * (yBot - yTop),
-            yMid: (yTop + yBot) / 2);
+            yMid: (yTop + yBot) / 2,
+            highlight: highlight,
+            ampelRow: ampelRow,
+            lonFirst: lonFirst,
+            lonStep: lonStep);
         continue;
       }
 
       var cx = cxFirst;
-      for (var hx = hx0; hx <= hx1; hx++, cx += wPx) {
-        final band = bandOf[grid.values[rowBase + hx]];
+      var lonC = lonFirst;
+      for (var hx = hx0; hx <= hx1; hx++, cx += wPx, lonC += lonStep) {
+        var band = bandOf[grid.values[rowBase + hx]];
         if (band < 0) continue;
         if (cx + wPx / 2 <= 0 || cx - wPx / 2 >= width) continue;
+        band = _bandWithHighlight(band, highlight, ampelRow, lonC);
         final py0 = math.max(0, yTop.floor());
         final py1 = math.min(rows - 1, yBot.floor());
         for (var py = py0; py <= py1; py++) {
@@ -326,7 +419,7 @@ class _HexCoverage {
             final left = math.max(x0, px.toDouble());
             final right = math.min(x1, px + 1.0);
             if (right <= left) continue;
-            _bands[(rowOffset + px) * 3 + band] +=
+            _bands[(rowOffset + px) * bandCount + band] +=
                 (vertical * (right - left) * _coverageUnit).round();
           }
         }
@@ -352,6 +445,10 @@ class _HexCoverage {
     required double wPx,
     required double area,
     required double yMid,
+    required AmpelLevelGrid? highlight,
+    required int? ampelRow,
+    required double lonFirst,
+    required double lonStep,
   }) {
     final width = window.width;
     final rows = window.height;
@@ -367,50 +464,73 @@ class _HexCoverage {
     final offsetB = (rowA + 1) * width;
 
     var cx = cxFirst - 0.5; // Pixelmitten-Koordinaten
-    for (var hx = hx0; hx <= hx1; hx++, cx += wPx) {
-      final band = bandOf[grid.values[rowBase + hx]];
+    var lonC = lonFirst;
+    for (var hx = hx0; hx <= hx1; hx++, cx += wPx, lonC += lonStep) {
+      var band = bandOf[grid.values[rowBase + hx]];
       if (band < 0) continue;
+      band = _bandWithHighlight(band, highlight, ampelRow, lonC);
       final px = cx.floor();
       if (px < -1 || px >= width) continue;
       final tx = cx - px;
       if (hasA) {
         if (px >= 0) {
-          _bands[(offsetA + px) * 3 + band] += (weightA * (1 - tx)).round();
+          _bands[(offsetA + px) * bandCount + band] += (weightA * (1 - tx)).round();
         }
         if (px + 1 < width) {
-          _bands[(offsetA + px + 1) * 3 + band] += (weightA * tx).round();
+          _bands[(offsetA + px + 1) * bandCount + band] += (weightA * tx).round();
         }
       }
       if (hasB) {
         if (px >= 0) {
-          _bands[(offsetB + px) * 3 + band] += (weightB * (1 - tx)).round();
+          _bands[(offsetB + px) * bandCount + band] += (weightB * (1 - tx)).round();
         }
         if (px + 1 < width) {
-          _bands[(offsetB + px + 1) * 3 + band] += (weightB * tx).round();
+          _bands[(offsetB + px + 1) * bandCount + band] += (weightB * tx).round();
         }
       }
     }
   }
 
-  /// Deckung → Bild: Farbe der deckungsstärksten Klasse, Deckkraft nach
+  /// Das Band einer Wabe unter Berücksichtigung der Kombi-Ebene: Wo das
+  /// Wetter mindestens „verhalten" ist, leuchtet die Wabe statt ihre
+  /// Klassenfarbe zu tragen. Ohne [highlight] bleibt alles beim
+  /// Klassenband.
+  int _bandWithHighlight(
+      int band, AmpelLevelGrid? highlight, int? ampelRow, double lon) {
+    if (highlight == null || ampelRow == null) return band;
+    final column = highlight.columnAt(lon);
+    if (column == null) return band;
+    return switch (highlight.levelAtCell(ampelRow, column)) {
+      AmpelLevel.verhalten => _bandVerhalten,
+      AmpelLevel.guenstig => _bandGuenstig,
+      // „ungünstig" und „keine Aussage" sind hier dasselbe: Die Wabe
+      // bleibt Wald. Auf der Karte heißt Nicht-Leuchten also weder
+      // „schlecht" noch „unbekannt" — genau deshalb steht die
+      // Abdeckungsgrenze (nur Deutschland) im Blatt.
+      _ => band,
+    };
+  }
+
+  /// Deckung → Bild: Farbe des deckungsstärksten Bandes, Deckkraft nach
   /// Gesamtdeckung.
   ///
-  /// Die Farbe eines gemischten Pixels ist die MEHRHEITSKLASSE, nicht
-  /// ein gemittelter Farbton: Ein Mischton stünde in keiner Legende, und
+  /// Die Farbe eines gemischten Pixels ist das MEHRHEITSBAND, nicht ein
+  /// gemittelter Farbton: Ein Mischton stünde in keiner Legende, und
   /// eine abgewählte Klasse (#231) darf nicht durch die Hintertür wieder
-  /// auftauchen. Bei Gleichstand gewinnt die hellere Klasse (Laub vor
-  /// Misch vor Nadel) — irgendeine feste Reihenfolge braucht es, damit
-  /// dasselbe Gitter dasselbe Bild ergibt.
-  Uint8List resolve(int alpha) {
+  /// auftauchen. Bei Gleichstand gewinnt das frühere Band (Laub vor
+  /// Misch vor Nadel vor den Leuchtbändern) — irgendeine feste
+  /// Reihenfolge braucht es, damit dasselbe Gitter dasselbe Bild ergibt.
+  ///
+  /// [colours] und [alphas] haben je [bandCount] Einträge: Die
+  /// Kombi-Ebene malt ihre Waldbänder schwächer als ihre Leuchtbänder,
+  /// also gehört die Deckkraft ans Band und nicht ans Bild.
+  Uint8List resolve(List<Color> colours, List<int> alphas) {
     final width = window.width;
     final rows = window.height;
-    final red = Uint8List(3), green = Uint8List(3), blue = Uint8List(3);
-    const colours = [
-      AppColors.forestBroadleaf,
-      AppColors.forestMixed,
-      AppColors.forestConifer,
-    ];
-    for (var i = 0; i < 3; i++) {
+    final red = Uint8List(bandCount);
+    final green = Uint8List(bandCount);
+    final blue = Uint8List(bandCount);
+    for (var i = 0; i < bandCount; i++) {
       red[i] = (colours[i].r * 255).round();
       green[i] = (colours[i].g * 255).round();
       blue[i] = (colours[i].b * 255).round();
@@ -418,22 +538,27 @@ class _HexCoverage {
 
     final raw = Uint8List(rows * (width * 4 + 1));
     var cursor = 0;
-    var band = 0;
+    var offset = 0;
     for (var y = 0; y < rows; y++) {
       raw[cursor++] = 0; // Filter „None"
       for (var x = 0; x < width; x++) {
-        final broadleaf = _bands[band];
-        final mixed = _bands[band + 1];
-        final conifer = _bands[band + 2];
-        band += 3;
-        final total = broadleaf + mixed + conifer;
+        var total = 0;
+        var best = 0;
+        var bestValue = 0;
+        for (var band = 0; band < bandCount; band++) {
+          final value = _bands[offset + band];
+          total += value;
+          if (value > bestValue) {
+            bestValue = value;
+            best = band;
+          }
+        }
+        offset += bandCount;
         if (total == 0) {
           cursor += 4; // durchsichtig: kein Wald, keine Daten, abgewählt
           continue;
         }
-        final best = broadleaf >= mixed
-            ? (broadleaf >= conifer ? 0 : 2)
-            : (mixed >= conifer ? 1 : 2);
+        final alpha = alphas[best];
         raw[cursor++] = red[best];
         raw[cursor++] = green[best];
         raw[cursor++] = blue[best];
@@ -445,3 +570,10 @@ class _HexCoverage {
     return raw;
   }
 }
+
+/// Die drei Klassenfarben in Bandreihenfolge.
+const _forestBandColours = [
+  AppColors.forestBroadleaf,
+  AppColors.forestMixed,
+  AppColors.forestConifer,
+];

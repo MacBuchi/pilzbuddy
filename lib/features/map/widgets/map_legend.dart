@@ -28,6 +28,8 @@ import '../../ampel/ampel_model.dart';
 import '../../ampel/ampel_providers.dart';
 import '../forest_block_providers.dart';
 import '../forest_data_providers.dart';
+import '../forest_fill.dart'
+    show ampelHighlightGuenstigAlpha, ampelHighlightVerhaltenAlpha;
 import '../forest_grid.dart';
 import '../rain_data_providers.dart';
 import '../rain_fill.dart';
@@ -199,8 +201,9 @@ double? rainMarkerFraction(int mm, List<int> levels) {
 }
 
 /// Die Pilzwetter-Zeile der Legende: das Wort am Fadenkreuz plus die
-/// zwei Farbchips — „ungünstig" hat bewusst keinen Chip, es ist auf der
-/// Karte transparent („keine Stufe heißt aussichtslos").
+/// zwei Farbchips — „ungünstig" hat bewusst keinen Chip, denn dort
+/// leuchtet nichts, die Wabe bleibt schlicht Wald („keine Stufe heißt
+/// aussichtslos").
 class _AmpelSection extends StatelessWidget {
   const _AmpelSection({required this.reading, required this.palette});
 
@@ -220,8 +223,8 @@ class _AmpelSection extends StatelessWidget {
       children: [
         Text(
           switch (level) {
-            null => 'Pilzwetter (experimentell) · Steinpilz & Co.',
-            _ => 'Pilzwetter (experimentell) · hier: '
+            null => 'Wald + Pilzwetter (experimentell) · Steinpilz & Co.',
+            _ => 'Wald + Pilzwetter (experimentell) · hier: '
                 '${ampelLevelWord(level)}',
           },
           style: theme.textTheme.labelSmall?.copyWith(
@@ -233,15 +236,18 @@ class _AmpelSection extends StatelessWidget {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            for (final (colour, word) in [
-              (palette.mild, 'verhalten'),
-              (palette.strong, 'günstig'),
+            // Genau die Töne und Stärken, mit denen der Zeichner die
+            // Waben leuchten lässt — die Legende erklärt die Karte.
+            for (final (colour, opacity, word) in [
+              (palette.mild, ampelHighlightVerhaltenAlpha / 255, 'verhalten'),
+              (palette.highlight,
+                  ampelHighlightGuenstigAlpha / 255, 'günstig'),
             ]) ...[
               Container(
                 width: 12,
                 height: 9,
                 decoration: BoxDecoration(
-                  color: colour.withValues(alpha: 0.55),
+                  color: colour.withValues(alpha: opacity),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),

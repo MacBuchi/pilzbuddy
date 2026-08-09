@@ -1,35 +1,24 @@
-// Die Pilzwetter-Fläche (Frage b der Ampel-Vorschau, 2026-08-09):
-// „Wo in meiner Umgebung ist es zurzeit besonders gut?" — als Ebene
-// über Deutschland, gerechnet aus denselben lokalen Gittern wie die
-// Spot-Ampel. KEINE fremden Spots, keine Koordinate verlässt das
-// Gerät: Es ist reine Wetterfläche.
+// Die Pilzwetter-Rechnung für die Karte (Frage b der Ampel-Vorschau,
+// 2026-08-09): „Wo in meiner Umgebung ist es zurzeit besonders gut?" —
+// gerechnet aus denselben lokalen Gittern wie die Spot-Ampel. KEINE
+// fremden Spots, keine Koordinate verlässt das Gerät.
 //
-// Dieselbe Bild-Overlay-Strecke wie Regen (#156) und Wald (#213): das
-// Stapel-Gitter direkt eingefärbt, ein Pixel je Zelle, als PNG. Das
-// Regen-Gitter hat ~550 000 Zellen — der Puffer ist mit ~2 MB der
-// bewährte Normalfall dieser Strecke, kein Fensterproblem wie beim
-// 100-m-Wald.
+// **Die Ampel färbt nur noch WALD** (Betreiber, 2026-08-10: „ich würde
+// die Pilzampel auch nur mit dem Wald überlagern, es gibt keinen Grund,
+// warum man andere Bereiche damit einfärben sollte"). Bis 1.75.0 lag sie
+// als eigene Fläche über allem — auch über Feldern, Städten und Seen, wo
+// die Aussage niemanden interessiert. Seit 1.76.0 gibt es nur noch die
+// Kombi-Ebene: Der Wabenzeichner der Waldfläche
+// (`forestAmpelFillPng`) lässt die Waben leuchten, wo das Wetter stimmt.
 //
-// **Farben aus einer wählbaren Familie** ([AmpelPalette]), Deckkraft die
-// der Regenfläche (140, gemessen in 1.48.0). Bis 1.74.0 lieh sich die
-// Fläche die Töne der Stufen-Worte (forestGreen / forestBroadleaf) —
-// und stand damit im selben Grün-Ocker wie die Waldebene, mit der man
-// sie kombinieren WILL: Über Laubwald war „verhalten" nicht mehr zu
-// erkennen (Betreiber-Rückmeldung zur 1.73.0). Seither bricht die
-// Ampel aus den Erdtönen aus; die Begründung je Familie steht an
-// [AmpelPalette].
-//
-// „Ungünstig" bleibt TRANSPARENT: Die Karte hebt hervor, wo es sich
-// lohnt, statt das Land braun zu färben — „keine Stufe heißt
-// aussichtslos" gilt auf der Karte wörtlich.
+// Übrig bleibt hier die RECHNUNG — die Stufe je Zelle, ohne Farbe. Genau
+// das ist auch das, was der Betreiber als Zukunftsbild beschrieben hat:
+// dieselben Sechsecke, auf Array-Ebene gefärbt, ein Rendern statt zwei
+// Ebenen übereinander.
 import 'dart:typed_data';
 
-import 'package:flutter/painting.dart' show Color;
-
-import '../../core/app_colors.dart';
 import '../../core/geo.dart' show distanceKm;
 import '../../data/rain_grid_repository.dart' show RainStackData;
-import '../map/overlay_png.dart';
 import '../map/rain_grid.dart';
 import '../map/spot_weather.dart';
 import 'ampel_model.dart';
@@ -66,13 +55,13 @@ class AmpelFill {
   final DateTime newest;
 }
 
-/// Färbt die Fläche ein — `null`, wenn der Stapel die 26 Modell-Tage
-/// nicht lückenlos trägt (dieselbe Strenge wie die Sektion: lieber
-/// keine Ebene als eine mit still verschobenen Altersgewichten; ein
-/// DWD-Lückentag heilt sich am Folgetag von selbst).
-AmpelFill? ampelFillFrom(RainStackData stack, WeatherTable? table,
-    {int alpha = ampelFillAlpha,
-    AmpelPalette palette = defaultAmpelPalette}) {
+/// Dasselbe Ergebnis eine Stufe früher: die STUFE je Zelle, noch ohne
+/// Farbe. Zwei Kunden — die Fläche oben und die Kombi-Ebene „Wald +
+/// Pilzwetter" (dort fragt jede Waldwabe ihren Mittelpunkt ab).
+///
+/// `null` unter denselben Bedingungen wie die Fläche: kein lückenloses
+/// 26-Tage-Fenster, keine Stationstabelle.
+AmpelLevelGrid? ampelLevelsFrom(RainStackData stack, WeatherTable? table) {
   final info = stack.info;
   final width = info.width;
   final height = info.height;
@@ -191,48 +180,99 @@ AmpelFill? ampelFillFrom(RainStackData stack, WeatherTable? table,
     }
   }
 
-  // Einfärben: drei Stufen, „ungünstig" und alles Unbeantwortbare
-  // transparent.
-  Color colour(AmpelLevel level) => switch (level) {
-        AmpelLevel.guenstig => palette.strong,
-        AmpelLevel.verhalten => palette.mild,
-        AmpelLevel.unguenstig => const Color(0x00000000),
-      };
-  final raw = Uint8List(height * (width * 4 + 1));
-  var cursor = 0;
+  // Die Stufe je Zelle. 0 heißt „keine Aussage" — zu wenige Regentage
+  // oder keine Station in Reichweite; auf der Karte ist beides
+  // transparent, und in der Kombi-Ebene leuchtet dort nichts.
+  final levels = Uint8List(width * height);
   for (var y = 0; y < height; y++) {
-    raw[cursor++] = 0; // Filter „None"
     final blockRow = (y ~/ ampelTempBlockCells) * blocksX;
     for (var x = 0; x < width; x++) {
       final i = y * width + x;
       final block = blockRow + x ~/ ampelTempBlockCells;
-      if (known[i] < ampelMinRainDays || blockUsable[block] == 0) {
-        cursor += 4; // transparent — keine Aussage
-        continue;
-      }
-      final effective =
-          weighted[i] / weightsTotal * ampelRainWindow;
+      if (known[i] < ampelMinRainDays || blockUsable[block] == 0) continue;
+      final effective = weighted[i] / weightsTotal * ampelRainWindow;
       final rainFactor = effective >= ampelRainSaturationMm
           ? 1.0
           : effective / ampelRainSaturationMm;
-      final level = ampelLevelOf(rainFactor * blockFactor[block]);
-      final c = colour(level);
-      if (c.a == 0) {
-        cursor += 4;
-        continue;
-      }
-      raw[cursor++] = (c.r * 255).round();
-      raw[cursor++] = (c.g * 255).round();
-      raw[cursor++] = (c.b * 255).round();
-      raw[cursor++] = alpha;
+      levels[i] = ampelLevelOf(rainFactor * blockFactor[block]).index + 1;
     }
   }
-  return AmpelFill(
-    png: overlayPng(width, height, raw),
+  return AmpelLevelGrid(
+    levels: levels,
+    width: width,
+    height: height,
     west: info.west,
     east: info.east,
     north: info.north,
     south: info.south,
     newest: newest,
   );
+}
+
+/// Die Ampel-Stufen als Gitter — dieselbe Geometrie wie das
+/// Regen-Gitter, aus dem sie stammen (Mercator-Zeilen!).
+class AmpelLevelGrid {
+  const AmpelLevelGrid({
+    required this.levels,
+    required this.width,
+    required this.height,
+    required this.west,
+    required this.east,
+    required this.north,
+    required this.south,
+    required this.newest,
+  });
+
+  /// Je Zelle: 0 = keine Aussage, sonst `AmpelLevel.index + 1`.
+  final Uint8List levels;
+  final int width;
+  final int height;
+  final double west;
+  final double east;
+  final double north;
+  final double south;
+
+  /// Der jüngste Tag des Stapels — der „Stand" für Dateinamen.
+  final DateTime newest;
+
+  /// Die Stufe an einem Punkt — `null` außerhalb des Gitters oder wo es
+  /// keine Aussage gibt.
+  AmpelLevel? levelAt(double lat, double lon) {
+    final row = rowAt(lat);
+    final column = columnAt(lon);
+    if (row == null || column == null) return null;
+    return levelAtCell(row, column);
+  }
+
+  /// Die Gitterzeile zu einer Breite — `null` außerhalb.
+  ///
+  /// **Zeilen in MERCATOR**, wie beim Regen: In Grad gerechnet läge die
+  /// Zuordnung am Südrand um Kilometer daneben (dieselbe Falle wie
+  /// #247).
+  ///
+  /// Getrennt von [columnAt], weil die Kombi-Ebene über WABENZEILEN
+  /// läuft: Die Breite ist dort je Zeile konstant, die Länge ändert sich
+  /// je Wabe. So kostet die Zeile einmal zwei Logarithmen statt einmal
+  /// je Wabe — bei Millionen Waben ist das der Unterschied zwischen
+  /// „läuft" und „ruckelt".
+  int? rowAt(double lat) {
+    if (lat > north || lat < south) return null;
+    final top = mercatorY(north);
+    final fraction = (mercatorY(lat) - top) / (mercatorY(south) - top);
+    final row = (fraction * height).floor();
+    return row < 0 || row >= height ? null : row;
+  }
+
+  /// Die Gitterspalte zu einer Länge — `null` außerhalb.
+  int? columnAt(double lon) {
+    if (lon < west || lon > east) return null;
+    final column = ((lon - west) / (east - west) * width).floor();
+    return column < 0 || column >= width ? null : column;
+  }
+
+  /// Die Stufe einer Zelle — ohne Bereichsprüfung, wie [RainGrid.at].
+  AmpelLevel? levelAtCell(int row, int column) {
+    final value = levels[row * width + column];
+    return value == 0 ? null : AmpelLevel.values[value - 1];
+  }
 }

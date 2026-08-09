@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/settings.dart';
+import '../../ampel/ampel_map_providers.dart'
+    show ampelLayerEnabledProvider;
 import '../forest_block_providers.dart';
 import '../forest_data_providers.dart';
 import '../forest_grid.dart';
@@ -71,9 +73,17 @@ class _ForestLayerSheet extends ConsumerWidget {
                     // über Wald will, lässt nur die Klasse stehen, die
                     // ihn interessiert.
                     value: enabled,
-                    onChanged: (value) => ref
-                        .read(forestLayerEnabledProvider.notifier)
-                        .state = value,
+                    onChanged: (value) {
+                      ref.read(forestLayerEnabledProvider.notifier).state =
+                          value;
+                      // Die Ampel IST die Waldfläche in anderen Farben
+                      // — ohne Wald hätte sie nichts zu malen.
+                      if (!value) {
+                        ref
+                            .read(ampelLayerEnabledProvider.notifier)
+                            .state = false;
+                      }
+                    },
                   ),
                   if (enabled) ...[
                     const Divider(height: 16),

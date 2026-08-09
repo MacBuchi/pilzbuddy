@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart' as vmt;
 
-import '../../ampel/ampel_map_providers.dart';
 import '../../offline_maps/offline_map_providers.dart';
 import '../finite_camera_constraint.dart';
 import '../forest_data_providers.dart';
@@ -152,7 +151,6 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
     final forestFill = ref.watch(forestFillProvider).valueOrNull;
     // Die Pilzwetter-Fläche (Ampel-Vorschau) — im Blatt exklusiv zu den
     // Regenflächen, liegt wie diese über dem Wald.
-    final ampelFill = ref.watch(ampelFillProvider).valueOrNull;
     if (offlineActive) {
       // Der TileLayer, der die Instanz hält, verschwindet mit diesem Frame
       // und entsorgt sie dabei — siehe Kommentar am Feld.
@@ -345,23 +343,6 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
                 filterQuality: FilterQuality.medium,
                 gaplessPlayback: true,
                 imageProvider: MemoryImage(rainFill.png),
-              ),
-            ],
-          ),
-        // Die Pilzwetter-Fläche (Ampel-Vorschau): `none` wie der Wald —
-        // die Kilometer-Zellen und die drei Stufen SIND die Daten,
-        // weichgezeichnet sähen sie genauer aus, als sie sind.
-        if (ampelFill != null)
-          OverlayImageLayer(
-            overlayImages: [
-              OverlayImage(
-                bounds: LatLngBounds(
-                  LatLng(ampelFill.south, ampelFill.west),
-                  LatLng(ampelFill.north, ampelFill.east),
-                ),
-                filterQuality: FilterQuality.none,
-                gaplessPlayback: true,
-                imageProvider: MemoryImage(ampelFill.png),
               ),
             ],
           ),

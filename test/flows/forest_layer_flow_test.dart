@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/app_colors.dart';
 import 'package:pilzbuddy/features/map/forest_block_providers.dart';
+import 'package:pilzbuddy/features/ampel/ampel_map_providers.dart'
+    show ampelLayerEnabledProvider;
 import 'package:pilzbuddy/features/map/forest_data_providers.dart';
 import 'package:pilzbuddy/features/map/forest_grid.dart';
 import 'package:pilzbuddy/features/map/rain_grid.dart' show mercatorY;
@@ -42,6 +44,25 @@ void main() {
   List<Override> withGrid(ForestGrid? grid) => [
         forestGridLoaderProvider.overrideWithValue(() async => grid),
       ];
+
+  testWidgets('Waldebene aus nimmt die Pilzwetter-Ampel mit', (tester) async {
+    // Die Ampel leuchtet IN den Waben. Bliebe ihr Schalter an, während
+    // die Waldebene aus ist, behauptete das Regen-Blatt etwas, das die
+    // Karte nicht zeigt.
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend, extraOverrides: withGrid(testGrid()));
+    final container = containerOf(tester);
+    container.read(ampelLayerEnabledProvider.notifier).state = true;
+    container.read(forestLayerEnabledProvider.notifier).state = true;
+
+    await tester.tap(find.byTooltip('Waldtypen'));
+    await settle(tester);
+    await tester.tap(find.text('Waldtypen einblenden'));
+    await settle(tester);
+
+    expect(container.read(forestLayerEnabledProvider), isFalse);
+    expect(container.read(ampelLayerEnabledProvider), isFalse);
+  });
 
   testWidgets('FAB → Blatt → einschalten legt die Fläche auf die Karte',
       (tester) async {
