@@ -1,3 +1,4 @@
+import 'package:pilzbuddy/core/app_colors.dart' show AmpelPalette;
 import 'package:pilzbuddy/core/settings.dart';
 
 /// Einstellungen im Speicher. Ein echter SharedPreferences-Kanal existiert
@@ -12,6 +13,7 @@ class FakeSettings implements Settings {
     this.rainCourseEnabled = false,
     this.forestFineEnabled = false,
     this.ampelPreviewEnabled = false,
+    this.ampelPalette = AmpelPalette.violett,
     // Bewusst null: In echt initialisiert main() den Marker beim ersten
     // Start (ensureFindSeenMarker) — im Harness bleibt er aus, damit kein
     // Bestandstest ungefragt ein Buddy-Fund-Banner bekommt. Tests, die
@@ -73,6 +75,14 @@ class FakeSettings implements Settings {
   @override
   Future<void> setAmpelPreviewEnabled(bool value) async {
     ampelPreviewEnabled = value;
+  }
+
+  @override
+  AmpelPalette ampelPalette;
+
+  @override
+  Future<void> setAmpelPalette(AmpelPalette value) async {
+    ampelPalette = value;
   }
 
   @override

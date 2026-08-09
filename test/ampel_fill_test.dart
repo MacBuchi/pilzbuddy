@@ -104,10 +104,10 @@ void main() {
       switch (expected) {
         case AmpelLevel.guenstig:
           expect(p.a, ampelFillAlpha, reason: 'Zelle $x');
-          expect(p.r, (AppColors.forestGreen.r * 255).round());
+          expect(p.r, (defaultAmpelPalette.strong.r * 255).round());
         case AmpelLevel.verhalten:
           expect(p.a, ampelFillAlpha, reason: 'Zelle $x');
-          expect(p.r, (AppColors.forestBroadleaf.r * 255).round());
+          expect(p.r, (defaultAmpelPalette.mild.r * 255).round());
         case AmpelLevel.unguenstig:
           expect(p.a, 0,
               reason: 'Zelle $x: ungünstig ist auf der Karte transparent '
@@ -138,8 +138,8 @@ void main() {
     // Farben kommen aus dem Modell-Urteil, nicht aus einer Vermutung.
     expect(expectedYoung, AmpelLevel.guenstig);
     expect(expectedOld, AmpelLevel.verhalten);
-    expect(pixel(png, 0).r, (AppColors.forestGreen.r * 255).round());
-    expect(pixel(png, 1).r, (AppColors.forestBroadleaf.r * 255).round());
+    expect(pixel(png, 0).r, (defaultAmpelPalette.strong.r * 255).round());
+    expect(pixel(png, 1).r, (defaultAmpelPalette.mild.r * 255).round());
   });
 
   test('die Temperatur dämpft: 27 °C macht aus sattem Regen ungünstig',
@@ -168,5 +168,50 @@ void main() {
 
   test('ganz ohne Stationstabelle gibt es keine Ebene', () {
     expect(ampelFillFrom(stackOf([List.filled(26, 5)]), null), isNull);
+  });
+
+  group('Farbfamilie (Betreiber-Wunsch 2026-08-09)', () {
+    // Bis 1.74.0 malte die Fläche in den Tönen der Waldebene — über
+    // Laubwald war „verhalten" nicht mehr zu erkennen. Seither wählt
+    // man die Familie; diese Gruppe hält fest, dass die Wahl auch
+    // wirklich bis in die Pixel durchschlägt.
+    test('jede Familie malt ihre eigenen Töne', () {
+      for (final palette in AmpelPalette.values) {
+        final fill = ampelFillFrom(
+            stackOf([List.filled(26, 5), List.filled(26, 1)]), tableOf(),
+            palette: palette)!;
+        final png = decodePng(fill.png);
+        expect(pixel(png, 0).r, (palette.strong.r * 255).round(),
+            reason: '„günstig" in ${palette.label}');
+        expect(pixel(png, 1).r, (palette.mild.r * 255).round(),
+            reason: '„verhalten" in ${palette.label}');
+      }
+    });
+
+    test('die drei Familien sind auch wirklich drei Bilder', () {
+      // Sonst wäre die Auswahl Dekoration — und der Dateiname (der die
+      // Familie trägt) verspräche einen Wechsel, den es nicht gibt.
+      final bytes = {
+        for (final palette in AmpelPalette.values)
+          palette: ampelFillFrom(
+                  stackOf([List.filled(26, 5)]), tableOf(),
+                  palette: palette)!
+              .png
+      };
+      expect(bytes[AmpelPalette.violett], isNot(bytes[AmpelPalette.magenta]));
+      expect(bytes[AmpelPalette.magenta], isNot(bytes[AmpelPalette.tuerkis]));
+    });
+
+    test('„ungünstig" bleibt in jeder Familie durchsichtig', () {
+      // Die Farbwahl darf die eine Regel nicht kippen, die auf der
+      // Karte wörtlich gilt: keine Stufe heißt aussichtslos.
+      for (final palette in AmpelPalette.values) {
+        final fill = ampelFillFrom(
+            stackOf([List.filled(26, 0)]), tableOf(),
+            palette: palette)!;
+        expect(pixel(decodePng(fill.png), 0).a, 0,
+            reason: palette.label);
+      }
+    });
   });
 }

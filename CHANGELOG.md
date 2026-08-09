@@ -7,6 +7,21 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Pilzampel bekommt eigene Farben
+
+*9. August 2026 · Version 1.75.0*
+
+Die Ampel-Fläche malte bisher in denselben Grün- und Ockertönen wie die
+Waldkarte — und die will man ja gerade zusammen sehen. Über Laubwald war
+„verhalten" praktisch nicht mehr zu erkennen.
+
+Jetzt bricht die Ampel aus den Erdtönen aus, und **du wählst die Farbe**:
+Im Regen-Blatt stehen unter dem Ampel-Schalter drei Familien zur Wahl —
+**Violett**, **Magenta** und **Türkis**. Die Wahl gilt für die Fläche auf
+der Karte, den Punkt im Spot-Blatt und die Legende, und sie bleibt
+gespeichert. Violett ist voreingestellt: Es ist der einzige Ton, der weder
+in der Karte (Wasser, Wald, Wege) noch in der Waldebene vorkommt.
+
 ## Die Waldkarte bleibt beim Rauszoomen stehen
 
 *9. August 2026 · Version 1.74.0*

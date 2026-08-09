@@ -10,8 +10,11 @@ import 'package:archive/archive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pilzbuddy/core/app_colors.dart' show AmpelPalette;
+import 'package:pilzbuddy/core/settings.dart' show settingsProvider;
 import 'package:pilzbuddy/data/rain_grid_repository.dart';
 import 'package:pilzbuddy/features/ampel/ampel_map_providers.dart';
+import 'package:pilzbuddy/features/ampel/ampel_providers.dart';
 import 'package:pilzbuddy/features/map/rain_data_providers.dart';
 import 'package:pilzbuddy/features/map/rain_layer.dart';
 import 'package:pilzbuddy/features/spots/widgets/weather_chart.dart';
@@ -249,6 +252,52 @@ void main() {
     expect(container.read(ampelLayerEnabledProvider), isFalse);
   });
 
+  testWidgets('die Farbfamilie lässt sich wählen und wird gemerkt',
+      (tester) async {
+    // Betreiber-Wunsch 2026-08-09: drei Familien zur Wahl, weil die
+    // Ampel-Töne über der Waldebene standen und Farbwahrnehmung im Wald
+    // eine andere ist als am Schreibtisch.
+    final settings = FakeSettings(ampelPreviewEnabled: true);
+    final backend = FakeBackend();
+    backend.signInAs(backend.addUser(username: 'testpilz').id);
+    await pumpApp(tester, backend, settings: settings);
+
+    await tester.tap(find.byTooltip('Regen'));
+    await settle(tester);
+    final toggle = find.text('Pilzwetter-Ampel (experimentell)');
+    await tester.ensureVisible(toggle);
+    await settle(tester);
+    await tester.tap(toggle);
+    await settle(tester);
+
+    // Die Liste im Blatt ist LAZY: Was unter dem Rand liegt, existiert
+    // im Baum noch gar nicht — `ensureVisible` liefe dort in „No
+    // element". Deshalb scrollen, bis die Zeile wirklich da ist
+    // (dieselbe Lehre wie im Wald-Blatt, #259).
+    final magenta = find.text('Magenta');
+    await tester.scrollUntilVisible(magenta, 120,
+        scrollable: find
+            .descendant(
+                of: find.byType(BottomSheet),
+                matching: find.byType(Scrollable))
+            .first);
+    await settle(tester);
+    await tester.tap(magenta);
+    await settle(tester);
+
+    final container = ProviderScope.containerOf(
+        tester.element(find.byType(Scaffold).first));
+    expect(container.read(ampelPaletteProvider), AmpelPalette.magenta);
+    expect(settings.ampelPalette, AmpelPalette.magenta,
+        reason: 'eine Farbwahl trifft man nicht jede Wanderung neu');
+
+    // Neustart mit denselben Einstellungen: Die Wahl steht noch.
+    await pumpApp(tester, backend, settings: settings);
+    final again = ProviderScope.containerOf(
+        tester.element(find.byType(Scaffold).first));
+    expect(again.read(ampelPaletteProvider), AmpelPalette.magenta);
+  });
+
   testWidgets('ohne Vorschau-Schalter kein Ampel-Eintrag im Regen-Blatt',
       (tester) async {
     final backend = FakeBackend();
@@ -280,6 +329,39 @@ void main() {
         reason: 'die Vorschau überlebt den Neustart');
   });
 
+  test('die Farbfamilie steht im DATEINAMEN der Fläche', () async {
+    // Die MapLibre-Strecke ist idempotent auf der URL: Ohne die Familie
+    // im Namen würde das neu gefärbte Bild schlicht nicht getauscht,
+    // und die Karte zeigte still die alte Wahl weiter. Genau dieser
+    // Fehler ist beim Wald mit der Klassenwahl passiert
+    // (`forestFillStamp`), deshalb hier ein eigener Wächter.
+    Future<String?> urlFor(AmpelPalette palette) async {
+      final repository = _CapturingRepository();
+      final container = ProviderContainer(overrides: [
+        settingsProvider.overrideWithValue(FakeSettings(
+            ampelPreviewEnabled: true,
+            rainCourseEnabled: true,
+            ampelPalette: palette)),
+        rainGridRepositoryProvider.overrideWithValue(repository),
+        rainStackLoaderProvider
+            .overrideWithValue(() async => stackOf(days: 26)),
+        weatherTableLoaderProvider
+            .overrideWithValue(() async => weatherBytes()),
+      ]);
+      addTearDown(container.dispose);
+      container.read(ampelLayerEnabledProvider.notifier).state = true;
+      final result = await container.read(ampelFillFileProvider.future);
+      return result?.url;
+    }
+
+    final violett = await urlFor(AmpelPalette.violett);
+    final magenta = await urlFor(AmpelPalette.magenta);
+    expect(violett, contains('violett'));
+    expect(magenta, contains('magenta'));
+    expect(violett, isNot(magenta),
+        reason: 'gleicher Name ⇒ MapLibre tauscht das Bild nicht');
+  });
+
   testWidgets('das Diagramm bleibt beim 14-Tage-Fenster, auch wenn der '
       'Stapel 26 trägt', (tester) async {
     await pumpWithWeather(tester, loggedInWithSpot(), preview: true);
@@ -297,4 +379,13 @@ void main() {
         reason: '26 Balken auf Handybreite wären Streichhölzer — die '
             'zusätzlichen Tage füttern das Modell, nicht das Auge');
   });
+}
+
+/// Fängt nur den Dateinamen ab — geschrieben wird im Test nichts
+/// (`path_provider` gibt es hier nicht).
+class _CapturingRepository extends RainGridRepository {
+  @override
+  Future<String?> writeFill(String layer, DateTime measured, List<int> png,
+          {String variant = ''}) async =>
+      'file:///nirgends/fill_${layer}_$variant.png';
 }

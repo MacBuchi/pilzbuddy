@@ -145,7 +145,10 @@ class MapLegend extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (showAmpel) _AmpelSection(reading: ampelAt),
+                    if (showAmpel)
+                      _AmpelSection(
+                          reading: ampelAt,
+                          palette: ref.watch(ampelPaletteProvider)),
                     if (showAmpel && showForest)
                       const SizedBox(height: 6),
                     if (showRain) _RainSection(layer: rainLayer, mm: rainMm),
@@ -199,9 +202,13 @@ double? rainMarkerFraction(int mm, List<int> levels) {
 /// zwei Farbchips — „ungünstig" hat bewusst keinen Chip, es ist auf der
 /// Karte transparent („keine Stufe heißt aussichtslos").
 class _AmpelSection extends StatelessWidget {
-  const _AmpelSection({required this.reading});
+  const _AmpelSection({required this.reading, required this.palette});
 
   final AmpelReading? reading;
+
+  /// Dieselbe Familie, in der die Fläche malt — die Legende erklärt
+  /// die Karte, nicht eine zweite Farbwelt.
+  final AmpelPalette palette;
 
   @override
   Widget build(BuildContext context) {
@@ -227,8 +234,8 @@ class _AmpelSection extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             for (final (colour, word) in [
-              (AppColors.forestBroadleaf, 'verhalten'),
-              (AppColors.forestGreen, 'günstig'),
+              (palette.mild, 'verhalten'),
+              (palette.strong, 'günstig'),
             ]) ...[
               Container(
                 width: 12,

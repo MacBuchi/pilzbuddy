@@ -95,11 +95,16 @@ class AmpelSection extends ConsumerWidget {
     }
 
     final level = reading.level!;
+    final palette = ref.watch(ampelPaletteProvider);
     final colour = switch (level) {
       // Bewusst kein Rot: „Keine Stufe heißt aussichtslos" (Konzept).
+      // „Ungünstig" bleibt der erdige Braunton der Marke — die
+      // gewählte Familie färbt nur, was die Karte auch hervorhebt,
+      // sonst hieße ein kräftiger Ton hier „schau her" und dort
+      // „lohnt nicht".
       AmpelLevel.unguenstig => AppColors.barkBrown,
-      AmpelLevel.verhalten => AppColors.forestBroadleaf,
-      AmpelLevel.guenstig => AppColors.forestGreen,
+      AmpelLevel.verhalten => palette.mild,
+      AmpelLevel.guenstig => palette.strong,
     };
     final label = species ?? 'Steinpilz & Co.';
 

@@ -3,6 +3,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/app_colors.dart' show AmpelPalette;
 import '../../data/rain_grid_repository.dart' show RainStackData;
 import '../map/rain_data_providers.dart';
 import '../map/spot_weather.dart';
@@ -25,27 +26,38 @@ final ampelLayerEnabledProvider = StateProvider<bool>((ref) => false);
 final ampelFillProvider = FutureProvider<AmpelFill?>((ref) async {
   if (!ref.watch(ampelPreviewEnabledProvider)) return null;
   if (!ref.watch(ampelLayerEnabledProvider)) return null;
-  // Beide Watches VOR den Awaits — die Riverpod-Lehre aus #255/#257.
+  // ALLE Watches VOR den Awaits — die Riverpod-Lehre aus #255/#257.
+  final palette = ref.watch(ampelPaletteProvider);
   final stackFuture = ref.watch(rainStackProvider.future);
   final tableFuture = ref.watch(weatherTableProvider.future);
   final stack = await stackFuture;
   if (stack == null) return null;
   final table = await tableFuture;
-  return compute(_fill, (stack: stack, table: table));
+  return compute(
+      _fill, (stack: stack, table: table, palette: palette));
 });
 
-AmpelFill? _fill(({RainStackData stack, WeatherTable? table}) input) =>
-    ampelFillFrom(input.stack, input.table);
+AmpelFill? _fill(
+        ({RainStackData stack, WeatherTable? table, AmpelPalette palette})
+            input) =>
+    ampelFillFrom(input.stack, input.table, palette: input.palette);
 
 /// Dieselbe Fläche als Datei — der MapLibre-Weg (`image`-Quelle nimmt
 /// eine URL). Der jüngste Stapel-Tag ist der Stand im Dateinamen;
 /// [RainGridRepository.writeFill] räumt alte Stände weg.
 final ampelFillFileProvider =
     FutureProvider<({String url, AmpelFill fill})?>((ref) async {
+  // Beides VOR dem Await beobachten (Riverpod-Lehre) — und die
+  // Farbfamilie gehört in den DATEINAMEN: Die MapLibre-Strecke ist
+  // idempotent auf der URL. Ein Bild mit neuen Farben unter altem Namen
+  // würde schlicht nicht getauscht, und die Karte zeigte still die alte
+  // Familie weiter (genau so passiert beim Wald mit der Klassenwahl,
+  // siehe `forestFillStamp`).
+  final palette = ref.watch(ampelPaletteProvider);
+  final repository = ref.watch(rainGridRepositoryProvider);
   final fill = await ref.watch(ampelFillProvider.future);
   if (fill == null) return null;
-  final url = await ref
-      .watch(rainGridRepositoryProvider)
-      .writeFill('ampel', fill.newest, fill.png);
+  final url = await repository.writeFill('ampel', fill.newest, fill.png,
+      variant: palette.name);
   return url == null ? null : (url: url, fill: fill);
 });

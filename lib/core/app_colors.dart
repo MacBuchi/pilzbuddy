@@ -95,3 +95,72 @@ abstract final class AppColors {
   /// gehört dieser Wert nachgezogen.
   static const mapBackground = Color(0xFFE2DFDA);
 }
+
+/// Die Farbfamilie der Pilzampel — vom Nutzer wählbar (Betreiber-Wunsch
+/// 2026-08-09, nach einem gerenderten Vergleich entschieden).
+///
+/// **Warum die Ampel aus den Erdtönen ausbricht:** Sie bewertet
+/// WETTER, nicht Gelände. Bis 1.73.0 lieh sie sich die Farben der
+/// Stufen-Worte ([AppColors.forestGreen] / [AppColors.forestBroadleaf])
+/// — und lag damit im selben Grün-Ocker-Braun wie die Waldebene, mit der
+/// man sie kombinieren WILL. Über Laubwald war „verhalten" praktisch
+/// nicht mehr zu erkennen. Jede Familie hier ist deshalb daraufhin
+/// geprüft, dass sie über der Waldebene stehen bleibt.
+///
+/// Drei zur Wahl statt einer festgelegten: Der Vergleich war knapp, und
+/// Farbwahrnehmung ist im Wald (Sonne, Schatten, Displayhelligkeit)
+/// nicht dieselbe wie am Schreibtisch.
+enum AmpelPalette {
+  /// Kommt weder im Kartenstil noch in der Waldebene vor — liest sich
+  /// sofort als „Wetter". Der Vorschlag des Hauses.
+  violett(
+    mild: Color(0xFF9B6DD9),
+    strong: Color(0xFF4A148C),
+    highlight: Color(0xFFC628FF),
+    label: 'Violett',
+  ),
+
+  /// Auffälliger als Violett; über Laubwald-Ocker geht der milde Ton
+  /// ins Lachsfarbene.
+  magenta(
+    mild: Color(0xFFF06EA8),
+    strong: Color(0xFFB00A5C),
+    highlight: Color(0xFFFF2D87),
+    label: 'Magenta',
+  ),
+
+  /// Kühl und klar auf Beige. Auf der Karte am ehesten mit Wasser zu
+  /// verwechseln — deshalb nicht der Standard.
+  tuerkis(
+    mild: Color(0xFF5AC8D8),
+    strong: Color(0xFF006B7A),
+    highlight: Color(0xFF00E5D0),
+    label: 'Türkis',
+  );
+
+  const AmpelPalette({
+    required this.mild,
+    required this.strong,
+    required this.highlight,
+    required this.label,
+  });
+
+  /// „verhalten" — die schwächere der beiden sichtbaren Stufen.
+  final Color mild;
+
+  /// „günstig".
+  final Color strong;
+
+  /// Der Leuchtton der Kombi-Ebene „Wald + Pilzwetter": Er liegt AUF
+  /// den Waldwaben und muss sich deshalb kräftiger absetzen als die
+  /// Flächentöne darüber.
+  final Color highlight;
+
+  /// Wie die Familie im Blatt heißt.
+  final String label;
+}
+
+/// Die Standard-Familie: bewusst [AmpelPalette.violett] — der einzige
+/// Farbton der Auswahl, der weder in der Karte (Wasser, Wald, Wege)
+/// noch in der Waldebene vorkommt.
+const defaultAmpelPalette = AmpelPalette.violett;
