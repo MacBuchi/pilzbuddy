@@ -56,12 +56,25 @@ abstract interface class Settings {
   /// Darf der Regenverlauf am Spot Daten nachladen?
   ///
   /// Standardmäßig NEIN — dieselbe Zusage wie bei der Regenebene: Der
-  /// Stapel kostet beim ersten Mal rund 0,9 MB, und das gibt man im Wald
-  /// nicht ungefragt aus. Wer einmal zugestimmt hat, wird nicht wieder
-  /// gefragt; danach ist es eine Datei am Tag.
+  /// Stapel kostet beim ersten Mal knapp 2 MB (26 Tage seit dem
+  /// Ampel-Fenster, #256), und das gibt man im Wald nicht ungefragt
+  /// aus. Wer einmal zugestimmt hat, wird nicht wieder gefragt; danach
+  /// ist es eine Datei am Tag.
   bool get rainCourseEnabled;
 
   Future<void> setRainCourseEnabled(bool value);
+
+  /// Zeigt die App die experimentelle Pilzampel-Vorschau?
+  ///
+  /// Standardmäßig NEIN. Die Ampel ist UNVALIDIERT (die Rückwärtsprüfung
+  /// läuft, docs/pilzampel-validierung.md) und existiert als Vorschau
+  /// nur, weil der Betreiber sie sehen will, während die Prüfung läuft
+  /// (Entscheidung 2026-08-09). Der Schalter ist zugleich der Notaus:
+  /// Fällt die Validierung durch, verschwindet die Vorschau, ohne dass
+  /// jemandem etwas versprochen war.
+  bool get ampelPreviewEnabled;
+
+  Future<void> setAmpelPreviewEnabled(bool value);
 
   /// Darf die Waldkarte feine Waben (≈ 100 m) nachladen? (#253)
   ///
@@ -160,6 +173,16 @@ class PrefsSettings implements Settings {
   @override
   Future<void> setRainCourseEnabled(bool value) =>
       _prefs.setBool(_rainCourseEnabledKey, value);
+
+  static const _ampelPreviewEnabledKey = 'ampel_preview_enabled';
+
+  @override
+  bool get ampelPreviewEnabled =>
+      _prefs.getBool(_ampelPreviewEnabledKey) ?? false;
+
+  @override
+  Future<void> setAmpelPreviewEnabled(bool value) =>
+      _prefs.setBool(_ampelPreviewEnabledKey, value);
 
   static const _forestFineEnabledKey = 'forest_fine_enabled';
 

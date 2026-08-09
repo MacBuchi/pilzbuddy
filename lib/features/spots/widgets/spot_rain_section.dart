@@ -88,8 +88,13 @@ class SpotRainSection extends ConsumerWidget {
         // bei jedem österreichischen Spot wäre Lärm.
         if (rows.every((row) => row.mm == null)) return const SizedBox.shrink();
 
-        final peak = data.peak;
-        final dry = data.daysSinceRain();
+        // Gezeigt werden die letzten 14 Tage, auch wenn der Stapel seit
+        // dem Ampel-Fenster (#256) 26 trägt — Diagramm UND der Satz
+        // darunter beziehen sich auf DASSELBE Fenster, sonst behauptete
+        // der Satz einen Höchstwert, den kein Balken zeigt.
+        final shown = data.lastDays(14);
+        final peak = shown.peak;
+        final dry = shown.daysSinceRain();
         final stations = stationLine(temperature);
         final theme = Theme.of(context);
         return Column(
@@ -105,13 +110,13 @@ class SpotRainSection extends ConsumerWidget {
                 if (row.mm case final mm?) (label: row.label, mm: mm),
             ]),
             const SizedBox(height: 10),
-            WeatherChart(course: data, temperature: temperature),
+            WeatherChart(course: shown, temperature: temperature),
             const SizedBox(height: 6),
             Text(
               // Der Satz, den eine Summe nicht sagen kann.
               switch (dry) {
-                null => 'In diesen 14 Tagen kein nennenswerter Regen. '
-                    'Höchster Tageswert: $peak mm.',
+                null => 'In diesen ${shown.days.length} Tagen kein '
+                    'nennenswerter Regen. Höchster Tageswert: $peak mm.',
                 0 => 'Zuletzt gestern nennenswert geregnet '
                     '(höchster Tageswert: $peak mm).',
                 final days => 'Letzter nennenswerter Regen vor $days '
@@ -168,7 +173,7 @@ class _Offer extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           'Wie viel Regen hier gefallen ist und wie warm es war — Tag '
-          'für Tag. Beim ersten Mal wird rund 1 MB geladen, danach '
+          'für Tag. Beim ersten Mal wird knapp 2 MB geladen, danach '
           'täglich ein kleines Stück.',
           style: Theme.of(context)
               .textTheme

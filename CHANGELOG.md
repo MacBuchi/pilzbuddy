@@ -7,6 +7,28 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Zum Ausprobieren: die Pilzwetter-Ampel
+
+*9. August 2026 · Version 1.72.0*
+
+Im Profil gibt es einen neuen Schalter: **„Pilzwetter-Ampel
+(experimentell)"**. Eingeschaltet zeigt das Spot-Blatt (und „Was ist
+hier?") eine Einschätzung in Worten — **ungünstig, verhalten oder
+günstig** —, gerechnet aus dem Regen der letzten 26 Tage und der
+Temperatur der letzten 20 Tage, direkt auf deinem Gerät.
+
+- **Ehrlich bleibt sie:** Die Ampel bewertet die Wetter-**Bedingungen**,
+  nicht ob Pilze dastehen. Sie gilt nur für die sechs Arten, an denen
+  das Modell gerade geprüft wird (Steinpilz & Co.) — für alle anderen
+  sagt sie bewusst nichts. Und sie ist **unvalidiert**: Die Prüfung an
+  echten Funden läuft noch; fällt sie durch, verschwindet die Vorschau
+  wieder.
+- Daneben stehen die Fakten wie bisher: Regen, Temperatur und die
+  Saison der Art — die Saison fließt nicht in die Stufe ein.
+- Das Wetterdiagramm zeigt weiterhin 14 Tage; die zusätzlichen Tage
+  für die Ampel kommen mit den nächsten Daten-Updates automatisch
+  (die erste Wetter-Ladung wächst dadurch auf knapp 2 MB).
+
 ## Die Waldkarte kann feiner — wenn du willst
 
 *9. August 2026 · Version 1.71.0*

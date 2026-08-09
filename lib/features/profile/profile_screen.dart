@@ -22,6 +22,7 @@ import '../../core/widgets/mushroom_icon.dart';
 import '../../core/widgets/password_field.dart';
 import '../../data/providers.dart';
 import '../../models/find.dart';
+import '../ampel/ampel_providers.dart';
 import '../import_export/gpx_export.dart';
 import '../map/map_gestures.dart';
 import '../map/map_view/map_engine.dart';
@@ -178,6 +179,22 @@ class ProfileScreen extends ConsumerWidget {
             value: ref.watch(mapLongPressEnabledProvider),
             onChanged: (_) =>
                 ref.read(mapLongPressEnabledProvider.notifier).toggle(),
+          ),
+          // Experimentell und ab Werk aus (Betreiberentscheidung
+          // 2026-08-09): Die Ampel läuft parallel zu ihrer eigenen
+          // Validierung. Der Schalter ist zugleich der Notaus — fällt
+          // die Prüfung durch, verschwindet die Vorschau wieder.
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            secondary: const Icon(Icons.science_outlined),
+            title: const Text('Pilzwetter-Ampel (experimentell)'),
+            subtitle: const Text(
+                'Unvalidierte Vorschau: bewertet die Wetter-Bedingungen '
+                'für Steinpilz & Co. am Spot — nicht, ob dort Pilze '
+                'stehen. Die Prüfung an echten Funden läuft noch.'),
+            value: ref.watch(ampelPreviewEnabledProvider),
+            onChanged: (value) =>
+                ref.read(ampelPreviewEnabledProvider.notifier).set(value),
           ),
           ListTile(
             contentPadding: EdgeInsets.zero,
