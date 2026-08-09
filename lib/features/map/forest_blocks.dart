@@ -102,9 +102,9 @@ class ForestBlockCatalog {
   /// Lohnt die feine Stufe in diesem Ausschnitt überhaupt?
   ///
   /// Erst, wenn eine 100-m-Wabe im Bild mindestens [minHexPixels] breit
-  /// ist — nach dem Hochskalieren aufs Display ~5 Bildschirmpixel, also
-  /// tatsächlich als Wabe erkennbar. Das ist etwa ab 33 km
-  /// Sichtfensterbreite der Fall.
+  /// ist. Auf einem Hochkant-Schirm ist das etwa ab 4–5 km
+  /// Sichtfensterbreite der Fall (Maßstabsleiste um 1 km), quer oder auf
+  /// dem Tablet ab ~8 km.
   ///
   /// **Warum das eine Schranke braucht** (Rückfrage des Betreibers am
   /// 2026-08-09): Ohne sie hing das Nachladen allein am Schnitt mit dem
@@ -116,10 +116,18 @@ class ForestBlockCatalog {
   /// Daten sind erst dort eine Information, wo man sie sehen kann.
   bool paysOffIn(FillWindow window) => hexPixelsIn(window) >= minHexPixels;
 
-  /// Die Schwelle aus [paysOffIn]. Bewusst knapp über 2: Bei genau einem
-  /// Pixel je Wabe zeigt die feine Stufe dasselbe Bild wie die grobe,
-  /// nur mit vier Downloads davor.
-  static const minHexPixels = 2.5;
+  /// Die Schwelle aus [paysOffIn], in Bildpixeln je feiner Wabe.
+  ///
+  /// **10 und nicht knapp über 1** (Betreiber, 2026-08-09: „das kannst
+  /// du locker auf 10 Pixel aufweiten"): Sichtbar ist eine Wabe schon ab
+  /// zwei, aber sichtbar heißt nicht nützlich. Bei zwei Pixeln steht
+  /// neben ihr eine 250-m-Wabe aus dem Asset mit fünf — die feine Stufe
+  /// zeigt dort dasselbe Bild und kostet nur Downloads. Bei zehn
+  /// Bildpixeln (≈ 20–30 Bildschirmpixel) sieht man tatsächlich, was sie
+  /// besser weiß: den Laubstreifen am Bach, den Fichtenriegel im
+  /// Buchenhang. Das ist der Zoom, in dem jemand einen Waldrand
+  /// absucht — und genau dann darf sie kosten.
+  static const minHexPixels = 10.0;
 
   /// `null` bei allem, was dieser Stand der App nicht versteht — ein
   /// unbekanntes `lattice` heißt, der Katalog ist neuer als die App;

@@ -28,10 +28,11 @@ dreimal so aufwendig eingestellt, wie es sein musste. Das merkt man auch
 bei den Regen- und Ampel-Flächen.
 
 **Weniger Datenverbrauch bei den feinen Waben:** Die nachladbaren
-100-m-Waben kommen jetzt erst beim Hineinzoomen — dort, wo man sie
-überhaupt sehen kann. Wer mit eingeschalteter Feinstufe auf Deutschland
-herauszoomte, lud bisher nach und nach das ganze Gebiet nach (26 MB) für
-ein Bild, das von der eingebauten Karte nicht zu unterscheiden war.
+100-m-Waben kommen jetzt erst nah dran — etwa ab Maßstab 1 km, wo man
+sie auch wirklich sieht. Wer mit eingeschalteter Feinstufe auf
+Deutschland herauszoomte, lud bisher nach und nach das ganze Gebiet
+nach (26 MB) für ein Bild, das von der eingebauten Karte nicht zu
+unterscheiden war.
 
 ## Zum Ausprobieren: die Pilzwetter-Ampel
 

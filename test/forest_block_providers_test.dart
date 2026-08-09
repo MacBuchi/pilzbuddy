@@ -30,13 +30,16 @@ class _FixedWindow extends ForestFillWindowNotifier {
   FillWindow? build() => window;
 }
 
+// 72 px auf 0,024° Länge sind 12 Bildpixel je Test-Wabe (Schrittweite
+// 0,004°) — über der Schranke [ForestBlockCatalog.minHexPixels], die
+// feine Blöcke erst nah dran laden lässt.
 const _smallWindow = FillWindow(
     west: 10.0,
     east: 10.024,
     north: 49.999,
     south: 49.981,
-    width: 24,
-    height: 18);
+    width: 72,
+    height: 54);
 
 void main() {
   // Basis: 6×6 Nadel-Waben (Asset). Feine Stufe: dieselbe Box in
@@ -165,7 +168,7 @@ void main() {
     // Fenster: Rauszoomen auf Deutschland holte JEDEN Block (30 Stück,
     // ~26 MB) für ein Bild, in dem eine feine Wabe 0,06 px misst.
     //
-    // Dasselbe Fenster wie oben, nur zehnmal so weit: 0,4 statt 4 px je
+    // Dasselbe Fenster wie oben, nur zehnmal so weit: 0,4 statt 12 px je
     // Wabe.
     const wide = FillWindow(
         west: 10.0,
@@ -217,11 +220,21 @@ void main() {
     expect(catalog.paysOffIn(germany), isFalse);
     expect(catalog.hexPixelsIn(germany), lessThan(0.2));
 
-    // 40 km Fenster (plus Rand ⇒ 0,5° Spanne) auf voller Budget-Kante.
+    // Nahzoom, wie ihn jemand am Waldrand hat: ~8 km Sichtfenster plus
+    // Rand ⇒ 0,2° Spanne, volle Budget-Kante. 11,6 px je feiner Wabe.
     const close = FillWindow(
-        west: 10.0, east: 10.5, north: 50.2, south: 49.9,
+        west: 10.0, east: 10.2, north: 50.1, south: 49.98,
         width: 1536, height: 1180);
     expect(catalog.paysOffIn(close), isTrue);
+    expect(catalog.hexPixelsIn(close), greaterThan(10));
+
+    // Und die Stufe dazwischen, die vorher noch geladen hätte: 33 km
+    // Sichtfenster ⇒ 0,9° Spanne, knapp 2,6 px je Wabe. Sichtbar, aber
+    // neben einer 250-m-Wabe mit 6,5 px ohne Mehrwert.
+    const middle = FillWindow(
+        west: 10.0, east: 10.9, north: 50.5, south: 49.9,
+        width: 1536, height: 1180);
+    expect(catalog.paysOffIn(middle), isFalse);
   });
 
   test('ohne Zustimmung malt der Zeichner grob — wie bisher', () async {

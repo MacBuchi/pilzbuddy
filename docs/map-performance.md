@@ -353,12 +353,30 @@ eingeschalteter Feinstufe lagen im App-Verzeichnis:
 Für ein Bild, in dem eine feine Wabe 0,06 px misst und in derselben
 Deckung verschwindet, die das eingebaute 250-m-Asset ohnehin liefert.
 Seit 1.74.0 lädt `forestBlockSetProvider` nur noch, wenn
-`ForestBlockCatalog.paysOffIn(window)` gilt: mindestens **2,5 Bildpixel je
-feiner Wabe** (~5 Bildschirmpixel nach dem Hochskalieren), erreicht ab
-etwa 33 km Sichtfensterbreite. Dieselbe Strecke, erneut gemessen:
+`ForestBlockCatalog.paysOffIn(window)` gilt: mindestens **10 Bildpixel je
+feiner Wabe** (≈ 20–30 Bildschirmpixel), erreicht ab etwa 4–5 km
+Sichtfensterbreite hochkant (Maßstabsleiste um 1 km), quer ab ~8 km.
+Die Schwelle ist bewusst NICHT die Sichtbarkeitsgrenze: Bei zwei Pixeln
+je feiner Wabe steht daneben eine 250-m-Wabe mit fünf — dasselbe Bild,
+nur mit Downloads davor (Betreiber-Entscheidung 2026-08-09: „das kannst
+du locker auf 10 Pixel aufweiten"). Bei zehn Pixeln sieht man, was die
+feine Stufe besser weiß: den Laubstreifen am Bach, den Fichtenriegel im
+Buchenhang. Dieselbe Strecke, erneut gemessen:
 
-    3 Dateien, 2,0 MB   (Katalog + die zwei Blöcke unterm Nahzoom)
-    → nach dem Rauszoomen auf Deutschland: unverändert 3 / 2,0 MB
+    2 Dateien, 852 KB   (Katalog + der EINE Block unterm Nahzoom)
+    → nach dem Rauszoomen: unverändert
+
+Der Verlauf, am Emulator mitgeschrieben (Bildpixel je feiner Wabe und
+Blöcke, die das Fenster geschnitten hätte):
+
+| Fenster | px je Wabe | Blöcke im Fenster | geladen |
+|---|---|---|---|
+| 6,39° (Übersicht) | 0,19 | 16 (~14 MB) | nein |
+| 3,22° | 0,38 | 6 | nein |
+| 1,20° | 1,01 | 2 | nein |
+| 0,49° | 2,50 | 2 | nein |
+| 0,18° | 6,78 | 2 | nein |
+| 0,10° | 12,70 | 1 | **ja, 852 KB** |
 
 Der Katalog selbst darf weiterhin kommen — er ist die Antwort auf „lohnt
 es sich?" und kostet ein paar Kilobyte.
