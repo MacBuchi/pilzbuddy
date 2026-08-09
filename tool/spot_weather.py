@@ -4,7 +4,7 @@
 The rain course at a spot answers "how much"; this answers "how warm".
 Same rule as the rain grid: the app looks the value up ON THE DEVICE, so
 no coordinate ever reaches a weather service. Here that means shipping
-every station's last fourteen days — air maxima and minima from the `kl`
+every station's last twenty days — air maxima and minima from the `kl`
 network, soil means at 5 cm depth from the `EB` network — and letting the
 app pick the nearest one itself.
 
@@ -62,7 +62,10 @@ SOIL = {
     "columns": ("V_TE005M",),
 }
 
-DAYS = 14
+# 20 days since 2026-08-09 (was 14): the temperature window of the
+# validated Ampel model (20-day mean, docs/pilzampel-konzept.md). The
+# chart keeps drawing the last 14 days; the extra days feed the model.
+DAYS = 20
 MISSING = -999  # the DWD's own marker, in every numeric column
 
 
