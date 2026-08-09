@@ -14,6 +14,7 @@ import 'package:flutter/painting.dart' show Color;
 import '../../core/app_colors.dart';
 import 'forest_grid.dart';
 import 'overlay_png.dart';
+import 'rain_grid.dart' show latFromMercatorY, mercatorY;
 
 /// Deckkraft der Waldfläche, 0–255. Startwert = die 55 % des Regen-Fills
 /// (`rainFillAlpha`), am Gerät gegenzuprüfen — der Regen brauchte dafür
@@ -39,9 +40,26 @@ const allForestClasses = {
 /// Klassen werden durchsichtig wie „kein Wald". So bleibt neben der
 /// Regenfläche (#232) genau die Klasse stehen, die einen interessiert,
 /// statt dass die ganze Karte unter zwei Schleiern abstumpft.
+///
+/// **Die Zeilen des PNGs sind MERCATOR-verteilt, nicht grad-verteilt**
+/// (#247, seit 1.68.1): Beide Engines spannen ein Bild linear in
+/// Web-Mercator zwischen seine Eckpunkte — ein grad-lineares Bild stimmt
+/// dann nur am Nord- und Südrand und liegt in der Mitte der Box um bis zu
+/// ~26 km daneben. Genau davor warnt der Kopfkommentar in
+/// `forest_grid.dart` („linear in Breite UND Länge, anders als der
+/// Regen"); dieser Maler hat es ignoriert, und am Brocken zeigte die
+/// Fläche das Buchenland des Südharzes (Feldbericht 2026-08-09, mit
+/// Pixelfarben nachgemessen). Der Regen-Fill braucht keine Umrechnung,
+/// weil sein Gitter SELBST Mercator-Zeilen hat.
+///
+/// Je Ausgabezeile wird die Gitterzeile unter ihrer Breite gewählt
+/// (nearest) — die Werte sind Klassen, Mitteln wäre Datenerfindung.
+/// [outHeight] ist eine Testnaht; ohne Angabe bleibt die Zeilenzahl des
+/// Gitters (genau genug: Nachbarzeilen liegen 250 m auseinander).
 Uint8List forestFillPng(ForestGrid grid,
     {int alpha = forestFillAlpha,
-    Set<ForestClass> classes = allForestClasses}) {
+    Set<ForestClass> classes = allForestClasses,
+    int? outHeight}) {
   final width = grid.width;
   final height = grid.height;
   // Nachschlagetabelle wie beim Regen: Millionen Zellen, 256 Einträge.
@@ -69,11 +87,19 @@ Uint8List forestFillPng(ForestGrid grid,
     palette[offset + 3] = alpha;
   }
 
-  final raw = Uint8List(height * (width * 4 + 1));
+  final rows = outHeight ?? height;
+  final mercNorth = mercatorY(grid.north);
+  final mercSpan = mercatorY(grid.south) - mercNorth;
+  final raw = Uint8List(rows * (width * 4 + 1));
   var cursor = 0;
-  for (var y = 0; y < height; y++) {
+  for (var y = 0; y < rows; y++) {
     raw[cursor++] = 0; // Filter „None"
-    final row = y * width;
+    // Zeilenmitte in Mercator -> Breite -> Gitterzeile (nearest).
+    final lat = latFromMercatorY(mercNorth + (y + 0.5) / rows * mercSpan);
+    final gridY = ((grid.north - lat) / (grid.north - grid.south) * height)
+        .floor()
+        .clamp(0, height - 1);
+    final row = gridY * width;
     for (var x = 0; x < width; x++) {
       final offset = grid.values[row + x] * 4;
       raw[cursor++] = palette[offset];
@@ -83,5 +109,5 @@ Uint8List forestFillPng(ForestGrid grid,
     }
   }
 
-  return overlayPng(width, height, raw);
+  return overlayPng(width, rows, raw);
 }

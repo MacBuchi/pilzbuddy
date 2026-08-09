@@ -1,149 +1,59 @@
-# Rückwärtsvalidierung der Pilzampel — Methode
+# Rückwärtsvalidierung der Pilzampel
 
-Stand: 6. August 2026 · Werkzeug: `tool/ampel_validate.py` · Konzept:
-`docs/pilzampel-konzept.md` (Schritt 3)
+Stand: 2026-08-09 · Erzeugt von `tool/ampel_validate.py` · Konzept: `docs/pilzampel-konzept.md`
 
-Das Konzeptpapier stellt eine Bedingung vor die Ampel: **erst prüfen, ob sie
-etwas taugt.** Diese Seite beschreibt, wie geprüft wird und woran die Prüfung
-scheitern kann. **Die Ergebnisse erzeugt der Lauf** und schreibt sie über
-diese Datei — was hier steht, ist die Methode.
+Datenquellen: Fundmeldungen aus [GBIF](https://www.gbif.org) (nur CC0 1.0 und CC BY 4.0); Wetter-Rückrechnung mit Daten von [Open-Meteo](https://open-meteo.com) (CC BY 4.0, nicht-kommerzielle Nutzung — die Zusage dazu steht im README und im Konzeptpapier, entschieden 2026-08-08).
 
-> `python3 tool/ampel_validate.py --out docs/pilzampel-validierung.md`
+Die Bedingung aus dem Konzeptpapier, bevor eine Ampel gebaut wird:
+**Steht das Modell an Fundtagen höher als an zufälligen Tagen
+derselben Saison?** Diese Seite beantwortet das mit Zahlen.
 
-## Die Frage
+## Wie gemessen wurde
 
-Wörtlich aus dem Konzept: „Steht die Ampel an Fundtagen höher als an
-zufälligen Tagen derselben Saison? Wenn nicht, taugt das Modell nichts — und
-das merkt man **vor** dem Ausliefern."
+Zu jeder Fundmeldung aus GBIF (Deutschland, ab 2006, taggenau, Ortsgenauigkeit besser als 1000 m) wird ein **Vergleichstag** am selben Ort im selben Jahr gezogen, 14–45 Tage daneben. Für beide Tage rechnet dasselbe Wettermodell einen Wert:
 
-Genau daran ist das BMVI-Projekt Pilz4You gescheitert: Modell gebaut, App nie
-veröffentlicht, weil die Fundbeobachtungen als Zielgröße fehlten. Keiner der
-~45 recherchierten Dienste publiziert eine Validierung.
+- Niederschlag über 26 Tage kumuliert, ältere Tage schwächer gewichtet
+- Temperatur als Glocke um 13 °C (Mittel über 20 Tage)
 
-## Der Aufbau
+**Der Saisonfaktor geht NICHT ein.** Er stammt aus denselben GBIF-Daten (`docs/pilzampel-saisonkurven.md`); ihn mitzurechnen hieße, das Modell mit sich selbst zu bestätigen. Weil Fund- und Vergleichstag wenige Wochen auseinanderliegen, ist die Jahreszeit für beide praktisch gleich — übrig bleibt das Wetter.
 
-Zu jeder Fundmeldung wird ein **Vergleichstag** gezogen: gleicher Ort,
-gleiches Jahr, 14–45 Tage daneben. Für beide Tage rechnet dasselbe Modell
-einen Wert, und gezählt wird, wie oft der Fundtag vorn liegt (**AUC**;
-0,50 = zufällig).
+Die Kennzahl ist die **AUC**: Wie oft liegt der Fundtag über seinem Vergleichstag? 0,50 heißt zufällig, 1,00 hieße immer. Sie steht hier vor dem p-Wert, weil bei tausenden Paaren auch ein bedeutungsloser Unterschied „signifikant“ wird.
 
-Drei Dinge, die dieser Zuschnitt leistet:
+**Der Standort ist durch den Aufbau kontrolliert.** Fund- und Vergleichstag liegen am selben Ort — gleicher Wald, gleiche Baumart, gleicher Boden. Was einen Fichtenhang von einem Buchenhang unterscheidet, kann das Ergebnis also nicht beeinflussen; bei Holzbewohnern erklärt dieser Faktor sonst 56–59 % der Varianz (Alday/Karavani et al. 2017). Gefragt wird nur: Warum an DIESEM Tag und nicht drei Wochen später am selben Fleck?
 
-- **Der Standort kürzt sich heraus.** Beide Tage liegen am selben Fleck —
-  gleicher Wald, gleiche Baumart, gleicher Boden. Bei Holzbewohnern erklärt
-  dieser Faktor sonst 56–59 % der Varianz (Alday/Karavani et al. 2017). Die
-  Frage lautet nur noch: Warum an *diesem* Tag und nicht drei Wochen später?
-- **Die Jahreszeit kürzt sich heraus** — und damit der Zirkelschluss. Die
-  Saisonkurven (`docs/pilzampel-saisonkurven.md`) stammen selbst aus GBIF;
-  liefen sie hier mit, bestätigte sich das Modell selbst. Der Saisonfaktor
-  geht deshalb **nicht** ein.
-- **Der Mindestabstand von 14 Tagen** verhindert, dass sich die
-  26-Tage-Regenfenster zu stark überlappen. Zwei Tage, die fünf Tage
-  auseinanderliegen, teilen 21 von 26 Regentagen — man vergliche ein Wetter
-  mit sich selbst.
+## Placebo-Kontrolle: prüft die Methode
 
-### Das Modell
+Zwei Vergleichstage treten gegeneinander an — beide ohne Fund, beide nach derselben Vorschrift gezogen. **Hier muss 0,50 stehen.** Alles andere hieße, dass schon die Ziehung verzerrt (etwa weil ein späterer Tag im Jahr systematisch feuchter ist) — und dann wäre jede Zahl in den Tabellen darunter wertlos.
 
-Nach dem Konzeptpapier, kalibriert an den Bielefelder Zahlen (zehn Jahre
-nahezu tägliche Steinpilz-Erfassung): Niederschlag über **26 Tage**
-kumuliert (ältere Tage schwächer gewichtet), Temperatur als Glocke um
-**13 °C** über 20 Tage. Die Breite der Glocke (5 K) ist *gesetzt*, nicht
-gemessen — das Papier nennt einen Gipfel, keine Streuung.
+| Art | Paare | AUC (soll ≈ 0,50) |
+|---|--:|--:|
+| Steinpilz | 461 | 0.514 |
+| Maronenröhrling | 466 | 0.511 |
+| Pfifferling | 479 | 0.509 |
+| Birkenpilz | 472 | 0.468 |
+| Fichtenreizker | 456 | 0.568 |
+| Herbsttrompete | 276 | 0.475 |
+| Hallimasch | 439 | 0.503 |
+| Stockschwämmchen | 454 | 0.504 |
+| Austernseitling | 283 | 0.452 |
 
-### Zwei Kontrollen, die Verschiedenes prüfen
+## Mykorrhiza-Speisepilze — hier wird ein Effekt erwartet
 
-**Placebo — prüft die Methode.** Zwei fundlose Tage treten gegeneinander an,
-beide nach derselben Vorschrift gezogen. Hier *muss* 0,50 stehen. Alles
-andere hieße, dass schon die Ziehung verzerrt, und dann wäre jede andere
-Zahl wertlos.
+| Art | Paare | AUC | Befund | p |
+|---|--:|--:|---|--:|
+| Steinpilz | 497 | 0.738 | deutlich | 0.0005 |
+| Maronenröhrling | 495 | 0.729 | deutlich | 0.0005 |
+| Pfifferling | 490 | 0.561 | schwach | 0.0045 |
+| Birkenpilz | 499 | 0.727 | deutlich | 0.0005 |
+| Fichtenreizker | 489 | 0.716 | deutlich | 0.0005 |
+| Herbsttrompete | 296 | 0.655 | deutlich | 0.0005 |
 
-Der Anker ist dabei entscheidend: Der zweite Tag wird vom **ersten
-Vergleichstag** aus gezogen, nicht vom Fundtag. Zieht man beide vom selben
-Punkt, hebt sich eine einseitige Vorschrift symmetrisch auf und bleibt
-unentdeckt — während Fund- und Vergleichstag sehr wohl auseinanderlägen.
-(Genau so zuerst gebaut, beim Gegenprüfen aufgefallen.)
+## Arten-Kontrolle: Holzbewohner — hier darf DIESES Modell nicht passen
 
-**Arten-Kontrolle — prüft, ob das Modell artspezifisch wirkt.** Hallimasch,
-Stockschwämmchen, Austernseitling. **Nicht**, weil diese Arten kein Wetter
-spürten — der Austernseitling ist ein Kältefrüchter mit Gipfel im Dezember
-und reagiert sehr wohl, nur auf anderes. Geprüft wird enger: Dieses Modell,
-gebaut aus Steinpilz-Literatur, darf bei ihnen nicht passen. Ein Wert
-**unter** 0,50 ist deshalb kein Fehlschlag, sondern ein Beleg.
+**Nicht, weil sie kein Wetter spüren.** Der Austernseitling ist ein Kältefrüchter mit Gipfel im Dezember; er reagiert sehr wohl, nur auf anderes. Geprüft wird enger: Das hier gerechnete Modell — Glocke um 13 °C und 26-Tage-Regensumme, beides aus der Steinpilz-Literatur — darf bei ihnen nicht passen. Ein Wert **unter** 0,50 ist deshalb kein Fehlschlag, sondern ein Beleg: Das Modell wirkt artspezifisch und misst nicht bloß „im Herbst wird mehr gemeldet“.
 
-## Woher die Funde kommen — und woher nicht
-
-| Quelle | Menge (DE) | Ort | Datum | Verwendung |
-|---|---|---|---|---|
-| **GBIF** | 2487 allein Steinpilz ab 2006 | Median **250 m**, 238/281 unter 1 km | 300/300 taggenau | **Wetter-Validierung** |
-| Mushroom Observer | 2466 gesamt, aber **1–6 je Speisepilz-Art** | 0/100 mit Koordinate | taggenau | geprüft, **trägt nicht** |
-| pilzforum.eu | Freitext im Beitrag | Region | Posting- ≠ Funddatum | nicht verwendet |
-| 123pilzforum.de | — | — | — | **ClaudeBot in robots.txt gesperrt** |
-
-**Warum grobe Ortsangaben ausscheiden, gemessen:** Im DWD-Raster
-(RADOLAN-W4, 2347 Rasterpunkte in „Südwestdeutschland" — genau die
-Ortsangabe, die Mushroom Observer liefert) reicht die 30-Tage-Regensumme von
-14 mm (10 %) bis 82 mm (90 %), Faktor **5,9**, Spannweite bis 255 mm. Die
-Sammlerschwelle liegt bei ~100 mm. Der Unterschied zwischen Dürre und guten
-Bedingungen liegt vollständig *innerhalb* der Ortsangabe; als unabhängige
-Variable wäre sie Rauschen.
-
-**Und warum die Saison-Gegenprüfung an einer zweiten Population
-ausfällt:** Für den Monat genügte die grobe Ortsangabe — aber Mushroom
-Observer hat für unsere Speisepilze nur 1 bis 6 Meldungen je Art. Die 2466
-deutschen Beobachtungen verteilen sich auf hunderte Arten. Der Schalter
-`--crosscheck` bleibt im Werkzeug und meldet zu dünne Arten, die Idee
-braucht aber eine andere Quelle.
-
-## Zwei Fallen, beide beim Bauen eingetreten
-
-**1. Ein Rate-Limit, das stillschweigend Jahre verschluckt.** Open-Meteo
-gewichtet seine Aufrufe nach Orten × Variablen × Tagen. Alle Funde über die
-volle Saison wären ~22.600 Aufrufe bei einem Tageslimit von 10.000 — der
-erste Versuch lief mitten in der zweiten Art in ein hartes „try again
-tomorrow". Er schrieb trotzdem einen Bericht, auf **3 von 20 Jahren**, mit
-völlig plausiblen Zahlen (Steinpilz 0,627, p < 0,001). Niemand hätte ihnen
-angesehen, dass 85 % der Datenbasis fehlt.
-
-Daraus zwei Änderungen: Ein ausgefallenes Jahr **bricht den Lauf ab** statt
-übersprungen zu werden — Pilzjahre unterscheiden sich um den Faktor 10, ein
-fehlendes verschiebt jede Zahl. Und der Bedarf wurde zugeschnitten: 500
-Funde je Art (Zufallsstichprobe, fester Seed) über nur den gebrauchten
-Zeitraum, zusammen ~3.700 Aufrufe. Mehr braucht es nicht — der
-Standardfehler einer AUC liegt bei 500 Paaren um 0,02.
-
-**2. Ein Selbsttest, der sich selbst bestätigt.** Die Prüfung des
-Mindestabstands verglich gegen dieselbe Konstante, die sie absichern sollte,
-und ging deshalb auch bei einem Tag Abstand durch. Jetzt bindet sie die
-Anforderung (`CONTROL_MIN_GAP >= RAIN_WINDOW // 2`).
-
-## Was diese Validierung nicht kann
-
-- **Keine Negativbeispiele — noch nicht.** GBIF kennt „war da, nichts
-  gefunden" nicht, und dieser Test kennt es auch nicht: Er misst, ob
-  Fundtage wetterseitig *auffällig* sind — nicht, wie oft die Ampel
-  richtig liegt.
-  Die App sammelt seit **1.58.0** Leergänge (#211, `finds.blank`). Das
-  ändert am Werkzeug hier vorerst nichts, und zwar aus zwei Gründen:
-  1. **Das Prüfdesign passt nicht.** `validate_species` paart jeden Fund
-     mit einem *synthetischen* Kontrolltag am selben Ort
-     (`CONTROL_MIN_GAP` 14–45 Tage). Genau diese Paarung kürzt Standort
-     und Saison heraus. Ein echter Leergang ist ein anderes Ort-Tag-Paar
-     und passt nicht hinein — man bräuchte entweder Fund/Leergang am
-     **selben** Spot (selten) oder eine ungepaarte AUC, die beide
-     Kürzungen und damit das Anti-Zirkularitäts-Argument aufgibt.
-  2. **Die Menge fehlt.** Bei 500 Paaren liegt der AUC-Standardfehler bei
-     ~0,02; ein paar Dutzend Leergänge tragen keinen vergleichbaren
-     Befund. Erst wenn über eine ganze Saison dreistellig viele
-     zusammenkommen, lohnt ein zweiter, ungepaarter Test daneben — der
-     dann die andere Frage beantwortet: **wie oft die Ampel richtig
-     liegt.**
-  Bis dahin gilt: Die Daten entstehen, ausgewertet werden sie später.
-  Genau darum musste das Feature vor der Saison kommen und nicht nach
-  der Auswertung.
-- **Kein Waldtyp.** Der ist hier zwar herausgekürzt, aber er ist der zweite
-  Teil von #158 und für die Ampel selbst offen: Sie wird nie sagen können
-  „hier stehen Pilze", solange sie Nadel-, Laub- und Mischwald nicht
-  unterscheidet.
-- **Melde- statt Fruchtungstage.** GBIF kennt den Tag der Beobachtung. Ein
-  Pilz, der drei Tage vorher aufging, zählt als Fund des Tages, an dem
-  jemand vorbeikam.
+| Art | Paare | AUC | Befund | p |
+|---|--:|--:|---|--:|
+| Hallimasch | 491 | 0.735 | deutlich | 0.0005 |
+| Stockschwämmchen | 486 | 0.730 | deutlich | 0.0005 |
+| Austernseitling | 314 | 0.481 | kein Effekt | 0.7461 |
