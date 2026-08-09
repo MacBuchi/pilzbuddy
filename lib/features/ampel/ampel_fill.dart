@@ -10,14 +10,18 @@
 // bewährte Normalfall dieser Strecke, kein Fensterproblem wie beim
 // 100-m-Wald.
 //
-// **Farben = die der Stufen-Worte in der Sektion** (forestGreen /
-// forestBroadleaf), Deckkraft die der Regenfläche (140, gemessen in
-// 1.48.0). „Ungünstig" bleibt TRANSPARENT: Die Karte hebt hervor, wo
-// es sich lohnt, statt das Land braun zu färben — „keine Stufe heißt
-// aussichtslos" gilt auf der Karte wörtlich. forestGreen liegt seit
-// 1.46.0 auch in der Regen-Rampe auf der Karte; der eine bekannte
-// Reibungspunkt (Ampel-Ocker über Laubwald-Ocker, wenn beide Ebenen
-// liegen) steht im PR zur Betreiber-Abnahme.
+// **Farben aus einer wählbaren Familie** ([AmpelPalette]), Deckkraft die
+// der Regenfläche (140, gemessen in 1.48.0). Bis 1.74.0 lieh sich die
+// Fläche die Töne der Stufen-Worte (forestGreen / forestBroadleaf) —
+// und stand damit im selben Grün-Ocker wie die Waldebene, mit der man
+// sie kombinieren WILL: Über Laubwald war „verhalten" nicht mehr zu
+// erkennen (Betreiber-Rückmeldung zur 1.73.0). Seither bricht die
+// Ampel aus den Erdtönen aus; die Begründung je Familie steht an
+// [AmpelPalette].
+//
+// „Ungünstig" bleibt TRANSPARENT: Die Karte hebt hervor, wo es sich
+// lohnt, statt das Land braun zu färben — „keine Stufe heißt
+// aussichtslos" gilt auf der Karte wörtlich.
 import 'dart:typed_data';
 
 import 'package:flutter/painting.dart' show Color;
@@ -67,7 +71,8 @@ class AmpelFill {
 /// keine Ebene als eine mit still verschobenen Altersgewichten; ein
 /// DWD-Lückentag heilt sich am Folgetag von selbst).
 AmpelFill? ampelFillFrom(RainStackData stack, WeatherTable? table,
-    {int alpha = ampelFillAlpha}) {
+    {int alpha = ampelFillAlpha,
+    AmpelPalette palette = defaultAmpelPalette}) {
   final info = stack.info;
   final width = info.width;
   final height = info.height;
@@ -189,8 +194,8 @@ AmpelFill? ampelFillFrom(RainStackData stack, WeatherTable? table,
   // Einfärben: drei Stufen, „ungünstig" und alles Unbeantwortbare
   // transparent.
   Color colour(AmpelLevel level) => switch (level) {
-        AmpelLevel.guenstig => AppColors.forestGreen,
-        AmpelLevel.verhalten => AppColors.forestBroadleaf,
+        AmpelLevel.guenstig => palette.strong,
+        AmpelLevel.verhalten => palette.mild,
         AmpelLevel.unguenstig => const Color(0x00000000),
       };
   final raw = Uint8List(height * (width * 4 + 1));
