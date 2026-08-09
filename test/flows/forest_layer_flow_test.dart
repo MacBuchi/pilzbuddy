@@ -51,7 +51,7 @@ void main() {
     await tester.tap(find.byTooltip('Waldtypen'));
     await settle(tester);
     expect(find.text('Waldtypen einblenden'), findsOneWidget);
-    expect(find.textContaining('250-m-Raster'), findsOneWidget);
+    expect(find.textContaining('Waben ≈ 250 m'), findsOneWidget);
     expect(find.textContaining('Copernicus'), findsOneWidget);
 
     await tester.tap(find.text('Waldtypen einblenden'));

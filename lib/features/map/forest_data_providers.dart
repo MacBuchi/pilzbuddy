@@ -60,6 +60,12 @@ Future<ForestGrid?> _loadFromAssets() async {
 ForestGrid? _decode(({String manifest, Uint8List bytes}) input) {
   try {
     final manifest = jsonDecode(input.manifest) as Map<String, dynamic>;
+    // Nur bekannte Gitterformen: Ein unbekanntes `lattice` heißt, das
+    // Asset ist neuer als die App — dann lieber keine Ebene als eine
+    // falsch zugeordnete (Quadrat-Lesart auf Hex-Daten läge überall
+    // ein halbes Hex daneben, still).
+    final lattice = manifest['lattice'] as String?;
+    if (lattice != null && lattice != 'hex-odd-r') return null;
     return ForestGrid.decode(
       input.bytes,
       width: manifest['width'] as int,
@@ -69,6 +75,10 @@ ForestGrid? _decode(({String manifest, Uint8List bytes}) input) {
       north: (manifest['north'] as num).toDouble(),
       south: (manifest['south'] as num).toDouble(),
       referenceYear: manifest['reference_year'] as int,
+      hexLonStep:
+          lattice == null ? null : (manifest['hex_lon_step'] as num).toDouble(),
+      hexLatStep:
+          lattice == null ? null : (manifest['hex_lat_step'] as num).toDouble(),
     );
   } catch (_) {
     return null;

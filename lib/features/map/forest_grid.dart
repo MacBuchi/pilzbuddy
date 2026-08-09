@@ -43,6 +43,15 @@ const coniferAbove = 75;
 const broadleafBelow = 25;
 
 /// Ein ausgepacktes Waldgitter samt Ausdehnung.
+///
+/// Seit #251 wahlweise als HEX-Gitter (Spitze oben, odd-r): Das Manifest
+/// trägt dann `lattice: "hex-odd-r"` samt [hexLonStep] (Hexbreite in
+/// Grad Länge) und [hexLatStep] (Zeilenschritt in Grad Breite). Der
+/// Mittelpunkt von Hex (hx, hy):
+///   lon = west + hexLonStep · (hx + 0,5 + 0,5·(hy ungerade))
+///   lat = north − hexLatStep · (hy + 2/3)
+/// (2/3, weil der Umkreisradius R = Zeilenschritt/1,5 ist.) Die Bytes
+/// bleiben dieselben; nur die Zuordnung Punkt → Zelle ändert sich.
 class ForestGrid {
   const ForestGrid({
     required this.values,
@@ -53,6 +62,8 @@ class ForestGrid {
     required this.north,
     required this.south,
     required this.referenceYear,
+    this.hexLonStep,
+    this.hexLatStep,
   });
 
   /// `width * height` Bytes, zeilenweise von Nord nach Süd.
@@ -73,6 +84,51 @@ class ForestGrid {
   /// gesagt.
   final int referenceYear;
 
+  /// Hex-Geometrie (#251) — beide `null` beim Quadratgitter.
+  final double? hexLonStep;
+  final double? hexLatStep;
+
+  bool get isHex => hexLonStep != null && hexLatStep != null;
+
+  /// Das Hex unter einem Punkt: der NÄCHSTE Mittelpunkt, gemessen im
+  /// Raum, in dem die Hexe regelmäßig sind (Breite w, Zeilenschritt
+  /// 1,5·R — Verhältnis w : 1,5R = √3 : 1,5). Kandidaten sind die
+  /// Nachbarzeilen und -spalten der groben Schätzung, wie `hex_at` im
+  /// Werkzeug — die App MUSS dieselbe Zuordnung treffen wie der Bau,
+  /// sonst nennt „Wald hier" ein anderes Hex, als die Karte einfärbt.
+  (int, int)? hexCellAt(double lat, double lon) {
+    final lonStep = hexLonStep;
+    final latStep = hexLatStep;
+    if (lonStep == null || latStep == null) return null;
+    if (lon < west || lon > east || lat > north || lat < south) return null;
+    // In Hex-Einheiten: u in Breiten (Spalten), v in Zeilenschritten.
+    final u = (lon - west) / lonStep;
+    final v = (north - lat) / latStep;
+    // Rückverhältnis der Achsen im regelmäßigen Raum: eine Breite w
+    // entspricht √3·R, ein Zeilenschritt 1,5·R.
+    const uScale = 1.7320508075688772; // √3
+    const vScale = 1.5;
+    (int, int)? best;
+    double? bestD;
+    final hy0 = (v - 2 / 3).round();
+    for (var hy = hy0 - 1; hy <= hy0 + 1; hy++) {
+      if (hy < 0 || hy >= height) continue;
+      final odd = hy.isOdd ? 0.5 : 0.0;
+      final hx0 = (u - 0.5 - odd).round();
+      for (var hx = hx0 - 1; hx <= hx0 + 1; hx++) {
+        if (hx < 0 || hx >= width) continue;
+        final du = (u - (hx + 0.5 + odd)) * uScale;
+        final dv = (v - (hy + 2 / 3)) * vScale;
+        final d = du * du + dv * dv;
+        if (bestD == null || d < bestD) {
+          bestD = d;
+          best = (hx, hy);
+        }
+      }
+    }
+    return best;
+  }
+
   /// Packt aus, was `tool/forest_grid.py` geschrieben hat: gzip,
   /// darunter ein Zeilen-Delta. Das Delta wird JE ZEILE zurückgesetzt —
   /// dieselbe Kodierung wie beim Regen, derselbe Test-Fallstrick.
@@ -85,6 +141,8 @@ class ForestGrid {
     required double north,
     required double south,
     required int referenceYear,
+    double? hexLonStep,
+    double? hexLatStep,
   }) {
     final flat = GZipDecoder().decodeBytes(gzipped);
     if (flat.length != width * height) {
@@ -109,6 +167,8 @@ class ForestGrid {
       north: north,
       south: south,
       referenceYear: referenceYear,
+      hexLonStep: hexLonStep,
+      hexLatStep: hexLatStep,
     );
   }
 
@@ -121,25 +181,34 @@ class ForestGrid {
   /// Kilometer daneben — `test/forest_grid_test.dart` hält die beiden
   /// Rechnungen ausdrücklich auseinander.
   int? shareAt(double lat, double lon) {
+    final value = _byteAtPoint(lat, lon);
+    if (value == null || value == forestNoData || value == forestNoForest) {
+      return null;
+    }
+    return value - 1;
+  }
+
+  /// Der Rohwert unter einem Punkt — Quadrat- oder Hex-Zuordnung, je
+  /// nach Gitter. Die EINE Stelle, durch die alle Punktabfragen gehen.
+  int? _byteAtPoint(double lat, double lon) {
+    if (isHex) {
+      final cell = hexCellAt(lat, lon);
+      if (cell == null) return null;
+      return values[cell.$2 * width + cell.$1];
+    }
     if (lon < west || lon > east || lat > north || lat < south) return null;
     final x = ((lon - west) / (east - west) * width).floor();
     final y = ((north - lat) / (north - south) * height).floor();
     if (x < 0 || x >= width || y < 0 || y >= height) return null;
-    final value = values[y * width + x];
-    if (value == forestNoData || value == forestNoForest) return null;
-    return value - 1;
+    return values[y * width + x];
   }
 
   /// Die Klasse am Punkt — `null` außerhalb oder ohne Daten.
   /// [ForestClass.none] heißt ausdrücklich „hier steht kein Wald";
   /// das ist eine Aussage, kein Fehlen.
   ForestClass? classAt(double lat, double lon) {
-    if (lon < west || lon > east || lat > north || lat < south) return null;
-    final x = ((lon - west) / (east - west) * width).floor();
-    final y = ((north - lat) / (north - south) * height).floor();
-    if (x < 0 || x >= width || y < 0 || y >= height) return null;
-    final value = values[y * width + x];
-    if (value == forestNoData) return null;
+    final value = _byteAtPoint(lat, lon);
+    if (value == null || value == forestNoData) return null;
     return classOfByte(value);
   }
 
@@ -169,6 +238,9 @@ class ForestGrid {
   ({double? factor, double forestShare})? broadleafFactorAround(
       double lat, double lon,
       {double radiusMeters = crosshairRadiusMeters}) {
+    if (isHex) {
+      return _broadleafFactorAroundHex(lat, lon, radiusMeters);
+    }
     const metersPerDegree = 111320.0;
     final cellHeightMeters = (north - south) / height * metersPerDegree;
     final cellWidthMeters = (east - west) /
@@ -202,6 +274,57 @@ class ForestGrid {
             cellHeightMeters;
         if (dx * dx + dy * dy > radiusMeters * radiusMeters) continue;
         final value = values[y * width + x];
+        if (value == forestNoData) continue;
+        counted++;
+        if (value == forestNoForest) continue;
+        forest++;
+        broadleafSum += 1 - (value - 1) / 100;
+      }
+    }
+    if (counted == 0) return null;
+    return (
+      factor: forest == 0 ? null : broadleafSum / forest,
+      forestShare: forest / counted,
+    );
+  }
+}
+
+/// Hex-Fassung des Umkreises (#251): gezählt wird jedes Hex, dessen
+/// Mittelpunkt näher als Radius + Umkreisradius liegt — eine leichte
+/// Übernäherung an den Ecken statt exakter Sechseck-Kreis-Schnitt; sie
+/// ist monoton, symmetrisch und bei ~70 Hexen im Kilometer belanglos.
+extension on ForestGrid {
+  ({double? factor, double forestShare})? _broadleafFactorAroundHex(
+      double lat, double lon, double radiusMeters) {
+    final lonStep = hexLonStep!;
+    final latStep = hexLatStep!;
+    const metersPerDegree = 111320.0;
+    final rowMeters = latStep * metersPerDegree;
+    final colMeters =
+        lonStep * metersPerDegree * math.cos(lat * math.pi / 180);
+    if (rowMeters <= 0 || colMeters <= 0) return null;
+    // Umkreisradius R in Metern: Zeilenschritt = 1,5·R.
+    final hexR = rowMeters / 1.5;
+    final reach = radiusMeters + hexR;
+
+    final u = (lon - west) / lonStep;
+    final v = (north - lat) / latStep;
+    final spanRows = (reach / rowMeters).ceil() + 1;
+    final spanCols = (reach / colMeters).ceil() + 1;
+    var counted = 0;
+    var forest = 0;
+    var broadleafSum = 0.0;
+    for (var hy = (v - spanRows).floor(); hy <= (v + spanRows).ceil(); hy++) {
+      if (hy < 0 || hy >= height) continue;
+      final odd = hy.isOdd ? 0.5 : 0.0;
+      for (var hx = (u - spanCols).floor();
+          hx <= (u + spanCols).ceil();
+          hx++) {
+        if (hx < 0 || hx >= width) continue;
+        final dx = (u - (hx + 0.5 + odd)) * colMeters;
+        final dy = (v - (hy + 2 / 3)) * rowMeters;
+        if (dx * dx + dy * dy > reach * reach) continue;
+        final value = values[hy * width + hx];
         if (value == forestNoData) continue;
         counted++;
         if (value == forestNoForest) continue;
