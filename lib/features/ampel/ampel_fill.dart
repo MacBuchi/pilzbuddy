@@ -73,6 +73,34 @@ class AmpelFill {
 AmpelFill? ampelFillFrom(RainStackData stack, WeatherTable? table,
     {int alpha = ampelFillAlpha,
     AmpelPalette palette = defaultAmpelPalette}) {
+  final grid = ampelLevelsFrom(stack, table);
+  return grid == null
+      ? null
+      : ampelFillOfLevels(grid, palette: palette, alpha: alpha);
+}
+
+/// Dasselbe Bild aus einem fertigen Stufen-Gitter — der Weg der App:
+/// Die Stufen rechnet ein Isolate einmal, das Einfärben läuft danach je
+/// Farbwahl neu, ohne die 26 Gitter noch einmal auszupacken.
+AmpelFill ampelFillOfLevels(AmpelLevelGrid grid,
+        {AmpelPalette palette = defaultAmpelPalette,
+        int alpha = ampelFillAlpha}) =>
+    AmpelFill(
+      png: overlayPng(grid.width, grid.height, grid.paint(palette, alpha)),
+      west: grid.west,
+      east: grid.east,
+      north: grid.north,
+      south: grid.south,
+      newest: grid.newest,
+    );
+
+/// Dasselbe Ergebnis eine Stufe früher: die STUFE je Zelle, noch ohne
+/// Farbe. Zwei Kunden — die Fläche oben und die Kombi-Ebene „Wald +
+/// Pilzwetter" (dort fragt jede Waldwabe ihren Mittelpunkt ab).
+///
+/// `null` unter denselben Bedingungen wie die Fläche: kein lückenloses
+/// 26-Tage-Fenster, keine Stationstabelle.
+AmpelLevelGrid? ampelLevelsFrom(RainStackData stack, WeatherTable? table) {
   final info = stack.info;
   final width = info.width;
   final height = info.height;
@@ -191,48 +219,131 @@ AmpelFill? ampelFillFrom(RainStackData stack, WeatherTable? table,
     }
   }
 
-  // Einfärben: drei Stufen, „ungünstig" und alles Unbeantwortbare
-  // transparent.
-  Color colour(AmpelLevel level) => switch (level) {
-        AmpelLevel.guenstig => palette.strong,
-        AmpelLevel.verhalten => palette.mild,
-        AmpelLevel.unguenstig => const Color(0x00000000),
-      };
-  final raw = Uint8List(height * (width * 4 + 1));
-  var cursor = 0;
+  // Die Stufe je Zelle. 0 heißt „keine Aussage" — zu wenige Regentage
+  // oder keine Station in Reichweite; auf der Karte ist beides
+  // transparent, und in der Kombi-Ebene leuchtet dort nichts.
+  final levels = Uint8List(width * height);
   for (var y = 0; y < height; y++) {
-    raw[cursor++] = 0; // Filter „None"
     final blockRow = (y ~/ ampelTempBlockCells) * blocksX;
     for (var x = 0; x < width; x++) {
       final i = y * width + x;
       final block = blockRow + x ~/ ampelTempBlockCells;
-      if (known[i] < ampelMinRainDays || blockUsable[block] == 0) {
-        cursor += 4; // transparent — keine Aussage
-        continue;
-      }
-      final effective =
-          weighted[i] / weightsTotal * ampelRainWindow;
+      if (known[i] < ampelMinRainDays || blockUsable[block] == 0) continue;
+      final effective = weighted[i] / weightsTotal * ampelRainWindow;
       final rainFactor = effective >= ampelRainSaturationMm
           ? 1.0
           : effective / ampelRainSaturationMm;
-      final level = ampelLevelOf(rainFactor * blockFactor[block]);
-      final c = colour(level);
-      if (c.a == 0) {
-        cursor += 4;
-        continue;
-      }
-      raw[cursor++] = (c.r * 255).round();
-      raw[cursor++] = (c.g * 255).round();
-      raw[cursor++] = (c.b * 255).round();
-      raw[cursor++] = alpha;
+      levels[i] = ampelLevelOf(rainFactor * blockFactor[block]).index + 1;
     }
   }
-  return AmpelFill(
-    png: overlayPng(width, height, raw),
+  return AmpelLevelGrid(
+    levels: levels,
+    width: width,
+    height: height,
     west: info.west,
     east: info.east,
     north: info.north,
     south: info.south,
     newest: newest,
   );
+}
+
+/// Die Ampel-Stufen als Gitter — dieselbe Geometrie wie das
+/// Regen-Gitter, aus dem sie stammen (Mercator-Zeilen!).
+class AmpelLevelGrid {
+  const AmpelLevelGrid({
+    required this.levels,
+    required this.width,
+    required this.height,
+    required this.west,
+    required this.east,
+    required this.north,
+    required this.south,
+    required this.newest,
+  });
+
+  /// Je Zelle: 0 = keine Aussage, sonst `AmpelLevel.index + 1`.
+  final Uint8List levels;
+  final int width;
+  final int height;
+  final double west;
+  final double east;
+  final double north;
+  final double south;
+
+  /// Der jüngste Tag des Stapels — der „Stand" für Dateinamen.
+  final DateTime newest;
+
+  /// Die Stufe an einem Punkt — `null` außerhalb des Gitters oder wo es
+  /// keine Aussage gibt.
+  AmpelLevel? levelAt(double lat, double lon) {
+    final row = rowAt(lat);
+    final column = columnAt(lon);
+    if (row == null || column == null) return null;
+    return levelAtCell(row, column);
+  }
+
+  /// Die Gitterzeile zu einer Breite — `null` außerhalb.
+  ///
+  /// **Zeilen in MERCATOR**, wie beim Regen: In Grad gerechnet läge die
+  /// Zuordnung am Südrand um Kilometer daneben (dieselbe Falle wie
+  /// #247).
+  ///
+  /// Getrennt von [columnAt], weil die Kombi-Ebene über WABENZEILEN
+  /// läuft: Die Breite ist dort je Zeile konstant, die Länge ändert sich
+  /// je Wabe. So kostet die Zeile einmal zwei Logarithmen statt einmal
+  /// je Wabe — bei Millionen Waben ist das der Unterschied zwischen
+  /// „läuft" und „ruckelt".
+  int? rowAt(double lat) {
+    if (lat > north || lat < south) return null;
+    final top = mercatorY(north);
+    final fraction = (mercatorY(lat) - top) / (mercatorY(south) - top);
+    final row = (fraction * height).floor();
+    return row < 0 || row >= height ? null : row;
+  }
+
+  /// Die Gitterspalte zu einer Länge — `null` außerhalb.
+  int? columnAt(double lon) {
+    if (lon < west || lon > east) return null;
+    final column = ((lon - west) / (east - west) * width).floor();
+    return column < 0 || column >= width ? null : column;
+  }
+
+  /// Die Stufe einer Zelle — ohne Bereichsprüfung, wie [RainGrid.at].
+  AmpelLevel? levelAtCell(int row, int column) {
+    final value = levels[row * width + column];
+    return value == 0 ? null : AmpelLevel.values[value - 1];
+  }
+
+  /// Die Fläche als PNG-Scanlines: drei Stufen, „ungünstig" und alles
+  /// Unbeantwortbare transparent.
+  Uint8List paint(AmpelPalette palette, int alpha) {
+    Color colour(AmpelLevel level) => switch (level) {
+          AmpelLevel.guenstig => palette.strong,
+          AmpelLevel.verhalten => palette.mild,
+          AmpelLevel.unguenstig => const Color(0x00000000),
+        };
+    final raw = Uint8List(height * (width * 4 + 1));
+    var cursor = 0;
+    for (var y = 0; y < height; y++) {
+      raw[cursor++] = 0; // Filter „None"
+      for (var x = 0; x < width; x++) {
+        final value = levels[y * width + x];
+        if (value == 0) {
+          cursor += 4;
+          continue;
+        }
+        final c = colour(AmpelLevel.values[value - 1]);
+        if (c.a == 0) {
+          cursor += 4;
+          continue;
+        }
+        raw[cursor++] = (c.r * 255).round();
+        raw[cursor++] = (c.g * 255).round();
+        raw[cursor++] = (c.b * 255).round();
+        raw[cursor++] = alpha;
+      }
+    }
+    return raw;
+  }
 }

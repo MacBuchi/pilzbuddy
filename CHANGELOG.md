@@ -7,6 +7,32 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Wald und Pilzwetter in einem Bild
+
+*10. August 2026 · Version 1.76.0*
+
+Die eigentliche Frage beim Losfahren ist ja nicht „wo ist Wald" und auch
+nicht „wo ist gutes Wetter", sondern **wo ist beides**. Genau das kann
+die Karte jetzt: Im Regen-Blatt gibt es (bei eingeschalteter Vorschau)
+den Schalter **„Wald + Pilzwetter kombinieren"**.
+
+Dann zeigt die Karte die gewohnten Waldwaben — und lässt die **leuchten**,
+wo das Wetter gerade mitspielt: kräftig bei „günstig", schwächer bei
+„verhalten", in der Farbe, die du gewählt hast. Der übrige Wald bleibt
+sichtbar, nur zurückgenommen; sonst hätten die leuchtenden Waben keinen
+Zusammenhang, in dem man sie liest.
+
+- Es sind weiterhin **keine Spots von irgendwem** im Spiel — nur dein
+  Gerät, das Waldgitter und die Wetterdaten.
+- Waldwetter gibt es nur für Deutschland. Außerhalb bleibt der Wald
+  normal eingefärbt; „leuchtet nicht" heißt dort also weder schlecht
+  noch unbekannt.
+- Die Klassen-Auswahl gilt weiter: Wer nur Nadelwald einblendet, sieht
+  auch nur Nadelwald leuchten.
+- Kombi und reine Ampel-Fläche schließen sich gegenseitig aus, und die
+  Kombi schaltet die Waldebene mit ein — sie ist ja die Waldkarte in
+  anderen Farben.
+
 ## Die Pilzampel bekommt eigene Farben
 
 *9. August 2026 · Version 1.75.0*

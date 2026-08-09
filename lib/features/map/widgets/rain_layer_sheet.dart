@@ -5,6 +5,7 @@ import '../../../core/app_colors.dart';
 import '../../../core/settings.dart';
 import '../../ampel/ampel_map_providers.dart';
 import '../../ampel/ampel_providers.dart';
+import '../forest_data_providers.dart' show forestLayerEnabledProvider;
 import '../rain_data_providers.dart';
 import '../rain_fill.dart';
 import '../rain_layer.dart';
@@ -125,6 +126,9 @@ class _RainLayerSheet extends ConsumerWidget {
                         if (!value) return;
                         ref.read(rainLayerProvider.notifier).state =
                             RainLayer.off;
+                        ref
+                            .read(ampelForestCombinedProvider.notifier)
+                            .state = false;
                         // Dieselbe Zustimmung wie der Regen-Verlauf —
                         // EIN Angebot, kein zweiter Dialog: Die Fläche
                         // rechnet aus genau dem Stapel, den das
@@ -140,7 +144,40 @@ class _RainLayerSheet extends ConsumerWidget {
                         }
                       },
                     ),
-                    if (ref.watch(ampelLayerEnabledProvider))
+                    // Die zweite Frage der Ampel, und die eigentliche:
+                    // „Wo lohnt sich der WALD gerade?" Ein Modus der
+                    // Waldfläche, deshalb schaltet er sie mit ein und
+                    // die reine Ampel-Fläche aus.
+                    SwitchListTile(
+                      dense: true,
+                      title: const Text('Wald + Pilzwetter kombinieren'),
+                      subtitle: const Text(
+                          'Zeigt die Waldwaben — und lässt die leuchten, '
+                          'wo das Wetter gerade mitspielt. Waldwetter '
+                          'gibt es nur für Deutschland; außerhalb bleibt '
+                          'der Wald normal eingefärbt.'),
+                      value: ref.watch(ampelForestCombinedProvider),
+                      onChanged: (value) async {
+                        ref
+                            .read(ampelForestCombinedProvider.notifier)
+                            .state = value;
+                        if (!value) return;
+                        ref.read(forestLayerEnabledProvider.notifier).state =
+                            true;
+                        ref.read(ampelLayerEnabledProvider.notifier).state =
+                            false;
+                        if (!ref.read(rainCourseEnabledProvider)) {
+                          ref
+                              .read(rainCourseEnabledProvider.notifier)
+                              .state = true;
+                          await ref
+                              .read(settingsProvider)
+                              .setRainCourseEnabled(true);
+                        }
+                      },
+                    ),
+                    if (ref.watch(ampelLayerEnabledProvider) ||
+                        ref.watch(ampelForestCombinedProvider))
                       const _AmpelPaletteChips(),
                   ],
                   if (current != RainLayer.off) ...[

@@ -15,6 +15,8 @@ import 'package:pilzbuddy/core/settings.dart' show settingsProvider;
 import 'package:pilzbuddy/data/rain_grid_repository.dart';
 import 'package:pilzbuddy/features/ampel/ampel_map_providers.dart';
 import 'package:pilzbuddy/features/ampel/ampel_providers.dart';
+import 'package:pilzbuddy/features/map/forest_data_providers.dart'
+    show forestLayerEnabledProvider;
 import 'package:pilzbuddy/features/map/rain_data_providers.dart';
 import 'package:pilzbuddy/features/map/rain_layer.dart';
 import 'package:pilzbuddy/features/spots/widgets/weather_chart.dart';
@@ -246,10 +248,72 @@ void main() {
 
     // Eine Regenfläche wählen schaltet die Ampel aus — zwei
     // Deutungs-Flächen übereinander wären Matsch.
+    //
+    // Zurückgescrollt wird ausdrücklich: Das Blatt ist eine lazy Liste,
+    // und nach dem Weg zum Ampel-Schalter liegen die Regen-Einträge
+    // wieder über dem sichtbaren Bereich (also außerhalb des Baums).
+    await tester.scrollUntilVisible(find.text('Letzte 30 Tage'), -120,
+        scrollable: find
+            .descendant(
+                of: find.byType(BottomSheet),
+                matching: find.byType(Scrollable))
+            .first);
+    await settle(tester);
     await tester.tap(find.text('Letzte 30 Tage'));
     await settle(tester);
     expect(container.read(rainLayerProvider), RainLayer.last30d);
     expect(container.read(ampelLayerEnabledProvider), isFalse);
+  });
+
+  testWidgets('Kombi „Wald + Pilzwetter": schaltet den Wald ein, die '
+      'Ampel-Fläche aus — und umgekehrt', (tester) async {
+    // Die Kombi ist ein MODUS der Waldfläche, kein zweites Bild. Wer
+    // beide Flächen gleichzeitig zuließe, malte den Wald doppelt.
+    final settings = FakeSettings(ampelPreviewEnabled: true);
+    final backend = FakeBackend();
+    backend.signInAs(backend.addUser(username: 'testpilz').id);
+    await pumpApp(tester, backend, settings: settings);
+
+    await tester.tap(find.byTooltip('Regen'));
+    await settle(tester);
+    final scrollable = find
+        .descendant(
+            of: find.byType(BottomSheet), matching: find.byType(Scrollable))
+        .first;
+
+    // Erst die reine Ampel-Fläche …
+    final ampel = find.text('Pilzwetter-Ampel (experimentell)');
+    await tester.scrollUntilVisible(ampel, 120, scrollable: scrollable);
+    await settle(tester);
+    await tester.tap(ampel);
+    await settle(tester);
+
+    final container = ProviderScope.containerOf(
+        tester.element(find.byType(Scaffold).first));
+    expect(container.read(ampelLayerEnabledProvider), isTrue);
+
+    // … dann die Kombi: Wald an, Ampel-Fläche aus.
+    final kombi = find.text('Wald + Pilzwetter kombinieren');
+    await tester.scrollUntilVisible(kombi, 120, scrollable: scrollable);
+    await settle(tester);
+    await tester.tap(kombi);
+    await settle(tester);
+
+    expect(container.read(ampelForestCombinedProvider), isTrue);
+    expect(container.read(forestLayerEnabledProvider), isTrue,
+        reason: 'die Kombi IST die Waldfläche — ohne sie malt sie nichts');
+    expect(container.read(ampelLayerEnabledProvider), isFalse,
+        reason: 'zwei Deutungs-Flächen übereinander wären Matsch');
+    expect(settings.rainCourseEnabled, isTrue,
+        reason: 'dieselbe Zustimmung wie überall beim Wetter');
+
+    // Und zurück: Die Ampel-Fläche wählen nimmt die Kombi weg.
+    await tester.scrollUntilVisible(ampel, -120, scrollable: scrollable);
+    await settle(tester);
+    await tester.tap(ampel);
+    await settle(tester);
+    expect(container.read(ampelLayerEnabledProvider), isTrue);
+    expect(container.read(ampelForestCombinedProvider), isFalse);
   });
 
   testWidgets('die Farbfamilie lässt sich wählen und wird gemerkt',

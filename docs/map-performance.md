@@ -335,7 +335,9 @@ Zwei Erkenntnisse daraus, beide gegen die Intuition:
 
 Neuer Puffer: drei `Uint16`-Deckungsbänder je Pixel, **14 MB beim
 größten Fenster** (1536² × 3 × 2 B) zusätzlich zum RGBA-Raster von
-9,4 MB — beides kurzlebig im `compute`-Isolat. `Float32` wäre 28 MB und
+9,4 MB — beides kurzlebig im `compute`-Isolat. Die Kombi-Ebene „Wald +
+Pilzwetter" (1.76.0) hängt zwei Leuchtbänder an: fünf statt drei, also
+**23 MB** — nur solange sie eingeschaltet ist. `Float32` wäre 28 MB und
 brächte nichts: Selbst im Übersichtszoom, wo sieben Waben in einem Pixel
 liegen, trägt jede noch ~130 der 1024 Einheiten bei.
 

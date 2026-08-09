@@ -17,6 +17,33 @@ import 'ampel_providers.dart';
 /// gewählt wird (zwei Flächen übereinander wären Matsch).
 final ampelLayerEnabledProvider = StateProvider<bool>((ref) => false);
 
+/// Liegt die KOMBI-Ebene „Wald + Pilzwetter" (Betreiber-Wunsch
+/// 2026-08-09)? Session-lokal wie die Ebenen-Schalter daneben.
+///
+/// Sie ist kein zweites Bild, sondern ein MODUS der Waldfläche: Die
+/// Waben leuchten dort, wo das Wetter stimmt. Deshalb schaltet sie im
+/// Blatt die Waldebene mit ein und die reine Ampel-Fläche aus — zwei
+/// Deutungs-Flächen übereinander wären wieder Matsch.
+final ampelForestCombinedProvider = StateProvider<bool>((ref) => false);
+
+/// Die Ampel-Stufen je Zelle — die gemeinsame Rechnung der Fläche und
+/// der Kombi-Ebene. Bewusst OHNE den Ebenen-Schalter in der Bedingung:
+/// Beide Kunden hängen daran, und wer nur die Kombi anschaltet, braucht
+/// dieselben Zahlen.
+final ampelLevelGridProvider = FutureProvider<AmpelLevelGrid?>((ref) async {
+  if (!ref.watch(ampelPreviewEnabledProvider)) return null;
+  // Beide Watches VOR den Awaits — die Riverpod-Lehre aus #255/#257.
+  final stackFuture = ref.watch(rainStackProvider.future);
+  final tableFuture = ref.watch(weatherTableProvider.future);
+  final stack = await stackFuture;
+  if (stack == null) return null;
+  final table = await tableFuture;
+  return compute(_levels, (stack: stack, table: table));
+});
+
+AmpelLevelGrid? _levels(({RainStackData stack, WeatherTable? table}) input) =>
+    ampelLevelsFrom(input.stack, input.table);
+
 /// Die gerechnete Fläche — im Isolate: 26 Gitter auspacken und 550 000
 /// Zellen einfärben ist Rechenzeit im Kartenpfad (#151 lässt grüßen).
 ///
@@ -24,23 +51,16 @@ final ampelLayerEnabledProvider = StateProvider<bool>((ref) => false);
 /// nicht tief genug (erst nach dem 26-Tage-Update, #256) oder keine
 /// Stationstabelle. Das Regen-Blatt erklärt den häufigsten Fall.
 final ampelFillProvider = FutureProvider<AmpelFill?>((ref) async {
-  if (!ref.watch(ampelPreviewEnabledProvider)) return null;
   if (!ref.watch(ampelLayerEnabledProvider)) return null;
   // ALLE Watches VOR den Awaits — die Riverpod-Lehre aus #255/#257.
   final palette = ref.watch(ampelPaletteProvider);
-  final stackFuture = ref.watch(rainStackProvider.future);
-  final tableFuture = ref.watch(weatherTableProvider.future);
-  final stack = await stackFuture;
-  if (stack == null) return null;
-  final table = await tableFuture;
-  return compute(
-      _fill, (stack: stack, table: table, palette: palette));
+  final grid = await ref.watch(ampelLevelGridProvider.future);
+  if (grid == null) return null;
+  return compute(_fill, (grid: grid, palette: palette));
 });
 
-AmpelFill? _fill(
-        ({RainStackData stack, WeatherTable? table, AmpelPalette palette})
-            input) =>
-    ampelFillFrom(input.stack, input.table, palette: input.palette);
+AmpelFill _fill(({AmpelLevelGrid grid, AmpelPalette palette}) input) =>
+    ampelFillOfLevels(input.grid, palette: input.palette);
 
 /// Dieselbe Fläche als Datei — der MapLibre-Weg (`image`-Quelle nimmt
 /// eine URL). Der jüngste Stapel-Tag ist der Stand im Dateinamen;
