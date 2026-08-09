@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../spots/widgets/ampel_section.dart';
 import '../../spots/widgets/spot_forest_section.dart';
 import '../../spots/widgets/spot_rain_section.dart';
 import '../forest_block_providers.dart';
@@ -80,6 +81,9 @@ class _HereSheet extends ConsumerWidget {
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ),
+              // Ohne Art: die Gilden-Frage „Steinpilz & Co." — nur
+              // hinter dem Experimentell-Schalter.
+              AmpelSection(lat: point.latitude, lon: point.longitude),
               SpotRainSection(lat: point.latitude, lon: point.longitude),
               SizedBox(height: MediaQuery.of(context).viewPadding.bottom),
             ],

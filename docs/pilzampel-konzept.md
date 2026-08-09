@@ -310,6 +310,20 @@ Was die recherchierten Dienste vorbildlich machen und was schiefgeht:
    Bewertung (`docs/pilzampel-saisonkurven.md`). Sie vorzuziehen war
    möglich, weil sie keine Modellannahme enthalten: Sie sagen, wann eine
    Art gemeldet wurde, nicht ob heute etwas wächst.
+
+   **Angepasst am 2026-08-09 (Betreiberentscheidung):** B existiert ab
+   1.72.0 als **experimentelle Vorschau** hinter einem ab Werk
+   ausgeschalteten Profil-Schalter, PARALLEL zur laufenden Validierung
+   (die 2000er-Placebo-Prüfung läuft mehrtägig). Begründung des
+   Betreibers: ein Entwicklungsfeature, das danebenliegen darf — man
+   lernt damit. Die Leitplanken bleiben unverändert: Der Modellkern ist
+   EINE austauschbare Datei (`lib/features/ampel/ampel_model.dart`,
+   Zahl für Zahl der Spiegel des Validierungswerkzeugs, per Fixtures
+   festgenagelt), nur die sechs validierten Mykorrhiza-Herbstarten
+   bekommen eine Stufe, die „Ehrlichkeit im UI"-Regeln unten stehen
+   als Tests — und **die Validierung behält das letzte Wort**: Fällt
+   das Placebo durch, wird der Kern getauscht oder die Vorschau
+   entfernt; der Schalter existiert genau dafür.
 5. **Waldtyp** (zweiter Teil von #158) — ~~bewusst zurückgestellt~~
    **Stufe 1 gebaut** (2026-08-07, #213, ab 1.62.0): Laub/Misch/Nadel für
    DACH als 250-m-Gitter aus dem Copernicus-HRL „Dominant Leaf Type"

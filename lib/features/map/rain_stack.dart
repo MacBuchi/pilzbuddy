@@ -30,6 +30,15 @@ class RainCourse {
 
   bool get isEmpty => days.isEmpty;
 
+  /// Die letzten [count] Tage als eigener Verlauf. Seit der Stapel die
+  /// 26 Ampel-Tage trägt (#256), bleibt die ANZEIGE trotzdem beim
+  /// gewohnten 14-Tage-Fenster — 26 Balken auf Handybreite wären
+  /// Streichhölzer; die zusätzlichen Tage füttern das Modell, nicht
+  /// das Auge.
+  RainCourse lastDays(int count) => days.length <= count
+      ? this
+      : RainCourse(days.sublist(days.length - count));
+
   /// Der jüngste Tag, den der Verlauf kennt. Das ist **gestern**, nicht
   /// heute: Das DWD-Tagesprodukt summiert abgeschlossene Tage.
   DateTime? get newest => days.isEmpty ? null : days.last.date;
