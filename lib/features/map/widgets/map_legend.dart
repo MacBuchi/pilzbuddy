@@ -268,8 +268,12 @@ class _ForestSection extends StatelessWidget {
         Text(
           switch (around) {
             null => 'Waldtypen',
-            (factor: null, forestShare: _) => 'Waldtypen · hier kein Wald',
-            (:final factor?, :final forestShare) => 'Waldtypen · Laubfaktor '
+            (factor: null, forestShare: _) => 'Waldtypen · 1 km: kein Wald',
+            // Der Umkreis steht dabei: „Laubfaktor 0,43" ohne Bezugsgröße
+            // liest sich wie eine Aussage über den Punkt unter dem
+            // Fadenkreuz — gemeint ist die Umgebung.
+            (:final factor?, :final forestShare) => 'Waldtypen · 1 km: '
+                'Laubfaktor '
                 '${factor.toStringAsFixed(2).replaceAll('.', ',')}'
                 ' · Wald ${(forestShare * 100).round()} %',
           },

@@ -162,10 +162,10 @@ class ForestGrid {
   /// dort gar keine Daten liegen (außerhalb DACH, Gitterrand).
   ///
   /// Gezählt wird jede Zelle, deren FLÄCHE den Kreis schneidet — nicht
-  /// nur die, deren Mittelpunkt hineinfällt: Bei 250-m-Zellen und
-  /// 200 m Radius wäre das sonst oft eine einzige Zelle, und der
-  /// „Umkreis" stünde nur auf dem Papier. Gerechnet lokal flach in
-  /// Metern; auf 200 m ist die Erdkrümmung kein Argument.
+  /// nur die, deren Mittelpunkt hineinfällt: Bei 250-m-Zellen und einem
+  /// kleinen Radius wäre das sonst eine einzige Zelle, und der „Umkreis"
+  /// stünde nur auf dem Papier. Gerechnet lokal flach in Metern; auf dem
+  /// Kilometer, um den es geht, ist die Erdkrümmung kein Argument.
   ({double? factor, double forestShare})? broadleafFactorAround(
       double lat, double lon,
       {double radiusMeters = crosshairRadiusMeters}) {
@@ -218,8 +218,23 @@ class ForestGrid {
 }
 
 /// Der Umkreis der Fadenkreuz-Werte (#235). Fest statt einstellbar —
-/// ein Regler kommt erst, wenn das Feld zeigt, dass 200 m nicht passen.
-const crosshairRadiusMeters = 200.0;
+/// ein Regler kommt erst, wenn das Feld zeigt, dass dieser Wert nicht
+/// passt.
+///
+/// **1 km, seit 1.67.0 — die ersten 200 m waren zu klein für dieses
+/// Gitter.** Eine Zelle ist ~250 m breit (nachgemessen am echten Asset:
+/// 225 m bei 55°N, 272 m bei 46°N, 251 m hoch überall), der Radius war
+/// also KLEINER als die Zelle, auf der er stand. Gezählt wurden dadurch
+/// vier bis sechs Zellen — ein „Umkreis", der zu drei Vierteln aus der
+/// eigenen Zelle und einer Handvoll Nachbarn bestand und beim Schieben
+/// der Karte sprang. Gemessen am selben Punkt im Spessart: 0,72 auf
+/// 200 m, 0,43 auf 1 km; der Waldanteil an der Kartenmitte fiel von
+/// „50 %" (2 von 4 Zellen) auf ehrliche 16 %.
+///
+/// 1 km fasst 64–72 Zellen (~4 km²) und ist damit groß gegen die Zelle,
+/// statt von ihr beherrscht zu werden. Das ist auch die Größenordnung,
+/// in der sich ein Sammler bewegt, wenn er „hier ist Laubwald" sagt.
+const crosshairRadiusMeters = 1000.0;
 
 /// Byte → Klasse, die EINE Stelle für die Schwellen.
 ForestClass classOfByte(int value) {

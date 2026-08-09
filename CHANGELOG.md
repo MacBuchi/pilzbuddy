@@ -7,6 +7,18 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Der Laubfaktor misst jetzt einen Kilometer
+
+*9. August 2026 · Version 1.67.0*
+
+Der Wert in der Wald-Legende schaute bisher nur 200 Meter weit um das
+Fadenkreuz — bei Kacheln von rund 250 Metern Kantenlänge war der Umkreis
+also kleiner als ein einziges Kästchen. Herausgekommen sind vier bis sechs
+Kästchen, und der Wert sprang beim Schieben der Karte.
+
+Jetzt zählt der Kilometer ringsum, also rund 70 Kästchen. Die Legende
+schreibt die Reichweite dazu, damit klar ist, worüber die Zahl redet.
+
 ## Funde lassen sich korrigieren
 
 *8. August 2026 · Version 1.66.0*
