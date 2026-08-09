@@ -35,6 +35,7 @@ ForestGrid forestOf(List<List<int>> rows,
         referenceYear: 2021);
 
 void main() {
+  hexTests();
   group('decode', () {
     test('Roundtrip mit Zeilen, die verschieden anfangen', () {
       // Fängt ein Delta, das nicht je Zeile zurückgesetzt wird — die
@@ -259,6 +260,77 @@ void main() {
       ]).broadleafFactorAround(centerLat, centerLon);
       expect(result!.factor, 1.0);
       expect(result.forestShare, closeTo(4 / 9, 1e-9));
+    });
+  });
+}
+
+/// Hex-Gitter (#251): 4 Spalten × 4 Zeilen über einem kleinen Kasten.
+/// lon_step 0,004°, lat_step 0,003° (Verhältnis w : 1,5R wie im Werkzeug
+/// nicht nötig — die Zuordnung rechnet in Einheiten der Schritte).
+ForestGrid hexOf(List<List<int>> rows) => ForestGrid.decode(
+      encodeForest(rows),
+      width: rows.first.length,
+      height: rows.length,
+      west: 10,
+      east: 10 + 0.004 * (rows.first.length + 0.5),
+      north: 50,
+      south: 50 - 0.003 * (rows.length + 1),
+      referenceYear: 2024,
+      hexLonStep: 0.004,
+      hexLatStep: 0.003,
+    );
+
+void hexTests() {
+  group('Hex-Gitter (#251)', () {
+    final grid = hexOf([
+      [1, 11, 21, 31],
+      [41, 51, 61, 71],
+      [81, 91, 96, 101],
+      [1, 1, 1, 1],
+    ]);
+
+    test('jeder Hex-Mittelpunkt findet sich selbst', () {
+      for (var hy = 0; hy < 4; hy++) {
+        final odd = hy.isOdd ? 0.5 : 0.0;
+        for (var hx = 0; hx < 4; hx++) {
+          final lon = 10 + 0.004 * (hx + 0.5 + odd);
+          final lat = 50 - 0.003 * (hy + 2 / 3);
+          expect(grid.hexCellAt(lat, lon), (hx, hy),
+              reason: 'Mittelpunkt von ($hx,$hy)');
+        }
+      }
+    });
+
+    test('der Zeilenversatz entscheidet — wer ihn weglässt, greift daneben',
+        () {
+      // Punkt bei u=2,05 in Zeilennähe von Zeile 1: MIT odd-r-Versatz
+      // liegt deren Hex (1,1) bei u=2,0 direkt daneben; eine
+      // versatzlose Zuordnung hielte Spalte 2 (u=2,5) für den
+      // Nachbarn und griffe ein Hex daneben.
+      final lat = 50 - 0.003 * 1.4;
+      final lon = 10 + 0.004 * 2.05;
+      expect(grid.hexCellAt(lat, lon), (1, 1),
+          reason: 'mit Versatz ist (1,1) bei u=2,0 der nächste '
+              'Mittelpunkt — versatzlos wäre es Spalte 2');
+    });
+
+    test('shareAt/classAt gehen durch die Hex-Zuordnung', () {
+      // Mittelpunkt von (2,2): Byte 96 → 95 % Nadel.
+      final lat = 50 - 0.003 * (2 + 2 / 3);
+      final lon = 10 + 0.004 * 2.5;
+      expect(grid.shareAt(lat, lon), 95);
+      expect(grid.classAt(lat, lon), ForestClass.conifer);
+    });
+
+    test('der Laubfaktor zählt Hexe im Umkreis', () {
+      final uniform = hexOf([
+        for (var y = 0; y < 4; y++) [51, 51, 51, 51], // 50 % Nadel überall
+      ]);
+      final r = uniform.broadleafFactorAround(50 - 0.003 * 2, 10 + 0.008,
+          radiusMeters: 400);
+      expect(r, isNotNull);
+      expect(r!.factor, closeTo(0.5, 1e-9));
+      expect(r.forestShare, 1.0);
     });
   });
 }
