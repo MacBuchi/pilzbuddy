@@ -6,12 +6,13 @@ import 'package:pilzbuddy/core/app_colors.dart';
 import 'package:pilzbuddy/features/map/forest_data_providers.dart'
     show forestFillStamp;
 import 'package:pilzbuddy/features/map/forest_fill.dart';
-import 'package:pilzbuddy/features/map/forest_grid.dart' show ForestClass;
+import 'package:pilzbuddy/features/map/forest_grid.dart'
+    show ForestClass, ForestGrid;
 
 import 'package:pilzbuddy/features/map/forest_fill_window.dart';
 import 'package:pilzbuddy/features/map/rain_grid.dart' show mercatorY;
 
-import 'forest_grid_test.dart' show forestOf;
+import 'forest_grid_test.dart' show encodeForest, forestOf;
 import 'rain_fill_test.dart' show decodePng;
 
 int _r(int byte) => byte;
@@ -174,5 +175,69 @@ void main() {
     for (var i = 3; i < png.pixels.length; i += 4) {
       expect(png.pixels[i], 0);
     }
+  });
+
+
+  test('Hex-Gitter wird als Sechsecke gemalt (#251)', () {
+    // 3×3-Hexe: Mitte Laub (1), Rest Nadel (96), eine Ecke kein Wald.
+    // Fenster = ganze Box; je Hex prüft der Test die Farbe unter seinem
+    // MITTELPUNKT — dort ist jede Zellform eindeutig.
+    final grid = ForestGrid.decode(
+      encodeForest([
+        [96, 96, 96],
+        [96, 1, 0],
+        [96, 96, 96],
+      ]),
+      width: 3,
+      height: 3,
+      west: 10,
+      east: 10 + 0.004 * 3.5,
+      north: 50,
+      south: 50 - 0.003 * 4,
+      referenceYear: 2024,
+      hexLonStep: 0.004,
+      hexLatStep: 0.003,
+    );
+    const window = FillWindow(
+        west: 10, east: 10.014, north: 50, south: 49.988,
+        width: 140, height: 120);
+    final png = decodePng(forestFillPng(grid, window: window));
+
+    ({int r, int a}) at(double lat, double lon) {
+      final x = ((lon - window.west) / (window.east - window.west) *
+              window.width)
+          .floor();
+      final f = (mercatorY(window.north) - mercatorY(lat)) /
+          (mercatorY(window.north) - mercatorY(window.south));
+      final y = (f * window.height).floor();
+      final o = (y * png.width + x) * 4;
+      return (r: png.pixels[o], a: png.pixels[o + 3]);
+    }
+
+    double latOf(int hy) => 50 - 0.003 * (hy + 2 / 3);
+    double lonOf(int hx, int hy) =>
+        10 + 0.004 * (hx + 0.5 + (hy.isOdd ? 0.5 : 0.0));
+
+    // Mittelpunkt (1,1) = Laub — MIT dem odd-r-Versatz; ohne ihn läge
+    // dieser Punkt im Nadel-Nachbarn und der Test wäre rot.
+    expect(at(latOf(1), lonOf(1, 1)).r,
+        (AppColors.forestBroadleaf.r * 255).round());
+    expect(at(latOf(0), lonOf(0, 0)).r,
+        (AppColors.forestConifer.r * 255).round());
+    expect(at(latOf(1), lonOf(2, 1)).a, 0,
+        reason: '„kein Wald" bleibt durchsichtig');
+    // Die SECHSECK-Form selbst: Auf Mittelhöhe reicht die Wabe fast
+    // eine halbe Breite nach rechts (Laub); auf 80 % des Umkreisradius
+    // darüber ist sie an derselben x-Stelle schon verjüngt — dort malt
+    // die NACHBARZEILE (Nadel). Ein Rechteck-Zeichner malte an beiden
+    // Punkten dieselbe Farbe, und dieser Test wäre rot.
+    const rDeg = 0.003 / 1.5;
+    final xOff = 0.004 * 0.45;
+    expect(at(latOf(1), lonOf(1, 1) + xOff).r,
+        (AppColors.forestBroadleaf.r * 255).round(),
+        reason: 'Mittelband: volle Halbbreite');
+    expect(at(latOf(1) + 0.8 * rDeg, lonOf(1, 1) + xOff).r,
+        (AppColors.forestConifer.r * 255).round(),
+        reason: 'an der Spitze verjüngt — hier zeichnet schon Zeile 0');
   });
 }

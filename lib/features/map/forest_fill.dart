@@ -7,6 +7,7 @@
 // einzelner Zellen verschwinden — Wald hat keine Linien, und eine
 // 250-m-Zelle Laubwald im Fichtenhang ist keine Störung, sondern genau
 // die Information, nach der jemand sucht. Die Klötzchen sind die Daten.
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/painting.dart' show Color;
@@ -103,6 +104,11 @@ Uint8List forestFillPng(ForestGrid grid,
   final mercNorth = mercatorY(window.north);
   final mercSpan = mercatorY(window.south) - mercNorth;
 
+  if (grid.isHex) {
+    return _hexFillPng(grid, window, palette,
+        mercNorth: mercNorth, mercSpan: mercSpan);
+  }
+
   // Spalte -> Gitterspalte, einmal statt je Zeile: Die Länge ist in
   // beiden Abbildungen linear, nur der Ausschnitt verschiebt sie.
   final columnMap = Int32List(width);
@@ -136,5 +142,87 @@ Uint8List forestFillPng(ForestGrid grid,
     }
   }
 
+  return overlayPng(width, rows, raw);
+}
+
+/// Der Sechseck-Zeichner (#251): je Hex ein konvexes Polygon per
+/// Scanline, Spitze oben. Die sechs Eckpunkte werden EINZELN durch die
+/// Mercator-Abbildung geschickt (innerhalb eines ~250-m-Hexes ist die
+/// Krümmung belanglos, aber die LAGE muss stimmen — die Lehre aus #247).
+///
+/// Geteilte Kantenpixel malt der jeweils spätere Nachbar — bei
+/// Datengrenzen gewinnt also eine Seite; das ist eine halbe Pixelbreite
+/// und keine Aussage. Der Prototyp dieses Zeichners ist gemessen: ~8 ms
+/// Rasterarbeit gegen ~150 ms PNG-Kompression, das Performance-Tor des
+/// Betreibers ist bestanden.
+Uint8List _hexFillPng(ForestGrid grid, FillWindow window, Uint8List palette,
+    {required double mercNorth, required double mercSpan}) {
+  final width = window.width;
+  final rows = window.height;
+  final lonStep = grid.hexLonStep!;
+  final latStep = grid.hexLatStep!;
+  final rDeg = latStep / 1.5; // Umkreisradius in Grad Breite
+
+  final lonSpan = window.east - window.west;
+  double xOf(double lon) => (lon - window.west) / lonSpan * width;
+  double yOf(double lat) =>
+      (mercatorY(lat) - mercNorth) / mercSpan * rows;
+
+  final raw = Uint8List(rows * (width * 4 + 1));
+  for (var y = 0; y < rows; y++) {
+    raw[y * (width * 4 + 1)] = 0; // Filter „None"
+  }
+
+  // Hex-Zeilen/-Spalten, die das Fenster berühren (plus Rand).
+  final hy0 = (((grid.north - window.north) / latStep) - 2).floor();
+  final hy1 = (((grid.north - window.south) / latStep) + 2).ceil();
+  final hx0 = (((window.west - grid.west) / lonStep) - 2).floor();
+  final hx1 = (((window.east - grid.west) / lonStep) + 2).ceil();
+  final wPx = lonStep / lonSpan * width;
+
+  for (var hy = hy0; hy <= hy1; hy++) {
+    if (hy < 0 || hy >= grid.height) continue;
+    final odd = hy.isOdd ? 0.5 : 0.0;
+    final latC = grid.north - latStep * (hy + 2 / 3);
+    // Die vier Höhenlinien des Sechsecks, einzeln projiziert.
+    final yTop = yOf(latC + rDeg);
+    final yUp = yOf(latC + rDeg / 2);
+    final yLow = yOf(latC - rDeg / 2);
+    final yBot = yOf(latC - rDeg);
+    if (yBot < 0 || yTop >= rows) continue;
+    final rowBase = hy * grid.width;
+    for (var hx = hx0; hx <= hx1; hx++) {
+      if (hx < 0 || hx >= grid.width) continue;
+      final offset = grid.values[rowBase + hx] * 4;
+      if (palette[offset + 3] == 0) continue; // durchsichtig
+      final cx = xOf(grid.west + lonStep * (hx + 0.5 + odd));
+      if (cx + wPx / 2 < 0 || cx - wPx / 2 >= width) continue;
+      final py0 = math.max(0, yTop.ceil());
+      final py1 = math.min(rows - 1, yBot.floor());
+      for (var py = py0; py <= py1; py++) {
+        final yc = py + 0.5;
+        double half;
+        if (yc <= yUp) {
+          final t = (yc - yTop) / (yUp - yTop);
+          half = wPx / 2 * t;
+        } else if (yc >= yLow) {
+          final t = (yBot - yc) / (yBot - yLow);
+          half = wPx / 2 * t;
+        } else {
+          half = wPx / 2;
+        }
+        if (half <= 0) continue;
+        final x0 = math.max(0, (cx - half).round());
+        final x1 = math.min(width - 1, (cx + half).round() - 1);
+        var cursor = py * (width * 4 + 1) + 1 + x0 * 4;
+        for (var px = x0; px <= x1; px++) {
+          raw[cursor++] = palette[offset];
+          raw[cursor++] = palette[offset + 1];
+          raw[cursor++] = palette[offset + 2];
+          raw[cursor++] = palette[offset + 3];
+        }
+      }
+    }
+  }
   return overlayPng(width, rows, raw);
 }

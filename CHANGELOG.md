@@ -7,6 +7,21 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Waldkarte hat jetzt Waben
+
+*9. August 2026 · Version 1.70.0*
+
+Die Waldtypen liegen jetzt als **Sechseck-Waben** auf der Karte statt als
+Quadrate — organischer anzusehen, und zwar ehrlich: Die Waben sind nicht
+bloß aufgemalt, sondern werden direkt aus den 10-Meter-Satellitendaten
+berechnet. Jede Wabe deckt dieselbe Fläche ab wie vorher ein Quadrat
+(≈ 250 m), die App wird dadurch nicht größer und nicht langsamer —
+nachgemessen, bevor es gebaut wurde.
+
+Auch „Wald hier" im Spot-Blatt und der Laubfaktor rechnen jetzt auf den
+Waben. An Bestandsgrenzen kann sich dadurch ein Wert leicht ändern —
+das ist die neue Zellform, keine neuen Daten (Stand weiterhin 2024).
+
 ## Die Waldkarte wird beim Heranzoomen scharf
 
 *9. August 2026 · Version 1.69.0*

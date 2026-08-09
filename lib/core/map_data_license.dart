@@ -83,7 +83,7 @@ void registerMapDataLicense() {
       'Die Waldtypen-Ebene der Karte und die „Wald hier"-Zeile im '
       'Spot-Blatt beruhen auf dem Produkt „High Resolution Layer '
       'Dominant Leaf Type" des Copernicus Land Monitoring Service, '
-      'zusammengefasst auf ein 250-m-Raster für Deutschland, Österreich '
+      'zusammengefasst auf ein Wabengitter (≈ 250 m) für Deutschland, Österreich '
       'und die Schweiz.\n'
       '© Europäische Union, Copernicus Land Monitoring Service, '
       'Europäische Umweltagentur (EEA).\n'

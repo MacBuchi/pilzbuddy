@@ -50,7 +50,7 @@ class _ForestLayerSheet extends ConsumerWidget {
                 // Laubwaldstreifen am Bach sucht, braucht die Augen.
                 'Laub-, Misch- und Nadelwald aus Satellitendaten '
                 '(${grid == null ? 'DACH' : 'Stand ${grid.referenceYear}'}, '
-                '250-m-Raster). Zeigt Richtungen, keine einzelnen Bestände.',
+                'Waben ≈ 250 m). Zeigt Richtungen, keine einzelnen Bestände.',
                 style: theme.textTheme.bodyMedium
                     ?.copyWith(color: theme.hintColor),
               ),

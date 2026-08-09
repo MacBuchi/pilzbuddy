@@ -29,7 +29,7 @@ class SpotForestSection extends ConsumerWidget {
     final text = switch (forestClass) {
       // „Kein Wald" wird gezeigt: Am Wiesenrand-Spot ist das eine
       // ehrliche Auskunft über die 250-m-Zelle, kein Fehler.
-      ForestClass.none => 'kein Wald (250-m-Raster)',
+      ForestClass.none => 'kein Wald (Wabe ≈ 250 m)',
       ForestClass.broadleaf => 'überwiegend Laubwald'
           '${share == null ? '' : ' ($share % Nadel)'}',
       ForestClass.mixed =>
