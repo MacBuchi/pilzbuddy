@@ -11,7 +11,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/data/rain_grid_repository.dart';
+import 'package:pilzbuddy/features/ampel/ampel_map_providers.dart';
 import 'package:pilzbuddy/features/map/rain_data_providers.dart';
+import 'package:pilzbuddy/features/map/rain_layer.dart';
 import 'package:pilzbuddy/features/spots/widgets/weather_chart.dart';
 
 import '../fakes/fake_backend.dart';
@@ -214,6 +216,47 @@ void main() {
         reason: 'das Steinpilz-Modell ist für Holzbewohner kategorisch '
             'falsch — Konzept, Artenklassifikation');
     expect(find.textContaining(': günstig'), findsNothing);
+  });
+
+  testWidgets('Karten-Ampel im Regen-Blatt: exklusiv zum Regen, '
+      'Zustimmung fährt mit', (tester) async {
+    final settings = FakeSettings(ampelPreviewEnabled: true);
+    final backend = FakeBackend();
+    backend.signInAs(backend.addUser(username: 'testpilz').id);
+    await pumpApp(tester, backend, settings: settings);
+
+    await tester.tap(find.byTooltip('Regen'));
+    await settle(tester);
+    final toggle = find.text('Pilzwetter-Ampel (experimentell)');
+    await tester.ensureVisible(toggle);
+    await settle(tester);
+    await tester.tap(toggle);
+    await settle(tester);
+
+    final container = ProviderScope.containerOf(
+        tester.element(find.byType(Scaffold).first));
+    expect(container.read(ampelLayerEnabledProvider), isTrue);
+    expect(settings.rainCourseEnabled, isTrue,
+        reason: 'dieselbe Zustimmung wie der Regen-Verlauf — EIN '
+            'Angebot, kein zweiter Dialog; die Kosten stehen am '
+            'Schalter');
+
+    // Eine Regenfläche wählen schaltet die Ampel aus — zwei
+    // Deutungs-Flächen übereinander wären Matsch.
+    await tester.tap(find.text('Letzte 30 Tage'));
+    await settle(tester);
+    expect(container.read(rainLayerProvider), RainLayer.last30d);
+    expect(container.read(ampelLayerEnabledProvider), isFalse);
+  });
+
+  testWidgets('ohne Vorschau-Schalter kein Ampel-Eintrag im Regen-Blatt',
+      (tester) async {
+    final backend = FakeBackend();
+    backend.signInAs(backend.addUser(username: 'testpilz').id);
+    await pumpApp(tester, backend, settings: FakeSettings());
+    await tester.tap(find.byTooltip('Regen'));
+    await settle(tester);
+    expect(find.text('Pilzwetter-Ampel (experimentell)'), findsNothing);
   });
 
   testWidgets('der Profil-Schalter schaltet die Vorschau und merkt sie',

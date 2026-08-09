@@ -23,6 +23,9 @@ import 'package:latlong2/latlong.dart';
 import '../../../core/app_colors.dart';
 import '../../../core/errors.dart';
 import '../../../core/settings.dart';
+import '../../ampel/ampel_map_providers.dart';
+import '../../ampel/ampel_model.dart';
+import '../../ampel/ampel_providers.dart';
 import '../forest_block_providers.dart';
 import '../forest_data_providers.dart';
 import '../forest_grid.dart';
@@ -76,7 +79,11 @@ class MapLegend extends ConsumerWidget {
     final showForest = ref.watch(forestLayerEnabledProvider) &&
         forestClasses.isNotEmpty &&
         ref.watch(forestGridProvider).valueOrNull != null;
-    if (!showRain && !showForest) return const SizedBox.shrink();
+    final showAmpel = ref.watch(ampelPreviewEnabledProvider) &&
+        ref.watch(ampelLayerEnabledProvider);
+    if (!showRain && !showForest && !showAmpel) {
+      return const SizedBox.shrink();
+    }
 
     // Die Fadenkreuz-Werte (#235): gerechnet an der Mitte des LETZTEN
     // Kamera-Stillstands — nicht an der laufenden Position, das wäre
@@ -94,6 +101,18 @@ class MapLegend extends ConsumerWidget {
             .valueOrNull
             ?.mmAt(center.latitude, center.longitude)
         : null;
+    // Das Pilzwetter am Fadenkreuz — dieselbe pure Rechnung wie im
+    // Spot-Blatt, auf denselben zwei Providern.
+    AmpelReading? ampelAt;
+    if (showAmpel && center != null) {
+      final at = (lat: center.latitude, lon: center.longitude);
+      final course = ref.watch(rainCourseProvider(at));
+      final temperature = ref.watch(spotTemperatureProvider(at));
+      if (!course.isLoading && !temperature.isLoading) {
+        ampelAt = ampelReadingFrom(
+            course.valueOrNull, temperature.valueOrNull);
+      }
+    }
 
     return Padding(
       // Über dem Maßstab, der unten links sitzt.
@@ -126,6 +145,9 @@ class MapLegend extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (showAmpel) _AmpelSection(reading: ampelAt),
+                    if (showAmpel && showForest)
+                      const SizedBox(height: 6),
                     if (showRain) _RainSection(layer: rainLayer, mm: rainMm),
                     if (showRain && showForest) const SizedBox(height: 6),
                     if (showForest)
@@ -171,6 +193,62 @@ double? rainMarkerFraction(int mm, List<int> levels) {
     }
   }
   return null;
+}
+
+/// Die Pilzwetter-Zeile der Legende: das Wort am Fadenkreuz plus die
+/// zwei Farbchips — „ungünstig" hat bewusst keinen Chip, es ist auf der
+/// Karte transparent („keine Stufe heißt aussichtslos").
+class _AmpelSection extends StatelessWidget {
+  const _AmpelSection({required this.reading});
+
+  final AmpelReading? reading;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final level = reading?.level;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          switch (level) {
+            null => 'Pilzwetter (experimentell) · Steinpilz & Co.',
+            _ => 'Pilzwetter (experimentell) · hier: '
+                '${ampelLevelWord(level)}',
+          },
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: theme.colorScheme.primary,
+            fontSize: 10,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final (colour, word) in [
+              (AppColors.forestBroadleaf, 'verhalten'),
+              (AppColors.forestGreen, 'günstig'),
+            ]) ...[
+              Container(
+                width: 12,
+                height: 9,
+                decoration: BoxDecoration(
+                  color: colour.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 3),
+              Text(word,
+                  style: theme.textTheme.labelSmall
+                      ?.copyWith(fontSize: 9, color: AppColors.barkBrown)),
+              const SizedBox(width: 8),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
 }
 
 class _RainSection extends ConsumerWidget {

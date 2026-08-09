@@ -9,7 +9,18 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Zum Ausprobieren: die Pilzwetter-Ampel
 
-*9. August 2026 · Version 1.72.0*
+*9. August 2026 · Versionen 1.72.0 und 1.73.0*
+
+**Neu in 1.73.0 — die Ampel auf der Karte:** Im Regen-Blatt gibt es
+(bei eingeschalteter Vorschau) den Schalter „Pilzwetter-Ampel". Er
+färbt auf der Karte ein, wo die Wetter-Bedingungen für Steinpilz & Co.
+gerade **günstig** (grün) oder **verhalten** (ocker) sind — ungünstige
+Gegenden bleiben ungefärbt. Zusammen mit der Waldkarte beantwortet das
+die Frage „wo könnte ich noch sammeln?": Wald einblenden, Ampel
+einblenden, hin. Es werden dabei **keine Spots von irgendwem**
+benutzt oder gezeigt — die Fläche ist reines Wetter, gerechnet auf
+deinem Gerät, nur für Deutschland. Eine Regenfläche und die Ampel
+schließen sich gegenseitig aus (beides übereinander wäre unlesbar).
 
 Im Profil gibt es einen neuen Schalter: **„Pilzwetter-Ampel
 (experimentell)"**. Eingeschaltet zeigt das Spot-Blatt (und „Was ist

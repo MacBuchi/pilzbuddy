@@ -18,11 +18,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:maplibre/maplibre.dart' as ml;
 
+import '../../ampel/ampel_map_providers.dart';
 import '../forest_data_providers.dart';
 import '../rain_data_providers.dart';
 import '../rain_layer.dart';
 import 'flutter_map_view.dart';
 import 'map_view.dart';
+import 'maplibre_ampel_fill.dart';
 import 'maplibre_forest_fill.dart';
 import 'maplibre_image_fill.dart' show fillRemovalNeedsNudge;
 import 'maplibre_rain_fill.dart';
@@ -133,6 +135,9 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
   /// Ebenen unabhängig kommen und gehen.
   String? _appliedForestUrl;
 
+  /// Analog für die Pilzwetter-Fläche (Ampel-Vorschau).
+  String? _appliedAmpelUrl;
+
   /// Reiht die Änderungen BEIDER Flächen auf. Ohne das könnten zwei rasch
   /// aufeinanderfolgende Wechsel (Ebene umschalten, während die Fläche
   /// noch lädt) sich überholen — und übrig bliebe eine Quelle ohne
@@ -194,6 +199,26 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
         // Ein- oder Aushängen darf die Karte nicht mitnehmen. Still,
         // weil ein Eintrag je Kartenwechsel den Wochendigest zuschüttet
         // (Lehre aus #124/#136).
+      }
+    });
+  }
+
+  void _syncAmpelFill() {
+    final style = _style;
+    if (style == null) return;
+    final fill = ref.read(ampelFillFileProvider).valueOrNull;
+    _fillWork = _fillWork.then((_) async {
+      try {
+        final before = _appliedAmpelUrl;
+        _appliedAmpelUrl = await applyAmpelFill(style,
+            fill: fill, appliedUrl: _appliedAmpelUrl);
+        if (fillRemovalNeedsNudge(
+            before: before, after: _appliedAmpelUrl)) {
+          _nudgeEngine();
+        }
+      } catch (_) {
+        // Wie beim Regen: still degradieren — die Fläche ist eine
+        // Zugabe, und ein Eintrag je Kartenwechsel flutet den Digest.
       }
     });
   }
@@ -278,6 +303,7 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
     // Provider einen neuen Stand hat.
     ref.listen(rainFillFileProvider, (previous, next) => _syncRainFill());
     ref.listen(forestFillFileProvider, (previous, next) => _syncForestFill());
+    ref.listen(ampelFillFileProvider, (previous, next) => _syncAmpelFill());
     // Jeder Wechsel der Regenebene nimmt etwas von der Karte: die Fläche
     // hier, die Linienebenen im LayerManager des Pakets. Beides braucht
     // danach einen Anstoß — siehe [_requestRepaint].
@@ -330,6 +356,7 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
         _appliedForestUrl = null;
         _syncRainFill();
         _syncForestFill();
+        _syncAmpelFill();
       },
       onMapCreated: (controller) {
         _ml = controller;
