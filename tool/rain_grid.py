@@ -70,11 +70,19 @@ LAYERS = {
 # Why a stack instead of ready-made 7 and 14 day sums: a sum cannot tell
 # whether the 40 mm fell eleven days ago or yesterday, and for mushrooms
 # that is the whole difference. From the stack the app derives any window
-# up to 14 days AND the course — one product instead of three.
+# AND the course — one product instead of three.
+#
+# 26 days since 2026-08-09 (was 14): that is the rain window of the
+# validated Ampel model (docs/pilzampel-konzept.md, tool/ampel_validate.py
+# — 26-day weighted cumulation). The chart in the app keeps showing the
+# last 14 days; the extra days feed only the model. Shipping a second,
+# shorter window on the device instead would have meant a device model
+# that differs from the validated one — exactly the drift the validation
+# exists to prevent.
 DAILY = {
     "coverage": "dwd__SF-Produkt_(0-24)",
     "label": "Tagessummen",
-    "days": 14,
+    "days": 26,
 }
 
 NO_DATA = 255  # in the quantised grid; the DWD marks it as -1.0 or NaN
@@ -84,7 +92,7 @@ MAX_MM = 254  # anything above is clamped — see _quantise
 def _fetch(url, timeout=180, tries=4):
     """GET with a few retries.
 
-    The daily stack makes fourteen requests of about nine megabytes in a
+    The daily stack makes twentysix requests of about nine megabytes in a
     row, and a single dropped TLS connection used to end the whole run
     (measured 2026-08-04: `SSL: UNEXPECTED_EOF_WHILE_READING` on the
     ninth day). Nothing is corrupted when that happens — the manifest is
@@ -346,8 +354,8 @@ def build_daily(out_dir, previous=None, days=None, bounds=BOUNDS,
                 times=None, fetch_day=None):
     """The last `days` daily grids — fetching only what is missing.
 
-    A run normally adds ONE day. Rebuilding all fourteen every night
-    would be fourteen 8 MB GeoTIFFs for one new file, every night,
+    A run normally adds ONE day. Rebuilding all twentysix every night
+    would be twentysix 8 MB GeoTIFFs for one new file, every night,
     forever. `previous` is the manifest section from the last run; days
     already in it are carried over untouched.
 
