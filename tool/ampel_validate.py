@@ -91,17 +91,24 @@ MAX_UNCERTAINTY_M = 1000
 # So viele Funde je Art werden ausgewertet — eine Zufallsstichprobe mit
 # festem Seed, keine Auswahl nach Güte.
 #
-# WARUM NICHT ALLE, und die Rechnung dazu: Open-Meteo zählt seine Aufrufe
-# gewichtet (Orte × Variablen × Tage/365). Alle Funde über die ganze
-# Saison wären rund 22.600 Aufrufe für neun Arten — bei einem Tageslimit
-# von 10.000. Der erste Versuch lief deshalb mitten in der zweiten Art in
-# ein hartes „try again tomorrow".
+# 2000 statt der ursprünglichen 500 (2026-08-09): Für die EFFEKT-Frage
+# („steht dort 0,50 oder 0,58?") reichten 500 Paare (AUC-Standardfehler
+# ~0,02) — aber die PLACEBO-Kontrolle stellt eine strengere Frage. Der
+# erste vollständige Lauf zeigte Placebo-Abweichungen bis 0,068 bei
+# SE≈0,023: zu groß zum Abnicken, zu klein, um Rauschen von einem echten
+# Methodenfehler zu unterscheiden — und nach der eigenen Regel des
+# Konzepts sind damit ALLE Zahlen nicht bewertbar. Bei 2000 Paaren
+# halbiert sich der Standardfehler auf ~0,011; ein echter Bias der
+# beobachteten Größe stünde dann als >4σ da, Rauschen fiele auf ≤0,03
+# zusammen.
 #
-# Und mehr braucht es nicht: Der Standardfehler einer AUC liegt bei 500
-# Paaren um 0,02. Für die Frage, ob dort 0,50 oder 0,58 steht, ist das
-# reichlich genau — die Unsicherheit des MODELLS ist um ein Vielfaches
-# grösser als die der Stichprobe.
-SAMPLE_PER_SPECIES = 500
+# Der Preis ist Zeit, kein Umbau: Open-Meteo zählt Aufrufe gewichtet
+# (Orte × Variablen × Tage/365), das Tageslimit liegt bei 10.000, und
+# dieser Umfang braucht mehrere Tage. Genau dafür scheitert der Lauf am
+# Tageslimit HART (siehe _fetch_json) und der --cache trägt alles schon
+# Geholte in den nächsten Lauf — einfach täglich neu starten, bis er
+# durchläuft.
+SAMPLE_PER_SPECIES = 2000
 
 # Die Arten, für die gerechnet wird. Mykorrhiza-Speisepilze — bei ihnen
 # erwartet die Literatur einen Wettereffekt.
