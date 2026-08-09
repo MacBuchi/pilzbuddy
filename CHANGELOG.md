@@ -7,6 +7,17 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Waldfarben lagen daneben — jetzt sitzen sie
+
+*9. August 2026 · Version 1.68.1*
+
+Aufmerksamen Augen ist aufgefallen: Am Brocken malte die Karte Laubwald,
+wo die Zahlen völlig richtig „reiner Nadelwald" sagten. Die eingefärbte
+Waldfläche lag je nach Gegend bis zu 26 Kilometer zu weit südlich — ein
+Projektionsfehler beim Zeichnen, der seit Einführung der Ebene bestand.
+Alle Zahlen (Laubfaktor, „Wald hier", Legende) waren davon nie betroffen;
+nur die Farben auf der Karte saßen verschoben. Danke für den Hinweis!
+
 ## „Was ist hier?" — für jede Stelle, nicht nur für deine Spots
 
 *9. August 2026 · Version 1.68.0*
