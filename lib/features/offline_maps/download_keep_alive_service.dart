@@ -35,10 +35,14 @@ class _ForegroundServiceKeepAlive implements DownloadKeepAlive {
     if (_initialized) return;
     FlutterForegroundTask.init(
       androidNotificationOptions: AndroidNotificationOptions(
+        // Die Kanal-ID bleibt: Eine neue legte einen zweiten Eintrag in
+        // den Systemeinstellungen an und ließe den alten als Leiche
+        // zurück. Name und Beschreibung nennen seit #264 beide Nutzer
+        // des Kanals — das Waldgitter lädt über denselben Service.
         channelId: 'map_download',
-        channelName: 'Karten-Download',
+        channelName: 'Downloads',
         channelDescription:
-            'Läuft, solange eine Offline-Karte heruntergeladen wird.',
+            'Läuft, solange Karten oder Walddaten heruntergeladen werden.',
         // Nicht bei jeder Prozentzahl erneut piepen.
         onlyAlertOnce: true,
       ),
@@ -68,7 +72,9 @@ class _ForegroundServiceKeepAlive implements DownloadKeepAlive {
       await FlutterForegroundTask.startService(
         serviceId: _serviceId,
         serviceTypes: [ForegroundServiceTypes.dataSync],
-        notificationTitle: 'Offline-Karte wird geladen',
+        // Neutral, weil sich Karten-Download und Wald-Vorlauf denselben
+        // Service teilen — der Text darunter nennt, was gerade läuft.
+        notificationTitle: 'Offline-Daten werden geladen',
         notificationText: text,
         callback: startDownloadKeepAlive,
       );

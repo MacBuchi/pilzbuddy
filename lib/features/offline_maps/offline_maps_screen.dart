@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/errors.dart';
+import '../map/forest_preload_providers.dart';
 import 'offline_map_providers.dart';
 import 'offline_map_repository.dart';
 import 'region_catalog.dart';
@@ -40,6 +41,47 @@ class _OfflineMapsScreenState extends ConsumerState<OfflineMapsScreen> {
             content:
                 Text('Download von ${map.label}: ${friendlyError(e)}')));
       }
+    }
+  }
+
+  /// Der Wald-Vorlauf (#264). Läuft wie der Karten-Download im
+  /// app-weiten Provider und überlebt damit das Verlassen des Screens.
+  Future<void> _preloadForest() async {
+    try {
+      final complete = await ref.read(forestPreloadProvider.notifier).start();
+      if (mounted && complete) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Feine Waldkarte ist jetzt offline verfügbar 🌲')));
+      }
+    } catch (e, stackTrace) {
+      logError('Wald-Vorlauf', e, stackTrace);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Feine Waldkarte: ${friendlyError(e)}')));
+      }
+    }
+  }
+
+  Future<void> _deleteForest(int bytes) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Feine Waldkarte löschen?'),
+        content: Text('Die feinen Waldblöcke (${_formatSize(bytes)}) werden '
+            'vom Gerät entfernt. Die Waldtypen-Ebene zeigt dann wieder '
+            'die eingebaute Karte mit Waben von ≈ 250 m.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Abbrechen')),
+          FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Löschen')),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await ref.read(forestPreloadProvider.notifier).delete();
     }
   }
 
@@ -95,10 +137,28 @@ class _OfflineMapsScreenState extends ConsumerState<OfflineMapsScreen> {
             const SizedBox(height: 8),
             for (final map in available)
               _mapTile(map, installedByKey[map.key]),
+            const Divider(height: 32),
+            Text('Waldkarte',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 4),
+            Text(
+              // Der ehrliche Unterschied zu den Regionskarten: Das hier
+              // ist keine Karte zum Ansehen, sondern die Datengrundlage
+              // der Waldtypen-Ebene — und sie kommt sonst erst
+              // unterwegs, also dort, wo kein Empfang ist.
+              'Die Waldtypen-Ebene rechnet mit Waben von ≈ 250 m. Die '
+              'feine Stufe (≈ 100 m) lädt die App sonst erst unterwegs '
+              'nach, wenn du nah genug herangezoomt hast. Hier holst du '
+              'sie im Voraus — für Deutschland, Österreich und die '
+              'Schweiz.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            _forestTile(),
             const SizedBox(height: 16),
             Text(
               'Kartendaten: © OpenStreetMap-Mitwirkende (ODbL), '
-              'Protomaps Basemap',
+              'Protomaps Basemap. Waldtypen: © Europäische Union, '
+              'Copernicus Land Monitoring Service',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
@@ -169,6 +229,86 @@ class _OfflineMapsScreenState extends ConsumerState<OfflineMapsScreen> {
                     onPressed: () => _delete(installedVersion),
                     icon: const Icon(Icons.delete_outline),
                     tooltip: '${map.label} löschen',
+                  ),
+              ],
+            ),
+    );
+  }
+
+  /// Die Kachel der feinen Waldstufe — dieselbe Optik wie eine
+  /// Regionskarte, damit hier nichts Neues gelernt werden muss.
+  ///
+  /// Der Status ist `null`, solange die Zustimmung fehlt (dann wurde der
+  /// Katalog nie geholt, #253). Die Kachel nennt dann die ungefähre
+  /// Größe; genau wird sie mit dem ersten Tippen, das zugleich die
+  /// Zustimmung ist.
+  Widget _forestTile() {
+    final download = ref.watch(forestPreloadProvider);
+    final status = ref.watch(forestPreloadStatusProvider).valueOrNull;
+    final complete = status != null && status.blocks >= status.totalBlocks;
+    final partial = status != null && status.blocks > 0 && !complete;
+
+    final subtitle = download != null
+        ? download.waitingForNetwork
+            ? 'Wartet auf Netz … '
+                '(${(download.progress * 100).round()} % geladen)'
+            : 'Lädt … ${(download.progress * 100).round()} %'
+        : complete
+            ? 'Vollständig geladen (${_formatSize(status.bytes)})'
+            : partial
+                ? '${status.blocks} von ${status.totalBlocks} Teilen '
+                    '(${_formatSize(status.bytes)}) — Rest fehlt noch'
+                : status != null
+                    ? _formatSize(status.totalBytes)
+                    : 'rund $forestPreloadApproxMb MB';
+
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(
+        complete ? Icons.download_done : Icons.forest_outlined,
+        color: complete ? AppColors.forestGreen : null,
+      ),
+      title: const Text('Feine Waldkarte (≈ 100 m)'),
+      subtitle: download != null
+          ? Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(subtitle),
+                  const SizedBox(height: 4),
+                  LinearProgressIndicator(
+                      value: download.waitingForNetwork ||
+                              download.progress <= 0
+                          ? null
+                          : download.progress),
+                ],
+              ),
+            )
+          : Text(subtitle),
+      trailing: download != null
+          ? IconButton(
+              onPressed: () =>
+                  ref.read(forestPreloadProvider.notifier).cancel(),
+              icon: const Icon(Icons.close),
+              tooltip: 'Feine Waldkarte anhalten',
+            )
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (!complete)
+                  IconButton(
+                    onPressed: _preloadForest,
+                    icon: const Icon(Icons.download),
+                    tooltip: partial
+                        ? 'Feine Waldkarte vervollständigen'
+                        : 'Feine Waldkarte herunterladen',
+                  ),
+                if (status != null && status.blocks > 0)
+                  IconButton(
+                    onPressed: () => _deleteForest(status.bytes),
+                    icon: const Icon(Icons.delete_outline),
+                    tooltip: 'Feine Waldkarte löschen',
                   ),
               ],
             ),

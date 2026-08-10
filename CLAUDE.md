@@ -314,10 +314,24 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   Daten bei z7 enden und ohnehin hochskaliert werden — bei der
   Detailkarte dagegen ist die Schärfe der Grund für den Modus.
   `test/base_map_layer_test.dart` nagelt beides fest (Issue #119).
+  Die feinen Waldblöcke (#253) lassen sich seit #264 **am Stück
+  vorladen** — ein Eintrag auf derselben Seite, kein Gebietswähler: Der
+  ganze Katalog sind ~26 MB (DACH) gegen mehrere hundert je
+  Regionskarte, eine Bbox-Wahl wäre mehr Oberfläche und mehr Erklärung
+  als die Daten wert sind. Der Knopf IST zugleich die Zustimmung zum
+  Nachladen (`forestFineEnabled`), wie der Schalter im Wald-Blatt. Die
+  Kachel zählt über die **Dateigröße**, nicht über die Prüfsumme (die
+  volle Prüfung wären 26 MB SHA-256 je Bildaufbau) — die Prüfsumme
+  bleibt dort, wo die Daten benutzt werden.
   Der Download läuft im Main-Isolate und braucht deshalb einen
   Foreground-Service (`flutter_foreground_task`, Typ `dataSync`) —
   ohne den friert Android den Prozess beim App-Wechsel ein und der
-  Download steht still. Eingebunden über `downloadKeepAliveProvider`
+  Download steht still. Seit #264 teilen sich Karten-Download und
+  Wald-Vorlauf **einen** Service über den
+  `DownloadKeepAliveCoordinator`: Vorher beendete das `stop()` des einen
+  ihn dem anderen mitten im Lauf — also genau der eingefrorene Prozess,
+  gegen den er da ist. Wer einen dritten Download baut, meldet ihn dort
+  unter eigenem Schlüssel an. Eingebunden über `downloadKeepAliveProvider`
   mit bedingtem Import (`download_keep_alive_stub.dart` für Web, sonst
   `download_keep_alive_service.dart`), damit der Web-Build das
   Android-Paket nie sieht; Tests überschreiben den Provider.
