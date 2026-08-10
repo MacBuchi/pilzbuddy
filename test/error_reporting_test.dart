@@ -1,11 +1,14 @@
 // Der Weg vom gefangenen Fehler zum Bericht. Der Versand selbst ist nicht
 // testbar ohne Netz — die Verdrahtung und ihre Sicherungen dagegen schon,
 // und genau dort steckt das Risiko.
+import 'dart:async';
 import 'dart:io';
 
 import 'package:executor_lib/executor_lib.dart' show CancellationException;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/errors.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'
+    show AuthRetryableFetchException;
 
 void main() {
   tearDown(() => setErrorSink(null));
@@ -48,11 +51,32 @@ void main() {
       expect(worthReporting(const NotSignedInException()), isFalse);
     });
 
+    test('Fehlenden Empfang nicht melden', () {
+      // Sechs von acht Berichten in KW32/KW33 waren „Failed host
+      // lookup". Die App wird im Wald benutzt; ohne Netz zu sein ist
+      // dort der Normalzustand und seit dem Ausgangskorb (#267)
+      // ausdrücklich vorgesehen.
+      expect(worthReporting(const SocketException('weg')), isFalse);
+      expect(worthReporting(TimeoutException('zu lang')), isFalse);
+      expect(worthReporting(AuthRetryableFetchException(message: 'weg')),
+          isFalse);
+    });
+
+    test('Ein SERVERausfall wird weiterhin gemeldet', () {
+      // Die Grenze, an der alles hängt: GoTrue wirft denselben Typ für
+      // den Netzfehler UND für eine 5xx-Antwort. Nur der erste ist
+      // fehlender Empfang — ein Ausfall der Datenbank muss seinen Weg
+      // nach draußen behalten (Lehre aus #80).
+      expect(
+          worthReporting(
+              AuthRetryableFetchException(message: 'boom', statusCode: '503')),
+          isTrue);
+    });
+
     test('Alles andere weiterhin melden', () {
       // Die Gegenprobe: Der Filter darf nicht zur Stille führen.
       expect(worthReporting(const FormatException('kaputt')), isTrue);
       expect(worthReporting(StateError('kaputt')), isTrue);
-      expect(worthReporting(const SocketException('weg')), isTrue);
     });
   });
 

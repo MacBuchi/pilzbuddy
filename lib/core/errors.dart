@@ -53,12 +53,22 @@ void logError(String context, Object error, [StackTrace? stackTrace]) {
 ///   heißt abgebrochen.
 /// * [NotSignedInException]: Hintergrundabfragen, die nach dem Abmelden
 ///   noch einen Moment weiterlaufen.
+/// * Alles, was [looksOffline] als fehlenden Empfang erkennt: Die App wird
+///   im Wald benutzt, ohne Netz zu sein ist dort der Normalzustand und
+///   seit dem Ausgangskorb (#267) ausdrücklich vorgesehen. In den
+///   Wochendigesten KW32 und KW33 waren SECHS von acht Berichten
+///   „Failed host lookup" — dieselbe Verstopfung wie bei den beiden
+///   Fällen darüber.
 ///
 /// Bewusst NICHT in `logError` selbst: Wer einen Fehler mit eigenem Kontext
 /// meldet, hat sich für das Melden entschieden — diese Entscheidung darf ein
-/// Filter nicht überstimmen.
+/// Filter nicht überstimmen. Wo eine Hintergrundschleife das ausdrücklich
+/// nicht will, fragt sie [looksOffline] selbst (siehe
+/// `friendLocationsProvider`).
 bool worthReporting(Object error) =>
-    error is! CancellationException && error is! NotSignedInException;
+    error is! CancellationException &&
+    error is! NotSignedInException &&
+    !looksOffline(error);
 
 /// Es gibt gerade keine angemeldete Sitzung.
 ///
@@ -100,10 +110,19 @@ class WriteRejectedException implements Exception {
 /// alten Kopie verstecken — sonst bliebe ein kaputtes Deployment
 /// unsichtbar, während alle Geräte stillschweigend veraltete Daten
 /// zeigen. Dieselbe Lehre wie Issue #80.
+/// **Und der Sonderfall, der beides sein kann:** GoTrue verpackt jeden
+/// fehlgeschlagenen Auth-Aufruf in `AuthRetryableFetchException` — den
+/// Netzfehler („fetch failed, likely due to a network or CORS error",
+/// `fetch.dart`) EBENSO wie eine 5xx-Antwort des Servers. Nur der erste
+/// Fall ist fehlender Empfang, und unterscheiden lassen sie sich am
+/// [AuthException.statusCode]: Ohne Antwort gibt es keinen. Ein Ausfall
+/// der Datenbank behält damit seinen Weg nach draußen — genau die Grenze,
+/// die der Absatz darüber zieht.
 bool looksOffline(Object error) =>
     error is SocketException ||
     error is TimeoutException ||
-    error is http.ClientException;
+    error is http.ClientException ||
+    (error is AuthRetryableFetchException && error.statusCode == null);
 
 /// Nutzerfreundliche Meldung nach Fehlerklasse statt pauschalem
 /// „… Internet verfügbar?": Netzwerk, Server und Unerwartetes werden
