@@ -21,6 +21,66 @@ void main() {
   final promote = File('.github/workflows/promote.yml').readAsStringSync();
   final ci = File('.github/workflows/ci.yml').readAsStringSync();
 
+  // Der Artefaktname steht in `release.yml` an FÜNF unabhängigen Stellen
+  // (zwei `cp`, zwei `path:`, ein `files:`), und nichts hält sie
+  // zusammen. Genau diese Falle hat MitFahrBar einmal erwischt: Der
+  // v0.34.1-Lauf starb NACH dem Taggen, weil `cp` die Datei anders nannte
+  // als `upload-artifact` sie suchte — sauber kompiliert, jede PR-CI
+  // grün, gescheitert erst im echten Release. Zurück blieb ein Tag ohne
+  // Release, den die Tag-Entscheidung fortan als „schon veröffentlicht"
+  // wertete, und ein Aufräumen von Hand.
+  //
+  // Eine PR-CI kann das prinzipiell nicht fangen: Der Pfad läuft nur im
+  // Release, und er läuft zu spät. Deshalb hier (#226).
+  group('Artefaktnamen (#226)', () {
+    List<String> copyTargets(String suffix) =>
+        RegExp(r'run: cp \S+ "([^"]+)"')
+            .allMatches(release)
+            .map((m) => m.group(1)!)
+            .where((name) => name.endsWith(suffix))
+            .toList();
+
+    List<String> uploadPaths(String suffix) =>
+        // Bis ans Zeilenende, nicht `\S+`: Der Name enthält
+        // `${{ needs.version.outputs.tag }}` — mit Leerzeichen darin.
+        RegExp(r'^\s+path: (.+)$', multiLine: true)
+            .allMatches(release)
+            .map((m) => m.group(1)!.trim())
+            .where((name) => name.endsWith(suffix))
+            .toList();
+
+    for (final suffix in ['.apk', '.aab']) {
+      test('$suffix: benannt und hochgeladen ist derselbe Name', () {
+        final copied = copyTargets(suffix);
+        final uploaded = uploadPaths(suffix);
+        // Genau eine je Sorte — bei mehreren wüsste der Vergleich unten
+        // nicht, welche zu welcher gehört, und der Test ginge still
+        // durch.
+        expect(copied, hasLength(1),
+            reason: 'genau eine cp-Zeile je Artefaktsorte erwartet');
+        expect(uploaded, hasLength(1),
+            reason: 'genau ein upload-artifact je Artefaktsorte erwartet');
+        expect(uploaded.single, copied.single,
+            reason: 'upload-artifact sucht einen anderen Namen, als cp '
+                'erzeugt — der Lauf stirbt nach dem Taggen');
+      });
+    }
+
+    test('das Release hängt genau die gebaute APK an', () {
+      final globs = RegExp(r'^\s+files: (.+)$', multiLine: true)
+          .allMatches(release)
+          .map((m) => m.group(1)!.trim())
+          .toList();
+      expect(globs, hasLength(1));
+      final pattern = RegExp(
+          '^${globs.single.replaceAll('.', r'\.').replaceAll('*', '.*')}\$');
+      expect(pattern.hasMatch(copyTargets('.apk').single), isTrue,
+          reason: 'Das Muster in `files:` passt nicht auf den gebauten '
+              'Namen — das Release entstünde ohne APK, und der '
+              'Update-Weg der App fände nichts zum Herunterladen.');
+    });
+  });
+
   group('Release-Kanäle (#262)', () {
     test('jeder Merge veröffentlicht als Prerelease, nie als latest', () {
       expect(release, contains('prerelease: true'),

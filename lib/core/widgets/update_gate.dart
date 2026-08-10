@@ -104,7 +104,7 @@ class _UpdateRequiredScreen extends ConsumerWidget {
                   const SizedBox(height: 24),
                   FilledButton.icon(
                     onPressed: _openAction,
-                    icon: Icon(
+                    icon: const Icon(
                         kIsWeb ? Icons.refresh : Icons.open_in_browser,
                         size: 18),
                     label: Text(label),

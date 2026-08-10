@@ -249,7 +249,9 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
                         ),
                       );
                       if (confirmed == true) {
-                        ref.read(friendshipsProvider.notifier).remove(f.id);
+                        await ref
+                            .read(friendshipsProvider.notifier)
+                            .remove(f.id);
                       }
                     },
                     icon: const Icon(Icons.person_remove_outlined),

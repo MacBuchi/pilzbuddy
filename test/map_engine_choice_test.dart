@@ -18,8 +18,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'fakes/fake_settings.dart';
 
 void main() {
-  final config = MapViewConfig(
-    initialCenter: const LatLng(51.1634, 10.4477),
+  final config = const MapViewConfig(
+    initialCenter: LatLng(51.1634, 10.4477),
     initialZoom: 6.5,
     minZoom: 3,
     maxZoom: 19,
