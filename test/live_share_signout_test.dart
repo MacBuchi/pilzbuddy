@@ -4,6 +4,8 @@
 // während die Sitzung schon weg war, und griff über `currentUser!` ins
 // Leere: 37 Berichte „Null check operator used on a null value" in einer
 // Woche, auf Android und Web, für einen völlig normalen Vorgang.
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/errors.dart';
@@ -98,6 +100,49 @@ void main() {
 
     expect(reported, contains('Freundes-Standorte laden'));
   });
+
+  test('Fehlender Empfang wird nicht gemeldet', () async {
+    // Dieselbe Lehre wie beim Abmelden, nur häufiger: Der Poll läuft
+    // alle paar Sekunden, ein Funkloch schriebe also im Minutentakt
+    // nach `error_reports`. In den Digesten KW32 und KW33 waren sechs
+    // von acht Berichten „Failed host lookup".
+    // Gesammelt wird der FEHLER, nicht der Kontext: Die Schleife des
+    // Tests darüber läuft im selben Prozess weiter (ihr Repository wirft
+    // immer, der Generator kommt nie an ein `yield` und damit nie an
+    // seine Abmeldung) und schreibt denselben Kontext. Nach dem TYP
+    // gefragt, ist die Antwort eindeutig.
+    final reported = <Object>[];
+    setErrorSink((_, error, _) => reported.add(error));
+
+    final backend = FakeBackend();
+    final me = backend.addUser(username: 'testpilz');
+    backend.signInAs(me.id);
+
+    final container = ProviderContainer(overrides: [
+      authRepositoryProvider.overrideWithValue(FakeAuthRepository(backend)),
+      liveShareRepositoryProvider
+          .overrideWithValue(_OfflineLiveShareRepository(backend)),
+      friendLocationsPollProvider
+          .overrideWithValue(const Duration(milliseconds: 1)),
+    ]);
+    addTearDown(container.dispose);
+    container.listen(friendLocationsProvider, (_, _) {});
+
+    // Lange genug für viele Durchläufe — gemeldet werden darf keiner.
+    await Future<void>.delayed(const Duration(milliseconds: 60));
+
+    expect(reported.whereType<SocketException>(), isEmpty,
+        reason: 'Kein Netz ist kein Fehlerbericht; sichtbar ist es am '
+            'Banner, nicht im Wochendigest.');
+  });
+}
+
+class _OfflineLiveShareRepository extends FakeLiveShareRepository {
+  _OfflineLiveShareRepository(super.backend);
+
+  @override
+  Future<List<FriendLocation>> fetchFriendLocations() async =>
+      throw const SocketException('Failed host lookup');
 }
 
 class _FailingLiveShareRepository extends FakeLiveShareRepository {

@@ -75,7 +75,13 @@ final friendLocationsProvider =
       yield const [];
       return;
     } catch (e, stackTrace) {
-      logError('Freundes-Standorte laden', e, stackTrace);
+      // Kein Empfang ist so wenig ein Fehlerbericht wie das Abmelden
+      // darüber: Diese Schleife läuft alle paar Sekunden, ein Funkloch
+      // schriebe also im Minutentakt nach `error_reports` — und genau so
+      // sah der Wochendigest KW32/KW33 aus. Der letzte Stand bleibt
+      // stehen, wie oben zugesagt; sichtbar ist der fehlende Empfang
+      // ohnehin am Banner (`noConnectivityProvider`).
+      if (!looksOffline(e)) logError('Freundes-Standorte laden', e, stackTrace);
     }
     await Future<void>.delayed(interval);
   }

@@ -9,7 +9,7 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Vorabversionen, wenn du sie willst
 
-*10. August 2026 · Versionen 1.81.0 und 1.82.0 (1.82.0: nur strengere interne Prüfungen, nichts Sichtbares)*
+*10. August 2026 · Versionen 1.81.0 bis 1.83.0 (1.82.0 und 1.83.0: nur Innenausbau, nichts Sichtbares)*
 
 Im Profil unter „Über PilzBuddy" steht ein neuer Schalter:
 **„Vorabversionen erhalten"**. Er ist aus, und für die allermeisten soll
