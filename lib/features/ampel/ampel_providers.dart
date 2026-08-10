@@ -7,7 +7,6 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/app_colors.dart' show AmpelPalette;
 import '../../core/errors.dart';
 import '../../core/settings.dart';
 import '../map/rain_stack.dart';
@@ -35,28 +34,6 @@ class AmpelPreviewEnabledNotifier extends Notifier<bool> {
 final ampelPreviewEnabledProvider =
     NotifierProvider<AmpelPreviewEnabledNotifier, bool>(
         AmpelPreviewEnabledNotifier.new);
-
-/// In welcher Farbfamilie die Ampel malt — Fläche, Punkt in der Sektion
-/// und Legende hängen daran. Dasselbe Muster wie der Schalter darüber;
-/// persistent, weil eine Farbwahl niemand zweimal treffen will.
-class AmpelPaletteNotifier extends Notifier<AmpelPalette> {
-  @override
-  AmpelPalette build() => ref.read(settingsProvider).ampelPalette;
-
-  void set(AmpelPalette value) {
-    state = value;
-    unawaited(ref
-        .read(settingsProvider)
-        .setAmpelPalette(value)
-        .catchError((Object e, StackTrace stackTrace) {
-      logError('Ampel-Farbfamilie merken', e, stackTrace);
-    }));
-  }
-}
-
-final ampelPaletteProvider =
-    NotifierProvider<AmpelPaletteNotifier, AmpelPalette>(
-        AmpelPaletteNotifier.new);
 
 /// So viele der 26 Regentage müssen eine Messung haben, sonst gibt es
 /// eine graue Ampel statt einer Stufe: Das Werkzeug rechnet Fehltage

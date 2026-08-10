@@ -28,8 +28,7 @@ import '../../ampel/ampel_model.dart';
 import '../../ampel/ampel_providers.dart';
 import '../forest_block_providers.dart';
 import '../forest_data_providers.dart';
-import '../forest_fill.dart'
-    show ampelHighlightGuenstigAlpha, ampelHighlightVerhaltenAlpha;
+import '../forest_fill.dart' show ampelGuenstigAlpha, ampelVerhaltenAlpha;
 import '../forest_grid.dart';
 import '../rain_data_providers.dart';
 import '../rain_fill.dart';
@@ -147,10 +146,7 @@ class MapLegend extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (showAmpel)
-                      _AmpelSection(
-                          reading: ampelAt,
-                          palette: ref.watch(ampelPaletteProvider)),
+                    if (showAmpel) _AmpelSection(reading: ampelAt),
                     if (showAmpel && showForest)
                       const SizedBox(height: 6),
                     if (showRain) _RainSection(layer: rainLayer, mm: rainMm),
@@ -200,23 +196,32 @@ double? rainMarkerFraction(int mm, List<int> levels) {
   return null;
 }
 
-/// Die Pilzwetter-Zeile der Legende: das Wort am Fadenkreuz plus die
-/// zwei Farbchips — „ungünstig" hat bewusst keinen Chip, denn dort
-/// leuchtet nichts, die Wabe bleibt schlicht Wald („keine Stufe heißt
-/// aussichtslos").
+/// Die Pilzwetter-Zeile der Legende: das Wort am Fadenkreuz plus das
+/// RASTER der Leuchtfarben — „ungünstig" hat bewusst keine Zeile, denn
+/// dort leuchtet nichts, die Wabe bleibt schlicht Wald („keine Stufe
+/// heißt aussichtslos").
+///
+/// **Ein Raster und keine zwei Chips mehr** (seit 1.80.0): Solange alle
+/// leuchtenden Waben denselben Ton trugen, reichten zwei Farbtupfer.
+/// Jetzt trägt der Farbton die Waldklasse und die Deckkraft die Stufe —
+/// eine Legende mit nur zwei Chips würde das Blau über Nadelwald
+/// unerklärt lassen, und wer die Skala nicht kennt, liest Blau als
+/// „mehr" statt als „Nadelwald".
 class _AmpelSection extends StatelessWidget {
-  const _AmpelSection({required this.reading, required this.palette});
+  const _AmpelSection({required this.reading});
 
   final AmpelReading? reading;
 
-  /// Dieselbe Familie, in der die Fläche malt — die Legende erklärt
-  /// die Karte, nicht eine zweite Farbwelt.
-  final AmpelPalette palette;
+  /// Die Spalten in der Reihenfolge von [AppColors.ampelCombined] —
+  /// dieselbe wie `ForestClass` ohne `none`.
+  static const _classWords = ['Laub', 'Misch', 'Nadel'];
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final level = reading?.level;
+    final small = theme.textTheme.labelSmall
+        ?.copyWith(fontSize: 9, color: AppColors.barkBrown);
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -236,29 +241,39 @@ class _AmpelSection extends StatelessWidget {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Genau die Töne und Stärken, mit denen der Zeichner die
-            // Waben leuchten lässt — die Legende erklärt die Karte.
-            for (final (colour, opacity, word) in [
-              (palette.mild, ampelHighlightVerhaltenAlpha / 255, 'verhalten'),
-              (palette.highlight,
-                  ampelHighlightGuenstigAlpha / 255, 'günstig'),
-            ]) ...[
-              Container(
-                width: 12,
-                height: 9,
-                decoration: BoxDecoration(
-                  color: colour.withValues(alpha: opacity),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(width: 3),
-              Text(word,
-                  style: theme.textTheme.labelSmall
-                      ?.copyWith(fontSize: 9, color: AppColors.barkBrown)),
-              const SizedBox(width: 8),
-            ],
+            const SizedBox(width: 46),
+            for (final word in _classWords)
+              SizedBox(width: 30, child: Text(word, style: small)),
           ],
         ),
+        // Genau die Töne und Stärken, mit denen der Zeichner die Waben
+        // leuchten lässt — die Legende erklärt die Karte.
+        for (final (word, alpha, strong) in [
+          ('verhalten', ampelVerhaltenAlpha, false),
+          ('günstig', ampelGuenstigAlpha, true),
+        ])
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(width: 46, child: Text(word, style: small)),
+                for (final pair in AppColors.ampelCombined)
+                  SizedBox(
+                    width: 30,
+                    child: Container(
+                      width: 12,
+                      height: 9,
+                      decoration: BoxDecoration(
+                        color: (strong ? pair.$2 : pair.$1)
+                            .withValues(alpha: alpha / 255),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
       ],
     );
   }

@@ -11,10 +11,8 @@ import 'package:archive/archive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pilzbuddy/core/app_colors.dart' show AmpelPalette;
 import 'package:pilzbuddy/data/rain_grid_repository.dart';
 import 'package:pilzbuddy/features/ampel/ampel_map_providers.dart';
-import 'package:pilzbuddy/features/ampel/ampel_providers.dart';
 import 'package:pilzbuddy/features/map/forest_data_providers.dart'
     show
         ForestFillImage,
@@ -274,11 +272,13 @@ void main() {
     expect(container.read(ampelLayerEnabledProvider), isTrue);
   });
 
-  testWidgets('die Farbfamilie lässt sich wählen und wird gemerkt',
-      (tester) async {
-    // Betreiber-Wunsch 2026-08-09: drei Familien zur Wahl, weil die
-    // Ampel-Töne über der Waldebene standen und Farbwahrnehmung im Wald
-    // eine andere ist als am Schreibtisch.
+  testWidgets('es gibt keine Farbwahl mehr im Regen-Blatt', (tester) async {
+    // 1.73.0 stellte drei Familien zur Wahl, weil der gerenderte
+    // Vergleich knapp war. Entschieden hat ihn das Feld (Türkis zu nah
+    // am Kartenwasser), und seit die Kombi-Ebene je Waldklasse eigene
+    // Töne setzt, wäre eine zweite Familie sechs weitere Handwerte —
+    // für ein Feature mit einer benutzten Familie (Betreiber,
+    // 2026-08-10). Der Wächter hält fest, dass die Auswahl weg BLEIBT.
     final settings = FakeSettings(ampelPreviewEnabled: true);
     final backend = FakeBackend();
     backend.signInAs(backend.addUser(username: 'testpilz').id);
@@ -292,32 +292,10 @@ void main() {
     await tester.tap(toggle);
     await settle(tester);
 
-    // Die Liste im Blatt ist LAZY: Was unter dem Rand liegt, existiert
-    // im Baum noch gar nicht — `ensureVisible` liefe dort in „No
-    // element". Deshalb scrollen, bis die Zeile wirklich da ist
-    // (dieselbe Lehre wie im Wald-Blatt, #259).
-    final magenta = find.text('Magenta');
-    await tester.scrollUntilVisible(magenta, 120,
-        scrollable: find
-            .descendant(
-                of: find.byType(BottomSheet),
-                matching: find.byType(Scrollable))
-            .first);
-    await settle(tester);
-    await tester.tap(magenta);
-    await settle(tester);
-
-    final container = ProviderScope.containerOf(
-        tester.element(find.byType(Scaffold).first));
-    expect(container.read(ampelPaletteProvider), AmpelPalette.magenta);
-    expect(settings.ampelPalette, AmpelPalette.magenta,
-        reason: 'eine Farbwahl trifft man nicht jede Wanderung neu');
-
-    // Neustart mit denselben Einstellungen: Die Wahl steht noch.
-    await pumpApp(tester, backend, settings: settings);
-    final again = ProviderScope.containerOf(
-        tester.element(find.byType(Scaffold).first));
-    expect(again.read(ampelPaletteProvider), AmpelPalette.magenta);
+    expect(find.text('Farbe'), findsNothing);
+    expect(find.text('Violett'), findsNothing);
+    expect(find.text('Magenta'), findsNothing);
+    expect(find.text('Türkis'), findsNothing);
   });
 
   testWidgets('ohne Vorschau-Schalter kein Ampel-Eintrag im Regen-Blatt',
@@ -351,13 +329,15 @@ void main() {
         reason: 'die Vorschau überlebt den Neustart');
   });
 
-  test('die Farbfamilie steht im DATEINAMEN der Fläche', () {
-    // Die MapLibre-Strecke ist idempotent auf der URL: Ohne die Familie
-    // im Namen würde das neu gefärbte Bild schlicht nicht getauscht,
-    // und die Karte zeigte still die alte Wahl weiter. Genau dieser
+  test('der Wetter-Stand steht im DATEINAMEN der Fläche', () {
+    // Die MapLibre-Strecke ist idempotent auf der URL: Ohne den Stand
+    // im Namen würde das neu gerechnete Bild schlicht nicht getauscht,
+    // und die Karte zeigte still das Wetter von gestern. Genau dieser
     // Fehler ist beim Wald mit der Klassenwahl passiert
-    // (`forestFillStamp`), deshalb hier ein eigener Wächter.
-    ForestFillImage imageOf(AmpelPalette palette) => ForestFillImage(
+    // (`forestFillStamp`), deshalb hier ein eigener Wächter. Die
+    // Farbfamilie stand hier bis 1.79.0 mit drin — seit die Töne fest
+    // sind, gibt es dort nichts mehr zu unterscheiden.
+    ForestFillImage imageOf(DateTime newest) => ForestFillImage(
           png: Uint8List(0),
           west: 10,
           east: 11,
@@ -367,36 +347,14 @@ void main() {
           classes: allForestClasses,
           windowKey: 'k1',
           fine: false,
-          ampel: (palette: palette, newest: DateTime.utc(2026, 8, 9)),
+          ampel: (newest: newest),
         );
 
-    final names = {
-      for (final palette in AmpelPalette.values)
-        palette: forestFillVariant(imageOf(palette))
-    };
-    expect(names[AmpelPalette.violett], contains('violett'));
-    expect(names.values.toSet(), hasLength(3),
+    final heute = forestFillVariant(imageOf(DateTime.utc(2026, 8, 9)));
+    expect(heute, contains('ampel-2026-08-09'));
+    expect(forestFillVariant(imageOf(DateTime.utc(2026, 8, 10))),
+        isNot(heute),
         reason: 'gleicher Name ⇒ MapLibre tauscht das Bild nicht');
-
-    // Und der Datentag zählt mit: Ein neuer Stapel-Stand muss ein neues
-    // Bild ergeben, sonst klebt die Karte am Wetter von gestern.
-    final morgen = ForestFillImage(
-      png: Uint8List(0),
-      west: 10,
-      east: 11,
-      north: 50,
-      south: 49,
-      referenceYear: 2024,
-      classes: allForestClasses,
-      windowKey: 'k1',
-      fine: false,
-      ampel: (
-        palette: AmpelPalette.violett,
-        newest: DateTime.utc(2026, 8, 10)
-      ),
-    );
-    expect(forestFillVariant(morgen),
-        isNot(names[AmpelPalette.violett]));
 
     // Ohne Ampel bleibt der Name, was er seit #249 ist.
     expect(

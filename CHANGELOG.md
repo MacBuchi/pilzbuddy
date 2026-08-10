@@ -7,6 +7,27 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die leuchtenden Waben verraten jetzt auch den Wald
+
+*10. August 2026 · Version 1.80.0*
+
+Bisher sahen alle Waben, in denen das Wetter stimmte, gleich aus — und
+damit war ausgerechnet dort nicht mehr zu erkennen, ob man in Laub-,
+Misch- oder Nadelwald schaut. Jetzt hat **jede Waldart ihre eigene
+Leuchtfarbe**: Laubwald violett, Mischwald dazwischen, Nadelwald ein
+dunkles Königsblau. Du siehst also mit einem Blick beides — wo das
+Wetter passt *und* in welchem Wald.
+
+- „Günstig" ist ruhiger geworden. Die alte Farbe war so grell, dass sie
+  Wege und Ortsnamen darunter zugedeckt hat.
+- „Verhalten" tritt deutlicher zurück, damit der Blick dorthin geht, wo
+  es sich am ehesten lohnt.
+- Die Legende zeigt jetzt das ganze Raster: drei Waldarten, zwei Stufen.
+- Die Farbauswahl im Regen-Blatt ist entfallen. Türkis war auf der Karte
+  kaum von Wasser zu unterscheiden, und die neuen Farben sind auf die
+  drei Waldarten abgestimmt — eine zweite Familie hätte davon nichts
+  übrig gelassen.
+
 ## Funde ohne Empfang gehen nicht mehr verloren
 
 *10. August 2026 · Version 1.79.0*

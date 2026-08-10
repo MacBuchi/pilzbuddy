@@ -1,8 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'app_colors.dart' show AmpelPalette, defaultAmpelPalette;
-
 /// Gerätelokale Einstellungen — alles, was auf *diesem* Gerät gilt und
 /// nicht ins Konto gehört.
 ///
@@ -88,14 +86,6 @@ abstract interface class Settings {
   bool get forestFineEnabled;
 
   Future<void> setForestFineEnabled(bool value);
-
-  /// In welcher Farbfamilie die Pilzampel malt (Betreiber-Wunsch
-  /// 2026-08-09). Gerätelokal und persistent: Das ist eine
-  /// Geschmacksfrage, keine Einstellung, die jemand jede Wanderung neu
-  /// treffen will — und sie hängt am Display, nicht am Konto.
-  AmpelPalette get ampelPalette;
-
-  Future<void> setAmpelPalette(AmpelPalette value);
 
   /// Bis wann die Spot-Erinnerung stummgeschaltet ist (Baustein C des
   /// Ampel-Konzepts): Das X am Banner setzt den Zeitpunkt ans Ende des
@@ -193,24 +183,6 @@ class PrefsSettings implements Settings {
   @override
   Future<void> setAmpelPreviewEnabled(bool value) =>
       _prefs.setBool(_ampelPreviewEnabledKey, value);
-
-  static const _ampelPaletteKey = 'ampel_palette';
-
-  @override
-  AmpelPalette get ampelPalette {
-    final raw = _prefs.getString(_ampelPaletteKey);
-    // Unbekannter Name (ältere/neuere Fassung, verbogener Speicher) ⇒
-    // Standardfamilie. Eine Farbwahl ist nichts, wofür die App
-    // stehenbleiben darf.
-    for (final palette in AmpelPalette.values) {
-      if (palette.name == raw) return palette;
-    }
-    return defaultAmpelPalette;
-  }
-
-  @override
-  Future<void> setAmpelPalette(AmpelPalette value) =>
-      _prefs.setString(_ampelPaletteKey, value.name);
 
   static const _forestFineEnabledKey = 'forest_fine_enabled';
 
