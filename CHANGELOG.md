@@ -7,6 +7,25 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die feine Waldkarte am Stück laden
+
+*10. August 2026 · Version 1.78.0*
+
+Die Waldtypen-Ebene kann seit kurzem feiner hinsehen: Waben von etwa
+100 Metern statt 250. Diese feinen Daten hat die App bisher unterwegs
+nachgeladen — also ausgerechnet dort, wo im Wald selten Empfang ist.
+
+Unter „Offline-Karten" steht jetzt ein Eintrag **Feine Waldkarte**, der
+alles auf einmal holt: rund 26 MB für Deutschland, Österreich und die
+Schweiz. Einmal zu Hause im WLAN antippen, und die feine Stufe ist
+draußen da.
+
+- Der Eintrag zeigt, wie viel schon auf dem Gerät liegt.
+- Anhalten geht jederzeit; was geladen ist, bleibt, und der Rest lässt
+  sich später nachholen.
+- Wird der Platz knapp, löschst du die feinen Daten wieder — die Karte
+  zeigt dann weiter die eingebaute Fassung mit den größeren Waben.
+
 ## Updates kommen jetzt gebündelt
 
 *10. August 2026 · Version 1.77.0*

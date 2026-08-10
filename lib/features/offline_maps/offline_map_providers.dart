@@ -83,9 +83,10 @@ class MapDownloadsNotifier extends Notifier<Map<String, MapDownloadState>> {
   @override
   Map<String, MapDownloadState> build() => const {};
 
-  /// Zuletzt gezeigter Benachrichtigungstext — verhindert, dass jeder
-  /// einzelne Chunk eine Aktualisierung über den Platform-Channel schickt.
-  String? _lastText;
+  /// Unter diesem Schlüssel meldet sich der Karten-Download beim
+  /// gemeinsamen Foreground-Service an — der Wald-Vorlauf (#264) hat
+  /// seinen eigenen.
+  static const _keepAliveKey = 'maps';
 
   void _set(String key, MapDownloadState value) {
     state = {...state, key: value};
@@ -109,11 +110,12 @@ class MapDownloadsNotifier extends Notifier<Map<String, MapDownloadState>> {
     return '${entries.length} Karten — ${(average * 100).round()} %';
   }
 
+  /// Der Koordinator entprellt selbst (gleicher Text ⇒ kein Kanalaufruf),
+  /// deshalb darf das hier bei jedem Chunk laufen.
   void _syncNotification() {
-    final text = _notificationText();
-    if (text == _lastText) return;
-    _lastText = text;
-    ref.read(downloadKeepAliveProvider).update(text);
+    unawaited(ref
+        .read(downloadKeepAliveCoordinatorProvider)
+        .update(_keepAliveKey, _notificationText()));
   }
 
   /// Startet (oder setzt fort); wirft bei endgültigen Fehlern weiter,
@@ -125,8 +127,8 @@ class MapDownloadsNotifier extends Notifier<Map<String, MapDownloadState>> {
     _set(map.key, const MapDownloadState(0));
     // Ohne Foreground-Service friert Android den Prozess ein, sobald der
     // Nutzer die App wechselt — der Download stünde still.
-    final keepAlive = ref.read(downloadKeepAliveProvider);
-    await keepAlive.start(_notificationText());
+    final keepAlive = ref.read(downloadKeepAliveCoordinatorProvider);
+    await keepAlive.start(_keepAliveKey, _notificationText());
     try {
       var resumeRounds = 0;
       while (true) {
@@ -167,11 +169,12 @@ class MapDownloadsNotifier extends Notifier<Map<String, MapDownloadState>> {
       // Kein Fehler: .part bleibt liegen, nächster Start setzt fort.
     } finally {
       state = {...state}..remove(map.key);
-      // Service nur beenden, wenn wirklich nichts mehr lädt — parallele
-      // Downloads teilen sich einen Service.
+      // Service nur abmelden, wenn wirklich keine KARTE mehr lädt —
+      // parallele Downloads teilen sich einen Service, und ob er dann
+      // wirklich endet, entscheidet der Koordinator (der Wald-Vorlauf
+      // kann noch laufen).
       if (state.isEmpty) {
-        _lastText = null;
-        await keepAlive.stop();
+        await keepAlive.stop(_keepAliveKey);
       } else {
         _syncNotification();
       }

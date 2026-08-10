@@ -29,6 +29,25 @@ import '../features/map/forest_grid.dart';
 const forestDataBaseUrl =
     'https://github.com/MacBuchi/pilzbuddy/releases/download/forest-data';
 
+/// Ein Block kam nicht durch: kein Netz, kein 200 oder eine Prüfsumme,
+/// die nicht passt.
+///
+/// Nur der **Vorlauf** (#264) kennt diesen Fehler. Der Weg auf Bedarf
+/// bleibt still bei `null` — dort ist ein fehlender Block eine Lücke, die
+/// das Asset füllt. Wer dagegen „alles herunterladen" tippt, hat genau
+/// das Gegenteil verlangt und muss erfahren, dass es nicht geklappt hat.
+class ForestBlockDownloadFailed implements Exception {
+  const ForestBlockDownloadFailed(this.file);
+
+  final String file;
+
+  @override
+  String toString() => 'Waldblock $file ließ sich nicht laden';
+}
+
+/// Was von einem Katalog auf dem Gerät liegt.
+typedef ForestBlocksOnDisk = ({int blocks, int bytes});
+
 class ForestBlockRepository {
   ForestBlockRepository({http.Client? client, Directory? baseDirOverride})
       : _client = client ?? http.Client(),
@@ -166,6 +185,113 @@ class ForestBlockRepository {
       _decoded.remove(_decoded.keys.first);
     }
     return grid;
+  }
+
+  /// Wie viel des Katalogs schon auf Platte liegt (#264) — die Grundlage
+  /// der Kachel „18 von 30 Blöcken · 15 MB".
+  ///
+  /// Zählt über Dateigröße, nicht über die Prüfsumme: Die volle Prüfung
+  /// wären 26 MB SHA-256 bei jedem Aufbau des Bildschirms. Eine Datei mit
+  /// richtiger Größe und falschem Inhalt zählt hier also mit — sie fliegt
+  /// beim Lesen durch [_readVerified] auf und wird dann neu geholt. Die
+  /// Anzeige ist eine Auskunft, keine Garantie; die Garantie gibt die
+  /// Prüfsumme an der Stelle, an der die Daten wirklich benutzt werden.
+  Future<ForestBlocksOnDisk> installedOf(ForestBlockCatalog catalog) async {
+    try {
+      final dir = await _dir();
+      var blocks = 0;
+      var bytes = 0;
+      for (final block in catalog.blocks) {
+        if (await _present(File('${dir.path}/${block.file}'), block)) {
+          blocks++;
+          bytes += block.bytes;
+        }
+      }
+      return (blocks: blocks, bytes: bytes);
+    } catch (_) {
+      // Kein Verzeichnis, kein Leserecht: Dann liegt eben nichts da.
+      return (blocks: 0, bytes: 0);
+    }
+  }
+
+  /// Holt alle noch fehlenden Blöcke des Katalogs und meldet den
+  /// Fortschritt über den GANZEN Katalog (0..1).
+  ///
+  /// Über den ganzen und nicht über die fehlenden: Wer einen
+  /// abgebrochenen Vorlauf fortsetzt, soll den Balken dort weiterlaufen
+  /// sehen, wo er stand — nicht wieder bei null.
+  ///
+  /// Der Fortschritt zählt in **Bytes**, nicht in Blöcken: zwischen dem
+  /// kleinsten (0,07 MB) und dem größten (1,4 MB) liegt Faktor 20, eine
+  /// Blockzählung liefe also sichtbar ungleichmäßig.
+  ///
+  /// Fehlschläge werden geworfen ([ForestBlockDownloadFailed]) — der
+  /// Vorlauf-Notifier wartet daraufhin auf die Verbindung und setzt fort;
+  /// was schon liegt, wird beim nächsten Anlauf übersprungen.
+  Stream<double> downloadAll(
+    ForestBlockCatalog catalog, {
+    bool Function()? isCancelled,
+  }) async* {
+    final cancelled = isCancelled ?? () => false;
+    final total = catalog.blocks.fold<int>(0, (sum, b) => sum + b.bytes);
+    if (total <= 0) return;
+
+    final dir = await _dir();
+    var done = 0;
+    final missing = <ForestBlockInfo>[];
+    for (final block in catalog.blocks) {
+      if (await _present(File('${dir.path}/${block.file}'), block)) {
+        done += block.bytes;
+      } else {
+        missing.add(block);
+      }
+    }
+    yield done / total;
+
+    for (final block in missing) {
+      if (cancelled()) return;
+      final bytes = await _downloadVerified(block);
+      if (bytes == null) throw ForestBlockDownloadFailed(block.file);
+      // Ein Schreibfehler wird hier bewusst NICHT geschluckt (anders als
+      // in [loadBlock], wo der Block für den laufenden Lauf trotzdem
+      // trägt): Beim Vorlauf ist das Speichern der ganze Zweck.
+      await File('${dir.path}/${block.file}').writeAsBytes(bytes, flush: true);
+      done += block.bytes;
+      yield done / total;
+    }
+  }
+
+  /// Wirft die feinen Blöcke vom Gerät und liefert, wie viel frei wurde.
+  ///
+  /// Der Katalog-Cache (`blocks.json`) bleibt liegen: Er ist winzig und
+  /// hält die Kachel auch ohne Empfang aussagefähig.
+  Future<int> deleteBlocks() async {
+    var freed = 0;
+    try {
+      final dir = await _dir();
+      for (final entry in dir.listSync().whereType<File>()) {
+        if (!entry.path.split('/').last.startsWith('forest_block_')) continue;
+        freed += await entry.length();
+        await entry.delete();
+      }
+    } catch (_) {
+      // Was sich nicht löschen lässt, bleibt liegen — der Zähler nennt
+      // dann eben weniger. Kein Grund für eine Fehlermeldung.
+    }
+    // Sonst zeigte die Karte die eben gelöschten Blöcke aus dem Speicher
+    // weiter, bis die App neu startet.
+    _decoded.clear();
+    return freed;
+  }
+
+  /// Liegt der Block in erwarteter Größe da? Siehe [installedOf] für den
+  /// Grund, warum hier nicht die Prüfsumme zählt.
+  Future<bool> _present(File file, ForestBlockInfo info) async {
+    try {
+      return await file.exists() && await file.length() == info.bytes;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<List<int>?> _readVerified(File file, ForestBlockInfo info) async {

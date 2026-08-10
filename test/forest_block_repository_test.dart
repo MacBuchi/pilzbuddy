@@ -166,4 +166,192 @@ void main() {
     final repo = ForestBlockRepository(client: client, baseDirOverride: dir);
     expect(await repo.loadCatalog(), isNull);
   });
+
+  // Der Vorlauf (#264): alles am Stück holen, statt auf Bedarf. Zwei
+  // Blöcke UNTERSCHIEDLICHER Größe, weil der Fortschritt in Bytes zählt
+  // — mit gleich großen Blöcken sähe eine Blockzählung genauso aus.
+  group('Vorlauf', () {
+    final small = encodeForest([
+      [11, 96],
+      [51, 0],
+    ]);
+    final large = encodeForest([
+      [11, 96, 51, 0, 11, 96, 51, 0],
+      [51, 0, 11, 96, 51, 0, 11, 96],
+    ]);
+
+    Map<String, dynamic> twoBlocks() => {
+          'reference_year': 2024,
+          'lattice': 'hex-odd-r',
+          'hex_lon_step': 0.004,
+          'hex_lat_step': 0.003,
+          'blocks': [
+            {
+              'file': 'forest_block_x0_y0.bin.gz',
+              'width': 2,
+              'height': 2,
+              'west': 10.0,
+              'north': 50.0,
+              'east': 10.0 + 0.004 * 2.5,
+              'south': 50.0 - 0.003 * 3,
+              'bytes': small.length,
+              'sha256': sha256.convert(small).toString(),
+            },
+            {
+              'file': 'forest_block_x2_y0.bin.gz',
+              'width': 8,
+              'height': 2,
+              'west': 10.0 + 0.004 * 2,
+              'north': 50.0,
+              'east': 10.0 + 0.004 * 10.5,
+              'south': 50.0 - 0.003 * 3,
+              'bytes': large.length,
+              'sha256': sha256.convert(large).toString(),
+            },
+          ],
+        };
+
+    MockClient servingBoth({List<String>? log, Set<String> missing = const {}}) =>
+        MockClient((request) async {
+          final name = request.url.path.split('/').last;
+          log?.add(name);
+          if (name == 'forest_blocks.json') {
+            return http.Response(jsonEncode(twoBlocks()), 200);
+          }
+          if (missing.contains(name)) return http.Response('weg', 404);
+          if (name == 'forest_block_x0_y0.bin.gz') {
+            return http.Response.bytes(small, 200);
+          }
+          if (name == 'forest_block_x2_y0.bin.gz') {
+            return http.Response.bytes(large, 200);
+          }
+          return http.Response('not found', 404);
+        });
+
+    test('holt alles und zählt dabei bis eins', () async {
+      final log = <String>[];
+      final repo = ForestBlockRepository(
+          client: servingBoth(log: log), baseDirOverride: dir);
+      final catalog = (await repo.loadCatalog())!;
+
+      final steps = await repo.downloadAll(catalog).toList();
+      expect(steps.first, 0.0, reason: 'nichts da: der Balken fängt bei null an');
+      expect(steps.last, 1.0);
+      expect(steps, orderedEquals([...steps]..sort()),
+          reason: 'ein Fortschritt läuft vorwärts');
+      expect(log.where((n) => n.startsWith('forest_block_')), hasLength(2));
+
+      final onDisk = await repo.installedOf(catalog);
+      expect(onDisk.blocks, 2);
+      expect(onDisk.bytes, small.length + large.length);
+    });
+
+    test('was schon daliegt, wird nicht erneut geholt', () async {
+      // Erst den kleinen Block auf dem normalen Weg holen …
+      final first =
+          ForestBlockRepository(client: servingBoth(), baseDirOverride: dir);
+      final catalog = (await first.loadCatalog())!;
+      await first.loadBlock(catalog, catalog.blocks.first);
+
+      // … dann den Vorlauf: er darf nur noch den großen anfassen.
+      final log = <String>[];
+      final repo = ForestBlockRepository(
+          client: servingBoth(log: log), baseDirOverride: dir);
+      final steps = await repo.downloadAll(catalog).toList();
+
+      expect(log, isNot(contains('forest_block_x0_y0.bin.gz')));
+      expect(log, contains('forest_block_x2_y0.bin.gz'));
+      expect(steps.first, greaterThan(0),
+          reason: 'der Balken setzt dort auf, wo er stand');
+      expect(steps.last, 1.0);
+    });
+
+    test('ein fehlender Block wirft — und behält, was schon da ist',
+        () async {
+      final repo = ForestBlockRepository(
+          client: servingBoth(missing: {'forest_block_x2_y0.bin.gz'}),
+          baseDirOverride: dir);
+      final catalog = (await repo.loadCatalog())!;
+
+      await expectLater(repo.downloadAll(catalog).toList(),
+          throwsA(isA<ForestBlockDownloadFailed>()));
+      expect(
+          File('${dir.path}/forest/forest_block_x0_y0.bin.gz').existsSync(),
+          isTrue,
+          reason: 'der Wiederanlauf soll den kleinen überspringen dürfen');
+      expect((await repo.installedOf(catalog)).blocks, 1);
+    });
+
+    test('Abbruch hält an, ohne zu werfen', () async {
+      final repo =
+          ForestBlockRepository(client: servingBoth(), baseDirOverride: dir);
+      final catalog = (await repo.loadCatalog())!;
+
+      var seen = 0;
+      final steps = await repo
+          .downloadAll(catalog, isCancelled: () => seen > 0)
+          .map((p) {
+        seen++;
+        return p;
+      }).toList();
+
+      expect(steps.last, lessThan(1.0));
+      expect((await repo.installedOf(catalog)).blocks, lessThan(2));
+    });
+
+    test('Löschen räumt die Blöcke weg, der Katalog-Cache bleibt', () async {
+      final repo =
+          ForestBlockRepository(client: servingBoth(), baseDirOverride: dir);
+      final catalog = (await repo.loadCatalog())!;
+      await repo.downloadAll(catalog).drain<void>();
+
+      final freed = await repo.deleteBlocks();
+      expect(freed, small.length + large.length);
+      expect((await repo.installedOf(catalog)).blocks, 0);
+      expect(File('${dir.path}/forest/blocks.json').existsSync(), isTrue,
+          reason: 'ohne ihn wäre die Kachel ohne Empfang stumm');
+    });
+
+    test('Löschen leert auch den Speicher — sonst lebt der Block weiter',
+        () async {
+      // Der Block muss DERSELBEN Instanz einmal durch die Hände gegangen
+      // sein (dann liegt er dekodiert im Speicher), und die Quelle muss
+      // danach schweigen — sonst holte ein zweiter Aufruf ihn schlicht
+      // neu und der Test bewiese nichts.
+      var alive = true;
+      final client = MockClient((request) async {
+        final name = request.url.path.split('/').last;
+        if (name == 'forest_blocks.json') {
+          return http.Response(jsonEncode(twoBlocks()), 200);
+        }
+        if (!alive) throw const SocketException('Quelle weg');
+        return http.Response.bytes(
+            name == 'forest_block_x0_y0.bin.gz' ? small : large, 200);
+      });
+
+      final repo = ForestBlockRepository(client: client, baseDirOverride: dir);
+      final catalog = (await repo.loadCatalog())!;
+      expect(await repo.loadBlock(catalog, catalog.blocks.first), isNotNull);
+
+      await repo.deleteBlocks();
+      alive = false;
+      expect(await repo.loadBlock(catalog, catalog.blocks.first), isNull,
+          reason: 'ohne geleerten Speicher käme der gelöschte Block weiter');
+    });
+
+    test('eine Datei falscher Größe zählt nicht als vorhanden', () async {
+      // Der Fall nach einem abgebrochenen Schreibvorgang. Sie muss neu
+      // geholt werden, sonst bliebe eine halbe Datei für immer liegen.
+      final repo =
+          ForestBlockRepository(client: servingBoth(), baseDirOverride: dir);
+      final catalog = (await repo.loadCatalog())!;
+      final stump = File('${dir.path}/forest/forest_block_x0_y0.bin.gz');
+      stump.createSync(recursive: true);
+      stump.writeAsBytesSync(small.take(3).toList());
+
+      expect((await repo.installedOf(catalog)).blocks, 0);
+      await repo.downloadAll(catalog).drain<void>();
+      expect((await repo.installedOf(catalog)).blocks, 2);
+    });
+  });
 }
