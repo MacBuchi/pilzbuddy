@@ -7,6 +7,34 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Funde ohne Empfang gehen nicht mehr verloren
+
+*10. August 2026 · Version 1.79.0*
+
+Bisher brauchte das Eintragen eines Fundes eine Verbindung. Ausgerechnet
+im Wald gibt es die selten — wer dort einen Spot anlegte, bekam „Keine
+Verbindung" und musste sich den Fund merken, bis er zu Hause war.
+
+Ab jetzt landet ein Fund ohne Empfang in einem **Ausgangskorb** auf
+deinem Gerät und geht von allein raus, sobald du wieder Netz hast.
+
+- Der wartende Spot erscheint sofort auf der Karte — blasser und mit
+  einer kleinen Uhr. Du siehst also, wo du schon warst, und legst
+  denselben Spot nicht zweimal an.
+- Oben zeigt ein Hinweis, wie viele Einträge noch warten. Antippen
+  versucht es sofort.
+- Gesendet wird außerdem beim Start der App und sobald die Verbindung
+  zurückkommt — meist musst du gar nichts tun.
+- Wartende Einträge zählen ganz normal mit: in der Statistik, in der
+  Pilzampel und beim Export. Sie sind ja passiert. Nur ändern lassen sie
+  sich erst, wenn sie übertragen sind.
+- Ein wartender Eintrag lässt sich verwerfen, falls du ihn doch nicht
+  willst. Und wenn du dich abmeldest, während noch etwas wartet, fragt
+  die App vorher nach.
+
+Was der Server nicht annimmt, verschwindet nicht still: Solche Einträge
+werden gesondert gemeldet, mit dem Grund.
+
 ## Die feine Waldkarte am Stück laden
 
 *10. August 2026 · Version 1.78.0*

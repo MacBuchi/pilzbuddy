@@ -7,6 +7,8 @@ import 'auth_repository.dart';
 import 'feedback_repository.dart';
 import 'friend_repository.dart';
 import 'live_share_repository.dart';
+import 'outbox.dart';
+import 'outbox_runner.dart';
 import 'profile_repository.dart';
 import 'spot_cache.dart';
 import 'spot_repository.dart';
@@ -23,9 +25,24 @@ final authRepositoryProvider =
 final spotCacheProvider = Provider<SpotCache>(
     (ref) => kIsWeb ? const NoSpotCache() : FileSpotCache());
 
+/// Der Ausgangskorb (#267) — dieselbe Aufteilung wie beim
+/// Zwischenspeicher: im Web wirkungslos, in Tests ersetzt. Anders als
+/// dort ist die Web-Fassung nicht still, sondern wirft beim Ablegen: Ein
+/// Fund, der nirgends liegt, darf nicht als gespeichert gelten.
+final outboxProvider =
+    Provider<Outbox>((ref) => kIsWeb ? const NoOutbox() : FileOutbox());
+
 final spotRepositoryProvider = Provider((ref) => SpotRepository(
       ref.watch(supabaseClientProvider),
       cache: ref.watch(spotCacheProvider),
+    ));
+
+/// Die Wiedervorlage des Korbs. Ein Provider und keine Instanz je
+/// Aufruf: Seine Sperre gegen Doppelläufe wirkt nur, solange es EINEN
+/// Runner gibt.
+final outboxRunnerProvider = Provider<OutboxRunner>((ref) => OutboxRunner(
+      repository: ref.watch(spotRepositoryProvider),
+      outbox: ref.watch(outboxProvider),
     ));
 
 final profileRepositoryProvider =

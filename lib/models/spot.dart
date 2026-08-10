@@ -14,6 +14,11 @@ class Spot {
   final int ownerAvatar;
   final List<Find> finds;
 
+  /// Wartet dieser Spot noch auf die Übertragung (#267)? Siehe
+  /// [Find.pending] — [id] ist dann die Kennung des Auftrags im
+  /// Ausgangskorb, keine Server-id.
+  final bool pending;
+
   const Spot({
     required this.id,
     required this.ownerId,
@@ -25,6 +30,7 @@ class Spot {
     this.ownerUsername,
     this.ownerAvatar = 0,
     this.finds = const [],
+    this.pending = false,
   });
 
   LatLng get position => LatLng(lat, lng);
@@ -97,6 +103,7 @@ class Spot {
         ownerUsername: ownerUsername,
         ownerAvatar: ownerAvatar,
         finds: finds ?? this.finds,
+        pending: pending,
       );
 
   factory Spot.fromJson(Map<String, dynamic> json, {required String currentUserId}) {

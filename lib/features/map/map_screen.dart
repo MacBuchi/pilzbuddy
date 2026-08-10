@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show kReleaseMode;
@@ -72,6 +73,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Der Ausgangskorb (#267) beim Start: Wer gestern im Wald etwas
+    // eingetragen hat, soll es heute nicht von Hand losschicken müssen.
+    // Nach dem ersten Frame, damit der Start nicht daran hängt; ohne
+    // Empfang bleibt einfach alles liegen.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(ref.read(mySpotsProvider.notifier).sendOutbox());
+    });
   }
 
   @override
@@ -328,13 +336,20 @@ class _MapScreenState extends ConsumerState<MapScreen>
       child: GestureDetector(
         onTap: () => showSpotDetailSheet(context, spot.id),
         child: Tooltip(
-          message: spot.isOwn
-              ? spot.displayName
-              : '${spot.displayName} (${spot.ownerUsername ?? 'Freund'})',
+          message: spot.pending
+              ? '${spot.displayName} — wartet auf Verbindung'
+              : spot.isOwn
+                  ? spot.displayName
+                  : '${spot.displayName} (${spot.ownerUsername ?? 'Freund'})',
           child: MushroomIcon(
             seed: stableSeed(spot.id),
             size: 44,
             friend: !spot.isOwn,
+            // Wartet noch auf die Übertragung (#267): halb durchsichtig
+            // mit Uhr. Er muss zu sehen sein, sonst legt man denselben
+            // Spot ein zweites Mal an — aber er darf nicht wie ein
+            // gesicherter aussehen.
+            pending: spot.pending,
             group: groupFor(spot.lastFind?.species),
             species: spot.lastFind?.species,
           ),
@@ -399,6 +414,15 @@ class _MapScreenState extends ConsumerState<MapScreen>
         const <FriendLocation>[];
     final isSharing = ref.watch(isSharingProvider);
     final shareUntil = ref.watch(myShareProvider).valueOrNull;
+    // Verbindung zurück ⇒ Ausgangskorb losschicken (#267). Genau hier
+    // und nicht am App-Resume: Wer aus dem Wald nach Hause kommt, ohne
+    // die App zu schließen, hat kein Resume — aber sehr wohl einen
+    // Wechsel von „kein Netz" auf WLAN.
+    ref.listen<bool>(noConnectivityProvider, (previous, next) {
+      if (previous == true && next == false) {
+        unawaited(ref.read(mySpotsProvider.notifier).sendOutbox());
+      }
+    });
     // Solange ich teile, jede neue Position hochschieben (Bewegung sichtbar).
     ref.listen(positionStreamProvider,
         (_, next) => _maybeUploadLocation(next.valueOrNull));

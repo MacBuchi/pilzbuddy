@@ -107,13 +107,18 @@ class _SpotDetailSheet extends ConsumerWidget {
     }
   }
 
-  Future<void> _delete(BuildContext context, WidgetRef ref) async {
+  Future<void> _delete(BuildContext context, WidgetRef ref, Spot spot) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Spot löschen?'),
-        content: const Text(
-            'Der Spot und alle seine Funde werden dauerhaft gelöscht.'),
+        title: Text(spot.pending ? 'Eintrag verwerfen?' : 'Spot löschen?'),
+        content: Text(spot.pending
+            // Es gibt nichts zu löschen — er ist nie beim Server
+            // angekommen. Das gehört gesagt, sonst klingt „gelöscht"
+            // nach mehr, als passiert ist.
+            ? 'Dieser Spot wartet noch auf die Übertragung. Verwerfen '
+                'heißt: Er wird nie gesendet und ist weg.'
+            : 'Der Spot und alle seine Funde werden dauerhaft gelöscht.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -180,9 +185,9 @@ class _SpotDetailSheet extends ConsumerWidget {
               ),
               if (spot.isOwn)
                 IconButton(
-                  onPressed: () => _delete(context, ref),
+                  onPressed: () => _delete(context, ref, spot),
                   icon: const Icon(Icons.delete_outline),
-                  tooltip: 'Spot löschen',
+                  tooltip: spot.pending ? 'Eintrag verwerfen' : 'Spot löschen',
                 ),
             ],
           ),
@@ -258,18 +263,29 @@ class _SpotDetailSheet extends ConsumerWidget {
                         // unmarkiert heißt: meiner.
                         if (!find.isOwn)
                           'von ${find.authorUsername ?? 'einem Pilzfreund'}',
+                        // Wartet noch auf die Übertragung (#267). Der
+                        // Eintrag zählt trotzdem überall mit — er ist
+                        // passiert; nur ändern lässt er sich nicht.
+                        if (find.pending) 'wartet auf Verbindung',
                       ].join(' – ')),
                       // Eigene Einträge lassen sich antippen und
                       // korrigieren (#240); der Stift sagt das. Fremde
                       // zeigen weiter ihren Eintrager und bleiben stumm
-                      // — die RLS zieht dieselbe Grenze.
-                      onTap: find.isOwn
+                      // — die RLS zieht dieselbe Grenze. Wartende auch:
+                      // Zum Ändern bräuchte es eine id, die der Server
+                      // noch gar nicht vergeben hat.
+                      onTap: find.isOwn && !find.pending
                           ? () => _editFind(context, ref, find)
                           : null,
-                      trailing: find.isOwn
-                          ? Icon(Icons.edit_outlined,
+                      trailing: find.pending
+                          ? Icon(Icons.schedule,
                               size: 18, color: Theme.of(context).hintColor)
-                          : MushroomAvatar(index: find.authorAvatar, size: 22),
+                          : find.isOwn
+                              ? Icon(Icons.edit_outlined,
+                                  size: 18,
+                                  color: Theme.of(context).hintColor)
+                              : MushroomAvatar(
+                                  index: find.authorAvatar, size: 22),
                     ),
                 ],
               ),

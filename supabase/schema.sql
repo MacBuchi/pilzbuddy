@@ -27,9 +27,18 @@ create table public.spots (
   lat double precision not null,
   lng double precision not null,
   sharing_excluded boolean not null default false,      -- einzelner Spot von der Freigabe ausgeschlossen
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  -- Vom Gerät vergebene Kennung des Auftrags aus dem Ausgangskorb
+  -- (Patch 016): macht die Wiedervorlage nach einem abgerissenen Insert
+  -- idempotent. Leer bei allem, was nicht über den Korb kam.
+  client_id uuid
 );
 create index spots_owner_idx on public.spots (owner_id);
+-- Zweimal derselbe Auftrag ⇒ 23505 statt Dublette. Partiell, weil die
+-- Spalte für die große Mehrheit der Zeilen leer bleibt.
+create unique index spots_owner_client_id_key
+  on public.spots (owner_id, client_id)
+  where client_id is not null;
 
 create table public.finds (
   id uuid primary key default gen_random_uuid(),
@@ -50,11 +59,16 @@ create table public.finds (
   -- dem Ort, nicht einer Art. Weder Art noch Anzahl, sonst würde daraus
   -- über die Jahre ein schwächeres „keine Steinpilze".
   blank boolean not null default false,
+  -- Siehe spots.client_id (Patch 016).
+  client_id uuid,
   constraint finds_blank_leer
     check (not blank or (species is null and count is null))
 );
 create index finds_spot_idx on public.finds (spot_id, found_on desc);
 create index finds_author_idx on public.finds (author_id);
+create unique index finds_author_client_id_key
+  on public.finds (author_id, client_id)
+  where client_id is not null;
 
 create table public.friendships (
   id uuid primary key default gen_random_uuid(),
@@ -382,5 +396,6 @@ insert into public.applied_patches (filename) values
   ('patch_012_mindestversion.sql'),
   ('patch_013_username_gross_klein.sql'),
   ('patch_014_buddy_funde.sql'),
-  ('patch_015_leergang.sql')
+  ('patch_015_leergang.sql'),
+  ('patch_016_client_id.sql')
 on conflict do nothing;

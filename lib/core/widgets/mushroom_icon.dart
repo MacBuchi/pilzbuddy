@@ -34,6 +34,7 @@ class MushroomIcon extends StatelessWidget {
     this.group,
     this.species,
     this.ground = true,
+    this.pending = false,
   });
 
   /// Art-Icon für Listenzeilen. Kein Boden — die Ellipse ist Kartensprache
@@ -51,7 +52,9 @@ class MushroomIcon extends StatelessWidget {
         friend = false,
         group = groupFor(name),
         species = name,
-        ground = false;
+        ground = false,
+        // Listenzeilen zeigen Arten, keine Zeilen-Zustände.
+        pending = false;
 
   final int seed;
   final double size;
@@ -66,9 +69,20 @@ class MushroomIcon extends StatelessWidget {
   /// in Porträts wie Avataren nein.
   final bool ground;
 
+  /// Wartet der Spot noch auf die Übertragung (#267)? Dann blasser und
+  /// mit Uhr.
+  ///
+  /// Auf Widget-Ebene und nicht im Painter: Der Zustand ist keine
+  /// Eigenschaft des Pilzes, sondern seiner Zeile in der Datenbank — und
+  /// jede Form soll ihn tragen, ohne dass fünfzehn Cap-Shapes davon
+  /// wissen müssen. Die Deckkraft nimmt die Boden-Ellipse mit, statt sie
+  /// zu verdecken: Grün/Blau bleibt lesbar (Design-Regel „Ground ellipse
+  /// shows ownership"), nur eben verhaltener.
+  final bool pending;
+
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
+    final mushroom = CustomPaint(
       size: Size(size, size),
       painter: _MushroomPainter(
           seed: seed,
@@ -76,6 +90,36 @@ class MushroomIcon extends StatelessWidget {
           group: group,
           species: species,
           ground: ground),
+    );
+    if (!pending) return mushroom;
+
+    // Die Uhr liegt oben rechts auf einer weißen Scheibe: klein genug,
+    // um die Silhouette nicht zu zerschneiden, kontrastreich genug, um
+    // bei 44 px auf jedem Kartenhintergrund zu tragen.
+    final badge = size * 0.42;
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Opacity(opacity: 0.55, child: mushroom),
+          Positioned(
+            right: 0,
+            top: 0,
+            child: Container(
+              width: badge,
+              height: badge,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.schedule,
+                  size: badge * 0.82, color: AppColors.warmBrown),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
