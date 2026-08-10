@@ -25,6 +25,13 @@ class Find {
   /// aus [Spot], die sie schon aussieben.
   final bool blank;
 
+  /// Wartet dieser Eintrag noch auf die Übertragung (#267)? Dann kommt er
+  /// aus dem Ausgangskorb auf dem Gerät und hat noch keine Server-id —
+  /// [id] trägt die vom Gerät vergebene Kennung. Er zählt überall mit
+  /// (er ist passiert), nur ändern und löschen geht nicht: Dafür gibt es
+  /// nichts, was der Server kennt.
+  final bool pending;
+
   const Find({
     required this.id,
     required this.spotId,
@@ -38,6 +45,7 @@ class Find {
     this.authorAvatar = 0,
     this.isOwn = true,
     this.blank = false,
+    this.pending = false,
   });
 
   factory Find.fromJson(Map<String, dynamic> json,

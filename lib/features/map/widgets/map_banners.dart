@@ -12,6 +12,7 @@ import '../../../core/update_check.dart';
 import '../../../core/widgets/form_notice.dart';
 import '../../../data/apk_installer.dart';
 import '../../../data/feedback_repository.dart';
+import '../../../data/outbox.dart';
 import '../../../data/providers.dart';
 import '../../../models/find.dart';
 import '../../../models/spot.dart';
@@ -125,6 +126,89 @@ class MapBanners extends ConsumerWidget {
     final many = memory.count > 1 ? '${memory.count}× ' : '';
     return '🍄 Erinnerung: $place — um diese Zeit ${memory.year} '
         'hattest du dort $many$what';
+  }
+
+  /// Schickt den Ausgangskorb los und sagt, was daraus wurde (#267).
+  ///
+  /// Ohne Netz ist das kein Fehler, sondern die Lage: Der Auftrag bleibt
+  /// liegen, das Banner bleibt stehen. Deshalb wird hier auch nichts
+  /// protokolliert — `sendOutbox` wirft nicht, es berichtet.
+  Future<void> _sendOutbox(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final result = await ref.read(mySpotsProvider.notifier).sendOutbox();
+    messenger.showSnackBar(SnackBar(
+      content: Text(switch (result) {
+        (sent: 0, remaining: _, failed: _) =>
+          'Noch keine Verbindung — deine Einträge warten weiter.',
+        (sent: final sent, remaining: 0, failed: _) => sent == 1
+            ? 'Eintrag übertragen 🍄'
+            : '$sent Einträge übertragen 🍄',
+        (sent: final sent, remaining: final rest, failed: _) =>
+          '$sent übertragen, $rest warten noch.',
+      }),
+    ));
+  }
+
+  /// Was tun mit einem Auftrag, den der Server dauerhaft ablehnt? Die
+  /// App kann es nicht entscheiden — sie kann nur sagen, woran es lag,
+  /// und das Verwerfen anbieten.
+  Future<void> _openFailedDialog(
+      BuildContext context, WidgetRef ref, List<OutboxJob> failed) {
+    return showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Nicht übertragen'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Diese Einträge hat der Server abgelehnt. Weitere '
+                'Versuche ändern daran nichts.'),
+            const SizedBox(height: 12),
+            for (final job in failed)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(_jobLabel(job),
+                        style: Theme.of(context).textTheme.titleSmall),
+                    Text(job.failure ?? '',
+                        style: Theme.of(context).textTheme.bodySmall),
+                  ],
+                ),
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Behalten'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final notifier = ref.read(mySpotsProvider.notifier);
+              Navigator.of(context).pop();
+              for (final job in failed) {
+                await notifier.discardJob(job.id);
+              }
+            },
+            child: const Text('Verwerfen'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _jobLabel(OutboxJob job) {
+    final what = job.finds.length == 1
+        ? job.finds.single.blank
+            ? 'Leergang'
+            : job.finds.single.species ?? 'Fund'
+        : '${job.finds.length} Einträge';
+    return job is NewSpotJob
+        ? '${job.name?.isNotEmpty == true ? job.name : 'Neuer Spot'} — $what'
+        : what;
   }
 
   Future<void> _openUpdateDialog(BuildContext context, UpdateInfo info) {
@@ -269,6 +353,33 @@ class MapBanners extends ConsumerWidget {
               ],
             ),
           ),
+        // Der Ausgangskorb (#267) — direkt unter dem Empfangs-Hinweis und
+        // ohne X: Solange etwas wartet, ist das kein Hinweis, den man
+        // wegwischt, sondern der Zustand der eigenen Daten. Antippen
+        // versucht es sofort; ohne Netz sagt die Meldung genau das.
+        if (ref.watch(pendingEntryCountProvider) > 0)
+          Builder(builder: (context) {
+            final failed = ref.watch(failedJobsProvider);
+            final waiting = ref.watch(pendingEntryCountProvider);
+            return _banner(
+              context,
+              background: failed.isEmpty
+                  ? AppColors.warmBrown
+                  : Theme.of(context).colorScheme.error,
+              foreground: Colors.white,
+              onTap: () => failed.isEmpty
+                  ? _sendOutbox(context, ref)
+                  : _openFailedDialog(context, ref, failed),
+              content: Text(failed.isEmpty
+                  ? waiting == 1
+                      ? '📤 1 Eintrag wartet auf Verbindung — antippen'
+                      : '📤 $waiting Einträge warten auf Verbindung — antippen'
+                  : failed.length == 1
+                      ? '⚠️ 1 Eintrag ließ sich nicht senden — antippen'
+                      : '⚠️ ${failed.length} Einträge ließen sich nicht '
+                          'senden — antippen'),
+            );
+          }),
         if (updateInfo != null && !updateDismissed)
           _banner(
             context,

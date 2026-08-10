@@ -33,18 +33,36 @@ class NewFind {
   /// „Nichts gefunden" — siehe `Find.blank` in `models/find.dart`.
   final bool blank;
 
+  /// Vom Gerät vergebene Kennung (Patch 016, #267). Gesetzt für alles,
+  /// was über den Ausgangskorb läuft — sie macht eine Wiedervorlage nach
+  /// einem abgerissenen Insert idempotent. `null` bei allen anderen
+  /// Wegen (GPX-Import etwa läuft im WLAN und kennt keinen Korb).
+  final String? clientId;
+
   const NewFind({
     this.species,
     this.count,
     required this.foundOn,
     this.note,
     this.blank = false,
+    this.clientId,
   }) : assert(!blank || (species == null && count == null),
             'Ein Leergang trägt weder Art noch Anzahl (finds_blank_leer).');
 
   /// „War da, nichts da." Bewusst ohne Art: Die Aussage gilt dem Ort.
-  const NewFind.blank({required DateTime foundOn, String? note})
-      : this(foundOn: foundOn, note: note, blank: true);
+  const NewFind.blank(
+      {required DateTime foundOn, String? note, String? clientId})
+      : this(
+            foundOn: foundOn, note: note, blank: true, clientId: clientId);
+
+  NewFind withClientId(String clientId) => NewFind(
+        species: species,
+        count: count,
+        foundOn: foundOn,
+        note: note,
+        blank: blank,
+        clientId: clientId,
+      );
 }
 
 /// Ein Spot samt Einträgen, wie ihn der GPX-Import wiederherstellt.
@@ -125,18 +143,62 @@ class SpotRepository {
   /// Neuer Spot samt seiner ersten Einträge. Mehrere, weil an einem Ort
   /// mehrere Arten stehen können (#211) — der Sammler im Anlege-Blatt gibt
   /// sie in einem Rutsch her.
-  Future<void> addSpot({
+  ///
+  /// Liefert die id des Spots: Der Ausgangskorb (#267) braucht sie, um
+  /// wartende Funde aufzulösen, die an diesem noch nicht gesendeten Spot
+  /// hängen.
+  ///
+  /// [clientId] macht den Aufruf **wiederholbar** (Patch 016): Reißt die
+  /// Verbindung nach dem Insert ab, sieht der Aufrufer einen Fehler,
+  /// obwohl die Zeile steht. Der zweite Anlauf läuft dann in den
+  /// Unique-Index und findet über [_existingSpotId] die id von vorhin,
+  /// statt einen zweiten Spot an denselben Fleck zu setzen.
+  Future<String> addSpot({
     required double lat,
     required double lng,
     String? name,
     required List<NewFind> finds,
+    String? clientId,
   }) async {
-    final spot = await _client
+    String spotId;
+    try {
+      final spot = await _client
+          .from('spots')
+          .insert({
+            'owner_id': _uid,
+            'name': name,
+            'lat': lat,
+            'lng': lng,
+            'client_id': ?clientId,
+          })
+          .select('id')
+          .single();
+      spotId = spot['id'] as String;
+    } on PostgrestException catch (error) {
+      final existing = await _existingSpotId(error, clientId);
+      if (existing == null) rethrow;
+      spotId = existing;
+    }
+    await addFinds(spotId: spotId, finds: finds);
+    return spotId;
+  }
+
+  /// Die id des Spots, den ein früherer Anlauf schon angelegt hat — oder
+  /// `null`, wenn dieser Fehler nichts damit zu tun hat.
+  ///
+  /// `23505` ist der Unique-Verstoß aus `spots_owner_client_id_key`. Er
+  /// kann hier NUR von einer Wiederholung kommen: Die Kennung entsteht
+  /// je Auftrag neu und verlässt das Gerät sonst nicht.
+  Future<String?> _existingSpotId(
+      PostgrestException error, String? clientId) async {
+    if (error.code != '23505' || clientId == null) return null;
+    final rows = await _client
         .from('spots')
-        .insert({'owner_id': _uid, 'name': name, 'lat': lat, 'lng': lng})
         .select('id')
-        .single();
-    await addFinds(spotId: spot['id'] as String, finds: finds);
+        .eq('owner_id', _uid)
+        .eq('client_id', clientId)
+        .limit(1);
+    return rows.isEmpty ? null : rows.first['id'] as String;
   }
 
   /// Stellt einen Spot samt seiner Funde wieder her — der Weg für den
@@ -193,17 +255,58 @@ class SpotRepository {
     required List<NewFind> finds,
   }) async {
     if (finds.isEmpty) return;
-    await _client.from('finds').insert([
+    try {
+      await _client.from('finds').insert(_findRows(spotId, finds));
+    } on PostgrestException catch (error) {
+      final remaining = await _unwrittenFinds(error, finds);
+      if (remaining == null) rethrow;
+      if (remaining.isEmpty) return; // Ein früherer Anlauf war vollständig.
+      await _client.from('finds').insert(_findRows(spotId, remaining));
+    }
+  }
+
+  List<Map<String, dynamic>> _findRows(String spotId, List<NewFind> finds) => [
+        for (final find in finds)
+          {
+            'spot_id': spotId,
+            'species': canonicalSpecies(find.species),
+            'count': find.count,
+            'found_on': isoDate(find.foundOn),
+            'note': find.note,
+            'blank': find.blank,
+            if (find.clientId != null) 'client_id': find.clientId,
+          },
+      ];
+
+  /// Welche dieser Einträge ein früherer Anlauf noch NICHT geschrieben
+  /// hat — `null`, wenn dieser Fehler nichts mit einer Wiederholung zu
+  /// tun hat und weitergereicht gehört.
+  ///
+  /// Der Batch-Insert ist alles oder nichts: Steht auch nur eine Zeile
+  /// schon, scheitert der ganze Aufruf. Deshalb wird hier gefragt, was
+  /// wirklich fehlt, statt den Fehler pauschal zu schlucken — sonst
+  /// verlöre eine Wiedervorlage die übrigen Funde desselben Auftrags.
+  Future<List<NewFind>?> _unwrittenFinds(
+      PostgrestException error, List<NewFind> finds) async {
+    if (error.code != '23505') return null;
+    final ids = [
       for (final find in finds)
-        {
-          'spot_id': spotId,
-          'species': canonicalSpecies(find.species),
-          'count': find.count,
-          'found_on': isoDate(find.foundOn),
-          'note': find.note,
-          'blank': find.blank,
-        },
-    ]);
+        if (find.clientId != null) find.clientId!,
+    ];
+    // Ohne Kennung an JEDEM Eintrag ist nicht entscheidbar, welcher schon
+    // steht — dann ist der Verstoß nicht unserer.
+    if (ids.length != finds.length) return null;
+    final rows = await _client
+        .from('finds')
+        .select('client_id')
+        .eq('author_id', _uid)
+        .inFilter('client_id', ids);
+    final written = {for (final row in rows) row['client_id'] as String};
+    if (written.isEmpty) return null;
+    return [
+      for (final find in finds)
+        if (!written.contains(find.clientId)) find,
+    ];
   }
 
   /// Ändert einen einzelnen Eintrag (#240): der Weg, einen Vertipper in

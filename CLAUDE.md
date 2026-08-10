@@ -543,6 +543,49 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   Fehler, bei denen die App mit einer SnackBar weiterläuft — und Web sowie
   GitHub-APK, die Vitals nie sieht. Auswertung per SQL im Dashboard: die
   Tabelle hat absichtlich keine select-Policy.
+- **Ausgangskorb** (`lib/data/outbox.dart` + `outbox_runner.dart` +
+  `outbox_view.dart`, #267, seit 1.79.0): Lesen ohne Empfang konnte die
+  App seit 1.44.0, Schreiben nicht — ein Fund im Funkloch war weg. Jetzt
+  legen **genau zwei** Schreibwege ihren Auftrag lokal ab: neuer Spot und
+  Fund/Leergang an einem Spot. Alles andere (korrigieren, löschen,
+  zusammenführen, GPX-Import) scheitert weiter sichtbar; das ist
+  Schreibtischarbeit im WLAN, und ein Löschauftrag, der Tage später
+  zuschlägt, wäre schlimmer als eine Fehlermeldung.
+  Sechs Dinge, die man wissen muss:
+  - **Nur `looksOffline` führt in den Korb.** Ein Serverfehler muss
+    sichtbar scheitern — sonst sammelte der Korb still Aufträge, die nie
+    durchgehen, und ein kaputtes Deployment bliebe unbemerkt (dieselbe
+    Regel wie im Zwischenspeicher, Lehre aus #80). Ein Flow-Test wacht
+    darüber.
+  - **Der Korb wirft beim Schreiben**, anders als `spot_cache.dart`: Der
+    Cache ist eine Kopie, der Korb trägt das Original. Landet der Auftrag
+    nicht auf der Platte, meldet die App den ursprünglichen Netzfehler
+    weiter — „gespeichert" wäre eine Lüge.
+  - **Der Auftrag entsteht VOR dem ersten Sendeversuch**, mit `client_id`
+    je Spot und je Fund (Patch 016). Nur so trägt schon der erste Versuch
+    die Kennung, und ein Abriss NACH dem Insert erzeugt beim Nachholen
+    keinen zweiten Spot: Das Repository deutet `23505` als „stand schon"
+    und holt sich die id von damals.
+  - **Auflösen und Entfernen werden gemeinsam gültig** — der Runner
+    schreibt am Ende den ganzen Korb neu (`replaceAll`). Ein Fund kann an
+    einem Spot hängen, den es serverseitig noch nicht gibt; stürbe die App
+    zwischen „Spot gesendet" und „Fund umgeschrieben", zeigte der Fund auf
+    einen Auftrag, den es nicht mehr gibt.
+  - **Wartende Einträge zählen überall mit** (Statistik, Ampel,
+    GPX-Export) — sie sind passiert. Gesperrt ist nur das Ändern
+    einzelner Einträge: dafür fehlt die Server-id. Auf der Karte sind sie
+    blass mit Uhr (`MushroomIcon.pending`), sonst legt man denselben Spot
+    zweimal an.
+  - **`outbox/` gehört in beide Backup-Ausschlüsse** (`backup_rules.xml`,
+    `full_backup_content.xml`) — dieselbe Begründung wie bei
+    `spot_cache/`, nur schärfer: Hier stehen die Koordinaten, bevor sie
+    irgendwo anders stehen. Beim Abmelden wird der Korb mitgelöscht,
+    deshalb fragt das Profil vorher nach.
+  Ausgelöst wird die Wiedervorlage beim App-Start, bei der Rückkehr der
+  Verbindung (`noConnectivityProvider`) und auf Tippen im Banner —
+  bewusst NICHT am App-Resume: Wer aus dem Wald nach Hause kommt, ohne
+  die App zu schließen, hat kein Resume, aber sehr wohl einen
+  Netzwechsel.
 
 ## Code-Konventionen
 

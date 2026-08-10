@@ -40,6 +40,39 @@ export '../../core/axis_scale.dart' show yAxisStep, showsYAxisLabel;
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
+  /// Fragt nach, wenn beim Abmelden noch Einträge im Ausgangskorb liegen
+  /// (#267) — sie gehen dabei verloren.
+  ///
+  /// Ohne wartende Einträge wird nichts gefragt: Abmelden ist ein
+  /// alltäglicher Vorgang und braucht keine Rückfrage, nur weil es sie
+  /// in einem Sonderfall geben muss.
+  Future<bool> _confirmSignOut(BuildContext context, WidgetRef ref) async {
+    final waiting = ref.read(pendingEntryCountProvider);
+    if (waiting == 0) return true;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Noch nicht übertragen'),
+        content: Text(waiting == 1
+            ? 'Ein Eintrag wartet noch auf die Verbindung. Beim Abmelden '
+                'geht er verloren.'
+            : '$waiting Einträge warten noch auf die Verbindung. Beim '
+                'Abmelden gehen sie verloren.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Hierbleiben'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Trotzdem abmelden'),
+          ),
+        ],
+      ),
+    );
+    return confirmed == true;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(myProfileProvider);
@@ -61,6 +94,12 @@ class ProfileScreen extends ConsumerWidget {
             // Danach leitet der Router sofort auf /login um, und `ref`
             // wäre nicht mehr benutzbar.
             onPressed: () async {
+              // Der Ausgangskorb gehört zum Konto und wird beim Abmelden
+              // mit weggeworfen (#267) — wie der Zwischenspeicher, aus
+              // demselben Grund: Die Fundstellen eines abgemeldeten
+              // Kontos haben auf dem Gerät nichts verloren. Was noch
+              // wartet, ist damit weg, deshalb wird vorher gefragt.
+              if (!await _confirmSignOut(context, ref)) return;
               await ref.read(mySpotsProvider.notifier).forgetCache();
               await ref.read(authRepositoryProvider).signOut();
             },

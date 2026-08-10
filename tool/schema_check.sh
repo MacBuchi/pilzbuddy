@@ -90,12 +90,15 @@ check_get "friendships-Embed" \
 # `*` und würde eine umbenannte Spalte deshalb nicht bemerken; hier
 # stehen sie namentlich.
 check_get "spots-Schreibspalten" \
-  "/rest/v1/spots?select=id,owner_id,name,lat,lng,sharing_excluded&limit=1"
+  "/rest/v1/spots?select=id,owner_id,name,lat,lng,sharing_excluded,client_id&limit=1"
 
 # finds: Spalten aus Find.fromJson / SpotRepository.addFinds und dem
-# Batch-Insert aus restoreSpot (#112). `blank` seit Patch 015 (#211).
+# Batch-Insert aus restoreSpot (#112). `blank` seit Patch 015 (#211),
+# `client_id` seit Patch 016 (#267) — ohne die Spalte könnte die
+# Wiedervorlage aus dem Ausgangskorb Dubletten anlegen, und zwar
+# stillschweigend.
 check_get "finds-Spalten" \
-  "/rest/v1/finds?select=id,spot_id,author_id,species,count,found_on,note,created_at,blank&limit=1"
+  "/rest/v1/finds?select=id,spot_id,author_id,species,count,found_on,note,created_at,blank,client_id&limit=1"
 
 # live_locations: exakt die Query aus LiveShareRepository.fetchFriendLocations
 check_get "live_locations-Embed (Freundes-Standorte)" \

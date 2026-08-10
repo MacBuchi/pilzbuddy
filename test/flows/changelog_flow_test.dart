@@ -32,7 +32,22 @@ void main() {
     expect(find.text('Was ist neu'), findsOneWidget);
 
     await tester.tap(find.text('Was ist neu'));
+    // Der Bildschirm holt CHANGELOG.md über `rootBundle` — echtes
+    // Datei-IO, das an der Fake-Uhr vorbeiläuft: Der FutureBuilder bleibt
+    // im Ladezustand, egal wie viele Frames gepumpt werden. Bis 1.79.0
+    // ging das gut, weil das Asset zufällig früh genug da war; ein
+    // zusätzlicher await an ganz anderer Stelle (der Ausgangskorb im
+    // Spot-Provider, #267) hat die Reihenfolge gekippt und den Test rot
+    // gemacht, ohne dass am Bildschirm etwas kaputt war.
+    //
+    // Reihenfolge ist hier alles: erst pumpen (der Bildschirm entsteht
+    // und stößt das Laden an), dann echte Zeit vergehen lassen, dann
+    // wieder pumpen. `runAsync` direkt nach dem Tipp liefe ins Leere —
+    // da hat noch niemand das Asset angefordert.
     await settle(tester, frames: 20);
+    await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)));
+    await settle(tester, frames: 5);
 
     // Der neueste Block steht oben und ist ohne Scrollen sichtbar. Die
     // Überschrift kommt aus der Datei statt fest im Test zu stehen — sonst

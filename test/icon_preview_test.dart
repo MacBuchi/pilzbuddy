@@ -84,6 +84,51 @@ void main() {
                   ),
                 ),
               const Divider(height: 8),
+              // Der wartende Zustand (#267): halb durchsichtig mit Uhr,
+              // in Marker-, Blatt- und Listengröße. Er muss auf einen
+              // Blick als „noch nicht gesichert" lesbar sein, ohne dass
+              // der Pilz darunter verschwindet.
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
+                  children: [
+                    const SizedBox(
+                      width: 130,
+                      child: Text('wartet (Korb)',
+                          style: TextStyle(fontSize: 11),
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                    for (final group in [
+                      SpeciesGroup.roehrlinge,
+                      SpeciesGroup.leistlinge,
+                      SpeciesGroup.wulstlinge,
+                    ])
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 3),
+                        child: MushroomIcon(
+                            seed: 3, size: 44, group: group, pending: true),
+                      ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 6),
+                      child: MushroomIcon(
+                          seed: 3,
+                          size: 72,
+                          group: SpeciesGroup.roehrlinge,
+                          pending: true),
+                    ),
+                    const MushroomIcon(
+                        seed: 3,
+                        size: 30,
+                        group: SpeciesGroup.roehrlinge,
+                        pending: true),
+                    const SizedBox(width: 6),
+                    // Zum Vergleich derselbe Pilz, übertragen.
+                    const MushroomIcon(
+                        seed: 3, size: 44, group: SpeciesGroup.roehrlinge),
+                  ],
+                ),
+              ),
+              const Divider(height: 8),
               for (final name in speciesRows)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 2),

@@ -59,6 +59,7 @@ class FakeSpotRow {
     required this.lat,
     required this.lng,
     this.sharingExcluded = false,
+    this.clientId,
   });
 
   final String id;
@@ -67,6 +68,11 @@ class FakeSpotRow {
   final double lat;
   final double lng;
   bool sharingExcluded;
+
+  /// Vom Gerät vergebene Kennung (Patch 016) — hier, damit der Fake die
+  /// Idempotenz der Wiedervorlage spiegelt und nicht nur behauptet.
+  final String? clientId;
+
   final List<Find> finds = [];
 }
 
@@ -169,6 +175,23 @@ class FakeBackend {
   }
 
   /// Spot inkl. optionalem erstem Fund — wie `addSpot` in der App.
+  /// Kein Empfang beim SCHREIBEN (#267): `addSpot`/`addFinds` scheitern
+  /// wie im Funkloch, und der Ausgangskorb muss übernehmen. Bleibt
+  /// gesetzt, bis ein Test ihn zurücknimmt — ein Waldbesuch ist kein
+  /// Einzelereignis.
+  bool offline = false;
+
+  /// Der Server lehnt Schreibvorgänge ab (RLS, kaputtes Deployment). Muss
+  /// sich vom Funkloch unterscheiden: Ein Serverfehler gehört NICHT in
+  /// den Ausgangskorb, sonst sammelte er still Aufträge, die nie
+  /// durchgehen (Lehre aus #80).
+  bool rejectWrites = false;
+
+  /// Kennungen (Patch 016) der Funde, die schon geschrieben wurden —
+  /// spiegelt `finds_author_client_id_key`. Das Modell `Find` trägt sie
+  /// nicht: Die App liest die Spalte nie zurück.
+  final findClientIds = <String>{};
+
   String addSpot({
     required String ownerId,
     double lat = 51.1634,
@@ -178,6 +201,7 @@ class FakeBackend {
     int? count,
     DateTime? foundOn,
     bool sharingExcluded = false,
+    String? clientId,
   }) {
     final row = FakeSpotRow(
       id: _newId('spot'),
@@ -186,6 +210,7 @@ class FakeBackend {
       lat: lat,
       lng: lng,
       sharingExcluded: sharingExcluded,
+      clientId: clientId,
     );
     spots.add(row);
     if (species != null || foundOn != null) {
@@ -208,6 +233,7 @@ class FakeBackend {
     String? authorId,
     DateTime? createdAt,
     bool blank = false,
+    String? clientId,
   }) {
     final row = spots.firstWhere((s) => s.id == spotId);
     // Spiegelt den Constraint `finds_blank_leer`: Ein Leergang trägt
@@ -228,6 +254,7 @@ class FakeBackend {
       authorId: authorId ?? row.ownerId,
       blank: blank,
     ));
+    if (clientId != null) findClientIds.add(clientId);
   }
 
   String addFriendship(
@@ -674,17 +701,39 @@ class FakeSpotRepository implements SpotRepository {
             ),
       ];
 
+  /// Spiegelt `SpotRepository.addSpot` samt der Idempotenz aus Patch 016
+  /// (#267): Derselbe [clientId] legt keinen zweiten Spot an, sondern
+  /// liefert den von damals. Ohne das könnte kein Test beweisen, dass
+  /// eine Wiedervorlage nach abgerissener Antwort keine Dublette
+  /// erzeugt — genau der Fall, für den die Spalte existiert.
   @override
-  Future<void> addSpot({
+  Future<String> addSpot({
     required double lat,
     required double lng,
     String? name,
     required List<NewFind> finds,
+    String? clientId,
   }) async {
-    final id = backend.addSpot(ownerId: _uid, lat: lat, lng: lng, name: name);
+    if (backend.offline) throw const SocketException('kein Netz (Fake)');
+    if (backend.rejectWrites) {
+      throw const PostgrestException(
+          message: 'new row violates row-level security policy',
+          code: '42501');
+    }
+    if (clientId != null) {
+      for (final row in backend.spots) {
+        if (row.ownerId == _uid && row.clientId == clientId) {
+          await addFinds(spotId: row.id, finds: finds);
+          return row.id;
+        }
+      }
+    }
+    final id = backend.addSpot(
+        ownerId: _uid, lat: lat, lng: lng, name: name, clientId: clientId);
     // Wie im echten Repository über addFinds, damit die Normalisierung des
     // Artnamens nur an einer Stelle steht.
     await addFinds(spotId: id, finds: finds);
+    return id;
   }
 
   /// Spiegelt `SpotRepository.restoreSpot` (#112): ein Spot mit beliebig
@@ -730,6 +779,7 @@ class FakeSpotRepository implements SpotRepository {
     required List<NewFind> finds,
   }) async {
     if (finds.isEmpty) return;
+    if (backend.offline) throw const SocketException('kein Netz (Fake)');
     // Spiegel des with check von finds_author_all (Patch 014): Schreiben
     // darf, wer den Spot besitzt ODER ihn über die volle Freigabe-
     // Beziehung sieht. Alles andere beantwortet die echte RLS mit 42501.
@@ -745,13 +795,23 @@ class FakeSpotRepository implements SpotRepository {
           code: '42501');
     }
     for (final find in finds) {
+      // Spiegel von `finds_author_client_id_key` (Patch 016): Eine
+      // Kennung, die schon steht, wird übersprungen statt doppelt
+      // geschrieben. Live macht das der Unique-Index plus die
+      // Nachfrage in `_unwrittenFinds`; hier ist das Ergebnis dasselbe,
+      // und darauf kommt es dem Test an.
+      if (find.clientId != null &&
+          backend.findClientIds.contains(find.clientId)) {
+        continue;
+      }
       backend.addFindRow(spotId,
           species: canonicalSpecies(find.species),
           count: find.count,
           foundOn: find.foundOn,
           note: find.note,
           authorId: _uid,
-          blank: find.blank);
+          blank: find.blank,
+          clientId: find.clientId);
     }
   }
 

@@ -31,6 +31,7 @@ import 'package:pilzbuddy/features/offline_maps/offline_map_providers.dart';
 import 'fake_apk_installer.dart';
 import 'fake_backend.dart';
 import 'fake_keep_alive.dart';
+import 'fake_outbox.dart';
 import 'fake_map_view.dart';
 import 'fake_offline_maps.dart';
 import 'fake_settings.dart';
@@ -78,6 +79,7 @@ List<Override> overridesFor(FakeBackend backend,
         Settings? settings,
         FakeApkInstaller? apkInstaller,
         FakeSpotCache? spotCache,
+        FakeOutbox? outbox,
         bool useRealMap = false,
         List<Override> extra = const []}) =>
     [
@@ -105,6 +107,11 @@ List<Override> overridesFor(FakeBackend backend,
       // Ohne diesen Override fragt FileSpotCache path_provider nach dem
       // App-Verzeichnis — den Kanal gibt es im Widget-Test nicht.
       spotCacheProvider.overrideWithValue(spotCache ?? FakeSpotCache()),
+      // Und derselbe Grund für den Ausgangskorb (#267): `FileOutbox`
+      // fragt path_provider nach dem App-Verzeichnis. Ohne diesen
+      // Override bliebe der Abruf der eigenen Spots hängen — er liest
+      // den Korb mit.
+      outboxProvider.overrideWithValue(outbox ?? FakeOutbox()),
       positionStreamProvider.overrideWith((ref) => Stream.value(position)),
       offlineMapRepositoryProvider
           .overrideWithValue(offlineMaps ?? FakeOfflineMapRepository()),
@@ -186,6 +193,7 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
     Settings? settings,
     FakeApkInstaller? apkInstaller,
     FakeSpotCache? spotCache,
+    FakeOutbox? outbox,
     bool useRealMap = false,
     List<Override> extraOverrides = const []}) async {
   addTearDown(backend.dispose);
@@ -200,6 +208,7 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
         settings: settings,
         apkInstaller: apkInstaller,
         spotCache: spotCache,
+        outbox: outbox,
         useRealMap: useRealMap,
         extra: extraOverrides),
     child: const PilzBuddyApp(),
