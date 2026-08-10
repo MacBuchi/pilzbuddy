@@ -16,9 +16,12 @@
 # sein. `dart_license_checker` fiel raus: vier Jahre alt, nur Anzeige, kein
 # Gate.
 #
-# Ergänzt `dependency-review` im selben Workflow, ersetzt es nicht: Das
-# prüft nur, was ein PR NEU hinzufügt, und würde einen Lizenzwechsel in
-# einer bestehenden transitiven Abhängigkeit nie bemerken.
+# Seit #265 der EINZIGE Lizenz-Check: `dependency-review` im selben
+# Workflow kann keine Lizenzregel tragen, ohne an GitHubs kleingeschriebenen
+# pub-Lizenzen jede Abhängigkeits-PR rot zu machen (Begründung dort). Diese
+# Liste ist ohnehin die stärkere — sie prüft den GANZEN Baum statt nur das,
+# was ein PR neu hinzufügt, und würde als Einzige einen Lizenzwechsel in
+# einer bestehenden transitiven Abhängigkeit bemerken.
 
 # Freizügige Lizenzen — verträglich mit der MIT-Auslieferung dieser App und
 # mit dem Play Store. Der pub-Bestand besteht fast vollständig aus MIT und

@@ -52,18 +52,27 @@ jobs:
     if: github.event_name != 'pull_request'
     uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@9a498708959aeaef5ef730655706c5a1df1edbc2 # v2.3.8
 
-  # Der Lizenz-Riegel. Prüft ausschließlich die im PR NEU hinzukommenden
+  # Der Schwachstellen-Riegel für die im PR NEU hinzukommenden
   # Abhängigkeiten (GitHubs Dependency Graph wertet pubspec.yaml +
   # pubspec.lock aus — Dart wird unterstützt, die Lockfile ist eingecheckt).
   #
-  # Bewusst eine DENY- und keine ALLOW-Liste: Eine Allowliste macht jede
-  # unbekannte oder nicht auflösbare Lizenz zum Merge-Blocker, und genau das
-  # passiert bei pub-Paketen regelmäßig. Verboten ist damit nur, was mit der
-  # MIT-Auslieferung und dem Play Store wirklich kollidiert.
+  # **Hier steht bewusst KEINE Lizenzregel** (weder deny noch allow, #265).
+  # Sobald irgendeine gesetzt ist, prüft die Action die SPDX-Kennung JEDER
+  # gemeldeten Lizenz — und GitHubs Dependency Graph meldet pub-Lizenzen
+  # kleingeschrieben (`mit`, `bsd-3-clause`). Das sind keine gültigen
+  # SPDX-Kennungen, also bricht der Job ab: „Dependency review could not
+  # detect the validity of all licenses." Jede Abhängigkeits-PR wäre damit
+  # rot, dauerhaft. In MitFahrBar an derselben Paket-Änderung in beide
+  # Richtungen gemessen (dort #226/#227): rot mit Liste, grün in 7 s ohne.
+  # Es liegt nicht an der Action-Version — ein v4-Lauf starb genauso.
   #
-  # Der Gesamtbestand — nicht nur das Neue — wird separat geprüft; dafür ist
-  # `license_checker` vorgesehen (liest die echten LICENSE-Dateien aus dem
-  # pub-Cache, statt sich auf Lizenz-Metadaten Dritter zu verlassen).
+  # Verloren geht dabei nichts: Die Lizenzen prüft `Lizenzen
+  # (Gesamtbestand)` unten, und zwar strenger — als ALLOW-Liste, über alle
+  # ~174 Pakete statt nur die neuen, aus den echten LICENSE-Dateien statt
+  # aus Metadaten Dritter.
+  #
+  # Wer hier wieder eine Zeile `deny-licenses:` einfügt, holt genau diesen
+  # Dauerfehler zurück.
   #
   # **VORBEDINGUNG, und sie ist eine Repo-Einstellung, kein Code:** Der
   # Dependency Graph muss unter Settings → Code security eingeschaltet sein
@@ -83,13 +92,14 @@ jobs:
       - uses: actions/dependency-review-action@v5
         with:
           fail-on-severity: high
-          deny-licenses: GPL-2.0, GPL-3.0, AGPL-3.0, SSPL-1.0
           comment-summary-in-pr: never
 
-  # Das Gegenstück zu dependency-review: Der prüft nur, was ein PR NEU
-  # hinzufügt, und würde einen Lizenzwechsel in einer bestehenden
-  # transitiven Abhängigkeit nie bemerken. Dieser Job prüft den GANZEN
-  # Baum — Regeln und Begründungen in tool/license_config.yaml.
+  # **Der einzige Lizenz-Check** (seit #265, siehe oben: In
+  # `dependency-review` kann keiner stehen, ohne dort jede
+  # Abhängigkeits-PR rot zu machen). Prüft den GANZEN Baum, nicht nur was
+  # ein PR neu hinzufügt — ein Lizenzwechsel in einer bestehenden
+  # transitiven Abhängigkeit fiele sonst nie auf. Regeln und
+  # Begründungen in tool/license_config.yaml.
   #
   # `dart pub global activate` statt dev_dependency: `pubspec.yaml` ist
   # nicht vom Version Guard ausgenommen, eine Zeile dort löste ein Release
