@@ -94,73 +94,60 @@ abstract final class AppColors {
   /// soll nach Karte aussehen, nicht nach Fehler. Ändert sich der Style,
   /// gehört dieser Wert nachgezogen.
   static const mapBackground = Color(0xFFE2DFDA);
+
+  /// Die Kombi-Ebene „Wald + Pilzwetter": je Waldklasse ein Paar
+  /// (verhalten, günstig), in der Reihenfolge von `ForestClass` ohne
+  /// `none` — Laub, Misch, Nadel.
+  ///
+  /// **Eine gesetzte Tabelle, keine gerechnete Mischung** (Betreiber,
+  /// 2026-08-10: „transparent ist nicht das Beste, weil dann die Farben
+  /// alles so wischiwaschi werden"). Bis 1.79.0 ERSETZTE das Leuchten
+  /// die Wabenfarbe, die Waldklasse war also genau dort weg, wo man sie
+  /// wissen will. Der naheliegende Ausweg — den Ampelton anteilig über
+  /// die Wabe legen — ist am gerenderten Vergleich durchgefallen:
+  /// Violett und der Laub-Ocker ([forestBroadleaf]) sind fast
+  /// Komplementärfarben, unter ~60 % Anteil entsättigt „verhalten" dort
+  /// ins Rosé-Graue, über ~80 % fallen die drei Klassen wieder auf
+  /// einen Ton zusammen. Zwischen beiden Klippen bleibt kein Fenster,
+  /// das auf allen drei Waldfarben trägt.
+  ///
+  /// Deshalb sechs von Hand gesetzte Töne. Sie tragen ZWEI Achsen, und
+  /// die Trennung ist der ganze Trick:
+  /// - **Waldklasse = Farbton**, ein Verlauf von Violett (Laub, 275°)
+  ///   über 254° nach dunklem Königsblau (Nadel, 228°). Der frühere
+  ///   Vorschlag hielt alle drei zwischen 268° und 295° — aus dem
+  ///   Augenwinkel war das eine Nuance, keine Unterscheidung
+  ///   (Betreiber, 2026-08-10).
+  /// - **Wetterstufe = Helligkeit und Dichte**, siehe die Alphas in
+  ///   `forest_fill.dart`. Der Farbton bleibt innerhalb einer Spalte
+  ///   gleich, sonst würden sich die Achsen gegenseitig überschreiben.
+  ///
+  /// Zum Kartenwasser (`#80deea`, 188° Cyan) bleiben ~40° und ein
+  /// großer Helligkeitsabstand — an genau dieser Nähe war die früher
+  /// wählbare Türkis-Familie gescheitert.
+  static const ampelCombined = <(Color, Color)>[
+    (Color(0xFF9B61DD), Color(0xFF840FD8)), // Laub
+    (Color(0xFF6858DD), Color(0xFF5412C0)), // Misch
+    (Color(0xFF3C61C5), Color(0xFF0E2093)), // Nadel
+  ];
+
+  /// Dieselbe Familie als Punkt und Wort im Spot-Blatt — dort ist keine
+  /// Waldklasse bekannt, also vertreten zwei Töne die ganze Skala:
+  /// [ampelMild] ihr helles violettes, [ampelStrong] ihr tiefes blaues
+  /// Ende. Bewusst mit großem Helligkeitsabstand: Auf weißem Grund
+  /// trägt eine Zeile Text keinen Farbton-Unterschied, sondern nur
+  /// Kontrast (beide erreichen 3:1 bzw. 11:1).
+  static const ampelMild = Color(0xFF8B6FE0);
+  static const ampelStrong = Color(0xFF34199B);
 }
 
-/// Die Farbfamilie der Pilzampel — vom Nutzer wählbar (Betreiber-Wunsch
-/// 2026-08-09, nach einem gerenderten Vergleich entschieden).
-///
-/// **Warum die Ampel aus den Erdtönen ausbricht:** Sie bewertet
-/// WETTER, nicht Gelände. Bis 1.73.0 lieh sie sich die Farben der
-/// Stufen-Worte ([AppColors.forestGreen] / [AppColors.forestBroadleaf])
-/// — und lag damit im selben Grün-Ocker-Braun wie die Waldebene, mit der
-/// man sie kombinieren WILL. Über Laubwald war „verhalten" praktisch
-/// nicht mehr zu erkennen. Jede Familie hier ist deshalb daraufhin
-/// geprüft, dass sie über der Waldebene stehen bleibt.
-///
-/// Drei zur Wahl statt einer festgelegten: Der Vergleich war knapp, und
-/// Farbwahrnehmung ist im Wald (Sonne, Schatten, Displayhelligkeit)
-/// nicht dieselbe wie am Schreibtisch.
-enum AmpelPalette {
-  /// Kommt weder im Kartenstil noch in der Waldebene vor — liest sich
-  /// sofort als „Wetter". Der Vorschlag des Hauses.
-  violett(
-    mild: Color(0xFF9B6DD9),
-    strong: Color(0xFF4A148C),
-    highlight: Color(0xFFC628FF),
-    label: 'Violett',
-  ),
-
-  /// Auffälliger als Violett; über Laubwald-Ocker geht der milde Ton
-  /// ins Lachsfarbene.
-  magenta(
-    mild: Color(0xFFF06EA8),
-    strong: Color(0xFFB00A5C),
-    highlight: Color(0xFFFF2D87),
-    label: 'Magenta',
-  ),
-
-  /// Kühl und klar auf Beige. Auf der Karte am ehesten mit Wasser zu
-  /// verwechseln — deshalb nicht der Standard.
-  tuerkis(
-    mild: Color(0xFF5AC8D8),
-    strong: Color(0xFF006B7A),
-    highlight: Color(0xFF00E5D0),
-    label: 'Türkis',
-  );
-
-  const AmpelPalette({
-    required this.mild,
-    required this.strong,
-    required this.highlight,
-    required this.label,
-  });
-
-  /// „verhalten" — die schwächere der beiden sichtbaren Stufen.
-  final Color mild;
-
-  /// „günstig".
-  final Color strong;
-
-  /// Der Leuchtton der Kombi-Ebene „Wald + Pilzwetter": Er liegt AUF
-  /// den Waldwaben und muss sich deshalb kräftiger absetzen als die
-  /// Flächentöne darüber.
-  final Color highlight;
-
-  /// Wie die Familie im Blatt heißt.
-  final String label;
-}
-
-/// Die Standard-Familie: bewusst [AmpelPalette.violett] — der einzige
-/// Farbton der Auswahl, der weder in der Karte (Wasser, Wald, Wege)
-/// noch in der Waldebene vorkommt.
-const defaultAmpelPalette = AmpelPalette.violett;
+// **Es gibt keine wählbare Ampel-Farbfamilie mehr** (Betreiber,
+// 2026-08-10). 1.73.0 hatte drei zur Wahl gestellt, weil der gerenderte
+// Vergleich knapp war; entschieden hat ihn dann das Feld: Türkis lag zu
+// nah am Kartenwasser, Violett gewann. Was die Wahl endgültig erledigt
+// hat, ist die feste Tabelle in [AppColors.ampelCombined] — sechs
+// gesetzte Töne je Familie, dazu ein Verlauf von Violett nach Blau, der
+// sich in Magenta nicht sinnvoll nachbauen ließe. Zwölf von Hand
+// gepflegte Werte für ein Feature mit einer benutzten Familie wären
+// Ballast; der Prefs-Schlüssel `ampel_palette` bleibt darum einfach
+// liegen und wird nicht mehr gelesen.

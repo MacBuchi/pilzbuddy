@@ -141,8 +141,6 @@ class _RainLayerSheet extends ConsumerWidget {
                         }
                       },
                     ),
-                    if (ref.watch(ampelLayerEnabledProvider))
-                      const _AmpelPaletteChips(),
                   ],
                   if (current != RainLayer.off) ...[
                     const Divider(height: 16),
@@ -312,47 +310,3 @@ class _OwnLegend extends StatelessWidget {
   }
 }
 
-/// Die Farbwahl der Ampel: drei Familien als Farbpunkte (Betreiber-Wunsch
-/// 2026-08-09, entschieden an einem gerenderten Vergleich).
-///
-/// Punkte statt Namen als Hauptträger — die Frage ist „welcher Ton
-/// steht auf DEINEM Display im Wald besser da", und die beantwortet man
-/// nicht durch das Wort „Türkis". Der Name steht daneben, damit die
-/// Auswahl auch mit Rot-Grün-Schwäche benennbar bleibt.
-class _AmpelPaletteChips extends ConsumerWidget {
-  const _AmpelPaletteChips();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final selected = ref.watch(ampelPaletteProvider);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      child: Row(
-        children: [
-          Text('Farbe',
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: AppColors.barkBrown)),
-          const SizedBox(width: 12),
-          for (final palette in AmpelPalette.values) ...[
-            ChoiceChip(
-              selected: palette == selected,
-              onSelected: (_) =>
-                  ref.read(ampelPaletteProvider.notifier).set(palette),
-              avatar: Container(
-                decoration: BoxDecoration(
-                  color: palette.strong,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              label: Text(palette.label),
-              labelStyle: theme.textTheme.bodySmall,
-              visualDensity: VisualDensity.compact,
-            ),
-            const SizedBox(width: 6),
-          ],
-        ],
-      ),
-    );
-  }
-}

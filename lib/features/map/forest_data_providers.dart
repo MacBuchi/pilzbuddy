@@ -10,12 +10,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/app_colors.dart' show AmpelPalette;
 import '../ampel/ampel_fill.dart' show AmpelLevelGrid;
 import '../ampel/ampel_map_providers.dart'
     show ampelLayerEnabledProvider, ampelLevelGridProvider;
-import '../ampel/ampel_providers.dart'
-    show ampelPaletteProvider, ampelPreviewEnabledProvider;
+import '../ampel/ampel_providers.dart' show ampelPreviewEnabledProvider;
 import 'forest_block_providers.dart' show forestBlocksReadyProvider;
 import 'forest_fill.dart';
 import 'forest_fill_window.dart';
@@ -162,7 +160,6 @@ final forestFillProvider = FutureProvider<ForestFillImage?>((ref) async {
   // GEHOLT, nicht schon erwartet.
   final combined = ref.watch(ampelPreviewEnabledProvider) &&
       ref.watch(ampelLayerEnabledProvider);
-  final palette = ref.watch(ampelPaletteProvider);
   final levelsFuture =
       combined ? ref.watch(ampelLevelGridProvider.future) : null;
   final grid = await ref.watch(forestGridProvider.future);
@@ -171,9 +168,7 @@ final forestFillProvider = FutureProvider<ForestFillImage?>((ref) async {
   // malt die Fläche schlicht wie immer — der Schalter verspricht ein
   // Leuchten, keine leere Karte.
   final levels = levelsFuture == null ? null : await levelsFuture;
-  final ampel = levels == null
-      ? null
-      : (palette: palette, newest: levels.newest);
+  final ampel = levels == null ? null : (newest: levels.newest);
 
   // Die feine Stufe (#253) malt nur, wenn sie das GANZE Fenster deckt —
   // halb fein, halb grob wäre eine sichtbare Naht aus zwei Wabengrößen
@@ -187,8 +182,7 @@ final forestFillProvider = FutureProvider<ForestFillImage?>((ref) async {
             grids: grids,
             classes: classes,
             window: window,
-            levels: levels,
-            palette: palette
+            levels: levels
           ));
     return ForestFillImage(
       png: png,
@@ -210,8 +204,7 @@ final forestFillProvider = FutureProvider<ForestFillImage?>((ref) async {
           grids: [grid],
           classes: classes,
           window: window,
-          levels: levels,
-          palette: palette
+          levels: levels
         ));
   return ForestFillImage(
     png: png,
@@ -232,14 +225,10 @@ Uint8List _fillCombined(
           List<ForestGrid> grids,
           Set<ForestClass> classes,
           FillWindow window,
-          AmpelLevelGrid levels,
-          AmpelPalette palette
+          AmpelLevelGrid levels
         }) input) =>
     forestAmpelFillPng(input.grids,
-        window: input.window,
-        levels: input.levels,
-        palette: input.palette,
-        classes: input.classes);
+        window: input.window, levels: input.levels, classes: input.classes);
 
 Uint8List _fill(
         ({ForestGrid grid, Set<ForestClass> classes, FillWindow window})
@@ -329,11 +318,13 @@ class ForestFillImage {
   /// nicht getauscht.
   final String windowKey;
 
-  /// Gesetzt, wenn dieses Bild die KOMBI-Ebene ist: die Farbfamilie und
-  /// der Stand der Wetterdaten. Beides gehört in den Dateinamen — sonst
-  /// tauscht die MapLibre-Strecke das Bild beim Farb- oder
-  /// Datenwechsel nicht (dieselbe Falle wie Klassenwahl und Feinstufe).
-  final ({AmpelPalette palette, DateTime newest})? ampel;
+  /// Gesetzt, wenn dieses Bild die KOMBI-Ebene ist: der Stand der
+  /// Wetterdaten. Er gehört in den Dateinamen — sonst tauscht die
+  /// MapLibre-Strecke das Bild beim Datenwechsel nicht (dieselbe Falle
+  /// wie Klassenwahl und Feinstufe). Die Farbfamilie stand hier bis
+  /// 1.79.0 mit drin; seit die Töne fest sind, gibt es nichts mehr zu
+  /// unterscheiden.
+  final ({DateTime newest})? ampel;
 
   /// Kam das Bild aus der feinen Stufe (#253)? Gehört in den Dateinamen
   /// ([forestFillVariant]): Fenster, Jahr und Klassenwahl sind beim
@@ -350,7 +341,6 @@ String forestFillVariant(ForestFillImage fill) {
     fill.windowKey,
     if (fill.fine) 'fein',
     if (ampel != null)
-      'ampel-${ampel.palette.name}-'
-          '${ampel.newest.toUtc().toIso8601String().split('T').first}',
+      'ampel-${ampel.newest.toUtc().toIso8601String().split('T').first}',
   ].join('_');
 }
