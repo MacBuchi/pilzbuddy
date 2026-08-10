@@ -613,6 +613,23 @@ class _AboutSection extends ConsumerWidget {
         const SizedBox(height: 4),
         Text('Version $version — $updateStatus',
             style: Theme.of(context).textTheme.bodySmall),
+        // Nur wo der Update-Weg überhaupt läuft (#269). Im Web und im
+        // Play-Build zeigte der Schalter auf nichts; der Provider hält
+        // denselben Riegel, hier steht er gegen einen Schalter, den man
+        // sonst umlegen könnte, ohne dass je etwas passiert.
+        if (updateChecksApply)
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            secondary: const Icon(Icons.science_outlined),
+            title: const Text('Vorabversionen erhalten'),
+            subtitle: const Text(
+                'Bietet auch Zwischenstände an, die noch nicht freigegeben '
+                'sind — ungetestet und häufig. Gilt nur für dieses Gerät.'),
+            value: ref.watch(prereleaseUpdatesProvider),
+            onChanged: (value) =>
+                ref.read(prereleaseUpdatesProvider.notifier).set(value),
+          ),
         ListTile(
           contentPadding: EdgeInsets.zero,
           dense: true,

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -8,6 +9,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../data/providers.dart';
 import 'app_distribution.dart';
 import 'app_info.dart';
+import 'errors.dart';
+import 'settings.dart';
 
 /// Informationen über ein verfügbares Update von GitHub Releases.
 class UpdateInfo {
@@ -48,23 +51,88 @@ bool isNewerVersion(String latest, String current) {
   return false;
 }
 
+/// Läuft der Update-Weg auf diesem Gerät überhaupt?
+///
+/// Web ist immer aktuell, und im Play-Build übernimmt der Store das
+/// Aktualisieren (Verweise auf APK-Downloads sind dort unzulässig).
+bool get updateChecksApply =>
+    AppDistribution.showsUpdateHints &&
+    !kIsWeb &&
+    defaultTargetPlatform == TargetPlatform.android;
+
+/// Bekommt dieses Gerät Vorabversionen? (#269, Vorbild MitFahrBar)
+///
+/// Der Riegel steht HIER und nicht nur in der Oberfläche: Wo der
+/// Update-Weg gar nicht läuft, muss der Schalter aus sein, sonst ließe
+/// er sich umlegen, ohne dass je etwas passieren kann.
+class PrereleaseUpdatesNotifier extends Notifier<bool> {
+  @override
+  bool build() =>
+      updateChecksApply && ref.read(settingsProvider).prereleaseUpdatesEnabled;
+
+  /// Muster wie `AmpelPreviewEnabledNotifier`: Zustand springt sofort,
+  /// Speichern läuft nach, ein Fehler beim Merken wird nur protokolliert.
+  void set(bool value) {
+    state = value;
+    unawaited(ref
+        .read(settingsProvider)
+        .setPrereleaseUpdatesEnabled(value)
+        .catchError((Object e, StackTrace stackTrace) {
+      logError('Vorab-Kanal merken', e, stackTrace);
+    }));
+  }
+}
+
+final prereleaseUpdatesProvider =
+    NotifierProvider<PrereleaseUpdatesNotifier, bool>(
+        PrereleaseUpdatesNotifier.new);
+
+/// Der erste VERÖFFENTLICHTE Eintrag einer Release-Liste — Prereleases
+/// eingeschlossen, Entwürfe nicht.
+///
+/// GitHub liefert die Liste absteigend nach Erstellungszeit, genommen wird
+/// also der jüngste Stand. Ein Entwurf ist keiner: Seine Dateien sind
+/// nicht öffentlich abrufbar, der Download liefe ins Leere und der
+/// Hinweis nennte eine Version, die es für niemanden gibt.
+Map<String, dynamic>? firstPublishedRelease(List<dynamic> releases) {
+  for (final entry in releases) {
+    if (entry is! Map<String, dynamic>) continue;
+    if (entry['draft'] == true) continue;
+    return entry;
+  }
+  return null;
+}
+
 /// Fragt das neueste GitHub-Release ab und vergleicht mit der installierten
 /// Version. Nur relevant für die per APK verteilte Android-App — Web ist
 /// immer aktuell, und im Play-Build übernimmt der Store das Aktualisieren.
 /// Liefert `null`, wenn kein Update verfügbar ist oder der Check fehlschlägt.
+///
+/// Der Kanal (#269) entscheidet ausschließlich über die ADRESSE:
+/// `…/releases/latest` liefert grundsätzlich kein Prerelease, `…/releases`
+/// die ganze Liste. Alles danach — Versionsvergleich, APK-Suche, „Was ist
+/// neu", der Dialog — ist für beide Kanäle dasselbe. Zwei Fassungen wären
+/// zwei Antworten auf „ist das ein Update", und der Unterschied fiele erst
+/// dem Tester auf.
 final updateInfoProvider = FutureProvider<UpdateInfo?>((ref) async {
-  if (!AppDistribution.showsUpdateHints) return null;
-  if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return null;
+  if (!updateChecksApply) return null;
+  final prerelease = ref.watch(prereleaseUpdatesProvider);
   try {
     final packageInfo = await PackageInfo.fromPlatform();
     final response = await http.get(
-      Uri.parse(
-          'https://api.github.com/repos/MacBuchi/pilzbuddy/releases/latest'),
+      Uri.parse(prerelease
+          ? 'https://api.github.com/repos/MacBuchi/pilzbuddy/releases'
+              '?per_page=10'
+          : 'https://api.github.com/repos/MacBuchi/pilzbuddy/releases/latest'),
       headers: {'Accept': 'application/vnd.github+json'},
     ).timeout(const Duration(seconds: 10));
     if (response.statusCode != 200) return null;
 
-    final release = jsonDecode(response.body) as Map<String, dynamic>;
+    final decoded = jsonDecode(response.body);
+    final release = prerelease
+        ? firstPublishedRelease(decoded as List<dynamic>)
+        : decoded as Map<String, dynamic>;
+    if (release == null) return null;
     final tag = (release['tag_name'] as String? ?? '');
     final latest = tag.startsWith('v') ? tag.substring(1) : tag;
     if (latest.isEmpty || !isNewerVersion(latest, packageInfo.version)) {

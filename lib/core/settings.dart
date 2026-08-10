@@ -76,6 +76,22 @@ abstract interface class Settings {
 
   Future<void> setAmpelPreviewEnabled(bool value);
 
+  /// Bekommt dieses Gerät auch Vorabversionen angeboten? (#269)
+  ///
+  /// Standardmäßig NEIN, und das ist der ganze Sinn der Trennung: Seit
+  /// #262 baut JEDER Merge ein Release, aber als Prerelease — für die
+  /// Nutzer unsichtbar, weil `/releases/latest` grundsätzlich keine
+  /// Prereleases liefert. Wer den Schalter umlegt, hebt genau diesen
+  /// Schutz für sich auf und bekommt Zwischenstände, die niemand
+  /// abgenommen hat.
+  ///
+  /// Gerätelokal wie alle Schalter hier: Es ist eine Einstellung dieses
+  /// Telefons, keine des Kontos — auf dem Zweitgerät will man denselben
+  /// Menschen nicht zwangsweise im Vorab-Kanal haben.
+  bool get prereleaseUpdatesEnabled;
+
+  Future<void> setPrereleaseUpdatesEnabled(bool value);
+
   /// Darf die Waldkarte feine Waben (≈ 100 m) nachladen? (#253)
   ///
   /// Standardmäßig NEIN, dieselbe Zusage wie beim Regenverlauf: Ein
@@ -183,6 +199,16 @@ class PrefsSettings implements Settings {
   @override
   Future<void> setAmpelPreviewEnabled(bool value) =>
       _prefs.setBool(_ampelPreviewEnabledKey, value);
+
+  static const _prereleaseUpdatesEnabledKey = 'prerelease_updates_enabled';
+
+  @override
+  bool get prereleaseUpdatesEnabled =>
+      _prefs.getBool(_prereleaseUpdatesEnabledKey) ?? false;
+
+  @override
+  Future<void> setPrereleaseUpdatesEnabled(bool value) =>
+      _prefs.setBool(_prereleaseUpdatesEnabledKey, value);
 
   static const _forestFineEnabledKey = 'forest_fine_enabled';
 
