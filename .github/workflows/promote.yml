@@ -1,0 +1,141 @@
+# Ein Prerelease zum stabilen Release befördern (#262).
+#
+# **Warum es diesen Workflow gibt.** Jeder Merge mit Versions-Bump erzeugt
+# ein Release — am 2026-08-09 waren das acht an einem Tag, und die App
+# meldete jedes einzelne. Seit `release.yml` als *Prerelease*
+# veröffentlicht, sieht sie davon nichts: `update_check.dart` fragt
+# `/releases/latest` ab, und GitHub liefert dort keine Prereleases. Dieser
+# Workflow ist der bewusste Handgriff, der einen Stand freigibt.
+#
+# **Drei Dinge passieren hier zusammen, und keines davon ist optional:**
+#
+# 1. Das Release verliert die Prerelease-Markierung und wird „latest" —
+#    erst dadurch meldet sich die App.
+# 2. Die Release-Notizen werden aus ALLEN Changelog-Blöcken seit dem
+#    letzten stabilen Stand zusammengesetzt (`tool/release_notes.py`).
+#    Ohne das stünde dort nur der Block der beförderten Version, und alles
+#    dazwischen fehlte.
+# 3. GitHub Pages wird aus genau diesem Tag deployt. Das Web hängt an
+#    EINER Adresse; deployte weiterhin jeder Merge, bekämen Web-Nutzer
+#    jede Zwischenversion und die Trennung gälte nur für Android.
+#
+# **Was hier NICHT passiert: Migrationen.** Die spielt der Schema Check
+# beim Merge ein, die Datenbank läuft dem stabilen Client also voraus —
+# statt Minuten jetzt Wochen. Brechende Änderungen brauchen deshalb das
+# Zwei-Schritt-Muster erweitern → ausliefern → entfernen (DocuHub,
+# `datenhaltung.md`), und `minimum_supported_version` darf nie über den
+# stabilen Stand steigen (geprüft in `tool/schema_check.sh`).
+name: Promote
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version ohne v, z. B. 1.77.0 (leer = neuestes Prerelease)'
+        required: false
+        type: string
+
+env:
+  FLUTTER_VERSION: "3.41.2"
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  promote:
+    name: Promote to stable
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Version bestimmen
+        id: pick
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WANTED: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if [ -n "$WANTED" ]; then
+            version="${WANTED#v}"
+          else
+            # Neuestes Prerelease. `--exclude-drafts` lässt Entwürfe
+            # draußen; sortiert wird nach Erstellzeit, was bei monoton
+            # steigenden Versionen dasselbe ist wie nach SemVer.
+            version=$(gh release list --limit 30 --exclude-drafts \
+              --json tagName,isPrerelease \
+              --jq '[.[] | select(.isPrerelease)] | .[0].tagName // ""')
+            version="${version#v}"
+          fi
+          if [ -z "$version" ]; then
+            echo "::error::Kein Prerelease gefunden und keine Version angegeben."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+          echo "Befördere v$version"
+
+      # Der letzte stabile Stand ist die Untergrenze der Notizen. Gibt es
+      # noch keinen, sammelt das Werkzeug schlicht alles.
+      - name: Letzten stabilen Stand finden
+        id: previous
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          prev=$(gh release list --limit 60 --exclude-drafts \
+            --json tagName,isPrerelease \
+            --jq '[.[] | select(.isPrerelease | not)] | .[0].tagName // ""')
+          echo "tag=$prev" >> "$GITHUB_OUTPUT"
+          echo "Vorheriger stabiler Stand: ${prev:-<keiner>}"
+
+      - name: Notizen seit dem letzten stabilen Stand sammeln
+        env:
+          VERSION: ${{ steps.pick.outputs.version }}
+          PREV: ${{ steps.previous.outputs.tag }}
+        run: |
+          set -euo pipefail
+          python3 tool/release_notes.py \
+            --version "$VERSION" \
+            --since "${PREV#v}" \
+            --out release-body.md
+          echo "--- Release-Notizen ---"
+          cat release-body.md
+
+      - name: Release stabil schalten
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.pick.outputs.tag }}
+        run: |
+          set -euo pipefail
+          gh release edit "$TAG" \
+            --prerelease=false \
+            --latest \
+            --notes-file release-body.md
+          gh release view "$TAG" --json tagName,isPrerelease
+
+      # Pages aus dem BEFÖRDERTEN Tag, nicht aus main: Sonst läge auf der
+      # Web-Adresse der Entwicklungsstand, während Android auf stabil
+      # zeigt.
+      - name: Auf den Tag wechseln
+        run: git checkout "${{ steps.pick.outputs.tag }}"
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: flutter pub get
+      - run: flutter build web --release --base-href /pilzbuddy/
+      # SPA-Fallback: GitHub Pages liefert 404.html bei Deep-Links
+      # (/friends etc.).
+      - run: cp build/web/index.html build/web/404.html
+      - uses: peaceiris/actions-gh-pages@84c30a85c19949d7eee79c4ff27748b70285e453 # v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: build/web
+          force_orphan: true

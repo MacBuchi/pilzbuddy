@@ -51,6 +51,7 @@ jobs:
           python3 tool/season_curves.py --self-test > /dev/null
           python3 tool/ampel_validate.py --self-test > /dev/null
           python3 tool/forest_grid.py --self-test > /dev/null
+          python3 tool/release_notes.py --self-test > /dev/null
 
   build-web:
     name: Build Web
@@ -138,6 +139,11 @@ jobs:
           SUPABASE_DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
         run: bash tool/db_migrate.sh
       - name: App-Queries gegen den aufgerüsteten Bestand prüfen
+        env:
+          # Für die Aussperr-Grenze (#262): Der Check fragt den letzten
+          # STABILEN Release-Stand ab. Ohne Token gilt auf geteilten
+          # Runnern das IP-Limit der GitHub-API.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           SUPABASE_URL=http://127.0.0.1:54321 \
           SUPABASE_KEY=$(supabase status -o json | jq -r '.ANON_KEY') \
@@ -161,6 +167,8 @@ jobs:
           SUPABASE_DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
         run: bash tool/db_migrate.sh
       - name: App-Queries gegen das frische Schema prüfen
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           SUPABASE_URL=http://127.0.0.1:54321 \
           SUPABASE_KEY=$(supabase status -o json | jq -r '.ANON_KEY') \

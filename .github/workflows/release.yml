@@ -4,6 +4,15 @@ name: Release
 #  - Push eines Tags v* baut und veröffentlicht genau diesen Stand.
 #  - Push auf main: steht in pubspec.yaml eine Version ohne passenden Tag,
 #    wird v<version> automatisch getaggt und released. Kein Bump = kein Release.
+#
+# **Alles hier ist ein PRERELEASE** (#262). Am 2026-08-09 gingen acht
+# Releases an einem Tag raus — und weil jedes „latest" war, meldete sich
+# der Update-Hinweis achtmal. `update_check.dart` fragt
+# `/releases/latest` ab, und GitHub liefert dort grundsätzlich keine
+# Prereleases: Damit trennt diese eine Markierung die Kanäle, ohne
+# zweiten Dauerbranch, ohne Rück-Merges, ohne doppelten Branch-Schutz.
+# Freigegeben wird von Hand über `promote.yml` — dort liegt seither auch
+# der Pages-Deploy, denn das Web hat nur EINE Adresse.
 on:
   push:
     branches: [main]
@@ -147,29 +156,6 @@ jobs:
           path: pilzbuddy-${{ needs.version.outputs.tag }}.aab
           retention-days: 90
 
-  deploy-web:
-    name: Deploy Web (GitHub Pages)
-    needs: [version, migrate]
-    if: needs.version.outputs.release == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v7
-      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
-        with:
-          channel: stable
-          flutter-version: 3.41.2
-          cache: true
-      - run: flutter pub get
-      - run: flutter build web --release --base-href /pilzbuddy/
-      # SPA-Fallback: GitHub Pages liefert 404.html bei Deep-Links (/friends etc.)
-      - run: cp build/web/index.html build/web/404.html
-      - uses: peaceiris/actions-gh-pages@84c30a85c19949d7eee79c4ff27748b70285e453 # v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: build/web
-          force_orphan: true
-
   release:
     name: Create GitHub Release
     needs: [version, build-android]
@@ -185,3 +171,9 @@ jobs:
           tag_name: ${{ needs.version.outputs.tag }}
           generate_release_notes: true
           files: pilzbuddy-*.apk
+          # BEIDE Zeilen gehören zusammen: `prerelease` allein genügt
+          # nicht, GitHub markiert das neueste Release sonst trotzdem als
+          # „latest" — und die App fragt genau das ab.
+          # `test/release_workflow_test.dart` wacht darüber.
+          prerelease: true
+          make_latest: false

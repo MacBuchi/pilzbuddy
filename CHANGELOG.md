@@ -7,6 +7,19 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Updates kommen jetzt gebündelt
+
+*10. August 2026 · Version 1.77.0*
+
+Bisher hat jede einzelne Änderung sofort ein Update ausgelöst — an einem
+fleißigen Tag waren das acht Hinweise für dieselbe App. Ab jetzt sammeln
+sich die Änderungen, und ein Update erscheint erst, wenn ein Stand
+bewusst freigegeben wird. Der Hinweis in der App kommt dann einmal, mit
+allem, was seit dem letzten Mal dazugekommen ist.
+
+Für dich ändert sich sonst nichts: Was du installiert hast, läuft weiter,
+und die Web-Version zeigt denselben freigegebenen Stand wie die App.
+
 ## Die Pilzampel leuchtet jetzt IM Wald
 
 *10. August 2026 · Version 1.76.0*
