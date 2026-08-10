@@ -7,6 +7,27 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Vorabversionen, wenn du sie willst
+
+*10. August 2026 · Version 1.81.0*
+
+Im Profil unter „Über PilzBuddy" steht ein neuer Schalter:
+**„Vorabversionen erhalten"**. Er ist aus, und für die allermeisten soll
+er das auch bleiben.
+
+Hintergrund: An PilzBuddy wird laufend gebaut, und jede fertige Änderung
+wird sofort als Vorabversion abgelegt — für dich unsichtbar, denn die App
+bietet dir nur die *freigegebenen* Versionen an. Wer beim Ausprobieren
+helfen will, legt den Schalter um und bekommt dann jeden Zwischenstand
+angeboten.
+
+- Diese Zwischenstände sind **ungetestet** und kommen oft — teils mehrmals
+  am Tag.
+- Der Schalter gilt nur für dieses Gerät.
+- Zurückschalten ist jederzeit möglich. Du behältst die Version, die schon
+  installiert ist, und wirst danach wieder erst bei der nächsten Freigabe
+  gefragt.
+
 ## Die leuchtenden Waben verraten jetzt auch den Wald
 
 *10. August 2026 · Version 1.80.0*

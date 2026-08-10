@@ -37,4 +37,49 @@ void main() {
       expect(isNewerVersion('2.0.0-beta.1', '1.9.9'), isTrue);
     });
   });
+
+  // Der Vorab-Kanal (#269) fragt `/releases` statt `/releases/latest` ab
+  // und muss aus der Liste selbst wählen — GitHub sortiert absteigend
+  // nach Erstellungszeit, filtert dort aber nichts weg.
+  group('firstPublishedRelease', () {
+    Map<String, dynamic> release(String tag,
+            {bool draft = false, bool pre = false}) =>
+        {'tag_name': tag, 'draft': draft, 'prerelease': pre};
+
+    test('nimmt den jüngsten Eintrag — auch ein Prerelease', () {
+      // Genau der Sinn des Kanals: Seit #262 ist der jüngste Stand
+      // fast immer ein Prerelease, und den will man hier sehen.
+      final first = firstPublishedRelease([
+        release('v1.81.0', pre: true),
+        release('v1.80.0', pre: false),
+      ]);
+      expect(first?['tag_name'], 'v1.81.0');
+    });
+
+    test('überspringt Entwürfe', () {
+      // Ein Entwurf ist nicht öffentlich abrufbar: Der Download liefe
+      // ins Leere und der Hinweis nennte eine Version, die es für
+      // niemanden gibt.
+      final first = firstPublishedRelease([
+        release('v1.82.0', draft: true),
+        release('v1.81.0', pre: true),
+      ]);
+      expect(first?['tag_name'], 'v1.81.0');
+    });
+
+    test('ein fehlendes draft-Feld heißt veröffentlicht', () {
+      // Nicht jede Antwort trägt jedes Feld — fehlt es, darf der
+      // Eintrag nicht stillschweigend verschwinden.
+      final first = firstPublishedRelease([
+        <String, dynamic>{'tag_name': 'v1.81.0'},
+      ]);
+      expect(first?['tag_name'], 'v1.81.0');
+    });
+
+    test('leere Liste und Fremdkörper ergeben null statt einer Ausnahme', () {
+      expect(firstPublishedRelease(const []), isNull);
+      expect(firstPublishedRelease(const ['unfug', 42]), isNull);
+      expect(firstPublishedRelease([release('v1.0.0', draft: true)]), isNull);
+    });
+  });
 }

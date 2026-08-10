@@ -10,6 +10,7 @@ class FakeSettings implements Settings {
     this.mapLongPressEnabled = false,
     this.mapLegendEnabled = true,
     this.rainCourseEnabled = false,
+    this.prereleaseUpdatesEnabled = false,
     this.forestFineEnabled = false,
     this.ampelPreviewEnabled = false,
     // Bewusst null: In echt initialisiert main() den Marker beim ersten
@@ -57,6 +58,14 @@ class FakeSettings implements Settings {
   @override
   Future<void> setRainCourseEnabled(bool value) async {
     rainCourseEnabled = value;
+  }
+
+  @override
+  bool prereleaseUpdatesEnabled;
+
+  @override
+  Future<void> setPrereleaseUpdatesEnabled(bool value) async {
+    prereleaseUpdatesEnabled = value;
   }
 
   @override

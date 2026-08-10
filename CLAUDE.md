@@ -43,8 +43,16 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   - **Brechende Schema-Änderungen brauchen erweitern → ausliefern →
     entfernen** (DocuHub `datenhaltung.md`), sonst erzwingen sie sofort
     eine Beförderung und die Bündelung ist hinfällig.
-  - Wer den neuesten Stand testen will, lädt das **Prerelease-Artefakt**
-    von Hand; der In-App-Weg führt bewusst nur zu stabilen Ständen.
+  - Der In-App-Weg führt **standardmäßig** nur zu stabilen Ständen. Seit
+    1.81.0 (#269) gibt es dafür einen Schalter im Profil unter „Über
+    PilzBuddy": „Vorabversionen erhalten", Vorgabe AUS, gerätelokal. Er
+    ändert genau EINS — die Adresse, die `update_check.dart` abfragt
+    (`/releases` statt `/releases/latest`, davon der erste nicht-Entwurf).
+    Versionsvergleich, APK-Suche und Dialog sind für beide Kanäle
+    dieselben; zwei Fassungen wären zwei Antworten auf „ist das ein
+    Update". Der Riegel „nur wo der Update-Weg läuft" steht im Provider
+    (`updateChecksApply`), nicht nur in der Oberfläche — sonst ließe er
+    sich im Play-Build umlegen, ohne dass je etwas passiert.
   Die Riegel sind je ein Wort YAML — `test/release_workflow_test.dart`
   wacht über beide, über den fehlenden Pages-Deploy in `release.yml` und
   über die Aussperr-Grenze.
