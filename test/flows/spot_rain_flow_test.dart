@@ -44,14 +44,14 @@ void main() {
   /// Ein Stapel über Deutschland: eine Zelle, alle Tage am selben Punkt.
   RainStackData stackOf(List<int> mmPerDay, {DateTime? firstDay}) =>
       RainStackData(
-        info: RainStackInfo(
+        info: const RainStackInfo(
           width: 1,
           height: 1,
           west: 10,
           east: 12,
           north: 52,
           south: 50,
-          days: const [],
+          days: [],
         ),
         days: [
           for (final (index, mm) in mmPerDay.indexed)

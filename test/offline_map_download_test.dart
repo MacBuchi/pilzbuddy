@@ -37,8 +37,8 @@ void main() {
         // Erste 400 Bytes liefern, dann bricht die Verbindung.
         final controller = StreamController<List<int>>()
           ..add(_mapBytes.sublist(0, 400))
-          ..addError(const SocketException('Verbindung abgerissen'))
-          ..close();
+          ..addError(const SocketException('Verbindung abgerissen'));
+        unawaited(controller.close());
         return http.StreamedResponse(controller.stream, 200,
             contentLength: _mapBytes.length);
       }

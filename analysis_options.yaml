@@ -1,28 +1,47 @@
-# This file configures the analyzer, which statically analyzes Dart code to
-# check for errors, warnings, and lints.
+# Statische Analyse. Läuft lokal über `flutter analyze` und in CI als
+# Pflicht-Check („Analyze & Test").
 #
-# The issues identified by the analyzer are surfaced in the UI of Dart-enabled
-# IDEs (https://dart.dev/tools#ides-and-editors). The analyzer can also be
-# invoked from the command line by running `flutter analyze`.
-
-# The following line activates a set of recommended lints for Flutter apps,
-# packages, and plugins designed to encourage good coding practices.
+# Die Grundlage ist `flutter_lints`; alles darunter ist bewusst gesetzt
+# (#226) und von `test/analysis_options_test.dart` bewacht — sonst
+# verschwände eine Regel still aus dieser Datei, während `flutter analyze`
+# weiter grün meldet.
+#
+# **Gemessen, nicht geschätzt** (2026-08-10, Flutter 3.41.2): Das ganze
+# Regelwerk zusammen kostete beim Einschalten SIEBEN Funde, davon zwei in
+# `lib/`. `strict-casts`, `strict-raw-types`, `avoid_print`,
+# `use_build_context_synchronously` und `prefer_final_locals` waren von
+# Anfang an bei null — der Code hielt sie längst ein, nur ungeprüft. Das
+# Issue rechnete mit „five findings to two hundred"; wer die Zahlen das
+# nächste Mal in Zweifel zieht, misst mit `flutter analyze` nach, statt zu
+# schätzen.
 include: package:flutter_lints/flutter.yaml
 
-linter:
-  # The lint rules applied to this project can be customized in the
-  # section below to disable rules from the `package:flutter_lints/flutter.yaml`
-  # included above or to enable additional rules. A list of all available lints
-  # and their documentation is published at https://dart.dev/lints.
-  #
-  # Instead of disabling a lint rule for the entire project in the
-  # section below, it can also be suppressed for a single line of code
-  # or a specific dart file by using the `// ignore: name_of_lint` and
-  # `// ignore_for_file: name_of_lint` syntax on the line or in the file
-  # producing the lint.
-  rules:
-    # avoid_print: false  # Uncomment to disable the `avoid_print` rule
-    # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
+analyzer:
+  language:
+    # Impliziter Cast von `dynamic` und rohe Generics gelten als Fehler.
+    # Beides trifft vor allem Code, der JSON auspackt — und genau dort
+    # kommen die Daten von außen.
+    strict-casts: true
+    strict-raw-types: true
+  errors:
+    # `print` gehört nicht in eine ausgelieferte App; für Diagnose gibt es
+    # `logError` (`lib/core/errors.dart`), das den Fehler auch meldet.
+    avoid_print: error
+    # **Die wichtigste Zeile dieser Datei.** CLAUDE.md verlangt
+    # „`mounted`/`context.mounted` nach jedem `await` prüfen"; unter
+    # `flutter_lints` allein ist das eine WARNUNG, die Regel also von
+    # Aufmerksamkeit durchgesetzt statt von CI. Ein BuildContext über
+    # einen await hinweg ist im Release-Build ein Absturz, den niemand
+    # nachstellt.
+    use_build_context_synchronously: error
 
-# Additional information about this file can be found at
-# https://dart.dev/guides/language/analysis-options
+linter:
+  rules:
+    # Ein vergessenes `await` ist der Fehler, der nicht auffällt: Die
+    # Zusage läuft, niemand wartet, ein Fehlschlag landet als
+    # unbehandelte Ausnahme im Wochendigest statt an der Aufrufstelle.
+    # Absicht schreibt man mit `unawaited(...)` hin — das steht in diesem
+    # Projekt ohnehin an jeder Stelle, an der etwas nachlaufen soll.
+    - unawaited_futures
+    - prefer_const_constructors
+    - prefer_final_locals

@@ -21,7 +21,7 @@ void main() {
     expect(archive.header.maxZoom, 7);
 
     // Stichprobe: Kachel über Mitteldeutschland muss vorhanden sein.
-    final tile = await archive.tile(ZXY(6, 33, 21).toTileId());
+    final tile = await archive.tile(const ZXY(6, 33, 21).toTileId());
     expect(tile.bytes(), isNotEmpty);
   });
 }
