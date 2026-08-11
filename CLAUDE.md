@@ -285,7 +285,8 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   den GPU-Stack samt CMake-Native-Builds nach sich). Style-Asset
   `assets/map_style/protomaps_light_de.json` ist generiert
   (npm `@protomaps/basemaps`, Flavor LIGHT, lang de) — nicht von Hand
-  editieren, sondern neu generieren. Offline-Layer ist strikt optional:
+  editieren, sondern neu generieren. **Das erzwingt jetzt ein Wächter**,
+  siehe „Erzeugte Assets" weiter unten. Offline-Layer ist strikt optional:
   Fehler beim Laden ⇒ stiller Fallback auf Online-OSM.
   Die Karte hat drei Schichten (Issues #118/#119/#137): **unterste** die
   mitgelieferte DACH-Übersicht (`baseMapStyleProvider`, z0–7, ~9 MB im
@@ -343,6 +344,30 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   mit bedingtem Import (`download_keep_alive_stub.dart` für Web, sonst
   `download_keep_alive_service.dart`), damit der Web-Build das
   Android-Paket nie sieht; Tests überschreiben den Provider.
+- **Erzeugte Assets** (`tool/generated_assets.py` + `.json`, #226, im Job
+  „Analyze & Test"): Vier Dateien unter `assets/` sind ERZEUGT, nicht
+  geschrieben — Kartenstil, DACH-Übersicht, Waldgitter und dessen
+  Manifest. Bis hierher stand nur in dieser Datei, dass man sie nicht von
+  Hand editiert; eine Handänderung bestand jeden Check, wurde ausgeliefert
+  und war beim nächsten Erzeugen kommentarlos weg. Jetzt prüft CI je Asset
+  die Prüfsumme, und wo es etwas Schärferes gibt, zusätzlich:
+  - Der **Kartenstil muss ein Fixpunkt** von `transform_map_style.py`
+    sein. Das fängt, was eine Prüfsumme nicht sieht: neu generiert und
+    den Umbau vergessen. Die Folge wäre lautlos — der Renderer lässt
+    Ebenen, deren Ausdrücke er nicht versteht, einfach weg (graue
+    Landflächen, keine Beschriftung).
+  - Das **Waldgitter wird gegen `forest_manifest.json` geprüft**, das
+    seine Prüfsumme und Größe längst selbst notiert — geschrieben vom
+    Erzeuger, bis dahin von niemandem nachgerechnet.
+  Nach einem echten Neu-Erzeugen: `--update`, und der geänderte Manifest
+  gehört in denselben Commit; genau diese Zeile im Diff ist die Aussage
+  „das war Absicht". **Bewusst NICHT geprüft wird der Hash des
+  Erzeugers**: Er würde bei jedem Kommentar in `forest_grid.py` rot und
+  ein 5,6-MB-Gitter neu verlangen — nach dem dritten Fehlalarm ruft man
+  `--update` blind auf, und dann prüft der Wächter nichts mehr.
+  `assets/map_glyphs/` fehlt bewusst: Der Erzeugungsbefehl steht nirgends
+  im Repo, und eine geratene Anleitung in der Fehlermeldung wäre
+  schlimmer als keine.
 - **Karten-Engine:** Seit 1.43.0 rendert Android standardmäßig mit
   MapLibre (nativer Renderer, `maplibre` 0.3.5 exakt gepinnt) hinter der
   MapView-Fassade (`lib/features/map/map_view/`); Grundlage ist der
