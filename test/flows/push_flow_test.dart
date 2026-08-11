@@ -78,7 +78,8 @@ void main() {
     // Kein Token = abgelehnt. Genau der Weg, den ein Systemdialog nimmt,
     // den jemand wegtippt.
     final settings = await openProfile(tester, backend, extra: [
-      pushTokenProvider.overrideWithValue(() async => null),
+      pushTokenProvider
+          .overrideWithValue(() async => (token: null, denied: true)),
     ]);
     final toggle = await pushToggle(tester);
     await tester.tap(toggle);
