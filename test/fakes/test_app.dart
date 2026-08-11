@@ -178,7 +178,8 @@ List<Override> overridesFor(FakeBackend backend,
       // NIE auf, egal wie viele Frames man pumpt. Der Vorgabewert ist ein
       // Token: Der interessante Weg ist „eingeschaltet", und wer die
       // Ablehnung prüfen will, überschreibt gezielt mit `null`.
-      pushTokenProvider.overrideWithValue(() async => 'test-token'),
+      pushTokenProvider
+          .overrideWithValue(() async => (token: 'test-token', denied: false)),
       // Und die beiden Ströme: `PushListener` hängt sich beim ersten Frame
       // an `onMessage`, also in JEDEM Test. Ohne diese Naht griffe er nach
       // echtem FirebaseMessaging — im Widget-Test gibt es das nicht.

@@ -7,6 +7,22 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Im Funkloch stand der falsche Grund
+
+*11. August 2026 · Version 1.84.3*
+
+Wer ohne Verbindung die Benachrichtigungen einschalten wollte, bekam zu
+lesen, sie seien „nicht erlaubt" — und suchte dann in den
+Android-Einstellungen nach einem Schalter, der längst richtig stand. In
+Wahrheit fehlte nur das Netz.
+
+Jetzt steht da, was wirklich los ist. Und wer die Erlaubnis tatsächlich
+verweigert hat, bekommt weiterhin den Weg in die Einstellungen genannt.
+
+Benachrichtigungen brauchen Verbindung — das ist keine Einschränkung,
+sondern liegt in der Natur der Sache. Alles andere in der App
+funktioniert im Wald weiter ohne.
+
 ## Benachrichtigungen kamen nicht an, wenn die App offen war
 
 *11. August 2026 · Version 1.84.2*

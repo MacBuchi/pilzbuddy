@@ -54,35 +54,50 @@ Future<void> _ensureFirebase() async {
 /// zwei Worker im selben Scope verdrängen sich.
 const webServiceWorkerPath = 'push/firebase-messaging-sw.js';
 
-/// Das FCM-Token dieses Geräts — `null`, wenn irgendetwas nicht geht.
+/// Was beim Holen eines Tokens herauskam.
 ///
-/// Fragt dabei die Systemberechtigung ab; wer ablehnt, bekommt `null`.
-Future<String?> requestPushToken() async {
+/// **Ein nacktes `null` genügt hier nicht.** Wer ablehnt und wer kein
+/// Netz hat, bekommen sonst denselben Satz zu lesen — und die
+/// Berechtigungs-Erklärung ist im Funkloch schlicht falsch: Sie schickt
+/// jemanden in die Android-Einstellungen, wo alles in Ordnung ist. Die
+/// Hausregel dazu steht in CLAUDE.md („Fehlermeldungen differenzieren",
+/// Issue #59); hier ist es der umgekehrte Fall davon.
+typedef PushTokenResult = ({String? token, bool denied});
+
+/// Das FCM-Token dieses Geräts.
+///
+/// Fragt dabei die Systemberechtigung ab. `denied` sagt, ob die Absage
+/// von der Nutzerin kam — alles andere (kein Netz, keine Play services,
+/// Zeitüberschreitung, Web ohne VAPID-Schlüssel) liefert `denied: false`.
+Future<PushTokenResult> requestPushToken() async {
   try {
     await _ensureFirebase();
     final messaging = FirebaseMessaging.instance;
     final settings = await messaging.requestPermission();
     if (settings.authorizationStatus == AuthorizationStatus.denied) {
-      return null;
+      return (token: null, denied: true);
     }
     // Im Web ohne VAPID-Schlüssel gibt es kein Token. Lieber gar nicht
     // erst fragen als eine Ausnahme fangen, die nichts erklärt.
-    if (kIsWeb && pushWebVapidKey.isEmpty) return null;
+    if (kIsWeb && pushWebVapidKey.isEmpty) {
+      return (token: null, denied: false);
+    }
     // Mit Frist: `getToken` scheitert nicht immer, es bleibt auch mal
     // stehen — etwa wenn die Registrierung bei FCM nicht durchkommt. Ohne
     // die Frist hinge der Schalter im Profil an einem Vorgang, der nie
     // endet. Ein Timeout landet unten im catch und wird zu „kein Token".
-    return await messaging
+    final token = await messaging
         .getToken(
           vapidKey: kIsWeb ? pushWebVapidKey : null,
           serviceWorkerScriptPath: kIsWeb ? webServiceWorkerPath : null,
         )
         .timeout(const Duration(seconds: 15));
+    return (token: token, denied: false);
   } catch (e, stackTrace) {
     // Gemeldet, aber nicht geworfen: Dass Push nicht geht, ist eine
     // Information — dass die App deshalb stehen bleibt, wäre ein Fehler.
     logError('Push-Token holen', e, stackTrace);
-    return null;
+    return (token: null, denied: false);
   }
 }
 
@@ -92,7 +107,7 @@ Future<String?> requestPushToken() async {
 /// Harness überschreibt diesen Provider, sonst hinge jeder Test, der das
 /// Profil öffnet, an einer Plattform, die es dort nicht gibt.
 final pushTokenProvider =
-    Provider<Future<String?> Function()>((ref) => requestPushToken);
+    Provider<Future<PushTokenResult> Function()>((ref) => requestPushToken);
 
 /// Auf das Antippen einer Meldung hören.
 ///

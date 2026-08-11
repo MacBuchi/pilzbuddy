@@ -16,6 +16,8 @@ import '../../core/errors.dart';
 import '../../core/push_messaging.dart';
 import '../../core/settings.dart';
 import '../../data/providers.dart';
+import '../offline_maps/offline_map_providers.dart'
+    show noConnectivityProvider;
 
 /// Bekommt dieses Gerät Benachrichtigungen?
 ///
@@ -47,11 +49,23 @@ class PushEnabledNotifier extends Notifier<bool> {
       return null;
     }
 
-    final token = await ref.read(pushTokenProvider)();
+    final result = await ref.read(pushTokenProvider)();
+    final token = result.token;
     if (token == null) {
       state = false;
-      return 'Benachrichtigungen sind nicht erlaubt. Das lässt sich in '
-          'den Android-Einstellungen ändern.';
+      // **Push ist ein reiner ONLINE-Weg.** Ohne Verbindung gibt es kein
+      // Token, und das ist keine Fehlfunktion — aber der Satz muss den
+      // richtigen Grund nennen. Wer im Funkloch „nicht erlaubt" liest,
+      // sucht in den Android-Einstellungen nach einem Schalter, der dort
+      // längst richtig steht.
+      if (result.denied) {
+        return 'Benachrichtigungen sind nicht erlaubt. Das lässt sich in '
+            'den Android-Einstellungen ändern.';
+      }
+      return ref.read(noConnectivityProvider)
+          ? 'Dafür braucht es kurz eine Verbindung — offline lässt sich '
+              'das Gerät nicht eintragen.'
+          : 'Das hat nicht geklappt. Versuch es später noch einmal.';
     }
     try {
       await ref.read(pushRepositoryProvider).register(token);
