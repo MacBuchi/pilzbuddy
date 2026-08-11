@@ -7,6 +7,29 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Und jetzt melden sie sich auch
+
+*11. August 2026 · Version 1.84.1*
+
+Die Benachrichtigungen aus der vorigen Version haben jetzt einen Anlass.
+Wenn du sie eingeschaltet hast, erfährst du,
+
+- wenn ein Pilzbuddy an einem Spot, den ihr beide seht, einen Fund
+  einträgt,
+- und wenn er einen neuen Spot öffnet.
+
+Zwei Dinge, die dabei bewusst so gebaut sind:
+
+- **Du erfährst nur, was du ohnehin sehen darfst.** Ein Spot, den jemand
+  von der Freigabe ausgenommen hat, meldet sich nicht — und wer das
+  Teilen ganz abschaltet, löst gar keine Meldungen mehr aus.
+- **Zehn Funde auf einem Waldgang sind eine Meldung, nicht zehn.** Die
+  App wartet ab, bis Ruhe eingekehrt ist, und fasst zusammen.
+
+Ein **Leergang** („nichts gefunden") löst nichts aus. Und in der Meldung
+selbst steht weiterhin nie, um welchen Spot oder welche Stelle es geht —
+das siehst du erst beim Öffnen.
+
 ## Benachrichtigungen — wenn du sie willst
 
 *11. August 2026 · Version 1.84.0*
