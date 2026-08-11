@@ -581,7 +581,12 @@ begin
     from vault.decrypted_secrets where name = 'push_job_secret';
   select decrypted_secret into service_key
     from vault.decrypted_secrets where name = 'push_service_key';
+  -- Nicht eingerichtet: Fällige Zeilen trotzdem wegräumen und still
+  -- zurück (Patch 019). Ohne das Löschen wüchse der Korb bis zur
+  -- Einrichtung, und der erste konfigurierte Lauf feuerte einen Schwall
+  -- alter Meldungen ab — eine Benachrichtigung ist verderbliche Ware.
   if base_url is null or job_secret is null or service_key is null then
+    delete from app_internal.push_outbox where due_at <= now();
     return 0;
   end if;
 
@@ -660,5 +665,6 @@ insert into public.applied_patches (filename) values
   ('patch_015_leergang.sql'),
   ('patch_016_client_id.sql'),
   ('patch_017_push_geraete.sql'),
-  ('patch_018_push_ausloeser.sql')
+  ('patch_018_push_ausloeser.sql'),
+  ('patch_019_push_leerlauf.sql')
 on conflict do nothing;
