@@ -7,6 +7,21 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Der Regen-Knopf verrät jetzt auch die Pilzampel
+
+*11. August 2026 · Version 1.83.2*
+
+Hinter dem Tropfen-Knopf auf der Karte sitzen zwei Ebenen: der Regen und
+die Pilzampel. Angezeigt hat er bisher nur den Regen — wer allein die
+Ampel eingeschaltet hatte, sah einen Knopf, der aussah, als wäre nichts
+an, während der halbe Wald leuchtete.
+
+Jetzt zeigt er beides, und zwar unterscheidbar:
+
+- **Nur Regen:** blau mit vollem Tropfen, wie gehabt.
+- **Nur Pilzampel:** violett mit einem Ampelsymbol.
+- **Beides:** blau mit Tropfen und einem violetten Punkt dazu.
+
 ## Die Pilzampel malt keine Kacheln mehr
 
 *11. August 2026 · Version 1.83.1*

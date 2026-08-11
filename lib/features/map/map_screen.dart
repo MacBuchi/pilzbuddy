@@ -17,6 +17,7 @@ import '../../core/widgets/mushroom_icon.dart';
 import '../../data/providers.dart';
 import '../../models/friend_location.dart';
 import '../../models/spot.dart';
+import '../ampel/ampel_map_providers.dart' show ampelLayerEnabledProvider;
 import '../friends/friend_providers.dart';
 import '../profile/profile_providers.dart';
 import '../spots/nearby_spots.dart';
@@ -436,6 +437,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final hasInstalledMaps =
         (ref.watch(installedMapsProvider).valueOrNull ?? const []).isNotEmpty;
     final rainActive = ref.watch(rainLayerProvider) != RainLayer.off;
+    // Die Ampel wohnt im Regen-Blatt, hat aber keinen eigenen Knopf —
+    // ohne diesen Zustand sah der Regen-FAB aus wie „nichts an", während
+    // die halbe Karte leuchtete (#278).
+    final ampelActive = ref.watch(ampelLayerEnabledProvider);
     final forestActive = ref.watch(forestLayerEnabledProvider);
     // Der Wald-FAB erscheint erst, wenn das Gitter geladen werden
     // konnte — im Ladefenster (Bruchteil einer Sekunde) fehlt er kurz,
@@ -637,14 +642,43 @@ class _MapScreenState extends ConsumerState<MapScreen>
           // Genau EIN neuer Dauerknopf für die Regenebene (#156) — die
           // Karte trägt nicht mehr; Zeitraum und Legende stecken im
           // Blatt dahinter, wie beim Filter.
+          //
+          // Hinter dem Knopf sitzen seit 1.72.0 ZWEI Ebenen: Regen und
+          // die Pilzampel. Er zeigt deshalb beide (#278) — vorher stand
+          // er auf „aus", während die Ampel den halben Wald einfärbte,
+          // und das war schlicht falsch. Drei unterscheidbare Zustände
+          // statt eines Mischsymbols:
+          //   Regen an          → blau, voller Tropfen
+          //   nur Ampel an      → Ampelviolett, Ampelsymbol
+          //   beide an          → blau, voller Tropfen + violetter Punkt
+          // Der Punkt ist die einzige Stelle, an der sich zwei Zustände
+          // ein Symbol teilen; auf dem Ampelviolett wäre er unsichtbar,
+          // deshalb trägt dort das Symbol selbst die Aussage.
           FloatingActionButton.small(
             heroTag: 'rain',
             onPressed: () => showRainLayerSheet(context),
-            tooltip: 'Regen',
-            backgroundColor: rainActive ? AppColors.friendBlue : null,
-            foregroundColor: rainActive ? Colors.white : null,
-            child: Icon(
-                rainActive ? Icons.water_drop : Icons.water_drop_outlined),
+            tooltip: switch ((rainActive, ampelActive)) {
+              (true, true) => 'Regen & Pilzampel',
+              (false, true) => 'Pilzampel',
+              _ => 'Regen',
+            },
+            backgroundColor: rainActive
+                ? AppColors.friendBlue
+                : (ampelActive ? AppColors.ampelStrong : null),
+            foregroundColor:
+                rainActive || ampelActive ? Colors.white : null,
+            child: Badge(
+              // Nur im Doppelfall: Sonst sagt schon die Fläche, was an
+              // ist, und ein Punkt obendrauf wäre Dekoration.
+              isLabelVisible: rainActive && ampelActive,
+              backgroundColor: AppColors.ampelMild,
+              smallSize: 8,
+              child: Icon(switch ((rainActive, ampelActive)) {
+                (true, _) => Icons.water_drop,
+                (false, true) => Icons.traffic,
+                _ => Icons.water_drop_outlined,
+              }),
+            ),
           ),
           const SizedBox(height: 12),
           FloatingActionButton.small(

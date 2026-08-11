@@ -11,6 +11,7 @@ import 'package:archive/archive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pilzbuddy/core/app_colors.dart';
 import 'package:pilzbuddy/data/rain_grid_repository.dart';
 import 'package:pilzbuddy/features/ampel/ampel_map_providers.dart';
 import 'package:pilzbuddy/features/map/forest_data_providers.dart'
@@ -270,6 +271,71 @@ void main() {
     await settle(tester);
     expect(container.read(rainLayerProvider), RainLayer.last30d);
     expect(container.read(ampelLayerEnabledProvider), isTrue);
+  });
+
+  testWidgets('der Regen-Knopf zeigt die Ampel, nicht nur den Regen (#278)',
+      (tester) async {
+    // Feldbericht: „Wenn die Pilzampel aktiv ist, sollte das
+    // Wassersymbol auch ein Symbol für die Pilzampel zeigen und nicht
+    // einfach nur inaktiv sein." Hinter dem einen Knopf sitzen zwei
+    // Ebenen; er muss beide unterscheidbar anzeigen.
+    final settings = FakeSettings(ampelPreviewEnabled: true);
+    final backend = FakeBackend();
+    backend.signInAs(backend.addUser(username: 'testpilz').id);
+    await pumpApp(tester, backend, settings: settings);
+    final container = ProviderScope.containerOf(
+        tester.element(find.byType(Scaffold).first));
+
+    // Über den heroTag statt über den Tooltip: Der Tooltip ist genau
+    // das, was dieser Test prüft — ihn zum Suchen zu benutzen, hieße
+    // die Antwort in die Frage zu legen.
+    final rainFab = find.byWidgetPredicate(
+        (widget) => widget is FloatingActionButton && widget.heroTag == 'rain');
+    FloatingActionButton fab() => tester.widget<FloatingActionButton>(rainFab);
+    bool hasIcon(IconData icon) => find
+        .descendant(of: rainFab, matching: find.byIcon(icon))
+        .evaluate()
+        .isNotEmpty;
+
+    expect(fab().tooltip, 'Regen');
+    expect(hasIcon(Icons.water_drop_outlined), isTrue);
+    expect(fab().backgroundColor, isNull, reason: 'nichts an, nichts bunt');
+
+    // Nur die Ampel: eigenes Symbol und eigene Farbe — vorher sah der
+    // Knopf hier aus wie „aus", während der halbe Wald leuchtete.
+    container.read(ampelLayerEnabledProvider.notifier).state = true;
+    await settle(tester);
+    expect(fab().tooltip, 'Pilzampel');
+    expect(hasIcon(Icons.traffic), isTrue);
+    expect(hasIcon(Icons.water_drop_outlined), isFalse);
+    expect(fab().backgroundColor, AppColors.ampelStrong);
+
+    // Beide an: Der Tropfen führt (der Knopf heißt Regen), die Ampel
+    // bekommt ihren Punkt dazu.
+    container.read(rainLayerProvider.notifier).state = RainLayer.last30d;
+    await settle(tester);
+    expect(fab().tooltip, 'Regen & Pilzampel');
+    expect(hasIcon(Icons.water_drop), isTrue);
+    expect(fab().backgroundColor, AppColors.friendBlue);
+    expect(
+        tester
+            .widget<Badge>(
+                find.descendant(of: rainFab, matching: find.byType(Badge)))
+            .isLabelVisible,
+        isTrue);
+
+    // Nur Regen: wieder der alte Zustand, ohne Punkt.
+    container.read(ampelLayerEnabledProvider.notifier).state = false;
+    await settle(tester);
+    expect(fab().tooltip, 'Regen');
+    expect(fab().backgroundColor, AppColors.friendBlue);
+    expect(
+        tester
+            .widget<Badge>(
+                find.descendant(of: rainFab, matching: find.byType(Badge)))
+            .isLabelVisible,
+        isFalse,
+        reason: 'ein Punkt ohne Ampel wäre Dekoration');
   });
 
   testWidgets('es gibt keine Farbwahl mehr im Regen-Blatt', (tester) async {
