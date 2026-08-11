@@ -167,8 +167,18 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   Nach jeder Schema-Änderung den Security Advisor im Supabase-Dashboard
   gegenprüfen; bewusste Reste (RLS ohne Policy auf `applied_patches`,
   `authenticated` auf `search_profiles`/`delete_own_account`) dort dismissen.
-- Flutter-Version in CI gepinnt (subosito/flutter-action, aktuell 3.41.2) —
-  bei lokalem Flutter-Upgrade auch `.github/workflows/*.yml` anpassen.
+- Flutter-Version in CI gepinnt (subosito/flutter-action, aktuell 3.44.8) —
+  bei lokalem Flutter-Upgrade auch `.github/workflows/*.yml` anpassen. Es
+  sind **sechs** Stellen in vier Dateien: dreimal `ci.yml`, je einmal
+  `release.yml` und `security.yml`, dazu `FLUTTER_VERSION` in
+  `promote.yml`. Der Eintrag in `release.yml` ist nicht nur Build-Sache —
+  `tool/symbolize_anr.py` liest ihn aus dem TAG, um die passende
+  ungestrippte `libflutter.so` zu holen; steht dort die falsche Version,
+  sind die nativen Frames stumm falsch benannt.
+  Die Drift lokal↔CI ist am 2026-08-11 aufgelöst worden (3.41.2 → 3.44.8,
+  Betreiber: „3.44 soll auch in der CI laufen"). Vorher hieß die Regel,
+  `pubspec.lock` vor dem Commit zurückzunehmen — das ging nur, solange
+  keine neue Abhängigkeit dazukam.
 - Supabase-Keys in `lib/core/supabase_config.dart` sind bewusst öffentlich
   (Publishable Key); niemals den service_role-Key einchecken.
 - Supabase-Auth-Härtung im Dashboard: „Secure password change" ist **an** —
