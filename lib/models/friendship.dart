@@ -34,6 +34,10 @@ class FriendshipEntry {
   int otherAvatar(String uid) =>
       requesterId == uid ? addresseeAvatar : requesterAvatar;
 
+  /// Die id des jeweils anderen — gebraucht, um seinen Teil-Rang (#276)
+  /// aus den Spots zu zählen, die bei mir ankommen.
+  String otherId(String uid) => requesterId == uid ? addresseeId : requesterId;
+
   factory FriendshipEntry.fromJson(Map<String, dynamic> json) =>
       FriendshipEntry(
         id: json['id'] as String,

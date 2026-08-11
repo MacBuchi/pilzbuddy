@@ -31,6 +31,7 @@ import '../spots/spot_providers.dart';
 import 'account_dialogs.dart';
 import 'profile_providers.dart';
 import 'push_providers.dart';
+import 'sharing_rank_tile.dart';
 import '../../core/app_colors.dart';
 
 // Re-Export mit Absicht: Die Achsen-Helfer sind nach core/ gezogen (das
@@ -148,6 +149,9 @@ class ProfileScreen extends ConsumerWidget {
             const SizedBox(height: 20),
             Text('Teilen mit Freunden',
                 style: Theme.of(context).textTheme.titleMedium),
+            // Rang und Spiegel (#276) stehen VOR dem Schalter: Sie sind
+            // der Grund, ihn anzulassen.
+            const SharingRankTile(),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Meine Spots mit Freunden teilen'),

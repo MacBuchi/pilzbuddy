@@ -9,6 +9,8 @@ import '../../core/widgets/mushroom_avatar.dart';
 import '../../data/providers.dart';
 import '../../models/friendship.dart';
 import '../profile/profile_providers.dart';
+import '../profile/sharing_rank.dart';
+import '../profile/sharing_rank_providers.dart';
 import 'friend_providers.dart';
 import '../../core/app_colors.dart';
 
@@ -94,6 +96,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
     final incoming = friendships.where((f) => f.isIncomingFor(uid)).toList();
     final outgoing = friendships.where((f) => f.isOutgoingFor(uid)).toList();
     final accepted = friendships.where((f) => f.isAccepted).toList();
+    final buddyCounts = ref.watch(buddySharedCountsProvider);
 
     final requestedIds = {
       for (final f in friendships) ...[f.requesterId, f.addresseeId]
@@ -227,6 +230,15 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
                   leading:
                       MushroomAvatar(index: f.otherAvatar(uid), size: 40),
                   title: Text(f.otherUsername(uid)),
+                  // Der Teil-Rang (#276) — nur HIER, bei angenommenen
+                  // Buddies. In der Suchergebnis-Liste weiter oben steht
+                  // er bewusst nicht: Fremden verriete er, wie aktiv ein
+                  // Konto ist, und dafür gibt es keinen Grund.
+                  subtitle: switch (sharingTitleOf(
+                      buddyCounts[f.otherId(uid)] ?? 0)) {
+                    final title? => Text(title),
+                    _ => null,
+                  },
                   trailing: IconButton(
                     onPressed: () async {
                       final confirmed = await showDialog<bool>(
