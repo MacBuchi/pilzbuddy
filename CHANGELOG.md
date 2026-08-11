@@ -7,6 +7,31 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Pilzampel malt keine Kacheln mehr
+
+*11. August 2026 · Version 1.83.1*
+
+Bei Garmisch-Partenkirchen und Innsbruck leuchtete ein großes, auffällig
+rechteckiges Stück Wald als „verhalten" — während die Ampel an derselben
+Stelle „ungünstig" sagte. Beides konnte nicht stimmen.
+
+Der Grund: Die Farbe auf der Karte holte sich die Temperatur von der
+nächsten Wetterstation eines ganzen 16-Kilometer-Quadrats, gemessen von
+dessen Mittelpunkt. Der lag am gemeldeten Punkt acht Kilometer entfernt
+und griff zu einer Station, die 264 Meter höher steht — also kühler misst
+und die Bedingungen deutlich besser aussehen lässt. Der Text daneben hatte
+die richtige Station.
+
+Jetzt sucht auch die Karte die Station für jede Stelle einzeln. Farbe und
+Text können sich nicht mehr widersprechen, und die geraden Kanten
+verschwinden. Das betraf nicht nur die Alpen: Bundesweit war knapp ein
+Viertel der leuchtenden Fläche falsch eingefärbt — dort fiel es nur nicht
+auf, weil die Flecken klein und verstreut sind.
+
+Ein Hinweis ist dazugekommen, den die Karte nicht wegrechnen kann: Im
+Gebirge bleibt die Temperatur unsicher, weil die nächste Wetterstation
+Hunderte Höhenmeter tiefer oder höher stehen kann.
+
 ## Vorabversionen, wenn du sie willst
 
 *10. August 2026 · Versionen 1.81.0 bis 1.83.0 (1.82.0 und 1.83.0: nur Innenausbau, nichts Sichtbares)*
