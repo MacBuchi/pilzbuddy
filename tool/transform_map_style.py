@@ -45,10 +45,16 @@ def is_complex(expr):
     return expr[0] in ("format", "case") or '"format"' in json.dumps(expr)
 
 
-def main(path):
-    with open(path, encoding="utf-8") as f:
-        style = json.load(f)
+def transform(style):
+    """Der Umbau selbst — mutiert [style] und gibt ihn zurück.
 
+    Von [main] getrennt, damit `tool/generated_assets.py` ihn AUF das
+    committete Asset anwenden und prüfen kann, dass nichts passiert.
+    Genau dieser Fixpunkt ist die Aussage: Wer den Stil neu generiert
+    und diesen Schritt vergisst, hat wieder graue Landflächen ohne
+    Beschriftung — und zwar lautlos, denn der Renderer lässt die
+    Ebenen, die er nicht versteht, einfach weg.
+    """
     kept = []
     for layer in style["layers"]:
         layout = layer.get("layout", {})
@@ -77,9 +83,27 @@ def main(path):
         kept.append(layer)
 
     style["layers"] = kept
+    return style
+
+
+def render(style):
+    """Die EINE Schreibweise des Assets.
+
+    Eigene Funktion, weil die Fixpunkt-Prüfung Byte für Byte vergleicht:
+    Stünde die Formatierung an zwei Stellen, wiche sie beim ersten
+    Eingriff ab, und die Prüfung meldete einen Unterschied, den es
+    inhaltlich nicht gibt.
+    """
+    return json.dumps(style, ensure_ascii=False, indent=1)
+
+
+def main(path):
+    with open(path, encoding="utf-8") as f:
+        style = json.load(f)
+    style = transform(style)
     with open(path, "w", encoding="utf-8") as f:
-        json.dump(style, f, ensure_ascii=False, indent=1)
-    print(f"OK: {len(kept)} Ebenen geschrieben")
+        f.write(render(style))
+    print(f"OK: {len(style['layers'])} Ebenen geschrieben")
 
 
 if __name__ == "__main__":

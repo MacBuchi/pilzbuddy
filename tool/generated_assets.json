@@ -1,0 +1,33 @@
+{
+  "_": [
+    "Erzeugte Assets und wie man sie neu erzeugt — geprüft von",
+    "tool/generated_assets.py (--check in CI, --update nach echtem",
+    "Neu-Erzeugen). Die Prüfsummen stehen hier und nicht neben den",
+    "Assets, damit nichts davon versehentlich ins Binary wandert:",
+    "pubspec.yaml listet die Asset-Dateien einzeln auf."
+  ],
+  "assets": {
+    "assets/forest/forest_grid.bin.gz": {
+      "sha256": "cfe0a271424209db8973f230d528425b9d925d327a76f087ea517d9b8aac3c9d",
+      "regenerate": "Workflow „Forest Data\" von Hand starten (lattice=hex, cell_factor=25, publish_blocks=true), Artefakt forest-grid-25-hex herunterladen, beide Dateien nach assets/forest/ legen",
+      "checks": {
+        "self_recorded_sha256": "assets/forest/forest_manifest.json"
+      }
+    },
+    "assets/forest/forest_manifest.json": {
+      "sha256": "3bceea3eba6bdc946b22756a09f94fa4574807ef732ca65cf56d4800d2f20a2c",
+      "regenerate": "entsteht im selben Lauf wie forest_grid.bin.gz — siehe dort"
+    },
+    "assets/map_style/protomaps_light_de.json": {
+      "sha256": "7b2a50bdbd841692fdfda3912e02c543dd94877f9cc9f1866403755bc818adcc",
+      "regenerate": "Stil mit npm @protomaps/basemaps erzeugen (Flavor LIGHT, lang de), dann python3 tool/transform_map_style.py assets/map_style/protomaps_light_de.json",
+      "checks": {
+        "transform_noop": "tool/transform_map_style.py"
+      }
+    },
+    "assets/offline_maps/overview_dach.pmtiles": {
+      "sha256": "960e3854e86f3beb4e599ca2f38451d77aaac11d57db4a69d5b06fc01f604aa5",
+      "regenerate": "pmtiles extract <Protomaps-Daily-Build> assets/offline_maps/overview_dach.pmtiles --bbox=5.5,45.5,17.5,55.5 --maxzoom=7"
+    }
+  }
+}
