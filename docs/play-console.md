@@ -39,13 +39,18 @@ verarbeitet*, *erforderlich oder optional* — plus die Zwecke.
 | **Persönliche Infos → Nutzer-IDs** | Ja | Nein | Erforderlich | App-Funktionalität, Kontoverwaltung | `profiles.id` (UUID aus `auth.users`) |
 | **App-Aktivität → Andere nutzergenerierte Inhalte** | Ja | **Ja²** | Optional | App-Funktionalität, Entwicklerkommunikation | Spot-Name, Art, Notiz (`spots`, `finds`) und Feedback-Text (`feedback`) |
 | **App-Info und -Leistung → Absturzprotokolle** | Ja | Nein | Erforderlich | App-Funktionalität | `error_reports`: Fehlertyp, Meldung, Stacktrace, App-Version, Plattform |
+| **Geräte- oder andere IDs** | Ja⁴ | **Ja⁴** | Optional | App-Funktionalität | `push_devices.token` — die FCM-Gerätekennung, sobald jemand Benachrichtigungen einschaltet |
 
 **Ausdrücklich NICHT erhoben** — im Formular alles andere leer lassen:
 Fotos/Videos, Audio, Kontakte, Kalender, Finanzdaten, Gesundheits-/Fitnessdaten,
-SMS/E-Mail-Inhalte, Web-Browsing-Verlauf, installierte Apps, **Geräte- oder
-andere IDs** (keine Advertising-ID, keine Geräte-Kennung — `error_reports`
-speichert nur `platform`, also „android"/„web"). GPX-Import und -Export laufen
-lokal auf dem Gerät; es werden dabei keine Dateien hochgeladen.
+SMS/E-Mail-Inhalte, Web-Browsing-Verlauf, installierte Apps. **Keine
+Advertising-ID** — `error_reports` speichert nur `platform`, also
+„android"/„web". GPX-Import und -Export laufen lokal auf dem Gerät; es werden
+dabei keine Dateien hochgeladen.
+
+Bis #277 stand hier auch „Geräte- oder andere IDs". Das gilt nicht mehr: Ein
+FCM-Token IST eine Gerätekennung, und sie geht an Google. Die Zeile ist deshalb
+in die Tabelle gewandert — wer Push wieder ausbaut, holt sie hierher zurück.
 
 **Kurzzeitige Verarbeitung („processed ephemerally"):** bei allen Typen **nein**
 — alles wird in PostgreSQL gespeichert.
@@ -86,6 +91,21 @@ Bedingung dafür, diese Antwort zu geben.
 Weiterhin **nicht** erhoben: E-Mail-*Inhalte*. Die App liest keine Mails; sie
 schickt nur den Anlass und liest den Code, den der Nutzer abtippt.
 
+**⁴ Das FCM-Token — erhoben UND geteilt (#277).**
+Hier lautet die Antwort anders als bei den Fußnoten davor, und zwar **ja** in
+beiden Spalten. Ein FCM-Token ist eine Gerätekennung, es entsteht bei Google,
+und ohne Weitergabe an Google kann keine Meldung zugestellt werden — das ist
+kein Nebeneffekt, sondern der Zweck. Es hilft nicht, sich auf die
+Auftragsverarbeiter-Ausnahme zu berufen: Google ist hier nicht nur
+Zustelldienst, sondern erzeugt die Kennung selbst.
+
+Was die Einordnung dagegen trägt: **Optional**. Benachrichtigungen sind ab Werk
+aus, es gibt einen Schalter im Profil, und Ausschalten löscht die Zeile in
+`push_devices`. Und der Inhalt bleibt unverfänglich — eine Meldung enthält
+**nie Koordinaten und nie Spot-Namen**, nur einen allgemeinen Hinweis; die
+Einzelheiten holt die App erst beim Öffnen. Genau dieser Satz steht auch in der
+Datenschutzerklärung und wird dort von einem Test festgehalten.
+
 **Die Regenebene (`maps.dwd.de`) ändert an all dem nichts.** Sie holt ein
 **festes** Bild über Deutschland bzw. den Alpenraum — dieselbe Anfrage bei
 jedem Nutzer, unabhängig davon, wo er steht oder hinschaut. Weder Standort
@@ -98,7 +118,7 @@ die Ebene eingeschaltet ist; Vorgabe ist aus.
 
 ### Berechtigungen im Build
 
-Die gebaute APK deklariert **neun** Android-Berechtigungen (plus die
+Die gebaute APK deklariert **elf** Android-Berechtigungen (plus die
 app-eigene `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`, die Android selbst
 erzeugt). Nachprüfbar mit:
 
@@ -116,12 +136,24 @@ aapt2 dump badging build/app/outputs/flutter-apk/app-release.apk | grep uses-per
 | `POST_NOTIFICATIONS` | Fortschrittsmeldung des Downloads | Manifest |
 | `ACCESS_NETWORK_STATE` | Verbindungsstatus (Auto-Offline) | `connectivity_plus` |
 | `WAKE_LOCK` | Download über den Bildschirm-Timeout hinaus | `flutter_foreground_task` |
+| `ACCESS_WIFI_STATE` | Verbindungsart (Auto-Offline) | `connectivity_plus` |
+| `com.google.android.c2dm.permission.RECEIVE` | Push-Nachrichten entgegennehmen | `firebase_messaging` |
 | `REQUEST_INSTALL_PACKAGES` | Update der GitHub-APK in der App | Manifest — **vor der Einreichung entfernen, siehe unten** |
+
+`POST_NOTIFICATIONS` deckt seit #277 beides ab: die Fortschrittsmeldung des
+Downloads UND die Push-Benachrichtigungen. Sie stand schon vorher im Manifest
+(`flutter_foreground_task`), Push hat also **keine neue** Berechtigung
+gebracht — nur die c2dm-Zeile, die keine Laufzeit-Abfrage auslöst und in der
+Berechtigungsliste des Play Store nicht auftaucht.
 
 **Kein Hintergrund-Standort** (`ACCESS_BACKGROUND_LOCATION` fehlt bewusst),
 und `RECEIVE_BOOT_COMPLETED` wird per `tools:node="remove"` wieder
 **entfernt** — `flutter_foreground_task` bringt es für einen Autostart mit,
-den die App nicht nutzt. `test/android_manifest_test.dart` wacht darüber,
+den die App nicht nutzt. Seit #277 will auch `firebase_messaging` sie haben;
+am gemergten Manifest nachgesehen (2026-08-11) hält die Entfernung auch
+dagegen. Ob dadurch eine Meldung verloren geht, die während eines Neustarts
+eintrifft, ist **am Gerät noch nicht geprüft** — die Zustellung selbst
+übernimmt Google Play services, nicht die App. `test/android_manifest_test.dart` wacht darüber,
 dass `INSTALL_PACKAGES` und die Speicher-Berechtigungen nicht
 zurückkommen (Lehre aus #88).
 

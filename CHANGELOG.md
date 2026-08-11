@@ -7,6 +7,30 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Benachrichtigungen — wenn du sie willst
+
+*11. August 2026 · Version 1.84.0*
+
+Im Profil steht ein neuer Schalter: **Benachrichtigungen**. Er ist aus, und
+er bleibt aus, bis du ihn umlegst. Diese Version baut nur die Leitung —
+gemeldet wird noch nichts. Was du jetzt schon tun kannst: einschalten und
+**„Testnachricht senden"** antippen. Kommt sie an, funktioniert die ganze
+Kette bis zu deinem Gerät.
+
+Drei Dinge, die dir dabei wichtig sein dürften:
+
+- **Der Schalter gilt nur für dieses Gerät.** Auf dem Tablet musst du ihn
+  eigens umlegen, und Ausschalten wirkt sofort.
+- **In einer Meldung steht nie, wo etwas ist.** Kein Fundort, kein
+  Spot-Name — nur ein allgemeiner Hinweis. Die Einzelheiten holt die App
+  erst, wenn du sie öffnest. Der Grund: Eine Benachrichtigung läuft über
+  die Server von Google, und dorthin gehört eine Fundstelle nicht.
+- **Nach der Erlaubnis wird erst gefragt, wenn du den Schalter umlegst** —
+  nicht beim Start.
+
+Was als Nächstes kommt: eine Meldung, wenn ein Pilzbuddy an einem
+gemeinsamen Spot etwas einträgt oder einen neuen Spot öffnet.
+
 ## Der Regen-Knopf verrät jetzt auch die Pilzampel
 
 *11. August 2026 · Version 1.83.2*

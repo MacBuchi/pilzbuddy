@@ -114,6 +114,15 @@ check_get "feedback-Spalten" \
 check_get "error_reports-Spalten" \
   "/rest/v1/error_reports?select=id,user_id,context,error_type,message,stack,app_version,platform,created_at&limit=1"
 
+# push_devices (Patch 017): die Spalten, die PushRepository schreibt.
+# Wie bei error_reports gibt RLS anon nichts zurück — eine unbekannte
+# Spalte quittiert PostgREST trotzdem mit einem Fehler, und genau das
+# prüft der Aufruf. Der `on conflict (token)` des Upserts hängt am
+# Primärschlüssel; bricht der weg, scheitert das Registrieren erst am
+# Gerät.
+check_get "push_devices-Spalten" \
+  "/rest/v1/push_devices?select=token,user_id,platform,created_at,last_seen_at&limit=1"
+
 # app_config (Patch 012): die Zeile, aus der die App die Mindestversion
 # liest. Anders als bei den anderen Tabellen darf anon hier tatsächlich
 # lesen — ein leeres Ergebnis wäre also ein echter Befund: ohne Zeile

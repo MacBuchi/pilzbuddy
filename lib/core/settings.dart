@@ -76,6 +76,18 @@ abstract interface class Settings {
 
   Future<void> setAmpelPreviewEnabled(bool value);
 
+  /// Das zuletzt registrierte FCM-Token dieses Geräts (#277) — `null`,
+  /// solange niemand Push eingeschaltet hat.
+  ///
+  /// **Gemerkt wird das Token, nicht ein „an/aus".** Die Wahrheit darüber,
+  /// ob dieses Gerät Meldungen bekommt, steht in `push_devices`; ein
+  /// zweites Flag daneben liefe beim ersten Abmelden auseinander. Der Wert
+  /// hier ist nur, was die App zum AUSTRAGEN braucht — ohne ihn wüsste sie
+  /// beim Abschalten nicht, welche Zeile zu löschen ist.
+  String? get pushToken;
+
+  Future<void> setPushToken(String? value);
+
   /// Bekommt dieses Gerät auch Vorabversionen angeboten? (#269)
   ///
   /// Standardmäßig NEIN, und das ist der ganze Sinn der Trennung: Seit
@@ -199,6 +211,16 @@ class PrefsSettings implements Settings {
   @override
   Future<void> setAmpelPreviewEnabled(bool value) =>
       _prefs.setBool(_ampelPreviewEnabledKey, value);
+
+  static const _pushTokenKey = 'push_token';
+
+  @override
+  String? get pushToken => _prefs.getString(_pushTokenKey);
+
+  @override
+  Future<void> setPushToken(String? value) => value == null
+      ? _prefs.remove(_pushTokenKey)
+      : _prefs.setString(_pushTokenKey, value);
 
   static const _prereleaseUpdatesEnabledKey = 'prerelease_updates_enabled';
 

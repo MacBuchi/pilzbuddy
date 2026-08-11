@@ -88,7 +88,16 @@ enabled = false
 enabled = false
 
 [edge_runtime]
-enabled = false
+enabled = true
+
+# send-push prüft seine beiden Aufrufer SELBST (#277): Der Versand-Job
+# weist sich mit `x-push-secret` aus und hat gar kein JWT — mit
+# `verify_jwt = true` käme er nie durch. Der andere Weg, „Testnachricht
+# an mein Gerät", schickt sehr wohl eines, und die Function fragt damit
+# `push_devices` ab; ob das Token der Aufruferin gehört, entscheidet also
+# die RLS. Beides steht im Kopf der Function ausgeschrieben.
+[functions.send-push]
+verify_jwt = false
 
 [analytics]
 enabled = false

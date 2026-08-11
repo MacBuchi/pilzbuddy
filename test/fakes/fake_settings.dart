@@ -85,6 +85,14 @@ class FakeSettings implements Settings {
   }
 
   @override
+  String? pushToken;
+
+  @override
+  Future<void> setPushToken(String? value) async {
+    pushToken = value;
+  }
+
+  @override
 
 
   @override

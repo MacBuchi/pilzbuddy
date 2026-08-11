@@ -142,6 +142,20 @@ create table public.app_config (
 );
 insert into public.app_config (id) values (true);
 
+-- Wohin eine Push-Benachrichtigung geht (#277, Patch 017). Eine Zeile je
+-- Gerät; der Token ist der Schlüssel, weil FCM-Token global eindeutig
+-- sind. Eine Zeile IST die Zustimmung — es gibt bewusst keine Spalte
+-- „aktiv", die dasselbe ein zweites Mal behaupten könnte.
+create table public.push_devices (
+  token text primary key,
+  user_id uuid not null default auth.uid()
+    references public.profiles(id) on delete cascade,
+  platform text not null check (platform in ('android', 'web')),
+  created_at timestamptz not null default now(),
+  last_seen_at timestamptz not null default now()
+);
+create index push_devices_user_idx on public.push_devices (user_id);
+
 -- ============================================================
 -- Profil automatisch bei Registrierung anlegen
 -- (Username kommt aus den Signup-Metadaten der App)
@@ -256,12 +270,23 @@ alter table public.live_locations enable row level security;
 alter table public.feedback       enable row level security;
 alter table public.error_reports  enable row level security;
 alter table public.app_config     enable row level security;
+alter table public.push_devices   enable row level security;
 
 -- app_config: lesen darf jeder, auch anon — die Mindestversion wird beim
 -- Start und damit vor der Anmeldung geprüft. Geändert wird der Wert über
 -- einen Patch, deshalb kein insert/update/delete-Grant.
 create policy app_config_read on public.app_config for select using (true);
 grant select on public.app_config to anon, authenticated;
+
+-- push_devices: nur die eigenen Geräte, in beide Richtungen. Ohne das
+-- `with check` könnte jemand ein Token auf ein fremdes Konto schreiben
+-- und dessen Meldungen mitbekommen. Für den Versender gibt es bewusst
+-- KEINE Policy — er liest mit service_role und umgeht RLS; eine Policy
+-- wäre die Einladung, den Weg später über einen schwächeren Schlüssel zu
+-- gehen.
+create policy push_devices_own_all on public.push_devices for all
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
 
 -- error_reports: schreiben darf jeder, auch anon — sonst fehlen genau die
 -- Fehler aus Login und Registrierung. Eine fremde user_id lässt sich nicht
@@ -397,5 +422,6 @@ insert into public.applied_patches (filename) values
   ('patch_013_username_gross_klein.sql'),
   ('patch_014_buddy_funde.sql'),
   ('patch_015_leergang.sql'),
-  ('patch_016_client_id.sql')
+  ('patch_016_client_id.sql'),
+  ('patch_017_push_geraete.sql')
 on conflict do nothing;
