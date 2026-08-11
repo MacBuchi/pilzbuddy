@@ -139,6 +139,14 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   supabase.com/dashboard/account/tokens). **Fehlt es, wird der Deploy
   übersprungen** und die Run-Summary sagt es samt Handbefehl — ein Job,
   der ohne Secret rot würde, wäre bei jedem Merge falscher Alarm.
+  Gesetzt am 2026-08-11; Supabase gibt persönlichen Tokens **höchstens
+  ein Jahr**, es läuft also spätestens am **2027-08-11** ab. Das ist der
+  eine Fall, in dem der Job wirklich rot wird statt zu überspringen —
+  das Secret ist dann ja da, nur ungültig. Wer hier landet: neues Token
+  erzeugen, Secret ersetzen, fertig. Bewusst ein EIGENES Token und nicht
+  das aus `supabase login` im Schlüsselbund: Sonst hinge die CI am
+  interaktiven Anmeldetoken eines Rechners, und ein Widerruf auf der
+  einen Seite legte still die andere lahm.
 - **Ein eingespielter Patch wird nie wieder angefasst** (Pflicht-Check
   „Patch-Buchführung", `tool/patch_guard.sh`, im Schema Dry Run): Ändern,
   Löschen oder Umbenennen einer Patch-Datei, die es im Ziel-Branch schon
