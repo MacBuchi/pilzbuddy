@@ -8,6 +8,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'dart:async';
+
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:pilzbuddy/core/push_messaging.dart';
 
 import '../fakes/fake_backend.dart';
@@ -103,5 +106,32 @@ void main() {
         reason: 'kein Token heißt: dieses Gerät bekommt nichts mehr');
     expect(tester.widget<SwitchListTile>(toggle).value, isFalse);
     expect(find.text('Testnachricht senden'), findsNothing);
+  });
+
+  testWidgets('eine Meldung im Vordergrund geht nicht verloren',
+      (tester) async {
+    // **Der Fehler, der das hier erzwungen hat (2026-08-11):** Android
+    // zeigt eine `notification`-Nutzlast nur an, solange die App NICHT
+    // vorne ist. Ist sie es, liefert FCM sie ausschließlich an
+    // `onMessage`. Ohne Zuhörer verschwand sie spurlos — der Testknopf
+    // konnte gar nicht funktionieren, denn beim Tippen ist die App
+    // zwangsläufig im Vordergrund. FCM quittierte trotzdem brav `ok`.
+    final messages = StreamController<RemoteMessage>.broadcast();
+    addTearDown(messages.close);
+    final backend = FakeBackend();
+    backend.signInAs(backend.addUser(username: 'testpilz').id);
+    await pumpApp(tester, backend, settings: FakeSettings(), extraOverrides: [
+      pushMessageListenerProvider.overrideWithValue(() => messages.stream),
+    ]);
+
+    messages.add(const RemoteMessage(
+        notification: RemoteNotification(
+            title: 'PilzBuddy', body: 'Neuer Fund bei einem Pilzbuddy.')));
+    await settle(tester);
+
+    expect(find.text('Neuer Fund bei einem Pilzbuddy.'), findsOneWidget,
+        reason: 'ohne diesen Zweig verpufft auch ein ECHTER Versand, wenn '
+            'jemand die App zufällig offen hat — und der Versender hat '
+            'die Zeile im Korb da schon gelöscht');
   });
 }

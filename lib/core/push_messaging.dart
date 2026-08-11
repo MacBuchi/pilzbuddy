@@ -104,3 +104,25 @@ Stream<RemoteMessage> pushTaps() => FirebaseMessaging.onMessageOpenedApp;
 /// Dieselbe Naht für das Antippen.
 final pushTapListenerProvider =
     Provider<Stream<RemoteMessage> Function()>((ref) => pushTaps);
+
+/// Nachrichten, die eintreffen, **während die App im Vordergrund ist**.
+///
+/// Ohne diesen Zweig verschwinden sie spurlos, und das ist kein
+/// Schönheitsfehler: Android und der Service Worker zeigen eine
+/// `notification`-Nutzlast nur an, solange die App **nicht** vorne ist.
+/// Ist sie es, liefert FCM sie ausschließlich hierher. Zwei Folgen, beide
+/// im Nachbarprojekt durchlitten (dort bis 0.39.0):
+///
+/// * **Der Testknopf konnte gar nicht funktionieren** — beim Tippen ist
+///   die App zwangsläufig im Vordergrund. Genau so ist es hier am
+///   2026-08-11 aufgefallen: FCM quittierte `ok`, das Gerät war
+///   eingetragen, und trotzdem kam nichts.
+/// * **Schlimmer, weil unbemerkt:** Auch ein echter Versand verpufft,
+///   wenn jemand die App zufällig offen hat. Der Versender verbucht ihn
+///   als zugestellt (FCM hat ihn ja angenommen) und löscht die Zeile aus
+///   dem Korb — die Meldung kommt nie wieder.
+Stream<RemoteMessage> pushMessages() => FirebaseMessaging.onMessage;
+
+/// Dieselbe Naht für Vordergrund-Nachrichten.
+final pushMessageListenerProvider =
+    Provider<Stream<RemoteMessage> Function()>((ref) => pushMessages);
