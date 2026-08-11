@@ -7,6 +7,23 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Benachrichtigungen kamen nicht an, wenn die App offen war
+
+*11. August 2026 · Version 1.84.2*
+
+Wer auf „Testnachricht senden" tippte, bekam nichts zu sehen — und das
+war kein Zufall, sondern der ungünstigste denkbare Fall: Android zeigt
+eine Benachrichtigung nur an, solange die App **nicht** im Vordergrund
+ist. Beim Tippen auf den Knopf ist sie das zwangsläufig. Die Meldung kam
+an und verschwand spurlos.
+
+Schlimmer war die zweite Hälfte davon: Auch eine **echte** Meldung wäre
+verpufft, wenn du die App zufällig offen hattest — und sie wäre nicht
+nachgekommen, weil sie serverseitig da schon als zugestellt galt.
+
+Jetzt zeigt die App eintreffende Meldungen selbst an, solange du sie
+offen hast.
+
 ## Und jetzt melden sie sich auch
 
 *11. August 2026 · Version 1.84.1*
