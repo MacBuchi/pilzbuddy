@@ -33,7 +33,7 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
-          flutter-version: 3.41.2
+          flutter-version: 3.44.8
           cache: true
       - run: flutter pub get
       - run: flutter analyze
@@ -69,7 +69,7 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
-          flutter-version: 3.41.2
+          flutter-version: 3.44.8
           cache: true
       - run: flutter pub get
       - run: flutter build web --release --base-href /pilzbuddy/
@@ -92,7 +92,7 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
-          flutter-version: 3.41.2
+          flutter-version: 3.44.8
           cache: true
       - run: flutter pub get
       # Ohne key.properties fällt der Build auf Debug-Signing zurück —
