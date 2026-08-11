@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "768561424854",
+    "project_id": "pilzbuddy-app",
+    "storage_bucket": "pilzbuddy-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:768561424854:android:9ca399e105f7c03343dc77",
+        "android_client_info": {
+          "package_name": "de.marcusbucher.pilzbuddy"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDdVH0Q2byfQPHhHXb7lpw_ahFMCZsQYE4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
