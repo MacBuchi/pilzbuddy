@@ -1,0 +1,70 @@
+name: Deploy Edge Functions
+
+# Bringt `supabase/functions/**` in die Live-Umgebung (#277).
+#
+# **Warum es diesen Workflow braucht.** Der Schema Check spielt SQL-Patches
+# aus dem PR ein — Edge Functions nicht. Nach dem Merge von #284/#285 lag
+# `send-push` deshalb nur im Repo: Der Testknopf im Profil und der
+# Cron-Versand liefen beide ins Leere, ohne dass irgendwo ein Fehler stand.
+# Aufgefallen ist es erst beim Nachsehen von Hand.
+#
+# Und es wäre wiedergekommen: `supabase/` ist vom Version Guard
+# ausgenommen, eine Änderung an der Function bringt also nicht einmal einen
+# Versions-Bump, an dem jemand hätte stutzen können. Genau die stille
+# Drift, gegen die das Repo sonst überall Wächter hat.
+#
+# Nur auf `main` und nur, wenn sich wirklich etwas an den Functions oder
+# ihrer Konfiguration geändert hat — ein Deploy je Merge wäre Lärm.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/functions/**"
+      - "supabase/config.toml"
+      - ".github/workflows/deploy-functions.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-functions
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy Edge Functions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # Ohne Token passiert NICHTS, und zwar sichtbar: Der Schritt wird
+      # übersprungen und die Zusammenfassung sagt warum. Ein Job, der ohne
+      # Secret rot würde, wäre bei jedem Merge ein falscher Alarm — und
+      # einer, der still durchliefe, wäre schlimmer als keiner.
+      - name: Deploy
+        if: ${{ secrets.SUPABASE_ACCESS_TOKEN != '' }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          supabase functions deploy --project-ref tntlujexvdtkynxbrdsn
+          echo "### Edge Functions deployt" >> "$GITHUB_STEP_SUMMARY"
+          supabase functions list --project-ref tntlujexvdtkynxbrdsn \
+            >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Ohne Token übersprungen
+        if: ${{ secrets.SUPABASE_ACCESS_TOKEN == '' }}
+        run: |
+          {
+            echo "### Nicht deployt — \`SUPABASE_ACCESS_TOKEN\` fehlt"
+            echo
+            echo "Persönliches Zugriffstoken unter"
+            echo "<https://supabase.com/dashboard/account/tokens> erzeugen"
+            echo "und als Repo-Secret \`SUPABASE_ACCESS_TOKEN\` hinterlegen."
+            echo
+            echo "Bis dahin müssen Änderungen an \`supabase/functions/\`"
+            echo "von Hand deployt werden:"
+            echo '```'
+            echo "supabase functions deploy --project-ref tntlujexvdtkynxbrdsn"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
