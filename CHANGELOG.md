@@ -7,6 +7,37 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Vom Sporenstreuer zum Waldpaten
+
+*11. August 2026 · Version 1.85.0*
+
+Teilen bekommt einen Rang. Wer seinen ersten Spot mit den Buddies teilt,
+ist **Sporenstreuer** — und von da an geht es weiter:
+
+- 10 Spots: **Hyphenspinner**
+- 25: **Myzelweber**
+- 50: **Revierkenner**
+- 100: **Waldpate**
+
+Das Bild ist mit Absicht gewählt: Ein Pilznetz besteht aus Fäden, und
+jeder geteilte Spot knüpft einen davon.
+
+Deinen Rang siehst du im Profil unter „Teilen mit Freunden", den deiner
+Buddies in der Freundesliste. In der Freundessuche steht er **nicht** —
+Fremde müssen nicht wissen, wie aktiv jemand ist.
+
+Zwei Dinge, die uns wichtig waren:
+
+- **Wer nichts teilt, wird nicht abgestempelt.** Bei null steht dort eine
+  Einladung, kein Titel — und schon gar kein Spottname.
+- **Gezählt wird, was wirklich ankommt.** Wer das Teilen abgeschaltet hat,
+  hat keinen Rang, auch mit hundert Spots. Und einzeln ausgenommene Spots
+  zählen nicht mit — dein Geheimspot bleibt geheim, ohne dass es dich
+  etwas kostet.
+
+Wenn du deutlich mehr siehst, als du selbst teilst, sagt das Profil es
+dir einmal ruhig dazu. Weggenommen wird dir nichts.
+
 ## Im Funkloch stand der falsche Grund
 
 *11. August 2026 · Version 1.84.3*
