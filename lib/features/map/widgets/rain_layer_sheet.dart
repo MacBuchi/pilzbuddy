@@ -109,11 +109,21 @@ class _RainLayerSheet extends ConsumerWidget {
                       dense: true,
                       title:
                           const Text('Pilzwetter-Ampel (experimentell)'),
+                      // Der Höhen-Satz ist kein Beiwerk: Die Temperatur
+                      // ist der Wert der NÄCHSTEN Station, und im
+                      // Gebirge stehen Nachbarstationen Hunderte
+                      // Höhenmeter auseinander — bei Garmisch entscheidet
+                      // das über die Stufe (#279). Ein Geländemodell auf
+                      // dem Gerät gibt es nicht, also wird die Grenze
+                      // benannt statt kaschiert.
                       subtitle: const Text(
                           'Lässt die Waldwaben dort leuchten, wo die '
                           'Bedingungen für Steinpilz & Co. gerade '
                           'stimmen — nur Deutschland, bewertet '
-                          'Bedingungen, nicht Vorkommen. Nutzt die '
+                          'Bedingungen, nicht Vorkommen. Im Gebirge '
+                          'unsicher: Die Temperatur kommt von der '
+                          'nächsten Wetterstation, und die kann Hunderte '
+                          'Höhenmeter tiefer oder höher stehen. Nutzt die '
                           'Wetterdaten vom Spot (beim ersten Mal knapp '
                           '2 MB).'),
                       value: ref.watch(ampelLayerEnabledProvider),

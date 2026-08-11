@@ -51,6 +51,15 @@ abstract class WeatherStation {
   /// An wie vielen Tagen des Fensters liegt ein vollständiger Messwert
   /// vor? Entscheidet, ob die Station als „nächste" überhaupt antritt.
   int get measuredDays;
+
+  /// Tritt diese Station bei der Nachbarsuche überhaupt an?
+  ///
+  /// DIE Definition — nicht nachbauen. Die Ampel-Fläche
+  /// (`ampelLevelsFrom`) sucht ihre Station je Zelle selbst, weil sie es
+  /// hunderttausendfach tut; sie muss dabei aber nach derselben Regel
+  /// sieben wie das Spot-Blatt, sonst zeigen Farbe und Text an derselben
+  /// Koordinate verschiedene Stufen (Issue #279).
+  bool get competes => measuredDays >= WeatherTable.minMeasuredDays;
 }
 
 /// Eine Station des Luftnetzes: Tageshöchst- und Tagestiefstwerte in °C,
@@ -130,7 +139,7 @@ class WeatherTable {
     T? best;
     var bestKm = double.infinity;
     for (final station in stations) {
-      if (station.measuredDays < minMeasuredDays) continue;
+      if (!station.competes) continue;
       final km = distanceKm(lat, lon, station.lat, station.lon);
       if (km < bestKm) {
         bestKm = km;
@@ -141,10 +150,16 @@ class WeatherTable {
     return (station: best, km: bestKm);
   }
 
+  /// Die nächste brauchbare Luftstation — der öffentliche Einstieg in
+  /// die Regel oben. Die Ampel-Fläche prüft sich im Test gegen genau
+  /// diese Funktion (#279).
+  ({AirStation station, double km})? nearestAir(double lat, double lon) =>
+      _nearest(air, lat, lon);
+
   /// Was am Spot gezeigt wird — `null`, wenn kein Netz eine brauchbare
   /// Station in Reichweite hat.
   SpotTemperature? at(double lat, double lon) {
-    final airPick = _nearest(air, lat, lon);
+    final airPick = nearestAir(lat, lon);
     final soilPick = _nearest(soil, lat, lon);
     if (airPick == null && soilPick == null) return null;
     return SpotTemperature(days: days, air: airPick, soil: soilPick);

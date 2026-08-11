@@ -28,11 +28,36 @@ import 'ampel_providers.dart' show ampelMinRainDays, ampelMinTempDays;
 /// Obergrenze: Die Karte darunter muss lesbar bleiben.
 const ampelFillAlpha = 140;
 
-/// Kantenlänge der Temperatur-Blöcke in Zellen (~16 km): Stationen
-/// stehen ~30 km auseinander, eine feinere Zuordnung wäre
-/// Scheingenauigkeit — und je Zelle die nächste von ~460 Stationen zu
-/// suchen wäre eine Viertelmilliarde Distanzen.
+/// Kantenlänge der Kandidaten-Kacheln in Zellen (~16 km).
+///
+/// **Keine Auflösungsgrenze.** Die Station wird je ZELLE gesucht, nach
+/// derselben Regel wie im Spot-Blatt (`WeatherTable.nearestAir`); die
+/// Kachel ist nur der Vorfilter, der das bezahlbar macht: Für sie steht
+/// vorab fest, welche Stationen für irgendeine ihrer Zellen überhaupt
+/// die nächste sein können, und die Zelle prüft dann diese Handvoll
+/// statt aller ~465. Ohne den Vorfilter wäre es eine Viertelmilliarde
+/// Distanzen.
+///
+/// Gemessen am echten Maßstab (800 × 940 Zellen, 465 Stationen, Debug-VM
+/// 2026-08-11): 398 ms gegen 371 ms mit einer einzigen Station — die
+/// Stationswahl je Zelle kostet also ~27 ms, während die 26
+/// Gzip-Entpackungen des Regenstapels den Rest ausmachen.
+///
+/// Bis 1.79.0 galt EIN Wert je Kachel, gesucht von deren Mittelpunkt
+/// aus. Das malte Rechtecke, die dem Text im Blatt widersprachen: Am
+/// gemeldeten Punkt bei Garmisch lag die Kachelmitte 8 km entfernt und
+/// griff zu einer 264 m höher gelegenen Station — 0,300 statt 0,123,
+/// also „verhalten" auf der Karte und „ungünstig" im Blatt (#279).
 const ampelTempBlockCells = 16;
+
+/// Sicherheitszuschlag auf die Kandidaten-Schranke, in km.
+///
+/// [distanceKm] ist äquirektangulär: Der cos-Faktor der Mittelbreite
+/// fällt minimal anders aus, je nachdem ob von der Kachelmitte oder von
+/// der Zelle gemessen wird. Ein Kilometer deckt das mit großem Abstand —
+/// und `ampel_fill_test.dart` beweist die Schranke gegen die rohe Suche,
+/// statt sie zu behaupten.
+const _candidateMarginKm = 1.0;
 
 /// Das Ergebnis: PNG plus die Grenzen SEINES Gitters und der jüngste
 /// Tag (er wird zum Dateinamen — ein neuer Stand braucht eine neue
@@ -113,10 +138,21 @@ AmpelLevelGrid? ampelLevelsFrom(RainStackData stack, WeatherTable? table) {
     }
   }
 
-  // Temperatur: Faktor je Station einmal, dann je ~16-km-Block die
-  // nächste brauchbare Station — zwischen den Blöcken konstant.
-  final stationFactors = <({double lat, double lon, double factor})>[];
-  for (final station in table?.air ?? const <AirStation>[]) {
+  // Temperatur: Faktor je Station einmal — und zwar für JEDE antretende
+  // Station, nicht nur für die mit genug Tagen. Wer antritt, entscheidet
+  // `WeatherStation.competes`; wer auch antworten kann, steht getrennt
+  // daneben. Genau so hält es das Spot-Blatt: Es nimmt die nächste
+  // antretende Station und wird GRAU, wenn deren Reihe zu lückig ist,
+  // statt zur übernächsten zu greifen (#279).
+  final stations = table?.air ?? const <AirStation>[];
+  final stationLat = Float64List(stations.length);
+  final stationLon = Float64List(stations.length);
+  final stationFactor = Float32List(stations.length);
+  final stationAnswers = Uint8List(stations.length);
+  final competing = <int>[];
+  for (var s = 0; s < stations.length; s++) {
+    final station = stations[s];
+    if (!station.competes) continue;
     final maxs = station.max;
     final mins = station.min;
     final temps = <double?>[
@@ -127,19 +163,16 @@ AmpelLevelGrid? ampelLevelsFrom(RainStackData stack, WeatherTable? table) {
     ];
     final tempKnown =
         temps.take(ampelTempWindow).where((c) => c != null).length;
-    if (tempKnown < ampelMinTempDays) continue;
-    stationFactors.add((
-      lat: station.lat,
-      lon: station.lon,
-      factor: ampelTemperatureFactor(temps),
-    ));
+    stationLat[s] = station.lat;
+    stationLon[s] = station.lon;
+    stationFactor[s] = ampelTemperatureFactor(temps);
+    stationAnswers[s] = tempKnown >= ampelMinTempDays ? 1 : 0;
+    competing.add(s);
   }
-  if (stationFactors.isEmpty) return null;
+  if (competing.isEmpty) return null;
 
   final blocksX = (width + ampelTempBlockCells - 1) ~/ ampelTempBlockCells;
   final blocksY = (height + ampelTempBlockCells - 1) ~/ ampelTempBlockCells;
-  final blockFactor = Float32List(blocksX * blocksY);
-  final blockUsable = Uint8List(blocksX * blocksY);
   final probe = RainGrid(
     values: Uint8List(0),
     width: width,
@@ -150,51 +183,91 @@ AmpelLevelGrid? ampelLevelsFrom(RainStackData stack, WeatherTable? table) {
     south: info.south,
     measured: newest,
   );
+
+  // Je Kachel die Stationen, die für IRGENDEINE ihrer Zellen die nächste
+  // sein können — flach abgelegt, `candidateStart[b]` bis
+  // `candidateStart[b + 1]`.
+  //
+  // Die Schranke ist exakt: Für eine Zelle der Kachel gilt
+  // `dist(Zelle, s) >= dist(Mitte, s) - reach`, und die Siegerin liegt
+  // höchstens `dMin + reach` entfernt. Wer also gewinnen kann, erfüllt
+  // `dist(Mitte, s) <= dMin + 2 * reach`. `reach` ist der echte Abstand
+  // Mitte→Ecke DIESER Kachel, deckt also auch die angeschnittene letzte
+  // und die mit der Breite wandernde Zellgröße ab.
+  final candidateStart = Int32List(blocksX * blocksY + 1);
+  final candidates = <int>[];
+  final fromCentre = Float64List(stations.length);
   for (var by = 0; by < blocksY; by++) {
-    // Mitte aus Blockanfang und -ENDE — der letzte (angeschnittene)
-    // Block hat seine Mitte sonst außerhalb des Gitters.
     final rowEnd = (by + 1) * ampelTempBlockCells > height
         ? height
         : (by + 1) * ampelTempBlockCells;
-    final lat =
-        probe.latAtRow((by * ampelTempBlockCells + rowEnd) / 2);
+    final rowStart = by * ampelTempBlockCells;
+    // Mitte aus Kachelanfang und -ENDE — die letzte (angeschnittene)
+    // hat ihre Mitte sonst außerhalb des Gitters.
+    final lat = probe.latAtRow((rowStart + rowEnd) / 2);
+    final cornerLat = probe.latAtRow(rowStart.toDouble());
     for (var bx = 0; bx < blocksX; bx++) {
       final colEnd = (bx + 1) * ampelTempBlockCells > width
           ? width
           : (bx + 1) * ampelTempBlockCells;
-      final lon =
-          probe.lonAtColumn((bx * ampelTempBlockCells + colEnd) / 2);
-      double bestKm = double.infinity;
-      double bestFactor = 0;
-      for (final station in stationFactors) {
-        final km = distanceKm(lat, lon, station.lat, station.lon);
-        if (km < bestKm) {
-          bestKm = km;
-          bestFactor = station.factor;
-        }
+      final colStart = bx * ampelTempBlockCells;
+      final lon = probe.lonAtColumn((colStart + colEnd) / 2);
+      final reach = distanceKm(
+          lat, lon, cornerLat, probe.lonAtColumn(colStart.toDouble()));
+      var bestKm = double.infinity;
+      for (final s in competing) {
+        final km = distanceKm(lat, lon, stationLat[s], stationLon[s]);
+        fromCentre[s] = km;
+        if (km < bestKm) bestKm = km;
       }
-      if (bestKm <= WeatherTable.maxStationKm) {
-        blockFactor[by * blocksX + bx] = bestFactor;
-        blockUsable[by * blocksX + bx] = 1;
+      final limit = bestKm + 2 * reach + _candidateMarginKm;
+      candidateStart[by * blocksX + bx] = candidates.length;
+      for (final s in competing) {
+        if (fromCentre[s] <= limit) candidates.add(s);
       }
     }
   }
+  candidateStart[blocksX * blocksY] = candidates.length;
+  final candidateOf = Int32List.fromList(candidates);
 
-  // Die Stufe je Zelle. 0 heißt „keine Aussage" — zu wenige Regentage
-  // oder keine Station in Reichweite; auf der Karte ist beides
-  // transparent, und in der Kombi-Ebene leuchtet dort nichts.
+  // Die Stufe je Zelle. 0 heißt „keine Aussage" — zu wenige Regentage,
+  // keine Station in Reichweite oder eine zu lückige Stationsreihe; auf
+  // der Karte ist alles drei transparent, und in der Kombi-Ebene
+  // leuchtet dort nichts.
+  //
+  // Gemessen wird von der ZELLMITTE aus, mit derselben [distanceKm] wie
+  // im Blatt — nicht mit einer eigenen, schnelleren Formel: Eine zweite
+  // Rechnung wäre genau die Naht, an der die beiden wieder auseinander
+  // liefen.
   final levels = Uint8List(width * height);
+  final cellLon = Float64List(width);
+  for (var x = 0; x < width; x++) {
+    cellLon[x] = probe.lonAtColumn(x + 0.5);
+  }
   for (var y = 0; y < height; y++) {
+    final lat = probe.latAtRow(y + 0.5);
     final blockRow = (y ~/ ampelTempBlockCells) * blocksX;
     for (var x = 0; x < width; x++) {
       final i = y * width + x;
+      if (known[i] < ampelMinRainDays) continue;
       final block = blockRow + x ~/ ampelTempBlockCells;
-      if (known[i] < ampelMinRainDays || blockUsable[block] == 0) continue;
+      var bestKm = double.infinity;
+      var best = -1;
+      for (var c = candidateStart[block]; c < candidateStart[block + 1]; c++) {
+        final s = candidateOf[c];
+        final km = distanceKm(lat, cellLon[x], stationLat[s], stationLon[s]);
+        if (km < bestKm) {
+          bestKm = km;
+          best = s;
+        }
+      }
+      if (best < 0 || bestKm > WeatherTable.maxStationKm) continue;
+      if (stationAnswers[best] == 0) continue;
       final effective = weighted[i] / weightsTotal * ampelRainWindow;
       final rainFactor = effective >= ampelRainSaturationMm
           ? 1.0
           : effective / ampelRainSaturationMm;
-      levels[i] = ampelLevelOf(rainFactor * blockFactor[block]).index + 1;
+      levels[i] = ampelLevelOf(rainFactor * stationFactor[best]).index + 1;
     }
   }
   return AmpelLevelGrid(
