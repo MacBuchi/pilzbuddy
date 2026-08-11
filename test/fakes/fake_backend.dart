@@ -14,6 +14,7 @@ import 'package:pilzbuddy/data/app_config_repository.dart';
 import 'package:pilzbuddy/data/auth_repository.dart';
 import 'package:pilzbuddy/data/feedback_repository.dart';
 import 'package:pilzbuddy/data/friend_repository.dart';
+import 'package:pilzbuddy/data/push_repository.dart';
 import 'package:pilzbuddy/data/live_share_repository.dart';
 import 'package:pilzbuddy/data/profile_repository.dart';
 import 'package:pilzbuddy/data/spot_repository.dart';
@@ -110,6 +111,11 @@ class FakeBackend {
   final friendships = <FakeFriendshipRow>[];
   final liveLocations = <FakeLiveShareRow>[];
   final feedback = <Map<String, dynamic>>[];
+
+  /// Eingetragene Geräte (`push_devices`, Patch 017): Token -> Konto.
+  /// Eine Zeile IST die Zustimmung dieses Geräts; es gibt bewusst kein
+  /// zweites „aktiv"-Feld daneben.
+  final pushDevices = <String, String?>{};
 
   /// Adressen, für die ein Reset-Code angefordert wurde — auch solche ohne
   /// Konto, denn die App darf beide Fälle nicht unterscheiden.
@@ -1098,6 +1104,42 @@ class FakeFeedbackRepository implements FeedbackRepository {
       'species_name': speciesName.trim(),
       'message': note,
     });
+  }
+}
+
+/// Das Geräteregister (`push_devices`, Patch 017).
+///
+/// Bildet die eine Regel nach, auf die es ankommt: Der Token ist der
+/// Schlüssel. Meldet sich am selben Gerät jemand anders an, wandert die
+/// Zeile auf das neue Konto, statt daneben zu stehen — täte sie das
+/// nicht, bekäme der Vorbesitzer weiter Meldungen über fremde Funde.
+class FakePushRepository implements PushRepository {
+  FakePushRepository(this.backend);
+
+  final FakeBackend backend;
+
+  /// Was hinausgegangen ist — die Tests prüfen, DASS getestet wurde,
+  /// nicht wie eine Benachrichtigung aussieht.
+  final tests = <String>[];
+
+  @override
+  Future<void> register(String token) async {
+    backend.pushDevices[token] = backend.currentUserId;
+  }
+
+  @override
+  Future<void> unregister(String token) async {
+    backend.pushDevices.remove(token);
+  }
+
+  @override
+  Future<void> sendTest(String token) async {
+    if (backend.pushDevices[token] != backend.currentUserId) {
+      // Genau das, was die Edge Function über die RLS entscheidet: Ein
+      // fremdes Token geht niemanden etwas an.
+      throw StateError('unknown device');
+    }
+    tests.add(token);
   }
 }
 

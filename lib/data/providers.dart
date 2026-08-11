@@ -10,6 +10,7 @@ import 'live_share_repository.dart';
 import 'outbox.dart';
 import 'outbox_runner.dart';
 import 'profile_repository.dart';
+import 'push_repository.dart';
 import 'spot_cache.dart';
 import 'spot_repository.dart';
 
@@ -59,6 +60,9 @@ final liveShareRepositoryProvider =
 
 final appConfigRepositoryProvider =
     Provider((ref) => AppConfigRepository(ref.watch(supabaseClientProvider)));
+
+final pushRepositoryProvider =
+    Provider((ref) => PushRepository(ref.watch(supabaseClientProvider)));
 
 /// Auth-Zustand als Stream — steuert den Router-Redirect und sorgt dafür,
 /// dass alle Daten-Provider bei Login/Logout neu laden.

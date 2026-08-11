@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:pilzbuddy/app.dart';
 import 'package:pilzbuddy/core/app_info.dart';
+import 'package:pilzbuddy/core/push_messaging.dart';
 import 'package:pilzbuddy/core/settings.dart';
 import 'package:pilzbuddy/core/update_check.dart';
 import 'package:pilzbuddy/data/apk_installer.dart';
@@ -132,6 +133,7 @@ List<Override> overridesFor(FakeBackend backend,
       friendRepositoryProvider.overrideWithValue(FakeFriendRepository(backend)),
       feedbackRepositoryProvider
           .overrideWithValue(FakeFeedbackRepository(backend)),
+      pushRepositoryProvider.overrideWithValue(FakePushRepository(backend)),
       liveShareRepositoryProvider
           .overrideWithValue(FakeLiveShareRepository(backend)),
       // Kein 15-Sekunden-Poll im Test: einmal laden statt Dauerschleife.
@@ -170,6 +172,13 @@ List<Override> overridesFor(FakeBackend backend,
       rainImageProviderFactory
           .overrideWithValue((url) => MemoryImage(kTransparentTile)),
       updateInfoProvider.overrideWith((ref) => Future.value(null)),
+      // Push: Im Widget-Test gibt es weder FCM noch Berechtigungsdialoge.
+      // Ohne diese Naht liefe ein Test, der den Schalter im Profil
+      // antippt, in echtes Plattform-IO — und das löst in der Fake-Zone
+      // NIE auf, egal wie viele Frames man pumpt. Der Vorgabewert ist ein
+      // Token: Der interessante Weg ist „eingeschaltet", und wer die
+      // Ablehnung prüfen will, überschreibt gezielt mit `null`.
+      pushTokenProvider.overrideWithValue(() async => 'test-token'),
       // Mindestversion: ohne Angabe sperrt nichts. PackageInfo gibt es im
       // Test nicht, deshalb kommt die eigene Version aus dem Harness.
       appConfigRepositoryProvider

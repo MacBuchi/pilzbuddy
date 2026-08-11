@@ -30,6 +30,7 @@ import '../spots/nearby_spots.dart';
 import '../spots/spot_providers.dart';
 import 'account_dialogs.dart';
 import 'profile_providers.dart';
+import 'push_providers.dart';
 import '../../core/app_colors.dart';
 
 // Re-Export mit Absicht: Die Achsen-Helfer sind nach core/ gezogen (das
@@ -235,6 +236,44 @@ class ProfileScreen extends ConsumerWidget {
             onChanged: (value) =>
                 ref.read(ampelPreviewEnabledProvider.notifier).set(value),
           ),
+          // Push (#277). Die Systemberechtigung wird ERST hier erfragt,
+          // nicht beim Start: Ein Dialog, bevor die Karte auch nur zu
+          // sehen war, ist die zuverlässigste Art, ein „Nein für immer"
+          // zu bekommen. Der Schalter zeigt das Ergebnis, nicht den
+          // Wunsch — wer ablehnt, sieht ihn zurückspringen.
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            secondary: const Icon(Icons.notifications_outlined),
+            title: const Text('Benachrichtigungen'),
+            subtitle: const Text(
+                'Gilt nur für dieses Gerät. Was gemeldet wird, steht nie '
+                'in der Meldung selbst — Fundort und Spot-Name holt die '
+                'App erst beim Öffnen.'),
+            value: ref.watch(pushEnabledProvider),
+            onChanged: (value) async {
+              final problem =
+                  await ref.read(pushEnabledProvider.notifier).set(value);
+              if (!context.mounted || problem == null) return;
+              ScaffoldMessenger.of(context)
+                  .showSnackBar(SnackBar(content: Text(problem)));
+            },
+          ),
+          if (ref.watch(pushEnabledProvider))
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.send_outlined),
+              title: const Text('Testnachricht senden'),
+              subtitle: const Text(
+                  'Kommt sie an, funktioniert die ganze Kette bis zu '
+                  'diesem Gerät.'),
+              onTap: () async {
+                final problem =
+                    await ref.read(pushEnabledProvider.notifier).sendTest();
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text(problem ?? 'Testnachricht ist unterwegs.')));
+              },
+            ),
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.file_download_outlined),

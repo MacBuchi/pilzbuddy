@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.83.2+131
+version: 1.84.0+132
 
 environment:
   sdk: ^3.11.0
@@ -98,6 +98,19 @@ dependencies:
   # ziehen das Paket ohnehin herein; direkt eingetragen, damit die eigene
   # Nutzung eine eigene Schranke hat und nicht an fremden Constraints hängt.
   shared_preferences: ^2.5.5
+
+  # Push-Benachrichtigungen (#277) — die EINZIGE Firebase-Nutzung im
+  # Projekt, Android und Web. Ausschließlich Cloud Messaging: kein
+  # Analytics, kein Crashlytics, keine Datenbank. Was die App an Fehlern
+  # meldet, geht weiter nach `public.error_reports`; ein zweiter
+  # Empfänger wäre eine zweite Wahrheit und ein weiterer
+  # Auftragsverarbeiter in der Datenschutzerklärung.
+  #
+  # Push ist ein NEBENFEATURE: Jeder Fehlerpfad in `push_messaging.dart`
+  # endet in „kein Token", und ein kaputtes Firebase-Projekt darf die App
+  # nicht am Starten hindern — dieselbe Linie wie beim Update-Check.
+  firebase_core: ^4.13.0
+  firebase_messaging: ^16.5.0
 
 dev_dependencies:
   flutter_test:

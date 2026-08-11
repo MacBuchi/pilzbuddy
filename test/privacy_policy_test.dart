@@ -46,6 +46,14 @@ void main() {
             'Registrierung eine Mail über Brevo — nicht mehr nur beim '
             'Reset. Wer den Abschnitt darauf zurückdreht, macht die '
             'Erklärung wieder falsch');
+    expect(html, contains('Firebase Cloud Messaging'),
+        reason: 'Push (#277) bringt Google als weiteren '
+            'Auftragsverarbeiter — der Host taucht in lib/ nicht als URL '
+            'auf, der Scan unten kann ihn also nicht finden');
+    expect(html, contains('Koordinaten'),
+        reason: 'Die Zusage, dass eine Meldung NIE Koordinaten oder '
+            'Spot-Namen enthält, ist der Kern der Push-Entscheidung — '
+            'sie gehört in die Erklärung, nicht nur in einen Kommentar');
   });
 
   // Die Regel aus CLAUDE.md — „ändert sich, wohin die App verbindet,
