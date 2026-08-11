@@ -126,6 +126,19 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   Schema Check selbst läuft ohne Secret über den Publishable Key).
   Nutzt ein Repository in `lib/data/` neue Spalten/Embeds/RPCs, die
   Checks in `tool/schema_check.sh` entsprechend erweitern.
+- **Edge Functions deployt der Schema Check NICHT** (#277): Er spielt nur
+  SQL-Patches ein. `supabase/functions/**` bringt der eigene Workflow
+  „Deploy Edge Functions" (`deploy-functions.yml`) auf `main` in die
+  Live-Umgebung — pfadgefiltert, damit nicht jeder Merge deployt. Nach
+  dem Merge von #284/#285 lag `send-push` deshalb zunächst nur im Repo:
+  Testknopf und Cron-Versand liefen ins Leere, ohne dass irgendwo ein
+  Fehler stand. Und es wäre wiedergekommen, weil `supabase/` vom Version
+  Guard ausgenommen ist — eine Function-Änderung bringt nicht einmal
+  einen Bump, an dem jemand stutzen könnte.
+  Braucht das Repo-Secret `SUPABASE_ACCESS_TOKEN` (persönliches Token,
+  supabase.com/dashboard/account/tokens). **Fehlt es, wird der Deploy
+  übersprungen** und die Run-Summary sagt es samt Handbefehl — ein Job,
+  der ohne Secret rot würde, wäre bei jedem Merge falscher Alarm.
 - **Ein eingespielter Patch wird nie wieder angefasst** (Pflicht-Check
   „Patch-Buchführung", `tool/patch_guard.sh`, im Schema Dry Run): Ändern,
   Löschen oder Umbenennen einer Patch-Datei, die es im Ziel-Branch schon
