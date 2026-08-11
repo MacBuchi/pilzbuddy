@@ -10,11 +10,26 @@ library;
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pilzbuddy/core/push_config.dart';
 import 'package:pilzbuddy/core/push_messaging.dart';
 
 const _config = 'lib/core/push_config.dart';
 
 void main() {
+  test('der Web-Push-Schlüssel ist da', () {
+    // Ohne VAPID-Schlüssel liefert `getToken` im Web nichts — still, wie
+    // alles an diesem Pfad. Deshalb steht er als Konstante da und nicht
+    // als `--dart-define`: Ein vergessener Define wäre nirgends zu sehen,
+    // eine leere Konstante fällt hier auf.
+    expect(pushWebVapidKey, isNotEmpty,
+        reason: 'ohne ihn bekommt die Web-App dauerhaft kein Token');
+    expect(pushWebVapidKey, startsWith('B'),
+        reason: 'ein VAPID-Schlüssel ist ein unkomprimierter '
+            'P-256-Punkt in base64url — der beginnt mit B');
+    expect(pushWebVapidKey.length, greaterThan(80),
+        reason: 'abgeschnitten kopiert? Vollständig sind es ~87 Zeichen');
+  });
+
   test('der Worker-Pfad ist relativ, nicht absolut', () {
     expect(webServiceWorkerPath, isNot(startsWith('/')),
         reason: 'Ein absoluter Pfad zeigte auf den Origin-Root und damit '

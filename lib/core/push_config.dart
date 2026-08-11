@@ -28,6 +28,15 @@ const pushFirebaseOptions = FirebaseOptions(
 ///
 /// **Ohne ihn liefert `getToken` im Web nichts** — und zwar still, wie
 /// alles an diesem Pfad. Er lässt sich nicht über die CLI erzeugen,
-/// sondern nur in der Konsole; bis er hier steht, bekommt die Web-App
-/// keine Benachrichtigungen, Android dagegen schon.
-const pushWebVapidKey = String.fromEnvironment('PUSH_VAPID_KEY');
+/// sondern nur in der Konsole.
+///
+/// Bewusst eine KONSTANTE und kein `--dart-define`: Ein vergessener
+/// Define beim Web-Build hieße „kein Token", ohne dass irgendwo ein
+/// Fehler stünde — genau die Fehlerklasse, gegen die der Rest dieser
+/// Ecke geschrieben ist (siehe `webServiceWorkerPath`). Hier steht der
+/// Wert an einer Stelle, ist sichtbar, und ein Test hält fest, dass er
+/// nicht leer ist. Öffentlich ist er ohnehin: Der Browser bekommt ihn
+/// bei jeder Registrierung zu sehen.
+const pushWebVapidKey =
+    'BADSTgGpAgZQSSGSWeO14lYA47_aA7zUI0yra4W3wNCk5d4xfC7taqIol0rTkmFnV3lNA'
+    '_w9QvgpIaib-ggMWkM';
