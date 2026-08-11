@@ -156,19 +156,6 @@ create table public.push_devices (
 );
 create index push_devices_user_idx on public.push_devices (user_id);
 
--- Der Anlass, aus dem eine Meldung wird (#277, Patch 018). Der Schlüssel
--- ist (Empfänger, Art, Spot): Ein zweiter Fund am selben Spot trifft
--- dieselbe Zeile und schiebt nur die Fälligkeit — so werden aus zehn
--- Funden auf einem Waldgang nicht zehn Meldungen.
-create table public.push_outbox (
-  recipient_id uuid not null references public.profiles(id) on delete cascade,
-  kind text not null check (kind in ('buddy_find', 'new_spot')),
-  spot_id uuid not null references public.spots(id) on delete cascade,
-  due_at timestamptz not null,
-  created_at timestamptz not null default now(),
-  primary key (recipient_id, kind, spot_id)
-);
-create index push_outbox_due_idx on public.push_outbox (due_at);
 
 -- ============================================================
 -- Profil automatisch bei Registrierung anlegen
@@ -206,6 +193,20 @@ for each row execute function public.handle_new_user();
 -- ============================================================
 
 create schema if not exists app_internal;
+
+-- Der Anlass, aus dem eine Meldung wird (#277, Patch 018). Der Schlüssel
+-- ist (Empfänger, Art, Spot): Ein zweiter Fund am selben Spot trifft
+-- dieselbe Zeile und schiebt nur die Fälligkeit — so werden aus zehn
+-- Funden auf einem Waldgang nicht zehn Meldungen.
+create table app_internal.push_outbox (
+  recipient_id uuid not null references public.profiles(id) on delete cascade,
+  kind text not null check (kind in ('buddy_find', 'new_spot')),
+  spot_id uuid not null references public.spots(id) on delete cascade,
+  due_at timestamptz not null,
+  created_at timestamptz not null default now(),
+  primary key (recipient_id, kind, spot_id)
+);
+create index push_outbox_due_idx on app_internal.push_outbox (due_at);
 grant usage on schema app_internal to anon, authenticated;
 
 create or replace function app_internal.are_friends(a uuid, b uuid)
@@ -285,7 +286,7 @@ alter table public.feedback       enable row level security;
 alter table public.error_reports  enable row level security;
 alter table public.app_config     enable row level security;
 alter table public.push_devices   enable row level security;
-alter table public.push_outbox    enable row level security;
+alter table app_internal.push_outbox    enable row level security;
 
 -- app_config: lesen darf jeder, auch anon — die Mindestversion wird beim
 -- Start und damit vor der Anmeldung geprüft. Geändert wird der Wert über
@@ -303,10 +304,10 @@ create policy push_devices_own_all on public.push_devices for all
   using (user_id = auth.uid())
   with check (user_id = auth.uid());
 
--- push_outbox: bewusst OHNE Policy, wie error_reports. Über die API liest
--- und schreibt hier niemand — die Trigger laufen als security definer,
--- der Versender mit service_role. Eine Policy wäre eine Tür, die niemand
--- braucht.
+-- push_outbox steht in app_internal und taucht deshalb hier nicht auf:
+-- In `public` hielte PostgREST ihn wegen seiner zwei Fremdschlüssel für
+-- eine Verbindungstabelle zwischen spots und profiles und könnte das
+-- Embed der App nicht mehr auflösen (PGRST201). Siehe Patch 018.
 
 -- error_reports: schreiben darf jeder, auch anon — sonst fehlen genau die
 -- Fehler aus Login und Registrierung. Eine fremde user_id lässt sich nicht
@@ -484,7 +485,7 @@ begin
     if app_internal.are_friends(spot.owner_id, new.author_id)
        and not spot.sharing_excluded
        and app_internal.owner_shares_spots(spot.owner_id) then
-      insert into public.push_outbox (recipient_id, kind, spot_id, due_at)
+      insert into app_internal.push_outbox (recipient_id, kind, spot_id, due_at)
         values (spot.owner_id, 'buddy_find', spot.id,
                 app_internal.push_due_at(now()))
         on conflict (recipient_id, kind, spot_id) do update
@@ -498,7 +499,7 @@ begin
      or not app_internal.owner_shares_details(spot.owner_id) then
     return new;
   end if;
-  insert into public.push_outbox (recipient_id, kind, spot_id, due_at)
+  insert into app_internal.push_outbox (recipient_id, kind, spot_id, due_at)
     select f.friend_id, 'buddy_find', spot.id, app_internal.push_due_at(now())
       from app_internal.push_friends(spot.owner_id) f
     on conflict (recipient_id, kind, spot_id) do update
@@ -518,7 +519,7 @@ begin
      or not app_internal.owner_shares_spots(new.owner_id) then
     return new;
   end if;
-  insert into public.push_outbox (recipient_id, kind, spot_id, due_at)
+  insert into app_internal.push_outbox (recipient_id, kind, spot_id, due_at)
     select f.friend_id, 'new_spot', new.id, app_internal.push_due_at(now())
       from app_internal.push_friends(new.owner_id) f
     on conflict (recipient_id, kind, spot_id) do nothing;
@@ -585,7 +586,7 @@ begin
   end if;
 
   with due as (
-    delete from public.push_outbox
+    delete from app_internal.push_outbox
      where due_at <= now()
     returning recipient_id, kind
   ),

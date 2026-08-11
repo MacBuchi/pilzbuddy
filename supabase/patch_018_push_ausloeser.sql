@@ -34,7 +34,7 @@ create extension if not exists pg_cron;
 -- Spot trifft dieselbe Zeile und schiebt nur die Fälligkeit — genau das
 -- ist das Entprellen. Der Spot steht drin, damit zwei verschiedene Spots
 -- getrennt melden; sein Name wandert NIE in eine Nutzlast.
-create table public.push_outbox (
+create table app_internal.push_outbox (
   recipient_id uuid not null references public.profiles(id) on delete cascade,
   kind text not null check (kind in ('buddy_find', 'new_spot')),
   spot_id uuid not null references public.spots(id) on delete cascade,
@@ -47,14 +47,25 @@ create table public.push_outbox (
   primary key (recipient_id, kind, spot_id)
 );
 
-create index push_outbox_due_idx on public.push_outbox (due_at);
+create index push_outbox_due_idx on app_internal.push_outbox (due_at);
 
-alter table public.push_outbox enable row level security;
+alter table app_internal.push_outbox enable row level security;
 
--- Bewusst OHNE Policy, wie `error_reports`: Über die API liest und
--- schreibt hier niemand. Die Trigger laufen als security definer, der
--- Versender mit service_role — beide umgehen RLS. Eine Policy wäre eine
--- Tür, die niemand braucht.
+-- **Der Korb liegt in `app_internal`, nicht in `public`** — und das ist
+-- keine Kosmetik. In `public` hat er zwei Fremdschlüssel (auf `spots`
+-- und auf `profiles`), und genau daran hält PostgREST ihn für eine
+-- VERBINDUNGSTABELLE zwischen beiden: Das bestehende Embed der App
+-- (`spots?select=…,profiles(…)`) wird dadurch zweideutig und scheitert
+-- mit PGRST201. Der Schema Check hat das beim ersten Anlauf gefangen.
+--
+-- Die Query der App anzupassen wäre der falsche Ausweg gewesen: Clients
+-- im Feld schicken weiter die alte, zweideutige Abfrage — es wäre eine
+-- brechende Änderung samt Mindestversion geworden, für eine Tabelle, die
+-- über die API ohnehin niemand anfasst. `app_internal` ist nicht
+-- exponiert, also existiert die Zweideutigkeit gar nicht erst.
+--
+-- RLS trotzdem an, ohne Policy: Das Schema ist die Grenze, aber sollte
+-- es je exponiert werden, ist der Korb dann immer noch zu.
 
 -- ------------------------------------------------------- Die Fälligkeit
 --
@@ -95,7 +106,7 @@ begin
     if app_internal.are_friends(spot.owner_id, new.author_id)
        and not spot.sharing_excluded
        and app_internal.owner_shares_spots(spot.owner_id) then
-      insert into public.push_outbox (recipient_id, kind, spot_id, due_at)
+      insert into app_internal.push_outbox (recipient_id, kind, spot_id, due_at)
         values (spot.owner_id, 'buddy_find', spot.id,
                 app_internal.push_due_at(now()))
         on conflict (recipient_id, kind, spot_id) do update
@@ -109,7 +120,7 @@ begin
      or not app_internal.owner_shares_details(spot.owner_id) then
     return new;
   end if;
-  insert into public.push_outbox (recipient_id, kind, spot_id, due_at)
+  insert into app_internal.push_outbox (recipient_id, kind, spot_id, due_at)
     select f.friend_id, 'buddy_find', spot.id, app_internal.push_due_at(now())
       from app_internal.push_friends(spot.owner_id) f
     on conflict (recipient_id, kind, spot_id) do update
@@ -129,7 +140,7 @@ begin
      or not app_internal.owner_shares_spots(new.owner_id) then
     return new;
   end if;
-  insert into public.push_outbox (recipient_id, kind, spot_id, due_at)
+  insert into app_internal.push_outbox (recipient_id, kind, spot_id, due_at)
     select f.friend_id, 'new_spot', new.id, app_internal.push_due_at(now())
       from app_internal.push_friends(new.owner_id) f
     on conflict (recipient_id, kind, spot_id) do nothing;
@@ -196,7 +207,7 @@ begin
   end if;
 
   with due as (
-    delete from public.push_outbox
+    delete from app_internal.push_outbox
      where due_at <= now()
     returning recipient_id, kind
   ),
