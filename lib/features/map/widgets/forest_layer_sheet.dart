@@ -128,11 +128,18 @@ class _ForestLayerSheet extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
               child: Text(
-                // Lizenzpflicht der Quelle — gehört hierher, nicht in
-                // die Datenschutzerklärung: Das Gitter liegt im APK,
+                // Lizenzpflicht der Quellen — gehört hierher, nicht in
+                // die Datenschutzerklärung: Die Gitter liegen im APK,
                 // und die feinen Blöcke (#253) kommen von den
                 // GitHub-Releases, die dort längst stehen.
-                '© Europäische Union, Copernicus Land Monitoring Service',
+                //
+                // Die zweite Zeile ist CC-BY-Pflicht (#227) und nennt
+                // zugleich die Abdeckung: Ohne den Zusatz sähe das
+                // Fehlen der Artenzeile in Österreich und der Schweiz
+                // nach einem Fehler der App aus.
+                '© Europäische Union, Copernicus Land Monitoring Service\n'
+                'Baumarten: © DLR, Tree Species Germany (CC BY 4.0) — '
+                'nur Deutschland',
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: theme.hintColor),
               ),

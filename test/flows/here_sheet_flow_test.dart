@@ -6,12 +6,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:pilzbuddy/features/map/forest_data_providers.dart';
 import 'package:pilzbuddy/features/map/forest_grid.dart';
+import 'package:pilzbuddy/features/map/forest_species_providers.dart';
 import 'package:pilzbuddy/features/map/widgets/map_legend.dart'
     show mapIdleCenterProvider;
 
 import '../fakes/fake_backend.dart';
 import '../fakes/test_app.dart';
 import '../forest_grid_test.dart' show forestOf;
+import '../forest_species_test.dart' show speciesOf;
 
 void main() {
   ProviderContainer containerOf(WidgetTester tester) =>
@@ -72,6 +74,32 @@ void main() {
     // Der Regenteil bietet sich an (er ist ab Werk aus) — genau wie im
     // Spot-Blatt, damit niemand ungefragt Daten nachlädt.
     expect(find.textContaining('Regen'), findsWidgets);
+  });
+
+  testWidgets('die Artenzeile erreicht das echte Blatt (#227)',
+      (tester) async {
+    // Der Wortlaut selbst steht in `spot_forest_section_test.dart`.
+    // Hier geht es nur um die Verdrahtung: dass das Artengitter im
+    // laufenden Programm bis in dieses Blatt durchkommt. Genau das
+    // prüft ein Widget-Test auf der Section NICHT.
+    final (backend, _) = loggedInBackend();
+    // EINE Wabe über ganz DACH, damit die Kartenmitte sicher hineinfällt.
+    // Der erste Anlauf nahm das Standard-Gitter — das ist wenige
+    // Hundertstelgrad groß, die Mitte lag außerhalb, und der Test
+    // hätte „keine Zeile" bestätigt, ohne je etwas zu verdrahten.
+    await pumpApp(tester, backend, useRealMap: true, extraOverrides: [
+      ...withGrid(testGrid()),
+      forestSpeciesLoaderProvider.overrideWithValue(() async => speciesOf([
+            [0x21]
+          ], west: 5.8, north: 55.1, lonStep: 10, latStep: 10)),
+    ]);
+    await showLegend(tester);
+    await tester.tap(find.textContaining('Laubfaktor'));
+    await settle(tester);
+
+    expect(find.text('Was ist hier?'), findsOneWidget);
+    expect(find.textContaining('Bäume: Eiche und Fichte · Stand 2022'),
+        findsOneWidget);
   });
 
   testWidgets('ohne Kamera-Stillstand öffnet der Tipp nichts',

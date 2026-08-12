@@ -7,6 +7,28 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Welcher Baum steht da eigentlich?
+
+*12. August 2026 · Version 1.86.0*
+
+Die Waldzeile im Spot-Blatt sagte bisher „Laubwald", „Mischwald" oder
+„Nadelwald". Für die Pilzsuche ist aber genau die nächste Frage die
+wichtige: **welcher** Baum? Fichte oder Kiefer entscheidet zwischen
+Marone und Butterpilz, Buche oder Birke zwischen Steinpilz und
+Birkenpilz.
+
+Ab jetzt steht es da:
+
+- **Bäume: Fichte und Buche** — die beiden häufigsten in der Wabe,
+  benannt in der Reihenfolge, die zum Nadelanteil darüber passt
+- **Einzelne Bäume: Eiche** — am Waldrand, wo es keinen geschlossenen
+  Wald gibt, aber sehr wohl Bäume
+
+Die Angabe stammt aus einer Baumartenkarte des DLR mit Stand 2022 und
+gilt **nur für Deutschland**; in Österreich und der Schweiz bleibt es
+bei der bisherigen Zeile. Sie liegt wie die Waldkarte fest in der App —
+im Wald ohne Empfang steht sie also genauso da wie zu Hause.
+
 ## Vom Sporenstreuer zum Waldpaten
 
 *11. August 2026 · Version 1.85.0*

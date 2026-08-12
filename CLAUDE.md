@@ -399,6 +399,34 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   `assets/map_glyphs/` fehlt bewusst: Der Erzeugungsbefehl steht nirgends
   im Repo, und eine geratene Anleitung in der Fehlermeldung wäre
   schlimmer als keine.
+- **Baumarten am Spot** (`tool/forest_species.py` + `forest-species.yml`,
+  #227, seit 1.86.0): Zweite Zeile im Spot-Blatt („Bäume: Fichte und
+  Buche"), **keine Kartenebene** — die Karte bleibt bei den drei Klassen.
+  Quelle ist die DLR-Karte „Tree Species Germany" 2022 (10 m, CC BY 4.0,
+  offener HTTP-Download ohne Konto); die Nennung steht im Wald-Blatt
+  neben der Copernicus-Zeile, zusammen mit der Abdeckung — **nur
+  Deutschland**, sonst sähe die fehlende Zeile in Österreich nach einem
+  Fehler aus.
+  Vier Dinge, die man wissen muss:
+  - **Dasselbe Hex-Gitter wie das Waldgitter**, Zelle für Zelle: gleiche
+    Box, gleiche Warp-Größe, gleicher Zellfaktor. Die App schlägt beide
+    mit EINEM `hexNearestCell` nach. Ein Deutschland-enger Zuschnitt wäre
+    kleiner gewesen, aber eine zweite Geometrie — zwei Wege zur Zelle,
+    die auseinanderlaufen können. Werkzeug und Test pinnen die Maße auf
+    3038 × 4470.
+  - **Kein Zeilen-Delta**, anders als bei Wald und Regen. Gemessen: 1,98
+    gegen 2,42 MB. Klassen haben kein Gefälle, das Delta zerstört die
+    Wiederholungen, von denen gzip lebt. Das Manifest sagt
+    `"encoding": "gzip"`, und der Dart-Leser lehnt alles andere ab.
+  - **Ein Byte, zwei Halbbytes** (führende Laub- und Nadelart) statt der
+    häufigsten Art allein: Letzteres verschluckte in **17,6 %** der
+    Waldzellen den Mischpartner — gemessen an der ganzen Karte. Der
+    Aufpreis sind 0,56 MB. `0xFE` (nur Kronenverlust) ist reserviert und
+    wird noch NICHT angezeigt.
+  - **Der Bau ist vom DLT-Weg unabhängig** (eigener Workflow, kein
+    Secret), teilt sich aber dessen Geometrie-Code. Er läuft jährlich —
+    `workflow_dispatch` verlangt den Workflow auf `main`, ein neues
+    Gitter braucht also erst dessen Merge und dann einen Lauf.
 - **Karten-Engine:** Seit 1.43.0 rendert Android standardmäßig mit
   MapLibre (nativer Renderer, `maplibre` 0.3.5 exakt gepinnt) hinter der
   MapView-Fassade (`lib/features/map/map_view/`); Grundlage ist der
