@@ -147,6 +147,29 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   das aus `supabase login` im Schlüsselbund: Sonst hinge die CI am
   interaktiven Anmeldetoken eines Rechners, und ein Widerruf auf der
   einen Seite legte still die andere lahm.
+- **Der Benachrichtigungs-Kanal ist eine Einbahnstraße** (#277, seit
+  1.86.0): Ohne die Manifest-Zeile
+  `com.google.firebase.messaging.default_notification_channel_id` legt
+  FCM still einen eigenen Kanal an — und der ist so leise, dass nur ein
+  Symbol in der Statusleiste erscheint, kein Banner. Genau so am
+  2026-08-12 auf dem Pixel gesehen, während das Nachbarprojekt mit
+  eigenem Kanal ein Banner zeigte; die Nutzlasten beider Apps sind dabei
+  identisch, der Unterschied lag ausschließlich auf der Android-Seite.
+  Drei Stellen müssen zusammenpassen — Manifest, `res/values/strings.xml`
+  und `createNotificationChannel` in `MainActivity.onCreate`;
+  `test/android_manifest_test.dart` hält sie zusammen und liest dafür
+  ausnahmsweise Kotlin-Quelltext (der native Code hat sonst kein Netz).
+  **Die Wichtigkeit lässt sich nachträglich NICHT ändern:** Android merkt
+  sie sich beim ersten Anlegen der ID, eine Änderung im Code erreicht
+  bestehende Installationen nie. Deshalb `IMPORTANCE_HIGH` — leiser
+  drehen kann der Nutzer selbst, lauter niemand. Wer die Stufe je ändern
+  will, braucht eine NEUE Kanal-ID.
+- **Im Vordergrund ist die SnackBar die einzige Anzeige** — und sie stellt
+  sich hinten an. `ScaffoldMessenger.showSnackBar` reiht ein, statt zu
+  ersetzen: Die Quittung des Testknopfs („Testnachricht ist unterwegs.",
+  4 s) stand deshalb vor der Meldung, die sie ankündigte, und das sah wie
+  ein Empfangsfehler aus. `PushListener` räumt jetzt erst
+  (`clearSnackBars`) und zeigt dann.
 - **Ein eingespielter Patch wird nie wieder angefasst** (Pflicht-Check
   „Patch-Buchführung", `tool/patch_guard.sh`, im Schema Dry Run): Ändern,
   Löschen oder Umbenennen einer Patch-Datei, die es im Ziel-Branch schon
