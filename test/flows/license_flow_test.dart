@@ -21,6 +21,8 @@ const _attributedAssets = <String, String>{
   'assets/map_glyphs/OFL.txt': 'Noto Sans',
   'assets/forest/forest_grid.bin.gz': 'Copernicus Land Monitoring Service',
   'assets/forest/forest_manifest.json': 'Copernicus Land Monitoring Service',
+  'assets/forest/forest_species.bin.gz': 'DLR',
+  'assets/forest/forest_species_manifest.json': 'DLR',
 };
 
 /// Eigenerzeugnis — keine fremde Lizenz, nichts zu attribuieren.
@@ -36,6 +38,7 @@ const _bundledSources = <String>[
   'Deutscher Wetterdienst',
   'Noto Sans',
   'Copernicus Land Monitoring Service',
+  'DLR',
 ];
 
 /// Die Asset-Einträge aus `pubspec.yaml`. Bewusst per Regex statt mit dem

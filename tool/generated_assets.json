@@ -18,6 +18,17 @@
       "sha256": "3bceea3eba6bdc946b22756a09f94fa4574807ef732ca65cf56d4800d2f20a2c",
       "regenerate": "entsteht im selben Lauf wie forest_grid.bin.gz — siehe dort"
     },
+    "assets/forest/forest_species.bin.gz": {
+      "sha256": "f89717ff1c6e8eacbd0599d38393c5d6fb086e4839ce38d8ae850e8e4861de7c",
+      "regenerate": "Workflow „Forest Species\" von Hand starten, Artefakt forest-species herunterladen, beide Dateien nach assets/forest/ legen",
+      "checks": {
+        "self_recorded_sha256": "assets/forest/forest_species_manifest.json"
+      }
+    },
+    "assets/forest/forest_species_manifest.json": {
+      "sha256": "1821888100afc57230c423082e4e2b24753962bd095cd71fe82ff04f8dad8e9c",
+      "regenerate": "entsteht im selben Lauf wie forest_species.bin.gz — siehe dort"
+    },
     "assets/map_style/protomaps_light_de.json": {
       "sha256": "7b2a50bdbd841692fdfda3912e02c543dd94877f9cc9f1866403755bc818adcc",
       "regenerate": "Stil mit npm @protomaps/basemaps erzeugen (Flavor LIGHT, lang de), dann python3 tool/transform_map_style.py assets/map_style/protomaps_light_de.json",

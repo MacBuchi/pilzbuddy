@@ -98,6 +98,11 @@ void main() {
       'www.gbif.org',
       'creativecommons.org',
       'land.copernicus.eu',
+      // Die Baumartenkarte (#227) — dieselbe Lage wie Copernicus: Das
+      // Gitter liegt im Binary, geholt wird nur in CI
+      // (`tool/forest_species.py`). Die Adresse steht in der
+      // Lizenz-Anzeige, weil CC BY die Nennung verlangt.
+      'geoservice.dlr.de',
     };
 
     /// Supabase steht in der Erklärung mit Namen statt mit Hostnamen —

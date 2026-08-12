@@ -93,6 +93,20 @@ void registerMapDataLicense() {
       'vollständigen und offenen Zugangs der EU; die Quellennennung ist '
       'die Bedingung ihrer Nutzung.',
     );
+    yield const LicenseEntryWithLineBreaks(
+      ['Baumarten (DLR)'],
+      'Die Baumarten-Zeile im Spot-Blatt beruht auf dem Produkt '
+      '„Tree Species Germany" (Stand 2022) des Earth Observation Center '
+      'im Deutschen Zentrum für Luft- und Raumfahrt, zusammengefasst auf '
+      'dasselbe Wabengitter wie die Waldtypen (≈ 250 m). Die Abdeckung '
+      'ist Deutschland; in Österreich und der Schweiz gibt es die Zeile '
+      'deshalb nicht.\n'
+      '© DLR, Tree Species Germany.\n'
+      'https://geoservice.dlr.de/web/maps/eoc:tcde:2022\n\n'
+      'Das Produkt steht unter CC BY 4.0 — die Namensnennung ist die '
+      'Bedingung, unter der wir es zeigen dürfen.\n'
+      'https://creativecommons.org/licenses/by/4.0/',
+    );
     // Als einziger Eintrag nicht `const`: Die OFL verlangt die Weitergabe
     // ihres WORTLAUTS, nicht nur einen Verweis — also wird die
     // mitgelieferte Datei gelesen statt der Text hier nachgetippt. Sonst
