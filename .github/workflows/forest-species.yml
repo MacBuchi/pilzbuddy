@@ -1,0 +1,81 @@
+name: Forest Species
+
+# Builds the tree-species grid (#227) from the DLR EOC product
+# "Tree Species Germany". See tool/forest_species.py.
+#
+# Deliberately NOT part of forest-data.yml, although both produce a grid
+# on the very same hex lattice: different source, no secret at all (an
+# open HTTP download instead of CDSE S3), and a completely different
+# cadence. Coupling them would mean neither grid could be rebuilt
+# without the other.
+#
+# Yearly rather than quarterly: the product has published two vintages
+# in a decade (2016, and 2022 released in 2025). The run always produces
+# the artifact — comparing the reference year against the committed one
+# is the reviewer's one-line job.
+#
+# Like the forest grid this does NOT publish to a release tag: the grid
+# ships as an APK asset, so an update belongs in a human-reviewed PR
+# with a version bump and a changelog line.
+on:
+  schedule:
+    # Once a year, off the full hour.
+    - cron: "37 4 14 2 *"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Fetch the species map and build the grid
+    runs-on: ubuntu-latest
+    # 524 MB download, one gdalwarp onto the 8.5-gigapixel target raster
+    # and the band-wise aggregation. Generous headroom; minutes are free
+    # on public repositories.
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Self-test first
+        run: python3 tool/forest_species.py --self-test
+
+      # Same declared deviation as the forest grid: GDAL is the mosaic
+      # and reprojection tool, never the calculator. Aggregation and
+      # encoding stay hand-written and self-tested, and --verify checks
+      # against the warped raster.
+      - name: Install GDAL
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q gdal-bin
+
+      - name: Fetch, warp, aggregate, verify
+        run: python3 tool/forest_species.py fetch --out build/species
+
+      - name: Report the size against the decision rule
+        run: |
+          BYTES=$(python3 -c "import json;print(json.load(open('build/species/forest_species_manifest.json'))['bytes'])")
+          MB=$(python3 -c "print(f'{$BYTES/1e6:.2f}')")
+          echo "Grid: ${MB} MB packed" >> "$GITHUB_STEP_SUMMARY"
+          # The rule set in #227: at or below 4 MB it ships as an APK
+          # asset. Above that it is a decision, not a commit — so this
+          # warns loudly instead of failing, because the artifact and
+          # the verify report are worth having either way.
+          if [ "$BYTES" -gt 4000000 ]; then
+            echo "::warning::${MB} MB exceeds the 4 MB rule from #227 — do not commit this without deciding again."
+            echo "**Above the 4 MB rule from #227** — decide before committing." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload the grid as an artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: forest-species
+          path: |
+            build/species/forest_species.bin.gz
+            build/species/forest_species_manifest.json
+          retention-days: 30
+          if-no-files-found: error

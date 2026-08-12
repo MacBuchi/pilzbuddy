@@ -51,6 +51,7 @@ jobs:
           python3 tool/season_curves.py --self-test > /dev/null
           python3 tool/ampel_validate.py --self-test > /dev/null
           python3 tool/forest_grid.py --self-test > /dev/null
+          python3 tool/forest_species.py --self-test > /dev/null
           python3 tool/release_notes.py --self-test > /dev/null
           python3 tool/generated_assets.py --self-test > /dev/null
       # Eigener Schritt, nicht bei den Selbsttests: Der hier prüft nicht
