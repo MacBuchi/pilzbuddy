@@ -7,6 +7,21 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Benachrichtigungen kommen jetzt richtig an
+
+*12. August 2026 · Version 1.87.0*
+
+Meldungen von Buddies erschienen bisher nur als kleines Symbol in der
+Statusleiste — ohne den Banner, den man von anderen Apps kennt. Grund
+war ein fehlender Benachrichtigungs-Kanal: Ohne ihn legt Android selbst
+einen sehr leisen an. Jetzt gibt es einen eigenen namens **Meldungen**,
+den du in den Systemeinstellungen auch nach deinem Geschmack
+herunterdrehen kannst.
+
+Und wenn eine Meldung eintrifft, während PilzBuddy offen ist, zeigt die
+App sie unten als Einblendung — auch dann, wenn dort gerade eine andere
+Rückmeldung steht.
+
 ## Welcher Baum steht da eigentlich?
 
 *12. August 2026 · Version 1.86.0*
@@ -28,6 +43,7 @@ Die Angabe stammt aus einer Baumartenkarte des DLR mit Stand 2022 und
 gilt **nur für Deutschland**; in Österreich und der Schweiz bleibt es
 bei der bisherigen Zeile. Sie liegt wie die Waldkarte fest in der App —
 im Wald ohne Empfang steht sie also genauso da wie zu Hause.
+
 
 ## Vom Sporenstreuer zum Waldpaten
 

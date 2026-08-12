@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Der Benachrichtigungs-Kanal, auf den das Manifest verweist
+         (#277). Die ID ist eine EINBAHNSTRASSE: Android merkt sich zu
+         ihr die Wichtigkeit und alles, was der Nutzer daran verstellt
+         hat, und ein späteres Ändern im Code wirkt auf bestehende
+         Installationen NICHT mehr. Wer die Stufe je ändern will, braucht
+         eine neue ID. -->
+    <string name="notification_channel_id" translatable="false">pilzbuddy_meldungen</string>
+    <string name="notification_channel_name">Meldungen</string>
+    <string name="notification_channel_description">Funde deiner Buddies an gemeinsamen Spots und andere Hinweise aus PilzBuddy.</string>
+</resources>

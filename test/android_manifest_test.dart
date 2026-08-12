@@ -43,6 +43,46 @@ Set<(String, String)> _excludes(XmlElement parent) => {
     };
 
 void main() {
+  test('Der Benachrichtigungs-Kanal ist deklariert, angelegt und laut', () {
+    // Die drei Stellen müssen zusammenpassen, und keine davon fällt beim
+    // Editieren auf: Ohne Manifest-Zeile legt FCM still einen eigenen,
+    // leisen Kanal an (dann nur ein Symbol in der Statusleiste, kein
+    // Banner — am 2026-08-12 auf dem Pixel so gesehen); ohne
+    // `createNotificationChannel` zeigt das Manifest auf nichts; und
+    // unterhalb von IMPORTANCE_HIGH gibt es kein Banner.
+    //
+    // Der native Code hat sonst KEIN Netz (CLAUDE.md) — deshalb prüft
+    // dieser Test ausnahmsweise Kotlin-Quelltext.
+    const idName = 'notification_channel_id';
+    final manifest = _load('android/app/src/main/AndroidManifest.xml');
+    final declared = manifest.rootElement
+        .findAllElements('meta-data')
+        .where((e) =>
+            e.getAttribute('android:name') ==
+            'com.google.firebase.messaging.default_notification_channel_id')
+        .map((e) => e.getAttribute('android:value'))
+        .toList();
+    expect(declared, ['@string/$idName'],
+        reason: 'Manifest nennt den Kanal nicht (oder mehrfach)');
+
+    final strings = File('android/app/src/main/res/values/strings.xml');
+    expect(strings.existsSync(), isTrue, reason: 'strings.xml fehlt');
+    expect(strings.readAsStringSync(), contains('name="$idName"'),
+        reason: 'Die Zeichenkette, auf die das Manifest zeigt, fehlt');
+
+    final activity = File('android/app/src/main/kotlin/de/marcusbucher/'
+            'pilzbuddy/MainActivity.kt')
+        .readAsStringSync();
+    expect(activity, contains('createNotificationChannel'),
+        reason: 'Der Kanal wird nirgends angelegt');
+    expect(activity, contains('R.string.$idName'),
+        reason: 'Der angelegte Kanal trägt eine andere ID als das Manifest');
+    expect(activity, contains('NotificationManager.IMPORTANCE_HIGH'),
+        reason: 'Unter IMPORTANCE_HIGH erscheint kein Banner — und die '
+            'Stufe lässt sich später NICHT mehr ändern, nur über eine '
+            'neue Kanal-ID');
+  });
+
   test('Update installiert mit genau einer Berechtigung', () {
     // Der Auslöser für #88 war nie eigener Code, sondern das Manifest von
     // `ota_update`: es zog INSTALL_PACKAGES (Signatur-Berechtigung!),
