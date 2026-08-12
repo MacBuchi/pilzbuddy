@@ -20,6 +20,7 @@ import 'package:pilzbuddy/data/apk_installer.dart';
 import 'package:pilzbuddy/data/providers.dart';
 import 'package:pilzbuddy/features/map/forest_block_providers.dart';
 import 'package:pilzbuddy/features/map/forest_data_providers.dart';
+import 'package:pilzbuddy/features/map/forest_species_providers.dart';
 import 'package:pilzbuddy/features/map/live_share_providers.dart';
 import 'package:pilzbuddy/features/map/map_view/flutter_map_view.dart';
 import 'package:pilzbuddy/features/map/map_view/map_view.dart';
@@ -157,6 +158,9 @@ List<Override> overridesFor(FakeBackend backend,
       // schlüge jeder Kartenaufbau fehl. Kein Gitter heißt: kein
       // Wald-FAB, keine Fläche, keine Spot-Zeile.
       forestGridLoaderProvider.overrideWithValue(() async => null),
+      // Und dieselbe Naht für das Baumarten-Gitter (#227). Kein Gitter
+      // heißt: keine Artenzeile im Spot-Blatt.
+      forestSpeciesLoaderProvider.overrideWithValue(() async => null),
       // Und für die feine Waldstufe (#253): Katalog und Blöcke kämen
       // sonst wirklich von GitHub, sobald ein Test die Zustimmung
       // erteilt. Kein Katalog heißt: keine feine Stufe, alle Antworten

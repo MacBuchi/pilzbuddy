@@ -1,4 +1,4 @@
-// „Wald hier" im Spot-Blatt (#213): eine Zeile aus dem Waldtypen-Gitter.
+// „Wald hier" im Spot-Blatt (#213), seit #227 mit den Baumarten.
 //
 // Fakt, keine Wertung — dieselbe stehende Regel wie bei Saison und Regen:
 // Eine Ampel kommt erst, wenn sie sich an echten Funden bewährt hat.
@@ -9,6 +9,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../map/forest_block_providers.dart';
 import '../../map/forest_grid.dart';
+import '../../map/forest_species.dart';
+import '../../map/forest_species_providers.dart';
 
 class SpotForestSection extends ConsumerWidget {
   const SpotForestSection({super.key, required this.lat, required this.lon});
@@ -42,20 +44,69 @@ class SpotForestSection extends ConsumerWidget {
           '${share == null ? '' : ' ($share % Nadel)'}',
     };
 
+    final style = Theme.of(context).textTheme.bodySmall;
     return Padding(
       padding: const EdgeInsets.only(top: 8),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.forest_outlined,
-              size: 18, color: Theme.of(context).hintColor),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              'Wald hier: $text · Stand ${grid.referenceYearAt(lat, lon)}',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
+          Row(
+            children: [
+              Icon(Icons.forest_outlined,
+                  size: 18, color: Theme.of(context).hintColor),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Wald hier: $text · Stand ${grid.referenceYearAt(lat, lon)}',
+                  style: style,
+                ),
+              ),
+            ],
           ),
+          _SpeciesLine(
+              lat: lat, lon: lon, isForest: forestClass != ForestClass.none,
+              coniferPercent: share),
         ],
+      ),
+    );
+  }
+}
+
+/// Die Artenzeile — nur Deutschland, nur wo etwas zu benennen ist.
+///
+/// Eigenes Widget, damit ein fehlendes Artengitter nur DIESE Zeile
+/// kostet und nicht die Waldzeile darüber.
+class _SpeciesLine extends ConsumerWidget {
+  const _SpeciesLine({
+    required this.lat,
+    required this.lon,
+    required this.isForest,
+    required this.coniferPercent,
+  });
+
+  final double lat;
+  final double lon;
+  final bool isForest;
+  final int? coniferPercent;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final grid = ref.watch(forestSpeciesGridProvider).valueOrNull;
+    final names = grid?.at(lat, lon);
+    if (grid == null || names == null) return const SizedBox.shrink();
+
+    // Wo das Waldgitter „kein Wald" sagt, die Artenkarte aber Bäume
+    // kennt, sind es Waldränder — gemessen 3,9 % der Zellen (#227).
+    // Schweigen wäre dort schlechter als eine andere Formulierung: Eine
+    // Eiche am Wiesenrand ist für einen Sammler ein Hinweis, kein
+    // Widerspruch.
+    final prefix = isForest ? 'Bäume' : 'Einzelne Bäume';
+    final phrase = speciesPhrase(names, coniferPercent: coniferPercent);
+    return Padding(
+      padding: const EdgeInsets.only(top: 2, left: 24),
+      child: Text(
+        '$prefix: $phrase · Stand ${grid.referenceYear}',
+        style: Theme.of(context).textTheme.bodySmall,
       ),
     );
   }
