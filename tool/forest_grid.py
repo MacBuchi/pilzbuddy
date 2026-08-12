@@ -328,16 +328,24 @@ def decode(payload, width, height):
 
 
 # ---------------------------------------------------------------------------
-# Strenger uint8-GeoTIFF-Reader für die unkomprimierten Streifen aus
+# Strenger GeoTIFF-Reader für die unkomprimierten Streifen aus
 # gdal_translate. Wie beim Regen: Alles, was nicht exakt dem erwarteten
 # Format entspricht, wird abgelehnt statt geraten.
+#
+# 8 UND 16 Bit, seit die Baumartenkarte dazukam (#227): Deren Klassen
+# (666 Kronenverlust, 999 keine Daten) passen in kein Byte. Die Rohbytes
+# gehen unverändert zurück — bei 16 Bit also zwei je Pixel; das Zählen
+# bleibt Sache des Aufrufers, der dafür `bytes.count` benutzt statt einer
+# Python-Schleife über Milliarden Pixel.
 # ---------------------------------------------------------------------------
 
-def read_geotiff_u8(data):
-    """Liest ein unkomprimiertes 1-Band-uint8-GeoTIFF (Streifen ODER
-    Kacheln). Gibt (rows, transform) zurück; transform ist der
-    ModelTransformation/ModelTiepoint-Auszug als (origin_x, origin_y,
-    pixel_w, pixel_h)."""
+def read_geotiff(data, allowed_bits=(8, 16)):
+    """Liest ein unkomprimiertes 1-Band-GeoTIFF (Streifen ODER Kacheln).
+
+    Gibt (rows, (width, height, transform), bits) zurück. `rows` sind die
+    ROHEN Zeilenbytes — bei 16 Bit `width * 2` Bytes je Zeile, in der
+    Bytereihenfolge der Datei. `transform` ist der ModelTransformation/
+    ModelTiepoint-Auszug als (origin_x, origin_y, pixel_w, pixel_h)."""
     if data[:2] == b"II":
         endian = "<"
     elif data[:2] == b"MM":
@@ -366,15 +374,17 @@ def read_geotiff_u8(data):
 
     width = tags[256][0]
     height = tags[257][0]
-    if tags.get(258, (0,))[0] != 8:
-        raise ValueError("nicht 8 Bit")
+    bits = tags.get(258, (0,))[0]
+    if bits not in allowed_bits:
+        raise ValueError(f"{bits} Bit, erwartet {allowed_bits}")
     if tags.get(259, (0,))[0] != 1:
         raise ValueError("komprimiert — erwartet war ein Streifen aus "
                          "gdal_translate -co COMPRESS=NONE")
     if tags.get(277, (1,))[0] != 1:
         raise ValueError("mehr als ein Band")
+    bpp = bits // 8
 
-    rows = [bytearray(width) for _ in range(height)]
+    rows = [bytearray(width * bpp) for _ in range(height)]
     if 322 in tags:  # gekachelt
         tile_w = tags[322][0]
         tile_h = tags[323][0]
@@ -384,17 +394,18 @@ def read_geotiff_u8(data):
             tx = (index % across) * tile_w
             ty = (index // across) * tile_h
             for line in range(min(tile_h, height - ty)):
-                start = pointer + line * tile_w
-                chunk = data[start:start + min(tile_w, width - tx)]
-                rows[ty + line][tx:tx + len(chunk)] = chunk
+                start = pointer + line * tile_w * bpp
+                take = min(tile_w, width - tx) * bpp
+                chunk = data[start:start + take]
+                rows[ty + line][tx * bpp:tx * bpp + len(chunk)] = chunk
     else:  # Streifen
         rows_per_strip = tags.get(278, (height,))[0]
         offsets = tags[273]
         for index, pointer in enumerate(offsets):
             top = index * rows_per_strip
             for line in range(min(rows_per_strip, height - top)):
-                start = pointer + line * width
-                rows[top + line][:] = data[start:start + width]
+                start = pointer + line * width * bpp
+                rows[top + line][:] = data[start:start + width * bpp]
 
     if 34264 in tags:  # ModelTransformation
         t = tags[34264]
@@ -405,7 +416,15 @@ def read_geotiff_u8(data):
         transform = (tie[3], tie[4], scale[0], -scale[1])
     else:
         raise ValueError("keine Georeferenz")
-    return [bytes(r) for r in rows], (width, height, transform)
+    return [bytes(r) for r in rows], (width, height, transform), bits
+
+
+def read_geotiff_u8(data):
+    """Der 8-Bit-Fall mit der alten Signatur — der DLT-Weg ruft ihn
+    unverändert, und ein 16-Bit-Raster soll dort NICHT stillschweigend
+    halb gelesen werden."""
+    rows, meta, _bits = read_geotiff(data, allowed_bits=(8,))
+    return rows, meta
 
 
 # ---------------------------------------------------------------------------
