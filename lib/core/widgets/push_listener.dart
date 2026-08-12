@@ -53,7 +53,17 @@ class _PushListenerState extends ConsumerState<PushListener> {
     if (notification == null || !mounted) return;
     final body = notification.body;
     if (body == null || body.isEmpty) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+    final messenger = ScaffoldMessenger.of(context);
+    // Erst räumen, dann zeigen. `showSnackBar` stellt sich sonst hinten
+    // an: Beim Testknopf stand „Testnachricht ist unterwegs." vier
+    // Sekunden lang davor, und genau in dieser Zeit traf die Meldung
+    // ein — auf dem Pixel sah es deshalb so aus, als käme im
+    // Vordergrund gar nichts an (Betreiber, 2026-08-12).
+    //
+    // Eintreffende Meldung schlägt stehende Rückmeldung: Sie ist das
+    // Ereignis, die andere nur die Quittung dafür.
+    messenger.clearSnackBars();
+    messenger.showSnackBar(SnackBar(
       content: Text(body),
       duration: const Duration(seconds: 4),
     ));

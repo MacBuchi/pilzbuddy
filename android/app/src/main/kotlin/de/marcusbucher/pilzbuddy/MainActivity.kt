@@ -2,10 +2,13 @@ package de.marcusbucher.pilzbuddy
 
 import android.app.ActivityManager
 import android.app.ApplicationExitInfo
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.provider.Settings
 import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterActivity
@@ -48,6 +51,41 @@ class MainActivity : FlutterActivity() {
 
         /** Obergrenze beim Lesen, damit ein Riesen-Dump nichts blockiert. */
         const val TRACE_BYTES = 4 * 1024 * 1024
+    }
+
+    /**
+     * Legt den Benachrichtigungs-Kanal an, auf den das Manifest verweist
+     * (`default_notification_channel_id`, #277).
+     *
+     * Ab Android 8 braucht jede Benachrichtigung einen Kanal. Fehlt der im
+     * Manifest genannte, weicht FCM still auf einen eigenen aus — und der
+     * ist so leise, dass die Meldung nur als Symbol in der Statusleiste
+     * landet, ohne Banner. Genau so am 2026-08-12 auf dem Pixel gesehen,
+     * während das Nachbarprojekt mit eigenem Kanal ein Banner zeigte.
+     *
+     * **IMPORTANCE_HIGH ist eine Einbahnstraße.** Android merkt sich die
+     * Stufe beim ERSTEN Anlegen; ein späteres Ändern hier erreicht
+     * bestehende Installationen nicht mehr, dafür bräuchte es eine neue
+     * Kanal-ID. Deshalb bewusst hoch angesetzt: Herunterdrehen kann der
+     * Nutzer selbst in den Systemeinstellungen, hochdrehen nicht.
+     *
+     * Hier statt in Dart, weil der Kanal auch dann stehen muss, wenn eine
+     * Meldung eintrifft, ohne dass jemand die App geöffnet hat. Das
+     * Anlegen ist idempotent — ein vorhandener Kanal bleibt unverändert,
+     * samt allem, was der Nutzer daran verstellt hat.
+     */
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val channel = NotificationChannel(
+            getString(R.string.notification_channel_id),
+            getString(R.string.notification_channel_name),
+            NotificationManager.IMPORTANCE_HIGH,
+        ).apply {
+            description = getString(R.string.notification_channel_description)
+        }
+        getSystemService(NotificationManager::class.java)
+            .createNotificationChannel(channel)
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
