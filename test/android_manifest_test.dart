@@ -116,6 +116,57 @@ void main() {
         reason: 'Ohne sie scheitert das In-App-Update wortlos');
   });
 
+  test('Der Play-Flavor nimmt REQUEST_INSTALL_PACKAGES wieder heraus', () {
+    // Die andere Hälfte des Tests darüber. Der Dart-Pfad ist im Play-Build
+    // seit jeher aus (`AppDistribution.showsUpdateHints`), die
+    // Manifest-Zeile war es nicht — sie läge im hochgeladenen AAB, und eine
+    // Berechtigung ohne zugehörige Funktion ist in der Play-Review die
+    // schlechtestmögliche Antwort (Selbst-Updates verstoßen dort gegen
+    // „Device and Network Abuse").
+    //
+    // Geprüft wird die Quelldatei, nicht das gemergte Manifest: Das
+    // entsteht erst in Gradle, und ein Dart-Test hat keinen Build. Dass das
+    // Zusammenführen wirklich aufgeht, baut die CI im Job „Build Android
+    // APK" nach — dort läuft bewusst der `play`-Flavor.
+    const permission = 'android.permission.REQUEST_INSTALL_PACKAGES';
+    final play = _load('android/app/src/play/AndroidManifest.xml').rootElement;
+
+    final removed = {
+      for (final e in play.findElements('uses-permission'))
+        if (e.getAttribute('tools:node') == 'remove')
+          e.getAttribute('android:name'),
+    };
+    expect(removed, contains(permission),
+        reason: 'Ohne diese Zeile trägt das AAB eine Berechtigung, zu der '
+            'im Play-Build keine Funktion gehört');
+
+    // Der Flavor darf nichts ANDERES mitbringen: Jede weitere Zeile gälte
+    // nur für den Play-Build und driftete still von dem ab, was auf den
+    // Geräten der GitHub-Nutzer läuft.
+    expect(play.childElements.map((e) => e.name.local).toSet(), {
+      'uses-permission',
+    }, reason: 'Der Play-Flavor soll genau eine Sache tun');
+  });
+
+  test('Beide Flavors bauen dieselbe App', () {
+    // Ein `applicationIdSuffix` wäre die naheliegende Ergänzung und der
+    // teuerste Fehler an dieser Stelle: Android sähe zwei verschiedene
+    // Apps, der Wechsel von der GitHub-APK zum Play-Build verlöre die
+    // Installation, und beide ständen nebeneinander auf dem Gerät (genau
+    // das ist Mitfahrbar beim Bundle-ID-Umzug passiert, #87). Der
+    // Signaturwechsel durch Play App Signing verlangt ohnehin schon ein
+    // Deinstallieren — ein zweiter Grund muss nicht dazukommen.
+    final gradle =
+        File('android/app/build.gradle.kts').readAsStringSync();
+
+    for (final flavor in const ['github', 'play']) {
+      expect(gradle, contains('create("$flavor")'),
+          reason: 'Flavor $flavor fehlt — die Workflows rufen ihn auf');
+    }
+    expect(gradle, isNot(contains('applicationIdSuffix')),
+        reason: 'Ein Suffix macht aus einem Vertriebsweg eine zweite App');
+  });
+
   test('FileProvider gibt nur den Update-Ordner heraus', () {
     // Ab Android 7 darf eine `file://`-URI nicht mehr herausgereicht
     // werden. Der Pfad ist bewusst eng: Im selben Verzeichnis liegen die

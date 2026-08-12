@@ -73,6 +73,30 @@ android {
             ?.let { ndk.abiFilters.addAll(it) }
     }
 
+    // Zwei Vertriebswege, EINE App: GitHub-APK und Play-Bundle tragen
+    // dieselbe `applicationId` (bewusst kein `applicationIdSuffix` — sonst
+    // wären es für Android zwei Apps, wie beim Bundle-ID-Umzug in
+    // Mitfahrbar #87). Unterschieden wird allein der Update-Weg:
+    //
+    // Der Dart-Pfad ist im Play-Build längst aus
+    // (`AppDistribution.showsUpdateHints` über `--dart-define=PLAY_BUILD=true`),
+    // die Manifest-Zeile `REQUEST_INSTALL_PACKAGES` war es nicht und läge im
+    // hochgeladenen AAB. Play verbietet Selbst-Updates („Device and Network
+    // Abuse"), und eine Berechtigung ohne zugehörige Funktion ist in der
+    // Review die schlechtestmögliche Antwort. Der `play`-Flavor nimmt sie
+    // deshalb in `src/play/AndroidManifest.xml` per `tools:node="remove"`
+    // wieder heraus — dasselbe Muster wie bei `RECEIVE_BOOT_COMPLETED`.
+    //
+    // Folge für jeden Build-Aufruf: Ab hier verlangt Flutter überall ein
+    // `--flavor`, und die Ausgabepfade tragen den Flavor-Namen
+    // (`app-github-release.apk`, `bundle/playRelease/app-play-release.aab`).
+    // `test/release_build_test.dart` hält Aufruf und Pfad zusammen.
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("github") { dimension = "distribution" }
+        create("play") { dimension = "distribution" }
+    }
+
     signingConfigs {
         if (keystoreProperties.isNotEmpty()) {
             create("release") {

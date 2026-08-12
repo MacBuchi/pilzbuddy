@@ -1,0 +1,19 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <!-- Play-Flavor: Selbst-Updates verstoßen gegen „Device and Network
+         Abuse", im Store aktualisiert Play selbst. Der Dart-Pfad ist hier
+         ohnehin komplett aus (AppDistribution.showsUpdateHints über
+         --dart-define=PLAY_BUILD=true) — diese Zeile nimmt die zugehörige
+         Berechtigung aus dem gemergten Manifest, damit im AAB keine
+         Berechtigung ohne Funktion steht.
+
+         Das Flavor-Manifest hat höhere Priorität als `main`, deshalb wirkt
+         `tools:node="remove"` hier — dasselbe Muster, mit dem `main` schon
+         RECEIVE_BOOT_COMPLETED aus dem Plugin-Manifest entfernt.
+
+         Bewusst NICHTS weiter in dieser Datei: Jede Zeile hier gilt nur für
+         den Play-Build und driftet damit still von dem ab, was auf den
+         Geräten der GitHub-Nutzer läuft. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"
+        tools:node="remove"/>
+</manifest>

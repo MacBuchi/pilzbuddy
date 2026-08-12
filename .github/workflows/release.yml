@@ -129,12 +129,16 @@ jobs:
       # 22,4 MB von 66,8 MB — nicht startfähig, weil dazu die passende
       # libflutter.so fehlt. `test/release_build_test.dart` hält beide
       # Schalter zusammen.
+      #
+      # `--flavor github` behält REQUEST_INSTALL_PACKAGES: Genau dieser Weg
+      # aktualisiert sich selbst aus dem GitHub-Release.
       - run: >
           flutter build apk --release
+          --flavor github
           --target-platform android-arm64
           -Pdisable-abi-filtering=true
       - name: Artefakt benennen
-        run: cp build/app/outputs/flutter-apk/app-release.apk "pilzbuddy-${{ needs.version.outputs.tag }}.apk"
+        run: cp build/app/outputs/flutter-apk/app-github-release.apk "pilzbuddy-${{ needs.version.outputs.tag }}.apk"
       - uses: actions/upload-artifact@v7
         with:
           name: android-apk
@@ -147,9 +151,17 @@ jobs:
       # Play selbst, und Nutzer zu APK-Downloads zu schicken wäre dort ein
       # Richtlinienverstoß. Die APK oben wird ohne das Flag gebaut und behält
       # den Hinweis.
-      - run: flutter build appbundle --release --dart-define=PLAY_BUILD=true
+      #
+      # `--flavor play` gehört zwingend dazu: Es ist die andere Hälfte
+      # derselben Entscheidung. Ohne das Flag bliebe der Dart-Pfad zwar aus,
+      # REQUEST_INSTALL_PACKAGES stünde aber im AAB — eine Berechtigung ohne
+      # Funktion, und genau daran scheitern Play-Reviews.
+      - run: >
+          flutter build appbundle --release
+          --flavor play
+          --dart-define=PLAY_BUILD=true
       - name: Bundle benennen
-        run: cp build/app/outputs/bundle/release/app-release.aab "pilzbuddy-${{ needs.version.outputs.tag }}.aab"
+        run: cp build/app/outputs/bundle/playRelease/app-play-release.aab "pilzbuddy-${{ needs.version.outputs.tag }}.aab"
       - uses: actions/upload-artifact@v7
         with:
           name: android-aab

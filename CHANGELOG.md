@@ -7,6 +7,21 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Vorbereitung für den Play Store
+
+*12. August 2026 · Version 1.87.1*
+
+An der App ändert sich für dich nichts. Damit PilzBuddy in den Play Store
+darf, entstehen ab jetzt zwei Fassungen aus demselben Stand: die hier von
+GitHub — die sich wie gewohnt selbst aktualisiert — und eine für den Store,
+in der genau diese Selbst-Aktualisierung fehlt. Google verbietet sie dort,
+weil im Store der Play Store das Aktualisieren übernimmt.
+
+Wenn PilzBuddy später im Store steht: Ein Wechsel dorthin verlangt einmal
+Deinstallieren und Neuinstallieren, weil die Store-Fassung anders signiert
+ist. Dein Konto und deine Spots liegen auf dem Server und bleiben erhalten;
+neu laden musst du nur heruntergeladene Offline-Karten.
+
 ## Benachrichtigungen kommen jetzt richtig an
 
 *12. August 2026 · Version 1.87.0*

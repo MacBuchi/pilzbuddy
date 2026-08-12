@@ -32,8 +32,8 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   beförderten Tag (https://macbuchi.github.io/pilzbuddy/). Das Web hat
   eine Adresse: Deployte jeder Merge, gälte die Trennung nur für Android.
   Rhythmus nach Änderungsgrad, nicht nach Kalender (Betreiber, 2026-08-10).
-  Das AAB entsteht weiter je Bump als Workflow-Artefakt `android-aab` —
-  noch NICHT einreichbar, siehe Play-Store-Notiz unten.
+  Das AAB entsteht weiter je Bump als Workflow-Artefakt `android-aab`,
+  seit 1.87.1 aus dem `play`-Flavor und damit einreichbar.
   Drei Folgen, die man wissen muss:
   - **`minimum_supported_version` darf nie über den STABILEN Stand
     steigen.** Migrationen spielen beim Merge ein, der Client kommt erst
@@ -609,10 +609,16 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   *bietet* eine Datei an, den Installationsdialog zeigt Android.
   `test/android_manifest_test.dart` wacht über beides: dass die Abhängigkeit
   wegbleibt und dass genau diese eine Berechtigung dasteht.
-  **Offener Play-Punkt:** Diese Zeile darf nicht ins AAB. Der Dart-Pfad ist
-  im Play-Build über `AppDistribution.showsUpdateHints` komplett aus, das
-  Manifest ist es nicht — vor einer Einreichung Produkt-Flavors anlegen
-  (Anleitung in `docs/play-console.md`).
+  **Diese Zeile darf nicht ins AAB** — seit 1.87.1 erledigt: Der Dart-Pfad
+  war im Play-Build über `AppDistribution.showsUpdateHints` schon aus, das
+  Manifest nicht. Zwei Produkt-Flavors trennen das jetzt (`github` behält
+  die Berechtigung, `play` nimmt sie per `tools:node="remove"` heraus);
+  beide tragen dieselbe `applicationId`, ein `applicationIdSuffix` wäre
+  hier der teure Fehler. **Folge für jeden Android-Build: `--flavor` ist ab
+  jetzt Pflicht**, und der Flavor steht im Ausgabepfad — ein `cp` auf den
+  alten Namen bricht erst NACH dem Taggen ab. `test/release_build_test.dart`
+  und `test/android_manifest_test.dart` halten Aufruf, Pfad und Manifest
+  zusammen; Einzelheiten in `docs/play-console.md`.
   Der ganze Pfad hängt an `AppDistribution.showsUpdateHints`
   (`lib/core/app_distribution.dart`): im Play-Build via
   `--dart-define=PLAY_BUILD=true` abgeschaltet, weil Play dort selbst
@@ -776,7 +782,9 @@ Fahrplan und Reihenfolge: Issue #92. Stand 2026-07-26 — noch offen:
 
 Im Repo steckt kein Blocker mehr, und auch die Grafiken sind fertig
 (`store/`: Icon 512×512, Feature-Grafik 1024×500, fünf Screenshots
-1080×1920). Offen ist nur noch, was in der Play Console passiert (#108, #91):
+1080×1920). Seit 1.87.1 ist auch der letzte Rest erledigt: Das AAB kommt
+aus dem `play`-Flavor und trägt `REQUEST_INSTALL_PACKAGES` nicht mehr.
+Offen ist nur noch, was in der Play Console passiert (#108, #91):
 App-Eintrag anlegen, Data-Safety-Formular, Inhaltsbewertung, Store-Listing,
 AAB hochladen.
 
@@ -798,6 +806,23 @@ installiert hat, muss zum Wechsel einmal deinstallieren — Konto und Spots
 liegen in Supabase und bleiben, verloren gehen nur heruntergeladene
 Offline-Karten. Das gehört in die Tester-Einladung, sonst scheitert die
 Installation wortlos mit „App nicht installiert".
+
+Der Fingerprint des **Upload-Keys** (aus jeder veröffentlichten APK
+ablesbar, also kein Geheimnis):
+
+```
+SHA-1    24:F7:09:2F:22:92:F5:CE:D0:3B:87:C0:5B:A1:B0:B0:53:96:1F:7D
+SHA-256  CF:C8:C7:83:28:92:FA:71:B7:8A:54:51:DD:FB:76:F7:0F:B6:5A:59:0C:E3:F1:94:5B:7D:9B:89:2A:70:DC:E8
+```
+
+**Nicht** der Wert, der nach dem Upload in Firebase gehört: Die
+ausgelieferte App trägt Googles App-Signing-Key, dessen Fingerprint erst
+die Konsole zeigt (*Test und Veröffentlichung → Einrichtung →
+App-Signatur*). Für FCM ist ohnehin keiner nötig — Push authentifiziert
+über API-Key und Paketnamen, ein SHA bräuchte erst Google Sign-In, Maps
+SDK, Dynamic Links oder App Check. Nachrechnen ohne Keystore:
+`keytool -printcert -jarfile` scheitert (Flutter signiert nur v2/v3), es
+braucht `apksigner verify --print-certs` oder den Signing-Block direkt.
 
 Erledigt: Datenschutzerklärung (#90, `web/datenschutz.html`), Konto-Löschung
 (#89), In-App-Updater entfernt (#88), AAB-Build (#87), Backup-Ausschluss

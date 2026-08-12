@@ -138,7 +138,7 @@ aapt2 dump badging build/app/outputs/flutter-apk/app-release.apk | grep uses-per
 | `WAKE_LOCK` | Download über den Bildschirm-Timeout hinaus | `flutter_foreground_task` |
 | `ACCESS_WIFI_STATE` | Verbindungsart (Auto-Offline) | `connectivity_plus` |
 | `com.google.android.c2dm.permission.RECEIVE` | Push-Nachrichten entgegennehmen | `firebase_messaging` |
-| `REQUEST_INSTALL_PACKAGES` | Update der GitHub-APK in der App | Manifest — **vor der Einreichung entfernen, siehe unten** |
+| `REQUEST_INSTALL_PACKAGES` | Update der GitHub-APK in der App | Manifest — **nur im `github`-Flavor, siehe unten** |
 
 `POST_NOTIFICATIONS` deckt seit #277 beides ab: die Fortschrittsmeldung des
 Downloads UND die Push-Benachrichtigungen. Sie stand schon vorher im Manifest
@@ -157,27 +157,49 @@ eintrifft, ist **am Gerät noch nicht geprüft** — die Zustellung selbst
 dass `INSTALL_PACKAGES` und die Speicher-Berechtigungen nicht
 zurückkommen (Lehre aus #88).
 
-#### Offener Punkt: `REQUEST_INSTALL_PACKAGES` gehört nicht ins AAB
+#### `REQUEST_INSTALL_PACKAGES` gehört nicht ins AAB — erledigt seit 1.87.1
 
 Der In-App-Updater ist seit #161 wieder da, weil der Browser-Umweg im Alltag
 zu umständlich war — er betrifft aber ausschließlich die **GitHub-APK**.
 Play verbietet Selbst-Updates („Device and Network Abuse").
 
-Der Dart-Pfad ist im Play-Build bereits vollständig aus
+Der Dart-Pfad war im Play-Build schon vorher vollständig aus
 (`AppDistribution.showsUpdateHints`, gesetzt über
 `--dart-define=PLAY_BUILD=true`): kein Update-Check, kein Banner, kein
-Dialog. **Die Manifest-Zeile bleibt davon aber unberührt** und läge im
-hochgeladenen AAB — Play fragt danach, und eine Berechtigung ohne
-zugehörige Funktion ist die schlechtestmögliche Antwort.
+Dialog. **Die Manifest-Zeile blieb davon aber unberührt** und lag im
+gebauten AAB — Play fragt danach, und eine Berechtigung ohne zugehörige
+Funktion ist die schlechtestmögliche Antwort.
 
-Zu erledigen, bevor ein AAB hochgeladen wird: Produkt-Flavors
-(`github`/`play`) in `android/app/build.gradle.kts` anlegen und im
-Play-Manifest (`android/app/src/play/AndroidManifest.xml`) die Zeile per
-`tools:node="remove"` entfernen — dasselbe Muster wie bei
-`RECEIVE_BOOT_COMPLETED`. Der Release-Workflow braucht dann `--flavor play`
-beim AAB- und `--flavor github` beim APK-Bau. Bewusst nicht sofort gemacht:
-Die Play-Strecke ist zurückgestellt (#92), und Flutter-Flavors greifen in
-jeden Build-Aufruf ein.
+Seit 1.87.1 trennen zwei Produkt-Flavors die Wege:
+
+| | `github` | `play` |
+|---|---|---|
+| Artefakt | APK am Release | AAB (Artefakt `android-aab`) |
+| `REQUEST_INSTALL_PACKAGES` | ja | per `tools:node="remove"` entfernt |
+| `PLAY_BUILD` | nicht gesetzt | `true` |
+| Update-Weg | GitHub-Release | Play Store |
+
+Drei Dinge, die dabei zusammengehören:
+
+- **Beide tragen dieselbe `applicationId`**, bewusst ohne
+  `applicationIdSuffix`. Ein Suffix machte daraus für Android zwei Apps —
+  sie ständen nebeneinander auf dem Gerät, und der Wechsel verlöre die
+  Installation. Der Signaturwechsel durch Play App Signing verlangt ohnehin
+  schon ein Deinstallieren; ein zweiter Grund muss nicht dazukommen.
+- **Flavor und `PLAY_BUILD` sind zwei Hälften derselben Entscheidung** —
+  das Flag schaltet den Dart-Pfad ab, der Flavor die Berechtigung. Wer nur
+  eine setzt, liefert eine halb abgeschaltete Funktion aus.
+- **Der Flavor steht im Ausgabepfad** (`app-github-release.apk`,
+  `bundle/playRelease/app-play-release.aab`). Ein `cp` auf den alten,
+  flavorlosen Namen bricht erst **nach** dem Taggen ab — und ein Tag ohne
+  Release ist nur von Hand zu heilen. `test/release_build_test.dart` hält
+  Aufruf und Pfad deshalb zusammen, `test/android_manifest_test.dart` das
+  Play-Manifest.
+
+Ab hier verlangt Flutter bei **jedem** Android-Build ein `--flavor`. Der
+CI-Job „Build Android APK" baut deshalb den `play`-Flavor: `github` baut aus
+`src/main` und damit exakt wie vorher, neu ist allein das Zusammenführen des
+Play-Manifests — und das soll im PR auffallen, nicht im Release-Workflow.
 
 ### Prominent Disclosure für den Standort
 
