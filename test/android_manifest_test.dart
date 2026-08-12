@@ -36,6 +36,17 @@ Set<String> _permissions() => {
           e.getAttribute('android:name') ?? '',
     };
 
+/// Kotlin-Quelltext ohne Kommentare.
+///
+/// „Kommt nicht vor"-Prüfungen brauchen das: Ein File, das seine eigene
+/// Entscheidung begründet, nennt den verbotenen Namen zwangsläufig — der
+/// Kommentar in `build.gradle.kts` erklärt, warum dort KEIN
+/// `applicationIdSuffix` steht, und ließ genau deshalb den Test scheitern.
+/// Dieselbe Lehre wie `sqlOnly` in Mitfahrbars Schema-Test.
+String _codeOnly(String source) => source
+    .replaceAll(RegExp(r'/\*.*?\*/', dotAll: true), '')
+    .replaceAll(RegExp(r'//.*'), '');
+
 /// Alle `<exclude>`-Regeln unterhalb von [parent] als (domain, path)-Paare.
 Set<(String, String)> _excludes(XmlElement parent) => {
       for (final e in parent.findElements('exclude'))
@@ -114,6 +125,73 @@ void main() {
     }
     expect(declared, contains('android.permission.REQUEST_INSTALL_PACKAGES'),
         reason: 'Ohne sie scheitert das In-App-Update wortlos');
+  });
+
+  test('Der Play-Flavor nimmt REQUEST_INSTALL_PACKAGES wieder heraus', () {
+    // Die andere Hälfte des Tests darüber. Der Dart-Pfad ist im Play-Build
+    // seit jeher aus (`AppDistribution.showsUpdateHints`), die
+    // Manifest-Zeile war es nicht — sie läge im hochgeladenen AAB, und eine
+    // Berechtigung ohne zugehörige Funktion ist in der Play-Review die
+    // schlechtestmögliche Antwort (Selbst-Updates verstoßen dort gegen
+    // „Device and Network Abuse").
+    //
+    // Geprüft wird die Quelldatei, nicht das gemergte Manifest: Das
+    // entsteht erst in Gradle, und ein Dart-Test hat keinen Build. Dass das
+    // Zusammenführen wirklich aufgeht, baut die CI im Job „Build Android
+    // APK" nach — dort läuft bewusst der `play`-Flavor.
+    const permission = 'android.permission.REQUEST_INSTALL_PACKAGES';
+    const path = 'android/app/src/play/AndroidManifest.xml';
+
+    // Zwei aufeinanderfolgende Bindestriche sind in einem XML-Kommentar
+    // verboten. Darts xml-Paket nimmt sie trotzdem an — Androids
+    // ManifestMerger nicht: Er bricht mit „Error parsing" ab, und zwar erst
+    // nach über vier Minuten Gradle. Dieser Test lief dabei grün, weil er
+    // denselben nachsichtigen Parser benutzt wie der Rest der Suite.
+    // Deshalb hier zusätzlich am Rohtext geprüft.
+    for (final match
+        in RegExp(r'<!--(.*?)-->', dotAll: true).allMatches(
+            File(path).readAsStringSync())) {
+      expect(match.group(1), isNot(contains('--')),
+          reason: '$path: „--" im Kommentar — daran scheitert der '
+              'ManifestMerger, nicht dieser Parser');
+    }
+
+    final play = _load(path).rootElement;
+
+    final removed = {
+      for (final e in play.findElements('uses-permission'))
+        if (e.getAttribute('tools:node') == 'remove')
+          e.getAttribute('android:name'),
+    };
+    expect(removed, contains(permission),
+        reason: 'Ohne diese Zeile trägt das AAB eine Berechtigung, zu der '
+            'im Play-Build keine Funktion gehört');
+
+    // Der Flavor darf nichts ANDERES mitbringen: Jede weitere Zeile gälte
+    // nur für den Play-Build und driftete still von dem ab, was auf den
+    // Geräten der GitHub-Nutzer läuft.
+    expect(play.childElements.map((e) => e.name.local).toSet(), {
+      'uses-permission',
+    }, reason: 'Der Play-Flavor soll genau eine Sache tun');
+  });
+
+  test('Beide Flavors bauen dieselbe App', () {
+    // Ein `applicationIdSuffix` wäre die naheliegende Ergänzung und der
+    // teuerste Fehler an dieser Stelle: Android sähe zwei verschiedene
+    // Apps, der Wechsel von der GitHub-APK zum Play-Build verlöre die
+    // Installation, und beide ständen nebeneinander auf dem Gerät (genau
+    // das ist Mitfahrbar beim Bundle-ID-Umzug passiert, #87). Der
+    // Signaturwechsel durch Play App Signing verlangt ohnehin schon ein
+    // Deinstallieren — ein zweiter Grund muss nicht dazukommen.
+    final gradle =
+        _codeOnly(File('android/app/build.gradle.kts').readAsStringSync());
+
+    for (final flavor in const ['github', 'play']) {
+      expect(gradle, contains('create("$flavor")'),
+          reason: 'Flavor $flavor fehlt — die Workflows rufen ihn auf');
+    }
+    expect(gradle, isNot(contains('applicationIdSuffix')),
+        reason: 'Ein Suffix macht aus einem Vertriebsweg eine zweite App');
   });
 
   test('FileProvider gibt nur den Update-Ordner heraus', () {
