@@ -140,7 +140,23 @@ void main() {
     // Zusammenführen wirklich aufgeht, baut die CI im Job „Build Android
     // APK" nach — dort läuft bewusst der `play`-Flavor.
     const permission = 'android.permission.REQUEST_INSTALL_PACKAGES';
-    final play = _load('android/app/src/play/AndroidManifest.xml').rootElement;
+    const path = 'android/app/src/play/AndroidManifest.xml';
+
+    // Zwei aufeinanderfolgende Bindestriche sind in einem XML-Kommentar
+    // verboten. Darts xml-Paket nimmt sie trotzdem an — Androids
+    // ManifestMerger nicht: Er bricht mit „Error parsing" ab, und zwar erst
+    // nach über vier Minuten Gradle. Dieser Test lief dabei grün, weil er
+    // denselben nachsichtigen Parser benutzt wie der Rest der Suite.
+    // Deshalb hier zusätzlich am Rohtext geprüft.
+    for (final match
+        in RegExp(r'<!--(.*?)-->', dotAll: true).allMatches(
+            File(path).readAsStringSync())) {
+      expect(match.group(1), isNot(contains('--')),
+          reason: '$path: „--" im Kommentar — daran scheitert der '
+              'ManifestMerger, nicht dieser Parser');
+    }
+
+    final play = _load(path).rootElement;
 
     final removed = {
       for (final e in play.findElements('uses-permission'))
