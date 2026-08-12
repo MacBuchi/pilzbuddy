@@ -36,6 +36,17 @@ Set<String> _permissions() => {
           e.getAttribute('android:name') ?? '',
     };
 
+/// Kotlin-Quelltext ohne Kommentare.
+///
+/// „Kommt nicht vor"-Prüfungen brauchen das: Ein File, das seine eigene
+/// Entscheidung begründet, nennt den verbotenen Namen zwangsläufig — der
+/// Kommentar in `build.gradle.kts` erklärt, warum dort KEIN
+/// `applicationIdSuffix` steht, und ließ genau deshalb den Test scheitern.
+/// Dieselbe Lehre wie `sqlOnly` in Mitfahrbars Schema-Test.
+String _codeOnly(String source) => source
+    .replaceAll(RegExp(r'/\*.*?\*/', dotAll: true), '')
+    .replaceAll(RegExp(r'//.*'), '');
+
 /// Alle `<exclude>`-Regeln unterhalb von [parent] als (domain, path)-Paare.
 Set<(String, String)> _excludes(XmlElement parent) => {
       for (final e in parent.findElements('exclude'))
@@ -157,7 +168,7 @@ void main() {
     // Signaturwechsel durch Play App Signing verlangt ohnehin schon ein
     // Deinstallieren — ein zweiter Grund muss nicht dazukommen.
     final gradle =
-        File('android/app/build.gradle.kts').readAsStringSync();
+        _codeOnly(File('android/app/build.gradle.kts').readAsStringSync());
 
     for (final flavor in const ['github', 'play']) {
       expect(gradle, contains('create("$flavor")'),
