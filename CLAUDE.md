@@ -87,6 +87,23 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
 
 ## Technik-Notizen
 
+- **Paketname ist `com.pilzbuddy`** — mit 1.88.0 von
+  `de.marcusbucher.pilzbuddy` umgezogen, weil der Paketname öffentlich in
+  der Play-URL steht und der Klarname des Betreibers dort nicht hingehört
+  (Betreiber-Entscheidung, 2026-08-12; der Play-Console-Eintrag war bereits
+  auf `com.pilzbuddy` festgelegt). Android sieht darin eine **andere App**:
+  Bestehende GitHub-Installationen bekommen auf der alten Kennung nie
+  wieder ein Update, das 1.88.0-Update installiert sich als zweite App,
+  die alte muss von Hand gelöscht werden — Changelog 1.88.0 leitet die
+  Nutzer durch. Dieselbe bewusste Entscheidung wie Mitfahrbars
+  Bundle-ID-Umzug (#87 dort). Umgezogen ist ALLES einheitlich: namespace,
+  applicationId, Kotlin-Paket (`kotlin/com/pilzbuddy/`) und die
+  MethodChannel-Namen (`com.pilzbuddy/exit_info`, `com.pilzbuddy/apk_install`)
+  — wer die ID künftig anfasst, löst denselben Umzug wieder aus. Firebase
+  brauchte dafür eine ZWEITE App-Registrierung im selben Projekt
+  (`google-services.json` trägt seither beide Clients; der Gradle-Plugin
+  wählt nach applicationId). Der Upload-Key ist unverändert — die
+  Signatur hängt am Keystore, nicht am Paketnamen.
 - Signing: `android/key.properties` + `android/pilzbuddy-release.jks` (beide
   gitignored; Backup in `~/pilzbuddy-keys/`). CI erzeugt beides aus den Secrets
   `ANDROID_KEYSTORE_*`. PKCS12: keyPassword == storePassword.

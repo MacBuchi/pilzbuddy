@@ -1,4 +1,4 @@
-package de.marcusbucher.pilzbuddy
+package com.pilzbuddy
 
 import android.app.ActivityManager
 import android.app.ApplicationExitInfo
@@ -35,10 +35,10 @@ import java.util.zip.GZIPInputStream
 class MainActivity : FlutterActivity() {
 
     private companion object {
-        const val CHANNEL = "de.marcusbucher.pilzbuddy/exit_info"
+        const val CHANNEL = "com.pilzbuddy/exit_info"
 
         /** Update der GitHub-APK: fertige Datei an den System-Installer geben. */
-        const val INSTALL_CHANNEL = "de.marcusbucher.pilzbuddy/apk_install"
+        const val INSTALL_CHANNEL = "com.pilzbuddy/apk_install"
 
         /**
          * Genug für den Haupt-Thread — und zugleich die Grenze der Spalte

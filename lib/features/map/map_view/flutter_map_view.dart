@@ -253,7 +253,7 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
         else
           TileLayer(
             urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-            userAgentPackageName: 'de.marcusbucher.pilzbuddy',
+            userAgentPackageName: 'com.pilzbuddy',
             tileProvider: _tileProvider ??=
                 ref.read(tileProviderFactoryProvider)(),
             // Zurück auf die Paketvorgabe (Issue #142). #130 hatte

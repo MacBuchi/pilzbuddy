@@ -225,7 +225,7 @@ Antwort.
 | Feld | Wert |
 |---|---|
 | App-Name | PilzBuddy |
-| Paketname | `de.marcusbucher.pilzbuddy` |
+| Paketname | `com.pilzbuddy` — seit 1.88.0, siehe Umzugs-Hinweis unten |
 | Kategorie | Reisen & Lokales (Alternative: Lifestyle) |
 | Tags | Karte, Natur, Sammeln |
 | Kontakt-E-Mail | `pilzbuddy@proton.me` (dieselbe wie in der Datenschutzerklärung) |

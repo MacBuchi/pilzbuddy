@@ -81,7 +81,7 @@ void main() {
     expect(strings.readAsStringSync(), contains('name="$idName"'),
         reason: 'Die Zeichenkette, auf die das Manifest zeigt, fehlt');
 
-    final activity = File('android/app/src/main/kotlin/de/marcusbucher/'
+    final activity = File('android/app/src/main/kotlin/com/'
             'pilzbuddy/MainActivity.kt')
         .readAsStringSync();
     expect(activity, contains('createNotificationChannel'),

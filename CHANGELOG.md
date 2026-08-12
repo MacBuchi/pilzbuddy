@@ -7,6 +7,28 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Einmal neu installieren: PilzBuddy zieht um
+
+*12. August 2026 · Version 1.88.0*
+
+PilzBuddy bekommt für den Play Store eine neue technische Kennung
+(com.pilzbuddy statt einer mit Namen darin). Android hält die App damit
+für eine andere — **dieses eine Update installiert sich deshalb als
+zweite App neben der alten.**
+
+So gehst du vor, zwei Minuten und einmalig:
+
+- Neue Version installieren (über den Update-Hinweis wie immer).
+- Danach sind kurz **zwei** PilzBuddy-Symbole da: Die **alte App löschen**
+  (gedrückt halten, Deinstallieren).
+- In der neuen App anmelden — fertig.
+
+**Deine Spots und dein Konto sind sicher**: Sie liegen auf dem Server,
+nicht auf dem Gerät. Neu laden musst du nur heruntergeladene
+Offline-Karten, und Benachrichtigungen einmal wieder einschalten, falls
+du sie an hattest. Alle künftigen Updates laufen dann wieder wie gewohnt
+in der App.
+
 ## Vorbereitung für den Play Store
 
 *12. August 2026 · Version 1.87.1*
