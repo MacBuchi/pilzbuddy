@@ -14,6 +14,15 @@ Stand: 26. Juli 2026, App-Version 1.32.0+68.
 
 ## 1. Datensicherheit (Data safety)
 
+> **Nicht abtippen — importieren.** `store/data_safety.csv` enthält alle
+> Antworten dieses Abschnitts maschinenlesbar (erzeugt von
+> `tool/play_data_safety.py` aus Googles Muster-CSV, in CI auf
+> Deckungsgleichheit geprüft). In der Console: App-Inhalte →
+> Datensicherheit → oben rechts **„Import from CSV"**, danach die
+> Zusammenfassung gegen die Tabellen hier sichtprüfen. Ändert sich eine
+> Antwort, wird die Tabelle im Werkzeug geändert und diese Datei im
+> selben Commit — nie die CSV von Hand.
+
 ### Vorfragen
 
 | Frage | Antwort | Begründung |

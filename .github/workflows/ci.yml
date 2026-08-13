@@ -54,6 +54,7 @@ jobs:
           python3 tool/forest_species.py --self-test > /dev/null
           python3 tool/release_notes.py --self-test > /dev/null
           python3 tool/generated_assets.py --self-test > /dev/null
+          python3 tool/play_data_safety.py --check > /dev/null
       # Eigener Schritt, nicht bei den Selbsttests: Der hier prüft nicht
       # ein Werkzeug, sondern die ausgelieferten Dateien — und wenn er
       # rot wird, soll im Log sofort stehen, WELCHES Asset und wie man
