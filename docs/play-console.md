@@ -317,3 +317,39 @@ Ehrlich antworten, sonst passt die Bewertung nicht zum Binary:
 - [ ] Datenschutz-URL erreichbar (erst nach dem Pages-Deploy des Releases)
 - [ ] Löschseite erreichbar
 - [ ] Datensicherheits-Formular = diese Datei
+
+## 3. AAB-Upload aus CI
+
+Seit 1.91.0 lädt `release.yml` das AAB bei jedem Versions-Bump als
+**Draft** in den internen Test-Track — sichtbar wird ein Stand erst,
+wenn ihn jemand in der Console freigibt (dieselbe Trennung wie
+Prerelease/`promote.yml`). Bis das Secret existiert, überspringt der
+Schritt sichtbar mit Verweis hierher.
+
+**Warum der erste Upload trotzdem Handarbeit ist:** Die
+Play-Developer-API kann keine App-Einträge anlegen, und Play nimmt
+API-Uploads für eine App erst an, nachdem einmal von Hand ein Bundle
+hochgeladen wurde.
+
+Einmalige Einrichtung, in dieser Reihenfolge:
+
+1. App-Eintrag anlegen (Paketname `de.mcbuchi.pilzbuddy` — unveränderlich)
+   und das erste AAB von Hand in den internen Test laden.
+2. In der Google Cloud Console (Projekt frei wählbar, `pilzbuddy-app`
+   liegt nahe) ein **Dienstkonto** anlegen und einen JSON-Schlüssel
+   erzeugen. Keine Cloud-Rollen nötig — die Rechte kommen von Play.
+3. Play Console → **Nutzer und Berechtigungen** → Nutzer einladen: die
+   Dienstkonto-Mail, mit der Berechtigung **„Releases in Tests-Tracks
+   verwalten"** für diese App. Mehr nicht — kein Produktions-Recht, kein
+   Konto-Admin: CI soll Testern zuliefern, nicht veröffentlichen.
+4. Den JSON-Inhalt als Repo-Secret **`PLAY_SERVICE_ACCOUNT_JSON`**
+   hinterlegen.
+
+Ab dann gilt: Bump ⇒ Draft im internen Track. Freigeben bleibt
+Handarbeit in der Console — mit Absicht, wie bei `promote.yml`.
+
+Wer hier landet, weil der Schritt **rot** ist statt übersprungen: Das
+Secret existiert, aber der Schlüssel ist widerrufen, das Dienstkonto aus
+der Console entfernt, oder der Paketname stimmt nicht mehr —
+`test/android_manifest_test.dart` hält Letzteres mit dem Gradle-Stand
+zusammen.

@@ -9,7 +9,7 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Benachrichtigungen sagen jetzt, worum es geht
 
-*13. August 2026 · Version 1.91.0*
+*13. August 2026 · Version 1.91.0, technische Nacharbeit in 1.91.1*
 
 Bisher stand in einer Meldung „PilzBuddy" und darunter „Neue Funde bei
 deinen Pilzbuddies" — drei Funde sahen aus wie einer, und der Titel
