@@ -7,6 +7,28 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Neuer Paketname — einmal neu installieren
+
+*13. August 2026 · Version 1.88.0*
+
+PilzBuddy heißt für Android ab jetzt `de.mcbuchi.pilzbuddy` statt wie
+bisher mit dem Namen des Entwicklers darin. Das musste vor der ersten
+Einreichung im Play Store passieren — danach lässt sich dieser Name nie
+wieder ändern.
+
+**Für dich heißt das einmalig Handarbeit:** Android hält die neue
+Fassung für eine andere App. Das Update über „Neue Version verfügbar"
+funktioniert diesmal nicht; lade die APK herunter und installiere sie
+von Hand. Die alte PilzBuddy-App bleibt daneben stehen, bis du sie
+deinstallierst.
+
+**Dein Konto und deine Spots bleiben** — die liegen auf dem Server.
+Verloren gehen die Sachen, die nur auf dem Gerät liegen:
+heruntergeladene Offline-Karten, gespeicherte Einstellungen und
+**Funde, die noch im Ausgangskorb warten**. Wenn dort noch etwas steht
+(das Banner auf der Karte sagt es), gehe vor dem Wechsel einmal mit
+Empfang ins Netz, damit alles gesendet ist.
+
 ## Vorbereitung für den Play Store
 
 *12. August 2026 · Version 1.87.1*

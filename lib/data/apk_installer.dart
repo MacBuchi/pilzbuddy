@@ -11,7 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 class ApkInstaller {
   const ApkInstaller({MethodChannel? channel})
       : _channel =
-            channel ?? const MethodChannel('de.marcusbucher.pilzbuddy/apk_install');
+            channel ?? const MethodChannel('de.mcbuchi.pilzbuddy/apk_install');
 
   final MethodChannel _channel;
 

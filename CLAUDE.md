@@ -799,6 +799,31 @@ das vor dem Produktions-Zugang. Die Antwort zeigt die Konsole erst nach dem
 Anlegen des App-Eintrags, und die 14 Tage sind Kalenderzeit — alles andere
 lässt sich parallel erledigen, das nicht.
 
+**Paketname `de.mcbuchi.pilzbuddy`** (seit 1.88.0, vorher
+`de.marcusbucher.pilzbuddy`): Umgestellt auf Wunsch des Betreibers, damit
+sein Klarname nicht im Paket steht — und **vor** der ersten Einreichung,
+weil Play die App ab dem ersten AAB-Upload unwiderruflich daran bindet.
+Drei Folgen:
+
+- **Für Android ist das eine andere App.** Der In-App-Updater kann
+  niemanden hinüberbringen (der Installer lehnt eine abweichende
+  applicationId ab); es braucht eine Neuinstallation von Hand, die alte
+  bleibt daneben stehen. Verloren gehen dabei alle gerätelokalen Daten —
+  Offline-Karten, `spot_cache/`, Einstellungen und der **Ausgangskorb**.
+  Steht dort noch etwas, muss es VOR dem Wechsel gesendet sein.
+- **Firebase braucht eine eigene Registrierung je Paketname.** Die neue
+  ist angelegt (App-ID `…:android:25638619c3d5509a43dc77`);
+  `google-services.json` trägt bewusst **beide** Pakete, damit ein Build
+  mit dem alten Namen nicht still ohne Push dasteht. Die alte
+  Registrierung darf bleiben, sie kostet nichts.
+- **Sechs Stellen müssen gleichzeitig stimmen**, drei davon brechen
+  still: Kotlin-Verzeichnis (sonst findet Gradle `.MainActivity` nicht)
+  und die beiden MethodChannel-Namen (sonst antwortet niemand, und
+  Beendigungsgründe wie APK-Installer hören ohne Fehlermeldung auf).
+  `test/android_manifest_test.dart` prüft alle gegen die `applicationId`
+  als einzige Quelle. Der Klarname steckte auch in `tool/measure_map.sh`
+  und `docs/play-console.md`.
+
 **Play App Signing** (Rest aus #111): Beim ersten AAB-Upload wird unser
 Keystore zum *Upload-Key*, signiert wird danach von Google. Folge: Der
 Play-Build hat eine **andere Signatur** als die GitHub-APK. Wer die APK

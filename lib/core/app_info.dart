@@ -11,7 +11,7 @@ class AppInfo {
   /// Play-Store-Eintrag (applicationId aus android/app/build.gradle.kts).
   /// Nur für Play-Builds: dort sind Verweise auf APK-Downloads unzulässig.
   static const playStoreUrl =
-      'https://play.google.com/store/apps/details?id=de.marcusbucher.pilzbuddy';
+      'https://play.google.com/store/apps/details?id=de.mcbuchi.pilzbuddy';
 
   /// Platzhalter, wenn sich die installierte Version nicht ermitteln lässt.
   /// Wer damit rechnet, darf daraus keine Entscheidung ableiten — siehe

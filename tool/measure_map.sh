@@ -26,7 +26,7 @@ ADB=${ADB:-$(command -v adb || true)}
 if [[ -z "$ADB" ]]; then
   ADB=/opt/homebrew/share/android-commandlinetools/platform-tools/adb
 fi
-PKG=de.marcusbucher.pilzbuddy
+PKG=de.mcbuchi.pilzbuddy
 OUT_DIR=build/map_traces
 mkdir -p "$OUT_DIR"
 
