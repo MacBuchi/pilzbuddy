@@ -61,6 +61,7 @@ von 250 m. Für die Saison-Gegenprüfung (--crosscheck) genügt die grobe
 Angabe, dort zählt nur der Monat.
 """
 import argparse
+import datetime
 import json
 import math
 import os
@@ -84,6 +85,22 @@ SPECIES_FILE = "lib/core/mushroom_species.dart"
 # Radardaten nachprüfen ließe.
 FIRST_YEAR = 2006
 
+# Das LAUFENDE Jahr zählt nicht mit: Seine Saison ist noch nicht vorbei,
+# und ein halbes Pilzjahr ist genau die Lücke, die dieses Werkzeug sonst
+# überall verweigert (Pilzjahre unterscheiden sich um den Faktor zehn).
+#
+# Es ist außerdem gar nicht abfragbar: `season_span` reicht bis 91 Tage
+# über den spätesten Fund hinaus, das Open-Meteo-Archiv endet aber HEUTE.
+# Beim 2000er-Lauf am 2026-08-11 lief der Pfifferling deshalb in ein
+# „HTTP 400 … end_date is out of allowed range" und riss den ganzen Lauf
+# mit — dieselbe Klasse Fehler wie die frühere feste Klemme auf Index 365
+# (siehe `season_span`): eine Obergrenze, die nicht stimmte.
+#
+# Warum hier und nicht in der GBIF-Abfrage: Die Stichprobe wird aus ALLEN
+# Funden gezogen. Nähme man 2026 schon dort heraus, fiele die Ziehung
+# anders aus, und der gesamte Wetter-Cache wäre wertlos.
+LAST_COMPLETE_YEAR = datetime.date.today().year - 1
+
 # Gröber als das ist die Ortsangabe der Meldungen ohnehin nicht (Median
 # 250 m), und schlechter als 1 km wäre für ein 1-km-Wetterraster wertlos.
 MAX_UNCERTAINTY_M = 1000
@@ -91,17 +108,24 @@ MAX_UNCERTAINTY_M = 1000
 # So viele Funde je Art werden ausgewertet — eine Zufallsstichprobe mit
 # festem Seed, keine Auswahl nach Güte.
 #
-# WARUM NICHT ALLE, und die Rechnung dazu: Open-Meteo zählt seine Aufrufe
-# gewichtet (Orte × Variablen × Tage/365). Alle Funde über die ganze
-# Saison wären rund 22.600 Aufrufe für neun Arten — bei einem Tageslimit
-# von 10.000. Der erste Versuch lief deshalb mitten in der zweiten Art in
-# ein hartes „try again tomorrow".
+# 2000 statt der ursprünglichen 500 (2026-08-09): Für die EFFEKT-Frage
+# („steht dort 0,50 oder 0,58?") reichten 500 Paare (AUC-Standardfehler
+# ~0,02) — aber die PLACEBO-Kontrolle stellt eine strengere Frage. Der
+# erste vollständige Lauf zeigte Placebo-Abweichungen bis 0,068 bei
+# SE≈0,023: zu groß zum Abnicken, zu klein, um Rauschen von einem echten
+# Methodenfehler zu unterscheiden — und nach der eigenen Regel des
+# Konzepts sind damit ALLE Zahlen nicht bewertbar. Bei 2000 Paaren
+# halbiert sich der Standardfehler auf ~0,011; ein echter Bias der
+# beobachteten Größe stünde dann als >4σ da, Rauschen fiele auf ≤0,03
+# zusammen.
 #
-# Und mehr braucht es nicht: Der Standardfehler einer AUC liegt bei 500
-# Paaren um 0,02. Für die Frage, ob dort 0,50 oder 0,58 steht, ist das
-# reichlich genau — die Unsicherheit des MODELLS ist um ein Vielfaches
-# grösser als die der Stichprobe.
-SAMPLE_PER_SPECIES = 500
+# Der Preis ist Zeit, kein Umbau: Open-Meteo zählt Aufrufe gewichtet
+# (Orte × Variablen × Tage/365), das Tageslimit liegt bei 10.000, und
+# dieser Umfang braucht mehrere Tage. Genau dafür scheitert der Lauf am
+# Tageslimit HART (siehe _fetch_json) und der --cache trägt alles schon
+# Geholte in den nächsten Lauf — einfach täglich neu starten, bis er
+# durchläuft.
+SAMPLE_PER_SPECIES = 2000
 
 # Die Arten, für die gerechnet wird. Mykorrhiza-Speisepilze — bei ihnen
 # erwartet die Literatur einen Wettereffekt.
@@ -545,7 +569,18 @@ def validate_species(name, sci, cache_dir=None, seed=42, progress=True):
     placebo = []
     skipped = 0
     lost_years = []
+    partial_years = []
     for year in sorted(by_year):
+        if year > LAST_COMPLETE_YEAR:
+            # Kein Ausfall, sondern Absicht — und deshalb auch kein
+            # Abbruch: Die Saison läuft noch. Gezählt wird es trotzdem,
+            # und der Bericht nennt es; ein stilles Weglassen wäre genau
+            # das, was `lost_years` verhindern soll.
+            partial_years.append(year)
+            if progress:
+                print(f"    Jahr {year} ausgelassen: Saison läuft noch "
+                      f"({len(by_year[year])} Funde)", file=sys.stderr)
+            continue
         group = by_year[year]
         points = [(f["lat"], f["lon"]) for f in group]
         span = season_span(
@@ -603,7 +638,11 @@ def validate_species(name, sci, cache_dir=None, seed=42, progress=True):
         "name": name,
         "sci": sci,
         "n": len(pairs),
-        "years": len(by_year),
+        # Die WIRKLICH ausgewerteten Jahre, nicht die vorhandenen: Die
+        # laufende Saison ist oben absichtlich herausgefallen, und eine
+        # Jahreszahl, die sie mitzählt, wäre eine falsche Angabe.
+        "years": len(by_year) - len(partial_years),
+        "partial_years": partial_years,
         "skipped": skipped,
         "auc": auc,
         "p": permutation_p(pairs, seed=seed),
@@ -876,11 +915,18 @@ def render_report(mycorrhizal, wood, crosscheck, fetched_on):
         "",
         "## Wie gemessen wurde",
         "",
-        "Zu jeder Fundmeldung aus GBIF (Deutschland, ab "
-        f"{FIRST_YEAR}, taggenau, Ortsgenauigkeit besser als "
-        f"{MAX_UNCERTAINTY_M} m) wird ein **Vergleichstag** am selben Ort im "
+        "Zu jeder Fundmeldung aus GBIF (Deutschland, "
+        f"{FIRST_YEAR}–{LAST_COMPLETE_YEAR}, taggenau, Ortsgenauigkeit "
+        f"besser als {MAX_UNCERTAINTY_M} m) wird ein **Vergleichstag** "
+        "am selben Ort im "
         f"selben Jahr gezogen, {CONTROL_MIN_GAP}–{CONTROL_MAX_GAP} Tage "
         "daneben. Für beide Tage rechnet dasselbe Wettermodell einen Wert:",
+        "",
+        f"**Das laufende Jahr {LAST_COMPLETE_YEAR + 1} zählt nicht mit.** "
+        "Seine Saison ist noch nicht vorbei, und ein halbes Pilzjahr wäre "
+        "genau die Lücke, die hier sonst überall zum Abbruch führt — "
+        "Pilzjahre unterscheiden sich um den Faktor zehn. Die Spalte "
+        "„Jahre“ nennt deshalb nur die vollständigen.",
         "",
         f"- Niederschlag über {RAIN_WINDOW} Tage kumuliert, ältere Tage "
         "schwächer gewichtet",
@@ -956,6 +1002,33 @@ def render_report(mycorrhizal, wood, crosscheck, fetched_on):
         lines.append(
             f"| {row['name']} | {row['n']} | {row['auc']:.3f} | "
             f"{verdict(row['auc'])} | {row['p']:.4f} |")
+
+    # Das Urteil über die Arten-Kontrolle schreibt sich selbst.
+    #
+    # Beim 2000er-Lauf (2026-08-13) fiel sie durch: Hallimasch 0,718 und
+    # Stockschwämmchen 0,704 passten so gut wie die Mykorrhiza-Arten. Ein
+    # von Hand gesetzter Satz wäre beim nächsten Lauf still falsch
+    # geworden — deshalb zählt der Bericht nach, statt zu behaupten.
+    fitting = [row for row in wood if row["auc"] >= 0.55]
+    if wood:
+        lines += ["", (
+            "**Ergebnis dieser Kontrolle:** " + (
+                f"{len(fitting)} von {len(wood)} Holzbewohnern passen zum "
+                "Modell (AUC ≥ 0,55) — "
+                ", ".join("%s %.3f" % (r["name"], r["auc"]) for r in fitting) + ". "
+                "Die Kontrolle ist damit NICHT bestanden: Das Modell "
+                "trennt hier nicht nach Gilde. Zwei Lesarten passen gleich "
+                "gut — es misst allgemeines Pilzwetter statt etwas "
+                "Artspezifisches, oder diese Arten teilen schlicht dasselbe "
+                "Fenster und taugen nicht als Gegenprobe. Diese Daten "
+                "trennen das nicht. **Solange das offen ist, bleibt eine "
+                "Ampel je Art unbegründet** — ihre Voraussetzung ist genau "
+                "der Unterschied, der hier nicht sichtbar wird."
+                if fitting else
+                "Kein Holzbewohner passt zum Modell (alle AUC < 0,55). Die "
+                "Kontrolle ist bestanden: Das Modell wirkt artspezifisch "
+                "und misst nicht bloß „im Herbst wird mehr gemeldet“."
+            ))]
 
     if crosscheck:
         lines += [
