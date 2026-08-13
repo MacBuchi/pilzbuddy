@@ -1,6 +1,6 @@
 # Rückwärtsvalidierung der Pilzampel
 
-Stand: 2026-08-09 · Erzeugt von `tool/ampel_validate.py` · Konzept: `docs/pilzampel-konzept.md`
+Stand: 2026-08-13 · Erzeugt von `tool/ampel_validate.py` · Konzept: `docs/pilzampel-konzept.md`
 
 Datenquellen: Fundmeldungen aus [GBIF](https://www.gbif.org) (nur CC0 1.0 und CC BY 4.0); Wetter-Rückrechnung mit Daten von [Open-Meteo](https://open-meteo.com) (CC BY 4.0, nicht-kommerzielle Nutzung — die Zusage dazu steht im README und im Konzeptpapier, entschieden 2026-08-08).
 
@@ -10,7 +10,9 @@ derselben Saison?** Diese Seite beantwortet das mit Zahlen.
 
 ## Wie gemessen wurde
 
-Zu jeder Fundmeldung aus GBIF (Deutschland, ab 2006, taggenau, Ortsgenauigkeit besser als 1000 m) wird ein **Vergleichstag** am selben Ort im selben Jahr gezogen, 14–45 Tage daneben. Für beide Tage rechnet dasselbe Wettermodell einen Wert:
+Zu jeder Fundmeldung aus GBIF (Deutschland, 2006–2025, taggenau, Ortsgenauigkeit besser als 1000 m) wird ein **Vergleichstag** am selben Ort im selben Jahr gezogen, 14–45 Tage daneben. Für beide Tage rechnet dasselbe Wettermodell einen Wert:
+
+**Das laufende Jahr 2026 zählt nicht mit.** Seine Saison ist noch nicht vorbei, und ein halbes Pilzjahr wäre genau die Lücke, die hier sonst überall zum Abbruch führt — Pilzjahre unterscheiden sich um den Faktor zehn. Die Spalte „Jahre“ nennt deshalb nur die vollständigen.
 
 - Niederschlag über 26 Tage kumuliert, ältere Tage schwächer gewichtet
 - Temperatur als Glocke um 13 °C (Mittel über 20 Tage)
@@ -27,25 +29,25 @@ Zwei Vergleichstage treten gegeneinander an — beide ohne Fund, beide nach ders
 
 | Art | Paare | AUC (soll ≈ 0,50) |
 |---|--:|--:|
-| Steinpilz | 461 | 0.514 |
-| Maronenröhrling | 466 | 0.511 |
-| Pfifferling | 479 | 0.509 |
-| Birkenpilz | 472 | 0.468 |
-| Fichtenreizker | 456 | 0.568 |
+| Steinpilz | 1923 | 0.502 |
+| Maronenröhrling | 1882 | 0.499 |
+| Pfifferling | 1312 | 0.512 |
+| Birkenpilz | 1162 | 0.491 |
+| Fichtenreizker | 736 | 0.493 |
 | Herbsttrompete | 276 | 0.475 |
-| Hallimasch | 439 | 0.503 |
-| Stockschwämmchen | 454 | 0.504 |
-| Austernseitling | 283 | 0.452 |
+| Hallimasch | 1838 | 0.518 |
+| Stockschwämmchen | 1213 | 0.509 |
+| Austernseitling | 916 | 0.539 |
 
 ## Mykorrhiza-Speisepilze — hier wird ein Effekt erwartet
 
 | Art | Paare | AUC | Befund | p |
 |---|--:|--:|---|--:|
-| Steinpilz | 497 | 0.738 | deutlich | 0.0005 |
-| Maronenröhrling | 495 | 0.729 | deutlich | 0.0005 |
-| Pfifferling | 490 | 0.561 | schwach | 0.0045 |
-| Birkenpilz | 499 | 0.727 | deutlich | 0.0005 |
-| Fichtenreizker | 489 | 0.716 | deutlich | 0.0005 |
+| Steinpilz | 1996 | 0.730 | deutlich | 0.0005 |
+| Maronenröhrling | 1980 | 0.709 | deutlich | 0.0005 |
+| Pfifferling | 1336 | 0.572 | schwach | 0.0005 |
+| Birkenpilz | 1202 | 0.709 | deutlich | 0.0005 |
+| Fichtenreizker | 772 | 0.706 | deutlich | 0.0005 |
 | Herbsttrompete | 296 | 0.655 | deutlich | 0.0005 |
 
 ## Arten-Kontrolle: Holzbewohner — hier darf DIESES Modell nicht passen
@@ -54,6 +56,6 @@ Zwei Vergleichstage treten gegeneinander an — beide ohne Fund, beide nach ders
 
 | Art | Paare | AUC | Befund | p |
 |---|--:|--:|---|--:|
-| Hallimasch | 491 | 0.735 | deutlich | 0.0005 |
-| Stockschwämmchen | 486 | 0.730 | deutlich | 0.0005 |
-| Austernseitling | 314 | 0.481 | kein Effekt | 0.7461 |
+| Hallimasch | 1966 | 0.718 | deutlich | 0.0005 |
+| Stockschwämmchen | 1282 | 0.704 | deutlich | 0.0005 |
+| Austernseitling | 1009 | 0.465 | kein Effekt | 0.9895 |
