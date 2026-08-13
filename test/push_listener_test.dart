@@ -38,8 +38,9 @@ void main() {
     return messenger;
   }
 
-  RemoteMessage messageWith(String? body) => RemoteMessage(
-      notification: RemoteNotification(title: 'PilzBuddy', body: body));
+  RemoteMessage messageWith(String? body, {String? title = 'PilzBuddy'}) =>
+      RemoteMessage(
+          notification: RemoteNotification(title: title, body: body));
 
   testWidgets('eine eintreffende Meldung erscheint als SnackBar',
       (tester) async {
@@ -72,6 +73,31 @@ void main() {
         findsOneWidget);
     expect(find.text('Testnachricht ist unterwegs.'), findsNothing,
         reason: 'die Quittung darf die Meldung nicht überdauern');
+  });
+
+  testWidgets('Titel UND Rumpf stehen da', (tester) async {
+    // Seit patch_020 trägt der Titel die Aussage und der Rumpf nur die
+    // Ergänzung. Zeigte die App weiter nur den Rumpf, stünde dort „An 2
+    // Spots" ohne jeden Zusammenhang — schlechter als der alte Text.
+    await pumpListener(tester);
+    incoming.add(messageWith('An 2 Spots',
+        title: '3 neue Funde bei deinen Buddys'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('3 neue Funde bei deinen Buddys'), findsOneWidget);
+    expect(find.text('An 2 Spots'), findsOneWidget);
+  });
+
+  testWidgets('ohne Titel steht der Rumpf für sich', (tester) async {
+    // Ältere oder fremde Nutzlast: kein Titel, aber ein Rumpf. Dann darf
+    // nichts wegfallen und nichts leer dastehen.
+    await pumpListener(tester);
+    incoming.add(messageWith('Neuer Fund bei einem Buddy', title: null));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('Neuer Fund bei einem Buddy'), findsOneWidget);
   });
 
   testWidgets('ohne Text passiert nichts', (tester) async {

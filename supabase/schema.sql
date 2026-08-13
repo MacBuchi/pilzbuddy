@@ -581,10 +581,9 @@ begin
     from vault.decrypted_secrets where name = 'push_job_secret';
   select decrypted_secret into service_key
     from vault.decrypted_secrets where name = 'push_service_key';
+
   -- Nicht eingerichtet: Fällige Zeilen trotzdem wegräumen und still
-  -- zurück (Patch 019). Ohne das Löschen wüchse der Korb bis zur
-  -- Einrichtung, und der erste konfigurierte Lauf feuerte einen Schwall
-  -- alter Meldungen ab — eine Benachrichtigung ist verderbliche Ware.
+  -- zurück. Ohne das Löschen wüchse der Korb bis zur Einrichtung.
   if base_url is null or job_secret is null or service_key is null then
     delete from app_internal.push_outbox where due_at <= now();
     return 0;
@@ -593,7 +592,7 @@ begin
   with due as (
     delete from app_internal.push_outbox
      where due_at <= now()
-    returning recipient_id, kind
+    returning recipient_id, kind, spot_id
   ),
   -- Je Empfänger EINE Nachricht, auch wenn mehrere Spots fällig sind:
   -- „drei Meldungen gleichzeitig" ist die Art, wie Benachrichtigungen
@@ -601,19 +600,36 @@ begin
   grouped as (
     select recipient_id,
            count(*) filter (where kind = 'buddy_find') as finds,
-           count(*) filter (where kind = 'new_spot') as spots
+           count(*) filter (where kind = 'new_spot') as spots,
+           count(distinct spot_id) filter (where kind = 'buddy_find')
+             as find_spots
       from due group by recipient_id
   )
   select jsonb_agg(jsonb_build_object(
            'token', d.token,
-           'title', 'PilzBuddy',
-           'body', case
+           'title', case
              when g.finds > 0 and g.spots > 0
-               then 'Deine Pilzbuddies waren unterwegs.'
-             when g.finds > 1 then 'Neue Funde bei deinen Pilzbuddies.'
-             when g.finds = 1 then 'Neuer Fund bei einem Pilzbuddy.'
-             when g.spots > 1 then 'Neue Spots von deinen Pilzbuddies.'
-             else 'Ein Pilzbuddy hat einen neuen Spot geöffnet.'
+               then 'Deine Buddys waren unterwegs'
+             when g.finds > 1
+               then g.finds || ' neue Funde bei deinen Buddys'
+             when g.finds = 1 then 'Neuer Fund bei einem Buddy'
+             when g.spots > 1
+               then g.spots || ' neue Spots von deinen Buddys'
+             else 'Ein Buddy hat einen neuen Spot geöffnet'
+           end,
+           -- Der Rumpf trägt die zweite Dimension, wo es eine gibt. Wo
+           -- nicht, sagt er, was ein Tipp bringt — mehr bleibt ohne
+           -- Namen und Arten nicht übrig, und beim ersten Mal ist es
+           -- nicht selbstverständlich.
+           'body', case
+             when g.finds > 0 and g.spots > 0 then
+               g.finds || (case when g.finds = 1 then ' neuer Fund'
+                                else ' neue Funde' end) || ' und ' ||
+               g.spots || (case when g.spots = 1 then ' neuer Spot'
+                                else ' neue Spots' end)
+             when g.find_spots > 1 then 'An ' || g.find_spots || ' Spots'
+             when g.finds > 1 then 'An einem Spot'
+             else 'Tippen zeigt dir die Stelle auf der Karte'
            end))
     into payload
     from grouped g
@@ -666,5 +682,6 @@ insert into public.applied_patches (filename) values
   ('patch_016_client_id.sql'),
   ('patch_017_push_geraete.sql'),
   ('patch_018_push_ausloeser.sql'),
-  ('patch_019_push_leerlauf.sql')
+  ('patch_019_push_leerlauf.sql'),
+  ('patch_020_push_text.sql')
 on conflict do nothing;

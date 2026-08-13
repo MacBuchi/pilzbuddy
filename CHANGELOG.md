@@ -7,6 +7,23 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Benachrichtigungen sagen jetzt, worum es geht
+
+*13. August 2026 · Version 1.91.0*
+
+Bisher stand in einer Meldung „PilzBuddy" und darunter „Neue Funde bei
+deinen Pilzbuddies" — drei Funde sahen aus wie einer, und der Titel
+wiederholte nur den App-Namen, den Android ohnehin anzeigt.
+
+Jetzt steht die Sache oben und die Menge dabei:
+
+- **3 neue Funde bei deinen Buddys** · An 2 Spots
+- **Deine Buddys waren unterwegs** · 2 neue Funde und 1 neuer Spot
+
+Was weiterhin **nicht** drinsteht: wer es war und welche Art. Eine
+Meldung läuft über die Server von Google, und dorthin gehen weder
+Namen noch Fundinhalte — die stehen erst in der App.
+
 ## Die Pilzampel ist geprüft — teilweise
 
 *13. August 2026 · Version 1.89.0*

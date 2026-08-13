@@ -53,6 +53,11 @@ class _PushListenerState extends ConsumerState<PushListener> {
     if (notification == null || !mounted) return;
     final body = notification.body;
     if (body == null || body.isEmpty) return;
+    // Seit patch_020 trägt der TITEL die Aussage („3 neue Funde bei
+    // deinen Buddys") und der Rumpf nur die Ergänzung („An 2 Spots").
+    // Nur den Rumpf zu zeigen wäre damit sinnlos geworden — Android
+    // zeigt beides, hier muss es also auch beides sein.
+    final title = notification.title;
     final messenger = ScaffoldMessenger.of(context);
     // Erst räumen, dann zeigen. `showSnackBar` stellt sich sonst hinten
     // an: Beim Testknopf stand „Testnachricht ist unterwegs." vier
@@ -64,7 +69,18 @@ class _PushListenerState extends ConsumerState<PushListener> {
     // Ereignis, die andere nur die Quittung dafür.
     messenger.clearSnackBars();
     messenger.showSnackBar(SnackBar(
-      content: Text(body),
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Der Titel darf fehlen (fremde Nutzlast, ältere Meldung) —
+          // dann steht der Rumpf für sich, wie bisher.
+          if (title != null && title.isNotEmpty)
+            Text(title,
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(body),
+        ],
+      ),
       duration: const Duration(seconds: 4),
     ));
   }
