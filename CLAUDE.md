@@ -820,11 +820,16 @@ Drei Folgen:
   Push-Token hängt an der Installation: Benachrichtigungen sind in der
   neuen App wieder einzuschalten. Der Upload-Key bleibt unberührt — die
   Signatur hängt am Keystore, nicht am Paketnamen.
-- **Firebase braucht eine eigene Registrierung je Paketname.** Die neue
-  ist angelegt (App-ID `…:android:25638619c3d5509a43dc77`);
-  `google-services.json` trägt bewusst **beide** Pakete, damit ein Build
-  mit dem alten Namen nicht still ohne Push dasteht. Die alte
-  Registrierung darf bleiben, sie kostet nichts.
+- **Firebase braucht eine eigene Registrierung je Paketname**, App-ID
+  `…:android:25638619c3d5509a43dc77`. Während des Umzugs trug
+  `google-services.json` beide Pakete, damit ein Build mit dem alten
+  Namen nicht still ohne Push dasteht. Am 2026-08-13 hat der Betreiber
+  die alte Registrierung gelöscht; die Datei ist seither frisch aus der
+  Konsole geholt und trägt nur noch das neue Paket. **Sie wird geholt,
+  nicht editiert** — der `mobilesdk_app_id` steht nur dort richtig.
+  Folge der Löschung, falls doch noch jemand die alte App hat: Deren
+  Push-Tokens sind ungültig, sie bekommt keine Meldungen mehr. Für den
+  Umzug war das gewollt.
 - **Sechs Stellen müssen gleichzeitig stimmen**, drei davon brechen
   still: Kotlin-Verzeichnis (sonst findet Gradle `.MainActivity` nicht)
   und die beiden MethodChannel-Namen (sonst antwortet niemand, und
