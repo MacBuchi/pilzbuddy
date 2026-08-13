@@ -90,7 +90,7 @@ class AppExit {
 class ExitInfoRepository {
   ExitInfoRepository({MethodChannel? channel})
       : _channel = channel ??
-            const MethodChannel('de.marcusbucher.pilzbuddy/exit_info');
+            const MethodChannel('de.mcbuchi.pilzbuddy/exit_info');
 
   final MethodChannel _channel;
 

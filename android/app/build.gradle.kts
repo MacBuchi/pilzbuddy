@@ -26,7 +26,7 @@ val platformToAbi =
     )
 
 android {
-    namespace = "de.marcusbucher.pilzbuddy"
+    namespace = "de.mcbuchi.pilzbuddy"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -42,8 +42,19 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "de.marcusbucher.pilzbuddy"
+        // Umgedrehte Domain, die dem Betreiber gehört (mcbuchi.de) — und
+        // bewusst OHNE Klarnamen: Bis 1.87.1 stand hier `de.marcusbucher.…`,
+        // und der Paketname ist an jedem Gerät und in jedem Store sichtbar.
+        //
+        // **Ab dem ersten AAB-Upload ist dieser Wert unveränderlich.** Play
+        // bindet die App daran; ein späterer Wechsel wäre eine neue App mit
+        // neuer Historie. Deshalb VOR der ersten Einreichung geändert.
+        //
+        // Für Android ist das eine ANDERE App: Wer die alte GitHub-APK hat,
+        // bekommt kein Update darauf (der Installer lehnt eine abweichende
+        // applicationId ab), sondern muss neu installieren — die alte
+        // Installation samt ihren lokalen Daten bleibt daneben stehen.
+        applicationId = "de.mcbuchi.pilzbuddy"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

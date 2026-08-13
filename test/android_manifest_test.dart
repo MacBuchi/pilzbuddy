@@ -54,6 +54,62 @@ Set<(String, String)> _excludes(XmlElement parent) => {
     };
 
 void main() {
+  test('Der Paketname ist überall derselbe', () {
+    // Beim Umzug von `de.marcusbucher.…` auf `de.mcbuchi.…` (1.88.0)
+    // mussten sechs Stellen gleichzeitig stimmen, und die drei
+    // gefährlichsten brechen STILL:
+    //
+    // * Läge die Kotlin-Datei nicht im Verzeichnis ihres Pakets, fände
+    //   Gradle `.MainActivity` aus dem Manifest nicht.
+    // * Wichen die MethodChannel-Namen zwischen Dart und Kotlin ab,
+    //   antwortete niemand — Beendigungsgründe (#147) und der
+    //   APK-Installer (#161) hörten einfach auf zu funktionieren, ohne
+    //   eine einzige Fehlermeldung.
+    //
+    // Deshalb wird hier gegen die EINE Quelle geprüft, die den Namen
+    // festlegt: die `applicationId` in build.gradle.kts.
+    final gradle = File('android/app/build.gradle.kts').readAsStringSync();
+    final id = RegExp(r'applicationId\s*=\s*"([^"]+)"')
+        .firstMatch(_codeOnly(gradle))
+        ?.group(1);
+    expect(id, isNotNull, reason: 'applicationId nicht gefunden');
+    expect(_codeOnly(gradle), contains('namespace = "$id"'),
+        reason: 'namespace und applicationId laufen auseinander');
+
+    final path = 'android/app/src/main/kotlin/${id!.replaceAll('.', '/')}'
+        '/MainActivity.kt';
+    final activity = File(path);
+    expect(activity.existsSync(), isTrue,
+        reason: 'MainActivity.kt liegt nicht unter $path');
+    final source = activity.readAsStringSync();
+    expect(source, contains('package $id'),
+        reason: 'Paket-Deklaration passt nicht zum Verzeichnis');
+
+    // Beide Seiten jedes Kanals — und zwar ALLE, die es gibt: Ein
+    // vergessener Kanal fiele sonst genau dann auf, wenn ihn jemand
+    // benutzt.
+    final channels = RegExp(r"MethodChannel\('([^']+)'\)")
+        .allMatches(_codeOnly(
+            File('lib/data/apk_installer.dart').readAsStringSync() +
+                File('lib/data/exit_info_repository.dart').readAsStringSync()))
+        .map((m) => m.group(1)!)
+        .toSet();
+    expect(channels, isNotEmpty, reason: 'keine Kanäle in Dart gefunden');
+    for (final channel in channels) {
+      expect(channel, startsWith('$id/'),
+          reason: 'Dart-Kanal trägt einen fremden Paketnamen');
+      expect(source, contains('"$channel"'),
+          reason: 'Kotlin kennt den Kanal $channel nicht');
+    }
+
+    // Und die Firebase-Konfiguration muss den Namen kennen, sonst
+    // scheitert der Gradle-Lauf des google-services-Plugins.
+    expect(File('android/app/google-services.json').readAsStringSync(),
+        contains('"package_name": "$id"'),
+        reason: 'google-services.json kennt $id nicht — neu aus der '
+            'Firebase-Konsole holen');
+  });
+
   test('Der Benachrichtigungs-Kanal ist deklariert, angelegt und laut', () {
     // Die drei Stellen müssen zusammenpassen, und keine davon fällt beim
     // Editieren auf: Ohne Manifest-Zeile legt FCM still einen eigenen,
@@ -81,7 +137,7 @@ void main() {
     expect(strings.readAsStringSync(), contains('name="$idName"'),
         reason: 'Die Zeichenkette, auf die das Manifest zeigt, fehlt');
 
-    final activity = File('android/app/src/main/kotlin/de/marcusbucher/'
+    final activity = File('android/app/src/main/kotlin/de/mcbuchi/'
             'pilzbuddy/MainActivity.kt')
         .readAsStringSync();
     expect(activity, contains('createNotificationChannel'),
