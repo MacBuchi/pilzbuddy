@@ -45,8 +45,22 @@ jobs:
       # übersprungen und die Zusammenfassung sagt warum. Ein Job, der ohne
       # Secret rot würde, wäre bei jedem Merge ein falscher Alarm — und
       # einer, der still durchliefe, wäre schlimmer als keiner.
+      #
+      # ABER: `secrets` ist in `if:` nicht verfügbar. Mit
+      # `if: ${{ secrets.… }}` verwarf GitHub die ganze Datei beim
+      # Einlesen — dieser Workflow ist deshalb von seiner Erstellung
+      # (#286) bis zum 2026-08-13 KEIN einziges Mal gelaufen; jeder
+      # vermeintliche Lauf war ein Startfehler, und das dokumentierte
+      # sichtbare Überspringen hat nie stattgefunden. Daher der Umweg
+      # über einen Feststell-Schritt (Secrets in `env:` sind erlaubt,
+      # `steps` ist in `if:` verfügbar).
+      - name: Token vorhanden?
+        id: token
+        env:
+          T: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: echo "have=$([ -n "$T" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
       - name: Deploy
-        if: ${{ secrets.SUPABASE_ACCESS_TOKEN != '' }}
+        if: steps.token.outputs.have == 'true'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
@@ -56,7 +70,7 @@ jobs:
             >> "$GITHUB_STEP_SUMMARY"
 
       - name: Ohne Token übersprungen
-        if: ${{ secrets.SUPABASE_ACCESS_TOKEN == '' }}
+        if: steps.token.outputs.have == 'false'
         run: |
           {
             echo "### Nicht deployt — \`SUPABASE_ACCESS_TOKEN\` fehlt"

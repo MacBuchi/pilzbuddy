@@ -181,8 +181,22 @@ jobs:
       # Fehlt es, wird sichtbar übersprungen (Muster deploy-functions.yml):
       # Ein Job, der bis dahin rot würde, wäre bei jedem Bump falscher
       # Alarm.
+      # Der `secrets`-Kontext ist in `if:` NICHT verfügbar — GitHub
+      # verwirft die ganze Datei dann schon beim Einlesen („workflow file
+      # issue", null Jobs), und zwar bei JEDEM Push, weil nicht einmal
+      # die Filter ausgewertet werden. Genau so hat dieses Muster
+      # deploy-functions.yml von seiner Erstellung an lahmgelegt und den
+      # Release-Build für 1.91.1 verhindert, bevor es hier auffiel.
+      # Deshalb der Umweg: ein Schritt stellt das Vorhandensein fest
+      # (Secrets in `env:` sind erlaubt), die anderen prüfen sein
+      # Ergebnis — der `steps`-Kontext ist in `if:` verfügbar.
+      - name: Play-Secret vorhanden?
+        id: play
+        env:
+          SA: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: echo "have=$([ -n "$SA" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
       - name: Upload to Play internal testing
-        if: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON != '' }}
+        if: steps.play.outputs.have == 'true'
         uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
@@ -191,7 +205,7 @@ jobs:
           track: internal
           status: draft
       - name: Play-Upload übersprungen
-        if: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON == '' }}
+        if: steps.play.outputs.have == 'false'
         run: |
           {
             echo "### Nicht zu Play hochgeladen — \`PLAY_SERVICE_ACCOUNT_JSON\` fehlt"

@@ -139,6 +139,16 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   supabase.com/dashboard/account/tokens). **Fehlt es, wird der Deploy
   übersprungen** und die Run-Summary sagt es samt Handbefehl — ein Job,
   der ohne Secret rot würde, wäre bei jedem Merge falscher Alarm.
+  **Korrektur vom 2026-08-13:** Genau dieses Überspringen hat bis dahin
+  NIE stattgefunden. Das Tor stand als `if: ${{ secrets.… }}` da, und
+  der `secrets`-Kontext ist in `if:` nicht verfügbar — GitHub verwarf
+  die ganze Datei beim Einlesen, der Workflow ist seit seiner Erstellung
+  kein einziges Mal gelaufen (nur Startfehler, an keinem PR sichtbar),
+  und dasselbe kopierte Muster hat den Release-Build von v1.91.1
+  verhindert. Seither: Feststell-Schritt (Secret in `env:`, `if:` prüft
+  `steps.<id>.outputs`), und `test/release_workflow_test.dart` verbietet
+  `secrets.` in jedem `if:` aller Workflows — actionlint fängt das
+  nicht.
   Gesetzt am 2026-08-11; Supabase gibt persönlichen Tokens **höchstens
   ein Jahr**, es läuft also spätestens am **2027-08-11** ab. Das ist der
   eine Fall, in dem der Job wirklich rot wird statt zu überspringen —
