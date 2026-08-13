@@ -59,3 +59,5 @@ Zwei Vergleichstage treten gegeneinander an — beide ohne Fund, beide nach ders
 | Hallimasch | 1966 | 0.718 | deutlich | 0.0005 |
 | Stockschwämmchen | 1282 | 0.704 | deutlich | 0.0005 |
 | Austernseitling | 1009 | 0.465 | kein Effekt | 0.9895 |
+
+**Ergebnis dieser Kontrolle:** 2 von 3 Holzbewohnern passen zum Modell (AUC ≥ 0,55) — Hallimasch 0.718, Stockschwämmchen 0.704. Die Kontrolle ist damit NICHT bestanden: Das Modell trennt hier nicht nach Gilde. Zwei Lesarten passen gleich gut — es misst allgemeines Pilzwetter statt etwas Artspezifisches, oder diese Arten teilen schlicht dasselbe Fenster und taugen nicht als Gegenprobe. Diese Daten trennen das nicht. **Solange das offen ist, bleibt eine Ampel je Art unbegründet** — ihre Voraussetzung ist genau der Unterschied, der hier nicht sichtbar wird.

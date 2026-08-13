@@ -49,6 +49,26 @@ Wetterdienst — der weltweit einzige nationale Dienst mit einem Pilzprodukt —
 schreibt genau das in seinen Erklärtext: gilt für fleischige, vor allem
 **mykorrhizale** Arten.
 
+> **Zwischenstand nach der Messung (2026-08-13).** Dieser Absatz ist die
+> Erwartung aus der Literatur. Unsere eigene Messung an 2000 Paaren je Art
+> (`pilzampel-validierung.md`) hat sie **nicht bestätigen können**: Das
+> Steinpilz-Modell passt beim Hallimasch (AUC 0,718) und beim
+> Stockschwämmchen (0,704) so gut wie bei den Mykorrhiza-Arten. Nur der
+> Austernseitling — Gipfel im Dezember, also wirklich ein anderes Fenster —
+> zeigt nichts (0,465).
+>
+> Das widerlegt Sato und Alday nicht. Beide messen die *Varianz* über Jahre
+> und Standorte; unser Aufbau hält den Standort fest und fragt nur nach dem
+> Tag. Gut möglich, dass beide Gilden denselben Auslöser teilen (Regen,
+> Abkühlung) und sich erst in dem unterscheiden, was dieses Modell gar nicht
+> benutzt — Substratvorrat, Vorjahreswitterung, Bestandsalter.
+>
+> **Für die App heißt das:** Die Ampel als solche ist bestätigt, die
+> **Unterteilung nach Gilde oder Art ist es nicht.** Sie bleibt ungebaut,
+> bis eine Gegenprobe mit nachweislich anderem Fenster einen Unterschied
+> zeigt. Ein Kandidat steht schon da: Der Austernseitling verhält sich
+> genau so, wie dieser Absatz es vorhersagt — das ist eine Art, nicht drei.
+
 ### Die belastbarsten Zahlen stammen aus einem deutschen Buchenwald
 
 [Brejon Lamartiniere & Hoffman, bioRxiv

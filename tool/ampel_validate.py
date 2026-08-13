@@ -1003,6 +1003,33 @@ def render_report(mycorrhizal, wood, crosscheck, fetched_on):
             f"| {row['name']} | {row['n']} | {row['auc']:.3f} | "
             f"{verdict(row['auc'])} | {row['p']:.4f} |")
 
+    # Das Urteil über die Arten-Kontrolle schreibt sich selbst.
+    #
+    # Beim 2000er-Lauf (2026-08-13) fiel sie durch: Hallimasch 0,718 und
+    # Stockschwämmchen 0,704 passten so gut wie die Mykorrhiza-Arten. Ein
+    # von Hand gesetzter Satz wäre beim nächsten Lauf still falsch
+    # geworden — deshalb zählt der Bericht nach, statt zu behaupten.
+    fitting = [row for row in wood if row["auc"] >= 0.55]
+    if wood:
+        lines += ["", (
+            "**Ergebnis dieser Kontrolle:** " + (
+                f"{len(fitting)} von {len(wood)} Holzbewohnern passen zum "
+                "Modell (AUC ≥ 0,55) — "
+                ", ".join("%s %.3f" % (r["name"], r["auc"]) for r in fitting) + ". "
+                "Die Kontrolle ist damit NICHT bestanden: Das Modell "
+                "trennt hier nicht nach Gilde. Zwei Lesarten passen gleich "
+                "gut — es misst allgemeines Pilzwetter statt etwas "
+                "Artspezifisches, oder diese Arten teilen schlicht dasselbe "
+                "Fenster und taugen nicht als Gegenprobe. Diese Daten "
+                "trennen das nicht. **Solange das offen ist, bleibt eine "
+                "Ampel je Art unbegründet** — ihre Voraussetzung ist genau "
+                "der Unterschied, der hier nicht sichtbar wird."
+                if fitting else
+                "Kein Holzbewohner passt zum Modell (alle AUC < 0,55). Die "
+                "Kontrolle ist bestanden: Das Modell wirkt artspezifisch "
+                "und misst nicht bloß „im Herbst wird mehr gemeldet“."
+            ))]
+
     if crosscheck:
         lines += [
             "",

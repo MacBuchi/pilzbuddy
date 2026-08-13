@@ -7,6 +7,24 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Pilzampel ist geprüft — teilweise
+
+*13. August 2026 · Version 1.89.0*
+
+Die Pilzwetter-Ampel lief bisher als „unvalidierte Vorschau". Die Prüfung
+ist jetzt durch: Für rund 12.000 echte Fundmeldungen aus zwanzig Jahren
+wurde nachgerechnet, wie die Ampel am Fundtag stand — und wie an einem
+Vergleichstag am **selben Ort** wenige Wochen daneben. Sie steht an
+Fundtagen deutlich höher. Beim Steinpilz in 73 von 100 Vergleichen.
+
+Was die Prüfung **nicht** zeigen konnte: dass die Ampel für verschiedene
+Arten verschieden gut passt. Beim Hallimasch, der ganz anders wächst,
+passt dieselbe Rechnung genauso gut. Solange das so ist, bleibt es bei
+**einer** Ampel für alle Arten statt einer je Art.
+
+Der Schalter im Profil sagt das jetzt so — und heißt weiter
+„experimentell", weil genau diese Frage offen ist.
+
 ## Neuer Paketname — einmal neu installieren
 
 *13. August 2026 · Version 1.88.0*

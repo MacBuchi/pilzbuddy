@@ -224,18 +224,26 @@ class ProfileScreen extends ConsumerWidget {
             onChanged: (_) =>
                 ref.read(mapLongPressEnabledProvider.notifier).toggle(),
           ),
-          // Experimentell und ab Werk aus (Betreiberentscheidung
-          // 2026-08-09): Die Ampel läuft parallel zu ihrer eigenen
-          // Validierung. Der Schalter ist zugleich der Notaus — fällt
-          // die Prüfung durch, verschwindet die Vorschau wieder.
+          // Ab Werk aus (Betreiberentscheidung 2026-08-09). Die
+          // Validierung ist seit 2026-08-13 durch und BESTANDEN — der
+          // Text sagt jetzt, was gemessen wurde, statt „läuft noch".
+          //
+          // „Experimentell" bleibt trotzdem stehen, und zwar wegen der
+          // einen Hälfte, die NICHT bestanden hat: Bei zwei von drei
+          // Holzbewohnern passt dasselbe Modell genauso gut
+          // (`docs/pilzampel-validierung.md`). Ob die Ampel je Art
+          // unterschiedlich wirkt, ist damit offen — deshalb rechnet sie
+          // für alle gleich, und deshalb steht es auch so da.
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             secondary: const Icon(Icons.science_outlined),
             title: const Text('Pilzwetter-Ampel (experimentell)'),
             subtitle: const Text(
-                'Unvalidierte Vorschau: bewertet die Wetter-Bedingungen '
-                'für Steinpilz & Co. am Spot — nicht, ob dort Pilze '
-                'stehen. Die Prüfung an echten Funden läuft noch.'),
+                'An echten Funden geprüft: An Fundtagen steht sie höher '
+                'als an Vergleichstagen am selben Ort. Sie bewertet das '
+                'Wetter für Steinpilz & Co. — nicht, ob dort Pilze '
+                'stehen. Ob sie je Art anders wirkt, ist noch offen; '
+                'deshalb rechnet sie für alle gleich.'),
             value: ref.watch(ampelPreviewEnabledProvider),
             onChanged: (value) =>
                 ref.read(ampelPreviewEnabledProvider.notifier).set(value),
