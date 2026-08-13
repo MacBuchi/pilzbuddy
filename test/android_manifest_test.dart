@@ -108,6 +108,14 @@ void main() {
         contains('"package_name": "$id"'),
         reason: 'google-services.json kennt $id nicht — neu aus der '
             'Firebase-Konsole holen');
+
+    // Der Play-Upload in release.yml nennt den Namen wörtlich — die
+    // Action lädt sonst ins Leere, und zwar erst beim nächsten
+    // Versions-Bump, lange nach dem Editieren.
+    expect(File('.github/workflows/release.yml').readAsStringSync(),
+        contains('packageName: $id'),
+        reason: 'release.yml lädt unter einem anderen Paketnamen zu Play '
+            'hoch');
   });
 
   test('Der Benachrichtigungs-Kanal ist deklariert, angelegt und laut', () {
