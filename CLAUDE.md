@@ -805,12 +805,21 @@ sein Klarname nicht im Paket steht — und **vor** der ersten Einreichung,
 weil Play die App ab dem ersten AAB-Upload unwiderruflich daran bindet.
 Drei Folgen:
 
-- **Für Android ist das eine andere App.** Der In-App-Updater kann
-  niemanden hinüberbringen (der Installer lehnt eine abweichende
-  applicationId ab); es braucht eine Neuinstallation von Hand, die alte
-  bleibt daneben stehen. Verloren gehen dabei alle gerätelokalen Daten —
+- **Für Android ist das eine andere App.** Der In-App-Updater FUNKTIONIERT
+  trotzdem (er vergleicht nur Versionsnummern und übergibt die APK dem
+  System-Installer, und ein noch nicht installiertes Paket wird schlicht
+  installiert) — er ERSETZT die alte App nur nicht, sondern stellt die
+  neue daneben. Die alte muss von Hand gelöscht werden.
+  **Korrektur vom 2026-08-13:** Hier stand zuerst, der Installer lehne
+  eine abweichende applicationId ab und es brauche eine Handinstallation.
+  Das ist falsch — abgelehnt wird nur gleicher Paketname bei anderer
+  Signatur. Die Anleitung im Changelog 1.88.0 war entsprechend falsch und
+  ist in 1.90.0 richtiggestellt. Verloren gehen alle gerätelokalen Daten —
   Offline-Karten, `spot_cache/`, Einstellungen und der **Ausgangskorb**.
-  Steht dort noch etwas, muss es VOR dem Wechsel gesendet sein.
+  Steht dort noch etwas, muss es VOR dem Wechsel gesendet sein. Auch das
+  Push-Token hängt an der Installation: Benachrichtigungen sind in der
+  neuen App wieder einzuschalten. Der Upload-Key bleibt unberührt — die
+  Signatur hängt am Keystore, nicht am Paketnamen.
 - **Firebase braucht eine eigene Registrierung je Paketname.** Die neue
   ist angelegt (App-ID `…:android:25638619c3d5509a43dc77`);
   `google-services.json` trägt bewusst **beide** Pakete, damit ein Build
