@@ -50,10 +50,13 @@ android {
         // bindet die App daran; ein späterer Wechsel wäre eine neue App mit
         // neuer Historie. Deshalb VOR der ersten Einreichung geändert.
         //
-        // Für Android ist das eine ANDERE App: Wer die alte GitHub-APK hat,
-        // bekommt kein Update darauf (der Installer lehnt eine abweichende
-        // applicationId ab), sondern muss neu installieren — die alte
-        // Installation samt ihren lokalen Daten bleibt daneben stehen.
+        // Für Android ist das eine ANDERE App. Der In-App-Updater läuft
+        // trotzdem durch — er vergleicht Versionsnummern und übergibt die
+        // APK dem System-Installer, der ein unbekanntes Paket einfach
+        // installiert. Er ERSETZT die alte Installation nur nicht: Sie
+        // bleibt samt ihren lokalen Daten daneben stehen und muss von Hand
+        // gelöscht werden. (Abgelehnt würde nur gleicher Paketname bei
+        // anderer Signatur — nicht dieser Fall.)
         applicationId = "de.mcbuchi.pilzbuddy"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.

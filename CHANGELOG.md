@@ -27,25 +27,30 @@ Der Schalter im Profil sagt das jetzt so — und heißt weiter
 
 ## Neuer Paketname — einmal neu installieren
 
-*13. August 2026 · Version 1.88.0*
+*13. August 2026 · Version 1.88.0, Anleitung korrigiert in 1.90.0*
 
 PilzBuddy heißt für Android ab jetzt `de.mcbuchi.pilzbuddy` statt wie
 bisher mit dem Namen des Entwicklers darin. Das musste vor der ersten
 Einreichung im Play Store passieren — danach lässt sich dieser Name nie
 wieder ändern.
 
-**Für dich heißt das einmalig Handarbeit:** Android hält die neue
-Fassung für eine andere App. Das Update über „Neue Version verfügbar"
-funktioniert diesmal nicht; lade die APK herunter und installiere sie
-von Hand. Die alte PilzBuddy-App bleibt daneben stehen, bis du sie
-deinstallierst.
+**Für dich heißt das einmalig zwei Handgriffe.** Android hält die neue
+Fassung für eine andere App — sie ersetzt die alte also nicht, sondern
+stellt sich daneben:
+
+- Update wie immer über „Neue Version verfügbar" einspielen.
+- Danach stehen kurz **zwei** PilzBuddy-Symbole auf dem Gerät. Die
+  **alte** App löschen (Symbol gedrückt halten → Deinstallieren).
+- In der neuen anmelden — fertig. Alle weiteren Updates laufen wieder
+  wie gewohnt.
 
 **Dein Konto und deine Spots bleiben** — die liegen auf dem Server.
 Verloren gehen die Sachen, die nur auf dem Gerät liegen:
 heruntergeladene Offline-Karten, gespeicherte Einstellungen und
 **Funde, die noch im Ausgangskorb warten**. Wenn dort noch etwas steht
 (das Banner auf der Karte sagt es), gehe vor dem Wechsel einmal mit
-Empfang ins Netz, damit alles gesendet ist.
+Empfang ins Netz, damit alles gesendet ist. Benachrichtigungen musst du
+in der neuen App einmal wieder einschalten, falls du sie an hattest.
 
 ## Vorbereitung für den Play Store
 
