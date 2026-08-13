@@ -27,7 +27,7 @@ Der Schalter im Profil sagt das jetzt so — und heißt weiter
 
 ## Neuer Paketname — einmal neu installieren
 
-*13. August 2026 · Version 1.88.0, Anleitung korrigiert in 1.90.0*
+*13. August 2026 · Version 1.88.0 · Anleitung korrigiert in 1.90.0, Nacharbeiten in 1.90.1*
 
 PilzBuddy heißt für Android ab jetzt `de.mcbuchi.pilzbuddy` statt wie
 bisher mit dem Namen des Entwicklers darin. Das musste vor der ersten
