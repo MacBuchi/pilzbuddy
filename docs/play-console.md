@@ -348,8 +348,11 @@ Einmalige Einrichtung, in dieser Reihenfolge:
    liegt nahe) ein **Dienstkonto** anlegen und einen JSON-Schlüssel
    erzeugen. Keine Cloud-Rollen nötig — die Rechte kommen von Play.
 3. Play Console → **Nutzer und Berechtigungen** → Nutzer einladen: die
-   Dienstkonto-Mail, mit der Berechtigung **„Releases in Tests-Tracks
-   verwalten"** für diese App. Mehr nicht — kein Produktions-Recht, kein
+   Dienstkonto-Mail, mit der Berechtigung **„Apps in Test-Tracks
+   veröffentlichen"** für diese App (so heißt sie in der Console
+   wörtlich; eine engere „nur Entwürfe"-Stufe gibt es nicht — dass CI
+   trotzdem nur Entwürfe anlegt, ist das `status: draft` in
+   `release.yml`). Mehr nicht — kein Produktions-Recht, kein
    Konto-Admin: CI soll Testern zuliefern, nicht veröffentlichen.
 4. Den JSON-Inhalt als Repo-Secret **`PLAY_SERVICE_ACCOUNT_JSON`**
    hinterlegen.
