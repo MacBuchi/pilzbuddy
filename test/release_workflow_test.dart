@@ -135,6 +135,39 @@ void main() {
     });
   });
 
+  group('Workflow-Dateien', () {
+    test('kein secrets-Kontext in if-Bedingungen', () {
+      // `secrets` ist in `if:` NICHT verfügbar. GitHub verwirft die
+      // ganze Datei dann beim EINLESEN — null Jobs, „workflow file
+      // issue", bei jedem Push, ohne dass ein Check am PR rot wird.
+      // Genau so ist deploy-functions.yml von seiner Erstellung (#286)
+      // bis zum 2026-08-13 kein einziges Mal gelaufen, und derselbe
+      // Fehler hat, nach release.yml kopiert, den Build von v1.91.1
+      // verhindert. actionlint hat beides durchgewinkt — deshalb dieser
+      // Wächter. Der richtige Weg ist ein Feststell-Schritt: Secret in
+      // `env:` (erlaubt), Ergebnis in `steps.<id>.outputs`, und DARAUF
+      // prüft das `if:`.
+      final offenders = <String>[];
+      for (final file in Directory('.github/workflows')
+          .listSync()
+          .whereType<File>()
+          .where((f) => f.path.endsWith('.yml'))) {
+        var line = 0;
+        for (final raw in file.readAsLinesSync()) {
+          line++;
+          final code = raw.split('#').first;
+          if (RegExp(r'\bif:').hasMatch(code) && code.contains('secrets.')) {
+            offenders.add('${file.path}:$line');
+          }
+        }
+      }
+      expect(offenders, isEmpty,
+          reason: 'if: mit secrets-Kontext macht die DATEI ungültig — '
+              'GitHub startet dann gar nichts mehr. Feststell-Schritt '
+              'benutzen (siehe release.yml, „Play-Secret vorhanden?").');
+    });
+  });
+
   group('Aussperr-Grenze (#80 unter zwei Kanälen)', () {
     final schemaCheck = File('tool/schema_check.sh').readAsStringSync();
 
