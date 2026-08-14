@@ -3,9 +3,18 @@
 
 Die Play Console kann die Antworten des Formulars als CSV importieren
 (App-Inhalte → Datensicherheit → „Import from CSV"). Dieses Werkzeug
-nimmt Googles offizielle Muster-CSV (`store/data_safety_template.csv`,
-Quelle: Play-Console-Hilfe, Artikel 10787469) und trägt unsere Antworten
-ein — Ergebnis ist `store/data_safety.csv`, fertig zum Import.
+nimmt den CSV-EXPORT aus unserer eigenen Console
+(`store/data_safety_template.csv`, Betreiber-Export vom 2026-08-14) und
+trägt unsere Antworten ein — Ergebnis ist `store/data_safety.csv`,
+fertig zum Import.
+
+Der eigene Export und nicht Googles Hilfe-Muster (Artikel 10787469),
+aus Erfahrung: Das Muster war veraltet — dem ersten Wurf fehlten die
+Fragen zur Kontoerstellung und -löschung, die Zeilenenden waren LF statt
+CRLF und die Werte GROSS statt klein geschrieben, und die Console nahm
+die Datei nicht an. Der Export von dort ist die einzige Vorlage, die
+verlässlich zur eigenen Console passt — nach Formular-Änderungen von
+Google also neu exportieren und hier ablegen.
 
 Damit ist das größte Console-Formular kein Abtippen von ~60 Fragen mehr,
 sondern ein Datei-Upload plus Sichtprüfung. Die INHALTLICHE Wahrheit
@@ -37,7 +46,9 @@ import sys
 TEMPLATE = "store/data_safety_template.csv"
 OUTPUT = "store/data_safety.csv"
 
-TRUE, FALSE = "TRUE", "FALSE"
+# Klein geschrieben, weil der Console-Export es so schreibt — das
+# Hilfe-Muster sagte GROSS, und der Export ist der Maßstab.
+TRUE, FALSE = "true", "false"
 
 # ---------------------------------------------------------------------------
 # Die Antworten. Schlüssel: (Frage-ID, Antwort-ID) — exakt wie in der
@@ -49,7 +60,28 @@ ANSWERS: dict[tuple[str, str], str] = {
     # Vorfragen (docs/play-console.md, „Vorfragen").
     ("PSL_DATA_COLLECTION_COLLECTS_PERSONAL_DATA", ""): TRUE,
     ("PSL_DATA_COLLECTION_ENCRYPTED_IN_TRANSIT", ""): TRUE,
-    ("PSL_DATA_COLLECTION_USER_REQUEST_DELETE", ""): TRUE,
+    # Konto und Löschung — der Block, der Googles Hilfe-Muster fehlte.
+    # Kontoerstellung: nur E-Mail + Passwort (Supabase Auth); kein OAuth,
+    # keine Fremdkonten, deshalb bleibt alles andere leer und
+    # PSL_HAS_OUTSIDE_APP_ACCOUNTS ist ausdrücklich false.
+    ("PSL_SUPPORTED_ACCOUNT_CREATION_METHODS",
+     "PSL_ACM_USER_ID_PASSWORD"): TRUE,
+    # PSL_HAS_OUTSIDE_APP_ACCOUNTS bleibt bewusst LEER: Die Frage gehört
+    # zu einem Zweig, der mit unserer Antwort (Konto entsteht IN der App,
+    # E-Mail + Passwort) gar nicht aktiv ist — die Console lehnt einen
+    # Wert dann ab („kann nicht beantwortet werden", Betreiber-Befund
+    # beim Import am 2026-08-14). Leer heißt hier nicht offen, sondern
+    # „Zweig existiert für diese App nicht".
+    # Löschung: in der App (delete_own_account, sofort und vollständig)
+    # UND ohne installierte App über die Seite — dieselbe URL für Konto-
+    # und Datenlöschung, denn alles hängt per Cascade am Konto.
+    ("PSL_SUPPORT_DATA_DELETION_BY_USER", "DATA_DELETION_YES"): TRUE,
+    ("PSL_ACCOUNT_DELETION_URL", ""):
+        "https://macbuchi.github.io/pilzbuddy/konto-loeschen.html",
+    ("PSL_DATA_DELETION_URL", ""):
+        "https://macbuchi.github.io/pilzbuddy/konto-loeschen.html",
+    # Keine unabhängige MASA-Sicherheitsprüfung (docs/play-console.md).
+    ("PSL_INDEPENDENTLY_VALIDATED", ""): FALSE,
     # Welche Datentypen. `PSL_USER_ACCOUNT` heißt in der Vorlage
     # „Personal identifiers" — das ist die Zeile „Nutzer-IDs" der
     # heutigen Console (profiles.id).
@@ -149,14 +181,17 @@ def render() -> str:
     assert used == set(answers)
 
     out = io.StringIO()
-    csv.writer(out, lineterminator="\n").writerows(rows)
-    return out.getvalue()
+    # CRLF und KEIN Umbruch am Dateiende — exakt wie der Console-Export;
+    # die Treue ist per Roundtrip gegen den Export nachgemessen.
+    csv.writer(out, lineterminator="\r\n").writerows(rows)
+    return out.getvalue()[:-2]
 
 
 def main() -> None:
     content = render()
     filled = sum(1 for line in content.splitlines()
-                 if ",TRUE," in line or ",FALSE," in line)
+                 if ",true," in line or ",false," in line
+                 or ",https://" in line)
     if "--check" in sys.argv:
         try:
             current = open(OUTPUT, newline="", encoding="utf-8").read()
