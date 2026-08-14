@@ -66,7 +66,12 @@ ANSWERS: dict[tuple[str, str], str] = {
     # PSL_HAS_OUTSIDE_APP_ACCOUNTS ist ausdrücklich false.
     ("PSL_SUPPORTED_ACCOUNT_CREATION_METHODS",
      "PSL_ACM_USER_ID_PASSWORD"): TRUE,
-    ("PSL_HAS_OUTSIDE_APP_ACCOUNTS", ""): FALSE,
+    # PSL_HAS_OUTSIDE_APP_ACCOUNTS bleibt bewusst LEER: Die Frage gehört
+    # zu einem Zweig, der mit unserer Antwort (Konto entsteht IN der App,
+    # E-Mail + Passwort) gar nicht aktiv ist — die Console lehnt einen
+    # Wert dann ab („kann nicht beantwortet werden", Betreiber-Befund
+    # beim Import am 2026-08-14). Leer heißt hier nicht offen, sondern
+    # „Zweig existiert für diese App nicht".
     # Löschung: in der App (delete_own_account, sofort und vollständig)
     # UND ohne installierte App über die Seite — dieselbe URL für Konto-
     # und Datenlöschung, denn alles hängt per Cascade am Konto.
