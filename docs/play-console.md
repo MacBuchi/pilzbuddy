@@ -149,6 +149,17 @@ aapt2 dump badging build/app/outputs/flutter-apk/app-release.apk | grep uses-per
 | `com.google.android.c2dm.permission.RECEIVE` | Push-Nachrichten entgegennehmen | `firebase_messaging` |
 | `REQUEST_INSTALL_PACKAGES` | Update der GitHub-APK in der App | Manifest — **nur im `github`-Flavor, siehe unten** |
 
+**Deklaration `FOREGROUND_SERVICE_DATA_SYNC`** (eigenes Console-Formular):
+Aufgabe **„Verarbeitung im Netzwerk → Sonstiger"** — nutzergestarteter
+Download der Offline-Kartendaten (Regionskarten und feines Waldgitter,
+ein gemeinsamer Service). Googles Bedingung „für den Nutzer sichtbar,
+auch ohne Interaktion" erfüllt die laufende Fortschrittsmeldung
+(„Offline-Daten werden geladen", `download_keep_alive_service.dart`);
+der Dienst endet mit dem Download. Demo-Video für das Formular:
+<https://github.com/MacBuchi/pilzbuddy/blob/main/store/fgs-datasync-demo.mp4>
+(Emulator, Testkonto — zeigt Start in der App, Home, Meldung in der
+Statusleiste).
+
 `POST_NOTIFICATIONS` deckt seit #277 beides ab: die Fortschrittsmeldung des
 Downloads UND die Push-Benachrichtigungen. Sie stand schon vorher im Manifest
 (`flutter_foreground_task`), Push hat also **keine neue** Berechtigung
