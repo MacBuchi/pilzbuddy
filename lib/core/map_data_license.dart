@@ -107,6 +107,29 @@ void registerMapDataLicense() {
       'Bedingung, unter der wir es zeigen dürfen.\n'
       'https://creativecommons.org/licenses/by/4.0/',
     );
+    // Keine Lizenzpflicht, sondern wissenschaftliche Redlichkeit: Die
+    // Pilzwetter-Konstanten sind übernommen, nicht erfunden — und die
+    // Lizenzseite ist der Ort, an dem die App ohnehin sagt, woher ihre
+    // Inhalte stammen (Betreiber, 2026-08-15). Die Kurzform steht an
+    // der Ampel-Zeile selbst (`ampel_section.dart`).
+    yield const LicenseEntryWithLineBreaks(
+      ['Pilzwetter-Formel (wissenschaftliche Quelle)'],
+      'Die Formel hinter dem Pilzwetter — Fruchtungsgipfel bei etwa '
+      '13 °C Mitteltemperatur über 20 Tage, linear steigender Nutzen '
+      'des über 26 Tage kumulierten Niederschlags — folgt einer '
+      'Langzeitstudie mit zehn Jahren nahezu täglicher '
+      'Steinpilz-Erfassung in einem Buchenwald bei Bielefeld:\n\n'
+      'Brejon Lamartiniere & Hoffman (2025), bioRxiv-Preprint.\n'
+      'https://doi.org/10.64898/2025.12.12.693895\n\n'
+      'Ehrlichkeitsvermerk: Ein Preprint (nicht begutachtet), ein '
+      'Standort, eine Art. Wir haben die Formel deshalb selbst '
+      'gegengeprüft — an je 2000 Paaren aus echten Fundmeldungen und '
+      'Vergleichstagen am selben Ort: An Fundtagen steht sie '
+      'verlässlich höher. Ob sie je Art unterschiedlich wirkt, ist '
+      'offen; deshalb rechnet sie für alle geprüften Arten gleich.\n\n'
+      'Die Wetterdaten dazu liefert der Deutsche Wetterdienst '
+      '(eigener Eintrag oben).',
+    );
     // Als einziger Eintrag nicht `const`: Die OFL verlangt die Weitergabe
     // ihres WORTLAUTS, nicht nur einen Verweis — also wird die
     // mitgelieferte Datei gelesen statt der Text hier nachgetippt. Sonst

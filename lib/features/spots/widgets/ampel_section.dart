@@ -138,9 +138,15 @@ class AmpelSection extends ConsumerWidget {
           padding: const EdgeInsets.only(left: 22, top: 2),
           child: Text(
             // Die Konzept-Regel gehört in den TEXT, nicht ins
-            // Kleingedruckte — hier ist beides dasselbe.
-            'Bewertet Bedingungen, nicht Vorkommen — unvalidierte '
-            'Vorschau.',
+            // Kleingedruckte — hier ist beides dasselbe. Und die
+            // Formel ist nicht von uns: Quelle nennen (Betreiber,
+            // 2026-08-15); die volle Zitation samt DOI und
+            // Vorbehalten steht auf der Lizenzseite
+            // (`map_data_license.dart`). „Unvalidierte Vorschau"
+            // stand hier bis 1.91.x — seit dem Placebo-Urteil
+            // (#298) wäre das die falsche Bescheidenheit.
+            'Bewertet Bedingungen, nicht Vorkommen — Formel nach '
+            'einer 10-Jahres-Studie bei Bielefeld (Preprint 2025).',
             style: theme.textTheme.bodySmall
                 ?.copyWith(color: theme.hintColor, fontSize: 11),
           ),
