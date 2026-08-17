@@ -187,6 +187,11 @@ void main() {
     expect(find.textContaining('Bewertet Bedingungen, nicht Vorkommen'),
         findsOneWidget,
         reason: 'die Regel steht im Text, nicht im Kleingedruckten');
+    expect(find.textContaining('10-Jahres-Studie bei Bielefeld'),
+        findsOneWidget,
+        reason: 'die Formel ist übernommen, nicht erfunden — die '
+            'Quelle gehört an die Zeile (Betreiber, 2026-08-15); die '
+            'volle Zitation steht auf der Lizenzseite');
     expect(find.textContaining('%'), findsNothing,
         reason: 'Konzept: kein Prozentzeichen — drei Stufen mit Worten');
   });

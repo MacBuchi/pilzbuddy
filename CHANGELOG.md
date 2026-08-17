@@ -7,6 +7,23 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Woher die Pilzwetter-Formel stammt
+
+*15. August 2026 · Version 1.92.0*
+
+Die Rechenregel hinter dem Pilzwetter — um 13 °C herum ist es am
+besten, und es zählt der Regen der letzten dreieinhalb Wochen — haben
+wir nicht erfunden. Sie stammt aus einer Studie mit zehn Jahren fast
+täglicher Steinpilz-Beobachtung in einem Buchenwald bei Bielefeld.
+Das sagt die App jetzt auch selbst:
+
+- Unter der Pilzwetter-Zeile im Spot-Blatt steht die Quelle in einem
+  Satz.
+- Die vollständige Angabe mit Fundstelle und den ehrlichen
+  Einschränkungen steht im Profil unter „Über PilzBuddy" →
+  „Open-Source-Lizenzen", wo die App auch sonst nennt, woher ihre
+  Karten und Daten kommen.
+
 ## Benachrichtigungen sagen jetzt, worum es geht
 
 *13. August 2026 · Version 1.91.0, technische Nacharbeit in 1.91.1*
