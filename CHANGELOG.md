@@ -7,6 +7,26 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die App fragt sparsamer nach
+
+*17. August 2026 · Version 1.95.0*
+
+Die Karte hat bisher alle 15 Sekunden nachgesehen, ob ein Freund
+gerade seinen Live-Standort teilt — auch wenn du gar keine Freunde
+eingetragen hast, auch nachts in der Hosentasche. Das kostete Akku und
+Datenvolumen für eine Antwort, die fast immer leer war.
+
+Jetzt gilt:
+
+- Ohne angenommene Freundschaft fragt die App gar nicht erst.
+- Mit Freunden, aber ohne aktive Freigabe, schaut sie nur noch alle
+  90 Sekunden nach — eine neue Freigabe erscheint also schlimmstenfalls
+  anderthalb Minuten später.
+- Sobald jemand teilt, gilt wieder der schnelle 15-Sekunden-Takt —
+  beim Verfolgen ändert sich nichts.
+- Im Hintergrund ruht die Abfrage ganz und springt beim Zurückkehren
+  sofort wieder an.
+
 ## Das Pilzwetter kennt jetzt die Höhe deines Spots
 
 *17. August 2026 · Version 1.93.0, Nachbesserungen in 1.93.1 und 1.94.0*
