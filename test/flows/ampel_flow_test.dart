@@ -21,10 +21,13 @@ import 'package:pilzbuddy/features/map/forest_data_providers.dart'
         forestLayerEnabledProvider;
 import 'package:pilzbuddy/features/map/forest_fill.dart'
     show allForestClasses;
+import 'package:latlong2/latlong.dart' show LatLng;
 import 'package:pilzbuddy/features/map/elevation_grid.dart';
 import 'package:pilzbuddy/features/map/elevation_providers.dart';
 import 'package:pilzbuddy/features/map/rain_data_providers.dart';
 import 'package:pilzbuddy/features/map/rain_layer.dart';
+import 'package:pilzbuddy/features/map/widgets/map_legend.dart'
+    show mapIdleCenterProvider;
 import 'package:pilzbuddy/features/spots/widgets/weather_chart.dart';
 
 import '../fakes/fake_backend.dart';
@@ -236,6 +239,40 @@ void main() {
     expect(
         find.textContaining('zu kühl (7,3 °C auf Spothöhe 1200 m)'),
         findsOneWidget);
+  });
+
+  testWidgets('die Legende rechnet mit derselben Höhe wie Fläche und '
+      'Blatt', (tester) async {
+    // Der Feldbericht zu 1.93.0 (Betreiber, 2026-08-17, Berchtesgaden):
+    // Die FLÄCHE malte „günstig" (korrigiert), die Legende sagte am
+    // Fadenkreuz „ungünstig" — sie war der dritte Abnehmer der
+    // Ablesung, der die Spothöhe nicht übergab. Aufbau wie im
+    // Blatt-Test: Station 316 m, Gitter 1200 m → 7,3 °C → „verhalten";
+    // unkorrigiert stünde „günstig" (13,0 °C), und genau das stand da.
+    await pumpWithWeather(tester, loggedInWithSpot(),
+        preview: true, spotHeightM: 1200);
+    await openSpot(tester);
+    await acceptAndSettle(tester);
+    await tester.tapAt(const Offset(20, 20)); // Blatt schließen
+    await settle(tester);
+
+    final container = ProviderScope.containerOf(
+        tester.element(find.byType(Scaffold).first));
+    container.read(ampelLayerEnabledProvider.notifier).state = true;
+    container.read(mapIdleCenterProvider.notifier).state =
+        const LatLng(spotLat, spotLng);
+    await settle(tester);
+
+    // Erst die Gegenrichtung: Die Legende ist überhaupt da und zeigt
+    // eine Stufe — sonst prüfte die Zeile darunter gegen ein leeres
+    // Fenster statt gegen die falsche Stufe.
+    expect(find.textContaining('hier: '), findsOneWidget,
+        reason: 'keine Pilzwetter-Zeile in der Legende — der Aufbau '
+            'des Tests trägt nicht');
+    expect(find.textContaining('hier: verhalten'), findsOneWidget,
+        reason: 'die Legende muss dieselbe Höhenkorrektur rechnen wie '
+            'Fläche und Blatt — unkorrigiert hieße es „günstig", und '
+            'Farbe und Text widersprächen sich am selben Punkt');
   });
 
   testWidgets('ohne Schalter existiert die Sektion nicht', (tester) async {

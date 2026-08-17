@@ -9,7 +9,7 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Das Pilzwetter kennt jetzt die Höhe deines Spots
 
-*17. August 2026 · Version 1.93.0*
+*17. August 2026 · Version 1.93.0, Nachbesserung in 1.93.1*
 
 Die nächste Wetterstation kann ein paar hundert Höhenmeter über oder
 unter deinem Spot liegen — im Gebirge wurde das Pilzwetter dadurch mal
@@ -27,6 +27,10 @@ je 100 Meter, die bewährte Faustregel der Meteorologie.
   1200 m)".
 - Das Temperatur-Diagramm zeigt weiterhin die echten Messwerte der
   Station, mit deren Name und Höhe — Messwerte bleiben Messwerte.
+- 1.93.1 zieht die kleine Werte-Tafel unten links auf der Karte nach:
+  Sie rechnete zunächst noch ohne die Höhe und konnte dadurch am
+  Fadenkreuz etwas anderes sagen, als die Kachelfarbe zeigte — danke
+  für die Meldung aus Berchtesgaden.
 
 Wie alles an der Karte funktioniert das ohne Empfang.
 

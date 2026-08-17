@@ -26,6 +26,7 @@ import '../../../core/settings.dart';
 import '../../ampel/ampel_map_providers.dart';
 import '../../ampel/ampel_model.dart';
 import '../../ampel/ampel_providers.dart';
+import '../elevation_providers.dart';
 import '../forest_block_providers.dart';
 import '../forest_data_providers.dart';
 import '../forest_fill.dart' show ampelGuenstigAlpha, ampelVerhaltenAlpha;
@@ -103,15 +104,25 @@ class MapLegend extends ConsumerWidget {
             ?.mmAt(center.latitude, center.longitude)
         : null;
     // Das Pilzwetter am Fadenkreuz — dieselbe pure Rechnung wie im
-    // Spot-Blatt, auf denselben zwei Providern.
+    // Spot-Blatt, auf denselben Providern. SAMT Spothöhe: Die Legende
+    // war nach 1.93.0 der dritte Abnehmer der Ablesung, der die Höhe
+    // nicht übergab — die Fläche malte korrigiert „günstig", die
+    // Legende sagte am selben Punkt „ungünstig" (Feldbericht
+    // Berchtesgaden, 2026-08-17). Wer hier einen vierten Abnehmer
+    // baut: `ampelReadingFrom` verlangt die Höhe nicht per Typ, der
+    // Flow-Test „die Legende rechnet mit derselben Höhe" ist das Netz.
     AmpelReading? ampelAt;
     if (showAmpel && center != null) {
       final at = (lat: center.latitude, lon: center.longitude);
       final course = ref.watch(rainCourseProvider(at));
       final temperature = ref.watch(spotTemperatureProvider(at));
-      if (!course.isLoading && !temperature.isLoading) {
+      final spotHeight = ref.watch(elevationAtProvider(at));
+      if (!course.isLoading &&
+          !temperature.isLoading &&
+          !spotHeight.isLoading) {
         ampelAt = ampelReadingFrom(
-            course.valueOrNull, temperature.valueOrNull);
+            course.valueOrNull, temperature.valueOrNull,
+            spotHeightM: spotHeight.valueOrNull);
       }
     }
 
