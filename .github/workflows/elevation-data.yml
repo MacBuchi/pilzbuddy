@@ -1,0 +1,66 @@
+name: Elevation Grid
+
+# Builds the elevation grid (mean terrain height per hex cell) from the
+# Copernicus DEM GLO-90. See tool/elevation_grid.py — same lattice as
+# the forest and tree-species grids, one byte per cell in 20 m steps.
+#
+# The purpose is the temperature correction of the Pilzampel and the
+# spot sheet: the nearest weather station can sit hundreds of metres
+# above or below the spot (issue #279 left this named-but-open). The
+# validation always saw elevation-aware temperatures (Open-Meteo
+# downscaling), so the correction moves the app TOWARDS the validated
+# setup.
+#
+# dispatch-only, no schedule: the DEM is a static product (TanDEM-X
+# acquisitions 2010–2015). A re-run is only ever needed if the grid
+# geometry or the tool changes.
+#
+# Like the sibling grids this does NOT publish to a release tag: the
+# grid ships as an APK asset, so an update belongs in a human-reviewed
+# PR with a version bump and a changelog line.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Fetch the DEM and build the grid
+    runs-on: ubuntu-latest
+    # ~140 tile downloads (about 1 GB), one gdalwarp onto the
+    # 8.5-gigapixel target raster and the band-wise aggregation.
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Self-test first
+        run: python3 tool/elevation_grid.py --self-test
+
+      # Same declared deviation as the sibling grids: GDAL is the
+      # mosaic and reprojection tool, never the calculator. Aggregation
+      # and encoding stay hand-written and self-tested, and --verify
+      # recomputes random cells against the warped raster plus three
+      # known landmarks (Zugspitze, Feldberg, Hamburg) that would catch
+      # a flipped axis, which random-cell recomputation cannot.
+      - name: Install GDAL
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q gdal-bin
+
+      - name: Fetch, warp, aggregate, verify
+        run: python3 tool/elevation_grid.py fetch --out build/elevation
+
+      - name: Upload the grid as an artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: elevation-grid
+          path: |
+            build/elevation/elevation.bin.gz
+            build/elevation/elevation_manifest.json
+          retention-days: 30
+          if-no-files-found: error
