@@ -9,7 +9,7 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Die App fragt sparsamer nach
 
-*17. August 2026 · Version 1.95.0*
+*17. August 2026 · Versionen 1.95.0 und 1.96.0*
 
 Die Karte hat bisher alle 15 Sekunden nachgesehen, ob ein Freund
 gerade seinen Live-Standort teilt — auch wenn du gar keine Freunde
@@ -26,6 +26,14 @@ Jetzt gilt:
   beim Verfolgen ändert sich nichts.
 - Im Hintergrund ruht die Abfrage ganz und springt beim Zurückkehren
   sofort wieder an.
+
+Seit 1.96.0 gilt dasselbe fürs Zurückkehren in die App: Ein kurzer
+Blick woandershin (unter 30 Sekunden) lädt gar nichts mehr neu.
+Nach echter Abwesenheit werden Spots und Freundschaften wie gewohnt
+aufgefrischt; die Suche nach App-Updates und neuen Offline-Karten
+läuft höchstens einmal pro Stunde — beides ändert sich nie im
+Minutentakt. Der Aktualisieren-Knopf auf der Karte lädt weiterhin
+immer alles sofort.
 
 ## Das Pilzwetter kennt jetzt die Höhe deines Spots
 

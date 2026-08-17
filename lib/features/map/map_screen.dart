@@ -25,6 +25,7 @@ import '../spots/spot_providers.dart';
 import '../spots/widgets/add_find_sheet.dart';
 import '../spots/widgets/spot_detail_sheet.dart';
 import 'live_share_providers.dart';
+import 'resume_refresh.dart';
 import 'forest_data_providers.dart';
 import 'map_gestures.dart';
 import 'map_view/camera_tour.dart';
@@ -89,30 +90,72 @@ class _MapScreenState extends ConsumerState<MapScreen>
     super.dispose();
   }
 
-  /// Android hält die App lange im Hintergrund am Leben — beim
-  /// Zurückkehren alles neu laden, damit z. B. neue Freundes-Spots
-  /// und Anfragen ohne App-Neustart erscheinen.
+  /// Wann die App in den Hintergrund ging — die Grundlage der
+  /// Resume-Entscheidung (#316): Ein Blick auf die Uhr und zurück ist
+  /// kein „Zurückkehren".
+  DateTime? _pausedAt;
+
+  /// Wann die GitHub-Ziele (Update-Check, Karten-Katalog) zuletzt
+  /// geladen wurden. Startet JETZT, denn beim ersten Aufbau laden die
+  /// Provider ohnehin — die Stunde zählt ab da.
+  DateTime _lastMetaRefresh = DateTime.now();
+
+  /// Android hält die App lange im Hintergrund am Leben — beim echten
+  /// Zurückkehren neu laden, damit z. B. neue Freundes-Spots und
+  /// Anfragen ohne App-Neustart erscheinen. Was „echt" heißt und was
+  /// dann lädt, entscheidet `decideResumeRefresh` (#316).
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // Nur paused/resumed, nicht inactive: Das feuert schon beim
     // App-Umschalter und bei Berechtigungsdialogen — die Schleifen
     // sollen ruhen, wenn die App WEG ist, nicht bei jedem Flackern.
     if (state == AppLifecycleState.paused) {
+      _pausedAt = DateTime.now();
       ref.read(appInForegroundProvider.notifier).state = false;
     } else if (state == AppLifecycleState.resumed) {
       ref.read(appInForegroundProvider.notifier).state = true;
-      _refreshData();
+      final pausedAt = _pausedAt;
+      _pausedAt = null;
+      // Ohne vorheriges paused (z. B. inactive-Flackern durch einen
+      // Berechtigungsdialog) gibt es kein „weg gewesen".
+      if (pausedAt == null) return;
+      final now = DateTime.now();
+      switch (decideResumeRefresh(
+        awayFor: now.difference(pausedAt),
+        sinceMetaRefresh: now.difference(_lastMetaRefresh),
+        minAway: ref.read(resumeRefreshMinAwayProvider),
+        metaEvery: ref.read(resumeMetaRefreshEveryProvider),
+      )) {
+        case ResumeRefresh.none:
+          break;
+        case ResumeRefresh.local:
+          _refreshLocal();
+        case ResumeRefresh.localAndMeta:
+          _refreshLocal();
+          _lastMetaRefresh = now;
+          ref.invalidate(updateInfoProvider);
+          // Karten-Abo: prüfen, ob es neuere Offline-Karten gibt.
+          ref.invalidate(availableMapsProvider);
+      }
     }
   }
 
-  void _refreshData() {
+  /// Die Ziele, die sich ändern, während man weg ist: Supabase-Daten
+  /// und der Blick auf die eigene Platte.
+  void _refreshLocal() {
     ref.invalidate(mySpotsProvider);
     ref.invalidate(friendSpotsProvider);
     ref.invalidate(friendshipsProvider);
-    ref.invalidate(updateInfoProvider);
-    // Karten-Abo: prüfen, ob es neuere Offline-Karten gibt.
-    ref.invalidate(availableMapsProvider);
     ref.invalidate(installedMapsProvider);
+  }
+
+  /// Der Aktualisieren-Knopf: ausdrücklicher Nutzerwunsch — hier gilt
+  /// keine Kadenz, es lädt ALLES (#316 drosselt nur das Automatische).
+  void _refreshData() {
+    _refreshLocal();
+    _lastMetaRefresh = DateTime.now();
+    ref.invalidate(updateInfoProvider);
+    ref.invalidate(availableMapsProvider);
   }
 
   Future<Position?> _currentPosition() async {
