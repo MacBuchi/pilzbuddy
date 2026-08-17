@@ -332,7 +332,11 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   keine Request-Metadaten an Vorlagen (nur Token/URL/Email); üblich sind
   solche Angaben ohnehin in Anmelde-Benachrichtigungen, nicht in
   Reset-Mails. Der eine echte Hebel gegen Missbrauch: das Mail-Rate-
-  Limit im Dashboard (Auth → Rate Limits) unter Brevos 300/Tag halten.
+  Limit im Dashboard (Auth → Rate Limits) unter Brevos 300/Tag halten —
+  **gesetzt auf 3/h am 2026-08-17** (≤ 72/Tag). Es gilt projektweit für
+  ALLE Mail-Sorten, auch Registrierungs-Bestätigungen: Für eine
+  Einladungs-Welle (12 Tester an einem Abend) vorher hochdrehen und
+  danach zurück.
   E-Mail ändern (Issue #193, seit 1.52.0): `AuthRepository.changeEmail`
   meldet sich wie beim Passwortwechsel erst mit dem aktuellen Passwort neu
   an, dann verschickt `updateUser(email:)` ZWEI Mails mit je eigenem Code
