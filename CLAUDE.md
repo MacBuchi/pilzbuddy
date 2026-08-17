@@ -31,7 +31,9 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   nicht) und deployt **erst dann** Web auf GitHub Pages, gebaut aus dem
   beförderten Tag (https://macbuchi.github.io/pilzbuddy/). Das Web hat
   eine Adresse: Deployte jeder Merge, gälte die Trennung nur für Android.
-  Rhythmus nach Änderungsgrad, nicht nach Kalender (Betreiber, 2026-08-10).
+  Rhythmus: **höchstens wöchentlich, gern seltener** (Betreiber,
+  2026-08-17 — vorher „nach Änderungsgrad"; fünf Update-Hinweise in
+  einer Woche sind für normale Nutzer zu viel).
   Das AAB entsteht weiter je Bump als Workflow-Artefakt `android-aab`,
   seit 1.87.1 aus dem `play`-Flavor und damit einreichbar.
   Drei Folgen, die man wissen muss:
@@ -319,6 +321,22 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   ausliefern, die beide Einstellungen beherrscht, dann die Vorlage „Confirm
   sign up" auf `{{ .Token }}` ohne Link setzen, dann „Confirm email"
   anschalten. Andersherum bricht die Registrierung still.
+  **Unverlangte Reset-Mails an das Play-Testkonto sind erwartbares
+  Rauschen** (Befund 2026-08-17, macbuchi.apps@gmail.com): Die Adresse
+  liegt als App-Zugriff in der Play Console, und Googles automatische
+  Prüf-Robots klicken die App durch — auch „Passwort vergessen" auf dem
+  Login-Screen (im Wochendigest als „Passwort-Reset anfordern" mit 429/
+  504 sichtbar). Ohne Postfachzugriff ist das harmlos: Der Code geht nur
+  dorthin, die Vorlage trägt die „nicht angefordert? nichts passiert"-
+  Zeile. Geräte-/IP-Angaben in der Mail gehen NICHT — GoTrue reicht
+  keine Request-Metadaten an Vorlagen (nur Token/URL/Email); üblich sind
+  solche Angaben ohnehin in Anmelde-Benachrichtigungen, nicht in
+  Reset-Mails. Der eine echte Hebel gegen Missbrauch: das Mail-Rate-
+  Limit im Dashboard (Auth → Rate Limits) unter Brevos 300/Tag halten —
+  **gesetzt auf 3/h am 2026-08-17** (≤ 72/Tag). Es gilt projektweit für
+  ALLE Mail-Sorten, auch Registrierungs-Bestätigungen: Für eine
+  Einladungs-Welle (12 Tester an einem Abend) vorher hochdrehen und
+  danach zurück.
   E-Mail ändern (Issue #193, seit 1.52.0): `AuthRepository.changeEmail`
   meldet sich wie beim Passwortwechsel erst mit dem aktuellen Passwort neu
   an, dann verschickt `updateUser(email:)` ZWEI Mails mit je eigenem Code
