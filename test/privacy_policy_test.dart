@@ -106,6 +106,9 @@ void main() {
       // Die Zitation der Pilzwetter-Formel (Lizenzseite, seit 1.92.0):
       // ein DOI ist eine Fundstellenangabe, kein Abrufziel der App.
       'doi.org',
+      // Das Höhengitter — dieselbe Lage wie Copernicus/DLR: Asset im
+      // Binary, geholt nur in CI (`tool/elevation_grid.py`).
+      'dataspace.copernicus.eu',
     };
 
     /// Supabase steht in der Erklärung mit Namen statt mit Hostnamen —

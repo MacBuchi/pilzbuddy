@@ -107,6 +107,18 @@ void registerMapDataLicense() {
       'Bedingung, unter der wir es zeigen dürfen.\n'
       'https://creativecommons.org/licenses/by/4.0/',
     );
+    yield const LicenseEntryWithLineBreaks(
+      ['Geländehöhen (Copernicus DEM)'],
+      'Die Höhenumrechnung der Pilzwetter-Temperatur beruht auf dem '
+      'Copernicus DEM GLO-90, zusammengefasst auf dasselbe Wabengitter '
+      'wie die Waldtypen (≈ 250 m, mittlere Geländehöhe je Wabe).\n'
+      '© DLR e.V. 2010–2014 und © Airbus Defence and Space GmbH '
+      '2014–2018, bereitgestellt unter COPERNICUS durch die Europäische '
+      'Union und die ESA.\n'
+      'https://dataspace.copernicus.eu\n\n'
+      'Die Nutzung ist frei; die Nennung der Rechteinhaber ist die '
+      'Bedingung, unter der die Daten weitergegeben werden dürfen.',
+    );
     // Keine Lizenzpflicht, sondern wissenschaftliche Redlichkeit: Die
     // Pilzwetter-Konstanten sind übernommen, nicht erfunden — und die
     // Lizenzseite ist der Ort, an dem die App ohnehin sagt, woher ihre

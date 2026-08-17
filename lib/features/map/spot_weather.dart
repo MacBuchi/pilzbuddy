@@ -20,9 +20,12 @@
 //
 // **Die ehrliche Grenze:** Temperatur ist waagerecht glatt, die Höhe ist
 // es nicht. 0,65 K je 100 m, und im Mittelgebirge sind 300 m Unterschied
-// zur Station normal — also gut 2 K. Ohne Höhenmodell auf dem Gerät lässt
-// sich das nicht herausrechnen, deshalb wird es **danebengeschrieben**
-// und nicht wegkorrigiert.
+// zur Station normal — also gut 2 K. Das DIAGRAMM zeigt weiterhin die
+// rohen Stationswerte (beschriftet mit Station und Stationshöhe): Es
+// sind Messwerte, und so bleiben sie welche. Die PILZAMPEL dagegen
+// rechnet seit dem Höhengitter (`elevation_grid.dart`) auf Spothöhe um
+// — ihre Zahl steht mit eigener Beschriftung in ihrer eigenen Zeile,
+// die Validierung hat immer schon Spothöhen-Temperaturen gesehen.
 import 'dart:convert';
 import 'dart:math' as math;
 

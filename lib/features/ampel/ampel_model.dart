@@ -53,6 +53,16 @@ double ampelRainFactor(List<double?> dailyMm) {
   return math.min(effective / ampelRainSaturationMm, 1.0);
 }
 
+/// Die Glocke selbst, aus einem fertigen Mittel — herausgelöst, weil
+/// die Kartenfläche sie seit der Höhenkorrektur je ZELLE auswertet
+/// (Stationsmittel + Lapse-Verschiebung der Zelle), nicht mehr je
+/// Station. Numerisch exakt der Weg von [ampelTemperatureFactor];
+/// zwei Formeln wären zwei Antworten auf „passt die Temperatur".
+double ampelBellOfMean(double meanC) {
+  final z = (meanC - ampelOptimumC) / ampelTempSigma;
+  return math.exp(-(z * z));
+}
+
 /// Glocke um 13 °C über das Mittel der letzten 20 Tage, 0…1.
 /// Fehltage werden übersprungen (wie im Werkzeug); ganz ohne Werte 0.
 double ampelTemperatureFactor(List<double?> dailyC) {
@@ -66,9 +76,7 @@ double ampelTemperatureFactor(List<double?> dailyC) {
     count++;
   }
   if (count == 0) return 0.0;
-  final mean = sum / count;
-  final z = (mean - ampelOptimumC) / ampelTempSigma;
-  return math.exp(-(z * z));
+  return ampelBellOfMean(sum / count);
 }
 
 /// Der Wetter-Score: Feuchte × Temperatur, 0…1.

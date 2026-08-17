@@ -7,6 +7,29 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Das Pilzwetter kennt jetzt die Höhe deines Spots
+
+*17. August 2026 · Version 1.93.0*
+
+Die nächste Wetterstation kann ein paar hundert Höhenmeter über oder
+unter deinem Spot liegen — im Gebirge wurde das Pilzwetter dadurch mal
+zu warm, mal zu kalt gerechnet. Zeitweise stand die Zugspitzen-Station
+für die Täler um sie herum ein.
+
+Jetzt trägt die App eine Höhenkarte in sich (mittlere Geländehöhe in
+etwa 250-m-Waben, ganz Deutschland, Österreich und Schweiz) und
+rechnet die Stationstemperatur auf die Höhe deines Spots um: 0,65 Grad
+je 100 Meter, die bewährte Faustregel der Meteorologie.
+
+- Im Flachland ändert sich nichts — Station und Spot liegen dort auf
+  gleicher Höhe, die Umrechnung ist eine Nullnummer.
+- Wo sie zählt, steht sie dabei: „zu kühl (7,3 °C auf Spothöhe
+  1200 m)".
+- Das Temperatur-Diagramm zeigt weiterhin die echten Messwerte der
+  Station, mit deren Name und Höhe — Messwerte bleiben Messwerte.
+
+Wie alles an der Karte funktioniert das ohne Empfang.
+
 ## Woher die Pilzwetter-Formel stammt
 
 *15. August 2026 · Version 1.92.0*

@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.92.0+146
+version: 1.93.0+147
 
 environment:
   sdk: ^3.11.0
@@ -186,6 +186,14 @@ flutter:
     # verschluckte in 17,6 % der Waldzellen den Mischpartner.
     - assets/forest/forest_species.bin.gz
     - assets/forest/forest_species_manifest.json
+
+    # Höhengitter (#279-Rest): Copernicus DEM GLO-90, dasselbe Hex-Raster
+    # wie oben, DACH (~3,4 MB). Erzeugt vom Workflow elevation-data.yml
+    # (tool/elevation_grid.py). Ein Byte je Zelle in 20-m-Stufen — die
+    # Spothöhe, auf die Blatt-Ampel und Kartenfläche die
+    # Stationstemperatur umrechnen (0,65 K je 100 m).
+    - assets/elevation/elevation.bin.gz
+    - assets/elevation/elevation_manifest.json
 
   # To add assets to your application, add an assets section, like this:
   # assets:
