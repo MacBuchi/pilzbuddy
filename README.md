@@ -52,6 +52,13 @@ eintragen und Spots mit Freunden teilen.
 Alle Freigabe-Regeln werden serverseitig per Row-Level Security erzwungen
 (`supabase/schema.sql`) — der Client kann sie nicht umgehen.
 
+## Unterstützen
+
+PilzBuddy ist kostenlos und ohne Werbung — und soll es bleiben. Wer
+das Projekt trotzdem unterstützen möchte, kann das freiwillig über
+Ko-fi tun: <https://ko-fi.com/macbuchi>. Die App bleibt für alle
+gleich, Spenden schalten nichts frei.
+
 ## Entwicklung
 
 ```bash

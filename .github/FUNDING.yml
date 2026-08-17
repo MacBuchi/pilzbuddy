@@ -1,0 +1,13 @@
+# Der „Sponsor"-Knopf oben am Repo. Der Spendenlink lebt NUR hier, im
+# README und ggf. auf der Web-Seite — nicht in der App: Googles
+# Zahlungsrichtlinie verlangt für digitale Leistungen Play Billing,
+# und Spenden an Privatpersonen fallen nicht unter die
+# Wohltätigkeits-Ausnahme (Entscheidung 2026-08-18, CLAUDE.md-Umfeld
+# in docs/play-console.md).
+#
+# EIN Ko-fi-Konto für alle Apps des Betreibers — Spender können in der
+# Nachricht sagen, aus welchem Projekt sie kommen.
+ko_fi: macbuchi
+# github: [MacBuchi] — nachtragen, sobald GitHub Sponsors (Stripe-
+# Onboarding) freigeschaltet ist; vorher zeigte der Eintrag eine leere
+# Sponsors-Seite.
