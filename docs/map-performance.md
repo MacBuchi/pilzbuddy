@@ -390,3 +390,33 @@ auf der Sichtfensterbreite, also ~1,9× hochskaliert auf einem
 1440-px-Schirm). Das ist die nächste Schraube, wenn die Kanten beim Zoomen
 weiter stören — aber sie wird gemessen, nicht gedreht, weil sie Speicher
 gegen Nachladen tauscht (die Regel oben).
+
+## Nachtrag 2026-08-17: Kombi-Ebene wertet die Glocke je Wabe aus
+
+Seit dem Berchtesgaden-Befund leuchtet jede Waldwabe nach IHRER Höhe
+(`AmpelLevelGrid.levelFor` mit Wabenhöhe aus dem Höhengitter), nicht
+mehr nach einer je 1-km-Regenzelle fertig gerechneten Stufe — sonst
+konnte die Wabenfarbe der Punkt-Ablesung des Blatts in steilem Gelände
+nicht überall zustimmen (eine Regenzelle überspannt dort 500+
+Höhenmeter).
+
+Gemessen (Debug-VM, echtes Waldgitter, Übersichtszoom 800×600 px, alle
+13,6 Mio. Waben mit gültiger Wetteraussage — der TEUERSTE Fall, nicht
+der typische):
+
+| Variante | Median aus 3 |
+|---|---|
+| ohne Höhenauswertung | 316 ms |
+| mit Höhenauswertung je Wabe (Nachschlag + Glocke) | 733 ms |
+
+Läuft im compute-Isolate, je Kamera-Stillstand einmal — kein Jank,
+nur später sichtbares Leuchten. `test/perf_ampel_fill_measure.dart`
+misst das nach und zieht bei mehr als dem Doppelten (+Puffer) die
+Reißleine.
+
+**Nächste Hebel, falls es je drückt** (gemessen wird vorher, Regel
+oben): ein Ein-Schlitz-Memo je Wabenzeile auf (Regenspalte, Höhenbyte)
+— im Flachland, wo die meisten Waben liegen, träfe es fast immer —
+oder der Direktindex für das grobe Gitter, dessen Raster mit dem
+Höhengitter identisch ist (`hexNearestCell` des eigenen Mittelpunkts
+ist dort die Identität).

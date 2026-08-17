@@ -473,11 +473,19 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
     `ampel_validate.py` nahm Open-Meteo-Temperaturen an der
     Fundkoordinate, die dort schon aufs 90-m-DEM heruntergerechnet
     sind. Die unkorrigierte Station war die Abweichung.
-  - **Fläche und Blatt korrigieren beide oder keiner** (#279-Regel):
-    Die Fläche cached je Station das MITTEL (nicht mehr den Faktor)
-    und wertet die Glocke je Zelle aus (`ampelBellOfMean`); der
-    Wächter in `test/ampel_fill_test.dart` läuft mit Höhengitter über
-    jede Zellmitte und verlangt Kontrast zur unkorrigierten Fläche.
+  - **Fläche und Blatt korrigieren beide oder keiner** (#279-Regel),
+    und zwar seit 1.94.0 JE WABE: `AmpelLevelGrid` trägt je Regenzelle
+    die ZUTATEN (Regenfaktor, Stationsmittel, Stationshöhe), und erst
+    der Abnehmer wertet die Glocke mit SEINER Höhe aus — der
+    Wabenzeichner mit der Höhe jeder Waldwabe (grob wie fein), Legende
+    und Blatt am Punkt. Eine je Regenzelle fertig gerechnete Stufe
+    (so 1.93.0/.1) konnte der Punkt-Ablesung in steilem Gelände nie
+    überall zustimmen — eine 1-km-Zelle überspannt in den Alpen 500+
+    Höhenmeter (Feldbericht Berchtesgaden). Wächter:
+    `test/ampel_fill_test.dart` (Walker) und der Pixel-Test in
+    `test/forest_ampel_fill_test.dart`; Messung (316→733 ms Debug im
+    teuersten Fall, Isolate) in `docs/map-performance.md`, nachgeprüft
+    von `test/perf_ampel_fill_measure.dart`.
   - **Das Diagramm zeigt weiter ROHE Stationswerte** (beschriftet mit
     Station + Höhe) — nur die Ampel-Zeile rechnet um und sagt es ab
     ~0,3 K dazu („auf Spothöhe 1200 m"); darunter bleibt der Zusatz

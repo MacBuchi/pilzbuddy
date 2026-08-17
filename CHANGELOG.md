@@ -9,7 +9,7 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Das Pilzwetter kennt jetzt die Höhe deines Spots
 
-*17. August 2026 · Version 1.93.0, Nachbesserung in 1.93.1*
+*17. August 2026 · Version 1.93.0, Nachbesserungen in 1.93.1 und 1.94.0*
 
 Die nächste Wetterstation kann ein paar hundert Höhenmeter über oder
 unter deinem Spot liegen — im Gebirge wurde das Pilzwetter dadurch mal
@@ -31,6 +31,13 @@ je 100 Meter, die bewährte Faustregel der Meteorologie.
   Sie rechnete zunächst noch ohne die Höhe und konnte dadurch am
   Fadenkreuz etwas anderes sagen, als die Kachelfarbe zeigte — danke
   für die Meldung aus Berchtesgaden.
+- 1.94.0 bringt die Höhe auch in die Kartenfärbung selbst: Bisher
+  bekamen alle Waben im Umkreis von etwa einem Kilometer dieselbe
+  Wetterstufe — im Gebirge liegen dazwischen aber schnell 500
+  Höhenmeter. Jetzt rechnet **jede einzelne Wabe** mit ihrer eigenen
+  Höhe, egal ob grobe oder feine Waben eingestellt sind. Karte,
+  Werte-Tafel und Spot-Ansage können sich damit nicht mehr
+  widersprechen.
 
 Wie alles an der Karte funktioniert das ohne Empfang.
 

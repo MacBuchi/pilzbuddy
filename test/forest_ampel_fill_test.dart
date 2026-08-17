@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/app_colors.dart';
 import 'package:pilzbuddy/features/ampel/ampel_fill.dart';
 import 'package:pilzbuddy/features/ampel/ampel_model.dart';
+import 'package:pilzbuddy/features/map/elevation_grid.dart';
 import 'package:pilzbuddy/features/map/forest_fill.dart';
 import 'package:pilzbuddy/features/map/forest_fill_window.dart';
 import 'package:pilzbuddy/features/map/forest_grid.dart';
@@ -21,26 +22,42 @@ import 'package:pilzbuddy/features/map/rain_grid.dart' show mercatorY;
 import 'forest_grid_test.dart' show hexOf;
 import 'rain_fill_test.dart' show decodePng;
 
-/// Ein Stufen-Gitter über der Testbox: [levels] zeilenweise, Werte aus
+/// Ein Stufen-Gitter über der Testbox: [rows] zeilenweise, Werte aus
 /// [AmpelLevel] oder `null` für „keine Aussage".
+///
+/// Seit dem Zutaten-Umbau (Berchtesgaden 2026-08-17) trägt das Gitter
+/// keine fertigen Stufen mehr — die gewünschte Stufe wird hier über
+/// den Regenfaktor eingestellt (Mittel 13 °C ⇒ Glocke 1,0, der Score
+/// IST der Regenfaktor): 1,0 → günstig, 0,3 → verhalten, 0,1 →
+/// ungünstig. Stationshöhe 0, damit ohne Höhengitter nichts verschiebt.
 AmpelLevelGrid levelsOf(List<List<AmpelLevel?>> rows,
-        {double west = 10,
-        double east = 10.018,
-        double north = 50,
-        double south = 49.988}) =>
-    AmpelLevelGrid(
-      levels: Uint8List.fromList([
-        for (final row in rows)
-          for (final level in row) level == null ? 0 : level.index + 1,
-      ]),
-      width: rows.first.length,
-      height: rows.length,
-      west: west,
-      east: east,
-      north: north,
-      south: south,
-      newest: DateTime.utc(2026, 8, 9),
-    );
+    {double west = 10,
+    double east = 10.018,
+    double north = 50,
+    double south = 49.988}) {
+  final flat = [for (final row in rows) ...row];
+  return AmpelLevelGrid(
+    rainFactor: Float32List.fromList([
+      for (final level in flat)
+        switch (level) {
+          null => 0,
+          AmpelLevel.unguenstig => 0.1,
+          AmpelLevel.verhalten => 0.3,
+          AmpelLevel.guenstig => 1.0,
+        },
+    ]),
+    meanC: Float32List.fromList(List.filled(flat.length, 13.0)),
+    stationHeightM: Int16List(flat.length),
+    valid: Uint8List.fromList([for (final l in flat) l == null ? 0 : 1]),
+    width: rows.first.length,
+    height: rows.length,
+    west: west,
+    east: east,
+    north: north,
+    south: south,
+    newest: DateTime.utc(2026, 8, 9),
+  );
+}
 
 void main() {
   // 4×4 Waben, überall Laubwald — so ist jeder Farbunterschied im Bild
@@ -171,6 +188,77 @@ void main() {
     final cell = at(png, latOf(1), lonOf(1, 1));
     expect(cell.r, (AppColors.forestBroadleaf.r * 255).round());
     expect(cell.a, forestCombinedAlpha);
+  });
+
+  test('jede Wabe leuchtet nach IHRER Höhe, nicht nach der Regenzelle',
+      () {
+    // Der Berchtesgaden-Befund (2026-08-17): EINE 1-km-Regenzelle über
+    // steilem Gelände, EINE Stufe je Zelle — die Wabenfarbe konnte der
+    // Punkt-Ablesung nie überall zustimmen. Hier: EIN Stufen-Eintrag
+    // (13 °C, Regen satt → günstig) über der ganzen Box, Station auf
+    // 0 m; das Höhengitter legt die Osthälfte auf 3000 m. Dort schiebt
+    // die Lapse-Rechnung das Mittel auf −6,5 °C → die Glocke kippt →
+    // kein Leuchten. Westhälfte: unverändert günstig. Dieselbe
+    // Auswertung nimmt der Zeichner für grobe wie feine Waben — der
+    // Test prüft an den Wabenmittelpunkten die PIXEL, also den ganzen
+    // Weg.
+    final elevation = ElevationGrid(
+      values: Uint8List.fromList([
+        for (var y = 0; y < 6; y++)
+          for (var x = 0; x < 6; x++) x < 3 ? 0 : 150,
+      ]),
+      width: 6,
+      height: 6,
+      west: 10,
+      east: 10.018,
+      north: 50,
+      south: 49.988,
+      hexLonStep: 0.003,
+      hexLatStep: 0.002,
+    );
+    final oneCell = levelsOf([
+      [AmpelLevel.guenstig],
+    ]);
+
+    final corrected = decodePng(forestAmpelFillPng(
+      [forest],
+      window: window,
+      levels: oneCell,
+      elevation: elevation,
+    ));
+    final plain = decodePng(forestAmpelFillPng(
+      [forest],
+      window: window,
+      levels: oneCell,
+    ));
+
+    final (_, strong) = AppColors.ampelCombined.first; // Laub
+    final west = at(corrected, latOf(1), lonOf(0, 1));
+    final east = at(corrected, latOf(1), lonOf(3, 1));
+    expect((west.r, west.g, west.b), rgbOf(strong),
+        reason: 'Tal-Wabe (0 m = Stationshöhe): leuchtet günstig');
+    expect(west.a, ampelGuenstigAlpha);
+    expect(east.r, (AppColors.forestBroadleaf.r * 255).round(),
+        reason: 'Berg-Wabe (3000 m): dieselbe Regenzelle, aber die '
+            'Glocke kippt auf Wabenhöhe — bleibt Wald');
+    expect(east.a, forestCombinedAlpha);
+
+    // Und die Gegenrichtung im selben Test: OHNE Höhengitter leuchtet
+    // auch der Berg — sonst hätte die Höhe gar nicht gerechnet und
+    // beide Erwartungen oben wären aus anderem Grund erfüllbar.
+    final eastPlain = at(plain, latOf(1), lonOf(3, 1));
+    expect((eastPlain.r, eastPlain.g, eastPlain.b), rgbOf(strong),
+        reason: 'unkorrigiert leuchtet die Berg-Wabe — der Unterschied '
+            'IST die Höhenauswertung je Wabe');
+
+    // Blatt-Abgleich am selben Punkt: Was die Wabe malt, muss der
+    // `levelAt`-Weg (und damit die Punkt-Ablesung) genauso sagen.
+    expect(
+        oneCell.levelAt(latOf(1), lonOf(3, 1), elevation: elevation),
+        isNot(AmpelLevel.guenstig),
+        reason: 'die Auswertung hinter dem Pixel');
+    expect(oneCell.levelAt(latOf(1), lonOf(0, 1), elevation: elevation),
+        AmpelLevel.guenstig);
   });
 
   test('abgewählte Klassen leuchten auch nicht (#231)', () {

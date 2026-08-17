@@ -87,13 +87,15 @@ class AmpelFill {
 ///
 /// `null` unter denselben Bedingungen wie die Fläche: kein lückenloses
 /// 26-Tage-Fenster, keine Stationstabelle.
-/// [elevation] ist das Höhengitter fürs Umrechnen der Stationsmittel
-/// auf Zellhöhe — `null` heißt unkorrigiert (kein Gitter geladen).
-/// Blatt und Fläche MÜSSEN hier gleichziehen: Beide korrigieren, oder
-/// keiner — sonst widersprechen sich Farbe und Text am selben Punkt
-/// wieder, und genau das war #279.
-AmpelLevelGrid? ampelLevelsFrom(RainStackData stack, WeatherTable? table,
-    {ElevationGrid? elevation}) {
+/// Die Höhenkorrektur passiert NICHT mehr hier: Seit dem Feldbericht
+/// aus Berchtesgaden (2026-08-17) trägt das Gitter je Zelle die
+/// ZUTATEN (Regenfaktor, Stationsmittel, Stationshöhe), und erst der
+/// Abnehmer wertet die Glocke mit SEINER Höhe aus — jede Waldwabe mit
+/// ihrer eigenen ([AmpelLevelGrid.levelAt]). Eine 1-km-Regenzelle kann
+/// in den Alpen 500 Höhenmeter überspannen; eine je Zelle fertig
+/// gerechnete Stufe konnte dort der Punkt-Ablesung des Blatts nie
+/// überall zustimmen, egal wie sie korrigiert war.
+AmpelLevelGrid? ampelLevelsFrom(RainStackData stack, WeatherTable? table) {
   final info = stack.info;
   final width = info.width;
   final height = info.height;
@@ -247,16 +249,19 @@ AmpelLevelGrid? ampelLevelsFrom(RainStackData stack, WeatherTable? table,
   candidateStart[blocksX * blocksY] = candidates.length;
   final candidateOf = Int32List.fromList(candidates);
 
-  // Die Stufe je Zelle. 0 heißt „keine Aussage" — zu wenige Regentage,
-  // keine Station in Reichweite oder eine zu lückige Stationsreihe; auf
-  // der Karte ist alles drei transparent, und in der Kombi-Ebene
-  // leuchtet dort nichts.
+  // Die Zutaten je Zelle. `valid` 0 heißt „keine Aussage" — zu wenige
+  // Regentage, keine Station in Reichweite oder eine zu lückige
+  // Stationsreihe; auf der Karte ist alles drei transparent, und in
+  // der Kombi-Ebene leuchtet dort nichts.
   //
   // Gemessen wird von der ZELLMITTE aus, mit derselben [distanceKm] wie
   // im Blatt — nicht mit einer eigenen, schnelleren Formel: Eine zweite
   // Rechnung wäre genau die Naht, an der die beiden wieder auseinander
   // liefen.
-  final levels = Uint8List(width * height);
+  final cellRain = Float32List(width * height);
+  final cellMean = Float32List(width * height);
+  final cellStationHeight = Int16List(width * height);
+  final cellValid = Uint8List(width * height);
   final cellLon = Float64List(width);
   for (var x = 0; x < width; x++) {
     cellLon[x] = probe.lonAtColumn(x + 0.5);
@@ -281,26 +286,19 @@ AmpelLevelGrid? ampelLevelsFrom(RainStackData stack, WeatherTable? table,
       if (best < 0 || bestKm > WeatherTable.maxStationKm) continue;
       if (stationAnswers[best] == 0) continue;
       final effective = weighted[i] / weightsTotal * ampelRainWindow;
-      final rainFactor = effective >= ampelRainSaturationMm
+      cellRain[i] = effective >= ampelRainSaturationMm
           ? 1.0
           : effective / ampelRainSaturationMm;
-      // Das Stationsmittel auf Zellhöhe bringen — dieselbe Rechnung
-      // wie im Blatt (`ampelReadingFrom`), damit Farbe und Text an
-      // einem Punkt dieselbe Stufe sagen (#279). Ohne Höhenwert
-      // (Randzelle, kein Gitter) bleibt das Mittel unkorrigiert —
-      // exakt wie im Blatt, dessen Höhen-Provider dann `null` liefert.
-      var meanC = stationMean[best];
-      final cellHeight = elevation?.heightMetersAt(lat, cellLon[x]);
-      if (cellHeight != null) {
-        meanC += lapseCorrectionK(
-            stationHeightM: stationHeight[best], targetHeightM: cellHeight);
-      }
-      levels[i] =
-          ampelLevelOf(rainFactor * ampelBellOfMean(meanC)).index + 1;
+      cellMean[i] = stationMean[best];
+      cellStationHeight[i] = stationHeight[best];
+      cellValid[i] = 1;
     }
   }
   return AmpelLevelGrid(
-    levels: levels,
+    rainFactor: cellRain,
+    meanC: cellMean,
+    stationHeightM: cellStationHeight,
+    valid: cellValid,
     width: width,
     height: height,
     west: info.west,
@@ -315,7 +313,10 @@ AmpelLevelGrid? ampelLevelsFrom(RainStackData stack, WeatherTable? table,
 /// Regen-Gitter, aus dem sie stammen (Mercator-Zeilen!).
 class AmpelLevelGrid {
   const AmpelLevelGrid({
-    required this.levels,
+    required this.rainFactor,
+    required this.meanC,
+    required this.stationHeightM,
+    required this.valid,
     required this.width,
     required this.height,
     required this.west,
@@ -325,8 +326,19 @@ class AmpelLevelGrid {
     required this.newest,
   });
 
-  /// Je Zelle: 0 = keine Aussage, sonst `AmpelLevel.index + 1`.
-  final Uint8List levels;
+  /// Je Zelle die ZUTATEN statt einer fertigen Stufe — die Glocke wird
+  /// erst beim Abnehmer ausgewertet, mit dessen Höhe ([levelFor]).
+  final Float32List rainFactor;
+
+  /// Das UNKORRIGIERTE 20-Tage-Mittel der nächsten Station je Zelle.
+  final Float32List meanC;
+
+  /// Die Höhe dieser Station — der Startpunkt der Lapse-Verschiebung.
+  final Int16List stationHeightM;
+
+  /// 1 = Aussage möglich; 0 deckt alle drei Gründe ab (Regen lückig,
+  /// keine Station, Stationsreihe lückig).
+  final Uint8List valid;
   final int width;
   final int height;
   final double west;
@@ -338,12 +350,14 @@ class AmpelLevelGrid {
   final DateTime newest;
 
   /// Die Stufe an einem Punkt — `null` außerhalb des Gitters oder wo es
-  /// keine Aussage gibt.
-  AmpelLevel? levelAt(double lat, double lon) {
+  /// keine Aussage gibt. DIE Auswertung des Zeichners und der Tests:
+  /// Wer hier vorbeigeht, malt eine andere Antwort als das Blatt.
+  AmpelLevel? levelAt(double lat, double lon, {ElevationGrid? elevation}) {
     final row = rowAt(lat);
     final column = columnAt(lon);
     if (row == null || column == null) return null;
-    return levelAtCell(row, column);
+    return levelFor(row, column,
+        heightM: elevation?.heightMetersAt(lat, lon));
   }
 
   /// Die Gitterzeile zu einer Breite — `null` außerhalb.
@@ -373,8 +387,19 @@ class AmpelLevelGrid {
   }
 
   /// Die Stufe einer Zelle — ohne Bereichsprüfung, wie [RainGrid.at].
-  AmpelLevel? levelAtCell(int row, int column) {
-    final value = levels[row * width + column];
-    return value == 0 ? null : AmpelLevel.values[value - 1];
+  ///
+  /// [heightM] ist die Höhe des ABNEHMERS (Waldwabe, Fadenkreuz-Punkt);
+  /// `null` heißt unkorrigiert — exakt die Semantik von
+  /// `ampelReadingFrom` ohne Spothöhe. Die Rechnung ist Zahl für Zahl
+  /// die des Blatts: Mittel verschieben, dieselbe Glocke.
+  AmpelLevel? levelFor(int row, int column, {int? heightM}) {
+    final i = row * width + column;
+    if (valid[i] == 0) return null;
+    var mean = meanC[i].toDouble();
+    if (heightM != null) {
+      mean += lapseCorrectionK(
+          stationHeightM: stationHeightM[i], targetHeightM: heightM);
+    }
+    return ampelLevelOf(rainFactor[i] * ampelBellOfMean(mean));
   }
 }
