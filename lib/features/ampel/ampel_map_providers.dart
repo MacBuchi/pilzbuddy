@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/rain_grid_repository.dart' show RainStackData;
+import '../map/elevation_grid.dart';
+import '../map/elevation_providers.dart';
 import '../map/rain_data_providers.dart';
 import '../map/spot_weather.dart';
 import 'ampel_fill.dart';
@@ -26,14 +28,22 @@ final ampelLayerEnabledProvider = StateProvider<bool>((ref) => false);
 /// dieselben Zahlen.
 final ampelLevelGridProvider = FutureProvider<AmpelLevelGrid?>((ref) async {
   if (!ref.watch(ampelPreviewEnabledProvider)) return null;
-  // Beide Watches VOR den Awaits — die Riverpod-Lehre aus #255/#257.
+  // Alle Watches VOR den Awaits — die Riverpod-Lehre aus #255/#257.
   final stackFuture = ref.watch(rainStackProvider.future);
   final tableFuture = ref.watch(weatherTableProvider.future);
+  final elevationFuture = ref.watch(elevationGridProvider.future);
   final stack = await stackFuture;
   if (stack == null) return null;
   final table = await tableFuture;
-  return compute(_levels, (stack: stack, table: table));
+  final elevation = await elevationFuture;
+  return compute(
+      _levels, (stack: stack, table: table, elevation: elevation));
 });
 
-AmpelLevelGrid? _levels(({RainStackData stack, WeatherTable? table}) input) =>
-    ampelLevelsFrom(input.stack, input.table);
+AmpelLevelGrid? _levels(
+        ({
+          RainStackData stack,
+          WeatherTable? table,
+          ElevationGrid? elevation
+        }) input) =>
+    ampelLevelsFrom(input.stack, input.table, elevation: input.elevation);

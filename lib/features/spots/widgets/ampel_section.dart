@@ -14,6 +14,7 @@ import '../../../core/app_colors.dart';
 import '../../../core/season_curves.dart';
 import '../../ampel/ampel_model.dart';
 import '../../ampel/ampel_providers.dart';
+import '../../map/elevation_providers.dart';
 import '../../map/rain_data_providers.dart';
 
 class AmpelSection extends ConsumerWidget {
@@ -69,18 +70,22 @@ class AmpelSection extends ConsumerWidget {
       );
     }
 
-    // Die Ablesung ist PURE Arithmetik über den zwei bestehenden
-    // Wetter-Providern — gerechnet wird erst, wenn beide geantwortet
+    // Die Ablesung ist PURE Arithmetik über den bestehenden
+    // Wetter-Providern — gerechnet wird erst, wenn alle geantwortet
     // haben (auch „Fehler" ist eine Antwort; daraus wird ein ehrliches
-    // Grau, kein Platzhalter).
+    // Grau, kein Platzhalter). Die Höhe kommt aus dem mitgelieferten
+    // Gitter; `null` heißt schlicht „unkorrigiert rechnen" — dieselbe
+    // stille Degradation wie beim Gitter selbst.
     final at = (lat: lat, lon: lon);
     final course = ref.watch(rainCourseProvider(at));
     final temperature = ref.watch(spotTemperatureProvider(at));
-    if (course.isLoading || temperature.isLoading) {
+    final spotHeight = ref.watch(elevationAtProvider(at));
+    if (course.isLoading || temperature.isLoading || spotHeight.isLoading) {
       return const SizedBox.shrink();
     }
-    final reading =
-        ampelReadingFrom(course.valueOrNull, temperature.valueOrNull);
+    final reading = ampelReadingFrom(
+        course.valueOrNull, temperature.valueOrNull,
+        spotHeightM: spotHeight.valueOrNull);
 
     if (reading.isGrau) {
       return _line(
@@ -182,8 +187,14 @@ class AmpelSection extends ConsumerWidget {
             ? 'mäßig'
             : 'zu trocken';
     final mean = reading.tempMeanC!;
-    final meanText =
+    var meanText =
         '${mean.toStringAsFixed(1).replaceAll('.', ',')} °C';
+    // Erst ab ~0,3 K (≈ 50 m Differenz) eine Erwähnung wert: Im
+    // Flachland ist die Umrechnung eine Nullnummer, und der Satz würde
+    // nur Fragen aufwerfen. Die Zahl selbst ist IMMER die korrigierte.
+    if ((reading.heightCorrectionK ?? 0).abs() >= 0.3) {
+      meanText = '$meanText auf Spothöhe ${reading.spotHeightM} m';
+    }
     final tempWord = reading.tempFactor! >= 0.6
         ? 'passt ($meanText)'
         : mean > ampelOptimumC

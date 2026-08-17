@@ -19,6 +19,7 @@ import 'dart:typed_data';
 
 import '../../core/geo.dart' show distanceKm;
 import '../../data/rain_grid_repository.dart' show RainStackData;
+import '../map/elevation_grid.dart';
 import '../map/rain_grid.dart';
 import '../map/spot_weather.dart';
 import 'ampel_model.dart';
@@ -86,7 +87,13 @@ class AmpelFill {
 ///
 /// `null` unter denselben Bedingungen wie die Fläche: kein lückenloses
 /// 26-Tage-Fenster, keine Stationstabelle.
-AmpelLevelGrid? ampelLevelsFrom(RainStackData stack, WeatherTable? table) {
+/// [elevation] ist das Höhengitter fürs Umrechnen der Stationsmittel
+/// auf Zellhöhe — `null` heißt unkorrigiert (kein Gitter geladen).
+/// Blatt und Fläche MÜSSEN hier gleichziehen: Beide korrigieren, oder
+/// keiner — sonst widersprechen sich Farbe und Text am selben Punkt
+/// wieder, und genau das war #279.
+AmpelLevelGrid? ampelLevelsFrom(RainStackData stack, WeatherTable? table,
+    {ElevationGrid? elevation}) {
   final info = stack.info;
   final width = info.width;
   final height = info.height;
@@ -147,7 +154,12 @@ AmpelLevelGrid? ampelLevelsFrom(RainStackData stack, WeatherTable? table) {
   final stations = table?.air ?? const <AirStation>[];
   final stationLat = Float64List(stations.length);
   final stationLon = Float64List(stations.length);
-  final stationFactor = Float32List(stations.length);
+  // Seit der Höhenkorrektur je Station das MITTEL statt des fertigen
+  // Faktors: Die Glocke hängt jetzt von der Zellhöhe ab und wird je
+  // Zelle ausgewertet (`ampelBellOfMean`) — mit derselben Formel wie
+  // im Modell, nicht mit einer zweiten.
+  final stationMean = Float64List(stations.length);
+  final stationHeight = Int32List(stations.length);
   final stationAnswers = Uint8List(stations.length);
   final competing = <int>[];
   for (var s = 0; s < stations.length; s++) {
@@ -161,12 +173,17 @@ AmpelLevelGrid? ampelLevelsFrom(RainStackData stack, WeatherTable? table) {
             ? (maxs[i]! + mins[i]!) / 2
             : null,
     ];
-    final tempKnown =
-        temps.take(ampelTempWindow).where((c) => c != null).length;
+    final window = temps.take(ampelTempWindow).whereType<double>().toList();
     stationLat[s] = station.lat;
     stationLon[s] = station.lon;
-    stationFactor[s] = ampelTemperatureFactor(temps);
-    stationAnswers[s] = tempKnown >= ampelMinTempDays ? 1 : 0;
+    // Dasselbe Mittel, das [ampelTemperatureFactor] intern bildet —
+    // nur noch nicht durch die Glocke geschickt (das passiert je
+    // Zelle, nach der Höhenverschiebung).
+    stationMean[s] = window.isEmpty
+        ? 0
+        : window.reduce((a, b) => a + b) / window.length;
+    stationHeight[s] = station.height;
+    stationAnswers[s] = window.length >= ampelMinTempDays ? 1 : 0;
     competing.add(s);
   }
   if (competing.isEmpty) return null;
@@ -267,7 +284,19 @@ AmpelLevelGrid? ampelLevelsFrom(RainStackData stack, WeatherTable? table) {
       final rainFactor = effective >= ampelRainSaturationMm
           ? 1.0
           : effective / ampelRainSaturationMm;
-      levels[i] = ampelLevelOf(rainFactor * stationFactor[best]).index + 1;
+      // Das Stationsmittel auf Zellhöhe bringen — dieselbe Rechnung
+      // wie im Blatt (`ampelReadingFrom`), damit Farbe und Text an
+      // einem Punkt dieselbe Stufe sagen (#279). Ohne Höhenwert
+      // (Randzelle, kein Gitter) bleibt das Mittel unkorrigiert —
+      // exakt wie im Blatt, dessen Höhen-Provider dann `null` liefert.
+      var meanC = stationMean[best];
+      final cellHeight = elevation?.heightMetersAt(lat, cellLon[x]);
+      if (cellHeight != null) {
+        meanC += lapseCorrectionK(
+            stationHeightM: stationHeight[best], targetHeightM: cellHeight);
+      }
+      levels[i] =
+          ampelLevelOf(rainFactor * ampelBellOfMean(meanC)).index + 1;
     }
   }
   return AmpelLevelGrid(

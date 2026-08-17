@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/errors.dart';
 import '../../core/settings.dart';
+import '../map/elevation_grid.dart' show lapseCorrectionK;
 import '../map/rain_stack.dart';
 import '../map/spot_weather.dart';
 import 'ampel_model.dart';
@@ -56,6 +57,8 @@ class AmpelReading {
     this.rainFactor,
     this.tempFactor,
     this.tempMeanC,
+    this.spotHeightM,
+    this.heightCorrectionK,
     this.reason,
   });
 
@@ -64,7 +67,9 @@ class AmpelReading {
         score = null,
         rainFactor = null,
         tempFactor = null,
-        tempMeanC = null;
+        tempMeanC = null,
+        spotHeightM = null,
+        heightCorrectionK = null;
 
   final AmpelLevel? level;
   final double? score;
@@ -72,8 +77,19 @@ class AmpelReading {
   final double? tempFactor;
 
   /// Das tatsächlich benutzte 20-Tage-Mittel — steht in der
-  /// Komponenten-Zeile, damit die Stufe nachvollziehbar ist.
+  /// Komponenten-Zeile, damit die Stufe nachvollziehbar ist. Seit der
+  /// Höhenkorrektur ist es das Mittel AUF SPOTHÖHE, wenn
+  /// [heightCorrectionK] gesetzt ist.
   final double? tempMeanC;
+
+  /// Die Wabenhöhe, auf die umgerechnet wurde — `null`, wenn keine
+  /// Korrektur lief (kein Höhengitter, Punkt außerhalb).
+  final int? spotHeightM;
+
+  /// Um wie viel Kelvin die Stationswerte verschoben wurden. Steht als
+  /// eigenes Feld da, damit die Anzeige entscheiden kann, ab wann die
+  /// Umrechnung eine Erwähnung wert ist.
+  final double? heightCorrectionK;
 
   final String? reason;
 
@@ -87,8 +103,16 @@ class AmpelReading {
 /// synchron durch. Ein dritter async Provider über denselben Futures
 /// hatte sich in der Fake-Async-Zone des Test-Harness verheddert — und
 /// gebraucht wird er nicht: Das hier ist Arithmetik, kein I/O.
+/// [spotHeightM] ist die Wabenhöhe aus dem Höhengitter — wenn gesetzt,
+/// werden die Stationstage VOR dem Modell um 0,65 K je 100 m
+/// Höhendifferenz verschoben (`lapseCorrectionK`). Die Korrektur ist
+/// bewusst Eingabe-Aufbereitung und keine Modelländerung: Der
+/// Modellkern bleibt Zahl für Zahl der Spiegel des
+/// Validierungswerkzeugs — das ohnehin immer schon Temperaturen auf
+/// Zielhöhe gesehen hat (Open-Meteo-Downscaling).
 AmpelReading ampelReadingFrom(
-    RainCourse? course, SpotTemperature? temperature) {
+    RainCourse? course, SpotTemperature? temperature,
+    {int? spotHeightM}) {
   if (course == null || course.isEmpty) {
     return const AmpelReading.grau('keine Regendaten für diesen Punkt');
   }
@@ -116,12 +140,16 @@ AmpelReading ampelReadingFrom(
   // Tagesmittel ≈ (Max + Min) / 2 der nächsten Luft-Station — bewusste
   // Näherung an das Tagesmittel der Validierung (Open-Meteo t2m-Mittel);
   // im Kopf von ampel_model.dart benannt. Vortag zuerst, wie der Regen.
+  final correction = spotHeightM == null
+      ? null
+      : lapseCorrectionK(
+          stationHeightM: air.station.height, targetHeightM: spotHeightM);
   final maxs = air.station.max;
   final mins = air.station.min;
   final temps = <double?>[
     for (var i = maxs.length - 1; i >= 0; i--)
       (maxs[i] != null && mins[i] != null)
-          ? (maxs[i]! + mins[i]!) / 2
+          ? (maxs[i]! + mins[i]!) / 2 + (correction ?? 0)
           : null,
   ];
   final tempKnown =
@@ -147,5 +175,7 @@ AmpelReading ampelReadingFrom(
     rainFactor: rainFactor,
     tempFactor: tempFactor,
     tempMeanC: tempSum / tempCount,
+    spotHeightM: correction == null ? null : spotHeightM,
+    heightCorrectionK: correction,
   );
 }

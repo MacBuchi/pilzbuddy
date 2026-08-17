@@ -460,6 +460,30 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
     Secret), teilt sich aber dessen Geometrie-Code. Er läuft jährlich —
     `workflow_dispatch` verlangt den Workflow auf `main`, ein neues
     Gitter braucht also erst dessen Merge und dann einen Lauf.
+- **Höhengitter & Temperaturkorrektur** (`tool/elevation_grid.py` +
+  `elevation-data.yml`, Rest aus #279, seit 1.93.0): Drittes Gitter auf
+  DEMSELBEN Hex-Raster (Copernicus DEM GLO-90, 1 Byte = 20-m-Stufen,
+  Zeilen-Delta + gzip, 3,4 MB, Workflow nur `workflow_dispatch` — das
+  DEM ist statisch). Blatt-Ampel und Kartenfläche rechnen die
+  Stationstemperatur mit 0,65 K je 100 m auf die Wabenhöhe um. Vier
+  Dinge, die man wissen muss:
+  - **Die Korrektur ist Eingabe-Aufbereitung, keine Modelländerung**:
+    `ampel_model.dart` bleibt Zahl für Zahl Spiegel des
+    Validierungswerkzeugs. Und sie führt ZUM validierten Aufbau hin —
+    `ampel_validate.py` nahm Open-Meteo-Temperaturen an der
+    Fundkoordinate, die dort schon aufs 90-m-DEM heruntergerechnet
+    sind. Die unkorrigierte Station war die Abweichung.
+  - **Fläche und Blatt korrigieren beide oder keiner** (#279-Regel):
+    Die Fläche cached je Station das MITTEL (nicht mehr den Faktor)
+    und wertet die Glocke je Zelle aus (`ampelBellOfMean`); der
+    Wächter in `test/ampel_fill_test.dart` läuft mit Höhengitter über
+    jede Zellmitte und verlangt Kontrast zur unkorrigierten Fläche.
+  - **Das Diagramm zeigt weiter ROHE Stationswerte** (beschriftet mit
+    Station + Höhe) — nur die Ampel-Zeile rechnet um und sagt es ab
+    ~0,3 K dazu („auf Spothöhe 1200 m"); darunter bleibt der Zusatz
+    weg, sonst erklärte im Flachland jeder Spot eine Nullnummer.
+  - Ohne Gitter/außerhalb DACH: still unkorrigiert (`null`-Pfad), wie
+    vor 1.93.0 — die Stationshöhe steht ja daneben.
 - **Karten-Engine:** Seit 1.43.0 rendert Android standardmäßig mit
   MapLibre (nativer Renderer, `maplibre` 0.3.5 exakt gepinnt) hinter der
   MapView-Fassade (`lib/features/map/map_view/`); Grundlage ist der

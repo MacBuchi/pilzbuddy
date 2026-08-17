@@ -15,6 +15,7 @@ import 'package:pilzbuddy/data/rain_grid_repository.dart';
 import 'package:pilzbuddy/features/ampel/ampel_fill.dart';
 import 'package:pilzbuddy/features/ampel/ampel_model.dart';
 import 'package:pilzbuddy/features/ampel/ampel_providers.dart';
+import 'package:pilzbuddy/features/map/elevation_grid.dart';
 import 'package:pilzbuddy/features/map/rain_grid.dart';
 import 'package:pilzbuddy/features/map/rain_stack.dart';
 import 'package:pilzbuddy/features/map/spot_weather.dart';
@@ -241,7 +242,8 @@ void main() {
     /// nächste Station am Punkt, durch `ampelReadingFrom`. Grau (kein
     /// Level) ist dasselbe wie „keine Aussage" auf der Karte.
     AmpelLevel? sheetLevelAt(
-        RainStackData stack, WeatherTable table, double lat, double lon) {
+        RainStackData stack, WeatherTable table, double lat, double lon,
+        {ElevationGrid? elevation}) {
       final course = rainCourseFrom(
         stack.days,
         width: stack.info.width,
@@ -253,7 +255,9 @@ void main() {
         lat: lat,
         lon: lon,
       );
-      return ampelReadingFrom(course, table.at(lat, lon)).level;
+      return ampelReadingFrom(course, table.at(lat, lon),
+              spotHeightM: elevation?.heightMetersAt(lat, lon))
+          .level;
     }
 
     /// Ein Gitter in Wirklichkeitsmaßstab: ~1 km je Zelle, also
@@ -361,6 +365,100 @@ void main() {
       }
       expect(contested, greaterThan(0),
           reason: 'ohne strittige Zellen prüft dieser Test nichts');
+    });
+
+    test('auch mit Höhengitter: an jeder Zellmitte dieselbe Stufe '
+        'wie im korrigierten Blatt', () {
+      final stack = stackForArea();
+      // EINE Station auf 300 m (die Höhe aus `tableOfStations`), Mittel
+      // 13 °C — unkorrigiert wäre ÜBERALL „günstig". Das Höhengitter
+      // legt die Osthälfte auf 1500 m: Dort kühlt die Korrektur um
+      // 7,8 K ab, und die Stufe kippt. Der Kontrast ist der Beweis,
+      // dass die Korrektur wirklich rechnet — ein Gitter ohne Wirkung
+      // bestünde diesen Test nicht.
+      final table = tableOfStations(
+          [(lat: 51.15, lon: 10.25, meanC: 13, measured: 20)]);
+      final elevation = ElevationGrid(
+        values: Uint8List.fromList([
+          for (var y = 0; y < 8; y++)
+            for (var x = 0; x < 10; x++)
+              x < 5 ? 300 ~/ elevationQuantM : 1500 ~/ elevationQuantM,
+        ]),
+        width: 10,
+        height: 8,
+        west: 10.0,
+        east: 10.5,
+        north: 51.3,
+        south: 51.0,
+        hexLonStep: 0.05,
+        hexLatStep: 0.0375,
+      );
+      final grid = ampelLevelsFrom(stack, table, elevation: elevation)!;
+      final uncorrected = ampelLevelsFrom(stack, table)!;
+
+      final probe = probeOf(stack);
+      final seen = <AmpelLevel?>{};
+      var changed = 0;
+      for (var y = 0; y < height; y++) {
+        final lat = probe.latAtRow(y + 0.5);
+        for (var x = 0; x < width; x++) {
+          final lon = probe.lonAtColumn(x + 0.5);
+          final expected =
+              sheetLevelAt(stack, table, lat, lon, elevation: elevation);
+          expect(grid.levelAtCell(y, x), expected,
+              reason: 'Zelle $x/$y (${lat.toStringAsFixed(4)}, '
+                  '${lon.toStringAsFixed(4)})');
+          seen.add(expected);
+          if (grid.levelAtCell(y, x) != uncorrected.levelAtCell(y, x)) {
+            changed++;
+          }
+        }
+      }
+      expect(seen.length, greaterThan(1),
+          reason: 'die 1500-m-Hälfte muss die Stufe kippen — sonst '
+              'vergleicht der Lauf lauter gleiche Werte');
+      expect(changed, greaterThan(0),
+          reason: 'kein Unterschied zur unkorrigierten Fläche — die '
+              'Korrektur hat nicht gerechnet');
+    });
+
+    test('die Ablesung verschiebt das Mittel exakt um 0,65 K je 100 m',
+        () {
+      final stack = stackForArea();
+      final table = tableOfStations(
+          [(lat: 51.15, lon: 10.25, meanC: 13, measured: 20)]);
+      RainCourse courseAt(double lat, double lon) => rainCourseFrom(
+            stack.days,
+            width: stack.info.width,
+            height: stack.info.height,
+            west: stack.info.west,
+            east: stack.info.east,
+            north: stack.info.north,
+            south: stack.info.south,
+            lat: lat,
+            lon: lon,
+          );
+      final at = table.at(51.15, 10.25);
+
+      // Station 300 m, Spot 1500 m: (300 − 1500) · 0,65/100 = −7,8 K.
+      final corrected = ampelReadingFrom(courseAt(51.15, 10.25), at,
+          spotHeightM: 1500);
+      expect(corrected.tempMeanC, closeTo(13 - 7.8, 1e-9));
+      expect(corrected.heightCorrectionK, closeTo(-7.8, 1e-9));
+      expect(corrected.spotHeightM, 1500);
+
+      // Gleiche Höhe: Korrektur 0, aber GESETZT — die Anzeige
+      // unterscheidet „nichts zu tun" von „konnte nicht rechnen".
+      final level = ampelReadingFrom(courseAt(51.15, 10.25), at,
+          spotHeightM: 300);
+      expect(level.tempMeanC, closeTo(13, 1e-9));
+      expect(level.heightCorrectionK, closeTo(0, 1e-9));
+
+      // Ohne Höhe: unkorrigiert, beide Felder leer.
+      final without = ampelReadingFrom(courseAt(51.15, 10.25), at);
+      expect(without.tempMeanC, closeTo(13, 1e-9));
+      expect(without.heightCorrectionK, isNull);
+      expect(without.spotHeightM, isNull);
     });
 
     test('die Kandidaten-Schranke reicht bis in die Kachelecke', () {

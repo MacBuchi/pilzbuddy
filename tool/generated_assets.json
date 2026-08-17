@@ -39,6 +39,17 @@
     "assets/offline_maps/overview_dach.pmtiles": {
       "sha256": "960e3854e86f3beb4e599ca2f38451d77aaac11d57db4a69d5b06fc01f604aa5",
       "regenerate": "pmtiles extract <Protomaps-Daily-Build> assets/offline_maps/overview_dach.pmtiles --bbox=5.5,45.5,17.5,55.5 --maxzoom=7"
+    },
+    "assets/elevation/elevation.bin.gz": {
+      "sha256": "da3f024ab054d87bf35ce9ab67aa2ed2d718fa78be5884eb16247d22afa9c9b1",
+      "regenerate": "Workflow „Elevation Grid\" von Hand starten, Artefakt elevation-grid herunterladen, beide Dateien nach assets/elevation/ legen",
+      "checks": {
+        "self_recorded_sha256": "assets/elevation/elevation_manifest.json"
+      }
+    },
+    "assets/elevation/elevation_manifest.json": {
+      "sha256": "49f948824f56fb8568c89c45c3479510d33da4e0f2bd7d07ae16f01a0be0cb93",
+      "regenerate": "entsteht im selben Lauf wie elevation.bin.gz — siehe dort"
     }
   }
 }

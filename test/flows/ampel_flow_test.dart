@@ -21,6 +21,8 @@ import 'package:pilzbuddy/features/map/forest_data_providers.dart'
         forestLayerEnabledProvider;
 import 'package:pilzbuddy/features/map/forest_fill.dart'
     show allForestClasses;
+import 'package:pilzbuddy/features/map/elevation_grid.dart';
+import 'package:pilzbuddy/features/map/elevation_providers.dart';
 import 'package:pilzbuddy/features/map/rain_data_providers.dart';
 import 'package:pilzbuddy/features/map/rain_layer.dart';
 import 'package:pilzbuddy/features/spots/widgets/weather_chart.dart';
@@ -111,7 +113,25 @@ void main() {
     FakeBackend backend, {
     required bool preview,
     int stackDays = 26,
+    int? spotHeightM,
   }) async {
+    // Ein flaches Höhengitter über dem ganzen Testfenster — nur wenn
+    // der Test eine Spothöhe verlangt; sonst bleibt die Basis-Naht aus
+    // test_app.dart (null → unkorrigiert) stehen.
+    final elevation = spotHeightM == null
+        ? null
+        : ElevationGrid(
+            values: Uint8List.fromList(List.filled(
+                8 * 8, spotHeightM ~/ elevationQuantM)),
+            width: 8,
+            height: 8,
+            west: 10,
+            east: 12,
+            north: 52,
+            south: 50,
+            hexLonStep: 0.25,
+            hexLatStep: 0.25,
+          );
     // Keine vergrößerte Testfläche: Das Blatt ist eine nicht-lazy
     // Column in einem SingleChildScrollView — `find` sieht auch, was
     // unter der Falte steht, und getippt wird nach `ensureVisible`.
@@ -131,6 +151,8 @@ void main() {
             .overrideWithValue(() async => stackOf(days: stackDays)),
         weatherTableLoaderProvider
             .overrideWithValue(() async => weatherBytes()),
+        if (elevation != null)
+          elevationLoaderProvider.overrideWithValue(() async => elevation),
       ],
     );
   }
@@ -159,6 +181,7 @@ void main() {
       const at = (lat: spotLat, lon: spotLng);
       await container.read(rainCourseProvider(at).future);
       await container.read(spotTemperatureProvider(at).future);
+      await container.read(elevationAtProvider(at).future);
     });
     await settle(tester);
   }
@@ -194,6 +217,25 @@ void main() {
             'volle Zitation steht auf der Lizenzseite');
     expect(find.textContaining('%'), findsNothing,
         reason: 'Konzept: kein Prozentzeichen — drei Stufen mit Worten');
+  });
+
+  testWidgets('Höhenkorrektur: die Zeile rechnet auf Spothöhe um '
+      'und sagt es', (tester) async {
+    // Station Erfurt-Weimar liegt auf 316 m, der Spot laut Gitter auf
+    // 1200 m: (316 − 1200) · 0,65/100 = −5,746 K — aus 13,0 °C werden
+    // 7,3 °C, die Glocke fällt auf 0,267 und die Stufe von „günstig"
+    // auf „verhalten". Die Zeile MUSS die Umrechnung nennen: Eine
+    // still verschobene Zahl neben dem rohen Stationsdiagramm sähe
+    // aus wie ein Rechenfehler.
+    await pumpWithWeather(tester, loggedInWithSpot(),
+        preview: true, spotHeightM: 1200);
+    await openSpot(tester);
+    await acceptAndSettle(tester);
+
+    expect(find.textContaining(': verhalten'), findsOneWidget);
+    expect(
+        find.textContaining('zu kühl (7,3 °C auf Spothöhe 1200 m)'),
+        findsOneWidget);
   });
 
   testWidgets('ohne Schalter existiert die Sektion nicht', (tester) async {

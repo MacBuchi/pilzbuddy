@@ -23,6 +23,8 @@ const _attributedAssets = <String, String>{
   'assets/forest/forest_manifest.json': 'Copernicus Land Monitoring Service',
   'assets/forest/forest_species.bin.gz': 'DLR',
   'assets/forest/forest_species_manifest.json': 'DLR',
+  'assets/elevation/elevation.bin.gz': 'Copernicus DEM',
+  'assets/elevation/elevation_manifest.json': 'Copernicus DEM',
 };
 
 /// Eigenerzeugnis — keine fremde Lizenz, nichts zu attribuieren.
@@ -39,6 +41,7 @@ const _bundledSources = <String>[
   'Noto Sans',
   'Copernicus Land Monitoring Service',
   'DLR',
+  'Copernicus DEM',
 ];
 
 /// Die Asset-Einträge aus `pubspec.yaml`. Bewusst per Regex statt mit dem
