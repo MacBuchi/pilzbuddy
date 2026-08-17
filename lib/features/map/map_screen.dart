@@ -94,7 +94,15 @@ class _MapScreenState extends ConsumerState<MapScreen>
   /// und Anfragen ohne App-Neustart erscheinen.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _refreshData();
+    // Nur paused/resumed, nicht inactive: Das feuert schon beim
+    // App-Umschalter und bei Berechtigungsdialogen — die Schleifen
+    // sollen ruhen, wenn die App WEG ist, nicht bei jedem Flackern.
+    if (state == AppLifecycleState.paused) {
+      ref.read(appInForegroundProvider.notifier).state = false;
+    } else if (state == AppLifecycleState.resumed) {
+      ref.read(appInForegroundProvider.notifier).state = true;
+      _refreshData();
+    }
   }
 
   void _refreshData() {

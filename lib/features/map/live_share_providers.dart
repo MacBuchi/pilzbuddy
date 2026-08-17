@@ -3,11 +3,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/errors.dart';
 import '../../data/providers.dart';
 import '../../models/friend_location.dart';
+import '../friends/friend_providers.dart';
 
-/// Poll-Intervall der Freundes-Standorte. Als Provider, damit Tests es
-/// überschreiben (oder den ganzen Stream ersetzen) können.
+/// Poll-Intervall der Freundes-Standorte, solange mindestens eine
+/// Freigabe LIVE ist. Als Provider, damit Tests es überschreiben (oder
+/// den ganzen Stream ersetzen) können.
 final friendLocationsPollProvider =
     Provider<Duration>((ref) => const Duration(seconds: 15));
+
+/// Poll-Intervall, solange NIEMAND teilt (#316): Entdecken darf bis zu
+/// 90 s dauern (Betreiber-Entscheidung 2026-08-17) — dem Folgen einer
+/// schon entdeckten Freigabe gehört weiter der schnelle Takt oben.
+final friendLocationsIdlePollProvider =
+    Provider<Duration>((ref) => const Duration(seconds: 90));
+
+/// Ist die App im Vordergrund? Gesetzt vom Karten-Screen
+/// (`didChangeAppLifecycleState`) — im Hintergrund pollt niemand für
+/// einen Bildschirm, den keiner sieht (#316).
+final appInForegroundProvider = StateProvider<bool>((ref) => true);
 
 /// Ende meiner laufenden Standort-Freigabe (UTC), oder null, wenn ich gerade
 /// nicht teile. Mutationen laufen wie überall über invalidateSelf + reload.
@@ -52,20 +65,55 @@ final isSharingProvider = Provider<bool>((ref) {
   return until != null && until.isAfter(DateTime.now().toUtc());
 });
 
-/// Live-Standorte von Freunden, alle paar Sekunden neu geladen. RLS blendet
+/// Live-Standorte von Freunden, regelmäßig neu geladen. RLS blendet
 /// abgelaufene und fremde Freigaben aus; ein Ladefehler behält den letzten
 /// Stand (der Stream bricht nie ab).
+///
+/// Drei Tore, bevor überhaupt gefragt wird (#316 — „every query that
+/// isn't necessary should be saved"):
+/// 1. Ohne ANGENOMMENE Freundschaft kann niemand mit mir teilen — kein
+///    einziger Poll. Die Antwort steckt in `friendshipsProvider`, der
+///    ohnehin geladen ist; scheitert DER (Start im Funkloch), wird
+///    vorsichtshalber gepollt wie früher, statt Freigaben still zu
+///    verpassen.
+/// 2. Im Hintergrund ruht die Schleife ganz — der Screen, für den sie
+///    lädt, ist nicht zu sehen. Der Karten-Screen setzt das Tor über
+///    [appInForegroundProvider]; beim Zurückkehren baut der Provider
+///    sich neu und fragt sofort.
+/// 3. Solange die Antwort leer ist, gilt der träge Takt
+///    ([friendLocationsIdlePollProvider]); erst eine entdeckte Freigabe
+///    schaltet auf den schnellen um.
 final friendLocationsProvider =
     StreamProvider<List<FriendLocation>>((ref) async* {
   if (ref.watch(currentUserIdProvider) == null) {
     yield const [];
     return;
   }
+  final friendships = ref.watch(friendshipsProvider);
+  final known = friendships.valueOrNull;
+  if (known != null && !known.any((f) => f.isAccepted)) {
+    yield const [];
+    return;
+  }
+  if (known == null && friendships.isLoading) {
+    // Noch keine Antwort — der Watch oben baut den Provider neu, sobald
+    // sie da ist. Bis dahin gibt es nichts zu zeigen und nichts zu tun.
+    yield const [];
+    return;
+  }
+  if (!ref.watch(appInForegroundProvider)) {
+    yield const [];
+    return;
+  }
   final repo = ref.watch(liveShareRepositoryProvider);
   final interval = ref.watch(friendLocationsPollProvider);
+  final idle = ref.watch(friendLocationsIdlePollProvider);
+  var anyoneSharing = false;
   while (true) {
     try {
-      yield await repo.fetchFriendLocations();
+      final locations = await repo.fetchFriendLocations();
+      anyoneSharing = locations.isNotEmpty;
+      yield locations;
     } on NotSignedInException {
       // Abmelden ist kein Fehler. Die Schleife läuft noch einen Moment
       // weiter, während die Sitzung schon weg ist — das hier als
@@ -83,6 +131,6 @@ final friendLocationsProvider =
       // ohnehin am Banner (`noConnectivityProvider`).
       if (!looksOffline(e)) logError('Freundes-Standorte laden', e, stackTrace);
     }
-    await Future<void>.delayed(interval);
+    await Future<void>.delayed(anyoneSharing ? interval : idle);
   }
 });
