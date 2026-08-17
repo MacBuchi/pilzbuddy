@@ -11,6 +11,8 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../ampel/ampel_fill.dart' show AmpelLevelGrid;
+import 'elevation_grid.dart' show ElevationGrid;
+import 'elevation_providers.dart' show elevationGridProvider;
 import '../ampel/ampel_map_providers.dart'
     show ampelLayerEnabledProvider, ampelLevelGridProvider;
 import '../ampel/ampel_providers.dart' show ampelPreviewEnabledProvider;
@@ -162,12 +164,17 @@ final forestFillProvider = FutureProvider<ForestFillImage?>((ref) async {
       ref.watch(ampelLayerEnabledProvider);
   final levelsFuture =
       combined ? ref.watch(ampelLevelGridProvider.future) : null;
+  // Die Höhe je Wabe fürs Leuchten — dieselbe Quelle wie Blatt und
+  // Legende, Watch-vor-Await wie alles hier.
+  final elevationFuture =
+      combined ? ref.watch(elevationGridProvider.future) : null;
   final grid = await ref.watch(forestGridProvider.future);
   if (grid == null) return null;
   // Ohne Stufen (Vorschau aus, Wetterdaten fehlen, Stapel zu flach)
   // malt die Fläche schlicht wie immer — der Schalter verspricht ein
   // Leuchten, keine leere Karte.
   final levels = levelsFuture == null ? null : await levelsFuture;
+  final elevation = elevationFuture == null ? null : await elevationFuture;
   final ampel = levels == null ? null : (newest: levels.newest);
 
   // Die feine Stufe (#253) malt nur, wenn sie das GANZE Fenster deckt —
@@ -182,7 +189,8 @@ final forestFillProvider = FutureProvider<ForestFillImage?>((ref) async {
             grids: grids,
             classes: classes,
             window: window,
-            levels: levels
+            levels: levels,
+            elevation: elevation
           ));
     return ForestFillImage(
       png: png,
@@ -204,7 +212,8 @@ final forestFillProvider = FutureProvider<ForestFillImage?>((ref) async {
           grids: [grid],
           classes: classes,
           window: window,
-          levels: levels
+          levels: levels,
+          elevation: elevation
         ));
   return ForestFillImage(
     png: png,
@@ -225,10 +234,14 @@ Uint8List _fillCombined(
           List<ForestGrid> grids,
           Set<ForestClass> classes,
           FillWindow window,
-          AmpelLevelGrid levels
+          AmpelLevelGrid levels,
+          ElevationGrid? elevation
         }) input) =>
     forestAmpelFillPng(input.grids,
-        window: input.window, levels: input.levels, classes: input.classes);
+        window: input.window,
+        levels: input.levels,
+        elevation: input.elevation,
+        classes: input.classes);
 
 Uint8List _fill(
         ({ForestGrid grid, Set<ForestClass> classes, FillWindow window})

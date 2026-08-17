@@ -143,7 +143,7 @@ WeatherTable tableOf(
 void main() {
   /// Die Stufe der Zelle [x] in der einzigen Zeile — `null` heißt
   /// „keine Aussage" (zu wenige Regentage, keine Station in Reichweite).
-  AmpelLevel? levelOf(AmpelLevelGrid grid, int x) => grid.levelAtCell(0, x);
+  AmpelLevel? levelOf(AmpelLevelGrid grid, int x) => grid.levelFor(0, x);
 
   test('je Zelle exakt die Stufe, die das Modell für ihre Reihe nennt',
       () {
@@ -295,7 +295,7 @@ void main() {
         for (var x = 0; x < stack.info.width; x++) {
           final lon = probe.lonAtColumn(x + 0.5);
           final expected = sheetLevelAt(stack, table, lat, lon);
-          expect(grid.levelAtCell(y, x), expected,
+          expect(grid.levelFor(y, x), expected,
               reason: 'Zelle $x/$y (${lat.toStringAsFixed(4)}, '
                   '${lon.toStringAsFixed(4)})');
           seen.add(expected);
@@ -322,7 +322,7 @@ void main() {
         for (var x = 0; x < width; x++) {
           final block = (y ~/ ampelTempBlockCells) * blocksX +
               x ~/ ampelTempBlockCells;
-          (perBlock[block] ??= <AmpelLevel?>{}).add(grid.levelAtCell(y, x));
+          (perBlock[block] ??= <AmpelLevel?>{}).add(grid.levelFor(y, x));
         }
       }
       expect(perBlock.values.where((levels) => levels.length > 1), isNotEmpty,
@@ -358,7 +358,7 @@ void main() {
           final atBlock = table.nearestAir(blockLat, blockLon)?.station.name;
           if (atCell == atBlock) continue;
           contested++;
-          expect(grid.levelAtCell(y, x),
+          expect(grid.levelFor(y, x),
               sheetLevelAt(stack, table, lat, lon),
               reason: 'Zelle $x/$y sieht $atCell, ihre Kachel $atBlock');
         }
@@ -393,8 +393,10 @@ void main() {
         hexLonStep: 0.05,
         hexLatStep: 0.0375,
       );
-      final grid = ampelLevelsFrom(stack, table, elevation: elevation)!;
-      final uncorrected = ampelLevelsFrom(stack, table)!;
+      // EIN Gitter — die Höhe geht seit dem Berchtesgaden-Befund nicht
+      // mehr in den Bau ein, sondern in die Auswertung: `levelAt` mit
+      // Höhengitter ist exakt der Weg des Wabenzeichners.
+      final grid = ampelLevelsFrom(stack, table)!;
 
       final probe = probeOf(stack);
       final seen = <AmpelLevel?>{};
@@ -405,11 +407,12 @@ void main() {
           final lon = probe.lonAtColumn(x + 0.5);
           final expected =
               sheetLevelAt(stack, table, lat, lon, elevation: elevation);
-          expect(grid.levelAtCell(y, x), expected,
+          expect(grid.levelAt(lat, lon, elevation: elevation), expected,
               reason: 'Zelle $x/$y (${lat.toStringAsFixed(4)}, '
                   '${lon.toStringAsFixed(4)})');
           seen.add(expected);
-          if (grid.levelAtCell(y, x) != uncorrected.levelAtCell(y, x)) {
+          if (grid.levelAt(lat, lon, elevation: elevation) !=
+              grid.levelFor(y, x)) {
             changed++;
           }
         }
@@ -548,13 +551,13 @@ void main() {
           reason: 'die lückige muss hier wirklich die nächste sein');
       expect(sheetLevelAt(stack, table, lat, lon), isNull,
           reason: 'das Blatt wird grau — der Maßstab dieses Tests');
-      expect(grid.levelAtCell(0, 0), isNull);
+      expect(grid.levelFor(0, 0), isNull);
 
       // Und die Gegenprobe: Ohne die lückige davor stünde hier sehr
       // wohl eine Stufe — sonst prüfte der Test nur, dass irgendetwas
       // transparent ist.
       final good = ampelLevelsFrom(stack, tableOfStations([gappy.last]))!;
-      expect(good.levelAtCell(0, 0), isNotNull,
+      expect(good.levelFor(0, 0), isNotNull,
           reason: 'die Lage an sich gibt eine Stufe her');
     });
   });

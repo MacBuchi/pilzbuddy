@@ -38,6 +38,7 @@ import 'package:flutter/painting.dart' show Color;
 
 import '../../core/app_colors.dart';
 import '../ampel/ampel_fill.dart' show AmpelLevelGrid;
+import 'elevation_grid.dart' show ElevationGrid;
 import '../ampel/ampel_model.dart' show AmpelLevel;
 import 'forest_fill_window.dart';
 import 'forest_grid.dart';
@@ -224,13 +225,19 @@ Uint8List forestFillPngMulti(List<ForestGrid> grids,
 /// bleibt die Wabe schlicht Wald; „leuchtet nicht" heißt dort also
 /// weder schlecht noch unbekannt, und deshalb nennt das Blatt die
 /// Abdeckung.
+/// [elevation] gibt jeder Wabe ihre eigene Höhe fürs Auswerten der
+/// Temperatur-Glocke (Berchtesgaden-Befund 2026-08-17): Eine
+/// 1-km-Regenzelle kann 500 Höhenmeter überspannen — mit EINER Stufe
+/// je Zelle konnte die Wabenfarbe der Punkt-Ablesung des Blatts dort
+/// nie überall zustimmen. `null` heißt unkorrigiert, wie im Blatt.
 Uint8List forestAmpelFillPng(List<ForestGrid> grids,
     {required FillWindow window,
     required AmpelLevelGrid levels,
+    ElevationGrid? elevation,
     Set<ForestClass> classes = allForestClasses}) {
   final coverage = _HexCoverage(window, bandCount: 5);
   for (final grid in grids) {
-    coverage.add(grid, classes, highlight: levels);
+    coverage.add(grid, classes, highlight: levels, elevation: elevation);
   }
   return overlayPng(
       window.width, window.height, coverage.resolveCombined());
@@ -323,7 +330,7 @@ class _HexCoverage {
   /// konstant, und zwei Logarithmen je Wabe wären bei Millionen Waben
   /// der Unterschied zwischen läuft und ruckelt.
   void add(ForestGrid grid, Set<ForestClass> classes,
-      {AmpelLevelGrid? highlight}) {
+      {AmpelLevelGrid? highlight, ElevationGrid? elevation}) {
     final width = window.width;
     final rows = window.height;
     final lonStep = grid.hexLonStep!;
@@ -381,7 +388,9 @@ class _HexCoverage {
             area: 0.75 * wPx * (yBot - yTop),
             yMid: (yTop + yBot) / 2,
             highlight: highlight,
+            elevation: elevation,
             ampelRow: ampelRow,
+            rowLat: latC,
             lonFirst: lonFirst,
             lonStep: lonStep);
         continue;
@@ -393,7 +402,7 @@ class _HexCoverage {
         final band = bandOf[grid.values[rowBase + hx]];
         if (band < 0) continue;
         if (cx + wPx / 2 <= 0 || cx - wPx / 2 >= width) continue;
-        final lit = _litBand(highlight, ampelRow, lonC);
+        final lit = _litBand(highlight, elevation, ampelRow, latC, lonC);
         final py0 = math.max(0, yTop.floor());
         final py1 = math.min(rows - 1, yBot.floor());
         for (var py = py0; py <= py1; py++) {
@@ -456,7 +465,9 @@ class _HexCoverage {
     required double area,
     required double yMid,
     required AmpelLevelGrid? highlight,
+    required ElevationGrid? elevation,
     required int? ampelRow,
+    required double rowLat,
     required double lonFirst,
     required double lonStep,
   }) {
@@ -478,7 +489,7 @@ class _HexCoverage {
     for (var hx = hx0; hx <= hx1; hx++, cx += wPx, lonC += lonStep) {
       final band = bandOf[grid.values[rowBase + hx]];
       if (band < 0) continue;
-      final lit = _litBand(highlight, ampelRow, lonC);
+      final lit = _litBand(highlight, elevation, ampelRow, rowLat, lonC);
       final px = cx.floor();
       if (px < -1 || px >= width) continue;
       final tx = cx - px;
@@ -509,11 +520,17 @@ class _HexCoverage {
   /// Wetter mindestens „verhalten" ist, zahlt die Wabe zusätzlich zu
   /// ihrem Klassenband in Band 3 bzw. 4 ein. Ohne [highlight] leuchtet
   /// nichts.
-  int _litBand(AmpelLevelGrid? highlight, int? ampelRow, double lon) {
+  int _litBand(AmpelLevelGrid? highlight, ElevationGrid? elevation,
+      int? ampelRow, double lat, double lon) {
     if (highlight == null || ampelRow == null) return -1;
     final column = highlight.columnAt(lon);
     if (column == null) return -1;
-    return switch (highlight.levelAtCell(ampelRow, column)) {
+    // Die Glocke mit der Höhe DIESER Wabe — für die groben Waben ist
+    // das derselbe Gitterindex (gleiches Hex-Raster), für die feinen
+    // der Mittelpunkt-Nachschlag; beides läuft über denselben Weg,
+    // damit es keinen zweiten gibt.
+    return switch (highlight.levelFor(ampelRow, column,
+        heightM: elevation?.heightMetersAt(lat, lon))) {
       AmpelLevel.verhalten => _bandVerhalten,
       AmpelLevel.guenstig => _bandGuenstig,
       // „ungünstig" und „keine Aussage" sind hier dasselbe: Die Wabe
