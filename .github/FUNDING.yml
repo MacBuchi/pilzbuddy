@@ -8,6 +8,6 @@
 # EIN Ko-fi-Konto für alle Apps des Betreibers — Spender können in der
 # Nachricht sagen, aus welchem Projekt sie kommen.
 ko_fi: macbuchi
-# github: [MacBuchi] — nachtragen, sobald GitHub Sponsors (Stripe-
-# Onboarding) freigeschaltet ist; vorher zeigte der Eintrag eine leere
-# Sponsors-Seite.
+# Freigeschaltet und öffentlich seit 2026-08-18 (Stripe-Onboarding
+# durchlaufen) — vorher hätte der Eintrag eine leere Seite gezeigt.
+github: [MacBuchi]
