@@ -1266,10 +1266,9 @@
      "is_bridge"
     ],
     [
-     "in",
+     "==",
      "kind",
-     "other",
-     "path"
+     "other"
     ],
     [
      "!=",
@@ -1292,6 +1291,121 @@
      0.5,
      20,
      12
+    ]
+   }
+  },
+  {
+   "id": "roads_path_track",
+   "type": "line",
+   "source": "protomaps",
+   "source-layer": "roads",
+   "filter": [
+    "all",
+    [
+     "!has",
+     "is_tunnel"
+    ],
+    [
+     "!has",
+     "is_bridge"
+    ],
+    [
+     "==",
+     "kind",
+     "path"
+    ],
+    [
+     "==",
+     "kind_detail",
+     "track"
+    ]
+   ],
+   "paint": {
+    "line-color": "#9a6b3f",
+    "line-dasharray": [
+     4,
+     1.5
+    ],
+    "line-width": [
+     "interpolate",
+     [
+      "exponential",
+      1.6
+     ],
+     [
+      "zoom"
+     ],
+     12,
+     0.9,
+     15,
+     2,
+     20,
+     7
+    ]
+   }
+  },
+  {
+   "id": "roads_path",
+   "type": "line",
+   "source": "protomaps",
+   "source-layer": "roads",
+   "filter": [
+    "all",
+    [
+     "!has",
+     "is_tunnel"
+    ],
+    [
+     "!has",
+     "is_bridge"
+    ],
+    [
+     "==",
+     "kind",
+     "path"
+    ],
+    [
+     "!=",
+     "kind_detail",
+     "track"
+    ],
+    [
+     "!=",
+     "kind_detail",
+     "pier"
+    ],
+    [
+     "!=",
+     "kind_detail",
+     "sidewalk"
+    ],
+    [
+     "!=",
+     "kind_detail",
+     "crossing"
+    ]
+   ],
+   "paint": {
+    "line-color": "#a9793f",
+    "line-dasharray": [
+     2,
+     1.5
+    ],
+    "line-width": [
+     "interpolate",
+     [
+      "exponential",
+      1.6
+     ],
+     [
+      "zoom"
+     ],
+     12,
+     0.7,
+     15,
+     1.5,
+     20,
+     5
     ]
    }
   },

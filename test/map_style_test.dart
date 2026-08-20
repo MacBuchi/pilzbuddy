@@ -54,4 +54,53 @@ void main() {
     // Und der Renderer muss den Rest weiterhin vollständig parsen.
     expect(ThemeReader().read(stripped).layers.length, strippedLayers.length);
   });
+
+  test('Wanderwege haben eine eigene Ebene', () {
+    // Protomaps steckt Pfade, Forstwege und Steige als `kind == "path"`
+    // in dieselbe Ebene wie Zufahrten und Bahnsteige. Der LIGHT-Flavor
+    // malt die mit #ebebeb auf #e2dfda und 0,5 px bei z14 — für eine
+    // Pilz-App ist damit ausgerechnet unsichtbar, worauf man läuft.
+    // `tool/transform_map_style.py` trennt sie deshalb heraus.
+    final styleJson = jsonDecode(
+            File('assets/map_style/protomaps_light_de.json').readAsStringSync())
+        as Map<String, dynamic>;
+    final layers = (styleJson['layers'] as List).cast<Map<String, dynamic>>();
+    final ids = [for (final layer in layers) layer['id'] as String];
+
+    expect(ids, containsAll(['roads_path_track', 'roads_path']));
+
+    final other = layers.firstWhere((layer) => layer['id'] == 'roads_other');
+    expect(jsonEncode(other['filter']), isNot(contains('"path"')),
+        reason: 'roads_other darf kind == path nicht mehr einsammeln — sonst '
+            'liegt die blasse Sammelgrube wieder auf denselben Wegen');
+
+    // Direkt hinter roads_other, also UNTER den Straßen: Eine Straße,
+    // die einen Forstweg kreuzt, gehört obenauf.
+    expect(ids.indexOf('roads_path_track'), ids.indexOf('roads_other') + 1);
+    expect(ids.indexOf('roads_path'), ids.indexOf('roads_other') + 2);
+    expect(ids.indexOf('roads_path'), lessThan(ids.indexOf('roads_minor')));
+
+    // Forstwege ab z12, der Rest ab z13 in den Kacheln (nachgemessen an
+    // `de_saarland`) — die Breiten dürfen deshalb nicht wieder bei z14
+    // anfangen, sonst ändert sich sichtbar nichts.
+    for (final id in ['roads_path_track', 'roads_path']) {
+      final paint = layers.firstWhere((layer) => layer['id'] == id)['paint']
+          as Map<String, dynamic>;
+      final width = paint['line-width'] as List;
+      expect(width[3], 12, reason: '$id soll ab Zoom 12 breiter werden');
+      expect(paint['line-dasharray'], isNotNull,
+          reason: 'gestrichelt, damit ein Weg nicht wie eine Straße aussieht');
+    }
+  });
+
+  test('Der Renderer versteht die Wanderwege-Ebenen', () {
+    // Eine Ebene, die vector_tile_renderer nicht parst, lässt er
+    // stillschweigend weg — genau der Fehler, gegen den es das
+    // Transform-Skript überhaupt gibt.
+    final styleJson = jsonDecode(
+            File('assets/map_style/protomaps_light_de.json').readAsStringSync())
+        as Map<String, dynamic>;
+    final ids = ThemeReader().read(styleJson).layers.map((l) => l.id).toSet();
+    expect(ids, containsAll(['roads_path_track', 'roads_path']));
+  });
 }

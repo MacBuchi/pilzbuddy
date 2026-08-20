@@ -7,6 +7,30 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Wanderwege sind endlich zu sehen
+
+*20. August 2026 · Version 1.97.0*
+
+Auf der heruntergeladenen Offline-Karte waren bisher fast nur Straßen zu
+erkennen. Die Wege waren die ganze Zeit da — sie wurden nur so blass
+gezeichnet wie eine Hofzufahrt und erst beim starken Hineinzoomen
+überhaupt breiter als ein Haar.
+
+Jetzt haben sie eine eigene Farbe:
+
+- **Forstwege** — die breiten, befahrbaren — in kräftigem Ockerbraun mit
+  langen Strichen. Das sind die, auf denen man in den Wald kommt.
+- **Pfade, Steige, Fußwege und Reitwege** feiner gestrichelt im selben
+  Ton.
+- Beide erscheinen früher: Du musst nicht mehr so weit hineinzoomen, bis
+  sich etwas zeigt.
+
+Bürgersteige und Fußgängerüberwege an Stadtstraßen fallen dafür weg. Im
+Wald helfen sie nicht, und in der Stadt waren sie nur Gewimmel.
+
+Das betrifft die Offline-Karte und die Karte ohne Empfang. Mit Empfang
+zeichnet OpenStreetMap die Karte wie bisher selbst.
+
 ## Die App fragt sparsamer nach
 
 *17. August 2026 · Versionen 1.95.0 und 1.96.0*

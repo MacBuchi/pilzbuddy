@@ -30,7 +30,7 @@
       "regenerate": "entsteht im selben Lauf wie forest_species.bin.gz — siehe dort"
     },
     "assets/map_style/protomaps_light_de.json": {
-      "sha256": "7b2a50bdbd841692fdfda3912e02c543dd94877f9cc9f1866403755bc818adcc",
+      "sha256": "b2260b2bfc464eab0cbf53a778dde93f87d65fa525487fcf6b60cbfa7c4407b3",
       "regenerate": "Stil mit npm @protomaps/basemaps erzeugen (Flavor LIGHT, lang de), dann python3 tool/transform_map_style.py assets/map_style/protomaps_light_de.json",
       "checks": {
         "transform_noop": "tool/transform_map_style.py"

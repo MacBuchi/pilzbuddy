@@ -11,6 +11,11 @@ silently dropped — no labels, gray landcover. This script rewrites them:
   -> ["coalesce", ["get", "name:de"], ["get", "name"]]
 - drops icon-based layers (shields, oneway arrows) — we ship no sprites.
 
+Beyond the renderer fixes it makes one deliberate design change:
+hiking paths, forest tracks and trails get their own visible layers
+instead of disappearing into the `roads_other` catch-all — see
+`emphasize_paths`.
+
 Usage (after regenerating the style with @protomaps/basemaps):
     python3 tool/transform_map_style.py assets/map_style/protomaps_light_de.json
 """
@@ -18,6 +23,106 @@ import json
 import sys
 
 SIMPLE_NAME = ["coalesce", ["get", "name:de"], ["get", "name"]]
+
+# Die Wanderwege-Töne stehen bewusst HIER und nicht in
+# `lib/core/app_colors.dart`: Diesen Stil erzeugt ein Werkzeug, das kein
+# Dart liest. Ockerbraun, weil es sich sowohl vom Erdton (#e2dfda) als
+# auch vom Grün der landcover-Ebene absetzt.
+PATH_TRACK_COLOR = "#9a6b3f"
+PATH_COLOR = "#a9793f"
+
+# Wegarten, die keine Wanderwege sind: Bürgersteige und Fußgängerüberwege
+# hängen an jeder Stadtstraße. Sie fallen damit ganz weg — für eine
+# Pilz-App ist das Gewinn, nicht Verlust.
+URBAN_PATH_DETAILS = ("sidewalk", "crossing")
+
+
+def path_layers():
+    """Die zwei Wanderwege-Ebenen — bei jedem Aufruf gleich aufgebaut.
+
+    Eigene Funktion, damit [emphasize_paths] sie ERSETZEN statt ergänzen
+    kann: Nur so bleibt [transform] ein Fixpunkt.
+    """
+    common = [["!has", "is_tunnel"], ["!has", "is_bridge"], ["==", "kind", "path"]]
+    return [
+        {
+            "id": "roads_path_track",
+            "type": "line",
+            "source": "protomaps",
+            "source-layer": "roads",
+            "filter": ["all"] + common + [["==", "kind_detail", "track"]],
+            "paint": {
+                "line-color": PATH_TRACK_COLOR,
+                "line-dasharray": [4, 1.5],
+                "line-width": [
+                    "interpolate", ["exponential", 1.6], ["zoom"],
+                    12, 0.9, 15, 2, 20, 7,
+                ],
+            },
+        },
+        {
+            "id": "roads_path",
+            "type": "line",
+            "source": "protomaps",
+            "source-layer": "roads",
+            "filter": ["all"] + common
+            + [["!=", "kind_detail", "track"], ["!=", "kind_detail", "pier"]]
+            + [["!=", "kind_detail", detail] for detail in URBAN_PATH_DETAILS],
+            "paint": {
+                "line-color": PATH_COLOR,
+                "line-dasharray": [2, 1.5],
+                "line-width": [
+                    "interpolate", ["exponential", 1.6], ["zoom"],
+                    12, 0.7, 15, 1.5, 20, 5,
+                ],
+            },
+        },
+    ]
+
+
+def emphasize_paths(style):
+    """Wanderwege bekommen eine eigene Ebene statt der Sammelgrube.
+
+    **Das Problem:** Protomaps steckt Pfade, Forstwege, Steige und
+    Reitwege als `kind == "path"` in dieselbe Ebene wie Zufahrten und
+    Bahnsteige (`kind == "other"`). Der LIGHT-Flavor malt die Ebene
+    `#ebebeb` auf einen `#e2dfda`-Boden und bei z14 mit 0,5 px — für
+    eine Pilz-App ist damit ausgerechnet das unsichtbar, worauf man
+    läuft. Kein Datenproblem: Die Wege stehen vollständig in den
+    Kacheln.
+
+    **Nachgemessen** (2026-08-20, Archiv `de_saarland` aus den
+    Nomad-Releases, Kacheln z12–z14 über Range-Requests): Forstwege
+    (`kind_detail == "track"`) liegen ab z12 in den Kacheln, alles
+    Übrige (`path`, `footway`, `cycleway`, `steps`) ab z13. Die
+    Breiten beginnen deshalb bei z12 statt wie bisher bei z14.
+
+    **Idempotent, und das ist Pflicht:** `tool/generated_assets.py`
+    wendet [transform] auf das committete Asset an und verlangt
+    byteidentische Ausgabe. Deshalb stellt dieser Schritt einen
+    Endzustand her — alte Ebenen gleicher id raus, frische rein — statt
+    etwas anzuhängen.
+    """
+    layers = style["layers"]
+    if not any(layer["id"] == "roads_other" for layer in layers):
+        raise SystemExit("roads_other fehlt — der erzeugte Stil sieht anders aus als erwartet")
+    fresh = path_layers()
+    ours = {layer["id"] for layer in fresh}
+    layers = [layer for layer in layers if layer["id"] not in ours]
+    at = next(i for i, layer in enumerate(layers) if layer["id"] == "roads_other")
+    # Die Sammelgrube behält nur noch, was wirklich Nebensache ist.
+    layers[at]["filter"] = [
+        "all",
+        ["!has", "is_tunnel"],
+        ["!has", "is_bridge"],
+        ["==", "kind", "other"],
+        ["!=", "kind_detail", "pier"],
+    ]
+    # Hinter roads_other, also UNTER den Straßen — eine Straße, die einen
+    # Forstweg kreuzt, gehört obenauf.
+    layers[at + 1:at + 1] = fresh
+    style["layers"] = layers
+    return style
 
 
 def fix_in(expr):
@@ -83,7 +188,7 @@ def transform(style):
         kept.append(layer)
 
     style["layers"] = kept
-    return style
+    return emphasize_paths(style)
 
 
 def render(style):
