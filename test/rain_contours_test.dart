@@ -35,7 +35,7 @@ void main() {
     test('liegt an der richtigen Stelle', () {
       final lines = plain(grid, [15]);
       expect(lines, hasLength(1));
-      expect(lines.single.mm, 15);
+      expect(lines.single.level, 15);
       expect(lines.single.points, hasLength(3));
       // Zellmitten liegen bei Spalte 0,5 / 1,5 / 2,5 / 3,5; 10 und 20
       // sind die Zellen 1 und 2, der Schnitt bei 15 liegt genau dazwischen
@@ -119,7 +119,7 @@ void main() {
       // Die Sattelpunkte 5 und 10 sind mehrdeutig und werden immer
       // gleich aufgelöst. Ohne das wäre kein Test hier reproduzierbar.
       String render(List<ContourLine> lines) => lines
-          .map((l) => '${l.mm}:${l.points.map((p) => '${p.latitude},'
+          .map((l) => '${l.level}:${l.points.map((p) => '${p.latitude},'
               '${p.longitude}').join(';')}')
           .join('|');
       expect(render(plain(grid, [5, 15, 25])),
@@ -384,8 +384,8 @@ void main() {
     // Der Befund vom Pixel 7 (2026-08-04): Eingezoomt sind die Linien
     // sparsam und klar, in der Deutschlandübersicht zeichnen dieselben
     // Daten ein Geflecht — hunderte Ringe von je wenigen Pixeln.
-    const short = ContourLine(mm: 30, points: [], cells: 4);
-    const long = ContourLine(mm: 30, points: [], cells: 400);
+    const short = ContourLine(level: 30, points: [], cells: 4);
+    const long = ContourLine(level: 30, points: [], cells: 400);
 
     test('wirft in der Übersicht die kurzen Ringe weg', () {
       final visible = rainContoursAtZoom([short, long], 6, levels: const [30]);
