@@ -42,6 +42,16 @@ def path_layers():
 
     Eigene Funktion, damit [emphasize_paths] sie ERSETZEN statt ergänzen
     kann: Nur so bleibt [transform] ein Fixpunkt.
+
+    **Der Strich ist Zugabe, die Aussage tragen Farbe und Breite.**
+    `vector_tile_renderer` 6.1.0 prüft in `paint_factory.dart`
+    `dashJson is List<num>` — `jsonDecode` liefert aber `List<dynamic>`,
+    und das ist in Dart kein `List<num>`. Auf dem klassischen Renderer
+    (Web und `classicMapEnabled`) sind die Wege deshalb durchgezogen,
+    in MapLibre gestrichelt. Dieselbe Lage wie bei `roads_rail` und
+    allen `roads_tunnels_*` seit jeher. Darum liegen die Breiten von
+    Forstweg und Pfad bewusst weit auseinander (Faktor ~1,8 statt ~1,3):
+    Wo der Strich fehlt, muss die Breite die Wegart allein tragen.
     """
     common = [["!has", "is_tunnel"], ["!has", "is_bridge"], ["==", "kind", "path"]]
     return [
@@ -56,7 +66,7 @@ def path_layers():
                 "line-dasharray": [4, 1.5],
                 "line-width": [
                     "interpolate", ["exponential", 1.6], ["zoom"],
-                    12, 0.9, 15, 2, 20, 7,
+                    12, 0.9, 15, 2.4, 20, 8,
                 ],
             },
         },
@@ -73,7 +83,7 @@ def path_layers():
                 "line-dasharray": [2, 1.5],
                 "line-width": [
                     "interpolate", ["exponential", 1.6], ["zoom"],
-                    12, 0.7, 15, 1.5, 20, 5,
+                    12, 0.6, 15, 1.3, 20, 4.5,
                 ],
             },
         },
@@ -202,6 +212,61 @@ def render(style):
     return json.dumps(style, ensure_ascii=False, indent=1)
 
 
+def self_test():
+    """Netzfrei, in Sekunden — läuft in CI mit den anderen Werkzeugen.
+
+    Der Fixpunkt wird zwar auch von `tool/generated_assets.py` geprüft,
+    aber der sagt nur DASS etwas nicht mehr passt. Hier steht, WAS.
+    """
+    def sample():
+        return {"layers": [
+            {"id": "earth", "type": "fill"},
+            {"id": "roads_other", "type": "line", "source-layer": "roads",
+             "filter": ["all", ["in", "kind", "other", "path"]]},
+            {"id": "roads_minor", "type": "line", "source-layer": "roads"},
+            {"id": "roads_labels_minor", "type": "symbol",
+             "layout": {"text-field": ["format", "x"]}},
+        ]}
+
+    once = transform(sample())
+    ids = [layer["id"] for layer in once["layers"]]
+    assert ids.index("roads_path_track") == ids.index("roads_other") + 1, ids
+    assert ids.index("roads_path") == ids.index("roads_other") + 2, ids
+    assert ids.index("roads_path") < ids.index("roads_minor"), \
+        "Wege gehören UNTER die Straßen"
+
+    other = next(l for l in once["layers"] if l["id"] == "roads_other")
+    assert "path" not in json.dumps(other["filter"]), \
+        "roads_other sammelt kind == path immer noch ein"
+
+    # Der Fixpunkt: ein zweiter Lauf darf nichts mehr ändern. Genau das
+    # verlangt `generated_assets.py` vom ausgelieferten Asset.
+    assert render(transform(json.loads(render(once)))) == render(once), \
+        "transform ist kein Fixpunkt — der zweite Lauf ändert etwas"
+
+    # Farbe UND Breite müssen die zwei Wegarten allein tragen: Der
+    # klassische Renderer wirft den Strich weg (siehe path_layers).
+    def width_at(layer_id, zoom):
+        layer = next(l for l in once["layers"] if l["id"] == layer_id)
+        stops = layer["paint"]["line-width"][3:]
+        return dict(zip(stops[::2], stops[1::2]))[zoom]
+
+    assert width_at("roads_path_track", 15) >= width_at("roads_path", 15) * 1.5, \
+        "ohne Strich bleibt nur die Breite — der Abstand ist zu klein"
+
+    # Fehlt roads_other, wird abgebrochen statt hinten angehängt: dort
+    # lägen die Wege über den Beschriftungen.
+    broken = {"layers": [{"id": "earth", "type": "fill"}]}
+    try:
+        transform(broken)
+    except SystemExit:
+        pass
+    else:  # pragma: no cover
+        raise AssertionError("fehlendes roads_other muss abbrechen")
+
+    print("self-test: ok")
+
+
 def main(path):
     with open(path, encoding="utf-8") as f:
         style = json.load(f)
@@ -212,4 +277,7 @@ def main(path):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    if "--self-test" in sys.argv:
+        self_test()
+    else:
+        main(sys.argv[1])

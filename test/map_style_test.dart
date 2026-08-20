@@ -89,7 +89,7 @@ void main() {
       final width = paint['line-width'] as List;
       expect(width[3], 12, reason: '$id soll ab Zoom 12 breiter werden');
       expect(paint['line-dasharray'], isNotNull,
-          reason: 'gestrichelt, damit ein Weg nicht wie eine Straße aussieht');
+          reason: 'gestrichelt — aber nur MapLibre sieht das, siehe unten');
     }
   });
 
@@ -102,5 +102,39 @@ void main() {
         as Map<String, dynamic>;
     final ids = ThemeReader().read(styleJson).layers.map((l) => l.id).toSet();
     expect(ids, containsAll(['roads_path_track', 'roads_path']));
+  });
+
+  test('Der Strich ist Zugabe, die Aussage tragen Farbe und Breite', () {
+    // vector_tile_renderer 6.1.0 prüft in paint_factory.dart
+    // `dashJson is List<num>` — jsonDecode liefert aber List<dynamic>,
+    // und das ist in Dart KEIN List<num>. Auf dem klassischen Renderer
+    // (Web und classicMapEnabled) sind die Wege deshalb durchgezogen,
+    // in MapLibre gestrichelt. Dieselbe Lage wie bei roads_rail und
+    // allen roads_tunnels_* seit jeher — also keine Verschlechterung,
+    // aber der Grund, warum die Breiten weit auseinanderliegen müssen.
+    expect(jsonDecode('[4, 1.5]') is List<num>, isFalse,
+        reason: 'Ändert sich das je, darf dieser Test bleiben — dann ist '
+            'der Strich plötzlich überall da, und das wäre gut');
+
+    final styleJson = jsonDecode(
+            File('assets/map_style/protomaps_light_de.json').readAsStringSync())
+        as Map<String, dynamic>;
+    final layers = (styleJson['layers'] as List).cast<Map<String, dynamic>>();
+    double widthAt(String id, int zoom) {
+      final stops = ((layers.firstWhere((layer) => layer['id'] == id)['paint']
+          as Map<String, dynamic>)['line-width'] as List).skip(3).toList();
+      for (var i = 0; i < stops.length; i += 2) {
+        if (stops[i] == zoom) return (stops[i + 1] as num).toDouble();
+      }
+      fail('keine Stützstelle bei Zoom $zoom für $id');
+    }
+
+    // Ohne Strich bleibt nur die Breite. Der Forstweg — das für Sammler
+    // Wichtigste — muss deutlich dicker sein als der Pfad, nicht nur
+    // eine Spur.
+    expect(widthAt('roads_path_track', 15),
+        greaterThanOrEqualTo(widthAt('roads_path', 15) * 1.5));
+    expect(widthAt('roads_path_track', 20),
+        greaterThanOrEqualTo(widthAt('roads_path', 20) * 1.5));
   });
 }

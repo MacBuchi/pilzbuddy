@@ -18,10 +18,10 @@ gezeichnet wie eine Hofzufahrt und erst beim starken Hineinzoomen
 
 Jetzt haben sie eine eigene Farbe:
 
-- **Forstwege** — die breiten, befahrbaren — in kräftigem Ockerbraun mit
-  langen Strichen. Das sind die, auf denen man in den Wald kommt.
-- **Pfade, Steige, Fußwege und Reitwege** feiner gestrichelt im selben
-  Ton.
+- **Forstwege** — die breiten, befahrbaren — kräftig in Ockerbraun. Das
+  sind die, auf denen man in den Wald kommt.
+- **Pfade, Steige, Fußwege und Reitwege** deutlich feiner im selben Ton,
+  damit man die beiden auseinanderhält.
 - Beide erscheinen früher: Du musst nicht mehr so weit hineinzoomen, bis
   sich etwas zeigt.
 
