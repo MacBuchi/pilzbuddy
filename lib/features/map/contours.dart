@@ -19,6 +19,7 @@
 // herunter, damit Wege und Beschriftung beim Hineinzoomen lesbar
 // blieben. Mit Linien stellt sich die Frage nicht.
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:latlong2/latlong.dart';
 
@@ -28,6 +29,7 @@ class ContourLine {
     required this.level,
     required this.points,
     required this.cells,
+    this.index = false,
   });
 
   /// Der Wert, auf dem diese Linie liegt — Millimeter beim Regen, Meter
@@ -42,6 +44,11 @@ class ContourLine {
   /// genau die braucht die Auswahl „welche Linie sagt bei diesem Zoom
   /// noch etwas".
   final int cells;
+
+  /// Hauptlinie — jede fünfte, kräftiger gezeichnet. Ohne sie zählt
+  /// niemand ab, welche Linie welche Höhe hat; Beschriftungen an der
+  /// Linie kann diese App auf beiden Renderern nicht.
+  final bool index;
 }
 
 /// Erdumfang auf Breite 51°, in Kilometern.
@@ -95,6 +102,7 @@ List<ContourLine> contourLines({
   double toleranceCells = 2,
   int minChainCells = 6,
   int roundingPasses = 2,
+  bool Function(int level)? isIndex,
 }) {
   final lines = <ContourLine>[];
   for (final level in levels) {
@@ -107,6 +115,7 @@ List<ContourLine> contourLines({
       lines.add(ContourLine(
         level: level,
         cells: chain.length,
+        index: isIndex?.call(level) ?? false,
         points: [
           for (final point in rounded)
             LatLng(latAtRow(point.dy + 0.5), lonAtColumn(point.dx + 0.5)),
@@ -147,6 +156,66 @@ List<ContourLine> contourLines({
     }
   }
   return (lines: lines, points: points, dropped: dropped, rawPoints: rawPoints);
+}
+
+/// Dasselbe Gitter, über 3×3 gemittelt — **nur zum Zeichnen**.
+///
+/// Gemessen am echten Deutschland-Regengitter (2026-08-04): Die Zahl der
+/// Konturketten fällt von 8 874 auf 1 995, die Punkte nach der
+/// Vereinfachung von 28 806 auf 10 969, und das Konturieren wird von
+/// 102 auf 45 ms schneller, weil es weniger Kreuzungen gibt.
+///
+/// Beim Höhengitter tut dieselbe Rechnung noch zwei weitere Dinge, und
+/// ohne sie sähe die Ebene kaputt aus:
+///
+/// - **Sie bricht die 20-Meter-Entartung.** Die Rohhöhen sind Vielfache
+///   von 20 m; eine Stufe „100 m" träfe damit ganze Zellen exakt,
+///   [_fraction] gäbe für `a == b` die halbe Zelle zurück und die Linie
+///   liefe als Treppe über die Zellmitten. Nach dem Mittel liegen die
+///   Werte dazwischen.
+/// - **Sie hebt den Parität-Zickzack auf.** Das Höhengitter ist ein
+///   Hexgitter (odd-r): Benachbarte ZEILEN holen ihren Wert aus Waben,
+///   die um eine halbe Wabe (~133 m) gegeneinander versetzt liegen. Auf
+///   einem 10-%-Hang sind das ±13 m im Wechsel — dieselbe Größe wie die
+///   Quantisierung, und als Sägezahn an jeder Linie sichtbar. Das 3×3
+///   spannt beide Paritäten und mittelt ihn weg.
+///
+/// Zellen ohne Daten bleiben ohne Daten, und sie gehen nicht in den
+/// Mittelwert ein: Sonst zöge der Rand der Daten die Werte daneben nach
+/// unten und erzeugte eine Linie, die es nicht gibt.
+Int32List smooth3x3(
+  List<int> values, {
+  required int width,
+  required int height,
+  required int noData,
+}) {
+  final out = Int32List(width * height);
+  for (var y = 0; y < height; y++) {
+    final row = y * width;
+    for (var x = 0; x < width; x++) {
+      if (values[row + x] == noData) {
+        out[row + x] = noData;
+        continue;
+      }
+      var sum = 0;
+      var count = 0;
+      for (var dy = -1; dy <= 1; dy++) {
+        final ny = y + dy;
+        if (ny < 0 || ny >= height) continue;
+        final nrow = ny * width;
+        for (var dx = -1; dx <= 1; dx++) {
+          final nx = x + dx;
+          if (nx < 0 || nx >= width) continue;
+          final value = values[nrow + nx];
+          if (value == noData) continue;
+          sum += value;
+          count++;
+        }
+      }
+      out[row + x] = (sum / count).round();
+    }
+  }
+  return out;
 }
 
 /// Marching Squares auf einer Höhe, verkettet zu Linienzügen.

@@ -420,3 +420,51 @@ oben): ein Ein-Schlitz-Memo je Wabenzeile auf (Regenspalte, Höhenbyte)
 oder der Direktindex für das grobe Gitter, dessen Raster mit dem
 Höhengitter identisch ist (`hexNearestCell` des eigenen Mittelpunkts
 ist dort die Identität).
+
+## Nachtrag 2026-08-20: Höhenlinien aus dem Höhengitter (1.98.0)
+
+Die Ebene rechnet auf dem Gerät: Sichtfenster planen (`planFillWindow`,
+dieselbe Hysterese wie die Waldfläche), Höhengitter darin abtasten,
+3×3 mitteln, Marching Squares. Kein Netz, kein Bild, keine Kachel.
+
+Gemessen (Debug-VM, echtes Höhengitter 3038×4470, Fenster wie ein
+1080×1920-Schirm sie auslöst, `test/perf_elevation_contours_measure.dart`):
+
+| Lage | Abtastung | Äquidistanz | Linien | Punkte | ms |
+|---|---|---|---|---|---|
+| Alpen z11 | 392×768 | 200 m | 839 | 42 126 | 260 |
+| Mittelgebirge z12 | 196×394 | 50 m | 538 | 16 988 | 35 |
+| Flachland z13 | 98×188 | 20 m | 67 | 1 750 | 5 |
+
+Läuft im compute-Isolate, einmal je Kamera-Stillstand, der das Fenster
+wirklich verlässt — wie bei der Waldfläche also kein Jank, sondern
+später erscheinende Linien.
+
+Drei Werte und woher sie kommen:
+
+- **`contourSampleBudget = 768`** — höchstens 768 Proben je Kante, und
+  ohnehin nie feiner als eine Probe je Wabe. Der Deckel greift erst ab
+  etwa z11; darunter bestimmt die Wabenweite die Abtastung. Feiner
+  abzutasten als das Gitter bläst jede Wabe zu einem Block gleicher
+  Werte auf, und Marching Squares zeichnet daraufhin die Wabenkanten
+  als Terrassen in die Linie.
+- **`contourPointBudget = 60 000`** — die Zoomregel rechnet mit einem
+  angenommenen Hang von 10 %; die Alpen sind das Drei- bis Fünffache.
+  Reißt die Schranke, wird die Äquidistanz GENAU EINMAL verdoppelt und
+  neu gezogen. Genau das ist im Alpenfall oben passiert (100 m → 200 m),
+  und es ist auch der Grund für die 260 ms: Der Lauf steckt zweimal
+  drin. Eine Schleife wäre teurer als der Nutzen — die nächste Stufe
+  halbiert die Linienzahl bereits.
+- **`contourMinLinePixels = 40`** — dieselbe Regel wie beim Regen („eine
+  Linie unter 40 px sagt nichts"), hier in Bildschirmpixeln statt in
+  Kilometern gerechnet. Sie bringt weniger, als man erwartet: 77 von
+  916 Linien im Alpenfall. `minChainCells` fängt die kleinsten Fetzen
+  schon vorher, und eine Abtastzelle ist dort ohnehin ~5,5 px groß. Sie
+  bleibt, weil sie in Pixeln formuliert ist und damit eine Änderung der
+  Abtastung überlebt.
+
+**Nächster Hebel, falls es je drückt** (gemessen wird vorher, Regel
+oben): Das Übergeben des `ElevationGrid` an `compute` kopiert dessen
+13,6-MB-`Uint8List` je Lauf — dasselbe tut die Waldfläche längst. Wer
+das los will, schneidet das Hex-Teilrechteck im Haupt-Isolate aus und
+schickt ~1 MB.

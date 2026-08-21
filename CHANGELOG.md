@@ -7,6 +7,33 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Höhenlinien: siehst du, wo es bergauf geht
+
+*20. August 2026 · Version 1.98.0*
+
+Neu auf der Karte: ein Bergsymbol rechts. Ein Tipp darauf, „Höhenlinien
+einblenden" — und die Karte zeigt das Gelände. Hänge, Mulden, Kuppen,
+Bachtäler. Für die Pilzsuche ist das oft die halbe Miete: Der
+Nordhang ist kühler und feuchter als die Kuppe daneben.
+
+Was du wissen solltest:
+
+- **Die Linien werden auf deinem Gerät gerechnet.** Die Höhendaten
+  stecken schon in der App — es wird nichts nachgeladen, nichts
+  verschickt, und im Funkloch funktioniert es genauso.
+- **Der Abstand wächst, je weiter du herauszoomst**: von 20 Metern nah
+  dran bis 200 Metern in der Übersicht. In der Legende steht, was
+  gerade gilt, und wie hoch es unter dem Fadenkreuz ist. Jede fünfte
+  Linie ist kräftiger, damit du mitzählen kannst.
+- **Ganz weit draußen zeigt die Karte keine Linien** — dort wären sie
+  nur ein Gewirr. Die Legende sagt dann „erst näher dran".
+- **Im Flachland bleibt es fast leer.** Das ist kein Fehler: Wo es
+  keine Höhenunterschiede gibt, gibt es keine Höhenlinien.
+
+Die Daten sind gröber als eine gedruckte Wanderkarte (eine Wabe ist
+etwa 270 Meter breit). Sie zeigen die Form des Geländes, nicht die
+einzelne Böschung.
+
 ## Wanderwege sind endlich zu sehen
 
 *20. August 2026 · Version 1.97.0*

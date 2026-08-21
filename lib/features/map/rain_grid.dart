@@ -18,6 +18,8 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 
+import 'contours.dart';
+
 /// Der Wert für „hier wissen wir nichts".
 ///
 /// Der DWD schreibt Nichtdaten sowohl als `-1.0` als auch als `NaN`;
@@ -164,44 +166,22 @@ class RainGrid {
   /// Zellen ohne Daten bleiben ohne Daten, und sie gehen nicht in den
   /// Mittelwert ein: Sonst zöge der Rand des Radarverbunds die Werte
   /// daneben nach unten und erzeugte eine Linie, die es nicht gibt.
-  RainGrid smoothed() {
-    final out = Uint8List(width * height);
-    for (var y = 0; y < height; y++) {
-      final row = y * width;
-      for (var x = 0; x < width; x++) {
-        if (values[row + x] == rainNoData) {
-          out[row + x] = rainNoData;
-          continue;
-        }
-        var sum = 0;
-        var count = 0;
-        for (var dy = -1; dy <= 1; dy++) {
-          final ny = y + dy;
-          if (ny < 0 || ny >= height) continue;
-          final nrow = ny * width;
-          for (var dx = -1; dx <= 1; dx++) {
-            final nx = x + dx;
-            if (nx < 0 || nx >= width) continue;
-            final value = values[nrow + nx];
-            if (value == rainNoData) continue;
-            sum += value;
-            count++;
-          }
-        }
-        out[row + x] = (sum / count).round();
-      }
-    }
-    return RainGrid(
-      values: out,
-      width: width,
-      height: height,
-      west: west,
-      east: east,
-      north: north,
-      south: south,
-      measured: measured,
-    );
-  }
+  RainGrid smoothed() => RainGrid(
+        // Die Rechnung steht in `contours.dart` — die Höhenlinien
+        // brauchen sie mit anderem Wertebereich, und zwei Fassungen
+        // eines 3×3-Mittels wären zwei Stellen, an denen der Rand der
+        // Daten unterschiedlich behandelt wird. Die Werte hier sind
+        // Bytes, deshalb der Rückweg nach Uint8List.
+        values: Uint8List.fromList(smooth3x3(values,
+            width: width, height: height, noData: rainNoData)),
+        width: width,
+        height: height,
+        west: west,
+        east: east,
+        north: north,
+        south: south,
+        measured: measured,
+      );
 }
 
 const _earthRadius = 6378137.0;

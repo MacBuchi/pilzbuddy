@@ -109,9 +109,10 @@ void registerMapDataLicense() {
     );
     yield const LicenseEntryWithLineBreaks(
       ['Geländehöhen (Copernicus DEM)'],
-      'Die Höhenumrechnung der Pilzwetter-Temperatur beruht auf dem '
-      'Copernicus DEM GLO-90, zusammengefasst auf dasselbe Wabengitter '
-      'wie die Waldtypen (≈ 250 m, mittlere Geländehöhe je Wabe).\n'
+      'Die Höhenumrechnung der Pilzwetter-Temperatur und die '
+      'Höhenlinien-Ebene der Karte beruhen auf dem Copernicus DEM '
+      'GLO-90, zusammengefasst auf dasselbe Wabengitter wie die '
+      'Waldtypen (≈ 250 m, mittlere Geländehöhe je Wabe).\n'
       '© DLR e.V. 2010–2014 und © Airbus Defence and Space GmbH '
       '2014–2018, bereitgestellt unter COPERNICUS durch die Europäische '
       'Union und die ESA.\n'

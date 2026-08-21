@@ -15,6 +15,15 @@ abstract final class AppColors {
   /// Weiche Kontur der Pilz-Silhouetten.
   static const barkBrown = Color(0xFF4E342E);
 
+  /// Höhenlinien auf der Karte.
+  ///
+  /// Ein gedecktes Schiefergrau-Blau, bewusst NICHT braun: Die
+  /// Wanderwege im Offline-Stil sind seit 1.97.0 ockerbraun, und zwei
+  /// braune Liniensysteme übereinander wären auf einen Blick nicht
+  /// auseinanderzuhalten. Kühl gegen die warme Karte, kräftig genug
+  /// über Waldgrün und blass genug, um Wege nicht zu verdecken.
+  static const contourLine = Color(0xFF5B6B7A);
+
   /// Gesichter, Morchel-Waben, Schirmling-Schuppen.
   static const faceBrown = Color(0xFF3E2723);
 

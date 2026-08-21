@@ -18,6 +18,7 @@ import '../../data/providers.dart';
 import '../../models/friend_location.dart';
 import '../../models/spot.dart';
 import '../ampel/ampel_map_providers.dart' show ampelLayerEnabledProvider;
+import 'elevation_contour_providers.dart';
 import '../friends/friend_providers.dart';
 import '../profile/profile_providers.dart';
 import '../spots/nearby_spots.dart';
@@ -36,6 +37,7 @@ import 'spot_filter.dart';
 import 'widgets/add_spot_sheet.dart';
 import 'widgets/map_banners.dart';
 import 'widgets/forest_layer_sheet.dart';
+import 'widgets/terrain_layer_sheet.dart';
 import 'widgets/rain_layer_sheet.dart';
 import 'widgets/map_legend.dart';
 import 'widgets/share_location_sheet.dart';
@@ -498,6 +500,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     // das ist billiger als ein Knopf, der ins Leere führt.
     final forestAvailable =
         ref.watch(forestGridProvider).valueOrNull != null;
+    final contourActive = ref.watch(contourLayerEnabledProvider);
     final longPressEnabled = ref.watch(mapLongPressEnabledProvider);
 
     return Scaffold(
@@ -521,8 +524,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
               // Fadenkreuz-Werte (#235) und Wald-Bildausschnitt (#249):
               // beides rechnet an diesem Stillstand, nie während der
               // Geste.
-              onCameraIdle: (center, bounds) {
+              onCameraIdle: (center, zoom, bounds) {
                 ref.read(mapIdleCenterProvider.notifier).state = center;
+                ref.read(mapIdleZoomProvider.notifier).state = zoom;
                 ref.read(mapIdleBoundsProvider.notifier).state = bounds;
               },
             ),
@@ -651,144 +655,182 @@ class _MapScreenState extends ConsumerState<MapScreen>
           ),
         ],
       ),
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          // Umschalter Online/Offline — erst sichtbar, wenn mindestens
-          // eine Offline-Karte heruntergeladen wurde.
-          if (hasInstalledMaps) ...[
+      // **Warum die Knopfspalte schrumpfen darf** (seit den Höhenlinien,
+      // 1.98.0): Sie ist mit neun Knöpfen am Anschlag — auf 520 px Höhe
+      // lief sie um 24 px über, und ein RenderFlex-Überlauf ist kein
+      // Schönheitsfehler, sondern ein Knopf, den niemand erreicht.
+      //
+      // `scaleDown` greift NUR, wenn es sonst nicht passt: Auf jedem
+      // normalen Telefon ändert sich nichts, auf einem kurzen Schirm
+      // werden alle Knöpfe ein paar Prozent kleiner — und bleiben
+      // sichtbar. Die beiden naheliegenden Alternativen sind schlechter:
+      // Engere Abstände verschieben das Problem nur bis zum nächsten
+      // Knopf, und eine scrollende Spalte versteckt ausgerechnet die
+      // Ebenen-Schalter oben (am Testschirm nachgestellt: Der
+      // Waldtypen-Knopf lag bei y = −20).
+      floatingActionButton: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.bottomRight,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            // Umschalter Online/Offline — erst sichtbar, wenn mindestens
+            // eine Offline-Karte heruntergeladen wurde.
+            if (hasInstalledMaps) ...[
+              FloatingActionButton.small(
+                heroTag: 'offline',
+                onPressed: () {
+                  ref.read(offlineMapEnabledProvider.notifier).toggle();
+                  _showMessage(ref.read(offlineMapEnabledProvider)
+                      ? 'Offline-Karte aktiv 🗺️'
+                      : 'Online-Karte aktiv');
+                },
+                tooltip:
+                    offlineActive ? 'Zur Online-Karte' : 'Zur Offline-Karte',
+                // Icon zeigt den Zustand (durchgestrichener Erdball = offline),
+                // der Tooltip die Aktion.
+                child: Icon(offlineActive ? Icons.public_off : Icons.public),
+              ),
+              const SizedBox(height: 12),
+            ],
+            // Die Waldtypen-Ebene (#213) — nur wenn das Gitter da ist:
+            // Ein Knopf auf ein fehlendes Asset wäre ein Fehler ohne
+            // Fehlermeldung.
+            if (forestAvailable) ...[
+              FloatingActionButton.small(
+                heroTag: 'forest',
+                onPressed: () => showForestLayerSheet(context),
+                tooltip: 'Waldtypen',
+                backgroundColor:
+                    forestActive ? AppColors.forestMixed : null,
+                foregroundColor: forestActive ? Colors.white : null,
+                child:
+                    Icon(forestActive ? Icons.forest : Icons.forest_outlined),
+              ),
+              const SizedBox(height: 12),
+            ],
+            // Die Höhenlinien.
+            //
+            // **Bewusst OHNE die Wald-Regel „kein Knopf ohne Gitter":**
+            // Sie zu befolgen hieße, hier `elevationGridProvider` zu
+            // beobachten — und damit das 3,4-MB-Höhengitter bei JEDEM
+            // App-Start auszupacken, für eine Ebene, die die meisten nie
+            // einschalten. Beim Wald ist der Preis derselbe Provider, den
+            // die Karte ohnehin braucht; hier wäre er neu. Die Regel
+            // dahinter („kein Fehler ohne Fehlermeldung") hält trotzdem:
+            // Lässt sich das Gitter nicht laden, sagt das Blatt es — und
+            // ein Satz ist mehr als ein verschwundener Knopf.
             FloatingActionButton.small(
-              heroTag: 'offline',
-              onPressed: () {
-                ref.read(offlineMapEnabledProvider.notifier).toggle();
-                _showMessage(ref.read(offlineMapEnabledProvider)
-                    ? 'Offline-Karte aktiv 🗺️'
-                    : 'Online-Karte aktiv');
-              },
-              tooltip:
-                  offlineActive ? 'Zur Online-Karte' : 'Zur Offline-Karte',
-              // Icon zeigt den Zustand (durchgestrichener Erdball = offline),
-              // der Tooltip die Aktion.
-              child: Icon(offlineActive ? Icons.public_off : Icons.public),
-            ),
-            const SizedBox(height: 12),
-          ],
-          // Die Waldtypen-Ebene (#213) — nur wenn das Gitter da ist:
-          // Ein Knopf auf ein fehlendes Asset wäre ein Fehler ohne
-          // Fehlermeldung.
-          if (forestAvailable) ...[
-            FloatingActionButton.small(
-              heroTag: 'forest',
-              onPressed: () => showForestLayerSheet(context),
-              tooltip: 'Waldtypen',
-              backgroundColor:
-                  forestActive ? AppColors.forestMixed : null,
-              foregroundColor: forestActive ? Colors.white : null,
+              heroTag: 'terrain',
+              onPressed: () => showTerrainLayerSheet(context),
+              tooltip: 'Höhenlinien',
+              backgroundColor: contourActive ? AppColors.contourLine : null,
+              foregroundColor: contourActive ? Colors.white : null,
               child:
-                  Icon(forestActive ? Icons.forest : Icons.forest_outlined),
+                  Icon(contourActive ? Icons.terrain : Icons.terrain_outlined),
             ),
             const SizedBox(height: 12),
-          ],
-          // Genau EIN neuer Dauerknopf für die Regenebene (#156) — die
-          // Karte trägt nicht mehr; Zeitraum und Legende stecken im
-          // Blatt dahinter, wie beim Filter.
-          //
-          // Hinter dem Knopf sitzen seit 1.72.0 ZWEI Ebenen: Regen und
-          // die Pilzampel. Er zeigt deshalb beide (#278) — vorher stand
-          // er auf „aus", während die Ampel den halben Wald einfärbte,
-          // und das war schlicht falsch. Drei unterscheidbare Zustände
-          // statt eines Mischsymbols:
-          //   Regen an          → blau, voller Tropfen
-          //   nur Ampel an      → Ampelviolett, Ampelsymbol
-          //   beide an          → blau, voller Tropfen + violetter Punkt
-          // Der Punkt ist die einzige Stelle, an der sich zwei Zustände
-          // ein Symbol teilen; auf dem Ampelviolett wäre er unsichtbar,
-          // deshalb trägt dort das Symbol selbst die Aussage.
-          FloatingActionButton.small(
-            heroTag: 'rain',
-            onPressed: () => showRainLayerSheet(context),
-            tooltip: switch ((rainActive, ampelActive)) {
-              (true, true) => 'Regen & Pilzampel',
-              (false, true) => 'Pilzampel',
-              _ => 'Regen',
-            },
-            backgroundColor: rainActive
-                ? AppColors.friendBlue
-                : (ampelActive ? AppColors.ampelStrong : null),
-            foregroundColor:
-                rainActive || ampelActive ? Colors.white : null,
-            child: Badge(
-              // Nur im Doppelfall: Sonst sagt schon die Fläche, was an
-              // ist, und ein Punkt obendrauf wäre Dekoration.
-              isLabelVisible: rainActive && ampelActive,
-              backgroundColor: AppColors.ampelMild,
-              smallSize: 8,
-              child: Icon(switch ((rainActive, ampelActive)) {
-                (true, _) => Icons.water_drop,
-                (false, true) => Icons.traffic,
-                _ => Icons.water_drop_outlined,
-              }),
+            // Genau EIN neuer Dauerknopf für die Regenebene (#156) — die
+            // Karte trägt nicht mehr; Zeitraum und Legende stecken im
+            // Blatt dahinter, wie beim Filter.
+            //
+            // Hinter dem Knopf sitzen seit 1.72.0 ZWEI Ebenen: Regen und
+            // die Pilzampel. Er zeigt deshalb beide (#278) — vorher stand
+            // er auf „aus", während die Ampel den halben Wald einfärbte,
+            // und das war schlicht falsch. Drei unterscheidbare Zustände
+            // statt eines Mischsymbols:
+            //   Regen an          → blau, voller Tropfen
+            //   nur Ampel an      → Ampelviolett, Ampelsymbol
+            //   beide an          → blau, voller Tropfen + violetter Punkt
+            // Der Punkt ist die einzige Stelle, an der sich zwei Zustände
+            // ein Symbol teilen; auf dem Ampelviolett wäre er unsichtbar,
+            // deshalb trägt dort das Symbol selbst die Aussage.
+            FloatingActionButton.small(
+              heroTag: 'rain',
+              onPressed: () => showRainLayerSheet(context),
+              tooltip: switch ((rainActive, ampelActive)) {
+                (true, true) => 'Regen & Pilzampel',
+                (false, true) => 'Pilzampel',
+                _ => 'Regen',
+              },
+              backgroundColor: rainActive
+                  ? AppColors.friendBlue
+                  : (ampelActive ? AppColors.ampelStrong : null),
+              foregroundColor:
+                  rainActive || ampelActive ? Colors.white : null,
+              child: Badge(
+                // Nur im Doppelfall: Sonst sagt schon die Fläche, was an
+                // ist, und ein Punkt obendrauf wäre Dekoration.
+                isLabelVisible: rainActive && ampelActive,
+                backgroundColor: AppColors.ampelMild,
+                smallSize: 8,
+                child: Icon(switch ((rainActive, ampelActive)) {
+                  (true, _) => Icons.water_drop,
+                  (false, true) => Icons.traffic,
+                  _ => Icons.water_drop_outlined,
+                }),
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          FloatingActionButton.small(
-            heroTag: 'filter',
-            onPressed: () => showSpotFilterSheet(context),
-            tooltip: 'Karte filtern',
-            backgroundColor: filter.isActive ? AppColors.forestGreen : null,
-            foregroundColor: filter.isActive ? Colors.white : null,
-            child: Icon(filter.isActive
-                ? Icons.filter_alt
-                : Icons.filter_alt_outlined),
-          ),
-          const SizedBox(height: 12),
-          FloatingActionButton.small(
-            heroTag: 'refresh',
-            onPressed: () {
-              _refreshData();
-              _showMessage('Karte aktualisiert');
-            },
-            tooltip: 'Aktualisieren',
-            child: const Icon(Icons.refresh),
-          ),
-          const SizedBox(height: 12),
-          FloatingActionButton.small(
-            heroTag: 'share-location',
-            onPressed: _openShareSheet,
-            tooltip: isSharing
-                ? 'Standort-Teilen verwalten'
-                : 'Standort mit Buddies teilen',
-            backgroundColor: isSharing ? AppColors.friendBlue : null,
-            foregroundColor: isSharing ? Colors.white : null,
-            child: Icon(isSharing
-                ? Icons.share_location
-                : Icons.share_location_outlined),
-          ),
-          const SizedBox(height: 12),
-          FloatingActionButton.small(
-            heroTag: 'locate',
-            onPressed: _centerOnMe,
-            tooltip: 'Meine Position',
-            child: const Icon(Icons.my_location),
-          ),
-          const SizedBox(height: 12),
-          FloatingActionButton.extended(
-            heroTag: 'add',
-            onPressed: _addSpotAtCrosshair,
-            icon: const Icon(Icons.add_location_alt),
-            label: const Text('Neuer Spot'),
-          ),
-          // Messhaken des Engine-Direktvergleichs: deterministische
-          // Kamerafahrt gegen die Fassade — identisch auf beiden
-          // Engines. `!kReleaseMode`, nicht `kDebugMode`: Die
-          // Perfetto-Läufe (Stufe 7) messen im PROFILE-Build, dort
-          // muss der Knopf da sein; nur das Release bleibt sauber.
-          if (!kReleaseMode) ...[
             const SizedBox(height: 12),
-            CameraTourButton(controller: _map),
+            FloatingActionButton.small(
+              heroTag: 'filter',
+              onPressed: () => showSpotFilterSheet(context),
+              tooltip: 'Karte filtern',
+              backgroundColor: filter.isActive ? AppColors.forestGreen : null,
+              foregroundColor: filter.isActive ? Colors.white : null,
+              child: Icon(filter.isActive
+                  ? Icons.filter_alt
+                  : Icons.filter_alt_outlined),
+            ),
+            const SizedBox(height: 12),
+            FloatingActionButton.small(
+              heroTag: 'refresh',
+              onPressed: () {
+                _refreshData();
+                _showMessage('Karte aktualisiert');
+              },
+              tooltip: 'Aktualisieren',
+              child: const Icon(Icons.refresh),
+            ),
+            const SizedBox(height: 12),
+            FloatingActionButton.small(
+              heroTag: 'share-location',
+              onPressed: _openShareSheet,
+              tooltip: isSharing
+                  ? 'Standort-Teilen verwalten'
+                  : 'Standort mit Buddies teilen',
+              backgroundColor: isSharing ? AppColors.friendBlue : null,
+              foregroundColor: isSharing ? Colors.white : null,
+              child: Icon(isSharing
+                  ? Icons.share_location
+                  : Icons.share_location_outlined),
+            ),
+            const SizedBox(height: 12),
+            FloatingActionButton.small(
+              heroTag: 'locate',
+              onPressed: _centerOnMe,
+              tooltip: 'Meine Position',
+              child: const Icon(Icons.my_location),
+            ),
+            const SizedBox(height: 12),
+            FloatingActionButton.extended(
+              heroTag: 'add',
+              onPressed: _addSpotAtCrosshair,
+              icon: const Icon(Icons.add_location_alt),
+              label: const Text('Neuer Spot'),
+            ),
+            // Messhaken des Engine-Direktvergleichs: deterministische
+            // Kamerafahrt gegen die Fassade — identisch auf beiden
+            // Engines. `!kReleaseMode`, nicht `kDebugMode`: Die
+            // Perfetto-Läufe (Stufe 7) messen im PROFILE-Build, dort
+            // muss der Knopf da sein; nur das Release bleibt sauber.
+            if (!kReleaseMode) ...[
+              const SizedBox(height: 12),
+              CameraTourButton(controller: _map),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

@@ -28,6 +28,8 @@ import '../../ampel/ampel_model.dart';
 import '../../ampel/ampel_providers.dart';
 import '../elevation_providers.dart';
 import '../forest_block_providers.dart';
+import '../elevation_contour_providers.dart';
+import '../elevation_contours.dart';
 import '../forest_data_providers.dart';
 import '../forest_fill.dart' show ampelGuenstigAlpha, ampelVerhaltenAlpha;
 import '../forest_grid.dart';
@@ -83,7 +85,13 @@ class MapLegend extends ConsumerWidget {
         ref.watch(forestGridProvider).valueOrNull != null;
     final showAmpel = ref.watch(ampelPreviewEnabledProvider) &&
         ref.watch(ampelLayerEnabledProvider);
-    if (!showRain && !showForest && !showAmpel) {
+    // Bewusst nur der Schalter und NICHT das Gitter: Ein
+    // `ref.watch(elevationGridProvider)` hier packte 3,4 MB bei jedem
+    // App-Start aus (siehe map_screen.dart). Ist die Ebene an, aber das
+    // Gitter fehlt, bleibt die Zeile bei „wird gerechnet …" — und den
+    // echten Grund nennt das Blatt.
+    final showContours = ref.watch(contourLayerEnabledProvider);
+    if (!showRain && !showForest && !showAmpel && !showContours) {
       return const SizedBox.shrink();
     }
 
@@ -93,6 +101,7 @@ class MapLegend extends ConsumerWidget {
     // kombinierte Sicht: Liegt ein feiner Block unterm Fadenkreuz,
     // zählt der Kilometer auf 100-m-Waben.
     final center = ref.watch(mapIdleCenterProvider);
+    final idleZoom = ref.watch(mapIdleZoomProvider);
     final forest = ref.watch(forestViewProvider);
     final around = (showForest && center != null && forest != null)
         ? forest.broadleafFactorAround(center.latitude, center.longitude)
@@ -164,6 +173,27 @@ class MapLegend extends ConsumerWidget {
                     if (showRain && showForest) const SizedBox(height: 6),
                     if (showForest)
                       _ForestSection(classes: forestClasses, around: around),
+                    if (showContours &&
+                        (showAmpel || showRain || showForest))
+                      const SizedBox(height: 6),
+                    if (showContours)
+                      _ContourSection(
+                        equidistanceM:
+                            ref.watch(contourEquidistanceProvider),
+                        // Die Höhe am Fadenkreuz kommt aus demselben
+                        // Provider wie die Spothöhe der Ampel — eine
+                        // zweite Ablesung könnte abweichen.
+                        heightM: center == null
+                            ? null
+                            : ref
+                                .watch(elevationAtProvider((
+                                  lat: center.latitude,
+                                  lon: center.longitude
+                                )))
+                                .valueOrNull,
+                        tooFarOut: idleZoom != null &&
+                            contourEquidistanceM(idleZoom) == null,
+                      ),
                   ],
                 ),
               ),
@@ -484,3 +514,46 @@ Color forestClassColor(ForestClass forestClass) => switch (forestClass) {
       ForestClass.conifer => AppColors.forestConifer,
       ForestClass.none => AppColors.forestGreen, // nie gezeichnet
     };
+
+/// Die Höhenlinien-Zeile der Legende.
+///
+/// Sie trägt die Äquidistanz — ohne sie wüsste niemand, ob zwischen zwei
+/// Linien 20 oder 200 Meter liegen. Beschriftungen AN den Linien gibt es
+/// bewusst nicht: Die flutter_map-Strecke kann keine Schrift entlang
+/// einer Linie, und eine Ebene, die auf zwei Engines verschieden viel
+/// sagt, wäre schlimmer als eine Zahl in der Legende.
+///
+/// Die Zahl kommt aus dem ERGEBNIS, nicht aus der Zoomregel: Reißt die
+/// Punktschranke, ist die gezeichnete Äquidistanz gröber als die
+/// gewünschte, und die Legende muss sagen, was wirklich liegt.
+class _ContourSection extends StatelessWidget {
+  const _ContourSection({
+    required this.equidistanceM,
+    required this.heightM,
+    required this.tooFarOut,
+  });
+
+  final int? equidistanceM;
+  final int? heightM;
+  final bool tooFarOut;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = tooFarOut
+        ? 'Höhenlinien: erst näher dran'
+        : equidistanceM == null
+            ? 'Höhenlinien …'
+            : 'Höhenlinien alle $equidistanceM m';
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.terrain, size: 13, color: AppColors.contourLine),
+        const SizedBox(width: 4),
+        Text(
+          heightM == null ? text : '$text · hier $heightM m',
+          style: const TextStyle(fontSize: 11, color: AppColors.barkBrown),
+        ),
+      ],
+    );
+  }
+}
