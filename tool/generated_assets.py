@@ -170,10 +170,20 @@ def self_test():
 
         # Ein Stil, der Fixpunkt IST: durch den Umbau geschickt und so
         # geschrieben, wie er dann aussieht.
+        #
+        # `roads_other` gehört dazu, seit der Umbau die Wanderwege-Ebenen
+        # daneben setzt (1.97.0): Ohne diese Ebene BRICHT `transform`
+        # bewusst ab — der echte Stil ohne sie wäre ein stilles
+        # Verschwinden aller Wege.
         style_relpath = "assets/style.json"
         style = transform_map_style.transform(
-            {"layers": [{"id": "a", "filter": ["in", ["get", "k"],
-                                               ["literal", ["x"]]]}]})
+            {"layers": [
+                {"id": "a", "filter": ["in", ["get", "k"],
+                                       ["literal", ["x"]]]},
+                {"id": "roads_other", "type": "line",
+                 "source-layer": "roads",
+                 "filter": ["in", "kind", "other", "path"]},
+            ]})
         with open(os.path.join(root, style_relpath), "w",
                   encoding="utf-8") as handle:
             handle.write(transform_map_style.render(style))
@@ -222,8 +232,12 @@ def self_test():
         # 2. Stil neu generiert, Umbau vergessen: moderne `in`-Syntax
         #    zurück im Filter. Der Manifest-Hash wird MITGEZOGEN, damit
         #    wirklich nur der Fixpunkt anschlägt und nicht die Prüfsumme.
-        broken = {"layers": [{"id": "a", "filter":
-                              ["in", ["get", "k"], ["literal", ["x"]]]}]}
+        broken = {"layers": [
+            {"id": "a", "filter":
+             ["in", ["get", "k"], ["literal", ["x"]]]},
+            {"id": "roads_other", "type": "line", "source-layer": "roads",
+             "filter": ["in", "kind", "other", "path"]},
+        ]}
         with open(os.path.join(root, style_relpath), "w",
                   encoding="utf-8") as handle:
             json.dump(broken, handle, ensure_ascii=False, indent=1)

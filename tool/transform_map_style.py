@@ -11,6 +11,11 @@ silently dropped — no labels, gray landcover. This script rewrites them:
   -> ["coalesce", ["get", "name:de"], ["get", "name"]]
 - drops icon-based layers (shields, oneway arrows) — we ship no sprites.
 
+Beyond the renderer fixes it makes one deliberate design change:
+hiking paths, forest tracks and trails get their own visible layers
+instead of disappearing into the `roads_other` catch-all — see
+`emphasize_paths`.
+
 Usage (after regenerating the style with @protomaps/basemaps):
     python3 tool/transform_map_style.py assets/map_style/protomaps_light_de.json
 """
@@ -18,6 +23,116 @@ import json
 import sys
 
 SIMPLE_NAME = ["coalesce", ["get", "name:de"], ["get", "name"]]
+
+# Die Wanderwege-Töne stehen bewusst HIER und nicht in
+# `lib/core/app_colors.dart`: Diesen Stil erzeugt ein Werkzeug, das kein
+# Dart liest. Ockerbraun, weil es sich sowohl vom Erdton (#e2dfda) als
+# auch vom Grün der landcover-Ebene absetzt.
+PATH_TRACK_COLOR = "#9a6b3f"
+PATH_COLOR = "#a9793f"
+
+# Wegarten, die keine Wanderwege sind: Bürgersteige und Fußgängerüberwege
+# hängen an jeder Stadtstraße. Sie fallen damit ganz weg — für eine
+# Pilz-App ist das Gewinn, nicht Verlust.
+URBAN_PATH_DETAILS = ("sidewalk", "crossing")
+
+
+def path_layers():
+    """Die zwei Wanderwege-Ebenen — bei jedem Aufruf gleich aufgebaut.
+
+    Eigene Funktion, damit [emphasize_paths] sie ERSETZEN statt ergänzen
+    kann: Nur so bleibt [transform] ein Fixpunkt.
+
+    **Der Strich ist Zugabe, die Aussage tragen Farbe und Breite.**
+    `vector_tile_renderer` 6.1.0 prüft in `paint_factory.dart`
+    `dashJson is List<num>` — `jsonDecode` liefert aber `List<dynamic>`,
+    und das ist in Dart kein `List<num>`. Auf dem klassischen Renderer
+    (Web und `classicMapEnabled`) sind die Wege deshalb durchgezogen,
+    in MapLibre gestrichelt. Dieselbe Lage wie bei `roads_rail` und
+    allen `roads_tunnels_*` seit jeher. Darum liegen die Breiten von
+    Forstweg und Pfad bewusst weit auseinander (Faktor ~1,8 statt ~1,3):
+    Wo der Strich fehlt, muss die Breite die Wegart allein tragen.
+    """
+    common = [["!has", "is_tunnel"], ["!has", "is_bridge"], ["==", "kind", "path"]]
+    return [
+        {
+            "id": "roads_path_track",
+            "type": "line",
+            "source": "protomaps",
+            "source-layer": "roads",
+            "filter": ["all"] + common + [["==", "kind_detail", "track"]],
+            "paint": {
+                "line-color": PATH_TRACK_COLOR,
+                "line-dasharray": [4, 1.5],
+                "line-width": [
+                    "interpolate", ["exponential", 1.6], ["zoom"],
+                    12, 0.9, 15, 2.4, 20, 8,
+                ],
+            },
+        },
+        {
+            "id": "roads_path",
+            "type": "line",
+            "source": "protomaps",
+            "source-layer": "roads",
+            "filter": ["all"] + common
+            + [["!=", "kind_detail", "track"], ["!=", "kind_detail", "pier"]]
+            + [["!=", "kind_detail", detail] for detail in URBAN_PATH_DETAILS],
+            "paint": {
+                "line-color": PATH_COLOR,
+                "line-dasharray": [2, 1.5],
+                "line-width": [
+                    "interpolate", ["exponential", 1.6], ["zoom"],
+                    12, 0.6, 15, 1.3, 20, 4.5,
+                ],
+            },
+        },
+    ]
+
+
+def emphasize_paths(style):
+    """Wanderwege bekommen eine eigene Ebene statt der Sammelgrube.
+
+    **Das Problem:** Protomaps steckt Pfade, Forstwege, Steige und
+    Reitwege als `kind == "path"` in dieselbe Ebene wie Zufahrten und
+    Bahnsteige (`kind == "other"`). Der LIGHT-Flavor malt die Ebene
+    `#ebebeb` auf einen `#e2dfda`-Boden und bei z14 mit 0,5 px — für
+    eine Pilz-App ist damit ausgerechnet das unsichtbar, worauf man
+    läuft. Kein Datenproblem: Die Wege stehen vollständig in den
+    Kacheln.
+
+    **Nachgemessen** (2026-08-20, Archiv `de_saarland` aus den
+    Nomad-Releases, Kacheln z12–z14 über Range-Requests): Forstwege
+    (`kind_detail == "track"`) liegen ab z12 in den Kacheln, alles
+    Übrige (`path`, `footway`, `cycleway`, `steps`) ab z13. Die
+    Breiten beginnen deshalb bei z12 statt wie bisher bei z14.
+
+    **Idempotent, und das ist Pflicht:** `tool/generated_assets.py`
+    wendet [transform] auf das committete Asset an und verlangt
+    byteidentische Ausgabe. Deshalb stellt dieser Schritt einen
+    Endzustand her — alte Ebenen gleicher id raus, frische rein — statt
+    etwas anzuhängen.
+    """
+    layers = style["layers"]
+    if not any(layer["id"] == "roads_other" for layer in layers):
+        raise SystemExit("roads_other fehlt — der erzeugte Stil sieht anders aus als erwartet")
+    fresh = path_layers()
+    ours = {layer["id"] for layer in fresh}
+    layers = [layer for layer in layers if layer["id"] not in ours]
+    at = next(i for i, layer in enumerate(layers) if layer["id"] == "roads_other")
+    # Die Sammelgrube behält nur noch, was wirklich Nebensache ist.
+    layers[at]["filter"] = [
+        "all",
+        ["!has", "is_tunnel"],
+        ["!has", "is_bridge"],
+        ["==", "kind", "other"],
+        ["!=", "kind_detail", "pier"],
+    ]
+    # Hinter roads_other, also UNTER den Straßen — eine Straße, die einen
+    # Forstweg kreuzt, gehört obenauf.
+    layers[at + 1:at + 1] = fresh
+    style["layers"] = layers
+    return style
 
 
 def fix_in(expr):
@@ -83,7 +198,7 @@ def transform(style):
         kept.append(layer)
 
     style["layers"] = kept
-    return style
+    return emphasize_paths(style)
 
 
 def render(style):
@@ -97,6 +212,61 @@ def render(style):
     return json.dumps(style, ensure_ascii=False, indent=1)
 
 
+def self_test():
+    """Netzfrei, in Sekunden — läuft in CI mit den anderen Werkzeugen.
+
+    Der Fixpunkt wird zwar auch von `tool/generated_assets.py` geprüft,
+    aber der sagt nur DASS etwas nicht mehr passt. Hier steht, WAS.
+    """
+    def sample():
+        return {"layers": [
+            {"id": "earth", "type": "fill"},
+            {"id": "roads_other", "type": "line", "source-layer": "roads",
+             "filter": ["all", ["in", "kind", "other", "path"]]},
+            {"id": "roads_minor", "type": "line", "source-layer": "roads"},
+            {"id": "roads_labels_minor", "type": "symbol",
+             "layout": {"text-field": ["format", "x"]}},
+        ]}
+
+    once = transform(sample())
+    ids = [layer["id"] for layer in once["layers"]]
+    assert ids.index("roads_path_track") == ids.index("roads_other") + 1, ids
+    assert ids.index("roads_path") == ids.index("roads_other") + 2, ids
+    assert ids.index("roads_path") < ids.index("roads_minor"), \
+        "Wege gehören UNTER die Straßen"
+
+    other = next(l for l in once["layers"] if l["id"] == "roads_other")
+    assert "path" not in json.dumps(other["filter"]), \
+        "roads_other sammelt kind == path immer noch ein"
+
+    # Der Fixpunkt: ein zweiter Lauf darf nichts mehr ändern. Genau das
+    # verlangt `generated_assets.py` vom ausgelieferten Asset.
+    assert render(transform(json.loads(render(once)))) == render(once), \
+        "transform ist kein Fixpunkt — der zweite Lauf ändert etwas"
+
+    # Farbe UND Breite müssen die zwei Wegarten allein tragen: Der
+    # klassische Renderer wirft den Strich weg (siehe path_layers).
+    def width_at(layer_id, zoom):
+        layer = next(l for l in once["layers"] if l["id"] == layer_id)
+        stops = layer["paint"]["line-width"][3:]
+        return dict(zip(stops[::2], stops[1::2]))[zoom]
+
+    assert width_at("roads_path_track", 15) >= width_at("roads_path", 15) * 1.5, \
+        "ohne Strich bleibt nur die Breite — der Abstand ist zu klein"
+
+    # Fehlt roads_other, wird abgebrochen statt hinten angehängt: dort
+    # lägen die Wege über den Beschriftungen.
+    broken = {"layers": [{"id": "earth", "type": "fill"}]}
+    try:
+        transform(broken)
+    except SystemExit:
+        pass
+    else:  # pragma: no cover
+        raise AssertionError("fehlendes roads_other muss abbrechen")
+
+    print("self-test: ok")
+
+
 def main(path):
     with open(path, encoding="utf-8") as f:
         style = json.load(f)
@@ -107,4 +277,7 @@ def main(path):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    if "--self-test" in sys.argv:
+        self_test()
+    else:
+        main(sys.argv[1])

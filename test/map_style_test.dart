@@ -54,4 +54,87 @@ void main() {
     // Und der Renderer muss den Rest weiterhin vollständig parsen.
     expect(ThemeReader().read(stripped).layers.length, strippedLayers.length);
   });
+
+  test('Wanderwege haben eine eigene Ebene', () {
+    // Protomaps steckt Pfade, Forstwege und Steige als `kind == "path"`
+    // in dieselbe Ebene wie Zufahrten und Bahnsteige. Der LIGHT-Flavor
+    // malt die mit #ebebeb auf #e2dfda und 0,5 px bei z14 — für eine
+    // Pilz-App ist damit ausgerechnet unsichtbar, worauf man läuft.
+    // `tool/transform_map_style.py` trennt sie deshalb heraus.
+    final styleJson = jsonDecode(
+            File('assets/map_style/protomaps_light_de.json').readAsStringSync())
+        as Map<String, dynamic>;
+    final layers = (styleJson['layers'] as List).cast<Map<String, dynamic>>();
+    final ids = [for (final layer in layers) layer['id'] as String];
+
+    expect(ids, containsAll(['roads_path_track', 'roads_path']));
+
+    final other = layers.firstWhere((layer) => layer['id'] == 'roads_other');
+    expect(jsonEncode(other['filter']), isNot(contains('"path"')),
+        reason: 'roads_other darf kind == path nicht mehr einsammeln — sonst '
+            'liegt die blasse Sammelgrube wieder auf denselben Wegen');
+
+    // Direkt hinter roads_other, also UNTER den Straßen: Eine Straße,
+    // die einen Forstweg kreuzt, gehört obenauf.
+    expect(ids.indexOf('roads_path_track'), ids.indexOf('roads_other') + 1);
+    expect(ids.indexOf('roads_path'), ids.indexOf('roads_other') + 2);
+    expect(ids.indexOf('roads_path'), lessThan(ids.indexOf('roads_minor')));
+
+    // Forstwege ab z12, der Rest ab z13 in den Kacheln (nachgemessen an
+    // `de_saarland`) — die Breiten dürfen deshalb nicht wieder bei z14
+    // anfangen, sonst ändert sich sichtbar nichts.
+    for (final id in ['roads_path_track', 'roads_path']) {
+      final paint = layers.firstWhere((layer) => layer['id'] == id)['paint']
+          as Map<String, dynamic>;
+      final width = paint['line-width'] as List;
+      expect(width[3], 12, reason: '$id soll ab Zoom 12 breiter werden');
+      expect(paint['line-dasharray'], isNotNull,
+          reason: 'gestrichelt — aber nur MapLibre sieht das, siehe unten');
+    }
+  });
+
+  test('Der Renderer versteht die Wanderwege-Ebenen', () {
+    // Eine Ebene, die vector_tile_renderer nicht parst, lässt er
+    // stillschweigend weg — genau der Fehler, gegen den es das
+    // Transform-Skript überhaupt gibt.
+    final styleJson = jsonDecode(
+            File('assets/map_style/protomaps_light_de.json').readAsStringSync())
+        as Map<String, dynamic>;
+    final ids = ThemeReader().read(styleJson).layers.map((l) => l.id).toSet();
+    expect(ids, containsAll(['roads_path_track', 'roads_path']));
+  });
+
+  test('Der Strich ist Zugabe, die Aussage tragen Farbe und Breite', () {
+    // vector_tile_renderer 6.1.0 prüft in paint_factory.dart
+    // `dashJson is List<num>` — jsonDecode liefert aber List<dynamic>,
+    // und das ist in Dart KEIN List<num>. Auf dem klassischen Renderer
+    // (Web und classicMapEnabled) sind die Wege deshalb durchgezogen,
+    // in MapLibre gestrichelt. Dieselbe Lage wie bei roads_rail und
+    // allen roads_tunnels_* seit jeher — also keine Verschlechterung,
+    // aber der Grund, warum die Breiten weit auseinanderliegen müssen.
+    expect(jsonDecode('[4, 1.5]') is List<num>, isFalse,
+        reason: 'Ändert sich das je, darf dieser Test bleiben — dann ist '
+            'der Strich plötzlich überall da, und das wäre gut');
+
+    final styleJson = jsonDecode(
+            File('assets/map_style/protomaps_light_de.json').readAsStringSync())
+        as Map<String, dynamic>;
+    final layers = (styleJson['layers'] as List).cast<Map<String, dynamic>>();
+    double widthAt(String id, int zoom) {
+      final stops = ((layers.firstWhere((layer) => layer['id'] == id)['paint']
+          as Map<String, dynamic>)['line-width'] as List).skip(3).toList();
+      for (var i = 0; i < stops.length; i += 2) {
+        if (stops[i] == zoom) return (stops[i + 1] as num).toDouble();
+      }
+      fail('keine Stützstelle bei Zoom $zoom für $id');
+    }
+
+    // Ohne Strich bleibt nur die Breite. Der Forstweg — das für Sammler
+    // Wichtigste — muss deutlich dicker sein als der Pfad, nicht nur
+    // eine Spur.
+    expect(widthAt('roads_path_track', 15),
+        greaterThanOrEqualTo(widthAt('roads_path', 15) * 1.5));
+    expect(widthAt('roads_path_track', 20),
+        greaterThanOrEqualTo(widthAt('roads_path', 20) * 1.5));
+  });
 }
