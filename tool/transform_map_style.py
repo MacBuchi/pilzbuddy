@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Adapts the generated Protomaps style for vector_tile_renderer.
+"""Adapts the generated Protomaps style for BOTH renderers we ship.
 
 The style from @protomaps/basemaps uses MapLibre expressions the Flutter
 renderer (vector_tile_renderer 6.x) does not support; affected layers were
 silently dropped — no labels, gray landcover. This script rewrites them:
 
-- ["in", ["get", k], ["literal", [...]]]  ->  legacy ["in", k, ...]
-  (same for the negated form via ["!", ...])
+- "ist der Wert einer davon" wird vereinheitlicht — siehe [rewrite_in]:
+  im Filter die alte Kurzform, in `paint`/`layout` ein "match".
 - complex "format"/multi-script text-field expressions
   -> ["coalesce", ["get", "name:de"], ["get", "name"]]
 - drops icon-based layers (shields, oneway arrows) — we ship no sprites.
@@ -26,10 +26,18 @@ SIMPLE_NAME = ["coalesce", ["get", "name:de"], ["get", "name"]]
 
 # Die Wanderwege-Töne stehen bewusst HIER und nicht in
 # `lib/core/app_colors.dart`: Diesen Stil erzeugt ein Werkzeug, das kein
-# Dart liest. Ockerbraun, weil es sich sowohl vom Erdton (#e2dfda) als
-# auch vom Grün der landcover-Ebene absetzt.
-PATH_TRACK_COLOR = "#9a6b3f"
-PATH_COLOR = "#a9793f"
+# Dart liest.
+#
+# **Zurückgenommen am 2026-08-21** (Betreiber: „die Wege könnten
+# deutlich dezenter dargestellt werden", am Emulator nachgesehen). Das
+# Ockerbraun von 1.97.0 (#9a6b3f/#a9793f) war der stärkste Kontrast auf
+# der ganzen Karte — kräftiger als die Straßen, über die es lief, und
+# im Feldgebiet ein braunes Netz über allem. Es sollte sichtbar sein,
+# nicht laut. Jetzt ein gebrochenes Graubraun: über dem Erdton
+# (#e2dfda) und über dem Waldgrün (#9cd3b4) lesbar, aber ruhiger als
+# jede Straße.
+PATH_TRACK_COLOR = "#a58a6a"
+PATH_COLOR = "#b6a08a"
 
 # Wegarten, die keine Wanderwege sind: Bürgersteige und Fußgängerüberwege
 # hängen an jeder Stadtstraße. Sie fallen damit ganz weg — für eine
@@ -50,8 +58,9 @@ def path_layers():
     (Web und `classicMapEnabled`) sind die Wege deshalb durchgezogen,
     in MapLibre gestrichelt. Dieselbe Lage wie bei `roads_rail` und
     allen `roads_tunnels_*` seit jeher. Darum liegen die Breiten von
-    Forstweg und Pfad bewusst weit auseinander (Faktor ~1,8 statt ~1,3):
-    Wo der Strich fehlt, muss die Breite die Wegart allein tragen.
+    Forstweg und Pfad bewusst weit auseinander (Faktor ~1,75 statt
+    ~1,3): Wo der Strich fehlt, muss die Breite die Wegart allein
+    tragen. Genau das prüft [self_test].
     """
     common = [["!has", "is_tunnel"], ["!has", "is_bridge"], ["==", "kind", "path"]]
     return [
@@ -60,13 +69,15 @@ def path_layers():
             "type": "line",
             "source": "protomaps",
             "source-layer": "roads",
+            # Ab z12 liegen Forstwege in den Kacheln (nachgemessen, s. u.).
+            "minzoom": 12,
             "filter": ["all"] + common + [["==", "kind_detail", "track"]],
             "paint": {
                 "line-color": PATH_TRACK_COLOR,
-                "line-dasharray": [4, 1.5],
+                "line-dasharray": [4, 2],
                 "line-width": [
                     "interpolate", ["exponential", 1.6], ["zoom"],
-                    12, 0.9, 15, 2.4, 20, 8,
+                    12, 0.5, 15, 1.4, 20, 5,
                 ],
             },
         },
@@ -75,15 +86,18 @@ def path_layers():
             "type": "line",
             "source": "protomaps",
             "source-layer": "roads",
+            # Pfade und Steige erst ab z13 — vorher stehen sie gar nicht
+            # in den Kacheln, und in der Übersicht wären sie Rauschen.
+            "minzoom": 13,
             "filter": ["all"] + common
             + [["!=", "kind_detail", "track"], ["!=", "kind_detail", "pier"]]
             + [["!=", "kind_detail", detail] for detail in URBAN_PATH_DETAILS],
             "paint": {
                 "line-color": PATH_COLOR,
-                "line-dasharray": [2, 1.5],
+                "line-dasharray": [2, 2],
                 "line-width": [
                     "interpolate", ["exponential", 1.6], ["zoom"],
-                    12, 0.6, 15, 1.3, 20, 4.5,
+                    13, 0.35, 15, 0.8, 20, 3,
                 ],
             },
         },
@@ -104,8 +118,14 @@ def emphasize_paths(style):
     **Nachgemessen** (2026-08-20, Archiv `de_saarland` aus den
     Nomad-Releases, Kacheln z12–z14 über Range-Requests): Forstwege
     (`kind_detail == "track"`) liegen ab z12 in den Kacheln, alles
-    Übrige (`path`, `footway`, `cycleway`, `steps`) ab z13. Die
-    Breiten beginnen deshalb bei z12 statt wie bisher bei z14.
+    Übrige (`path`, `footway`, `cycleway`, `steps`) ab z13. Genau dort
+    setzen die beiden `minzoom` an.
+
+    **Wie laut, ist am 2026-08-21 korrigiert worden** (siehe
+    [PATH_TRACK_COLOR]): sichtbar, aber leiser als die Straßen. Die
+    erste Fassung war am Emulator das Auffälligste auf der ganzen
+    Karte — auch deshalb, weil die Flächen darunter fehlten, siehe
+    [rewrite_in].
 
     **Idempotent, und das ist Pflicht:** `tool/generated_assets.py`
     wendet [transform] auf das committete Asset an und verlangt
@@ -135,13 +155,33 @@ def emphasize_paths(style):
     return style
 
 
-def fix_in(expr):
-    """Recursively rewrite modern `in`(needle, literal-haystack) syntax."""
-    if not isinstance(expr, list):
-        return expr
+# Die Operatoren der ALTEN Filter-Kurzform. Sie ist kein Ausdruck: Ein
+# `["in", "kind", "a", "b"]` versteht MapLibre nur, solange der GANZE
+# Filter in dieser Sprache steht — in `paint` oder neben einem echten
+# Ausdruck ist es ein Syntaxfehler.
+LEGACY_OPS = {
+    "==", "!=", "<", ">", "<=", ">=",
+    "in", "!in", "has", "!has", "all", "any", "none",
+}
+
+
+def in_parts(expr):
+    """`(Schlüssel, Werte, verneint)` — oder None, wenn das keine
+    „ist der Wert einer davon"-Prüfung ist.
+
+    Erkennt BEIDE Schreibweisen, und das ist Pflicht: [main] läuft auf
+    das bereits umgebaute Asset (Fixpunkt), findet dort also die alte
+    Kurzform von gestern und muss sie genauso einordnen können wie die
+    frisch erzeugte Ausdrucksform.
+    """
+    if not isinstance(expr, list) or len(expr) < 2:
+        return None
+    op = expr[0]
+    if op not in ("in", "!in"):
+        return None
     if (
-        len(expr) == 3
-        and expr[0] == "in"
+        op == "in"
+        and len(expr) == 3
         and isinstance(expr[1], list)
         and len(expr[1]) == 2
         and expr[1][0] == "get"
@@ -149,8 +189,63 @@ def fix_in(expr):
         and len(expr[2]) == 2
         and expr[2][0] == "literal"
     ):
-        return ["in", expr[1][1], *expr[2][1]]
-    return [fix_in(part) for part in expr]
+        return expr[1][1], list(expr[2][1]), False
+    if isinstance(expr[1], str):
+        return expr[1], list(expr[2:]), op == "!in"
+    return None
+
+
+def needs_expression(node):
+    """Steht in diesem Filter etwas, das NUR als Ausdruck gültig ist?
+
+    Entscheidet, in welcher Sprache [rewrite_in] den Filter verlässt.
+    „Ist der Wert einer davon" zählt dabei ausdrücklich NICHT mit — die
+    Form wählt ja gerade diese Funktion, und beide Sprachen können sie.
+    """
+    if not isinstance(node, list) or not node:
+        return False
+    if in_parts(node) is not None:
+        return False
+    op = node[0]
+    if op in ("all", "any", "none"):
+        return any(needs_expression(part) for part in node[1:])
+    if not isinstance(op, str) or op not in LEGACY_OPS:
+        return True
+    # Alte Kurzform heißt: erstes Argument ist der nackte Feldname.
+    return len(node) > 1 and not isinstance(node[1], str)
+
+
+def rewrite_in(expr, *, as_expression):
+    """Vereinheitlicht jedes „ist der Wert einer davon" im Baum.
+
+    **Warum zwei Zielformen und nicht eine:** `vector_tile_renderer`
+    6.1.0 nimmt `in` ausschließlich in der alten Kurzform an
+    (`json[1] is String`, boolean_operator_expression_parser.dart) —
+    daher gab es diesen Umbau überhaupt. MapLibre versteht die alte
+    Form aber nur in einem Filter, der DURCHGEHEND alt ist; in `paint`
+    ist sie ein Syntaxfehler, und der kostet die ganze Ebene.
+
+    Genau das war seit 1.43.0 der Fall und ist am 2026-08-21 am
+    Emulator aufgefallen: `landuse_park` (Wald, Wiese, Park) und `pois`
+    fielen in MapLibre lautlos aus — die Offline-Karte zeigte fast nur
+    noch Straßen. Beide Renderer können `match`, also steht dort jetzt
+    `["match", ["get", k], [...], true, false]`.
+
+    [as_expression] wählt die Sprache: `paint`/`layout` immer Ausdruck,
+    ein Filter nur dann, wenn [needs_expression] sagt, dass er ohnehin
+    schon einer ist. Sonst entstünde aus einem heilen alten Filter ein
+    gemischter — derselbe Fehler, nur andersherum.
+    """
+    if not isinstance(expr, list):
+        return expr
+    parts = in_parts(expr)
+    if parts is not None:
+        key, values, negated = parts
+        if as_expression:
+            hit, miss = (False, True) if negated else (True, False)
+            return ["match", ["get", key], values, hit, miss]
+        return ["!in" if negated else "in", key, *values]
+    return [rewrite_in(part, as_expression=as_expression) for part in expr]
 
 
 def is_complex(expr):
@@ -186,13 +281,16 @@ def transform(style):
         for section in ("paint", "layout", "filter"):
             if section == "filter":
                 if "filter" in layer:
-                    layer["filter"] = fix_in(layer["filter"])
+                    layer["filter"] = rewrite_in(
+                        layer["filter"],
+                        as_expression=needs_expression(layer["filter"]),
+                    )
                 continue
             block = layer.get(section)
             if not block:
                 continue
             for key, value in list(block.items()):
-                block[key] = fix_in(value)
+                block[key] = rewrite_in(value, as_expression=True)
         if is_complex(layout.get("text-field")):
             layout["text-field"] = SIMPLE_NAME
         kept.append(layer)
@@ -219,14 +317,32 @@ def self_test():
     aber der sagt nur DASS etwas nicht mehr passt. Hier steht, WAS.
     """
     def sample():
+        modern_in = ["in", ["get", "kind"], ["literal", ["park", "forest"]]]
         return {"layers": [
             {"id": "earth", "type": "fill"},
+            # Die Fläche, die es 1.97.0 zerlegt hat: ein `in` MITTEN in
+            # einem paint-Ausdruck.
+            {"id": "landuse_park", "type": "fill", "source-layer": "landuse",
+             "filter": modern_in,
+             "paint": {"fill-color": ["case", modern_in, "#9cd3b4", "#e2dfda"]}},
+            # Und der gemischte Filter: alte Kurzform neben ["zoom"].
+            {"id": "pois", "type": "symbol", "source-layer": "pois",
+             "filter": ["all", modern_in, [">=", ["zoom"], ["get", "min_zoom"]]]},
             {"id": "roads_other", "type": "line", "source-layer": "roads",
              "filter": ["all", ["in", "kind", "other", "path"]]},
             {"id": "roads_minor", "type": "line", "source-layer": "roads"},
             {"id": "roads_labels_minor", "type": "symbol",
              "layout": {"text-field": ["format", "x"]}},
         ]}
+
+    def legacy_in_inside(node):
+        """Steckt irgendwo eine alte `in`-Kurzform in diesem Baum?"""
+        if not isinstance(node, list):
+            return False
+        if node and node[0] in ("in", "!in") and len(node) > 1 \
+                and isinstance(node[1], str):
+            return True
+        return any(legacy_in_inside(part) for part in node)
 
     once = transform(sample())
     ids = [layer["id"] for layer in once["layers"]]
@@ -253,6 +369,29 @@ def self_test():
 
     assert width_at("roads_path_track", 15) >= width_at("roads_path", 15) * 1.5, \
         "ohne Strich bleibt nur die Breite — der Abstand ist zu klein"
+
+    # DER WÄCHTER: In paint/layout darf die alte Kurzform nie stehen.
+    # MapLibre wirft eine Ebene mit diesem Syntaxfehler weg — lautlos.
+    # Genau so waren Wald, Wiese und POI-Namen seit 1.43.0 unsichtbar.
+    for layer in once["layers"]:
+        for section in ("paint", "layout"):
+            for key, value in (layer.get(section) or {}).items():
+                assert not legacy_in_inside(value), \
+                    f"{layer['id']}.{section}.{key} trägt die alte " \
+                    "in-Kurzform — MapLibre wirft die Ebene weg"
+
+    # Und ein Filter, in dem schon ein Ausdruck steht, muss GANZ
+    # Ausdruck bleiben; gemischt lehnt MapLibre ihn genauso ab.
+    pois = next(l for l in once["layers"] if l["id"] == "pois")
+    assert not legacy_in_inside(pois["filter"]), \
+        "gemischter Filter: alte Kurzform neben einem Ausdruck"
+
+    # Umgekehrt: Ein durchgehend alter Filter BLEIBT alt — sonst
+    # entstünde aus einem heilen Filter ein gemischter, und der
+    # klassische Renderer kennt `in` NUR in der alten Kurzform.
+    landuse = next(l for l in once["layers"] if l["id"] == "landuse_park")
+    assert legacy_in_inside(landuse["filter"]), \
+        "reiner in-Filter gehört in die alte Kurzform (vector_tile_renderer)"
 
     # Fehlt roads_other, wird abgebrochen statt hinten angehängt: dort
     # lägen die Wege über den Beschriftungen.
