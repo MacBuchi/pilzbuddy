@@ -29,7 +29,6 @@ import '../../ampel/ampel_providers.dart';
 import '../elevation_providers.dart';
 import '../forest_block_providers.dart';
 import '../elevation_contour_providers.dart';
-import '../elevation_contours.dart';
 import '../forest_data_providers.dart';
 import '../forest_fill.dart' show ampelGuenstigAlpha, ampelVerhaltenAlpha;
 import '../forest_grid.dart';
@@ -101,7 +100,7 @@ class MapLegend extends ConsumerWidget {
     // kombinierte Sicht: Liegt ein feiner Block unterm Fadenkreuz,
     // zählt der Kilometer auf 100-m-Waben.
     final center = ref.watch(mapIdleCenterProvider);
-    final idleZoom = ref.watch(mapIdleZoomProvider);
+    final contoursTooFarOut = ref.watch(contourTooFarOutProvider);
     final forest = ref.watch(forestViewProvider);
     final around = (showForest && center != null && forest != null)
         ? forest.broadleafFactorAround(center.latitude, center.longitude)
@@ -191,8 +190,7 @@ class MapLegend extends ConsumerWidget {
                                   lon: center.longitude
                                 )))
                                 .valueOrNull,
-                        tooFarOut: idleZoom != null &&
-                            contourEquidistanceM(idleZoom) == null,
+                        tooFarOut: contoursTooFarOut,
                       ),
                   ],
                 ),

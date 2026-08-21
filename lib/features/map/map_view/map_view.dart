@@ -53,8 +53,13 @@ class MapViewConfig {
   /// Fadenkreuz-Werte der Legende (#235) rechnen daraufhin nach, und die
   /// Waldfläche plant daran ihren Bildausschnitt (#249) — beides soll die
   /// Gesten nicht begleiten, sondern ihnen folgen.
-  final void Function(LatLng center, double zoom, MapViewBounds bounds)?
-      onCameraIdle;
+  ///
+  /// **Keine Zoomstufe im Gepäck**, obwohl 1.98.0 eine mitgab: Die
+  /// beiden Engines zählen sie verschieden (MapLibre in 512er-Kacheln,
+  /// flutter_map in 256ern), eine Zahl über diese Grenze wäre also
+  /// zweideutig. Wer den Maßstab braucht, rechnet ihn aus [bounds] und
+  /// der eigenen Pixelbreite — das ist eindeutig.
+  final void Function(LatLng center, MapViewBounds bounds)? onCameraIdle;
 }
 
 /// Ein Marker: Position, Maße, Widget-Kind. Wie er auf die Karte kommt

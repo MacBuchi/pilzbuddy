@@ -20,10 +20,13 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:latlong2/latlong.dart';
+
 import 'contours.dart';
 import 'elevation_grid.dart';
 import 'forest_fill_window.dart';
 import 'forest_grid.dart' show hexNearestCell;
+import 'map_view/marker_culling.dart' show MapViewBounds;
 
 /// „Hier wissen wir nichts" im abgetasteten Feld.
 ///
@@ -44,11 +47,11 @@ const contourSampleBudget = 768;
 /// Kürzer als das auf dem Schirm, und die Linie sagt nichts.
 ///
 /// Wörtlich die Regel aus `rainContoursAtZoom`, hier ohne Umweg über
-/// Kilometer: Fenstergeometrie und Zoomstufe geben Pixel je Abtastzelle
-/// direkt her.
+/// Kilometer: Aus der Bodenauflösung folgt die Pixelgröße einer
+/// Abtastzelle direkt.
 ///
 /// **Sie bringt weniger, als man denkt, und das ist die Messung wert:**
-/// In den Alpen bei z11 fallen damit 77 von 916 Linien weg (2026-08-20).
+/// In den Alpen bei z11 fielen damit 77 von 916 Linien weg (2026-08-20).
 /// Der Grund ist, dass [contourLines] mit `minChainCells` die kleinsten
 /// Fetzen schon vorher wegwirft und eine Abtastzelle dort ohnehin rund
 /// 5,5 px groß ist. Die Schranke steht trotzdem hier, weil sie in
@@ -58,14 +61,57 @@ const contourSampleBudget = 768;
 const contourMinLinePixels = 40.0;
 
 /// Sind nach dem Ziehen mehr Punkte als das übrig, wird die Äquidistanz
-/// EINMAL verdoppelt und neu gezogen.
+/// EINMAL vergröbert und neu gezogen.
 ///
-/// **Warum es das zusätzlich zur Zoomregel braucht:** Die
-/// [contourEquidistanceM] rechnet mit einem angenommenen Hang von 10 %.
-/// In den Alpen ist der drei- bis fünfmal so steil, und dieselbe
-/// Äquidistanz ergibt dort ein schwarzes Gewimmel. Diese Schranke lässt
-/// das Gelände vor dem Benutzer entscheiden statt meiner Annahme.
+/// **Seit 1.99.0 nur noch ein Netz.** Bis dahin war es die einzige
+/// Bremse gegen zu dichte Linien im Steilgelände, weil
+/// [contourEquidistanceM] einen Hang von 10 % ANNAHM. Jetzt misst
+/// [reliefPerPixel] das Gefälle im Fenster, und die Äquidistanz folgt
+/// ihm — die Schranke greift dadurch nur noch in Fenstern, die
+/// ungewöhnlich viel Struktur auf einmal zeigen.
 const contourPointBudget = 60000;
+
+/// Ab wie vielen Bildschirmpixeln Abstand zwei Nachbarlinien noch als
+/// zwei Linien lesbar sind.
+///
+/// **Das ist die eine Stellschraube der Dichte** — die Äquidistanz
+/// fällt daraus, siehe [contourEquidistanceM]. 20 statt der 12 von
+/// 1.98.0: Am Emulator waren die Linien in den Alpen eine Schraffur
+/// (Rückmeldung Betreiber, 2026-08-21). Gemessen in
+/// `docs/map-performance.md`.
+const contourMinLineSpacingPixels = 20.0;
+
+/// Meter Gelände je logischem Bildschirmpixel — der Maßstab, in dem
+/// alle Regeln dieser Datei rechnen.
+///
+/// Zwei Zutaten, beide eindeutig: das Sichtfenster in Grad und die
+/// Breite des Kartenfensters in Pixeln. Eine Zoomstufe kommt bewusst
+/// nicht vor, sie bedeutet in den beiden Engines Verschiedenes (siehe
+/// `mapIdleGroundResolutionProvider`).
+///
+/// Gerechnet wird über die BREITE, weil Längengrade in Mercator linear
+/// abgebildet werden; die Höhe eines Fensters ist es nicht.
+double groundResolution(MapViewBounds bounds, double widthPixels) {
+  if (widthPixels <= 0) return double.infinity;
+  final lat = (bounds.north + bounds.south) / 2;
+  final meters =
+      (bounds.east - bounds.west) * 111320 * math.cos(lat * math.pi / 180);
+  return meters / widthPixels;
+}
+
+/// Gröber als das je Bildschirmpixel, und die Ebene bleibt leer.
+///
+/// **Eine Aussage über die DATEN, keine über den Geschmack:** Eine Wabe
+/// des Höhengitters ist rund 270 m breit. Deckt ein einziges Pixel mehr
+/// Boden ab als eine Wabe, zeichnete die Linie eine Genauigkeit vor,
+/// die im Gitter gar nicht steht. Die Legende sagt dann „erst näher
+/// dran" — sie schweigt nicht.
+///
+/// Die Bremse greift in der Praxis selten, weil [contourEquidistanceM]
+/// im bewegten Gelände schon vorher aufgibt. Sie steht hier für den
+/// Fall Flachland-Übersicht, wo das Gefälle klein und die Fläche riesig
+/// ist.
+const contourMaxMetersPerPixel = 270.0;
 
 /// Wie viele Abtastpunkte das Fenster bekommt.
 ///
@@ -202,36 +248,67 @@ ContourField resampleElevation(
   );
 }
 
-/// Die Äquidistanz in Metern, die bei dieser Zoomstufe noch etwas
-/// aussagt — `null` heißt: gar nicht zeichnen.
+/// Wie viele HÖHENMETER ein Bildschirmpixel typischerweise überwindet.
 ///
-/// Die Regel ist wieder ein Satz statt einer Zoomtabelle, wie bei
-/// [rainLevelsAtZoom]: **Zwei Nachbarlinien, die auf dem Schirm näher
-/// als [minPixels] beieinanderliegen, sind ein Schmierstreifen.** Auf
-/// einem Hang von [slope] heißt das: Äquidistanz ≥ minPixels · slope ·
-/// Meter-je-Pixel.
+/// **Das ist die Zahl, aus der die Äquidistanz fällt** — und sie kommt
+/// aus dem Gelände selbst, nicht aus einer Annahme. Bis 1.98.0 stand
+/// dort ein unterstellter Hang von 10 %; in den Alpen ist er drei- bis
+/// fünfmal so steil, und dieselbe Äquidistanz wurde dort zur Schraffur
+/// (am Emulator gesehen, 2026-08-21).
 ///
-/// Daraus fällt, nicht geraten: 20 m ab z13, 50 m bei z12, 100 m bei
-/// z11, 200 m bei z10, darunter nichts.
+/// Genommen wird das **75. Perzentil** der Höhenunterschiede zwischen
+/// Nachbarzellen, nicht der Median: Ein Fenster mit Talboden UND
+/// Steilhang hat einen niedrigen Median, und die Linien wären genau
+/// dort zu dicht, wo man sie lesen will. Das Perzentil richtet sich
+/// nach dem bewegteren Viertel.
 ///
-/// **Warum unter z10 gar nichts:** Nicht wegen der Zahl der Stufen,
-/// sondern weil das Fenster dort das halbe Gitter umfasst und der
-/// Abtast-Deckel jede vierte bis fünfte Wabe nähme. Eine 1,3-km-Linie
-/// aus 270-m-Daten ist eine Karikatur. Die Legende sagt in dem Fall
-/// „erst näher dran" — eine Ebene, die still nichts zeigt, ist der
-/// Fehler, gegen den dieses Repo laufend Tests schreibt.
+/// `null`, wenn zu wenige Nachbarpaare Daten haben.
+double? reliefPerPixel(ContourField field, {required double pixelsPerCell}) {
+  final steps = <int>[];
+  for (var y = 0; y < field.rows; y++) {
+    final row = y * field.cols;
+    for (var x = 0; x < field.cols; x++) {
+      final here = field.values[row + x];
+      if (here == contourNoData) continue;
+      if (x + 1 < field.cols) {
+        final right = field.values[row + x + 1];
+        if (right != contourNoData) steps.add((here - right).abs());
+      }
+      if (y + 1 < field.rows) {
+        final below = field.values[row + field.cols + x];
+        if (below != contourNoData) steps.add((here - below).abs());
+      }
+    }
+  }
+  if (steps.length < 8) return null;
+  steps.sort();
+  final perCell = steps[(steps.length * 3) ~/ 4].toDouble();
+  return perCell / pixelsPerCell;
+}
+
+/// Die Äquidistanz in Metern, die auf DIESEM Gelände bei DIESER
+/// Auflösung noch etwas aussagt — `null` heißt: gar nicht zeichnen.
 ///
-/// **Und 20 m ist der Boden**, weil die Rohdaten in 20-m-Stufen
-/// quantisiert sind. Feiner wäre erfunden.
-int? contourEquidistanceM(
-  double zoom, {
-  double lat = 51,
-  double slope = 0.10,
-  double minPixels = 12,
+/// Die Regel ist ein Satz, keine Zoomtabelle: **Zwei Nachbarlinien, die
+/// auf dem Schirm näher als [contourMinLineSpacingPixels]
+/// beieinanderliegen, sind eine Schraffur.** Steigt ein Pixel um
+/// [reliefPerPixel] Höhenmeter, folgt daraus unmittelbar
+/// `Äquidistanz ≥ Abstand · Relief-je-Pixel`.
+///
+/// Was das im Gelände heißt (nachgerechnet in
+/// `docs/map-performance.md`): im Mittelgebirge 20 m nah dran und
+/// 200 m in der Landschaftsübersicht — in den Alpen bei derselben
+/// Zoomstufe je eine Stufe gröber, und weit draußen gar nichts mehr.
+/// Dieselbe Regel, zwei Antworten, weil das Gelände zwei verschiedene
+/// ist.
+///
+/// **20 m ist der Boden**, weil die Rohdaten in 20-m-Stufen quantisiert
+/// sind. Feiner wäre erfunden.
+int? contourEquidistanceM({
+  required double reliefPerPixel,
+  double minSpacingPixels = contourMinLineSpacingPixels,
 }) {
-  final metersPerPixel =
-      156543.03392 * math.cos(lat * math.pi / 180) / math.pow(2, zoom);
-  final needed = minPixels * slope * metersPerPixel;
+  final needed = minSpacingPixels * reliefPerPixel;
   for (final step in contourSteps) {
     if (step >= needed) return step;
   }
@@ -241,6 +318,21 @@ int? contourEquidistanceM(
 /// Die erlaubten Äquidistanzen, aufsteigend. 20 m ist die Quantisierung
 /// der Rohdaten, 200 m die gröbste Stufe, die noch Gelände beschreibt.
 const contourSteps = [20, 50, 100, 200];
+
+/// Höhenabstand, in dem eine HAUPTLINIE kommen soll — die kräftige mit
+/// der Zahl daran.
+///
+/// **Nicht „jede fünfte", und der Unterschied ist der Sinn der Zahlen:**
+/// Bei 20 m Äquidistanz ist jede fünfte genau das (100 m). Bei 100 m
+/// wäre jede fünfte alle 500 Höhenmeter — in einem Talkessel steht dann
+/// keine einzige Zahl auf dem Schirm, und die Ebene ist wieder so
+/// stumm wie vor der Beschriftung.
+const contourIndexEveryM = 100;
+
+/// Der Höhenabstand der Hauptlinien bei dieser Äquidistanz — immer ein
+/// Vielfaches von [equidistanceM], mindestens [contourIndexEveryM].
+int contourIndexStepM(int equidistanceM) =>
+    equidistanceM * math.max(1, (contourIndexEveryM / equidistanceM).ceil());
 
 /// Die Stufen, die im Feld überhaupt vorkommen.
 ///
@@ -253,6 +345,108 @@ List<int> levelsIn(ContourField field, int equidistanceM) {
   return [
     for (var level = first; level <= range.max; level += equidistanceM) level,
   ];
+}
+
+/// Ein Platz für eine Zahl an einer Hauptlinie.
+///
+/// **Warum es das von Hand gibt:** MapLibre kann Beschriftung entlang
+/// einer Linie (`symbol-placement: line`), flutter_map kann es nicht —
+/// dort ist eine Beschriftung ein Marker, also ein Punkt mit einem
+/// Winkel. Beide Engines sollen dasselbe sagen, deshalb rechnet diese
+/// Funktion für die zweite nach, was die erste selbst erledigt.
+class ContourLabel {
+  const ContourLabel({
+    required this.point,
+    required this.angleRadians,
+    required this.level,
+  });
+
+  final LatLng point;
+
+  /// Drehung im Uhrzeigersinn für `Transform.rotate`, so gewählt, dass
+  /// die Zahl nie auf dem Kopf steht.
+  final double angleRadians;
+
+  /// Die Höhe in Metern — das, was dort geschrieben wird.
+  final int level;
+}
+
+/// Verteilt Zahlen auf die Hauptlinien, etwa alle [spacingPixels].
+///
+/// Kurze Linien bekommen keine: Eine Zahl auf einem 30-Pixel-Stummel
+/// überdeckt ihn ganz. Gerechnet wird in Bildschirmpixeln, damit der
+/// Abstand beim Herauszoomen nicht mitwächst.
+List<ContourLabel> contourLabels(
+  List<ContourLine> lines, {
+  required double metersPerPixel,
+  double spacingPixels = 420,
+  double minLinePixels = 140,
+}) {
+  final spacing = spacingPixels * metersPerPixel;
+  final minLength = minLinePixels * metersPerPixel;
+  final labels = <ContourLabel>[];
+  for (final line in lines) {
+    if (!line.index || line.points.length < 2) continue;
+    // Erst die Länge, dann die Plätze: Ohne Länge wüsste man nicht, ob
+    // überhaupt eine Zahl hineinpasst, und wo die erste sitzen soll,
+    // damit sie mittig steht statt am Anfang zu kleben.
+    final segments = <double>[];
+    var total = 0.0;
+    for (var i = 1; i < line.points.length; i++) {
+      final metres = _metersBetween(line.points[i - 1], line.points[i]);
+      segments.add(metres);
+      total += metres;
+    }
+    if (total < minLength) continue;
+    final count = math.max(1, (total / spacing).floor());
+    final step = total / (count + 1);
+    // Die Plätze VORHER festlegen, nicht im Gehen hochzählen: Sonst
+    // rutscht der letzte durch Rundung auf die Gesamtlänge und die Zahl
+    // sitzt auf dem Linienende statt zwischen den Enden.
+    final targets = [for (var k = 1; k <= count; k++) k * step];
+    var placed = 0;
+    var walked = 0.0;
+    for (var i = 0; i < segments.length && placed < targets.length; i++) {
+      final next = walked + segments[i];
+      while (placed < targets.length && targets[placed] <= next) {
+        final from = line.points[i];
+        final to = line.points[i + 1];
+        final t =
+            segments[i] == 0 ? 0.0 : (targets[placed] - walked) / segments[i];
+        labels.add(ContourLabel(
+          point: LatLng(
+            from.latitude + (to.latitude - from.latitude) * t,
+            from.longitude + (to.longitude - from.longitude) * t,
+          ),
+          angleRadians: _uprightAngle(from, to),
+          level: line.level,
+        ));
+        placed++;
+      }
+      walked = next;
+    }
+  }
+  return labels;
+}
+
+double _metersBetween(LatLng a, LatLng b) {
+  final midLat = (a.latitude + b.latitude) / 2 * math.pi / 180;
+  final dx = (b.longitude - a.longitude) * 111320 * math.cos(midLat);
+  final dy = (b.latitude - a.latitude) * 110574;
+  return math.sqrt(dx * dx + dy * dy);
+}
+
+/// Der Winkel der Strecke auf dem Schirm — bei Bedarf um 180° gedreht,
+/// damit die Zahl lesbar bleibt statt kopfzustehen.
+double _uprightAngle(LatLng from, LatLng to) {
+  final midLat = (from.latitude + to.latitude) / 2 * math.pi / 180;
+  final dx = (to.longitude - from.longitude) * math.cos(midLat);
+  // Bildschirm-y wächst nach unten, Breitengrade nach oben.
+  final dy = -(to.latitude - from.latitude);
+  var angle = math.atan2(dy, dx);
+  if (angle > math.pi / 2) angle -= math.pi;
+  if (angle < -math.pi / 2) angle += math.pi;
+  return angle;
 }
 
 /// Das Ergebnis eines Laufs: die Linien und das, womit sie gezogen
@@ -278,24 +472,41 @@ class ElevationContours {
 
 /// Zieht die Höhenlinien für ein Fenster. Das ist die Funktion, die im
 /// Isolate läuft.
+///
+/// [metersPerPixel] ist die Bodenauflösung am Bildschirm — Meter
+/// Gelände je logischem Pixel. **Bewusst das und keine Zoomstufe:** Die
+/// beiden Engines zählen Zoom verschieden (MapLibre in 512er-Kacheln,
+/// flutter_map in 256ern), dieselbe Zahl bedeutete auf Android und Web
+/// also zwei verschiedene Maßstäbe. Bis 1.98.0 rechneten die Regeln
+/// hier in der 256er-Zählung — auf Android damit durchweg eine Stufe
+/// daneben (am 2026-08-21 am Gerät nachgemessen: Karte auf 12,0, Regel
+/// rechnete mit 11). Meter je Pixel hat diese Zweideutigkeit nicht.
 ElevationContours? contourLinesFor(
   ElevationGrid grid, {
   required FillWindow window,
-  required double zoom,
+  required double metersPerPixel,
   int sampleBudget = contourSampleBudget,
   int pointBudget = contourPointBudget,
   double minLinePixels = contourMinLinePixels,
+  double minSpacingPixels = contourMinLineSpacingPixels,
+  double maxMetersPerPixel = contourMaxMetersPerPixel,
 }) {
-  var equidistance = contourEquidistanceM(zoom);
-  if (equidistance == null) return null;
+  if (metersPerPixel > maxMetersPerPixel) return null;
   final field =
       resampleElevation(grid, window: window, budget: sampleBudget);
 
-  // Pixel je Abtastzelle — daraus die Mindestlänge einer Linie.
-  final degreesPerPixel = 360 / (256 * math.pow(2, zoom));
-  final pixelsPerCell =
-      ((window.east - window.west) / field.cols) / degreesPerPixel;
+  // Pixel je Abtastzelle — daraus die Mindestlänge einer Linie UND das
+  // Relief je Pixel.
+  final metersPerCell =
+      (window.east - window.west) * 111320 * _cosLat(window) / field.cols;
+  final pixelsPerCell = metersPerCell / metersPerPixel;
   final minCells = minLinePixels / pixelsPerCell;
+
+  final relief = reliefPerPixel(field, pixelsPerCell: pixelsPerCell);
+  if (relief == null) return null;
+  var equidistance = contourEquidistanceM(
+      reliefPerPixel: relief, minSpacingPixels: minSpacingPixels);
+  if (equidistance == null) return null;
 
   List<ContourLine> draw(int step) => [
         for (final line in contourLines(
@@ -306,7 +517,7 @@ ElevationContours? contourLinesFor(
           levels: levelsIn(field, step),
           latAtRow: field.latAtRow,
           lonAtColumn: field.lonAtColumn,
-          isIndex: (level) => level % (step * 5) == 0,
+          isIndex: (level) => level % contourIndexStepM(step) == 0,
         ))
           if (line.cells >= minCells) line,
       ];
@@ -335,6 +546,12 @@ ElevationContours? contourLinesFor(
     key: '${window.key}_$equidistance',
   );
 }
+
+/// Kosinus der mittleren Fensterbreite — für „Grad in Meter". Über die
+/// Höhe eines Sichtfensters ändert er sich um Bruchteile eines
+/// Prozents; die Mitte reicht.
+double _cosLat(FillWindow window) =>
+    math.cos((window.north + window.south) / 2 * math.pi / 180);
 
 /// Die Linien als GeoJSON-FeatureCollection, für die MapLibre-Seite.
 ///

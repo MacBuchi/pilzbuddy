@@ -19,7 +19,7 @@ void main() {
         key: key,
       );
 
-  test('hängt beide Ebenen ein — Quelle vor Ebene', () async {
+  test('hängt alle drei Ebenen ein — Quelle vor Ebene', () async {
     final style = RecordingStyle();
     final key = await applyContourLines(style,
         geoJson: geoJsonOf('a'), appliedKey: null);
@@ -30,6 +30,7 @@ void main() {
       'addLayer:$contourLayerId',
       'addSource:$contourIndexSourceId',
       'addLayer:$contourIndexLayerId',
+      'addLayer:$contourLabelLayerId',
     ]);
   });
 
@@ -48,14 +49,15 @@ void main() {
         geoJson: geoJsonOf('b'), appliedKey: 'a');
 
     expect(key, 'b');
-    expect(style.calls.take(4), [
+    expect(style.calls.take(5), [
+      'removeLayer:$contourLabelLayerId',
       'removeLayer:$contourIndexLayerId',
       'removeLayer:$contourLayerId',
       'removeSource:$contourIndexSourceId',
       'removeSource:$contourSourceId',
     ]);
     expect(style.layers.map((l) => l.id),
-        [contourLayerId, contourIndexLayerId]);
+        [contourLayerId, contourIndexLayerId, contourLabelLayerId]);
     expect(style.sources.map((s) => s.id),
         [contourSourceId, contourIndexSourceId]);
   });
@@ -84,10 +86,26 @@ void main() {
     // zwei Ebenen mit je einer festen Breite statt einer mit `case`.
     final style = RecordingStyle();
     await applyContourLines(style, geoJson: geoJsonOf('a'), appliedKey: null);
-    for (final layer in style.layers.cast<ml.LineStyleLayer>()) {
+    bool scalar(Object? value) =>
+        value is String || value is num || value is bool;
+    for (final layer in style.layers) {
       for (final entry in layer.paint.entries) {
-        expect(entry.value, anyOf(isA<String>(), isA<num>(), isA<bool>()),
+        expect(scalar(entry.value), isTrue,
             reason: '${layer.id}.${entry.key} ist kein Skalar');
+      }
+      for (final entry in layer.layout.entries) {
+        // Listen sind erlaubt, aber nur aus Skalaren: `text-font` ist
+        // eine, ein Style-Ausdruck wäre eine mit einem Operator vorn.
+        final value = entry.value;
+        expect(
+            scalar(value) || (value is List && value.every(scalar)),
+            isTrue,
+            reason: '${layer.id}.${entry.key} ist kein Skalar');
+        if (value is List) {
+          expect(value.first, isNot(anyOf('get', 'case', 'match', 'concat')),
+              reason: '${layer.id}.${entry.key} sieht nach einem Ausdruck '
+                  'aus — der käme als Object[] in der Engine an');
+        }
       }
     }
   });
@@ -95,7 +113,7 @@ void main() {
   test('die Hauptlinien liegen kräftiger und oben', () async {
     final style = RecordingStyle();
     await applyContourLines(style, geoJson: geoJsonOf('a'), appliedKey: null);
-    final layers = style.layers.cast<ml.LineStyleLayer>().toList();
+    final layers = style.layers.whereType<ml.LineStyleLayer>().toList();
     final normal = layers.firstWhere((l) => l.id == contourLayerId);
     final index = layers.firstWhere((l) => l.id == contourIndexLayerId);
 
@@ -106,6 +124,36 @@ void main() {
     // Zuletzt hinzugefügt heißt obenauf: Die Hauptlinie darf von einer
     // Nebenlinie nicht überzeichnet werden.
     expect(layers.last.id, contourIndexLayerId);
+    // Und beide sind zurückgenommen: Die Ebene ist eine Zugabe, keine
+    // zweite Karte (Betreiber, 2026-08-21 — „too much").
+    expect(normal.paint['line-opacity']! as num, lessThan(0.4));
+    expect(index.paint['line-opacity']! as num, lessThan(0.7));
+  });
+
+  test('die Zahlen sitzen auf den Hauptlinien und stehen nie auf dem Kopf',
+      () async {
+    // Ohne Zahl sagt eine Höhenlinie nur „hier ist es steiler als dort",
+    // nicht ob es hinauf oder hinunter geht (Betreiber, 2026-08-21).
+    final style = RecordingStyle();
+    await applyContourLines(style, geoJson: geoJsonOf('a'), appliedKey: null);
+    final labels = style.layers.firstWhere((l) => l.id == contourLabelLayerId);
+
+    expect(labels, isA<ml.SymbolStyleLayer>());
+    // Auf der Quelle der HAUPTlinien: jede fünfte bekommt eine Zahl,
+    // die Zwischenlinien zählt man ab.
+    expect((labels as ml.StyleLayerWithSource).sourceId,
+        contourIndexSourceId);
+    expect(labels.layout['symbol-placement'], 'line');
+    expect(labels.layout['text-field'], '{m}',
+        reason: 'die Eigenschaft, die contourGeoJson schreibt');
+    expect(labels.layout['text-font'], [contourLabelFont]);
+    expect(labels.layout['text-keep-upright'], isTrue);
+    // Ohne Hof verschwindet die Zahl auf der Linie, die unter ihr
+    // durchläuft.
+    expect((labels.paint['text-halo-width']! as num), greaterThan(0));
+
+    // Und ganz oben: Eine Zahl unter einer Linie ist keine Zahl.
+    expect(style.layers.last.id, contourLabelLayerId);
   });
 
   test('die Quellen tragen die Namensnennung', () async {

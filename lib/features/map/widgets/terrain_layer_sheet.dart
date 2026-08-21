@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../elevation_contour_providers.dart';
-import '../elevation_contours.dart';
 import '../elevation_providers.dart';
 import 'map_legend.dart';
 
@@ -28,10 +27,9 @@ class _TerrainLayerSheet extends ConsumerWidget {
     // Blatt öffnet, will die Ebene; dafür darf es 3,4 MB kosten.
     final grid = ref.watch(elevationGridProvider);
     final missing = grid.hasValue && grid.valueOrNull == null;
-    final zoom = ref.watch(mapIdleZoomProvider);
     final drawn = ref.watch(contourEquidistanceProvider);
     final theme = Theme.of(context);
-    final tooFarOut = zoom != null && contourEquidistanceM(zoom) == null;
+    final tooFarOut = ref.watch(contourTooFarOutProvider);
 
     return SafeArea(
       child: ConstrainedBox(
@@ -84,10 +82,12 @@ class _TerrainLayerSheet extends ConsumerWidget {
                       // Der Fall, den man sonst für einen Fehler hielte:
                       // Ebene an, Karte leer. Er gehört benannt.
                       (true, true, _) =>
-                        'Erst näher dran — in der Übersicht wäre eine '
-                            'Linie aus 270-m-Daten eine Karikatur',
+                        'Erst näher dran — bei diesem Maßstab lägen die '
+                            'Linien hier so dicht, dass sie eine '
+                            'Schraffur wären',
                       (true, false, final int metres) =>
-                        'Alle $metres m, jede fünfte kräftiger',
+                        'Alle $metres m; die kräftigen Linien tragen ihre '
+                            'Höhe',
                       (true, false, null) => 'Wird gerechnet …',
                     }),
                     value: enabled && !missing,

@@ -45,9 +45,11 @@ class ContourLine {
   /// noch etwas".
   final int cells;
 
-  /// Hauptlinie — jede fünfte, kräftiger gezeichnet. Ohne sie zählt
-  /// niemand ab, welche Linie welche Höhe hat; Beschriftungen an der
-  /// Linie kann diese App auf beiden Renderern nicht.
+  /// Hauptlinie — kräftiger gezeichnet, und bei den Höhenlinien die,
+  /// die ihre Höhe als Zahl trägt. WELCHE das sind, entscheidet der
+  /// Aufrufer über `isIndex`; die Höhenlinien nehmen dafür seit 1.99.0
+  /// einen festen Höhenabstand statt „jede fünfte"
+  /// (`contourIndexStepM`).
   final bool index;
 }
 

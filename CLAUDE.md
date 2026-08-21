@@ -514,10 +514,34 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
     holen aus Waben, die eine halbe Wabe versetzt liegen — auf einem
     10-%-Hang ±13 m im Wechsel, als Sägezahn sichtbar). Beide Fälle
     hält `test/elevation_contours_test.dart` fest.
-  - **Die Äquidistanz fällt aus Pixeln**, nicht aus einer Zoomtabelle
-    (20 m ab z13 bis 200 m bei z10, darunter gar nichts), und eine
-    Punktschranke vergröbert sie EINMAL, wenn das Gelände steiler ist
-    als die angenommenen 10 %. Gemessen in `docs/map-performance.md`.
+  - **Die Äquidistanz fällt aus dem GELÄNDE** (seit 1.99.0), nicht aus
+    einer Zoomtabelle: `reliefPerPixel` misst das 75. Perzentil der
+    Höhenunterschiede zwischen Nachbarzellen, und daraus folgt
+    „Äquidistanz ≥ 20 px · Relief-je-Pixel"; schafft selbst 200 m das
+    nicht, wird gar nicht gezeichnet. Bis 1.98.0 stand dort ein
+    UNTERSTELLTER Hang von 10 % — in den Alpen das Drei- bis Fünffache,
+    und die Ebene wurde dort zur Schraffur (Betreiber, 2026-08-21).
+    Die Punktschranke ist seither nur noch ein Netz. Gemessen in
+    `docs/map-performance.md`.
+  - **Die Regeln rechnen in Meter-je-Pixel, nie in Zoomstufen.**
+    MapLibre zählt Zoom in 512-dp-Kacheln, flutter_map in 256ern —
+    dieselbe Zahl bedeutet auf Android und Web zwei Maßstäbe, und
+    1.98.0 lag auf Android damit durchweg eine Stufe daneben (am Gerät
+    nachgemessen: Karte auf 12,0, Regel rechnete mit 11). Deshalb
+    trägt `onCameraIdle` KEINE Zoomstufe mehr über die
+    MapView-Fassade; `groundResolution(bounds, pixelbreite)` im
+    Karten-Screen ist die eine eindeutige Größe. Wer das je zurückdreht,
+    holt den Fehler zurück.
+  - **Die Hauptlinien tragen ihre Höhe** — und zwar etwa alle 100
+    Höhenmeter (`contourIndexStepM`), NICHT „jede fünfte": Bei 100 m
+    Äquidistanz wäre jede fünfte alle 500 Höhenmeter, und in einem
+    Talkessel stünde dann keine einzige Zahl auf dem Schirm. In MapLibre eine eigene
+    Symbol-Ebene auf der Hauptlinien-Quelle (`symbol-placement: line`,
+    `text-field: "{m}"` — die Token-Schreibweise, weil Ausdrücke bei
+    `maplibre` 0.3.5 durch `toJObject()` gehen); auf der
+    flutter_map-Strecke gedrehte Marker aus `contourLabels`, weil der
+    Canvas-Renderer keine Beschriftung entlang einer Linie kann. Beide
+    Engines sollen dasselbe sagen.
   - **Der FAB hat bewusst NICHT die Wald-Regel „kein Knopf ohne
     Gitter"**: Sie zu befolgen hieße, `elevationGridProvider` im
     Karten-Screen zu beobachten — und damit 3,4 MB bei jedem App-Start

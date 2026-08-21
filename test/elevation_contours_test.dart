@@ -6,10 +6,12 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:pilzbuddy/features/map/contours.dart';
 import 'package:pilzbuddy/features/map/elevation_contours.dart';
 import 'package:pilzbuddy/features/map/elevation_grid.dart';
 import 'package:pilzbuddy/features/map/forest_fill_window.dart';
+import 'package:pilzbuddy/features/map/map_view/marker_culling.dart';
 
 /// Ein Höhengitter aus Byte-Zeilen — dieselbe Bauart wie `gridOf` beim
 /// Regen, nur ohne den Umweg über gzip.
@@ -225,31 +227,98 @@ void main() {
     });
   });
 
-  group('Äquidistanz nach Maßstab', () {
-    test('fällt aus Pixeln, nicht aus geratenen Zoomstufen', () {
-      expect(contourEquidistanceM(14), 20);
-      expect(contourEquidistanceM(13), 20);
-      expect(contourEquidistanceM(12), 50);
-      expect(contourEquidistanceM(11), 100);
-      expect(contourEquidistanceM(10), 200);
-      expect(contourEquidistanceM(9), isNull,
-          reason: 'in der Übersicht ist eine 270-m-Linie eine Karikatur');
+  group('Maßstab', () {
+    test('Bodenauflösung fällt aus Sichtfenster und Pixelbreite', () {
+      // 0,01° Länge auf 51° Breite sind rund 700 m; auf 100 Pixel also
+      // rund 7 m je Pixel. Eine Zoomstufe kommt in der Rechnung nicht
+      // vor, und genau das ist der Punkt: MapLibre und flutter_map
+      // zählen sie verschieden.
+      const bounds =
+          MapViewBounds(west: 10.0, east: 10.01, north: 51.0, south: 50.99);
+      expect(groundResolution(bounds, 100), closeTo(7.0, 0.3));
+      expect(groundResolution(bounds, 200), closeTo(3.5, 0.2));
+      expect(groundResolution(bounds, 0), double.infinity,
+          reason: 'ein Fenster ohne Breite hat keinen Maßstab');
+    });
+  });
+
+  group('Äquidistanz aus dem Gelände', () {
+    test('folgt dem Relief, nicht einer Zoomtabelle', () {
+      // Die Regel ist EIN Satz: Zwei Nachbarlinien brauchen
+      // [contourMinLineSpacingPixels] Pixel Abstand. Steigt ein Pixel um
+      // r Meter, ist die nötige Äquidistanz 20 · r.
+      expect(contourEquidistanceM(reliefPerPixel: 0.5), 20);
+      expect(contourEquidistanceM(reliefPerPixel: 2.0), 50);
+      expect(contourEquidistanceM(reliefPerPixel: 4.0), 100);
+      expect(contourEquidistanceM(reliefPerPixel: 9.0), 200);
+      expect(contourEquidistanceM(reliefPerPixel: 11.0), isNull,
+          reason: 'auch 200 m wären hier eine Schraffur — dann lieber '
+              'nichts, und die Legende sagt „erst näher dran"');
     });
 
-    test('hängt an der Pixelschranke — doppelt so streng, eine Stufe später',
-        () {
-      // Die Probe darauf, dass die Tabelle oben eine Rechnung ist und
-      // keine abgetippte Liste.
-      for (final zoom in [10.0, 11.0, 12.0, 13.0]) {
-        expect(contourEquidistanceM(zoom, minPixels: 24),
-            contourEquidistanceM(zoom - 1, minPixels: 12),
-            reason: 'Zoom $zoom');
+    test('dasselbe Gelände, gröberer Maßstab ⇒ gröbere Linien', () {
+      int? at(double relief) => contourEquidistanceM(reliefPerPixel: relief);
+      var previous = 0;
+      for (final relief in [0.1, 0.5, 1.0, 2.0, 4.0, 8.0]) {
+        final step = at(relief)!;
+        expect(step, greaterThanOrEqualTo(previous), reason: 'Relief $relief');
+        previous = step;
       }
+    });
+
+    test('eine strengere Schranke vergröbert, sie verfeinert nie', () {
+      expect(contourEquidistanceM(reliefPerPixel: 2.0, minSpacingPixels: 10),
+          20);
+      expect(contourEquidistanceM(reliefPerPixel: 2.0, minSpacingPixels: 20),
+          50);
+      expect(contourEquidistanceM(reliefPerPixel: 2.0, minSpacingPixels: 40),
+          100);
     });
 
     test('geht nie unter die Quantisierung der Rohdaten', () {
       expect(contourSteps.first, elevationQuantM);
-      expect(contourEquidistanceM(18), 20);
+      expect(contourEquidistanceM(reliefPerPixel: 0.0001), 20);
+    });
+  });
+
+  group('Relief je Pixel', () {
+    test('nimmt das bewegtere Viertel, nicht den Median', () {
+      // Ein Feld aus Terrassen: knapp 30 % der Nachbarpaare liegen an
+      // einer Stufenkante (100 m), der Rest ist eben. Der MEDIAN wäre
+      // damit 0 — und aus 0 folgte die feinste Äquidistanz, ausgerechnet
+      // im bewegten Gelände. Das 75. Perzentil sieht die Kante.
+      const cols = 10, rows = 9;
+      final values = Int32List(cols * rows);
+      for (var y = 0; y < rows; y++) {
+        for (var x = 0; x < cols; x++) {
+          values[y * cols + x] = 100 * (x ~/ 3 + y ~/ 3);
+        }
+      }
+      final field = ContourField(
+        values: values,
+        cols: cols,
+        rows: rows,
+        west: 10,
+        east: 10.1,
+        north: 51,
+        south: 50.9,
+      );
+      expect(reliefPerPixel(field, pixelsPerCell: 1), 100,
+          reason: 'ein Median von 0 hieße: feinste Äquidistanz im Steilhang');
+      // Und die Rechnung teilt durch die Pixelgröße einer Zelle: Wird
+      // dieselbe Kante auf zwei Pixel gestreckt, halbiert sich das
+      // Relief je Pixel.
+      expect(reliefPerPixel(field, pixelsPerCell: 2), 50);
+    });
+
+    test('ohne genug Nachbarpaare gibt es keine Aussage', () {
+      final grid = elevationOf([
+        [5, 5],
+        [5, 5],
+      ]);
+      final field =
+          resampleElevation(grid, window: windowOf(grid), smooth: false);
+      expect(reliefPerPixel(field, pixelsPerCell: 1), isNull);
     });
   });
 
@@ -277,27 +346,108 @@ void main() {
     });
   });
 
+  group('Hauptlinien', () {
+    test('kommen etwa alle 100 Höhenmeter, nicht „jede fünfte"', () {
+      // Bei 20 m ist beides dasselbe. Bei 100 m wäre „jede fünfte" alle
+      // 500 Höhenmeter — in einem Talkessel stünde dann keine einzige
+      // Zahl auf dem Schirm.
+      expect(contourIndexStepM(20), 100);
+      expect(contourIndexStepM(50), 100);
+      expect(contourIndexStepM(100), 100);
+      expect(contourIndexStepM(200), 200,
+          reason: 'gröber als die Äquidistanz geht nicht');
+      for (final step in contourSteps) {
+        expect(contourIndexStepM(step) % step, 0,
+            reason: 'eine Hauptlinie ist immer auch eine Linie');
+      }
+    });
+  });
+
+  group('Zahlen an den Linien', () {
+    ContourLine lineAt(double fromLon, double toLon,
+            {required int level, required bool index}) =>
+        ContourLine(
+          level: level,
+          index: index,
+          cells: 20,
+          points: [
+            for (var i = 0; i <= 20; i++)
+              LatLng(51.0, fromLon + (toLon - fromLon) * i / 20),
+          ],
+        );
+
+    test('nur die Hauptlinien bekommen eine Zahl', () {
+      // Alle fünf zu beschriften wäre dasselbe Zuviel wie vorher, nur
+      // in Schrift. Die Zwischenlinien zählt man von der Hauptlinie ab.
+      final labels = contourLabels([
+        lineAt(10.0, 10.1, level: 500, index: true),
+        lineAt(10.0, 10.1, level: 520, index: false),
+      ], metersPerPixel: 10);
+      expect(labels, isNotEmpty);
+      expect(labels.every((l) => l.level == 500), isTrue);
+    });
+
+    test('ein kurzer Bogen bleibt unbeschriftet', () {
+      // Eine Zahl auf einem 30-Pixel-Stummel überdeckt ihn ganz.
+      final labels = contourLabels(
+        [lineAt(10.0, 10.001, level: 500, index: true)],
+        metersPerPixel: 10,
+      );
+      expect(labels, isEmpty);
+    });
+
+    test('die Zahlen stehen im Abstand, nicht am Anfang', () {
+      final labels = contourLabels(
+        [lineAt(10.0, 10.3, level: 500, index: true)],
+        metersPerPixel: 10,
+        spacingPixels: 400,
+      );
+      // ~21 km auf 10 m/px sind 2100 Pixel: fünf Plätze, gleichmäßig
+      // verteilt und keiner am Linienende.
+      expect(labels.length, greaterThanOrEqualTo(3));
+      final firstLon = labels.first.point.longitude;
+      expect(firstLon, greaterThan(10.0));
+      expect(labels.last.point.longitude, lessThan(10.3));
+    });
+
+    test('keine Zahl steht auf dem Kopf', () {
+      // Eine Höhenlinie läuft in jede Richtung; von Ost nach West wäre
+      // der rohe Winkel 180°.
+      for (final line in [
+        lineAt(10.0, 10.3, level: 500, index: true),
+        lineAt(10.3, 10.0, level: 500, index: true),
+      ]) {
+        for (final label in contourLabels([line], metersPerPixel: 10)) {
+          expect(label.angleRadians.abs(), lessThanOrEqualTo(math.pi / 2));
+        }
+      }
+    });
+  });
+
   group('Der ganze Lauf', () {
-    test('zeichnet unter z10 gar nichts', () {
+    test('schweigt, wo ein Pixel mehr Boden abdeckt als eine Wabe', () {
       final grid = elevationOf([
         [1, 2],
         [3, 4],
       ]);
       expect(
-          contourLinesFor(grid, window: windowOf(grid), zoom: 9), isNull);
+          contourLinesFor(grid,
+              window: windowOf(grid), metersPerPixel: 400),
+          isNull,
+          reason: 'eine Wabe ist 270 m breit — feiner wüssten wir es nicht');
     });
 
-    test('markiert jede fünfte Linie als Hauptlinie', () {
+    test('markiert die Hauptlinien — alle 100 Höhenmeter', () {
       final rows = [
         for (var y = 0; y < 30; y++) [for (var x = 0; x < 30; x++) x],
       ];
       final grid = elevationOf(rows);
-      final result =
-          contourLinesFor(grid, window: windowOf(grid), zoom: 13)!;
+      final result = contourLinesFor(grid,
+          window: windowOf(grid), metersPerPixel: 1)!;
       expect(result.equidistanceM, 20);
       final index = result.lines.where((l) => l.index).map((l) => l.level);
       expect(index, isNotEmpty);
-      expect(index.every((level) => level % 100 == 0), isTrue);
+      expect(index.every((level) => level % contourIndexEveryM == 0), isTrue);
       expect(result.lines.any((l) => !l.index), isTrue);
     });
 
@@ -308,9 +458,10 @@ void main() {
       ];
       final grid = elevationOf(rows);
       final window = windowOf(grid);
-      final generous = contourLinesFor(grid, window: window, zoom: 13)!;
+      final generous =
+          contourLinesFor(grid, window: window, metersPerPixel: 1)!;
       final tight = contourLinesFor(grid,
-          window: window, zoom: 13, pointBudget: 200)!;
+          window: window, metersPerPixel: 1, pointBudget: 200)!;
       expect(generous.equidistanceM, 20);
       expect(tight.equidistanceM, 50,
           reason: 'genau eine Stufe gröber, nicht in einer Schleife');

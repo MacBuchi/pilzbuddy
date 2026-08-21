@@ -468,3 +468,89 @@ oben): Das Übergeben des `ElevationGrid` an `compute` kopiert dessen
 13,6-MB-`Uint8List` je Lauf — dasselbe tut die Waldfläche längst. Wer
 das los will, schneidet das Hex-Teilrechteck im Haupt-Isolate aus und
 schickt ~1 MB.
+
+## Nachtrag 2026-08-21: die Äquidistanz kommt aus dem Gelände (1.99.0)
+
+Rückmeldung des Betreibers zu 1.98.0, am Emulator nachgesehen: In den
+Alpen bei ~13 m je Pixel waren die Linien keine Höhenlinien mehr,
+sondern eine Schraffur — lange parallele Bänder ohne eine einzige Zahl.
+
+Zwei Ursachen, beide in der Rechnung:
+
+**1. Die Zoomstufe bedeutet in den zwei Engines Verschiedenes.**
+MapLibre zählt in 512-dp-Kacheln, flutter_map in 256ern. Die Regeln von
+1.98.0 rechneten in der 256er-Zählung und bekamen von der Android-Karte
+die 512er — durchweg eine Stufe daneben. **Nachgemessen am Gerät**
+(Pixel 7 Pro, 1080 px bei Dichte 420, Fenster aus dem Log der App):
+Sichtfenster 0,14125° Länge auf 1080 Pixel bei 49,62° Breite sind
+9,43 m je physischem Pixel, also 24,8 m je dp — das ist 256er-Zoom 12,0
+exakt, während `camera.zoom` 11 meldete.
+
+Die Regeln rechnen deshalb nicht mehr in Zoomstufen, sondern in **Meter
+Boden je logischem Pixel** (`groundResolution`, aus Sichtfenster und
+Pixelbreite). Diese Größe ist in beiden Engines dieselbe.
+
+**2. Der Hang war geraten.** `contourEquidistanceM` unterstellte 10 %;
+die Alpen haben das Drei- bis Fünffache. Jetzt misst `reliefPerPixel`
+das **75. Perzentil** der Höhenunterschiede zwischen Nachbarzellen im
+abgetasteten Fenster — nicht den Median: Ein Fenster mit Talboden UND
+Steilhang hat einen niedrigen Median, und die Linien lägen genau dort zu
+dicht, wo man sie liest.
+
+Die Regel ist damit ein Satz: **Äquidistanz ≥ 20 px · Relief-je-Pixel**,
+und wenn selbst 200 m das nicht schaffen, wird gar nicht gezeichnet.
+
+Gemessen (Debug-VM, echtes Höhengitter, Fenster wie ein 412-dp-Schirm
+sie auslöst, `test/perf_elevation_contours_measure.dart`):
+
+| Lage | m/px | Relief je px | Äquidistanz | Linien | Punkte | ms |
+|---|---|---|---|---|---|---|
+| Alpen (Innsbruck) | 2 | 0,63 m | 20 m | 49 | 98 | 8 |
+| Alpen (Innsbruck) | 5 | 1,14 m | 50 m | 42 | 212 | 6 |
+| Alpen (Innsbruck) | 10 | 2,43 m | 50 m | 99 | 1 194 | 9 |
+| Alpen (Innsbruck) | 25 | 7,34 m | 200 m | 75 | 2 192 | 13 |
+| Alpen (Innsbruck) | 50 | 14,33 m | — | 0 | 0 | 17 |
+| Mittelgebirge (Sauerland) | 10 | 0,75 m | 20 m | 80 | 1 342 | 2 |
+| Mittelgebirge (Sauerland) | 25 | 2,08 m | 50 m | 135 | 3 214 | 6 |
+| Mittelgebirge (Sauerland) | 50 | 3,79 m | 100 m | 173 | 5 436 | 22 |
+| Mittelgebirge (Sauerland) | 200 | 8,33 m | 200 m | 135 | 11 460 | 150 |
+| Hochwald (Saarland) | 25 | 1,46 m | 50 m | 85 | 1 948 | 5 |
+| Hochwald (Saarland) | 100 | 4,76 m | 100 m | 229 | 11 996 | 64 |
+| Flachland (Heide) | 25 | 0,50 m | 20 m | 48 | 1 202 | 5 |
+| Flachland (Heide) | 200 | 3,17 m | 100 m | 98 | 5 144 | 114 |
+
+Ablesen lässt sich daran genau das, was die Regel verspricht: Dasselbe
+Bildschirmmaß ergibt in den Alpen eine gröbere Stufe als im Sauerland,
+und weit draußen im Steilgelände gar keine. Der Zeilenabstand liegt in
+allen Fällen zwischen 20 und 33 Pixeln — vorher waren es im Alpenfall
+gemessene 5 bis 7.
+
+Teuerster Fall 150 ms im Isolate, je Kamera-Stillstand. Das ist die
+Hälfte der 260 ms von 1.98.0, weil die Punktschranke nicht mehr
+regelmäßig einen zweiten Durchgang auslöst.
+
+Zwei Werte kamen dazu, einer bekam eine neue Begründung:
+
+- **`contourMinLineSpacingPixels = 20`** — die EINE Stellschraube der
+  Dichte. 12 waren es in 1.98.0, und 12 px Abstand sind auf dem Gerät
+  eine Schraffur.
+- **`contourMaxMetersPerPixel = 270`** — deckt ein Pixel mehr Boden ab
+  als eine Wabe breit ist, bleibt die Ebene leer. Das ist eine Aussage
+  über die Daten, keine über den Geschmack. Sie ersetzt das frühere
+  „unter z10 gar nichts" und greift in der Praxis selten, weil die
+  Reliefregel im bewegten Gelände schon vorher aufgibt.
+- **`contourPointBudget = 60 000`** ist von der Hauptbremse zum Netz
+  geworden: Es war die einzige Antwort auf zu steiles Gelände, jetzt ist
+  es der Rest­fall.
+
+**Die Zahlen an den Linien** (dieselbe Rückmeldung: „machen weniger Sinn
+ohne entsprechende Beschriftung") sitzen auf den Hauptlinien, und die
+kommen seither etwa alle 100 Höhenmeter statt „jede fünfte" — bei 100 m
+Äquidistanz wäre jede fünfte alle 500 Höhenmeter, und in einem Talkessel
+stünde keine einzige Zahl auf dem Schirm. Kosten tut es nichts
+Messbares: MapLibre
+setzt sie selbst (`symbol-placement: line` auf der Hauptlinien-Quelle,
+Glyphen liegen ohnehin im App-Verzeichnis), flutter_map bekommt sie als
+Marker aus `contourLabels` — ein paar Dutzend Punkte je Fenster,
+gerechnet auf dem Haupt-Thread, weil der Sprung ins Isolate mehr kostete
+als die Rechnung.
