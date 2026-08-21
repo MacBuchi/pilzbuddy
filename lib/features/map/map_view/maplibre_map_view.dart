@@ -18,11 +18,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:maplibre/maplibre.dart' as ml;
 
+import '../elevation_contour_providers.dart';
 import '../forest_data_providers.dart';
 import '../rain_data_providers.dart';
 import '../rain_layer.dart';
 import 'flutter_map_view.dart';
 import 'map_view.dart';
+import 'maplibre_contour_lines.dart';
 import 'maplibre_forest_fill.dart';
 import 'maplibre_image_fill.dart' show fillRemovalNeedsNudge;
 import 'maplibre_rain_fill.dart';
@@ -135,6 +137,11 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
 
   /// Analog für die Pilzwetter-Fläche (Ampel-Vorschau).
 
+  /// Die Kennung der zuletzt gelegten Höhenlinien — Fenster plus
+  /// Äquidistanz. Eigener Merker, aus demselben Grund wie bei den
+  /// Flächen.
+  String? _appliedContourKey;
+
   /// Reiht die Änderungen BEIDER Flächen auf. Ohne das könnten zwei rasch
   /// aufeinanderfolgende Wechsel (Ebene umschalten, während die Fläche
   /// noch lädt) sich überholen — und übrig bliebe eine Quelle ohne
@@ -226,6 +233,33 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
     });
   }
 
+  /// Die Höhenlinien — GANZ ANS ENDE derselben Warteschlange.
+  ///
+  /// Die Reihenfolge ist die Aussage: Angehängt nach beiden Flächen
+  /// liegen die Linien über ihnen. Eine Linie unter einer 55-%-Fläche
+  /// ist keine Linie mehr, und genau deshalb hängen sie nicht als
+  /// deklarative Ebene in `children` (siehe maplibre_contour_lines.dart).
+  void _syncContours() {
+    final style = _style;
+    if (style == null) return;
+    final geoJson = ref.read(contourGeoJsonProvider).valueOrNull;
+    _fillWork = _fillWork.then((_) async {
+      try {
+        final before = _appliedContourKey;
+        _appliedContourKey = await applyContourLines(style,
+            geoJson: geoJson, appliedKey: _appliedContourKey);
+        if (fillRemovalNeedsNudge(
+            before: before, after: _appliedContourKey)) {
+          _nudgeEngine();
+        }
+      } catch (_) {
+        // Wie bei den Flächen: still degradieren. Die Karte ohne
+        // Höhenlinien ist eine Karte; eine Ausnahme von hier nähme sie
+        // ganz mit.
+      }
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -280,6 +314,7 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
     // Provider einen neuen Stand hat.
     ref.listen(rainFillFileProvider, (previous, next) => _syncRainFill());
     ref.listen(forestFillFileProvider, (previous, next) => _syncForestFill());
+    ref.listen(contourGeoJsonProvider, (previous, next) => _syncContours());
     // Jeder Wechsel der Regenebene nimmt etwas von der Karte: die Fläche
     // hier, die Linienebenen im LayerManager des Pakets. Beides braucht
     // danach einen Anstoß — siehe [_requestRepaint].
@@ -330,8 +365,11 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
         _style = style;
         _appliedFillUrl = null;
         _appliedForestUrl = null;
+        _appliedContourKey = null;
         _syncRainFill();
         _syncForestFill();
+        // Zuletzt, damit die Linien über den Flächen liegen.
+        _syncContours();
       },
       onMapCreated: (controller) {
         _ml = controller;
@@ -365,6 +403,7 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
             widget.config.onCameraIdle?.call(
                 LatLng(camera.center.lat.toDouble(),
                     camera.center.lon.toDouble()),
+                camera.zoom.toDouble(),
                 bounds);
           }
         }

@@ -368,7 +368,21 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   `assets/map_style/protomaps_light_de.json` ist generiert
   (npm `@protomaps/basemaps`, Flavor LIGHT, lang de) — nicht von Hand
   editieren, sondern neu generieren. **Das erzwingt jetzt ein Wächter**,
-  siehe „Erzeugte Assets" weiter unten. Offline-Layer ist strikt optional:
+  siehe „Erzeugte Assets" weiter unten.
+  **Seit 1.97.0 ENTFERNT `transform_map_style.py` nicht nur, es fügt
+  auch hinzu** (`emphasize_paths`): Wanderwege, Forstwege und Steige
+  bekommen eigene Ebenen, statt in `roads_other` neben Zufahrten und
+  Bahnsteigen zu verschwinden (dort `#ebebeb` auf `#e2dfda`, 0,5 px bei
+  z14 — die Wege waren immer da, nur unsichtbar gemacht). Der Schritt
+  muss IDEMPOTENT bleiben, denn der Fixpunkt ist genau das, was
+  `tool/generated_assets.py` prüft; ein `--self-test` sagt jetzt
+  zusätzlich, WAS gebrochen ist.
+  **Blinder Fleck, nachgemessen:** `vector_tile_renderer` 6.1.0 prüft
+  `dashJson is List<num>`, `jsonDecode` liefert aber `List<dynamic>` —
+  auf dem klassischen Renderer (Web und `classicMapEnabled`) fällt
+  JEDES `line-dasharray` still weg, in MapLibre nicht. Die Aussage
+  einer Ebene darf deshalb nie am Strich allein hängen; bei den Wegen
+  tragen sie Farbe und Breite (Abstand Faktor ~1,8). Offline-Layer ist strikt optional:
   Fehler beim Laden ⇒ stiller Fallback auf Online-OSM.
   Die Karte hat drei Schichten (Issues #118/#119/#137): **unterste** die
   mitgelieferte DACH-Übersicht (`baseMapStyleProvider`, z0–7, ~9 MB im
@@ -478,6 +492,38 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
     Secret), teilt sich aber dessen Geometrie-Code. Er läuft jährlich —
     `workflow_dispatch` verlangt den Workflow auf `main`, ein neues
     Gitter braucht also erst dessen Merge und dann einen Lauf.
+- **Höhenlinien auf der Karte** (seit 1.98.0): Dieselben Daten, eine
+  zweite Verwendung — die Ebene rechnet Isolinien **auf dem Gerät**
+  (`lib/features/map/elevation_contours.dart`) und baut dafür KEINE
+  Verbindung auf: kein neues Netzziel, keine Änderung an
+  Datenschutzerklärung oder `docs/play-console.md`. Höhendaten sind
+  kein OSM-Inhalt; eine topografische Kachelquelle wäre ein fremder
+  Freiwilligen-Server und ausgerechnet im Funkloch tot.
+  Vier Dinge, die man wissen muss:
+  - **Eine Isolinien-Maschine für zwei Ebenen** (`contours.dart`):
+    Marching Squares, Douglas-Peucker und Chaikin lagen bis 1.97.0 in
+    `rain_contours.dart`, obwohl an ihnen nichts regenhaft ist. Zwei
+    Kopien hätten mit der Sattelpunkt-Auflösung und der Verkettung
+    über Kantenkennungen genau zwei Stellen, an denen sie still
+    auseinanderlaufen. `rain_contours.dart` ist seither die
+    Regen-Hülle.
+  - **Das 3×3-Glätten ist Pflicht, nicht Geschmack.** Es bricht die
+    20-Meter-Entartung (eine Stufe genau auf einem Rohwert lässt die
+    Linie als Treppe über die Zellmitten laufen) UND den
+    Paritätsversatz des odd-r-Hexgitters (benachbarte Abtastzeilen
+    holen aus Waben, die eine halbe Wabe versetzt liegen — auf einem
+    10-%-Hang ±13 m im Wechsel, als Sägezahn sichtbar). Beide Fälle
+    hält `test/elevation_contours_test.dart` fest.
+  - **Die Äquidistanz fällt aus Pixeln**, nicht aus einer Zoomtabelle
+    (20 m ab z13 bis 200 m bei z10, darunter gar nichts), und eine
+    Punktschranke vergröbert sie EINMAL, wenn das Gelände steiler ist
+    als die angenommenen 10 %. Gemessen in `docs/map-performance.md`.
+  - **Der FAB hat bewusst NICHT die Wald-Regel „kein Knopf ohne
+    Gitter"**: Sie zu befolgen hieße, `elevationGridProvider` im
+    Karten-Screen zu beobachten — und damit 3,4 MB bei jedem App-Start
+    auszupacken. Das Blatt sagt stattdessen, wenn das Gitter fehlt.
+    Nebenbefund: Mit dem neunten Knopf lief die FAB-Spalte auf 520 px
+    über; sie steckt seither in einem `FittedBox(scaleDown)`.
 - **Höhengitter & Temperaturkorrektur** (`tool/elevation_grid.py` +
   `elevation-data.yml`, Rest aus #279, seit 1.93.0): Drittes Gitter auf
   DEMSELBEN Hex-Raster (Copernicus DEM GLO-90, 1 Byte = 20-m-Stufen,

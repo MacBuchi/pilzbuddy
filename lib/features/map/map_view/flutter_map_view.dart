@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart' as vmt;
 
+import '../../../core/app_colors.dart';
 import '../../offline_maps/offline_map_providers.dart';
+import '../elevation_contour_providers.dart';
 import '../finite_camera_constraint.dart';
 import '../forest_data_providers.dart';
 import '../rain_data_providers.dart';
@@ -50,12 +52,14 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
     implements MapViewCameraDelegate {
   final _mapController = MapController();
 
-  /// Stillstand melden — Mitte UND Sichtfenster, für Fadenkreuz-Werte
-  /// (#235) und den Bildausschnitt der Waldfläche (#249).
+  /// Stillstand melden — Mitte, Zoomstufe UND Sichtfenster, für
+  /// Fadenkreuz-Werte (#235), den Bildausschnitt der Waldfläche (#249)
+  /// und die Äquidistanz der Höhenlinien.
   void _reportIdle(MapCamera camera) {
     final bounds = camera.visibleBounds;
     widget.config.onCameraIdle?.call(
       camera.center,
+      camera.zoom,
       MapViewBounds(
         west: bounds.west,
         east: bounds.east,
@@ -143,6 +147,7 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
     // 5-Minuten-Takt lässt sich nicht vorberechnen.
     final rainPaint = ref.watch(rainPaintProvider(rainLayer));
     final rainFill = ref.watch(rainFillProvider(rainLayer)).value;
+    final contours = ref.watch(elevationContoursProvider).valueOrNull;
     final rainUrl = rainPaint == RainPaint.dwd
         ? rainLayerUrl(rainLayer, now: DateTime.now())
         : null;
@@ -344,6 +349,26 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
                 gaplessPlayback: true,
                 imageProvider: MemoryImage(rainFill.png),
               ),
+            ],
+          ),
+        // Höhenlinien liegen ÜBER den Flächen und UNTER den Markern:
+        // Eine Linie unter einer 55-%-Fläche ist keine Linie mehr, ein
+        // Spot hinter einer Linie wäre unauffindbar. Dieselbe
+        // Schichtung wie in der MapLibre-Engine.
+        //
+        // Anders als beim Regen filtert hier NICHTS nach Zoom: Das
+        // erledigt der Provider beim Kamera-Stillstand, damit beide
+        // Engines im selben Moment dieselben Linien zeigen.
+        if (contours != null && contours.lines.isNotEmpty)
+          PolylineLayer(
+            polylines: [
+              for (final line in contours.lines)
+                Polyline(
+                  points: line.points,
+                  color: AppColors.contourLine
+                      .withValues(alpha: line.index ? 0.85 : 0.55),
+                  strokeWidth: line.index ? 1.6 : 1.0,
+                ),
             ],
           ),
         // Markergruppen in fester Reihenfolge (unten → oben), damit
