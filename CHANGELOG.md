@@ -7,6 +7,27 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Offline-Karte hat ihr Grün zurück
+
+*21. August 2026 · Version 1.98.1*
+
+Auf der heruntergeladenen Karte fehlten Wald, Wiese und Park. Die
+Flächen waren beige wie offenes Feld, und übrig blieben Straßen und
+Wege. Die Daten waren die ganze Zeit da — unser Kartenstil hat sie nur
+nicht gezeichnet. Jetzt ist der Wald wieder grün; beim starken
+Hineinzoomen stehen auch die Namen einzelner Punkte im Gelände wieder
+da (Gipfel, Hütten, Haltestellen).
+
+Und die Wege aus der letzten Version sind deutlich zurückgenommen. Sie
+waren kräftiger geraten als die Straßen, über die sie laufen — im
+Feldgebiet lag ein braunes Netz über allem. Jetzt sind sie zu sehen,
+ohne die Karte zu übertönen: Forstwege weiterhin breiter als schmale
+Pfade, und Pfade erst beim Hineinzoomen, damit die Übersicht ruhig
+bleibt.
+
+Beides betrifft nur die heruntergeladene Karte. Die Online-Karte kommt
+fertig gezeichnet von OpenStreetMap.
+
 ## Höhenlinien: siehst du, wo es bergauf geht
 
 *20. August 2026 · Version 1.98.0*

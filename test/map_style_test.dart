@@ -80,14 +80,20 @@ void main() {
     expect(ids.indexOf('roads_path'), ids.indexOf('roads_other') + 2);
     expect(ids.indexOf('roads_path'), lessThan(ids.indexOf('roads_minor')));
 
-    // Forstwege ab z12, der Rest ab z13 in den Kacheln (nachgemessen an
-    // `de_saarland`) — die Breiten dürfen deshalb nicht wieder bei z14
-    // anfangen, sonst ändert sich sichtbar nichts.
-    for (final id in ['roads_path_track', 'roads_path']) {
-      final paint = layers.firstWhere((layer) => layer['id'] == id)['paint']
-          as Map<String, dynamic>;
-      final width = paint['line-width'] as List;
-      expect(width[3], 12, reason: '$id soll ab Zoom 12 breiter werden');
+    // Forstwege ab z12, der Rest ab z13 — so liegen sie in den Kacheln
+    // (nachgemessen an `de_saarland`). Die erste Stützstelle der Breite
+    // muss dort sitzen, sonst zeichnet der Renderer die Ebene mit der
+    // Breite der ersten Stufe auch darunter: in der Übersicht ein
+    // Gespinst aus Feldwegen, wo man Landschaft sehen will.
+    const startZoom = {'roads_path_track': 12, 'roads_path': 13};
+    for (final entry in startZoom.entries) {
+      final layer = layers.firstWhere((l) => l['id'] == entry.key);
+      final paint = layer['paint'] as Map<String, dynamic>;
+      expect((paint['line-width'] as List)[3], entry.value,
+          reason: '${entry.key} soll ab Zoom ${entry.value} breiter werden');
+      expect(layer['minzoom'], entry.value,
+          reason: '${entry.key}: minzoom und erste Stützstelle gehören '
+              'zusammen — sonst hängt die Sichtbarkeit an der Breite');
       expect(paint['line-dasharray'], isNotNull,
           reason: 'gestrichelt — aber nur MapLibre sieht das, siehe unten');
     }
@@ -112,7 +118,7 @@ void main() {
     // in MapLibre gestrichelt. Dieselbe Lage wie bei roads_rail und
     // allen roads_tunnels_* seit jeher — also keine Verschlechterung,
     // aber der Grund, warum die Breiten weit auseinanderliegen müssen.
-    expect(jsonDecode('[4, 1.5]') is List<num>, isFalse,
+    expect(jsonDecode('[4, 2]') is List<num>, isFalse,
         reason: 'Ändert sich das je, darf dieser Test bleiben — dann ist '
             'der Strich plötzlich überall da, und das wäre gut');
 
@@ -137,4 +143,116 @@ void main() {
     expect(widthAt('roads_path_track', 20),
         greaterThanOrEqualTo(widthAt('roads_path', 20) * 1.5));
   });
+
+  test('In paint und layout steht nirgends die alte Filter-Kurzform', () {
+    // DER BEFUND VOM 2026-08-21. `["in", "kind", "a", "b"]` ist ein
+    // FILTER, kein Ausdruck. In `paint` lehnt MapLibre die Ebene ab —
+    // ohne Fehlermeldung, ohne Ersatzfarbe, sie ist einfach weg. Seit
+    // 1.43.0 (MapLibre als Vorgabe) waren dadurch `landuse_park` und
+    // `pois` still ausgefallen: kein grüner Wald, keine Wiese, kein
+    // Park, keine POI-Namen. Auf der Offline-Karte blieben Straßen und
+    // Wege übrig — genau der Eindruck, den der Betreiber gemeldet hat.
+    //
+    // Erzeugt hat es unser eigenes Werkzeug: `fix_in` schrieb die
+    // Kurzform auch nach `paint`, weil `vector_tile_renderer` `in` NUR
+    // so versteht. Beide Renderer können `match`, also steht dort
+    // jetzt `match` (tool/transform_map_style.py, [rewrite_in]).
+    final styleJson = jsonDecode(
+            File('assets/map_style/protomaps_light_de.json').readAsStringSync())
+        as Map<String, dynamic>;
+
+    bool legacyIn(Object? node) {
+      if (node is! List) return false;
+      if (node.isNotEmpty &&
+          (node.first == 'in' || node.first == '!in') &&
+          node.length > 1 &&
+          node[1] is String) {
+        return true;
+      }
+      return node.any(legacyIn);
+    }
+
+    final offenders = <String>[];
+    for (final layer in (styleJson['layers'] as List).cast<Map<String, dynamic>>()) {
+      for (final section in ['paint', 'layout']) {
+        final block = layer[section] as Map<String, dynamic>?;
+        if (block == null) continue;
+        for (final entry in block.entries) {
+          if (legacyIn(entry.value)) {
+            offenders.add('${layer['id']}.$section.${entry.key}');
+          }
+        }
+      }
+    }
+    expect(offenders, isEmpty,
+        reason: 'MapLibre wirft diese Ebenen weg — tool/transform_map_style.py '
+            'muss in paint/layout `match` schreiben, nicht die Kurzform');
+
+    // Und derselbe Riegel für den Filter, sobald dort schon ein
+    // Ausdruck steht: gemischt lehnt MapLibre ihn genauso ab.
+    for (final layer in (styleJson['layers'] as List).cast<Map<String, dynamic>>()) {
+      final filter = layer['filter'];
+      if (filter == null) continue;
+      final text = jsonEncode(filter);
+      if (!text.contains('["zoom"]') && !text.contains('["get"')) continue;
+      expect(legacyIn(filter), isFalse,
+          reason: '${layer['id']}: alte Kurzform neben einem Ausdruck');
+    }
+  });
+
+  test('Wald, Wiese und Park bekommen wieder ihre Farbe', () {
+    final styleJson = jsonDecode(
+            File('assets/map_style/protomaps_light_de.json').readAsStringSync())
+        as Map<String, dynamic>;
+    final park = (styleJson['layers'] as List)
+        .cast<Map<String, dynamic>>()
+        .firstWhere((layer) => layer['id'] == 'landuse_park');
+
+    // Die Fläche muss `forest` treffen — die Kacheln liefern sie unter
+    // diesem Namen (nachgesehen in einer echten z13-Kachel aus
+    // de_saarland: 16 forest-Polygone).
+    expect(jsonEncode(park['filter']), contains('"forest"'));
+    final fillColor = jsonEncode(park['paint']['fill-color']);
+    expect(fillColor, contains('"forest"'));
+    expect(fillColor, contains('#9cd3b4'),
+        reason: 'ohne Treffer bliebe nur der Erdton als Rückfall');
+  });
+
+  test('Der klassische Renderer bekommt keinen neuen blinden Fleck', () {
+    // Der Riegel für die Gegenrichtung: `match` statt `in` darf den
+    // Canvas-Renderer (Web, classicMapEnabled) nicht kalt erwischen.
+    // Einen Ausdruck, den er nicht versteht, verwirft er still — die
+    // Ebenen-Zahl oben bliebe davon unberührt, die Warnung ist der
+    // einzige Hinweis.
+    //
+    // EINE Lücke gibt es, und sie ist älter als dieser Umbau: Der
+    // `pois`-Filter fragt `["zoom"]` ab, und das kennt
+    // `vector_tile_renderer` 6.1.0 gar nicht. Vor und nach dem Umbau
+    // sind es dieselben vier Meldungen (2026-08-21 gegen den Stand von
+    // 1.98.0 gemessen) — deshalb steht hier die Zahl und nicht `isEmpty`.
+    // Wächst sie, hat jemand dem Renderer etwas Neues vorgesetzt.
+    final warnings = <String>[];
+    final styleJson = jsonDecode(
+            File('assets/map_style/protomaps_light_de.json').readAsStringSync())
+        as Map<String, dynamic>;
+    ThemeReader(logger: _RecordingLogger(warnings)).read(styleJson);
+    expect(warnings.where((w) => !w.contains('[zoom]')), isEmpty,
+        reason: 'neuer Ausdruck, den der klassische Renderer nicht versteht');
+    expect(warnings, hasLength(4),
+        reason: 'die bekannte pois-Lücke — mehr darf es nicht werden');
+  });
+}
+
+/// Sammelt die Warnungen von `vector_tile_renderer` ein, statt sie auf
+/// die Konsole zu schreiben, wo sie niemand liest.
+class _RecordingLogger implements Logger {
+  _RecordingLogger(this.warnings);
+
+  final List<String> warnings;
+
+  @override
+  void log(MessageFunction message) {}
+
+  @override
+  void warn(MessageFunction message) => warnings.add(message());
 }
