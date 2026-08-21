@@ -1,4 +1,4 @@
-// Die Provider der Höhenlinien-Ebene: Schalter, Stillstands-Zoom,
+// Die Provider der Höhenlinien-Ebene: Schalter, Bodenauflösung,
 // Fenster mit Gedächtnis, und der Isolate-Lauf.
 //
 // Aufgeteilt wie beim Wald (`forest_data_providers.dart`): Die Rechnung
@@ -22,13 +22,21 @@ import 'forest_fill_window.dart';
 /// Karte, und das ist derselbe Handel.
 final contourLayerEnabledProvider = StateProvider<bool>((ref) => false);
 
-/// Die Zoomstufe beim letzten Kamera-Stillstand — Geschwister von
-/// `mapIdleCenterProvider` (#235) und [mapIdleBoundsProvider] (#249).
+/// Meter Gelände je logischem Bildschirmpixel beim letzten
+/// Kamera-Stillstand — Geschwister von `mapIdleCenterProvider` (#235)
+/// und [mapIdleBoundsProvider] (#249).
 ///
-/// Sie entscheidet die Äquidistanz. Aus dem Sichtfenster ableiten ginge
-/// nicht: Dafür bräuchte es die Pixelbreite des Schirms, und die kennt
-/// ein Provider nicht.
-final mapIdleZoomProvider = StateProvider<double?>((ref) => null);
+/// **Bewusst keine Zoomstufe.** Bis 1.98.0 stand hier eine, und sie war
+/// zweideutig: MapLibre zählt in 512er-Kacheln, flutter_map in 256ern,
+/// dieselbe Zahl heißt auf Android und Web also ein Faktor zwei im
+/// Maßstab. Die Höhenlinien-Regeln rechneten in der 256er-Zählung und
+/// lagen auf Android damit durchweg eine Stufe daneben (am 2026-08-21
+/// nachgemessen: Karte auf 12,0, Regel rechnete mit 11).
+///
+/// Meter je Pixel kennt diese Zweideutigkeit nicht. Gerechnet wird der
+/// Wert dort, wo beide Zutaten liegen — Sichtfenster und Breite des
+/// Kartenfensters —, also im Karten-Screen.
+final mapIdleGroundResolutionProvider = StateProvider<double?>((ref) => null);
 
 /// Der geplante Ausschnitt der Höhenlinien.
 ///
@@ -62,8 +70,8 @@ final contourWindowProvider =
     NotifierProvider<ContourWindowNotifier, FillWindow?>(
         ContourWindowNotifier.new);
 
-/// Die Linien — `null`, solange die Ebene aus ist, der Zoom zu weit
-/// draußen liegt oder es kein Gitter gibt.
+/// Die Linien — `null`, solange die Ebene aus ist, ein Pixel mehr
+/// Boden abdeckt als eine Wabe breit ist, oder es kein Gitter gibt.
 ///
 /// **Warum das Gitter erst nach den billigen Prüfungen geholt wird:**
 /// `elevationGridProvider` packt 13,6 MB aus. Wer die Ebene nie
@@ -71,24 +79,65 @@ final contourWindowProvider =
 final elevationContoursProvider =
     FutureProvider<ElevationContours?>((ref) async {
   if (!ref.watch(contourLayerEnabledProvider)) return null;
-  final zoom = ref.watch(mapIdleZoomProvider);
-  if (zoom == null || contourEquidistanceM(zoom) == null) return null;
+  final metersPerPixel = ref.watch(mapIdleGroundResolutionProvider);
+  if (metersPerPixel == null ||
+      metersPerPixel > contourMaxMetersPerPixel) {
+    return null;
+  }
   final window = ref.watch(contourWindowProvider);
   if (window == null) return null;
   final grid = await ref.watch(elevationGridProvider.future);
   if (grid == null) return null;
-  return compute(_contours, (grid: grid, window: window, zoom: zoom));
+  return compute(
+      _contours, (grid: grid, window: window, metersPerPixel: metersPerPixel));
 });
 
 ElevationContours? _contours(
-        ({ElevationGrid grid, FillWindow window, double zoom}) input) =>
-    contourLinesFor(input.grid, window: input.window, zoom: input.zoom);
+        ({
+          ElevationGrid grid,
+          FillWindow window,
+          double metersPerPixel
+        }) input) =>
+    contourLinesFor(input.grid,
+        window: input.window, metersPerPixel: input.metersPerPixel);
+
+/// „Erst näher dran" — die Ebene ist an, aber es liegt nichts auf der
+/// Karte, weil der Maßstab zu grob für dieses Gelände ist.
+///
+/// **Steht hier und nicht in der Oberfläche**, weil die Antwort seit
+/// 1.99.0 nicht mehr aus einer Zahl folgt: Ob 200 m Äquidistanz noch
+/// zwei Linien oder schon eine Schraffur ergeben, hängt am Gefälle im
+/// Fenster. Nur der Lauf selbst weiß es. Legende und Blatt sollen
+/// dieselbe Antwort geben, also fragen beide hier.
+///
+/// Bewusst NICHT wahr, solange gerechnet wird: „erst näher dran" wäre
+/// dann eine Behauptung über ein Ergebnis, das es noch nicht gibt.
+final contourTooFarOutProvider = Provider<bool>((ref) {
+  if (!ref.watch(contourLayerEnabledProvider)) return false;
+  if (ref.watch(mapIdleGroundResolutionProvider) == null) return false;
+  final contours = ref.watch(elevationContoursProvider);
+  return contours.hasValue && contours.valueOrNull == null;
+});
 
 /// Die Äquidistanz, die die Legende nennen soll — aus dem Ergebnis,
 /// nicht aus der Zoomregel: Die Punktschranke kann vergröbert haben,
 /// und die Legende muss sagen, was WIRKLICH auf der Karte liegt.
 final contourEquidistanceProvider = Provider<int?>((ref) =>
     ref.watch(elevationContoursProvider).valueOrNull?.equidistanceM);
+
+/// Die Zahlen an den Hauptlinien — nur für die flutter_map-Strecke.
+///
+/// MapLibre setzt sie selbst (`symbol-placement: line`), der
+/// Canvas-Renderer kann das nicht; dort ist eine Zahl ein Marker mit
+/// einem Winkel. Auf dem Haupt-Thread und ohne Isolate: Es sind ein
+/// paar Dutzend Punkte, und der Sprung in ein Isolate kostete mehr als
+/// die Rechnung.
+final contourLabelsProvider = Provider<List<ContourLabel>>((ref) {
+  final contours = ref.watch(elevationContoursProvider).valueOrNull;
+  final metersPerPixel = ref.watch(mapIdleGroundResolutionProvider);
+  if (contours == null || metersPerPixel == null) return const [];
+  return contourLabels(contours.lines, metersPerPixel: metersPerPixel);
+});
 
 /// Die Linien als GeoJSON — nur für die MapLibre-Strecke.
 ///

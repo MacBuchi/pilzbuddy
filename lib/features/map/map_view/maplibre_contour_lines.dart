@@ -25,6 +25,21 @@ const contourIndexSourceId = 'hoehenlinien-haupt';
 const contourLayerId = 'hoehenlinien';
 const contourIndexLayerId = 'hoehenlinien-haupt';
 
+/// Die Beschriftung sitzt auf DERSELBEN Quelle wie die Hauptlinien.
+///
+/// **Ohne Zahl ist eine Höhenlinie halb stumm** (Betreiber, 2026-08-21):
+/// Sie sagt „hier ist es steiler als dort", aber nicht, ob es hinauf
+/// oder hinunter geht. Beschriftet werden nur die Hauptlinien (etwa
+/// alle 100 Höhenmeter, siehe `contourIndexStepM`) — die dazwischen
+/// zählt man ab, so macht es jede topografische Karte.
+const contourLabelLayerId = 'hoehenlinien-zahlen';
+
+/// Die Schrift, die als Glyph-Datei mitgeliefert wird
+/// (`assets/map_glyphs/`). Der Name ist der Ordnername, NICHT „Noto
+/// Sans Medium" — `map_style_composer.dart` bildet die Stil-Namen auf
+/// genau diese Ordner ab, und diese Ebene entsteht am Composer vorbei.
+const contourLabelFont = 'noto-sans-medium';
+
 /// Die Quellenangabe, die an den Linien hängt — dieselbe Fassung wie im
 /// Blatt und in `map_data_license.dart`.
 const contourAttribution = '© Europäische Union, Copernicus DEM';
@@ -44,12 +59,14 @@ Future<String?> applyContourLines(
   required ContourGeoJson? geoJson,
   required String? appliedKey,
   String color = '#5B6B7A',
+  String labelColor = '#44515C',
 }) async {
   if (geoJson?.key == appliedKey) return appliedKey;
 
   if (appliedKey != null) {
     // Ebenen vor ihren Quellen — andersherum hinge eine Ebene an einer
     // Quelle, die es nicht mehr gibt.
+    await style.removeLayer(contourLabelLayerId);
     await style.removeLayer(contourIndexLayerId);
     await style.removeLayer(contourLayerId);
     await style.removeSource(contourIndexSourceId);
@@ -66,7 +83,7 @@ Future<String?> applyContourLines(
     id: contourLayerId,
     sourceId: contourSourceId,
     layout: const {'line-cap': 'round', 'line-join': 'round'},
-    paint: {'line-color': color, 'line-opacity': 0.55, 'line-width': 1.0},
+    paint: {'line-color': color, 'line-opacity': 0.3, 'line-width': 0.9},
   ));
   await style.addSource(ml.GeoJsonSource(
     id: contourIndexSourceId,
@@ -77,7 +94,40 @@ Future<String?> applyContourLines(
     id: contourIndexLayerId,
     sourceId: contourIndexSourceId,
     layout: const {'line-cap': 'round', 'line-join': 'round'},
-    paint: {'line-color': color, 'line-opacity': 0.85, 'line-width': 1.6},
+    paint: {'line-color': color, 'line-opacity': 0.6, 'line-width': 1.4},
+  ));
+  await style.addLayer(ml.SymbolStyleLayer(
+    id: contourLabelLayerId,
+    sourceId: contourIndexSourceId,
+    layout: const {
+      'symbol-placement': 'line',
+      // Die alte Token-Schreibweise, nicht `["get", "m"]`: Ausdrücke
+      // gehen bei `maplibre` 0.3.5 durch `toJObject()` und kämen in der
+      // Engine als Object[] an, nicht als Ausdruck (siehe Kopf). Ein
+      // String kommt an.
+      'text-field': '{m}',
+      'text-font': [contourLabelFont],
+      'text-size': 11.0,
+      // Weit auseinander: Auf einer langen Linie reichen wenige Zahlen,
+      // und jede weitere kostet Platz, an dem die Karte liegt.
+      'symbol-spacing': 420.0,
+      'text-max-angle': 30.0,
+      'text-padding': 4.0,
+      'text-letter-spacing': 0.05,
+      // Zahlen stehen nie auf dem Kopf, auch nicht auf der Südflanke.
+      'text-keep-upright': true,
+      'text-rotation-alignment': 'map',
+      'text-pitch-alignment': 'viewport',
+    },
+    paint: {
+      'text-color': labelColor,
+      // Der Hof trennt die Zahl vom Untergrund, ohne eine Kachel Fläche
+      // zu beanspruchen — Waldgrün, Ackerbeige und OSM-Raster liegen
+      // alle darunter.
+      'text-halo-color': '#FFFFFF',
+      'text-halo-width': 1.4,
+      'text-halo-blur': 0.4,
+    },
   ));
   return geoJson.key;
 }

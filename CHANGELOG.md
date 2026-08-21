@@ -7,6 +7,27 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Höhenlinien: ruhiger, und mit Zahlen dran
+
+*21. August 2026 · Version 1.99.0*
+
+Die Höhenlinien aus der letzten Version waren im Bergland zu dicht — im
+Berchtesgadener Land sah die Karte aus, als hätte jemand sie schraffiert.
+Und ohne Zahlen sagt eine Höhenlinie nur „hier ist es steiler als dort",
+nicht ob es hinauf oder hinunter geht.
+
+Beides ist behoben:
+
+- **Der Abstand richtet sich jetzt nach dem Gelände**, nicht nach der
+  Zoomstufe. Im flachen Land liegen die Linien enger, im Steilhang
+  weiter auseinander — so, dass man sie in beiden Fällen einzeln sieht.
+  Wo selbst der größte Abstand noch zu dicht wäre, zeigt die Karte
+  keine Linien und sagt „erst näher dran".
+- **Etwa alle 100 Höhenmeter trägt eine kräftigere Linie ihre Höhe in
+  Metern.** Die dazwischen zählst du ab, wie auf einer Wanderkarte.
+- **Die Linien sind zarter geworden.** Sie liegen über der Karte, sie
+  sollen sie nicht ersetzen.
+
 ## Die Offline-Karte hat ihr Grün zurück
 
 *21. August 2026 · Version 1.98.1*

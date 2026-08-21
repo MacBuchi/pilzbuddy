@@ -1,8 +1,9 @@
 // Messlauf, KEIN Dauertest:
-// `flutter test test/perf_elevation_contours_measure.dart` von Hand —
-// misst die Höhenlinien am ECHTEN Höhengitter (3038 × 4470 Waben) in
-// drei Lagen: Alpen bei z11 (der teuerste Fall, den die Zoomregel
-// zulässt), Mittelgebirge bei z12, Flachland bei z13.
+// `flutter test --tags measure test/perf_elevation_contours_measure.dart`
+// von Hand — misst die Höhenlinien am ECHTEN Höhengitter
+// (3038 × 4470 Waben) in drei Landschaften über den ganzen sinnvollen
+// Maßstabsbereich. Er beantwortet zwei Fragen auf einmal: Was kostet
+// ein Kamera-Stillstand, und WELCHE Äquidistanz fällt aus dem Gelände?
 //
 // Ergebnis gehört nach `docs/map-performance.md` — die Hausregel
 // verlangt für jede Stellschraube der Karte eine Messung, keine
@@ -40,12 +41,21 @@ ElevationGrid loadElevation() {
   );
 }
 
-/// Das geplante Fenster um einen Punkt, so wie es ein 1080×1920-Schirm
-/// bei dieser Zoomstufe auslöst — also derselbe Weg, den die App nimmt.
-FillWindow windowAt(ElevationGrid grid, double lat, double lon, double zoom) {
-  final degPerPixel = 360 / (256 * math.pow(2, zoom));
-  final halfLon = degPerPixel * 1080 / 2;
-  final halfLat = degPerPixel * 1920 / 2 * math.cos(lat * math.pi / 180);
+/// Breite des Kartenfensters in logischen Pixeln — ein Pixel 7 Pro mit
+/// der Vorgabedichte. Dieselbe Zahl, die `map_screen.dart` aus
+/// `MediaQuery` holt.
+const screenWidthPixels = 412.0;
+const screenHeightPixels = 732.0;
+
+/// Das geplante Fenster um einen Punkt, so wie es dieser Schirm bei
+/// dieser Bodenauflösung auslöst — derselbe Weg, den die App nimmt.
+FillWindow windowAt(
+    ElevationGrid grid, double lat, double lon, double metersPerPixel) {
+  final degPerPixel =
+      metersPerPixel / (111320 * math.cos(lat * math.pi / 180));
+  final halfLon = degPerPixel * screenWidthPixels / 2;
+  final halfLat = degPerPixel * screenHeightPixels / 2 *
+      math.cos(lat * math.pi / 180);
   return planFillWindow(
     viewport: MapViewBounds(
       west: lon - halfLon,
@@ -61,41 +71,54 @@ FillWindow windowAt(ElevationGrid grid, double lat, double lon, double zoom) {
 }
 
 void main() {
-  test('Höhenlinien: Rechenzeit je Kamera-Stillstand', () {
+  test('Höhenlinien: Äquidistanz und Rechenzeit je Kamera-Stillstand', () {
     final grid = loadElevation();
-    final cases = [
-      (name: 'Alpen z11      ', lat: 47.30, lon: 11.40, zoom: 11.0),
-      (name: 'Mittelgebirge z12', lat: 51.05, lon: 8.30, zoom: 12.0),
-      (name: 'Flachland z13  ', lat: 53.20, lon: 9.90, zoom: 13.0),
+    final places = [
+      (name: 'Alpen (Innsbruck)', lat: 47.30, lon: 11.40),
+      (name: 'Mittelgebirge (Sauerland)', lat: 51.20, lon: 8.30),
+      (name: 'Hochwald (Saarland)', lat: 49.62, lon: 6.95),
+      (name: 'Flachland (Heide)', lat: 53.20, lon: 9.90),
     ];
+    // Bodenauflösungen, wie sie am Gerät wirklich vorkommen — gemessen
+    // am Maßstabsbalken, nicht aus einer Zoomtabelle abgeleitet.
+    const resolutions = [2.0, 5.0, 10.0, 25.0, 50.0, 100.0, 200.0];
     var worst = 0;
     // ignore: avoid_print
-    print('| Lage | Abtastung | Äquidistanz | Linien | Punkte | ms |');
+    print('| Lage | m/px | Relief je px | Äquidistanz | Linien | Punkte | ms |');
     // ignore: avoid_print
-    print('|---|---|---|---|---|---|');
-    for (final c in cases) {
-      final window = windowAt(grid, c.lat, c.lon, c.zoom);
-      final counts = contourSampleCounts(
-        window: window,
-        hexLonStep: grid.hexLonStep,
-        hexLatStep: grid.hexLatStep,
-      );
-      final watch = Stopwatch()..start();
-      final result =
-          contourLinesFor(grid, window: window, zoom: c.zoom);
-      watch.stop();
-      worst = watch.elapsedMilliseconds > worst
-          ? watch.elapsedMilliseconds
-          : worst;
-      final points = result == null
-          ? 0
-          : result.lines.fold<int>(0, (sum, l) => sum + l.points.length);
-      // ignore: avoid_print
-      print('| ${c.name} | ${counts.cols}×${counts.rows} | '
-          '${result?.equidistanceM ?? "—"} m | ${result?.lines.length ?? 0} | '
-          '$points | ${watch.elapsedMilliseconds} |');
-      expect(points, lessThanOrEqualTo(contourPointBudget),
-          reason: '${c.name}: die Punktschranke hat nicht gegriffen');
+    print('|---|---|---|---|---|---|---|');
+    for (final place in places) {
+      for (final metersPerPixel in resolutions) {
+        final window =
+            windowAt(grid, place.lat, place.lon, metersPerPixel);
+        final watch = Stopwatch()..start();
+        final result = contourLinesFor(grid,
+            window: window, metersPerPixel: metersPerPixel);
+        watch.stop();
+        worst = watch.elapsedMilliseconds > worst
+            ? watch.elapsedMilliseconds
+            : worst;
+        final points = result == null
+            ? 0
+            : result.lines.fold<int>(0, (sum, l) => sum + l.points.length);
+        // Das Relief noch einmal für die Tabelle — dieselbe Rechnung,
+        // die drinnen die Äquidistanz wählt.
+        final field = resampleElevation(grid, window: window);
+        final metersPerCell = (window.east - window.west) *
+            111320 *
+            math.cos((window.north + window.south) / 2 * math.pi / 180) /
+            field.cols;
+        final relief = reliefPerPixel(field,
+            pixelsPerCell: metersPerCell / metersPerPixel);
+        // ignore: avoid_print
+        print('| ${place.name} | ${metersPerPixel.toStringAsFixed(0)} | '
+            '${relief?.toStringAsFixed(2) ?? "—"} m | '
+            '${result?.equidistanceM ?? "—"} m | '
+            '${result?.lines.length ?? 0} | $points | '
+            '${watch.elapsedMilliseconds} |');
+        expect(points, lessThanOrEqualTo(contourPointBudget),
+            reason: '${place.name}: die Punktschranke hat nicht gegriffen');
+      }
     }
     // Grobe Reißleine. Gerechnet wird im Isolate und nur bei
     // Kamera-Stillstand; alles unter einer Viertelsekunde ist unsichtbar.

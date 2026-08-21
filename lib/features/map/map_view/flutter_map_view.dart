@@ -52,14 +52,13 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
     implements MapViewCameraDelegate {
   final _mapController = MapController();
 
-  /// Stillstand melden — Mitte, Zoomstufe UND Sichtfenster, für
-  /// Fadenkreuz-Werte (#235), den Bildausschnitt der Waldfläche (#249)
-  /// und die Äquidistanz der Höhenlinien.
+  /// Stillstand melden — Mitte UND Sichtfenster, für Fadenkreuz-Werte
+  /// (#235), den Bildausschnitt der Waldfläche (#249) und den Maßstab,
+  /// aus dem die Höhenlinien ihre Äquidistanz ziehen.
   void _reportIdle(MapCamera camera) {
     final bounds = camera.visibleBounds;
     widget.config.onCameraIdle?.call(
       camera.center,
-      camera.zoom,
       MapViewBounds(
         west: bounds.west,
         east: bounds.east,
@@ -148,6 +147,7 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
     final rainPaint = ref.watch(rainPaintProvider(rainLayer));
     final rainFill = ref.watch(rainFillProvider(rainLayer)).value;
     final contours = ref.watch(elevationContoursProvider).valueOrNull;
+    final contourLabels = ref.watch(contourLabelsProvider);
     final rainUrl = rainPaint == RainPaint.dwd
         ? rainLayerUrl(rainLayer, now: DateTime.now())
         : null;
@@ -366,8 +366,26 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
                 Polyline(
                   points: line.points,
                   color: AppColors.contourLine
-                      .withValues(alpha: line.index ? 0.85 : 0.55),
-                  strokeWidth: line.index ? 1.6 : 1.0,
+                      .withValues(alpha: line.index ? 0.6 : 0.3),
+                  strokeWidth: line.index ? 1.4 : 0.9,
+                ),
+            ],
+          ),
+        // Die Zahlen an den Hauptlinien. Dieselbe Aussage wie MapLibres
+        // `symbol-placement: line`, nur von Hand — dort ein Symbol auf
+        // der Linie, hier ein gedrehter Marker.
+        if (contourLabels.isNotEmpty)
+          MarkerLayer(
+            markers: [
+              for (final label in contourLabels)
+                Marker(
+                  point: label.point,
+                  width: 54,
+                  height: 20,
+                  child: Transform.rotate(
+                    angle: label.angleRadians,
+                    child: _ContourLabelText(level: label.level),
+                  ),
                 ),
             ],
           ),
@@ -407,4 +425,50 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
         alignment: m.alignment,
         child: m.child,
       );
+}
+
+/// Die Zahl an einer Höhenlinie: gefüllte Schrift über einem weißen
+/// Umriss.
+///
+/// Zwei übereinandergelegte `Text` und kein `shadows`: Ein Schatten
+/// liegt auf einer Seite, ein Umriss ringsum. Auf einer Linie, die
+/// unter der Zahl durchläuft, ist das der Unterschied zwischen lesbar
+/// und nicht.
+class _ContourLabelText extends StatelessWidget {
+  const _ContourLabelText({required this.level});
+
+  final int level;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = '$level';
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Text(
+          text,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            height: 1,
+            foreground: Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 2.6
+              ..color = Colors.white,
+          ),
+        ),
+        Text(
+          text,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            height: 1,
+            color: AppColors.contourLine.withValues(alpha: 0.95),
+          ),
+        ),
+      ],
+    );
+  }
 }

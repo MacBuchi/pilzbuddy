@@ -19,6 +19,7 @@ import '../../models/friend_location.dart';
 import '../../models/spot.dart';
 import '../ampel/ampel_map_providers.dart' show ampelLayerEnabledProvider;
 import 'elevation_contour_providers.dart';
+import 'elevation_contours.dart';
 import '../friends/friend_providers.dart';
 import '../profile/profile_providers.dart';
 import '../spots/nearby_spots.dart';
@@ -458,6 +459,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Breite des Kartenfensters in logischen Pixeln — hier geholt und
+    // nicht im Rückruf, damit ein Drehen des Geräts sie mitzieht. Sie
+    // ist die zweite Zutat der Bodenauflösung (die erste ist das
+    // Sichtfenster), und die Karte füllt die volle Breite.
+    final mapWidthPixels = MediaQuery.sizeOf(context).width;
     // Gefiltert statt roh (#154): Der Filter gilt für diese Sitzung und
     // steckt in visibleSpotsProvider, damit die Regel testbar bleibt.
     final visible = ref.watch(visibleSpotsProvider);
@@ -524,10 +530,15 @@ class _MapScreenState extends ConsumerState<MapScreen>
               // Fadenkreuz-Werte (#235) und Wald-Bildausschnitt (#249):
               // beides rechnet an diesem Stillstand, nie während der
               // Geste.
-              onCameraIdle: (center, zoom, bounds) {
+              onCameraIdle: (center, bounds) {
                 ref.read(mapIdleCenterProvider.notifier).state = center;
-                ref.read(mapIdleZoomProvider.notifier).state = zoom;
                 ref.read(mapIdleBoundsProvider.notifier).state = bounds;
+                // Der Maßstab, in dem die Höhenlinien rechnen. Aus
+                // Sichtfenster UND Pixelbreite, nicht aus der Zoomstufe
+                // der Engine — die zählen MapLibre und flutter_map
+                // verschieden.
+                ref.read(mapIdleGroundResolutionProvider.notifier).state =
+                    groundResolution(bounds, mapWidthPixels);
               },
             ),
             markers: MapViewMarkers(

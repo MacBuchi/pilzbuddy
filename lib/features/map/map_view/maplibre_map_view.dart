@@ -403,7 +403,6 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
             widget.config.onCameraIdle?.call(
                 LatLng(camera.center.lat.toDouble(),
                     camera.center.lon.toDouble()),
-                camera.zoom.toDouble(),
                 bounds);
           }
         }
