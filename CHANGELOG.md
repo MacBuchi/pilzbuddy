@@ -7,6 +7,18 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## „Code ist unterwegs" — und dann kam keiner
+
+*22. August 2026 · Version 1.99.2*
+
+Beim Zurücksetzen des Passworts gibt es unter der Code-Eingabe den Knopf
+„Code nicht angekommen? Erneut senden". Stand das E-Mail-Feld darüber
+leer, meldete die App trotzdem „ein neuer Code ist unterwegs" — verschickt
+wurde aber nichts. Wer darauf gewartet hat, hat vergeblich gewartet.
+
+Jetzt sagt die App in dem Fall, was fehlt: „Bitte eine gültige
+E-Mail-Adresse angeben."
+
 ## Höhenlinien: saubere Kurven, die sich nicht mehr kreuzen
 
 *21. August 2026 · Version 1.99.1*

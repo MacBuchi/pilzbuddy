@@ -8,7 +8,7 @@ import 'package:executor_lib/executor_lib.dart' show CancellationException;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/errors.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'
-    show AuthRetryableFetchException;
+    show AuthApiException, AuthException, AuthRetryableFetchException;
 
 void main() {
   tearDown(() => setErrorSink(null));
@@ -77,6 +77,48 @@ void main() {
       // Die Gegenprobe: Der Filter darf nicht zur Stille führen.
       expect(worthReporting(const FormatException('kaputt')), isTrue);
       expect(worthReporting(StateError('kaputt')), isTrue);
+    });
+  });
+
+  group('looksLikeMailRateLimit — das Mail-Limit ist kein Fund (KW34)', () {
+    const abgelehnt = AuthApiException(
+        'For security purposes, you can only request this after 24 seconds.',
+        statusCode: '429',
+        code: 'over_email_send_rate_limit');
+
+    test('Der Code entscheidet, nicht die Klasse', () {
+      // Live kommt der Fall als AuthApiException. Ein Klassenvergleich
+      // hätte trotzdem danebengegriffen: Der Fake warf die Basisklasse,
+      // und dieselbe Aussage zählt auch dort.
+      expect(looksLikeMailRateLimit(abgelehnt), isTrue);
+      expect(
+          looksLikeMailRateLimit(const AuthException('zu schnell',
+              statusCode: '429', code: 'over_email_send_rate_limit')),
+          isTrue);
+    });
+
+    test('Andere Auth-Fehler bleiben Funde', () {
+      // Genau der Fehler, der den Reset-Bug verriet — der muss gemeldet
+      // werden, sonst hätte ihn niemand gesehen.
+      expect(
+          looksLikeMailRateLimit(const AuthApiException(
+              'Password recovery requires an email',
+              statusCode: '400',
+              code: 'validation_failed')),
+          isFalse);
+      // Bewusst eng: ein 429 aus einer anderen Quelle ist nicht gemeint.
+      expect(
+          looksLikeMailRateLimit(const AuthApiException('zu viele Anfragen',
+              statusCode: '429', code: 'over_request_rate_limit')),
+          isFalse);
+      expect(looksLikeMailRateLimit(const FormatException('kaputt')), isFalse);
+    });
+
+    test('worthReporting fasst es NICHT an', () {
+      // Die Aufrufstelle entscheidet, nicht der globale Filter: Wo ein
+      // Nutzer wirklich stehen bleibt — Registrierung, Adresswechsel —
+      // gehört die abgelehnte Mail sehr wohl gemeldet.
+      expect(worthReporting(abgelehnt), isTrue);
     });
   });
 

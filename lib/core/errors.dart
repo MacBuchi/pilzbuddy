@@ -124,6 +124,36 @@ bool looksOffline(Object error) =>
     error is http.ClientException ||
     (error is AuthRetryableFetchException && error.statusCode == null);
 
+/// Hat GoTrue den Mailversand abgelehnt, weil zu schnell wieder gefragt
+/// wurde?
+///
+/// Das ist kein Fehler, sondern die Sperre bei der Arbeit: Das Mail-Limit
+/// steht im Dashboard bewusst auf 3/h, damit der geteilte Brevo-Vorrat
+/// (300/Tag, portfolioweit) nicht leerläuft. Wer erneut drückt, bekommt
+/// 429 — die vorgesehene Antwort.
+///
+/// **Wozu die Unterscheidung:** Im Wochendigest KW34 waren 23 von 31
+/// Berichten genau das, alle aus „Passwort-Reset anfordern". Sie stammen
+/// von Googles Prüf-Robots, die den Login-Screen durchklicken — die
+/// Play-Testadresse liegt als App-Zugriff in der Konsole. Ein normaler
+/// Vorgang, der den Digest anführt, verstopft ihn für die echten Funde;
+/// dieselbe Lehre wie bei #124 und #136.
+///
+/// Wie [looksOffline] bewusst ENG: nur dieser eine Code, kein 429
+/// allgemein. Und wie dort entscheidet die Aufrufstelle selbst, ob sie
+/// ihn hören will — [worthReporting] fasst ihn nicht an, denn wo ein
+/// Nutzer wirklich stehen bleibt (Registrierung, Adresswechsel), gehört
+/// die abgelehnte Mail sehr wohl gemeldet.
+///
+/// Geprüft wird der CODE, nicht die Klasse: Live kommt der Fall als
+/// `AuthApiException`, es gibt aber keinen Grund, warum dieselbe Aussage
+/// in einer anderen `AuthException` nicht zählen sollte — und ein
+/// Klassenvergleich hätte genau daran vorbeigesehen. `gotrue` kennt den
+/// Wert als `ErrorCode.overEmailSendRateLimit`, exportiert die Enum aber
+/// nicht; deshalb der Draht-Wert.
+bool looksLikeMailRateLimit(Object error) =>
+    error is AuthException && error.code == 'over_email_send_rate_limit';
+
 /// Nutzerfreundliche Meldung nach Fehlerklasse statt pauschalem
 /// „… Internet verfügbar?": Netzwerk, Server und Unerwartetes werden
 /// unterschieden, damit Problemberichte diagnostizierbar sind.

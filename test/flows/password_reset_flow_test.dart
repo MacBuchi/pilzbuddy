@@ -7,6 +7,8 @@
 // woanders geöffnet wird. Siehe AuthRepository.sendPasswordResetCode.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pilzbuddy/core/errors.dart';
+import 'package:pilzbuddy/core/widgets/form_notice.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../fakes/fake_backend.dart';
@@ -227,6 +229,54 @@ void main() {
     expect(find.textContaining('Wenn es zu gibtesnicht@test.de ein Konto gibt'),
         findsOneWidget);
     expect(backend.passwordResets.length, 2);
+  });
+
+  testWidgets('Ohne Adresse behauptet das Erneut-Senden keine Mail',
+      (tester) async {
+    // Der Fall aus dem Wochendigest KW34, gesehen in 1.98.0 und 1.99.0:
+    // Das E-Mail-Feld steht auch im Code-Modus da und lässt sich leeren.
+    // Die Prüfung gab es nur im ersten Weg — der zweite fragte trotzdem
+    // an, GoTrue antwortete „Password recovery requires an email" (400),
+    // und die App meldete unbeirrt „ein neuer Code ist unterwegs".
+    final backend = FakeBackend()..addUser(username: 'testpilz');
+    await pumpApp(tester, backend);
+    await _requestCode(tester, 'testpilz@test.de');
+    await passResendCooldown(tester);
+
+    await tester.enterText(find.widgetWithText(TextField, 'E-Mail'), '');
+    await _tap(tester, find.text('Code nicht angekommen? Erneut senden'));
+
+    expect(find.textContaining('gültige E-Mail-Adresse'), findsOneWidget);
+    expect(find.textContaining('ein neuer Code'), findsNothing);
+    expect(tester.widget<FormNotice>(find.byType(FormNotice)).tone,
+        NoticeTone.error);
+    expect(backend.passwordResets, ['testpilz@test.de'],
+        reason: 'Es darf keine zweite Anfrage rausgegangen sein.');
+  });
+
+  testWidgets('Ein abgelehnter Mailversand landet nicht im Fehlerbericht',
+      (tester) async {
+    // 23 der 31 Berichte in KW34 waren genau das: Googles Prüf-Robots
+    // klicken den Login-Screen durch, und GoTrue lehnt ab, sobald das
+    // Mail-Limit greift (bewusst 3/h, Brevo liefert 300/Tag portfolioweit).
+    // Ein normaler Vorgang, der den Wochendigest anführt, verstopft ihn
+    // für die echten Funde — dieselbe Lehre wie #124 und #136.
+    final reported = <String>[];
+    setErrorSink((context, _, _) => reported.add(context));
+    addTearDown(() => setErrorSink(null));
+
+    final backend = FakeBackend()
+      ..addUser(username: 'testpilz')
+      ..passwordResetMailLimit = 0;
+    await pumpApp(tester, backend);
+
+    await _requestCode(tester, 'testpilz@test.de');
+
+    expect(reported, isEmpty);
+    // Nach außen bleibt es bei der einen Auskunft: Eine sichtbare
+    // Ablehnung wäre wieder ein Konto-Orakel.
+    expect(find.textContaining('Wenn es zu testpilz@test.de ein Konto gibt'),
+        findsOneWidget);
   });
 
   group('Transparenz im Formular (Issue #131)', () {
