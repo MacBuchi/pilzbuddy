@@ -143,6 +143,12 @@ class FakeBackend {
   /// nichts davon merken; der Rate-Limit-Test setzt sie herunter.
   int confirmationMailLimit = 100;
 
+  /// Dasselbe für den Passwort-Reset. GoTrues Mail-Limit gilt projektweit
+  /// für ALLE Mail-Sorten, nicht je Vorlage — der Fake hatte es hier
+  /// trotzdem nie, und damit blieb der häufigste Fall aus dem
+  /// Wochendigest untestbar.
+  int passwordResetMailLimit = 100;
+
   /// Steht für die „Leaked Password Protection" im Dashboard: Passwörter,
   /// die HaveIBeenPwned kennt, lehnt Supabase mit `weak_password` ab.
   final weakPasswords = <String>{'passwort123'};
@@ -405,8 +411,8 @@ class FakeAuthRepository implements AuthRepository {
   Future<void> resendConfirmation(String email) async {
     final sent = backend.confirmationMails.where((m) => m == email).length;
     if (sent >= backend.confirmationMailLimit) {
-      throw const AuthException('For security purposes, you can only request '
-          'this after 60 seconds.',
+      throw const AuthApiException(
+          'For security purposes, you can only request this after 60 seconds.',
           statusCode: '429', code: 'over_email_send_rate_limit');
     }
     backend.confirmationMails.add(email);
@@ -510,6 +516,12 @@ class FakeAuthRepository implements AuthRepository {
   /// Supabase, damit die Antwort kein Konto-Orakel wird.
   @override
   Future<void> sendPasswordResetCode(String email) async {
+    final sent = backend.passwordResets.where((m) => m == email).length;
+    if (sent >= backend.passwordResetMailLimit) {
+      throw const AuthApiException(
+          'For security purposes, you can only request this after 24 seconds.',
+          statusCode: '429', code: 'over_email_send_rate_limit');
+    }
     backend.passwordResets.add(email);
   }
 

@@ -61,11 +61,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         _noticeTone = tone;
       });
 
+  /// Sieht das nach einer Adresse aus?
+  ///
+  /// Dieselbe Prüfung für Anfordern UND Erneut-Senden. Sie fehlte im
+  /// zweiten Weg: Bei leerem Feld ging die Anfrage trotzdem raus, GoTrue
+  /// antwortete „Password recovery requires an email" (400), und die App
+  /// meldete unbeirrt „ein neuer Code ist unterwegs" — eine Mail, die es
+  /// nie gab (Wochendigest KW34, 1.98.0 und 1.99.0). Das Feld steht auch
+  /// im Code-Modus da und lässt sich leeren.
+  bool _looksLikeEmail(String email) => email.isNotEmpty && email.contains('@');
+
   /// Fordert den Code an. Erfolg und Fehlschlag melden dasselbe: Ein
   /// Unterschied würde verraten, ob es zu der Adresse ein Konto gibt.
   Future<void> _sendResetCode() async {
     final email = _emailController.text.trim();
-    if (email.isEmpty || !email.contains('@')) {
+    if (!_looksLikeEmail(email)) {
       _setNotice('Bitte eine gültige E-Mail-Adresse angeben.', NoticeTone.error);
       return;
     }
@@ -73,8 +83,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       await ref.read(authRepositoryProvider).sendPasswordResetCode(email);
     } catch (e, stackTrace) {
-      // Nur protokollieren, nicht zeigen — siehe oben.
-      logError('Passwort-Reset anfordern', e, stackTrace);
+      // Nur protokollieren, nicht zeigen — siehe oben. Ein abgelehnter
+      // Mailversand ist dabei kein Fund fürs Protokoll, sondern das
+      // Limit bei der Arbeit (siehe looksLikeMailRateLimit).
+      if (!looksLikeMailRateLimit(e)) {
+        logError('Passwort-Reset anfordern', e, stackTrace);
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -98,11 +112,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   /// käme nur, wenn wirklich eine Mail rausging.
   Future<void> _resendResetCode() async {
     final email = _emailController.text.trim();
+    // Die eine Ausnahme von „immer dasselbe melden": Ohne Adresse gibt es
+    // nichts zu verraten, und „unterwegs" wäre schlicht falsch.
+    if (!_looksLikeEmail(email)) {
+      _setNotice('Bitte eine gültige E-Mail-Adresse angeben.', NoticeTone.error);
+      return;
+    }
     setState(() => _busy = true);
     try {
       await ref.read(authRepositoryProvider).sendPasswordResetCode(email);
     } catch (e, stackTrace) {
-      logError('Reset-Code erneut anfordern', e, stackTrace);
+      if (!looksLikeMailRateLimit(e)) {
+        logError('Reset-Code erneut anfordern', e, stackTrace);
+      }
     } finally {
       if (mounted) {
         setState(() => _busy = false);
