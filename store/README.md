@@ -35,14 +35,21 @@ Feature-Grafik mit — im Store stehen beide nebeneinander.
 
 ## Screenshots
 
-| Datei | Zeigt |
-|---|---|
-| `01-karte-spots.png` | Karte bei 100 m mit sechs Spots, je eine andere Artengruppe — Röhrling, Leistling, Schirmling, Stachelpilz, Wulstling, Bovist |
-| `02-karte-pilzwetter.png` | Karwendel bei 10 km, Wald + Pilzwetter mit Legende |
-| `03-spot-detail.png` | Spot-Detail mit Fundhistorie, Pilzwetter, Saisonkurve, Wald und Bäumen |
-| `04-freunde.png` | Freundesliste mit vier Buddies |
-| `05-statistik.png` | Spots/Funde/Mehrfach besucht, „Funde pro Jahr", Top-Arten |
-| `06-live-standort.png` | Live-Standort teilen (1/2/4 Stunden) |
+| Datei | Stand | Zeigt |
+|---|---|---|
+| `01-karte-spots.png` | 1.99.1 | Karte bei 100 m mit sechs Spots, je eine andere Artengruppe — Röhrling, Leistling, Schirmling, Stachelpilz, Wulstling, Bovist |
+| `02-karte-pilzwetter.png` | 1.96.0 | Karwendel bei 10 km, Wald + Pilzwetter mit Legende |
+| `03-spot-detail.png` | 1.96.0 | Spot-Detail mit Fundhistorie, Pilzwetter, Saisonkurve, Wald und Bäumen |
+| `04-freunde.png` | 1.26.0 | Freundesliste mit vier Buddies |
+| `05-statistik.png` | 1.26.0 | Spots/Funde/Mehrfach besucht, „Funde pro Jahr", Top-Arten |
+| `06-live-standort.png` | 1.26.0 | Live-Standort teilen (1/2/4 Stunden) |
+
+**Die Spalte „Stand" ist nicht Zierde.** `tool/screenshot_stand.py` liest sie
+und schreibt beim Befördern eines Releases in die Run-Summary, wie alt das
+älteste Bild ist — an der einen Stelle, an der ohnehin jemand hinsieht. Ein
+Tor ist es bewusst nicht: Ein Bild kann drei Versionen alt und trotzdem
+richtig sein. Wer einen Screenshot erneuert, trägt hier die Version ein, mit
+der er aufgenommen wurde.
 
 **Der erste zeigt Spots mit Arten, und das ist kein Zufall.** Bis dahin
 stand die Pilzwetter-Ebene vorn — ein schönes Bild, das aber nicht sagt,
@@ -55,62 +62,77 @@ Play verlangt mindestens zwei, 16:9 oder 9:16, Kante 320–3840 px.
 
 ### Wie sie entstanden sind
 
-Alle mit **Wegwerf-Konten in einer erfundenen Gegend im Schwarzwald** — nie mit
-einem echten Konto, sonst stehen die eigenen Fundorte im Store. Die Konten
-(`*.shots@example.com`, `example.com` ist von der IANA reserviert) und ihre
-Spots wurden danach über `delete_own_account()` wieder gelöscht.
+Alle mit **Testkonten in einer erfundenen Gegend im Schwarzwald** — nie mit
+einem echten Konto, sonst stehen die eigenen Fundorte im Store. Die ersten
+Bilder entstanden mit Wegwerf-Konten (`*.shots@example.com`, `example.com`
+ist von der IANA reserviert), die danach über `delete_own_account()` wieder
+gelöscht wurden; seit #321 dient das gesäte Testkonto als Kulisse.
+
+Zwei Werkzeuge nehmen den mechanischen Teil ab:
 
 ```bash
-# Emulator auf 9:16 zwingen — Pixel 7 Pro liefert sonst 1440x3120,
-# und das ist kein von Play akzeptiertes Seitenverhältnis.
-adb -s emulator-5554 shell wm size 1080x1920
-adb -s emulator-5554 shell wm density 420
-# Play-Build, damit der Update-Banner fehlt (den gibt es im Play-Build nicht)
-flutter build apk --release --dart-define=PLAY_BUILD=true
-adb -s emulator-5554 install -r build/app/outputs/flutter-apk/app-release.apk
-adb -s emulator-5554 emu geo fix 8.1305 47.9052   # Standort für „auf mich zentrieren"
-adb -s emulator-5554 exec-out screencap -p > store/screenshots/xx.png
-adb -s emulator-5554 shell wm size reset          # hinterher aufräumen
+tool/store_screenshots.sh prepare          # 1080x1920, Dichte 420, saubere Statusleiste
+PB_EMAIL=… PB_PASSWORD=… python3 tool/seed_screenshot_data.py --seed
+tool/store_screenshots.sh restart          # App neu starten, damit sie die Spots holt
+tool/store_screenshots.sh goto 8.1275 47.9025
+tool/store_screenshots.sh zoom out 1
+tool/store_screenshots.sh shot 01-karte-spots
+tool/store_screenshots.sh reset            # Auflösung und Demo-Modus zurück
 ```
 
-Seit #321 entstehen die Bilder auch auf dem **echten Pixel XL** (nativ
-9:16, 1440 × 2560 → 1080 × 1920 skaliert). Beide Wege sind in Ordnung und
-liegen nebeneinander im Store-Eintrag; die Bildqualität unterscheidet
-sich nicht sichtbar.
+Die Zugangsdaten des Testkontos stehen im Austauschordner, nicht im Repo.
 
-**Saubere Statusleiste** — für beide Wege derselbe Griff, sonst steht dort
-die Uhrzeit der Aufnahme und ein halb geladener Akku:
+**Was die Werkzeuge bewusst NICHT tun: sich durch die App klicken.** Ein
+Navigationsskript hängt an Bildschirmkoordinaten und bricht bei jeder
+UI-Änderung — die FAB-Spalte etwa steckt seit dem neunten Knopf in einem
+`FittedBox(scaleDown)`, ein zehnter skalierte also jede Koordinate neu.
+Und die Bildwahl ist ohnehin Urteilssache: welcher Ausschnitt, welche
+Ebene, was gerade nicht ins Bild soll. Für `01-karte-spots.png` hieß das
+etwa, den Golfplatz samt „Driving Range" aus dem Rahmen zu halten.
+
+Aus demselben Grund gibt es **keinen CI-Job**, der die Bilder nachzieht:
+Pilzwetter und Regen rechnen sich täglich neu, die OSM-Kacheln ändern
+sich unter uns. Jeder Lauf brächte einen Diff, und ein Alarm, der immer
+angeht, wird nach dem dritten Mal weggeklickt. Statt Nachziehen also
+Sichtbarmachen — die Spalte „Stand" oben und `tool/screenshot_stand.py`.
+
+Drei Dinge, die im Skript stecken und die man sonst wieder herausfinden muss:
+
+- **Saubere Statusleiste** über SystemUIs Demo-Modus. Ohne ihn steht dort
+  die Uhrzeit der Aufnahme und ein halb geladener Akku — im Store fällt
+  beides sofort auf.
+- **Zoom ohne Finger.** `adb shell input` kann kein Multitouch, eine
+  Pinch-Geste fällt also aus. MapLibres Quick-Zoom kann es einhändig:
+  tippen, sofort ein zweites Mal aufsetzen und ziehen — **nach unten
+  zoomt hinein, nach oben heraus**, rund 300 px je Stufe. Der Aufsetzpunkt
+  bleibt stehen; tippt man die Bildmitte an, verschiebt sich die Karte
+  beim Zoomen nicht.
+- **Neu starten statt „Aktualisieren" tippen.** Holt die Spots genauso
+  frisch, hängt aber an keiner Koordinate.
+
+**Wo die Marker landen, wird gerechnet, nicht geschoben.** Aus zwei im
+Bild ausgemessenen Markern bestimmt `seed_screenshot_data.py --place` die
+Abbildung Pixel↔Grad, kehrt sie um und setzt jeden Spot auf seine
+Ziel-Pixelposition:
 
 ```bash
-adb shell settings put global sysui_demo_allowed 1
-D() { adb shell am broadcast -a com.android.systemui.demo "$@"; }
-D -e command enter
-D -e command clock -e hhmm 0930
-D -e command battery -e level 100 -e plugged false
-D -e command network -e wifi show -e level 4 -e mobile hide
-D -e command status -e location hide -e alarm hide -e bluetooth hide
-D -e command notifications -e visible false
-# hinterher: D -e command exit
+python3 tool/seed_screenshot_data.py --place \
+    --ref 47.9040,8.1245=175,612 --ref 47.9015,8.1300=845,1065
 ```
 
-**Zoom ohne Finger.** `adb shell input` kann kein Multitouch, eine
-Pinch-Geste fällt also aus. MapLibres Quick-Zoom kann es dafür einhändig:
-tippen, dann sofort ein zweites Mal aufsetzen und ziehen — **nach unten
-zoomt hinein, nach oben heraus**, rund 300 px je Zoomstufe. Der Punkt, an
-dem der Finger aufsetzt, bleibt stehen; tippt man also die Bildmitte an,
-verschiebt sich die Karte beim Zoomen nicht:
+Nur so bleiben die Icons zuverlässig weg von der FAB-Spalte, dem
+„Neuer Spot"-Knopf und dem Hinweisband — von Hand tippend trifft man das
+nicht reproduzierbar, und beim nächsten Mal schon gar nicht wieder. Ein
+falsch abgelesener Bezugspunkt meldet sich dabei selbst: In Mercator
+kostet ein Grad Breite um `1/cos(Breite)` mehr Pixel als ein Grad Länge,
+und das rechnet das Werkzeug gegen.
 
-```bash
-adb shell 'input tap 540 810; input swipe 540 810 540 510 300'   # eine Stufe heraus
-```
-
-**Wo die Marker landen, wird gerechnet, nicht geschoben.** Für
-`01-karte-spots.png` sind die sechs Spots im Testkonto über die
-REST-API angelegt und danach auf Ziel-Pixelpositionen umgesetzt worden
-(Skript in der Sitzung, nicht im Repo): Aus zwei sichtbaren Markern lässt
-sich die Abbildung Pixel↔Grad messen und umkehren. Nur so bleiben die
-Icons zuverlässig weg von der FAB-Spalte, dem „Neuer Spot"-Knopf und dem
-Hinweisband — von Hand tippend trifft man das nicht reproduzierbar.
+Seit #321 entstehen Bilder auch auf dem **echten Pixel XL** (nativ 9:16,
+1440 × 2560 → 1080 × 1920 skaliert). Beide Wege sind in Ordnung und liegen
+nebeneinander im Store-Eintrag; die Bildqualität unterscheidet sich nicht
+sichtbar. Hinterher `--cleanup` nicht vergessen, sonst stehen erfundene
+Fundorte im Testkonto — und weil es seine Spots mit Freunden teilt, sähen
+sie auch andere.
 
 Ein Screenshot ist übrigens die beste Bug-Suche: Issue #97 (zugelaufene
 Y-Achse) und ein doppeltes Label an der Achsenspitze sind erst hier

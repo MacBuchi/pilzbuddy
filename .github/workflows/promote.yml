@@ -118,6 +118,16 @@ jobs:
             --notes-file release-body.md
           gh release view "$TAG" --json tagName,isPrerelease
 
+      # Kein Tor, nur ein Blick zur richtigen Zeit: Hier steht ohnehin
+      # jemand vor dem Store-Eintrag. Store-Screenshots veralten still —
+      # #321 hat den Karten-Screenshot durch eine Ebene ohne einen
+      # einzigen Spot-Marker ersetzt, und vier Tage lang zeigte keines
+      # der Bilder mehr, wofür die App da ist. Automatisch nachziehen
+      # geht nicht: Pilzwetter und Regen rechnen sich täglich neu, ein
+      # Job dafür lieferte jeden Lauf einen Diff.
+      - name: Stand der Store-Screenshots
+        run: python3 tool/screenshot_stand.py >> "$GITHUB_STEP_SUMMARY"
+
       # Pages aus dem BEFÖRDERTEN Tag, nicht aus main: Sonst läge auf der
       # Web-Adresse der Entwicklungsstand, während Android auf stabil
       # zeigt.
