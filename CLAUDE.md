@@ -523,6 +523,37 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
     und die Ebene wurde dort zur Schraffur (Betreiber, 2026-08-21).
     Die Punktschranke ist seither nur noch ein Netz. Gemessen in
     `docs/map-performance.md`.
+  - **Jede Schwelle der Linien steht in BILDSCHIRMPIXELN, nie in
+    Gitterzellen** (seit 1.99.1). Eine Zelle ist beim Herauszoomen ein
+    Pixel und beim Hineinzoomen ein halber Schirm — eine feste Zahl in
+    Zellen ist dort am schärfsten, wo sie am wenigsten darf. Gemessen
+    am Gerät (2026-08-21, Alpen bei 300 m Maßstab): Wabe 55 px,
+    Vereinfachung `toleranceCells = 2` also 110 px, bei 20–35 px
+    Abstand zur Nachbarlinie. Die Linien kreuzten sich zwangsläufig und
+    waren lange Geraden statt Kurven. Jetzt rechnet `contourLinesFor`
+    Toleranz (`contourSimplifyPixels = 1.5`) und Mindestlänge aus
+    `pixelsPerCell`; die Vorgaben der Maschine bleiben für den Regen
+    stehen. `test/elevation_contours_test.dart` prüft an einem Kegel,
+    dass sich zwei Nachbarstufen nie schneiden.
+  - **Das Abtastraster hängt am GITTER, nicht am Fenster** (seit
+    1.99.1, `contourSampleLattice`): ganzzahliges Vielfaches der
+    Wabenweite, Ursprung auf das Gitter gerastet. Vorher wurde die
+    Fensterspanne in `cols` gleiche Teile geteilt — beim Schieben plante
+    `planFillWindow` ein neues Fenster, das Raster lag woanders, jeder
+    Punkt traf eine andere Wabe, und die Linien würfelten sich neu.
+    **Und der Ursprung liegt einen VIERTELSCHRITT daneben**
+    (`_hexSampleOffset`): Ein odd-r-Hexgitter hat seine Mittelpunkte in
+    geraden Zeilen bei `hx + 0,5`, in ungeraden bei `hx + 1,0` — eine
+    Probe bei `i + 0,5` liegt dort also genau zwischen zwei Waben, und
+    das letzte Bit entschied, welche gewinnt. Ohne den Versatz wichen
+    69 von 495 Proben zweier versetzter Fenster voneinander ab, mit bis
+    zu 180 m; mit ihm sind es 0. Wer ihn wegnimmt, holt das Zittern
+    zurück, und der Test dazu sagt es sofort.
+    Nebeneffekt: weit draußen ist es SCHNELLER (77 statt 150 ms), weil
+    der ganzzahlige Faktor vergröbert, statt das Budget mit gestreckten
+    Zellen vollzuschreiben. Und Chaikin rundet geschlossene Ringe
+    seither zyklisch — sonst behält der Nahtpunkt als einziger seine
+    Ecke.
   - **Die Regeln rechnen in Meter-je-Pixel, nie in Zoomstufen.**
     MapLibre zählt Zoom in 512-dp-Kacheln, flutter_map in 256ern —
     dieselbe Zahl bedeutet auf Android und Web zwei Maßstäbe, und

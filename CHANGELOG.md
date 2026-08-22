@@ -7,6 +7,28 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Höhenlinien: saubere Kurven, die sich nicht mehr kreuzen
+
+*21. August 2026 · Version 1.99.1*
+
+Beim starken Hineinzoomen sahen die Höhenlinien nicht aus wie
+Höhenlinien: lange Geraden statt Kurven, Ringe mit einem Knick, und
+manche Linien liefen quer durch ihre Nachbarn hindurch. Beim Verschieben
+der Karte sprangen sie außerdem gelegentlich auf einen neuen Verlauf.
+
+Alles drei ist behoben:
+
+- **Die Linien folgen jetzt dem Gelände statt einer groben Näherung.**
+  Sie sind glatt, und zwei Linien kreuzen sich nicht mehr — das kann
+  eine Höhenlinie schlicht nicht.
+- **Geschlossene Ringe sind rundum rund.** Vorher blieb an einer
+  zufälligen Stelle eine Ecke stehen.
+- **Beim Verschieben bleiben die Linien liegen.** Sie wandern mit der
+  Karte, statt sich neu zu berechnen.
+
+Nebenbei tauchen beim Hineinzoomen wieder kleine Kuppen und Mulden auf,
+die vorher weggefiltert wurden.
+
 ## Höhenlinien: ruhiger, und mit Zahlen dran
 
 *21. August 2026 · Version 1.99.0*

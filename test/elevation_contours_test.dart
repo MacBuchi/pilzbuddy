@@ -52,27 +52,117 @@ void main() {
       // Feiner abzutasten als das Gitter bläst jede Wabe zu einem Block
       // gleicher Werte auf — Marching Squares zeichnet daraufhin die
       // Wabenkanten als Terrassen in die Linie.
-      final counts = contourSampleCounts(
+      final lattice = contourSampleLattice(
         window: const FillWindow(
             west: 10, east: 10.5, north: 51, south: 50.5, width: 1, height: 1),
+        gridWest: 10,
+        gridNorth: 51,
         hexLonStep: 0.01,
         hexLatStep: 0.01,
       );
-      expect(counts.cols, 50);
-      expect(counts.rows, 50);
+      // Die AUSSAGE ist die Schrittweite: eine Probe je Wabenbreite.
+      // Die Spaltenzahl liegt um eins darüber, weil das Raster einen
+      // Viertelschritt westlich des Fensters einrastet (siehe dort).
+      expect(lattice.lonStep, 0.01);
+      expect(lattice.latStep, 0.01);
+      expect(lattice.cols, 51);
+      expect(lattice.rows, 50);
+      expect(lattice.factor, 1);
     });
 
-    test('deckelt weit draußen auf das Budget', () {
-      final counts = contourSampleCounts(
+    test('deckelt weit draußen auf das Budget — mit ganzen Waben', () {
+      // Der Deckel greift über einen GANZZAHLIGEN Faktor: Das gröbere
+      // Raster bleibt damit ein Teilraster des feinen, statt sich zu
+      // verschieben.
+      final lattice = contourSampleLattice(
         window: const FillWindow(
             west: 5.8, east: 17.3, north: 55.1, south: 45.7,
             width: 1, height: 1),
+        gridWest: 5.8,
+        gridNorth: 55.1,
         hexLonStep: 0.003786015,
         hexLatStep: 0.002102809,
         budget: 768,
       );
-      expect(counts.cols, 768);
-      expect(counts.rows, 768);
+      expect(lattice.cols, lessThanOrEqualTo(768));
+      expect(lattice.rows, lessThanOrEqualTo(768));
+      expect(lattice.factor, greaterThan(1));
+      expect(lattice.lonStep, closeTo(0.003786015 * lattice.factor, 1e-12));
+    });
+
+    test('das Raster hängt am Gitter, nicht am Fenster', () {
+      // DER BEFUND VOM 2026-08-21: „sie bewegen/verändern sich auch wenn
+      // man verschiebt". Zwei Fenster über derselben Gegend, um einen
+      // Bruchteil einer Wabe gegeneinander versetzt — die Abtastpunkte
+      // müssen dieselben sein, sonst trifft jeder Punkt über
+      // `hexNearestCell` eine andere Wabe und die Linien würfeln sich neu.
+      const lonStep = 0.01, latStep = 0.01;
+      ContourLattice at(double shift) => contourSampleLattice(
+            window: FillWindow(
+              west: 10.2 + shift,
+              east: 10.5 + shift,
+              north: 50.8 - shift,
+              south: 50.5 - shift,
+              width: 1,
+              height: 1,
+            ),
+            gridWest: 10,
+            gridNorth: 51,
+            hexLonStep: lonStep,
+            hexLatStep: latStep,
+          );
+
+      for (final shift in [0.0, 0.003, 0.0071, -0.0042]) {
+        final lattice = at(shift);
+        // Ursprung auf dem Gitter: ein ganzzahliges Vielfaches der
+        // Wabenweite von dessen Nordwestecke entfernt — bis auf den
+        // festen Viertelschritt, der die Proben von den Wabengrenzen
+        // wegrückt.
+        expect((lattice.west - 10) / lonStep + 0.25,
+            closeTo(((lattice.west - 10) / lonStep + 0.25).round(), 1e-9),
+            reason: 'Verschiebung $shift');
+        expect((51 - lattice.north) / latStep,
+            closeTo(((51 - lattice.north) / latStep).round(), 1e-9),
+            reason: 'Verschiebung $shift');
+      }
+    });
+
+    test('dasselbe Gelände, verschobenes Fenster ⇒ dieselben Proben', () {
+      // Die Probe aufs Ganze — und sie fängt BEIDE Ursachen des
+      // Zitterns: das am Fenster hängende Raster UND die Zweideutigkeit
+      // auf den Wabengrenzen (in ungeraden Hexzeilen liegen die
+      // Mittelpunkt bei `hx + 1,0`, eine Probe bei `i + 0,5` also genau
+      // dazwischen — dort entschied das letzte Bit).
+      final grid = elevationOf([
+        for (var y = 0; y < 30; y++) [for (var x = 0; x < 30; x++) x + y],
+      ]);
+      FillWindow at(double shift) => FillWindow(
+            west: grid.west + 0.05 + shift,
+            east: grid.west + 0.20 + shift,
+            north: grid.north - 0.05,
+            south: grid.north - 0.20,
+            width: 256,
+            height: 256,
+          );
+
+      final a = resampleElevation(grid, window: at(0), smooth: false);
+      for (final shift in [0.0037, 0.0064, -0.0021]) {
+        final b = resampleElevation(grid, window: at(shift), smooth: false);
+        final dx = ((b.west - a.west) / a.lonStep).round();
+        final dy = ((a.north - b.north) / a.latStep).round();
+        var shared = 0;
+        for (var y = 0; y < b.rows; y++) {
+          for (var x = 0; x < b.cols; x++) {
+            final ax = x + dx, ay = y + dy;
+            if (ax < 0 || ax >= a.cols || ay < 0 || ay >= a.rows) continue;
+            shared++;
+            expect(b.values[y * b.cols + x], a.values[ay * a.cols + ax],
+                reason: 'Verschiebung $shift, Probe ($x,$y)');
+          }
+        }
+        expect(shared, greaterThan(100),
+            reason: 'ohne Überlappung prüft der Vergleich nichts');
+      }
     });
 
     test('trifft dieselbe Wabe wie heightMetersAt', () {
@@ -91,7 +181,7 @@ void main() {
           final lat = field.latAtRow(y + 0.5);
           final lon = field.lonAtColumn(x + 0.5);
           expect(field.values[y * field.cols + x],
-              grid.heightMetersAt(lat, lon),
+              grid.heightMetersAt(lat, lon) ?? contourNoData,
               reason: 'Zelle ($x,$y) bei $lat/$lon');
         }
       }
@@ -131,25 +221,26 @@ void main() {
       final grid = elevationOf(rows);
       final window = windowOf(grid);
 
-      List<ContourLine> at({required bool smooth}) {
-        final field =
-            resampleElevation(grid, window: window, smooth: smooth);
-        return contourLines(
-          values: field.values,
-          width: field.cols,
-          height: field.rows,
-          noData: contourNoData,
-          levels: const [120],
-          latAtRow: field.latAtRow,
-          lonAtColumn: field.lonAtColumn,
-          toleranceCells: 0,
-          minChainCells: 2,
-          roundingPasses: 0,
-        );
-      }
+      final rawField =
+          resampleElevation(grid, window: window, smooth: false);
+      final smoothField =
+          resampleElevation(grid, window: window, smooth: true);
 
-      final raw = at(smooth: false);
-      final smoothed = at(smooth: true);
+      List<ContourLine> at(ContourField field) => contourLines(
+            values: field.values,
+            width: field.cols,
+            height: field.rows,
+            noData: contourNoData,
+            levels: const [120],
+            latAtRow: field.latAtRow,
+            lonAtColumn: field.lonAtColumn,
+            toleranceCells: 0,
+            minChainCells: 2,
+            roundingPasses: 0,
+          );
+
+      final raw = at(rawField);
+      final smoothed = at(smoothField);
       expect(raw, isNotEmpty);
       expect(smoothed, isNotEmpty);
 
@@ -157,8 +248,7 @@ void main() {
       // Stützpunkt liegt auf einer GANZZAHLIGEN Spalte, die Linie ist
       // also eine Treppe entlang des Gitters.
       bool onLattice(double lon) {
-        final column =
-            (lon - window.west) / ((window.east - window.west) / 9) - 0.5;
+        final column = (lon - rawField.west) / rawField.lonStep - 0.5;
         return (column - column.roundToDouble()).abs() < 1e-9;
       }
 
@@ -299,9 +389,9 @@ void main() {
         cols: cols,
         rows: rows,
         west: 10,
-        east: 10.1,
         north: 51,
-        south: 50.9,
+        lonStep: 0.01,
+        latStep: 0.01,
       );
       expect(reliefPerPixel(field, pixelsPerCell: 1), 100,
           reason: 'ein Median von 0 hieße: feinste Äquidistanz im Steilhang');
@@ -343,6 +433,127 @@ void main() {
           resampleElevation(grid, window: windowOf(grid), smooth: false);
       expect(field.range, isNull);
       expect(levelsIn(field, 20), isEmpty);
+    });
+  });
+
+  group('Sauber gezeichnet', () {
+    /// Ein Kegel: konzentrische Ringe, also genau die Form, an der eine
+    /// zu grobe Vereinfachung zwei Nachbarlinien übereinanderschiebt.
+    ElevationGrid cone({int size = 20}) {
+      final middle = (size - 1) / 2;
+      return elevationOf([
+        for (var y = 0; y < size; y++)
+          [
+            for (var x = 0; x < size; x++)
+              math.max(
+                  0,
+                  12 -
+                      math
+                          .sqrt((x - middle) * (x - middle) +
+                              (y - middle) * (y - middle))
+                          .round()),
+          ],
+      ]);
+    }
+
+    /// Echter Schnitt zweier Strecken — Berührungen an den Enden zählen
+    /// nicht, die kommen an Sattelpunkten vor und sind erlaubt.
+    bool cross(LatLng a1, LatLng a2, LatLng b1, LatLng b2) {
+      double side(LatLng p, LatLng q, LatLng r) =>
+          (q.longitude - p.longitude) * (r.latitude - p.latitude) -
+          (q.latitude - p.latitude) * (r.longitude - p.longitude);
+      final d1 = side(a1, a2, b1);
+      final d2 = side(a1, a2, b2);
+      final d3 = side(b1, b2, a1);
+      final d4 = side(b1, b2, a2);
+      return ((d1 > 0) != (d2 > 0)) && ((d3 > 0) != (d4 > 0));
+    }
+
+    test('ein geschlossener Ring hat keine Naht', () {
+      // Chaikin ließ ersten und letzten Punkt stehen — bei einem Ring
+      // ist das DERSELBE Punkt, und er behielt als einziger seine Ecke.
+      // Sichtbar als Knick an einer Stelle, die niemand gewählt hat
+      // (Betreiber am Gerät, 2026-08-21: „keine sauber geschlossenen
+      // Splines"). Gemessen an diesem Hügel: 45° an der Naht gegen 14°
+      // an der schärfsten anderen Ecke.
+      const size = 12;
+      const middle = (size - 1) / 2;
+      final values = <int>[
+        for (var y = 0; y < size; y++)
+          for (var x = 0; x < size; x++)
+            (100 -
+                    6 *
+                        math
+                            .sqrt((x - middle) * (x - middle) +
+                                (y - middle) * (y - middle))
+                            .round())
+                .clamp(0, 100),
+      ];
+      // 73 liegt bewusst NICHT auf einem Gitterwert: Sonst läuft die
+      // Linie über die Gitterknoten und hat doppelte Punkte.
+      final lines = contourLines(
+        values: values,
+        width: size,
+        height: size,
+        noData: -1,
+        levels: [73],
+        latAtRow: (r) => 51 - 0.01 * r,
+        lonAtColumn: (c) => 10 + 0.01 * c,
+        toleranceCells: 0,
+        minChainCells: 4,
+      );
+      expect(lines, hasLength(1));
+      final p = lines.single.points;
+      expect(p.first, p.last, reason: 'der Ring muss geschlossen bleiben');
+
+      double turn(LatLng before, LatLng at, LatLng after) {
+        final a = math.atan2(at.latitude - before.latitude,
+            at.longitude - before.longitude);
+        final b = math.atan2(
+            after.latitude - at.latitude, after.longitude - at.longitude);
+        final d = (b - a).abs();
+        return d > math.pi ? 2 * math.pi - d : d;
+      }
+
+      var sharpest = 0.0;
+      for (var i = 1; i + 1 < p.length; i++) {
+        final angle = turn(p[i - 1], p[i], p[i + 1]);
+        if (angle > sharpest) sharpest = angle;
+      }
+      // Die Naht: vom letzten Segment in das erste hinein.
+      final seam = turn(p[p.length - 2], p.first, p[1]);
+      expect(seam, lessThanOrEqualTo(sharpest + 1e-9),
+          reason: 'der Nahtpunkt ist schärfer als jede andere Ecke — '
+              'Chaikin rundet den Ring nicht zyklisch');
+    });
+
+    test('Linien verschiedener Höhen kreuzen sich nie', () {
+      final grid = cone();
+      final result = contourLinesFor(grid,
+          window: windowOf(grid), metersPerPixel: 5)!;
+      final byLevel = <int, List<ContourLine>>{};
+      for (final line in result.lines) {
+        (byLevel[line.level] ??= []).add(line);
+      }
+      final levels = byLevel.keys.toList()..sort();
+      expect(levels.length, greaterThan(2),
+          reason: 'ohne mehrere Stufen prüft der Test nichts');
+
+      for (var i = 0; i + 1 < levels.length; i++) {
+        for (final a in byLevel[levels[i]]!) {
+          for (final b in byLevel[levels[i + 1]]!) {
+            for (var m = 0; m + 1 < a.points.length; m++) {
+              for (var n = 0; n + 1 < b.points.length; n++) {
+                expect(
+                    cross(a.points[m], a.points[m + 1], b.points[n],
+                        b.points[n + 1]),
+                    isFalse,
+                    reason: 'Stufe ${levels[i]} kreuzt ${levels[i + 1]}');
+              }
+            }
+          }
+        }
+      }
     });
   });
 

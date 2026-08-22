@@ -84,9 +84,21 @@ double kmAcrossAtZoom(double zoom) =>
 /// nicht gibt. Gemessen kostet die Vereinfachung 81 % der Punkte
 /// (101 027 → 19 512).
 ///
+/// **Der Aufrufer sollte diese Zahl aus BILDSCHIRMPIXELN rechnen, nicht
+/// festschreiben.** Eine Zelle ist beim Herauszoomen ein Pixel und beim
+/// Hineinzoomen ein halber Schirm; eine feste Toleranz in Zellen ist
+/// damit dort am schärfsten, wo sie am wenigsten darf. Am Gerät
+/// gemessen (2026-08-21, Alpen bei 300 m Maßstab): eine Wabe 55 px,
+/// Toleranz also 110 px — bei 20–35 px Abstand zur Nachbarlinie. Die
+/// Linien kreuzten sich, und zwar rechnerisch zwangsläufig. Wie es
+/// richtig geht, steht in `elevation_contours.dart`
+/// (`contourSimplifyPixels`).
+///
 /// [minChainCells] wirft Fragmente weg — beim Regen die Ränder einzelner
-/// Konvektionsstreifen, die als Sprenkel über der Karte lägen. Gezählt
-/// wird die Länge VOR der Vereinfachung, und das ist der ganze Punkt:
+/// Konvektionsstreifen, die als Sprenkel über der Karte lägen. Auch
+/// diese Zahl gehört beim Aufrufer aus Pixeln gerechnet, aus demselben
+/// Grund. Gezählt wird die Länge VOR der Vereinfachung, und das ist der
+/// ganze Punkt:
 /// Danach hat eine schnurgerade Linie quer durch Deutschland zwei Punkte
 /// und ein Zwei-Zellen-Fetzen auch. Eine Schranke auf das Ergebnis würde
 /// die längste Linie mit dem kürzesten Fetzen verwechseln.
@@ -445,10 +457,38 @@ List<_Point> _simplify(List<_Point> points, double tolerance) {
 /// Zwei Durchgänge vervierfachen die Punktzahl (an echten Daten
 /// 10 238 → 40 952). Das ist Renderlast, keine Übertragung: Geglättet
 /// wird, was auf dem Gerät entsteht.
+///
+/// **Ein geschlossener Ring wird zyklisch gerundet.** Der offene Weg
+/// lässt ersten und letzten Punkt stehen — bei einem Ring ist das
+/// DERSELBE Punkt, und er behält als einziger seine Ecke. Die Naht
+/// liegt dort, wo `_chainsAt` zufällig zu laufen begonnen hat: ein
+/// sichtbarer Knick an einer Stelle, die niemand gewählt hat (Befund
+/// des Betreibers am Gerät, 2026-08-21 — „keine sauber geschlossenen
+/// Splines"). Zyklisch gibt es keinen Ankerpunkt, und der Ring bleibt
+/// geschlossen, weil der Schlusspunkt am Ende wieder auf den ersten
+/// gesetzt wird.
 List<_Point> _round(List<_Point> points, int passes) {
   var current = points;
+  final closed = points.length > 3 &&
+      points.first.dx == points.last.dx &&
+      points.first.dy == points.last.dy;
   for (var pass = 0; pass < passes; pass++) {
     if (current.length < 3) break;
+    if (closed) {
+      // Der doppelte Schlusspunkt fällt weg, gerundet wird über die
+      // Kanten des Rings — auch über die vom letzten zum ersten Punkt.
+      final ring = current.sublist(0, current.length - 1);
+      final next = <_Point>[];
+      for (var i = 0; i < ring.length; i++) {
+        final a = ring[i];
+        final b = ring[(i + 1) % ring.length];
+        next.add(_Point(a.dx * 0.75 + b.dx * 0.25, a.dy * 0.75 + b.dy * 0.25));
+        next.add(_Point(a.dx * 0.25 + b.dx * 0.75, a.dy * 0.25 + b.dy * 0.75));
+      }
+      next.add(next.first);
+      current = next;
+      continue;
+    }
     final next = <_Point>[current.first];
     for (var i = 0; i < current.length - 1; i++) {
       final a = current[i];
