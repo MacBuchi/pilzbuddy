@@ -554,3 +554,90 @@ Glyphen liegen ohnehin im App-Verzeichnis), flutter_map bekommt sie als
 Marker aus `contourLabels` — ein paar Dutzend Punkte je Fenster,
 gerechnet auf dem Haupt-Thread, weil der Sprung ins Isolate mehr kostete
 als die Rechnung.
+
+## Nachtrag 2026-08-21 (2): Schwellen in Pixeln, Raster am Gitter (1.99.1)
+
+Zweite Rückmeldung vom Gerät, Screenshot aus den Alpen bei Maßstab
+300 m: „keine sauber geschlossenen Splines", „außerdem überschneiden sie
+sich", „sie bewegen/verändern sich auch wenn man verschiebt". Alle drei
+echt, die ersten beiden mit derselben Ursache.
+
+**Die Zahl.** 300 m auf etwa 15 % der Bildbreite sind rund **4,9 m je
+logischem Pixel**. Eine Wabe des Höhengitters ist 270 m breit, dort also
+**55 px**. Die Vereinfachung lief mit `toleranceCells = 2` — einer
+Toleranz von **110 px**. Zwei Nachbarlinien lagen gleichzeitig 20 bis
+35 px auseinander. Eine Linie durfte sich also um das Drei- bis
+Fünffache ihres Abstands zur Nachbarin verschieben; dass sie sich
+kreuzten, war keine Panne, sondern die Rechnung. Aus derselben Toleranz
+kam der erste Punkt: Was Chaikin danach rundete, waren zwei oder drei
+Stützpunkte.
+
+Drei Änderungen:
+
+- **`contourSimplifyPixels = 1.5`** statt fester Zellen. Die Toleranz
+  ist damit mehr als eine Größenordnung kleiner als die 20 px, die
+  `contourMinLineSpacingPixels` zwischen zwei Linien garantiert.
+  `test/elevation_contours_test.dart` prüft an einem Kegel, dass sich
+  keine zwei Nachbarstufen schneiden — mit der alten Toleranz kreuzt
+  dort Stufe 100 die Stufe 120.
+- **Die Längenregel läuft nur noch einmal**, vor der Vereinfachung und
+  in Pixeln (`contourMinLinePixels / pixelsPerCell`). Vorher filterten
+  zwei Regeln dasselbe: eine in Pixeln und die feste `minChainCells = 6`
+  der Maschine — letztere warf nah dran jeden Ring unter 320 px weg,
+  also genau die Kuppen und Mulden, für die man hineinzoomt.
+- **Chaikin rundet geschlossene Ringe zyklisch.** Vorher blieben erster
+  und letzter Punkt stehen; bei einem Ring ist das derselbe Punkt, und
+  er behielt als einziger seine Ecke. Gemessen am Testhügel: 45° an der
+  Naht gegen 14° an der schärfsten anderen Ecke, jetzt 14° zu 14°.
+
+**Und das Abtastraster hängt am Gitter statt am Fenster.** Bis 1.99.0
+wurde die Fensterspanne in `cols` gleiche Teile geteilt. Plante
+`planFillWindow` beim Schieben ein neues Fenster, lag das Raster
+woanders, jeder Punkt traf über `hexNearestCell` eine andere Wabe — und
+die Linien würfelten sich neu. Jetzt ist der Schritt ein ganzzahliges
+Vielfaches der Wabenweite und der Ursprung auf das Gitter gerastet
+(`contourSampleLattice`). Der ganzzahlige Faktor ist bis etwa 120 m je
+Pixel gleich 1 und am Riegel 3.
+
+**Das allein reichte nicht — die zweite Hälfte saß auf den
+Wabengrenzen.** Ein Hexgitter in odd-r-Anordnung hat seine Mittelpunkte
+in GERADEN Zeilen bei `hx + 0,5` und in UNGERADEN bei `hx + 1,0`. Eine
+Probe in der Zellmitte liegt bei `i + 0,5`: in geraden Zeilen genau auf
+einem Mittelpunkt, in ungeraden genau ZWISCHEN zweien. Dort entschied
+das letzte Bit der Fließkommarechnung, welche Wabe gewinnt — und
+dasselbe Fenster einen Meter weiter westlich entschied anders.
+
+Gemessen an zwei Fenstern über Berchtesgaden, um 0,37 Waben
+gegeneinander versetzt (Zwischenstand mit gerastertem Ursprung, aber
+ohne Versatz):
+
+| | gemeinsame Proben | davon verschieden | Linien im Kern |
+|---|---|---|---|
+| nur Ursprung gerastet | 495 | **69** (bis 180 m) | im Mittel 7,1 px auseinander |
+| mit Viertelschritt | 495 | **0** | **0,00 px** — Punkt für Punkt gleich |
+
+`_hexSampleOffset = 0.25` rückt das Raster deshalb um einen
+Viertelschritt gegen das Hexgitter. Der Abstand zur zweitnächsten Wabe
+beträgt damit in JEDER Zeilensorte ein halbes Raster — rund 135 m statt
+eines Ulps. Beim Schieben wandert das Bild seither, statt sich neu
+auszuwürfeln.
+
+Neu gemessen (Debug-VM, echtes Höhengitter, 412-dp-Schirm):
+
+| Lage | m/px | Relief je px | Äquidistanz | Linien | Punkte | ms |
+|---|---|---|---|---|---|---|
+| Alpen (Innsbruck) | 2 | 0,82 m | 20 m | 69 | 1 860 | 12 |
+| Alpen (Innsbruck) | 10 | 2,51 m | 50 m | 112 | 8 463 | 10 |
+| Alpen (Innsbruck) | 25 | 7,44 m | 200 m | 90 | 11 173 | 14 |
+| Alpen (Innsbruck) | 50 | 14,43 m | — | 0 | 0 | 18 |
+| Mittelgebirge (Sauerland) | 25 | 2,11 m | 50 m | 163 | 14 577 | 8 |
+| Mittelgebirge (Sauerland) | 100 | 4,94 m | 100 m | 234 | 29 665 | 73 |
+| Hochwald (Saarland) | 50 | 2,77 m | 100 m | 116 | 13 473 | 24 |
+| Flachland (Heide) | 200 | 1,98 m | 50 m | 259 | 18 944 | 68 |
+
+Die Punktzahl steigt deutlich — im Sauerland bei 100 m je Pixel von
+12 860 auf 29 665 —, das ist die Genauigkeit, die vorher weggeworfen
+wurde. Die **Rechenzeit fällt trotzdem**, von 150 auf 77 ms im
+teuersten Fall: Das gerasterte Abtastraster vergröbert weit draußen über
+den ganzzahligen Faktor, statt das Budget mit gestreckten Zellen
+vollzuschreiben. Die Punktschranke (60 000) greift nirgends mehr.

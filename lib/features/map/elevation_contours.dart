@@ -71,6 +71,26 @@ const contourMinLinePixels = 40.0;
 /// ungewöhnlich viel Struktur auf einmal zeigen.
 const contourPointBudget = 60000;
 
+/// Wie weit die Vereinfachung eine Linie von ihrem Verlauf abbringen
+/// darf — in BILDSCHIRMPIXELN.
+///
+/// **Die Zahl, die 1.99.0 die Linien kreuzen ließ**, stand als
+/// „2 Gitterzellen" in [contourLines]. Eine Zelle ist beim Herauszoomen
+/// ein Pixel und beim Hineinzoomen ein halber Schirm: Am Gerät
+/// gemessen (2026-08-21, Alpen bei 300 m Maßstab) war eine Wabe 55 px,
+/// die Toleranz also 110 px — während zwei Nachbarlinien dort 20 bis
+/// 35 px auseinanderlagen. Eine Linie durfte sich um ein Vielfaches
+/// ihres Abstands zur Nachbarin verschieben; dass sie sich kreuzten,
+/// war keine Panne, sondern die Rechnung. Aus derselben Toleranz kam
+/// die zweite Beschwerde: Was Chaikin danach rundete, waren zwei oder
+/// drei Stützpunkte.
+///
+/// 1,5 px ist mehr als eine Größenordnung unter den 20 px, die
+/// [contourMinLineSpacingPixels] zwischen zwei Linien garantiert.
+/// Kreuzen können sie sich damit nicht mehr — und genau das prüft
+/// `test/elevation_contours_test.dart`.
+const contourSimplifyPixels = 1.5;
+
 /// Ab wie vielen Bildschirmpixeln Abstand zwei Nachbarlinien noch als
 /// zwei Linien lesbar sind.
 ///
@@ -113,23 +133,124 @@ double groundResolution(MapViewBounds bounds, double widthPixels) {
 /// ist.
 const contourMaxMetersPerPixel = 270.0;
 
-/// Wie viele Abtastpunkte das Fenster bekommt.
+/// Das Abtastraster eines Fensters: Ursprung, Schrittweite, Maße.
+///
+/// Der Ursprung ist die NORDWEST-Ecke der ersten Abtastzelle; die Probe
+/// selbst sitzt in deren Mitte, also bei `+0,5` — dieselbe Verabredung,
+/// die [contourLines] beim Umrechnen in Grad trifft.
+typedef ContourLattice = ({
+  double west,
+  double north,
+  double lonStep,
+  double latStep,
+  int cols,
+  int rows,
+  int factor,
+});
+
+/// Wie viele Abtastpunkte das Fenster bekommt — und in welchem Raster.
 ///
 /// **Höchstens einer je Wabe.** Feiner wüssten wir es nicht — eine
 /// höhere Abtastung bläst jede Wabe zu einem Block gleicher Werte auf,
 /// und Marching Squares zeichnet daraufhin die Wabenkanten als Terrassen
 /// in die Linie. Das sähe nach einem Fehler aus und wäre einer.
-({int cols, int rows}) contourSampleCounts({
+///
+/// **Und das Raster hängt am GITTER, nicht am Fenster** (seit 1.99.1).
+/// Bis dahin wurde die Fensterspanne in `cols` gleiche Teile geteilt:
+/// Beim Schieben plante `planFillWindow` ein neues Fenster, das Raster
+/// lag woanders, jeder Punkt traf über `hexNearestCell` eine andere
+/// Wabe — und die Linien würfelten sich neu (Befund des Betreibers am
+/// Gerät, 2026-08-21: „sie bewegen/verändern sich auch wenn man
+/// verschiebt"). Der Schritt ist deshalb ein Vielfaches der Wabenweite,
+/// und der Ursprung liegt auf dem Gitter, siehe [resampleElevation].
+/// Dieselbe Geografie liefert damit immer dieselben Proben.
+ContourLattice contourSampleLattice({
   required FillWindow window,
+  required double gridWest,
+  required double gridNorth,
   required double hexLonStep,
   required double hexLatStep,
   int budget = contourSampleBudget,
 }) {
-  final cols = ((window.east - window.west) / hexLonStep).round();
-  final rows = ((window.north - window.south) / hexLatStep).round();
+  final factor = _sampleFactor(
+    window: window,
+    hexLonStep: hexLonStep,
+    hexLatStep: hexLatStep,
+    budget: budget,
+  );
+  final lonStep = hexLonStep * factor;
+  final latStep = hexLatStep * factor;
+  // Der Ursprung rastet auf dem Gitter ein — DAS ist der ganze Trick:
+  // Er hängt nur an `gridWest`/`gridNorth` und der Schrittweite, nicht
+  // am Fenster. Zwei Fenster über derselben Gegend tasten deshalb
+  // dieselben Punkte ab.
+  final west = gridWest +
+      (((window.west - gridWest) / lonStep).floor() - _hexSampleOffset) *
+          lonStep;
+  final north =
+      gridNorth - ((gridNorth - window.north) / latStep).floor() * latStep;
+  // Das Epsilon fängt die Fließkomma-Kante: Liegt der Fensterrand
+  // GENAU auf einer Rasterlinie, kommt aus der Division schon mal
+  // 3,0000000000000004 heraus, und `ceil` hängt eine ganze Zeile
+  // Nichtdaten an. Ein Milliardstel einer Wabe sind 0,27 µm.
+  final cols = math.max(2, ((window.east - west) / lonStep - 1e-9).ceil());
+  final rows = math.max(2, ((north - window.south) / latStep - 1e-9).ceil());
   return (
-    cols: cols.clamp(2, budget),
-    rows: rows.clamp(2, budget),
+    west: west,
+    north: north,
+    lonStep: lonStep,
+    latStep: latStep,
+    cols: cols,
+    rows: rows,
+    factor: factor,
+  );
+}
+
+/// Der Viertelschritt, um den das Raster gegen das Hexgitter versetzt
+/// liegt — und ohne den die Linien beim Schieben zittern.
+///
+/// **Warum es ihn braucht:** Ein Hexgitter in odd-r-Anordnung hat seine
+/// Mittelpunkte in GERADEN Zeilen bei `hx + 0,5` und in UNGERADEN bei
+/// `hx + 1,0` (`hexNearestCell`). Eine Probe in der Zellmitte liegt bei
+/// `i + 0,5` — in geraden Zeilen also genau auf einem Mittelpunkt, in
+/// ungeraden aber genau ZWISCHEN zweien. Dort entscheidet das letzte
+/// Bit der Fließkommarechnung, welche Wabe gewinnt, und dasselbe
+/// Fenster einen Meter weiter westlich entscheidet anders: 69 von 495
+/// Proben wichen so voneinander ab, mit bis zu 180 m Höhenunterschied
+/// (nachgemessen 2026-08-21).
+///
+/// Ein Viertelschritt Versatz nimmt beiden Zeilensorten die
+/// Zweideutigkeit: Der Abstand zur zweitnächsten Wabe beträgt dann in
+/// jeder Zeile ein halbes Raster — rund 135 m statt eines Ulps.
+const _hexSampleOffset = 0.25;
+
+/// Um wie viele Waben das Abtastraster weiterrückt — normalerweise 1.
+///
+/// Ein GANZZAHLIGER Faktor, damit das gröbere Raster ein Teilraster des
+/// feinen bleibt: Sonst verschöbe sich beim Wechsel alles, statt nur
+/// dünner zu werden. Nachgerechnet am echten Gitter: Bis etwa 120 m je
+/// Pixel ist er 1, am Riegel [contourMaxMetersPerPixel] braucht die
+/// Höhe rund 1700 Proben und das Budget gibt 768 — dort also 3.
+///
+/// Er hängt an der Fensterspanne und damit am Zoom, nicht am Schieben.
+/// **Eine Ecke bleibt:** Am Rand von DACH beschneidet `planFillWindow`
+/// das Fenster, die Spanne wird kleiner, und der Faktor kann dort um
+/// eins fallen — dann rechnen sich die Linien beim Schieben über diese
+/// Kante einmal neu. Das ist ein Sonderfall am Datenrand und keine
+/// Sonderbehandlung wert.
+int _sampleFactor({
+  required FillWindow window,
+  required double hexLonStep,
+  required double hexLatStep,
+  required int budget,
+}) {
+  final cols = ((window.east - window.west) / hexLonStep).ceil() + 1;
+  final rows = ((window.north - window.south) / hexLatStep).ceil() + 1;
+  // Das +1 oben ist der schlimmste Fall: Ein Fenster, das nirgends auf
+  // dem Raster einrastet, braucht eine Probe mehr als seine Spanne.
+  return math.max(
+    1,
+    math.max((cols / budget).ceil(), (rows / budget).ceil()),
   );
 }
 
@@ -144,9 +265,9 @@ class ContourField {
     required this.cols,
     required this.rows,
     required this.west,
-    required this.east,
     required this.north,
-    required this.south,
+    required this.lonStep,
+    required this.latStep,
   });
 
   /// `cols * rows` Höhen in Metern, zeilenweise von Nord nach Süd;
@@ -154,17 +275,32 @@ class ContourField {
   final Int32List values;
   final int cols;
   final int rows;
+
+  /// Die NORDWEST-Ecke der ersten Abtastzelle.
   final double west;
-  final double east;
   final double north;
-  final double south;
+
+  /// Der Abstand zweier Proben in Grad — ein Vielfaches der Wabenweite
+  /// des Höhengitters, siehe [contourSampleLattice].
+  ///
+  /// **Als Schrittweite gespeichert und nicht als Ostkante**, damit
+  /// [lonAtColumn] Bit für Bit dieselbe Rechnung macht wie die
+  /// Abtastung selbst. Über eine Spanne geteilt durch `cols` kamen
+  /// Bruchteile eines Ulps Unterschied heraus — genug, damit ein Punkt
+  /// genau auf einer Wabengrenze mal in die eine und mal in die andere
+  /// Wabe fällt.
+  final double lonStep;
+  final double latStep;
+
+  double get east => west + lonStep * cols;
+  double get south => north - latStep * rows;
 
   /// Breite einer Gitterzeile — Zellmitte bei `row + 0,5`, genau die
   /// Rechnung, die [contourLines] selbst dazutut.
-  double latAtRow(double row) => north - (north - south) * row / rows;
+  double latAtRow(double row) => north - latStep * row;
 
   /// Länge einer Gitterspalte, dieselbe Verabredung.
-  double lonAtColumn(double column) => west + (east - west) * column / cols;
+  double lonAtColumn(double column) => west + lonStep * column;
 
   /// Die kleinste und größte Höhe im Feld — `null`, wenn es nur
   /// Nichtdaten enthält.
@@ -196,23 +332,36 @@ ContourField resampleElevation(
   int budget = contourSampleBudget,
   bool smooth = true,
 }) {
-  final counts = contourSampleCounts(
+  final lattice = contourSampleLattice(
     window: window,
+    gridWest: grid.west,
+    gridNorth: grid.north,
     hexLonStep: grid.hexLonStep,
     hexLatStep: grid.hexLatStep,
     budget: budget,
   );
-  final cols = counts.cols;
-  final rows = counts.rows;
+  final cols = lattice.cols;
+  final rows = lattice.rows;
   final raw = Int32List(cols * rows);
-  final lonSpan = window.east - window.west;
-  final latSpan = window.north - window.south;
+  // Die Abtastpunkte kommen aus DEMSELBEN Ausdruck, den `ContourField`
+  // später für seine Koordinaten benutzt — sonst fällt ein Punkt auf
+  // einer Wabengrenze beim Abtasten in die eine und beim Nachrechnen in
+  // die andere Wabe.
+  final field = ContourField(
+    values: raw,
+    cols: cols,
+    rows: rows,
+    west: lattice.west,
+    north: lattice.north,
+    lonStep: lattice.lonStep,
+    latStep: lattice.latStep,
+  );
   for (var y = 0; y < rows; y++) {
-    final lat = window.north - latSpan * (y + 0.5) / rows;
+    final lat = field.latAtRow(y + 0.5);
     final v = (grid.north - lat) / grid.hexLatStep;
     final row = y * cols;
     for (var x = 0; x < cols; x++) {
-      final lon = window.west + lonSpan * (x + 0.5) / cols;
+      final lon = field.lonAtColumn(x + 0.5);
       if (lat > grid.north ||
           lat < grid.south ||
           lon < grid.west ||
@@ -235,16 +384,15 @@ ContourField resampleElevation(
           byte == elevationNoData ? contourNoData : byte * elevationQuantM;
     }
   }
+  if (!smooth) return field;
   return ContourField(
-    values: smooth
-        ? smooth3x3(raw, width: cols, height: rows, noData: contourNoData)
-        : raw,
+    values: smooth3x3(raw, width: cols, height: rows, noData: contourNoData),
     cols: cols,
     rows: rows,
-    west: window.west,
-    east: window.east,
-    north: window.north,
-    south: window.south,
+    west: lattice.west,
+    north: lattice.north,
+    lonStep: lattice.lonStep,
+    latStep: lattice.latStep,
   );
 }
 
@@ -490,17 +638,21 @@ ElevationContours? contourLinesFor(
   double minLinePixels = contourMinLinePixels,
   double minSpacingPixels = contourMinLineSpacingPixels,
   double maxMetersPerPixel = contourMaxMetersPerPixel,
+  double simplifyPixels = contourSimplifyPixels,
 }) {
   if (metersPerPixel > maxMetersPerPixel) return null;
   final field =
       resampleElevation(grid, window: window, budget: sampleBudget);
 
-  // Pixel je Abtastzelle — daraus die Mindestlänge einer Linie UND das
-  // Relief je Pixel.
-  final metersPerCell =
-      (window.east - window.west) * 111320 * _cosLat(window) / field.cols;
+  // Pixel je Abtastzelle — die Umrechnung, an der ALLE Schwellen dieser
+  // Funktion hängen. Gerechnet wird auf dem Feld, nicht auf dem
+  // Fenster: Seit die Abtastung aufs Gitter gerastert ist, decken sich
+  // beide nicht mehr genau.
+  final metersPerCell = (field.east - field.west) *
+      111320 *
+      math.cos((field.north + field.south) / 2 * math.pi / 180) /
+      field.cols;
   final pixelsPerCell = metersPerCell / metersPerPixel;
-  final minCells = minLinePixels / pixelsPerCell;
 
   final relief = reliefPerPixel(field, pixelsPerCell: pixelsPerCell);
   if (relief == null) return null;
@@ -508,19 +660,32 @@ ElevationContours? contourLinesFor(
       reliefPerPixel: relief, minSpacingPixels: minSpacingPixels);
   if (equidistance == null) return null;
 
-  List<ContourLine> draw(int step) => [
-        for (final line in contourLines(
-          values: field.values,
-          width: field.cols,
-          height: field.rows,
-          noData: contourNoData,
-          levels: levelsIn(field, step),
-          latAtRow: field.latAtRow,
-          lonAtColumn: field.lonAtColumn,
-          isIndex: (level) => level % contourIndexStepM(step) == 0,
-        ))
-          if (line.cells >= minCells) line,
-      ];
+  // **Die beiden Schwellen der Maschine, in Pixeln gerechnet.** Sie
+  // sind dort in Gitterzellen formuliert, und eine Zelle ist beim
+  // Herauszoomen ein Pixel und beim Hineinzoomen ein halber Schirm —
+  // eine feste Zahl in Zellen ist damit dort am schärfsten, wo sie am
+  // wenigsten darf.
+  final tolerance = simplifyPixels / pixelsPerCell;
+  // Die Längenregel läuft VOR der Vereinfachung, wo sie billiger ist —
+  // und sie ist damit die EINZIGE: Bis 1.99.0 filterte hier zusätzlich
+  // `line.cells >= minLinePixels / pixelsPerCell` dasselbe noch einmal
+  // nach, während die Maschine mit ihren festen 6 Zellen nah dran jeden
+  // Ring unter 320 px wegwarf — also genau die Kuppen und Mulden, für
+  // die man hineinzoomt.
+  final minChain = math.max(2, (minLinePixels / pixelsPerCell).round());
+
+  List<ContourLine> draw(int step) => contourLines(
+        values: field.values,
+        width: field.cols,
+        height: field.rows,
+        noData: contourNoData,
+        levels: levelsIn(field, step),
+        latAtRow: field.latAtRow,
+        lonAtColumn: field.lonAtColumn,
+        toleranceCells: tolerance,
+        minChainCells: minChain,
+        isIndex: (level) => level % contourIndexStepM(step) == 0,
+      );
 
   var lines = draw(equidistance);
   var points = 0;
@@ -547,11 +712,6 @@ ElevationContours? contourLinesFor(
   );
 }
 
-/// Kosinus der mittleren Fensterbreite — für „Grad in Meter". Über die
-/// Höhe eines Sichtfensters ändert er sich um Bruchteile eines
-/// Prozents; die Mitte reicht.
-double _cosLat(FillWindow window) =>
-    math.cos((window.north + window.south) / 2 * math.pi / 180);
 
 /// Die Linien als GeoJSON-FeatureCollection, für die MapLibre-Seite.
 ///
