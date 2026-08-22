@@ -9,9 +9,9 @@ eintragen und Spots mit Freunden teilen.
 
 ## Screenshots
 
-| Karte mit Spots | Spot-Detail | Freunde | Statistik | Live-Standort |
-|---|---|---|---|---|
-| <img src="store/screenshots/01-karte.png" width="170" alt="Karte mit Pilz-Markern"> | <img src="store/screenshots/02-spot-detail.png" width="170" alt="Spot-Detail mit Fundhistorie"> | <img src="store/screenshots/03-freunde.png" width="170" alt="Freundesliste"> | <img src="store/screenshots/04-statistik.png" width="170" alt="Statistik mit Funden pro Jahr"> | <img src="store/screenshots/05-live-standort.png" width="170" alt="Geteilter Live-Standort"> |
+| Spots mit Arten | Wald + Pilzwetter | Spot-Detail | Freunde | Statistik | Live-Standort |
+|---|---|---|---|---|---|
+| <img src="store/screenshots/01-karte-spots.png" width="140" alt="Karte mit Spots verschiedener Pilzarten"> | <img src="store/screenshots/02-karte-pilzwetter.png" width="140" alt="Wald- und Pilzwetter-Ebene mit Legende"> | <img src="store/screenshots/03-spot-detail.png" width="140" alt="Spot-Detail mit Fundhistorie"> | <img src="store/screenshots/04-freunde.png" width="140" alt="Freundesliste"> | <img src="store/screenshots/05-statistik.png" width="140" alt="Statistik mit Funden pro Jahr"> | <img src="store/screenshots/06-live-standort.png" width="140" alt="Geteilter Live-Standort"> |
 
 ## Funktionen
 

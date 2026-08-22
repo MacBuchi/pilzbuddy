@@ -313,7 +313,7 @@ Erzeugen lassen sie sich neu nach `store/README.md`.
 |---|---|---|
 | App-Icon | `store/icon-512.png` | 512 × 512 PNG, 32 Bit ✓ |
 | Feature-Grafik | `store/feature-graphic.png` | 1024 × 500 PNG ✓ |
-| Screenshots Telefon | `store/screenshots/01…05-*.png` | 5 × 1080 × 1920 (9:16) ✓ — Karte, Spot-Detail, Freunde, Statistik, Live-Standort |
+| Screenshots Telefon | `store/screenshots/01…06-*.png` | 6 × 1080 × 1920 (9:16) ✓ — Spots mit Arten, Wald + Pilzwetter, Spot-Detail, Freunde, Statistik, Live-Standort. Die Reihenfolge ist die Aussage: Das erste Bild zeigt Pilz-Spots, nicht die Datenebene |
 
 Screenshots ohne echte Fundorte aufnehmen (Testkonto), sonst stehen die eigenen
 Spots im Store.
