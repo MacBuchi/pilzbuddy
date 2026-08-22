@@ -41,8 +41,15 @@ Feature-Grafik mit — im Store stehen beide nebeneinander.
 | `02-karte-pilzwetter.png` | 1.96.0 | Karwendel bei 10 km, Wald + Pilzwetter mit Legende |
 | `03-spot-detail.png` | 1.96.0 | Spot-Detail mit Fundhistorie, Pilzwetter, Saisonkurve, Wald und Bäumen |
 | `04-freunde.png` | 1.26.0 | Freundesliste mit vier Buddies |
-| `05-statistik.png` | 1.26.0 | Spots/Funde/Mehrfach besucht, „Funde pro Jahr", Top-Arten |
-| `06-live-standort.png` | 1.26.0 | Live-Standort teilen (1/2/4 Stunden) |
+| `05-statistik.png` | 1.99.1 | Spots/Funde/Mehrfach besucht, „Funde pro Jahr", Top-Arten |
+| `06-live-standort.png` | 1.99.1 | Live-Standort teilen (1/2/4 Stunden) |
+
+`04-freunde.png` steht bewusst noch auf 1.26.0: Die Freundesliste lässt
+sich nur mit echten Buddy-Konten zeigen, und die Wegwerf-Konten von damals
+sind gelöscht. Neue anzulegen hieße vier Registrierungen samt Bestätigungs-
+mails — gegen ein Limit von 3/h, und die Codes liegen in Postfächern, auf
+die niemand hier Zugriff hat. Der Bildschirm selbst hat sich seit 1.26.0
+nicht verändert; das Bild ist also alt, aber nicht falsch.
 
 **Die Spalte „Stand" ist nicht Zierde.** `tool/screenshot_stand.py` liest sie
 und schreibt beim Befördern eines Releases in die Run-Summary, wie alt das
