@@ -573,10 +573,20 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
     flutter_map-Strecke gedrehte Marker aus `contourLabels`, weil der
     Canvas-Renderer keine Beschriftung entlang einer Linie kann. Beide
     Engines sollen dasselbe sagen.
-  - **Der FAB hat bewusst NICHT die Wald-Regel „kein Knopf ohne
-    Gitter"**: Sie zu befolgen hieße, `elevationGridProvider` im
-    Karten-Screen zu beobachten — und damit 3,4 MB bei jedem App-Start
-    auszupacken. Das Blatt sagt stattdessen, wenn das Gitter fehlt.
+  - **Kein `ref.watch` aufs Gitter am FAB** — beobachten IST laden, und
+    das hieße 3,4 MB bei jedem App-Start auszupacken. Das Blatt sagt
+    stattdessen, wenn das Gitter fehlt („kein Fehler ohne
+    Fehlermeldung"): ein Satz ist mehr als ein verschwundener Knopf.
+    **Seit 1.99.4 gilt das auch für den Wald-Knopf**, der bis dahin die
+    Regel „kein Knopf ohne Gitter" befolgte und dafür bei jedem Start
+    13,3 MB auspackte (136 ms gemessen). Der Wächter half dort nichts:
+    Ist das Gitter da, ist die Entscheidung längst gefallen, und falsch
+    werden konnte die Prüfung nur bei einem beschädigten APK. Die alte
+    Begründung („derselbe Provider, den die Karte ohnehin braucht")
+    stimmte seit #249 nicht mehr — Fläche und Blöcke steigen bei
+    ausgeschalteter Ebene aus, bevor sie das Gitter anfassen.
+    `test/flows/forest_layer_flow_test.dart` hält beides fest: dass der
+    Start nicht mehr lädt und dass das Blatt es sagt.
     Nebenbefund: Mit dem neunten Knopf lief die FAB-Spalte auf 520 px
     über; sie steckt seither in einem `FittedBox(scaleDown)`.
 - **Höhengitter & Temperaturkorrektur** (`tool/elevation_grid.py` +

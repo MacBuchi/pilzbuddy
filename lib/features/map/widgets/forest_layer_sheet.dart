@@ -26,7 +26,16 @@ class _ForestLayerSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final enabled = ref.watch(forestLayerEnabledProvider);
-    final grid = ref.watch(forestGridProvider).valueOrNull;
+    // Seit 1.99.4 wird das Gitter HIER zum ersten Mal angefasst, nicht
+    // mehr am FAB (Begründung dort). Wer das Blatt öffnet, will die
+    // Ebene; dafür darf es 13,3 MB kosten. Dieselbe Aufteilung wie beim
+    // Gelände-Blatt.
+    final gridAsync = ref.watch(forestGridProvider);
+    final grid = gridAsync.valueOrNull;
+    // `hasValue` und trotzdem `null`: Das Auspacken ist gelaufen und
+    // gescheitert. Ohne diese Unterscheidung sähe die Ladephase wie ein
+    // Fehler aus — und ein Fehler wie die Ladephase.
+    final missing = gridAsync.hasValue && grid == null;
     final theme = Theme.of(context);
 
     return SafeArea(
@@ -68,22 +77,32 @@ class _ForestLayerSheet extends ConsumerWidget {
                 children: [
                   SwitchListTile(
                     title: const Text('Waldtypen einblenden'),
+                    // Kein verschwundener Knopf, sondern ein Satz: Das
+                    // Waldgitter ist mitgeliefert, es fehlt also nur,
+                    // wenn beim Auspacken etwas schiefging.
+                    subtitle: missing
+                        ? const Text('Das Waldgitter lässt sich nicht '
+                            'laden — ohne es gibt es keine Waldtypen')
+                        : null,
                     // Seit #232 OHNE Regen-Abschaltung: Die Teil-Ebenen
                     // unten machen die Kombination lesbar — wer Regen
                     // über Wald will, lässt nur die Klasse stehen, die
                     // ihn interessiert.
-                    value: enabled,
-                    onChanged: (value) {
-                      ref.read(forestLayerEnabledProvider.notifier).state =
-                          value;
-                      // Die Ampel IST die Waldfläche in anderen Farben
-                      // — ohne Wald hätte sie nichts zu malen.
-                      if (!value) {
-                        ref
-                            .read(ampelLayerEnabledProvider.notifier)
-                            .state = false;
-                      }
-                    },
+                    value: enabled && !missing,
+                    onChanged: missing
+                        ? null
+                        : (value) {
+                            ref
+                                .read(forestLayerEnabledProvider.notifier)
+                                .state = value;
+                            // Die Ampel IST die Waldfläche in anderen
+                            // Farben — ohne Wald hätte sie nichts zu malen.
+                            if (!value) {
+                              ref
+                                  .read(ampelLayerEnabledProvider.notifier)
+                                  .state = false;
+                            }
+                          },
                   ),
                   if (enabled) ...[
                     const Divider(height: 16),

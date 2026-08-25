@@ -501,11 +501,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
     // die halbe Karte leuchtete (#278).
     final ampelActive = ref.watch(ampelLayerEnabledProvider);
     final forestActive = ref.watch(forestLayerEnabledProvider);
-    // Der Wald-FAB erscheint erst, wenn das Gitter geladen werden
-    // konnte — im Ladefenster (Bruchteil einer Sekunde) fehlt er kurz,
-    // das ist billiger als ein Knopf, der ins Leere führt.
-    final forestAvailable =
-        ref.watch(forestGridProvider).valueOrNull != null;
     final contourActive = ref.watch(contourLayerEnabledProvider);
     final longPressEnabled = ref.watch(mapLongPressEnabledProvider);
 
@@ -705,33 +700,51 @@ class _MapScreenState extends ConsumerState<MapScreen>
               ),
               const SizedBox(height: 12),
             ],
-            // Die Waldtypen-Ebene (#213) — nur wenn das Gitter da ist:
-            // Ein Knopf auf ein fehlendes Asset wäre ein Fehler ohne
-            // Fehlermeldung.
-            if (forestAvailable) ...[
-              FloatingActionButton.small(
-                heroTag: 'forest',
-                onPressed: () => showForestLayerSheet(context),
-                tooltip: 'Waldtypen',
-                backgroundColor:
-                    forestActive ? AppColors.forestMixed : null,
-                foregroundColor: forestActive ? Colors.white : null,
-                child:
-                    Icon(forestActive ? Icons.forest : Icons.forest_outlined),
-              ),
-              const SizedBox(height: 12),
-            ],
+            // Die Waldtypen-Ebene (#213) — wie die Höhenlinien darunter
+            // OHNE `ref.watch` aufs Gitter.
+            //
+            // Bis 1.99.3 hing der Knopf an `forestGridProvider`, und der
+            // Preis dafür war unsichtbar: Das Beobachten IST das Laden,
+            // also packte jeder App-Start 13,3 MB aus (gemessen 136 ms,
+            // `docs/map-performance.md`) — für eine Ebene, die die
+            // meisten nie einschalten. Der Wächter half dabei nichts:
+            // Wenn das Gitter da ist, ist die Entscheidung längst
+            // gefallen, und falsch werden konnte die Prüfung nur bei
+            // einem beschädigten APK.
+            //
+            // Die Begründung von damals („derselbe Provider, den die
+            // Karte ohnehin braucht") stimmte zuletzt nicht mehr: Seit
+            // #249 steigen Fläche und Blöcke bei ausgeschalteter Ebene
+            // aus, BEVOR sie das Gitter anfassen, und die Legende kürzt
+            // ihre `&&`-Kette vorher ab. Diese eine Zeile war die
+            // einzige, die es noch lud.
+            //
+            // Die Regel „kein Fehler ohne Fehlermeldung" hält trotzdem —
+            // sie steht jetzt im Blatt statt im Verschwinden des Knopfs.
+            FloatingActionButton.small(
+              heroTag: 'forest',
+              onPressed: () => showForestLayerSheet(context),
+              tooltip: 'Waldtypen',
+              backgroundColor: forestActive ? AppColors.forestMixed : null,
+              foregroundColor: forestActive ? Colors.white : null,
+              child: Icon(forestActive ? Icons.forest : Icons.forest_outlined),
+            ),
+            const SizedBox(height: 12),
             // Die Höhenlinien.
             //
-            // **Bewusst OHNE die Wald-Regel „kein Knopf ohne Gitter":**
-            // Sie zu befolgen hieße, hier `elevationGridProvider` zu
-            // beobachten — und damit das 3,4-MB-Höhengitter bei JEDEM
-            // App-Start auszupacken, für eine Ebene, die die meisten nie
-            // einschalten. Beim Wald ist der Preis derselbe Provider, den
-            // die Karte ohnehin braucht; hier wäre er neu. Die Regel
+            // **Ohne `ref.watch` aufs Gitter**, aus demselben Grund wie
+            // beim Wald darüber: Beobachten IST Laden, und das 3,4-MB-
+            // Höhengitter bei jedem App-Start auszupacken wäre teuer für
+            // eine Ebene, die die meisten nie einschalten. Die Regel
             // dahinter („kein Fehler ohne Fehlermeldung") hält trotzdem:
             // Lässt sich das Gitter nicht laden, sagt das Blatt es — und
             // ein Satz ist mehr als ein verschwundener Knopf.
+            //
+            // Bis 1.99.3 stand hier, beim Wald sei der Preis „derselbe
+            // Provider, den die Karte ohnehin braucht". Das stimmte
+            // zuletzt nicht mehr — seit #249 steigen Fläche und Blöcke
+            // bei ausgeschalteter Ebene aus, bevor sie das Gitter
+            // anfassen. Seither machen es beide Knöpfe gleich.
             FloatingActionButton.small(
               heroTag: 'terrain',
               onPressed: () => showTerrainLayerSheet(context),
