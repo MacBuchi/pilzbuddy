@@ -704,13 +704,24 @@ das mit einem Punkt. Die Bündelung ist die Vorbedingung für das
 Ampel-Banner aus #277 („beim Öffnen prüfen, ob eigene Spots günstig
 stehen"), das ohne sie knapp drei Sekunden gekostet hätte.
 
-### Nebenbefund, nicht behoben
+### Nebenbefund — behoben in 1.99.4
 
-Das **Waldgitter wird bei jedem App-Start ausgepackt** (136 ms, 13,3 MB),
-weil `map_screen.dart` `forestGridProvider` beobachtet, um über die
+Das **Waldgitter wurde bei jedem App-Start ausgepackt** (136 ms, 13,3 MB),
+weil `map_screen.dart` `forestGridProvider` beobachtete, um über die
 Sichtbarkeit des Wald-Knopfes zu entscheiden. Das Höhengitter tut das
-bewusst nicht (`CLAUDE.md`, Abschnitt Höhenlinien). Die Asymmetrie ist
-keine Zwischenspeicher-Frage, sondern die Regel „kein Knopf ohne Gitter" —
-sie aufzugeben hieße, einen Knopf zu zeigen, dessen Ebene vielleicht
-nicht kommt. Hier nur festgehalten, damit die nächste Messung nicht
-wieder bei null anfängt.
+bewusst nicht.
+
+Der Einwand des Betreibers traf: **Wenn das Gitter ausgepackt ist, ist
+die Entscheidung längst gefallen.** Falsch werden konnte die Prüfung nur
+bei einem beschädigten APK — der Preis wurde also immer bezahlt, der Nutzen
+trat nie ein. Und die Rechtfertigung im Code („derselbe Provider, den die
+Karte ohnehin braucht") stimmte seit #249 nicht mehr: `forestFillProvider`
+steigt bei `forestLayerEnabledProvider` aus, `forestBlockSetProvider` bei
+`forestFineEnabledProvider`, und die Legende kürzt ihre `&&`-Kette vorher
+ab. Diese eine Zeile war die letzte, die das Gitter noch lud.
+
+Seit 1.99.4 macht der Wald-Knopf es wie der Höhenlinien-Knopf: immer
+sichtbar, Gitter erst beim Öffnen des Blatts, und wenn es nicht kommt,
+sagt das Blatt es. Wer die Ebene nie einschaltet, zahlt die 136 ms und
+13,3 MB nicht mehr; wer sie einschaltet, wartet einmal beim ersten
+Tippen darauf.

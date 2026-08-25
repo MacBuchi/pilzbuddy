@@ -87,10 +87,11 @@ void main() {
 
   testWidgets('der Knopf ist immer da — auch ohne Gitter, dann sagt es das '
       'Blatt', (tester) async {
-    // Bewusst ANDERS als beim Wald: Ein `ref.watch` auf das Gitter im
-    // Karten-Screen packte 3,4 MB bei jedem App-Start aus. Die Regel
-    // „kein Fehler ohne Fehlermeldung" hält trotzdem — sie steht nur
-    // im Blatt statt im Verschwinden des Knopfs.
+    // Ein `ref.watch` auf das Gitter im Karten-Screen packte 3,4 MB bei
+    // jedem App-Start aus. Die Regel „kein Fehler ohne Fehlermeldung"
+    // hält trotzdem — sie steht nur im Blatt statt im Verschwinden des
+    // Knopfs. Seit 1.99.4 macht der Wald es genauso; vorher war dieser
+    // Knopf hier die Ausnahme.
     await pumpApp(tester, loggedInBackend(), extraOverrides: withGrid(null));
     expect(find.byTooltip('Höhenlinien'), findsOneWidget);
 

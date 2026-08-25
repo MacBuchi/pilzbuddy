@@ -329,16 +329,66 @@ void main() {
     expect(settings.forestFineEnabled, isFalse);
   });
 
-  testWidgets('Ohne Gitter fehlt alles still', (tester) async {
+  testWidgets('Der App-Start packt das Waldgitter NICHT aus (1.99.4)',
+      (tester) async {
+    // Der eigentliche Zweck des Umbaus, und die Zeile, die ihn hält.
+    // `ref.watch` auf einen FutureProvider IST das Laden — bis 1.99.3
+    // beobachtete der Karten-Screen `forestGridProvider`, nur um über
+    // die Sichtbarkeit des Knopfs zu entscheiden, und packte damit bei
+    // JEDEM Start 13,3 MB aus (136 ms gemessen, docs/map-performance.md).
+    // Für alle, die die Ebene nie einschalten, war das reine Arbeit.
+    var loads = 0;
+    final (backend, me) = loggedInBackend();
+    backend.addSpot(
+        ownerId: me.id, species: 'Steinpilz', foundOn: DateTime(2026, 7, 1));
+    await pumpApp(tester, backend, extraOverrides: [
+      forestGridLoaderProvider.overrideWithValue(() async {
+        loads++;
+        return testGrid();
+      }),
+    ]);
+
+    expect(loads, 0,
+        reason: 'die Karte darf das Gitter beim Start nicht anfassen');
+    expect(find.byTooltip('Waldtypen'), findsOneWidget,
+        reason: 'der Knopf steht trotzdem da');
+
+    // Erst das Blatt holt es — wer es öffnet, will die Ebene.
+    await tester.tap(find.byTooltip('Waldtypen'));
+    await settle(tester);
+    expect(loads, 1);
+  });
+
+  testWidgets('Ohne Gitter ist der Knopf trotzdem da — und das Blatt sagt es',
+      (tester) async {
+    // Bis 1.99.3 verschwand hier der Knopf. Das kostete jeden App-Start
+    // 13,3 MB, denn `ref.watch` auf das Gitter IST das Auspacken — und
+    // half nichts: Ist das Gitter da, ist die Entscheidung längst
+    // gefallen; falsch werden konnte die Prüfung nur bei einem
+    // beschädigten APK. Jetzt wie bei den Höhenlinien: Knopf zeigen,
+    // Blatt erklärt. Ein Satz ist mehr als ein verschwundener Knopf.
     final (backend, me) = loggedInBackend();
     backend.addSpot(
         ownerId: me.id, species: 'Steinpilz', foundOn: DateTime(2026, 7, 1));
     // Kein extraOverride: Die globale Naht liefert null.
     await pumpApp(tester, backend);
 
-    expect(find.byTooltip('Waldtypen'), findsNothing,
-        reason: 'ein Knopf auf ein fehlendes Asset wäre ein Fehler ohne '
-            'Fehlermeldung');
+    expect(find.byTooltip('Waldtypen'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Waldtypen'));
+    await settle(tester);
+    expect(find.textContaining('lässt sich nicht laden'), findsOneWidget);
+
+    // Und der Schalter lässt sich nicht anschalten: Er verspräche eine
+    // Ebene, die nicht kommen kann.
+    final switchTile = find.widgetWithText(SwitchListTile, 'Waldtypen einblenden');
+    expect(tester.widget<SwitchListTile>(switchTile).onChanged, isNull);
+    expect(tester.widget<SwitchListTile>(switchTile).value, isFalse);
+
+    // Blatt über die Modal-Fläche verwerfen (es hat keinen eigenen
+    // Schließen-Knopf), damit darunter der Spot erreichbar ist.
+    await tester.tapAt(const Offset(10, 10));
+    await settle(tester);
 
     await tester.tap(find.byTooltip('Pilz-Spot'));
     await settle(tester);
