@@ -87,20 +87,11 @@ class RainCourse {
 
 /// Liest denselben Punkt aus jedem Tag des Stapels.
 ///
-/// Nimmt die Tage **gepackt** und packt einen nach dem anderen aus. Das
-/// ist der Grund für diesen Zuschnitt: Alle vierzehn gleichzeitig
-/// auszupacken wären gut zehn Megabyte im Speicher für am Ende vierzehn
-/// Zahlen — in einer App mit Speicherdruck-Geschichte (#142/#151) kein
-/// vertretbarer Preis. So steht nie mehr als ein Tag entpackt da.
-///
-/// Jeder Tag fragt über [RainGrid.mmAt] selbst, statt Zeile und Spalte
-/// einmal auszurechnen und wiederzuverwenden: Das ist die eine Stelle,
-/// die weiß, dass die Zeile in Mercator liegt und nicht in Grad — zwei
-/// Wege dorthin wären zwei Wege, die auseinanderlaufen können.
-///
-/// Ein Tag, der sich nicht auspacken lässt, wird zu einem Tag ohne Wert
-/// statt zu einem Fehler. Eine kaputte Datei soll den Verlauf nicht
-/// mitnehmen; sie macht nur das Fenster, in dem sie liegt, ungültig.
+/// Der Weg des Spot-Blatts: ein Punkt, 26 Tage. Der Zuschnitt — Tage
+/// **gepackt** hereinnehmen und einen nach dem anderen auspacken —
+/// steckt in [rainCoursesFrom], das hier ist der Sonderfall mit genau
+/// einem Punkt. Beide Wege durch dieselbe Funktion, damit sie nicht
+/// auseinanderlaufen können.
 RainCourse rainCourseFrom(
   List<({DateTime date, List<int> gzipped})> days, {
   required int width,
@@ -111,31 +102,92 @@ RainCourse rainCourseFrom(
   required double south,
   required double lat,
   required double lon,
-}) {
-  final sorted = [...days]..sort((a, b) => a.date.compareTo(b.date));
-  return RainCourse([
-    for (final day in sorted)
-      RainDay(
-        date: day.date,
-        mm: _valueAt(day, width, height, west, east, north, south, lat, lon),
-      ),
-  ]);
-}
-
-int? _valueAt(({DateTime date, List<int> gzipped}) day, int width, int height,
-    double west, double east, double north, double south, double lat,
-    double lon) {
-  try {
-    return RainGrid.decode(
-      day.gzipped,
+}) =>
+    rainCoursesFrom(
+      days,
       width: width,
       height: height,
       west: west,
       east: east,
       north: north,
       south: south,
-      measured: day.date,
-    ).mmAt(lat, lon);
+      points: [(lat: lat, lon: lon)],
+    ).single;
+
+/// Dasselbe für MEHRERE Punkte — und zwar mit **einer** Dekodierung je
+/// Tag statt einer je Tag und Punkt.
+///
+/// Der Anlass, gemessen am 2026-08-23 (`test/perf_grid_decode_measure.dart`,
+/// Zahlen in `docs/map-performance.md`): Ein Tagesgitter sind 752 000
+/// Zellen, und [rainCourseFrom] packte für jeden Punkt alle 26 davon
+/// vollständig aus — um je Tag EIN Byte zu lesen. Neunzehn Spots waren
+/// damit 494 Dekodierungen für 494 gelesene Bytes, knapp drei Sekunden
+/// auf einem schnellen Rechner. So sind es 26 Dekodierungen, unabhängig
+/// von der Zahl der Punkte.
+///
+/// **Die Speicher-Eigenschaft des Einzelwegs bleibt erhalten**, und das
+/// ist keine Nebensache: Es steht weiterhin nie mehr als EIN Tag
+/// entpackt da (752 KB), weil die Schleife über die Tage außen liegt und
+/// die Punkte innen. Alle 26 gleichzeitig wären 18 MB — in einer App mit
+/// Speicherdruck-Geschichte (#142/#151) kein vertretbarer Preis, und
+/// genau deshalb ist die Reihenfolge der beiden Schleifen hier eine
+/// Aussage und kein Zufall.
+///
+/// Dieselbe Bauform benutzt die Ampel-Fläche längst
+/// (`ampel_fill.dart`): je Tag einmal dekodieren, daraus alle Zellen
+/// abtasten. Der Spot-Weg war der einzige, der ihr nicht folgte.
+///
+/// Die Reihenfolge der Rückgabe entspricht der von [points].
+List<RainCourse> rainCoursesFrom(
+  List<({DateTime date, List<int> gzipped})> days, {
+  required int width,
+  required int height,
+  required double west,
+  required double east,
+  required double north,
+  required double south,
+  required List<({double lat, double lon})> points,
+}) {
+  final sorted = [...days]..sort((a, b) => a.date.compareTo(b.date));
+  final perPoint = [for (final _ in points) <RainDay>[]];
+
+  for (final day in sorted) {
+    // Ein Tag, der sich nicht auspacken lässt, wird zu einem Tag ohne
+    // Wert statt zu einem Fehler. Eine kaputte Datei soll den Verlauf
+    // nicht mitnehmen; sie macht nur das Fenster, in dem sie liegt,
+    // ungültig — und zwar für alle Punkte gleichermaßen.
+    RainGrid? grid;
+    try {
+      grid = RainGrid.decode(
+        day.gzipped,
+        width: width,
+        height: height,
+        west: west,
+        east: east,
+        north: north,
+        south: south,
+        measured: day.date,
+      );
+    } catch (_) {
+      grid = null;
+    }
+
+    for (var i = 0; i < points.length; i++) {
+      perPoint[i].add(RainDay(date: day.date, mm: _valueAt(grid, points[i])));
+    }
+  }
+
+  return [for (final days in perPoint) RainCourse(days)];
+}
+
+/// Jeder Punkt fragt über [RainGrid.mmAt] selbst, statt Zeile und Spalte
+/// einmal auszurechnen und wiederzuverwenden: Das ist die eine Stelle,
+/// die weiß, dass die Zeile in Mercator liegt und nicht in Grad — zwei
+/// Wege dorthin wären zwei Wege, die auseinanderlaufen können.
+int? _valueAt(RainGrid? grid, ({double lat, double lon}) at) {
+  if (grid == null) return null;
+  try {
+    return grid.mmAt(at.lat, at.lon);
   } catch (_) {
     return null;
   }

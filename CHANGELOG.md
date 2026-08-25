@@ -9,7 +9,7 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## „Code ist unterwegs" — und dann kam keiner
 
-*22. August 2026 · Version 1.99.2*
+*22. August 2026 · Version 1.99.2 · 1.99.3: nur Innenausbau, nichts Sichtbares*
 
 Beim Zurücksetzen des Passworts gibt es unter der Code-Eingabe den Knopf
 „Code nicht angekommen? Erneut senden". Stand das E-Mail-Feld darüber
