@@ -641,3 +641,76 @@ wurde. Die **Rechenzeit fällt trotzdem**, von 150 auf 77 ms im
 teuersten Fall: Das gerasterte Abtastraster vergröbert weit draußen über
 den ganzzahligen Faktor, statt das Budget mit gestreckten Zellen
 vollzuschreiben. Die Punktschranke (60 000) greift nirgends mehr.
+
+## Nachtrag 2026-08-23: Was das Auspacken kostet — und der Regenverlauf für mehrere Punkte (1.99.3)
+
+Anlass war eine Frage des Betreibers: Ob die ausgepackten Gitter nicht in
+einem Zwischenspeicher liegen könnten, Höhendaten ändern sich schließlich
+nicht. Die Frage ließ sich nicht beantworten, weil **die Zahl fehlte**:
+Diese Seite dokumentierte immer nur Größen („3,4 MB", „13,6 MB") und die
+Rechnung *danach*. Wie lange gunzip und Zeilen-Delta selbst dauern, stand
+nirgends.
+
+Gemessen mit `test/perf_grid_decode_measure.dart` (MacBook, Debug-VM —
+ein Telefon ist mehrfach langsamer; die Verhältnisse zählen, nicht die
+absoluten Zahlen):
+
+| | gepackt | ausgepackt | Median |
+|---|---|---|---|
+| Höhengitter | 3,3 MB | 13,3 MB | 127 ms |
+| Waldgitter | 5,8 MB | 13,3 MB | 136 ms |
+| Baumarten-Gitter | 2,0 MB | 13,3 MB | 175 ms |
+| Regenverlauf, ein Spot (26 Tage) | 712 KB | 18,6 MB | 153 ms |
+
+**Ein Platten-Zwischenspeicher für ausgepackte Gitter lohnt nicht.** Er
+spart 127–175 ms, kostet dafür 13,3 MB Platte je Gitter — und das
+Zurücklesen dieser 13,3 MB ist auf einem Telefon selbst nicht umsonst.
+Mobile Daten spart er gar keine: Alle drei Gitter sind **Assets im APK**,
+sie werden nie heruntergeladen. Dazu ist das Höhengitter ohnehin faul —
+es wird nur ausgepackt, wenn jemand das Gelände-Blatt oder die
+Höhenlinien öffnet.
+
+**Für die Regendaten gibt es den Zwischenspeicher längst.**
+`loadDailyStack` prüft je Tag `file.exists()` und lädt nur die fehlenden;
+`_pruneStack` löscht die Tage, die das Manifest nicht mehr führt. Ein
+App-Start kostet damit **28 KB** — den neuen Tag —, nicht die 713 KB des
+ganzen Stapels.
+
+### Der eigentliche Fund: 494 Dekodierungen für 494 Bytes
+
+`rainCourseFrom` dekodierte ein **vollständiges Tagesgitter (752 000
+Zellen), um daraus eine einzige Zelle zu lesen** — mal 26 Tage, mal Zahl
+der Punkte. Für das Spot-Blatt ist das richtig und unauffällig (ein
+Punkt, 153 ms, im Isolate). Für „alle eigenen Spots auf einmal" wächst es
+linear mit:
+
+| 19 Spots | Dekodierungen | Zeit |
+|---|--:|--:|
+| einzeln (bis 1.99.2) | 494 | 2926 ms |
+| gebündelt (ab 1.99.3) | 26 | 150 ms |
+
+**Faktor 19,5.** `rainCoursesFrom` dreht die Schleifen um: Tage außen,
+Punkte innen. Damit fällt je Tag genau eine Dekodierung an, unabhängig
+von der Zahl der Punkte — und die Speicher-Eigenschaft des alten Wegs
+bleibt erhalten, weil weiterhin **nie mehr als ein Tag entpackt dasteht**
+(752 KB statt 18,6 MB für alle 26). Genau diese Reihenfolge benutzt die
+Ampel-Fläche in `ampel_fill.dart` längst; der Spot-Weg war der einzige,
+der ihr nicht folgte. `rainCourseFrom` ist seither der Sonderfall mit
+einem Punkt und läuft durch dieselbe Funktion — zwei Wege wären zwei
+Wege, die auseinanderlaufen können.
+
+Sichtbar ändert sich damit nichts: Heute fragt nur das Spot-Blatt, und
+das mit einem Punkt. Die Bündelung ist die Vorbedingung für das
+Ampel-Banner aus #277 („beim Öffnen prüfen, ob eigene Spots günstig
+stehen"), das ohne sie knapp drei Sekunden gekostet hätte.
+
+### Nebenbefund, nicht behoben
+
+Das **Waldgitter wird bei jedem App-Start ausgepackt** (136 ms, 13,3 MB),
+weil `map_screen.dart` `forestGridProvider` beobachtet, um über die
+Sichtbarkeit des Wald-Knopfes zu entscheiden. Das Höhengitter tut das
+bewusst nicht (`CLAUDE.md`, Abschnitt Höhenlinien). Die Asymmetrie ist
+keine Zwischenspeicher-Frage, sondern die Regel „kein Knopf ohne Gitter" —
+sie aufzugeben hieße, einen Knopf zu zeigen, dessen Ebene vielleicht
+nicht kommt. Hier nur festgehalten, damit die nächste Messung nicht
+wieder bei null anfängt.

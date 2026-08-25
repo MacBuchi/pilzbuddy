@@ -37,6 +37,110 @@ void main() {
         lon: lon,
       );
 
+  group('Mehrere Punkte in einem Durchgang (#277-Vorarbeit)', () {
+    // Der Anlass: rainCourseFrom packte je Punkt ALLE Tage vollständig
+    // aus, um je Tag ein Byte zu lesen. Gemessen am 2026-08-23 waren 19
+    // Spots damit 494 Dekodierungen und knapp drei Sekunden
+    // (docs/map-performance.md). Gebündelt sind es 26.
+
+    test('liefert Punkt für Punkt dasselbe wie der Einzelweg', () {
+      // Die eigentliche Zusicherung: Der schnelle Weg darf nichts
+      // anderes ausrechnen als der langsame. Linke Zelle bei 11 Grad,
+      // rechte bei 13 — zwei Punkte, die verschiedene Zellen treffen.
+      final stack = [
+        for (final (index, mm) in [(0, 5), (1, 9), (2, 0)].indexed)
+          (
+            date: DateTime.utc(2026, 7, 21).add(Duration(days: index)),
+            gzipped: encode([
+              [mm.$1, mm.$2]
+            ]),
+          ),
+      ];
+      const points = [(lat: 51.0, lon: 11.0), (lat: 51.0, lon: 13.0)];
+
+      final batched = rainCoursesFrom(stack,
+          width: 2,
+          height: 1,
+          west: 10,
+          east: 14,
+          north: 55,
+          south: 47,
+          points: points);
+
+      for (final (index, point) in points.indexed) {
+        final single = rainCourseFrom(stack,
+            width: 2,
+            height: 1,
+            west: 10,
+            east: 14,
+            north: 55,
+            south: 47,
+            lat: point.lat,
+            lon: point.lon);
+        expect(batched[index].days.map((d) => d.mm),
+            single.days.map((d) => d.mm),
+            reason: 'Punkt $index weicht vom Einzelweg ab');
+        expect(batched[index].days.map((d) => d.date),
+            single.days.map((d) => d.date));
+      }
+      // Und die beiden Punkte sehen wirklich Verschiedenes — sonst
+      // bewiese der Vergleich oben nichts.
+      expect(batched[0].days.map((d) => d.mm), [0, 1, 2]);
+      expect(batched[1].days.map((d) => d.mm), [5, 9, 0]);
+    });
+
+    test('die Reihenfolge der Rückgabe folgt den Punkten, nicht dem Gitter',
+        () {
+      final stack = stackOf([7]);
+      final courses = rainCoursesFrom(stack,
+          width: 2,
+          height: 1,
+          west: 10,
+          east: 14,
+          north: 55,
+          south: 47,
+          // Rechts vor links übergeben.
+          points: const [(lat: 51.0, lon: 13.0), (lat: 51.0, lon: 11.0)]);
+      expect(courses[0].days.single.mm, 0, reason: 'rechte Zelle zuerst');
+      expect(courses[1].days.single.mm, 7);
+    });
+
+    test('ein kaputter Tag nimmt ALLE Punkte gleich mit', () {
+      // Vorher fing jeder Punkt seinen eigenen Fehler. Jetzt scheitert
+      // die Dekodierung einmal — das darf nicht dazu führen, dass ein
+      // Punkt einen Wert bekommt und ein anderer nicht.
+      final stack = [
+        (date: DateTime.utc(2026, 7, 21), gzipped: encode([
+          [4, 8]
+        ])),
+        (date: DateTime.utc(2026, 7, 22), gzipped: const <int>[1, 2, 3]),
+      ];
+      final courses = rainCoursesFrom(stack,
+          width: 2,
+          height: 1,
+          west: 10,
+          east: 14,
+          north: 55,
+          south: 47,
+          points: const [(lat: 51.0, lon: 11.0), (lat: 51.0, lon: 13.0)]);
+      expect(courses[0].days.map((d) => d.mm), [4, null]);
+      expect(courses[1].days.map((d) => d.mm), [8, null]);
+    });
+
+    test('ohne Punkte kommt nichts zurück, und es knallt nicht', () {
+      expect(
+          rainCoursesFrom(stackOf([1, 2]),
+              width: 2,
+              height: 1,
+              west: 10,
+              east: 14,
+              north: 55,
+              south: 47,
+              points: const []),
+          isEmpty);
+    });
+  });
+
   test('liest jeden Tag am selben Punkt', () {
     final course = courseOf([1, 2, 3]);
     expect(course.days.map((d) => d.mm), [1, 2, 3]);
