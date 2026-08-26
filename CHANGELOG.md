@@ -7,6 +7,20 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Ein Pilz in der Statusleiste statt eines weißen Flecks
+
+*26. August 2026 · Version 1.99.5*
+
+Kam eine Meldung von PilzBuddy an — etwa ein Fund eines Buddies an einem
+gemeinsamen Spot —, zeigte Android dafür nur einen weißen Fleck. Grund war
+eine fehlende Angabe in der App: Ohne sie greift Android auf das
+App-Symbol zurück, und weil ein Symbol in der Statusleiste immer
+einfarbig gezeichnet wird, blieb davon nichts als eine weiße Fläche übrig.
+
+Jetzt steht dort ein kleiner Pilz mit freundlichem Gesicht, und in der
+Meldungsansicht ist er grün hinterlegt. Dasselbe Symbol trägt auch die
+Meldung, die beim Herunterladen von Offline-Karten und Walddaten läuft.
+
 ## „Code ist unterwegs" — und dann kam keiner
 
 *22. August 2026 · Version 1.99.2 · 1.99.3 und 1.99.4: nur Innenausbau, nichts Sichtbares*

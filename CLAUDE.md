@@ -176,6 +176,27 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   bestehende Installationen nie. Deshalb `IMPORTANCE_HIGH` — leiser
   drehen kann der Nutzer selbst, lauter niemand. Wer die Stufe je ändern
   will, braucht eine NEUE Kanal-ID.
+- **Ein Statusleisten-Symbol ist NUR sein Alphakanal** (#331, seit
+  1.99.5): Android malt jedes nicht durchsichtige Pixel weiß und wirft
+  die Farbe weg. Ohne
+  `com.google.firebase.messaging.default_notification_icon` greift FCM
+  auf `android:icon` zurück — das vollflächig deckende Launcher-Icon, als
+  Silhouette also ein weißer Klotz. Genau so kam es beim Nutzer an
+  („weißer Kreis"). `res/drawable/ic_notification.xml` ist deshalb EINE
+  Fläche, und das Gesicht sind Löcher darin (`fillType="evenOdd"`, ab
+  API 24 — unser minSdk). Zwei stille Fallen hält
+  `test/android_manifest_test.dart` fest: Ein farbiges `fillColor` sieht
+  im Diff wie eine Entscheidung aus und wird trotzdem plattgedrückt, und
+  ohne `evenOdd` füllen sich die Löcher — dann ist es wieder ein Klotz.
+  Von der Designsprache (`.claude/skills/pilz-designer/`) überlebt hier
+  sonst nichts: keine Farbe, kein Halo, keine Kontur, keine
+  Boden-Ellipse.
+  Dieselbe Grafik trägt die Download-Meldung des Foreground-Service.
+  `flutter_foreground_task` sucht sie ausschließlich über einen
+  Meta-Data-Namen im Manifest und liefert bei einem Tippfehler stumm die
+  Ressourcen-id 0; der Name steht deshalb als
+  `downloadNotificationIconMetaData` in Dart, und derselbe Test hält
+  beide Seiten zusammen.
 - **Im Vordergrund ist die SnackBar die einzige Anzeige** — und sie stellt
   sich hinten an. `ScaffoldMessenger.showSnackBar` reiht ein, statt zu
   ersetzen: Die Quittung des Testknopfs („Testnachricht ist unterwegs.",

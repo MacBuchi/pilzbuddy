@@ -4,6 +4,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pilzbuddy/features/offline_maps/download_keep_alive_service.dart';
 import 'package:xml/xml.dart';
 
 /// Datei, in der ausschließlich der Supabase-Session-Token liegt
@@ -156,6 +157,77 @@ void main() {
         reason: 'Unter IMPORTANCE_HIGH erscheint kein Banner — und die '
             'Stufe lässt sich später NICHT mehr ändern, nur über eine '
             'neue Kanal-ID');
+  });
+
+  test('Das Benachrichtigungs-Symbol ist erklärt und alpha-tauglich', () {
+    // Fehlt die Manifest-Zeile, nimmt FCM `android:icon` — und weil Android
+    // ein Statusleisten-Symbol NUR über den Alphakanal auswertet, wird aus
+    // dem vollflächig deckenden Launcher-Icon ein weißer Klotz (#331, in
+    // der Rückmeldung „weißer Kreis").
+    //
+    // Der eigentliche Grund für diesen Test sind aber die beiden stillen
+    // Fehler dahinter: Ein farbiges `fillColor` sieht im Diff wie eine
+    // Design-Entscheidung aus und wird von Android trotzdem zu Weiß
+    // plattgedrückt; und ohne `evenOdd` füllen sich die Löcher, aus denen
+    // das Gesicht besteht — dann ist es wieder ein Klotz. Beides fällt
+    // sonst erst auf einem echten Gerät auf.
+    const drawable = 'ic_notification';
+    final manifest = _load('android/app/src/main/AndroidManifest.xml');
+
+    Iterable<XmlElement> metaData(String name) => manifest.rootElement
+        .findAllElements('meta-data')
+        .where((e) => e.getAttribute('android:name') == name);
+
+    expect(
+      metaData('com.google.firebase.messaging.default_notification_icon')
+          .map((e) => e.getAttribute('android:resource')),
+      ['@drawable/$drawable'],
+      reason: 'Manifest nennt kein Symbol (oder mehrfach) — FCM fällt dann '
+          'auf das Launcher-Icon zurück, und das ist als Silhouette ein '
+          'weißer Klotz',
+    );
+    expect(
+      metaData('com.google.firebase.messaging.default_notification_color')
+          .map((e) => e.getAttribute('android:resource')),
+      ['@color/notification_color'],
+      reason: 'Ohne Tönung bleibt der Kreis in der Meldungsansicht grau',
+    );
+    expect(
+      File('android/app/src/main/res/values/colors.xml').readAsStringSync(),
+      contains('name="notification_color"'),
+      reason: 'Die Farbe, auf die das Manifest zeigt, fehlt',
+    );
+
+    // Dieselbe Grafik trägt die Download-Meldung des Foreground-Service.
+    // `flutter_foreground_task` sucht sie ausschließlich über diesen
+    // Meta-Data-Namen und liefert bei einem Tippfehler stumm die
+    // Ressourcen-id 0 — deshalb hier gegen die Dart-Konstante geprüft.
+    expect(
+      metaData(downloadNotificationIconMetaData)
+          .map((e) => e.getAttribute('android:resource')),
+      ['@drawable/$drawable'],
+      reason: 'Die Download-Meldung findet ihr Symbol nicht — der Name im '
+          'Manifest weicht von downloadNotificationIconMetaData ab',
+    );
+
+    final icon = _load('android/app/src/main/res/drawable/$drawable.xml');
+    final paths = icon.rootElement.findAllElements('path').toList();
+    expect(paths, isNotEmpty, reason: 'Das Symbol zeichnet nichts');
+    for (final path in paths) {
+      expect(
+        path.getAttribute('android:fillColor')?.toUpperCase(),
+        anyOf('#FFFFFFFF', '#FFFFFF', '#FFF'),
+        reason: 'Ein Statusleisten-Symbol wird nur über den Alphakanal '
+            'ausgewertet — Farbe hier ist wirkungslos und täuscht im Diff '
+            'eine Entscheidung vor, die Android verwirft',
+      );
+      expect(
+        path.getAttribute('android:fillType'),
+        'evenOdd',
+        reason: 'Ohne evenOdd füllen sich die Löcher, aus denen das Gesicht '
+            'besteht — übrig bliebe genau der weiße Klotz aus #331',
+      );
+    }
   });
 
   test('Update installiert mit genau einer Berechtigung', () {

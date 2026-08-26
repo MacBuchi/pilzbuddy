@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#2E7D32</color>
+    <!-- Tönt den Kreis hinter dem Statusleisten-Symbol in der
+         Meldungsansicht (#331). Bewusst NICHT `ic_launcher_background`
+         wiederverwendet, obwohl derselbe Ton: Wer den Launcher-Hintergrund
+         einmal ändert, will damit nicht stillschweigend jede
+         Benachrichtigung umfärben. -->
+    <color name="notification_color">#2E7D32</color>
 </resources>
