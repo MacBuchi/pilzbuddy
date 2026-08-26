@@ -12,6 +12,7 @@ class FakeSettings implements Settings {
     this.rainCourseEnabled = false,
     this.prereleaseUpdatesEnabled = false,
     this.forestFineEnabled = false,
+    this.mapAutoUpdateEnabled = false,
     this.ampelPreviewEnabled = false,
     // Bewusst null: In echt initialisiert main() den Marker beim ersten
     // Start (ensureFindSeenMarker) — im Harness bleibt er aus, damit kein
@@ -74,6 +75,14 @@ class FakeSettings implements Settings {
   @override
   Future<void> setForestFineEnabled(bool value) async {
     forestFineEnabled = value;
+  }
+
+  @override
+  bool mapAutoUpdateEnabled;
+
+  @override
+  Future<void> setMapAutoUpdateEnabled(bool value) async {
+    mapAutoUpdateEnabled = value;
   }
 
   @override

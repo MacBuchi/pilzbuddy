@@ -137,6 +137,22 @@ class _OfflineMapsScreenState extends ConsumerState<OfflineMapsScreen> {
             const SizedBox(height: 8),
             for (final map in available)
               _mapTile(map, installedByKey[map.key]),
+            // Der Auto-Nachlauf (#332) steht hier und nicht im Profil:
+            // Direkt darüber stehen die Größen, um die es geht.
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              secondary: const Icon(Icons.update),
+              title: const Text('Im WLAN von selbst aktualisieren'),
+              subtitle: const Text(
+                  'Bringt Regionen auf den neuen Stand, die schon auf dem '
+                  'Gerät liegen — neue lädt er nie. Nur in einem WLAN ohne '
+                  'Datenkosten; ein Handy-Hotspot zählt für Android nicht '
+                  'dazu. Fällt es weg, hält der Download an und macht '
+                  'später weiter.'),
+              value: ref.watch(mapAutoUpdateEnabledProvider),
+              onChanged: (value) =>
+                  ref.read(mapAutoUpdateEnabledProvider.notifier).set(value),
+            ),
             const Divider(height: 32),
             Text('Waldkarte',
                 style: Theme.of(context).textTheme.titleMedium),

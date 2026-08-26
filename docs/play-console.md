@@ -143,7 +143,7 @@ aapt2 dump badging build/app/outputs/flutter-apk/app-release.apk | grep uses-per
 | `FOREGROUND_SERVICE` | Karten-Download hält den Prozess wach | Manifest |
 | `FOREGROUND_SERVICE_DATA_SYNC` | Typ des Dienstes (ab Android 14 Pflicht) | Manifest |
 | `POST_NOTIFICATIONS` | Fortschrittsmeldung des Downloads | Manifest |
-| `ACCESS_NETWORK_STATE` | Verbindungsstatus (Auto-Offline) | `connectivity_plus` |
+| `ACCESS_NETWORK_STATE` | Verbindungsstatus (Auto-Offline) und ob die Verbindung Datenvolumen kostet (Karten-Auto-Update, #332) | `connectivity_plus` |
 | `WAKE_LOCK` | Download über den Bildschirm-Timeout hinaus | `flutter_foreground_task` |
 | `ACCESS_WIFI_STATE` | Verbindungsart (Auto-Offline) | `connectivity_plus` |
 | `com.google.android.c2dm.permission.RECEIVE` | Push-Nachrichten entgegennehmen | `firebase_messaging` |

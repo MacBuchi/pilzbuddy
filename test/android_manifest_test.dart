@@ -5,6 +5,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/features/offline_maps/download_keep_alive_service.dart';
+import 'package:pilzbuddy/features/offline_maps/network_metering.dart';
 import 'package:xml/xml.dart';
 
 /// Datei, in der ausschließlich der Supabase-Session-Token liegt
@@ -96,7 +97,10 @@ void main() {
         .map((m) => m.group(1)!)
         .toSet();
     expect(channels, isNotEmpty, reason: 'keine Kanäle in Dart gefunden');
-    for (final channel in channels) {
+    // Der Metered-Kanal (#332) steht in Dart als Konstante statt als
+    // Literal — er kommt deshalb nicht aus der Quelltext-Suche, sondern
+    // direkt aus dem Code, so wie das Symbol-Meta-Data weiter unten.
+    for (final channel in {...channels, networkMeteringChannel}) {
       expect(channel, startsWith('$id/'),
           reason: 'Dart-Kanal trägt einen fremden Paketnamen');
       expect(source, contains('"$channel"'),

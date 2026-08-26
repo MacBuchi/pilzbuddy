@@ -115,6 +115,18 @@ abstract interface class Settings {
 
   Future<void> setForestFineEnabled(bool value);
 
+  /// Darf die App veraltete Offline-Karten im freien Netz von selbst
+  /// nachladen? (#332)
+  ///
+  /// Standardmäßig NEIN, und zwar aus einem härteren Grund als bei den
+  /// anderen Zustimmungen: Eine Regionskarte ist mehrere hundert MB bis
+  /// 1,7 GB groß. Was der Schalter NICHT tut, ist neue Regionen holen —
+  /// nur Regionen, die schon auf dem Gerät liegen, auf den neuen Stand
+  /// bringen.
+  bool get mapAutoUpdateEnabled;
+
+  Future<void> setMapAutoUpdateEnabled(bool value);
+
   /// Bis wann die Spot-Erinnerung stummgeschaltet ist (Baustein C des
   /// Ampel-Konzepts): Das X am Banner setzt den Zeitpunkt ans Ende des
   /// laufenden ±14-Tage-Fensters — dieselbe Erinnerung soll nicht jeden
@@ -241,6 +253,16 @@ class PrefsSettings implements Settings {
   @override
   Future<void> setForestFineEnabled(bool value) =>
       _prefs.setBool(_forestFineEnabledKey, value);
+
+  static const _mapAutoUpdateEnabledKey = 'map_auto_update_enabled';
+
+  @override
+  bool get mapAutoUpdateEnabled =>
+      _prefs.getBool(_mapAutoUpdateEnabledKey) ?? false;
+
+  @override
+  Future<void> setMapAutoUpdateEnabled(bool value) =>
+      _prefs.setBool(_mapAutoUpdateEnabledKey, value);
 
   static const _spotMemoryDismissedUntilKey = 'spot_memory_dismissed_until';
 

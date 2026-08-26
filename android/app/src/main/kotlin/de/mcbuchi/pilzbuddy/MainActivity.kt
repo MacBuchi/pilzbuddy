@@ -6,6 +6,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
+import android.net.ConnectivityManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -39,6 +40,9 @@ class MainActivity : FlutterActivity() {
 
         /** Update der GitHub-APK: fertige Datei an den System-Installer geben. */
         const val INSTALL_CHANNEL = "de.mcbuchi.pilzbuddy/apk_install"
+
+        /** Kostet die aktive Verbindung Datenvolumen? (#332) */
+        const val NETWORK_CHANNEL = "de.mcbuchi.pilzbuddy/network"
 
         /**
          * Genug für den Haupt-Thread — und zugleich die Grenze der Spalte
@@ -120,7 +124,33 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, NETWORK_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "isMetered" -> result.success(isMetered())
+                    else -> result.notImplemented()
+                }
+            }
     }
+
+    /**
+     * Kostet die aktive Verbindung Datenvolumen? (#332)
+     *
+     * `connectivity_plus` kennt nur den Transportweg, und der beantwortet die
+     * Frage nicht: Ein Handy-Hotspot ist WLAN und kostet trotzdem. Android
+     * dagegen weiß es — es markiert Tethering-Netze ab Werk als
+     * kostenpflichtig, ebenso jedes WLAN, das der Nutzer selbst so markiert
+     * hat.
+     *
+     * Braucht ACCESS_NETWORK_STATE, das `connectivity_plus` ohnehin
+     * mitbringt — also keine neue Berechtigung im Manifest.
+     *
+     * Ohne aktives Netz meldet Android „kostenpflichtig", und das ist hier
+     * die richtige Antwort: Ohne Verbindung wird ohnehin nichts geladen.
+     */
+    private fun isMetered(): Boolean =
+        getSystemService(ConnectivityManager::class.java)?.isActiveNetworkMetered ?: true
 
     /**
      * Darf die App eine APK installieren?
