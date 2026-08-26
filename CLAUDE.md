@@ -461,6 +461,40 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   mit bedingtem Import (`download_keep_alive_stub.dart` für Web, sonst
   `download_keep_alive_service.dart`), damit der Web-Build das
   Android-Paket nie sieht; Tests überschreiben den Provider.
+- **Der Auto-Nachlauf der Karten misst NICHT „WLAN", sondern „kostet das
+  etwas?"** (#332, seit 1.100.0): Ein Schalter auf der Offline-Karten-
+  Seite (`mapAutoUpdateEnabled`, ab Werk AUS) lädt veraltete Regionen von
+  selbst nach. Alles darunter war schon gebaut — Versionsvergleich,
+  Banner und vor allem der Failsafe (`.part`, SHA-256, dann atomar
+  umbenennen); dazugekommen ist nur der Auslöser.
+  Drei Dinge, die man wissen muss:
+  - **`connectivity_plus` kennt nur den Transportweg, und der beantwortet
+    die Frage nicht.** Ein Handy-Hotspot ist für die Bibliothek WLAN und
+    kostet trotzdem fremdes Datenvolumen — genau die Verbindung, die man
+    unterwegs benutzt. Deshalb der dritte MethodChannel
+    (`de.mcbuchi.pilzbuddy/network` → `isActiveNetworkMetered`, Konstante
+    `networkMeteringChannel`). **Keine neue Berechtigung:**
+    `ACCESS_NETWORK_STATE` bringt `connectivity_plus` ohnehin mit, es
+    steht nur ein zweiter Zweck in `docs/play-console.md`. Antwortet der
+    Kanal nicht, gilt „kostenpflichtig" — die harmlose Fehlerrichtung ist
+    „lädt nicht", nicht „lädt auf fremde Rechnung".
+  - **Ein selbst gestarteter Download muss auch von selbst anhalten.**
+    `MapDownloadsNotifier` ist mit Absicht geduldig und setzt bei JEDER
+    zurückkehrenden Verbindung fort, auch über Mobilfunk. Wer angetippt
+    hat, will das; wer nichts angetippt hat, lädt sonst 1,7 GB aus seinem
+    Tarif, weil er das Haus verlassen hat. `planAutoMapUpdate` hat
+    deshalb zwei Ausgänge — starten UND anhalten —, und der Notifier
+    merkt sich, welche Regionen ER gestartet hat. Von Hand gestartete
+    rührt er nicht an.
+  - **Der Auslöser hängt am Karten-Screen** (`ref.listen` auf
+    `mapAutoUpdateInputsProvider`, plus ein Anstoß aus `initState`:
+    `WidgetRef.listen` kennt kein `fireImmediately`). Die Zutaten stehen
+    als Record mit zusammengefügten Regionsschlüsseln darin, nicht als
+    Liste — zwei inhaltlich gleiche Listen sind für `==` verschieden, und
+    der Nachlauf liefe bei jedem Neuaufbau erneut an.
+  Eine in dieser Sitzung endgültig gescheiterte Region ruht bis zum
+  nächsten Start; ein ANGEHALTENER Download zählt nicht als Fehlversuch.
+  Alles davon steht in `test/flows/offline_update_flow_test.dart`.
 - **Erzeugte Assets** (`tool/generated_assets.py` + `.json`, #226, im Job
   „Analyze & Test"): Vier Dateien unter `assets/` sind ERZEUGT, nicht
   geschrieben — Kartenstil, DACH-Übersicht, Waldgitter und dessen

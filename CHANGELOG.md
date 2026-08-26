@@ -7,6 +7,35 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Offline-Karten, die sich im WLAN selbst auf den neuen Stand bringen
+
+*26. August 2026 · Version 1.100.0*
+
+Bisher hat PilzBuddy nur Bescheid gesagt, wenn es für eine deiner
+heruntergeladenen Regionen eine neuere Karte gab — nachladen musstest du
+selbst. Auf der Seite „Offline-Karten" gibt es dafür jetzt einen
+Schalter: **Im WLAN von selbst aktualisieren**. Ist er an, holt die App
+eine veraltete Region ohne Zutun, sobald du im WLAN bist und die App
+offen hast.
+
+Ab Werk ist der Schalter aus — eine Regionskarte ist mehrere hundert
+Megabyte groß, und das lädt niemand ungefragt.
+
+Drei Dinge, auf die dabei geachtet wird:
+
+- **Nur was schon da ist.** Der Schalter bringt Regionen auf den neuen
+  Stand, die du selbst heruntergeladen hast. Neue Regionen holt er nie.
+- **Nur wo es nichts kostet.** Ein Handy-Hotspot ist zwar WLAN, kostet
+  aber Datenvolumen — Android weiß das, und PilzBuddy fragt danach.
+  Über Mobilfunk lädt der Schalter grundsätzlich nicht.
+- **Unterwegs hält er an.** Verlässt du das WLAN mitten im Laden, stoppt
+  der Download und macht beim nächsten Mal genau dort weiter, statt
+  deinen Datentarif zu leeren.
+
+Die alte Karte wird außerdem erst ersetzt, wenn die neue vollständig da
+und geprüft ist. Ein abgebrochener Download kann dir also nie eine halbe
+Karte im Wald hinterlassen.
+
 ## Ein Pilz in der Statusleiste statt eines weißen Flecks
 
 *26. August 2026 · Version 1.99.5*

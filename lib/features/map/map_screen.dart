@@ -83,7 +83,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
     // Nach dem ersten Frame, damit der Start nicht daran hängt; ohne
     // Empfang bleibt einfach alles liegen.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) unawaited(ref.read(mySpotsProvider.notifier).sendOutbox());
+      if (!mounted) return;
+      unawaited(ref.read(mySpotsProvider.notifier).sendOutbox());
+      // Und einmal nachsehen, ob eine Offline-Karte von selbst
+      // nachzuladen ist (#332). Beim ersten Frame steht der Katalog
+      // meist noch aus; dann übernimmt der Listener weiter unten.
+      ref.read(mapAutoUpdateProvider.notifier).sync();
     });
   }
 
@@ -483,6 +488,15 @@ class _MapScreenState extends ConsumerState<MapScreen>
         unawaited(ref.read(mySpotsProvider.notifier).sendOutbox());
       }
     });
+    // Karten-Abo, ohne Tippen (#332): Sobald der Schalter an ist, ein
+    // freies Netz besteht und eine installierte Region veraltet ist,
+    // lädt die App sie von selbst nach — und hält an, wenn das freie
+    // Netz geht. `fireImmediately`, weil der Fall beim Aufbau schon
+    // bestehen kann; ein Wechsel allein käme dann nie.
+    ref.listen<MapAutoUpdateInputs>(
+      mapAutoUpdateInputsProvider,
+      (_, _) => ref.read(mapAutoUpdateProvider.notifier).sync(),
+    );
     // Solange ich teile, jede neue Position hochschieben (Bewegung sichtbar).
     ref.listen(positionStreamProvider,
         (_, next) => _maybeUploadLocation(next.valueOrNull));

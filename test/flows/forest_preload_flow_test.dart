@@ -5,6 +5,7 @@
 // sichtbar wird: dass der Knopf die Zustimmung erteilt, dass der
 // Foreground-Service mitläuft und wieder endet, und dass ein Fehlschlag
 // nicht still bleibt.
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/features/map/forest_block_providers.dart';
@@ -40,6 +41,13 @@ void main() {
     await tester.tap(find.text('Profil'));
     await settle(tester);
     await tester.tap(find.text('Offline-Karten'));
+    await settle(tester);
+    // Die Waldkachel steht unter den Regionen und dem Auto-Schalter
+    // (#332) — auf dem Testschirm also unterhalb des Sichtbaren, und was
+    // eine ListView nicht zeigt, baut sie auch nicht.
+    await tester.scrollUntilVisible(
+        find.text('Feine Waldkarte (≈ 100 m)'), 200,
+        scrollable: find.byType(Scrollable).last);
     await settle(tester);
   }
 

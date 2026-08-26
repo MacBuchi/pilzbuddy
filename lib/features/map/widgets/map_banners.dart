@@ -398,6 +398,12 @@ class MapBanners extends ConsumerWidget {
           Builder(builder: (context) {
             final outdated = ref.watch(outdatedMapsProvider);
             if (outdated.isEmpty) return const SizedBox.shrink();
+            // Läuft der Nachlauf (#332) schon, wäre „antippen" eine
+            // Aufforderung zu etwas, das gerade passiert. Gezählt werden
+            // deshalb nur die Karten, an denen noch niemand arbeitet.
+            final running = ref.watch(mapDownloadsProvider);
+            final waiting =
+                outdated.where((m) => !running.containsKey(m.key)).toList();
             return _banner(
               context,
               background: AppColors.warmBrown,
@@ -406,11 +412,13 @@ class MapBanners extends ConsumerWidget {
               onDismiss: () => ref
                   .read(mapUpdateBannerDismissedProvider.notifier)
                   .state = true,
-              content: Text(outdated.length == 1
-                  ? '🗺️ Neue Offline-Karte für ${outdated.first.label} '
-                      'verfügbar — antippen'
-                  : '🗺️ ${outdated.length} neue Offline-Karten verfügbar '
-                      '— antippen'),
+              content: Text(waiting.isEmpty
+                  ? '🗺️ Neue Offline-Karte wird geladen — antippen'
+                  : waiting.length == 1
+                      ? '🗺️ Neue Offline-Karte für ${waiting.first.label} '
+                          'verfügbar — antippen'
+                      : '🗺️ ${waiting.length} neue Offline-Karten verfügbar '
+                          '— antippen'),
             );
           }),
         if (incoming > 0)

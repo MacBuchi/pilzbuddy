@@ -76,6 +76,7 @@ List<Override> overridesFor(FakeBackend backend,
         List<ConnectivityResult> connectivity = const [
           ConnectivityResult.wifi
         ],
+        FakeNetworkMetering? metering,
         FakeAppConfigRepository? appConfig,
         String appVersion = '1.0.0',
         Position? position,
@@ -123,6 +124,9 @@ List<Override> overridesFor(FakeBackend backend,
       downloadKeepAliveProvider
           .overrideWithValue(keepAlive ?? FakeKeepAlive()),
       connectivityProvider.overrideWith((ref) => Stream.value(connectivity)),
+      // Der Metered-Kanal ist Android-Nativcode und antwortet hier nicht.
+      networkMeteringProvider
+          .overrideWithValue(metering ?? FakeNetworkMetering()),
       // Wartezeiten des Download-Managers testtauglich verkürzen.
       mapDownloadDelaysProvider.overrideWithValue((
         retry: const Duration(milliseconds: 50),
@@ -212,6 +216,7 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
     List<ConnectivityResult> connectivity = const [
       ConnectivityResult.wifi
     ],
+    FakeNetworkMetering? metering,
     FakeAppConfigRepository? appConfig,
     String appVersion = '1.0.0',
     Position? position,
@@ -227,6 +232,7 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
         offlineMaps: offlineMaps,
         keepAlive: keepAlive,
         connectivity: connectivity,
+        metering: metering,
         appConfig: appConfig,
         appVersion: appVersion,
         position: position,

@@ -4,6 +4,7 @@
 // bewusst auf die Online-Karte zurück (Datei existiert nicht).
 import 'dart:io' show HttpException;
 
+import 'package:pilzbuddy/features/offline_maps/network_metering.dart';
 import 'package:pilzbuddy/features/offline_maps/offline_map_repository.dart';
 
 class FakeOfflineMapRepository implements OfflineMapRepository {
@@ -62,4 +63,23 @@ class FakeOfflineMapRepository implements OfflineMapRepository {
   @override
   Future<void> delete(String key) async =>
       installed.removeWhere((m) => m.key == key);
+}
+
+/// Androids Metered-Auskunft im Test (#332). Ohne diese Fake liefe der
+/// Auto-Nachlauf gegen einen MethodChannel, den es im Widget-Test nicht
+/// gibt — und bekäme dort „kostenpflichtig", also nie ein Ergebnis.
+class FakeNetworkMetering implements NetworkMetering {
+  FakeNetworkMetering({this.metered = false});
+
+  /// Ab Werk ein normales Heim-WLAN, passend zum `ConnectivityResult.wifi`
+  /// des Harness. Ein Handy-Hotspot ist `metered: true`.
+  bool metered;
+
+  int calls = 0;
+
+  @override
+  Future<bool> isMetered() async {
+    calls++;
+    return metered;
+  }
 }
