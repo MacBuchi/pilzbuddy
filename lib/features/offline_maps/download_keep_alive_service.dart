@@ -11,6 +11,12 @@ import 'download_keep_alive.dart';
 void startDownloadKeepAlive() =>
     FlutterForegroundTask.setTaskHandler(_IdleTaskHandler());
 
+/// Der Manifest-Eintrag, unter dem das Symbol der Download-Meldung steht
+/// (#331). Muss Zeichen für Zeichen dem `meta-data`-Namen im Manifest
+/// entsprechen.
+const downloadNotificationIconMetaData =
+    'de.mcbuchi.pilzbuddy.DOWNLOAD_NOTIFICATION_ICON';
+
 class _IdleTaskHandler extends TaskHandler {
   @override
   Future<void> onStart(DateTime timestamp, TaskStarter starter) async {}
@@ -72,6 +78,15 @@ class _ForegroundServiceKeepAlive implements DownloadKeepAlive {
       await FlutterForegroundTask.startService(
         serviceId: _serviceId,
         serviceTypes: [ForegroundServiceTypes.dataSync],
+        // Ohne das zeigt auch diese Meldung das Launcher-Icon als
+        // Silhouette — denselben weißen Klotz wie die Push-Meldung vor
+        // #331. Das Plugin sucht das Drawable ausschließlich über diesen
+        // Namen in den Manifest-Meta-Daten; findet es ihn nicht, setzt es
+        // stumm die Ressourcen-id 0. Deshalb steht der Name als Konstante
+        // da und ein Test hält ihn mit dem Manifest zusammen.
+        notificationIcon: const NotificationIcon(
+          metaDataName: downloadNotificationIconMetaData,
+        ),
         // Neutral, weil sich Karten-Download und Wald-Vorlauf denselben
         // Service teilen — der Text darunter nennt, was gerade läuft.
         notificationTitle: 'Offline-Daten werden geladen',

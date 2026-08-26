@@ -83,6 +83,26 @@
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="@string/notification_channel_id" />
+        <!-- Das Symbol in der Statusleiste (#331). Ohne diese Zeile nimmt
+             FCM `android:icon` oben — ein vollflächig deckendes Icon, und
+             weil Android ein Statusleisten-Symbol nur über den Alphakanal
+             auswertet, wurde daraus ein weißer Klotz. Die Farbe tönt den
+             Kreis in der Meldungsansicht; ohne sie bliebe er grau. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notification" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_color" />
+        <!-- Dasselbe Symbol für die Download-Meldung des Foreground-Service.
+             `flutter_foreground_task` nimmt sonst ebenfalls `android:icon`
+             und zeigt denselben weißen Klotz. Das Plugin sucht das Drawable
+             NUR über diesen Meta-Data-Namen; ein Tippfehler auf einer der
+             beiden Seiten liefert stumm die Ressourcen-id 0, deshalb hält
+             ein Test den Namen hier und in Dart zusammen. -->
+        <meta-data
+            android:name="de.mcbuchi.pilzbuddy.DOWNLOAD_NOTIFICATION_ICON"
+            android:resource="@drawable/ic_notification" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
