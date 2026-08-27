@@ -15,6 +15,7 @@ class FakeSettings implements Settings {
     this.mapAutoUpdateEnabled = false,
     this.ampelPreviewEnabled = false,
     this.ampelBannerEnabled = false,
+    this.tourIntervalSeconds = kTourIntervalDefaultSeconds,
     // Bewusst null: In echt initialisiert main() den Marker beim ersten
     // Start (ensureFindSeenMarker) — im Harness bleibt er aus, damit kein
     // Bestandstest ungefragt ein Buddy-Fund-Banner bekommt. Tests, die
@@ -128,6 +129,14 @@ class FakeSettings implements Settings {
   @override
   Future<void> setSpotMemoryDismissedUntil(DateTime value) async {
     spotMemoryDismissedUntil = value;
+  }
+
+  @override
+  int tourIntervalSeconds;
+
+  @override
+  Future<void> setTourIntervalSeconds(int value) async {
+    tourIntervalSeconds = value;
   }
 
   @override

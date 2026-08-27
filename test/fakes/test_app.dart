@@ -30,6 +30,7 @@ import 'package:pilzbuddy/features/map/rain_data_providers.dart';
 import 'package:pilzbuddy/features/map/rain_layer.dart';
 import 'package:pilzbuddy/features/offline_maps/download_keep_alive.dart';
 import 'package:pilzbuddy/features/offline_maps/offline_map_providers.dart';
+import 'package:pilzbuddy/features/tour/tour_providers.dart';
 
 import 'fake_apk_installer.dart';
 import 'fake_backend.dart';
@@ -38,6 +39,7 @@ import 'fake_outbox.dart';
 import 'fake_map_view.dart';
 import 'fake_offline_maps.dart';
 import 'fake_settings.dart';
+import 'fake_tour.dart';
 import 'fake_spot_cache.dart';
 
 /// 1×1 transparentes PNG als Offline-Kartenkachel.
@@ -77,6 +79,8 @@ List<Override> overridesFor(FakeBackend backend,
           ConnectivityResult.wifi
         ],
         FakeNetworkMetering? metering,
+        FakeTourStore? tourStore,
+        FakeTourFix? tourFix,
         FakeAppConfigRepository? appConfig,
         String appVersion = '1.0.0',
         Position? position,
@@ -127,6 +131,15 @@ List<Override> overridesFor(FakeBackend backend,
       // Der Metered-Kanal ist Android-Nativcode und antwortet hier nicht.
       networkMeteringProvider
           .overrideWithValue(metering ?? FakeNetworkMetering()),
+      // Die Pilztour (#338): im Speicher statt auf der Platte. Ohne diese
+      // Naht ginge JEDER Kartentest ins Plattform-IO — der Karten-Screen
+      // holt beim ersten Frame eine unterbrochene Tour zurück.
+      tourStoreProvider.overrideWithValue(tourStore ?? FakeTourStore()),
+      tourFixProvider.overrideWithValue((tourFix ?? FakeTourFix()).call),
+      // Standort-Berechtigung: Im Widget-Test gibt es weder Dienst noch
+      // Dialog. Vorgabe „erlaubt" — der interessante Weg ist die
+      // laufende Tour; wer die Ablehnung prüfen will, überschreibt.
+      tourPermissionProvider.overrideWithValue(() async => null),
       // Wartezeiten des Download-Managers testtauglich verkürzen.
       mapDownloadDelaysProvider.overrideWithValue((
         retry: const Duration(milliseconds: 50),
@@ -217,6 +230,8 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
       ConnectivityResult.wifi
     ],
     FakeNetworkMetering? metering,
+    FakeTourStore? tourStore,
+    FakeTourFix? tourFix,
     FakeAppConfigRepository? appConfig,
     String appVersion = '1.0.0',
     Position? position,
@@ -233,6 +248,8 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
         keepAlive: keepAlive,
         connectivity: connectivity,
         metering: metering,
+        tourStore: tourStore,
+        tourFix: tourFix,
         appConfig: appConfig,
         appVersion: appVersion,
         position: position,

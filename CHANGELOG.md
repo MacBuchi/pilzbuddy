@@ -7,6 +7,41 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Pilztour: Der Weg zeichnet mit, und am Ende weißt du, wo du warst
+
+*27. August 2026 · Version 1.102.0*
+
+Auf der Karte gibt es einen neuen Knopf: **Pilztour starten**. Danach
+merkt sich die App deinen Weg — ab Werk alle 15 Sekunden, einstellbar im
+Profil unter „Pilztour: Messabstand" — und zeichnet ihn als Punktspur auf
+die Karte. Funde trägst du unterwegs ein wie immer.
+
+Wenn du auf **Pilztour beenden** tippst, zeigt dir die App, an welchen
+deiner Spots du warst:
+
+- **Abgesucht** — du warst nah dran und lange genug dort. Diese sind
+  angehakt und werden als „nichts gefunden" eingetragen.
+- **Nur vorbeigegangen** oder **nur kurz da** — verblasst, mit dem Grund
+  und der Zahl daneben („34 m", „15 s"). Die sind ausgeschaltet; wenn du
+  dort doch gesucht hast, hakst du sie selbst an.
+
+Stimmt alles, ist es ein Tipp.
+
+**Warum das nützlich ist:** Bisher hat kaum jemand eingetragen, wenn er
+an einem Spot *nichts* gefunden hat — verständlich, man ist gerade
+enttäuscht. Genau diese Information fehlt aber, wenn man später wissen
+will, ob eine Stelle noch trägt. Und die Pilzwetter-Ampel kann sich nur
+an Tagen prüfen lassen, an denen man weiß, dass wirklich gesucht wurde.
+
+**Was dabei nicht passiert:** Der aufgezeichnete Weg verlässt dein
+Telefon nicht. Er liegt lokal, ist vom Google-Backup ausgenommen und
+wird gelöscht, sobald du die Tour abgeschlossen hast. Hochgeladen werden
+nur die Einträge, die du bestätigst.
+
+Solange eine Tour läuft, steht eine Benachrichtigung in der Leiste —
+daran siehst du jederzeit, dass aufgezeichnet wird. Vergisst du das
+Beenden, hört die Aufnahme nach zwölf Stunden von selbst auf.
+
 ## Ein Hinweis, wenn das Pilzwetter an einem deiner Spots gut aussieht
 
 *27. August 2026 · Version 1.101.0*

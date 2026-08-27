@@ -24,6 +24,10 @@ import '../friends/friend_providers.dart';
 import '../profile/profile_providers.dart';
 import '../spots/nearby_spots.dart';
 import '../spots/spot_providers.dart';
+import '../tour/tour_providers.dart';
+import '../tour/tour_track.dart';
+import '../tour/widgets/tour_summary_sheet.dart';
+import '../tour/widgets/tour_track_marker.dart';
 import '../spots/widgets/add_find_sheet.dart';
 import '../spots/widgets/spot_detail_sheet.dart';
 import 'live_share_providers.dart';
@@ -89,6 +93,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
       // nachzuladen ist (#332). Beim ersten Frame steht der Katalog
       // meist noch aus; dann übernimmt der Listener weiter unten.
       ref.read(mapAutoUpdateProvider.notifier).sync();
+      // Eine Tour, die der Prozess-Kill unterbrochen hat, läuft weiter
+      // (#338). Wer im Wald steht und dessen App zwischendurch
+      // weggeräumt wurde, hat sie nicht beendet.
+      unawaited(ref.read(tourProvider.notifier).restore());
     });
   }
 
@@ -275,6 +283,54 @@ class _MapScreenState extends ConsumerState<MapScreen>
       if (e is NotSignedInException) return;
       logError('Live-Standort aktualisieren', e, st);
     });
+  }
+
+  /// Startet die Pilztour oder beendet sie (#338).
+  ///
+  /// Beim Beenden wird die Aufzeichnung NICHT gelöscht, bevor der Nutzer
+  /// das Blatt gesehen hat: Wer hier schon aufräumte, verlöre drei
+  /// Stunden Gehen, wenn das Blatt abstürzt oder weggewischt wird.
+  Future<void> _toggleTour() async {
+    final notifier = ref.read(tourProvider.notifier);
+    if (!notifier.isRunning) {
+      final result = await notifier.start();
+      if (!mounted) return;
+      _showMessage(switch (result) {
+        TourStartResult.started => 'Pilztour läuft — der Weg wird '
+            'aufgezeichnet.',
+        TourStartResult.noPermission =>
+          'Ohne Standort-Freigabe kann der Weg nicht aufgezeichnet werden.',
+        TourStartResult.noService =>
+          'Standortdienste sind aus — bitte in den Einstellungen anschalten.',
+        TourStartResult.failed => 'Die Pilztour ließ sich nicht starten.',
+      });
+      return;
+    }
+
+    final tour = await notifier.stop();
+    if (!mounted || tour == null) return;
+    // Erst räumen, dann zeigen: Die SnackBar vom Starten steht 4 s und
+    // legt sich über den unteren Rand des Blatts — also genau über
+    // „Eintragen". Dieselbe Lehre wie beim PushListener; die SnackBar
+    // reiht sich ein, statt zu weichen.
+    ScaffoldMessenger.of(context).clearSnackBars();
+    final visits = tourVisits(tour.points, ref.read(mySpotListProvider));
+    final booked = await showTourSummarySheet(
+      context,
+      visits: visits,
+      duration: DateTime.now().toUtc().difference(tour.startedAt),
+      pointCount: tour.points.length,
+    );
+    if (!mounted) return;
+    // Erst wenn das Blatt durch ist, darf die Datei weg — auch beim
+    // Abbrechen: Dann hat der Nutzer bewusst nichts eintragen wollen.
+    if (booked != null) await notifier.discard();
+    if (!mounted) return;
+    if (booked != null && booked > 0) {
+      _showMessage(booked == 1
+          ? '1 Leergang eingetragen.'
+          : '$booked Leergänge eingetragen.');
+    }
   }
 
   /// Fragt nach, wenn schon ein eigener Spot in Reichweite liegt (#215).
@@ -478,6 +534,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final friendLocations = ref.watch(friendLocationsProvider).valueOrNull ??
         const <FriendLocation>[];
     final isSharing = ref.watch(isSharingProvider);
+    // Die laufende Pilztour (#338) — `null`, solange keine läuft.
+    final tour = ref.watch(tourProvider);
     final shareUntil = ref.watch(myShareProvider).valueOrNull;
     // Verbindung zurück ⇒ Ausgangskorb losschicken (#267). Genau hier
     // und nicht am App-Resume: Wer aus dem Wald nach Hause kommt, ohne
@@ -551,6 +609,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
               },
             ),
             markers: MapViewMarkers(
+              tourTrack:
+                  tour == null ? const [] : tourTrackMarkers(tour.points),
               myPosition: [
                 if (myPosition != null) _myPositionMarker(myPosition, myAvatar),
               ],
@@ -843,6 +903,24 @@ class _MapScreenState extends ConsumerState<MapScreen>
               child: Icon(isSharing
                   ? Icons.share_location
                   : Icons.share_location_outlined),
+            ),
+            const SizedBox(height: 12),
+            // Die Pilztour (#338). Läuft sie, ist der Knopf grün und
+            // stoppt — dieselbe Sprache wie beim Standort-Teilen darüber.
+            //
+            // **Der zehnte Knopf in dieser Spalte.** Sie war mit neun am
+            // Anschlag (1.98.0) und steckt seither in einem
+            // `FittedBox(scaleDown)`; der hier macht sie auf kurzen
+            // Schirmen noch etwas kleiner. Das ist die Grenze — ein
+            // elfter braucht ein anderes Ordnungsprinzip, keinen
+            // weiteren Kompromiss.
+            FloatingActionButton.small(
+              heroTag: 'tour',
+              onPressed: _toggleTour,
+              tooltip: tour == null ? 'Pilztour starten' : 'Pilztour beenden',
+              backgroundColor: tour == null ? null : AppColors.forestGreen,
+              foregroundColor: tour == null ? null : Colors.white,
+              child: Icon(tour == null ? Icons.hiking : Icons.stop),
             ),
             const SizedBox(height: 12),
             FloatingActionButton.small(

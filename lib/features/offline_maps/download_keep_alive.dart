@@ -3,7 +3,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'download_keep_alive_stub.dart'
     if (dart.library.io) 'download_keep_alive_service.dart';
 
-/// Hält den App-Prozess wach, solange eine Offline-Karte lädt.
+/// Welchen Zweck ein Melder dem System gegenüber angibt (#338).
+///
+/// Android 14 verlangt, dass ein Foreground-Service seinen Typ nennt, und
+/// prüft je Typ die passende Berechtigung. Ein Karten-Download ist
+/// `dataSync`, eine laufende Pilztour ist `location` — und wer beides
+/// gleichzeitig tut, braucht beides.
+enum KeepAliveType {
+  dataSync,
+  location;
+}
+
+/// Hält den App-Prozess wach, solange eine Offline-Karte lädt oder eine
+/// Pilztour aufzeichnet.
 ///
 /// Ohne das friert Android den Prozess ein, sobald der Nutzer in eine andere
 /// App wechselt: der Download läuft im Main-Isolate, und ein „cached"
@@ -15,11 +27,13 @@ import 'download_keep_alive_stub.dart'
 /// Ein Foreground-Service mit sichtbarer Benachrichtigung hebt die
 /// Prozess-Priorität an und nimmt ihn damit aus dem Freezer heraus.
 abstract class DownloadKeepAlive {
-  /// Startet den Service (oder aktualisiert nur den Text, wenn er läuft).
-  Future<void> start(String text);
+  /// Startet den Service. Läuft er schon, werden nur Titel und Text
+  /// aktualisiert — die Typen bleiben dann, wie sie waren; sie lassen
+  /// sich an einem laufenden Service nicht ändern (siehe Koordinator).
+  Future<void> start(String title, String text, Set<KeepAliveType> types);
 
-  /// Aktualisiert den Benachrichtigungstext.
-  Future<void> update(String text);
+  /// Aktualisiert Titel und Text der Benachrichtigung.
+  Future<void> update(String title, String text);
 
   /// Beendet den Service. Muss auch nach Fehlern laufen.
   Future<void> stop();
@@ -46,44 +60,80 @@ class DownloadKeepAliveCoordinator {
 
   final DownloadKeepAlive _keepAlive;
 
-  /// Schlüssel → Text des jeweiligen Melders, in Anmeldereihenfolge.
-  final _texts = <String, String>{};
+  /// Schlüssel → was der jeweilige Melder braucht, in Anmeldereihenfolge.
+  final _needs = <String, ({String title, String text, Set<KeepAliveType> types})>{};
 
-  /// Meldet einen Download an und startet den Service, falls er ruht.
-  Future<void> start(String key, String text) async {
-    _texts[key] = text;
-    await _keepAlive.start(_combined());
+  /// Die Typen, mit denen der Service tatsächlich gestartet wurde.
+  Set<KeepAliveType> _runningTypes = const {};
+
+  /// Meldet einen Verbraucher an und startet den Service, falls er ruht.
+  ///
+  /// **Ändert sich dabei die Typmenge, wird der Service neu gestartet.**
+  /// `updateService` kann die Typen nicht ändern (nachgesehen in
+  /// flutter_foreground_task 10.0.0), und ein als `dataSync` laufender
+  /// Service liefert einer Pilztour im Hintergrund keine Standorte mehr —
+  /// Android 14 prüft je Typ. Die kurze Lücke beim Neustart ist der
+  /// Preis; sie kostet höchstens einen Fix.
+  Future<void> start(
+    String key,
+    String text, {
+    required String title,
+    Set<KeepAliveType> types = const {KeepAliveType.dataSync},
+  }) async {
+    _needs[key] = (title: title, text: text, types: types);
+    final wanted = _wantedTypes();
+    if (_runningTypes.isNotEmpty && !_sameTypes(_runningTypes, wanted)) {
+      await _keepAlive.stop();
+      _runningTypes = const {};
+    }
+    _runningTypes = wanted;
+    await _keepAlive.start(_title(), _combined(), wanted);
   }
 
   /// Neuer Text dieses Melders. Unbekannte Schlüssel und unveränderte
   /// Texte tun nichts — sonst schickte jeder einzelne Chunk eine
   /// Aktualisierung über den Platform-Channel.
   Future<void> update(String key, String text) async {
-    if (_texts[key] == null || _texts[key] == text) return;
-    _texts[key] = text;
-    await _keepAlive.update(_combined());
+    final need = _needs[key];
+    if (need == null || need.text == text) return;
+    _needs[key] = (title: need.title, text: text, types: need.types);
+    await _keepAlive.update(_title(), _combined());
   }
 
-  /// Meldet einen Download ab. Der Service endet erst, wenn der letzte
+  /// Meldet einen Verbraucher ab. Der Service endet erst, wenn der letzte
   /// gegangen ist.
   Future<void> stop(String key) async {
-    if (_texts.remove(key) == null) return;
-    if (_texts.isEmpty) {
+    if (_needs.remove(key) == null) return;
+    if (_needs.isEmpty) {
       await _keepAlive.stop();
+      _runningTypes = const {};
       return;
     }
-    await _keepAlive.update(_combined());
+    await _keepAlive.update(_title(), _combined());
   }
 
-  /// Läuft gerade irgendein Download? (Für Aufrufer, die nur wissen
+  /// Läuft gerade irgendein Verbraucher? (Für Aufrufer, die nur wissen
   /// wollen, ob sie den Service noch brauchen.)
-  bool get isEmpty => _texts.isEmpty;
+  bool get isEmpty => _needs.isEmpty;
 
-  String _combined() => _texts.values.join(' · ');
+  Set<KeepAliveType> _wantedTypes() =>
+      {for (final need in _needs.values) ...need.types};
+
+  static bool _sameTypes(Set<KeepAliveType> a, Set<KeepAliveType> b) =>
+      a.length == b.length && a.containsAll(b);
+
+  /// Bei genau einem Melder sein eigener Titel, sonst ein neutraler —
+  /// „Offline-Daten werden geladen" über einer laufenden Pilztour wäre
+  /// schlicht falsch.
+  String _title() => _needs.length == 1
+      ? _needs.values.single.title
+      : 'PilzBuddy arbeitet';
+
+  String _combined() => [for (final need in _needs.values) need.text].join(' · ');
 }
 
 /// Der Koordinator lebt so lange wie der ProviderScope — er ist die
-/// gemeinsame Buchführung beider Downloads.
+/// gemeinsame Buchführung aller Verbraucher.
 final downloadKeepAliveCoordinatorProvider =
     Provider<DownloadKeepAliveCoordinator>(
         (ref) => DownloadKeepAliveCoordinator(

@@ -495,6 +495,58 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   Eine in dieser Sitzung endgültig gescheiterte Region ruht bis zum
   nächsten Start; ein ANGEHALTENER Download zählt nicht als Fehlversuch.
   Alles davon steht in `test/flows/offline_update_flow_test.dart`.
+- **Die Pilztour macht aus einem Weg die Leergänge, die niemand
+  einträgt** (#338, seit 1.102.0): GPS-Aufzeichnung auf Knopfdruck
+  (`lib/features/tour/`), Punktspur auf der Karte, und beim Beenden ein
+  Blatt, das je eigenem Spot vorschlägt, ob dort „nichts gefunden"
+  gebucht wird. Sechs Dinge, die man wissen muss:
+  - **Die Fehlerrichtung ist vorgegeben, überall.** Ein übersehener
+    Leergang kostet eine Zeile; ein ERFUNDENER vergiftet die Stichprobe,
+    die #199 als unabhängigen Prüfstein für die Ampel aufhebt. Wo
+    `tour_track.dart` zwischen „lieber zu wenig" und „lieber zu viel"
+    wählen muss, wählt sie zu wenig — ein Zeitabschnitt zählt nur, wenn
+    BEIDE Enden im Radius liegen und BEIDE Fixes scharf genug sind.
+  - **Ein Radius, ein Faktor — keine zweite Zahl.**
+    `kNearbySpotMeters` (20 m, #215) bleibt die eine Antwort auf
+    „derselbe Ort"; das Vorbeigeh-Band ist `kTourPassByFactor` × davon
+    (Betreiber, 2026-08-27). Die Verweildauer ist die einzige
+    unterscheidende Achse: Der Radius sagt, wo man war, die Uhr sagt, ob
+    man hingesehen hat.
+  - **Die Genauigkeit je Fix wird MITGEFÜHRT und entscheidet.** Unter
+    Blätterdach liegt GPS 10–20 m daneben; ein 20-m-Radius gegen einen
+    ±40-m-Fix ist Rauschen im Gewand einer Messung. Unscharfe Punkte
+    zählen keine Verweildauer, gehen aber weiter in die kürzeste
+    Entfernung ein — sonst verschwände ein wirklich abgesuchter Spot ganz
+    aus dem Blatt.
+  - **Das Blatt zeigt die Bewertung, statt sie zu verstecken.** Erfüllt
+    ⇒ hervorgehoben und angehakt; gestreift ⇒ verblasst, aus, mit Grund
+    und Zahl. Eine Liste, in der alles vorangekreuzt ist, wäre ein
+    Anstupser, Leergänge zu buchen, die nie verdient wurden. Ein Fund
+    von HEUTE am selben Spot sperrt den Leergang doppelt — in der
+    Anzeige und im Buchen; die zweite Sperre trägt wirklich, weil ein
+    abgesuchter Spot in `_checked` auf true steht.
+  - **Foreground-Service vom Typ `location`, NICHT
+    `ACCESS_BACKGROUND_LOCATION`.** Die Aufnahme startet im Vordergrund
+    und trägt eine Dauerbenachrichtigung — die IST die Offenlegung. Der
+    ganze Abschnitt „Prominent Disclosure: nicht erforderlich" in
+    `docs/play-console.md` hängt daran, und ein Test hält beide Hälften
+    fest. Der Manifest-Typ ist `dataSync|location` als OBERMENGE; welche
+    Typen ein Lauf beansprucht, entscheidet `startService`. **Ändert
+    sich die Typmenge, startet der Koordinator den Service NEU** —
+    `updateService` kann Typen nicht ändern (nachgesehen in
+    flutter_foreground_task 10.0.0).
+  - **Der Track liegt in `tours/` als JSON Lines** und wird beim Gehen
+    angehängt, nicht am Ende geschrieben: Der Prozess-Kill ist hier der
+    Normalfall (#147). Ein Abbruch kostet damit höchstens die letzte
+    Zeile; beim Ausgangskorb wäre derselbe Abbruch eine halbe Datei,
+    deshalb steht dort `.part` + `rename`. `tours/` gehört in beide
+    Backup-Ausschlüsse — ein Bewegungsprofil hat in Googles Cloud so
+    wenig verloren wie die Fundstellen. Gelöscht wird **erst nach dem
+    Blatt**: Wer vorher aufräumt, verliert drei Stunden Gehen, wenn das
+    Blatt weggewischt wird.
+  Nicht gebaut, bewusst: Server-Speicherung und die Tracks der Buddys —
+  das braucht RLS, Datenschutzerklärung und Data-Safety und ist ein
+  eigenes Issue.
 - **Das Ampel-Banner rechnet beim Start, nicht auf einem Server**
   (Baustein B aus #277, seit 1.101.0): Ein Hinweis auf der Karte, wenn
   die Ampel an einem EIGENEN Spot günstig steht

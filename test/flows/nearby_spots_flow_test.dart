@@ -152,6 +152,11 @@ void main() {
       await settle(tester);
       await tester.scrollUntilVisible(find.text('Dicht beieinander'), 200,
           scrollable: find.byType(Scrollable).first);
+      // `scrollUntilVisible` hört auf, sobald das Ziel im Viewport ist —
+      // das kann haarscharf am Rand sein, und dann geht der Tipp ins
+      // Leere. Beim Zuwachs der Profilliste (#338) genau so passiert.
+      await tester.ensureVisible(find.text('Dicht beieinander'));
+      await settle(tester);
       await tester.tap(find.text('Dicht beieinander'));
       await settle(tester);
 
@@ -201,6 +206,11 @@ void main() {
       await settle(tester);
       await tester.scrollUntilVisible(find.text('Dicht beieinander'), 200,
           scrollable: find.byType(Scrollable).first);
+      // `scrollUntilVisible` hört auf, sobald das Ziel im Viewport ist —
+      // das kann haarscharf am Rand sein, und dann geht der Tipp ins
+      // Leere. Beim Zuwachs der Profilliste (#338) genau so passiert.
+      await tester.ensureVisible(find.text('Dicht beieinander'));
+      await settle(tester);
       await tester.tap(find.text('Dicht beieinander'));
       await settle(tester);
 

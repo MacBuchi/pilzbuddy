@@ -22,6 +22,12 @@ const _updatesDir = 'updates';
 /// Fundstellen samt Koordinaten (`SpotCache.dirName`).
 const _spotCacheDir = 'spot_cache';
 
+/// Der Ausgangskorb (#267) und die Pilztour (#338). Beide standen in den
+/// XML-Dateien, aber nur der Korb ohne Wächter — und in beiden liegen
+/// Koordinaten, bevor sie irgendwo anders liegen.
+const _outboxDir = 'outbox';
+const _tourDir = 'tours';
+
 XmlDocument _load(String path) {
   final file = File(path);
   expect(file.existsSync(), isTrue, reason: '$path fehlt');
@@ -358,6 +364,41 @@ void main() {
         reason: 'Nur der Update-Ordner darf heraus');
   });
 
+  test('Die Pilztour zeichnet über einen Foreground-Service auf — '
+      'NICHT über Hintergrund-Standort', () {
+    // Die Entscheidung von #338 in einer Zeile, und sie ist teuer, wenn
+    // sie jemand umdreht: `ACCESS_BACKGROUND_LOCATION` löst Prominent
+    // Disclosure und eine eigene Play-Prüfrunde aus, ohne dass die App
+    // mehr könnte. Eine vom Nutzer gestartete Aufnahme mit
+    // Dauerbenachrichtigung braucht sie nicht — und der ganze Abschnitt
+    // „Prominent Disclosure: nicht erforderlich" in docs/play-console.md
+    // hängt daran.
+    final declared = _permissions();
+    expect(declared,
+        isNot(contains('android.permission.ACCESS_BACKGROUND_LOCATION')),
+        reason: 'Hintergrund-Standort ist bewusst NICHT deklariert — wer '
+            'ihn hinzufügt, muss docs/play-console.md im selben PR '
+            'umschreiben');
+
+    // Ab Android 14 prüft das System je Service-Typ die passende
+    // Berechtigung. Ohne diese Zeile liefert der Dienst im Hintergrund
+    // keine Standorte mehr — und das fällt erst im Wald auf.
+    expect(declared,
+        contains('android.permission.FOREGROUND_SERVICE_LOCATION'),
+        reason: 'ohne sie bekommt die Tour im Hintergrund keine Fixes');
+
+    final types = _load('android/app/src/main/AndroidManifest.xml')
+        .rootElement
+        .findAllElements('service')
+        .single
+        .getAttribute('android:foregroundServiceType')!
+        .split('|')
+        .toSet();
+    expect(types, {'dataSync', 'location'},
+        reason: 'der Manifest-Typ ist die Obermenge beider Nutzer; welche '
+            'ein einzelner Lauf beansprucht, entscheidet startService');
+  });
+
   test('Manifest verweist auf beide Backup-Regelwerke', () {
     final app = _load('android/app/src/main/AndroidManifest.xml')
         .rootElement
@@ -392,6 +433,13 @@ void main() {
           reason: '$section: Spot-Zwischenspeicher nicht ausgeschlossen — '
               'darin stehen die geheimen Fundstellen samt Koordinaten, und '
               'Googles Cloud ist in der Datenschutzerklärung kein Empfänger');
+      expect(excludes, contains(('file', _outboxDir)),
+          reason: '$section: Ausgangskorb nicht ausgeschlossen — dort '
+              'stehen die Koordinaten, BEVOR sie irgendwo anders stehen');
+      expect(excludes, contains(('file', _tourDir)),
+          reason: '$section: Pilztour nicht ausgeschlossen — ein Track ist '
+              'ein Bewegungsprofil und hat in Googles Cloud so wenig '
+              'verloren wie die Fundstellen');
     }
   });
 
@@ -404,5 +452,7 @@ void main() {
     expect(excludes, contains(('file', _mapsDir)));
     expect(excludes, contains(('file', _updatesDir)));
     expect(excludes, contains(('file', _spotCacheDir)));
+    expect(excludes, contains(('file', _outboxDir)));
+    expect(excludes, contains(('file', _tourDir)));
   });
 }

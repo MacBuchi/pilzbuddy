@@ -6,10 +6,11 @@ class _NoKeepAlive implements DownloadKeepAlive {
   const _NoKeepAlive();
 
   @override
-  Future<void> start(String text) async {}
+  Future<void> start(
+      String title, String text, Set<KeepAliveType> types) async {}
 
   @override
-  Future<void> update(String text) async {}
+  Future<void> update(String title, String text) async {}
 
   @override
   Future<void> stop() async {}

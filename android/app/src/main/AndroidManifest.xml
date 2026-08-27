@@ -13,6 +13,16 @@
          App-Wechsel ein und der Download steht still. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+    <!-- Die Pilztour zeichnet den Weg auf, während das Telefon in der
+         Tasche steckt (#338). Ab Android 14 prüft das System je
+         Service-Typ die passende Berechtigung; ohne diese Zeile liefert
+         der Dienst im Hintergrund keine Standorte mehr.
+         **Ausdrücklich NICHT ACCESS_BACKGROUND_LOCATION**: Die Aufnahme
+         wird vom Nutzer gestartet und trägt eine Dauerbenachrichtigung —
+         das ist die Offenlegung. Die schwere Berechtigung bräuchte
+         Prominent Disclosure und eine eigene Play-Prüfrunde, ohne dass
+         die App mehr könnte. Siehe docs/play-console.md. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <!-- Update der GitHub-APK in der App laden und dem System-Installer
          übergeben (Issue #88 hatte das entfernt, #161 baut es ohne
@@ -54,11 +64,17 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-        <!-- Foreground-Service für den Karten-Download (flutter_foreground_task).
-             Der Klassenname stammt aus dem Paket und darf nicht geändert werden. -->
+        <!-- Foreground-Service für Karten-Download und Pilztour
+             (flutter_foreground_task). Der Klassenname stammt aus dem
+             Paket und darf nicht geändert werden.
+             Der Typ ist die Obermenge dessen, was vorkommen KANN: Der
+             Download meldet `dataSync`, die Pilztour `location`. Welche
+             Typen ein einzelner Lauf wirklich beansprucht, entscheidet
+             `startService` zur Laufzeit (#338) — fest verdrahtet stünde
+             hier eine Angabe, die für den halben Betrieb falsch ist. -->
         <service
             android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
-            android:foregroundServiceType="dataSync"
+            android:foregroundServiceType="dataSync|location"
             android:exported="false"/>
         <!-- Reicht die geladene APK an den System-Installer heraus. Ab
              Android 7 ist eine `file://`-URI dafür verboten; der Installer

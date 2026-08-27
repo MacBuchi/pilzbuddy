@@ -121,7 +121,8 @@ class ForestPreloadNotifier extends Notifier<ForestPreloadState?> {
     // Ohne Foreground-Service friert Android den Prozess beim App-Wechsel
     // ein — 26 MB sind schnell geladen, aber nicht so schnell, dass man
     // dabei nicht kurz woanders hinschaut.
-    await keepAlive.start(_keepAliveKey, _notificationText(state!));
+    await keepAlive.start(_keepAliveKey, _notificationText(state!),
+        title: 'Offline-Daten werden geladen');
     try {
       final catalog = await ref.read(forestBlockCatalogProvider.future);
       // Kein Katalog heißt: keine Verbindung und noch nie einen gesehen.

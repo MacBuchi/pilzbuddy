@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:fl_chart/fl_chart.dart';
@@ -11,6 +12,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' show AuthException;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/app_distribution.dart';
+import '../../core/settings.dart';
 import '../../core/app_info.dart';
 import '../../core/axis_scale.dart';
 import '../../core/errors.dart';
@@ -24,6 +26,7 @@ import '../../data/providers.dart';
 import '../../models/find.dart';
 import '../ampel/ampel_providers.dart';
 import '../ampel/ampel_scan.dart';
+import '../tour/tour_providers.dart';
 import '../import_export/gpx_export.dart';
 import '../map/map_gestures.dart';
 import '../map/map_view/map_engine.dart';
@@ -224,6 +227,37 @@ class ProfileScreen extends ConsumerWidget {
             value: ref.watch(mapLongPressEnabledProvider),
             onChanged: (_) =>
                 ref.read(mapLongPressEnabledProvider.notifier).toggle(),
+          ),
+          // Der Takt der Pilztour (#338). Kein Schalter, sondern eine
+          // Wahl — und gerätelokal, weil sie zum Gerät gehört: Ein altes
+          // Telefon mit knappem Akku will einen längeren Takt als ein
+          // neues. Die Aufnahme selbst startet auf der Karte; hier steht
+          // nur, wie dicht sie misst.
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.hiking),
+            title: const Text('Pilztour: Messabstand'),
+            subtitle: const Text(
+                'Wie oft der Weg festgehalten wird. Enger misst genauer '
+                'und kostet mehr Akku.'),
+            trailing: DropdownButton<int>(
+              value: ref.watch(tourIntervalProvider),
+              onChanged: (value) {
+                if (value == null) return;
+                ref.read(tourIntervalProvider.notifier).state = value;
+                unawaited(ref
+                    .read(settingsProvider)
+                    .setTourIntervalSeconds(value)
+                    .catchError((Object e, StackTrace stackTrace) {
+                  logError('Tour-Takt merken', e, stackTrace);
+                }));
+              },
+              items: [
+                for (final seconds in kTourIntervals)
+                  DropdownMenuItem(
+                      value: seconds, child: Text('$seconds s')),
+              ],
+            ),
           ),
           // Ab Werk aus (Betreiberentscheidung 2026-08-09). Die
           // Validierung ist seit 2026-08-13 durch und BESTANDEN — der
