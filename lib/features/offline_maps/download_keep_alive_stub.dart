@@ -13,6 +13,9 @@ class _NoKeepAlive implements DownloadKeepAlive {
   Future<void> update(String title, String text) async {}
 
   @override
+  Future<void> setRepeat(Duration? every) async {}
+
+  @override
   Future<void> stop() async {}
 }
 

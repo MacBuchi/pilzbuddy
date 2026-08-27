@@ -6,12 +6,16 @@
 // Knopf aufzeichnet, dass die Spur erscheint, und vor allem: dass das
 // Abschluss-Blatt unsere Bewertung ZEIGT, statt sie zu verstecken.
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pilzbuddy/features/offline_maps/download_keep_alive.dart';
 import 'package:pilzbuddy/features/tour/tour_providers.dart';
+import 'package:pilzbuddy/features/tour/tour_task_handler.dart';
 import 'package:pilzbuddy/features/tour/tour_track.dart';
 import 'package:pilzbuddy/features/tour/widgets/tour_track_marker.dart';
 
 import '../fakes/fake_backend.dart';
+import '../fakes/fake_keep_alive.dart';
 import '../fakes/fake_settings.dart';
 import '../fakes/fake_tour.dart';
 import '../fakes/test_app.dart';
@@ -58,15 +62,19 @@ void main() {
   Finder tourButton() => find.byTooltip('Pilztour starten');
   Finder stopButton() => find.byTooltip('Pilztour beenden');
 
-  testWidgets('starten zeichnet auf, und die Spur erscheint auf der Karte',
-      (tester) async {
+  testWidgets('starten schaltet den Service scharf und zeigt den ersten '
+      'Punkt', (tester) async {
     await phoneSized(tester);
-    final (backend, _) = loggedInWithSpot();
+    final (backend, me) = loggedInWithSpot();
     final store = FakeTourStore();
     final fix = FakeTourFix();
+    final bridge = FakeTourServiceBridge();
+    final keepAlive = FakeKeepAlive();
     await pumpApp(tester, backend,
         tourStore: store,
         tourFix: fix,
+        tourBridge: bridge,
+        keepAlive: keepAlive,
         settings: FakeSettings(tourIntervalSeconds: 5));
 
     expect(tourButton(), findsOneWidget);
@@ -76,19 +84,77 @@ void main() {
     await tester.tap(tourButton());
     await settle(tester);
 
-    // Der Knopf hat gewechselt, die Datei ist begonnen, und der ERSTE Fix
-    // liegt schon drin — ohne den stünde die Karte bis zum ersten Takt
-    // leer da und man zweifelte an der Aufnahme.
     expect(stopButton(), findsOneWidget);
     expect(store.startedAt, isNotNull);
+
+    // **Der Kern von #342:** Gemessen wird im Service-Isolate, nicht
+    // hier. Der Main-Isolate stirbt, wenn die App weggewischt wird —
+    // eine Aufzeichnung, die an einem `Timer.periodic` hier hängt, hört
+    // dann still auf (so in 1.102.0 im Feld gesehen).
+    expect(bridge.armed, isTrue,
+        reason: 'ohne die Brücke misst das Service-Isolate nicht');
+    expect(bridge.uid, me.id);
+    expect(keepAlive.repeat, const Duration(seconds: 5),
+        reason: 'der Takt gehört dem Service, nicht der App');
+    expect(keepAlive.types, {KeepAliveType.location},
+        reason: 'als dataSync liefert Android im Hintergrund keine Fixes');
+
+    // Der erste Punkt kommt trotzdem sofort von hier — sonst stünde die
+    // Karte bis zum ersten Takt leer da.
     expect(store.points, hasLength(1));
     expect(find.byType(TourTrackDot), findsWidgets);
+  });
 
-    // Und der Takt läuft.
-    fix.next = at(offsetM: 5);
-    await tester.pump(const Duration(seconds: 5));
+  testWidgets('was der Service meldet, landet auf der Karte',
+      (tester) async {
+    await phoneSized(tester);
+    final (backend, _) = loggedInWithSpot();
+    final store = FakeTourStore();
+    final fix = FakeTourFix();
+    await pumpApp(tester, backend, tourStore: store, tourFix: fix);
+
+    await tester.tap(tourButton());
     await settle(tester);
-    expect(store.points, hasLength(2));
+    final before =
+        tester.widgetList(find.byType(TourTrackDot)).length;
+
+    // Der Weg, den `sendDataToMain` nimmt: eine Zeichenkette hin, ein
+    // Punkt zurück.
+    final point = at(offsetM: 12);
+    final decoded = decodeTourTick(encodeTourTick(point))!;
+    expect(decoded.lat, closeTo(point.lat, 1e-9));
+    expect(decoded.accuracyM, point.accuracyM);
+
+    final container = ProviderScope.containerOf(
+        tester.element(find.byType(Scaffold).first));
+    container.read(tourProvider.notifier).acceptTick(decoded);
+    await settle(tester);
+
+    expect(tester.widgetList(find.byType(TourTrackDot)).length,
+        greaterThan(before));
+  });
+
+  testWidgets('beenden entschärft die Brücke', (tester) async {
+    await phoneSized(tester);
+    final (backend, _) = loggedInWithSpot();
+    final store = FakeTourStore();
+    final bridge = FakeTourServiceBridge();
+    final keepAlive = FakeKeepAlive();
+    await pumpApp(tester, backend,
+        tourStore: store, tourBridge: bridge, keepAlive: keepAlive);
+
+    await tester.tap(tourButton());
+    await settle(tester);
+    expect(bridge.armed, isTrue);
+
+    await tester.tap(stopButton());
+    await settle(tester);
+
+    // Sonst misst der Service weiter, obwohl die Tour beendet ist — und
+    // die nächste Tour bekäme die Punkte der vorigen.
+    expect(bridge.armed, isFalse);
+    expect(keepAlive.repeat, isNull);
+    expect(keepAlive.running, isFalse);
   });
 
   testWidgets('ohne Standort-Freigabe wird nichts aufgezeichnet',

@@ -35,6 +35,19 @@ abstract class DownloadKeepAlive {
   /// Aktualisiert Titel und Text der Benachrichtigung.
   Future<void> update(String title, String text);
 
+  /// Schaltet den Wiederhol-Takt des Service-Isolates.
+  ///
+  /// `null` heißt „kein Takt" — der Zustand für Downloads, die im
+  /// Main-Isolate laufen und den Service nur für die Prozess-Priorität
+  /// brauchen. Eine Pilztour setzt hier ihren Messabstand: Ihre Arbeit
+  /// passiert IM Service-Isolate, weil der das Wegwischen der App
+  /// überlebt und der Main-Isolate nicht (#342).
+  ///
+  /// Anders als die Service-Typen lässt sich der Takt am laufenden
+  /// Service ändern — `updateService` nimmt `foregroundTaskOptions`
+  /// entgegen.
+  Future<void> setRepeat(Duration? every);
+
   /// Beendet den Service. Muss auch nach Fehlern laufen.
   Future<void> stop();
 }
@@ -111,6 +124,14 @@ class DownloadKeepAliveCoordinator {
     }
     await _keepAlive.update(_title(), _combined());
   }
+
+  /// Reicht den Wiederhol-Takt an den Service durch (#342).
+  ///
+  /// Bewusst NICHT je Melder gezählt wie Texte und Typen: Der Takt gehört
+  /// dem Service-Isolate, und es gibt genau einen Verbraucher, der ihn
+  /// braucht. Ein zweiter mit anderem Takt wäre eine Frage ohne Antwort —
+  /// dann gehört hier eine Buchführung hin, keine stille Überschreibung.
+  Future<void> setRepeat(Duration? every) => _keepAlive.setRepeat(every);
 
   /// Läuft gerade irgendein Verbraucher? (Für Aufrufer, die nur wissen
   /// wollen, ob sie den Service noch brauchen.)

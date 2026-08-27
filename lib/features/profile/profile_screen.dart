@@ -27,6 +27,7 @@ import '../../models/find.dart';
 import '../ampel/ampel_providers.dart';
 import '../ampel/ampel_scan.dart';
 import '../tour/tour_providers.dart';
+import '../tour/widgets/tour_icon.dart';
 import '../import_export/gpx_export.dart';
 import '../map/map_gestures.dart';
 import '../map/map_view/map_engine.dart';
@@ -235,7 +236,7 @@ class ProfileScreen extends ConsumerWidget {
           // nur, wie dicht sie misst.
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.hiking),
+            leading: const TourIcon(),
             title: const Text('Pilztour: Messabstand'),
             subtitle: const Text(
                 'Wie oft der Weg festgehalten wird. Enger misst genauer '

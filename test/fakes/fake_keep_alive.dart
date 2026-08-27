@@ -38,6 +38,13 @@ class FakeKeepAlive implements DownloadKeepAlive {
     texts.add(text);
   }
 
+  /// Der zuletzt gesetzte Takt des Service-Isolates — `null` heißt
+  /// „kein Takt" (der Zustand für Downloads).
+  Duration? repeat;
+
+  @override
+  Future<void> setRepeat(Duration? every) async => repeat = every;
+
   @override
   Future<void> stop() async => running = false;
 }
