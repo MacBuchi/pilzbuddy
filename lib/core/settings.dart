@@ -76,6 +76,21 @@ abstract interface class Settings {
 
   Future<void> setAmpelPreviewEnabled(bool value);
 
+  /// Prüft die App beim Kartenstart, ob an einem eigenen Spot die Ampel
+  /// günstig steht (Baustein B, #277)?
+  ///
+  /// Standardmäßig NEIN, und der Grund ist Rechenzeit, nicht Vorsicht:
+  /// Der Nachlauf braucht das Höhengitter, und dessen 3,4 MB beim Start
+  /// auszupacken ist genau die Last, die 1.99.4 aus dem Startpfad
+  /// entfernt hat. Ein eigener Schalter — nicht der der Ampel-Vorschau —,
+  /// damit sie nur zahlt, wer sie bestellt hat. Ohne Höhe rechnen wäre
+  /// nicht umsonst: #279 verlangt, dass Fläche und Blatt gleich
+  /// korrigieren, und ein Banner, das dem Blatt widerspricht, wäre
+  /// schlimmer als keins.
+  bool get ampelBannerEnabled;
+
+  Future<void> setAmpelBannerEnabled(bool value);
+
   /// Das zuletzt registrierte FCM-Token dieses Geräts (#277) — `null`,
   /// solange niemand Push eingeschaltet hat.
   ///
@@ -134,6 +149,17 @@ abstract interface class Settings {
   DateTime? get spotMemoryDismissedUntil;
 
   Future<void> setSpotMemoryDismissedUntil(DateTime value);
+
+  /// Bis wann das Ampel-Banner stummgeschaltet ist (Baustein B, #277):
+  /// Das X setzt den Zeitpunkt ans ENDE DES TAGES.
+  ///
+  /// Warum genau bis dahin und nicht länger: Der Regenstapel bekommt
+  /// täglich einen neuen Tag, die Aussage ist morgen also eine andere.
+  /// Länger stummzuschalten hieße, eine geänderte Lage zu verschweigen;
+  /// kürzer hieße, dieselbe Lage beim nächsten App-Start zu wiederholen.
+  DateTime? get ampelBannerDismissedUntil;
+
+  Future<void> setAmpelBannerDismissedUntil(DateTime value);
 
   /// Bis zu welchem Zeitpunkt Buddy-Funde als gesehen gelten (#202).
   ///
@@ -224,6 +250,16 @@ class PrefsSettings implements Settings {
   Future<void> setAmpelPreviewEnabled(bool value) =>
       _prefs.setBool(_ampelPreviewEnabledKey, value);
 
+  static const _ampelBannerEnabledKey = 'ampel_banner_enabled';
+
+  @override
+  bool get ampelBannerEnabled =>
+      _prefs.getBool(_ampelBannerEnabledKey) ?? false;
+
+  @override
+  Future<void> setAmpelBannerEnabled(bool value) =>
+      _prefs.setBool(_ampelBannerEnabledKey, value);
+
   static const _pushTokenKey = 'push_token';
 
   @override
@@ -276,6 +312,19 @@ class PrefsSettings implements Settings {
   Future<void> setSpotMemoryDismissedUntil(DateTime value) =>
       _prefs.setString(
           _spotMemoryDismissedUntilKey, value.toUtc().toIso8601String());
+
+  static const _ampelBannerDismissedUntilKey = 'ampel_banner_dismissed_until';
+
+  @override
+  DateTime? get ampelBannerDismissedUntil {
+    final raw = _prefs.getString(_ampelBannerDismissedUntilKey);
+    return raw == null ? null : DateTime.tryParse(raw)?.toUtc();
+  }
+
+  @override
+  Future<void> setAmpelBannerDismissedUntil(DateTime value) =>
+      _prefs.setString(
+          _ampelBannerDismissedUntilKey, value.toUtc().toIso8601String());
 
   // Die erste Nicht-Bool-Einstellung: als ISO-8601-UTC-String, dasselbe
   // Format, das auch die Fehlerberichte schreiben.

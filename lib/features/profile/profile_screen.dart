@@ -23,6 +23,7 @@ import '../../core/widgets/password_field.dart';
 import '../../data/providers.dart';
 import '../../models/find.dart';
 import '../ampel/ampel_providers.dart';
+import '../ampel/ampel_scan.dart';
 import '../import_export/gpx_export.dart';
 import '../map/map_gestures.dart';
 import '../map/map_view/map_engine.dart';
@@ -248,6 +249,29 @@ class ProfileScreen extends ConsumerWidget {
             onChanged: (value) =>
                 ref.read(ampelPreviewEnabledProvider.notifier).set(value),
           ),
+          // Baustein B (#277) — und ein EIGENER Schalter, nicht der der
+          // Vorschau darüber. Der Nachlauf braucht das Höhengitter, und
+          // dessen 3,4 MB beim Start auszupacken ist genau die Last, die
+          // 1.99.4 aus dem Startpfad entfernt hat. Sie still unter einem
+          // Schalter zurückzuholen, der etwas anderes verspricht, wäre
+          // ein Schritt zurück; so zahlt sie nur, wer sie bestellt.
+          //
+          // Nur sichtbar, wenn die Vorschau an ist: Ohne sie gäbe es
+          // kein Blatt, in dem sich die Aussage nachlesen ließe.
+          if (ref.watch(ampelPreviewEnabledProvider))
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              secondary: const Icon(Icons.notifications_none_outlined),
+              title: const Text('Beim Start an meinen Spots nachsehen'),
+              subtitle: const Text(
+                  'Zeigt beim Öffnen der Karte einen Hinweis, wenn die '
+                  'Ampel an einem deiner Spots günstig steht. Rechnet '
+                  'auf dem Gerät und kostet dort etwas Zeit beim Start; '
+                  'es geht nichts ins Netz.'),
+              value: ref.watch(ampelBannerEnabledProvider),
+              onChanged: (value) =>
+                  ref.read(ampelBannerEnabledProvider.notifier).set(value),
+            ),
           // Push (#277). Die Systemberechtigung wird ERST hier erfragt,
           // nicht beim Start: Ein Dialog, bevor die Karte auch nur zu
           // sehen war, ist die zuverlässigste Art, ein „Nein für immer"

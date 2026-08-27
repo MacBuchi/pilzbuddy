@@ -495,6 +495,41 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   Eine in dieser Sitzung endgültig gescheiterte Region ruht bis zum
   nächsten Start; ein ANGEHALTENER Download zählt nicht als Fehlversuch.
   Alles davon steht in `test/flows/offline_update_flow_test.dart`.
+- **Das Ampel-Banner rechnet beim Start, nicht auf einem Server**
+  (Baustein B aus #277, seit 1.101.0): Ein Hinweis auf der Karte, wenn
+  die Ampel an einem EIGENEN Spot günstig steht
+  (`lib/features/ampel/ampel_scan.dart`). Vier Dinge, die man wissen
+  muss:
+  - **Es gibt keinen dritten Modellkern.** `ampelScanOf` ruft dasselbe
+    `ampelReadingFrom` wie das Spot-Blatt. Ein nächtlicher Server-Push
+    hätte das Modell neben `ampel_model.dart` und
+    `tool/ampel_validate.py` ein drittes Mal geführt — genau die Stelle,
+    an der der geforderte Gleichlauf „Zahl für Zahl" unbemerkt
+    auseinanderläuft. Der Preis dafür ist ehrlich: Der Hinweis erreicht
+    einen beim ÖFFNEN der App, also wenn man ihn am wenigsten braucht.
+  - **Ein EIGENER Schalter, nicht der der Ampel-Vorschau**
+    (`ampelBannerEnabled`, ab Werk aus). Der Nachlauf braucht das
+    Höhengitter, und dessen 3,4 MB beim Start auszupacken ist genau die
+    Last, die 1.99.4 aus dem Startpfad genommen hat. Ohne Höhe rechnen
+    wäre kein Ausweg: #279 verlangt, dass Fläche und Blatt gleich
+    korrigieren, und in den Alpen sind das ~3 K — ein Banner, das dem
+    Blatt widerspricht, wäre schlimmer als keins. **Die Reihenfolge der
+    Prüfungen in `ampelScanProvider` IST die Zusage**: erst alle
+    Schalter, dann das erste `ref.watch` auf ein Gitter. Beobachten ist
+    laden. Ein Flow-Test hält es fest.
+  - **Nur `guenstig` zählt.** „Verhalten" ist die Mehrzahl der Tage und
+    damit ein Banner, das immer steht — und eines, das immer steht, sagt
+    nichts mehr.
+  - **Der Wortlaut trägt das Urteil.** Die Arten-Kontrolle der
+    Rückwärtsvalidierung ist durchgefallen; das Modell hat sich keine
+    Aufforderung verdient. Also „An 2 Spots **stünde** die Ampel günstig
+    (experimentell)", kein „geh jetzt". Das X schaltet bis Tagesende
+    stumm — morgen sind es andere Daten und damit eine andere Aussage.
+  Der gebündelte `rainCoursesProvider` ist der Provider zum längst
+  vorhandenen `rainCoursesFrom` (1.99.3): 19 Spots kosten 26
+  Dekodierungen statt 494. Sein Familienschlüssel ist eine
+  zusammengefügte Zeichenkette, keine Liste — zwei inhaltlich gleiche
+  Listen sind für `==` verschieden.
 - **Erzeugte Assets** (`tool/generated_assets.py` + `.json`, #226, im Job
   „Analyze & Test"): Vier Dateien unter `assets/` sind ERZEUGT, nicht
   geschrieben — Kartenstil, DACH-Übersicht, Waldgitter und dessen

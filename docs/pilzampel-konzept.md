@@ -344,6 +344,26 @@ Was die recherchierten Dienste vorbildlich machen und was schiefgeht:
    als Tests — und **die Validierung behält das letzte Wort**: Fällt
    das Placebo durch, wird der Kern getauscht oder die Vorschau
    entfernt; der Schalter existiert genau dafür.
+
+   **Ergänzt am 2026-08-27 (#277, ab 1.101.0): B kommt jetzt auch von
+   selbst zur Sprache.** Bis dahin musste man Spot für Spot nachsehen.
+   Der Wunsch war ursprünglich eine **Push-Meldung**; gebaut ist
+   stattdessen ein Nachlauf beim Kartenstart
+   (`lib/features/ampel/ampel_scan.dart`) mit Banner, hinter einem
+   eigenen, ab Werk ausgeschalteten Schalter. Die Begründung ist dieselbe
+   Leitplanke wie oben: Ein Server-Push bräuchte Regen-, Stations- und
+   Höhendaten erneut und damit eine DRITTE Fassung des Modells neben
+   `ampel_model.dart` und `tool/ampel_validate.py` — genau die Stelle, an
+   der der Gleichlauf „Zahl für Zahl" unbemerkt bricht. Hier fällt kein
+   Modell an: Es ist dasselbe `ampelReadingFrom` wie im Blatt.
+   Der Preis steht ehrlich daneben: Der Hinweis erreicht einen beim
+   ÖFFNEN der App. Trägt die Aussage, kann dieselbe Rechnung später eine
+   echte Meldung speisen — dann mit dem Modell, das die Validierung
+   überlebt hat.
+   Gemeldet wird nur `guenstig` (bei „verhalten" stünde das Banner fast
+   immer, und was immer steht, sagt nichts), im Konjunktiv und mit dem
+   Wort „experimentell": Die Arten-Kontrolle der Rückwärtsvalidierung ist
+   durchgefallen, das Modell hat sich keine Aufforderung verdient.
 5. **Waldtyp** (zweiter Teil von #158) — ~~bewusst zurückgestellt~~
    **Stufe 1 gebaut** (2026-08-07, #213, ab 1.62.0): Laub/Misch/Nadel für
    DACH als 250-m-Gitter aus dem Copernicus-HRL „Dominant Leaf Type"

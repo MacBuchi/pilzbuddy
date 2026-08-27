@@ -14,11 +14,13 @@ class FakeSettings implements Settings {
     this.forestFineEnabled = false,
     this.mapAutoUpdateEnabled = false,
     this.ampelPreviewEnabled = false,
+    this.ampelBannerEnabled = false,
     // Bewusst null: In echt initialisiert main() den Marker beim ersten
     // Start (ensureFindSeenMarker) — im Harness bleibt er aus, damit kein
     // Bestandstest ungefragt ein Buddy-Fund-Banner bekommt. Tests, die
     // das Banner wollen, geben einen alten Zeitstempel mit.
     this.lastFindSeenAt,
+    this.ampelBannerDismissedUntil,
   });
 
   @override
@@ -94,6 +96,14 @@ class FakeSettings implements Settings {
   }
 
   @override
+  bool ampelBannerEnabled;
+
+  @override
+  Future<void> setAmpelBannerEnabled(bool value) async {
+    ampelBannerEnabled = value;
+  }
+
+  @override
   String? pushToken;
 
   @override
@@ -118,5 +128,13 @@ class FakeSettings implements Settings {
   @override
   Future<void> setSpotMemoryDismissedUntil(DateTime value) async {
     spotMemoryDismissedUntil = value;
+  }
+
+  @override
+  DateTime? ampelBannerDismissedUntil;
+
+  @override
+  Future<void> setAmpelBannerDismissedUntil(DateTime value) async {
+    ampelBannerDismissedUntil = value;
   }
 }

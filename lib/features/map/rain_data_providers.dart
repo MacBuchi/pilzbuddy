@@ -225,6 +225,66 @@ final rainCourseProvider =
   return compute(_course, (stack: stack, lat: at.lat, lon: at.lon));
 });
 
+/// Die Regenverläufe an MEHREREN Punkten — **eine** Dekodierung je Tag
+/// für alle zusammen.
+///
+/// Warum eine eigene Familie neben [rainCourseProvider] und nicht N
+/// Aufrufe von ihm: Der Einzelweg packt je Punkt alle 26 Tagesgitter aus,
+/// um je Tag ein Byte zu lesen. Neunzehn Spots waren so 494
+/// Dekodierungen und 2926 ms, gebündelt sind es 26 und 150 ms
+/// (`docs/map-performance.md`, Nachtrag 2026-08-23). Für EIN Spot-Blatt
+/// ist der Einzelweg richtig und bleibt, wo er ist.
+///
+/// Der Familienschlüssel ist eine zusammengefügte Zeichenkette und keine
+/// Liste: Zwei inhaltlich gleiche Listen sind für `==` verschieden, und
+/// Riverpod würde die Familie bei jedem Neuaufbau neu rechnen.
+final rainCoursesProvider =
+    FutureProvider.family<List<RainCourse>?, String>((ref, key) async {
+  final stack = await ref.watch(rainStackProvider.future);
+  if (stack == null) return null;
+  final points = pointsFromKey(key);
+  if (points.isEmpty) return const [];
+  return compute(_courses, (stack: stack, points: points));
+});
+
+/// Punkte → Familienschlüssel. Auf sechs Nachkommastellen gerundet (~11
+/// cm): Genauer wäre der Schlüssel empfindlicher als das 1-km-Raster,
+/// das dahinter abgetastet wird.
+String pointsKey(List<({double lat, double lon})> points) => [
+      for (final p in points)
+        '${p.lat.toStringAsFixed(6)},${p.lon.toStringAsFixed(6)}',
+    ].join(';');
+
+/// Und zurück. Ein unlesbares Stück ergibt eine leere Liste statt eines
+/// Fehlers — der Schlüssel entsteht ausschließlich aus [pointsKey].
+List<({double lat, double lon})> pointsFromKey(String key) {
+  if (key.isEmpty) return const [];
+  final points = <({double lat, double lon})>[];
+  for (final part in key.split(';')) {
+    final halves = part.split(',');
+    if (halves.length != 2) continue;
+    final lat = double.tryParse(halves[0]);
+    final lon = double.tryParse(halves[1]);
+    if (lat == null || lon == null) continue;
+    points.add((lat: lat, lon: lon));
+  }
+  return points;
+}
+
+List<RainCourse> _courses(
+        ({RainStackData stack, List<({double lat, double lon})> points})
+            input) =>
+    rainCoursesFrom(
+      input.stack.days,
+      width: input.stack.info.width,
+      height: input.stack.info.height,
+      west: input.stack.info.west,
+      east: input.stack.info.east,
+      north: input.stack.info.north,
+      south: input.stack.info.south,
+      points: input.points,
+    );
+
 RainCourse _course(({RainStackData stack, double lat, double lon}) input) =>
     rainCourseFrom(
       input.stack.days,
