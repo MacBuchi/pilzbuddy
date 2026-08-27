@@ -18,6 +18,7 @@ import '../../../models/find.dart';
 import '../../../models/spot.dart';
 import '../../friends/friend_providers.dart';
 import '../../offline_maps/offline_map_providers.dart';
+import '../../ampel/ampel_scan.dart';
 import '../spot_memory.dart';
 import '../../spots/spot_providers.dart';
 import '../../spots/widgets/spot_detail_sheet.dart';
@@ -48,6 +49,11 @@ final lastFindSeenAtProvider = StateProvider<DateTime?>(
 /// Die Server-Zeit eines Funds. `foundOn` nur als Rückfall — `created_at`
 /// ist in der DB not null, auch alte Cache-Zeilen tragen es.
 DateTime _findStamp(Find find) => (find.createdAt ?? find.foundOn).toUtc();
+
+/// Bis wann das Ampel-Banner stummgeschaltet ist — gerätelokal und über
+/// den Neustart hinaus, Muster wie [lastFindSeenAtProvider].
+final ampelBannerDismissedProvider = StateProvider<DateTime?>(
+    (ref) => ref.watch(settingsProvider).ampelBannerDismissedUntil);
 
 /// Bis wann die Spot-Erinnerung stummgeschaltet ist — gerätelokal und
 /// über den Neustart hinaus, Muster wie [lastFindSeenAtProvider].
@@ -115,6 +121,42 @@ class MapBanners extends ConsumerWidget {
         .setSpotMemoryDismissedUntil(until)
         .catchError((Object e, StackTrace s) =>
             logError('Erinnerung stummschalten', e, s)));
+  }
+
+  /// Das Ampel-Banner bis Mitternacht stummschalten.
+  ///
+  /// Gerechnet in LOKALER Zeit und erst dann nach UTC gedreht: „Ende des
+  /// Tages" ist die Grenze, die der Nutzer meint, und die liegt in
+  /// Mitteleuropa ein bis zwei Stunden vor dem UTC-Tagesende.
+  void _dismissAmpel(WidgetRef ref) {
+    final now = DateTime.now();
+    final until =
+        DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
+    ref.read(ampelBannerDismissedProvider.notifier).state = until.toUtc();
+    unawaited(ref
+        .read(settingsProvider)
+        .setAmpelBannerDismissedUntil(until.toUtc())
+        .catchError((Object e, StackTrace s) =>
+            logError('Ampel-Banner stummschalten', e, s)));
+  }
+
+  /// Der Text des Ampel-Banners — im KONJUNKTIV, und das ist keine
+  /// Höflichkeit.
+  ///
+  /// Die Arten-Kontrolle der Rückwärtsvalidierung ist durchgefallen
+  /// (`docs/pilzampel-validierung.md`); das Modell hat sich damit keine
+  /// Aufforderung verdient. Eine eingeschaltete Fläche ist eine
+  /// Einladung, etwas auszuprobieren — ein Banner, das „geh jetzt" sagt,
+  /// wäre eine Behauptung. Deshalb „stünde", deshalb kein
+  /// Ausrufezeichen, und deshalb steht „experimentell" mit drin.
+  String _ampelText(List<AmpelHit> hits) {
+    if (hits.length == 1) {
+      final place = hits.single.spot.name ?? 'einem Spot';
+      return '🍄 An $place stünde die Ampel günstig (experimentell) '
+          '— antippen';
+    }
+    return '🍄 An ${hits.length} Spots stünde die Ampel günstig '
+        '(experimentell) — antippen';
   }
 
   /// Der Text der Erinnerung. Nennt die Art nur, wenn ALLE Funde des
@@ -319,6 +361,17 @@ class MapBanners extends ConsumerWidget {
     // Zustand der angezeigten Daten.
     final cachedAt = ref.watch(mySpotsCachedAtProvider);
 
+    // Baustein B: die eigenen Spots mit günstiger Ampel — ebenfalls
+    // stumm, solange das X-Fenster läuft. `valueOrNull ?? const []`
+    // heißt: Solange gerechnet wird, steht kein Banner da; ein
+    // Platzhalter für eine Aussage, die vielleicht gar nicht kommt,
+    // wäre schlimmer als die Stille.
+    final ampelDismissedUntil = ref.watch(ampelBannerDismissedProvider);
+    final ampelHits = (ampelDismissedUntil != null &&
+            ampelDismissedUntil.isAfter(DateTime.now().toUtc()))
+        ? const <AmpelHit>[]
+        : ref.watch(ampelScanProvider).valueOrNull ?? const <AmpelHit>[];
+
     // Die Erinnerung ans Vorjahr — stumm, solange das X-Fenster läuft.
     final dismissedUntil = ref.watch(spotMemoryDismissedProvider);
     final memory = (dismissedUntil != null &&
@@ -451,6 +504,24 @@ class MapBanners extends ConsumerWidget {
                     ' — antippen'
                 : '🔔 ${freshFinds.length} neue Funde deiner Buddys '
                     '— antippen'),
+          ),
+        // Baustein B des Ampel-Konzepts (#277): das Wetter von heute an
+        // den eigenen Spots. Steht über der Erinnerung, weil es die
+        // aktuellere Aussage ist — und im erdigen Braun statt im
+        // kräftigen Grün der Erinnerung: Die Ampel ist unvalidiert, und
+        // die auffälligste Farbe der App gehört nicht der unsichersten
+        // Aussage.
+        if (ampelHits.isNotEmpty)
+          _banner(
+            context,
+            background: AppColors.warmBrown,
+            foreground: Colors.white,
+            onTap: () {
+              _dismissAmpel(ref);
+              showSpotDetailSheet(context, ampelHits.first.spot.id);
+            },
+            onDismiss: () => _dismissAmpel(ref),
+            content: Text(_ampelText(ampelHits)),
           ),
         // Die Spot-Erinnerung (Baustein C des Ampel-Konzepts): keine
         // Prognose, sondern die eigene Historie. Ganz unten in der

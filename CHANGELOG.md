@@ -7,6 +7,32 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Ein Hinweis, wenn das Pilzwetter an einem deiner Spots gut aussieht
+
+*27. August 2026 · Version 1.101.0*
+
+Wer die **Pilzwetter-Ampel** eingeschaltet hat, konnte sie bisher nur
+Spot für Spot ablesen — man musste also selbst nachsehen. Neu ist ein
+zweiter Schalter direkt darunter im Profil: **Beim Start an meinen Spots
+nachsehen**. Ist er an, rechnet die App beim Öffnen der Karte einmal
+durch deine eigenen Spots und zeigt oben einen Hinweis, wenn die Ampel
+irgendwo günstig steht. Antippen öffnet den Spot, bei dem sie am
+deutlichsten dasteht.
+
+Zwei Dinge dazu, damit klar ist, was das ist und was nicht:
+
+- **Es ist ein Hinweis, keine Empfehlung.** Deshalb steht dort „stünde
+  die Ampel günstig" und nicht „geh jetzt los". Die Ampel bewertet das
+  Wetter, nicht ob dort Pilze stehen, und sie ist weiterhin
+  experimentell.
+- **Es geht nichts ins Netz.** Gerechnet wird auf dem Gerät, aus Daten,
+  die ohnehin schon dort liegen — keine deiner Koordinaten verlässt das
+  Telefon. Der Schalter ist trotzdem ab Werk aus, weil die Rechnung beim
+  Start ein wenig Zeit kostet; wer sie nicht will, zahlt sie auch nicht.
+
+Das X am Hinweis blendet ihn bis zum Ende des Tages aus — morgen sind es
+neue Wetterdaten und damit eine neue Aussage.
+
 ## Offline-Karten, die sich im WLAN selbst auf den neuen Stand bringen
 
 *26. August 2026 · Version 1.100.0*
