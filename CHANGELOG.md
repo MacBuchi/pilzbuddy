@@ -7,6 +7,22 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Pilztour zeichnet jetzt auch dann auf, wenn die App zu ist
+
+*28. August 2026 · Version 1.103.0*
+
+Beim ersten Feldtest kam heraus: Solange die App offen war, wurde der
+Weg aufgezeichnet — hat man sie aus der Übersicht gewischt, hörte die
+Aufnahme still auf, obwohl die Benachrichtigung weiterlief. Genau das
+ist behoben.
+
+Die Messung läuft jetzt im Hintergrunddienst selbst und nicht mehr in
+der App. Der Dienst überlebt das Wegwischen; die App muss nicht mehr
+offen bleiben und darf in der Tasche verschwinden.
+
+Außerdem: **Das Symbol der Pilztour trägt jetzt einen Pilzkorb** statt
+eines Wanderstocks.
+
 ## Die Pilztour: Der Weg zeichnet mit, und am Ende weißt du, wo du warst
 
 *27. August 2026 · Version 1.102.0*

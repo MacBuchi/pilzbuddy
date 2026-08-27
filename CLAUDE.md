@@ -535,6 +535,31 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
     sich die Typmenge, startet der Koordinator den Service NEU** —
     `updateService` kann Typen nicht ändern (nachgesehen in
     flutter_foreground_task 10.0.0).
+  - **Gemessen wird im ISOLATE DES SERVICE, nicht im Main-Isolate**
+    (#342, korrigiert in 1.103.0). Die erste Fassung nahm einen
+    `Timer.periodic` in der App — richtig, solange die App lebt, und
+    genau das war der Fehler: Wischt der Nutzer sie aus der Übersicht,
+    stirbt der Flutter-Prozess samt aller Timer, während der Service
+    sichtbar weiterläuft (`START_STICKY`, kein `stopWithTask`). Im Feld
+    am 2026-08-27 so gesehen. `flutter_foreground_task` startet für den
+    Service ein eigenes Flutter-Isolate; dort steht jetzt
+    `recordTourTick`. Drei Folgen:
+    - **Der Service hat genau EINEN Einstiegspunkt**, also trägt ein
+      Handler beide Nutzer: Für einen Download tut er nichts, für eine
+      Tour misst er. Was gilt, steht in der Brücke
+      (`kTourDataActive` über `FlutterForegroundTask.saveData`, also
+      SharedPreferences — sie ist in beiden Isolaten lesbar).
+    - **Der Takt lässt sich am laufenden Service ändern**
+      (`updateService` nimmt `foregroundTaskOptions`), die Service-TYPEN
+      dagegen nicht. Deshalb `setRepeat` ohne Neustart und ein Neustart
+      bei Typwechsel.
+    - **Im Isolate gibt es kein Riverpod, keine Widgets und keinen
+      `ErrorSink`.** Der Verzeichnispfad wird einmal drüben aufgelöst
+      und über die Brücke gereicht; `recordTourTick` fängt alles, weil
+      eine durchgereichte Ausnahme dort niemanden hat, der sie fängt —
+      und die Tour für den Rest des Wegs still beenden würde.
+    Ebenfalls gefallen: das `timeLimit` von 20 s auf dem Fix. Es machte
+    aus jedem langsamen Hintergrund-Fix stillschweigend gar keinen.
   - **Der Track liegt in `tours/` als JSON Lines** und wird beim Gehen
     angehängt, nicht am Ende geschrieben: Der Prozess-Kill ist hier der
     Normalfall (#147). Ein Abbruch kostet damit höchstens die letzte

@@ -2,31 +2,28 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
 import '../../core/errors.dart';
+import '../tour/tour_task_handler.dart';
 import 'download_keep_alive.dart';
 
-/// Der Service braucht einen Task-Handler, tut darin aber bewusst nichts:
-/// Der Download läuft weiter im Main-Isolate. Gebraucht wird allein die
-/// Prozess-Priorität, die ein laufender Foreground-Service mitbringt.
+/// Der Einstiegspunkt des Service-Isolates.
+///
+/// Für den Download tut der Handler nichts — der läuft im Main-Isolate,
+/// gebraucht wird allein die Prozess-Priorität. Für eine **Pilztour**
+/// misst er (#342): Deren Arbeit MUSS hier passieren, weil dieses Isolate
+/// das Wegwischen der App überlebt und der Main-Isolate nicht.
+///
+/// Der Service hat genau einen Einstiegspunkt, also trägt ein Handler
+/// beide Fälle; welcher gilt, steht in der Isolat-Brücke
+/// (`kTourDataActive`).
 @pragma('vm:entry-point')
 void startDownloadKeepAlive() =>
-    FlutterForegroundTask.setTaskHandler(_IdleTaskHandler());
+    FlutterForegroundTask.setTaskHandler(ServiceTaskHandler());
 
 /// Der Manifest-Eintrag, unter dem das Symbol der Download-Meldung steht
 /// (#331). Muss Zeichen für Zeichen dem `meta-data`-Namen im Manifest
 /// entsprechen.
 const downloadNotificationIconMetaData =
     'de.mcbuchi.pilzbuddy.DOWNLOAD_NOTIFICATION_ICON';
-
-class _IdleTaskHandler extends TaskHandler {
-  @override
-  Future<void> onStart(DateTime timestamp, TaskStarter starter) async {}
-
-  @override
-  void onRepeatEvent(DateTime timestamp) {}
-
-  @override
-  Future<void> onDestroy(DateTime timestamp, bool isTimeout) async {}
-}
 
 class _ForegroundServiceKeepAlive implements DownloadKeepAlive {
   static const _serviceId = 4711;
@@ -36,6 +33,21 @@ class _ForegroundServiceKeepAlive implements DownloadKeepAlive {
   /// Download ohnehin weiter, dort bleibt das hier ein No-op.
   bool get _supported =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+  /// Die Optionen des Service-Isolates. `every == null` heißt „kein
+  /// Takt" — der Zustand für Downloads.
+  ///
+  /// `allowWakeLock` ist hier keine Bequemlichkeit: Ohne ihn schläft die
+  /// CPU zwischen den Takten, und eine Pilztour bekäme ihre Messungen
+  /// gebündelt beim nächsten Aufwachen statt im eingestellten Abstand.
+  static ForegroundTaskOptions _options(Duration? every) =>
+      ForegroundTaskOptions(
+        eventAction: every == null
+            ? ForegroundTaskEventAction.nothing()
+            : ForegroundTaskEventAction.repeat(every.inMilliseconds),
+        allowWakeLock: true,
+        allowWifiLock: true,
+      );
 
   void _initOnce() {
     if (_initialized) return;
@@ -53,12 +65,7 @@ class _ForegroundServiceKeepAlive implements DownloadKeepAlive {
         onlyAlertOnce: true,
       ),
       iosNotificationOptions: const IOSNotificationOptions(),
-      foregroundTaskOptions: ForegroundTaskOptions(
-        // Kein periodisches Event nötig — der Handler ist absichtlich leer.
-        eventAction: ForegroundTaskEventAction.nothing(),
-        allowWakeLock: true,
-        allowWifiLock: true,
-      ),
+      foregroundTaskOptions: _options(null),
     );
     _initialized = true;
   }
@@ -121,6 +128,21 @@ class _ForegroundServiceKeepAlive implements DownloadKeepAlive {
     } catch (e, stackTrace) {
       logError('Karten-Download: Benachrichtigung aktualisieren', e,
           stackTrace);
+    }
+  }
+
+  @override
+  Future<void> setRepeat(Duration? every) async {
+    if (!_supported) return;
+    try {
+      if (!await FlutterForegroundTask.isRunningService) return;
+      // Anders als die Service-Typen lässt sich der Takt am laufenden
+      // Service ändern — genau deshalb braucht die Tour dafür keinen
+      // Neustart.
+      await FlutterForegroundTask.updateService(
+          foregroundTaskOptions: _options(every));
+    } catch (e, stackTrace) {
+      logError('Foreground-Service: Takt setzen', e, stackTrace);
     }
   }
 

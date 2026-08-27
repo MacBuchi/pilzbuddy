@@ -81,6 +81,7 @@ List<Override> overridesFor(FakeBackend backend,
         FakeNetworkMetering? metering,
         FakeTourStore? tourStore,
         FakeTourFix? tourFix,
+        FakeTourServiceBridge? tourBridge,
         FakeAppConfigRepository? appConfig,
         String appVersion = '1.0.0',
         Position? position,
@@ -136,6 +137,11 @@ List<Override> overridesFor(FakeBackend backend,
       // holt beim ersten Frame eine unterbrochene Tour zurück.
       tourStoreProvider.overrideWithValue(tourStore ?? FakeTourStore()),
       tourFixProvider.overrideWithValue((tourFix ?? FakeTourFix()).call),
+      // Die Brücke ins Service-Isolate (#342): dahinter liegen
+      // path_provider und SharedPreferences, beide im Widget-Test nicht
+      // vorhanden.
+      tourServiceBridgeProvider
+          .overrideWithValue(tourBridge ?? FakeTourServiceBridge()),
       // Standort-Berechtigung: Im Widget-Test gibt es weder Dienst noch
       // Dialog. Vorgabe „erlaubt" — der interessante Weg ist die
       // laufende Tour; wer die Ablehnung prüfen will, überschreibt.
@@ -232,6 +238,7 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
     FakeNetworkMetering? metering,
     FakeTourStore? tourStore,
     FakeTourFix? tourFix,
+    FakeTourServiceBridge? tourBridge,
     FakeAppConfigRepository? appConfig,
     String appVersion = '1.0.0',
     Position? position,
@@ -250,6 +257,7 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
         metering: metering,
         tourStore: tourStore,
         tourFix: tourFix,
+        tourBridge: tourBridge,
         appConfig: appConfig,
         appVersion: appVersion,
         position: position,

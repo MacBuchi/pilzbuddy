@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/material.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
@@ -25,7 +26,9 @@ import '../profile/profile_providers.dart';
 import '../spots/nearby_spots.dart';
 import '../spots/spot_providers.dart';
 import '../tour/tour_providers.dart';
+import '../tour/tour_task_handler.dart';
 import '../tour/tour_track.dart';
+import '../tour/widgets/tour_icon.dart';
 import '../tour/widgets/tour_summary_sheet.dart';
 import '../tour/widgets/tour_track_marker.dart';
 import '../spots/widgets/add_find_sheet.dart';
@@ -98,10 +101,22 @@ class _MapScreenState extends ConsumerState<MapScreen>
       // weggeräumt wurde, hat sie nicht beendet.
       unawaited(ref.read(tourProvider.notifier).restore());
     });
+    // Punkte, die das Service-Isolate misst, in die Karte durchreichen
+    // (#342). Rein für die Anzeige — geschrieben hat sie der Service
+    // schon; ist die App weg, kommt hier nichts an, und genau dann trägt
+    // die Datei allein. Kein Plattform-Kanal, nur ein Dart-Callback.
+    FlutterForegroundTask.addTaskDataCallback(_onTourTick);
+  }
+
+  void _onTourTick(Object data) {
+    final point = decodeTourTick(data);
+    if (point == null || !mounted) return;
+    ref.read(tourProvider.notifier).acceptTick(point);
   }
 
   @override
   void dispose() {
+    FlutterForegroundTask.removeTaskDataCallback(_onTourTick);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -920,7 +935,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
               tooltip: tour == null ? 'Pilztour starten' : 'Pilztour beenden',
               backgroundColor: tour == null ? null : AppColors.forestGreen,
               foregroundColor: tour == null ? null : Colors.white,
-              child: Icon(tour == null ? Icons.hiking : Icons.stop),
+              child: tour == null
+                  ? const TourIcon()
+                  : const Icon(Icons.stop),
             ),
             const SizedBox(height: 12),
             FloatingActionButton.small(
