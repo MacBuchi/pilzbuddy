@@ -47,8 +47,8 @@ class _ForegroundServiceKeepAlive implements DownloadKeepAlive {
         // des Kanals — das Waldgitter lädt über denselben Service.
         channelId: 'map_download',
         channelName: 'Downloads',
-        channelDescription:
-            'Läuft, solange Karten oder Walddaten heruntergeladen werden.',
+        channelDescription: 'Läuft, solange Karten oder Walddaten '
+            'heruntergeladen werden oder eine Pilztour aufzeichnet.',
         // Nicht bei jeder Prozentzahl erneut piepen.
         onlyAlertOnce: true,
       ),
@@ -64,12 +64,14 @@ class _ForegroundServiceKeepAlive implements DownloadKeepAlive {
   }
 
   @override
-  Future<void> start(String text) async {
+  Future<void> start(
+      String title, String text, Set<KeepAliveType> types) async {
     if (!_supported) return;
     try {
       _initOnce();
       if (await FlutterForegroundTask.isRunningService) {
-        await FlutterForegroundTask.updateService(notificationText: text);
+        await FlutterForegroundTask.updateService(
+            notificationTitle: title, notificationText: text);
         return;
       }
       // Ohne die Berechtigung läuft der Service trotzdem, nur unsichtbar —
@@ -77,7 +79,18 @@ class _ForegroundServiceKeepAlive implements DownloadKeepAlive {
       await FlutterForegroundTask.requestNotificationPermission();
       await FlutterForegroundTask.startService(
         serviceId: _serviceId,
-        serviceTypes: [ForegroundServiceTypes.dataSync],
+        // Je Start entschieden, nicht fest verdrahtet (#338): Ein
+        // Karten-Download nennt `dataSync`, eine Pilztour `location`.
+        // Einen Typ zu nennen, den dieser Lauf gar nicht braucht, wäre
+        // gegenüber Play eine falsche Angabe — und das Manifest deklariert
+        // beide nur als Obermenge dessen, was vorkommen KANN.
+        serviceTypes: [
+          for (final type in types)
+            switch (type) {
+              KeepAliveType.dataSync => ForegroundServiceTypes.dataSync,
+              KeepAliveType.location => ForegroundServiceTypes.location,
+            },
+        ],
         // Ohne das zeigt auch diese Meldung das Launcher-Icon als
         // Silhouette — denselben weißen Klotz wie die Push-Meldung vor
         // #331. Das Plugin sucht das Drawable ausschließlich über diesen
@@ -87,9 +100,7 @@ class _ForegroundServiceKeepAlive implements DownloadKeepAlive {
         notificationIcon: const NotificationIcon(
           metaDataName: downloadNotificationIconMetaData,
         ),
-        // Neutral, weil sich Karten-Download und Wald-Vorlauf denselben
-        // Service teilen — der Text darunter nennt, was gerade läuft.
-        notificationTitle: 'Offline-Daten werden geladen',
+        notificationTitle: title,
         notificationText: text,
         callback: startDownloadKeepAlive,
       );
@@ -101,11 +112,12 @@ class _ForegroundServiceKeepAlive implements DownloadKeepAlive {
   }
 
   @override
-  Future<void> update(String text) async {
+  Future<void> update(String title, String text) async {
     if (!_supported) return;
     try {
       if (!await FlutterForegroundTask.isRunningService) return;
-      await FlutterForegroundTask.updateService(notificationText: text);
+      await FlutterForegroundTask.updateService(
+          notificationTitle: title, notificationText: text);
     } catch (e, stackTrace) {
       logError('Karten-Download: Benachrichtigung aktualisieren', e,
           stackTrace);

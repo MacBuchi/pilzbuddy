@@ -41,7 +41,7 @@ verarbeitet*, *erforderlich oder optional* — plus die Zwecke.
 
 | Datentyp | Erhoben | Geteilt | Pflicht? | Zweck | Woher |
 |---|---|---|---|---|---|
-| **Standort → Genauer Standort** | Ja | Nein¹ | Optional | App-Funktionalität | `spots.lat/lng`, `live_locations` |
+| **Standort → Genauer Standort** | Ja | Nein¹ | Optional | App-Funktionalität | `spots.lat/lng`, `live_locations`. Der Weg einer Pilztour (#338) wird ebenfalls erhoben, verlässt das Gerät aber NIE — er liegt in `tours/` im App-Verzeichnis, ist vom Backup ausgenommen und wird nach dem Abschluss gelöscht; hochgeladen werden nur die daraus bestätigten Leergänge |
 | **Standort → Ungefährer Standort** | Ja | Nein¹ | Optional | App-Funktionalität | `ACCESS_COARSE_LOCATION` ist deklariert; ein grober Fix wird genauso gespeichert |
 | **Persönliche Infos → E-Mail-Adresse** | Ja | Nein³ | Erforderlich | App-Funktionalität, Kontoverwaltung | Supabase Auth; zusätzlich Freundessuche über die exakte Adresse; Versand der Bestätigungs- und Reset-Mails über Brevo |
 | **Persönliche Infos → Name** | Ja | Nein¹ | Erforderlich | App-Funktionalität, Kontoverwaltung | `profiles.username` (nicht null) und `display_name`; der Benutzername ist für alle Nutzer suchbar |
@@ -140,9 +140,14 @@ aapt2 dump badging build/app/outputs/flutter-apk/app-release.apk | grep uses-per
 | `INTERNET` | Supabase, Kartenkacheln, Update-Check | Manifest |
 | `ACCESS_FINE_LOCATION` | eigene Position, „Spot hier", Live-Standort | Manifest |
 | `ACCESS_COARSE_LOCATION` | dasselbe, grob | Manifest |
-| `FOREGROUND_SERVICE` | Karten-Download hält den Prozess wach | Manifest |
-| `FOREGROUND_SERVICE_DATA_SYNC` | Typ des Dienstes (ab Android 14 Pflicht) | Manifest |
-| `POST_NOTIFICATIONS` | Fortschrittsmeldung des Downloads | Manifest |
+| `FOREGROUND_SERVICE` | Karten-Download und Pilztour halten den Prozess wach | Manifest |
+| `FOREGROUND_SERVICE_DATA_SYNC` | Typ des Dienstes beim Download (ab Android 14 Pflicht) | Manifest |
+| `FOREGROUND_SERVICE_LOCATION` | Typ des Dienstes während einer Pilztour (#338) | Manifest |
+
+Am gemergten Manifest nachgemessen (2026-08-27): Die Pilztour bringt **genau diese eine** Berechtigung dazu, von 10 auf 11 — und `ACCESS_BACKGROUND_LOCATION` steht auch nach dem Mergen nicht drin.
+
+**Zwei Dienste mit Typ `location` im gemergten Manifest**, und nur einer ist unserer: `geolocator_android` deklariert seinen eigenen `GeolocatorLocationService` — den startet die App nie, sie benutzt die einfachen Positionsabfragen des Pakets. Die Berechtigung bringt er übrigens NICHT mit; ohne unsere Zeile bliebe sie aus.
+| `POST_NOTIFICATIONS` | Fortschrittsmeldung des Downloads, laufende Pilztour | Manifest |
 | `ACCESS_NETWORK_STATE` | Verbindungsstatus (Auto-Offline) und ob die Verbindung Datenvolumen kostet (Karten-Auto-Update, #332) | `connectivity_plus` |
 | `WAKE_LOCK` | Download über den Bildschirm-Timeout hinaus | `flutter_foreground_task` |
 | `ACCESS_WIFI_STATE` | Verbindungsart (Auto-Offline) | `connectivity_plus` |
@@ -226,10 +231,20 @@ Play-Manifests — und das soll im PR auffallen, nicht im Release-Workflow.
 **Nicht erforderlich**, und das ist kein Versehen:
 
 - Die App fordert **keinen Hintergrund-Standort** an
-  (`ACCESS_BACKGROUND_LOCATION` fehlt im Manifest — bewusst).
+  (`ACCESS_BACKGROUND_LOCATION` fehlt im Manifest — bewusst). Das gilt
+  **auch für die Pilztour** (#338, seit 1.102.0), obwohl sie
+  aufzeichnet, während das Telefon in der Tasche steckt: Sie läuft über
+  einen Foreground-Service vom Typ `location`, der im Vordergrund
+  gestartet wird und eine Dauerbenachrichtigung trägt. Die Benachrichtigung
+  IST die Offenlegung; die schwere Berechtigung bräuchte eine eigene
+  Prüfrunde, ohne dass die App mehr könnte.
+  `test/android_manifest_test.dart` hält beide Hälften fest — dass die
+  Berechtigung fehlt und dass der Service-Typ da ist.
 - Der Standort wird ausschließlich nach einer sichtbaren Nutzeraktion abgefragt
   (`_currentPosition()` in `lib/features/map/map_screen.dart`, ausgelöst von
-  „Auf mich zentrieren", „Spot hier" oder dem Live-Standort-Teilen).
+  „Auf mich zentrieren", „Spot hier" oder dem Live-Standort-Teilen; die
+  Pilztour startet über ihren eigenen Knopf und läuft nur, solange die
+  Benachrichtigung steht).
 - Ohne Berechtigung läuft die App weiter; Spots entstehen dann über das
   Fadenkreuz.
 

@@ -419,7 +419,11 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
             // Ohne dieses Flag kommen keine Taps an den Markern an.
             allowInteraction: true,
             markers: [
-              // Feste Stapelung der Fassade: Position < Freunde < Spots.
+              // Feste Stapelung der Fassade:
+              // Tour-Spur < Position < Freunde < Spots.
+              for (final marker in visibleMarkers(
+                  widget.markers.tourTrack, _visibleBounds!))
+                asMapLibreMarker(marker),
               for (final marker in visibleMarkers(
                   widget.markers.myPosition, _visibleBounds!))
                 asMapLibreMarker(marker),

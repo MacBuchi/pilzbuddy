@@ -13,16 +13,29 @@ class FakeKeepAlive implements DownloadKeepAlive {
   /// Alle gesetzten Benachrichtigungstexte, in der Reihenfolge.
   final texts = <String>[];
 
+  /// Und die Titel dazu — seit #338 sagt der Titel, WAS läuft.
+  final titles = <String>[];
+
+  /// Die Typen des zuletzt gestarteten Service. Android prüft je Typ die
+  /// passende Berechtigung; eine Pilztour, die als `dataSync` startet,
+  /// bekäme im Hintergrund keine Standorte mehr.
+  Set<KeepAliveType> types = const {};
+
   @override
-  Future<void> start(String text) async {
+  Future<void> start(
+      String title, String text, Set<KeepAliveType> serviceTypes) async {
     if (!running) starts++;
     running = true;
+    types = serviceTypes;
+    titles.add(title);
     texts.add(text);
   }
 
   @override
-  Future<void> update(String text) async {
-    if (running) texts.add(text);
+  Future<void> update(String title, String text) async {
+    if (!running) return;
+    titles.add(title);
+    texts.add(text);
   }
 
   @override

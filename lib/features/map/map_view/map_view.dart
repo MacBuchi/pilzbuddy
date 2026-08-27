@@ -85,14 +85,27 @@ class MapViewMarker {
 }
 
 /// Die Markergruppen in fester Zeichenreihenfolge (unten → oben):
-/// eigene Position < Freunde-Live < Spots — damit Spots tappbar bleiben.
+/// Tour-Spur < eigene Position < Freunde-Live < Spots — damit Spots
+/// tappbar bleiben.
+///
+/// Die Spur liegt ganz unten, und das ist Absicht: Sie ist Hintergrund,
+/// kein Inhalt. Über den Spots läge sie ausgerechnet dort, wo man
+/// tippen will — nämlich auf den Fundstellen, die man gerade abgelaufen
+/// ist.
+///
+/// Warum Marker und keine Linie: Die Fassade kennt keine Polylinien, und
+/// beide Engines müssten sie getrennt bekommen. Punkte („Linienpunkte",
+/// so der Betreiber in #338) sagen zudem etwas, was eine Linie
+/// verschweigt — wo die Abstände eng sind, hat man gesucht.
 class MapViewMarkers {
   const MapViewMarkers({
+    this.tourTrack = const [],
     this.myPosition = const [],
     this.friendLocations = const [],
     this.spots = const [],
   });
 
+  final List<MapViewMarker> tourTrack;
   final List<MapViewMarker> myPosition;
   final List<MapViewMarker> friendLocations;
   final List<MapViewMarker> spots;

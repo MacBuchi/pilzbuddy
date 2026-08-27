@@ -68,6 +68,14 @@ class FakeMapViewState extends State<FakeMapView>
       color: widget.config.backgroundColor,
       child: Wrap(
         children: [
+          // Dieselbe Reihenfolge wie die echten Engines: Tour-Spur ganz
+          // unten. Ohne diese Gruppe hier wäre eine Spur, die auf der
+          // Karte fehlt, im Test unsichtbar — genau der blinde Fleck,
+          // den der Fake nicht haben darf.
+          for (final marker in m.tourTrack)
+            SizedBox(
+                width: marker.width, height: marker.height,
+                child: marker.child),
           for (final marker in m.myPosition)
             SizedBox(
                 width: marker.width, height: marker.height,

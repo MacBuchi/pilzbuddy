@@ -11,6 +11,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Als Schnittstelle, damit Tests sie wie die Repositories mit einer Fake
 /// belegen können (`test/fakes/fake_settings.dart`) — ein echter
 /// SharedPreferences-Kanal existiert im Widget-Test nicht.
+/// Vorgabetakt der Pilztour — die Zahl des Betreibers (#338).
+const kTourIntervalDefaultSeconds = 15;
+
 abstract interface class Settings {
   /// Hat die Nutzerin die Offline-Karte von Hand eingeschaltet?
   bool get offlineMapEnabled;
@@ -149,6 +152,14 @@ abstract interface class Settings {
   DateTime? get spotMemoryDismissedUntil;
 
   Future<void> setSpotMemoryDismissedUntil(DateTime value);
+
+  /// Der Takt der Pilztour in Sekunden (#338).
+  ///
+  /// Gerätelokal, weil er zum Gerät gehört und nicht zum Konto: Ein altes
+  /// Telefon mit knappem Akku will einen längeren Takt als ein neues.
+  int get tourIntervalSeconds;
+
+  Future<void> setTourIntervalSeconds(int value);
 
   /// Bis wann das Ampel-Banner stummgeschaltet ist (Baustein B, #277):
   /// Das X setzt den Zeitpunkt ans ENDE DES TAGES.
@@ -312,6 +323,16 @@ class PrefsSettings implements Settings {
   Future<void> setSpotMemoryDismissedUntil(DateTime value) =>
       _prefs.setString(
           _spotMemoryDismissedUntilKey, value.toUtc().toIso8601String());
+
+  static const _tourIntervalSecondsKey = 'tour_interval_seconds';
+
+  @override
+  int get tourIntervalSeconds =>
+      _prefs.getInt(_tourIntervalSecondsKey) ?? kTourIntervalDefaultSeconds;
+
+  @override
+  Future<void> setTourIntervalSeconds(int value) =>
+      _prefs.setInt(_tourIntervalSecondsKey, value);
 
   static const _ampelBannerDismissedUntilKey = 'ampel_banner_dismissed_until';
 
