@@ -390,8 +390,16 @@ class _ChangeUsernameDialogState extends ConsumerState<_ChangeUsernameDialog> {
 
   String get _trimmed => _controller.text.trim();
 
+  /// Was am eingetippten Namen nicht stimmt — dieselbe Prüfung wie bei
+  /// der Registrierung (#352).
+  ///
+  /// Solange nichts eingetippt wurde, meldet sie nichts: Ein Dialog, der
+  /// sich beim Öffnen selbst beschwert, liest sich wie ein Fehler.
+  String? get _problem =>
+      _trimmed.isEmpty ? null : usernameProblem(_trimmed);
+
   bool get _canSave =>
-      _trimmed.length >= minUsernameLength && _trimmed != widget.current;
+      _problem == null && _trimmed.isNotEmpty && _trimmed != widget.current;
 
   Future<void> _save() async {
     setState(() {
@@ -431,9 +439,13 @@ class _ChangeUsernameDialogState extends ConsumerState<_ChangeUsernameDialog> {
             TextField(
               controller: _controller,
               autofocus: true,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Neuer Benutzername',
                 helperText: 'Mindestens $minUsernameLength Zeichen',
+                // Der Grund steht am Feld, nicht nur im grauen Knopf:
+                // Ein „Speichern", das ohne Erklärung tot ist, sieht wie
+                // ein Fehler der App aus.
+                errorText: _problem,
               ),
               onChanged: (_) => setState(() {}),
               onSubmitted: (_) => (_canSave && !_busy) ? _save() : null,

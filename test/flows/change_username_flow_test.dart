@@ -27,6 +27,10 @@ Future<void> _openDialog(WidgetTester tester) async {
 }
 
 Finder get _field => find.widgetWithText(TextField, 'Neuer Benutzername');
+
+/// Text INNERHALB des Dialogs — der Bildschirm dahinter redet mit.
+Finder dialogText(String part) => find.descendant(
+    of: find.byType(AlertDialog), matching: find.textContaining(part));
 Finder get _saveButton => find.widgetWithText(FilledButton, 'Speichern');
 
 void main() {
@@ -118,5 +122,37 @@ void main() {
     await settle(tester);
 
     expect(backend.users.single.username, 'testpilz');
+  });
+
+  testWidgets('Eine Mailadresse lässt sich nicht als Name speichern (#352)',
+      (tester) async {
+    // Dieselbe Prüfung wie bei der Registrierung — und sie muss auch
+    // hier stehen: Wer den Namen später ändert, hat dasselbe Feld und
+    // dieselbe Verwechslungsgefahr.
+    final backend = FakeBackend();
+    final me = backend.addUser(username: 'testpilz');
+    backend.signInAs(me.id);
+    await pumpApp(tester, backend);
+    await _openDialog(tester);
+
+    await tester.enterText(_field, 'marcus@web.de');
+    await settle(tester);
+
+    // Der Grund steht AM FELD. Ein „Speichern", das ohne Erklärung tot
+    // ist, sieht aus wie ein Fehler der App.
+    //
+    // Der Finder hängt am Dialog, nicht am Bildschirm: Im Profil
+    // dahinter steht die Kachel „E-Mail-Adresse ändern", und die trägt
+    // dieselben Wörter. Dieselbe Falle wie bei den Ebenen-Namen in der
+    // Legende (#347).
+    expect(dialogText('E-Mail-Adresse'), findsOneWidget);
+    expect(tester.widget<FilledButton>(_saveButton).onPressed, isNull);
+
+    // Und mit einem echten Namen geht es sofort weiter — der Dialog
+    // klemmt nicht fest.
+    await tester.enterText(_field, 'steinpilzsucher');
+    await settle(tester);
+    expect(dialogText('E-Mail-Adresse'), findsNothing);
+    expect(tester.widget<FilledButton>(_saveButton).onPressed, isNotNull);
   });
 }
