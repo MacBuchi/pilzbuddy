@@ -36,6 +36,7 @@ import '../spots/widgets/spot_detail_sheet.dart';
 import 'live_share_providers.dart';
 import 'resume_refresh.dart';
 import 'forest_data_providers.dart';
+import 'map_focus.dart';
 import 'map_gestures.dart';
 import 'map_view/camera_tour.dart';
 import 'map_view/map_view.dart';
@@ -570,6 +571,16 @@ class _MapScreenState extends ConsumerState<MapScreen>
       mapAutoUpdateInputsProvider,
       (_, _) => ref.read(mapAutoUpdateProvider.notifier).sync(),
     );
+    // Der Sprung zu einem Spot (#345). Der Karten-Screen ist der EINZIGE
+    // Ort, an dem ein Fokus-Wunsch in eine Kamerabewegung wird — alle
+    // anderen (Banner, Auswahlblatt) schreiben nur den Wunsch.
+    //
+    // `math.max`, damit ein Sprung nie herauszoomt: Wer schon bei z18
+    // über dem Waldstück steht, will nicht auf z16 zurückgesetzt werden.
+    ref.listen<MapFocus?>(mapFocusProvider, (_, next) {
+      if (next == null) return;
+      _map.move(next.target, math.max(_map.zoom, kSpotFocusZoom));
+    });
     // Solange ich teile, jede neue Position hochschieben (Bewegung sichtbar).
     ref.listen(positionStreamProvider,
         (_, next) => _maybeUploadLocation(next.valueOrNull));

@@ -7,6 +7,28 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Ein Tipp aufs Banner bringt dich jetzt zum Spot auf der Karte
+
+*28. August 2026 · Version 1.104.0*
+
+Die Hinweise oben auf der Karte — „Ampel steht günstig", „Neuer Fund von
+deinem Buddy", „Erinnerung ans Vorjahr" — nannten einen Spot und öffneten
+sein Blatt. Nur blieb die Karte dabei stehen: Blatt zu, und du warst
+wieder da, wo du gestartet bist. Bei einem Spot, der 30 Kilometer weit
+weg liegt, half nur noch der Name.
+
+**Jetzt springt die Karte mit.** Ein Tipp aufs Banner setzt dich über den
+Spot, das Blatt öffnet sich darüber — machst du es zu, liegt der Spot vor
+dir. Herangezoomt wird nur, wenn du weiter draußen warst; wer schon nah
+dran ist, bleibt es.
+
+Und wenn die Ampel an **mehreren** Spots günstig steht, bekommst du sie
+jetzt zur Auswahl statt nur den besten. Bisher öffnete das Banner einen
+davon und war für den Tag verschwunden — die anderen standen zwar in der
+Zahl, aber es führte kein Weg zu ihnen. Solange du noch nicht alle
+angesehen hast, bleibt der Hinweis stehen; wegräumen kannst du ihn wie
+immer mit dem X.
+
 ## Die Pilztour zeichnet jetzt auch dann auf, wenn die App zu ist
 
 *28. August 2026 · Version 1.103.0*

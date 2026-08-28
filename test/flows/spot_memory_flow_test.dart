@@ -2,10 +2,12 @@
 // Die Auswahlregeln selbst prüft test/spot_memory_test.dart.
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:pilzbuddy/core/settings.dart';
 import 'package:pilzbuddy/features/map/widgets/map_banners.dart';
 
 import '../fakes/fake_backend.dart';
+import '../fakes/fake_map_view.dart';
 import '../fakes/fake_settings.dart';
 import '../fakes/test_app.dart';
 
@@ -28,6 +30,10 @@ void main() {
     backend.signInAs(me.id);
     backend.addSpot(
         ownerId: me.id,
+        // Bewusst NICHT der Startpunkt der Karte (51.1634/10.4477): Sonst
+        // wäre die Kamera-Prüfung unten leer, weil sie schon dort steht.
+        lat: 50.5,
+        lng: 12.5,
         name: 'Buchenhang',
         species: 'Steinpilz',
         foundOn: lastYearToday());
@@ -44,6 +50,11 @@ void main() {
     await settle(tester);
     expect(find.text('Buchenhang'), findsWidgets, reason: 'Spot-Blatt offen');
     expect(settings.spotMemoryDismissedUntil, isNotNull);
+    // … und die Karte steht darunter auf dem Spot (#345). Ein Hinweis,
+    // der einen Ort nennt, aber nicht hinführt, ist eine halbe Nachricht.
+    expect(
+        tester.state<FakeMapViewState>(find.byType(FakeMapView)).center,
+        const LatLng(50.5, 12.5));
 
     // Blatt zu: Das Banner ist weg und kommt in dieser Sitzung nicht
     // wieder.
