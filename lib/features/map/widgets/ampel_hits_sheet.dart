@@ -20,7 +20,6 @@
 // Aufrufer springt und öffnet. So bleibt der Sprungbefehl an einer
 // Stelle.
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/app_colors.dart';
 import '../../../core/widgets/mushroom_icon.dart';
@@ -37,13 +36,13 @@ Future<Spot?> showAmpelHitsSheet(BuildContext context, List<AmpelHit> hits) {
   );
 }
 
-class _AmpelHitsSheet extends ConsumerWidget {
+class _AmpelHitsSheet extends StatelessWidget {
   const _AmpelHitsSheet({required this.hits});
 
   final List<AmpelHit> hits;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return ConstrainedBox(
       // Wie das Spot-Blatt und „Was ist hier?": gedeckelt, damit die Karte
