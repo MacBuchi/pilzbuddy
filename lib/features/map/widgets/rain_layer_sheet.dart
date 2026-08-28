@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/app_colors.dart';
-import '../../../core/settings.dart';
 import '../../ampel/ampel_map_providers.dart';
 import '../../ampel/ampel_providers.dart';
-import '../forest_data_providers.dart' show forestLayerEnabledProvider;
 import '../rain_data_providers.dart';
 import '../rain_fill.dart';
 import '../rain_layer.dart';
@@ -127,29 +125,12 @@ class _RainLayerSheet extends ConsumerWidget {
                           'Wetterdaten vom Spot (beim ersten Mal knapp '
                           '2 MB).'),
                       value: ref.watch(ampelLayerEnabledProvider),
-                      onChanged: (value) async {
-                        ref
-                            .read(ampelLayerEnabledProvider.notifier)
-                            .state = value;
-                        if (!value) return;
-                        // Ohne Waldebene hätte das Leuchten nichts, worauf
-                        // es liegen könnte.
-                        ref.read(forestLayerEnabledProvider.notifier).state =
-                            true;
-                        // Dieselbe Zustimmung wie der Regen-Verlauf —
-                        // EIN Angebot, kein zweiter Dialog: Die Fläche
-                        // rechnet aus genau dem Stapel, den das
-                        // Spot-Blatt lädt, und der Untertitel nennt
-                        // die Kosten.
-                        if (!ref.read(rainCourseEnabledProvider)) {
-                          ref
-                              .read(rainCourseEnabledProvider.notifier)
-                              .state = true;
-                          await ref
-                              .read(settingsProvider)
-                              .setRainCourseEnabled(true);
-                        }
-                      },
+                      // Die Kette samt Nebenwirkungen (Waldebene an,
+                      // Wetter-Zustimmung) steht seit #347 EINMAL in
+                      // `ampel_map_providers.dart` — das Karten-Blatt
+                      // ruft dieselbe. Zwei Kopien wären zwei Antworten
+                      // auf denselben Schalter.
+                      onChanged: (value) => setAmpelLayerEnabled(ref, value),
                     ),
                   ],
                   if (current != RainLayer.off) ...[

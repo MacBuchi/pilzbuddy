@@ -1,6 +1,6 @@
 // Szenarien für die Offline-Karten: Verwaltung (Download/Löschen) und
 // der Umschalter auf der Karte.
-import 'package:flutter/material.dart' show BackButton, Icons;
+import 'package:flutter/material.dart' show BackButton;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/settings.dart';
@@ -11,6 +11,7 @@ import '../fakes/fake_backend.dart';
 import '../fakes/fake_keep_alive.dart';
 import '../fakes/fake_offline_maps.dart';
 import '../fakes/fake_settings.dart';
+import '../fakes/map_ui.dart';
 import '../fakes/test_app.dart';
 
 void main() {
@@ -61,8 +62,12 @@ void main() {
     final offlineMaps = FakeOfflineMapRepository();
     await pumpApp(tester, backend, offlineMaps: offlineMaps);
 
-    // Ohne installierte Karte: kein Umschalter auf der Karte.
-    expect(find.byTooltip('Zur Offline-Karte'), findsNothing);
+    // Ohne installierte Karte: kein Eintrag im Ebenen-Blatt. Seit #347
+    // ist der Umschalter eine Zeile dort und kein eigener FAB mehr —
+    // die Zusage bleibt dieselbe, nichts anzubieten, was es nicht gibt.
+    await openMapLayers(tester);
+    expect(layerRow('Offline-Karte'), findsNothing);
+    await closeMapLayers(tester);
 
     // Karte "herunterladen" und Verwaltung wieder verlassen.
     await tester.tap(find.text('Profil'));
@@ -78,18 +83,26 @@ void main() {
     await tester.tap(find.text('Karte'));
     await settle(tester);
 
-    // Jetzt ist der Umschalter da — und zeigt den Zustand: Erdball = online,
-    // durchgestrichener Erdball = offline (#104, #114 — war invertiert).
-    expect(find.byTooltip('Zur Offline-Karte'), findsOneWidget);
-    expect(find.byIcon(Icons.public), findsOneWidget);
-    expect(find.byIcon(Icons.public_off), findsNothing);
-    await tester.tap(find.byTooltip('Zur Offline-Karte'));
+    // Jetzt ist die Zeile da — und sagt den Zustand in Worten.
+    //
+    // Bis #347 stand dafür ein Symbol da (Erdball / durchgestrichener
+    // Erdball, #104/#114 — es war einmal invertiert). Der Untertitel ist
+    // die Verbesserung: Er unterscheidet „aus", „an" und „an, weil kein
+    // Empfang" — ein Symbol konnte das nie.
+    await openMapLayers(tester);
+    expect(layerRow('Offline-Karte'), findsOneWidget);
+    expect(find.text('Karten aus dem Netz'), findsOneWidget);
+
+    await tester.tap(layerSwitch('Offline-Karte'));
     await settle(tester);
-    expect(find.text('Offline-Karte aktiv 🗺️'), findsOneWidget);
-    // Das Icon hängt am geladenen Offline-Style, nicht am Schalter: im Test
-    // gibt es keine echten PMTiles, die Karte bleibt also online — und das
-    // Icon muss das zeigen, statt Offline zu behaupten (stiller Fallback).
-    expect(find.byIcon(Icons.public), findsOneWidget);
+
+    // Der Untertitel hängt am GELADENEN Offline-Stil, nicht am Schalter:
+    // Im Test gibt es keine echten PMTiles, die Karte bleibt also online
+    // — und die Zeile muss das sagen, statt Offline zu behaupten
+    // (stiller Rückfall). Genau dafür war das Symbol da, und genau das
+    // leistet der Satz jetzt.
+    expect(find.text('Karten aus dem Netz'), findsOneWidget);
+    await closeMapLayers(tester);
     await drainSnackbars(tester);
   });
 
@@ -114,8 +127,10 @@ void main() {
     await settle(tester);
 
     expect(offlineMaps.installed.single.key, 'de_berlin');
-    // Der Umschalt-FAB erscheint, sobald der Download durch ist.
-    expect(find.byTooltip('Zur Offline-Karte'), findsOneWidget);
+    // Die Umschalt-Zeile erscheint, sobald der Download durch ist.
+    await openMapLayers(tester);
+    expect(layerRow('Offline-Karte'), findsOneWidget);
+    await closeMapLayers(tester);
     await drainSnackbars(tester);
   });
 
@@ -232,20 +247,18 @@ void main() {
 
     expect(settings.offlineMapEnabled, isFalse);
 
-    await tester.tap(find.byTooltip('Zur Offline-Karte'));
-    await settle(tester);
+    await toggleLayer(tester, 'Offline-Karte');
     expect(settings.offlineMapEnabled, isTrue,
         reason: 'Die Wahl muss gespeichert werden, nicht nur im Speicher '
             'stehen — sonst ist sie beim nächsten Start wieder weg');
 
     // Und zurück: Auch das Ausschalten wird gemerkt, sonst bliebe man
-    // nach einem einzigen Versehen dauerhaft offline. Der Tooltip heißt
-    // weiterhin „Zur Offline-Karte", weil er am *geladenen* Offline-Style
-    // hängt (map_screen.dart: `offlineActive = offlineStyle != null`) und
-    // es im Test keine echten PMTiles gibt — die Karte bleibt online,
-    // der Schalter steht trotzdem auf offline.
-    await tester.tap(find.byTooltip('Zur Offline-Karte'));
-    await settle(tester);
+    // nach einem einzigen Versehen dauerhaft offline. Der SCHALTER steht
+    // dabei auf „an", während der Untertitel „Karten aus dem Netz" sagt
+    // — beides stimmt: Es gibt im Test keine echten PMTiles, der Stil
+    // lädt nicht, und die Karte fällt still auf OSM zurück. Genau diese
+    // beiden Aussagen ließen sich am alten Symbol nicht unterscheiden.
+    await toggleLayer(tester, 'Offline-Karte');
     expect(settings.offlineMapEnabled, isFalse);
     await drainSnackbars(tester);
   });

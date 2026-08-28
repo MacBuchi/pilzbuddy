@@ -11,7 +11,6 @@ import 'package:archive/archive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pilzbuddy/core/app_colors.dart';
 import 'package:pilzbuddy/data/rain_grid_repository.dart';
 import 'package:pilzbuddy/features/ampel/ampel_map_providers.dart';
 import 'package:pilzbuddy/features/map/forest_data_providers.dart'
@@ -32,6 +31,7 @@ import 'package:pilzbuddy/features/spots/widgets/weather_chart.dart';
 
 import '../fakes/fake_backend.dart';
 import '../fakes/fake_settings.dart';
+import '../fakes/map_ui.dart';
 import '../fakes/test_app.dart';
 import '../rain_grid_test.dart' show encode;
 
@@ -318,8 +318,7 @@ void main() {
     backend.signInAs(backend.addUser(username: 'testpilz').id);
     await pumpApp(tester, backend, settings: settings);
 
-    await tester.tap(find.byTooltip('Regen'));
-    await settle(tester);
+    await openLayerSheet(tester, 'Regen');
     final toggle = find.text('Pilzwetter-Ampel (experimentell)');
     await tester.ensureVisible(toggle);
     await settle(tester);
@@ -357,12 +356,17 @@ void main() {
     expect(container.read(ampelLayerEnabledProvider), isTrue);
   });
 
-  testWidgets('der Regen-Knopf zeigt die Ampel, nicht nur den Regen (#278)',
-      (tester) async {
-    // Feldbericht: „Wenn die Pilzampel aktiv ist, sollte das
+  testWidgets('der Ebenen-Knopf zählt die Ampel mit, nicht nur den Regen '
+      '(#278, #347)', (tester) async {
+    // Feldbericht zu #278: „Wenn die Pilzampel aktiv ist, sollte das
     // Wassersymbol auch ein Symbol für die Pilzampel zeigen und nicht
-    // einfach nur inaktiv sein." Hinter dem einen Knopf sitzen zwei
-    // Ebenen; er muss beide unterscheidbar anzeigen.
+    // einfach nur inaktiv sein." Der Regen-Knopf löste das damals mit
+    // drei Zuständen — bis #347, seither gibt es ihn nicht mehr.
+    //
+    // Die Zusage ist geblieben und liegt jetzt am ZÄHLER des
+    // Ebenen-Knopfs: Was auf der Karte leuchtet, wird gezählt. Ein
+    // Zähler, der die Ampel überginge, wäre derselbe Fehler wie damals —
+    // die halbe Karte leuchtet, und der Knopf sagt „nichts an".
     final settings = FakeSettings(ampelPreviewEnabled: true);
     final backend = FakeBackend();
     backend.signInAs(backend.addUser(username: 'testpilz').id);
@@ -370,56 +374,52 @@ void main() {
     final container = ProviderScope.containerOf(
         tester.element(find.byType(Scaffold).first));
 
-    // Über den heroTag statt über den Tooltip: Der Tooltip ist genau
-    // das, was dieser Test prüft — ihn zum Suchen zu benutzen, hieße
-    // die Antwort in die Frage zu legen.
-    final rainFab = find.byWidgetPredicate(
-        (widget) => widget is FloatingActionButton && widget.heroTag == 'rain');
-    FloatingActionButton fab() => tester.widget<FloatingActionButton>(rainFab);
-    bool hasIcon(IconData icon) => find
-        .descendant(of: rainFab, matching: find.byIcon(icon))
+    // Über den heroTag statt über den Tooltip: Der Knopf soll über
+    // seinen ZUSTAND gefunden werden können, ohne dass der Test den
+    // Zustand schon in die Suche legt.
+    final layersFab = find.byWidgetPredicate((widget) =>
+        widget is FloatingActionButton && widget.heroTag == 'layers');
+    bool badge(String label) => find
+        .descendant(of: layersFab, matching: find.text(label))
         .evaluate()
         .isNotEmpty;
 
-    expect(fab().tooltip, 'Regen');
-    expect(hasIcon(Icons.water_drop_outlined), isTrue);
-    expect(fab().backgroundColor, isNull, reason: 'nichts an, nichts bunt');
+    expect(
+        find
+            .descendant(of: layersFab, matching: find.byIcon(Icons.layers_outlined))
+            .evaluate(),
+        isNotEmpty,
+        reason: 'nichts an, also die leere Form');
 
-    // Nur die Ampel: eigenes Symbol und eigene Farbe — vorher sah der
-    // Knopf hier aus wie „aus", während der halbe Wald leuchtete.
+    // Nur die Ampel: Sie zählt — vorher sah der Knopf hier aus wie „aus",
+    // während der halbe Wald leuchtete.
     container.read(ampelLayerEnabledProvider.notifier).state = true;
     await settle(tester);
-    expect(fab().tooltip, 'Pilzampel');
-    expect(hasIcon(Icons.traffic), isTrue);
-    expect(hasIcon(Icons.water_drop_outlined), isFalse);
-    expect(fab().backgroundColor, AppColors.ampelStrong);
+    expect(badge('1'), isTrue);
+    expect(
+        find
+            .descendant(of: layersFab, matching: find.byIcon(Icons.layers))
+            .evaluate(),
+        isNotEmpty);
 
-    // Beide an: Der Tropfen führt (der Knopf heißt Regen), die Ampel
-    // bekommt ihren Punkt dazu.
+    // Beide an: zwei.
     container.read(rainLayerProvider.notifier).state = RainLayer.last30d;
     await settle(tester);
-    expect(fab().tooltip, 'Regen & Pilzampel');
-    expect(hasIcon(Icons.water_drop), isTrue);
-    expect(fab().backgroundColor, AppColors.friendBlue);
-    expect(
-        tester
-            .widget<Badge>(
-                find.descendant(of: rainFab, matching: find.byType(Badge)))
-            .isLabelVisible,
-        isTrue);
+    expect(badge('2'), isTrue);
 
-    // Nur Regen: wieder der alte Zustand, ohne Punkt.
+    // Und im Blatt stehen beide getrennt da — die Ampel als eigene Zeile
+    // und nicht als Anhängsel des Regens.
+    await openMapLayers(tester);
+    expect(layerRow('Pilzampel'), findsOneWidget);
+    expect(tester.widget<Switch>(layerSwitch('Pilzampel')).value, isTrue);
+    expect(find.text('Letzte 30 Tage'), findsOneWidget,
+        reason: 'die Regen-Zeile nennt den gewählten Zeitraum');
+    await closeMapLayers(tester);
+
+    // Ampel aus: wieder eins.
     container.read(ampelLayerEnabledProvider.notifier).state = false;
     await settle(tester);
-    expect(fab().tooltip, 'Regen');
-    expect(fab().backgroundColor, AppColors.friendBlue);
-    expect(
-        tester
-            .widget<Badge>(
-                find.descendant(of: rainFab, matching: find.byType(Badge)))
-            .isLabelVisible,
-        isFalse,
-        reason: 'ein Punkt ohne Ampel wäre Dekoration');
+    expect(badge('1'), isTrue);
   });
 
   testWidgets('es gibt keine Farbwahl mehr im Regen-Blatt', (tester) async {
@@ -434,8 +434,7 @@ void main() {
     backend.signInAs(backend.addUser(username: 'testpilz').id);
     await pumpApp(tester, backend, settings: settings);
 
-    await tester.tap(find.byTooltip('Regen'));
-    await settle(tester);
+    await openLayerSheet(tester, 'Regen');
     final toggle = find.text('Pilzwetter-Ampel (experimentell)');
     await tester.ensureVisible(toggle);
     await settle(tester);
@@ -453,8 +452,7 @@ void main() {
     final backend = FakeBackend();
     backend.signInAs(backend.addUser(username: 'testpilz').id);
     await pumpApp(tester, backend, settings: FakeSettings());
-    await tester.tap(find.byTooltip('Regen'));
-    await settle(tester);
+    await openLayerSheet(tester, 'Regen');
     expect(find.text('Pilzwetter-Ampel (experimentell)'), findsNothing);
   });
 

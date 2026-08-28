@@ -3,6 +3,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import '../fakes/fake_backend.dart';
+import '../fakes/map_ui.dart';
 import '../fakes/test_app.dart';
 
 void main() {
@@ -50,8 +51,7 @@ void main() {
     final (backend, me) = loggedInBackend();
     await pumpApp(tester, backend, position: fakePosition(51.16, 10.45));
 
-    await tester.tap(find.byTooltip('Standort mit Buddies teilen'));
-    await settle(tester);
+    await tapTripRow(tester, 'Standort mit Buddies teilen');
     await tester.tap(find.text('2 Std.'));
     await settle(tester);
 
@@ -70,8 +70,7 @@ void main() {
     expect(
         find.textContaining('Du teilst deinen Standort bis'), findsOneWidget);
 
-    await tester.tap(find.byTooltip('Standort-Teilen verwalten'));
-    await settle(tester);
+    await tapTripRow(tester, 'Standort-Teilen verwalten');
     await tester.tap(find.text('Teilen beenden'));
     await settle(tester);
 
