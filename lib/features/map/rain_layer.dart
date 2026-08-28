@@ -17,20 +17,28 @@
 // siehe `MapImageOverlay`) — und er schickte das Sichtfenster des Nutzers
 // an den DWD. So verlässt nur die Anfrage nach einem Bild das Gerät, das
 // für alle Nutzer identisch ist.
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/errors.dart';
+import '../../core/settings.dart';
 
 /// Welche Regenebene über der Karte liegt. Bewusst flach: „jetzt" und
 /// „in einer Stunde" sind dasselbe Produkt zu anderer Zeit, aber für den
 /// Benutzer zwei Auswahlpunkte — als Aufzählung bleibt beides ohne
 /// Nebenzustand testbar.
 enum RainLayer {
-  /// Keine Ebene. Vorgabe, und bewusst NICHT gespeichert: Beim Start
-  /// aktiv wäre sie ein 200–600-KB-Download, den niemand angefordert hat
-  /// — im Wald am Datenvolumen. Gleiche Regel wie beim Spot-Filter, der
-  /// auch nur für die Sitzung gilt.
+  /// Keine Ebene — die Vorgabe beim allerersten Start.
+  ///
+  /// Bis 1.105.0 stand hier „bewusst NICHT gespeichert: Beim Start aktiv
+  /// wäre sie ein 200–600-KB-Download, den niemand angefordert hat". Der
+  /// Satz stimmte im Kern und im Adressaten nicht: Angefordert hat ihn,
+  /// wer die Ebene angeschaltet hat, und der bekommt sie seit #349
+  /// wieder. Ungefragt bleibt sie für alle anderen — die Vorgabe ist
+  /// weiterhin „aus". Der Spot-Filter gilt weiter nur für die Sitzung.
   off,
 
   /// `dwd:Niederschlagsradar` — Radarkomposit RV, 5-Minuten-Takt, mm/h.
@@ -222,7 +230,36 @@ double _mercatorY(double lat) =>
     180;
 
 /// Die gewählte Ebene — nur für diese Sitzung, siehe [RainLayer.off].
-final rainLayerProvider = StateProvider<RainLayer>((ref) => RainLayer.off);
+/// Welche Regen-Ebene liegt auf der Karte — seit #349 über den Neustart
+/// hinaus gemerkt, siehe [Settings.rainLayerName].
+///
+/// Eigener Notifier statt `RememberedFlag`, weil hier keine Wahrheit
+/// zwischen zwei Werten liegt, sondern zwischen fünf.
+class RainLayerNotifier extends Notifier<RainLayer> {
+  @override
+  RainLayer build() {
+    final name = ref.read(settingsProvider).rainLayerName;
+    // Ein unbekannter Name fällt auf „aus" zurück: Wer einen Enum-Wert
+    // umbenennt, soll die Karte nicht mit einer Ausnahme begrüßen.
+    return RainLayer.values
+        .firstWhere((l) => l.name == name, orElse: () => RainLayer.off);
+  }
+
+  void set(RainLayer value) {
+    state = value;
+    unawaited(ref
+        .read(settingsProvider)
+        // `off` löscht den Schlüssel, statt „off" hineinzuschreiben: So
+        // heißt „nichts gemerkt" dasselbe wie „aus gemerkt", und der
+        // Rückfall oben braucht keinen Sonderfall.
+        .setRainLayerName(value == RainLayer.off ? null : value.name)
+        .catchError((Object e, StackTrace s) =>
+            logError('Regen-Ebene merken', e, s)));
+  }
+}
+
+final rainLayerProvider =
+    NotifierProvider<RainLayerNotifier, RainLayer>(RainLayerNotifier.new);
 
 /// Wie aus einer URL ein Bild wird. Dieselbe Test-Naht wie
 /// `tileProviderFactoryProvider`: Widget-Tests bleiben netzfrei, indem sie

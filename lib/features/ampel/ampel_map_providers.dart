@@ -11,16 +11,26 @@ import '../map/spot_weather.dart';
 import 'ampel_fill.dart';
 import 'ampel_providers.dart';
 
-/// Leuchtet das Pilzwetter auf der Karte? Session-lokal wie die
-/// Regen-Ebene und aus demselben Grund: Eine beim Start aktive Ebene
-/// wäre ein ungefragter Download.
+/// Leuchtet das Pilzwetter auf der Karte? Seit #349 gemerkt.
+///
+/// Die alte Regel („eine beim Start aktive Ebene wäre ein ungefragter
+/// Download") verwechselte „ungefragt" mit „einmal gefragt" — die
+/// Begründung steht bei [Settings.ampelLayerEnabled]. Von den vier
+/// Ebenen ist diese die teuerste zum Merken: Sie zieht Wald- und
+/// Höhengitter in den Startpfad, für den, der sie anlässt.
 ///
 /// **Der Schalter meint seit 1.76.0 die Waldwaben** (Betreiber:
 /// „ich würde die Pilzampel nur mit dem Wald überlagern"). Es ist kein
 /// eigenes Bild mehr, sondern ein MODUS der Waldfläche — deshalb
 /// schaltet er im Blatt die Waldebene mit ein, und wer die Waldebene
 /// abschaltet, nimmt ihn mit.
-final ampelLayerEnabledProvider = StateProvider<bool>((ref) => false);
+final ampelLayerEnabledProvider = NotifierProvider<RememberedFlag, bool>(
+  () => RememberedFlag(
+    read: (s) => s.ampelLayerEnabled,
+    write: (s, v) => s.setAmpelLayerEnabled(v),
+    label: 'Ampel-Fläche merken',
+  ),
+);
 
 /// Die Ampel-Fläche schalten — samt ihrer beiden Nebenwirkungen.
 ///
@@ -34,9 +44,9 @@ final ampelLayerEnabledProvider = StateProvider<bool>((ref) => false);
 /// Fläche rechnet aus genau dem Stapel, den auch das Spot-Blatt lädt,
 /// und die Kosten nennt der Untertitel am Schalter.
 Future<void> setAmpelLayerEnabled(WidgetRef ref, bool value) async {
-  ref.read(ampelLayerEnabledProvider.notifier).state = value;
+  ref.read(ampelLayerEnabledProvider.notifier).set(value);
   if (!value) return;
-  ref.read(forestLayerEnabledProvider.notifier).state = true;
+  ref.read(forestLayerEnabledProvider.notifier).set(true);
   if (ref.read(rainCourseEnabledProvider)) return;
   ref.read(rainCourseEnabledProvider.notifier).state = true;
   await ref.read(settingsProvider).setRainCourseEnabled(true);

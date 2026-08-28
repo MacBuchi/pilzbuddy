@@ -372,8 +372,14 @@ void main() {
         reason: 'derselbe Heranzoom wie beim Long-Press — dieselbe Absicht');
     // Sprung UND Blatt gehören zusammen: Das eine sagt WO, das andere WAS.
     expect(find.text('Fund eintragen'), findsOneWidget);
-    // Beim EINZELNEN Treffer ist die Aussage abgearbeitet.
-    expect(settings.ampelBannerDismissedUntil, isNotNull);
+    // **Und das Banner bleibt** (#349). Bis 1.104.0 stand hier das
+    // Gegenteil: Der einzelne Treffer galt als „abgearbeitet" und wurde
+    // bis Mitternacht stummgeschaltet. Der Betreiber hat daraufhin
+    // gemeldet, der Hinweis „funktioniere seit dem letzten Update nicht
+    // mehr" — er hatte ihn einmal angetippt, wie das Banner es selbst
+    // vorschlägt („— antippen"), und danach kam an diesem Tag keiner
+    // mehr. Lesen ist nicht erledigen; der Spot bleibt günstig.
+    expect(settings.ampelBannerDismissedUntil, isNull);
   });
 
   testWidgets('mehrere Treffer: die Auswahl führt zum GEWÄHLTEN Spot',

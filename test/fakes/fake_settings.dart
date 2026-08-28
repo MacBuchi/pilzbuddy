@@ -15,6 +15,10 @@ class FakeSettings implements Settings {
     this.mapAutoUpdateEnabled = false,
     this.ampelPreviewEnabled = false,
     this.ampelBannerEnabled = false,
+    this.forestLayerEnabled = false,
+    this.contourLayerEnabled = false,
+    this.ampelLayerEnabled = false,
+    this.rainLayerName,
     this.tourIntervalSeconds = kTourIntervalDefaultSeconds,
     // Bewusst null: In echt initialisiert main() den Marker beim ersten
     // Start (ensureFindSeenMarker) — im Harness bleibt er aus, damit kein
@@ -102,6 +106,38 @@ class FakeSettings implements Settings {
   @override
   Future<void> setAmpelBannerEnabled(bool value) async {
     ampelBannerEnabled = value;
+  }
+
+  @override
+  bool forestLayerEnabled;
+
+  @override
+  Future<void> setForestLayerEnabled(bool value) async {
+    forestLayerEnabled = value;
+  }
+
+  @override
+  bool contourLayerEnabled;
+
+  @override
+  Future<void> setContourLayerEnabled(bool value) async {
+    contourLayerEnabled = value;
+  }
+
+  @override
+  bool ampelLayerEnabled;
+
+  @override
+  Future<void> setAmpelLayerEnabled(bool value) async {
+    ampelLayerEnabled = value;
+  }
+
+  @override
+  String? rainLayerName;
+
+  @override
+  Future<void> setRainLayerName(String? value) async {
+    rainLayerName = value;
   }
 
   @override

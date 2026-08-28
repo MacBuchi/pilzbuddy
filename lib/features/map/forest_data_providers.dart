@@ -10,6 +10,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/settings.dart';
+
 import '../ampel/ampel_fill.dart' show AmpelLevelGrid;
 import 'elevation_grid.dart' show ElevationGrid;
 import 'elevation_providers.dart' show elevationGridProvider;
@@ -23,10 +25,20 @@ import 'forest_grid.dart';
 import 'map_view/marker_culling.dart' show MapViewBounds;
 import 'rain_data_providers.dart' show rainGridRepositoryProvider;
 
-/// Ob die Waldebene auf der Karte liegt. Session-lokal wie der
-/// Regen-Layer und der Filter (#154) — eine über Nacht vergessene Ebene
-/// verwirrt mehr, als der eine Tipp zum Wiedereinschalten kostet.
-final forestLayerEnabledProvider = StateProvider<bool>((ref) => false);
+/// Ob die Waldebene auf der Karte liegt — seit #349 über den Neustart
+/// hinaus gemerkt.
+///
+/// Die alte Regel („session-lokal wie Regen-Layer und Filter, eine über
+/// Nacht vergessene Ebene verwirrt mehr als der eine Tipp") hat der
+/// Betreiber am 2026-08-28 kassiert; die Begründung dazu steht bei
+/// [Settings.forestLayerEnabled].
+final forestLayerEnabledProvider = NotifierProvider<RememberedFlag, bool>(
+  () => RememberedFlag(
+    read: (s) => s.forestLayerEnabled,
+    write: (s, v) => s.setForestLayerEnabled(v),
+    label: 'Waldebene merken',
+  ),
+);
 
 /// Welche Waldklassen als Teil-Ebenen eingeblendet sind (#231).
 ///

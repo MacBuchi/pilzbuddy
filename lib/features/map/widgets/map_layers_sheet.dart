@@ -133,7 +133,7 @@ class _MapLayersSheet extends ConsumerWidget {
                     value: ref.watch(forestLayerEnabledProvider),
                     onChanged: (value) => ref
                         .read(forestLayerEnabledProvider.notifier)
-                        .state = value,
+                        .set(value),
                     detail: MapLayerDetail.forest,
                     colour: AppColors.forestMixed,
                   ),
@@ -143,7 +143,7 @@ class _MapLayersSheet extends ConsumerWidget {
                     value: ref.watch(contourLayerEnabledProvider),
                     onChanged: (value) => ref
                         .read(contourLayerEnabledProvider.notifier)
-                        .state = value,
+                        .set(value),
                     detail: MapLayerDetail.terrain,
                     colour: AppColors.contourLine,
                   ),

@@ -156,15 +156,21 @@ class MapBanners extends ConsumerWidget {
 
   /// Das Ampel-Banner: ein Treffer führt direkt hin, mehrere in die Auswahl.
   ///
-  /// **Stummgeschaltet wird nur beim einzelnen Treffer.** Wer den einen
-  /// Spot gesehen hat, hat die Aussage abgearbeitet. Bei mehreren bleibt
-  /// das Banner stehen — sonst wäre Spot 2 nach dem Besuch von Spot 1 bis
-  /// Mitternacht unerreichbar, und die Zahl im Text wäre wieder eine
-  /// Aussage ohne Weg. Das X schaltet weiterhin stumm.
+  /// **Antippen schaltet NICHT stumm** (#349). Bis 1.104.0 tat es das beim
+  /// einzelnen Treffer, mit der Begründung „wer den einen Spot gesehen
+  /// hat, hat die Aussage abgearbeitet". Im Feld war das Ergebnis ein
+  /// Feature, das nach dem ersten Benutzen kaputt aussieht: Das Banner
+  /// lädt mit „— antippen" ausdrücklich zum Tippen ein, und derselbe
+  /// Tipp ließ es für den Rest des Tages verschwinden. Gemeldet als
+  /// „funktioniert seit dem letzten Update nicht mehr", und die Meldung
+  /// hatte recht — der Spot bleibt ja günstig. Die Aussage war nicht
+  /// abgearbeitet, nur gelesen.
+  ///
+  /// Stumm schaltet allein das X. Das ist die Geste, die nichts anderes
+  /// bedeutet, und sie gilt weiterhin für den ganzen Tag.
   Future<void> _openAmpel(
       BuildContext context, WidgetRef ref, List<AmpelHit> hits) async {
     if (hits.length == 1) {
-      _dismissAmpel(ref);
       _openSpot(context, ref, hits.single.spot);
       return;
     }

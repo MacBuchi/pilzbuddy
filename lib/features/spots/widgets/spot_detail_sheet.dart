@@ -23,6 +23,14 @@ Future<void> showSpotDetailSheet(BuildContext context, String spotId) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
+    // Der Griff ist die Antwort auf „nach unten wischen zum Schließen"
+    // (#351) — und die einzige, die trägt: Im scrollbaren Inhalt schluckt
+    // der SingleChildScrollView jede Abwärtsgeste, gemessen sowohl beim
+    // Schwung als auch beim langsamen Zug. Am Griff schließt beides. Ein
+    // DraggableScrollableSheet könnte es überall, verlangt aber eine
+    // feste Höhenfraktion — ein Spot ohne Funde stünde dann als
+    // halbleeres Blatt da.
+    showDragHandle: true,
     builder: (context) => _SpotDetailSheet(spotId: spotId),
   );
 }
@@ -159,8 +167,16 @@ class _SpotDetailSheet extends ConsumerWidget {
       // Obergrenze, damit die Karte dahinter sichtbar bleibt (dieselbe
       // Begründung wie im Filter- und Regen-Blatt), und Scrollen, damit
       // nichts abgeschnitten wird, was jemand lesen will.
+      //
+      // **0,8 statt 0,9** (#351): Der Griff sitzt AUSSERHALB dieser
+      // Grenze und kostet 48 dp. Bei 0,9 stünde die Oberkante des Blatts
+      // damit 43 dp unter dem Bildschirmrand — das sieht aus, als reiche
+      // es in die Benachrichtigungsleiste, und genau so ist es gemeldet
+      // worden. Gemessen auf Pixel-7-Format (914 dp hoch), Luft über dem
+      // Blatt: 0,9 ohne Griff 91 dp, 0,9 mit Griff 43 dp, 0,8 mit Griff
+      // 135 dp.
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * 0.9,
+        maxHeight: MediaQuery.sizeOf(context).height * 0.8,
       ),
       child: SingleChildScrollView(
         child: Padding(

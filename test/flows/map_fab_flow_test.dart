@@ -13,7 +13,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pilzbuddy/features/map/elevation_contour_providers.dart';
 import 'package:pilzbuddy/features/map/forest_data_providers.dart';
+import 'package:pilzbuddy/features/map/rain_layer.dart';
 import 'package:pilzbuddy/features/map/rain_data_providers.dart';
 import 'package:pilzbuddy/features/ampel/ampel_map_providers.dart';
 
@@ -74,7 +76,7 @@ void main() {
     expect(find.descendant(of: fab('layers'), matching: find.text('1')),
         findsNothing);
 
-    container.read(forestLayerEnabledProvider.notifier).state = true;
+    container.read(forestLayerEnabledProvider.notifier).set(true);
     await settle(tester);
     expect(find.descendant(of: fab('layers'), matching: find.text('1')),
         findsOneWidget);
@@ -102,6 +104,77 @@ void main() {
     expect(container.read(rainCourseEnabledProvider), isTrue);
     expect(settings.rainCourseEnabled, isTrue,
         reason: 'die Zustimmung muss den Neustart überleben');
+  });
+
+  testWidgets('alle vier Ebenen kommen nach dem Neustart wieder (#349)',
+      (tester) async {
+    // Zusage 2, verschärft: Der Zustand überlebt jetzt auch den
+    // Neustart. Gemeldet als „Die Karteneinstellung setzt sich jedes Mal
+    // zurück, wenn man die App neu startet" — und die Meldung hatte
+    // recht, es war so gebaut.
+    //
+    // Alle vier in EINEM Test, weil sie verschiedene Argumente hatten:
+    // Wald und Höhenlinien kosteten nur Rechenzeit („eine vergessene
+    // Ebene verwirrt"), Regen und Ampel kosten Daten („ungefragter
+    // Download"). Fiele einer der beiden Gründe still zurück, wäre es
+    // genau einer dieser vier.
+    //
+    final settings = FakeSettings(ampelPreviewEnabled: true);
+    await pumpApp(tester, signedIn(), settings: settings);
+    var container = containerOf(tester);
+
+    container.read(forestLayerEnabledProvider.notifier).set(true);
+    container.read(contourLayerEnabledProvider.notifier).set(true);
+    container.read(rainLayerProvider.notifier).set(RainLayer.last30d);
+    container.read(ampelLayerEnabledProvider.notifier).set(true);
+    await settle(tester);
+
+    // **Der Neustart braucht einen leeren Frame dazwischen.** Ein
+    // zweiter `pumpApp` allein ist KEINER: Flutter erkennt denselben
+    // `ProviderScope` an derselben Stelle wieder, hält sein Element am
+    // Leben und damit den ganzen Container — die Provider behalten
+    // schlicht ihren Zustand. Der Test war damit grün, auch als
+    // `RememberedFlag.build()` die Einstellungen gar nicht mehr las
+    // (in der Gegenprobe gemessen). `pumpWidget(SizedBox())` wirft das
+    // Element weg, und erst der Aufbau danach liest wirklich neu.
+    await tester.pumpWidget(const SizedBox());
+    await pumpApp(tester, signedIn(), settings: settings);
+    container = containerOf(tester);
+
+    expect(container.read(forestLayerEnabledProvider), isTrue);
+    expect(container.read(contourLayerEnabledProvider), isTrue);
+    expect(container.read(rainLayerProvider), RainLayer.last30d,
+        reason: 'die WAHL kommt wieder, nicht irgendeine Regenebene');
+    expect(container.read(ampelLayerEnabledProvider), isTrue);
+
+    // Und der Zähler sagt dasselbe, ohne dass man ein Blatt öffnet.
+    expect(find.descendant(of: fab('layers'), matching: find.text('4')),
+        findsOneWidget);
+  });
+
+  testWidgets('„aus" wird auch gemerkt — sonst klebte die Ebene fest',
+      (tester) async {
+    // Die Gegenrichtung, und sie ist die gefährlichere: Ein Merken, das
+    // nur das Anschalten schreibt, ergäbe eine Ebene, die sich nicht
+    // mehr abschalten LÄSST — jeder Start holte sie zurück. `off` löscht
+    // deshalb den Schlüssel, statt „off" hineinzuschreiben.
+    final settings = FakeSettings();
+    await pumpApp(tester, signedIn(), settings: settings);
+    var container = containerOf(tester);
+
+    container.read(rainLayerProvider.notifier).set(RainLayer.now);
+    container.read(contourLayerEnabledProvider.notifier).set(true);
+    await settle(tester);
+    container.read(rainLayerProvider.notifier).set(RainLayer.off);
+    container.read(contourLayerEnabledProvider.notifier).set(false);
+    await settle(tester);
+    expect(settings.rainLayerName, isNull);
+
+    await tester.pumpWidget(const SizedBox());
+    await pumpApp(tester, signedIn(), settings: settings);
+    container = containerOf(tester);
+    expect(container.read(rainLayerProvider), RainLayer.off);
+    expect(container.read(contourLayerEnabledProvider), isFalse);
   });
 
   testWidgets('läuft eine Tour, steht ihr Ausgang NEBEN dem Unterwegs-Knopf',

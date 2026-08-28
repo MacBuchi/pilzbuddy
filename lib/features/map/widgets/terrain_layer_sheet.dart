@@ -95,7 +95,7 @@ class _TerrainLayerSheet extends ConsumerWidget {
                         ? null
                         : (value) => ref
                             .read(contourLayerEnabledProvider.notifier)
-                            .state = value,
+                            .set(value),
                   ),
                   if (enabled)
                     SwitchListTile(
