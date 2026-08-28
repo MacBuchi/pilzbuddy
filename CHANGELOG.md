@@ -7,6 +7,36 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Weniger Knöpfe auf der Karte — und mehr Karte
+
+*28. August 2026 · Version 1.105.0*
+
+Rechts auf der Karte standen zuletzt zehn Knöpfe übereinander. Auf einem
+normalen Handy waren das zwei Drittel der Bildhöhe, und mit jedem neuen
+Knopf wurden alle anderen ein Stück kleiner.
+
+**Jetzt sind es fünf.** Was die Karte zeigt, liegt zusammen hinter einem
+Knopf **Ebenen**: Waldtypen, Höhenlinien, Regen, Pilzampel, die
+Offline-Karte und das Aktualisieren. Eine Zeile je Ebene, Schalter
+gleich daneben — eine Ebene an- oder auszuschalten kostet dich genau so
+viele Tipps wie vorher. Wer mehr wissen will (Kartenblöcke laden,
+Regenzeitraum wählen, Quellen), tippt die Zeile an und landet im
+bekannten Blatt.
+
+Am Knopf steht eine kleine Zahl: wie viele Ebenen gerade an sind. Welche
+das sind, sagt wie bisher die Legende links unten.
+
+Pilztour und Standort-Teilen liegen zusammen unter **Unterwegs**. Läuft
+eine Tour, erscheint ihr Stopp-Knopf daneben — beenden bleibt ein Tipp.
+
+Unverändert an ihrem Platz: **Filter**, **Meine Position** und **Neuer
+Spot**.
+
+Nebenbei sagt die Offline-Karte jetzt in Worten, woran man ist —
+„Karten aus dem Netz", „Heruntergeladene Regionen" oder „Aktiv, weil
+kein Empfang". Das durchgestrichene Erdball-Symbol konnte den letzten
+Fall nie zeigen.
+
 ## Ein Tipp aufs Banner bringt dich jetzt zum Spot auf der Karte
 
 *28. August 2026 · Version 1.104.0*

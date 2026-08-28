@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/rain_grid_repository.dart' show RainStackData;
+import '../../core/settings.dart';
+import '../map/forest_data_providers.dart';
 import '../map/rain_data_providers.dart';
 import '../map/spot_weather.dart';
 import 'ampel_fill.dart';
@@ -19,6 +21,26 @@ import 'ampel_providers.dart';
 /// schaltet er im Blatt die Waldebene mit ein, und wer die Waldebene
 /// abschaltet, nimmt ihn mit.
 final ampelLayerEnabledProvider = StateProvider<bool>((ref) => false);
+
+/// Die Ampel-Fläche schalten — samt ihrer beiden Nebenwirkungen.
+///
+/// Sie hat seit #347 ZWEI Bedienstellen (Karten-Blatt und Regen-Blatt),
+/// und beide müssen dasselbe tun. Ohne Waldebene hätte das Leuchten
+/// nichts, worauf es liegen könnte, und ohne die Wetter-Zustimmung keine
+/// Daten — zwei Kopien dieser Kette wären zwei Antworten auf denselben
+/// Schalter, und die zweite bräche still.
+///
+/// Die Zustimmung ist bewusst EIN Angebot und kein zweiter Dialog: Die
+/// Fläche rechnet aus genau dem Stapel, den auch das Spot-Blatt lädt,
+/// und die Kosten nennt der Untertitel am Schalter.
+Future<void> setAmpelLayerEnabled(WidgetRef ref, bool value) async {
+  ref.read(ampelLayerEnabledProvider.notifier).state = value;
+  if (!value) return;
+  ref.read(forestLayerEnabledProvider.notifier).state = true;
+  if (ref.read(rainCourseEnabledProvider)) return;
+  ref.read(rainCourseEnabledProvider.notifier).state = true;
+  await ref.read(settingsProvider).setRainCourseEnabled(true);
+}
 
 /// Die Ampel-Stufen je Zelle — die gemeinsame Rechnung der Fläche und
 /// der Kombi-Ebene. Bewusst OHNE den Ebenen-Schalter in der Bedingung:

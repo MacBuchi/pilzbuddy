@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../offline_maps/offline_map_providers.dart';
@@ -18,7 +19,6 @@ import '../../core/widgets/mushroom_icon.dart';
 import '../../data/providers.dart';
 import '../../models/friend_location.dart';
 import '../../models/spot.dart';
-import '../ampel/ampel_map_providers.dart' show ampelLayerEnabledProvider;
 import 'elevation_contour_providers.dart';
 import 'elevation_contours.dart';
 import '../friends/friend_providers.dart';
@@ -37,11 +37,12 @@ import 'live_share_providers.dart';
 import 'resume_refresh.dart';
 import 'forest_data_providers.dart';
 import 'map_focus.dart';
+import 'widgets/map_layers_sheet.dart';
+import 'widgets/map_trip_sheet.dart';
 import 'map_gestures.dart';
 import 'map_view/camera_tour.dart';
 import 'map_view/map_view.dart';
 import 'position_provider.dart';
-import 'rain_layer.dart';
 import 'spot_filter.dart';
 import 'widgets/add_spot_sheet.dart';
 import 'widgets/map_banners.dart';
@@ -224,6 +225,41 @@ class _MapScreenState extends ConsumerState<MapScreen>
     _map.move(LatLng(position.latitude, position.longitude), 15);
     // Berechtigung wurde ggf. gerade erteilt → Live-Marker starten.
     ref.invalidate(positionStreamProvider);
+  }
+
+  /// Das Karten-Blatt (#347) und der Weg von dort in die Detailblätter.
+  ///
+  /// Das Blatt öffnet nichts selbst, es gibt die Wahl zurück — sonst
+  /// stünden die Wege in die Detailblätter an zwei Stellen, und die
+  /// zweite hätte keinen `mounted`-Schutz.
+  Future<void> _openLayers() async {
+    final detail = await showMapLayersSheet(context);
+    if (detail == null || !mounted) return;
+    switch (detail) {
+      case MapLayerDetail.offline:
+        await context.push('/profile/offline-maps');
+      case MapLayerDetail.forest:
+        await showForestLayerSheet(context);
+      case MapLayerDetail.terrain:
+        await showTerrainLayerSheet(context);
+      case MapLayerDetail.rain:
+        await showRainLayerSheet(context);
+      case MapLayerDetail.refresh:
+        _refreshData();
+        _showMessage('Karte aktualisiert');
+    }
+  }
+
+  /// Das Unterwegs-Blatt (#347): Pilztour und Standort-Teilen.
+  Future<void> _openTrip() async {
+    final action = await showTripSheet(context);
+    if (action == null || !mounted) return;
+    switch (action) {
+      case TripAction.tour:
+        await _toggleTour();
+      case TripAction.share:
+        await _openShareSheet();
+    }
   }
 
   /// Sheet zum Starten/Verlängern/Beenden des Standort-Teilens.
@@ -587,19 +623,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
     // Eigene Live-Position (Marker erscheint erst mit GPS-Fix).
     final myPosition = ref.watch(positionStreamProvider).valueOrNull;
     final myAvatar = ref.watch(myProfileProvider).valueOrNull?.avatar ?? 0;
-    // Für FAB-Zustand/Umschalter — die Engine wertet die Provider für ihre
-    // Schichten selbst aus (map_view/flutter_map_view.dart).
-    final offlineActive =
-        ref.watch(offlineMapStyleProvider).valueOrNull != null;
-    final hasInstalledMaps =
-        (ref.watch(installedMapsProvider).valueOrNull ?? const []).isNotEmpty;
-    final rainActive = ref.watch(rainLayerProvider) != RainLayer.off;
-    // Die Ampel wohnt im Regen-Blatt, hat aber keinen eigenen Knopf —
-    // ohne diesen Zustand sah der Regen-FAB aus wie „nichts an", während
-    // die halbe Karte leuchtete (#278).
-    final ampelActive = ref.watch(ampelLayerEnabledProvider);
-    final forestActive = ref.watch(forestLayerEnabledProvider);
-    final contourActive = ref.watch(contourLayerEnabledProvider);
+    // Die einzelnen Ebenen-Zustände braucht der Screen seit #347 nicht
+    // mehr: Sie leben im Karten-Blatt, und die Engine wertet ihre
+    // Provider für die Schichten ohnehin selbst aus
+    // (map_view/flutter_map_view.dart).
+    // Wie viele Ebenen liegen auf der Karte — die Zahl im Badge am
+    // Karten-Knopf (#347). Sie ersetzt die vier eingefärbten Knöpfe für
+    // alle, die die Legende ausgeschaltet haben.
+    final activeLayers = activeMapLayerCount(ref);
     final longPressEnabled = ref.watch(mapLongPressEnabledProvider);
 
     return Scaffold(
@@ -781,122 +812,50 @@ class _MapScreenState extends ConsumerState<MapScreen>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            // Umschalter Online/Offline — erst sichtbar, wenn mindestens
-            // eine Offline-Karte heruntergeladen wurde.
-            if (hasInstalledMaps) ...[
-              FloatingActionButton.small(
-                heroTag: 'offline',
-                onPressed: () {
-                  ref.read(offlineMapEnabledProvider.notifier).toggle();
-                  _showMessage(ref.read(offlineMapEnabledProvider)
-                      ? 'Offline-Karte aktiv 🗺️'
-                      : 'Online-Karte aktiv');
-                },
-                tooltip:
-                    offlineActive ? 'Zur Online-Karte' : 'Zur Offline-Karte',
-                // Icon zeigt den Zustand (durchgestrichener Erdball = offline),
-                // der Tooltip die Aktion.
-                child: Icon(offlineActive ? Icons.public_off : Icons.public),
-              ),
-              const SizedBox(height: 12),
-            ],
-            // Die Waldtypen-Ebene (#213) — wie die Höhenlinien darunter
-            // OHNE `ref.watch` aufs Gitter.
+            // **Fünf Knöpfe statt zehn** (#347). Die Spalte war mit zehn
+            // 604 px hoch auf einem 915-px-Schirm und steckte seit
+            // 1.98.0 in dem `FittedBox` hier drüber — jeder neue Knopf
+            // machte die anderen kleiner. Der Ausweg war kein weiterer
+            // Kompromiss, sondern ein Ordnungsprinzip:
             //
-            // Bis 1.99.3 hing der Knopf an `forestGridProvider`, und der
-            // Preis dafür war unsichtbar: Das Beobachten IST das Laden,
-            // also packte jeder App-Start 13,3 MB aus (gemessen 136 ms,
-            // `docs/map-performance.md`) — für eine Ebene, die die
-            // meisten nie einschalten. Der Wächter half dabei nichts:
-            // Wenn das Gitter da ist, ist die Entscheidung längst
-            // gefallen, und falsch werden konnte die Prüfung nur bei
-            // einem beschädigten APK.
+            // Fünf der zehn waren gar keine Schalter, sondern TÜREN ZU
+            // BLÄTTERN (Waldtypen, Höhenlinien, Regen, Filter, Standort
+            // teilen). Sie kosteten längst zwei Tipps, eine gemeinsame
+            // Tür davor kostet also keinen dazu. Und den Zustand, den
+            // die eingefärbten Knöpfe trugen, nennt die Legende links
+            // unten ohnehin — mit Farbskala und ab Werk an.
             //
-            // Die Begründung von damals („derselbe Provider, den die
-            // Karte ohnehin braucht") stimmte zuletzt nicht mehr: Seit
-            // #249 steigen Fläche und Blöcke bei ausgeschalteter Ebene
-            // aus, BEVOR sie das Gitter anfassen, und die Legende kürzt
-            // ihre `&&`-Kette vorher ab. Diese eine Zeile war die
-            // einzige, die es noch lud.
-            //
-            // Die Regel „kein Fehler ohne Fehlermeldung" hält trotzdem —
-            // sie steht jetzt im Blatt statt im Verschwinden des Knopfs.
+            // Verworfen: Speed-Dial (drei Tipps statt zwei, deckt beim
+            // Ausklappen die Karte zu), bloßes Kategorisieren (macht die
+            // Spalte höher), Knöpfe nach Kontext ausblenden (wer sucht,
+            // weiß nicht, dass etwas absichtlich fehlt) und zwei Spalten
+            // (verdoppelt die verdeckte Kartenbreite — die Karte ist das
+            // Produkt).
             FloatingActionButton.small(
-              heroTag: 'forest',
-              onPressed: () => showForestLayerSheet(context),
-              tooltip: 'Waldtypen',
-              backgroundColor: forestActive ? AppColors.forestMixed : null,
-              foregroundColor: forestActive ? Colors.white : null,
-              child: Icon(forestActive ? Icons.forest : Icons.forest_outlined),
-            ),
-            const SizedBox(height: 12),
-            // Die Höhenlinien.
-            //
-            // **Ohne `ref.watch` aufs Gitter**, aus demselben Grund wie
-            // beim Wald darüber: Beobachten IST Laden, und das 3,4-MB-
-            // Höhengitter bei jedem App-Start auszupacken wäre teuer für
-            // eine Ebene, die die meisten nie einschalten. Die Regel
-            // dahinter („kein Fehler ohne Fehlermeldung") hält trotzdem:
-            // Lässt sich das Gitter nicht laden, sagt das Blatt es — und
-            // ein Satz ist mehr als ein verschwundener Knopf.
-            //
-            // Bis 1.99.3 stand hier, beim Wald sei der Preis „derselbe
-            // Provider, den die Karte ohnehin braucht". Das stimmte
-            // zuletzt nicht mehr — seit #249 steigen Fläche und Blöcke
-            // bei ausgeschalteter Ebene aus, bevor sie das Gitter
-            // anfassen. Seither machen es beide Knöpfe gleich.
-            FloatingActionButton.small(
-              heroTag: 'terrain',
-              onPressed: () => showTerrainLayerSheet(context),
-              tooltip: 'Höhenlinien',
-              backgroundColor: contourActive ? AppColors.contourLine : null,
-              foregroundColor: contourActive ? Colors.white : null,
-              child:
-                  Icon(contourActive ? Icons.terrain : Icons.terrain_outlined),
-            ),
-            const SizedBox(height: 12),
-            // Genau EIN neuer Dauerknopf für die Regenebene (#156) — die
-            // Karte trägt nicht mehr; Zeitraum und Legende stecken im
-            // Blatt dahinter, wie beim Filter.
-            //
-            // Hinter dem Knopf sitzen seit 1.72.0 ZWEI Ebenen: Regen und
-            // die Pilzampel. Er zeigt deshalb beide (#278) — vorher stand
-            // er auf „aus", während die Ampel den halben Wald einfärbte,
-            // und das war schlicht falsch. Drei unterscheidbare Zustände
-            // statt eines Mischsymbols:
-            //   Regen an          → blau, voller Tropfen
-            //   nur Ampel an      → Ampelviolett, Ampelsymbol
-            //   beide an          → blau, voller Tropfen + violetter Punkt
-            // Der Punkt ist die einzige Stelle, an der sich zwei Zustände
-            // ein Symbol teilen; auf dem Ampelviolett wäre er unsichtbar,
-            // deshalb trägt dort das Symbol selbst die Aussage.
-            FloatingActionButton.small(
-              heroTag: 'rain',
-              onPressed: () => showRainLayerSheet(context),
-              tooltip: switch ((rainActive, ampelActive)) {
-                (true, true) => 'Regen & Pilzampel',
-                (false, true) => 'Pilzampel',
-                _ => 'Regen',
-              },
-              backgroundColor: rainActive
-                  ? AppColors.friendBlue
-                  : (ampelActive ? AppColors.ampelStrong : null),
-              foregroundColor:
-                  rainActive || ampelActive ? Colors.white : null,
+              heroTag: 'layers',
+              onPressed: _openLayers,
+              // **Nicht „Karte"**: So heißt schon der Reiter unten
+              // (`router.dart`). Zwei Dinge desselben Namens auf einem
+              // Schirm sind für die Nutzerin so mehrdeutig wie für den
+              // Test, der sie sucht — genau daran ist der erste Entwurf
+              // aufgefallen.
+              //
+              // Der Tooltip bleibt fest, die Zahl steht im Badge: Ein
+              // Tooltip, dessen Text sich ändert, ist als Suchziel und
+              // als Beschriftung gleich schlecht.
+              tooltip: 'Ebenen',
               child: Badge(
-                // Nur im Doppelfall: Sonst sagt schon die Fläche, was an
-                // ist, und ein Punkt obendrauf wäre Dekoration.
-                isLabelVisible: rainActive && ampelActive,
-                backgroundColor: AppColors.ampelMild,
-                smallSize: 8,
-                child: Icon(switch ((rainActive, ampelActive)) {
-                  (true, _) => Icons.water_drop,
-                  (false, true) => Icons.traffic,
-                  _ => Icons.water_drop_outlined,
-                }),
+                isLabelVisible: activeLayers > 0,
+                label: Text('$activeLayers'),
+                backgroundColor: AppColors.warmBrown,
+                child: Icon(
+                    activeLayers > 0 ? Icons.layers : Icons.layers_outlined),
               ),
             ),
             const SizedBox(height: 12),
+            // Der Filter bleibt eigenständig: Er entscheidet über die
+            // SPOTS, nicht über die Ebenen, und er ist der am häufigsten
+            // benutzte der Blatt-Knöpfe.
             FloatingActionButton.small(
               heroTag: 'filter',
               onPressed: () => showSpotFilterSheet(context),
@@ -908,48 +867,42 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   : Icons.filter_alt_outlined),
             ),
             const SizedBox(height: 12),
+            // Unterwegs: Pilztour und Standort-Teilen. Beide beantworten
+            // dieselbe Frage („ich bin draußen"), beide laufen weiter,
+            // wenn das Telefon in der Tasche steckt.
+            //
+            // Blau bei aktivem Teilen — GRÜN bleibt dem Stopp-Knopf
+            // darunter vorbehalten, sonst stünden zwei grüne Knöpfe
+            // untereinander und keiner wäre die Aussage.
             FloatingActionButton.small(
-              heroTag: 'refresh',
-              onPressed: () {
-                _refreshData();
-                _showMessage('Karte aktualisiert');
-              },
-              tooltip: 'Aktualisieren',
-              child: const Icon(Icons.refresh),
-            ),
-            const SizedBox(height: 12),
-            FloatingActionButton.small(
-              heroTag: 'share-location',
-              onPressed: _openShareSheet,
-              tooltip: isSharing
-                  ? 'Standort-Teilen verwalten'
-                  : 'Standort mit Buddies teilen',
+              heroTag: 'trip',
+              onPressed: _openTrip,
+              tooltip: 'Unterwegs',
               backgroundColor: isSharing ? AppColors.friendBlue : null,
               foregroundColor: isSharing ? Colors.white : null,
-              child: Icon(isSharing
-                  ? Icons.share_location
-                  : Icons.share_location_outlined),
+              child: const TourIcon(),
             ),
-            const SizedBox(height: 12),
-            // Die Pilztour (#338). Läuft sie, ist der Knopf grün und
-            // stoppt — dieselbe Sprache wie beim Standort-Teilen darüber.
+            // Läuft eine Tour, steht ihr Ausgang ZUSÄTZLICH in der
+            // Spalte — nicht anstelle des Knopfs darüber.
             //
-            // **Der zehnte Knopf in dieser Spalte.** Sie war mit neun am
-            // Anschlag (1.98.0) und steckt seither in einem
-            // `FittedBox(scaleDown)`; der hier macht sie auf kurzen
-            // Schirmen noch etwas kleiner. Das ist die Grenze — ein
-            // elfter braucht ein anderes Ordnungsprinzip, keinen
-            // weiteren Kompromiss.
-            FloatingActionButton.small(
-              heroTag: 'tour',
-              onPressed: _toggleTour,
-              tooltip: tour == null ? 'Pilztour starten' : 'Pilztour beenden',
-              backgroundColor: tour == null ? null : AppColors.forestGreen,
-              foregroundColor: tour == null ? null : Colors.white,
-              child: tour == null
-                  ? const TourIcon()
-                  : const Icon(Icons.stop),
-            ),
+            // Der erste Entwurf machte „Unterwegs" bei laufender Tour
+            // selbst zum Stopp-Knopf. Damit wäre das Standort-Teilen
+            // während einer Tour unerreichbar gewesen, und ein
+            // verstecktes Lang-Drücken ist keine Antwort darauf. Ein
+            // Knopf mehr in genau dem Modus, in dem man den Ausgang
+            // griffbereit haben will, ist der ehrlichere Tausch: fünf
+            // Knöpfe normal, sechs während einer Tour.
+            if (tour != null) ...[
+              const SizedBox(height: 12),
+              FloatingActionButton.small(
+                heroTag: 'tour-stop',
+                onPressed: _toggleTour,
+                tooltip: 'Pilztour beenden',
+                backgroundColor: AppColors.forestGreen,
+                foregroundColor: Colors.white,
+                child: const Icon(Icons.stop),
+              ),
+            ],
             const SizedBox(height: 12),
             FloatingActionButton.small(
               heroTag: 'locate',

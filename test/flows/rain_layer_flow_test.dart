@@ -14,6 +14,7 @@ import 'package:pilzbuddy/features/map/rain_grid.dart';
 import 'package:pilzbuddy/features/map/rain_layer.dart';
 
 import '../fakes/fake_backend.dart';
+import '../fakes/map_ui.dart';
 import '../fakes/test_app.dart';
 import '../rain_grid_test.dart' show gridOf;
 
@@ -65,8 +66,7 @@ void main() {
   testWidgets('Knopf öffnet das Blatt, die Wahl kommt an', (tester) async {
     await pumpApp(tester, loggedIn());
 
-    await tester.tap(find.byTooltip('Regen'));
-    await settle(tester);
+    await openLayerSheet(tester, 'Regen');
     expect(find.text('Letzte 30 Tage'), findsOneWidget);
 
     await tester.tap(find.text('Letzte 30 Tage'));
@@ -78,8 +78,7 @@ void main() {
   testWidgets('Das Blatt nennt den Geltungsbereich, sobald eine Ebene liegt',
       (tester) async {
     await pumpApp(tester, loggedIn());
-    await tester.tap(find.byTooltip('Regen'));
-    await settle(tester);
+    await openLayerSheet(tester, 'Regen');
 
     // Ohne Ebene keine Legende und kein Geltungsbereich.
     expect(find.textContaining('Nur Deutschland'), findsNothing);
@@ -94,8 +93,7 @@ void main() {
 
   testWidgets('Aus nimmt die Ebene wieder weg', (tester) async {
     await pumpApp(tester, loggedIn());
-    await tester.tap(find.byTooltip('Regen'));
-    await settle(tester);
+    await openLayerSheet(tester, 'Regen');
     await tester.tap(find.text('Jetzt'));
     await settle(tester);
     await tester.tap(find.text('Aus'));
@@ -272,8 +270,7 @@ void main() {
     expect(find.text('150+ mm'), findsOneWidget,
         reason: 'die Karten-Legende ist statisch und steht sofort');
 
-    await tester.tap(find.byTooltip('Regen'));
-    await settle(tester);
+    await openLayerSheet(tester, 'Regen');
     expect(find.text('ab 10 mm'), findsOneWidget,
         reason: 'das Blatt zeigt sofort die eigene Legende, nicht erst '
             'die des DWD');
@@ -316,8 +313,7 @@ void main() {
     expect(find.text('150+ mm'), findsNothing,
         reason: 'die eigene Skala neben DWD-Farben wäre schlicht falsch');
 
-    await tester.tap(find.byTooltip('Regen'));
-    await settle(tester);
+    await openLayerSheet(tester, 'Regen');
     expect(find.text('ab 10 mm'), findsNothing);
     expect(
         find.descendant(
@@ -335,8 +331,7 @@ void main() {
         RainLayer.last30d;
     await settleRain(tester, RainLayer.last30d);
 
-    await tester.tap(find.byTooltip('Regen'));
-    await settle(tester);
+    await openLayerSheet(tester, 'Regen');
 
     expect(find.text('ab 10 mm'), findsOneWidget);
     expect(find.text('ab 150 mm'), findsOneWidget);

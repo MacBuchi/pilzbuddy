@@ -11,6 +11,7 @@ import 'package:pilzbuddy/features/map/widgets/map_legend.dart'
     show mapIdleCenterProvider;
 
 import '../fakes/fake_backend.dart';
+import '../fakes/map_ui.dart';
 import '../fakes/test_app.dart';
 import '../forest_grid_test.dart' show forestOf;
 import '../forest_species_test.dart' show speciesOf;
@@ -40,8 +41,7 @@ void main() {
   /// Waldebene an und die Kamera „zum Stehen bringen" — ohne
   /// Stillstands-Mitte zeigt die Legende keine Werte und öffnet nichts.
   Future<void> showLegend(WidgetTester tester) async {
-    await tester.tap(find.byTooltip('Waldtypen'));
-    await settle(tester);
+    await openLayerSheet(tester, 'Waldtypen');
     await tester.tap(find.text('Waldtypen einblenden'));
     final container = containerOf(tester);
     await tester.runAsync(() => container.read(forestFillProvider.future));

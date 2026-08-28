@@ -18,6 +18,7 @@ import 'package:pilzbuddy/features/map/widgets/map_legend.dart'
 
 import '../fakes/fake_backend.dart';
 import '../fakes/fake_settings.dart';
+import '../fakes/map_ui.dart';
 import '../fakes/test_app.dart';
 import '../forest_grid_test.dart' show forestOf;
 import '../rain_fill_test.dart' show decodePng;
@@ -55,8 +56,7 @@ void main() {
     container.read(ampelLayerEnabledProvider.notifier).state = true;
     container.read(forestLayerEnabledProvider.notifier).state = true;
 
-    await tester.tap(find.byTooltip('Waldtypen'));
-    await settle(tester);
+    await openLayerSheet(tester, 'Waldtypen');
     await tester.tap(find.text('Waldtypen einblenden'));
     await settle(tester);
 
@@ -70,8 +70,7 @@ void main() {
     await pumpApp(tester, backend,
         useRealMap: true, extraOverrides: withGrid(testGrid()));
 
-    await tester.tap(find.byTooltip('Waldtypen'));
-    await settle(tester);
+    await openLayerSheet(tester, 'Waldtypen');
     expect(find.text('Waldtypen einblenden'), findsOneWidget);
     expect(find.textContaining('Waben ≈ 250 m'), findsOneWidget);
     expect(find.textContaining('Copernicus'), findsOneWidget);
@@ -119,8 +118,7 @@ void main() {
     container.read(rainLayerProvider.notifier).state = RainLayer.last30d;
     await settle(tester);
 
-    await tester.tap(find.byTooltip('Waldtypen'));
-    await settle(tester);
+    await openLayerSheet(tester, 'Waldtypen');
     expect(find.text('Blendet dafür die Regenebene aus.'), findsNothing,
         reason: 'der Hinweis auf die alte Exklusivität wäre eine Lüge');
     await tester.tap(find.text('Waldtypen einblenden'));
@@ -133,8 +131,7 @@ void main() {
     // Und im Regen-Blatt schaltet eine Ebenen-Wahl den Wald nicht ab.
     await tester.tapAt(const Offset(20, 20));
     await settle(tester);
-    await tester.tap(find.byTooltip('Regen'));
-    await settle(tester);
+    await openLayerSheet(tester, 'Regen');
     await tester.tap(find.text('Letzte 24 Stunden'));
     await settle(tester);
     expect(container.read(forestLayerEnabledProvider), isTrue);
@@ -148,8 +145,7 @@ void main() {
         useRealMap: true, extraOverrides: withGrid(testGrid()));
     final container = containerOf(tester);
 
-    await tester.tap(find.byTooltip('Waldtypen'));
-    await settle(tester);
+    await openLayerSheet(tester, 'Waldtypen');
     await tester.tap(find.text('Waldtypen einblenden'));
     await tester.runAsync(() => container.read(forestFillProvider.future));
     await settle(tester);
@@ -225,8 +221,7 @@ void main() {
     // Zurück geht es über den Schalter im Ebenen-Blatt (im Blatt muss
     // man dafür ans Ende scrollen — das Blatt ist seit den Checkboxen
     // scrollbar).
-    await tester.tap(find.byTooltip('Waldtypen'));
-    await settle(tester);
+    await openLayerSheet(tester, 'Waldtypen');
     // Gescrollt wird, bis die Zeile wirklich sichtbar ist — nicht um
     // einen festen Weg. Der frühere feste Wisch (−220 px) reißt bei
     // jedem Satz mehr im Fein-Schalter-Text; so geschehen, als der die
@@ -306,8 +301,7 @@ void main() {
         settings: settings,
         extraOverrides: withGrid(testGrid()));
 
-    await tester.tap(find.byTooltip('Waldtypen'));
-    await settle(tester);
+    await openLayerSheet(tester, 'Waldtypen');
     await tester.tap(find.text('Waldtypen einblenden'));
     await settle(tester);
 
@@ -350,17 +344,24 @@ void main() {
 
     expect(loads, 0,
         reason: 'die Karte darf das Gitter beim Start nicht anfassen');
-    expect(find.byTooltip('Waldtypen'), findsOneWidget,
-        reason: 'der Knopf steht trotzdem da');
 
-    // Erst das Blatt holt es — wer es öffnet, will die Ebene.
-    await tester.tap(find.byTooltip('Waldtypen'));
+    // Seit #347 liegt zwischen Start und Detailblatt noch das
+    // Karten-Blatt — und es darf das Gitter genauso wenig anfassen.
+    // Beobachten IST laden: Ein `ref.watch(forestGridProvider)` dort
+    // hätte die 13,3 MB nur einen Tipp weiter nach hinten geschoben.
+    await openMapLayers(tester);
+    expect(find.text('Waldtypen'), findsOneWidget,
+        reason: 'die Zeile steht trotzdem da');
+    expect(loads, 0, reason: 'auch das Karten-Blatt lädt das Gitter nicht');
+
+    // Erst das Detailblatt holt es — wer es öffnet, will die Ebene.
+    await tester.tap(find.text('Waldtypen'));
     await settle(tester);
     expect(loads, 1);
   });
 
-  testWidgets('Ohne Gitter ist der Knopf trotzdem da — und das Blatt sagt es',
-      (tester) async {
+  testWidgets('Ohne Gitter steht die Zeile trotzdem da — und das Blatt '
+      'sagt es', (tester) async {
     // Bis 1.99.3 verschwand hier der Knopf. Das kostete jeden App-Start
     // 13,3 MB, denn `ref.watch` auf das Gitter IST das Auspacken — und
     // half nichts: Ist das Gitter da, ist die Entscheidung längst
@@ -373,9 +374,10 @@ void main() {
     // Kein extraOverride: Die globale Naht liefert null.
     await pumpApp(tester, backend);
 
-    expect(find.byTooltip('Waldtypen'), findsOneWidget);
+    await openMapLayers(tester);
+    expect(find.text('Waldtypen'), findsOneWidget);
 
-    await tester.tap(find.byTooltip('Waldtypen'));
+    await tester.tap(find.text('Waldtypen'));
     await settle(tester);
     expect(find.textContaining('lässt sich nicht laden'), findsOneWidget);
 

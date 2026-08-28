@@ -17,6 +17,7 @@ import 'package:pilzbuddy/features/map/forest_data_providers.dart'
 import 'package:pilzbuddy/features/map/map_view/marker_culling.dart';
 
 import '../fakes/fake_backend.dart';
+import '../fakes/map_ui.dart';
 import '../fakes/test_app.dart';
 
 void main() {
@@ -85,7 +86,7 @@ void main() {
     );
   }
 
-  testWidgets('der Knopf ist immer da — auch ohne Gitter, dann sagt es das '
+  testWidgets('die Zeile ist immer da — auch ohne Gitter, dann sagt es das '
       'Blatt', (tester) async {
     // Ein `ref.watch` auf das Gitter im Karten-Screen packte 3,4 MB bei
     // jedem App-Start aus. Die Regel „kein Fehler ohne Fehlermeldung"
@@ -93,9 +94,10 @@ void main() {
     // Knopfs. Seit 1.99.4 macht der Wald es genauso; vorher war dieser
     // Knopf hier die Ausnahme.
     await pumpApp(tester, loggedInBackend(), extraOverrides: withGrid(null));
-    expect(find.byTooltip('Höhenlinien'), findsOneWidget);
+    await openMapLayers(tester);
+    expect(find.text('Höhenlinien'), findsOneWidget);
 
-    await tester.tap(find.byTooltip('Höhenlinien'));
+    await tester.tap(find.text('Höhenlinien'));
     await settle(tester);
     expect(find.textContaining('lässt sich nicht laden'), findsOneWidget);
 
@@ -107,8 +109,7 @@ void main() {
   testWidgets('das Blatt nennt Auflösung und Quelle', (tester) async {
     await pumpApp(tester, loggedInBackend(),
         extraOverrides: withGrid(testGrid()));
-    await tester.tap(find.byTooltip('Höhenlinien'));
-    await settle(tester);
+    await openLayerSheet(tester, 'Höhenlinien');
 
     expect(find.text('Höhenlinien einblenden'), findsOneWidget);
     expect(find.textContaining('≈ 270 m'), findsOneWidget,
@@ -135,8 +136,7 @@ void main() {
         useRealMap: true, extraOverrides: withGrid(testGrid()));
     final container = containerOf(tester);
 
-    await tester.tap(find.byTooltip('Höhenlinien'));
-    await settle(tester);
+    await openLayerSheet(tester, 'Höhenlinien');
     await tester.tap(find.text('Höhenlinien einblenden'));
     await settle(tester);
     await tester.tapAt(const Offset(20, 20)); // Blatt schließen
@@ -227,8 +227,7 @@ void main() {
     // stünde dort jetzt „an".
     await pumpApp(tester, loggedInBackend(),
         extraOverrides: withGrid(testGrid()));
-    await tester.tap(find.byTooltip('Höhenlinien'));
-    await settle(tester);
+    await openLayerSheet(tester, 'Höhenlinien');
     await tester.tap(find.text('Höhenlinien einblenden'));
     await settle(tester);
     expect(containerOf(tester).read(contourLayerEnabledProvider), isTrue);

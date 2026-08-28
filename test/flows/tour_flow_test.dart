@@ -18,6 +18,7 @@ import '../fakes/fake_backend.dart';
 import '../fakes/fake_keep_alive.dart';
 import '../fakes/fake_settings.dart';
 import '../fakes/fake_tour.dart';
+import '../fakes/map_ui.dart';
 import '../fakes/test_app.dart';
 
 void main() {
@@ -59,8 +60,11 @@ void main() {
         accuracyM: accuracyM,
       );
 
-  Finder tourButton() => find.byTooltip('Pilztour starten');
-  Finder stopButton() => find.byTooltip('Pilztour beenden');
+  // Starten läuft seit #347 über das Unterwegs-Blatt, Beenden über den
+  // Stopp-Knopf, der bei laufender Tour ZUSÄTZLICH in der Spalte steht.
+  // Genau deshalb ist sein Fehlen auch der ehrlichste Nachweis, dass
+  // keine Tour läuft — dafür braucht es kein Blatt.
+  Finder stopButton() => tourStopButton();
 
   testWidgets('starten schaltet den Service scharf und zeigt den ersten '
       'Punkt', (tester) async {
@@ -77,11 +81,11 @@ void main() {
         keepAlive: keepAlive,
         settings: FakeSettings(tourIntervalSeconds: 5));
 
-    expect(tourButton(), findsOneWidget);
+    expect(stopButton(), findsNothing, reason: 'noch läuft keine Tour');
     expect(find.byType(TourTrackDot), findsNothing);
 
     fix.next = at();
-    await tester.tap(tourButton());
+    await startTour(tester);
     await settle(tester);
 
     expect(stopButton(), findsOneWidget);
@@ -113,7 +117,7 @@ void main() {
     final fix = FakeTourFix();
     await pumpApp(tester, backend, tourStore: store, tourFix: fix);
 
-    await tester.tap(tourButton());
+    await startTour(tester);
     await settle(tester);
     final before =
         tester.widgetList(find.byType(TourTrackDot)).length;
@@ -143,7 +147,7 @@ void main() {
     await pumpApp(tester, backend,
         tourStore: store, tourBridge: bridge, keepAlive: keepAlive);
 
-    await tester.tap(tourButton());
+    await startTour(tester);
     await settle(tester);
     expect(bridge.armed, isTrue);
 
@@ -169,11 +173,12 @@ void main() {
           .overrideWithValue(() async => TourStartResult.noPermission),
     ]);
 
-    await tester.tap(tourButton());
+    await startTour(tester);
     await settle(tester);
 
     expect(store.startedAt, isNull, reason: 'keine Datei ohne Freigabe');
-    expect(tourButton(), findsOneWidget, reason: 'der Knopf bleibt „starten"');
+    expect(stopButton(), findsNothing,
+        reason: 'ohne Berechtigung läuft keine Tour — kein Stopp-Knopf');
     expect(find.textContaining('Standort-Freigabe'), findsOneWidget);
   });
 
@@ -196,7 +201,7 @@ void main() {
     await pumpApp(tester, backend,
         tourStore: store, settings: FakeSettings(tourIntervalSeconds: 5));
 
-    await tester.tap(tourButton());
+    await startTour(tester);
     await settle(tester);
 
     // Eine volle Minute am ersten Spot, direkt in den Speicher gelegt —
@@ -239,7 +244,7 @@ void main() {
     final store = FakeTourStore();
     await pumpApp(tester, backend, tourStore: store);
 
-    await tester.tap(tourButton());
+    await startTour(tester);
     await settle(tester);
     final base = DateTime.now().toUtc();
     store.points
@@ -275,7 +280,7 @@ void main() {
     final store = FakeTourStore();
     await pumpApp(tester, backend, tourStore: store);
 
-    await tester.tap(tourButton());
+    await startTour(tester);
     await settle(tester);
     store.points
       ..clear()
@@ -307,7 +312,7 @@ void main() {
     final store = FakeTourStore();
     await pumpApp(tester, backend, tourStore: store);
 
-    await tester.tap(tourButton());
+    await startTour(tester);
     await settle(tester);
     store.points
       ..clear()
@@ -350,7 +355,7 @@ void main() {
     final store = FakeTourStore();
     await pumpApp(tester, backend, tourStore: store);
 
-    await tester.tap(tourButton());
+    await startTour(tester);
     await settle(tester);
     store.points
       ..clear()
@@ -409,7 +414,7 @@ void main() {
 
     final store = FakeTourStore();
     await pumpApp(tester, backend, tourStore: store);
-    await tester.tap(tourButton());
+    await startTour(tester);
     await settle(tester);
     store.points
       ..clear()
