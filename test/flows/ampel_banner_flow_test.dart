@@ -13,13 +13,16 @@ import 'package:archive/archive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:pilzbuddy/data/rain_grid_repository.dart';
 import 'package:pilzbuddy/features/ampel/ampel_scan.dart';
 import 'package:pilzbuddy/features/map/elevation_grid.dart';
 import 'package:pilzbuddy/features/map/elevation_providers.dart';
+import 'package:pilzbuddy/features/map/map_focus.dart';
 import 'package:pilzbuddy/features/map/rain_data_providers.dart';
 
 import '../fakes/fake_backend.dart';
+import '../fakes/fake_map_view.dart';
 import '../fakes/fake_settings.dart';
 import '../fakes/test_app.dart';
 import '../rain_grid_test.dart' show encode;
@@ -321,5 +324,95 @@ void main() {
     expect(until, isNotNull);
     expect(until!.isAfter(DateTime.now().toUtc()), isTrue);
     expect(until.difference(DateTime.now().toUtc()).inHours, lessThan(25));
+  });
+
+  /// Der volle Aufbau für die Sprung-Tests: Telefon-Schirm, Banner an,
+  /// Rechnung durch. Gibt die Settings zurück — an ihnen hängt der
+  /// Nachweis, ob das Banner sich stummgeschaltet hat.
+  Future<FakeSettings> pumpReady(
+      WidgetTester tester, FakeBackend backend) async {
+    await tester.binding.setSurfaceSize(const Size(412, 915));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final settings =
+        FakeSettings(ampelPreviewEnabled: true, rainCourseEnabled: true);
+    await pumpApp(
+      tester,
+      backend,
+      settings: settings,
+      extraOverrides: [
+        rainStackLoaderProvider.overrideWithValue(() async => stackOf()),
+        weatherTableLoaderProvider
+            .overrideWithValue(() async => weatherBytes()),
+        elevationLoaderProvider.overrideWithValue(() async => flatGrid()),
+      ],
+    );
+    await enableAndSettle(tester);
+    return settings;
+  }
+
+  FakeMapViewState camera(WidgetTester tester) =>
+      tester.state<FakeMapViewState>(find.byType(FakeMapView));
+
+  testWidgets('ein Treffer: das Banner führt zum Spot auf der Karte',
+      (tester) async {
+    // Der Kern von #345. Bis 1.103.0 öffnete das Antippen nur das Blatt
+    // und ließ die Kamera stehen — Blatt zu, und man stand wieder am
+    // Startpunkt. Bei einem Spot 30 km entfernt half nur noch der Name.
+    final (backend, _) = loggedInWithSpot();
+    final settings = await pumpReady(tester, backend);
+
+    expect(camera(tester).center, isNot(const LatLng(spotLat, spotLng)),
+        reason: 'sonst prüfte der Test einen Sprung, der schon geschehen ist');
+
+    await tester.tap(find.textContaining('stünde die Ampel günstig'));
+    await settle(tester);
+
+    expect(camera(tester).center, const LatLng(spotLat, spotLng));
+    expect(camera(tester).zoom, kSpotFocusZoom,
+        reason: 'derselbe Heranzoom wie beim Long-Press — dieselbe Absicht');
+    // Sprung UND Blatt gehören zusammen: Das eine sagt WO, das andere WAS.
+    expect(find.text('Fund eintragen'), findsOneWidget);
+    // Beim EINZELNEN Treffer ist die Aussage abgearbeitet.
+    expect(settings.ampelBannerDismissedUntil, isNotNull);
+  });
+
+  testWidgets('mehrere Treffer: die Auswahl führt zum GEWÄHLTEN Spot',
+      (tester) async {
+    // „An 7 Spots stünde die Ampel günstig" ist kein Ausnahmefall: Die
+    // eigenen Spots liegen in derselben Region und bekommen dasselbe
+    // Wetter. Bis #345 öffnete das Banner den bestbewerteten und
+    // schaltete sich bis Mitternacht stumm — die Zahl im Text war eine
+    // Aussage, zu der es keinen Weg gab.
+    final (backend, me) = loggedInWithSpot();
+    backend.addSpot(
+        ownerId: me.id,
+        lat: 51.05,
+        lng: 11.05,
+        name: 'Fichtenschonung',
+        species: 'Marone');
+    final settings = await pumpReady(tester, backend);
+
+    expect(find.textContaining('An 2 Spots stünde die Ampel günstig'),
+        findsOneWidget);
+
+    await tester.tap(find.textContaining('stünde die Ampel günstig'));
+    await settle(tester);
+
+    expect(find.text('Buchenhang'), findsOneWidget);
+    expect(find.text('Fichtenschonung'), findsOneWidget);
+
+    // Der ZWEITE, nicht der bestbewertete — genau das ging vorher nicht.
+    // Gewählt wird über den Namen und nicht über die Position in der
+    // Liste: Bei gleichem Wetter sind auch die Bewertungen gleich, und
+    // `List.sort` ist in Dart nicht stabil.
+    await tester.tap(find.text('Fichtenschonung'));
+    await settle(tester);
+
+    expect(camera(tester).center, const LatLng(51.05, 11.05));
+    expect(find.text('Fund eintragen'), findsOneWidget);
+    // Und das Banner bleibt stehen: Sonst wäre Spot 2 nach dem Besuch
+    // von Spot 1 bis Mitternacht unerreichbar. Nur das X schaltet stumm.
+    expect(settings.ampelBannerDismissedUntil, isNull,
+        reason: 'bei mehreren Treffern schaltet erst das X stumm');
   });
 }

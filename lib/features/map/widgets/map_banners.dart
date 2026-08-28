@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/errors.dart';
@@ -19,9 +20,11 @@ import '../../../models/spot.dart';
 import '../../friends/friend_providers.dart';
 import '../../offline_maps/offline_map_providers.dart';
 import '../../ampel/ampel_scan.dart';
+import '../map_focus.dart';
 import '../spot_memory.dart';
 import '../../spots/spot_providers.dart';
 import '../../spots/widgets/spot_detail_sheet.dart';
+import 'ampel_hits_sheet.dart';
 import '../../update/update_installer.dart';
 import '../../../core/app_colors.dart';
 
@@ -138,6 +141,36 @@ class MapBanners extends ConsumerWidget {
         .setAmpelBannerDismissedUntil(until.toUtc())
         .catchError((Object e, StackTrace s) =>
             logError('Ampel-Banner stummschalten', e, s)));
+  }
+
+  /// Zum Spot springen und sein Blatt öffnen — die Kamera ZUERST (#345).
+  ///
+  /// Die Reihenfolge ist Absicht: Das Blatt deckt auf dem Handy die untere
+  /// Hälfte, der Spot läge also ohnehin darunter. Springt die Karte
+  /// vorher, steht sie richtig, sobald das Blatt zugeht — und die Kacheln
+  /// laden bereits, während man liest.
+  void _openSpot(BuildContext context, WidgetRef ref, Spot spot) {
+    ref.read(mapFocusProvider.notifier).focusOn(LatLng(spot.lat, spot.lng));
+    showSpotDetailSheet(context, spot.id);
+  }
+
+  /// Das Ampel-Banner: ein Treffer führt direkt hin, mehrere in die Auswahl.
+  ///
+  /// **Stummgeschaltet wird nur beim einzelnen Treffer.** Wer den einen
+  /// Spot gesehen hat, hat die Aussage abgearbeitet. Bei mehreren bleibt
+  /// das Banner stehen — sonst wäre Spot 2 nach dem Besuch von Spot 1 bis
+  /// Mitternacht unerreichbar, und die Zahl im Text wäre wieder eine
+  /// Aussage ohne Weg. Das X schaltet weiterhin stumm.
+  Future<void> _openAmpel(
+      BuildContext context, WidgetRef ref, List<AmpelHit> hits) async {
+    if (hits.length == 1) {
+      _dismissAmpel(ref);
+      _openSpot(context, ref, hits.single.spot);
+      return;
+    }
+    final spot = await showAmpelHitsSheet(context, hits);
+    if (spot == null || !context.mounted) return;
+    _openSpot(context, ref, spot);
   }
 
   /// Der Text des Ampel-Banners — im KONJUNKTIV, und das ist keine
@@ -495,7 +528,7 @@ class MapBanners extends ConsumerWidget {
             foreground: Colors.white,
             onTap: () {
               _markFindsSeen(ref, freshFinds);
-              showSpotDetailSheet(context, freshFinds.first.spot.id);
+              _openSpot(context, ref, freshFinds.first.spot);
             },
             onDismiss: () => _markFindsSeen(ref, freshFinds),
             content: Text(freshFinds.length == 1
@@ -516,10 +549,7 @@ class MapBanners extends ConsumerWidget {
             context,
             background: AppColors.warmBrown,
             foreground: Colors.white,
-            onTap: () {
-              _dismissAmpel(ref);
-              showSpotDetailSheet(context, ampelHits.first.spot.id);
-            },
+            onTap: () => _openAmpel(context, ref, ampelHits),
             onDismiss: () => _dismissAmpel(ref),
             content: Text(_ampelText(ampelHits)),
           ),
@@ -534,7 +564,7 @@ class MapBanners extends ConsumerWidget {
             foreground: Colors.white,
             onTap: () {
               _dismissMemory(ref);
-              showSpotDetailSheet(context, memory.spot.id);
+              _openSpot(context, ref, memory.spot);
             },
             onDismiss: () => _dismissMemory(ref),
             content: Text(_memoryText(memory)),

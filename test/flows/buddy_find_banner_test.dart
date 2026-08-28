@@ -4,8 +4,10 @@
 // SERVER-Zeit der Funde (created_at), nicht gegen die Geräteuhr.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../fakes/fake_backend.dart';
+import '../fakes/fake_map_view.dart';
 import '../fakes/fake_settings.dart';
 import '../fakes/test_app.dart';
 
@@ -122,6 +124,10 @@ void main() {
     final (backend, me, lilli) = withFriend();
     final spotId = backend.addSpot(
         ownerId: me.id,
+        // Bewusst NICHT der Startpunkt der Karte (51.1634/10.4477): Sonst
+        // wäre die Kamera-Prüfung unten leer, weil sie schon dort steht.
+        lat: 50.5,
+        lng: 12.5,
         name: 'Buchenhang',
         species: 'Steinpilz',
         foundOn: DateTime(2026, 7, 1));
@@ -141,6 +147,11 @@ void main() {
     expect(find.text('Fund eintragen'), findsOneWidget);
     // … der Marker steht auf der SERVER-Zeit des neuesten Funds …
     expect(settings.lastFindSeenAt, DateTime.utc(2026, 8, 1, 12));
+    // … die Karte steht darunter auf dem Spot (#345) — ein Hinweis, der
+    // einen Ort nennt, aber nicht hinführt, ist eine halbe Nachricht …
+    expect(
+        tester.state<FakeMapViewState>(find.byType(FakeMapView)).center,
+        const LatLng(50.5, 12.5));
     // … und das Banner ist weg.
     expect(bannerWith('Neuer Fund'), findsNothing);
   });
