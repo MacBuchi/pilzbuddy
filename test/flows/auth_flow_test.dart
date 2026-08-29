@@ -117,6 +117,34 @@ void main() {
     await drainSnackbars(tester);
   });
 
+  testWidgets('Eine Mailadresse als Benutzername wird abgefangen (#352)',
+      (tester) async {
+    // Gemeldet aus der App: Leute tragen beim Benutzernamen aus Versehen
+    // ihre Mailadresse ein — kein Wunder, das Mail-Feld liegt direkt
+    // darunter. Der Name ist aber öffentlich (Freundeslisten,
+    // Finder-Zeile am Spot, search_profiles), und die Freundessuche baut
+    // gerade darauf, dass Adressen NICHT öffentlich sind.
+    final backend = FakeBackend();
+    await pumpApp(tester, backend);
+
+    await tester.tap(find.text('Noch kein Konto? Registrieren'));
+    await settle(tester);
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Benutzername'), 'neuer@pilz.de');
+    await tester.enterText(
+        find.widgetWithText(TextField, 'E-Mail'), 'neuer@pilz.de');
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Passwort (mind. 8 Zeichen)'),
+        'geheim123');
+    await tester.tap(find.text('Konto erstellen'));
+    await settle(tester);
+
+    expect(find.textContaining('E-Mail-Adresse'), findsOneWidget);
+    expect(backend.users, isEmpty,
+        reason: 'abgefangen heißt: es entsteht kein Konto');
+    await drainSnackbars(tester);
+  });
+
   testWidgets('Login- und Registrier-Felder hängen in einer AutofillGroup',
       (tester) async {
     // Ohne AutofillGroup meldet Flutter die Felder nicht beim Autofill-Dienst

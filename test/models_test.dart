@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/dates.dart';
 import 'package:pilzbuddy/models/find.dart';
 import 'package:pilzbuddy/models/friendship.dart';
+import 'package:pilzbuddy/models/profile.dart';
 import 'package:pilzbuddy/models/spot.dart';
 
 void main() {
@@ -223,6 +224,44 @@ void main() {
     test('otherUsername liefert immer den jeweils anderen', () {
       expect(entry.otherUsername('anna'), 'ben_pilz');
       expect(entry.otherUsername('ben'), 'anna_pilz');
+    });
+  });
+
+  group('usernameProblem (#352)', () {
+    test('ein normaler Name ist in Ordnung', () {
+      expect(usernameProblem('steinpilzsucher'), isNull);
+      expect(usernameProblem('  pilz  '), isNull, reason: 'getrimmt wird');
+    });
+
+    test('zu kurz bleibt zu kurz — die alte Prüfung lebt weiter', () {
+      expect(usernameProblem('ab'), contains('mindestens'));
+      expect(usernameProblem('   '), contains('mindestens'));
+    });
+
+    test('eine Mailadresse wird abgefangen', () {
+      // Der gemeldete Fall: Das Mail-Feld liegt direkt daneben, und der
+      // Name ist öffentlich (Freundeslisten, Finder-Zeile am Spot,
+      // search_profiles). Ein Vertipper veröffentlicht damit das
+      // Postfach, auf dessen Nicht-Öffentlichkeit die Freundessuche baut.
+      for (final tippfehler in [
+        'marcus.bucher@web.de',
+        'a@b.de',
+        'PILZ@GMAIL.COM',
+        '  marcus@web.de  ',
+      ]) {
+        expect(usernameProblem(tippfehler), contains('E-Mail-Adresse'),
+            reason: '„$tippfehler" sieht aus wie eine Adresse');
+      }
+    });
+
+    test('ein @ allein macht noch keine Adresse', () {
+      // Bewusst grob geprüft: „etwas @ etwas . etwas" ohne Leerzeichen.
+      // Wer sich „pilz@wald" nennt, gibt kein Postfach preis — und ein
+      // strenger Mail-Prüfausdruck würde hier nur Namen verbieten, die
+      // niemandem schaden.
+      expect(usernameProblem('pilz@wald'), isNull);
+      expect(usernameProblem('herr @ pilz.de'), isNull);
+      expect(usernameProblem('pilz.sammler'), isNull);
     });
   });
 }

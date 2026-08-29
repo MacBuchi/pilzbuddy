@@ -9,7 +9,7 @@ import '../../core/widgets/form_notice.dart';
 import '../../core/widgets/password_field.dart';
 import '../../core/widgets/resend_button.dart';
 import '../../data/providers.dart';
-import '../../models/profile.dart' show minUsernameLength;
+import '../../models/profile.dart' show usernameProblem;
 
 class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
@@ -58,9 +58,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
   Future<void> _signUp() async {
     final username = _usernameController.text.trim();
-    if (username.length < minUsernameLength) {
-      _showMessage('Der Benutzername braucht mindestens '
-          '$minUsernameLength Zeichen.');
+    final problem = usernameProblem(username);
+    if (problem != null) {
+      _showMessage(problem);
       return;
     }
     if (_passwordController.text.length < minPasswordLength) {

@@ -7,6 +7,20 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Der Benutzername nimmt keine Mailadresse mehr an
+
+*29. August 2026 · Version 1.106.1*
+
+Beim Registrieren liegt das Feld für die E-Mail direkt unter dem für den
+Benutzernamen, und prompt landet die Adresse manchmal im falschen. Das
+fällt jetzt auf, beim Registrieren wie beim späteren Umbenennen — mit
+einem Hinweis am Feld statt einer Fehlermeldung erst beim Speichern.
+
+Der Grund ist mehr als Ordnungsliebe: Dein Benutzername ist für andere
+sichtbar — in Freundeslisten, an Spots und in der Suche. Eine Adresse
+dort steht damit öffentlich, und ausgerechnet die Freundessuche baut
+darauf, dass Adressen **nicht** öffentlich sind.
+
 ## Die Karte merkt sich, was du eingeschaltet hast
 
 *29. August 2026 · Version 1.106.0*
