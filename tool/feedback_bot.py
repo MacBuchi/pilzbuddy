@@ -315,7 +315,7 @@ def main() -> None:
     rows = api(
         "GET",
         "/rest/v1/feedback?processed_at=is.null&order=created_at"
-        "&select=id,type,message,species_name,created_at,profiles(username)",
+        "&select=id,type,message,species_name,created_at,app_version,profiles(username)",
     )
     if not rows:
         print("No unprocessed feedback.")
@@ -352,9 +352,19 @@ def main() -> None:
             if issue_exists(title):
                 print(f"Skip (issue already exists): {title}")
             else:
+                # Aus welchem Stand die Meldung kam (#358). Ohne die
+                # Angabe war bei einer Feldmeldung nicht entscheidbar, ob
+                # sie ein Duplikat einer schon behobenen ist oder ein
+                # neuer Fehler im frischen Stand — die Frage musste beim
+                # Melder zurückgestellt werden. Alte Zeilen und ältere
+                # Clients haben sie nicht; dann steht sie eben nicht da,
+                # statt geraten zu werden.
+                version = row.get("app_version")
+                aus = f" aus Version {version}" if version else ""
                 body = (
                     f"> {row['message']}\n\n"
-                    f"Eingereicht in der App von **{username}** am {row['created_at'][:10]}.\n\n"
+                    f"Eingereicht in der App von **{username}**{aus} "
+                    f"am {row['created_at'][:10]}.\n\n"
                     f"_Automatisch erstellt vom Feedback-Bot._"
                 )
                 issue_url = run("gh", "issue", "create", "--title", title,

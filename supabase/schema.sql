@@ -108,6 +108,9 @@ create table public.feedback (
   type text not null default 'feature' check (type in ('feature', 'species', 'bug')),
   species_name text,
   processed_at timestamptz,
+  -- Aus welchem Stand die Meldung kam (Patch 021). Nullable: Zeilen von
+  -- vor der Migration und von älteren Clients haben die Angabe nicht.
+  app_version text,
   created_at timestamptz not null default now()
 );
 
@@ -683,5 +686,6 @@ insert into public.applied_patches (filename) values
   ('patch_017_push_geraete.sql'),
   ('patch_018_push_ausloeser.sql'),
   ('patch_019_push_leerlauf.sql'),
-  ('patch_020_push_text.sql')
+  ('patch_020_push_text.sql'),
+  ('patch_021_feedback_version.sql')
 on conflict do nothing;

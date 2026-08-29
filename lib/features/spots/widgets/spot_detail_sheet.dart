@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -16,6 +18,22 @@ import 'ampel_section.dart';
 import 'species_season_section.dart';
 import 'spot_forest_section.dart';
 import 'spot_rain_section.dart';
+
+/// Wie viel Platz über dem Blatt frei bleibt — in logischen Pixeln.
+///
+/// Der Gegner ist die Statusleiste (24–40 dp je nach Gerät) und die
+/// System-Geste, die von dort nach unten wischt. 96 dp lassen auf jedem
+/// gemessenen Format genug Abstand, dass man nach dem Griff greifen
+/// kann, ohne sie auszulösen — auf Pixel-7-Format bleiben 72 dp frei.
+///
+/// Bewusst eine feste Zahl und kein Anteil: Ein Anteil wird auf kleinen
+/// Geräten klein, und dort ist die Statusleiste genauso hoch wie auf
+/// großen.
+const kSpotSheetTopClearance = 96.0;
+
+/// Untergrenze, damit das Blatt auf einem sehr kurzen Schirm nicht zum
+/// Streifen wird — dann lieber wenig Karte als kein Blatt.
+const kSpotSheetMinHeight = 240.0;
 
 /// Detail-Sheet für einen Spot: Fundhistorie, „Fund eintragen",
 /// Freigabe-Ausschluss und Löschen.
@@ -161,6 +179,18 @@ class _SpotDetailSheet extends ConsumerWidget {
     if (spot == null) return const SizedBox.shrink();
 
     final dateFormat = DateFormat('d.M.y');
+    // `LayoutBuilder` statt `MediaQuery`: Nur die eingehenden
+    // Constraints kennen den Platz, den das Blatt WIRKLICH hat. Der
+    // Einzug der Statusleiste ist hier drinnen schon auf 0 verbraucht
+    // (nachgemessen) — aus MediaQuery wäre er also gar nicht zu holen.
+    return LayoutBuilder(builder: (context, outer) {
+      final available = outer.maxHeight;
+      return _body(context, ref, spot, dateFormat, available);
+    });
+  }
+
+  Widget _body(BuildContext context, WidgetRef ref, Spot spot,
+      DateFormat dateFormat, double available) {
     return ConstrainedBox(
       // Der Regenabschnitt hat das Blatt über die Bildschirmhöhe hinaus
       // wachsen lassen. Zwei Änderungen statt einer Kürzung: eine
@@ -168,15 +198,36 @@ class _SpotDetailSheet extends ConsumerWidget {
       // Begründung wie im Filter- und Regen-Blatt), und Scrollen, damit
       // nichts abgeschnitten wird, was jemand lesen will.
       //
-      // **0,8 statt 0,9** (#351): Der Griff sitzt AUSSERHALB dieser
-      // Grenze und kostet 48 dp. Bei 0,9 stünde die Oberkante des Blatts
-      // damit 43 dp unter dem Bildschirmrand — das sieht aus, als reiche
-      // es in die Benachrichtigungsleiste, und genau so ist es gemeldet
-      // worden. Gemessen auf Pixel-7-Format (914 dp hoch), Luft über dem
-      // Blatt: 0,9 ohne Griff 91 dp, 0,9 mit Griff 43 dp, 0,8 mit Griff
-      // 135 dp.
+      // **Kein Anteil der Bildschirmhöhe mehr** (#358, Korrektur an
+      // #351): Das Blatt hängt am Navigator der HÜLLE und bekommt
+      // deshalb den Body, nicht den Schirm — gemessen 810 dp von 914 auf
+      // Pixel-7-Format, der Rest ist die Reiterleiste. Ein Anteil des
+      // Schirms war damit ein Anteil der falschen Größe:
+      //
+      //   0,9 ohne Griff  → 823 dp Blatt in 810 dp Body → Oberkante 0 dp,
+      //                     also WIRKLICH unter der Statusleiste (#351).
+      //   0,8 mit Griff   → 779 dp in 810 dp → Oberkante 31 dp, bei einer
+      //                     24 dp hohen Statusleiste also 7 dp Luft. Wer
+      //                     nach dem Griff greift, öffnet die
+      //                     Benachrichtigungsleiste (#358).
+      //
+      // Die frühere Zahl „135 dp Luft" in diesem Kommentar war falsch
+      // gemessen: an einer nackten `MaterialApp` OHNE Reiterleiste, die
+      // es in der App nicht gibt.
+      //
+      // Jetzt wird von dem abgezogen, was wirklich da ist — und in
+      // Pixeln, weil der Gegner (die Statusleiste) auch in Pixeln misst
+      // und nicht in Prozent.
+      //
+      // **Der Griff wird NICHT abgezogen.** Er steckt in den eingehenden
+      // Constraints schon drin: gemessen 810 dp Body, davon kommen hier
+      // 762 an — die Differenz ist genau er. Ihn hier noch einmal
+      // abzuziehen kostete 48 dp Inhalt und gewönne nichts.
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * 0.8,
+        maxHeight: math.max(
+          kSpotSheetMinHeight,
+          available - kSpotSheetTopClearance,
+        ),
       ),
       child: SingleChildScrollView(
         child: Padding(

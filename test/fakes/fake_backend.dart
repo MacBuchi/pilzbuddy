@@ -1100,21 +1100,25 @@ class FakeFeedbackRepository implements FeedbackRepository {
   final FakeBackend backend;
 
   @override
-  Future<void> submit(FeedbackType type, String message) async {
+  Future<void> submit(FeedbackType type, String message,
+      {String? appVersion}) async {
     backend.feedback.add({
       'user_id': backend.currentUserId,
       'type': type == FeedbackType.bug ? 'bug' : 'feature',
       'message': message.trim(),
+      'app_version': appVersion,
     });
   }
 
   @override
-  Future<void> submitSpecies(String speciesName, {String? note}) async {
+  Future<void> submitSpecies(String speciesName,
+      {String? note, String? appVersion}) async {
     backend.feedback.add({
       'user_id': backend.currentUserId,
       'type': 'species',
       'species_name': speciesName.trim(),
       'message': note,
+      'app_version': appVersion,
     });
   }
 }
