@@ -376,4 +376,67 @@ void main() {
     expect(find.text('GitHub-Projekt & Dokumentation'), findsOneWidget);
     expect(find.text('Web-App'), findsOneWidget);
   });
+
+  testWidgets('das Spot-Blatt hat einen Griff, und der schließt es (#351)',
+      (tester) async {
+    // Gemeldet: „Spot Detail Karte sollte man mit Geste nach unten
+    // wischen einfach schließen können." Konnte man nicht — und der
+    // Grund ist nicht das fehlende `enableDrag` (das steht auf der
+    // Vorgabe „an"), sondern der SingleChildScrollView im Blatt: Sobald
+    // der Inhalt scrollt, frisst er jede Abwärtsgeste. Nachgemessen
+    // sowohl mit Schwung als auch mit langsamem Zug — beides scrollte
+    // nur. Nur am Griff greift die Geste.
+    final (backend, me) = loggedInBackend();
+    backend.addSpot(ownerId: me.id, species: 'Steinpilz');
+    await pumpApp(tester, backend);
+
+    await tester.tap(find.byTooltip('Pilz-Spot'));
+    await settle(tester);
+    expect(find.text('Fund eintragen'), findsOneWidget);
+
+    final sheet = tester.getRect(find.byType(BottomSheet));
+    await tester.fling(
+        find.byType(BottomSheet), const Offset(0, 400), 1200,
+        warnIfMissed: false);
+    await settle(tester);
+    expect(find.text('Fund eintragen'), findsOneWidget,
+        reason: 'im Inhalt bleibt Wischen Scrollen — das ist so gewollt');
+
+    // Am Griff dagegen geht es zu. Der Griff sitzt in den obersten
+    // 48 dp des Blatts; die Zahl ist gemessen, nicht geschätzt.
+    await tester.flingFrom(
+        Offset(sheet.center.dx, sheet.top + 20), const Offset(0, 400), 1200);
+    await settle(tester);
+    expect(find.text('Fund eintragen'), findsNothing);
+  });
+
+  testWidgets('die Höhengrenze lässt einen Streifen Karte stehen (#351)',
+      (tester) async {
+    // **0,8 und nicht 0,9**, und die Zahl hängt am Griff aus dem Test
+    // hierüber: Er kommt AUSSERHALB dieser Grenze dazu und kostet 48 dp.
+    // Gemessen auf Pixel-7-Format (914 dp hoch), Luft über dem Blatt:
+    // 0,9 ohne Griff 91 dp, 0,9 MIT Griff 43 dp, 0,8 mit Griff 135 dp.
+    // Bei 0,9 sähe es also aus, als reiche das Blatt in die
+    // Benachrichtigungsleiste — genau die zweite Hälfte der Meldung.
+    //
+    // Weiß gemessen und nicht schwarz: Die Grenze bindet erst bei einem
+    // Spot mit Regen- und Ampel-Abschnitt, und die Zahl selbst ist die
+    // Entscheidung, die hier nicht still zurückwandern soll.
+    final (backend, me) = loggedInBackend();
+    backend.addSpot(ownerId: me.id, species: 'Steinpilz');
+    await pumpApp(tester, backend);
+
+    await tester.tap(find.byTooltip('Pilz-Spot'));
+    await settle(tester);
+
+    final screen =
+        MediaQuery.of(tester.element(find.text('Fund eintragen'))).size.height;
+    final caps = tester
+        .widgetList<ConstrainedBox>(find.ancestor(
+            of: find.text('Fund eintragen'),
+            matching: find.byType(ConstrainedBox)))
+        .map((c) => c.constraints.maxHeight)
+        .where((h) => h.isFinite);
+    expect(caps, contains(closeTo(screen * 0.8, 0.5)));
+  });
 }

@@ -94,13 +94,13 @@ class _ForestLayerSheet extends ConsumerWidget {
                         : (value) {
                             ref
                                 .read(forestLayerEnabledProvider.notifier)
-                                .state = value;
+                                .set(value);
                             // Die Ampel IST die Waldfläche in anderen
                             // Farben — ohne Wald hätte sie nichts zu malen.
                             if (!value) {
                               ref
                                   .read(ampelLayerEnabledProvider.notifier)
-                                  .state = false;
+                                  .set(false);
                             }
                           },
                   ),

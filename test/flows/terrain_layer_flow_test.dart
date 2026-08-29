@@ -17,6 +17,7 @@ import 'package:pilzbuddy/features/map/forest_data_providers.dart'
 import 'package:pilzbuddy/features/map/map_view/marker_culling.dart';
 
 import '../fakes/fake_backend.dart';
+import '../fakes/fake_settings.dart';
 import '../fakes/map_ui.dart';
 import '../fakes/test_app.dart';
 
@@ -219,21 +220,40 @@ void main() {
     expect(find.textContaining('Höhenlinien alle 50 m'), findsOneWidget);
   });
 
-  testWidgets('der Schalter ist sitzungslokal — nichts wird gemerkt',
-      (tester) async {
-    // Wie bei Wald und Regen: Eine über Nacht vergessene Ebene verwirrt
-    // mehr, als der eine Tipp zum Wiedereinschalten kostet. Der Beweis
-    // ist ein FRISCHER Container: Läse der Provider die Einstellungen,
-    // stünde dort jetzt „an".
+  testWidgets('der Schalter überlebt den Neustart (#349)', (tester) async {
+    // **Hier stand bis 1.105.0 das Gegenteil**: „sitzungslokal — nichts
+    // wird gemerkt", begründet mit „eine über Nacht vergessene Ebene
+    // verwirrt mehr, als der eine Tipp zum Wiedereinschalten kostet".
+    // Der Betreiber hat das am 2026-08-28 kassiert (#349), und das
+    // Argument war ohnehin dahin: Seit #347 sagt die Zahl am
+    // Ebenen-Knopf, welche Ebenen liegen — die Verwirrung, gegen die die
+    // Regel stand, gibt es nicht mehr.
+    //
+    // Der Beweis ist ein zweiter Aufbau mit derselben
+    // Einstellungs-Instanz — siehe die Anmerkung weiter unten, warum
+    // dazwischen ein leerer Frame stehen MUSS.
+    final settings = FakeSettings();
     await pumpApp(tester, loggedInBackend(),
-        extraOverrides: withGrid(testGrid()));
+        settings: settings, extraOverrides: withGrid(testGrid()));
     await openLayerSheet(tester, 'Höhenlinien');
     await tester.tap(find.text('Höhenlinien einblenden'));
     await settle(tester);
     expect(containerOf(tester).read(contourLayerEnabledProvider), isTrue);
+    expect(settings.contourLayerEnabled, isTrue,
+        reason: 'der Schalter merkt selbst — nicht der Aufrufer');
 
-    final fresh = ProviderContainer();
-    addTearDown(fresh.dispose);
-    expect(fresh.read(contourLayerEnabledProvider), isFalse);
+    // **Der Neustart braucht einen leeren Frame dazwischen.** Ein
+    // zweiter `pumpApp` allein ist KEINER: Flutter erkennt denselben
+    // `ProviderScope` an derselben Stelle wieder, hält sein Element am
+    // Leben und damit den ganzen Container — die Provider behalten
+    // schlicht ihren Zustand. Der Test war damit grün, auch als
+    // `RememberedFlag.build()` die Einstellungen gar nicht mehr las
+    // (in der Gegenprobe gemessen). `pumpWidget(SizedBox())` wirft das
+    // Element weg, und erst der Aufbau danach liest wirklich neu.
+    await tester.pumpWidget(const SizedBox());
+    await pumpApp(tester, loggedInBackend(),
+        settings: settings, extraOverrides: withGrid(testGrid()));
+    expect(containerOf(tester).read(contourLayerEnabledProvider), isTrue,
+        reason: 'nach dem Neustart liegt die Ebene wieder');
   });
 }

@@ -7,6 +7,33 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Karte merkt sich, was du eingeschaltet hast
+
+*29. August 2026 · Version 1.106.0*
+
+**Deine Ebenen bleiben liegen.** Waldtypen, Höhenlinien, Regen und
+Pilzampel sprangen bisher bei jedem App-Start wieder auf „aus" — das war
+Absicht, damit niemand mit einer vergessenen Ebene dasteht. Seit die Zahl
+am Ebenen-Knopf sagt, was an ist, braucht es diese Vorsicht nicht mehr.
+Was du anschaltest, liegt beim nächsten Start wieder da; was du
+ausschaltest, bleibt aus.
+
+Ein Hinweis für unterwegs: Wer die Regenebene oder die Pilzampel anlässt,
+lädt sie beim Start automatisch mit. Das sind ein paar hundert Kilobyte —
+im Funkloch stört es nicht, am Datenvolumen kann es auffallen. Abschalten
+genügt, dann bleibt es aus.
+
+**Der Ampel-Hinweis verschwindet nicht mehr, wenn man ihn benutzt.** Das
+Banner „An deinem Spot stünde die Ampel günstig" lädt zum Antippen ein —
+und schaltete sich danach bis Mitternacht selbst stumm. Für den nächsten
+App-Start sah das aus, als sei der Hinweis kaputt. Jetzt schaltet ihn nur
+noch das **X** stumm, und das gilt weiter für den ganzen Tag.
+
+**Das Spot-Blatt hat einen Griff bekommen.** Der graue Balken oben lässt
+sich nach unten wischen — damit geht das Blatt zu, ohne dass man daneben
+tippen muss. Außerdem ist es ein Stück niedriger, sodass über ihm immer
+ein Streifen Karte stehen bleibt.
+
 ## Weniger Knöpfe auf der Karte — und mehr Karte
 
 *28. August 2026 · Version 1.105.0*

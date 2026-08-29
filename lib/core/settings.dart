@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'errors.dart';
 
 /// Gerätelokale Einstellungen — alles, was auf *diesem* Gerät gilt und
 /// nicht ins Konto gehört.
@@ -93,6 +97,59 @@ abstract interface class Settings {
   bool get ampelBannerEnabled;
 
   Future<void> setAmpelBannerEnabled(bool value);
+
+  /// Lag die Waldebene beim letzten Mal auf der Karte (#349)?
+  ///
+  /// **Das dreht eine ausdrückliche Entscheidung um** — und zwar zwei
+  /// verschiedene. Wald und Höhenlinien waren sitzungslokal, weil „eine
+  /// über Nacht vergessene Ebene mehr verwirrt, als der eine Tipp zum
+  /// Wiedereinschalten kostet"; Regen und Ampel, weil eine „beim Start
+  /// aktive Ebene ein ungefragter Download" wäre.
+  ///
+  /// Die erste Begründung ist seit #347 hinfällig: Die Zahl am
+  /// Ebenen-Knopf sagt auf einen Blick, was an ist — die Verwirrung,
+  /// gegen die die Regel stand, gibt es nicht mehr. Die zweite
+  /// verwechselt „ungefragt" mit „einmal gefragt": Ein
+  /// wiederhergestellter Schalter ist die Antwort von gestern, keine
+  /// Entscheidung der App. Genau so hält es [forestFineEnabled] längst,
+  /// und dort hängen 26 MB dran statt der 200–600 KB der Regenebene.
+  ///
+  /// Der Preis bleibt echt und gehört gesagt: Wer die Ampel anlässt,
+  /// packt ihre Gitter bei JEDEM Start aus — dieselbe Last, die 1.99.4
+  /// aus dem Startpfad genommen hat. Geändert hat sich nur, wer sie
+  /// zahlt: ausschließlich, wer den Schalter selbst umgelegt hat.
+  bool get forestLayerEnabled;
+
+  Future<void> setForestLayerEnabled(bool value);
+
+  /// Lagen beim letzten Mal Höhenlinien auf der Karte? Begründung siehe
+  /// [forestLayerEnabled].
+  bool get contourLayerEnabled;
+
+  Future<void> setContourLayerEnabled(bool value);
+
+  /// Leuchtete beim letzten Mal die Pilzampel? Begründung siehe
+  /// [forestLayerEnabled].
+  ///
+  /// Kommt nie allein zurück: Die Ampel ist ein Modus der Waldfläche,
+  /// und `setAmpelLayerEnabled` schaltet den Wald mit ein — beide
+  /// Schalter wurden gemeinsam gemerkt und kehren gemeinsam wieder.
+  bool get ampelLayerEnabled;
+
+  Future<void> setAmpelLayerEnabled(bool value);
+
+  /// Die zuletzt gewählte Regen-Ebene als `RainLayer.name` — `null`
+  /// heißt „aus". Begründung siehe [forestLayerEnabled].
+  ///
+  /// **Als Name und nicht als Index**: Der Index hängt an der Reihenfolge
+  /// im Enum, eine später eingeschobene Ebene verschöbe stillschweigend
+  /// die Wahl jedes Nutzers. Ein unbekannter Name fällt beim Lesen auf
+  /// „aus" zurück. Dass hier eine Zeichenkette steht und kein Enum, hat
+  /// denselben Grund wie alles in dieser Datei: `core/` kennt die
+  /// Feature-Typen nicht.
+  String? get rainLayerName;
+
+  Future<void> setRainLayerName(String? value);
 
   /// Das zuletzt registrierte FCM-Token dieses Geräts (#277) — `null`,
   /// solange niemand Push eingeschaltet hat.
@@ -271,6 +328,45 @@ class PrefsSettings implements Settings {
   Future<void> setAmpelBannerEnabled(bool value) =>
       _prefs.setBool(_ampelBannerEnabledKey, value);
 
+  static const _forestLayerEnabledKey = 'forest_layer_enabled';
+
+  @override
+  bool get forestLayerEnabled =>
+      _prefs.getBool(_forestLayerEnabledKey) ?? false;
+
+  @override
+  Future<void> setForestLayerEnabled(bool value) =>
+      _prefs.setBool(_forestLayerEnabledKey, value);
+
+  static const _contourLayerEnabledKey = 'contour_layer_enabled';
+
+  @override
+  bool get contourLayerEnabled =>
+      _prefs.getBool(_contourLayerEnabledKey) ?? false;
+
+  @override
+  Future<void> setContourLayerEnabled(bool value) =>
+      _prefs.setBool(_contourLayerEnabledKey, value);
+
+  static const _ampelLayerEnabledKey = 'ampel_layer_enabled';
+
+  @override
+  bool get ampelLayerEnabled => _prefs.getBool(_ampelLayerEnabledKey) ?? false;
+
+  @override
+  Future<void> setAmpelLayerEnabled(bool value) =>
+      _prefs.setBool(_ampelLayerEnabledKey, value);
+
+  static const _rainLayerNameKey = 'rain_layer_name';
+
+  @override
+  String? get rainLayerName => _prefs.getString(_rainLayerNameKey);
+
+  @override
+  Future<void> setRainLayerName(String? value) => value == null
+      ? _prefs.remove(_rainLayerNameKey)
+      : _prefs.setString(_rainLayerNameKey, value);
+
   static const _pushTokenKey = 'push_token';
 
   @override
@@ -373,3 +469,37 @@ final settingsProvider = Provider<Settings>((ref) {
   throw StateError('settingsProvider muss überschrieben werden — '
       'siehe main() und test/fakes/test_app.dart');
 });
+
+/// Ein gerätelokal gemerkter An/Aus-Schalter (#349).
+///
+/// **Warum ein Notifier und kein `StateProvider`.** Ein StateProvider
+/// lässt sich von überall mit `.notifier).state = x` setzen, und das
+/// Merken wäre dann ein zweiter Schritt, den man vergessen kann — die
+/// Sorte Fehler, die erst beim übernächsten App-Start auffällt. Hier
+/// gibt es nur [set], und das tut beides.
+///
+/// Muster wie `AmpelBannerEnabledNotifier`: Der Zustand springt sofort,
+/// das Merken läuft nach, ein Fehler dabei wird nur protokolliert — eine
+/// Ebene, die sich nicht merken lässt, soll trotzdem angehen.
+class RememberedFlag extends Notifier<bool> {
+  RememberedFlag({
+    required this.read,
+    required this.write,
+    required this.label,
+  });
+
+  final bool Function(Settings settings) read;
+  final Future<void> Function(Settings settings, bool value) write;
+
+  /// Der Kontext für `logError`, etwa „Waldebene merken".
+  final String label;
+
+  @override
+  bool build() => read(ref.read(settingsProvider));
+
+  void set(bool value) {
+    state = value;
+    unawaited(write(ref.read(settingsProvider), value)
+        .catchError((Object e, StackTrace s) => logError(label, e, s)));
+  }
+}

@@ -92,7 +92,7 @@ class _RainLayerSheet extends ConsumerWidget {
                       // die Waldfläche, es gibt keine zweite Fläche
                       // mehr, die sich mit dem Regen beißen könnte.
                       onTap: () =>
-                          ref.read(rainLayerProvider.notifier).state = layer,
+                          ref.read(rainLayerProvider.notifier).set(layer),
                     ),
                   if (ref.watch(ampelPreviewEnabledProvider)) ...[
                     const Divider(height: 16),

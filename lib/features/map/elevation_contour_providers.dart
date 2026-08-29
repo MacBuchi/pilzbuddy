@@ -7,20 +7,26 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/settings.dart';
+
 import 'elevation_contours.dart';
 import 'elevation_grid.dart';
 import 'elevation_providers.dart';
 import 'forest_data_providers.dart' show mapIdleBoundsProvider;
 import 'forest_fill_window.dart';
 
-/// Ist die Ebene an?
+/// Ist die Ebene an? Gemerkt wie `forestLayerEnabledProvider` und aus
+/// demselben Grund — Begründung bei [Settings.forestLayerEnabled].
 ///
-/// Sitzungslokal wie `forestLayerEnabledProvider` und aus demselben
-/// Grund: Eine über Nacht vergessene Ebene verwirrt mehr, als der eine
-/// Tipp zum Wiedereinschalten kostet. Anders als bei Wald und Regen
-/// kostet sie zwar keinen Download — aber sie legt Linien über die
-/// Karte, und das ist derselbe Handel.
-final contourLayerEnabledProvider = StateProvider<bool>((ref) => false);
+/// Von allen vier Ebenen ist diese die billigste zum Merken: Sie lädt
+/// nichts nach, sie rechnet nur, und das erst bei Kamera-Stillstand.
+final contourLayerEnabledProvider = NotifierProvider<RememberedFlag, bool>(
+  () => RememberedFlag(
+    read: (s) => s.contourLayerEnabled,
+    write: (s, v) => s.setContourLayerEnabled(v),
+    label: 'Höhenlinien merken',
+  ),
+);
 
 /// Meter Gelände je logischem Bildschirmpixel beim letzten
 /// Kamera-Stillstand — Geschwister von `mapIdleCenterProvider` (#235)
