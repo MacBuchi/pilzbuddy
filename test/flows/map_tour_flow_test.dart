@@ -6,6 +6,9 @@
 //   2. Überspringen zählt wie Durchsehen.
 //   3. Das Loch sitzt auf dem ECHTEN Knopf, nicht auf einer festen Zahl.
 //   4. Sie sperrt niemanden ein.
+//   5. Sie lässt keinen Knopf der Hauptseite aus.
+//   6. Am Ende führt ein Knopf in die Kurzanleitung — bis 1.109.0 war
+//      dieser Verweis eine Behauptung im Kopfkommentar und sonst nichts.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/features/help/map_tour.dart';
@@ -25,7 +28,31 @@ List<Rect> holes(WidgetTester tester) => tester
     .single
     .holes;
 
+/// Die Schritte in ihrer Reihenfolge. Einmal hier, weil zwei Tests sie
+/// durchlaufen — und weil die REIHENFOLGE eine Aussage ist: Ab Schritt 3
+/// läuft der Scheinwerfer die Knopfspalte hinunter, und geendet wird auf
+/// „Unterwegs", nicht auf dem Filter.
+const kTourTitles = [
+  'So entsteht ein Spot',
+  'Wo du gerade bist',
+  'Was die Karte zeigt',
+  'Wenn es viele Spots werden',
+  'Unterwegs',
+];
+
 void main() {
+  /// Ein Gerät dieser Maße — Oberfläche UND `MediaQuery`.
+  ///
+  /// `setSurfaceSize` allein ändert nur die Fläche; `MediaQuery` meldet
+  /// weiter 800×600, und dann rechnet der geprüfte Code mit einem
+  /// Bildschirm, den es im Test nicht gibt. Genau daran ist in #358 eine
+  /// gemessene Zahl falsch ins Repo gewandert.
+  void useScreen(WidgetTester tester, Size size) {
+    tester.view.physicalSize = size * 3;
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+  }
+
   FakeBackend signedIn() {
     final backend = FakeBackend();
     backend.signInAs(backend.addUser(username: 'testpilz').id);
@@ -45,7 +72,7 @@ void main() {
     await pumpApp(tester, signedIn(), settings: fresh());
 
     expect(find.text('So entsteht ein Spot'), findsOneWidget);
-    expect(find.text('1 von 4'), findsOneWidget);
+    expect(find.text('1 von 5'), findsOneWidget);
     expect(holes(tester), hasLength(2));
   });
 
@@ -55,9 +82,13 @@ void main() {
     // Ihre Maße hängen an der Bildschirmhöhe, und eine feste Zahl wäre
     // dort am falschesten, wo der Schirm klein ist. Deshalb wird gegen
     // `getRect` des Knopfs geprüft, nicht gegen eine Konstante.
-    await tester.binding.setSurfaceSize(const Size(412, 915));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+    useScreen(tester, const Size(412, 915));
     await pumpApp(tester, signedIn(), settings: fresh());
+
+    await tester.tap(find.text('Weiter'));
+    await settle(tester);
+    expect(find.text('Wo du gerade bist'), findsOneWidget);
+    expect(holes(tester).single, tester.getRect(fab('locate')));
 
     await tester.tap(find.text('Weiter'));
     await settle(tester);
@@ -66,28 +97,22 @@ void main() {
 
     await tester.tap(find.text('Weiter'));
     await settle(tester);
-    expect(holes(tester).single, tester.getRect(fab('trip')));
+    expect(holes(tester).single, tester.getRect(fab('filter')));
 
     await tester.tap(find.text('Weiter'));
     await settle(tester);
-    expect(holes(tester).single, tester.getRect(fab('filter')));
+    expect(holes(tester).single, tester.getRect(fab('trip')));
   });
 
-  testWidgets('vier Schritte, dann ist sie durch — und kommt nicht wieder',
+  testWidgets('fünf Schritte, dann ist sie durch — und kommt nicht wieder',
       (tester) async {
     final settings = fresh();
     await pumpApp(tester, signedIn(), settings: settings);
 
-    for (final title in [
-      'So entsteht ein Spot',
-      'Was die Karte zeigt',
-      'Unterwegs',
-      'Wenn es viele Spots werden',
-    ]) {
+    for (final title in kTourTitles) {
       expect(find.text(title), findsOneWidget, reason: 'Schritt „$title"');
-      await tester.tap(find.text(title == 'Wenn es viele Spots werden'
-          ? 'Los geht\'s'
-          : 'Weiter'));
+      await tester.tap(
+          find.text(title == kTourTitles.last ? 'Los geht\'s' : 'Weiter'));
       await settle(tester);
     }
 
@@ -128,6 +153,95 @@ void main() {
     expect(find.text('So entsteht ein Spot'), findsNothing,
         reason: 'auf einem anderen Reiter hat die Karten-Tour nichts zu '
             'suchen');
+  });
+
+  testWidgets('kein Knopf der Hauptseite bleibt ungenannt', (tester) async {
+    // Der Wächter für den Betreiber-Wunsch (2026-08-29): „quasi alle
+    // Knöpfe auf der Hauptseite abgedeckt". Wer sucht, was die Tour
+    // ausgelassen hat, weiß ja nicht, dass sie es ausgelassen hat —
+    // deshalb ist die Deckung eine Zusage und keine Geschmacksfrage. Ein
+    // sechster Knopf in der Spalte ohne eigenen Schritt macht das hier
+    // rot.
+    useScreen(tester, const Size(412, 915));
+    await pumpApp(tester, signedIn(), settings: fresh());
+
+    final seen = <Rect>[];
+    for (final title in kTourTitles) {
+      expect(find.text(title), findsOneWidget, reason: 'Schritt „$title"');
+      seen.addAll(holes(tester));
+      if (title == kTourTitles.last) break;
+      await tester.tap(find.text('Weiter'));
+      await settle(tester);
+    }
+
+    for (final tag in ['layers', 'filter', 'trip', 'locate', 'add']) {
+      expect(seen, contains(tester.getRect(fab(tag))),
+          reason: 'der Knopf „$tag" kommt in keinem Schritt vor');
+    }
+  });
+
+  testWidgets('die Sprechblase liegt nie auf dem, was sie erklärt',
+      (tester) async {
+    // Eine Sprechblase über dem Loch ist eine Sprechblase über nichts.
+    // Die Seitenwahl hängt an `union.center.dy` gegen die halbe
+    // Schirmhöhe — eine Regel, die genau dann kippt, wenn ein Loch nahe
+    // der Mitte liegt oder der Schirm klein wird. Beides steht hier,
+    // statt es einmal von Hand angesehen zu haben.
+    for (final size in [const Size(412, 915), const Size(360, 640)]) {
+      useScreen(tester, size);
+      await tester.pumpWidget(const SizedBox());
+      await pumpApp(tester, signedIn(), settings: fresh());
+
+      for (final title in kTourTitles) {
+        expect(find.text(title), findsOneWidget,
+            reason: 'Schritt „$title" bei ${size.width}×${size.height}');
+        final bubble = tester.getRect(find.descendant(
+            of: find.byType(MapTourOverlay), matching: find.byType(Card)));
+        for (final hole in holes(tester)) {
+          expect(bubble.overlaps(hole), isFalse,
+              reason: 'Schritt „$title" bei ${size.width}×${size.height}: '
+                  'Blase $bubble deckt das Loch $hole zu');
+        }
+        if (title == kTourTitles.last) break;
+        await tester.tap(find.text('Weiter'));
+        await settle(tester);
+      }
+    }
+  });
+
+  testWidgets('der letzte Schritt führt weiter in die Kurzanleitung',
+      (tester) async {
+    // Die Zusage aus dem Kopfkommentar, die bis 1.109.0 keine war: Die
+    // Tour erklärt nur, was auf diesem Schirm liegt — Leergang, Freigabe
+    // und Offline-Karten stehen in der Kurzanleitung, und ohne diesen
+    // Knopf sagt das niemandem jemand. Der eine andere Weg dorthin, das
+    // grüne Banner, erscheint nur bei völlig leerer Karte.
+    final settings = fresh();
+    final backend = signedIn();
+    // Ein Buddy-Spot auf der Karte: genau der Nutzer, für den die Tour
+    // gebaut wurde — und bei dem das Banner mit dem Verweis NICHT steht.
+    final buddy = backend.addUser(username: 'buddy');
+    backend.addSpot(ownerId: buddy.id, lat: 50.5, lng: 12.5, name: 'Hang');
+    await pumpApp(tester, backend, settings: settings);
+
+    for (var i = 0; i < kTourTitles.length - 1; i++) {
+      await tester.tap(find.text('Weiter'));
+      await settle(tester);
+    }
+    expect(find.text(kTourTitles.last), findsOneWidget);
+    // Im letzten Schritt gibt es nichts mehr zu überspringen — der Platz
+    // trägt den Verweis.
+    expect(find.text('Überspringen'), findsNothing);
+
+    await tester.tap(find.text('Kurzanleitung'));
+    await settle(tester);
+
+    expect(find.text('Kurzanleitung'), findsWidgets, reason: 'Titelzeile');
+    expect(find.textContaining('Das Wichtigste in sechs Schritten'),
+        findsOneWidget);
+    // Und die Tour ist damit durch: Wer hier abbiegt, hat sie gesehen.
+    expect(settings.mapTourSeen, isTrue);
+    expect(find.text(kTourTitles.last), findsNothing);
   });
 
   testWidgets('aus der Kurzanleitung neu startbar', (tester) async {

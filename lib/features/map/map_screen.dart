@@ -997,6 +997,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
               ],
               const SizedBox(height: 12),
               FloatingActionButton.small(
+                key: _tourAnchors.locate,
                 heroTag: 'locate',
                 onPressed: _centerOnMe,
                 tooltip: 'Meine Position',

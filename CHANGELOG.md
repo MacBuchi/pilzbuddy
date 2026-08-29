@@ -7,6 +7,28 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Einführung zeigt jetzt alle Knöpfe — und weiß, wo es weitergeht
+
+*29. August 2026 · Version 1.110.0*
+
+Die kurze Einführung beim ersten Start führte an vier Bedienelementen
+entlang. Zwei davon fehlten: „Meine Position" kam gar nicht vor, und am
+Ende stand kein Weg zur Kurzanleitung — obwohl gerade die Dinge, die die
+Einführung bewusst auslässt, dort erklärt sind: Leergänge, was du mit
+Buddies teilst, und Karten für unterwegs ohne Empfang.
+
+Jetzt sind es fünf Schritte, und sie decken jeden Knopf auf der Karte ab.
+Im letzten steht neben „Los geht's" ein Knopf, der dich direkt in die
+Kurzanleitung bringt. Wer sie später noch einmal sehen will, findet sie
+wie bisher im Profil unter „Kurzanleitung".
+
+**Und die Erklärkarte sitzt richtig.** Sie stand rund achtzig Pixel zu
+tief und lag damit im ersten Schritt ausgerechnet auf dem Fadenkreuz, das
+sie erklärt. Auf kleinen Bildschirmen rutschten ihre Knöpfe sogar über
+den oberen Rand hinaus — dort ließ sich die Einführung nur noch durch
+Tippen irgendwohin weiterschalten. Beides ist behoben; passt der Text
+nicht ganz, lässt er sich jetzt scrollen, statt die Knöpfe wegzuschieben.
+
 ## Die Karte startet dort, wo du stehst
 
 *29. August 2026 · Version 1.109.0*
