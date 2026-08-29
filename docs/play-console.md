@@ -240,11 +240,17 @@ Play-Manifests — und das soll im PR auffallen, nicht im Release-Workflow.
   Prüfrunde, ohne dass die App mehr könnte.
   `test/android_manifest_test.dart` hält beide Hälften fest — dass die
   Berechtigung fehlt und dass der Service-Typ da ist.
-- Der Standort wird ausschließlich nach einer sichtbaren Nutzeraktion abgefragt
-  (`_currentPosition()` in `lib/features/map/map_screen.dart`, ausgelöst von
-  „Auf mich zentrieren", „Spot hier" oder dem Live-Standort-Teilen; die
-  Pilztour startet über ihren eigenen Knopf und läuft nur, solange die
-  Benachrichtigung steht).
+- **Die Berechtigung wird ausschließlich nach einer sichtbaren
+  Nutzeraktion erfragt** (`_currentPosition()` in
+  `lib/features/map/map_screen.dart`, ausgelöst von „Auf mich zentrieren",
+  „Spot hier" oder dem Live-Standort-Teilen; die Pilztour startet über
+  ihren eigenen Knopf und läuft nur, solange die Benachrichtigung steht).
+  Der Positionsstrom für den eigenen Marker auf der Karte
+  (`position_provider.dart`) und das Einrasten beim Start (#360, seit
+  1.109.0) fragen bewusst NIE — sie nutzen nur eine Berechtigung, die
+  bereits erteilt ist, und tun ohne sie schlicht nichts. Das ist der
+  Grund für die Trennung: Ein Systemdialog beim App-Start, ohne dass
+  jemand etwas angetippt hat, ist genau das, wonach diese Regel fragt.
 - Ohne Berechtigung läuft die App weiter; Spots entstehen dann über das
   Fadenkreuz.
 
