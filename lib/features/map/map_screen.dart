@@ -12,6 +12,7 @@ import 'package:latlong2/latlong.dart';
 import '../offline_maps/offline_map_providers.dart';
 
 import '../../core/errors.dart';
+import '../../core/geo.dart';
 import '../../core/mushroom_species.dart';
 import '../../core/update_check.dart';
 import '../../core/widgets/mushroom_avatar.dart';
@@ -71,6 +72,22 @@ class _MapScreenState extends ConsumerState<MapScreen>
   static const _fallbackCenter = LatLng(51.1634, 10.4477);
   static const _fallbackZoom = 6.5;
 
+  /// Der Blick, mit dem der Start auf die eigene Position einrastet (#360).
+  ///
+  /// Rund 10 km Umkreis auf einem ~400-dp-Schirm — viel weiter weg als
+  /// „Auf mich zentrieren" (15) oder ein Spot-Sprung ([kSpotFocusZoom]):
+  /// Der Start soll die Gegend zeigen, nicht den Fleck, auf dem man steht.
+  ///
+  /// **Die Zahl ist auf die Standard-Engine geeicht.** Beide zählen Zoom
+  /// verschieden — am Gerät gemessen ist MapLibres 11 exakt der 256er-Zoom
+  /// 12 von flutter_map (`docs/map-performance.md`, Nachtrag 2026-08-21).
+  /// Auf der klassischen Karte und im Web zeigt dieselbe Zahl deshalb rund
+  /// die doppelte Fläche. Bewusst in Kauf genommen: Ein aus dem Radius
+  /// gerechneter Zoom bräuchte die Kachelgröße in der Fassade, und die
+  /// Kamera wird hier überall mit rohen Zahlen bewegt (Long-Press 16,
+  /// „Auf mich zentrieren" 15).
+  static const _startZoom = 10.0;
+
   // Grenzen des Karten-Zooms — 19 ist die höchste Stufe, für die es sowohl
   // OSM-Kacheln als auch Offline-Vektordaten gibt (Engine-Detailkommentare
   // in map_view/flutter_map_view.dart).
@@ -115,6 +132,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
       if (!ref.read(mapTourSeenProvider)) {
         ref.read(mapTourProvider.notifier).start();
       }
+      // Und auf die eigene Position einrasten (#360), falls schon eine
+      // dasteht — sonst übernimmt der Listener in `build` den ersten Fix.
+      _maybeSnapToStart(ref.read(positionStreamProvider).valueOrNull);
     });
     // Punkte, die das Service-Isolate misst, in die Karte durchreichen
     // (#342). Rein für die Anzeige — geschrieben hat sie der Service
@@ -203,6 +223,51 @@ class _MapScreenState extends ConsumerState<MapScreen>
     ref.invalidate(updateInfoProvider);
     ref.invalidate(availableMapsProvider);
   }
+
+  /// Ist die Gelegenheit zum Einrasten verbraucht? (#360)
+  bool _startSnapDone = false;
+
+  /// Beim Start einmal auf die eigene Position einrasten (#360).
+  ///
+  /// Drei Regeln, jede mit ihrem Grund:
+  ///
+  /// **Einmal.** Der Betreiber ausdrücklich: „einmalig, nicht dauernd
+  /// umspringen". Die Karte hängt in einem `IndexedStack`
+  /// (`StatefulShellRoute`), ihr Zustand überlebt den Reiterwechsel — der
+  /// Rückweg aus dem Profil ist kein neuer Start.
+  ///
+  /// **Aus dem laufenden Positionsstrom, nicht über [_currentPosition].**
+  /// Der Unterschied ist die Berechtigungsfrage: Der Strom stellt sie
+  /// bewusst nie (`position_provider.dart`), das tut allein „Auf mich
+  /// zentrieren". Beim allerersten Start liefe der System-Dialog sonst
+  /// mitten in die geführte Tour (#350). Preis, mit Absicht bezahlt: Auf
+  /// einem frischen Gerät tut der Sprung nichts, bis die Berechtigung
+  /// einmal erteilt ist — danach bei jedem Start.
+  ///
+  /// **Der Sprung weicht dem Nutzer.** Der erste Fix kann unter
+  /// Blätterdach Sekunden brauchen; wer inzwischen geschoben hat oder über
+  /// ein Banner auf einem Spot gelandet ist, wird nicht weggerissen.
+  /// Verbraucht ist die Gelegenheit trotzdem, sonst spränge der nächste
+  /// Fix doch noch.
+  void _maybeSnapToStart(Position? position) {
+    if (_startSnapDone || position == null || !mounted) return;
+    _startSnapDone = true;
+    if (!_atStartView) return;
+    _map.move(LatLng(position.latitude, position.longitude), _startZoom);
+  }
+
+  /// Steht die Karte noch unberührt auf der Startansicht?
+  ///
+  /// Mit Toleranz statt `==`: Die Kameramitte geht bei MapLibre durch den
+  /// Plattform-Kanal und kommt in den letzten Bits verändert zurück — ein
+  /// exakter Vergleich wäre gegen die Fake im Test wahr und auf dem Gerät
+  /// nie. Ein Kilometer ist dafür reichlich und für eine Geste nichts: bei
+  /// Zoom 6,5 der halbe Pixel.
+  bool get _atStartView =>
+      distanceKm(_map.center.latitude, _map.center.longitude,
+              _fallbackCenter.latitude, _fallbackCenter.longitude) <
+          1.0 &&
+      (_map.zoom - _fallbackZoom).abs() < 0.1;
 
   Future<Position?> _currentPosition() async {
     try {
@@ -631,8 +696,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
       _map.move(next.target, math.max(_map.zoom, kSpotFocusZoom));
     });
     // Solange ich teile, jede neue Position hochschieben (Bewegung sichtbar).
-    ref.listen(positionStreamProvider,
-        (_, next) => _maybeUploadLocation(next.valueOrNull));
+    ref.listen(positionStreamProvider, (_, next) {
+      _maybeUploadLocation(next.valueOrNull);
+      // Der erste Fix rastet die Karte ein (#360).
+      _maybeSnapToStart(next.valueOrNull);
+    });
     // Eigene Live-Position (Marker erscheint erst mit GPS-Fix).
     final myPosition = ref.watch(positionStreamProvider).valueOrNull;
     final myAvatar = ref.watch(myProfileProvider).valueOrNull?.avatar ?? 0;

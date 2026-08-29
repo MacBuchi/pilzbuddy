@@ -7,6 +7,25 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Karte startet dort, wo du stehst
+
+*29. August 2026 · Version 1.109.0*
+
+Beim Öffnen springt die Karte jetzt einmal zu deiner Position, statt bei
+der Mitte Deutschlands anzufangen. Sie zoomt dabei absichtlich nicht so
+nah heran wie der Knopf „Auf mich zentrieren": Du siehst rund zehn
+Kilometer im Umkreis und damit deine Spots in der Gegend, nicht nur den
+Fleck, auf dem du stehst.
+
+**Einmal, nicht dauernd.** Wenn du danach weiterschiebst, bleibt die Karte
+dort, wo du sie hingeschoben hast — auch wenn dein GPS beim Gehen laufend
+neue Positionen meldet. Und wer schon losgeschoben hat, bevor der erste
+Standort da war, wird nicht mitten in der Bewegung weggezogen.
+
+Hat die App den Standort noch nie gedurft, passiert beim Start nichts —
+gefragt wird weiterhin nur, wenn du selbst auf „Auf mich zentrieren"
+tippst. Danach klappt es bei jedem Start.
+
 ## Das Spot-Blatt bleibt unter der Statusleiste
 
 *29. August 2026 · Version 1.108.1*
