@@ -7,6 +7,23 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Eine kurze Tour beim ersten Start
+
+*29. August 2026 · Version 1.108.0*
+
+Beim allerersten Start führt dich die App jetzt in **vier Schritten** über
+die Karte: wie ein Spot entsteht (das Fadenkreuz und „Neuer Spot" gehören
+zusammen), was hinter „Ebenen" liegt, was du unterwegs machen kannst, und
+wozu der Filter da ist. Der jeweils erklärte Knopf wird dabei
+freigestellt, alles andere abgedunkelt.
+
+Sie hält dich nirgends fest: „Überspringen" steht in **jedem** Schritt,
+ein Tipp irgendwohin geht weiter, und die Reiter unten bleiben erreichbar.
+Einmal gesehen — oder übersprungen — kommt sie nicht wieder.
+
+Wer sie noch einmal sehen will, findet sie im Profil unter
+„Kurzanleitung" ganz unten: „Tour auf der Karte zeigen".
+
 ## Die App erklärt sich jetzt selbst
 
 *29. August 2026 · Version 1.107.0*

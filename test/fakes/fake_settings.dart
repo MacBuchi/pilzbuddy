@@ -19,6 +19,11 @@ class FakeSettings implements Settings {
     this.contourLayerEnabled = false,
     this.ampelLayerEnabled = false,
     this.rainLayerName,
+    // **Vorgabe hier TRUE, in der App false.** Sonst bekäme jeder
+    // Bestandstest ungefragt die Karten-Tour über den Schirm gelegt —
+    // dieselbe Begründung wie bei `lastFindSeenAt` gleich darunter. Wer
+    // die Tour prüfen will, gibt `mapTourSeen: false` mit.
+    this.mapTourSeen = true,
     this.tourIntervalSeconds = kTourIntervalDefaultSeconds,
     // Bewusst null: In echt initialisiert main() den Marker beim ersten
     // Start (ensureFindSeenMarker) — im Harness bleibt er aus, damit kein
@@ -138,6 +143,14 @@ class FakeSettings implements Settings {
   @override
   Future<void> setRainLayerName(String? value) async {
     rainLayerName = value;
+  }
+
+  @override
+  bool mapTourSeen;
+
+  @override
+  Future<void> setMapTourSeen(bool value) async {
+    mapTourSeen = value;
   }
 
   @override
