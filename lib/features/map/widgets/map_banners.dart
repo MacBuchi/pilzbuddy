@@ -405,6 +405,30 @@ class MapBanners extends ConsumerWidget {
     // heißt: Solange gerechnet wird, steht kein Banner da; ein
     // Platzhalter für eine Aussage, die vielleicht gar nicht kommt,
     // wäre schlimmer als die Stille.
+    // Der leere Zustand der Karte (#350).
+    //
+    // Drei Bedingungen, jede aus einem eigenen Grund:
+    //
+    // `hasValue` — solange die Spots laden, liefert `mySpotListProvider`
+    // eine leere Liste. Ohne diese Bedingung blitzte der Hinweis bei
+    // JEDEM Start kurz auf, auch bei Leuten mit 200 Spots. (Wartende
+    // Einträge aus dem Ausgangskorb zählen dabei mit, wie überall in
+    // CLAUDE.md: Wer seinen ersten Spot im Funkloch anlegt, hat ihn
+    // angelegt.)
+    //
+    // **Und die Karte muss WIRKLICH leer sein — auch keine
+    // Freundes-Spots.** Nachgemessen: Das Banner liegt über der Karte
+    // (24,22)–(776,82) und verschluckt jeden Marker, der dort steht;
+    // im Test lag ein Freundes-Spot bei (0,0)–(44,44), und der Tipp
+    // darauf öffnete die Kurzanleitung statt des Spots. Wer geteilte
+    // Spots sieht, hat etwas zum Antippen — ausgerechnet dem einen
+    // Hinweis vorzusetzen, der sagt „hier ist nichts", wäre in beide
+    // Richtungen falsch. Diesen Nutzer erreicht die Tour aus Baustein B,
+    // die nicht davon abhängt, was auf der Karte liegt.
+    final noSpotsYet = ref.watch(mySpotsProvider).hasValue &&
+        ref.watch(mySpotListProvider).isEmpty &&
+        (ref.watch(friendSpotsProvider).valueOrNull?.isEmpty ?? true);
+
     final ampelDismissedUntil = ref.watch(ampelBannerDismissedProvider);
     final ampelHits = (ampelDismissedUntil != null &&
             ampelDismissedUntil.isAfter(DateTime.now().toUtc()))
@@ -472,6 +496,38 @@ class MapBanners extends ConsumerWidget {
                           'senden — antippen'),
             );
           }),
+        // Kein X: Das ist kein Hinweis, den man wegwischt, sondern der
+        // Zustand der eigenen Daten — dieselbe Regel wie beim
+        // Empfangs-Hinweis und beim Ausgangskorb. Er verschwindet von
+        // selbst, sobald der erste Spot steht, und das ist zugleich die
+        // beste Rückmeldung, die es dafür gibt.
+        //
+        // Der Text nennt BEIDE Enden der Bedienung. Das Fadenkreuz ist
+        // dezent und der Knopf sitzt am anderen Ende des Bildschirms —
+        // dass die zwei zusammengehören, ist die eigentliche Hürde des
+        // ersten Starts.
+        if (noSpotsYet)
+          _banner(
+            context,
+            background: AppColors.forestGreen,
+            foreground: Colors.white,
+            onTap: () => context.push('/profile/anleitung'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('🍄 Noch kein eigener Spot — schieb die Karte, '
+                    'bis das Fadenkreuz in der Mitte auf deiner Stelle '
+                    'liegt, und tipp auf „Neuer Spot".'),
+                Text('Wie der Rest funktioniert, steht in der '
+                    'Kurzanleitung — antippen.',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: Colors.white70)),
+              ],
+            ),
+          ),
         if (updateInfo != null && !updateDismissed)
           _banner(
             context,
