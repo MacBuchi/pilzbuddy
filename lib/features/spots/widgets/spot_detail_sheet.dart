@@ -368,6 +368,29 @@ class _SpotDetailSheet extends ConsumerWidget {
               ),
             ],
           ),
+          // Was „Nichts gefunden" bedeutet, erklärt sich nicht von selbst
+          // (#350): „Fund ≠ Eintrag" ist eine Unterscheidung, die die App
+          // erfunden hat, und CLAUDE.md führt sie als Fehlerquelle sogar
+          // für uns selbst.
+          //
+          // **Nur am Spot ohne einen einzigen Eintrag**, also genau dort,
+          // wo beide Knöpfe zum ersten Mal neu sind. Ein Dauerhinweis
+          // wäre ab dem zwanzigsten Mal Lärm — und er stünde in einem
+          // Blatt, dessen Höhe wir in #351 gerade begrenzt haben. Am
+          // frischen Spot ist das Blatt kurz, die Zeile also gratis.
+          if (spot.entriesSorted.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                '„Nichts gefunden" hält fest, dass du da warst und nichts '
+                'da war — das gehört zur Geschichte eines Spots genauso '
+                'wie ein Fund.',
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: Theme.of(context).hintColor),
+              ),
+            ),
           // Ganz unten, nicht oben: Die Fundhistorie ist der Inhalt des
           // Blatts, Saison und Regen sind die Zusatzfrage „ist der Spot
           // dran?". Oben stünden sie über der Antwort, für die man das

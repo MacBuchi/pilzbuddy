@@ -31,6 +31,13 @@ void main() {
       await tester.drag(find.byType(Scrollable).first, const Offset(0, -300));
       await settle(tester, frames: 4);
     }
+    // Und dann noch genau in Sicht rücken. Die Schleife oben hört auf,
+    // sobald der Eintrag EXISTIERT — das heißt nicht, dass er auch
+    // vollständig im Bild steht. Ein neuer Eintrag weiter oben im Profil
+    // (die Kurzanleitung aus #350) verschob die Rechnung genug, dass der
+    // Zug ihn oben hinausschob und der `tap` daneben ging.
+    await tester.ensureVisible(schalter);
+    await settle(tester, frames: 4);
   }
 
   testWidgets('Vorgabe aus, Umlegen wird gemerkt', (tester) async {

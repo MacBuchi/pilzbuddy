@@ -407,8 +407,16 @@ class ProfileScreen extends ConsumerWidget {
             const Card(
               child: Padding(
                 padding: EdgeInsets.all(16),
+                // **Der Satz stand hier falsch** (#350): „halte gedrückt"
+                // ist seit #210 ein Schalter, und er steht ab Werk auf
+                // AUS. Der einzige Erklärsatz, den die App hatte, wies
+                // damit auf eine Geste, die beim neuen Nutzer nichts tut.
+                // Jetzt derselbe Wortlaut wie der leere Kartenzustand —
+                // eine Handlung, eine Formulierung.
                 child: Text(
-                    'Noch keine Funde – halte auf der Karte gedrückt, um deinen ersten Pilz-Spot anzulegen! 🍄'),
+                    'Noch keine Funde – schieb die Karte, bis das '
+                    'Fadenkreuz in der Mitte auf deiner Stelle liegt, und '
+                    'tipp auf „Neuer Spot". 🍄'),
               ),
             ),
           const Divider(height: 40),
@@ -740,6 +748,15 @@ class _AboutSection extends ConsumerWidget {
             onChanged: (value) =>
                 ref.read(prereleaseUpdatesProvider.notifier).set(value),
           ),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          leading: const Icon(Icons.help_outline),
+          title: const Text('Kurzanleitung'),
+          subtitle: const Text('Wie PilzBuddy benutzt wird — in sechs '
+              'Schritten'),
+          onTap: () => context.push('/profile/anleitung'),
+        ),
         ListTile(
           contentPadding: EdgeInsets.zero,
           dense: true,

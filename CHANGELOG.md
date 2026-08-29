@@ -7,6 +7,33 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die App erklärt sich jetzt selbst
+
+*29. August 2026 · Version 1.107.0*
+
+**Neu: eine Kurzanleitung.** Im Profil unter „Über PilzBuddy" steht jetzt
+ein Eintrag „Kurzanleitung" — das Wichtigste in sechs Schritten, mit
+genau den Symbolen, die auch auf der Karte stehen: einen Spot anlegen,
+Fund und Leergang eintragen, was die Karte zeigt, unterwegs, mit Buddies
+teilen, ohne Empfang.
+
+**Wer noch keinen Spot hat, wird nicht mehr allein gelassen.** Auf einer
+leeren Karte steht jetzt, wie der erste Spot entsteht: die Karte
+schieben, bis das Fadenkreuz in der Mitte auf deiner Stelle liegt, dann
+auf „Neuer Spot" tippen. Der Hinweis verschwindet von selbst, sobald dein
+erster Spot steht. Wenn schon Spots von Buddies auf der Karte liegen,
+kommt er gar nicht erst — er würde sie sonst verdecken.
+
+**„Nichts gefunden" wird erklärt.** An einem Spot, an dem noch nichts
+eingetragen ist, steht jetzt eine Zeile darunter: dass ein Leergang
+festhält, dass du da warst und nichts da war.
+
+**Ein falscher Rat ist verschwunden.** Im Profil stand „halte auf der
+Karte gedrückt, um deinen ersten Pilz-Spot anzulegen". Diese Geste lässt
+sich aber seit einer Weile abschalten und ist ab Werk aus — der einzige
+Erklärsatz der App zeigte also ins Leere. Jetzt steht dort der Weg, den es
+wirklich gibt.
+
 ## Der Benutzername nimmt keine Mailadresse mehr an
 
 *29. August 2026 · Version 1.106.1*
