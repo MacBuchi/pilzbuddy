@@ -607,6 +607,34 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   Dekodierungen statt 494. Sein Familienschlüssel ist eine
   zusammengefügte Zeichenkette, keine Liste — zwei inhaltlich gleiche
   Listen sind für `==` verschieden.
+- **Erklär-Tour und Kontexthilfe** (#350, seit 1.107.0/1.108.0): Zwei
+  Bausteine, bewusst getrennt. **A** ist Kontexthilfe ohne jede
+  Maschinerie — leerer Kartenzustand, Leergang-Erklärung am frischen
+  Spot, `lib/features/help/help_screen.dart` als Kurzanleitung mit den
+  ECHTEN Symbolen (kein `.md`-Asset: das läge im Binary, gälte dem
+  Version Guard aber als `*.md` und wäre damit von der Bump-Pflicht
+  ausgenommen — dieselbe Falle wie bei `CHANGELOG.md`). **B** ist die
+  geführte Tour (`lib/features/help/map_tour.dart`). Vier Dinge, die man
+  wissen muss:
+  - **Das Overlay liegt ÜBER dem `Scaffold`, nicht in seinem `body`.**
+    Die Knopfspalte hängt an `floatingActionButton` und läge sonst über
+    der Abdunkelung — jeder Knopf sähe aus wie hervorgehoben. Und es
+    liegt INNERHALB des Karten-Zweigs, damit es beim Reiterwechsel
+    verschwindet; die Reiterleiste der Hülle bleibt frei, eine Tour darf
+    nicht einsperren.
+  - **Die Löcher kommen aus dem `RenderBox`, nie aus festen Zahlen.**
+    Die Spalte steckt seit 1.98.0 in einem `FittedBox(scaleDown)`, ihre
+    Maße hängen also an der Bildschirmhöhe. `test/flows/map_tour_flow_test.dart`
+    hält jedes Loch gegen `tester.getRect` des echten Knopfs.
+  - **`FakeSettings.mapTourSeen` steht auf `true`, die App auf `false`.**
+    Andersherum bekäme jeder Bestandstest die Tour übergestülpt — in der
+    Gegenprobe gemessen: 13 Tests brechen. Muster wie `lastFindSeenAt`.
+  - **Überspringen zählt wie Durchsehen.** Wer abbricht, hat entschieden.
+  Der Merker ist gerätelokal (Betreiber, 2026-08-29); nach einer
+  Neuinstallation läuft sie wieder, und das ist angenommen.
+  Nebenbefund aus #350: Der einzige Erklärsatz, den die App davor hatte
+  (im Profil, „halte auf der Karte gedrückt"), wies auf eine Geste, die
+  seit #210 abschaltbar ist und **ab Werk aus** steht.
 - **Erzeugte Assets** (`tool/generated_assets.py` + `.json`, #226, im Job
   „Analyze & Test"): Vier Dateien unter `assets/` sind ERZEUGT, nicht
   geschrieben — Kartenstil, DACH-Übersicht, Waldgitter und dessen

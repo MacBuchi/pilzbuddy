@@ -32,6 +32,7 @@ import '../tour/widgets/tour_icon.dart';
 import '../tour/widgets/tour_summary_sheet.dart';
 import '../tour/widgets/tour_track_marker.dart';
 import '../spots/widgets/add_find_sheet.dart';
+import '../help/map_tour.dart';
 import '../spots/widgets/spot_detail_sheet.dart';
 import 'live_share_providers.dart';
 import 'resume_refresh.dart';
@@ -83,6 +84,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
     initialZoom: _fallbackZoom,
   );
 
+  /// Die Anker der geführten Tour (#350). Je Zustand eine Instanz —
+  /// global wären es `GlobalKey`s, die einen Neuaufbau überleben und
+  /// dann auf abgehängte Elemente zeigen.
+  final _tourAnchors = MapTourAnchors();
+
   @override
   void initState() {
     super.initState();
@@ -102,6 +108,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
       // (#338). Wer im Wald steht und dessen App zwischendurch
       // weggeräumt wurde, hat sie nicht beendet.
       unawaited(ref.read(tourProvider.notifier).restore());
+      // Und beim allerersten Mal die geführte Tour (#350). Nach dem
+      // ersten Frame, weil die Anker erst dann vermessbar sind — und
+      // ohne Rücksicht auf das Intro-Overlay: Das liegt app-weit
+      // darüber und gibt die Karte nach 2,6 s von selbst frei.
+      if (!ref.read(mapTourSeenProvider)) {
+        ref.read(mapTourProvider.notifier).start();
+      }
     });
     // Punkte, die das Service-Isolate misst, in die Karte durchreichen
     // (#342). Rein für die Anzeige — geschrieben hat sie der Service
@@ -633,309 +646,324 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final activeLayers = activeMapLayerCount(ref);
     final longPressEnabled = ref.watch(mapLongPressEnabledProvider);
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          MapView(
-            controller: _map,
-            config: MapViewConfig(
-              initialCenter: _fallbackCenter,
-              initialZoom: _fallbackZoom,
-              minZoom: _minZoom,
-              maxZoom: _maxZoom,
-              backgroundColor: AppColors.mapBackground,
-              // Long-Press richtet das Fadenkreuz auf die gedrückte Stelle
-              // — ab Werk aus (#210), Begründung am Schalter im Profil.
-              // `null` heißt für beide Engines schon „nichts tun", die
-              // Geste wird also gar nicht erst weitergereicht.
-              onLongPress: longPressEnabled
-                  ? (latLng) => _map.move(latLng, math.max(_map.zoom, 16))
-                  : null,
-              // Fadenkreuz-Werte (#235) und Wald-Bildausschnitt (#249):
-              // beides rechnet an diesem Stillstand, nie während der
-              // Geste.
-              onCameraIdle: (center, bounds) {
-                ref.read(mapIdleCenterProvider.notifier).state = center;
-                ref.read(mapIdleBoundsProvider.notifier).state = bounds;
-                // Der Maßstab, in dem die Höhenlinien rechnen. Aus
-                // Sichtfenster UND Pixelbreite, nicht aus der Zoomstufe
-                // der Engine — die zählen MapLibre und flutter_map
-                // verschieden.
-                ref.read(mapIdleGroundResolutionProvider.notifier).state =
-                    groundResolution(bounds, mapWidthPixels);
-              },
+    // Die Tour liegt ÜBER dem Scaffold, nicht in seinem `body` (#350):
+    // Die Knopfspalte hängt an `floatingActionButton` und läge sonst
+    // über der Abdunkelung — jeder Knopf sähe aus wie hervorgehoben.
+    // Und sie liegt INNERHALB des Karten-Zweigs, damit sie beim
+    // Reiterwechsel mit verschwindet; die Reiterleiste selbst bleibt
+    // frei, eine Tour darf nicht einsperren.
+    return Stack(
+      children: [
+  Scaffold(
+        body: Stack(
+          children: [
+            MapView(
+              controller: _map,
+              config: MapViewConfig(
+                initialCenter: _fallbackCenter,
+                initialZoom: _fallbackZoom,
+                minZoom: _minZoom,
+                maxZoom: _maxZoom,
+                backgroundColor: AppColors.mapBackground,
+                // Long-Press richtet das Fadenkreuz auf die gedrückte Stelle
+                // — ab Werk aus (#210), Begründung am Schalter im Profil.
+                // `null` heißt für beide Engines schon „nichts tun", die
+                // Geste wird also gar nicht erst weitergereicht.
+                onLongPress: longPressEnabled
+                    ? (latLng) => _map.move(latLng, math.max(_map.zoom, 16))
+                    : null,
+                // Fadenkreuz-Werte (#235) und Wald-Bildausschnitt (#249):
+                // beides rechnet an diesem Stillstand, nie während der
+                // Geste.
+                onCameraIdle: (center, bounds) {
+                  ref.read(mapIdleCenterProvider.notifier).state = center;
+                  ref.read(mapIdleBoundsProvider.notifier).state = bounds;
+                  // Der Maßstab, in dem die Höhenlinien rechnen. Aus
+                  // Sichtfenster UND Pixelbreite, nicht aus der Zoomstufe
+                  // der Engine — die zählen MapLibre und flutter_map
+                  // verschieden.
+                  ref.read(mapIdleGroundResolutionProvider.notifier).state =
+                      groundResolution(bounds, mapWidthPixels);
+                },
+              ),
+              markers: MapViewMarkers(
+                tourTrack:
+                    tour == null ? const [] : tourTrackMarkers(tour.points),
+                myPosition: [
+                  if (myPosition != null) _myPositionMarker(myPosition, myAvatar),
+                ],
+                friendLocations: [
+                  for (final loc in friendLocations) _friendLocationMarker(loc),
+                ],
+                spots: [
+                  for (final s in friendSpots) _spotMarker(s),
+                  for (final s in mySpots) _spotMarker(s),
+                ],
+              ),
             ),
-            markers: MapViewMarkers(
-              tourTrack:
-                  tour == null ? const [] : tourTrackMarkers(tour.points),
-              myPosition: [
-                if (myPosition != null) _myPositionMarker(myPosition, myAvatar),
-              ],
-              friendLocations: [
-                for (final loc in friendLocations) _friendLocationMarker(loc),
-              ],
-              spots: [
-                for (final s in friendSpots) _spotMarker(s),
-                for (final s in mySpots) _spotMarker(s),
-              ],
+            // Dauerhaftes, dezentes Fadenkreuz in der Kartenmitte —
+            // „Neuer Spot" speichert genau dort.
+            IgnorePointer(
+              child: Center(child: _Crosshair(key: _tourAnchors.crosshair)),
             ),
-          ),
-          // Dauerhaftes, dezentes Fadenkreuz in der Kartenmitte —
-          // „Neuer Spot" speichert genau dort.
-          const IgnorePointer(
-            child: Center(child: _Crosshair()),
-          ),
-          // Die Legende zu den aktiven Ebenen (#231), links unten über
-          // dem Maßstab. Nicht mehr in einem IgnorePointer: Das X zum
-          // Ausblenden braucht den Tipp — die Karte dahinter verliert
-          // nur die kleine Kartenfläche der Legende selbst.
-          const SafeArea(
-            child: Align(
-              alignment: Alignment.bottomLeft,
-              child: MapLegend(),
+            // Die Legende zu den aktiven Ebenen (#231), links unten über
+            // dem Maßstab. Nicht mehr in einem IgnorePointer: Das X zum
+            // Ausblenden braucht den Tipp — die Karte dahinter verliert
+            // nur die kleine Kartenfläche der Legende selbst.
+            const SafeArea(
+              child: Align(
+                alignment: Alignment.bottomLeft,
+                child: MapLegend(),
+              ),
             ),
-          ),
-          SafeArea(
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 8, left: 12, right: 12),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Nur solange es die Geste gibt (#210): Eine
-                    // dauerhafte Zeile, die eine abgeschaltete Bedienung
-                    // erklärt, wäre schlicht falsch — und sie kostet auf
-                    // jedem Bildschirm Platz über den Bannern.
-                    if (longPressEnabled)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .surface
-                              .withValues(alpha: 0.9),
-                          borderRadius: BorderRadius.circular(20),
+            SafeArea(
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 8, left: 12, right: 12),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Nur solange es die Geste gibt (#210): Eine
+                      // dauerhafte Zeile, die eine abgeschaltete Bedienung
+                      // erklärt, wäre schlicht falsch — und sie kostet auf
+                      // jedem Bildschirm Platz über den Bannern.
+                      if (longPressEnabled)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .surface
+                                .withValues(alpha: 0.9),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Text(
+                              'Gedrückt halten richtet das Fadenkreuz aus'),
                         ),
-                        child: const Text(
-                            'Gedrückt halten richtet das Fadenkreuz aus'),
-                      ),
-                    const MapBanners(),
-                    // Ein aktiver Filter versteckt Spots — das muss man
-                    // sehen, ohne das Blatt zu öffnen, sonst sucht man eine
-                    // Fundstelle, die nur ausgeblendet ist (#154).
-                    if (filter.isActive)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: GestureDetector(
-                          onTap: () => showSpotFilterSheet(context),
-                          child: Container(
-                            padding: const EdgeInsets.only(
-                                left: 12, right: 4, top: 2, bottom: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.forestGreen
-                                  .withValues(alpha: 0.9),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    _filterLabel(filter),
-                                    style:
-                                        const TextStyle(color: Colors.white),
+                      const MapBanners(),
+                      // Ein aktiver Filter versteckt Spots — das muss man
+                      // sehen, ohne das Blatt zu öffnen, sonst sucht man eine
+                      // Fundstelle, die nur ausgeblendet ist (#154).
+                      if (filter.isActive)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: GestureDetector(
+                            onTap: () => showSpotFilterSheet(context),
+                            child: Container(
+                              padding: const EdgeInsets.only(
+                                  left: 12, right: 4, top: 2, bottom: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.forestGreen
+                                    .withValues(alpha: 0.9),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      _filterLabel(filter),
+                                      style:
+                                          const TextStyle(color: Colors.white),
+                                    ),
                                   ),
-                                ),
-                                IconButton(
-                                  onPressed: () => ref
-                                      .read(spotFilterProvider.notifier)
-                                      .clear(),
-                                  icon: const Icon(Icons.close,
-                                      size: 18, color: Colors.white),
-                                  tooltip: 'Filter aufheben',
-                                  visualDensity: VisualDensity.compact,
-                                  constraints: const BoxConstraints(),
-                                  padding: const EdgeInsets.all(6),
-                                ),
-                              ],
+                                  IconButton(
+                                    onPressed: () => ref
+                                        .read(spotFilterProvider.notifier)
+                                        .clear(),
+                                    icon: const Icon(Icons.close,
+                                        size: 18, color: Colors.white),
+                                    tooltip: 'Filter aufheben',
+                                    visualDensity: VisualDensity.compact,
+                                    constraints: const BoxConstraints(),
+                                    padding: const EdgeInsets.all(6),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    if (isSharing && shareUntil != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: GestureDetector(
-                          onTap: _openShareSheet,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color:
-                                  AppColors.friendBlue.withValues(alpha: 0.9),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              '📍 Du teilst deinen Standort bis '
-                              '${TimeOfDay.fromDateTime(shareUntil.toLocal()).format(context)} Uhr — antippen',
-                              style: const TextStyle(color: Colors.white),
+                      if (isSharing && shareUntil != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: GestureDetector(
+                            onTap: _openShareSheet,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color:
+                                    AppColors.friendBlue.withValues(alpha: 0.9),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                '📍 Du teilst deinen Standort bis '
+                                '${TimeOfDay.fromDateTime(shareUntil.toLocal()).format(context)} Uhr — antippen',
+                                style: const TextStyle(color: Colors.white),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
-      ),
-      // **Warum die Knopfspalte schrumpfen darf** (seit den Höhenlinien,
-      // 1.98.0): Sie ist mit neun Knöpfen am Anschlag — auf 520 px Höhe
-      // lief sie um 24 px über, und ein RenderFlex-Überlauf ist kein
-      // Schönheitsfehler, sondern ein Knopf, den niemand erreicht.
-      //
-      // `scaleDown` greift NUR, wenn es sonst nicht passt: Auf jedem
-      // normalen Telefon ändert sich nichts, auf einem kurzen Schirm
-      // werden alle Knöpfe ein paar Prozent kleiner — und bleiben
-      // sichtbar. Die beiden naheliegenden Alternativen sind schlechter:
-      // Engere Abstände verschieben das Problem nur bis zum nächsten
-      // Knopf, und eine scrollende Spalte versteckt ausgerechnet die
-      // Ebenen-Schalter oben (am Testschirm nachgestellt: Der
-      // Waldtypen-Knopf lag bei y = −20).
-      floatingActionButton: FittedBox(
-        fit: BoxFit.scaleDown,
-        alignment: Alignment.bottomRight,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            // **Fünf Knöpfe statt zehn** (#347). Die Spalte war mit zehn
-            // 604 px hoch auf einem 915-px-Schirm und steckte seit
-            // 1.98.0 in dem `FittedBox` hier drüber — jeder neue Knopf
-            // machte die anderen kleiner. Der Ausweg war kein weiterer
-            // Kompromiss, sondern ein Ordnungsprinzip:
-            //
-            // Fünf der zehn waren gar keine Schalter, sondern TÜREN ZU
-            // BLÄTTERN (Waldtypen, Höhenlinien, Regen, Filter, Standort
-            // teilen). Sie kosteten längst zwei Tipps, eine gemeinsame
-            // Tür davor kostet also keinen dazu. Und den Zustand, den
-            // die eingefärbten Knöpfe trugen, nennt die Legende links
-            // unten ohnehin — mit Farbskala und ab Werk an.
-            //
-            // Verworfen: Speed-Dial (drei Tipps statt zwei, deckt beim
-            // Ausklappen die Karte zu), bloßes Kategorisieren (macht die
-            // Spalte höher), Knöpfe nach Kontext ausblenden (wer sucht,
-            // weiß nicht, dass etwas absichtlich fehlt) und zwei Spalten
-            // (verdoppelt die verdeckte Kartenbreite — die Karte ist das
-            // Produkt).
-            FloatingActionButton.small(
-              heroTag: 'layers',
-              onPressed: _openLayers,
-              // **Nicht „Karte"**: So heißt schon der Reiter unten
-              // (`router.dart`). Zwei Dinge desselben Namens auf einem
-              // Schirm sind für die Nutzerin so mehrdeutig wie für den
-              // Test, der sie sucht — genau daran ist der erste Entwurf
-              // aufgefallen.
-              //
-              // Der Tooltip bleibt fest, die Zahl steht im Badge: Ein
-              // Tooltip, dessen Text sich ändert, ist als Suchziel und
-              // als Beschriftung gleich schlecht.
-              tooltip: 'Ebenen',
-              child: Badge(
-                isLabelVisible: activeLayers > 0,
-                label: Text('$activeLayers'),
-                backgroundColor: AppColors.warmBrown,
-                child: Icon(
-                    activeLayers > 0 ? Icons.layers : Icons.layers_outlined),
-              ),
-            ),
-            const SizedBox(height: 12),
-            // Der Filter bleibt eigenständig: Er entscheidet über die
-            // SPOTS, nicht über die Ebenen, und er ist der am häufigsten
-            // benutzte der Blatt-Knöpfe.
-            FloatingActionButton.small(
-              heroTag: 'filter',
-              onPressed: () => showSpotFilterSheet(context),
-              tooltip: 'Karte filtern',
-              backgroundColor: filter.isActive ? AppColors.forestGreen : null,
-              foregroundColor: filter.isActive ? Colors.white : null,
-              child: Icon(filter.isActive
-                  ? Icons.filter_alt
-                  : Icons.filter_alt_outlined),
-            ),
-            const SizedBox(height: 12),
-            // Unterwegs: Pilztour und Standort-Teilen. Beide beantworten
-            // dieselbe Frage („ich bin draußen"), beide laufen weiter,
-            // wenn das Telefon in der Tasche steckt.
-            //
-            // Blau bei aktivem Teilen — GRÜN bleibt dem Stopp-Knopf
-            // darunter vorbehalten, sonst stünden zwei grüne Knöpfe
-            // untereinander und keiner wäre die Aussage.
-            FloatingActionButton.small(
-              heroTag: 'trip',
-              onPressed: _openTrip,
-              tooltip: 'Unterwegs',
-              backgroundColor: isSharing ? AppColors.friendBlue : null,
-              foregroundColor: isSharing ? Colors.white : null,
-              child: const TourIcon(),
-            ),
-            // Läuft eine Tour, steht ihr Ausgang ZUSÄTZLICH in der
-            // Spalte — nicht anstelle des Knopfs darüber.
-            //
-            // Der erste Entwurf machte „Unterwegs" bei laufender Tour
-            // selbst zum Stopp-Knopf. Damit wäre das Standort-Teilen
-            // während einer Tour unerreichbar gewesen, und ein
-            // verstecktes Lang-Drücken ist keine Antwort darauf. Ein
-            // Knopf mehr in genau dem Modus, in dem man den Ausgang
-            // griffbereit haben will, ist der ehrlichere Tausch: fünf
-            // Knöpfe normal, sechs während einer Tour.
-            if (tour != null) ...[
-              const SizedBox(height: 12),
-              FloatingActionButton.small(
-                heroTag: 'tour-stop',
-                onPressed: _toggleTour,
-                tooltip: 'Pilztour beenden',
-                backgroundColor: AppColors.forestGreen,
-                foregroundColor: Colors.white,
-                child: const Icon(Icons.stop),
-              ),
-            ],
-            const SizedBox(height: 12),
-            FloatingActionButton.small(
-              heroTag: 'locate',
-              onPressed: _centerOnMe,
-              tooltip: 'Meine Position',
-              child: const Icon(Icons.my_location),
-            ),
-            const SizedBox(height: 12),
-            FloatingActionButton.extended(
-              heroTag: 'add',
-              onPressed: _addSpotAtCrosshair,
-              icon: const Icon(Icons.add_location_alt),
-              label: const Text('Neuer Spot'),
-            ),
-            // Messhaken des Engine-Direktvergleichs: deterministische
-            // Kamerafahrt gegen die Fassade — identisch auf beiden
-            // Engines. `!kReleaseMode`, nicht `kDebugMode`: Die
-            // Perfetto-Läufe (Stufe 7) messen im PROFILE-Build, dort
-            // muss der Knopf da sein; nur das Release bleibt sauber.
-            if (!kReleaseMode) ...[
-              const SizedBox(height: 12),
-              CameraTourButton(controller: _map),
-            ],
           ],
         ),
+        // **Warum die Knopfspalte schrumpfen darf** (seit den Höhenlinien,
+        // 1.98.0): Sie ist mit neun Knöpfen am Anschlag — auf 520 px Höhe
+        // lief sie um 24 px über, und ein RenderFlex-Überlauf ist kein
+        // Schönheitsfehler, sondern ein Knopf, den niemand erreicht.
+        //
+        // `scaleDown` greift NUR, wenn es sonst nicht passt: Auf jedem
+        // normalen Telefon ändert sich nichts, auf einem kurzen Schirm
+        // werden alle Knöpfe ein paar Prozent kleiner — und bleiben
+        // sichtbar. Die beiden naheliegenden Alternativen sind schlechter:
+        // Engere Abstände verschieben das Problem nur bis zum nächsten
+        // Knopf, und eine scrollende Spalte versteckt ausgerechnet die
+        // Ebenen-Schalter oben (am Testschirm nachgestellt: Der
+        // Waldtypen-Knopf lag bei y = −20).
+        floatingActionButton: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.bottomRight,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              // **Fünf Knöpfe statt zehn** (#347). Die Spalte war mit zehn
+              // 604 px hoch auf einem 915-px-Schirm und steckte seit
+              // 1.98.0 in dem `FittedBox` hier drüber — jeder neue Knopf
+              // machte die anderen kleiner. Der Ausweg war kein weiterer
+              // Kompromiss, sondern ein Ordnungsprinzip:
+              //
+              // Fünf der zehn waren gar keine Schalter, sondern TÜREN ZU
+              // BLÄTTERN (Waldtypen, Höhenlinien, Regen, Filter, Standort
+              // teilen). Sie kosteten längst zwei Tipps, eine gemeinsame
+              // Tür davor kostet also keinen dazu. Und den Zustand, den
+              // die eingefärbten Knöpfe trugen, nennt die Legende links
+              // unten ohnehin — mit Farbskala und ab Werk an.
+              //
+              // Verworfen: Speed-Dial (drei Tipps statt zwei, deckt beim
+              // Ausklappen die Karte zu), bloßes Kategorisieren (macht die
+              // Spalte höher), Knöpfe nach Kontext ausblenden (wer sucht,
+              // weiß nicht, dass etwas absichtlich fehlt) und zwei Spalten
+              // (verdoppelt die verdeckte Kartenbreite — die Karte ist das
+              // Produkt).
+              FloatingActionButton.small(
+                key: _tourAnchors.layers,
+                heroTag: 'layers',
+                onPressed: _openLayers,
+                // **Nicht „Karte"**: So heißt schon der Reiter unten
+                // (`router.dart`). Zwei Dinge desselben Namens auf einem
+                // Schirm sind für die Nutzerin so mehrdeutig wie für den
+                // Test, der sie sucht — genau daran ist der erste Entwurf
+                // aufgefallen.
+                //
+                // Der Tooltip bleibt fest, die Zahl steht im Badge: Ein
+                // Tooltip, dessen Text sich ändert, ist als Suchziel und
+                // als Beschriftung gleich schlecht.
+                tooltip: 'Ebenen',
+                child: Badge(
+                  isLabelVisible: activeLayers > 0,
+                  label: Text('$activeLayers'),
+                  backgroundColor: AppColors.warmBrown,
+                  child: Icon(
+                      activeLayers > 0 ? Icons.layers : Icons.layers_outlined),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Der Filter bleibt eigenständig: Er entscheidet über die
+              // SPOTS, nicht über die Ebenen, und er ist der am häufigsten
+              // benutzte der Blatt-Knöpfe.
+              FloatingActionButton.small(
+                key: _tourAnchors.filter,
+                heroTag: 'filter',
+                onPressed: () => showSpotFilterSheet(context),
+                tooltip: 'Karte filtern',
+                backgroundColor: filter.isActive ? AppColors.forestGreen : null,
+                foregroundColor: filter.isActive ? Colors.white : null,
+                child: Icon(filter.isActive
+                    ? Icons.filter_alt
+                    : Icons.filter_alt_outlined),
+              ),
+              const SizedBox(height: 12),
+              // Unterwegs: Pilztour und Standort-Teilen. Beide beantworten
+              // dieselbe Frage („ich bin draußen"), beide laufen weiter,
+              // wenn das Telefon in der Tasche steckt.
+              //
+              // Blau bei aktivem Teilen — GRÜN bleibt dem Stopp-Knopf
+              // darunter vorbehalten, sonst stünden zwei grüne Knöpfe
+              // untereinander und keiner wäre die Aussage.
+              FloatingActionButton.small(
+                key: _tourAnchors.trip,
+                heroTag: 'trip',
+                onPressed: _openTrip,
+                tooltip: 'Unterwegs',
+                backgroundColor: isSharing ? AppColors.friendBlue : null,
+                foregroundColor: isSharing ? Colors.white : null,
+                child: const TourIcon(),
+              ),
+              // Läuft eine Tour, steht ihr Ausgang ZUSÄTZLICH in der
+              // Spalte — nicht anstelle des Knopfs darüber.
+              //
+              // Der erste Entwurf machte „Unterwegs" bei laufender Tour
+              // selbst zum Stopp-Knopf. Damit wäre das Standort-Teilen
+              // während einer Tour unerreichbar gewesen, und ein
+              // verstecktes Lang-Drücken ist keine Antwort darauf. Ein
+              // Knopf mehr in genau dem Modus, in dem man den Ausgang
+              // griffbereit haben will, ist der ehrlichere Tausch: fünf
+              // Knöpfe normal, sechs während einer Tour.
+              if (tour != null) ...[
+                const SizedBox(height: 12),
+                FloatingActionButton.small(
+                  heroTag: 'tour-stop',
+                  onPressed: _toggleTour,
+                  tooltip: 'Pilztour beenden',
+                  backgroundColor: AppColors.forestGreen,
+                  foregroundColor: Colors.white,
+                  child: const Icon(Icons.stop),
+                ),
+              ],
+              const SizedBox(height: 12),
+              FloatingActionButton.small(
+                heroTag: 'locate',
+                onPressed: _centerOnMe,
+                tooltip: 'Meine Position',
+                child: const Icon(Icons.my_location),
+              ),
+              const SizedBox(height: 12),
+              FloatingActionButton.extended(
+                key: _tourAnchors.add,
+                heroTag: 'add',
+                onPressed: _addSpotAtCrosshair,
+                icon: const Icon(Icons.add_location_alt),
+                label: const Text('Neuer Spot'),
+              ),
+              // Messhaken des Engine-Direktvergleichs: deterministische
+              // Kamerafahrt gegen die Fassade — identisch auf beiden
+              // Engines. `!kReleaseMode`, nicht `kDebugMode`: Die
+              // Perfetto-Läufe (Stufe 7) messen im PROFILE-Build, dort
+              // muss der Knopf da sein; nur das Release bleibt sauber.
+              if (!kReleaseMode) ...[
+                const SizedBox(height: 12),
+                CameraTourButton(controller: _map),
+              ],
+            ],
+          ),
+        ),
       ),
+        MapTourOverlay(anchors: _tourAnchors),
+      ],
     );
   }
 }
 
 /// Kleines, dezentes Fadenkreuz: Ring + Haarlinien, grün mit weißem Halo.
 class _Crosshair extends StatelessWidget {
-  const _Crosshair();
+  const _Crosshair({super.key});
 
   @override
   Widget build(BuildContext context) {

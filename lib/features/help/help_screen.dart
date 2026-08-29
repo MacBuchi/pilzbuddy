@@ -15,11 +15,14 @@
 // sind die Obergrenze — eine Anleitung, die man scrollen muss, liest
 // niemand zu Ende.
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/mushroom_species.dart';
 import '../../core/widgets/mushroom_icon.dart';
 import '../tour/widgets/tour_icon.dart';
+import 'map_tour.dart';
 
 /// Ein Abschnitt der Anleitung: Symbol, Überschrift, ein bis drei Sätze.
 class _Step {
@@ -33,11 +36,11 @@ class _Step {
 }
 
 /// Zeigt in wenigen Schritten, wie PilzBuddy benutzt wird.
-class HelpScreen extends StatelessWidget {
+class HelpScreen extends ConsumerWidget {
   const HelpScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     const steps = <_Step>[
       _Step(
         icon: Icon(Icons.add_location_alt, color: AppColors.forestGreen),
@@ -106,6 +109,23 @@ class HelpScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           for (final step in steps) _StepTile(step: step),
+          const SizedBox(height: 24),
+          // Der Wiederaufruf der Tour (#350). Er steht HIER und nicht als
+          // eigener Eintrag im Profil: Wer die Tour sucht, sucht eine
+          // Erklärung — und die Kurzanleitung ist der Ort, an dem er
+          // ohnehin landet. Ein zweiter Profil-Eintrag daneben wäre
+          // dieselbe Antwort ein zweites Mal.
+          //
+          // Die Karte muss dafür sichtbar werden: Die Tour hängt an den
+          // Ankern des Karten-Screens und zeigt sonst nichts.
+          OutlinedButton.icon(
+            onPressed: () {
+              ref.read(mapTourProvider.notifier).start();
+              context.go('/');
+            },
+            icon: const Icon(Icons.play_circle_outline),
+            label: const Text('Tour auf der Karte zeigen'),
+          ),
         ],
       ),
     );

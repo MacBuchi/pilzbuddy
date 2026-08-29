@@ -151,6 +151,22 @@ abstract interface class Settings {
 
   Future<void> setRainLayerName(String? value);
 
+  /// Hat der Nutzer die geführte Tour über die Karte gesehen (#350)?
+  ///
+  /// Standardmäßig NEIN — sie läuft beim ersten Start von selbst an und
+  /// danach nie wieder, es sei denn, jemand ruft sie aus der
+  /// Kurzanleitung erneut auf. Übersprungen zählt wie durchgesehen: Wer
+  /// abbricht, hat entschieden.
+  ///
+  /// Gerätelokal (Betreiber, 2026-08-29) und nicht am Konto. Der Preis
+  /// ist bekannt und angenommen: Nach einer Neuinstallation läuft sie
+  /// wieder — so wie beim Paketnamen-Wechsel in 1.88.0 für alle. Ein
+  /// Feld am Konto hätte Patch, `schema.sql` und Saat-Liste gekostet,
+  /// für eine Frage, die einmal im Leben eines Geräts gestellt wird.
+  bool get mapTourSeen;
+
+  Future<void> setMapTourSeen(bool value);
+
   /// Das zuletzt registrierte FCM-Token dieses Geräts (#277) — `null`,
   /// solange niemand Push eingeschaltet hat.
   ///
@@ -366,6 +382,15 @@ class PrefsSettings implements Settings {
   Future<void> setRainLayerName(String? value) => value == null
       ? _prefs.remove(_rainLayerNameKey)
       : _prefs.setString(_rainLayerNameKey, value);
+
+  static const _mapTourSeenKey = 'map_tour_seen';
+
+  @override
+  bool get mapTourSeen => _prefs.getBool(_mapTourSeenKey) ?? false;
+
+  @override
+  Future<void> setMapTourSeen(bool value) =>
+      _prefs.setBool(_mapTourSeenKey, value);
 
   static const _pushTokenKey = 'push_token';
 
