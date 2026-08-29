@@ -106,7 +106,7 @@ check_get "live_locations-Embed (Freundes-Standorte)" \
 
 # feedback: Spalten, die App (Insert) und Feedback-Bot (Select) nutzen
 check_get "feedback-Spalten" \
-  "/rest/v1/feedback?select=id,user_id,type,message,species_name,created_at,processed_at&limit=1"
+  "/rest/v1/feedback?select=id,user_id,type,message,species_name,created_at,processed_at,app_version&limit=1"
 
 # error_reports: die Spalten, die ErrorReportRepository schreibt. RLS gibt
 # anon keine Zeilen zurück — eine unbekannte Spalte im select quittiert

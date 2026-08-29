@@ -37,6 +37,14 @@ void main() {
     expect(backend.feedback.single['type'], 'bug');
     expect(backend.feedback.single['message'],
         'Beim Löschen eines Spots bleibt der Marker stehen');
+    // **Und aus welchem Stand sie kommt** (#358). `error_reports` trug
+    // die Version seit Patch 009, die von Hand geschriebenen Meldungen
+    // nicht — ausgerechnet dort, wo die Triage sie am dringendsten
+    // braucht. Bei #358 war deshalb nicht entscheidbar, ob die Meldung
+    // ein Duplikat einer schon behobenen war oder ein neuer Fehler im
+    // frischen Stand; die Frage musste beim Melder zurückgestellt
+    // werden. `pumpApp` setzt die Version auf 1.0.0.
+    expect(backend.feedback.single['app_version'], '1.0.0');
     await drainSnackbars(tester);
   });
 

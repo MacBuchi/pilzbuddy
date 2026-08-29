@@ -410,33 +410,41 @@ void main() {
     expect(find.text('Fund eintragen'), findsNothing);
   });
 
-  testWidgets('die Höhengrenze lässt einen Streifen Karte stehen (#351)',
+  testWidgets('das Blatt hält Abstand zur Statusleiste (#358)',
       (tester) async {
-    // **0,8 und nicht 0,9**, und die Zahl hängt am Griff aus dem Test
-    // hierüber: Er kommt AUSSERHALB dieser Grenze dazu und kostet 48 dp.
-    // Gemessen auf Pixel-7-Format (914 dp hoch), Luft über dem Blatt:
-    // 0,9 ohne Griff 91 dp, 0,9 MIT Griff 43 dp, 0,8 mit Griff 135 dp.
-    // Bei 0,9 sähe es also aus, als reiche das Blatt in die
-    // Benachrichtigungsleiste — genau die zweite Hälfte der Meldung.
+    // **Dieser Test ersetzt einen, der die falsche Sache geprüft hat.**
+    // Vorher stand hier, die Obergrenze sei 0,8 der BILDSCHIRMhöhe — das
+    // war zwar wahr, aber wertlos: Das Blatt hängt am Navigator der
+    // Hülle und bekommt den Body, nicht den Schirm. Auf Pixel-7-Format
+    // sind das 810 statt 914 dp, und 0,8 vom Schirm ließ dem Blatt
+    // ganze 6,9 dp Luft unter der Statusleiste. Wer nach dem Griff
+    // greift, zieht dort die Benachrichtigungsleiste herunter — genau so
+    // gemeldet (#358).
     //
-    // Weiß gemessen und nicht schwarz: Die Grenze bindet erst bei einem
-    // Spot mit Regen- und Ampel-Abschnitt, und die Zahl selbst ist die
-    // Entscheidung, die hier nicht still zurückwandern soll.
+    // Geprüft wird deshalb die EIGENSCHAFT auf dem Schirm, nicht die
+    // Formel: Wie viel Platz bleibt wirklich über dem Blatt? Und mit
+    // `view.physicalSize`, damit MediaQuery dieselbe Geometrie sieht wie
+    // die Oberfläche — sonst rechnet die App mit 800×600 weiter, und der
+    // Test misst eine Karte, die es nicht gibt.
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.625;
+    tester.view.padding = const FakeViewPadding(top: 63, bottom: 63);
+    addTearDown(tester.view.reset);
+
     final (backend, me) = loggedInBackend();
-    backend.addSpot(ownerId: me.id, species: 'Steinpilz');
+    backend.addSpot(ownerId: me.id, species: 'Steinpilz', count: 3);
     await pumpApp(tester, backend);
 
     await tester.tap(find.byTooltip('Pilz-Spot'));
     await settle(tester);
+    expect(find.text('Fund eintragen'), findsOneWidget);
 
-    final screen =
-        MediaQuery.of(tester.element(find.text('Fund eintragen'))).size.height;
-    final caps = tester
-        .widgetList<ConstrainedBox>(find.ancestor(
-            of: find.text('Fund eintragen'),
-            matching: find.byType(ConstrainedBox)))
-        .map((c) => c.constraints.maxHeight)
-        .where((h) => h.isFinite);
-    expect(caps, contains(closeTo(screen * 0.8, 0.5)));
+    final statusBar = 63 / 2.625; // 24 dp
+    final top = tester.getRect(find.byType(BottomSheet)).top;
+    expect(top, greaterThan(statusBar + 48),
+        reason: 'unter der Statusleiste muss genug Platz bleiben, um den '
+            'Griff zu fassen, ohne die System-Geste auszulösen — vor #358 '
+            'waren es 6,9 dp');
   });
+
 }

@@ -7,6 +7,21 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Das Spot-Blatt bleibt unter der Statusleiste
+
+*29. August 2026 · Version 1.108.1*
+
+Das Blatt eines Spots reichte fast bis an den oberen Bildschirmrand —
+nachgemessen sieben Pixel unter der Statusleiste. Wer oben nach dem Griff
+fasste, um es wegzuwischen, zog dabei die Benachrichtigungsleiste herunter.
+Jetzt bleibt darüber ein deutlicher Streifen Karte frei.
+
+**Deine Meldungen tragen künftig die App-Version.** Wenn du in der App
+einen Fehler oder Wunsch meldest, steht jetzt dabei, aus welcher Version
+er kam — sonst lässt sich oft nicht sagen, ob ein Fehler noch besteht oder
+mit dem letzten Update schon behoben wurde. Die Version steht wie der Text
+und dein Benutzername im öffentlichen GitHub-Projekt.
+
 ## Eine kurze Tour beim ersten Start
 
 *29. August 2026 · Version 1.108.0*

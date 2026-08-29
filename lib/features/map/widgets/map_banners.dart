@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/app_info.dart';
 import '../../../core/errors.dart';
 import '../../../core/settings.dart';
 import '../../../core/update_check.dart';
@@ -307,14 +308,32 @@ class MapBanners extends ConsumerWidget {
     if (result == null) return;
 
     try {
+      // Aus welchem Stand die Meldung kommt (#358).
+      //
+      // **`await …future` und nicht `valueOrNull`.** Der erste Entwurf
+      // las `valueOrNull` mit der Begründung, eine Meldung solle nicht
+      // auf die Version warten. Das war falsch herum gedacht: Der
+      // FutureProvider läuft beim ersten `read` gerade erst an, die
+      // Angabe wäre also nicht „im Zweifel", sondern FAST IMMER leer
+      // gewesen — der Test hat es sofort gezeigt. Gewartet wird auf ein
+      // `PackageInfo`, das in Millisekunden antwortet, und das in einem
+      // Ablauf, der ohnehin gerade einen Dialog geschlossen hat.
+      String? version;
+      try {
+        version = await ref.read(appVersionProvider.future);
+      } catch (_) {
+        // Ohne Version ist die Meldung immer noch wertvoll — dieselbe
+        // Abwägung wie bei den Fehlerberichten. Nicht protokolliert:
+        // Das ist kein Fehler des Nutzers und keiner, den jemand sucht.
+      }
       if (result.type == FeedbackType.species) {
         await ref
             .read(feedbackRepositoryProvider)
-            .submitSpecies(result.text, note: result.note);
+            .submitSpecies(result.text, note: result.note, appVersion: version);
       } else {
         await ref
             .read(feedbackRepositoryProvider)
-            .submit(result.type, result.text);
+            .submit(result.type, result.text, appVersion: version);
       }
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
