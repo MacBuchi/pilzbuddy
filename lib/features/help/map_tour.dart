@@ -243,30 +243,42 @@ class _MapTourOverlayState extends ConsumerState<MapTourOverlay> {
         : _holes.reduce((a, b) => a.expandToInclude(b));
 
     return Positioned.fill(
-      // **Die eigene Kantenlänge, nicht die des Bildschirms.** Bis
-      // 1.109.0 stand hier `MediaQuery.sizeOf(context)`. Dieser Kasten
-      // liegt aber im Karten-Zweig, also UNTER der Reiterleiste der
-      // Hülle: Auf einem 412×915-Schirm ist er 835 hoch, MediaQuery
-      // meldet 915. Die Blase hängt an `bottom: höhe - loch.top + 16`,
-      // war damit 80 dp zu tief angesetzt und deckte in Schritt 1 das
-      // Fadenkreuz zu — gemessen, nicht vermutet. Dieselbe Lehre wie
-      // beim Spot-Blatt (#358): Der Kasten weiß seine Maße, der
-      // Bildschirm weiß sie nicht.
-      child: LayoutBuilder(
-        builder: (context, constraints) => GestureDetector(
-          // Der ganze Schirm geht weiter. Und er schluckt, was er
-          // abdunkelt: Ein Tipp, der zur Karte durchfiele, verschöbe
-          // genau das, was der Schritt gerade erklärt.
-          behavior: HitTestBehavior.opaque,
-          onTap: () => ref.read(mapTourProvider.notifier).next(),
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: CustomPaint(painter: SpotlightPainter(holes: _holes)),
-              ),
-              _bubble(context, step, tourStep, union, constraints.biggest),
-            ],
-          ),
+      child: PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) ref.read(mapTourProvider.notifier).finish();
+        },
+        child: _dimmed(context, step, tourStep, union),
+      ),
+    );
+  }
+
+  /// Die Abdunkelung samt Sprechblase.
+  ///
+  /// **Die eigene Kantenlänge, nicht die des Bildschirms.** Bis 1.109.0
+  /// stand hier `MediaQuery.sizeOf(context)`. Dieser Kasten liegt aber im
+  /// Karten-Zweig, also UNTER der Reiterleiste der Hülle: Auf einem
+  /// 412×915-Schirm ist er 835 hoch, MediaQuery meldet 915. Die Blase
+  /// hängt an `bottom: höhe - loch.top + 16`, war damit 80 dp zu tief
+  /// angesetzt und deckte in Schritt 1 das Fadenkreuz zu — gemessen,
+  /// nicht vermutet. Dieselbe Lehre wie beim Spot-Blatt (#358): Der
+  /// Kasten weiß seine Maße, der Bildschirm weiß sie nicht.
+  Widget _dimmed(
+      BuildContext context, int step, MapTourStep tourStep, Rect? union) {
+    return LayoutBuilder(
+      builder: (context, constraints) => GestureDetector(
+        // Der ganze Schirm geht weiter. Und er schluckt, was er
+        // abdunkelt: Ein Tipp, der zur Karte durchfiele, verschöbe genau
+        // das, was der Schritt gerade erklärt.
+        behavior: HitTestBehavior.opaque,
+        onTap: () => ref.read(mapTourProvider.notifier).next(),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: CustomPaint(painter: SpotlightPainter(holes: _holes)),
+            ),
+            _bubble(context, step, tourStep, union, constraints.biggest),
+          ],
         ),
       ),
     );

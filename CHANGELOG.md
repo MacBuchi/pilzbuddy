@@ -9,7 +9,7 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Die Einführung zeigt jetzt alle Knöpfe — und weiß, wo es weitergeht
 
-*29. August 2026 · Version 1.110.0*
+*29. August 2026 · Versionen 1.110.0 und 1.110.1*
 
 Die kurze Einführung beim ersten Start führte an vier Bedienelementen
 entlang. Zwei davon fehlten: „Meine Position" kam gar nicht vor, und am
@@ -21,6 +21,12 @@ Jetzt sind es fünf Schritte, und sie decken jeden Knopf auf der Karte ab.
 Im letzten steht neben „Los geht's" ein Knopf, der dich direkt in die
 Kurzanleitung bringt. Wer sie später noch einmal sehen will, findet sie
 wie bisher im Profil unter „Kurzanleitung".
+
+**Die Zurück-Taste beendet jetzt die Einführung.** Bisher tat sie das,
+was sie auf der Karte immer tut: Sie legte PilzBuddy in den Hintergrund.
+Wer die Abdunkelung auf dem gewohnten Weg loswerden wollte, stand also
+plötzlich außerhalb der App. Zurück zählt dabei wie „Überspringen" — wer
+abbricht, hat entschieden.
 
 **Und die Erklärkarte sitzt richtig.** Sie stand rund achtzig Pixel zu
 tief und lag damit im ersten Schritt ausgerechnet auf dem Fadenkreuz, das

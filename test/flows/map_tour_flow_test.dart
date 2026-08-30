@@ -141,6 +141,61 @@ void main() {
     expect(settings.mapTourSeen, isTrue);
   });
 
+  testWidgets('die Zurück-Taste beendet die Tour, nicht die App',
+      (tester) async {
+    // Eine bildschirmfüllende Abdunkelung, die auf Zurück nicht reagiert,
+    // ist eine Falle: Auf der Karte ist Zurück der Weg AUS der App, wer
+    // also den Reflex hat, die Tour damit wegzuwischen, legt PilzBuddy in
+    // den Hintergrund.
+    final settings = fresh();
+    await pumpApp(tester, signedIn(), settings: settings);
+    expect(find.text(kTourTitles.first), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await settle(tester);
+
+    expect(find.text(kTourTitles.first), findsNothing);
+    // Zurück zählt wie Überspringen: Wer abbricht, hat entschieden.
+    expect(settings.mapTourSeen, isTrue);
+    // Und die App steht noch da, wo sie stand.
+    expect(find.byTooltip('Ebenen'), findsOneWidget);
+  });
+
+  testWidgets('ohne laufende Tour fängt niemand die Zurück-Taste ab',
+      (tester) async {
+    // Die andere Hälfte, und die wiegt schwerer: Ein Abfangen, das
+    // stehen bleibt, sperrt den Nutzer für den Rest der Sitzung in der
+    // App ein — ohne dass irgendetwas auf dem Schirm verriete, warum.
+    await pumpApp(tester, signedIn(), settings: FakeSettings());
+    expect(find.text(kTourTitles.first), findsNothing);
+    expect(
+        find.descendant(
+            of: find.byType(MapTourOverlay), matching: find.byType(PopScope)),
+        findsNothing);
+  });
+
+  testWidgets('auf einem anderen Reiter fängt die Tour die Zurück-Taste '
+      'nicht ab', (tester) async {
+    // Die Karte lebt im `IndexedStack` weiter, wenn man den Reiter
+    // wechselt — mit ihr das `PopScope`. Verdeckt darf es nichts
+    // schlucken: Sonst beendete ein Zurück im Profil still eine Tour, die
+    // der Nutzer dort gar nicht sieht. Nachgemessen, nicht angenommen.
+    final settings = fresh();
+    await pumpApp(tester, signedIn(), settings: settings);
+    await tester.tap(find.text('Profil'));
+    await settle(tester);
+
+    await tester.binding.handlePopRoute();
+    await settle(tester);
+
+    expect(settings.mapTourSeen, isFalse,
+        reason: 'im Profil gedrückt, im Profil gewirkt');
+    // Und die Tour steht unversehrt da, wo sie stand.
+    await tester.tap(find.text('Karte'));
+    await settle(tester);
+    expect(find.text(kTourTitles.first), findsOneWidget);
+  });
+
   testWidgets('sie sperrt nicht ein — die Reiter bleiben erreichbar',
       (tester) async {
     // Deshalb liegt das Overlay INNERHALB des Karten-Zweigs und nicht
