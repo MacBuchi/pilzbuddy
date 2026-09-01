@@ -38,7 +38,7 @@ dependencies:
   cupertino_icons: ^1.0.8
 
   # Karte (OpenStreetMap, kein API-Key)
-  flutter_map: ^8.2.2
+  flutter_map: ^8.3.2
   latlong2: ^0.9.1
 
   # Offline-Karten (Android): Vector-Tiles aus lokalen PMTiles-Dateien.
@@ -67,17 +67,17 @@ dependencies:
   # Hält den Prozess während des Karten-Downloads wach (Foreground-Service,
   # Android). Kein Web-Support — deshalb nur über bedingten Import in
   # lib/features/offline_maps/download_keep_alive.dart eingebunden.
-  flutter_foreground_task: ^10.0.0
+  flutter_foreground_task: ^11.0.1
 
   # Standort (GPS)
   geolocator: ^14.0.2
 
   # Backend (Auth + Datenbank)
-  supabase_flutter: ^2.10.3
+  supabase_flutter: ^2.17.2
 
   # State-Management & Routing
   flutter_riverpod: ^2.6.1
-  go_router: ^16.2.4
+  go_router: ^18.0.0
 
   # Datumsformate & Statistik-Charts
   intl: ^0.20.2
@@ -109,8 +109,8 @@ dependencies:
   # Push ist ein NEBENFEATURE: Jeder Fehlerpfad in `push_messaging.dart`
   # endet in „kein Token", und ein kaputtes Firebase-Projekt darf die App
   # nicht am Starten hindern — dieselbe Linie wie beim Update-Check.
-  firebase_core: ^4.13.0
-  firebase_messaging: ^16.5.0
+  firebase_core: ^4.14.0
+  firebase_messaging: ^16.6.0
 
 dev_dependencies:
   flutter_test:
