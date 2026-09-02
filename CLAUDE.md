@@ -1020,6 +1020,27 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   aktualisiert und Verweise auf APK-Downloads unzulässig sind.
   Der `<queries>`-Eintrag VIEW/https im Manifest bleibt nötig, sonst kann
   die App den Browser nicht öffnen.
+- **Spot an eine Navi-App übergeben** (`lib/features/spots/spot_navigation.dart`,
+  #367, seit 1.112.0): Ein Knopf im Spot-Blatt reicht die Koordinate als
+  `geo:`-URI an Android weiter; welche App sie bekommt, entscheidet der
+  System-Wähler. Drei Dinge, die man wissen muss:
+  - **Ein zweiter `<queries>`-Eintrag, diesmal VIEW/geo.** Ohne ihn sieht
+    die App ab Android 11 keinen Empfänger, der Wähler bleibt aus, und der
+    Knopf fällt still auf die Zwischenablage zurück — ein Fehler, der wie
+    eine Entscheidung aussieht. `test/android_manifest_test.dart` prüft
+    ihn gegen `kGeoScheme` aus dem Dart-Code, wie beim MethodChannel-Namen.
+  - **Kein `https://…/maps?q=…` als Rückfallweg**, so naheliegend er ist:
+    Das wäre ein fester Empfänger statt der freien Wahl, ein neues
+    Netzziel für Datenschutzerklärung und `docs/play-console.md` — und im
+    Funkloch tot. Genau dort steht man, wenn man den Knopf drückt. Der
+    Rückfall ist deshalb die Zwischenablage, und die App sagt es.
+  - **Die Koordinate steht ZWEIMAL im URI** (`geo:<lat>,<lng>?q=<lat>,<lng>(<name>)`).
+    Apps, die `q` auswerten, setzen darüber Pin und Titel; Apps, die es
+    ignorieren, zentrieren auf den Pfad. Die verbreitete Kurzform
+    `geo:0,0?q=…` schickt die zweite Gruppe in den Golf von Guinea.
+  Für Data Safety ist das **keine Weitergabe**: nutzerinitiiert, mit dem
+  Wähler als Bestätigung — dieselbe Ausnahme wie „Freunde sehen meine
+  Spots", nachgeschrieben in Fußnote ¹ von `docs/play-console.md`.
 
 - Beendigungsgründe (`lib/data/exit_info_repository.dart` + `exit_reporting.dart`,
   Issue #147): Beim Start liest die App über einen MethodChannel Androids

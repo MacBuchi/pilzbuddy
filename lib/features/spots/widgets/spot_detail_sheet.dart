@@ -11,6 +11,7 @@ import '../../../core/widgets/mushroom_icon.dart';
 import '../../profile/profile_providers.dart';
 import '../../../models/find.dart';
 import '../../../models/spot.dart';
+import '../spot_navigation.dart';
 import '../spot_providers.dart';
 import 'add_find_sheet.dart';
 import 'edit_find_sheet.dart';
@@ -144,6 +145,30 @@ class _SpotDetailSheet extends ConsumerWidget {
     }
   }
 
+  /// Übergibt den Spot an eine Navi-App (#367).
+  ///
+  /// Gemeldet wird nur, was der Nutzer sonst nicht sieht: Klappt der
+  /// App-Wähler auf, steht die andere App im Vordergrund und eine
+  /// SnackBar hinter ihr wäre für niemanden. Die beiden Rückfälle
+  /// dagegen sehen ohne Meldung aus wie ein Knopf, der nichts tut.
+  Future<void> _navigateTo(BuildContext context, Spot spot) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final outcome = await openInNavigationApp(
+      lat: spot.lat,
+      lng: spot.lng,
+      label: spot.displayName,
+    );
+    if (outcome == SpotNavigationOutcome.opened) return;
+    final coordinates = formatCoordinates(spot.lat, spot.lng);
+    messenger
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(
+        content: Text(outcome == SpotNavigationOutcome.copiedNoNaviApp
+            ? 'Keine Navi-App gefunden — Koordinaten kopiert: $coordinates'
+            : 'Koordinaten kopiert: $coordinates'),
+      ));
+  }
+
   Future<void> _delete(BuildContext context, WidgetRef ref, Spot spot) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -260,6 +285,11 @@ class _SpotDetailSheet extends ConsumerWidget {
               Expanded(
                 child: Text(spot.displayName,
                     style: Theme.of(context).textTheme.titleLarge),
+              ),
+              IconButton(
+                onPressed: () => _navigateTo(context, spot),
+                icon: const Icon(Icons.directions_outlined),
+                tooltip: 'In Navi-App öffnen',
               ),
               if (spot.isOwn)
                 IconButton(
