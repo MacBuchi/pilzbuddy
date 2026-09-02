@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/features/import_export/gpx_export.dart';
 import 'package:pilzbuddy/features/import_export/waypoint_parser.dart';
 import 'package:pilzbuddy/models/find.dart';
+import 'package:pilzbuddy/models/find_position.dart';
 import 'package:pilzbuddy/models/spot.dart';
 import 'package:xml/xml.dart';
 
@@ -289,6 +290,76 @@ void main() {
       expect(leergang.note, 'alles abgesammelt');
       expect(finds[1].blank, isFalse);
       expect(finds[1].count, 2);
+    });
+
+    test('VERLUSTFREI auch für die Fundstelle (#373)', () {
+      // Gemessen und gewählt müssen sich in der Datei UNTERSCHEIDEN —
+      // sonst käme eine auf der Karte gewählte Stelle als Fix mit
+      // perfekter Genauigkeit zurück.
+      final spots = [
+        Spot(id: 's1', ownerId: 'u1', lat: 51, lng: 10, finds: [
+          Find(
+              id: 'f1',
+              spotId: 's1',
+              species: 'Steinpilz',
+              foundOn: DateTime(2026, 7, 12),
+              position: const FindPosition.gps(
+                  lat: 51.000125, lng: 10.000125, accuracy: 6.5)),
+          Find(
+              id: 'f2',
+              spotId: 's1',
+              species: 'Marone',
+              foundOn: DateTime(2026, 7, 13),
+              position:
+                  const FindPosition.picked(lat: 50.99988, lng: 9.99988)),
+          Find(
+              id: 'f3',
+              spotId: 's1',
+              foundOn: DateTime(2026, 8, 1),
+              blank: true,
+              position:
+                  const FindPosition.picked(lat: 51.0001, lng: 10.0001)),
+        ]),
+      ];
+
+      final gpx = buildGpx(spots);
+      final finds = parseWaypoints('export.gpx', _utf8(gpx)).single.finds!;
+      final byDate = {for (final f in finds) f.foundOn: f};
+
+      final measured = byDate[DateTime(2026, 7, 12)]!.position!;
+      expect(measured.lat, closeTo(51.000125, 1e-6));
+      expect(measured.accuracyM, 6.5);
+      expect(measured.measured, isTrue);
+
+      final picked = byDate[DateTime(2026, 7, 13)]!.position!;
+      expect(picked.measured, isFalse,
+          reason: 'ein Fadenkreuz hat keinen Messfehler — eine 0 machte '
+              'daraus einen perfekten Fix');
+
+      expect(byDate[DateTime(2026, 8, 1)]!.position, isNotNull,
+          reason: 'auch ein Leergang hat einen Ort');
+    });
+
+    test('Ein Fund ohne eigene Stelle schreibt keine Attribute (#373)', () {
+      // Dateien ohne Fundstellen sehen aus wie vor #373, und ein älterer
+      // Leser bekommt kein Attribut zu sehen, das er nicht kennt.
+      final gpx = buildGpx([
+        Spot(id: 's1', ownerId: 'u1', lat: 51, lng: 10, finds: [
+          Find(
+              id: 'f1',
+              spotId: 's1',
+              species: 'Steinpilz',
+              foundOn: DateTime(2026, 7, 12)),
+        ]),
+      ]);
+
+      expect(gpx, contains('<pb:find'));
+      expect(gpx, isNot(contains('accuracyM')));
+      // Der Wegpunkt selbst trägt weiterhin lat/lon — geprüft wird das
+      // Fund-Element.
+      final findElement =
+          RegExp(r'<pb:find[^>]*>').firstMatch(gpx)!.group(0)!;
+      expect(findElement, isNot(contains('lat=')));
     });
 
     test('Eine Datei ohne blank-Attribut bleibt ein echter Fund', () {

@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/dates.dart';
 import '../core/errors.dart';
 import '../core/mushroom_species.dart';
+import '../models/find_position.dart';
 import '../models/spot.dart';
 import 'session.dart';
 import 'spot_cache.dart';
@@ -39,6 +40,10 @@ class NewFind {
   /// Wegen (GPX-Import etwa läuft im WLAN und kennt keinen Korb).
   final String? clientId;
 
+  /// Die eigene Stelle dieses Fundes (Patch 022, #373) — `null` heißt
+  /// „gilt der Ort des Spots", und das ist der Normalfall.
+  final FindPosition? position;
+
   const NewFind({
     this.species,
     this.count,
@@ -46,15 +51,28 @@ class NewFind {
     this.note,
     this.blank = false,
     this.clientId,
+    this.position,
   }) : assert(!blank || (species == null && count == null),
             'Ein Leergang trägt weder Art noch Anzahl (finds_blank_leer).');
 
-  /// „War da, nichts da." Bewusst ohne Art: Die Aussage gilt dem Ort.
-  const NewFind.blank(
-      {required DateTime foundOn, String? note, String? clientId})
-      : this(
-            foundOn: foundOn, note: note, blank: true, clientId: clientId);
+  /// „War da, nichts da." Bewusst ohne Art: Die Aussage gilt dem Ort —
+  /// und deshalb trägt gerade der Leergang eine Position, wenn es eine
+  /// gibt. `finds_blank_leer` verbietet Art und Anzahl, nicht den Ort.
+  const NewFind.blank({
+    required DateTime foundOn,
+    String? note,
+    String? clientId,
+    FindPosition? position,
+  }) : this(
+            foundOn: foundOn,
+            note: note,
+            blank: true,
+            clientId: clientId,
+            position: position);
 
+  /// Kopiert FELDWEISE — wer hier ein Feld vergisst, verliert es still auf
+  /// dem Weg in den Ausgangskorb. `test/outbox_test.dart` hält jedes
+  /// einzelne dagegen.
   NewFind withClientId(String clientId) => NewFind(
         species: species,
         count: count,
@@ -62,6 +80,7 @@ class NewFind {
         note: note,
         blank: blank,
         clientId: clientId,
+        position: position,
       );
 }
 
@@ -275,6 +294,14 @@ class SpotRepository {
             'note': find.note,
             'blank': find.blank,
             if (find.clientId != null) 'client_id': find.clientId,
+            // Nur schreiben, was es gibt: Ein Fund ohne eigene Stelle
+            // soll `lat`/`lng` gar nicht erst erwähnen, sonst überschriebe
+            // ein Insert mit `null` eine Spalte, die es nicht setzen will.
+            if (find.position != null) ...{
+              'lat': find.position!.lat,
+              'lng': find.position!.lng,
+              'accuracy_m': find.position!.accuracyM,
+            },
           },
       ];
 
@@ -319,6 +346,20 @@ class SpotRepository {
   ///
   /// `spot_id` bleibt außen vor: Ein Fund wandert nicht per Korrektur an
   /// einen anderen Ort, dafür gibt es [mergeSpots].
+  ///
+  /// **`lat`/`lng`/`accuracy_m` ebenso** (Patch 022, #373), und aus
+  /// demselben Grund: Eine Position ist eine MESSUNG, keine Angabe. Art,
+  /// Anzahl, Datum und Notiz hat jemand aufgeschrieben und darf sie
+  /// korrigieren; einen GPS-Fix zwei Tage später vom Sofa aus
+  /// „richtigzustellen" hieße, eine Messung durch eine Erinnerung zu
+  /// ersetzen. Eine falsche Position wird gelöscht und neu eingetragen —
+  /// dieselbe Antwort wie beim Umwandeln zwischen Fund und Leergang
+  /// (`edit_find_sheet.dart`).
+  ///
+  /// Weil die Spaltenliste unten namentlich ist, überlebt die Position
+  /// jede Korrektur von selbst. Im Fake gilt das NICHT automatisch: Der
+  /// baut den `Find` feldweise neu und würde sie stillschweigend
+  /// wegwerfen — deshalb prüft ein Test genau diesen Fall.
   ///
   /// Die Normalisierung läuft wie beim Anlegen ([addFinds]) über
   /// [canonicalSpecies] — sonst entstünden über den Korrekturweg

@@ -25,6 +25,10 @@ eintragen und Spots mit Freunden teilen.
   der Karte.
 - **Wiederbesuch:** Marker antippen → „Fund eintragen" → Speichern.
   Art und Anzahl sind vom letzten Fund vorbelegt.
+- **Fundstelle:** Ein Fund kann seine eigene Stelle mitbringen, genauer als
+  der Spot. Stehst du davor, ist „Meine Position" vorbelegt — samt der
+  Genauigkeit, die dein Gerät meldet. In der Fundliste steht dann
+  „14 m nordöstlich (±5 m)", und du kannst genau dorthin navigieren.
 - **Freunde:** Suche per Benutzername oder genauer E-Mail, Anfrage → Annahme.
   Freundes-Spots erscheinen blau auf der Karte.
 - **Live-Standort teilen:** Auf der Karte den Teilen-Button tippen → 1, 2 oder
@@ -32,7 +36,8 @@ eintragen und Spots mit Freunden teilen.
   ihrer Karte; die Freigabe läuft automatisch ab und lässt sich jederzeit beenden.
 - **Teilen-Einstellungen** (im Profil):
   - „Meine Spots mit Freunden teilen" (globaler Standard)
-  - „Auch Art, Anzahl und Funddatum teilen" — sonst nur der Standort
+  - „Auch Art, Anzahl und Funddatum teilen" — sonst nur der Standort; mit
+    dieser Freigabe sehen Freunde auch die genaue Stelle einzelner Funde
   - einzelne Spots lassen sich im Spot-Detail von der Freigabe ausschließen
 - **Offline-Karten** (nur Android): Bundesland-Karten im Profil herunterladen,
   danach funktioniert die Karte ohne Empfang. Ohne Netz schaltet die App von

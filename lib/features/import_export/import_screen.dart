@@ -138,6 +138,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
                 foundOn: find.foundOn,
                 note: find.note,
                 blank: find.blank,
+                position: find.position,
               ),
           ],
         ),

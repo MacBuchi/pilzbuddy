@@ -43,4 +43,62 @@ void main() {
           closeTo(distanceKm(52.52, 13.405, 52.396, 13.058) * 1000, 1e-6));
     });
   });
+
+  group('bearingDegrees und compassPoint (#373)', () {
+    // 51,16 N: ein Breitengrad ~111,2 km, ein Längengrad ~69,7 km. Ohne
+    // den cos-Faktor auf die Länge zeigte „östlich" hier um rund ein
+    // Drittel daneben — deshalb ist genau das der Ost-Test.
+    const lat = 51.1634;
+    const lng = 10.4477;
+
+    test('die vier Haupthimmelsrichtungen stimmen', () {
+      expect(compassPoint(bearingDegrees(lat, lng, lat + 0.001, lng)),
+          'nördlich');
+      expect(compassPoint(bearingDegrees(lat, lng, lat, lng + 0.001)),
+          'östlich');
+      expect(compassPoint(bearingDegrees(lat, lng, lat - 0.001, lng)),
+          'südlich');
+      expect(compassPoint(bearingDegrees(lat, lng, lat, lng - 0.001)),
+          'westlich');
+    });
+
+    test('ein echter Nordost-Versatz liest sich als nordöstlich', () {
+      // Gleich weit nach Norden und nach Osten — in METERN, nicht in
+      // Grad. Wer die Grade gleich setzt, bekommt auf 51° N einen Kurs
+      // von 32° und damit die falsche Richtung.
+      final north = 0.0001; // ~11,1 m
+      final east = 0.0001 * 111.2 / 69.7; // dieselben ~11,1 m
+      expect(compassPoint(bearingDegrees(lat, lng, lat + north, lng + east)),
+          'nordöstlich');
+    });
+
+    test('die Sektorgrenzen liegen bei 22,5°', () {
+      expect(compassPoint(22.4), 'nördlich');
+      expect(compassPoint(22.6), 'nordöstlich');
+      expect(compassPoint(337.6), 'nördlich');
+      expect(compassPoint(360), 'nördlich');
+      expect(compassPoint(0), 'nördlich');
+    });
+
+    test('acht Richtungen, nicht sechzehn', () {
+      final all = {
+        for (var deg = 0; deg < 360; deg += 5) compassPoint(deg.toDouble())
+      };
+      expect(all, hasLength(8),
+          reason: '„nordnordöstlich" behauptet eine Auflösung, die ein '
+              'Kurswinkel über zwölf Meter nicht hat');
+    });
+  });
+
+  group('formatMeters', () {
+    test('unter einem Kilometer ganze Meter', () {
+      expect(formatMeters(14.4), '14 m');
+      expect(formatMeters(999), '999 m');
+    });
+
+    test('ab einem Kilometer mit deutschem Dezimalkomma', () {
+      expect(formatMeters(1000), '1,0 km');
+      expect(formatMeters(1234), '1,2 km');
+    });
+  });
 }

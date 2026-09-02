@@ -95,6 +95,50 @@ void main() {
           currentUserId: 'ich');
       expect(find.isOwn, isTrue);
     });
+
+    test('ohne lat/lng hat der Fund keine eigene Stelle (#373)', () {
+      // Der Normalfall — so sieht jede Zeile aus der Zeit vor Patch 022
+      // aus, und so sieht der abends nachgetragene Fund aus.
+      final find = Find.fromJson(
+          {'id': 'f1', 'spot_id': 's1', 'found_on': '2026-08-01'},
+          currentUserId: 'ich');
+      expect(find.position, isNull);
+    });
+
+    test('mit accuracy_m ist die Stelle gemessen, ohne sie gewählt', () {
+      final measured = Find.fromJson({
+        'id': 'f1',
+        'spot_id': 's1',
+        'found_on': '2026-08-01',
+        'lat': 51.1634,
+        'lng': 10.4477,
+        'accuracy_m': 6.5,
+      }, currentUserId: 'ich');
+      expect(measured.position!.measured, isTrue);
+      expect(measured.position!.accuracyM, 6.5);
+
+      final picked = Find.fromJson({
+        'id': 'f2',
+        'spot_id': 's1',
+        'found_on': '2026-08-01',
+        'lat': 51.1634,
+        'lng': 10.4477,
+      }, currentUserId: 'ich');
+      expect(picked.position!.measured, isFalse,
+          reason: 'leere Genauigkeit IST die Herkunftsangabe');
+    });
+
+    test('eine halbe Koordinate ergibt gar keine Stelle', () {
+      // Spiegelt `finds_position_paar`: lieber keine Position als eine
+      // auf dem Nullmeridian.
+      final find = Find.fromJson({
+        'id': 'f1',
+        'spot_id': 's1',
+        'found_on': '2026-08-01',
+        'lat': 51.1634,
+      }, currentUserId: 'ich');
+      expect(find.position, isNull);
+    });
   });
 
   group('Spot', () {

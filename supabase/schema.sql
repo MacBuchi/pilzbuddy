@@ -61,8 +61,28 @@ create table public.finds (
   blank boolean not null default false,
   -- Siehe spots.client_id (Patch 016).
   client_id uuid,
+  -- Die eigene Stelle dieses Fundes (Patch 022): Ohne sie lösen alle
+  -- Funde eines Spots auf denselben Punkt auf. Nullable ist der
+  -- Normalfall — der abends nachgetragene Fund hat keine.
+  --
+  -- `accuracy_m` ist der Streuradius des GPS-Fixes UND die
+  -- Herkunftsangabe: leer bei gesetzter Koordinate heißt „auf der Karte
+  -- gewählt" (ein Fadenkreuz hat keinen Messfehler).
+  lat double precision,
+  lng double precision,
+  accuracy_m double precision,
   constraint finds_blank_leer
-    check (not blank or (species is null and count is null))
+    check (not blank or (species is null and count is null)),
+  -- Eine halbe Koordinate ist keine.
+  constraint finds_position_paar
+    check ((lat is null) = (lng is null)),
+  constraint finds_position_bereich
+    check (lat is null
+           or (lat between -90 and 90 and lng between -180 and 180)),
+  -- Keine Obergrenze: Ab wann ein Fix zu grob ist, entscheidet die
+  -- Oberfläche und darf sich ändern.
+  constraint finds_genauigkeit_sinn
+    check (accuracy_m is null or (lat is not null and accuracy_m >= 0))
 );
 create index finds_spot_idx on public.finds (spot_id, found_on desc);
 create index finds_author_idx on public.finds (author_id);
@@ -687,5 +707,6 @@ insert into public.applied_patches (filename) values
   ('patch_018_push_ausloeser.sql'),
   ('patch_019_push_leerlauf.sql'),
   ('patch_020_push_text.sql'),
-  ('patch_021_feedback_version.sql')
+  ('patch_021_feedback_version.sql'),
+  ('patch_022_fund_position.sql')
 on conflict do nothing;

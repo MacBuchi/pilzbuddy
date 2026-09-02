@@ -94,11 +94,13 @@ check_get "spots-Schreibspalten" \
 
 # finds: Spalten aus Find.fromJson / SpotRepository.addFinds und dem
 # Batch-Insert aus restoreSpot (#112). `blank` seit Patch 015 (#211),
+# `lat`/`lng`/`accuracy_m` seit Patch 022 (#373) — die eigene Stelle
+# eines Fundes samt Streuradius des Fixes.
 # `client_id` seit Patch 016 (#267) — ohne die Spalte könnte die
 # Wiedervorlage aus dem Ausgangskorb Dubletten anlegen, und zwar
 # stillschweigend.
 check_get "finds-Spalten" \
-  "/rest/v1/finds?select=id,spot_id,author_id,species,count,found_on,note,created_at,blank,client_id&limit=1"
+  "/rest/v1/finds?select=id,spot_id,author_id,species,count,found_on,note,created_at,blank,client_id,lat,lng,accuracy_m&limit=1"
 
 # live_locations: exakt die Query aus LiveShareRepository.fetchFriendLocations
 check_get "live_locations-Embed (Freundes-Standorte)" \

@@ -7,6 +7,44 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Wo genau stand er? Jetzt weiß es die App
+
+*2. September 2026 · Version 1.113.0*
+
+Ein Spot war bisher ein einziger Punkt. Ob die Steinpilze im September am
+Wurzelteller standen und die Maronen zwanzig Meter weiter am Hang — das
+wusstest nur du, und nach zwei Saisons vielleicht nicht mehr.
+
+Beim Eintragen eines Fundes gibt es jetzt die Zeile **Fundstelle**. Stehst
+du wirklich davor, ist **Meine Position** schon ausgewählt: Die App
+übernimmt deinen Standort und, genauso wichtig, **wie genau er ist**. In
+der Fundliste liest sich das dann so:
+
+- Steinpilz, 5 Stück — 14 m nordöstlich (±5 m)
+- Maronenröhrling, 2 Stück — 9 m südwestlich (±6 m)
+
+Und über den Stift am Eintrag kommst du zu **Zu diesem Fund navigieren** —
+das führt dich nicht mehr nur zum Spot, sondern zur Stelle.
+
+Vier Dinge, die dir wichtig sein könnten:
+
+- **Nichts passiert ungefragt.** Trägst du den Fund abends von zu Hause
+  nach, steht dort „Am Spot" — genau wie bisher. Die Stelle wird nur
+  übernommen, wenn du beim Eintragen wirklich dort bist.
+- **Beim Öffnen des Formulars fragt die App nie nach dem Standort.** Der
+  Systemdialog kommt nur, wenn du „Meine Position" selbst antippst.
+- **Ist der Empfang schlecht, sagt die App das** — „GPS zu ungenau (±64 m)"
+  — und speichert lieber gar keine Stelle als eine erfundene. Unter
+  Blätterdach liegt GPS schnell zwanzig Meter daneben; eine Zahl, die so
+  tut, als wäre sie genau, wäre schlimmer als keine.
+- **Teilst du Spot-Details mit Pilzfreunden, sehen sie die Stelle mit** —
+  wie den Spot selbst. Über „Von Freigabe ausschließen" und die globale
+  Freigabe steuerst du das weiterhin.
+
+Auch ein Leergang („Nichts gefunden") kann seine Stelle tragen. Das ist
+kein Versehen: „Ich war hier und da stand nichts" ist eine Aussage über
+einen Ort — je genauer der, desto mehr ist sie wert.
+
 ## Vom Spot direkt in die Navi-App
 
 *2. September 2026 · Version 1.112.0*

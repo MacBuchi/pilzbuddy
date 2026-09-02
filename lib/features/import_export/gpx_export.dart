@@ -91,6 +91,26 @@ String buildGpx(List<Spot> spots) {
                   builder.attribute('count', '${find.count}');
                 }
                 builder.attribute('foundOn', _isoDate(find.foundOn));
+                // Die eigene Stelle des Fundes (#373), wieder nur wenn
+                // gesetzt. `lat`/`lon` wie am `<wpt>` — der GPX-Dialekt
+                // heißt `lon`, auch wenn es intern `lng` ist; wer die
+                // Datei in einem fremden Programm ansieht, erwartet das
+                // vertraute Wort. Sechs Nachkommastellen wie beim
+                // Wegpunkt (~11 cm).
+                //
+                // `accuracyM` fehlt bei einer auf der Karte gewählten
+                // Stelle, und genau diese Abwesenheit ist die Aussage —
+                // eine 0 zu schreiben machte daraus einen Fix mit
+                // perfekter Genauigkeit.
+                if (find.position case final position?) {
+                  builder.attribute(
+                      'lat', position.lat.toStringAsFixed(6));
+                  builder.attribute(
+                      'lon', position.lng.toStringAsFixed(6));
+                  if (position.accuracyM case final accuracy?) {
+                    builder.attribute('accuracyM', '$accuracy');
+                  }
+                }
                 // Als Element, nicht als Attribut: Notizen dürfen
                 // mehrzeilig sein, und Zeilenumbrüche in Attributwerten
                 // überleben einen XML-Round-Trip nicht zuverlässig.

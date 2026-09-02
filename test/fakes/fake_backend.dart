@@ -19,6 +19,7 @@ import 'package:pilzbuddy/data/live_share_repository.dart';
 import 'package:pilzbuddy/data/profile_repository.dart';
 import 'package:pilzbuddy/data/spot_repository.dart';
 import 'package:pilzbuddy/models/find.dart';
+import 'package:pilzbuddy/models/find_position.dart';
 import 'package:pilzbuddy/models/friend_location.dart';
 import 'package:pilzbuddy/models/friendship.dart';
 import 'package:pilzbuddy/models/profile.dart';
@@ -246,6 +247,7 @@ class FakeBackend {
     DateTime? createdAt,
     bool blank = false,
     String? clientId,
+    FindPosition? position,
   }) {
     final row = spots.firstWhere((s) => s.id == spotId);
     // Spiegelt den Constraint `finds_blank_leer`: Ein Leergang trägt
@@ -254,6 +256,16 @@ class FakeBackend {
     if (blank && (species != null || count != null)) {
       throw ArgumentError(
           'Ein Leergang trägt weder Art noch Anzahl (finds_blank_leer).');
+    }
+    // Dieselbe Rolle für `finds_position_bereich` (Patch 022). Das Paar
+    // und die nicht-negative Genauigkeit kann der Fake gar nicht
+    // verletzen — `FindPosition` hat dafür nur zwei Konstruktoren und ein
+    // assert; hier bleibt die Grenze, die auch ein gültiger Werttyp
+    // reißen kann.
+    if (position != null &&
+        (position.lat.abs() > 90 || position.lng.abs() > 180)) {
+      throw ArgumentError(
+          'Die Erde ist endlich (finds_position_bereich).');
     }
     row.finds.add(Find(
       id: _newId('find'),
@@ -265,6 +277,7 @@ class FakeBackend {
       createdAt: createdAt ?? DateTime.now(),
       authorId: authorId ?? row.ownerId,
       blank: blank,
+      position: position,
     ));
     if (clientId != null) findClientIds.add(clientId);
   }
@@ -647,6 +660,7 @@ class FakeSpotRepository implements SpotRepository {
       authorAvatar: author?.avatar ?? 0,
       isOwn: f.authorId == null || f.authorId == _uid,
       blank: f.blank,
+      position: f.position,
     );
   }
 
@@ -838,7 +852,8 @@ class FakeSpotRepository implements SpotRepository {
           note: find.note,
           authorId: _uid,
           blank: find.blank,
-          clientId: find.clientId);
+          clientId: find.clientId,
+          position: find.position);
     }
   }
 
@@ -879,6 +894,13 @@ class FakeSpotRepository implements SpotRepository {
         createdAt: old.createdAt,
         authorId: old.authorId,
         blank: find.blank,
+        // Die Position ÜBERLEBT die Korrektur — sie steht nicht in der
+        // Spaltenliste des echten `updateFind`, ein Postgres-UPDATE fasst
+        // sie also gar nicht an. Hier muss man sie ausdrücklich
+        // mitnehmen: Der Fake baut den Fund feldweise neu und würde sie
+        // sonst stillschweigend wegwerfen — genau die Divergenz, die kein
+        // Schema-Check bemerkt.
+        position: old.position,
       );
       return;
     }

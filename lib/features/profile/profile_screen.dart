@@ -838,7 +838,8 @@ Future<void> _exportGpx(BuildContext context, WidgetRef ref) async {
       title: const Text('Spots exportieren'),
       content: Text(
         'Die Datei enthält alle ${spots.length} eigenen Spots mit '
-        'Fundorten, Arten, Daten und deinen Notizen.\n\n'
+        'Fundorten, Arten, Daten und deinen Notizen — bei manchen Funden '
+        'metergenau.\n\n'
         'Sie ist als Sicherung gedacht — damit ziehst du deine Spots in '
         'ein anderes Konto um. Gib sie nur weiter, wenn die Notizen '
         'jemand lesen darf.\n\n'

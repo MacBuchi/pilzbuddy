@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:xml/xml.dart';
 
+import '../../models/find_position.dart';
 import 'gpx_export.dart' show kPilzBuddyGpxNamespace;
 
 /// Ein Fund aus den PilzBuddy-Erweiterungen einer GPX-Datei.
@@ -16,12 +17,17 @@ class ImportedFind {
   /// „Nichts gefunden" (#211) — im GPX das Attribut `blank="true"`.
   final bool blank;
 
+  /// Die eigene Stelle des Fundes (#373) — im GPX die Attribute `lat`,
+  /// `lon` und optional `accuracyM` am `<pb:find>`.
+  final FindPosition? position;
+
   const ImportedFind({
     this.species,
     this.count,
     required this.foundOn,
     this.note,
     this.blank = false,
+    this.position,
   });
 }
 
@@ -163,6 +169,24 @@ XmlElement? _pilzBuddySpot(XmlElement wpt) {
 /// Die Funde aus einem `<pb:spot>`. Einzelne kaputte Einträge werden
 /// übersprungen — dieselbe Haltung wie beim Rest des Parsers: Eine
 /// Sicherung, die an einer krummen Zeile ganz scheitert, ist keine.
+/// Die eigene Stelle eines Fundes aus `lat`/`lon`/`accuracyM` (#373).
+///
+/// Bereinigt statt abzuweisen, wie der Rest des Parsers: Eine halbe oder
+/// unmögliche Koordinate ergibt gar keine Position (Spiegel von
+/// `finds_position_paar` und `finds_position_bereich`), eine negative
+/// Genauigkeit wird zur gewählten Stelle statt zum Abbruch. Sonst
+/// scheiterte eine ganze Sicherung an einem verbogenen Attribut.
+FindPosition? _parseFindPosition(XmlElement element) {
+  final lat = double.tryParse(element.getAttribute('lat') ?? '');
+  final lng = double.tryParse(element.getAttribute('lon') ?? '');
+  if (lat == null || lng == null || !_validCoords(lat, lng)) return null;
+  final accuracy = double.tryParse(element.getAttribute('accuracyM') ?? '');
+  if (accuracy == null || !accuracy.isFinite || accuracy < 0) {
+    return FindPosition.picked(lat: lat, lng: lng);
+  }
+  return FindPosition.gps(lat: lat, lng: lng, accuracy: accuracy);
+}
+
 List<ImportedFind> _parseFinds(XmlElement spot) {
   final finds = <ImportedFind>[];
   for (final element in spot.descendants.whereType<XmlElement>()) {
@@ -187,6 +211,7 @@ List<ImportedFind> _parseFinds(XmlElement spot) {
       foundOn: foundOn,
       note: _childText(element, 'note'),
       blank: blank,
+      position: _parseFindPosition(element),
     ));
   }
   return finds;

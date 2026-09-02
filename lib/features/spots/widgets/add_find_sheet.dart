@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../../data/spot_repository.dart';
 import '../../../models/find.dart';
+import '../../../models/find_position.dart';
+import 'find_position_field.dart';
 import 'species_collector.dart';
 
 /// Sheet für den Wiederbesuch: Art und Anzahl sind mit dem letzten Fund
@@ -15,6 +18,7 @@ import 'species_collector.dart';
 /// das mit einem Constraint fest (`finds_blank_leer`, Patch 015).
 Future<List<NewFind>?> showAddFindSheet(
   BuildContext context, {
+  required LatLng spotAt,
   Find? lastFind,
   List<String> ownSpecies = const [],
   String? fallbackSpecies,
@@ -24,6 +28,7 @@ Future<List<NewFind>?> showAddFindSheet(
     context: context,
     isScrollControlled: true,
     builder: (context) => _AddFindSheet(
+      spotAt: spotAt,
       lastFind: lastFind,
       ownSpecies: ownSpecies,
       fallbackSpecies: fallbackSpecies,
@@ -34,11 +39,16 @@ Future<List<NewFind>?> showAddFindSheet(
 
 class _AddFindSheet extends StatefulWidget {
   const _AddFindSheet({
+    required this.spotAt,
     this.lastFind,
     this.ownSpecies = const [],
     this.fallbackSpecies,
     this.blank = false,
   });
+
+  /// Der Ort des Spots — Bezugspunkt der Fundstellen-Wahl (#373). Bis
+  /// dahin kannte das Blatt den Spot gar nicht.
+  final LatLng spotAt;
 
   final Find? lastFind;
   final List<String> ownSpecies;
@@ -77,14 +87,20 @@ class _AddFindSheetState extends State<_AddFindSheet> {
     if (picked != null) setState(() => _foundOn = picked);
   }
 
+  /// `null` heißt „am Spot" — der Normalfall und das Verhalten von vor
+  /// #373.
+  FindPosition? _position;
+
   void _save() {
     final note =
         _noteController.text.trim().isEmpty ? null : _noteController.text.trim();
-    // Datum und Notiz gelten für alle Zeilen. Jede Zeile bekommt sie
-    // eingetragen und bleibt damit für sich vollständig — darauf bauen
-    // GPX-Export und die Sicht der Buddys auf.
+    // Datum, Notiz und Fundstelle gelten für alle Zeilen. Jede Zeile
+    // bekommt sie eingetragen und bleibt damit für sich vollständig —
+    // darauf bauen GPX-Export und die Sicht der Buddys auf. Bei der
+    // Stelle ist das auch inhaltlich richtig: Wer drei Arten auf einmal
+    // einträgt, stand dabei an EINEM Ort.
     Navigator.of(context).pop(widget.blank
-        ? [NewFind.blank(foundOn: _foundOn, note: note)]
+        ? [NewFind.blank(foundOn: _foundOn, note: note, position: _position)]
         : [
             for (final entry in _entries)
               NewFind(
@@ -92,6 +108,7 @@ class _AddFindSheetState extends State<_AddFindSheet> {
                 count: entry.count,
                 foundOn: _foundOn,
                 note: note,
+                position: _position,
               ),
           ]);
   }
@@ -149,6 +166,14 @@ class _AddFindSheetState extends State<_AddFindSheet> {
                 trailing: dateButton,
                 onChanged: (entries) => _entries = entries,
               ),
+            const SizedBox(height: 12),
+            // Auch im Leergang-Modus: „Ich war hier und da stand nichts"
+            // ist die Aussage, die am stärksten an einem Ort hängt —
+            // `finds_blank_leer` verbietet Art und Anzahl, nicht den Ort.
+            FindPositionField(
+              spotAt: widget.spotAt,
+              onChanged: (position) => _position = position,
+            ),
             const SizedBox(height: 12),
             TextField(
               controller: _noteController,

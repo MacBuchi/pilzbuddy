@@ -11,6 +11,7 @@ import '../../../core/widgets/mushroom_icon.dart';
 import '../../profile/profile_providers.dart';
 import '../../../models/find.dart';
 import '../../../models/spot.dart';
+import '../find_offset.dart';
 import '../spot_navigation.dart';
 import '../spot_providers.dart';
 import 'add_find_sheet.dart';
@@ -84,6 +85,7 @@ class _SpotDetailSheet extends ConsumerWidget {
     final ownSpecies = ref.read(ownSpeciesProvider);
     final finds = await showAddFindSheet(
       context,
+      spotAt: spot.position,
       // Der letzte EIGENE Fund, nicht der letzte überhaupt: Am
       // Freundes-Spot soll nicht dessen Art im Formular vorstehen.
       lastFind: spot.lastOwnFind,
@@ -122,13 +124,22 @@ class _SpotDetailSheet extends ConsumerWidget {
   /// Ändern und Löschen ausschließlich dem Autor — was die Datenbank
   /// ohnehin ablehnt, darf die Oberfläche gar nicht erst anbieten.
   Future<void> _editFind(
-      BuildContext context, WidgetRef ref, Find find) async {
+      BuildContext context, WidgetRef ref, Find find, Spot spot) async {
     final result = await showEditFindSheet(
       context,
       find: find,
+      spot: spot,
       ownSpecies: ref.read(ownSpeciesProvider),
     );
     if (result == null || !context.mounted) return;
+    // Das Blatt entscheidet, der Aufrufer führt aus — wie beim Löschen.
+    if (result.navigate) {
+      if (find.position case final position?) {
+        await _navigateToPoint(context, position.lat, position.lng,
+            '${spot.displayName} – ${find.label}');
+      }
+      return;
+    }
     try {
       if (result.delete) {
         await ref.read(mySpotsProvider.notifier).deleteFind(find.id);
@@ -151,15 +162,21 @@ class _SpotDetailSheet extends ConsumerWidget {
   /// App-Wähler auf, steht die andere App im Vordergrund und eine
   /// SnackBar hinter ihr wäre für niemanden. Die beiden Rückfälle
   /// dagegen sehen ohne Meldung aus wie ein Knopf, der nichts tut.
-  Future<void> _navigateTo(BuildContext context, Spot spot) async {
+  Future<void> _navigateTo(BuildContext context, Spot spot) =>
+      _navigateToPoint(context, spot.lat, spot.lng, spot.displayName);
+
+  /// Derselbe Weg für den Spot und für einen einzelnen Fund (#373).
+  ///
+  /// Der Knopf im Blattkopf bleibt beim SPOT: Ihn heimlich auf den
+  /// jüngsten Fund zu richten hieße, dass ein Knopf mit dem Spot-Namen
+  /// woandershin führt — und sein Ziel mit jedem neuen Fund wanderte.
+  Future<void> _navigateToPoint(
+      BuildContext context, double lat, double lng, String label) async {
     final messenger = ScaffoldMessenger.of(context);
-    final outcome = await openInNavigationApp(
-      lat: spot.lat,
-      lng: spot.lng,
-      label: spot.displayName,
-    );
+    final outcome =
+        await openInNavigationApp(lat: lat, lng: lng, label: label);
     if (outcome == SpotNavigationOutcome.opened) return;
-    final coordinates = formatCoordinates(spot.lat, spot.lng);
+    final coordinates = formatCoordinates(lat, lng);
     messenger
       ..clearSnackBars()
       ..showSnackBar(SnackBar(
@@ -365,6 +382,12 @@ class _SpotDetailSheet extends ConsumerWidget {
                       ),
                       subtitle: Text([
                         dateFormat.format(find.foundOn),
+                        // Wo genau dieser Eintrag lag (#373) — der
+                        // Unterschied zwischen „drei Funde an einem
+                        // Spot" und „drei Funde, und ich weiß welcher
+                        // wo war". Fehlt die Stelle, fehlt auch das
+                        // Element: Die Zeile sieht dann aus wie immer.
+                        ?findPositionLabel(find, spot),
                         if (find.note != null && find.note!.isNotEmpty)
                           find.note!,
                         // Fremde Funde nennen ihren Eintrager (#190) —
@@ -383,7 +406,7 @@ class _SpotDetailSheet extends ConsumerWidget {
                       // Zum Ändern bräuchte es eine id, die der Server
                       // noch gar nicht vergeben hat.
                       onTap: find.isOwn && !find.pending
-                          ? () => _editFind(context, ref, find)
+                          ? () => _editFind(context, ref, find, spot)
                           : null,
                       trailing: find.pending
                           ? Icon(Icons.schedule,
