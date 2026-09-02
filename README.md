@@ -33,8 +33,9 @@ eintragen und Spots mit Freunden teilen.
   Art und Anzahl sind vom letzten Fund vorbelegt.
 - **Fundstelle:** Ein Fund kann seine eigene Stelle mitbringen, genauer als
   der Spot. Stehst du davor, ist „Meine Position" vorbelegt — samt der
-  Genauigkeit, die dein Gerät meldet. In der Fundliste steht dann
-  „14 m nordöstlich (±5 m)", und du kannst genau dorthin navigieren.
+  Genauigkeit, die dein Gerät meldet. Trägst du später von zu Hause nach,
+  setzt du sie im Kartenausschnitt per Fadenkreuz. In der Fundliste steht
+  dann „14 m nordöstlich (±5 m)", und du kannst genau dorthin navigieren.
 - **Freunde:** Suche per Benutzername oder genauer E-Mail, Anfrage → Annahme.
   Freundes-Spots erscheinen blau auf der Karte.
 - **Live-Standort teilen:** Auf der Karte den Teilen-Button tippen → 1, 2 oder

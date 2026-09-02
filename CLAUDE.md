@@ -857,6 +857,19 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   einzige Netz. Drei Tests sichern Verhalten, Engstelle und Verdrahtung
   (`test/finite_camera_constraint_test.dart`, `test/flows/map_view_test.dart`)
   — wer ihn aus den `MapOptions` entfernt, holt beide Fehler zurück.
+  **Er hängt an JEDER `MapOptions`, nicht an „der Karte".** Seit 1.114.0
+  gibt es eine zweite `flutter_map`-Instanz — die Mini-Karte im Fund-Blatt
+  (`lib/features/map/widgets/mini_map.dart`, #373) —, und eine Kopie erbt
+  keine Wächter: Dort steht er noch einmal, ebenso die
+  Ein-TileProvider-Regel direkt hierunter. `test/mini_map_test.dart`
+  nagelt beides fest. Wer eine dritte Karte baut, kopiert beide mit.
+  Warum die Mini-Karte NICHT über die MapView-Fassade läuft: Die füllt aus
+  `onCameraIdle` die globalen `mapIdle*`-Provider, an denen
+  Höhenlinien-Äquidistanz, Wald-Bildausschnitt (#249) und Legende (#235)
+  hängen — ein 180-dp-Ausschnitt überschriebe sie mit dem Maßstab einer
+  Briefmarke, und die große Karte rechnete damit weiter. Sie ist außerdem
+  IMMER flutter_map, nie MapLibre: Eine zweite native GL-Fläche in einem
+  scrollenden Blatt ist teuer und im Widget-Test nicht renderbar.
 - TileProvider-Lebenszyklus (`map_screen.dart`, seit 1.38.2): GENAU eine
   Instanz pro **eingehängtem** TileLayer. flutter_map schließt beim
   Aushängen den HTTP-Client des Providers — und ausgehängt wird bei jedem

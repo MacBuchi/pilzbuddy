@@ -7,6 +7,34 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Fundstelle auch auf der Karte setzen
+
+*2. September 2026 · Version 1.114.0*
+
+Seit der letzten Version kann ein Fund seine eigene Stelle mitbringen —
+bisher nur die, an der du gerade stehst. Jetzt gibt es im Fund-Formular
+eine dritte Wahl: **Auf Karte**.
+
+Darunter klappt ein kleiner Kartenausschnitt auf, mit einem Fadenkreuz in
+der Mitte. Du schiebst die Karte, bis das Fadenkreuz auf der Stelle steht
+— fertig. Das ist der Weg für alles, was du nicht im Wald einträgst:
+abends von zu Hause, oder wenn der Empfang unter den Bäumen nichts
+hergab.
+
+Auch bei **Meine Position** siehst du jetzt einen Ausschnitt. Er zeigt
+den Punkt und einen Kreis darum: **so genau ist die Messung**. Ist der
+Kreis groß, weißt du auf einen Blick, dass die Zahl mit Vorsicht zu
+genießen ist — das sagt mehr als „±14 m" in Ziffern.
+
+Zwei Dinge, die dir auffallen könnten:
+
+- **Eine auf der Karte gewählte Stelle bekommt kein „±".** Sie ist keine
+  Messung, sondern deine Angabe — es gibt also keine Ungenauigkeit, die
+  man beziffern könnte. Eine Null hinzuschreiben wäre eine Behauptung.
+- **Ohne Empfang bleibt der Ausschnitt leer**, aber nicht nutzlos: Der
+  Spot, der Umkreis, dein Punkt und der Maßstab sind trotzdem da, und ein
+  Hinweis sagt dir, dass die Stelle trotzdem gespeichert wird.
+
 ## Wo genau stand er? Jetzt weiß es die App
 
 *2. September 2026 · Version 1.113.0*
