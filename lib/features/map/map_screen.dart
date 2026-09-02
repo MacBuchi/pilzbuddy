@@ -55,6 +55,7 @@ import 'widgets/map_legend.dart';
 import 'widgets/share_location_sheet.dart';
 import 'widgets/spot_filter_sheet.dart';
 import '../../core/app_colors.dart';
+import '../../core/read_after_write.dart';
 
 /// Antwort auf „hier liegt schon ein Spot" (#215).
 enum _NearbyChoice { existingSpot, newSpot }
@@ -516,10 +517,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
     );
     if (finds == null) return;
     try {
-      await ref
+      final fresh = await ref
           .read(mySpotsProvider.notifier)
           .addFinds(spotId: spot.id, finds: finds);
-      _showMessage('Fund bei „${spot.displayName}" eingetragen 🍄');
+      _showMessage('Fund bei „${spot.displayName}" eingetragen 🍄'
+          '${fresh ? '' : staleAfterWriteHint}');
     } catch (e, stackTrace) {
       logError('Fund eintragen', e, stackTrace);
       _showMessage(friendlyError(e));
@@ -543,13 +545,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
     );
     if (data == null) return;
     try {
-      await ref.read(mySpotsProvider.notifier).addSpot(
+      final fresh = await ref.read(mySpotsProvider.notifier).addSpot(
             lat: center.latitude,
             lng: center.longitude,
             name: data.name,
             finds: data.finds,
           );
-      _showMessage('Spot gespeichert 🍄');
+      _showMessage('Spot gespeichert 🍄${fresh ? '' : staleAfterWriteHint}');
     } catch (e, stackTrace) {
       logError('Spot speichern', e, stackTrace);
       _showMessage(friendlyError(e));

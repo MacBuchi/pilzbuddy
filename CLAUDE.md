@@ -1106,8 +1106,27 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
 ## Code-Konventionen
 
 - Business-Logik in Repositories/Services, nicht in Providern oder Widgets.
-- Mutations-Muster: Repo-Call, dann `ref.invalidateSelf(); await future;`
-  (Read-after-write statt optimistischem Update).
+- Mutations-Muster: Repo-Call, dann **`await reloadAfterWrite('…')`**
+  (`lib/core/read_after_write.dart`, Mixin auf `AsyncNotifier`) —
+  Read-after-write statt optimistischem Update.
+  **Nicht mehr `ref.invalidateSelf(); await future;` von Hand** (#371):
+  So geschrieben fällt ein Fehler des ABRUFS in denselben `catch` wie
+  einer des SCHREIBENS. Der Nutzer las dann „Internet verfügbar?" über
+  einen Spot, der längst auf dem Server lag — und trug ihn noch einmal
+  ein. Mit frischer `client_id` ist das ein echter Doppel-Spot; Patch 016
+  sichert den Wiederholversuch DESSELBEN Auftrags, nicht die Handeingabe.
+  Zwei Dinge, die man wissen muss:
+  - **Der Helfer schluckt NUR den Abruf.** Ein Schreibfehler wirft
+    weiter — sonst würde ein kaputtes Deployment zur stillen
+    Erfolgsmeldung, dieselbe Grenze wie bei `looksOffline` und dem
+    Zwischenspeicher (#80). `test/flows/read_after_write_flow_test.dart`
+    prüft beide Richtungen.
+  - **Sein Rückgabewert ist die Auskunft an die Oberfläche**: `false`
+    heißt „geschrieben, aber die Liste ist noch alt". Wer eine
+    Erfolgsmeldung zeigt, hängt `staleAfterWriteHint` an — sonst steht
+    „gespeichert" über einer Liste, in der nichts Neues erscheint, und
+    das sieht wieder nach Misserfolg aus. `addSpot`/`addFinds` geben ihn
+    deshalb durch.
 - **Fund ≠ Eintrag** (seit 1.58.0, #211): `finds` trägt neben Funden auch
   Leergänge (`blank`, „Nichts gefunden"). Über `Spot` gibt es deshalb zwei
   Familien von Zugängen, und die Wahl entscheidet über die Richtigkeit:

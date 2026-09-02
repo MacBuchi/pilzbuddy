@@ -7,6 +7,31 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## „Nicht gespeichert" — obwohl gespeichert
+
+*2. September 2026 · Version 1.111.1*
+
+Wenn der Server beim Speichern eines Spots oder eines Fundes gerade
+überlastet war, konnte es passieren, dass PilzBuddy „Internet
+verfügbar?" meldete, obwohl alles gut gegangen war. Der Spot lag längst
+auf dem Server — nur die Liste danach kam nicht mehr durch, und die App
+hat diesen zweiten Fehler für den ersten gehalten.
+
+Für dich sah das aus wie ein misslungener Versuch: keine
+Bestätigungsmeldung, und auf der Karte war der neue Spot auch nicht zu
+sehen. Naheliegenderweise trägt man ihn dann noch einmal ein — und
+danach steht er doppelt da.
+
+Jetzt unterscheidet die App die beiden Fälle. Ging das Speichern durch,
+sagt sie das auch, selbst wenn die Liste danach hakt: „Spot gespeichert
+🍄 — sichtbar, sobald die Liste wieder lädt." Ein echter Fehler beim
+Speichern bleibt dagegen ein Fehler; daran ändert sich nichts.
+
+Falls du in den letzten Wochen einen Spot doppelt angelegt hast: Im
+Profil steht dann „Dicht beieinander" — dort lassen sich zwei Spots am
+selben Fleck zusammenführen. Der Eintrag erscheint nur, wenn es
+tatsächlich solche Paare gibt.
+
 ## Die Web-App zeigt wieder Regen — und ist auf dem Handy lesbar
 
 *2. September 2026 · Version 1.111.0*

@@ -4,6 +4,7 @@ import '../../core/errors.dart';
 import '../../data/providers.dart';
 import '../../models/friend_location.dart';
 import '../friends/friend_providers.dart';
+import '../../core/read_after_write.dart';
 
 /// Poll-Intervall der Freundes-Standorte, solange mindestens eine
 /// Freigabe LIVE ist. Als Provider, damit Tests es überschreiben (oder
@@ -24,7 +25,8 @@ final appInForegroundProvider = StateProvider<bool>((ref) => true);
 
 /// Ende meiner laufenden Standort-Freigabe (UTC), oder null, wenn ich gerade
 /// nicht teile. Mutationen laufen wie überall über invalidateSelf + reload.
-class MyShareNotifier extends AsyncNotifier<DateTime?> {
+class MyShareNotifier extends AsyncNotifier<DateTime?>
+    with ReadAfterWrite<DateTime?> {
   @override
   Future<DateTime?> build() {
     ref.watch(currentUserIdProvider);
@@ -45,14 +47,12 @@ class MyShareNotifier extends AsyncNotifier<DateTime?> {
           lng: lng,
           expiresAt: expiresAt,
         );
-    ref.invalidateSelf();
-    await future;
+    await reloadAfterWrite('Standort-Freigabe neu laden');
   }
 
   Future<void> stop() async {
     await ref.read(liveShareRepositoryProvider).stopSharing();
-    ref.invalidateSelf();
-    await future;
+    await reloadAfterWrite('Standort-Freigabe neu laden');
   }
 }
 
