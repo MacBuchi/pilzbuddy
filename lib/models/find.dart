@@ -1,3 +1,5 @@
+import 'find_position.dart';
+
 class Find {
   final String id;
   final String spotId;
@@ -32,6 +34,12 @@ class Find {
   /// nichts, was der Server kennt.
   final bool pending;
 
+  /// Die eigene Stelle dieses Fundes (Patch 022, #373) — oder `null`,
+  /// und das ist der Normalfall: Jede Zeile aus der Zeit vor Patch 022
+  /// hat keine, und ein abends nachgetragener Fund bekommt auch keine.
+  /// Wo sie fehlt, gilt weiter der Ort des Spots.
+  final FindPosition? position;
+
   const Find({
     required this.id,
     required this.spotId,
@@ -46,6 +54,7 @@ class Find {
     this.isOwn = true,
     this.blank = false,
     this.pending = false,
+    this.position,
   });
 
   factory Find.fromJson(Map<String, dynamic> json,
@@ -69,6 +78,9 @@ class Find {
       // Fehlt die Spalte, ist die Zeile älter als Patch 015 — und älter
       // als „nichts gefunden" heißt: ein echter Fund.
       blank: json['blank'] as bool? ?? false,
+      // Fehlen die Spalten, ist die Zeile älter als Patch 022 — dann hat
+      // dieser Fund eben keine eigene Stelle.
+      position: FindPosition.fromJson(json),
     );
   }
 

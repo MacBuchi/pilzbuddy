@@ -237,7 +237,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
   /// (`StatefulShellRoute`), ihr Zustand überlebt den Reiterwechsel — der
   /// Rückweg aus dem Profil ist kein neuer Start.
   ///
-  /// **Aus dem laufenden Positionsstrom, nicht über [_currentPosition].**
+  /// **Aus dem laufenden Positionsstrom, nicht über [positionFixProvider].**
   /// Der Unterschied ist die Berechtigungsfrage: Der Strom stellt sie
   /// bewusst nie (`position_provider.dart`), das tut allein „Auf mich
   /// zentrieren". Beim allerersten Start liefe der System-Dialog sonst
@@ -270,23 +270,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
           1.0 &&
       (_map.zoom - _fallbackZoom).abs() < 0.1;
 
-  Future<Position?> _currentPosition() async {
-    try {
-      if (!await Geolocator.isLocationServiceEnabled()) return null;
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        return null;
-      }
-      return await Geolocator.getCurrentPosition();
-    } catch (_) {
-      return null;
-    }
-  }
-
   void _showMessage(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -296,7 +279,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 
   Future<void> _centerOnMe() async {
-    final position = await _currentPosition();
+    final position = await ref.read(positionFixProvider)();
     if (position == null) {
       _showMessage('Standort nicht verfügbar. Berechtigung erteilt?');
       return;
@@ -360,7 +343,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     // Bevorzugt die bereits laufende Live-Position; sonst einmalig anfragen
     // (fragt ggf. nach der Berechtigung, wie „Meine Position").
     var position = ref.read(positionStreamProvider).valueOrNull;
-    position ??= await _currentPosition();
+    position ??= await ref.read(positionFixProvider)();
     if (position == null) {
       _showMessage('Standort nicht verfügbar. Berechtigung erteilt?');
       return;
@@ -511,6 +494,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final ownSpecies = ref.read(ownSpeciesProvider);
     final finds = await showAddFindSheet(
       context,
+      spotAt: spot.position,
       lastFind: spot.lastOwnFind,
       ownSpecies: ownSpecies,
       fallbackSpecies: ownSpecies.firstOrNull,

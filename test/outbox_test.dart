@@ -8,6 +8,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/data/outbox.dart';
 import 'package:pilzbuddy/data/spot_repository.dart';
+import 'package:pilzbuddy/models/find_position.dart';
 
 void main() {
   late Directory dir;
@@ -207,6 +208,102 @@ void main() {
     Directory('${file.path}/jobs.json').deleteSync();
     await outbox.append(spotJob(id: 'job-danach'), uid: 'me');
     expect((await outbox.read(uid: 'me')).single.id, 'job-danach');
+  });
+
+  group('die Fundstelle reist mit (#373)', () {
+    test('gemessener Fund UND positionierter Leergang überstehen die '
+        'Rundreise', () async {
+      // Der Leergang ist der Fall, der leicht durchrutscht:
+      // `_findFromJson` verzweigt auf `NewFind.blank`, und wer die
+      // Position nur im anderen Zweig durchreicht, verliert sie genau
+      // dort — bei der Aussage, die am stärksten an einem Ort hängt.
+      final outbox = FileOutbox(baseDirOverride: dir);
+      await outbox.append(
+          NewFindsJob(
+            id: 'job-p',
+            createdAt: DateTime.utc(2026, 8, 10, 10),
+            spotId: 'spot-7',
+            spotIsPending: false,
+            finds: [
+              NewFind(
+                  species: 'Steinpilz',
+                  foundOn: DateTime.utc(2026, 8, 10),
+                  clientId: 'p-f1',
+                  position: const FindPosition.gps(
+                      lat: 51.1634, lng: 10.4477, accuracy: 6.5)),
+              NewFind.blank(
+                  foundOn: DateTime.utc(2026, 8, 10),
+                  clientId: 'p-f2',
+                  position:
+                      const FindPosition.picked(lat: 51.1635, lng: 10.4478)),
+            ],
+          ),
+          uid: 'me');
+
+      final back = (await outbox.read(uid: 'me')).single as NewFindsJob;
+      expect(back.finds[0].position,
+          const FindPosition.gps(lat: 51.1634, lng: 10.4477, accuracy: 6.5));
+      expect(back.finds[1].position,
+          const FindPosition.picked(lat: 51.1635, lng: 10.4478),
+          reason: 'ein Leergang hat einen Ort — er IST die Aussage');
+      expect(back.finds[1].position!.measured, isFalse,
+          reason: 'auf der Karte gewählt: keine erfundene Genauigkeit');
+    });
+
+    test('ein Korb aus einem älteren Stand bleibt lesbar', () async {
+      // Kein `position`-Schlüssel: Anders als bei `client_id` ist das
+      // kein Grund, den Eintrag wegzuwerfen — ein Fund ohne eigene
+      // Stelle ist ein gültiger Fund.
+      final file = File('${dir.path}/outbox/jobs.json');
+      await file.parent.create(recursive: true);
+      await file.writeAsString(jsonEncode({
+        'uid': 'me',
+        'jobs': [
+          {
+            'kind': 'finds',
+            'id': 'alt',
+            'created_at': DateTime.utc(2026, 8, 1).toIso8601String(),
+            'spot_id': 'spot-1',
+            'spot_is_pending': false,
+            'finds': [
+              {
+                'client_id': 'alt-f1',
+                'species': 'Marone',
+                'found_on': '2026-08-01',
+                'blank': false,
+              }
+            ],
+          }
+        ],
+      }));
+
+      final jobs = await FileOutbox(baseDirOverride: dir).read(uid: 'me');
+      expect((jobs.single as NewFindsJob).finds.single.position, isNull);
+    });
+
+    test('withClientId verliert kein einziges Feld', () {
+      // Die Methode kopiert feldweise — wer hier etwas vergisst, verliert
+      // es still auf dem Weg in den Korb.
+      const position =
+          FindPosition.gps(lat: 47.8, lng: 12.9, accuracy: 4.25);
+      final full = NewFind(
+        species: 'Pfifferling',
+        count: 7,
+        foundOn: DateTime.utc(2026, 9, 2),
+        note: 'unter der Fichte',
+        position: position,
+      );
+
+      final stamped = full.withClientId('c-1');
+
+      expect(stamped.clientId, 'c-1');
+      expect(stamped.species, 'Pfifferling');
+      expect(stamped.count, 7);
+      expect(stamped.foundOn, DateTime.utc(2026, 9, 2));
+      expect(stamped.note, 'unter der Fichte');
+      expect(stamped.blank, isFalse);
+      expect(stamped.position, position);
+    });
   });
 
   test('newClientId liefert eine gültige, jedes Mal andere UUID v4', () {

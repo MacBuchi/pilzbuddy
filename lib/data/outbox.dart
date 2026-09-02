@@ -24,6 +24,7 @@ import 'dart:math';
 import 'package:path_provider/path_provider.dart';
 
 import '../core/dates.dart';
+import '../models/find_position.dart';
 import 'spot_repository.dart' show NewFind;
 
 /// Eine UUID v4 aus dem kryptografischen Zufall des Systems — die
@@ -57,6 +58,10 @@ Map<String, dynamic> _findToJson(NewFind find) => {
       'found_on': isoDate(find.foundOn),
       'note': find.note,
       'blank': find.blank,
+      // Ein verschachtelter Schlüssel statt dreier flacher: eine Stelle
+      // zum Vergessen statt drei, und zwei vergessene von drei Feldern
+      // wären der stille Fall.
+      'position': find.position?.toJson(),
     };
 
 NewFind? _findFromJson(Map<String, dynamic> json) {
@@ -67,17 +72,25 @@ NewFind? _findFromJson(Map<String, dynamic> json) {
     // Zweck des Korbs. Lieber gar nicht als ohne.
     if (foundOn == null || clientId == null) return null;
     final blank = json['blank'] as bool? ?? false;
+    // Fehlt der Schlüssel, stammt der Korb aus einem älteren Stand —
+    // anders als bei `client_id` ist das kein Grund, den Eintrag
+    // wegzuwerfen: Ein Fund ohne eigene Stelle ist ein gültiger Fund.
+    // Beide Zweige reichen sie durch; auch ein Leergang hat einen Ort.
+    final position =
+        FindPosition.fromJson(json['position'] as Map<String, dynamic>?);
     return blank
         ? NewFind.blank(
             foundOn: foundOn,
             note: json['note'] as String?,
-            clientId: clientId)
+            clientId: clientId,
+            position: position)
         : NewFind(
             species: json['species'] as String?,
             count: json['count'] as int?,
             foundOn: foundOn,
             note: json['note'] as String?,
             clientId: clientId,
+            position: position,
           );
   } catch (_) {
     return null;

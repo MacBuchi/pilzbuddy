@@ -21,3 +21,57 @@ double distanceKm(double lat1, double lon1, double lat2, double lon2) {
 /// werden (#215).
 double distanceMeters(double lat1, double lon1, double lat2, double lon2) =>
     distanceKm(lat1, lon1, lat2, lon2) * 1000;
+
+/// Kurswinkel von Punkt 1 nach Punkt 2 in Grad — 0 ist Norden, im
+/// Uhrzeigersinn.
+///
+/// Dieselbe ebene Näherung wie [distanceKm] und aus demselben Grund: Auf
+/// den zwanzig Metern zwischen zwei Funden desselben Spots ist die
+/// Erdkrümmung kein Thema. Der `cos`-Faktor auf die Länge dagegen sehr
+/// wohl — ohne ihn zeigte „östlich" in Deutschland um rund ein Drittel
+/// daneben, und eine Himmelsrichtung, die falsch ist, ist schlimmer als
+/// keine.
+double bearingDegrees(double lat1, double lon1, double lat2, double lon2) {
+  const kmPerDegree = 111.2;
+  final dy = (lat2 - lat1) * kmPerDegree;
+  final dx = (lon2 - lon1) *
+      kmPerDegree *
+      math.cos((lat1 + lat2) / 2 * math.pi / 180);
+  final degrees = math.atan2(dx, dy) * 180 / math.pi;
+  return (degrees + 360) % 360;
+}
+
+/// Die Himmelsrichtung als deutsches Adverb: „nordöstlich".
+///
+/// ACHT Richtungen und nicht sechzehn: „nordnordöstlich" behauptet eine
+/// Auflösung, die ein Kurswinkel über zwölf Meter mit ±5 m Streuung nicht
+/// hat. Jeder Sektor ist 45° breit, Norden liegt mittig darin — deshalb
+/// der halbe Sektor Versatz vor dem Abrunden.
+String compassPoint(double bearingDeg) {
+  const names = [
+    'nördlich',
+    'nordöstlich',
+    'östlich',
+    'südöstlich',
+    'südlich',
+    'südwestlich',
+    'westlich',
+    'nordwestlich',
+  ];
+  final normalized = (bearingDeg % 360 + 360) % 360;
+  return names[(((normalized + 22.5) % 360) ~/ 45).toInt()];
+}
+
+/// Meter in der Schreibweise, die die App benutzt: „14 m", ab einem
+/// Kilometer „1,2 km".
+///
+/// Bis #373 stand `${x.round()} m` an fünf Stellen einzeln. Neue Zeilen
+/// gehen über diesen Helfer; die alten ziehen bei Berührung nach —
+/// dieselbe Regel wie bei den Farbkonstanten (CLAUDE.md).
+String formatMeters(double meters) {
+  if (meters.abs() >= 1000) {
+    final km = (meters / 100).round() / 10;
+    return '${km.toString().replaceAll('.', ',')} km';
+  }
+  return '${meters.round()} m';
+}

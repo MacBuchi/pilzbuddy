@@ -41,7 +41,7 @@ verarbeitet*, *erforderlich oder optional* — plus die Zwecke.
 
 | Datentyp | Erhoben | Geteilt | Pflicht? | Zweck | Woher |
 |---|---|---|---|---|---|
-| **Standort → Genauer Standort** | Ja | Nein¹ | Optional | App-Funktionalität | `spots.lat/lng`, `live_locations`. Seit 1.112.0 lässt sich ein Spot per `geo:`-URI an eine Navi-App auf demselben Gerät übergeben (#367) — auf Knopfdruck und mit dem System-Wähler als Bestätigung, siehe ¹. Der Weg einer Pilztour (#338) wird ebenfalls erhoben, verlässt das Gerät aber NIE — er liegt in `tours/` im App-Verzeichnis, ist vom Backup ausgenommen und wird nach dem Abschluss gelöscht; hochgeladen werden nur die daraus bestätigten Leergänge |
+| **Standort → Genauer Standort** | Ja | Nein¹ | Optional | App-Funktionalität | `spots.lat/lng`, `live_locations`, seit #373 auf Wunsch auch `finds.lat/lng/accuracy_m` — die Stelle eines EINZELNEN Fundes samt gemeldeter Messgenauigkeit, nur wenn der Nutzer sie im Fund-Blatt wählt. Seit 1.112.0 lässt sich ein Spot per `geo:`-URI an eine Navi-App auf demselben Gerät übergeben (#367) — auf Knopfdruck und mit dem System-Wähler als Bestätigung, siehe ¹. Der Weg einer Pilztour (#338) wird ebenfalls erhoben, verlässt das Gerät aber NIE — er liegt in `tours/` im App-Verzeichnis, ist vom Backup ausgenommen und wird nach dem Abschluss gelöscht; hochgeladen werden nur die daraus bestätigten Leergänge |
 | **Standort → Ungefährer Standort** | Ja | Nein¹ | Optional | App-Funktionalität | `ACCESS_COARSE_LOCATION` ist deklariert; ein grober Fix wird genauso gespeichert |
 | **Persönliche Infos → E-Mail-Adresse** | Ja | Nein³ | Erforderlich | App-Funktionalität, Kontoverwaltung | Supabase Auth; zusätzlich Freundessuche über die exakte Adresse; Versand der Bestätigungs- und Reset-Mails über Brevo |
 | **Persönliche Infos → Name** | Ja | Nein¹ | Erforderlich | App-Funktionalität, Kontoverwaltung | `profiles.username` (nicht null) und `display_name`; der Benutzername ist für alle Nutzer suchbar |
@@ -147,7 +147,7 @@ aapt2 dump badging build/app/outputs/flutter-apk/app-release.apk | grep uses-per
 | Berechtigung | Wofür | Herkunft |
 |---|---|---|
 | `INTERNET` | Supabase, Kartenkacheln, Update-Check | Manifest |
-| `ACCESS_FINE_LOCATION` | eigene Position, „Spot hier", Live-Standort | Manifest |
+| `ACCESS_FINE_LOCATION` | eigene Position („Meine Position"), Live-Standort, Pilztour, Fund-Position (#373) | Manifest |
 | `ACCESS_COARSE_LOCATION` | dasselbe, grob | Manifest |
 | `FOREGROUND_SERVICE` | Karten-Download und Pilztour halten den Prozess wach | Manifest |
 | `FOREGROUND_SERVICE_DATA_SYNC` | Typ des Dienstes beim Download (ab Android 14 Pflicht) | Manifest |
@@ -251,9 +251,16 @@ Play-Manifests — und das soll im PR auffallen, nicht im Release-Workflow.
   Berechtigung fehlt und dass der Service-Typ da ist.
 - **Die Berechtigung wird ausschließlich nach einer sichtbaren
   Nutzeraktion erfragt** (`_currentPosition()` in
-  `lib/features/map/map_screen.dart`, ausgelöst von „Auf mich zentrieren",
-  „Spot hier" oder dem Live-Standort-Teilen; die Pilztour startet über
-  ihren eigenen Knopf und läuft nur, solange die Benachrichtigung steht).
+  `positionFixProvider` in `lib/features/map/position_provider.dart`,
+  ausgelöst vom Knopf „Meine Position", vom Live-Standort-Teilen und seit
+  #373 von „Meine Position" im Fund-Blatt; die Pilztour startet über ihren
+  eigenen Knopf und läuft nur, solange die Benachrichtigung steht).
+  **Das Anlegen eines Spots gehört ausdrücklich NICHT dazu**: Es nimmt die
+  Fadenkreuz-Position aus der Karte und fragt nie nach dem Standort. Und
+  das ÖFFNEN des Fund-Blatts fragt ebenfalls nicht — dessen Vorbelegung
+  liest nur den ohnehin laufenden Positionsstrom, der seinerseits nie
+  fragt. Ein Test hält genau das fest
+  (`test/flows/find_position_flow_test.dart`).
   Der Positionsstrom für den eigenen Marker auf der Karte
   (`position_provider.dart`) und das Einrasten beim Start (#360, seit
   1.109.0) fragen bewusst NIE — sie nutzen nur eine Berechtigung, die

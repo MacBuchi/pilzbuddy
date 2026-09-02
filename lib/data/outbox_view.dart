@@ -122,4 +122,7 @@ Find _pendingFind(
       authorId: ownerId,
       blank: find.blank,
       pending: true,
+      // Ohne das zeigte ein wartender Fund seine Stelle erst nach dem
+      // Senden — und das sähe aus wie Datenverlust.
+      position: find.position,
     );

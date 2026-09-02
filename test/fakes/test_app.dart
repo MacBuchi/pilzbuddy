@@ -59,11 +59,16 @@ class FakeTileProvider extends TileProvider {
 }
 
 /// Test-Position ohne Geolocator-Plugin (alle Pflichtfelder gefüllt).
-Position fakePosition(double lat, double lng) => Position(
+///
+/// [accuracy] ist der gemeldete Streuradius in Metern. Einstellbar seit
+/// #373: Ohne ihn ließe sich ein zu grober Fix nicht nachstellen, und
+/// genau der entscheidet dort, ob eine Fund-Position übernommen wird.
+Position fakePosition(double lat, double lng, {double accuracy = 5}) =>
+    Position(
       latitude: lat,
       longitude: lng,
       timestamp: DateTime.fromMillisecondsSinceEpoch(0),
-      accuracy: 5,
+      accuracy: accuracy,
       altitude: 0,
       altitudeAccuracy: 1,
       heading: 0,
@@ -71,6 +76,24 @@ Position fakePosition(double lat, double lng) => Position(
       speed: 0,
       speedAccuracy: 1,
     );
+
+/// Eine steuerbare Quelle für den EINZELNEN Fix (`positionFixProvider`).
+///
+/// [calls] ist nicht Zierde: Damit lässt sich beweisen, dass ein Blatt
+/// beim Öffnen NICHT nach dem Standort fragt — der Systemdialog gehört
+/// hinter einen sichtbaren Tipp, und das ist die Zusage aus
+/// `docs/play-console.md`.
+class FakePositionFix {
+  FakePositionFix([this.next]);
+
+  Position? next;
+  int calls = 0;
+
+  Future<Position?> call() async {
+    calls++;
+    return next;
+  }
+}
 
 List<Override> overridesFor(FakeBackend backend,
         {FakeOfflineMapRepository? offlineMaps,
@@ -85,6 +108,7 @@ List<Override> overridesFor(FakeBackend backend,
         FakeAppConfigRepository? appConfig,
         String appVersion = '1.0.0',
         Position? position,
+        FakePositionFix? positionFix,
         Settings? settings,
         FakeApkInstaller? apkInstaller,
         FakeSpotCache? spotCache,
@@ -122,6 +146,12 @@ List<Override> overridesFor(FakeBackend backend,
       // den Korb mit.
       outboxProvider.overrideWithValue(outbox ?? FakeOutbox()),
       positionStreamProvider.overrideWith((ref) => Stream.value(position)),
+      // Vorgabe ist derselbe Wert, den auch der Strom bekommt: Ein Test,
+      // der `position:` setzt, meint „der Nutzer steht dort" — und dann
+      // soll auch ein einzelner Fix ihn finden. Ohne `position` bleibt es
+      // bei „Standort nicht verfügbar", wie in jedem Bestandstest.
+      positionFixProvider
+          .overrideWithValue((positionFix ?? FakePositionFix(position)).call),
       offlineMapRepositoryProvider
           .overrideWithValue(offlineMaps ?? FakeOfflineMapRepository()),
       // Kein Foreground-Service im Test — den Platform-Channel gibt es hier
@@ -242,6 +272,7 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
     FakeAppConfigRepository? appConfig,
     String appVersion = '1.0.0',
     Position? position,
+    FakePositionFix? positionFix,
     Settings? settings,
     FakeApkInstaller? apkInstaller,
     FakeSpotCache? spotCache,
@@ -261,6 +292,7 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
         appConfig: appConfig,
         appVersion: appVersion,
         position: position,
+        positionFix: positionFix,
         settings: settings,
         apkInstaller: apkInstaller,
         spotCache: spotCache,

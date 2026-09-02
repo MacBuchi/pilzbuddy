@@ -3,13 +3,15 @@ import 'package:intl/intl.dart';
 
 import '../../../data/spot_repository.dart';
 import '../../../models/find.dart';
+import '../../../models/spot.dart';
+import '../find_offset.dart';
 import 'count_field.dart';
 import 'species_field.dart';
 
 /// Was im Korrektur-Blatt entschieden wurde: ein geänderter Eintrag oder
 /// der Wunsch, ihn zu löschen. Wer das Blatt abbricht, bekommt `null` —
 /// wie beim Anlege-Blatt schreibt der Aufrufer, nicht das Blatt.
-typedef FindEdit = ({NewFind? changed, bool delete});
+typedef FindEdit = ({NewFind? changed, bool delete, bool navigate});
 
 /// Blatt zum Korrigieren eines EINZELNEN Eintrags (#240).
 ///
@@ -28,22 +30,37 @@ typedef FindEdit = ({NewFind? changed, bool delete});
 /// Ein Leergang zeigt kein Artfeld: Der Constraint `finds_blank_leer`
 /// (Patch 015) verbietet Art und Anzahl dort. Umwandeln zwischen Fund und
 /// Leergang gibt es bewusst nicht — das ist Löschen und neu eintragen.
+///
+/// **Die Fundstelle (#373) steht hier nur da, sie lässt sich nicht
+/// ändern.** Sie ist eine MESSUNG, keine Angabe: Art, Anzahl, Datum und
+/// Notiz hat jemand aufgeschrieben und darf sie korrigieren; einen
+/// GPS-Fix zwei Tage später vom Sofa aus richtigzustellen hieße, eine
+/// Messung durch eine Erinnerung zu ersetzen. Eine falsche Stelle wird
+/// gelöscht und neu eingetragen — dieselbe Antwort wie oben.
 Future<FindEdit?> showEditFindSheet(
   BuildContext context, {
   required Find find,
+  required Spot spot,
   List<String> ownSpecies = const [],
 }) {
   return showModalBottomSheet<FindEdit>(
     context: context,
     isScrollControlled: true,
-    builder: (context) => _EditFindSheet(find: find, ownSpecies: ownSpecies),
+    builder: (context) =>
+        _EditFindSheet(find: find, spot: spot, ownSpecies: ownSpecies),
   );
 }
 
 class _EditFindSheet extends StatefulWidget {
-  const _EditFindSheet({required this.find, required this.ownSpecies});
+  const _EditFindSheet(
+      {required this.find, required this.spot, required this.ownSpecies});
 
   final Find find;
+
+  /// Der Spot, zu dem der Eintrag gehört — Bezugspunkt für die Angabe,
+  /// wo genau er lag (#373).
+  final Spot spot;
+
   final List<String> ownSpecies;
 
   @override
@@ -92,6 +109,7 @@ class _EditFindSheetState extends State<_EditFindSheet> {
               note: note.isEmpty ? null : note,
             ),
       delete: false,
+      navigate: false,
     ));
   }
 
@@ -120,7 +138,8 @@ class _EditFindSheetState extends State<_EditFindSheet> {
       ),
     );
     if (confirmed != true || !mounted) return;
-    Navigator.of(context).pop((changed: null, delete: true));
+    Navigator.of(context)
+        .pop((changed: null, delete: true, navigate: false));
   }
 
   @override
@@ -157,6 +176,15 @@ class _EditFindSheetState extends State<_EditFindSheet> {
                     style: Theme.of(context).textTheme.titleLarge),
               ],
             ),
+            // Nur Auskunft, kein Feld: Die Stelle ist eine Messung und
+            // wird nicht korrigiert — siehe Kopfkommentar.
+            if (findPositionLabel(widget.find, widget.spot)
+                case final where?)
+              Padding(
+                padding: const EdgeInsets.only(top: 4, left: 30),
+                child: Text('Lag $where.',
+                    style: Theme.of(context).textTheme.bodySmall),
+              ),
             const SizedBox(height: 16),
             if (blank)
               dateButton
@@ -190,6 +218,15 @@ class _EditFindSheetState extends State<_EditFindSheet> {
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
             ),
+            if (widget.find.position != null) ...[
+              const SizedBox(height: 4),
+              TextButton.icon(
+                onPressed: () => Navigator.of(context)
+                    .pop((changed: null, delete: false, navigate: true)),
+                icon: const Icon(Icons.directions_outlined),
+                label: const Text('Zu diesem Fund navigieren'),
+              ),
+            ],
             const SizedBox(height: 4),
             TextButton.icon(
               onPressed: _delete,
