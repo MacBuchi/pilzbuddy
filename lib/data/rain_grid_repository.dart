@@ -13,6 +13,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:archive/archive.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
@@ -22,6 +23,40 @@ import '../features/map/rain_grid.dart';
 /// sich mehrmals täglich, die App nicht.
 const rainDataBaseUrl =
     'https://github.com/MacBuchi/pilzbuddy/releases/download/rain-data';
+
+/// Dieselben Dateien für den Browser, aus einem Branch statt aus den
+/// Release-Anhängen.
+///
+/// **Release-Anhänge sind aus einer Webseite grundsätzlich nicht
+/// abrufbar** (#365, #366): `github.com/…/releases/download/…` schickt
+/// keinen `access-control-allow-origin`-Header. Der naheliegende Umweg
+/// über die API hilft nicht — deren 302 trägt zwar CORS, das Ziel
+/// `release-assets.githubusercontent.com` aber nicht, und der Browser
+/// prüft am ENDE der Weiterleitung. Gemessen am 2026-09-02.
+///
+/// Die Folge war nicht etwa eine Fehlermeldung, sondern ein stiller
+/// Rückfall: ohne Gitter zeichnet die Karte das harte DWD-Bild statt der
+/// eigenen Fläche, und die Ampel stand ohne Regendaten da.
+///
+/// `raw.githubusercontent.com` liefert `access-control-allow-origin: *`,
+/// aber nur für Dateien in einem Branch. Der Workflow `rain-data.yml`
+/// spiegelt den Release-Stand deshalb nach jedem Lauf dorthin — ein
+/// Wurzel-Commit, force gepusht, damit die Historie nicht mit mehrmals
+/// täglich 2 MB wächst.
+///
+/// Der Branch heißt bewusst NICHT wie der Tag: In einer raw-URL steht
+/// an dieser Stelle nur ein Name, und bei Tag und Branch gleichen
+/// Namens entschiede der Dienst, welchen er nimmt. Der Spiegel wäre
+/// dann ein Zufall, der sich nie wieder zuverlässig prüfen lässt.
+const rainDataWebBaseUrl =
+    'https://raw.githubusercontent.com/MacBuchi/pilzbuddy/rain-data-mirror';
+
+/// Die Adresse, die auf DIESER Plattform trägt.
+///
+/// Bewusst EIN Getter statt zweier Aufrufwege: Beide Seiten holen
+/// dieselben Dateien unter denselben Namen, und zwei Fassungen wären
+/// zwei Antworten auf „wo stehen die Regendaten".
+String get rainDataUrl => kIsWeb ? rainDataWebBaseUrl : rainDataBaseUrl;
 
 /// Was das Manifest über eine Ebene sagt.
 class RainGridInfo {
@@ -141,12 +176,37 @@ class RainStackData {
 }
 
 class RainGridRepository {
-  RainGridRepository({http.Client? client, Directory? baseDirOverride})
-      : _client = client ?? http.Client(),
-        _baseDirOverride = baseDirOverride;
+  RainGridRepository({
+    http.Client? client,
+    Directory? baseDirOverride,
+    bool? cachesToDisk,
+  })  : _client = client ?? http.Client(),
+        _baseDirOverride = baseDirOverride,
+        _cachesToDisk = cachesToDisk ?? !kIsWeb;
 
   final http.Client _client;
   final Directory? _baseDirOverride;
+
+  /// Ob es überhaupt eine Platte gibt, auf die sich etwas legen lässt.
+  ///
+  /// Auf Web nicht: `path_provider` hat dort keine Implementierung, und
+  /// `dart:io` kompiliert zwar (dart2js liefert Stubs), wirft aber beim
+  /// ersten echten Zugriff. Das war die ZWEITE Sperre vor den Regendaten
+  /// im Browser — die erste ist CORS, siehe [rainDataWebBaseUrl]; beide
+  /// mussten fallen, eine allein hätte nichts geändert.
+  ///
+  /// Kein Ersatz-Zwischenspeicher über IndexedDB: Der Browser hält die
+  /// Antworten selbst vor, und ein zweiter Speicher daneben wäre ein
+  /// zweiter Ort, an dem ein veralteter Stand kleben bleibt.
+  ///
+  /// Muster wie `NoSpotCache`/`NoOutbox` in `providers.dart` — dort
+  /// entfällt der ganze Zugang, hier nur seine Platte.
+  ///
+  /// Über den Konstruktor überschreibbar, damit der plattenlose Weg
+  /// nicht ausgerechnet die einzige Strecke ohne Test bleibt: Auf der
+  /// Test-VM ist `kIsWeb` immer falsch, der Web-Fall wäre sonst nur im
+  /// Browser zu sehen — also dort, wo ihn niemand misst.
+  final bool _cachesToDisk;
 
   Future<Directory> _dir() async {
     final base = _baseDirOverride ?? await getApplicationSupportDirectory();
@@ -177,20 +237,24 @@ class RainGridRepository {
       // Merken, bevor irgendetwas schiefgehen kann: Ohne das Manifest
       // lässt sich ein Gitter auf Platte später nicht mehr verorten.
       await rememberInfo(info);
-      final cached = File('${(await _dir()).path}/${info.cacheName}');
-      if (await cached.exists()) {
+      final cached = _cachesToDisk
+          ? File('${(await _dir()).path}/${info.cacheName}')
+          : null;
+      if (cached != null && await cached.exists()) {
         final grid = await _read(cached, info);
         if (grid != null) return grid;
       }
       try {
-        final bytes = await _download('$rainDataBaseUrl/${info.file}');
+        final bytes = await _download('$rainDataUrl/${info.file}');
         // Erst vollständig schreiben, dann prüfen: Ein Gitter, das sich
         // nicht auspacken lässt, darf nicht als Zwischenspeicher liegen
         // bleiben und jeden weiteren Versuch vergiften.
         final grid = _decode(bytes, info);
         if (grid != null) {
-          await cached.writeAsBytes(bytes, flush: true);
-          await _pruneOthers(cached.path, prefix: '${info.layer}_');
+          if (cached != null) {
+            await cached.writeAsBytes(bytes, flush: true);
+            await _pruneOthers(cached.path, prefix: '${info.layer}_');
+          }
           return grid;
         }
       } catch (_) {
@@ -231,13 +295,16 @@ class RainGridRepository {
     }
     if (info == null) return null;
 
-    final dir = await _dir();
+    // EINE Schleife für beide Plattformen: Ohne Platte fallen nur Lesen
+    // und Schreiben weg, geholt und ausgewertet wird gleich. Zwei
+    // getrennte Schleifen wären zwei Antworten auf „was ist der Stapel".
+    final dir = _cachesToDisk ? await _dir() : null;
     final days = <({DateTime date, List<int> gzipped})>[];
     for (final (index, day) in info.days.indexed) {
       onProgress?.call(index, info.days.length);
-      final file = File('${dir.path}/${day.file}');
+      final file = dir == null ? null : File('${dir.path}/${day.file}');
       List<int>? bytes;
-      if (await file.exists()) {
+      if (file != null && await file.exists()) {
         try {
           bytes = await file.readAsBytes();
         } catch (_) {
@@ -246,8 +313,8 @@ class RainGridRepository {
       }
       if (bytes == null) {
         try {
-          bytes = await _download('$rainDataBaseUrl/${day.file}');
-          await file.writeAsBytes(bytes, flush: true);
+          bytes = await _download('$rainDataUrl/${day.file}');
+          await file?.writeAsBytes(bytes, flush: true);
         } catch (_) {
           // Dieser Tag fehlt eben. Weitermachen: Ein Verlauf mit einer
           // Lücke ist brauchbar, ein Abbruch nicht.
@@ -257,7 +324,9 @@ class RainGridRepository {
       days.add((date: day.date, gzipped: bytes));
     }
     onProgress?.call(info.days.length, info.days.length);
-    await _pruneStack(dir, {for (final day in info.days) day.file});
+    if (dir != null) {
+      await _pruneStack(dir, {for (final day in info.days) day.file});
+    }
     if (days.isEmpty) return null;
     return RainStackData(info: info, days: days);
   }
@@ -276,7 +345,7 @@ class RainGridRepository {
     String? newestDay;
     try {
       final response = await _client
-          .get(Uri.parse('$rainDataBaseUrl/rain_manifest.json'))
+          .get(Uri.parse('$rainDataUrl/rain_manifest.json'))
           .timeout(const Duration(seconds: 15));
       if (response.statusCode != 200) {
         throw HttpException('Manifest: HTTP ${response.statusCode}');
@@ -289,10 +358,11 @@ class RainGridRepository {
       // noch ein Stand auf Platte. Kein `logError` (#124/#136).
     }
 
-    final dir = await _dir();
+    final dir = _cachesToDisk ? await _dir() : null;
     if (newestDay != null) {
-      final cached = File('${dir.path}/weather_$newestDay.json.gz');
-      if (await cached.exists()) {
+      final cached =
+          dir == null ? null : File('${dir.path}/weather_$newestDay.json.gz');
+      if (cached != null && await cached.exists()) {
         try {
           return await cached.readAsBytes();
         } catch (_) {
@@ -300,21 +370,26 @@ class RainGridRepository {
         }
       }
       try {
-        final bytes = await _download('$rainDataBaseUrl/weather_stations.json.gz');
+        final bytes = await _download('$rainDataUrl/weather_stations.json.gz');
         // Erst prüfen, dann schreiben — ein abgebrochener Download, der
         // sich nicht auspacken lässt, darf nicht als Zwischenspeicher
         // liegen bleiben und jeden weiteren Versuch vergiften (dasselbe
         // Muster wie beim Gitter). Die inhaltliche Prüfung macht der
         // Parser im Isolate des Aufrufers.
         GZipDecoder().decodeBytes(bytes);
-        await cached.writeAsBytes(bytes, flush: true);
-        await _pruneOthers(cached.path, prefix: 'weather_');
+        if (cached != null) {
+          await cached.writeAsBytes(bytes, flush: true);
+          await _pruneOthers(cached.path, prefix: 'weather_');
+        }
         return bytes;
       } catch (_) {
         // Still, wie beim Gitter: unten der Weg über die Platte.
       }
     }
 
+    // Der Weg über die Platte — im Browser gibt es ihn nicht, dort war
+    // der Abruf oben die einzige Gelegenheit.
+    if (dir == null) return null;
     try {
       final files = dir
           .listSync()
@@ -331,7 +406,7 @@ class RainGridRepository {
 
   Future<RainStackInfo?> _fetchStackInfo() async {
     final response = await _client
-        .get(Uri.parse('$rainDataBaseUrl/rain_manifest.json'))
+        .get(Uri.parse('$rainDataUrl/rain_manifest.json'))
         .timeout(const Duration(seconds: 15));
     if (response.statusCode != 200) {
       throw HttpException('Manifest: HTTP ${response.statusCode}');
@@ -360,6 +435,8 @@ class RainGridRepository {
       File('${(await _dir()).path}/stack.json');
 
   Future<void> _rememberStackInfo(RainStackInfo info) async {
+    // Ohne Platte gibt es hier nichts zu tun (Web).
+    if (!_cachesToDisk) return;
     try {
       await (await _stackInfoFile()).writeAsString(jsonEncode({
         'width': info.width,
@@ -379,6 +456,8 @@ class RainGridRepository {
   }
 
   Future<RainStackInfo?> _lastStackInfo() async {
+    // Ohne Platte gibt es hier nichts zu tun (Web).
+    if (!_cachesToDisk) return null;
     try {
       final file = await _stackInfoFile();
       if (!await file.exists()) return null;
@@ -391,7 +470,7 @@ class RainGridRepository {
 
   Future<RainGridInfo?> _fetchInfo(String layer) async {
     final response = await _client
-        .get(Uri.parse('$rainDataBaseUrl/rain_manifest.json'))
+        .get(Uri.parse('$rainDataUrl/rain_manifest.json'))
         .timeout(const Duration(seconds: 15));
     if (response.statusCode != 200) {
       throw HttpException('Manifest: HTTP ${response.statusCode}');
@@ -465,6 +544,8 @@ class RainGridRepository {
   /// Die Ausdehnung steht nicht in der Datei, also braucht dieser Weg das
   /// zuletzt gesehene Manifest. Es liegt daneben.
   Future<RainGrid?> _newestOnDisk(String layer) async {
+    // Ohne Platte gibt es hier nichts zu tun (Web).
+    if (!_cachesToDisk) return null;
     try {
       final dir = await _dir();
       final info = await _lastInfo(layer);
@@ -486,6 +567,8 @@ class RainGridRepository {
       File('${(await _dir()).path}/$layer.json');
 
   Future<RainGridInfo?> _lastInfo(String layer) async {
+    // Ohne Platte gibt es hier nichts zu tun (Web).
+    if (!_cachesToDisk) return null;
     try {
       final file = await _infoFile(layer);
       if (!await file.exists()) return null;
@@ -518,6 +601,10 @@ class RainGridRepository {
   /// neuer Ausschnitt verdrängt also die alten.
   Future<String?> writeFill(String layer, DateTime measured, List<int> png,
       {String variant = ''}) async {
+    // Nur die MapLibre-Strecke braucht eine Datei-URL, und die gibt es
+    // im Browser nicht — dort nimmt flutter_map dieselben Bytes direkt
+    // als `MemoryImage`.
+    if (!_cachesToDisk) return null;
     try {
       final dir = await _dir();
       final stamp =
@@ -537,6 +624,8 @@ class RainGridRepository {
   }
 
   Future<void> rememberInfo(RainGridInfo info) async {
+    // Ohne Platte gibt es hier nichts zu tun (Web).
+    if (!_cachesToDisk) return;
     try {
       await (await _infoFile(info.layer)).writeAsString(jsonEncode({
         'layer': info.layer,

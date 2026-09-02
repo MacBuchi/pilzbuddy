@@ -7,6 +7,33 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Web-App zeigt wieder Regen — und ist auf dem Handy lesbar
+
+*2. September 2026 · Version 1.111.0*
+
+In der Web-App (der Version, die du dir über den Browser auf den
+Startbildschirm legst) fehlten der Pilzampel die Regendaten, und die
+Regenkarte lag in groben Klötzchen statt weich verlaufend auf der Karte.
+Beides hatte dieselbe Ursache: Die Regendaten kamen dort schlicht nie an.
+
+Der Grund liegt in einer Sicherheitsregel der Browser, die den Weg
+verbaut, über den die Android-App ihre Regendaten holt. Die Daten liegen
+jetzt zusätzlich an einer Adresse, die der Browser lesen darf. Was die
+App daraus macht, ist unverändert — es sind dieselben Zahlen aus derselben
+Quelle, sie kommen nur auf einem anderen Weg an.
+
+Ärgerlich daran war vor allem, dass nichts davon nach einem Fehler aussah:
+Ohne Regendaten zeichnet die Karte ersatzweise das Bild des Deutschen
+Wetterdienstes, und das ist absichtlich hart gerastert. Es sah also nicht
+kaputt aus, sondern nur schlechter — und die Ampel schwieg einfach.
+
+**Außerdem hat die Web-App ihre Farbe zurück.** Auf dem Startbildschirm
+installiert, waren die Systemleisten oben und unten weiß, und damit auch
+Uhr, Empfangsbalken und die Bedienelemente von Android darin unsichtbar.
+Sie sind jetzt wieder grün. Und die Seite bringt ihren Maßstab wieder
+selbst mit — ohne das rechnete der Browser mit einer Bildschirmbreite,
+die es nicht gibt.
+
 ## Die Einführung zeigt jetzt alle Knöpfe — und weiß, wo es weitergeht
 
 *29. August 2026 · Versionen 1.110.0 und 1.110.1*
