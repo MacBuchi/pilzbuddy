@@ -7,6 +7,34 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Vom Spot direkt in die Navi-App
+
+*2. September 2026 · Version 1.112.0*
+
+Ein Spot ist schnell gesetzt — aber wie kommt man beim nächsten Mal
+wieder hin? Bisher blieb nur, die Stelle auf der Karte zu suchen und sich
+den Weg selbst zusammenzureimen.
+
+Im Spot-Detail steht jetzt oben ein neuer Knopf: **In Navi-App öffnen**.
+Ein Tipp darauf, und Android fragt, womit du hin willst — Google Maps,
+OsmAnd, Locus, Organic Maps, Komoot, OruxMaps: was immer bei dir
+installiert ist. Der Spot ist dort schon gesetzt, mit seinem Namen als
+Beschriftung.
+
+Das geht auch bei Spots, die ein Pilzfreund mit dir teilt. Löschen darf
+sie weiterhin nur, wem sie gehören — hinfahren darfst du.
+
+Zwei Dinge, die dir wichtig sein könnten:
+
+- **Die Koordinate verlässt dein Gerät dabei nicht ins Internet.** Sie
+  geht an die App, die du im Auswahlfenster antippst, und an sonst
+  niemanden. Wir hätten stattdessen einen Kartendienst im Browser öffnen
+  können — das wäre ein fester Empfänger gewesen und ausgerechnet im
+  Funkloch nutzlos.
+- Ist keine passende App installiert (oder benutzt du PilzBuddy im
+  Browser), landen die Koordinaten in der Zwischenablage, und die App
+  sagt dir das.
+
 ## „Nicht gespeichert" — obwohl gespeichert
 
 *2. September 2026 · Version 1.111.1*

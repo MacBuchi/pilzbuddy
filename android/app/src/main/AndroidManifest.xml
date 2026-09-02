@@ -140,5 +140,13 @@
             <action android:name="android.intent.action.VIEW"/>
             <data android:scheme="https"/>
         </intent>
+        <!-- url_launcher: einen Spot in einer Navi-App öffnen (#367).
+             Ohne diesen Eintrag sieht die App ab Android 11 keine App,
+             die `geo:` annimmt — der Wähler bliebe leer und der Knopf
+             fiele stumm auf die Zwischenablage zurück. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="geo"/>
+        </intent>
     </queries>
 </manifest>

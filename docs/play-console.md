@@ -41,7 +41,7 @@ verarbeitet*, *erforderlich oder optional* — plus die Zwecke.
 
 | Datentyp | Erhoben | Geteilt | Pflicht? | Zweck | Woher |
 |---|---|---|---|---|---|
-| **Standort → Genauer Standort** | Ja | Nein¹ | Optional | App-Funktionalität | `spots.lat/lng`, `live_locations`. Der Weg einer Pilztour (#338) wird ebenfalls erhoben, verlässt das Gerät aber NIE — er liegt in `tours/` im App-Verzeichnis, ist vom Backup ausgenommen und wird nach dem Abschluss gelöscht; hochgeladen werden nur die daraus bestätigten Leergänge |
+| **Standort → Genauer Standort** | Ja | Nein¹ | Optional | App-Funktionalität | `spots.lat/lng`, `live_locations`. Seit 1.112.0 lässt sich ein Spot per `geo:`-URI an eine Navi-App auf demselben Gerät übergeben (#367) — auf Knopfdruck und mit dem System-Wähler als Bestätigung, siehe ¹. Der Weg einer Pilztour (#338) wird ebenfalls erhoben, verlässt das Gerät aber NIE — er liegt in `tours/` im App-Verzeichnis, ist vom Backup ausgenommen und wird nach dem Abschluss gelöscht; hochgeladen werden nur die daraus bestätigten Leergänge |
 | **Standort → Ungefährer Standort** | Ja | Nein¹ | Optional | App-Funktionalität | `ACCESS_COARSE_LOCATION` ist deklariert; ein grober Fix wird genauso gespeichert |
 | **Persönliche Infos → E-Mail-Adresse** | Ja | Nein³ | Erforderlich | App-Funktionalität, Kontoverwaltung | Supabase Auth; zusätzlich Freundessuche über die exakte Adresse; Versand der Bestätigungs- und Reset-Mails über Brevo |
 | **Persönliche Infos → Name** | Ja | Nein¹ | Erforderlich | App-Funktionalität, Kontoverwaltung | `profiles.username` (nicht null) und `display_name`; der Benutzername ist für alle Nutzer suchbar |
@@ -76,6 +76,15 @@ es in der Beschreibung und in der Datenschutzerklärung stehen — beides ist de
 Fall. Dasselbe gilt für Funde, die man selbst an geteilten Spots von Freunden
 einträgt (seit 1.54.0): sichtbar nur für den Eintrager und den Spot-Besitzer,
 nie für Dritte — die Freundesgruppe verlässt auch das nicht.
+
+Auf derselben Ausnahme steht die Übergabe an eine Navi-App (#367, seit
+1.112.0): Der Nutzer tippt „In Navi-App öffnen", und Android zeigt IHM den
+Wähler mit den installierten Karten-Apps — die App entscheidet weder, wohin
+die Koordinate geht, noch schickt sie selbst etwas ins Netz. Ein
+`https://…/maps?q=…` als Rückfallweg wäre genau das Gegenteil und deshalb
+bewusst nicht gebaut: ein fester Empfänger, ein neues Netzziel in der
+Datenschutzerklärung — und im Funkloch, wo der Knopf gebraucht wird, tot.
+Wo niemand `geo:` annimmt, landet die Koordinate in der Zwischenablage.
 
 **² Feedback landet öffentlich auf GitHub — *geteilt*.**
 Empfehlung: **ja, als geteilt deklarieren.** Der Feedback-Bot macht daraus

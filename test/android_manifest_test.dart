@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/features/offline_maps/download_keep_alive_service.dart';
 import 'package:pilzbuddy/features/offline_maps/network_metering.dart';
+import 'package:pilzbuddy/features/spots/spot_navigation.dart';
 import 'package:xml/xml.dart';
 
 /// Datei, in der ausschließlich der Supabase-Session-Token liegt
@@ -271,6 +272,35 @@ void main() {
     }
     expect(declared, contains('android.permission.REQUEST_INSTALL_PACKAGES'),
         reason: 'Ohne sie scheitert das In-App-Update wortlos');
+  });
+
+  test('Die Navi-Übergabe darf ihren Empfänger sehen', () {
+    // Ab Android 11 sieht eine App nur die Programme, nach denen sie im
+    // Manifest fragt (Package Visibility). Ohne diesen Eintrag findet
+    // `launchUrl` niemanden für `geo:`, der Wähler bleibt aus, und der
+    // Knopf fällt still auf die Zwischenablage zurück — ein Fehler, der
+    // wie eine Entscheidung aussieht und den kein Widget-Test bemerkt.
+    //
+    // Geprüft gegen die Konstante aus dem Dart-Code, damit beide Seiten
+    // dasselbe Schema meinen. Dieselbe Klammer wie beim MethodChannel-
+    // Namen und beim Benachrichtigungs-Symbol.
+    final queries = _load('android/app/src/main/AndroidManifest.xml')
+        .rootElement
+        .findElements('queries')
+        .single;
+    final schemes = {
+      for (final intent in queries.findElements('intent'))
+        for (final data in intent.findElements('data'))
+          if (intent
+                  .findElements('action')
+                  .any((a) =>
+                      a.getAttribute('android:name') ==
+                      'android.intent.action.VIEW') &&
+              data.getAttribute('android:scheme') != null)
+            data.getAttribute('android:scheme')!,
+    };
+    expect(schemes, contains(kGeoScheme),
+        reason: 'ohne <queries> für "$kGeoScheme" bleibt der App-Wähler leer');
   });
 
   test('Der Play-Flavor nimmt REQUEST_INSTALL_PACKAGES wieder heraus', () {
