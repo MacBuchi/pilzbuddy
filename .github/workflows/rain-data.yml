@@ -153,3 +153,43 @@ jobs:
             fi
           done < published.txt
           echo "Im Stapel: $(wc -l < build/keep.txt) Tage"
+
+      - name: Mirror the release into a branch the browser can read
+        # Release assets carry NO `access-control-allow-origin` header, so
+        # a browser cannot fetch them at all — not even via the API, whose
+        # 302 does carry CORS while the redirect target does not, and the
+        # browser checks at the end. In the field this arrived as "the
+        # Pilzampel has no rain data in the PWA" and "the rain map is not
+        # smooth there" (#365, #366): without a grid the app silently
+        # falls back to the hard DWD image.
+        #
+        # `raw.githubusercontent.com` does send `*`, but only for files on
+        # a branch. So the finished release state is mirrored onto one.
+        #
+        # A ROOT commit per run, force-pushed: the branch keeps no history
+        # nobody reads, and yesterday's objects fall out of reference.
+        # Otherwise the repository would grow by ~2 MB several times a day.
+        #
+        # The branch is deliberately not named like the tag: a raw URL has
+        # only one name slot, and with a tag and a branch of the same name
+        # the service would decide which one it serves.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          rm -rf build/mirror
+          mkdir -p build/mirror
+          # Every asset, not just the ones this run built: the layers are
+          # built on different schedules, and the branch must show the
+          # whole release, not the last slice of it.
+          gh release download rain-data --dir build/mirror --clobber
+          cd build/mirror
+          git init -q
+          git checkout -q --orphan rain-data-mirror
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Mirror of release rain-data ($(date -u +%FT%TZ))"
+          git push -q --force \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            rain-data-mirror
+          echo "Gespiegelt: $(find . -maxdepth 1 -type f | wc -l) Dateien"

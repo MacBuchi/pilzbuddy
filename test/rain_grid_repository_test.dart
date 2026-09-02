@@ -165,4 +165,138 @@ void main() {
       expect(await repo(client: offline).loadWeatherTable(), isNull);
     });
   });
+
+  // Der Weg ohne Platte — das ist die Web-App.
+  //
+  // Bis 1.111.0 gab es ihn nicht, und das fiel niemandem auf, weil er
+  // still scheiterte: ohne Gitter zeichnet die Karte das harte DWD-Bild
+  // statt der eigenen Fläche, und die Ampel stand ohne Regendaten da
+  // (#365, #366). Zwei Sperren lagen hintereinander — CORS auf den
+  // Release-Anhängen und `path_provider`, das es im Browser nicht gibt.
+  // Diese Gruppe hält die zweite fest; die erste steht in
+  // `rainDataWebBaseUrl` und im Workflow.
+  group('ohne Platte', () {
+    RainGridRepository webRepo({http.Client? client}) => RainGridRepository(
+          baseDirOverride: base,
+          client: client,
+          cachesToDisk: false,
+        );
+
+    Directory dir() => Directory('${base.path}/rain');
+    bool wroteAnything() => dir().existsSync() && dir().listSync().isNotEmpty;
+
+    final gridBytes = GZipEncoder().encode(<int>[3, 0, 0, 0])!;
+    const gridManifest = '{"layers": {"w4": {"layer": "w4", '
+        '"file": "w4_20260804.bin.gz", "width": 2, "height": 2, '
+        '"west": 5.0, "east": 16.0, "north": 55.0, "south": 47.0, '
+        '"measured": "2026-08-04T05:50:00Z"}}}';
+
+    test('holt das Gitter und legt nichts ab', () async {
+      final client = MockClient((request) async {
+        if (request.url.path.endsWith('rain_manifest.json')) {
+          return http.Response(gridManifest, 200);
+        }
+        return http.Response.bytes(gridBytes, 200);
+      });
+
+      final grid = await webRepo(client: client).load('w4');
+
+      expect(grid, isNotNull, reason: 'ohne Gitter keine eigene Fläche und '
+          'keine Ampel — genau der gemeldete Fehler');
+      expect(grid!.width, 2);
+      expect(wroteAnything(), isFalse,
+          reason: 'im Browser gibt es keine Platte; ein Schreibversuch '
+              'würde werfen, und der Fehler wäre wieder still');
+    });
+
+    test('holt die Stationstabelle und legt nichts ab', () async {
+      final table = GZipEncoder().encode(utf8.encode('{"days":[]}'))!;
+      final client = MockClient((request) async {
+        if (request.url.path.endsWith('rain_manifest.json')) {
+          return http.Response(
+              '{"weather": {"file": "weather_stations.json.gz", '
+              '"days": ["2026-08-03"]}}',
+              200);
+        }
+        return http.Response.bytes(table, 200);
+      });
+
+      expect(await webRepo(client: client).loadWeatherTable(), table);
+      expect(wroteAnything(), isFalse);
+    });
+
+    test('holt den Tagesstapel und legt nichts ab', () async {
+      final day = GZipEncoder().encode(<int>[1, 0, 0, 0])!;
+      final client = MockClient((request) async {
+        if (request.url.path.endsWith('rain_manifest.json')) {
+          return http.Response(
+              '{"daily": {"width": 2, "height": 2, "west": 5.0, '
+              '"east": 16.0, "north": 55.0, "south": 47.0, "days": ['
+              '{"date": "2026-08-29T00:00:00Z", '
+              '"file": "rain_day_20260829.bin.gz"}]}}',
+              200);
+        }
+        return http.Response.bytes(day, 200);
+      });
+
+      final stack = await webRepo(client: client).loadDailyStack();
+
+      expect(stack, isNotNull);
+      expect(stack!.days, hasLength(1));
+      expect(wroteAnything(), isFalse);
+    });
+
+    test('die Fläche wird nicht geschrieben, sondern abgelehnt', () async {
+      // `writeFill` liefert eine `file://`-URL für MapLibre. Die Engine
+      // gibt es im Browser nicht — dort nimmt flutter_map dieselben
+      // Bytes direkt als `MemoryImage`.
+      expect(await webRepo().writeFill('w4', measured, [1, 2, 3]), isNull);
+      expect(wroteAnything(), isFalse);
+    });
+
+    test('ohne Netz gibt es nichts — still, und ohne auf Platte zu sehen',
+        () async {
+      final offline = MockClient((_) async => throw const SocketException(''));
+
+      expect(await webRepo(client: offline).load('w4'), isNull);
+      expect(await webRepo(client: offline).loadWeatherTable(), isNull);
+      expect(await webRepo(client: offline).loadDailyStack(), isNull);
+    });
+  });
+
+  group('die Adresse für den Browser', () {
+    test('zeigt nicht auf die Release-Anhänge', () {
+      // Gemessen am 2026-09-02: `github.com/…/releases/download/…`
+      // schickt keinen `access-control-allow-origin`-Header, auch nicht
+      // über die API — deren 302 trägt CORS, das Ziel
+      // `release-assets.githubusercontent.com` nicht, und der Browser
+      // prüft am Ende der Weiterleitung. Wer hier zurückdreht, holt
+      // #365 und #366 zurück.
+      expect(rainDataWebBaseUrl, isNot(contains('releases/download')));
+      expect(rainDataWebBaseUrl, startsWith('https://raw.githubusercontent.com/'));
+    });
+
+    test('ihr Branch heißt nicht wie der Tag', () {
+      // In einer raw-URL steht nur ein Name. Hießen Tag und Branch
+      // gleich, entschiede der Dienst, welchen er ausliefert — der
+      // Spiegel wäre ein Zufall.
+      final branch = rainDataWebBaseUrl.split('/').last;
+      final tag = rainDataBaseUrl.split('/').last;
+      expect(branch, isNot(tag));
+    });
+
+    test('der Workflow spiegelt in genau diesen Branch', () {
+      // Zwei Seiten, die still auseinanderlaufen können: Dart holt von
+      // einem Branch, den ein Workflow schreibt. Stimmt der Name nicht
+      // überein, liefert raw einen 404 — und die App fällt still auf
+      // das DWD-Bild zurück, also genau in den gemeldeten Fehler.
+      final yaml = File('.github/workflows/rain-data.yml').readAsStringSync();
+      final branch = rainDataWebBaseUrl.split('/').last;
+
+      expect(yaml, contains('--orphan $branch'),
+          reason: 'der Workflow muss den Branch bauen, den die App liest');
+      expect(yaml, contains('git push -q --force'),
+          reason: 'ohne force wüchse die Historie um mehrmals täglich 2 MB');
+    });
+  });
 }

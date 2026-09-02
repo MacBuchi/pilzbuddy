@@ -884,6 +884,35 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   „neues Netzziel ⇒ Datenschutzerklärung im selben PR" als Wächter:
   Jeder Host, der in `lib/` auftaucht und dort nicht eingeordnet ist,
   macht CI rot.
+- **Release-Anhänge sind aus dem Browser NICHT abrufbar** (#365/#366, seit
+  1.111.0): `github.com/…/releases/download/…` schickt keinen
+  `access-control-allow-origin`-Header, und der naheliegende Umweg über die
+  API hilft nicht — deren 302 trägt CORS, das Ziel
+  `release-assets.githubusercontent.com` nicht, und der Browser prüft am
+  ENDE der Weiterleitung (gemessen 2026-09-02). Die PWA bekam damit weder
+  Regengitter noch Stationstabelle.
+  **Und es sah nach nichts aus:** Ohne Gitter fällt `rainPaintProvider` auf
+  `RainPaint.dwd` zurück — die Karte zeichnet dann das absichtlich hart
+  gerasterte DWD-Bild, und die Ampel schweigt. Der Fehler kam als zwei
+  getrennte Meldungen an („Ampel ohne Regendaten", „Regenkarte nicht
+  weich"), war aber eine Ursache. Wer im Web etwas nicht findet, prüfe
+  daher zuerst CORS und nicht die Fachlogik.
+  `rain-data.yml` spiegelt den Release-Stand deshalb nach jedem Lauf in den
+  Branch `rain-data-mirror`, den `raw.githubusercontent.com` mit `*`
+  ausliefert — ein Wurzel-Commit, force gepusht, damit die Historie nicht
+  um mehrmals täglich 2 MB wächst. **Der Branch heißt bewusst nicht wie der
+  Tag:** In einer raw-URL steht nur ein Name, und bei Gleichheit entschiede
+  der Dienst, welchen er nimmt.
+  Zwei Dinge, die man wissen muss:
+  - **Es waren ZWEI Sperren hintereinander**, und eine allein zu lösen
+    hätte nichts geändert: hinter CORS lag `path_provider`, das es auf Web
+    nicht gibt. `RainGridRepository` cacht dort nichts mehr
+    (`cachesToDisk`, per Konstruktor überschreibbar — sonst wäre der
+    Web-Weg die einzige Strecke ohne Test, denn `kIsWeb` ist auf der
+    Test-VM immer falsch).
+  - **`forest-data` hat dasselbe Problem und ist NICHT gelöst.** Die feinen
+    Waldblöcke sind ein Opt-in auf der Offline-Karten-Seite und damit
+    Android-Sache; wer sie je im Web anbietet, braucht denselben Spiegel.
 - **Regen-Wertegitter** (`tool/rain_grid.py` + `.github/workflows/rain-data.yml`):
   Damit die Summen in **unseren** Farben liegen und die Regenmenge am Spot
   beantwortbar wird, ohne dass eine Koordinate das Gerät verlässt, holt CI

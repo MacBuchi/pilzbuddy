@@ -68,6 +68,10 @@ void main() {
       'tile.openstreetmap.org',
       'api.github.com',
       'github.com',
+      // Die Regengitter für die Web-App (#365/#366). Derselbe Anbieter
+      // wie github.com, aber ein eigener Host — und der Wächter fragt
+      // nach Hosts, nicht nach Anbietern.
+      'raw.githubusercontent.com',
       'macbuchi.github.io',
       'maps.dwd.de',
     };
