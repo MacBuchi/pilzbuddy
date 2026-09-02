@@ -11,6 +11,7 @@ import '../../data/spot_repository.dart';
 import '../../models/spot.dart';
 import 'nearby_spots.dart';
 import 'species_suggestions.dart';
+import '../../core/read_after_write.dart';
 
 /// Eigene Spots aus Supabase. Mutationen laufen über den Notifier und
 /// laden anschließend neu — bei Hobby-Datenmengen völlig ausreichend.
@@ -20,7 +21,8 @@ import 'species_suggestions.dart';
 /// Daten als aktuell auszugeben. Seit #267 trägt er außerdem den
 /// Ausgangskorb — die Einträge, die noch auf die Übertragung warten,
 /// stehen als `pending` mit in der Liste.
-class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox> {
+class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox>
+    with ReadAfterWrite<SpotsWithOutbox> {
   @override
   Future<SpotsWithOutbox> build() async {
     // Bei Login/Logout automatisch neu laden.
@@ -101,7 +103,12 @@ class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox> {
   /// so trägt schon der erste Versuch die `client_id`, und ein Abriss
   /// nach dem Insert führt beim Nachholen nicht zu einem zweiten Spot am
   /// selben Fleck (Patch 016).
-  Future<void> addSpot({
+  ///
+  /// Gibt zurück, ob die LISTE danach frisch ist. `false` heißt: Der Spot
+  /// liegt, aber die Karte zeigt ihn noch nicht — und genau das muss die
+  /// Oberfläche sagen können, sonst legt ihn jemand ein zweites Mal an
+  /// (#371). Ein Schreibfehler wirft weiterhin.
+  Future<bool> addSpot({
     required double lat,
     required double lng,
     String? name,
@@ -126,14 +133,14 @@ class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox> {
     } catch (error, stackTrace) {
       await _queueIfOffline(error, stackTrace, job);
     }
-    ref.invalidateSelf();
-    await future;
+    return reloadAfterWrite('Spots neu laden');
   }
 
   /// Einträge an einem Spot — auch an einem, der selbst noch im Korb
   /// liegt: Wer offline einen Spot anlegt und gleich noch eine zweite Art
   /// nachträgt, soll nicht am fehlenden Netz scheitern.
-  Future<void> addFinds({
+  /// Gibt wie [addSpot] zurück, ob die Liste danach frisch ist.
+  Future<bool> addFinds({
     required String spotId,
     required List<NewFind> finds,
   }) async {
@@ -160,14 +167,13 @@ class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox> {
         await _queueIfOffline(error, stackTrace, job);
       }
     }
-    ref.invalidateSelf();
     // Seit #190 kann der Fund an einem FREUNDES-Spot hängen — dann muss
     // dessen Liste neu laden, sonst erscheint er erst beim App-Resume.
     // Immer statt fallweise: Der Notifier kennt die Zuordnung nicht, und
     // ein überflüssiger Refetch bei Hobby-Datenmengen ist billiger als
     // eine Fallunterscheidung.
     ref.invalidate(friendSpotsProvider);
-    await future;
+    return reloadAfterWrite('Spots neu laden');
   }
 
   /// Korrigiert einen einzelnen Eintrag (#240) — und löscht einen
@@ -181,16 +187,14 @@ class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox> {
     await ref
         .read(spotRepositoryProvider)
         .updateFind(findId: findId, find: find);
-    ref.invalidateSelf();
     ref.invalidate(friendSpotsProvider);
-    await future;
+    await reloadAfterWrite('Spots neu laden');
   }
 
   Future<void> deleteFind(String findId) async {
     await ref.read(spotRepositoryProvider).deleteFind(findId);
-    ref.invalidateSelf();
     ref.invalidate(friendSpotsProvider);
-    await future;
+    await reloadAfterWrite('Spots neu laden');
   }
 
   /// Stellt mehrere Spots aus einer GPX-Sicherung wieder her (#112).
@@ -220,8 +224,7 @@ class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox> {
         created++;
       }
     } finally {
-      ref.invalidateSelf();
-      await future;
+      await reloadAfterWrite('Spots neu laden');
     }
     return created;
   }
@@ -233,8 +236,7 @@ class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox> {
     await ref
         .read(spotRepositoryProvider)
         .mergeSpots(intoId: intoId, fromId: fromId);
-    ref.invalidateSelf();
-    await future;
+    await reloadAfterWrite('Spots neu laden');
   }
 
   /// Arbeitet den Ausgangskorb ab (#267) und lädt danach neu.
@@ -246,8 +248,7 @@ class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox> {
     if (uid == null) return (sent: 0, remaining: 0, failed: 0);
     final result = await ref.read(outboxRunnerProvider).run(uid: uid);
     if (result.sent > 0 || result.remaining > 0) {
-      ref.invalidateSelf();
-      await future;
+      await reloadAfterWrite('Spots neu laden');
     }
     return result;
   }
@@ -268,8 +269,7 @@ class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox> {
             !(job is NewFindsJob && job.spotIsPending && job.spotId == jobId))
           job,
     ], uid: uid);
-    ref.invalidateSelf();
-    await future;
+    await reloadAfterWrite('Spots neu laden');
   }
 
   /// Löscht einen Spot. Wartet er noch auf die Übertragung, gibt es
@@ -277,14 +277,12 @@ class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox> {
   Future<void> deleteSpot(String spotId) async {
     if (_isPending(spotId)) return discardJob(spotId);
     await ref.read(spotRepositoryProvider).deleteSpot(spotId);
-    ref.invalidateSelf();
-    await future;
+    await reloadAfterWrite('Spots neu laden');
   }
 
   Future<void> setSharingExcluded(String spotId, bool excluded) async {
     await ref.read(spotRepositoryProvider).setSharingExcluded(spotId, excluded);
-    ref.invalidateSelf();
-    await future;
+    await reloadAfterWrite('Spots neu laden');
   }
 }
 

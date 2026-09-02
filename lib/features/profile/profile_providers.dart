@@ -2,8 +2,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
 import '../../models/profile.dart';
+import '../../core/read_after_write.dart';
 
-class MyProfileNotifier extends AsyncNotifier<Profile?> {
+class MyProfileNotifier extends AsyncNotifier<Profile?>
+    with ReadAfterWrite<Profile?> {
   @override
   Future<Profile?> build() {
     ref.watch(currentUserIdProvider);
@@ -19,20 +21,17 @@ class MyProfileNotifier extends AsyncNotifier<Profile?> {
           shareSpotsDefault: shareSpotsDefault,
           shareDetails: shareDetails,
         );
-    ref.invalidateSelf();
-    await future;
+    await reloadAfterWrite('Profil neu laden');
   }
 
   Future<void> updateAvatar(int avatar) async {
     await ref.read(profileRepositoryProvider).updateAvatar(avatar);
-    ref.invalidateSelf();
-    await future;
+    await reloadAfterWrite('Profil neu laden');
   }
 
   Future<void> updateUsername(String username) async {
     await ref.read(profileRepositoryProvider).updateUsername(username);
-    ref.invalidateSelf();
-    await future;
+    await reloadAfterWrite('Profil neu laden');
   }
 }
 

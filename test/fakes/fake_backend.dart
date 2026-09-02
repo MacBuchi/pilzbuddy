@@ -659,11 +659,20 @@ class FakeSpotRepository implements SpotRepository {
   /// auch nichts zwischengespeichert".
   bool failNextFetch = false;
 
+  /// Womit er scheitert. Vorgabe ist fehlender Empfang.
+  ///
+  /// Überschreibbar, weil der Unterschied zählt: Ein 504 ist NICHT
+  /// [looksOffline], also springt in der echten App der
+  /// Zwischenspeicher nicht ein und der Fehler erreicht den Aufrufer.
+  /// Genau daraus entstand #371 — mit einer `SocketException` allein
+  /// ließe sich der Fall gar nicht nachstellen.
+  Object nextFetchError = const SocketException('kein Netz (Fake)');
+
   @override
   Future<SpotsSnapshot> fetchMySpots() async {
     if (failNextFetch) {
       failNextFetch = false;
-      throw const SocketException('kein Netz (Fake)');
+      throw nextFetchError;
     }
     return (
       spots: [

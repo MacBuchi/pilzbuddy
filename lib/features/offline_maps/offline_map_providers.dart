@@ -17,6 +17,7 @@ import 'network_metering.dart';
 import 'offline_map_repository.dart';
 import 'pmtiles_tile_provider.dart';
 import 'region_catalog.dart';
+import '../../core/read_after_write.dart';
 
 final offlineMapRepositoryProvider =
     Provider<OfflineMapRepository>((ref) => OfflineMapRepository());
@@ -26,22 +27,21 @@ final availableMapsProvider = FutureProvider<List<AvailableMap>>(
     (ref) => ref.watch(offlineMapRepositoryProvider).fetchAvailable());
 
 /// Heruntergeladene Karten auf dem Gerät.
-class InstalledMapsNotifier extends AsyncNotifier<List<InstalledMap>> {
+class InstalledMapsNotifier extends AsyncNotifier<List<InstalledMap>>
+    with ReadAfterWrite<List<InstalledMap>> {
   @override
   Future<List<InstalledMap>> build() =>
       ref.read(offlineMapRepositoryProvider).listInstalled();
 
   Future<void> delete(String key) async {
     await ref.read(offlineMapRepositoryProvider).delete(key);
-    ref.invalidateSelf();
-    await future;
+    await reloadAfterWrite('Installierte Karten neu laden');
   }
 
   /// Nach einem Download von außen aufrufen (der Download selbst läuft im
   /// Screen, damit der Fortschritt dort angezeigt werden kann).
   Future<void> refresh() async {
-    ref.invalidateSelf();
-    await future;
+    await reloadAfterWrite('Installierte Karten neu laden');
   }
 }
 

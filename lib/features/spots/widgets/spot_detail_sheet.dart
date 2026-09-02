@@ -18,6 +18,7 @@ import 'ampel_section.dart';
 import 'species_season_section.dart';
 import 'spot_forest_section.dart';
 import 'spot_rain_section.dart';
+import '../../../core/read_after_write.dart';
 
 /// Wie viel Platz über dem Blatt frei bleibt — in logischen Pixeln.
 ///
@@ -91,9 +92,19 @@ class _SpotDetailSheet extends ConsumerWidget {
     );
     if (finds == null) return;
     try {
-      await ref
+      final fresh = await ref
           .read(mySpotsProvider.notifier)
           .addFinds(spotId: spot.id, finds: finds);
+      // Nur im Ausnahmefall eine Meldung: Sonst trägt die Liste im Blatt
+      // die Quittung selbst — sie steht direkt darunter. Konnte sie
+      // nicht neu laden, steht dort nichts Neues, und ohne diesen Satz
+      // sähe der Eintrag aus, als wäre er nicht angekommen.
+      if (!fresh && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('${blank ? 'Leergang' : 'Fund'} eingetragen 🍄'
+              '$staleAfterWriteHint'),
+        ));
+      }
     } catch (e, stackTrace) {
       if (context.mounted) {
         _showError(
