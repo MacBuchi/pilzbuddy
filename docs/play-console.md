@@ -250,9 +250,9 @@ Play-Manifests — und das soll im PR auffallen, nicht im Release-Workflow.
   `test/android_manifest_test.dart` hält beide Hälften fest — dass die
   Berechtigung fehlt und dass der Service-Typ da ist.
 - **Die Berechtigung wird ausschließlich nach einer sichtbaren
-  Nutzeraktion erfragt** (`_currentPosition()` in
-  `positionFixProvider` in `lib/features/map/position_provider.dart`,
-  ausgelöst vom Knopf „Meine Position", vom Live-Standort-Teilen und seit
+  Nutzeraktion erfragt** (`positionFixProvider` in
+  `lib/features/map/position_provider.dart`, ausgelöst vom Knopf
+  „Meine Position", vom Live-Standort-Teilen und seit
   #373 von „Meine Position" im Fund-Blatt; die Pilztour startet über ihren
   eigenen Knopf und läuft nur, solange die Benachrichtigung steht).
   **Das Anlegen eines Spots gehört ausdrücklich NICHT dazu**: Es nimmt die
@@ -311,7 +311,10 @@ zeigt dir nach ein paar Saisons, was sich wann und wo lohnt.
 KARTE
 • Fadenkreuz auf die Stelle schieben, „Neuer Spot": Art, Anzahl,
   Funddatum, Notiz — auch mehrere Arten auf einmal.
-• Oder „Spot hier" für deine aktuelle Position.
+• „Meine Position" holt die Karte zu dir — oder du trägst den Spot abends
+  von zu Hause nach.
+• „In Navi-App öffnen" übergibt einen Spot an die Karten- oder Navi-App
+  deiner Wahl — die Route dorthin macht sie.
 • Wiederbesuch mit zwei Taps — Art und Anzahl sind vom letzten Fund vorbelegt.
 
 FREUNDE

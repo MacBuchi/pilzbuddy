@@ -15,8 +15,14 @@ eintragen und Spots mit Freunden teilen.
 
 ## Funktionen
 
-- **Karte:** Karte gedrückt halten → neuer Spot (Art, Anzahl, Funddatum, Notiz optional).
-  Alternativ „Spot hier" für die aktuelle GPS-Position.
+- **Karte:** Das Fadenkreuz steht fest in der Kartenmitte — Karte darunter
+  auf die Stelle schieben, dann „Neuer Spot" (Art, Anzahl, Funddatum, Notiz
+  optional). Der Spot landet dort, wo das Fadenkreuz steht, **nicht** an
+  deiner GPS-Position: Du kannst ihn also genauso gut abends von zu Hause
+  nachtragen. „Meine Position" holt die Karte vorher zu dir. Wer das
+  Fadenkreuz lieber durch Gedrückthalten setzt, schaltet das im Profil
+  unter „Karte gedrückt halten" ein (ab Werk aus, weil es leicht
+  versehentlich auslöst).
   Maßstab unten links; der Zoom ist auf den Bereich begrenzt, für den es
   Kartendaten gibt.
 - **Filtern:** Trichter-Knopf auf der Karte → nur eine Pilzart anzeigen
