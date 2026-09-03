@@ -1,6 +1,9 @@
 // Szenarien für die Offline-Karten: Verwaltung (Download/Löschen) und
 // der Umschalter auf der Karte.
-import 'package:flutter/material.dart' show BackButton;
+import 'dart:async';
+
+import 'package:flutter/material.dart' show BackButton, Scaffold;
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/settings.dart';
@@ -281,14 +284,46 @@ void main() {
     expect(online.read(offlineMapEnabledProvider), isFalse);
   });
 
-  testWidgets('Im Web gibt es keinen Offline-Karten-Einstieg',
+  testWidgets('Auf Android steht der Offline-Karten-Einstieg im Profil',
       (tester) async {
-    // kIsWeb lässt sich im Test nicht umschalten — dieser Test dokumentiert
-    // stattdessen den Android-Pfad: Eintrag vorhanden.
     final (backend, _) = loggedInBackend();
     await pumpApp(tester, backend);
     await tester.tap(find.text('Profil'));
     await settle(tester);
     expect(find.text('Offline-Karten'), findsOneWidget);
+  });
+
+  testWidgets('Im Web fehlt der Einstieg', (tester) async {
+    // Seit 1.114.2 über `offlineMapsSupportedProvider` prüfbar: `kIsWeb`
+    // lässt sich im Test nicht umschalten, ein Provider schon. Vorher
+    // konnte dieser Test nur den Android-Pfad dokumentieren.
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend, extraOverrides: [
+      offlineMapsSupportedProvider.overrideWithValue(false),
+    ]);
+    await tester.tap(find.text('Profil'));
+    await settle(tester);
+    expect(find.text('Offline-Karten'), findsNothing);
+  });
+
+  testWidgets('Wer die Adresse im Web direkt aufruft, bekommt eine '
+      'Erklärung statt einer leeren Liste', (tester) async {
+    // Die Route gibt es auf jeder Plattform (`router.dart`). Ohne diesen
+    // Zweig stünde dort eine Seite, die nichts kann und nichts sagt — und
+    // der Katalog-Abruf gegen api.github.com ginge sogar durch, nur der
+    // Download nicht.
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend, extraOverrides: [
+      offlineMapsSupportedProvider.overrideWithValue(false),
+    ]);
+    final context = tester.element(find.byType(Scaffold).first);
+    // Bewusst nicht abgewartet: `push` löst sich erst auf, wenn die Route
+    // wieder verlassen wird — hier soll sie offen bleiben.
+    unawaited(GoRouter.of(context).push('/profile/offline-maps'));
+    await settle(tester);
+
+    expect(find.textContaining('nur in der Android-App'), findsOneWidget);
+    // Und der Grund steht dabei — „geht nicht" allein lädt zum Suchen ein.
+    expect(find.textContaining('herausgibt'), findsOneWidget);
   });
 }

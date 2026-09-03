@@ -7,6 +7,31 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Im Browser wird die Karte nicht mehr grau
+
+*3. September 2026 · Version 1.114.3*
+
+Wer PilzBuddy im Browser benutzt und unterwegs den Empfang verliert, sah
+bisher eine leere Fläche: Die Kartenkacheln kommen aus dem Netz, und ohne
+Netz kommt nichts.
+
+Jetzt liegt darunter eine grobe Übersichtskarte — Wälder, Gewässer, Orte,
+Küsten. Keine Straßen, aber genug, um zu erkennen, wo deine Spots liegen.
+Die Karte war schon immer in der App eingebaut; sie wurde im Browser nur
+nie ausgepackt.
+
+Zwei Dinge dazu:
+
+- **Das kostet dich nichts an Datenvolumen.** Die Karte wurde auch bisher
+  schon geladen — sie wurde nur weggeworfen.
+- **Es hilft, solange die App offen ist.** Startest du sie ohne Netz neu,
+  lädt sie weiterhin nicht. Die Android-App kann das, die Browser-Fassung
+  noch nicht.
+
+Wer im Browser die Seite „Offline-Karten" direkt aufruft, bekommt jetzt
+außerdem eine Erklärung statt einer leeren Liste: Die großen Regionskarten
+gibt es nur in der Android-App, und warum das so ist.
+
 ## Die Fundstelle auch auf der Karte setzen
 
 *2. September 2026 · Versionen 1.114.0 bis 1.114.2*

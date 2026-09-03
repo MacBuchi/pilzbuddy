@@ -9,7 +9,13 @@ import 'region_catalog.dart';
 import '../../core/app_colors.dart';
 
 /// Verwaltung der Offline-Karten: Regionen herunterladen, aktualisieren
-/// und löschen. Nur auf Android erreichbar (Einstieg im Profil).
+/// und löschen. Der Einstieg im Profil steht nur auf Android.
+///
+/// Die ROUTE gibt es trotzdem überall, und deshalb erklärt sich der Screen
+/// im Browser selbst, statt eine leere Liste zu zeigen: Wer die Adresse
+/// direkt aufruft (oder ein altes Lesezeichen hat), bekämpfe sonst einen
+/// Fehler, den es nicht gibt. „Kein Fehler ohne Fehlermeldung" gilt auch
+/// für „geht hier nicht".
 class OfflineMapsScreen extends ConsumerStatefulWidget {
   const OfflineMapsScreen({super.key});
 
@@ -109,6 +115,9 @@ class _OfflineMapsScreenState extends ConsumerState<OfflineMapsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!ref.watch(offlineMapsSupportedProvider)) {
+      return const _NotOnThisPlatform();
+    }
     final availableAsync = ref.watch(availableMapsProvider);
     final installed =
         ref.watch(installedMapsProvider).valueOrNull ?? const <InstalledMap>[];
@@ -351,6 +360,49 @@ class _ErrorRetry extends StatelessWidget {
           FilledButton.tonal(
               onPressed: onRetry, child: const Text('Nochmal versuchen')),
         ],
+      ),
+    );
+  }
+}
+
+/// Was der Browser hier zu sehen bekommt.
+///
+/// Bewusst mit dem GRUND und nicht nur mit „geht nicht": Die Karten sind
+/// Anhänge eines fremden GitHub-Releases, und die gibt ein Browser wegen
+/// CORS nicht heraus — daran kann die App nichts ändern. Der Hinweis auf
+/// die Android-App ist die einzige ehrliche Antwort.
+class _NotOnThisPlatform extends StatelessWidget {
+  const _NotOnThisPlatform();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Offline-Karten')),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.map_outlined, size: 40),
+              const SizedBox(height: 12),
+              Text(
+                'Offline-Karten gibt es nur in der Android-App.',
+                style: Theme.of(context).textTheme.titleMedium,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Die Regionskarten sind mehrere hundert Megabyte groß und '
+                'liegen auf einem Server, der sie an einen Browser nicht '
+                'herausgibt. Im Browser bleibt die Online-Karte — und wenn '
+                'der Empfang wegbricht, eine grobe Übersichtskarte.',
+                style: Theme.of(context).textTheme.bodySmall,
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

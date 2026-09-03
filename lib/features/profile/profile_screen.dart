@@ -11,6 +11,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show AuthException;
 import 'package:url_launcher/url_launcher.dart';
 
+import '../offline_maps/offline_map_providers.dart';
 import '../../core/app_distribution.dart';
 import '../../core/settings.dart';
 import '../../core/app_info.dart';
@@ -183,8 +184,11 @@ class ProfileScreen extends ConsumerWidget {
           ] else if (profileAsync.isLoading)
             const SizedBox.shrink(),
           // Offline-Karten gibt es nur in der Android-App — im Web ist
-          // die Online-Karte ohnehin immer da.
-          if (!kIsWeb) ...[
+          // die Online-Karte ohnehin immer da. Über den Provider und nicht
+          // über `kIsWeb`, damit der Test beide Seiten fahren kann; der
+          // Screen dahinter benutzt dieselbe Quelle und erklärt sich, falls
+          // jemand die Adresse direkt aufruft.
+          if (ref.watch(offlineMapsSupportedProvider)) ...[
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.map_outlined),
