@@ -58,6 +58,35 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   Die Riegel sind je ein Wort YAML — `test/release_workflow_test.dart`
   wacht über beide, über den fehlenden Pages-Deploy in `release.yml` und
   über die Aussperr-Grenze.
+- **Web-Vorschau** (`.github/workflows/preview.yml`, #388, seit 1.114.5):
+  Jeder Merge auf `main` deployt den Web-Build nach
+  `MacBuchi/pilzbuddy-preview` → https://macbuchi.github.io/pilzbuddy-preview/.
+  Das ist die Antwort darauf, dass Pages sonst NUR aus dem beförderten Tag
+  gebaut wird und ein Web-Fix zeitweise ein Dutzend Versionen lang
+  unprüfbar war. Vier Dinge, die man wissen muss:
+  - **Eigenes Repo, nicht ein Unterordner.** `promote.yml` deployt mit
+    `force_orphan: true` und legt den Pages-Branch bei jeder Beförderung
+    neu an — ein `preview/`-Ordner wäre danach weg. Und gleicher Origin
+    hieße geteilter `localStorage`: Dort liegen Session-Token und
+    Einstellungen, die Vorschau würde sie also mitbenutzen UND verändern.
+    Der eigene Origin ist der Grund, warum man sich dort neu anmelden muss.
+  - **Zugang ist ein Deploy Key** (`PREVIEW_DEPLOY_KEY`, öffentlicher Teil
+    im Vorschau-Repo mit Schreibrecht, privater in `~/pilzbuddy-keys/`).
+    Bewusst kein PAT wie beim Backup: Das braucht die GitHub-API, hier
+    wird nur gepusht. Ein Deploy Key hängt an genau einem Repo, kann
+    nichts außer pushen — und **läuft nicht ab**.
+  - **`--dart-define=PREVIEW_BUILD=true` ist die tragende Zeile.** Sie
+    schaltet `AppDistribution.isPreviewBuild` und darüber den Streifen
+    „Entwicklungsstand — nicht freigegeben" sowie den umgedrehten
+    Profil-Verweis. Fehlt sie, sieht die Vorschau aus wie die echte App,
+    und ein Fehlerbericht daraus beträfe Code, den es nie gab. Ebenso
+    tragend: `--base-href /pilzbuddy-preview/` — falsch gesetzt bleibt die
+    Seite weiß, ohne Fehlermeldung. `test/release_workflow_test.dart`
+    wacht über beide, dazu darüber, dass `promote.yml` weiter auf
+    `/pilzbuddy/` zeigt.
+  - **Geprüft wird über `webChannelProvider`**, nicht über `kIsWeb` oder
+    die Konstante: Beide sind `const` und im Test nicht umschaltbar. Eine
+    Zusage, die man nicht prüfen kann, ist keine.
 - Nutzer-Changelog (`CHANGELOG.md`, Issue #113): Jede Version, die etwas
   Sichtbares ändert, bekommt hier einen Eintrag — in Alltagssprache und nach
   Themen gegliedert statt nach Versionsnummern (68 Releases in neun Tagen

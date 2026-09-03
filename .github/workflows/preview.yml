@@ -1,0 +1,98 @@
+# Deployt den Stand von `main` als Web-Vorschau (#388).
+#
+# Warum überhaupt: GitHub Pages wird ausschließlich aus dem BEFÖRDERTEN
+# Tag gebaut (promote.yml). Alles auf `main` ist damit im Browser
+# unerreichbar, bis jemand befördert — zeitweise ein Dutzend Versionen.
+# Ein Web-Fix ließ sich so vor dem Ausliefern nirgends am Telefon prüfen.
+#
+# Warum ein EIGENES Repo und kein Unterordner:
+#   1. `promote.yml` deployt mit `force_orphan: true` und legt den
+#      Pages-Branch bei jeder Beförderung neu an — ein `preview/`-Ordner
+#      wäre danach weg. Ihn zu retten hieße, den release-kritischsten
+#      Workflow für einen Nebenzweck anzufassen.
+#   2. Gleicher Origin heißt geteilter `localStorage`: Dort liegen der
+#      Supabase-Session-Token und alle gerätelokalen Einstellungen. Eine
+#      Vorschau würde Sitzung und Einstellungen der echten App benutzen
+#      UND verändern — beim Testen genau das Falsche.
+#
+# Zugang ist ein Deploy Key und KEIN Token: Er hängt an genau diesem einen
+# Repo statt am Konto, kann nichts außer pushen, und er läuft nicht ab.
+# (Das Backup nutzt ein PAT, weil es die GitHub-API braucht — hier wird
+# nur gepusht.)
+name: Web-Vorschau
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: web-preview
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    name: Deploy Preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          flutter-version: 3.44.8
+          cache: true
+      - run: flutter pub get
+
+      # `--base-href` zeigt auf das VORSCHAU-Repo, nicht auf /pilzbuddy/.
+      # Steht hier die falsche Adresse, lädt die Seite ihre eigenen Assets
+      # nicht und bleibt weiß — ohne Fehlermeldung.
+      #
+      # PREVIEW_BUILD schaltet den Streifen „Entwicklungsstand" ein und
+      # dreht den Profil-Verweis um (zurück zur freigegebenen Version).
+      # Ohne das Flag sähe die Vorschau aus wie die echte App.
+      - run: |
+          flutter build web --release \
+            --base-href /pilzbuddy-preview/ \
+            --dart-define=PREVIEW_BUILD=true
+      # SPA-Fallback wie in promote.yml: Pages liefert 404.html bei
+      # Deep-Links (/friends etc.).
+      - run: cp build/web/index.html build/web/404.html
+
+      # `secrets` ist in `if:` NICHT verfügbar — GitHub verwirft die ganze
+      # Datei beim Einlesen, und der Workflow läuft dann nie (so geschehen
+      # bei deploy-functions.yml von #286 bis zum 2026-08-13). Deshalb der
+      # Feststell-Schritt: Secret in `env:` ist erlaubt, `steps` ist in
+      # `if:` verfügbar. `test/release_workflow_test.dart` wacht darüber.
+      - name: Deploy Key vorhanden?
+        id: key
+        env:
+          K: ${{ secrets.PREVIEW_DEPLOY_KEY }}
+        run: echo "have=$([ -n "$K" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - name: Nach MacBuchi/pilzbuddy-preview deployen
+        if: steps.key.outputs.have == 'true'
+        uses: peaceiris/actions-gh-pages@84c30a85c19949d7eee79c4ff27748b70285e453 # v4
+        with:
+          deploy_key: ${{ secrets.PREVIEW_DEPLOY_KEY }}
+          external_repository: MacBuchi/pilzbuddy-preview
+          publish_branch: gh-pages
+          publish_dir: build/web
+          # Wie bei der Beförderung: Die Historie eines Deploy-Branches
+          # interessiert niemanden, und bei jedem Merge ein voller
+          # Web-Build ließe das Repo unbegrenzt wachsen.
+          force_orphan: true
+
+      - name: Ohne Deploy Key übersprungen
+        if: steps.key.outputs.have == 'false'
+        run: |
+          {
+            echo "### Nicht deployt — \`PREVIEW_DEPLOY_KEY\` fehlt"
+            echo
+            echo "Schlüsselpaar erzeugen (\`ssh-keygen -t ed25519\`),"
+            echo "den öffentlichen Teil in MacBuchi/pilzbuddy-preview unter"
+            echo "Settings → Deploy keys mit **Allow write access** hinterlegen,"
+            echo "den privaten Teil hier als Secret \`PREVIEW_DEPLOY_KEY\`."
+          } >> "$GITHUB_STEP_SUMMARY"
