@@ -33,7 +33,7 @@ jobs:
     name: Deploy Edge Functions
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       # SHA-gepinnt wie überall sonst, und die CLI-Version festgenagelt
       # wie in ci.yml: `latest` hieße, dass sich das Werkzeug unter uns
       # ändert, ohne dass jemand etwas getan hat.
