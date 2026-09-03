@@ -168,6 +168,53 @@ void main() {
     });
   });
 
+  group('Der Schema Check muss auch ohne DB-Secret entscheiden können', () {
+    final migrate = File('tool/db_migrate.sh').readAsStringSync();
+
+    /// Der `schema-check`-Job als Textblock — von seinem Namen bis zum
+    /// nächsten Job auf derselben Einrückungsebene.
+    String schemaCheckJob() {
+      final start = ci.indexOf('  schema-check:');
+      expect(start, greaterThan(-1), reason: 'Job schema-check fehlt');
+      final rest = ci.substring(start + 1);
+      final end = RegExp(r'\n  [a-z-]+:\n').firstMatch(rest);
+      return end == null ? rest : rest.substring(0, end.start);
+    }
+
+    test('der Job holt die Historie, sonst kann er nichts vergleichen', () {
+      // GitHub reicht Dependabot-Läufen die DEPENDABOT-Secrets durch,
+      // nicht die von Actions — `SUPABASE_DB_URL` ist dort leer. Ohne
+      // Historie kann `db_migrate.sh` dann nicht sehen, dass der PR gar
+      // keinen Patch mitbringt, und fällt auf „rot" zurück. Genau so war
+      // dieser PFLICHT-Check auf JEDEM Dependabot-PR rot (#368, #369) —
+      // mit einer Meldung, die sechzehn längst eingespielte Patches als
+      // offen auswies. Nichts daran wäre je aufgefallen, denn an einem
+      // normalen PR ist der Check grün.
+      expect(schemaCheckJob(), contains('fetch-depth: 0'));
+    });
+
+    test('und den Ziel-Branch, gegen den verglichen wird', () {
+      expect(schemaCheckJob(), contains('BASE_REF: origin/'));
+    });
+
+    test('ohne Secret entscheidet der Ziel-Branch, nicht die Baseline', () {
+      // Die Frage „gibt es Patches jenseits der Baseline" ist seit
+      // patch_006 immer mit ja zu beantworten — ein Wächter, der nie
+      // wieder grün wird. Die richtige Frage ist, ob DIESER Stand einen
+      // hinzufügt.
+      expect(migrate, contains('--diff-filter=A'));
+      expect(migrate, contains(r'"$BASE_REF"...HEAD'));
+    });
+
+    // BEWUSST KEIN Test darauf, dass die Begründung gegen ein
+    // Dependabot-Secret im Skript stehen bleibt. Der Versuch stand hier
+    // und war wertlos: Er prüfte auf das Wort „Dependabot-Secret", und
+    // das steckt auch im Plural „Dependabot-Secrets" zwei Absätze höher
+    // — die Gegenprobe blieb grün, obwohl die Begründung weg war. Ein
+    // Wächter über einen Kommentar ist ohnehin einer über die Form, nicht
+    // über das Verhalten. Die Entscheidung trägt der Kommentar selbst.
+  });
+
   group('Aussperr-Grenze (#80 unter zwei Kanälen)', () {
     final schemaCheck = File('tool/schema_check.sh').readAsStringSync();
 

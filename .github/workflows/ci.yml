@@ -214,9 +214,19 @@ jobs:
     needs: schema-dry-run
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Ohne die Historie kann db_migrate.sh nicht entscheiden, ob
+          # DIESER PR einen Patch hinzufügt — und fiele dann auf die
+          # vorsichtige Antwort „rot" zurück. Genau das passiert bei
+          # Dependabot-PRs, denen GitHub die Actions-Secrets vorenthält.
+          fetch-depth: 0
       - name: Neue DB-Patches einspielen
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          # Über `env:` statt direkt in den `run:`-Block interpoliert —
+          # dieselbe Begründung wie beim Version Guard weiter unten: Ein
+          # Branch-Name ist von außen wählbar.
+          BASE_REF: origin/${{ github.base_ref || 'main' }}
         run: bash tool/db_migrate.sh
       - name: Live-Schema gegen die App-Queries prüfen
         run: bash tool/schema_check.sh
