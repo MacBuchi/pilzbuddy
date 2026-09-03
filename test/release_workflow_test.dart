@@ -20,6 +20,7 @@ void main() {
   final release = File('.github/workflows/release.yml').readAsStringSync();
   final promote = File('.github/workflows/promote.yml').readAsStringSync();
   final ci = File('.github/workflows/ci.yml').readAsStringSync();
+  final preview = File('.github/workflows/preview.yml').readAsStringSync();
 
   // Der Artefaktname steht in `release.yml` an FÜNF unabhängigen Stellen
   // (zwei `cp`, zwei `path:`, ein `files:`), und nichts hält sie
@@ -165,6 +166,37 @@ void main() {
           reason: 'if: mit secrets-Kontext macht die DATEI ungültig — '
               'GitHub startet dann gar nichts mehr. Feststell-Schritt '
               'benutzen (siehe release.yml, „Play-Secret vorhanden?").');
+    });
+  });
+
+  group('Die Web-Vorschau darf sich nicht als echte App ausgeben (#388)', () {
+    test('sie markiert sich beim Bauen', () {
+      // Ohne dieses Flag fehlten der Streifen „Entwicklungsstand" und der
+      // umgedrehte Profil-Verweis — die Vorschau sähe aus wie die echte
+      // App, und ein Fehlerbericht daraus beträfe Code, den es nie gab.
+      expect(preview, contains('--dart-define=PREVIEW_BUILD=true'));
+    });
+
+    test('sie zeigt auf ihre eigene Adresse', () {
+      // Falsche base-href heißt: Die Seite lädt ihre eigenen Assets nicht
+      // und bleibt weiß — ohne Fehlermeldung.
+      expect(preview, contains('--base-href /pilzbuddy-preview/'));
+      expect(preview, contains('external_repository: MacBuchi/pilzbuddy-preview'));
+    });
+
+    test('und die Beförderung bleibt bei der echten Adresse', () {
+      // Der Riegel in die andere Richtung: Würde promote.yml je auf die
+      // Vorschau zeigen, ginge die freigegebene App verloren.
+      expect(promote, contains('--base-href /pilzbuddy/'));
+      expect(promote, isNot(contains('pilzbuddy-preview')));
+    });
+
+    test('der Zugang ist ein Deploy Key, kein Konto-Token', () {
+      // Ein Deploy Key hängt an genau einem Repo, kann nichts außer
+      // pushen und läuft nicht ab. Ein PAT hinge am Konto — und liefe
+      // irgendwann ab, wie SUPABASE_ACCESS_TOKEN am 2027-08-11.
+      expect(preview, contains('deploy_key:'));
+      expect(preview, isNot(contains('personal_token')));
     });
   });
 

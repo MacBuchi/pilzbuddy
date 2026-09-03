@@ -8,6 +8,17 @@ class AppInfo {
   static const apkDownloadUrl =
       'https://github.com/MacBuchi/pilzbuddy/releases/latest';
 
+  /// Der automatisch deployte Entwicklungsstand der Web-App (#388).
+  ///
+  /// Eigenes Repo und damit eigener Origin — bewusst, aus zwei Gründen:
+  /// `promote.yml` legt den Pages-Branch mit `force_orphan` bei jeder
+  /// Beförderung neu an (ein Unterordner überlebte das nicht), und ein
+  /// geteilter Origin hieße geteilter `localStorage` — die Vorschau
+  /// benutzte also Sitzung und Einstellungen der echten App. Deshalb ist
+  /// dort eine eigene Anmeldung nötig, und darauf muss der Hinweis
+  /// hinweisen.
+  static const previewAppUrl = 'https://macbuchi.github.io/pilzbuddy-preview/';
+
   /// Play-Store-Eintrag (applicationId aus android/app/build.gradle.kts).
   /// Nur für Play-Builds: dort sind Verweise auf APK-Downloads unzulässig.
   static const playStoreUrl =

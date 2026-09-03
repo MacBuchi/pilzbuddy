@@ -752,6 +752,40 @@ class _AboutSection extends ConsumerWidget {
             onChanged: (value) =>
                 ref.read(prereleaseUpdatesProvider.notifier).set(value),
           ),
+        // Der Web-Gegenpart zu „Vorabversionen erhalten" (#388) — aber
+        // bewusst KEIN Schalter: Die Vorschau liegt auf einem eigenen
+        // Origin, der Wechsel ist also eine Navigation und keine
+        // Einstellung. Und weil damit ein eigener `localStorage` gilt,
+        // muss der Text die Neuanmeldung ansagen; sonst sieht sie aus wie
+        // ein Fehler.
+        if (ref.watch(webChannelProvider) == WebChannel.stable)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            leading: const Icon(Icons.science_outlined),
+            title: const Text('Entwicklungsversion öffnen'),
+            subtitle: const Text(
+                'Der neueste Zwischenstand — ungetestet und oft halbfertig. '
+                'Öffnet eine eigene Adresse; dort musst du dich neu '
+                'anmelden.'),
+            trailing: const Icon(Icons.open_in_new, size: 18),
+            onTap: () => _open(AppInfo.previewAppUrl),
+          ),
+        // Und der Rückweg. Er steht nur in der Vorschau, dafür an
+        // derselben Stelle — wer hierher gefunden hat, soll auch wieder
+        // hinausfinden.
+        if (ref.watch(webChannelProvider) == WebChannel.preview)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            leading: const Icon(Icons.verified_outlined),
+            title: const Text('Zur freigegebenen Version'),
+            subtitle: const Text(
+                'Du benutzt gerade einen Entwicklungsstand. Die echte App '
+                'liegt unter ihrer gewohnten Adresse.'),
+            trailing: const Icon(Icons.open_in_new, size: 18),
+            onTap: () => _open(AppInfo.webAppUrl),
+          ),
         ListTile(
           contentPadding: EdgeInsets.zero,
           dense: true,
