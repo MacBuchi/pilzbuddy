@@ -6,8 +6,23 @@
 // lädt und eine Zeile später wegwirft — der Umweg über die Platte scheitert
 // dort, und ein `catch (_)` schluckt es.
 //
-// Dieser Test geht den Weg, den der Browser geht: Asset → Bytes → Archiv →
-// Kachel. Er braucht keine Platte und keinen Plattform-Kanal.
+// Dieser Test geht die LOGIK, die der Browser geht: Asset → Bytes →
+// Archiv → Kachel, ohne Platte und ohne Plattform-Kanal.
+//
+// **Er läuft dabei aber auf der Dart-VM, nicht auf dart2js** — `kIsWeb` ist
+// hier falsch, der Web-Zweig von `_openBundledOverview` also ungetestet.
+// Das stand hier zuerst zu vollmundig („den Weg, den der Browser geht").
+//
+// Nachgemessen am 2026-09-03, warum es dabei bleibt: `flutter test
+// --platform chrome` liefert im Test-Runner KEINE Assets — ein
+// `rootBundle.load` läuft dort in einen Timeout, nicht einmal in einen
+// 404. Was sich in Chrome sehr wohl prüfen ließ: `PmTilesArchive.fromBytes`
+// kehrt auf dart2js zurück, der Aufruf selbst ist dort also gangbar.
+// Offen bleibt allein, ob das ECHTE 8,6-MB-Archiv im Browser geparst wird
+// — und das beantwortet nur die laufende App.
+//
+// Im ganzen Projekt läuft kein Test auf dart2js. Wer das ändern will,
+// braucht für Assets einen anderen Weg als `rootBundle`.
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/features/offline_maps/pmtiles_tile_provider.dart';
