@@ -5,6 +5,7 @@
 // ERFUNDENER schreibt das Wohnzimmer auf einen Fund im Wald. Deshalb
 // zieht jede Regel hier in dieselbe Richtung — lieber zu wenig.
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/features/spots/find_offset.dart';
 import 'package:pilzbuddy/models/find_position.dart';
@@ -185,6 +186,54 @@ void main() {
 
     expect(find.textContaining('nordöstlich'), findsOneWidget);
     expect(find.textContaining('südwestlich'), findsOneWidget);
+  });
+
+  testWidgets('„Am Spot" baut gar keine Karte', (tester) async {
+    // Der Normalfall. Ein Kartenausschnitt kostete dort Speicher und
+    // Kacheln für eine Aussage, die schon als Text dasteht — und er ist
+    // der Grund, warum die bestehenden Suiten unberührt bleiben.
+    final (backend, me) = loggedInBackend();
+    backend.addSpot(
+        ownerId: me.id, name: 'Buchenhang', lat: spotLat, lng: spotLng);
+    await pumpApp(tester, backend);
+
+    await tester.tap(find.byTooltip('Buchenhang'));
+    await settle(tester);
+    await tester.tap(find.text('Fund eintragen'));
+    await settle(tester);
+
+    expect(find.text('Am Spot'), findsOneWidget);
+    expect(find.byType(FlutterMap), findsNothing);
+  });
+
+  testWidgets('„Auf Karte" zeigt den Ausschnitt und übernimmt die Mitte',
+      (tester) async {
+    final (backend, me) = loggedInBackend();
+    backend.addSpot(
+        ownerId: me.id, name: 'Buchenhang', lat: spotLat, lng: spotLng);
+    await pumpApp(tester, backend);
+
+    await tester.tap(find.byTooltip('Buchenhang'));
+    await settle(tester);
+    await tester.tap(find.text('Fund eintragen'));
+    await settle(tester);
+    await tester.tap(find.text('Auf Karte'));
+    await settle(tester);
+
+    expect(find.byType(FlutterMap), findsOneWidget);
+
+    // Karte unter dem Fadenkreuz wegschieben — die Mitte ist die Wahl.
+    await tester.drag(find.byType(FlutterMap), const Offset(0, -40));
+    await settle(tester);
+    await tester.ensureVisible(find.text('Speichern'));
+    await tester.tap(find.text('Speichern'));
+    await settle(tester);
+
+    final saved = backend.spots.single.finds.single.position!;
+    expect(saved.measured, isFalse,
+        reason: 'ein Fadenkreuz hat keinen Messfehler');
+    expect(saved.lat, isNot(spotLat),
+        reason: 'das Verschieben muss ankommen');
   });
 
   testWidgets('Eine Korrektur lässt die Stelle stehen', (tester) async {

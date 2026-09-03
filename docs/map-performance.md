@@ -725,3 +725,56 @@ sichtbar, Gitter erst beim Öffnen des Blatts, und wenn es nicht kommt,
 sagt das Blatt es. Wer die Ebene nie einschaltet, zahlt die 136 ms und
 13,3 MB nicht mehr; wer sie einschaltet, wartet einmal beim ersten
 Tippen darauf.
+
+## Nachtrag 2026-09-02: Eine zweite Karte im Fund-Blatt (#373, 1.114.0)
+
+Die Fundstellen-Wahl bekommt einen kleinen Kartenausschnitt
+(`lib/features/map/widgets/mini_map.dart`) — und damit steht zum ersten
+Mal eine **zweite** `flutter_map`-Instanz neben der großen. Das ist
+derselbe Speichertopf, aus dem die ANRs aus #142/#151 kamen, also gehört
+es hierher.
+
+**Was sie hält, und warum ich keine Zahl erfunden habe:**
+
+| | Mini-Karte | große Karte |
+|---|---|---|
+| Ebenen | 1 Raster-TileLayer | Raster ODER Vektor, dazu Wald, Regen, Höhenlinien, Marker |
+| `keepBuffer` / `panBuffer` | **Paketvorgabe 2 / 1** | 2 / 1 (in #142 gemessen) |
+| Kantenlänge | 180 dp | Vollbild |
+| Lebensdauer | nur solange das Blatt offen ist | ganze Sitzung |
+| Zoom | 14–19, Start aus `miniMapZoomFor` | 3–19 |
+
+Die Puffer sind **bewusst nicht gesetzt**, und das ist der Punkt: Die
+Paketvorgabe ist dieselbe Zahl, die #142 für die große Karte gemessen
+hat. Eine eigene wäre genau die Stellschraube ohne Messung, vor der die
+Grundregel oben warnt — hier ist die Nicht-Erfindung einer Zahl die
+richtige Antwort, nicht ein neuer Messlauf.
+
+**Was NOCH NICHT gemessen ist, und das ist offen:** der Texturhaushalt
+beider Karten gleichzeitig auf dem Gerät. Aus der Rechnung heraus ist es
+klein — ein 180-dp-Kasten fasst bei 2/1 Puffer rund ein Dutzend
+256er-Kacheln gegen die Bildschirmfüllung der großen —, aber „aus der
+Rechnung heraus" ist auf dieser Seite kein Beleg. Wer es nachholt:
+`tool/measure_map.sh` im 10-Minuten-Fenster wie im Engine-Vergleich, dabei
+das Fund-Blatt wiederholt öffnen und schließen.
+
+**Zwei Invarianten sind von Hand mitkopiert**, weil sie an *jeder*
+`MapOptions` hängen und bis dahin nur in `flutter_map_view.dart` standen:
+
+- `cameraConstraint: const FiniteCameraConstraint()` — die ANR-Kette aus
+  #141/#151 hängt nicht an der großen Karte, sondern an jeder Kamera.
+- Genau EINE TileProvider-Instanz pro eingehängtem TileLayer (#157). In
+  der Mini-Karte einfacher als in der großen, weil ihr TileLayer nie
+  gegen einen Vektor-Layer getauscht wird — aber das `??=`-Muster gilt
+  trotzdem, denn im Formular baut jeder Tastendruck neu.
+
+Beide hält `test/mini_map_test.dart` fest. Eine Kopie erbt keine Wächter.
+
+**Nicht gebaut, bewusst:** die mitgelieferte DACH-Übersicht als
+Offline-Unterlage. Ihre Daten enden bei z7; auf z17 hochskaliert ergibt
+das einen Farbschmier, der aussieht wie eine Karte und keine ist —
+dieselbe Lehre wie #137, wo zwei Kartenstile nebeneinander kaputter
+aussahen als die leere Fläche. Ohne Empfang bleibt es beim Landton, und
+die Geometrie (Spot-Pin, 20-m-Ring, Streukreis, Maßstab) trägt die
+Aussage. Eine *installierte Regionskarte* (PMTiles, ~z15) wäre hier
+wirklich nützlich — das ist eine eigene Stufe und braucht eine Messung.

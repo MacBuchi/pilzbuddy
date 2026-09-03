@@ -47,6 +47,7 @@ import 'map_view/map_view.dart';
 import 'position_provider.dart';
 import 'spot_filter.dart';
 import 'widgets/add_spot_sheet.dart';
+import 'widgets/crosshair.dart';
 import 'widgets/map_banners.dart';
 import 'widgets/forest_layer_sheet.dart';
 import 'widgets/terrain_layer_sheet.dart';
@@ -758,7 +759,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
             // Dauerhaftes, dezentes Fadenkreuz in der Kartenmitte —
             // „Neuer Spot" speichert genau dort.
             IgnorePointer(
-              child: Center(child: _Crosshair(key: _tourAnchors.crosshair)),
+              child: Center(child: Crosshair(key: _tourAnchors.crosshair)),
             ),
             // Die Legende zu den aktiven Ebenen (#231), links unten über
             // dem Maßstab. Nicht mehr in einem IgnorePointer: Das X zum
@@ -1017,51 +1018,3 @@ class _MapScreenState extends ConsumerState<MapScreen>
 }
 
 /// Kleines, dezentes Fadenkreuz: Ring + Haarlinien, grün mit weißem Halo.
-class _Crosshair extends StatelessWidget {
-  const _Crosshair({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      size: const Size(34, 34),
-      painter: _CrosshairPainter(),
-    );
-  }
-}
-
-class _CrosshairPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final halo = Paint()
-      ..color = Colors.white.withValues(alpha: 0.85)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.5
-      ..strokeCap = StrokeCap.round;
-    final line = Paint()
-      ..color = AppColors.forestGreen.withValues(alpha: 0.9)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8
-      ..strokeCap = StrokeCap.round;
-
-    const radius = 9.0;
-    const arm = 6.0;
-
-    for (final paint in [halo, line]) {
-      canvas.drawCircle(center, radius, paint);
-      canvas.drawLine(center - const Offset(0, radius + arm),
-          center - const Offset(0, radius + 1.5), paint);
-      canvas.drawLine(center + const Offset(0, radius + 1.5),
-          center + const Offset(0, radius + arm), paint);
-      canvas.drawLine(center - const Offset(radius + arm, 0),
-          center - const Offset(radius + 1.5, 0), paint);
-      canvas.drawLine(center + const Offset(radius + 1.5, 0),
-          center + const Offset(radius + arm, 0), paint);
-    }
-    canvas.drawCircle(center, 1.8, Paint()..color = Colors.white);
-    canvas.drawCircle(center, 1.1, Paint()..color = AppColors.forestGreen);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
