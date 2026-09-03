@@ -7,6 +7,27 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Im Browser bleiben deine Spots stehen
+
+*3. September 2026 · Version 1.115.0*
+
+Wer PilzBuddy im Browser benutzt, kannte das: Der Empfang bricht weg, die
+App holt die Spots neu — und die Liste ist leer. Auf dem Telefon fängt
+das seit langem ein Zwischenspeicher ab. Im Browser gab es ihn nicht.
+
+Jetzt gibt es ihn. Deine Spots liegen zusätzlich im Speicher des
+Browsers, und fällt die Verbindung weg, zeigt die Karte weiter, was
+zuletzt da war — mit dem Hinweis, aus welchem Stand die Daten stammen,
+genau wie auf dem Telefon.
+
+Zwei Dinge dazu:
+
+- **Beim Neustart hilft es noch nicht.** Ohne Netz startet PilzBuddy im
+  Browser bisher gar nicht erst. Das ist einer der nächsten Schritte.
+- **Abmelden räumt auf.** Der Zwischenspeicher wird dabei gelöscht, wie
+  auf dem Telefon auch — deine Fundstellen bleiben nicht im Browser
+  liegen.
+
 ## Im Browser wird die Karte nicht mehr grau
 
 *3. September 2026 · Versionen 1.114.3 bis 1.114.5*

@@ -22,6 +22,22 @@ void main() {
   final ci = File('.github/workflows/ci.yml').readAsStringSync();
   final preview = File('.github/workflows/preview.yml').readAsStringSync();
 
+  // Ohne diesen Schritt hat das Projekt WIEDER keinen einzigen Test auf
+  // dart2js — und niemandem fiele es auf: `flutter test` bliebe grün,
+  // die Datei bliebe liegen, und der Web-Weg wäre still ungeprüft.
+  // Dieselbe Begründung wie bei den Selbsttests in tool/ (#151): Was
+  // nicht in CI läuft, verrottet.
+  group('Der Web-Test läuft in CI (#385)', () {
+    test('ci.yml ruft die Testdatei auf dart2js auf', () {
+      expect(ci, contains('flutter test --platform chrome'));
+      expect(ci, contains('test/spot_cache_idb_test.dart'));
+    });
+
+    test('und die Datei gibt es', () {
+      expect(File('test/spot_cache_idb_test.dart').existsSync(), isTrue);
+    });
+  });
+
   // Der Artefaktname steht in `release.yml` an FÜNF unabhängigen Stellen
   // (zwei `cp`, zwei `path:`, ein `files:`), und nichts hält sie
   // zusammen. Genau diese Falle hat MitFahrBar einmal erwischt: Der

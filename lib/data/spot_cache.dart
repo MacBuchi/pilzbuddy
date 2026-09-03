@@ -51,6 +51,41 @@ abstract interface class SpotCache {
   Future<void> clear();
 }
 
+/// Die Ablage-Form: EIN JSON-Text, egal wohin er wandert.
+///
+/// Bewusst geteilt zwischen Datei (Android) und IndexedDB (Browser) —
+/// und im Browser bewusst als Text und nicht als Objekt. IndexedDB könnte
+/// verschachtelte Maps direkt aufnehmen, gäbe sie aber als
+/// `Map<String, Object?>` zurück; `Map<String, dynamic>` ist dazu NICHT
+/// zuweisungskompatibel, und `Spot.fromJson` erwartet genau das. Ein Text
+/// nimmt denselben Weg durch `jsonDecode` wie auf dem Telefon — eine
+/// Abbildung, ein Ergebnis.
+String encodeSpotCache({
+  required String uid,
+  required List<Map<String, dynamic>> rows,
+  required DateTime savedAt,
+}) =>
+    jsonEncode({
+      'uid': uid,
+      'saved_at': savedAt.toIso8601String(),
+      'rows': rows,
+    });
+
+/// Liest [text] zurück — oder `null`, wenn nichts Brauchbares darin steht
+/// oder der Inhalt zu einem anderen Konto gehört.
+CachedSpotRows? decodeSpotCache(String text, {required String uid}) {
+  final json = jsonDecode(text);
+  if (json is! Map<String, dynamic>) return null;
+  // Fremdes Konto: Die Spots eines anderen Nutzers dürfen niemals in
+  // einer fremden Sitzung auftauchen.
+  if (json['uid'] != uid) return null;
+  final savedAt = DateTime.tryParse(json['saved_at'] as String? ?? '');
+  if (savedAt == null) return null;
+  final rows =
+      (json['rows'] as List<dynamic>? ?? const []).cast<Map<String, dynamic>>();
+  return (rows: rows, savedAt: savedAt);
+}
+
 /// Der Zwischenspeicher als Datei im App-Verzeichnis (Android).
 class FileSpotCache implements SpotCache {
   FileSpotCache({Directory? baseDirOverride})
@@ -83,11 +118,8 @@ class FileSpotCache implements SpotCache {
     try {
       final file = await _file();
       final temp = File('${file.path}.part');
-      await temp.writeAsString(jsonEncode({
-        'uid': uid,
-        'saved_at': savedAt.toIso8601String(),
-        'rows': rows,
-      }));
+      await temp.writeAsString(
+          encodeSpotCache(uid: uid, rows: rows, savedAt: savedAt));
       await temp.rename(file.path);
     } catch (_) {
       // Volle Platte, fehlende Rechte, kein Dateisystem: Dann gibt es
@@ -105,16 +137,7 @@ class FileSpotCache implements SpotCache {
     try {
       final file = await _file();
       if (!await file.exists()) return null;
-      final json = jsonDecode(await file.readAsString());
-      if (json is! Map<String, dynamic>) return null;
-      // Fremdes Konto: Die Spots eines anderen Nutzers dürfen niemals in
-      // einer fremden Sitzung auftauchen.
-      if (json['uid'] != uid) return null;
-      final savedAt = DateTime.tryParse(json['saved_at'] as String? ?? '');
-      if (savedAt == null) return null;
-      final rows = (json['rows'] as List<dynamic>? ?? const [])
-          .cast<Map<String, dynamic>>();
-      return (rows: rows, savedAt: savedAt);
+      return decodeSpotCache(await file.readAsString(), uid: uid);
     } catch (_) {
       // Kaputte oder unlesbare Datei ist kein Fehlerfall, sondern
       // schlicht „kein Zwischenspeicher" — der nächste erfolgreiche
@@ -137,10 +160,14 @@ class FileSpotCache implements SpotCache {
   }
 }
 
-/// Web: `path_provider` hat dort kein App-Verzeichnis, und die
-/// Offline-Geschichte der App ist ohnehin Android (Offline-Karten,
-/// Foreground-Service). Statt bei jedem Seitenaufruf zu scheitern, wird
-/// hier gar nichts erst versucht.
+/// Gar kein Zwischenspeicher — der ehrliche Fall, wenn es keinen Ort zum
+/// Ablegen gibt.
+///
+/// Bis 1.114.5 war das der ganze Web-Zweig (`path_provider` hat im
+/// Browser kein App-Verzeichnis); seit #385 liegt dort IndexedDB. Die
+/// Klasse bleibt, weil es den Fall weiter gibt: In Tests ohne Ablage und
+/// überall dort, wo ein Zwischenspeicher ausdrücklich NICHT gewollt ist,
+/// ist ein stiller Nichtstuer richtiger als eine halbe Ablage.
 class NoSpotCache implements SpotCache {
   const NoSpotCache();
 

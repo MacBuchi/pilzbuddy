@@ -7,11 +7,13 @@ import 'auth_repository.dart';
 import 'feedback_repository.dart';
 import 'friend_repository.dart';
 import 'live_share_repository.dart';
+import 'idb_factory.dart';
 import 'outbox.dart';
 import 'outbox_runner.dart';
 import 'profile_repository.dart';
 import 'push_repository.dart';
 import 'spot_cache.dart';
+import 'spot_cache_idb.dart';
 import 'spot_repository.dart';
 
 final supabaseClientProvider =
@@ -20,11 +22,15 @@ final supabaseClientProvider =
 final authRepositoryProvider =
     Provider((ref) => AuthRepository(ref.watch(supabaseClientProvider)));
 
-/// Zwischenspeicher der eigenen Spots — im Web bewusst wirkungslos
-/// (`path_provider` hat dort kein App-Verzeichnis), in Tests durch ein
-/// temporäres Verzeichnis ersetzt.
+/// Zwischenspeicher der eigenen Spots — als Datei (Android), in
+/// IndexedDB (Browser, #385), in Tests durch ein temporäres Verzeichnis
+/// oder einen Fake ersetzt.
+///
+/// Ohne IndexedDB (privater Modus mancher Browser, `file://`) bleibt es
+/// beim Verhalten von vorher: kein Zwischenspeicher. Das ist ehrlicher
+/// als eine Ablage, die jeden Neustart vergisst.
 final spotCacheProvider = Provider<SpotCache>(
-    (ref) => kIsWeb ? const NoSpotCache() : FileSpotCache());
+    (ref) => chooseSpotCache(web: kIsWeb, idb: browserIdbFactory()));
 
 /// Der Ausgangskorb (#267) — dieselbe Aufteilung wie beim
 /// Zwischenspeicher: im Web wirkungslos, in Tests ersetzt. Anders als
