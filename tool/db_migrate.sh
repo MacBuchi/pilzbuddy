@@ -9,11 +9,13 @@
 # workflow (safety net).
 #
 # Requires SUPABASE_DB_URL (Session-Pooler URI incl. password, GitHub
-# secret). Without it the script only fails if there are pending patches.
+# secret). Without it the script only fails if THIS change adds a patch —
+# see the BASE_REF block below.
 set -euo pipefail
 
 BASELINE=${BASELINE:-5}
 DB_URL="${SUPABASE_DB_URL:-}"
+BASE_REF="${BASE_REF:-origin/main}"
 
 patch_number() {
   basename "$1" | sed -n 's/^patch_0*\([0-9][0-9]*\)_.*/\1/p'
@@ -29,8 +31,41 @@ for f in $files; do
 done
 
 if [ -z "$DB_URL" ]; then
+  # Ohne Datenbank lässt sich `applied_patches` nicht lesen. Die Frage ist
+  # dann NICHT „gibt es Patches jenseits der Baseline" — die gibt es seit
+  # patch_006 immer, das wäre ein Wächter, der nie wieder grün wird.
+  #
+  # Die Frage ist: Fügt DIESER Stand einen Patch hinzu, den der
+  # Ziel-Branch noch nicht hat? Nur dann steht etwas aus. Genau dieselbe
+  # Betrachtung wie in tool/patch_guard.sh.
+  #
+  # Der Fall ist real und nicht theoretisch: GitHub reicht bei
+  # Dependabot-Läufen die DEPENDABOT-Secrets durch, nicht die von Actions
+  # (zwei getrennte Sätze in den Repo-Einstellungen). SUPABASE_DB_URL ist
+  # dort nicht gesetzt, also war dieser Pflicht-Check auf JEDEM
+  # Dependabot-PR rot — mit einer Meldung, die sechzehn längst
+  # eingespielte Patches als offen auswies und zum Anlegen eines Secrets
+  # riet, das es längst gibt (#368, #369).
+  #
+  # Das Secret zusätzlich als Dependabot-Secret zu hinterlegen wäre der
+  # bequeme, aber falsche Weg: Damit bekäme ein Lauf, der fremde
+  # Paket-Updates einspielt und dabei deren Build-Hooks ausführt, Zugriff
+  # auf die Produktionsdatenbank.
+  if git rev-parse --verify --quiet "$BASE_REF" >/dev/null 2>&1; then
+    added=$(git diff --name-only --diff-filter=A "$BASE_REF"...HEAD \
+              -- 'supabase/patch_*.sql' 2>/dev/null || true)
+    if [ -z "$added" ]; then
+      echo "Dieser Stand fügt keinen DB-Patch hinzu (Basis: $BASE_REF) — SUPABASE_DB_URL wird nicht benötigt."
+      exit 0
+    fi
+    echo "::error::Dieser Stand fügt DB-Patches hinzu ($(echo $added | tr '\n' ' ')), aber SUPABASE_DB_URL ist in diesem Lauf leer. Ohne eingespielten Patch darf der Stand nicht gemergt/released werden. Bei einem Dependabot-PR ist das erwartbar — dort greifen die Dependabot-Secrets, nicht die von Actions; ein solcher PR sollte aber gar keinen Patch mitbringen. Sonst: Supabase-Dashboard → Connect → Session-Pooler-URI (inkl. DB-Passwort) → GitHub → Settings → Secrets → Actions → SUPABASE_DB_URL."
+    exit 1
+  fi
+  # Ohne Basis-Branch (flacher Klon, Lauf auf einem Tag) lässt sich die
+  # Frage nicht beantworten. Dann bleibt es bei der vorsichtigen Antwort:
+  # lieber rot als ein nicht eingespielter Patch im Release.
   if [ -n "$pending_without_db" ]; then
-    echo "::error::Neue DB-Patches vorhanden (${pending_without_db# }), aber das Repo-Secret SUPABASE_DB_URL fehlt. Ohne eingespielten Patch darf dieser Stand nicht gemergt/released werden. Secret anlegen: Supabase-Dashboard → Connect → Session-Pooler-URI (inkl. DB-Passwort) → GitHub → Settings → Secrets → Actions → SUPABASE_DB_URL."
+    echo "::error::Neue DB-Patches vorhanden (${pending_without_db# }), und weder SUPABASE_DB_URL noch der Basis-Branch $BASE_REF stehen zur Verfügung — ob etwas aussteht, ist damit nicht entscheidbar. Für PR-Läufe: actions/checkout mit fetch-depth: 0 und BASE_REF setzen."
     exit 1
   fi
   echo "Keine neuen DB-Patches — SUPABASE_DB_URL wird nicht benötigt."

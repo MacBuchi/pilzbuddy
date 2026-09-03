@@ -9,7 +9,7 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Die Fundstelle auch auf der Karte setzen
 
-*2. September 2026 · Version 1.114.0*
+*2. September 2026 · Versionen 1.114.0 und 1.114.1*
 
 Seit der letzten Version kann ein Fund seine eigene Stelle mitbringen —
 bisher nur die, an der du gerade stehst. Jetzt gibt es im Fund-Formular
