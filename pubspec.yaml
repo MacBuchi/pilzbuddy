@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.114.5+184
+version: 1.115.0+185
 
 environment:
   sdk: ^3.11.0
@@ -62,6 +62,14 @@ dependencies:
   # lib/features/map/map_view/map_view.dart).
   maplibre: 0.3.5
   path_provider: ^2.1.5
+  # Zwischenspeicher im Browser (#385): IndexedDB hinter einer
+  # plattformneutralen Schnittstelle. Direkt statt nur transitiv über
+  # vector_map_tiles — dieselbe Begründung wie bei executor_lib: Der Code
+  # baut darauf auf, und die Auflösung soll nicht an einer exakt
+  # gepinnten Beta hängen. Der Nebengewinn ist die Testbarkeit:
+  # `newIdbFactoryMemory()` fährt dieselbe Implementierung auf der
+  # Dart-VM, wo es keinen Browser gibt.
+  idb_shim: ^2.9.2
   connectivity_plus: ^7.3.1
   crypto: ^3.0.6
   # Hält den Prozess während des Karten-Downloads wach (Foreground-Service,
