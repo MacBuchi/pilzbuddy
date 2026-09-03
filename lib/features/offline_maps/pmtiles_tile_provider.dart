@@ -14,8 +14,30 @@ class PmTilesVectorTileProvider extends VectorTileProvider {
   final int _minZoom;
   final int _maxZoom;
 
+  /// Aus einer Datei — der Weg auf dem Telefon.
+  ///
+  /// `FileAt` liest faul über einen Pool von acht Handles; die Karte liegt
+  /// nie im Speicher, und genau darauf beruht, dass eine 1,7-GB-Region
+  /// überhaupt benutzbar ist.
   static Future<PmTilesVectorTileProvider> open(String path) async {
     final archive = await PmTilesArchive.fromFile(File(path));
+    return PmTilesVectorTileProvider._(
+        archive, archive.header.minZoom, archive.header.maxZoom);
+  }
+
+  /// Aus Bytes — der Weg im Browser.
+  ///
+  /// Dort gibt es die Wahl nicht: `dart:io` kompiliert zwar (dart2js
+  /// liefert Stubs), aber `pmtiles` exportiert für JS eine `FileAt`, die
+  /// beim Anlegen `UnsupportedError` wirft. `MemoryAt` dagegen ist reines
+  /// Dart und läuft; auch das Entpacken der Kacheln hat einen Web-Zweig
+  /// (`package:archive` statt `dart:io`s zlib).
+  ///
+  /// Der Preis ist, dass die Karte im Speicher bleibt — vertretbar für die
+  /// mitgelieferte Übersicht (8,6 MB), nicht für eine Regionskarte.
+  /// [close] ist hier folgerichtig ein No-op: Es gibt kein Handle.
+  static Future<PmTilesVectorTileProvider> openBytes(Uint8List bytes) async {
+    final archive = await PmTilesArchive.fromBytes(bytes);
     return PmTilesVectorTileProvider._(
         archive, archive.header.minZoom, archive.header.maxZoom);
   }

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
@@ -444,19 +445,47 @@ class OfflineMapStyle {
   const OfflineMapStyle({required this.theme, required this.tileProviders});
 }
 
-/// Entpackt die mitgelieferte Übersichts-Basiskarte (DACH, Zoom 0–7)
-/// einmalig aus den Assets ins Dateisystem und öffnet sie. Liefert null,
-/// wenn das schiefgeht — die Übersicht ist nice-to-have, nie Pflicht.
+/// Gibt es Offline-Karten auf dieser Plattform?
+///
+/// Nur Android. Die Regionskarten liegen als GitHub-Release-Anhänge eines
+/// fremden Repos, und die sind aus dem Browser gar nicht abrufbar (kein
+/// `access-control-allow-origin`, gemessen an beiden Sprüngen der
+/// Weiterleitung — dieselbe Wand wie bei den Regendaten, #365/#366). Dazu
+/// wären sie mit 44 MB bis 2,01 GB je Region nichts für einen
+/// Browser-Speicher, den das System ohne Vorwarnung räumen darf.
+///
+/// Als Provider und nicht als blankes `kIsWeb`, damit beide Seiten prüfbar
+/// sind: `kIsWeb` lässt sich im Test nicht umschalten, ein Provider schon.
+final offlineMapsSupportedProvider = Provider<bool>((ref) => !kIsWeb);
+
+/// Öffnet die mitgelieferte Übersichts-Basiskarte (DACH, Zoom 0–7).
+/// Liefert null, wenn das schiefgeht — die Übersicht ist nice-to-have,
+/// nie Pflicht.
+///
+/// **Zwei Wege, und der Unterschied ist der Speicher.** Auf dem Telefon
+/// wandert das Asset einmalig auf die Platte, und `FileAt` liest es
+/// danach faul — die 8,6 MB liegen nie im RAM. Im Browser gibt es diese
+/// Wahl nicht: `path_provider` hat dort keine Implementierung, und selbst
+/// mit Verzeichnis wirft `pmtiles`' JS-`FileAt` beim Anlegen. Also
+/// `fromBytes`, mit den 8,6 MB im Heap.
+///
+/// Bis 1.114.2 gab es nur den Platten-Weg — mit der Folge, dass der
+/// Browser das Asset über `rootBundle` **erfolgreich lud** und eine Zeile
+/// später wegwarf. Der `catch` schluckte es, `baseMapStyleProvider` gab
+/// `null` zurück, und die PWA zeigte ohne Empfang den nackten
+/// Hintergrundton, obwohl die Karte längst über die Leitung gegangen war.
 Future<PmTilesVectorTileProvider?> _openBundledOverview() async {
   try {
     final data =
         await rootBundle.load('assets/offline_maps/overview_dach.pmtiles');
+    final bytes =
+        data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+    if (kIsWeb) return await PmTilesVectorTileProvider.openBytes(bytes);
     final dir = await getApplicationSupportDirectory();
     final file = File('${dir.path}/offline_maps/overview_dach.pmtiles');
     if (!await file.exists() || await file.length() != data.lengthInBytes) {
       await file.create(recursive: true);
-      await file.writeAsBytes(
-          data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes));
+      await file.writeAsBytes(bytes);
     }
     return await PmTilesVectorTileProvider.open(file.path);
   } catch (_) {

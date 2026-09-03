@@ -379,6 +379,42 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   hinterlegte Vorlage sieht CI nie. Wer sie dort auf den Link zurückstellt,
   bricht „Passwort vergessen" oder den Adresswechsel in Produktion,
   während CI grün bleibt — Vorlagen also immer an beiden Stellen ändern.
+- **Warum Offline-Karten NUR Android sind — und was im Browser trotzdem
+  geht** (gemessen 2026-09-03): Die Regionskarten sind Release-Anhänge des
+  FREMDEN Repos `whitespring/project-nomad-maps-europe`, und die gibt ein
+  Browser nicht heraus — kein `access-control-allow-origin`, weder auf der
+  302 von `github.com` noch am Ziel `release-assets.githubusercontent.com`.
+  Dieselbe Wand wie bei den Regendaten (#365/#366), aber der dortige
+  Ausweg trägt hier nicht: Der Spiegel-Branch hielt 2 MB EIGENER Daten,
+  hier sind es **36,1 GB fremder** — 38 Dateien von 44 MB (Bremen) bis
+  2,01 GB (Österreich), ein typisches Bundesland 443 MB bis 1,37 GB. Jede
+  der beiden Hürden allein reichte aus. Ein eigener Host mit CORS und
+  Range-Unterstützung wäre technisch machbar (`PmTilesArchive.fromUri`
+  kann das ganz ohne Download), ist aber eine Finanzierungsfrage —
+  `docs/finanzierung-und-skalierung.md`.
+  **Die Einschränkung liegt nie bei PMTiles.** Das Paket bietet
+  `fromFile`, `fromBytes` und `fromUri`; nur `FileAt` wirft im Browser, und
+  das Entpacken hat dort einen eigenen Zweig über `package:archive`.
+  **Die mitgelieferte DACH-Übersicht läuft deshalb seit 1.114.2 auch im
+  Web** (`_openBundledOverview` verzweigt): auf dem Telefon über die Platte
+  (`FileAt` liest faul, die 8,6 MB bleiben aus dem RAM), im Browser über
+  `fromBytes`. Davor lud der Browser das Asset **erfolgreich** und warf es
+  eine Zeile später weg, weil `path_provider` dort fehlt — der `catch`
+  schluckte es, und die PWA zeigte ohne Empfang den nackten
+  Hintergrundton, obwohl die Karte längst über die Leitung gegangen war.
+  Wirksam wird sie genau im Fall „Tab offen, Empfang weg"; beim NEUSTART
+  ohne Netz hilft sie nicht — **die PWA hat gar keinen Offline-Modus**:
+  Flutters Service Worker ist die 783-Byte-Fassung, die sich selbst
+  abmeldet, und `NoSpotCache`/`NoOutbox` sind im Web bewusst leer. Wer das
+  ändern will, braucht vier Stufen (Service Worker, Spots in IndexedDB,
+  Ausgangskorb, dann erst Karten) — und der Service Worker ist die
+  riskanteste davon, weil eine falsche Cache-Versionierung Nutzer
+  dauerhaft auf einen alten Stand nagelt und damit genau die kontrollierte
+  Beförderung umgeht.
+  Nebenkosten, die bleiben: `assets/map_glyphs/` (984 KB) landet im
+  Web-Build und wird dort NIE gelesen (nur MapLibre nutzt Glyphs, und
+  MapLibre ist im Web aus). Flutter kennt keine plattformabhängigen
+  Asset-Listen.
 - Offline-Karten (`lib/features/offline_maps/`, nur Android): Bundesland-
   PMTiles (Protomaps Basemap v4, ODbL) aus den GitHub-Releases von
   `whitespring/project-nomad-maps-europe`; Katalog entsteht dynamisch aus
