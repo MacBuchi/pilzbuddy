@@ -1256,6 +1256,14 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
 - Widget-/Flow-Tests sind der Schwerpunkt — Layout, Zustände und Breakpoints
   pixelfrei prüfen statt per Screenshot. `pumpAndSettle` funktioniert wegen
   der Endlos-Animationen nicht; die `settle()`-Helfer mit festen Frames nutzen.
+- **Kein Test läuft auf dart2js** (gemessen 2026-09-03). `flutter test`
+  fährt ausschließlich die Dart-VM, dort ist `kIsWeb` immer falsch — jeder
+  Web-Zweig im Code ist damit ungetestet, auch wenn ein Test ihn zu prüfen
+  behauptet. `flutter test --platform chrome` wäre der Weg, hat aber eine
+  harte Grenze: Der Runner liefert **keine Assets**, ein `rootBundle.load`
+  endet dort im Timeout (nicht einmal in einem 404). Für assetfreien Code
+  funktioniert es. Wer eine Web-Zusage wirklich belegen will, kommt um die
+  laufende App im Browser nicht herum.
 - Kein Netzwerk in Tests (Update-Check ist im Harness auf `null` überschrieben,
   Kartenkacheln werden durch eine transparente 1×1-PNG ersetzt).
 - Die Fakes ersetzen keinen echten RLS-Test — das leistet der Schema Check.

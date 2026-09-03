@@ -9,7 +9,7 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Im Browser wird die Karte nicht mehr grau
 
-*3. September 2026 · Version 1.114.3*
+*3. September 2026 · Versionen 1.114.3 und 1.114.4*
 
 Wer PilzBuddy im Browser benutzt und unterwegs den Empfang verliert, sah
 bisher eine leere Fläche: Die Kartenkacheln kommen aus dem Netz, und ohne
