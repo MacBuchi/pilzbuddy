@@ -27,14 +27,23 @@ void main() {
   // die Datei bliebe liegen, und der Web-Weg wäre still ungeprüft.
   // Dieselbe Begründung wie bei den Selbsttests in tool/ (#151): Was
   // nicht in CI läuft, verrottet.
-  group('Der Web-Test läuft in CI (#385)', () {
-    test('ci.yml ruft die Testdatei auf dart2js auf', () {
+  group('Die Web-Tests laufen in CI (#385, #386)', () {
+    const files = [
+      'test/spot_cache_idb_test.dart',
+      'test/outbox_idb_test.dart',
+    ];
+
+    test('ci.yml ruft sie auf dart2js auf', () {
       expect(ci, contains('flutter test --platform chrome'));
-      expect(ci, contains('test/spot_cache_idb_test.dart'));
+      for (final file in files) {
+        expect(ci, contains(file));
+      }
     });
 
-    test('und die Datei gibt es', () {
-      expect(File('test/spot_cache_idb_test.dart').existsSync(), isTrue);
+    test('und die Dateien gibt es', () {
+      for (final file in files) {
+        expect(File(file).existsSync(), isTrue, reason: file);
+      }
     });
   });
 

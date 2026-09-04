@@ -18,9 +18,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:idb_shim/idb_client_memory.dart';
 import 'package:idb_shim/idb_shim.dart';
+import 'package:pilzbuddy/data/browser_db.dart';
 import 'package:pilzbuddy/data/idb_factory.dart';
 import 'package:pilzbuddy/data/spot_cache.dart';
 import 'package:pilzbuddy/data/spot_cache_idb.dart';
+
+import 'fakes/broken_idb_factory.dart';
 
 /// Eine Supabase-Zeile, wie `select('*, finds(*)')` sie liefert.
 Map<String, dynamic> row(String id) => {
@@ -46,37 +49,6 @@ Map<String, dynamic> row(String id) => {
       ],
     };
 
-/// Ein Zugang, bei dem grundsätzlich nichts geht — steht für den privaten
-/// Modus, einen vollen Speicher und einen `file://`-Kontext.
-class _BrokenIdbFactory implements IdbFactory {
-  @override
-  Future<Database> open(String dbName,
-          {int? version,
-          OnUpgradeNeededFunction? onUpgradeNeeded,
-          OnBlockedFunction? onBlocked}) async =>
-      throw StateError('kein IndexedDB');
-
-  @override
-  Future<IdbFactory> deleteDatabase(String name,
-          {OnBlockedFunction? onBlocked}) async =>
-      throw StateError('kein IndexedDB');
-
-  @override
-  int cmp(Object first, Object second) => 0;
-
-  @override
-  String get name => 'kaputt';
-
-  @override
-  bool get persistent => false;
-
-  @override
-  bool get supportsDatabaseNames => false;
-
-  @override
-  Future<List<String>> getDatabaseNames() async => const [];
-}
-
 void main() {
   late IdbFactory factory;
   late SpotCache cache;
@@ -88,8 +60,8 @@ void main() {
     factory = browserIdbFactory() ?? newIdbFactoryMemory();
     // Auf dart2js überlebt die Datenbank den vorigen Test — sonst prüfte
     // „leerer Speicher liefert null" dort nie, was es soll.
-    await factory.deleteDatabase(IndexedDbSpotCache.dbName);
-    cache = IndexedDbSpotCache(factory);
+    await factory.deleteDatabase(kBrowserDbName);
+    cache = IndexedDbSpotCache(BrowserDb(factory));
   });
 
   test('Geschriebenes kommt unverändert zurück', () async {
@@ -140,12 +112,10 @@ void main() {
       () async {
     await cache.write(uid: 'u1', rows: rows, savedAt: savedAt);
 
-    final db = await factory.open(IndexedDbSpotCache.dbName,
-        version: IndexedDbSpotCache.dbVersion);
-    final txn =
-        db.transaction(IndexedDbSpotCache.storeName, idbModeReadOnly);
-    final stored =
-        await txn.objectStore(IndexedDbSpotCache.storeName).getObject('my_spots');
+    final db =
+        await factory.open(kBrowserDbName, version: kBrowserDbVersion);
+    final txn = db.transaction(kSpotCacheStore, idbModeReadOnly);
+    final stored = await txn.objectStore(kSpotCacheStore).getObject('my_spots');
     await txn.completed;
     db.close();
 
@@ -159,11 +129,10 @@ void main() {
       () async {
     await cache.write(uid: 'u1', rows: rows, savedAt: savedAt);
 
-    final db = await factory.open(IndexedDbSpotCache.dbName,
-        version: IndexedDbSpotCache.dbVersion);
-    final txn =
-        db.transaction(IndexedDbSpotCache.storeName, idbModeReadWrite);
-    await txn.objectStore(IndexedDbSpotCache.storeName).put(42, 'my_spots');
+    final db =
+        await factory.open(kBrowserDbName, version: kBrowserDbVersion);
+    final txn = db.transaction(kSpotCacheStore, idbModeReadWrite);
+    await txn.objectStore(kSpotCacheStore).put(42, 'my_spots');
     await txn.completed;
     db.close();
 
@@ -171,7 +140,7 @@ void main() {
   });
 
   test('Ein kaputter Zugang wirft nie', () async {
-    final broken = IndexedDbSpotCache(_BrokenIdbFactory());
+    final broken = IndexedDbSpotCache(BrowserDb(BrokenIdbFactory()));
 
     // Alle drei Methoden sind total (siehe SpotCache): Ein erfolgreicher
     // Abruf darf nicht daran scheitern, dass sich die Kopie nicht ablegen
@@ -202,19 +171,19 @@ void main() {
 
   group('Welcher Zwischenspeicher zu welcher Plattform gehört', () {
     test('Android: die Datei', () {
-      expect(chooseSpotCache(web: false, idb: newIdbFactoryMemory()),
+      expect(chooseSpotCache(web: false, db: BrowserDb(newIdbFactoryMemory())),
           isA<FileSpotCache>(),
           reason: 'Auf dem Telefon liest FileAt faul und der Backup-'
               'Ausschluss zeigt auf das Verzeichnis.');
     });
 
     test('Browser mit IndexedDB: der neue Weg', () {
-      expect(chooseSpotCache(web: true, idb: newIdbFactoryMemory()),
+      expect(chooseSpotCache(web: true, db: BrowserDb(newIdbFactoryMemory())),
           isA<IndexedDbSpotCache>());
     });
 
     test('Browser ohne IndexedDB: gar keiner', () {
-      expect(chooseSpotCache(web: true, idb: null), isA<NoSpotCache>(),
+      expect(chooseSpotCache(web: true, db: null), isA<NoSpotCache>(),
           reason: 'Ehrlicher als eine Ablage, die jeden Neustart vergisst.');
     });
   });

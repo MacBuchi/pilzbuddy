@@ -268,6 +268,42 @@ class NewFindsJob extends OutboxJob {
       );
 }
 
+/// Die Ablage-Form des Korbs: EIN JSON-Text, egal wohin er wandert.
+///
+/// Geteilt zwischen Datei (Android) und IndexedDB (Browser, #386) — und
+/// im Browser bewusst als Text und nicht als Objekt: IndexedDB nähme die
+/// verschachtelten Aufträge direkt an, gäbe sie aber als
+/// `Map<String, Object?>` zurück, worauf `Map<String, dynamic>` nicht
+/// zuweisbar ist. Dieselbe Begründung wie bei `encodeSpotCache`.
+String encodeOutbox(List<OutboxJob> jobs, {required String uid}) => jsonEncode({
+      'uid': uid,
+      'jobs': [for (final job in jobs) job.toJson()],
+    });
+
+/// Liest [text] zurück — oder `const []`, wenn nichts Brauchbares darin
+/// steht oder der Inhalt zu einem anderen Konto gehört.
+///
+/// Wirft nie: Unlesbar heißt „kein Korb". Ein einzelner unlesbarer
+/// Auftrag fällt weg (`OutboxJob.tryParse`), der Rest bleibt.
+List<OutboxJob> decodeOutbox(String text, {required String uid}) {
+  try {
+    final json = jsonDecode(text);
+    if (json is! Map<String, dynamic>) return const [];
+    // Fremdes Konto: Die Aufträge eines anderen Nutzers dürfen niemals
+    // in einer fremden Sitzung hochgehen — sie trügen sonst dessen
+    // Fundstellen in mein Konto.
+    if (json['uid'] != uid) return const [];
+    final jobs = <OutboxJob>[];
+    for (final raw in json['jobs'] as List<dynamic>? ?? const []) {
+      final job = OutboxJob.tryParse(raw as Map<String, dynamic>);
+      if (job != null) jobs.add(job);
+    }
+    return jobs;
+  } catch (_) {
+    return const [];
+  }
+}
+
 /// Der Korb wirft beim Lesen nie, beim **Schreiben** aber sehr wohl —
 /// siehe Kopf dieser Datei.
 abstract interface class Outbox {
@@ -326,18 +362,7 @@ class FileOutbox implements Outbox {
     try {
       final file = await _file();
       if (!await file.exists()) return const [];
-      final json = jsonDecode(await file.readAsString());
-      if (json is! Map<String, dynamic>) return const [];
-      // Fremdes Konto: Die Aufträge eines anderen Nutzers dürfen niemals
-      // in einer fremden Sitzung hochgehen — sie trügen sonst dessen
-      // Fundstellen in mein Konto.
-      if (json['uid'] != uid) return const [];
-      final jobs = <OutboxJob>[];
-      for (final raw in json['jobs'] as List<dynamic>? ?? const []) {
-        final job = OutboxJob.tryParse(raw as Map<String, dynamic>);
-        if (job != null) jobs.add(job);
-      }
-      return jobs;
+      return decodeOutbox(await file.readAsString(), uid: uid);
     } catch (_) {
       // Unlesbar heißt „kein Korb". Bewusst kein `logError`: Das wäre
       // ein Bericht pro App-Start (siehe worthReporting).
@@ -364,12 +389,7 @@ class FileOutbox implements Outbox {
       {required String uid}) async {
     final file = await _file();
     final temp = File('${file.path}.part');
-    await temp.writeAsString(
-        jsonEncode({
-          'uid': uid,
-          'jobs': [for (final job in jobs) job.toJson()],
-        }),
-        flush: true);
+    await temp.writeAsString(encodeOutbox(jobs, uid: uid), flush: true);
     await temp.rename(file.path);
   }
 
@@ -385,10 +405,14 @@ class FileOutbox implements Outbox {
       });
 }
 
-/// Web: kein App-Verzeichnis, also kein Korb. [append] wirft — und der
+/// Kein Ort zum Ablegen, also kein Korb. [append] wirft — und der
 /// Aufrufer meldet daraufhin den ursprünglichen Netzfehler, so wie vor
 /// diesem Feature. Still „gespeichert" zu melden wäre die schlimmste
 /// aller Varianten.
+///
+/// Bis 1.115.0 war das der ganze Web-Zweig; seit #386 liegt dort
+/// IndexedDB. Übrig bleibt der Fall, in dem es auch das nicht gibt —
+/// privater Modus mancher Browser, `file://`.
 class NoOutbox implements Outbox {
   const NoOutbox();
 

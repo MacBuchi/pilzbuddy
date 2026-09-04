@@ -7,8 +7,10 @@ import 'auth_repository.dart';
 import 'feedback_repository.dart';
 import 'friend_repository.dart';
 import 'live_share_repository.dart';
+import 'browser_db.dart';
 import 'idb_factory.dart';
 import 'outbox.dart';
+import 'outbox_idb.dart';
 import 'outbox_runner.dart';
 import 'profile_repository.dart';
 import 'push_repository.dart';
@@ -22,6 +24,18 @@ final supabaseClientProvider =
 final authRepositoryProvider =
     Provider((ref) => AuthRepository(ref.watch(supabaseClientProvider)));
 
+/// Die Datenbank des Browsers — EINE Verbindung für Zwischenspeicher
+/// und Ausgangskorb. `null`, wo es kein IndexedDB gibt (Android, und im
+/// Browser der private Modus mancher Hersteller).
+///
+/// Geteilt und nicht je Nutzer eine: Name und Version gehören zusammen,
+/// zwei Verbindungen mit auseinanderlaufenden Versionen blockierten den
+/// Upgrade stumm (siehe `browser_db.dart`).
+final browserDbProvider = Provider<BrowserDb?>((ref) {
+  final factory = browserIdbFactory();
+  return factory == null ? null : BrowserDb(factory);
+});
+
 /// Zwischenspeicher der eigenen Spots — als Datei (Android), in
 /// IndexedDB (Browser, #385), in Tests durch ein temporäres Verzeichnis
 /// oder einen Fake ersetzt.
@@ -30,14 +44,15 @@ final authRepositoryProvider =
 /// beim Verhalten von vorher: kein Zwischenspeicher. Das ist ehrlicher
 /// als eine Ablage, die jeden Neustart vergisst.
 final spotCacheProvider = Provider<SpotCache>(
-    (ref) => chooseSpotCache(web: kIsWeb, idb: browserIdbFactory()));
+    (ref) => chooseSpotCache(web: kIsWeb, db: ref.watch(browserDbProvider)));
 
 /// Der Ausgangskorb (#267) — dieselbe Aufteilung wie beim
-/// Zwischenspeicher: im Web wirkungslos, in Tests ersetzt. Anders als
-/// dort ist die Web-Fassung nicht still, sondern wirft beim Ablegen: Ein
-/// Fund, der nirgends liegt, darf nicht als gespeichert gelten.
-final outboxProvider =
-    Provider<Outbox>((ref) => kIsWeb ? const NoOutbox() : FileOutbox());
+/// Zwischenspeicher, seit #386 auch im Browser (IndexedDB). Anders als
+/// dort wirft er beim Ablegen: Ein Fund, der nirgends liegt, darf nicht
+/// als gespeichert gelten. Ohne IndexedDB bleibt es dabei — dann gibt es
+/// keinen Ort für das Original, und das muss sichtbar scheitern.
+final outboxProvider = Provider<Outbox>(
+    (ref) => chooseOutbox(web: kIsWeb, db: ref.watch(browserDbProvider)));
 
 final spotRepositoryProvider = Provider((ref) => SpotRepository(
       ref.watch(supabaseClientProvider),

@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.115.0+185
+version: 1.116.0+186
 
 environment:
   sdk: ^3.11.0
@@ -70,6 +70,11 @@ dependencies:
   # `newIdbFactoryMemory()` fährt dieselbe Implementierung auf der
   # Dart-VM, wo es keinen Browser gibt.
   idb_shim: ^2.9.2
+  # Die Browser-Schnittstellen (`navigator.storage`) für den Ausgangskorb
+  # im Web (#386) — reine Bindungen des Dart-Teams, im Android-Build nie
+  # kompiliert (bedingter Import in lib/data/browser_storage.dart).
+  # Direkt aus demselben Grund wie idb_shim.
+  web: ^1.1.1
   connectivity_plus: ^7.3.1
   crypto: ^3.0.6
   # Hält den Prozess während des Karten-Downloads wach (Foreground-Service,
