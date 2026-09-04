@@ -74,10 +74,18 @@ function chromeBinary() {
   const candidates = [
     '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
     '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    '/opt/google/chrome/chrome',
     '/usr/bin/chromium-browser',
     '/usr/bin/chromium',
   ];
-  return candidates.find(existsSync) ?? 'google-chrome';
+  const found = candidates.find(existsSync);
+  if (!found) {
+    throw new Error('Kein Chrome gefunden. Gesucht in:\n  ' +
+        candidates.join('\n  ') +
+        '\nAbhilfe: CHROME_EXECUTABLE setzen.');
+  }
+  return found;
 }
 
 function rpc(ws) {
@@ -125,16 +133,34 @@ const fail = [];
 const check = (condition, text) => (condition ? ok : fail).push(text);
 
 const profile = await mkdtemp(join(tmpdir(), 'pilzbuddy-sw-'));
-const chrome = spawn(chromeBinary(), [
+const binary = chromeBinary();
+console.log(`Chrome: ${binary}`);
+const chrome = spawn(binary, [
   '--headless=new',
   '--no-first-run',
   '--no-default-browser-check',
+  // Auf CI-Rechnern läuft alles als root und ohne die üblichen
+  // Kernel-Namespaces; ohne diese beiden startet Chrome dort gar nicht.
   '--no-sandbox',
+  '--disable-dev-shm-usage',
+  // CanvasKit braucht WebGL. Ohne Grafikkarte rendert SwiftShader in
+  // Software — langsam, aber es rendert; ohne den Schalter gar nicht.
   '--enable-unsafe-swiftshader',
   `--remote-debugging-port=${CDP_PORT}`,
   `--user-data-dir=${profile}`,
   'about:blank',
-], {stdio: 'ignore'});
+], {stdio: ['ignore', 'pipe', 'pipe']});
+
+// Chromes eigene Meldungen aufheben, statt sie wegzuwerfen: Startet er
+// nicht, ist DAS die Auskunft — beim ersten CI-Lauf stand stattdessen nur
+// „antwortet nicht auf dem Debug-Port" da, und das sagt nichts.
+let chromeLog = '';
+chrome.stdout.on('data', (d) => { chromeLog += d; });
+chrome.stderr.on('data', (d) => { chromeLog += d; });
+chrome.on('error', (error) => { chromeLog += `spawn: ${error.message}\n`; });
+chrome.on('exit', (code, signal) => {
+  chromeLog += `Chrome beendet (code ${code}, signal ${signal})\n`;
+});
 
 const url = `http://127.0.0.1:${PORT}${base}`;
 let ws;
@@ -143,14 +169,17 @@ try {
 
   // Chrome braucht einen Moment, bis das Protokoll offen ist.
   let targets;
-  for (let attempt = 0; attempt < 40 && !targets; attempt++) {
+  for (let attempt = 0; attempt < 60 && !targets; attempt++) {
     try {
       targets = await (await fetch(`http://127.0.0.1:${CDP_PORT}/json/list`)).json();
     } catch (_) {
       await sleep(500);
     }
   }
-  if (!targets) throw new Error('Chrome antwortet nicht auf dem Debug-Port');
+  if (!targets) {
+    throw new Error('Chrome antwortet nicht auf dem Debug-Port.\n' +
+        `--- Ausgabe von Chrome ---\n${chromeLog.trim() || '(nichts)'}`);
+  }
 
   ws = new WebSocket(targets.find((t) => t.type === 'page').webSocketDebuggerUrl);
   await new Promise((r) => ws.addEventListener('open', r));
