@@ -7,6 +7,29 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Browser-App startet jetzt auch ohne Empfang
+
+*4. September 2026 · Version 1.117.0*
+
+Bisher galt: Wer PilzBuddy im Browser öffnet und keine Verbindung hat,
+sieht gar nichts — die App wird ja erst beim Öffnen geladen. Das war die
+letzte Lücke: Karte, Spots und Ausgangskorb funktionierten ohne Empfang
+schon, aber nur solange der Reiter offen blieb.
+
+Jetzt merkt sich der Browser die App selbst. Du kannst sie im Funkloch
+öffnen und bekommst deine Spots, die grobe Übersichtskarte und den
+Ausgangskorb für neue Einträge.
+
+Zwei Dinge dazu:
+
+- **Schneller wird sie dadurch nicht.** PilzBuddy fragt bewusst immer
+  zuerst das Netz und greift nur auf die gespeicherte Fassung zurück, wenn
+  keine Verbindung da ist. So bekommst du nie versehentlich einen alten
+  Stand serviert.
+- **Eine Verbindung weniger zu Google.** Ein Teil der Darstellung wurde
+  bisher bei jedem Seitenaufruf von einem Google-Server geladen. Das
+  kommt jetzt aus der App selbst.
+
 ## Im Browser kannst du jetzt auch ohne Empfang eintragen
 
 *4. September 2026 · Version 1.116.0*

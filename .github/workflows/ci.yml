@@ -90,7 +90,20 @@ jobs:
           flutter-version: 3.44.8
           cache: true
       - run: flutter pub get
-      - run: flutter build web --release --base-href /pilzbuddy/
+      # `--no-web-resources-cdn` ist zweierlei zugleich (#387): Ohne den
+      # Flag holt der Loader CanvasKit (~1,5 MB) von
+      # www.gstatic.com — offline tot, und die IP jedes Besuchers ginge an
+      # Google, bevor irgendetwas eingeschaltet wurde. Die Dateien liegen
+      # ohnehin schon im Build, der Flag kostet also nichts.
+      - run: flutter build web --release --base-href /pilzbuddy/ --no-web-resources-cdn
+      # Der Service Worker ist die riskanteste Stelle der PWA: Er
+      # entscheidet, ob die App ohne Netz startet, und ein Fehler darin
+      # ist von außen unsichtbar — `flutter analyze` sieht die Datei
+      # nicht, `flutter test` startet keinen Browser. Das Werkzeug fährt
+      # einen echten Chrome gegen den gebauten Ordner und schaltet den
+      # Webserver dabei WIRKLICH ab (#387).
+      - name: Der Service Worker startet die App ohne Server
+        run: node tool/check_service_worker.mjs build/web
       - uses: actions/upload-artifact@v7
         with:
           name: web-build

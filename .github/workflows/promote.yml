@@ -140,7 +140,12 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
       - run: flutter pub get
-      - run: flutter build web --release --base-href /pilzbuddy/
+      # `--no-web-resources-cdn` ist zweierlei zugleich (#387): Ohne den
+      # Flag holt der Loader CanvasKit (~1,5 MB) von
+      # www.gstatic.com — offline tot, und die IP jedes Besuchers ginge an
+      # Google, bevor irgendetwas eingeschaltet wurde. Die Dateien liegen
+      # ohnehin schon im Build, der Flag kostet also nichts.
+      - run: flutter build web --release --base-href /pilzbuddy/ --no-web-resources-cdn
       # SPA-Fallback: GitHub Pages liefert 404.html bei Deep-Links
       # (/friends etc.).
       - run: cp build/web/index.html build/web/404.html

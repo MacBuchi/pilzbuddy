@@ -179,6 +179,14 @@
     wird deine Adresse nie verwendet. Serverstandort ist die Europäische
     Union.</p>
 
+  <h3>Google Fonts (nur im Browser)</h3>
+  <p>Die Browser-Fassung von PilzBuddy lädt ihre Schriftart („Roboto") von
+    <strong>fonts.gstatic.com</strong>, einem Server von Google. Dabei
+    überträgt dein Browser technisch notwendig seine IP-Adresse dorthin.
+    Das geschieht beim Aufruf der Seite, unabhängig davon, ob du angemeldet
+    bist. Die Android-App bringt ihre Schriften mit und verbindet sich
+    nicht dorthin. Wir arbeiten daran, das auch im Browser abzustellen.</p>
+
   <h3>Google (Auftragsverarbeiter, Benachrichtigungen)</h3>
   <p>Benachrichtigungen sind <strong>ab Werk aus</strong>. Schaltest du sie
     im Profil ein, wird <strong>Firebase Cloud Messaging</strong> von Google
@@ -247,6 +255,10 @@
     Verbindung besteht, und werden dann an dein Konto übertragen. Auch
     dieser Korb ist vom Google-Backup ausgenommen und wird beim Abmelden
     gelöscht — die App fragt vorher nach, wenn dort noch etwas liegt.</p>
+  <p>Seit Version 1.117.0 legt die Browser-Fassung außerdem die Programm-
+    dateien selbst im Zwischenspeicher des Browsers ab, damit sie sich auch
+    ohne Verbindung öffnen lässt. Darin stehen keine persönlichen Daten,
+    sondern nur das, was ohnehin jeder beim Aufruf der Seite herunterlädt.</p>
   <p>Seit Version 1.116.0 gibt es diesen Korb ebenfalls im Browser, wo er
     wie die Spot-Kopie in der Datenbank des Browsers (IndexedDB) liegt.
     PilzBuddy bittet den Browser einmalig, diesen Speicher nicht von sich
