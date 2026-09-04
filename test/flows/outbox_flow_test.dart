@@ -7,6 +7,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/data/outbox.dart';
+import 'package:pilzbuddy/features/spots/spot_providers.dart';
 
 import '../fakes/fake_backend.dart';
 import '../fakes/fake_outbox.dart';
@@ -192,6 +193,51 @@ void main() {
     await settle(tester);
     expect(backend.currentUserId, isNotNull);
     expect(outbox.jobs, hasLength(1));
+  });
+
+  // Der Browser darf seinen Speicher unter Druck räumen — anders als eine
+  // Datei auf Android. Weil der Korb das ORIGINAL trägt, wäre der Fund
+  // dann weg, und zwar lautlos. Deshalb sagt die App es (#386).
+  group('Zusicherung des Speichers', () {
+    const warnung = 'Dein Browser sichert diesen Speicher nicht zu';
+
+    testWidgets('nicht zugesichert und etwas wartet: der Streifen steht da',
+        (tester) async {
+      final (backend, _) = loggedInBackend();
+      await pumpApp(tester, backend, outbox: FakeOutbox(), extraOverrides: [
+        storageDurableProvider.overrideWith((ref) => false),
+      ]);
+      backend.offline = true;
+
+      expect(find.textContaining(warnung), findsNothing,
+          reason: 'Solange nichts wartet, gibt es nichts zu verlieren — '
+              'ein Warnhinweis ohne Anlass verbraucht die Aufmerksamkeit, '
+              'die der echte Fall braucht.');
+
+      await addSpotAtCrosshair(tester);
+
+      expect(find.textContaining(warnung), findsOneWidget);
+      await drainSnackbars(tester);
+    });
+
+    testWidgets('zugesichert: kein Streifen, auch wenn etwas wartet',
+        (tester) async {
+      final (backend, _) = loggedInBackend();
+      // Der Normalfall auf Android: Der Stub sagt `true`, dort erscheint
+      // der Streifen nie. Ohne diese Richtung hielte der Test nur die
+      // halbe Zusage.
+      await pumpApp(tester, backend, outbox: FakeOutbox(), extraOverrides: [
+        storageDurableProvider.overrideWith((ref) => true),
+      ]);
+      backend.offline = true;
+
+      await addSpotAtCrosshair(tester);
+
+      expect(find.textContaining('1 Eintrag wartet auf Verbindung'),
+          findsOneWidget);
+      expect(find.textContaining(warnung), findsNothing);
+      await drainSnackbars(tester);
+    });
   });
 
   testWidgets('ohne wartende Einträge fragt das Abmelden nichts',

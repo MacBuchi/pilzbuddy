@@ -38,16 +38,18 @@ jobs:
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
-      # Der EINZIGE Test im Projekt, der wirklich auf dart2js läuft
-      # (#385). `flutter test` fährt sonst ausschließlich die Dart-VM,
+      # Die einzigen Tests im Projekt, die wirklich auf dart2js laufen
+      # (#385, #386). `flutter test` fährt sonst ausschließlich die Dart-VM,
       # wo `kIsWeb` immer falsch ist — jede Web-Verzweigung wäre damit
       # ungeprüft, auch wenn ein Testkommentar das Gegenteil behauptet
       # (genau so in #383 passiert). Es geht nur für assetfreien Code:
       # Der Chrome-Runner liefert keine Assets, ein `rootBundle.load`
-      # endet dort im Timeout. Hier prüft er den Zwischenspeicher gegen
-      # das echte IndexedDB des Browsers.
+      # endet dort im Timeout. Hier prüfen sie Zwischenspeicher und
+      # Ausgangskorb gegen das echte IndexedDB des Browsers.
       - name: Web-Test auf dart2js
-        run: flutter test --platform chrome test/spot_cache_idb_test.dart
+        run: |
+          flutter test --platform chrome \
+            test/spot_cache_idb_test.dart test/outbox_idb_test.dart
       # Die Skripte in tool/ hatten Selbsttests, aber niemanden, der sie
       # ausführt — sie wären still verrottet. Beide laufen ohne Netz,
       # ohne Schlüssel und in Sekunden.

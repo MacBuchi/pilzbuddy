@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/errors.dart';
+import '../../data/browser_storage.dart';
 import '../../data/outbox.dart';
 import '../../data/outbox_runner.dart';
 import '../../data/outbox_view.dart';
@@ -310,6 +311,19 @@ final pendingJobsProvider = Provider<List<OutboxJob>>((ref) =>
 /// Wie viele Einträge insgesamt warten — die Zahl im Banner.
 final pendingEntryCountProvider =
     Provider<int>((ref) => pendingEntryCount(ref.watch(pendingJobsProvider)));
+
+/// Sichert der Speicher zu, dass er nicht von selbst geräumt wird?
+///
+/// Auf Android immer `true` (eine Datei verfällt nicht). Im Browser
+/// hängt es an `navigator.storage.persisted()` — die Abfrage FRAGT NICHT
+/// nach, sie liest nur den Stand; die Nachfrage stellt der Korb selbst,
+/// wenn dort zum ersten Mal etwas abgelegt wird (`outbox_idb.dart`).
+///
+/// Solange die Antwort aussteht, gilt `true`: Ein Warnstreifen, der beim
+/// Aufbau kurz aufblitzt und dann verschwindet, wäre schlechter als
+/// einer, der einen Frame später kommt.
+final storageDurableProvider =
+    FutureProvider<bool>((ref) => isStorageDurable());
 
 /// Aufträge, die der Server dauerhaft abgelehnt hat. Sie brauchen eine
 /// Entscheidung von Hand und verschwinden nicht von allein.

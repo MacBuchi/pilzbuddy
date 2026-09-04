@@ -515,6 +515,25 @@ class MapBanners extends ConsumerWidget {
                           'senden — antippen'),
             );
           }),
+        // Nur im Browser, und nur solange wirklich etwas wartet: Ein
+        // Browser darf seinen Speicher unter Druck räumen, und anders als
+        // beim Zwischenspeicher (einer Kopie) wäre hier das Original weg.
+        // Verschwiegen wäre das der schlechteste Ausgang — der Korb hilft
+        // dann nur scheinbar. Auf Android sagt der Stub `true`, der
+        // Streifen erscheint dort nie.
+        //
+        // Kein X: wie beim Korb-Banner der Zustand der eigenen Daten,
+        // kein Hinweis zum Wegwischen. Er geht von selbst, sobald der
+        // Korb leer ist.
+        if (ref.watch(pendingEntryCountProvider) > 0 &&
+            ref.watch(storageDurableProvider).valueOrNull == false)
+          _banner(
+            context,
+            background: AppColors.warmBrown,
+            foreground: Colors.white,
+            content: const Text('⚠️ Dein Browser sichert diesen Speicher '
+                'nicht zu — sende die Einträge, sobald du Empfang hast.'),
+          ),
         // Kein X: Das ist kein Hinweis, den man wegwischt, sondern der
         // Zustand der eigenen Daten — dieselbe Regel wie beim
         // Empfangs-Hinweis und beim Ausgangskorb. Er verschwindet von

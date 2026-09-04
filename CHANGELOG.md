@@ -7,6 +7,26 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Im Browser kannst du jetzt auch ohne Empfang eintragen
+
+*4. September 2026 · Version 1.116.0*
+
+Bisher galt im Browser: ohne Verbindung kein neuer Spot und kein neuer
+Fund. Der Versuch endete mit einer Fehlermeldung, und das Eingetippte war
+weg. Auf dem Telefon fängt das seit langem ein Ausgangskorb ab — die
+Einträge warten dort, bis wieder Empfang da ist, und gehen dann von
+selbst raus.
+
+Diesen Korb gibt es jetzt auch im Browser. Was du ohne Verbindung
+einträgst, erscheint sofort blass mit einer Uhr auf der Karte und wird
+gesendet, sobald es wieder geht.
+
+Ein Hinweis, der dazugehört: **Browser dürfen ihren Speicher von sich aus
+aufräumen.** PilzBuddy bittet deinen Browser, das für die wartenden
+Einträge zu unterlassen — nicht jeder sagt ja. Wenn deiner ablehnt, steht
+es auf der Karte, und dann gilt: möglichst bald in Reichweite senden. Auf
+dem Telefon gibt es das Problem nicht.
+
 ## Im Browser bleiben deine Spots stehen
 
 *3. September 2026 · Version 1.115.0*

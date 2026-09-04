@@ -434,15 +434,19 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   Wirksam wird sie genau im Fall „Tab offen, Empfang weg"; beim NEUSTART
   ohne Netz hilft sie nicht — **die PWA startet ohne Netz gar nicht**:
   Flutters Service Worker ist die 783-Byte-Fassung, die sich selbst
-  abmeldet. Der Weg dahin sind vier Stufen; seit 1.115.0 sind zwei davon
-  gegangen (Übersichtskarte #383, Spots in IndexedDB #385), es fehlen
-  Ausgangskorb (#386) und Service Worker (#387). Letzterer ist die
-  riskanteste, weil eine falsche Cache-Versionierung Nutzer dauerhaft auf
-  einen alten Stand nagelt und damit genau die kontrollierte Beförderung
-  umgeht.
-- **Der Zwischenspeicher der Spots liegt im Browser in IndexedDB** (#385,
-  seit 1.115.0) — `NoOutbox` ist im Web weiter leer, `NoSpotCache` nicht
-  mehr. Vier Dinge, die man wissen muss:
+  abmeldet. Der Weg dahin sind vier Stufen; seit 1.116.0 sind drei davon
+  gegangen (Übersichtskarte #383, Spots in IndexedDB #385, Ausgangskorb
+  #386), es fehlt der Service Worker (#387). Der ist die riskanteste,
+  weil eine falsche Cache-Versionierung Nutzer dauerhaft auf einen alten
+  Stand nagelt und damit genau die kontrollierte Beförderung umgeht.
+- **Zwischenspeicher und Ausgangskorb liegen im Browser in IndexedDB**
+  (#385 seit 1.115.0, #386 seit 1.116.0). `NoSpotCache`/`NoOutbox` sind
+  nicht mehr der Web-Zweig, sondern nur noch der Fall „kein IndexedDB".
+  **Name und Version der Datenbank haben EINEN Besitzer**
+  (`browser_db.dart`): Öffnete der eine Speicher v1 und der andere v2,
+  blockierte der Upgrade — im selben Tab, dauerhaft, ohne Fehlermeldung.
+  Ein neuer Speicher heißt: dort eintragen und `kBrowserDbVersion`
+  erhöhen. Vier Dinge, die man wissen muss:
   - **Abgelegt wird derselbe JSON-TEXT wie in der Datei auf Android**,
     nicht ein Objekt. IndexedDB nähme verschachtelte Maps direkt an, gäbe
     sie aber als `Map<String, Object?>` zurück — und darauf ist
@@ -456,10 +460,24 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
     ohnehin mitbringt (dieselbe Begründung wie bei `executor_lib`: nicht
     an einer exakt gepinnten Beta hängen). Der Nebengewinn ist der Test:
     `newIdbFactoryMemory()` fährt dieselbe Implementierung auf der VM.
-  - **Ohne IndexedDB (privater Modus, `file://`) gilt weiter
-    `NoSpotCache`.** Bewusst NICHT `idbFactoryBrowser`, das still auf die
-    Speicher-Fassung zurückfällt — ein Zwischenspeicher, der jeden
-    Neustart vergisst, sähe von außen aus wie einer, der bleibt.
+  - **Ohne IndexedDB (privater Modus, `file://`) gelten weiter
+    `NoSpotCache`/`NoOutbox`.** Bewusst NICHT `idbFactoryBrowser`, das
+    still auf die Speicher-Fassung zurückfällt — ein Zwischenspeicher,
+    der jeden Neustart vergisst, sähe von außen aus wie einer, der
+    bleibt.
+  Und der Unterschied, der die zweite Stufe ausmacht: **Ein Browser darf
+  seinen Speicher ohne Vorwarnung räumen.** Für die KOPIE ist das
+  verkraftbar, für das ORIGINAL im Korb nicht. Deshalb bittet
+  `IndexedDbOutbox.append` beim ersten Ablegen einmal um
+  `navigator.storage.persist()` (`browser_storage.dart`) — erst dort und
+  nicht beim Start, weil Firefox dafür nachfragt und eine Nachfrage ohne
+  Anlass eine Zumutung wäre; dieselbe Linie wie `positionFixProvider`.
+  Lehnt der Browser ab, wird **trotzdem abgelegt** und die Karte sagt es
+  (Streifen unter dem Korb-Banner): Chrome lehnt in einem gewöhnlichen
+  Tab regelmäßig ab, und dann wäre der Fund SOFORT verloren statt
+  vielleicht später. Die Anzeige fragt nie nach (`persisted()`, nicht
+  `persist()`), und der Stub auf Android sagt `true` — ein Warnhinweis
+  über ein Dateisystem wäre schlicht falsch.
   Nebenkosten, die bleiben: `assets/map_glyphs/` (984 KB) landet im
   Web-Build und wird dort NIE gelesen (nur MapLibre nutzt Glyphs, und
   MapLibre ist im Web aus). Flutter kennt keine plattformabhängigen
@@ -1216,6 +1234,11 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
     `spot_cache/`, nur schärfer: Hier stehen die Koordinaten, bevor sie
     irgendwo anders stehen. Beim Abmelden wird der Korb mitgelöscht,
     deshalb fragt das Profil vorher nach.
+  - **Seit 1.116.0 gibt es ihn auch im Browser** (#386, `outbox_idb.dart`
+    auf IndexedDB) — Einzelheiten oben beim Zwischenspeicher. Alles
+    darüber bleibt unberührt: `outbox_view.dart`, `outbox_runner.dart`
+    und die `client_id`-Idempotenz aus Patch 016 kennen nur die
+    Schnittstelle.
   Ausgelöst wird die Wiedervorlage beim App-Start, bei der Rückkehr der
   Verbindung (`noConnectivityProvider`) und auf Tippen im Banner —
   bewusst NICHT am App-Resume: Wer aus dem Wald nach Hause kommt, ohne
