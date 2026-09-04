@@ -228,10 +228,18 @@ try {
 } catch (error) {
   fail.push(`ABBRUCH: ${error.message}`);
 } finally {
+  // Aufräumen darf NIE über das Urteil entscheiden. Beim ersten Lauf in
+  // CI tat es genau das: Chrome schrieb noch in sein Profil, als es
+  // gelöscht wurde, `ENOTEMPTY` flog aus diesem Block und riss das
+  // Skript mit — bevor auch nur eine Zeile Ergebnis gedruckt war. Der
+  // Job stand auf rot, ohne dass jemand sagen konnte, welche Prüfung
+  // gescheitert wäre.
   try { ws?.close(); } catch (_) { /* egal */ }
   chrome.kill('SIGKILL');
   try { await stopServer(); } catch (_) { /* schon zu */ }
-  await rm(profile, {recursive: true, force: true});
+  await sleep(500); // Chrome die Handles schließen lassen
+  await rm(profile, {recursive: true, force: true, maxRetries: 5})
+      .catch(() => { /* ein Rest im Temp-Verzeichnis ist kein Fehlschlag */ });
 }
 
 for (const line of ok) console.log('  OK   ' + line);
