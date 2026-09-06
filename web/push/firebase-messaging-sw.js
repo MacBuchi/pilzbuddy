@@ -1,8 +1,10 @@
 // Service Worker für Web-Push (#277).
 //
-// **Warum in einem Unterverzeichnis.** Flutter registriert seinen eigenen
-// `flutter_service_worker.js` im Basis-Scope (`/pilzbuddy/`) — dort liegt
-// der Offline-Start der Web-App. Service-Worker-Registrierungen sind über
+// **Warum in einem Unterverzeichnis.** Im Basis-Scope (`/pilzbuddy/`)
+// liegt der Offline-Start der Web-App — seit #387 unser eigener `sw.js`
+// (davor stand hier Flutters `flutter_service_worker.js`, der inzwischen
+// abgekündigt ist und sich selbst abmeldet). Service-Worker-
+// Registrierungen sind über
 // ihren SCOPE eindeutig: Ein zweiter Worker mit demselben Scope ersetzt
 // den ersten. Läge diese Datei neben der index.html, verlöre die Web-App
 // beim ersten Einschalten der Benachrichtigungen still ihren

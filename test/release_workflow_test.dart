@@ -27,6 +27,45 @@ void main() {
   // die Datei bliebe liegen, und der Web-Weg wäre still ungeprüft.
   // Dieselbe Begründung wie bei den Selbsttests in tool/ (#151): Was
   // nicht in CI läuft, verrottet.
+  // Der Offline-Start der PWA hängt an einem Flag und an einem Werkzeug,
+  // und beide Fehlschläge sind stumm: Ohne den Flag holt der Loader
+  // CanvasKit von www.gstatic.com — offline tot, und die IP jedes
+  // Besuchers ginge an Google, bevor irgendetwas eingeschaltet wurde.
+  // Ohne den Prüfschritt merkt niemand, wenn der Service Worker aufhört
+  // zu tragen (#387).
+  group('Der Offline-Start der Web-App (#387)', () {
+    test('alle drei Web-Builds holen CanvasKit aus dem eigenen Build', () {
+      for (final MapEntry(key: name, value: yaml) in {
+        'ci.yml': ci,
+        'promote.yml': promote,
+        'preview.yml': preview,
+      }.entries) {
+        // Der Aufruf steht mal in einer Zeile, mal über mehrere mit
+        // Fortsetzungszeichen — beide Formen einsammeln.
+        final lines = yaml.split('\n');
+        final builds = <String>[];
+        for (var i = 0; i < lines.length; i++) {
+          if (!lines[i].contains('flutter build web')) continue;
+          final buffer = StringBuffer(lines[i]);
+          var j = i;
+          while (lines[j].trimRight().endsWith(r'\') && j + 1 < lines.length) {
+            buffer.write(lines[++j]);
+          }
+          builds.add(buffer.toString());
+        }
+        expect(builds, isNotEmpty, reason: '$name baut gar kein Web mehr?');
+        for (final build in builds) {
+          expect(build, contains('--no-web-resources-cdn'), reason: name);
+        }
+      }
+    });
+
+    test('CI fährt den Service Worker gegen einen echten Browser', () {
+      expect(ci, contains('tool/check_service_worker.mjs'));
+      expect(File('tool/check_service_worker.mjs').existsSync(), isTrue);
+    });
+  });
+
   group('Die Web-Tests laufen in CI (#385, #386)', () {
     const files = [
       'test/spot_cache_idb_test.dart',

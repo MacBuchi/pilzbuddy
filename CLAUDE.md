@@ -434,11 +434,10 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   Wirksam wird sie genau im Fall „Tab offen, Empfang weg"; beim NEUSTART
   ohne Netz hilft sie nicht — **die PWA startet ohne Netz gar nicht**:
   Flutters Service Worker ist die 783-Byte-Fassung, die sich selbst
-  abmeldet. Der Weg dahin sind vier Stufen; seit 1.116.0 sind drei davon
-  gegangen (Übersichtskarte #383, Spots in IndexedDB #385, Ausgangskorb
-  #386), es fehlt der Service Worker (#387). Der ist die riskanteste,
-  weil eine falsche Cache-Versionierung Nutzer dauerhaft auf einen alten
-  Stand nagelt und damit genau die kontrollierte Beförderung umgeht.
+  abmeldet — **war** sie: Seit 1.117.0 (#387) bringt die App ihren
+  eigenen mit, und damit sind alle vier Stufen gegangen
+  (Übersichtskarte #383, Spots in IndexedDB #385, Ausgangskorb #386,
+  Service Worker #387).
 - **Zwischenspeicher und Ausgangskorb liegen im Browser in IndexedDB**
   (#385 seit 1.115.0, #386 seit 1.116.0). `NoSpotCache`/`NoOutbox` sind
   nicht mehr der Web-Zweig, sondern nur noch der Fall „kein IndexedDB".
@@ -478,6 +477,58 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   vielleicht später. Die Anzeige fragt nie nach (`persisted()`, nicht
   `persist()`), und der Stub auf Android sagt `true` — ein Warnhinweis
   über ein Dateisystem wäre schlicht falsch.
+- **Der eigene Service Worker** (`web/sw.js` + `web/flutter_bootstrap.js`,
+  #387, seit 1.117.0). Sechs Dinge, die man wissen muss:
+  - **Immer zuerst das Netz, der Cache nur als Rückfall.** Das ist die
+    tragende Entscheidung: Ein Cache, der gewinnt, nagelt Nutzer auf einen
+    alten Stand und umgeht damit genau die kontrollierte Beförderung. Dazu
+    ein harter Grund — Flutters Web-Ausgaben tragen KEINE
+    Inhalts-Prüfsummen (`main.dart.js` heißt immer gleich), ein
+    `cache-first` lieferte also stillschweigend die alte App. Der Preis
+    ist ehrlich: Die PWA wird dadurch **nicht schneller**, nur startfähig.
+  - **`web/flutter_bootstrap.js` ist Pflicht, nicht Bequemlichkeit.** Die
+    erzeugte Fassung übergibt dem Loader `serviceWorkerSettings`, und der
+    registriert `flutter_service_worker.js` (784 Bytes, meldet sich selbst
+    ab) genau dann, wenn für den Scope schon eine Registrierung existiert
+    — ab dem zweiten Besuch also UNSERE. Der Cache wäre bei jedem Laden
+    weg, ohne eine Fehlermeldung.
+  - **Die Platzhalter dürfen in KEINEM Kommentar der Datei stehen.** Der
+    Build ersetzt sie überall, und der Lader ist mehrzeilig: Aus einer
+    `//`-Zeile bricht er aus, danach ist die Datei Syntaxmüll und die App
+    startet gar nicht. Beim Bau von #387 genau so passiert; sichtbar nur
+    als `SyntaxError` in der Browser-Konsole. Ein Test wacht darüber.
+  - **Der erste Besuch füllt den Cache NICHT von allein.** Beim ersten
+    Laden kontrolliert der Worker die Seite noch nicht und sieht keine
+    einzige Anfrage. Deshalb meldet die Seite ihm nach `runApp` per
+    `postMessage`, was sie geholt hat (`warm`) — eine Liste von Hand wäre
+    bei jeder Änderung still falsch, und „still falsch" heißt hier:
+    startet ohne Netz nicht. Gegengeprobt: Ohne den Schritt bleiben 6
+    statt 12 Einträge übrig und der Offline-Start scheitert, während
+    `flutter test` grün bleibt.
+  - **`--no-web-resources-cdn` gehört in JEDEN Web-Build** (ci, promote,
+    preview; ein Test wacht darüber). Ohne den Flag holt der Loader
+    CanvasKit von `www.gstatic.com` — offline tot, und die IP jedes
+    Besuchers ginge an Google. Die Dateien liegen ohnehin im Build, der
+    Flag kostet nichts.
+  - **Die Notbremse lädt bewusst NICHT neu**
+    (`postMessage({type:'unregister'})`): Beim nächsten Laden meldet der
+    Bootstrap den Worker sofort wieder an, und dann wäre von der Wirkung
+    nichts zu sehen. Der eigentliche Ausweg aus einem kaputten Worker ist
+    ein Build ohne die Registrierung plus ein `sw.js`, das sich selbst
+    abmeldet — der erreicht jeden Online-Nutzer, eben WEIL die Navigation
+    netzwerkzuerst läuft.
+  **Geprüft wird im echten Browser**, nicht per Textsuche:
+  `tool/check_service_worker.mjs` (Job „Build Web") fährt einen Chrome
+  gegen den gebauten Ordner und **schaltet den Webserver dabei wirklich
+  ab**. Die Prüfungen in `test/web_shell_test.dart` fangen nur die Fallen,
+  die man im Diff übersieht — eine falsche Entscheidung im Worker sehen
+  sie nicht.
+- **Die Web-Fassung lädt Roboto von `fonts.gstatic.com`** — gemessen am
+  2026-09-04, bei jedem Seitenaufruf und vor jeder Anmeldung. Das ist
+  Flutters Vorgabe für die Standardschrift und hat mit CanvasKit nichts zu
+  tun (das kommt seit #387 lokal). Offenzulegen war es trotzdem:
+  `web/datenschutz.html` nennt es seit 1.117.0. Abstellen hieße Roboto
+  mitliefern und im Theme setzen — eigenes Issue, eigene Größenfrage.
   Nebenkosten, die bleiben: `assets/map_glyphs/` (984 KB) landet im
   Web-Build und wird dort NIE gelesen (nur MapLibre nutzt Glyphs, und
   MapLibre ist im Web aus). Flutter kennt keine plattformabhängigen

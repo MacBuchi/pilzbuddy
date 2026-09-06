@@ -53,9 +53,15 @@ jobs:
       # PREVIEW_BUILD schaltet den Streifen „Entwicklungsstand" ein und
       # dreht den Profil-Verweis um (zurück zur freigegebenen Version).
       # Ohne das Flag sähe die Vorschau aus wie die echte App.
+      # `--no-web-resources-cdn` ist zweierlei zugleich (#387): Ohne den
+      # Flag holt der Loader CanvasKit (~1,5 MB) von
+      # www.gstatic.com — offline tot, und die IP jedes Besuchers ginge an
+      # Google, bevor irgendetwas eingeschaltet wurde. Die Dateien liegen
+      # ohnehin schon im Build, der Flag kostet also nichts.
       - run: |
           flutter build web --release \
             --base-href /pilzbuddy-preview/ \
+            --no-web-resources-cdn \
             --dart-define=PREVIEW_BUILD=true
       # SPA-Fallback wie in promote.yml: Pages liefert 404.html bei
       # Deep-Links (/friends etc.).
