@@ -18,7 +18,6 @@ import 'package:pilzbuddy/data/rain_grid_repository.dart';
 import 'package:pilzbuddy/features/ampel/ampel_scan.dart';
 import 'package:pilzbuddy/features/map/elevation_grid.dart';
 import 'package:pilzbuddy/features/map/elevation_providers.dart';
-import 'package:pilzbuddy/features/map/map_focus.dart';
 import 'package:pilzbuddy/features/map/rain_data_providers.dart';
 
 import '../fakes/fake_backend.dart';
@@ -353,11 +352,16 @@ void main() {
   FakeMapViewState camera(WidgetTester tester) =>
       tester.state<FakeMapViewState>(find.byType(FakeMapView));
 
-  testWidgets('ein Treffer: das Banner führt zum Spot auf der Karte',
+  testWidgets('ein Treffer: das Banner filtert und rückt ihn ins Bild',
       (tester) async {
-    // Der Kern von #345. Bis 1.103.0 öffnete das Antippen nur das Blatt
-    // und ließ die Kamera stehen — Blatt zu, und man stand wieder am
-    // Startpunkt. Bei einem Spot 30 km entfernt half nur noch der Name.
+    // Der Kern von #345 gilt weiter: Bis 1.103.0 ließ das Antippen die
+    // Kamera stehen — Blatt zu, und man stand wieder am Startpunkt. Bei
+    // einem Spot 30 km entfernt half nur noch der Name.
+    //
+    // Seit #399 ist die Antwort darauf aber eine andere: nicht Sprung
+    // plus Blatt, sondern Filter plus Zoom — und zwar bei EINEM Treffer
+    // genauso wie bei zehn. Zwei Antworten auf denselben Tipp waren der
+    // eigentliche Bruch.
     final (backend, _) = loggedInWithSpot();
     final settings = await pumpReady(tester, backend);
 
@@ -367,11 +371,17 @@ void main() {
     await tester.tap(find.textContaining('stünde die Ampel günstig'));
     await settle(tester);
 
-    expect(camera(tester).center, const LatLng(spotLat, spotLng));
-    expect(camera(tester).zoom, kSpotFocusZoom,
-        reason: 'derselbe Heranzoom wie beim Long-Press — dieselbe Absicht');
-    // Sprung UND Blatt gehören zusammen: Das eine sagt WO, das andere WAS.
-    expect(find.text('Fund eintragen'), findsOneWidget);
+    // Der Filter steht — und er STEHT SICHTBAR. Ein von der App selbst
+    // gesetzter Filter ohne Anzeige wäre genau der unbemerkt versteckte
+    // Spot, vor dem #154 warnt.
+    expect(find.textContaining('Gefiltert: Ampel günstig'), findsOneWidget);
+
+    // Und die Kamera ist beim Spot. Nicht auf die Stelle genau: Der Zoom
+    // rechnet einen Rand ein, die Mitte liegt aber auf dem einzigen
+    // Treffer.
+    expect(camera(tester).center.latitude, closeTo(spotLat, 0.001));
+    expect(camera(tester).center.longitude, closeTo(spotLng, 0.001));
+
     // **Und das Banner bleibt** (#349). Bis 1.104.0 stand hier das
     // Gegenteil: Der einzelne Treffer galt als „abgearbeitet" und wurde
     // bis Mitternacht stummgeschaltet. Der Betreiber hat daraufhin
@@ -382,13 +392,13 @@ void main() {
     expect(settings.ampelBannerDismissedUntil, isNull);
   });
 
-  testWidgets('mehrere Treffer: die Auswahl führt zum GEWÄHLTEN Spot',
-      (tester) async {
+  testWidgets('mehrere Treffer: alle liegen danach im Bild', (tester) async {
     // „An 7 Spots stünde die Ampel günstig" ist kein Ausnahmefall: Die
     // eigenen Spots liegen in derselben Region und bekommen dasselbe
     // Wetter. Bis #345 öffnete das Banner den bestbewerteten und
     // schaltete sich bis Mitternacht stumm — die Zahl im Text war eine
-    // Aussage, zu der es keinen Weg gab.
+    // Aussage, zu der es keinen Weg gab. Seit #399 führt sie zu allen
+    // zugleich.
     final (backend, me) = loggedInWithSpot();
     backend.addSpot(
         ownerId: me.id,
@@ -404,18 +414,13 @@ void main() {
     await tester.tap(find.textContaining('stünde die Ampel günstig'));
     await settle(tester);
 
-    expect(find.text('Buchenhang'), findsOneWidget);
-    expect(find.text('Fichtenschonung'), findsOneWidget);
+    expect(find.textContaining('Gefiltert: Ampel günstig'), findsOneWidget);
 
-    // Der ZWEITE, nicht der bestbewertete — genau das ging vorher nicht.
-    // Gewählt wird über den Namen und nicht über die Position in der
-    // Liste: Bei gleichem Wetter sind auch die Bewertungen gleich, und
-    // `List.sort` ist in Dart nicht stabil.
-    await tester.tap(find.text('Fichtenschonung'));
-    await settle(tester);
+    // Die Mitte liegt zwischen beiden — nicht auf dem bestbewerteten.
+    // Genau das ging vorher nicht.
+    expect(camera(tester).center.latitude, closeTo(51.025, 0.001));
+    expect(camera(tester).center.longitude, closeTo(11.025, 0.001));
 
-    expect(camera(tester).center, const LatLng(51.05, 11.05));
-    expect(find.text('Fund eintragen'), findsOneWidget);
     // Und das Banner bleibt stehen: Sonst wäre Spot 2 nach dem Besuch
     // von Spot 1 bis Mitternacht unerreichbar. Nur das X schaltet stumm.
     expect(settings.ampelBannerDismissedUntil, isNull,

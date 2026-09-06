@@ -135,6 +135,10 @@ void main() {
     await tester.tap(find.byTooltip('Karte filtern'));
     await settle(tester);
     for (final name in ['Maronenröhrling', 'Pfifferling', 'Steinpilz']) {
+      // Scrollen, weil die Artenliste im Blatt seit #399 eine Zeile
+      // weniger Platz hat („Nur wo die Ampel günstig steht").
+      await tester.ensureVisible(find.text(name));
+      await settle(tester);
       await tester.tap(find.text(name));
       await settle(tester);
     }

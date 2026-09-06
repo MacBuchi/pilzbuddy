@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/mushroom_species.dart';
 import '../../models/spot.dart';
+import '../ampel/ampel_scan.dart';
 import '../spots/spot_providers.dart';
 
 /// Was die Karte gerade zeigt (Issue #154).
@@ -11,7 +12,8 @@ import '../spots/spot_providers.dart';
 /// der teurere Fehler. Nach dem Start liegt wieder alles auf der Karte —
 /// anders als beim Offline-Schalter (#145), der nichts verbirgt.
 class SpotFilter {
-  const SpotFilter({this.species = const {}, this.onlyMine = false});
+  const SpotFilter(
+      {this.species = const {}, this.onlyMine = false, this.onlyAmpel = false});
 
   /// Nur Spots mit einem Fund einer dieser Arten. **Leer = alle Arten** —
   /// nicht „keine". Ein Filter, der nichts durchlässt, wäre auf der Karte
@@ -21,11 +23,26 @@ class SpotFilter {
   /// Freundes-Spots ausblenden.
   final bool onlyMine;
 
-  bool get isActive => species.isNotEmpty || onlyMine;
+  /// Nur die Spots, an denen die Ampel gerade günstig steht (#399).
+  ///
+  /// Die Bewertung steht nicht am Spot — sie kommt aus `ampelScanProvider`
+  /// und wechselt mit dem Wetter. Deshalb trägt dieses Flag nur die
+  /// ABSICHT; welche Spots gemeint sind, entscheidet der Aufrufer beim
+  /// Anwenden (`visibleSpotsProvider`). Die Menge hier mitzuführen hieße,
+  /// eine Momentaufnahme zu speichern, die stillschweigend veraltet.
+  ///
+  /// **Nur eigene Spots können gemeint sein:** Der Nachlauf rechnet über
+  /// `mySpotListProvider`, für Freundes-Spots gibt es gar keine Ablesung.
+  final bool onlyAmpel;
 
-  SpotFilter copyWith({Set<String>? species, bool? onlyMine}) => SpotFilter(
+  bool get isActive => species.isNotEmpty || onlyMine || onlyAmpel;
+
+  SpotFilter copyWith(
+          {Set<String>? species, bool? onlyMine, bool? onlyAmpel}) =>
+      SpotFilter(
         species: species ?? this.species,
         onlyMine: onlyMine ?? this.onlyMine,
+        onlyAmpel: onlyAmpel ?? this.onlyAmpel,
       );
 }
 
@@ -47,6 +64,9 @@ class SpotFilterNotifier extends Notifier<SpotFilter> {
 
   void setOnlyMine(bool value) => state = state.copyWith(onlyMine: value);
 
+  void setOnlyAmpel(bool value) =>
+      state = state.copyWith(onlyAmpel: value);
+
   void clear() => state = const SpotFilter();
 }
 
@@ -67,8 +87,17 @@ final spotFilterProvider =
 /// Mehrere Arten wirken als ODER: gezeigt wird, was zu **einer** von ihnen
 /// passt. Ein UND wäre eine andere Frage („wo habe ich beides gefunden") und
 /// bei zwei Arten meist die leere Karte.
-bool matchesSpotFilter(Spot spot, SpotFilter filter) {
+bool matchesSpotFilter(Spot spot, SpotFilter filter,
+    {Set<String>? ampelSpotIds}) {
   if (filter.onlyMine && !spot.isOwn) return false;
+  // Die Ampel-Auswahl kommt von außen, weil sie am Wetter hängt und nicht
+  // am Spot. Fehlt sie, obwohl der Filter sie verlangt, lässt diese
+  // Prüfung NICHTS durch: Ein Filter, der mangels Daten stillschweigend
+  // alles zeigt, wäre von „keine Daten" nicht zu unterscheiden — und der
+  // Schalter ist ohnehin nur wählbar, solange es Treffer gibt.
+  if (filter.onlyAmpel && !(ampelSpotIds ?? const <String>{}).contains(spot.id)) {
+    return false;
+  }
   if (filter.species.isEmpty) return true;
   final wanted = {
     for (final s in filter.species) canonicalSpecies(s)?.toLowerCase(),
@@ -79,8 +108,12 @@ bool matchesSpotFilter(Spot spot, SpotFilter filter) {
       .any((f) => wanted.contains(canonicalSpecies(f.species)?.toLowerCase()));
 }
 
-List<Spot> applySpotFilter(List<Spot> spots, SpotFilter filter) =>
-    [for (final spot in spots) if (matchesSpotFilter(spot, filter)) spot];
+List<Spot> applySpotFilter(List<Spot> spots, SpotFilter filter,
+        {Set<String>? ampelSpotIds}) =>
+    [
+      for (final spot in spots)
+        if (matchesSpotFilter(spot, filter, ampelSpotIds: ampelSpotIds)) spot
+    ];
 
 /// Eine Art mit der Zahl der Spots, an denen sie vorkommt.
 typedef SpeciesTally = ({String name, int spots});
@@ -120,15 +153,31 @@ List<SpeciesTally> speciesTally(List<Spot> spots) {
 
 /// Die Spots, die die Karte zeichnet — nach Herkunft getrennt, weil sie in
 /// verschiedenen Ebenen liegen.
+/// Die Spot-ids, an denen die Ampel gerade günstig steht — leer, solange
+/// der Filter sie nicht verlangt (#399).
+///
+/// **Die Bedingung ist keine Sparsamkeit, sondern die Zusage aus
+/// `ampel_scan.dart`:** Beobachten IST Laden. `ampelScanProvider` packt
+/// das 3,4 MB große Höhengitter aus, sobald man ihn ansieht — für JEDEN,
+/// nicht nur für die, die das Banner bestellt haben. `visibleSpotsProvider`
+/// hängt an jedem Kartenaufbau; ein bedingungsloses `watch` hier zöge die
+/// Last zurück in den Startpfad, aus dem 1.99.4 sie gerade genommen hat.
+final ampelFilterIdsProvider = Provider<Set<String>>((ref) {
+  if (!ref.watch(spotFilterProvider).onlyAmpel) return const {};
+  final hits = ref.watch(ampelScanProvider).valueOrNull ?? const <AmpelHit>[];
+  return {for (final hit in hits) hit.spot.id};
+});
+
 final visibleSpotsProvider =
     Provider<({List<Spot> mine, List<Spot> friends})>((ref) {
   final filter = ref.watch(spotFilterProvider);
   final mine = ref.watch(mySpotListProvider);
   final friends =
       ref.watch(friendSpotsProvider).valueOrNull ?? const <Spot>[];
+  final ampelIds = ref.watch(ampelFilterIdsProvider);
   return (
-    mine: applySpotFilter(mine, filter),
-    friends: applySpotFilter(friends, filter),
+    mine: applySpotFilter(mine, filter, ampelSpotIds: ampelIds),
+    friends: applySpotFilter(friends, filter, ampelSpotIds: ampelIds),
   );
 });
 
