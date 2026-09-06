@@ -7,6 +7,22 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Tastatur schiebt die Karte nicht mehr weg
+
+*6. September 2026 · Version 1.118.1*
+
+Sobald irgendwo ein Textfeld angetippt wurde, rutschte das ganze Layout
+nach oben — Karte, Legende, Knöpfe und die Reiterleiste. Nötig war das
+nie: Auf der Karte selbst gibt es gar kein Eingabefeld, und die Blätter
+zum Eintragen halten sich ohnehin selbst über der Tastatur frei. Jetzt
+legt sich die Tastatur einfach darüber.
+
+Damit verschwindet auch ein selteneres Ärgernis: Manchmal blieb nach dem
+Schließen der Tastatur das untere Drittel des Bildschirms weiß und
+ungenutzt. Warum es dazu kam, wissen wir noch nicht — aber es kann jetzt
+nicht mehr sichtbar werden, weil sich die Karte gar nicht mehr
+verkleinert.
+
 ## Die Pilzart wird gefunden, auch wenn du sie anders schreibst
 
 *6. September 2026 · Version 1.118.0*
