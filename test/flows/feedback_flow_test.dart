@@ -68,6 +68,58 @@ void main() {
     await drainSnackbars(tester);
   });
 
+  testWidgets('Der Pilzart-Wunsch sagt sofort, wenn es die Art schon gibt',
+      (tester) async {
+    // #395: Genau so ist es passiert — „Flaschen-Stäubling" getippt,
+    // gesendet, und der Melder hat auf ein Update gewartet für eine Art,
+    // die seit jeher in der Liste steht. Der Dialog fragte „Welche Pilzart
+    // fehlt in der Auswahlliste?", ohne die Liste zu kennen.
+    final backend = loggedInBackend();
+    await pumpApp(tester, backend);
+
+    await tester.tap(find.text(_bannerText));
+    await settle(tester);
+    await tester.tap(find.text('🍄 Pilzart'));
+    await settle(tester, frames: 4);
+
+    expect(find.textContaining('gibt es schon'), findsNothing,
+        reason: 'ohne Eingabe gibt es nichts zu sagen');
+
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Name der Pilzart'),
+        'Flaschen-Stäubling');
+    await settle(tester, frames: 4);
+
+    expect(find.textContaining('Die gibt es schon: „Flaschenstäubling"'),
+        findsOneWidget);
+  });
+
+  testWidgets('Eine wirklich fehlende Art bekommt keinen Hinweis',
+      (tester) async {
+    // Die Gegenrichtung, und sie trägt die erste: Ein Hinweis, der immer
+    // steht, sagt nichts mehr — und würde echte Wünsche entmutigen.
+    final backend = loggedInBackend();
+    await pumpApp(tester, backend);
+
+    await tester.tap(find.text(_bannerText));
+    await settle(tester);
+    await tester.tap(find.text('🍄 Pilzart'));
+    await settle(tester, frames: 4);
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Name der Pilzart'),
+        'Blauer Wurzelrübling');
+    await settle(tester, frames: 4);
+
+    expect(find.textContaining('gibt es schon'), findsNothing);
+    expect(find.textContaining('Schon in der Liste'), findsNothing);
+
+    // Und sie lässt sich weiterhin senden.
+    await tester.tap(find.text('Senden'));
+    await settle(tester);
+    expect(backend.feedback.single['type'], 'species');
+    expect(backend.feedback.single['species_name'], 'Blauer Wurzelrübling');
+  });
+
   testWidgets('Das X blendet das Melde-Banner aus', (tester) async {
     await pumpApp(tester, loggedInBackend());
 

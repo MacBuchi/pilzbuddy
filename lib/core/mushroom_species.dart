@@ -215,15 +215,66 @@ String? speciesFromText(String? text) {
   return best == null ? null : (best.sameAs ?? best.name);
 }
 
-/// Eintrag zu einem Artnamen (case-insensitiv), `null` für eigene Arten.
+/// Ein Artname auf seinen Kern gebracht: klein geschrieben, ohne
+/// Umlaut-Schreibweise, ohne Binde- und Leerzeichen.
+///
+/// Der Grund ist ein Feldbericht (#395): Jemand hat „Flaschen-Stäubling"
+/// getippt, nichts gefunden und die Art als fehlend gemeldet — dabei steht
+/// sie seit jeher in der Liste. Verglichen wurde bis dahin auf
+/// Kleinbuchstaben und sonst zeichengenau, und daran scheitert jeder
+/// Bindestrich, jedes Leerzeichen und jeder ausgelassene Umlaut.
+/// **40 der 110 Arten tragen einen Umlaut oder ß** und waren damit für
+/// jeden unerreichbar, der unterwegs ohne Umlaut tippt.
+///
+/// „ä" und „ae" fallen zusammen, und beide auf „a": Wer ohne Umlaut
+/// schreibt, schreibt mal „Staeubling" und mal „Staubling", und beide
+/// meinen denselben Pilz. Dass dabei „Frauentäubling" zu
+/// „frauntaubling" wird, ist kein Schönheitsfehler — die gefaltete Form
+/// wird nie angezeigt, sie ist nur der Schlüssel, und die Eingabe geht
+/// durch dieselbe Mühle.
+///
+/// **Gemessen: keine zwei der 110 Arten fallen dabei zusammen**
+/// (`test/species_test.dart`). Das ist die Zusage, an der diese Funktion
+/// hängt — ohne sie würde [_entryFor] stillschweigend die falsche Art
+/// liefern.
+String foldSpeciesName(String name) {
+  final folded = name
+      .toLowerCase()
+      .replaceAll('ä', 'a')
+      .replaceAll('ö', 'o')
+      .replaceAll('ü', 'u')
+      .replaceAll('ß', 'ss')
+      .replaceAll('ae', 'a')
+      .replaceAll('oe', 'o')
+      .replaceAll('ue', 'u')
+      .replaceAll('ss', 's');
+  final buffer = StringBuffer();
+  for (final unit in folded.codeUnits) {
+    final isLetter = unit >= 0x61 && unit <= 0x7a;
+    final isDigit = unit >= 0x30 && unit <= 0x39;
+    if (isLetter || isDigit) buffer.writeCharCode(unit);
+  }
+  return buffer.toString();
+}
+
+/// Die Artenliste nach [foldSpeciesName] geschlüsselt.
+///
+/// Als Map und nicht als Schleife, weil [canonicalSpecies] über ganze
+/// Fundlisten läuft (`ownSpeciesFromSortedNames`) — 110 Namen je Aufruf zu
+/// falten wäre dort spürbar. Top-Level-`final` heißt in Dart: einmal beim
+/// ersten Zugriff gebaut.
+final Map<String, KnownSpecies> _byFoldedName = {
+  for (final s in kBekannteArten) foldSpeciesName(s.name): s,
+};
+
+/// Eintrag zu einem Artnamen, `null` für eigene Arten. Vergleicht über
+/// [foldSpeciesName]: „flaschen-stäubling", „Flaschenstaeubling" und
+/// „Flaschenstäubling" sind derselbe Pilz.
 KnownSpecies? _entryFor(String? name) {
   if (name == null) return null;
-  final key = name.trim().toLowerCase();
+  final key = foldSpeciesName(name);
   if (key.isEmpty) return null;
-  for (final s in kBekannteArten) {
-    if (s.name.toLowerCase() == key) return s;
-  }
-  return null;
+  return _byFoldedName[key];
 }
 
 /// Gruppe einer Art nachschlagen (case-insensitiv), z. B. um auch eigene

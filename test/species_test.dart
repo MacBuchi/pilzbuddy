@@ -79,6 +79,143 @@ void main() {
     });
   });
 
+  group('foldSpeciesName (#395)', () {
+    test('keine zwei Arten fallen beim Falten zusammen', () {
+      // DIE Zusage, an der die Faltung hängt: `_entryFor` schlägt über den
+      // gefalteten Namen nach. Fielen zwei verschiedene Pilze auf denselben
+      // Schlüssel, lieferte die App stillschweigend den falschen — und
+      // zwar auch beim SCHREIBEN, über `canonicalSpecies`.
+      final byKey = <String, List<String>>{};
+      for (final s in kBekannteArten) {
+        byKey.putIfAbsent(foldSpeciesName(s.name), () => []).add(s.name);
+      }
+      final collisions = {
+        for (final entry in byKey.entries)
+          if (entry.value.length > 1) entry.key: entry.value,
+      };
+      expect(collisions, isEmpty, reason: 'Kollisionen: $collisions');
+    });
+
+    test('Bindestrich, Leerzeichen und Umlaut-Schreibweise fallen weg', () {
+      const canonical = 'flaschenstaubling';
+      for (final spelling in const [
+        'Flaschenstäubling',
+        'Flaschen-Stäubling',
+        'Flaschen Stäubling',
+        'Flaschenstaeubling',
+        'Flaschenstaubling',
+        'FLASCHENSTÄUBLING',
+      ]) {
+        expect(foldSpeciesName(spelling), canonical, reason: spelling);
+      }
+      // „ß" und „ss" ebenso — „Weisser" und „Weißer" sind dasselbe Wort.
+      expect(foldSpeciesName('Weißer'), foldSpeciesName('Weisser'));
+    });
+
+    test('leere und zeichenlose Eingaben ergeben einen leeren Schlüssel', () {
+      // `_entryFor` steigt darauf aus — sonst fände „---" die erste Art
+      // mit leerem Schlüssel.
+      expect(foldSpeciesName('   '), isEmpty);
+      expect(foldSpeciesName('- /'), isEmpty);
+    });
+  });
+
+  group('Schreibweisen finden die Art (#395)', () {
+    test('das Vorschlagsfeld findet sie trotz Bindestrich und ohne Umlaut',
+        () {
+      // Der Feldbericht: „Flaschen-Stäubling" getippt, nichts gefunden,
+      // Art als fehlend gemeldet — dabei stand sie seit jeher in der
+      // Liste. 40 der 110 Arten tragen einen Umlaut oder ß.
+      for (final typed in const [
+        'Flaschen-Stäubling',
+        'Flaschen Stäubling',
+        'Flaschenstaeubling',
+        'Staubling',
+        'Knollenblatterpilz',
+      ]) {
+        final result = suggestSpecies(typed, const [], kBekannteArten);
+        expect(result, isNotEmpty, reason: typed);
+        // Und zwar GEFUNDEN, nicht geraten. Die Gegenprobe hat es
+        // gezeigt: Ohne diese Zeile blieb der Test grün, wenn man die
+        // Faltung aus dem Vergleich nahm — der Tippfehler-Ausgleich fing
+        // die Schreibweisen auf und die Oberfläche schriebe „Meintest du
+        // …?" über die völlig richtige Eingabe des Nutzers.
+        expect(result.every((s) => !s.isGuess), isTrue, reason: typed);
+      }
+      expect(suggestSpecies('Flaschen-Stäubling', const [], kBekannteArten)
+          .single.name, 'Flaschenstäubling');
+    });
+
+    test('auch der Schreibweg normalisiert — sonst entstünde eine Dublette',
+        () {
+      // `canonicalSpecies` läuft in `SpotRepository.addFind`. Ohne die
+      // Faltung wäre „Flaschen-Stäubling" eine eigene Art des Nutzers
+      // neben der bekannten, mit eigenem Icon und eigener Statistik.
+      expect(canonicalSpecies('Flaschen-Stäubling'), 'Flaschenstäubling');
+      expect(canonicalSpecies('flaschenbovist'), 'Flaschenstäubling');
+      expect(groupFor('Knollenblatterpilz'), isNull,
+          reason: 'kein Eintrag heißt so — nur die drei mit Vorsilbe');
+      expect(groupFor('Grüner Knollenblatterpilz'), SpeciesGroup.wulstlinge);
+      // Eigene Arten bleiben unangetastet.
+      expect(canonicalSpecies('Mein Geheimpilz'), 'Mein Geheimpilz');
+    });
+  });
+
+  group('Tippfehler-Ausgleich (#395)', () {
+    test('„Bofist" findet den Bovist — und ist als geraten markiert', () {
+      final result = suggestSpecies('Flaschenbofist', const [], kBekannteArten);
+      expect(result.single.name, 'Flaschenstäubling');
+      expect(result.single.isGuess, isTrue,
+          reason: 'die Oberfläche schreibt darüber „Meintest du …?"');
+    });
+
+    test('gängige Vertipper landen bei ihrer Art', () {
+      const cases = {
+        'bofist': 'Riesenbovist',
+        'Judasor': 'Judasohr',
+        'Marrone': 'Maronenröhrling',
+        'Parasoll': 'Parasol',
+        'Hallimash': 'Hallimasch',
+        'Steinpiltz': 'Steinpilz',
+        'pfiferling': 'Pfifferling',
+      };
+      cases.forEach((typed, expected) {
+        final names =
+            suggestSpecies(typed, const [], kBekannteArten).map((s) => s.name);
+        expect(names, contains(expected), reason: typed);
+      });
+    });
+
+    test('bei Unsinn schweigt er', () {
+      // Ein Rateschritt, der auf alles antwortet, ist schlimmer als
+      // keiner: Er behauptet, der Nutzer habe sich vertippt. Gemessen —
+      // mit einem erlaubten Fehler ab vier Zeichen wurde aus „hallo" der
+      // Hallimasch und aus „Auto" ein Raukopf.
+      for (final nonsense in const [
+        'hallo',
+        'Auto',
+        'qwertz',
+        'Fahrrad',
+        'Waldrand',
+        'Lichtung',
+        'Baumstumpf',
+        'Brombeere',
+        'Spechbach',
+        'Vogelgezwitscher',
+      ]) {
+        expect(suggestSpecies(nonsense, const [], kBekannteArten), isEmpty,
+            reason: nonsense);
+      }
+    });
+
+    test('geraten wird NUR, wenn die normale Suche nichts fand', () {
+      // Sonst stünde „Meintest du …?" über echten Treffern.
+      final found = suggestSpecies('Steinpilz', const [], kBekannteArten);
+      expect(found, isNotEmpty);
+      expect(found.every((s) => !s.isGuess), isTrue);
+    });
+  });
+
   group('groupFor', () {
     test('findet Gruppen case-insensitiv, unbekannt/leer → null', () {
       expect(groupFor('steinpilz'), SpeciesGroup.roehrlinge);

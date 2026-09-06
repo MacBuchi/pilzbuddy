@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/app_info.dart';
 import '../../../core/errors.dart';
+import '../../../core/mushroom_species.dart';
 import '../../../core/settings.dart';
 import '../../../core/update_check.dart';
 import '../../../core/widgets/form_notice.dart';
@@ -20,6 +21,7 @@ import '../../../models/find.dart';
 import '../../../models/spot.dart';
 import '../../friends/friend_providers.dart';
 import '../../offline_maps/offline_map_providers.dart';
+import '../../spots/species_suggestions.dart';
 import '../../ampel/ampel_scan.dart';
 import '../map_focus.dart';
 import '../spot_memory.dart';
@@ -873,6 +875,57 @@ class _FeedbackDialogState extends State<_FeedbackDialog> {
     ));
   }
 
+  /// Der Hinweis „gibt es schon" unter dem Feld für den Artnamen.
+  ///
+  /// Der Dialog fragt „Welche Pilzart fehlt in der Auswahlliste?" — und
+  /// kannte die Liste selbst nicht. Genau daraus entstand #395: Der
+  /// Flaschenstäubling steht seit jeher darin, wurde als fehlend
+  /// gemeldet, und der Melder hat auf ein Update gewartet, das ihm nichts
+  /// bringen konnte. Die Antwort steht jetzt sofort da, vor dem Senden.
+  ///
+  /// **Gesperrt wird nichts.** Ein ähnlicher Name kann sehr wohl ein
+  /// anderer Pilz sein, und das weiß der Melder besser als die Liste.
+  List<Widget> _alreadyThere(BuildContext context) {
+    final typed = _textController.text.trim();
+    if (typed.length < 3) return const [];
+
+    // Die Art selbst getroffen (auch als Zweitname oder in anderer
+    // Schreibweise) — das ist die klare Auskunft, kein Vorschlag.
+    final exact = groupFor(typed) != null ? canonicalSpecies(typed) : null;
+    final nearby = exact != null
+        ? const <SpeciesSuggestion>[]
+        : suggestSpecies(typed, const [], kBekannteArten, limit: 3);
+    if (exact == null && nearby.isEmpty) return const [];
+
+    final text = exact != null
+        ? 'Die gibt es schon: „$exact" — du findest sie beim Eintragen '
+            'eines Fundes im Feld „Pilzart".'
+        : 'Schon in der Liste: ${nearby.map((s) => s.name).join(', ')}. '
+            'Meintest du eine davon?';
+
+    return [
+      const SizedBox(height: 8),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppColors.forestGreen.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('🍄', style: TextStyle(fontSize: 14)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(text,
+                  style: Theme.of(context).textTheme.bodySmall),
+            ),
+          ],
+        ),
+      ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -914,6 +967,10 @@ class _FeedbackDialogState extends State<_FeedbackDialog> {
             TextField(
               controller: _textController,
               autofocus: true,
+              // Der Hinweis unter dem Feld hängt an jedem Zeichen — ohne
+              // das Neuzeichnen bliebe er stehen, bis der Dialog sich
+              // sonst irgendwann neu baut.
+              onChanged: (_) => setState(() {}),
               maxLines: _isSpecies ? 1 : 4,
               maxLength: _isSpecies ? 80 : 2000,
               textCapitalization: TextCapitalization.sentences,
@@ -932,6 +989,7 @@ class _FeedbackDialogState extends State<_FeedbackDialog> {
                 border: const OutlineInputBorder(),
               ),
             ),
+            if (_isSpecies) ..._alreadyThere(context),
             if (_isSpecies) ...[
               const SizedBox(height: 8),
               TextField(

@@ -7,6 +7,28 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Pilzart wird gefunden, auch wenn du sie anders schreibst
+
+*6. September 2026 · Version 1.118.0*
+
+Bisher musste der Name auf das Zeichen genau stimmen. Ein Bindestrich,
+ein Leerzeichen oder ein weggelassener Umlaut — und die Art war weg:
+„Flaschen-Stäubling" fand nichts, obwohl der Flaschenstäubling seit jeher
+in der Liste steht. Das betraf mehr als ein Drittel aller Arten, denn so
+viele tragen einen Umlaut.
+
+Jetzt findest du sie in jeder dieser Schreibweisen. Und wenn gar nichts
+passt, rät PilzBuddy einmal: Aus „Flaschenbofist" wird ein „Meintest du
+…?" mit dem Flaschenstäubling darunter. Bei Eingaben, die nach gar keinem
+Pilz aussehen, bleibt es still — ein Vorschlag, der auf alles antwortet,
+wäre keiner.
+
+Dazu kommt: Wenn du eine Pilzart vorschlägst, die es schon gibt, sagt es
+dir der Dialog sofort, statt dich auf ein Update warten zu lassen.
+
+Danke an alle, die fehlende Arten melden — genau daraus ist das hier
+entstanden.
+
 ## Die Browser-App startet jetzt auch ohne Empfang
 
 *4. September 2026 · Version 1.117.0*
