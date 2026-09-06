@@ -19,9 +19,8 @@ viele tragen einen Umlaut.
 
 Jetzt findest du sie in jeder dieser Schreibweisen. Und wenn gar nichts
 passt, rät PilzBuddy einmal: Aus „Flaschenbofist" wird ein „Meintest du
-…?" mit dem Flaschenstäubling darunter. Bei Eingaben, die nach gar keinem
-Pilz aussehen, bleibt es still — ein Vorschlag, der auf alles antwortet,
-wäre keiner.
+…?" mit dem Flaschenstäubling darunter. Lieber ein Vorschlag zu viel als
+eine leere Liste — die liest sich nämlich, als gäbe es den Pilz nicht.
 
 Dazu kommt: Wenn du eine Pilzart vorschlägst, die es schon gibt, sagt es
 dir der Dialog sofort, statt dich auf ein Update warten zu lassen.

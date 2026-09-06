@@ -81,15 +81,29 @@ String? _synonymHit(String typed, String canonical) =>
 
 /// Wie weit eine Eingabe danebenliegen darf, damit sie noch als Tippfehler
 /// gilt — abhängig von ihrer Länge, weil bei kurzen Wörtern alles nah an
-/// allem liegt.
+/// allem liegt. `-1` heißt „gar nicht raten".
 ///
-/// `-1` heißt „gar nicht raten". Die Grenzen sind gemessen, nicht geraten
-/// (#395): Mit einem erlaubten Fehler ab vier Zeichen wurde aus „hallo"
-/// der Hallimasch und aus „Auto" ein Raukopf. Ab **sechs** Zeichen
-/// schweigen alle geprüften Nicht-Arten — „Waldrand", „Lichtung",
-/// „Brombeere", „Spechbach" —, während „bofist", „Judasor", „Marrone",
-/// „Parasoll" und „Hallimash" ihre Art weiter finden.
-int _maxTypoDistance(int length) => length < 6 ? -1 : (length <= 9 ? 1 : 2);
+/// **Die Kosten sind unsymmetrisch, und darum ist die Grenze locker.** Ein
+/// überflüssiger Vorschlag ist eine Zeile, die man nicht antippt. Eine
+/// leere Liste dagegen ist genau das, was #395 ausgelöst hat: Der Nutzer
+/// schließt daraus, die Art fehle, und meldet sie — obwohl sie dasteht.
+/// Ein Vorschlag kann dabei nie falsche Daten erzeugen; er wirkt erst beim
+/// Antippen, frei Getipptes wird unverändert gespeichert.
+///
+/// Ein erster Entwurf zog die Grenze auf sechs Zeichen hoch, weil „hallo"
+/// sonst den Hallimasch vorschlug. Das war das falsche Kriterium: In einem
+/// Artenfeld IST „hallo" höchstwahrscheinlich ein vertipptes „Halli…" —
+/// der Fall, für den dieser Rückfall da ist, nicht der, gegen den er
+/// schützen soll (Betreiber, 2026-09-06).
+///
+/// Bei vier und nicht bei drei: Ein Fehler auf drei Zeichen heißt, ein
+/// Drittel der Eingabe ist falsch — das ist kein Tippfehlermodell mehr.
+/// Darunter liefert der Contains-Vergleich ohnehin fast immer Treffer.
+///
+/// Gemessen (#395): 23 von 25 geprüften Nicht-Arten bleiben auch so still,
+/// „abc" und „xyz" eingeschlossen. Nur „Auto" und „Regen" liegen zufällig
+/// einen Fehler neben einem Wortstück — angenommen, siehe oben.
+int _maxTypoDistance(int length) => length < 4 ? -1 : (length <= 7 ? 1 : 2);
 
 /// Der Tippfehler-Ausgleich: der beste Treffer, wenn es keinen gab.
 ///

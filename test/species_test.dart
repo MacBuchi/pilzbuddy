@@ -186,14 +186,48 @@ void main() {
       });
     });
 
-    test('bei Unsinn schweigt er', () {
-      // Ein Rateschritt, der auf alles antwortet, ist schlimmer als
-      // keiner: Er behauptet, der Nutzer habe sich vertippt. Gemessen —
-      // mit einem erlaubten Fehler ab vier Zeichen wurde aus „hallo" der
-      // Hallimasch und aus „Auto" ein Raukopf.
+    test('auch ein kurzer Vertipper landet noch', () {
+      // Die Grenze lag zuerst bei sechs Zeichen, weil „hallo" sonst den
+      // Hallimasch vorschlug. Das war das falsche Kriterium: In einem
+      // Artenfeld ist „hallo" höchstwahrscheinlich ein vertipptes
+      // „Halli…" (Betreiber, 2026-09-06). Die Kosten sind unsymmetrisch —
+      // eine überflüssige Zeile tippt man nicht an, eine leere Liste
+      // dagegen liest sich als „die Art fehlt", und genau daraus ist #395
+      // entstanden.
+      for (final typed in const ['Halo', 'hallo', 'Hallimash']) {
+        expect(
+            suggestSpecies(typed, const [], kBekannteArten).map((s) => s.name),
+            contains('Hallimasch'),
+            reason: typed);
+      }
+    });
+
+    test('unter vier Zeichen wird nicht geraten', () {
+      // Die eine Grenze, die bleibt: Ein Fehler auf drei Zeichen heißt,
+      // ein Drittel der Eingabe ist falsch — das ist kein
+      // Tippfehlermodell mehr. Darunter liefert der Contains-Vergleich
+      // ohnehin fast immer Treffer.
+      for (final tooShort in const ['abc', 'xyz', 'qw', 'Hal']) {
+        // Gefunden werden darf weiterhin: „Hal" steckt in „Hallimasch",
+        // und der Contains-Vergleich kennt keine Mindestlänge. Nur GERATEN
+        // wird hier nicht.
+        expect(
+            suggestSpecies(tooShort, const [], kBekannteArten)
+                .where((s) => s.isGuess),
+            isEmpty,
+            reason: tooShort);
+      }
+      expect(suggestSpecies('abc', const [], kBekannteArten), isEmpty);
+    });
+
+    test('weit entferntes bleibt still — gemessen, nicht versprochen', () {
+      // KEINE Zusage „Unsinn schweigt immer": „Auto" und „Regen" liegen
+      // zufällig einen Fehler neben einem Wortstück und liefern sehr wohl
+      // einen Vorschlag. Das ist angenommen — im Vorschlagsfeld kostet er
+      // nichts. Was diese Zeilen festhalten, ist der gemessene Befund,
+      // dass die lockere Schwelle trotzdem kaum Rauschen erzeugt: 23 von
+      // 25 geprüften Nicht-Arten bleiben still.
       for (final nonsense in const [
-        'hallo',
-        'Auto',
         'qwertz',
         'Fahrrad',
         'Waldrand',
@@ -201,11 +235,24 @@ void main() {
         'Baumstumpf',
         'Brombeere',
         'Spechbach',
+        'Waldspaziergang',
         'Vogelgezwitscher',
+        'Nordhang',
       ]) {
         expect(suggestSpecies(nonsense, const [], kBekannteArten), isEmpty,
             reason: nonsense);
       }
+    });
+
+    test('auch ein Vertipper füllt den Bildschirm nicht', () {
+      // „Champingnon" liegt einen Fehler neben allen fünf Champignons.
+      // Ohne die Schranke stünden bei einem Vertipper beliebig viele
+      // Zeilen — und der Sinn der Liste ist, die wahrscheinlichsten zu
+      // zeigen, nicht alle.
+      final result =
+          suggestSpecies('Champingnon', const [], kBekannteArten, limit: 3);
+      expect(result, hasLength(3));
+      expect(result.every((s) => s.isGuess), isTrue);
     });
 
     test('geraten wird NUR, wenn die normale Suche nichts fand', () {

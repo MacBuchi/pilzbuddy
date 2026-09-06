@@ -1363,6 +1363,40 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   `obscureText: true` und ein nacktes `Text` als Rückmeldung (Issue #131).
   Ein `inputDecorationTheme` gibt es weiterhin nicht; die 19 inline
   gebauten `InputDecoration` sind ein eigener PR wert, kein Nebeneffekt.
+- **Die Artensuche bleibt lokal und ohne Abhängigkeit** (#395, seit
+  1.118.0): `foldSpeciesName` in `lib/core/mushroom_species.dart` faltet
+  Artnamen auf einen Schlüssel (klein, ohne Umlaut-Schreibweise, ohne
+  Binde- und Leerzeichen), `species_suggestions.dart` vergleicht darüber
+  und rät bei leerem Ergebnis über einen Editierabstand. Vier Dinge, die
+  man wissen muss:
+  - **Ein Suchdienst kommt nicht in Frage** (Typesense, Meilisearch,
+    Algolia geprüft am 2026-09-06). Alle drei sind Server, und die App
+    wird im Funkloch benutzt — der Rundlauf wäre tot, wo er gebraucht
+    wird. Dazu: neues Netzziel ⇒ Datenschutzerklärung, `play-console.md`
+    und Data Safety; Typesense ist GPL-3 und steht damit auf der
+    Ablehnungsliste in `tool/license_config.yaml`; Algolias Offline-SDK
+    ist nativ für Android/iOS, ohne Flutter-Bindung und ohne Web. Und es
+    geht um **110 konstante Namen** in einem `const`-Array.
+  - **Ein Fuzzy-Paket löst nur die kleinere Hälfte.** Der gemeldete
+    Fehler war eine SCHREIBWEISE, kein Tippfehler; dass „ä" und „ae"
+    dasselbe sind, ist die Telefonbuch-Sortierung nach DIN 5007
+    Variante 2, für die es auf pub.dev kein Paket gibt (`diacritic` macht
+    ä→a und ist blind für „Staeubling"). Unsere Faltung geht bewusst
+    darüber hinaus und führt ä UND ae auf „a" — zum Sortieren falsch, zum
+    Suchen richtig. `fuzzywuzzy` trägt auf pub.dev zudem eine unbekannte
+    Lizenz und liegt zwei Jahre still.
+  - **Die Fehlerrichtung ist „lieber ein Vorschlag zu viel".** Eine
+    überflüssige Zeile tippt man nicht an; eine leere Liste dagegen liest
+    sich als „die Art fehlt" — und genau daraus ist #395 entstanden. Ein
+    Vorschlag kann keine falschen Daten erzeugen, er wirkt erst beim
+    Antippen. Ein erster Entwurf hatte die Schwelle gegen „Unsinn muss
+    schweigen" gemessen und damit gegen den harmlosen Fehler optimiert
+    (Betreiber, 2026-09-06).
+  - **Die Zusage, an der alles hängt: keine zwei Arten fallen beim Falten
+    zusammen.** `_entryFor` schlägt über den gefalteten Namen nach, auch
+    auf dem SCHREIBweg (`canonicalSpecies` in `SpotRepository.addFind`).
+    Eine Kollision lieferte still den falschen Pilz;
+    `test/species_test.dart` rechnet sie über die ganze Liste nach.
 - Fehlermeldungen differenzieren; „Internet verfügbar?" ist nicht für jeden
   Fehlerfall der richtige Text (Issue #59).
 
