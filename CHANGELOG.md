@@ -7,6 +7,28 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Karte zeigt dir, wo die Ampel gerade günstig steht
+
+*6. September 2026 · Version 1.119.0*
+
+Zwei Dinge, die zusammenarbeiten:
+
+- **Ein neuer Filter**: „Nur wo die Ampel günstig steht". Er lässt genau
+  die Spots stehen, an denen die Ampel gerade auf Grün steht. Wenn das
+  auf keinen zutrifft, ist er nicht anwählbar — statt dich auf eine leere
+  Karte zu schicken.
+- **„Auf Auswahl zoomen"** im Filter-Blatt, oben neben „Zurücksetzen".
+  Rückt alles ins Bild, was der Filter gerade übrig lässt — egal wonach
+  du filterst. Bei drei Fundstellen quer durch den Landkreis sparst du
+  dir das Suchen.
+
+Und wenn du auf den Ampel-Hinweis oben tippst, macht die App beides für
+dich: Filter setzen und hinzoomen. Vorher öffnete der Hinweis ein
+einzelnes Spot-Blatt; jetzt siehst du alle günstigen auf einmal.
+
+Der grüne Balken oben zeigt weiterhin an, dass gefiltert wird — und das X
+darin hebt es auf.
+
 ## Die Tastatur schiebt die Karte nicht mehr weg
 
 *6. September 2026 · Version 1.118.1*

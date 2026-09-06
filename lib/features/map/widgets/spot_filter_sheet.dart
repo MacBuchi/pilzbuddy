@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/app_colors.dart';
 import '../../../core/widgets/mushroom_icon.dart';
 import '../../../core/mushroom_species.dart';
+import '../../ampel/ampel_scan.dart';
 import '../spot_filter.dart';
 
 /// Blatt zum Filtern der Karte (Issue #154).
@@ -11,20 +12,35 @@ import '../spot_filter.dart';
 /// Hinter einem Knopf statt als dauerhafte Leiste: Die Karte ist der Inhalt,
 /// und eine Chip-Zeile über ihr kostet auf jedem Bildschirm Höhe — auch bei
 /// den vielen, die nie filtern.
-Future<void> showSpotFilterSheet(BuildContext context) => showModalBottomSheet(
+///
+/// [onFit] rückt die gezeigten Spots ins Bild (#399). Es kommt als
+/// Rückruf vom Karten-Screen und nicht aus einem Provider, weil dafür die
+/// Kamera und die Fensterbreite gebraucht werden — beides gehört der
+/// Karte, nicht dem Blatt. `null` heißt „noch nicht möglich": Solange die
+/// Karte keinen Stillstand gemeldet hat, gibt es keine Auflösung, aus der
+/// sich ein Zoom ableiten ließe.
+Future<void> showSpotFilterSheet(BuildContext context, {VoidCallback? onFit}) =>
+    showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (context) => const _SpotFilterSheet(),
+      builder: (context) => _SpotFilterSheet(onFit: onFit),
     );
 
 class _SpotFilterSheet extends ConsumerWidget {
-  const _SpotFilterSheet();
+  const _SpotFilterSheet({this.onFit});
+
+  final VoidCallback? onFit;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final filter = ref.watch(spotFilterProvider);
     final species = ref.watch(filterSpeciesProvider);
     final notifier = ref.read(spotFilterProvider.notifier);
+    // Kein zusätzliches Laden: `MapBanners` beobachtet denselben Provider
+    // ohnehin auf jedem Kartenaufbau, und ohne die drei Schalter im Profil
+    // kehrt er um, bevor er ein Gitter anfasst (`ampel_scan.dart`).
+    final ampelHits =
+        ref.watch(ampelScanProvider).valueOrNull ?? const <AmpelHit>[];
 
     return SafeArea(
       child: ConstrainedBox(
@@ -45,6 +61,24 @@ class _SpotFilterSheet extends ConsumerWidget {
                     child: Text('Karte filtern',
                         style: Theme.of(context).textTheme.titleLarge),
                   ),
+                  // Der Zoom sitzt in der Kopfzeile und nicht als eigene
+                  // Zeile: Gemessen kostete eine Zeile hier 72 dp, und die
+                  // gehen der Artenliste ab — im 600-dp-Fenster blieben ihr
+                  // 90 statt 220 dp. Er ist außerdem eine Aktion und keine
+                  // Einstellung, gehört also ohnehin nach oben zu
+                  // „Zurücksetzen" und nicht zwischen die Schalter.
+                  IconButton(
+                    onPressed: onFit == null
+                        ? null
+                        : () {
+                            onFit!();
+                            Navigator.of(context).pop();
+                          },
+                    icon: const Icon(Icons.zoom_out_map),
+                    tooltip: onFit == null
+                        ? 'Auf Auswahl zoomen — sobald die Karte steht'
+                        : 'Auf Auswahl zoomen',
+                  ),
                   if (filter.isActive)
                     TextButton(
                       onPressed: () {
@@ -61,6 +95,19 @@ class _SpotFilterSheet extends ConsumerWidget {
               onChanged: notifier.setOnlyMine,
               title: const Text('Nur meine Spots'),
               subtitle: const Text('Blendet die Spots deiner Freunde aus'),
+            ),
+            // Nur wählbar, solange es überhaupt günstige Spots gibt (#399)
+            // — ein Schalter, der auf eine leere Karte führt, wäre von
+            // „kaputt" nicht zu unterscheiden. Und `onChanged: null` allein
+            // ist keine Auskunft, deshalb sagt der Untertitel, WARUM:
+            // „kein Fehler ohne Fehlermeldung".
+            SwitchListTile(
+              value: filter.onlyAmpel,
+              onChanged: ampelHits.isEmpty ? null : notifier.setOnlyAmpel,
+              title: const Text('Nur wo die Ampel günstig steht'),
+              subtitle: Text(ampelHits.isEmpty
+                  ? 'Gerade an keinem deiner Spots'
+                  : '${ampelHits.length} deiner Spots · experimentell'),
             ),
             const Divider(height: 1),
             Flexible(

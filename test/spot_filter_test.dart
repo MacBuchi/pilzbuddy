@@ -233,4 +233,66 @@ void main() {
         applySpotFilter(spots, const SpotFilter(species: {'Marone'}));
     expect(filtered.map((s) => s.id), [spots[0].id, spots[2].id]);
   });
+
+  group('Ampel-Filter (#399)', () {
+    const ampelOn = SpotFilter(onlyAmpel: true);
+
+    // Eigener Helfer, weil der oben in der Datei über Arten baut — hier
+    // geht es um die id und die Besitzfrage.
+    Spot plain(String id, {bool isOwn = true}) =>
+        Spot(id: id, ownerId: isOwn ? 'me' : 'du', lat: 51, lng: 11,
+            isOwn: isOwn);
+
+    test('ohne die Ampel-ids lässt der Filter NICHTS durch', () {
+      // Die Fehlerrichtung, und sie ist mit Absicht so herum: Ein Filter,
+      // der mangels Daten stillschweigend alles zeigt, wäre von „keine
+      // Ampel-Daten" nicht zu unterscheiden — die Karte sähe ungefiltert
+      // aus, obwohl der Chip „Ampel günstig" behauptet.
+      expect(matchesSpotFilter(plain('a'), ampelOn), isFalse);
+      expect(matchesSpotFilter(plain('a'), ampelOn, ampelSpotIds: const {}),
+          isFalse);
+    });
+
+    test('mit ids bleiben genau die genannten Spots', () {
+      expect(matchesSpotFilter(plain('a'), ampelOn, ampelSpotIds: {'a'}),
+          isTrue);
+      expect(matchesSpotFilter(plain('b'), ampelOn, ampelSpotIds: {'a'}),
+          isFalse);
+    });
+
+    test('Freundes-Spots fallen heraus — für sie gibt es keine Ablesung', () {
+      // Der Nachlauf rechnet über `mySpotListProvider`. Ein Freundes-Spot
+      // kann also nie in den ids stehen, und „nur wo die Ampel günstig
+      // steht" heißt damit zwangsläufig „nur meine".
+      expect(
+          matchesSpotFilter(plain('f', isOwn: false), ampelOn,
+              ampelSpotIds: {'a'}),
+          isFalse);
+    });
+
+    test('er zählt als aktiv — sonst versteckt er Spots ohne Anzeige', () {
+      // `isActive` steuert den grünen Chip auf der Karte. Fehlte der
+      // Ampel-Filter dort, setzte das Banner einen unsichtbaren Filter —
+      // genau der unbemerkt versteckte Spot, vor dem #154 warnt.
+      expect(ampelOn.isActive, isTrue);
+      expect(const SpotFilter().isActive, isFalse);
+    });
+
+    test('mit der Artenwahl zusammen gilt UND', () {
+      // Beide Achsen fragen etwas anderes; wer eine Art wählt UND die
+      // Ampel, meint die Schnittmenge.
+      const both = SpotFilter(species: {'Steinpilz'}, onlyAmpel: true);
+      final withFind = Spot(
+        id: 'a',
+        ownerId: 'me',
+        lat: 51,
+        lng: 11,
+        finds: [Find(id: 'f', spotId: 'a', species: 'Steinpilz', count: 1, foundOn: DateTime(2026, 7, 1))],
+      );
+      expect(matchesSpotFilter(withFind, both, ampelSpotIds: {'a'}), isTrue);
+      expect(matchesSpotFilter(withFind, both, ampelSpotIds: {'b'}), isFalse);
+      expect(matchesSpotFilter(plain('a'), both, ampelSpotIds: {'a'}), isFalse,
+          reason: 'kein Steinpilz-Fund');
+    });
+  });
 }

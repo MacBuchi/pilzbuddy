@@ -22,9 +22,8 @@
 // wie vorher.
 //
 // Das Blatt entscheidet nichts und öffnet nichts: Es gibt zurück, was
-// gewählt wurde, und der Karten-Screen führt es aus. Dasselbe Muster wie
-// `ampel_hits_sheet.dart` — so bleibt der Weg in die Detailblätter an
-// einer Stelle.
+// gewählt wurde, und der Karten-Screen führt es aus — so bleibt der Weg
+// in die Detailblätter an einer Stelle.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

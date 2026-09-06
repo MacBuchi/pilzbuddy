@@ -21,6 +21,7 @@ import '../../data/providers.dart';
 import '../../models/friend_location.dart';
 import '../../models/spot.dart';
 import 'elevation_contour_providers.dart';
+import 'fit_to_spots.dart';
 import 'elevation_contours.dart';
 import '../friends/friend_providers.dart';
 import '../profile/profile_providers.dart';
@@ -556,8 +557,38 @@ class _MapScreenState extends ConsumerState<MapScreen>
       if (names.length == 2) 'nur ${names.join(', ')}',
       if (names.length > 2) '${names.length} Arten',
       if (filter.onlyMine) 'nur meine',
+      // Muss hier stehen, nicht nur im Blatt: Der Chip ist das einzige
+      // Zeichen auf der Karte, dass etwas versteckt wird — und diesen
+      // Filter setzt die App beim Banner-Tipp SELBST (#399). Ein
+      // ungenannter, selbst gesetzter Filter wäre genau der Fall, vor dem
+      // #154 warnt.
+      if (filter.onlyAmpel) 'Ampel günstig',
     ];
     return '🔍 Gefiltert: ${parts.join(', ')}';
+  }
+
+  /// Rückt die gerade gezeigten Spots ins Bild (#399).
+  ///
+  /// `null` nur, wenn der Filter nichts übrig lässt — dann gibt es
+  /// nichts, worauf man zoomen könnte. Fehlt die Auflösung (die Karte hat
+  /// noch keinen Stillstand gemeldet), wird trotzdem zentriert, nur ohne
+  /// Zoomänderung; siehe `fitToSpots`.
+  VoidCallback? _fitAction(WidgetRef ref, double widthPixels) {
+    final metersPerPixel = ref.read(mapIdleGroundResolutionProvider);
+    final visible = ref.read(visibleSpotsProvider);
+    final spots = [...visible.mine, ...visible.friends];
+    if (spots.isEmpty) return null;
+    return () {
+      final fit = fitToSpots(
+        spots: spots,
+        currentZoom: _map.zoom,
+        currentMetersPerPixel: metersPerPixel,
+        viewportWidthPixels: widthPixels,
+        minZoom: _minZoom,
+        maxZoom: _maxZoom,
+      );
+      if (fit != null) _map.move(fit.center, fit.zoom);
+    };
   }
 
   MapViewMarker _spotMarker(Spot spot) {
@@ -803,7 +834,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                           child: const Text(
                               'Gedrückt halten richtet das Fadenkreuz aus'),
                         ),
-                      const MapBanners(),
+                      MapBanners(onFit: _fitAction(ref, mapWidthPixels)),
                       // Ein aktiver Filter versteckt Spots — das muss man
                       // sehen, ohne das Blatt zu öffnen, sonst sucht man eine
                       // Fundstelle, die nur ausgeblendet ist (#154).
@@ -811,7 +842,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
                         Padding(
                           padding: const EdgeInsets.only(top: 8),
                           child: GestureDetector(
-                            onTap: () => showSpotFilterSheet(context),
+                            onTap: () => showSpotFilterSheet(context,
+                                onFit: _fitAction(ref, mapWidthPixels)),
                             child: Container(
                               padding: const EdgeInsets.only(
                                   left: 12, right: 4, top: 2, bottom: 2),
@@ -942,7 +974,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
               FloatingActionButton.small(
                 key: _tourAnchors.filter,
                 heroTag: 'filter',
-                onPressed: () => showSpotFilterSheet(context),
+                onPressed: () => showSpotFilterSheet(context,
+                    onFit: _fitAction(ref, mapWidthPixels)),
                 tooltip: 'Karte filtern',
                 backgroundColor: filter.isActive ? AppColors.forestGreen : null,
                 foregroundColor: filter.isActive ? Colors.white : null,

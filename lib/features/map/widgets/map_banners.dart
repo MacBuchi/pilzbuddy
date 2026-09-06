@@ -24,10 +24,10 @@ import '../../offline_maps/offline_map_providers.dart';
 import '../../spots/species_suggestions.dart';
 import '../../ampel/ampel_scan.dart';
 import '../map_focus.dart';
+import '../spot_filter.dart';
 import '../spot_memory.dart';
 import '../../spots/spot_providers.dart';
 import '../../spots/widgets/spot_detail_sheet.dart';
-import 'ampel_hits_sheet.dart';
 import '../../update/update_installer.dart';
 import '../../../core/app_colors.dart';
 
@@ -94,7 +94,14 @@ final newBuddyFindsProvider = Provider<List<({Find find, Spot spot})>>((ref) {
 /// Banner oben im Hauptfenster: Neuigkeiten (offene Freundschaftsanfragen)
 /// und — solange die App jung ist — ein prominentes Feature-Wunsch-Feld.
 class MapBanners extends ConsumerWidget {
-  const MapBanners({super.key});
+  const MapBanners({super.key, this.onFit});
+
+  /// Rückt die gefilterten Spots ins Bild — derselbe Rückruf, den das
+  /// Filter-Blatt als „Auf Auswahl zoomen" anbietet (#399). `null`,
+  /// solange die Karte keinen Stillstand gemeldet hat; dann setzt der
+  /// Ampel-Banner nur den Filter, was für sich schon die halbe Antwort
+  /// ist.
+  final VoidCallback? onFit;
 
   /// Markiert die gerade angezeigten Buddy-Funde als gesehen: Der Marker
   /// springt auf die SERVER-Zeit des neuesten Funds — nicht auf die
@@ -171,15 +178,22 @@ class MapBanners extends ConsumerWidget {
   ///
   /// Stumm schaltet allein das X. Das ist die Geste, die nichts anderes
   /// bedeutet, und sie gilt weiterhin für den ganzen Tag.
-  Future<void> _openAmpel(
-      BuildContext context, WidgetRef ref, List<AmpelHit> hits) async {
-    if (hits.length == 1) {
-      _openSpot(context, ref, hits.single.spot);
-      return;
-    }
-    final spot = await showAmpelHitsSheet(context, hits);
-    if (spot == null || !context.mounted) return;
-    _openSpot(context, ref, spot);
+  /// Banner-Tipp: Filter setzen und die Treffer ins Bild rücken (#399).
+  ///
+  /// **Einheitlich, auch bei einem einzigen Treffer.** Bis 1.118.1 öffnete
+  /// ein Treffer direkt das Spot-Blatt und mehrere ein Auswahl-Blatt; das
+  /// waren zwei Antworten auf denselben Tipp. Jetzt macht der Banner
+  /// immer dasselbe — und bei genau einem Treffer landet der Zoom ohnehin
+  /// direkt darauf.
+  ///
+  /// Der Zoom läuft über denselben Rückruf, den auch das Filter-Blatt
+  /// anbietet ([MapBanners.onFit]); der Banner drückt den Knopf also nur
+  /// stellvertretend, statt einen zweiten Weg zur Kamera zu bauen.
+  void _openAmpel(WidgetRef ref) {
+    ref.read(spotFilterProvider.notifier).setOnlyAmpel(true);
+    // Erst filtern, dann zoomen — der Rückruf liest die SICHTBAREN Spots,
+    // und die stehen erst nach dem Setzen fest.
+    onFit?.call();
   }
 
   /// Der Text des Ampel-Banners — im KONJUNKTIV, und das ist keine
@@ -651,7 +665,7 @@ class MapBanners extends ConsumerWidget {
             context,
             background: AppColors.warmBrown,
             foreground: Colors.white,
-            onTap: () => _openAmpel(context, ref, ampelHits),
+            onTap: () => _openAmpel(ref),
             onDismiss: () => _dismissAmpel(ref),
             content: Text(_ampelText(ampelHits)),
           ),
