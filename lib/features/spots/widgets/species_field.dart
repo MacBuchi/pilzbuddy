@@ -158,6 +158,20 @@ class _SpeciesFieldState extends State<SpeciesField> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Geraten ist nicht gefunden. Ohne diese Zeile sähe der
+                // Tippfehler-Ausgleich aus wie ein Treffer — die App
+                // behauptete also, der Nutzer habe „Riesenbovist" getippt,
+                // obwohl da „Bofist" stand.
+                if (suggestions.first.isGuess)
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(16, 10, 16, 0),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text('Meintest du …?',
+                          style: TextStyle(
+                              fontSize: 12, fontStyle: FontStyle.italic)),
+                    ),
+                  ),
                 for (final s in suggestions)
                   // Listener statt onTap: onPointerDown feuert VOR dem
                   // Fokusverlust des Textfelds — der Klick geht nie verloren.

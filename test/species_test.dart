@@ -79,6 +79,190 @@ void main() {
     });
   });
 
+  group('foldSpeciesName (#395)', () {
+    test('keine zwei Arten fallen beim Falten zusammen', () {
+      // DIE Zusage, an der die Faltung hängt: `_entryFor` schlägt über den
+      // gefalteten Namen nach. Fielen zwei verschiedene Pilze auf denselben
+      // Schlüssel, lieferte die App stillschweigend den falschen — und
+      // zwar auch beim SCHREIBEN, über `canonicalSpecies`.
+      final byKey = <String, List<String>>{};
+      for (final s in kBekannteArten) {
+        byKey.putIfAbsent(foldSpeciesName(s.name), () => []).add(s.name);
+      }
+      final collisions = {
+        for (final entry in byKey.entries)
+          if (entry.value.length > 1) entry.key: entry.value,
+      };
+      expect(collisions, isEmpty, reason: 'Kollisionen: $collisions');
+    });
+
+    test('Bindestrich, Leerzeichen und Umlaut-Schreibweise fallen weg', () {
+      const canonical = 'flaschenstaubling';
+      for (final spelling in const [
+        'Flaschenstäubling',
+        'Flaschen-Stäubling',
+        'Flaschen Stäubling',
+        'Flaschenstaeubling',
+        'Flaschenstaubling',
+        'FLASCHENSTÄUBLING',
+      ]) {
+        expect(foldSpeciesName(spelling), canonical, reason: spelling);
+      }
+      // „ß" und „ss" ebenso — „Weisser" und „Weißer" sind dasselbe Wort.
+      expect(foldSpeciesName('Weißer'), foldSpeciesName('Weisser'));
+    });
+
+    test('leere und zeichenlose Eingaben ergeben einen leeren Schlüssel', () {
+      // `_entryFor` steigt darauf aus — sonst fände „---" die erste Art
+      // mit leerem Schlüssel.
+      expect(foldSpeciesName('   '), isEmpty);
+      expect(foldSpeciesName('- /'), isEmpty);
+    });
+  });
+
+  group('Schreibweisen finden die Art (#395)', () {
+    test('das Vorschlagsfeld findet sie trotz Bindestrich und ohne Umlaut',
+        () {
+      // Der Feldbericht: „Flaschen-Stäubling" getippt, nichts gefunden,
+      // Art als fehlend gemeldet — dabei stand sie seit jeher in der
+      // Liste. 40 der 110 Arten tragen einen Umlaut oder ß.
+      for (final typed in const [
+        'Flaschen-Stäubling',
+        'Flaschen Stäubling',
+        'Flaschenstaeubling',
+        'Staubling',
+        'Knollenblatterpilz',
+      ]) {
+        final result = suggestSpecies(typed, const [], kBekannteArten);
+        expect(result, isNotEmpty, reason: typed);
+        // Und zwar GEFUNDEN, nicht geraten. Die Gegenprobe hat es
+        // gezeigt: Ohne diese Zeile blieb der Test grün, wenn man die
+        // Faltung aus dem Vergleich nahm — der Tippfehler-Ausgleich fing
+        // die Schreibweisen auf und die Oberfläche schriebe „Meintest du
+        // …?" über die völlig richtige Eingabe des Nutzers.
+        expect(result.every((s) => !s.isGuess), isTrue, reason: typed);
+      }
+      expect(suggestSpecies('Flaschen-Stäubling', const [], kBekannteArten)
+          .single.name, 'Flaschenstäubling');
+    });
+
+    test('auch der Schreibweg normalisiert — sonst entstünde eine Dublette',
+        () {
+      // `canonicalSpecies` läuft in `SpotRepository.addFind`. Ohne die
+      // Faltung wäre „Flaschen-Stäubling" eine eigene Art des Nutzers
+      // neben der bekannten, mit eigenem Icon und eigener Statistik.
+      expect(canonicalSpecies('Flaschen-Stäubling'), 'Flaschenstäubling');
+      expect(canonicalSpecies('flaschenbovist'), 'Flaschenstäubling');
+      expect(groupFor('Knollenblatterpilz'), isNull,
+          reason: 'kein Eintrag heißt so — nur die drei mit Vorsilbe');
+      expect(groupFor('Grüner Knollenblatterpilz'), SpeciesGroup.wulstlinge);
+      // Eigene Arten bleiben unangetastet.
+      expect(canonicalSpecies('Mein Geheimpilz'), 'Mein Geheimpilz');
+    });
+  });
+
+  group('Tippfehler-Ausgleich (#395)', () {
+    test('„Bofist" findet den Bovist — und ist als geraten markiert', () {
+      final result = suggestSpecies('Flaschenbofist', const [], kBekannteArten);
+      expect(result.single.name, 'Flaschenstäubling');
+      expect(result.single.isGuess, isTrue,
+          reason: 'die Oberfläche schreibt darüber „Meintest du …?"');
+    });
+
+    test('gängige Vertipper landen bei ihrer Art', () {
+      const cases = {
+        'bofist': 'Riesenbovist',
+        'Judasor': 'Judasohr',
+        'Marrone': 'Maronenröhrling',
+        'Parasoll': 'Parasol',
+        'Hallimash': 'Hallimasch',
+        'Steinpiltz': 'Steinpilz',
+        'pfiferling': 'Pfifferling',
+      };
+      cases.forEach((typed, expected) {
+        final names =
+            suggestSpecies(typed, const [], kBekannteArten).map((s) => s.name);
+        expect(names, contains(expected), reason: typed);
+      });
+    });
+
+    test('auch ein kurzer Vertipper landet noch', () {
+      // Die Grenze lag zuerst bei sechs Zeichen, weil „hallo" sonst den
+      // Hallimasch vorschlug. Das war das falsche Kriterium: In einem
+      // Artenfeld ist „hallo" höchstwahrscheinlich ein vertipptes
+      // „Halli…" (Betreiber, 2026-09-06). Die Kosten sind unsymmetrisch —
+      // eine überflüssige Zeile tippt man nicht an, eine leere Liste
+      // dagegen liest sich als „die Art fehlt", und genau daraus ist #395
+      // entstanden.
+      for (final typed in const ['Halo', 'hallo', 'Hallimash']) {
+        expect(
+            suggestSpecies(typed, const [], kBekannteArten).map((s) => s.name),
+            contains('Hallimasch'),
+            reason: typed);
+      }
+    });
+
+    test('unter vier Zeichen wird nicht geraten', () {
+      // Die eine Grenze, die bleibt: Ein Fehler auf drei Zeichen heißt,
+      // ein Drittel der Eingabe ist falsch — das ist kein
+      // Tippfehlermodell mehr. Darunter liefert der Contains-Vergleich
+      // ohnehin fast immer Treffer.
+      for (final tooShort in const ['abc', 'xyz', 'qw', 'Hal']) {
+        // Gefunden werden darf weiterhin: „Hal" steckt in „Hallimasch",
+        // und der Contains-Vergleich kennt keine Mindestlänge. Nur GERATEN
+        // wird hier nicht.
+        expect(
+            suggestSpecies(tooShort, const [], kBekannteArten)
+                .where((s) => s.isGuess),
+            isEmpty,
+            reason: tooShort);
+      }
+      expect(suggestSpecies('abc', const [], kBekannteArten), isEmpty);
+    });
+
+    test('weit entferntes bleibt still — gemessen, nicht versprochen', () {
+      // KEINE Zusage „Unsinn schweigt immer": „Auto" und „Regen" liegen
+      // zufällig einen Fehler neben einem Wortstück und liefern sehr wohl
+      // einen Vorschlag. Das ist angenommen — im Vorschlagsfeld kostet er
+      // nichts. Was diese Zeilen festhalten, ist der gemessene Befund,
+      // dass die lockere Schwelle trotzdem kaum Rauschen erzeugt: 23 von
+      // 25 geprüften Nicht-Arten bleiben still.
+      for (final nonsense in const [
+        'qwertz',
+        'Fahrrad',
+        'Waldrand',
+        'Lichtung',
+        'Baumstumpf',
+        'Brombeere',
+        'Spechbach',
+        'Waldspaziergang',
+        'Vogelgezwitscher',
+        'Nordhang',
+      ]) {
+        expect(suggestSpecies(nonsense, const [], kBekannteArten), isEmpty,
+            reason: nonsense);
+      }
+    });
+
+    test('auch ein Vertipper füllt den Bildschirm nicht', () {
+      // „Champingnon" liegt einen Fehler neben allen fünf Champignons.
+      // Ohne die Schranke stünden bei einem Vertipper beliebig viele
+      // Zeilen — und der Sinn der Liste ist, die wahrscheinlichsten zu
+      // zeigen, nicht alle.
+      final result =
+          suggestSpecies('Champingnon', const [], kBekannteArten, limit: 3);
+      expect(result, hasLength(3));
+      expect(result.every((s) => s.isGuess), isTrue);
+    });
+
+    test('geraten wird NUR, wenn die normale Suche nichts fand', () {
+      // Sonst stünde „Meintest du …?" über echten Treffern.
+      final found = suggestSpecies('Steinpilz', const [], kBekannteArten);
+      expect(found, isNotEmpty);
+      expect(found.every((s) => !s.isGuess), isTrue);
+    });
+  });
+
   group('groupFor', () {
     test('findet Gruppen case-insensitiv, unbekannt/leer → null', () {
       expect(groupFor('steinpilz'), SpeciesGroup.roehrlinge);
