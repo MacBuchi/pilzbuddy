@@ -101,6 +101,44 @@ void main() {
     await drainSnackbars(tester);
   });
 
+  testWidgets('Eine andere Schreibweise findet die Art, ein Vertipper rät',
+      (tester) async {
+    // #395: „Flaschen-Stäubling" fand nichts, und die Art wurde daraufhin
+    // als fehlend gemeldet — dabei stand sie seit jeher in der Liste.
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend);
+
+    await tester.tap(find.text('Neuer Spot'));
+    await settle(tester);
+
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Pilzart (optional)'),
+        'Flaschen-Stäubling');
+    await settle(tester, frames: 4);
+    expect(find.widgetWithText(ListTile, 'Flaschenstäubling'), findsOneWidget);
+    // Eine Schreibweise ist KEIN Vertipper: Über der richtigen Eingabe des
+    // Nutzers darf nicht „Meintest du …?" stehen.
+    expect(find.text('Meintest du …?'), findsNothing);
+
+    // Jetzt ein echter Vertipper — derselbe Pilz, aber geraten, und die
+    // Liste sagt es dazu.
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Pilzart (optional)'),
+        'Flaschenbofist');
+    await settle(tester, frames: 4);
+    expect(find.text('Meintest du …?'), findsOneWidget);
+    expect(find.widgetWithText(ListTile, 'Flaschenstäubling'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(ListTile, 'Flaschenstäubling').first);
+    await settle(tester, frames: 4);
+    await tester.ensureVisible(find.text('Speichern'));
+    await tester.tap(find.text('Speichern'));
+    await settle(tester);
+
+    expect(backend.spots.single.finds.single.species, 'Flaschenstäubling');
+    await drainSnackbars(tester);
+  });
+
   testWidgets('Auch frei getippt wird der Zweitname zur Hauptbezeichnung',
       (tester) async {
     final (backend, _) = loggedInBackend();
