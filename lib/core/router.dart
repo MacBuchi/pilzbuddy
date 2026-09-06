@@ -114,6 +114,26 @@ class AppShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // Die Tastatur ÜBERLAGERT, sie schiebt nicht (#397).
+      //
+      // Ab Werk schrumpft ein Scaffold seinen Body um `viewInsets.bottom`.
+      // Hier heißt das: Karte, Legende, Knopfspalte UND die Reiterleiste
+      // wandern hoch, sobald irgendwo ein Textfeld den Fokus bekommt —
+      // obwohl in dieser Hülle gar kein Eingabefeld liegt. Die Felder
+      // stecken alle in eigenen Routen (Blätter, Dialoge), und die
+      // rechnen ihr `viewInsets` selbst ein (`add_spot_sheet.dart`,
+      // `add_find_sheet.dart`, `edit_find_sheet.dart`); der Reiter
+      // „Freunde" hat einen eigenen Scaffold, der weiter ausweicht.
+      //
+      // Der eigentliche Anlass ist aber der seltene Fall aus dem
+      // Feldbericht: Bleibt das Inset nach dem Schließen der Tastatur
+      // stehen, schrumpft der Scaffold WEITER — und was man dann sieht,
+      // ist das untere Drittel in `colorScheme.surface`, also weiß. Die
+      // Ursache dieses hängenden Insets ist nicht gefunden (nicht
+      // reproduzierbar); diese Zeile nimmt ihr die sichtbare Wirkung, und
+      // zwar strukturell: Was nicht schrumpft, kann keinen Streifen
+      // hinterlassen.
+      resizeToAvoidBottomInset: false,
       body: navigationShell,
       bottomNavigationBar: NavigationBar(
         selectedIndex: navigationShell.currentIndex,

@@ -710,6 +710,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
     return Stack(
       children: [
   Scaffold(
+        // Wie in der Hülle (`router.dart`, #397): Die Tastatur überlagert,
+        // sie schiebt nicht. Hier ist die Begründung noch klarer — dieser
+        // Body enthält KEIN einziges Textfeld. Er wich also einer Tastatur
+        // aus, die ihn nichts angeht, und riss Karte, Legende und
+        // Knopfspalte mit.
+        resizeToAvoidBottomInset: false,
         body: Stack(
           children: [
             MapView(
