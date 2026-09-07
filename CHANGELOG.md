@@ -7,6 +7,19 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Marker sitzen wieder genau auf ihrer Stelle
+
+*7. September 2026 · Version 1.123.0*
+
+Auf der Karte hingen die Marker ein Stück unterhalb des Ortes, den sie
+meinen — die Spitze des Tropfens zeigte daneben. Bei den Pilz-Markern war
+das schon länger so und fiel kaum auf; mit den neuen Standort-Tropfen
+wurde es deutlich sichtbar.
+
+Der Grund lag tief: Die App kann die Karte mit zwei verschiedenen
+Zeichen-Engines darstellen, und die beiden verstehen dieselbe Angabe zur
+Marker-Ausrichtung genau umgekehrt.
+
 ## Abstürze verraten jetzt, wo sie passiert sind
 
 *7. September 2026 · Version 1.122.0*

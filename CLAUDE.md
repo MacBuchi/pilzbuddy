@@ -985,6 +985,21 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   `package:maplibre` nie). Die folgenden flutter_map-Notizen
   (Stellschrauben, Kamera-Wächter, TileProvider-Lebenszyklus) gelten
   für diesen Rückfall- und den Web-Pfad.
+- **`alignment` bedeutet in den beiden Karten-Engines das GEGENTEIL**
+  (#409, behoben in 1.123.0): Beide nehmen ein `Alignment` und rechnen
+  daraus die Bildschirmposition — flutter_map als
+  `top = punkt.y - (h - 0.5·h·(y+1))`, MapLibre als
+  `top = punkt.y - 0.5·h·(y+1)`. Bei `topCenter` liegt der Punkt dort an
+  der Unterkante (der Pilz steht darauf), hier an der Oberkante (der
+  Marker hängt darunter). Die Fassade folgt flutter_map, deshalb spiegelt
+  `mapLibreAlignment` (`* -1`) auf der MapLibre-Seite.
+  **Bei `center` fällt der Unterschied weg** — und genau deshalb ist es
+  von 1.43.0 bis 1.122.0 niemandem aufgefallen: So lange benutzte NUR der
+  Spot-Marker etwas anderes als `center`, und ein Pilz 44 px unter seiner
+  Fundstelle sieht bloß ungenau aus. Sichtbar wurde es erst an der Spitze
+  der Standort-Tropfen (#403), die eine genaue Aussage macht.
+  Wer eine dritte Engine einbaut: Diese Umrechnung gehört zu jeder Engine
+  einzeln geprüft, sie ist keine Eigenschaft der Fassade.
 - **Karten-Stellschrauben werden nicht ohne Messung verändert**
   (`docs/map-performance.md`): Puffer, Substitutionsweite und Layer-Modus
   stehen auf Werten, die #142/#143/#119 *gemessen* haben — jede davon ist
