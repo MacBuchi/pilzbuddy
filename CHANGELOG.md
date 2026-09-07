@@ -9,7 +9,7 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Ein Hinweis, der bei einer Pilz-App dazugehört
 
-*8. September 2026 · Version 1.125.0*
+*8. September 2026 · Version 1.125.0, 1.125.1*
 
 Beim ersten Start steht jetzt einmal da, was PilzBuddy ist und was nicht:
 **Die App bestimmt keine Pilze.** Sie merkt sich, wo du etwas gefunden
@@ -20,6 +20,12 @@ Außerdem in der Datenschutzerklärung ergänzt: Wenn du die
 Benachrichtigungen in der Browser-Fassung einschaltest, lädt die Seite
 dafür einen Programmteil von einem Google-Server. Das passiert erst beim
 Einschalten und nie davor — es stand nur bisher nicht dort.
+
+Und der Abschnitt zu Supabase ist genauer geworden: Deine Daten liegen in
+Irland, also in der EU. Weil Supabase ein US-Unternehmen ist, lässt sich
+ein Zugriff von dort — etwa durch den Support — aber nicht ausschließen.
+Vorher stand dort, eine Übermittlung in ein Drittland finde nicht statt;
+das war eine Zusage, die wir so nicht halten können.
 
 ## Beim Anlegen siehst du jetzt, wo der Spot hinkommt
 
