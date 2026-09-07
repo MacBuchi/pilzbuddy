@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.120.0+192
+version: 1.121.0+193
 
 environment:
   sdk: ^3.11.0
@@ -207,6 +207,50 @@ flutter:
     # Stationstemperatur umrechnen (0,65 K je 100 m).
     - assets/elevation/elevation.bin.gz
     - assets/elevation/elevation_manifest.json
+
+  # Roboto, mitgeliefert statt von Google geholt (#393).
+  #
+  # Im BROWSER lud Flutter die Standardschrift bei jedem Seitenaufruf von
+  # `fonts.gstatic.com` — vor der Anmeldung, vor jeder Zustimmung, bei
+  # jedem Besucher. Gemessen beim Bau von #387; abgestellt ist es erst
+  # hier. (Mit CanvasKit geht es nicht ohne Schriftdatei: Der Renderer
+  # kann keine Systemschriften benutzen, deshalb bündeln statt einen
+  # Font-Stack zu setzen.)
+  #
+  # **Dieser Block IST der Schalter — im Theme steht nichts.** Gemessen,
+  # weil der erste Entwurf zusätzlich ein `fontFamily: kIsWeb ? 'Roboto'`
+  # gesetzt hatte: Ohne diese Zeile bleibt gstatic trotzdem weg, ohne die
+  # Dateien hier kommt es zurück. Flutters Web-Engine nimmt eine
+  # mitgelieferte Familie namens „Roboto" von selbst. Ein `fontFamily`
+  # daneben hätte behauptet, es zu bewirken.
+  #
+  # Und weil das Theme unangetastet bleibt, ändert sich auf ANDROID
+  # nichts: Dort passiert der Abruf gar nicht, und die Systemschrift —
+  # auf Hersteller-Oberflächen oft nicht Roboto — bleibt stehen.
+  #
+  # **Drei Schnitte, nicht einer.** 400 und 700 nutzt die App selbst,
+  # 500 braucht Material 3 für Titel und Knopfbeschriftungen; ohne den
+  # Schnitt fiele er auf 400 zurück und die Oberfläche sähe im Browser
+  # dünner aus als auf dem Telefon. w600 (dreimal im Code) rundet auf 500
+  # oder 700 — dafür einen vierten Schnitt zu laden wäre 168 KB für einen
+  # Unterschied, den man nicht sieht.
+  #
+  # Die Dateien stammen aus dem Flutter-SDK (`material_fonts`), die
+  # Lizenz liegt daneben: Apache-2.0, auf der Erlaubt-Liste in
+  # `tool/license_config.yaml`.
+  #
+  # Sie liegen auch im APK, obwohl Android bei seiner Systemschrift
+  # bleibt — Flutter kennt keine plattformabhängigen Asset-Listen
+  # (dieselbe Kröte wie `assets/map_glyphs/`, das im Web-Build nie
+  # gelesen wird). 500 KB auf 123 MB.
+  fonts:
+    - family: Roboto
+      fonts:
+        - asset: assets/fonts/Roboto-Regular.ttf
+        - asset: assets/fonts/Roboto-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Roboto-Bold.ttf
+          weight: 700
 
   # To add assets to your application, add an assets section, like this:
   # assets:
