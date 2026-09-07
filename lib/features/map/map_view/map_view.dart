@@ -84,6 +84,34 @@ class MapViewMarker {
   final Widget child;
 }
 
+/// Die Ausrichtung, wie MapLibre sie versteht — **umgekehrt** zu
+/// flutter_map (#409).
+///
+/// Beide Pakete nehmen ein `Alignment`, und beide rechnen daraus die
+/// Bildschirmposition des Markers. Nur eben andersherum:
+///
+/// ```
+/// flutter_map:  top = punkt.y - (h - 0.5*h*(y+1))
+/// maplibre:     top = punkt.y -      0.5*h*(y+1)
+/// ```
+///
+/// Bei `topCenter` (y = -1) liegt der Punkt in flutter_map an der
+/// UNTERKANTE des Markers — der Pilz steht darauf — und in MapLibre an
+/// der OBERKANTE, der Marker hängt also darunter. Bei `center` fällt der
+/// Unterschied weg, und genau deshalb ist es so lange niemandem
+/// aufgefallen: Bis 1.120.0 benutzte NUR der Spot-Marker etwas anderes
+/// als `center`.
+///
+/// Die Fassade folgt flutter_map (so steht es an [MapViewMarker]), also
+/// muss die MapLibre-Seite spiegeln. `* -1` ist genau das: Aus
+/// `topCenter` wird `bottomCenter`.
+///
+/// Gemeldet wurde es an den Standort-Tropfen aus #403, weil deren Spitze
+/// eine genaue Aussage macht — ein Pilz, der 44 px zu tief steht, sieht
+/// nur ungenau aus. Betroffen war der Spot-Marker seit 1.43.0 mit.
+Alignment mapLibreAlignment(Alignment facadeAlignment) =>
+    facadeAlignment * -1;
+
 /// Die Markergruppen in fester Zeichenreihenfolge (unten → oben):
 /// Tour-Spur < Freunde-Live < eigene Position < Spots — damit Spots
 /// tappbar bleiben.

@@ -110,7 +110,8 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
         point: ml.Geographic(
             lon: marker.point.longitude, lat: marker.point.latitude),
         size: Size(marker.width, marker.height),
-        alignment: marker.alignment,
+        // Gespiegelt: MapLibre versteht `alignment` umgekehrt (#409).
+        alignment: mapLibreAlignment(marker.alignment),
         child: marker.child,
       );
 
