@@ -85,8 +85,14 @@ class MapViewMarker {
 }
 
 /// Die Markergruppen in fester Zeichenreihenfolge (unten → oben):
-/// Tour-Spur < eigene Position < Freunde-Live < Spots — damit Spots
+/// Tour-Spur < Freunde-Live < eigene Position < Spots — damit Spots
 /// tappbar bleiben.
+///
+/// **Der eigene Standort liegt über dem der Buddys** (#403). Vorher lag
+/// er darunter: Wer mit jemandem zusammen sucht, stand genau dann nicht
+/// mehr auf der Karte, wenn beide dicht beieinander waren — also im
+/// einzigen Moment, in dem man beide Punkte auseinanderhalten will. Über
+/// die SPOTS geht er weiterhin nicht; die sollen tappbar bleiben.
 ///
 /// Die Spur liegt ganz unten, und das ist Absicht: Sie ist Hintergrund,
 /// kein Inhalt. Über den Spots läge sie ausgerechnet dort, wo man

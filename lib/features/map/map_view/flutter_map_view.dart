@@ -391,17 +391,18 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
           ),
         // Markergruppen in fester Reihenfolge (unten → oben), damit
         // Spots über den Live-Positionen liegen und tappbar bleiben.
+        // Die eigene Position über der der Buddys — siehe MapViewMarkers.
         if (markers.tourTrack.isNotEmpty)
           MarkerLayer(markers: [
             for (final m in markers.tourTrack) _asFlutterMapMarker(m),
           ]),
-        if (markers.myPosition.isNotEmpty)
-          MarkerLayer(markers: [
-            for (final m in markers.myPosition) _asFlutterMapMarker(m),
-          ]),
         if (markers.friendLocations.isNotEmpty)
           MarkerLayer(markers: [
             for (final m in markers.friendLocations) _asFlutterMapMarker(m),
+          ]),
+        if (markers.myPosition.isNotEmpty)
+          MarkerLayer(markers: [
+            for (final m in markers.myPosition) _asFlutterMapMarker(m),
           ]),
         MarkerLayer(markers: [
           for (final m in markers.spots) _asFlutterMapMarker(m),

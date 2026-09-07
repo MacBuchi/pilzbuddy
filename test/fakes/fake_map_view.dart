@@ -76,11 +76,14 @@ class FakeMapViewState extends State<FakeMapView>
             SizedBox(
                 width: marker.width, height: marker.height,
                 child: marker.child),
-          for (final marker in m.myPosition)
+          // Freunde UNTER der eigenen Position (#403) — wie in beiden
+          // echten Engines. Dreht das jemand hier um, prüfen die Tests
+          // eine Stapelung, die es auf der Karte nicht gibt.
+          for (final marker in m.friendLocations)
             SizedBox(
                 width: marker.width, height: marker.height,
                 child: marker.child),
-          for (final marker in m.friendLocations)
+          for (final marker in m.myPosition)
             SizedBox(
                 width: marker.width, height: marker.height,
                 child: marker.child),
