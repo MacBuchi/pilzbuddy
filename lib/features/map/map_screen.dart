@@ -531,9 +531,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
     );
     if (data == null) return;
     try {
+      // `data.position` und NICHT `center`: Im Blatt lässt sich die
+      // Stelle verschieben (#407). Wer hier wieder das Fadenkreuz nimmt,
+      // speichert woanders als angezeigt — und nichts sagt es.
       final fresh = await ref.read(mySpotsProvider.notifier).addSpot(
-            lat: center.latitude,
-            lng: center.longitude,
+            lat: data.position.latitude,
+            lng: data.position.longitude,
             name: data.name,
             finds: data.finds,
           );

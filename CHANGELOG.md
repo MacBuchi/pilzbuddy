@@ -7,6 +7,19 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Beim Anlegen siehst du jetzt, wo der Spot hinkommt
+
+*7. September 2026 · Version 1.124.0*
+
+Das Blatt „Neuer Pilz-Spot" zeigt jetzt einen Kartenausschnitt. Was im
+Fadenkreuz steht, wird gespeichert — und du kannst die Karte vorher
+verschieben, bis die Stelle stimmt. „Meine Position" springt auf deinen
+aktuellen Standort.
+
+Darunter steht, wie weit du vom ursprünglichen Punkt weg bist. Praktisch
+auch beim Import: Ein fremder GPX-Punkt liegt oft ein Stück daneben, und
+das lässt sich jetzt beim Übernehmen geradeziehen.
+
 ## Marker sitzen wieder genau auf ihrer Stelle
 
 *7. September 2026 · Version 1.123.0*
