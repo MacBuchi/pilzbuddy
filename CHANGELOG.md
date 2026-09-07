@@ -21,6 +21,12 @@ Benachrichtigungen in der Browser-Fassung einschaltest, lädt die Seite
 dafür einen Programmteil von einem Google-Server. Das passiert erst beim
 Einschalten und nie davor — es stand nur bisher nicht dort.
 
+Und der Abschnitt zu Supabase ist genauer geworden: Deine Daten liegen in
+Irland, also in der EU. Weil Supabase ein US-Unternehmen ist, lässt sich
+ein Zugriff von dort — etwa durch den Support — aber nicht ausschließen.
+Vorher stand dort, eine Übermittlung in ein Drittland finde nicht statt;
+das war eine Zusage, die wir so nicht halten können.
+
 ## Beim Anlegen siehst du jetzt, wo der Spot hinkommt
 
 *7. September 2026 · Version 1.124.0*
