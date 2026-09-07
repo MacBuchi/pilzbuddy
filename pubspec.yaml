@@ -80,7 +80,7 @@ dependencies:
   # Hält den Prozess während des Karten-Downloads wach (Foreground-Service,
   # Android). Kein Web-Support — deshalb nur über bedingten Import in
   # lib/features/offline_maps/download_keep_alive.dart eingebunden.
-  flutter_foreground_task: ^10.0.0
+  flutter_foreground_task: ^11.0.3
 
   # Standort (GPS)
   geolocator: ^14.0.2
@@ -90,7 +90,7 @@ dependencies:
 
   # State-Management & Routing
   flutter_riverpod: ^2.6.1
-  go_router: ^16.2.4
+  go_router: ^18.0.1
 
   # Datumsformate & Statistik-Charts
   intl: ^0.20.2
