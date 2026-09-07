@@ -7,6 +7,24 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Standorte zeigen jetzt genau, wo jemand steht
+
+*7. September 2026 · Version 1.120.0*
+
+Der Live-Standort — deiner und der deiner Buddys — war ein Kreis, der
+mittig über der Stelle schwebte. Er zeigte, dass jemand *ungefähr* dort
+ist, nicht wo. Jetzt ist es ein Tropfen, dessen Spitze auf der Stelle
+sitzt, wie bei den Spot-Markern.
+
+Zwei Dinge dazu:
+
+- **Deiner ist grün, die deiner Buddys sind blau** — dieselbe Farbsprache
+  wie bei den Spots. Vorher war der Unterschied nur ein dünner Ring um
+  das Pilz-Porträt, und bei ähnlichen Avataren sah das gleich aus.
+- **Deiner liegt jetzt vorn.** Wenn ihr zusammen sucht und dicht
+  beieinander steht, verschwand dein Punkt bisher unter dem des anderen —
+  ausgerechnet dann, wenn man beide auseinanderhalten will.
+
 ## Die Karte zeigt dir, wo die Ampel gerade günstig steht
 
 *6. September 2026 · Version 1.119.0*

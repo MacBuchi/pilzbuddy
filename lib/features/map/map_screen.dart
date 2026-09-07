@@ -15,7 +15,7 @@ import '../../core/errors.dart';
 import '../../core/geo.dart';
 import '../../core/mushroom_species.dart';
 import '../../core/update_check.dart';
-import '../../core/widgets/mushroom_avatar.dart';
+import '../../core/widgets/location_pin.dart';
 import '../../core/widgets/mushroom_icon.dart';
 import '../../data/providers.dart';
 import '../../models/friend_location.dart';
@@ -622,46 +622,46 @@ class _MapScreenState extends ConsumerState<MapScreen>
     );
   }
 
-  /// Live-Standort eines Freundes: sein Avatar mit blauem Ring.
+  /// Live-Standort eines Freundes: sein Avatar im blauen Tropfen.
   MapViewMarker _friendLocationMarker(FriendLocation loc) {
     return MapViewMarker(
       point: loc.position,
-      width: 44,
-      height: 44,
+      width: _locationPinHead,
+      height: _locationPinHead * LocationPin.pinHeightFactor,
+      // Die Spitze auf die Koordinate, wie bei den Spot-Markern (#403).
+      alignment: Alignment.topCenter,
       child: Tooltip(
         message: '${loc.username ?? 'Freund'} (live)',
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: AppColors.friendBlue, width: 2.5),
-            boxShadow: const [
-              BoxShadow(
-                  color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
-            ],
-          ),
-          child: MushroomAvatar(index: loc.avatar, size: 39),
+        child: LocationPin(
+          avatar: loc.avatar,
+          color: AppColors.friendBlue,
+          headSize: _locationPinHead,
         ),
       ),
     );
   }
 
-  /// Eigene Live-Position als Avatar — liegt UNTER den Spot-Markern,
-  /// damit die tappbar bleiben.
+  /// Kopfgröße beider Standort-Marker. Eigener und fremder unterscheiden
+  /// sich über die FARBE und die Zeichenreihenfolge, nicht über die Größe
+  /// — eine Größenstaffel wäre eine dritte Aussage über dieselbe Sache.
+  static const double _locationPinHead = 40;
+
+  /// Eigene Live-Position: derselbe Tropfen in Grün.
+  ///
+  /// Grün = meins, Blau = Buddy ist die Sprache der Boden-Ellipse an den
+  /// Spots; hier trägt sie der ganze Tropfen statt eines 2,5-px-Rings.
+  /// Vorher unterschieden sich die beiden Marker praktisch nur durch
+  /// diesen Ring — bei ähnlichen Avataren sahen sie gleich aus (#403).
   MapViewMarker _myPositionMarker(Position position, int avatar) {
     return MapViewMarker(
       point: LatLng(position.latitude, position.longitude),
-      width: 40,
-      height: 40,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(color: AppColors.forestGreen, width: 2.5),
-          boxShadow: const [
-            BoxShadow(
-                color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
-          ],
-        ),
-        child: MushroomAvatar(index: avatar, size: 35),
+      width: _locationPinHead,
+      height: _locationPinHead * LocationPin.pinHeightFactor,
+      alignment: Alignment.topCenter,
+      child: LocationPin(
+        avatar: avatar,
+        color: AppColors.forestGreen,
+        headSize: _locationPinHead,
       ),
     );
   }

@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/mushroom_species.dart';
+import 'package:pilzbuddy/core/app_colors.dart';
+import 'package:pilzbuddy/core/widgets/location_pin.dart';
 import 'package:pilzbuddy/core/widgets/mushroom_avatar.dart';
 import 'package:pilzbuddy/core/widgets/mushroom_icon.dart';
 
@@ -240,6 +242,68 @@ void main() {
         final image = await boundary.toImage(pixelRatio: 2);
         final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
         File('$previewDir/avatar_preview.png')
+            .writeAsBytesSync(bytes!.buffer.asUint8List());
+      });
+    }
+  });
+
+  testWidgets('Standort-Marker rendern (Tropfen, eigen und Buddy)',
+      (tester) async {
+    // #403: Die Spitze gehört auf die Koordinate. Angesehen wird das
+    // Bild — die rote Linie markiert die Höhe, auf der die Spitzen
+    // sitzen müssen; liegt ein Marker daneben, sieht man es sofort.
+    await tester.binding.setSurfaceSize(const Size(560, 260));
+    final key = GlobalKey();
+
+    await tester.pumpWidget(MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: RepaintBoundary(
+        key: key,
+        child: Container(
+          color: const Color(0xFFE8E0D0), // kartenähnlicher Hintergrund
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final (label, color) in [
+                ('eigen', AppColors.forestGreen),
+                ('Buddy', AppColors.friendBlue),
+              ])
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      SizedBox(
+                          width: 60,
+                          child: Text(label,
+                              style: const TextStyle(fontSize: 11))),
+                      for (final avatar in [0, 1, 4, 8, 24])
+                        Padding(
+                          padding: const EdgeInsets.only(right: 10),
+                          child: LocationPin(avatar: avatar, color: color),
+                        ),
+                      // Klein: so groß wie ein Listen-Eintrag
+                      LocationPin(avatar: 0, color: color, headSize: 24),
+                    ],
+                  ),
+                ),
+              Container(height: 2, color: Colors.red),
+            ],
+          ),
+        ),
+      ),
+    ));
+    await tester.pump();
+
+    const previewDir = String.fromEnvironment('PILZ_PREVIEW_DIR');
+    if (previewDir.isNotEmpty) {
+      await tester.runAsync(() async {
+        final boundary =
+            key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+        final image = await boundary.toImage(pixelRatio: 3);
+        final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+        File('$previewDir/location_pin_preview.png')
             .writeAsBytesSync(bytes!.buffer.asUint8List());
       });
     }

@@ -420,15 +420,15 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
             allowInteraction: true,
             markers: [
               // Feste Stapelung der Fassade:
-              // Tour-Spur < Position < Freunde < Spots.
+              // Tour-Spur < Freunde < eigene Position < Spots.
               for (final marker in visibleMarkers(
                   widget.markers.tourTrack, _visibleBounds!))
                 asMapLibreMarker(marker),
               for (final marker in visibleMarkers(
-                  widget.markers.myPosition, _visibleBounds!))
+                  widget.markers.friendLocations, _visibleBounds!))
                 asMapLibreMarker(marker),
               for (final marker in visibleMarkers(
-                  widget.markers.friendLocations, _visibleBounds!))
+                  widget.markers.myPosition, _visibleBounds!))
                 asMapLibreMarker(marker),
               for (final marker in visibleMarkers(
                   widget.markers.spots, _visibleBounds!))
