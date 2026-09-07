@@ -16,7 +16,7 @@
 // und damit lässt sich das DevTools-Protokoll direkt sprechen.
 import {createServer} from 'node:http';
 import {spawn} from 'node:child_process';
-import {existsSync} from 'node:fs';
+import {existsSync, readFileSync} from 'node:fs';
 import {readFile, mkdtemp, rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join, extname, normalize} from 'node:path';
@@ -211,6 +211,33 @@ try {
   const fromCdn = await evaluate(send,
       "performance.getEntriesByType('resource').some(e => e.name.includes('flutter-canvaskit'))");
   check(fromCdn === false, `CanvasKit kommt aus dem eigenen Build (CDN: ${fromCdn})`);
+
+  // Und kein UNERWARTETER fremder Ursprung beim Laden (#393).
+  //
+  // Bis 1.119.x holte Flutter im Browser seine Standardschrift bei jedem
+  // Seitenaufruf von `fonts.gstatic.com` — vor der Anmeldung, vor jeder
+  // Zustimmung, bei jedem Besucher. Aufgefallen ist das nur, weil dieser
+  // Lauf ohnehin einen echten Chrome fährt; kein Dart-Test sieht so
+  // etwas, und die Datenschutzerklärung hat es zwei Versionen lang
+  // beschrieben statt verhindert.
+  //
+  // Supabase steht auf der Liste, weil die App schon VOR der Anmeldung
+  // dorthin geht: `app_config` trägt die Mindestversion, und die wird
+  // beim Start gelesen. Der Host kommt aus `supabase_config.dart` und
+  // nicht als Literal — sonst zeigte diese Prüfung nach einem
+  // Projektwechsel auf ein Ziel, das es nicht mehr gibt. Kommt ein
+  // weiteres Ziel dazu, gehört es hier hinein UND in
+  // `web/datenschutz.html`.
+  const supabaseHost = new URL(
+      readFileSync('lib/core/supabase_config.dart', 'utf8')
+          .match(/static const url = '([^']+)'/)[1]).origin;
+  const foreign = JSON.parse(await evaluate(send, `JSON.stringify(
+      [...new Set(performance.getEntriesByType('resource')
+          .map(e => new URL(e.name).origin)
+          .filter(o => o !== location.origin))])`));
+  const unexpected = foreign.filter((o) => o !== supabaseHost);
+  check(unexpected.length === 0,
+      `keine unerwarteten Ursprünge beim Laden (fremd: ${JSON.stringify(foreign)})`);
 
   await sleep(12000); // das Vorwärmen zu Ende laufen lassen
   const caches1 = JSON.parse(await evaluate(send, `(async () => {
