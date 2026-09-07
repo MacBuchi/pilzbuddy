@@ -9,7 +9,7 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Die Karte zeigt dir, wo die Ampel gerade günstig steht
 
-*6. September 2026 · Version 1.119.0*
+*6. September 2026 · Version 1.119.0, 1.119.1*
 
 Zwei Dinge, die zusammenarbeiten:
 
