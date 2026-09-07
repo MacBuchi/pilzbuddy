@@ -7,6 +7,20 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Ein Hinweis, der bei einer Pilz-App dazugehört
+
+*8. September 2026 · Version 1.125.0*
+
+Beim ersten Start steht jetzt einmal da, was PilzBuddy ist und was nicht:
+**Die App bestimmt keine Pilze.** Sie merkt sich, wo du etwas gefunden
+hast — sie sagt nicht, was es ist und ob es essbar ist. Nachlesen kannst
+du das jederzeit in der Kurzanleitung.
+
+Außerdem in der Datenschutzerklärung ergänzt: Wenn du die
+Benachrichtigungen in der Browser-Fassung einschaltest, lädt die Seite
+dafür einen Programmteil von einem Google-Server. Das passiert erst beim
+Einschalten und nie davor — es stand nur bisher nicht dort.
+
 ## Beim Anlegen siehst du jetzt, wo der Spot hinkommt
 
 *7. September 2026 · Version 1.124.0*

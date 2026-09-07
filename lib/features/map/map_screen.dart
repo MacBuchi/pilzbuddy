@@ -16,6 +16,7 @@ import '../../core/geo.dart';
 import '../../core/mushroom_species.dart';
 import '../../core/update_check.dart';
 import '../../core/widgets/location_pin.dart';
+import '../../core/widgets/safety_note.dart';
 import '../../core/widgets/mushroom_icon.dart';
 import '../../data/providers.dart';
 import '../../models/friend_location.dart';
@@ -132,7 +133,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
       // ersten Frame, weil die Anker erst dann vermessbar sind — und
       // ohne Rücksicht auf das Intro-Overlay: Das liegt app-weit
       // darüber und gibt die Karte nach 2,6 s von selbst frei.
-      if (!ref.read(mapTourSeenProvider)) {
+      // Der Haftungshinweis, einmal je Installation (#110). VOR der
+      // geführten Tour: Er ist keine Funktionserklärung, sondern die
+      // Voraussetzung dafür, die App richtig zu verstehen — und zwei
+      // Overlays gleichzeitig wären keins.
+      if (!ref.read(safetyNoteSeenProvider)) {
+        ref.read(safetyNoteSeenProvider.notifier).set(true);
+        unawaited(showSafetyNoteDialog(context));
+      } else if (!ref.read(mapTourSeenProvider)) {
         ref.read(mapTourProvider.notifier).start();
       }
       // Und auf die eigene Position einrasten (#360), falls schon eine

@@ -21,6 +21,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/app_colors.dart';
 import '../../core/mushroom_species.dart';
 import '../../core/widgets/mushroom_icon.dart';
+import '../../core/widgets/safety_note.dart';
 import '../tour/widgets/tour_icon.dart';
 import 'map_tour.dart';
 
@@ -107,7 +108,12 @@ class HelpScreen extends ConsumerWidget {
                 .bodyMedium
                 ?.copyWith(color: Theme.of(context).hintColor),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
+          // Dauerhaft nachlesbar (#110). Ganz oben und nicht am Ende:
+          // Wer die Kurzanleitung öffnet, soll ihn nicht erst finden
+          // müssen.
+          const SafetyNoteTile(),
+          const SizedBox(height: 12),
           for (final step in steps) _StepTile(step: step),
           const SizedBox(height: 24),
           // Der Wiederaufruf der Tour (#350). Er steht HIER und nicht als

@@ -142,6 +142,17 @@ final mapTourSeenProvider = NotifierProvider<RememberedFlag, bool>(
   ),
 );
 
+/// Hat dieses Gerät den Haftungshinweis gesehen? (#110)
+///
+/// Gerätelokal wie [mapTourSeenProvider] und aus demselben Grund.
+final safetyNoteSeenProvider = NotifierProvider<RememberedFlag, bool>(
+  () => RememberedFlag(
+    read: (s) => s.safetyNoteSeen,
+    write: (s, v) => s.setSafetyNoteSeen(v),
+    label: 'Haftungshinweis merken',
+  ),
+);
+
 /// Der laufende Schritt — `null` heißt: keine Tour.
 class MapTourNotifier extends Notifier<int?> {
   @override
