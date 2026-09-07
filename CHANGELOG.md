@@ -7,6 +7,21 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Browser-Fassung holt nichts mehr bei Google
+
+*7. September 2026 · Version 1.121.0*
+
+Wer PilzBuddy im Browser öffnete, dessen Gerät fragte bei jedem
+Seitenaufruf die Schriftart bei einem Google-Server an — vor dem
+Anmelden, ohne dass man irgendetwas eingeschaltet hätte. Die Schrift ist
+jetzt Teil der App.
+
+Damit verbindet sich die Browser-Fassung beim Laden nur noch mit unserem
+eigenen Server. Und im Funkloch sieht sie aus wie sonst auch, statt auf
+eine Ersatzschrift zu wechseln.
+
+Die Android-App war davon nie betroffen und sieht unverändert aus.
+
 ## Standorte zeigen jetzt genau, wo jemand steht
 
 *7. September 2026 · Version 1.120.0*
