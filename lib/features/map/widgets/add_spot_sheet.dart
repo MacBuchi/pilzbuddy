@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../spots/widgets/species_collector.dart';
+import 'spot_position_field.dart';
 import '../../../core/app_colors.dart';
 import '../../../data/spot_repository.dart';
 
@@ -15,7 +16,16 @@ class NewSpotData {
   final String? name;
   final List<NewFind> finds;
 
-  const NewSpotData({this.name, required this.finds});
+  /// Wo der Spot wirklich hinsoll (#407).
+  ///
+  /// Bis 1.123.0 gab das Blatt nur Name und Funde zurück, und die
+  /// Aufrufer nahmen ihre EIGENE Koordinate — die des Fadenkreuzes.
+  /// Damit war jede Verschiebung im Blatt wirkungslos, und genau das
+  /// wäre der stille Fehler: gespeichert wird woanders als gezeigt.
+  final LatLng position;
+
+  const NewSpotData(
+      {this.name, required this.finds, required this.position});
 }
 
 /// Bottom-Sheet zum schnellen Anlegen eines Spots. Alle Felder optional,
@@ -72,6 +82,9 @@ class _AddSpotSheet extends StatefulWidget {
 }
 
 class _AddSpotSheetState extends State<_AddSpotSheet> {
+  /// Die Stelle, die gerade gilt — anfangs das Fadenkreuz.
+  late LatLng _position = widget.position;
+
   late final _nameController =
       TextEditingController(text: widget.initialName ?? '');
   final _noteController = TextEditingController();
@@ -103,6 +116,7 @@ class _AddSpotSheetState extends State<_AddSpotSheet> {
     final note =
         _noteController.text.trim().isEmpty ? null : _noteController.text.trim();
     Navigator.of(context).pop(NewSpotData(
+      position: _position,
       name: _nameController.text.trim().isEmpty
           ? null
           : _nameController.text.trim(),
@@ -142,13 +156,12 @@ class _AddSpotSheetState extends State<_AddSpotSheet> {
                     style: Theme.of(context).textTheme.titleLarge),
               ],
             ),
-            const SizedBox(height: 4),
-            Text(
-              '${widget.position.latitude.toStringAsFixed(5)}, '
-              '${widget.position.longitude.toStringAsFixed(5)}',
-              style: Theme.of(context).textTheme.bodySmall,
+            const SizedBox(height: 8),
+            SpotPositionField(
+              initial: widget.position,
+              onChanged: (at) => _position = at,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             TextField(
               controller: _nameController,
               textCapitalization: TextCapitalization.sentences,

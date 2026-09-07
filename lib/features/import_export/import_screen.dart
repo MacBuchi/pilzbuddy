@@ -217,9 +217,12 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
     );
     if (data == null) return;
     try {
+      // `data.position` und NICHT der Wegpunkt: Auch beim Import lässt
+      // sich die Stelle im Blatt verschieben (#407) — und gerade dort
+      // lohnt es sich, weil ein fremder GPX-Punkt danebenliegen kann.
       await ref.read(mySpotsProvider.notifier).addSpot(
-            lat: waypoint.lat,
-            lng: waypoint.lng,
+            lat: data.position.latitude,
+            lng: data.position.longitude,
             name: data.name,
             finds: data.finds,
           );
