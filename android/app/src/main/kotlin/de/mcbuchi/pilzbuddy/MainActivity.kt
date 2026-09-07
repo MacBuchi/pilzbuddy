@@ -234,31 +234,79 @@ class MainActivity : FlutterActivity() {
                 // Ursache ausscheiden, bevor er je gemessen war.
                 "rssKb" to info.rss,
                 "pssKb" to info.pss,
-                // Nur bei ANR liefert Android überhaupt einen Dump.
-                "hasTrace" to (info.reason == ApplicationExitInfo.REASON_ANR),
+                // Android legt zu ANRs einen Text-Dump und seit API 31 zu
+                // nativen Abstürzen ein Tombstone bereit (#394). Beides
+                // holt `exitTrace`; was es ist, entscheidet der Grund.
+                "hasTrace" to hasTrace(info),
             )
         }
     }
 
     /**
-     * Der Haupt-Thread-Abschnitt des Dumps zu einem Eintrag, oder null.
+     * Hat Android zu diesem Eintrag etwas hinterlegt?
      *
-     * Nur der Haupt-Thread: Bei #142 stand dort alles Nötige (nativ,
-     * rechnend, an einer Mutex), und die vollständigen 26 Threads passen
-     * weder in die Spalte noch in einen Wochendigest.
+     * ANR: ein Text-Dump. NATIVER ABSTURZ: ab API 31 ein Tombstone als
+     * Protobuf ("Beginning with API 31, tombstone traces will be returned
+     * for REASON_CRASH_NATIVE" — AOSP-Javadoc zu getTraceInputStream).
+     * Bis 1.121.0 stand hier "nur bei ANR", und der nativer Absturz aus
+     * #376 kam ohne eine einzige Zeile Spur an, obwohl Android sie
+     * bereithielt.
      */
-    private fun exitTrace(timestamp: Long): String? {
+    private fun hasTrace(info: ApplicationExitInfo): Boolean = when (info.reason) {
+        ApplicationExitInfo.REASON_ANR -> true
+        ApplicationExitInfo.REASON_CRASH_NATIVE ->
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+        else -> false
+    }
+
+    /**
+     * Der Dump zu einem Eintrag: beim ANR der Haupt-Thread-Abschnitt als
+     * Text, beim nativen Absturz das rohe Tombstone.
+     *
+     * **Das Tombstone wird hier NICHT gelesen, nur durchgereicht.** Es ist
+     * ein Protobuf, und das Auseinandernehmen gehört auf die Dart-Seite
+     * (`lib/data/tombstone.dart`): Diese Datei ist die einzige im Projekt
+     * ohne Test — ein Parser hier wäre der am wenigsten geprüfte Code an
+     * der am schlechtesten erreichbaren Stelle. Drüben ist er mit
+     * erfundenen Tombstones prüfbar.
+     *
+     * Nur der Haupt-Thread beim ANR: Bei #142 stand dort alles Nötige
+     * (nativ, rechnend, an einer Mutex), und die vollständigen 26 Threads
+     * passen weder in die Spalte noch in einen Wochendigest.
+     */
+    private fun exitTrace(timestamp: Long): Any? {
         val info = historicalExits(20)?.firstOrNull { it.timestamp == timestamp }
             ?: return null
-        if (info.reason != ApplicationExitInfo.REASON_ANR) return null
-        val dump = try {
-            info.traceInputStream?.use { readTrace(it) }
+        if (!hasTrace(info)) return null
+        return try {
+            info.traceInputStream?.use { stream ->
+                if (info.reason == ApplicationExitInfo.REASON_ANR) {
+                    mainThreadSection(readTrace(stream))
+                } else {
+                    // Als ByteArray über den Kanal — der Standard-Codec
+                    // trägt das, und Dart bekommt eine Uint8List.
+                    readRaw(stream)
+                }
+            }
         } catch (e: Exception) {
             // Der Dump ist ein Extra. Scheitert er, ist der Eintrag selbst
             // immer noch die halbe Antwort — deshalb hier nicht werfen.
             null
-        } ?: return null
-        return mainThreadSection(dump)
+        }
+    }
+
+    /** Roh und gedeckelt — dieselbe Schranke wie beim ANR-Dump. */
+    private fun readRaw(stream: InputStream): ByteArray {
+        val buffer = ByteArrayOutputStream()
+        val chunk = ByteArray(64 * 1024)
+        var total = 0
+        while (total < TRACE_BYTES) {
+            val read = stream.read(chunk)
+            if (read <= 0) break
+            buffer.write(chunk, 0, read)
+            total += read
+        }
+        return buffer.toByteArray()
     }
 
     private fun historicalExits(limit: Int): List<ApplicationExitInfo>? {

@@ -5,6 +5,8 @@
 // jemand ein USB-Kabel angesteckt hat.
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/errors.dart';
 import 'package:pilzbuddy/data/error_report_repository.dart';
@@ -72,6 +74,9 @@ AppExit _exit(String reason, DateTime when,
     );
 
 void main() {
+  // Für den MethodChannel-Mock im letzten Block (#394).
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   late Directory tempDir;
   ExitReporter reporter(FakeErrorReports reports, _FakeExits exits) =>
       ExitReporter(
@@ -227,4 +232,96 @@ void main() {
       expect(exit.pssKb, 1000 * 1024);
     });
   });
+
+  group('traceFor über den echten Kanal (#394)', () {
+    // Die Fake oben ersetzt `ExitInfoRepository` ganz — die Verzweigung
+    // „Text oder Tombstone" liegt darunter und wäre sonst ungeprüft.
+    const channel = MethodChannel('de.mcbuchi.pilzbuddy/exit_info');
+    late Object? answer;
+    var calls = 0;
+
+    setUp(() {
+      calls = 0;
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+        calls++;
+        return answer;
+      });
+    });
+
+    tearDown(() {
+      debugDefaultTargetPlatformOverride = null;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
+    });
+
+    AppExit exitWith(String reason, {bool hasTrace = true}) => AppExit(
+          timestamp: DateTime.utc(2026, 9, 7),
+          reason: reason,
+          hasTrace: hasTrace,
+        );
+
+    test('ein ANR kommt als Text und geht unverändert durch', () async {
+      answer = '"main" prio=5 tid=1 Native';
+      final trace = await ExitInfoRepository().traceFor(exitWith('ANR'));
+      expect(trace, '"main" prio=5 tid=1 Native');
+    });
+
+    test('ein nativer Absturz kommt als Bytes und wird gelesen', () async {
+      // Genau der Fall aus #376: CRASH_NATIVE, und bis 1.121.0 kam er
+      // ohne eine Zeile Spur an, obwohl Android das Tombstone bereithielt.
+      answer = _tombstoneBytes();
+      final trace =
+          await ExitInfoRepository().traceFor(exitWith('CRASH_NATIVE'));
+      expect(trace, contains('signal 11 (SIGSEGV)'));
+      expect(trace, contains('libc.so'));
+    });
+
+    test('etwas Drittes ergibt null statt einer Ausnahme', () async {
+      // Ein alter Build auf einem neuen Gerät oder umgekehrt.
+      answer = 42;
+      expect(await ExitInfoRepository().traceFor(exitWith('CRASH_NATIVE')),
+          isNull);
+    });
+
+    test('ohne Dump wird der Kanal gar nicht erst gefragt', () async {
+      answer = 'sollte niemand sehen';
+      final trace = await ExitInfoRepository()
+          .traceFor(exitWith('LOW_MEMORY', hasTrace: false));
+      expect(trace, isNull);
+      expect(calls, 0, reason: 'ein Aufruf je Eintrag beim Start ist genug');
+    });
+  });
+}
+
+/// Ein winziges Tombstone: tid 1, SIGSEGV, ein Frame in libc.
+Uint8List _tombstoneBytes() {
+  List<int> varint(int v) {
+    final out = <int>[];
+    var x = v;
+    while (x >= 0x80) {
+      out.add((x & 0x7f) | 0x80);
+      x >>= 7;
+    }
+    return out..add(x);
+  }
+
+  List<int> field(int number, List<int> value) =>
+      [...varint((number << 3) | 2), ...varint(value.length), ...value];
+
+  final signal = [
+    ...varint(1 << 3), ...varint(11), // number
+    ...field(2, 'SIGSEGV'.codeUnits), // name
+  ];
+  final frame = [
+    ...varint(1 << 3), ...varint(0xabc), // rel_pc
+    ...field(6, '/system/lib64/libc.so'.codeUnits), // file_name
+  ];
+  final thread = [...field(4, frame)];
+  return Uint8List.fromList([
+    ...varint(6 << 3), ...varint(1), // tid
+    ...field(10, signal),
+    ...field(16, [...varint(1 << 3), ...varint(1), ...field(2, thread)]),
+  ]);
 }

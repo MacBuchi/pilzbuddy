@@ -485,4 +485,29 @@ void main() {
     expect(excludes, contains(('file', _outboxDir)));
     expect(excludes, contains(('file', _tourDir)));
   });
+
+  test('die native Seite reicht auch das Tombstone heraus (#394)', () {
+    // Eine TEXTPRÜFUNG auf Kotlin, wie die Kanalnamen darüber — und aus
+    // demselben Grund: `MainActivity.kt` ist die einzige Datei im Projekt
+    // ohne Test, und ein stiller Rückbau hier hieße, dass native
+    // Abstürze wieder ohne Spur ankommen. Genau das war der Zustand bis
+    // 1.121.0, zwei Versionen lang unbemerkt.
+    //
+    // Was sie NICHT beweist: dass Android wirklich ein Tombstone
+    // liefert. Das zeigt erst ein echter Absturz im Feld.
+    final source = File('android/app/src/main/kotlin/de/mcbuchi/pilzbuddy/'
+            'MainActivity.kt')
+        .readAsStringSync();
+
+    expect(source, contains('REASON_CRASH_NATIVE'),
+        reason: 'ohne diesen Zweig fragt die App den Dump nie ab');
+    expect(source, contains('VERSION_CODES.S'),
+        reason: 'Tombstones gibt es erst ab API 31 — darunter darf nicht '
+            'gefragt werden');
+    // Und das Rohe bleibt roh: Wer hier anfängt, das Protobuf in Kotlin
+    // zu lesen, verschiebt den Parser an die einzige Stelle ohne Test.
+    // Er gehört nach `lib/data/tombstone.dart`.
+    expect(source, isNot(contains('Tombstone.parseFrom')),
+        reason: 'das Protobuf wird in Dart gelesen, nicht hier');
+  });
 }
