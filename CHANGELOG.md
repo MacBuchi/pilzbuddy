@@ -7,6 +7,18 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Abstürze verraten jetzt, wo sie passiert sind
+
+*7. September 2026 · Version 1.122.0*
+
+Stürzt die App ab, meldet sie das beim nächsten Start — damit der Fehler
+gefunden werden kann. Bei einer bestimmten Sorte Absturz kam die Meldung
+bisher ohne jeden Hinweis darauf an, wo es passiert ist, obwohl Android
+die Information bereithält. Jetzt wird sie mitgeschickt.
+
+Für dich ändert sich nichts Sichtbares. Es heißt nur, dass solche Fehler
+schneller behoben werden.
+
 ## Standorte zeigen jetzt genau, wo jemand steht
 
 *7. September 2026 · Version 1.120.0*

@@ -1224,6 +1224,27 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   #124/#136). `created_at` ist der Todes-, nicht der Meldezeitpunkt. Ein
   Merker im App-Verzeichnis verhindert Doppelmeldungen; sein Verlust kostet
   nur eine doppelte Zeile. Web und Android < 11 liefern nichts.
+  **Seit 1.122.0 kommt auch der NATIVE Absturz mit Spur** (#394): Android
+  legt dafür seit API 31 ein Tombstone bereit, und der Kommentar „nur bei
+  ANR liefert Android einen Dump" war seither falsch — der `CRASH_NATIVE`
+  aus KW36 kam ohne eine Zeile an, obwohl sie bereitlag. Drei Dinge, die
+  man wissen muss:
+  - **Kotlin liest das Tombstone NICHT, es reicht es durch.** Es ist ein
+    Protobuf; gelesen wird es in `lib/data/tombstone.dart`. Begründung:
+    `MainActivity.kt` ist die einzige Datei ohne Test-Netz, ein Parser
+    dort wäre der am wenigsten geprüfte Code an der am schlechtesten
+    erreichbaren Stelle. Drüben prüfen erfundene Tombstones jeden Zweig.
+    `test/android_manifest_test.dart` verbietet deshalb ausdrücklich ein
+    `Tombstone.parseFrom` in Kotlin.
+  - **Die Feldnummern stehen als Zahlen im Dart-Code**, nicht als
+    kopierte `.proto`. Sie sind Teil eines veröffentlichten Formats
+    („NOTE TO OEMS: do not use numbers in the reserved range") und ändern
+    sich nicht rückwirkend; eine kopierte Datei müsste dagegen mit AOSP
+    Schritt halten.
+  - **`formatTombstone` wirft nie.** Der Weg dorthin IST die
+    Fehlermeldung — ein Leser, der über ein unerwartetes Byte stolpert,
+    nähme dem Bericht auch noch den Rest. Alles, was nicht passt, ergibt
+    `null`, und der Bericht steht dann ohne Spur da wie zuvor.
   Die nativen Frames eines solchen Dumps übersetzt
   `python3 tool/symbolize_anr.py v1.32.0 dump.txt` — ohne dass beim Bauen
   irgendetwas aufgehoben werden muss: `(offset …)` im Dump ist die Position

@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import 'tombstone.dart';
+
 /// Ein Eintrag aus Androids Beendigungs-Historie.
 class AppExit {
   const AppExit({
@@ -24,7 +26,8 @@ class AppExit {
   final int pssKb;
   final int importance;
 
-  /// Nur bei ANR legt Android einen Thread-Dump dazu.
+  /// Liegt zu diesem Eintrag ein Dump bereit? Beim ANR ein Text, beim
+  /// nativen Absturz ab API 31 ein Tombstone (#394).
   final bool hasTrace;
 
   /// Ein normales Beenden ist kein Fehler und gehört nicht gemeldet —
@@ -114,12 +117,25 @@ class ExitInfoRepository {
     }
   }
 
-  /// Der Haupt-Thread-Abschnitt des ANR-Dumps, oder null.
+  /// Der Dump zum Eintrag, oder null.
+  ///
+  /// Zwei Sorten, eine Rückgabe: Beim ANR liefert Android Text, beim
+  /// nativen Absturz seit API 31 ein Tombstone als Protobuf (#394). Das
+  /// kommt roh über den Kanal und wird HIER gelesen — die native Seite
+  /// hat keinen Test, `formatTombstone` sehr wohl.
   Future<String?> traceFor(AppExit exit) async {
     if (!_supported || !exit.hasTrace) return null;
     try {
-      return await _channel.invokeMethod<String>(
+      final raw = await _channel.invokeMethod<Object?>(
           'exitTrace', {'timestamp': exit.timestamp.millisecondsSinceEpoch});
+      return switch (raw) {
+        final String text => text,
+        final Uint8List bytes => formatTombstone(bytes),
+        // Ein alter Build auf einem neuen Gerät (oder umgekehrt) kann
+        // etwas Drittes schicken. Kein Grund für einen Fehler — der
+        // Eintrag selbst ist schon die halbe Antwort.
+        _ => null,
+      };
     } catch (_) {
       return null;
     }
