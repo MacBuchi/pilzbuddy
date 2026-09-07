@@ -76,6 +76,24 @@ void main() {
       'maps.dwd.de',
     };
 
+    /// Ziele, die erst nach einer ausdrücklichen ZUSTIMMUNG abgerufen
+    /// werden — und trotzdem in der Erklärung stehen müssen (#110).
+    ///
+    /// Bisher gab es nur „ruft die App von sich aus ab" und „ist bloß
+    /// ein Link". Dazwischen liegt der Push-Weg: `www.gstatic.com`
+    /// liefert das Firebase-SDK an den Service Worker im Browser, und
+    /// zwar erst, wenn jemand die Benachrichtigungen einschaltet
+    /// (`requestPushToken` reicht den Worker-Pfad an `getToken`, nichts
+    /// davor). Das ist ein echter Empfänger, kein Link — nur eben einer
+    /// mit einem Schalter davor.
+    ///
+    /// Der Unterschied ist keine Wortklauberei: Ein Ziel, das VOR jeder
+    /// Zustimmung kontaktiert wird, ist ein anderer Sachverhalt (so lag
+    /// der Fall bei Roboto, #393).
+    const afterConsent = {
+      'www.gstatic.com',
+    };
+
     /// Ziele, die erst der Nutzer mit einem Tipp öffnet (Lizenz- und
     /// Impressumslinks im Attributions-Bereich, Store-Seite). Sie
     /// erzeugen keine Verbindung, solange niemand sie antippt.
@@ -113,6 +131,12 @@ void main() {
       // Das Höhengitter — dieselbe Lage wie Copernicus/DLR: Asset im
       // Binary, geholt nur in CI (`tool/elevation_grid.py`).
       'dataspace.copernicus.eu',
+      // Doku-Links in KOMMENTAREN der Web-Hülle (#110): Sie stehen in
+      // `web/sw.js` bzw. `web/flutter_bootstrap.js` als Beleg für eine
+      // Entscheidung und werden von niemandem abgerufen — auch nicht auf
+      // Tipp, denn sie sind nicht einmal anklickbar.
+      'developer.mozilla.org',
+      'docs.flutter.dev',
     };
 
     /// Supabase steht in der Erklärung mit Namen statt mit Hostnamen —
@@ -120,29 +144,48 @@ void main() {
     const namedInstead = {'supabase.co'};
 
     final hosts = <String>{};
-    for (final file in Directory('lib')
-        .listSync(recursive: true)
-        .whereType<File>()
-        .where((f) => f.path.endsWith('.dart'))) {
-      for (final match in RegExp(r'https://([a-zA-Z0-9.\-]+)')
-          .allMatches(file.readAsStringSync())) {
-        hosts.add(match.group(1)!);
+    // `lib/` UND `web/` (#110). Bis 1.124.0 sah der Wächter nur nach
+    // Dart — und genau daran ist ihm entgangen, dass
+    // `web/push/firebase-messaging-sw.js` das Firebase-SDK von
+    // `www.gstatic.com` nachlädt. Die Web-Hülle IST Teil der
+    // ausgelieferten App; ein Ziel in einem Service Worker verbindet
+    // sich so echt wie eines in Dart.
+    for (final root in const ['lib', 'web']) {
+      for (final file in Directory(root)
+          .listSync(recursive: true)
+          .whereType<File>()
+          .where((f) =>
+              f.path.endsWith('.dart') ||
+              f.path.endsWith('.js') ||
+              f.path.endsWith('.html'))) {
+        // Die Erklärung selbst NENNT die Ziele — sie ist die Antwort auf
+        // diesen Test, nicht seine Eingabe.
+        if (file.path.endsWith('datenschutz.html')) continue;
+        for (final match in RegExp(r'https://([a-zA-Z0-9.\-]+)')
+            .allMatches(file.readAsStringSync())) {
+          hosts.add(match.group(1)!);
+        }
       }
     }
 
     final unknown = hosts.where((h) =>
         !fetched.contains(h) &&
+        !afterConsent.contains(h) &&
         !onTapOnly.contains(h) &&
         !textOnly.contains(h) &&
         !namedInstead.any(h.endsWith));
     expect(unknown, isEmpty,
-        reason: 'Neues Ziel in lib/: ${unknown.join(", ")}. Entscheide, ob '
+        reason: 'Neues Ziel in lib/ oder web/: ${unknown.join(", ")}. '
+            'Entscheide, ob '
             'die App es von sich aus abruft — dann gehört es in '
             '$_privacy und in docs/play-console.md — oder ob es nur ein '
             'Link ist. Danach hier eintragen.');
 
     final html = _read(_privacy);
-    for (final host in fetched) {
+    // Beide Sorten müssen dastehen: „ruft von sich aus ab" und „ruft nach
+    // Zustimmung ab". Nur der Anlass unterscheidet sie, nicht die Frage,
+    // ob der Empfänger genannt gehört.
+    for (final host in {...fetched, ...afterConsent}) {
       expect(html, contains(host), reason: '$host fehlt in der Erklärung');
     }
   });

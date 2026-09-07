@@ -167,6 +167,17 @@ abstract interface class Settings {
 
   Future<void> setMapTourSeen(bool value);
 
+  /// Hat dieses Gerät den Haftungshinweis schon gesehen? (#110)
+  ///
+  /// Gerätelokal wie [mapTourSeen] und aus demselben Grund: Die Frage
+  /// wird einmal im Leben einer Installation gestellt, und ein Feld am
+  /// Konto kostete Patch, `schema.sql` und Saat-Liste. Dass er nach einer
+  /// Neuinstallation wiederkommt, ist bei diesem Hinweis eher richtig als
+  /// falsch.
+  bool get safetyNoteSeen;
+
+  Future<void> setSafetyNoteSeen(bool value);
+
   /// Das zuletzt registrierte FCM-Token dieses Geräts (#277) — `null`,
   /// solange niemand Push eingeschaltet hat.
   ///
@@ -391,6 +402,15 @@ class PrefsSettings implements Settings {
   @override
   Future<void> setMapTourSeen(bool value) =>
       _prefs.setBool(_mapTourSeenKey, value);
+
+  static const _safetyNoteSeenKey = 'safety_note_seen';
+
+  @override
+  bool get safetyNoteSeen => _prefs.getBool(_safetyNoteSeenKey) ?? false;
+
+  @override
+  Future<void> setSafetyNoteSeen(bool value) =>
+      _prefs.setBool(_safetyNoteSeenKey, value);
 
   static const _pushTokenKey = 'push_token';
 

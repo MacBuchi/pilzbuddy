@@ -1468,6 +1468,17 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   Kartenkacheln werden durch eine transparente 1×1-PNG ersetzt).
 - Die Fakes ersetzen keinen echten RLS-Test — das leistet der Schema Check.
 
+- **Datenschutz-Nachweise** (`docs/datenschutz-nachweise.md`, #110): Was
+  die Erklärung BEHAUPTET, steht dort belegt — plus Auskunftsverfahren
+  (Art. 15) und Verarbeitungsverzeichnis (Art. 30). Der Wächter
+  `test/privacy_policy_test.dart` prüft seit #110 auch `web/`; vorher nur
+  Dart, und genau daran ist ihm `www.gstatic.com` im Push-Service-Worker
+  entgangen. Vier Kategorien statt drei: `fetched`, **`afterConsent`**
+  (erst nach dem Einschalten abgerufen — muss trotzdem in der Erklärung
+  stehen), `onTapOnly`, `textOnly`. Zwei Punkte sind aus dem Code NICHT
+  belegbar und stehen dort als offen: der Supabase-Serverstandort
+  (Dashboard) und die Impressumsfrage.
+
 ## Play Store — offene Blocker
 
 Fahrplan und Reihenfolge: Issue #92. Stand 2026-07-26 — noch offen:
