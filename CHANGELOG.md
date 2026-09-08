@@ -7,6 +7,21 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Web-App startet verlässlicher ohne Empfang
+
+*8. September 2026 · Version 1.128.2*
+
+Seit Version 1.117.0 lässt sich PilzBuddy im Browser auch ohne Empfang
+öffnen — vorausgesetzt, die App hat beim ersten Besuch alles beiseite
+gelegt, was sie zum Starten braucht. Genau das war nicht verlässlich: Was
+sie ablegte, war eine Momentaufnahme aus dem Augenblick, in dem das erste
+Bild stand. Alles, was der Browser danach noch holte, fehlte — und ob
+etwas dazu zählte, entschied von Aufruf zu Aufruf der Zufall.
+
+Jetzt legt die App fortlaufend alles beiseite, was sie holt. Betroffen war
+nur der allererste Besuch; ab dem zweiten hat sich der Vorrat ohnehin von
+selbst vervollständigt. Auf dem Telefon ändert sich nichts.
+
 ## Das X am Ampel-Hinweis blendet nur noch kurz aus
 
 *8. September 2026 · Version 1.128.1*

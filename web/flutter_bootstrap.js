@@ -25,13 +25,12 @@
 {{flutter_js}}
 {{flutter_build_config}}
 
-// Eigener Einstieg statt des Standardaufrufs: Danach steht fest, was der
-// Browser wirklich geholt hat — und genau das bekommt der Worker zu
-// sehen. Ohne diesen Schritt läge nach dem ERSTEN Besuch nur die Hülle im
-// Cache: Beim ersten Laden kontrolliert der Worker die Seite noch nicht
-// (er wird ja gerade erst installiert), er sieht also keine einzige
-// Anfrage. Der Offline-Start hinge damit daran, dass jemand die Seite
-// zufällig ein zweites Mal öffnet.
+// Eigener Einstieg statt des Standardaufrufs: Von hier an meldet die
+// Seite dem Worker fortlaufend, was sie geholt hat. Ohne diesen Schritt
+// läge nach dem ERSTEN Besuch nur die Hülle im Cache — die ersten
+// Anfragen gehen raus, bevor der Worker aktiv ist, er sieht sie also nie.
+// Der Offline-Start hinge damit daran, dass jemand die Seite zufällig ein
+// zweites Mal öffnet.
 _flutter.loader.load({
   onEntrypointLoaded: async function (engineInitializer) {
     const appRunner = await engineInitializer.initializeEngine();
@@ -40,23 +39,42 @@ _flutter.loader.load({
   },
 });
 
-// Eine LISTE statt einer gepflegten Aufzählung im Worker: Welche
-// CanvasKit-Variante und welche Schriften nötig sind, entscheidet der
-// Browser. Eine Liste von Hand wäre bei jeder Änderung still falsch —
-// und „still falsch" heißt hier: startet ohne Netz nicht mehr.
+// Gemeldet wird, was der Browser WIRKLICH geholt hat: Welche
+// CanvasKit-Variante und welche Schriften nötig sind, entscheidet er
+// selbst. Eine gepflegte Aufzählung im Worker wäre bei jeder Änderung
+// still falsch — und „still falsch" heißt hier: startet ohne Netz nicht
+// mehr.
+//
+// **Ein BEOBACHTER, keine Momentaufnahme** (#427). Bis 1.128.1 stand hier
+// ein einmaliges `getEntriesByType('resource')` gleich nach dem ersten
+// Bild. Das ersetzte die Liste zwar, tauschte sie aber gegen einen
+// Wettlauf: Was bis zu genau diesem Augenblick geholt war, kam in den
+// Cache, alles Spätere nie. Zwei Läufe desselben Builds legten daraufhin
+// verschiedene Dateien ab, und einer der beiden startete ohne Netz nicht.
+// `buffered: true` liefert das bereits Geholte UND jedes weitere Stück,
+// solange die Seite lebt; damit gibt es keinen Augenblick mehr, an dem
+// gemessen wird.
+//
+// Der erste Besuch verhält sich dadurch wie jeder weitere: Ab dem zweiten
+// legt der Worker als Kontrolleur der Seite ohnehin jede erfolgreiche
+// eigene Antwort ab. Der Beobachter reicht ihm nur nach, was er beim
+// ersten Mal nicht sehen konnte.
 function warmServiceWorkerCache() {
   if (!('serviceWorker' in navigator)) return;
+  if (typeof PerformanceObserver === 'undefined') return;
   navigator.serviceWorker.ready
       .then(function (registration) {
-        if (!registration.active) return;
-        registration.active.postMessage({
-          type: 'warm',
-          urls: performance.getEntriesByType('resource')
+        var worker = registration.active;
+        if (!worker) return;
+        var observer = new PerformanceObserver(function (list) {
+          var urls = list.getEntries()
               .map(function (entry) { return entry.name; })
               .filter(function (name) {
                 return name.startsWith(self.location.origin);
-              }),
+              });
+          if (urls.length) worker.postMessage({type: 'warm', urls: urls});
         });
+        observer.observe({type: 'resource', buffered: true});
       })
       .catch(function () {
         // Kein Worker, kein Vorwärmen — die App läuft trotzdem.

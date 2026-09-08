@@ -119,6 +119,13 @@ async function fetchAndCache(request) {
   return response;
 }
 
+// Ein Vorwärmen nach dem anderen. Seit #427 meldet die Seite fortlaufend,
+// was sie geholt hat, statt einmal eine fertige Liste zu schicken — es
+// kommen also viele Nachrichten statt einer. Zwei gleichzeitige Läufe
+// holten dieselbe Datei doppelt: Die Prüfung unten sieht nur, was schon
+// ABGELEGT ist, nicht was gerade unterwegs ist.
+let warming = Promise.resolve();
+
 async function warm(urls) {
   const cache = await caches.open(CACHE);
   for (const url of urls) {
@@ -141,12 +148,14 @@ function rejectAfter(ms) {
 
 self.addEventListener('message', (event) => {
   if (!event.data) return;
-  // Was die Seite beim ersten Besuch wirklich geholt hat — siehe
-  // `flutter_bootstrap.js`. Beim ersten Laden kontrolliert dieser Worker
-  // die Seite noch nicht und sieht deshalb keine einzige Anfrage; ohne
-  // diesen Nachschlag läge nur die Hülle im Cache.
+  // Was die Seite wirklich geholt hat — siehe `flutter_bootstrap.js`.
+  // Beim ersten Laden gehen die ersten Anfragen raus, bevor dieser Worker
+  // aktiv ist; er sieht sie nie. Ohne diesen Nachschlag läge nach dem
+  // ersten Besuch nur die Hülle im Cache.
   if (event.data.type === 'warm' && Array.isArray(event.data.urls)) {
-    event.waitUntil(warm(event.data.urls));
+    const urls = event.data.urls;
+    warming = warming.then(() => warm(urls)).catch(() => {});
+    event.waitUntil(warming);
     return;
   }
   // Die Notbremse. Aus der Konsole:

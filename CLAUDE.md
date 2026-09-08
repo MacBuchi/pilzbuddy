@@ -497,14 +497,34 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
     `//`-Zeile bricht er aus, danach ist die Datei Syntaxmüll und die App
     startet gar nicht. Beim Bau von #387 genau so passiert; sichtbar nur
     als `SyntaxError` in der Browser-Konsole. Ein Test wacht darüber.
-  - **Der erste Besuch füllt den Cache NICHT von allein.** Beim ersten
-    Laden kontrolliert der Worker die Seite noch nicht und sieht keine
-    einzige Anfrage. Deshalb meldet die Seite ihm nach `runApp` per
+  - **Der erste Besuch füllt den Cache NICHT von allein.** Die ersten
+    Anfragen gehen raus, bevor der Worker aktiv ist; er sieht sie nie
+    (`clients.claim()` übernimmt die Seite mitten im Laden, kann aber
+    nicht rückwirkend mithören). Deshalb meldet die Seite ihm per
     `postMessage`, was sie geholt hat (`warm`) — eine Liste von Hand wäre
     bei jeder Änderung still falsch, und „still falsch" heißt hier:
     startet ohne Netz nicht. Gegengeprobt: Ohne den Schritt bleiben 6
     statt 12 Einträge übrig und der Offline-Start scheitert, während
     `flutter test` grün bleibt.
+  - **Gemeldet wird über einen BEOBACHTER, nicht mit einer
+    Momentaufnahme** (#427, seit 1.128.2). Bis dahin stand dort ein
+    einmaliges `getEntriesByType('resource')` gleich nach `runApp`. Das
+    ersetzte die Liste, tauschte sie aber gegen einen Wettlauf: Was bis
+    zu diesem einen Augenblick geholt war, kam in den Cache, alles
+    Spätere nie. Zwei Läufe desselben Commits legten daraufhin 15 bzw.
+    16 Dateien ab — und der mit 16 startete ohne Server nicht. **Mehr ist
+    nicht vollständiger**, die beiden Mengen stehen in keinem
+    Teilmengen-Verhältnis; eine Zahl ist hier eine Aussage über den Lauf,
+    nicht über den Build. `PerformanceObserver` mit `buffered: true`
+    liefert Vergangenes UND Künftiges, es gibt also keinen Zeitpunkt mehr,
+    an dem gemessen wird. Damit verhält sich der erste Besuch wie jeder
+    weitere — ab dem zweiten legt der Worker als Kontrolleur ohnehin jede
+    erfolgreiche eigene Antwort ab. Folgerichtig prüft
+    `check_service_worker.mjs` seither keine Untergrenze mehr, sondern die
+    Zusage selbst: **jede Datei, die der Besuch geholt hat, liegt danach
+    im Cache** — der Lauf gegen sich selbst, eine feste Liste wäre wieder
+    still falsch. Die verbliebene Zahl (`>= 8` auf der Soll-Seite) beweist
+    nur, dass überhaupt gemessen wurde.
   - **`--no-web-resources-cdn` gehört in JEDEN Web-Build** (ci, promote,
     preview; ein Test wacht darüber). Ohne den Flag holt der Loader
     CanvasKit von `www.gstatic.com` — offline tot, und die IP jedes
