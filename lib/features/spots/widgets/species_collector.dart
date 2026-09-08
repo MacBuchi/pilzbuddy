@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/mushroom_species.dart';
+import '../../../core/widgets/mushroom_icon.dart';
 import 'count_field.dart';
 import 'species_field.dart';
 
@@ -101,9 +103,41 @@ class _SpeciesCollectorState extends State<SpeciesCollector> {
             children: [
               for (final (index, entry) in _collected.indexed)
                 InputChip(
-                  label: Text(entry.count == null
-                      ? entry.species ?? 'Fund'
-                      : '${entry.species ?? 'Fund'}, ${entry.count}'),
+                  // Dieselbe Lücke wie im Feld, einen Schritt später:
+                  // Wer drei Arten einträgt, sah die ersten beiden nur
+                  // noch als Text. Kanonisch und aus `forSpecies`, damit
+                  // der Chip genauso aussieht wie eben die Zeile, aus
+                  // der er entstanden ist.
+                  //
+                  // **Der Pilz steht in der Beschriftung, nicht im
+                  // `avatar`-Slot.** Der Slot ist auf Material-Maß
+                  // festgelegt und drückte den Pilz auf 20 px — unter
+                  // alles, was die Design-Sprache je geprüft hat, und
+                  // im Bild sichtbar gedrungen; das Fragezeichen einer
+                  // unbekannten Art stieß dort an den Chiprand.
+                  // `avatarBoxConstraints` auf 24 löst es nicht, sondern
+                  // bricht die Chip-Layout-Assertion (die Beschriftung
+                  // ist niedriger als der Slot). In der Beschriftung
+                  // bestimmt der Pilz die Höhe selbst.
+                  //
+                  // **Ohne Art kein Symbol.** Ein Fund ohne Angabe ist
+                  // erlaubt („da stand was, ich weiß nicht was"); ein
+                  // Pilz daneben behauptete etwas darüber. Dieselbe
+                  // Regel wie beim Fragezeichen-Abzeichen.
+                  label: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (entry.species != null) ...[
+                        MushroomIcon.forSpecies(
+                            canonicalSpecies(entry.species) ?? entry.species,
+                            size: 24),
+                        const SizedBox(width: 6),
+                      ],
+                      Text(entry.count == null
+                          ? entry.species ?? 'Fund'
+                          : '${entry.species ?? 'Fund'}, ${entry.count}'),
+                    ],
+                  ),
                   onDeleted: () {
                     setState(() => _collected.removeAt(index));
                     _report();
