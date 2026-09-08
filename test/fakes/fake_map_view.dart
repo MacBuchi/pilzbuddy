@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
@@ -61,6 +63,31 @@ class FakeMapViewState extends State<FakeMapView>
   @override
   double get zoom => _zoom;
 
+  /// Das Sichtfenster bei der aktuellen Kamera (#420).
+  ///
+  /// Gerechnet wie flutter_map: Web-Mercator mit 256-dp-Kacheln, also
+  /// `156543,03 · cos(Breite) / 2^Zoom` Meter je Pixel. Die Zahl muss
+  /// nicht auf den Meter stimmen — sie muss sich mit dem Zoom ÄNDERN,
+  /// und zwar in derselben Richtung wie bei einer echten Karte. Alles,
+  /// was am Stillstand hängt, rechnet aus diesem Fenster seine
+  /// Bodenauflösung.
+  ///
+  /// [size] ist die Kantenlänge der Karte, nicht die des Bildschirms:
+  /// gemessen wird gegen die eigene Hülle.
+  MapViewBounds boundsFor(Size size) {
+    final latRad = _center.latitude * math.pi / 180;
+    final metersPerPixel =
+        156543.03392 * math.cos(latRad) / math.pow(2, _zoom);
+    final halfLng = metersPerPixel * size.width / 2 / (111320 * math.cos(latRad));
+    final halfLat = metersPerPixel * size.height / 2 / 111320;
+    return MapViewBounds(
+      west: _center.longitude - halfLng,
+      east: _center.longitude + halfLng,
+      south: _center.latitude - halfLat,
+      north: _center.latitude + halfLat,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final m = widget.markers;
@@ -112,5 +139,28 @@ class FakeMapViewState extends State<FakeMapView>
 Future<void> simulateMapLongPress(WidgetTester tester, LatLng latLng) async {
   final fake = tester.widget<FakeMapView>(find.byType(FakeMapView));
   fake.config.onLongPress?.call(latLng);
+  await tester.pump();
+}
+
+/// Meldet den Kamerastillstand, wie beide echten Engines es nach jeder
+/// Fahrt tun — der Fake tut es NICHT von selbst.
+///
+/// **Warum nicht von selbst:** Ein automatischer Stillstand nach jedem
+/// `move` würde jedem Bestandstest eine Bodenauflösung unterschieben,
+/// die er nie bestellt hat, und damit Höhenlinien und Wald-Ausschnitt
+/// in Tests einschalten, die von beidem nichts wissen. Wer den
+/// Stillstand braucht, sagt es.
+///
+/// **Warum es ihn überhaupt geben muss:** Bis #420 konnte der Fake gar
+/// nicht ausdrücken, dass die Kamera zur Ruhe kommt. Damit war
+/// `mapIdleGroundResolutionProvider` im Test immer `null` — und der
+/// Zoom-Fit, der aus ihm sein Delta rechnet, zentrierte bloß, statt zu
+/// zoomen. Der Fehler aus #420 (jeder weitere Tipp addiert dasselbe
+/// Delta erneut) konnte hier deshalb prinzipiell nicht auffallen.
+Future<void> simulateCameraIdle(WidgetTester tester) async {
+  final finder = find.byType(FakeMapView);
+  final fake = tester.widget<FakeMapView>(finder);
+  final state = tester.state<FakeMapViewState>(finder);
+  fake.config.onCameraIdle?.call(state.center, state.boundsFor(tester.getSize(finder)));
   await tester.pump();
 }

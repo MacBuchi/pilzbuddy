@@ -7,6 +7,22 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Der Zoom auf günstige Spots stimmt jetzt beim ersten Tipp
+
+*8. September 2026 · Version 1.127.1*
+
+Tippst du auf den Hinweis „An … Spots stünde die Ampel günstig", zoomt
+die Karte auf diese Spots. Bisher zoomte sie beim ersten Tipp auf **alle**
+deine Spots statt nur auf die genannten — und jeder weitere Tipp zoomte
+noch ein Stück weiter hinein, bis nichts mehr zu erkennen war.
+
+Beides ist behoben: Der erste Tipp rückt genau die Spots ins Bild, von
+denen der Hinweis spricht, und ein zweiter Tipp lässt die Karte einfach
+stehen, wo sie ist.
+
+Dasselbe galt für den Zoom-Knopf im Filter-Blatt, wenn du den Filter dort
+geändert hast, bevor du ihn gedrückt hast.
+
 ## Arten, die die App nicht kennt, tragen jetzt ein Fragezeichen
 
 *8. September 2026 · Version 1.127.0*
