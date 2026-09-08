@@ -580,20 +580,40 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   /// Rückt die gerade gezeigten Spots ins Bild (#399).
   ///
+  /// **Jede Zutat wird IN der Closure gelesen, keine beim Bauen** (#420).
+  /// Das ist die tragende Zeile dieser Methode, und beide Hälften der
+  /// Begründung sind im Feld aufgetreten:
+  ///
+  /// - `fitToSpots` liefert den Zoom als DELTA aus `currentZoom` und
+  ///   `currentMetersPerPixel`; die beiden müssen dieselbe Kamera
+  ///   meinen. Die Auflösung schreibt `onCameraIdle`, und niemand hier
+  ///   `watch`t sie — ein beim Bauen erfasster Wert blieb also nach der
+  ///   ersten Fahrt stehen, während `_map.zoom` mitwanderte. Jeder
+  ///   weitere Tipp addierte dasselbe Delta ein zweites Mal, und der
+  ///   Zoom lief davon.
+  /// - Der Banner setzt den Filter und ruft SOFORT (`map_banners.dart`);
+  ///   der Rebuild kommt erst im nächsten Frame. Eine beim Bauen
+  ///   erfasste Spot-Liste ist damit die von VOR dem Filter — der erste
+  ///   Tipp rückte alle Spots ins Bild statt der Ampel-Treffer. Für das
+  ///   Filter-Blatt gilt dasselbe schärfer: Es bekommt den Rückruf beim
+  ///   Öffnen und benutzt ihn nach beliebig vielen Änderungen darin.
+  ///
   /// `null` nur, wenn der Filter nichts übrig lässt — dann gibt es
-  /// nichts, worauf man zoomen könnte. Fehlt die Auflösung (die Karte hat
-  /// noch keinen Stillstand gemeldet), wird trotzdem zentriert, nur ohne
-  /// Zoomänderung; siehe `fitToSpots`.
+  /// nichts, worauf man zoomen könnte. **Diese eine Entscheidung MUSS
+  /// beim Bauen fallen**: Sie schaltet den Knopf im Filter-Blatt ab, und
+  /// ein Knopf entscheidet vor dem Druck, ob er gedrückt werden kann.
+  /// Fehlt die Auflösung (die Karte hat noch keinen Stillstand
+  /// gemeldet), wird trotzdem zentriert, nur ohne Zoomänderung; siehe
+  /// `fitToSpots`.
   VoidCallback? _fitAction(WidgetRef ref, double widthPixels) {
-    final metersPerPixel = ref.read(mapIdleGroundResolutionProvider);
-    final visible = ref.read(visibleSpotsProvider);
-    final spots = [...visible.mine, ...visible.friends];
-    if (spots.isEmpty) return null;
+    final atBuild = ref.read(visibleSpotsProvider);
+    if (atBuild.mine.isEmpty && atBuild.friends.isEmpty) return null;
     return () {
+      final visible = ref.read(visibleSpotsProvider);
       final fit = fitToSpots(
-        spots: spots,
+        spots: [...visible.mine, ...visible.friends],
         currentZoom: _map.zoom,
-        currentMetersPerPixel: metersPerPixel,
+        currentMetersPerPixel: ref.read(mapIdleGroundResolutionProvider),
         viewportWidthPixels: widthPixels,
         minZoom: _minZoom,
         maxZoom: _maxZoom,

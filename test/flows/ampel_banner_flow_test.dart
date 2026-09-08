@@ -426,4 +426,87 @@ void main() {
     expect(settings.ampelBannerDismissedUntil, isNull,
         reason: 'bei mehreren Treffern schaltet erst das X stumm');
   });
+
+  testWidgets('zweimal antippen bleibt beim selben Zoom', (tester) async {
+    // Der Kern von #420. Gemeldet als „Mehrmaliges Tippen setzt anderen
+    // Kartenzoom", und genau so war es: `fitToSpots` liefert den Zoom
+    // als DELTA aus Zoomstufe und Bodenauflösung. Die Auflösung wurde
+    // beim BAUEN erfasst, die Zoomstufe erst beim Tippen gelesen — nach
+    // der ersten Fahrt beschrieben die beiden also zwei verschiedene
+    // Kameras, und jeder weitere Tipp addierte dasselbe Delta erneut.
+    //
+    // Zwei Spots weit auseinander, damit der Fit überhaupt zoomt: Beim
+    // Start steht die Karte auf der Deutschland-Übersicht, danach rund
+    // 3,6 Stufen näher. Der Fehler verdoppelte diesen Sprung.
+    final (backend, me) = loggedInWithSpot();
+    backend.addSpot(
+        ownerId: me.id,
+        lat: 51.4,
+        lng: 11.4,
+        name: 'Fichtenschonung',
+        species: 'Marone');
+    await pumpReady(tester, backend);
+    expect(find.textContaining('An 2 Spots stünde die Ampel günstig'),
+        findsOneWidget,
+        reason: 'beide Spots müssen Treffer sein, sonst prüft der Test '
+            'den Filter statt der Kamera');
+
+    // Ohne diesen Stillstand kennt die App ihre Bodenauflösung nicht und
+    // zentriert bloß — der Zoom-Fehler wäre gar nicht auslösbar.
+    await simulateCameraIdle(tester);
+    final start = camera(tester).zoom;
+
+    await tester.tap(find.textContaining('stünde die Ampel günstig'));
+    await settle(tester);
+    final afterFirst = camera(tester).zoom;
+    expect(afterFirst, isNot(closeTo(start, 0.5)),
+        reason: 'der erste Tipp MUSS zoomen, sonst ist der zweite ohne '
+            'Aussage');
+
+    // Die Karte kommt zur Ruhe und meldet ihre neue Auflösung — auf dem
+    // Gerät passiert das von selbst.
+    await simulateCameraIdle(tester);
+
+    await tester.tap(find.textContaining('stünde die Ampel günstig'));
+    await settle(tester);
+
+    // Derselbe Filter, dieselben Spots, dieselbe Kamera: Der zweite
+    // Tipp hat nichts mehr zu tun. Vor dem Fix landete er hier rund 3,6
+    // Stufen weiter drin.
+    expect(camera(tester).zoom, closeTo(afterFirst, 0.05));
+  });
+
+  testWidgets('der erste Tipp rückt die TREFFER ins Bild, nicht alle Spots',
+      (tester) async {
+    // Die zweite Hälfte von #420, und sie war im Code als Absicht
+    // ausdrücklich aufgeschrieben: „Erst filtern, dann zoomen — der
+    // Rückruf liest die SICHTBAREN Spots" (`map_banners.dart`). Die
+    // Absicht kam nie an. Der Banner setzt den Filter und ruft SOFORT,
+    // der Rebuild kommt erst im nächsten Frame — die Closure trug also
+    // die Spot-Liste von VOR dem Filter.
+    //
+    // Sichtbar wird das nur mit einem Spot, den die Ampel NICHT nennt:
+    // Der Schwarzwald-Spot liegt außerhalb des Regengitters und ist
+    // damit kein Treffer.
+    final (backend, me) = loggedInWithSpot();
+    backend.addSpot(
+        ownerId: me.id,
+        lat: 48.0,
+        lng: 8.0,
+        name: 'Schwarzwald',
+        species: 'Marone');
+    await pumpReady(tester, backend);
+    expect(find.textContaining('An Buchenhang stünde die Ampel günstig'),
+        findsOneWidget,
+        reason: 'genau ein Treffer — sonst prüft der Test nichts');
+
+    await simulateCameraIdle(tester);
+    await tester.tap(find.textContaining('stünde die Ampel günstig'));
+    await settle(tester);
+
+    // Auf dem Treffer, nicht auf der Mitte zwischen Treffer und
+    // Schwarzwald (49,5 / 9,5).
+    expect(camera(tester).center.latitude, closeTo(spotLat, 0.001));
+    expect(camera(tester).center.longitude, closeTo(spotLng, 0.001));
+  });
 }
