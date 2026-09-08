@@ -120,7 +120,28 @@ class _SpeciesFieldState extends State<SpeciesField> {
         : const <SpeciesSuggestion>[];
     final onlyExactMatch = suggestions.length == 1 &&
         suggestions.first.name.toLowerCase() == current;
+    final showSuggestionCard = suggestions.isNotEmpty && !onlyExactMatch;
     final synonyms = synonymsOf(widget.controller.text);
+
+    // Das Symbol der gewählten Art, links im Feld (#421-Folgewunsch).
+    //
+    // **Gezeigt wird es genau dann, wenn die Vorschlagskarte ZU ist** —
+    // dieselbe Entscheidung, nicht eine zweite. Während des Tippens
+    // („Steinpil") kennt die Liste den Namen noch nicht; ein Symbol
+    // trüge dort das Fragezeichen für „unbekannte Art" und fällte damit
+    // ein Urteil über eine Eingabe, die noch gar nicht fertig ist. Und
+    // es wäre doppelt: Die Zeile direkt darunter trägt ihr Symbol schon.
+    //
+    // Sobald ausgewählt (oder der volle Name getippt, oder das Feld
+    // verlassen) ist die Karte weg — und dann steht dort, was auch auf
+    // der Karte stehen wird.
+    //
+    // Der Name geht KANONISCH hinein: „Totentrompete" und
+    // „Herbsttrompete" sind dieselbe Art und sollen gleich aussehen. Der
+    // Seed von `forSpecies` kommt aus dem Namen, die Rohform gäbe sonst
+    // je nach Schreibweise einen anderen Farbton aus der Palette.
+    final selected = widget.controller.text.trim();
+    final showSpeciesIcon = selected.isNotEmpty && !showSuggestionCard;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -153,6 +174,23 @@ class _SpeciesFieldState extends State<SpeciesField> {
             labelText: 'Pilzart (optional)',
             hintText: 'z. B. Steinpilz',
             border: const OutlineInputBorder(),
+            // `Center` mit Shrink-Wrap, nicht ein nacktes `Padding`:
+            // Der Slot gibt dem Kind `minWidth/minHeight: 48`, und ein
+            // `CustomPaint` folgt seinen Constraints statt seiner
+            // `size` — der Pilz wurde damit stumm auf 32 px gedehnt,
+            // während im Code 26 stand. Gemessen, nicht vermutet.
+            prefixIcon: !showSpeciesIcon
+                ? null
+                : Center(
+                    widthFactor: 1,
+                    heightFactor: 1,
+                    child: SizedBox.square(
+                      dimension: 28,
+                      child: MushroomIcon.forSpecies(
+                          canonicalSpecies(selected) ?? selected,
+                          size: 28),
+                    ),
+                  ),
             suffixIcon: widget.controller.text.isEmpty
                 ? null
                 : IconButton(
@@ -179,7 +217,7 @@ class _SpeciesFieldState extends State<SpeciesField> {
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
-        if (suggestions.isNotEmpty && !onlyExactMatch)
+        if (showSuggestionCard)
           Card(
             margin: const EdgeInsets.only(top: 4),
             child: Column(

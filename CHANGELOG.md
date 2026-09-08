@@ -7,6 +7,23 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Der Pilz bleibt sichtbar, auch nach der Auswahl
+
+*8. September 2026 · Version 1.128.0*
+
+Beim Eintragen eines Fundes zeigt PilzBuddy zu jeder vorgeschlagenen Art
+ihr Pilz-Symbol. Sobald du eine ausgewählt hattest, blieb aber nur noch
+der Name stehen — ausgerechnet in dem Moment, in dem die App weiß, welcher
+Pilz gemeint ist.
+
+Jetzt steht das Symbol im Artfeld, sobald eine Art drinsteht. Und legst du
+über „weitere Art" mehrere Arten an einem Spot ab, trägt auch jede
+abgelegte Zeile ihren Pilz.
+
+Während du noch tippst, bleibt das Feld wie bisher — ein halb getippter
+Name ist noch keine Art, und der Vorschlag darunter zeigt sein Symbol ja
+schon.
+
 ## Die Artenliste lässt sich wieder durchblättern
 
 *8. September 2026 · Version 1.127.2*
