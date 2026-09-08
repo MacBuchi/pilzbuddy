@@ -56,10 +56,31 @@ final lastFindSeenAtProvider = StateProvider<DateTime?>(
 /// ist in der DB not null, auch alte Cache-Zeilen tragen es.
 DateTime _findStamp(Find find) => (find.createdAt ?? find.foundOn).toUtc();
 
-/// Bis wann das Ampel-Banner stummgeschaltet ist — gerätelokal und über
-/// den Neustart hinaus, Muster wie [lastFindSeenAtProvider].
-final ampelBannerDismissedProvider = StateProvider<DateTime?>(
-    (ref) => ref.watch(settingsProvider).ampelBannerDismissedUntil);
+/// Ist das Ampel-Banner für DIESE Sitzung stummgeschaltet? (#425)
+///
+/// **Nur für die Sitzung — bewusst NICHT über den Neustart hinaus**, und
+/// das ist die Umkehr einer früheren Entscheidung. Bis 1.128.0 legte das
+/// X einen Zeitpunkt bis Mitternacht in die Einstellungen; die
+/// Begründung war, der Regenstapel bekomme täglich einen neuen Tag, die
+/// Aussage sei morgen also eine andere.
+///
+/// Was daran nicht bedacht war, ist der Preis: Ein einziger Tipp nahm
+/// das Feature für bis zu 24 Stunden weg, nirgends stand, dass eine
+/// Stummschaltung läuft, und zurück führte kein Weg außer Warten — der
+/// Schalter im Profil las sich dabei weiter als „an". Gemeldet als „ich
+/// bekomme kein Banner mehr" (#425), und zwar vom Betreiber selbst, der
+/// das Feature gebaut hat. Wer nicht erkennen kann, dass er es
+/// abgeschaltet hat, hält es für kaputt.
+///
+/// Es ist die ZWEITE Meldung dieser Form: #349 war „das Banner schaltet
+/// sich beim Antippen selbst stumm". Die Antwort damals — nur das X
+/// schaltet stumm — trägt weiter; ungeprüft blieb, wie lange.
+///
+/// Mit der Sitzungsgrenze braucht es keinen Rückweg in der Oberfläche:
+/// Der nächste Start ist der Rückweg, und der Zustand kann gar nicht
+/// erst unbemerkt liegen bleiben. Deshalb steht hier auch kein Zeitpunkt
+/// mehr, sondern ein `bool` — „bis wann" ist keine Frage mehr.
+final ampelBannerMutedProvider = StateProvider<bool>((ref) => false);
 
 /// Bis wann die Spot-Erinnerung stummgeschaltet ist — gerätelokal und
 /// über den Neustart hinaus, Muster wie [lastFindSeenAtProvider].
@@ -136,22 +157,14 @@ class MapBanners extends ConsumerWidget {
             logError('Erinnerung stummschalten', e, s)));
   }
 
-  /// Das Ampel-Banner bis Mitternacht stummschalten.
+  /// Das Ampel-Banner für diese Sitzung stummschalten (#425).
   ///
-  /// Gerechnet in LOKALER Zeit und erst dann nach UTC gedreht: „Ende des
-  /// Tages" ist die Grenze, die der Nutzer meint, und die liegt in
-  /// Mitteleuropa ein bis zwei Stunden vor dem UTC-Tagesende.
-  void _dismissAmpel(WidgetRef ref) {
-    final now = DateTime.now();
-    final until =
-        DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
-    ref.read(ampelBannerDismissedProvider.notifier).state = until.toUtc();
-    unawaited(ref
-        .read(settingsProvider)
-        .setAmpelBannerDismissedUntil(until.toUtc())
-        .catchError((Object e, StackTrace s) =>
-            logError('Ampel-Banner stummschalten', e, s)));
-  }
+  /// Nichts wird gespeichert — siehe [ampelBannerMutedProvider]. Damit
+  /// fällt auch der `logError`-Zweig weg, den das Schreiben brauchte:
+  /// Ein Zustand, der nur im Speicher steht, kann beim Ablegen nicht
+  /// scheitern.
+  void _dismissAmpel(WidgetRef ref) =>
+      ref.read(ampelBannerMutedProvider.notifier).state = true;
 
   /// Zum Spot springen und sein Blatt öffnen — die Kamera ZUERST (#345).
   ///
@@ -177,7 +190,9 @@ class MapBanners extends ConsumerWidget {
   /// abgearbeitet, nur gelesen.
   ///
   /// Stumm schaltet allein das X. Das ist die Geste, die nichts anderes
-  /// bedeutet, und sie gilt weiterhin für den ganzen Tag.
+  /// bedeutet — seit #425 aber nur noch für diese Sitzung, nicht mehr
+  /// für den ganzen Tag; die Begründung steht an
+  /// [ampelBannerMutedProvider].
   /// Banner-Tipp: Filter setzen und die Treffer ins Bild rücken (#399).
   ///
   /// **Einheitlich, auch bei einem einzigen Treffer.** Bis 1.118.1 öffnete
@@ -464,9 +479,7 @@ class MapBanners extends ConsumerWidget {
         ref.watch(mySpotListProvider).isEmpty &&
         (ref.watch(friendSpotsProvider).valueOrNull?.isEmpty ?? true);
 
-    final ampelDismissedUntil = ref.watch(ampelBannerDismissedProvider);
-    final ampelHits = (ampelDismissedUntil != null &&
-            ampelDismissedUntil.isAfter(DateTime.now().toUtc()))
+    final ampelHits = ref.watch(ampelBannerMutedProvider)
         ? const <AmpelHit>[]
         : ref.watch(ampelScanProvider).valueOrNull ?? const <AmpelHit>[];
 

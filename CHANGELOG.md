@@ -7,6 +7,19 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Das X am Ampel-Hinweis blendet nur noch kurz aus
+
+*8. September 2026 · Version 1.128.1*
+
+Wenn du den Hinweis „An … Spots stünde die Ampel günstig" mit dem X
+wegwischst, war er bisher bis Mitternacht weg. Das ließ sich weder sehen
+noch rückgängig machen — im Profil stand der Schalter weiter auf „an",
+während den ganzen Tag nichts mehr kam. Das sah nach einem Fehler aus, und
+genau so wurde es auch gemeldet.
+
+Jetzt gilt das X nur für die laufende Sitzung: Beim nächsten Start der App
+ist der Hinweis wieder da, wenn die Ampel weiter günstig steht.
+
 ## Der Pilz bleibt sichtbar, auch nach der Auswahl
 
 *8. September 2026 · Version 1.128.0*

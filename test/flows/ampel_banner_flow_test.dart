@@ -19,6 +19,7 @@ import 'package:pilzbuddy/features/ampel/ampel_scan.dart';
 import 'package:pilzbuddy/features/map/elevation_grid.dart';
 import 'package:pilzbuddy/features/map/elevation_providers.dart';
 import 'package:pilzbuddy/features/map/rain_data_providers.dart';
+import 'package:pilzbuddy/features/map/widgets/map_banners.dart';
 
 import '../fakes/fake_backend.dart';
 import '../fakes/fake_map_view.dart';
@@ -276,8 +277,8 @@ void main() {
     expectSilent(tester, loads);
   });
 
-  testWidgets('das X schaltet bis Tagesende stumm — und merkt es sich',
-      (tester) async {
+  testWidgets('das X schaltet für diese Sitzung stumm — der Neustart '
+      'bringt es zurück', (tester) async {
     // Ein telefonförmiger Schirm: Auf dem 800x600-Vorgabeschirm des
     // Harness (quer) reicht die neunköpfige FAB-Spalte bis nach ganz
     // oben und deckt das X eines breiten Banners zu — siehe Befund
@@ -316,20 +317,39 @@ void main() {
     await settle(tester);
 
     expect(find.textContaining('stünde die Ampel günstig'), findsNothing);
-    // Über den Neustart hinaus: Der Zeitpunkt liegt in den Settings, und
-    // er liegt noch heute — morgen sind es andere Daten und damit eine
-    // andere Aussage.
-    final until = settings.ampelBannerDismissedUntil;
-    expect(until, isNotNull);
-    expect(until!.isAfter(DateTime.now().toUtc()), isTrue);
-    expect(until.difference(DateTime.now().toUtc()).inHours, lessThan(25));
+
+    // **Und der Neustart nimmt die Stummschaltung zurück** (#425). Bis
+    // 1.128.0 lag hier ein Zeitpunkt bis Mitternacht in den
+    // Einstellungen; ein einziger Tipp nahm das Feature damit für bis zu
+    // 24 Stunden weg, ohne Spur und ohne Rückweg — gemeldet als „ich
+    // bekomme kein Banner mehr", vom Betreiber selbst.
+    //
+    // Der leere Frame dazwischen ist Pflicht: Ein zweiter `pumpApp` ohne
+    // ihn setzt Riverpod nicht zurück, und der Test prüfte dann nur
+    // dieselbe Sitzung noch einmal.
+    await tester.pumpWidget(const SizedBox());
+    await pumpApp(tester, backend, settings: settings);
+    await settle(tester);
+
+    // Geprüft wird der MERKER, nicht das gerenderte Banner — und das ist
+    // Absicht, keine Bequemlichkeit. Der Nachlauf rechnet über
+    // `compute()`, braucht also `runAsync`; ein zweites `runAsync` nach
+    // einem Neustart im selben Test hängt, und zwar so, dass nicht
+    // einmal `--timeout` es abräumt (gemessen: > 4 min, Abbruch von
+    // Hand). Die Zusage dieses Tests ist ohnehin die schmalere: Die neue
+    // Sitzung startet UNGEDÄMPFT. Dass ein ungedämpftes Banner bei
+    // Treffern erscheint, steht im ersten Test dieser Datei.
+    //
+    // Und stärker als jede Zeitprüfung ist, dass es die Einstellung gar
+    // nicht mehr GIBT: `ampelBannerDismissedUntil` ist mit #425 aus
+    // `Settings` entfernt, ein Rest kann also nirgends liegen bleiben.
+    expect(containerOf(tester).read(ampelBannerMutedProvider), isFalse,
+        reason: 'die Stummschaltung endet mit der Sitzung');
   });
 
   /// Der volle Aufbau für die Sprung-Tests: Telefon-Schirm, Banner an,
-  /// Rechnung durch. Gibt die Settings zurück — an ihnen hängt der
-  /// Nachweis, ob das Banner sich stummgeschaltet hat.
-  Future<FakeSettings> pumpReady(
-      WidgetTester tester, FakeBackend backend) async {
+  /// Rechnung durch.
+  Future<void> pumpReady(WidgetTester tester, FakeBackend backend) async {
     await tester.binding.setSurfaceSize(const Size(412, 915));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final settings =
@@ -346,7 +366,6 @@ void main() {
       ],
     );
     await enableAndSettle(tester);
-    return settings;
   }
 
   FakeMapViewState camera(WidgetTester tester) =>
@@ -363,7 +382,7 @@ void main() {
     // genauso wie bei zehn. Zwei Antworten auf denselben Tipp waren der
     // eigentliche Bruch.
     final (backend, _) = loggedInWithSpot();
-    final settings = await pumpReady(tester, backend);
+    await pumpReady(tester, backend);
 
     expect(camera(tester).center, isNot(const LatLng(spotLat, spotLng)),
         reason: 'sonst prüfte der Test einen Sprung, der schon geschehen ist');
@@ -389,7 +408,7 @@ void main() {
     // mehr" — er hatte ihn einmal angetippt, wie das Banner es selbst
     // vorschlägt („— antippen"), und danach kam an diesem Tag keiner
     // mehr. Lesen ist nicht erledigen; der Spot bleibt günstig.
-    expect(settings.ampelBannerDismissedUntil, isNull);
+    expect(containerOf(tester).read(ampelBannerMutedProvider), isFalse);
   });
 
   testWidgets('mehrere Treffer: alle liegen danach im Bild', (tester) async {
@@ -406,7 +425,7 @@ void main() {
         lng: 11.05,
         name: 'Fichtenschonung',
         species: 'Marone');
-    final settings = await pumpReady(tester, backend);
+    await pumpReady(tester, backend);
 
     expect(find.textContaining('An 2 Spots stünde die Ampel günstig'),
         findsOneWidget);
@@ -423,7 +442,7 @@ void main() {
 
     // Und das Banner bleibt stehen: Sonst wäre Spot 2 nach dem Besuch
     // von Spot 1 bis Mitternacht unerreichbar. Nur das X schaltet stumm.
-    expect(settings.ampelBannerDismissedUntil, isNull,
+    expect(containerOf(tester).read(ampelBannerMutedProvider), isFalse,
         reason: 'bei mehreren Treffern schaltet erst das X stumm');
   });
 
