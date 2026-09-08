@@ -35,6 +35,7 @@ class MushroomIcon extends StatelessWidget {
     this.species,
     this.ground = true,
     this.pending = false,
+    this.unknown = false,
   });
 
   /// Art-Icon für Listenzeilen. Kein Boden — die Ellipse ist Kartensprache
@@ -54,7 +55,8 @@ class MushroomIcon extends StatelessWidget {
         species = name,
         ground = false,
         // Listenzeilen zeigen Arten, keine Zeilen-Zustände.
-        pending = false;
+        pending = false,
+        unknown = isUnknownSpecies(name);
 
   final int seed;
   final double size;
@@ -80,6 +82,17 @@ class MushroomIcon extends StatelessWidget {
   /// shows ownership"), nur eben verhaltener.
   final bool pending;
 
+  /// Ein Name steht da, aber die App kennt die Art nicht (#417).
+  ///
+  /// Dann trägt das Symbol ein Fragezeichen. Form und Farbe bleiben, wie
+  /// der Seed sie ergibt — sonst sähen alle selbst eingetippten Arten
+  /// gleich aus, und drei eigene Pilze hätten auf der Karte drei
+  /// identische Marker.
+  ///
+  /// NICHT gesetzt, wo gar keine Art eingetragen ist: siehe
+  /// [isUnknownSpecies].
+  final bool unknown;
+
   @override
   Widget build(BuildContext context) {
     final mushroom = CustomPaint(
@@ -91,11 +104,20 @@ class MushroomIcon extends StatelessWidget {
           species: species,
           ground: ground),
     );
-    if (!pending) return mushroom;
+    if (!pending && !unknown) return mushroom;
 
-    // Die Uhr liegt oben rechts auf einer weißen Scheibe: klein genug,
-    // um die Silhouette nicht zu zerschneiden, kontrastreich genug, um
-    // bei 44 px auf jedem Kartenhintergrund zu tragen.
+    // Ein Abzeichen oben rechts auf weißer Scheibe: klein genug, um die
+    // Silhouette nicht zu zerschneiden, kontrastreich genug, um bei
+    // 44 px auf jedem Kartenhintergrund zu tragen.
+    //
+    // **Die Uhr gewinnt gegen das Fragezeichen** (#417). Beide sitzen an
+    // derselben Stelle, und wenn ein Eintrag wartet UND die Art unbekannt
+    // ist, ist „muss noch raus" die dringendere Auskunft — die Art kann
+    // man immer noch nachsehen, den unversandten Fund nicht.
+    //
+    // **Nur der wartende Eintrag wird blass.** Blass heißt „vorläufig";
+    // eine unbekannte Art ist nicht vorläufig, sondern schlicht nicht in
+    // der Liste.
     final badge = size * 0.42;
     return SizedBox(
       width: size,
@@ -103,7 +125,7 @@ class MushroomIcon extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          Opacity(opacity: 0.55, child: mushroom),
+          pending ? Opacity(opacity: 0.55, child: mushroom) : mushroom,
           Positioned(
             right: 0,
             top: 0,
@@ -114,7 +136,7 @@ class MushroomIcon extends StatelessWidget {
                 color: Colors.white,
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.schedule,
+              child: Icon(pending ? Icons.schedule : Icons.question_mark,
                   size: badge * 0.82, color: AppColors.warmBrown),
             ),
           ),

@@ -7,6 +7,23 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Arten, die die App nicht kennt, tragen jetzt ein Fragezeichen
+
+*8. September 2026 · Version 1.127.0*
+
+Wenn du eine Pilzart einträgst, die nicht in der Liste steht, hat
+PilzBuddy dafür bisher einfach irgendeinen bunten Pilz gezeichnet — das
+sah aus, als wüsste die App, wie er aussieht. Jetzt bekommt so ein
+Eintrag ein kleines Fragezeichen.
+
+Die Farbe und die Form bleiben, wie sie waren: Deine selbst eingetippten
+Arten sehen weiterhin verschieden aus, sonst hättest du auf der Karte
+lauter gleiche Marker.
+
+Ein Eintrag **ohne** Art bekommt kein Fragezeichen — da weiß die App
+nichts, weil nichts eingetragen wurde, und das ist kein Rätsel, sondern
+eine Leerstelle.
+
 ## In der Artenauswahl steht jetzt der richtige Pilz
 
 *8. September 2026 · Version 1.126.1*

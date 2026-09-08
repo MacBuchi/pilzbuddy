@@ -224,6 +224,33 @@ void main() {
             children: [
               for (var i = 0; i < kAvatarCatalog.length; i++)
                 MushroomAvatar(index: i, size: 64),
+              // Unbekannte Arten (#417): Form und Farbe aus dem Seed,
+              // dazu das Fragezeichen. Dieselben Größen wie in der App —
+              // 44 px Karte, 30 px Blatt, 24 px Listenzeile.
+              //
+              // **Das Abzeichen erscheint hier als leeres Kästchen.** Im
+              // Testlauf ist keine Icon-Schrift geladen (deshalb auch die
+              // roten Balken statt Beschriftungen); dieselbe Anzeige hat
+              // die Uhr des Ausgangskorbs, die in der App seit #267
+              // funktioniert. Was dieses Bild BEANTWORTET, ist die Frage,
+              // ob die Seed-Variation erhalten bleibt: Zwei eigene Arten
+              // müssen verschieden aussehen, sonst hätte man auf der
+              // Karte identische Marker für verschiedene Pilze.
+              for (final size in [44.0, 30.0, 24.0])
+                MushroomIcon.forSpecies('Mein Geheimpilz', size: size),
+              for (final size in [44.0, 30.0, 24.0])
+                MushroomIcon.forSpecies('Noch ein Rätsel', size: size),
+              // Zum Vergleich eine BEKANNTE Art in denselben Größen …
+              for (final size in [44.0, 30.0, 24.0])
+                MushroomIcon.forSpecies('Steinpilz', size: size),
+              // … und der wartende Eintrag, dessen Uhr gegen das
+              // Fragezeichen gewinnt.
+              const MushroomIcon(
+                  seed: 3,
+                  size: 44,
+                  pending: true,
+                  unknown: true,
+                  species: 'Mein Geheimpilz'),
               // Robustheit: Index außerhalb des Katalogs fällt auf 0 zurück
               const MushroomAvatar(index: 999, size: 22),
               const MushroomAvatar(index: -1, size: 22),

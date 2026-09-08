@@ -295,6 +295,7 @@ class _SpotDetailSheet extends ConsumerWidget {
                 seed: stableSeed(spot.id),
                 size: 30,
                 friend: !spot.isOwn,
+                unknown: isUnknownSpecies(spot.lastFind?.species),
                 group: groupFor(spot.lastFind?.species),
                 species: spot.lastFind?.species,
               ),

@@ -137,12 +137,21 @@ Names Wikipedia writes with a hyphen (`Butter-Röhrling`, `Mai-Ritterling`,
 | baumpilze | Baumpilz | shelf/bracket on a short base, face on cap | oranges `#EF6C00 #D18B47` |
 | stachelpilze | Stachel-/Korallenpilz | toothed cap | muted ochres `#D9C39A #C9B184 #E0CFAA` |
 | sonstige | Lamellenpilz | dome/cone | muted `#BCAAA4 #A1887F #90A4AE` |
-| unknown/own species (`group == null`) | — | seed-random dome/cone/flat | 7-color fun palette |
+| unknown/own species (`group == null`) | — | seed-random dome/cone/flat, **plus a question-mark badge** (#417) | 7-color fun palette |
 
 `stachelpilze` exists because `sonstige` says "Lamellenpilz" out loud. Anything
 without gills belongs here: tooth fungi, corals, the Krause Glucke. **Growing on
 wood does not make it a `baumpilze`** — that group is for brackets. The
 Igelstachelbart sits on deadwood and is still a tooth fungus.
+
+**Badges sit top right on a white disc**, at 0.42 of the icon: the clock
+for an entry still waiting to be sent (#267), the question mark for a
+species the list does not know (#417). Only one at a time — the clock
+wins, because "not sent yet" is the more urgent thing to say, and a
+species can be looked up later. Only the pending one fades the mushroom;
+an unknown species is not provisional. **A missing species gets no badge
+at all** (`isUnknownSpecies`): nothing was claimed, so there is nothing to
+question.
 
 Variation within a group comes from the spot's stable seed
 (`stableSeed(spotId)`): color pick, dots on/off (where optional), cheeks.
