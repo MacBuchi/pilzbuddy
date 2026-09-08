@@ -34,6 +34,18 @@ class _SpeciesFieldState extends State<SpeciesField> {
   final _focusNode = FocusNode();
   bool _showSuggestions = false;
 
+  /// Liegt gerade ein Finger auf einem Vorschlag? (#421)
+  ///
+  /// Solange das gilt, wird die Liste NICHT ausgeblendet — auch dann
+  /// nicht, wenn das Textfeld darüber den Fokus längst verloren hat. Auf
+  /// Web nimmt schon das Aufsetzen des Fingers dem Feld den Fokus und
+  /// setzt damit die 250 ms unten in Gang; ohne diese Klammer tippt, wer
+  /// länger draufbleibt, am Ende ins Leere.
+  ///
+  /// Kein `setState`: Der Wert steht in keinem Widget, er hält nur das
+  /// Ausblenden auf.
+  bool _touchingSuggestion = false;
+
   @override
   void initState() {
     super.initState();
@@ -44,15 +56,29 @@ class _SpeciesFieldState extends State<SpeciesField> {
     if (_focusNode.hasFocus) {
       setState(() => _showSuggestions = true);
     } else {
-      // Verzögert ausblenden, damit ein Tap auf einen Vorschlag noch
-      // ankommt, bevor die Liste verschwindet (sonst schluckt der
-      // Fokuswechsel den Klick — besonders auf Web).
-      Future.delayed(const Duration(milliseconds: 250), () {
-        if (mounted && !_focusNode.hasFocus) {
-          setState(() => _showSuggestions = false);
-        }
-      });
+      _scheduleHide();
     }
+  }
+
+  /// Verzögert ausblenden, damit ein Tap auf einen Vorschlag noch
+  /// ankommt, bevor die Liste verschwindet (sonst schluckt der
+  /// Fokuswechsel den Klick — besonders auf Web).
+  void _scheduleHide() {
+    Future.delayed(const Duration(milliseconds: 250), () {
+      if (!mounted || _focusNode.hasFocus || _touchingSuggestion) return;
+      setState(() => _showSuggestions = false);
+    });
+  }
+
+  /// Der Finger ist von der Liste herunter.
+  ///
+  /// Hat der Tipp die Arena gewonnen, blendet `_select` gleich selbst
+  /// aus. War es ein Wisch, muss das Ausblenden nachgeholt werden, das
+  /// [_touchingSuggestion] vorhin verhindert hat — sonst bliebe die
+  /// Liste auf Web nach jedem Scrollen für immer stehen.
+  void _releaseSuggestion() {
+    _touchingSuggestion = false;
+    if (!_focusNode.hasFocus) _scheduleHide();
   }
 
   @override
@@ -174,12 +200,37 @@ class _SpeciesFieldState extends State<SpeciesField> {
                     ),
                   ),
                 for (final s in suggestions)
-                  // Listener statt onTap: onPointerDown feuert VOR dem
-                  // Fokusverlust des Textfelds — der Klick geht nie verloren.
+                  // **Ausgewählt wird auf `onTap`, nicht auf
+                  // `onPointerDown`** (#421).
+                  //
+                  // Bis 1.127.1 stand hier `onPointerDown: (_) =>
+                  // _select(...)`, und das feuert beim AUFSETZEN des
+                  // Fingers — vor jeder Gestenentscheidung. Die Liste
+                  // sitzt im `SingleChildScrollView` der Blätter; damit
+                  // wählte jeder Versuch, die rund 110 Arten
+                  // durchzublättern, sofort die Art unter dem ersten
+                  // Berührungspunkt aus. Gescrollt wurde weiterhin, nur
+                  // war die Liste da schon zu.
+                  //
+                  // `onTap` fragt die Gesten-Arena und feuert deshalb
+                  // erst, wenn aus der Berührung wirklich ein Tipp
+                  // geworden ist statt eines Wischens.
+                  //
+                  // Der Grund für den alten Weg bleibt gültig: Auf Web
+                  // nimmt das Aufsetzen dem Textfeld den Fokus, und der
+                  // Fokuswechsel blendete die Zeile aus, bevor der Tipp
+                  // ankam. Dagegen steht jetzt der Listener — er wählt
+                  // nichts mehr aus, er hält die Liste nur offen,
+                  // solange ein Finger auf ihr liegt. Das trägt weiter
+                  // als vorher: Auch ein langsamer Tipp, der über die
+                  // 250 ms hinausgeht, kommt an.
                   Listener(
                     behavior: HitTestBehavior.opaque,
-                    onPointerDown: (_) => _select(s.name),
+                    onPointerDown: (_) => _touchingSuggestion = true,
+                    onPointerUp: (_) => _releaseSuggestion(),
+                    onPointerCancel: (_) => _releaseSuggestion(),
                     child: ListTile(
+                      onTap: () => _select(s.name),
                       dense: true,
                       visualDensity: VisualDensity.compact,
                       // Der Pilz selbst, nicht ein Emoji (#417).
