@@ -7,6 +7,18 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## In der Artenauswahl steht jetzt der richtige Pilz
+
+*8. September 2026 · Version 1.126.1*
+
+Wenn du beim Eintragen die Pilzart tippst, schlägt dir die App Arten vor
+— und davor stand bisher immer dasselbe Emoji, das die meisten Geräte als
+roten Fliegenpilz zeichnen. Ausgerechnet dort, wo man die Art auswählt,
+sah damit jeder Pilz giftig aus.
+
+Jetzt steht in jeder Zeile der gezeichnete Pilz dieser Art, genau wie auf
+der Karte und im Spot-Blatt.
+
 ## Deine Tourspur ist jetzt grün — und wahlweise eine Linie
 
 *8. September 2026 · Version 1.126.0*

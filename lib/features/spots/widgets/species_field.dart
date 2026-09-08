@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/mushroom_species.dart';
+import '../../../core/widgets/mushroom_icon.dart';
 import '../species_suggestions.dart';
 
 /// Pilzart-Eingabe: Chips mit den eigenen Arten (zuletzt benutzt zuerst),
@@ -181,8 +182,28 @@ class _SpeciesFieldState extends State<SpeciesField> {
                     child: ListTile(
                       dense: true,
                       visualDensity: VisualDensity.compact,
-                      leading: Text(s.isOwn ? '🍄' : '📖',
-                          style: const TextStyle(fontSize: 16)),
+                      // Der Pilz selbst, nicht ein Emoji (#417).
+                      //
+                      // Hier stand `s.isOwn ? '🍄' : '📖'` — und die
+                      // Design-Sprache verbietet genau das: „Never put a
+                      // bare 🍄 in a species row — most systems render it
+                      // as a red fly agaric, which makes every mushroom
+                      // look poisonous." Jede Art sah aus wie ein
+                      // Fliegenpilz, ausgerechnet in der Liste, aus der
+                      // man die Art wählt.
+                      //
+                      // `forSpecies` ist für Listenzeilen gebaut: ohne
+                      // Boden-Ellipse (die ist auf der Karte die
+                      // Besitz-Kennzeichnung) und mit dem Seed aus dem
+                      // NAMEN, damit dieselbe Art überall gleich
+                      // aussieht.
+                      //
+                      // Die Unterscheidung eigene/eingebaute Art fällt
+                      // damit weg, und das ist entschieden (Betreiber,
+                      // 2026-09-08): Eigene stehen ohnehin zuerst, die
+                      // Gruppen-Aufschrift rechts sagt das Fachliche, und
+                      // gespeichert wird in beiden Fällen dasselbe.
+                      leading: MushroomIcon.forSpecies(s.name, size: 28),
                       title: Text(s.name),
                       subtitle: s.matchedSynonym == null
                           ? null
