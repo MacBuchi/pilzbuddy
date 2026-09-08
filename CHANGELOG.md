@@ -7,6 +7,18 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Artenliste lässt sich wieder durchblättern
+
+*8. September 2026 · Version 1.127.2*
+
+Wenn du beim Anlegen eines Spots die Pilzart eintippst, schlägt PilzBuddy
+passende Arten vor. Wolltest du in dieser Liste scrollen, wurde bisher
+sofort die Art ausgewählt, auf der dein Finger gerade lag — durchblättern
+war damit unmöglich.
+
+Jetzt zählt nur noch ein echter Tipp. Wischen scrollt, und die Liste
+bleibt dabei offen.
+
 ## Der Zoom auf günstige Spots stimmt jetzt beim ersten Tipp
 
 *8. September 2026 · Version 1.127.1*
