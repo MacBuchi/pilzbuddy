@@ -754,8 +754,24 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   - **Der Wortlaut trägt das Urteil.** Die Arten-Kontrolle der
     Rückwärtsvalidierung ist durchgefallen; das Modell hat sich keine
     Aufforderung verdient. Also „An 2 Spots **stünde** die Ampel günstig
-    (experimentell)", kein „geh jetzt". Das X schaltet bis Tagesende
-    stumm — morgen sind es andere Daten und damit eine andere Aussage.
+    (experimentell)", kein „geh jetzt".
+  - **Das X schaltet nur für die SITZUNG stumm** (#425, seit 1.128.1) —
+    vorher bis Tagesende, mit der Begründung „morgen sind es andere
+    Daten und damit eine andere Aussage". Die stimmt weiter; ungeprüft
+    blieb der Preis. Ein Tipp nahm das Feature für bis zu 24 Stunden
+    weg, nirgends stand, dass eine Stummschaltung läuft, und zurück
+    führte kein Weg außer Warten — während der Schalter im Profil sich
+    weiter als „an" las. Gemeldet als „ich bekomme kein Banner mehr",
+    und zwar vom Betreiber selbst: Wer nicht erkennen kann, dass er es
+    abgeschaltet hat, hält es für kaputt. Es war die ZWEITE Meldung
+    dieser Form (#349: „das Banner schaltet sich beim Antippen selbst
+    stumm").
+    Die Sitzungsgrenze macht einen Rückweg in der Oberfläche
+    überflüssig — der nächste Start IST der Rückweg. Deshalb steht der
+    Zustand jetzt als `bool` in `ampelBannerMutedProvider` und nicht
+    mehr in den Einstellungen; der Prefs-Schlüssel
+    `ampel_banner_dismissed_until` liegt auf Bestandsgeräten weiter
+    herum und wird nie wieder gelesen (Vermerk in `settings.dart`).
   Der gebündelte `rainCoursesProvider` ist der Provider zum längst
   vorhandenen `rainCoursesFrom` (1.99.3): 19 Spots kosten 26
   Dekodierungen statt 494. Sein Familienschlüssel ist eine

@@ -257,16 +257,6 @@ abstract interface class Settings {
   Future<void> setTourIntervalSeconds(int value);
 
   /// Bis wann das Ampel-Banner stummgeschaltet ist (Baustein B, #277):
-  /// Das X setzt den Zeitpunkt ans ENDE DES TAGES.
-  ///
-  /// Warum genau bis dahin und nicht länger: Der Regenstapel bekommt
-  /// täglich einen neuen Tag, die Aussage ist morgen also eine andere.
-  /// Länger stummzuschalten hieße, eine geänderte Lage zu verschweigen;
-  /// kürzer hieße, dieselbe Lage beim nächsten App-Start zu wiederholen.
-  DateTime? get ampelBannerDismissedUntil;
-
-  Future<void> setAmpelBannerDismissedUntil(DateTime value);
-
   /// Bis zu welchem Zeitpunkt Buddy-Funde als gesehen gelten (#202).
   ///
   /// Gerätelokal mit Absicht: Der Hinweis ist eine Bequemlichkeit dieses
@@ -495,18 +485,13 @@ class PrefsSettings implements Settings {
   Future<void> setTourIntervalSeconds(int value) =>
       _prefs.setInt(_tourIntervalSecondsKey, value);
 
-  static const _ampelBannerDismissedUntilKey = 'ampel_banner_dismissed_until';
-
-  @override
-  DateTime? get ampelBannerDismissedUntil {
-    final raw = _prefs.getString(_ampelBannerDismissedUntilKey);
-    return raw == null ? null : DateTime.tryParse(raw)?.toUtc();
-  }
-
-  @override
-  Future<void> setAmpelBannerDismissedUntil(DateTime value) =>
-      _prefs.setString(
-          _ampelBannerDismissedUntilKey, value.toUtc().toIso8601String());
+  // Der Schlüssel `ampel_banner_dismissed_until` ist mit #425 entfallen:
+  // Das X des Ampel-Banners schaltet nur noch für die laufende Sitzung
+  // stumm (`ampelBannerMutedProvider`), und ein Zustand, der den
+  // Neustart nicht überlebt, gehört nicht in die Einstellungen. Auf
+  // Bestandsgeräten liegt der Wert weiter in den SharedPreferences und
+  // wird nie wieder gelesen — eine Migration dafür wäre teurer als der
+  // eine ungenutzte String. Wer den Namen neu belegt, erbt fremde Daten.
 
   // Die erste Nicht-Bool-Einstellung: als ISO-8601-UTC-String, dasselbe
   // Format, das auch die Fehlerberichte schreiben.

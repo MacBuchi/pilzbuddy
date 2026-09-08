@@ -35,7 +35,6 @@ class FakeSettings implements Settings {
     // Bestandstest ungefragt ein Buddy-Fund-Banner bekommt. Tests, die
     // das Banner wollen, geben einen alten Zeitstempel mit.
     this.lastFindSeenAt,
-    this.ampelBannerDismissedUntil,
   });
 
   @override
@@ -207,11 +206,4 @@ class FakeSettings implements Settings {
     tourIntervalSeconds = value;
   }
 
-  @override
-  DateTime? ampelBannerDismissedUntil;
-
-  @override
-  Future<void> setAmpelBannerDismissedUntil(DateTime value) async {
-    ampelBannerDismissedUntil = value;
-  }
 }
