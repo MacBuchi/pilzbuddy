@@ -625,6 +625,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
             // Spot ein zweites Mal an — aber er darf nicht wie ein
             // gesicherter aussehen.
             pending: spot.pending,
+            // Ein Name, den die Liste nicht kennt (#417) — dann ein
+            // Fragezeichen statt eines geratenen Aussehens. Ein Spot
+            // OHNE Art bekommt keins: Dort weiß die App nichts, weil
+            // nichts gesagt wurde.
+            unknown: isUnknownSpecies(spot.lastFind?.species),
             group: groupFor(spot.lastFind?.species),
             species: spot.lastFind?.species,
           ),

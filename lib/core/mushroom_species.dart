@@ -305,6 +305,19 @@ String? canonicalSpecies(String? name) {
   return entry.sameAs ?? entry.name;
 }
 
+/// Kennt die App diese Art? (#417)
+///
+/// **Wichtig ist, was das NICHT heißt.** `null` oder leer bedeutet „es
+/// wurde keine Art eingetragen" — ein Spot ohne Fund, ein Leergang. Da
+/// weiß die App nichts, weil nichts gesagt wurde, und ein Fragezeichen
+/// wäre ein Vorwurf. Unbekannt heißt: Es steht ein Name da, und der
+/// steht nicht in der Liste.
+bool isUnknownSpecies(String? name) {
+  final trimmed = name?.trim();
+  if (trimmed == null || trimmed.isEmpty) return false;
+  return groupFor(trimmed) == null;
+}
+
 /// Die Zweitnamen einer Art — für den Hinweis „auch: …". Nimmt Haupt- wie
 /// Zweitnamen entgegen; leer, wenn es keine gibt.
 List<String> synonymsOf(String? name) {
