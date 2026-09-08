@@ -43,17 +43,25 @@ Stand 2026-09-08, nachgesehen im Code, nicht angenommen.
 | Benachrichtigungen sind ab Werk aus | `push_devices` hat keine Zeile ohne Zustimmung; eine Zeile IST die Zustimmung |
 | Die Pilztour verlässt das Gerät nie | `tours/` als JSON Lines im App-Verzeichnis; in beiden Backup-Ausschlüssen |
 | Kein Tracking, keine Analyse-SDKs | Die einzige Firebase-Nutzung ist Cloud Messaging (`pubspec.yaml`: `firebase_core`, `firebase_messaging` — kein Analytics, kein Crashlytics) |
+| Serverstandort EU | AWS `eu-west-1` (Irland), Supabase-Dashboard, bestätigt 2026-09-08 |
 | Im Browser lädt Push einen Baustein von Google | `web/push/firebase-messaging-sw.js`; ausgelöst erst durch `getToken` in `requestPushToken` |
 
 ### Offen — nicht aus dem Code belegbar
 
-- **Supabase-Serverstandort.** Die Erklärung behauptet „Europäische Union"
-  und „keine Übermittlung in ein Drittland". Das steht im
-  Supabase-Dashboard (Project Settings → General → Region), nicht im
-  Repository. **Vor dem Play-Store-Start nachsehen und hier eintragen.**
-  Zu bedenken: „Server in der EU" und „keine Drittlandübermittlung" sind
-  zwei verschiedene Aussagen — Support-Zugriffe und Unterauftragnehmer
-  gehören zur zweiten.
+- ~~Supabase-Serverstandort~~ — **geklärt am 2026-09-08** (Betreiber):
+  Das Projekt liegt in der AWS-Region **eu-west-1** (Irland), also in der
+  EU. Damit stimmt die Ortsangabe.
+
+  Der frühere zweite Halbsatz („eine Übermittlung in ein Drittland findet
+  nicht statt") ist daraufhin **gestrichen** worden: Er folgt nicht aus
+  der Region. Supabase Inc. ist ein US-Unternehmen; Support-Zugriffe und
+  Unterauftragnehmer sind genau der Fall, den er ausschloss. Die
+  Erklärung nennt jetzt beides getrennt — wo die Daten liegen, und wer
+  darauf zugreifen kann.
+
+  **Noch zu tun:** Den Auftragsverarbeitungsvertrag samt
+  Unterauftragnehmer-Liste bei Supabase abrufen und ablegen (Art. 28).
+  Die Erklärung beruft sich darauf; abgeheftet ist er noch nicht.
 - **Impressumspflicht (§ 5 DDG).** Bewusst offen (Betreiber, 2026-09-08).
   Dafür spricht: Die App liegt bald im Play Store, und die Abgrenzung
   „geschäftsmäßig" ist bei dauerhaft angebotenen Diensten weit ausgelegt.
