@@ -84,6 +84,26 @@ class MapViewMarker {
   final Widget child;
 }
 
+/// Ein Linienzug auf der Karte (#340).
+///
+/// **Die Farbe hängt an der LINIE, nicht am Layer** — das ist die
+/// Entscheidung, die diese Klasse trifft, und sie ist nicht kosmetisch:
+/// flutter_map kann mehrere Farben in einem Layer, MapLibre trägt die
+/// Farbe am Layer und braucht deshalb einen je Linie. Die Fassade folgt
+/// der freieren Form, sonst könnten zwei Buddys nie verschiedene Farben
+/// haben — und genau dafür ist das Ganze da.
+class MapViewPolyline {
+  const MapViewPolyline({
+    required this.points,
+    required this.color,
+    this.width = 3,
+  });
+
+  final List<LatLng> points;
+  final Color color;
+  final double width;
+}
+
 /// Die Ausrichtung, wie MapLibre sie versteht — **umgekehrt** zu
 /// flutter_map (#409).
 ///
@@ -133,11 +153,20 @@ Alignment mapLibreAlignment(Alignment facadeAlignment) =>
 /// verschweigt — wo die Abstände eng sind, hat man gesucht.
 class MapViewMarkers {
   const MapViewMarkers({
+    this.polylines = const [],
     this.tourTrack = const [],
     this.myPosition = const [],
     this.friendLocations = const [],
     this.spots = const [],
   });
+
+  /// Linienzüge, GANZ unten — noch unter der Tour-Spur.
+  ///
+  /// Der Name der Klasse sagt „Markers" und meint inzwischen alles, was
+  /// über der Karte liegt. Ein eigener Behälter daneben wäre ehrlicher
+  /// und hätte fünf Aufrufstellen samt Fake angefasst; die Linie ist
+  /// hier eingezogen, weil sie dieselbe Reise nimmt.
+  final List<MapViewPolyline> polylines;
 
   final List<MapViewMarker> tourTrack;
   final List<MapViewMarker> myPosition;

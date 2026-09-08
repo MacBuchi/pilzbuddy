@@ -11,6 +11,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show AuthException;
 import 'package:url_launcher/url_launcher.dart';
 
+import '../help/map_tour.dart';
 import '../offline_maps/offline_map_providers.dart';
 import '../../core/app_distribution.dart';
 import '../../core/settings.dart';
@@ -274,6 +275,22 @@ class ProfileScreen extends ConsumerWidget {
           // (`docs/pilzampel-validierung.md`). Ob die Ampel je Art
           // unterschiedlich wirkt, ist damit offen — deshalb rechnet sie
           // für alle gleich, und deshalb steht es auch so da.
+          // Die Darstellung der Tourspur (#340). Vorgabe sind Punkte,
+          // und das ist eine Aussage über die DATEN: Ihr Abstand zeigt,
+          // wo jemand langsam ging — genau die Größe, aus der die
+          // Leergänge folgen. Eine Linie ist leichter zu verfolgen und
+          // glättet das weg; deshalb wählbar statt gesetzt.
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            secondary: const Icon(Icons.timeline),
+            title: const Text('Tourspur als Linie'),
+            subtitle: const Text(
+                'Statt einzelner Punkte. Die Punktabstände zeigen, wo du '
+                'langsam warst — eine Linie zeigt den Weg.'),
+            value: ref.watch(tourTrackAsLineProvider),
+            onChanged: (value) =>
+                ref.read(tourTrackAsLineProvider.notifier).set(value),
+          ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             secondary: const Icon(Icons.science_outlined),

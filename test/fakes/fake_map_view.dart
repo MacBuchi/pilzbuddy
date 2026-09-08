@@ -68,6 +68,16 @@ class FakeMapViewState extends State<FakeMapView>
       color: widget.config.backgroundColor,
       child: Wrap(
         children: [
+          // Linienzüge ganz unten, wie in beiden echten Engines (#340).
+          // Als schlichte Kästchen: Der Fake zeichnet keine Geometrie,
+          // aber eine Linie, die hier fehlt, wäre im Test unsichtbar —
+          // genau der blinde Fleck, den er nicht haben darf.
+          for (final line in m.polylines)
+            SizedBox(
+                key: const ValueKey('fake-polyline'),
+                width: 1,
+                height: 1,
+                child: ColoredBox(color: line.color)),
           // Dieselbe Reihenfolge wie die echten Engines: Tour-Spur ganz
           // unten. Ohne diese Gruppe hier wäre eine Spur, die auf der
           // Karte fehlt, im Test unsichtbar — genau der blinde Fleck,

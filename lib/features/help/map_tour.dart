@@ -142,6 +142,15 @@ final mapTourSeenProvider = NotifierProvider<RememberedFlag, bool>(
   ),
 );
 
+/// Tourspur als Linie statt als Punkte? (#340) Gerätelokal, ab Werk aus.
+final tourTrackAsLineProvider = NotifierProvider<RememberedFlag, bool>(
+  () => RememberedFlag(
+    read: (s) => s.tourTrackAsLine,
+    write: (s, v) => s.setTourTrackAsLine(v),
+    label: 'Spur-Darstellung merken',
+  ),
+);
+
 /// Hat dieses Gerät den Haftungshinweis gesehen? (#110)
 ///
 /// Gerätelokal wie [mapTourSeenProvider] und aus demselben Grund.
