@@ -1000,6 +1000,20 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   der Standort-Tropfen (#403), die eine genaue Aussage macht.
   Wer eine dritte Engine einbaut: Diese Umrechnung gehört zu jeder Engine
   einzeln geprüft, sie ist keine Eigenschaft der Fassade.
+- **Die Fassade kann seit 1.126.0 Linienzüge** (`MapViewPolyline`, #340
+  Schritt 1). Die Farbe hängt an der LINIE, nicht am Layer — flutter_map
+  kann mehrere Farben je Layer, MapLibre trägt sie am Layer und bekommt
+  deshalb einen je Linie. Die Fassade folgt der freieren Form, sonst
+  könnten zwei Buddy-Spuren nie verschiedene Farben haben.
+  **MapLibre-Layer gehören in `layers:`, nicht in `children:`** — ein
+  `PolylineLayer` ist dort ein `Layer`, kein Widget.
+  Die Tourspur zeichnet ab Werk PUNKTE, nicht die Linie: Ihr Abstand
+  trägt die Verweildauer, aus der `tourVisits` die Leergänge ableitet;
+  eine Linie glättet das weg. Der Schalter steht im Profil.
+  Und die eigene Spur ist **grün** — bis 1.125.1 stand dort `friendBlue`,
+  also die Farbe für andere. Allein unterwegs fällt das nicht auf; neben
+  einer Buddy-Spur sagt es das Gegenteil.
+
 - **Karten-Stellschrauben werden nicht ohne Messung verändert**
   (`docs/map-performance.md`): Puffer, Substitutionsweite und Layer-Modus
   stehen auf Werten, die #142/#143/#119 *gemessen* haben — jede davon ist

@@ -7,6 +7,20 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Deine Tourspur ist jetzt grün — und wahlweise eine Linie
+
+*8. September 2026 · Version 1.126.0*
+
+Die Spur deiner Pilztour wurde bisher blau gezeichnet. Blau ist in
+PilzBuddy aber die Farbe für **andere** — für die Spots deiner Freunde
+und ihren geteilten Standort. Deine eigene Spur ist ab jetzt grün, wie
+alles andere, was dir gehört.
+
+Neu im Profil: **„Tourspur als Linie"**. Ab Werk bleiben es einzelne
+Punkte, und das mit Absicht — ihr Abstand zeigt, wo du langsam warst oder
+gestanden hast, und genau daraus schlägt die App dir hinterher die
+Leergänge vor. Wer lieber den Weg als die Verweildauer sieht, schaltet um.
+
 ## Ein Hinweis, der bei einer Pilz-App dazugehört
 
 *8. September 2026 · Version 1.125.0, 1.125.1*

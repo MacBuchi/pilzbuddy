@@ -167,6 +167,17 @@ abstract interface class Settings {
 
   Future<void> setMapTourSeen(bool value);
 
+  /// Die Tourspur als Linie statt als Punkte? (#340)
+  ///
+  /// Vorgabe **Punkte**, und das ist keine Geschmacksfrage: Ihr Abstand
+  /// sagt, wo jemand langsam ging oder stand — genau die Größe, aus der
+  /// `tourVisits` die Leergänge ableitet. Eine Linie glättet das weg.
+  /// Sie ist leichter zu verfolgen, wenn mehrere Spuren übereinander
+  /// liegen, deshalb der Schalter.
+  bool get tourTrackAsLine;
+
+  Future<void> setTourTrackAsLine(bool value);
+
   /// Hat dieses Gerät den Haftungshinweis schon gesehen? (#110)
   ///
   /// Gerätelokal wie [mapTourSeen] und aus demselben Grund: Die Frage
@@ -402,6 +413,15 @@ class PrefsSettings implements Settings {
   @override
   Future<void> setMapTourSeen(bool value) =>
       _prefs.setBool(_mapTourSeenKey, value);
+
+  static const _tourTrackAsLineKey = 'tour_track_as_line';
+
+  @override
+  bool get tourTrackAsLine => _prefs.getBool(_tourTrackAsLineKey) ?? false;
+
+  @override
+  Future<void> setTourTrackAsLine(bool value) =>
+      _prefs.setBool(_tourTrackAsLineKey, value);
 
   static const _safetyNoteSeenKey = 'safety_note_seen';
 

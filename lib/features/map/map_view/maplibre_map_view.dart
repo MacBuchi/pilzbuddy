@@ -408,6 +408,34 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
           }
         }
       },
+      // Deklarative Layer des Pakets — NICHT `children`: Ein
+      // `PolylineLayer` ist dort ein `Layer`, kein Widget, und wird
+      // über diesen Parameter in den Style eingehängt.
+      layers: [
+        // Linienzüge zuerst, also ganz unten (#340) — dieselbe Ordnung
+        // wie auf der flutter_map-Seite.
+        //
+        // **Ein Layer je Linie, und das ist kein Versehen:** MapLibre
+        // trägt Farbe und Breite am LAYER, nicht am einzelnen Feature.
+        // Zwei Buddys mit verschiedenen Farben brauchen deshalb zwei
+        // Layer. Bei einer Handvoll Spuren ist das billig; wer hier
+        // hunderte Linien durchreicht, muss nach Farbe gruppieren.
+        for (final line in widget.markers.polylines)
+          ml.PolylineLayer(
+            polylines: [
+              ml.Feature(
+                // `build` nimmt eine flache Kette lon,lat,lon,lat… —
+                // `from` wollte `Position`-Objekte, was je Punkt eine
+                // Allokation mehr wäre.
+                geometry: ml.LineString.build([
+                  for (final p in line.points) ...[p.longitude, p.latitude],
+                ]),
+              ),
+            ],
+            color: line.color,
+            width: line.width.round(),
+          ),
+      ],
       children: [
         // Maßstab und dauerhafte Quellen-Attribution (ODbL-Rechtspflicht;
         // die Texte liefert der Style-Composer an jeder Quelle mit) —

@@ -389,6 +389,21 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
                 ),
             ],
           ),
+        // Linienzüge ganz unten (#340): Sie sind Hintergrund, und ein
+        // Strich über einem Pilz-Symbol wäre genau dort, wo man tippen
+        // will. Eine Ebene für alle — flutter_map trägt die Farbe an der
+        // einzelnen Linie.
+        if (markers.polylines.isNotEmpty)
+          PolylineLayer(
+            polylines: [
+              for (final line in markers.polylines)
+                Polyline(
+                  points: line.points,
+                  color: line.color,
+                  strokeWidth: line.width,
+                ),
+            ],
+          ),
         // Markergruppen in fester Reihenfolge (unten → oben), damit
         // Spots über den Live-Positionen liegen und tappbar bleiben.
         // Die eigene Position über der der Buddys — siehe MapViewMarkers.

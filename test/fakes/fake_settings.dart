@@ -28,6 +28,7 @@ class FakeSettings implements Settings {
     // Haftungshinweis übergestülpt. Wer ihn prüfen will, gibt
     // `safetyNoteSeen: false` mit.
     this.safetyNoteSeen = true,
+    this.tourTrackAsLine = false,
     this.tourIntervalSeconds = kTourIntervalDefaultSeconds,
     // Bewusst null: In echt initialisiert main() den Marker beim ersten
     // Start (ensureFindSeenMarker) — im Harness bleibt er aus, damit kein
@@ -153,6 +154,8 @@ class FakeSettings implements Settings {
   bool mapTourSeen;
   @override
   bool safetyNoteSeen;
+  @override
+  bool tourTrackAsLine;
 
   @override
   Future<void> setMapTourSeen(bool value) async {
@@ -162,6 +165,11 @@ class FakeSettings implements Settings {
   @override
   Future<void> setSafetyNoteSeen(bool value) async {
     safetyNoteSeen = value;
+  }
+
+  @override
+  Future<void> setTourTrackAsLine(bool value) async {
+    tourTrackAsLine = value;
   }
 
   @override

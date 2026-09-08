@@ -695,6 +695,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final isSharing = ref.watch(isSharingProvider);
     // Die laufende Pilztour (#338) — `null`, solange keine läuft.
     final tour = ref.watch(tourProvider);
+    final asLine = ref.watch(tourTrackAsLineProvider);
     final shareUntil = ref.watch(myShareProvider).valueOrNull;
     // Verbindung zurück ⇒ Ausgangskorb losschicken (#267). Genau hier
     // und nicht am App-Resume: Wer aus dem Wald nach Hause kommt, ohne
@@ -790,8 +791,16 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 },
               ),
               markers: MapViewMarkers(
+                // Punkte ODER Linie, nie beides — sonst läge der Strich
+                // auf seinen eigenen Stützstellen und beide sähen
+                // schmutzig aus (#340).
+                polylines: tour == null || !asLine
+                    ? const []
+                    : tourTrackPolyline(tour.points),
                 tourTrack:
-                    tour == null ? const [] : tourTrackMarkers(tour.points),
+                    tour == null || asLine
+                        ? const []
+                        : tourTrackMarkers(tour.points),
                 myPosition: [
                   if (myPosition != null) _myPositionMarker(myPosition, myAvatar),
                 ],

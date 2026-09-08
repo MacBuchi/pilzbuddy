@@ -39,17 +39,28 @@ List<TourPoint> thinnedTrack(List<TourPoint> points,
   return kept;
 }
 
+/// Die Farbe der EIGENEN Spur (#340).
+///
+/// Grün, wie überall in dieser App, wo etwas mir gehört — die
+/// Boden-Ellipse an den eigenen Spots, der eigene Standort-Tropfen
+/// (#403). Bis 1.125.1 stand hier `friendBlue`, also die Farbe für
+/// ANDERE. Solange man allein unterwegs war, fiel das niemandem auf;
+/// sobald die Spur eines Buddys danebenliegt, sagt sie das Gegenteil von
+/// dem, was sie meint.
+const kOwnTrackColor = AppColors.forestGreen;
+
 /// Ein Punkt der Spur. Klein und halbdurchsichtig: Die Spur ist
 /// Hintergrund, kein Inhalt — sie darf die Pilze nicht überstrahlen.
 class TourTrackDot extends StatelessWidget {
-  const TourTrackDot({super.key, this.size = 7});
+  const TourTrackDot({super.key, this.size = 7, this.color = kOwnTrackColor});
 
   final double size;
+  final Color color;
 
   @override
   Widget build(BuildContext context) => DecoratedBox(
         decoration: BoxDecoration(
-          color: AppColors.friendBlue.withValues(alpha: 0.55),
+          color: color.withValues(alpha: 0.55),
           shape: BoxShape.circle,
           // Ein heller Saum, sonst verschwindet der Punkt über dunklem
           // Wald — dieselbe Not wie beim Halo der Pilz-Symbole.
@@ -60,8 +71,13 @@ class TourTrackDot extends StatelessWidget {
       );
 }
 
-/// Die Marker der Spur, fertig für [MapViewMarkers.tourTrack].
-List<MapViewMarker> tourTrackMarkers(List<TourPoint> points) => [
+/// Die Spur als einzelne Punkte — die Vorgabe.
+///
+/// [color] ist vorbelegt mit der eigenen Spur; für die eines Buddys
+/// kommt sie von außen (#340).
+List<MapViewMarker> tourTrackMarkers(List<TourPoint> points,
+        {Color color = kOwnTrackColor}) =>
+    [
       for (final point in thinnedTrack(points))
         MapViewMarker(
           point: LatLng(point.lat, point.lng),
@@ -71,6 +87,25 @@ List<MapViewMarker> tourTrackMarkers(List<TourPoint> points) => [
           // der man stand — anders als ein Pilz-Symbol, das darüber
           // hängt.
           alignment: Alignment.center,
-          child: const TourTrackDot(),
+          child: TourTrackDot(color: color),
         ),
     ];
+
+/// Dieselbe Spur als Linienzug (#340).
+///
+/// Gedünnt wie die Punkte — 400 Stützstellen lösen mehr auf, als ein Auge
+/// unterscheidet, und `tourVisits` rechnet ohnehin mit ALLEN Punkten
+/// weiter. Unter zwei Punkten gibt es keine Linie; dann bleibt die Liste
+/// leer, statt einen Strich der Länge null zu zeichnen.
+List<MapViewPolyline> tourTrackPolyline(List<TourPoint> points,
+    {Color color = kOwnTrackColor}) {
+  final kept = thinnedTrack(points);
+  if (kept.length < 2) return const [];
+  return [
+    MapViewPolyline(
+      points: [for (final p in kept) LatLng(p.lat, p.lng)],
+      color: color.withValues(alpha: 0.7),
+      width: 4,
+    ),
+  ];
+}
