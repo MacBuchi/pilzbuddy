@@ -239,19 +239,50 @@ try {
   check(unexpected.length === 0,
       `keine unerwarteten Ursprünge beim Laden (fremd: ${JSON.stringify(foreign)})`);
 
-  await sleep(12000); // das Vorwärmen zu Ende laufen lassen
-  const caches1 = JSON.parse(await evaluate(send, `(async () => {
+  await sleep(12000); // das Vorwärmen einholen lassen
+
+  // Die Zusage ist nicht „viele Einträge", sondern: Was dieser Besuch
+  // geholt hat, liegt danach auch im Cache.
+  //
+  // Bis 1.128.1 stand hier eine Untergrenze (>= 10). Die ist eine Aussage
+  // über den LAUF, nicht über den Build — zwei Läufe desselben Commits
+  // kamen auf 15 und 16 Einträge, und ausgerechnet der mit 16 startete
+  // ohne Server nicht (#427). Mehr ist eben nicht vollständiger: Die
+  // beiden Mengen stehen in keinem Teilmengen-Verhältnis. Gemessen wird
+  // deshalb der Lauf gegen sich selbst; fehlt etwas, steht es beim Namen.
+  const wanted = JSON.parse(await evaluate(send, `JSON.stringify(
+      [...new Set(performance.getEntriesByType('resource')
+          .filter(e => e.responseStatus === 200)
+          .map(e => e.name)
+          .filter(n => n.startsWith(location.origin)))])`));
+  // Was zwischen den beiden Abfragen dazukam, noch ablegen lassen: Der
+  // Beobachter meldet es, der Worker holt es — beides braucht einen
+  // Augenblick. Andersherum wäre die Reihenfolge falsch; ein Stück, das
+  // NACH der Cache-Abfrage geholt wird, dürfte gar nicht erst in der
+  // Soll-Liste stehen.
+  await sleep(3000);
+  const cached = JSON.parse(await evaluate(send, `(async () => {
     const out = {};
     for (const name of await caches.keys()) {
-      out[name] = (await (await caches.open(name)).keys()).length;
+      out[name] = (await (await caches.open(name)).keys()).map(r => r.url);
     }
     return JSON.stringify(out);
   })()`));
-  const names = Object.keys(caches1);
+  const names = Object.keys(cached);
   check(names.length === 1 && names[0].startsWith('pilzbuddy-'),
-      `genau ein Cache, benannt nach der Bauversion: ${JSON.stringify(caches1)}`);
-  check((caches1[names[0]] ?? 0) >= 10,
-      `schon der erste Besuch füllt ihn (${caches1[names[0]]} Einträge)`);
+      `genau ein Cache, benannt nach der Bauversion: ${JSON.stringify(names)}`);
+  // Eine Untergrenze bleibt — aber auf der SOLL-Seite, und nur als
+  // Beweis, dass überhaupt gemessen wurde. Ohne sie bliebe die Prüfung
+  // darunter auch dann grün, wenn `responseStatus` einmal nichts mehr
+  // liefert und die Liste leer durchläuft.
+  check(wanted.length >= 8,
+      `der Besuch hat wirklich etwas geholt (${wanted.length} eigene Dateien)`);
+  const inCache = new Set(names.flatMap((name) => cached[name]));
+  const missing = wanted.filter((url) => !inCache.has(url));
+  check(missing.length === 0,
+      `schon der erste Besuch legt jede geholte Datei ab ` +
+      `(${wanted.length} geholt, ${inCache.size} im Cache` +
+      (missing.length ? `) — es fehlen: ${missing.join(', ')}` : ')'));
 
   // 2 — der eigentliche Beweis: Server wirklich aus, dann neu laden.
   await stopServer();

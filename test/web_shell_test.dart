@@ -92,6 +92,29 @@ void main() {
       expect(bootstrap, contains("updateViaCache: 'none'"));
     });
 
+    test('das Vorwärmen beobachtet, statt einmal zu messen', () {
+      // Eine Momentaufnahme nach dem ersten Bild war bis 1.128.1 genau
+      // das: eine Messung zu EINEM Zeitpunkt. Was der Browser danach
+      // holte, kam nie in den Cache — und was er bis dahin geholt hatte,
+      // entschied der Zufall des Laufs. Zwei Läufe desselben Builds
+      // legten daraufhin verschiedene Dateien ab (#427).
+      expect(bootstrapCode, contains('PerformanceObserver'));
+      expect(bootstrapCode, contains("type: 'resource', buffered: true"),
+          reason: 'Ohne `buffered` fehlt alles, was VOR dem Beobachter '
+              'geholt wurde — also die halbe App.');
+      expect(bootstrapCode, isNot(contains('getEntriesByType')),
+          reason: 'Das ist die Momentaufnahme, die der Beobachter '
+              'ersetzt hat. Beide zusammen wären zwei Antworten auf die '
+              'Frage, was in den Cache gehört.');
+    });
+
+    test('der Worker wärmt einen Lauf nach dem anderen vor', () {
+      // Seit #427 kommen viele Nachrichten statt einer. `warm` prüft je
+      // Adresse, was schon ABGELEGT ist — nicht, was gerade unterwegs
+      // ist; zwei gleichzeitige Läufe holten dieselbe Datei doppelt.
+      expect(worker, contains('warming = warming.then'));
+    });
+
     test('der Worker holt seinen Cache-Namen aus der eigenen URL', () {
       // Eine Quelle, keine zweite Stelle zum Synchronhalten.
       expect(worker, contains("searchParams.get('v')"));
