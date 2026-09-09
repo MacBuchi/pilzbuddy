@@ -112,6 +112,93 @@ Zwei Eigenheiten dieses Vokabulars, die das Konzept tragen muss:
   Espe ist keine der neun. Für solche Arten gibt es keine Aussage — und
   „keine Aussage" muss anders aussehen als „hier nicht".
 
+## Die Baumangabe ist ein Zuschlag, kein Tor
+
+Der zweite Einwand des Betreibers (2026-09-09), und er kalibriert die
+ganze Ebene:
+
+> Die Baumartenkarte ist nicht 100 %, sondern gibt einen Anhaltspunkt. In
+> einem Mischwald, in dem hauptsächlich Buche steht, können trotzdem
+> Kiefer oder Lärche wachsen. Bei einem 100-%-Nadelwald-Sektor macht das
+> schon einen deutlichen Unterschied. Im Misch- bzw. Laubwald sind
+> gewöhnlich viel mehr Arten vertreten.
+
+Das ist keine Feinheit an der Zahl, sondern eine Aussage über die FORM
+der Funktion: Der Waldtyp darf eine Art fast nie ausschließen, und er
+darf sie nie garantieren. Er hebt an oder senkt ab. Zwei Belege dafür
+liegen im Repo:
+
+- **Gemessen:** Die häufigste Art allein verschluckte in **17,6 %** der
+  Waldzellen den Mischpartner (`tool/forest_species.py`). Genau deshalb
+  trägt das Gitter zwei Halbbytes — aber auch mit zweien bleibt eine
+  dritte Art unsichtbar.
+- **Ungenutzt:** Das Waldgitter speichert je Wabe den **echten
+  Nadelanteil in Prozent** (Byte − 1, 0…100); Laub/Misch/Nadel sind nur
+  die Anzeige-Schwellen (`classOfByte`). Die erste Fassung rechnete
+  gegen die drei Klassen und warf damit weg, was die Antwort trägt: Eine
+  95/5-Wabe und eine 55/45-Wabe heißen beide „Nadelwald" und sind für
+  einen Buchenpartner zwei völlig verschiedene Orte.
+
+### Die Form, die daraus folgt
+
+Zwei Größen, nacheinander:
+
+    Standort = Klassenpassung × Artzuschlag
+
+**Klassenpassung** ist eine Rampe auf dem echten Anteil, nicht auf der
+Klasse. `f` sei der Anteil der zur Art passenden Waldhälfte in dieser
+Wabe (Laubanteil für einen Buchenpartner, Nadelanteil für einen
+Fichtenpartner):
+
+| `f` | Passung | in Worten |
+|---|---|---|
+| ≥ 0,40 | **1,0** | genug davon da — kein Abzug |
+| 0,20 | ~0,6 | dünn, aber vorhanden |
+| 0,00 | **0,25** | reiner Gegenwald |
+
+Die Rampe ist mit Absicht **früh gesättigt**: Schon 40 % der richtigen
+Hälfte reichen für den vollen Wert. Damit bekommt der Mischwald für
+praktisch jede Art volle Punkte — was genau der Beobachtung entspricht,
+dass dort die meisten Arten stehen. Der deutliche Unterschied entsteht
+erst am Rand, im nahezu reinen Bestand, und dort entsteht er wirklich.
+
+**Artzuschlag** ist der Anhaltspunkt aus der Baumartenkarte, und er wirkt
+nur nach OBEN: Ist die führende Art der passenden Hälfte genau der
+Partnerbaum, gibt es einen Zuschlag von etwa **×1,25**. Stimmt sie nicht,
+passiert nichts — kein Abzug. Denn dass die Karte Buche als führend
+meldet, heißt nicht, dass keine Lärche danebensteht; es heißt nur, dass
+wir die Lärche nicht sehen. **Was wir nicht wissen, darf nichts kosten.**
+
+### Kein hartes Null, außer bei der Saison
+
+Aus derselben Regel folgt, dass die erste Fassung noch eine zweite Null
+zu viel hatte: „kein Wald ⇒ 0" für Mykorrhiza-Arten. Birkenpilze stehen
+unter Parkbirken, und eine Wabe unter der Waldschwelle des Werkzeugs ist
+nicht baumlos. Der Wert ist deshalb **klein statt null** (~0,1).
+
+Die einzige echte Null bleibt die Saison — und die ist es zu Recht: Im
+Juli gibt es keine Austernseitlinge, gleich wie der Wald steht.
+
+### Der Preis, offen gesagt
+
+Wenn kein Faktor mehr ausschließt, wird die Karte im Mischwald **fast
+gleichmäßig**. Das ist kein Mangel der Umsetzung, sondern die ehrliche
+Antwort: In einem durchmischten Bestand ist der Waldtyp tatsächlich kein
+starkes Argument, und eine Karte, die dort trotzdem Struktur zeigt,
+zeigte Rauschen.
+
+Zwei Folgen für die Darstellung:
+
+- **Die Unterscheidungskraft kommt aus der Saison und aus den Extremen**
+  (reiner Nadelsektor, Offenland, Höhenlagen). Wer die Ebene im Oktober
+  in einem Mischwald anschaut, soll ruhig überall dasselbe Mittelmaß
+  sehen.
+- **Die Farbskala darf die schmale Spanne nicht auf vollen Kontrast
+  ziehen.** Eine automatisch gestreckte Skala machte aus 0,95 gegen 1,05
+  zwei sichtbar verschiedene Welten und erzeugte damit genau die
+  Zuversicht, die das Konzept an jeder anderen Stelle vermeidet. Die
+  Skala ist absolut, nicht relativ zum Bildausschnitt.
+
 ## Woher die Verknüpfung kommt
 
 Drei Wege, und nur einer trägt.
@@ -212,17 +299,24 @@ ehrliche Vereinfachung gegen besser aussehendes Rauschen.
 wirklich ein Tor ist: Im Dezember gibt es keine Pfifferlinge, egal wie
 der Wald steht.
 
-**Standort** ist ABGESTUFT, nicht binär — wegen der führenden Art oben:
+**Standort** ist die Rampe mal dem Zuschlag aus dem Abschnitt oben — ein
+schmales Band, kein Tor:
 
 | Lage | `mykorrhiza` | `offenland` |
 |---|---|---|
-| Partnerbaum ist die führende Art der Wabe | 1,0 | — |
-| Partner passt zur Klasse, ist aber nicht führend | ~0,5 | — |
-| falsche Klasse (Nadel-Partner im reinen Laubwald) | ~0,15 | — |
-| kein Wald | 0 | **~0,7** (gedeckelt, siehe oben) |
+| passende Waldhälfte ≥ 40 %, führende Art ist der Partner | **~1,25** | — |
+| passende Waldhälfte ≥ 40 %, andere führende Art | 1,0 | — |
+| passende Hälfte dünn (20 %) | ~0,6 | — |
+| reiner Gegenwald (0 %) | ~0,25 | — |
+| kein Wald | ~0,1 | **~0,7** (gedeckelt, siehe oben) |
 | Wald | — | ~0,1 |
-| keine Baumangabe (außerhalb DE) | **keine Aussage** | — |
+| keine Baumangabe (außerhalb DE) | Rampe ohne Zuschlag | — |
 | kein Eintrag für die Art / Typ `holz` | **keine Aussage** | **keine Aussage** |
+
+Die vorletzte Zeile ist neu und angenehm: Außerhalb Deutschlands fehlt
+nur der ZUSCHLAG, nicht die Rampe — Laub- und Nadelanteil gibt es für
+ganz DACH. Die erste Fassung ließ Mykorrhiza-Arten dort ganz ohne
+Aussage; das war strenger als nötig.
 
 **Nische** ist der relative Quotient von oben, um 1,0 herum.
 
@@ -295,10 +389,10 @@ Teil.
 
 ## Abdeckung, klar gesagt
 
-Baumarten gibt es nur für Deutschland; in Österreich und der Schweiz
-bleiben `mykorrhiza`-Arten deshalb ohne Aussage. Waldklasse und Höhe
-gibt es für ganz DACH — `offenland`-Arten und die Temperaturnische
-funktionieren also überall. Die Ebene sagt das, statt leer zu wirken;
+Die **Artnamen** der Bäume gibt es nur für Deutschland; in Österreich und
+der Schweiz entfällt dort der Artzuschlag. Laub-/Nadelanteil und Höhe
+gibt es für ganz DACH — die Rampe, die `offenland`-Arten und die
+Temperaturnische funktionieren also überall, nur eine Stufe gröber. Die Ebene sagt das, statt leer zu wirken;
 dieselbe Lösung wie beim Wald-Blatt, das die Copernicus- und
 DLR-Abdeckung schon nebeneinander nennt.
 
@@ -315,3 +409,10 @@ DLR-Abdeckung schon nebeneinander nennt.
   einen Fehler, der heute in der App steckt.
 - **Die Rolle der Fundhistorie steht jetzt ausdrücklich da**, samt der
   Begründung, warum die EIGENEN Funde draußen bleiben.
+- **Der Waldtyp hebt an und senkt ab, statt auszuschließen.** Gerechnet
+  wird auf dem echten Nadelanteil der Wabe (den das Gitter längst trägt)
+  statt auf den drei Anzeige-Klassen, mit früher Sättigung ab 40 % — der
+  Mischwald bekommt für fast jede Art volle Punkte, der deutliche
+  Unterschied entsteht im nahezu reinen Bestand. Die Baumart selbst wirkt
+  nur noch als Zuschlag nach oben: Was wir nicht sehen, darf nichts
+  kosten.
