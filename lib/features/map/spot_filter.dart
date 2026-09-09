@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/mushroom_species.dart';
+import '../../core/season_curves.dart';
 import '../../models/spot.dart';
 import '../ampel/ampel_scan.dart';
 import '../spots/spot_providers.dart';
@@ -12,8 +13,12 @@ import '../spots/spot_providers.dart';
 /// der teurere Fehler. Nach dem Start liegt wieder alles auf der Karte —
 /// anders als beim Offline-Schalter (#145), der nichts verbirgt.
 class SpotFilter {
-  const SpotFilter(
-      {this.species = const {}, this.onlyMine = false, this.onlyAmpel = false});
+  const SpotFilter({
+    this.species = const {},
+    this.onlyMine = false,
+    this.onlyAmpel = false,
+    this.onlySeason = false,
+  });
 
   /// Nur Spots mit einem Fund einer dieser Arten. **Leer = alle Arten** —
   /// nicht „keine". Ein Filter, der nichts durchlässt, wäre auf der Karte
@@ -35,14 +40,29 @@ class SpotFilter {
   /// `mySpotListProvider`, für Freundes-Spots gibt es gar keine Ablesung.
   final bool onlyAmpel;
 
-  bool get isActive => species.isNotEmpty || onlyMine || onlyAmpel;
+  /// Nur Spots, an denen eine der eingetragenen Arten gerade Saison hat
+  /// (#414).
+  ///
+  /// Anders als [onlyAmpel] steckt die Antwort im Spot selbst: Die
+  /// Saisonkurve ist eine Tatsache über GBIF-Meldungen, kein Modell über
+  /// diesen Wald. Deshalb braucht dieser Schalter keine Menge von außen —
+  /// und deshalb behauptet er auch nichts, was zu validieren wäre.
+  final bool onlySeason;
 
-  SpotFilter copyWith(
-          {Set<String>? species, bool? onlyMine, bool? onlyAmpel}) =>
+  bool get isActive =>
+      species.isNotEmpty || onlyMine || onlyAmpel || onlySeason;
+
+  SpotFilter copyWith({
+    Set<String>? species,
+    bool? onlyMine,
+    bool? onlyAmpel,
+    bool? onlySeason,
+  }) =>
       SpotFilter(
         species: species ?? this.species,
         onlyMine: onlyMine ?? this.onlyMine,
         onlyAmpel: onlyAmpel ?? this.onlyAmpel,
+        onlySeason: onlySeason ?? this.onlySeason,
       );
 }
 
@@ -67,6 +87,9 @@ class SpotFilterNotifier extends Notifier<SpotFilter> {
   void setOnlyAmpel(bool value) =>
       state = state.copyWith(onlyAmpel: value);
 
+  void setOnlySeason(bool value) =>
+      state = state.copyWith(onlySeason: value);
+
   void clear() => state = const SpotFilter();
 }
 
@@ -88,8 +111,12 @@ final spotFilterProvider =
 /// passt. Ein UND wäre eine andere Frage („wo habe ich beides gefunden") und
 /// bei zwei Arten meist die leere Karte.
 bool matchesSpotFilter(Spot spot, SpotFilter filter,
-    {Set<String>? ampelSpotIds}) {
+    {Set<String>? ampelSpotIds, int? month}) {
   if (filter.onlyMine && !spot.isOwn) return false;
+  if (filter.onlySeason &&
+      !spotHasSeasonNow(spot, month: month ?? DateTime.now().month)) {
+    return false;
+  }
   // Die Ampel-Auswahl kommt von außen, weil sie am Wetter hängt und nicht
   // am Spot. Fehlt sie, obwohl der Filter sie verlangt, lässt diese
   // Prüfung NICHTS durch: Ein Filter, der mangels Daten stillschweigend
@@ -108,11 +135,37 @@ bool matchesSpotFilter(Spot spot, SpotFilter filter,
       .any((f) => wanted.contains(canonicalSpecies(f.species)?.toLowerCase()));
 }
 
+/// Hat an diesem Spot gerade eine der dort eingetragenen Arten Saison?
+///
+/// Drei Regeln, und alle drei zeigen in dieselbe Richtung — **im Zweifel
+/// zeigen**. Vor einer Fundstelle zu stehen, die die App versteckt, ist
+/// der teure Fehler; eine Zeile zu viel auf der Karte kostet nichts.
+///
+/// 1. **Alle Arten des Spots zählen, nicht nur die letzte** (Betreiber,
+///    2026-09-09) — dieselbe Regel, nach der schon die Artenauswahl
+///    arbeitet. Wer im Juli an einer Stelle Pfifferlinge und im Oktober
+///    Steinpilze gefunden hat, hat dort das halbe Jahr über etwas zu
+///    suchen. Eine davon reicht.
+/// 2. **Eine Art ohne Kurve zeigt den Spot.** `speciesInSeason` gibt
+///    dafür `null`, und das heißt „wir wissen es nicht", nicht „nein".
+///    Sonst versteckte der Filter ausgerechnet die selbst eingetippten
+///    Arten, über die wir am wenigsten wissen.
+/// 3. **Ein Spot ganz ohne Art bleibt sichtbar.** `findsSorted` ist
+///    leergangsfrei (#211); wer dort nur „nichts gefunden" gebucht hat,
+///    hat nichts behauptet, worüber eine Saison zu urteilen wäre.
+bool spotHasSeasonNow(Spot spot, {required int month}) {
+  final finds = spot.findsSorted;
+  if (finds.isEmpty) return true;
+  return finds.any((f) => speciesInSeason(f.species, month) ?? true);
+}
+
 List<Spot> applySpotFilter(List<Spot> spots, SpotFilter filter,
-        {Set<String>? ampelSpotIds}) =>
+        {Set<String>? ampelSpotIds, int? month}) =>
     [
       for (final spot in spots)
-        if (matchesSpotFilter(spot, filter, ampelSpotIds: ampelSpotIds)) spot
+        if (matchesSpotFilter(spot, filter,
+            ampelSpotIds: ampelSpotIds, month: month))
+          spot
     ];
 
 /// Eine Art mit der Zahl der Spots, an denen sie vorkommt.
@@ -175,9 +228,12 @@ final visibleSpotsProvider =
   final friends =
       ref.watch(friendSpotsProvider).valueOrNull ?? const <Spot>[];
   final ampelIds = ref.watch(ampelFilterIdsProvider);
+  final month = ref.watch(currentMonthProvider);
   return (
-    mine: applySpotFilter(mine, filter, ampelSpotIds: ampelIds),
-    friends: applySpotFilter(friends, filter, ampelSpotIds: ampelIds),
+    mine: applySpotFilter(mine, filter,
+        ampelSpotIds: ampelIds, month: month),
+    friends: applySpotFilter(friends, filter,
+        ampelSpotIds: ampelIds, month: month),
   );
 });
 
@@ -187,6 +243,36 @@ final visibleSpotsProvider =
 /// Spots", passen die Zahlen zu dem, was die Karte danach zeigt. Die eigene
 /// Artenwahl fließt nicht ein — sonst bliebe nur noch die gewählte Art
 /// übrig und es gäbe keinen Weg zu einer anderen.
+/// Der laufende Monat, 1…12.
+///
+/// Als Provider, damit Tests ihn setzen können. Ohne ihn hinge jeder Test
+/// des Saison-Filters an der Uhr des Rechners: im September grün, im
+/// Dezember rot — und rot würde er genau dann, wenn niemand hinsieht.
+/// Bewusst NUR der Monat und keine allgemeine Uhr: Mehr braucht hier
+/// nichts, und eine allgemeine lüde jeden anderen Aufrufer ein, seine
+/// Zeitrechnung ebenfalls hierher zu verlegen.
+final currentMonthProvider = Provider<int>((ref) => DateTime.now().month);
+
+/// Wie viele der gerade in Frage kommenden Spots Saison haben (#414).
+///
+/// Für den Untertitel des Schalters — und dafür, ihn zu sperren, wenn es
+/// null wären: Ein Schalter, der auf eine leere Karte führt, ist von
+/// „kaputt" nicht zu unterscheiden (dieselbe Regel wie beim
+/// Ampel-Schalter, #399). Gezählt wird über denselben Bestand wie die
+/// Artenliste, damit die Zahl zu dem passt, was danach zu sehen ist.
+///
+/// Kostet nichts als Tabellen-Nachschläge — kein Gitter, kein Netz.
+final seasonSpotCountProvider = Provider<int>((ref) {
+  final onlyMine = ref.watch(spotFilterProvider).onlyMine;
+  final mine = ref.watch(mySpotListProvider);
+  final friends =
+      ref.watch(friendSpotsProvider).valueOrNull ?? const <Spot>[];
+  final month = ref.watch(currentMonthProvider);
+  return [...mine, if (!onlyMine) ...friends]
+      .where((spot) => spotHasSeasonNow(spot, month: month))
+      .length;
+});
+
 final filterSpeciesProvider = Provider<List<SpeciesTally>>((ref) {
   final onlyMine = ref.watch(spotFilterProvider).onlyMine;
   final mine = ref.watch(mySpotListProvider);

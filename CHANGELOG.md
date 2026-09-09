@@ -7,6 +7,30 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Nur die Fundstellen zeigen, die jetzt Saison haben
+
+*9. September 2026 · Version 1.129.0*
+
+Im Filter der Karte gibt es einen neuen Schalter: **„Nur was jetzt Saison
+hat"**. Er blendet die Fundstellen aus, an denen du bisher nur Arten
+eingetragen hast, die um diese Jahreszeit üblicherweise gar nicht
+gemeldet werden. Im Februar bleibt damit übrig, wonach sich das Losgehen
+lohnt; im September ändert er wenig, weil dann fast alles Saison hat.
+
+Grundlage sind dieselben Saisonkurven, die PilzBuddy am Spot schon
+anzeigt — sie stecken in der App, es geht also nichts ins Netz.
+
+Drei Dinge, damit der Schalter nichts versteckt, was du sehen willst:
+
+- **Alle Arten einer Fundstelle zählen**, nicht nur die zuletzt
+  eingetragene. Wer dort im Juli Pfifferlinge und im Oktober Steinpilze
+  gefunden hat, sieht die Stelle in beiden Monaten.
+- **Arten ohne Kurve bleiben immer sichtbar** — selbst eingetippte Namen
+  zum Beispiel. Worüber wir nichts wissen, darüber urteilt der Filter
+  nicht.
+- Er gilt **nur für diese Sitzung**. Nach einem Neustart liegt wieder
+  alles auf der Karte.
+
 ## Die Web-App startet verlässlicher ohne Empfang
 
 *8. September 2026 · Version 1.128.2*
