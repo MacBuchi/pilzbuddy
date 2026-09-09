@@ -143,6 +143,35 @@ class SeasonCurve {
   }
 }
 
+/// Ab so viel Prozent des Gipfels zählt ein Monat als „hat Saison"
+/// (Filter auf der Karte, #414).
+///
+/// **Gemessen, nicht gesetzt.** Über die 89 belastbaren Kurven zählt der
+/// Februar bei 5 noch 13 Arten, bei 15 nur neun; im September ändert
+/// derselbe Schritt fast nichts (78 → 75). Der Filter soll also im
+/// Winter wirken, wo die Frage steht, und im Herbst nichts vortäuschen.
+///
+/// Nach unten begrenzt ihn eine Eigenschaft der Kurve selbst: Die
+/// Effort-Korrektur teilt durch den Monatsgang ALLER Pilzmeldungen, und
+/// der ist im Winter klein — eine Handvoll Januarmeldungen steigt so zu
+/// einem sichtbaren Balken. Steinpilz, Pfifferling und Parasol stehen im
+/// Januar alle bei 4. Wer die Schwelle unter 10 setzt, filtert nach
+/// diesem Rauschen.
+const kSeasonNowThreshold = 15;
+
+/// Hat [species] im Monat [month] (1…12) Saison?
+///
+/// **`null` heißt „wir wissen es nicht"** und ist der Normalfall für
+/// eigene Arten der Nutzer, für Arten ohne zweifelsfreie GBIF-Zuordnung
+/// und für zu dünne Kurven. Der Rückgabetyp zwingt den Aufrufer, sich
+/// dazu zu verhalten — ein `false` an dieser Stelle wäre eine Behauptung
+/// über eine Art, über die wir nichts haben.
+bool? speciesInSeason(String? species, int month) {
+  final curve = seasonCurveFor(species);
+  if (curve == null) return null;
+  return curve.months[month - 1] >= kSeasonNowThreshold;
+}
+
 /// Die Kurve zu einem Artnamen — `null`, wenn es keine gibt.
 ///
 /// Drei Wege dorthin, alle drei Absicht:

@@ -3,8 +3,10 @@
 // dass ein aktiver Filter sichtbar ist und sich wieder aufheben lässt —
 // ein unbemerkt versteckter Spot ist der eigentliche Schaden.
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/widgets/mushroom_icon.dart';
+import 'package:pilzbuddy/features/map/spot_filter.dart';
 
 import '../fakes/fake_backend.dart';
 import '../fakes/test_app.dart';
@@ -29,10 +31,28 @@ void main() {
     return (backend, me);
   }
 
+  /// Gemessen wird gegen ein Telefon, nicht gegen die 800×600 des
+  /// Test-Standards: Das Blatt deckelt sich auf zwei Drittel der
+  /// Bildschirmhöhe, und in 600 dp bleibt der Artenliste hinter drei
+  /// Schaltern weniger Platz als auf jedem echten Gerät. Ein Test, der
+  /// dort scheitert, misst die Testhülle statt die App (#414).
+  ///
+  /// **Über `tester.view`, nicht über `setSurfaceSize`** — gemessen: Das
+  /// Blatt deckelt sich an `MediaQuery.sizeOf`, und die kommt aus der
+  /// View. `setSurfaceSize` ändert nur die Zeichenfläche, die MediaQuery
+  /// blieb bei 800×600, und das Blatt bei 396 dp.
+  Future<void> onPhone(WidgetTester tester) async {
+    tester.view.physicalSize = const Size(412, 915);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await settle(tester);
+  }
+
   testWidgets('Nach Art filtern lässt nur die passenden Marker stehen',
       (tester) async {
     final (backend, _) = backendWithSpots();
     await pumpApp(tester, backend);
+    await onPhone(tester);
 
     expect(find.byType(MushroomIcon), findsNWidgets(3));
 
@@ -61,6 +81,7 @@ void main() {
       (tester) async {
     final (backend, _) = backendWithSpots();
     await pumpApp(tester, backend);
+    await onPhone(tester);
 
     await tester.tap(find.byTooltip('Karte filtern'));
     await settle(tester);
@@ -91,6 +112,7 @@ void main() {
         species: 'Steinpilz',
         foundOn: DateTime(2026, 7, 4));
     await pumpApp(tester, backend);
+    await onPhone(tester);
     expect(find.byType(MushroomIcon), findsNWidgets(4));
 
     await tester.tap(find.byTooltip('Karte filtern'));
@@ -174,4 +196,67 @@ void main() {
     expect(find.textContaining('Gefiltert'), findsNothing);
     expect(find.byTooltip('Filter aufheben'), findsNothing);
   });
+
+  group('Nur was jetzt Saison hat (#414)', () {
+    /// Zwei eigene Spots mit gegenläufigen Kurven: Pfifferling (Juli 100,
+    /// Dezember 6) und Austernseitling (Juli 3, Dezember 100).
+    FakeBackend backendWithSeasons() {
+      final backend = FakeBackend();
+      final me = backend.addUser(username: 'testpilz');
+      backend.signInAs(me.id);
+      backend.addSpot(
+          ownerId: me.id,
+          species: 'Pfifferling',
+          foundOn: DateTime(2026, 7, 1));
+      backend.addSpot(
+          ownerId: me.id,
+          lat: 51.1644,
+          species: 'Austernseitling',
+          foundOn: DateTime(2026, 12, 1));
+      return backend;
+    }
+
+    /// Der Monat kommt aus einem Provider, nicht von der Uhr — sonst
+    /// wäre dieser Test im September grün und im Dezember rot.
+    List<Override> inMonth(int month) =>
+        [currentMonthProvider.overrideWithValue(month)];
+
+    testWidgets('im Juli bleibt der Pfifferling, im Dezember der andere',
+        (tester) async {
+      await pumpApp(tester, backendWithSeasons(),
+          extraOverrides: inMonth(7));
+
+      expect(find.byType(MushroomIcon), findsNWidgets(2));
+      await tester.tap(find.byTooltip('Karte filtern'));
+      await settle(tester);
+      // Der Untertitel nennt Zahl und Monat, damit der Schalter sagt, was
+      // er tun wird, bevor man ihn umlegt.
+      expect(find.text('1 Fundstelle im Juli'), findsOneWidget);
+      await tester.tap(find.text('Nur was jetzt Saison hat'));
+      await settle(tester);
+      Navigator.of(tester.element(find.text('Karte filtern'))).pop();
+      await settle(tester);
+
+      expect(find.byType(MushroomIcon), findsOneWidget);
+    });
+
+    testWidgets('im Mai hat keiner von beiden Saison — der Schalter sperrt',
+        (tester) async {
+      // Pfifferling 5, Austernseitling 2. Ein Schalter, der auf eine leere
+      // Karte führt, wäre von „kaputt" nicht zu unterscheiden (#399), und
+      // `onChanged: null` allein ist keine Auskunft — deshalb sagt der
+      // Untertitel, WARUM.
+      await pumpApp(tester, backendWithSeasons(),
+          extraOverrides: inMonth(5));
+      await tester.tap(find.byTooltip('Karte filtern'));
+      await settle(tester);
+
+      expect(find.text('Im Mai hat keine deiner Arten Saison'),
+          findsOneWidget);
+      final tile = tester.widget<SwitchListTile>(
+          find.widgetWithText(SwitchListTile, 'Nur was jetzt Saison hat'));
+      expect(tile.onChanged, isNull);
+    });
+  });
+
 }

@@ -11,6 +11,7 @@ int _id = 0;
 Spot spot({
   required List<String?> species,
   bool isOwn = true,
+  bool blank = false,
 }) {
   final id = 'spot-${_id++}';
   return Spot(
@@ -25,6 +26,7 @@ Spot spot({
           id: '$id-$i',
           spotId: id,
           species: species[i],
+          blank: blank,
           // Absteigend, damit der erste Eintrag der jüngste Fund ist.
           foundOn: DateTime(2026, 7, species.length - i),
         ),
@@ -295,4 +297,104 @@ void main() {
           reason: 'kein Steinpilz-Fund');
     });
   });
+
+  group('Saison-Filter (#414)', () {
+    // Die Kurven sind echte Daten aus `season_curves.g.dart` — bewusst
+    // keine erfundenen. Ein Test gegen eine Fantasiekurve prüfte die
+    // Regel, aber nicht, dass sie an unseren Zahlen das Richtige tut.
+    //
+    //   Pfifferling      Juli 100, Februar  9
+    //   Austernseitling  Juli   3, Dezember 100
+    const juli = 7;
+    const februar = 2;
+    const mai = 5;
+    const dezember = 12;
+    const nurSaison = SpotFilter(onlySeason: true);
+
+    test('im Juli bleibt der Pfifferling, der Austernseitling geht', () {
+      expect(spotHasSeasonNow(spot(species: ['Pfifferling']), month: juli),
+          isTrue);
+      expect(
+          spotHasSeasonNow(spot(species: ['Austernseitling']), month: juli),
+          isFalse);
+    });
+
+    test('im Dezember dreht es sich um', () {
+      expect(spotHasSeasonNow(spot(species: ['Pfifferling']), month: dezember),
+          isFalse);
+      expect(
+          spotHasSeasonNow(spot(species: ['Austernseitling']),
+              month: dezember),
+          isTrue);
+    });
+
+    test('ALLE Arten des Spots zählen, nicht nur die letzte', () {
+      // Der Fall, den der Betreiber ausdrücklich genannt hat (2026-09-09):
+      // zuletzt ein Austernseitling, davor ein Pfifferling. Im Juli hat
+      // die Stelle trotzdem Saison — nach der jüngsten Art allein wäre
+      // sie versteckt.
+      final gemischt = spot(species: ['Austernseitling', 'Pfifferling']);
+      expect(spotHasSeasonNow(gemischt, month: juli), isTrue);
+      expect(spotHasSeasonNow(gemischt, month: dezember), isTrue);
+      // Und im Mai hat keine von beiden Saison (Pfifferling 5,
+      // Austernseitling 2). Der Februar taugt dafür NICHT — der
+      // Austernseitling steht dort bei 60, er ist ja der Winterpilz.
+      // Diese Zeile stand zuerst mit `februar` da und ist am echten
+      // Datensatz gescheitert; genau dafür rechnet der Test gegen die
+      // ausgelieferten Kurven und nicht gegen erfundene.
+      expect(spotHasSeasonNow(gemischt, month: mai), isFalse);
+    });
+
+    test('eine Art ohne Kurve zeigt den Spot immer', () {
+      // Selbst getippte Arten haben keine Kurve. Sie zu verstecken hieße,
+      // über sie zu urteilen, obwohl wir nichts über sie wissen.
+      expect(
+          spotHasSeasonNow(spot(species: ['Trüffel vom Nachbarn']),
+              month: februar),
+          isTrue);
+      // Auch als Beifang: eine bekannte Art außerhalb ihrer Saison UND
+      // eine unbekannte — die Unbekannte gewinnt.
+      expect(
+          spotHasSeasonNow(spot(species: ['Pfifferling', 'Waldpilz XY']),
+              month: februar),
+          isTrue);
+    });
+
+    test('ein Fund ohne Artangabe zeigt den Spot', () {
+      expect(spotHasSeasonNow(spot(species: [null]), month: februar), isTrue);
+    });
+
+    test('ein Spot mit lauter Leergängen bleibt sichtbar', () {
+      // `findsSorted` ist leergangsfrei (#211): Wer dort nur „nichts
+      // gefunden" gebucht hat, hat nichts behauptet, worüber eine Saison
+      // zu urteilen wäre.
+      final leer = spot(species: ['Pfifferling'], blank: true);
+      expect(leer.findsSorted, isEmpty);
+      expect(spotHasSeasonNow(leer, month: februar), isTrue);
+    });
+
+    test('der Filter greift auch auf Freundes-Spots', () {
+      // Die Saison gehört der ART, nicht dem Besitzer — anders als die
+      // Ampel-Auswahl, für die es bei Freunden gar keine Ablesung gibt.
+      final freund = spot(species: ['Austernseitling'], isOwn: false);
+      expect(matchesSpotFilter(freund, nurSaison, month: juli), isFalse);
+      expect(matchesSpotFilter(freund, nurSaison, month: dezember), isTrue);
+    });
+
+    test('ohne den Schalter ändert sich nichts', () {
+      expect(
+          matchesSpotFilter(
+              spot(species: ['Austernseitling']), const SpotFilter(),
+              month: juli),
+          isTrue);
+    });
+
+    test('der Schalter zählt zum aktiven Filter', () {
+      // Sonst fehlte „Zurücksetzen", und ein vergessener Filter versteckt
+      // Fundstellen.
+      expect(const SpotFilter().isActive, isFalse);
+      expect(nurSaison.isActive, isTrue);
+    });
+  });
+
 }
