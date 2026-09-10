@@ -5,7 +5,6 @@ import '../../../core/app_colors.dart';
 import '../rain_data_providers.dart';
 import '../rain_fill.dart';
 import '../rain_layer.dart';
-import 'map_legend.dart';
 
 /// Blatt zur Wahl der Regenebene (#156).
 ///
@@ -106,14 +105,6 @@ class _RainLayerSheet extends ConsumerWidget {
                   if (current != RainLayer.off) ...[
                     const Divider(height: 16),
                     _Details(layer: current),
-                    SwitchListTile(
-                      dense: true,
-                      title: const Text('Legende in Karte anzeigen'),
-                      value: ref.watch(mapLegendEnabledProvider),
-                      onChanged: (value) => ref
-                          .read(mapLegendEnabledProvider.notifier)
-                          .set(value),
-                    ),
                   ],
                 ],
               ),

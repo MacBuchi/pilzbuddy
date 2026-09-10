@@ -26,7 +26,7 @@ import 'package:pilzbuddy/features/map/elevation_providers.dart';
 import 'package:pilzbuddy/features/map/rain_data_providers.dart';
 import 'package:pilzbuddy/features/map/rain_layer.dart';
 import 'package:pilzbuddy/features/map/widgets/map_legend.dart'
-    show mapIdleCenterProvider;
+    show mapIdleCenterProvider, mapLegendOpenProvider;
 import 'package:pilzbuddy/features/spots/widgets/weather_chart.dart';
 
 import '../fakes/fake_backend.dart';
@@ -273,6 +273,65 @@ void main() {
         reason: 'die Legende muss dieselbe Höhenkorrektur rechnen wie '
             'Fläche und Blatt — unkorrigiert hieße es „günstig", und '
             'Farbe und Text widersprächen sich am selben Punkt');
+  });
+
+  testWidgets('Der Daumen trägt das Urteil — ausgeklappt wie eingeklappt',
+      (tester) async {
+    // **Warum ein Daumen und keine drei Lampen.** Eine Ampel beantwortet
+    // die Frage nicht, die man hat: Welche der drei ist gut? Man muss
+    // die Reihenfolge kennen, um sie zu lesen. Ein Daumen trägt sein
+    // Urteil in der FORM — und eingeklappt, auf 40 Pixeln, ist er
+    // dadurch die ganze Aussage.
+    //
+    // Die drei Stufen müssen sich deshalb wirklich unterscheiden. Der
+    // seitliche Daumen ist ein gedrehter `thumb_up`; wer die Drehung
+    // wegnimmt, macht aus „verhalten" ein zweites „günstig", und im
+    // Diff sähe das nach nichts aus.
+    await pumpWithWeather(tester, loggedInWithSpot(),
+        preview: true, spotHeightM: 1200);
+    await openSpot(tester);
+    await acceptAndSettle(tester);
+    await tester.tapAt(const Offset(20, 20)); // Blatt schließen
+    await settle(tester);
+
+    final container = ProviderScope.containerOf(
+        tester.element(find.byType(Scaffold).first));
+    container.read(ampelLayerEnabledProvider.notifier).state = true;
+    container.read(mapIdleCenterProvider.notifier).state =
+        const LatLng(spotLat, spotLng);
+    await settle(tester);
+
+    // Aufbau wie im Test darüber: Station 316 m auf 1200 m gerechnet
+    // ergibt „verhalten" — also der SEITLICHE Daumen.
+    expect(find.textContaining('hier: verhalten'), findsOneWidget,
+        reason: 'ohne diese Stufe prüft der Rest nichts');
+    // **`.toList()` ist Pflicht, kein Stilfrage.** `widgetList` ist
+    // faul; nach dem Einklappen weiter unten wären die Elemente längst
+    // ungültig, und der Test bräche mit „Element.widget" statt eine
+    // Aussage zu machen. Genau so beim Schreiben aufgeschlagen.
+    int turnsOfThumb() => tester
+        .widgetList<RotatedBox>(find.descendant(
+            of: find.byKey(const Key('legend-ampel-thumb')),
+            matching: find.byType(RotatedBox)))
+        .toList()
+        .single
+        .quarterTurns %
+        4;
+
+    final expanded = turnsOfThumb();
+    expect(expanded, isNot(0),
+        reason: '„verhalten" ist der gedrehte Daumen — ungedreht wäre '
+            'er von „günstig" nicht zu unterscheiden');
+
+    // Und eingeklappt sagt die Schiene dasselbe: derselbe Daumen,
+    // dieselbe Drehung. Zwei Zustände, EINE Aussage — deshalb liest
+    // beides denselben Record.
+    container.read(mapLegendOpenProvider.notifier).set(false);
+    await settle(tester);
+    expect(find.textContaining('hier: verhalten'), findsNothing,
+        reason: 'die Schiene trägt keine Sätze');
+    expect(turnsOfThumb(), expanded,
+        reason: 'ein- und ausgeklappt dürfen nicht zwei Urteile fällen');
   });
 
   testWidgets('ohne Schalter existiert die Sektion nicht', (tester) async {

@@ -32,16 +32,31 @@ abstract interface class Settings {
 
   Future<void> setClassicMapEnabled(bool value);
 
-  /// Liegt die Legende aktiver Ebenen auf der Karte? (#231)
+  /// Ist die Legende aktiver Ebenen AUSGEKLAPPT? (#231)
   ///
   /// Standardmäßig JA — eine Fläche ohne Legende bedeutet nichts, das
   /// war die erste Feld-Rückmeldung zur Regenfläche (2026-08-04) und
-  /// zur Waldebene gleich noch einmal. Das X an der Legende schaltet
-  /// diese Einstellung aus (persistent); wieder an geht sie im
-  /// Ebenen-Blatt.
-  bool get mapLegendEnabled;
+  /// zur Waldebene gleich noch einmal.
+  ///
+  /// **Bis 1.131.0 hieß das hier „liegt sie auf der Karte", und das ✕
+  /// schaltete sie WEG.** Zurück führte nur ein Schalter, der in drei
+  /// Blättern stand — und jedes Mal nur, wenn die jeweilige Ebene an
+  /// war. Wer die Legende wegtippte und danach alle Ebenen ausschaltete,
+  /// hatte keinen Rückweg mehr. Dieselbe Sorte Sackgasse wie #425 und
+  /// #349: ein Tipp nimmt ein Feature weg, und nirgends steht, wie man
+  /// es zurückholt.
+  ///
+  /// Jetzt gibt es kein Weg mehr, nur ein Zu: Eingeklappt bleibt eine
+  /// 40 Pixel schmale Schiene stehen, und die IST der Rückweg. Ein
+  /// Zustand, aus dem man nicht mehr herausfindet, kann damit gar nicht
+  /// entstehen.
+  ///
+  /// Der Prefs-Schlüssel heißt weiter `map_legend_enabled` — er trägt
+  /// denselben Wert für dieselbe Geste, und ein neuer Name kostete jedem
+  /// Bestandsgerät seine Entscheidung.
+  bool get mapLegendOpen;
 
-  Future<void> setMapLegendEnabled(bool value);
+  Future<void> setMapLegendOpen(bool value);
 
   /// Richtet langes Draufhalten das Fadenkreuz aus? (#210)
   ///
@@ -308,10 +323,10 @@ class PrefsSettings implements Settings {
   static const _mapLegendEnabledKey = 'map_legend_enabled';
 
   @override
-  bool get mapLegendEnabled => _prefs.getBool(_mapLegendEnabledKey) ?? true;
+  bool get mapLegendOpen => _prefs.getBool(_mapLegendEnabledKey) ?? true;
 
   @override
-  Future<void> setMapLegendEnabled(bool value) =>
+  Future<void> setMapLegendOpen(bool value) =>
       _prefs.setBool(_mapLegendEnabledKey, value);
 
   @override

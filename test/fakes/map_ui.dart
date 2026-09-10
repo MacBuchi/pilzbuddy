@@ -49,8 +49,17 @@ Future<void> toggleLayer(WidgetTester tester, String layer) async {
 Future<void> closeMapLayers(WidgetTester tester) => closeSheet(tester, 'Ebenen');
 
 /// Ein Blatt über seine Überschrift wieder schließen.
+///
+/// Gesucht wird ausdrücklich IM Blatt: Seit die Legende einen
+/// „Ebenen"-Verweis in ihrer Fußzeile trägt, gibt es diesen Text zweimal
+/// auf dem Schirm, und `find.text` warf „Too many elements". Über den
+/// `BottomSheet` als Vorfahr ist die Überschrift eindeutig — dieselbe
+/// Begründung wie bei [layerRow] eine Ebene höher.
 Future<void> closeSheet(WidgetTester tester, String title) async {
-  Navigator.of(tester.element(find.text(title))).pop();
+  Navigator.of(tester.element(find.descendant(
+    of: find.byType(BottomSheet),
+    matching: find.text(title),
+  ))).pop();
   await settle(tester);
 }
 

@@ -53,7 +53,7 @@ void main() {
     await settle(tester);
   }
 
-  testWidgets('Tipp auf die Legende öffnet die Werte dieser Stelle',
+  testWidgets('Der Verweis in der Legende öffnet die Werte dieser Stelle',
       (tester) async {
     final (backend, _) = loggedInBackend();
     await pumpApp(tester, backend,
@@ -62,7 +62,12 @@ void main() {
 
     // Die Legende zeigt den Laubfaktor …
     expect(find.textContaining('Laubfaktor'), findsOneWidget);
-    await tester.tap(find.textContaining('Laubfaktor'));
+
+    // … und ihre Fußzeile führt weiter. **Bis 1.131.0 war der Weg ein
+    // Tipp auf die WERTE selbst** — nirgends stand das, man musste ihn
+    // zufällig treffen. Ein Verweis, den man sieht, ist mehr wert als
+    // eine Trefferfläche, die man errät.
+    await tester.tap(find.text('Was ist hier? →'));
     await settle(tester);
 
     // … und das Blatt die volle Auskunft zu genau diesem Punkt.
@@ -94,7 +99,7 @@ void main() {
           ], west: 5.8, north: 55.1, lonStep: 10, latStep: 10)),
     ]);
     await showLegend(tester);
-    await tester.tap(find.textContaining('Laubfaktor'));
+    await tester.tap(find.text('Was ist hier? →'));
     await settle(tester);
 
     expect(find.text('Was ist hier?'), findsOneWidget);

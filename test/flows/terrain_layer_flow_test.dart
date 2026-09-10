@@ -219,7 +219,7 @@ void main() {
         .runAsync(() => container.read(elevationContoursProvider.future));
     await settle(tester);
 
-    expect(find.textContaining('Höhenlinien alle 50 m'), findsOneWidget);
+    expect(find.textContaining('Linien alle 50 m'), findsOneWidget);
   });
 
   testWidgets('der Schalter überlebt den Neustart (#349)', (tester) async {
