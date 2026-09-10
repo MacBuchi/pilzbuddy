@@ -118,11 +118,50 @@ class WriteRejectedException implements Exception {
 /// [AuthException.statusCode]: Ohne Antwort gibt es keinen. Ein Ausfall
 /// der Datenbank behält damit seinen Weg nach draußen — genau die Grenze,
 /// die der Absatz darüber zieht.
+///
+/// **Seit 1.135.0 gilt das für 5xx mit EINER Ausnahme: 504.** Siehe
+/// [looksLikeGatewayTimeout] — die Grenze ist damit enger gezogen, nicht
+/// aufgehoben.
 bool looksOffline(Object error) =>
     error is SocketException ||
     error is TimeoutException ||
     error is http.ClientException ||
-    (error is AuthRetryableFetchException && error.statusCode == null);
+    (error is AuthRetryableFetchException && error.statusCode == null) ||
+    looksLikeGatewayTimeout(error);
+
+/// Hat die Gegenstelle innerhalb der Frist gar nicht geantwortet?
+///
+/// **Warum 504 die eine 5xx-Ausnahme ist.** Der Absatz über
+/// [looksOffline] hält fest, dass ein Ausfall der Datenbank sichtbar
+/// bleiben muss (#80) — und das gilt weiter für 500, 502 und 503: Dort
+/// hat der Server GEANTWORTET, und die Antwort ist kaputt. Ein 504 ist
+/// das Gegenteil: keine Antwort innerhalb der Frist. Das ist dieselbe
+/// Lage wie eine [TimeoutException], die eine Zeile höher längst als
+/// fehlender Empfang zählt; der einzige Unterschied ist, wem die Geduld
+/// ausging — unserem Client oder dem Gateway davor.
+///
+/// **Was daran hängt, und es ist nicht der Wochendigest.** Der Digest
+/// gruppiert, die 15 Fälle aus KW37 sind dort EINE Zeile. Der Schaden
+/// liegt beim Schreiben: `_queueIfOffline` (`spot_providers.dart`) fragt
+/// [looksOffline], bevor ein Auftrag in den Ausgangskorb wandert. Ohne
+/// diesen Fall verliert eine Nutzerin ihren Fund, weil Supabase eine
+/// halbe Minute lang hakte — obwohl der Wiederholversuch dank
+/// `client_id` (Patch 016) idempotent wäre. Dasselbe beim Lesen: Der
+/// Zwischenspeicher springt nur bei [looksOffline] ein.
+///
+/// Geprüft wird der CODE als Zeichenkette — beide Pakete führen ihn so
+/// (`AuthException.statusCode`, `PostgrestException.code` sind
+/// `String?`), und `'42501'` steht seit #190 genauso da. Wie bei
+/// [looksLikeMailRateLimit] bewusst ENG: dieser eine Code, kein „5xx
+/// allgemein".
+///
+/// **Der Preis ist bekannt und angenommen** (Betreiber, 2026-09-10): Ein
+/// echter Supabase-Ausfall, der sich als 504 zeigt, steht danach nicht
+/// mehr im Wochendigest. Sichtbar bleibt er im Supabase-Dashboard und
+/// daran, dass die App auf Zwischenspeicher und Korb umschaltet.
+bool looksLikeGatewayTimeout(Object error) =>
+    (error is AuthException && error.statusCode == '504') ||
+    (error is PostgrestException && error.code == '504');
 
 /// Hat GoTrue den Mailversand abgelehnt, weil zu schnell wieder gefragt
 /// wurde?
@@ -158,6 +197,14 @@ bool looksLikeMailRateLimit(Object error) =>
 /// „… Internet verfügbar?": Netzwerk, Server und Unerwartetes werden
 /// unterschieden, damit Problemberichte diagnostizierbar sind.
 String friendlyError(Object error) {
+  // **Vor [looksOffline], obwohl es ein Sonderfall davon ist.** Sonst
+  // stünde bei einem 504 „bitte Internet prüfen" — und das schickt
+  // jemanden an die Stelle, an der nichts kaputt ist. Sein Netz trägt
+  // ja, sonst hätte er die 504 nie bekommen. Issue #59 in klein.
+  if (looksLikeGatewayTimeout(error)) {
+    return 'Der Server hat zu lange gebraucht — bitte später erneut '
+        'versuchen.';
+  }
   if (looksOffline(error)) {
     return 'Keine Verbindung — bitte Internet prüfen.';
   }

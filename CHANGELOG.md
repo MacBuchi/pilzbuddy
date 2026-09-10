@@ -7,6 +7,25 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Ein hakender Server kostet keinen Fund mehr
+
+*10. September 2026 · Version 1.135.0*
+
+Trägst du einen Fund ein und der Server antwortet nicht rechtzeitig, wandert
+er ab sofort in den **Ausgangskorb** — genau wie im Funkloch — und geht los,
+sobald es wieder geht. Bisher gab es an dieser Stelle eine Fehlermeldung,
+und der Eintrag war weg. Im Wald ist das der teure Fall: Man steht vor der
+Fundstelle, hat alles eingetippt, und die App wirft es fort, weil eine
+halbe Minute lang niemand geantwortet hat.
+
+Dazu die passende Meldung: „Der Server hat zu lange gebraucht" statt „bitte
+Internet prüfen". Wer diese Antwort überhaupt bekommt, hat ja eine
+Verbindung — ihn ins eigene Netz zu schicken, war die falsche Fährte.
+
+Unverändert bleibt, was der Server **beantwortet** hat: Lehnt er etwas ab,
+siehst du das weiterhin sofort. Ein Fehler, der still im Korb verschwindet,
+wäre schlimmer als einer, den man liest.
+
 ## Klarere Erklärtexte — und ein Weg, der wirklich schlängelt
 
 *10. September 2026 · Version 1.134.0*

@@ -59,6 +59,40 @@ void main() {
     await drainSnackbars(tester);
   });
 
+  testWidgets('ein Gateway-Timeout zählt wie fehlender Empfang',
+      (tester) async {
+    // **Der Fall aus dem Wochendigest KW37.** Supabase antwortet nicht
+    // rechtzeitig, das Netz des Geräts trägt aber — bis 1.134.0 fiel der
+    // Fund damit durch: `_queueIfOffline` fragt `looksOffline`, und ein
+    // 504 war das nicht. Im Wald heißt das: Fund weg, Fehlermeldung da.
+    //
+    // Der Wiederholversuch ist ungefährlich, weil die `client_id`
+    // (Patch 016) ihn idempotent macht — genau deshalb darf der Korb
+    // diesen Fall übernehmen.
+    final (backend, _) = loggedInBackend();
+    final outbox = FakeOutbox();
+    await pumpApp(tester, backend, outbox: outbox);
+    backend.gatewayTimeout = true;
+
+    await addSpotAtCrosshair(tester, species: 'Pfifferling');
+
+    expect(outbox.jobs, hasLength(1));
+    expect((outbox.jobs.single as NewSpotJob).finds.single.species,
+        'Pfifferling');
+    expect(backend.spots, isEmpty);
+    expect(find.textContaining('1 Eintrag wartet auf Verbindung'),
+        findsOneWidget);
+    await drainSnackbars(tester);
+
+    // Und er geht raus, sobald der Server wieder antwortet.
+    backend.gatewayTimeout = false;
+    await tester.tap(find.textContaining('1 Eintrag wartet auf Verbindung'));
+    await settle(tester);
+    expect(outbox.jobs, isEmpty);
+    expect(backend.spots, hasLength(1));
+    await drainSnackbars(tester);
+  });
+
   testWidgets('mit Verbindung geht der Korb raus und verschwindet',
       (tester) async {
     final (backend, _) = loggedInBackend();
