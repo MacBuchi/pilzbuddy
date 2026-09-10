@@ -79,9 +79,12 @@ class _TripSheet extends ConsumerWidget {
             // und mal „Pilztour beenden" — man musste aus dem Befehl
             // erschließen, was gerade läuft.
             title: 'Pilztour',
+            // Derselbe Satz wie in Tour und Kurzanleitung (#434). Er
+            // stand hier in einer dritten Fassung — drei Erklärungen
+            // desselben Knopfs, die auseinanderlaufen können.
             subtitle: tour == null
-                ? 'Zeichnet deinen Weg auf und schlägt hinterher die '
-                    'Leergänge vor'
+                ? 'Zeichnet deinen Weg auf und fragt am Ende, wo du '
+                    'gesucht und nichts gefunden hast'
                 : 'Seit ${_time.format(tour.startedAt.toLocal())} Uhr · '
                     '${tour.points.length} Punkte',
             value: tour != null,

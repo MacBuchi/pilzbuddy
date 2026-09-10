@@ -65,16 +65,17 @@ class HelpScreen extends ConsumerWidget {
         title: 'Was die Karte zeigt',
         text: 'Hinter „Ebenen" liegen Waldtypen, Höhenlinien, Regen und die '
             'Pilzampel. Die kleine Zahl am Knopf sagt, wie viele gerade an '
-            'sind; welche das sind, steht links unten. Mit „Filter" '
-            'blendest du Spots nach Art oder Zeit aus.',
+            'sind; was ihre Farben bedeuten, steht links unten in der '
+            'Legende — ein Tipp klappt sie ein und wieder aus. Mit '
+            '„Filter" blendest du Spots nach Art oder Zeit aus.',
       ),
       _Step(
         icon: TourIcon(size: 24),
         title: 'Unterwegs',
-        text: 'Die Pilztour zeichnet deinen Weg auf und schlägt dir am Ende '
-            'vor, an welchen Spots du „nichts gefunden" buchst. Daneben '
-            'kannst du deinen Standort für ein paar Stunden mit Buddies '
-            'teilen.',
+        text: 'Die Pilztour zeichnet deinen Weg auf. Beendest du sie, fragt '
+            'sie dich, wo du gesucht und nichts gefunden hast — auch das '
+            'gehört zur Geschichte eines Spots. Im selben Blatt teilst du '
+            'deinen Standort für ein paar Stunden mit Buddies.',
       ),
       _Step(
         icon: Icon(Icons.group_outlined, color: AppColors.forestGreen),
