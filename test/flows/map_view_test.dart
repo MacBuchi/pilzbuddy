@@ -32,6 +32,33 @@ void main() {
     expect(find.byType(Scalebar), findsOneWidget);
   });
 
+  testWidgets('Maßstab und Quellenhinweis liegen unten LINKS — und in '
+      'dieser Reihenfolge', (tester) async {
+    // Der Hinweis stand bis hierher unten rechts und damit unter „Neuer
+    // Spot". Ein Rechtstext unter einem Knopf ist kein Rechtstext: Die
+    // ODbL verlangt ihn sichtbar, und sichtbar war er nur, solange
+    // niemand die Hauptaktion der Karte ansah.
+    //
+    // **Die Reihenfolge trägt die Zusage.** Die Breite des Maßstabs
+    // hängt am Maßstab — er sucht sich eine runde Entfernung und wird
+    // dafür mal 60, mal 120 Pixel breit. Stünde er außen, bräuchte der
+    // Hinweis daneben einen geratenen Abstand, und der ist bei
+    // irgendeinem Zoom falsch. Deshalb steht das ⓘ auf seiner festen
+    // Breite ganz links und der Maßstab wächst von einem festen Anfang
+    // nach rechts, wo nichts liegt. Wer das dreht, baut die Kollision
+    // ein, die man erst bei einem bestimmten Zoom sieht.
+    await pumpApp(tester, loggedInBackend(), useRealMap: true);
+
+    final attribution = tester
+        .widget<RichAttributionWidget>(find.byType(RichAttributionWidget));
+    expect(attribution.alignment, AttributionAlignment.bottomLeft);
+
+    final scalebar = tester.widget<Scalebar>(find.byType(Scalebar));
+    expect(scalebar.alignment, Alignment.bottomLeft);
+    expect(scalebar.padding.left, greaterThan(34),
+        reason: 'der Maßstab beginnt rechts vom ⓘ, nicht darauf');
+  });
+
   testWidgets('Die Karte verwirft nicht-endliche Kamerazustände',
       (tester) async {
     // Ein NaN-Kamerazustand aus einem Gesten-Grenzfall lässt den

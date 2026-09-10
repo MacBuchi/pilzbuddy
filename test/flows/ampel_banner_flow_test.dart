@@ -135,7 +135,7 @@ void main() {
         reason: 'der Riegel hat nicht gegriffen — der Nachlauf rechnet, '
             'statt sofort leer zu antworten');
     expect(state.value, isEmpty);
-    expect(find.textContaining('stünde die Ampel günstig'), findsNothing);
+    expect(find.textContaining('Ampel stünde günstig'), findsNothing);
     expect(loads, 0, reason: 'kein Gitter, solange ein Riegel steht');
   }
 
@@ -170,7 +170,7 @@ void main() {
       ],
     );
 
-    expect(find.textContaining('stünde die Ampel günstig'), findsNothing,
+    expect(find.textContaining('Ampel stünde günstig'), findsNothing,
         reason: 'ohne Schalter kein Banner');
 
     await enableAndSettle(tester);
@@ -179,7 +179,11 @@ void main() {
     // „geh jetzt". Das Modell ist unvalidiert (die Arten-Kontrolle der
     // Rückwärtsprüfung ist durchgefallen), es hat sich keine
     // Aufforderung verdient.
-    expect(find.textContaining('An Buchenhang stünde die Ampel günstig'),
+    //
+    // Seit der Chip-Zeile steht der Vorbehalt in einem EIGENEN Text
+    // neben dem Namen — nicht aus Layoutlaune, sondern damit die Ellipse
+    // bei langen Spotnamen den Namen frisst und nicht ihn.
+    expect(find.textContaining('Buchenhang · Ampel stünde günstig'),
         findsOneWidget);
     expect(find.textContaining('experimentell'), findsWidgets);
   });
@@ -300,7 +304,7 @@ void main() {
       ],
     );
     await enableAndSettle(tester);
-    expect(find.textContaining('stünde die Ampel günstig'), findsOneWidget);
+    expect(find.textContaining('Ampel stünde günstig'), findsOneWidget);
 
     // Das X im selben Banner — über die nächste Material-Hülle gesucht,
     // weil auch andere Banner ein Kreuz tragen (Muster aus
@@ -308,7 +312,7 @@ void main() {
     final close = find.descendant(
       of: find
           .ancestor(
-              of: find.textContaining('stünde die Ampel günstig'),
+              of: find.textContaining('Ampel stünde günstig'),
               matching: find.byType(Material))
           .first,
       matching: find.byIcon(Icons.close),
@@ -316,7 +320,7 @@ void main() {
     await tester.tap(close);
     await settle(tester);
 
-    expect(find.textContaining('stünde die Ampel günstig'), findsNothing);
+    expect(find.textContaining('Ampel stünde günstig'), findsNothing);
 
     // **Und der Neustart nimmt die Stummschaltung zurück** (#425). Bis
     // 1.128.0 lag hier ein Zeitpunkt bis Mitternacht in den
@@ -387,7 +391,7 @@ void main() {
     expect(camera(tester).center, isNot(const LatLng(spotLat, spotLng)),
         reason: 'sonst prüfte der Test einen Sprung, der schon geschehen ist');
 
-    await tester.tap(find.textContaining('stünde die Ampel günstig'));
+    await tester.tap(find.textContaining('Ampel stünde günstig'));
     await settle(tester);
 
     // Der Filter steht — und er STEHT SICHTBAR. Ein von der App selbst
@@ -427,10 +431,10 @@ void main() {
         species: 'Marone');
     await pumpReady(tester, backend);
 
-    expect(find.textContaining('An 2 Spots stünde die Ampel günstig'),
+    expect(find.textContaining('2 Spots · Ampel stünde günstig'),
         findsOneWidget);
 
-    await tester.tap(find.textContaining('stünde die Ampel günstig'));
+    await tester.tap(find.textContaining('Ampel stünde günstig'));
     await settle(tester);
 
     expect(find.textContaining('Gefiltert: Ampel günstig'), findsOneWidget);
@@ -465,7 +469,7 @@ void main() {
         name: 'Fichtenschonung',
         species: 'Marone');
     await pumpReady(tester, backend);
-    expect(find.textContaining('An 2 Spots stünde die Ampel günstig'),
+    expect(find.textContaining('2 Spots · Ampel stünde günstig'),
         findsOneWidget,
         reason: 'beide Spots müssen Treffer sein, sonst prüft der Test '
             'den Filter statt der Kamera');
@@ -475,7 +479,7 @@ void main() {
     await simulateCameraIdle(tester);
     final start = camera(tester).zoom;
 
-    await tester.tap(find.textContaining('stünde die Ampel günstig'));
+    await tester.tap(find.textContaining('Ampel stünde günstig'));
     await settle(tester);
     final afterFirst = camera(tester).zoom;
     expect(afterFirst, isNot(closeTo(start, 0.5)),
@@ -486,7 +490,7 @@ void main() {
     // Gerät passiert das von selbst.
     await simulateCameraIdle(tester);
 
-    await tester.tap(find.textContaining('stünde die Ampel günstig'));
+    await tester.tap(find.textContaining('Ampel stünde günstig'));
     await settle(tester);
 
     // Derselbe Filter, dieselben Spots, dieselbe Kamera: Der zweite
@@ -515,17 +519,62 @@ void main() {
         name: 'Schwarzwald',
         species: 'Marone');
     await pumpReady(tester, backend);
-    expect(find.textContaining('An Buchenhang stünde die Ampel günstig'),
+    expect(find.textContaining('Buchenhang · Ampel stünde günstig'),
         findsOneWidget,
         reason: 'genau ein Treffer — sonst prüft der Test nichts');
 
     await simulateCameraIdle(tester);
-    await tester.tap(find.textContaining('stünde die Ampel günstig'));
+    await tester.tap(find.textContaining('Ampel stünde günstig'));
     await settle(tester);
 
     // Auf dem Treffer, nicht auf der Mitte zwischen Treffer und
     // Schwarzwald (49,5 / 9,5).
     expect(camera(tester).center.latitude, closeTo(spotLat, 0.001));
     expect(camera(tester).center.longitude, closeTo(spotLng, 0.001));
+  });
+
+  testWidgets('Der Vorbehalt steht neben dem Namen, nicht in ihm',
+      (tester) async {
+    // Die Zusage: Bei einem langen Spotnamen frisst die Ellipse den
+    // NAMEN, nie „(experimentell)". In einem einzigen Text ginge das
+    // nicht — dort schneidet die Ellipse immer hinten ab, und hinten
+    // steht die Einschränkung. Der Entwurf schlug „(exp.)" vor; das
+    // kürzt den Vorbehalt, während die Behauptung ungekürzt bleibt.
+    final (backend, _) = loggedInWithSpot(
+        name: 'Der lange Buchenhang hinter dem alten Forsthaus am Bach');
+    await pumpApp(
+      tester,
+      backend,
+      settings:
+          FakeSettings(ampelPreviewEnabled: true, rainCourseEnabled: true),
+      extraOverrides: [
+        rainStackLoaderProvider.overrideWithValue(() async => stackOf()),
+        weatherTableLoaderProvider
+            .overrideWithValue(() async => weatherBytes()),
+        elevationLoaderProvider.overrideWithValue(() async => flatGrid()),
+      ],
+    );
+    await enableAndSettle(tester);
+
+    // Zwei getrennte Texte, und der Vorbehalt ist NICHT im schrumpfenden
+    // Teil. Genau das ist der Unterschied zu einer einzigen Zeichenkette.
+    final hedge = find.text(' (experimentell)');
+    expect(hedge, findsOneWidget,
+        reason: 'ein eigener Text — in einer gemeinsamen Zeichenkette '
+            'gäbe es ihn hier gar nicht zu finden');
+
+    // Der Name schrumpft, der Vorbehalt nicht: Die Ellipse hängt am
+    // Namen, und nur an ihm.
+    final name = find.textContaining('Ampel stünde günstig');
+    expect(tester.widget<Text>(name).overflow, TextOverflow.ellipsis);
+    expect(tester.widget<Text>(hedge).overflow, isNot(TextOverflow.ellipsis));
+
+    // Und er steht wirklich auf dem Schirm — nicht bloß im Baum —,
+    // obwohl der Name die Zeile längst sprengt. Gemessen gegen die
+    // Breite der ECHTEN Hülle, nicht gegen eine geratene Zahl.
+    final shellWidth = tester.getSize(find.byType(Scaffold).first).width;
+    expect(tester.getSize(hedge).width, greaterThan(0));
+    expect(tester.getBottomRight(hedge).dx, lessThanOrEqualTo(shellWidth),
+        reason: 'der Vorbehalt darf nicht aus dem Schirm geschoben werden');
   });
 }
