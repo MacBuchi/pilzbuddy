@@ -200,6 +200,15 @@ class FakeBackend {
   /// durchgehen (Lehre aus #80).
   bool rejectWrites = false;
 
+  /// Das Gateway antwortet nicht rechtzeitig (504).
+  ///
+  /// Der DRITTE Fall neben [offline] und [rejectWrites], und er liegt
+  /// genau dazwischen: Der Server hat nichts gesagt, also ist es kein
+  /// Defekt, den man verstecken würde — aber es ist auch kein Funkloch,
+  /// das Netz des Geräts trägt ja. Für die App zählt seit 1.135.0 die
+  /// erste Hälfte: behandelt wie fehlender Empfang.
+  bool gatewayTimeout = false;
+
   /// Kennungen (Patch 016) der Funde, die schon geschrieben wurden —
   /// spiegelt `finds_author_client_id_key`. Das Modell `Find` trägt sie
   /// nicht: Die App liest die Spalte nie zurück.
@@ -756,6 +765,10 @@ class FakeSpotRepository implements SpotRepository {
     String? clientId,
   }) async {
     if (backend.offline) throw const SocketException('kein Netz (Fake)');
+    if (backend.gatewayTimeout) {
+      throw const PostgrestException(
+          message: '', code: '504', details: 'Gateway Timeout');
+    }
     if (backend.rejectWrites) {
       throw const PostgrestException(
           message: 'new row violates row-level security policy',
@@ -821,6 +834,10 @@ class FakeSpotRepository implements SpotRepository {
   }) async {
     if (finds.isEmpty) return;
     if (backend.offline) throw const SocketException('kein Netz (Fake)');
+    if (backend.gatewayTimeout) {
+      throw const PostgrestException(
+          message: '', code: '504', details: 'Gateway Timeout');
+    }
     // Spiegel des with check von finds_author_all (Patch 014): Schreiben
     // darf, wer den Spot besitzt ODER ihn über die volle Freigabe-
     // Beziehung sieht. Alles andere beantwortet die echte RLS mit 42501.

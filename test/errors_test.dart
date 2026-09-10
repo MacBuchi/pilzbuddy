@@ -51,6 +51,64 @@ void main() {
     });
   });
 
+  group('Gateway-Timeout (504)', () {
+    // Der Wochendigest KW37: 18 von 19 Berichten waren 504er — 15 aus
+    // „Passwort-Reset anfordern" (Googles Prüf-Robots klicken den
+    // Login-Screen durch), dazu Freundes-Standorte und ein Neuladen der
+    // Spots. Keiner davon ist ein Defekt der App.
+    final authTimeout =
+        AuthRetryableFetchException(message: '', statusCode: '504');
+    const restTimeout = PostgrestException(
+        message: '', code: '504', details: 'Gateway Timeout');
+
+    test('zählt als fehlender Empfang — aus beiden Paketen', () {
+      // Daran hängt der Ausgangskorb: `_queueIfOffline` fragt genau das,
+      // bevor ein Fund liegen bleibt statt verloren zu gehen.
+      expect(looksOffline(authTimeout), isTrue);
+      expect(looksOffline(restTimeout), isTrue);
+    });
+
+    test('aber nicht gemeldet — der Digest ist für Defekte da', () {
+      expect(worthReporting(authTimeout), isFalse);
+      expect(worthReporting(restTimeout), isFalse);
+    });
+
+    test('die Meldung schickt niemanden ins eigene Netz', () {
+      // „bitte Internet prüfen" wäre hier die falsche Fährte: Wer eine
+      // 504 bekommt, hat sehr wohl eine Verbindung.
+      expect(friendlyError(authTimeout), isNot(contains('Internet')));
+      expect(friendlyError(restTimeout), isNot(contains('Internet')));
+      expect(friendlyError(restTimeout), contains('zu lange'));
+    });
+
+    test('die anderen 5xx behalten ihren Weg nach draußen (#80)', () {
+      // **Die tragende Zeile dieser Gruppe.** 500, 502 und 503 heißen:
+      // Der Server hat geantwortet, und die Antwort ist kaputt. Genau
+      // dafür ist die Grenze da — ein kaputtes Deployment darf sich
+      // nicht hinter einer alten Kopie und einem stillen Korb
+      // verstecken.
+      for (final code in ['500', '502', '503']) {
+        final rest = PostgrestException(message: '', code: code);
+        expect(looksOffline(rest), isFalse, reason: '$code gilt als offline');
+        expect(worthReporting(rest), isTrue, reason: '$code wird verschwiegen');
+        expect(friendlyError(rest), contains(code));
+
+        final auth = AuthRetryableFetchException(message: '', statusCode: code);
+        expect(looksOffline(auth), isFalse, reason: '$code gilt als offline');
+        expect(worthReporting(auth), isTrue, reason: '$code wird verschwiegen');
+      }
+    });
+
+    test('ohne Antwort bleibt es der alte Netzfehler-Weg', () {
+      // `statusCode == null` heißt: Es kam gar keine HTTP-Antwort. Der
+      // Fall stand schon vorher in `looksOffline` und behält seine
+      // Meldung.
+      final noAnswer = AuthRetryableFetchException(message: '');
+      expect(looksOffline(noAnswer), isTrue);
+      expect(friendlyError(noAnswer), contains('Keine Verbindung'));
+    });
+  });
+
   group('loginErrorMessage', () {
     test('typisierter Code invalid_credentials', () {
       expect(
