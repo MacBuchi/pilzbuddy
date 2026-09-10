@@ -12,31 +12,43 @@ void main() {
   testWidgets('Vorschau', (tester) async {
     const dir = String.fromEnvironment('PILZ_PREVIEW_DIR');
     if (dir.isEmpty) return;
-    await tester.binding.setSurfaceSize(const Size(420, 130));
+    await tester.binding.setSurfaceSize(const Size(560, 260));
     await tester.pumpWidget(MaterialApp(
       home: ColoredBox(
         color: const Color(0xFFEFEFEF),
         child: Center(
           child: RepaintBoundary(
-            child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              for (final s in [18.0, 24.0, 36.0, 64.0, 96.0])
-                IconTheme(
-                  data: const IconThemeData(color: Color(0xFF2E2E2E)),
-                  child: TourIcon(size: s),
+              // Drei Symbole, jedes in den Größen, die wirklich
+              // vorkommen: 24 dp am Knopf, 44 dp im Blatt.
+              for (final build in <Widget Function(double)>[
+                (s) => TourIcon(size: s),
+                (s) => MushroomBasketIcon(size: s),
+                (s) => SharePinIcon(size: s),
+              ])
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    for (final s in [18.0, 24.0, 44.0, 64.0])
+                      IconTheme(
+                        data: const IconThemeData(color: Color(0xFF2E7D32)),
+                        child: build(s),
+                      ),
+                    // Und einmal weiß auf Grün — der Zustand „läuft".
+                    ColoredBox(
+                      color: const Color(0xFF2E7D32),
+                      child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: IconTheme(
+                          data: const IconThemeData(color: Colors.white),
+                          child: build(24),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              // Und einmal weiß auf Grün — der Zustand „Tour läuft".
-              const ColoredBox(
-                color: Color(0xFF2E7D32),
-                child: Padding(
-                  padding: EdgeInsets.all(8),
-                  child: IconTheme(
-                    data: IconThemeData(color: Colors.white),
-                    child: TourIcon(size: 24),
-                  ),
-                ),
-              ),
             ],
             ),
           ),

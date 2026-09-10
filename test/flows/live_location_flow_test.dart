@@ -70,7 +70,7 @@ void main() {
     expect(
         find.textContaining('Du teilst deinen Standort bis'), findsOneWidget);
 
-    await tapTripRow(tester, 'Standort-Teilen verwalten');
+    await tapTripRow(tester, 'Standort mit Buddies teilen');
     await tester.tap(find.text('Teilen beenden'));
     await settle(tester);
 

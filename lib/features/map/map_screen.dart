@@ -974,110 +974,106 @@ class _MapScreenState extends ConsumerState<MapScreen>
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              // **Fünf Knöpfe statt zehn** (#347). Die Spalte war mit zehn
-              // 604 px hoch auf einem 915-px-Schirm und steckte seit
-              // 1.98.0 in dem `FittedBox` hier drüber — jeder neue Knopf
-              // machte die anderen kleiner. Der Ausweg war kein weiterer
-              // Kompromiss, sondern ein Ordnungsprinzip:
+              // **Vier Werkzeuge in EINER Leiste statt vier
+              // freistehender Kreise.**
               //
-              // Fünf der zehn waren gar keine Schalter, sondern TÜREN ZU
-              // BLÄTTERN (Waldtypen, Höhenlinien, Regen, Filter, Standort
-              // teilen). Sie kosteten längst zwei Tipps, eine gemeinsame
-              // Tür davor kostet also keinen dazu. Und den Zustand, den
-              // die eingefärbten Knöpfe trugen, nennt die Legende links
-              // unten ohnehin — mit Farbskala und ab Werk an.
+              // Die Spalte war mit zehn Knöpfen 604 px hoch auf einem
+              // 915-px-Schirm; #347 hat sie auf fünf geräumt, indem
+              // fünf davon TÜREN ZU BLÄTTERN waren und eine gemeinsame
+              // Tür davor keinen Tipp dazu kostet. Was blieb, war die
+              // Farbe: vier grüne Flächen über der Karte, und die
+              // fünfte — „Neuer Spot", die einzige echte Hauptaktion —
+              // sah aus wie sie.
               //
-              // Verworfen: Speed-Dial (drei Tipps statt zwei, deckt beim
-              // Ausklappen die Karte zu), bloßes Kategorisieren (macht die
-              // Spalte höher), Knöpfe nach Kontext ausblenden (wer sucht,
-              // weiß nicht, dass etwas absichtlich fehlt) und zwei Spalten
-              // (verdoppelt die verdeckte Kartenbreite — die Karte ist das
-              // Produkt).
-              FloatingActionButton.small(
-                key: _tourAnchors.layers,
-                heroTag: 'layers',
-                onPressed: _openLayers,
-                // **Nicht „Karte"**: So heißt schon der Reiter unten
-                // (`router.dart`). Zwei Dinge desselben Namens auf einem
-                // Schirm sind für die Nutzerin so mehrdeutig wie für den
-                // Test, der sie sucht — genau daran ist der erste Entwurf
-                // aufgefallen.
-                //
-                // Der Tooltip bleibt fest, die Zahl steht im Badge: Ein
-                // Tooltip, dessen Text sich ändert, ist als Suchziel und
-                // als Beschriftung gleich schlecht.
-                tooltip: 'Ebenen',
-                child: Badge(
-                  isLabelVisible: activeLayers > 0,
-                  label: Text('$activeLayers'),
-                  backgroundColor: AppColors.warmBrown,
-                  child: Icon(
-                      activeLayers > 0 ? Icons.layers : Icons.layers_outlined),
-                ),
+              // Jetzt trägt die Leiste die Werkzeuge und das Grün die
+              // Hauptaktion. Der Zustand, den die Einfärbung trug
+              // (Filter aktiv, Standort wird geteilt), steckt seither
+              // im SYMBOL: gefüllt statt Umriss, in der Farbe der
+              // Sache. Das ist kein Verlust, sondern die genauere
+              // Aussage — eine grüne Fläche sagt „wichtig", ein
+              // gefülltes Symbol sagt „an".
+              //
+              // Die Trefferfläche bleibt bei 44 px je Knopf. Sie ist
+              // die eine Zahl, an der hier nicht gespart wird: Die App
+              // wird im Gehen bedient, mit kalten Fingern.
+              _ToolBar(
+                children: [
+                  _Tool(
+                    key: _tourAnchors.layers,
+                    // **Nicht „Karte"**: So heißt schon der Reiter unten
+                    // (`router.dart`). Zwei Dinge desselben Namens auf
+                    // einem Schirm sind für die Nutzerin so mehrdeutig
+                    // wie für den Test, der sie sucht.
+                    //
+                    // Der Tooltip bleibt fest, die Zahl steht im Badge:
+                    // Ein Tooltip, dessen Text sich ändert, ist als
+                    // Suchziel und als Beschriftung gleich schlecht.
+                    tooltip: 'Ebenen',
+                    onPressed: _openLayers,
+                    child: Badge(
+                      isLabelVisible: activeLayers > 0,
+                      label: Text('$activeLayers'),
+                      backgroundColor: AppColors.warmBrown,
+                      child: Icon(activeLayers > 0
+                          ? Icons.layers
+                          : Icons.layers_outlined),
+                    ),
+                  ),
+                  _Tool(
+                    key: _tourAnchors.filter,
+                    tooltip: 'Karte filtern',
+                    onPressed: () => showSpotFilterSheet(context,
+                        onFit: _fitAction(ref, mapWidthPixels)),
+                    // Gefüllt heißt an — was vorher der grüne
+                    // Knopfhintergrund sagte.
+                    child: Icon(
+                      filter.isActive
+                          ? Icons.filter_alt
+                          : Icons.filter_alt_outlined,
+                      color: filter.isActive ? AppColors.forestGreen : null,
+                    ),
+                  ),
+                  // Unterwegs: Pilztour und Standort-Teilen. Beide
+                  // beantworten dieselbe Frage („ich bin draußen"),
+                  // beide laufen weiter, wenn das Telefon in der Tasche
+                  // steckt.
+                  _Tool(
+                    key: _tourAnchors.trip,
+                    tooltip: 'Unterwegs',
+                    onPressed: _openTrip,
+                    child: IconTheme(
+                      data: IconThemeData(
+                          color: isSharing
+                              ? AppColors.friendBlue
+                              : IconTheme.of(context).color),
+                      child: const TourIcon(),
+                    ),
+                  ),
+                  _Tool(
+                    key: _tourAnchors.locate,
+                    tooltip: 'Meine Position',
+                    onPressed: _centerOnMe,
+                    child: const Icon(Icons.my_location),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              // Der Filter bleibt eigenständig: Er entscheidet über die
-              // SPOTS, nicht über die Ebenen, und er ist der am häufigsten
-              // benutzte der Blatt-Knöpfe.
-              FloatingActionButton.small(
-                key: _tourAnchors.filter,
-                heroTag: 'filter',
-                onPressed: () => showSpotFilterSheet(context,
-                    onFit: _fitAction(ref, mapWidthPixels)),
-                tooltip: 'Karte filtern',
-                backgroundColor: filter.isActive ? AppColors.forestGreen : null,
-                foregroundColor: filter.isActive ? Colors.white : null,
-                child: Icon(filter.isActive
-                    ? Icons.filter_alt
-                    : Icons.filter_alt_outlined),
-              ),
-              const SizedBox(height: 12),
-              // Unterwegs: Pilztour und Standort-Teilen. Beide beantworten
-              // dieselbe Frage („ich bin draußen"), beide laufen weiter,
-              // wenn das Telefon in der Tasche steckt.
+              // **Die laufende Tour ist eine Pille, kein zweiter
+              // Kreis.** Sie sagt beides in einem Element: DASS eine
+              // läuft und wie lange schon — und sie ist zugleich der
+              // Ausgang.
               //
-              // Blau bei aktivem Teilen — GRÜN bleibt dem Stopp-Knopf
-              // darunter vorbehalten, sonst stünden zwei grüne Knöpfe
-              // untereinander und keiner wäre die Aussage.
-              FloatingActionButton.small(
-                key: _tourAnchors.trip,
-                heroTag: 'trip',
-                onPressed: _openTrip,
-                tooltip: 'Unterwegs',
-                backgroundColor: isSharing ? AppColors.friendBlue : null,
-                foregroundColor: isSharing ? Colors.white : null,
-                child: const TourIcon(),
-              ),
-              // Läuft eine Tour, steht ihr Ausgang ZUSÄTZLICH in der
-              // Spalte — nicht anstelle des Knopfs darüber.
-              //
-              // Der erste Entwurf machte „Unterwegs" bei laufender Tour
-              // selbst zum Stopp-Knopf. Damit wäre das Standort-Teilen
-              // während einer Tour unerreichbar gewesen, und ein
-              // verstecktes Lang-Drücken ist keine Antwort darauf. Ein
-              // Knopf mehr in genau dem Modus, in dem man den Ausgang
-              // griffbereit haben will, ist der ehrlichere Tausch: fünf
-              // Knöpfe normal, sechs während einer Tour.
+              // Der Ausgang steht weiterhin ZUSÄTZLICH da und nicht
+              // anstelle von „Unterwegs": Sonst wäre das Standort-
+              // Teilen während einer Tour unerreichbar, und ein
+              // verstecktes Lang-Drücken ist keine Antwort darauf.
               if (tour != null) ...[
-                const SizedBox(height: 12),
-                FloatingActionButton.small(
-                  heroTag: 'tour-stop',
+                const SizedBox(height: 10),
+                _TourPill(
+                  startedAt: tour.startedAt,
                   onPressed: _toggleTour,
-                  tooltip: 'Pilztour beenden',
-                  backgroundColor: AppColors.forestGreen,
-                  foregroundColor: Colors.white,
-                  child: const Icon(Icons.stop),
                 ),
               ],
-              const SizedBox(height: 12),
-              FloatingActionButton.small(
-                key: _tourAnchors.locate,
-                heroTag: 'locate',
-                onPressed: _centerOnMe,
-                tooltip: 'Meine Position',
-                child: const Icon(Icons.my_location),
-              ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               FloatingActionButton.extended(
                 key: _tourAnchors.add,
                 heroTag: 'add',
@@ -1091,7 +1087,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
               // Perfetto-Läufe (Stufe 7) messen im PROFILE-Build, dort
               // muss der Knopf da sein; nur das Release bleibt sauber.
               if (!kReleaseMode) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 CameraTourButton(controller: _map),
               ],
             ],
@@ -1100,6 +1096,176 @@ class _MapScreenState extends ConsumerState<MapScreen>
       ),
         MapTourOverlay(anchors: _tourAnchors),
       ],
+    );
+  }
+}
+
+/// Die Werkzeugleiste: eine weiße Fläche mit Haarlinien statt vier
+/// freistehender Kreise.
+///
+/// **Warum eine Fläche.** Vier grüne Kreise über der Karte waren vier
+/// Farbflächen, und die fünfte — „Neuer Spot" — sah aus wie sie. Die
+/// Hauptaktion war damit von den Werkzeugen nicht zu unterscheiden. Ein
+/// gemeinsamer, ruhiger Träger räumt beides: Die Karte bekommt Fläche
+/// zurück, und Grün bedeutet wieder genau eine Sache.
+///
+/// **Die Haarlinien sind nicht Zierde.** Ohne sie ist die Leiste ein
+/// weißer Block, in dem vier Symbole schweben, und niemand sieht, wo ein
+/// Knopf aufhört. Sie sind die einzige Angabe über die Trefferflächen.
+class _ToolBar extends StatelessWidget {
+  const _ToolBar({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.97),
+      elevation: 3,
+      borderRadius: BorderRadius.circular(14),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final (index, child) in children.indexed) ...[
+            if (index > 0)
+              Container(
+                width: 28,
+                height: 1,
+                color: Theme.of(context).dividerColor.withValues(alpha: 0.5),
+              ),
+            child,
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Ein Werkzeug in der Leiste.
+///
+/// **44 × 44 ist die eine Zahl, an der nicht gespart wird.** Sie ist die
+/// Trefferfläche, die die alten `FloatingActionButton.small` hatten
+/// (40 px plus Abstand), und die App wird im Gehen bedient — mit kalten
+/// Fingern und ohne hinzusehen. Wer die Leiste je enger macht, spart an
+/// der falschen Stelle.
+class _Tool extends StatelessWidget {
+  const _Tool({
+    super.key,
+    required this.tooltip,
+    required this.onPressed,
+    required this.child,
+  });
+
+  final String tooltip;
+  final VoidCallback onPressed;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onPressed,
+        child: SizedBox.square(
+          dimension: 44,
+          child: IconTheme(
+            data: IconThemeData(
+                color: Theme.of(context).colorScheme.primary, size: 22),
+            child: Center(child: child),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Die Laufzeit einer Tour als Wort — „7 min", „1:24 h".
+///
+/// **Unter einer Stunde Minuten, darüber Stunden.** Ein durchgehendes
+/// „0:07 h" läse sich wie eine kaputte Uhr, und Sekunden braucht hier
+/// niemand: Wer wissen will, wie lange er schon geht, rechnet nicht in
+/// Sekunden.
+///
+/// Freie Funktion und nicht Methode des Widgets, damit die Rechnung
+/// ohne Bildaufbau prüfbar bleibt — dieselbe Naht wie bei
+/// `rainMarkerFraction`.
+String elapsedTourLabel(Duration since) {
+  final hours = since.inHours;
+  final minutes = since.inMinutes.remainder(60);
+  return hours == 0
+      ? '$minutes min'
+      : '$hours:${minutes.toString().padLeft(2, '0')} h';
+}
+
+/// Die laufende Pilztour: Zustand und Ausgang in einem Element.
+///
+/// **Warum mit Laufzeit.** Ein Stopp-Knopf sagt nur, DASS etwas läuft.
+/// Die Frage, die man beim Blick auf die Karte wirklich hat, ist „seit
+/// wann" — und die Antwort steht sonst nirgends, ohne dass man das Blatt
+/// öffnet.
+///
+/// **Warum ein eigener Ticker.** Die Laufzeit ist die einzige Anzeige
+/// der App, die sich ohne Zutun ändert. Ein `Timer.periodic` auf die
+/// MINUTE, nicht auf die Sekunde: Eine Sekundenanzeige kostete 60-mal so
+/// viele Bildaufbauten für eine Genauigkeit, die niemand braucht — und
+/// die Karte ist das teuerste Widget der App.
+class _TourPill extends StatefulWidget {
+  const _TourPill({required this.startedAt, required this.onPressed});
+
+  final DateTime startedAt;
+  final VoidCallback onPressed;
+
+  @override
+  State<_TourPill> createState() => _TourPillState();
+}
+
+class _TourPillState extends State<_TourPill> {
+  Timer? _tick;
+
+  @override
+  void initState() {
+    super.initState();
+    _tick = Timer.periodic(
+        const Duration(minutes: 1), (_) => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _tick?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final since = DateTime.now().difference(widget.startedAt);
+    return Material(
+      color: AppColors.forestGreen,
+      borderRadius: BorderRadius.circular(20),
+      elevation: 3,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: widget.onPressed,
+        child: Tooltip(
+          message: 'Pilztour beenden',
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: SizedBox(
+              height: 40,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.stop, size: 18, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Text('Tour · ${elapsedTourLabel(since)}',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.white, fontWeight: FontWeight.w500)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

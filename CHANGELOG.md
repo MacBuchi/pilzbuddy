@@ -7,6 +7,38 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Ruhigere Karte: eine Knopfleiste statt vier grüner Kreise
+
+*10. September 2026 · Version 1.133.0*
+
+Rechts unten standen fünf grüne Knöpfe untereinander — vier Werkzeuge und
+„Neuer Spot". Weil alle fünf gleich aussahen, war die eigentliche
+Hauptaktion von den Werkzeugen nicht zu unterscheiden.
+
+**Die vier Werkzeuge sitzen jetzt in einer hellen Leiste**: Ebenen,
+Filter, Unterwegs, Meine Position. Grün gibt es nur noch einmal, nämlich
+für „Neuer Spot". Die Trefferflächen sind gleich groß geblieben — daran
+wird nicht gespart, die App wird im Gehen bedient.
+
+Was die farbigen Knöpfe vorher sagten, sagt jetzt das Symbol: Ein
+ausgefülltes Filtersymbol heißt „Filter aktiv", ein blaues
+Unterwegs-Symbol heißt „du teilst gerade deinen Standort".
+
+**Die laufende Pilztour zeigt ihre Laufzeit.** Statt eines zweiten grünen
+Knopfes steht dort jetzt „Tour · 1:24 h" — und ein Tipp darauf beendet
+sie wie vorher. Unter einer Stunde zählt sie in Minuten.
+
+**Das Unterwegs-Blatt hat Schalter.** Pilztour und Standort-Teilen sind
+Dauerzustände, keine Befehle — man sieht jetzt auf einen Blick, was
+gerade läuft, statt es aus der Beschriftung („starten" oder „beenden")
+erschließen zu müssen.
+
+**Neue Symbole.** Der Knopf auf der Karte steht für beides, also trägt er
+einen gepunkteten Weg mit einem Pilz daneben. Im Blatt bekommt jede Zeile
+ihr eigenes: das Körbchen für die Pilztour, einen gestrichelten Standort-
+Pin fürs Teilen — gestrichelt, weil es bis zu einer Uhrzeit läuft und
+dann von selbst aufhört.
+
 ## Die Legende klappt ein, statt zu verschwinden
 
 *10. September 2026 · Version 1.132.0*
