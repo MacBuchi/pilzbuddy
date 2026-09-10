@@ -93,11 +93,26 @@ const kMapTourSteps = <MapTourStep>[
         'weggeschoben, holt dich dieser Knopf zurück.',
     anchors: _locateAnchors,
   ),
+  // **Die Legende wird hier genannt und bekommt KEINEN eigenen Schritt**
+  // (aus #436, Nebensatz „das kann dann natürlich auch in der Tour
+  // erklärt werden").
+  //
+  // Der Grund ist die Vorgabe: Alle vier Ebenen stehen ab Werk AUS, und
+  // die Tour läuft beim ersten Start. In genau dem Augenblick gibt es
+  // die Legende gar nicht — `MapLegend` liefert ohne aktive Ebene
+  // `SizedBox.shrink()`. Ein eigener Schritt zeigte also auf leere
+  // Fläche, und ein Schritt, der sich bei fehlender Legende überspringt,
+  // wäre für neue Nutzer schlicht nie da.
+  //
+  // Hier steht der Satz dagegen dort, wo man die erste Ebene
+  // einschaltet — und wird damit in der Sekunde wahr, in der man ihn
+  // brauchen kann.
   MapTourStep(
     title: 'Was die Karte zeigt',
     text: 'Hinter „Ebenen" liegen Waldtypen, Höhenlinien, Regen und die '
         'Pilzampel. Die kleine Zahl am Knopf sagt, wie viele gerade an '
-        'sind.',
+        'sind. Was ihre Farben bedeuten, steht links unten in der '
+        'Legende — ein Tipp klappt sie ein und wieder aus.',
     anchors: _layersAnchors,
   ),
   MapTourStep(
@@ -114,9 +129,16 @@ const kMapTourSteps = <MapTourStep>[
   // hinaufzuspringen.
   MapTourStep(
     title: 'Unterwegs',
-    text: 'Die Pilztour zeichnet deinen Weg auf und schlägt dir am Ende '
-        'vor, wo du „nichts gefunden" buchst. Daneben teilst du deinen '
-        'Standort für ein paar Stunden mit Buddies.',
+    // **Warum der Satz neu ist** (#434, „liest sich komisch", und die
+    // Meldung hatte recht): „schlägt dir vor, wo du nichts gefunden
+    // buchst" schachtelt zwei Sätze ineinander und benutzt für etwas,
+    // das man im Wald tut, ein Wort aus der Buchhaltung. Vor allem aber
+    // sagte er nie, WOZU — und ohne das Wozu klingt es nach Arbeit, die
+    // die App einem aufträgt.
+    text: 'Die Pilztour zeichnet deinen Weg auf. Am Ende fragt sie dich, '
+        'wo du gesucht und nichts gefunden hast — auch das gehört zur '
+        'Geschichte eines Spots. Hier startest du auch das '
+        'Standort-Teilen.',
     anchors: _tripAnchors,
   ),
 ];

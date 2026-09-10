@@ -7,6 +7,28 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Verständlichere Erklärtexte zur Pilztour
+
+*10. September 2026 · Version 1.133.1*
+
+Die Beschreibung der Pilztour las sich umständlich: „schlägt dir am Ende
+vor, an welchen Spots du ‚nichts gefunden' buchst". Zwei Sätze
+ineinandergeschachtelt, und „buchen" ist ein Wort aus der Buchhaltung für
+etwas, das man im Wald tut.
+
+Neu heißt es: **„Die Pilztour zeichnet deinen Weg auf. Am Ende fragt sie
+dich, wo du gesucht und nichts gefunden hast — auch das gehört zur
+Geschichte eines Spots."** Damit steht auch endlich dabei, wozu das gut
+ist.
+
+Der Satz stand an drei Stellen in drei Fassungen — in der Erklär-Tour, in
+der Kurzanleitung und im Unterwegs-Blatt. Jetzt sagen alle drei dasselbe.
+
+Außerdem **nennt die Tour jetzt die Legende**: „Was ihre Farben bedeuten,
+steht links unten in der Legende — ein Tipp klappt sie ein und wieder
+aus." Das stand bisher nur in der Kurzanleitung, und das Ein- und
+Ausklappen nirgends.
+
 ## Ruhigere Karte: eine Knopfleiste statt vier grüner Kreise
 
 *10. September 2026 · Version 1.133.0*
