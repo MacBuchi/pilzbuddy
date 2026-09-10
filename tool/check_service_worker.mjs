@@ -88,6 +88,98 @@ function chromeBinary() {
   return found;
 }
 
+// Was Chrome nebenbei erzählt.
+//
+// **Warum das hier steht.** Bis dahin verschluckte [waitFor] jede
+// Ausnahme („Während einer Navigation antwortet die Seite kurz nicht"),
+// und ein Fehlschlag hinterließ genau eine Zeile: „Zeitlimit: die App
+// rendert OHNE Server". Damit sehen zwei völlig verschiedene Lagen
+// identisch aus — eine startnotwendige Datei fehlt im Cache, oder die
+// Umgebung hing. Ohne Unterschied bleibt nur, den Lauf zu wiederholen,
+// bis er grün ist, und dann prüft der Check nichts mehr.
+//
+// Gesammelt wird fortlaufend und ausgegeben NUR im Fehlerfall — ein
+// grüner Lauf soll so knapp bleiben, wie er ist.
+const trace = {console: [], exceptions: [], failed: [], urls: new Map()};
+
+/// Mehr als das braucht niemand, und ein Lauf soll nicht am Mitschreiben
+/// volllaufen.
+const TRACE_MAX = 300;
+
+function remember(list, text) {
+  list.push({at: Date.now(), text});
+  if (list.length > TRACE_MAX) list.shift();
+}
+
+function watchEvents(ws) {
+  ws.addEventListener('message', (event) => {
+    const message = JSON.parse(event.data);
+    switch (message.method) {
+      case 'Runtime.consoleAPICalled': {
+        const text = (message.params.args ?? [])
+            .map((arg) => arg.value ?? arg.description ?? arg.type)
+            .join(' ');
+        remember(trace.console, `${message.params.type}: ${text}`);
+        break;
+      }
+      case 'Runtime.exceptionThrown': {
+        const details = message.params.exceptionDetails;
+        remember(trace.exceptions,
+            details.exception?.description ?? details.text);
+        break;
+      }
+      // Die Zuordnung id → URL kommt aus der Anfrage; `loadingFailed`
+      // trägt nur die id.
+      case 'Network.requestWillBeSent':
+        trace.urls.set(message.params.requestId, message.params.request.url);
+        if (trace.urls.size > TRACE_MAX * 4) {
+          trace.urls.delete(trace.urls.keys().next().value);
+        }
+        break;
+      case 'Network.loadingFailed': {
+        const where = trace.urls.get(message.params.requestId) ??
+            `(Anfrage ${message.params.requestId})`;
+        remember(trace.failed, `${where} — ${message.params.errorText}`);
+        break;
+      }
+    }
+  });
+}
+
+/// Alles, was seit [mark] hereinkam — als fertiger Textblock.
+function traceSince(mark, lastError) {
+  const block = (title, list, limit = 15) => {
+    const lines = list.filter((e) => e.at >= mark).map((e) => e.text);
+    return lines.length
+        ? `--- ${title} (${lines.length}) ---\n  ${lines.slice(-limit).join('\n  ')}\n`
+        : `--- ${title}: nichts ---\n`;
+  };
+  return block('fehlgeschlagene Anfragen', trace.failed) +
+      block('Ausnahmen der Seite', trace.exceptions) +
+      block('Konsole', trace.console) +
+      (lastError ? `--- zuletzt beim Auswerten: ${lastError.message}\n` : '');
+}
+
+/// Was wirklich im Cache liegt — die andere Hälfte der Antwort auf
+/// „warum startet sie nicht".
+async function cacheReport(send) {
+  try {
+    const cached = await evaluate(send, `(async () => {
+      const out = {};
+      for (const name of await caches.keys()) {
+        out[name] = (await (await caches.open(name)).keys()).map((r) => r.url);
+      }
+      return out;
+    })()`);
+    return Object.entries(cached)
+        .map(([name, urls]) =>
+            `--- im Cache „${name}" (${urls.length}) ---\n  ${urls.join('\n  ')}\n`)
+        .join('') || '--- Cache: leer ---\n';
+  } catch (error) {
+    return `--- Cache nicht lesbar: ${error.message}\n`;
+  }
+}
+
 function rpc(ws) {
   let id = 0;
   const pending = new Map();
@@ -116,16 +208,23 @@ async function evaluate(send, expression) {
 }
 
 async function waitFor(send, expression, what, timeoutMs = 60000) {
-  const deadline = Date.now() + timeoutMs;
+  const mark = Date.now();
+  const deadline = mark + timeoutMs;
+  // Während einer Navigation antwortet die Seite kurz nicht — deshalb
+  // bricht eine Ausnahme das Warten weiterhin NICHT ab. Sie wird nur
+  // nicht mehr weggeworfen: Steht am Ende ein Zeitlimit, ist die letzte
+  // von ihnen oft schon die halbe Antwort.
+  let lastError = null;
   while (Date.now() < deadline) {
     try {
       if (await evaluate(send, expression)) return;
-    } catch (_) {
-      // Während einer Navigation antwortet die Seite kurz nicht.
+      lastError = null;
+    } catch (error) {
+      lastError = error;
     }
     await sleep(300);
   }
-  throw new Error(`Zeitlimit: ${what}`);
+  throw new Error(`Zeitlimit: ${what}\n${traceSince(mark, lastError)}`);
 }
 
 const ok = [];
@@ -184,8 +283,12 @@ try {
   ws = new WebSocket(targets.find((t) => t.type === 'page').webSocketDebuggerUrl);
   await new Promise((r) => ws.addEventListener('open', r));
   const send = rpc(ws);
+  watchEvents(ws);
   await send('Page.enable');
   await send('Runtime.enable');
+  // Nur fürs Protokoll: Ohne die Anfragen fehlt beim Zeitlimit genau
+  // die Zeile, auf die es ankommt — WELCHE Datei nicht kam.
+  await send('Network.enable');
 
   const APP = "!!document.querySelector('flutter-view, flt-glass-pane')";
 
@@ -295,7 +398,15 @@ try {
   check(reallyDown, 'der Webserver ist wirklich aus');
 
   await send('Page.navigate', {url});
-  await waitFor(send, APP, 'die App rendert OHNE Server');
+  try {
+    await waitFor(send, APP, 'die App rendert OHNE Server');
+  } catch (error) {
+    // Hier und nur hier lohnt der Cache-Auszug: Die Navigation selbst
+    // gelingt immer (der Worker reicht die Hülle heraus), scheitern
+    // können nur die Unterressourcen — und dann ist die Frage genau
+    // „welche Datei fehlt", nicht „ob".
+    throw new Error(`${error.message}${await cacheReport(send)}`);
+  }
   check(true, 'die App startet ohne Server');
 
   // 3 — die Notbremse. Eine, die man nie gezogen hat, zählt nicht.
