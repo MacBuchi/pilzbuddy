@@ -104,6 +104,7 @@ so in der Erklärung.
 | Live-Standort teilen | Koordinate, Ablaufzeit | Art. 6 (1) a | Supabase | selbst gewählte Dauer |
 | Konto-Mails | E-Mail-Adresse | Art. 6 (1) b | Brevo | Versand |
 | Benachrichtigungen | Gerätekennung (Token) | Art. 6 (1) a | Google (FCM) | bis zum Ausschalten |
+| Vorhersage prüfen | Fund/Leergang mit Ort und Datum | Art. 6 (1) f | Supabase | bis zur Löschung |
 | Fehlerdiagnose | Fehlertext, Stack, Version, Plattform | Art. 6 (1) f | Supabase | 90 Tage |
 | Feedback | Text, Benutzername | Art. 6 (1) a | GitHub, öffentlich | dauerhaft |
 

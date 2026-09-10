@@ -72,9 +72,10 @@ class MapTourStep {
 const kMapTourSteps = <MapTourStep>[
   MapTourStep(
     title: 'So entsteht ein Spot',
-    text: 'Das Fadenkreuz in der Mitte zeigt, wo gespeichert wird — nicht '
+    text: 'Das Fadenkreuz in der Mitte zeigt, wo der Spot entsteht — nicht '
         'dein Standort. Schieb die Karte fein, bis es genau auf deiner '
-        'Stelle liegt, und tipp auf „Neuer Spot".',
+        'Stelle liegt, und tipp auf „Neuer Spot"; im Blatt lässt sich die '
+        'Stelle noch verschieben.',
     // Zwei Löcher: Dass diese beiden zusammengehören, IST die Hürde des
     // ersten Starts. Getrennt gezeigt bliebe sie genau so bestehen.
     //
@@ -82,6 +83,12 @@ const kMapTourSteps = <MapTourStep>[
     // bei der eigenen Position, es geht also nur noch um den letzten
     // Meter. Ohne die zwei Wörter widerspräche der Satz dem Schritt, der
     // direkt darauf folgt.
+    //
+    // **Der Nachsatz ist seit 1.134.0 nötig, nicht schmückend.** Bis
+    // dahin stand hier „zeigt, wo gespeichert wird" — seit #407 stimmt
+    // das nicht mehr: Gespeichert wird, was im Blatt steht, und dort
+    // lässt sich die Stelle noch schieben oder auf den eigenen Standort
+    // legen. Das Fadenkreuz ist die Vorbelegung, nicht das letzte Wort.
     anchors: _spotAnchors,
   ),
   // Direkt danach, weil er die Kehrseite desselben Gedankens ist: Schritt

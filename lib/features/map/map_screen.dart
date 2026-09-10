@@ -564,22 +564,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
   /// Ab drei Arten steht die Zahl statt der Namen: Die Zeile teilt sich den
   /// Platz mit den übrigen Bannern, und fünf ausgeschriebene Artnamen
   /// machen daraus einen Absatz.
-  String _filterLabel(SpotFilter filter) {
-    final names = filter.species.toList()..sort();
-    final parts = [
-      if (names.length == 1) 'nur ${names.single}',
-      if (names.length == 2) 'nur ${names.join(', ')}',
-      if (names.length > 2) '${names.length} Arten',
-      if (filter.onlyMine) 'nur meine',
-      // Muss hier stehen, nicht nur im Blatt: Der Chip ist das einzige
-      // Zeichen auf der Karte, dass etwas versteckt wird — und diesen
-      // Filter setzt die App beim Banner-Tipp SELBST (#399). Ein
-      // ungenannter, selbst gesetzter Filter wäre genau der Fall, vor dem
-      // #154 warnt.
-      if (filter.onlyAmpel) 'Ampel günstig',
-    ];
-    return '🔍 Gefiltert: ${parts.join(', ')}';
-  }
+  /// Die Aufzählung kommt aus dem Filter selbst (`describe()`), nicht
+  /// von hier: Sie ist dieselbe Liste, aus der `isActive` folgt — sonst
+  /// kann ein Schalter aktiv sein und trotzdem ungenannt bleiben.
+  String _filterLabel(SpotFilter filter) =>
+      '🔍 Gefiltert: ${filter.describe().join(', ')}';
 
   /// Rückt die gerade gezeigten Spots ins Bild (#399).
   ///

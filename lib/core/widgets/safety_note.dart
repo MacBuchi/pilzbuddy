@@ -12,11 +12,24 @@ import '../app_colors.dart';
 /// Der Wortlaut ist bewusst nüchtern und nennt den einen Fall, der zählt
 /// — essen. „Vorsicht bei der Bestimmung" wäre ein Ratschlag; das hier
 /// ist eine Auskunft darüber, was die App NICHT tut.
+///
+/// **Die erste Hälfte sagt seit 1.134.0, was die App SEHR WOHL tut**
+/// (Betreiber: „vielleicht irgendwie so mit reinbringen"). „Die App
+/// merkt sich, wo du etwas gefunden hast" verkaufte sie unter Wert —
+/// gemerkt hätte es auch ein Notizzettel. Der Kontrast trägt den Satz
+/// trotzdem weiter: erst was sie kann, dann der Gedankenstrich, dann
+/// die Grenze.
+///
+/// **„lohnen KÖNNTE", nicht „lohnt".** Die Ampel sagt an jeder anderen
+/// Stelle der App „stünde günstig (experimentell)", weil die
+/// Rückwärtsvalidierung bei der Arten-Kontrolle durchgefallen ist.
+/// Ausgerechnet im Haftungshinweis fester zu formulieren als im Banner
+/// wäre die falsche Stelle für Zuversicht.
 const kSafetyNote =
-    'PilzBuddy bestimmt keine Pilze. Die App merkt sich, wo du etwas '
-    'gefunden hast — sie sagt nicht, was es ist und ob es essbar ist. '
-    'Was in deinem Korb landet, entscheidest du; im Zweifel hilft eine '
-    'Pilzberatung.';
+    'PilzBuddy bestimmt keine Pilze. Die App verwaltet deine Fundstellen '
+    'und schätzt, wo es sich gerade lohnen könnte — sie sagt dir nicht, '
+    'was es ist und ob es essbar ist. Was in deinem Korb landet, '
+    'entscheidest du; im Zweifel hilft eine Pilzberatung.';
 
 /// Die Zeile für dauerhafte Orte (Kurzanleitung).
 ///
