@@ -46,10 +46,19 @@ Future<void> toggleLayer(WidgetTester tester, String layer) async {
 }
 
 /// Das Ebenen-Blatt wieder schließen.
-Future<void> closeMapLayers(WidgetTester tester) async {
-  Navigator.of(tester.element(find.text('Ebenen'))).pop();
+Future<void> closeMapLayers(WidgetTester tester) => closeSheet(tester, 'Ebenen');
+
+/// Ein Blatt über seine Überschrift wieder schließen.
+Future<void> closeSheet(WidgetTester tester, String title) async {
+  Navigator.of(tester.element(find.text(title))).pop();
   await settle(tester);
 }
+
+/// Ein Zeitraum-Chip in der Regen-Zeile des Ebenen-Blatts.
+///
+/// Seit dem Entwirren steht der Zeitraum in der Zeile selbst — vorher
+/// waren es fünf Radiozeilen im Regen-Blatt, also ein Blatt tiefer.
+Finder rainChip(String label) => find.widgetWithText(ChoiceChip, label);
 
 /// Der Schalter in der Zeile einer Ebene.
 Finder layerSwitch(String layer) =>

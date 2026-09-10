@@ -338,4 +338,84 @@ void main() {
     expect(find.textContaining('weniger als 10 mm'), findsOneWidget,
         reason: 'ohne Farbe heißt „wenig", nicht „keine Daten"');
   });
+
+  // ── Das entwirrte Ebenen-Blatt ───────────────────────────────────
+
+  testWidgets('Der Zeitraum wechselt in der Zeile, ohne Unterblatt',
+      (tester) async {
+    // Der Kern des Entwirrens: Bis hierher lagen fünf Radiozeilen ein
+    // Blatt tiefer, und der Weg dorthin ging über einen Pfeil, der
+    // eigentlich für Darstellung und Quelle da ist. Der Zeitraum ist
+    // aber das, was man wechselt — nicht das, was man nachliest.
+    await pumpApp(tester, loggedIn());
+    final container = containerOf(tester);
+    expect(container.read(rainLayerProvider), RainLayer.off);
+
+    await openMapLayers(tester);
+    await tester.tap(rainChip('24 h'));
+    await settle(tester);
+    expect(container.read(rainLayerProvider), RainLayer.last24h,
+        reason: 'ein Chip schaltet die Ebene an und setzt den Zeitraum');
+
+    await tester.tap(rainChip('Jetzt'));
+    await settle(tester);
+    expect(container.read(rainLayerProvider), RainLayer.now);
+  });
+
+  testWidgets('Der Schalter kommt auf denselben Zeitraum zurück',
+      (tester) async {
+    // Der alte Einwand gegen einen Schalter war: „Er müsste sich einen
+    // zuletzt benutzten Modus ausdenken, den niemand bestellt hat."
+    // Das trifft einen Schalter OHNE die Chip-Zeile — mit ihr steht die
+    // Wahl sichtbar daneben, und „an" beantwortet keine zweite Frage.
+    await pumpApp(tester, loggedIn());
+    final container = containerOf(tester);
+
+    await openMapLayers(tester);
+    await tester.tap(rainChip('24 h'));
+    await settle(tester);
+    expect(container.read(rainLayerProvider), RainLayer.last24h);
+
+    await tester.tap(layerSwitch('Regen'));
+    await settle(tester);
+    expect(container.read(rainLayerProvider), RainLayer.off);
+
+    await tester.tap(layerSwitch('Regen'));
+    await settle(tester);
+    expect(container.read(rainLayerProvider), RainLayer.last24h,
+        reason: 'aus und wieder an landet dort, wo man war — nicht auf '
+            'einer Vorgabe, die man nie gewählt hat');
+  });
+
+  testWidgets('Ohne Ebene ist kein Chip ausgewählt', (tester) async {
+    // Ein hervorgehobener Chip über einer ausgeschalteten Ebene
+    // behauptete, es läge etwas auf der Karte.
+    await pumpApp(tester, loggedIn());
+    await openMapLayers(tester);
+    await tester.tap(rainChip('30 Tage'));
+    await settle(tester);
+    expect(tester.widget<ChoiceChip>(rainChip('30 Tage')).selected, isTrue);
+
+    await tester.tap(layerSwitch('Regen'));
+    await settle(tester);
+    for (final label in ['Jetzt', '+1 h', '24 h', '30 Tage']) {
+      expect(tester.widget<ChoiceChip>(rainChip(label)).selected, isFalse,
+          reason: '$label darf ausgeschaltet nicht ausgewählt aussehen');
+    }
+  });
+
+  testWidgets('„Aktualisieren" ist keine Ebenen-Zeile mehr', (tester) async {
+    // Es ist ein Befehl, keine Ebene: sofort ausgeführt, nichts
+    // hinterlassen, kein Zustand zum Umlegen. Als sechste Listenzeile
+    // las es sich wie etwas, das man anschalten kann.
+    await pumpApp(tester, loggedIn());
+    await openMapLayers(tester);
+    expect(find.text('Karte aktualisieren'), findsNothing);
+    expect(find.widgetWithText(TextButton, 'Aktualisieren'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(TextButton, 'Aktualisieren'));
+    await settle(tester);
+    expect(find.text('Karte aktualisiert'), findsOneWidget,
+        reason: 'der Knopf tut, was die Zeile tat');
+  });
 }

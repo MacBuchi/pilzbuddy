@@ -113,6 +113,21 @@ extension RainLayerInfo on RainLayer {
         RainLayer.last30d => 'Letzte 30 Tage',
       };
 
+  /// Dieselbe Aussage in Chip-Breite — für die Zeitraum-Zeile im
+  /// Ebenen-Blatt, wo vier Auswahlen nebeneinander stehen müssen.
+  ///
+  /// Bewusst ein zweiter Text und keine Abkürzungsregel auf [label]:
+  /// „Letzte 24 Stunden" auf „24 h" zu kürzen ginge automatisch, „In
+  /// einer Stunde" auf „+1 h" nicht — dort kehrt sich die Blickrichtung
+  /// um (zurück ⇄ voraus), und genau das trägt das Pluszeichen.
+  String get shortLabel => switch (this) {
+        RainLayer.off => 'Aus',
+        RainLayer.now => 'Jetzt',
+        RainLayer.inOneHour => '+1 h',
+        RainLayer.last24h => '24 h',
+        RainLayer.last30d => '30 Tage',
+      };
+
   String get description => switch (this) {
         RainLayer.off => 'Karte ohne Regen',
         RainLayer.now => 'Radar, alle fünf Minuten neu',
@@ -236,17 +251,41 @@ double _mercatorY(double lat) =>
 /// Eigener Notifier statt `RememberedFlag`, weil hier keine Wahrheit
 /// zwischen zwei Werten liegt, sondern zwischen fünf.
 class RainLayerNotifier extends Notifier<RainLayer> {
+  /// Der zuletzt gewählte Zeitraum — das, was [toggle] wieder anschaltet.
+  ///
+  /// Er lebt nur im Speicher und wird bewusst NICHT abgelegt: Was
+  /// gespeichert wird, ist die Ebene selbst, und `off` löscht den
+  /// Schlüssel (siehe [set]). Ein zweiter Schlüssel „was war vorher an"
+  /// überlebte den Neustart und beantwortete danach eine Frage, die
+  /// niemand mehr im Kopf hat — nach dem Start ist die Vorgabe wieder
+  /// die 30 Tage.
+  ///
+  /// 30 Tage als Vorgabe, weil das die Größe ist, an der man sieht, ob
+  /// der Boden durchfeuchtet ist (siehe [RainLayer.description]).
+  RainLayer _lastChoice = RainLayer.last30d;
+
   @override
   RainLayer build() {
     final name = ref.read(settingsProvider).rainLayerName;
     // Ein unbekannter Name fällt auf „aus" zurück: Wer einen Enum-Wert
     // umbenennt, soll die Karte nicht mit einer Ausnahme begrüßen.
-    return RainLayer.values
+    final layer = RainLayer.values
         .firstWhere((l) => l.name == name, orElse: () => RainLayer.off);
+    if (layer != RainLayer.off) _lastChoice = layer;
+    return layer;
   }
+
+  /// An/Aus für den Schalter im Ebenen-Blatt.
+  ///
+  /// Der Schalter ist erst seit der Zeitraum-Zeile vertretbar: Solange
+  /// die vier Chips daneben stehen, denkt sich „an" keinen unsichtbaren
+  /// Modus aus — die Wahl steht in derselben Zeile.
+  void toggle() =>
+      set(state == RainLayer.off ? _lastChoice : RainLayer.off);
 
   void set(RainLayer value) {
     state = value;
+    if (value != RainLayer.off) _lastChoice = value;
     unawaited(ref
         .read(settingsProvider)
         // `off` löscht den Schlüssel, statt „off" hineinzuschreiben: So

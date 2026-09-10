@@ -41,6 +41,7 @@ import 'live_share_providers.dart';
 import 'resume_refresh.dart';
 import 'forest_data_providers.dart';
 import 'map_focus.dart';
+import 'widgets/ampel_layer_sheet.dart';
 import 'widgets/map_layers_sheet.dart';
 import 'widgets/map_trip_sheet.dart';
 import 'map_gestures.dart';
@@ -316,6 +317,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
         await showTerrainLayerSheet(context);
       case MapLayerDetail.rain:
         await showRainLayerSheet(context);
+      case MapLayerDetail.ampel:
+        await showAmpelLayerSheet(context);
       case MapLayerDetail.refresh:
         _refreshData();
         _showMessage('Karte aktualisiert');
