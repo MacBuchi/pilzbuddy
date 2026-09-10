@@ -68,6 +68,8 @@ schreibt genau das in seinen Erklärtext: gilt für fleischige, vor allem
 > bis eine Gegenprobe mit nachweislich anderem Fenster einen Unterschied
 > zeigt. Ein Kandidat steht schon da: Der Austernseitling verhält sich
 > genau so, wie dieser Absatz es vorhersagt — das ist eine Art, nicht drei.
+>
+> **Nachtrag 2026-09-11:** Genau diese Gegenprobe ist jetzt als Prüfplan ausgeschrieben — `docs/pilzampel-artenfenster.md`. Die Literaturrecherche dazu hat kein Artenfenster geliefert, aber die Falle benannt, in die man dabei tritt: Fast alle publizierten „Temperaturoptima" sind Myzel-Wachstumsoptima aus dem Labor (24–28 °C) und zeigen beim Austernseitling sogar in die Gegenrichtung — 25 °C wachsen, ~15 °C fruchten.
 
 ### Die belastbarsten Zahlen stammen aus einem deutschen Buchenwald
 
