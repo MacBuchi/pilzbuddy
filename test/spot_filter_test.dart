@@ -397,4 +397,38 @@ void main() {
     });
   });
 
+  group('Was der Chip auf der Karte aufzählt', () {
+    // **Aktiv und trotzdem stumm — das war die Lücke.** Der Test direkt
+    // hierüber gab es schon, und er war grün: `isActive` kannte den
+    // Saison-Schalter. Die Aufzählung für den Chip war eine ZWEITE Liste
+    // im Karten-Screen, und in der stand er nicht. Beides zählt jetzt
+    // dieselbe Liste ab (`describe()`), deshalb kann der Fall nicht
+    // wiederkommen — aber dass jeder Schalter sich auch NENNT, prüft
+    // keine Ableitung, sondern nur dieser Test.
+    test('jeder einzelne Schalter nennt sich', () {
+      const einzeln = <String, SpotFilter>{
+        'Art': SpotFilter(species: {'Pfifferling'}),
+        'Nur meine': SpotFilter(onlyMine: true),
+        'Ampel': SpotFilter(onlyAmpel: true),
+        'Saison': SpotFilter(onlySeason: true),
+      };
+      for (final entry in einzeln.entries) {
+        expect(entry.value.describe(), isNotEmpty,
+            reason: '„${entry.key}" versteckt Spots, ohne sich zu nennen');
+      }
+    });
+
+    test('mehrere Schalter zählen sich alle auf', () {
+      // Die Reihenfolge ist die des Blatts, damit Chip und Blatt sich
+      // gleich lesen.
+      expect(
+          const SpotFilter(onlyMine: true, onlyAmpel: true, onlySeason: true)
+              .describe(),
+          ['nur meine', 'Ampel günstig', 'jetzt Saison']);
+    });
+
+    test('ohne Filter bleibt die Aufzählung leer', () {
+      expect(const SpotFilter().describe(), isEmpty);
+    });
+  });
 }

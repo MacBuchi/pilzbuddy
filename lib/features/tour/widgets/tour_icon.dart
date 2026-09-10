@@ -41,26 +41,39 @@ class TourIcon extends StatelessWidget {
   Widget build(BuildContext context) => _Painted(size: size, painter: _tour);
 
   static void _tour(Canvas canvas, double u, Paint fill, Paint stroke) {
-    // **Drei gesetzte Punkte statt eines abgetasteten Pfades.** Der
-    // erste Anlauf lief `PathMetric` über eine Kurve und setzte alle
-    // 3,7 Einheiten einen Punkt — auf dem Kontaktbogen bei 24 dp (der
-    // ECHTEN Knopfgröße) war das Ergebnis nicht als Weg zu erkennen,
-    // sondern als Schmutz neben dem Pilz: Die Punkte waren zu klein,
-    // standen zu dicht und liefen in den Hut hinein.
+    // **Fünf gesetzte Punkte auf einem S, nicht drei auf einer Geraden.**
+    // Bis 1.133.x standen hier drei Punkte, und der Betreiber hat den
+    // Befund geliefert: „die Punkte, die den Weg markieren sollten, sind
+    // in einer Linie und nicht geschlängelt". Stimmte — die drei lagen
+    // 13° voneinander entfernt, das ist eine Gerade.
     //
-    // Gesetzte Punkte lösen beides. Sie stehen weit genug auseinander,
-    // um bei 24 dp einzeln zu bleiben, und ihr ABSTAND ist gewollt und
-    // nicht das Ergebnis einer Kurvenlänge. Dass sie nach hinten
-    // kleiner werden, ist die ganze Perspektive, die es braucht — sie
-    // gibt dem Weg eine Richtung, ohne einen Pfeil zu brauchen.
+    // **Warum drei Punkte prinzipiell nicht schlängeln können.** Ein
+    // Kreis trägt keine Richtung; die Krümmung entsteht erst aus dem
+    // Zug DURCH die Mittelpunkte, und mit drei Punkten gibt es genau
+    // einen Knick. Für ein S braucht es zwei — also mindestens vier,
+    // besser fünf. Am Kontaktbogen nachgesehen: mit vier weit
+    // auseinanderstehenden Punkten zerfällt das S bei 24 dp in
+    // Streusel, weil man die Reihenfolge verliert. Erst als KETTE mit
+    // Lücken unter einer Einheit verbindet das Auge sie wieder.
     //
-    // Die Diagonale ist die zweite Hälfte: Punkte unten links, Pilz
-    // oben rechts. Ohne sie berührte der oberste Punkt den Hutrand, und
+    // Die Zahlen dahinter, damit der nächste sie nicht neu misst: Eine
+    // Kette hat die Weglänge der Durchmessersumme (~14,5 Einheiten).
+    // Der Schlängel lebt vom Überschuss dieser Länge über den direkten
+    // Abstand — deshalb steigt der Weg nur bis y≈10 und nicht bis zum
+    // Rand: Höher hieße Länge in Steigung stecken, und der Schwung
+    // wäre wieder weg.
+    //
+    // Dass die Punkte nach hinten kleiner werden, ist die ganze
+    // Perspektive, die es braucht — sie gibt dem Weg eine Richtung,
+    // ohne einen Pfeil zu brauchen. Der letzte zeigt zum Hut und endet
+    // neben ihm statt auf halber Stielhöhe; berühren darf er ihn nicht,
     // eine Berührung bei 24 dp ist eine Verschmelzung.
     for (final (x, y, r) in const [
-      (3.9, 20.6, 2.25),
-      (7.1, 17.0, 1.7),
-      (9.3, 12.9, 1.25),
+      (3.0, 21.3, 2.15),
+      (6.5, 18.6, 1.8),
+      (3.9, 15.4, 1.5),
+      (6.6, 12.6, 1.25),
+      (8.7, 9.7, 1.05),
     ]) {
       canvas.drawCircle(Offset(x * u, y * u), r * u, fill);
     }

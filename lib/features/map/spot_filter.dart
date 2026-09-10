@@ -49,8 +49,42 @@ class SpotFilter {
   /// und deshalb behauptet er auch nichts, was zu validieren wäre.
   final bool onlySeason;
 
-  bool get isActive =>
-      species.isNotEmpty || onlyMine || onlyAmpel || onlySeason;
+  /// Was der Filter gerade wegnimmt — ein Stück je Schalter, in der
+  /// Reihenfolge, in der sie im Blatt stehen.
+  ///
+  /// **Das steht hier und nicht im Karten-Screen, weil [isActive] daraus
+  /// folgt.** Bis 1.133.1 waren es zwei Listen: eine Bedingung für „es
+  /// ist etwas an" und eine Aufzählung für den Chip. Der Saison-Filter
+  /// (#414) kam nur in die erste — auf der Karte stand dann
+  /// „🔍 Gefiltert:" und danach nichts. Ein Chip, der einen Doppelpunkt
+  /// zeigt und schweigt, ist schlechter als gar keiner: Er sagt, dass
+  /// etwas versteckt wird, aber nicht was.
+  ///
+  /// Aus einer Liste kann das nicht mehr passieren — ein vergessener
+  /// Schalter fällt jetzt an derselben Stelle auf, an der er wirkt.
+  /// **Ein neuer Schalter gehört an DREI Stellen**: hierher, in
+  /// [matchesSpotFilter] und ins Blatt.
+  List<String> describe() {
+    final names = species.toList()..sort();
+    return [
+      if (names.length == 1) 'nur ${names.single}',
+      if (names.length == 2) 'nur ${names.join(', ')}',
+      if (names.length > 2) '${names.length} Arten',
+      if (onlyMine) 'nur meine',
+      // Muss hier stehen, nicht nur im Blatt: Der Chip ist das einzige
+      // Zeichen auf der Karte, dass etwas versteckt wird — und diesen
+      // Filter setzt die App beim Banner-Tipp SELBST (#399). Ein
+      // ungenannter, selbst gesetzter Filter wäre genau der Fall, vor dem
+      // #154 warnt.
+      if (onlyAmpel) 'Ampel günstig',
+      // Kurz, weil der Chip neben dem Ampel-Banner steht und beide
+      // zusammen in eine Zeile müssen. „Nur was jetzt Saison hat" ist
+      // die Beschriftung im Blatt; hier reicht das Stichwort.
+      if (onlySeason) 'jetzt Saison',
+    ];
+  }
+
+  bool get isActive => describe().isNotEmpty;
 
   SpotFilter copyWith({
     Set<String>? species,

@@ -7,6 +7,38 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Klarere Erklärtexte — und ein Weg, der wirklich schlängelt
+
+*10. September 2026 · Version 1.134.0*
+
+Der Hinweis beim ersten Start sagt jetzt auch, was PilzBuddy **kann**:
+„Die App verwaltet deine Fundstellen und schätzt, wo es sich gerade
+lohnen könnte." Bisher stand dort nur, dass sie sich merkt, wo du etwas
+gefunden hast — das hätte auch ein Notizzettel geleistet. Die Grenze
+bleibt unverändert: Die App bestimmt keine Pilze und sagt nicht, ob
+etwas essbar ist.
+
+**Die Anleitung zum neuen Spot war falsch geworden.** Sie behauptete,
+gespeichert werde genau der Punkt unter dem Fadenkreuz — seit 1.124.0
+lässt sich die Stelle im Blatt aber noch auf der kleinen Karte
+verschieben oder mit „Meine Position" auf deinen Standort legen. Jetzt
+steht beides da.
+
+**Und es steht endlich dabei, wozu ein Leergang gut ist.** Erst Funde
+und Leergänge zusammen ergeben die Fundhistorie eines Spots: Fünfmal da
+gewesen und einmal fündig ist etwas anderes als einmal da gewesen und
+einmal fündig. An dieser Historie misst sich außerdem, ob die Pilzampel
+recht hat — in ihre Vorhersage fließt sie bewusst nicht ein, sonst
+könnte man mit ihr nicht mehr prüfen. Der Zweck steht seit dieser
+Version auch in der Datenschutzerklärung.
+
+Zwei Kleinigkeiten dazu:
+
+- Das Symbol für „Unterwegs" zeigt jetzt einen **geschlängelten** Weg
+  aus fünf Punkten. Die drei bisherigen lagen auf einer Geraden.
+- Ist nur der Saisonfilter an, sagt die Karte das auch. Bisher stand
+  dort „Gefiltert:" und danach nichts.
+
 ## Verständlichere Erklärtexte zur Pilztour
 
 *10. September 2026 · Version 1.133.1*

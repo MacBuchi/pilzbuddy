@@ -26,8 +26,8 @@ import '../tour/widgets/tour_icon.dart';
 import 'map_tour.dart';
 
 /// Ein Abschnitt der Anleitung: Symbol, Überschrift, ein bis drei Sätze.
-class _Step {
-  const _Step({required this.icon, required this.title, required this.text});
+class HelpStep {
+  const HelpStep({required this.icon, required this.title, required this.text});
 
   /// Bewusst ein Widget und kein `IconData`: Der Pilz und der Wanderer
   /// mit Korb sind gezeichnet, nicht aus Material entnommen.
@@ -36,65 +36,100 @@ class _Step {
   final String text;
 }
 
+/// Die Abschnitte der Kurzanleitung.
+///
+/// **Offen und nicht als lokale `const` in `build`**, damit
+/// `help_texts_test.dart` einen EINZELNEN Abschnitt prüfen kann statt
+/// die Datei als Text. Der Unterschied ist keine Kosmetik: Die Prüfung
+/// „die Spot-Erklärung nennt das Blatt" war über die ganze Datei aus dem
+/// falschen Grund grün — „Blatt" steht auch im Unterwegs-Abschnitt.
+/// Dieselbe Form wie `kMapTourSteps`.
+const kHelpSteps = <HelpStep>[
+  HelpStep(
+    icon: Icon(Icons.add_location_alt, color: AppColors.forestGreen),
+    title: 'Einen Spot anlegen',
+    // **Der Satz war seit #407 falsch.** Er endete auf „Gespeichert
+    // wird genau der Punkt unter dem Fadenkreuz" — seither lässt
+    // sich die Stelle im Blatt aber noch verschieben, und „Meine
+    // Position" legt sie auf den eigenen Standort. Eine Anleitung,
+    // die eine Möglichkeit ausdrücklich ausschließt, die es gibt,
+    // ist schlimmer als eine, die sie verschweigt.
+    //
+    // „Vorbelegt" statt „zwei Optionen": Ein Umschalter ist es
+    // nicht (`spot_position_field.dart`), und wer einen sucht,
+    // findet keinen.
+    text: 'Tipp unten rechts auf „Neuer Spot". Vorbelegt ist die Stelle '
+        'unter dem Fadenkreuz in der Kartenmitte — nicht dein Standort. '
+        'Im Blatt kannst du sie auf der kleinen Karte noch genau '
+        'schieben oder mit „Meine Position" auf deinen Standort legen.',
+  ),
+  HelpStep(
+    icon: MushroomIcon(
+        seed: 7, size: 24, group: SpeciesGroup.roehrlinge, ground: false),
+    title: 'Fund und Leergang eintragen',
+    // **Wozu der Leergang gut ist, stand nirgends** (Betreiber,
+    // 2026-09-10: „eigener Nutzen hat Vorrang … und zur
+    // Verbesserung der Pilzampel"). Ohne das Wozu klingt er nach
+    // Buchführung, die die App einem aufträgt.
+    //
+    // **Der Ampel-Halbsatz sagt MESSEN, nicht füttern**, und das
+    // ist keine Wortklauberei: Die eigenen Einträge fließen
+    // ausdrücklich NICHT in die Rechnung — #199 hebt sie als
+    // unabhängigen Prüfstein auf, und wer sie einrechnet, kann mit
+    // ihnen nicht mehr prüfen, ob die Rechnung stimmt
+    // (`docs/artenkarte-konzept.md`). „Verbessern" bleibt trotzdem
+    // wahr: Was man nicht messen kann, kann man auch nicht
+    // verbessern. Der Zweck steht seit 1.134.0 in
+    // `web/datenschutz.html`.
+    text: 'Tipp einen Spot an, um ihn zu öffnen. „Fund eintragen" hält '
+        'fest, was du gefunden hast, „Nichts gefunden" den Leergang. '
+        'Erst beide zusammen ergeben die Fundhistorie eines Spots — '
+        'fünfmal da gewesen und einmal fündig ist etwas anderes als '
+        'einmal da gewesen und einmal fündig; an ihr misst sich auch, '
+        'ob die Pilzampel recht hat.',
+  ),
+  HelpStep(
+    icon: Icon(Icons.layers_outlined, color: AppColors.warmBrown),
+    title: 'Was die Karte zeigt',
+    text: 'Hinter „Ebenen" liegen Waldtypen, Höhenlinien, Regen und die '
+        'Pilzampel. Die kleine Zahl am Knopf sagt, wie viele gerade an '
+        'sind; was ihre Farben bedeuten, steht links unten in der '
+        'Legende — ein Tipp klappt sie ein und wieder aus. Mit '
+        '„Filter" blendest du Spots nach Art oder Zeit aus.',
+  ),
+  HelpStep(
+    icon: TourIcon(size: 24),
+    title: 'Unterwegs',
+    text: 'Die Pilztour zeichnet deinen Weg auf. Beendest du sie, fragt '
+        'sie dich, wo du gesucht und nichts gefunden hast — auch das '
+        'gehört zur Geschichte eines Spots. Im selben Blatt teilst du '
+        'deinen Standort für ein paar Stunden mit Buddies.',
+  ),
+  HelpStep(
+    icon: Icon(Icons.group_outlined, color: AppColors.forestGreen),
+    title: 'Mit Buddies teilen',
+    text: 'Unter „Freunde" suchst du nach Benutzername oder E-Mail. Ob '
+        'deine Spots geteilt werden — und ob mit Art und Anzahl — '
+        'entscheidest du im Profil, und für einzelne Spots im Spot '
+        'selbst.',
+  ),
+  HelpStep(
+    icon: Icon(Icons.wifi_off, color: AppColors.warmBrown),
+    title: 'Ohne Empfang',
+    text: 'Deine Spots liest die App auch offline. Neue Spots und Funde '
+        'wandern in einen Ausgangskorb und gehen los, sobald du wieder '
+        'Empfang hast. Damit auch die Karte etwas zeigt, lädst du im '
+        'Profil unter „Offline-Karten" deine Region herunter — am '
+        'besten zu Hause im WLAN.',
+  ),
+];
+
 /// Zeigt in wenigen Schritten, wie PilzBuddy benutzt wird.
 class HelpScreen extends ConsumerWidget {
   const HelpScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    const steps = <_Step>[
-      _Step(
-        icon: Icon(Icons.add_location_alt, color: AppColors.forestGreen),
-        title: 'Einen Spot anlegen',
-        text: 'In der Mitte der Karte sitzt ein kleines Fadenkreuz. Schieb '
-            'die Karte, bis es auf deiner Stelle liegt, und tipp unten '
-            'rechts auf „Neuer Spot". Gespeichert wird genau der Punkt '
-            'unter dem Fadenkreuz — nicht dein Standort.',
-      ),
-      _Step(
-        icon: MushroomIcon(
-            seed: 7, size: 24, group: SpeciesGroup.roehrlinge, ground: false),
-        title: 'Fund und Leergang eintragen',
-        text: 'Tipp einen Spot an, um ihn zu öffnen. „Fund eintragen" hält '
-            'fest, was du gefunden hast. „Nichts gefunden" hält fest, dass '
-            'du da warst und nichts da war — das gehört zur Geschichte '
-            'eines Spots genauso.',
-      ),
-      _Step(
-        icon: Icon(Icons.layers_outlined, color: AppColors.warmBrown),
-        title: 'Was die Karte zeigt',
-        text: 'Hinter „Ebenen" liegen Waldtypen, Höhenlinien, Regen und die '
-            'Pilzampel. Die kleine Zahl am Knopf sagt, wie viele gerade an '
-            'sind; was ihre Farben bedeuten, steht links unten in der '
-            'Legende — ein Tipp klappt sie ein und wieder aus. Mit '
-            '„Filter" blendest du Spots nach Art oder Zeit aus.',
-      ),
-      _Step(
-        icon: TourIcon(size: 24),
-        title: 'Unterwegs',
-        text: 'Die Pilztour zeichnet deinen Weg auf. Beendest du sie, fragt '
-            'sie dich, wo du gesucht und nichts gefunden hast — auch das '
-            'gehört zur Geschichte eines Spots. Im selben Blatt teilst du '
-            'deinen Standort für ein paar Stunden mit Buddies.',
-      ),
-      _Step(
-        icon: Icon(Icons.group_outlined, color: AppColors.forestGreen),
-        title: 'Mit Buddies teilen',
-        text: 'Unter „Freunde" suchst du nach Benutzername oder E-Mail. Ob '
-            'deine Spots geteilt werden — und ob mit Art und Anzahl — '
-            'entscheidest du im Profil, und für einzelne Spots im Spot '
-            'selbst.',
-      ),
-      _Step(
-        icon: Icon(Icons.wifi_off, color: AppColors.warmBrown),
-        title: 'Ohne Empfang',
-        text: 'Deine Spots liest die App auch offline. Neue Spots und Funde '
-            'wandern in einen Ausgangskorb und gehen los, sobald du wieder '
-            'Empfang hast. Damit auch die Karte etwas zeigt, lädst du im '
-            'Profil unter „Offline-Karten" deine Region herunter — am '
-            'besten zu Hause im WLAN.',
-      ),
-    ];
 
     return Scaffold(
       appBar: AppBar(title: const Text('Kurzanleitung')),
@@ -115,7 +150,7 @@ class HelpScreen extends ConsumerWidget {
           // müssen.
           const SafetyNoteTile(),
           const SizedBox(height: 12),
-          for (final step in steps) _StepTile(step: step),
+          for (final step in kHelpSteps) _StepTile(step: step),
           const SizedBox(height: 24),
           // Der Wiederaufruf der Tour (#350). Er steht HIER und nicht als
           // eigener Eintrag im Profil: Wer die Tour sucht, sucht eine
@@ -142,7 +177,7 @@ class HelpScreen extends ConsumerWidget {
 class _StepTile extends StatelessWidget {
   const _StepTile({required this.step});
 
-  final _Step step;
+  final HelpStep step;
 
   @override
   Widget build(BuildContext context) {

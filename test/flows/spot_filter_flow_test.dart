@@ -238,6 +238,14 @@ void main() {
       await settle(tester);
 
       expect(find.byType(MushroomIcon), findsOneWidget);
+      // **Und die Karte sagt, WARUM einer fehlt.** Genau hier ist #414
+      // durchgerutscht: Der Schalter zählte zwar zum aktiven Filter (das
+      // prüfte `spot_filter_test.dart` sogar), stand aber in keiner
+      // Aufzählung — auf der Karte las man „🔍 Gefiltert:" und danach
+      // nichts. Ein Chip, der einen Doppelpunkt zeigt und schweigt, ist
+      // schlechter als keiner: Er sagt, dass etwas versteckt wird, aber
+      // nicht was.
+      expect(find.textContaining('Gefiltert: jetzt Saison'), findsOneWidget);
     });
 
     testWidgets('im Mai hat keiner von beiden Saison — der Schalter sperrt',

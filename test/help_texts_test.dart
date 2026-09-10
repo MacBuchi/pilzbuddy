@@ -1,6 +1,6 @@
 // Die Erklärtexte der App — Tour, Kurzanleitung, Unterwegs-Blatt.
 //
-// **Warum es diese Datei gibt.** Beim Umbau von 1.134.0 fiel auf, dass
+// **Warum es diese Datei gibt.** Beim Umbau von 1.133.1 fiel auf, dass
 // die Formulierungen an DREI Stellen stehen und keine einzige davon von
 // einem Test gehalten wurde: Man konnte sie ändern, verschlechtern oder
 // auseinanderlaufen lassen, ohne dass irgendetwas rot wurde. Genau so ist
@@ -15,6 +15,8 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pilzbuddy/core/widgets/safety_note.dart';
+import 'package:pilzbuddy/features/help/help_screen.dart';
 import 'package:pilzbuddy/features/help/map_tour.dart';
 
 void main() {
@@ -91,5 +93,69 @@ void main() {
     expect(layersStep.text, contains('klappt'),
         reason: 'das Einklappen ist das, was man ohne Hinweis nicht '
             'findet — die ausgeklappte Legende sieht man ja');
+  });
+
+  test('Die Spot-Erklärung nagelt die Stelle nicht aufs Fadenkreuz fest', () {
+    // **Der Satz war zwei Jahre lang wahr und dann still falsch.** Bis
+    // #407 wurde tatsächlich genau der Punkt unter dem Fadenkreuz
+    // gespeichert; seither liegt im Blatt eine kleine Karte, auf der er
+    // sich verschieben lässt, und „Meine Position" legt ihn auf den
+    // eigenen Standort. Der alte Wortlaut schloss beides ausdrücklich
+    // aus — eine Anleitung, die eine vorhandene Möglichkeit verneint,
+    // ist schlimmer als eine, die sie verschweigt.
+    //
+    // Geprüft wird beides: dass die alte Absolutform nicht zurückkommt,
+    // und dass an ihrer Stelle das Blatt genannt ist.
+    //
+    // **Geprüft wird der EINZELNE Abschnitt, nicht die Datei.** Der
+    // erste Anlauf suchte „Blatt" im ganzen Text — und war damit aus dem
+    // falschen Grund grün, weil der Unterwegs-Abschnitt das Wort ohnehin
+    // enthält. Dafür liegen die Abschnitte jetzt als `kHelpSteps` offen.
+    final texte = {
+      'Tour': kMapTourSteps
+          .firstWhere((step) => step.title == 'So entsteht ein Spot')
+          .text,
+      'Kurzanleitung': kHelpSteps
+          .firstWhere((step) => step.title == 'Einen Spot anlegen')
+          .text,
+    };
+    for (final entry in texte.entries) {
+      expect(entry.value, isNot(contains('Gespeichert wird genau der Punkt')),
+          reason: '${entry.key} verneint wieder, was seit #407 geht');
+      expect(entry.value, contains('Blatt'),
+          reason: '${entry.key} sagt nicht, wo sich die Stelle noch '
+              'ändern lässt');
+    }
+  });
+
+  test('Der Haftungshinweis nennt weiter die Grenze', () {
+    // Seit 1.134.0 sagt die erste Hälfte, was die App KANN („verwaltet
+    // deine Fundstellen und schätzt, wo es sich gerade lohnen könnte").
+    // Genau deshalb steht dieser Test hier: Wer den Satz das nächste Mal
+    // anfasst, soll nicht die zweite Hälfte mit wegkürzen. Sie ist der
+    // Grund, aus dem es den Hinweis überhaupt gibt (#110).
+    expect(kSafetyNote, contains('bestimmt keine Pilze'));
+    expect(kSafetyNote, contains('essbar'));
+    // Der Konjunktiv ist keine Feinheit: Die Ampel sagt überall sonst
+    // „stünde günstig (experimentell)", weil die Rückwärtsvalidierung bei
+    // der Arten-Kontrolle durchgefallen ist.
+    expect(kSafetyNote, contains('könnte'),
+        reason: 'der Haftungshinweis verspricht mehr als das Ampel-Banner');
+  });
+
+  test('Was die App über die Ampel-Prüfung sagt, steht auch im Datenschutz',
+      () {
+    // Die Kurzanleitung sagt seit 1.134.0, an den Leergängen messe sich,
+    // „ob die Pilzampel recht hat" — das ist ein ZWECK für die Daten des
+    // Nutzers, und ein Zweck gehört in die Erklärung. Dieselbe Regel wie
+    // bei einem neuen Netzziel (`privacy_policy_test.dart`), nur eine
+    // Ebene höher: dort geht es um das Wohin, hier um das Wozu.
+    final leergang = kHelpSteps
+        .firstWhere((step) => step.title == 'Fund und Leergang eintragen');
+    if (leergang.text.contains('Pilzampel')) {
+      expect(File('web/datenschutz.html').readAsStringSync(),
+          contains('ob die Pilzampel richtig liegt'),
+          reason: 'die App nennt einen Zweck, den die Erklärung nicht kennt');
+    }
   });
 }
