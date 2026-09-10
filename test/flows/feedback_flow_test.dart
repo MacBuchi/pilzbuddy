@@ -5,7 +5,12 @@ import 'package:flutter_test/flutter_test.dart';
 import '../fakes/fake_backend.dart';
 import '../fakes/test_app.dart';
 
-const _bannerText = '💡 Wunsch, Fehler oder Pilzart melden!';
+/// Der Melde-Knopf in der Chip-Zeile.
+///
+/// Bis zur Chip-Zeile war das eine volle Banner-Karte mit dem Text
+/// „💡 Wunsch, Fehler oder Pilzart melden!" und einem ✕. Jetzt ist es
+/// ein 34 × 34 großer Knopf; der Satz steckt in seinem Tooltip.
+final _feedbackButton = find.byTooltip('Wunsch, Fehler oder Pilzart melden');
 
 void main() {
   FakeBackend loggedInBackend() {
@@ -20,7 +25,7 @@ void main() {
     final backend = loggedInBackend();
     await pumpApp(tester, backend);
 
-    await tester.tap(find.text(_bannerText));
+    await tester.tap(_feedbackButton);
     await settle(tester);
     expect(find.text('Wünsch dir was!'), findsOneWidget);
     // Transparenz-Hinweis: Feedback landet öffentlich auf GitHub.
@@ -54,9 +59,9 @@ void main() {
     // als wäre die Meldemöglichkeit verschwunden (Issue #72).
     final backend = loggedInBackend();
     await pumpApp(tester, backend);
-    expect(find.text(_bannerText), findsOneWidget);
+    expect(_feedbackButton, findsOneWidget);
 
-    await tester.tap(find.text(_bannerText));
+    await tester.tap(_feedbackButton);
     await settle(tester);
     await tester.enterText(
         find.widgetWithText(TextField, 'Dein Wunsch'), 'Fotos zu Funden');
@@ -64,7 +69,7 @@ void main() {
     await settle(tester);
 
     expect(backend.feedback, hasLength(1));
-    expect(find.text(_bannerText), findsOneWidget);
+    expect(_feedbackButton, findsOneWidget);
     await drainSnackbars(tester);
   });
 
@@ -77,7 +82,7 @@ void main() {
     final backend = loggedInBackend();
     await pumpApp(tester, backend);
 
-    await tester.tap(find.text(_bannerText));
+    await tester.tap(_feedbackButton);
     await settle(tester);
     await tester.tap(find.text('🍄 Pilzart'));
     await settle(tester, frames: 4);
@@ -101,7 +106,7 @@ void main() {
     final backend = loggedInBackend();
     await pumpApp(tester, backend);
 
-    await tester.tap(find.text(_bannerText));
+    await tester.tap(_feedbackButton);
     await settle(tester);
     await tester.tap(find.text('🍄 Pilzart'));
     await settle(tester, frames: 4);
@@ -120,18 +125,21 @@ void main() {
     expect(backend.feedback.single['species_name'], 'Blauer Wurzelrübling');
   });
 
-  testWidgets('Das X blendet das Melde-Banner aus', (tester) async {
+  testWidgets('Der Melde-Knopf hat kein ✕ mehr — er verdeckt nichts',
+      (tester) async {
+    // **Hier stand das Gegenteil**: „Das X blendet das Melde-Banner
+    // aus." Das X war seit Issue #72 die Entschuldigung für die Größe —
+    // eine volle Karte über der Landschaft muss man wegwischen können.
+    // Der Knopf ist 34 × 34; wegwischbar zu sein war nie sein Zweck.
+    //
+    // Der Gegenbeweis ist der Ampel-Chip daneben: Der behält sein ✕,
+    // weil er eine Aussage über heute macht, die man abarbeiten kann.
+    // Eine Tür arbeitet man nicht ab.
     await pumpApp(tester, loggedInBackend());
-
-    await tester.tap(find.descendant(
-      of: find.ancestor(
-        of: find.text(_bannerText),
-        matching: find.byType(Row),
-      ),
-      matching: find.byIcon(Icons.close),
-    ));
-    await settle(tester);
-
-    expect(find.text(_bannerText), findsNothing);
+    expect(_feedbackButton, findsOneWidget);
+    expect(
+        find.descendant(
+            of: _feedbackButton, matching: find.byIcon(Icons.close)),
+        findsNothing);
   });
 }

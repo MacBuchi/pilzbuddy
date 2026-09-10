@@ -7,6 +7,35 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Mehr Karte: die Hinweise oben werden zu einer schmalen Zeile
+
+*10. September 2026 · Version 1.131.0*
+
+Zwei Hinweise standen bisher als volle Karten übereinander am oberen
+Rand — der Ampel-Hinweis und der Melde-Hinweis. Zusammen verdeckten sie
+rund ein Sechstel der Karte, und zwar dauerhaft: Beides sind keine
+Neuigkeiten, die vorbeigehen.
+
+Beide sind jetzt eine schmale Zeile.
+
+- **Der Ampel-Hinweis ist ein Chip geworden** — „Buchenhang · Ampel
+  stünde günstig (experimentell)". Antippen tut dasselbe wie vorher: Es
+  filtert auf die betroffenen Fundstellen und rückt sie ins Bild. Das ✕
+  behält er, es schaltet ihn für diese Sitzung stumm.
+- **Aus dem Melde-Hinweis ist ein 💡-Knopf geworden.** Er hat kein ✕
+  mehr und braucht auch keins: Ein Knopf von der Größe eines Daumennagels
+  verdeckt nichts, was du suchst. Antippen öffnet dasselbe Formular wie
+  zuvor.
+
+Bei einem langen Namen wird der Name gekürzt, nie das Wort
+„experimentell". Die Pilzampel ist ein Versuch, und das soll man ihr
+ansehen, auch wenn der Platz knapp wird.
+
+Außerdem: **Der Quellenhinweis zur Karte steht nicht mehr unter „Neuer
+Spot".** Er lag bisher unten rechts, also genau unter dem grünen Knopf.
+Jetzt sitzt er als ⓘ unten links neben dem Maßstab und klappt auf
+Antippen auf.
+
 ## Das Ebenen-Blatt sagt jetzt, was gerade auf der Karte liegt
 
 *10. September 2026 · Version 1.130.0*

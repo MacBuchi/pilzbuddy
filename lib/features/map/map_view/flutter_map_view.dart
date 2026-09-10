@@ -422,12 +422,30 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
         MarkerLayer(markers: [
           for (final m in markers.spots) _asFlutterMapMarker(m),
         ]),
-        // Maßstab unten links — rechts sitzen Attribution und FABs.
+        // **Maßstab UND Quellenhinweis liegen unten links** — der
+        // Hinweis stand bis hierher unten rechts, also genau unter
+        // „Neuer Spot". Ein Rechtstext unter einem Knopf ist kein
+        // Rechtstext; die ODbL verlangt ihn sichtbar, und sichtbar war
+        // er nur, solange niemand die Hauptaktion der Karte ansah.
+        //
+        // **Die Reihenfolge ist die Lösung, nicht der Zufall.** Die
+        // Breite des Maßstabs hängt am Maßstab: Er sucht sich eine
+        // runde Entfernung und wird dafür mal 60, mal 120 Pixel breit.
+        // Stünde er links, müsste der Hinweis daneben auf einen
+        // geratenen Abstand — und der ist bei irgendeinem Zoom falsch.
+        // Andersherum steht das ⓘ auf seiner festen Breite ganz links,
+        // und der Maßstab wächst von einem festen Anfang aus nach
+        // rechts, wo nichts liegt.
         const Scalebar(
           alignment: Alignment.bottomLeft,
-          padding: EdgeInsets.only(left: 12, bottom: 12),
+          padding: EdgeInsets.only(left: 44, bottom: 12),
         ),
+        // Die fertige Fassung des Pakets, nur anders verankert: Sie ist
+        // von sich aus ein ⓘ, das auf Tipp aufklappt. Die Rechtspflicht
+        // bleibt damit dort, wo das Paket sie erfüllt — ein selbst
+        // gebauter Hinweis wäre eine eigene Zusage, die niemand pflegt.
         RichAttributionWidget(
+          alignment: AttributionAlignment.bottomLeft,
           attributions: [
             const TextSourceAttribution('OpenStreetMap-Mitwirkende'),
             if (offlineActive)

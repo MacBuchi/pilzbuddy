@@ -3,6 +3,8 @@
 // Standard; der Profil-Schalter ist ein Opt-out zur bisherigen
 // flutter_map-Karte (Rückfalllinie). Die Wahl ist ein Provider, damit
 // ein Umschalten im Profil die Karte sofort wechselt.
+import 'dart:io';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -71,5 +73,36 @@ void main() {
     final settings = PrefsSettings(prefs);
     expect(settings.classicMapEnabled, isFalse,
         reason: 'Der Beta-Schlüssel darf nicht als Opt-out weiterwirken.');
+  });
+
+  test('Beide Engines verankern den Quellenhinweis unten links', () {
+    // **Warum am Quelltext und nicht am Widget-Baum.** Die
+    // MapLibre-Strecke ist eine native GL-Fläche; sie lässt sich im
+    // Widget-Test nicht aufbauen, also gibt es dort kein
+    // `tester.widget<SourceAttribution>`. Dasselbe Loch hat die Fassade
+    // schon zweimal Geld gekostet — der `alignment`-Fehler (#409) blieb
+    // von 1.43.0 bis 1.122.0 unbemerkt, WEIL nur eine der beiden Seiten
+    // geprüft war. Eine Textsuche ist grob, aber sie ist mehr als
+    // nichts, und sie fällt auf, sobald jemand eine Seite anfasst.
+    //
+    // Geprüft wird die Zusage, nicht die Formatierung: Beide Dateien
+    // müssen `bottomLeft` an ihrem Attributions-Widget tragen, und
+    // KEINE darf noch `bottomRight` dafür setzen.
+    final classic =
+        File('lib/features/map/map_view/flutter_map_view.dart')
+            .readAsStringSync();
+    final native =
+        File('lib/features/map/map_view/maplibre_map_view.dart')
+            .readAsStringSync();
+
+    expect(classic, contains('AttributionAlignment.bottomLeft'),
+        reason: 'unten rechts läge der Hinweis unter „Neuer Spot"');
+    expect(classic, isNot(contains('AttributionAlignment.bottomRight')));
+    expect(native, contains('SourceAttribution('));
+    expect(
+        RegExp(r'SourceAttribution\(\s*\n\s*alignment: Alignment\.bottomLeft')
+            .hasMatch(native),
+        isTrue,
+        reason: 'die native Strecke muss dieselbe Ecke nehmen');
   });
 }

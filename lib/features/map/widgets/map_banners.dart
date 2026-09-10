@@ -35,10 +35,15 @@ import '../../../core/app_colors.dart';
 /// („von gestern"), die Minute hilft niemandem.
 final _dayMonth = DateFormat('d.M.y');
 
-/// Feedback-Banner für diese Sitzung ausgeblendet? Wird nur durch das X
-/// gesetzt: nach dem Absenden bleibt das Banner stehen, sonst wirkt es, als
-/// wäre die Meldemöglichkeit verschwunden (Issue #72).
-final feedbackBannerDismissedProvider = StateProvider<bool>((ref) => false);
+// **Der Merker fürs Feedback-Banner ist weg** — und mit ihm sein X.
+//
+// Er stand hier seit Issue #72 mit der Begründung: nach dem Absenden
+// bleibt das Banner stehen, sonst wirkt es, als wäre die
+// Meldemöglichkeit verschwunden. Der Satz stimmt weiter; nur gibt es
+// das Banner nicht mehr, das er meinte. Ein X ist die Antwort auf eine
+// Karte, die über der Landschaft liegt — der 💡-Knopf ist 34 × 34 und
+// verdeckt nichts, was man sucht. Wegwischbar zu sein war nie sein
+// Zweck, sondern die Entschuldigung für seine Größe.
 
 /// Update-Banner für diese Sitzung ausgeblendet?
 final updateBannerDismissedProvider = StateProvider<bool>((ref) => false);
@@ -221,13 +226,32 @@ class MapBanners extends ConsumerWidget {
   /// wäre eine Behauptung. Deshalb „stünde", deshalb kein
   /// Ausrufezeichen, und deshalb steht „experimentell" mit drin.
   String _ampelText(List<AmpelHit> hits) {
+    // **Kürzer, aber im Konjunktiv** — die Kürze darf die Länge kosten,
+    // nicht das Urteil. Aus dem Satzbanner ist ein Chip geworden (34 px
+    // statt gut 70), und in der Versuchung, ihn auf „3 Spots · Ampel
+    // günstig" zu bringen, steckt genau der Fehler, gegen den der
+    // Wortlaut steht: Das wäre eine Behauptung. Die Arten-Kontrolle der
+    // Rückwärtsvalidierung ist durchgefallen
+    // (`docs/pilzampel-validierung.md`); das Modell hat sich keine
+    // Aussage im Indikativ verdient. Also bleibt „stünde".
+    //
+    // **„experimentell" steht NICHT in diesem Text**, sondern als
+    // eigenes Stück im Chip — und das ist der Punkt: Hier drin würde es
+    // als Erstes abgeschnitten, wenn ein Spotname lang ist. Der
+    // Entwurf schlug „(exp.)" vor; das kürzt den Vorbehalt, während die
+    // Behauptung ungekürzt bleibt, und verschiebt damit genau das
+    // Verhältnis, um das es geht. Die Fehlerrichtung ist vorgegeben:
+    // Lieber ein abgeschnittener Ortsname als ein abgeschnittener
+    // Vorbehalt.
+    //
+    // Weggefallen ist „— antippen": Ein Chip in Markenfarbe SIEHT
+    // antippbar aus, ein Satz auf einer Karte nicht. Die Einladung
+    // trägt jetzt die Form.
     if (hits.length == 1) {
-      final place = hits.single.spot.name ?? 'einem Spot';
-      return '🍄 An $place stünde die Ampel günstig (experimentell) '
-          '— antippen';
+      final place = hits.single.spot.name ?? 'Ein Spot';
+      return '$place · Ampel stünde günstig';
     }
-    return '🍄 An ${hits.length} Spots stünde die Ampel günstig '
-        '(experimentell) — antippen';
+    return '${hits.length} Spots · Ampel stünde günstig';
   }
 
   /// Der Text der Erinnerung. Nennt die Art nur, wenn ALLE Funde des
@@ -437,7 +461,6 @@ class MapBanners extends ConsumerWidget {
     final uid = ref.watch(currentUserIdProvider) ?? '';
     final friendships = ref.watch(friendshipsProvider).valueOrNull ?? [];
     final incoming = friendships.where((f) => f.isIncomingFor(uid)).length;
-    final feedbackDismissed = ref.watch(feedbackBannerDismissedProvider);
 
     final updateInfo = ref.watch(updateInfoProvider).valueOrNull;
     final updateDismissed = ref.watch(updateBannerDismissedProvider);
@@ -673,15 +696,7 @@ class MapBanners extends ConsumerWidget {
         // kräftigen Grün der Erinnerung: Die Ampel ist unvalidiert, und
         // die auffälligste Farbe der App gehört nicht der unsichersten
         // Aussage.
-        if (ampelHits.isNotEmpty)
-          _banner(
-            context,
-            background: AppColors.warmBrown,
-            foreground: Colors.white,
-            onTap: () => _openAmpel(ref),
-            onDismiss: () => _dismissAmpel(ref),
-            content: Text(_ampelText(ampelHits)),
-          ),
+
         // Die Spot-Erinnerung (Baustein C des Ampel-Konzepts): keine
         // Prognose, sondern die eigene Historie. Ganz unten in der
         // Reihe — Anfragen und Buddy-Funde sind Neuigkeiten von heute,
@@ -698,18 +713,143 @@ class MapBanners extends ConsumerWidget {
             onDismiss: () => _dismissMemory(ref),
             content: Text(_memoryText(memory)),
           ),
-        if (!feedbackDismissed)
-          _banner(
-            context,
-            background: AppColors.sunshine,
-            foreground: AppColors.warmBrown,
-            onTap: () => _openFeedbackDialog(context, ref),
-            onDismiss: () => ref
-                .read(feedbackBannerDismissedProvider.notifier)
-                .state = true,
-            content: const Text('💡 Wunsch, Fehler oder Pilzart melden!'),
-          ),
+        // **Die Chip-Zeile: zwei Dauergäste, 34 px statt gut 150.**
+        //
+        // Die beiden hier standen als volle Karten übereinander und
+        // verdeckten zusammen rund ein Sechstel der Karte — dauerhaft,
+        // denn beide sind keine Nachrichten, die vergehen: Die Ampel
+        // steht günstig, solange sie günstig steht, und melden kann man
+        // immer. Die Banner darüber sind Ereignisse (kein Empfang, neue
+        // Funde, Erinnerung) und dürfen den Platz nehmen; diese zwei
+        // nicht.
+        _ChipRow(
+          ampel: ampelHits.isEmpty
+              ? null
+              : (
+                  text: _ampelText(ampelHits),
+                  onTap: () => _openAmpel(ref),
+                  onDismiss: () => _dismissAmpel(ref),
+                ),
+          onFeedback: () => _openFeedbackDialog(context, ref),
+        ),
       ],
+    );
+  }
+}
+
+/// Die Zeile unter den Bannern: der Ampel-Chip und der Melde-Knopf.
+///
+/// **Warum eine Zeile und keine zwei Karten.** Beides sind Zustände, die
+/// bleiben — nicht Nachrichten, die vergehen. Als volle Karten
+/// übereinander verdeckten sie dauerhaft rund ein Sechstel der Karte,
+/// und die Karte ist das Produkt. Als Chip und Knopf sind sie 34 px
+/// hoch und sagen dasselbe.
+///
+/// **Warum der Ampel-Chip sein ✕ behält und der Melde-Knopf keins
+/// bekommt.** Der Chip macht eine Aussage über heute, die man
+/// abarbeiten kann; das ✕ nimmt sie für die Sitzung weg (#425 — für die
+/// SITZUNG, nicht für den Tag: Der nächste Start ist der Rückweg). Der
+/// Melde-Knopf macht keine Aussage, er ist eine Tür. Eine Tür schließt
+/// man nicht weg.
+class _ChipRow extends StatelessWidget {
+  const _ChipRow({required this.ampel, required this.onFeedback});
+
+  /// Der Ampel-Chip — `null`, wenn nichts günstig steht oder das ✕ für
+  /// diese Sitzung gedrückt wurde.
+  final ({String text, VoidCallback onTap, VoidCallback onDismiss})? ampel;
+
+  final VoidCallback onFeedback;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (ampel != null) ...[
+            Flexible(
+              child: Material(
+                color: AppColors.warmBrown,
+                borderRadius: BorderRadius.circular(17),
+                elevation: 2,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(17),
+                  onTap: ampel!.onTap,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 12, right: 4),
+                    child: SizedBox(
+                      height: 34,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('🍄 '),
+                          // **Der Name schrumpft, der Vorbehalt nicht.**
+                          // Ein langer Spotname darf die Zeile nicht
+                          // sprengen — deshalb steht nur er im
+                          // `Flexible`. „experimentell" liegt daneben
+                          // in fester Breite und kann damit gar nicht
+                          // abgeschnitten werden. Genau andersherum
+                          // wäre es leicht passiert: In einem einzigen
+                          // Text frisst die Ellipse immer das Ende, und
+                          // das Ende ist hier die Einschränkung.
+                          Flexible(
+                            child: Text(
+                              ampel!.text,
+                              overflow: TextOverflow.ellipsis,
+                              softWrap: false,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(color: Colors.white),
+                            ),
+                          ),
+                          Text(
+                            ' (experimentell)',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(color: Colors.white70),
+                          ),
+                          InkWell(
+                            borderRadius: BorderRadius.circular(17),
+                            onTap: ampel!.onDismiss,
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 6),
+                              child: Icon(Icons.close,
+                                  size: 16, color: Colors.white70),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
+          Material(
+            color: AppColors.sunshine,
+            shape: const CircleBorder(),
+            elevation: 2,
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: onFeedback,
+              // Der Satz, der bis hierher im Banner stand — er ist
+              // nicht verschwunden, er ist nur nicht mehr dauerhaft
+              // aufgeschlagen.
+              child: const Tooltip(
+                message: 'Wunsch, Fehler oder Pilzart melden',
+                child: SizedBox.square(
+                  dimension: 34,
+                  child: Center(child: Text('💡')),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

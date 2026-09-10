@@ -437,12 +437,23 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
           ),
       ],
       children: [
-        // Maßstab und dauerhafte Quellen-Attribution (ODbL-Rechtspflicht;
-        // die Texte liefert der Style-Composer an jeder Quelle mit) —
-        // die fertigen Widgets des Pakets, Positionen wie bei der
-        // flutter_map-Engine: Maßstab unten links, Hinweis unten rechts.
-        const ml.MapScalebar(alignment: Alignment.bottomLeft),
-        const ml.SourceAttribution(alignment: Alignment.bottomRight),
+        // Maßstab und Quellen-Attribution (ODbL-Rechtspflicht; die Texte
+        // liefert der Style-Composer an jeder Quelle mit) — die fertigen
+        // Widgets des Pakets, Positionen wie bei der flutter_map-Engine:
+        // BEIDE unten links, das ⓘ ganz außen, der Maßstab daneben.
+        //
+        // Der Hinweis lag bis hierher unten rechts und damit unter
+        // „Neuer Spot". Warum das ⓘ außen steht und nicht der Maßstab,
+        // steht ausführlich in `flutter_map_view.dart`: Die Breite des
+        // Maßstabs hängt am Maßstab, die des ⓘ nicht.
+        const ml.MapScalebar(
+          alignment: Alignment.bottomLeft,
+          padding: EdgeInsets.only(left: 44, bottom: 12),
+        ),
+        const ml.SourceAttribution(
+          alignment: Alignment.bottomLeft,
+          padding: EdgeInsets.all(6),
+        ),
         if (_visibleBounds != null)
           ml.WidgetLayer(
             // Ohne dieses Flag kommen keine Taps an den Markern an.
