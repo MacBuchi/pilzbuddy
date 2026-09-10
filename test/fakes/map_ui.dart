@@ -87,10 +87,18 @@ Future<void> tapTripRow(WidgetTester tester, String row) async {
 }
 
 /// Die Pilztour starten.
+///
+/// Die Karte heißt seit 1.133.0 fest „Pilztour" — der Schalter darauf
+/// trägt den Zustand, statt dass die Überschrift zwischen „starten" und
+/// „beenden" wechselt. Derselbe Tipp beendet sie also auch.
 Future<void> startTour(WidgetTester tester) =>
-    tapTripRow(tester, 'Pilztour starten');
+    tapTripRow(tester, 'Pilztour');
 
-/// Der Stopp-Knopf der laufenden Tour — er steht als EIGENER FAB in der
-/// Spalte, nicht im Blatt, damit der Ausgang einen Tipp weit weg bleibt.
-/// Zugleich der ehrlichste Nachweis, ob eine Tour läuft.
+/// Der Ausgang der laufenden Tour — er steht als eigenes Element in der
+/// Spalte, nicht im Blatt, damit er einen Tipp weit weg bleibt. Zugleich
+/// der ehrlichste Nachweis, ob eine Tour läuft.
+///
+/// Seit 1.133.0 ist das eine PILLE mit Laufzeit statt eines zweiten
+/// grünen Kreises: Zustand und Ausgang in einem Element. Der Tooltip ist
+/// derselbe geblieben, damit die Tests keine zweite Wahrheit brauchen.
 Finder tourStopButton() => find.byTooltip('Pilztour beenden');

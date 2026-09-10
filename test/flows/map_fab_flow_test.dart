@@ -18,6 +18,7 @@ import 'package:pilzbuddy/features/map/forest_data_providers.dart';
 import 'package:pilzbuddy/features/map/rain_layer.dart';
 import 'package:pilzbuddy/features/map/rain_data_providers.dart';
 import 'package:pilzbuddy/features/ampel/ampel_map_providers.dart';
+import 'package:pilzbuddy/features/map/map_screen.dart' show elapsedTourLabel;
 
 import '../fakes/fake_backend.dart';
 import '../fakes/fake_settings.dart';
@@ -35,33 +36,72 @@ void main() {
   ProviderContainer containerOf(WidgetTester tester) =>
       ProviderScope.containerOf(tester.element(find.byType(Scaffold).first));
 
-  Finder fab(String tag) => find.byWidgetPredicate(
-      (widget) => widget is FloatingActionButton && widget.heroTag == tag);
+  /// Ein Werkzeug in der Leiste — gesucht über den Tooltip.
+  ///
+  /// Bis 1.133.0 waren das `FloatingActionButton`s mit `heroTag`; seit
+  /// die vier in EINER weißen Leiste sitzen, gibt es die Kennungen nicht
+  /// mehr. Der Tooltip ist der bessere Anker, weil er ohnehin die Zusage
+  /// an den Nutzer ist: Was der Knopf tut, steht dort und nirgends
+  /// sonst — die Leiste hat keine Beschriftung.
+  Finder tool(String tooltip) => find.byTooltip(tooltip);
 
-  testWidgets('fünf Knöpfe, und die alten sind wirklich weg', (tester) async {
+  testWidgets('vier Werkzeuge in EINER Leiste, und Grün nur für die '
+      'Hauptaktion', (tester) async {
     // Der Wächter gegen das langsame Zurückwachsen. Er nennt die
-    // erlaubten Kennungen einzeln: Ein elfter Knopf ist dann keine
-    // stille Änderung mehr, sondern eine, die hier vorbeimuss.
+    // erlaubten Werkzeuge einzeln: Ein fünftes ist dann keine stille
+    // Änderung mehr, sondern eine, die hier vorbeimuss.
     await tester.binding.setSurfaceSize(const Size(412, 915));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await pumpApp(tester, signedIn());
 
-    for (final tag in ['layers', 'filter', 'trip', 'locate', 'add']) {
-      expect(fab(tag), findsOneWidget, reason: 'Knopf „$tag" fehlt');
+    for (final tooltip in [
+      'Ebenen',
+      'Karte filtern',
+      'Unterwegs',
+      'Meine Position',
+    ]) {
+      expect(tool(tooltip), findsOneWidget, reason: 'Knopf „$tooltip" fehlt');
     }
     // Die aufgelösten: Sie dürfen nicht nebenher weiterleben, sonst wäre
     // nichts gewonnen.
-    for (final tag in [
-      'offline',
-      'forest',
-      'terrain',
-      'rain',
-      'refresh',
-      'share-location',
-      'tour',
+    for (final tooltip in [
+      'Offline-Karte',
+      'Waldtypen',
+      'Höhenlinien',
+      'Regen',
+      'Karte aktualisieren',
+      'Standort teilen',
+      'Pilztour starten',
     ]) {
-      expect(fab(tag), findsNothing, reason: 'Knopf „$tag" steht noch da');
+      expect(tool(tooltip), findsNothing,
+          reason: 'Knopf „$tooltip" steht noch da');
     }
+
+    // **Kein Werkzeug ist mehr ein `FloatingActionButton`.** Das ist
+    // die eigentliche Zusage dieser Umstellung: Vier grüne Kreise über
+    // der Karte machten die Hauptaktion von den Werkzeugen
+    // ununterscheidbar. Grün bedeutet jetzt genau eine Sache.
+    //
+    // Geprüft wird am Werkzeug und nicht an einer ANZAHL von FABs: Im
+    // Debug steht der Messhaken des Engine-Vergleichs mit in der Spalte
+    // (`!kReleaseMode`), und eine Zusage über die ausgelieferte App an
+    // einem Knopf zu messen, den sie gar nicht hat, wäre schief.
+    for (final tooltip in [
+      'Ebenen',
+      'Karte filtern',
+      'Unterwegs',
+      'Meine Position',
+    ]) {
+      expect(
+          find.ancestor(
+              of: tool(tooltip),
+              matching: find.byType(FloatingActionButton)),
+          findsNothing,
+          reason: '„$tooltip" darf kein FAB mehr sein — sonst sieht ein '
+              'Werkzeug wieder aus wie die Hauptaktion');
+    }
+    expect(find.text('Neuer Spot'), findsOneWidget);
+
     // Ohne laufende Tour steht auch kein Stopp-Knopf da.
     expect(tourStopButton(), findsNothing);
   });
@@ -73,12 +113,12 @@ void main() {
     await pumpApp(tester, signedIn());
     final container = containerOf(tester);
 
-    expect(find.descendant(of: fab('layers'), matching: find.text('1')),
+    expect(find.descendant(of: tool('Ebenen'), matching: find.text('1')),
         findsNothing);
 
     container.read(forestLayerEnabledProvider.notifier).set(true);
     await settle(tester);
-    expect(find.descendant(of: fab('layers'), matching: find.text('1')),
+    expect(find.descendant(of: tool('Ebenen'), matching: find.text('1')),
         findsOneWidget);
   });
 
@@ -148,7 +188,7 @@ void main() {
     expect(container.read(ampelLayerEnabledProvider), isTrue);
 
     // Und der Zähler sagt dasselbe, ohne dass man ein Blatt öffnet.
-    expect(find.descendant(of: fab('layers'), matching: find.text('4')),
+    expect(find.descendant(of: tool('Ebenen'), matching: find.text('4')),
         findsOneWidget);
   });
 
@@ -200,13 +240,54 @@ void main() {
 
     expect(tourStopButton(), findsOneWidget,
         reason: 'ein Tipp zum Beenden, nicht zwei');
-    expect(fab('trip'), findsOneWidget,
+    expect(tool('Unterwegs'), findsOneWidget,
         reason: 'und „Unterwegs" bleibt daneben stehen — sonst käme man '
             'während einer Tour nicht mehr ans Standort-Teilen');
 
     // Und der Weg dorthin trägt auch wirklich.
     await openTrip(tester);
     expect(find.text('Standort mit Buddies teilen'), findsOneWidget);
-    expect(find.text('Pilztour beenden'), findsOneWidget);
+    // Die Überschrift steht fest, der Schalter trägt den Zustand — sie
+    // heißt nicht mehr mal „starten" und mal „beenden".
+    expect(find.text('Pilztour'), findsOneWidget);
+  });
+
+  testWidgets('Die laufende Tour zeigt ihre Laufzeit', (tester) async {
+    // **Warum überhaupt eine Zahl.** Ein Stopp-Knopf sagt nur, DASS
+    // etwas läuft. Die Frage beim Blick auf die Karte ist „seit wann" —
+    // und die Antwort stand sonst nirgends, ohne das Blatt zu öffnen.
+    // Zustand und Ausgang in einem Element, statt in zwei.
+    await tester.binding.setSurfaceSize(const Size(412, 915));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final store = FakeTourStore();
+    await pumpApp(
+      tester,
+      signedIn(),
+      tourStore: store,
+      tourFix: FakeTourFix(),
+      tourBridge: FakeTourServiceBridge(),
+    );
+
+    await startTour(tester);
+    expect(tourStopButton(), findsOneWidget);
+    // Frisch gestartet: Minuten, keine Stunde. „0:00 h" wäre eine
+    // Genauigkeit, die niemand braucht, und sähe aus wie ein Fehler.
+    expect(find.textContaining('Tour · 0 min'), findsOneWidget);
+  });
+
+  test('Die Laufzeit zeigt Stunden erst, wenn es welche gibt', () {
+    // Reine Rechnung, deshalb ohne Widget — der Wortlaut ist die
+    // Aussage: unter einer Stunde Minuten, darüber „h:mm h". Ein
+    // durchgehendes „0:07 h" läse sich wie eine kaputte Uhr.
+    expect(elapsedTourLabel(const Duration(minutes: 0)), '0 min');
+    expect(elapsedTourLabel(const Duration(minutes: 7)), '7 min');
+    expect(elapsedTourLabel(const Duration(minutes: 59)), '59 min');
+    expect(elapsedTourLabel(const Duration(hours: 1)), '1:00 h');
+    expect(
+        elapsedTourLabel(const Duration(hours: 1, minutes: 24)), '1:24 h');
+    // Zweistellige Minuten bleiben zweistellig — „1:4 h" wäre falsch
+    // zu lesen.
+    expect(elapsedTourLabel(const Duration(hours: 1, minutes: 4)), '1:04 h');
+    expect(elapsedTourLabel(const Duration(hours: 12, minutes: 5)), '12:05 h');
   });
 }

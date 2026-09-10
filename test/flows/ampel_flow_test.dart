@@ -432,19 +432,20 @@ void main() {
     final container = ProviderScope.containerOf(
         tester.element(find.byType(Scaffold).first));
 
-    // Über den heroTag statt über den Tooltip: Der Knopf soll über
-    // seinen ZUSTAND gefunden werden können, ohne dass der Test den
-    // Zustand schon in die Suche legt.
-    final layersFab = find.byWidgetPredicate((widget) =>
-        widget is FloatingActionButton && widget.heroTag == 'layers');
+    // Über den Tooltip, seit die vier Werkzeuge in EINER Leiste sitzen
+    // und keine `heroTag`s mehr haben. Der Tooltip taugt als Anker, WEIL
+    // er sich nicht mit dem Zustand ändert: Er heißt immer „Ebenen", die
+    // Zahl steht im Badge. Ein Tooltip, dessen Text mitwanderte, wäre
+    // als Suchziel und als Beschriftung gleich schlecht — genau deshalb
+    // steht er im Karten-Screen fest.
     bool badge(String label) => find
-        .descendant(of: layersFab, matching: find.text(label))
+        .descendant(of: find.byTooltip('Ebenen'), matching: find.text(label))
         .evaluate()
         .isNotEmpty;
 
     expect(
         find
-            .descendant(of: layersFab, matching: find.byIcon(Icons.layers_outlined))
+            .descendant(of: find.byTooltip('Ebenen'), matching: find.byIcon(Icons.layers_outlined))
             .evaluate(),
         isNotEmpty,
         reason: 'nichts an, also die leere Form');
@@ -456,7 +457,7 @@ void main() {
     expect(badge('1'), isTrue);
     expect(
         find
-            .descendant(of: layersFab, matching: find.byIcon(Icons.layers))
+            .descendant(of: find.byTooltip('Ebenen'), matching: find.byIcon(Icons.layers))
             .evaluate(),
         isNotEmpty);
 

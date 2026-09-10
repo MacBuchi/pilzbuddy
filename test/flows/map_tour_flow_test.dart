@@ -17,8 +17,19 @@ import '../fakes/fake_backend.dart';
 import '../fakes/fake_settings.dart';
 import '../fakes/test_app.dart';
 
-Finder fab(String tag) => find.byWidgetPredicate(
-    (widget) => widget is FloatingActionButton && widget.heroTag == tag);
+/// Ein Knopf der Karten-Spalte.
+///
+/// Bis 1.133.0 waren vier davon `FloatingActionButton`s mit `heroTag`;
+/// seit sie in EINER weißen Leiste sitzen, gibt es die Kennungen nicht
+/// mehr. Der Tooltip ist der bessere Anker — er ist ohnehin die Zusage
+/// an den Nutzer, weil die Leiste keine Beschriftung trägt.
+///
+/// **Das Loch misst weiter den ECHTEN Knopf** (`tester.getRect`), nicht
+/// eine feste Zahl: Die Spalte steckt in einem `FittedBox(scaleDown)`,
+/// ihre Maße hängen also an der Bildschirmhöhe. Genau deshalb überlebt
+/// dieser Test die Umstellung, ohne dass eine Koordinate angefasst
+/// werden musste.
+Finder fab(String tooltip) => find.byTooltip(tooltip);
 
 /// Die Löcher, die gerade wirklich gemalt werden.
 List<Rect> holes(WidgetTester tester) => tester
@@ -82,26 +93,38 @@ void main() {
     // Ihre Maße hängen an der Bildschirmhöhe, und eine feste Zahl wäre
     // dort am falschesten, wo der Schirm klein ist. Deshalb wird gegen
     // `getRect` des Knopfs geprüft, nicht gegen eine Konstante.
+    //
+    // **Mit Toleranz, und das ist keine Nachlässigkeit.** Beide Rechtecke
+    // laufen durch die Skalierung der `FittedBox`, und seit die
+    // Werkzeuge in einer Leiste liegen, summiert sich das in anderer
+    // Reihenfolge: gemessen 552.0 gegen 551.9999999999999. Die Zusage
+    // ist „das Loch sitzt auf dem Knopf", nicht „die Doubles sind
+    // bitgleich" — ein exakter Vergleich prüft hier die
+    // Assoziativität von Fließkomma-Addition, nicht die Tour.
     useScreen(tester, const Size(412, 915));
     await pumpApp(tester, signedIn(), settings: fresh());
 
     await tester.tap(find.text('Weiter'));
     await settle(tester);
     expect(find.text('Wo du gerade bist'), findsOneWidget);
-    expect(holes(tester).single, tester.getRect(fab('locate')));
+    expect(holes(tester).single,
+        rectMoreOrLessEquals(tester.getRect(fab('Meine Position'))));
 
     await tester.tap(find.text('Weiter'));
     await settle(tester);
     expect(find.text('Was die Karte zeigt'), findsOneWidget);
-    expect(holes(tester).single, tester.getRect(fab('layers')));
+    expect(holes(tester).single,
+        rectMoreOrLessEquals(tester.getRect(fab('Ebenen'))));
 
     await tester.tap(find.text('Weiter'));
     await settle(tester);
-    expect(holes(tester).single, tester.getRect(fab('filter')));
+    expect(holes(tester).single,
+        rectMoreOrLessEquals(tester.getRect(fab('Karte filtern'))));
 
     await tester.tap(find.text('Weiter'));
     await settle(tester);
-    expect(holes(tester).single, tester.getRect(fab('trip')));
+    expect(holes(tester).single,
+        rectMoreOrLessEquals(tester.getRect(fab('Unterwegs'))));
   });
 
   testWidgets('fünf Schritte, dann ist sie durch — und kommt nicht wieder',
@@ -229,10 +252,30 @@ void main() {
       await settle(tester);
     }
 
-    for (final tag in ['layers', 'filter', 'trip', 'locate', 'add']) {
-      expect(seen, contains(tester.getRect(fab(tag))),
-          reason: 'der Knopf „$tag" kommt in keinem Schritt vor');
+    // Dieselbe Toleranz wie oben, aus demselben Grund.
+    bool covered(Rect wanted) =>
+        seen.any((hole) => (hole.left - wanted.left).abs() < 0.01 &&
+            (hole.top - wanted.top).abs() < 0.01 &&
+            (hole.right - wanted.right).abs() < 0.01 &&
+            (hole.bottom - wanted.bottom).abs() < 0.01);
+
+    for (final tooltip in [
+      'Ebenen',
+      'Karte filtern',
+      'Unterwegs',
+      'Meine Position',
+    ]) {
+      expect(covered(tester.getRect(fab(tooltip))), isTrue,
+          reason: 'der Knopf „$tooltip" kommt in keinem Schritt vor');
     }
+    // „Neuer Spot" ist der einzige geblieben, der ein FAB ist — und
+    // deshalb der einzige, der hier über seinen Text gefunden wird.
+    expect(
+        covered(tester.getRect(find.ancestor(
+            of: find.text('Neuer Spot'),
+            matching: find.byType(FloatingActionButton)))),
+        isTrue,
+        reason: 'der Knopf „Neuer Spot" kommt in keinem Schritt vor');
   });
 
   testWidgets('die Sprechblase liegt nie auf dem, was sie erklärt',
