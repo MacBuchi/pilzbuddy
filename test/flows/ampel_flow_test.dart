@@ -311,15 +311,19 @@ void main() {
     expect(find.textContaining(': günstig'), findsNothing);
   });
 
-  testWidgets('Karten-Ampel im Regen-Blatt: schaltet den Wald ein, '
+  testWidgets('Karten-Ampel im eigenen Blatt: schaltet den Wald ein, '
       'Zustimmung fährt mit', (tester) async {
+    // Der Schalter lag bis zum Entwirren im REGEN-Blatt — eine
+    // Erbschaft aus der Zeit, als die Ampel ein Modus des Regens war.
+    // Seit 1.76.0 färbt sie die WALDwaben; der Regen ist nur noch eine
+    // ihrer beiden Zutaten, und die Regen-EBENE fasst sie gar nicht an.
     final settings = FakeSettings(ampelPreviewEnabled: true);
     final backend = FakeBackend();
     backend.signInAs(backend.addUser(username: 'testpilz').id);
     await pumpApp(tester, backend, settings: settings);
 
-    await openLayerSheet(tester, 'Regen');
-    final toggle = find.text('Pilzwetter-Ampel (experimentell)');
+    await openLayerSheet(tester, 'Pilzampel');
+    final toggle = find.text('Ampel-Fläche auf der Karte');
     await tester.ensureVisible(toggle);
     await settle(tester);
     await tester.tap(toggle);
@@ -335,22 +339,17 @@ void main() {
         reason: 'dieselbe Zustimmung wie der Regen-Verlauf — EIN '
             'Angebot, kein zweiter Dialog; die Kosten stehen am '
             'Schalter');
+    expect(container.read(rainLayerProvider), RainLayer.off,
+        reason: 'die Ampel schaltet die Regen-EBENE nicht mit an — sie '
+            'rechnet aus dem Regen-Stapel, und der ist etwas anderes');
 
     // Eine Regenfläche darf daneben liegen: Seit 1.76.0 gibt es keine
     // zweite Deutungs-FLÄCHE mehr, die sich mit dem Regen beißen
-    // könnte — die Ampel steckt in den Waben.
-    //
-    // Zurückgescrollt wird ausdrücklich: Das Blatt ist eine lazy Liste,
-    // und nach dem Weg zum Ampel-Schalter liegen die Regen-Einträge
-    // wieder über dem sichtbaren Bereich (also außerhalb des Baums).
-    await tester.scrollUntilVisible(find.text('Letzte 30 Tage'), -120,
-        scrollable: find
-            .descendant(
-                of: find.byType(BottomSheet),
-                matching: find.byType(Scrollable))
-            .first);
-    await settle(tester);
-    await tester.tap(find.text('Letzte 30 Tage'));
+    // könnte — die Ampel steckt in den Waben. Gewählt wird sie jetzt
+    // über den Chip in der Regen-Zeile, ohne Unterblatt.
+    await closeSheet(tester, 'Pilzampel');
+    await openMapLayers(tester);
+    await tester.tap(rainChip('30 Tage'));
     await settle(tester);
     expect(container.read(rainLayerProvider), RainLayer.last30d);
     expect(container.read(ampelLayerEnabledProvider), isTrue);
@@ -422,7 +421,7 @@ void main() {
     expect(badge('1'), isTrue);
   });
 
-  testWidgets('es gibt keine Farbwahl mehr im Regen-Blatt', (tester) async {
+  testWidgets('es gibt keine Farbwahl mehr im Ampel-Blatt', (tester) async {
     // 1.73.0 stellte drei Familien zur Wahl, weil der gerenderte
     // Vergleich knapp war. Entschieden hat ihn das Feld (Türkis zu nah
     // am Kartenwasser), und seit die Kombi-Ebene je Waldklasse eigene
@@ -434,8 +433,8 @@ void main() {
     backend.signInAs(backend.addUser(username: 'testpilz').id);
     await pumpApp(tester, backend, settings: settings);
 
-    await openLayerSheet(tester, 'Regen');
-    final toggle = find.text('Pilzwetter-Ampel (experimentell)');
+    await openLayerSheet(tester, 'Pilzampel');
+    final toggle = find.text('Ampel-Fläche auf der Karte');
     await tester.ensureVisible(toggle);
     await settle(tester);
     await tester.tap(toggle);
@@ -447,13 +446,16 @@ void main() {
     expect(find.text('Türkis'), findsNothing);
   });
 
-  testWidgets('ohne Vorschau-Schalter kein Ampel-Eintrag im Regen-Blatt',
+  testWidgets('ohne Vorschau-Schalter keine Ampel-Zeile im Ebenen-Blatt',
       (tester) async {
+    // Geprüft wird jetzt am Ebenen-Blatt statt am Regen-Blatt: Dort
+    // wohnt die Zeile, und dort wäre sie ohne den Profil-Schalter ein
+    // Weg in ein Blatt, das es für diesen Nutzer nicht geben soll.
     final backend = FakeBackend();
     backend.signInAs(backend.addUser(username: 'testpilz').id);
     await pumpApp(tester, backend, settings: FakeSettings());
-    await openLayerSheet(tester, 'Regen');
-    expect(find.text('Pilzwetter-Ampel (experimentell)'), findsNothing);
+    await openMapLayers(tester);
+    expect(find.text('Pilzampel'), findsNothing);
   });
 
   testWidgets('der Profil-Schalter schaltet die Vorschau und merkt sie',

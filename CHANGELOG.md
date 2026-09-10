@@ -7,6 +7,38 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Das Ebenen-Blatt sagt jetzt, was gerade auf der Karte liegt
+
+*10. September 2026 · Version 1.130.0*
+
+Das Blatt hinter dem Ebenen-Knopf war an drei Stellen umständlicher, als
+es sein muss. Alle drei sind aufgeräumt.
+
+- **Der Regen-Zeitraum steht in der Zeile.** Jetzt · +1 h · 24 h ·
+  30 Tage — antippen genügt. Bisher musste man dafür ein Unterblatt
+  öffnen und dort eine von fünf Zeilen auswählen. Das Unterblatt gibt es
+  weiter hinter dem Pfeil, aber nur noch für Darstellung, Abdeckung und
+  Quelle. Dazu ein Schalter für die ganze Ebene: Aus und wieder an landet
+  bei dem Zeitraum, den du zuletzt gewählt hattest.
+- **Die Pilzampel hat ein eigenes Blatt.** Ihr Schalter wohnte bis jetzt
+  mitten im Regen-Blatt — ein Überbleibsel aus der Zeit, als sie ein
+  Regen-Modus war. Sie färbt seit Langem die Waldwaben, und dort gehört
+  sie hin. Im neuen Blatt stehen auch ihre Grenzen beieinander: nur
+  Deutschland, im Gebirge unsicher, und sie bewertet Bedingungen, keine
+  Vorkommen.
+- **Was der Schalter noch anschaltet, steht dabei.** In der Ampel-Zeile
+  jetzt als eine Zeile darunter: „rechnet aus Regen + Temperatur ·
+  schaltet die Waldtypen mit an".
+
+Außerdem nennen die Zeilen den Wert unter dem Fadenkreuz — „hier 53 mm",
+„Gelände · alle 50 m · hier 220 m" —, sobald die jeweilige Ebene an ist.
+Dieselbe Ablesung wie in der Legende, damit Blatt und Karte nicht zwei
+verschiedene Zahlen zeigen.
+
+„Karte aktualisieren" ist keine Listenzeile mehr, sondern ein Knopf in
+der Überschrift: Es ist keine Ebene, die man anschaltet, sondern ein
+Befehl, der sofort erledigt ist.
+
 ## Nur die Fundstellen zeigen, die jetzt Saison haben
 
 *9. September 2026 · Version 1.129.0*

@@ -15,6 +15,8 @@ import 'package:pilzbuddy/features/map/elevation_providers.dart';
 import 'package:pilzbuddy/features/map/forest_data_providers.dart'
     show mapIdleBoundsProvider;
 import 'package:pilzbuddy/features/map/map_view/marker_culling.dart';
+import 'package:pilzbuddy/features/map/widgets/map_legend.dart'
+    show mapIdleCenterProvider;
 
 import '../fakes/fake_backend.dart';
 import '../fakes/fake_settings.dart';
@@ -255,5 +257,83 @@ void main() {
         settings: settings, extraOverrides: withGrid(testGrid()));
     expect(containerOf(tester).read(contourLayerEnabledProvider), isTrue,
         reason: 'nach dem Neustart liegt die Ebene wieder');
+  });
+
+  testWidgets('Das Ebenen-Blatt packt das Höhengitter NICHT aus',
+      (tester) async {
+    // Die Zeile trägt seit dem Entwirren die Ablesung („hier 220 m") —
+    // und genau da liegt die Falle: `elevationAtProvider` beobachtet das
+    // Gitter, und beobachten IST laden (3,4 MB, CLAUDE.md). Ausgerechnet
+    // dieses Blatt öffnet man, um die Höhenlinien erst ANZUSCHALTEN.
+    // Ohne die Bedingung am Schalter wäre der Wert in der Zeile ein
+    // Auspacken bei jedem Öffnen — dieselbe Rechnung, die 1.99.4 aus dem
+    // Startpfad genommen hat.
+    var loads = 0;
+    // **`useRealMap` ist hier keine Kulisse, sondern die Bedingung.**
+    // Die Ablesung hängt an `mapIdleCenterProvider`, und den füllt erst
+    // eine Karte, die Stillstand meldet. Ohne sie bleibt die Mitte
+    // `null`, die Ablesung feuert nie — und der Test wäre grün, auch
+    // wenn der Wert ungeprüft in der Zeile stünde. Beim Schreiben genau
+    // so passiert: Die Gegenprobe (Ablesung ohne Bedingung geholt) lief
+    // durch, weil der Fall gar nicht eintrat.
+    await pumpApp(tester, loggedInBackend(), useRealMap: true,
+        extraOverrides: [
+          elevationLoaderProvider.overrideWithValue(() async {
+            loads++;
+            return testGrid();
+          }),
+        ]);
+    await settle(tester);
+    expect(loads, 0, reason: 'der Start fasst das Gitter nicht an');
+    expect(containerOf(tester).read(mapIdleCenterProvider), isNotNull,
+        reason: 'ohne gemeldete Mitte prüfte dieser Test nichts');
+
+    await openMapLayers(tester);
+    // Die Zusage zuerst — sonst schlüge bei einer Regression die
+    // Textzeile an und nicht das, worum es geht.
+    expect(loads, 0, reason: 'auch das Ebenen-Blatt lädt das Gitter nicht');
+    expect(find.text('Höhenlinien'), findsOneWidget,
+        reason: 'die Zeile steht trotzdem da');
+    expect(find.text('Gelände, auf dem Gerät gerechnet'), findsOneWidget,
+        reason: 'ausgeschaltet nennt die Zeile keinen Wert — es gibt '
+            'keinen, ohne ihn zu holen');
+  });
+
+  testWidgets('Eingeschaltet steht die Ablesung in der Zeile',
+      (tester) async {
+    // Dieselbe Zahl wie in der Legende, damit Blatt und Karte nicht zwei
+    // Wahrheiten haben. Sichtbar erst, wenn die Ebene an ist — dann ist
+    // das Gitter ohnehin geladen, weil die Karte es zeichnet.
+    await pumpApp(tester, loggedInBackend(),
+        useRealMap: true, extraOverrides: withGrid(testGrid()));
+    final container = containerOf(tester);
+    container.read(contourLayerEnabledProvider.notifier).set(true);
+    await settle(tester);
+    idleAt(container, 150);
+    await tester
+        .runAsync(() => container.read(elevationContoursProvider.future));
+    await settle(tester);
+
+    // Die Ablesung selbst ist ein FutureProvider — ohne diesen Schritt
+    // steht sie beim ersten Bildaufbau noch auf `null`, und der Test
+    // prüfte die Wartezeit statt der Zusage.
+    final centre = container.read(mapIdleCenterProvider);
+    expect(centre, isNotNull);
+    await tester.runAsync(() => container.read(elevationAtProvider(
+        (lat: centre!.latitude, lon: centre.longitude)).future));
+    await settle(tester);
+
+    await openMapLayers(tester);
+    expect(
+        find.descendant(
+            of: layerRow('Höhenlinien'),
+            matching: find.textContaining('hier ')),
+        findsOneWidget,
+        reason: 'die Ablesung am Fadenkreuz steht in der Zeile');
+    expect(
+        find.descendant(
+            of: layerRow('Höhenlinien'),
+            matching: find.textContaining(' m')),
+        findsOneWidget);
   });
 }

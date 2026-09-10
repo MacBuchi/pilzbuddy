@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/app_colors.dart';
-import '../../ampel/ampel_map_providers.dart';
-import '../../ampel/ampel_providers.dart';
 import '../rain_data_providers.dart';
 import '../rain_fill.dart';
 import '../rain_layer.dart';
@@ -94,45 +92,17 @@ class _RainLayerSheet extends ConsumerWidget {
                       onTap: () =>
                           ref.read(rainLayerProvider.notifier).set(layer),
                     ),
-                  if (ref.watch(ampelPreviewEnabledProvider)) ...[
-                    const Divider(height: 16),
-                    // Die Umgebungs-Frage der Ampel-Vorschau: „Wo lohnt
-                    // sich der Wald gerade?" Seit 1.76.0 färbt sie NUR
-                    // den Wald ein (Betreiber: „es gibt keinen Grund,
-                    // warum man andere Bereiche damit einfärben
-                    // sollte") — also ein Modus der Waldfläche, kein
-                    // eigenes Bild. Nur sichtbar mit dem
-                    // Experimentell-Schalter im Profil.
-                    SwitchListTile(
-                      dense: true,
-                      title:
-                          const Text('Pilzwetter-Ampel (experimentell)'),
-                      // Der Höhen-Satz ist kein Beiwerk: Die Temperatur
-                      // ist der Wert der NÄCHSTEN Station, und im
-                      // Gebirge stehen Nachbarstationen Hunderte
-                      // Höhenmeter auseinander — bei Garmisch entscheidet
-                      // das über die Stufe (#279). Ein Geländemodell auf
-                      // dem Gerät gibt es nicht, also wird die Grenze
-                      // benannt statt kaschiert.
-                      subtitle: const Text(
-                          'Lässt die Waldwaben dort leuchten, wo die '
-                          'Bedingungen für Steinpilz & Co. gerade '
-                          'stimmen — nur Deutschland, bewertet '
-                          'Bedingungen, nicht Vorkommen. Im Gebirge '
-                          'unsicher: Die Temperatur kommt von der '
-                          'nächsten Wetterstation, und die kann Hunderte '
-                          'Höhenmeter tiefer oder höher stehen. Nutzt die '
-                          'Wetterdaten vom Spot (beim ersten Mal knapp '
-                          '2 MB).'),
-                      value: ref.watch(ampelLayerEnabledProvider),
-                      // Die Kette samt Nebenwirkungen (Waldebene an,
-                      // Wetter-Zustimmung) steht seit #347 EINMAL in
-                      // `ampel_map_providers.dart` — das Karten-Blatt
-                      // ruft dieselbe. Zwei Kopien wären zwei Antworten
-                      // auf denselben Schalter.
-                      onChanged: (value) => setAmpelLayerEnabled(ref, value),
-                    ),
-                  ],
+                  // **Der Ampel-Schalter stand bis hierher an dieser
+                  // Stelle** — mitten im Regen-Blatt, weil die Ampel in
+                  // ihrer ersten Fassung ein Modus des Regens war. Seit
+                  // 1.76.0 färbt sie ausschließlich die Waldwaben; der
+                  // Regen ist nur noch eine ihrer beiden Zutaten, und
+                  // die Regen-EBENE fasst sie gar nicht an. Ein
+                  // Schalter, der hier lag, gehörte damit zur falschen
+                  // Ebene: Wer den Regen ausschaltete, ließ die Ampel
+                  // an, und wer die Ampel suchte, musste erst den Regen
+                  // öffnen. Er wohnt jetzt in `ampel_layer_sheet.dart`
+                  // hinter der eigenen Zeile im Ebenen-Blatt.
                   if (current != RainLayer.off) ...[
                     const Divider(height: 16),
                     _Details(layer: current),
