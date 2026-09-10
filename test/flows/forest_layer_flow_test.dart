@@ -196,8 +196,19 @@ void main() {
         reason: 'abgewählte Klasse blass');
   });
 
-  testWidgets('die Karten-Legende zeigt aktive Ebenen; das X merkt sich '
-      'das Aus (#231)', (tester) async {
+  testWidgets('die Karten-Legende klappt ein und aus — und merkt es sich '
+      '(#231)', (tester) async {
+    // **Hier stand bis 1.131.0 „das X merkt sich das Aus".** Das X gibt
+    // es nicht mehr, und das ist der Punkt: Zurück führte damals nur ein
+    // Schalter, der in drei Blättern stand und jedes Mal nur, wenn die
+    // jeweilige Ebene an war. Wer die Legende wegtippte und danach alle
+    // Ebenen ausschaltete, hatte keinen Rückweg — dieselbe Sackgasse wie
+    // #425 und #349.
+    //
+    // Eingeklappt bleibt eine 40-Pixel-Schiene stehen, und die IST der
+    // Rückweg. Deshalb prüft dieser Test zwei Dinge, die zusammengehören:
+    // dass eingeklappt der Inhalt weg ist UND dass etwas dableibt, das
+    // zurückführt.
     final (backend, _) = loggedInBackend();
     final settings = FakeSettings();
     await pumpApp(tester, backend,
@@ -209,37 +220,43 @@ void main() {
     container.read(forestLayerEnabledProvider.notifier).state = true;
     await settle(tester);
     expect(find.text('Waldtypen'), findsOneWidget,
-        reason: 'Legende liegt auf der Karte');
+        reason: 'Legende liegt ausgeklappt auf der Karte');
 
-    // Das X blendet aus — persistent.
-    await tester.tap(find.byTooltip('Legende ausblenden'));
+    await tester.tap(find.byTooltip('Legende einklappen'));
     await settle(tester);
-    expect(find.text('Waldtypen'), findsNothing);
-    expect(settings.mapLegendEnabled, isFalse,
-        reason: 'das X überlebt den Neustart');
+    expect(find.text('Waldtypen'), findsNothing,
+        reason: 'eingeklappt trägt die Schiene keine Überschriften');
+    expect(settings.mapLegendOpen, isFalse,
+        reason: 'der Zustand überlebt den Neustart');
 
-    // Zurück geht es über den Schalter im Ebenen-Blatt (im Blatt muss
-    // man dafür ans Ende scrollen — das Blatt ist seit den Checkboxen
-    // scrollbar).
-    await openLayerSheet(tester, 'Waldtypen');
-    // Gescrollt wird, bis die Zeile wirklich sichtbar ist — nicht um
-    // einen festen Weg. Der frühere feste Wisch (−220 px) reißt bei
-    // jedem Satz mehr im Fein-Schalter-Text; so geschehen, als der die
-    // Zoom-Schranke erklärt bekam.
-    await tester.scrollUntilVisible(
-        find.text('Legende in Karte anzeigen'), 120,
-        scrollable: find
-            .descendant(
-                of: find.byType(ListView).last,
-                matching: find.byType(Scrollable))
-            .first);
-    await settle(tester);
-    await tester.tap(find.text('Legende in Karte anzeigen'));
-    await settle(tester);
-    await tester.tapAt(const Offset(20, 20));
+    // Und der Rückweg steht da — ohne Blatt, ohne Schalter, ohne dass
+    // man wissen muss, wo er liegt.
+    final rail = find.byTooltip('Legende einblenden');
+    expect(rail, findsOneWidget);
+    expect(find.byKey(const Key('legend-rail-forest')), findsOneWidget,
+        reason: 'die Schiene sagt weiter, was auf der Karte liegt');
+
+    await tester.tap(rail);
     await settle(tester);
     expect(find.text('Waldtypen'), findsOneWidget);
-    expect(settings.mapLegendEnabled, isTrue);
+    expect(settings.mapLegendOpen, isTrue);
+  });
+
+  testWidgets('Eingeklappt bleibt die Schiene auch bei EINER Ebene',
+      (tester) async {
+    // Eine Schiene, die bei wenig Inhalt verschwände, wäre wieder ein
+    // Zustand ohne Ausgang — und zwar genau für den, der am wenigsten
+    // eingeschaltet hat.
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend,
+        settings: FakeSettings(mapLegendOpen: false),
+        extraOverrides: withGrid(testGrid()));
+    final container = containerOf(tester);
+    await tester.runAsync(() => container.read(forestGridProvider.future));
+    container.read(forestLayerEnabledProvider.notifier).state = true;
+    await settle(tester);
+
+    expect(find.byTooltip('Legende einblenden'), findsOneWidget);
   });
 
   testWidgets('Fadenkreuz-Werte: Kamera-Stillstand setzt den Messstrich '

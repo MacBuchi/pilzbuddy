@@ -850,10 +850,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
             // dem Maßstab. Nicht mehr in einem IgnorePointer: Das X zum
             // Ausblenden braucht den Tipp — die Karte dahinter verliert
             // nur die kleine Kartenfläche der Legende selbst.
-            const SafeArea(
+            SafeArea(
               child: Align(
                 alignment: Alignment.bottomLeft,
-                child: MapLegend(),
+                child: MapLegend(onOpenLayers: _openLayers),
               ),
             ),
             SafeArea(

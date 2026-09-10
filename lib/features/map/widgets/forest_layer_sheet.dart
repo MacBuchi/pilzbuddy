@@ -132,14 +132,6 @@ class _ForestLayerSheet extends ConsumerWidget {
                             .setForestFineEnabled(value);
                       },
                     ),
-                    SwitchListTile(
-                      dense: true,
-                      title: const Text('Legende in Karte anzeigen'),
-                      value: ref.watch(mapLegendEnabledProvider),
-                      onChanged: (value) => ref
-                          .read(mapLegendEnabledProvider.notifier)
-                          .set(value),
-                    ),
                   ],
                 ],
               ),

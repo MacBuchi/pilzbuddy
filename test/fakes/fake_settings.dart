@@ -8,7 +8,7 @@ class FakeSettings implements Settings {
     this.offlineMapEnabled = false,
     this.classicMapEnabled = false,
     this.mapLongPressEnabled = false,
-    this.mapLegendEnabled = true,
+    this.mapLegendOpen = true,
     this.rainCourseEnabled = false,
     this.prereleaseUpdatesEnabled = false,
     this.forestFineEnabled = false,
@@ -62,11 +62,11 @@ class FakeSettings implements Settings {
   }
 
   @override
-  bool mapLegendEnabled;
+  bool mapLegendOpen;
 
   @override
-  Future<void> setMapLegendEnabled(bool value) async {
-    mapLegendEnabled = value;
+  Future<void> setMapLegendOpen(bool value) async {
+    mapLegendOpen = value;
   }
 
   @override

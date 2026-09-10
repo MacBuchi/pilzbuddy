@@ -7,6 +7,39 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Legende klappt ein, statt zu verschwinden
+
+*10. September 2026 · Version 1.132.0*
+
+Die Legende links unten hatte ein ✕, und das ✕ hat sie weggeschaltet —
+dauerhaft. Zurück kam sie nur über einen Schalter, der in drei
+verschiedenen Blättern stand, und zwar jedes Mal nur dann, wenn genau
+diese Ebene eingeschaltet war. Wer die Legende wegtippte und danach alle
+Ebenen ausschaltete, kam gar nicht mehr an den Schalter heran.
+
+**Jetzt klappt sie ein.** Übrig bleibt eine schmale Schiene am linken
+Rand, und ein Tipp darauf holt sie zurück. Damit kann der Zustand „weg
+und ich weiß nicht wie zurück" nicht mehr entstehen — die Schalter in den
+drei Blättern sind entfallen.
+
+Auch der Inhalt ist neu sortiert, nach der Art der Aussage:
+
+- **Oben die Pilzampel als Daumen** — hoch, seitlich oder runter. Drei
+  Lampen musste man erst lesen lernen (welche ist die gute?), ein Daumen
+  sagt es von selbst. Eingeklappt ist er die ganze Aussage.
+- **In der Mitte die Messwerte** — Regen und Waldtypen als Farbbalken mit
+  einem Strich an der Stelle, wo der Wert unter dem Fadenkreuz liegt.
+  Eingeklappt stehen dieselben Balken senkrecht, mit einem Tropfen und
+  einem Blatt an den Enden, damit man auch ohne Beschriftung weiß, wohin
+  die Skala läuft.
+- **Unten die Höhe** als große Zahl in eigenem Kasten. Sie ist keine
+  Einordnung auf einer Skala, sondern ein Wert — das soll man ihr ansehen.
+
+Und die Fußzeile sagt endlich, was vorher nur ausprobieren konnte: **„Was
+ist hier? →"** führt zur vollen Auskunft über die Stelle unter dem
+Fadenkreuz. Bisher musste man dafür auf die Werte selbst tippen, und
+nirgends stand, dass das geht.
+
 ## Mehr Karte: die Hinweise oben werden zu einer schmalen Zeile
 
 *10. September 2026 · Version 1.131.0*

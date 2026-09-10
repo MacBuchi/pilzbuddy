@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../elevation_contour_providers.dart';
 import '../elevation_providers.dart';
-import 'map_legend.dart';
 
 Future<void> showTerrainLayerSheet(BuildContext context) =>
     showModalBottomSheet(
@@ -97,15 +96,6 @@ class _TerrainLayerSheet extends ConsumerWidget {
                             .read(contourLayerEnabledProvider.notifier)
                             .set(value),
                   ),
-                  if (enabled)
-                    SwitchListTile(
-                      dense: true,
-                      title: const Text('Legende in Karte anzeigen'),
-                      value: ref.watch(mapLegendEnabledProvider),
-                      onChanged: (value) => ref
-                          .read(mapLegendEnabledProvider.notifier)
-                          .set(value),
-                    ),
                 ],
               ),
             ),

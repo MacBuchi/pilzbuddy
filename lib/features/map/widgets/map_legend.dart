@@ -11,9 +11,30 @@
 // **Warum sie klein bleibt:** Die Karte ist der Inhalt. Deshalb links
 // UNTEN (dort ist der einzige freie Rand; rechts stehen die Knöpfe, oben
 // die Banner), nur bei aktiver Ebene, und ohne Beschriftung jeder
-// einzelnen Stufe. Das X schaltet die persistente Einstellung
-// [Settings.mapLegendEnabled] aus; wieder an geht sie im Ebenen-Blatt
-// („Legende in Karte anzeigen").
+// einzelnen Stufe.
+//
+// **Zwei Zustände, kein Menü — und kein Weg mehr.** Bis 1.131.0 schaltete
+// ein ✕ die Legende WEG, persistent. Zurück führte ein Schalter
+// („Legende in Karte anzeigen"), der in drei Blättern stand und jedes Mal
+// nur, wenn die jeweilige Ebene an war: Wer die Legende wegtippte und
+// danach alle Ebenen ausschaltete, hatte keinen Rückweg. Das ist
+// dieselbe Sorte Sackgasse wie #425 („das X mutet für den ganzen Tag")
+// und #349 („das Banner schaltet sich beim Antippen selbst stumm") —
+// eine Geste nimmt ein Feature weg, und nirgends steht, wie es
+// zurückkommt.
+//
+// Jetzt klappt sie ein statt zu verschwinden: 40 Pixel Schiene mit
+// denselben drei Aussagen senkrecht. **Die Schiene IST der Rückweg**,
+// deshalb braucht es keinen Schalter mehr in irgendeinem Blatt — und ein
+// Zustand, aus dem man nicht mehr herausfindet, kann gar nicht erst
+// entstehen.
+//
+// **Drei Zonen, drei Sorten von Aussage** (aus dem Entwurf): oben
+// DISKRET — die Pilzampel als Daumen, weil „hoch/seitlich/runter" ohne
+// Skala lesbar ist; in der Mitte KONTINUIERLICH — Regen und Waldtypen
+// als Balken mit Messstrich; unten der WERT — die Höhe als Zahl. Sie
+// stehen nicht zusammen, weil sie zufällig alle vier Ebenen sind,
+// sondern getrennt, weil man sie verschieden liest.
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -37,27 +58,30 @@ import '../rain_fill.dart';
 import '../rain_layer.dart';
 import 'here_sheet.dart';
 
+/// Ist die Legende ausgeklappt?
+///
 /// Muster wie `MapLongPressEnabledNotifier`: Zustand springt sofort,
 /// Speichern läuft nach, ein Fehler beim Merken wird nur protokolliert —
 /// die Karte darf an einer Einstellung nie scheitern.
-class MapLegendEnabledNotifier extends Notifier<bool> {
+class MapLegendOpenNotifier extends Notifier<bool> {
   @override
-  bool build() => ref.read(settingsProvider).mapLegendEnabled;
+  bool build() => ref.read(settingsProvider).mapLegendOpen;
 
   void set(bool value) {
     state = value;
     unawaited(ref
         .read(settingsProvider)
-        .setMapLegendEnabled(value)
+        .setMapLegendOpen(value)
         .catchError((Object e, StackTrace stackTrace) {
       logError('Karten-Legende merken', e, stackTrace);
     }));
   }
+
+  void toggle() => set(!state);
 }
 
-final mapLegendEnabledProvider =
-    NotifierProvider<MapLegendEnabledNotifier, bool>(
-        MapLegendEnabledNotifier.new);
+final mapLegendOpenProvider =
+    NotifierProvider<MapLegendOpenNotifier, bool>(MapLegendOpenNotifier.new);
 
 /// Die Kartenmitte beim letzten Kamera-Stillstand (#235) — gesetzt vom
 /// Karten-Screen über [MapViewConfig.onCameraIdle], `null` bis zum
@@ -66,12 +90,16 @@ final mapLegendEnabledProvider =
 final mapIdleCenterProvider = StateProvider<LatLng?>((ref) => null);
 
 class MapLegend extends ConsumerWidget {
-  const MapLegend({super.key});
+  const MapLegend({super.key, this.onOpenLayers});
+
+  /// Der Weg ins Ebenen-Blatt aus der Fußzeile der ausgeklappten
+  /// Legende. `null` blendet den Verweis aus — die Legende baut sich
+  /// keinen zweiten Weg zur Kamera oder zu einem Blatt, sie drückt nur
+  /// stellvertretend einen Knopf, den es schon gibt.
+  final VoidCallback? onOpenLayers;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (!ref.watch(mapLegendEnabledProvider)) return const SizedBox.shrink();
-
     final rainLayer = ref.watch(rainLayerProvider);
     // Regen-Sektion nur zu den eigenen Farben — beim Radar und im
     // Rückfall liegt das DWD-Bild in DWD-Farben auf der Karte, dafür
@@ -134,84 +162,554 @@ class MapLegend extends ConsumerWidget {
       }
     }
 
+    final zones = (
+      showAmpel: showAmpel,
+      ampel: ampelAt,
+      showRain: showRain,
+      rainLayer: rainLayer,
+      rainMm: rainMm,
+      showForest: showForest,
+      forestClasses: forestClasses,
+      around: around,
+      showContours: showContours,
+      equidistanceM: ref.watch(contourEquidistanceProvider),
+      // Die Höhe am Fadenkreuz kommt aus demselben Provider wie die
+      // Spothöhe der Ampel — eine zweite Ablesung könnte abweichen.
+      heightM: (showContours && center != null)
+          ? ref
+              .watch(elevationAtProvider(
+                  (lat: center.latitude, lon: center.longitude)))
+              .valueOrNull
+          : null,
+      contoursTooFarOut: contoursTooFarOut,
+    );
+    final open = ref.watch(mapLegendOpenProvider);
+
     return Padding(
-      // Über dem Maßstab, der unten links sitzt.
-      padding: const EdgeInsets.only(left: 12, bottom: 44),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: AppColors.cream.withValues(alpha: 0.88),
-          borderRadius: BorderRadius.circular(8),
+      // Über Maßstab und Quellenhinweis, die beide unten links sitzen.
+      // Bündig an den linken Rand: Die Schiene soll wie eine Lasche aus
+      // dem Rand kommen, nicht wie ein zweiter freistehender Kasten —
+      // davon hat die Karte genug.
+      padding: const EdgeInsets.only(bottom: 44),
+      child: Material(
+        color: AppColors.cream.withValues(alpha: 0.94),
+        elevation: 2,
+        borderRadius: const BorderRadius.only(
+          topRight: Radius.circular(14),
+          bottomRight: Radius.circular(14),
         ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 6, 2, 6),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Tipp auf die Werte öffnet „Was ist hier?" (#245): Wer die
-              // Zahl am Fadenkreuz liest, ist genau der, der als Nächstes
-              // Verlauf und Temperatur wissen will. Nur die Skalen sind
-              // antippbar — das X daneben behält seine eigene Aufgabe.
-              //
-              // Ohne Stillstand (`center == null`) gibt es nichts zu
-              // zeigen: `onTap: null` lässt den Tipp dann an die Karte
-              // durch, statt ein leeres Blatt zu öffnen.
-              InkWell(
-                onTap: center == null
-                    ? null
-                    : () => showHereSheet(context, center),
-                borderRadius: BorderRadius.circular(6),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (showAmpel) _AmpelSection(reading: ampelAt),
-                    if (showAmpel && showForest)
-                      const SizedBox(height: 6),
-                    if (showRain) _RainSection(layer: rainLayer, mm: rainMm),
-                    if (showRain && showForest) const SizedBox(height: 6),
-                    if (showForest)
-                      _ForestSection(classes: forestClasses, around: around),
-                    if (showContours &&
-                        (showAmpel || showRain || showForest))
-                      const SizedBox(height: 6),
-                    if (showContours)
-                      _ContourSection(
-                        equidistanceM:
-                            ref.watch(contourEquidistanceProvider),
-                        // Die Höhe am Fadenkreuz kommt aus demselben
-                        // Provider wie die Spothöhe der Ampel — eine
-                        // zweite Ablesung könnte abweichen.
-                        heightM: center == null
-                            ? null
-                            : ref
-                                .watch(elevationAtProvider((
-                                  lat: center.latitude,
-                                  lon: center.longitude
-                                )))
-                                .valueOrNull,
-                        tooFarOut: contoursTooFarOut,
-                      ),
-                  ],
-                ),
+        child: open
+            ? _LegendPanel(
+                zones: zones,
+                center: center,
+                onCollapse: () =>
+                    ref.read(mapLegendOpenProvider.notifier).toggle(),
+                onOpenLayers: onOpenLayers,
+              )
+            : _LegendRail(
+                zones: zones,
+                onExpand: () =>
+                    ref.read(mapLegendOpenProvider.notifier).toggle(),
               ),
-              // Das X merkt sich die Entscheidung (persistent); zurück
-              // geht es über den Schalter im Ebenen-Blatt.
-              SizedBox(
-                width: 26,
-                height: 26,
-                child: IconButton(
-                  padding: EdgeInsets.zero,
-                  iconSize: 14,
-                  tooltip: 'Legende ausblenden',
-                  icon: const Icon(Icons.close, color: AppColors.barkBrown),
-                  onPressed: () =>
-                      ref.read(mapLegendEnabledProvider.notifier).set(false),
-                ),
-              ),
-            ],
+      ),
+    );
+  }
+}
+
+/// Was die Legende gerade zu sagen hat — einmal gerechnet, von beiden
+/// Zuständen gelesen.
+///
+/// Ein Record und keine zwei Parameterlisten: Schiene und Tafel zeigen
+/// DIESELBEN Aussagen in anderer Form. Zwei Listen liefen unweigerlich
+/// auseinander, und dann sagte die eingeklappte Legende etwas anderes
+/// als die ausgeklappte — über dieselbe Karte.
+typedef LegendZones = ({
+  bool showAmpel,
+  AmpelReading? ampel,
+  bool showRain,
+  RainLayer rainLayer,
+  int? rainMm,
+  bool showForest,
+  Set<ForestClass> forestClasses,
+  ({double? factor, double forestShare})? around,
+  bool showContours,
+  int? equidistanceM,
+  int? heightM,
+  bool contoursTooFarOut,
+});
+
+/// Die eingeklappte Legende: 40 Pixel, dieselben drei Zonen senkrecht.
+///
+/// **Sie ist der Rückweg.** Deshalb steht sie immer da, sobald
+/// überhaupt eine Ebene liegt — auch wenn von den drei Zonen nur eine
+/// etwas zu sagen hat. Eine Schiene, die bei einer einzelnen Ebene
+/// verschwände, wäre wieder ein Zustand ohne Ausgang.
+class _LegendRail extends StatelessWidget {
+  const _LegendRail({required this.zones, required this.onExpand});
+
+  final LegendZones zones;
+  final VoidCallback onExpand;
+
+  @override
+  Widget build(BuildContext context) {
+    final bars = <Widget>[
+      if (zones.showRain)
+        _VerticalScale(
+          key: const Key('legend-rail-rain'),
+          // Unten wenig, oben viel — die Richtung, in die ein Pegel
+          // steigt.
+          colours: [
+            for (final (index, _) in rainLevelsFor(zones.rainLayer).indexed)
+              AppColors.rainLine(index).withAlpha(rainFillAlpha),
+          ],
+          fraction: zones.rainMm == null
+              ? null
+              : rainMarkerFraction(
+                  zones.rainMm!, rainLevelsFor(zones.rainLayer)),
+          topIcon: Icons.water_drop,
+          topColour: AppColors.rainLine(rainLevelsFor(zones.rainLayer).length - 1),
+          bottomIcon: Icons.water_drop_outlined,
+          bottomColour: AppColors.rainLine(0),
+          tooltip: zones.rainMm == null
+              ? 'Regen'
+              : 'Regen · hier ${zones.rainMm} mm',
+        ),
+      if (zones.showForest)
+        _VerticalScale(
+          key: const Key('legend-rail-forest'),
+          // Oben Laub, unten Nadel — dieselbe Achse wie in der Tafel,
+          // dort nur waagerecht von links nach rechts. Deshalb steht
+          // die Laubfarbe hier ZULETZT in der Liste: Der Verlauf läuft
+          // von unten nach oben.
+          colours: [
+            for (final forestClass in const [
+              ForestClass.conifer,
+              ForestClass.mixed,
+              ForestClass.broadleaf,
+            ])
+              forestClassColor(forestClass).withValues(alpha: 0.75),
+          ],
+          fraction: zones.around?.factor,
+          topIcon: Icons.eco,
+          topColour: AppColors.forestBroadleaf,
+          bottomIcon: Icons.park,
+          bottomColour: AppColors.forestConifer,
+          tooltip: zones.around?.factor == null
+              ? 'Waldtypen'
+              : 'Waldtypen · Laubfaktor '
+                  '${zones.around!.factor!.toStringAsFixed(2).replaceAll('.', ',')}',
+        ),
+    ];
+
+    return InkWell(
+      onTap: onExpand,
+      borderRadius: const BorderRadius.only(
+        topRight: Radius.circular(14),
+        bottomRight: Radius.circular(14),
+      ),
+      child: Tooltip(
+        message: 'Legende einblenden',
+        child: SizedBox(
+          width: 40,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(4, 9, 0, 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (zones.showAmpel) ...[
+                  _AmpelThumb(
+                    key: const Key('legend-ampel-thumb'),
+                    level: zones.ampel?.level,
+                    size: 24,
+                  ),
+                  if (bars.isNotEmpty || zones.showContours) const _RailRule(),
+                ],
+                if (bars.isNotEmpty) ...[
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (final (index, bar) in bars.indexed) ...[
+                        if (index > 0) const SizedBox(width: 7),
+                        bar,
+                      ],
+                    ],
+                  ),
+                  if (zones.showContours) const _RailRule(),
+                ],
+                if (zones.showContours)
+                  _RailHeight(
+                    heightM: zones.heightM,
+                    tooFarOut: zones.contoursTooFarOut,
+                  ),
+                const SizedBox(height: 4),
+                const Text('›',
+                    style: TextStyle(
+                        fontSize: 13, height: 1, color: AppColors.forestGreen)),
+              ],
+            ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Die Trennlinie zwischen zwei Zonen der Schiene.
+class _RailRule extends StatelessWidget {
+  const _RailRule();
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Container(
+            width: 22,
+            height: 1,
+            color: AppColors.barkBrown.withValues(alpha: 0.18)),
+      );
+}
+
+/// Die Höhe in der Schiene: Zahl und Einheit übereinander.
+///
+/// Die Einheit steht unter der Zahl und nicht daneben, weil 40 Pixel
+/// für „220 m" in lesbarer Größe nicht reichen — und die ZAHL ist die
+/// Aussage.
+class _RailHeight extends StatelessWidget {
+  const _RailHeight({required this.heightM, required this.tooFarOut});
+
+  final int? heightM;
+  final bool tooFarOut;
+
+  @override
+  Widget build(BuildContext context) {
+    if (heightM == null) {
+      return Icon(Icons.terrain,
+          size: 15,
+          color: AppColors.contourLine
+              .withValues(alpha: tooFarOut ? 0.4 : 1));
+    }
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text('$heightM',
+            style: const TextStyle(
+                fontSize: 11,
+                height: 1.1,
+                fontWeight: FontWeight.bold,
+                color: AppColors.barkBrown)),
+        const Text('m',
+            style: TextStyle(
+                fontSize: 8.5, height: 1.1, color: AppColors.barkBrown)),
+      ],
+    );
+  }
+}
+
+/// Ein senkrechter Farbbalken mit Messstrich und Symbolen an beiden
+/// Enden — die eingeklappte Fassung von [_RainSection] und
+/// [_ForestSection].
+///
+/// **Die Symbole sind nicht Zierde, sondern der Ersatz für die Achse.**
+/// Ausgeklappt steht unter jedem Balken „10 mm … 150+ mm" bzw.
+/// „Laub … Nadel". Auf 9 Pixel Breite passt kein Wort; ohne die beiden
+/// Symbole wäre der Balken ein hübscher Farbverlauf ohne Richtung.
+class _VerticalScale extends StatelessWidget {
+  const _VerticalScale({
+    super.key,
+    required this.colours,
+    required this.fraction,
+    required this.topIcon,
+    required this.topColour,
+    required this.bottomIcon,
+    required this.bottomColour,
+    required this.tooltip,
+  });
+
+  /// Die Farben von UNTEN nach OBEN.
+  final List<Color> colours;
+
+  /// Wo der Messwert liegt, 0 = unten … 1 = oben. `null` lässt den
+  /// Strich weg — dieselbe Regel wie in der Tafel: Kein Strich ohne
+  /// Ablesung, sonst behauptet er eine Stufe, die niemand gemessen hat.
+  final double? fraction;
+
+  final IconData topIcon;
+  final Color topColour;
+  final IconData bottomIcon;
+  final Color bottomColour;
+  final String tooltip;
+
+  static const _height = 46.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(topIcon, size: 11, color: topColour),
+          const SizedBox(height: 3),
+          SizedBox(
+            width: 9,
+            height: _height,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(3),
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: colours,
+                    ),
+                  ),
+                  child: const SizedBox(width: 9, height: _height),
+                ),
+                if (fraction != null)
+                  Positioned(
+                    left: -2,
+                    right: -2,
+                    bottom: (fraction!.clamp(0.0, 1.0) * _height)
+                        .clamp(1.0, _height - 1),
+                    child: Container(height: 2, color: AppColors.barkBrown),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 3),
+          Icon(bottomIcon, size: 11, color: bottomColour),
+        ],
+      ),
+    );
+  }
+}
+
+/// Die ausgeklappte Legende.
+class _LegendPanel extends StatelessWidget {
+  const _LegendPanel({
+    required this.zones,
+    required this.center,
+    required this.onCollapse,
+    required this.onOpenLayers,
+  });
+
+  final LegendZones zones;
+  final LatLng? center;
+  final VoidCallback onCollapse;
+  final VoidCallback? onOpenLayers;
+
+  int get _activeCount => [
+        zones.showAmpel,
+        zones.showRain,
+        zones.showForest,
+        zones.showContours,
+      ].where((on) => on).length;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SizedBox(
+      width: 236,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Legende · $_activeCount ${_activeCount == 1 ? 'Ebene' : 'Ebenen'}',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.6,
+                    ),
+                  ),
+                ),
+                // Kein ✕ mehr, sondern ein ‹: Das Zeichen sagt, was
+                // passiert. Ein ✕ verspricht „weg", und genau das
+                // Versprechen war die Sackgasse.
+                SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: IconButton(
+                    padding: EdgeInsets.zero,
+                    iconSize: 16,
+                    tooltip: 'Legende einklappen',
+                    icon: const Icon(Icons.chevron_left,
+                        color: AppColors.forestGreen),
+                    onPressed: onCollapse,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            if (zones.showAmpel) ...[
+              _AmpelSection(reading: zones.ampel),
+              const SizedBox(height: 10),
+            ],
+            if (zones.showRain) ...[
+              _RainSection(layer: zones.rainLayer, mm: zones.rainMm),
+              const SizedBox(height: 10),
+            ],
+            if (zones.showForest) ...[
+              _ForestSection(
+                  classes: zones.forestClasses, around: zones.around),
+              const SizedBox(height: 10),
+            ],
+            if (zones.showContours) ...[
+              _HeightBlock(
+                heightM: zones.heightM,
+                equidistanceM: zones.equidistanceM,
+                tooFarOut: zones.contoursTooFarOut,
+              ),
+              const SizedBox(height: 10),
+            ],
+            const Divider(height: 1, thickness: 1),
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // „Was ist hier?" war bis 1.131.0 ein Tipp auf die
+                // Werte selbst — unsichtbar, solange man ihn nicht
+                // zufällig traf. Jetzt steht er da.
+                if (center != null)
+                  // `Flexible` an BEIDEN Verweisen: Die Tafel ist 236
+                  // Pixel breit, und „Was ist hier? →" plus „Ebenen"
+                  // laufen darin über — beim Bauen als
+                  // RenderFlex-Überlauf von 45 Pixeln aufgeschlagen.
+                  // Ein Überlauf ist kein Schönheitsfehler, sondern ein
+                  // Verweis, den niemand trifft.
+                  Flexible(
+                    child: InkWell(
+                      onTap: () => showHereSheet(context, center!),
+                      child: Text('Was ist hier? →',
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.w600)),
+                    ),
+                  )
+                else
+                  const SizedBox.shrink(),
+                if (onOpenLayers != null)
+                  Flexible(
+                    child: InkWell(
+                      onTap: onOpenLayers,
+                      child: Text('Ebenen',
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                              color: AppColors.barkBrown
+                                  .withValues(alpha: 0.7))),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Die Pilzampel als DAUMEN — hoch, seitlich, runter.
+///
+/// **Warum kein Ampelbild.** Drei Lampen beantworten die Frage nicht,
+/// die man hat: Welche der drei ist gut? Man muss die Reihenfolge
+/// kennen, um sie zu lesen. Ein Daumen trägt sein Urteil in der Form,
+/// und eingeklappt ist er damit die ganze Aussage — ohne dass eine
+/// Skala danebenstehen muss.
+///
+/// Material hat keinen seitlichen Daumen; der ist ein um 90° gedrehter
+/// `thumb_up`. Die Farben sind dieselben, mit denen die Waben leuchten,
+/// damit Symbol und Fläche dasselbe sagen.
+class _AmpelThumb extends StatelessWidget {
+  const _AmpelThumb({super.key, required this.level, this.size = 20});
+
+  final AmpelLevel? level;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final (icon, turns, colour) = switch (level) {
+      AmpelLevel.guenstig => (Icons.thumb_up, 0.0, AppColors.ampelStrong),
+      AmpelLevel.verhalten => (Icons.thumb_up, -0.25, AppColors.ampelMild),
+      AmpelLevel.unguenstig => (Icons.thumb_down, 0.0, AppColors.warmBrown),
+      // Solange gerechnet wird, gibt es kein Urteil — und ein
+      // waagerechter Daumen wäre eins.
+      null => (Icons.hourglass_empty, 0.0, AppColors.barkBrown),
+    };
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: colour.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(size / 3),
+      ),
+      child: Center(
+        child: RotatedBox(
+          quarterTurns: (turns * 4).round(),
+          child: Icon(icon, size: size * 0.62, color: colour),
+        ),
+      ),
+    );
+  }
+}
+
+/// Die Höhe als WERT — abgesetzt von den Skalen darüber.
+///
+/// Sie stand bis 1.131.0 in derselben Reihe wie Ampel, Regen und Wald,
+/// als wäre sie dieselbe Sorte Aussage. Ist sie nicht: Die drei darüber
+/// sind Einordnungen auf einer Skala, das hier ist eine Zahl. Deshalb
+/// unten, abgesetzt und groß.
+class _HeightBlock extends StatelessWidget {
+  const _HeightBlock({
+    required this.heightM,
+    required this.equidistanceM,
+    required this.tooFarOut,
+  });
+
+  final int? heightM;
+  final int? equidistanceM;
+  final bool tooFarOut;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final note = tooFarOut
+        ? 'erst näher dran'
+        : equidistanceM == null
+            ? 'wird gerechnet …'
+            : 'Linien alle $equidistanceM m';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.contourLine.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.terrain, size: 14, color: AppColors.contourLine),
+          const SizedBox(width: 8),
+          if (heightM != null) ...[
+            Text('$heightM m',
+                style: const TextStyle(
+                    fontSize: 14,
+                    height: 1,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.barkBrown)),
+            const SizedBox(width: 8),
+          ],
+          Expanded(
+            child: Text(
+              heightM == null ? 'Höhenlinien · $note' : 'Höhe hier\n$note',
+              style: _tick(theme),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -265,44 +763,84 @@ class _AmpelSection extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          switch (level) {
-            null => 'Wald + Pilzwetter (experimentell) · Steinpilz & Co.',
-            _ => 'Wald + Pilzwetter (experimentell) · hier: '
-                '${ampelLevelWord(level)}',
-          },
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: theme.colorScheme.primary,
-            fontSize: 10,
-          ),
+        // Kopfzeile: links WAS, rechts der Wert am Fadenkreuz — dasselbe
+        // Muster wie bei Regen und Wald darunter. Vorher stand beides in
+        // einem Satz; damit war der Wert dort, wo man ihn zuletzt sucht,
+        // nämlich mitten im Text.
+        //
+        // Der Daumen steht auch hier, nicht nur in der Schiene: Wer
+        // einklappt, soll dasselbe Zeichen wiedererkennen und nicht
+        // erst lernen, wofür es steht.
+        Row(
+          children: [
+            _AmpelThumb(
+                key: const Key('legend-ampel-thumb'),
+                level: level,
+                size: 20),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text('Pilzampel · exp.',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 10.5)),
+            ),
+            Text(
+              level == null ? 'rechnet …' : 'hier: ${ampelLevelWord(level)}',
+              style: theme.textTheme.labelSmall
+                  ?.copyWith(color: AppColors.barkBrown, fontSize: 10.5),
+            ),
+          ],
         ),
-        const SizedBox(height: 3),
+        const SizedBox(height: 5),
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox(width: 46),
+            const SizedBox(width: 58),
             for (final word in _classWords)
-              SizedBox(width: 30, child: Text(word, style: small)),
+              SizedBox(width: 36, child: Text(word, style: small)),
           ],
         ),
         // Genau die Töne und Stärken, mit denen der Zeichner die Waben
         // leuchten lässt — die Legende erklärt die Karte.
-        for (final (word, alpha, strong) in [
-          ('verhalten', ampelVerhaltenAlpha, false),
-          ('günstig', ampelGuenstigAlpha, true),
+        for (final (word, alpha, strong, rowLevel) in [
+          ('verhalten', ampelVerhaltenAlpha, false, AmpelLevel.verhalten),
+          ('günstig', ampelGuenstigAlpha, true, AmpelLevel.guenstig),
         ])
           Padding(
-            padding: const EdgeInsets.only(top: 2),
+            padding: const EdgeInsets.only(top: 3),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                SizedBox(width: 46, child: Text(word, style: small)),
+                SizedBox(
+                  width: 58,
+                  // Derselbe Daumen wie oben, klein vor der Zeile: Das
+                  // Raster entschlüsselt die FARBEN auf der Karte, die
+                  // Kopfzeile sagt den ZUSTAND hier — zwei verschiedene
+                  // Fragen. Der Daumen verbindet sie, statt sie
+                  // nebeneinanderzustellen.
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      RotatedBox(
+                        quarterTurns: rowLevel == AmpelLevel.verhalten ? -1 : 0,
+                        child: Icon(Icons.thumb_up,
+                            size: 10,
+                            color: rowLevel == AmpelLevel.verhalten
+                                ? AppColors.ampelMild
+                                : AppColors.ampelStrong),
+                      ),
+                      const SizedBox(width: 4),
+                      Flexible(child: Text(word, style: small)),
+                    ],
+                  ),
+                ),
                 for (final pair in AppColors.ampelCombined)
                   SizedBox(
-                    width: 30,
+                    width: 36,
                     child: Container(
-                      width: 12,
-                      height: 9,
+                      width: 26,
+                      height: 11,
                       decoration: BoxDecoration(
                         color: (strong ? pair.$2 : pair.$1)
                             .withValues(alpha: alpha / 255),
@@ -513,45 +1051,10 @@ Color forestClassColor(ForestClass forestClass) => switch (forestClass) {
       ForestClass.none => AppColors.forestGreen, // nie gezeichnet
     };
 
-/// Die Höhenlinien-Zeile der Legende.
-///
-/// Sie trägt die Äquidistanz — ohne sie wüsste niemand, ob zwischen zwei
-/// Linien 20 oder 200 Meter liegen. Beschriftungen AN den Linien gibt es
-/// bewusst nicht: Die flutter_map-Strecke kann keine Schrift entlang
-/// einer Linie, und eine Ebene, die auf zwei Engines verschieden viel
-/// sagt, wäre schlimmer als eine Zahl in der Legende.
-///
-/// Die Zahl kommt aus dem ERGEBNIS, nicht aus der Zoomregel: Reißt die
-/// Punktschranke, ist die gezeichnete Äquidistanz gröber als die
-/// gewünschte, und die Legende muss sagen, was wirklich liegt.
-class _ContourSection extends StatelessWidget {
-  const _ContourSection({
-    required this.equidistanceM,
-    required this.heightM,
-    required this.tooFarOut,
-  });
-
-  final int? equidistanceM;
-  final int? heightM;
-  final bool tooFarOut;
-
-  @override
-  Widget build(BuildContext context) {
-    final text = tooFarOut
-        ? 'Höhenlinien: erst näher dran'
-        : equidistanceM == null
-            ? 'Höhenlinien …'
-            : 'Höhenlinien alle $equidistanceM m';
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Icon(Icons.terrain, size: 13, color: AppColors.contourLine),
-        const SizedBox(width: 4),
-        Text(
-          heightM == null ? text : '$text · hier $heightM m',
-          style: const TextStyle(fontSize: 11, color: AppColors.barkBrown),
-        ),
-      ],
-    );
-  }
-}
+// **`_ContourSection` ist entfallen.** Sie war die Höhenzeile in der
+// Reihe mit Ampel, Regen und Wald — als wäre eine Höhe dieselbe Sorte
+// Aussage wie eine Einordnung auf einer Skala. `_HeightBlock` weiter
+// oben hat sie abgelöst und setzt sie ab: eigener Kasten, große Zahl,
+// unten. Die Äquidistanz kommt weiter aus dem ERGEBNIS und nicht aus
+// der Zoomregel — reißt die Punktschranke, liegt Gröberes auf der
+// Karte, als gewünscht war.
