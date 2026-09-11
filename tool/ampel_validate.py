@@ -373,8 +373,41 @@ def taxon_key(sci):
     return match["usageKey"]
 
 
-def fetch_finds(sci, limit=3000, progress=True):
-    """Fundmeldungen mit Koordinate, taggenauem Datum und Ortsgenauigkeit."""
+def _finds_cache_path(cache_dir, sci):
+    safe = "".join(c if c.isalnum() else "_" for c in sci)
+    return os.path.join(cache_dir, f"finds_{safe}.json")
+
+
+def fetch_finds(sci, limit=3000, progress=True, cache_dir=None):
+    """Fundmeldungen mit Koordinate, taggenauem Datum und Ortsgenauigkeit.
+
+    **Mit `cache_dir` wird die Liste FESTGENAGELT** — und das ist keine
+    Beschleunigung, sondern die Voraussetzung dafür, dass ein Lauf über
+    mehrere Tage überhaupt möglich ist.
+
+    Der Grund, gemessen am 2026-09-11: GBIF WÄCHST. Zwei Läufe derselben
+    Art im Abstand von zwei Stunden lieferten 2259 gegen 2253 Meldungen
+    (im September kommen täglich neue herein). Damit zieht
+    `random.Random(seed).sample` eine andere Teilmenge, die Ortslisten je
+    Jahr ändern sich — und der Wetter-Cache ist ein Hash GENAU dieser
+    Ortslisten. Sein Schlüssel zeigt danach ins Leere, obwohl die Daten
+    dahinter dieselben wären.
+
+    So ist der Bestand vom August unbrauchbar geworden: Seine Ortslisten
+    stammen aus einer Grundgesamtheit, die es nicht mehr gibt, und die
+    Fundlisten selbst wurden nicht gesichert. Deshalb jetzt hier.
+
+    Wer bewusst neu ziehen will, löscht die `finds_*.json` — dann ist es
+    eine Entscheidung und kein Nebeneffekt der Uhrzeit.
+    """
+    if cache_dir:
+        path = _finds_cache_path(cache_dir, sci)
+        if os.path.exists(path):
+            finds = json.load(open(path, encoding="utf-8"))
+            if progress:
+                print(f"    {len(finds)} Meldungen (festgenagelt)",
+                      file=sys.stderr)
+            return finds
     key = taxon_key(sci)
     finds = []
     offset = 0
@@ -414,6 +447,11 @@ def fetch_finds(sci, limit=3000, progress=True):
         time.sleep(0.1)
     if progress:
         print(f"    {len(finds)} verwertbare Meldungen", file=sys.stderr)
+    if cache_dir:
+        os.makedirs(cache_dir, exist_ok=True)
+        with open(_finds_cache_path(cache_dir, sci), "w",
+                  encoding="utf-8") as handle:
+            json.dump(finds, handle)
     return finds
 
 
@@ -585,7 +623,7 @@ def collect_pairs(name, sci, cache_dir=None, seed=42, progress=True):
     """
     if progress:
         print(f"  {name} ({sci})", file=sys.stderr)
-    finds = fetch_finds(sci, progress=progress)
+    finds = fetch_finds(sci, progress=progress, cache_dir=cache_dir)
     if not finds:
         return None
 
