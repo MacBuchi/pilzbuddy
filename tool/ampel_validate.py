@@ -61,6 +61,7 @@ von 250 m. Für die Saison-Gegenprüfung (--crosscheck) genügt die grobe
 Angabe, dort zählt nur der Monat.
 """
 import argparse
+import inspect
 import datetime
 import json
 import math
@@ -408,6 +409,22 @@ def fetch_finds(sci, limit=3000, progress=True, cache_dir=None):
                 print(f"    {len(finds)} Meldungen (festgenagelt)",
                       file=sys.stderr)
             return finds
+    finds = [{k: v for k, v in record.items() if k != "key"}
+             for record in _fetch_finds_raw(sci, limit, progress)]
+    if cache_dir:
+        os.makedirs(cache_dir, exist_ok=True)
+        with open(_finds_cache_path(cache_dir, sci), "w",
+                  encoding="utf-8") as handle:
+            json.dump(finds, handle)
+    return finds
+
+
+def _fetch_finds_raw(sci, limit=3000, progress=True):
+    """Wie [fetch_finds], aber MIT der GBIF-id je Meldung.
+
+    Die id trägt die Aufnahmereihenfolge: Neu aufgenommene Meldungen
+    bekommen höhere Werte. Genau daran hängt [recover_sample].
+    """
     key = taxon_key(sci)
     finds = []
     offset = 0
@@ -440,6 +457,7 @@ def fetch_finds(sci, limit=3000, progress=True, cache_dir=None):
                 "year": record["year"],
                 "month": record["month"],
                 "day": record["day"],
+                "key": record["key"],
             })
         if page.get("endOfRecords") or not page.get("results"):
             break
@@ -447,11 +465,6 @@ def fetch_finds(sci, limit=3000, progress=True, cache_dir=None):
         time.sleep(0.1)
     if progress:
         print(f"    {len(finds)} verwertbare Meldungen", file=sys.stderr)
-    if cache_dir:
-        os.makedirs(cache_dir, exist_ok=True)
-        with open(_finds_cache_path(cache_dir, sci), "w",
-                  encoding="utf-8") as handle:
-            json.dump(finds, handle)
     return finds
 
 
@@ -757,6 +770,92 @@ def validate_species(name, sci, cache_dir=None, seed=42, progress=True):
     }
 
 
+# --- Eine vorhandene Sammlung wieder benutzbar machen -----------------------
+#
+# **Warum es das braucht.** Der Wetter-Cache ist nach dem Hash der
+# geordneten Ortsliste eines Jahres benannt, und die Dateien enthalten
+# keine Koordinaten. Wächst GBIF — im September täglich —, zieht
+# `random.sample` aus einer anderen Grundgesamtheit, sämtliche Ortslisten
+# verschieben sich, und 51 MB mühsam geholter Wetterdaten sind nicht mehr
+# auffindbar. Genau so ist es dem Bestand vom August 2026 ergangen.
+#
+# **Der Ausweg nutzt aus, dass GBIF nur WÄCHST.** Die Meldungen sind
+# dieselben geblieben, es sind welche dazugekommen, und die id trägt die
+# Aufnahmereihenfolge. Entfernt man die k neuesten, erhält man die Liste
+# von damals — und ob k stimmt, sagt der Cache selbst: Bei richtigem k
+# treffen die Hashes, bei falschem trifft keiner. Eine Prüfsumme passt
+# nicht zwanzigmal zufällig.
+
+# So viele neue Meldungen werden höchstens abgezogen. 60 reicht für ein
+# paar Monate; wer eine Sammlung aus dem Vorjahr wiederbeleben will,
+# dreht hoch und wartet länger.
+MAX_RECOVER_DROP = 60
+
+
+def without_newest(finds, count):
+    """Die [count] zuletzt aufgenommenen Meldungen entfernen.
+
+    **Die Reihenfolge der übrigen bleibt**, und das ist der Punkt: Die
+    Stichprobe hängt an ihr, nicht nur am Inhalt. Ausgewählt wird über
+    die GBIF-id, nicht über die Position — eine neue Meldung kann
+    mitten in der Seitenfolge auftauchen.
+    """
+    if count <= 0:
+        return list(finds)
+    newest = sorted(range(len(finds)),
+                    key=lambda i: finds[i]["key"], reverse=True)[:count]
+    drop = set(newest)
+    return [f for i, f in enumerate(finds) if i not in drop]
+
+
+def cache_hits(finds, cache_dir, seed=42):
+    """Wie viele Jahre dieser Stichprobe liegen schon im Cache?"""
+    if len(finds) > SAMPLE_PER_SPECIES:
+        finds = random.Random(seed).sample(finds, SAMPLE_PER_SPECIES)
+    by_year = {}
+    for find in finds:
+        by_year.setdefault(find["year"], []).append(find)
+    found = total = 0
+    for year, group in by_year.items():
+        if year > LAST_COMPLETE_YEAR:
+            continue
+        total += 1
+        points = [(f["lat"], f["lon"]) for f in group]
+        span = season_span(
+            [day_index(year, f["month"], f["day"]) for f in group], year=year)
+        if os.path.exists(os.path.join(
+                cache_dir, _cache_key(year, points, span[0], span[1]))):
+            found += 1
+    return found, total
+
+
+def recover_sample(name, sci, cache_dir, seed=42, progress=True):
+    """Die Stichprobe suchen, zu der ein vorhandener Cache gehört."""
+    if progress:
+        print(f"  {name} ({sci})", file=sys.stderr)
+    full = _fetch_finds_raw(sci, progress=progress)
+    best = (0, -1, 0)
+    for count in range(MAX_RECOVER_DROP + 1):
+        candidate = without_newest(full, count)
+        found, total = cache_hits(candidate, cache_dir, seed)
+        if found > best[1]:
+            best = (count, found, total)
+        if total and found == total:
+            break
+    count, found, total = best
+    finds = [{k: v for k, v in f.items() if k != "key"}
+             for f in without_newest(full, count)]
+    os.makedirs(cache_dir, exist_ok=True)
+    with open(_finds_cache_path(cache_dir, sci), "w",
+              encoding="utf-8") as handle:
+        json.dump(finds, handle)
+    if progress:
+        print(f"    {len(full)} heute − {count} neue = {len(finds)}; "
+              f"{found}/{total} Jahre im Cache", file=sys.stderr)
+    return {"name": name, "today": len(full), "dropped": count,
+            "n": len(finds), "hits": found, "years": total}
+
+
 # --- Anpassung je Art ------------------------------------------------------
 #
 # Der Prüfplan steht in `docs/pilzampel-artenfenster.md`. Hier steht nur
@@ -890,6 +989,11 @@ def fit_species(name, sci, cache_dir=None, seed=42, progress=True):
         "fit_years": sorted({s["year"] for s in fit}),
         "test_years": sorted({s["year"] for s in test}),
         "optimum": fitted,
+        # Das Band der wirklich besten Werte — der Bericht zeigt es, weil
+        # ein Gipfel ohne seine Breite eine Nachkommastelle ohne Deckung
+        # ist. Fehlte es hier, stürzte erst das Rendern ab, nach der
+        # ganzen Rechnung (so geschehen am 2026-09-11).
+        "best_set": grid["best_set"],
         "plateau": grid["plateau"],
         "at_edge": grid["at_edge"],
         "auc_fit": grid["auc_fit"],
@@ -1002,6 +1106,44 @@ def self_test():
     assert abs(warm - cold) < 1e-9, "die Glocke muss symmetrisch sein"
     assert warm < 0.1
     assert temperature_factor([None] * TEMP_WINDOW) == 0.0
+
+    # Wiederherstellung: Die k neuesten fallen weg, die Reihenfolge der
+    # übrigen bleibt. Die ids stehen bewusst NICHT in Reihenfolge — eine
+    # neue Meldung taucht mitten in der Seitenfolge auf, und wer nach
+    # Position statt nach id abschneidet, erwischt die falschen.
+    records = [{"key": k} for k in [50, 900, 10, 800, 20, 700]]
+    assert [r["key"] for r in without_newest(records, 0)] == \
+        [50, 900, 10, 800, 20, 700]
+    assert [r["key"] for r in without_newest(records, 1)] == \
+        [50, 10, 800, 20, 700], "die höchste id muss fallen, nicht die letzte"
+    assert [r["key"] for r in without_newest(records, 3)] == [50, 10, 20]
+    assert without_newest(records, 99) == []
+
+    # **Der Bericht darf nicht nach Feldern greifen, die es nicht
+    # gibt.** Am 2026-09-11 lief die Anpassung zehn Minuten und stürzte
+    # dann beim Rendern ab (`KeyError: 'best_set'`), weil ein Feld in
+    # `grid_optimum` ergänzt, aber nicht durch `fit_species`
+    # durchgereicht worden war. Ein Lauf, der erst nach der Rechnung
+    # scheitert, kostet die ganze Rechnung.
+    # BEIDE Seiten kommen aus dem Quelltext — sonst prüft der Test eine
+    # Liste, die ich selbst danebengeschrieben habe, gegen den Bericht.
+    # Genau so war die erste Fassung, und sie blieb bei der Gegenprobe
+    # grün.
+    report_src = inspect.getsource(render_fit_report)
+    fit_src = inspect.getsource(fit_species)
+    demanded = set(re.findall(r"""row\[['"](\w+)['"]\]""", report_src))
+    demanded |= set(re.findall(r"""row\.get\(['"](\w+)['"]\)""", report_src))
+    demanded |= set(re.findall(r"""primary\[['"](\w+)['"]\]""", report_src))
+    demanded |= set(re.findall(r"""r\[['"](\w+)['"]\]""", report_src))
+    delivered = set(re.findall(r"""^\s+['"](\w+)['"]:\s""", fit_src,
+                               re.MULTILINE))
+    delivered |= set(re.findall(r"""result\[['"](\w+)['"]\]\s*=""", fit_src))
+    missing = demanded - delivered
+    assert not missing, (
+        f"der Bericht liest Felder, die fit_species nicht liefert: "
+        f"{sorted(missing)}")
+    assert "best_set" in delivered and "best_set" in demanded, \
+        "die Prüfung selbst muss etwas zu prüfen haben"
 
     # --- Anpassung je Art (docs/pilzampel-artenfenster.md) ---
     #
@@ -1237,9 +1379,21 @@ def render_fit_report(rows, fetched_on):
     primary = next((r for r in rows
                     if r["name"] == PREDICTION_SPECIES and r.get("usable")), None)
     if primary is None:
-        out += ["**Nicht auswertbar** — für die vorab benannte Art kam keine "
-                "brauchbare Trennung zustande. Ohne sie ist der Rest dieses "
-                "Berichts Beifund, kein Beleg.", ""]
+        # **Zwei Gründe, und sie bedeuten Verschiedenes.** Nicht im Lauf
+        # heißt „noch nicht gemessen"; im Lauf und unbrauchbar heißt
+        # „gemessen, trägt nicht". Beides als dasselbe zu melden wäre
+        # eine Aussage über Daten, die es nicht gibt.
+        ran = any(r["name"] == PREDICTION_SPECIES for r in rows)
+        out += [f"**Noch nicht entschieden** — {PREDICTION_SPECIES} "
+                + ("war in diesem Lauf nicht enthalten."
+                   if not ran else
+                   "kam über zu wenig Material nicht auf beide Seiten der "
+                   "Jahres-Trennlinie.")
+                + " Ohne die vorab benannte Art ist alles Folgende "
+                "**Beifund, kein Beleg**: Bei sieben Arten und einem "
+                "freien Parameter ist eine Verbesserung durch Zufall zu "
+                "erwarten, und welche davon man hinterher interessant "
+                "findet, ist keine Vorhersage.", ""]
     else:
         met = (primary["optimum"] < PREDICTION_MAX_OPTIMUM_C
                and primary["auc_test_fitted"] >= PREDICTION_MIN_AUC)
@@ -1323,11 +1477,47 @@ def render_fit_report(rows, fetched_on):
                     "Ampel je Gilde, nicht je Art — und der Aufwand "
                     "beschränkte sich auf die Arten, die heute grau "
                     "bleiben.", ""]
-        elif primary_met:
-            out += ["Die Mykorrhiza-Arten unterscheiden sich untereinander "
-                    "ebenfalls. Ob das trägt, entscheidet die Spalte "
-                    "„Differenz“ je Art — ein Optimum, dessen Bereich die "
-                    "Null enthält, ist eine Zahl ohne Wirkung.", ""]
+        else:
+            # **Der Fall, in dem einzelne Arten ausscheren.** Ohne diesen
+            # Zweig bliebe die auffälligste Zeile der Tabelle
+            # unkommentiert — ein Bericht, der eine Spanne von 6,8 K
+            # nennt und dann schweigt, überlässt die Deutung dem
+            # Zufall.
+            #
+            # Was zählt, ist NICHT der Abstand zu 13 °C, sondern ob der
+            # Vertrauensbereich der Differenz die Null ausschließt. Ein
+            # weit entferntes Optimum ohne Wirkung ist eine Zahl, kein
+            # Befund.
+            def carries(row):
+                span = (row.get("ci") or {}).get("difference")
+                return bool(span) and span[0] > 0
+
+            strong = [r for r in usable if carries(r)]
+            far = [r for r in mycos if abs(r["optimum"] - OPTIMUM_C) > 1.5]
+            if strong:
+                out += ["**Ein eigenes Fenster trägt bei: "
+                        + ", ".join(f"{r['name']} ({r['optimum']:.1f} °C, "
+                                    f"{r['gain']:+.3f})" for r in strong)
+                        + ".** Dort schließt der Vertrauensbereich der "
+                        "Differenz die Null aus, und gemessen wurde auf "
+                        "Jahren, an denen nicht angepasst wurde.", "",
+                        "Das ist ein Fund, keine Entscheidung. Welche von "
+                        f"{len(usable)} Arten hinterher heraussticht, ist "
+                        "keine Vorhersage — eine davon tut es auch bei "
+                        "reinem Zufall. Ein eigenes Fenster verdient "
+                        "deshalb eine eigene, vorab formulierte Prüfung, "
+                        "nicht den Einbau.", ""]
+            else:
+                out += ["**Keine Art gewinnt nachweisbar.** Bei allen "
+                        "enthält der Vertrauensbereich der Differenz die "
+                        "Null — die Optima unterscheiden sich als Zahl, "
+                        "aber nicht in der Wirkung.", ""]
+            if far and not strong:
+                out += ["Weit von den 13 °C entfernt liegen trotzdem: "
+                        + ", ".join(f"{r['name']} ({r['optimum']:.1f} °C)"
+                                    for r in far)
+                        + ". Ohne Wirkung ist das eine Zahl, kein Befund.",
+                        ""]
 
     out += ["", "## Grenzen", "",
             "Angepasst wurde ausschließlich an GBIF. Die eigenen Funde und "
@@ -1521,6 +1711,10 @@ def main():
                         help="Temperaturoptimum je Art anpassen und "
                              "auf getrennten Jahren prüfen "
                              "(docs/pilzampel-artenfenster.md)")
+    parser.add_argument("--recover-sample", action="store_true",
+                        help="Die Stichprobe suchen, zu der ein vorhandener "
+                             "--cache gehört, und sie festnageln. Einmal "
+                             "nötig für Sammlungen von vor dem Festnageln.")
     parser.add_argument("--only", default=None,
                         help="Nur diese Arten (kommagetrennt). Für --fit "
                              "gedacht: Das Tageskontingent von Open-Meteo "
@@ -1543,6 +1737,24 @@ def main():
     # beantwortet eine andere Frage (`docs/pilzampel-artenfenster.md`) und
     # schreibt einen anderen Bericht; beides in einem Aufruf zu mischen
     # hieße, zwei Ergebnisse in eine Datei zu schreiben.
+    if args.recover_sample:
+        if not args.cache:
+            raise SystemExit("--recover-sample braucht --cache: Es sucht die "
+                             "Stichprobe, die zu einer vorhandenen Sammlung "
+                             "passt.")
+        print("Stichprobe wiederherstellen:", file=sys.stderr)
+        rows = [recover_sample(name, mapping[name], args.cache, args.seed)
+                for name in MYCORRHIZAL + WOOD_DWELLERS if name in mapping]
+        print("\nZusammenfassung:", file=sys.stderr)
+        for row in rows:
+            mark = "  " if row["hits"] == row["years"] else " ⚠"
+            print(f"{mark} {row['name']:20} {row['n']:5} Meldungen "
+                  f"(−{row['dropped']})   {row['hits']}/{row['years']} Jahre",
+                  file=sys.stderr)
+        missing = sum(r["years"] - r["hits"] for r in rows)
+        print(f"\n  Es fehlen noch {missing} Art-Jahre.", file=sys.stderr)
+        return
+
     if args.fit:
         wanted = MYCORRHIZAL + WOOD_DWELLERS
         if args.only:
