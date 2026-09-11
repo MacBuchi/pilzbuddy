@@ -195,6 +195,32 @@ Nicht sofort ausliefern. Drei Dinge kommen zuerst:
    selben Ort verschiedene Stufen zeigt, braucht dafür einen Satz;
    sonst liest sich der Unterschied wie ein Fehler.
 
+## Was der Lauf praktisch kostet
+
+**Gemessen am 2026-09-11:** Das Tageskontingent von Open-Meteo reicht
+für gut eine halbe Art. Es bemisst sich nach **Orten × Tagen**, nicht
+nach Anfragen — 2000 Funde über 21 Jahre sind rund hundert Orte je Jahr,
+und jeder davon braucht seine Saison. Der erste Lauf kam durch den
+Steinpilz und bis 2016 des Maronenröhrlings, dann kam HTTP 429.
+
+Drei Folgen:
+
+- **Der Cache ist keine Bequemlichkeit, sondern die Voraussetzung.**
+  `--cache` trägt das Geholte über Tage; ohne ihn fängt jeder Lauf von
+  vorn an und kommt nie weiter als bis zur zweiten Art.
+- **`--only` gibt es deshalb.** Die vorab festgelegte Vorhersage hängt an
+  **einer** Art (Austernseitling, ~1000 Paare). Die ist in etwa einem
+  Tageskontingent zu holen und beantwortet die Frage, um die es geht;
+  die Mykorrhiza-Arten sind der Nachsatz, nicht der Beleg.
+- **Die Stichprobe wird NICHT verkleinert, um schneller fertig zu
+  werden.** Das wäre die eine Abkürzung, die die Zahlen unvergleichbar
+  mit `pilzampel-validierung.md` machte — und bei den dünnen Arten
+  ginge sie direkt ins Rauschen.
+
+Wer den Lauf fortsetzt: derselbe `--cache`, derselbe `--seed`. Die
+Stichprobe ist über den Seed festgelegt, die Orte sind also dieselben
+und der Cache greift.
+
 ## Was das Ganze NICHT beantwortet
 
 Die eigenen Funde und Leergänge der App bleiben außen vor — sie sind der
