@@ -170,6 +170,26 @@ TEMP_SIGMA = 5.0
 RAIN_SATURATION_MM = 87.0
 
 
+# --- Anpassung je Art (docs/pilzampel-artenfenster.md) ---------------------
+#
+# **Getrennt wird nach JAHREN, nicht nach Funden.** Pilzjahre
+# unterscheiden sich um den Faktor zehn, und Funde desselben Jahres sind
+# einander ähnlicher als Funde verschiedener Jahre — ein zufälliger
+# Fund-Split trüge diese Ähnlichkeit über die Trennlinie und machte jede
+# Prüfzahl zu optimistisch.
+FIT_UNTIL_YEAR = 2018
+
+# Der Gitterlauf. Bewusst grob: Eine feinere Auflösung als ein halbes
+# Kelvin behauptet eine Genauigkeit, die 300–2000 Paare nicht hergeben.
+FIT_GRID_MIN_C = 2.0
+FIT_GRID_MAX_C = 20.0
+FIT_GRID_STEP_C = 0.5
+
+# Wie viele Bootstrap-Ziehungen für den Vertrauensbereich — gezogen wird
+# über PRÜFJAHRE, nicht über Paare, aus demselben Grund wie oben.
+FIT_BOOTSTRAP_ROUNDS = 1000
+
+
 def rain_factor(daily_mm):
     """Gewichtete Niederschlagskumulation, 0…1.
 
@@ -196,18 +216,24 @@ def rain_factor(daily_mm):
     return min(effective / RAIN_SATURATION_MM, 1.0)
 
 
-def temperature_factor(daily_c):
-    """Glocke um 13 °C über das Mittel der letzten 20 Tage, 0…1."""
+def temperature_factor(daily_c, optimum=OPTIMUM_C):
+    """Glocke um [optimum] über das Mittel der letzten 20 Tage, 0…1.
+
+    Der Vorgabewert ist der ausgelieferte (13 °C) — die Spiegel-Regel zu
+    `ampel_model.dart` gilt für ihn. [optimum] ist NUR für die Anpassung
+    je Art da (`docs/pilzampel-artenfenster.md`); ein anderer Wert hier
+    bedeutet nicht, dass die App ihn rechnet.
+    """
     values = [c for c in daily_c[:TEMP_WINDOW] if c is not None]
     if not values:
         return 0.0
     mean = sum(values) / len(values)
-    return math.exp(-(((mean - OPTIMUM_C) / TEMP_SIGMA) ** 2))
+    return math.exp(-(((mean - optimum) / TEMP_SIGMA) ** 2))
 
 
-def ampel_score(daily_mm, daily_c):
+def ampel_score(daily_mm, daily_c, optimum=OPTIMUM_C):
     """Der Wetterteil der Ampel — OHNE Saisonfaktor, siehe Kopf."""
-    return rain_factor(daily_mm) * temperature_factor(daily_c)
+    return rain_factor(daily_mm) * temperature_factor(daily_c, optimum)
 
 
 # --- Statistik -------------------------------------------------------------
@@ -541,8 +567,22 @@ def pick_control_day(day_of_year, rng):
     return day_of_year + gap
 
 
-def validate_species(name, sci, cache_dir=None, seed=42, progress=True):
-    """Rechnet für eine Art Fundtage gegen Vergleichstage."""
+def collect_pairs(name, sci, cache_dir=None, seed=42, progress=True):
+    """Zieht die Paare EINMAL und gibt die rohen Fenster zurück.
+
+    **Warum getrennt vom Bewerten.** Seit der Anpassung je Art
+    (`docs/pilzampel-artenfenster.md`) gibt es zwei Abnehmer für dieselben
+    Paare: die Validierung mit dem ausgelieferten Optimum und der
+    Gitterlauf, der viele Optima durchprobiert. Zwei Schleifen, die
+    Vergleichstage ziehen, wären zwei Zufallsfolgen — und damit zwei
+    verschiedene Stichproben, deren Zahlen niemand vergleichen darf.
+    Hier wird gezogen, dort gerechnet.
+
+    Die Reihenfolge der Zufallsgriffe ist die von vorher (erst der
+    Vergleichstag, dann der Placebo-Tag, und zwar VOR dem Verwerfen
+    unvollständiger Fenster) — sonst verschöbe sich die ganze Folge und
+    alle bisherigen Zahlen wären andere.
+    """
     if progress:
         print(f"  {name} ({sci})", file=sys.stderr)
     finds = fetch_finds(sci, progress=progress)
@@ -565,8 +605,7 @@ def validate_species(name, sci, cache_dir=None, seed=42, progress=True):
         by_year.setdefault(find["year"], []).append(find)
 
     rng = random.Random(seed)
-    pairs = []
-    placebo = []
+    samples = []
     skipped = 0
     lost_years = []
     partial_years = []
@@ -618,13 +657,14 @@ def validate_species(name, sci, cache_dir=None, seed=42, progress=True):
             if a_rain is None or b_rain is None:
                 skipped += 1
                 continue
-            pairs.append((ampel_score(a_rain, a_temp),
-                          ampel_score(b_rain, b_temp)))
-            if c_rain is not None:
-                placebo.append((ampel_score(b_rain, b_temp),
-                                ampel_score(c_rain, c_temp)))
+            samples.append({
+                "year": year,
+                "found": (a_rain, a_temp),
+                "control": (b_rain, b_temp),
+                "placebo": (c_rain, c_temp) if c_rain is not None else None,
+            })
 
-    if not pairs:
+    if not samples:
         return None
     if lost_years:
         raise SystemExit(
@@ -633,17 +673,43 @@ def validate_species(name, sci, cache_dir=None, seed=42, progress=True):
             f"Ein Ergebnis auf lückenhaften Jahren wäre nicht auswertbar — "
             f"Pilzjahre unterscheiden sich um den Faktor 10. Lauf mit "
             f"--cache wiederholen, dann sind die geholten Jahre schon da.")
-    auc = paired_auc(pairs)
     return {
         "name": name,
         "sci": sci,
-        "n": len(pairs),
+        "samples": samples,
+        "skipped": skipped,
         # Die WIRKLICH ausgewerteten Jahre, nicht die vorhandenen: Die
         # laufende Saison ist oben absichtlich herausgefallen, und eine
         # Jahreszahl, die sie mitzählt, wäre eine falsche Angabe.
         "years": len(by_year) - len(partial_years),
         "partial_years": partial_years,
-        "skipped": skipped,
+    }
+
+
+def score_pairs(samples, optimum=OPTIMUM_C):
+    """Die gezogenen Paare mit EINEM Optimum bewerten."""
+    return [(ampel_score(*s["found"], optimum),
+             ampel_score(*s["control"], optimum)) for s in samples]
+
+
+def validate_species(name, sci, cache_dir=None, seed=42, progress=True):
+    """Rechnet für eine Art Fundtage gegen Vergleichstage."""
+    drawn = collect_pairs(name, sci, cache_dir=cache_dir, seed=seed,
+                          progress=progress)
+    if drawn is None:
+        return None
+    samples = drawn["samples"]
+    pairs = score_pairs(samples)
+    placebo = [(ampel_score(*s["control"]), ampel_score(*s["placebo"]))
+               for s in samples if s["placebo"] is not None]
+    auc = paired_auc(pairs)
+    return {
+        "name": name,
+        "sci": sci,
+        "n": len(pairs),
+        "years": drawn["years"],
+        "partial_years": drawn["partial_years"],
+        "skipped": drawn["skipped"],
         "auc": auc,
         "p": permutation_p(pairs, seed=seed),
         "placebo_auc": paired_auc(placebo),
@@ -651,6 +717,150 @@ def validate_species(name, sci, cache_dir=None, seed=42, progress=True):
         "median_found": statistics.median(p[0] for p in pairs),
         "median_control": statistics.median(p[1] for p in pairs),
     }
+
+
+# --- Anpassung je Art ------------------------------------------------------
+#
+# Der Prüfplan steht in `docs/pilzampel-artenfenster.md`. Hier steht nur
+# die Rechnung dazu — und die drei Stellen, an denen sie sich selbst
+# misstraut: Gitterlauf NUR auf Anpassjahren, Bewertung NUR auf
+# Prüfjahren, Vertrauensbereich über JAHRE.
+
+
+def grid_optimum(samples):
+    """Das Optimum, das Fund- und Vergleichstag am besten trennt.
+
+    **Angepasst wird an die Trennung, nicht an die Fundtage.** Das
+    Mittel der Temperatur an Fundtagen wäre der naheliegende Weg und
+    misst die Jahreszeit: Eine Art mit Gipfel im Dezember hat kalte
+    Fundtage, weil Dezember kalt ist. Die gepaarte AUC fragt dagegen,
+    welches Optimum einen Fundtag von einem NAHEN Tag ohne Fund trennt —
+    und dort kürzt sich die Saison heraus (Placebo ≈ 0,50).
+
+    Zurück kommt neben dem besten Wert die **Plateaubreite**: alle
+    Optima, die weniger als 0,005 AUC darunter liegen. Ist sie breit,
+    ist der Gipfel eine Nachkommastelle ohne Deckung — und das gehört
+    berichtet, nicht weggerundet.
+    """
+    if not samples:
+        return None
+    scored = []
+    steps = int(round((FIT_GRID_MAX_C - FIT_GRID_MIN_C) / FIT_GRID_STEP_C))
+    for step in range(steps + 1):
+        optimum = FIT_GRID_MIN_C + step * FIT_GRID_STEP_C
+        scored.append((optimum, paired_auc(score_pairs(samples, optimum))))
+    best_auc = max(auc for _, auc in scored)
+    # **Bei Gleichstand die MITTE, nicht das erste.** Zwei Temperaturen
+    # trennen ein Paar nur dann verschieden, wenn sie auf verschiedenen
+    # Seiten seines Mittelpunkts liegen — gleich gute Optima kommen
+    # deshalb als zusammenhängendes Band vor, nicht vereinzelt. Wer davon
+    # den Rand nimmt, verschiebt jeden Gipfel systematisch dorthin; beim
+    # Selbsttest mit gepflanztem Optimum von 7 °C kam so 4,5 heraus.
+    best_set = [o for o, auc in scored if auc == best_auc]
+    best_optimum = statistics.median(best_set)
+    plateau = [o for o, auc in scored if auc >= best_auc - 0.005]
+    return {
+        "optimum": best_optimum,
+        "auc_fit": best_auc,
+        "best_set": (min(best_set), max(best_set)),
+        "plateau": (min(plateau), max(plateau)),
+        # Gemessen am Band der wirklich besten Werte, nicht am Mittelwert:
+        # Reicht es bis ans Gitter, liegt die Wahrheit vermutlich
+        # dahinter — die Glocke ist dort keine Glocke mehr, sondern eine
+        # Gerade.
+        "at_edge": min(best_set) <= FIT_GRID_MIN_C
+        or max(best_set) >= FIT_GRID_MAX_C,
+    }
+
+
+def bootstrap_years(samples, optima, rounds=FIT_BOOTSTRAP_ROUNDS, seed=42):
+    """Vertrauensbereiche, gezogen über JAHRE statt über Paare.
+
+    Funde desselben Jahres sind einander ähnlicher als Funde
+    verschiedener Jahre (Pilzjahre unterscheiden sich um den Faktor
+    zehn). Über Paare zu ziehen behandelte sie als unabhängig und
+    lieferte einen Bereich, der zu eng ist — also eine Sicherheit, die
+    es nicht gibt.
+
+    Alle [optima] werden auf DERSELBEN Ziehung gerechnet; nur so ist
+    ihre Differenz gepaart und ihr Bereich aussagekräftig.
+    """
+    by_year = {}
+    for sample in samples:
+        by_year.setdefault(sample["year"], []).append(sample)
+    years = sorted(by_year)
+    if len(years) < 2:
+        return None
+    rng = random.Random(seed)
+    draws = {optimum: [] for optimum in optima}
+    differences = []
+    for _ in range(rounds):
+        picked = [rng.choice(years) for _ in years]
+        pool = [s for year in picked for s in by_year[year]]
+        values = {}
+        for optimum in optima:
+            values[optimum] = paired_auc(score_pairs(pool, optimum))
+            draws[optimum].append(values[optimum])
+        if len(optima) == 2:
+            differences.append(values[optima[1]] - values[optima[0]])
+
+    def interval(values):
+        values = sorted(values)
+        lo = values[int(0.025 * len(values))]
+        hi = values[min(len(values) - 1, int(0.975 * len(values)))]
+        return (lo, hi)
+
+    result = {optimum: interval(values) for optimum, values in draws.items()}
+    if differences:
+        result["difference"] = interval(differences)
+    return result
+
+
+def split_by_year(samples):
+    """Anpassjahre und Prüfjahre — die eine Trennlinie dieses Aufbaus.
+
+    Als eigene Funktion, weil sie die Zusage IST: Kein Jahr darf auf
+    beiden Seiten stehen. Inline wäre daraus ein Vergleichsoperator, den
+    niemand prüft, und ein verrutschtes `<` machte die Prüfung zur
+    Selbstbestätigung, ohne dass eine Zahl auffällig aussähe.
+    """
+    fit = [s for s in samples if s["year"] <= FIT_UNTIL_YEAR]
+    test = [s for s in samples if s["year"] > FIT_UNTIL_YEAR]
+    return fit, test
+
+
+def fit_species(name, sci, cache_dir=None, seed=42, progress=True):
+    """Optimum auf frühen Jahren anpassen, auf späten prüfen."""
+    drawn = collect_pairs(name, sci, cache_dir=cache_dir, seed=seed,
+                          progress=progress)
+    if drawn is None:
+        return None
+    fit, test = split_by_year(drawn["samples"])
+    # Ohne beide Hälften gibt es nichts zu prüfen, und ein Ergebnis auf
+    # einer halben Trennung wäre schlimmer als keines.
+    if not fit or not test:
+        return {"name": name, "sci": sci, "n_fit": len(fit),
+                "n_test": len(test), "usable": False}
+    grid = grid_optimum(fit)
+    fitted = grid["optimum"]
+    result = {
+        "name": name,
+        "sci": sci,
+        "usable": True,
+        "n_fit": len(fit),
+        "n_test": len(test),
+        "fit_years": sorted({s["year"] for s in fit}),
+        "test_years": sorted({s["year"] for s in test}),
+        "optimum": fitted,
+        "plateau": grid["plateau"],
+        "at_edge": grid["at_edge"],
+        "auc_fit": grid["auc_fit"],
+        "auc_test_shared": paired_auc(score_pairs(test, OPTIMUM_C)),
+        "auc_test_fitted": paired_auc(score_pairs(test, fitted)),
+    }
+    result["gain"] = result["auc_test_fitted"] - result["auc_test_shared"]
+    result["ci"] = bootstrap_years(test, [OPTIMUM_C, fitted], seed=seed)
+    return result
 
 
 # --- Saison-Gegenprüfung ---------------------------------------------------
@@ -754,6 +964,76 @@ def self_test():
     assert abs(warm - cold) < 1e-9, "die Glocke muss symmetrisch sein"
     assert warm < 0.1
     assert temperature_factor([None] * TEMP_WINDOW) == 0.0
+
+    # --- Anpassung je Art (docs/pilzampel-artenfenster.md) ---
+    #
+    # Ein gepflanztes Optimum muss wiedergefunden werden. Die
+    # Vergleichstage liegen dafür auf BEIDEN Seiten (1 °C und 13 °C) —
+    # lägen sie nur auf einer, gewänne jedes Optimum jenseits davon
+    # genauso, und der Gitterlauf liefe an den Rand statt auf den Gipfel.
+    wet26 = [6.0] * RAIN_WINDOW
+    planted = []
+    for i in range(40):
+        # Der Abstand WÄCHST, und die Seite wechselt: Läge jeder
+        # Vergleichstag gleich weit weg, wäre jedes Optimum zwischen den
+        # beiden Seiten gleich gut, und „wiedergefunden" hieße nur „im
+        # Band gelandet". Der engste Abstand (±2 K) schnürt das Band auf
+        # 6,5…7,5 zusammen.
+        distance = 2 + (i % 10)
+        offset = -distance if i % 2 else distance
+        planted.append({
+            "year": 2010 + (i % 12),
+            "found": (wet26, [7.0] * TEMP_WINDOW),
+            "control": (wet26, [7.0 + offset] * TEMP_WINDOW),
+            "placebo": None,
+        })
+    found = grid_optimum(planted)
+    assert abs(found["optimum"] - 7.0) < 0.6, \
+        f"gepflanztes Optimum nicht wiedergefunden: {found['optimum']}"
+    assert not found["at_edge"]
+    assert found["plateau"][1] - found["plateau"][0] <= 3.0, \
+        "ein breites Plateau darf nicht als scharfer Gipfel durchgehen"
+
+    # Und der Gegenfall: Liegt die Wahrheit außerhalb des Gitters, muss
+    # das GEMELDET werden. Die Glocke ist dort keine Glocke mehr, sondern
+    # eine Gerade — „je kälter, desto besser" ist keine Optimumsangabe.
+    outside = [{
+        "year": 2010 + i,
+        "found": (wet26, [-8.0] * TEMP_WINDOW),
+        "control": (wet26, [14.0] * TEMP_WINDOW),
+        "placebo": None,
+    } for i in range(12)]
+    assert grid_optimum(outside)["at_edge"], \
+        "ein Gipfel am Gitterrand muss als solcher gemeldet werden"
+    assert grid_optimum([]) is None
+
+    # Die Trennlinie: kein Jahr auf beiden Seiten, und beide Seiten
+    # nicht leer.
+    mixed_years = [{"year": y, "found": (wet26, [10.0] * TEMP_WINDOW),
+                    "control": (wet26, [10.0] * TEMP_WINDOW),
+                    "placebo": None}
+                   for y in range(2006, LAST_COMPLETE_YEAR + 1)]
+    fit_part, test_part = split_by_year(mixed_years)
+    assert fit_part and test_part, "beide Seiten müssen belegt sein"
+    assert not ({s["year"] for s in fit_part} & {s["year"] for s in test_part}), \
+        "ein Jahr steht auf beiden Seiten der Trennlinie"
+    assert max(s["year"] for s in fit_part) <= FIT_UNTIL_YEAR
+    assert min(s["year"] for s in test_part) > FIT_UNTIL_YEAR
+
+    # Der Bootstrap braucht mehrere Jahre — bei einem einzigen gäbe es
+    # nichts zu ziehen, und ein Bereich aus einer Ziehung wäre erfunden.
+    one_year = [dict(sample, year=2020) for sample in planted]
+    assert bootstrap_years(one_year, [13.0]) is None
+    spread = bootstrap_years(planted, [13.0, 7.0], rounds=50)
+    assert spread is not None and "difference" in spread
+    low, high = spread["difference"]
+    assert low <= high
+
+    # Das Optimum ist ein PARAMETER und ändert die Vorgabe nicht — die
+    # Spiegel-Regel zu ampel_model.dart hängt daran.
+    assert temperature_factor([13.0] * TEMP_WINDOW) == \
+        temperature_factor([13.0] * TEMP_WINDOW, OPTIMUM_C)
+    assert temperature_factor([7.0] * TEMP_WINDOW, 7.0) == 1.0
 
     # Ein trockener, kalter Tag darf nie über einem feuchten, milden liegen.
     good = ampel_score([6.0] * RAIN_WINDOW, [13.0] * TEMP_WINDOW)
@@ -881,6 +1161,135 @@ def self_test():
 
 
 # --- Bericht ---------------------------------------------------------------
+
+
+# Die vorab festgelegte Vorhersage aus
+# docs/pilzampel-artenfenster.md. Sie steht als KONSTANTE hier, damit
+# sie im Bericht nicht nachträglich umformuliert werden kann.
+PREDICTION_SPECIES = "Austernseitling"
+PREDICTION_MAX_OPTIMUM_C = 9.0
+PREDICTION_MIN_AUC = 0.55
+
+
+def render_fit_report(rows, fetched_on):
+    """Der Bericht zur Anpassung — Vorhersage zuerst, Zahlen danach."""
+    out = ["# Artenfenster: gemessen", "",
+           f"Stand: {fetched_on} · Erzeugt von `tool/ampel_validate.py "
+           f"--fit` · Prüfplan: `docs/pilzampel-artenfenster.md`", "",
+           "Angepasst wird das Temperaturoptimum je Art auf den Jahren bis "
+           f"**{FIT_UNTIL_YEAR}**, geprüft auf allen späteren. Die "
+           "Regenhälfte des Modells bleibt unangetastet, ebenso die Breite "
+           f"der Glocke (σ = {TEMP_SIGMA:.0f} K). Ausgeliefert rechnet die "
+           f"App weiterhin mit {OPTIMUM_C:.0f} °C für alle Arten.", "",
+           "## Die Vorhersage, die vor der Messung feststand", "",
+           f"> Das angepasste Optimum des **{PREDICTION_SPECIES}s** liegt "
+           f"unter {PREDICTION_MAX_OPTIMUM_C:.0f} °C, und seine gepaarte "
+           f"AUC auf den Prüfjahren erreicht mindestens "
+           f"{PREDICTION_MIN_AUC:.2f}.", ""]
+
+    primary = next((r for r in rows
+                    if r["name"] == PREDICTION_SPECIES and r.get("usable")), None)
+    if primary is None:
+        out += ["**Nicht auswertbar** — für die vorab benannte Art kam keine "
+                "brauchbare Trennung zustande. Ohne sie ist der Rest dieses "
+                "Berichts Beifund, kein Beleg.", ""]
+    else:
+        met = (primary["optimum"] < PREDICTION_MAX_OPTIMUM_C
+               and primary["auc_test_fitted"] >= PREDICTION_MIN_AUC)
+        out += [f"**Ergebnis: {'eingetroffen' if met else 'nicht eingetroffen'}.** "
+                f"Optimum {primary['optimum']:.1f} °C "
+                f"(vorhergesagt: < {PREDICTION_MAX_OPTIMUM_C:.0f}), "
+                f"AUC auf Prüfjahren {primary['auc_test_fitted']:.3f} "
+                f"(vorhergesagt: ≥ {PREDICTION_MIN_AUC:.2f}).", ""]
+        if met:
+            out += ["Damit ist belegt, was die Arten-Kontrolle vom "
+                    "2026-08-13 offenlassen musste: Arten haben "
+                    "verschiedene Fenster. Die Kontrolle war an ihrer "
+                    "AUSWAHL gescheitert, nicht am Modell.", ""]
+        else:
+            out += ["Damit bleibt die Lesart stehen, dass das Modell "
+                    "allgemeines Pilzwetter misst. **Es wird nichts je Art "
+                    "gebaut** — so vorab festgelegt.", ""]
+
+    out += ["## Alle Arten", "",
+            "„Band“ ist die Spanne der gleich guten Optima. Ist es breit, "
+            "ist der Gipfel eine Nachkommastelle ohne Deckung. Der "
+            "Vertrauensbereich der Differenz ist über **Jahre** gezogen, "
+            "nicht über Paare.", "",
+            "| Art | Paare Anpassung | Paare Prüfung | Optimum | Band | "
+            f"AUC Prüfung mit {OPTIMUM_C:.0f} °C | AUC Prüfung angepasst | "
+            "Differenz (95 %) |",
+            "|---|--:|--:|--:|---|--:|--:|---|"]
+    for row in rows:
+        if not row.get("usable"):
+            out.append(f"| {row['name']} | {row['n_fit']} | {row['n_test']} | "
+                       "— | — | — | — | zu wenig Material |")
+            continue
+        band = f"{row['best_set'][0]:.1f}–{row['best_set'][1]:.1f}"
+        if row["at_edge"]:
+            band += " ⚠ am Gitterrand"
+        ci = row.get("ci") or {}
+        span = ci.get("difference")
+        ci_text = (f"{row['gain']:+.3f} [{span[0]:+.3f}, {span[1]:+.3f}]"
+                   if span else f"{row['gain']:+.3f} (kein Bereich)")
+        out.append(
+            f"| {row['name']} | {row['n_fit']} | {row['n_test']} | "
+            f"{row['optimum']:.1f} °C | {band} | "
+            f"{row['auc_test_shared']:.3f} | {row['auc_test_fitted']:.3f} | "
+            f"{ci_text} |")
+
+    usable = [r for r in rows if r.get("usable")]
+    mycos = [r for r in usable if r["name"] in MYCORRHIZAL]
+    primary_met = bool(primary) and (
+        primary["optimum"] < PREDICTION_MAX_OPTIMUM_C
+        and primary["auc_test_fitted"] >= PREDICTION_MIN_AUC)
+    if mycos:
+        spread = max(r["optimum"] for r in mycos) - min(r["optimum"] for r in mycos)
+        near = [r for r in mycos if abs(r["optimum"] - OPTIMUM_C) <= 1.5]
+        out += ["", "## Was die Mykorrhiza-Arten sagen", "",
+                f"Ihre Optima liegen zwischen "
+                f"{min(r['optimum'] for r in mycos):.1f} und "
+                f"{max(r['optimum'] for r in mycos):.1f} °C "
+                f"(Spanne {spread:.1f} K); {len(near)} von {len(mycos)} "
+                f"liegen innerhalb ±1,5 K um die ausgelieferten "
+                f"{OPTIMUM_C:.0f} °C.", ""]
+        all_same = (len(near) == len(mycos)
+                    and all(r["gain"] <= 0.01 for r in mycos))
+        if all_same and not primary_met:
+            out += ["**Das ist der vorab benannte Ausgang „alle gleich“ — "
+                    "und die vorab benannte Art zeigt ebenfalls nichts.** "
+                    "Zusammen stützt das die Lesart, dass hier allgemeines "
+                    "Pilzwetter gemessen wird. Es begrenzt damit, was die "
+                    "Ampel je behaupten darf, und **es wird nichts je Art "
+                    "gebaut**.", ""]
+        elif all_same and primary_met:
+            # Beides zugleich ist kein Widerspruch, sondern genau die
+            # Erwartung aus Sato 2012 und Alday 2017: Die Gilde
+            # entscheidet, nicht die Art. Ein Bericht, der hier
+            # „allgemeines Pilzwetter“ stempeln würde, widerspräche seiner
+            # eigenen ersten Seite.
+            out += ["**Die sechs teilen ein Fenster — der Austernseitling "
+                    "hat ein eigenes.** Das ist kein Widerspruch zur "
+                    "Vorhersage oben, sondern die Gilden-Erwartung aus der "
+                    "Literatur: Nicht jede Art braucht ein eigenes Fenster, "
+                    "wohl aber jede GILDE. Für die App hieße das eine "
+                    "Ampel je Gilde, nicht je Art — und der Aufwand "
+                    "beschränkte sich auf die Arten, die heute grau "
+                    "bleiben.", ""]
+        elif primary_met:
+            out += ["Die Mykorrhiza-Arten unterscheiden sich untereinander "
+                    "ebenfalls. Ob das trägt, entscheidet die Spalte "
+                    "„Differenz“ je Art — ein Optimum, dessen Bereich die "
+                    "Null enthält, ist eine Zahl ohne Wirkung.", ""]
+
+    out += ["", "## Grenzen", "",
+            "Angepasst wurde ausschließlich an GBIF. Die eigenen Funde und "
+            "Leergänge der App bleiben draußen — sie sind der unabhängige "
+            "Prüfstein aus #199, und wer sie einrechnet, kann mit ihnen "
+            "nicht mehr prüfen.", "",
+            "Auch ein artenspezifisches Fenster sagt „die Bedingungen sind "
+            "günstig“, nicht „hier stehen Pilze“."]
+    return "\n".join(out) + "\n"
 
 
 def verdict(auc):
@@ -1061,6 +1470,10 @@ def main():
     parser.add_argument("--crosscheck-only", action="store_true",
                         help="NUR die Saisonkurven gegenprüfen (kein "
                              "Open-Meteo nötig)")
+    parser.add_argument("--fit", action="store_true",
+                        help="Temperaturoptimum je Art anpassen und "
+                             "auf getrennten Jahren prüfen "
+                             "(docs/pilzampel-artenfenster.md)")
     parser.add_argument("--self-test", action="store_true")
     parser.add_argument("--cache", default=None,
                         help="Verzeichnis für Wetterantworten")
@@ -1072,6 +1485,34 @@ def main():
         return
 
     mapping = read_species()
+
+    # **`--fit` ist ein eigener Lauf, keine Zugabe zur Validierung.** Er
+    # beantwortet eine andere Frage (`docs/pilzampel-artenfenster.md`) und
+    # schreibt einen anderen Bericht; beides in einem Aufruf zu mischen
+    # hieße, zwei Ergebnisse in eine Datei zu schreiben.
+    if args.fit:
+        print("Anpassung je Art:", file=sys.stderr)
+        rows = [row for row in (
+            fit_species(name, mapping[name], args.cache, args.seed)
+            for name in MYCORRHIZAL + WOOD_DWELLERS if name in mapping)
+            if row]
+        report = render_fit_report(rows, time.strftime("%Y-%m-%d"))
+        if args.out:
+            open(args.out, "w", encoding="utf-8").write(report)
+            print(f"\n{args.out} geschrieben", file=sys.stderr)
+        else:
+            print(report)
+        print("\nZusammenfassung:", file=sys.stderr)
+        for row in rows:
+            if not row.get("usable"):
+                print(f"  {row['name']:22} zu wenig Material", file=sys.stderr)
+                continue
+            print(f"  {row['name']:22} Optimum {row['optimum']:5.1f} °C   "
+                  f"AUC {row['auc_test_shared']:.3f} → "
+                  f"{row['auc_test_fitted']:.3f}  ({row['gain']:+.3f})",
+                  file=sys.stderr)
+        return
+
     mycorrhizal = []
     wood = []
     # `--crosscheck` allein braucht KEIN Open-Meteo — nur GBIF und
