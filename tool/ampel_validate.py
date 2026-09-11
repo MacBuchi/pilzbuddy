@@ -1181,6 +1181,15 @@ def render_fit_report(rows, fetched_on):
            "Regenhälfte des Modells bleibt unangetastet, ebenso die Breite "
            f"der Glocke (σ = {TEMP_SIGMA:.0f} K). Ausgeliefert rechnet die "
            f"App weiterhin mit {OPTIMUM_C:.0f} °C für alle Arten.", "",
+           "## Umfang dieses Laufs", "",
+           "Enthalten: " + ", ".join(r["name"] for r in rows) + ".", "",
+           "**Das Tageskontingent von Open-Meteo reicht nicht für alle "
+           "neun Arten auf einmal** (bemessen nach Orten × Tagen, nicht "
+           "nach Anfragen). Ein Lauf holt gut eine halbe Art; der Cache "
+           "trägt das Geholte über Tage. Fehlt eine Art hier, ist sie "
+           "nicht ausgefallen, sondern noch nicht geholt — ein Ergebnis "
+           "auf lückenhaften Jahren bricht das Werkzeug ab, statt es zu "
+           "berichten.", "",
            "## Die Vorhersage, die vor der Messung feststand", "",
            f"> Das angepasste Optimum des **{PREDICTION_SPECIES}s** liegt "
            f"unter {PREDICTION_MAX_OPTIMUM_C:.0f} °C, und seine gepaarte "
@@ -1474,6 +1483,12 @@ def main():
                         help="Temperaturoptimum je Art anpassen und "
                              "auf getrennten Jahren prüfen "
                              "(docs/pilzampel-artenfenster.md)")
+    parser.add_argument("--only", default=None,
+                        help="Nur diese Arten (kommagetrennt). Für --fit "
+                             "gedacht: Das Tageskontingent von Open-Meteo "
+                             "reicht nicht für alle neun auf einmal, und "
+                             "die vorab festgelegte Vorhersage hängt an "
+                             "EINER Art.")
     parser.add_argument("--self-test", action="store_true")
     parser.add_argument("--cache", default=None,
                         help="Verzeichnis für Wetterantworten")
@@ -1491,10 +1506,19 @@ def main():
     # schreibt einen anderen Bericht; beides in einem Aufruf zu mischen
     # hieße, zwei Ergebnisse in eine Datei zu schreiben.
     if args.fit:
+        wanted = MYCORRHIZAL + WOOD_DWELLERS
+        if args.only:
+            asked = [n.strip() for n in args.only.split(",") if n.strip()]
+            unknown = [n for n in asked if n not in wanted]
+            if unknown:
+                raise SystemExit(
+                    f"Unbekannte Art(en): {', '.join(unknown)}.\n"
+                    f"Zur Auswahl stehen: {', '.join(wanted)}")
+            wanted = asked
         print("Anpassung je Art:", file=sys.stderr)
         rows = [row for row in (
             fit_species(name, mapping[name], args.cache, args.seed)
-            for name in MYCORRHIZAL + WOOD_DWELLERS if name in mapping)
+            for name in wanted if name in mapping)
             if row]
         report = render_fit_report(rows, time.strftime("%Y-%m-%d"))
         if args.out:
