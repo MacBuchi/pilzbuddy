@@ -241,6 +241,59 @@ werden. Das ist die eine Abkürzung, die die Zahlen unvergleichbar mit
 `pilzampel-validierung.md` machte — und bei den dünnen Arten ginge sie
 ins Rauschen.
 
+## Nachtrag 2026-09-11: die Pfifferling-Spur
+
+Der erste Lauf über sieben Arten hat einen Ausreißer geliefert:
+**Pfifferling, Optimum 19,2 °C statt 13, AUC auf Prüfjahren 0,590 →
+0,656, Differenz +0,067 [+0,012, +0,113]** — als einzige Art ein
+Bereich, der die Null ausschließt. Dazu passt dreierlei: Er ist ein
+Sommerfrüchter, er war in der ursprünglichen Validierung die einzige
+Mykorrhiza-Art mit schwachem Befund (AUC 0,572), und der Gewinn ist auf
+Jahren gemessen, an denen nicht angepasst wurde.
+
+**Trotzdem ist das kein Beleg, und zwar aus einem Grund, den keine
+weitere Rechnung an denselben Daten behebt:** Ausgewählt wurde die Art
+NACH dem Blick auf die Tabelle. Bei sieben Arten und einem freien
+Parameter sticht eine auch bei reinem Zufall heraus; die Zeitscheibe
+2019–2025 ist zwar ungesehen, die Auswahl der Art ist es nicht.
+
+### Was die Spur bestätigen würde — vorab festgelegt
+
+> **Geografischer Hold-out.** Das an DEUTSCHEN Funden angepasste Optimum
+> des Pfifferlings (19,2 °C) trennt auch in **Österreich und der
+> Schweiz** besser als die 13 °C — gepaarte AUC dort mindestens 0,05
+> über der mit 13 °C, auf Meldungen, die an der Anpassung nie beteiligt
+> waren.
+
+Warum ausgerechnet das: Es sind **neue Daten**, nicht neu geschnittene.
+Die Frage lautet, ob 19,2 °C eine Eigenschaft der Art ist oder eine der
+deutschen Stichprobe — und andere Länder beantworten sie, andere Jahre
+nicht mehr.
+
+Kosten: Pfifferling-Meldungen aus AT und CH über `country` in
+`fetch_finds`, dazu deren Wetterreihen. Das ist eine Art, also etwa ein
+Tageskontingent.
+
+### Die schwache Zusatzprüfung, die nichts kostet
+
+> **Über die Arten hinweg sollte das angepasste Optimum mit der
+> Fruchtungszeit laufen:** früher im Jahr fruchtende Arten wärmer,
+> späte kälter.
+
+Die Saisonkurven liegen in `docs/pilzampel-saisonkurven.md` und sind an
+der Anpassung nicht beteiligt. Mit sieben bis neun Punkten trägt das
+keine Statistik — es ist eine Richtungsaussage, und ihr Wert liegt
+darin, dass sie auch SCHEITERN kann: Käme heraus, dass die Optima
+quer zur Saison liegen, wäre die Erklärung „Sommerfrüchter, also
+wärmer" hinfällig, und der Pfifferling-Befund stünde ohne Mechanismus
+da.
+
+### Was NICHT passiert, solange beides offen ist
+
+Kein eigenes Fenster im ausgelieferten Modell — auch nicht „nur für den
+Pfifferling, der ist ja klar". Genau so entstehen die Zahlen, die
+niemand mehr prüfen kann.
+
 ## Was das Ganze NICHT beantwortet
 
 Die eigenen Funde und Leergänge der App bleiben außen vor — sie sind der
