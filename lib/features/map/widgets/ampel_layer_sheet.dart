@@ -22,6 +22,7 @@ import '../../../core/app_colors.dart';
 import '../../ampel/ampel_map_providers.dart';
 import '../../../core/mushroom_species.dart';
 import '../../ampel/ampel_model.dart';
+import '../spot_filter.dart' show selectedAmpelClassesProvider;
 
 Future<void> showAmpelLayerSheet(BuildContext context) {
   return showModalBottomSheet<void>(
@@ -37,6 +38,14 @@ class _AmpelLayerSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    // Die Gruppenauswahl aus dem Kartenfilter (1.142.0). Das Blatt
+    // erklärt die Farben auf der Karte — also muss es sagen, wenn die
+    // Karte gerade nur für eine Gruppe spricht. Bedient wird sie hier
+    // NICHT: Zwei Bedienstellen für einen Filter wären zwei Antworten
+    // auf dieselbe Frage (die Lehre aus `setAmpelLayerEnabled`), und
+    // melden kann sich auf der Karte ohnehin nur der Filter-Chip.
+    final selected = ref.watch(selectedAmpelClassesProvider);
+    final restricted = selected.length < ampelShippedClasses.length;
 
     return SafeArea(
       child: ConstrainedBox(
@@ -83,8 +92,15 @@ class _AmpelLayerSheet extends ConsumerWidget {
                 // Fläche zeigt das Maximum ALLER Klassen. Kein Test hat
                 // es gefangen — Tests prüfen Verhalten, nicht
                 // Beschreibungen.
-                'Lässt die Waldwaben dort leuchten, wo die Bedingungen '
-                'für mindestens eine Pilzgruppe gerade stimmen.',
+                restricted
+                    ? 'Lässt die Waldwaben dort leuchten, wo die '
+                        'Bedingungen für '
+                        '${selected.map((k) => k.name).join(' oder ')} '
+                        'gerade stimmen. Die übrigen Gruppen hast du im '
+                        'Kartenfilter abgewählt.'
+                    : 'Lässt die Waldwaben dort leuchten, wo die '
+                        'Bedingungen für mindestens eine Pilzgruppe '
+                        'gerade stimmen.',
                 style: theme.textTheme.bodyMedium
                     ?.copyWith(color: theme.hintColor),
               ),
@@ -127,19 +143,27 @@ class _AmpelLayerSheet extends ConsumerWidget {
                         'Messung.',
                   ),
                   // Der wichtigste Satz des Blattes, und er steht
-                  // zuletzt, weil er den Rest einordnet: Die
-                  // Rückwärtsvalidierung ist in der Arten-Kontrolle
-                  // durchgefallen (`docs/pilzampel-validierung.md`).
-                  // Deshalb spricht auch das Banner im Konjunktiv. Wer
-                  // die Fläche anschaltet, soll wissen, was sie ist —
-                  // ein Versuch, keine Auskunft.
+                  // zuletzt, weil er den Rest einordnet.
+                  //
+                  // **Korrigiert am 2026-09-12, aus derselben Ecke wie
+                  // die drei Texte aus #456.** Hier stand „An echten
+                  // Funden hat sich das Modell bisher nicht bewährt" —
+                  // begründet mit der durchgefallenen Arten-Kontrolle,
+                  // und die ist aufgelöst: Sie scheiterte an ihrer
+                  // AUSWAHL (`docs/pilzampel-artenfenster-messung.md`).
+                  // An GBIF-Meldungen trennt das Modell Fund- von
+                  // Vergleichstagen deutlich (AUC 0,61…0,76 über sechs
+                  // Arten, `docs/pilzampel-validierung.md`). Was NICHT
+                  // geprüft ist, ist der eigene Wald — und genau das
+                  // sagt der Satz jetzt, statt das Gegenteil zu
+                  // behaupten.
                   const _Limit(
                     icon: Icons.science_outlined,
                     title: 'Bewertet Bedingungen, nicht Vorkommen',
                     text: 'Sie sagt, wo Regen und Temperatur gerade '
-                        'passen — nicht, wo Pilze stehen. An echten '
-                        'Funden hat sich das Modell bisher nicht '
-                        'bewährt.',
+                        'passen — nicht, wo Pilze stehen. Geprüft ist '
+                        'das an Pilzmeldungen aus ganz Deutschland; an '
+                        'deinen eigenen Funden nicht.',
                   ),
                 ],
               ),

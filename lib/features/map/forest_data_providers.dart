@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/settings.dart';
 
 import '../ampel/ampel_fill.dart' show AmpelLevelGrid;
+import '../ampel/ampel_model.dart' show AmpelClass, ampelClassKeyOf;
 import 'elevation_grid.dart' show ElevationGrid;
 import 'elevation_providers.dart' show elevationGridProvider;
 import '../ampel/ampel_map_providers.dart'
@@ -24,6 +25,7 @@ import 'forest_fill_window.dart';
 import 'forest_grid.dart';
 import 'map_view/marker_culling.dart' show MapViewBounds;
 import 'rain_data_providers.dart' show rainGridRepositoryProvider;
+import 'spot_filter.dart' show selectedAmpelClassesProvider;
 
 /// Ob die Waldebene auf der Karte liegt — seit #349 über den Neustart
 /// hinaus gemerkt.
@@ -176,6 +178,17 @@ final forestFillProvider = FutureProvider<ForestFillImage?>((ref) async {
       ref.watch(ampelLayerEnabledProvider);
   final levelsFuture =
       combined ? ref.watch(ampelLevelGridProvider.future) : null;
+  // Die Gruppenauswahl des Nutzers (Chips im Filter, 1.142.0). Sie geht
+  // in den Zeichner UND in den Dateinamen: Wer den Pfifferling abwählt,
+  // bekommt sonst das zwischengespeicherte Bild der anderen Auswahl —
+  // dieselbe Falle wie bei Klassenwahl, Fenster und Feinstufe.
+  //
+  // Sie hängt bewusst NICHT am `ampelLevelGridProvider`: Das Gitter ist
+  // die teure Hälfte (Isolate, 26 Entpackungen), die Auswahl wird erst
+  // beim Auswerten gebraucht. So kostet ein Chip-Tipp das Bild, nicht
+  // die Rechnung.
+  final ampelClasses =
+      combined ? ref.watch(selectedAmpelClassesProvider) : null;
   // Die Höhe je Wabe fürs Leuchten — dieselbe Quelle wie Blatt und
   // Legende, Watch-vor-Await wie alles hier.
   final elevationFuture =
@@ -187,7 +200,9 @@ final forestFillProvider = FutureProvider<ForestFillImage?>((ref) async {
   // Leuchten, keine leere Karte.
   final levels = levelsFuture == null ? null : await levelsFuture;
   final elevation = elevationFuture == null ? null : await elevationFuture;
-  final ampel = levels == null ? null : (newest: levels.newest);
+  final ampel = levels == null
+      ? null
+      : (newest: levels.newest, classes: ampelClasses!);
 
   // Die feine Stufe (#253) malt nur, wenn sie das GANZE Fenster deckt —
   // halb fein, halb grob wäre eine sichtbare Naht aus zwei Wabengrößen
@@ -202,6 +217,7 @@ final forestFillProvider = FutureProvider<ForestFillImage?>((ref) async {
             classes: classes,
             window: window,
             levels: levels,
+            ampelClasses: ampelClasses!,
             elevation: elevation
           ));
     return ForestFillImage(
@@ -225,6 +241,7 @@ final forestFillProvider = FutureProvider<ForestFillImage?>((ref) async {
           classes: classes,
           window: window,
           levels: levels,
+          ampelClasses: ampelClasses!,
           elevation: elevation
         ));
   return ForestFillImage(
@@ -247,11 +264,13 @@ Uint8List _fillCombined(
           Set<ForestClass> classes,
           FillWindow window,
           AmpelLevelGrid levels,
+          List<AmpelClass> ampelClasses,
           ElevationGrid? elevation
         }) input) =>
     forestAmpelFillPng(input.grids,
         window: input.window,
         levels: input.levels,
+        ampelClasses: input.ampelClasses,
         elevation: input.elevation,
         classes: input.classes);
 
@@ -344,12 +363,12 @@ class ForestFillImage {
   final String windowKey;
 
   /// Gesetzt, wenn dieses Bild die KOMBI-Ebene ist: der Stand der
-  /// Wetterdaten. Er gehört in den Dateinamen — sonst tauscht die
-  /// MapLibre-Strecke das Bild beim Datenwechsel nicht (dieselbe Falle
-  /// wie Klassenwahl und Feinstufe). Die Farbfamilie stand hier bis
-  /// 1.79.0 mit drin; seit die Töne fest sind, gibt es nichts mehr zu
-  /// unterscheiden.
-  final ({DateTime newest})? ampel;
+  /// Wetterdaten und die Gruppenauswahl, mit der es gemalt wurde. Beides
+  /// gehört in den Dateinamen — sonst tauscht die MapLibre-Strecke das
+  /// Bild nicht (dieselbe Falle wie Klassenwahl und Feinstufe). Die
+  /// Farbfamilie stand hier bis 1.79.0 mit drin; seit die Töne fest
+  /// sind, gibt es nichts mehr zu unterscheiden.
+  final ({DateTime newest, List<AmpelClass> classes})? ampel;
 
   /// Kam das Bild aus der feinen Stufe (#253)? Gehört in den Dateinamen
   /// ([forestFillVariant]): Fenster, Jahr und Klassenwahl sind beim
@@ -366,6 +385,12 @@ String forestFillVariant(ForestFillImage fill) {
     fill.windowKey,
     if (fill.fine) 'fein',
     if (ampel != null)
-      'ampel-${ampel.newest.toUtc().toIso8601String().split('T').first}',
+      'ampel-${ampel.newest.toUtc().toIso8601String().split('T').first}'
+          // Die Gruppen IM Namen, nicht nur ihre Zahl: „eine von zwei"
+          // wäre für Herbst und Sommer derselbe Name und damit dasselbe
+          // Bild.
+          '-${[
+            for (final klass in ampel.classes) ampelClassKeyOf(klass) ?? '?'
+          ].join('+')}',
   ].join('_');
 }

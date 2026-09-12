@@ -108,6 +108,7 @@ void main() {
     // verhalten, unten beides ungünstig.
     final png = decodePng(forestAmpelFillPng(
       [forest],
+      ampelClasses: ampelShippedClasses,
       window: window,
       levels: levelsOf([
         [AmpelLevel.guenstig, AmpelLevel.verhalten],
@@ -135,6 +136,42 @@ void main() {
         reason: 'und der Wald tritt zurück, statt zu verschwinden');
   });
 
+  test('eine abgewählte Gruppe leuchtet nicht (Chips im Filter)', () {
+    // **Die Auswahl muss bis in den Zeichner durchschlagen**, sonst
+    // leuchtet die Fläche weiter für eine Gruppe, die der Chip auf der
+    // Karte gar nicht mehr nennt.
+    //
+    // Das Testgitter steht auf 13 °C — dem Herbstfenster. Ein Regen von
+    // 0,3 ist dort „verhalten"; im Sommerfenster schrumpft derselbe Tag
+    // auf 0,3 · 0,445 = 0,133 und liegt unter jeder Schwelle.
+    Map<String, Object> pixelAt(List<AmpelClass> classes,
+        {AmpelLevel? level = AmpelLevel.verhalten}) {
+      final png = decodePng(forestAmpelFillPng(
+        [forest],
+        ampelClasses: classes,
+        window: window,
+        levels: levelsOf([
+          [level, level],
+          [level, level],
+        ]),
+      ));
+      final px = at(png, latOf(0), lonOf(0, 0));
+      return {'rgb': (px.r, px.g, px.b), 'a': px.a};
+    }
+
+    final beide = pixelAt(ampelShippedClasses);
+    final nurSommer = pixelAt(const [ampelSommerClass]);
+    final garNicht =
+        pixelAt(ampelShippedClasses, level: AmpelLevel.unguenstig);
+
+    expect(beide['a'], ampelVerhaltenAlpha,
+        reason: 'mit dem Herbstfenster leuchtet die Wabe');
+    expect(nurSommer, garNicht,
+        reason: 'ohne das Herbstfenster ist es derselbe Pixel wie bei '
+            'ungünstigem Wetter — Wald, kein Leuchten');
+    expect(nurSommer, isNot(beide));
+  });
+
   test('bei gleichem Wetter bleibt die Waldklasse unterscheidbar', () {
     // Der Kern der Umstellung (Betreiber, 2026-08-10): Bis 1.79.0 trug
     // JEDE leuchtende Wabe denselben Ton — die Waldklasse war genau
@@ -146,6 +183,7 @@ void main() {
     ]) {
       final png = decodePng(forestAmpelFillPng(
         [gemischt],
+        ampelClasses: ampelShippedClasses,
         window: window,
         levels: levelsOf([
           [level, level],
@@ -179,6 +217,7 @@ void main() {
     // Abdeckungsgrenze als Landschaft.
     final png = decodePng(forestAmpelFillPng(
       [forest],
+      ampelClasses: ampelShippedClasses,
       window: window,
       levels: levelsOf([
         [null, null],
@@ -222,12 +261,14 @@ void main() {
 
     final corrected = decodePng(forestAmpelFillPng(
       [forest],
+      ampelClasses: ampelShippedClasses,
       window: window,
       levels: oneCell,
       elevation: elevation,
     ));
     final plain = decodePng(forestAmpelFillPng(
       [forest],
+      ampelClasses: ampelShippedClasses,
       window: window,
       levels: oneCell,
     ));
@@ -254,10 +295,12 @@ void main() {
     // Blatt-Abgleich am selben Punkt: Was die Wabe malt, muss der
     // `levelAt`-Weg (und damit die Punkt-Ablesung) genauso sagen.
     expect(
-        oneCell.levelAt(latOf(1), lonOf(3, 1), elevation: elevation),
+        oneCell.levelAt(latOf(1), lonOf(3, 1),
+            classes: ampelShippedClasses, elevation: elevation),
         isNot(AmpelLevel.guenstig),
         reason: 'die Auswertung hinter dem Pixel');
-    expect(oneCell.levelAt(latOf(1), lonOf(0, 1), elevation: elevation),
+    expect(oneCell.levelAt(latOf(1), lonOf(0, 1),
+            classes: ampelShippedClasses, elevation: elevation),
         AmpelLevel.guenstig);
   });
 
@@ -268,6 +311,7 @@ void main() {
     // Hintertür zurück, nur bunter.
     final png = decodePng(forestAmpelFillPng(
       [forest],
+      ampelClasses: ampelShippedClasses,
       window: window,
       levels: levelsOf([
         [AmpelLevel.guenstig, AmpelLevel.guenstig],
@@ -286,6 +330,7 @@ void main() {
     final plain = forestFillPng(forest, window: window);
     final lit = forestAmpelFillPng(
       [forest],
+      ampelClasses: ampelShippedClasses,
       window: window,
       levels: levelsOf([
         [AmpelLevel.guenstig, AmpelLevel.guenstig],

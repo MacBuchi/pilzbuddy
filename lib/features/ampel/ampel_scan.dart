@@ -25,7 +25,8 @@ import '../map/elevation_grid.dart';
 import '../map/elevation_providers.dart';
 import '../map/rain_data_providers.dart';
 import '../map/rain_stack.dart';
-import '../map/spot_filter.dart' show currentMonthProvider;
+import '../map/spot_filter.dart'
+    show currentMonthProvider, selectedAmpelClassesProvider;
 import '../map/spot_weather.dart';
 import '../../core/season_curves.dart';
 import '../spots/spot_providers.dart';
@@ -99,6 +100,9 @@ final ampelBannerEnabledProvider =
 /// gewollt: Eine graue Ablesung ist eine Antwort („keine Aussage"), aber
 /// kein Grund, jemanden in den Wald zu schicken.
 ///
+/// [classes] ist die Gruppenauswahl des Nutzers — dieselbe Liste, mit
+/// der Fläche und Legende rechnen.
+///
 /// Es zählt AUSSCHLIESSLICH [AmpelLevel.guenstig]. „Verhalten" wäre die
 /// Mehrzahl der Tage und damit ein Banner, das immer steht — und ein
 /// Banner, das immer steht, sagt nichts mehr.
@@ -107,6 +111,7 @@ List<AmpelHit> ampelScanOf({
   required List<RainCourse?> courses,
   required WeatherTable? table,
   required ElevationGrid? elevation,
+  required List<AmpelClass> classes,
   required int month,
 }) {
   final hits = <AmpelHit>[];
@@ -117,6 +122,13 @@ List<AmpelHit> ampelScanOf({
       // Eine Art ohne bestätigte Klasse bekommt keine Stufe — grau ist
       // eine Antwort, aber kein Grund, jemanden in den Wald zu schicken.
       if (klass == null) continue;
+      // Und eine abgewählte Gruppe spricht gar nicht (Chips im Filter,
+      // 1.142.0). Der Hinweis MUSS mitziehen: Er nennt eine Zahl, und
+      // ein Tipp darauf setzt den Ampel-Filter — stünde im Banner „2
+      // Spots" und auf der gefilterten Karte läge einer, widerspräche
+      // die App sich selbst (#399, dieselbe Menge in Banner, Filter und
+      // Blatt).
+      if (!classes.contains(klass)) continue;
       // Das Saison-Tor. `null` heißt „keine Kurve" und damit „zeigen".
       if (!(speciesInSeason(species, month) ?? true)) continue;
       final reading = ampelReadingFrom(
@@ -186,6 +198,11 @@ final ampelScanProvider = FutureProvider<List<AmpelHit>>((ref) async {
   // fremden Provider — und merkt eine Änderung dort nicht.
   if (!ref.watch(rainCourseEnabledProvider)) return const [];
 
+  // NACH den Schaltern und VOR dem ersten Gitter: Die Auswahl kostet
+  // nichts (zwei Konstanten aus einer Map), aber die Reihenfolge in
+  // dieser Funktion ist die Zusage — beobachten IST laden.
+  final classes = ref.watch(selectedAmpelClassesProvider);
+
   final spots = ref.watch(mySpotListProvider);
   if (spots.isEmpty) return const [];
 
@@ -201,6 +218,7 @@ final ampelScanProvider = FutureProvider<List<AmpelHit>>((ref) async {
     courses: courses,
     table: table,
     elevation: elevation,
+    classes: classes,
     // Derselbe Provider, an dem der Saison-Filter hängt — nicht
     // `DateTime.now()`: Banner und Filter müssen denselben Monat sehen,
     // sonst zeigt der Tipp auf eine Karte, die etwas anderes filtert.

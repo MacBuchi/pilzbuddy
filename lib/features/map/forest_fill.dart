@@ -39,7 +39,7 @@ import 'package:flutter/painting.dart' show Color;
 import '../../core/app_colors.dart';
 import '../ampel/ampel_fill.dart' show AmpelLevelGrid;
 import 'elevation_grid.dart' show ElevationGrid;
-import '../ampel/ampel_model.dart' show AmpelLevel;
+import '../ampel/ampel_model.dart' show AmpelClass, AmpelLevel;
 import 'forest_fill_window.dart';
 import 'forest_grid.dart';
 import 'overlay_png.dart';
@@ -230,14 +230,22 @@ Uint8List forestFillPngMulti(List<ForestGrid> grids,
 /// 1-km-Regenzelle kann 500 Höhenmeter überspannen — mit EINER Stufe
 /// je Zelle konnte die Wabenfarbe der Punkt-Ablesung des Blatts dort
 /// nie überall zustimmen. `null` heißt unkorrigiert, wie im Blatt.
+///
+/// [ampelClasses] ist die Gruppenauswahl des Nutzers (Chips im Filter,
+/// seit 1.142.0). Sie reist als [_AmpelHighlight] zusammen mit dem
+/// Gitter: Ein Gitter ohne Auswahl kann seit dieser Version gar keine
+/// Stufe mehr nennen, und zwei getrennte Parameter wären zwei
+/// Gelegenheiten, die Auswahl zu vergessen.
 Uint8List forestAmpelFillPng(List<ForestGrid> grids,
     {required FillWindow window,
     required AmpelLevelGrid levels,
+    required List<AmpelClass> ampelClasses,
     ElevationGrid? elevation,
     Set<ForestClass> classes = allForestClasses}) {
   final coverage = _HexCoverage(window, bandCount: 5);
+  final highlight = (levels: levels, classes: ampelClasses);
   for (final grid in grids) {
-    coverage.add(grid, classes, highlight: levels, elevation: elevation);
+    coverage.add(grid, classes, highlight: highlight, elevation: elevation);
   }
   return overlayPng(
       window.width, window.height, coverage.resolveCombined());
@@ -257,6 +265,13 @@ const _coverageUnit = 1024;
 /// kommen nur in der Kombi-Ebene vor und zählen, wie viel der Fläche
 /// eines Pixels LEUCHTET — sie treten nicht an die Stelle des
 /// Klassenbands, sondern kommen hinzu.
+/// Die Ampel-Stufen SAMT der Auswahl, mit der sie gelesen werden — die
+/// beiden gehören zusammen, siehe [forestAmpelFillPng].
+typedef _AmpelHighlight = ({
+  AmpelLevelGrid levels,
+  List<AmpelClass> classes,
+});
+
 const _bandVerhalten = 3;
 const _bandGuenstig = 4;
 
@@ -330,7 +345,7 @@ class _HexCoverage {
   /// konstant, und zwei Logarithmen je Wabe wären bei Millionen Waben
   /// der Unterschied zwischen läuft und ruckelt.
   void add(ForestGrid grid, Set<ForestClass> classes,
-      {AmpelLevelGrid? highlight, ElevationGrid? elevation}) {
+      {_AmpelHighlight? highlight, ElevationGrid? elevation}) {
     final width = window.width;
     final rows = window.height;
     final lonStep = grid.hexLonStep!;
@@ -370,7 +385,7 @@ class _HexCoverage {
       final odd = hy.isOdd ? 0.5 : 0.0;
       final latC = grid.north - latStep * (hy + 2 / 3);
       // Die Ampel-Gitterzeile dieser Wabenzeile — einmal, nicht je Wabe.
-      final ampelRow = highlight?.rowAt(latC);
+      final ampelRow = highlight?.levels.rowAt(latC);
       final yTop = yOf(latC + rDeg);
       final yUp = yOf(latC + rDeg / 2);
       final yLow = yOf(latC - rDeg / 2);
@@ -464,7 +479,7 @@ class _HexCoverage {
     required double wPx,
     required double area,
     required double yMid,
-    required AmpelLevelGrid? highlight,
+    required _AmpelHighlight? highlight,
     required ElevationGrid? elevation,
     required int? ampelRow,
     required double rowLat,
@@ -520,16 +535,17 @@ class _HexCoverage {
   /// Wetter mindestens „verhalten" ist, zahlt die Wabe zusätzlich zu
   /// ihrem Klassenband in Band 3 bzw. 4 ein. Ohne [highlight] leuchtet
   /// nichts.
-  int _litBand(AmpelLevelGrid? highlight, ElevationGrid? elevation,
+  int _litBand(_AmpelHighlight? highlight, ElevationGrid? elevation,
       int? ampelRow, double lat, double lon) {
     if (highlight == null || ampelRow == null) return -1;
-    final column = highlight.columnAt(lon);
+    final column = highlight.levels.columnAt(lon);
     if (column == null) return -1;
     // Die Glocke mit der Höhe DIESER Wabe — für die groben Waben ist
     // das derselbe Gitterindex (gleiches Hex-Raster), für die feinen
     // der Mittelpunkt-Nachschlag; beides läuft über denselben Weg,
     // damit es keinen zweiten gibt.
-    return switch (highlight.levelFor(ampelRow, column,
+    return switch (highlight.levels.levelFor(ampelRow, column,
+        classes: highlight.classes,
         heightM: elevation?.heightMetersAt(lat, lon))) {
       AmpelLevel.verhalten => _bandVerhalten,
       AmpelLevel.guenstig => _bandGuenstig,

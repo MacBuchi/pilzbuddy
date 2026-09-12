@@ -56,6 +56,7 @@ import '../forest_grid.dart';
 import '../rain_data_providers.dart';
 import '../rain_fill.dart';
 import '../rain_layer.dart';
+import '../spot_filter.dart' show selectedAmpelClassesProvider;
 import 'here_sheet.dart';
 
 /// Ist die Legende ausgeklappt?
@@ -162,12 +163,18 @@ class MapLegend extends ConsumerWidget {
         // AUSGEKLAPPTEN Legende; `_AmpelSection` steckt ohnehin nur im
         // `_LegendPanel`). Die Fläche malt dasselbe Maximum, die Regel
         // steht in `ampelBestReadingFrom` und nur dort.
+        // Beide Zeilen rechnen mit der GEWÄHLTEN Auswahl (Chips im
+        // Filter, 1.142.0) — dieselbe Liste, aus der die Fläche ihr
+        // Maximum nimmt. Stünde hier `ampelShippedClasses`, nennte die
+        // Legende eine Gruppe, die auf der Karte gar nicht mehr
+        // leuchtet; #279 verlangt eine Antwort, nicht zwei.
+        final selected = ref.watch(selectedAmpelClassesProvider);
         ampelAt = ampelBestReadingFrom(
                 course.valueOrNull, temperature.valueOrNull,
-                spotHeightM: spotHeight.valueOrNull)
+                classes: selected, spotHeightM: spotHeight.valueOrNull)
             .reading;
         ampelByClass = [
-          for (final klass in ampelShippedClasses)
+          for (final klass in selected)
             (
               klass: klass,
               reading: ampelReadingFrom(

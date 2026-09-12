@@ -352,12 +352,13 @@ class AmpelLevelGrid {
   /// Die Stufe an einem Punkt — `null` außerhalb des Gitters oder wo es
   /// keine Aussage gibt. DIE Auswertung des Zeichners und der Tests:
   /// Wer hier vorbeigeht, malt eine andere Antwort als das Blatt.
-  AmpelLevel? levelAt(double lat, double lon, {ElevationGrid? elevation}) {
+  AmpelLevel? levelAt(double lat, double lon,
+      {required List<AmpelClass> classes, ElevationGrid? elevation}) {
     final row = rowAt(lat);
     final column = columnAt(lon);
     if (row == null || column == null) return null;
     return levelFor(row, column,
-        heightM: elevation?.heightMetersAt(lat, lon));
+        classes: classes, heightM: elevation?.heightMetersAt(lat, lon));
   }
 
   /// Die Gitterzeile zu einer Breite — `null` außerhalb.
@@ -392,7 +393,8 @@ class AmpelLevelGrid {
   /// `null` heißt unkorrigiert — exakt die Semantik von
   /// `ampelReadingFrom` ohne Spothöhe. Die Rechnung ist Zahl für Zahl
   /// die des Blatts: Mittel verschieben, dieselbe Glocke.
-  AmpelLevel? levelFor(int row, int column, {int? heightM}) {
+  AmpelLevel? levelFor(int row, int column,
+      {required List<AmpelClass> classes, int? heightM}) {
     final i = row * width + column;
     if (valid[i] == 0) return null;
     var mean = meanC[i].toDouble();
@@ -411,6 +413,14 @@ class AmpelLevelGrid {
     // das nirgends. Seit es Klassen gibt, war das eine engere Aussage
     // als früher: Wer Pfifferlinge suchte, las die Farben als für sich
     // gültig.
-    return ampelBestOf(rainFactor: rainFactor[i], meanC: mean).level;
+    //
+    // [classes] ist seit 1.142.0 die Auswahl des Nutzers (Chips im
+    // Filter) und kommt vom ABNEHMER, nicht aus dem Gitter: Das Gitter
+    // trägt die Zutaten und ist teuer (Isolate, 26 Entpackungen) —
+    // hinge die Auswahl darin, würfe jeder Chip-Tipp es weg. So kostet
+    // ein Tipp nur das neue Bild.
+    return ampelBestOf(
+            rainFactor: rainFactor[i], meanC: mean, classes: classes)
+        .level;
   }
 }

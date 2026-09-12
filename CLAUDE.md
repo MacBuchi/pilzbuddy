@@ -757,7 +757,7 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
     (Gitterweg) und `ampelBestReadingFrom` (volle Ablesung) — und NUR
     dort; Fläche, Legende und „Was ist hier?" müssen dieselbe Antwort
     geben, `test/ampel_fill_test.dart` hält sie Zelle für Zelle zusammen
-    (#279). Vier Dinge:
+    (#279). Fünf Dinge:
     - **Kein Saison-Tor auf der Fläche** (Betreiber: „Saisonkurve hängt
       immer an der Pilzart, und die gibt es auf der reinen Karte
       nicht"). Die Fläche sagt rein etwas über BEDINGUNGEN. An den
@@ -777,6 +777,34 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
       `_LegendPanel`; die 40-px-Schiene trägt ihr Urteil in der Form des
       Daumens, eine Aufzählung passt dort nicht hin. Ein Test prüft
       beide Richtungen.
+    - **Der Nutzer kann Gruppen abwählen** (seit 1.142.0, Chips im
+      Kartenfilter; Betreiber: „Default sollte alles an sein" und
+      „auch die Fläche"). Die Auswahl liegt als `SpotFilter.classes`
+      (leer = alle, wie bei den Arten) und wird über
+      `selectedAmpelClassesProvider` EINMAL aufgelöst — Fläche,
+      Legende, Nachlauf und Ampel-Filter lesen dieselbe Liste. Vier
+      Dinge, die man wissen muss:
+      - **Sie gehört in den FILTER, nicht zu den Ebenen-Schaltern.**
+        Ein Filter muss sich auf der Karte melden (#154), und das tut
+        nur, was in `describe()` steht — ein Ebenen-Schalter hätte
+        diese Pflicht nicht, und die Karte zeigte dann eine engere
+        Aussage, ohne es zu sagen. Der Chip sagt „Ampel:
+        Steinpilz & Co." und bewusst nicht „nur …": Die Gruppe
+        „Pfifferling" heißt wie die Art, und „nur Pfifferling" schreibt
+        schon die Artenauswahl.
+      - **Sie muss in den DATEINAMEN der Fläche** (`forestFillVariant`).
+        Dieselbe Falle wie bei Klassenwahl, Fenster und Feinstufe: Die
+        MapLibre-Strecke ist idempotent auf der URL, gleicher Name
+        heißt altes Bild.
+      - **Sie hängt NICHT am `ampelLevelGridProvider`.** Das Gitter
+        trägt die Zutaten und ist die teure Hälfte (Isolate, 26
+        Entpackungen); ausgewertet wird beim Abnehmer. Hinge die
+        Auswahl im Gitter, würfe jeder Chip-Tipp es weg.
+      - **Der Hinweis zieht mit.** `ampelScanOf` überspringt abgewählte
+        Gruppen — sonst stünde „2 Spots" über einer Karte, auf der nach
+        dem Tipp einer liegt. Die Chips selbst zeigt das Blatt nur bei
+        eingeschalteter Vorschau: Ohne sie rechnet die Ampel nirgends,
+        und der Artenliste fehlt der Platz.
   - **Die Einheit des Modells ist die KLASSE, nicht die Art** (seit
     1.137.0, Betreiber 2026-09-12). Eine Klasse ist ein
     Temperaturfenster; die beiden Stufenschwellen folgen daraus als

@@ -106,6 +106,39 @@ const ampelShippedClasses = <AmpelClass>[
   ampelSommerClass,
 ];
 
+/// Die gewählten Klassen, in Auslieferungsreihenfolge — die Übersetzung
+/// von der Nutzerauswahl (Schlüssel aus [ampelClasses]) in das, womit
+/// gerechnet wird.
+///
+/// **Leer heißt ALLE**, wie bei der Artenauswahl des Filters: Ein
+/// Filter, der nichts durchlässt, wäre auf der Karte nicht von „keine
+/// Daten" zu unterscheiden. Die Reihenfolge kommt aus
+/// [ampelShippedClasses] und nicht aus der Auswahl — an ihr hängt die
+/// Gleichstandsregel in [ampelBestOf].
+///
+/// Nennt die Auswahl nur Schlüssel, die es nicht (mehr) gibt, kommen
+/// ebenfalls alle zurück: Eine Auswahl, die auf nichts zeigt, ist keine
+/// Aussage, sondern eine Lücke — und die Karte antwortet dann wie
+/// vorher.
+List<AmpelClass> ampelClassesOf(Set<String> keys) {
+  if (keys.isEmpty) return ampelShippedClasses;
+  final chosen = [
+    for (final entry in ampelClasses.entries)
+      if (keys.contains(entry.key)) entry.value,
+  ];
+  return chosen.isEmpty ? ampelShippedClasses : chosen;
+}
+
+/// Der Schlüssel einer Klasse — für die Auswahl, die in Schlüsseln
+/// rechnet. `null` kann hier nicht herauskommen, solange die Klasse aus
+/// [ampelClasses] stammt.
+String? ampelClassKeyOf(AmpelClass klass) {
+  for (final entry in ampelClasses.entries) {
+    if (entry.value == klass) return entry.key;
+  }
+  return null;
+}
+
 /// Die beste Stufe über ALLE ausgelieferten Klassen — und welche sie
 /// trägt.
 ///
@@ -119,6 +152,13 @@ const ampelShippedClasses = <AmpelClass>[
 /// hängt an der ART, und die gibt es nur an Fundstellen. Die Fläche sagt
 /// deshalb rein etwas über die Bedingungen und nichts über Vorkommen.
 ///
+/// **[classes] ist PFLICHT und kein Vorgabewert.** Seit 1.142.0 kann
+/// der Nutzer Klassen abwählen (Chips im Filter), und die Auswahl gilt
+/// auch für die Fläche. Ein Standard „alle" wäre an jeder neuen
+/// Aufrufstelle die stille Antwort „zeig mehr, als der Chip sagt" —
+/// genau die Sorte Fehler, vor der #154 warnt, nur in die andere
+/// Richtung. Wer alle meint, schreibt [ampelShippedClasses] hin.
+///
 /// **Bei Gleichstand gewinnt die frühere Klasse, nicht der höhere
 /// Score.** Scores verschiedener Klassen sind nicht vergleichbar: Jede
 /// Schwelle ist auf ihre eigene Verteilung kalibriert, ein Score von
@@ -128,12 +168,13 @@ const ampelShippedClasses = <AmpelClass>[
 ({AmpelLevel level, AmpelClass klass}) ampelBestOf({
   required double rainFactor,
   required double meanC,
+  required List<AmpelClass> classes,
 }) {
   var best = (
     level: AmpelLevel.unguenstig,
-    klass: ampelShippedClasses.first,
+    klass: classes.first,
   );
-  for (final klass in ampelShippedClasses) {
+  for (final klass in classes) {
     final level = ampelLevelOf(
         rainFactor * ampelBellOfMean(meanC, optimumC: klass.optimumC),
         klass: klass);
