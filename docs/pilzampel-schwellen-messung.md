@@ -105,14 +105,41 @@ Die letzte Spalte ist **keine Messung, sondern die Probe aufs Exempel**: Sie mus
 |---|--:|--:|--:|---|---|
 | sommer | 17.5 °C | 0.287 | 0.677 | Pfifferling | ja |
 | herbst | 13.0 °C | 0.187 | 0.512 | Steinpilz, Maronenröhrling, Birkenpilz, Fichtenreizker, Herbsttrompete | ja |
-| herbst_holz | 11.5 °C | 0.148 | 0.407 | Hallimasch, Stockschwämmchen | **nein** |
-| kalt | -3.2 °C | 0.001 | 0.038 | Austernseitling | **nein** |
+| herbst_holz | 11.6 °C | 0.149 | 0.408 | Hallimasch, Stockschwämmchen | **nein** |
+| kalt | -3.2 °C | 0.001 | 0.037 | Austernseitling | **nein** |
 
 Die Spalte „ausgeliefert“ ist die eigentliche Grenze: Aufgenommen wird nur, was einen **Hold-out** bestanden hat. „Sieht in der Tabelle anders aus“ reicht nicht — daran wäre die Pfifferling-Spur fast gescheitert, bis Österreich und die Schweiz sie bestätigt haben. Für die übrigen gilt bis dahin, was für jede ungeprüfte Art gilt: lieber grau als erfunden.
 - **sommer** — Hold-out in AT+CH bestätigt: AUC 0,584 → 0,689 (+0,104 [+0,055, +0,150]), abstandsgleiche Kontrolle 0,510 (docs/pilzampel-artenfenster-holdout.md)
 - **herbst** — der ausgelieferte Stand; die eigenen Optima dieser fünf liegen zwischen 12,0 und 14,5 °C, und keine Abweichung von 13 °C schließt die Null aus
 - **herbst_holz** — nach dem Blick auf die Tabelle ausgewählt — dieselbe Lage wie beim Pfifferling vor seinem Hold-out
 - **kalt** — Fenster gemessen, aber in Stufen unter der registrierten Latte; der Kalttest (Judasohr, Samtfußrübling) steht aus
+
+## Läuft das Fenster mit der Fruchtungszeit?
+
+Die registrierte Zusatzprüfung aus `docs/pilzampel-artenfenster.md` — und die Grundlage für die Frage, ob Arten **ohne** eigene Messung einer Klasse zugeordnet werden können. Die Saisonkurven sind an keiner Anpassung beteiligt: Sie kommen aus GBIF-Meldemonaten, die Fenster aus Wetterreihen.
+
+Der mittlere Fruchtungsmonat wird auf dem **Kreis** gebildet. Linear gemittelt landet der Austernseitling mit seinem Dezembergipfel im Juni, also genau zwischen seinen beiden Enden — und die Korrelation fällt von −0,68 auf −0,07. Die „Schärfe“ ist die Länge des Summenvektors: 1 heißt „alles in einem Monat“, 0 heißt „über das Jahr verteilt“.
+
+| Art | mittlerer Monat | Schärfe | Optimum |
+|---|--:|--:|--:|
+| Pfifferling | 7.6 | 0.69 | 17.5 °C |
+| Stockschwämmchen ⚠ | 7.9 | 0.29 | 12.2 °C |
+| Steinpilz | 8.6 | 0.73 | 13.0 °C |
+| Birkenpilz | 8.7 | 0.72 | 14.5 °C |
+| Fichtenreizker | 9.1 | 0.73 | 12.0 °C |
+| Maronenröhrling | 9.3 | 0.71 | 13.0 °C |
+| Herbsttrompete | 9.3 | 0.74 | 13.0 °C |
+| Hallimasch | 10.5 | 0.76 | 11.0 °C |
+| Austernseitling | 12.8 | 0.76 | -3.2 °C |
+
+**Spearman über alle 9: -0,678**
+
+Ohne Kurven unter Schärfe 0,35 (Stockschwämmchen — eine flache Kurve hat keine Saison, über die sich korrelieren ließe): **-0,830** bei n=8
+
+**Diese Schwelle ist NACH dem Blick auf die Daten gesetzt**, und das gehört dazugesagt. Was für sie spricht: Die Lücke ist breit (0,29 gegen 0,69), es liegt keine einzige Art dazwischen, und „flach“ ist eine Eigenschaft der Kurve allein — sie kennt das Optimum nicht. Was gegen sie spricht: Sie ist trotzdem eine Entscheidung, die die Zahl verbessert hat.
+
+**Was die Zahl trägt — und was nicht.** Die Rangfolge hält: Sommerfrüchter warm, Herbstarten um 13 °C, Winterfrüchter kalt. Der ZUSAMMENHANG ist aber nicht linear — von 9,3 auf 10,5 Monate fällt das Optimum um 2 K, von 9,3 auf 12,8 um 16. Eine Gerade durch diese Punkte zu legen und damit einer Art eine Gradzahl zuzuweisen wäre erfunden; sie einer **Klasse** zuzuordnen ist es nicht.
+
 
 ## Was diese Seite NICHT sagt
 
