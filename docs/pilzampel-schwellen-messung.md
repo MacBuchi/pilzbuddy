@@ -75,6 +75,28 @@ Gemessen: **+8,1 pp** [+0,9 pp, +15,8 pp] — „günstig“ an Fundtagen 21,7 %
 
 **Und die Latte hing an einer Zahl, die selbst unsicher ist.** Wie groß der Abstand ausfällt, hängt am gewählten Quantil — und dessen Wahl ist nach Vorhersage 1 keine vorgefundene Größe mehr, sondern eine Entscheidung. Eine Latte in Prozentpunkten war dafür das falsche Maß; sie unterstellt eine Schwelle, die feststeht.
 
+## Was ausgeliefert würde
+
+**Betreiberentscheidung 2026-09-12: „gleich häufig vorerst.“** Die Umstellung soll die Treffsicherheit ändern, nicht zugleich, wie oft die Ampel überhaupt spricht; beides auf einmal machte hinterher unauswertbar, was gewirkt hat.
+
+Daraus folgen die Quantile **50 %** (verhalten) und **80 %** (günstig) — der Median der sechs ausgelieferten Arten auf den **Prüfjahren**, also dort, wo die App heute steht. Auf den Anpassjahren zu kalibrieren wäre hier falsch: Die Ampel käme um die gemessene Drift zu großzügig heraus.
+
+| Art | Optimum | verhalten ab | günstig ab | günstig an Vergleichstagen |
+|---|--:|--:|--:|--:|
+| Steinpilz | 13.0 °C | 0.189 | 0.493 | 20,1 % |
+| Maronenröhrling | 13.0 °C | 0.192 | 0.510 | 20,1 % |
+| Pfifferling | 17.5 °C | 0.287 | 0.677 | 20,0 % |
+| Birkenpilz | 14.5 °C | 0.222 | 0.469 | 20,1 % |
+| Fichtenreizker | 12.0 °C | 0.196 | 0.539 | 20,4 % |
+| Herbsttrompete | 13.0 °C | 0.161 | 0.445 | 20,3 % |
+| Hallimasch | 11.0 °C | 0.154 | 0.403 | 20,1 % |
+| Stockschwämmchen | 12.2 °C | 0.165 | 0.417 | 20,0 % |
+| Austernseitling | -3.2 °C | 0.001 | 0.037 | 20,1 % |
+
+Die letzte Spalte ist **keine Messung, sondern die Probe aufs Exempel**: Sie muss auf eine Beobachtung genau bei 20 % herauskommen, weil die Schwelle genau so gesetzt wurde. Steht dort etwas anderes, ist die Rechnung kaputt.
+
+**Und diese Zahlen verfallen.** Sie beschreiben die Verteilung der Jahre ab 2019; die Messung oben zeigt, dass sich genau diese Verteilung über ein Jahrzehnt um gut acht Prozentpunkte verschoben hat. Wer sie ausliefert, schreibt das Datum dazu und misst nach.
+
 ## Was diese Seite NICHT sagt
 
 Sie ändert `ampel_model.dart` nicht. Über eine Umstellung entscheidet der Betreiber mit diesen Zahlen; bis dahin bleibt der Gleichlauf „Zahl für Zahl“ zwischen Modellkern und Werkzeug unberührt.

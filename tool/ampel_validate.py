@@ -1220,6 +1220,11 @@ def threshold_species(name, sci, cache_dir=None, seed=42, progress=True):
     own = control_scores(fit, optimum, balanced=True)
     verhalten_at = quantile_at(*own, QUANTILE_VERHALTEN)
     guenstig_at = quantile_at(*own, QUANTILE_GUENSTIG)
+    # Dieselbe Verteilung auf den PRÜFJAHREN. Aus ihr entstehen die
+    # Zahlen, die ausgeliefert würden — nicht aus den Anpassjahren:
+    # Zwischen beiden liegen gut acht Prozentpunkte Drift, und für die
+    # Auslieferung zählt, wo die App HEUTE steht.
+    own_later = control_scores(test, optimum, balanced=True)
 
     configs = {
         # Was die App heute rechnet.
@@ -1277,6 +1282,7 @@ def threshold_species(name, sci, cache_dir=None, seed=42, progress=True):
         # Die daraus gesetzten Schwellen dieser Art.
         "verhalten_at": verhalten_at,
         "guenstig_at": guenstig_at,
+        "own_later": own_later,
         # Was die Nutzerin sähe — je Aufbau der Abstand Fund/Vergleich.
         "gap_shipped": gap(test, configs["shipped"], 2),
         "gap_window": gap(test, configs["window"], 2),
@@ -1301,6 +1307,33 @@ def _pp(value, digits=1):
     if value is None:
         return "—"
     return f"{value * 100:+.{digits}f} pp".replace(".", ",")
+
+
+def deployment_quantiles(rows):
+    """Die Quantile, die die HEUTIGE Häufigkeit erhalten.
+
+    **Betreiberentscheidung 2026-09-12: „gleich häufig vorerst".** Die
+    Umstellung soll die Treffsicherheit ändern und nicht zugleich, wie
+    oft die Ampel überhaupt spricht — beides in einem Schritt machte
+    hinterher unauswertbar, was gewirkt hat.
+
+    Genommen wird der Median der sechs ausgelieferten Arten auf den
+    **Prüfjahren**, also dort, wo die App heute steht; auf ganze 5 %
+    gerundet wie überall hier. Die Anpassjahre wären die falsche
+    Referenz: Zwischen beiden liegen gut acht Prozentpunkte Drift, und
+    wer dort kalibriert, liefert eine Ampel aus, die um genau diese
+    Drift zu großzügig ist.
+    """
+    shipped = [r for r in rows
+               if r.get("usable") and r["name"] in MYCORRHIZAL]
+    if not shipped:
+        return None
+
+    def rounded(values):
+        return round(statistics.median(values) * 20) / 20
+
+    return (rounded([r["rank_verhalten_later"] for r in shipped]),
+            rounded([r["rank_guenstig_later"] for r in shipped]))
 
 
 def render_threshold_report(rows, fetched_on):
@@ -1490,6 +1523,50 @@ def render_threshold_report(rows, fetched_on):
                 "Problem, sondern die Erwartung, dass sich ein "
                 "Rangfolgen-Gewinn überhaupt in eine Ampel übersetzt, und "
                 "die Integration in die App braucht einen anderen Plan.")
+
+    # --- Was ausgeliefert würde ------------------------------------
+    #
+    # **Getrennt vom Rest, und zwar streng.** Diese Zahlen sind auf den
+    # Prüfjahren gesetzt und dort auch ausgewertet — als BELEG taugen sie
+    # deshalb nicht, und der Abschnitt nennt bewusst keinen Abstand.
+    # Beleg ist die Tabelle darüber (angepasst früh, geprüft spät); hier
+    # steht nur, welche Konstanten daraus folgen.
+    ship = deployment_quantiles(rows)
+    if ship:
+        ship_v, ship_g = ship
+        out += ["", "## Was ausgeliefert würde", "",
+                "**Betreiberentscheidung 2026-09-12: „gleich häufig "
+                "vorerst.“** Die Umstellung soll die Treffsicherheit "
+                "ändern, nicht zugleich, wie oft die Ampel überhaupt "
+                "spricht; beides auf einmal machte hinterher "
+                "unauswertbar, was gewirkt hat.", "",
+                f"Daraus folgen die Quantile **{_pct(ship_v, 0)}** "
+                f"(verhalten) und **{_pct(ship_g, 0)}** (günstig) — der "
+                "Median der sechs ausgelieferten Arten auf den "
+                "**Prüfjahren**, also dort, wo die App heute steht. Auf "
+                "den Anpassjahren zu kalibrieren wäre hier falsch: Die "
+                "Ampel käme um die gemessene Drift zu großzügig heraus.",
+                "",
+                "| Art | Optimum | verhalten ab | günstig ab | "
+                "günstig an Vergleichstagen |",
+                "|---|--:|--:|--:|--:|"]
+        for row in usable:
+            low = quantile_at(*row["own_later"], ship_v)
+            high = quantile_at(*row["own_later"], ship_g)
+            rate = 1.0 - rank_of(*row["own_later"], high)
+            out.append(f"| {row['name']} | {row['optimum']:.1f} °C | "
+                       f"{low:.3f} | {high:.3f} | {_pct(rate)} |")
+        out += ["",
+                "Die letzte Spalte ist **keine Messung, sondern die "
+                "Probe aufs Exempel**: Sie muss auf eine Beobachtung "
+                f"genau bei {_pct(1 - ship_g, 0)} herauskommen, weil die "
+                "Schwelle genau so gesetzt wurde. Steht dort etwas "
+                "anderes, ist die Rechnung kaputt.", "",
+                "**Und diese Zahlen verfallen.** Sie beschreiben die "
+                "Verteilung der Jahre ab 2019; die Messung oben zeigt, "
+                "dass sich genau diese Verteilung über ein Jahrzehnt um "
+                "gut acht Prozentpunkte verschoben hat. Wer sie "
+                "ausliefert, schreibt das Datum dazu und misst nach."]
 
     out += ["", "## Was diese Seite NICHT sagt", "",
             "Sie ändert `ampel_model.dart` nicht. Über eine Umstellung "
@@ -2098,6 +2175,8 @@ def self_test():
                 "rank_verhalten_even": 0.4, "rank_guenstig_even": 0.7,
                 "rank_verhalten_later": 0.45, "rank_guenstig_later": 0.78,
                 "verhalten_at": 0.2, "guenstig_at": 0.5,
+                "own_later": ([i / 100 for i in range(100)],
+                              [1.0] * 100),
                 "gap_shipped": 0.0, "gap_window": 0.0, "gap_both": gap,
                 "gap_both_ci": ci, "found_shipped": 0.2,
                 "found_both": 0.2 + gap, "ctrl_shipped": 0.2,
@@ -2118,6 +2197,45 @@ def self_test():
     assert "**Ergebnis: NICHT bestätigt.**" in keiner
     assert "Effekt ist aber da" not in keiner, \
         "ohne Effekt darf der Bericht keinen behaupten"
+
+    # **Die Auslieferungs-Quantile müssen aus den PRÜFJAHREN kommen.**
+    # Nähme man die Anpassjahre, käme die Ampel um die gemessene Drift
+    # zu großzügig heraus — und zwar lautlos, denn beide Zahlen sehen
+    # gleich plausibel aus. Gepflanzt: Die beiden Zeitscheiben liegen
+    # weit auseinander, das Ergebnis darf nur die spätere sein.
+    drifted = [planted(name, 0.1, (0.05, 0.15)) | {
+        "rank_verhalten_even": 0.40, "rank_guenstig_even": 0.70,
+        "rank_verhalten_later": 0.55, "rank_guenstig_later": 0.80}
+        for name in MYCORRHIZAL]
+    assert deployment_quantiles(drifted) == (0.55, 0.80), \
+        "die Auslieferung muss auf den Prüfjahren kalibrieren"
+    # Gerundet wird auf volle 5 %, wie überall hier.
+    krumm = [row | {"rank_guenstig_later": 0.783} for row in drifted]
+    assert deployment_quantiles(krumm)[1] == 0.80, "auf 5 % runden"
+    assert deployment_quantiles([]) is None
+
+    # Die „Probe aufs Exempel" im Bericht muss wirklich aufgehen: Die
+    # Quote an Vergleichstagen ist per Konstruktion 1 − Quantil, und
+    # steht dort etwas anderes, ist die Rechnung kaputt.
+    gezeigt = render_threshold_report(drifted, "—")
+    assert "## Was ausgeliefert würde" in gezeigt
+    assert "**80 %** (günstig)" in gezeigt, \
+        "das Auslieferungs-Quantil steht nicht im Bericht"
+    # Die Probe: Ein auf das 80-%-Quantil gesetzter Schwellwert muss an
+    # rund 20 % der Vergleichstage überschritten werden. „Rund" heißt
+    # 1/n — genauer kann ein empirisches Quantil nicht sein.
+    verteilung = drifted[0]["own_later"]
+    quote = 1.0 - rank_of(*verteilung, quantile_at(*verteilung, 0.80))
+    assert abs(quote - 0.20) <= 1.0 / len(verteilung[0]) + 1e-9, quote
+    # **Und die beiden Spalten müssen aus VERSCHIEDENEN Quantilen
+    # kommen.** Stünde in „verhalten ab" das günstig-Quantil, wäre die
+    # mittlere Stufe stillschweigend verschwunden — die Tabelle sähe
+    # völlig unauffällig aus, denn beide Zahlen sind plausibel. Genau
+    # diese Vertauschung ist bei der Gegenprobe durchgerutscht.
+    erwartet = (f"| {quantile_at(*verteilung, 0.55):.3f} "
+                f"| {quantile_at(*verteilung, 0.80):.3f} |")
+    assert erwartet in gezeigt, \
+        f"die Auslieferungs-Schwellen stehen nicht als {erwartet} da"
 
     # Und dasselbe für Vorhersage 1: Das Band muss wirklich entscheiden.
     inside = statistics.mean(QUANTILE_BAND_GUENSTIG)
