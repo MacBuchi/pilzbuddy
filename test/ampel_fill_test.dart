@@ -160,7 +160,7 @@ void main() {
     for (final (x, cell) in series.indexed) {
       // Der Maßstab ist das MODELL selbst: dieselbe Reihe, Vortag
       // zuerst, durch dieselben Funktionen.
-      final expected = ampelLevelOf(ampelRainFactor(
+      final expected = ampelLevelOf(klass: ampelHerbstClass, ampelRainFactor(
           [for (final mm in cell.reversed) mm.toDouble()]));
       expect(levelOf(grid, x), expected, reason: 'Zelle $x');
     }
@@ -177,9 +177,9 @@ void main() {
     final young = [...List.filled(18, 0), ...List.filled(8, 8)];
     final old = [...List.filled(8, 8), ...List.filled(18, 0)];
     final grid = ampelLevelsFrom(stackOf([young, old]), tableOf())!;
-    final expectedYoung = ampelLevelOf(ampelRainFactor(
+    final expectedYoung = ampelLevelOf(klass: ampelHerbstClass, ampelRainFactor(
         [for (final mm in young.reversed) mm.toDouble()]));
-    final expectedOld = ampelLevelOf(ampelRainFactor(
+    final expectedOld = ampelLevelOf(klass: ampelHerbstClass, ampelRainFactor(
         [for (final mm in old.reversed) mm.toDouble()]));
     expect(expectedYoung, isNot(expectedOld),
         reason: 'sonst prüft dieser Test nichts');
@@ -256,6 +256,7 @@ void main() {
         lon: lon,
       );
       return ampelReadingFrom(course, table.at(lat, lon),
+              klass: ampelHerbstClass,
               spotHeightM: elevation?.heightMetersAt(lat, lon))
           .level;
     }
@@ -445,7 +446,7 @@ void main() {
 
       // Station 300 m, Spot 1500 m: (300 − 1500) · 0,65/100 = −7,8 K.
       final corrected = ampelReadingFrom(courseAt(51.15, 10.25), at,
-          spotHeightM: 1500);
+          klass: ampelHerbstClass, spotHeightM: 1500);
       expect(corrected.tempMeanC, closeTo(13 - 7.8, 1e-9));
       expect(corrected.heightCorrectionK, closeTo(-7.8, 1e-9));
       expect(corrected.spotHeightM, 1500);
@@ -453,12 +454,13 @@ void main() {
       // Gleiche Höhe: Korrektur 0, aber GESETZT — die Anzeige
       // unterscheidet „nichts zu tun" von „konnte nicht rechnen".
       final level = ampelReadingFrom(courseAt(51.15, 10.25), at,
-          spotHeightM: 300);
+          klass: ampelHerbstClass, spotHeightM: 300);
       expect(level.tempMeanC, closeTo(13, 1e-9));
       expect(level.heightCorrectionK, closeTo(0, 1e-9));
 
       // Ohne Höhe: unkorrigiert, beide Felder leer.
-      final without = ampelReadingFrom(courseAt(51.15, 10.25), at);
+      final without = ampelReadingFrom(courseAt(51.15, 10.25), at,
+          klass: ampelHerbstClass);
       expect(without.tempMeanC, closeTo(13, 1e-9));
       expect(without.heightCorrectionK, isNull);
       expect(without.spotHeightM, isNull);

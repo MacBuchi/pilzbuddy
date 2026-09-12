@@ -43,10 +43,17 @@ class AmpelSection extends ConsumerWidget {
     }
     final theme = Theme.of(context);
 
-    // Gilden-Tor VOR allem anderen: Für eine ungeprüfte Art wird nicht
-    // einmal gerechnet — das Modell ist für Holzbewohner kategorisch
-    // falsch, nicht bloß ungenau.
-    if (!ampelValidatedFor(species)) {
+    // Klassen-Tor VOR allem anderen: Für eine Art ohne bestätigte
+    // Klasse wird nicht einmal gerechnet.
+    //
+    // **Korrektur am 2026-09-12 zur früheren Begründung.** Hier stand,
+    // das Modell sei für Holzbewohner „kategorisch falsch". Gemessen
+    // ist das Gegenteil: Hallimasch und Stockschwämmchen gewinnen mit
+    // ihrem eigenen Fenster von allen neun Arten am meisten. Sie
+    // bleiben grau, weil dieses Fenster keinen Hold-out hat — nicht,
+    // weil an ihnen nichts zu rechnen wäre.
+    final klass = ampelClassFor(species);
+    if (klass == null) {
       return _line(
         theme,
         icon: Icon(Icons.circle_outlined, size: 14, color: theme.hintColor),
@@ -85,7 +92,7 @@ class AmpelSection extends ConsumerWidget {
     }
     final reading = ampelReadingFrom(
         course.valueOrNull, temperature.valueOrNull,
-        spotHeightM: spotHeight.valueOrNull);
+        klass: klass, spotHeightM: spotHeight.valueOrNull);
 
     if (reading.isGrau) {
       return _line(
@@ -134,7 +141,7 @@ class AmpelSection extends ConsumerWidget {
         Padding(
           padding: const EdgeInsets.only(left: 22, top: 2),
           child: Text(
-            _components(reading),
+            _components(reading, klass),
             style: theme.textTheme.bodySmall
                 ?.copyWith(color: theme.hintColor),
           ),
@@ -179,7 +186,7 @@ class AmpelSection extends ConsumerWidget {
   /// Die Saison steht DANEBEN und rechnet nicht in die Stufe hinein:
   /// Die Validierung hat sie bewusst herausgekürzt, geprüft ist nur der
   /// Wetterbeitrag.
-  String _components(AmpelReading reading) {
+  String _components(AmpelReading reading, AmpelClass klass) {
     final rain = reading.rainFactor!;
     final rainWord = rain >= 0.66
         ? 'gut'
@@ -197,7 +204,11 @@ class AmpelSection extends ConsumerWidget {
     }
     final tempWord = reading.tempFactor! >= 0.6
         ? 'passt ($meanText)'
-        : mean > ampelOptimumC
+        // **Gegen das Fenster der KLASSE, nicht gegen 13 °C.** Sonst
+        // stünde beim Pfifferling (17,5 °C) bei 15 °C „zu warm“,
+        // während seine Stufe gleichzeitig sagt, es sei zu kühl — die
+        // Fakten-Zeile widerspräche der Ampel darüber.
+        : mean > klass.optimumC
             ? 'zu warm ($meanText)'
             : 'zu kühl ($meanText)';
     final parts = [

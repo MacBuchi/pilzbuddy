@@ -751,6 +751,31 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   die Ampel an einem EIGENEN Spot günstig steht
   (`lib/features/ampel/ampel_scan.dart`). Vier Dinge, die man wissen
   muss:
+  - **Die Einheit des Modells ist die KLASSE, nicht die Art** (seit
+    1.137.0, Betreiber 2026-09-12). Eine Klasse ist ein
+    Temperaturfenster; die beiden Stufenschwellen folgen daraus als
+    Quantile der Score-Verteilung an Vergleichstagen und stehen NICHT
+    mehr als zwei globale Zahlen da. Drei Dinge, die man wissen muss:
+    - **Eine Schwelle gilt für EIN Fenster.** Der Austernseitling kommt
+      mit den alten 0,5 auf 1,1 % günstige Fundtage, der Steinpilz auf
+      58,4 % — ein eigenes Fenster ohne eigene Schwelle macht die Ampel
+      dunkel, nicht besser. Umgekehrt sind die Schwellen von Arten, die
+      sich ein Fenster teilen, nicht unterscheidbar; je Art ausgeliefert
+      wären sie Rauschen in Konstantenform.
+    - **Eine Klasse kommt erst nach einem HOLD-OUT hinein** — angepasst
+      auf einem Teil der Daten, bestätigt auf Daten, die daran nie
+      beteiligt waren. „Fällt in der Tabelle auf" reicht nicht; daran
+      wäre die Pfifferling-Spur fast gescheitert. Hallimasch,
+      Stockschwämmchen und Austernseitling haben gemessene Fenster und
+      bleiben trotzdem grau.
+    - **Die Schwellen altern.** Dieselbe 0,5 wurde vor 2019 an rund 30 %
+      der Vergleichstage überschritten, seither an rund 20 % — die Ampel
+      war im Feld still pessimistischer geworden, ohne Codeänderung. Wer
+      sie anfasst, misst nach (`tool/ampel_validate.py --thresholds`,
+      rechnet nur aus dem Cache) und schreibt das Datum dazu. Wie oft
+      die Ampel „günstig" sagen soll, ist dabei eine
+      Produktentscheidung und keine Messung; sie steckt im Quantil
+      (80 %) und lautet „gleich häufig wie bisher".
   - **Es gibt keinen dritten Modellkern.** `ampelScanOf` ruft dasselbe
     `ampelReadingFrom` wie das Spot-Blatt. Ein nächtlicher Server-Push
     hätte das Modell neben `ampel_model.dart` und
@@ -771,6 +796,12 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   - **Nur `guenstig` zählt.** „Verhalten" ist die Mehrzahl der Tage und
     damit ein Banner, das immer steht — und eines, das immer steht, sagt
     nichts mehr.
+  - **Das Banner nimmt dieselbe Artquelle wie das Blatt** (seit 1.137.0,
+    `spot.lastFind?.species`). Seit die Ampel je KLASSE rechnet, wäre
+    eine andere Wahl ein Banner, das „günstig" sagt, während das Blatt
+    darunter „verhalten" zeigt — dieselbe Regel wie zwischen Fläche und
+    Blatt (#279). Eine Art ohne bestätigte Klasse fällt aus dem Banner
+    heraus, statt mit dem Herbstfenster gerechnet zu werden.
   - **Der Wortlaut trägt das Urteil.** Die Ampel bewertet BEDINGUNGEN,
     nie Vorkommen. Also „2 Spots · **Ampel günstig (experimentell)**",
     kein „geh jetzt", kein Ausrufezeichen.

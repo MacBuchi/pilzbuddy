@@ -7,6 +7,32 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Pilzampel rechnet jetzt nach Pilzart
+
+*12. September 2026 · Version 1.137.0*
+
+Bisher hat die Ampel für jede Art dasselbe gerechnet: rund 13 °C sind
+ideal. Für Steinpilz, Marone, Birkenpilz, Reizker und Herbsttrompete
+stimmt das auch — für den **Pfifferling** nicht. Der ist ein
+Sommerpilz, sein bester Bereich liegt bei etwa **17,5 °C**.
+
+An einem Pfifferling-Spot kann die Ampel jetzt also „verhalten" sagen,
+wo sie an einem Steinpilz-Spot daneben „günstig" zeigt — bei genau
+demselben Wetter. Und die Zeile darunter sagt „zu kühl" statt „zu warm",
+wenn es für Pfifferlinge eben noch zu frisch ist.
+
+Warum ausgerechnet der Pfifferling: Wir haben die Abweichung erst in
+deutschen Funddaten gemessen und sie danach an österreichischen und
+Schweizer Meldungen geprüft, die an der Messung nicht beteiligt waren.
+Nur dort hat sie gehalten. Hallimasch, Stockschwämmchen und
+Austernseitling haben ebenfalls einen eigenen Bereich — solange der
+nicht genauso geprüft ist, bleibt die Ampel bei ihnen **grau**.
+
+Nebenbei haben wir gemerkt, dass die alte Schwelle mit den Jahren
+gewandert ist: Dieselbe Zahl bedeutete vor 2019 etwas anderes als heute,
+die Ampel war also unbemerkt zurückhaltender geworden. Sie zeigt
+„günstig" jetzt wieder ungefähr so oft wie ursprünglich gedacht.
+
 ## Die Pilzampel sagt es jetzt kürzer
 
 *12. September 2026 · Version 1.136.0*

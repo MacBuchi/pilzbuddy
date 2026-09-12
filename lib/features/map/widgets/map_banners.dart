@@ -216,8 +216,8 @@ class MapBanners extends ConsumerWidget {
     onFit?.call();
   }
 
-  /// Der Text des Ampel-Banners — im KONJUNKTIV, und das ist keine
-  /// Höflichkeit.
+  /// Der Text des Ampel-Banners — kurz, im Indikativ, und mit dem
+  /// Vorbehalt als eigenem Stück daneben.
   ///
   /// Die Ampel urteilt über BEDINGUNGEN, nie über Vorkommen — der
   /// Zucker des Baumes, das Wasser aus 30 cm Tiefe und der

@@ -73,9 +73,19 @@ List<AmpelHit> ampelScanOf({
 }) {
   final hits = <AmpelHit>[];
   for (final (index, spot) in spots.indexed) {
+    // **Dieselbe Artquelle wie das Spot-Blatt** (`spot.lastFind?.species`
+    // in `spot_detail_sheet.dart`). Eine andere Wahl hier hieße, dass
+    // das Banner „günstig" sagt, während das Blatt darunter etwas
+    // anderes zeigt — dieselbe Regel wie zwischen Fläche und Blatt
+    // (#279). Eine Art ohne bestätigte Klasse bekommt keine Stufe und
+    // fällt damit aus dem Banner; grau ist eine Antwort, aber kein
+    // Grund, jemanden in den Wald zu schicken.
+    final klass = ampelClassFor(spot.lastFind?.species);
+    if (klass == null) continue;
     final reading = ampelReadingFrom(
       index < courses.length ? courses[index] : null,
       table?.at(spot.lat, spot.lng),
+      klass: klass,
       // `null` heißt schlicht „unkorrigiert rechnen" — dieselbe stille
       // Degradation wie im Spot-Blatt.
       spotHeightM: elevation?.heightMetersAt(spot.lat, spot.lng),

@@ -400,6 +400,13 @@ class AmpelLevelGrid {
       mean += lapseCorrectionK(
           stationHeightM: stationHeightM[i], targetHeightM: heightM);
     }
-    return ampelLevelOf(rainFactor[i] * ampelBellOfMean(mean));
+    // **Die Karte rechnet immer mit dem Herbstfenster.** Eine Fläche
+    // kennt keine Art; die Frage dort ist die der Gilde („Steinpilz &
+    // Co."), und genau daran ist sie validiert. Arten-Klassen auf der
+    // blanken Karte brauchen erst ein Zuordnungsmodell — solange es das
+    // nicht gibt, wäre jede andere Wahl geraten.
+    return ampelLevelOf(
+        rainFactor[i] * ampelBellOfMean(mean, optimumC: ampelOptimumC),
+        klass: ampelHerbstClass);
   }
 }

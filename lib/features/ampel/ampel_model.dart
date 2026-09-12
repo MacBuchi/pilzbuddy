@@ -16,6 +16,22 @@
 // Mitteltemperatur über 20 Tage, linear steigend mit dem über 26 Tage
 // kumulierten Niederschlag, ältere Tage schwächer gewichtet.
 //
+// **Seit 1.137.0 ist das nicht mehr EIN Zahlensatz für alles.** Die
+// Einheit ist die KLASSE — ein Temperaturfenster, aus dem die beiden
+// Stufenschwellen als Quantile folgen. Der Grund ist gemessen, nicht
+// gedacht: Dieselbe Schwelle bedeutet unter einem anderen Fenster etwas
+// anderes, und zwar drastisch (der Austernseitling kommt mit 0,5 auf
+// 1,1 % günstige Fundtage, der Steinpilz auf 58,4 %). Umgekehrt sind
+// die Schwellen von Arten, die sich ein Fenster teilen, nicht
+// unterscheidbar — je Art ausgeliefert wären sie Rauschen in
+// Konstantenform (`docs/pilzampel-schwellen-messung.md`).
+//
+// Aufgenommen wird eine Klasse erst nach einem **Hold-out**: angepasst
+// auf einem Teil der Daten, bestätigt auf Daten, die daran nie
+// beteiligt waren. „Fällt in der Tabelle auf" reicht nicht — daran wäre
+// die Pfifferling-Spur fast gescheitert, bis Österreich und die Schweiz
+// sie bestätigt haben.
+//
 // Rein Dart ohne Flutter, wie `forest_grid.dart` und aus demselben
 // Grund: Die Rechnung soll ohne App testbar sein.
 import 'dart:math' as math;
@@ -25,9 +41,71 @@ import '../../core/mushroom_species.dart' show canonicalSpecies;
 /// Fenster und Konstanten — identisch zum Validierungswerkzeug.
 const ampelRainWindow = 26;
 const ampelTempWindow = 20;
-const ampelOptimumC = 13.0;
 const ampelTempSigma = 5.0;
 const ampelRainSaturationMm = 87.0;
+
+/// Das Fenster, mit dem die KARTE rechnet: Dort ist keine Art bekannt,
+/// also gilt die Gildenfrage „Steinpilz & Co.".
+const ampelOptimumC = 13.0;
+
+/// Eine Ampel-Klasse ist **ein Temperaturfenster** — die beiden
+/// Schwellen sind kein zweiter freier Parameter, sondern fallen daraus:
+/// das 50-%- und das 80-%-Quantil der Score-Verteilung, die dieses
+/// Fenster an Vergleichstagen erzeugt
+/// (`docs/pilzampel-schwellen-messung.md`).
+typedef AmpelClass = ({
+  double optimumC,
+  double verhaltenAbove,
+  double guenstigAbove,
+});
+
+/// **Warum die Klasse die Einheit ist und nicht die Art**
+/// (Betreiberentscheidung 2026-09-12): Arten mit demselben Fenster
+/// bekommen Schwellen, deren Vertrauensbereiche sich satt überlappen —
+/// Steinpilz [0,148, 0,238] gegen Herbsttrompete [0,089, 0,284]. Je Art
+/// ausgeliefert wäre das Rauschen in Konstantenform, und am Ende
+/// stünden 110 Einträge da, von denen keiner mehr prüfbar ist. Zwischen
+/// den Fenstern liegen dagegen Welten (0,512 gegen 0,038 beim
+/// Austernseitling).
+const ampelHerbstClass = (
+  optimumC: ampelOptimumC,
+  verhaltenAbove: 0.187,
+  guenstigAbove: 0.512,
+);
+
+/// Der Pfifferling ist ein Sommerfrüchter — Gipfel im Juli, nicht im
+/// September. Sein eigenes Fenster hat als einziges den **geografischen
+/// Hold-out** bestanden: in Deutschland angepasst, in AT und CH geprüft,
+/// AUC 0,584 → 0,689 (+0,104 [+0,055, +0,150]) bei abstandsgleicher
+/// Kontrolle 0,510 (`docs/pilzampel-artenfenster-holdout.md`). Ohne
+/// diesen Nachweis stünde er hier nicht: Gemessen wurde er, weil er in
+/// einer Tabelle auffiel, und das allein ist kein Befund.
+const ampelSommerClass = (
+  optimumC: 17.5,
+  verhaltenAbove: 0.287,
+  guenstigAbove: 0.677,
+);
+
+const ampelClasses = <String, AmpelClass>{
+  'herbst': ampelHerbstClass,
+  'sommer': ampelSommerClass,
+};
+
+/// **Nur Arten einer BESTÄTIGTEN Klasse stehen hier.** Hallimasch und
+/// Stockschwämmchen haben ein gemessenes Fenster (11,5 °C) und in
+/// Stufen den größten Gewinn von allen — aber keinen Hold-out; sie sind
+/// nach dem Blick auf die Tabelle ausgewählt worden, also genau in der
+/// Lage, in der der Pfifferling vor Österreich stand. Der
+/// Austernseitling ebenso. Bis das geprüft ist, gilt für sie, was für
+/// jede ungeprüfte Art gilt: lieber grau als erfunden.
+const ampelSpeciesClass = <String, String>{
+  'Steinpilz': 'herbst',
+  'Maronenröhrling': 'herbst',
+  'Birkenpilz': 'herbst',
+  'Fichtenreizker': 'herbst',
+  'Herbsttrompete': 'herbst',
+  'Pfifferling': 'sommer',
+};
 
 /// Gewichtete Niederschlagskumulation, 0…1.
 ///
@@ -58,14 +136,15 @@ double ampelRainFactor(List<double?> dailyMm) {
 /// (Stationsmittel + Lapse-Verschiebung der Zelle), nicht mehr je
 /// Station. Numerisch exakt der Weg von [ampelTemperatureFactor];
 /// zwei Formeln wären zwei Antworten auf „passt die Temperatur".
-double ampelBellOfMean(double meanC) {
-  final z = (meanC - ampelOptimumC) / ampelTempSigma;
+double ampelBellOfMean(double meanC, {required double optimumC}) {
+  final z = (meanC - optimumC) / ampelTempSigma;
   return math.exp(-(z * z));
 }
 
-/// Glocke um 13 °C über das Mittel der letzten 20 Tage, 0…1.
+/// Glocke um [optimumC] über das Mittel der letzten 20 Tage, 0…1.
 /// Fehltage werden übersprungen (wie im Werkzeug); ganz ohne Werte 0.
-double ampelTemperatureFactor(List<double?> dailyC) {
+double ampelTemperatureFactor(List<double?> dailyC,
+    {required double optimumC}) {
   var sum = 0.0;
   var count = 0;
   final days = math.min(dailyC.length, ampelTempWindow);
@@ -76,7 +155,7 @@ double ampelTemperatureFactor(List<double?> dailyC) {
     count++;
   }
   if (count == 0) return 0.0;
-  return ampelBellOfMean(sum / count);
+  return ampelBellOfMean(sum / count, optimumC: optimumC);
 }
 
 /// Der Wetter-Score: Feuchte × Temperatur, 0…1.
@@ -85,23 +164,38 @@ double ampelTemperatureFactor(List<double?> dailyC) {
 /// Tage derselben Saison — der Saisonfaktor kürzt sich dort heraus und
 /// ist damit UNGEPRÜFT. Die Anzeige nennt die Saison als eigene
 /// Fakten-Zeile daneben, rechnet sie aber nicht in die Stufe ein.
-double ampelScore(List<double?> rainDailyMm, List<double?> tempDailyC) =>
-    ampelRainFactor(rainDailyMm) * ampelTemperatureFactor(tempDailyC);
+double ampelScore(List<double?> rainDailyMm, List<double?> tempDailyC,
+        {required double optimumC}) =>
+    ampelRainFactor(rainDailyMm) *
+    ampelTemperatureFactor(tempDailyC, optimumC: optimumC);
 
 /// Drei Stufen in Worten — Konzept-Regel „Ehrlichkeit im UI": kein
 /// Prozent, keine Scheinpräzision.
 enum AmpelLevel { unguenstig, verhalten, guenstig }
 
-/// Die Schwellen sind GESETZT, nicht gemessen — Startwerte für die
-/// Vorschau, Kalibrierung erst nach bestandener Validierung (dann aus
-/// der Score-Verteilung an Fundtagen). Genau deshalb Konstanten an
-/// einer Stelle.
-const ampelVerhaltenAbove = 0.2;
-const ampelGuenstigAbove = 0.5;
-
-AmpelLevel ampelLevelOf(double score) {
-  if (score >= ampelGuenstigAbove) return AmpelLevel.guenstig;
-  if (score >= ampelVerhaltenAbove) return AmpelLevel.verhalten;
+/// Die Schwellen sind seit 1.137.0 **gemessen, nicht gesetzt** —
+/// `docs/pilzampel-schwellen-messung.md`. Sie stehen nicht mehr als
+/// zwei Zahlen für alles hier, sondern in jeder Klasse einzeln, weil
+/// dieselbe Zahl unter einem anderen Fenster etwas anderes bedeutet:
+/// Der Austernseitling kommt mit 0,5 auf 1,1 % günstige Fundtage, der
+/// Steinpilz auf 58,4 %.
+///
+/// **Zwei Dinge, die man dazu wissen muss.**
+///
+/// Sie beschreiben die Jahre AB 2019 und altern. Genau das ist der
+/// Grund, warum es sie gibt: Die ausgelieferte 0,5 wurde vor 2019 an
+/// rund 30 % der Vergleichstage überschritten und seither nur noch an
+/// rund 20 % — die Ampel ist im Feld still pessimistischer geworden,
+/// ohne dass je eine Zeile geändert wurde. Wer sie anfasst, misst nach
+/// (`tool/ampel_validate.py --thresholds`) und schreibt das Datum dazu.
+///
+/// Und wie oft die Ampel überhaupt „günstig" sagt, ist eine
+/// Produktentscheidung, keine Messung. Sie steckt im Quantil (80 %) und
+/// lautet seit dem 2026-09-12 „gleich häufig wie bisher", damit die
+/// Umstellung die Treffsicherheit ändert und nicht beides auf einmal.
+AmpelLevel ampelLevelOf(double score, {required AmpelClass klass}) {
+  if (score >= klass.guenstigAbove) return AmpelLevel.guenstig;
+  if (score >= klass.verhaltenAbove) return AmpelLevel.verhalten;
   return AmpelLevel.unguenstig;
 }
 
@@ -112,26 +206,25 @@ String ampelLevelWord(AmpelLevel level) => switch (level) {
       AmpelLevel.guenstig => 'günstig',
     };
 
-/// Die Arten, für die das Modell überhaupt eine Aussage machen darf —
-/// exakt die sechs Mykorrhiza-Herbstarten, an denen es validiert wird
-/// (`MYCORRHIZAL` im Werkzeug). Alles andere bekommt eine GRAUE Ampel:
-/// „Eine Ampel, die für den Hallimasch dasselbe rechnet wie für den
-/// Steinpilz, ist nicht ungenau, sondern kategorisch falsch"
-/// (Konzept, Artenklassifikation). Lieber grau als erfunden.
-const ampelValidatedSpecies = {
-  'Steinpilz',
-  'Maronenröhrling',
-  'Pfifferling',
-  'Birkenpilz',
-  'Fichtenreizker',
-  'Herbsttrompete',
-};
-
-/// Darf für [species] eine Stufe gezeigt werden? `null` (keine Art —
-/// „Was ist hier?") gilt als Gilden-Frage „Steinpilz & Co." und ist
-/// erlaubt; Synonyme werden wie überall über [canonicalSpecies]
-/// aufgelöst.
-bool ampelValidatedFor(String? species) {
-  if (species == null) return true;
-  return ampelValidatedSpecies.contains(canonicalSpecies(species));
+/// Die Klasse zu einer Art — `null` heißt „keine Aussage", also graue
+/// Ampel. `null` als [species] ist dagegen die Gilden-Frage („Was ist
+/// hier?") und bekommt das Herbstfenster, mit dem auch die Karte
+/// rechnet. Synonyme löst wie überall [canonicalSpecies] auf, sonst
+/// hinge die Ampel an der Schreibweise.
+///
+/// **Korrektur am 2026-09-12 zur früheren Begründung.** Hier stand, das
+/// Modell sei für Holzbewohner „nicht ungenau, sondern kategorisch
+/// falsch". Das ist gemessen widerlegt: Hallimasch und
+/// Stockschwämmchen haben in Stufen den GRÖSSTEN Gewinn aller neun
+/// Arten (+53,2 und +44,0 pp), sobald sie ihr eigenes Fenster bekommen
+/// — sie teilen schlicht nicht das der Mykorrhiza-Arten. Grau bleiben
+/// sie aus einem anderen Grund: Ihr Fenster hat keinen Hold-out, und
+/// ausgewählt wurden sie, weil sie in einer Tabelle auffielen.
+AmpelClass? ampelClassFor(String? species) {
+  if (species == null) return ampelHerbstClass;
+  final key = ampelSpeciesClass[canonicalSpecies(species)];
+  return key == null ? null : ampelClasses[key];
 }
+
+/// Darf für [species] überhaupt eine Stufe gezeigt werden?
+bool ampelValidatedFor(String? species) => ampelClassFor(species) != null;

@@ -156,9 +156,11 @@ class MapLegend extends ConsumerWidget {
       if (!course.isLoading &&
           !temperature.isLoading &&
           !spotHeight.isLoading) {
+        // Die Legende beschreibt die KARTE, und die kennt keine Art —
+        // also dasselbe Gildenfenster wie die Fläche (`ampel_fill.dart`).
         ampelAt = ampelReadingFrom(
             course.valueOrNull, temperature.valueOrNull,
-            spotHeightM: spotHeight.valueOrNull);
+            klass: ampelHerbstClass, spotHeightM: spotHeight.valueOrNull);
       }
     }
 
