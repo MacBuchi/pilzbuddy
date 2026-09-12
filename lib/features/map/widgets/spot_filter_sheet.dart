@@ -5,6 +5,8 @@ import '../../../core/app_colors.dart';
 import '../../../core/widgets/mushroom_icon.dart';
 import '../../../core/mushroom_species.dart';
 import '../../../core/season_curves.dart';
+import '../../ampel/ampel_model.dart';
+import '../../ampel/ampel_providers.dart' show ampelPreviewEnabledProvider;
 import '../../ampel/ampel_scan.dart';
 import '../spot_filter.dart';
 
@@ -119,6 +121,21 @@ class _SpotFilterSheet extends ConsumerWidget {
                   ? 'Gerade an keinem deiner Spots'
                   : '${ampelHits.length} deiner Spots · experimentell'),
             ),
+            // Die Gruppen-Chips (Betreiber, 2026-09-12: „Macht es
+            // vielleicht auch Sinn, die Klassen als Chips im Ampel-Filter
+            // aus-/abzuwählen? … Default sollte alles an sein.").
+            //
+            // Sie stehen HIER und nicht im Ebenen-Blatt, obwohl sie auch
+            // die Fläche betreffen: Ein Filter muss sich auf der Karte
+            // melden (#154), und das tut nur, was in `describe()` steht.
+            // Nur wenn die Ampel überhaupt rechnet: Ohne die Vorschau
+            // gibt es weder Fläche noch Nachlauf, die Chips hätten also
+            // nichts zu bewirken — und das Blatt ist knapp. Die
+            // Artenliste hat hier seit #414 weniger als eine
+            // Bildschirmzeile; ein wirkungsloser Block nähme ihr die
+            // nächste.
+            if (ref.watch(ampelPreviewEnabledProvider))
+              const _AmpelClassChips(),
             // Reine Tabellenarbeit — die Saisonkurven liegen im Binary
             // (#414). Deshalb steht hier kein „experimentell": Der
             // Schalter behauptet nichts über diesen Wald, er sagt nur,
@@ -179,6 +196,77 @@ class _SpotFilterSheet extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Für welche Pilzgruppen die Ampel sprechen soll.
+///
+/// **Ab Werk sind alle an** (Betreiberauflage), und genau dieser Zustand
+/// ist der leere Satz in [SpotFilter.classes] — die Chips zeigen ihn als
+/// „alle ausgewählt", ohne dass der Filter sich als aktiv meldet.
+///
+/// Die letzte gewählte Gruppe steht als DEAKTIVIERTER Chip da, statt bei
+/// einem Tipp nichts zu tun: Ein Bedienelement, das folgenlos bleibt,
+/// liest sich als Fehler. Die Zeile darunter sagt zusätzlich, warum.
+class _AmpelClassChips extends ConsumerWidget {
+  const _AmpelClassChips();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final chosen = ref.watch(spotFilterProvider).classes;
+    final notifier = ref.read(spotFilterProvider.notifier);
+    // Leer heißt alle — dieselbe Auflösung wie `ampelClassesOf`, nur für
+    // die Anzeige. Die Chips sind dann alle angehakt.
+    final selected =
+        chosen.isEmpty ? ampelClasses.keys.toSet() : chosen;
+    final last = selected.length == 1;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Die Zeile ist nicht Zierde: Eine Gruppe HEISST „Pfifferling",
+          // und weiter unten steht die Art „Pfifferling" in der Liste.
+          // Ohne diesen Satz stünde dasselbe Wort zweimal im selben
+          // Blatt und meinte zweierlei.
+          Text(
+            'Für welche Gruppen die Ampel spricht — auch auf der Fläche:',
+            style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              for (final entry in ampelClasses.entries)
+                FilterChip(
+                  // Kompakt wie die Schalter darüber `dense` sind: Der
+                  // Artenliste bleiben im 600-dp-Fenster ohnehin nur
+                  // Zeilen, keine Bildschirme.
+                  visualDensity: VisualDensity.compact,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  label: Text(entry.value.name),
+                  selected: selected.contains(entry.key),
+                  onSelected: last && selected.contains(entry.key)
+                      ? null
+                      : (_) => notifier.toggleClass(entry.key),
+                ),
+            ],
+          ),
+          // Nur im Grenzfall eine zweite Zeile: Der deaktivierte Chip
+          // allein sagt nicht, warum er sich nicht abwählen lässt.
+          if (last) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Mindestens eine Gruppe bleibt an.',
+              style:
+                  theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
+            ),
+          ],
+        ],
       ),
     );
   }

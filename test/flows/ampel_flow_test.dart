@@ -26,6 +26,8 @@ import 'package:pilzbuddy/features/map/elevation_grid.dart';
 import 'package:pilzbuddy/features/map/elevation_providers.dart';
 import 'package:pilzbuddy/features/map/rain_data_providers.dart';
 import 'package:pilzbuddy/features/map/rain_layer.dart';
+import 'package:pilzbuddy/features/map/spot_filter.dart'
+    show spotFilterProvider;
 import 'package:pilzbuddy/features/map/widgets/map_legend.dart'
     show mapIdleCenterProvider, mapLegendOpenProvider;
 import 'package:pilzbuddy/features/spots/widgets/weather_chart.dart';
@@ -397,6 +399,36 @@ void main() {
             'Legende zweimal dasselbe und wäre keine Auskunft');
   });
 
+  testWidgets('eine abgewählte Gruppe steht auch nicht mehr in der Legende',
+      (tester) async {
+    // **Fläche, Legende und „Was ist hier?" müssen dieselbe Antwort
+    // geben** (#279). Nennte die Legende eine Gruppe weiter, die auf
+    // der Karte nicht mehr leuchtet, wäre sie die Auskunft zu einer
+    // anderen Karte.
+    await pumpWithWeather(tester, loggedInWithSpot(),
+        preview: true, spotHeightM: 1200);
+    await openSpot(tester);
+    await acceptAndSettle(tester);
+    await tester.tapAt(const Offset(20, 20));
+    await settle(tester);
+
+    final container = ProviderScope.containerOf(
+        tester.element(find.byType(Scaffold).first));
+    container.read(ampelLayerEnabledProvider.notifier).state = true;
+    container.read(mapIdleCenterProvider.notifier).state =
+        const LatLng(spotLat, spotLng);
+    await settle(tester);
+    expect(find.text('Pfifferling'), findsOneWidget,
+        reason: 'ungefiltert nennt die Legende beide Gruppen');
+
+    container.read(spotFilterProvider.notifier).toggleClass('sommer');
+    await settle(tester);
+    expect(find.text('Steinpilz & Co.'), findsOneWidget);
+    expect(find.text('Pfifferling'), findsNothing);
+    // Und die Karte sagt, dass gefiltert wird (#154).
+    expect(find.textContaining('Ampel: Steinpilz & Co.'), findsOneWidget);
+  });
+
   testWidgets('die eingeklappte Schiene zeigt die Klassen NICHT',
       (tester) async {
     // Betreiberauflage: klassenspezifisch „aber nur in der
@@ -565,6 +597,32 @@ void main() {
     expect(
         find.textContaining('für mindestens eine Pilzgruppe gerade stimmen'),
         findsOneWidget);
+  });
+
+  testWidgets('das Ampel-Blatt sagt, wenn die Karte nur für eine Gruppe '
+      'spricht', (tester) async {
+    // Das Blatt erklärt die Farben auf der Karte. Steht dort weiter
+    // „für mindestens eine Pilzgruppe", während die Fläche nur noch
+    // eine rechnet, ist es genau die Sorte Text, die in #456 dreimal
+    // korrigiert werden musste.
+    final settings = FakeSettings(ampelPreviewEnabled: true);
+    final backend = FakeBackend();
+    backend.signInAs(backend.addUser(username: 'testpilz').id);
+    await pumpApp(tester, backend, settings: settings);
+    final container = ProviderScope.containerOf(
+        tester.element(find.byType(Scaffold).first));
+    container.read(spotFilterProvider.notifier).toggleClass('sommer');
+    await settle(tester);
+
+    await openLayerSheet(tester, 'Pilzampel');
+    expect(
+        find.textContaining('für mindestens eine Pilzgruppe gerade stimmen'),
+        findsNothing);
+    expect(
+        find.textContaining(
+            'Bedingungen für Steinpilz & Co. gerade stimmen'),
+        findsOneWidget);
+    expect(find.textContaining('im Kartenfilter abgewählt'), findsOneWidget);
   });
 
   testWidgets('Karten-Ampel im eigenen Blatt: schaltet den Wald ein, '
@@ -744,7 +802,9 @@ void main() {
     // (`forestFillStamp`), deshalb hier ein eigener Wächter. Die
     // Farbfamilie stand hier bis 1.79.0 mit drin — seit die Töne fest
     // sind, gibt es dort nichts mehr zu unterscheiden.
-    ForestFillImage imageOf(DateTime newest) => ForestFillImage(
+    ForestFillImage imageOf(DateTime newest,
+            {List<AmpelClass> classes = ampelShippedClasses}) =>
+        ForestFillImage(
           png: Uint8List(0),
           west: 10,
           east: 11,
@@ -754,7 +814,7 @@ void main() {
           classes: allForestClasses,
           windowKey: 'k1',
           fine: false,
-          ampel: (newest: newest),
+          ampel: (newest: newest, classes: classes),
         );
 
     final heute = forestFillVariant(imageOf(DateTime.utc(2026, 8, 9)));
@@ -762,6 +822,15 @@ void main() {
     expect(forestFillVariant(imageOf(DateTime.utc(2026, 8, 10))),
         isNot(heute),
         reason: 'gleicher Name ⇒ MapLibre tauscht das Bild nicht');
+
+    // Und dasselbe für die Gruppenauswahl (1.142.0): Sie ändert das
+    // BILD, also muss sie den Namen ändern. Sonst bekäme man nach dem
+    // Abwählen einer Gruppe das zwischengespeicherte Bild der alten
+    // Auswahl zurück — dieselbe Falle, nur eine Ebene später.
+    expect(
+        forestFillVariant(imageOf(DateTime.utc(2026, 8, 9),
+            classes: const [ampelHerbstClass])),
+        isNot(heute));
 
     // Ohne Ampel bleibt der Name, was er seit #249 ist.
     expect(

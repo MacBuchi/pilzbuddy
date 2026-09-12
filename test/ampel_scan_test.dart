@@ -72,6 +72,7 @@ void main() {
         courses: [courseOf(5), courseOf(1)],
         table: tableOf(),
         elevation: null,
+        classes: ampelShippedClasses,
         month: 9,
       );
 
@@ -111,6 +112,7 @@ void main() {
         courses: [courseOf(5), courseOf(5), courseOf(5)],
         table: table,
         elevation: null,
+        classes: ampelShippedClasses,
         month: 9,
       );
 
@@ -134,6 +136,7 @@ void main() {
         courses: const [null],
         table: tableOf(),
         elevation: null,
+        classes: ampelShippedClasses,
         month: 9,
       );
       expect(hits, isEmpty);
@@ -149,6 +152,7 @@ void main() {
         courses: [courseOf(5)],
         table: tableOf(),
         elevation: null,
+        classes: ampelShippedClasses,
         month: 9,
       );
       expect([for (final hit in hits) hit.spot.id], ['a']);
@@ -160,6 +164,7 @@ void main() {
         courses: [courseOf(5)],
         table: null,
         elevation: null,
+        classes: ampelShippedClasses,
         month: 9,
       );
       expect(hits, isEmpty);
@@ -172,6 +177,7 @@ void main() {
             courses: const [],
             table: tableOf(),
             elevation: null,
+        classes: ampelShippedClasses,
         month: 9,
       ),
         isEmpty,
@@ -202,6 +208,7 @@ void main() {
             courses: [course],
             table: table,
             elevation: null,
+        classes: ampelShippedClasses,
         month: 9,
       ),
         hasLength(1),
@@ -213,6 +220,7 @@ void main() {
             courses: [course],
             table: table,
             elevation: grid,
+        classes: ampelShippedClasses,
         month: 9,
       ),
         isEmpty,
@@ -247,6 +255,7 @@ void main() {
           courses: [for (final _ in spots) courseOf(5)],
           table: tableOf(meanC: meanC),
           elevation: null,
+          classes: ampelShippedClasses,
           month: month,
         );
 
@@ -279,6 +288,41 @@ void main() {
           [spotAt(id: 'a', species: const ['Steinpilz', 'Pfifferling'])], 7,
           meanC: 17.5);
       expect(hits.single.species, 'Pfifferling');
+    });
+
+    test('eine abgewählte Gruppe nimmt den Spot aus dem Hinweis', () {
+      // **Der Hinweis MUSS mitziehen** (1.142.0): Er nennt eine Zahl,
+      // und ein Tipp darauf setzt den Ampel-Filter. Zählte er Gruppen
+      // mit, die die Karte gar nicht mehr zeigt, stünde „1 Spot" über
+      // einer Karte ohne einen einzigen.
+      final spots = [spotAt(id: 'a', species: const ['Pfifferling'])];
+      List<AmpelHit> scanWith(List<AmpelClass> classes) => ampelScanOf(
+            spots: spots,
+            courses: [courseOf(5)],
+            table: tableOf(meanC: 17.5),
+            elevation: null,
+            classes: classes,
+            month: 7,
+          );
+      expect(scanWith(ampelShippedClasses), hasLength(1),
+          reason: 'Juli, 17,5 °C — das ist der Pfifferling-Tag');
+      expect(scanWith(const [ampelHerbstClass]), isEmpty);
+    });
+
+    test('auch die Gildenfrage hängt an ihrer Gruppe', () {
+      // Ein Spot ohne Art rechnet im Herbstfenster („Steinpilz & Co.").
+      // Wer genau dieses abwählt, will ihn auch nicht im Hinweis.
+      final spots = [spotAt(id: 'a')];
+      List<AmpelHit> scanWith(List<AmpelClass> classes) => ampelScanOf(
+            spots: spots,
+            courses: [courseOf(5)],
+            table: tableOf(),
+            elevation: null,
+            classes: classes,
+            month: 9,
+          );
+      expect(scanWith(ampelShippedClasses), hasLength(1));
+      expect(scanWith(const [ampelSommerClass]), isEmpty);
     });
 
     test('im Zweifel zeigen: ohne eingetragene Art bleibt der Spot', () {

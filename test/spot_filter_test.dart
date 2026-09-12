@@ -2,6 +2,7 @@
 // #154, nicht in der Oberfläche.
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pilzbuddy/features/ampel/ampel_model.dart';
 import 'package:pilzbuddy/features/map/spot_filter.dart';
 import 'package:pilzbuddy/models/find.dart';
 import 'package:pilzbuddy/models/spot.dart';
@@ -213,6 +214,47 @@ void main() {
       expect(c.read(spotFilterProvider).species, isEmpty);
     });
 
+    test('toggleClass wählt ab und wieder an', () {
+      final c = ProviderContainer();
+      addTearDown(c.dispose);
+      // Ab Werk leer — und leer heißt ALLE. Der erste Tipp wählt also
+      // ab, er wählt nicht an.
+      expect(c.read(spotFilterProvider).classes, isEmpty);
+      notifierOf(c).toggleClass('sommer');
+      expect(c.read(spotFilterProvider).classes, {'herbst'});
+      notifierOf(c).toggleClass('sommer');
+      expect(c.read(spotFilterProvider).classes, isEmpty,
+          reason: 'wieder alle heißt wieder „kein Filter"');
+    });
+
+    test('die letzte gewählte Gruppe lässt sich nicht abwählen', () {
+      // Keine Gruppe hieße eine Ampel ohne Aussage — dafür gibt es den
+      // Ebenen-Schalter. Zwei Wege zu „aus" wären zwei Antworten auf
+      // dieselbe Frage.
+      final c = ProviderContainer();
+      addTearDown(c.dispose);
+      notifierOf(c).toggleClass('sommer');
+      notifierOf(c).toggleClass('herbst');
+      expect(c.read(spotFilterProvider).classes, {'herbst'});
+    });
+
+    test('die Auswahl übersteht das Zurücksetzen nicht', () {
+      final c = ProviderContainer();
+      addTearDown(c.dispose);
+      notifierOf(c).toggleClass('sommer');
+      notifierOf(c).clear();
+      expect(c.read(spotFilterProvider).classes, isEmpty);
+    });
+
+    test('selectedAmpelClassesProvider löst die Auswahl auf', () {
+      // Die EINE Übersetzung für Fläche, Legende, Nachlauf und Blatt.
+      final c = ProviderContainer();
+      addTearDown(c.dispose);
+      expect(c.read(selectedAmpelClassesProvider), ampelShippedClasses);
+      notifierOf(c).toggleClass('sommer');
+      expect(c.read(selectedAmpelClassesProvider), [ampelHerbstClass]);
+    });
+
     test('„Alle Arten" räumt die Arten weg, nicht „Nur meine"', () {
       final c = ProviderContainer();
       addTearDown(c.dispose);
@@ -411,6 +453,10 @@ void main() {
         'Nur meine': SpotFilter(onlyMine: true),
         'Ampel': SpotFilter(onlyAmpel: true),
         'Saison': SpotFilter(onlySeason: true),
+        // Er versteckt keine Spots, aber er ändert die FLÄCHE — und
+        // genau deshalb muss er sich nennen: Auf der Karte wäre eine
+        // engere Ampel sonst nicht von einer ruhigen zu unterscheiden.
+        'Gruppen': SpotFilter(classes: {'herbst'}),
       };
       for (final entry in einzeln.entries) {
         expect(entry.value.describe(), isNotEmpty,
@@ -429,6 +475,17 @@ void main() {
 
     test('ohne Filter bleibt die Aufzählung leer', () {
       expect(const SpotFilter().describe(), isEmpty);
+    });
+
+    test('die Gruppe steht als Gruppe da, nicht als Art', () {
+      // Die Sommergruppe HEISST „Pfifferling", und so heißt auch eine
+      // Art. Stünde im Chip „nur Pfifferling", läse sich eine engere
+      // Ampel wie ein Artenfilter — zwei ganz verschiedene Aussagen
+      // unter demselben Wort.
+      expect(const SpotFilter(classes: {'sommer'}).describe(),
+          ['Ampel: Pfifferling']);
+      expect(const SpotFilter(species: {'Pfifferling'}).describe(),
+          ['nur Pfifferling']);
     });
   });
 }

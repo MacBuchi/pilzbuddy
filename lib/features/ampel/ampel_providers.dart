@@ -126,14 +126,19 @@ class AmpelReading {
 /// liefern, und `test/ampel_fill_test.dart` hält sie Zelle für Zelle
 /// zusammen.
 ///
+/// [classes] ist die Auswahl des Nutzers, aufgelöst über
+/// `selectedAmpelClassesProvider` — Pflicht aus demselben Grund wie bei
+/// [ampelBestOf]: Ein Standard „alle" wäre die stille Antwort „mehr, als
+/// der Chip sagt".
+///
 /// Ist die Ablesung grau, ist sie es für jede Klasse — der Grund liegt
 /// am ORT (keine Regendaten, keine Station), nicht am Fenster. Dann
 /// kommt die erste Klasse zurück, und ihr `reason` gilt.
 ({AmpelReading reading, AmpelClass klass}) ampelBestReadingFrom(
     RainCourse? course, SpotTemperature? temperature,
-    {int? spotHeightM}) {
+    {required List<AmpelClass> classes, int? spotHeightM}) {
   ({AmpelReading reading, AmpelClass klass})? best;
-  for (final klass in ampelShippedClasses) {
+  for (final klass in classes) {
     final reading = ampelReadingFrom(course, temperature,
         klass: klass, spotHeightM: spotHeightM);
     if (reading.isGrau) return (reading: reading, klass: klass);

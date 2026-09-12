@@ -9,6 +9,7 @@ import 'package:pilzbuddy/core/widgets/mushroom_icon.dart';
 import 'package:pilzbuddy/features/map/spot_filter.dart';
 
 import '../fakes/fake_backend.dart';
+import '../fakes/fake_settings.dart';
 import '../fakes/test_app.dart';
 
 void main() {
@@ -169,6 +170,55 @@ void main() {
 
     expect(find.textContaining('Gefiltert: 3 Arten'), findsOneWidget);
     expect(find.textContaining('Pfifferling'), findsNothing);
+  });
+
+  group('Ampel-Gruppen als Chips (Betreiber, 2026-09-12)', () {
+    testWidgets('ohne die Vorschau stehen sie gar nicht im Blatt',
+        (tester) async {
+      // Ohne Vorschau rechnet die Ampel nirgends — weder Fläche noch
+      // Nachlauf. Ein Bedienelement ohne Wirkung nähme der Artenliste
+      // nur Platz weg, und die hat hier weniger als eine
+      // Bildschirmzeile.
+      final (backend, _) = backendWithSpots();
+      await pumpApp(tester, backend);
+      await onPhone(tester);
+      await tester.tap(find.byTooltip('Karte filtern'));
+      await settle(tester);
+      expect(find.byType(FilterChip), findsNothing);
+    });
+
+    testWidgets('abwählen engt die Ampel ein — und die Karte sagt es',
+        (tester) async {
+      final (backend, _) = backendWithSpots();
+      await pumpApp(tester, backend,
+          settings: FakeSettings(ampelPreviewEnabled: true));
+      await onPhone(tester);
+      await tester.tap(find.byTooltip('Karte filtern'));
+      await settle(tester);
+
+      // Ab Werk sind beide an — und das ist KEIN aktiver Filter.
+      expect(find.byType(FilterChip), findsNWidgets(2));
+      expect(find.textContaining('Gefiltert'), findsNothing);
+
+      await tester.tap(find.widgetWithText(FilterChip, 'Pfifferling'));
+      await settle(tester);
+      // Die letzte gewählte Gruppe lässt sich nicht abwählen: Der Chip
+      // ist deaktiviert, statt folgenlos zu bleiben — und die Zeile
+      // darunter sagt, warum.
+      final letzter = tester
+          .widget<FilterChip>(find.widgetWithText(FilterChip, 'Steinpilz & Co.'));
+      expect(letzter.onSelected, isNull);
+      expect(find.text('Mindestens eine Gruppe bleibt an.'), findsOneWidget);
+
+      Navigator.of(tester.element(find.text('Karte filtern'))).pop();
+      await settle(tester);
+      // #154: Was die Ampel einengt, muss auf der Karte stehen — hier
+      // versteckt der Filter keinen Spot, aber er ändert die Fläche.
+      expect(find.textContaining('Gefiltert: Ampel: Steinpilz & Co.'),
+          findsOneWidget);
+      expect(find.byType(MushroomIcon), findsNWidgets(3),
+          reason: 'die Gruppenwahl versteckt keine Spots');
+    });
   });
 
   testWidgets('„Nur meine Spots" blendet die der Freundin aus',

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/mushroom_species.dart';
 import '../../core/season_curves.dart';
 import '../../models/spot.dart';
+import '../ampel/ampel_model.dart';
 import '../ampel/ampel_scan.dart';
 import '../spots/spot_providers.dart';
 
@@ -15,6 +16,7 @@ import '../spots/spot_providers.dart';
 class SpotFilter {
   const SpotFilter({
     this.species = const {},
+    this.classes = const {},
     this.onlyMine = false,
     this.onlyAmpel = false,
     this.onlySeason = false,
@@ -24,6 +26,27 @@ class SpotFilter {
   /// nicht „keine". Ein Filter, der nichts durchlässt, wäre auf der Karte
   /// nicht von „nichts gefunden" zu unterscheiden.
   final Set<String> species;
+
+  /// Für welche Pilzgruppen die Ampel sprechen soll — Schlüssel aus
+  /// [ampelClasses]. **Leer = alle**, wie bei [species].
+  ///
+  /// **Das ist der einzige Filter, der auch die FLÄCHE betrifft**
+  /// (Betreiber, 2026-09-12: „auch die Fläche"). Die Karte zeigt seit
+  /// 1.140.0 das Maximum über alle Klassen; wer den Pfifferling
+  /// abwählt, will genau dieses Maximum enger haben — sonst leuchtete
+  /// im Juli eine Fläche, die für die gesuchte Gruppe nichts sagt.
+  ///
+  /// Dass ein Filter hier steht und nicht bei den Ebenen-Schaltern, hat
+  /// denselben Grund wie alles andere in dieser Klasse: Er versteckt
+  /// etwas, also muss ihn [describe] nennen (#154). Ein Ebenen-Schalter
+  /// hätte diese Pflicht nicht, und die Karte zeigte dann eine engere
+  /// Aussage, ohne es zu sagen.
+  ///
+  /// **Die letzte Gruppe bleibt an** ([SpotFilterNotifier.toggleClass]):
+  /// Keine Gruppe hieße eine Ampel ohne Aussage — dafür gibt es den
+  /// Ebenen-Schalter, und zwei Wege zu „aus" wären zwei Antworten auf
+  /// dieselbe Frage.
+  final Set<String> classes;
 
   /// Freundes-Spots ausblenden.
   final bool onlyMine;
@@ -81,6 +104,13 @@ class SpotFilter {
       // zusammen in eine Zeile müssen. „Nur was jetzt Saison hat" ist
       // die Beschriftung im Blatt; hier reicht das Stichwort.
       if (onlySeason) 'jetzt Saison',
+      // „Ampel:" statt „nur …", weil die Klasse denselben Namen tragen
+      // kann wie eine Art: Bei abgewähltem Herbstfenster stünde sonst
+      // „nur Pfifferling" da — dasselbe Stück, das die Artenauswahl
+      // schreibt, mit einer ganz anderen Bedeutung.
+      if (classes.length == 1)
+        'Ampel: ${ampelClasses[classes.single]?.name ?? classes.single}',
+      if (classes.length > 1) 'Ampel: ${classes.length} Gruppen',
     ];
   }
 
@@ -88,12 +118,14 @@ class SpotFilter {
 
   SpotFilter copyWith({
     Set<String>? species,
+    Set<String>? classes,
     bool? onlyMine,
     bool? onlyAmpel,
     bool? onlySeason,
   }) =>
       SpotFilter(
         species: species ?? this.species,
+        classes: classes ?? this.classes,
         onlyMine: onlyMine ?? this.onlyMine,
         onlyAmpel: onlyAmpel ?? this.onlyAmpel,
         onlySeason: onlySeason ?? this.onlySeason,
@@ -115,6 +147,32 @@ class SpotFilterNotifier extends Notifier<SpotFilter> {
 
   /// „Alle Arten": hebt die Artenauswahl auf, lässt „Nur meine" stehen.
   void clearSpecies() => state = state.copyWith(species: const {});
+
+  /// Eine Pilzgruppe an-/abwählen.
+  ///
+  /// Zwei Regeln, und beide stehen HIER und nicht im Blatt, damit die
+  /// Oberfläche keine zweite Fassung davon führen kann:
+  ///
+  /// 1. **Die letzte gewählte Gruppe lässt sich nicht abwählen.** Ohne
+  ///    Gruppe hätte die Ampel nichts zu sagen; das ist der
+  ///    Ebenen-Schalter, nicht dieser Filter.
+  /// 2. **Wieder alle heißt wieder leer.** Sonst bliebe der Chip
+  ///    „Ampel: 2 Gruppen" stehen, obwohl nichts mehr gefiltert wird —
+  ///    ein Filter, der sich meldet, ohne zu wirken, kostet genauso
+  ///    Vertrauen wie einer, der wirkt, ohne sich zu melden.
+  void toggleClass(String key) {
+    final current = state.classes.isEmpty
+        ? ampelClasses.keys.toSet()
+        : {...state.classes};
+    if (current.contains(key)) {
+      if (current.length == 1) return;
+      current.remove(key);
+    } else {
+      current.add(key);
+    }
+    state = state.copyWith(
+        classes: current.length == ampelClasses.length ? const {} : current);
+  }
 
   void setOnlyMine(bool value) => state = state.copyWith(onlyMine: value);
 
@@ -240,6 +298,15 @@ List<SpeciesTally> speciesTally(List<Spot> spots) {
 
 /// Die Spots, die die Karte zeichnet — nach Herkunft getrennt, weil sie in
 /// verschiedenen Ebenen liegen.
+/// Die Klassen, mit denen gerade gerechnet wird — die EINE Übersetzung
+/// der Nutzerauswahl für Fläche, Legende, Nachlauf und Blatt.
+///
+/// Sie steht hier und nicht neben der Fläche, weil sie aus dem Filter
+/// kommt; und sie steht als Provider da, damit es keine zweite
+/// Auflösung gibt. Kostet nichts — zwei Konstanten aus einer Map.
+final selectedAmpelClassesProvider = Provider<List<AmpelClass>>(
+    (ref) => ampelClassesOf(ref.watch(spotFilterProvider).classes));
+
 /// Die Spot-ids, an denen die Ampel gerade günstig steht — leer, solange
 /// der Filter sie nicht verlangt (#399).
 ///

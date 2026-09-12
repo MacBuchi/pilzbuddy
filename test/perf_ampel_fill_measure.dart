@@ -13,6 +13,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/features/ampel/ampel_fill.dart';
+import 'package:pilzbuddy/features/ampel/ampel_model.dart';
 import 'package:pilzbuddy/features/map/elevation_grid.dart';
 import 'package:pilzbuddy/features/map/forest_fill.dart';
 import 'package:pilzbuddy/features/map/forest_fill_window.dart';
@@ -85,7 +86,10 @@ void main() {
     Duration run({ElevationGrid? withElevation}) {
       final watch = Stopwatch()..start();
       forestAmpelFillPng([forest],
-          window: window, levels: levels, elevation: withElevation);
+          window: window,
+          levels: levels,
+          ampelClasses: ampelShippedClasses,
+          elevation: withElevation);
       return watch.elapsed;
     }
 

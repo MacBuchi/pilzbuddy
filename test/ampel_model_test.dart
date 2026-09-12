@@ -110,6 +110,74 @@ void main() {
     });
   });
 
+  group('Gruppenauswahl (Chips im Filter)', () {
+    test('leer heißt alle, Unbekanntes heißt auch alle', () {
+      expect(ampelClassesOf(const {}), ampelShippedClasses,
+          reason: 'dieselbe Regel wie bei der Artenauswahl des Filters');
+      expect(ampelClassesOf(const {'gibtesnicht'}), ampelShippedClasses,
+          reason: 'eine Auswahl, die auf nichts zeigt, ist keine Aussage');
+    });
+
+    test('die Reihenfolge kommt aus der Auslieferung, nicht aus der Wahl', () {
+      // An ihr hängt die Gleichstandsregel in ampelBestOf: Bei gleicher
+      // Stufe gewinnt die frühere Klasse. Käme die Reihenfolge aus der
+      // Nutzerauswahl, entschiede die Tippreihenfolge, welche Gruppe im
+      // Blatt genannt wird.
+      expect(ampelClassesOf(const {'sommer', 'herbst'}), ampelShippedClasses);
+    });
+
+    test('jeder Schlüssel findet zu seiner Klasse zurück', () {
+      for (final entry in ampelClasses.entries) {
+        expect(ampelClassKeyOf(entry.value), entry.key,
+            reason: 'sonst stünde ein „?" im Dateinamen der Fläche');
+      }
+    });
+
+    test('eine abgewählte Gruppe nimmt ihre Stufe mit', () {
+      // 17,5 °C ist das Pfifferling-Fenster: volle Glocke, satter Regen
+      // — das ist günstig. Im Herbstfenster liegt dieselbe Lage bei
+      // 0,445 und damit nur bei „verhalten" (Glocke exp(-0,81)).
+      const sommertag = (rainFactor: 1.0, meanC: 17.5);
+      expect(
+          ampelBestOf(
+                  rainFactor: sommertag.rainFactor,
+                  meanC: sommertag.meanC,
+                  classes: ampelShippedClasses)
+              .level,
+          AmpelLevel.guenstig);
+      expect(
+          ampelBestOf(
+                  rainFactor: sommertag.rainFactor,
+                  meanC: sommertag.meanC,
+                  classes: ampelShippedClasses)
+              .klass,
+          ampelSommerClass);
+      expect(
+          ampelBestOf(
+                  rainFactor: sommertag.rainFactor,
+                  meanC: sommertag.meanC,
+                  classes: const [ampelHerbstClass])
+              .level,
+          AmpelLevel.verhalten,
+          reason: 'wer den Pfifferling abwählt, sieht seinen Tag nicht mehr');
+    });
+
+    test('und das gilt in beide Richtungen', () {
+      // Umgekehrt: Ein Herbsttag, auf die Sommergruppe eingeengt.
+      expect(
+          ampelBestOf(rainFactor: 1.0, meanC: 13, classes: ampelShippedClasses)
+              .level,
+          AmpelLevel.guenstig);
+      expect(
+          ampelBestOf(
+                  rainFactor: 1.0,
+                  meanC: 13,
+                  classes: const [ampelSommerClass])
+              .level,
+          AmpelLevel.verhalten);
+    });
+  });
+
   group('Klassen-Tor', () {
     test('nur Arten einer bestätigten Klasse bekommen eine Stufe', () {
       expect(ampelClassFor('Steinpilz'), ampelHerbstClass);
