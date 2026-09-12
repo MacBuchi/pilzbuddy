@@ -1085,6 +1085,423 @@ def render_compare_report(rows, fetched_on):
     return "\n".join(out) + "\n"
 
 
+# --- Die Schwellen: Quantile statt gesetzter Zahlen ------------------------
+#
+# `docs/pilzampel-schwellen.md` — Stufe 0 der Integration ins App-Modell.
+#
+# Der Vergleich in Stufen hat gezeigt, dass die beiden gesetzten Zahlen
+# der Engpass sind, nicht das Fenster: Der bestätigte AUC-Gewinn des
+# Austernseitlings (+0,174) schrumpft in Stufen auf +0,6 pp, weil
+# „günstig" an Fundtagen von 21,7 % auf 1,1 % fällt. Eine feste Zahl
+# gilt eben für EINE Werteverteilung, und ein verschobenes Optimum
+# verschiebt die ganze Verteilung mit.
+#
+# Die Bezugsgröße ist der VERGLEICHSTAG: ein anderer Tag derselben
+# Saison am selben Ort. „Günstig" heißt damit „unter den besten X % der
+# Tage dieser Saison an Pilzorten" — für jede Art dasselbe, egal wo ihr
+# Optimum liegt. Ohne diese Vergleichbarkeit ist „mindestens eine Klasse
+# steht günstig" keine Aussage, sondern eine Wette darauf, welche Klasse
+# zufällig nahe an der 13-°C-Skala liegt.
+
+# **Registriert VOR der Messung** (`docs/pilzampel-schwellen.md`): Unter
+# dem ausgelieferten Fenster sollen 0,2 und 0,5 ungefähr hier liegen.
+# Gerundet wird auf volle 5 % und genau EINMAL — an den sechs Arten, die
+# die App heute ausliefert; keine Art aus Vorhersage 2 ist beteiligt,
+# sonst wäre die Schwelle auf ihr Ergebnis hin gewählt.
+# **Gesetzt am 2026-09-12 aus der Messung**, auf volle 5 % gerundet:
+# Der Median der sechs Mykorrhiza-Arten lag bei 39,7 % und 69,7 %.
+# Erwartet worden waren 50 % und 80 % — die Vorhersage ist damit NICHT
+# bestätigt, und der Grund steht im Bericht: Das registrierte Band war
+# aus Zahlen der PRÜFJAHRE abgeleitet, gemessen wird auf den
+# Anpassjahren, und zwischen beiden Zeitscheiben liegt eine Drift von
+# rund 8 Prozentpunkten in dieselbe Richtung bei allen sechs Arten.
+QUANTILE_VERHALTEN = 0.40
+QUANTILE_GUENSTIG = 0.70
+
+# Die Bänder aus der Registrierung. Liegt der Median der sechs
+# Mykorrhiza-Arten darin, ist die Quantil-Fassung eine Umformulierung
+# der heutigen App — und keine neue Entscheidung über ihre Häufigkeit.
+QUANTILE_BAND_VERHALTEN = (0.45, 0.55)
+QUANTILE_BAND_GUENSTIG = (0.75, 0.85)
+
+# Vorhersage 2, ebenfalls vorab: Waren die Schwellen die Ursache, muss
+# der Abstand beim Austernseitling mit ihnen erscheinen.
+THRESHOLD_PREDICTION_SPECIES = "Austernseitling"
+THRESHOLD_PREDICTION_MIN_GAP = 0.10
+
+
+def level_with(score, verhalten, guenstig):
+    """Wie [ampel_level], aber mit frei gesetzten Schwellen.
+
+    `ampel_level` bleibt bewusst OHNE Parameter der Spiegel der App:
+    Die Spiegel-Prüfung liest die beiden Konstanten aus dem Dart-Code,
+    und eine Funktion mit Vorgabewerten lüde dazu ein, die Vorgabe für
+    „das, was die App tut" zu halten.
+    """
+    if score >= guenstig:
+        return 2
+    if score >= verhalten:
+        return 1
+    return 0
+
+
+def control_scores(samples, optimum, balanced=False):
+    """Die Score-Verteilung an VERGLEICHSTAGEN, mit Gewichten.
+
+    [balanced] gibt jedem JAHR dasselbe Gewicht. Ohne das erbt die
+    Verteilung den Melde-Eifer: Ein gutes Pilzjahr liefert mehr Funde,
+    damit mehr Vergleichstage, und zieht die Schwelle zu sich hin. Beide
+    Fassungen stehen im Bericht — ob der Unterschied zählt, ist eine
+    Zahl und keine Meinung.
+    """
+    values = [ampel_score(*s["control"], optimum) for s in samples]
+    if not balanced:
+        return values, [1.0] * len(values)
+    counts = {}
+    for sample in samples:
+        counts[sample["year"]] = counts.get(sample["year"], 0) + 1
+    weights = [1.0 / counts[s["year"]] for s in samples]
+    return values, weights
+
+
+def quantile_at(values, weights, q):
+    """Der Wert, unter dem [q] der Gewichtsmasse liegt."""
+    if not values:
+        return None
+    total = sum(weights)
+    seen = 0.0
+    for value, weight in sorted(zip(values, weights)):
+        seen += weight
+        if seen >= q * total:
+            return value
+    return max(values)
+
+
+def rank_of(values, weights, threshold):
+    """Der Anteil der Gewichtsmasse UNTER [threshold].
+
+    Die Umkehrung von [quantile_at] — und die eigentliche Frage von
+    Vorhersage 1: Welchem Quantil entspricht die heute ausgelieferte
+    Zahl?
+    """
+    if not values:
+        return None
+    below = sum(w for v, w in zip(values, weights) if v < threshold)
+    return below / sum(weights)
+
+
+def threshold_species(name, sci, cache_dir=None, seed=42, progress=True):
+    """Was die gesetzten Schwellen als Quantil sind — und was
+    Quantil-Schwellen in Stufen ändern."""
+    drawn = collect_pairs(name, sci, cache_dir=cache_dir, seed=seed,
+                          progress=progress)
+    if drawn is None:
+        return None
+    fit, test = split_by_year(drawn["samples"])
+    if not fit or not test:
+        return {"name": name, "usable": False}
+    optimum = grid_optimum(fit)["optimum"]
+
+    # **Vorhersage 1 wird unter dem AUSGELIEFERTEN Fenster gemessen.**
+    # Die Frage lautet, was die App heute tut — nicht, was sie mit einem
+    # neuen Fenster täte.
+    plain = control_scores(fit, OPTIMUM_C)
+    even = control_scores(fit, OPTIMUM_C, balanced=True)
+    # Dieselbe Frage auf den PRÜFJAHREN — nicht als zweite Antwort,
+    # sondern als Diagnose: Weicht sie ab, hat sich das Wetter unter der
+    # festen Zahl verschoben, und die ausgelieferte Schwelle bedeutet
+    # heute etwas anderes als zur Zeit ihrer Festlegung.
+    later = control_scores(test, OPTIMUM_C, balanced=True)
+
+    # **Die neuen Schwellen entstehen auf den ANPASSJAHREN**, unter dem
+    # eigenen Fenster und jahresbalanciert. Sie dort zu setzen, wo sie
+    # danach geprüft werden, wäre Selbstbestätigung — dieselbe
+    # Trennlinie wie beim Optimum, über dieselbe Funktion.
+    own = control_scores(fit, optimum, balanced=True)
+    verhalten_at = quantile_at(*own, QUANTILE_VERHALTEN)
+    guenstig_at = quantile_at(*own, QUANTILE_GUENSTIG)
+
+    configs = {
+        # Was die App heute rechnet.
+        "shipped": (OPTIMUM_C, VERHALTEN_ABOVE, GUENSTIG_ABOVE),
+        # Nur das Fenster getauscht — der Stand aus `--compare`.
+        "window": (optimum, VERHALTEN_ABOVE, GUENSTIG_ABOVE),
+        # Fenster UND Schwellen — der Vorschlag.
+        "both": (optimum, verhalten_at, guenstig_at),
+    }
+
+    def share(samples, kind, config, at_least):
+        opt, low, high = config
+        levels = [level_with(ampel_score(*s[kind], opt), low, high)
+                  for s in samples]
+        return sum(1 for v in levels if v >= at_least) / len(levels)
+
+    def gap(samples, config, at_least):
+        return (share(samples, "found", config, at_least)
+                - share(samples, "control", config, at_least))
+
+    # **Ohne Vertrauensbereich ist ein Abstand eine Behauptung.** Gezogen
+    # wird über JAHRE, wie überall hier: Funde desselben Jahres sind
+    # einander ähnlicher als Funde verschiedener Jahre.
+    by_year = {}
+    for sample in test:
+        by_year.setdefault(sample["year"], []).append(sample)
+    years = sorted(by_year)
+
+    def gap_ci(config, at_least, rounds=FIT_BOOTSTRAP_ROUNDS):
+        if len(years) < 2:
+            return None
+        rng = random.Random(seed)
+        draws = []
+        for _ in range(rounds):
+            pool = [s for y in (rng.choice(years) for _ in years)
+                    for s in by_year[y]]
+            draws.append(gap(pool, config, at_least))
+        draws.sort()
+        return (draws[int(0.025 * len(draws))],
+                draws[min(len(draws) - 1, int(0.975 * len(draws)))])
+
+    return {
+        "name": name,
+        "usable": True,
+        "optimum": optimum,
+        "n_fit": len(fit),
+        "n_test": len(test),
+        # Vorhersage 1: das Quantil der heute ausgelieferten Zahlen.
+        "rank_verhalten": rank_of(*plain, VERHALTEN_ABOVE),
+        "rank_guenstig": rank_of(*plain, GUENSTIG_ABOVE),
+        "rank_verhalten_even": rank_of(*even, VERHALTEN_ABOVE),
+        "rank_guenstig_even": rank_of(*even, GUENSTIG_ABOVE),
+        "rank_verhalten_later": rank_of(*later, VERHALTEN_ABOVE),
+        "rank_guenstig_later": rank_of(*later, GUENSTIG_ABOVE),
+        # Die daraus gesetzten Schwellen dieser Art.
+        "verhalten_at": verhalten_at,
+        "guenstig_at": guenstig_at,
+        # Was die Nutzerin sähe — je Aufbau der Abstand Fund/Vergleich.
+        "gap_shipped": gap(test, configs["shipped"], 2),
+        "gap_window": gap(test, configs["window"], 2),
+        "gap_both": gap(test, configs["both"], 2),
+        "gap_both_ci": gap_ci(configs["both"], 2),
+        "found_shipped": share(test, "found", configs["shipped"], 2),
+        "found_both": share(test, "found", configs["both"], 2),
+        "ctrl_shipped": share(test, "control", configs["shipped"], 2),
+        "ctrl_both": share(test, "control", configs["both"], 2),
+    }
+
+
+def _pct(value, digits=1):
+    """Prozent mit deutschem Komma — `None` bleibt ein Strich."""
+    if value is None:
+        return "—"
+    return f"{value * 100:.{digits}f} %".replace(".", ",")
+
+
+def _pp(value, digits=1):
+    """Prozentpunkte mit Vorzeichen."""
+    if value is None:
+        return "—"
+    return f"{value * 100:+.{digits}f} pp".replace(".", ",")
+
+
+def render_threshold_report(rows, fetched_on):
+    usable = [r for r in rows if r.get("usable")]
+    mycorrhizal = [r for r in usable if r["name"] in MYCORRHIZAL]
+    out = ["# Die Schwellen der Ampel — gemessen", "",
+           f"Stand: {fetched_on} · Erzeugt von `tool/ampel_validate.py "
+           "--thresholds` · Prüfplan: `docs/pilzampel-schwellen.md`", "",
+           "Die App zeigt drei Stufen. Wo sie liegen, entscheiden zwei "
+           "Zahlen, die seit der ersten Vorschau als „GESETZT, nicht "
+           "gemessen“ in `lib/features/ampel/ampel_model.dart` stehen — "
+           "diese Seite ist ihre erste Messung.", ""]
+
+    out += ["## Vorhersage 1: Welchem Quantil entsprechen 0,2 und 0,5?", "",
+            "Gemessen an den Vergleichstagen der **Anpassjahre**, unter dem "
+            "**ausgelieferten** Fenster (13 °C) — also an dem, was die App "
+            "heute rechnet. „Jahresbalanciert“ gibt jedem Jahr dasselbe "
+            "Gewicht, damit ein gutes Pilzjahr die Schwelle nicht über "
+            "seine Meldemenge zu sich zieht.", "",
+            "Die letzte Spalte ist eine **Diagnose, keine zweite "
+            "Antwort**: Gemessen wird auf den Anpassjahren, weil diese "
+            "Zahlen die Schwellen setzen. Weicht die Prüfjahr-Spalte ab, "
+            "bedeutet dieselbe feste Zahl in den beiden Zeitscheiben "
+            "etwas Verschiedenes — die Schwelle altert dann mit dem "
+            "Wetter, und zwar im ausgelieferten Binary.", "",
+            "| Art | 0,2 entspricht | 0,5 entspricht | 0,2 balanciert | "
+            "0,5 balanciert | 0,5 auf den Prüfjahren |",
+            "|---|--:|--:|--:|--:|--:|"]
+    for row in mycorrhizal:
+        out.append(f"| {row['name']} | {_pct(row['rank_verhalten'])} | "
+                   f"{_pct(row['rank_guenstig'])} | "
+                   f"{_pct(row['rank_verhalten_even'])} | "
+                   f"{_pct(row['rank_guenstig_even'])} | "
+                   f"{_pct(row['rank_guenstig_later'])} |")
+
+    verdict_1 = None
+    if mycorrhizal:
+        med_v = statistics.median(r["rank_verhalten_even"]
+                                  for r in mycorrhizal)
+        med_g = statistics.median(r["rank_guenstig_even"] for r in mycorrhizal)
+        in_band = (QUANTILE_BAND_VERHALTEN[0] <= med_v
+                   <= QUANTILE_BAND_VERHALTEN[1]
+                   and QUANTILE_BAND_GUENSTIG[0] <= med_g
+                   <= QUANTILE_BAND_GUENSTIG[1])
+        verdict_1 = in_band
+        out += ["",
+                f"**Median über die sechs Mykorrhiza-Arten** "
+                f"(jahresbalanciert): 0,2 liegt bei **{_pct(med_v)}**, 0,5 "
+                f"bei **{_pct(med_g)}**.", "",
+                f"Registriert war: {_pct(QUANTILE_BAND_VERHALTEN[0], 0)}–"
+                f"{_pct(QUANTILE_BAND_VERHALTEN[1], 0)} und "
+                f"{_pct(QUANTILE_BAND_GUENSTIG[0], 0)}–"
+                f"{_pct(QUANTILE_BAND_GUENSTIG[1], 0)}.", ""]
+        later_g = statistics.median(r["rank_guenstig_later"]
+                                    for r in mycorrhizal)
+        drift = statistics.median(r["rank_guenstig_later"]
+                                  - r["rank_guenstig_even"]
+                                  for r in mycorrhizal)
+        same_way = all(r["rank_guenstig_later"] > r["rank_guenstig_even"]
+                       for r in mycorrhizal)
+        if in_band:
+            out.append(
+                "**Ergebnis: bestätigt.** Die Quantil-Fassung ist damit "
+                "keine Umdeutung, sondern dieselbe Aussage in "
+                "übertragbarer Form — für die heute ausgelieferten Arten "
+                "ändert sie fast nichts, für jedes andere Fenster stellt "
+                "sie überhaupt erst eine Bedeutung her.")
+        else:
+            out.append(
+                "**Ergebnis: NICHT bestätigt.** Der Median liegt unter "
+                "dem registrierten Band.")
+            out += ["",
+                    f"Auf den **Prüfjahren** liegt er dagegen bei "
+                    f"**{_pct(later_g)}** — und daher kam die Erwartung: "
+                    "Sie war aus dem Stufenvergleich abgeleitet, und der "
+                    "rechnet auf Prüfjahren. Zwischen den beiden "
+                    f"Zeitscheiben liegen im Median **{_pp(drift)}**"
+                    + (", bei allen sechs Arten in dieselbe Richtung."
+                       if same_way else ", uneinheitlich in der Richtung.")]
+            out += ["",
+                    "Damit ist die eigentliche Auskunft dieser Tabelle "
+                    "nicht das Quantil, sondern: **Dieselbe feste Zahl "
+                    "bedeutet in den beiden Hälften der Daten etwas "
+                    "Verschiedenes.** Die ausgelieferte 0,5 ist heute "
+                    "eine strengere Schwelle als zur Zeit ihrer "
+                    "Festlegung — ohne dass je eine Zeile Code geändert "
+                    "wurde. Ob dahinter das Wetter steckt oder eine "
+                    "gewachsene GBIF-Stichprobe, trennt diese Messung "
+                    "nicht; für die App ist die Folge dieselbe.",
+                    "",
+                    "Und für die Quantile heißt es: Sie sind hier eine "
+                    "**Entscheidung darüber, wie oft die Ampel günstig "
+                    "steht**, und keine Kalibrierung auf einen "
+                    "vorgefundenen Wert. Gerundet wurde trotzdem nur "
+                    "einmal und nur an diesen sechs Arten — die "
+                    "Alternative wäre gewesen, so lange zu runden, bis "
+                    "Vorhersage 2 durchgeht."]
+
+    out += ["", "## Die Schwellen, die daraus folgen", "",
+            f"Gesetzt auf **{_pct(QUANTILE_VERHALTEN, 0)}** (verhalten) und "
+            f"**{_pct(QUANTILE_GUENSTIG, 0)}** (günstig) der "
+            "Vergleichstage, je Art unter ihrem eigenen Fenster und auf "
+            "den Anpassjahren bestimmt.", "",
+            "| Art | Optimum | verhalten ab | günstig ab |",
+            "|---|--:|--:|--:|"]
+    for row in usable:
+        out.append(f"| {row['name']} | {row['optimum']:.1f} °C | "
+                   f"{row['verhalten_at']:.3f} | {row['guenstig_at']:.3f} |"
+                   .replace(" °C |", " °C |"))
+
+    out += ["", "## Was die Nutzerin sähe", "",
+            "Der **Abstand** zwischen „günstig an Fundtagen“ und „günstig "
+            "an Vergleichstagen“, auf den Prüfjahren. Er ist das, was eine "
+            "Stufe wert ist: Stünde sie an beiden gleich oft, sagte sie "
+            "nichts.", "",
+            "**Und er hängt daran, WO die Schwelle liegt.** Er ist null, "
+            "wenn „günstig“ nie oder immer gilt, und am größten "
+            "irgendwo dazwischen — eine strengere Schwelle kann ihn also "
+            "verkleinern, ohne dass das Modell schlechter wäre. Die "
+            "schwellenfreie Aussage steht als AUC in "
+            "`docs/pilzampel-artenfenster-messung.md`; diese Seite fragt "
+            "bewusst das andere: was die Nutzerin sieht.", "",
+            "| Art | heute | nur eigenes Fenster | Fenster **und** "
+            "Schwellen | günstig an Fundtagen | an Vergleichstagen |",
+            "|---|--:|--:|--:|--:|--:|"]
+    for row in usable:
+        ci = row["gap_both_ci"]
+        band = (f" [{_pp(ci[0])}, {_pp(ci[1])}]".replace(" pp", "")
+                if ci else "")
+        out.append(f"| {row['name']} | {_pp(row['gap_shipped'])} | "
+                   f"{_pp(row['gap_window'])} | **{_pp(row['gap_both'])}**"
+                   f"{band} | {_pct(row['found_shipped'])} → "
+                   f"**{_pct(row['found_both'])}** "
+                   f"| {_pct(row['ctrl_shipped'])} → "
+                   f"{_pct(row['ctrl_both'])} |")
+
+    prediction = next((r for r in usable
+                       if r["name"] == THRESHOLD_PREDICTION_SPECIES), None)
+    out += ["", f"## Vorhersage 2: der {THRESHOLD_PREDICTION_SPECIES}", "",
+            "> Mit Quantil-Schwellen liegt der Abstand beim "
+            f"{THRESHOLD_PREDICTION_SPECIES} bei mindestens "
+            f"**{_pp(THRESHOLD_PREDICTION_MIN_GAP, 0)}**, gegenüber "
+            "+0,5 pp mit den festen Schwellen.", ""]
+    if prediction is None:
+        out.append(f"*{THRESHOLD_PREDICTION_SPECIES} war in diesem Lauf "
+                   "nicht dabei — die Vorhersage ist offen.*")
+    else:
+        met = prediction["gap_both"] >= THRESHOLD_PREDICTION_MIN_GAP
+        ci = prediction["gap_both_ci"]
+        band = (f" [{_pp(ci[0])}, {_pp(ci[1])}]" if ci else "")
+        out += [f"Gemessen: **{_pp(prediction['gap_both'])}**{band} — "
+                f"„günstig“ an Fundtagen "
+                f"{_pct(prediction['found_shipped'])} → "
+                f"**{_pct(prediction['found_both'])}**, an Vergleichstagen "
+                f"{_pct(prediction['ctrl_shipped'])} → "
+                f"{_pct(prediction['ctrl_both'])}.", ""]
+        real = ci is not None and ci[0] > 0
+        if met:
+            out.append(
+                "**Ergebnis: bestätigt.** Die Schwellen waren wirklich "
+                "der Engpass — derselbe Gewinn, der in der Rangfolge "
+                "längst messbar war, erreicht mit ihnen auch die drei "
+                "Stufen.")
+        elif real:
+            out.append(
+                "**Ergebnis: Schwelle verfehlt — der Effekt ist aber "
+                "da.** Der Abstand ist von praktisch null auf "
+                f"{_pp(prediction['gap_both'])} gestiegen, und sein "
+                "Bereich schließt die Null aus; die vorab gesetzte Latte "
+                f"von {_pp(THRESHOLD_PREDICTION_MIN_GAP, 0)} hat er "
+                "trotzdem nicht genommen. Beides gehört nebeneinander "
+                "berichtet: Die Richtung stimmt, die Größe war zu "
+                "optimistisch angesagt.")
+            out += ["",
+                    "**Und die Latte hing an einer Zahl, die selbst "
+                    "unsicher ist.** Wie groß der Abstand ausfällt, hängt "
+                    "am gewählten Quantil — und dessen Wahl ist nach "
+                    "Vorhersage 1 keine vorgefundene Größe mehr, sondern "
+                    "eine Entscheidung. Eine Latte in Prozentpunkten war "
+                    "dafür das falsche Maß; sie unterstellt eine "
+                    "Schwelle, die feststeht."]
+        else:
+            out.append(
+                "**Ergebnis: NICHT bestätigt.** Der Bereich des Abstands "
+                "schließt die Null ein — in Stufen ist vom Gewinn der "
+                "Rangfolge nichts übrig. Dann ist nicht die Schwelle das "
+                "Problem, sondern die Erwartung, dass sich ein "
+                "Rangfolgen-Gewinn überhaupt in eine Ampel übersetzt, und "
+                "die Integration in die App braucht einen anderen Plan.")
+
+    out += ["", "## Was diese Seite NICHT sagt", "",
+            "Sie ändert `ampel_model.dart` nicht. Über eine Umstellung "
+            "entscheidet der Betreiber mit diesen Zahlen; bis dahin bleibt "
+            "der Gleichlauf „Zahl für Zahl“ zwischen Modellkern und "
+            "Werkzeug unberührt.", "",
+            "Und die Grenze des Konzeptpapiers gilt unverändert: Auch eine "
+            "kalibrierte Schwelle sagt „die Bedingungen sind günstig“, "
+            "nicht „hier stehen Pilze“.", ""]
+    return "\n".join(out)
+
+
 # --- Geografischer Hold-out (docs/pilzampel-artenfenster.md) ---------------
 #
 # Die registrierte Bestätigung der Pfifferling-Spur. Die Zeitscheibe
@@ -1621,15 +2038,106 @@ def self_test():
                 keys.add(node.args[0].value)
         return keys
 
-    holders = {"row", "primary", "r"}
+    holders = {"row", "primary", "r", "prediction"}
     for report, producer in [(render_fit_report, fit_species),
-                             (render_holdout_report, holdout_species)]:
+                             (render_holdout_report, holdout_species),
+                             (render_threshold_report, threshold_species)]:
         missing = keys_read(report, holders) - keys_written(producer)
         assert not missing, (
             f"{report.__name__} liest Felder, die {producer.__name__} nicht "
             f"liefert: {sorted(missing)}")
     assert "best_set" in keys_read(render_fit_report, holders), \
         "die Prüfung selbst muss etwas zu prüfen haben"
+    assert "gap_both_ci" in keys_read(render_threshold_report, holders), \
+        "die Prüfung selbst muss etwas zu prüfen haben"
+
+    # --- Die Schwellen als Quantil (docs/pilzampel-schwellen.md) -----
+    #
+    # Gewichtete Quantile sind die Stelle, an der ein Fehler NICHT
+    # auffällt: Eine Schwelle, die um ein paar Prozent danebenliegt,
+    # liest sich in jedem Bericht plausibel.
+    ladder = [float(i) for i in range(100)]
+    flat = [1.0] * 100
+    assert quantile_at(ladder, flat, 0.5) == 49.0
+    assert quantile_at(ladder, flat, 0.8) == 79.0
+    assert quantile_at(ladder, flat, 0.0) == 0.0
+    assert quantile_at([], [], 0.5) is None
+    # Hin und zurück — das Quantil des Quantils ist das Quantil.
+    for q in (0.2, 0.5, 0.8, 0.95):
+        back = rank_of(ladder, flat, quantile_at(ladder, flat, q))
+        # Genauer als EINE Beobachtung kann ein empirisches Quantil
+        # nicht sein — die Toleranz ist deshalb 1/n, keine Zierzahl.
+        assert abs(back - q) <= 1.0 / len(ladder) + 1e-9, \
+            f"Quantil {q} kommt als {back} zurück"
+
+    # **Die Jahresbalance muss wirken.** Ein Jahr mit vielen Meldungen
+    # darf die Schwelle nicht zu sich ziehen, sonst erbt sie den
+    # Melde-Eifer statt das Wetter zu beschreiben. Gepflanzt: 90 trockene
+    # Vergleichstage in einem Jahr, 10 nasse in einem zweiten.
+    dry_day = ([0.0] * RAIN_WINDOW, [OPTIMUM_C] * TEMP_WINDOW)
+    wet_day = ([10.0] * RAIN_WINDOW, [OPTIMUM_C] * TEMP_WINDOW)
+    lopsided = ([{"year": 2001, "control": dry_day}] * 90
+                + [{"year": 2002, "control": wet_day}] * 10)
+    assert quantile_at(*control_scores(lopsided, OPTIMUM_C), 0.6) == 0.0
+    assert quantile_at(*control_scores(lopsided, OPTIMUM_C, balanced=True),
+                       0.6) == 1.0, \
+        "jahresbalanciert muss das kleine Jahr dasselbe Gewicht haben"
+
+    # **Das Urteil wird GERENDERT geprüft, nicht gedacht.** Zweimal hat
+    # in diesem Werkzeug ein vorformulierter Schlusssatz etwas behauptet,
+    # das die Zahlen daneben nicht hergaben — einmal „alles gleich, also
+    # allgemeines Pilzwetter“ trotz erfüllter Vorhersage, einmal „der
+    # Gewinn liegt in Feinheiten, die Stufen nicht abbilden können“ bei
+    # einem Abstand, dessen Bereich die Null ausschließt. Verfehlte Latte
+    # und fehlender Effekt sind zwei Ausgänge; wer sie zusammenwirft,
+    # erzählt beim nächsten Lesen etwas Falsches.
+    def planted(name, gap, ci):
+        return {"name": name, "usable": True, "optimum": 13.0,
+                "n_fit": 10, "n_test": 10,
+                "rank_verhalten": 0.4, "rank_guenstig": 0.7,
+                "rank_verhalten_even": 0.4, "rank_guenstig_even": 0.7,
+                "rank_verhalten_later": 0.45, "rank_guenstig_later": 0.78,
+                "verhalten_at": 0.2, "guenstig_at": 0.5,
+                "gap_shipped": 0.0, "gap_window": 0.0, "gap_both": gap,
+                "gap_both_ci": ci, "found_shipped": 0.2,
+                "found_both": 0.2 + gap, "ctrl_shipped": 0.2,
+                "ctrl_both": 0.2}
+
+    species = THRESHOLD_PREDICTION_SPECIES
+    bar = THRESHOLD_PREDICTION_MIN_GAP
+    genommen = render_threshold_report(
+        [planted(species, bar + 0.05, (bar, bar + 0.1))], "—")
+    assert "**Ergebnis: bestätigt.**" in genommen
+    verfehlt = render_threshold_report(
+        [planted(species, bar - 0.02, (0.01, bar + 0.05))], "—")
+    assert "Schwelle verfehlt — der Effekt ist aber da" in verfehlt, verfehlt
+    assert "bestätigt.**" not in verfehlt, \
+        "eine verfehlte Latte darf nicht als bestätigt durchgehen"
+    keiner = render_threshold_report(
+        [planted(species, bar - 0.02, (-0.05, bar))], "—")
+    assert "**Ergebnis: NICHT bestätigt.**" in keiner
+    assert "Effekt ist aber da" not in keiner, \
+        "ohne Effekt darf der Bericht keinen behaupten"
+
+    # Und dasselbe für Vorhersage 1: Das Band muss wirklich entscheiden.
+    inside = statistics.mean(QUANTILE_BAND_GUENSTIG)
+    drin = render_threshold_report(
+        [planted(MYCORRHIZAL[0], 0.1, (0.05, 0.15)) | {
+            "rank_guenstig_even": inside,
+            "rank_verhalten_even": statistics.mean(
+                QUANTILE_BAND_VERHALTEN)}], "—")
+    assert "**Ergebnis: bestätigt.** Die Quantil-Fassung" in drin
+    draussen = render_threshold_report(
+        [planted(MYCORRHIZAL[0], 0.1, (0.05, 0.15)) | {
+            "rank_guenstig_even": QUANTILE_BAND_GUENSTIG[0] - 0.05}], "—")
+    assert "Der Median liegt unter dem registrierten Band" in draussen
+
+    # `level_with` muss mit den ausgelieferten Schwellen exakt das tun,
+    # was `ampel_level` tut — sonst vergliche der Bericht zwei Modelle,
+    # die sich schon vor der Schwelle unterscheiden.
+    for score in (0.0, 0.19, 0.2, 0.21, 0.49, 0.5, 0.51, 1.0):
+        assert level_with(score, VERHALTEN_ABOVE,
+                          GUENSTIG_ABOVE) == ampel_level(score), score
 
     # **Die Spiegel-Regel, zum ersten Mal geprüft.** Beide Dateiköpfe
     # behaupten seit jeher, dieses Werkzeug rechne Zahl für Zahl
@@ -2306,6 +2814,10 @@ def main():
     parser.add_argument("--compare", action="store_true",
                         help="Ausgelieferte Ampel gegen die mit eigenem "
                              "Fenster — gemessen in STUFEN, nicht in AUC")
+    parser.add_argument("--thresholds", action="store_true",
+                        help="Die Schwellen messen statt sie zu setzen — "
+                             "als Quantil der Vergleichstage "
+                             "(docs/pilzampel-schwellen.md)")
     parser.add_argument("--holdout", default=None,
                         help="Länderkürzel (z. B. AT,CH): in Deutschland "
                              "anpassen, dort prüfen. Braucht --only.")
@@ -2356,6 +2868,30 @@ def main():
             print(f"  {row['name']:20} {row['differ'] * 100:5.1f} % andere "
                   f"Stufe   (Optimum {row['optimum']:5.1f} °C)",
                   file=sys.stderr)
+        return
+
+    if args.thresholds:
+        wanted = MYCORRHIZAL + WOOD_DWELLERS
+        if args.only:
+            wanted = [n.strip() for n in args.only.split(",") if n.strip()]
+        print("Schwellen messen:", file=sys.stderr)
+        rows = [row for row in (
+            threshold_species(name, mapping[name], args.cache, args.seed)
+            for name in wanted if name in mapping) if row]
+        report = render_threshold_report(rows, time.strftime("%Y-%m-%d"))
+        if args.out:
+            open(args.out, "w", encoding="utf-8").write(report)
+            print(f"\n{args.out} geschrieben", file=sys.stderr)
+        else:
+            print(report)
+        print("\nZusammenfassung:", file=sys.stderr)
+        for row in rows:
+            if not row.get("usable"):
+                continue
+            print(f"  {row['name']:20} 0,5 liegt bei "
+                  f"{row['rank_guenstig_even'] * 100:5.1f} %   "
+                  f"Abstand {row['gap_shipped'] * 100:+5.1f} → "
+                  f"{row['gap_both'] * 100:+5.1f} pp", file=sys.stderr)
         return
 
     if args.holdout:

@@ -134,3 +134,78 @@ Zahl" zwischen Modellkern und Werkzeug bleibt bis dahin unberührt.
 
 Und die Grenze des Konzeptpapiers gilt unverändert: Auch eine kalibrierte
 Schwelle sagt „die Bedingungen sind günstig", nicht „hier stehen Pilze".
+
+## Nachtrag 2026-09-12: was herausgekommen ist
+
+Die Registrierung oben bleibt, wie sie war. Hier steht, wie beide
+Vorhersagen ausgegangen sind — Ergebnis:
+`docs/pilzampel-schwellen-messung.md`.
+
+### Vorhersage 1: nicht bestätigt
+
+Der Median der sechs Mykorrhiza-Arten liegt auf den Anpassjahren bei
+**39,7 %** (für 0,2) und **69,7 %** (für 0,5). Registriert waren
+45–55 % und 75–85 %; beide Bänder sind knapp verfehlt.
+
+**Der Fehler liegt in der Registrierung, nicht in der Messung.** Das
+Band war aus dem Stufenvergleich abgeleitet — und der rechnet auf den
+**Prüfjahren**. Dort liegt der Median bei **79,9 %**, also mitten im
+registrierten Band. Gemessen wird aber auf den Anpassjahren, weil diese
+Zahlen die Schwellen setzen.
+
+### Der eigentliche Befund: die Schwelle altert
+
+Zwischen den beiden Zeitscheiben liegen im Median rund **8
+Prozentpunkte**, und alle sechs Arten wandern in dieselbe Richtung —
+beim Herbsttrompete sind es 17 (63,7 % → 81,0 %).
+
+Im Klartext: **Die ausgelieferte 0,5 ist heute eine deutlich strengere
+Schwelle als zur Zeit ihrer Festlegung.** Vor 2019 wurde sie an rund
+30 % der Vergleichstage überschritten, seither nur noch an rund 20 % —
+ohne dass je eine Zeile Code geändert wurde. Die Ampel ist im Feld still
+pessimistischer geworden.
+
+Ob dahinter trockeneres Wetter steckt oder eine gewachsene, anders
+verteilte GBIF-Stichprobe, trennt diese Messung **nicht**. Für die App
+ist die Folge dieselbe: Eine als Score eingefrorene Schwelle behält ihre
+Bedeutung nicht.
+
+### Vorhersage 2: Latte verfehlt, Effekt vorhanden
+
+Beim Austernseitling steigt der Abstand von **−0,2 pp** auf **+8,1 pp**
+[+0,9, +15,8]. Der Bereich schließt die Null aus, die vorab gesetzte
+Latte von +10 pp ist trotzdem nicht genommen.
+
+**Zur Offenlegung:** Der erste Lauf, mit den vorab *erwarteten*
+Quantilen 50/80, ergab **+10,1 pp** — die Latte wäre genommen gewesen.
+Maßgeblich ist der Lauf mit den **gemessenen** Quantilen 40/70, weil die
+Registrierung genau das vorschreibt: einmal runden, an den sechs Arten
+der App, vor der Prüfung von Vorhersage 2. Beide Zahlen stehen hier,
+damit niemand die passende aussuchen muss — auch ich nicht.
+
+**Und die Latte war das falsche Maß.** Wie groß der Abstand ausfällt,
+hängt am gewählten Quantil; nach Vorhersage 1 ist dessen Wahl aber keine
+vorgefundene Größe mehr, sondern eine Entscheidung. Eine Latte in
+Prozentpunkten unterstellt eine Schwelle, die feststeht.
+
+### Was daraus für die App folgt
+
+1. **Die Schwellen sind kalibrierbar, und es lohnt sich.** Der
+   Austernseitling geht von „in Stufen nicht sichtbar" zu einem echten
+   Abstand; Hallimasch (+36,7 → +53,2 pp) und Stockschwämmchen
+   (+34,1 → +44,0 pp) gewinnen deutlich.
+2. **Eine eingefrorene Zahl verfällt.** Wer sie ausliefert, muss
+   dazusagen, wann sie zuletzt gemessen wurde — und sie nachmessen. Das
+   Werkzeug dafür ist jetzt ein Befehl.
+3. **Wie oft die Ampel „günstig" sagt, ist eine Produktentscheidung.**
+   Mit dem 70-%-Quantil stünde sie im Median an **21,8 %** der
+   Vergleichstage auf günstig statt an 20,3 % heute — bei den einzelnen
+   Arten aber viel weiter gestreut (16,7 bis 34,2 %, heute 16,2 bis
+   25,5 %). Das ist keine Messfrage.
+4. **Und die Drift schlägt sofort durch.** Ein auf den Anpassjahren
+   gesetztes 70-%-Quantil müsste „günstig" an 30 % der Vergleichstage
+   zeigen; auf den Prüfjahren sind es 21,8 %. Die fehlenden gut acht
+   Punkte sind genau die gemessene Drift — dieselbe Zahl, von der
+   anderen Seite gesehen. Eine Schwelle, die als Score eingefroren
+   wird, verfehlt ihre eigene Zusage in dem Moment, in dem sie
+   ausgeliefert wird.
