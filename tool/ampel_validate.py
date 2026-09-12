@@ -61,6 +61,7 @@ von 250 m. Für die Saison-Gegenprüfung (--crosscheck) genügt die grobe
 Angabe, dort zählt nur der Monat.
 """
 import argparse
+import ast
 import inspect
 import datetime
 import json
@@ -70,6 +71,7 @@ import random
 import re
 import statistics
 import sys
+import textwrap
 import time
 import urllib.error
 import urllib.parse
@@ -387,12 +389,18 @@ def taxon_key(sci):
     return match["usageKey"]
 
 
-def _finds_cache_path(cache_dir, sci):
+def _finds_cache_path(cache_dir, sci, countries=("DE",)):
     safe = "".join(c if c.isalnum() else "_" for c in sci)
-    return os.path.join(cache_dir, f"finds_{safe}.json")
+    # Deutschland bleibt ohne Zusatz — sonst wären alle vorhandenen
+    # Fundlisten mit einem Schlag nicht mehr auffindbar, und genau das
+    # ist der Fehler, gegen den diese Dateien überhaupt angelegt wurden.
+    if tuple(countries) == ("DE",):
+        return os.path.join(cache_dir, f"finds_{safe}.json")
+    return os.path.join(cache_dir, f"finds_{safe}_{'-'.join(countries)}.json")
 
 
-def fetch_finds(sci, limit=3000, progress=True, cache_dir=None):
+def fetch_finds(sci, limit=3000, progress=True, cache_dir=None,
+                countries=("DE",)):
     """Fundmeldungen mit Koordinate, taggenauem Datum und Ortsgenauigkeit.
 
     **Mit `cache_dir` wird die Liste FESTGENAGELT** — und das ist keine
@@ -415,7 +423,7 @@ def fetch_finds(sci, limit=3000, progress=True, cache_dir=None):
     eine Entscheidung und kein Nebeneffekt der Uhrzeit.
     """
     if cache_dir:
-        path = _finds_cache_path(cache_dir, sci)
+        path = _finds_cache_path(cache_dir, sci, countries)
         if os.path.exists(path):
             finds = json.load(open(path, encoding="utf-8"))
             if progress:
@@ -423,16 +431,16 @@ def fetch_finds(sci, limit=3000, progress=True, cache_dir=None):
                       file=sys.stderr)
             return finds
     finds = [{k: v for k, v in record.items() if k != "key"}
-             for record in _fetch_finds_raw(sci, limit, progress)]
+             for record in _fetch_finds_raw(sci, limit, progress, countries)]
     if cache_dir:
         os.makedirs(cache_dir, exist_ok=True)
-        with open(_finds_cache_path(cache_dir, sci), "w",
+        with open(_finds_cache_path(cache_dir, sci, countries), "w",
                   encoding="utf-8") as handle:
             json.dump(finds, handle)
     return finds
 
 
-def _fetch_finds_raw(sci, limit=3000, progress=True):
+def _fetch_finds_raw(sci, limit=3000, progress=True, countries=("DE",)):
     """Wie [fetch_finds], aber MIT der GBIF-id je Meldung.
 
     Die id trägt die Aufnahmereihenfolge: Neu aufgenommene Meldungen
@@ -444,7 +452,7 @@ def _fetch_finds_raw(sci, limit=3000, progress=True):
     while len(finds) < limit:
         page = _get(f"{GBIF}/occurrence/search", {
             "taxonKey": key,
-            "country": "DE",
+            "country": list(countries),
             "basisOfRecord": "HUMAN_OBSERVATION",
             "hasCoordinate": "true",
             "hasGeospatialIssue": "false",
@@ -631,7 +639,8 @@ def pick_control_day(day_of_year, rng):
     return day_of_year + gap
 
 
-def collect_pairs(name, sci, cache_dir=None, seed=42, progress=True):
+def collect_pairs(name, sci, cache_dir=None, seed=42, progress=True,
+                  countries=("DE",)):
     """Zieht die Paare EINMAL und gibt die rohen Fenster zurück.
 
     **Warum getrennt vom Bewerten.** Seit der Anpassung je Art
@@ -649,7 +658,8 @@ def collect_pairs(name, sci, cache_dir=None, seed=42, progress=True):
     """
     if progress:
         print(f"  {name} ({sci})", file=sys.stderr)
-    finds = fetch_finds(sci, progress=progress, cache_dir=cache_dir)
+    finds = fetch_finds(sci, progress=progress, cache_dir=cache_dir,
+                        countries=countries)
     if not finds:
         return None
 
@@ -781,6 +791,109 @@ def validate_species(name, sci, cache_dir=None, seed=42, progress=True):
         "median_found": statistics.median(p[0] for p in pairs),
         "median_control": statistics.median(p[1] for p in pairs),
     }
+
+
+# --- Geografischer Hold-out (docs/pilzampel-artenfenster.md) ---------------
+#
+# Die registrierte Bestätigung der Pfifferling-Spur. Die Zeitscheibe
+# 2019–2025 war ungesehen, die AUSWAHL der Art war es nicht — und das
+# repariert keine weitere Rechnung an denselben Daten. Andere Länder sind
+# neue Daten statt neu geschnittener: Sie beantworten, ob 19,2 °C eine
+# Eigenschaft der ART ist oder eine der deutschen Stichprobe.
+
+# Die Schwelle stand vor der Messung fest und steht als Konstante hier,
+# damit sie sich hinterher nicht umformulieren lässt.
+HOLDOUT_MIN_GAIN = 0.05
+
+
+def holdout_species(name, sci, countries, cache_dir=None, seed=42,
+                    progress=True):
+    """In Deutschland anpassen, im Ausland prüfen.
+
+    **Das Optimum kommt aus dem deutschen Lauf, nicht aus dem Aufruf.**
+    Eine Zahl von Hand einzutippen wäre die Stelle, an der sich
+    unbemerkt eine andere einschleicht als die berichtete — und im
+    Hold-out sind ALLE Jahre Prüfjahre, dort gibt es keine zweite
+    Trennlinie, die einen Irrtum auffinge.
+    """
+    if progress:
+        print(f"  {name}: anpassen in DE …", file=sys.stderr)
+    home = fit_species(name, sci, cache_dir=cache_dir, seed=seed,
+                       progress=progress)
+    if home is None or not home.get("usable"):
+        return {"name": name, "usable": False, "why": "DE-Anpassung fehlt"}
+    optimum = home["optimum"]
+
+    if progress:
+        print(f"  {name}: prüfen in {'+'.join(countries)} "
+              f"mit {optimum:.1f} °C …", file=sys.stderr)
+    drawn = collect_pairs(name, sci, cache_dir=cache_dir, seed=seed,
+                          progress=progress, countries=countries)
+    if drawn is None:
+        return {"name": name, "usable": False, "why": "keine Funde"}
+    samples = drawn["samples"]
+    shared = paired_auc(score_pairs(samples, OPTIMUM_C))
+    fitted = paired_auc(score_pairs(samples, optimum))
+    # Die Placebo-Kontrolle gilt auch hier: Ohne sie wüsste niemand, ob
+    # die Ziehung im Ausland genauso unverzerrt ist wie zu Hause.
+    placebo = [(ampel_score(*s["control"]), ampel_score(*s["placebo"]))
+               for s in samples if s["placebo"] is not None]
+    return {
+        "name": name,
+        "usable": True,
+        "countries": list(countries),
+        "optimum": optimum,
+        "n_home": home["n_fit"] + home["n_test"],
+        "n": len(samples),
+        "years": drawn["years"],
+        "auc_shared": shared,
+        "auc_fitted": fitted,
+        "gain": fitted - shared,
+        "placebo_auc": paired_auc(placebo),
+        "placebo_n": len(placebo),
+        "ci": bootstrap_years(samples, [OPTIMUM_C, optimum], seed=seed),
+    }
+
+
+def render_holdout_report(rows, countries, fetched_on):
+    out = ["# Artenfenster: der geografische Hold-out", "",
+           f"Stand: {fetched_on} · Erzeugt von `tool/ampel_validate.py "
+           f"--holdout` · Prüfplan: `docs/pilzampel-artenfenster.md`", "",
+           f"Angepasst wurde in **Deutschland** (Jahre bis {FIT_UNTIL_YEAR}), "
+           f"geprüft in **{' und '.join(countries)}** — dort sind ALLE Jahre "
+           "Prüfjahre, denn an der Anpassung war keiner von ihnen beteiligt. "
+           "Das beantwortet, was eine weitere Zeitscheibe nicht mehr kann: "
+           "ob das Fenster der ART gehört oder der deutschen Stichprobe.", "",
+           "## Die Schwelle, die vor der Messung feststand", "",
+           f"> Die gepaarte AUC mit dem angepassten Optimum liegt im "
+           f"Hold-out mindestens **{HOLDOUT_MIN_GAIN:+.2f}** über der mit "
+           f"{OPTIMUM_C:.0f} °C.", ""]
+    for row in rows:
+        if not row.get("usable"):
+            out += [f"**{row['name']}: nicht auswertbar** — {row['why']}.", ""]
+            continue
+        met = row["gain"] >= HOLDOUT_MIN_GAIN
+        span = (row.get("ci") or {}).get("difference")
+        ci = f" [{span[0]:+.3f}, {span[1]:+.3f}]" if span else ""
+        out += [f"## {row['name']}", "",
+                f"Optimum aus Deutschland: **{row['optimum']:.1f} °C** "
+                f"({row['n_home']} Paare). Im Hold-out "
+                f"{row['n']} Paare aus {row['years']} Jahren.", "",
+                f"| | AUC |", "|---|--:|",
+                f"| mit {OPTIMUM_C:.0f} °C | {row['auc_shared']:.3f} |",
+                f"| mit {row['optimum']:.1f} °C | {row['auc_fitted']:.3f} |",
+                f"| Differenz | **{row['gain']:+.3f}**{ci} |", "",
+                f"**Ergebnis: {'bestätigt' if met else 'NICHT bestätigt'}** "
+                f"(Schwelle {HOLDOUT_MIN_GAIN:+.2f}).", ""]
+        # Ohne sie ist die Zahl darüber nichts wert — dieselbe Regel wie
+        # in der Rückwärtsvalidierung.
+        off = abs(row["placebo_auc"] - 0.5)
+        out += [f"Placebo-Kontrolle im Hold-out: {row['placebo_auc']:.3f} "
+                f"bei {row['placebo_n']} Paaren"
+                + (" — unauffällig." if off <= 0.03 else
+                   " — **verzerrt, die Zahl darüber ist nicht auswertbar.**"),
+                ""]
+    return "\n".join(out) + "\n"
 
 
 # --- Eine vorhandene Sammlung wieder benutzbar machen -----------------------
@@ -1138,24 +1251,61 @@ def self_test():
     # `grid_optimum` ergänzt, aber nicht durch `fit_species`
     # durchgereicht worden war. Ein Lauf, der erst nach der Rechnung
     # scheitert, kostet die ganze Rechnung.
-    # BEIDE Seiten kommen aus dem Quelltext — sonst prüft der Test eine
-    # Liste, die ich selbst danebengeschrieben habe, gegen den Bericht.
-    # Genau so war die erste Fassung, und sie blieb bei der Gegenprobe
-    # grün.
-    report_src = inspect.getsource(render_fit_report)
-    fit_src = inspect.getsource(fit_species)
-    demanded = set(re.findall(r"""row\[['"](\w+)['"]\]""", report_src))
-    demanded |= set(re.findall(r"""row\.get\(['"](\w+)['"]\)""", report_src))
-    demanded |= set(re.findall(r"""primary\[['"](\w+)['"]\]""", report_src))
-    demanded |= set(re.findall(r"""r\[['"](\w+)['"]\]""", report_src))
-    delivered = set(re.findall(r"""^\s+['"](\w+)['"]:\s""", fit_src,
-                               re.MULTILINE))
-    delivered |= set(re.findall(r"""result\[['"](\w+)['"]\]\s*=""", fit_src))
-    missing = demanded - delivered
-    assert not missing, (
-        f"der Bericht liest Felder, die fit_species nicht liefert: "
-        f"{sorted(missing)}")
-    assert "best_set" in delivered and "best_set" in demanded, \
+    # **BEIDE Seiten kommen aus dem Quelltext, und zwar aus dem
+    # SYNTAXBAUM.** Zwei Anläufe waren vorher nötig, und beide Fehler
+    # sind lehrreich:
+    #
+    # 1. Die gelieferten Felder standen als Liste von Hand da. Der Test
+    #    verglich damit meine Liste mit dem Bericht statt den Code mit
+    #    dem Bericht — und blieb bei der Gegenprobe grün.
+    # 2. Danach las ein Muster die Zeilenanfänge. Es übersah jeden
+    #    einzeiligen Dict (`{"name": …, "why": …}`) und meldete
+    #    korrekten Code als kaputt. Ein Wächter, der bei heilem Code rot
+    #    wird, wird abgeschaltet — und dann wacht er über gar nichts.
+    def keys_written(func):
+        """Alle Schlüssel, die diese Funktion je in ein Dict schreibt."""
+        tree = ast.parse(textwrap.dedent(inspect.getsource(func)))
+        keys = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Dict):
+                keys |= {k.value for k in node.keys
+                         if isinstance(k, ast.Constant)
+                         and isinstance(k.value, str)}
+            elif isinstance(node, ast.Subscript) and isinstance(
+                    node.slice, ast.Constant) and isinstance(
+                    node.slice.value, str):
+                keys.add(node.slice.value)
+        return keys
+
+    def keys_read(func, holders):
+        """Alle Schlüssel, die diese Funktion aus [holders] liest."""
+        tree = ast.parse(textwrap.dedent(inspect.getsource(func)))
+        keys = set()
+        for node in ast.walk(tree):
+            if (isinstance(node, ast.Subscript)
+                    and isinstance(node.value, ast.Name)
+                    and node.value.id in holders
+                    and isinstance(node.slice, ast.Constant)
+                    and isinstance(node.slice.value, str)):
+                keys.add(node.slice.value)
+            elif (isinstance(node, ast.Call)
+                  and isinstance(node.func, ast.Attribute)
+                  and node.func.attr == "get"
+                  and isinstance(node.func.value, ast.Name)
+                  and node.func.value.id in holders
+                  and node.args
+                  and isinstance(node.args[0], ast.Constant)):
+                keys.add(node.args[0].value)
+        return keys
+
+    holders = {"row", "primary", "r"}
+    for report, producer in [(render_fit_report, fit_species),
+                             (render_holdout_report, holdout_species)]:
+        missing = keys_read(report, holders) - keys_written(producer)
+        assert not missing, (
+            f"{report.__name__} liest Felder, die {producer.__name__} nicht "
+            f"liefert: {sorted(missing)}")
+    assert "best_set" in keys_read(render_fit_report, holders), \
         "die Prüfung selbst muss etwas zu prüfen haben"
 
     # --- Anpassung je Art (docs/pilzampel-artenfenster.md) ---
@@ -1728,6 +1878,9 @@ def main():
                         help="Temperaturoptimum je Art anpassen und "
                              "auf getrennten Jahren prüfen "
                              "(docs/pilzampel-artenfenster.md)")
+    parser.add_argument("--holdout", default=None,
+                        help="Länderkürzel (z. B. AT,CH): in Deutschland "
+                             "anpassen, dort prüfen. Braucht --only.")
     parser.add_argument("--recover-sample", action="store_true",
                         help="Die Stichprobe suchen, zu der ein vorhandener "
                              "--cache gehört, und sie festnageln. Einmal "
@@ -1754,6 +1907,27 @@ def main():
     # beantwortet eine andere Frage (`docs/pilzampel-artenfenster.md`) und
     # schreibt einen anderen Bericht; beides in einem Aufruf zu mischen
     # hieße, zwei Ergebnisse in eine Datei zu schreiben.
+    if args.holdout:
+        if not args.only:
+            raise SystemExit("--holdout braucht --only: Der Hold-out prüft "
+                             "eine registrierte Spur, nicht alles auf "
+                             "Verdacht.")
+        countries = [c.strip().upper() for c in args.holdout.split(",")
+                     if c.strip()]
+        wanted = [n.strip() for n in args.only.split(",") if n.strip()]
+        print(f"Hold-out in {'+'.join(countries)}:", file=sys.stderr)
+        rows = [holdout_species(name, mapping[name], countries, args.cache,
+                                args.seed)
+                for name in wanted if name in mapping]
+        report = render_holdout_report(rows, countries,
+                                       time.strftime("%Y-%m-%d"))
+        if args.out:
+            open(args.out, "w", encoding="utf-8").write(report)
+            print(f"\n{args.out} geschrieben", file=sys.stderr)
+        else:
+            print(report)
+        return
+
     if args.recover_sample:
         if not args.cache:
             raise SystemExit("--recover-sample braucht --cache: Es sucht die "

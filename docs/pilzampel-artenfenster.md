@@ -241,6 +241,28 @@ werden. Das ist die eine Abkürzung, die die Zahlen unvergleichbar mit
 `pilzampel-validierung.md` machte — und bei den dünnen Arten ginge sie
 ins Rauschen.
 
+## Wo die Daten liegen — drei Orte, drei Aufgaben
+
+Festgelegt vom Betreiber am 2026-09-12, nachdem eine Sicherung fast
+verloren gegangen wäre.
+
+| Ort | Was | Wann |
+|---|---|---|
+| `~/pilzbuddy-ampel2000/ampel_cache` | Arbeitsstand, `--cache` zeigt hierher | laufend |
+| `…/nextcloud_msb/Claude_exchange/pilzampel-validierung/` | Spiegel, über Nextcloud synchronisiert | nach jedem Abruf |
+| Release `ampel-2000` in `pilzbuddy-backups` | gezippter Stand | **nach jedem Validierungslauf** |
+
+**Warum das Archiv nach dem LAUF entsteht und nicht davor.** Ein Stand,
+der vor dem letzten Abruf gezogen wurde, ist der Stand eines
+Zwischenschritts — genau das ist am 2026-09-11 passiert: hochgeladen um
+22:33, zwei Art-Jahre nachgeholt um 00:40, und das Archiv zeigte einen
+Stand, mit dem nie gerechnet wurde. Gesichert gehört der Stand, der zu
+einem Ergebnis GEFÜHRT hat; nur der ist nachvollziehbar.
+
+**Und die `finds_*.json` sind der Teil, an dem alles hängt** (siehe den
+Abschnitt darüber). Ein Archiv ohne sie ist 51 MB, die niemand mehr
+adressieren kann.
+
 ## Nachtrag 2026-09-11: die Pfifferling-Spur
 
 Der erste Lauf über sieben Arten hat einen Ausreißer geliefert:
