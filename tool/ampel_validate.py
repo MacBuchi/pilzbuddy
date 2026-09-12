@@ -747,9 +747,27 @@ def collect_pairs(name, sci, cache_dir=None, seed=42, progress=True,
             # auseinanderlägen. Genau so gebaut, beim Gegenprüfen
             # aufgefallen.
             placebo_day = pick_control_day(control_day, rng)
+            # **Die abstandsgleiche Kontrolle** (2026-09-12): der
+            # Vergleichstag, am Fundtag gespiegelt. Beide liegen dann
+            # GENAU gleich weit weg, nur auf verschiedenen Seiten.
+            #
+            # Warum es sie braucht: Der Placebo-Tag oben wird vom
+            # VERGLEICHSTAG aus gezogen, seine Abstände addieren sich also
+            # (Ø 34 statt 30 Tage). Und Nähe zum Fundtag hebt den Wert —
+            # gemessen am Pfifferling: Wo der Placebo-Tag ferner liegt,
+            # steht die Kontrolle bei 0,585, wo er näher liegt, bei 0,432.
+            # In Deutschland heben sich beide Hälften fast auf (0,512), in
+            # den Alpen nicht mehr (0,550), weil der Jahresgang dort
+            # schärfer ist.
+            #
+            # Die gespiegelte Kontrolle hat dieses Problem nicht. Sie
+            # ersetzt die alte NICHT: Jene fängt eine einseitige Ziehung,
+            # diese kann es bauartbedingt nicht.
+            mirror_day = 2 * found_day - control_day
             a_rain, a_temp = window_before(place, found_day, RAIN_WINDOW)
             b_rain, b_temp = window_before(place, control_day, RAIN_WINDOW)
             c_rain, c_temp = window_before(place, placebo_day, RAIN_WINDOW)
+            m_rain, m_temp = window_before(place, mirror_day, RAIN_WINDOW)
             if a_rain is None or b_rain is None:
                 skipped += 1
                 continue
@@ -758,6 +776,12 @@ def collect_pairs(name, sci, cache_dir=None, seed=42, progress=True,
                 "found": (a_rain, a_temp),
                 "control": (b_rain, b_temp),
                 "placebo": (c_rain, c_temp) if c_rain is not None else None,
+                # Die Abstände zum Fundtag — mitgeführt seit 2026-09-12,
+                # weil die Placebo-Kontrolle im Ausland ausschlug und man
+                # ohne sie nicht messen kann, WARUM.
+                "mirror": (m_rain, m_temp) if m_rain is not None else None,
+                "d_control": abs(control_day - found_day),
+                "d_placebo": abs(placebo_day - found_day),
             })
 
     if not samples:
@@ -1043,6 +1067,11 @@ def render_compare_report(rows, fetched_on):
 # damit sie sich hinterher nicht umformulieren lässt.
 HOLDOUT_MIN_GAIN = 0.05
 
+# Wie weit die Placebo-Kontrolle von 0,50 abweichen darf. Dieselbe Grenze
+# wie in der Zusammenfassung der Rückwärtsvalidierung — dort steht sie
+# seit jeher, hier stand sie als nackte Zahl im Bericht.
+PLACEBO_TOLERANCE = 0.03
+
 
 def holdout_species(name, sci, countries, cache_dir=None, seed=42,
                     progress=True):
@@ -1076,6 +1105,8 @@ def holdout_species(name, sci, countries, cache_dir=None, seed=42,
     # die Ziehung im Ausland genauso unverzerrt ist wie zu Hause.
     placebo = [(ampel_score(*s["control"]), ampel_score(*s["placebo"]))
                for s in samples if s["placebo"] is not None]
+    mirrored = [(ampel_score(*s["control"]), ampel_score(*s["mirror"]))
+                for s in samples if s["mirror"] is not None]
     return {
         "name": name,
         "usable": True,
@@ -1089,6 +1120,8 @@ def holdout_species(name, sci, countries, cache_dir=None, seed=42,
         "gain": fitted - shared,
         "placebo_auc": paired_auc(placebo),
         "placebo_n": len(placebo),
+        "mirror_auc": paired_auc(mirrored),
+        "mirror_n": len(mirrored),
         "ci": bootstrap_years(samples, [OPTIMUM_C, optimum], seed=seed),
     }
 
@@ -1110,7 +1143,14 @@ def render_holdout_report(rows, countries, fetched_on):
         if not row.get("usable"):
             out += [f"**{row['name']}: nicht auswertbar** — {row['why']}.", ""]
             continue
-        met = row["gain"] >= HOLDOUT_MIN_GAIN
+        # **Die Placebo-Kontrolle entscheidet VOR dem Ergebnis.** Steht
+        # sie nicht bei 0,50, ist die Ziehung verzerrt — und dann ist die
+        # Zahl darüber wertlos, egal wie gut sie aussieht. Der erste
+        # Bericht schrieb „bestätigt" und zwei Zeilen darunter „nicht
+        # auswertbar"; von zwei widersprüchlichen Sätzen liest jeder den,
+        # der ihm passt.
+        clean = abs(row["mirror_auc"] - 0.5) <= PLACEBO_TOLERANCE
+        met = clean and row["gain"] >= HOLDOUT_MIN_GAIN
         span = (row.get("ci") or {}).get("difference")
         ci = f" [{span[0]:+.3f}, {span[1]:+.3f}]" if span else ""
         out += [f"## {row['name']}", "",
@@ -1121,15 +1161,30 @@ def render_holdout_report(rows, countries, fetched_on):
                 f"| mit {OPTIMUM_C:.0f} °C | {row['auc_shared']:.3f} |",
                 f"| mit {row['optimum']:.1f} °C | {row['auc_fitted']:.3f} |",
                 f"| Differenz | **{row['gain']:+.3f}**{ci} |", "",
-                f"**Ergebnis: {'bestätigt' if met else 'NICHT bestätigt'}** "
-                f"(Schwelle {HOLDOUT_MIN_GAIN:+.2f}).", ""]
+                "**Ergebnis: " + (
+                    "bestätigt" if met else
+                    "NICHT AUSWERTBAR — die Placebo-Kontrolle ist verzerrt"
+                    if not clean else "nicht bestätigt")
+                + f"** (Schwelle {HOLDOUT_MIN_GAIN:+.2f}).", ""]
         # Ohne sie ist die Zahl darüber nichts wert — dieselbe Regel wie
         # in der Rückwärtsvalidierung.
         off = abs(row["placebo_auc"] - 0.5)
         out += [f"Placebo-Kontrolle im Hold-out: {row['placebo_auc']:.3f} "
-                f"bei {row['placebo_n']} Paaren"
-                + (" — unauffällig." if off <= 0.03 else
-                   " — **verzerrt, die Zahl darüber ist nicht auswertbar.**"),
+                f"bei {row['placebo_n']} Paaren (Toleranz "
+                f"±{PLACEBO_TOLERANCE:.2f})"
+                + (" — erwartbar abweichend, siehe unten."
+                   if abs(row["placebo_auc"] - 0.5) > PLACEBO_TOLERANCE
+                   else " — unauffällig.")]
+        out += [f"**Abstandsgleiche Kontrolle: {row['mirror_auc']:.3f}** bei "
+                f"{row['mirror_n']} Paaren — der Vergleichstag gegen seine "
+                f"Spiegelung am Fundtag, beide exakt gleich weit weg"
+                + (" — unauffällig. Daran hängt das Urteil oben."
+                   if clean else
+                   " — **verzerrt.** Zwei fundfreie Tage, nach derselben "
+                   "Vorschrift gezogen, dürfen sich nicht unterscheiden. "
+                   "Tun sie es doch, misst der Aufbau etwas anderes als "
+                   "das Wetter am Fundtag, und die Zahlen darüber sind "
+                   "keine Aussage über das Modell."),
                 ""]
     return "\n".join(out) + "\n"
 
