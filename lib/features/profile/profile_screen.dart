@@ -295,12 +295,18 @@ class ProfileScreen extends ConsumerWidget {
             contentPadding: EdgeInsets.zero,
             secondary: const Icon(Icons.science_outlined),
             title: const Text('Pilzwetter-Ampel (experimentell)'),
+            // **Korrigiert am 2026-09-12.** Hier stand „Ob sie je Art
+            // anders wirkt, ist noch offen; deshalb rechnet sie für alle
+            // gleich." Genau das ist inzwischen gemessen und geändert
+            // (seit 1.137.0 je Pilzgruppe) — der Satz behauptete das
+            // Gegenteil dessen, was die App tut.
             subtitle: const Text(
                 'An echten Funden geprüft: An Fundtagen steht sie höher '
                 'als an Vergleichstagen am selben Ort. Sie bewertet das '
-                'Wetter für Steinpilz & Co. — nicht, ob dort Pilze '
-                'stehen. Ob sie je Art anders wirkt, ist noch offen; '
-                'deshalb rechnet sie für alle gleich.'),
+                'Wetter — nicht, ob dort Pilze stehen. Gerechnet wird je '
+                'Pilzgruppe: Pfifferlinge brauchen es wärmer als '
+                'Steinpilze. Welche Gruppen es gibt, steht im '
+                'Ampel-Blatt auf der Karte.'),
             value: ref.watch(ampelPreviewEnabledProvider),
             onChanged: (value) =>
                 ref.read(ampelPreviewEnabledProvider.notifier).set(value),
