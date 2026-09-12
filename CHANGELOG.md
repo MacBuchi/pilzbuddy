@@ -7,6 +7,35 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Selbst entscheiden, für welche Pilze die Ampel spricht
+
+*12. September 2026 · Version 1.142.0*
+
+Die Pilzampel rechnet zwei Gruppen — „Steinpilz & Co." und
+„Pfifferling" — und zeigt auf der Karte, welche von beiden es gerade
+besser trifft. Wer im Juli aber Steinpilze sucht, will die
+Pfifferling-Fläche nicht sehen.
+
+Im Filter (der Trichter auf der Karte) stehen die Gruppen jetzt als
+Chips. Ab Werk sind alle an; wer eine abwählt, ändert damit **alles auf
+einmal**:
+
+- die leuchtende Fläche auf der Karte,
+- die Zeilen „am Fadenkreuz" in der ausgeklappten Legende,
+- den Hinweis oben auf der Karte („2 Spots · Ampel günstig"),
+- und den Filter „Nur wo die Ampel günstig steht".
+
+Dass gefiltert wird, steht wie immer auf der Karte: „🔍 Gefiltert:
+Ampel: Steinpilz & Co.". Eine Gruppe muss anbleiben — keine Gruppe wäre
+eine Ampel ohne Aussage, und dafür gibt es den Schalter für die ganze
+Ebene.
+
+Nebenbei richtiggestellt: Das Ampel-Blatt behauptete, das Modell habe
+sich „an echten Funden bisher nicht bewährt". Das stimmt so nicht mehr —
+an Pilzmeldungen aus ganz Deutschland trennt es Fundtage von normalen
+Tagen deutlich. Ungeprüft ist es an **deinen** Funden, und genau das
+steht jetzt dort.
+
 ## Nachschlagen, welche Pilze zu welcher Gruppe gehören
 
 *12. September 2026 · Version 1.141.0*

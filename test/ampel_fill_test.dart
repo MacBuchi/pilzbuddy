@@ -143,7 +143,7 @@ WeatherTable tableOf(
 void main() {
   /// Die Stufe der Zelle [x] in der einzigen Zeile — `null` heißt
   /// „keine Aussage" (zu wenige Regentage, keine Station in Reichweite).
-  AmpelLevel? levelOf(AmpelLevelGrid grid, int x) => grid.levelFor(0, x);
+  AmpelLevel? levelOf(AmpelLevelGrid grid, int x) => grid.levelFor(0, x, classes: ampelShippedClasses);
 
   test('je Zelle exakt die Stufe, die das Modell für ihre Reihe nennt',
       () {
@@ -243,7 +243,8 @@ void main() {
     /// Level) ist dasselbe wie „keine Aussage" auf der Karte.
     AmpelLevel? sheetLevelAt(
         RainStackData stack, WeatherTable table, double lat, double lon,
-        {ElevationGrid? elevation}) {
+        {ElevationGrid? elevation,
+        List<AmpelClass> classes = ampelShippedClasses}) {
       final course = rainCourseFrom(
         stack.days,
         width: stack.info.width,
@@ -260,6 +261,7 @@ void main() {
       // Klassen, und ein Test, der das hier von Hand nachrechnet, prüfte
       // nur noch sich selbst.
       return ampelBestReadingFrom(course, table.at(lat, lon),
+              classes: classes,
               spotHeightM: elevation?.heightMetersAt(lat, lon))
           .reading
           .level;
@@ -307,15 +309,17 @@ void main() {
     /// Gibt zurück, welche Stufen dabei überhaupt vorkamen — ohne
     /// Kontrast prüft der Lauf nichts.
     Set<AmpelLevel?> walkAndCompare(
-        RainStackData stack, WeatherTable table, AmpelLevelGrid grid) {
+        RainStackData stack, WeatherTable table, AmpelLevelGrid grid,
+        {List<AmpelClass> classes = ampelShippedClasses}) {
       final probe = probeOf(stack);
       final seen = <AmpelLevel?>{};
       for (var y = 0; y < stack.info.height; y++) {
         final lat = probe.latAtRow(y + 0.5);
         for (var x = 0; x < stack.info.width; x++) {
           final lon = probe.lonAtColumn(x + 0.5);
-          final expected = sheetLevelAt(stack, table, lat, lon);
-          expect(grid.levelFor(y, x), expected,
+          final expected = sheetLevelAt(stack, table, lat, lon,
+              classes: classes);
+          expect(grid.levelFor(y, x, classes: classes), expected,
               reason: 'Zelle $x/$y (${lat.toStringAsFixed(4)}, '
                   '${lon.toStringAsFixed(4)})');
           seen.add(expected);
@@ -323,6 +327,36 @@ void main() {
       }
       return seen;
     }
+
+    test('auch eingeengt sagen Fläche und Blatt dasselbe', () {
+      // **Die Auswahl darf die #279-Zusage nicht aufbrechen.** Sie wirkt
+      // an zwei getrennten Stellen — im Gitter-Weg (`ampelBestOf`) und
+      // in der vollen Ablesung (`ampelBestReadingFrom`). Zwei Stellen
+      // sind zwei Gelegenheiten, sie zu vergessen.
+      final stack = stackForArea();
+      final table = tableOfStations(threeBands);
+      final grid = ampelLevelsFrom(stack, table)!;
+      final eingeengt =
+          walkAndCompare(stack, table, grid, classes: const [ampelHerbstClass]);
+      expect(eingeengt.length, greaterThan(1),
+          reason: 'ohne Kontrast prüft der Lauf nichts');
+
+      // Und der Unterschied muss echt sein: Wäre die Auswahl folgenlos,
+      // liefe der Test oben gegen dieselben Zahlen wie der ungefilterte
+      // und bewiese nichts.
+      var geaendert = 0;
+      for (var y = 0; y < stack.info.height; y++) {
+        for (var x = 0; x < stack.info.width; x++) {
+          if (grid.levelFor(y, x, classes: const [ampelHerbstClass]) !=
+              grid.levelFor(y, x, classes: ampelShippedClasses)) {
+            geaendert++;
+          }
+        }
+      }
+      expect(geaendert, greaterThan(0),
+          reason: 'die 22-°C-Station steht nur wegen des Sommerfensters '
+              'auf „verhalten" — ohne es fällt sie zurück');
+    });
 
     test('an jeder Zellmitte dieselbe Stufe wie im Spot-Blatt', () {
       final stack = stackForArea();
@@ -342,7 +376,8 @@ void main() {
         for (var x = 0; x < width; x++) {
           final block = (y ~/ ampelTempBlockCells) * blocksX +
               x ~/ ampelTempBlockCells;
-          (perBlock[block] ??= <AmpelLevel?>{}).add(grid.levelFor(y, x));
+          (perBlock[block] ??= <AmpelLevel?>{})
+              .add(grid.levelFor(y, x, classes: ampelShippedClasses));
         }
       }
       expect(perBlock.values.where((levels) => levels.length > 1), isNotEmpty,
@@ -378,7 +413,7 @@ void main() {
           final atBlock = table.nearestAir(blockLat, blockLon)?.station.name;
           if (atCell == atBlock) continue;
           contested++;
-          expect(grid.levelFor(y, x),
+          expect(grid.levelFor(y, x, classes: ampelShippedClasses),
               sheetLevelAt(stack, table, lat, lon),
               reason: 'Zelle $x/$y sieht $atCell, ihre Kachel $atBlock');
         }
@@ -427,12 +462,16 @@ void main() {
           final lon = probe.lonAtColumn(x + 0.5);
           final expected =
               sheetLevelAt(stack, table, lat, lon, elevation: elevation);
-          expect(grid.levelAt(lat, lon, elevation: elevation), expected,
+          expect(
+              grid.levelAt(lat, lon,
+                  classes: ampelShippedClasses, elevation: elevation),
+              expected,
               reason: 'Zelle $x/$y (${lat.toStringAsFixed(4)}, '
                   '${lon.toStringAsFixed(4)})');
           seen.add(expected);
-          if (grid.levelAt(lat, lon, elevation: elevation) !=
-              grid.levelFor(y, x)) {
+          if (grid.levelAt(lat, lon,
+                  classes: ampelShippedClasses, elevation: elevation) !=
+              grid.levelFor(y, x, classes: ampelShippedClasses)) {
             changed++;
           }
         }
@@ -577,13 +616,13 @@ void main() {
           reason: 'die lückige muss hier wirklich die nächste sein');
       expect(sheetLevelAt(stack, table, lat, lon), isNull,
           reason: 'das Blatt wird grau — der Maßstab dieses Tests');
-      expect(grid.levelFor(0, 0), isNull);
+      expect(grid.levelFor(0, 0, classes: ampelShippedClasses), isNull);
 
       // Und die Gegenprobe: Ohne die lückige davor stünde hier sehr
       // wohl eine Stufe — sonst prüfte der Test nur, dass irgendetwas
       // transparent ist.
       final good = ampelLevelsFrom(stack, tableOfStations([gappy.last]))!;
-      expect(good.levelFor(0, 0), isNotNull,
+      expect(good.levelFor(0, 0, classes: ampelShippedClasses), isNotNull,
           reason: 'die Lage an sich gibt eine Stufe her');
     });
   });
