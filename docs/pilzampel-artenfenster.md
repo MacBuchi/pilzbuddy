@@ -241,6 +241,56 @@ werden. Das ist die eine Abkürzung, die die Zahlen unvergleichbar mit
 `pilzampel-validierung.md` machte — und bei den dünnen Arten ginge sie
 ins Rauschen.
 
+## Registriert 2026-09-12: gibt es eine kalte KLASSE?
+
+Der Austernseitling steht bei −3,2 °C und gewinnt +0,174 [+0,108,
++0,248]. Das ist ein belegtes Fenster — aber **eine Art ist keine
+Klasse.** Eine Klasse aus einem Mitglied ist eine Art mit einem größeren
+Namen, und auf so etwas lässt sich keine Anzeige bauen, die „günstig für
+Winterpilze" behauptet.
+
+Der Betreiber hat die beiden fehlenden Mitglieder benannt: **Judasohr**
+(*Auricularia auricula-judae*, 3123 Meldungen) und **Samtfußrübling**
+(*Flammulina velutipes*, 1222). Beide sind Winterfrüchter, beide stehen
+in der Artenliste der App, und — das ist der Punkt — **beide waren an
+keiner Anpassung beteiligt.** Sie sind unverbrauchte Daten.
+
+> **Vorhersage, vor der Messung.** Judasohr und Samtfußrübling landen
+> beide bei einem Optimum **unter 5 °C**, und beide gewinnen gegenüber
+> den ausgelieferten 13 °C mindestens **+0,05** AUC auf ihren
+> Prüfjahren.
+>
+> Die 5 °C sind bewusst großzügig: Die Herbstgruppe liegt zwischen 12,0
+> und 14,5 °C. Alles unter 5 trennt eindeutig, ohne dass die Grenze
+> nachträglich passend gewählt werden müsste.
+
+**Was ein Treffer bedeutet:** Drei Arten mit kaltem Fenster, unabhängig
+voneinander gemessen — dann existiert die Klasse, und die Ampel darf für
+sie sprechen.
+
+**Was ein Fehlschlag bedeutet:** Der Austernseitling bleibt ein
+Einzelfall. Dann ist „kalt" keine Klasse, sondern eine Eigenschaft
+dieser einen Art, und die Ampel bleibt für sie grau — so wie heute.
+
+**Und was in beiden Fällen NICHT passiert:** eine Klasse aus zwei
+Arten, von denen eine passt. Beide oder keine.
+
+## Zur allgemeinen Frage: alle Arten einordnen
+
+Der Betreiber am 2026-09-12: „Generell finde ich, dass wir alle Arten,
+die wir listen, kategorisieren sollten."
+
+Richtig — mit einer Trennung, die durchgehalten werden muss:
+**Einordnen ist billig, eine Klasse BELEGEN ist teuer.** Die App listet
+110 Arten; für die meisten davon hat GBIF zu wenig Deutschland-Material,
+und eine Einordnung aus der Literatur ist eine Vermutung, keine Messung.
+
+Die Regel dafür steht schon in der App und muss nur weitergelten: Was
+nicht gemessen ist, bleibt **grau**. Eine Art darf also einer Klasse
+zugeordnet sein, ohne dass die Ampel für sie spricht — die Zuordnung
+ordnet, die Messung erlaubt eine Aussage. Verwechselt man beides, hat man
+110 Arten mit Farbe und drei mit Deckung.
+
 ## Wo die Daten liegen — drei Orte, drei Aufgaben
 
 Festgelegt vom Betreiber am 2026-09-12, nachdem eine Sicherung fast

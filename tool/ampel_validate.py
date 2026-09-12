@@ -647,10 +647,26 @@ def window_before(series, day_of_year, length):
 
 # --- Der Test --------------------------------------------------------------
 
-# Der Vergleichstag liegt so weit weg, dass sich die 26-Tage-Fenster kaum
-# überlappen — sonst vergleicht man ein Wetter mit sich selbst — und so
-# nah, dass Jahreszeit und Saisonfaktor gleich bleiben.
-CONTROL_MIN_GAP = 14
+# Der Vergleichstag liegt so weit weg, dass sich die Wetterfenster NICHT
+# überlappen — sonst vergleicht man ein Wetter teilweise mit sich selbst
+# — und so nah, dass Jahreszeit und Saisonfaktor gleich bleiben.
+#
+# **Die Untergrenze war bis 2026-09-12 mit 14 Tagen zu klein**, und der
+# Kommentar an dieser Stelle behauptete, die Fenster überlappten „kaum".
+# Bei 14 Tagen Abstand teilen sich die beiden 26-Tage-Regenfenster aber
+# 12 Tage, also 46 %. Der Betreiber hat es gesehen: „Nur weil keiner da
+# war, heißt nicht, dass nicht die gleichen Bedingungen herrschten."
+#
+# Gemessen kostet die Überlappung Trennschärfe, sie erschleicht sie
+# nicht: Auf Paaren mit mindestens 26 Tagen Abstand stieg die AUC des
+# Steinpilzes von 0,730 auf 0,762, die des Pfifferlings von 0,572 auf
+# 0,602. Überlappende Fenster machen Fund- und Vergleichstag ÄHNLICHER,
+# als sie sind — der Test war also zu vorsichtig, nicht zu großzügig.
+#
+# Der Preis ist gut ein Drittel der Paare. Bei der Herbsttrompete, die
+# schon vorher dünn war, ist das die Grenze der Auswertbarkeit; der
+# Bericht nennt die Paarzahl je Art, damit das sichtbar bleibt.
+CONTROL_MIN_GAP = RAIN_WINDOW
 CONTROL_MAX_GAP = 45
 
 
