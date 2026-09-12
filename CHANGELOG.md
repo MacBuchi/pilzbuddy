@@ -7,6 +7,30 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Nachschlagen, welche Pilze zu welcher Gruppe gehören
+
+*12. September 2026 · Version 1.141.0*
+
+Die Ampel rechnet je Pilzgruppe, und die Legende nennt sie — aber
+nirgends stand, **wer dazugehört**. Jetzt gibt es im Ampel-Blatt auf der
+Karte eine aufklappbare Liste:
+
+> **Welche Gruppen?**
+> Steinpilz & Co. · 13,0 °C
+> Steinpilz · Maronenröhrling · Birkenpilz · Fichtenreizker · Herbsttrompete
+>
+> Pfifferling · 17,5 °C
+> Pfifferling
+
+Dazu steht dort, warum die übrigen Arten eine **graue** Ampel bekommen:
+Für sie ist noch nicht an unabhängigen Daten bestätigt, dass ein eigener
+Temperaturbereich besser passt.
+
+**Und drei Stellen haben wir richtiggestellt**, an denen die App noch das
+Gegenteil dessen behauptete, was sie tut — im Profil, auf der
+Lizenzseite und im Ampel-Blatt stand sinngemäß „rechnet für alle Arten
+gleich". Das stimmt seit dem letzten Update nicht mehr.
+
 ## Die Karte zeigt jetzt alle Pilzgruppen, nicht nur eine
 
 *12. September 2026 · Version 1.140.0*

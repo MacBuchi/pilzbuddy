@@ -138,8 +138,10 @@ void registerMapDataLicense() {
       'Standort, eine Art. Wir haben die Formel deshalb selbst '
       'gegengeprüft — an je 2000 Paaren aus echten Fundmeldungen und '
       'Vergleichstagen am selben Ort: An Fundtagen steht sie '
-      'verlässlich höher. Ob sie je Art unterschiedlich wirkt, ist '
-      'offen; deshalb rechnet sie für alle geprüften Arten gleich.\n\n'
+      'verlässlich höher. Seit 1.137.0 rechnet sie je Pilzgruppe: Das '
+      'eigene Temperaturfenster des Pfifferlings (17,5 °C) ist an '
+      'österreichischen und schweizerischen Meldungen bestätigt, die '
+      'an seiner Bestimmung nicht beteiligt waren.\n\n'
       'Die Wetterdaten dazu liefert der Deutsche Wetterdienst '
       '(eigener Eintrag oben).',
     );

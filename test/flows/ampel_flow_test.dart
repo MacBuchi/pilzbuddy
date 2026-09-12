@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/data/rain_grid_repository.dart';
 import 'package:pilzbuddy/features/ampel/ampel_map_providers.dart';
+import 'package:pilzbuddy/features/ampel/ampel_model.dart';
 import 'package:pilzbuddy/features/map/forest_data_providers.dart'
     show
         ForestFillImage,
@@ -518,6 +519,52 @@ void main() {
         reason: 'das Steinpilz-Modell ist für Holzbewohner kategorisch '
             'falsch — Konzept, Artenklassifikation');
     expect(find.textContaining(': günstig'), findsNothing);
+  });
+
+  testWidgets('das Ampel-Blatt listet auf, welche Arten zu welcher '
+      'Gruppe gehören', (tester) async {
+    // **Die Frage kommt, wenn die Karte leuchtet** (Betreiber,
+    // 2026-09-12): „Steinpilz & Co." steht in der Legende, aber
+    // nirgends stand, wer dazugehört und warum andere grau bleiben.
+    //
+    // Geprüft wird auch, dass die Liste AUS DEM MODELL kommt: Steht
+    // dort eine Art, die nicht in `ampelSpeciesClass` ist, oder fehlt
+    // eine, war sie abgeschrieben — und genau diese Falle hat dieselbe
+    // Datei bis heute vorgeführt.
+    final settings = FakeSettings(ampelPreviewEnabled: true);
+    final backend = FakeBackend();
+    backend.signInAs(backend.addUser(username: 'testpilz').id);
+    await pumpApp(tester, backend, settings: settings);
+    await openLayerSheet(tester, 'Pilzampel');
+
+    // Zugeklappt steht die Liste nicht da — sie ist eine Antwort auf
+    // eine Frage, nicht der erste Satz.
+    expect(find.textContaining('Steinpilz · Maronenröhrling'), findsNothing);
+
+    final opener = find.text('Welche Gruppen?');
+    await tester.ensureVisible(opener);
+    await settle(tester);
+    await tester.tap(opener);
+    await settle(tester);
+
+    for (final klass in ampelShippedClasses) {
+      expect(
+          find.textContaining('${klass.name} · '
+              '${klass.optimumC.toStringAsFixed(1).replaceAll('.', ',')} °C'),
+          findsOneWidget,
+          reason: '${klass.name} fehlt in der Auflistung');
+    }
+    expect(find.textContaining('Steinpilz · Maronenröhrling'),
+        findsOneWidget);
+    expect(find.textContaining('lieber grau als erfunden'), findsOneWidget);
+
+    // Und der alte, falsche Satz ist weg: Die Fläche zeigt seit 1.140.0
+    // das Maximum aller Klassen, nicht das Herbstfenster.
+    expect(find.textContaining('Bedingungen für Steinpilz & Co. gerade '
+        'stimmen'), findsNothing);
+    expect(
+        find.textContaining('für mindestens eine Pilzgruppe gerade stimmen'),
+        findsOneWidget);
   });
 
   testWidgets('Karten-Ampel im eigenen Blatt: schaltet den Wald ein, '

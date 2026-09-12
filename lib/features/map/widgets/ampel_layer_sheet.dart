@@ -20,6 +20,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/app_colors.dart';
 import '../../ampel/ampel_map_providers.dart';
+import '../../../core/mushroom_species.dart';
+import '../../ampel/ampel_model.dart';
 
 Future<void> showAmpelLayerSheet(BuildContext context) {
   return showModalBottomSheet<void>(
@@ -76,12 +78,18 @@ class _AmpelLayerSheet extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 6, 20, 8),
               child: Text(
-                'Lässt die Waldwaben dort leuchten, wo die Bedingungen für '
-                'Steinpilz & Co. gerade stimmen.',
+                // **Korrigiert am 2026-09-12.** Hier stand „für
+                // Steinpilz & Co.", und das war seit 1.140.0 falsch: Die
+                // Fläche zeigt das Maximum ALLER Klassen. Kein Test hat
+                // es gefangen — Tests prüfen Verhalten, nicht
+                // Beschreibungen.
+                'Lässt die Waldwaben dort leuchten, wo die Bedingungen '
+                'für mindestens eine Pilzgruppe gerade stimmen.',
                 style: theme.textTheme.bodyMedium
                     ?.copyWith(color: theme.hintColor),
               ),
             ),
+            const _ClassList(),
             Flexible(
               child: ListView(
                 shrinkWrap: true,
@@ -171,6 +179,86 @@ class _Limit extends StatelessWidget {
       leading: Icon(icon, size: 20, color: AppColors.barkBrown),
       title: Text(title, style: theme.textTheme.titleSmall),
       subtitle: Text(text),
+    );
+  }
+}
+
+/// **Welche Arten zu welcher Gruppe gehören** — aufklappbar, weil die
+/// Frage erst kommt, wenn die Karte leuchtet (Betreiber, 2026-09-12).
+///
+/// **Die Liste kommt aus dem Modellkern**, nicht aus abgeschriebenem
+/// Text. Genau das war der Fehler, den diese Datei bis heute selbst
+/// vorgeführt hat: Sie behauptete „für Steinpilz & Co.", während die
+/// Fläche längst das Maximum aller Klassen zeigte. Eine Aufzählung von
+/// Hand wäre dieselbe Falle, nur länger.
+class _ClassList extends StatelessWidget {
+  const _ClassList();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    // Arten je Klasse, in der Reihenfolge der Artenliste — so stehen
+    // sie auch im Blatt und in der Suche.
+    final members = <String, List<String>>{};
+    for (final entry in ampelSpeciesClass.entries) {
+      members.putIfAbsent(entry.value, () => []).add(entry.key);
+    }
+    // Echte Arten ohne Klasse — Zweitnamen erben über `sameAs` und
+    // zählen nicht doppelt.
+    final greyCount = kBekannteArten
+        .where((s) => !s.isSynonym && ampelClassFor(s.name) == null)
+        .length;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 12),
+        childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+        dense: true,
+        title: Text('Welche Gruppen?',
+            style: theme.textTheme.titleSmall),
+        children: [
+          for (final entry in ampelClasses.entries)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${entry.value.name} · '
+                    '${entry.value.optimumC.toStringAsFixed(1)
+                        .replaceAll('.', ',')} °C',
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  Text(
+                    (members[entry.key] ?? const []).join(' · '),
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.hintColor),
+                  ),
+                ],
+              ),
+            ),
+          // **Die graue Ampel braucht ihren Grund** — „nicht geprüft"
+          // im Spot-Blatt sagt nicht, was fehlt.
+          //
+          // **Die Zahl ist GEZÄHLT, nicht geschrieben.** Ein Satz, der
+          // „Hallimasch, Stockschwämmchen und Austernseitling" aufführt,
+          // wäre morgen falsch — sobald eine dieser Klassen ihren
+          // Nachweis hat. Genau diese Sorte Satz stand über dieser
+          // Zeile und behauptete „für Steinpilz & Co.", während die
+          // Fläche längst alle Klassen rechnete.
+          if (greyCount > 0)
+            Text(
+              'Die übrigen $greyCount Arten bekommen eine graue Ampel: '
+              'Für sie ist noch nicht an unabhängigen Daten bestätigt, '
+              'dass ein eigener Temperaturbereich besser passt. Bis '
+              'dahin sagt die Ampel für sie nichts — lieber grau als '
+              'erfunden.',
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.hintColor),
+            ),
+        ],
+      ),
     );
   }
 }
