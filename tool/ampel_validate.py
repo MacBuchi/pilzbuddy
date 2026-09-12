@@ -182,7 +182,20 @@ FIT_UNTIL_YEAR = 2018
 
 # Der Gitterlauf. Bewusst grob: Eine feinere Auflösung als ein halbes
 # Kelvin behauptet eine Genauigkeit, die 300–2000 Paare nicht hergeben.
-FIT_GRID_MIN_C = 2.0
+#
+# **Die Untergrenze lag bis 2026-09-11 bei 2 °C und war zu hoch.** Der
+# Austernseitling landete dort auf dem Boden, und die `at_edge`-Warnung
+# hat genau dafür angeschlagen: Ein Gipfel am Gitterrand ist keiner. Die
+# Nachschau über einen weiteren Bereich zeigte den echten Gipfel bei
+# etwa 0 °C — die Kurve flacht darunter ab, läuft also nicht weiter
+# davon. −5 °C gibt ihm Luft, ohne ins Sinnlose zu reichen: Ein Mittel
+# über zwanzig Tage unter −5 °C kommt in unseren Reihen praktisch nicht
+# vor.
+#
+# Das ist KEINE Anpassung an ein Ergebnis. Die Grenze wurde verschoben,
+# weil der Wächter sie als bindend gemeldet hat — hätte er geschwiegen,
+# wäre sie geblieben.
+FIT_GRID_MIN_C = -5.0
 FIT_GRID_MAX_C = 20.0
 FIT_GRID_STEP_C = 0.5
 
@@ -1426,7 +1439,11 @@ def render_fit_report(rows, fetched_on):
             out.append(f"| {row['name']} | {row['n_fit']} | {row['n_test']} | "
                        "— | — | — | — | zu wenig Material |")
             continue
-        band = f"{row['best_set'][0]:.1f}–{row['best_set'][1]:.1f}"
+        low, high = row["best_set"]
+        # „-2.0–-1.5" ist nicht lesbar, seit der Gitterboden negativ sein
+        # darf. Ein Band aus einem einzigen Wert schreibt sich als Wert.
+        band = (f"{low:.1f}" if low == high
+                else f"{low:.1f} bis {high:.1f}")
         if row["at_edge"]:
             band += " ⚠ am Gitterrand"
         ci = row.get("ci") or {}

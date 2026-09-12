@@ -69,7 +69,26 @@ schreibt genau das in seinen Erklärtext: gilt für fleischige, vor allem
 > zeigt. Ein Kandidat steht schon da: Der Austernseitling verhält sich
 > genau so, wie dieser Absatz es vorhersagt — das ist eine Art, nicht drei.
 >
-> **Nachtrag 2026-09-11:** Genau diese Gegenprobe ist jetzt als Prüfplan ausgeschrieben — `docs/pilzampel-artenfenster.md`. Die Literaturrecherche dazu hat kein Artenfenster geliefert, aber die Falle benannt, in die man dabei tritt: Fast alle publizierten „Temperaturoptima" sind Myzel-Wachstumsoptima aus dem Labor (24–28 °C) und zeigen beim Austernseitling sogar in die Gegenrichtung — 25 °C wachsen, ~15 °C fruchten.
+> **Nachtrag 2026-09-12:** Die Gegenprobe ist gelaufen, und der Absatz
+> darüber ist **bestätigt** — an genau der Art, die er vorhergesagt hat.
+> Der Austernseitling fruchtet bei **−1,8 °C** (gemessen,
+> `docs/pilzampel-artenfenster-messung.md`), seine Trennschärfe steigt
+> mit eigenem Fenster von 0,482 auf 0,614, und mit zunehmender Wärme
+> fällt sie unter Zufall. Hallimasch und Stockschwämmchen teilen dagegen
+> das Herbstfenster; sie waren die falsche Gegenprobe, nicht der falsche
+> Befund.
+>
+> **Die Umkehrung gilt aber auch und begrenzt das Ganze:** Die sechs
+> Mykorrhiza-Arten unterscheiden sich untereinander NICHT — 12,5 bis
+> 14,5 °C, jede Differenz enthält die Null. Was die Daten tragen, ist
+> eine Unterscheidung nach GILDE oder Typ, nicht nach Art.
+>
+> Die Literaturrecherche dazu (`docs/pilzampel-artenfenster.md`) hat kein
+> Artenfenster geliefert, aber die Falle benannt, in die man dabei tritt:
+> Fast alle publizierten „Temperaturoptima" sind Myzel-Wachstumsoptima
+> aus dem Labor (24–28 °C) und zeigen beim Austernseitling in die
+> Gegenrichtung — 25 °C wachsen, ~15 °C fruchten. Unsere −1,8 °C sind
+> eine Aussage über die FRUCHTUNG im Feld und widersprechen dem nicht.
 
 ### Die belastbarsten Zahlen stammen aus einem deutschen Buchenwald
 
