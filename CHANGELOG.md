@@ -7,6 +7,34 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Karte zeigt jetzt alle Pilzgruppen, nicht nur eine
+
+*12. September 2026 · Version 1.140.0*
+
+Seit die Ampel je Pilzgruppe rechnet, zeigte die **Karte** trotzdem nur
+eine davon — das Fenster für Steinpilz & Co. Wer Pfifferlinge suchte, las
+die Farben als für sich gültig, obwohl sie es nicht waren.
+
+Jetzt zeigt die Fläche die **beste** Gruppe: günstig, sobald es für
+mindestens eine günstig wäre. Und die **ausgeklappte Legende** sagt, für
+welche:
+
+> am Fadenkreuz
+> Steinpilz & Co.  verhalten
+> Pfifferling      günstig
+
+Die eingeklappte Schiene bleibt wie sie war. „Was ist hier?" zeigt
+ebenfalls eine Zeile je Gruppe.
+
+**Die Karte wird dadurch öfter grün** — an rund 30 statt 20 Prozent der
+Tage. Das ist kein neuer Optimismus, sondern eine weitere Aussage: Sie
+gilt jetzt für zwei Gruppen statt für eine. An den eigenen Spots ändert
+sich nichts, dort rechnet der Hinweis weiter je Art und mit Saison.
+
+**Und im Spot-Blatt steht jetzt eine Saisonkurve je Art**, wenn du an
+einer Stelle mehrere gefunden hast. Bisher stand dort nur die des
+jüngsten Fundes, während die Ampel darüber schon alle zeigte.
+
 ## Der Igelstachelbart hat jetzt auch eine Saisonkurve
 
 *12. September 2026 · Version 1.139.0*

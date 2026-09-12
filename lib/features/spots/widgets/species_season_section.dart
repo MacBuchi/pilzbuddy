@@ -22,19 +22,36 @@ import '../../../core/season_curves.dart';
 class SpeciesSeasonSection extends StatelessWidget {
   const SpeciesSeasonSection({super.key, required this.species, this.today});
 
-  /// Die Art des letzten Funds — dieselbe Wahl wie beim Icon und der
-  /// Zweitnamen-Zeile des Blatts.
-  final String? species;
+  /// Die Arten des Spots, jüngster Fund zuerst — dieselbe Liste, mit der
+  /// auch die Ampel darüber rechnet (`scanSpeciesOf`).
+  ///
+  /// **Eine LISTE seit 1.140.0** (Betreiber, 2026-09-12: „Braucht es
+  /// mehrere Saisonkurven, wenn mehrere Pilzarten an der gleichen
+  /// Fundstelle eingetragen sind?"). Bis dahin stand hier die Art des
+  /// LETZTEN Funds, während die Ampel darüber seit 1.138.0 schon eine
+  /// Zeile je Art zeigte — an einer Stelle mit Pfifferlingen und
+  /// Steinpilzen sagte das Blatt also zweimal etwas über zwei Pilze und
+  /// einmal über einen.
+  final List<String?> species;
 
   /// Nur für Tests: Ohne Angabe zählt der heutige Monat.
   final DateTime? today;
 
   @override
   Widget build(BuildContext context) {
-    final curve = seasonCurveFor(species);
-    if (curve == null) return const SizedBox.shrink();
+    // Jede Art einmal, in der Reihenfolge der Liste, und nur die mit
+    // einer belastbaren Kurve.
+    final seen = <String>{};
+    final curves = <({String name, SeasonCurve curve})>[];
+    for (final entry in species) {
+      final curve = seasonCurveFor(entry);
+      if (curve == null) continue;
+      final name = canonicalSpecies(entry)!;
+      if (!seen.add(name)) continue;
+      curves.add((name: name, curve: curve));
+    }
+    if (curves.isEmpty) return const SizedBox.shrink();
 
-    final name = canonicalSpecies(species)!;
     final theme = Theme.of(context);
     final month = (today ?? DateTime.now()).month - 1;
 
@@ -42,19 +59,28 @@ class SpeciesSeasonSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Divider(height: 24),
-        Text('Wann diese Art gemeldet wird',
+        Text(
+            curves.length == 1
+                ? 'Wann diese Art gemeldet wird'
+                : 'Wann diese Arten gemeldet werden',
             style: theme.textTheme.titleSmall
                 ?.copyWith(color: theme.colorScheme.primary)),
-        const SizedBox(height: 8),
-        _Bars(months: curve.months, currentMonth: month),
-        const SizedBox(height: 8),
-        Text(
-          _sentence(name, curve),
-          style: theme.textTheme.bodySmall,
-        ),
+        for (final entry in curves) ...[
+          const SizedBox(height: 8),
+          _Bars(months: entry.curve.months, currentMonth: month),
+          const SizedBox(height: 8),
+          Text(
+            _sentence(entry.name, entry.curve),
+            style: theme.textTheme.bodySmall,
+          ),
+        ],
         const SizedBox(height: 2),
         Text(
-          _source(curve),
+          // **Einmal unter allen Kurven.** Die Quelle gilt den Daten,
+          // nicht der Art; unter jedem Diagramm wiederholt wäre sie
+          // Lärm. Genommen wird die erste — bei mehreren Kurven ist der
+          // Satz für alle derselbe.
+          _source(curves.first.curve),
           style: theme.textTheme.bodySmall
               ?.copyWith(color: theme.hintColor, fontSize: 11),
         ),

@@ -751,6 +751,32 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   die Ampel an einem EIGENEN Spot günstig steht
   (`lib/features/ampel/ampel_scan.dart`). Vier Dinge, die man wissen
   muss:
+  - **Die KARTE zeigt das Maximum über alle Klassen** (seit 1.140.0,
+    Betreiber 2026-09-12: „soll das Maximum für alle Klassen wiedergeben
+    und nicht nur für eine"). Die Regel steht in `ampelBestOf`
+    (Gitterweg) und `ampelBestReadingFrom` (volle Ablesung) — und NUR
+    dort; Fläche, Legende und „Was ist hier?" müssen dieselbe Antwort
+    geben, `test/ampel_fill_test.dart` hält sie Zelle für Zelle zusammen
+    (#279). Vier Dinge:
+    - **Kein Saison-Tor auf der Fläche** (Betreiber: „Saisonkurve hängt
+      immer an der Pilzart, und die gibt es auf der reinen Karte
+      nicht"). Die Fläche sagt rein etwas über BEDINGUNGEN. An den
+      Spots bleibt die Paarung Klasse × Saison.
+    - **Bei Gleichstand gewinnt die frühere Klasse, nicht der höhere
+      Score.** Scores verschiedener Klassen sind nicht vergleichbar:
+      Jede Schwelle ist auf ihre eigene Verteilung kalibriert, 0,55
+      heißt im Herbstfenster „günstig" und im Sommerfenster
+      „verhalten". Aus demselben Grund sortiert das Blatt nach STUFE
+      und nicht nach Score.
+    - **Die Häufigkeit steigt, und das ist gewollt:** 19,9 % → 30,2 %
+      günstige Vergleichstage (`docs/pilzampel-schwellen-messung.md`).
+      Es wird mehr behauptet — „für mindestens eine von zwei Gruppen" —,
+      also gilt es öfter. Wer eine Klasse hinzufügt, misst die Quote neu.
+    - **Die Klassen stehen einzeln nur in der AUSGEKLAPPTEN Legende**
+      (Betreiberauflage). `_AmpelSection` steckt ohnehin nur im
+      `_LegendPanel`; die 40-px-Schiene trägt ihr Urteil in der Form des
+      Daumens, eine Aufzählung passt dort nicht hin. Ein Test prüft
+      beide Richtungen.
   - **Die Einheit des Modells ist die KLASSE, nicht die Art** (seit
     1.137.0, Betreiber 2026-09-12). Eine Klasse ist ein
     Temperaturfenster; die beiden Stufenschwellen folgen daraus als

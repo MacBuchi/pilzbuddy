@@ -400,13 +400,17 @@ class AmpelLevelGrid {
       mean += lapseCorrectionK(
           stationHeightM: stationHeightM[i], targetHeightM: heightM);
     }
-    // **Die Karte rechnet immer mit dem Herbstfenster.** Eine Fläche
-    // kennt keine Art; die Frage dort ist die der Gilde („Steinpilz &
-    // Co."), und genau daran ist sie validiert. Arten-Klassen auf der
-    // blanken Karte brauchen erst ein Zuordnungsmodell — solange es das
-    // nicht gibt, wäre jede andere Wahl geraten.
-    return ampelLevelOf(
-        rainFactor[i] * ampelBellOfMean(mean, optimumC: ampelOptimumC),
-        klass: ampelHerbstClass);
+    // **Die Fläche zeigt das MAXIMUM über alle Klassen** (Betreiber,
+    // 2026-09-12). Sie kennt keine Art, kann aber jede ausgelieferte
+    // Klasse rechnen; die Aussage lautet „für mindestens eine Gruppe
+    // wären die Bedingungen günstig". Die Regel steht in
+    // `ampelBestOf` und NUR dort — Fläche, Legende und „Was ist hier?"
+    // müssen dieselbe Antwort geben.
+    //
+    // Bis 1.139.0 rechnete die Karte allein das Herbstfenster und sagte
+    // das nirgends. Seit es Klassen gibt, war das eine engere Aussage
+    // als früher: Wer Pfifferlinge suchte, las die Farben als für sich
+    // gültig.
+    return ampelBestOf(rainFactor: rainFactor[i], meanC: mean).level;
   }
 }

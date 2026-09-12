@@ -83,7 +83,7 @@ void main() {
                     // Fester Tag, damit die Hervorhebung des laufenden
                     // Monats im Bild reproduzierbar ist.
                     SpeciesSeasonSection(
-                        species: species, today: DateTime(2026, 8, 5)),
+                        species: [species], today: DateTime(2026, 8, 5)),
                   ],
                 ],
               ),

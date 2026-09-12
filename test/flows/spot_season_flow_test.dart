@@ -12,17 +12,23 @@ import '../fakes/fake_backend.dart';
 import '../fakes/test_app.dart';
 
 void main() {
-  FakeBackend loggedInWithSpot(String? species, {String name = 'Buchenhang'}) {
+  FakeBackend loggedInWithSpot(String? species,
+      {String name = 'Buchenhang', String? alsoSpecies}) {
     final backend = FakeBackend();
     final me = backend.addUser(username: 'testpilz');
     backend.signInAs(me.id);
-    backend.addSpot(
+    final id = backend.addSpot(
       ownerId: me.id,
       lat: 51.0,
       lng: 11.0,
       name: name,
       species: species,
+      foundOn: species == null ? null : DateTime.utc(2025, 9, 1),
     );
+    if (alsoSpecies != null) {
+      backend.addFindRow(id,
+          species: alsoSpecies, foundOn: DateTime.utc(2025, 7, 1));
+    }
     return backend;
   }
 
@@ -116,6 +122,26 @@ void main() {
     await openSpot(tester);
 
     expect(find.text('Wann diese Art gemeldet wird'), findsNothing);
+  });
+
+  testWidgets('mehrere Arten am Spot: eine Kurve je Art', (tester) async {
+    // **Sonst sagt dasselbe Blatt zwei verschiedene Dinge.** Die Ampel
+    // darüber zeigt seit 1.138.0 eine Zeile je Art; die Saison stand
+    // bis 1.140.0 nur für den jüngsten Fund da. An einer Stelle mit
+    // Pfifferlingen und Steinpilzen las man oben über zwei Pilze und
+    // unten über einen (Betreiber, 2026-09-12).
+    await pumpApp(tester,
+        loggedInWithSpot('Steinpilz', alsoSpecies: 'Pfifferling'));
+    await openSpot(tester);
+
+    expect(find.text('Wann diese Arten gemeldet werden'), findsOneWidget,
+        reason: 'die Überschrift zählt mit');
+    expect(find.textContaining('Steinpilz wird am häufigsten'),
+        findsOneWidget);
+    expect(find.textContaining('Pfifferling wird am häufigsten'),
+        findsOneWidget);
+    // Die Quellenzeile gilt den DATEN, nicht der Art — einmal reicht.
+    expect(find.textContaining('GBIF'), findsOneWidget);
   });
 
   testWidgets('eine zu dünn belegte Art bekommt keine Kurve', (tester) async {

@@ -54,6 +54,11 @@ const ampelOptimumC = 13.0;
 /// Fenster an Vergleichstagen erzeugt
 /// (`docs/pilzampel-schwellen-messung.md`).
 typedef AmpelClass = ({
+  /// Wie die Klasse im Blatt und in der Legende heißt — deutsch, und
+  /// nach ihren MITGLIEDERN benannt, nicht nach einer Jahreszeit.
+  /// „Sommerpilze" behauptete eine ganze Gruppe; drin steht bislang ein
+  /// Pfifferling. Der Name wächst mit der Klasse.
+  String name,
   double optimumC,
   double verhaltenAbove,
   double guenstigAbove,
@@ -68,6 +73,7 @@ typedef AmpelClass = ({
 /// den Fenstern liegen dagegen Welten (0,512 gegen 0,038 beim
 /// Austernseitling).
 const ampelHerbstClass = (
+  name: 'Steinpilz & Co.',
   optimumC: ampelOptimumC,
   verhaltenAbove: 0.187,
   guenstigAbove: 0.512,
@@ -81,6 +87,7 @@ const ampelHerbstClass = (
 /// diesen Nachweis stünde er hier nicht: Gemessen wurde er, weil er in
 /// einer Tabelle auffiel, und das allein ist kein Befund.
 const ampelSommerClass = (
+  name: 'Pfifferling',
   optimumC: 17.5,
   verhaltenAbove: 0.287,
   guenstigAbove: 0.677,
@@ -90,6 +97,50 @@ const ampelClasses = <String, AmpelClass>{
   'herbst': ampelHerbstClass,
   'sommer': ampelSommerClass,
 };
+
+/// Alle ausgelieferten Klassen, in der Reihenfolge, in der sie bei
+/// Gleichstand gewinnen — Herbst zuerst, weil das der Stand war, den die
+/// App jahrelang allein gerechnet hat.
+const ampelShippedClasses = <AmpelClass>[
+  ampelHerbstClass,
+  ampelSommerClass,
+];
+
+/// Die beste Stufe über ALLE ausgelieferten Klassen — und welche sie
+/// trägt.
+///
+/// **Die Karte kennt keine Art** (Betreiber, 2026-09-12: „Die Pilzampel
+/// auf der Karte soll das Maximum für alle Klassen wiedergeben und nicht
+/// nur für eine, wie das Herbstfenster."). Sie kann aber jede Klasse
+/// rechnen und die beste zeigen; die Aussage lautet dann „für mindestens
+/// eine Gruppe wären die Bedingungen günstig".
+///
+/// **Kein Saison-Tor hier** (dieselbe Entscheidung): Die Saisonkurve
+/// hängt an der ART, und die gibt es nur an Fundstellen. Die Fläche sagt
+/// deshalb rein etwas über die Bedingungen und nichts über Vorkommen.
+///
+/// **Bei Gleichstand gewinnt die frühere Klasse, nicht der höhere
+/// Score.** Scores verschiedener Klassen sind nicht vergleichbar: Jede
+/// Schwelle ist auf ihre eigene Verteilung kalibriert, ein Score von
+/// 0,55 heißt im Herbstfenster „günstig" und im Sommerfenster
+/// „verhalten". Wer sie gegeneinander stellt, vergleicht Zentimeter mit
+/// Grad.
+({AmpelLevel level, AmpelClass klass}) ampelBestOf({
+  required double rainFactor,
+  required double meanC,
+}) {
+  var best = (
+    level: AmpelLevel.unguenstig,
+    klass: ampelShippedClasses.first,
+  );
+  for (final klass in ampelShippedClasses) {
+    final level = ampelLevelOf(
+        rainFactor * ampelBellOfMean(meanC, optimumC: klass.optimumC),
+        klass: klass);
+    if (level.index > best.level.index) best = (level: level, klass: klass);
+  }
+  return best;
+}
 
 /// **Nur Arten einer BESTÄTIGTEN Klasse stehen hier.** Hallimasch und
 /// Stockschwämmchen haben ein gemessenes Fenster (11,5 °C) und in

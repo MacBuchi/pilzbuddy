@@ -141,6 +141,21 @@ Ohne Kurven unter Schärfe 0,35 (Stockschwämmchen — eine flache Kurve hat kei
 **Was die Zahl trägt — und was nicht.** Die Rangfolge hält: Sommerfrüchter warm, Herbstarten um 13 °C, Winterfrüchter kalt. Der ZUSAMMENHANG ist aber nicht linear — von 9,3 auf 10,5 Monate fällt das Optimum um 2 K, von 9,3 auf 12,8 um 16. Eine Gerade durch diese Punkte zu legen und damit einer Art eine Gradzahl zuzuweisen wäre erfunden; sie einer **Klasse** zuzuordnen ist es nicht.
 
 
+## Wenn die Karte das Maximum aller Klassen zeigt
+
+Die Fläche kennt keine Art. Sie kann aber jede **bestätigte** Klasse rechnen und die beste zeigen — „günstig, sobald es für mindestens eine Gruppe günstig steht“. Was sich dadurch ändert, ist nicht die Trennschärfe (jede Klasse ist einzeln kalibriert), sondern die **Häufigkeit**.
+
+Gemessen an den Vergleichstagen der Prüfjahre, jede Art gleich gewichtet.
+
+| Anzeige | günstig | mindestens verhalten |
+|---|--:|--:|
+| nur Herbst (heute) | 19,9 % | 51,2 % |
+| nur sommer | 16,0 % | 43,2 % |
+| Maximum aller bestätigten | 30,2 % | 64,2 % |
+
+**Die Zeile „Maximum“ ist die Entscheidung**, nicht die Messung: Wie oft die Karte sprechen soll, ist eine Produktfrage. Steigt die Quote deutlich, lässt sie sich über das Quantil zurückdrehen — dann heißt „günstig“ aber für jede Klasse etwas Strengeres als am Spot, und Karte und Blatt sagten wieder Verschiedenes.
+
+
 ## Was diese Seite NICHT sagt
 
 Sie ändert `ampel_model.dart` nicht. Über eine Umstellung entscheidet der Betreiber mit diesen Zahlen; bis dahin bleibt der Gleichlauf „Zahl für Zahl“ zwischen Modellkern und Werkzeug unberührt.
