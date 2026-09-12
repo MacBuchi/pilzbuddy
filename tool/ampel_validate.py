@@ -83,6 +83,22 @@ MUSHROOM_OBSERVER = "https://mushroomobserver.org/api2/observations"
 
 SPECIES_FILE = "lib/core/mushroom_species.dart"
 
+# Der Modellkern der App. Gespiegelt wird er in diesem Werkzeug seit
+# jeher — geprüft wurde die Spiegelung nie.
+AMPEL_MODEL_FILE = "lib/features/ampel/ampel_model.dart"
+
+
+def repo_path(relative):
+    """Pfad im Repo, unabhängig vom Arbeitsverzeichnis des Aufrufers.
+
+    Die Artenliste wurde bis 2026-09-12 RELATIV gelesen; der Tranchen-
+    Läufer des August-Laufs musste dafür eigens ins Repo wechseln, und
+    ein Aufruf von woanders scheiterte an einer Datei statt an der
+    Sache.
+    """
+    return os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), relative)
+
 # Das RADOLAN-Archiv des DWD beginnt 2006; auch wenn hier Open-Meteo die
 # Werte liefert, bleibt es die Grenze, ab der sich jede Zahl gegen deutsche
 # Radardaten nachprüfen ließe.
@@ -366,8 +382,14 @@ def read_species(path=SPECIES_FILE):
 
     Dieselbe Quelle wie tool/season_curves.py — ein zweites Verzeichnis
     wäre ein zweiter Stand.
+
+    **Aufgelöst über [repo_path]**, nicht relativ zum Arbeitsverzeichnis.
+    Vorher scheiterte jeder Aufruf von außerhalb des Repos an einer
+    fehlenden Datei statt an der Sache; der Tranchen-Läufer des
+    August-Laufs musste deshalb eigens ins Repo wechseln.
     """
-    text = open(path, encoding="utf-8").read()
+    text = open(repo_path(path) if not os.path.isabs(path) else path,
+                encoding="utf-8").read()
     mapping = {}
     for match in re.finditer(r"KnownSpecies\('([^']+)',[^)]*?\)", text):
         entry, name = match.group(0), match.group(1)
@@ -791,6 +813,222 @@ def validate_species(name, sci, cache_dir=None, seed=42, progress=True):
         "median_found": statistics.median(p[0] for p in pairs),
         "median_control": statistics.median(p[1] for p in pairs),
     }
+
+
+# --- Was der Nutzer sieht: die drei Stufen ---------------------------------
+#
+# **Spiegel von `ampel_model.dart`**, wie der Rest dieser Datei. Die
+# Schwellen sind dort ausdrücklich GESETZT und nicht gemessen — und bis
+# 2026-09-12 kannte dieses Werkzeug sie überhaupt nicht.
+#
+# Das ist die Lücke, die der Vergleich schließt: Die AUC misst eine
+# RANGFOLGE („stand die Ampel am Fundtag höher als am Vergleichstag"),
+# die App zeigt aber drei STUFEN. Ein Modell kann die Rangfolge
+# verbessern, ohne dass ein einziger Nutzer je eine andere Farbe sieht —
+# und umgekehrt kann ein verschobenes Optimum die Verteilung so
+# verschieben, dass dieselben Schwellen etwas anderes bedeuten.
+VERHALTEN_ABOVE = 0.2
+GUENSTIG_ABOVE = 0.5
+
+LEVELS = ("ungünstig", "verhalten", "günstig")
+
+
+def ampel_level(score):
+    """0 = ungünstig, 1 = verhalten, 2 = günstig."""
+    if score >= GUENSTIG_ABOVE:
+        return 2
+    if score >= VERHALTEN_ABOVE:
+        return 1
+    return 0
+
+
+def compare_species(name, sci, cache_dir=None, seed=42, progress=True):
+    """Ausgelieferte Ampel gegen die mit eigenem Fenster — in STUFEN."""
+    drawn = collect_pairs(name, sci, cache_dir=cache_dir, seed=seed,
+                          progress=progress)
+    if drawn is None:
+        return None
+    fit, test = split_by_year(drawn["samples"])
+    if not fit or not test:
+        return {"name": name, "usable": False}
+    optimum = grid_optimum(fit)["optimum"]
+
+    def levels(kind, opt):
+        return [ampel_level(ampel_score(*s[kind], opt)) for s in test]
+
+    found_old, found_new = levels("found", OPTIMUM_C), levels("found", optimum)
+    ctrl_old, ctrl_new = levels("control", OPTIMUM_C), levels("control", optimum)
+    all_old = found_old + ctrl_old
+    all_new = found_new + ctrl_new
+    differ = sum(1 for a, b in zip(all_old, all_new) if a != b)
+
+    def share(values, at_least):
+        return sum(1 for v in values if v >= at_least) / len(values)
+
+    # **Ohne Vertrauensbereich ist ein Abstand von Prozentpunkten eine
+    # Behauptung.** Gezogen wird über JAHRE, wie überall hier: Funde
+    # desselben Jahres sind einander ähnlicher als Funde verschiedener
+    # Jahre. Und beide Modelle werden auf DERSELBEN Ziehung gerechnet,
+    # sonst ist ihre Differenz nicht gepaart.
+    def gap_ci(at_least, rounds=FIT_BOOTSTRAP_ROUNDS):
+        by_year = {}
+        for sample in test:
+            by_year.setdefault(sample["year"], []).append(sample)
+        years = sorted(by_year)
+        if len(years) < 2:
+            return None
+        rng = random.Random(seed)
+        deltas = []
+        for _ in range(rounds):
+            pool = [s for y in (rng.choice(years) for _ in years)
+                    for s in by_year[y]]
+            def gap(opt):
+                f = [ampel_level(ampel_score(*s["found"], opt)) for s in pool]
+                c = [ampel_level(ampel_score(*s["control"], opt))
+                     for s in pool]
+                return share(f, at_least) - share(c, at_least)
+            deltas.append(gap(optimum) - gap(OPTIMUM_C))
+        deltas.sort()
+        return (deltas[int(0.025 * len(deltas))],
+                deltas[min(len(deltas) - 1, int(0.975 * len(deltas)))])
+
+    return {
+        "name": name,
+        "usable": True,
+        "optimum": optimum,
+        "n_days": len(all_old),
+        # Der Anteil der Tage, an denen die Nutzerin eine ANDERE Stufe
+        # sähe. Das ist die Zahl, die über eine Umstellung entscheidet —
+        # nicht die AUC.
+        "differ": differ / len(all_old),
+        "guenstig_found_old": share(found_old, 2),
+        "guenstig_found_new": share(found_new, 2),
+        "guenstig_ctrl_old": share(ctrl_old, 2),
+        "guenstig_ctrl_new": share(ctrl_new, 2),
+        "verhalten_found_old": share(found_old, 1),
+        "verhalten_found_new": share(found_new, 1),
+        "verhalten_ctrl_old": share(ctrl_old, 1),
+        "verhalten_ctrl_new": share(ctrl_new, 1),
+        "gap_ci_guenstig": gap_ci(2),
+        "gap_ci_verhalten": gap_ci(1),
+    }
+
+
+def render_compare_report(rows, fetched_on):
+    out = ["# Ampel-Vergleich: Stufen statt Rangfolge", "",
+           f"Stand: {fetched_on} · Erzeugt von `tool/ampel_validate.py "
+           "--compare` · Messung: `docs/pilzampel-artenfenster-messung.md`",
+           "",
+           "Die Rückwärtsvalidierung misst eine **Rangfolge** (AUC). Die App "
+           "zeigt **drei Stufen**, und wo sie liegen, entscheiden zwei "
+           f"gesetzte Zahlen: ab {VERHALTEN_ABOVE} „verhalten\", ab "
+           f"{GUENSTIG_ABOVE} „günstig\". Diese Seite fragt deshalb das, "
+           "was die AUC nicht beantwortet: **Sähe jemand überhaupt etwas "
+           "anderes?**", "",
+           "Gerechnet auf den Prüfjahren (ab "
+           f"{FIT_UNTIL_YEAR + 1}), je Art auf Fund- UND Vergleichstagen.",
+           "",
+           "## Wie oft die Stufe wechselt", "",
+           "| Art | Optimum | Tage | andere Stufe |",
+           "|---|--:|--:|--:|"]
+    for row in rows:
+        if not row.get("usable"):
+            out.append(f"| {row['name']} | — | — | zu wenig Material |")
+            continue
+        out.append(f"| {row['name']} | {row['optimum']:.1f} °C | "
+                   f"{row['n_days']} | **{row['differ'] * 100:.1f} %** |")
+
+    out += ["", "## Trennt die neue Stufe besser?", "",
+            "„Günstig\" soll an Fundtagen häufiger stehen als an "
+            "Vergleichstagen. Der **Abstand** dieser beiden Anteile ist, "
+            "was die Stufe wert ist.", "",
+            "| Art | günstig an Fundtagen | an Vergleichstagen | Abstand | "
+            "Gewinn (95 %) |",
+            "|---|--:|--:|--:|--:|"]
+    for row in rows:
+        if not row.get("usable"):
+            continue
+        gap_old = row["guenstig_found_old"] - row["guenstig_ctrl_old"]
+        gap_new = row["guenstig_found_new"] - row["guenstig_ctrl_new"]
+        span = row.get("gap_ci_guenstig")
+        ci = (f" [{span[0] * 100:+.1f}, {span[1] * 100:+.1f}]"
+              if span else "")
+        out.append(
+            f"| {row['name']} | {row['guenstig_found_old'] * 100:.1f} → "
+            f"**{row['guenstig_found_new'] * 100:.1f} %** | "
+            f"{row['guenstig_ctrl_old'] * 100:.1f} → "
+            f"**{row['guenstig_ctrl_new'] * 100:.1f} %** | "
+            f"{gap_old * 100:+.1f} → **{gap_new * 100:+.1f} pp** | "
+            f"{(gap_new - gap_old) * 100:+.1f}{ci} |")
+
+    out += ["", "## Und dasselbe für „mindestens verhalten\"", "",
+            "| Art | an Fundtagen | an Vergleichstagen | Abstand | "
+            "Gewinn (95 %) |",
+            "|---|--:|--:|--:|--:|"]
+    for row in rows:
+        if not row.get("usable"):
+            continue
+        gap_old = row["verhalten_found_old"] - row["verhalten_ctrl_old"]
+        gap_new = row["verhalten_found_new"] - row["verhalten_ctrl_new"]
+        span = row.get("gap_ci_verhalten")
+        ci = (f" [{span[0] * 100:+.1f}, {span[1] * 100:+.1f}]"
+              if span else "")
+        out.append(
+            f"| {row['name']} | {row['verhalten_found_old'] * 100:.1f} → "
+            f"**{row['verhalten_found_new'] * 100:.1f} %** | "
+            f"{row['verhalten_ctrl_old'] * 100:.1f} → "
+            f"**{row['verhalten_ctrl_new'] * 100:.1f} %** | "
+            f"{gap_old * 100:+.1f} → **{gap_new * 100:+.1f} pp** | "
+            f"{(gap_new - gap_old) * 100:+.1f}{ci} |")
+
+    # --- Was daraus folgt, aus den Zahlen gerechnet -----------------------
+    usable = [r for r in rows if r.get("usable")]
+
+    def gains(row):
+        span = row.get("gap_ci_guenstig")
+        return bool(span) and span[0] > 0
+
+    winners = [r for r in usable if gains(r)]
+    # Wo „günstig" einbricht: Die Stufe verschwindet, statt besser zu
+    # treffen. Halbierung als Grenze — darunter redet niemand mehr von
+    # derselben Anzeige.
+    dark = [r for r in usable
+            if r["guenstig_found_old"] > 0
+            and r["guenstig_found_new"] < r["guenstig_found_old"] / 2]
+
+    out += ["", "## Was daraus folgt", ""]
+    if winners:
+        out += ["**Sichtbar besser wird es bei: "
+                + ", ".join(f"{r['name']} ({r['optimum']:.1f} °C, "
+                            f"{(r['guenstig_found_new'] - r['guenstig_ctrl_new'] - r['guenstig_found_old'] + r['guenstig_ctrl_old']) * 100:+.1f} pp)"
+                            for r in winners)
+                + ".** Bei allen übrigen enthält der Vertrauensbereich die "
+                "Null — ihr eigenes Fenster ändert für die Nutzerin nichts, "
+                "auch wenn die AUC sich rührt.", ""]
+    else:
+        out += ["**Keine Art wird sichtbar besser.** Bei allen enthält der "
+                "Vertrauensbereich des Gewinns die Null.", ""]
+    if dark:
+        out += ["**Und bei "
+                + ", ".join(r["name"] for r in dark)
+                + " verschwindet „günstig“ fast ganz** ("
+                + ", ".join(f"{r['guenstig_found_old'] * 100:.1f} % → "
+                            f"{r['guenstig_found_new'] * 100:.1f} % an "
+                            f"Fundtagen" for r in dark)
+                + ").", "",
+                f"Das ist kein Fehler der Anpassung, sondern der Schwellen: "
+                f"{VERHALTEN_ABOVE} und {GUENSTIG_ABOVE} sind für eine "
+                f"{OPTIMUM_C:.0f}-°C-Glocke gesetzt. Verschiebt man das "
+                "Optimum, verschiebt sich die ganze Werteverteilung mit, und "
+                "dieselben Zahlen bedeuten etwas anderes. **Ein eigenes "
+                "Fenster ohne eigene Schwellen macht die Ampel dunkel, nicht "
+                "besser** — und in einer Anzeige „günstig, sobald eine Klasse "
+                "günstig steht“ käme eine solche Klasse nie zum Zug.", ""]
+    out += ["Die Schwellen sind damit kein Umsetzungsdetail, sondern Teil "
+            "des Modells. Sie stehen bis heute als „GESETZT, nicht "
+            "gemessen“ in `ampel_model.dart`, und diese Seite ist die "
+            "erste Messung, die sie überhaupt anfasst.", ""]
+    return "\n".join(out) + "\n"
 
 
 # --- Geografischer Hold-out (docs/pilzampel-artenfenster.md) ---------------
@@ -1307,6 +1545,32 @@ def self_test():
             f"liefert: {sorted(missing)}")
     assert "best_set" in keys_read(render_fit_report, holders), \
         "die Prüfung selbst muss etwas zu prüfen haben"
+
+    # **Die Spiegel-Regel, zum ersten Mal geprüft.** Beide Dateiköpfe
+    # behaupten seit jeher, dieses Werkzeug rechne Zahl für Zahl
+    # dasselbe wie `ampel_model.dart` — und niemand hat es je
+    # nachgerechnet. Eine Konstante, die nur in einer der beiden Dateien
+    # geändert wird, macht die Validierung zur Aussage über ein Modell,
+    # das die App nicht rechnet. Genau das ist der teuerste stille
+    # Fehler, den dieses Projekt hier haben kann.
+    dart = open(repo_path(AMPEL_MODEL_FILE), encoding="utf-8").read()
+    spiegel = {
+        "ampelRainWindow": RAIN_WINDOW,
+        "ampelTempWindow": TEMP_WINDOW,
+        "ampelOptimumC": OPTIMUM_C,
+        "ampelTempSigma": TEMP_SIGMA,
+        "ampelRainSaturationMm": RAIN_SATURATION_MM,
+        "ampelVerhaltenAbove": VERHALTEN_ABOVE,
+        "ampelGuenstigAbove": GUENSTIG_ABOVE,
+    }
+    for const, here in spiegel.items():
+        found = re.search(rf"const {const} = ([\d.]+);", dart)
+        assert found, f"{const} steht nicht mehr in {AMPEL_MODEL_FILE}"
+        there = float(found.group(1))
+        assert there == float(here), (
+            f"Spiegel gebrochen: {const} ist in Dart {there}, hier {here}. "
+            f"Die Validierung gälte dann einem Modell, das die App nicht "
+            f"rechnet.")
 
     # --- Anpassung je Art (docs/pilzampel-artenfenster.md) ---
     #
@@ -1878,6 +2142,9 @@ def main():
                         help="Temperaturoptimum je Art anpassen und "
                              "auf getrennten Jahren prüfen "
                              "(docs/pilzampel-artenfenster.md)")
+    parser.add_argument("--compare", action="store_true",
+                        help="Ausgelieferte Ampel gegen die mit eigenem "
+                             "Fenster — gemessen in STUFEN, nicht in AUC")
     parser.add_argument("--holdout", default=None,
                         help="Länderkürzel (z. B. AT,CH): in Deutschland "
                              "anpassen, dort prüfen. Braucht --only.")
@@ -1907,6 +2174,29 @@ def main():
     # beantwortet eine andere Frage (`docs/pilzampel-artenfenster.md`) und
     # schreibt einen anderen Bericht; beides in einem Aufruf zu mischen
     # hieße, zwei Ergebnisse in eine Datei zu schreiben.
+    if args.compare:
+        wanted = MYCORRHIZAL + WOOD_DWELLERS
+        if args.only:
+            wanted = [n.strip() for n in args.only.split(",") if n.strip()]
+        print("Ampel-Vergleich in Stufen:", file=sys.stderr)
+        rows = [row for row in (
+            compare_species(name, mapping[name], args.cache, args.seed)
+            for name in wanted if name in mapping) if row]
+        report = render_compare_report(rows, time.strftime("%Y-%m-%d"))
+        if args.out:
+            open(args.out, "w", encoding="utf-8").write(report)
+            print(f"\n{args.out} geschrieben", file=sys.stderr)
+        else:
+            print(report)
+        print("\nZusammenfassung:", file=sys.stderr)
+        for row in rows:
+            if not row.get("usable"):
+                continue
+            print(f"  {row['name']:20} {row['differ'] * 100:5.1f} % andere "
+                  f"Stufe   (Optimum {row['optimum']:5.1f} °C)",
+                  file=sys.stderr)
+        return
+
     if args.holdout:
         if not args.only:
             raise SystemExit("--holdout braucht --only: Der Hold-out prüft "
