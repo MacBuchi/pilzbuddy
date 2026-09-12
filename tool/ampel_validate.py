@@ -86,6 +86,7 @@ SPECIES_FILE = "lib/core/mushroom_species.dart"
 # Der Modellkern der App. Gespiegelt wird er in diesem Werkzeug seit
 # jeher — geprüft wurde die Spiegelung nie.
 AMPEL_MODEL_FILE = "lib/features/ampel/ampel_model.dart"
+SEASON_CURVES_FILE = "lib/core/season_curves.g.dart"
 
 
 def repo_path(relative):
@@ -183,6 +184,15 @@ WOOD_DWELLERS = [
 # 80-%-Quantil der Verteilung, die dieses Fenster an Vergleichstagen
 # erzeugt.
 #
+# **Nur BESTÄTIGTE Klassen tragen Zahlen.** Eine unbestätigte steht hier
+# mit Mitgliedern und Begründung, aber ohne Fenster und ohne Schwellen:
+# die kommen aus der Messung, wo sie gebraucht werden (`class_optimum`,
+# `class_thresholds`). Der Grund ist an einem Tag zweimal aufgetreten —
+# eine Konstante für eine Klasse, die die App nicht ausliefert, bewacht
+# nichts und lädt zum Raten ein. Erst stand dort ein von Hand gerundetes
+# Fenster, dann eines aus einer Berichtstabelle abgeschrieben, und jede
+# Korrektur verschob die Schwellen darunter gleich mit.
+#
 # Aufgenommen wird nur, was einen HOLD-OUT bestanden hat. „Sieht in der
 # Tabelle anders aus" reicht nicht — genau daran ist die
 # Pfifferling-Spur fast gescheitert, bis Österreich und die Schweiz sie
@@ -219,26 +229,14 @@ AMPEL_CLASSES = {
     # Sie stehen hier, damit der Bericht ihre Zahlen mitrechnet und die
     # Entscheidung auf Zahlen trifft statt auf Erinnerung.
     "herbst_holz": {
-        # Gemessen am 2026-09-12; `class_thresholds` rechnet beide Zahlen
-        # bei jedem Lauf nach und bricht ab, wenn sie gewandert sind.
-        "verhalten": 0.148,
-        "guenstig": 0.407,
-        # Median der Mitglieder-Optima (11,0 und 12,2). Bis zum
-        # 2026-09-12 stand hier 11,5 — von Hand gerundet, und damit die
-        # einzige erfundene Zahl in dieser Tabelle. `class_optimum`
-        # rechnet sie jetzt nach.
-        "optimum": 11.6,
+        # **Kein Fenster, keine Schwellen** — siehe den Tabellenkopf.
         "members": ["Hallimasch", "Stockschwämmchen"],
         "confirmed": False,
         "why": "nach dem Blick auf die Tabelle ausgewählt — dieselbe "
                "Lage wie beim Pfifferling vor seinem Hold-out",
     },
     "kalt": {
-        # Gemessen am 2026-09-12; `class_thresholds` rechnet beide Zahlen
-        # bei jedem Lauf nach und bricht ab, wenn sie gewandert sind.
-        "verhalten": 0.001,
-        "guenstig": 0.038,
-        "optimum": -3.2,
+        # **Kein Fenster, keine Schwellen** — siehe den Tabellenkopf.
         "members": ["Austernseitling"],
         "confirmed": False,
         "why": "Fenster gemessen, aber in Stufen unter der registrierten "
@@ -1404,10 +1402,13 @@ def threshold_species(name, sci, cache_dir=None, seed=42, progress=True):
         "guenstig_at": guenstig_at,
         "own_later": own_later,
         "klass": class_of(name),
-        "class_later": (
-            control_scores(test, AMPEL_CLASSES[class_of(name)]["optimum"],
-                           balanced=True)
-            if class_of(name) else None),
+        # Die Vergleichstage der Prüfjahre selbst — die Bewertung unter
+        # dem KLASSEN-Fenster kommt später (`attach_class_scores`), denn
+        # dieses Fenster entsteht erst aus den Optima ALLER Mitglieder.
+        # Sie hier zu rechnen ginge nur mit einer Konstante je Klasse,
+        # und genau die hat sich bei den unbestätigten als Einladung zum
+        # Raten erwiesen.
+        "test_samples": test,
         "ship_verhalten_ci": threshold_ci(SHIP_QUANTILE_VERHALTEN),
         "ship_guenstig_ci": threshold_ci(SHIP_QUANTILE_GUENSTIG),
         # Was die Nutzerin sähe — je Aufbau der Abstand Fund/Vergleich.
@@ -1493,6 +1494,50 @@ def class_optimum(rows, key):
     return statistics.median(fitted) if fitted else None
 
 
+def class_windows(rows):
+    """Das Fenster je Klasse — Konstante, wo die App eine ausliefert,
+    sonst gemessen.
+
+    **Die Reihenfolge ist die Aussage:** Für eine ausgelieferte Klasse
+    gilt die Konstante, und `verify_class_constants` prüft sie gegen
+    diese Messung. Für eine unbestätigte gilt die Messung selbst — dort
+    gibt es nichts auszuliefern, also auch nichts festzuschreiben.
+    """
+    out = {}
+    for key, klass in AMPEL_CLASSES.items():
+        measured = class_optimum(rows, key)
+        if measured is None:
+            continue
+        out[key] = {
+            "window": klass.get("optimum", measured),
+            "measured": measured,
+        }
+    return out
+
+
+def attach_class_scores(rows):
+    """Bewertet die Vergleichstage jeder Art unter ihrem KLASSEN-Fenster.
+
+    Zweiter Durchgang, und er muss einer sein: Das Fenster einer Klasse
+    ist der Median der Optima ihrer Mitglieder — es steht also erst
+    fest, wenn alle Arten gerechnet sind.
+    """
+    windows = class_windows(rows)
+    for row in rows:
+        key = row.get("klass") if row.get("usable") else None
+        samples = row.get("test_samples")
+        # `setdefault` statt Zuweisung: Im Selbsttest stehen gepflanzte
+        # Bewertungen in den Zeilen und keine Stichproben. Ein blindes
+        # Überschreiben machte sie dort lautlos zu `None`, und die
+        # Wächter prüften nichts mehr.
+        if key is None or key not in windows or samples is None:
+            row.setdefault("class_later", None)
+            continue
+        row["class_later"] = control_scores(
+            samples, windows[key]["window"], balanced=True)
+    return windows
+
+
 def class_thresholds(rows, quantiles, verify=True):
     """Die Schwellen je Klasse, aus den Vergleichstagen ALLER Mitglieder.
 
@@ -1523,6 +1568,7 @@ def class_thresholds(rows, quantiles, verify=True):
             "guenstig": quantile_at(values, weights, quantiles[1]),
             "members": members,
             "n": len(values),
+            "optimum_measured": class_optimum(rows, key),
         }
         # **Die Konstanten gegen die Daten, bei jedem Lauf** — dieselbe
         # Regel wie bei den Auslieferungs-Quantilen. Diese vier Zahlen
@@ -1530,19 +1576,47 @@ def class_thresholds(rows, quantiles, verify=True):
         # Quelle löst, wäre wieder ein „GESETZT, nicht gemessen".
         # Verglichen wird auf drei Stellen, denn genau so viele stehen
         # auch in Dart.
-        for field in ("verhalten", "guenstig") if verify else ():
-            expected = AMPEL_CLASSES[key].get(field)
-            if expected is None:
-                continue
-            if round(got[field], 3) != expected:
-                raise SystemExit(
-                    f"Klasse {key}: {field} gemessen "
-                    f"{round(got[field], 3)}, als Konstante steht "
-                    f"{expected}. Die Verteilung ist gewandert — "
-                    f"Konstante, Bericht UND ampel_model.dart gehören "
-                    f"zusammen neu gesetzt.")
         out[key] = got
+    if verify:
+        verify_class_constants(out)
     return out
+
+
+def verify_class_constants(measured):
+    """Konstanten gegen Daten — **alle Abweichungen auf einmal.**
+
+    Bis zum 2026-09-12 brach die Prüfung beim ersten Fund ab. Das ist
+    genau der Wächter, den man nach dem zweiten Mal abschaltet: Ein
+    geändertes Klassenfenster verschiebt auch die Schwelle darunter, es
+    gibt also selten nur EINE Abweichung — und jede kostete einen
+    zehnminütigen Lauf, um die nächste zu erfahren.
+    """
+    findings = []
+    for key, got in measured.items():
+        klass = AMPEL_CLASSES[key]
+        # Ohne Dart-Namen liefert die App die Klasse nicht aus — dann gibt
+        # es auch nichts, was auseinanderlaufen könnte.
+        if not klass.get("dart"):
+            continue
+        for field in ("verhalten", "guenstig"):
+            expected = klass.get(field)
+            if expected is not None and round(got[field], 3) != expected:
+                findings.append(
+                    f"  {key}.{field}: gemessen {round(got[field], 3)}, "
+                    f"Konstante {expected}")
+        if "optimum_measured" in got:
+            expected = klass["optimum"]
+            if abs(got["optimum_measured"] - expected) > 1e-9:
+                findings.append(
+                    f"  {key}.optimum: gemessen "
+                    f"{got['optimum_measured']!r} °C, Konstante "
+                    f"{expected!r} °C")
+    if findings:
+        raise SystemExit(
+            "Klassen-Konstanten passen nicht zu den Daten:\n"
+            + "\n".join(findings)
+            + "\n\nKonstante, Bericht UND ampel_model.dart gehören "
+              "zusammen neu gesetzt — nicht einzeln.")
 
 
 def render_threshold_report(rows, fetched_on):
@@ -1742,6 +1816,7 @@ def render_threshold_report(rows, fetched_on):
     # steht nur, welche Konstanten daraus folgen.
     ship = deployment_quantiles(rows)
     if ship:
+        attach_class_scores(rows)
         ship_v, ship_g = ship
         out += ["", "## Was ausgeliefert würde", "",
                 "**Betreiberentscheidung 2026-09-12: „gleich häufig "
@@ -1801,8 +1876,9 @@ def render_threshold_report(rows, fetched_on):
             got = klassen.get(key)
             if not got:
                 continue
+            window = klass.get("optimum", got.get("optimum_measured"))
             out.append(
-                f"| {key} | {klass['optimum']:.1f} °C | "
+                f"| {key} | {window:.1f} °C | "
                 f"{got['verhalten']:.3f} | {got['guenstig']:.3f} | "
                 f"{', '.join(got['members'])} | "
                 f"{'ja' if klass['confirmed'] else '**nein**'} |")
@@ -1817,6 +1893,57 @@ def render_threshold_report(rows, fetched_on):
         for key, klass in AMPEL_CLASSES.items():
             if key in klassen:
                 out.append(f"- **{key}** — {klass['why']}")
+
+    # --- Läuft das Fenster mit der Saison? ---------------------------
+    rule = season_rule(rows, read_season_curves())
+    if rule:
+        out += ["", "## Läuft das Fenster mit der Fruchtungszeit?", "",
+                "Die registrierte Zusatzprüfung aus "
+                "`docs/pilzampel-artenfenster.md` — und die Grundlage für "
+                "die Frage, ob Arten **ohne** eigene Messung einer Klasse "
+                "zugeordnet werden können. Die Saisonkurven sind an "
+                "keiner Anpassung beteiligt: Sie kommen aus "
+                "GBIF-Meldemonaten, die Fenster aus Wetterreihen.", "",
+                "Der mittlere Fruchtungsmonat wird auf dem **Kreis** "
+                "gebildet. Linear gemittelt landet der Austernseitling "
+                "mit seinem Dezembergipfel im Juni, also genau zwischen "
+                "seinen beiden Enden — und die Korrelation fällt von "
+                "−0,68 auf −0,07. Die „Schärfe“ ist die Länge des "
+                "Summenvektors: 1 heißt „alles in einem Monat“, 0 heißt "
+                "„über das Jahr verteilt“.", "",
+                "| Art | mittlerer Monat | Schärfe | Optimum |",
+                "|---|--:|--:|--:|"]
+        for point in sorted(rule["points"], key=lambda p: p["centre"]):
+            mark = "" if point["sharpness"] >= SEASON_SHARPNESS_MIN else " ⚠"
+            out.append(
+                f"| {point['name']}{mark} | {point['centre']:.1f} | "
+                f"{point['sharpness']:.2f} | {point['optimum']:.1f} °C |")
+        out += ["",
+                f"**Spearman über alle {rule['n_all']}: "
+                f"{rule['rho_all']:+.3f}**".replace(".", ","), ""]
+        if rule["dropped"]:
+            out += [
+                f"Ohne Kurven unter Schärfe "
+                f"{SEASON_SHARPNESS_MIN:.2f} ".replace(".", ",")
+                + f"({', '.join(rule['dropped'])} — eine flache Kurve hat "
+                  f"keine Saison, über die sich korrelieren ließe): "
+                  f"**{rule['rho_sharp']:+.3f}** bei n={rule['n_sharp']}"
+                  .replace(".", ","), "",
+                "**Diese Schwelle ist NACH dem Blick auf die Daten "
+                "gesetzt**, und das gehört dazugesagt. Was für sie "
+                "spricht: Die Lücke ist breit (0,29 gegen 0,69), es liegt "
+                "keine einzige Art dazwischen, und „flach“ ist eine "
+                "Eigenschaft der Kurve allein — sie kennt das Optimum "
+                "nicht. Was gegen sie spricht: Sie ist trotzdem eine "
+                "Entscheidung, die die Zahl verbessert hat.", ""]
+        out += ["**Was die Zahl trägt — und was nicht.** Die Rangfolge "
+                "hält: Sommerfrüchter warm, Herbstarten um 13 °C, "
+                "Winterfrüchter kalt. Der ZUSAMMENHANG ist aber nicht "
+                "linear — von 9,3 auf 10,5 Monate fällt das Optimum um "
+                "2 K, von 9,3 auf 12,8 um 16. Eine Gerade durch diese "
+                "Punkte zu legen und damit einer Art eine Gradzahl "
+                "zuzuweisen wäre erfunden; sie einer **Klasse** "
+                "zuzuordnen ist es nicht.", ""]
 
     out += ["", "## Was diese Seite NICHT sagt", "",
             "Sie ändert `ampel_model.dart` nicht. Über eine Umstellung "
@@ -2236,6 +2363,110 @@ def mushroom_observer_months(sci, progress=True):
     return counts
 
 
+def read_season_curves(path=SEASON_CURVES_FILE):
+    """Die ausgelieferten Saisonkurven — dieselbe Quelle wie die App.
+
+    Gelesen statt neu geholt: Die Kurven sind ein ERZEUGTES Asset
+    (`tool/season_curves.py`), und die Frage hier lautet, ob das, was in
+    der App steht, mit dem zusammenpasst, was gemessen wurde. Ein
+    frischer GBIF-Abruf beantwortete eine andere Frage.
+    """
+    text = open(repo_path(path), encoding="utf-8").read()
+    out = {}
+    for block in re.finditer(
+            r"^  '([^']+)': SeasonCurve\((.*?)\n  \),", text, re.M | re.S):
+        name, body = block.group(1), block.group(2)
+        months = re.search(r"months: \[([^\]]+)\]", body)
+        if not months:
+            continue
+        values = [int(v) for v in months.group(1).replace("\n", "").split(",")
+                  if v.strip()]
+        observations = re.search(r"observations: (\d+)", body)
+        peak = re.search(r"peakSupport: (\d+)", body)
+        out[name] = {
+            "months": values,
+            "observations": int(observations.group(1)) if observations else 0,
+            "peak_support": int(peak.group(1)) if peak else 0,
+        }
+    return out
+
+
+def season_centre(months):
+    """Mittlerer Fruchtungsmonat auf dem KREIS, plus Schärfe.
+
+    **Linear gemittelt ist das Unsinn**, und zwar gerade bei den Arten,
+    auf die es ankommt: Der Austernseitling fruchtet im Dezember, und
+    ein lineares Mittel über seine Zwölferreihe landet im Juni — genau
+    zwischen seinen beiden Enden. Dezember liegt neben Januar, also
+    werden die Monate als Winkel summiert.
+
+    Die **Schärfe** ist die Länge des Summenvektors: 1 heißt „alles in
+    einem Monat", 0 heißt „über das Jahr verteilt". Sie unterscheidet
+    eine Art ohne Saison von einer mit — das Stockschwämmchen liegt bei
+    0,29, alle anderen gemessenen Arten über 0,69.
+    """
+    total = sum(months)
+    if total == 0:
+        return None
+    x = sum(v * math.cos(2 * math.pi * i / 12)
+            for i, v in enumerate(months))
+    y = sum(v * math.sin(2 * math.pi * i / 12)
+            for i, v in enumerate(months))
+    centre = (math.degrees(math.atan2(y, x)) / 30) % 12 + 1
+    return {"centre": centre, "sharpness": math.hypot(x, y) / total}
+
+
+# Unter dieser Schärfe hat eine Kurve keine Saison, über die sich
+# korrelieren ließe. GESETZT, und zwar NACH dem Blick auf die Daten —
+# das gehört dazugesagt. Die Lücke ist allerdings breit: 0,29 gegen
+# 0,69, und dazwischen liegt keine einzige Art.
+SEASON_SHARPNESS_MIN = 0.35
+
+
+def season_rule(rows, curves):
+    """Läuft das gemessene Fenster mit der Fruchtungszeit?
+
+    Die registrierte Zusatzprüfung aus `docs/pilzampel-artenfenster.md`,
+    und die Grundlage dafür, Arten OHNE eigene Messung einer Klasse
+    zuzuordnen: Wenn die Saison das Fenster vorhersagt, muss nicht jede
+    der 91 Arten einzeln validiert werden.
+
+    Die Saisonkurven sind an keiner Anpassung beteiligt — sie kommen aus
+    GBIF-Meldemonaten, die Fenster aus Wetterreihen. Das macht die
+    Korrelation zu einer Aussage über zwei unabhängige Messungen.
+    """
+    points = []
+    for row in rows:
+        if not row.get("usable"):
+            continue
+        curve = curves.get(row["name"])
+        if curve is None:
+            continue
+        centre = season_centre(curve["months"])
+        if centre is None:
+            continue
+        points.append({
+            "name": row["name"],
+            "centre": centre["centre"],
+            "sharpness": centre["sharpness"],
+            "optimum": row["optimum"],
+        })
+    if len(points) < 3:
+        return None
+    sharp = [p for p in points if p["sharpness"] >= SEASON_SHARPNESS_MIN]
+    return {
+        "points": points,
+        "rho_all": spearman([p["centre"] for p in points],
+                            [p["optimum"] for p in points]),
+        "n_all": len(points),
+        "rho_sharp": spearman([p["centre"] for p in sharp],
+                              [p["optimum"] for p in sharp]),
+        "n_sharp": len(sharp),
+        "dropped": [p["name"] for p in points
+                    if p["sharpness"] < SEASON_SHARPNESS_MIN],
+    }
+
+
 def spearman(a, b):
     """Rangkorrelation zweier Zwölfer-Reihen, ohne Fremdpaket."""
     def ranks(values):
@@ -2517,6 +2748,65 @@ def self_test():
     assert erwartet in gezeigt, \
         f"die Auslieferungs-Schwellen stehen nicht als {erwartet} da"
 
+    # **Der zirkulare Monatsmittelwert.** Er ist der Grund, warum die
+    # Korrelation Saison↔Fenster überhaupt trägt: Linear gemittelt
+    # landet eine Dezemberart im Juni, und aus −0,83 wird −0,07.
+    # Gepflanzt: alles im Januar, alles im Juli, und die Hälfte im
+    # Dezember plus die Hälfte im Januar — deren Mitte MUSS der
+    # Jahreswechsel sein, nicht der Juni.
+    nur_januar = [100] + [0] * 11
+    assert abs(season_centre(nur_januar)["centre"] - 1.0) < 1e-9
+    assert season_centre(nur_januar)["sharpness"] == 1.0
+    nur_juli = [0] * 6 + [100] + [0] * 5
+    assert abs(season_centre(nur_juli)["centre"] - 7.0) < 1e-9
+    jahreswechsel = [50] + [0] * 10 + [50]
+    mitte = season_centre(jahreswechsel)["centre"]
+    assert mitte > 12.4 or mitte < 0.6, \
+        f"Dezember und Januar müssen sich am Jahreswechsel treffen, " \
+        f"nicht im Juni — gemessen {mitte:.1f}"
+    # Gleichverteilt: keine Saison, Schärfe ~0.
+    assert season_centre([100] * 12)["sharpness"] < 1e-9
+    assert season_centre([0] * 12) is None
+
+    # Und der Leser gegen das echte Asset.
+    curves = read_season_curves()
+    assert len(curves) > 80, f"nur {len(curves)} Kurven gelesen"
+    assert "Steinpilz" in curves and len(curves["Steinpilz"]["months"]) == 12
+    assert curves["Steinpilz"]["observations"] > 200
+
+    # **Der Wächter muss ALLE Abweichungen nennen, nicht die erste.**
+    # Ein geändertes Klassenfenster verschiebt auch die Schwelle
+    # darunter — es gibt selten nur eine. Bricht die Prüfung beim ersten
+    # Fund ab, kostet jede weitere einen zehnminütigen Lauf, und nach
+    # dem zweiten Mal schaltet man sie ab.
+    try:
+        verify_class_constants({
+            "herbst": {"verhalten": 0.0, "guenstig": 0.0,
+                       "optimum_measured": 99.0},
+            "sommer": {"verhalten": 0.0, "guenstig": 0.0},
+        })
+    except SystemExit as stop:
+        gemeldet = str(stop)
+        for erwartet in ("herbst.verhalten", "herbst.guenstig",
+                         "herbst.optimum", "sommer.verhalten",
+                         "sommer.guenstig"):
+            assert erwartet in gemeldet, \
+                f"{erwartet} fehlt in der Meldung:\n{gemeldet}"
+    else:
+        raise AssertionError("fünf falsche Konstanten müssen auffallen")
+
+    # **Und der Erfolgsfall.** Hier stand nach einem Umbau ein verirrtes
+    # `return out`, und der Selbsttest hat es nicht bemerkt, weil er nur
+    # den Fehlerpfad ging: Ein Wächter, der prüft, dass FALSCHE
+    # Konstanten auffallen, aber nicht, dass richtige durchgehen, stürzt
+    # bei heilem Code ab — nach zehn Minuten Rechnen.
+    verify_class_constants({
+        key: {"verhalten": klass["verhalten"],
+              "guenstig": klass["guenstig"],
+              "optimum_measured": klass["optimum"]}
+        for key, klass in AMPEL_CLASSES.items() if klass.get("dart")
+    })
+
     # **Das Fenster einer Klasse: jede Art eine Stimme.** Gepflanzt: eine
     # große Art bei 11 °C und eine kleine bei 15 °C. Der Median muss 13
     # sein; zählte die Stichprobengröße mit, käme 11 heraus — und das
@@ -2548,6 +2838,7 @@ def self_test():
 
     def member(name, value, count):
         return {"name": name, "usable": True, "klass": "herbst",
+                "optimum": AMPEL_CLASSES["herbst"]["optimum"],
                 "class_later": ([value] * count, [1.0] * count)}
 
     ungleich = [member("Steinpilz", 0.0, 900),
@@ -3384,25 +3675,14 @@ def main():
         # zu schreiben, dessen Zahlen niemand mehr zu Dart passen.
         ship = deployment_quantiles(rows)
         if ship:
+            attach_class_scores(rows)
             class_thresholds(rows, ship, verify=True)
-        # **Und das Fenster selbst.** Bis hierher wachte das Werkzeug
-        # über die Schwellen einer Klasse, nicht über ihr Optimum — und
-        # genau das war beim Entwurf der Klasse „herbst_holz" schon
-        # passiert: Dort stand 11,5 °C, von Hand zwischen 11,0 und 12,2
-        # gerundet. Eine erfundene Zahl in einer Tabelle, die sonst
-        # vollständig gemessen ist, ist die gefährlichste Sorte.
-        for key in AMPEL_CLASSES:
-            got = class_optimum(rows, key)
-            if got is None:
-                continue
-            expected = AMPEL_CLASSES[key]["optimum"]
-            if abs(got - expected) > 1e-9:
-                raise SystemExit(
-                    f"Klasse {key}: Fenster gemessen {got:.2f} °C, als "
-                    f"Konstante steht {expected} °C. Der Median der "
-                    f"Mitglieder-Optima ist die Quelle — Konstante, "
-                    f"Bericht UND ampel_model.dart gehören zusammen neu "
-                    f"gesetzt.")
+        # Fenster UND Schwellen jeder Klasse gegen die Daten — in EINEM
+        # Durchgang, damit ein Lauf alle Abweichungen nennt. Bis hierher
+        # wachte das Werkzeug nur über die Schwellen; das Fenster der
+        # Klasse „herbst_holz" war deshalb mit 11,5 °C von Hand zwischen
+        # 11,0 und 12,2 gerundet — die einzige erfundene Zahl in einer
+        # sonst vollständig gemessenen Tabelle.
         report = render_threshold_report(rows, time.strftime("%Y-%m-%d"))
         if args.out:
             open(args.out, "w", encoding="utf-8").write(report)

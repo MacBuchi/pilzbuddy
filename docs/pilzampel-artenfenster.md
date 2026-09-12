@@ -292,19 +292,25 @@ Schwelle). Zu belegen ist also das FENSTER — die Schwelle folgt daraus
 und braucht keine eigene Prüfung.
 
 > **Vorhersage, vor der Messung.** Das an deutschen Funden angepasste
-> Fenster der Klasse (**11,6 °C** — der Median der Optima ihrer
-> Mitglieder, 11,0 und 12,2) trennt auch in **Österreich und der
-> Schweiz** besser als die 13 °C — gepaarte AUC dort mindestens
-> **+0,05** über der mit 13 °C, und zwar bei **beiden** Arten.
->
-> *Korrektur wenige Minuten nach dem Aufschreiben:* Hier stand zuerst
-> **11,5 °C**, und diese Zahl hatte ich von Hand zwischen 11,0 und 12,2
-> gerundet — die einzige erfundene in einer Tabelle, die sonst
-> vollständig gemessen ist. Das Werkzeug wachte bis dahin über die
-> Schwellen einer Klasse, nicht über ihr Fenster; `class_optimum`
-> rechnet es jetzt bei jedem Lauf nach und bricht ab, wenn Konstante und
-> Daten auseinandergehen. Eine Vorhersage über eine geratene Zahl wäre
-> keine gewesen.
+> Fenster der Klasse trennt auch in **Österreich und der Schweiz**
+> besser als die 13 °C — gepaarte AUC dort mindestens **+0,05** über
+> der mit 13 °C, und zwar bei **beiden** Arten.
+
+Das Fenster selbst ist **abgeleitet und nicht gewählt**: der Median der
+Optima ihrer Mitglieder, also **11,625 °C** aus 11,0 (Hallimasch) und
+12,25 (Stockschwämmchen). Die Vorhersage hängt an der Latte, nicht an
+dieser Zahl.
+
+*Zwei Korrekturen an derselben Zahl, beide am 2026-09-12:* Zuerst stand
+hier **11,5 °C** — von Hand zwischen den Mitgliedern gerundet und damit
+die einzige erfundene Zahl in einer sonst vollständig gemessenen
+Tabelle. Das Werkzeug wachte über die *Schwellen* einer Klasse, nicht
+über ihr *Fenster*, hätte es also nicht gemerkt; `class_optimum` rechnet
+es seither nach. Danach stand **11,6 °C** — aus der Berichtstabelle
+abgeschrieben, die eine Dezimalstelle zeigt. Derselbe Fehler in klein,
+und gefunden hat ihn dieselbe Prüfung. Die Fehlermeldung nennt jetzt
+alle Stellen, damit der Nächste nicht wieder eine gerundete Zahl
+abschreibt.
 >
 > Dazu, ohne Torfunktion, eine Richtungsaussage: Die in AT+CH neu
 > angepassten Optima beider Arten liegen **unter 13 °C**.
@@ -414,6 +420,33 @@ darin, dass sie auch SCHEITERN kann: Käme heraus, dass die Optima
 quer zur Saison liegen, wäre die Erklärung „Sommerfrüchter, also
 wärmer" hinfällig, und der Pfifferling-Befund stünde ohne Mechanismus
 da.
+
+> **Gemessen am 2026-09-12** (`docs/pilzampel-schwellen-messung.md`,
+> Abschnitt „Läuft das Fenster mit der Fruchtungszeit?"): Spearman
+> **−0,678** über alle neun Arten, **−0,830** über die acht mit einer
+> Kurve, die überhaupt eine Saison hat. Die Richtung stimmt also, und
+> sie ist bei n=8 nicht mehr nur ein Wink.
+>
+> **Das Maß entschied alles.** Mit dem Gipfelmonat kamen −0,494 heraus,
+> mit einem LINEAR gemittelten Monat −0,068 — und beides sagte nichts
+> über die Sache, sondern über das Maß: Ein lineares Mittel über eine
+> Zwölferreihe schiebt den Austernseitling von seinem Dezembergipfel in
+> den Juni, weil Dezember und Januar dort weit auseinanderliegen. Auf
+> dem Kreis gemittelt steht er bei 12,8.
+>
+> **Was das für die 85 Arten ohne eigene Messung bedeutet** (Betreiber
+> am 2026-09-12: „Arten mit sehr ähnlichen Bedingungen können wir
+> zusammenfassen und da müssen wir nicht jede einzelne Art aufwendig
+> validieren"): Die Rangfolge trägt eine Zuordnung zu einer KLASSE. Sie
+> trägt keine Gradzahl je Art — der Zusammenhang ist nicht linear, von
+> Monat 9,3 auf 10,5 fällt das Optimum um 2 K und von 9,3 auf 12,8 um
+> 16. Eine Gerade durch diese Punkte wäre erfunden.
+>
+> **Und der Kalttest ist bereits ihr erster echter Test.** Judasohr und
+> Samtfußrübling sind über ihre Saison als Winterarten eingeordnet, und
+> die registrierte Vorhersage sagt beide unter 5 °C. Trifft sie zu, ist
+> die Zuordnung nach Saison nicht nur korreliert, sondern vorhersagend —
+> auf Arten, die an keiner Anpassung beteiligt waren.
 
 ### Was NICHT passiert, solange beides offen ist
 
