@@ -1126,6 +1126,16 @@ QUANTILE_BAND_GUENSTIG = (0.75, 0.85)
 
 # Vorhersage 2, ebenfalls vorab: Waren die Schwellen die Ursache, muss
 # der Abstand beim Austernseitling mit ihnen erscheinen.
+# **Gemessen am 2026-09-12, Betreiberentscheidung „gleich häufig
+# vorerst".** Der Median der sechs ausgelieferten Arten auf den
+# Prüfjahren, auf volle 5 % gerundet. Sie stehen als Konstante da, damit
+# die Vertrauensbereiche der Schwellen an ihnen hängen können — und
+# `deployment_quantiles` rechnet sie bei jedem Lauf nach: Wandert die
+# Verteilung, meldet sich das Werkzeug, statt eine veraltete Zahl
+# weiterzureichen.
+SHIP_QUANTILE_VERHALTEN = 0.50
+SHIP_QUANTILE_GUENSTIG = 0.80
+
 THRESHOLD_PREDICTION_SPECIES = "Austernseitling"
 THRESHOLD_PREDICTION_MIN_GAP = 0.10
 
@@ -1226,6 +1236,28 @@ def threshold_species(name, sci, cache_dir=None, seed=42, progress=True):
     # Auslieferung zählt, wo die App HEUTE steht.
     own_later = control_scores(test, optimum, balanced=True)
 
+    # **Wie genau ist eine Schwelle überhaupt?** Davon hängt ab, ob jede
+    # Art ihre eigene braucht oder ob Arten mit demselben Fenster sich
+    # eine teilen können. Überlappen die Bereiche, wäre eine Schwelle je
+    # Art ausgeliefertes Rauschen.
+    def threshold_ci(q, rounds=FIT_BOOTSTRAP_ROUNDS):
+        grouped = {}
+        for sample in test:
+            grouped.setdefault(sample["year"], []).append(sample)
+        present = sorted(grouped)
+        if len(present) < 2:
+            return None
+        rng = random.Random(seed)
+        draws = []
+        for _ in range(rounds):
+            pool = [s for y in (rng.choice(present) for _ in present)
+                    for s in grouped[y]]
+            draws.append(quantile_at(
+                *control_scores(pool, optimum, balanced=True), q))
+        draws.sort()
+        return (draws[int(0.025 * len(draws))],
+                draws[min(len(draws) - 1, int(0.975 * len(draws)))])
+
     configs = {
         # Was die App heute rechnet.
         "shipped": (OPTIMUM_C, VERHALTEN_ABOVE, GUENSTIG_ABOVE),
@@ -1283,6 +1315,8 @@ def threshold_species(name, sci, cache_dir=None, seed=42, progress=True):
         "verhalten_at": verhalten_at,
         "guenstig_at": guenstig_at,
         "own_later": own_later,
+        "ship_verhalten_ci": threshold_ci(SHIP_QUANTILE_VERHALTEN),
+        "ship_guenstig_ci": threshold_ci(SHIP_QUANTILE_GUENSTIG),
         # Was die Nutzerin sähe — je Aufbau der Abstand Fund/Vergleich.
         "gap_shipped": gap(test, configs["shipped"], 2),
         "gap_window": gap(test, configs["window"], 2),
@@ -1332,8 +1366,20 @@ def deployment_quantiles(rows):
     def rounded(values):
         return round(statistics.median(values) * 20) / 20
 
-    return (rounded([r["rank_verhalten_later"] for r in shipped]),
-            rounded([r["rank_guenstig_later"] for r in shipped]))
+    measured = (rounded([r["rank_verhalten_later"] for r in shipped]),
+                rounded([r["rank_guenstig_later"] for r in shipped]))
+    # **Die Konstanten gegen die Daten, bei jedem Lauf.** Sonst stünden
+    # zwei Zahlen im Werkzeug, die einmal aus einer Messung kamen und
+    # seither nur noch dastehen — genau die Sorte, die dieses Projekt
+    # schon als „GESETZT, nicht gemessen" im Modellkern hatte.
+    if measured != (SHIP_QUANTILE_VERHALTEN, SHIP_QUANTILE_GUENSTIG):
+        raise SystemExit(
+            f"Die Auslieferungs-Quantile haben sich verschoben: gemessen "
+            f"{measured}, als Konstante stehen "
+            f"({SHIP_QUANTILE_VERHALTEN}, {SHIP_QUANTILE_GUENSTIG}). Die "
+            f"Verteilung ist gewandert — Konstanten und Bericht gehören "
+            f"zusammen neu gesetzt, nicht einzeln.")
+    return measured
 
 
 def render_threshold_report(rows, fetched_on):
@@ -1550,12 +1596,17 @@ def render_threshold_report(rows, fetched_on):
                 "| Art | Optimum | verhalten ab | günstig ab | "
                 "günstig an Vergleichstagen |",
                 "|---|--:|--:|--:|--:|"]
+        def band(ci):
+            return ("" if ci is None
+                    else f" [{ci[0]:.3f}, {ci[1]:.3f}]")
         for row in usable:
             low = quantile_at(*row["own_later"], ship_v)
             high = quantile_at(*row["own_later"], ship_g)
             rate = 1.0 - rank_of(*row["own_later"], high)
             out.append(f"| {row['name']} | {row['optimum']:.1f} °C | "
-                       f"{low:.3f} | {high:.3f} | {_pct(rate)} |")
+                       f"{low:.3f}{band(row['ship_verhalten_ci'])} | "
+                       f"{high:.3f}{band(row['ship_guenstig_ci'])} | "
+                       f"{_pct(rate)} |")
         out += ["",
                 "Die letzte Spalte ist **keine Messung, sondern die "
                 "Probe aufs Exempel**: Sie muss auf eine Beobachtung "
@@ -2173,10 +2224,13 @@ def self_test():
                 "n_fit": 10, "n_test": 10,
                 "rank_verhalten": 0.4, "rank_guenstig": 0.7,
                 "rank_verhalten_even": 0.4, "rank_guenstig_even": 0.7,
-                "rank_verhalten_later": 0.45, "rank_guenstig_later": 0.78,
+                "rank_verhalten_later": SHIP_QUANTILE_VERHALTEN,
+                "rank_guenstig_later": SHIP_QUANTILE_GUENSTIG,
                 "verhalten_at": 0.2, "guenstig_at": 0.5,
                 "own_later": ([i / 100 for i in range(100)],
                               [1.0] * 100),
+                "ship_verhalten_ci": (0.45, 0.55),
+                "ship_guenstig_ci": (0.75, 0.85),
                 "gap_shipped": 0.0, "gap_window": 0.0, "gap_both": gap,
                 "gap_both_ci": ci, "found_shipped": 0.2,
                 "found_both": 0.2 + gap, "ctrl_shipped": 0.2,
@@ -2205,35 +2259,59 @@ def self_test():
     # weit auseinander, das Ergebnis darf nur die spätere sein.
     drifted = [planted(name, 0.1, (0.05, 0.15)) | {
         "rank_verhalten_even": 0.40, "rank_guenstig_even": 0.70,
-        "rank_verhalten_later": 0.55, "rank_guenstig_later": 0.80}
+        "rank_verhalten_later": SHIP_QUANTILE_VERHALTEN,
+        "rank_guenstig_later": SHIP_QUANTILE_GUENSTIG}
         for name in MYCORRHIZAL]
-    assert deployment_quantiles(drifted) == (0.55, 0.80), \
+    assert deployment_quantiles(drifted) == (SHIP_QUANTILE_VERHALTEN,
+                                             SHIP_QUANTILE_GUENSTIG), \
         "die Auslieferung muss auf den Prüfjahren kalibrieren"
     # Gerundet wird auf volle 5 %, wie überall hier.
-    krumm = [row | {"rank_guenstig_later": 0.783} for row in drifted]
-    assert deployment_quantiles(krumm)[1] == 0.80, "auf 5 % runden"
+    krumm = [row | {"rank_guenstig_later": SHIP_QUANTILE_GUENSTIG - 0.017}
+             for row in drifted]
+    assert deployment_quantiles(krumm)[1] == SHIP_QUANTILE_GUENSTIG, \
+        "auf 5 % runden"
     assert deployment_quantiles([]) is None
+
+    # **Und die Konstanten-Prüfung muss auch wirklich zuschlagen
+    # können.** Die Zeilen oben leiten ihre Ränge AUS den Konstanten ab
+    # — an ihnen kann sie nie scheitern, sie ist dort also kein Wächter,
+    # sondern eine Tautologie. Gepflanzt wird deshalb eine gewanderte
+    # Verteilung; genau dafür gibt es die Prüfung.
+    gewandert = [row | {"rank_guenstig_later": SHIP_QUANTILE_GUENSTIG - 0.1}
+                 for row in drifted]
+    try:
+        deployment_quantiles(gewandert)
+    except SystemExit:
+        pass
+    else:
+        raise AssertionError("eine gewanderte Verteilung muss auffallen, "
+                             "sonst reicht das Werkzeug eine veraltete "
+                             "Konstante weiter")
 
     # Die „Probe aufs Exempel" im Bericht muss wirklich aufgehen: Die
     # Quote an Vergleichstagen ist per Konstruktion 1 − Quantil, und
     # steht dort etwas anderes, ist die Rechnung kaputt.
     gezeigt = render_threshold_report(drifted, "—")
     assert "## Was ausgeliefert würde" in gezeigt
-    assert "**80 %** (günstig)" in gezeigt, \
+    assert f"**{_pct(SHIP_QUANTILE_GUENSTIG, 0)}** (günstig)" in gezeigt, \
         "das Auslieferungs-Quantil steht nicht im Bericht"
     # Die Probe: Ein auf das 80-%-Quantil gesetzter Schwellwert muss an
     # rund 20 % der Vergleichstage überschritten werden. „Rund" heißt
     # 1/n — genauer kann ein empirisches Quantil nicht sein.
     verteilung = drifted[0]["own_later"]
-    quote = 1.0 - rank_of(*verteilung, quantile_at(*verteilung, 0.80))
-    assert abs(quote - 0.20) <= 1.0 / len(verteilung[0]) + 1e-9, quote
+    quote = 1.0 - rank_of(*verteilung,
+                          quantile_at(*verteilung, SHIP_QUANTILE_GUENSTIG))
+    assert abs(quote - (1 - SHIP_QUANTILE_GUENSTIG)) \
+        <= 1.0 / len(verteilung[0]) + 1e-9, quote
     # **Und die beiden Spalten müssen aus VERSCHIEDENEN Quantilen
     # kommen.** Stünde in „verhalten ab" das günstig-Quantil, wäre die
     # mittlere Stufe stillschweigend verschwunden — die Tabelle sähe
     # völlig unauffällig aus, denn beide Zahlen sind plausibel. Genau
     # diese Vertauschung ist bei der Gegenprobe durchgerutscht.
-    erwartet = (f"| {quantile_at(*verteilung, 0.55):.3f} "
-                f"| {quantile_at(*verteilung, 0.80):.3f} |")
+    erwartet = (f"| {quantile_at(*verteilung, SHIP_QUANTILE_VERHALTEN):.3f}"
+                f" [0.450, 0.550] "
+                f"| {quantile_at(*verteilung, SHIP_QUANTILE_GUENSTIG):.3f}"
+                f" [0.750, 0.850] |")
     assert erwartet in gezeigt, \
         f"die Auslieferungs-Schwellen stehen nicht als {erwartet} da"
 

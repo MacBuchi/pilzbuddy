@@ -83,15 +83,15 @@ Daraus folgen die Quantile **50 %** (verhalten) und **80 %** (günstig) — der 
 
 | Art | Optimum | verhalten ab | günstig ab | günstig an Vergleichstagen |
 |---|--:|--:|--:|--:|
-| Steinpilz | 13.0 °C | 0.189 | 0.493 | 20,1 % |
-| Maronenröhrling | 13.0 °C | 0.192 | 0.510 | 20,1 % |
-| Pfifferling | 17.5 °C | 0.287 | 0.677 | 20,0 % |
-| Birkenpilz | 14.5 °C | 0.222 | 0.469 | 20,1 % |
-| Fichtenreizker | 12.0 °C | 0.196 | 0.539 | 20,4 % |
-| Herbsttrompete | 13.0 °C | 0.161 | 0.445 | 20,3 % |
-| Hallimasch | 11.0 °C | 0.154 | 0.403 | 20,1 % |
-| Stockschwämmchen | 12.2 °C | 0.165 | 0.417 | 20,0 % |
-| Austernseitling | -3.2 °C | 0.001 | 0.037 | 20,1 % |
+| Steinpilz | 13.0 °C | 0.189 [0.148, 0.238] | 0.493 [0.439, 0.531] | 20,1 % |
+| Maronenröhrling | 13.0 °C | 0.192 [0.147, 0.238] | 0.510 [0.476, 0.531] | 20,1 % |
+| Pfifferling | 17.5 °C | 0.287 [0.228, 0.367] | 0.677 [0.560, 0.760] | 20,0 % |
+| Birkenpilz | 14.5 °C | 0.222 [0.186, 0.274] | 0.469 [0.408, 0.505] | 20,1 % |
+| Fichtenreizker | 12.0 °C | 0.196 [0.143, 0.234] | 0.539 [0.510, 0.577] | 20,4 % |
+| Herbsttrompete | 13.0 °C | 0.161 [0.089, 0.284] | 0.445 [0.287, 0.624] | 20,3 % |
+| Hallimasch | 11.0 °C | 0.154 [0.125, 0.178] | 0.403 [0.366, 0.420] | 20,1 % |
+| Stockschwämmchen | 12.2 °C | 0.165 [0.122, 0.192] | 0.417 [0.384, 0.440] | 20,0 % |
+| Austernseitling | -3.2 °C | 0.001 [0.000, 0.001] | 0.037 [0.017, 0.057] | 20,1 % |
 
 Die letzte Spalte ist **keine Messung, sondern die Probe aufs Exempel**: Sie muss auf eine Beobachtung genau bei 20 % herauskommen, weil die Schwelle genau so gesetzt wurde. Steht dort etwas anderes, ist die Rechnung kaputt.
 
