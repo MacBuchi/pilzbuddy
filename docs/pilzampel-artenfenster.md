@@ -275,6 +275,61 @@ dieser einen Art, und die Ampel bleibt für sie grau — so wie heute.
 **Und was in beiden Fällen NICHT passiert:** eine Klasse aus zwei
 Arten, von denen eine passt. Beide oder keine.
 
+## Registriert 2026-09-12 (abends): gibt es „Herbst-Holz"?
+
+Hallimasch (11,0 °C) und Stockschwämmchen (12,2 °C) sind in Stufen die
+größten Gewinner von allen neun Arten — mit eigenem Fenster und eigener
+Schwelle steigt ihr Abstand von +36,7 auf **+53,2 pp** bzw. von +34,1
+auf **+44,0 pp** (`docs/pilzampel-schwellen-messung.md`). Sie stehen
+trotzdem grau in der App, und zwar aus genau einem Grund: **ausgewählt
+wurden sie, nachdem wir die Tabelle gesehen hatten.** Dieselbe Lage, in
+der der Pfifferling vor Österreich stand.
+
+**Wie viel davon ist das Fenster?** Aufgeschlüsselt: Beim Hallimasch
+bringt das Fenster allein +11,1 pp und die Schwelle weitere ~5,4; beim
+Stockschwämmchen ist es umgekehrt (+3,2 aus dem Fenster, ~6,7 aus der
+Schwelle). Zu belegen ist also das FENSTER — die Schwelle folgt daraus
+und braucht keine eigene Prüfung.
+
+> **Vorhersage, vor der Messung.** Das an deutschen Funden angepasste
+> Fenster der Klasse (**11,6 °C** — der Median der Optima ihrer
+> Mitglieder, 11,0 und 12,2) trennt auch in **Österreich und der
+> Schweiz** besser als die 13 °C — gepaarte AUC dort mindestens
+> **+0,05** über der mit 13 °C, und zwar bei **beiden** Arten.
+>
+> *Korrektur wenige Minuten nach dem Aufschreiben:* Hier stand zuerst
+> **11,5 °C**, und diese Zahl hatte ich von Hand zwischen 11,0 und 12,2
+> gerundet — die einzige erfundene in einer Tabelle, die sonst
+> vollständig gemessen ist. Das Werkzeug wachte bis dahin über die
+> Schwellen einer Klasse, nicht über ihr Fenster; `class_optimum`
+> rechnet es jetzt bei jedem Lauf nach und bricht ab, wenn Konstante und
+> Daten auseinandergehen. Eine Vorhersage über eine geratene Zahl wäre
+> keine gewesen.
+>
+> Dazu, ohne Torfunktion, eine Richtungsaussage: Die in AT+CH neu
+> angepassten Optima beider Arten liegen **unter 13 °C**.
+
+**Die Latte ist hier härter als beim Pfifferling, und das ist Absicht.**
+Sein Fenster lag 4,5 K neben den 13 °C und gewann +0,104; hier sind es
+1,5 K. Ein so kleiner Versatz kann echt sein und die +0,05 trotzdem
+nicht schaffen — die Glocke ist in ihrer Mitte flach. Die Latte bleibt
+gleich, weil eine je Fall angepasste Latte keine Vorhersage mehr ist,
+sondern eine Formsache.
+
+**Was ein Fehlschlag deshalb bedeutet:** „bei dieser Stichprobengröße
+und diesem Abstand nicht nachweisbar" — nicht „es gibt keinen
+Unterschied". Ausgeliefert wird die Klasse dann trotzdem nicht: Der
+Vorbehalt der App gilt dem, was belegt ist, und nicht dem, was plausibel
+ist. Die Richtungsaussage entscheidet dann, ob sich ein dritter Anlauf
+mit mehr Material lohnt oder ob die beiden in die Herbstklasse gehören.
+
+**Und was auch hier nicht passiert:** eine Klasse aus zwei Arten, von
+denen eine besteht. Beide oder keine — wie beim Kalttest. Besteht nur
+der Hallimasch, ist „Herbst-Holz" eine Art mit einem großen Namen.
+
+Kosten: zwei Arten aus AT und CH, dazu deren Wetterreihen — also etwa
+zwei Tageskontingente, nach dem Kalttest.
+
 ## Zur allgemeinen Frage: alle Arten einordnen
 
 Der Betreiber am 2026-09-12: „Generell finde ich, dass wir alle Arten,

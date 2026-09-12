@@ -223,7 +223,11 @@ AMPEL_CLASSES = {
         # bei jedem Lauf nach und bricht ab, wenn sie gewandert sind.
         "verhalten": 0.148,
         "guenstig": 0.407,
-        "optimum": 11.5,
+        # Median der Mitglieder-Optima (11,0 und 12,2). Bis zum
+        # 2026-09-12 stand hier 11,5 — von Hand gerundet, und damit die
+        # einzige erfundene Zahl in dieser Tabelle. `class_optimum`
+        # rechnet sie jetzt nach.
+        "optimum": 11.6,
         "members": ["Hallimasch", "Stockschwämmchen"],
         "confirmed": False,
         "why": "nach dem Blick auf die Tabelle ausgewählt — dieselbe "
@@ -1471,6 +1475,24 @@ def deployment_quantiles(rows):
     return measured
 
 
+def class_optimum(rows, key):
+    """Das Fenster einer Klasse: der MEDIAN der Optima ihrer Mitglieder.
+
+    **Jede Art eine Stimme**, nicht jede Beobachtung — dieselbe
+    Begründung wie bei den Schwellen. Die Paare aller Mitglieder in
+    einen Topf zu werfen und darauf eine AUC zu maximieren klingt
+    gründlicher, ließe aber die größte Art das Fenster bestimmen: Der
+    Hallimasch bringt 2000 Paare mit, das Stockschwämmchen 1332.
+
+    Der Median ist bei zwei Mitgliedern das Mittel, bei fünf die Mitte —
+    und er verträgt einen Ausreißer, was bei drei bis fünf Stimmen das
+    Entscheidende ist.
+    """
+    fitted = [row["optimum"] for row in rows
+              if row.get("usable") and row.get("klass") == key]
+    return statistics.median(fitted) if fitted else None
+
+
 def class_thresholds(rows, quantiles, verify=True):
     """Die Schwellen je Klasse, aus den Vergleichstagen ALLER Mitglieder.
 
@@ -2495,6 +2517,26 @@ def self_test():
     assert erwartet in gezeigt, \
         f"die Auslieferungs-Schwellen stehen nicht als {erwartet} da"
 
+    # **Das Fenster einer Klasse: jede Art eine Stimme.** Gepflanzt: eine
+    # große Art bei 11 °C und eine kleine bei 15 °C. Der Median muss 13
+    # sein; zählte die Stichprobengröße mit, käme 11 heraus — und das
+    # wäre die Sorte Fehler, die in einer Tabelle plausibler Zahlen
+    # niemandem auffällt.
+    def voter(name, optimum):
+        return {"name": name, "usable": True, "klass": "herbst",
+                "optimum": optimum}
+
+    assert class_optimum(
+        [voter("Steinpilz", 11.0), voter("Herbsttrompete", 15.0)],
+        "herbst") == 13.0
+    assert class_optimum([], "herbst") is None
+    # Eine Art, die einer ANDEREN Klasse gehört, stimmt nicht mit.
+    assert class_optimum(
+        [voter("Steinpilz", 11.0),
+         {"name": "Pfifferling", "usable": True, "klass": "sommer",
+          "optimum": 17.5}],
+        "herbst") == 11.0
+
     # **Die Klassenschwelle darf nicht der größten Art gehören.** Der
     # Steinpilz bringt 2000 Paare mit, die Herbsttrompete 288 —
     # ungewichtet wäre „Herbstklasse" nur ein anderer Name für
@@ -3343,6 +3385,24 @@ def main():
         ship = deployment_quantiles(rows)
         if ship:
             class_thresholds(rows, ship, verify=True)
+        # **Und das Fenster selbst.** Bis hierher wachte das Werkzeug
+        # über die Schwellen einer Klasse, nicht über ihr Optimum — und
+        # genau das war beim Entwurf der Klasse „herbst_holz" schon
+        # passiert: Dort stand 11,5 °C, von Hand zwischen 11,0 und 12,2
+        # gerundet. Eine erfundene Zahl in einer Tabelle, die sonst
+        # vollständig gemessen ist, ist die gefährlichste Sorte.
+        for key in AMPEL_CLASSES:
+            got = class_optimum(rows, key)
+            if got is None:
+                continue
+            expected = AMPEL_CLASSES[key]["optimum"]
+            if abs(got - expected) > 1e-9:
+                raise SystemExit(
+                    f"Klasse {key}: Fenster gemessen {got:.2f} °C, als "
+                    f"Konstante steht {expected} °C. Der Median der "
+                    f"Mitglieder-Optima ist die Quelle — Konstante, "
+                    f"Bericht UND ampel_model.dart gehören zusammen neu "
+                    f"gesetzt.")
         report = render_threshold_report(rows, time.strftime("%Y-%m-%d"))
         if args.out:
             open(args.out, "w", encoding="utf-8").write(report)
