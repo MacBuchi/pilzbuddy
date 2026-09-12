@@ -119,13 +119,38 @@ void main() {
   });
 
   testWidgets('eine zu dünn belegte Art bekommt keine Kurve', (tester) async {
-    // Der Igelstachelbart steht mit 94 Beobachtungen in der Tabelle. Aus
-    // zwölf Monatsfächern davon ließe sich ein Diagramm zeichnen — es
-    // wäre nur keine Aussage.
-    await pumpApp(tester, loggedInWithSpot('Igelstachelbart'));
+    // Der Frühjahrsknollenblätterpilz steht mit 56 Beobachtungen in der
+    // Tabelle. Aus zwölf Monatsfächern davon ließe sich ein Diagramm
+    // zeichnen — es wäre nur keine Aussage.
+    //
+    // **Warum er hier keine geborgte Kurve bekommt** (der Igelstachel-
+    // bart stand bis 1.139.0 an dieser Stelle): *Amanita* hätte 60 448
+    // Meldungen, mischt aber Frühjahrs- und Herbstarten. Für eine
+    // Frühjahrsart zeigte die Gattungskurve in die Gegenrichtung, und
+    // bei einem tödlich giftigen Pilz ist die Lücke die richtige
+    // Antwort.
+    await pumpApp(tester, loggedInWithSpot('Frühjahrsknollenblätterpilz'));
     await openSpot(tester);
 
     expect(find.text('Wann diese Art gemeldet wird'), findsNothing);
+  });
+
+  testWidgets('eine geborgte Kurve sagt, von wem sie geborgt ist',
+      (tester) async {
+    // **Der Satz IST die Einschränkung.** Der Igelstachelbart hat 94
+    // eigene Meldungen und zeigt die Kurve der Stachelbärte (1147).
+    // Ohne den Zusatz läse sich das als Aussage über diesen Pilz, und
+    // 1147 Meldungen über eine Verwandtschaft sind keine 1147 Meldungen
+    // über ihn.
+    await pumpApp(tester, loggedInWithSpot('Igelstachelbart'));
+    await openSpot(tester);
+
+    expect(find.text('Wann diese Art gemeldet wird'), findsOneWidget);
+    expect(find.textContaining('Saison nach verwandten Arten: Stachelbärte'),
+        findsOneWidget);
+    // Und NICHT der Satz für Sammelbegriffe: „Rotkappe" umfasst
+    // mehrere Arten, der Igelstachelbart ist eine.
+    expect(find.textContaining('mehrere ähnliche Arten'), findsNothing);
   });
 
   testWidgets('nennt die Quelle und was die Zahlen nicht sind',

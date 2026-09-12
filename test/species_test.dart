@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/mushroom_species.dart';
+import 'package:pilzbuddy/core/season_curves.g.dart';
 import 'package:pilzbuddy/core/widgets/mushroom_avatar.dart';
 import 'package:pilzbuddy/features/spots/species_suggestions.dart';
 import 'package:pilzbuddy/models/find.dart';
@@ -364,6 +365,45 @@ void main() {
       expect(groupFor('Braunkappe'), SpeciesGroup.sonstige);
       expect(canonicalSpecies('Marone'), 'Maronenröhrling');
       expect(groupFor('Marone'), SpeciesGroup.roehrlinge);
+    });
+  });
+
+  group('Geborgte Saisonkurven', () {
+    // Eine Art mit zu wenig Material bekommt die Kurve ihrer
+    // Verwandtschaft — der Igelstachelbart 94 Meldungen, die Gattung
+    // *Hericium* 1147. Das ist eine SCHWÄCHERE Aussage als eine eigene
+    // Kurve, und die Anzeige muss sie schwächer machen.
+    test('wer borgt, nennt die Quelle — und sie steht auch im Asset', () {
+      final borger = kBekannteArten.where((s) => s.curveFrom != null);
+      expect(borger, isNotEmpty,
+          reason: 'sonst prüft dieser Test nichts');
+      for (final species in borger) {
+        expect(species.curveFromName, isNotNull,
+            reason: '${species.name} borgt ohne Quellenangabe');
+        final curve = kSeasonCurves[species.name];
+        expect(curve, isNotNull,
+            reason: '${species.name} borgt, hat aber keine Kurve — dann '
+                'ist das Asset nicht neu erzeugt worden');
+        expect(curve!.borrowedFrom, species.curveFromName,
+            reason: 'die Anzeige nennt sonst eine andere Verwandtschaft '
+                'als die Artenliste');
+      }
+    });
+
+    test('keine Kurve gibt sich grundlos als geborgt aus', () {
+      // Die Gegenrichtung: Ein `borrowedFrom` an einer Art, die ihre
+      // eigene Kurve hat, wäre eine erfundene Einschränkung — und
+      // Nutzer misstrauten einer Zahl, der nichts fehlt.
+      for (final entry in kSeasonCurves.entries) {
+        if (entry.value.borrowedFrom == null) continue;
+        final species = kBekannteArten
+            .where((s) => s.name == entry.key)
+            .toList();
+        expect(species, hasLength(1), reason: '${entry.key} unbekannt');
+        expect(species.single.curveFrom, isNotNull,
+            reason: '${entry.key} gibt sich als geborgt aus, borgt aber '
+                'laut Artenliste nicht');
+      }
     });
   });
 

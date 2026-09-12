@@ -124,10 +124,19 @@ void main() {
     });
 
     test('Zu dünn belegte Arten kommen nicht durch', () {
-      // Der Igelstachelbart steht mit 94 Beobachtungen in der Tabelle —
-      // gebaut, aber bewusst nicht angezeigt.
-      expect(kSeasonCurves['Igelstachelbart'], isNotNull);
-      expect(seasonCurveFor('Igelstachelbart'), isNull);
+      // Der Frühjahrsknollenblätterpilz steht mit 56 Beobachtungen in
+      // der Tabelle — gebaut, aber bewusst nicht angezeigt.
+      //
+      // **Er ist der letzte dieser Art, und das mit Absicht.** Der
+      // Igelstachelbart stand hier bis 1.139.0 (94 Meldungen) und borgt
+      // jetzt die Kurve der Stachelbärte. Für den
+      // Frühjahrsknollenblätterpilz ginge das NICHT: *Amanita* hätte
+      // 60 448 Meldungen, mischt aber Frühjahrs- und Herbstarten, und
+      // für eine Frühjahrsart zeigte die Gattungskurve in die
+      // Gegenrichtung. Bei einem tödlich giftigen Pilz ist die Lücke
+      // die richtige Antwort.
+      expect(kSeasonCurves['Frühjahrsknollenblätterpilz'], isNotNull);
+      expect(seasonCurveFor('Frühjahrsknollenblätterpilz'), isNull);
     });
   });
 
@@ -148,7 +157,12 @@ void main() {
         expect(kSeasonCurves, contains(species.name),
             reason: '${species.name} hat `sci`, aber keine Kurve — '
                 'tool/season_curves.py neu laufen lassen');
-        expect(kSeasonCurves[species.name]!.sci, species.sci,
+        // **Wer borgt, trägt den Namen der Verwandtschaft** — dort ist
+        // GBIF gefragt worden, und `sci` sagt genau das. Ohne diese
+        // Unterscheidung müsste der Test entweder das Borgen verbieten
+        // oder die Zuordnung gar nicht mehr prüfen.
+        expect(kSeasonCurves[species.name]!.sci,
+            species.curveFrom ?? species.sci,
             reason: '${species.name}: Kurve und Artenliste nennen '
                 'verschiedene wissenschaftliche Namen');
       }

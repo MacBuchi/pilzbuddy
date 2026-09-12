@@ -818,6 +818,34 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
       ZEILE JE ART (`scanSpeciesOf`, geteilt mit dem Nachlauf) statt nur
       der des jüngsten Fundes, und der Monat kommt aus
       `currentMonthProvider` und nicht aus `DateTime.now()`.
+    - **Die Saisonkurven sind damit AUSLIEFERUNGSRELEVANT geworden.**
+      `lib/core/season_curves.g.dart` ist ein erzeugtes Asset
+      (`tool/season_curves.py`, GBIF, kein Open-Meteo-Kontingent) — und
+      seit es das Tor stellt, verschiebt jede Neuerzeugung, welche Spots
+      der Hinweis meldet. Wer sie neu baut, misst nach, in wie vielen
+      Art-Monaten `months[m] >= kSeasonNowThreshold` kippt, und schreibt
+      die Zahl in den PR. Beim Lauf vom 2026-09-12 war es **1 von 1080**
+      (Schwefelporling im März, 14 → 15).
+    - **Eine Art ohne genug Material kann die Kurve ihrer
+      Verwandtschaft BORGEN** (seit 1.139.0): `curveFrom` (Gattung,
+      wissenschaftlich) plus `curveFromName` (deutsch, für den Satz) in
+      `mushroom_species.dart`; das Werkzeug fragt GBIF nach der Gattung
+      und schreibt `borrowedFrom` in die Kurve. Drei Dinge:
+      - **Das ist NICHT `isGenus`.** Dort ist der deutsche Name selbst
+        ein Sammelbegriff („Rotkappe"), die Kurve gehört also dem, was
+        eingetragen wurde. Beim Borgen meint der Name genau eine Art —
+        die Anzeige sagt deshalb „Saison nach verwandten Arten: …“ statt
+        „(mehrere ähnliche Arten)“.
+      - **Es geht nur, wenn die Verwandtschaft eine gemeinsame Saison
+        hat.** *Hericium* ja (1147 Meldungen, alle Stachelbärte);
+        *Amanita* nein — 60 448 Meldungen, aber Frühjahrs- UND
+        Herbstarten gemischt, für den Frühjahrsknollenblätterpilz zeigte
+        die Kurve in die Gegenrichtung. Der bleibt ohne, und bei einem
+        tödlich giftigen Pilz ist das die richtige Richtung.
+      - **`curveFrom` ohne `curveFromName` bricht den Bau ab**, und
+        `test/species_test.dart` hält Artenliste und Asset in beide
+        Richtungen zusammen: keine geborgte Kurve ohne Quelle, keine
+        Quelle an einer Kurve, die nicht borgt.
     - **Im Zweifel zeigen** — die Regeln des Saison-Filters (#414)
       gelten hier genauso: Eine Art ohne Kurve verdeckt nichts (`null`
       heißt „wir wissen es nicht"), ein Spot ohne eingetragene Art
