@@ -524,7 +524,9 @@ class _SpotDetailSheet extends ConsumerWidget {
           // anschlagen, über die das Blatt darunter schweigt.
           AmpelSection(
               lat: spot.lat, lon: spot.lng, species: scanSpeciesOf(spot)),
-          SpeciesSeasonSection(species: spot.lastFind?.species),
+          // Dieselbe Artenliste wie die Ampel darüber — sonst sagte das
+          // Blatt über dieselbe Fundstelle zwei verschiedene Dinge.
+          SpeciesSeasonSection(species: scanSpeciesOf(spot)),
           // Der Waldtyp zwischen Saison und Wetter: Er gehört wie die
           // Saison zur Frage „was für eine Stelle ist das", und er steht
           // ohne Netz sofort da (Asset), während der Regen je nach

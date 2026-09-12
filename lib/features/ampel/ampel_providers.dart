@@ -116,6 +116,34 @@ class AmpelReading {
 /// Modellkern bleibt Zahl für Zahl der Spiegel des
 /// Validierungswerkzeugs — das ohnehin immer schon Temperaturen auf
 /// Zielhöhe gesehen hat (Open-Meteo-Downscaling).
+/// Die beste Ablesung über ALLE ausgelieferten Klassen — samt der
+/// Klasse, die sie trägt.
+///
+/// **Die eine Antwort, die Fläche, Legende und „Was ist hier?" gemeinsam
+/// geben müssen** (#279, seit 1.140.0 auf Klassen erweitert). Die Fläche
+/// rechnet über [ampelBestOf] auf dem Gitter, hier läuft derselbe
+/// Vergleich über die volle Ablesung; beide Wege müssen dieselbe Stufe
+/// liefern, und `test/ampel_fill_test.dart` hält sie Zelle für Zelle
+/// zusammen.
+///
+/// Ist die Ablesung grau, ist sie es für jede Klasse — der Grund liegt
+/// am ORT (keine Regendaten, keine Station), nicht am Fenster. Dann
+/// kommt die erste Klasse zurück, und ihr `reason` gilt.
+({AmpelReading reading, AmpelClass klass}) ampelBestReadingFrom(
+    RainCourse? course, SpotTemperature? temperature,
+    {int? spotHeightM}) {
+  ({AmpelReading reading, AmpelClass klass})? best;
+  for (final klass in ampelShippedClasses) {
+    final reading = ampelReadingFrom(course, temperature,
+        klass: klass, spotHeightM: spotHeightM);
+    if (reading.isGrau) return (reading: reading, klass: klass);
+    if (best == null || reading.level!.index > best.reading.level!.index) {
+      best = (reading: reading, klass: klass);
+    }
+  }
+  return best!;
+}
+
 AmpelReading ampelReadingFrom(
     RainCourse? course, SpotTemperature? temperature,
     {required AmpelClass klass, int? spotHeightM}) {

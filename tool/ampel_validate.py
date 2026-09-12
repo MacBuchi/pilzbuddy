@@ -200,6 +200,10 @@ WOOD_DWELLERS = [
 AMPEL_CLASSES = {
     "sommer": {
         "dart": "ampelSommerClass",
+        # Wie die Klasse in der App heißt — nach ihren MITGLIEDERN, nicht
+        # nach einer Jahreszeit. „Sommerpilze" behauptete eine Gruppe;
+        # drin steht ein Pfifferling.
+        "label": "Pfifferling",
         # Gemessen am 2026-09-12; `class_thresholds` rechnet beide Zahlen
         # bei jedem Lauf nach und bricht ab, wenn sie gewandert sind.
         "verhalten": 0.287,
@@ -213,6 +217,10 @@ AMPEL_CLASSES = {
     },
     "herbst": {
         "dart": "ampelHerbstClass",
+        # Wie die Klasse in der App heißt — nach ihren MITGLIEDERN, nicht
+        # nach einer Jahreszeit. „Sommerpilze" behauptete eine Gruppe;
+        # drin steht ein Pfifferling.
+        "label": "Steinpilz & Co.",
         # Gemessen am 2026-09-12; `class_thresholds` rechnet beide Zahlen
         # bei jedem Lauf nach und bricht ab, wenn sie gewandert sind.
         "verhalten": 0.187,
@@ -1945,6 +1953,68 @@ def render_threshold_report(rows, fetched_on):
                 "zuzuweisen wäre erfunden; sie einer **Klasse** "
                 "zuzuordnen ist es nicht.", ""]
 
+    # --- Die Karte: Maximum über die Klassen ------------------------
+    #
+    # Betreiberwunsch 2026-09-12: „Die Pilzampel auf der Karte soll das
+    # Maximum für alle Klassen wiedergeben und nicht nur für eine, wie
+    # das Herbstfenster." Die Fläche kennt keine Art, kann aber jede
+    # BESTÄTIGTE Klasse rechnen und die beste zeigen.
+    #
+    # Die Zahl, die darüber entscheidet, ist nicht die Trennschärfe
+    # (jede Klasse ist einzeln kalibriert), sondern die HÄUFIGKEIT: Zwei
+    # Klassen, die je an 20 % der Tage günstig stehen, stehen zusammen
+    # an mehr als 20 % günstig — und „gleich häufig vorerst" war eine
+    # ausdrückliche Entscheidung.
+    shipped = {key: klass for key, klass in AMPEL_CLASSES.items()
+               if klass.get("dart")}
+    days = []
+    for row in usable:
+        samples = row.get("test_samples")
+        if not samples:
+            continue
+        weight = 1.0 / len(samples)
+        for sample in samples:
+            days.append((sample["control"], weight))
+    if days and len(shipped) > 1:
+        total = sum(w for _, w in days)
+
+        def share(at_least, keys):
+            hit = 0.0
+            for control, weight in days:
+                best = max(
+                    level_with(ampel_score(*control, shipped[k]["optimum"]),
+                               shipped[k]["verhalten"],
+                               shipped[k]["guenstig"])
+                    for k in keys)
+                if best >= at_least:
+                    hit += weight
+            return hit / total
+
+        out += ["", "## Wenn die Karte das Maximum aller Klassen zeigt", "",
+                "Die Fläche kennt keine Art. Sie kann aber jede "
+                "**bestätigte** Klasse rechnen und die beste zeigen — "
+                "„günstig, sobald es für mindestens eine Gruppe günstig "
+                "steht“. Was sich dadurch ändert, ist nicht die "
+                "Trennschärfe (jede Klasse ist einzeln kalibriert), "
+                "sondern die **Häufigkeit**.", "",
+                "Gemessen an den Vergleichstagen der Prüfjahre, jede Art "
+                "gleich gewichtet.", "",
+                "| Anzeige | günstig | mindestens verhalten |",
+                "|---|--:|--:|"]
+        for label, keys in [
+                ("nur Herbst (heute)", ["herbst"]),
+                *[(f"nur {k}", [k]) for k in shipped if k != "herbst"],
+                ("Maximum aller bestätigten", list(shipped))]:
+            out.append(f"| {label} | {_pct(share(2, keys))} | "
+                       f"{_pct(share(1, keys))} |")
+        out += ["",
+                "**Die Zeile „Maximum“ ist die Entscheidung**, nicht die "
+                "Messung: Wie oft die Karte sprechen soll, ist eine "
+                "Produktfrage. Steigt die Quote deutlich, lässt sie sich "
+                "über das Quantil zurückdrehen — dann heißt „günstig“ "
+                "aber für jede Klasse etwas Strengeres als am Spot, und "
+                "Karte und Blatt sagten wieder Verschiedenes.", ""]
+
     out += ["", "## Was diese Seite NICHT sagt", "",
             "Sie ändert `ampel_model.dart` nicht. Über eine Umstellung "
             "entscheidet der Betreiber mit diesen Zahlen; bis dahin bleibt "
@@ -2927,6 +2997,14 @@ def self_test():
             rf"const {dart_name} = \((.*?)\);", dart, re.S)
         assert block, f"{dart_name} steht nicht in {AMPEL_MODEL_FILE}"
         body = block.group(1)
+        # Der Name zuerst, und als Zeichenkette: Er steht im Blatt und in
+        # der Legende, und eine Klasse, die dort anders heißt als hier,
+        # macht jeden Bericht unlesbar.
+        found = re.search(r"name: '([^']*)',", body)
+        assert found, f"{dart_name} hat keinen Namen"
+        assert found.group(1) == klass["label"], (
+            f"Spiegel gebrochen: {dart_name}.name ist in Dart "
+            f"'{found.group(1)}', hier '{klass['label']}'")
         for field, here in [("optimumC", klass["optimum"]),
                             ("verhaltenAbove", klass["verhalten"]),
                             ("guenstigAbove", klass["guenstig"])]:

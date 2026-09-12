@@ -148,6 +148,7 @@ class MapLegend extends ConsumerWidget {
     // baut: `ampelReadingFrom` verlangt die Höhe nicht per Typ, der
     // Flow-Test „die Legende rechnet mit derselben Höhe" ist das Netz.
     AmpelReading? ampelAt;
+    var ampelByClass = const <({AmpelClass klass, AmpelReading reading})>[];
     if (showAmpel && center != null) {
       final at = (lat: center.latitude, lon: center.longitude);
       final course = ref.watch(rainCourseProvider(at));
@@ -156,17 +157,31 @@ class MapLegend extends ConsumerWidget {
       if (!course.isLoading &&
           !temperature.isLoading &&
           !spotHeight.isLoading) {
-        // Die Legende beschreibt die KARTE, und die kennt keine Art —
-        // also dasselbe Gildenfenster wie die Fläche (`ampel_fill.dart`).
-        ampelAt = ampelReadingFrom(
-            course.valueOrNull, temperature.valueOrNull,
-            klass: ampelHerbstClass, spotHeightM: spotHeight.valueOrNull);
+        // **Die Kopfzeile zeigt das Maximum, die Detailzeilen zeigen
+        // jede Klasse einzeln** (Betreiber, 2026-09-12 — und nur in der
+        // AUSGEKLAPPTEN Legende; `_AmpelSection` steckt ohnehin nur im
+        // `_LegendPanel`). Die Fläche malt dasselbe Maximum, die Regel
+        // steht in `ampelBestReadingFrom` und nur dort.
+        ampelAt = ampelBestReadingFrom(
+                course.valueOrNull, temperature.valueOrNull,
+                spotHeightM: spotHeight.valueOrNull)
+            .reading;
+        ampelByClass = [
+          for (final klass in ampelShippedClasses)
+            (
+              klass: klass,
+              reading: ampelReadingFrom(
+                  course.valueOrNull, temperature.valueOrNull,
+                  klass: klass, spotHeightM: spotHeight.valueOrNull),
+            ),
+        ];
       }
     }
 
     final zones = (
       showAmpel: showAmpel,
       ampel: ampelAt,
+      ampelByClass: ampelByClass,
       showRain: showRain,
       rainLayer: rainLayer,
       rainMm: rainMm,
@@ -228,6 +243,12 @@ class MapLegend extends ConsumerWidget {
 typedef LegendZones = ({
   bool showAmpel,
   AmpelReading? ampel,
+
+  /// Jede ausgelieferte Klasse einzeln am Fadenkreuz — nur die
+  /// AUSGEKLAPPTE Legende zeigt sie (Betreiber, 2026-09-12). Die
+  /// eingeklappte Schiene trägt weiter nur den Daumen: Sie ist 40 px
+  /// breit, und ein Urteil in Formsprache verträgt keine Aufzählung.
+  List<({AmpelClass klass, AmpelReading reading})> ampelByClass,
   bool showRain,
   RainLayer rainLayer,
   int? rainMm,
@@ -550,7 +571,8 @@ class _LegendPanel extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             if (zones.showAmpel) ...[
-              _AmpelSection(reading: zones.ampel),
+              _AmpelSection(
+                  reading: zones.ampel, byClass: zones.ampelByClass),
               const SizedBox(height: 10),
             ],
             if (zones.showRain) ...[
@@ -747,9 +769,14 @@ double? rainMarkerFraction(int mm, List<int> levels) {
 /// unerklärt lassen, und wer die Skala nicht kennt, liest Blau als
 /// „mehr" statt als „Nadelwald".
 class _AmpelSection extends StatelessWidget {
-  const _AmpelSection({required this.reading});
+  const _AmpelSection({required this.reading, required this.byClass});
 
+  /// Das Maximum über die Klassen — dieselbe Antwort, die die Fläche
+  /// malt.
   final AmpelReading? reading;
+
+  /// Jede ausgelieferte Klasse einzeln, für die Detailzeilen.
+  final List<({AmpelClass klass, AmpelReading reading})> byClass;
 
   /// Die Spalten in der Reihenfolge von [AppColors.ampelCombined] —
   /// dieselbe wie `ForestClass` ohne `none`.
@@ -761,6 +788,14 @@ class _AmpelSection extends StatelessWidget {
     final level = reading?.level;
     final small = theme.textTheme.labelSmall
         ?.copyWith(fontSize: 9, color: AppColors.barkBrown);
+    // Graue Ablesungen fallen heraus: Grau heißt „keine Aussage", und
+    // eine Klasse ohne Aussage neben einer mit läse sich wie ein
+    // Unterschied zwischen den Klassen. Grau liegt aber am ORT und
+    // trifft dann alle.
+    final details = [
+      for (final entry in byClass)
+        if (entry.reading.level != null) entry,
+    ];
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -853,6 +888,38 @@ class _AmpelSection extends StatelessWidget {
               ],
             ),
           ),
+        // **Je Klasse eine Zeile — nur hier, in der ausgeklappten
+        // Legende** (Betreiber, 2026-09-12). Die Kopfzeile oben nennt
+        // das Maximum, das auch die Fläche malt; erst hier steht, WELCHE
+        // Gruppe es trägt. Ohne diese Zeilen behauptet die Karte „hier
+        // ist günstig", ohne sagen zu können, für wen — und seit es
+        // Klassen gibt, ist das eine Auslassung und keine Kürze.
+        if (details.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Text('am Fadenkreuz',
+              style: small?.copyWith(color: theme.hintColor)),
+          for (final entry in details)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(entry.klass.name,
+                        style: small, overflow: TextOverflow.ellipsis),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(ampelLevelWord(entry.reading.level!),
+                      style: small?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: switch (entry.reading.level!) {
+                            AmpelLevel.unguenstig => AppColors.barkBrown,
+                            AmpelLevel.verhalten => AppColors.ampelMild,
+                            AmpelLevel.guenstig => AppColors.ampelStrong,
+                          })),
+                ],
+              ),
+            ),
+        ],
       ],
     );
   }

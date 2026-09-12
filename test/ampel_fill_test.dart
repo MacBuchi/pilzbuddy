@@ -255,9 +255,13 @@ void main() {
         lat: lat,
         lon: lon,
       );
-      return ampelReadingFrom(course, table.at(lat, lon),
-              klass: ampelHerbstClass,
+      // **Dieselbe Funktion wie das Blatt**, nicht die Regel nachgebaut:
+      // Seit 1.140.0 zeigen Fläche und Blatt das Maximum über alle
+      // Klassen, und ein Test, der das hier von Hand nachrechnet, prüfte
+      // nur noch sich selbst.
+      return ampelBestReadingFrom(course, table.at(lat, lon),
               spotHeightM: elevation?.heightMetersAt(lat, lon))
+          .reading
           .level;
     }
 
@@ -275,13 +279,28 @@ void main() {
           south: 51.0,
         );
 
-    /// Drei Stationen, deren Faktoren in DREI Bändern liegen:
-    /// 13 °C → 1,000 · 17 °C → 0,527 · 20 °C → 0,141, jeweils mal
-    /// Regenfaktor 0,897 (3 mm/Tag).
+    /// Drei Stationen, deren MAXIMUM über die Klassen in drei Bändern
+    /// liegt (Regenfaktor 0,897 bei 3 mm/Tag):
+    ///
+    /// | Mittel | Herbst (13 °C) | Sommer (17,5 °C) | Maximum |
+    /// |---|---|---|---|
+    /// | 13 °C | 0,897 → günstig | 0,399 → verhalten | **günstig** |
+    /// | 22 °C | 0,035 → ungünstig | 0,399 → verhalten | **verhalten** |
+    /// | 26 °C | 0,001 → ungünstig | 0,050 → ungünstig | **ungünstig** |
+    ///
+    /// **Die Werte sind seit 1.140.0 weiter auseinander** (vorher 13/17/
+    /// 20 °C), und das ist keine Willkür, sondern die Folge der zweiten
+    /// Klasse: Zwischen 13 und 17,5 °C ist jetzt IMMER eine Glocke nahe
+    /// an ihrem Gipfel, dort gibt es keinen Kontrast mehr. Wer drei
+    /// Stufen sehen will, muss aus beiden Fenstern heraus.
+    ///
+    /// 26 °C über zwanzig Tage ist für Deutschland unrealistisch — das
+    /// ist hier Absicht und kein Wetterszenario: Geprüft wird, dass
+    /// Fläche und Blatt dieselbe Stufe sagen, nicht welche.
     final threeBands = <TestStation>[
       (lat: 51.32, lon: 10.05, meanC: 13, measured: 20),
-      (lat: 51.28, lon: 10.45, meanC: 17, measured: 20),
-      (lat: 50.95, lon: 10.25, meanC: 20, measured: 20),
+      (lat: 51.28, lon: 10.45, meanC: 22, measured: 20),
+      (lat: 50.95, lon: 10.25, meanC: 26, measured: 20),
     ];
 
     /// Läuft jede Zellmitte ab und vergleicht Karte gegen Blatt.
@@ -487,7 +506,12 @@ void main() {
         (
           lat: centreLat + (cornerLat - centreLat) * 1.5,
           lon: centreLon + (cornerLon - centreLon) * 1.5,
-          meanC: 20,
+          // 26 statt 20 °C seit 1.140.0: Bei 20 °C ist das
+          // Sommerfenster (17,5 °C) noch nah an seinem Gipfel, seit die
+          // Fläche das Maximum aller Klassen zeigt gäbe es hier also
+          // keinen Stufenwechsel mehr — und der Test prüfte eine Lage,
+          // in der beide Stationen dasselbe sagen.
+          meanC: 26,
           measured: 20,
         ),
       ]);

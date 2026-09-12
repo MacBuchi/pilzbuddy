@@ -360,6 +360,71 @@ void main() {
             'Farbe und Text widersprächen sich am selben Punkt');
   });
 
+  testWidgets('die ausgeklappte Legende nennt jede Klasse einzeln',
+      (tester) async {
+    // **Die Kopfzeile sagt WAS, die Detailzeilen sagen FÜR WEN**
+    // (Betreiber, 2026-09-12). Seit die Fläche das Maximum aller
+    // Klassen malt, behauptete die Legende „hier: günstig", ohne sagen
+    // zu können, welche Gruppe es trägt.
+    //
+    // Station 316 m, Gitter 1200 m → 7,3 °C: Für „Steinpilz & Co."
+    // (13 °C) reicht das zu „verhalten", für den Pfifferling (17,5 °C)
+    // nicht einmal dazu.
+    await pumpWithWeather(tester, loggedInWithSpot(),
+        preview: true, spotHeightM: 1200);
+    await openSpot(tester);
+    await acceptAndSettle(tester);
+    await tester.tapAt(const Offset(20, 20));
+    await settle(tester);
+
+    final container = ProviderScope.containerOf(
+        tester.element(find.byType(Scaffold).first));
+    container.read(ampelLayerEnabledProvider.notifier).state = true;
+    container.read(mapIdleCenterProvider.notifier).state =
+        const LatLng(spotLat, spotLng);
+    await settle(tester);
+
+    expect(find.text('am Fadenkreuz'), findsOneWidget);
+    expect(find.text('Steinpilz & Co.'), findsOneWidget);
+    expect(find.text('Pfifferling'), findsOneWidget);
+    // Und die Stufen stehen daneben: das Maximum oben, die Klassen
+    // darunter einzeln.
+    expect(find.textContaining('hier: verhalten'), findsOneWidget);
+    expect(find.text('ungünstig'), findsOneWidget,
+        reason: 'der Pfifferling kommt bei 7,3 °C nicht einmal auf '
+            'verhalten — stünde er auf derselben Stufe, zeigte die '
+            'Legende zweimal dasselbe und wäre keine Auskunft');
+  });
+
+  testWidgets('die eingeklappte Schiene zeigt die Klassen NICHT',
+      (tester) async {
+    // Betreiberauflage: klassenspezifisch „aber nur in der
+    // ausgeklappten maximierten Legende". Die Schiene ist 40 px breit
+    // und trägt ihr Urteil in der Form des Daumens — eine Aufzählung
+    // passt dort weder hin noch dazu.
+    await pumpWithWeather(tester, loggedInWithSpot(),
+        preview: true, spotHeightM: 1200);
+    await openSpot(tester);
+    await acceptAndSettle(tester);
+    await tester.tapAt(const Offset(20, 20));
+    await settle(tester);
+
+    final container = ProviderScope.containerOf(
+        tester.element(find.byType(Scaffold).first));
+    container.read(ampelLayerEnabledProvider.notifier).state = true;
+    container.read(mapIdleCenterProvider.notifier).state =
+        const LatLng(spotLat, spotLng);
+    await settle(tester);
+    expect(find.text('Steinpilz & Co.'), findsOneWidget,
+        reason: 'sonst prüft der Test das Einklappen gegen nichts');
+
+    await tester.tap(find.byTooltip('Legende einklappen'));
+    await settle(tester);
+    expect(find.text('am Fadenkreuz'), findsNothing);
+    expect(find.text('Steinpilz & Co.'), findsNothing);
+    expect(find.text('Pfifferling'), findsNothing);
+  });
+
   testWidgets('Der Daumen trägt das Urteil — ausgeklappt wie eingeklappt',
       (tester) async {
     // **Warum ein Daumen und keine drei Lampen.** Eine Ampel beantwortet

@@ -56,8 +56,30 @@ class AmpelSection extends ConsumerWidget {
     // ihrem eigenen Fenster von allen neun Arten am meisten. Sie
     // bleiben grau, weil dieses Fenster keinen Hold-out hat — nicht,
     // weil an ihnen nichts zu rechnen wäre.
-    final known = [for (final s in species) if (ampelClassFor(s) != null) s];
-    if (known.isEmpty) {
+    // **Ohne Art gilt jede ausgelieferte Klasse, nicht nur der Herbst**
+    // (Betreiber, 2026-09-12). „Was ist hier?" fragt an einem blanken
+    // Punkt — dort gibt es keine Art, und die Karte zeigt seit 1.140.0
+    // das Maximum aller Klassen. Zeigte das Blatt weiter nur eine,
+    // widerspräche es der Fläche, auf die man gerade getippt hat (#279).
+    // [label] steht im Satz, [species] schlägt die Saisonkurve nach —
+    // und für eine KLASSE ist das bewusst `null`: Eine Kurve hängt an
+    // der Art, eine Klasse hat keine. Beides in einem Feld zu führen
+    // ginge gut, bis jemand „Steinpilz & Co." nachschlägt und die
+    // fehlende Zeile für einen Datenfehler hält.
+    final entries = <({String label, String? species, AmpelClass klass})>[];
+    for (final s in species) {
+      if (s == null) {
+        for (final klass in ampelShippedClasses) {
+          entries.add((label: klass.name, species: null, klass: klass));
+        }
+        continue;
+      }
+      final klass = ampelClassFor(s);
+      if (klass != null) {
+        entries.add((label: s, species: s, klass: klass));
+      }
+    }
+    if (entries.isEmpty) {
       final names = species.whereType<String>().toList();
       return _line(
         theme,
@@ -108,20 +130,26 @@ class AmpelSection extends ConsumerWidget {
     // anschlagen, über die das Blatt darunter kein Wort verliert. Ein
     // Banner, dem sein eigenes Blatt widerspricht, ist schlimmer als
     // keins (#279, eine Ebene tiefer).
+    // **NICHT nach Score sortiert.** Scores verschiedener Klassen sind
+    // nicht vergleichbar — jede Schwelle ist auf ihre eigene Verteilung
+    // kalibriert. Sortiert wird nach der STUFE, und bei Gleichstand
+    // bleibt die Reihenfolge der Liste: jüngster Fund zuerst, bzw. die
+    // Reihenfolge der ausgelieferten Klassen.
     final readings = [
-      for (final s in known)
+      for (final entry in entries)
         (
-          species: s,
-          klass: ampelClassFor(s)!,
+          label: entry.label,
+          species: entry.species,
+          klass: entry.klass,
           reading: ampelReadingFrom(course.valueOrNull,
               temperature.valueOrNull,
-              klass: ampelClassFor(s)!,
+              klass: entry.klass,
               spotHeightM: spotHeight.valueOrNull),
         ),
     ]..sort((a, b) {
-        final left = a.reading.score, right = b.reading.score;
+        final left = a.reading.level, right = b.reading.level;
         if (left == null || right == null) return 0;
-        return right.compareTo(left);
+        return right.index.compareTo(left.index);
       });
 
     // Grau ist eine Aussage über den ORT (keine Regendaten, keine
@@ -143,7 +171,8 @@ class AmpelSection extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         for (final entry in readings)
-          ..._blockFor(theme, entry.species, entry.klass, entry.reading),
+          ..._blockFor(theme, entry.label, entry.species, entry.klass,
+              entry.reading),
         Padding(
           padding: const EdgeInsets.only(left: 22, top: 2),
           child: Text(
@@ -169,8 +198,8 @@ class AmpelSection extends ConsumerWidget {
   }
 
   /// Stufe und Fakten-Zeile einer Art.
-  List<Widget> _blockFor(ThemeData theme, String? species, AmpelClass klass,
-      AmpelReading reading) {
+  List<Widget> _blockFor(ThemeData theme, String label, String? species,
+      AmpelClass klass, AmpelReading reading) {
     final level = reading.level!;
     final colour = switch (level) {
       // Bewusst kein Rot: „Keine Stufe heißt aussichtslos" (Konzept).
@@ -194,7 +223,7 @@ class AmpelSection extends ConsumerWidget {
               text: ampelLevelWord(level),
               style: TextStyle(fontWeight: FontWeight.w700, color: colour),
             ),
-            TextSpan(text: ' für ${species ?? 'Steinpilz & Co.'}'),
+            TextSpan(text: ' für $label'),
           ],
         ),
       ),
