@@ -25,13 +25,24 @@ import '../map/elevation_grid.dart';
 import '../map/elevation_providers.dart';
 import '../map/rain_data_providers.dart';
 import '../map/rain_stack.dart';
+import '../map/spot_filter.dart' show currentMonthProvider;
 import '../map/spot_weather.dart';
+import '../../core/season_curves.dart';
 import '../spots/spot_providers.dart';
 import 'ampel_model.dart';
 import 'ampel_providers.dart';
 
-/// Ein Spot, an dem die Ampel günstig steht, samt seiner Ablesung.
-typedef AmpelHit = ({Spot spot, AmpelReading reading});
+/// Ein Spot, an dem es sich gerade lohnen könnte — samt der ART, für
+/// die das gilt, und ihrer Ablesung.
+///
+/// Die Art gehört dazu, seit der Hinweis zwei Bedingungen verbindet: Ein
+/// Spot mit Pfifferling- UND Steinpilzfunden kann im Juli wegen des
+/// einen dastehen und im Oktober wegen des anderen. Ohne den Namen wäre
+/// „hier ist günstig" eine Aussage, die niemand mehr einer Art zuordnen
+/// kann — und das Blatt darunter könnte ihr widersprechen, ohne dass es
+/// auffiele. `null` ist die Gildenfrage („Steinpilz & Co.") an einem
+/// Spot, an dem noch keine Art eingetragen ist.
+typedef AmpelHit = ({Spot spot, AmpelReading reading, String? species});
 
 /// Prüft die App beim Start die eigenen Spots? Muster
 /// [AmpelPreviewEnabledNotifier]: Zustand springt sofort, Speichern läuft
@@ -55,7 +66,33 @@ final ampelBannerEnabledProvider =
     NotifierProvider<AmpelBannerEnabledNotifier, bool>(
         AmpelBannerEnabledNotifier.new);
 
-/// Die eigenen Spots mit GÜNSTIGER Ampel — bester zuerst.
+/// Die eigenen Spots, an denen es sich gerade lohnen könnte — bester
+/// zuerst.
+///
+/// **Zwei Bedingungen, und beide gelten je ART** (Betreiber,
+/// 2026-09-12): Die Ampel-Klasse dieser Art muss günstig stehen, UND
+/// ihre Saisonkurve muss sagen, dass sie jetzt überhaupt auftaucht. Ein
+/// Spot erscheint, sobald das für mindestens eine seiner Arten
+/// zusammenfällt.
+///
+/// **Warum je Art und nicht je Spot.** Beides über den Spot zu fragen
+/// gäbe Unsinn: An einer Stelle mit Pfifferling- und Steinpilzfunden
+/// stünde im Juli die Ampel des HERBSTfensters (jüngster Fund
+/// Steinpilz), während das Saison-Tor wegen des PFIFFERLINGS aufginge —
+/// zwei Aussagen über zwei Pilze, zu einer verrechnet. Gepaart wird
+/// deshalb innerhalb der Art, und der Treffer trägt ihren Namen.
+///
+/// **Warum die Saison ein TOR ist und kein Faktor.** Sie darf nicht in
+/// den Score: Die Rückwärtsvalidierung vergleicht den Fundtag gegen Tage
+/// DERSELBEN Saison, dort kürzt sie sich heraus und ist damit
+/// prinzipiell ungeprüft (`ampel_model.dart`). Als Bedingung „taucht die
+/// Art jetzt überhaupt auf" ist sie dagegen eine Tatsache über
+/// GBIF-Meldungen und braucht keine Validierung.
+///
+/// Die Regeln bei Unwissen sind die des Saison-Filters (#414) — **im
+/// Zweifel zeigen**: Eine Art ohne Kurve verdeckt nichts (`null` heißt
+/// „wir wissen es nicht", nicht „nein"), und ein Spot ganz ohne
+/// eingetragene Art bleibt die Gildenfrage.
 ///
 /// [courses] liegt parallel zu [spots]; fehlt ein Eintrag, wird der Spot
 /// wie ohne Regendaten behandelt und fällt damit heraus. Genau das ist
@@ -70,33 +107,58 @@ List<AmpelHit> ampelScanOf({
   required List<RainCourse?> courses,
   required WeatherTable? table,
   required ElevationGrid? elevation,
+  required int month,
 }) {
   final hits = <AmpelHit>[];
   for (final (index, spot) in spots.indexed) {
-    // **Dieselbe Artquelle wie das Spot-Blatt** (`spot.lastFind?.species`
-    // in `spot_detail_sheet.dart`). Eine andere Wahl hier hieße, dass
-    // das Banner „günstig" sagt, während das Blatt darunter etwas
-    // anderes zeigt — dieselbe Regel wie zwischen Fläche und Blatt
-    // (#279). Eine Art ohne bestätigte Klasse bekommt keine Stufe und
-    // fällt damit aus dem Banner; grau ist eine Antwort, aber kein
-    // Grund, jemanden in den Wald zu schicken.
-    final klass = ampelClassFor(spot.lastFind?.species);
-    if (klass == null) continue;
-    final reading = ampelReadingFrom(
-      index < courses.length ? courses[index] : null,
-      table?.at(spot.lat, spot.lng),
-      klass: klass,
-      // `null` heißt schlicht „unkorrigiert rechnen" — dieselbe stille
-      // Degradation wie im Spot-Blatt.
-      spotHeightM: elevation?.heightMetersAt(spot.lat, spot.lng),
-    );
-    if (reading.level != AmpelLevel.guenstig) continue;
-    hits.add((spot: spot, reading: reading));
+    AmpelHit? best;
+    for (final species in scanSpeciesOf(spot)) {
+      final klass = ampelClassFor(species);
+      // Eine Art ohne bestätigte Klasse bekommt keine Stufe — grau ist
+      // eine Antwort, aber kein Grund, jemanden in den Wald zu schicken.
+      if (klass == null) continue;
+      // Das Saison-Tor. `null` heißt „keine Kurve" und damit „zeigen".
+      if (!(speciesInSeason(species, month) ?? true)) continue;
+      final reading = ampelReadingFrom(
+        index < courses.length ? courses[index] : null,
+        table?.at(spot.lat, spot.lng),
+        klass: klass,
+        // `null` heißt schlicht „unkorrigiert rechnen" — dieselbe stille
+        // Degradation wie im Spot-Blatt.
+        spotHeightM: elevation?.heightMetersAt(spot.lat, spot.lng),
+      );
+      if (reading.level != AmpelLevel.guenstig) continue;
+      if (best == null || reading.score! > best.reading.score!) {
+        best = (spot: spot, reading: reading, species: species);
+      }
+    }
+    if (best != null) hits.add(best);
   }
   // Der beste zuerst: Das Banner nennt eine Zahl und öffnet EINEN Spot,
   // und das soll der sein, der am deutlichsten dasteht.
   hits.sort((a, b) => b.reading.score!.compareTo(a.reading.score!));
   return hits;
+}
+
+/// Die Arten eines Spots, für die gerechnet wird — jüngster Fund zuerst,
+/// ohne Dopplungen.
+///
+/// **Leergangsfrei** (`findsSorted`, #211): Ein „nichts gefunden" trägt
+/// keine Art und behauptet nichts, worüber eine Ampel zu urteilen wäre.
+/// Ein Spot ohne jeden Fund liefert `[null]` — die Gildenfrage, also
+/// genau das, was die Karte ohnehin rechnet.
+///
+/// Geteilt mit dem Spot-Blatt, damit Banner und Blatt nicht über
+/// verschiedene Arten sprechen können (#279-Regel, eine Ebene tiefer).
+List<String?> scanSpeciesOf(Spot spot) {
+  final seen = <String>{};
+  final out = <String?>[];
+  for (final find in spot.findsSorted) {
+    final species = find.species;
+    if (species == null || !seen.add(species)) continue;
+    out.add(species);
+  }
+  return out.isEmpty ? const [null] : out;
 }
 
 /// Der Nachlauf über die eigenen Spots — leer, solange etwas fehlt.
@@ -139,5 +201,9 @@ final ampelScanProvider = FutureProvider<List<AmpelHit>>((ref) async {
     courses: courses,
     table: table,
     elevation: elevation,
+    // Derselbe Provider, an dem der Saison-Filter hängt — nicht
+    // `DateTime.now()`: Banner und Filter müssen denselben Monat sehen,
+    // sonst zeigt der Tipp auf eine Karte, die etwas anderes filtert.
+    month: ref.watch(currentMonthProvider),
   );
 });

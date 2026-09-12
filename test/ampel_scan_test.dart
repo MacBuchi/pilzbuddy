@@ -14,14 +14,30 @@ import 'package:pilzbuddy/features/ampel/ampel_providers.dart';
 import 'package:pilzbuddy/features/ampel/ampel_scan.dart';
 import 'package:pilzbuddy/features/map/elevation_grid.dart';
 import 'package:pilzbuddy/features/map/rain_stack.dart';
+import 'package:pilzbuddy/models/find.dart';
 import 'package:pilzbuddy/models/spot.dart';
 
 import 'ampel_fill_test.dart' show tableOf, tableOfStations;
 
 /// Ein eigener Spot an einer Koordinate, die in der Reichweite der
 /// Teststationen aus `ampel_fill_test.dart` liegt.
-Spot spotAt({required String id, String? name, double lat = 51, double lon = 11.5}) =>
-    Spot(id: id, ownerId: 'me', name: name, lat: lat, lng: lon);
+Spot spotAt({required String id, String? name, double lat = 51,
+        double lon = 11.5, List<String> species = const []}) =>
+    Spot(
+      id: id,
+      ownerId: 'me',
+      name: name,
+      lat: lat,
+      lng: lon,
+      finds: [
+        for (final (i, s) in species.indexed)
+          Find(
+              id: '$id-$i',
+              spotId: id,
+              species: s,
+              foundOn: DateTime.utc(2025, 9, 1)),
+      ],
+    );
 
 /// Ein Verlauf mit [mmPerDay] an jedem der 26 Tage, ältester zuerst.
 RainCourse courseOf(int mmPerDay, {int days = 26}) => RainCourse([
@@ -56,6 +72,7 @@ void main() {
         courses: [courseOf(5), courseOf(1)],
         table: tableOf(),
         elevation: null,
+        month: 9,
       );
 
       // Gegenprobe gegen das Modell: Genau die Spots, deren Ablesung
@@ -94,6 +111,7 @@ void main() {
         courses: [courseOf(5), courseOf(5), courseOf(5)],
         table: table,
         elevation: null,
+        month: 9,
       );
 
       expect(hits, hasLength(3),
@@ -116,6 +134,7 @@ void main() {
         courses: const [null],
         table: tableOf(),
         elevation: null,
+        month: 9,
       );
       expect(hits, isEmpty);
     });
@@ -130,6 +149,7 @@ void main() {
         courses: [courseOf(5)],
         table: tableOf(),
         elevation: null,
+        month: 9,
       );
       expect([for (final hit in hits) hit.spot.id], ['a']);
     });
@@ -140,6 +160,7 @@ void main() {
         courses: [courseOf(5)],
         table: null,
         elevation: null,
+        month: 9,
       );
       expect(hits, isEmpty);
     });
@@ -150,7 +171,9 @@ void main() {
             spots: const [],
             courses: const [],
             table: tableOf(),
-            elevation: null),
+            elevation: null,
+        month: 9,
+      ),
         isEmpty,
       );
     });
@@ -178,7 +201,9 @@ void main() {
             spots: [spotAt(id: 'hoch')],
             courses: [course],
             table: table,
-            elevation: null),
+            elevation: null,
+        month: 9,
+      ),
         hasLength(1),
         reason: 'ohne Korrektur müsste der Spot günstig stehen',
       );
@@ -187,7 +212,9 @@ void main() {
             spots: [spotAt(id: 'hoch')],
             courses: [course],
             table: table,
-            elevation: grid),
+            elevation: grid,
+        month: 9,
+      ),
         isEmpty,
         reason: 'die Höhenkorrektur kommt im Nachlauf nicht an',
       );
@@ -208,4 +235,65 @@ void main() {
       expect(corrected.tempFactor, lessThan(ampelHerbstClass.guenstigAbove));
     });
   });
+
+  group('das Saison-Tor (Betreiber, 2026-09-12)', () {
+    // Die Kurven, an denen die Fälle hängen — aus `season_curves.g.dart`,
+    // Schwelle `kSeasonNowThreshold` = 15:
+    //   Steinpilz    Mai 2 · Juli 67 · Sept 96 · Nov 32
+    //   Pfifferling  Juli 100 · Sept 40 · Nov 10
+    List<AmpelHit> scan(List<Spot> spots, int month, {double meanC = 13}) =>
+        ampelScanOf(
+          spots: spots,
+          courses: [for (final _ in spots) courseOf(5)],
+          table: tableOf(meanC: meanC),
+          elevation: null,
+          month: month,
+        );
+
+    test('außerhalb der Saison schweigt der Hinweis', () {
+      // Regen gesättigt, Temperatur im Optimum — allein der Monat
+      // entscheidet. Ohne das Tor stünde hier im Mai „günstig", und die
+      // Erinnerung schickte jemanden für Steinpilze in den Frühling.
+      final spots = [spotAt(id: 'a', species: const ['Steinpilz'])];
+      expect(scan(spots, 9), hasLength(1),
+          reason: 'im September ist Hauptzeit');
+      expect(scan(spots, 5), isEmpty,
+          reason: 'im Mai steht der Steinpilz bei 2 von 100');
+    });
+
+    test('bei zwei Arten zählt die, die gerade Saison hat', () {
+      // November: Steinpilz 32, Pfifferling 10 — nur einer ist über der
+      // Schwelle, und der Treffer trägt seinen Namen.
+      final hits = scan(
+          [spotAt(id: 'a', species: const ['Pfifferling', 'Steinpilz'])], 11);
+      expect(hits.single.species, 'Steinpilz');
+    });
+
+    test('jede Art bringt ihre eigene Klasse in die Paarung mit', () {
+      // **Der Fall, für den das Ganze gebaut ist.** Juli, 17,5 °C: Für
+      // den Steinpilz ist das zu warm (Herbstfenster, Score 0,445 →
+      // „verhalten"), für den Pfifferling ist es genau sein Optimum.
+      // Beide haben Saison; entschieden wird über die KLASSE, und der
+      // Treffer sagt, für wen er gilt.
+      final hits = scan(
+          [spotAt(id: 'a', species: const ['Steinpilz', 'Pfifferling'])], 7,
+          meanC: 17.5);
+      expect(hits.single.species, 'Pfifferling');
+    });
+
+    test('im Zweifel zeigen: ohne eingetragene Art bleibt der Spot', () {
+      // Ein Spot ohne Fund ist die Gildenfrage — es gibt keine Kurve,
+      // über die zu urteilen wäre. Dieselbe Regel wie im Saison-Filter
+      // (#414): Vor einer Fundstelle zu stehen, die die App versteckt,
+      // ist der teure Fehler.
+      final hits = scan([spotAt(id: 'a')], 1);
+      expect(hits.single.species, isNull);
+    });
+
+    test('eine Art ohne bestätigte Klasse schlägt nie an', () {
+      expect(scan([spotAt(id: 'a', species: const ['Hallimasch'])], 9),
+          isEmpty);
+    });
+  });
+
 }

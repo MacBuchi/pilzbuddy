@@ -796,12 +796,35 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   - **Nur `guenstig` zählt.** „Verhalten" ist die Mehrzahl der Tage und
     damit ein Banner, das immer steht — und eines, das immer steht, sagt
     nichts mehr.
-  - **Das Banner nimmt dieselbe Artquelle wie das Blatt** (seit 1.137.0,
-    `spot.lastFind?.species`). Seit die Ampel je KLASSE rechnet, wäre
-    eine andere Wahl ein Banner, das „günstig" sagt, während das Blatt
-    darunter „verhalten" zeigt — dieselbe Regel wie zwischen Fläche und
-    Blatt (#279). Eine Art ohne bestätigte Klasse fällt aus dem Banner
-    heraus, statt mit dem Herbstfenster gerechnet zu werden.
+  - **Der Hinweis paart ZWEI Bedingungen, und zwar je ART** (seit
+    1.138.0, Betreiber 2026-09-12): Die Klasse dieser Art muss günstig
+    stehen UND ihre Saisonkurve muss sagen, dass sie jetzt überhaupt
+    auftaucht. Ein Spot erscheint, sobald das für eine seiner Arten
+    zusammenfällt; der Treffer trägt ihren Namen (`AmpelHit.species`).
+    Vier Dinge, die man wissen muss:
+    - **Beides über den SPOT zu fragen gäbe Unsinn.** An einer Stelle
+      mit Pfifferling- und Steinpilzfunden stünde im Juli die Ampel des
+      Herbstfensters (jüngster Fund), während das Saison-Tor wegen des
+      Pfifferlings aufginge — zwei Aussagen über zwei Pilze, zu einer
+      verrechnet. Gepaart wird deshalb innerhalb der Art.
+    - **Die Saison ist ein TOR, kein Faktor.** In den Score darf sie
+      nicht: Die Validierung vergleicht den Fundtag gegen Tage
+      DERSELBEN Saison, dort kürzt sie sich heraus und ist prinzipiell
+      ungeprüft. Als Bedingung „taucht die Art jetzt auf" ist sie eine
+      Tatsache über GBIF-Meldungen und braucht keine Validierung.
+    - **Banner, Filter und Blatt müssen dieselbe Menge zeigen.** Der
+      Tipp setzt deshalb BEIDE Filter (`onlyAmpel` und `onlySeason`,
+      beide im Chip genannt — #154), das Blatt zeigt seit 1.138.0 EINE
+      ZEILE JE ART (`scanSpeciesOf`, geteilt mit dem Nachlauf) statt nur
+      der des jüngsten Fundes, und der Monat kommt aus
+      `currentMonthProvider` und nicht aus `DateTime.now()`.
+    - **Im Zweifel zeigen** — die Regeln des Saison-Filters (#414)
+      gelten hier genauso: Eine Art ohne Kurve verdeckt nichts (`null`
+      heißt „wir wissen es nicht"), ein Spot ohne eingetragene Art
+      bleibt die Gildenfrage. Und die Wortleiter im Blatt („Hauptzeit /
+      Nebenzeit / Randzeit / kaum gemeldet") hängt unten an
+      `kSeasonNowThreshold` — sonst stünde dort „außerhalb", während das
+      Banner für dieselbe Art anschlägt.
   - **Der Wortlaut trägt das Urteil.** Die Ampel bewertet BEDINGUNGEN,
     nie Vorkommen. Also „2 Spots · **Ampel günstig (experimentell)**",
     kein „geh jetzt", kein Ausrufezeichen.

@@ -19,6 +19,7 @@ import 'package:pilzbuddy/features/ampel/ampel_scan.dart';
 import 'package:pilzbuddy/features/map/elevation_grid.dart';
 import 'package:pilzbuddy/features/map/elevation_providers.dart';
 import 'package:pilzbuddy/features/map/rain_data_providers.dart';
+import 'package:pilzbuddy/features/map/spot_filter.dart';
 import 'package:pilzbuddy/features/map/widgets/map_banners.dart';
 
 import '../fakes/fake_backend.dart';
@@ -417,6 +418,32 @@ void main() {
     // vorschlägt („— antippen"), und danach kam an diesem Tag keiner
     // mehr. Lesen ist nicht erledigen; der Spot bleibt günstig.
     expect(containerOf(tester).read(ampelBannerMutedProvider), isFalse);
+  });
+
+  testWidgets('der Tipp setzt BEIDE Bedingungen — und nennt sie',
+      (tester) async {
+    // **Banner und Filter müssen dieselbe Menge zeigen** (Betreiber,
+    // 2026-09-12). Seit der Nachlauf je Art „Klasse günstig" MIT „hat
+    // gerade Saison" paart, wäre ein Filter, der nur die Ampel setzt,
+    // eine andere Auswahl als die, auf die gerade getippt wurde — der
+    // Tipp führte auf eine Karte, die etwas anderes zeigt als das
+    // Banner darüber.
+    final (backend, _) = loggedInWithSpot();
+    await pumpReady(tester, backend);
+    await tester.tap(find.textContaining('· Ampel günstig'));
+    await settle(tester);
+
+    final filter = containerOf(tester).read(spotFilterProvider);
+    expect(filter.onlyAmpel, isTrue);
+    expect(filter.onlySeason, isTrue,
+        reason: 'sonst zeigt die Karte mehr Spots als das Banner meldet');
+
+    // Und BEIDE stehen im Chip. Ein selbst gesetzter, ungenannter
+    // Filter ist genau der unbemerkt versteckte Spot, vor dem #154
+    // warnt — und zwei Bedingungen, von denen nur eine dasteht, sind
+    // derselbe Fehler in klein.
+    expect(find.textContaining('Ampel günstig, jetzt Saison'),
+        findsOneWidget);
   });
 
   testWidgets('mehrere Treffer: alle liegen danach im Bild', (tester) async {

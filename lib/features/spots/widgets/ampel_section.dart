@@ -22,16 +22,20 @@ class AmpelSection extends ConsumerWidget {
     super.key,
     required this.lat,
     required this.lon,
-    this.species,
+    this.species = const [null],
     this.today,
   });
 
   final double lat;
   final double lon;
 
-  /// Die Art des Spots — `null` in „Was ist hier?", dann gilt die
-  /// Gilden-Frage „Steinpilz & Co.".
-  final String? species;
+  /// Die Arten des Spots, jüngster Fund zuerst — `[null]` in „Was ist
+  /// hier?", dann gilt die Gilden-Frage „Steinpilz & Co.".
+  ///
+  /// Eine LISTE, seit der Hinweis je Art paart: Ein Spot mit
+  /// Pfifferling- und Steinpilzfunden hat im Juli und im Oktober etwas
+  /// zu sagen, und zwar Verschiedenes.
+  final List<String?> species;
 
   /// Nur für Tests: „heute" für die Saison-Zeile.
   final DateTime? today;
@@ -43,8 +47,8 @@ class AmpelSection extends ConsumerWidget {
     }
     final theme = Theme.of(context);
 
-    // Klassen-Tor VOR allem anderen: Für eine Art ohne bestätigte
-    // Klasse wird nicht einmal gerechnet.
+    // Klassen-Tor VOR allem anderen: Für Arten ohne bestätigte Klasse
+    // wird nicht einmal gerechnet.
     //
     // **Korrektur am 2026-09-12 zur früheren Begründung.** Hier stand,
     // das Modell sei für Holzbewohner „kategorisch falsch". Gemessen
@@ -52,14 +56,16 @@ class AmpelSection extends ConsumerWidget {
     // ihrem eigenen Fenster von allen neun Arten am meisten. Sie
     // bleiben grau, weil dieses Fenster keinen Hold-out hat — nicht,
     // weil an ihnen nichts zu rechnen wäre.
-    final klass = ampelClassFor(species);
-    if (klass == null) {
+    final known = [for (final s in species) if (ampelClassFor(s) != null) s];
+    if (known.isEmpty) {
+      final names = species.whereType<String>().toList();
       return _line(
         theme,
         icon: Icon(Icons.circle_outlined, size: 14, color: theme.hintColor),
         text: TextSpan(
-          text: 'Pilzwetter (experimentell): für $species nicht geprüft '
-              '— keine Aussage.',
+          text: 'Pilzwetter (experimentell): für '
+              '${names.isEmpty ? 'diese Art' : names.join(' und ')} '
+              'nicht geprüft — keine Aussage.',
           style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
         ),
       );
@@ -83,6 +89,11 @@ class AmpelSection extends ConsumerWidget {
     // Grau, kein Platzhalter). Die Höhe kommt aus dem mitgelieferten
     // Gitter; `null` heißt schlicht „unkorrigiert rechnen" — dieselbe
     // stille Degradation wie beim Gitter selbst.
+    //
+    // **Regen, Temperatur und Höhe hängen am ORT, nicht an der Art** —
+    // sie werden einmal geholt, und nur Glocke und Schwelle
+    // unterscheiden die Arten. Mehrere Zeilen kosten deshalb nichts als
+    // Arithmetik.
     final at = (lat: lat, lon: lon);
     final course = ref.watch(rainCourseProvider(at));
     final temperature = ref.watch(spotTemperatureProvider(at));
@@ -90,62 +101,49 @@ class AmpelSection extends ConsumerWidget {
     if (course.isLoading || temperature.isLoading || spotHeight.isLoading) {
       return const SizedBox.shrink();
     }
-    final reading = ampelReadingFrom(
-        course.valueOrNull, temperature.valueOrNull,
-        klass: klass, spotHeightM: spotHeight.valueOrNull);
 
-    if (reading.isGrau) {
+    // **Eine Zeile je Art, beste zuerst.** Bis 1.137.0 stand hier genau
+    // eine, für den jüngsten Fund — und seit der Hinweis je Art paart
+    // (Klasse günstig UND Saison), könnte das Banner wegen einer Art
+    // anschlagen, über die das Blatt darunter kein Wort verliert. Ein
+    // Banner, dem sein eigenes Blatt widerspricht, ist schlimmer als
+    // keins (#279, eine Ebene tiefer).
+    final readings = [
+      for (final s in known)
+        (
+          species: s,
+          klass: ampelClassFor(s)!,
+          reading: ampelReadingFrom(course.valueOrNull,
+              temperature.valueOrNull,
+              klass: ampelClassFor(s)!,
+              spotHeightM: spotHeight.valueOrNull),
+        ),
+    ]..sort((a, b) {
+        final left = a.reading.score, right = b.reading.score;
+        if (left == null || right == null) return 0;
+        return right.compareTo(left);
+      });
+
+    // Grau ist eine Aussage über den ORT (keine Regendaten, keine
+    // Station) und trifft damit alle Arten gleich — einmal sagen reicht.
+    final grau = readings.first.reading;
+    if (grau.isGrau) {
       return _line(
         theme,
         icon: Icon(Icons.circle_outlined, size: 14, color: theme.hintColor),
         text: TextSpan(
           text: 'Pilzwetter (experimentell): keine Aussage — '
-              '${reading.reason}.',
+              '${grau.reason}.',
           style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
         ),
       );
     }
 
-    final level = reading.level!;
-    final colour = switch (level) {
-      // Bewusst kein Rot: „Keine Stufe heißt aussichtslos" (Konzept).
-      // „Ungünstig" bleibt der erdige Braunton der Marke — die
-      // gewählte Familie färbt nur, was die Karte auch hervorhebt,
-      // sonst hieße ein kräftiger Ton hier „schau her" und dort
-      // „lohnt nicht".
-      AmpelLevel.unguenstig => AppColors.barkBrown,
-      AmpelLevel.verhalten => AppColors.ampelMild,
-      AmpelLevel.guenstig => AppColors.ampelStrong,
-    };
-    final label = species ?? 'Steinpilz & Co.';
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _line(
-          theme,
-          icon: Icon(Icons.circle, size: 14, color: colour),
-          text: TextSpan(
-            style: theme.textTheme.bodyMedium,
-            children: [
-              const TextSpan(text: 'Pilzwetter (experimentell): '),
-              TextSpan(
-                text: ampelLevelWord(level),
-                style: TextStyle(
-                    fontWeight: FontWeight.w700, color: colour),
-              ),
-              TextSpan(text: ' für $label'),
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.only(left: 22, top: 2),
-          child: Text(
-            _components(reading, klass),
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.hintColor),
-          ),
-        ),
+        for (final entry in readings)
+          ..._blockFor(theme, entry.species, entry.klass, entry.reading),
         Padding(
           padding: const EdgeInsets.only(left: 22, top: 2),
           child: Text(
@@ -157,6 +155,9 @@ class AmpelSection extends ConsumerWidget {
             // (`map_data_license.dart`). „Unvalidierte Vorschau"
             // stand hier bis 1.91.x — seit dem Placebo-Urteil
             // (#298) wäre das die falsche Bescheidenheit.
+            //
+            // EINMAL unter allen Zeilen: Der Satz gilt dem Modell, nicht
+            // der Art, und unter jeder Zeile wiederholt wäre er Lärm.
             'Bewertet Bedingungen, nicht Vorkommen — Formel nach '
             'einer 10-Jahres-Studie bei Bielefeld (Preprint 2025).',
             style: theme.textTheme.bodySmall
@@ -165,6 +166,46 @@ class AmpelSection extends ConsumerWidget {
         ),
       ],
     );
+  }
+
+  /// Stufe und Fakten-Zeile einer Art.
+  List<Widget> _blockFor(ThemeData theme, String? species, AmpelClass klass,
+      AmpelReading reading) {
+    final level = reading.level!;
+    final colour = switch (level) {
+      // Bewusst kein Rot: „Keine Stufe heißt aussichtslos" (Konzept).
+      // „Ungünstig" bleibt der erdige Braunton der Marke — die
+      // gewählte Familie färbt nur, was die Karte auch hervorhebt,
+      // sonst hieße ein kräftiger Ton hier „schau her" und dort
+      // „lohnt nicht".
+      AmpelLevel.unguenstig => AppColors.barkBrown,
+      AmpelLevel.verhalten => AppColors.ampelMild,
+      AmpelLevel.guenstig => AppColors.ampelStrong,
+    };
+    return [
+      _line(
+        theme,
+        icon: Icon(Icons.circle, size: 14, color: colour),
+        text: TextSpan(
+          style: theme.textTheme.bodyMedium,
+          children: [
+            const TextSpan(text: 'Pilzwetter (experimentell): '),
+            TextSpan(
+              text: ampelLevelWord(level),
+              style: TextStyle(fontWeight: FontWeight.w700, color: colour),
+            ),
+            TextSpan(text: ' für ${species ?? 'Steinpilz & Co.'}'),
+          ],
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.only(left: 22, top: 2),
+        child: Text(
+          _components(reading, klass, species),
+          style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
+        ),
+      ),
+    ];
   }
 
   Widget _line(ThemeData theme,
@@ -186,7 +227,8 @@ class AmpelSection extends ConsumerWidget {
   /// Die Saison steht DANEBEN und rechnet nicht in die Stufe hinein:
   /// Die Validierung hat sie bewusst herausgekürzt, geprüft ist nur der
   /// Wetterbeitrag.
-  String _components(AmpelReading reading, AmpelClass klass) {
+  String _components(
+      AmpelReading reading, AmpelClass klass, String? species) {
     final rain = reading.rainFactor!;
     final rainWord = rain >= 0.66
         ? 'gut'
@@ -219,7 +261,20 @@ class AmpelSection extends ConsumerWidget {
     if (curve != null) {
       final month = (today ?? DateTime.now()).month;
       final share = curve.months[month - 1];
-      parts.add('Saison: ${share >= 80 ? 'Hauptzeit' : share >= 40 ? 'Nebenzeit' : 'außerhalb der Hauptzeit'}');
+      // **Die unterste Stufe hängt an [kSeasonNowThreshold]** — derselben
+      // Zahl, mit der der Banner-Nachlauf entscheidet, ob eine Art jetzt
+      // überhaupt auftaucht. Vorher endete die Skala bei 40, und
+      // zwischen 15 und 40 stand hier „außerhalb der Hauptzeit",
+      // während das Banner für dieselbe Art anschlug: zwei Schwellen
+      // für dieselbe Frage, und die Anzeige widersprach dem Hinweis.
+      final season = share >= 80
+          ? 'Hauptzeit'
+          : share >= 40
+              ? 'Nebenzeit'
+              : share >= kSeasonNowThreshold
+                  ? 'Randzeit'
+                  : 'kaum gemeldet';
+      parts.add('Saison: $season');
     }
     return parts.join(' · ');
   }

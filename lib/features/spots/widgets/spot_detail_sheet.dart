@@ -17,6 +17,7 @@ import '../spot_providers.dart';
 import 'add_find_sheet.dart';
 import 'edit_find_sheet.dart';
 import 'ampel_section.dart';
+import '../../ampel/ampel_scan.dart' show scanSpeciesOf;
 import 'species_season_section.dart';
 import 'spot_forest_section.dart';
 import 'spot_rain_section.dart';
@@ -518,8 +519,11 @@ class _SpotDetailSheet extends ConsumerWidget {
           // Die Ampel-Vorschau VOR den Fakten-Sektionen: Sie ist die
           // verdichtete Antwort auf „ist der Spot dran?" — existiert
           // aber nur hinter dem Experimentell-Schalter im Profil.
+          // **Dieselbe Artenliste wie der Banner-Nachlauf**
+          // (`scanSpeciesOf`): Sonst könnte das Banner wegen einer Art
+          // anschlagen, über die das Blatt darunter schweigt.
           AmpelSection(
-              lat: spot.lat, lon: spot.lng, species: spot.lastFind?.species),
+              lat: spot.lat, lon: spot.lng, species: scanSpeciesOf(spot)),
           SpeciesSeasonSection(species: spot.lastFind?.species),
           // Der Waldtyp zwischen Saison und Wetter: Er gehört wie die
           // Saison zur Frage „was für eine Stelle ist das", und er steht
