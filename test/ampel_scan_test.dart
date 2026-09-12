@@ -63,7 +63,8 @@ void main() {
       final expected = [
         for (final (index, spot) in spots.indexed)
           if (ampelReadingFrom([courseOf(5), courseOf(1)][index],
-                      tableOf().at(spot.lat, spot.lng))
+                      tableOf().at(spot.lat, spot.lng),
+                      klass: ampelHerbstClass)
                   .level ==
               AmpelLevel.guenstig)
             spot.id,
@@ -193,7 +194,8 @@ void main() {
 
       // Und es ist wirklich die Korrektur, nicht ein Grauwerden:
       final corrected =
-          ampelReadingFrom(course, table.at(51, 11.5), spotHeightM: 1600);
+          ampelReadingFrom(course, table.at(51, 11.5),
+              klass: ampelHerbstClass, spotHeightM: 1600);
       expect(corrected.isGrau, isFalse,
           reason: 'die Ablesung ist grau geworden — dann sagt der Test '
               'nichts über die Korrektur');
@@ -203,7 +205,7 @@ void main() {
       // Temperatur. Welche Stufe daraus wird, ist Sache des Modells und
       // steht in `ampel_fill_test.dart` — hier zählt der Mechanismus.
       expect(corrected.rainFactor, closeTo(1, 0.001));
-      expect(corrected.tempFactor, lessThan(ampelGuenstigAbove));
+      expect(corrected.tempFactor, lessThan(ampelHerbstClass.guenstigAbove));
     });
   });
 }

@@ -63,7 +63,8 @@ void main() {
 
   /// Die Stationstabelle: eine Luftstation neben dem Spot, konstant
   /// Max 16 / Min 10 → Tagesmittel 13 °C — das Optimum der Glocke.
-  List<int> weatherBytes({int days = 20}) {
+  /// [meanC] verschiebt beide Enden, das Mittel bleibt ihr Wert.
+  List<int> weatherBytes({int days = 20, double meanC = 13.0}) {
     String iso(DateTime d) => '${d.year.toString().padLeft(4, '0')}-'
         '${d.month.toString().padLeft(2, '0')}-'
         '${d.day.toString().padLeft(2, '0')}';
@@ -79,8 +80,8 @@ void main() {
           'lon': 11.0,
           'h': 316,
           'name': 'Erfurt-Weimar',
-          'max': [for (var i = 0; i < days; i++) 16.0],
-          'min': [for (var i = 0; i < days; i++) 10.0],
+          'max': [for (var i = 0; i < days; i++) meanC + 3.0],
+          'min': [for (var i = 0; i < days; i++) meanC - 3.0],
         },
       ],
       'soil': [
@@ -117,6 +118,7 @@ void main() {
     required bool preview,
     int stackDays = 26,
     int? spotHeightM,
+    double meanC = 13.0,
   }) async {
     // Ein flaches Höhengitter über dem ganzen Testfenster — nur wenn
     // der Test eine Spothöhe verlangt; sonst bleibt die Basis-Naht aus
@@ -153,7 +155,7 @@ void main() {
         rainStackLoaderProvider
             .overrideWithValue(() async => stackOf(days: stackDays)),
         weatherTableLoaderProvider
-            .overrideWithValue(() async => weatherBytes()),
+            .overrideWithValue(() async => weatherBytes(meanC: meanC)),
         if (elevation != null)
           elevationLoaderProvider.overrideWithValue(() async => elevation),
       ],
@@ -220,6 +222,51 @@ void main() {
             'volle Zitation steht auf der Lizenzseite');
     expect(find.textContaining('%'), findsNothing,
         reason: 'Konzept: kein Prozentzeichen — drei Stufen mit Worten');
+  });
+
+  // **Der Test, der die Klassen überhaupt erst wirksam macht.** Ohne
+  // ihn könnte die ganze Umstellung im Modellkern stehen und in der
+  // Oberfläche nie ankommen, ohne dass etwas rot würde.
+  //
+  // 13,5 °C, gesättigter Regen, derselbe Spot:
+  //   Steinpilz (Herbst, 13,0 °C) → Glocke 0,990 → günstig (ab 0,512)
+  //   Pfifferling (Sommer, 17,5 °C) → Glocke 0,527 → verhalten
+  //     (günstig erst ab 0,677)
+  //
+  // Zwei Testfälle und nicht einer: Ein zweiter `pumpApp` setzt
+  // Riverpod nicht zurück, und die Wetter-Provider der ersten Hälfte
+  // hängen dann in der Fake-Async-Zone fest.
+  testWidgets('dasselbe Wetter, Herbstfenster: günstig', (tester) async {
+    await pumpWithWeather(tester, loggedInWithSpot(), preview: true,
+        meanC: 13.5);
+    await openSpot(tester);
+    await acceptAndSettle(tester);
+    expect(find.textContaining(': günstig'), findsOneWidget);
+    expect(find.textContaining('Temperatur: passt (13,5 °C)'),
+        findsOneWidget);
+  });
+
+  testWidgets('dasselbe Wetter, Sommerfenster: erst verhalten',
+      (tester) async {
+    // Der Pfifferling ist Sommerfrüchter mit Gipfel im Juli; sein
+    // Fenster ist die einzige Art-Abweichung, die den geografischen
+    // Hold-out bestanden hat (docs/pilzampel-artenfenster-holdout.md).
+    await pumpWithWeather(
+        tester, loggedInWithSpot(species: 'Pfifferling'),
+        preview: true, meanC: 13.5);
+    await openSpot(tester);
+    await acceptAndSettle(tester);
+    expect(find.textContaining(': verhalten'), findsOneWidget,
+        reason: 'dasselbe Wetter, aber das Sommerfenster — sonst ist '
+            'die Klasse im Modellkern eine Zahl ohne Wirkung');
+    expect(find.textContaining('für Pfifferling'), findsOneWidget);
+    // **Und die Fakten-Zeile misst gegen DIESES Fenster.** Gegen 13 °C
+    // gerechnet stünde hier „zu warm", während die Stufe darüber sagt,
+    // die Bedingungen seien noch nicht günstig — die Zeile widerspräche
+    // der Ampel, auf die sie sich bezieht.
+    expect(find.textContaining('zu kühl (13,5 °C)'), findsOneWidget,
+        reason: '13,5 °C ist für einen 17,5-°C-Pilz zu kühl, nicht zu '
+            'warm');
   });
 
   testWidgets('Höhenkorrektur: die Zeile rechnet auf Spothöhe um '

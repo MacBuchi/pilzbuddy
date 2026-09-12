@@ -97,6 +97,23 @@ Die letzte Spalte ist **keine Messung, sondern die Probe aufs Exempel**: Sie mus
 
 **Und diese Zahlen verfallen.** Sie beschreiben die Verteilung der Jahre ab 2019; die Messung oben zeigt, dass sich genau diese Verteilung über ein Jahrzehnt um gut acht Prozentpunkte verschoben hat. Wer sie ausliefert, schreibt das Datum dazu und misst nach.
 
+## Die Klassen
+
+**Die Einheit ist die Klasse, nicht die Art** (Betreiber, 2026-09-12). Eine Klasse ist ein Temperaturfenster; die beiden Schwellen fallen daraus, als Quantile der Verteilung, die dieses Fenster an Vergleichstagen erzeugt. Zusammengelegt wird so, dass **jede Art gleich viel zählt** — ungewichtet wäre die Herbstschwelle die Steinpilzschwelle mit anderem Namen.
+
+| Klasse | Fenster | verhalten ab | günstig ab | Arten | ausgeliefert |
+|---|--:|--:|--:|---|---|
+| sommer | 17.5 °C | 0.287 | 0.677 | Pfifferling | ja |
+| herbst | 13.0 °C | 0.187 | 0.512 | Steinpilz, Maronenröhrling, Birkenpilz, Fichtenreizker, Herbsttrompete | ja |
+| herbst_holz | 11.5 °C | 0.148 | 0.407 | Hallimasch, Stockschwämmchen | **nein** |
+| kalt | -3.2 °C | 0.001 | 0.038 | Austernseitling | **nein** |
+
+Die Spalte „ausgeliefert“ ist die eigentliche Grenze: Aufgenommen wird nur, was einen **Hold-out** bestanden hat. „Sieht in der Tabelle anders aus“ reicht nicht — daran wäre die Pfifferling-Spur fast gescheitert, bis Österreich und die Schweiz sie bestätigt haben. Für die übrigen gilt bis dahin, was für jede ungeprüfte Art gilt: lieber grau als erfunden.
+- **sommer** — Hold-out in AT+CH bestätigt: AUC 0,584 → 0,689 (+0,104 [+0,055, +0,150]), abstandsgleiche Kontrolle 0,510 (docs/pilzampel-artenfenster-holdout.md)
+- **herbst** — der ausgelieferte Stand; die eigenen Optima dieser fünf liegen zwischen 12,0 und 14,5 °C, und keine Abweichung von 13 °C schließt die Null aus
+- **herbst_holz** — nach dem Blick auf die Tabelle ausgewählt — dieselbe Lage wie beim Pfifferling vor seinem Hold-out
+- **kalt** — Fenster gemessen, aber in Stufen unter der registrierten Latte; der Kalttest (Judasohr, Samtfußrübling) steht aus
+
 ## Was diese Seite NICHT sagt
 
 Sie ändert `ampel_model.dart` nicht. Über eine Umstellung entscheidet der Betreiber mit diesen Zahlen; bis dahin bleibt der Gleichlauf „Zahl für Zahl“ zwischen Modellkern und Werkzeug unberührt.

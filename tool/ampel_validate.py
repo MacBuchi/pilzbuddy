@@ -167,6 +167,90 @@ WOOD_DWELLERS = [
     "Austernseitling",
 ]
 
+# --- Die Klassen ----------------------------------------------------------
+#
+# **Die Einheit des Modells ist die Klasse, nicht die Art** (Betreiber,
+# 2026-09-12). Der Grund steht in `docs/pilzampel-schwellen-messung.md`:
+# Arten mit demselben Fenster bekommen Schwellen, deren
+# Vertrauensbereiche sich satt überlappen (Steinpilz [0,148, 0,238]
+# gegen Herbsttrompete [0,089, 0,284]) — je Art ausgeliefert wäre das
+# Rauschen in Konstantenform, und am Ende stünden 110 Einträge da, von
+# denen keiner mehr prüfbar ist. Zwischen den Fenstern liegen dagegen
+# Welten (0,493 gegen 0,037 beim Austernseitling).
+#
+# Eine Klasse ist **ein Temperaturfenster**. Die beiden Schwellen sind
+# kein zweiter freier Parameter, sondern fallen daraus: das 50-%- und
+# 80-%-Quantil der Verteilung, die dieses Fenster an Vergleichstagen
+# erzeugt.
+#
+# Aufgenommen wird nur, was einen HOLD-OUT bestanden hat. „Sieht in der
+# Tabelle anders aus" reicht nicht — genau daran ist die
+# Pfifferling-Spur fast gescheitert, bis Österreich und die Schweiz sie
+# bestätigt haben.
+AMPEL_CLASSES = {
+    "sommer": {
+        "dart": "ampelSommerClass",
+        # Gemessen am 2026-09-12; `class_thresholds` rechnet beide Zahlen
+        # bei jedem Lauf nach und bricht ab, wenn sie gewandert sind.
+        "verhalten": 0.287,
+        "guenstig": 0.677,
+        "optimum": 17.5,
+        "members": ["Pfifferling"],
+        "confirmed": True,
+        "why": "Hold-out in AT+CH bestätigt: AUC 0,584 → 0,689 "
+               "(+0,104 [+0,055, +0,150]), abstandsgleiche Kontrolle "
+               "0,510 (docs/pilzampel-artenfenster-holdout.md)",
+    },
+    "herbst": {
+        "dart": "ampelHerbstClass",
+        # Gemessen am 2026-09-12; `class_thresholds` rechnet beide Zahlen
+        # bei jedem Lauf nach und bricht ab, wenn sie gewandert sind.
+        "verhalten": 0.187,
+        "guenstig": 0.512,
+        "optimum": 13.0,
+        "members": ["Steinpilz", "Maronenröhrling", "Birkenpilz",
+                    "Fichtenreizker", "Herbsttrompete"],
+        "confirmed": True,
+        "why": "der ausgelieferte Stand; die eigenen Optima dieser fünf "
+               "liegen zwischen 12,0 und 14,5 °C, und keine Abweichung "
+               "von 13 °C schließt die Null aus",
+    },
+    # Noch NICHT ausgeliefert — beide brauchen ihren eigenen Hold-out.
+    # Sie stehen hier, damit der Bericht ihre Zahlen mitrechnet und die
+    # Entscheidung auf Zahlen trifft statt auf Erinnerung.
+    "herbst_holz": {
+        # Gemessen am 2026-09-12; `class_thresholds` rechnet beide Zahlen
+        # bei jedem Lauf nach und bricht ab, wenn sie gewandert sind.
+        "verhalten": 0.148,
+        "guenstig": 0.407,
+        "optimum": 11.5,
+        "members": ["Hallimasch", "Stockschwämmchen"],
+        "confirmed": False,
+        "why": "nach dem Blick auf die Tabelle ausgewählt — dieselbe "
+               "Lage wie beim Pfifferling vor seinem Hold-out",
+    },
+    "kalt": {
+        # Gemessen am 2026-09-12; `class_thresholds` rechnet beide Zahlen
+        # bei jedem Lauf nach und bricht ab, wenn sie gewandert sind.
+        "verhalten": 0.001,
+        "guenstig": 0.038,
+        "optimum": -3.2,
+        "members": ["Austernseitling"],
+        "confirmed": False,
+        "why": "Fenster gemessen, aber in Stufen unter der registrierten "
+               "Latte; der Kalttest (Judasohr, Samtfußrübling) steht aus",
+    },
+}
+
+
+def class_of(name):
+    """Die Klasse einer Art — `None`, wenn sie keiner zugeordnet ist."""
+    for key, klass in AMPEL_CLASSES.items():
+        if name in klass["members"]:
+            return key
+    return None
+
+
 # Die registrierte Prüfung auf eine KALTE KLASSE (2026-09-12,
 # docs/pilzampel-artenfenster.md). Beide waren an keiner Anpassung
 # beteiligt — das ist ihr Wert. Sie stehen NICHT im Standardlauf: Dessen
@@ -1315,6 +1399,11 @@ def threshold_species(name, sci, cache_dir=None, seed=42, progress=True):
         "verhalten_at": verhalten_at,
         "guenstig_at": guenstig_at,
         "own_later": own_later,
+        "klass": class_of(name),
+        "class_later": (
+            control_scores(test, AMPEL_CLASSES[class_of(name)]["optimum"],
+                           balanced=True)
+            if class_of(name) else None),
         "ship_verhalten_ci": threshold_ci(SHIP_QUANTILE_VERHALTEN),
         "ship_guenstig_ci": threshold_ci(SHIP_QUANTILE_GUENSTIG),
         # Was die Nutzerin sähe — je Aufbau der Abstand Fund/Vergleich.
@@ -1380,6 +1469,58 @@ def deployment_quantiles(rows):
             f"Verteilung ist gewandert — Konstanten und Bericht gehören "
             f"zusammen neu gesetzt, nicht einzeln.")
     return measured
+
+
+def class_thresholds(rows, quantiles, verify=True):
+    """Die Schwellen je Klasse, aus den Vergleichstagen ALLER Mitglieder.
+
+    **Jede Art zählt gleich viel**, nicht jede Beobachtung. Der Steinpilz
+    bringt 2000 Paare mit, die Herbsttrompete 288 — ungewichtet wäre die
+    Klassenschwelle die Steinpilzschwelle mit anderem Namen. Dieselbe
+    Begründung wie bei der Jahresbalance: Stichprobengröße soll nicht
+    für Bedeutung einstehen.
+    """
+    pooled = {}
+    for row in rows:
+        if not row.get("usable") or not row.get("klass"):
+            continue
+        values, weights = row["class_later"]
+        if not values:
+            continue
+        # Auf Gesamtgewicht 1 je Art normieren — erst das macht aus
+        # „alle Tage zusammen" wirklich „alle Arten gleich".
+        total = sum(weights)
+        entry = pooled.setdefault(row["klass"], ([], [], []))
+        entry[0].extend(values)
+        entry[1].extend(w / total for w in weights)
+        entry[2].append(row["name"])
+    out = {}
+    for key, (values, weights, members) in pooled.items():
+        got = {
+            "verhalten": quantile_at(values, weights, quantiles[0]),
+            "guenstig": quantile_at(values, weights, quantiles[1]),
+            "members": members,
+            "n": len(values),
+        }
+        # **Die Konstanten gegen die Daten, bei jedem Lauf** — dieselbe
+        # Regel wie bei den Auslieferungs-Quantilen. Diese vier Zahlen
+        # gehen in den Modellkern der App; eine, die sich still von ihrer
+        # Quelle löst, wäre wieder ein „GESETZT, nicht gemessen".
+        # Verglichen wird auf drei Stellen, denn genau so viele stehen
+        # auch in Dart.
+        for field in ("verhalten", "guenstig") if verify else ():
+            expected = AMPEL_CLASSES[key].get(field)
+            if expected is None:
+                continue
+            if round(got[field], 3) != expected:
+                raise SystemExit(
+                    f"Klasse {key}: {field} gemessen "
+                    f"{round(got[field], 3)}, als Konstante steht "
+                    f"{expected}. Die Verteilung ist gewandert — "
+                    f"Konstante, Bericht UND ampel_model.dart gehören "
+                    f"zusammen neu gesetzt.")
+        out[key] = got
+    return out
 
 
 def render_threshold_report(rows, fetched_on):
@@ -1618,6 +1759,42 @@ def render_threshold_report(rows, fetched_on):
                 "dass sich genau diese Verteilung über ein Jahrzehnt um "
                 "gut acht Prozentpunkte verschoben hat. Wer sie "
                 "ausliefert, schreibt das Datum dazu und misst nach."]
+
+    # --- Die Klassen ------------------------------------------------
+    if ship:
+        klassen = class_thresholds(rows, ship, verify=False)
+        out += ["", "## Die Klassen", "",
+                "**Die Einheit ist die Klasse, nicht die Art** "
+                "(Betreiber, 2026-09-12). Eine Klasse ist ein "
+                "Temperaturfenster; die beiden Schwellen fallen daraus, "
+                "als Quantile der Verteilung, die dieses Fenster an "
+                "Vergleichstagen erzeugt. Zusammengelegt wird so, dass "
+                "**jede Art gleich viel zählt** — ungewichtet wäre die "
+                "Herbstschwelle die Steinpilzschwelle mit anderem Namen.",
+                "",
+                "| Klasse | Fenster | verhalten ab | günstig ab | Arten "
+                "| ausgeliefert |",
+                "|---|--:|--:|--:|---|---|"]
+        for key, klass in AMPEL_CLASSES.items():
+            got = klassen.get(key)
+            if not got:
+                continue
+            out.append(
+                f"| {key} | {klass['optimum']:.1f} °C | "
+                f"{got['verhalten']:.3f} | {got['guenstig']:.3f} | "
+                f"{', '.join(got['members'])} | "
+                f"{'ja' if klass['confirmed'] else '**nein**'} |")
+        out += ["",
+                "Die Spalte „ausgeliefert“ ist die eigentliche Grenze: "
+                "Aufgenommen wird nur, was einen **Hold-out** bestanden "
+                "hat. „Sieht in der Tabelle anders aus“ reicht nicht — "
+                "daran wäre die Pfifferling-Spur fast gescheitert, bis "
+                "Österreich und die Schweiz sie bestätigt haben. Für die "
+                "übrigen gilt bis dahin, was für jede ungeprüfte Art "
+                "gilt: lieber grau als erfunden."]
+        for key, klass in AMPEL_CLASSES.items():
+            if key in klassen:
+                out.append(f"- **{key}** — {klass['why']}")
 
     out += ["", "## Was diese Seite NICHT sagt", "",
             "Sie ändert `ampel_model.dart` nicht. Über eine Umstellung "
@@ -2229,6 +2406,9 @@ def self_test():
                 "verhalten_at": 0.2, "guenstig_at": 0.5,
                 "own_later": ([i / 100 for i in range(100)],
                               [1.0] * 100),
+                "klass": class_of(name),
+                "class_later": ([i / 100 for i in range(100)],
+                                [1.0] * 100),
                 "ship_verhalten_ci": (0.45, 0.55),
                 "ship_guenstig_ci": (0.75, 0.85),
                 "gap_shipped": 0.0, "gap_window": 0.0, "gap_both": gap,
@@ -2315,6 +2495,43 @@ def self_test():
     assert erwartet in gezeigt, \
         f"die Auslieferungs-Schwellen stehen nicht als {erwartet} da"
 
+    # **Die Klassenschwelle darf nicht der größten Art gehören.** Der
+    # Steinpilz bringt 2000 Paare mit, die Herbsttrompete 288 —
+    # ungewichtet wäre „Herbstklasse" nur ein anderer Name für
+    # „Steinpilz". Gepflanzt: eine große trockene und eine kleine nasse
+    # Art in derselben Klasse.
+    assert class_of("Pfifferling") == "sommer"
+    assert class_of("Steinpilz") == "herbst"
+    assert class_of("Omas Lieblingspilz") is None
+
+    def member(name, value, count):
+        return {"name": name, "usable": True, "klass": "herbst",
+                "class_later": ([value] * count, [1.0] * count)}
+
+    ungleich = [member("Steinpilz", 0.0, 900),
+                member("Herbsttrompete", 1.0, 100)]
+    got = class_thresholds(ungleich, (0.5, 0.6), verify=False)["herbst"]
+    assert got["guenstig"] == 1.0, \
+        "die kleine Art muss dasselbe Gewicht haben wie die große"
+    assert sorted(got["members"]) == ["Herbsttrompete", "Steinpilz"]
+    # Ohne Klasse fällt eine Art heraus, statt still in eine zu rutschen.
+    assert class_thresholds(
+        [{"name": "X", "usable": True, "klass": None,
+          "class_later": None}], (0.5, 0.8), verify=False) == {}
+
+    # **Und die Prüfung der Klassenkonstanten muss zuschlagen können.**
+    # Diese vier Zahlen wandern in den Modellkern der App; löst sich eine
+    # still von ihrer Quelle, rechnet die App etwas anderes als die
+    # Validierung — der teuerste stille Fehler, den dieses Projekt hier
+    # haben kann.
+    try:
+        class_thresholds(ungleich, (0.5, 0.6))
+    except SystemExit:
+        pass
+    else:
+        raise AssertionError("eine gewanderte Klassenschwelle muss "
+                             "auffallen")
+
     # Und dasselbe für Vorhersage 1: Das Band muss wirklich entscheiden.
     inside = statistics.mean(QUANTILE_BAND_GUENSTIG)
     drin = render_threshold_report(
@@ -2349,8 +2566,6 @@ def self_test():
         "ampelOptimumC": OPTIMUM_C,
         "ampelTempSigma": TEMP_SIGMA,
         "ampelRainSaturationMm": RAIN_SATURATION_MM,
-        "ampelVerhaltenAbove": VERHALTEN_ABOVE,
-        "ampelGuenstigAbove": GUENSTIG_ABOVE,
     }
     for const, here in spiegel.items():
         found = re.search(rf"const {const} = ([\d.]+);", dart)
@@ -2360,6 +2575,54 @@ def self_test():
             f"Spiegel gebrochen: {const} ist in Dart {there}, hier {here}. "
             f"Die Validierung gälte dann einem Modell, das die App nicht "
             f"rechnet.")
+
+    # **Die Klassentabelle ist die neue Nahtstelle** — und damit die
+    # Stelle, an der App und Validierung ab 1.137.0 auseinanderlaufen
+    # können, ohne dass irgendwo etwas rot wird. Drei Zahlen je Klasse
+    # plus die Mitgliederliste; geprüft wird jede einzeln gegen den
+    # Dart-Quelltext.
+    for key, klass in AMPEL_CLASSES.items():
+        dart_name = klass.get("dart")
+        if not dart_name:
+            # Unbestätigte Klassen stehen absichtlich NICHT in Dart.
+            assert dart_name is None and not klass["confirmed"], key
+            assert f"const {key}" not in dart, (
+                f"Klasse {key} hat keinen Hold-out, steht aber in "
+                f"{AMPEL_MODEL_FILE}")
+            continue
+        block = re.search(
+            rf"const {dart_name} = \((.*?)\);", dart, re.S)
+        assert block, f"{dart_name} steht nicht in {AMPEL_MODEL_FILE}"
+        body = block.group(1)
+        for field, here in [("optimumC", klass["optimum"]),
+                            ("verhaltenAbove", klass["verhalten"]),
+                            ("guenstigAbove", klass["guenstig"])]:
+            found = re.search(rf"{field}: ([\w.-]+),", body)
+            assert found, f"{dart_name} hat kein {field}"
+            raw = found.group(1)
+            # `optimumC: ampelOptimumC` ist erlaubt — die Gilde und die
+            # Herbstklasse sollen NICHT zwei Zahlen sein, die man
+            # getrennt ändern kann.
+            there = OPTIMUM_C if raw == "ampelOptimumC" else float(raw)
+            assert there == float(here), (
+                f"Spiegel gebrochen: {dart_name}.{field} ist in Dart "
+                f"{there}, hier {here}. Die App zeigte dann Stufen, die "
+                f"die Validierung nie gemessen hat.")
+
+    # **Und die Mitgliederliste in beide Richtungen.** Eine Art, die in
+    # Dart einer Klasse zugeordnet ist, aber im Werkzeug nicht, bekäme
+    # eine Ampel, für die nie jemand eine Zahl gerechnet hat — genau die
+    # Sorte Eintrag, die sich später nicht mehr begründen lässt.
+    block = re.search(
+        r"const ampelSpeciesClass = <String, String>\{(.*?)\};", dart, re.S)
+    assert block, f"ampelSpeciesClass steht nicht in {AMPEL_MODEL_FILE}"
+    in_dart = dict(re.findall(r"'([^']+)': '([^']+)'", block.group(1)))
+    in_tool = {name: key for key, klass in AMPEL_CLASSES.items()
+               if klass.get("dart")
+               for name in klass["members"]}
+    assert in_dart == in_tool, (
+        f"Spiegel gebrochen: ampelSpeciesClass ist in Dart {in_dart}, "
+        f"hier {in_tool}")
 
     # **Der Schlusssatz der Arten-Kontrolle wird gerendert, nicht
     # geschrieben** — und genau dort hat eine implizite
@@ -3074,6 +3337,12 @@ def main():
         rows = [row for row in (
             threshold_species(name, mapping[name], args.cache, args.seed)
             for name in wanted if name in mapping) if row]
+        # **Erst prüfen, dann rendern.** Wandern die Klassenschwellen von
+        # ihren Konstanten weg, bricht der Lauf ab, statt einen Bericht
+        # zu schreiben, dessen Zahlen niemand mehr zu Dart passen.
+        ship = deployment_quantiles(rows)
+        if ship:
+            class_thresholds(rows, ship, verify=True)
         report = render_threshold_report(rows, time.strftime("%Y-%m-%d"))
         if args.out:
             open(args.out, "w", encoding="utf-8").write(report)

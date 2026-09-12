@@ -103,6 +103,12 @@ class AmpelReading {
 /// synchron durch. Ein dritter async Provider über denselben Futures
 /// hatte sich in der Fake-Async-Zone des Test-Harness verheddert — und
 /// gebraucht wird er nicht: Das hier ist Arithmetik, kein I/O.
+/// [klass] ist das Fenster, mit dem gerechnet wird — seit 1.137.0 ein
+/// PFLICHT-Argument und kein Vorgabewert: Ein Standard wäre an jeder
+/// neuen Aufrufstelle die stille Antwort „Herbst", und im Spot-Blatt
+/// eines Pfifferlings wäre das der falsche Pilz. Die Karte übergibt
+/// [ampelHerbstClass] (dort ist keine Art bekannt), das Blatt das
+/// Ergebnis von [ampelClassFor].
 /// [spotHeightM] ist die Wabenhöhe aus dem Höhengitter — wenn gesetzt,
 /// werden die Stationstage VOR dem Modell um 0,65 K je 100 m
 /// Höhendifferenz verschoben (`lapseCorrectionK`). Die Korrektur ist
@@ -112,7 +118,7 @@ class AmpelReading {
 /// Zielhöhe gesehen hat (Open-Meteo-Downscaling).
 AmpelReading ampelReadingFrom(
     RainCourse? course, SpotTemperature? temperature,
-    {int? spotHeightM}) {
+    {required AmpelClass klass, int? spotHeightM}) {
   if (course == null || course.isEmpty) {
     return const AmpelReading.grau('keine Regendaten für diesen Punkt');
   }
@@ -160,7 +166,7 @@ AmpelReading ampelReadingFrom(
   }
 
   final rainFactor = ampelRainFactor(rain);
-  final tempFactor = ampelTemperatureFactor(temps);
+  final tempFactor = ampelTemperatureFactor(temps, optimumC: klass.optimumC);
   final score = rainFactor * tempFactor;
   var tempSum = 0.0;
   var tempCount = 0;
@@ -170,7 +176,7 @@ AmpelReading ampelReadingFrom(
     tempCount++;
   }
   return AmpelReading(
-    level: ampelLevelOf(score),
+    level: ampelLevelOf(score, klass: klass),
     score: score,
     rainFactor: rainFactor,
     tempFactor: tempFactor,

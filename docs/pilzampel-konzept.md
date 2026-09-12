@@ -89,6 +89,31 @@ schreibt genau das in seinen Erklärtext: gilt für fleischige, vor allem
 > aus dem Labor (24–28 °C) und zeigen beim Austernseitling in die
 > Gegenrichtung — 25 °C wachsen, ~15 °C fruchten. Unsere −1,8 °C sind
 > eine Aussage über die FRUCHTUNG im Feld und widersprechen dem nicht.
+>
+> **Zweiter Nachtrag, 2026-09-12 (abends): zwei Zahlen oben sind
+> überholt, und eine Folgerung auch.**
+>
+> Die Zahlen: Die Vergleichstage lagen bis dahin ab 14 Tagen neben dem
+> Fundtag, und damit überlappten ihre 26-Tage-Regenfenster zu 46 % mit
+> denen der Fundtage — gemessen wurde also teilweise dasselbe Wetter
+> gegen sich selbst. Mit getrennten Fenstern (Mindestabstand = das
+> Regenfenster) fruchtet der Austernseitling bei **−3,2 °C** statt
+> −1,8 °C, und seine Trennschärfe steigt von 0,481 auf **0,655**
+> (+0,174 [+0,108, +0,248]).
+>
+> Die Folgerung: „Was die Daten tragen, ist eine Unterscheidung nach
+> GILDE oder Typ, nicht nach Art" — das stimmt so nicht mehr. Der
+> **Pfifferling** hat ein eigenes Fenster (17,5 °C), und es hat den
+> geografischen Hold-out bestanden: in Deutschland angepasst, in AT und
+> CH bestätigt (0,584 → 0,689). Er ist kein anderer Typ als der
+> Steinpilz — beide sind Mykorrhiza-Herbstpilze im selben Wald. Er ist
+> ein **Sommerfrüchter**, und das ist die Achse, die trägt.
+>
+> Seit 1.137.0 rechnet die App deshalb nach **Klassen**: ein
+> Temperaturfenster je Klasse, die Stufenschwellen als Quantile daraus.
+> Was sich dabei zusätzlich gezeigt hat und hier oben nirgends steht:
+> Die Schwellen waren der eigentliche Engpass, nicht die Fenster
+> (`docs/pilzampel-schwellen-messung.md`).
 
 ### Die belastbarsten Zahlen stammen aus einem deutschen Buchenwald
 
