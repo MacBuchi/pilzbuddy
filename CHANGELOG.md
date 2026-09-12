@@ -7,6 +7,28 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Der Hinweis kommt nur noch, wenn der Pilz auch Saison hat
+
+*12. September 2026 · Version 1.138.0*
+
+Bisher meldete der Hinweis auf der Karte einen Spot, sobald das Wetter
+dort passte — auch im Mai, wenn Steinpilze noch gar nicht auftauchen.
+Jetzt müssen **zwei** Dinge zusammenkommen: Das Wetter muss für diese
+Art günstig sein **und** die Art muss gerade Saison haben.
+
+Beides wird **je Art** geprüft. An einer Stelle, an der du im Juli
+Pfifferlinge und im Oktober Steinpilze gefunden hast, entscheidet also
+im Juli der Pfifferling und im Oktober der Steinpilz — und zwar jeder
+mit seinem eigenen Temperaturbereich.
+
+Der Filter zieht mit: Ein Tipp auf den Hinweis stellt jetzt beide
+Bedingungen ein, und im Filter-Chip steht auch beides. Was das Banner
+meldet und was die Karte danach zeigt, ist damit dieselbe Auswahl.
+
+Im Spot-Blatt steht jetzt **eine Zeile je Art**, wenn du dort mehrere
+gefunden hast — vorher nur die des jüngsten Fundes. Sonst könnte der
+Hinweis wegen eines Pilzes kommen, über den das Blatt kein Wort verliert.
+
 ## Die Pilzampel rechnet jetzt nach Pilzart
 
 *12. September 2026 · Version 1.137.0*

@@ -98,17 +98,26 @@ void main() {
     return GZipEncoder().encode(utf8.encode(jsonEncode(json)))!;
   }
 
-  FakeBackend loggedInWithSpot({String species = 'Steinpilz'}) {
+  /// [alsoSpecies] legt einen ZWEITEN, älteren Fund an — für den Fall,
+  /// den es seit dem artweisen Hinweis gibt: eine Stelle, an der im
+  /// Sommer das eine und im Herbst das andere steht.
+  FakeBackend loggedInWithSpot(
+      {String species = 'Steinpilz', String? alsoSpecies}) {
     final backend = FakeBackend();
     final me = backend.addUser(username: 'testpilz');
     backend.signInAs(me.id);
-    backend.addSpot(
+    final id = backend.addSpot(
       ownerId: me.id,
       lat: spotLat,
       lng: spotLng,
       name: 'Buchenhang',
       species: species,
+      foundOn: DateTime.utc(2025, 9, 1),
     );
+    if (alsoSpecies != null) {
+      backend.addFindRow(id,
+          species: alsoSpecies, foundOn: DateTime.utc(2025, 7, 1));
+    }
     return backend;
   }
 
@@ -267,6 +276,35 @@ void main() {
     expect(find.textContaining('zu kühl (13,5 °C)'), findsOneWidget,
         reason: '13,5 °C ist für einen 17,5-°C-Pilz zu kühl, nicht zu '
             'warm');
+  });
+
+  testWidgets('mehrere Arten am Spot: eine Zeile je Art', (tester) async {
+    // **Sonst widerspräche das Blatt seinem eigenen Banner.** Der
+    // Hinweis paart je Art (Klasse günstig UND Saison) und kann deshalb
+    // wegen des Pfifferlings anschlagen, während der jüngste Fund ein
+    // Steinpilz ist. Stünde hier nur die Zeile des jüngsten Fundes,
+    // spräche das Blatt über einen anderen Pilz als der Hinweis, der
+    // einen hergeführt hat — dieselbe Regel wie zwischen Fläche und
+    // Blatt (#279), eine Ebene tiefer.
+    //
+    // 13,5 °C: Steinpilz günstig (0,990), Pfifferling verhalten (0,527).
+    await pumpWithWeather(
+        tester,
+        loggedInWithSpot(species: 'Steinpilz', alsoSpecies: 'Pfifferling'),
+        preview: true,
+        meanC: 13.5);
+    await openSpot(tester);
+    await acceptAndSettle(tester);
+
+    expect(find.textContaining('für Steinpilz'), findsOneWidget);
+    expect(find.textContaining('für Pfifferling'), findsOneWidget);
+    expect(find.textContaining(': günstig'), findsOneWidget);
+    expect(find.textContaining(': verhalten'), findsOneWidget);
+
+    // Die Quellenzeile gilt dem MODELL, nicht der Art — einmal unter
+    // beiden Zeilen, sonst ist sie Lärm.
+    expect(find.textContaining('10-Jahres-Studie bei Bielefeld'),
+        findsOneWidget);
   });
 
   testWidgets('Höhenkorrektur: die Zeile rechnet auf Spothöhe um '

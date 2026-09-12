@@ -210,7 +210,15 @@ class MapBanners extends ConsumerWidget {
   /// anbietet ([MapBanners.onFit]); der Banner drückt den Knopf also nur
   /// stellvertretend, statt einen zweiten Weg zur Kamera zu bauen.
   void _openAmpel(WidgetRef ref) {
-    ref.read(spotFilterProvider.notifier).setOnlyAmpel(true);
+    // **Beide Schalter, nicht nur der eine.** Der Nachlauf paart seit
+    // 1.138.0 je Art „Klasse günstig" MIT „hat gerade Saison"; ein
+    // Filter, der nur die Ampel setzt, zeigte eine andere Menge als das
+    // Banner, auf das gerade getippt wurde. Und der Chip nennt dann
+    // beide Bedingungen — ein selbst gesetzter, ungenannter Filter ist
+    // genau der Fall, vor dem #154 warnt.
+    ref.read(spotFilterProvider.notifier)
+      ..setOnlyAmpel(true)
+      ..setOnlySeason(true);
     // Erst filtern, dann zoomen — der Rückruf liest die SICHTBAREN Spots,
     // und die stehen erst nach dem Setzen fest.
     onFit?.call();
