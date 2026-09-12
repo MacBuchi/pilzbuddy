@@ -167,6 +167,16 @@ WOOD_DWELLERS = [
     "Austernseitling",
 ]
 
+# Die registrierte Prüfung auf eine KALTE KLASSE (2026-09-12,
+# docs/pilzampel-artenfenster.md). Beide waren an keiner Anpassung
+# beteiligt — das ist ihr Wert. Sie stehen NICHT im Standardlauf: Dessen
+# Zahlen sind veröffentlicht, und eine Liste, die stillschweigend wächst,
+# macht jede Wiederholung unvergleichbar.
+COLD_CANDIDATES = [
+    "Judasohr",
+    "Samtfußrübling",
+]
+
 # --- Das Modell ------------------------------------------------------------
 #
 # Nach docs/pilzampel-konzept.md, kalibriert mit den Bielefelder Zahlen
@@ -2311,11 +2321,15 @@ def main():
         wanted = MYCORRHIZAL + WOOD_DWELLERS
         if args.only:
             asked = [n.strip() for n in args.only.split(",") if n.strip()]
-            unknown = [n for n in asked if n not in wanted]
+            # Geprüft wird gegen die ARTENLISTE DER APP, nicht gegen die
+            # Listen hier oben: Eine registrierte Vorhersage darf eine Art
+            # benennen, die im Standardlauf nichts zu suchen hat
+            # (COLD_CANDIDATES). Ein Tippfehler fällt trotzdem auf.
+            unknown = [n for n in asked if n not in mapping]
             if unknown:
                 raise SystemExit(
                     f"Unbekannte Art(en): {', '.join(unknown)}.\n"
-                    f"Zur Auswahl stehen: {', '.join(wanted)}")
+                    f"Die Art muss in {SPECIES_FILE} mit `sci:` stehen.")
             wanted = asked
         print("Anpassung je Art:", file=sys.stderr)
         rows = [row for row in (
