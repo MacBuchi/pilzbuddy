@@ -70,6 +70,11 @@ jobs:
           python3 tool/transform_map_style.py --self-test > /dev/null
           python3 tool/seed_screenshot_data.py --self-test > /dev/null
           python3 tool/screenshot_stand.py --self-test > /dev/null
+          # Der einzige Shell-Wächter hier: Die app_config-Diagnose des
+          # Schema Checks. Sie stand bis zum 2026-09-12 unter jeder
+          # Ursache auf „hat keine Zeile" — auch wenn nur die Antwort
+          # ausblieb. Ohne diesen Aufruf verrottet die Unterscheidung.
+          bash tool/schema_check.sh --self-test > /dev/null
           python3 tool/play_data_safety.py --check > /dev/null
       # Eigener Schritt, nicht bei den Selbsttests: Der hier prüft nicht
       # ein Werkzeug, sondern die ausgelieferten Dateien — und wenn er

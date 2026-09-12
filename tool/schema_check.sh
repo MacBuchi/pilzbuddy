@@ -59,6 +59,62 @@ check_rpc_protected() {
   fi
 }
 
+# Die Mindestversion aus der Antwort — LEER, wenn sie nicht drinsteht.
+#
+# Eigene Funktion, damit sich die drei Fälle (Dienst antwortet nicht /
+# Tabelle leer / Zeile ohne Feld) ohne laufende Datenbank prüfen lassen:
+# `tool/schema_check.sh --self-test`. Bis zum 2026-09-12 stand unter
+# allen dreien dieselbe Diagnose.
+app_config_version() {
+  local status="$1" body="$2"
+  [ "$status" = "200" ] || return 0
+  printf '%s' "$body" \
+    | sed -n 's/.*"minimum_supported_version":"\([^"]*\)".*/\1/p'
+}
+
+app_config_diagnosis() {
+  local status="$1" body="$2"
+  if [ "$status" != "200" ]; then
+    echo "dienst"
+  elif [ "$body" = "[]" ]; then
+    echo "leer"
+  elif [ -z "$(app_config_version "$status" "$body")" ]; then
+    echo "feld"
+  else
+    echo "ok"
+  fi
+}
+
+if [ "${1:-}" = "--self-test" ]; then
+  fehler=0
+  probe() {
+    local erwartet="$1" status="$2" body="$3"
+    local ist
+    ist=$(app_config_diagnosis "$status" "$body")
+    if [ "$ist" = "$erwartet" ]; then
+      echo "  ✓ $status ${body:-<leer>} → $ist"
+    else
+      echo "  ✗ $status ${body:-<leer>} → $ist statt $erwartet"
+      fehler=1
+    fi
+  }
+  echo "app_config-Diagnose:"
+  # Genau der Fall vom 2026-09-12: Antwort blieb aus, Tabelle war heil.
+  probe dienst 000 ""
+  probe dienst 503 ""
+  probe dienst 500 '{"code":"XX000"}'
+  probe leer   200 '[]'
+  probe feld   200 '[{"id":true}]'
+  probe ok     200 '[{"id":true,"minimum_supported_version":"1.2.3"}]'
+  [ "$(app_config_version 200 '[{"minimum_supported_version":"1.2.3"}]')" \
+    = "1.2.3" ] || { echo "  ✗ Version wird nicht gelesen"; fehler=1; }
+  # Ohne 200 gibt es keine Version — auch wenn im Rumpf eine steht.
+  [ -z "$(app_config_version 500 '[{"minimum_supported_version":"9.9.9"}]')" ] \
+    || { echo "  ✗ Version aus einer Fehlantwort gelesen"; fehler=1; }
+  [ "$fehler" = 0 ] && echo "schema_check self-test: ok"
+  exit "$fehler"
+fi
+
 verdict() {
   local name="$1" out="$2"
   if printf '%s' "$out" | grep -q '"code"'; then
@@ -129,16 +185,45 @@ check_get "push_devices-Spalten" \
 # liest. Anders als bei den anderen Tabellen darf anon hier tatsächlich
 # lesen — ein leeres Ergebnis wäre also ein echter Befund: ohne Zeile
 # erfährt die App nie, dass sie zu alt ist.
-app_config=$(curl -s --max-time 20 \
+#
+# **Warum hier der HTTP-Status mitgelesen wird** (2026-09-12): Bis dahin
+# stand unter JEDER Ursache dieselbe Diagnose — „app_config hat keine
+# Zeile". Am 2026-09-12 kam die Antwort einmal leer zurück, der Dienst
+# war Minuten später wieder da, und die Meldung schickte auf die Suche
+# nach einer fehlenden Zeile, die es gab. `verdict` sieht das nicht: Es
+# prüft auf ein Fehlerobjekt, und eine leere Antwort ist keins.
+#
+# Ein Wächter darf sich irren. Er darf nicht die Ursache erfinden.
+app_config_body=$(mktemp)
+app_config_status=$(curl -s --max-time 20 -o "$app_config_body" \
+  -w '%{http_code}' \
   "$URL/rest/v1/app_config?select=id,minimum_supported_version,updated_at&limit=1" \
-  -H "apikey: $KEY" || echo '{"code":"curl","message":"Verbindung fehlgeschlagen"}')
-verdict "app_config-Spalten" "$app_config"
-min_version=$(printf '%s' "$app_config" \
-  | sed -n 's/.*"minimum_supported_version":"\([^"]*\)".*/\1/p')
-if [ -z "$min_version" ]; then
-  echo "::error::Schema-Check fehlgeschlagen: app_config hat keine Zeile — die Mindestversion kann nie greifen."
+  -H "apikey: $KEY" || echo "000")
+app_config=$(cat "$app_config_body")
+rm -f "$app_config_body"
+min_version=$(app_config_version "$app_config_status" "$app_config")
+# **Dieselbe Funktion, die der Selbsttest prüft.** Die Bedingungen hier
+# noch einmal auszuschreiben hieße, zwei Entscheidungen zu führen — und
+# geprüft wäre dann die, die im Ernstfall nicht läuft.
+case "$(app_config_diagnosis "$app_config_status" "$app_config")" in
+dienst)
+  # Der Dienst hat nicht geantwortet oder mit einem Fehler. Das sagt
+  # NICHTS über den Inhalt der Tabelle — und darf deshalb auch nichts
+  # darüber behaupten. 000 heißt: curl kam gar nicht durch.
+  echo "::error::Schema-Check fehlgeschlagen: app_config nicht abrufbar (HTTP $app_config_status). Das ist eine Aussage über den DIENST, nicht über die Tabelle — bei 000/5xx den Lauf wiederholen. Antwort: ${app_config:-<leer>}"
   fail=1
-else
+  ;;
+leer)
+  # Jetzt ist es wirklich der Befund, für den die Prüfung da ist.
+  echo "::error::Schema-Check fehlgeschlagen: app_config ist LEER — ohne Zeile erfährt die App nie, dass sie zu alt ist (Issue #80, Patch 012)."
+  fail=1
+  ;;
+feld)
+  echo "::error::Schema-Check fehlgeschlagen: app_config antwortet ohne minimum_supported_version. Antwort: $app_config"
+  fail=1
+  ;;
+*)
+  verdict "app_config-Spalten" "$app_config"
   # Aussperr-Schutz (Issue #80): Die Mindestversion darf nie über dem
   # Stand liegen, den die Nutzer bekommen können — sonst sperrt die App
   # sie aus, und niemand käme mehr rein.
@@ -173,7 +258,8 @@ else
     echo "::error::Schema-Check fehlgeschlagen: Mindestversion $min_version liegt ÜBER der $scale $stable_version — das würde alle aussperren, die auf stabil sind (#262)."
     fail=1
   fi
-fi
+  ;;
+esac
 
 # RPC der Freundesuche (Patch 011): muss existieren, ist aber für anon
 # gesperrt — sonst wäre der exakte E-Mail-Vergleich ein E-Mail-Orakel.
