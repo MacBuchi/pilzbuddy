@@ -219,39 +219,46 @@ class MapBanners extends ConsumerWidget {
   /// Der Text des Ampel-Banners — im KONJUNKTIV, und das ist keine
   /// Höflichkeit.
   ///
-  /// Die Arten-Kontrolle der Rückwärtsvalidierung ist durchgefallen
-  /// (`docs/pilzampel-validierung.md`); das Modell hat sich damit keine
-  /// Aufforderung verdient. Eine eingeschaltete Fläche ist eine
-  /// Einladung, etwas auszuprobieren — ein Banner, das „geh jetzt" sagt,
-  /// wäre eine Behauptung. Deshalb „stünde", deshalb kein
-  /// Ausrufezeichen, und deshalb steht „experimentell" mit drin.
+  /// Die Ampel urteilt über BEDINGUNGEN, nie über Vorkommen — der
+  /// Zucker des Baumes, das Wasser aus 30 cm Tiefe und der
+  /// Substratvorrat stehen in keiner Wetterreihe
+  /// (`docs/pilzampel-konzept.md`). Eine eingeschaltete Fläche ist eine
+  /// Einladung, etwas auszuprobieren; ein Banner, das „geh jetzt" sagt,
+  /// wäre eine Behauptung. Deshalb kein Ausrufezeichen, und deshalb
+  /// steht „experimentell" mit drin.
   String _ampelText(List<AmpelHit> hits) {
-    // **Kürzer, aber im Konjunktiv** — die Kürze darf die Länge kosten,
-    // nicht das Urteil. Aus dem Satzbanner ist ein Chip geworden (34 px
-    // statt gut 70), und in der Versuchung, ihn auf „3 Spots · Ampel
-    // günstig" zu bringen, steckt genau der Fehler, gegen den der
-    // Wortlaut steht: Das wäre eine Behauptung. Die Arten-Kontrolle der
-    // Rückwärtsvalidierung ist durchgefallen
-    // (`docs/pilzampel-validierung.md`); das Modell hat sich keine
-    // Aussage im Indikativ verdient. Also bleibt „stünde".
+    // **Kurz und im Indikativ — seit 1.136.0, und das ist eine
+    // Korrektur, keine Lockerung.**
     //
-    // **„experimentell" steht NICHT in diesem Text**, sondern als
-    // eigenes Stück im Chip — und das ist der Punkt: Hier drin würde es
-    // als Erstes abgeschnitten, wenn ein Spotname lang ist. Der
-    // Entwurf schlug „(exp.)" vor; das kürzt den Vorbehalt, während die
-    // Behauptung ungekürzt bleibt, und verschiebt damit genau das
-    // Verhältnis, um das es geht. Die Fehlerrichtung ist vorgegeben:
-    // Lieber ein abgeschnittener Ortsname als ein abgeschnittener
-    // Vorbehalt.
+    // Bis dahin stand hier „Ampel stünde günstig", begründet damit, dass
+    // die Arten-Kontrolle der Rückwärtsvalidierung durchgefallen sei und
+    // das Modell sich keine Aussage im Indikativ verdient habe. Die
+    // Begründung trägt nicht mehr: Am 2026-09-12 hat sich gezeigt, dass
+    // jene Kontrolle an ihrer AUSWAHL scheiterte — Hallimasch und
+    // Stockschwämmchen teilen schlicht das Herbstfenster, während der
+    // Austernseitling ein eigenes, kaltes hat
+    // (`docs/pilzampel-artenfenster-messung.md`).
     //
-    // Weggefallen ist „— antippen": Ein Chip in Markenfarbe SIEHT
-    // antippbar aus, ein Satz auf einer Karte nicht. Die Einladung
-    // trägt jetzt die Form.
+    // Und der Konjunktiv tat ohnehin nicht, was er sollte: „Ampel
+    // günstig" behauptet nichts über Pilze, sondern sagt, was die Ampel
+    // ZEIGT — und die urteilt über Bedingungen, nie über Vorkommen. Den
+    // Vorbehalt trägt „(experimentell)", und der steht deutlicher da,
+    // wenn er nicht mit einem umständlichen Verb um Platz ringt
+    // (Betreiber, 2026-09-12: „dann muss auch nix abgeschnitten
+    // werden").
+    //
+    // **Was NICHT gelockert wird:** kein Ausrufezeichen, kein „geh
+    // jetzt", und „experimentell" bleibt ein eigenes Stück im Chip
+    // statt in diesem Text. Dort drin würde es als Erstes abgeschnitten,
+    // wenn ein Spotname lang ist — die Fehlerrichtung bleibt: lieber ein
+    // gekürzter Ortsname als ein gekürzter Vorbehalt. Dass der Text
+    // jetzt kürzer ist, macht den Fall selten; die Zusage hängt daran
+    // nicht.
     if (hits.length == 1) {
       final place = hits.single.spot.name ?? 'Ein Spot';
-      return '$place · Ampel stünde günstig';
+      return '$place · Ampel günstig';
     }
-    return '${hits.length} Spots · Ampel stünde günstig';
+    return '${hits.length} Spots · Ampel günstig';
   }
 
   /// Der Text der Erinnerung. Nennt die Art nur, wenn ALLE Funde des

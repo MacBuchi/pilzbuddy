@@ -61,6 +61,8 @@ von 250 m. Für die Saison-Gegenprüfung (--crosscheck) genügt die grobe
 Angabe, dort zählt nur der Monat.
 """
 import argparse
+import ast
+import inspect
 import datetime
 import json
 import math
@@ -69,6 +71,7 @@ import random
 import re
 import statistics
 import sys
+import textwrap
 import time
 import urllib.error
 import urllib.parse
@@ -79,6 +82,22 @@ OPEN_METEO = "https://archive-api.open-meteo.com/v1/archive"
 MUSHROOM_OBSERVER = "https://mushroomobserver.org/api2/observations"
 
 SPECIES_FILE = "lib/core/mushroom_species.dart"
+
+# Der Modellkern der App. Gespiegelt wird er in diesem Werkzeug seit
+# jeher — geprüft wurde die Spiegelung nie.
+AMPEL_MODEL_FILE = "lib/features/ampel/ampel_model.dart"
+
+
+def repo_path(relative):
+    """Pfad im Repo, unabhängig vom Arbeitsverzeichnis des Aufrufers.
+
+    Die Artenliste wurde bis 2026-09-12 RELATIV gelesen; der Tranchen-
+    Läufer des August-Laufs musste dafür eigens ins Repo wechseln, und
+    ein Aufruf von woanders scheiterte an einer Datei statt an der
+    Sache.
+    """
+    return os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), relative)
 
 # Das RADOLAN-Archiv des DWD beginnt 2006; auch wenn hier Open-Meteo die
 # Werte liefert, bleibt es die Grenze, ab der sich jede Zahl gegen deutsche
@@ -148,6 +167,16 @@ WOOD_DWELLERS = [
     "Austernseitling",
 ]
 
+# Die registrierte Prüfung auf eine KALTE KLASSE (2026-09-12,
+# docs/pilzampel-artenfenster.md). Beide waren an keiner Anpassung
+# beteiligt — das ist ihr Wert. Sie stehen NICHT im Standardlauf: Dessen
+# Zahlen sind veröffentlicht, und eine Liste, die stillschweigend wächst,
+# macht jede Wiederholung unvergleichbar.
+COLD_CANDIDATES = [
+    "Judasohr",
+    "Samtfußrübling",
+]
+
 # --- Das Modell ------------------------------------------------------------
 #
 # Nach docs/pilzampel-konzept.md, kalibriert mit den Bielefelder Zahlen
@@ -181,7 +210,20 @@ FIT_UNTIL_YEAR = 2018
 
 # Der Gitterlauf. Bewusst grob: Eine feinere Auflösung als ein halbes
 # Kelvin behauptet eine Genauigkeit, die 300–2000 Paare nicht hergeben.
-FIT_GRID_MIN_C = 2.0
+#
+# **Die Untergrenze lag bis 2026-09-11 bei 2 °C und war zu hoch.** Der
+# Austernseitling landete dort auf dem Boden, und die `at_edge`-Warnung
+# hat genau dafür angeschlagen: Ein Gipfel am Gitterrand ist keiner. Die
+# Nachschau über einen weiteren Bereich zeigte den echten Gipfel bei
+# etwa 0 °C — die Kurve flacht darunter ab, läuft also nicht weiter
+# davon. −5 °C gibt ihm Luft, ohne ins Sinnlose zu reichen: Ein Mittel
+# über zwanzig Tage unter −5 °C kommt in unseren Reihen praktisch nicht
+# vor.
+#
+# Das ist KEINE Anpassung an ein Ergebnis. Die Grenze wurde verschoben,
+# weil der Wächter sie als bindend gemeldet hat — hätte er geschwiegen,
+# wäre sie geblieben.
+FIT_GRID_MIN_C = -5.0
 FIT_GRID_MAX_C = 20.0
 FIT_GRID_STEP_C = 0.5
 
@@ -350,8 +392,14 @@ def read_species(path=SPECIES_FILE):
 
     Dieselbe Quelle wie tool/season_curves.py — ein zweites Verzeichnis
     wäre ein zweiter Stand.
+
+    **Aufgelöst über [repo_path]**, nicht relativ zum Arbeitsverzeichnis.
+    Vorher scheiterte jeder Aufruf von außerhalb des Repos an einer
+    fehlenden Datei statt an der Sache; der Tranchen-Läufer des
+    August-Laufs musste deshalb eigens ins Repo wechseln.
     """
-    text = open(path, encoding="utf-8").read()
+    text = open(repo_path(path) if not os.path.isabs(path) else path,
+                encoding="utf-8").read()
     mapping = {}
     for match in re.finditer(r"KnownSpecies\('([^']+)',[^)]*?\)", text):
         entry, name = match.group(0), match.group(1)
@@ -373,15 +421,70 @@ def taxon_key(sci):
     return match["usageKey"]
 
 
-def fetch_finds(sci, limit=3000, progress=True):
-    """Fundmeldungen mit Koordinate, taggenauem Datum und Ortsgenauigkeit."""
+def _finds_cache_path(cache_dir, sci, countries=("DE",)):
+    safe = "".join(c if c.isalnum() else "_" for c in sci)
+    # Deutschland bleibt ohne Zusatz — sonst wären alle vorhandenen
+    # Fundlisten mit einem Schlag nicht mehr auffindbar, und genau das
+    # ist der Fehler, gegen den diese Dateien überhaupt angelegt wurden.
+    if tuple(countries) == ("DE",):
+        return os.path.join(cache_dir, f"finds_{safe}.json")
+    return os.path.join(cache_dir, f"finds_{safe}_{'-'.join(countries)}.json")
+
+
+def fetch_finds(sci, limit=3000, progress=True, cache_dir=None,
+                countries=("DE",)):
+    """Fundmeldungen mit Koordinate, taggenauem Datum und Ortsgenauigkeit.
+
+    **Mit `cache_dir` wird die Liste FESTGENAGELT** — und das ist keine
+    Beschleunigung, sondern die Voraussetzung dafür, dass ein Lauf über
+    mehrere Tage überhaupt möglich ist.
+
+    Der Grund, gemessen am 2026-09-11: GBIF WÄCHST. Zwei Läufe derselben
+    Art im Abstand von zwei Stunden lieferten 2259 gegen 2253 Meldungen
+    (im September kommen täglich neue herein). Damit zieht
+    `random.Random(seed).sample` eine andere Teilmenge, die Ortslisten je
+    Jahr ändern sich — und der Wetter-Cache ist ein Hash GENAU dieser
+    Ortslisten. Sein Schlüssel zeigt danach ins Leere, obwohl die Daten
+    dahinter dieselben wären.
+
+    So ist der Bestand vom August unbrauchbar geworden: Seine Ortslisten
+    stammen aus einer Grundgesamtheit, die es nicht mehr gibt, und die
+    Fundlisten selbst wurden nicht gesichert. Deshalb jetzt hier.
+
+    Wer bewusst neu ziehen will, löscht die `finds_*.json` — dann ist es
+    eine Entscheidung und kein Nebeneffekt der Uhrzeit.
+    """
+    if cache_dir:
+        path = _finds_cache_path(cache_dir, sci, countries)
+        if os.path.exists(path):
+            finds = json.load(open(path, encoding="utf-8"))
+            if progress:
+                print(f"    {len(finds)} Meldungen (festgenagelt)",
+                      file=sys.stderr)
+            return finds
+    finds = [{k: v for k, v in record.items() if k != "key"}
+             for record in _fetch_finds_raw(sci, limit, progress, countries)]
+    if cache_dir:
+        os.makedirs(cache_dir, exist_ok=True)
+        with open(_finds_cache_path(cache_dir, sci, countries), "w",
+                  encoding="utf-8") as handle:
+            json.dump(finds, handle)
+    return finds
+
+
+def _fetch_finds_raw(sci, limit=3000, progress=True, countries=("DE",)):
+    """Wie [fetch_finds], aber MIT der GBIF-id je Meldung.
+
+    Die id trägt die Aufnahmereihenfolge: Neu aufgenommene Meldungen
+    bekommen höhere Werte. Genau daran hängt [recover_sample].
+    """
     key = taxon_key(sci)
     finds = []
     offset = 0
     while len(finds) < limit:
         page = _get(f"{GBIF}/occurrence/search", {
             "taxonKey": key,
-            "country": "DE",
+            "country": list(countries),
             "basisOfRecord": "HUMAN_OBSERVATION",
             "hasCoordinate": "true",
             "hasGeospatialIssue": "false",
@@ -407,6 +510,7 @@ def fetch_finds(sci, limit=3000, progress=True):
                 "year": record["year"],
                 "month": record["month"],
                 "day": record["day"],
+                "key": record["key"],
             })
         if page.get("endOfRecords") or not page.get("results"):
             break
@@ -553,10 +657,26 @@ def window_before(series, day_of_year, length):
 
 # --- Der Test --------------------------------------------------------------
 
-# Der Vergleichstag liegt so weit weg, dass sich die 26-Tage-Fenster kaum
-# überlappen — sonst vergleicht man ein Wetter mit sich selbst — und so
-# nah, dass Jahreszeit und Saisonfaktor gleich bleiben.
-CONTROL_MIN_GAP = 14
+# Der Vergleichstag liegt so weit weg, dass sich die Wetterfenster NICHT
+# überlappen — sonst vergleicht man ein Wetter teilweise mit sich selbst
+# — und so nah, dass Jahreszeit und Saisonfaktor gleich bleiben.
+#
+# **Die Untergrenze war bis 2026-09-12 mit 14 Tagen zu klein**, und der
+# Kommentar an dieser Stelle behauptete, die Fenster überlappten „kaum".
+# Bei 14 Tagen Abstand teilen sich die beiden 26-Tage-Regenfenster aber
+# 12 Tage, also 46 %. Der Betreiber hat es gesehen: „Nur weil keiner da
+# war, heißt nicht, dass nicht die gleichen Bedingungen herrschten."
+#
+# Gemessen kostet die Überlappung Trennschärfe, sie erschleicht sie
+# nicht: Auf Paaren mit mindestens 26 Tagen Abstand stieg die AUC des
+# Steinpilzes von 0,730 auf 0,762, die des Pfifferlings von 0,572 auf
+# 0,602. Überlappende Fenster machen Fund- und Vergleichstag ÄHNLICHER,
+# als sie sind — der Test war also zu vorsichtig, nicht zu großzügig.
+#
+# Der Preis ist gut ein Drittel der Paare. Bei der Herbsttrompete, die
+# schon vorher dünn war, ist das die Grenze der Auswertbarkeit; der
+# Bericht nennt die Paarzahl je Art, damit das sichtbar bleibt.
+CONTROL_MIN_GAP = RAIN_WINDOW
 CONTROL_MAX_GAP = 45
 
 
@@ -567,7 +687,8 @@ def pick_control_day(day_of_year, rng):
     return day_of_year + gap
 
 
-def collect_pairs(name, sci, cache_dir=None, seed=42, progress=True):
+def collect_pairs(name, sci, cache_dir=None, seed=42, progress=True,
+                  countries=("DE",)):
     """Zieht die Paare EINMAL und gibt die rohen Fenster zurück.
 
     **Warum getrennt vom Bewerten.** Seit der Anpassung je Art
@@ -585,7 +706,8 @@ def collect_pairs(name, sci, cache_dir=None, seed=42, progress=True):
     """
     if progress:
         print(f"  {name} ({sci})", file=sys.stderr)
-    finds = fetch_finds(sci, progress=progress)
+    finds = fetch_finds(sci, progress=progress, cache_dir=cache_dir,
+                        countries=countries)
     if not finds:
         return None
 
@@ -651,9 +773,27 @@ def collect_pairs(name, sci, cache_dir=None, seed=42, progress=True):
             # auseinanderlägen. Genau so gebaut, beim Gegenprüfen
             # aufgefallen.
             placebo_day = pick_control_day(control_day, rng)
+            # **Die abstandsgleiche Kontrolle** (2026-09-12): der
+            # Vergleichstag, am Fundtag gespiegelt. Beide liegen dann
+            # GENAU gleich weit weg, nur auf verschiedenen Seiten.
+            #
+            # Warum es sie braucht: Der Placebo-Tag oben wird vom
+            # VERGLEICHSTAG aus gezogen, seine Abstände addieren sich also
+            # (Ø 34 statt 30 Tage). Und Nähe zum Fundtag hebt den Wert —
+            # gemessen am Pfifferling: Wo der Placebo-Tag ferner liegt,
+            # steht die Kontrolle bei 0,585, wo er näher liegt, bei 0,432.
+            # In Deutschland heben sich beide Hälften fast auf (0,512), in
+            # den Alpen nicht mehr (0,550), weil der Jahresgang dort
+            # schärfer ist.
+            #
+            # Die gespiegelte Kontrolle hat dieses Problem nicht. Sie
+            # ersetzt die alte NICHT: Jene fängt eine einseitige Ziehung,
+            # diese kann es bauartbedingt nicht.
+            mirror_day = 2 * found_day - control_day
             a_rain, a_temp = window_before(place, found_day, RAIN_WINDOW)
             b_rain, b_temp = window_before(place, control_day, RAIN_WINDOW)
             c_rain, c_temp = window_before(place, placebo_day, RAIN_WINDOW)
+            m_rain, m_temp = window_before(place, mirror_day, RAIN_WINDOW)
             if a_rain is None or b_rain is None:
                 skipped += 1
                 continue
@@ -662,6 +802,12 @@ def collect_pairs(name, sci, cache_dir=None, seed=42, progress=True):
                 "found": (a_rain, a_temp),
                 "control": (b_rain, b_temp),
                 "placebo": (c_rain, c_temp) if c_rain is not None else None,
+                # Die Abstände zum Fundtag — mitgeführt seit 2026-09-12,
+                # weil die Placebo-Kontrolle im Ausland ausschlug und man
+                # ohne sie nicht messen kann, WARUM.
+                "mirror": (m_rain, m_temp) if m_rain is not None else None,
+                "d_control": abs(control_day - found_day),
+                "d_placebo": abs(placebo_day - found_day),
             })
 
     if not samples:
@@ -702,6 +848,8 @@ def validate_species(name, sci, cache_dir=None, seed=42, progress=True):
     pairs = score_pairs(samples)
     placebo = [(ampel_score(*s["control"]), ampel_score(*s["placebo"]))
                for s in samples if s["placebo"] is not None]
+    mirrored = [(ampel_score(*s["control"]), ampel_score(*s["mirror"]))
+                for s in samples if s["mirror"] is not None]
     auc = paired_auc(pairs)
     return {
         "name": name,
@@ -714,9 +862,447 @@ def validate_species(name, sci, cache_dir=None, seed=42, progress=True):
         "p": permutation_p(pairs, seed=seed),
         "placebo_auc": paired_auc(placebo),
         "placebo_n": len(placebo),
+        "mirror_auc": paired_auc(mirrored),
+        "mirror_n": len(mirrored),
         "median_found": statistics.median(p[0] for p in pairs),
         "median_control": statistics.median(p[1] for p in pairs),
     }
+
+
+# --- Was der Nutzer sieht: die drei Stufen ---------------------------------
+#
+# **Spiegel von `ampel_model.dart`**, wie der Rest dieser Datei. Die
+# Schwellen sind dort ausdrücklich GESETZT und nicht gemessen — und bis
+# 2026-09-12 kannte dieses Werkzeug sie überhaupt nicht.
+#
+# Das ist die Lücke, die der Vergleich schließt: Die AUC misst eine
+# RANGFOLGE („stand die Ampel am Fundtag höher als am Vergleichstag"),
+# die App zeigt aber drei STUFEN. Ein Modell kann die Rangfolge
+# verbessern, ohne dass ein einziger Nutzer je eine andere Farbe sieht —
+# und umgekehrt kann ein verschobenes Optimum die Verteilung so
+# verschieben, dass dieselben Schwellen etwas anderes bedeuten.
+VERHALTEN_ABOVE = 0.2
+GUENSTIG_ABOVE = 0.5
+
+LEVELS = ("ungünstig", "verhalten", "günstig")
+
+
+def ampel_level(score):
+    """0 = ungünstig, 1 = verhalten, 2 = günstig."""
+    if score >= GUENSTIG_ABOVE:
+        return 2
+    if score >= VERHALTEN_ABOVE:
+        return 1
+    return 0
+
+
+def compare_species(name, sci, cache_dir=None, seed=42, progress=True):
+    """Ausgelieferte Ampel gegen die mit eigenem Fenster — in STUFEN."""
+    drawn = collect_pairs(name, sci, cache_dir=cache_dir, seed=seed,
+                          progress=progress)
+    if drawn is None:
+        return None
+    fit, test = split_by_year(drawn["samples"])
+    if not fit or not test:
+        return {"name": name, "usable": False}
+    optimum = grid_optimum(fit)["optimum"]
+
+    def levels(kind, opt):
+        return [ampel_level(ampel_score(*s[kind], opt)) for s in test]
+
+    found_old, found_new = levels("found", OPTIMUM_C), levels("found", optimum)
+    ctrl_old, ctrl_new = levels("control", OPTIMUM_C), levels("control", optimum)
+    all_old = found_old + ctrl_old
+    all_new = found_new + ctrl_new
+    differ = sum(1 for a, b in zip(all_old, all_new) if a != b)
+
+    def share(values, at_least):
+        return sum(1 for v in values if v >= at_least) / len(values)
+
+    # **Ohne Vertrauensbereich ist ein Abstand von Prozentpunkten eine
+    # Behauptung.** Gezogen wird über JAHRE, wie überall hier: Funde
+    # desselben Jahres sind einander ähnlicher als Funde verschiedener
+    # Jahre. Und beide Modelle werden auf DERSELBEN Ziehung gerechnet,
+    # sonst ist ihre Differenz nicht gepaart.
+    def gap_ci(at_least, rounds=FIT_BOOTSTRAP_ROUNDS):
+        by_year = {}
+        for sample in test:
+            by_year.setdefault(sample["year"], []).append(sample)
+        years = sorted(by_year)
+        if len(years) < 2:
+            return None
+        rng = random.Random(seed)
+        deltas = []
+        for _ in range(rounds):
+            pool = [s for y in (rng.choice(years) for _ in years)
+                    for s in by_year[y]]
+            def gap(opt):
+                f = [ampel_level(ampel_score(*s["found"], opt)) for s in pool]
+                c = [ampel_level(ampel_score(*s["control"], opt))
+                     for s in pool]
+                return share(f, at_least) - share(c, at_least)
+            deltas.append(gap(optimum) - gap(OPTIMUM_C))
+        deltas.sort()
+        return (deltas[int(0.025 * len(deltas))],
+                deltas[min(len(deltas) - 1, int(0.975 * len(deltas)))])
+
+    return {
+        "name": name,
+        "usable": True,
+        "optimum": optimum,
+        "n_days": len(all_old),
+        # Der Anteil der Tage, an denen die Nutzerin eine ANDERE Stufe
+        # sähe. Das ist die Zahl, die über eine Umstellung entscheidet —
+        # nicht die AUC.
+        "differ": differ / len(all_old),
+        "guenstig_found_old": share(found_old, 2),
+        "guenstig_found_new": share(found_new, 2),
+        "guenstig_ctrl_old": share(ctrl_old, 2),
+        "guenstig_ctrl_new": share(ctrl_new, 2),
+        "verhalten_found_old": share(found_old, 1),
+        "verhalten_found_new": share(found_new, 1),
+        "verhalten_ctrl_old": share(ctrl_old, 1),
+        "verhalten_ctrl_new": share(ctrl_new, 1),
+        "gap_ci_guenstig": gap_ci(2),
+        "gap_ci_verhalten": gap_ci(1),
+    }
+
+
+def render_compare_report(rows, fetched_on):
+    out = ["# Ampel-Vergleich: Stufen statt Rangfolge", "",
+           f"Stand: {fetched_on} · Erzeugt von `tool/ampel_validate.py "
+           "--compare` · Messung: `docs/pilzampel-artenfenster-messung.md`",
+           "",
+           "Die Rückwärtsvalidierung misst eine **Rangfolge** (AUC). Die App "
+           "zeigt **drei Stufen**, und wo sie liegen, entscheiden zwei "
+           f"gesetzte Zahlen: ab {VERHALTEN_ABOVE} „verhalten\", ab "
+           f"{GUENSTIG_ABOVE} „günstig\". Diese Seite fragt deshalb das, "
+           "was die AUC nicht beantwortet: **Sähe jemand überhaupt etwas "
+           "anderes?**", "",
+           "Gerechnet auf den Prüfjahren (ab "
+           f"{FIT_UNTIL_YEAR + 1}), je Art auf Fund- UND Vergleichstagen.",
+           "",
+           "## Wie oft die Stufe wechselt", "",
+           "| Art | Optimum | Tage | andere Stufe |",
+           "|---|--:|--:|--:|"]
+    for row in rows:
+        if not row.get("usable"):
+            out.append(f"| {row['name']} | — | — | zu wenig Material |")
+            continue
+        out.append(f"| {row['name']} | {row['optimum']:.1f} °C | "
+                   f"{row['n_days']} | **{row['differ'] * 100:.1f} %** |")
+
+    out += ["", "## Trennt die neue Stufe besser?", "",
+            "„Günstig\" soll an Fundtagen häufiger stehen als an "
+            "Vergleichstagen. Der **Abstand** dieser beiden Anteile ist, "
+            "was die Stufe wert ist.", "",
+            "| Art | günstig an Fundtagen | an Vergleichstagen | Abstand | "
+            "Gewinn (95 %) |",
+            "|---|--:|--:|--:|--:|"]
+    for row in rows:
+        if not row.get("usable"):
+            continue
+        gap_old = row["guenstig_found_old"] - row["guenstig_ctrl_old"]
+        gap_new = row["guenstig_found_new"] - row["guenstig_ctrl_new"]
+        span = row.get("gap_ci_guenstig")
+        ci = (f" [{span[0] * 100:+.1f}, {span[1] * 100:+.1f}]"
+              if span else "")
+        out.append(
+            f"| {row['name']} | {row['guenstig_found_old'] * 100:.1f} → "
+            f"**{row['guenstig_found_new'] * 100:.1f} %** | "
+            f"{row['guenstig_ctrl_old'] * 100:.1f} → "
+            f"**{row['guenstig_ctrl_new'] * 100:.1f} %** | "
+            f"{gap_old * 100:+.1f} → **{gap_new * 100:+.1f} pp** | "
+            f"{(gap_new - gap_old) * 100:+.1f}{ci} |")
+
+    out += ["", "## Und dasselbe für „mindestens verhalten\"", "",
+            "| Art | an Fundtagen | an Vergleichstagen | Abstand | "
+            "Gewinn (95 %) |",
+            "|---|--:|--:|--:|--:|"]
+    for row in rows:
+        if not row.get("usable"):
+            continue
+        gap_old = row["verhalten_found_old"] - row["verhalten_ctrl_old"]
+        gap_new = row["verhalten_found_new"] - row["verhalten_ctrl_new"]
+        span = row.get("gap_ci_verhalten")
+        ci = (f" [{span[0] * 100:+.1f}, {span[1] * 100:+.1f}]"
+              if span else "")
+        out.append(
+            f"| {row['name']} | {row['verhalten_found_old'] * 100:.1f} → "
+            f"**{row['verhalten_found_new'] * 100:.1f} %** | "
+            f"{row['verhalten_ctrl_old'] * 100:.1f} → "
+            f"**{row['verhalten_ctrl_new'] * 100:.1f} %** | "
+            f"{gap_old * 100:+.1f} → **{gap_new * 100:+.1f} pp** | "
+            f"{(gap_new - gap_old) * 100:+.1f}{ci} |")
+
+    # --- Was daraus folgt, aus den Zahlen gerechnet -----------------------
+    usable = [r for r in rows if r.get("usable")]
+
+    def gains(row):
+        span = row.get("gap_ci_guenstig")
+        return bool(span) and span[0] > 0
+
+    winners = [r for r in usable if gains(r)]
+    # Wo „günstig" einbricht: Die Stufe verschwindet, statt besser zu
+    # treffen. Halbierung als Grenze — darunter redet niemand mehr von
+    # derselben Anzeige.
+    dark = [r for r in usable
+            if r["guenstig_found_old"] > 0
+            and r["guenstig_found_new"] < r["guenstig_found_old"] / 2]
+
+    out += ["", "## Was daraus folgt", ""]
+    if winners:
+        out += ["**Sichtbar besser wird es bei: "
+                + ", ".join(f"{r['name']} ({r['optimum']:.1f} °C, "
+                            f"{(r['guenstig_found_new'] - r['guenstig_ctrl_new'] - r['guenstig_found_old'] + r['guenstig_ctrl_old']) * 100:+.1f} pp)"
+                            for r in winners)
+                + ".** Bei allen übrigen enthält der Vertrauensbereich die "
+                "Null — ihr eigenes Fenster ändert für die Nutzerin nichts, "
+                "auch wenn die AUC sich rührt.", ""]
+    else:
+        out += ["**Keine Art wird sichtbar besser.** Bei allen enthält der "
+                "Vertrauensbereich des Gewinns die Null.", ""]
+    if dark:
+        out += ["**Und bei "
+                + ", ".join(r["name"] for r in dark)
+                + " verschwindet „günstig“ fast ganz** ("
+                + ", ".join(f"{r['guenstig_found_old'] * 100:.1f} % → "
+                            f"{r['guenstig_found_new'] * 100:.1f} % an "
+                            f"Fundtagen" for r in dark)
+                + ").", "",
+                f"Das ist kein Fehler der Anpassung, sondern der Schwellen: "
+                f"{VERHALTEN_ABOVE} und {GUENSTIG_ABOVE} sind für eine "
+                f"{OPTIMUM_C:.0f}-°C-Glocke gesetzt. Verschiebt man das "
+                "Optimum, verschiebt sich die ganze Werteverteilung mit, und "
+                "dieselben Zahlen bedeuten etwas anderes. **Ein eigenes "
+                "Fenster ohne eigene Schwellen macht die Ampel dunkel, nicht "
+                "besser** — und in einer Anzeige „günstig, sobald eine Klasse "
+                "günstig steht“ käme eine solche Klasse nie zum Zug.", ""]
+    out += ["Die Schwellen sind damit kein Umsetzungsdetail, sondern Teil "
+            "des Modells. Sie stehen bis heute als „GESETZT, nicht "
+            "gemessen“ in `ampel_model.dart`, und diese Seite ist die "
+            "erste Messung, die sie überhaupt anfasst.", ""]
+    return "\n".join(out) + "\n"
+
+
+# --- Geografischer Hold-out (docs/pilzampel-artenfenster.md) ---------------
+#
+# Die registrierte Bestätigung der Pfifferling-Spur. Die Zeitscheibe
+# 2019–2025 war ungesehen, die AUSWAHL der Art war es nicht — und das
+# repariert keine weitere Rechnung an denselben Daten. Andere Länder sind
+# neue Daten statt neu geschnittener: Sie beantworten, ob 19,2 °C eine
+# Eigenschaft der ART ist oder eine der deutschen Stichprobe.
+
+# Die Schwelle stand vor der Messung fest und steht als Konstante hier,
+# damit sie sich hinterher nicht umformulieren lässt.
+HOLDOUT_MIN_GAIN = 0.05
+
+# Wie weit die Placebo-Kontrolle von 0,50 abweichen darf. Dieselbe Grenze
+# wie in der Zusammenfassung der Rückwärtsvalidierung — dort steht sie
+# seit jeher, hier stand sie als nackte Zahl im Bericht.
+PLACEBO_TOLERANCE = 0.03
+
+
+def holdout_species(name, sci, countries, cache_dir=None, seed=42,
+                    progress=True):
+    """In Deutschland anpassen, im Ausland prüfen.
+
+    **Das Optimum kommt aus dem deutschen Lauf, nicht aus dem Aufruf.**
+    Eine Zahl von Hand einzutippen wäre die Stelle, an der sich
+    unbemerkt eine andere einschleicht als die berichtete — und im
+    Hold-out sind ALLE Jahre Prüfjahre, dort gibt es keine zweite
+    Trennlinie, die einen Irrtum auffinge.
+    """
+    if progress:
+        print(f"  {name}: anpassen in DE …", file=sys.stderr)
+    home = fit_species(name, sci, cache_dir=cache_dir, seed=seed,
+                       progress=progress)
+    if home is None or not home.get("usable"):
+        return {"name": name, "usable": False, "why": "DE-Anpassung fehlt"}
+    optimum = home["optimum"]
+
+    if progress:
+        print(f"  {name}: prüfen in {'+'.join(countries)} "
+              f"mit {optimum:.1f} °C …", file=sys.stderr)
+    drawn = collect_pairs(name, sci, cache_dir=cache_dir, seed=seed,
+                          progress=progress, countries=countries)
+    if drawn is None:
+        return {"name": name, "usable": False, "why": "keine Funde"}
+    samples = drawn["samples"]
+    shared = paired_auc(score_pairs(samples, OPTIMUM_C))
+    fitted = paired_auc(score_pairs(samples, optimum))
+    # Die Placebo-Kontrolle gilt auch hier: Ohne sie wüsste niemand, ob
+    # die Ziehung im Ausland genauso unverzerrt ist wie zu Hause.
+    placebo = [(ampel_score(*s["control"]), ampel_score(*s["placebo"]))
+               for s in samples if s["placebo"] is not None]
+    mirrored = [(ampel_score(*s["control"]), ampel_score(*s["mirror"]))
+                for s in samples if s["mirror"] is not None]
+    return {
+        "name": name,
+        "usable": True,
+        "countries": list(countries),
+        "optimum": optimum,
+        "n_home": home["n_fit"] + home["n_test"],
+        "n": len(samples),
+        "years": drawn["years"],
+        "auc_shared": shared,
+        "auc_fitted": fitted,
+        "gain": fitted - shared,
+        "placebo_auc": paired_auc(placebo),
+        "placebo_n": len(placebo),
+        "mirror_auc": paired_auc(mirrored),
+        "mirror_n": len(mirrored),
+        "ci": bootstrap_years(samples, [OPTIMUM_C, optimum], seed=seed),
+    }
+
+
+def render_holdout_report(rows, countries, fetched_on):
+    out = ["# Artenfenster: der geografische Hold-out", "",
+           f"Stand: {fetched_on} · Erzeugt von `tool/ampel_validate.py "
+           f"--holdout` · Prüfplan: `docs/pilzampel-artenfenster.md`", "",
+           f"Angepasst wurde in **Deutschland** (Jahre bis {FIT_UNTIL_YEAR}), "
+           f"geprüft in **{' und '.join(countries)}** — dort sind ALLE Jahre "
+           "Prüfjahre, denn an der Anpassung war keiner von ihnen beteiligt. "
+           "Das beantwortet, was eine weitere Zeitscheibe nicht mehr kann: "
+           "ob das Fenster der ART gehört oder der deutschen Stichprobe.", "",
+           "## Die Schwelle, die vor der Messung feststand", "",
+           f"> Die gepaarte AUC mit dem angepassten Optimum liegt im "
+           f"Hold-out mindestens **{HOLDOUT_MIN_GAIN:+.2f}** über der mit "
+           f"{OPTIMUM_C:.0f} °C.", ""]
+    for row in rows:
+        if not row.get("usable"):
+            out += [f"**{row['name']}: nicht auswertbar** — {row['why']}.", ""]
+            continue
+        # **Die Placebo-Kontrolle entscheidet VOR dem Ergebnis.** Steht
+        # sie nicht bei 0,50, ist die Ziehung verzerrt — und dann ist die
+        # Zahl darüber wertlos, egal wie gut sie aussieht. Der erste
+        # Bericht schrieb „bestätigt" und zwei Zeilen darunter „nicht
+        # auswertbar"; von zwei widersprüchlichen Sätzen liest jeder den,
+        # der ihm passt.
+        clean = abs(row["mirror_auc"] - 0.5) <= PLACEBO_TOLERANCE
+        met = clean and row["gain"] >= HOLDOUT_MIN_GAIN
+        span = (row.get("ci") or {}).get("difference")
+        ci = f" [{span[0]:+.3f}, {span[1]:+.3f}]" if span else ""
+        out += [f"## {row['name']}", "",
+                f"Optimum aus Deutschland: **{row['optimum']:.1f} °C** "
+                f"({row['n_home']} Paare). Im Hold-out "
+                f"{row['n']} Paare aus {row['years']} Jahren.", "",
+                f"| | AUC |", "|---|--:|",
+                f"| mit {OPTIMUM_C:.0f} °C | {row['auc_shared']:.3f} |",
+                f"| mit {row['optimum']:.1f} °C | {row['auc_fitted']:.3f} |",
+                f"| Differenz | **{row['gain']:+.3f}**{ci} |", "",
+                "**Ergebnis: " + (
+                    "bestätigt" if met else
+                    "NICHT AUSWERTBAR — die Placebo-Kontrolle ist verzerrt"
+                    if not clean else "nicht bestätigt")
+                + f"** (Schwelle {HOLDOUT_MIN_GAIN:+.2f}).", ""]
+        # Ohne sie ist die Zahl darüber nichts wert — dieselbe Regel wie
+        # in der Rückwärtsvalidierung.
+        off = abs(row["placebo_auc"] - 0.5)
+        out += [f"Placebo-Kontrolle im Hold-out: {row['placebo_auc']:.3f} "
+                f"bei {row['placebo_n']} Paaren (Toleranz "
+                f"±{PLACEBO_TOLERANCE:.2f})"
+                + (" — erwartbar abweichend, siehe unten."
+                   if abs(row["placebo_auc"] - 0.5) > PLACEBO_TOLERANCE
+                   else " — unauffällig.")]
+        out += [f"**Abstandsgleiche Kontrolle: {row['mirror_auc']:.3f}** bei "
+                f"{row['mirror_n']} Paaren — der Vergleichstag gegen seine "
+                f"Spiegelung am Fundtag, beide exakt gleich weit weg"
+                + (" — unauffällig. Daran hängt das Urteil oben."
+                   if clean else
+                   " — **verzerrt.** Zwei fundfreie Tage, nach derselben "
+                   "Vorschrift gezogen, dürfen sich nicht unterscheiden. "
+                   "Tun sie es doch, misst der Aufbau etwas anderes als "
+                   "das Wetter am Fundtag, und die Zahlen darüber sind "
+                   "keine Aussage über das Modell."),
+                ""]
+    return "\n".join(out) + "\n"
+
+
+# --- Eine vorhandene Sammlung wieder benutzbar machen -----------------------
+#
+# **Warum es das braucht.** Der Wetter-Cache ist nach dem Hash der
+# geordneten Ortsliste eines Jahres benannt, und die Dateien enthalten
+# keine Koordinaten. Wächst GBIF — im September täglich —, zieht
+# `random.sample` aus einer anderen Grundgesamtheit, sämtliche Ortslisten
+# verschieben sich, und 51 MB mühsam geholter Wetterdaten sind nicht mehr
+# auffindbar. Genau so ist es dem Bestand vom August 2026 ergangen.
+#
+# **Der Ausweg nutzt aus, dass GBIF nur WÄCHST.** Die Meldungen sind
+# dieselben geblieben, es sind welche dazugekommen, und die id trägt die
+# Aufnahmereihenfolge. Entfernt man die k neuesten, erhält man die Liste
+# von damals — und ob k stimmt, sagt der Cache selbst: Bei richtigem k
+# treffen die Hashes, bei falschem trifft keiner. Eine Prüfsumme passt
+# nicht zwanzigmal zufällig.
+
+# So viele neue Meldungen werden höchstens abgezogen. 60 reicht für ein
+# paar Monate; wer eine Sammlung aus dem Vorjahr wiederbeleben will,
+# dreht hoch und wartet länger.
+MAX_RECOVER_DROP = 60
+
+
+def without_newest(finds, count):
+    """Die [count] zuletzt aufgenommenen Meldungen entfernen.
+
+    **Die Reihenfolge der übrigen bleibt**, und das ist der Punkt: Die
+    Stichprobe hängt an ihr, nicht nur am Inhalt. Ausgewählt wird über
+    die GBIF-id, nicht über die Position — eine neue Meldung kann
+    mitten in der Seitenfolge auftauchen.
+    """
+    if count <= 0:
+        return list(finds)
+    newest = sorted(range(len(finds)),
+                    key=lambda i: finds[i]["key"], reverse=True)[:count]
+    drop = set(newest)
+    return [f for i, f in enumerate(finds) if i not in drop]
+
+
+def cache_hits(finds, cache_dir, seed=42):
+    """Wie viele Jahre dieser Stichprobe liegen schon im Cache?"""
+    if len(finds) > SAMPLE_PER_SPECIES:
+        finds = random.Random(seed).sample(finds, SAMPLE_PER_SPECIES)
+    by_year = {}
+    for find in finds:
+        by_year.setdefault(find["year"], []).append(find)
+    found = total = 0
+    for year, group in by_year.items():
+        if year > LAST_COMPLETE_YEAR:
+            continue
+        total += 1
+        points = [(f["lat"], f["lon"]) for f in group]
+        span = season_span(
+            [day_index(year, f["month"], f["day"]) for f in group], year=year)
+        if os.path.exists(os.path.join(
+                cache_dir, _cache_key(year, points, span[0], span[1]))):
+            found += 1
+    return found, total
+
+
+def recover_sample(name, sci, cache_dir, seed=42, progress=True):
+    """Die Stichprobe suchen, zu der ein vorhandener Cache gehört."""
+    if progress:
+        print(f"  {name} ({sci})", file=sys.stderr)
+    full = _fetch_finds_raw(sci, progress=progress)
+    best = (0, -1, 0)
+    for count in range(MAX_RECOVER_DROP + 1):
+        candidate = without_newest(full, count)
+        found, total = cache_hits(candidate, cache_dir, seed)
+        if found > best[1]:
+            best = (count, found, total)
+        if total and found == total:
+            break
+    count, found, total = best
+    finds = [{k: v for k, v in f.items() if k != "key"}
+             for f in without_newest(full, count)]
+    os.makedirs(cache_dir, exist_ok=True)
+    with open(_finds_cache_path(cache_dir, sci), "w",
+              encoding="utf-8") as handle:
+        json.dump(finds, handle)
+    if progress:
+        print(f"    {len(full)} heute − {count} neue = {len(finds)}; "
+              f"{found}/{total} Jahre im Cache", file=sys.stderr)
+    return {"name": name, "today": len(full), "dropped": count,
+            "n": len(finds), "hits": found, "years": total}
 
 
 # --- Anpassung je Art ------------------------------------------------------
@@ -852,6 +1438,11 @@ def fit_species(name, sci, cache_dir=None, seed=42, progress=True):
         "fit_years": sorted({s["year"] for s in fit}),
         "test_years": sorted({s["year"] for s in test}),
         "optimum": fitted,
+        # Das Band der wirklich besten Werte — der Bericht zeigt es, weil
+        # ein Gipfel ohne seine Breite eine Nachkommastelle ohne Deckung
+        # ist. Fehlte es hier, stürzte erst das Rendern ab, nach der
+        # ganzen Rechnung (so geschehen am 2026-09-11).
+        "best_set": grid["best_set"],
         "plateau": grid["plateau"],
         "at_edge": grid["at_edge"],
         "auc_fit": grid["auc_fit"],
@@ -964,6 +1555,126 @@ def self_test():
     assert abs(warm - cold) < 1e-9, "die Glocke muss symmetrisch sein"
     assert warm < 0.1
     assert temperature_factor([None] * TEMP_WINDOW) == 0.0
+
+    # Wiederherstellung: Die k neuesten fallen weg, die Reihenfolge der
+    # übrigen bleibt. Die ids stehen bewusst NICHT in Reihenfolge — eine
+    # neue Meldung taucht mitten in der Seitenfolge auf, und wer nach
+    # Position statt nach id abschneidet, erwischt die falschen.
+    records = [{"key": k} for k in [50, 900, 10, 800, 20, 700]]
+    assert [r["key"] for r in without_newest(records, 0)] == \
+        [50, 900, 10, 800, 20, 700]
+    assert [r["key"] for r in without_newest(records, 1)] == \
+        [50, 10, 800, 20, 700], "die höchste id muss fallen, nicht die letzte"
+    assert [r["key"] for r in without_newest(records, 3)] == [50, 10, 20]
+    assert without_newest(records, 99) == []
+
+    # **Der Bericht darf nicht nach Feldern greifen, die es nicht
+    # gibt.** Am 2026-09-11 lief die Anpassung zehn Minuten und stürzte
+    # dann beim Rendern ab (`KeyError: 'best_set'`), weil ein Feld in
+    # `grid_optimum` ergänzt, aber nicht durch `fit_species`
+    # durchgereicht worden war. Ein Lauf, der erst nach der Rechnung
+    # scheitert, kostet die ganze Rechnung.
+    # **BEIDE Seiten kommen aus dem Quelltext, und zwar aus dem
+    # SYNTAXBAUM.** Zwei Anläufe waren vorher nötig, und beide Fehler
+    # sind lehrreich:
+    #
+    # 1. Die gelieferten Felder standen als Liste von Hand da. Der Test
+    #    verglich damit meine Liste mit dem Bericht statt den Code mit
+    #    dem Bericht — und blieb bei der Gegenprobe grün.
+    # 2. Danach las ein Muster die Zeilenanfänge. Es übersah jeden
+    #    einzeiligen Dict (`{"name": …, "why": …}`) und meldete
+    #    korrekten Code als kaputt. Ein Wächter, der bei heilem Code rot
+    #    wird, wird abgeschaltet — und dann wacht er über gar nichts.
+    def keys_written(func):
+        """Alle Schlüssel, die diese Funktion je in ein Dict schreibt."""
+        tree = ast.parse(textwrap.dedent(inspect.getsource(func)))
+        keys = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Dict):
+                keys |= {k.value for k in node.keys
+                         if isinstance(k, ast.Constant)
+                         and isinstance(k.value, str)}
+            elif isinstance(node, ast.Subscript) and isinstance(
+                    node.slice, ast.Constant) and isinstance(
+                    node.slice.value, str):
+                keys.add(node.slice.value)
+        return keys
+
+    def keys_read(func, holders):
+        """Alle Schlüssel, die diese Funktion aus [holders] liest."""
+        tree = ast.parse(textwrap.dedent(inspect.getsource(func)))
+        keys = set()
+        for node in ast.walk(tree):
+            if (isinstance(node, ast.Subscript)
+                    and isinstance(node.value, ast.Name)
+                    and node.value.id in holders
+                    and isinstance(node.slice, ast.Constant)
+                    and isinstance(node.slice.value, str)):
+                keys.add(node.slice.value)
+            elif (isinstance(node, ast.Call)
+                  and isinstance(node.func, ast.Attribute)
+                  and node.func.attr == "get"
+                  and isinstance(node.func.value, ast.Name)
+                  and node.func.value.id in holders
+                  and node.args
+                  and isinstance(node.args[0], ast.Constant)):
+                keys.add(node.args[0].value)
+        return keys
+
+    holders = {"row", "primary", "r"}
+    for report, producer in [(render_fit_report, fit_species),
+                             (render_holdout_report, holdout_species)]:
+        missing = keys_read(report, holders) - keys_written(producer)
+        assert not missing, (
+            f"{report.__name__} liest Felder, die {producer.__name__} nicht "
+            f"liefert: {sorted(missing)}")
+    assert "best_set" in keys_read(render_fit_report, holders), \
+        "die Prüfung selbst muss etwas zu prüfen haben"
+
+    # **Die Spiegel-Regel, zum ersten Mal geprüft.** Beide Dateiköpfe
+    # behaupten seit jeher, dieses Werkzeug rechne Zahl für Zahl
+    # dasselbe wie `ampel_model.dart` — und niemand hat es je
+    # nachgerechnet. Eine Konstante, die nur in einer der beiden Dateien
+    # geändert wird, macht die Validierung zur Aussage über ein Modell,
+    # das die App nicht rechnet. Genau das ist der teuerste stille
+    # Fehler, den dieses Projekt hier haben kann.
+    dart = open(repo_path(AMPEL_MODEL_FILE), encoding="utf-8").read()
+    spiegel = {
+        "ampelRainWindow": RAIN_WINDOW,
+        "ampelTempWindow": TEMP_WINDOW,
+        "ampelOptimumC": OPTIMUM_C,
+        "ampelTempSigma": TEMP_SIGMA,
+        "ampelRainSaturationMm": RAIN_SATURATION_MM,
+        "ampelVerhaltenAbove": VERHALTEN_ABOVE,
+        "ampelGuenstigAbove": GUENSTIG_ABOVE,
+    }
+    for const, here in spiegel.items():
+        found = re.search(rf"const {const} = ([\d.]+);", dart)
+        assert found, f"{const} steht nicht mehr in {AMPEL_MODEL_FILE}"
+        there = float(found.group(1))
+        assert there == float(here), (
+            f"Spiegel gebrochen: {const} ist in Dart {there}, hier {here}. "
+            f"Die Validierung gälte dann einem Modell, das die App nicht "
+            f"rechnet.")
+
+    # **Der Schlusssatz der Arten-Kontrolle wird gerendert, nicht
+    # geschrieben** — und genau dort hat eine implizite
+    # Zeichenketten-Verkettung den Satz zerlegt. Ein Bericht, den niemand
+    # nachliest, trägt so etwas jahrelang.
+    fake_wood = [{"name": "Hallimasch", "n": 1953, "auc": 0.749, "p": 0.0005,
+                  "placebo_auc": 0.497, "placebo_n": 1900, "mirror_auc": 0.511,
+                  "mirror_n": 1914, "years": 20, "partial_years": [],
+                  "skipped": 0, "median_found": 0.3, "median_control": 0.2,
+                  "sci": "Armillaria"},
+                 {"name": "Stockschwämmchen", "n": 1277, "auc": 0.756,
+                  "p": 0.0005, "placebo_auc": 0.453, "placebo_n": 1200,
+                  "mirror_auc": 0.479, "mirror_n": 1231, "years": 20,
+                  "partial_years": [], "skipped": 0, "median_found": 0.3,
+                  "median_control": 0.2, "sci": "Kuehneromyces mutabilis"}]
+    rendered = render_report([], fake_wood, [], "2026-09-12")
+    assert "Hallimasch 0.749, Stockschwämmchen 0.756" in rendered, \
+        "der Schlusssatz der Arten-Kontrolle ist zerlegt"
+    assert "2 von 2 Holzbewohnern" in rendered
 
     # --- Anpassung je Art (docs/pilzampel-artenfenster.md) ---
     #
@@ -1199,9 +1910,21 @@ def render_fit_report(rows, fetched_on):
     primary = next((r for r in rows
                     if r["name"] == PREDICTION_SPECIES and r.get("usable")), None)
     if primary is None:
-        out += ["**Nicht auswertbar** — für die vorab benannte Art kam keine "
-                "brauchbare Trennung zustande. Ohne sie ist der Rest dieses "
-                "Berichts Beifund, kein Beleg.", ""]
+        # **Zwei Gründe, und sie bedeuten Verschiedenes.** Nicht im Lauf
+        # heißt „noch nicht gemessen"; im Lauf und unbrauchbar heißt
+        # „gemessen, trägt nicht". Beides als dasselbe zu melden wäre
+        # eine Aussage über Daten, die es nicht gibt.
+        ran = any(r["name"] == PREDICTION_SPECIES for r in rows)
+        out += [f"**Noch nicht entschieden** — {PREDICTION_SPECIES} "
+                + ("war in diesem Lauf nicht enthalten."
+                   if not ran else
+                   "kam über zu wenig Material nicht auf beide Seiten der "
+                   "Jahres-Trennlinie.")
+                + " Ohne die vorab benannte Art ist alles Folgende "
+                "**Beifund, kein Beleg**: Bei sieben Arten und einem "
+                "freien Parameter ist eine Verbesserung durch Zufall zu "
+                "erwarten, und welche davon man hinterher interessant "
+                "findet, ist keine Vorhersage.", ""]
     else:
         met = (primary["optimum"] < PREDICTION_MAX_OPTIMUM_C
                and primary["auc_test_fitted"] >= PREDICTION_MIN_AUC)
@@ -1234,7 +1957,11 @@ def render_fit_report(rows, fetched_on):
             out.append(f"| {row['name']} | {row['n_fit']} | {row['n_test']} | "
                        "— | — | — | — | zu wenig Material |")
             continue
-        band = f"{row['best_set'][0]:.1f}–{row['best_set'][1]:.1f}"
+        low, high = row["best_set"]
+        # „-2.0–-1.5" ist nicht lesbar, seit der Gitterboden negativ sein
+        # darf. Ein Band aus einem einzigen Wert schreibt sich als Wert.
+        band = (f"{low:.1f}" if low == high
+                else f"{low:.1f} bis {high:.1f}")
         if row["at_edge"]:
             band += " ⚠ am Gitterrand"
         ci = row.get("ci") or {}
@@ -1285,11 +2012,47 @@ def render_fit_report(rows, fetched_on):
                     "Ampel je Gilde, nicht je Art — und der Aufwand "
                     "beschränkte sich auf die Arten, die heute grau "
                     "bleiben.", ""]
-        elif primary_met:
-            out += ["Die Mykorrhiza-Arten unterscheiden sich untereinander "
-                    "ebenfalls. Ob das trägt, entscheidet die Spalte "
-                    "„Differenz“ je Art — ein Optimum, dessen Bereich die "
-                    "Null enthält, ist eine Zahl ohne Wirkung.", ""]
+        else:
+            # **Der Fall, in dem einzelne Arten ausscheren.** Ohne diesen
+            # Zweig bliebe die auffälligste Zeile der Tabelle
+            # unkommentiert — ein Bericht, der eine Spanne von 6,8 K
+            # nennt und dann schweigt, überlässt die Deutung dem
+            # Zufall.
+            #
+            # Was zählt, ist NICHT der Abstand zu 13 °C, sondern ob der
+            # Vertrauensbereich der Differenz die Null ausschließt. Ein
+            # weit entferntes Optimum ohne Wirkung ist eine Zahl, kein
+            # Befund.
+            def carries(row):
+                span = (row.get("ci") or {}).get("difference")
+                return bool(span) and span[0] > 0
+
+            strong = [r for r in usable if carries(r)]
+            far = [r for r in mycos if abs(r["optimum"] - OPTIMUM_C) > 1.5]
+            if strong:
+                out += ["**Ein eigenes Fenster trägt bei: "
+                        + ", ".join(f"{r['name']} ({r['optimum']:.1f} °C, "
+                                    f"{r['gain']:+.3f})" for r in strong)
+                        + ".** Dort schließt der Vertrauensbereich der "
+                        "Differenz die Null aus, und gemessen wurde auf "
+                        "Jahren, an denen nicht angepasst wurde.", "",
+                        "Das ist ein Fund, keine Entscheidung. Welche von "
+                        f"{len(usable)} Arten hinterher heraussticht, ist "
+                        "keine Vorhersage — eine davon tut es auch bei "
+                        "reinem Zufall. Ein eigenes Fenster verdient "
+                        "deshalb eine eigene, vorab formulierte Prüfung, "
+                        "nicht den Einbau.", ""]
+            else:
+                out += ["**Keine Art gewinnt nachweisbar.** Bei allen "
+                        "enthält der Vertrauensbereich der Differenz die "
+                        "Null — die Optima unterscheiden sich als Zahl, "
+                        "aber nicht in der Wirkung.", ""]
+            if far and not strong:
+                out += ["Weit von den 13 °C entfernt liegen trotzdem: "
+                        + ", ".join(f"{r['name']} ({r['optimum']:.1f} °C)"
+                                    for r in far)
+                        + ". Ohne Wirkung ist das eine Zahl, kein Befund.",
+                        ""]
 
     out += ["", "## Grenzen", "",
             "Angepasst wurde ausschließlich an GBIF. Die eigenen Funde und "
@@ -1371,21 +2134,62 @@ def render_report(mycorrhizal, wood, crosscheck, fetched_on):
         "nur: Warum an DIESEM Tag und nicht drei Wochen später am selben "
         "Fleck?",
         "",
-        "## Placebo-Kontrolle: prüft die Methode",
+        "## Kontrollen: prüfen die Methode",
         "",
-        "Zwei Vergleichstage treten gegeneinander an — beide ohne Fund, "
-        "beide nach derselben Vorschrift gezogen. **Hier muss 0,50 "
-        "stehen.** Alles andere hieße, dass schon die Ziehung verzerrt "
-        "(etwa weil ein späterer Tag im Jahr systematisch feuchter ist) — "
+        "Zwei Tage OHNE Fund treten gegeneinander an. **Hier muss 0,50 "
+        "stehen.** Alles andere hieße, dass schon die Ziehung verzerrt — "
         "und dann wäre jede Zahl in den Tabellen darunter wertlos.",
         "",
-        "| Art | Paare | AUC (soll ≈ 0,50) |",
-        "|---|--:|--:|",
+        "Es sind zwei, und sie fangen Verschiedenes.",
+        "",
+        "**Die abstandsgleiche Kontrolle entscheidet** (seit 2026-09-12): "
+        "der Vergleichstag gegen seine Spiegelung am Fundtag. Beide liegen "
+        "exakt gleich weit weg, nur auf verschiedenen Seiten.",
+        "",
+        "**Die gepaarte Kontrolle steht daneben**: der Vergleichstag gegen "
+        "einen VON IHM AUS gezogenen dritten Tag. Sie war bis 2026-09-12 "
+        "der Torwächter und taugt dafür nicht, weil ihre beiden Tage "
+        "unterschiedlich weit vom Fundtag entfernt liegen — die Abstände "
+        "addieren sich. Und Nähe zum Fundtag hebt den Wert, weil Pilze bei "
+        "gutem Wetter kommen und gutes Wetter Wochen anhält. Sie misst "
+        "damit auch Abstand, nicht nur Verzerrung. Behalten wird sie "
+        "trotzdem: Sie fängt eine EINSEITIGE Ziehung, was die "
+        "abstandsgleiche bauartbedingt nicht kann.",
+        "",
+        "Die Spalte „Rauschen“ ist der Standardfehler bei dieser "
+        "Paarzahl (rund 1/(2·√n)). Eine Abweichung, die kleiner ist als "
+        "das Doppelte davon, ist von Zufall nicht zu unterscheiden — sie "
+        "wird trotzdem markiert, nicht wegerklärt.",
+        "",
+        "| Art | Paare | abstandsgleich (soll ≈ 0,50) | Rauschen | gepaart |",
+        "|---|--:|--:|--:|--:|",
     ]
     for row in mycorrhizal + wood:
+        noise = 1 / (2 * math.sqrt(row["mirror_n"])) if row["mirror_n"] else 0
+        mark = "" if abs(row["mirror_auc"] - 0.5) <= PLACEBO_TOLERANCE else " ⚠"
         lines.append(
-            f"| {row['name']} | {row['placebo_n']} | "
+            f"| {row['name']} | {row['mirror_n']} | "
+            f"{row['mirror_auc']:.3f}{mark} | ±{noise:.3f} | "
             f"{row['placebo_auc']:.3f} |")
+
+    failed = [r for r in mycorrhizal + wood
+              if abs(r["mirror_auc"] - 0.5) > PLACEBO_TOLERANCE]
+    lines += [""]
+    if failed:
+        # **Je Art, nicht pauschal.** Ein durchgefallener Wächter bei
+        # EINER Art sagt nichts über die anderen acht — sie haben ihre
+        # eigene Ziehung, ihre eigenen Orte und ihre eigene Paarzahl. Die
+        # erste Fassung erklärte den ganzen Bericht für unauswertbar,
+        # sobald irgendwo ein ⚠ stand; das ist bequem und falsch.
+        lines += ["**Nicht auswertbar sind damit: "
+                  + ", ".join(f"{r['name']} ({r['mirror_auc']:.3f}, "
+                              f"±{1 / (2 * math.sqrt(r['mirror_n'])):.3f})"
+                              for r in failed)
+                  + ".** Für alle übrigen Arten hält die Kontrolle, und "
+                  "ihre Zahlen stehen.", ""]
+    else:
+        lines += ["Alle Arten halten die Kontrolle; die Zahlen darunter "
+                  "sind auswertbar.", ""]
 
     lines += [
         "",
@@ -1429,24 +2233,40 @@ def render_report(mycorrhizal, wood, crosscheck, fetched_on):
     # geworden — deshalb zählt der Bericht nach, statt zu behaupten.
     fitting = [row for row in wood if row["auc"] >= 0.55]
     if wood:
-        lines += ["", (
-            "**Ergebnis dieser Kontrolle:** " + (
+        # **Klammern, nicht Aneinanderreihung.** Bis 2026-09-12 stand
+        # hier `f"…" ", ".join(…)` — zwei Zeichenketten nebeneinander
+        # sind in Python implizit EINE, und `.join` bekam damit den
+        # ganzen Satz als Trennzeichen. Im Bericht stand dann
+        # „Hallimasch 0.7492 von 3 Holzbewohnern passen zum Modell … — ,
+        # Stockschwämmchen 0.756“. Sichtbar nur beim Lesen des Ergebnisses.
+        namen = ", ".join(f"{r['name']} {r['auc']:.3f}" for r in fitting)
+        if fitting:
+            urteil = (
                 f"{len(fitting)} von {len(wood)} Holzbewohnern passen zum "
-                "Modell (AUC ≥ 0,55) — "
-                ", ".join("%s %.3f" % (r["name"], r["auc"]) for r in fitting) + ". "
-                "Die Kontrolle ist damit NICHT bestanden: Das Modell "
-                "trennt hier nicht nach Gilde. Zwei Lesarten passen gleich "
-                "gut — es misst allgemeines Pilzwetter statt etwas "
-                "Artspezifisches, oder diese Arten teilen schlicht dasselbe "
-                "Fenster und taugen nicht als Gegenprobe. Diese Daten "
-                "trennen das nicht. **Solange das offen ist, bleibt eine "
-                "Ampel je Art unbegründet** — ihre Voraussetzung ist genau "
-                "der Unterschied, der hier nicht sichtbar wird."
-                if fitting else
+                f"Modell (AUC ≥ 0,55) — {namen}. Nach dem Kriterium dieser "
+                f"Seite ist die Kontrolle damit NICHT bestanden: Hier "
+                f"trennt das Modell nicht nach Gilde."
+                f"\n\n"
+                f"**Entschieden ist das seit dem 2026-09-12 trotzdem** — "
+                f"nur nicht auf dieser Seite. Die Anpassung je Art "
+                f"(`docs/pilzampel-artenfenster-messung.md`) zeigt, dass "
+                f"die Kontrolle an ihrer AUSWAHL scheiterte: Hallimasch "
+                f"und Stockschwämmchen teilen schlicht das Herbstfenster, "
+                f"während der Austernseitling ein eigenes, kaltes hat. Das "
+                f"Modell wirkt artspezifisch; man muss nur Arten "
+                f"vergleichen, die sich wirklich unterscheiden."
+                f"\n\n"
+                f"**Eine Ampel je ART bleibt dennoch unbegründet**, jetzt "
+                f"aus dem umgekehrten Grund: Die Herbstarten liegen alle "
+                f"beieinander, und ein eigenes Fenster bringt ihnen "
+                f"nichts. Was die Daten stützen, ist eine Unterscheidung "
+                f"nach TYP.")
+        else:
+            urteil = (
                 "Kein Holzbewohner passt zum Modell (alle AUC < 0,55). Die "
                 "Kontrolle ist bestanden: Das Modell wirkt artspezifisch "
-                "und misst nicht bloß „im Herbst wird mehr gemeldet“."
-            ))]
+                "und misst nicht bloß „im Herbst wird mehr gemeldet“.")
+        lines += ["", "**Ergebnis dieser Kontrolle:** " + urteil]
 
     if crosscheck:
         lines += [
@@ -1483,6 +2303,16 @@ def main():
                         help="Temperaturoptimum je Art anpassen und "
                              "auf getrennten Jahren prüfen "
                              "(docs/pilzampel-artenfenster.md)")
+    parser.add_argument("--compare", action="store_true",
+                        help="Ausgelieferte Ampel gegen die mit eigenem "
+                             "Fenster — gemessen in STUFEN, nicht in AUC")
+    parser.add_argument("--holdout", default=None,
+                        help="Länderkürzel (z. B. AT,CH): in Deutschland "
+                             "anpassen, dort prüfen. Braucht --only.")
+    parser.add_argument("--recover-sample", action="store_true",
+                        help="Die Stichprobe suchen, zu der ein vorhandener "
+                             "--cache gehört, und sie festnageln. Einmal "
+                             "nötig für Sammlungen von vor dem Festnageln.")
     parser.add_argument("--only", default=None,
                         help="Nur diese Arten (kommagetrennt). Für --fit "
                              "gedacht: Das Tageskontingent von Open-Meteo "
@@ -1505,15 +2335,81 @@ def main():
     # beantwortet eine andere Frage (`docs/pilzampel-artenfenster.md`) und
     # schreibt einen anderen Bericht; beides in einem Aufruf zu mischen
     # hieße, zwei Ergebnisse in eine Datei zu schreiben.
+    if args.compare:
+        wanted = MYCORRHIZAL + WOOD_DWELLERS
+        if args.only:
+            wanted = [n.strip() for n in args.only.split(",") if n.strip()]
+        print("Ampel-Vergleich in Stufen:", file=sys.stderr)
+        rows = [row for row in (
+            compare_species(name, mapping[name], args.cache, args.seed)
+            for name in wanted if name in mapping) if row]
+        report = render_compare_report(rows, time.strftime("%Y-%m-%d"))
+        if args.out:
+            open(args.out, "w", encoding="utf-8").write(report)
+            print(f"\n{args.out} geschrieben", file=sys.stderr)
+        else:
+            print(report)
+        print("\nZusammenfassung:", file=sys.stderr)
+        for row in rows:
+            if not row.get("usable"):
+                continue
+            print(f"  {row['name']:20} {row['differ'] * 100:5.1f} % andere "
+                  f"Stufe   (Optimum {row['optimum']:5.1f} °C)",
+                  file=sys.stderr)
+        return
+
+    if args.holdout:
+        if not args.only:
+            raise SystemExit("--holdout braucht --only: Der Hold-out prüft "
+                             "eine registrierte Spur, nicht alles auf "
+                             "Verdacht.")
+        countries = [c.strip().upper() for c in args.holdout.split(",")
+                     if c.strip()]
+        wanted = [n.strip() for n in args.only.split(",") if n.strip()]
+        print(f"Hold-out in {'+'.join(countries)}:", file=sys.stderr)
+        rows = [holdout_species(name, mapping[name], countries, args.cache,
+                                args.seed)
+                for name in wanted if name in mapping]
+        report = render_holdout_report(rows, countries,
+                                       time.strftime("%Y-%m-%d"))
+        if args.out:
+            open(args.out, "w", encoding="utf-8").write(report)
+            print(f"\n{args.out} geschrieben", file=sys.stderr)
+        else:
+            print(report)
+        return
+
+    if args.recover_sample:
+        if not args.cache:
+            raise SystemExit("--recover-sample braucht --cache: Es sucht die "
+                             "Stichprobe, die zu einer vorhandenen Sammlung "
+                             "passt.")
+        print("Stichprobe wiederherstellen:", file=sys.stderr)
+        rows = [recover_sample(name, mapping[name], args.cache, args.seed)
+                for name in MYCORRHIZAL + WOOD_DWELLERS if name in mapping]
+        print("\nZusammenfassung:", file=sys.stderr)
+        for row in rows:
+            mark = "  " if row["hits"] == row["years"] else " ⚠"
+            print(f"{mark} {row['name']:20} {row['n']:5} Meldungen "
+                  f"(−{row['dropped']})   {row['hits']}/{row['years']} Jahre",
+                  file=sys.stderr)
+        missing = sum(r["years"] - r["hits"] for r in rows)
+        print(f"\n  Es fehlen noch {missing} Art-Jahre.", file=sys.stderr)
+        return
+
     if args.fit:
         wanted = MYCORRHIZAL + WOOD_DWELLERS
         if args.only:
             asked = [n.strip() for n in args.only.split(",") if n.strip()]
-            unknown = [n for n in asked if n not in wanted]
+            # Geprüft wird gegen die ARTENLISTE DER APP, nicht gegen die
+            # Listen hier oben: Eine registrierte Vorhersage darf eine Art
+            # benennen, die im Standardlauf nichts zu suchen hat
+            # (COLD_CANDIDATES). Ein Tippfehler fällt trotzdem auf.
+            unknown = [n for n in asked if n not in mapping]
             if unknown:
                 raise SystemExit(
                     f"Unbekannte Art(en): {', '.join(unknown)}.\n"
-                    f"Zur Auswahl stehen: {', '.join(wanted)}")
+                    f"Die Art muss in {SPECIES_FILE} mit `sci:` stehen.")
             wanted = asked
         print("Anpassung je Art:", file=sys.stderr)
         rows = [row for row in (
@@ -1590,14 +2486,17 @@ def main():
     if not (mycorrhizal or wood):
         return
     print("\nZusammenfassung:", file=sys.stderr)
-    worst_placebo = 0.0
+    worst = 0.0
     for row in mycorrhizal + wood:
-        worst_placebo = max(worst_placebo, abs(row["placebo_auc"] - 0.5))
-    print(f"  Placebo (soll 0,50): grösste Abweichung {worst_placebo:.3f}",
-          file=sys.stderr)
-    if worst_placebo > 0.03:
-        print("  ⚠ Die Ziehung der Vergleichstage ist verzerrt — die Zahlen "
-              "darunter sind nicht auswertbar.", file=sys.stderr)
+        worst = max(worst, abs(row["mirror_auc"] - 0.5))
+    print(f"  Abstandsgleiche Kontrolle (soll 0,50): grösste Abweichung "
+          f"{worst:.3f}", file=sys.stderr)
+    broken = [row["name"] for row in mycorrhizal + wood
+              if abs(row["mirror_auc"] - 0.5) > PLACEBO_TOLERANCE]
+    if broken:
+        print(f"  ⚠ Nicht auswertbar: {', '.join(broken)} — dort ist die "
+              f"Ziehung verzerrt. Die übrigen Arten sind davon nicht "
+              f"betroffen.", file=sys.stderr)
     print("  --- Mykorrhiza ---", file=sys.stderr)
     for row in mycorrhizal:
         print(f"  {row['name']:22} AUC {row['auc']:.3f}  {verdict(row['auc'])}"
