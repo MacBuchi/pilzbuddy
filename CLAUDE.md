@@ -771,10 +771,19 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   - **Nur `guenstig` zählt.** „Verhalten" ist die Mehrzahl der Tage und
     damit ein Banner, das immer steht — und eines, das immer steht, sagt
     nichts mehr.
-  - **Der Wortlaut trägt das Urteil.** Die Arten-Kontrolle der
-    Rückwärtsvalidierung ist durchgefallen; das Modell hat sich keine
-    Aufforderung verdient. Also „An 2 Spots **stünde** die Ampel günstig
-    (experimentell)", kein „geh jetzt".
+  - **Der Wortlaut trägt das Urteil.** Die Ampel bewertet BEDINGUNGEN,
+    nie Vorkommen. Also „2 Spots · **Ampel günstig (experimentell)**",
+    kein „geh jetzt", kein Ausrufezeichen.
+    **Geändert am 2026-09-12** (vorher „stünde die Ampel günstig"): Der
+    Konjunktiv war mit der durchgefallenen Arten-Kontrolle begründet —
+    und die ist aufgelöst, sie war an ihrer AUSWAHL gescheitert
+    (`docs/pilzampel-artenfenster-messung.md`). Er tat ohnehin nicht,
+    was er sollte: „Ampel günstig" behauptet nichts über Pilze, sondern
+    sagt, was die Ampel zeigt. Den Vorbehalt trägt „experimentell", und
+    der steht deutlicher da, wenn er nicht um Platz ringt.
+    **Was bleibt:** „experimentell" ist ein eigenes Stück im Chip, nicht
+    Teil des Textes — dort würde es als Erstes abgeschnitten. Lieber ein
+    gekürzter Ortsname als ein gekürzter Vorbehalt.
   - **Das X schaltet nur für die SITZUNG stumm** (#425, seit 1.128.1) —
     vorher bis Tagesende, mit der Begründung „morgen sind es andere
     Daten und damit eine andere Aussage". Die stimmt weiter; ungeprüft

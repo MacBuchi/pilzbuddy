@@ -848,6 +848,8 @@ def validate_species(name, sci, cache_dir=None, seed=42, progress=True):
     pairs = score_pairs(samples)
     placebo = [(ampel_score(*s["control"]), ampel_score(*s["placebo"]))
                for s in samples if s["placebo"] is not None]
+    mirrored = [(ampel_score(*s["control"]), ampel_score(*s["mirror"]))
+                for s in samples if s["mirror"] is not None]
     auc = paired_auc(pairs)
     return {
         "name": name,
@@ -860,6 +862,8 @@ def validate_species(name, sci, cache_dir=None, seed=42, progress=True):
         "p": permutation_p(pairs, seed=seed),
         "placebo_auc": paired_auc(placebo),
         "placebo_n": len(placebo),
+        "mirror_auc": paired_auc(mirrored),
+        "mirror_n": len(mirrored),
         "median_found": statistics.median(p[0] for p in pairs),
         "median_control": statistics.median(p[1] for p in pairs),
     }
@@ -1653,6 +1657,25 @@ def self_test():
             f"Die Validierung gälte dann einem Modell, das die App nicht "
             f"rechnet.")
 
+    # **Der Schlusssatz der Arten-Kontrolle wird gerendert, nicht
+    # geschrieben** — und genau dort hat eine implizite
+    # Zeichenketten-Verkettung den Satz zerlegt. Ein Bericht, den niemand
+    # nachliest, trägt so etwas jahrelang.
+    fake_wood = [{"name": "Hallimasch", "n": 1953, "auc": 0.749, "p": 0.0005,
+                  "placebo_auc": 0.497, "placebo_n": 1900, "mirror_auc": 0.511,
+                  "mirror_n": 1914, "years": 20, "partial_years": [],
+                  "skipped": 0, "median_found": 0.3, "median_control": 0.2,
+                  "sci": "Armillaria"},
+                 {"name": "Stockschwämmchen", "n": 1277, "auc": 0.756,
+                  "p": 0.0005, "placebo_auc": 0.453, "placebo_n": 1200,
+                  "mirror_auc": 0.479, "mirror_n": 1231, "years": 20,
+                  "partial_years": [], "skipped": 0, "median_found": 0.3,
+                  "median_control": 0.2, "sci": "Kuehneromyces mutabilis"}]
+    rendered = render_report([], fake_wood, [], "2026-09-12")
+    assert "Hallimasch 0.749, Stockschwämmchen 0.756" in rendered, \
+        "der Schlusssatz der Arten-Kontrolle ist zerlegt"
+    assert "2 von 2 Holzbewohnern" in rendered
+
     # --- Anpassung je Art (docs/pilzampel-artenfenster.md) ---
     #
     # Ein gepflanztes Optimum muss wiedergefunden werden. Die
@@ -2111,21 +2134,62 @@ def render_report(mycorrhizal, wood, crosscheck, fetched_on):
         "nur: Warum an DIESEM Tag und nicht drei Wochen später am selben "
         "Fleck?",
         "",
-        "## Placebo-Kontrolle: prüft die Methode",
+        "## Kontrollen: prüfen die Methode",
         "",
-        "Zwei Vergleichstage treten gegeneinander an — beide ohne Fund, "
-        "beide nach derselben Vorschrift gezogen. **Hier muss 0,50 "
-        "stehen.** Alles andere hieße, dass schon die Ziehung verzerrt "
-        "(etwa weil ein späterer Tag im Jahr systematisch feuchter ist) — "
+        "Zwei Tage OHNE Fund treten gegeneinander an. **Hier muss 0,50 "
+        "stehen.** Alles andere hieße, dass schon die Ziehung verzerrt — "
         "und dann wäre jede Zahl in den Tabellen darunter wertlos.",
         "",
-        "| Art | Paare | AUC (soll ≈ 0,50) |",
-        "|---|--:|--:|",
+        "Es sind zwei, und sie fangen Verschiedenes.",
+        "",
+        "**Die abstandsgleiche Kontrolle entscheidet** (seit 2026-09-12): "
+        "der Vergleichstag gegen seine Spiegelung am Fundtag. Beide liegen "
+        "exakt gleich weit weg, nur auf verschiedenen Seiten.",
+        "",
+        "**Die gepaarte Kontrolle steht daneben**: der Vergleichstag gegen "
+        "einen VON IHM AUS gezogenen dritten Tag. Sie war bis 2026-09-12 "
+        "der Torwächter und taugt dafür nicht, weil ihre beiden Tage "
+        "unterschiedlich weit vom Fundtag entfernt liegen — die Abstände "
+        "addieren sich. Und Nähe zum Fundtag hebt den Wert, weil Pilze bei "
+        "gutem Wetter kommen und gutes Wetter Wochen anhält. Sie misst "
+        "damit auch Abstand, nicht nur Verzerrung. Behalten wird sie "
+        "trotzdem: Sie fängt eine EINSEITIGE Ziehung, was die "
+        "abstandsgleiche bauartbedingt nicht kann.",
+        "",
+        "Die Spalte „Rauschen“ ist der Standardfehler bei dieser "
+        "Paarzahl (rund 1/(2·√n)). Eine Abweichung, die kleiner ist als "
+        "das Doppelte davon, ist von Zufall nicht zu unterscheiden — sie "
+        "wird trotzdem markiert, nicht wegerklärt.",
+        "",
+        "| Art | Paare | abstandsgleich (soll ≈ 0,50) | Rauschen | gepaart |",
+        "|---|--:|--:|--:|--:|",
     ]
     for row in mycorrhizal + wood:
+        noise = 1 / (2 * math.sqrt(row["mirror_n"])) if row["mirror_n"] else 0
+        mark = "" if abs(row["mirror_auc"] - 0.5) <= PLACEBO_TOLERANCE else " ⚠"
         lines.append(
-            f"| {row['name']} | {row['placebo_n']} | "
+            f"| {row['name']} | {row['mirror_n']} | "
+            f"{row['mirror_auc']:.3f}{mark} | ±{noise:.3f} | "
             f"{row['placebo_auc']:.3f} |")
+
+    failed = [r for r in mycorrhizal + wood
+              if abs(r["mirror_auc"] - 0.5) > PLACEBO_TOLERANCE]
+    lines += [""]
+    if failed:
+        # **Je Art, nicht pauschal.** Ein durchgefallener Wächter bei
+        # EINER Art sagt nichts über die anderen acht — sie haben ihre
+        # eigene Ziehung, ihre eigenen Orte und ihre eigene Paarzahl. Die
+        # erste Fassung erklärte den ganzen Bericht für unauswertbar,
+        # sobald irgendwo ein ⚠ stand; das ist bequem und falsch.
+        lines += ["**Nicht auswertbar sind damit: "
+                  + ", ".join(f"{r['name']} ({r['mirror_auc']:.3f}, "
+                              f"±{1 / (2 * math.sqrt(r['mirror_n'])):.3f})"
+                              for r in failed)
+                  + ".** Für alle übrigen Arten hält die Kontrolle, und "
+                  "ihre Zahlen stehen.", ""]
+    else:
+        lines += ["Alle Arten halten die Kontrolle; die Zahlen darunter "
+                  "sind auswertbar.", ""]
 
     lines += [
         "",
@@ -2169,24 +2233,40 @@ def render_report(mycorrhizal, wood, crosscheck, fetched_on):
     # geworden — deshalb zählt der Bericht nach, statt zu behaupten.
     fitting = [row for row in wood if row["auc"] >= 0.55]
     if wood:
-        lines += ["", (
-            "**Ergebnis dieser Kontrolle:** " + (
+        # **Klammern, nicht Aneinanderreihung.** Bis 2026-09-12 stand
+        # hier `f"…" ", ".join(…)` — zwei Zeichenketten nebeneinander
+        # sind in Python implizit EINE, und `.join` bekam damit den
+        # ganzen Satz als Trennzeichen. Im Bericht stand dann
+        # „Hallimasch 0.7492 von 3 Holzbewohnern passen zum Modell … — ,
+        # Stockschwämmchen 0.756“. Sichtbar nur beim Lesen des Ergebnisses.
+        namen = ", ".join(f"{r['name']} {r['auc']:.3f}" for r in fitting)
+        if fitting:
+            urteil = (
                 f"{len(fitting)} von {len(wood)} Holzbewohnern passen zum "
-                "Modell (AUC ≥ 0,55) — "
-                ", ".join("%s %.3f" % (r["name"], r["auc"]) for r in fitting) + ". "
-                "Die Kontrolle ist damit NICHT bestanden: Das Modell "
-                "trennt hier nicht nach Gilde. Zwei Lesarten passen gleich "
-                "gut — es misst allgemeines Pilzwetter statt etwas "
-                "Artspezifisches, oder diese Arten teilen schlicht dasselbe "
-                "Fenster und taugen nicht als Gegenprobe. Diese Daten "
-                "trennen das nicht. **Solange das offen ist, bleibt eine "
-                "Ampel je Art unbegründet** — ihre Voraussetzung ist genau "
-                "der Unterschied, der hier nicht sichtbar wird."
-                if fitting else
+                f"Modell (AUC ≥ 0,55) — {namen}. Nach dem Kriterium dieser "
+                f"Seite ist die Kontrolle damit NICHT bestanden: Hier "
+                f"trennt das Modell nicht nach Gilde."
+                f"\n\n"
+                f"**Entschieden ist das seit dem 2026-09-12 trotzdem** — "
+                f"nur nicht auf dieser Seite. Die Anpassung je Art "
+                f"(`docs/pilzampel-artenfenster-messung.md`) zeigt, dass "
+                f"die Kontrolle an ihrer AUSWAHL scheiterte: Hallimasch "
+                f"und Stockschwämmchen teilen schlicht das Herbstfenster, "
+                f"während der Austernseitling ein eigenes, kaltes hat. Das "
+                f"Modell wirkt artspezifisch; man muss nur Arten "
+                f"vergleichen, die sich wirklich unterscheiden."
+                f"\n\n"
+                f"**Eine Ampel je ART bleibt dennoch unbegründet**, jetzt "
+                f"aus dem umgekehrten Grund: Die Herbstarten liegen alle "
+                f"beieinander, und ein eigenes Fenster bringt ihnen "
+                f"nichts. Was die Daten stützen, ist eine Unterscheidung "
+                f"nach TYP.")
+        else:
+            urteil = (
                 "Kein Holzbewohner passt zum Modell (alle AUC < 0,55). Die "
                 "Kontrolle ist bestanden: Das Modell wirkt artspezifisch "
-                "und misst nicht bloß „im Herbst wird mehr gemeldet“."
-            ))]
+                "und misst nicht bloß „im Herbst wird mehr gemeldet“.")
+        lines += ["", "**Ergebnis dieser Kontrolle:** " + urteil]
 
     if crosscheck:
         lines += [
@@ -2406,14 +2486,17 @@ def main():
     if not (mycorrhizal or wood):
         return
     print("\nZusammenfassung:", file=sys.stderr)
-    worst_placebo = 0.0
+    worst = 0.0
     for row in mycorrhizal + wood:
-        worst_placebo = max(worst_placebo, abs(row["placebo_auc"] - 0.5))
-    print(f"  Placebo (soll 0,50): grösste Abweichung {worst_placebo:.3f}",
-          file=sys.stderr)
-    if worst_placebo > 0.03:
-        print("  ⚠ Die Ziehung der Vergleichstage ist verzerrt — die Zahlen "
-              "darunter sind nicht auswertbar.", file=sys.stderr)
+        worst = max(worst, abs(row["mirror_auc"] - 0.5))
+    print(f"  Abstandsgleiche Kontrolle (soll 0,50): grösste Abweichung "
+          f"{worst:.3f}", file=sys.stderr)
+    broken = [row["name"] for row in mycorrhizal + wood
+              if abs(row["mirror_auc"] - 0.5) > PLACEBO_TOLERANCE]
+    if broken:
+        print(f"  ⚠ Nicht auswertbar: {', '.join(broken)} — dort ist die "
+              f"Ziehung verzerrt. Die übrigen Arten sind davon nicht "
+              f"betroffen.", file=sys.stderr)
     print("  --- Mykorrhiza ---", file=sys.stderr)
     for row in mycorrhizal:
         print(f"  {row['name']:22} AUC {row['auc']:.3f}  {verdict(row['auc'])}"

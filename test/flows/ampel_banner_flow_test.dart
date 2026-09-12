@@ -135,7 +135,7 @@ void main() {
         reason: 'der Riegel hat nicht gegriffen — der Nachlauf rechnet, '
             'statt sofort leer zu antworten');
     expect(state.value, isEmpty);
-    expect(find.textContaining('Ampel stünde günstig'), findsNothing);
+    expect(find.textContaining('· Ampel günstig'), findsNothing);
     expect(loads, 0, reason: 'kein Gitter, solange ein Riegel steht');
   }
 
@@ -170,7 +170,7 @@ void main() {
       ],
     );
 
-    expect(find.textContaining('Ampel stünde günstig'), findsNothing,
+    expect(find.textContaining('· Ampel günstig'), findsNothing,
         reason: 'ohne Schalter kein Banner');
 
     await enableAndSettle(tester);
@@ -183,7 +183,7 @@ void main() {
     // Seit der Chip-Zeile steht der Vorbehalt in einem EIGENEN Text
     // neben dem Namen — nicht aus Layoutlaune, sondern damit die Ellipse
     // bei langen Spotnamen den Namen frisst und nicht ihn.
-    expect(find.textContaining('Buchenhang · Ampel stünde günstig'),
+    expect(find.textContaining('Buchenhang · Ampel günstig'),
         findsOneWidget);
     expect(find.textContaining('experimentell'), findsWidgets);
   });
@@ -304,7 +304,7 @@ void main() {
       ],
     );
     await enableAndSettle(tester);
-    expect(find.textContaining('Ampel stünde günstig'), findsOneWidget);
+    expect(find.textContaining('· Ampel günstig'), findsOneWidget);
 
     // Das X im selben Banner — über die nächste Material-Hülle gesucht,
     // weil auch andere Banner ein Kreuz tragen (Muster aus
@@ -312,7 +312,7 @@ void main() {
     final close = find.descendant(
       of: find
           .ancestor(
-              of: find.textContaining('Ampel stünde günstig'),
+              of: find.textContaining('· Ampel günstig'),
               matching: find.byType(Material))
           .first,
       matching: find.byIcon(Icons.close),
@@ -320,7 +320,7 @@ void main() {
     await tester.tap(close);
     await settle(tester);
 
-    expect(find.textContaining('Ampel stünde günstig'), findsNothing);
+    expect(find.textContaining('· Ampel günstig'), findsNothing);
 
     // **Und der Neustart nimmt die Stummschaltung zurück** (#425). Bis
     // 1.128.0 lag hier ein Zeitpunkt bis Mitternacht in den
@@ -391,7 +391,11 @@ void main() {
     expect(camera(tester).center, isNot(const LatLng(spotLat, spotLng)),
         reason: 'sonst prüfte der Test einen Sprung, der schon geschehen ist');
 
-    await tester.tap(find.textContaining('Ampel stünde günstig'));
+    // **Der Mittelpunkt gehört in den Finder.** Seit 1.136.0 heißt das
+    // Banner „… · Ampel günstig" und der Filter-Chip „Gefiltert: Ampel
+    // günstig" — ohne das Trennzeichen trifft `textContaining` beide,
+    // und der Tipp landet auf dem falschen.
+    await tester.tap(find.textContaining('· Ampel günstig'));
     await settle(tester);
 
     // Der Filter steht — und er STEHT SICHTBAR. Ein von der App selbst
@@ -416,7 +420,7 @@ void main() {
   });
 
   testWidgets('mehrere Treffer: alle liegen danach im Bild', (tester) async {
-    // „An 7 Spots stünde die Ampel günstig" ist kein Ausnahmefall: Die
+    // „7 Spots · Ampel günstig" ist kein Ausnahmefall: Die
     // eigenen Spots liegen in derselben Region und bekommen dasselbe
     // Wetter. Bis #345 öffnete das Banner den bestbewerteten und
     // schaltete sich bis Mitternacht stumm — die Zahl im Text war eine
@@ -431,10 +435,10 @@ void main() {
         species: 'Marone');
     await pumpReady(tester, backend);
 
-    expect(find.textContaining('2 Spots · Ampel stünde günstig'),
+    expect(find.textContaining('2 Spots · Ampel günstig'),
         findsOneWidget);
 
-    await tester.tap(find.textContaining('Ampel stünde günstig'));
+    await tester.tap(find.textContaining('· Ampel günstig'));
     await settle(tester);
 
     expect(find.textContaining('Gefiltert: Ampel günstig'), findsOneWidget);
@@ -469,7 +473,7 @@ void main() {
         name: 'Fichtenschonung',
         species: 'Marone');
     await pumpReady(tester, backend);
-    expect(find.textContaining('2 Spots · Ampel stünde günstig'),
+    expect(find.textContaining('2 Spots · Ampel günstig'),
         findsOneWidget,
         reason: 'beide Spots müssen Treffer sein, sonst prüft der Test '
             'den Filter statt der Kamera');
@@ -479,7 +483,7 @@ void main() {
     await simulateCameraIdle(tester);
     final start = camera(tester).zoom;
 
-    await tester.tap(find.textContaining('Ampel stünde günstig'));
+    await tester.tap(find.textContaining('· Ampel günstig'));
     await settle(tester);
     final afterFirst = camera(tester).zoom;
     expect(afterFirst, isNot(closeTo(start, 0.5)),
@@ -490,7 +494,7 @@ void main() {
     // Gerät passiert das von selbst.
     await simulateCameraIdle(tester);
 
-    await tester.tap(find.textContaining('Ampel stünde günstig'));
+    await tester.tap(find.textContaining('· Ampel günstig'));
     await settle(tester);
 
     // Derselbe Filter, dieselben Spots, dieselbe Kamera: Der zweite
@@ -519,12 +523,12 @@ void main() {
         name: 'Schwarzwald',
         species: 'Marone');
     await pumpReady(tester, backend);
-    expect(find.textContaining('Buchenhang · Ampel stünde günstig'),
+    expect(find.textContaining('Buchenhang · Ampel günstig'),
         findsOneWidget,
         reason: 'genau ein Treffer — sonst prüft der Test nichts');
 
     await simulateCameraIdle(tester);
-    await tester.tap(find.textContaining('Ampel stünde günstig'));
+    await tester.tap(find.textContaining('· Ampel günstig'));
     await settle(tester);
 
     // Auf dem Treffer, nicht auf der Mitte zwischen Treffer und
@@ -565,7 +569,7 @@ void main() {
 
     // Der Name schrumpft, der Vorbehalt nicht: Die Ellipse hängt am
     // Namen, und nur an ihm.
-    final name = find.textContaining('Ampel stünde günstig');
+    final name = find.textContaining('· Ampel günstig');
     expect(tester.widget<Text>(name).overflow, TextOverflow.ellipsis);
     expect(tester.widget<Text>(hedge).overflow, isNot(TextOverflow.ellipsis));
 

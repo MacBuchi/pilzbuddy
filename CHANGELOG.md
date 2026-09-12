@@ -7,6 +7,21 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Pilzampel sagt es jetzt kürzer
+
+*12. September 2026 · Version 1.136.0*
+
+Der Hinweis auf der Karte hieß bisher „Buchenhang · Ampel **stünde**
+günstig". Jetzt heißt er **„Buchenhang · Ampel günstig (experimentell)"**.
+
+Der Konjunktiv sollte vorsichtig klingen, hat aber vor allem Platz
+gekostet — und bei längeren Spotnamen war der Name dann abgeschnitten.
+Am Vorbehalt ändert sich nichts: „experimentell" steht weiterhin dabei,
+und die Ampel bewertet nach wie vor nur die **Bedingungen**. Ob an einem
+Ort wirklich Pilze stehen, kann sie nicht wissen — dafür fehlen ihr der
+Zustand des Baumes, der Boden und alles, was nicht in einer Wetterreihe
+steht.
+
 ## Ein hakender Server kostet keinen Fund mehr
 
 *10. September 2026 · Version 1.135.0*

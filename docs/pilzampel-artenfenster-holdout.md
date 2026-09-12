@@ -10,16 +10,16 @@ Angepasst wurde in **Deutschland** (Jahre bis 2018), geprüft in **AT und CH** �
 
 ## Pfifferling
 
-Optimum aus Deutschland: **19.2 °C** (1336 Paare). Im Hold-out 1917 Paare aus 20 Jahren.
+Optimum aus Deutschland: **17.5 °C** (1332 Paare). Im Hold-out 1915 Paare aus 20 Jahren.
 
 | | AUC |
 |---|--:|
-| mit 13 °C | 0.549 |
-| mit 19.2 °C | 0.643 |
-| Differenz | **+0.094** [+0.040, +0.152] |
+| mit 13 °C | 0.584 |
+| mit 17.5 °C | 0.689 |
+| Differenz | **+0.104** [+0.055, +0.150] |
 
-**Ergebnis: NICHT AUSWERTBAR — die Placebo-Kontrolle ist verzerrt** (Schwelle +0.05).
+**Ergebnis: bestätigt** (Schwelle +0.05).
 
-Placebo-Kontrolle im Hold-out: 0.550 bei 1861 Paaren (Toleranz ±0.03) — erwartbar abweichend, siehe unten.
-**Abstandsgleiche Kontrolle: 0.532** bei 1915 Paaren — der Vergleichstag gegen seine Spiegelung am Fundtag, beide exakt gleich weit weg — **verzerrt.** Zwei fundfreie Tage, nach derselben Vorschrift gezogen, dürfen sich nicht unterscheiden. Tun sie es doch, misst der Aufbau etwas anderes als das Wetter am Fundtag, und die Zahlen darüber sind keine Aussage über das Modell.
+Placebo-Kontrolle im Hold-out: 0.542 bei 1817 Paaren (Toleranz ±0.03) — erwartbar abweichend, siehe unten.
+**Abstandsgleiche Kontrolle: 0.510** bei 1911 Paaren — der Vergleichstag gegen seine Spiegelung am Fundtag, beide exakt gleich weit weg — unauffällig. Daran hängt das Urteil oben.
 
