@@ -55,7 +55,32 @@ class KnownSpecies {
   /// (`Lactarius volemus`: 54 statt 909).
   final String? sci;
 
-  const KnownSpecies(this.name, this.group, {this.sameAs, this.sci});
+  /// Von welcher VERWANDTSCHAFT diese Art ihre Saisonkurve borgt —
+  /// wissenschaftlich, meist eine Gattung. Nur gesetzt, wo die Art
+  /// selbst zu wenig Material hat: Der Igelstachelbart bringt 94
+  /// Meldungen mit, die Gattung *Hericium* 1147.
+  ///
+  /// **Das ist etwas anderes als eine Gattung in [sci].** Dort ist der
+  /// DEUTSCHE Name ein Sammelbegriff („Rotkappe" meint je nach Wald
+  /// eine andere Art), die Kurve gehört also wirklich dem, was
+  /// eingetragen wurde. Hier meint der Name genau eine Art, und wir
+  /// unterschieben die Daten ihrer Verwandten — das muss die Anzeige
+  /// sagen, sonst liest sich die Kurve als Aussage über diese Art.
+  ///
+  /// **Wann es NICHT geht:** wenn die Verwandtschaft keine gemeinsame
+  /// Saison hat. *Amanita* hätte 60 448 Meldungen, umfasst aber
+  /// Frühjahrs- und Herbstarten — für den Frühjahrsknollenblätterpilz
+  /// zeigte die Gattungskurve in die Gegenrichtung. Der bleibt deshalb
+  /// ohne Kurve; bei einem tödlich giftigen Pilz ist Scheingenauigkeit
+  /// teurer als eine Lücke.
+  final String? curveFrom;
+
+  /// Wie die Verwandtschaft in der App heißt — deutsch, weil der Satz
+  /// im Blatt gelesen und nicht bestimmt wird (Betreiber, 2026-09-12).
+  final String? curveFromName;
+
+  const KnownSpecies(this.name, this.group,
+      {this.sameAs, this.sci, this.curveFrom, this.curveFromName});
 
   bool get isSynonym => sameAs != null;
 }
@@ -163,7 +188,8 @@ const kBekannteArten = <KnownSpecies>[
   KnownSpecies('Semmelstoppelpilz', _sta, sci: 'Hydnum repandum'),
   KnownSpecies('Habichtspilz', _sta, sci: 'Sarcodon imbricatus'),
   KnownSpecies('Ziegenbart', _sta, sci: 'Ramaria'),
-  KnownSpecies('Igelstachelbart', _sta, sci: 'Hericium erinaceus'),
+  KnownSpecies('Igelstachelbart', _sta, sci: 'Hericium erinaceus',
+      curveFrom: 'Hericium', curveFromName: 'Stachelbärte'),
   KnownSpecies('Affenkopfpilz', _sta, sameAs: 'Igelstachelbart'),
   KnownSpecies('Löwenmähne', _sta, sameAs: 'Igelstachelbart'),
   // Sonstige Lamellenpilze & Spezialisten

@@ -130,8 +130,24 @@ def read_species(path=SPECIES_FILE):
         if "sameAs:" in entry:
             continue  # Zweitname, erbt die Kurve seiner Hauptbezeichnung
         sci = re.search(r"sci: '([^']+)'", entry)
-        if sci:
-            species.append((name, sci.group(1)))
+        if not sci:
+            continue
+        # **Geborgte Kurve**: Die Art hat zu wenig Material, gefragt wird
+        # nach ihrer Verwandtschaft. Der Igelstachelbart bringt 94
+        # Meldungen mit, die Gattung *Hericium* 1147.
+        borrow = re.search(r"curveFrom: '([^']+)'", entry)
+        label = re.search(r"curveFromName: '([^']+)'", entry)
+        if borrow and not label:
+            raise SystemExit(
+                f"{name}: curveFrom ohne curveFromName. Eine geborgte "
+                f"Kurve MUSS sagen, von wem — sonst liest sie sich als "
+                f"Aussage über diese Art.")
+        species.append({
+            "name": name,
+            "sci": sci.group(1),
+            "ask": borrow.group(1) if borrow else sci.group(1),
+            "borrowed": label.group(1) if label else None,
+        })
     return species
 
 
@@ -221,7 +237,8 @@ def build(species, progress=True):
               file=sys.stderr)
 
     rows = []
-    for position, (name, sci) in enumerate(species, start=1):
+    for position, entry in enumerate(species, start=1):
+        name, sci = entry["name"], entry["ask"]
         key, rank = check_taxon(sci)
         counts, total = month_counts({"taxonKey": key})
         months = effort_corrected(counts, baseline)
@@ -236,6 +253,7 @@ def build(species, progress=True):
             "raw": as_index(counts),
             "months": months,
             "counts": counts,
+            "borrowed": entry["borrowed"],
         })
         if progress:
             note = ""
@@ -340,6 +358,10 @@ def render_dart(rows, baseline_total, fetched_on):
             f"    peakSupport: {row['support']},",
             f"    months: [{months}],",
             f"    raw: [{raw}],",
+        ]
+        if row.get("borrowed"):
+            lines.append(f"    borrowedFrom: '{row['borrowed']}',")
+        lines += [
             "  ),",
         ]
     lines += ["};", ""]
@@ -413,6 +435,16 @@ const kBekannteArten = <KnownSpecies>[
   KnownSpecies('Herrenpilz', _roe, sameAs: 'Steinpilz', sci: 'Boletus edulis'),
   KnownSpecies('Netzstieliger Hexenröhrling', _roe, sci: 'Suillellus luridus'), // via In-App-Wunsch
   KnownSpecies('Eigenbau', _son),
+  KnownSpecies('Igelstachelbart', _sta, sci: 'Hericium erinaceus',
+      curveFrom: 'Hericium', curveFromName: 'Stachelbärte'),
+];
+"""
+
+# Eine geborgte Kurve ohne Quellenangabe — muss abgelehnt werden.
+_DART_BORROW_UNNAMED = """
+const kBekannteArten = <KnownSpecies>[
+  KnownSpecies('Igelstachelbart', _sta, sci: 'Hericium erinaceus',
+      curveFrom: 'Hericium'),
 ];
 """
 
@@ -458,15 +490,61 @@ def self_test():
         parsed = read_species(path)
     finally:
         os.unlink(path)
-    assert parsed == [("Steinpilz", "Boletus edulis"),
-                      ("Netzstieliger Hexenröhrling", "Suillellus luridus")], \
+    assert [(row["name"], row["sci"]) for row in parsed] == [
+        ("Steinpilz", "Boletus edulis"),
+        ("Netzstieliger Hexenröhrling", "Suillellus luridus"),
+        ("Igelstachelbart", "Hericium erinaceus")], \
         f"Artenleser liefert {parsed}"
+
+    # **Gefragt wird nach der Verwandtschaft, benannt bleibt die Art.**
+    # Verwechselt man das, steht die Kurve der Gattung unter dem Namen
+    # der Gattung — und die Art hätte weiterhin keine.
+    geborgt = parsed[2]
+    assert geborgt["ask"] == "Hericium", geborgt
+    assert geborgt["borrowed"] == "Stachelbärte", geborgt
+    assert parsed[0]["ask"] == parsed[0]["sci"], "ohne curveFrom bleibt sci"
+    assert parsed[0]["borrowed"] is None
+
+    # **Eine geborgte Kurve MUSS sagen, von wem.** Ohne den Namen liest
+    # sie sich als Aussage über diese Art, und genau das ist sie nicht.
+    handle, path = tempfile.mkstemp(suffix=".dart")
+    with os.fdopen(handle, "w", encoding="utf-8") as file:
+        file.write(_DART_BORROW_UNNAMED)
+    try:
+        read_species(path)
+    except SystemExit:
+        pass
+    else:
+        raise AssertionError("curveFrom ohne curveFromName muss auffallen")
+    finally:
+        os.unlink(path)
+
+    # **Die Quellenangabe muss bis in die Dart-Datei durchkommen.**
+    # `build` selbst braucht GBIF und läuft hier nicht; geprüft wird
+    # deshalb das ERZEUGNIS. Fiele das Feld unterwegs weg, stünde in der
+    # App eine Gattungskurve unter dem Namen einer Art, ohne dass es
+    # dransteht — genau die Aussage, die dieses Feld verhindern soll.
+    zeile = {
+        "name": "Igelstachelbart", "sci": "Hericium", "key": 5244571,
+        "rank": "GENUS", "total": 1147, "support": 40,
+        "months": list(range(12)), "raw": list(range(12)),
+        "borrowed": "Stachelbärte",
+    }
+    erzeugt = render_dart([zeile], 1000, "2026-09-12")
+    assert "borrowedFrom: 'Stachelbärte'," in erzeugt, erzeugt
+    ohne = render_dart([dict(zeile, borrowed=None)], 1000, "2026-09-12")
+    assert "borrowedFrom" not in ohne, \
+        "eine eigene Kurve darf sich nicht als geborgt ausgeben"
 
     # Und derselbe Leser gegen die echte Datei — sie ist die Quelle.
     real = read_species()
     assert len(real) >= 80, f"Nur {len(real)} Arten mit `sci` gefunden"
-    names = [name for name, _ in real]
+    names = [row["name"] for row in real]
     assert len(names) == len(set(names)), "Doppelte Art in der Liste"
+    # Und jede geborgte Kurve der echten Liste nennt ihre Quelle.
+    for row in real:
+        if row["ask"] != row["sci"]:
+            assert row["borrowed"], f"{row['name']} borgt ohne Quellenangabe"
 
     # Die Stützung des Gipfels — der Wert, an dem die App eine Kurve
     # verwirft, deren Hauptzeit auf einer Handvoll Meldungen steht.

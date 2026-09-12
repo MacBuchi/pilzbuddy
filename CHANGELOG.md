@@ -7,6 +7,29 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Der Igelstachelbart hat jetzt auch eine Saisonkurve
+
+*12. September 2026 · Version 1.139.0*
+
+Für die meisten Arten zeigt die App, in welchen Monaten sie gemeldet
+werden. Beim **Igelstachelbart** ging das bisher nicht — es gibt schlicht
+zu wenige Meldungen (94), und aus so wenigen eine Kurve zu zeichnen wäre
+geraten.
+
+Jetzt borgt er sich die Kurve seiner nächsten Verwandten, der
+**Stachelbärte** (1147 Meldungen). Und das steht auch dran: *„Saison nach
+verwandten Arten: Stachelbärte"*. Eine geborgte Kurve ist eine schwächere
+Aussage als eine eigene, und das soll man ihr ansehen.
+
+Beim **Frühjahrsknollenblätterpilz** machen wir das bewusst **nicht**.
+Seine Gattung hätte genug Meldungen, mischt aber Frühjahrs- und
+Herbstarten — die Kurve zeigte für einen Frühjahrspilz in die falsche
+Richtung. Bei einem tödlich giftigen Pilz ist eine Lücke besser als eine
+Zahl, der man zu viel glaubt.
+
+Nebenbei sind alle Saisonkurven mit den aktuellen Meldedaten neu
+gerechnet worden.
+
 ## Der Hinweis kommt nur noch, wenn der Pilz auch Saison hat
 
 *12. September 2026 · Version 1.138.0*

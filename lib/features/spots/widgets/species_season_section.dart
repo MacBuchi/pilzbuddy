@@ -65,12 +65,23 @@ class SpeciesSeasonSection extends StatelessWidget {
   /// Der Satz über den Balken. Er nennt IMMER die Art — nie „die Pilze" —
   /// und bleibt beim Melden: „wird gemeldet", nicht „wächst".
   static String _sentence(String name, SeasonCurve curve) {
-    final subject = curve.isGenus
-        // Ein Sammelbegriff ist keine Art. Wer „Rotkappe" einträgt, meint
-        // je nach Wald eine andere — das gehört in den Satz, sonst liest
-        // sich die Kurve genauer, als sie ist.
-        ? '$name (mehrere ähnliche Arten)'
-        : name;
+    // **Drei verschiedene Aussagen, drei verschiedene Sätze.**
+    //
+    // GEBORGT wiegt schwerer als ein Sammelbegriff und wird deshalb
+    // zuerst geprüft: Bei „Rotkappe" umfasst der eingetragene NAME
+    // mehrere Arten, die Kurve gehört also dem, was dasteht. Beim
+    // Igelstachelbart meint der Name genau eine Art, und die Kurve
+    // kommt von ihren Verwandten — wer das nicht liest, hält 1147
+    // Meldungen über Stachelbärte für 1147 Meldungen über diesen Pilz.
+    final borrowed = curve.borrowedFrom;
+    final subject = borrowed != null
+        ? '$name (Saison nach verwandten Arten: $borrowed)'
+        : curve.isGenus
+            // Ein Sammelbegriff ist keine Art. Wer „Rotkappe" einträgt,
+            // meint je nach Wald eine andere — das gehört in den Satz,
+            // sonst liest sich die Kurve genauer, als sie ist.
+            ? '$name (mehrere ähnliche Arten)'
+            : name;
     if (curve.isFlat) {
       return '$subject wird das ganze Jahr über etwa gleich häufig '
           'gemeldet — die Jahreszeit sagt hier wenig.';

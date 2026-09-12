@@ -58,7 +58,19 @@ class SeasonCurve {
     required this.peakSupport,
     required this.months,
     required this.raw,
+    this.borrowedFrom,
   });
+
+  /// Von welcher Verwandtschaft diese Kurve GEBORGT ist — deutsch, wie
+  /// es im Blatt steht („Stachelbärte"). `null` heißt: Sie gehört der
+  /// Art selbst.
+  ///
+  /// **Nicht dasselbe wie [isGenus].** Dort ist der deutsche Name ein
+  /// Sammelbegriff, die Kurve gehört also dem, was eingetragen wurde.
+  /// Hier meint der Name genau eine Art, und es sind die Daten ihrer
+  /// Verwandten — eine schwächere Aussage, und die Anzeige muss sie
+  /// schwächer machen.
+  final String? borrowedFrom;
 
   /// Der wissenschaftliche Name, unter dem GBIF gefragt wurde.
   final String sci;
