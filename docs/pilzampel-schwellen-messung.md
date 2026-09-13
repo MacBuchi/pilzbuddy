@@ -1,6 +1,6 @@
 # Die Schwellen der Ampel — gemessen
 
-Stand: 2026-09-12 · Erzeugt von `tool/ampel_validate.py --thresholds` · Prüfplan: `docs/pilzampel-schwellen.md`
+Stand: 2026-09-13 · Erzeugt von `tool/ampel_validate.py --thresholds` · Prüfplan: `docs/pilzampel-schwellen.md`
 
 Die App zeigt drei Stufen. Wo sie liegen, entscheiden zwei Zahlen, die seit der ersten Vorschau als „GESETZT, nicht gemessen“ in `lib/features/ampel/ampel_model.dart` stehen — diese Seite ist ihre erste Messung.
 
@@ -46,6 +46,8 @@ Gesetzt auf **40 %** (verhalten) und **70 %** (günstig) der Vergleichstage, je 
 | Hallimasch | 11.0 °C | 0.117 | 0.336 |
 | Stockschwämmchen | 12.2 °C | 0.123 | 0.306 |
 | Austernseitling | -3.2 °C | 0.000 | 0.005 |
+| Judasohr | 1.5 °C | 0.003 | 0.112 |
+| Samtfußrübling | -1.0 °C | 0.021 | 0.081 |
 
 ## Was die Nutzerin sähe
 
@@ -64,6 +66,8 @@ Der **Abstand** zwischen „günstig an Fundtagen“ und „günstig an Vergleic
 | Hallimasch | +36,7 pp | +47,8 pp | **+53,2 pp** [+39,1, +65,5] | 54,5 % → **80,1 %** | 17,8 % → 26,9 % |
 | Stockschwämmchen | +34,1 pp | +37,3 pp | **+44,0 pp** [+37,3, +50,9] | 50,3 % → **72,9 %** | 16,2 % → 28,9 % |
 | Austernseitling | -0,2 pp | +0,5 pp | **+8,1 pp** [+0,9, +15,8] | 21,7 % → **42,2 %** | 21,8 % → 34,2 % |
+| Judasohr | +3,4 pp | +5,8 pp | **+10,3 pp** [+3,2, +17,6] | 22,2 % → **50,8 %** | 18,8 % → 40,6 % |
+| Samtfußrübling | -16,4 pp | +8,5 pp | **+39,9 pp** [+34,8, +45,7] | 6,6 % → **67,6 %** | 23,0 % → 27,7 % |
 
 ## Vorhersage 2: der Austernseitling
 
@@ -92,6 +96,8 @@ Daraus folgen die Quantile **50 %** (verhalten) und **80 %** (günstig) — der 
 | Hallimasch | 11.0 °C | 0.154 [0.125, 0.178] | 0.403 [0.366, 0.420] | 20,1 % |
 | Stockschwämmchen | 12.2 °C | 0.165 [0.122, 0.192] | 0.417 [0.384, 0.440] | 20,0 % |
 | Austernseitling | -3.2 °C | 0.001 [0.000, 0.001] | 0.037 [0.017, 0.057] | 20,1 % |
+| Judasohr | 1.5 °C | 0.055 [0.039, 0.096] | 0.326 [0.247, 0.406] | 20,1 % |
+| Samtfußrübling | -1.0 °C | 0.020 [0.011, 0.023] | 0.146 [0.090, 0.204] | 20,4 % |
 
 Die letzte Spalte ist **keine Messung, sondern die Probe aufs Exempel**: Sie muss auf eine Beobachtung genau bei 20 % herauskommen, weil die Schwelle genau so gesetzt wurde. Steht dort etwas anderes, ist die Rechnung kaputt.
 
@@ -106,13 +112,13 @@ Die letzte Spalte ist **keine Messung, sondern die Probe aufs Exempel**: Sie mus
 | sommer | 17.5 °C | 0.287 | 0.677 | Pfifferling | ja |
 | herbst | 13.0 °C | 0.187 | 0.512 | Steinpilz, Maronenröhrling, Birkenpilz, Fichtenreizker, Herbsttrompete | ja |
 | herbst_holz | 11.6 °C | 0.149 | 0.408 | Hallimasch, Stockschwämmchen | **nein** |
-| kalt | -3.2 °C | 0.001 | 0.037 | Austernseitling | **nein** |
+| kalt | -1.0 °C | 0.011 | 0.139 | Austernseitling, Judasohr, Samtfußrübling | **nein** |
 
 Die Spalte „ausgeliefert“ ist die eigentliche Grenze: Aufgenommen wird nur, was einen **Hold-out** bestanden hat. „Sieht in der Tabelle anders aus“ reicht nicht — daran wäre die Pfifferling-Spur fast gescheitert, bis Österreich und die Schweiz sie bestätigt haben. Für die übrigen gilt bis dahin, was für jede ungeprüfte Art gilt: lieber grau als erfunden.
 - **sommer** — Hold-out in AT+CH bestätigt: AUC 0,584 → 0,689 (+0,104 [+0,055, +0,150]), abstandsgleiche Kontrolle 0,510 (docs/pilzampel-artenfenster-holdout.md)
 - **herbst** — der ausgelieferte Stand; die eigenen Optima dieser fünf liegen zwischen 12,0 und 14,5 °C, und keine Abweichung von 13 °C schließt die Null aus
 - **herbst_holz** — nach dem Blick auf die Tabelle ausgewählt — dieselbe Lage wie beim Pfifferling vor seinem Hold-out
-- **kalt** — Fenster gemessen, aber in Stufen unter der registrierten Latte; der Kalttest (Judasohr, Samtfußrübling) steht aus
+- **kalt** — Fenster bestätigt — Kalttest bestanden am 2026-09-13 (Judasohr 1,5 °C/+0,075, Samtfußrübling -1,0 °C/+0,498, docs/pilzampel-kalttest.md); die Schwellen der Klasse sind noch nicht gemessen
 
 ## Läuft das Fenster mit der Fruchtungszeit?
 
@@ -122,6 +128,7 @@ Der mittlere Fruchtungsmonat wird auf dem **Kreis** gebildet. Linear gemittelt l
 
 | Art | mittlerer Monat | Schärfe | Optimum |
 |---|--:|--:|--:|
+| Judasohr | 1.9 | 0.56 | 1.5 °C |
 | Pfifferling | 7.6 | 0.69 | 17.5 °C |
 | Stockschwämmchen ⚠ | 7.9 | 0.29 | 12.2 °C |
 | Steinpilz | 8.6 | 0.73 | 13.0 °C |
@@ -131,10 +138,11 @@ Der mittlere Fruchtungsmonat wird auf dem **Kreis** gebildet. Linear gemittelt l
 | Herbsttrompete | 9.3 | 0.74 | 13.0 °C |
 | Hallimasch | 10.5 | 0.76 | 11.0 °C |
 | Austernseitling | 12.8 | 0.76 | -3.2 °C |
+| Samtfußrübling | 13.0 | 0.81 | -1.0 °C |
 
-**Spearman über alle 9: -0,678**
+**Spearman über alle 11: -0,486**
 
-Ohne Kurven unter Schärfe 0,35 (Stockschwämmchen — eine flache Kurve hat keine Saison, über die sich korrelieren ließe): **-0,830** bei n=8
+Ohne Kurven unter Schärfe 0,35 (Stockschwämmchen — eine flache Kurve hat keine Saison, über die sich korrelieren ließe): **-0,558** bei n=10
 
 **Diese Schwelle ist NACH dem Blick auf die Daten gesetzt**, und das gehört dazugesagt. Was für sie spricht: Die Lücke ist breit (0,29 gegen 0,69), es liegt keine einzige Art dazwischen, und „flach“ ist eine Eigenschaft der Kurve allein — sie kennt das Optimum nicht. Was gegen sie spricht: Sie ist trotzdem eine Entscheidung, die die Zahl verbessert hat.
 
@@ -149,9 +157,9 @@ Gemessen an den Vergleichstagen der Prüfjahre, jede Art gleich gewichtet.
 
 | Anzeige | günstig | mindestens verhalten |
 |---|--:|--:|
-| nur Herbst (heute) | 19,9 % | 51,2 % |
-| nur sommer | 16,0 % | 43,2 % |
-| Maximum aller bestätigten | 30,2 % | 64,2 % |
+| nur Herbst (heute) | 20,0 % | 49,8 % |
+| nur sommer | 13,7 % | 38,2 % |
+| Maximum aller bestätigten | 28,8 % | 60,9 % |
 
 **Die Zeile „Maximum“ ist die Entscheidung**, nicht die Messung: Wie oft die Karte sprechen soll, ist eine Produktfrage. Steigt die Quote deutlich, lässt sie sich über das Quantil zurückdrehen — dann heißt „günstig“ aber für jede Klasse etwas Strengeres als am Spot, und Karte und Blatt sagten wieder Verschiedenes.
 
