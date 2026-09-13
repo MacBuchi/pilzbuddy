@@ -380,6 +380,48 @@ sie in die App, und die Häufigkeit der Fläche ist neu zu messen.
 
 **Was ein Fehlschlag bedeutet:** Sie bleibt grau, wie Herbst-Holz.
 
+### Ergebnis: gescheitert (2026-09-13)
+
+`docs/pilzampel-kaltklasse-holdout.md`.
+
+| Art | Paare AT+CH | AUC 13 °C | AUC −1,0 °C | Differenz (95 %) | Kontrolle |
+|---|--:|--:|--:|--:|--:|
+| Austernseitling | 204 | 0,480 | 0,583 | +0,103 [−0,051, +0,232] | 0,471 |
+| Judasohr | 1068 | 0,580 | 0,513 | **−0,066** [−0,117, −0,013] | 0,503 |
+| Samtfußrübling | 243 | 0,416 | 0,650 | +0,235 [+0,153, +0,312] | 0,467 ⚠ |
+
+**Der Judasohr entscheidet, und er ist sauber gemessen** (Kontrolle
+0,503): Mit dem Klassenfenster trennt er in AT+CH SCHLECHTER als mit den
+ausgelieferten 13 °C, und der Vertrauensbereich schließt die Null aus.
+Nach „alle oder keine" ist damit entschieden — die ungemessene dritte
+Art (verzerrte Ziehung, 0,467) kann daran nichts mehr ändern.
+
+**Die Richtungsaussage sagt, woran es liegt.** Im Hold-out neu angepasst:
+Austernseitling 4,5 °C, Samtfußrübling 4,5 °C — beide kalt, wie
+vorhergesagt. Der **Judasohr aber 12,0 °C**, also zehneinhalb Kelvin
+über seinem deutschen Optimum von 1,5. Er ist in Deutschland ein
+Winterfrüchter und in AT+CH keiner.
+
+**Und dieser Fehlschlag wiegt schwerer als der von Herbst-Holz.** Dort
+lagen 1,4 K zwischen den Fenstern, hier sind es 14 — knapp drei
+Glockenbreiten (σ = 5 K). Bei so großem Abstand unterscheiden sich die
+Scores drastisch; schlägt sich das nicht in der Trennschärfe nieder,
+spricht das gegen das Fenster und nicht gegen die Stichprobengröße.
+
+**Was daraus folgt:**
+
+- Die kalte Klasse bleibt grau. Die App behält zwei Klassen.
+- **Der Pfifferling ist damit die einzige Klasse, die je einen
+  geografischen Hold-out bestanden hat** — neben dem Herbstfenster, das
+  der ausgelieferte Stand ist.
+- Der Kalttest bleibt gültig für das, was er gemessen hat: In
+  Deutschland ist „kalt" eine Klasse. Nur reist sie nicht.
+- Offen und interessant: Austernseitling und Samtfußrübling landen in
+  AT+CH beide bei 4,5 °C. Eine kalte Klasse OHNE den Judasohr wäre eine
+  neue Hypothese — und sie nach diesem Befund zu bilden, wäre genau die
+  Auswahl nach dem Blick auf die Tabelle, an der Herbst-Holz gescheitert
+  ist. Wer sie verfolgt, braucht eine neue Registrierung und neue Arten.
+
 ## Registriert 2026-09-12 (abends): gibt es „Herbst-Holz"?
 
 Hallimasch (11,0 °C) und Stockschwämmchen (12,2 °C) sind in Stufen die

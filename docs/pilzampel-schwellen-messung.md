@@ -111,14 +111,14 @@ Die letzte Spalte ist **keine Messung, sondern die Probe aufs Exempel**: Sie mus
 |---|--:|--:|--:|---|---|
 | sommer | 17.5 °C | 0.287 | 0.677 | Pfifferling | ja |
 | herbst | 13.0 °C | 0.187 | 0.512 | Steinpilz, Maronenröhrling, Birkenpilz, Fichtenreizker, Herbsttrompete | ja |
-| herbst_holz | 11.6 °C | 0.149 | 0.408 | Hallimasch, Stockschwämmchen | **nein** |
+| herbst_holz | 11.625 °C | 0.149 | 0.408 | Hallimasch, Stockschwämmchen | **nein** |
 | kalt | -1.0 °C | 0.011 | 0.139 | Austernseitling, Judasohr, Samtfußrübling | **nein** |
 
 Die Spalte „ausgeliefert“ ist die eigentliche Grenze: Aufgenommen wird nur, was einen **Hold-out** bestanden hat. „Sieht in der Tabelle anders aus“ reicht nicht — daran wäre die Pfifferling-Spur fast gescheitert, bis Österreich und die Schweiz sie bestätigt haben. Für die übrigen gilt bis dahin, was für jede ungeprüfte Art gilt: lieber grau als erfunden.
 - **sommer** — Hold-out in AT+CH bestätigt: AUC 0,584 → 0,689 (+0,104 [+0,055, +0,150]), abstandsgleiche Kontrolle 0,510 (docs/pilzampel-artenfenster-holdout.md)
 - **herbst** — der ausgelieferte Stand; die eigenen Optima dieser fünf liegen zwischen 12,0 und 14,5 °C, und keine Abweichung von 13 °C schließt die Null aus
-- **herbst_holz** — nach dem Blick auf die Tabelle ausgewählt — dieselbe Lage wie beim Pfifferling vor seinem Hold-out
-- **kalt** — Fenster bestätigt — Kalttest bestanden am 2026-09-13 (Judasohr 1,5 °C/+0,075, Samtfußrübling -1,0 °C/+0,498, docs/pilzampel-kalttest.md); die Schwellen der Klasse sind noch nicht gemessen
+- **herbst_holz** — Hold-out in AT+CH GESCHEITERT (2026-09-13): Hallimasch +0,018 [-0,003, +0,040], Stockschwämmchen -0,036 [-0,073, +0,000] gegenüber 13 °C — und dessen Optimum liegt dort bei 15,5 °C statt bei 12,25 (docs/pilzampel-herbstholz-holdout.md)
+- **kalt** — Kalttest in DE bestanden (2026-09-13), Schwellen gemessen — aber der geografische Hold-out des KLASSENfensters ist am selben Tag GESCHEITERT: In AT+CH fällt der Judasohr mit -0,066 [-0,117, -0,013] unter die 13 °C zurück und passt sich dort auf 12,0 °C an statt auf seine deutschen 1,5. Das Fenster gehört der deutschen Stichprobe, nicht den Arten (docs/pilzampel-kaltklasse-holdout.md)
 
 ## Läuft das Fenster mit der Fruchtungszeit?
 
