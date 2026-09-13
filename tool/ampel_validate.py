@@ -256,10 +256,17 @@ AMPEL_CLASSES = {
     },
     "kalt": {
         # **Kein Fenster, keine Schwellen** — siehe den Tabellenkopf.
-        "members": ["Austernseitling"],
+        # Die drei Mitglieder stehen hier, seit der Kalttest bestanden
+        # ist; ausgeliefert ist die Klasse damit NICHT — dafür fehlen die
+        # gemessenen Schwellen, und ohne sie macht ein eigenes Fenster
+        # die Ampel dunkel statt besser (Austernseitling: „günstig" fiel
+        # von 21,7 auf 1,1 % der Fundtage).
+        "members": ["Austernseitling", "Judasohr", "Samtfußrübling"],
         "confirmed": False,
-        "why": "Fenster gemessen, aber in Stufen unter der registrierten "
-               "Latte; der Kalttest (Judasohr, Samtfußrübling) steht aus",
+        "why": "Fenster bestätigt — Kalttest bestanden am 2026-09-13 "
+               "(Judasohr 1,5 °C/+0,075, Samtfußrübling -1,0 °C/+0,498, "
+               "docs/pilzampel-kalttest.md); die Schwellen der Klasse sind "
+               "noch nicht gemessen",
     },
 }
 
@@ -3304,8 +3311,26 @@ def self_test():
     assert cold_verdict([cold_row(kalt, 2.0, 0.09)])["state"] == "offen", \
         "eine fehlende Art ist eine Lücke, kein Fehlschlag"
 
+    # Der Median von drei Ein-Stellen-Werten trägt keine drei Stellen,
+    # der von zwei sehr wohl.
+    assert _optimum_text(-1.0) == "-1.0"
+    assert _optimum_text(11.625) == "11.625"
+
     gut = render_cold_report(beide, None, "2026-09-13")
     assert "Bestanden" in gut and "Median" in gut
+    assert "-1.000" not in gut and "2.000" not in gut, \
+        "erfundene Nachkommastellen"
+    # Eine Grundlinie über 0,5 braucht den Deutungs-Satz NICHT …
+    assert "falsche Richtung" not in gut
+    # … eine darunter schon, sonst liest sich der Gewinn als Triumph.
+    verkehrt = [cold_row(kalt, 2.0, 0.09), cold_row(samt, 4.0, 0.07)]
+    verkehrt[1]["auc_test_shared"] = 0.29
+    verkehrt[1]["auc_test_fitted"] = 0.79
+    verkehrt[1]["gain"] = 0.50
+    verkehrt[1]["ci"] = {"difference": (0.38, 0.57)}
+    gedeutet = render_cold_report(verkehrt, None, "2026-09-13")
+    assert "falsche Richtung" in gedeutet and samt in gedeutet
+    assert "Bestanden" in gedeutet, "die Bedingung bleibt erfüllt"
     # Mit dem Satz drumherum, nicht als nackte Zahl: „+0.05" traf in der
     # Gegenprobe zufällig eine Vertrauensbereichs-Grenze in der Tabelle,
     # und damit hielt die Zusage, obwohl die Bedingung aus dem Kopf
@@ -3605,6 +3630,20 @@ def render_fit_report(rows, fetched_on):
     return "\n".join(out) + "\n"
 
 
+def _optimum_text(value):
+    """Ein Fenster mit so vielen Stellen, wie es hat.
+
+    Der Median von drei Ein-Stellen-Werten IST einer von ihnen; „-1.000"
+    behauptete eine Genauigkeit, die nicht da ist. Bei gerader Anzahl
+    entsteht dagegen wirklich eine dritte Stelle (11,625 aus 11,0 und
+    12,2 beim Herbst-Holz), und die darf nicht wegfallen — das
+    Nachkommastellen-Abschreiben aus einer Tabelle war schon einmal der
+    Fehler.
+    """
+    return (f"{value:.1f}" if abs(value - round(value, 1)) < 1e-9
+            else f"{value:.3f}")
+
+
 def render_cold_report(rows, context, fetched_on):
     """Der Bericht zum Kalttest — Bedingung zuerst, Zahlen danach.
 
@@ -3717,7 +3756,7 @@ def render_cold_report(rows, context, fetched_on):
                 "Was daraus folgt, und in dieser Reihenfolge:", "",
                 "1. **Das Fenster der Klasse ist abgeleitet, nicht "
                 "gewählt:** der Median der Optima ihrer Mitglieder, also "
-                f"**{middle:.3f} °C** aus "
+                f"**{_optimum_text(middle)} °C** aus "
                 + ", ".join(f"{o:.1f}" for o in optima) + " °C.",
                 "2. **Die Schwellen müssen GEMESSEN werden**, als Quantil "
                 "der Vergleichstage dieses Fensters (`--thresholds`, "
@@ -3733,6 +3772,29 @@ def render_cold_report(rows, context, fetched_on):
                 "30,2 % beim Sprung auf zwei Klassen). Wie oft sie das "
                 "sagen soll, ist eine Produktentscheidung und keine "
                 "Messung."]
+        # **Ein Gewinn über einer Grundlinie unter 0,5 ist etwas anderes
+        # als ein Gewinn über 0,5.** Unter 0,5 heißt: Mit dem
+        # ausgelieferten Fenster zeigt das Modell für diese Art in die
+        # FALSCHE Richtung — Fundtage stehen dort schlechter da als
+        # Vergleichstage. Der große Teil der Differenz ist dann die
+        # Korrektur dieses Vorzeichens und nicht die Feinheit des neuen
+        # Fensters. Ohne diesen Satz liest sich +0,498 wie ein Triumph.
+        verkehrt = [r for r in rows
+                    if r.get("usable") and r["auc_test_shared"] < 0.5]
+        if verkehrt:
+            out += ["", "**Eine Zahl braucht hier ihre Deutung:** "
+                    + ", ".join(f"{r['name']} startet bei "
+                                f"{r['auc_test_shared']:.3f}"
+                                for r in verkehrt)
+                    + " — also UNTER 0,5. Mit den ausgelieferten "
+                    f"{OPTIMUM_C:.0f} °C zeigt das Modell für diese Art in "
+                    "die falsche Richtung: Fundtage stehen schlechter da "
+                    "als Vergleichstage derselben Saison. Der größte Teil "
+                    "der Differenz ist deshalb die Korrektur dieses "
+                    "Vorzeichens und nicht die Feinheit des neuen "
+                    "Fensters. Für die Frage „gibt es eine kalte "
+                    "Klasse“ ist genau das die Antwort — für die Frage "
+                    "„wie gut trifft die Ampel“ nicht."]
     else:
         if state == "nur-eine":
             out += ["**Nicht bestanden — eine der beiden Arten erfüllt die "

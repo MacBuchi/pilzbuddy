@@ -308,6 +308,39 @@ der Bedingung oben, war als Prüfung des Urteils also wertlos, und die
 nackte Zahl `+0.05` traf zufällig eine Vertrauensbereichs-Grenze in der
 Tabelle.
 
+### Ergebnis: bestanden (2026-09-13)
+
+`docs/pilzampel-kalttest.md`, gerechnet über die eigene Open-Meteo-Instanz
+(#460 — dasselbe Instrument, nachgewiesen).
+
+| Art | Optimum | AUC 13 °C → angepasst | Differenz (95 %) |
+|---|--:|--:|--:|
+| Judasohr | 1,5 °C | 0,531 → 0,606 | +0,075 [+0,018, +0,146] |
+| Samtfußrübling | −1,0 °C | 0,286 → 0,784 | +0,498 [+0,384, +0,574] |
+| Austernseitling (Kontext) | −3,2 °C | 0,481 → 0,655 | +0,174 [+0,108, +0,248] |
+
+Beide Arten unter 5 °C, beide über +0,05, bei beiden schließt der
+Vertrauensbereich die Null aus. **„Kalt" ist damit eine Klasse.**
+
+Zwei Dinge, die man beim Lesen mitnehmen muss:
+
+- **Der Samtfußrübling startet bei 0,286, also UNTER 0,5.** Mit den
+  ausgelieferten 13 °C zeigt das Modell für ihn in die falsche Richtung.
+  Der größte Teil von +0,498 ist die Korrektur dieses Vorzeichens, nicht
+  die Feinheit des neuen Fensters — für „gibt es eine kalte Klasse" ist
+  das die Antwort, für „wie gut trifft die Ampel" nicht.
+- **Der Austernseitling hat seine veröffentlichte Zahl aufs Tausendstel
+  reproduziert** (−3,2 °C, +0,174). Das war nicht bestellt und ist der
+  beste Beleg dafür, dass Cache und eigene Instanz dieselbe Messung
+  ergeben.
+
+**Ausgeliefert ist die Klasse damit NICHT.** Was fehlt, steht im Bericht:
+die Schwellen als Quantil der Vergleichstage DIESES Fensters. Ein eigenes
+Fenster ohne eigene Schwellen macht die Ampel dunkel statt besser — beim
+Austernseitling fiel „günstig" von 21,7 auf 1,1 % der Fundtage. Das
+Fenster der Klasse ist abgeleitet und nicht gewählt: der Median der drei
+Optima, **−1,0 °C**.
+
 ## Registriert 2026-09-12 (abends): gibt es „Herbst-Holz"?
 
 Hallimasch (11,0 °C) und Stockschwämmchen (12,2 °C) sind in Stufen die
