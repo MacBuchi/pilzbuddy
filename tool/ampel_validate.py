@@ -78,7 +78,18 @@ import urllib.parse
 import urllib.request
 
 GBIF = "https://api.gbif.org/v1"
+# **Die Vorgabe bleibt der öffentliche Dienst** (#460). Eine eigene
+# Instanz ist per `--api` erreichbar, aber nicht die Vorgabe: Ein
+# Werkzeug, das stillschweigend mit localhost redet, erzeugt Zahlen, die
+# außerhalb dieses Rechners niemand nachrechnen kann.
+#
+# Dass beide dasselbe liefern, ist GEMESSEN und nicht angenommen:
+# Herbsttrompete, vier Jahre, 17 644 Tageswerte, Abweichung 0,00 K und
+# 0,00 mm (docs/pilzampel-openmeteo-lokal.md). Die eigene Instanz ist
+# damit dasselbe Instrument — deshalb darf ein Lauf, der halb aus dem
+# Cache und halb von dort kommt, in einer Tabelle stehen.
 OPEN_METEO = "https://archive-api.open-meteo.com/v1/archive"
+OPEN_METEO_DEFAULT = OPEN_METEO
 MUSHROOM_OBSERVER = "https://mushroomobserver.org/api2/observations"
 
 SPECIES_FILE = "lib/core/mushroom_species.dart"
@@ -3245,6 +3256,13 @@ def self_test():
     assert "Steinpilz" in mapping and mapping["Steinpilz"] == "Boletus edulis"
     for name in MYCORRHIZAL + WOOD_DWELLERS:
         assert name in mapping, f"{name} hat kein `sci` in {SPECIES_FILE}"
+    # Die Vorgabe der Archiv-API ist der öffentliche Dienst. Stünde hier
+    # eine eigene Instanz, liefen Messungen still auf einem Rechner, den
+    # niemand sonst hat — und der Bericht sähe genauso aus.
+    assert OPEN_METEO_DEFAULT.startswith("https://archive-api.open-meteo.com")
+    assert OPEN_METEO == OPEN_METEO_DEFAULT, \
+        "der Selbsttest läuft mit der Vorgabe, nicht mit --api"
+
     # Die Kandidaten des Kalttests stehen NICHT im Standardlauf — geprüft
     # wird trotzdem, dass es sie gibt: Ein Tippfehler fiele sonst erst
     # nach dem ersten Abruf auf, also nach dem halben Tageskontingent.
@@ -3994,6 +4012,10 @@ def main():
     parser.add_argument("--compare", action="store_true",
                         help="Ausgelieferte Ampel gegen die mit eigenem "
                              "Fenster — gemessen in STUFEN, nicht in AUC")
+    parser.add_argument("--api", default=None,
+                        help="Basis-URL der Archiv-API. Vorgabe ist der "
+                             "öffentliche Dienst; eine eigene Instanz "
+                             "kennt kein Kontingent (#460).")
     parser.add_argument("--cold", action="store_true",
                         help="Der registrierte Kalttest: gibt es eine kalte "
                              "KLASSE? (docs/pilzampel-artenfenster.md)")
@@ -4019,6 +4041,10 @@ def main():
                         help="Verzeichnis für Wetterantworten")
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
+    if args.api:
+        global OPEN_METEO
+        OPEN_METEO = args.api.rstrip("/")
+        print(f"Archiv-API: {OPEN_METEO}", file=sys.stderr)
 
     if args.self_test:
         self_test()
