@@ -3245,6 +3245,87 @@ def self_test():
     assert "Steinpilz" in mapping and mapping["Steinpilz"] == "Boletus edulis"
     for name in MYCORRHIZAL + WOOD_DWELLERS:
         assert name in mapping, f"{name} hat kein `sci` in {SPECIES_FILE}"
+    # Die Kandidaten des Kalttests stehen NICHT im Standardlauf — geprüft
+    # wird trotzdem, dass es sie gibt: Ein Tippfehler fiele sonst erst
+    # nach dem ersten Abruf auf, also nach dem halben Tageskontingent.
+    for name in COLD_CANDIDATES + [COLD_MEMBER]:
+        assert name in mapping, f"{name} hat kein `sci` in {SPECIES_FILE}"
+
+    # --- Der Kalttest: die vier Ausgänge und ihr Wortlaut ---------------
+    #
+    # **Geprüft wird am GERENDERTEN Text**, nicht am Zustandswort. Ein
+    # Bericht, dessen Urteil vorformuliert ist, kann die falsche Ursache
+    # behaupten — genau das ist am 2026-09-12 passiert (ein Satz erklärte
+    # eine Lücke, deren Vertrauensbereich die Null ausschloss). Was hier
+    # zählt: Jeder Zweig sagt seine Zahl, und keiner sagt die Worte eines
+    # anderen.
+    def cold_row(name, optimum, gain, usable=True):
+        if not usable:
+            return {"name": name, "usable": False, "n_fit": 3, "n_test": 0}
+        return {"name": name, "usable": True, "n_fit": 400, "n_test": 300,
+                "optimum": optimum, "best_set": (optimum, optimum),
+                "at_edge": False, "plateau": 1, "auc_fit": 0.6,
+                "auc_test_shared": 0.52,
+                "auc_test_fitted": 0.52 + gain, "gain": gain,
+                "ci": {"difference": (gain - 0.02, gain + 0.02)}}
+
+    kalt, samt = COLD_CANDIDATES
+    beide = [cold_row(kalt, 2.0, 0.09), cold_row(samt, 4.0, 0.07)]
+    assert cold_verdict(beide)["state"] == "bestanden"
+    # Eine Hälfte zu wenig reicht, und zwar jede der beiden.
+    assert cold_verdict([cold_row(kalt, 2.0, 0.09),
+                         cold_row(samt, 4.0, 0.03)])["state"] == "nur-eine"
+    assert cold_verdict([cold_row(kalt, 2.0, 0.09),
+                         cold_row(samt, 7.0, 0.09)])["state"] == "nur-eine"
+    assert cold_verdict([cold_row(kalt, 7.0, 0.01),
+                         cold_row(samt, 9.0, 0.00)])["state"] == "keine"
+    # Nicht gemessen ist NICHT durchgefallen.
+    assert cold_verdict([cold_row(kalt, 2.0, 0.09),
+                         cold_row(samt, 0, 0, usable=False)]
+                        )["state"] == "offen"
+    assert cold_verdict([cold_row(kalt, 2.0, 0.09)])["state"] == "offen", \
+        "eine fehlende Art ist eine Lücke, kein Fehlschlag"
+
+    gut = render_cold_report(beide, None, "2026-09-13")
+    assert "Bestanden" in gut and "Median" in gut
+    # Mit dem Satz drumherum, nicht als nackte Zahl: „+0.05" traf in der
+    # Gegenprobe zufällig eine Vertrauensbereichs-Grenze in der Tabelle,
+    # und damit hielt die Zusage, obwohl die Bedingung aus dem Kopf
+    # verschwunden war.
+    assert f"mindestens **{COLD_MIN_GAIN:+.2f}** AUC" in gut, \
+        "die Latte gehört in den Bericht"
+    assert f"unter {COLD_MAX_OPTIMUM_C:.0f} °C" in gut
+    assert "Einzelfall" not in gut
+    halb = render_cold_report(
+        [cold_row(kalt, 2.0, 0.09), cold_row(samt, 4.0, 0.03)], None,
+        "2026-09-13")
+    # **Nicht auf „Beide oder keine" prüfen** — der Satz steht schon in
+    # der Bedingung oben, und damit wäre die Zusage von selbst erfüllt.
+    # In der Gegenprobe genau so aufgefallen: Der Zweig ließ sich
+    # entfernen, ohne dass ein Test rot wurde.
+    assert "der vorab ausgeschlossen war" in halb
+    assert "Bestanden" not in halb
+    assert "+0.030 unter" in halb.replace(",", ".") or \
+        "Gewinn +0,030" in halb, "welche Hälfte gefehlt hat, gehört hinein"
+    assert "Einzelfall" in halb
+    keiner = render_cold_report(
+        [cold_row(kalt, 7.0, 0.01), cold_row(samt, 9.0, 0.0)], None,
+        "2026-09-13")
+    assert "keine der beiden" in keiner
+    assert "wetterunabhängig" in keiner, \
+        "der Bericht darf nicht mehr behaupten als gemessen wurde"
+    offen = render_cold_report(
+        [cold_row(kalt, 2.0, 0.09), cold_row(samt, 0, 0, usable=False)],
+        None, "2026-09-13")
+    assert "Noch nicht entschieden" in offen and samt in offen
+    assert "Bestanden" not in offen and "Einzelfall" not in offen
+    # Und die Kontextzeile tritt nicht als Prüfling an.
+    mit_kontext = render_cold_report(beide, cold_row(COLD_MEMBER, -3.2, 0.17),
+                                     "2026-09-13")
+    assert "tritt nicht an" in mit_kontext
+    assert cold_verdict(beide + [cold_row(COLD_MEMBER, -3.2, 0.17)]
+                        )["state"] == "bestanden", \
+        "das Mitglied darf den Ausgang nicht mitentscheiden"
 
     print("ampel_validate self-test: ok")
 
@@ -3258,6 +3339,70 @@ def self_test():
 PREDICTION_SPECIES = "Austernseitling"
 PREDICTION_MAX_OPTIMUM_C = 9.0
 PREDICTION_MIN_AUC = 0.55
+
+# Und dasselbe für den KALTTEST (registriert 2026-09-12, derselbe
+# Prüfplan). Zwei Zahlen, beide vor der Messung festgelegt:
+#
+#   „Judasohr und Samtfußrübling landen beide bei einem Optimum unter
+#    5 °C, und beide gewinnen gegenüber den ausgelieferten 13 °C
+#    mindestens +0,05 AUC auf ihren Prüfjahren."
+#
+# **Und die Bedingung ist konjunktiv über die ARTEN**: „Beide oder
+# keine." Eine Klasse aus zwei Arten, von denen eine passt, war vorab
+# ausgeschlossen — sonst wäre die Latte nach der Messung verschoben.
+COLD_MAX_OPTIMUM_C = 5.0
+COLD_MIN_GAIN = 0.05
+
+# Das Mitglied, das den Test überhaupt ausgelöst hat. Es steht im
+# Bericht als KONTEXT und nicht als Prüfling: Sein Fenster ist gemessen
+# (docs/pilzampel-artenfenster-messung.md), und an einer Art, die an der
+# Anpassung beteiligt war, lässt sich nichts mehr bestätigen.
+COLD_MEMBER = "Austernseitling"
+
+
+def cold_check(row):
+    """Erfüllt diese Art die registrierte Bedingung? Beide Hälften.
+
+    Gibt die Einzelurteile zurück statt eines Wahrheitswerts: Der
+    Bericht muss sagen können, WELCHE Hälfte gefehlt hat — „nicht
+    erfüllt" allein ist eine Behauptung ohne Zahl.
+    """
+    if not row or not row.get("usable"):
+        return None
+    return {
+        "optimum": row["optimum"] < COLD_MAX_OPTIMUM_C,
+        "gain": row["gain"] >= COLD_MIN_GAIN,
+    }
+
+
+def cold_verdict(rows):
+    """Der Ausgang des Kalttests — vier Zustände, und sie bedeuten
+    Verschiedenes.
+
+    `offen` ist NICHT `keine`: Eine Art, die über zu wenig Material
+    nicht auf beide Seiten der Jahres-Trennlinie kommt, ist nicht
+    gemessen worden. Das als Fehlschlag zu berichten wäre eine Aussage
+    über Daten, die es nicht gibt (dieselbe Trennung wie in
+    `render_fit_report`).
+    """
+    by_name = {row["name"]: row for row in rows}
+    checks = {}
+    for name in COLD_CANDIDATES:
+        row = by_name.get(name)
+        if row is None or not row.get("usable"):
+            return {"state": "offen", "checks": checks,
+                    "missing": [n for n in COLD_CANDIDATES
+                                if n not in by_name
+                                or not by_name[n].get("usable")]}
+        checks[name] = cold_check(row)
+    met = [n for n, c in checks.items() if c["optimum"] and c["gain"]]
+    if len(met) == len(COLD_CANDIDATES):
+        state = "bestanden"
+    elif met:
+        state = "nur-eine"
+    else:
+        state = "keine"
+    return {"state": state, "checks": checks, "met": met}
 
 
 def render_fit_report(rows, fetched_on):
@@ -3438,6 +3583,171 @@ def render_fit_report(rows, fetched_on):
             "Prüfstein aus #199, und wer sie einrechnet, kann mit ihnen "
             "nicht mehr prüfen.", "",
             "Auch ein artenspezifisches Fenster sagt „die Bedingungen sind "
+            "günstig“, nicht „hier stehen Pilze“."]
+    return "\n".join(out) + "\n"
+
+
+def render_cold_report(rows, context, fetched_on):
+    """Der Bericht zum Kalttest — Bedingung zuerst, Zahlen danach.
+
+    Eigener Bericht und nicht ein Abschnitt in `render_fit_report`: Der
+    Fit-Bericht hängt an SEINER Vorhersage (Austernseitling, unter
+    9 °C). Zwei registrierte Bedingungen in einem Text lesen sich als
+    eine, und dann entscheidet der Leser, welche gemeint war.
+    """
+    verdict_info = cold_verdict(rows)
+    state = verdict_info["state"]
+    out = ["# Kalttest: gibt es eine kalte KLASSE?", "",
+           f"Stand: {fetched_on} · Erzeugt von `tool/ampel_validate.py "
+           f"--cold` · Prüfplan: `docs/pilzampel-artenfenster.md`", "",
+           "Angepasst wird das Temperaturoptimum je Art auf den Jahren bis "
+           f"**{FIT_UNTIL_YEAR}**, geprüft auf allen späteren — dasselbe "
+           "Verfahren wie in `docs/pilzampel-artenfenster-messung.md`, "
+           "dieselbe Stichprobengröße, derselbe Seed.", "",
+           "## Die Bedingung, die vor der Messung feststand", "",
+           f"> {' und '.join(COLD_CANDIDATES)} landen **beide** bei einem "
+           f"Optimum unter {COLD_MAX_OPTIMUM_C:.0f} °C, und **beide** "
+           f"gewinnen gegenüber den ausgelieferten {OPTIMUM_C:.0f} °C "
+           f"mindestens **{COLD_MIN_GAIN:+.2f}** AUC auf ihren "
+           "Prüfjahren.", "",
+           "> **Beide oder keine.** Eine Klasse aus zwei Arten, von denen "
+           "eine besteht, war vorab ausgeschlossen.", "",
+           "**Warum diese zwei Arten.** Sie waren an keiner Anpassung "
+           "beteiligt — weder an der Glocke aus der Steinpilz-Literatur "
+           "noch an den Fenstern der neun Arten. Unverbrauchte Daten sind "
+           "der ganze Grund, warum hier etwas zu bestätigen ist.", "",
+           "## Gemessen", "",
+           "| Art | Paare Anpassung | Paare Prüfung | Optimum | bestes Band "
+           f"| AUC mit {OPTIMUM_C:.0f} °C | AUC angepasst | Differenz "
+           "(95 %) | Bedingung |",
+           "|---|--:|--:|--:|---|--:|--:|---|---|"]
+
+    def row_line(row, context_row=False):
+        tag = " (Kontext)" if context_row else ""
+        if not row.get("usable"):
+            return (f"| {row['name']}{tag} | {row['n_fit']} | "
+                    f"{row['n_test']} | — | — | — | — | — | "
+                    "nicht gemessen |")
+        low, high = row["best_set"]
+        band = (f"{low:.1f}" if low == high
+                else f"{low:.1f} bis {high:.1f}")
+        if row["at_edge"]:
+            band += " ⚠ am Gitterrand"
+        span = (row.get("ci") or {}).get("difference")
+        ci_text = (f"{row['gain']:+.3f} [{span[0]:+.3f}, {span[1]:+.3f}]"
+                   if span else f"{row['gain']:+.3f} (kein Bereich)")
+        check = cold_check(row)
+        if context_row:
+            # Das gemessene Mitglied tritt nicht an — an einer Art, die
+            # an der Anpassung beteiligt war, ist nichts zu bestätigen.
+            mark = "tritt nicht an"
+        elif check["optimum"] and check["gain"]:
+            mark = "**erfüllt**"
+        else:
+            fehlt = []
+            if not check["optimum"]:
+                fehlt.append(f"Optimum {row['optimum']:.1f} °C nicht unter "
+                             f"{COLD_MAX_OPTIMUM_C:.0f}")
+            if not check["gain"]:
+                fehlt.append(f"Gewinn {row['gain']:+.3f} unter "
+                             f"{COLD_MIN_GAIN:+.2f}")
+            mark = "nicht erfüllt: " + "; ".join(fehlt)
+        return (f"| {row['name']}{tag} | {row['n_fit']} | "
+                f"{row['n_test']} | {row['optimum']:.1f} °C | {band} | "
+                f"{row['auc_test_shared']:.3f} | "
+                f"{row['auc_test_fitted']:.3f} | {ci_text} | {mark} |")
+
+    for row in rows:
+        out.append(row_line(row))
+    if context:
+        out.append(row_line(context, context_row=True))
+    out.append("")
+    if context:
+        out += [f"Die Kontextzeile ist das bereits gemessene Mitglied, aus "
+                "dem Cache nachgerechnet. Sie steht da, weil eine Klasse "
+                "ihre Mitglieder zusammen zeigen muss — und **nicht als "
+                f"Prüfling**: Der {COLD_MEMBER} hat das kalte Fenster "
+                "überhaupt erst aufgeworfen, an ihm ist nichts zu "
+                "bestätigen.", ""]
+    else:
+        out += [f"Der {COLD_MEMBER} ist in diesem Lauf nicht mitgerechnet "
+                "worden; seine Zahlen stehen in "
+                "`docs/pilzampel-artenfenster-messung.md`. Die Bedingung "
+                "hängt nicht an ihm.", ""]
+
+    out += ["## Der Ausgang", ""]
+    if state == "offen":
+        out += ["**Noch nicht entschieden.** Nicht gemessen wurde: "
+                + ", ".join(verdict_info["missing"]) + ".", "",
+                "Eine Art, die nicht auf beide Seiten der Jahres-Trennlinie "
+                f"({FIT_UNTIL_YEAR}) kommt, ist nicht gemessen worden — das "
+                "ist kein Fehlschlag, sondern eine Lücke. Was fehlt, holt "
+                "ein weiterer Lauf mit demselben Cache nach; die Bedingung "
+                "bleibt unverändert stehen.", "",
+                "**Bis dahin ändert sich nichts an der App.**"]
+    elif state == "bestanden":
+        optima = sorted([r["optimum"] for r in rows if r.get("usable")]
+                        + ([context["optimum"]]
+                           if context and context.get("usable") else []))
+        middle = (optima[len(optima) // 2] if len(optima) % 2
+                  else (optima[len(optima) // 2 - 1]
+                        + optima[len(optima) // 2]) / 2)
+        out += ["**Bestanden — beide Arten, beide Hälften.** Damit stehen "
+                f"{len(optima)} Arten mit kaltem Fenster, unabhängig "
+                "voneinander gemessen. „Kalt“ ist damit eine Klasse und "
+                "nicht die Eigenschaft einer Art.", "",
+                "Was daraus folgt, und in dieser Reihenfolge:", "",
+                "1. **Das Fenster der Klasse ist abgeleitet, nicht "
+                "gewählt:** der Median der Optima ihrer Mitglieder, also "
+                f"**{middle:.3f} °C** aus "
+                + ", ".join(f"{o:.1f}" for o in optima) + " °C.",
+                "2. **Die Schwellen müssen GEMESSEN werden**, als Quantil "
+                "der Vergleichstage dieses Fensters (`--thresholds`, "
+                "`docs/pilzampel-schwellen.md`). Ein eigenes Fenster ohne "
+                "eigene Schwellen macht die Ampel dunkel, nicht besser — "
+                f"beim {COLD_MEMBER} fiel „günstig“ mit den "
+                "ausgelieferten Schwellen von 21,7 auf 1,1 % der "
+                "Fundtage.",
+                "3. **Erst dann darf sie in die App**, samt ihren "
+                "Mitgliedern in `ampelSpeciesClass`.",
+                "4. **Und die Häufigkeit ist neu zu messen:** Jede weitere "
+                "Klasse lässt die Fläche öfter „günstig“ sagen (19,9 % → "
+                "30,2 % beim Sprung auf zwei Klassen). Wie oft sie das "
+                "sagen soll, ist eine Produktentscheidung und keine "
+                "Messung."]
+    else:
+        if state == "nur-eine":
+            out += ["**Nicht bestanden — eine der beiden Arten erfüllt die "
+                    "Bedingung, die andere nicht** (erfüllt: "
+                    + ", ".join(verdict_info["met"]) + ").", "",
+                    "Das ist der Ausgang, der vorab ausgeschlossen war: "
+                    "„Beide oder keine.“ Eine Klasse aus zwei Arten, von "
+                    "denen eine passt, wäre eine nach der Messung "
+                    "verschobene Latte."]
+        else:
+            out += ["**Nicht bestanden — keine der beiden Arten erfüllt die "
+                    "Bedingung.**"]
+        out += ["", f"Damit bleibt der {COLD_MEMBER} ein Einzelfall: „Kalt“ "
+                "ist keine Klasse, sondern eine Eigenschaft dieser einen "
+                "Art. Die Ampel bleibt für sie grau — so wie heute.", "",
+                "**Was das NICHT heißt.** Keine der beiden Arten ist damit "
+                "wetterunabhängig. Geprüft wurde eine engere Frage: ob "
+                "dieses Modell — Glocke um ihr angepasstes Optimum, "
+                f"{RAIN_WINDOW}-Tage-Regensumme — bei ihnen über die "
+                "registrierte Latte kommt. Warum es das nicht tut, sagt "
+                "diese Messung nicht.", "",
+                "**Und die Regel, die hier gerade gehalten hat:** Die "
+                "Bedingung stand vorher da, mit Zahlen. Ohne sie ließe "
+                "sich aus derselben Tabelle eine Klasse begründen — man "
+                "müsste die Latte nur dorthin legen, wo die Zahlen schon "
+                "sind."]
+
+    out += ["", "## Grenzen", "",
+            "Angepasst wurde ausschließlich an GBIF. Die eigenen Funde und "
+            "Leergänge der App bleiben draußen — sie sind der unabhängige "
+            "Prüfstein aus #199, und wer sie einrechnet, kann mit ihnen "
+            "nicht mehr prüfen.", "",
+            "Auch ein bestätigtes Fenster sagt „die Bedingungen sind "
             "günstig“, nicht „hier stehen Pilze“."]
     return "\n".join(out) + "\n"
 
@@ -3684,6 +3994,9 @@ def main():
     parser.add_argument("--compare", action="store_true",
                         help="Ausgelieferte Ampel gegen die mit eigenem "
                              "Fenster — gemessen in STUFEN, nicht in AUC")
+    parser.add_argument("--cold", action="store_true",
+                        help="Der registrierte Kalttest: gibt es eine kalte "
+                             "KLASSE? (docs/pilzampel-artenfenster.md)")
     parser.add_argument("--thresholds", action="store_true",
                         help="Die Schwellen messen statt sie zu setzen — "
                              "als Quantil der Vergleichstage "
@@ -3814,6 +4127,52 @@ def main():
                   file=sys.stderr)
         missing = sum(r["years"] - r["hits"] for r in rows)
         print(f"\n  Es fehlen noch {missing} Art-Jahre.", file=sys.stderr)
+        return
+
+    if args.cold:
+        # Die Artenliste steht in COLD_CANDIDATES und kommt NICHT von der
+        # Kommandozeile: Sie ist Teil der registrierten Bedingung. Eine
+        # Liste, die der Aufrufer bestimmt, ließe sich nach der Messung
+        # passend wählen.
+        unknown = [n for n in COLD_CANDIDATES + [COLD_MEMBER]
+                   if n not in mapping]
+        if unknown:
+            raise SystemExit(
+                f"Unbekannte Art(en): {', '.join(unknown)}.\n"
+                f"Die Art muss in {SPECIES_FILE} mit `sci:` stehen.")
+        print("Kalttest (registriert 2026-09-12):", file=sys.stderr)
+        rows = [row for row in (
+            fit_species(name, mapping[name], args.cache, args.seed)
+            for name in COLD_CANDIDATES) if row]
+        # **Die Kontextzeile darf den Lauf nicht kosten.** Sie kommt aus
+        # dem Cache; fehlt dort etwas, greift sie zum Netz und kann am
+        # Tageskontingent scheitern — und dann wäre das Ergebnis der
+        # beiden Prüflinge mit ihr verloren. Deshalb läuft sie zuletzt
+        # und ihr Scheitern kostet nur sie selbst.
+        context = None
+        try:
+            context = fit_species(COLD_MEMBER, mapping[COLD_MEMBER],
+                                  args.cache, args.seed)
+        except (RuntimeError, OSError) as error:
+            print(f"  {COLD_MEMBER}: Kontextzeile entfällt — {error}",
+                  file=sys.stderr)
+        report = render_cold_report(rows, context, time.strftime("%Y-%m-%d"))
+        if args.out:
+            open(args.out, "w", encoding="utf-8").write(report)
+            print(f"\n{args.out} geschrieben", file=sys.stderr)
+        else:
+            print(report)
+        print("\nZusammenfassung:", file=sys.stderr)
+        for row in rows + ([context] if context else []):
+            if not row.get("usable"):
+                print(f"  {row['name']:22} zu wenig Material",
+                      file=sys.stderr)
+                continue
+            print(f"  {row['name']:22} Optimum {row['optimum']:5.1f} °C   "
+                  f"AUC {row['auc_test_shared']:.3f} → "
+                  f"{row['auc_test_fitted']:.3f}  ({row['gain']:+.3f})",
+                  file=sys.stderr)
+        print(f"  Ausgang: {cold_verdict(rows)['state']}", file=sys.stderr)
         return
 
     if args.fit:

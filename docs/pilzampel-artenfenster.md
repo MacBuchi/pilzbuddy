@@ -275,6 +275,39 @@ dieser einen Art, und die Ampel bleibt für sie grau — so wie heute.
 **Und was in beiden Fällen NICHT passiert:** eine Klasse aus zwei
 Arten, von denen eine passt. Beide oder keine.
 
+**Die Bedingung steht seit dem 2026-09-13 als ZAHL im Werkzeug**
+(`COLD_MAX_OPTIMUM_C`, `COLD_MIN_GAIN`, `COLD_CANDIDATES`), und der
+Ausgang wird dort entschieden, nicht beim Schreiben des Berichts:
+
+```
+python3 tool/ampel_validate.py --cold \
+    --cache ~/pilzbuddy-ampel2000/ampel_cache \
+    --out docs/pilzampel-kalttest.md
+```
+
+Drei Dinge, die dieser Modus anders macht als `--fit`:
+
+- **Die Artenliste kommt nicht von der Kommandozeile.** Sie ist Teil der
+  registrierten Bedingung; eine Liste, die der Aufrufer bestimmt, ließe
+  sich nach der Messung passend wählen.
+- **Vier Ausgänge, nicht zwei** — `bestanden`, `nur-eine`, `keine` und
+  `offen`. „Offen" ist ausdrücklich NICHT „durchgefallen": Eine Art, die
+  nicht auf beide Seiten der Jahres-Trennlinie kommt, ist nicht gemessen
+  worden, und das als Fehlschlag zu melden wäre eine Aussage über Daten,
+  die es nicht gibt.
+- **Der Austernseitling läuft als Kontextzeile mit, nicht als Prüfling.**
+  Er hat das kalte Fenster aufgeworfen; an ihm ist nichts zu bestätigen.
+  Seine Zeile kommt aus dem Cache und ihr Scheitern kostet nur sie
+  selbst — sonst nähme ein erschöpftes Tageskontingent am Ende das
+  Ergebnis der beiden Prüflinge mit.
+
+Der Wortlaut jedes Ausgangs hängt im Selbsttest (`--self-test`, in CI)
+am gerenderten Text. Zwei Zusagen sind dabei in der Gegenprobe
+durchgefallen und nachgeschärft worden: „Beide oder keine" steht auch in
+der Bedingung oben, war als Prüfung des Urteils also wertlos, und die
+nackte Zahl `+0.05` traf zufällig eine Vertrauensbereichs-Grenze in der
+Tabelle.
+
 ## Registriert 2026-09-12 (abends): gibt es „Herbst-Holz"?
 
 Hallimasch (11,0 °C) und Stockschwämmchen (12,2 °C) sind in Stufen die
