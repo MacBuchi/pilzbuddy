@@ -341,6 +341,87 @@ Austernseitling fiel „günstig" von 21,7 auf 1,1 % der Fundtage. Das
 Fenster der Klasse ist abgeleitet und nicht gewählt: der Median der drei
 Optima, **−1,0 °C**.
 
+## Registriert 2026-09-13: hält das kalte Fenster auch im Ausland?
+
+**Warum diese Prüfung überhaupt noch kommt.** Der Kalttest hat gezeigt,
+dass „kalt" eine Klasse ist — an zwei Arten, die an keiner Anpassung
+beteiligt waren. Was er NICHT geprüft hat, ist das Fenster der Klasse
+selbst: Die −1,0 °C sind der Median aus drei Optima, und alle drei
+Mitglieder haben zu ihm beigetragen. Genau diese Prüfung ist am selben
+Tag für „Herbst-Holz" durchgefallen.
+
+Die kalte Klasse ohne sie auszuliefern hieße: zwei Klassen an zweierlei
+Maß, und ausgerechnet die abgelehnte wurde am strengeren gemessen. Das
+ist die Stelle, an der eine Latte zur Formsache wird.
+
+> **Vorhersage, vor der Messung.** Das aus den deutschen Optima
+> abgeleitete Fenster der Klasse (−1,0 °C) trennt auch in **Österreich
+> und der Schweiz** besser als die ausgelieferten 13 °C — gepaarte AUC
+> dort mindestens **+0,05** darüber, und zwar bei **allen drei**
+> Mitgliedern (Austernseitling, Judasohr, Samtfußrübling).
+>
+> **Alle oder keine.**
+>
+> Dazu, ohne Torfunktion: Die in AT+CH neu angepassten Optima liegen
+> **unter 5 °C**. Nicht unter 13 — dort landet ein Winterfrüchter
+> ohnehin, das wäre keine Aussage. Fünf ist die Grenze aus dem
+> Kalttest.
+
+**Diese Latte ist leichter zu nehmen als die von Herbst-Holz, und das
+ist kein Mangel.** Dort lagen 1,4 K zwischen Klassenfenster und den
+13 °C, hier sind es 14. Ein so großer Abstand MUSS sich zeigen, wenn die
+Klasse echt ist — und genau deshalb ist ein Fehlschlag hier
+aussagekräftiger als dort: Er hieße, dass das Fenster der deutschen
+Stichprobe gehört und nicht den Arten.
+
+**Was ein Treffer bedeutet:** Die kalte Klasse hat Fenster, Schwellen
+und Hold-out — dieselben drei Nachweise wie der Pfifferling. Dann darf
+sie in die App, und die Häufigkeit der Fläche ist neu zu messen.
+
+**Was ein Fehlschlag bedeutet:** Sie bleibt grau, wie Herbst-Holz.
+
+### Ergebnis: gescheitert (2026-09-13)
+
+`docs/pilzampel-kaltklasse-holdout.md`.
+
+| Art | Paare AT+CH | AUC 13 °C | AUC −1,0 °C | Differenz (95 %) | Kontrolle |
+|---|--:|--:|--:|--:|--:|
+| Austernseitling | 204 | 0,480 | 0,583 | +0,103 [−0,051, +0,232] | 0,471 |
+| Judasohr | 1068 | 0,580 | 0,513 | **−0,066** [−0,117, −0,013] | 0,503 |
+| Samtfußrübling | 243 | 0,416 | 0,650 | +0,235 [+0,153, +0,312] | 0,467 ⚠ |
+
+**Der Judasohr entscheidet, und er ist sauber gemessen** (Kontrolle
+0,503): Mit dem Klassenfenster trennt er in AT+CH SCHLECHTER als mit den
+ausgelieferten 13 °C, und der Vertrauensbereich schließt die Null aus.
+Nach „alle oder keine" ist damit entschieden — die ungemessene dritte
+Art (verzerrte Ziehung, 0,467) kann daran nichts mehr ändern.
+
+**Die Richtungsaussage sagt, woran es liegt.** Im Hold-out neu angepasst:
+Austernseitling 4,5 °C, Samtfußrübling 4,5 °C — beide kalt, wie
+vorhergesagt. Der **Judasohr aber 12,0 °C**, also zehneinhalb Kelvin
+über seinem deutschen Optimum von 1,5. Er ist in Deutschland ein
+Winterfrüchter und in AT+CH keiner.
+
+**Und dieser Fehlschlag wiegt schwerer als der von Herbst-Holz.** Dort
+lagen 1,4 K zwischen den Fenstern, hier sind es 14 — knapp drei
+Glockenbreiten (σ = 5 K). Bei so großem Abstand unterscheiden sich die
+Scores drastisch; schlägt sich das nicht in der Trennschärfe nieder,
+spricht das gegen das Fenster und nicht gegen die Stichprobengröße.
+
+**Was daraus folgt:**
+
+- Die kalte Klasse bleibt grau. Die App behält zwei Klassen.
+- **Der Pfifferling ist damit die einzige Klasse, die je einen
+  geografischen Hold-out bestanden hat** — neben dem Herbstfenster, das
+  der ausgelieferte Stand ist.
+- Der Kalttest bleibt gültig für das, was er gemessen hat: In
+  Deutschland ist „kalt" eine Klasse. Nur reist sie nicht.
+- Offen und interessant: Austernseitling und Samtfußrübling landen in
+  AT+CH beide bei 4,5 °C. Eine kalte Klasse OHNE den Judasohr wäre eine
+  neue Hypothese — und sie nach diesem Befund zu bilden, wäre genau die
+  Auswahl nach dem Blick auf die Tabelle, an der Herbst-Holz gescheitert
+  ist. Wer sie verfolgt, braucht eine neue Registrierung und neue Arten.
+
 ## Registriert 2026-09-12 (abends): gibt es „Herbst-Holz"?
 
 Hallimasch (11,0 °C) und Stockschwämmchen (12,2 °C) sind in Stufen die
@@ -401,6 +482,46 @@ der Hallimasch, ist „Herbst-Holz" eine Art mit einem großen Namen.
 
 Kosten: zwei Arten aus AT und CH, dazu deren Wetterreihen — also etwa
 zwei Tageskontingente, nach dem Kalttest.
+
+### Ergebnis: gescheitert (2026-09-13)
+
+`docs/pilzampel-herbstholz-holdout.md`, gerechnet über die eigene
+Open-Meteo-Instanz (#460).
+
+| Art | Paare AT+CH | AUC 13 °C | AUC 11,625 °C | Differenz (95 %) | Kontrolle |
+|---|--:|--:|--:|--:|--:|
+| Hallimasch | 1280 | 0,766 | 0,784 | +0,018 [−0,003, +0,040] | 0,501 |
+| Stockschwämmchen | 527 | 0,662 | 0,626 | **−0,036** [−0,073, +0,000] | 0,501 |
+
+Beide Kontrollen liegen bei 0,501 — die Ziehung ist sauber, das
+Ergebnis also auswertbar. **Keine der beiden Arten erreicht die Latte,
+und beim Stockschwämmchen ist das Klassenfenster sogar SCHLECHTER als
+die ausgelieferten 13 °C.**
+
+Die Richtungsaussage (kein Tor) sagt, warum: Im Hold-out neu angepasst
+landet der Hallimasch bei 11,5 °C — nahe an seinen deutschen 11,0 —,
+das Stockschwämmchen dagegen bei **15,5 °C**, also über den 13 °C und
+gut drei Kelvin über seinen deutschen 12,25. **Ein gemeinsames Fenster
+ist gerade das, was hier auseinanderfällt.**
+
+Was das heißt und was nicht: „bei dieser Stichprobengröße und diesem
+Abstand nicht nachweisbar" — nicht „es gibt keinen Unterschied". Beide
+Arten sind in AT+CH mit den ausgelieferten 13 °C gut trennbar (0,766
+und 0,662); es ist das ENGERE Fenster, das nichts hinzufügt.
+
+**Was daraus folgt:**
+
+- „Herbst-Holz" ist keine Klasse. Die beiden bleiben grau.
+- Die Tabellen-Auffälligkeit von +53,2 bzw. +44,0 pp
+  (`docs/pilzampel-schwellen-messung.md`) war also zu einem guten Teil
+  die deutsche Stichprobe. Genau dafür war der Hold-out da, und genau
+  deshalb stand er vorher fest.
+- Der Hallimasch könnte ein eigenes Fenster haben — eine Klasse aus
+  einem Mitglied ist aber eine Art mit einem großen Namen. Wer das
+  verfolgen will, registriert eine neue Vorhersage.
+- Offen bleibt, ob die beiden in die HERBSTklasse gehören. Dafür
+  spricht, dass 13 °C bei ihnen im Ausland gut trennt; dagegen, dass
+  niemand das geprüft hat. Auch das wäre eine eigene Registrierung.
 
 ## Zur allgemeinen Frage: alle Arten einordnen
 
