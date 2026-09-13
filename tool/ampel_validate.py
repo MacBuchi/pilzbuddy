@@ -284,13 +284,14 @@ AMPEL_CLASSES = {
         # dieselbe Grenze wie im Kalttest.
         "direction_below": COLD_MAX_OPTIMUM_C,
         "confirmed": False,
-        "why": "Kalttest bestanden am 2026-09-13 (Judasohr 1,5 °C/"
-               "+0,075, Samtfußrübling -1,0 °C/+0,498, "
-               "docs/pilzampel-kalttest.md), Schwellen gemessen — es "
-               "fehlt der geografische Hold-out des KLASSENfensters, an "
-               "dem herbst_holz am selben Tag gescheitert ist. Zwei "
-               "Klassen an zweierlei Maß wäre die Stelle, an der die "
-               "Latte zur Formsache wird",
+        "why": "Kalttest in DE bestanden (2026-09-13), Schwellen "
+               "gemessen — aber der geografische Hold-out des "
+               "KLASSENfensters ist am selben Tag GESCHEITERT: In AT+CH "
+               "fällt der Judasohr mit -0,066 [-0,117, -0,013] unter die "
+               "13 °C zurück und passt sich dort auf 12,0 °C an statt "
+               "auf seine deutschen 1,5. Das Fenster gehört der "
+               "deutschen Stichprobe, nicht den Arten "
+               "(docs/pilzampel-kaltklasse-holdout.md)",
     },
 }
 
@@ -2184,7 +2185,7 @@ def class_holdout_verdict(rows, members):
     über Daten, die es nicht gibt.
     """
     by_name = {row["name"]: row for row in rows}
-    offen = []
+    offen, met, failed = [], [], []
     for name in members:
         row = by_name.get(name)
         if row is None or not row.get("usable"):
@@ -2192,17 +2193,23 @@ def class_holdout_verdict(rows, members):
         elif not class_holdout_clean(row):
             offen.append(f"{name} (Ziehung verzerrt: "
                          f"{row['mirror_auc']:.3f})")
+        elif row["gain"] >= HOLDOUT_MIN_GAIN:
+            met.append(name)
+        else:
+            failed.append(name)
+    # **Ein sauber gemessener Fehlschlag entscheidet — trotz Lücken.**
+    # „Alle oder keine" heißt: Eine Art, die bei sauberer Kontrolle unter
+    # der Latte bleibt, nimmt die Klasse mit, und keine ungemessene
+    # dritte kann sie zurückholen. Das als „noch nicht entschieden" zu
+    # melden verstünde jeder als „vielleicht doch" — und verschöbe die
+    # Entscheidung auf Daten, die daran nichts mehr ändern können.
+    if failed:
+        return {"state": "nur-eine" if met else "keine",
+                "met": met, "failed": failed, "offen": offen}
     if offen:
-        return {"state": "offen", "offen": offen}
-    met = [n for n in members
-           if by_name[n]["gain"] >= HOLDOUT_MIN_GAIN]
-    if len(met) == len(members):
-        state = "bestanden"
-    elif met:
-        state = "nur-eine"
-    else:
-        state = "keine"
-    return {"state": state, "met": met}
+        return {"state": "offen", "offen": offen, "met": met,
+                "failed": failed}
+    return {"state": "bestanden", "met": met, "failed": [], "offen": []}
 
 
 def render_class_holdout_report(rows, countries, key, window, fits,
@@ -2299,23 +2306,72 @@ def render_class_holdout_report(rows, countries, key, window, fits,
                 "eigene Schwellen macht die Ampel dunkel statt besser."]
     else:
         if state == "nur-eine":
-            out += ["**Nicht bestanden — ein Mitglied erfüllt die "
-                    "Bedingung, das andere nicht** (erfüllt: "
-                    + ", ".join(verdict_info["met"]) + ").", "",
+            out += ["**Nicht bestanden — "
+                    + (f"{len(verdict_info['met'])} von {len(members)} "
+                       "Mitgliedern erfüllen die Bedingung"
+                       if len(verdict_info["met"]) > 1 else
+                       f"ein Mitglied von {len(members)} erfüllt die "
+                       "Bedingung")
+                    + "** (erfüllt: " + ", ".join(verdict_info["met"])
+                    + "; darunter: " + ", ".join(verdict_info["failed"])
+                    + ").", "",
                     "Das ist der Ausgang, der vorab ausgeschlossen war: "
-                    "Beide oder keine. Eine Klasse aus zwei Arten, von "
-                    "denen eine passt, ist eine Art mit einem großen "
-                    "Namen."]
+                    "alle oder keine. Eine Klasse, deren Mitglieder sich "
+                    "im Ausland verschieden verhalten, ist keine — sie "
+                    "ist eine Liste von Arten, die in EINER Stichprobe "
+                    "zusammenlagen."]
         else:
             out += ["**Nicht bestanden — kein Mitglied erreicht die "
                     "Latte.**"]
-        out += ["", "**Was das heißt, und was nicht.** Es heißt: „bei "
-                "dieser Stichprobengröße und diesem Abstand nicht "
-                "nachweisbar“ — nicht „es gibt keinen Unterschied“. Die "
-                f"Glocke ist in ihrer Mitte flach, und {_optimum_text(window)} "
-                f"°C liegen nur {abs(window - OPTIMUM_C):.1f} K neben den "
-                f"{OPTIMUM_C:.0f} °C; ein echter Unterschied dieser Größe "
-                "kann die Latte verfehlen.", "",
+        if verdict_info.get("offen"):
+            out += ["", "**Nicht gemessen wurde dabei:** "
+                    + ", ".join(verdict_info["offen"]) + ". Das ändert am "
+                    "Ausgang nichts — „alle oder keine“ ist schon "
+                    "entschieden, sobald ein Mitglied bei sauberer "
+                    "Kontrolle unter der Latte bleibt."]
+        # **Wer die Latte nahm, nahm sie vielleicht knapp.** Die
+        # registrierte Bedingung ist ein Punktschätzer; ein Bericht, der
+        # verschweigt, dass der Vertrauensbereich die Null einschließt,
+        # sagt mehr als gemessen wurde.
+        weich = [n for n in verdict_info.get("met", [])
+                 if ((by := next((r for r in rows if r["name"] == n), None))
+                     and (span := (by.get("ci") or {}).get("difference"))
+                     and span[0] <= 0)]
+        if weich:
+            out += ["", "**Und bei " + ", ".join(weich) + " schließt der "
+                    "Vertrauensbereich die Null ein** — die Bedingung war "
+                    "als Punktschätzer registriert und ist damit erfüllt, "
+                    "aber tragen würde diese Zahl allein nicht."]
+        # **Wie ein Fehlschlag zu lesen ist, hängt am ABSTAND.** Der
+        # Satz „die Glocke ist in ihrer Mitte flach" entschuldigt ein
+        # knappes Verfehlen — bei 1,4 K zu Recht. Für ein Fenster 14 K
+        # neben den 13 °C ist er das Gegenteil der Wahrheit: Ein
+        # Unterschied dieser Größe MUSS sich zeigen, wenn es ihn gibt.
+        # Ein vorformulierter Satz, der die falsche Ursache behauptet,
+        # ist hier schon zweimal vorgekommen; deshalb entscheidet die
+        # Zahl und nicht die Formulierung. Die Grenze ist die Breite der
+        # Glocke selbst (σ = TEMP_SIGMA) und nicht geraten.
+        versatz = abs(window - OPTIMUM_C)
+        if versatz < TEMP_SIGMA:
+            deutung = [f"Die Glocke ist in ihrer Mitte flach, und "
+                       f"{_optimum_text(window)} °C liegen nur "
+                       f"{versatz:.1f} K neben den {OPTIMUM_C:.0f} °C "
+                       f"(σ = {TEMP_SIGMA:.0f} K); ein echter Unterschied "
+                       "dieser Größe kann die Latte verfehlen."]
+        else:
+            deutung = [f"**Und hier wiegt der Fehlschlag schwerer als "
+                       f"sonst:** {_optimum_text(window)} °C liegen "
+                       f"{versatz:.1f} K neben den {OPTIMUM_C:.0f} °C, "
+                       f"also gut {versatz / TEMP_SIGMA:.0f} Glockenbreiten "
+                       f"(σ = {TEMP_SIGMA:.0f} K). Bei einem so großen "
+                       "Abstand unterscheiden sich die Scores der beiden "
+                       "Fenster drastisch — wenn sich das NICHT in der "
+                       "Trennschärfe niederschlägt, spricht das gegen das "
+                       "Fenster und nicht gegen die Stichprobengröße."]
+        out += ["", "**Was das heißt, und was nicht.** Es heißt zunächst: "
+                "„bei dieser Stichprobengröße und diesem Abstand nicht "
+                "nachweisbar“ — nicht „es gibt keinen Unterschied“."]
+        out += ["", " ".join(deutung), "",
                 "Ausgeliefert wird die Klasse trotzdem nicht: Der Vorbehalt "
                 "der App gilt dem, was belegt ist, und nicht dem, was "
                 "plausibel ist."]
@@ -3588,6 +3644,18 @@ def self_test():
     assert class_holdout_verdict(
         [hold_row(a, 0.30), hold_row(b, 0.30, mirror=0.62)],
         holz)["state"] == "offen"
+    # **Ein sauberer Fehlschlag entscheidet trotzdem.** Eine Art unter
+    # der Latte bei sauberer Kontrolle, die andere ungemessen: „alle
+    # oder keine" ist damit beantwortet, und keine dritte Messung holt
+    # das zurück. Als „offen" gemeldet läse es sich als „vielleicht
+    # doch".
+    entschieden = class_holdout_verdict(
+        [hold_row(a, 0.01), hold_row(b, 0.30, mirror=0.62)], holz)
+    assert entschieden["state"] == "keine"
+    assert entschieden["offen"], "die Lücke gehört trotzdem genannt"
+    gemischt = class_holdout_verdict(
+        [hold_row(a, 0.09), hold_row(b, 0.01)], holz)
+    assert gemischt["state"] == "nur-eine" and gemischt["failed"] == [b]
 
     fits = [{"name": a, "usable": True, "optimum": 11.0, "n_fit": 500,
              "n_test": 400, "klass": "herbst_holz"},
@@ -3618,6 +3686,36 @@ def self_test():
     assert "vorab ausgeschlossen war" in halb and "Bestanden" not in halb
     assert "nicht nachweisbar" in halb, \
         "ein Fehlschlag ist keine Aussage über die Wirklichkeit"
+    # **Die Deutung hängt am Abstand, nicht an der Formulierung.** Bei
+    # 1,4 K entschuldigt die flache Glockenmitte ein Verfehlen; 14 K
+    # neben den 13 °C tut sie das Gegenteil.
+    assert "Mitte flach" in halb and "wiegt der Fehlschlag schwerer" \
+        not in halb
+    kalt_fits = [{"name": n, "usable": True, "optimum": o, "n_fit": 200,
+                  "n_test": 200, "klass": "kalt"}
+                 for n, o in zip(AMPEL_CLASSES["kalt"]["members"],
+                                 (-3.2, 1.5, -1.0))]
+    kalt_rows = [hold_row(n, 0.01) for n in AMPEL_CLASSES["kalt"]["members"]]
+    weit = render_class_holdout_report(
+        kalt_rows, ["AT", "CH"], "kalt", class_optimum(kalt_fits, "kalt"),
+        kalt_fits, "2026-09-13")
+    assert "wiegt der Fehlschlag schwerer" in weit
+    # **Die Zahl der Mitglieder steht nicht im Text.** „Eine Klasse aus
+    # zwei Arten" war hineingeschrieben, als es nur zweigliedrige
+    # Klassen gab — bei der dreigliedrigen kalten stand es dann falsch
+    # da, ohne dass etwas rot wurde.
+    kalt_namen = AMPEL_CLASSES["kalt"]["members"]
+    kalt_gemischt = render_class_holdout_report(
+        [hold_row(kalt_namen[0], 0.09), hold_row(kalt_namen[1], 0.01),
+         hold_row(kalt_namen[2], 0.01)],
+        ["AT", "CH"], "kalt", class_optimum(kalt_fits, "kalt"), kalt_fits,
+        "2026-09-13")
+    assert f"ein Mitglied von {len(kalt_namen)}" in kalt_gemischt
+    assert "zwei Arten" not in kalt_gemischt
+    assert "darunter: " in kalt_gemischt, \
+        "wer durchgefallen ist, gehört genannt"
+    assert "Mitte flach" not in weit, \
+        "14 K neben dem Fenster ist keine flache Mitte"
     assert "+0.020 unter" in halb.replace(",", "."), \
         "welche Zahl gefehlt hat, gehört hinein"
 
@@ -3626,6 +3724,25 @@ def self_test():
         "herbst_holz", fenster, fits, "2026-09-13")
     assert "Noch nicht entschieden" in offen and "Bestanden" not in offen
     assert "0.620" in offen, "die verzerrte Kontrolle gehört genannt"
+
+    # Der entschiedene Fehlschlag nennt die Lücke — und nennt sie als
+    # folgenlos, statt sie zu verschweigen oder als Hoffnung zu führen.
+    trotzdem = render_class_holdout_report(
+        [hold_row(a, 0.01), hold_row(b, 0.30, mirror=0.62)], ["AT", "CH"],
+        "herbst_holz", fenster, fits, "2026-09-13")
+    assert "Noch nicht entschieden" not in trotzdem
+    assert "Nicht gemessen wurde dabei" in trotzdem and "0.620" in trotzdem
+    assert "schon\nentschieden" in trotzdem.replace(" ", "\n")
+
+    # Ein knapper Treffer, dessen Bereich die Null einschließt, wird als
+    # solcher benannt — ohne die Latte nachträglich zu verschieben.
+    knapp = hold_row(a, 0.06)
+    knapp["ci"] = {"difference": (-0.01, 0.13)}
+    knapper_bericht = render_class_holdout_report(
+        [knapp, hold_row(b, 0.01)], ["AT", "CH"], "herbst_holz", fenster,
+        fits, "2026-09-13")
+    assert "schließt der Vertrauensbereich die Null ein" in knapper_bericht
+    assert "als Punktschätzer registriert" in knapper_bericht
 
     # Und die Richtungsaussage sagt, wenn sie NICHT hält.
     schief = render_class_holdout_report(

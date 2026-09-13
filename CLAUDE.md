@@ -822,6 +822,23 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
       wäre die Pfifferling-Spur fast gescheitert. Hallimasch,
       Stockschwämmchen und Austernseitling haben gemessene Fenster und
       bleiben trotzdem grau.
+      **Am 2026-09-13 sind zwei registrierte Erweiterungen daran
+      gescheitert**, und beide Male auf dieselbe Weise: Geprüft wird das
+      Fenster der KLASSE im Ausland (`--holdout AT,CH --class <key>`),
+      nicht das jeder Art für sich — ausgeliefert würde ja ein Fenster
+      für alle Mitglieder.
+      - **Herbst-Holz** (11,625 °C): Hallimasch +0,018, Stockschwämmchen
+        **−0,036** gegenüber 13 °C, beide Kontrollen sauber bei 0,501.
+      - **Kalt** (−1,0 °C): Der Judasohr fällt mit −0,066 [−0,117,
+        −0,013] unter die 13 °C zurück und passt sich in AT+CH auf
+        12,0 °C an statt auf seine deutschen 1,5.
+      Zwei Lehren, die bleiben: Ein Kalttest in Deutschland kann
+      bestehen, ohne dass die Klasse REIST (`docs/pilzampel-kalttest.md`
+      gegen `docs/pilzampel-kaltklasse-holdout.md`) — und ein sauber
+      gemessener Fehlschlag EINES Mitglieds entscheidet nach „alle oder
+      keine", auch wenn ein anderes ungemessen bleibt. Ein Bericht, der
+      das als „noch nicht entschieden" führt, verschiebt die
+      Entscheidung auf Daten, die nichts mehr ändern können.
     - **Die Schwellen altern.** Dieselbe 0,5 wurde vor 2019 an rund 30 %
       der Vergleichstage überschritten, seither an rund 20 % — die Ampel
       war im Feld still pessimistischer geworden, ohne Codeänderung. Wer
