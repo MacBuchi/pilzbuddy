@@ -208,6 +208,12 @@ WOOD_DWELLERS = [
 # Tabelle anders aus" reicht nicht — genau daran ist die
 # Pfifferling-Spur fast gescheitert, bis Österreich und die Schweiz sie
 # bestätigt haben.
+# Die Latten des registrierten Kalttests (2026-09-12,
+# docs/pilzampel-artenfenster.md) — hier oben, weil die Klassentabelle
+# darunter sie braucht.
+COLD_MAX_OPTIMUM_C = 5.0
+COLD_MIN_GAIN = 0.05
+
 AMPEL_CLASSES = {
     "sommer": {
         "dart": "ampelSommerClass",
@@ -249,10 +255,20 @@ AMPEL_CLASSES = {
     # Entscheidung auf Zahlen trifft statt auf Erinnerung.
     "herbst_holz": {
         # **Kein Fenster, keine Schwellen** — siehe den Tabellenkopf.
+        #
+        # **Und sie wird auch keine bekommen.** Der registrierte Hold-out
+        # ist am 2026-09-13 gescheitert, bei sauberer Kontrolle (beide
+        # abstandsgleichen Kontrollen 0,501). Die Klasse bleibt hier
+        # stehen, weil ein gelöschter Eintrag die Messung vergessen
+        # machte — und weil die Frage, wohin Hallimasch und
+        # Stockschwämmchen gehören, offen ist.
         "members": ["Hallimasch", "Stockschwämmchen"],
         "confirmed": False,
-        "why": "nach dem Blick auf die Tabelle ausgewählt — dieselbe "
-               "Lage wie beim Pfifferling vor seinem Hold-out",
+        "why": "Hold-out in AT+CH GESCHEITERT (2026-09-13): Hallimasch "
+               "+0,018 [-0,003, +0,040], Stockschwämmchen -0,036 "
+               "[-0,073, +0,000] gegenüber 13 °C — und dessen Optimum "
+               "liegt dort bei 15,5 °C statt bei 12,25 "
+               "(docs/pilzampel-herbstholz-holdout.md)",
     },
     "kalt": {
         # **Kein Fenster, keine Schwellen** — siehe den Tabellenkopf.
@@ -262,11 +278,19 @@ AMPEL_CLASSES = {
         # die Ampel dunkel statt besser (Austernseitling: „günstig" fiel
         # von 21,7 auf 1,1 % der Fundtage).
         "members": ["Austernseitling", "Judasohr", "Samtfußrübling"],
+        # **Die Richtungs-Latte einer KALTEN Klasse sind nicht die
+        # 13 °C.** Unter 13 landet ein Winterfrüchter ohnehin; die Frage
+        # ist, ob er im Ausland wieder im KALTEN Bereich landet. Deshalb
+        # dieselbe Grenze wie im Kalttest.
+        "direction_below": COLD_MAX_OPTIMUM_C,
         "confirmed": False,
-        "why": "Fenster bestätigt — Kalttest bestanden am 2026-09-13 "
-               "(Judasohr 1,5 °C/+0,075, Samtfußrübling -1,0 °C/+0,498, "
-               "docs/pilzampel-kalttest.md); die Schwellen der Klasse sind "
-               "noch nicht gemessen",
+        "why": "Kalttest bestanden am 2026-09-13 (Judasohr 1,5 °C/"
+               "+0,075, Samtfußrübling -1,0 °C/+0,498, "
+               "docs/pilzampel-kalttest.md), Schwellen gemessen — es "
+               "fehlt der geografische Hold-out des KLASSENfensters, an "
+               "dem herbst_holz am selben Tag gescheitert ist. Zwei "
+               "Klassen an zweierlei Maß wäre die Stelle, an der die "
+               "Latte zur Formsache wird",
     },
 }
 
@@ -1645,6 +1669,21 @@ def verify_class_constants(measured):
               "zusammen neu gesetzt — nicht einzeln.")
 
 
+def class_table_row(key, klass, got):
+    """Eine Zeile der Klassentabelle.
+
+    **Eigene Funktion, damit sie prüfbar ist.** Aus genau dieser Spalte
+    ist am 2026-09-12 die 11,6 in die Registrierung gewandert, während
+    das Fenster 11,625 war — die Tabelle rundete auf eine Stelle, und
+    abgeschrieben wurde, was dastand. Inline war daran nichts zu prüfen.
+    """
+    window = klass.get("optimum", got.get("optimum_measured"))
+    return (f"| {key} | {_optimum_text(window)} °C | "
+            f"{got['verhalten']:.3f} | {got['guenstig']:.3f} | "
+            f"{', '.join(got['members'])} | "
+            f"{'ja' if klass['confirmed'] else '**nein**'} |")
+
+
 def render_threshold_report(rows, fetched_on):
     usable = [r for r in rows if r.get("usable")]
     mycorrhizal = [r for r in usable if r["name"] in MYCORRHIZAL]
@@ -1902,12 +1941,7 @@ def render_threshold_report(rows, fetched_on):
             got = klassen.get(key)
             if not got:
                 continue
-            window = klass.get("optimum", got.get("optimum_measured"))
-            out.append(
-                f"| {key} | {window:.1f} °C | "
-                f"{got['verhalten']:.3f} | {got['guenstig']:.3f} | "
-                f"{', '.join(got['members'])} | "
-                f"{'ja' if klass['confirmed'] else '**nein**'} |")
+            out.append(class_table_row(key, klass, got))
         out += ["",
                 "Die Spalte „ausgeliefert“ ist die eigentliche Grenze: "
                 "Aufgenommen wird nur, was einen **Hold-out** bestanden "
@@ -2063,7 +2097,7 @@ PLACEBO_TOLERANCE = 0.03
 
 
 def holdout_species(name, sci, countries, cache_dir=None, seed=42,
-                    progress=True):
+                    progress=True, window=None):
     """In Deutschland anpassen, im Ausland prüfen.
 
     **Das Optimum kommt aus dem deutschen Lauf, nicht aus dem Aufruf.**
@@ -2071,6 +2105,12 @@ def holdout_species(name, sci, countries, cache_dir=None, seed=42,
     unbemerkt eine andere einschleicht als die berichtete — und im
     Hold-out sind ALLE Jahre Prüfjahre, dort gibt es keine zweite
     Trennlinie, die einen Irrtum auffinge.
+
+    [window] prüft statt des ART-Fensters das der KLASSE. Es ist
+    ebenfalls gerechnet und nicht getippt (`class_optimum` über die
+    deutschen Optima der Mitglieder) — nur eben über mehrere Arten. Das
+    ist die härtere Prüfung und zugleich die ehrlichere: Ausgeliefert
+    würde EIN Fenster für die Klasse, nicht eines je Art.
     """
     if progress:
         print(f"  {name}: anpassen in DE …", file=sys.stderr)
@@ -2078,7 +2118,8 @@ def holdout_species(name, sci, countries, cache_dir=None, seed=42,
                        progress=progress)
     if home is None or not home.get("usable"):
         return {"name": name, "usable": False, "why": "DE-Anpassung fehlt"}
-    optimum = home["optimum"]
+    own = home["optimum"]
+    optimum = own if window is None else window
 
     if progress:
         print(f"  {name}: prüfen in {'+'.join(countries)} "
@@ -2090,6 +2131,12 @@ def holdout_species(name, sci, countries, cache_dir=None, seed=42,
     samples = drawn["samples"]
     shared = paired_auc(score_pairs(samples, OPTIMUM_C))
     fitted = paired_auc(score_pairs(samples, optimum))
+    # **Die Richtungsaussage** (registriert, ohne Torfunktion): Wohin
+    # zeigt das Optimum, wenn man es IM Hold-out neu anpasst? Sie ist
+    # kein zweiter Beleg — auf denselben Daten angepasst und geprüft
+    # wäre sie Selbstbestätigung. Sie sagt nur, ob ein dritter Anlauf
+    # mit mehr Material lohnte.
+    refit = grid_optimum(samples)
     # Die Placebo-Kontrolle gilt auch hier: Ohne sie wüsste niemand, ob
     # die Ziehung im Ausland genauso unverzerrt ist wie zu Hause.
     placebo = [(ampel_score(*s["control"]), ampel_score(*s["placebo"]))
@@ -2101,6 +2148,10 @@ def holdout_species(name, sci, countries, cache_dir=None, seed=42,
         "usable": True,
         "countries": list(countries),
         "optimum": optimum,
+        "own_optimum": own,
+        "window": window,
+        "refit": refit["optimum"],
+        "refit_band": refit["best_set"],
         "n_home": home["n_fit"] + home["n_test"],
         "n": len(samples),
         "years": drawn["years"],
@@ -2113,6 +2164,218 @@ def holdout_species(name, sci, countries, cache_dir=None, seed=42,
         "mirror_n": len(mirrored),
         "ci": bootstrap_years(samples, [OPTIMUM_C, optimum], seed=seed),
     }
+
+
+def class_holdout_clean(row):
+    """Trägt die Ziehung dieser Art im Hold-out überhaupt?
+
+    Die abstandsgleiche Kontrolle entscheidet VOR dem Ergebnis: Steht sie
+    nicht bei 0,50, ist die Ziehung verzerrt, und die Zahl darüber ist
+    wertlos — egal wie gut sie aussieht.
+    """
+    return abs(row["mirror_auc"] - 0.5) <= PLACEBO_TOLERANCE
+
+
+def class_holdout_verdict(rows, members):
+    """Vier Ausgänge, wie beim Kalttest — und „offen" ist nicht „keine".
+
+    Eine Art ohne Material oder mit verzerrter Ziehung ist NICHT
+    gemessen worden. Das als Fehlschlag zu berichten wäre eine Aussage
+    über Daten, die es nicht gibt.
+    """
+    by_name = {row["name"]: row for row in rows}
+    offen = []
+    for name in members:
+        row = by_name.get(name)
+        if row is None or not row.get("usable"):
+            offen.append(f"{name} (kein auswertbares Material)")
+        elif not class_holdout_clean(row):
+            offen.append(f"{name} (Ziehung verzerrt: "
+                         f"{row['mirror_auc']:.3f})")
+    if offen:
+        return {"state": "offen", "offen": offen}
+    met = [n for n in members
+           if by_name[n]["gain"] >= HOLDOUT_MIN_GAIN]
+    if len(met) == len(members):
+        state = "bestanden"
+    elif met:
+        state = "nur-eine"
+    else:
+        state = "keine"
+    return {"state": state, "met": met}
+
+
+def render_class_holdout_report(rows, countries, key, window, fits,
+                                fetched_on):
+    """Der Hold-out einer KLASSE — ein Fenster, mehrere Arten.
+
+    Eigener Bericht neben `render_holdout_report`: Dort steht die
+    Vorhersage des Pfifferlings, hier die der Klasse. Zwei registrierte
+    Bedingungen in einem Text lesen sich als eine.
+    """
+    klass = AMPEL_CLASSES[key]
+    members = klass["members"]
+    verdict_info = class_holdout_verdict(rows, members)
+    state = verdict_info["state"]
+    laender = " und ".join(countries)
+    out = [f"# Hold-out der Klasse „{key}“", "",
+           f"Stand: {fetched_on} · Erzeugt von `tool/ampel_validate.py "
+           f"--holdout {','.join(countries)} --class {key}` · Prüfplan: "
+           "`docs/pilzampel-artenfenster.md`", "",
+           f"Angepasst wurde in **Deutschland** (Jahre bis {FIT_UNTIL_YEAR}), "
+           f"geprüft in **{laender}** — dort sind ALLE Jahre Prüfjahre, denn "
+           "an der Anpassung war keiner von ihnen beteiligt.", "",
+           "**Geprüft wird das Fenster der KLASSE, nicht das jeder Art.** "
+           "Ausgeliefert würde ein Fenster für alle Mitglieder; eines je "
+           "Art zu prüfen beantwortete eine Frage, die sich in der App nie "
+           "stellt.", "",
+           "## Die Bedingung, die vor der Messung feststand", "",
+           f"> Das an deutschen Funden angepasste Fenster der Klasse trennt "
+           f"auch in {laender} besser als die {OPTIMUM_C:.0f} °C — gepaarte "
+           f"AUC dort mindestens **{HOLDOUT_MIN_GAIN:+.2f}** über der mit "
+           f"{OPTIMUM_C:.0f} °C, und zwar bei **allen** Mitgliedern.", "",
+           "> **Beide oder keine.** Eine Klasse, von deren Arten eine "
+           "besteht, war vorab ausgeschlossen.", "",
+           "> Dazu, **ohne Torfunktion**, eine Richtungsaussage: Die im "
+           f"Hold-out neu angepassten Optima liegen unter "
+           f"{klass.get('direction_below', OPTIMUM_C):.0f} °C.", "",
+           "## Das Fenster", "",
+           "Abgeleitet und nicht gewählt — der Median der deutschen Optima "
+           "seiner Mitglieder, gerechnet bei diesem Lauf:", "",
+           "| Mitglied | Optimum in DE | Paare DE |", "|---|--:|--:|"]
+    for row in fits:
+        if not row.get("usable"):
+            out.append(f"| {row['name']} | — | — |")
+            continue
+        out.append(f"| {row['name']} | {row['optimum']:.1f} °C | "
+                   f"{row['n_fit'] + row['n_test']} |")
+    out += ["", f"**Fenster der Klasse: {_optimum_text(window)} °C.** Die "
+            "Bedingung hängt an der Latte, nicht an dieser Zahl.", "",
+            "## Gemessen", "",
+            f"| Art | Paare {'+'.join(countries)} | Jahre | AUC mit "
+            f"{OPTIMUM_C:.0f} °C | AUC mit {_optimum_text(window)} °C | "
+            "Differenz (95 %) | Kontrolle | Bedingung |",
+            "|---|--:|--:|--:|--:|---|--:|---|"]
+    for name in members:
+        row = next((r for r in rows if r["name"] == name), None)
+        if row is None or not row.get("usable"):
+            grund = (row or {}).get("why", "nicht gerechnet")
+            out.append(f"| {name} | — | — | — | — | — | — | {grund} |")
+            continue
+        span = (row.get("ci") or {}).get("difference")
+        ci = (f"{row['gain']:+.3f} [{span[0]:+.3f}, {span[1]:+.3f}]"
+              if span else f"{row['gain']:+.3f} (kein Bereich)")
+        clean = class_holdout_clean(row)
+        if not clean:
+            mark = "nicht auswertbar"
+        elif row["gain"] >= HOLDOUT_MIN_GAIN:
+            mark = "**erfüllt**"
+        else:
+            mark = (f"nicht erfüllt: {row['gain']:+.3f} unter "
+                    f"{HOLDOUT_MIN_GAIN:+.2f}")
+        out.append(f"| {name} | {row['n']} | {row['years']} | "
+                   f"{row['auc_shared']:.3f} | {row['auc_fitted']:.3f} | "
+                   f"{ci} | {row['mirror_auc']:.3f} | {mark} |")
+    out += ["", f"Die Spalte „Kontrolle“ ist die abstandsgleiche "
+            f"Kontrolle — Vergleichstag gegen seinen am Fundtag "
+            f"gespiegelten Partner. Sie MUSS bei 0,50 liegen (Toleranz "
+            f"±{PLACEBO_TOLERANCE:.2f}); tut sie es nicht, ist die Ziehung "
+            "verzerrt und die Zahl daneben wertlos.", "",
+            "## Der Ausgang", ""]
+
+    if state == "offen":
+        out += ["**Noch nicht entschieden.** Nicht auswertbar: "
+                + ", ".join(verdict_info["offen"]) + ".", "",
+                "Das ist kein Fehlschlag, sondern eine Lücke — und die "
+                "Bedingung bleibt unverändert stehen.", "",
+                "**Bis dahin ändert sich nichts an der App.**"]
+    elif state == "bestanden":
+        out += [f"**Bestanden — alle Mitglieder, im Ausland geprüft.** Das "
+                f"Fenster von {_optimum_text(window)} °C gehört damit der "
+                "Klasse und nicht der deutschen Stichprobe.", "",
+                "Was noch fehlt, bevor die App sie zeigt: **die Schwellen "
+                "der Klasse**, als Quantil der Vergleichstage DIESES "
+                "Fensters (`--thresholds`). Ein eigenes Fenster ohne "
+                "eigene Schwellen macht die Ampel dunkel statt besser."]
+    else:
+        if state == "nur-eine":
+            out += ["**Nicht bestanden — ein Mitglied erfüllt die "
+                    "Bedingung, das andere nicht** (erfüllt: "
+                    + ", ".join(verdict_info["met"]) + ").", "",
+                    "Das ist der Ausgang, der vorab ausgeschlossen war: "
+                    "Beide oder keine. Eine Klasse aus zwei Arten, von "
+                    "denen eine passt, ist eine Art mit einem großen "
+                    "Namen."]
+        else:
+            out += ["**Nicht bestanden — kein Mitglied erreicht die "
+                    "Latte.**"]
+        out += ["", "**Was das heißt, und was nicht.** Es heißt: „bei "
+                "dieser Stichprobengröße und diesem Abstand nicht "
+                "nachweisbar“ — nicht „es gibt keinen Unterschied“. Die "
+                f"Glocke ist in ihrer Mitte flach, und {_optimum_text(window)} "
+                f"°C liegen nur {abs(window - OPTIMUM_C):.1f} K neben den "
+                f"{OPTIMUM_C:.0f} °C; ein echter Unterschied dieser Größe "
+                "kann die Latte verfehlen.", "",
+                "Ausgeliefert wird die Klasse trotzdem nicht: Der Vorbehalt "
+                "der App gilt dem, was belegt ist, und nicht dem, was "
+                "plausibel ist."]
+
+    # **Die Richtungsaussage steht NACH dem Urteil** — sie ist keine
+    # zweite Chance zu bestehen. Angepasst und geprüft auf denselben
+    # Daten wäre sie Selbstbestätigung; sie sagt nur, ob mehr Material
+    # lohnte.
+    gerechnet = [r for r in rows if r.get("usable")]
+    if gerechnet:
+        # Die Latte gehört der KLASSE: Für eine kalte ist „unter 13 °C“
+        # keine Aussage, dort landet ein Winterfrüchter ohnehin.
+        latte = klass.get("direction_below", OPTIMUM_C)
+        out += ["", "## Die Richtungsaussage (kein Tor)", "",
+                f"Optima, im Hold-out selbst neu angepasst — angepasst "
+                f"und geprüft auf denselben Daten, also kein Beleg. Die "
+                f"Latte dieser Klasse: unter {latte:.0f} °C.", "",
+                "| Art | Optimum in " + "+".join(countries) + " | bestes "
+                "Band |", "|---|--:|---|"]
+        for row in gerechnet:
+            low, high = row["refit_band"]
+            band = (f"{low:.1f}" if low == high
+                    else f"{low:.1f} bis {high:.1f}")
+            out.append(f"| {row['name']} | {row['refit']:.1f} °C | {band} |")
+        unter = [r for r in gerechnet if r["refit"] < latte]
+        drueber = [r for r in gerechnet if r["refit"] >= latte]
+
+        def _namen(rows):
+            return ", ".join(f"{r['name']} {r['refit']:.1f} °C"
+                             for r in rows)
+
+        # **Der Zusatz „stützt die Richtung" gehört NUR an den Fall, in
+        # dem alle darunter liegen.** Er hing zuerst daran, dass
+        # IRGENDEINE Art darunter liegt — und stand damit unter dem Satz
+        # „Nicht alle liegen unter 13 °C", also direkt unter seinem
+        # eigenen Gegenteil. Genau die Sorte vorformulierter Satz, die
+        # hier schon zweimal die falsche Ursache behauptet hat.
+        if not unter:
+            satz = (f"**Keines der Optima liegt unter {latte:.0f} °C** "
+                    f"({_namen(drueber)}). Die Richtungsaussage hält "
+                    "nicht.")
+        elif not drueber:
+            satz = (f"**Alle liegen unter {latte:.0f} °C**, wie "
+                    "vorhergesagt. Das stützt die Richtung, belegt aber "
+                    "nichts.")
+        else:
+            satz = (f"**Die Richtung hält nur zum Teil:** "
+                    f"{_namen(unter)} unter den {latte:.0f} °C, "
+                    f"{_namen(drueber)} darüber. Für die Klasse als Ganzes "
+                    "ist das keine Stütze — ein gemeinsames Fenster ist "
+                    "gerade das, was hier auseinanderfällt.")
+        out += ["", satz]
+
+    out += ["", "## Grenzen", "",
+            "Angepasst wurde ausschließlich an GBIF. Die eigenen Funde und "
+            "Leergänge der App bleiben draußen — sie sind der unabhängige "
+            "Prüfstein aus #199.", "",
+            "Auch ein bestätigtes Fenster sagt „die Bedingungen sind "
+            "günstig“, nicht „hier stehen Pilze“."]
+    return "\n".join(out) + "\n"
 
 
 def render_holdout_report(rows, countries, fetched_on):
@@ -3276,6 +3539,109 @@ def self_test():
     for name in COLD_CANDIDATES + [COLD_MEMBER]:
         assert name in mapping, f"{name} hat kein `sci` in {SPECIES_FILE}"
 
+    # --- Der Klassen-Hold-out: vier Ausgänge, und die Kontrolle zuerst --
+    #
+    # Dieselbe Bauart wie beim Kalttest, mit einem zusätzlichen Zustand,
+    # der hier das Entscheidende ist: Eine verzerrte Ziehung ist KEINE
+    # Messung. Ein Bericht, der darüber ein Urteil schreibt, ist schlimmer
+    # als einer, der schweigt — genau das ist dem ersten Hold-out-Bericht
+    # passiert („bestätigt" und zwei Zeilen darunter „nicht auswertbar").
+    def hold_row(name, gain, mirror=0.500, usable=True, refit=11.0):
+        if not usable:
+            return {"name": name, "usable": False, "why": "keine Funde"}
+        return {"name": name, "usable": True, "countries": ["AT", "CH"],
+                "optimum": 11.625, "own_optimum": 11.0, "window": 11.625,
+                "refit": refit, "refit_band": (refit, refit),
+                "n_home": 900, "n": 300, "years": 15,
+                "auc_shared": 0.520, "auc_fitted": 0.520 + gain,
+                "gain": gain, "placebo_auc": 0.505, "placebo_n": 280,
+                "mirror_auc": mirror, "mirror_n": 280,
+                "ci": {"difference": (gain - 0.02, gain + 0.02)}}
+
+    # **Die Klassentabelle rundet ihr Fenster nicht.** Die Zeile, aus
+    # der die falsche 11,6 abgeschrieben wurde.
+    zeile = class_table_row(
+        "herbst_holz", AMPEL_CLASSES["herbst_holz"],
+        {"verhalten": 0.149, "guenstig": 0.408,
+         "members": ["Hallimasch", "Stockschwämmchen"],
+         "optimum_measured": 11.625})
+    assert "11.625 °C" in zeile and "11.6 °C" not in zeile
+    assert "**nein**" in zeile, "unbestätigt gehört benannt"
+    assert "11.625 °C" not in class_table_row(
+        "herbst", AMPEL_CLASSES["herbst"],
+        {"verhalten": 0.187, "guenstig": 0.512, "members": ["Steinpilz"],
+         "optimum_measured": 11.625}), \
+        "für eine ausgelieferte Klasse gilt die KONSTANTE, nicht die Messung"
+
+    holz = AMPEL_CLASSES["herbst_holz"]["members"]
+    a, b = holz
+    assert class_holdout_verdict(
+        [hold_row(a, 0.09), hold_row(b, 0.07)], holz)["state"] == "bestanden"
+    assert class_holdout_verdict(
+        [hold_row(a, 0.09), hold_row(b, 0.02)], holz)["state"] == "nur-eine"
+    assert class_holdout_verdict(
+        [hold_row(a, 0.01), hold_row(b, 0.02)], holz)["state"] == "keine"
+    assert class_holdout_verdict(
+        [hold_row(a, 0.09)], holz)["state"] == "offen"
+    # **Die Kontrolle schlägt das Ergebnis.** Zwei satte Gewinne, aber
+    # eine verzerrte Ziehung — das darf nicht „bestanden" heißen.
+    assert class_holdout_verdict(
+        [hold_row(a, 0.30), hold_row(b, 0.30, mirror=0.62)],
+        holz)["state"] == "offen"
+
+    fits = [{"name": a, "usable": True, "optimum": 11.0, "n_fit": 500,
+             "n_test": 400, "klass": "herbst_holz"},
+            {"name": b, "usable": True, "optimum": 12.25, "n_fit": 300,
+             "n_test": 250, "klass": "herbst_holz"}]
+    fenster = class_optimum(fits, "herbst_holz")
+    assert fenster == 11.625, "der Median zweier Mitglieder ist ihr Mittel"
+    gut = render_class_holdout_report(
+        [hold_row(a, 0.09), hold_row(b, 0.07)], ["AT", "CH"], "herbst_holz",
+        fenster, fits, "2026-09-13")
+    # **Die Zahl, an der dieses Projekt zweimal gescheitert ist.** Erst
+    # 11,5 von Hand gerundet, dann 11,6 aus einer einstelligen Tabelle
+    # abgeschrieben. Sie muss mit allen Stellen dastehen.
+    assert "11.625" in gut and "11.5 °C" not in gut and "11.6 °C" not in gut
+    assert "Bestanden" in gut
+    assert "Schwellen" in gut, "ohne sie liefert die Klasse nicht aus"
+    assert "vorab ausgeschlossen war" not in gut
+    # Die Richtungsaussage steht NACH dem Urteil und nennt sich kein Tor.
+    assert gut.index("## Der Ausgang") < gut.index("## Die Richtungsaussage")
+    assert "kein Tor" in gut and "kein Beleg" in gut
+
+    halb = render_class_holdout_report(
+        [hold_row(a, 0.09), hold_row(b, 0.02)], ["AT", "CH"], "herbst_holz",
+        fenster, fits, "2026-09-13")
+    # NICHT auf „Beide oder keine" prüfen — der Satz steht schon in der
+    # Bedingung oben. Dieselbe Falle wie beim Kalttest, dort in der
+    # Gegenprobe aufgefallen.
+    assert "vorab ausgeschlossen war" in halb and "Bestanden" not in halb
+    assert "nicht nachweisbar" in halb, \
+        "ein Fehlschlag ist keine Aussage über die Wirklichkeit"
+    assert "+0.020 unter" in halb.replace(",", "."), \
+        "welche Zahl gefehlt hat, gehört hinein"
+
+    offen = render_class_holdout_report(
+        [hold_row(a, 0.30), hold_row(b, 0.30, mirror=0.62)], ["AT", "CH"],
+        "herbst_holz", fenster, fits, "2026-09-13")
+    assert "Noch nicht entschieden" in offen and "Bestanden" not in offen
+    assert "0.620" in offen, "die verzerrte Kontrolle gehört genannt"
+
+    # Und die Richtungsaussage sagt, wenn sie NICHT hält.
+    schief = render_class_holdout_report(
+        [hold_row(a, 0.09, refit=14.5), hold_row(b, 0.07)], ["AT", "CH"],
+        "herbst_holz", fenster, fits, "2026-09-13")
+    assert "hält nur zum Teil" in schief and "14.5" in schief
+    # **Und der Zusatz steht NICHT unter seinem eigenen Gegenteil.** Er
+    # hing zuerst daran, dass irgendeine Art darunter liegt.
+    assert "stützt die Richtung" not in schief
+    assert "stützt die Richtung" in gut, "wo alle darunter liegen, schon"
+    keins = render_class_holdout_report(
+        [hold_row(a, 0.09, refit=14.5), hold_row(b, 0.07, refit=15.5)],
+        ["AT", "CH"], "herbst_holz", fenster, fits, "2026-09-13")
+    assert "Keines der Optima" in keins and "hält\nnicht" in keins.replace(
+        " ", "\n") or "hält nicht" in keins
+
     # --- Der Kalttest: die vier Ausgänge und ihr Wortlaut ---------------
     #
     # **Geprüft wird am GERENDERTEN Text**, nicht am Zustandswort. Ein
@@ -3393,8 +3759,6 @@ PREDICTION_MIN_AUC = 0.55
 # **Und die Bedingung ist konjunktiv über die ARTEN**: „Beide oder
 # keine." Eine Klasse aus zwei Arten, von denen eine passt, war vorab
 # ausgeschlossen — sonst wäre die Latte nach der Messung verschoben.
-COLD_MAX_OPTIMUM_C = 5.0
-COLD_MIN_GAIN = 0.05
 
 # Das Mitglied, das den Test überhaupt ausgelöst hat. Es steht im
 # Bericht als KONTEXT und nicht als Prüfling: Sein Fenster ist gemessen
@@ -4088,6 +4452,11 @@ def main():
     parser.add_argument("--holdout", default=None,
                         help="Länderkürzel (z. B. AT,CH): in Deutschland "
                              "anpassen, dort prüfen. Braucht --only.")
+    parser.add_argument("--class", dest="klass", default=None,
+                        help="Hold-out für eine KLASSE statt je Art: Das "
+                             "Fenster ist der Median der deutschen Optima "
+                             "ihrer Mitglieder, geprüft wird es an allen. "
+                             "Braucht --holdout.")
     parser.add_argument("--recover-sample", action="store_true",
                         help="Die Stichprobe suchen, zu der ein vorhandener "
                              "--cache gehört, und sie festnageln. Einmal "
@@ -4143,6 +4512,21 @@ def main():
 
     if args.thresholds:
         wanted = MYCORRHIZAL + WOOD_DWELLERS
+        # **Eine Klasse braucht ihre Mitglieder in diesem Lauf**, sonst
+        # bekommt sie keine Schwellen: Gepoolt wird über die
+        # Vergleichstage ALLER Mitglieder, jede Art mit gleicher Stimme.
+        # Seit der Kalttest bestanden ist, stehen zwei Mitglieder
+        # außerhalb der Standardlisten (Judasohr, Samtfußrübling) — ohne
+        # diese Zeilen bliebe die kalte Klasse für immer ohne Zahlen,
+        # ohne dass es jemandem auffiele.
+        #
+        # Die ausgelieferten Schwellen rührt das nicht an: Gepoolt wird
+        # je Klasse, und `verify_class_constants` rechnet bei jedem Lauf
+        # nach, dass herbst und sommer da stehen, wo sie stehen.
+        for klass in AMPEL_CLASSES.values():
+            for name in klass["members"]:
+                if name not in wanted:
+                    wanted.append(name)
         if args.only:
             wanted = [n.strip() for n in args.only.split(",") if n.strip()]
         print("Schwellen messen:", file=sys.stderr)
@@ -4179,12 +4563,54 @@ def main():
         return
 
     if args.holdout:
-        if not args.only:
-            raise SystemExit("--holdout braucht --only: Der Hold-out prüft "
-                             "eine registrierte Spur, nicht alles auf "
-                             "Verdacht.")
+        if not args.only and not args.klass:
+            raise SystemExit("--holdout braucht --only oder --class: Der "
+                             "Hold-out prüft eine registrierte Spur, nicht "
+                             "alles auf Verdacht.")
         countries = [c.strip().upper() for c in args.holdout.split(",")
                      if c.strip()]
+        if args.klass:
+            if args.klass not in AMPEL_CLASSES:
+                raise SystemExit(
+                    f"Unbekannte Klasse „{args.klass}“. Bekannt: "
+                    + ", ".join(AMPEL_CLASSES))
+            members = AMPEL_CLASSES[args.klass]["members"]
+            # **Erst das Fenster, dann die Prüfung.** Es kommt aus den
+            # deutschen Optima der Mitglieder und wird bei JEDEM Lauf
+            # gerechnet — eine getippte Zahl war hier schon zweimal der
+            # Fehler (11,5 von Hand gerundet, 11,6 aus einer Tabelle mit
+            # einer Nachkommastelle abgeschrieben).
+            print(f"Klassen-Hold-out „{args.klass}“ in "
+                  f"{'+'.join(countries)}:", file=sys.stderr)
+            print("  Fenster aus den deutschen Optima:", file=sys.stderr)
+            fits = []
+            for name in members:
+                row = fit_species(name, mapping[name], args.cache, args.seed)
+                if row:
+                    row["klass"] = args.klass
+                    fits.append(row)
+            window = class_optimum(fits, args.klass)
+            if window is None:
+                raise SystemExit(
+                    "Kein Fenster: keines der Mitglieder ist in Deutschland "
+                    "auswertbar.")
+            print(f"  Fenster der Klasse: {_optimum_text(window)} °C",
+                  file=sys.stderr)
+            rows = [holdout_species(name, mapping[name], countries,
+                                    args.cache, args.seed, window=window)
+                    for name in members if name in mapping]
+            report = render_class_holdout_report(
+                rows, countries, args.klass, window, fits,
+                time.strftime("%Y-%m-%d"))
+            if args.out:
+                open(args.out, "w", encoding="utf-8").write(report)
+                print(f"\n{args.out} geschrieben", file=sys.stderr)
+            else:
+                print(report)
+            print(f"\n  Ausgang: "
+                  f"{class_holdout_verdict(rows, members)['state']}",
+                  file=sys.stderr)
+            return
         wanted = [n.strip() for n in args.only.split(",") if n.strip()]
         print(f"Hold-out in {'+'.join(countries)}:", file=sys.stderr)
         rows = [holdout_species(name, mapping[name], countries, args.cache,
