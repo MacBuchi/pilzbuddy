@@ -3059,6 +3059,46 @@ def membership_candidates(con=None, path=SPECIES_FILE):
     return rows
 
 
+def bootstrap_years_pairs(samples, pick, rounds=FIT_BOOTSTRAP_ROUNDS,
+                          seed=42):
+    """Vertrauensbereich einer gepaarten AUC, gezogen über JAHRE.
+
+    Schwester von [bootstrap_years], nur für Paare, die nicht aus einem
+    Optimum fallen — [pick] macht aus einer Probe ein Paar oder `None`.
+    Gebraucht für die abstandsgleiche Kontrolle: Seit dem 2026-09-17 ist
+    ihr Tor ihr Vertrauensbereich und nicht mehr eine feste Zahl
+    (`docs/pilzampel-kontrolltoleranz.md`).
+
+    **Über Jahre und nicht über Paare**, aus demselben Grund wie dort:
+    Funde desselben Jahres sind einander ähnlicher, über Paare gezogen
+    käme ein zu enger Bereich heraus — also eine Sicherheit, die es
+    nicht gibt.
+    """
+    by_year = {}
+    for sample in samples:
+        pair = pick(sample)
+        if pair is not None:
+            by_year.setdefault(sample["year"], []).append(pair)
+    years = sorted(by_year)
+    if len(years) < 2:
+        return None
+    rng = random.Random(seed)
+    draws = []
+    for _ in range(rounds):
+        picked = [rng.choice(years) for _ in years]
+        draws.append(paired_auc([p for year in picked for p in by_year[year]]))
+    draws.sort()
+    return (draws[int(0.025 * len(draws))],
+            draws[min(len(draws) - 1, int(0.975 * len(draws)))])
+
+
+def mirror_pair(sample):
+    """Die abstandsgleiche Kontrolle als Paar — `None`, wenn sie fehlt."""
+    if sample.get("mirror") is None:
+        return None
+    return (ampel_score(*sample["control"]), ampel_score(*sample["mirror"]))
+
+
 def membership_species(name, sci, cache_dir=None, seed=42, progress=True):
     """Trennt das AUSGELIEFERTE Fenster die Fundtage dieser Art?
 
@@ -3084,9 +3124,32 @@ def membership_species(name, sci, cache_dir=None, seed=42, progress=True):
         "ci": bootstrap_years(samples, [OPTIMUM_C], seed=seed),
         "mirror_auc": paired_auc(mirrored),
         "mirror_n": len(mirrored),
+        "mirror_ci": bootstrap_years_pairs(samples, mirror_pair, seed=seed),
         "placebo_auc": paired_auc(placebo),
         "placebo_n": len(placebo),
     }
+
+
+def membership_control_clean(row):
+    """Trägt die Ziehung dieser Art — gemessen an ihrem EIGENEN Bereich?
+
+    **Warum keine feste Zahl mehr** (2026-09-17,
+    `docs/pilzampel-kontrolltoleranz.md`): ±0,03 sind bei 2000 Paaren
+    2,7 Standardfehler und bei 411 Paaren 1,2. Dieselbe Zahl ist also
+    bei der kleinen Stichprobe ein ganz anderes Tor als bei der großen —
+    im Lauf vom 2026-09-16 wurden 7 von 18 kleinen Stichproben verworfen
+    und 0 von 16 großen, und alle acht Verwerfungen lagen innerhalb von
+    2,5 SE um 0,50. Das war ein Filter auf die Stichprobengröße, kein
+    Gültigkeitstest.
+
+    Fehlt der Bereich (weniger als zwei Jahre), bleibt die feste Zahl
+    als Rückfall: ganz ohne Prüfung durchzulassen wäre die falsche
+    Richtung.
+    """
+    band = row.get("mirror_ci")
+    if band is None:
+        return abs(row["mirror_auc"] - 0.5) <= PLACEBO_TOLERANCE
+    return band[0] <= 0.5 <= band[1]
 
 
 def membership_outcome(row):
@@ -3099,7 +3162,7 @@ def membership_outcome(row):
     """
     if not row.get("usable"):
         return "offen"
-    if abs(row["mirror_auc"] - 0.5) > PLACEBO_TOLERANCE:
+    if not membership_control_clean(row):
         return "offen"
     if row["n"] < MEMBERSHIP_MIN_PAIRS:
         return "offen"
@@ -3193,7 +3256,15 @@ def render_membership_report(rows, candidates, verdict, stamp):
         f"Die Bedingung stand vor der Messung fest: gepaarte AUC ≥ "
         f"{MEMBERSHIP_MIN_AUC:.2f} bei mindestens {MEMBERSHIP_MIN_PAIRS} "
         "Paaren, abstandsgleiche Kontrolle innerhalb "
-        f"0,50 ± {PLACEBO_TOLERANCE:.2f}.",
+        "abstandsgleiche Kontrolle, deren über Jahre gezogener "
+        "95-%-Bereich die 0,50 enthält.",
+        "",
+        "**Das Kontroll-Tor ist am 2026-09-17 umgestellt worden** — von "
+        "festen ±0,03 auf den Vertrauensbereich, weil die feste Zahl ein "
+        "Filter auf die Stichprobengröße war und keiner auf die "
+        "Gültigkeit (`docs/pilzampel-kontrolltoleranz.md`). Die "
+        "Umstellung war beim Registrieren die Änderung, die den Plan am "
+        "wahrscheinlichsten beendet.",
         "",
     ]
 
@@ -3203,14 +3274,14 @@ def render_membership_report(rows, candidates, verdict, stamp):
             return
         lines.extend([f"## {title}", "", note, "",
                       "| Art | Paare | Jahre | AUC (13 °C) | 95 % | "
-                      "Kontrolle | Ausgang | Status |",
-                      "|---|--:|--:|--:|---|--:|---|---|"])
+                      "Kontrolle | Kontrolle 95 % | Ausgang | Status |",
+                      "|---|--:|--:|--:|---|--:|---|---|---|"])
         for candidate in picked:
             row = by_name.get(candidate["name"])
             if row is None or not row.get("usable"):
                 why = (row or {}).get("why", "nicht gemessen")
                 lines.append(f"| {candidate['name']} | — | — | — | — | — | "
-                             f"offen ({why}) | {candidate['status']} |")
+                             f"— | offen ({why}) | {candidate['status']} |")
                 continue
             outcome = membership_outcome(row)
             band = row["ci"].get(OPTIMUM_C) if isinstance(row["ci"], dict) \
@@ -3219,10 +3290,13 @@ def render_membership_report(rows, candidates, verdict, stamp):
                     if band and len(band) == 2 else "—")
             mark = {"erfüllt": "**erfüllt**", "verfehlt": "verfehlt",
                     "offen": "offen"}[outcome]
+            band_m = row.get("mirror_ci")
+            span_m = (f"[{band_m[0]:.3f}, {band_m[1]:.3f}]"
+                      if band_m else "—")
             lines.append(
                 f"| {candidate['name']} | {row['n']} | {row['years']} | "
                 f"{row['auc']:.3f} | {span} | {row['mirror_auc']:.3f} | "
-                f"{mark} | {candidate['status']} |")
+                f"{span_m} | {mark} | {candidate['status']} |")
         lines.append("")
 
     table("anders", "Kontrastgruppe: Gipfel im Frühjahr und Sommer",
@@ -4314,6 +4388,54 @@ def self_test():
     assert membership_outcome(m_row("A", 0.70, mirror=0.56)) == "offen"
     assert membership_outcome(m_row("A", 0.70, n=100)) == "offen"
     assert membership_outcome(m_row("A", 0.0, usable=False)) == "offen"
+
+    # **Das Tor ist der BEREICH, nicht mehr die feste Zahl** (2026-09-17).
+    # Eine weit danebenliegende Kontrolle mit breitem Bereich ist
+    # Rauschen und darf nicht verwerfen; eine knapp danebenliegende mit
+    # schmalem Bereich ist ein Befund und muss es.
+    weit = m_row("A", 0.70, mirror=0.55)
+    weit["mirror_ci"] = (0.47, 0.63)
+    assert membership_control_clean(weit)
+    assert membership_outcome(weit) == "erfüllt", \
+        "0,55 bei breitem Bereich ist Rauschen — die alte Zahl verwarf hier"
+    schmal = m_row("A", 0.70, mirror=0.515)
+    schmal["mirror_ci"] = (0.505, 0.525)
+    assert not membership_control_clean(schmal)
+    assert membership_outcome(schmal) == "offen", \
+        "0,515 bei schmalem Bereich ist ein Befund — die alte Zahl liess das durch"
+    # Ohne Bereich (weniger als zwei Jahre) bleibt die feste Zahl.
+    ohne = m_row("A", 0.70, mirror=0.56)
+    ohne["mirror_ci"] = None
+    assert not membership_control_clean(ohne), \
+        "ganz ohne Pruefung durchzulassen waere die falsche Richtung"
+    # Der Bootstrap ueber Jahre selbst: gleiche Paare, aber ein Jahr oder viele.
+    proben = [{"year": 2000 + (i % 10),
+               "control": ([10.0] * 26, [13.0] * 20),
+               "mirror": ([10.0] * 26, [13.0] * 20)} for i in range(200)]
+    band = bootstrap_years_pairs(proben, mirror_pair, rounds=200)
+    assert band is not None and band[0] <= 0.5 <= band[1]
+    # **Und der Bereich muss die JAHRE spueren.** Haelfte der Jahre laeuft
+    # in die eine Richtung, Haelfte in die andere: Gesamt-AUC 0,50, aber
+    # ein Bereich, der das Jahr als Einheit nimmt, MUSS breit sein. Ohne
+    # Ziehung ueber Jahre faellt er auf null zusammen — eine Sicherheit,
+    # die es nicht gibt (und die Gegenprobe dazu blieb sonst gruen).
+    nass, trocken = ([10.0] * 26, [13.0] * 20), ([0.1] * 26, [13.0] * 20)
+    geteilt = []
+    for jahr in range(2000, 2010):
+        hoch = jahr < 2005
+        for _ in range(20):
+            geteilt.append({"year": jahr,
+                            "control": nass if hoch else trocken,
+                            "mirror": trocken if hoch else nass})
+    breit = bootstrap_years_pairs(geteilt, mirror_pair, rounds=300)
+    assert breit is not None and breit[1] - breit[0] > 0.30, \
+        f"ueber Jahre gezogen muss der Bereich breit sein, ist {breit}"
+    assert breit[0] <= 0.5 <= breit[1]
+
+    einjahr = [dict(p, year=2000) for p in proben]
+    assert bootstrap_years_pairs(einjahr, mirror_pair, rounds=200) is None, \
+        "ein einziges Jahr traegt keinen Bereich"
+    assert mirror_pair({"control": ([1.0], [1.0]), "mirror": None}) is None
 
     herbst_cands = [cand(f"H{i}", "herbstnah") for i in range(4)]
     kontrast = [cand("Mai", "anders"), cand("Winter", "kalt")]
