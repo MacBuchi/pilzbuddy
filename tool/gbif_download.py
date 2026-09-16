@@ -106,7 +106,17 @@ def credentials():
                 text, re.M | re.I)
             if not m:
                 return None
-            return re.sub(r'^[`*_<]+|[`*_>]+$', '', m.group(1).strip()) or None
+            value = re.sub(r'^[`*_<]+|[`*_>]+$', '', m.group(1).strip())
+            # Markdown-Escapes zurueckdrehen. Ein Passwort mit Sonder-
+            # zeichen wird beim Ablegen in einer .md-Datei leicht zu
+            # `\*` oder `\@` — der Backslash gehoert dann NICHT dazu.
+            # Genau daran ist die erste Anmeldung gescheitert
+            # (2026-09-16): 20 statt 19 Zeichen, Login im Browser
+            # funktionierte, die API lehnte mit 401 ab, und die
+            # Fehlermeldung von GBIF unterscheidet nicht zwischen
+            # falschem Passwort und unbekanntem Konto.
+            value = re.sub(r'\\([\\`*_{}\[\]()#+\-.!@~|])', r'\1', value)
+            return value or None
         user, pw = grab("User"), grab("PW")
         if user and pw:
             return user, pw
