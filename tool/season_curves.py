@@ -55,7 +55,9 @@ aus einer Play-Veröffentlichung keine Lizenzfrage wird. Der Preis ist
 gemessen und in docs/pilzampel-saisonkurven.md notiert.
 """
 import argparse
+import importlib.util
 import json
+import os
 import random
 import re
 import sys
@@ -75,6 +77,13 @@ BASE_FILTER = {
     "country": ["DE", "AT", "CH"],
     "basisOfRecord": "HUMAN_OBSERVATION",
     "hasCoordinate": "true",
+    # Ohne diese Zeile liefen Netzweg und lokaler Bestand 610 Meldungen
+    # (0,03 %) auseinander — der Download filtert sie, die Suche nicht.
+    # Gemessen am 2026-09-16: Der Unterschied verschiebt neun Kurven um
+    # je einen Punkt und kippt KEINEN der 1092 Art-Monate über
+    # `kSeasonNowThreshold`. Sie steht trotzdem hier, denn zwei Wege mit
+    # zwei Antworten auf dieselbe Frage sind der eigentliche Schaden.
+    "hasGeospatialIssue": "false",
     "license": ["CC0_1_0", "CC_BY_4_0"],
 }
 
@@ -95,6 +104,13 @@ MIN_PEAK_SUPPORT = 30
 
 MONTHS = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun",
           "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"]
+
+
+spec = importlib.util.spec_from_file_location(
+    "gbif_local", os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               "gbif_local.py"))
+gbif_local = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(gbif_local)
 
 
 class TaxonError(Exception):
@@ -180,8 +196,19 @@ def check_taxon(sci):
     return key, rank
 
 
-def month_counts(query):
-    """Meldungen je Monat (Index 0 = Januar) plus Gesamtzahl."""
+def month_counts(query, con=None, taxon=None):
+    """Meldungen je Monat (Index 0 = Januar) plus Gesamtzahl.
+
+    Mit `con` (lokaler Bestand, siehe tool/gbif_local.py) ohne Netz —
+    derselbe Schnitt, nachgemessen gleich bis auf einen Punkt je Kurve.
+    Ohne ihn wie bisher über die Such-API.
+    """
+    if con is not None:
+        if query == BASELINE_QUERY:
+            return gbif_local.month_counts(con)
+        sci, rank = taxon
+        return gbif_local.month_counts(
+            con, *gbif_local.taxon_where(sci, rank, query.get("taxonKey")))
     result = _get("occurrence/search", {
         **BASE_FILTER, **query, "facet": "month", "facetLimit": 12, "limit": 0})
     counts = [0] * 12
@@ -229,18 +256,25 @@ def as_index(counts):
     return [round(value / peak * 100) for value in counts]
 
 
-def build(species, progress=True):
-    """Holt Baseline und Kurven. Wirft bei jeder zweifelhaften Zuordnung."""
-    baseline, baseline_total = month_counts(BASELINE_QUERY)
+def build(species, progress=True, con=None):
+    """Holt Baseline und Kurven. Wirft bei jeder zweifelhaften Zuordnung.
+
+    `con` ist der lokale Bestand, wenn es ihn gibt — [main] reicht ihn
+    durch. Die Taxonomie-Prüfung [check_taxon] bleibt am Netz: Ob ein
+    Name akzeptiert ist, steht in GBIFs Taxonomie und nicht in unseren
+    Fundzeilen, und genau dieser Wächter darf nicht wegfallen.
+    """
+    baseline, baseline_total = month_counts(BASELINE_QUERY, con)
     if progress:
-        print(f"Effort-Baseline: {baseline_total} Pilzmeldungen in DE/AT/CH",
-              file=sys.stderr)
+        where = "lokal" if con is not None else "über die API"
+        print(f"Effort-Baseline ({where}): {baseline_total} Pilzmeldungen "
+              f"in DE/AT/CH", file=sys.stderr)
 
     rows = []
     for position, entry in enumerate(species, start=1):
         name, sci = entry["name"], entry["ask"]
         key, rank = check_taxon(sci)
-        counts, total = month_counts({"taxonKey": key})
+        counts, total = month_counts({"taxonKey": key}, con, (sci, rank))
         months = effort_corrected(counts, baseline)
         support = peak_support(counts, months)
         rows.append({
@@ -263,7 +297,8 @@ def build(species, progress=True):
                 note = f"  (Gipfel steht auf nur {support} Meldungen)"
             print(f"  [{position:>2}/{len(species)}] {name}: {total}{note}",
                   file=sys.stderr)
-        time.sleep(0.1)  # dem Dienst zuliebe, er ist kostenlos
+        if con is None:
+            time.sleep(0.1)  # dem Dienst zuliebe, er ist kostenlos
     return rows, baseline, baseline_total
 
 
@@ -594,6 +629,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", default=DEFAULT_OUT,
                         help=f"Zieldatei (Vorgabe: {DEFAULT_OUT})")
+    parser.add_argument("--no-local", action="store_true",
+                        help="den lokalen GBIF-Bestand ignorieren und alles "
+                             "über die API holen")
     parser.add_argument("--verify", action="store_true",
                         help="Gegenprobe gegen den Dienst statt Neubau")
     parser.add_argument("--self-test", action="store_true",
@@ -608,8 +646,11 @@ def main():
 
     species = read_species()
     print(f"{len(species)} Arten mit wissenschaftlichem Namen", file=sys.stderr)
+    # Den lokalen Bestand nehmen, wenn es ihn gibt; sonst die API. Ein
+    # frischer Rechner und CI haben ihn nicht, und das muss reichen.
+    con = None if args.no_local else gbif_local.connect()
     try:
-        rows, _, baseline_total = build(species)
+        rows, _, baseline_total = build(species, con=con)
     except TaxonError as error:
         raise SystemExit(f"\nZuordnung unbrauchbar — {error}")
 

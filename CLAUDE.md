@@ -116,6 +116,73 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   nutzt, ändert `lib/` mit und bumpt darüber).
 - Gemergte Branches löscht GitHub automatisch (delete_branch_on_merge).
 
+## Externe Datenquellen — was lokal läuft und was nicht
+
+Die Frage „gibt es das lokal?" soll hier in zehn Sekunden beantwortet
+sein. Sie kam am 2026-09-16 auf und kostete zehn Suchen, weil die
+Antwort über drei Orte verteilt lag — einer davon in einem fremden
+Ordner (`~/pilzbuddy-ampel2000/COWORK.md`).
+
+| Quelle | Wofür | Lokal? |
+|---|---|---|
+| **Open-Meteo** | historisches Wetter für die Ampel-Validierung | **JA, eigene Instanz** — `docs/pilzampel-openmeteo-lokal.md` |
+| **GBIF** | Saisonkurven, Fund-Stichproben, Artenfenster | **JA, als Download** — `tool/gbif_download.py`, seit 2026-09-16 |
+| **DWD** (WCS/GeoServer) | Regengitter | NEIN — `tool/rain_grid.py`, läuft nur in CI |
+| **Copernicus / DLR** | Wald-, Höhen-, Baumartengitter | NEIN — eigene Workflows, `workflow_dispatch` |
+| **Supabase** | Datenbank, Auth | **JA für Tests** — `supabase start`, siehe Schema Dry Run |
+
+**Open-Meteo und GBIF werden verwechselt**, und das ist naheliegend:
+Beides sind externe Datenquellen der Ampel, und genau eine davon hat
+seit #460/#461 eine eigene Instanz. Es ist **Open-Meteo** —
+`ghcr.io/open-meteo/open-meteo`, `127.0.0.1:8080`, per docker compose.
+Der Anlass war das Cloud-Kontingent, das eine registrierte Messung auf
+Tage streckte; der eigentliche Gewinn ist, dass die Instanz den
+Datensatz pinnt.
+
+**GBIF hat keine Instanz, sondern einen Bestand.** Eine eigene Instanz
+wäre auch gar nicht zu betreiben — GBIF ist ein Index über 2,5 Mrd
+Datensätze. Stattdessen liegt der DACH-Pilzbestand **als Ganzes** lokal:
+
+    ~/pilzbuddy-gbif/dach_fungi.sqlite    3 782 038 Zeilen, 889 MB
+    ~/pilzbuddy-gbif/CITATION.txt         der DOI dazu
+
+Gebaut von `tool/gbif_download.py` (`request` → `status` → `fetch` →
+`build`), Stand vom 2026-09-16 ist `10.15468/dl.dwbsuf`. Eine
+Regionsabfrage dauert damit **6 ms** statt Minuten; ganz DACH auf einmal
+auszuwerten (2 Mio Sichtungen) dauert Sekunden und war über die API
+schlicht nicht machbar.
+
+Vier Dinge, die man wissen muss:
+
+- **Der DOI ist der eigentliche Gewinn, nicht das Tempo.** Er nagelt den
+  Stand fest — und das ist nötig, weil **GBIF täglich wächst**: Zwei
+  Läufe derselben Art lieferten im Abstand von zwei Stunden 2259 gegen
+  2253 Meldungen und damit eine andere Stichprobe. Genau dafür gibt es
+  `fetch_finds(cache_dir=…)` in `tool/ampel_validate.py`; der DOI leistet
+  dasselbe, nur zitierfähig, und erledigt zugleich die
+  CC-BY-Namensnennung über alle Quell-Datasets.
+- **Der Download ist bewusst UNGEFILTERT** — alle Pilze mit Koordinate in
+  DACH, ohne Lizenz-, Genauigkeits- oder `basisOfRecord`-Schranke. Die
+  stehen als Spalten bereit und werden lokal gesetzt. Enger zu ziehen
+  spart einmalig Platz und kostet bei der nächsten Frage einen neuen
+  Download; der Effort-Nenner (#467) braucht ohnehin auch die
+  Bodenproben, die kein Sammler je sieht.
+- **Tiefes Blättern über die Such-API scheitert nicht, es kriecht.** Ab
+  `offset` ~10 000 braucht dieselbe Seite **341 s statt 0,3 s** und
+  liefert danach ihre 300 Treffer — von außen ununterscheidbar von einem
+  Hänger, und mit gesetztem Timeout ein Abbruch ohne erkennbaren Grund.
+  Wer doch über die API geht, kachelt (`tool/gbif_effort.py`).
+- **Zugangsdaten liegen in `~/pilzbuddy-keys/gbif_account.md`.** Ein dort
+  abgelegtes Passwort kann **Markdown-Escapes** tragen, die nicht dazu
+  gehören (`\*` statt `*`) — daran ist die erste Anmeldung gescheitert,
+  und die Fehlersuche war teuer, weil GBIF einen erfundenen Benutzernamen
+  wortgleich beantwortet wie einen echten mit falschem Passwort (kein
+  Benutzernamen-Orakel). Der Loader dreht die Escapes zurück.
+
+Daraus folgt die Arbeitsregel: **Wer Hunderte Einzelabfragen
+hintereinander braucht, stellt die falsche Frage.** Ein Download trägt
+Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
+
 ## Technik-Notizen
 
 - Signing: `android/key.properties` + `android/pilzbuddy-release.jks` (beide

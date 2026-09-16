@@ -64,6 +64,7 @@ import argparse
 import ast
 import inspect
 import datetime
+import importlib.util
 import json
 import math
 import os
@@ -78,6 +79,12 @@ import urllib.parse
 import urllib.request
 
 GBIF = "https://api.gbif.org/v1"
+
+_spec = importlib.util.spec_from_file_location(
+    "gbif_local", os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               "gbif_local.py"))
+gbif_local = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(gbif_local)
 # **Die Vorgabe bleibt der öffentliche Dienst** (#460). Eine eigene
 # Instanz ist per `--api` erreichbar, aber nicht die Vorgabe: Ein
 # Werkzeug, das stillschweigend mit localhost redet, erzeugt Zahlen, die
@@ -599,14 +606,57 @@ def fetch_finds(sci, limit=3000, progress=True, cache_dir=None,
                 print(f"    {len(finds)} Meldungen (festgenagelt)",
                       file=sys.stderr)
             return finds
-    finds = [{k: v for k, v in record.items() if k != "key"}
-             for record in _fetch_finds_raw(sci, limit, progress, countries)]
+    finds = _finds_from_local(sci, limit, progress, countries)
+    if finds is None:
+        finds = [{k: v for k, v in record.items() if k != "key"}
+                 for record in _fetch_finds_raw(sci, limit, progress,
+                                                countries)]
     if cache_dir:
         os.makedirs(cache_dir, exist_ok=True)
         with open(_finds_cache_path(cache_dir, sci, countries), "w",
                   encoding="utf-8") as handle:
             json.dump(finds, handle)
     return finds
+
+
+def _finds_from_local(sci, limit, progress, countries):
+    """Fundmeldungen aus dem lokalen Bestand — oder `None`.
+
+    **Erst NACH dem Cache, nie davor.** Die Reihenfolge ist hier keine
+    Geschmacksfrage: Der Wetter-Cache ist ein Hash GENAU der Ortslisten,
+    die aus dieser Stichprobe fallen. Die Datenbank sortiert nach
+    `gbifID`, die API paginiert in ihrer eigenen Reihenfolge — beide
+    liefern also verschiedene 3000er-Ausschnitte. Zöge man den lokalen
+    Bestand vor, zeigte jeder bestehende Wetter-Cache-Schlüssel ins
+    Leere, und Wochen an Messungen wären hin (siehe COWORK.md im
+    Ampel-Ordner, wo genau das schon einmal passiert ist).
+
+    Für eine Art OHNE Cache ist er dagegen richtig: Die Stichprobe wird
+    ohnehin neu gezogen und anschließend festgenagelt.
+    """
+    con = gbif_local.connect()
+    if con is None:
+        return None
+    # Der Rang steckt im Namen: ein Wort = Gattung (`Armillaria`), zwei =
+    # Art. Dieselbe Unterscheidung trifft `season_curves.check_taxon`
+    # über GBIF; hier reicht der Name, weil `taxon_key` den Namen bereits
+    # gegen GBIF geprüft hat und bei allem außer EXACT/ACCEPTED abbricht.
+    rank = "GENUS" if " " not in sci.strip() else "SPECIES"
+    where, args = gbif_local.taxon_where(sci, rank, taxon_key(sci))
+    rows = con.execute(
+        f"SELECT decimalLatitude, decimalLongitude, year, month, day "
+        f"FROM occ WHERE {gbif_local.WHERE_USABLE} AND {where} "
+        f"  AND countryCode IN ({','.join('?' * len(countries))}) "
+        f"  AND year >= ? AND day IS NOT NULL AND month IS NOT NULL "
+        f"  AND (coordinateUncertaintyInMeters IS NULL "
+        f"       OR coordinateUncertaintyInMeters <= ?) "
+        f"ORDER BY gbifID LIMIT ?",
+        (*args, *countries, FIRST_YEAR, MAX_UNCERTAINTY_M, limit)).fetchall()
+    con.close()
+    if progress:
+        print(f"    {len(rows)} Meldungen (lokaler Bestand)", file=sys.stderr)
+    return [{"lat": r[0], "lon": r[1], "year": r[2], "month": r[3],
+             "day": r[4]} for r in rows]
 
 
 def _fetch_finds_raw(sci, limit=3000, progress=True, countries=("DE",)):
