@@ -2951,6 +2951,339 @@ def spearman(a, b):
         return 0.0
     return cov / (var_a * var_b)
 
+# --- Mitgliedschaft in der Herbstklasse ------------------------------------
+#
+# Registriert am 2026-09-16 in `docs/pilzampel-herbstklasse-mitgliedschaft.md`,
+# geschrieben und committet VOR der ersten Messung.
+#
+# **Die Frage ist nicht, ob ein besseres Fenster existiert, sondern wie
+# weit das ausgelieferte trägt.** Zwei geschneiderte Fenster haben es
+# nicht geschlagen (`herbst_holz`, `kalt`); was in beiden Berichten
+# nebenbei steht, ist die AUC MIT den 13 °C — bei Hallimasch 0,766.
+#
+# Hier wird deshalb **nichts angepasst**. Gemessen wird allein, ob das
+# ausgelieferte Fenster die Fundtage einer Art von ihren
+# Vergleichstagen trennt. Das kostet null Freiheitsgrade, und genau
+# deshalb ist Deutschland ein gültiger Prüfraum: Die 13 °C sind ein
+# Literaturwert (Bielefeld) und wurden nie an unseren Daten bestimmt.
+
+# Die Auswahlregel — MECHANISCH, damit der Kreis nicht nach dem ersten
+# Blick auf die Zahlen wächst oder schrumpft.
+MEMBERSHIP_MIN_RECORDS = 400
+# Die Bedingung.
+MEMBERSHIP_MIN_PAIRS = 400
+MEMBERSHIP_MIN_AUC = 0.60
+
+
+def membership_group(peak_month):
+    """Die Gruppe einer Art — allein aus ihrem Saisongipfel.
+
+    **Diese Zuordnung kennt kein Wetter.** Sie kommt aus GBIF-Monats-
+    zahlen und steht fest, bevor ein einziger Wert von Open-Meteo
+    geholt wird; sie ist die VORHERSAGE, gegen die gemessen wird.
+    """
+    if peak_month in (8, 9, 10):
+        return "herbstnah"
+    if peak_month in (11, 12, 1, 2, 3):
+        return "kalt"
+    return "anders"
+
+
+# Die Vorhersage je Gruppe, registriert vor der Messung.
+MEMBERSHIP_PREDICTION = {
+    "herbstnah": True,
+    "anders": False,
+    "kalt": False,
+}
+
+
+def membership_status(name):
+    """Trägt diese Art das Urteil mit — oder sind ihre Zahlen bekannt?
+
+    Eine Regel an Zahlen zu prüfen, die man schon gesehen hat, beweist
+    nichts. Die früher gemessenen Arten laufen mit, damit die Tabelle
+    vollständig ist; das Urteil tragen die frischen.
+    """
+    if name in AMPEL_CLASSES["herbst"]["members"] or name == "Pfifferling":
+        return "ausgeliefert"
+    if name in MYCORRHIZAL or name in WOOD_DWELLERS or name in COLD_CANDIDATES:
+        return "Zahlen bekannt"
+    return "frisch"
+
+
+def membership_candidates(con=None, path=SPECIES_FILE):
+    """Der Kandidatenkreis aus dem LOKALEN Bestand.
+
+    Über die API ginge das nicht in vertretbarer Zeit — 91 Arten mal
+    eine Zählabfrage, und für den Saisongipfel je Art zwölf weitere.
+    Der Bestand beantwortet beides in Millisekunden, und weil er einen
+    DOI trägt, ist der Kreis reproduzierbar, obwohl GBIF weiterwächst.
+    """
+    own = con is None
+    if own:
+        con = gbif_local.connect()
+    if con is None:
+        return None
+    try:
+        rows = []
+        for name, sci in sorted(read_species(path).items()):
+            rank = "GENUS" if " " not in sci.strip() else "SPECIES"
+            column = "genus" if rank == "GENUS" else "species"
+            where = (f"{gbif_local.WHERE_USABLE} AND {column} = ? "
+                     "AND day IS NOT NULL AND month IS NOT NULL "
+                     f"AND year BETWEEN {FIRST_YEAR} AND {LAST_COMPLETE_YEAR} "
+                     "AND (coordinateUncertaintyInMeters IS NULL "
+                     "     OR coordinateUncertaintyInMeters <= ?)")
+            found = con.execute(
+                f"SELECT COUNT(*) FROM occ WHERE {where} "
+                "AND countryCode = 'DE'",
+                (sci, MAX_UNCERTAINTY_M)).fetchone()[0]
+            if found < MEMBERSHIP_MIN_RECORDS:
+                continue
+            months = [0] * 12
+            for month, number in con.execute(
+                    f"SELECT month, COUNT(*) FROM occ WHERE {where} "
+                    "GROUP BY month", (sci, MAX_UNCERTAINTY_M)):
+                months[month - 1] = number
+            peak = max(range(12), key=lambda i: months[i]) + 1
+            rows.append({
+                "name": name, "sci": sci, "records": found, "peak": peak,
+                "group": membership_group(peak),
+                "status": membership_status(name),
+            })
+    finally:
+        if own:
+            con.close()
+    order = {"herbstnah": 0, "anders": 1, "kalt": 2}
+    rows.sort(key=lambda r: (order[r["group"]], -r["records"]))
+    return rows
+
+
+def membership_species(name, sci, cache_dir=None, seed=42, progress=True):
+    """Trennt das AUSGELIEFERTE Fenster die Fundtage dieser Art?
+
+    Kein Gitterlauf, keine Anpassung — ein Optimum, das von außen kommt.
+    """
+    drawn = collect_pairs(name, sci, cache_dir=cache_dir, seed=seed,
+                          progress=progress)
+    if drawn is None:
+        return {"name": name, "usable": False, "why": "keine Funde"}
+    samples = drawn["samples"]
+    if not samples:
+        return {"name": name, "usable": False, "why": "keine Paare"}
+    mirrored = [(ampel_score(*s["control"]), ampel_score(*s["mirror"]))
+                for s in samples if s["mirror"] is not None]
+    placebo = [(ampel_score(*s["control"]), ampel_score(*s["placebo"]))
+               for s in samples if s["placebo"] is not None]
+    return {
+        "name": name,
+        "usable": True,
+        "n": len(samples),
+        "years": drawn["years"],
+        "auc": paired_auc(score_pairs(samples, OPTIMUM_C)),
+        "ci": bootstrap_years(samples, [OPTIMUM_C], seed=seed),
+        "mirror_auc": paired_auc(mirrored),
+        "mirror_n": len(mirrored),
+        "placebo_auc": paired_auc(placebo),
+        "placebo_n": len(placebo),
+    }
+
+
+def membership_outcome(row):
+    """Der Ausgang EINER Art: „erfüllt", „verfehlt" oder „offen".
+
+    **„Offen" ist nicht „verfehlt".** Eine verzerrte Ziehung oder zu
+    wenig Material heißt, dass nicht gemessen wurde; das als
+    Durchfallen zu berichten wäre eine Aussage über Daten, die es nicht
+    gibt. Dieselbe Trennung wie in `class_holdout_verdict`.
+    """
+    if not row.get("usable"):
+        return "offen"
+    if abs(row["mirror_auc"] - 0.5) > PLACEBO_TOLERANCE:
+        return "offen"
+    if row["n"] < MEMBERSHIP_MIN_PAIRS:
+        return "offen"
+    return "erfüllt" if row["auc"] >= MEMBERSHIP_MIN_AUC else "verfehlt"
+
+
+def membership_verdict(rows, candidates):
+    """Das Urteil über den REGISTRIERTEN Plan — nicht über einzelne Arten.
+
+    Getragen wird es allein von den frischen Arten. Drei Ausgänge waren
+    vorab festgelegt (`docs/pilzampel-herbstklasse-mitgliedschaft.md`):
+
+    - **bestanden**: die Mehrheit der frischen herbstnahen Arten erfüllt
+      die Bedingung, und keine Kontrastart tut es.
+    - **generisch**: die Kontrastgruppen bestehen mit. Dann misst das
+      Modell keine Temperaturnische, und die Klassenmaschinerie gehört
+      zurückgebaut statt ausgebaut.
+    - **eng**: die frischen herbstnahen Arten fallen breit durch. Dann
+      ist `herbst` keine Gilde, und die Mitgliederliste bleibt.
+    """
+    by_name = {row["name"]: row for row in rows}
+    groups = {}
+    for candidate in candidates:
+        if candidate["status"] != "frisch":
+            continue
+        row = by_name.get(candidate["name"])
+        outcome = membership_outcome(row) if row else "offen"
+        groups.setdefault(candidate["group"], []).append(
+            (candidate["name"], outcome))
+
+    autumn = groups.get("herbstnah", [])
+    measured = [item for item in autumn if item[1] != "offen"]
+    passed = [name for name, outcome in autumn if outcome == "erfüllt"]
+    contrast = [item for group in ("anders", "kalt")
+                for item in groups.get(group, [])]
+    contrast_passed = [name for name, outcome in contrast
+                       if outcome == "erfüllt"]
+    contrast_measured = [item for item in contrast if item[1] != "offen"]
+
+    # **Die Kontrastgruppe entscheidet zuerst.** Besteht sie mit, ist
+    # die Frage nach der Mitgliedschaft gegenstandslos — dann trennt
+    # das Modell nicht nach Fenster, und eine längere Mitgliederliste
+    # wäre eine Erweiterung von etwas, das nichts behauptet.
+    if contrast_measured and len(contrast_passed) == len(contrast_measured):
+        state = "generisch"
+    elif not measured:
+        state = "offen"
+    elif len(passed) * 2 >= len(measured):
+        state = "bestanden"
+    else:
+        state = "eng"
+    return {
+        "state": state,
+        "passed": passed,
+        "measured": [name for name, _ in measured],
+        "autumn_open": [name for name, outcome in autumn
+                        if outcome == "offen"],
+        "contrast_passed": contrast_passed,
+        "contrast_measured": [name for name, _ in contrast_measured],
+    }
+
+
+
+def render_membership_report(rows, candidates, verdict, stamp):
+    """Der Bericht — Kontrastgruppe zuerst, weil sie zuerst entscheidet."""
+    by_name = {row["name"]: row for row in rows}
+    lines = [
+        "# Wie weit trägt das eine Fenster? — die Messung",
+        "",
+        f"Stand: {stamp} · Erzeugt von `tool/ampel_validate.py "
+        "--membership` · Prüfplan: "
+        "`docs/pilzampel-herbstklasse-mitgliedschaft.md`",
+        "",
+        "Gemessen wird das **ausgelieferte** 13-°C-Fenster an Arten, für "
+        "die es nie angepasst wurde — es ist ein Literaturwert. Es wird "
+        "hier nichts angepasst; die Frage ist allein, wie weit es trägt.",
+        "",
+        f"Die Bedingung stand vor der Messung fest: gepaarte AUC ≥ "
+        f"{MEMBERSHIP_MIN_AUC:.2f} bei mindestens {MEMBERSHIP_MIN_PAIRS} "
+        "Paaren, abstandsgleiche Kontrolle innerhalb "
+        f"0,50 ± {PLACEBO_TOLERANCE:.2f}.",
+        "",
+    ]
+
+    def table(group, title, note):
+        picked = [c for c in candidates if c["group"] == group]
+        if not picked:
+            return
+        lines.extend([f"## {title}", "", note, "",
+                      "| Art | Paare | Jahre | AUC (13 °C) | 95 % | "
+                      "Kontrolle | Ausgang | Status |",
+                      "|---|--:|--:|--:|---|--:|---|---|"])
+        for candidate in picked:
+            row = by_name.get(candidate["name"])
+            if row is None or not row.get("usable"):
+                why = (row or {}).get("why", "nicht gemessen")
+                lines.append(f"| {candidate['name']} | — | — | — | — | — | "
+                             f"offen ({why}) | {candidate['status']} |")
+                continue
+            outcome = membership_outcome(row)
+            band = row["ci"].get(OPTIMUM_C) if isinstance(row["ci"], dict) \
+                else None
+            span = (f"[{band[0]:.3f}, {band[1]:.3f}]"
+                    if band and len(band) == 2 else "—")
+            mark = {"erfüllt": "**erfüllt**", "verfehlt": "verfehlt",
+                    "offen": "offen"}[outcome]
+            lines.append(
+                f"| {candidate['name']} | {row['n']} | {row['years']} | "
+                f"{row['auc']:.3f} | {span} | {row['mirror_auc']:.3f} | "
+                f"{mark} | {candidate['status']} |")
+        lines.append("")
+
+    table("anders", "Kontrastgruppe: Gipfel im Frühjahr und Sommer",
+          "**Diese Gruppe entscheidet zuerst.** Besteht sie mit, trennt "
+          "das Modell nicht nach Temperaturfenster — dann ist eine "
+          "längere Mitgliederliste die Erweiterung von etwas, das nichts "
+          "behauptet.")
+    table("kalt", "Kontrastgruppe: Gipfel im Winter",
+          "Dieselbe Rolle. Ihre Zahlen waren aus dem Kalttest bereits "
+          "bekannt und tragen das Urteil deshalb nicht mit; sie stehen "
+          "hier, damit die Tabelle vollständig ist.")
+    table("herbstnah", "Die Bestätigungsgruppe: Gipfel im Herbst",
+          "Vorhergesagt war: besteht. Das Urteil tragen die als "
+          "„frisch“ gekennzeichneten Arten — bei den übrigen war die "
+          "Zahl vorher bekannt.")
+
+    state = verdict["state"]
+    lines.extend(["## Der Ausgang", ""])
+    passed, measured = len(verdict["passed"]), len(verdict["measured"])
+    if state == "generisch":
+        lines.append(
+            "**Die Kontrastgruppe besteht mit.** Damit ist die Frage nach "
+            "der Mitgliedschaft gegenstandslos: Das Modell trennt "
+            "Fundtage von Vergleichstagen auch dort, wo sein Fenster "
+            "nicht passen kann. Es misst also etwas Generisches — "
+            "innerhalb der Saison, denn der Vergleichstag liegt 14–45 "
+            "Tage neben dem Fund am selben Ort. Der registrierte Plan "
+            "sieht dafür den Rückbau der Klassenmaschinerie vor, nicht "
+            "ihren Ausbau.")
+    elif state == "bestanden":
+        lines.append(
+            f"**Bestanden — {passed} von {measured} gemessenen frischen "
+            "Arten der Bestätigungsgruppe erfüllen die Bedingung**, und "
+            "die Kontrastgruppen tun es nicht. Das ausgelieferte Fenster "
+            "trägt damit über die fünf heutigen Mitglieder hinaus.")
+    elif state == "eng":
+        lines.append(
+            f"**Nicht bestanden — nur {passed} von {measured} gemessenen "
+            "frischen Arten erfüllen die Bedingung.** `herbst` ist "
+            "danach keine Gilde, sondern eine kleine Gruppe; die "
+            "Mitgliederliste bleibt, wie sie ist.")
+    else:
+        lines.append(
+            "**Offen** — es wurde zu wenig auswertbares Material "
+            "gemessen, um den Plan zu entscheiden.")
+    lines.append("")
+    if verdict["contrast_measured"]:
+        lines.append(
+            "Kontrastgruppe: "
+            f"{len(verdict['contrast_passed'])} von "
+            f"{len(verdict['contrast_measured'])} gemessenen Arten "
+            "erfüllen die Bedingung"
+            + (f" ({', '.join(verdict['contrast_passed'])})"
+               if verdict["contrast_passed"] else "")
+            + ".")
+        lines.append("")
+    if verdict["autumn_open"]:
+        lines.append(
+            "**Nicht gemessen** (verzerrte Ziehung oder zu wenig "
+            "Material): " + ", ".join(verdict["autumn_open"])
+            + ". Das ist kein Durchfallen — dort wurde nichts gemessen.")
+        lines.append("")
+    lines.extend([
+        "## Grenzen", "",
+        "Gemessen wurde ausschließlich an GBIF. Die eigenen Funde und "
+        "Leergänge der App bleiben draußen — sie sind der unabhängige "
+        "Prüfstein aus #199.",
+        "",
+        "Eine bestandene Mitgliedschaft sagt „die Bedingungen sind "
+        "günstig“, nicht „hier stehen Pilze“. Und sie sagt nichts "
+        "darüber, ob ein eigenes Fenster für diese Art noch besser wäre.",
+        "",
+    ])
+    return "\n".join(lines)
 
 # --- Selbsttest ------------------------------------------------------------
 
@@ -3903,6 +4236,106 @@ def self_test():
                         )["state"] == "bestanden", \
         "das Mitglied darf den Ausgang nicht mitentscheiden"
 
+    # --- Mitgliedschaft am ausgelieferten Fenster -------------------------
+    #
+    # Die Gruppe fällt aus dem Saisongipfel und kennt kein Wetter. Sie ist
+    # die VORHERSAGE, gegen die gemessen wird — dreht sie sich, dreht sich
+    # die Registrierung.
+    assert membership_group(9) == "herbstnah"
+    assert membership_group(10) == "herbstnah"
+    assert membership_group(12) == "kalt" and membership_group(1) == "kalt"
+    assert membership_group(5) == "anders" and membership_group(6) == "anders"
+    assert MEMBERSHIP_PREDICTION["herbstnah"] is True
+    assert not MEMBERSHIP_PREDICTION["anders"]
+    assert not MEMBERSHIP_PREDICTION["kalt"]
+    # Der Status trennt, wer das Urteil trägt.
+    assert membership_status("Steinpilz") == "ausgeliefert"
+    assert membership_status("Hallimasch") == "Zahlen bekannt"
+    assert membership_status("Judasohr") == "Zahlen bekannt"
+    assert membership_status("Fliegenpilz") == "frisch"
+
+    def m_row(name, auc, n=1000, mirror=0.5, usable=True):
+        return {"name": name, "usable": usable, "n": n, "years": 20,
+                "auc": auc, "ci": {OPTIMUM_C: (auc - 0.03, auc + 0.03)},
+                "mirror_auc": mirror, "mirror_n": n,
+                "placebo_auc": 0.5, "placebo_n": n}
+
+    def cand(name, group, status="frisch"):
+        return {"name": name, "sci": "X y", "records": 900,
+                "peak": {"herbstnah": 9, "kalt": 12, "anders": 5}[group],
+                "group": group, "status": status}
+
+    # Der Ausgang EINER Art.
+    assert membership_outcome(m_row("A", 0.70)) == "erfüllt"
+    assert membership_outcome(m_row("A", MEMBERSHIP_MIN_AUC)) == "erfüllt", \
+        "die Latte ist erreicht, nicht überschritten"
+    assert membership_outcome(m_row("A", 0.55)) == "verfehlt"
+    # **Verzerrte Ziehung und zu wenig Material sind NICHT Durchfallen.**
+    # Dort wurde nichts gemessen; als Fehlschlag berichtet wäre es eine
+    # Aussage über Daten, die es nicht gibt.
+    assert membership_outcome(m_row("A", 0.70, mirror=0.56)) == "offen"
+    assert membership_outcome(m_row("A", 0.70, n=100)) == "offen"
+    assert membership_outcome(m_row("A", 0.0, usable=False)) == "offen"
+
+    herbst_cands = [cand(f"H{i}", "herbstnah") for i in range(4)]
+    kontrast = [cand("Mai", "anders"), cand("Winter", "kalt")]
+    # Bestanden: die Bestätigungsgruppe trägt, die Kontrastgruppe nicht.
+    gut = membership_verdict(
+        [m_row(f"H{i}", 0.70) for i in range(4)]
+        + [m_row("Mai", 0.52), m_row("Winter", 0.48)],
+        herbst_cands + kontrast)
+    assert gut["state"] == "bestanden", gut
+    assert len(gut["passed"]) == 4
+    # **Die Kontrastgruppe entscheidet zuerst.** Besteht sie mit, hilft
+    # es nicht, dass die Bestätigungsgruppe glänzt — dann misst das
+    # Modell etwas Generisches, und der Plan sieht Rückbau vor.
+    generisch = membership_verdict(
+        [m_row(f"H{i}", 0.75) for i in range(4)]
+        + [m_row("Mai", 0.71), m_row("Winter", 0.69)],
+        herbst_cands + kontrast)
+    assert generisch["state"] == "generisch", generisch
+    # Eine EINZELNE bestehende Kontrastart kippt das Urteil nicht.
+    assert membership_verdict(
+        [m_row(f"H{i}", 0.70) for i in range(4)]
+        + [m_row("Mai", 0.71), m_row("Winter", 0.48)],
+        herbst_cands + kontrast)["state"] == "bestanden"
+    # Eng: die frischen Herbstarten fallen breit durch.
+    eng = membership_verdict(
+        [m_row("H0", 0.70)] + [m_row(f"H{i}", 0.52) for i in range(1, 4)]
+        + [m_row("Mai", 0.50), m_row("Winter", 0.48)],
+        herbst_cands + kontrast)
+    assert eng["state"] == "eng", eng
+    # Offen: nichts sauber gemessen.
+    assert membership_verdict(
+        [m_row(f"H{i}", 0.70, mirror=0.6) for i in range(4)],
+        herbst_cands)["state"] == "offen"
+    # Bekannte Zahlen tragen das Urteil NICHT mit.
+    bekannt = membership_verdict(
+        [m_row("Alt", 0.75)], [cand("Alt", "herbstnah", "Zahlen bekannt")])
+    assert bekannt["state"] == "offen" and not bekannt["passed"], \
+        "eine Regel an bekannten Zahlen zu prüfen beweist nichts"
+
+    # Der Bericht sagt, was gemessen wurde — und nicht mehr.
+    bericht = render_membership_report(
+        [m_row(f"H{i}", 0.70) for i in range(4)]
+        + [m_row("Mai", 0.52), m_row("Winter", 0.48)],
+        herbst_cands + kontrast, gut, "2026-09-16")
+    assert "Bestanden" in bericht and "0.700" in bericht
+    assert "gegenstandslos" not in bericht
+    offen_bericht = render_membership_report(
+        [m_row("H0", 0.70, mirror=0.58)], [cand("H0", "herbstnah")],
+        membership_verdict([m_row("H0", 0.70, mirror=0.58)],
+                           [cand("H0", "herbstnah")]), "2026-09-16")
+    assert "offen" in offen_bericht
+    assert "0.580" in offen_bericht, "die verzerrte Kontrolle gehört sichtbar"
+    generisch_bericht = render_membership_report(
+        [m_row(f"H{i}", 0.75) for i in range(4)]
+        + [m_row("Mai", 0.71), m_row("Winter", 0.69)],
+        herbst_cands + kontrast, generisch, "2026-09-16")
+    assert "gegenstandslos" in generisch_bericht
+    assert "Rückbau" in generisch_bericht, \
+        "der Ausgang gegen das Vorhaben muss im Bericht stehen"
+
     print("ampel_validate self-test: ok")
 
 
@@ -4612,6 +5045,12 @@ def main():
     parser.add_argument("--cold", action="store_true",
                         help="Der registrierte Kalttest: gibt es eine kalte "
                              "KLASSE? (docs/pilzampel-artenfenster.md)")
+    parser.add_argument("--membership", action="store_true",
+                        help="Wie weit trägt das AUSGELIEFERTE Fenster? "
+                             "Misst es an allen Arten mit genug Material, "
+                             "ohne irgendetwas anzupassen "
+                             "(docs/pilzampel-herbstklasse-"
+                             "mitgliedschaft.md)")
     parser.add_argument("--thresholds", action="store_true",
                         help="Die Schwellen messen statt sie zu setzen — "
                              "als Quantil der Vergleichstage "
@@ -4729,6 +5168,49 @@ def main():
                   f"{row['gap_both'] * 100:+5.1f} pp", file=sys.stderr)
         return
 
+    if args.membership:
+        candidates = membership_candidates()
+        if candidates is None:
+            raise SystemExit(
+                "--membership braucht den lokalen GBIF-Bestand "
+                f"({gbif_local.DB_PATH}). Er trägt Kandidatenkreis UND "
+                "Saisongipfel; über die API wären das hunderte Abfragen "
+                "für eine Liste, die sich täglich ändert. Bauen: "
+                "python3 tool/gbif_download.py")
+        if args.only:
+            wanted = {n.strip() for n in args.only.split(",") if n.strip()}
+            unknown = wanted - {c["name"] for c in candidates}
+            if unknown:
+                raise SystemExit(
+                    "Nicht im Kandidatenkreis: " + ", ".join(sorted(unknown))
+                    + ". Der Kreis steht in "
+                    "docs/pilzampel-herbstklasse-mitgliedschaft.md; ihn "
+                    "hier zu erweitern hieße, ihn nach dem ersten Blick "
+                    "auf die Zahlen zu ändern.")
+            candidates = [c for c in candidates if c["name"] in wanted]
+        print(f"Mitgliedschaft am ausgelieferten Fenster "
+              f"({_optimum_text(OPTIMUM_C)} °C), {len(candidates)} Arten:",
+              file=sys.stderr)
+        rows = []
+        for index, candidate in enumerate(candidates, start=1):
+            print(f"  [{index}/{len(candidates)}] {candidate['name']} "
+                  f"({candidate['group']}, {candidate['status']})",
+                  file=sys.stderr)
+            rows.append(membership_species(
+                candidate["name"], candidate["sci"], args.cache, args.seed))
+        verdict = membership_verdict(rows, candidates)
+        report = render_membership_report(rows, candidates, verdict,
+                                          time.strftime("%Y-%m-%d"))
+        if args.out:
+            open(args.out, "w", encoding="utf-8").write(report)
+            print(f"\n{args.out} geschrieben", file=sys.stderr)
+        else:
+            print(report)
+        print(f"\n  Ausgang: {verdict['state']} — "
+              f"{len(verdict['passed'])} von {len(verdict['measured'])} "
+              "gemessenen frischen Herbstarten erfüllen die Bedingung",
+              file=sys.stderr)
+        return
     if args.holdout:
         if not args.only and not args.klass:
             raise SystemExit("--holdout braucht --only oder --class: Der "
