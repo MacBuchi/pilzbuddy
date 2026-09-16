@@ -116,6 +116,45 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
   nutzt, ändert `lib/` mit und bumpt darüber).
 - Gemergte Branches löscht GitHub automatisch (delete_branch_on_merge).
 
+## Externe Datenquellen — was lokal läuft und was nicht
+
+Die Frage „gibt es das lokal?" soll hier in zehn Sekunden beantwortet
+sein. Sie kam am 2026-09-16 auf und kostete zehn Suchen, weil die
+Antwort über drei Orte verteilt lag — einer davon in einem fremden
+Ordner (`~/pilzbuddy-ampel2000/COWORK.md`).
+
+| Quelle | Wofür | Lokal? |
+|---|---|---|
+| **Open-Meteo** | historisches Wetter für die Ampel-Validierung | **JA, eigene Instanz** — `docs/pilzampel-openmeteo-lokal.md` |
+| **GBIF** | Saisonkurven, Fund-Stichproben, Artenfenster | **NEIN, Cloud-API** — lokal ist nur der festgenagelte Cache |
+| **DWD** (WCS/GeoServer) | Regengitter | NEIN — `tool/rain_grid.py`, läuft nur in CI |
+| **Copernicus / DLR** | Wald-, Höhen-, Baumartengitter | NEIN — eigene Workflows, `workflow_dispatch` |
+| **Supabase** | Datenbank, Auth | **JA für Tests** — `supabase start`, siehe Schema Dry Run |
+
+**Open-Meteo und GBIF werden verwechselt**, und das ist naheliegend:
+Beides sind externe Datenquellen der Ampel, und genau eine davon hat
+seit #460/#461 eine eigene Instanz. Es ist **Open-Meteo** —
+`ghcr.io/open-meteo/open-meteo`, `127.0.0.1:8080`, per docker compose.
+Der Anlass war das Cloud-Kontingent, das eine registrierte Messung auf
+Tage streckte; der eigentliche Gewinn ist, dass die Instanz den
+Datensatz pinnt.
+
+**Für GBIF gibt es keine Instanz, und es braucht keine.** Die Search-API
+ist ohne Schlüssel nutzbar; begrenzt ist nicht das Volumen, sondern die
+Frequenz (HTTP 429 nach einigen hundert Abfragen in Folge). Der Ausweg
+ist kein eigener Server, sondern **einmal ziehen und festnageln**:
+`fetch_finds(cache_dir=…)` in `tool/ampel_validate.py` legt die
+Fundlisten unter `~/pilzbuddy-ampel2000/ampel_cache/finds_*.json` ab und
+liest sie danach von dort. Das ist keine Beschleunigung, sondern die
+Voraussetzung für Vergleichbarkeit: **GBIF wächst täglich** — zwei Läufe
+derselben Art lieferten im Abstand von zwei Stunden 2259 gegen 2253
+Meldungen, und damit eine andere Stichprobe.
+
+Daraus folgt die Arbeitsregel: **Wer Hunderte Einzelabfragen
+hintereinander braucht, stellt die falsche Frage.** Ein Download je
+Region oder je Art trägt Zähler und Nenner zugleich; die Auswertung
+passiert danach lokal.
+
 ## Technik-Notizen
 
 - Signing: `android/key.properties` + `android/pilzbuddy-release.jks` (beide

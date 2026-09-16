@@ -7,6 +7,18 @@ Der Anlass war das Kontingent: Eine registrierte Messung dauerte Tage,
 weil `archive-api.open-meteo.com` pro Minute, pro Stunde und pro Tag
 begrenzt ist. Der Grund, es wirklich zu tun, ist ein anderer.
 
+## Was hier NICHT lokal läuft: GBIF
+
+Vorweg, weil es regelmäßig verwechselt wird: Diese Seite beschreibt
+**Open-Meteo**. Die Ampel hat zwei externe Datenquellen, und nur diese
+eine hat eine eigene Instanz.
+
+**GBIF läuft gegen die Cloud** (`api.gbif.org/v1`, `tool/ampel_validate.py`)
+und braucht keinen Schlüssel. Was dort begrenzt ist, ist die Frequenz,
+nicht das Volumen — und die Antwort darauf ist der festgenagelte Cache
+(`fetch_finds(cache_dir=…)`), nicht ein eigener Server. Die Übersicht
+über alle Datenquellen steht in `CLAUDE.md` unter „Externe Datenquellen".
+
 ## Der eigentliche Grund: unsere Messungen pinnen keinen Datensatz
 
 `fetch_weather` fragt die Archiv-API **ohne `models=`**. Damit gilt die
