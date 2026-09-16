@@ -13,11 +13,14 @@ Vorweg, weil es regelmäßig verwechselt wird: Diese Seite beschreibt
 **Open-Meteo**. Die Ampel hat zwei externe Datenquellen, und nur diese
 eine hat eine eigene Instanz.
 
-**GBIF läuft gegen die Cloud** (`api.gbif.org/v1`, `tool/ampel_validate.py`)
-und braucht keinen Schlüssel. Was dort begrenzt ist, ist die Frequenz,
-nicht das Volumen — und die Antwort darauf ist der festgenagelte Cache
-(`fetch_finds(cache_dir=…)`), nicht ein eigener Server. Die Übersicht
-über alle Datenquellen steht in `CLAUDE.md` unter „Externe Datenquellen".
+**GBIF hat keine Instanz, sondern einen Bestand** — seit 2026-09-16
+liegt der DACH-Pilzbestand als Ganzes lokal
+(`~/pilzbuddy-gbif/dach_fungi.sqlite`, gebaut von
+`tool/gbif_download.py`, DOI `10.15468/dl.dwbsuf`). Der Unterschied ist
+nicht nur Wortklauberei: Open-Meteo *rechnet* auf Anfrage, deshalb
+braucht es einen laufenden Dienst; GBIF *liefert Zeilen*, die man einmal
+holt und festnagelt. Die Übersicht über alle Datenquellen steht in
+`CLAUDE.md` unter „Externe Datenquellen".
 
 ## Der eigentliche Grund: unsere Messungen pinnen keinen Datensatz
 
