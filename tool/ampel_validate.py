@@ -3143,14 +3143,27 @@ def membership_verdict(rows, candidates):
     # die Frage nach der Mitgliedschaft gegenstandslos — dann trennt
     # das Modell nicht nach Fenster, und eine längere Mitgliederliste
     # wäre eine Erweiterung von etwas, das nichts behauptet.
+    #
+    # **Und wenn sie gar nicht messbar war, entscheidet sie ebenfalls —
+    # nämlich gegen ein sauberes „bestanden"** (nachgetragen am
+    # 2026-09-16, nachdem der erste Lauf genau darin lief). Die erste
+    # Fassung prüfte den Gegen-Ausgang nur, wenn überhaupt eine
+    # Kontrastart auswertbar war; fiel die ganze Gruppe wegen
+    # verzerrter Ziehung aus, sagte sie stillschweigend „bestanden".
+    # Das ist der Wächter, der genau dann schweigt, wenn er gebraucht
+    # wird: Die Bestätigungsgruppe allein kann nicht zeigen, dass das
+    # Fenster ETWAS AUSSCHLIESST — dafür ist die Kontrastgruppe da.
+    # Die Änderung macht den Ausgang strenger, nie milder.
     if contrast_measured and len(contrast_passed) == len(contrast_measured):
         state = "generisch"
     elif not measured:
         state = "offen"
-    elif len(passed) * 2 >= len(measured):
-        state = "bestanden"
-    else:
+    elif len(passed) * 2 < len(measured):
         state = "eng"
+    elif not contrast_measured:
+        state = "flanke"
+    else:
+        state = "bestanden"
     return {
         "state": state,
         "passed": passed,
@@ -3245,6 +3258,31 @@ def render_membership_report(rows, candidates, verdict, stamp):
             "Arten der Bestätigungsgruppe erfüllen die Bedingung**, und "
             "die Kontrastgruppen tun es nicht. Das ausgelieferte Fenster "
             "trägt damit über die fünf heutigen Mitglieder hinaus.")
+    elif state == "flanke":
+        lines.append(
+            f"**Kein sauberer Ausgang.** Die Bestätigungsgruppe trägt "
+            f"deutlich — {passed} von {measured} gemessenen frischen "
+            "Arten erfüllen die Bedingung. Aber **keine einzige frische "
+            "Kontrastart war auswertbar**: Ihre Ziehungen sind verzerrt, "
+            "dort wurde nichts gemessen. Damit fehlt genau die Hälfte "
+            "des registrierten Plans — die Bestätigungsgruppe kann "
+            "zeigen, dass das Fenster trägt, aber nicht, dass es etwas "
+            "AUSSCHLIESST.")
+        lines.append("")
+        lines.append(
+            "Das ist kein Formfehler. Eine Kontrastart mit hoher AUC und "
+            "verzerrter Ziehung ist keine Entwarnung, sondern eine "
+            "ungeprüfte Warnung: Wäre ihre Ziehung sauber und die Zahl "
+            "bliebe, stünde hier der Gegen-Ausgang.")
+        lines.append("")
+        lines.append(
+            "**Was dagegen spricht, und warum es den Ausgang trotzdem "
+            "nicht trägt:** Die Winterarten fallen bei sauberer "
+            "Kontrolle durch — das Fenster feuert dort also nicht. Das "
+            "ist die Richtung, die ein echtes Temperaturfenster zeigen "
+            "muss. Ihre Zahlen waren aber vor der Registrierung bekannt, "
+            "und eine Regel an bekannten Zahlen zu prüfen beweist "
+            "nichts; sie sind Kontext, kein Beleg.")
     elif state == "eng":
         lines.append(
             f"**Nicht bestanden — nur {passed} von {measured} gemessenen "
@@ -4305,6 +4343,34 @@ def self_test():
         + [m_row("Mai", 0.50), m_row("Winter", 0.48)],
         herbst_cands + kontrast)
     assert eng["state"] == "eng", eng
+    # **Offene Flanke: die Bestaetigungsgruppe traegt, die Kontrastgruppe
+    # war gar nicht messbar.** Genau dieser Fall trat am 2026-09-16 ein —
+    # beide frischen Kontrastarten hatten verzerrte Ziehungen. Ohne
+    # diesen Zweig meldete das Urteil dort "bestanden", also einen
+    # sauberen Ausgang, obwohl die Haelfte des Plans ausgefallen war.
+    flanke = membership_verdict(
+        [m_row(f"H{i}", 0.70) for i in range(4)]
+        + [m_row("Mai", 0.77, mirror=0.55), m_row("Winter", 0.48, mirror=0.54)],
+        herbst_cands + kontrast)
+    assert flanke["state"] == "flanke", flanke
+    assert len(flanke["passed"]) == 4, "die Bestaetigungsgruppe traegt trotzdem"
+    assert not flanke["contrast_measured"]
+    flanke_bericht = render_membership_report(
+        [m_row(f"H{i}", 0.70) for i in range(4)]
+        + [m_row("Mai", 0.77, mirror=0.55), m_row("Winter", 0.48, mirror=0.54)],
+        herbst_cands + kontrast, flanke, "2026-09-16")
+    assert "Kein sauberer Ausgang" in flanke_bericht
+    assert "AUSSCHLIESST" in flanke_bericht
+    assert "Kontext, kein Beleg" in flanke_bericht, \
+        "die saubere Gegenrichtung gehoert genannt — aber als Kontext"
+    assert "ungeprüfte Warnung" in flanke_bericht, \
+        "eine hohe AUC bei verzerrter Ziehung ist keine Entwarnung"
+    # Und eine EINZIGE messbare Kontrastart genuegt fuer den sauberen Ausgang.
+    assert membership_verdict(
+        [m_row(f"H{i}", 0.70) for i in range(4)]
+        + [m_row("Mai", 0.52), m_row("Winter", 0.48, mirror=0.54)],
+        herbst_cands + kontrast)["state"] == "bestanden"
+
     # Offen: nichts sauber gemessen.
     assert membership_verdict(
         [m_row(f"H{i}", 0.70, mirror=0.6) for i in range(4)],
