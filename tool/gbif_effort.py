@@ -62,7 +62,17 @@ REGIONS = {
                  lat=(51.5, 52.2), lon=(9.8, 11.0)),
     "obb": dict(name="Oberbayern/Alpenvorland",
                 lat=(47.6, 48.5), lon=(11.0, 12.3)),
+    # Ganz DACH geht nur aus der lokalen Datenbank: ueber die Such-API
+    # waeren das 12 600 Seiten. Siehe tool/gbif_download.py.
+    "dach": dict(name="DACH gesamt", lat=(45.8, 55.1), lon=(5.9, 17.2),
+                 local_only=True),
 }
+LOCAL_DB = os.path.expanduser(
+    os.environ.get("GBIF_DB", "~/pilzbuddy-gbif/dach_fungi.sqlite"))
+# Landflaeche DE + AT + CH, fuer den Abdeckungsanteil. Die Bbox ist
+# groesser (sie umschliesst auch Nachbarlaender und Meer), gegen sie zu
+# rechnen wuerde die Abdeckung kleinrechnen.
+DACH_LAND_KM2 = 357_600 + 83_900 + 41_300
 
 
 # --------------------------------------------------------------- Netz
@@ -128,7 +138,38 @@ def _collect(box, rows, depth=0):
           f"{box[2]:.2f}–{box[3]:.2f}: {total:,})", file=sys.stderr)
 
 
+def from_local_db(region):
+    """Sichtungen aus der heruntergeladenen Datenbank (gbif_download.py).
+
+    Derselbe Schnitt wie der Netzweg — Sichtungen unter CC0/CC BY —,
+    nur dass hier die Filter LOKAL gesetzt werden. Genau dafuer laedt
+    der Download bewusst ungefiltert.
+    """
+    import sqlite3
+    if not os.path.exists(LOCAL_DB):
+        raise SystemExit(
+            f"{LOCAL_DB} fehlt — erst 'python3 tool/gbif_download.py "
+            f"request/status/fetch/build'.")
+    con = sqlite3.connect(LOCAL_DB)
+    la1, la2 = region["lat"]
+    lo1, lo2 = region["lon"]
+    rows = con.execute(
+        "SELECT decimalLatitude, decimalLongitude, species, genus, "
+        "       month, year, recordedBy "
+        "FROM occ WHERE basisOfRecord='HUMAN_OBSERVATION' "
+        "  AND license IN ('CC0_1_0','CC_BY_4_0') "
+        "  AND decimalLatitude BETWEEN ? AND ? "
+        "  AND decimalLongitude BETWEEN ? AND ?",
+        (la1, la2, lo1, lo2)).fetchall()
+    con.close()
+    print(f"{len(rows):,} Sichtungen aus {LOCAL_DB}", file=sys.stderr)
+    return [{"lat": r[0], "lon": r[1], "sci": r[2], "genus": r[3],
+             "month": r[4], "year": r[5], "by": r[6]} for r in rows]
+
+
 def fetch_region(region):
+    if region.get("local_only") or os.path.exists(LOCAL_DB):
+        return from_local_db(region)
     os.makedirs(CACHE, exist_ok=True)
     safe = re.sub(r"[^A-Za-z0-9]+", "_", region["name"])
     path = os.path.join(CACHE, f"fungi_{safe}.json")
@@ -271,8 +312,13 @@ def report(region, rows, targets, genera):
         g = cells_of(rows, km, targets, genera)
         ok = sum(1 for c in g.values()
                  if totals(c)[1] >= MIN_RECORDS and fair_share(c) is not None)
-        print(f"   {km:>5g} km: {ok:>3} von {possible:>4} Zellen "
-              f"= {ok / possible:>4.0%}")
+        if region.get("local_only"):
+            area = ok * km * km
+            print(f"   {km:>5g} km: {ok:>5,} Zellen = {area:>7,.0f} km² "
+                  f"= {area / DACH_LAND_KM2:>4.0%} der DACH-Landfläche")
+        else:
+            print(f"   {km:>5g} km: {ok:>3} von {possible:>4} Zellen "
+                  f"= {ok / possible:>4.0%}")
 
 
 # ------------------------------------------------------------ Selbsttest
