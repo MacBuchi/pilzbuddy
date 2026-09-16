@@ -4,8 +4,11 @@ Vormessung zu Issue #467, gemessen am 2026-09-16. **Ergebnis: ja, aber
 erst ab 10–20 km Zellgröße** — und damit nicht als die Karte, nach der
 gefragt war.
 
-Werkzeug: `tool/gbif_effort.py` (Download, gekachelt und festgenagelt)
-plus die Auswertungen daneben. Zwei Regionen, bewusst ungleich beprobt:
+Werkzeug: `tool/gbif_effort.py` (Download, gekachelt und festgenagelt).
+Gekachelt, weil tiefes Blättern bei GBIF nicht scheitert, sondern
+kriecht: Ab `offset` ~10 000 braucht dieselbe Seite **341 s statt
+0,3 s** und liefert danach ihre 300 Treffer — von außen ununterscheidbar
+von einem Hänger. Zwei Regionen, bewusst ungleich beprobt:
 
 | Region | Bbox | Fungi-Sichtungen (CC0/CC-BY) |
 |---|---|---|

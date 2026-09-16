@@ -16,12 +16,16 @@ diese Struktur der Wald ist oder die Vorliebe einzelner Melder.
 
 ZWEI FALLEN, BEIDE STILL:
 
-1. GBIF LÄUFT AUF ELASTICSEARCH, und dessen `max_result_window` steht
-   auf 10 000. Ab `offset` 10 000 kommt KEIN Fehler — die Anfrage hängt
-   einfach, minutenlang, ohne offene Verbindung. Gemessen am
-   2026-09-16: Der Lauf blieb zweimal bei exakt 10 200 stehen, mit und
-   ohne WKT-`geometry`. Deshalb kachelt [_collect] die Region rekursiv,
-   bis jede Kachel unter die Grenze passt, statt tief zu blättern.
+1. TIEFES BLÄTTERN SCHEITERT NICHT, ES KRIECHT. Ab `offset` ~10 000
+   braucht dieselbe Seite **341 s statt 0,3 s** — gemessen am
+   2026-09-16 bei offset 10 200 und 10 500, beide lieferten am Ende
+   ihre 300 Treffer. Es ist also kein Fehler, kein Rate-Limit und
+   keine Fenstergrenze, sondern der übliche `from + size`-Preis einer
+   Elasticsearch-Suche; von außen sieht es aus wie ein Hänger, und ein
+   Timeout macht daraus einen Abbruch ohne Grund. Der Lauf blieb
+   zweimal bei exakt 10 200 stehen, mit und ohne WKT-`geometry`.
+   Deshalb kachelt [_collect] die Region rekursiv, bis jede Kachel
+   unter ES_WINDOW passt, statt tief zu blättern.
 
 2. DIE MELDER DOMINIEREN. In der typischen 5-km-Zelle stammen 69 % der
    Meldungen von EINER Person. Wer den Anteil je Zelle roh zählt, misst
@@ -48,7 +52,7 @@ import urllib.request
 GBIF = os.environ.get("GBIF_API", "https://api.gbif.org/v1")
 CACHE = os.path.expanduser(os.environ.get("GBIF_EFFORT_CACHE",
                                           "~/pilzbuddy-gbif-effort"))
-ES_WINDOW = 9000                      # unter Elasticsearchs 10 000 bleiben
+ES_WINDOW = 9000                      # darüber kriecht das Blättern, siehe oben
 MIN_RECORDS = 30                      # weniger ist je Zelle Rauschen
 MIN_PER_RECORDER = 5                  # ab hier zählt ein Melder als Stimme
 MIN_RECORDERS = 3                     # so viele Stimmen braucht eine Zelle
