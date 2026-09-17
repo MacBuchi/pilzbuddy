@@ -208,6 +208,42 @@ Jahres-Bootstrap, mit dem bisher berichtet wurde, ist damit der
 vorsichtigere von beiden — **die veröffentlichten Vertrauensbereiche
 waren nicht zu eng.**
 
+## A4 — das Judasohr ohne Stichprobengrenze
+
+Die Grenze von 3000 Meldungen schnitt nach `gbifID`, also die jüngsten
+Einträge ab, und griff unter den gemessenen Arten genau beim Judasohr
+(3097 in DE). Weil alle vier Befunde gegen diese Art aus derselben
+Stichprobe stammen, verlangt der Auftrag eine Neumessung.
+
+| | Meldungen | Paare | AUC | Spiegel | Toleranz (2 SE) |
+|---|--:|--:|--:|--:|--:|
+| alt, gedeckelt | 3000 | 1287 | 0.525 | 0.473 | ±0.033 |
+| neu, ohne Deckel | 3097 | 1265 | 0.521 | 0.487 | ±0.033 |
+| Differenz | +97 | −22 | **−0.004** | +0.015 | |
+
+Und die Frost-Signatur, auf der neuen Stichprobe:
+
+| Art | Frost 7 d F/V | 28 d F/V | Wärme seit Frost F/V |
+|---|---|---|---|
+| Samtfußrübling | 67 % / 44 % | 89 % / 62 % | 25 / 34 |
+| Austernseitling | 40 % / 30 % | 54 % / 46 % | 28 / 40 |
+| **Judasohr** | **39 % / 40 %** | 63 % / 54 % | **51 / 39** |
+
+**Der Deckel war ein echter Mangel und nicht die Ursache.** Die AUC
+bewegt sich um 0,004, die Spiegel-Kontrolle hält vorher wie nachher. Beim
+Judasohr steht die Frost-Signatur jetzt sogar etwas deutlicher auf der
+Gegenseite als vorher: im Sieben-Tage-Rückblick haben seine
+Vergleichstage **mehr** Frost als seine Fundtage (40 % gegen 39 %), und
+die Wärmesumme seit dem letzten Frost liegt bei Fundtagen höher (51 gegen
+39), während sie bei den beiden anderen Arten niedriger liegt.
+
+**Was der Auftrag zu Recht einwendet, bleibt trotzdem stehen:** Die vier
+Befunde gegen das Judasohr sind vier Blickwinkel auf weitgehend dieselben
+Daten und keine vier unabhängigen Tests. Zwei davon (Hold-out-Gewinn und
+nachangepasstes Auslandsoptimum) stammen ohnehin aus AT+CH, wo der Deckel
+nie gegriffen hat — dort liegen 1259 Meldungen. Die Neumessung entkräftet
+also den Stichproben-Einwand, ersetzt aber keinen unabhängigen Test.
+
 ## A5 — warum die Spiegel-Kontrolle wandert
 
 Der Messbasis-Bericht schrieb die Wanderung dem **Instrument** zu,
