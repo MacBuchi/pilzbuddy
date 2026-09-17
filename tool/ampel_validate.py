@@ -819,6 +819,26 @@ def season_span(days_of_year, year=None):
     return first, last
 
 
+def clamp_span(span, year):
+    """Einen Zeitraum auf ein ANDERES Jahr zuschneiden.
+
+    **Index 365 gibt es nur in Schaltjahren.** `season_span` klemmt
+    deshalb schon auf das Jahr, aus dem es gerufen wurde — Design B
+    reicht denselben Zeitraum aber an bis zu zehn andere Jahre weiter,
+    und in einem Nicht-Schaltjahr wird aus Index 365 das Datum
+    „JJJJ-13-01". Open-Meteo antwortet darauf mit einem 400, und zwar
+    ohne zu sagen, welches Feld es stört.
+
+    Genau so ist beim ersten Probelauf die Hälfte der Kontrolljahre
+    ausgefallen — und weil Design B fehlende Jahre absichtlich nur zählt
+    statt abzubrechen, wäre es als „dünne Datenlage" durchgegangen. Der
+    Zähler hat den Fehler sichtbar gemacht; das ist der Grund, warum er
+    da ist.
+    """
+    last_index = 365 if _leap(year) else 364
+    return span[0], min(span[1], last_index)
+
+
 def _date_from_index(year, index):
     days = [31, 29 if _leap(year) else 28, 31, 30, 31, 30,
             31, 31, 30, 31, 30, 31]
@@ -1350,7 +1370,8 @@ def collect_pairs_b(name, sci, finds=None, cache_dir=None, seed=42,
         for other in kandidaten:
             try:
                 reihen[other] = fetch_weather(points, other, cache_dir,
-                                              progress=False, span=span)
+                                              progress=False,
+                                              span=clamp_span(span, other))
             except Exception as error:  # noqa: BLE001
                 fehlende_jahre.setdefault(other, 0)
                 fehlende_jahre[other] += 1
@@ -4666,6 +4687,18 @@ def self_test():
     mit = dict(gut, placebo_found=([1.0] * 26, [13.0] * 20),
                placebo_controls=[([1.0] * 26, [30.0] * 20)])
     assert placebo_b([mit]) == (1.0, 1)
+
+    # **Ein Zeitraum aus einem Schaltjahr passt nicht in jedes andere.**
+    # Index 365 existiert nur in Schaltjahren; ungeklemmt wird daraus
+    # das Datum „JJJJ-13-01" und Open-Meteo antwortet mit einem 400.
+    assert clamp_span((10, 365), 2020) == (10, 365)      # Schaltjahr
+    assert clamp_span((10, 365), 2021) == (10, 364)      # keines
+    assert clamp_span((10, 300), 2021) == (10, 300)      # nichts zu tun
+    assert _date_from_index(2020, 365) == "2020-12-31"
+    assert _date_from_index(2021, 364) == "2021-12-31"
+    # Und der Beweis, dass es ohne Klemmen schiefgeht:
+    assert _date_from_index(2021, 365).startswith("2021-13"), \
+        "ohne Klemmen entsteht ein Monat 13 — genau der stille 400er"
 
     # --- Design B: das Mass, netzfrei ----------------------------------
     #

@@ -809,10 +809,356 @@ def render(zeilen, referenz):
     return "\n".join(aus) + "\n"
 
 
+# --- Phase 1.5: beide Designs nebeneinander --------------------------------
+
+DESIGN_ARTEN = [
+    ("Steinpilz", "herbst", 13.0), ("Maronenröhrling", "herbst", 13.0),
+    ("Birkenpilz", "herbst", 13.0), ("Fichtenreizker", "herbst", 13.0),
+    ("Herbsttrompete", "herbst", 13.0), ("Pfifferling", "sommer", 17.5),
+    ("Hallimasch", "holz", 13.0), ("Stockschwämmchen", "holz", 13.0),
+    ("Austernseitling", "kalt", -2.5), ("Judasohr", "kalt", -2.5),
+    ("Samtfußrübling", "kalt", -2.5),
+]
+
+# Unter so vielen Funden wird nicht gerechnet, sondern „zu duenn"
+# geschrieben. **Gezaehlt werden FUNDE, nicht Vergleiche** — bei fuenf
+# Kontrolljahren je Fund waere die Zahl der Vergleiche fuenfmal so gross
+# und sagte ueber die Unabhaengigkeit nichts.
+MIN_FINDS_B = 150
+
+
+def bootstrap_b(samples, optimum, schluessel, rounds=BOOTSTRAP_ROUNDS,
+                seed=42, limit=None):
+    """95-%-Bereich des B-Masses, gezogen ueber Gruppen.
+
+    Ueber das FUNDJAHR, nicht ueber „das Jahr": Ein B-Paar gehoert zu
+    zwei Jahren, und ohne diese Festlegung aenderte dieselbe Spalte ihre
+    Bedeutung zwischen den Designs, ohne dass es jemand saehe.
+    """
+    gruppen = {}
+    for s in samples:
+        gruppen.setdefault(schluessel(s), []).append(s)
+    namen = sorted(gruppen, key=str)
+    if len(namen) < 2:
+        return None
+    rng = random.Random(seed)
+    zuege = []
+    for _ in range(rounds):
+        gezogen = [rng.choice(namen) for _ in namen]
+        teil = [s for name in gezogen for s in gruppen[name]]
+        wert, _ = av.score_b(teil, optimum, limit=limit)
+        if wert is not None:
+            zuege.append(wert)
+    if not zuege:
+        return None
+    zuege.sort()
+    return (zuege[int(0.025 * len(zuege))],
+            zuege[min(len(zuege) - 1, int(0.975 * len(zuege)))])
+
+
+def run_designs(args):
+    """Phase 1.5 — Design A und Design B auf derselben Stichprobe."""
+    if args.api:
+        av.OPEN_METEO = args.api.rstrip("/")
+    av.DEDUPE = args.dedupe
+    av.use_dataset(args.dataset)
+    print(f"Datensatz: {av.DATASET}, Entdoppeln "
+          f"{'an' if av.DEDUPE else 'aus'}, nur DE, nur Jahre bis "
+          f"{av.FIT_UNTIL_YEAR}", file=sys.stderr)
+
+    mapping = av.read_species()
+    wanted = DESIGN_ARTEN
+    if args.only:
+        gesucht = {n.strip() for n in args.only.split(",") if n.strip()}
+        wanted = [z for z in DESIGN_ARTEN if z[0] in gesucht]
+
+    pool = None
+    zeilen = []
+    for name, gruppe, optimum in wanted:
+        if name not in mapping:
+            continue
+        sci = mapping[name]
+        print(f"  {name} ({sci})", file=sys.stderr)
+        finds, info = av.select_finds(sci, args.cache, args.seed, True,
+                                      ("DE",))
+        if not finds:
+            continue
+
+        # **Dieselbe Fundliste in beide Designs.**
+        a = av.collect_pairs(name, sci, cache_dir=args.cache, seed=args.seed,
+                             progress=False, finds=finds)
+        b = av.collect_pairs_b(name, sci, finds=finds, cache_dir=args.cache,
+                               seed=args.seed, progress=True)
+        if not a or not b:
+            continue
+        a_s = fit_years_only(a["samples"])
+        b_s = fit_years_only(b["samples"])
+
+        a_auc = av.paired_auc([(av.ampel_score(*s["found"], optimum),
+                                av.ampel_score(*s["control"], optimum))
+                               for s in a_s]) if a_s else None
+        a_mirror = av.paired_auc([(av.ampel_score(*s["control"], optimum),
+                                   av.ampel_score(*s["mirror"], optimum))
+                                  for s in a_s if s.get("mirror")])
+        b_auc, b_n = av.score_b(b_s, optimum)
+        b_auc1, _ = av.score_b(b_s, optimum, limit=1)
+        b_plac, b_plac_n = av.placebo_b(b_s, optimum)
+        b_frueh, _ = av.score_b(b_s, optimum, side="frueher")
+        b_spaet, _ = av.score_b(b_s, optimum, side="spaeter")
+
+        # A3 — die artgematchte Referenz, je Art
+        if pool is None:
+            print("    Referenzbestand wird geladen …", file=sys.stderr)
+            pool = target_group_finds(progress=True)
+        ref_finds, ref_info = matched_reference(finds, pool, sci,
+                                                seed=args.seed)
+        ref_b = None
+        if len(ref_finds) >= 50:
+            rb = av.collect_pairs_b("Referenz " + name, "—", finds=ref_finds,
+                                    cache_dir=args.cache, seed=args.seed,
+                                    progress=False)
+            if rb:
+                ref_b = av.score_b(fit_years_only(rb["samples"]), optimum)[0]
+
+        zeilen.append({
+            "name": name, "gruppe": gruppe, "optimum": optimum,
+            "a_n": len(a_s), "a_auc": a_auc, "a_mirror": a_mirror,
+            "a_mirror_n": len([s for s in a_s if s.get("mirror")]),
+            "b_n": b_n, "b_auc": b_auc, "b_auc1": b_auc1,
+            "b_plac": b_plac, "b_plac_n": b_plac_n,
+            "b_frueh": b_frueh, "b_spaet": b_spaet,
+            "b_band_jahr": bootstrap_b(b_s, optimum, lambda s: s["year"],
+                                       seed=args.seed),
+            "b_band_melder": bootstrap_b(
+                b_s, optimum,
+                lambda s: s.get("recordedBy") or f"a{id(s)}", seed=args.seed),
+            "ausgewichen": b["ausgewichen"], "ohne_jahr": b["ohne_jahr"],
+            "fehlende_jahre": b["fehlende_jahre"],
+            "ref_b": ref_b, "ref_n": len(ref_finds), "ref_info": ref_info,
+            "duenn": b_n < MIN_FINDS_B,
+            "frost_b": frost_profile_b(b_s) if gruppe == "kalt" else None,
+        })
+        z = zeilen[-1]
+        print(f"    A {_fmt(z['a_auc'])} ({z['a_n']})   "
+              f"B {_fmt(z['b_auc'])} ({z['b_n']})   "
+              f"Placebo B {_fmt(z['b_plac'])}", file=sys.stderr)
+
+    bericht = render_designs(zeilen)
+    if args.out:
+        open(args.out, "w", encoding="utf-8").write(bericht)
+        print(f"\n{args.out} geschrieben", file=sys.stderr)
+    else:
+        print(bericht)
+
+
+def frost_profile_b(samples):
+    """Die Frost-Diagnose aus 1.2, aber in Design B.
+
+    **Erst hier ist sie ablesbar.** In Design A liegen die Vergleichstage
+    26–45 Tage neben dem Fund und damit bei einer Winterart zwangslaeufig
+    Richtung Herbst und Fruehjahr — dass Fundtage dann mehr Frost im
+    Ruecken haben, folgt schon aus dem Kalender. In Design B liegt der
+    Vergleichstag am selben Datum anderer Jahre; was hier bleibt, ist
+    Wetter und nicht Jahreszeit.
+    """
+    out = {}
+    for length in FROST_LOOKBACKS:
+        treffer_f = gesamt_f = treffer_v = gesamt_v = 0
+        for s in samples:
+            n = frost_days(s.get("extra", {}).get("tmin"), length)
+            if n is not None:
+                gesamt_f += 1
+                treffer_f += 1 if n > 0 else 0
+            for extra in s.get("extra_controls", []):
+                m = frost_days(extra.get("tmin"), length)
+                if m is not None:
+                    gesamt_v += 1
+                    treffer_v += 1 if m > 0 else 0
+        out[f"frosttag_in_{length}d"] = {
+            "fund": (treffer_f / gesamt_f if gesamt_f else None, gesamt_f),
+            "vergleich": (treffer_v / gesamt_v if gesamt_v else None,
+                          gesamt_v)}
+    for name, fn in (("tage_seit_frost",
+                      lambda tmin, temp: days_since_frost(tmin)),
+                     ("waerme_seit_frost",
+                      lambda tmin, temp: warmth_since_frost(temp, tmin))):
+        f_werte, v_werte = [], []
+        for s in samples:
+            w = fn(s.get("extra", {}).get("tmin"),
+                   s["found"][1] if s.get("found") else None)
+            if w is not None:
+                f_werte.append(w)
+            for extra, ctrl in zip(s.get("extra_controls", []),
+                                   s.get("controls", [])):
+                w = fn(extra.get("tmin"), ctrl[1])
+                if w is not None:
+                    v_werte.append(w)
+        out[name] = {
+            "fund": (statistics.fmean(f_werte) if f_werte else None,
+                     len(f_werte)),
+            "vergleich": (statistics.fmean(v_werte) if v_werte else None,
+                          len(v_werte))}
+    return out
+
+
+def render_designs(zeilen):
+    """Der Bericht zu Phase 1.5."""
+    import time as _t
+    aus = []
+    w = aus.append
+    band = lambda b: "—" if b is None else f"[{b[0]:.3f}, {b[1]:.3f}]"
+    w("# Zwei Kontrolltag-Designs nebeneinander\n")
+    w(f"Stand: {_t.strftime('%Y-%m-%d')} · Erzeugt von "
+      "`tool/ampel_diagnose.py --designs` · Auftrag: "
+      "`docs/pilzampel-auftrag-2.md`, Abschnitt 3\n")
+    w("Gerechnet auf **Deutschland und den Jahren bis "
+      f"{av.FIT_UNTIL_YEAR}**. Kein Hold-out-Kontakt. Beide Designs "
+      "laufen auf **derselben Fundliste** — sonst wäre ihr Unterschied "
+      "teils die Stichprobe statt das Design.\n")
+    w(f"Messbasis: `{av.DATASET}`, Entdoppeln "
+      f"{'an' if av.DEDUPE else 'aus'}.\n")
+
+    w("\n## Was die beiden Designs fragen\n")
+    w("**Design A** vergleicht den Fundtag mit einem Tag 26–45 Tage "
+      "daneben im selben Jahr. Das kürzt die Saison nur ungefähr heraus.\n")
+    w("**Design B** vergleicht ihn mit demselben Datum (±7 Tage) in fünf "
+      "anderen Jahren am selben Ort. Die Saison kürzt sich vollständig "
+      "heraus, und übrig bleibt: *War das Wetter dieses Jahr an diesem "
+      "Datum besser als an diesem Datum üblich?*\n")
+    w("**Zwei Gründe, warum B kleinere Zahlen liefern MUSS**, beide vorab "
+      "festgehalten und keine Fehlschläge:\n")
+    w("1. Die Kalenderkomponente fehlt. Was in A die Saison beisteuerte, "
+      "steht in B nicht mehr zur Verfügung.")
+    w("2. **„Üblich\u201c schließt die guten Jahre ein.** Ein Kontrolljahr "
+      "kann am selben Ort zur selben Woche sehr wohl einen Fund getragen "
+      "haben — Presence-only trennt „kein Fund\u201c nicht von „niemand war "
+      "da\u201c. Solche Jahre auszuschließen wäre genau der Detektionsfehler, "
+      "den die Daten nicht hergeben. Also bleiben sie drin, und sie "
+      "dämpfen die Zahl.\n")
+
+    w("\n## Gemessen\n")
+    w("| Art | Gruppe | AUC A | AUC B (k=5) | B (k=1) | Differenz B−A | "
+      "Placebo B | Funde A / B |")
+    w("|---|---|--:|--:|--:|--:|--:|--:|")
+    for z in zeilen:
+        d = (None if z["a_auc"] is None or z["b_auc"] is None
+             else z["b_auc"] - z["a_auc"])
+        marke = " ⚠ zu dünn" if z["duenn"] else ""
+        w(f"| {z['name']}{marke} | {z['gruppe']} | {_fmt(z['a_auc'])} | "
+          f"**{_fmt(z['b_auc'])}** | {_fmt(z['b_auc1'])} | "
+          f"{_signed(d)} | {_fmt(z['b_plac'])} | "
+          f"{z['a_n']} / {z['b_n']} |")
+    w("")
+    w(f"„Zu dünn\u201c heißt: unter {MIN_FINDS_B} Funden in Design B. Dort "
+      "steht die Zahl zur Einordnung, sie trägt aber kein Urteil.\n")
+
+    w("\n## Kontrollen und Vertrauensbereiche\n")
+    w("| Art | Spiegel A | Toleranz A | Placebo B | Toleranz B | "
+      "B über Jahre | B über Melder |")
+    w("|---|--:|--:|--:|--:|---|---|")
+    for z in zeilen:
+        ta = av.control_tolerance(z["a_mirror_n"])
+        tb = av.control_tolerance(z["b_plac_n"])
+        ma = "" if z["a_mirror"] is None or av.control_clean(
+            z["a_mirror"], z["a_mirror_n"]) else " ⚠"
+        mb = "" if z["b_plac"] is None or av.control_clean(
+            z["b_plac"], z["b_plac_n"]) else " ⚠"
+        w(f"| {z['name']} | {_fmt(z['a_mirror'])}{ma} | ±{ta:.3f} | "
+          f"{_fmt(z['b_plac'])}{mb} | ±{tb:.3f} | "
+          f"{band(z['b_band_jahr'])} | {band(z['b_band_melder'])} |")
+    w("")
+    w("Die Toleranz ist **zwei Standardfehler bei der jeweiligen "
+      "Paarzahl** (A2), nicht mehr die feste ±0,03. Der Bootstrap in "
+      "Design B zieht über das **Fundjahr** — ein B-Paar gehört zu zwei "
+      "Jahren, und ohne diese Festlegung änderte dieselbe Spalte ihre "
+      "Bedeutung zwischen den Designs.\n")
+
+    w("\n## Richtungs-Split in Design B\n")
+    w("Kontrolljahr früher gegen später. Eine Schieflage deckt "
+      "Klimatrend und Instrumentreste auf — anders als in Design A, wo "
+      "derselbe Split die Saisonsteigung misst.\n")
+    w("| Art | B früher | B später | Differenz |")
+    w("|---|--:|--:|--:|")
+    for z in zeilen:
+        d = (None if z["b_frueh"] is None or z["b_spaet"] is None
+             else z["b_spaet"] - z["b_frueh"])
+        w(f"| {z['name']} | {_fmt(z['b_frueh'])} | {_fmt(z['b_spaet'])} | "
+          f"{_signed(d)} |")
+
+    w("\n## Die Ziehung: wo sie ausweichen musste\n")
+    w("Bei Funden aus den Randjahren ist eine Seite leer. Dann wird die "
+      "andere genommen — und es wird gezählt, sonst wäre die Regel wieder "
+      "eine Hoffnung, nur unsichtbar.\n")
+    w("| Art | Seitenwechsel | Funde ohne brauchbares Jahr | fehlende Jahre |")
+    w("|---|--:|--:|---|")
+    for z in zeilen:
+        fehlt = (", ".join(f"{j}×{n}" for j, n in
+                           sorted(z["fehlende_jahre"].items()))
+                 or "keine")
+        w(f"| {z['name']} | {z['ausgewichen']} | {z['ohne_jahr']} | {fehlt} |")
+
+    w("\n## Die artgematchte Aufwands-Referenz (A3)\n")
+    w("Referenzmeldungen aus **denselben ~10-km-Zellen** und mit der "
+      "**Monatsverteilung der Zielart** als Gewicht, Zielart "
+      "ausgeschlossen — und in Design B ausgewertet. Die alte Referenz "
+      "aus Phase 1.3 stammte aus der allgemeinen, herbstlastigen "
+      "Verteilung und war für eine Winterart keine faire Vergleichsgröße.\n")
+    w("**Die Spalte ist kein Abzugsposten** (A6): „irgendeine "
+      "Pilzmeldung\u201c ist überwiegend *andere Pilze*, die auf dasselbe "
+      "Wetter reagieren. Die Referenz begrenzt den Suchaufwand nach oben "
+      "und die allgemeine Pilz-Wetterreaktion nach unten; dieses Design "
+      "kann die beiden nicht trennen.\n")
+    w("| Art | B der Art | B der Referenz | Differenz zur Referenz | "
+      "Referenzfunde | Zellen |")
+    w("|---|--:|--:|--:|--:|--:|")
+    for z in zeilen:
+        d = (None if z["b_auc"] is None or z["ref_b"] is None
+             else z["b_auc"] - z["ref_b"])
+        w(f"| {z['name']} | {_fmt(z['b_auc'])} | {_fmt(z['ref_b'])} | "
+          f"{_signed(d)} | {z['ref_n']} | {z['ref_info']['zellen']} |")
+
+    kalt = [z for z in zeilen if z["frost_b"]]
+    if kalt:
+        w("\n## Frost-Diagnose in Design B\n")
+        w("Dieselbe Rechnung wie in Phase 1.2, aber gegen Tage desselben "
+          "Datums anderer Jahre. **Erst hier ist ablesbar, ob die "
+          "Frost-Signatur den Kalender überlebt** — in Design A liegen die "
+          "Vergleichstage einer Winterart zwangsläufig Richtung Herbst und "
+          "Frühjahr, dass Fundtage dann mehr Frost im Rücken haben, folgt "
+          "schon daraus.\n")
+        w("| Art | Frost 7 d F/V | 14 d | 28 d | Tage seit Frost F/V | "
+          "Wärme seit Frost F/V |")
+        w("|---|---|---|---|---|---|")
+        for z in kalt:
+            f = z["frost_b"]
+            def paar(key, prozent=True, digits=0):
+                a, b = f[key]["fund"][0], f[key]["vergleich"][0]
+                if a is None or b is None:
+                    return "—"
+                if prozent:
+                    return f"{a:.0%} / {b:.0%}"
+                return f"{a:.{digits}f} / {b:.{digits}f}"
+            w(f"| {z['name']} | {paar('frosttag_in_7d')} | "
+              f"{paar('frosttag_in_14d')} | {paar('frosttag_in_28d')} | "
+              f"{paar('tage_seit_frost', False, 1)} | "
+              f"{paar('waerme_seit_frost', False, 0)} |")
+
+    w("\n## Grenzen\n")
+    w("Beide Designs messen an GBIF, in Deutschland, auf den "
+      "Anpassjahren. Design B ersetzt Design A nicht — was hier steht, "
+      "ordnet ein, welche Zahl wieviel Kalender enthält.\n")
+    w("Und Design B hat seine eigene Grenze, die oben schon steht: "
+      "„üblich\u201c schließt die guten Jahre ein, weil Presence-only "
+      "Abwesenheit nicht kennt.")
+    return "\n".join(aus) + "\n"
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--self-test", action="store_true")
     parser.add_argument("--all", action="store_true")
+    parser.add_argument("--designs", action="store_true",
+                        help="Phase 1.5: Design A und B "
+                             "nebeneinander")
     parser.add_argument("--dataset", default="vorgabe")
     parser.add_argument("--dedupe", action="store_true")
     parser.add_argument("--api", default=None)
@@ -823,6 +1169,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
     if args.self_test:
         self_test()
+        raise SystemExit(0)
+    if args.designs:
+        run_designs(args)
         raise SystemExit(0)
     if not args.all:
         parser.print_help()
