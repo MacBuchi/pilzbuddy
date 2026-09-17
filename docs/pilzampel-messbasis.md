@@ -195,3 +195,80 @@ Die Verfügbarkeitstabelle gilt für die vier gemessenen Fenster. Eine
 Variable, die 2015 und 2020 überall liefert, kann in einem einzelnen
 anderen Jahr Lücken haben; fehlende Jahre bleiben ein Abbruchgrund, nicht
 ein stiller Ausfall.
+
+---
+
+# 0.2 und 0.3 — die Paarziehung
+
+Gebaut in `tool/ampel_basis.py`, damit die Messbasis an einer Stelle steht
+und nicht über fünftausend Zeilen verteilt.
+
+## Was sich geändert hat
+
+- **Entdoppeln**: höchstens eine Meldung je Melder × ~1 km × Tag, und zwar
+  **vor** dem Stichprobenziehen. Andersherum zöge man aus einem von
+  Clustern aufgeblähten Topf.
+- **`recordedBy` und `countryCode`** werden mitgeführt. Beide Spalten lagen
+  die ganze Zeit im Bestand und wurden nur nie gelesen.
+- **Der Abstand zum Vergleichstag trägt sein Vorzeichen.** Ohne die Seite
+  ist der Richtungs-Split aus Phase 1.1 nicht messbar.
+- **Der Mindestabstand hängt am Modell**, nicht an einer festen Zahl: Er
+  ist das längste Fenster dessen, was gerade gemessen wird. Für die
+  ausgelieferte Ampel sind das die 26 Tage des Regenfensters, es bleibt
+  also vorerst bei 26 bis 45.
+- **Der Vorlauf wächst auf 28 Tage.** Das ist NICHT dasselbe wie der
+  Mindestabstand, auch wenn beide bisher 26 waren: Der Vorlauf sagt,
+  wieviel Wetter im Cache liegt. Phase 2 will Frostdosen über 28 Tage
+  rechnen, und nachträglich wäre das ein zweiter vollständiger Neuabruf.
+
+## Die alte Basis bleibt reproduzierbar
+
+Das war die Bedingung, unter der überhaupt etwas geändert werden durfte.
+Nachgewiesen, nicht behauptet:
+
+- Die Zufallsfolge der Vergleichstage ist über drei Seeds und je 200 Züge
+  **identisch** mit der alten Vorschrift.
+- Alle **1241** vorhandenen Wetterdateien passen weiter auf den
+  Cache-Schlüssel — die Vorgabe behält ihren Namen ohne Fingerabdruck,
+  jeder gepinnte Datensatz bekommt einen und landet in eigenen Dateien.
+- Maronenröhrling 0.743, Pfifferling 0.607, Hallimasch 0.749,
+  Austernseitling 0.463 reproduzieren auf der Vorgabe exakt.
+
+## Das Entdoppeln nimmt viel weniger weg als erwartet
+
+Der Fahrplan begründete es mit den ~69 % Meldungen aus einer Hand in
+typischen 5-km-Zellen. Gemessen, über die ausgewerteten Arten in DE:
+
+| Art | Meldungen | entdoppelt | weg |
+|---|--:|--:|--:|
+| Hallimasch | 2594 | 2341 | 9,8 % |
+| Steinpilz | 2259 | 2156 | 4,6 % |
+| Maronenröhrling | 2485 | 2423 | 2,5 % |
+| Pfifferling | 1356 | 1331 | 1,8 % |
+| Stockschwämmchen | 1332 | 1312 | 1,5 % |
+| Birkenpilz | 1203 | 1186 | 1,4 % |
+| Herbsttrompete | 297 | 293 | 1,3 % |
+| Austernseitling | 1628 | 1615 | 0,8 % |
+| Fichtenreizker | 779 | 776 | 0,4 % |
+| **gesamt** | **13 933** | **13 433** | **3,6 %** |
+
+**3,6 % statt der erwarteten Größenordnung.** Der Grund ist der Schlüssel
+selbst: Er fängt nur, was dieselbe Person am selben Tag im selben
+Kilometer für dieselbe Art mehrfach meldet — und das ist selten. Das
+eigentliche Cluster-Problem liegt quer dazu: **eine Person, die dieselbe
+Stelle dreißigmal in einer Saison besucht.** Diese dreißig Meldungen sind
+keine Dubletten nach dieser Regel und trotzdem nicht unabhängig. Dafür ist
+das Melder-Bootstrap aus Phase 1.4 zuständig, nicht das Entdoppeln.
+
+Die Regel bleibt trotzdem drin: Sie kostet nichts und die 9,8 % beim
+Hallimasch sind echt.
+
+## Eine Grenze, die beißt
+
+`_finds_from_local` holt höchstens **3000** Meldungen je Art, sortiert nach
+`gbifID`. Unter den ausgewerteten Arten überschreitet genau eine das:
+**Judasohr mit 3097 in DE** — ausgerechnet die Art, an der der
+Kaltklassen-Hold-out gescheitert ist. Die Wirkung ist klein, weil danach
+ohnehin auf 2000 heruntergezogen wird; die Auswahl ist aber nicht zufällig,
+sondern schneidet die jüngsten Einträge ab. Für die Arten dieser Messung
+bleibt es folgenlos, für eine häufigere Art wäre es das nicht.

@@ -1162,6 +1162,20 @@ def collect_pairs(name, sci, cache_dir=None, seed=42, progress=True,
                 "extra_control": extra_control,
             })
 
+    if progress and (skipped or incomplete_extra):
+        # **Verworfenes gehört gezählt und genannt.** Zwei verschiedene
+        # Gründe, und sie dürfen nicht verwechselt werden:
+        #   * `skipped` heißt, dass Fund- oder Vergleichstag kein
+        #     vollständiges Fenster hatten — das Paar gibt es nicht.
+        #     Unter dem gepinnten Datensatz kommt ein neuer Fall dazu:
+        #     ERA5-Land ist LANDGEBUNDEN und liefert über See gar nichts,
+        #     eine Fundkoordinate in einer Seezelle hat also keine
+        #     Temperatur (gemessen: 9 von 15 865 Ortsreihen, 0,06 %).
+        #   * `incomplete_extra` heißt, dass das Paar steht, aber eine
+        #     Zusatzreihe fehlt. Phase 2 sieht daran, wieviel ihr fehlt.
+        print(f"    verworfen: {skipped} Paare ohne vollständiges Fenster"
+              + (f", {incomplete_extra} ohne vollständige Zusatzreihen"
+                 if incomplete_extra else ""), file=sys.stderr)
     if not samples:
         return None
     if lost_years:
