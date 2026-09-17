@@ -85,6 +85,46 @@ _spec = importlib.util.spec_from_file_location(
                                "gbif_local.py"))
 gbif_local = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(gbif_local)
+
+_spec = importlib.util.spec_from_file_location(
+    "ampel_basis", os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                "ampel_basis.py"))
+ampel_basis = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(ampel_basis)
+
+# **Welcher Wetterdatensatz** — ab 2026-09-17 ein ausdrücklicher Wert
+# statt eines Weglassens (`docs/pilzampel-messbasis.md`, Phase 0.1).
+#
+# Die Vorgabe bleibt `vorgabe`, also Open-Meteos „best match", damit jeder
+# frühere Lauf sich reproduzieren lässt. Sie ist aber nachweislich KEIN
+# fester Datensatz: Bis 2016 ist sie ERA5-Land, ab 2017 IFS HRES, und die
+# Hold-out-Trennlinie liegt genau auf dieser Naht. Jede neue Messung läuft
+# deshalb mit `--dataset pinned`.
+DATASET = ampel_basis.DEFAULT_DATASET
+
+# Die Felder JENSEITS von Regen und Temperatur, die der gewählte Datensatz
+# mitbringt — Tiefstwert, Schnee, Bodenfeuchte, Bodentemperatur. Auf der
+# Vorgabe ist die Liste leer; das Modell der ausgelieferten Ampel rührt
+# sie ohnehin nicht an. Sie werden mitgezogen, damit Phase 1 und 2 ohne
+# einen zweiten vollständigen Neuabruf auskommen.
+EXTRA_FIELDS = []
+
+
+def use_dataset(name):
+    """Den Datensatz wählen — und alles, was daran hängt, mitziehen."""
+    global DATASET, EXTRA_FIELDS, SPAN_LOOKBACK
+    if name not in ampel_basis.DATASETS:
+        raise SystemExit(
+            f"Unbekannter Datensatz {name!r}. Bekannt: "
+            f"{', '.join(sorted(ampel_basis.DATASETS))}")
+    DATASET = name
+    EXTRA_FIELDS = [f for f in ampel_basis.dataset_fields(name)
+                    if f not in ("rain", "temp")]
+    # Der Vorlauf muss reichen, sobald es etwas zu rechnen gibt, was über
+    # das Regenfenster hinausgeht (Frostdosis über 28 Tage in H3).
+    SPAN_LOOKBACK = 28 if EXTRA_FIELDS else RAIN_WINDOW
+    return DATASET
+
 # **Die Vorgabe bleibt der öffentliche Dienst** (#460). Eine eigene
 # Instanz ist per `--api` erreichbar, aber nicht die Vorgabe: Ein
 # Werkzeug, das stillschweigend mit localhost redet, erzeugt Zahlen, die
@@ -644,7 +684,8 @@ def _finds_from_local(sci, limit, progress, countries):
     rank = "GENUS" if " " not in sci.strip() else "SPECIES"
     where, args = gbif_local.taxon_where(sci, rank, taxon_key(sci))
     rows = con.execute(
-        f"SELECT decimalLatitude, decimalLongitude, year, month, day "
+        f"SELECT decimalLatitude, decimalLongitude, year, month, day, "
+        f"       recordedBy, countryCode, gbifID "
         f"FROM occ WHERE {gbif_local.WHERE_USABLE} AND {where} "
         f"  AND countryCode IN ({','.join('?' * len(countries))}) "
         f"  AND year >= ? AND day IS NOT NULL AND month IS NOT NULL "
@@ -655,8 +696,13 @@ def _finds_from_local(sci, limit, progress, countries):
     con.close()
     if progress:
         print(f"    {len(rows)} Meldungen (lokaler Bestand)", file=sys.stderr)
+    # `recordedBy` und `countryCode` seit Phase 0.2: Das erste trägt das
+    # Entdoppeln (eine Exkursion ist keine zehn Beobachtungen), das
+    # zweite die Melder-Diagnose aus Phase 1.4. Beide Spalten lagen die
+    # ganze Zeit im Bestand und wurden nur nie gelesen.
     return [{"lat": r[0], "lon": r[1], "year": r[2], "month": r[3],
-             "day": r[4]} for r in rows]
+             "day": r[4], "recordedBy": r[5], "countryCode": r[6],
+             "gbifID": r[7]} for r in rows]
 
 
 def _fetch_finds_raw(sci, limit=3000, progress=True, countries=("DE",)):
@@ -722,6 +768,19 @@ def _leap(year):
     return year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
 
 
+# **Wieviel Vorlauf geholt wird**, in Tagen vor dem frühesten Fund
+# (zusätzlich zum Höchstabstand des Vergleichstags).
+#
+# Das ist NICHT dasselbe wie der Mindestabstand des Vergleichstags, auch
+# wenn beide bisher 26 waren. Der Vorlauf sagt, wieviel Wetter im Cache
+# liegt; der Abstand sagt, wie weit der Vergleichstag wegrückt. Phase 2
+# will Frostdosen über 28 Tage rechnen — dafür muss der Vorlauf jetzt
+# reichen, denn nachträglich wäre es ein zweiter vollständiger Neuabruf.
+# Der Abstand bleibt davon unberührt bei 26, sonst wäre der Referenzlauf
+# in 0.4 nicht mehr nur ein Instrumentwechsel.
+SPAN_LOOKBACK = RAIN_WINDOW
+
+
 def season_span(days_of_year, year=None):
     """Der Zeitraum, den ein Jahrgang wirklich braucht — nicht mehr.
 
@@ -738,7 +797,7 @@ def season_span(days_of_year, year=None):
     Spätfunden.
     """
     last_index = 365 if year is not None and _leap(year) else 364
-    first = max(1, min(days_of_year) - CONTROL_MAX_GAP - RAIN_WINDOW - 1)
+    first = max(1, min(days_of_year) - CONTROL_MAX_GAP - SPAN_LOOKBACK - 1)
     last = min(last_index, max(days_of_year) + CONTROL_MAX_GAP * 2 + 1)
     return first, last
 
@@ -774,27 +833,38 @@ def fetch_weather(points, year, cache_dir=None, progress=True, span=None):
     if cached is not None:
         return cached
 
+    sources = ampel_basis.DATASETS[DATASET]
     series = []
     for start in range(0, len(points), 100):
         chunk = points[start:start + 100]
-        params = {
-            "latitude": ",".join(f"{p[0]:.4f}" for p in chunk),
-            "longitude": ",".join(f"{p[1]:.4f}" for p in chunk),
-            "start_date": _date_from_index(year, first_day),
-            "end_date": _date_from_index(year, last_day),
-            "daily": "precipitation_sum,temperature_2m_mean",
-            "timezone": "Europe/Berlin",
-        }
-        answer = _get(OPEN_METEO, params, timeout=180)
-        if isinstance(answer, dict):
-            answer = [answer]
-        for place in answer:
-            daily = place["daily"]
-            series.append({
-                "first": first_day,
-                "rain": daily["precipitation_sum"],
-                "temp": daily["temperature_2m_mean"],
-            })
+        # **Ein Ort, mehrere Modelle, EINE Reihe.** Kein Modell liefert
+        # alle Variablen (ERA5-Land hat keinen Niederschlag, ERA5 keine
+        # Schneehöhe), also wird je Modell einmal gefragt und das
+        # Ergebnis feldweise zusammengelegt. Die Zuordnung Feld → Modell
+        # steht in `ampel_basis.DATASETS` und ist dort eindeutig; ein
+        # Selbsttest verbietet, dass zwei Modelle dasselbe Feld füllen.
+        merged = [{"first": first_day} for _ in chunk]
+        for model, mapping in sources:
+            params = ampel_basis.weather_params(
+                model, mapping, chunk,
+                _date_from_index(year, first_day),
+                _date_from_index(year, last_day))
+            answer = _get(OPEN_METEO, params, timeout=180)
+            if isinstance(answer, dict):
+                answer = [answer]
+            # **Eine kürzere Antwort wäre ein stiller Versatz.** `zip`
+            # würde sie klaglos annehmen, und ab dem fehlenden Ort trüge
+            # jede Reihe das Wetter eines anderen Fundorts.
+            if len(answer) != len(chunk):
+                raise RuntimeError(
+                    f"Wetter {year}: {len(answer)} Antworten für "
+                    f"{len(chunk)} Orte (Modell {model or 'Vorgabe'})")
+            for place, target in zip(answer, merged):
+                ampel_basis.merge_place(target, mapping,
+                                        place.get("daily", {}))
+            if len(sources) > 1:
+                time.sleep(2.0)
+        series.extend(merged)
         if progress:
             print(f"    Wetter {year}: {len(series)}/{len(points)} Orte",
                   file=sys.stderr)
@@ -804,11 +874,15 @@ def fetch_weather(points, year, cache_dir=None, progress=True, span=None):
 
 
 def _cache_key(year, points, first_day, last_day):
-    import hashlib
-    digest = hashlib.sha256(
-        json.dumps([[round(a, 4), round(b, 4)] for a, b in points]).encode()
-    ).hexdigest()[:16]
-    return f"weather_{year}_{first_day}_{last_day}_{digest}.json"
+    """Der Dateiname im Cache — er trägt seit Phase 0.1 den Datensatz.
+
+    Die Vorgabe behält ihren alten Namen, damit die 1241 schon geholten
+    Dateien weiter gefunden werden; jeder gepinnte Datensatz bekommt
+    einen Fingerabdruck und landet in eigenen Dateien. Ein Lauf kann
+    damit nicht halb aus dem einen und halb aus dem anderen Instrument
+    kommen.
+    """
+    return ampel_basis.cache_name(DATASET, year, points, first_day, last_day)
 
 
 def _cache_read(cache_dir, year, points, first_day, last_day):
@@ -866,12 +940,47 @@ def window_before(series, day_of_year, length):
 CONTROL_MIN_GAP = RAIN_WINDOW
 CONTROL_MAX_GAP = 45
 
+# **Der Mindestabstand hängt ab Phase 0.3 am geprüften MODELL**, nicht an
+# einer festen Zahl: Er ist das längste Fenster dessen, was gerade
+# gemessen wird. Für die ausgelieferte Ampel ist das das Regenfenster mit
+# 26 Tagen, deshalb ändert sich hier vorerst nichts. Ein Zwei-Phasen-
+# Wintermodell mit 28-Tage-Rückblick bräuchte 28, sonst teilen sich Fund-
+# und Vergleichstag Tage ihrer Frostdosis.
+LONGEST_WINDOW = RAIN_WINDOW
+
+# **Entdoppeln: höchstens eine Meldung je Melder × ~1 km × Tag.** Aus
+# ("vorgabe") bleibt jeder frühere Lauf reproduzierbar; für den
+# vollständigen Bestand an (Phase 0.2), weil er Exkursions-Cluster
+# verstärkt.
+DEDUPE = False
+
 
 def pick_control_day(day_of_year, rng):
-    gap = rng.randint(CONTROL_MIN_GAP, CONTROL_MAX_GAP)
-    if rng.random() < 0.5:
-        gap = -gap
-    return day_of_year + gap
+    """Wie `ampel_basis.pick_control`, nur ohne das Vorzeichen.
+
+    Bleibt stehen, weil die REIHENFOLGE der Zufallsgriffe an dieser
+    Vorschrift hängt: erst `randint`, dann `random`. Wer sie ändert,
+    verschiebt die ganze Folge — und damit jede bisher berichtete Zahl.
+    """
+    day, _gap = ampel_basis.pick_control(
+        day_of_year, rng, CONTROL_MIN_GAP, CONTROL_MAX_GAP)
+    return day
+
+
+def _extra_windows(place, day):
+    """Die Zusatzreihen eines Tages — nur die, die vollständig sind.
+
+    Ein Feld, das der Datensatz nicht liefert, und eines mit einer Lücke
+    im Fenster fehlen hier gleichermaßen. Das ist Absicht: Beides heißt
+    „darauf lässt sich nicht rechnen", und eine Unterscheidung an dieser
+    Stelle lüde dazu ein, doch zu rechnen.
+    """
+    out = {}
+    for field in EXTRA_FIELDS:
+        window = ampel_basis.window_of(place, field, day, SPAN_LOOKBACK)
+        if window is not None:
+            out[field] = window
+    return out
 
 
 def collect_pairs(name, sci, cache_dir=None, seed=42, progress=True,
@@ -899,6 +1008,17 @@ def collect_pairs(name, sci, cache_dir=None, seed=42, progress=True,
         return None
 
     total_available = len(finds)
+    # **Entdoppeln VOR dem Stichprobenziehen.** Andersherum zöge man aus
+    # einem von Clustern aufgeblähten Topf: Eine Exkursion mit zwanzig
+    # Fotos hätte zwanzigfache Chance, in die 2000 zu kommen, und die
+    # Stichprobe bestünde am Ende überproportional aus Serien.
+    deduped = 0
+    if DEDUPE:
+        finds, deduped = ampel_basis.dedupe_finds(finds)
+        if progress:
+            print(f"    entdoppelt: {deduped} von {total_available} "
+                  f"Meldungen fallen weg ({len(finds)} bleiben)",
+                  file=sys.stderr)
     if len(finds) > SAMPLE_PER_SPECIES:
         # Zufällig, mit festem Seed — nicht „die ersten N". GBIF liefert
         # nach id sortiert, und das korreliert mit dem Meldeportal: Die
@@ -916,6 +1036,7 @@ def collect_pairs(name, sci, cache_dir=None, seed=42, progress=True,
     rng = random.Random(seed)
     samples = []
     skipped = 0
+    incomplete_extra = 0
     lost_years = []
     partial_years = []
     for year in sorted(by_year):
@@ -948,7 +1069,8 @@ def collect_pairs(name, sci, cache_dir=None, seed=42, progress=True,
             continue
         for find, place in zip(group, series):
             found_day = day_index(year, find["month"], find["day"])
-            control_day = pick_control_day(found_day, rng)
+            control_day, control_gap = ampel_basis.pick_control(
+                found_day, rng, CONTROL_MIN_GAP, CONTROL_MAX_GAP)
             # Das Placebo-Paar: Der Vergleichstag spielt jetzt selbst den
             # „Fundtag", und sein Partner wird nach derselben Vorschrift
             # VON IHM AUS gezogen. Was dabei herauskommt, MUSS 0,5 sein.
@@ -984,6 +1106,17 @@ def collect_pairs(name, sci, cache_dir=None, seed=42, progress=True,
             if a_rain is None or b_rain is None:
                 skipped += 1
                 continue
+            extra_found = _extra_windows(place, found_day)
+            extra_control = _extra_windows(place, control_day)
+            # **Ein Paar mit halben Zusatzreihen wird NICHT verworfen**,
+            # sondern gezählt. Die ausgelieferte Ampel braucht sie nicht;
+            # ein Paar wegen einer Lücke in der Bodenfeuchte zu streichen
+            # würde den Referenzlauf verfälschen, um einer späteren
+            # Hypothese zu dienen. Wer die Felder braucht, sieht an dieser
+            # Zahl, wieviel ihm fehlt.
+            if (len(extra_found) < len(EXTRA_FIELDS)
+                    or len(extra_control) < len(EXTRA_FIELDS)):
+                incomplete_extra += 1
             samples.append({
                 "year": year,
                 "found": (a_rain, a_temp),
@@ -995,6 +1128,22 @@ def collect_pairs(name, sci, cache_dir=None, seed=42, progress=True,
                 "mirror": (m_rain, m_temp) if m_rain is not None else None,
                 "d_control": abs(control_day - found_day),
                 "d_placebo": abs(placebo_day - found_day),
+                # **Mit Vorzeichen** seit Phase 0.2: Der Richtungs-Split
+                # aus 1.1 ist ohne die Seite nicht messbar. Eine Reaktion
+                # auf das NIVEAU gibt vor und nach dem Fund ähnliche
+                # Werte, eine Reaktion auf ABKÜHLUNG nicht. Der Betrag
+                # oben bleibt stehen, weil die Kontrollen ihn lesen.
+                "gap_control": control_gap,
+                # Woher die Meldung stammt — für das Melder-Bootstrap
+                # (1.4) und den Länder-Hold-out. Kein Wetter, nur Herkunft.
+                "recordedBy": find.get("recordedBy"),
+                "country": find.get("countryCode"),
+                # Die zusätzlichen Wetterreihen des gepinnten Datensatzes.
+                # Leer, solange auf der Vorgabe gemessen wird — dort gibt
+                # es sie nicht, und ein leeres dict ist ehrlicher als
+                # Felder voller None.
+                "extra": extra_found,
+                "extra_control": extra_control,
             })
 
     if not samples:
@@ -1016,6 +1165,10 @@ def collect_pairs(name, sci, cache_dir=None, seed=42, progress=True,
         # Jahreszahl, die sie mitzählt, wäre eine falsche Angabe.
         "years": len(by_year) - len(partial_years),
         "partial_years": partial_years,
+        "dataset": DATASET,
+        "deduped": deduped,
+        "available": total_available,
+        "incomplete_extra": incomplete_extra,
     }
 
 
@@ -4124,6 +4277,61 @@ def self_test():
             f"die gleichnamige Funktion in der GANZEN Funktion — auch in "
             f"Zweigen, die die Zuweisung nie erreichen.")
 
+    # --- Die Messbasis (Phase 0, docs/pilzampel-messbasis.md) ----------
+    #
+    # **Die Vorgabe muss Zeile für Zeile das alte Verhalten sein.** Sonst
+    # wäre jede schon veröffentlichte Zahl still eine andere geworden —
+    # und zwar ohne dass irgendein Bericht sich ändert.
+    assert DATASET == ampel_basis.DEFAULT_DATASET == "vorgabe"
+    assert EXTRA_FIELDS == [], EXTRA_FIELDS
+    assert SPAN_LOOKBACK == RAIN_WINDOW == 26
+    assert DEDUPE is False, "Entdoppeln ist ab Werk aus"
+    probe = [(51.0, 10.0), (48.0, 11.0)]
+    assert _cache_key(2020, probe, 100, 300).startswith("weather_2020_"), \
+        "der alte Cache wäre unsichtbar"
+
+    # Die Zufallsfolge ist die von vorher: erst `randint`, dann `random`.
+    # Wer die Reihenfolge ändert, verschiebt jede bisher berichtete Zahl.
+    # Deshalb steht hier eine festgenagelte Folge und keine Eigenschaft.
+    rng = random.Random(42)
+    drawn = [pick_control_day(100, rng) for _ in range(5)]
+    assert drawn == [71, 66, 130, 57, 61], drawn
+    # Und dieselbe Folge muss aus `ampel_basis` kommen — sonst laufen die
+    # beiden Wege auseinander, sobald einer angefasst wird.
+    rng = random.Random(42)
+    mirror = [ampel_basis.pick_control(100, rng, CONTROL_MIN_GAP,
+                                       CONTROL_MAX_GAP)[0] for _ in range(5)]
+    assert mirror == drawn, (mirror, drawn)
+
+    # Umschalten zieht Felder UND Vorlauf mit.
+    try:
+        use_dataset("pinned")
+        assert DATASET == "pinned"
+        assert EXTRA_FIELDS == ["smoist", "snow", "stemp", "tmin"], EXTRA_FIELDS
+        assert SPAN_LOOKBACK == 28, \
+            "ohne größeren Vorlauf fehlt Phase 2 die Frostdosis über 28 Tage"
+        assert not _cache_key(2020, probe, 100, 300).startswith(
+            "weather_2020_"), "gepinnt und Vorgabe teilten sich eine Datei"
+        # Der größere Vorlauf muss sich auch im Zeitraum niederschlagen.
+        assert season_span([200], year=2020)[0] == 200 - 45 - 28 - 1
+    finally:
+        use_dataset(ampel_basis.DEFAULT_DATASET)
+    assert SPAN_LOOKBACK == RAIN_WINDOW and EXTRA_FIELDS == []
+    assert season_span([200], year=2020)[0] == 200 - 45 - 26 - 1
+
+    # Ein unbekannter Datensatz bricht ab, statt still auf die Vorgabe
+    # zurückzufallen — ein Tippfehler im Flag wäre sonst ein ganzer Lauf
+    # auf dem falschen Instrument.
+    try:
+        use_dataset("era5land")
+    except SystemExit:
+        pass
+    else:
+        raise AssertionError("unbekannter Datensatz angenommen")
+    assert DATASET == "vorgabe"
+
+    ampel_basis.self_test_quiet()
+
     # Die Kandidaten des Kalttests stehen NICHT im Standardlauf — geprüft
     # wird trotzdem, dass es sie gibt: Ein Tippfehler fiele sonst erst
     # nach dem ersten Abruf auf, also nach dem halben Tageskontingent.
@@ -5251,6 +5459,7 @@ def render_report(mycorrhizal, wood, crosscheck, fetched_on):
 
 
 def main():
+    global OPEN_METEO, SAMPLE_PER_SPECIES, DEDUPE
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", default=None,
                         help="Bericht schreiben (z. B. docs/…​.md)")
@@ -5305,11 +5514,32 @@ def main():
     parser.add_argument("--cache", default=None,
                         help="Verzeichnis für Wetterantworten")
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--dataset", default=ampel_basis.DEFAULT_DATASET,
+                        choices=sorted(ampel_basis.DATASETS),
+                        help="Wetterdatensatz: 'vorgabe' ist Open-Meteos "
+                             "'best match' und wechselt 2017 das Instrument "
+                             "(reproduziert alte Laeufe); 'pinned' ist "
+                             "ERA5-Land + ERA5 ueber alle Jahre")
+    parser.add_argument("--dedupe", action="store_true",
+                        help="hoechstens eine Meldung je Melder x ~1 km x Tag")
+    parser.add_argument("--sample", type=int, default=None,
+                        help=f"Meldungen je Art (Vorgabe {SAMPLE_PER_SPECIES})")
     args = parser.parse_args()
     if args.api:
-        global OPEN_METEO
         OPEN_METEO = args.api.rstrip("/")
         print(f"Archiv-API: {OPEN_METEO}", file=sys.stderr)
+    if args.sample is not None:
+        SAMPLE_PER_SPECIES = args.sample
+    DEDUPE = args.dedupe
+    use_dataset(args.dataset)
+    # **Die Basis steht im Protokoll, immer.** Ein Lauf, dem man nicht
+    # ansieht, auf welchem Instrument er lief, ist spaeter nicht mehr
+    # einzuordnen — und genau das war der Zustand, den Phase 0 aufraeumt.
+    print(f"Datensatz: {DATASET} "
+          f"({ampel_basis.dataset_fingerprint(DATASET)}), "
+          f"Vorlauf {SPAN_LOOKBACK} d, "
+          f"Entdoppeln {'an' if DEDUPE else 'aus'}, "
+          f"Stichprobe {SAMPLE_PER_SPECIES}", file=sys.stderr)
 
     if args.self_test:
         self_test()
