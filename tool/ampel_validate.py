@@ -5602,6 +5602,11 @@ def main():
                              "'best match' und wechselt 2017 das Instrument "
                              "(reproduziert alte Laeufe); 'pinned' ist "
                              "ERA5-Land + ERA5 ueber alle Jahre")
+    parser.add_argument("--window", type=float, default=None,
+                        help="Fenster der Klasse von Hand setzen statt es "
+                             "abzuleiten — fuer Nachmessungen auf einer "
+                             "anderen Messbasis, nie fuer einen neuen "
+                             "Hold-out-Versuch")
     parser.add_argument("--dedupe", action="store_true",
                         help="hoechstens eine Meldung je Melder x ~1 km x Tag")
     parser.add_argument("--sample", type=int, default=None,
@@ -5790,6 +5795,21 @@ def main():
                 raise SystemExit(
                     "Kein Fenster: keines der Mitglieder ist in Deutschland "
                     "auswertbar.")
+            if args.window is not None:
+                # **Ein von Hand gesetztes Fenster ist kein neuer
+                # Hold-out-Versuch, sondern eine Nachmessung** — und es
+                # muss eine geben: Beim Wechsel der Messbasis verschieben
+                # sich die angepassten Optima, und damit das abgeleitete
+                # Fenster. Ohne diese Möglichkeit ließe sich nie sagen, ob
+                # ein anderer Ausgang am INSTRUMENT hing oder daran, dass
+                # das Fenster mitgewandert ist.
+                #
+                # Der abgeleitete Wert wird trotzdem gerechnet und
+                # genannt, damit im Protokoll steht, wovon abgewichen wird.
+                print(f"  Fenster der Klasse wäre {_optimum_text(window)} °C "
+                      f"— gesetzt auf {args.window} °C (Nachmessung)",
+                      file=sys.stderr)
+                window = args.window
             print(f"  Fenster der Klasse: {_optimum_text(window)} °C",
                   file=sys.stderr)
             rows = [holdout_species(name, mapping[name], countries,
