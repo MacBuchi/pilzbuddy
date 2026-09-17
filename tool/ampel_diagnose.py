@@ -641,7 +641,16 @@ def render(zeilen, referenz):
           f"{_fmt(r['vor']['auc'])}, danach {_fmt(r['nach']['auc'])}.\n")
         w("**Je Art gegen die Referenz** (nur das Fenster der eigenen "
           "Gruppe):\n")
-        w("| Art | AUC der Art | AUC der Referenz | Ueberschuss |")
+        w("**Die Spalte heisst „Differenz zur Referenz\u201c und nicht "
+          "„Ueberschuss\u201c** (A6): Ein Ueberschuss klaenge nach einem "
+          "Betrag, den man behalten darf, wenn man den Rest abzieht. Genau "
+          "das geht hier nicht — „irgendeine Pilzmeldung\u201c ist nicht "
+          "reiner Suchaufwand, sondern ueberwiegend ANDERE PILZE, die auf "
+          "dasselbe Wetter reagieren. Die Referenz ist Obergrenze fuer den "
+          "Aufwand UND Untergrenze fuer die allgemeine Pilz-Wetterreaktion; "
+          "dieses Design kann die beiden nicht trennen. Die Differenz ist "
+          "also kein Abzugsposten, sondern eine Einordnung.\n")
+        w("| Art | AUC der Art | AUC der Referenz | Differenz zur Referenz |")
         w("|---|--:|--:|--:|")
         for z in zeilen:
             eigen = z["richtung"]["gesamt"]["auc"]

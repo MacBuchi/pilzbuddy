@@ -208,6 +208,64 @@ Jahres-Bootstrap, mit dem bisher berichtet wurde, ist damit der
 vorsichtigere von beiden — **die veröffentlichten Vertrauensbereiche
 waren nicht zu eng.**
 
+## A5 — warum die Spiegel-Kontrolle wandert
+
+Der Messbasis-Bericht schrieb die Wanderung dem **Instrument** zu,
+gestützt auf drei Arten mit wechselnden Vorzeichen und einer
+Rangkorrelation von −0,13. Der Auftrag nennt die naheliegende
+Alternative: Die Spiegelung kürzt eine **gerade** Steigung heraus, aber
+keine **Krümmung**. Beides ist nachgemessen — und die Antwort ist eine
+dritte, einfachere.
+
+Je Art über die drei per Konstruktion zeitgleich verteilten Punkte
+(Vergleichstag, Fundtag, Spiegeltag) gerechnet, alles mit 13 °C wie im
+Referenzlauf:
+
+| Art | Spiegel | \|Abw\| | Krümmung | Steigung | Anteil „vor" |
+|---|--:|--:|--:|--:|--:|
+| Steinpilz | 0.500 | 0.000 | −0.531 | 0.0016 | 52,4 % |
+| Maronenröhrling | 0.494 | 0.006 | −0.474 | 0.0026 | 52,7 % |
+| Birkenpilz | 0.503 | 0.003 | −0.458 | 0.0015 | 53,3 % |
+| Fichtenreizker | 0.491 | 0.009 | −0.488 | 0.0060 | 53,7 % |
+| **Herbsttrompete** | **0.434** | **0.066** | −0.278 | **0.0383** | 50,9 % |
+| **Pfifferling** | **0.462** | **0.038** | −0.197 | 0.0083 | 53,2 % |
+| Hallimasch | 0.506 | 0.006 | −0.538 | 0.0031 | 52,9 % |
+| Stockschwämmchen | 0.492 | 0.008 | −0.473 | −0.0073 | 54,2 % |
+| Austernseitling | 0.510 | 0.010 | −0.179 | 0.0014 | **57,5 %** |
+
+| Rangkorrelation gegen \|Abweichung von 0,5\| | |
+|---|--:|
+| \|Krümmung\| | **−0,68** |
+| \|Steigung\| | +0,60 |
+| \|Seitenunwucht\| | +0,12 |
+| **\|Steigung × Seitenunwucht\|** | **+0,87** |
+
+**Die Krümmungs-Erwartung trägt nicht** — das Vorzeichen ist falsch: Arten
+mit der stärksten Krümmung haben die kleinste Abweichung. Die
+Seitenunwucht allein trägt auch nichts (+0,12).
+
+**Ihr Produkt trägt.** Und das ist mechanisch genau richtig: Eine gerade
+Steigung kürzt sich nur heraus, wenn beide Seiten **gleich oft** gezogen
+werden. `pick_control_day` wirft dafür eine Münze, und die lässt bei
+n ≈ 2000 ein paar Prozent Unwucht stehen (hier 50,9 % bis 57,5 %). Wo
+die Steigung flach ist, kostet das nichts; wo sie steil ist, schlägt es
+durch. Die beiden markierten Arten sind genau die mit der steilsten
+Steigung — die Herbsttrompete mit 0,0383 um das Sechsfache über der
+nächsten.
+
+**Ein Nebenbefund, der die Deutung des Pfifferlings ändert.** Seine
+Spiegel-Kontrolle steht bei 0,462 mit dem 13-°C-Fenster, aber bei
+**0,531 mit seinem eigenen** (17,5 °C). Die Ziehung ist also nicht
+verzerrt — der 13-°C-Score verläuft über seine Saison bloß steil. Der
+Satz aus Phase 0.4, seine Zahlen seien „nicht auswertbar", ist damit zu
+scharf formuliert: Nicht auswertbar ist seine Auswertung MIT 13 °C.
+
+**Was daraus folgt** (Vorschlag, nicht ausgeführt): Die Seiten exakt
+auszubalancieren statt sie zu würfeln, kostet nichts und nimmt der
+Spiegel-Kontrolle ihren größten Störer. Das ist eine Korrektur am
+Messaufbau wie A1 bis A6 und gehört vor die Hypothesen — aber nach
+Freigabe, weil sie jede Ziehung ändert.
+
 ## Grenzen
 
 Gemessen wurde ausschliesslich an GBIF, in Deutschland, auf den Anpassjahren. Keine dieser Zahlen ist ein Beleg fuer irgendetwas — sie sagen, wo sich das Hinsehen lohnt.

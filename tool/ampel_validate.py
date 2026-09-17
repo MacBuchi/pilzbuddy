@@ -685,6 +685,20 @@ def _finds_from_local(sci, limit, progress, countries):
     # gegen GBIF geprüft hat und bei allem außer EXACT/ACCEPTED abbricht.
     rank = "GENUS" if " " not in sci.strip() else "SPECIES"
     where, args = gbif_local.taxon_where(sci, rank, taxon_key(sci))
+    # **Der lokale Bestand kennt keine Obergrenze mehr** (A4, 2026-09-17).
+    #
+    # Die 3000 stammen vom NETZWEG, wo tiefes Blättern kriecht (ab
+    # `offset` ~10 000 braucht dieselbe Seite 341 s statt 0,3 s,
+    # CLAUDE.md). Hier kostet die Grenze nichts und schneidet dafür nach
+    # `gbifID`, also die JÜNGSTEN Einträge ab — und `gbifID` korreliert
+    # mit dem Meldeportal.
+    #
+    # Betroffen war unter den gemessenen Arten genau eine: **Judasohr**
+    # mit 3097 Meldungen in DE. Ausgerechnet die Art, gegen die vier
+    # Befunde stehen — und alle vier stammen aus derselben,
+    # möglicherweise beschnittenen Stichprobe. Vier Blickwinkel sind
+    # keine vier unabhängigen Tests.
+    limit = None
     rows = con.execute(
         f"SELECT decimalLatitude, decimalLongitude, year, month, day, "
         f"       recordedBy, countryCode, gbifID "
@@ -693,8 +707,9 @@ def _finds_from_local(sci, limit, progress, countries):
         f"  AND year >= ? AND day IS NOT NULL AND month IS NOT NULL "
         f"  AND (coordinateUncertaintyInMeters IS NULL "
         f"       OR coordinateUncertaintyInMeters <= ?) "
-        f"ORDER BY gbifID LIMIT ?",
-        (*args, *countries, FIRST_YEAR, MAX_UNCERTAINTY_M, limit)).fetchall()
+        f"ORDER BY gbifID" + ("" if limit is None else " LIMIT ?"),
+        (*args, *countries, FIRST_YEAR, MAX_UNCERTAINTY_M)
+        + ((), (limit,))[limit is not None]).fetchall()
     con.close()
     if progress:
         print(f"    {len(rows)} Meldungen (lokaler Bestand)", file=sys.stderr)
@@ -2365,6 +2380,48 @@ HOLDOUT_MIN_GAIN = 0.05
 PLACEBO_TOLERANCE = 0.03
 
 
+def control_tolerance(n):
+    """Zwei Standardfehler bei DIESER Paarzahl — statt einer festen Zahl.
+
+    ±0,03 war eine feste Grenze an einer Größe, deren Streuung an `n`
+    hängt. Zwei Standardfehler sind **±0,045 bei 538 Paaren** und
+    **±0,022 bei 2000**: Die feste Zahl war bei kleinen Stichproben zu
+    lasch und bei großen zu streng — ein Filter auf die Stichprobengröße
+    und nicht auf die Gültigkeit.
+
+    Genau das war schon am 2026-09-17 gemessen worden
+    (`docs/pilzampel-kontrolltoleranz.md`: alle acht Ablehnungen lagen
+    innerhalb von 2,5 Standardfehlern, 0 von 16 großen Stichproben wurden
+    abgelehnt gegen 7 von 18 kleinen). Damals wurde daraus der
+    Jahres-Bootstrap; wo es den nicht gibt, stand die feste Zahl weiter.
+
+    Ohne Paarzahl bleibt es bei der alten Grenze — dann ist sie die
+    einzige Auskunft, die da ist.
+    """
+    if not n:
+        return PLACEBO_TOLERANCE
+    return 2.0 * math.sqrt(0.25 / n)
+
+
+def control_clean(auc, n):
+    """Hält die Kontrolle bei dieser Paarzahl?"""
+    return abs(auc - 0.5) <= control_tolerance(n)
+
+
+def _tolerance_text(n):
+    """Die verwendete Toleranz IM BERICHT nennen, nicht nur anwenden.
+
+    Der Auftrag verlangt sie in jeder Tabelle: Eine Grenze, die sich mit
+    der Paarzahl ändert, ist ohne die Zahl daneben nicht nachvollziehbar.
+    Die alte feste Grenze steht dabei, solange es Berichte gibt, die sie
+    benutzt haben.
+    """
+    if not n:
+        return f"Toleranz ±{PLACEBO_TOLERANCE:.2f}"
+    return (f"Toleranz ±{control_tolerance(n):.3f} = 2 SE bei {n} Paaren; "
+            f"früher fest ±{PLACEBO_TOLERANCE:.2f}")
+
+
 def holdout_species(name, sci, countries, cache_dir=None, seed=42,
                     progress=True, window=None):
     """In Deutschland anpassen, im Ausland prüfen.
@@ -2442,7 +2499,7 @@ def class_holdout_clean(row):
     nicht bei 0,50, ist die Ziehung verzerrt, und die Zahl darüber ist
     wertlos — egal wie gut sie aussieht.
     """
-    return abs(row["mirror_auc"] - 0.5) <= PLACEBO_TOLERANCE
+    return control_clean(row["mirror_auc"], row.get("mirror_n"))
 
 
 def class_holdout_verdict(rows, members):
@@ -2551,11 +2608,17 @@ def render_class_holdout_report(rows, countries, key, window, fits,
         out.append(f"| {name} | {row['n']} | {row['years']} | "
                    f"{row['auc_shared']:.3f} | {row['auc_fitted']:.3f} | "
                    f"{ci} | {row['mirror_auc']:.3f} | {mark} |")
-    out += ["", f"Die Spalte „Kontrolle“ ist die abstandsgleiche "
-            f"Kontrolle — Vergleichstag gegen seinen am Fundtag "
-            f"gespiegelten Partner. Sie MUSS bei 0,50 liegen (Toleranz "
-            f"±{PLACEBO_TOLERANCE:.2f}); tut sie es nicht, ist die Ziehung "
-            "verzerrt und die Zahl daneben wertlos.", "",
+    out += ["", "Die Spalte „Kontrolle“ ist die abstandsgleiche "
+            "Kontrolle — Vergleichstag gegen seinen am Fundtag "
+            "gespiegelten Partner. Sie MUSS bei 0,50 liegen; tut sie es "
+            "nicht, ist die Ziehung verzerrt und die Zahl daneben wertlos.",
+            "", "**Die Toleranz hängt seit 2026-09-17 an der Paarzahl** "
+            "(zwei Standardfehler, `2·√(0,25/n)`) statt an festen ±0,03. "
+            "Die feste Zahl war ein Filter auf die Stichprobengröße: Zwei "
+            "Standardfehler sind ±0,045 bei 538 Paaren und ±0,022 bei 2000. "
+            "Frühere Berichte nennen weiterhin die ±0,03, unter der sie "
+            "entstanden sind — sie werden nicht rückwirkend umetikettiert.",
+            "",
             "## Der Ausgang", ""]
 
     if state == "offen":
@@ -2725,7 +2788,7 @@ def render_holdout_report(rows, countries, fetched_on):
         # Bericht schrieb „bestätigt" und zwei Zeilen darunter „nicht
         # auswertbar"; von zwei widersprüchlichen Sätzen liest jeder den,
         # der ihm passt.
-        clean = abs(row["mirror_auc"] - 0.5) <= PLACEBO_TOLERANCE
+        clean = control_clean(row["mirror_auc"], row.get("mirror_n"))
         met = clean and row["gain"] >= HOLDOUT_MIN_GAIN
         span = (row.get("ci") or {}).get("difference")
         ci = f" [{span[0]:+.3f}, {span[1]:+.3f}]" if span else ""
@@ -2746,10 +2809,10 @@ def render_holdout_report(rows, countries, fetched_on):
         # in der Rückwärtsvalidierung.
         off = abs(row["placebo_auc"] - 0.5)
         out += [f"Placebo-Kontrolle im Hold-out: {row['placebo_auc']:.3f} "
-                f"bei {row['placebo_n']} Paaren (Toleranz "
-                f"±{PLACEBO_TOLERANCE:.2f})"
+                f"bei {row['placebo_n']} Paaren "
+                f"({_tolerance_text(row['placebo_n'])})"
                 + (" — erwartbar abweichend, siehe unten."
-                   if abs(row["placebo_auc"] - 0.5) > PLACEBO_TOLERANCE
+                   if not control_clean(row["placebo_auc"], row["placebo_n"])
                    else " — unauffällig.")]
         out += [f"**Abstandsgleiche Kontrolle: {row['mirror_auc']:.3f}** bei "
                 f"{row['mirror_n']} Paaren — der Vergleichstag gegen seine "
@@ -3366,7 +3429,7 @@ def membership_control_clean(row):
     """
     band = row.get("mirror_ci")
     if band is None:
-        return abs(row["mirror_auc"] - 0.5) <= PLACEBO_TOLERANCE
+        return control_clean(row["mirror_auc"], row.get("mirror_n"))
     return band[0] <= 0.5 <= band[1]
 
 
@@ -4330,6 +4393,40 @@ def self_test():
     assert OPEN_METEO_DEFAULT.startswith("https://archive-api.open-meteo.com")
     assert OPEN_METEO == OPEN_METEO_DEFAULT, \
         "der Selbsttest läuft mit der Vorgabe, nicht mit --api"
+
+    # --- A4: der lokale Bestand wird nicht mehr beschnitten -----------
+    #
+    # Netzfrei prüfbar ist nur die Absicht im Quelltext — die Datenbank
+    # liegt nicht in CI. Das ist als Wächter dünn, aber es fängt genau
+    # den Fall, um den es geht: dass jemand die Grenze wieder einbaut,
+    # weil sie beim Netzweg sinnvoll ist.
+    _quelle = inspect.getsource(_finds_from_local)
+    assert "limit = None" in _quelle, \
+        "der lokale Bestand darf nicht nach gbifID beschnitten werden"
+    assert "LIMIT ?" in _quelle, \
+        "der Netzweg braucht seine Grenze weiterhin"
+
+    # --- A2: die Kontroll-Toleranz hängt an der Paarzahl --------------
+    #
+    # Die feste ±0,03 war ein Filter auf die Stichprobengröße. Der Test
+    # nagelt beide Richtungen fest: dieselbe Abweichung muss bei kleiner
+    # Paarzahl durchgehen und bei großer auffallen.
+    assert abs(control_tolerance(2000) - 0.0224) < 1e-3, control_tolerance(2000)
+    assert abs(control_tolerance(538) - 0.0431) < 1e-3, control_tolerance(538)
+    assert control_tolerance(2000) < control_tolerance(538), \
+        "mehr Paare müssen eine ENGERE Grenze geben"
+    assert control_tolerance(0) == PLACEBO_TOLERANCE
+    assert control_tolerance(None) == PLACEBO_TOLERANCE
+    # 0,470 — genau der Wert der Aufwands-Referenz aus Phase 1.3.
+    assert control_clean(0.470, 538), "bei 538 Paaren sind das 1,4 SE"
+    assert not control_clean(0.470, 2000), "bei 2000 Paaren sind das 2,7 SE"
+    # Und die alte feste Grenze hätte beides gleich behandelt — genau das
+    # war der Fehler.
+    assert (abs(0.470 - 0.5) > PLACEBO_TOLERANCE) is True
+    # Der Bericht muss die verwendete Grenze NENNEN, nicht nur anwenden.
+    text = _tolerance_text(538)
+    assert "0.043" in text and "538" in text and "0.03" in text, text
+    assert "±0.03" in _tolerance_text(0)
 
     # **Ein Fenster mit Lücke ist kein Fenster.** Die beiden Faktoren
     # verrechnen fehlende Werte still (Regen als 0 mm, Temperatur als
@@ -5448,14 +5545,15 @@ def render_report(mycorrhizal, wood, crosscheck, fetched_on):
     ]
     for row in mycorrhizal + wood:
         noise = 1 / (2 * math.sqrt(row["mirror_n"])) if row["mirror_n"] else 0
-        mark = "" if abs(row["mirror_auc"] - 0.5) <= PLACEBO_TOLERANCE else " ⚠"
+        mark = "" if control_clean(
+            row["mirror_auc"], row["mirror_n"]) else " ⚠"
         lines.append(
             f"| {row['name']} | {row['mirror_n']} | "
             f"{row['mirror_auc']:.3f}{mark} | ±{noise:.3f} | "
             f"{row['placebo_auc']:.3f} |")
 
     failed = [r for r in mycorrhizal + wood
-              if abs(r["mirror_auc"] - 0.5) > PLACEBO_TOLERANCE]
+              if not control_clean(r["mirror_auc"], r["mirror_n"])]
     lines += [""]
     if failed:
         # **Je Art, nicht pauschal.** Ein durchgefallener Wächter bei
@@ -6051,7 +6149,7 @@ def main():
     print(f"  Abstandsgleiche Kontrolle (soll 0,50): grösste Abweichung "
           f"{worst:.3f}", file=sys.stderr)
     broken = [row["name"] for row in mycorrhizal + wood
-              if abs(row["mirror_auc"] - 0.5) > PLACEBO_TOLERANCE]
+              if not control_clean(row["mirror_auc"], row["mirror_n"])]
     if broken:
         print(f"  ⚠ Nicht auswertbar: {', '.join(broken)} — dort ist die "
               f"Ziehung verzerrt. Die übrigen Arten sind davon nicht "

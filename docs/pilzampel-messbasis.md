@@ -427,11 +427,19 @@ Lauf sind damit **nicht auswertbar** — und das betrifft ausgerechnet die
 
 ## Was offen bleibt
 
-- **Warum die Spiegel-Kontrolle beim Instrumentwechsel wandert.** Sie
-  vergleicht zwei Tage mit gleichem Abstand zum Fundtag; eine Abweichung
-  von 0,50 heißt, dass der Score über die Saison gekrümmt verläuft. Dass
-  ein anderes Instrument diese Krümmung ändert, ist plausibel — gemessen
-  ist es nicht.
+- ~~**Warum die Spiegel-Kontrolle beim Instrumentwechsel wandert.**~~
+  **Beantwortet am 2026-09-17, und anders als hier vermutet**
+  (`docs/pilzampel-diagnosen.md`, Abschnitt A5). Es ist weder die
+  Krümmung — deren Rangkorrelation mit der Abweichung ist **−0,68**, also
+  im falschen Vorzeichen — noch in erster Linie das Instrument. Es ist
+  **Steigung × Seitenunwucht** (+0,87): Eine gerade Steigung kürzt sich
+  nur heraus, wenn beide Seiten gleich oft gezogen werden, und die Münze
+  in `pick_control_day` lässt ein paar Prozent Unwucht stehen. Die
+  Zuschreibung an das Instrument in diesem Bericht bleibt stehen, weil
+  sie so gemessen wurde — sie ist aber nicht die beste Erklärung.
 - **Der Pfifferling braucht eine eigene Klärung**, bevor seine 17,5 °C
   angefasst werden. Solange seine Kontrolle nicht hält, ist weder die alte
   noch die neue Zahl belastbar.
+  **Nachtrag 2026-09-17:** zu scharf formuliert. Seine Kontrolle steht bei
+  0,462 mit dem 13-°C-Fenster und bei **0,531 mit seinem eigenen**. Nicht
+  auswertbar ist also seine Auswertung mit 13 °C, nicht seine Ziehung.
