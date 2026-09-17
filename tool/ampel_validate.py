@@ -863,14 +863,28 @@ def fetch_weather(points, year, cache_dir=None, progress=True, span=None):
                 ampel_basis.merge_place(target, mapping,
                                         place.get("daily", {}))
             if len(sources) > 1:
-                time.sleep(2.0)
+                time.sleep(_politeness())
         series.extend(merged)
         if progress:
             print(f"    Wetter {year}: {len(series)}/{len(points)} Orte",
                   file=sys.stderr)
-        time.sleep(2.0)
+        time.sleep(_politeness())
     _cache_write(cache_dir, year, points, series, first_day, last_day)
     return series
+
+
+def _politeness():
+    """Wie lange zwischen zwei Abrufen gewartet wird.
+
+    Gegen den oeffentlichen Dienst zwei Sekunden — er ist kostenlos, hat
+    ein Kontingent und gehoert nicht geflutet. Gegen die eigene Instanz
+    null: Dort wartet das Werkzeug nur auf sich selbst, und beim gepinnten
+    Datensatz sind es zwei Abrufe je Ortsgruppe statt einem. Ueber einen
+    Lauf von Stunden ist das der Unterschied zwischen einem Abend und
+    einer Nacht.
+    """
+    host = urllib.parse.urlparse(OPEN_METEO).hostname or ""
+    return 0.0 if host in ("127.0.0.1", "localhost", "::1") else 2.0
 
 
 def _cache_key(year, points, first_day, last_day):
@@ -4236,6 +4250,8 @@ def self_test():
     assert OPEN_METEO_DEFAULT.startswith("https://archive-api.open-meteo.com")
     assert OPEN_METEO == OPEN_METEO_DEFAULT, \
         "der Selbsttest läuft mit der Vorgabe, nicht mit --api"
+    # Die Bremse gilt dem oeffentlichen Dienst, nicht der eigenen Instanz.
+    assert _politeness() == 2.0, "der oeffentliche Dienst wird geflutet"
 
     # --- Keine Zuweisung in `main` darf eine Funktion verdecken --------
     #
@@ -5844,19 +5860,38 @@ def main():
     # `--crosscheck` allein braucht KEIN Open-Meteo — nur GBIF und
     # Mushroom Observer. Deshalb lässt es sich getrennt laufen, etwa wenn
     # das Tageskontingent des Wetterdienstes erschöpft ist.
+    # **`--only` gilt auch hier.** Bis 2026-09-17 tat es das NICHT: Der
+    # Standardlauf ignorierte das Flag stillschweigend und maß trotzdem
+    # alle Arten — ein Aufruf mit `--only Steinpilz` lief also eine
+    # Stunde länger als verlangt, ohne dass irgendwo stand, warum. Ein
+    # Flag, das nichts tut, ist schlimmer als keines.
+    only_mycorrhizal, only_wood = MYCORRHIZAL, WOOD_DWELLERS
+    if args.only:
+        asked = [n.strip() for n in args.only.split(",") if n.strip()]
+        unknown = [n for n in asked
+                   if n not in MYCORRHIZAL and n not in WOOD_DWELLERS]
+        if unknown:
+            raise SystemExit(
+                f"Unbekannte Art(en) für den Standardlauf: "
+                f"{', '.join(unknown)}.\n"
+                f"Er kennt nur die Listen MYCORRHIZAL und WOOD_DWELLERS; "
+                f"für andere Arten gibt es --fit, --membership oder "
+                f"--thresholds.")
+        only_mycorrhizal = [n for n in MYCORRHIZAL if n in asked]
+        only_wood = [n for n in WOOD_DWELLERS if n in asked]
     if not args.crosscheck_only:
         print("Mykorrhiza-Speisepilze:", file=sys.stderr)
         mycorrhizal = [
             row for row in (
                 validate_species(name, mapping[name], args.cache, args.seed)
-                for name in MYCORRHIZAL if name in mapping)
+                for name in only_mycorrhizal if name in mapping)
             if row
         ]
         print("Arten-Kontrolle (Holzbewohner):", file=sys.stderr)
         wood = [
             row for row in (
                 validate_species(name, mapping[name], args.cache, args.seed)
-                for name in WOOD_DWELLERS if name in mapping)
+                for name in only_wood if name in mapping)
             if row
         ]
 
