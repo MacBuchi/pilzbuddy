@@ -4084,6 +4084,46 @@ def self_test():
     assert OPEN_METEO == OPEN_METEO_DEFAULT, \
         "der Selbsttest läuft mit der Vorgabe, nicht mit --api"
 
+    # --- Keine Zuweisung in `main` darf eine Funktion verdecken --------
+    #
+    # Genau das ist am 2026-09-17 passiert: `verdict = membership_verdict(…)`
+    # im `--membership`-Zweig machte den modulweiten `verdict(auc)` in
+    # GANZ `main()` zu einer lokalen Variablen. Python entscheidet das je
+    # Funktion und nicht je Zweig — der Standardlauf stürzte deshalb mit
+    # `UnboundLocalError` ab, und zwar erst NACH dem vollständigen
+    # Bericht, was es wie ein Fehler beim Schreiben aussehen ließ.
+    #
+    # Der Wächter ist bewusst allgemein: Der nächste Fall heißt nicht
+    # wieder `verdict`.
+    _tree = ast.parse(open(__file__, encoding="utf-8").read())
+    _functions = {node.name for node in _tree.body
+                  if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))}
+    for _node in _tree.body:
+        if not isinstance(_node, ast.FunctionDef):
+            continue
+        _assigned = set()
+        for _inner in ast.walk(_node):
+            if isinstance(_inner, ast.Assign):
+                _targets = _inner.targets
+            elif isinstance(_inner, (ast.AugAssign, ast.AnnAssign)):
+                _targets = [_inner.target]
+            elif isinstance(_inner, (ast.For, ast.AsyncFor)):
+                _targets = [_inner.target]
+            else:
+                continue
+            for _target in _targets:
+                for _name in ast.walk(_target):
+                    if isinstance(_name, ast.Name):
+                        _assigned.add(_name.id)
+        # `global` hebt die Verdeckung auf — das ist Absicht und kein Fund.
+        _global = {n for _inner in ast.walk(_node)
+                   if isinstance(_inner, ast.Global) for n in _inner.names}
+        _shadowed = (_assigned & _functions) - _global - {_node.name}
+        assert not _shadowed, (
+            f"{_node.name}() weist {sorted(_shadowed)} zu und verdeckt damit "
+            f"die gleichnamige Funktion in der GANZEN Funktion — auch in "
+            f"Zweigen, die die Zuweisung nie erreichen.")
+
     # Die Kandidaten des Kalttests stehen NICHT im Standardlauf — geprüft
     # wird trotzdem, dass es sie gibt: Ein Tippfehler fiele sonst erst
     # nach dem ersten Abruf auf, also nach dem halben Tageskontingent.
@@ -5386,16 +5426,23 @@ def main():
                   file=sys.stderr)
             rows.append(membership_species(
                 candidate["name"], candidate["sci"], args.cache, args.seed))
-        verdict = membership_verdict(rows, candidates)
-        report = render_membership_report(rows, candidates, verdict,
+        # **Nicht `verdict` nennen.** So hieß die Variable zuerst, und
+        # damit war der modulweite `verdict(auc)` in ganz `main()` eine
+        # lokale Zuweisung — der STANDARD-Lauf (ohne --membership) stürzte
+        # am Ende mit `UnboundLocalError` ab, nachdem er den ganzen
+        # Bericht schon gedruckt hatte. Python entscheidet das je
+        # Funktion, nicht je Zweig; dass der Zweig hier gar nicht lief,
+        # half also nichts.
+        outcome = membership_verdict(rows, candidates)
+        report = render_membership_report(rows, candidates, outcome,
                                           time.strftime("%Y-%m-%d"))
         if args.out:
             open(args.out, "w", encoding="utf-8").write(report)
             print(f"\n{args.out} geschrieben", file=sys.stderr)
         else:
             print(report)
-        print(f"\n  Ausgang: {verdict['state']} — "
-              f"{len(verdict['passed'])} von {len(verdict['measured'])} "
+        print(f"\n  Ausgang: {outcome['state']} — "
+              f"{len(outcome['passed'])} von {len(outcome['measured'])} "
               "gemessenen frischen Herbstarten erfüllen die Bedingung",
               file=sys.stderr)
         return
