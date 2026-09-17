@@ -929,6 +929,20 @@ def window_before(series, day_of_year, length):
         return None, None
     rain = list(reversed(series["rain"][end - length:end]))
     temp = list(reversed(series["temp"][end - length:end]))
+    # **Eine Lücke macht das Fenster ungültig, nicht nur dünn.**
+    # Ohne diese Zeile liest das Modell fehlende Werte als Zahlen:
+    # `rain_factor` nimmt `mm or 0.0`, also erfundene Trockenheit, und
+    # `temperature_factor` siebt sie aus und liefert bei lauter Lücken
+    # 0.0 — das heißt „Temperatur maximal daneben“ und nicht „unbekannt“.
+    #
+    # Auf der Vorgabe fiel das nie auf, weil sie keine Lücken hat. Der
+    # gepinnte Datensatz hat welche: **ERA5-Land ist landgebunden**, eine
+    # Fundkoordinate in einer Seezelle bekommt gar keine Temperatur.
+    # Gemessen sind es 6 von 8492 Fenstern (0,07 %), alle mit komplett
+    # leerer Temperatur — numerisch klein, aber eine erfundene Zahl bleibt
+    # eine erfundene Zahl.
+    if any(v is None for v in rain) or any(v is None for v in temp):
+        return None, None
     return rain, temp
 
 
@@ -4316,6 +4330,24 @@ def self_test():
     assert OPEN_METEO_DEFAULT.startswith("https://archive-api.open-meteo.com")
     assert OPEN_METEO == OPEN_METEO_DEFAULT, \
         "der Selbsttest läuft mit der Vorgabe, nicht mit --api"
+
+    # **Ein Fenster mit Lücke ist kein Fenster.** Die beiden Faktoren
+    # verrechnen fehlende Werte still (Regen als 0 mm, Temperatur als
+    # „maximal daneben“) — beides sind Zahlen, die niemand gemessen hat.
+    _heil = {"first": 0, "rain": [1.0] * 40, "temp": [10.0] * 40}
+    assert window_before(_heil, 30, 26)[0] is not None
+    _loch_regen = {"first": 0, "rain": [1.0] * 20 + [None] + [1.0] * 19,
+                   "temp": [10.0] * 40}
+    assert window_before(_loch_regen, 30, 26) == (None, None), \
+        "Regen-Lücke käme als erfundene Trockenheit durch"
+    _loch_temp = {"first": 0, "rain": [1.0] * 40,
+                  "temp": [10.0] * 20 + [None] + [10.0] * 19}
+    assert window_before(_loch_temp, 30, 26) == (None, None), \
+        "Temperatur-Lücke käme durch"
+    # Eine Lücke AUSSERHALB des Fensters darf es nicht ungültig machen.
+    _loch_daneben = {"first": 0, "rain": [None] + [1.0] * 39,
+                     "temp": [10.0] * 40}
+    assert window_before(_loch_daneben, 30, 26)[0] is not None
     # Die Bremse gilt dem oeffentlichen Dienst, nicht der eigenen Instanz.
     assert _politeness() == 2.0, "der oeffentliche Dienst wird geflutet"
 
