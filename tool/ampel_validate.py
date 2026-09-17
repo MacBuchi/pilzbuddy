@@ -62,6 +62,8 @@ Angabe, dort zählt nur der Monat.
 """
 import argparse
 import ast
+import contextlib
+import io
 import inspect
 import datetime
 import importlib.util
@@ -1879,12 +1881,33 @@ def verify_class_constants(measured):
                     f"  {key}.optimum: gemessen "
                     f"{got['optimum_measured']!r} °C, Konstante "
                     f"{expected!r} °C")
-    if findings:
-        raise SystemExit(
-            "Klassen-Konstanten passen nicht zu den Daten:\n"
-            + "\n".join(findings)
-            + "\n\nKonstante, Bericht UND ampel_model.dart gehören "
-              "zusammen neu gesetzt — nicht einzeln.")
+    if not findings:
+        return findings
+    # **Auf einer anderen Messbasis vergleicht der Wächter Äpfel mit
+    # Birnen** (seit 2026-09-17). Die ausgelieferten Konstanten sind auf
+    # der Vorgabe gemessen — also auf einem Instrument, das bis 2016
+    # ERA5-Land ist und ab 2017 IFS HRES. Auf einem gepinnten Datensatz
+    # MÜSSEN sie abweichen; das ist der Befund, nicht der Fehler.
+    #
+    # Würde hier trotzdem abgebrochen, wäre jede künftige Messung auf
+    # einer neuen Basis blockiert — und der Wächter genau das, wovor sein
+    # eigener Kommentar warnt: einer, den man nach dem zweiten Mal
+    # abschaltet. Er wacht weiter scharf über den Gleichlauf von Werkzeug
+    # und `ampel_model.dart`, aber nur dort, wo beide dasselbe messen.
+    if DATASET != ampel_basis.DEFAULT_DATASET:
+        print("\nKlassen-Konstanten weichen ab — erwartet, denn gemessen "
+              f"wird auf '{DATASET}' und die Konstanten stammen von "
+              f"'{ampel_basis.DEFAULT_DATASET}':\n"
+              + "\n".join(findings)
+              + "\n\nDas ist eine Nachmessung, keine Freigabe. Übernommen "
+                "wird nichts ohne Betreiberentscheidung.\n",
+              file=sys.stderr)
+        return findings
+    raise SystemExit(
+        "Klassen-Konstanten passen nicht zu den Daten:\n"
+        + "\n".join(findings)
+        + "\n\nKonstante, Bericht UND ampel_model.dart gehören "
+          "zusammen neu gesetzt — nicht einzeln.")
 
 
 def class_table_row(key, klass, got):
@@ -3863,6 +3886,35 @@ def self_test():
                 f"{erwartet} fehlt in der Meldung:\n{gemeldet}"
     else:
         raise AssertionError("fünf falsche Konstanten müssen auffallen")
+
+    # **Auf einer anderen Basis darf derselbe Fund NICHT abbrechen.**
+    # Sonst wäre jede Messung auf einem gepinnten Datensatz blockiert —
+    # genau das ist am 2026-09-17 im Referenzlauf passiert.
+    try:
+        use_dataset("pinned")
+        with contextlib.redirect_stderr(io.StringIO()) as _quiet:
+            gemeldet = verify_class_constants({
+                "herbst": {"verhalten": 0.0, "guenstig": 0.0,
+                           "optimum_measured": 99.0},
+                "sommer": {"verhalten": 0.0, "guenstig": 0.0},
+            })
+        # Die Meldung muss den Grund nennen, sonst liest sie sich wie ein
+        # verschluckter Fehler.
+        assert "pinned" in _quiet.getvalue(), _quiet.getvalue()
+        assert "Nachmessung" in _quiet.getvalue()
+        assert len(gemeldet) == 5, gemeldet
+        assert any("herbst.optimum" in f for f in gemeldet), gemeldet
+    finally:
+        use_dataset(ampel_basis.DEFAULT_DATASET)
+    # Und auf der Vorgabe bricht er weiter ab — der Wächter ist nicht
+    # abgeschaltet, nur auf das eingeschränkt, was er beantworten kann.
+    try:
+        verify_class_constants({"herbst": {"verhalten": 0.0,
+                                           "guenstig": 0.0}})
+    except SystemExit:
+        pass
+    else:
+        raise AssertionError("auf der Vorgabe muss er weiter abbrechen")
 
     # **Und der Erfolgsfall.** Hier stand nach einem Umbau ein verirrtes
     # `return out`, und der Selbsttest hat es nicht bemerkt, weil er nur
