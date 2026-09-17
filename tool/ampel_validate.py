@@ -1280,7 +1280,7 @@ def select_finds(sci, cache_dir=None, seed=42, progress=True,
         if progress:
             print(f"    entdoppelt: {deduped} von {total} Meldungen fallen "
                   f"weg ({len(finds)} bleiben)", file=sys.stderr)
-    if len(finds) > SAMPLE_PER_SPECIES and not vorgegeben:
+    if len(finds) > SAMPLE_PER_SPECIES:
         finds = random.Random(seed).sample(finds, SAMPLE_PER_SPECIES)
         if progress:
             print(f"    Stichprobe: {SAMPLE_PER_SPECIES} von {total}",
@@ -4699,6 +4699,32 @@ def self_test():
     # Und der Beweis, dass es ohne Klemmen schiefgeht:
     assert _date_from_index(2021, 365).startswith("2021-13"), \
         "ohne Klemmen entsteht ein Monat 13 — genau der stille 400er"
+
+    # **`select_finds` wird netzfrei durch BEIDE Zweige geschickt.**
+    # Der Stichproben-Zweig laeuft erst ab SAMPLE_PER_SPECIES Meldungen,
+    # und genau dort stand eine Zeile mit einer Variablen, die es in
+    # dieser Funktion gar nicht gibt. Der Selbsttest lief gruen, der
+    # Probelauf lief gruen (die Art hatte zu wenige Meldungen), und der
+    # Volllauf brach bei der ersten haeufigen Art ab. Ein Zweig, der nur
+    # bei grossen Eingaben genommen wird, braucht eine grosse Eingabe.
+    _echte_finds = globals()["fetch_finds"]
+    try:
+        _viele = [{"lat": 51.0 + i * 1e-4, "lon": 10.0, "year": 2010,
+                   "month": 9, "day": 1 + (i % 28), "recordedBy": f"M{i}"}
+                  for i in range(SAMPLE_PER_SPECIES + 500)]
+        globals()["fetch_finds"] = lambda sci, **kw: _viele
+        _gezogen, _info = select_finds("x", None, 42, False)
+        assert len(_gezogen) == SAMPLE_PER_SPECIES, len(_gezogen)
+        assert _info["available"] == SAMPLE_PER_SPECIES + 500
+        # Und der kleine Zweig: weniger als die Grenze bleibt unangetastet.
+        globals()["fetch_finds"] = lambda sci, **kw: _viele[:10]
+        _gezogen, _info = select_finds("x", None, 42, False)
+        assert len(_gezogen) == 10, len(_gezogen)
+        # Leere Liste ergibt None statt eines Absturzes weiter unten.
+        globals()["fetch_finds"] = lambda sci, **kw: []
+        assert select_finds("x", None, 42, False) == (None, {})
+    finally:
+        globals()["fetch_finds"] = _echte_finds
 
     # --- Design B: das Mass, netzfrei ----------------------------------
     #
