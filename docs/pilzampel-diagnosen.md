@@ -119,11 +119,21 @@ Dieselbe Paarpruefung fuer **irgendeine Pilzmeldung am Ort** statt fuer eine Art
 
 **Was diese Zahl kann und was nicht:** Sie ist die Obergrenze des reinen Aufwandssignals. Artspezifisch belastbar ist nur, was eine Art darueber hinaus zeigt. Sie ist KEIN Abzugsposten — man darf sie nicht von der AUC einer Art subtrahieren, weil beide dieselbe Ursache teilen koennen.
 
-| Fenster | AUC der Referenz | Paare |
-|---|--:|--:|
-| herbst (13,0 °C) | 0.591 | 538 |
-| sommer (17,5 °C) | 0.535 | 538 |
-| kalt (−2,5 °C) | 0.533 | 538 |
+| Fenster | AUC der Referenz | über Jahre | über Melder | Paare |
+|---|--:|---|---|--:|
+| herbst (13,0 °C) | **0.591** | [0.567, 0.614] | [0.549, 0.639] | 538 |
+| sommer (17,5 °C) | 0.535 | [0.496, 0.588] | [0.492, 0.581] | 538 |
+| kalt (−2,5 °C) | 0.533 | [0.494, 0.565] | [0.493, 0.572] | 538 |
+
+538 Paare aus 12 Jahren und 199 Meldern. Beim Herbstfenster schließen
+beide Bereiche die 0,50 aus, bei den anderen beiden nicht.
+
+**Ein Vorbehalt, der dazugehört:** Die Spiegel-Kontrolle der Referenz
+selbst steht bei **0,470** (487 Paare). Das liegt innerhalb der
+Zwei-Fehler-Grenze (±0,045 bei dieser Paarzahl), aber außerhalb der
+früheren festen ±0,03. Die Referenz ist damit nicht ganz so sauber wie
+die Arten, an denen sie gemessen wird — was gegen eine Überinterpretation
+der dritten Nachkommastelle spricht, nicht gegen die Größenordnung.
 
 Richtungs-Split der Referenz (13 °C): vor 0.584, danach 0.598.
 
