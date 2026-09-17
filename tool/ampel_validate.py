@@ -1029,7 +1029,7 @@ def _extra_windows(place, day):
 
 
 def collect_pairs(name, sci, cache_dir=None, seed=42, progress=True,
-                  countries=("DE",)):
+                  countries=("DE",), finds=None):
     """Zieht die Paare EINMAL und gibt die rohen Fenster zurück.
 
     **Warum getrennt vom Bewerten.** Seit der Anpassung je Art
@@ -1047,8 +1047,14 @@ def collect_pairs(name, sci, cache_dir=None, seed=42, progress=True,
     """
     if progress:
         print(f"  {name} ({sci})", file=sys.stderr)
-    finds = fetch_finds(sci, progress=progress, cache_dir=cache_dir,
-                        countries=countries)
+    # **Eine fertige Liste darf hereingereicht werden** — dann gilt sie,
+    # wie sie ist. So laufen Design A und Design B auf DERSELBEN
+    # Stichprobe; zögen beide für sich, wäre ihr Unterschied teils die
+    # Stichprobe statt das Design. Ohne das Argument ändert sich nichts.
+    vorgegeben = finds is not None
+    if not vorgegeben:
+        finds = fetch_finds(sci, progress=progress, cache_dir=cache_dir,
+                            countries=countries)
     if not finds:
         return None
 
@@ -1058,13 +1064,13 @@ def collect_pairs(name, sci, cache_dir=None, seed=42, progress=True,
     # Fotos hätte zwanzigfache Chance, in die 2000 zu kommen, und die
     # Stichprobe bestünde am Ende überproportional aus Serien.
     deduped = 0
-    if DEDUPE:
+    if DEDUPE and not vorgegeben:
         finds, deduped = ampel_basis.dedupe_finds(finds)
         if progress:
             print(f"    entdoppelt: {deduped} von {total_available} "
                   f"Meldungen fallen weg ({len(finds)} bleiben)",
                   file=sys.stderr)
-    if len(finds) > SAMPLE_PER_SPECIES:
+    if len(finds) > SAMPLE_PER_SPECIES and not vorgegeben:
         # Zufällig, mit festem Seed — nicht „die ersten N". GBIF liefert
         # nach id sortiert, und das korreliert mit dem Meldeportal: Die
         # ersten 500 kämen überwiegend aus derselben Quelle und derselben
@@ -1229,6 +1235,239 @@ def collect_pairs(name, sci, cache_dir=None, seed=42, progress=True,
         "available": total_available,
         "incomplete_extra": incomplete_extra,
     }
+
+
+def select_finds(sci, cache_dir=None, seed=42, progress=True,
+                 countries=("DE",)):
+    """Die Fundliste — entdoppelt und auf die Stichprobe gezogen.
+
+    **Herausgelöst, damit Design A und Design B auf DERSELBEN Liste
+    laufen.** Zögen beide für sich, wäre ihr Unterschied teils die
+    Stichprobe statt das Design — und genau das soll Phase 1.5 messen.
+
+    Die Reihenfolge der Griffe ist die von `collect_pairs`: erst
+    entdoppeln, dann `random.Random(seed).sample`. Wer sie ändert,
+    verschiebt jede bisher berichtete Zahl.
+    """
+    finds = fetch_finds(sci, progress=progress, cache_dir=cache_dir,
+                        countries=countries)
+    if not finds:
+        return None, {}
+    total = len(finds)
+    deduped = 0
+    if DEDUPE:
+        finds, deduped = ampel_basis.dedupe_finds(finds)
+        if progress:
+            print(f"    entdoppelt: {deduped} von {total} Meldungen fallen "
+                  f"weg ({len(finds)} bleiben)", file=sys.stderr)
+    if len(finds) > SAMPLE_PER_SPECIES and not vorgegeben:
+        finds = random.Random(seed).sample(finds, SAMPLE_PER_SPECIES)
+        if progress:
+            print(f"    Stichprobe: {SAMPLE_PER_SPECIES} von {total}",
+                  file=sys.stderr)
+    return finds, {"available": total, "deduped": deduped}
+
+
+def collect_pairs_b(name, sci, finds=None, cache_dir=None, seed=42,
+                    progress=True, countries=("DE",),
+                    control_count=None):
+    """Design B: gleicher Ort, gleiches Kalenderfenster, ANDERES Jahr.
+
+    Design A vergleicht den Fundtag mit einem Tag 26–45 Tage daneben im
+    selben Jahr. Das kürzt die Saison nur ungefähr heraus — bei Arten,
+    deren Fruchtzeit auf einem steilen Stück des Jahresgangs liegt, misst
+    die AUC dann zu einem großen Teil den Kalender (Phase 1.1).
+
+    Design B fragt stattdessen: **War das Wetter in diesem Jahr an diesem
+    Datum besser als an diesem Datum üblich?** Die Saison kürzt sich
+    vollständig heraus, und übrig bleibt genau der Zusatznutzen, den die
+    Ampel neben der ohnehin angezeigten Saisonkurve haben soll.
+
+    Vier Dinge, die man wissen muss:
+
+    - **Die Seiten wechseln sich ab**, beginnend mit einer gewürfelten.
+      Ein Münzwurf je Zug wäre im Erwartungswert ausgeglichen und im
+      Einzelfall nicht — und diese Unwucht ist es, die in Design A die
+      Spiegel-Kontrolle stört (A5). Wo eine Seite leer ist (Funde von
+      2006 oder 2025), wird die andere genommen und es wird GEZÄHLT.
+    - **Fünf Kontrolljahre statt einem.** Das Wetter liegt nach dem
+      ersten Lauf ohnehin im Cache, und der Mittelwert über fünf Jahre
+      hängt viel weniger am Seed. Der Wert je Fund ist der Anteil der
+      Kontrolljahre, die der Fundtag schlägt; für ein einziges
+      Kontrolljahr ist das genau der Beitrag eines Paares zur gepaarten
+      AUC, die Größe bleibt also mit A vergleichbar. `k = 1` wird
+      zusätzlich mitgerechnet.
+    - **Der Kontrolltag streut ±7 Tage, je Kontrolljahr neu gezogen.**
+      Ohne Streuung träfe die Ziehung in jedem Jahr denselben
+      Wochentag-Rhythmus und dieselbe Meldeportal-Kampagne.
+    - **Ein fehlendes Jahr bricht nicht ab**, anders als in Design A. Es
+      verkleinert den Kandidatenkreis, wird gezählt und berichtet; erst
+      wenn ein Fund gar kein brauchbares Jahr hat, entsteht kein Wert.
+
+    **Was B NICHT kann:** Ein Kontrolljahr kann am selben Ort zur selben
+    Woche sehr wohl einen Fund getragen haben — Presence-only trennt
+    „kein Fund" nicht von „niemand war da". Solche Jahre auszuschließen
+    wäre genau der Detektionsfehler, den die Daten nicht hergeben. „Üblich"
+    schließt also die guten Jahre ein, und das dämpft die Zahl zusätzlich.
+    """
+    if control_count is None:
+        control_count = ampel_basis.CONTROL_YEARS
+    if finds is None:
+        finds, _ = select_finds(sci, cache_dir, seed, progress, countries)
+    if not finds:
+        return None
+
+    by_year = {}
+    for find in finds:
+        by_year.setdefault(find["year"], []).append(find)
+
+    rng = random.Random(seed)
+    samples = []
+    fehlende_jahre = {}
+    ausgewichen = 0
+    ohne_jahr = 0
+    skipped = 0
+    partial_years = []
+
+    for year in sorted(by_year):
+        if year > LAST_COMPLETE_YEAR:
+            partial_years.append(year)
+            continue
+        group = by_year[year]
+        points = [(f["lat"], f["lon"]) for f in group]
+        span = season_span(
+            [day_index(year, f["month"], f["day"]) for f in group], year=year)
+
+        # **Derselbe Zeitraum und dieselben Punkte in allen Jahren.** Der
+        # Vorlauf von `season_span` (45 + 28 Tage) deckt ±7 Tage plus den
+        # 28-Tage-Rückblick mit Abstand; damit ist der Cache-Schlüssel
+        # (Jahr, gleiche Punkte, gleicher Zeitraum) und über die
+        # Kontrolljahre hinweg wiederverwendbar.
+        reihen = {}
+        kandidaten = [y for y in range(year - ampel_basis.YEAR_SPAN,
+                                       year + ampel_basis.YEAR_SPAN + 1)
+                      if FIRST_YEAR <= y <= LAST_COMPLETE_YEAR]
+        for other in kandidaten:
+            try:
+                reihen[other] = fetch_weather(points, other, cache_dir,
+                                              progress=False, span=span)
+            except Exception as error:  # noqa: BLE001
+                fehlende_jahre.setdefault(other, 0)
+                fehlende_jahre[other] += 1
+                if progress:
+                    print(f"    Kontrolljahr {other} fehlt: {error}",
+                          file=sys.stderr)
+        if year not in reihen:
+            continue
+        brauchbar = sorted(y for y in reihen if y != year)
+        if progress:
+            print(f"    {year}: {len(group)} Funde, {len(brauchbar)} "
+                  f"Kontrolljahre", file=sys.stderr)
+
+        for index, find in enumerate(group):
+            found_day = day_index(year, find["month"], find["day"])
+            a_rain, a_temp = window_before(reihen[year][index], found_day,
+                                           RAIN_WINDOW)
+            if a_rain is None:
+                skipped += 1
+                continue
+            jahre, aus = ampel_basis.pick_control_years(
+                year, rng, control_count, FIRST_YEAR, LAST_COMPLETE_YEAR,
+                used=[y for y in kandidaten if y not in brauchbar])
+            ausgewichen += aus
+            controls, control_years, extra_controls = [], [], []
+            for other in jahre:
+                tag = found_day + rng.randint(-ampel_basis.DAY_JITTER,
+                                              ampel_basis.DAY_JITTER)
+                b_rain, b_temp = window_before(reihen[other][index], tag,
+                                               RAIN_WINDOW)
+                if b_rain is None:
+                    continue
+                controls.append((b_rain, b_temp))
+                control_years.append(other)
+                extra_controls.append(_extra_windows(reihen[other][index], tag))
+            if not controls:
+                ohne_jahr += 1
+                continue
+            # **Das Placebo zieht nach DERSELBEN Regel.** Ein Nicht-Fundjahr
+            # spielt den Fundtag, die übrigen sind seine Kontrollen. Zöge
+            # es anders, prüfte es eine andere Ziehung als die, die oben
+            # gelaufen ist.
+            placebo_found = placebo_controls = None
+            if len(control_years) >= 2:
+                anker_jahr = control_years[0]
+                tag = found_day + rng.randint(-ampel_basis.DAY_JITTER,
+                                              ampel_basis.DAY_JITTER)
+                p_rain, p_temp = window_before(reihen[anker_jahr][index], tag,
+                                               RAIN_WINDOW)
+                if p_rain is not None:
+                    placebo_found = (p_rain, p_temp)
+                    placebo_controls = controls[1:]
+            samples.append({
+                "year": year,
+                "found": (a_rain, a_temp),
+                "controls": controls,
+                "control_years": control_years,
+                "placebo_found": placebo_found,
+                "placebo_controls": placebo_controls,
+                "recordedBy": find.get("recordedBy"),
+                "country": find.get("countryCode"),
+                "extra": _extra_windows(reihen[year][index], found_day),
+                "extra_controls": extra_controls,
+            })
+
+    if not samples:
+        return None
+    if progress:
+        print(f"    Design B: {len(samples)} Funde, "
+              f"{sum(len(s['controls']) for s in samples)} Vergleiche, "
+              f"{ausgewichen} mal die Seite gewechselt, {ohne_jahr} Funde "
+              f"ohne brauchbares Jahr, {skipped} ohne Fenster",
+              file=sys.stderr)
+    return {
+        "name": name, "sci": sci, "samples": samples,
+        "design": "B", "control_count": control_count,
+        "ausgewichen": ausgewichen, "ohne_jahr": ohne_jahr,
+        "skipped": skipped, "fehlende_jahre": fehlende_jahre,
+        "years": len({s["year"] for s in samples}),
+        "partial_years": partial_years,
+        "dataset": DATASET,
+    }
+
+
+def score_b(samples, optimum=OPTIMUM_C, limit=None, side=None):
+    """Das Maß von Design B — Mittel der geschlagenen Anteile.
+
+    `limit` schneidet auf die ersten `limit` Kontrolljahre (für k = 1 zum
+    Vergleich mit A), `side` auf „früher" oder „später" (Richtungs-Split).
+    """
+    anteile = []
+    for s in samples:
+        paare = list(zip(s["control_years"], s["controls"]))
+        if side == "frueher":
+            paare = [p for p in paare if p[0] < s["year"]]
+        elif side == "spaeter":
+            paare = [p for p in paare if p[0] > s["year"]]
+        if limit is not None:
+            paare = paare[:limit]
+        if not paare:
+            continue
+        anteile.append(ampel_basis.beat_fraction(
+            ampel_score(*s["found"], optimum),
+            [ampel_score(*c, optimum) for _, c in paare]))
+    return ampel_basis.mean_beat(anteile), len(anteile)
+
+
+def placebo_b(samples, optimum=OPTIMUM_C):
+    """Zwei Nicht-Fundjahre gegeneinander — MUSS 0,5 sein."""
+    anteile = []
+    for s in samples:
+        if not s.get("placebo_found") or not s.get("placebo_controls"):
+            continue
+        anteile.append(ampel_basis.beat_fraction(
+            ampel_score(*s["placebo_found"], optimum),
+            [ampel_score(*c, optimum) for c in s["placebo_controls"]]))
+    return ampel_basis.mean_beat(anteile), len(anteile)
 
 
 def score_pairs(samples, optimum=OPTIMUM_C):
@@ -4393,6 +4632,81 @@ def self_test():
     assert OPEN_METEO_DEFAULT.startswith("https://archive-api.open-meteo.com")
     assert OPEN_METEO == OPEN_METEO_DEFAULT, \
         "der Selbsttest läuft mit der Vorgabe, nicht mit --api"
+
+    # --- Design B: das Maß, netzfrei ----------------------------------
+    #
+    # Gepflanzt: Ein Fund schlägt drei von vier Kontrolljahren, der
+    # zweite keines. Das Mittel muss 0,375 sein.
+    def _b(jahr, found_c, controls):
+        return {"year": jahr, "found": ([1.0] * 26, [found_c] * 20),
+                "controls": [([1.0] * 26, [c] * 20) for c in controls],
+                "control_years": [jahr - 2, jahr - 1, jahr + 1, jahr + 2],
+                "placebo_found": None, "placebo_controls": None}
+    # 13 °C trifft das Optimum; 30 °C liegt weit daneben.
+    gut = _b(2015, 13.0, [30.0, 30.0, 30.0, 13.0])     # 3 geschlagen, 1 gleich
+    schlecht = _b(2016, 30.0, [13.0, 13.0, 13.0, 13.0])
+    wert, n = score_b([gut, schlecht])
+    assert n == 2 and abs(wert - 0.4375) < 1e-9, (wert, n)
+
+    # `limit` schneidet auf die ersten k — für k = 1 ist es der Beitrag
+    # eines einzelnen Paares und damit dieselbe Größe wie in Design A.
+    assert score_b([gut], limit=1)[0] == 1.0
+    assert score_b([schlecht], limit=1)[0] == 0.0
+
+    # Der Richtungs-Split trennt frühere von späteren Kontrolljahren.
+    assert score_b([gut], side="frueher")[0] == 1.0      # 2013, 2014
+    assert score_b([gut], side="spaeter")[0] == 0.75     # 2016 ja, 2017 gleich
+    # Eine Art ohne Kontrolljahr auf einer Seite liefert dort nichts,
+    # statt eine Null beizusteuern.
+    einseitig = dict(gut, control_years=[2013, 2014, 2013, 2014])
+    assert score_b([einseitig], side="spaeter") == (None, 0)
+
+    # Das Placebo greift nur, wo es gezogen wurde.
+    assert placebo_b([gut]) == (None, 0)
+    mit = dict(gut, placebo_found=([1.0] * 26, [13.0] * 20),
+               placebo_controls=[([1.0] * 26, [30.0] * 20)])
+    assert placebo_b([mit]) == (1.0, 1)
+
+    # --- Design B: das Mass, netzfrei ----------------------------------
+    #
+    # Gepflanzt: Ein Fund schlaegt drei von vier Kontrolljahren und steht
+    # beim vierten gleich; der zweite schlaegt keines.
+    def _b(jahr, found_c, controls):
+        return {"year": jahr, "found": ([1.0] * 26, [found_c] * 20),
+                "controls": [([1.0] * 26, [c] * 20) for c in controls],
+                "control_years": [jahr - 2, jahr - 1, jahr + 1, jahr + 2],
+                "placebo_found": None, "placebo_controls": None}
+    gut = _b(2015, 13.0, [30.0, 30.0, 30.0, 13.0])
+    schlecht = _b(2016, 30.0, [13.0, 13.0, 13.0, 13.0])
+    wert, n = score_b([gut, schlecht])
+    assert n == 2 and abs(wert - 0.4375) < 1e-9, (wert, n)
+
+    # `limit` schneidet auf die ersten k — fuer k = 1 ist es der Beitrag
+    # eines einzelnen Paares und damit dieselbe Groesse wie in Design A.
+    assert score_b([gut], limit=1)[0] == 1.0
+    assert score_b([schlecht], limit=1)[0] == 0.0
+
+    # Der Richtungs-Split trennt fruehere von spaeteren Kontrolljahren.
+    assert score_b([gut], side="frueher")[0] == 1.0
+    assert score_b([gut], side="spaeter")[0] == 0.75
+    # Eine Seite ohne Kontrolljahr liefert dort nichts, statt eine Null
+    # beizusteuern — sonst saehe „fehlt" aus wie „schlecht".
+    einseitig = dict(gut, control_years=[2013, 2014, 2013, 2014])
+    assert score_b([einseitig], side="spaeter") == (None, 0)
+
+    # Das Placebo greift nur, wo es gezogen wurde.
+    assert placebo_b([gut]) == (None, 0)
+    mit = dict(gut, placebo_found=([1.0] * 26, [13.0] * 20),
+               placebo_controls=[([1.0] * 26, [30.0] * 20)])
+    assert placebo_b([mit]) == (1.0, 1)
+
+    # Und `collect_pairs` muss eine fertige Liste unveraendert uebernehmen,
+    # sonst laufen A und B doch auf verschiedenen Stichproben.
+    _quelle = inspect.getsource(collect_pairs)
+    assert "if DEDUPE and not vorgegeben:" in _quelle, \
+        "eine hereingereichte Liste wuerde noch einmal entdoppelt"
+    assert "if len(finds) > SAMPLE_PER_SPECIES and not vorgegeben:" in _quelle, \
+        "eine hereingereichte Liste wuerde noch einmal beprobt"
 
     # --- A4: der lokale Bestand wird nicht mehr beschnitten -----------
     #

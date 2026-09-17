@@ -95,7 +95,17 @@ DEDUPE_KM = 1.0
 
 
 def grid_cell(lat, lon, km=DEDUPE_KM):
-    """Die ~km-Wabe, in der ein Punkt liegt."""
+    """Die ~km-Wabe, in der ein Punkt liegt.
+
+    **Die Spalte haengt ueber `cos(lat)` an der BREITE.** Zwei Punkte
+    gleicher Laenge, aber verschiedener Breite koennen deshalb in
+    verschiedene Spalten fallen, auch wenn sie in der Laenge identisch
+    sind. Fuer beide Verwendungen ist das unkritisch, weil es immer nur
+    TRENNT und nie zusammenfuehrt: Entdoppeln faellt dadurch
+    vorsichtiger aus (eine Dublette entgeht), und beim Ortsmatching wird
+    der Kandidatenkreis am Rand etwas enger. Was nicht passieren kann,
+    ist dass zwei wirklich entfernte Punkte als derselbe Ort gelten.
+    """
     step = km / KM_PER_DEGREE
     row = math.floor(lat / step)
     # Am Pol geht der Kosinus gegen null; DACH ist weit davon entfernt,
@@ -261,6 +271,110 @@ def pick_control(day_of_year, rng, min_gap, max_gap):
     return day_of_year + gap, gap
 
 
+# --- Design B: gleicher Ort, gleiches Datum, anderes Jahr ------------------
+
+# Wie weit das Kontrolljahr hoechstens vom Fundjahr abliegt. Fuenf Jahre
+# in jede Richtung: weit genug fuer eine Handvoll Kandidaten, eng genug,
+# dass der Klimatrend nicht zur Hauptaussage wird.
+YEAR_SPAN = 5
+
+# Wieviel der Kontrolltag kalendarisch um den Fundtag streuen darf.
+# **Nicht null**, sonst trifft die Ziehung in jedem Jahr denselben
+# Wochentag-Rhythmus und dieselbe Meldeportal-Kampagne.
+DAY_JITTER = 7
+
+# Wieviele Kontrolljahre je Fund. Eines macht die Zahl seed-abhaengig,
+# fuenf mitteln das heraus — und kosten nichts, weil das Wetter nach dem
+# ersten Lauf ohnehin im Cache liegt.
+CONTROL_YEARS = 5
+
+
+def candidate_years(find_year, first, last, span=YEAR_SPAN, used=()):
+    """Die moeglichen Kontrolljahre, getrennt nach Seite.
+
+    Das Fundjahr selbst faellt heraus, ebenso alles ausserhalb des
+    Zeitraums, fuer den es ueberhaupt Wetter gibt.
+    """
+    # Das Fundjahr faellt durch die Grenzen der beiden `range` heraus —
+    # `find_year` ist bei der einen exklusives Ende, bei der anderen
+    # beginnt es eine Stelle darueber. Ein zusaetzlicher Filter darauf
+    # stand hier zuerst; er war nicht falsch, aber nicht pruefbar: Die
+    # Gegenprobe, die ihn entfernte, blieb gruen. Was nicht rot werden
+    # kann, sichert nichts und taeuscht Sicherheit vor.
+    gesperrt = set(used)
+    vorher = [y for y in range(find_year - span, find_year)
+              if first <= y <= last and y not in gesperrt]
+    nachher = [y for y in range(find_year + 1, find_year + span + 1)
+               if first <= y <= last and y not in gesperrt]
+    return vorher, nachher
+
+
+def pick_control_years(find_year, rng, count, first, last, span=YEAR_SPAN,
+                       used=()):
+    """`count` Kontrolljahre, die Seiten so ausgeglichen wie moeglich.
+
+    **Die Seiten wechseln sich ab**, beginnend mit einer gewuerfelten
+    Seite. Das ist die Umsetzung von „gleich oft davor und danach": Ein
+    Muenzwurf JE ZUG waere im Erwartungswert ausgeglichen und im
+    Einzelfall nicht — und genau diese Unwucht ist es, die in Design A
+    die Spiegel-Kontrolle stoert (Phase 1, Abschnitt A5: Steigung mal
+    Seitenunwucht erklaert sie mit Rangkorrelation +0,87).
+
+    **Ist die vorgesehene Seite leer, wird die andere genommen** — bei
+    Funden aus 2006 oder 2025 gibt es nur eine. Wie oft das passiert,
+    gibt die Funktion als zweiten Wert zurueck; ohne diese Zahl waere
+    die Regel wieder eine Hoffnung, nur unsichtbar.
+
+    Gezogen wird OHNE Zuruecklegen: Dasselbe Jahr zweimal zu vergleichen
+    verdoppelt sein Gewicht, ohne eine Beobachtung hinzuzufuegen.
+    """
+    vorher, nachher = candidate_years(find_year, first, last, span, used)
+    vorher = list(vorher)
+    nachher = list(nachher)
+    rng.shuffle(vorher)
+    rng.shuffle(nachher)
+    seite = rng.random() < 0.5          # True = erst „vorher"
+    gezogen = []
+    ausgewichen = 0
+    for _ in range(count):
+        topf = vorher if seite else nachher
+        andere = nachher if seite else vorher
+        if not topf:
+            if not andere:
+                break
+            topf = andere
+            ausgewichen += 1
+        gezogen.append(topf.pop())
+        seite = not seite
+    return gezogen, ausgewichen
+
+
+def beat_fraction(found_score, control_scores):
+    """Anteil der Kontrolljahre, die der Fundtag schlaegt — Gleichstand 0,5.
+
+    Fuer `count = 1` ist das genau der Beitrag eines Paares zur gepaarten
+    AUC; fuer groessere `count` ist es dessen Mittel. Das Mass ueber alle
+    Funde bleibt damit dieselbe Groesse und ist mit Design A vergleichbar.
+    """
+    if not control_scores:
+        return None
+    treffer = 0.0
+    for other in control_scores:
+        if found_score > other:
+            treffer += 1.0
+        elif found_score == other:
+            treffer += 0.5
+    return treffer / len(control_scores)
+
+
+def mean_beat(fractions):
+    """Das Mass von Design B: Mittel der Anteile ueber alle Funde."""
+    werte = [f for f in fractions if f is not None]
+    if not werte:
+        return None
+    return sum(werte) / len(werte)
+
+
 # --- Selbsttest ------------------------------------------------------------
 
 
@@ -399,6 +513,64 @@ def self_test():
     # saehe „nicht geliefert" aus wie „keine Tage".
     merge_place(place, {"snow": "snow_depth_max"}, {})
     assert place["snow"] is None
+
+    # --- Design B: Kandidaten, Seitenbalance, Randjahre ---------------
+    vorher, nachher = candidate_years(2015, 2006, 2025)
+    assert vorher == [2010, 2011, 2012, 2013, 2014], vorher
+    assert nachher == [2016, 2017, 2018, 2019, 2020], nachher
+    # Das Fundjahr faellt durch die range-Grenzen heraus; die Zusicherung
+    # dazu steht oben in den beiden genauen Listen und nicht als eigene
+    # Zeile, die nie rot werden koennte.
+    # Randjahre: eine Seite ist leer.
+    assert candidate_years(2006, 2006, 2025)[0] == []
+    assert candidate_years(2025, 2006, 2025)[1] == []
+    # Schon benutzte Jahre fallen heraus.
+    assert 2014 not in candidate_years(2015, 2006, 2025, used=[2014])[0]
+
+    # Die Seiten muessen sich abwechseln — bei fuenf Zuegen also 3:2.
+    rng = random.Random(1)
+    for _ in range(50):
+        jahre, aus = pick_control_years(2015, rng, 5, 2006, 2025)
+        assert len(jahre) == 5 and len(set(jahre)) == 5, jahre
+        vor = sum(1 for y in jahre if y < 2015)
+        assert abs(vor - 2.5) == 0.5, (jahre, vor)
+        assert aus == 0, "in der Mitte darf nichts ausweichen"
+
+    # **Am Rand weicht sie aus und ZAEHLT es.** Ohne diese Zahl waere die
+    # Regel wieder eine Hoffnung, nur unsichtbar.
+    rng = random.Random(1)
+    jahre, aus = pick_control_years(2006, rng, 5, 2006, 2025)
+    assert jahre and all(y > 2006 for y in jahre), jahre
+    assert aus >= 2, aus
+    rng = random.Random(1)
+    jahre, aus = pick_control_years(2025, rng, 5, 2006, 2025)
+    assert all(y < 2025 for y in jahre) and aus >= 2, (jahre, aus)
+
+    # Reicht der Vorrat nicht, kommen weniger Jahre zurueck statt Dubletten.
+    rng = random.Random(1)
+    jahre, _ = pick_control_years(2007, rng, 5, 2006, 2008)
+    assert sorted(jahre) == [2006, 2008], jahre
+
+    # Und ein einziges Kontrolljahr bleibt moeglich (Vergleichbarkeit zu A).
+    rng = random.Random(1)
+    assert len(pick_control_years(2015, rng, 1, 2006, 2025)[0]) == 1
+
+    # --- Das Mass -----------------------------------------------------
+    assert beat_fraction(1.0, [0.0, 0.0, 0.0]) == 1.0
+    assert beat_fraction(0.0, [1.0, 1.0]) == 0.0
+    assert beat_fraction(0.5, [0.0, 1.0]) == 0.5
+    # Gleichstand zaehlt halb — sonst gewaenne ein Nullscore gegen einen
+    # Nullscore, und trockene Winterwochen waeren lauter Treffer.
+    assert beat_fraction(0.0, [0.0, 0.0]) == 0.5
+    assert beat_fraction(0.0, [0.0, 1.0]) == 0.25
+    assert beat_fraction(1.0, []) is None
+    # Fuer ein einziges Kontrolljahr ist es der Beitrag eines Paares zur
+    # gepaarten AUC — damit sind A und B dieselbe Groesse.
+    assert beat_fraction(1.0, [0.0]) == 1.0 and beat_fraction(0.0, [1.0]) == 0.0
+    assert mean_beat([1.0, 0.0]) == 0.5
+    assert mean_beat([1.0, None, 0.5]) == 0.75, "None darf nicht als 0 zaehlen"
+    assert mean_beat([None]) is None
+    assert mean_beat([]) is None
 
     print("Selbsttest ok")
 

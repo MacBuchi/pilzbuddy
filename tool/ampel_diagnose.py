@@ -47,6 +47,7 @@ _spec = importlib.util.spec_from_file_location(
     "ampel_validate", os.path.join(_HERE, "ampel_validate.py"))
 av = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(av)
+ab = av.ampel_basis
 
 FROST_C = 0.0          # Tmin, ab der ein Tag als Frosttag zaehlt
 FROST_LOOKBACKS = (7, 14, 21, 28)
@@ -206,7 +207,7 @@ def target_group_finds(countries=("DE",), progress=True):
     platzhalter = ",".join("?" * len(countries))
     rows = con.execute(
         f"SELECT decimalLatitude, decimalLongitude, year, month, day, "
-        f"       recordedBy, countryCode, gbifID "
+        f"       recordedBy, countryCode, gbifID, species "
         f"FROM occ WHERE {av.gbif_local.WHERE_USABLE} "
         f"  AND countryCode IN ({platzhalter}) "
         f"  AND year >= ? AND day IS NOT NULL AND month IS NOT NULL "
@@ -220,7 +221,67 @@ def target_group_finds(countries=("DE",), progress=True):
               file=sys.stderr)
     return [{"lat": r[0], "lon": r[1], "year": r[2], "month": r[3],
              "day": r[4], "recordedBy": r[5], "countryCode": r[6],
-             "gbifID": r[7]} for r in rows]
+             "gbifID": r[7], "species": r[8]} for r in rows]
+
+
+# --- A3: die Referenz je Art statt je Klasse ------------------------------
+
+# Wie gross die Zellen sind, in denen „derselbe Ort" gilt. Zehn Kilometer
+# ist die Groessenordnung des Wetterrasters (ERA5-Land 11 km): Feiner
+# waere eine Genauigkeit, die das Wetter gar nicht hat, groeber liesse
+# ganze Landschaften als „derselbe Ort" durchgehen.
+MATCH_KM = 10.0
+
+
+def matched_reference(target_finds, pool, target_sci, seed=42,
+                      km=MATCH_KM, size=None):
+    """Referenzmeldungen aus DENSELBEN Gegenden und DENSELBEN Monaten.
+
+    Die Referenz aus Phase 1.3 stammte aus der allgemeinen, stark
+    herbstlastigen Meldungsverteilung und wurde nur mit einem anderen
+    Fenster ausgewertet. Fuer eine Winterart ist das keine faire
+    Referenz: Sie vergleicht „Dezemberfunde einer Kaeltefruchtart" gegen
+    „Oktobermeldungen von irgendwem".
+
+    Hier wird stattdessen je Zielart gezogen — aus den Zellen, in denen
+    sie gefunden wurde, und mit der Monatsverteilung ihrer eigenen
+    Fundtage als Gewicht. **Die Zielart selbst faellt heraus**, sonst
+    enthielte die Referenz genau das Signal, gegen das sie abgrenzen soll.
+
+    Reicht ein Monat nicht, wird genommen, was da ist, und die Luecke
+    gezaehlt: Eine Referenz, die still einen anderen Monat einsetzt,
+    beantwortet eine andere Frage.
+    """
+    zellen = {ab.grid_cell(f["lat"], f["lon"], km) for f in target_finds}
+    soll = {}
+    for f in target_finds:
+        soll[f["month"]] = soll.get(f["month"], 0) + 1
+    if size is None:
+        size = len(target_finds)
+
+    nach_monat = {}
+    for r in pool:
+        if r.get("species") == target_sci:
+            continue
+        if ab.grid_cell(r["lat"], r["lon"], km) not in zellen:
+            continue
+        nach_monat.setdefault(r["month"], []).append(r)
+
+    rng = random.Random(seed)
+    gezogen = []
+    fehlend = {}
+    gesamt = sum(soll.values())
+    for monat, anzahl in sorted(soll.items()):
+        wunsch = round(size * anzahl / gesamt)
+        topf = nach_monat.get(monat, [])
+        if len(topf) <= wunsch:
+            gezogen.extend(topf)
+            if len(topf) < wunsch:
+                fehlend[monat] = wunsch - len(topf)
+        else:
+            gezogen.extend(rng.sample(topf, wunsch))
+    return gezogen, {"zellen": len(zellen), "fehlend": fehlend,
+                     "kandidaten": sum(len(v) for v in nach_monat.values())}
 
 
 # --- 1.4 Melder-Abhaengigkeit ---------------------------------------------
@@ -406,6 +467,63 @@ def self_test():
     # Ein einziger Melder laesst sich nicht ueber Melder ziehen.
     assert bootstrap_over([gut] * 5, 13.0,
                           lambda s: s["recordedBy"]) is None
+
+    # --- A3: die artgematchte Referenz --------------------------------
+    #
+    # **Der Kandidatenkreis wird direkt geprueft, nicht ueber das
+    # Ziehungsergebnis.** Die erste Fassung tat Letzteres und war
+    # wertlos: Bei zwanzig gueltigen Kandidaten je Monat zog `sample`
+    # auch dann brauchbare Zeilen, wenn beide Filter ausgebaut waren —
+    # die Gegenprobe blieb gruen. Jetzt hat jeder Monat GENAU zwei
+    # gueltige Kandidaten, und `info["kandidaten"]` zaehlt sie.
+    ziel = [{"lat": 51.0, "lon": 10.0, "month": 11, "year": 2015, "day": 1},
+            {"lat": 51.0, "lon": 10.0, "month": 11, "year": 2016, "day": 2},
+            {"lat": 51.0, "lon": 10.0, "month": 12, "year": 2016, "day": 3},
+            {"lat": 51.0, "lon": 10.0, "month": 12, "year": 2017, "day": 4}]
+    topf = (
+        # gleiche Zelle, richtige Monate, andere Art — genau zwei je Monat
+        [{"lat": 51.0, "lon": 10.0, "month": 11, "year": 2015, "day": 5,
+          "species": "Anderer Pilz", "gbifID": i} for i in (1, 2)]
+        + [{"lat": 51.0, "lon": 10.0, "month": 12, "year": 2015, "day": 6,
+            "species": "Anderer Pilz", "gbifID": i} for i in (3, 4)]
+        # gleiche Zelle, richtiger Monat, aber die ZIELART
+        + [{"lat": 51.0, "lon": 10.0, "month": 11, "year": 2015, "day": 7,
+            "species": "Ziel art", "gbifID": 200 + i} for i in range(20)]
+        # richtiger Monat, andere Art, aber 200 km entfernt
+        + [{"lat": 53.0, "lon": 10.0, "month": 11, "year": 2015, "day": 8,
+            "species": "Anderer Pilz", "gbifID": 300 + i} for i in range(20)]
+        # gleiche Zelle, andere Art, aber Hochsommer
+        + [{"lat": 51.0, "lon": 10.0, "month": 7, "year": 2015, "day": 9,
+            "species": "Anderer Pilz", "gbifID": 400 + i} for i in range(20)]
+        # **Rund 14 km oestlich** — das nagelt die Zellgroesse fest: bei
+        # 10 km eine andere Gegend, bei 100 km dieselbe. Verschoben wird
+        # in der LAENGE bei gleicher Breite, weil die Spalte ueber
+        # `cos(lat)` an der Breite haengt und ein Versatz nach Norden
+        # deshalb auch die Spalte verschiebt.
+        + [{"lat": 51.0, "lon": 10.2, "month": 11, "year": 2015, "day": 10,
+            "species": "Anderer Pilz", "gbifID": 500 + i} for i in range(20)])
+    gezogen, info = matched_reference(ziel, topf, "Ziel art", size=4)
+    # **Das ist die scharfe Zusicherung.** 2 aus November, 2 aus Dezember
+    # — der Juli faellt ueber die Monatsgewichte weg, die Zielart ueber
+    # den Artfilter, die ferne Zelle ueber den Ortsfilter.
+    assert info["kandidaten"] == 24, \
+        f"Kandidatenkreis {info['kandidaten']} statt 24 — ein Filter fehlt"
+    assert sorted(r["gbifID"] for r in gezogen) == [1, 2, 3, 4], gezogen
+    assert {r["month"] for r in gezogen} == {11, 12}
+    assert info["zellen"] == 1 and not info["fehlend"], info
+
+    # Und der Monatstopf selbst: November und Dezember je genau zwei.
+    assert len([r for r in topf
+                if r["species"] != "Ziel art"
+                and ab.grid_cell(r["lat"], r["lon"], MATCH_KM)
+                == ab.grid_cell(51.0, 10.0, MATCH_KM)
+                and r["month"] == 11]) == 2
+
+    # **Ein leerer Monat wird gezaehlt, nicht ersetzt.**
+    duenn = [r for r in topf if r["month"] != 12]
+    gezogen, info = matched_reference(ziel, duenn, "Ziel art", size=4)
+    assert info["fehlend"] == {12: 2}, info
+    assert {r["month"] for r in gezogen} == {11}, gezogen
 
     # --- Die Regel, die alles traegt ---
     gemischt = [dict(warm, year=j) for j in (2016, 2018, 2019, 2024)]
