@@ -37,6 +37,7 @@ Nur Standardbibliothek, wie jedes Werkzeug in `tool/`.
 """
 import argparse
 import importlib.util
+import math
 import os
 import random
 import statistics
@@ -48,6 +49,11 @@ _spec = importlib.util.spec_from_file_location(
 av = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(av)
 ab = av.ampel_basis
+
+_logit_spec = importlib.util.spec_from_file_location(
+    "ampel_logit", os.path.join(_HERE, "ampel_logit.py"))
+ampel_logit = importlib.util.module_from_spec(_logit_spec)
+_logit_spec.loader.exec_module(ampel_logit)
 
 FROST_C = 0.0          # Tmin, ab der ein Tag als Frosttag zaehlt
 FROST_LOOKBACKS = (7, 14, 21, 28)
@@ -715,6 +721,58 @@ def self_test():
     assert evidenzstufe(zeile(a_auc=0.95))[0] == "belegt"
     # Die alte Zuordnung ist woertlich aufgehoben und deckt alle Arten.
     assert {n for n, _, _ in DESIGN_ARTEN} == set(STUFE_ALT)
+
+    # --- N5: die Merkmale des Logits ---------------------------------
+    #
+    # Die Umrechnung haengt daran, dass die Merkmale GENAU die Formel der
+    # Ampel abbilden. Geprueft wird deshalb an einer Reihe, deren Werte
+    # von Hand nachrechenbar sind.
+    regen = [2.0] * av.RAIN_WINDOW
+    merkmale, boden = logit_features(regen, [11.0] * av.TEMP_WINDOW)
+    assert not boden
+    assert abs(merkmale[0] - math.log(av.rain_factor(regen))) < 1e-12
+    assert merkmale[1] == 11.0 and merkmale[2] == 121.0, merkmale
+    # **Ein trockenes Fenster wird abgeschnitten und GEZAEHLT.** Ohne den
+    # Boden waere es log(0); ohne den Zaehler wuesste niemand, wie oft
+    # das Modell etwas anderes rechnet, als es behauptet.
+    trocken, boden = logit_features([0.0] * av.RAIN_WINDOW,
+                                    [11.0] * av.TEMP_WINDOW)
+    assert boden and trocken[0] == math.log(LOGIT_REGEN_BODEN), trocken
+    # Eine Reihe ganz ohne Temperatur ergibt keine Merkmale, statt eine
+    # Null zu erfinden.
+    assert logit_features(regen, [None] * av.TEMP_WINDOW)[0] is None
+
+    # Strata: ein Fall, der Rest Kontrollen — und ein Fund ohne
+    # Kontrollen faellt heraus, statt als Stratum der Groesse eins zu
+    # zaehlen (dort ist die Wahrscheinlichkeit immer 1 und der Beitrag
+    # zur Likelihood null).
+    b_sample = {"year": 2010, "control_years": [2009, 2011],
+                "found": (regen, [13.0] * av.TEMP_WINDOW),
+                "controls": [(regen, [18.0] * av.TEMP_WINDOW),
+                             (regen, [8.0] * av.TEMP_WINDOW)]}
+    strata, abg, gesamt = logit_strata([b_sample, dict(b_sample,
+                                                       controls=[])])
+    assert len(strata) == 1 and len(strata[0][1]) == 2, strata
+    assert abg == 0 and gesamt == 4, (abg, gesamt)
+    assert strata[0][0][1] == 13.0 and strata[0][1][0][1] == 18.0
+
+    # Und der Weg von den Strata bis zur Glocke haelt, was er soll:
+    # gepflanzte 13 °C bei Breite 4 kommen wieder heraus.
+    rng_l = random.Random(11)
+    kunst = []
+    for _ in range(3000):
+        reihen = [(rng_l.uniform(0.05, 1.0), rng_l.uniform(2.0, 24.0))
+                  for _ in range(6)]
+        nutzen = [math.log(f) - ((t - 13.0) / 4.0) ** 2 - math.log(
+            -math.log(rng_l.random())) for f, t in reihen]
+        sieger = max(range(6), key=lambda i: nutzen[i])
+        zeilen_l = [[math.log(f), t, t * t] for f, t in reihen]
+        kunst.append((zeilen_l[sieger],
+                      [z for i, z in enumerate(zeilen_l) if i != sieger]))
+    angepasst = ampel_logit.fit_conditional_logit(kunst)
+    g = ampel_logit.bell_from_beta(angepasst["beta"],
+                                   angepasst["kovarianz"])
+    assert abs(g["optimum"] - 13.0) < 1.0 and abs(g["breite"] - 4.0) < 0.7, g
 
     # --- H1: die schmalere Glocke -------------------------------------
     #
@@ -2385,6 +2443,212 @@ def render_h1(zeilen):
       "Tage damit besser stimmt.")
     return "\n".join(aus) + "\n"
 
+
+# --- N5, zweiter Teil: das bedingte Logit ----------------------------------
+#
+# **Getrennt vom Test, und zwar mit Absicht auch im Aufruf.** N5 sagt:
+# „Information fuer spaeter und NICHT der geprueft Wert. Wer daraus den
+# Testwert macht, verwandelt eine externe Zahl in eine angepasste — und
+# deren Instabilitaet war der Befund aus Phase 0.4." Ein eigener Schalter
+# und eine eigene Ausgabedatei machen die Verwechslung unmoeglich; stuende
+# es im H1-Bericht, laege die angepasste Breite neben der geprueften.
+#
+# Gerechnet wird auf den **Anpassjahren DE <= 2018** — nicht auf P1 und
+# nicht auf P2. Die Pruefachsen werden davon nicht angefasst.
+
+# Unter diesem Regenfaktor wird `log F` nicht mehr gerechnet, sondern
+# abgeschnitten. Ein Fenster ohne einen Tropfen in 26 Tagen ergaebe
+# log(0); die Zahl der abgeschnittenen Faelle gehoert in den Bericht,
+# weil das Modell dort nicht mehr das rechnet, was es behauptet.
+LOGIT_REGEN_BODEN = 1e-3
+
+
+def logit_features(regen, temp):
+    """`[log F, T̄₂₀, T̄₂₀²]` — die Merkmale aus N5.
+
+    Sie haengen direkt an der Formel der Ampel: `log(F · exp(−((T−opt)/σ)²))`
+    ist `log F − T²/σ² + 2·opt·T/σ² − opt²/σ²`, und der letzte Summand
+    ist je Stratum konstant und faellt heraus.
+    """
+    f = av.rain_factor(regen)
+    abgeschnitten = f < LOGIT_REGEN_BODEN
+    werte = [c for c in temp[:av.TEMP_WINDOW] if c is not None]
+    if not werte:
+        return None, abgeschnitten
+    mittel = sum(werte) / len(werte)
+    return [math.log(max(f, LOGIT_REGEN_BODEN)), mittel, mittel * mittel], \
+        abgeschnitten
+
+
+def logit_strata(samples):
+    """Aus B-Funden die Strata: ein Fundtag gegen seine Kontrolltage."""
+    strata = []
+    abgeschnitten = gesamt = 0
+    for s in samples:
+        reihen, fehlt = [], False
+        for regen, temp in [s["found"]] + list(s.get("controls") or []):
+            werte, boden = logit_features(regen, temp)
+            gesamt += 1
+            abgeschnitten += 1 if boden else 0
+            if werte is None:
+                fehlt = True
+                break
+            reihen.append(werte)
+        if fehlt or len(reihen) < 2:
+            continue
+        strata.append((reihen[0], reihen[1:]))
+    return strata, abgeschnitten, gesamt
+
+
+def run_logit(args):
+    """N5, zweiter Teil — Optimum und Breite MIT Standardfehler."""
+    if args.api:
+        av.OPEN_METEO = args.api.rstrip("/")
+    av.DEDUPE = args.dedupe
+    av.use_dataset(args.dataset)
+    print(f"Bedingtes Logit auf den Anpassjahren DE ≤ {av.FIT_UNTIL_YEAR} — "
+          "Information, kein Prüfwert", file=sys.stderr)
+
+    mapping = av.read_species()
+    wanted = DESIGN_ARTEN
+    if args.only:
+        gesucht = {n.strip() for n in args.only.split(",") if n.strip()}
+        wanted = [z for z in DESIGN_ARTEN if z[0] in gesucht]
+
+    zeilen = []
+    for name, gruppe, optimum in wanted:
+        if name not in mapping:
+            continue
+        sci = mapping[name]
+        print(f"  {name}", file=sys.stderr)
+        finds, _ = av.select_finds(sci, args.cache, args.seed, True, ("DE",))
+        if not finds:
+            continue
+        gezogen = av.collect_pairs_b(name, sci, finds=finds,
+                                     cache_dir=args.cache, seed=args.seed,
+                                     progress=False)
+        if not gezogen:
+            continue
+        samples = fit_years_only(gezogen["samples"])
+        strata, abgeschnitten, gesamt = logit_strata(samples)
+        if len(strata) < 50:
+            zeilen.append({"name": name, "gruppe": gruppe,
+                           "gesetzt": optimum, "fit": None,
+                           "strata": len(strata)})
+            continue
+        fit = ampel_logit.fit_conditional_logit(strata)
+        glocke = ampel_logit.bell_from_beta(fit["beta"], fit["kovarianz"])
+        zeilen.append({
+            "name": name, "gruppe": gruppe, "gesetzt": optimum,
+            "fit": fit, "glocke": glocke, "strata": len(strata),
+            "abgeschnitten": abgeschnitten / gesamt if gesamt else None,
+        })
+        print(f"    Optimum {_fmt(glocke.get('optimum'), 2)} ± "
+              f"{_fmt(glocke.get('se_optimum'), 2)}   Breite "
+              f"{_fmt(glocke.get('breite'), 2)} ± "
+              f"{_fmt(glocke.get('se_breite'), 2)}", file=sys.stderr)
+
+    bericht = render_logit(zeilen)
+    if args.out:
+        open(args.out, "w", encoding="utf-8").write(bericht)
+        print(f"\n{args.out} geschrieben", file=sys.stderr)
+    else:
+        print(bericht)
+
+
+def render_logit(zeilen):
+    """Der Bericht zum Logit — ohne ein einziges Urteil."""
+    import time as _t
+    aus = []
+    w = aus.append
+    w("# Optimum und Breite mit Standardfehler (bedingtes Logit)\n")
+    w(f"Stand: {_t.strftime('%Y-%m-%d')} · Erzeugt von "
+      "`tool/ampel_diagnose.py --logit` · Auftrag: "
+      "`docs/pilzampel-auftrag-2-nachtrag-1.md`, N5, letzter Punkt\n")
+    w("> **Hier wird nichts geprüft.** Diese Seite enthält keine Latte, "
+      "keine Bedingung und kein Urteil. Sie sagt, wie genau die Daten "
+      "Optimum und Breite überhaupt bestimmen — und das ist etwas "
+      "anderes als die Frage, ob eine **extern** gesetzte Breite besser "
+      "trennt. Diese Frage beantwortet "
+      "`docs/pilzampel-h1-registrierung.md`.\n")
+    w("> Wer eine Zahl von hier zum Prüfwert macht, verwandelt eine "
+      "externe Größe in eine angepasste. Deren Instabilität war der "
+      "Befund aus Phase 0.4: Optima wanderten beim Wechsel des "
+      "Instruments um bis zu 3 K.\n")
+    w(f"Gerechnet auf den **Anpassjahren DE ≤ {av.FIT_UNTIL_YEAR}**, auf "
+      "den Paaren aus Design B (ein Fundtag gegen fünf Kontrolljahre). "
+      "Die Prüfachsen P1 und P2 sind davon unberührt.\n")
+    w(f"Messbasis `{av.DATASET}`, Entdoppeln "
+      f"{'an' if av.DEDUPE else 'aus'}.\n")
+
+    w("\n## Was das Modell ist\n")
+    w("Bedingtes Logit mit den Merkmalen `[log F, T̄₂₀, T̄₂₀²]`, ohne "
+      "Achsenabschnitt — Ort, Jahr und Jahreszeit kürzen sich über das "
+      "Stratum heraus. Es hängt direkt an der Formel der Ampel:\n")
+    w("    log(F · exp(−((T−opt)/σ)²)) = log F − T²/σ² + 2·opt·T/σ² − opt²/σ²\n")
+    w("Der letzte Summand ist je Stratum konstant und fällt heraus. Also "
+      "`Optimum = −b_T / (2 b_T²)` und `Breite = sqrt(b_logF / −b_T²)`.\n")
+    w("**Die Breite ist relativ zum Gewicht der Feuchte.** Sie ist nur "
+      "dann in Kelvin lesbar wie das σ der Ampel, wenn `b_logF` bei 1 "
+      "liegt. Steht dort etwas anderes, sagt das Modell auch etwas über "
+      "die Gewichtung von Feuchte gegen Temperatur — deshalb steht die "
+      "Zahl in der Tabelle und nicht im Kleingedruckten.\n")
+
+    w("\n## Gemessen\n")
+    w("| Art | Gruppe | Strata | Optimum | ± | ausgeliefert | Breite | ± | "
+      "b_logF | ± | konvergiert |")
+    w("|---|---|--:|--:|--:|--:|--:|--:|--:|--:|:-:|")
+    for z in zeilen:
+        if not z.get("fit"):
+            w(f"| {z['name']} | {z['gruppe']} | {z['strata']} | — | — | "
+              f"{z['gesetzt']:.1f} | — | — | — | — | — |")
+            continue
+        g = z["glocke"]
+        w(f"| {z['name']} | {z['gruppe']} | {z['strata']} | "
+          f"{_fmt(g.get('optimum'), 2)} | {_fmt(g.get('se_optimum'), 2)} | "
+          f"{z['gesetzt']:.1f} | {_fmt(g.get('breite'), 2)} | "
+          f"{_fmt(g.get('se_breite'), 2)} | {_fmt(g.get('b_logf'), 2)} | "
+          f"{_fmt(g.get('se_b_logf'), 2)} | "
+          f"{'✓' if z['fit']['konvergiert'] else '✗'} |")
+    w("")
+    w(f"Ein Strich in der Breite heißt, dass es keine gibt — entweder ist "
+      "`b_T²` nicht negativ (dann ist die Parabel nach oben offen und "
+      "beschreibt keine Glocke) oder `b_logF` nicht positiv (dann hat "
+      "die Wurzel kein Argument). Beides ist ein Ergebnis und keine "
+      "Panne; der Grund steht je Art unten.\n")
+    gruende = [(z["name"], z["glocke"]["grund"]) for z in zeilen
+               if z.get("glocke") and z["glocke"].get("grund")]
+    if gruende:
+        for name, grund in gruende:
+            w(f"- **{name}**: {grund}")
+        w("")
+
+    w("\n## Wieviel Regen abgeschnitten wurde\n")
+    w(f"`log F` braucht ein F über null. Ein Fenster ohne einen Tropfen "
+      f"in {av.RAIN_WINDOW} Tagen wird deshalb auf "
+      f"{LOGIT_REGEN_BODEN} gesetzt. **Wo dieser Anteil groß ist, "
+      "rechnet das Modell nicht mehr das, was es behauptet** — und die "
+      "Breite dieser Art ist dann mit Vorsicht zu lesen.\n")
+    w("| Art | abgeschnittene Tage |")
+    w("|---|--:|")
+    for z in zeilen:
+        anteil = z.get("abgeschnitten")
+        w(f"| {z['name']} | {'—' if anteil is None else f'{anteil:.2%}'} |")
+
+    w("\n## Wie das zu lesen ist\n")
+    w("**Der Standardfehler ist der Zweck dieser Seite, nicht die "
+      "Punktschätzung.** Das Gitter aus `--fit` liefert einen Punkt in "
+      "0,5-K-Schritten und sagt nichts darüber, wie flach die "
+      "Likelihood um ihn herum liegt. Eine Breite von 4,0 ± 0,3 und eine "
+      "von 4,0 ± 2,5 sehen in einer Tabelle gleich aus und bedeuten "
+      "Gegenteiliges.\n")
+    w("Und die Delta-Methode hat ihre eigene Grenze: Sie unterstellt, "
+      "dass die Umformung im Bereich eines Standardfehlers ungefähr "
+      "gerade ist. Bei einer flachen Likelihood — `b_T²` nahe null — ist "
+      "sie das nicht, und der Fehler fällt dann eher zu klein aus. "
+      "Deshalb hilft im Zweifel der Blick auf `b_T²` selbst.")
+    return "\n".join(aus) + "\n"
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--self-test", action="store_true")
@@ -2392,6 +2656,9 @@ if __name__ == "__main__":
     parser.add_argument("--designs", action="store_true",
                         help="Phase 1.5: Design A und B "
                              "nebeneinander")
+    parser.add_argument("--logit", action="store_true",
+                        help="N5: Optimum und Breite mit Standardfehler "
+                             "— Information, kein Prüfwert")
     parser.add_argument("--h1", action="store_true",
                         help="der registrierte Prüflauf zu H1 "
                              "(docs/pilzampel-h1-registrierung.md)")
@@ -2411,6 +2678,9 @@ if __name__ == "__main__":
         raise SystemExit(0)
     if args.h1:
         run_h1(args)
+        raise SystemExit(0)
+    if args.logit:
+        run_logit(args)
         raise SystemExit(0)
     if not args.all:
         parser.print_help()
