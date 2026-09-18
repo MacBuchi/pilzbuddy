@@ -37,6 +37,7 @@ Nur Standardbibliothek, wie jedes Werkzeug in `tool/`.
 """
 import argparse
 import importlib.util
+import inspect
 import math
 import os
 import random
@@ -750,10 +751,26 @@ def self_test():
                 "found": (regen, [13.0] * av.TEMP_WINDOW),
                 "controls": [(regen, [18.0] * av.TEMP_WINDOW),
                              (regen, [8.0] * av.TEMP_WINDOW)]}
-    strata, abg, gesamt = logit_strata([b_sample, dict(b_sample,
-                                                       controls=[])])
+    strata, jahre, abg, gesamt = logit_strata([b_sample,
+                                               dict(b_sample, controls=[])])
     assert len(strata) == 1 and len(strata[0][1]) == 2, strata
     assert abg == 0 and gesamt == 4, (abg, gesamt)
+    # **Die Gruppenmarke ist das Fundjahr und laeuft parallel zu den
+    # Strata.** Geriete sie aus dem Takt, clusterte der Sandwich nach
+    # etwas anderem als dem, was drueber steht.
+    assert jahre == [2010], jahre
+    zwei = [b_sample, dict(b_sample, year=2011)]
+    assert logit_strata(zwei)[1] == [2010, 2011]
+    # **Und die Marke muss auch wirklich uebergeben werden.** Das laesst
+    # sich ohne echte Daten nur an der Quelle pruefen — `run_logit`
+    # braucht einen Bestand und ein Wetterarchiv. Eine Gegenprobe hat
+    # genau hier gruen gelacht: Der Sandwich war gerechnet, nur nie
+    # angefordert, und im Bericht stand dann ueberall ein Strich.
+    quelle = inspect.getsource(run_logit)
+    assert "cluster=jahre" in quelle, \
+        "run_logit muss das Fundjahr als Gruppe uebergeben"
+    assert "kovarianz_cluster" in quelle, \
+        "run_logit muss die robuste Kovarianz auch auswerten"
     assert strata[0][0][1] == 13.0 and strata[0][1][0][1] == 18.0
 
     # Und der Weg von den Strata bis zur Glocke haelt, was er soll:
@@ -2481,8 +2498,14 @@ def logit_features(regen, temp):
 
 
 def logit_strata(samples):
-    """Aus B-Funden die Strata: ein Fundtag gegen seine Kontrolltage."""
-    strata = []
+    """Aus B-Funden die Strata: ein Fundtag gegen seine Kontrolltage.
+
+    Gibt zusaetzlich je Stratum das **Fundjahr** zurueck. Es ist die
+    Gruppe fuer den cluster-robusten Fehler — dieselbe Einheit wie bei
+    jedem Bootstrap dieser Arbeit, damit eine Spalte nicht zwischen zwei
+    Berichten ihre Bedeutung wechselt.
+    """
+    strata, jahre = [], []
     abgeschnitten = gesamt = 0
     for s in samples:
         reihen, fehlt = [], False
@@ -2497,7 +2520,8 @@ def logit_strata(samples):
         if fehlt or len(reihen) < 2:
             continue
         strata.append((reihen[0], reihen[1:]))
-    return strata, abgeschnitten, gesamt
+        jahre.append(s["year"])
+    return strata, jahre, abgeschnitten, gesamt
 
 
 def run_logit(args):
@@ -2530,23 +2554,29 @@ def run_logit(args):
         if not gezogen:
             continue
         samples = fit_years_only(gezogen["samples"])
-        strata, abgeschnitten, gesamt = logit_strata(samples)
+        strata, jahre, abgeschnitten, gesamt = logit_strata(samples)
         if len(strata) < 50:
             zeilen.append({"name": name, "gruppe": gruppe,
                            "gesetzt": optimum, "fit": None,
                            "strata": len(strata)})
             continue
-        fit = ampel_logit.fit_conditional_logit(strata)
+        fit = ampel_logit.fit_conditional_logit(strata, cluster=jahre)
         glocke = ampel_logit.bell_from_beta(fit["beta"], fit["kovarianz"])
+        robust = (ampel_logit.bell_from_beta(fit["beta"],
+                                             fit["kovarianz_cluster"])
+                  if fit["kovarianz_cluster"] else None)
         zeilen.append({
             "name": name, "gruppe": gruppe, "gesetzt": optimum,
-            "fit": fit, "glocke": glocke, "strata": len(strata),
+            "fit": fit, "glocke": glocke, "robust": robust,
+            "strata": len(strata),
             "abgeschnitten": abgeschnitten / gesamt if gesamt else None,
         })
+        quelle = robust or glocke
         print(f"    Optimum {_fmt(glocke.get('optimum'), 2)} ± "
-              f"{_fmt(glocke.get('se_optimum'), 2)}   Breite "
+              f"{_fmt(quelle.get('se_optimum'), 2)}   Breite "
               f"{_fmt(glocke.get('breite'), 2)} ± "
-              f"{_fmt(glocke.get('se_breite'), 2)}", file=sys.stderr)
+              f"{_fmt(quelle.get('se_breite'), 2)}   "
+              f"({fit['gruppen']} Jahre)", file=sys.stderr)
 
     bericht = render_logit(zeilen)
     if args.out:
@@ -2580,6 +2610,10 @@ def render_logit(zeilen):
       "Die Prüfachsen P1 und P2 sind davon unberührt.\n")
     w(f"Messbasis `{av.DATASET}`, Entdoppeln "
       f"{'an' if av.DEDUPE else 'aus'}.\n")
+    w("> **Achtung beim Wiederholen:** Dieser Lauf überschreibt die "
+      "Datei vollständig. Die einordnenden Abschnitte (`### …`) sind von "
+      "Hand geschrieben und sind danach weg — wer neu rechnet, trägt sie "
+      "wieder ein. Genau das ist am 2026-09-19 einmal passiert.\n")
 
     w("\n## Was das Modell ist\n")
     w("Bedingtes Logit mit den Merkmalen `[log F, T̄₂₀, T̄₂₀²]`, ohne "
@@ -2603,20 +2637,25 @@ def render_logit(zeilen):
       "war falsch.)\n")
 
     w("\n## Gemessen\n")
-    w("| Art | Gruppe | Strata | Optimum | ± | ausgeliefert | Breite | ± | "
-      "b_logF | ± | konvergiert |")
-    w("|---|---|--:|--:|--:|--:|--:|--:|--:|--:|:-:|")
+    w("Die Fehler in **fetter** Spalte sind cluster-robust über das "
+      "Fundjahr; die naiven daneben stehen nur zum Vergleich.\n")
+    w("| Art | Gruppe | Strata | Jahre | Optimum | **± robust** | ± naiv | "
+      "ausgeliefert | Breite | **± robust** | ± naiv | b_logF | "
+      "konvergiert |")
+    w("|---|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|:-:|")
     for z in zeilen:
         if not z.get("fit"):
-            w(f"| {z['name']} | {z['gruppe']} | {z['strata']} | — | — | "
-              f"{z['gesetzt']:.1f} | — | — | — | — | — |")
+            w(f"| {z['name']} | {z['gruppe']} | {z['strata']} | — | — | — | "
+              f"— | {z['gesetzt']:.1f} | — | — | — | — | — |")
             continue
-        g = z["glocke"]
+        g, r = z["glocke"], (z.get("robust") or {})
         w(f"| {z['name']} | {z['gruppe']} | {z['strata']} | "
-          f"{_fmt(g.get('optimum'), 2)} | {_fmt(g.get('se_optimum'), 2)} | "
+          f"{z['fit']['gruppen']} | "
+          f"{_fmt(g.get('optimum'), 2)} | **{_fmt(r.get('se_optimum'), 2)}** "
+          f"| {_fmt(g.get('se_optimum'), 2)} | "
           f"{z['gesetzt']:.1f} | {_fmt(g.get('breite'), 2)} | "
+          f"**{_fmt(r.get('se_breite'), 2)}** | "
           f"{_fmt(g.get('se_breite'), 2)} | {_fmt(g.get('b_logf'), 2)} | "
-          f"{_fmt(g.get('se_b_logf'), 2)} | "
           f"{'✓' if z['fit']['konvergiert'] else '✗'} |")
     w("")
     w(f"Ein Strich in der Breite heißt, dass es keine gibt — entweder ist "
@@ -2650,6 +2689,19 @@ def render_logit(zeilen):
       "Likelihood um ihn herum liegt. Eine Breite von 4,0 ± 0,3 und eine "
       "von 4,0 ± 2,5 sehen in einer Tabelle gleich aus und bedeuten "
       "Gegenteiliges.\n")
+    w("**Die cluster-robusten Fehler sind die, die gelten.** Mehrere "
+      "Funde teilen sich Fundjahr, Zelle und Melder; ein gutes Pilzjahr "
+      "hebt alle zugleich. Der naive Fehler unterstellt Unabhängigkeit, "
+      "die es nicht gibt, und fällt deshalb zu klein aus — eine "
+      "frühere Fassung dieser Seite hat auf ihm Sätze wie „das sind "
+      "vier Standardfehler“ gebaut, und die standen auf zu schmalen "
+      "Balken.\n")
+    w("**Auch die robuste Zahl ist keine sichere.** Sie stützt sich auf "
+      "ein gutes Dutzend Fundjahre, und bei so wenigen Gruppen ist der "
+      "Sandwich selbst verrauscht und eher zu klein als zu groß. Und er "
+      "deckt nur das Fundjahr ab: Die Bündelung nach **Melder** und "
+      "nach **Zelle** ist damit nicht erfasst. Wer diese Zahlen eng "
+      "liest, liest sie falsch.\n")
     w("Und die Delta-Methode hat ihre eigene Grenze: Sie unterstellt, "
       "dass die Umformung im Bereich eines Standardfehlers ungefähr "
       "gerade ist. Bei einer flachen Likelihood — `b_T²` nahe null — ist "

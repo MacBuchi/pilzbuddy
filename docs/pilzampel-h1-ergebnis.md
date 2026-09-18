@@ -46,6 +46,11 @@ unter den festgehaltenen 13,0. H1 hat eine von zwei gekoppelten Größen
 allein bewegt. Eine schmalere Glocke um einen Gipfel, der selbst ein bis
 vier Kelvin danebensteht, trifft weniger als eine breite.
 
+Mit cluster-robusten Fehlern ist keine dieser Verschiebungen für sich
+belastbar — belastbar ist nur, dass **alle zehn Zahlen in dieselbe
+Richtung zeigen.** Das ist ein Hinweis auf die nächste Frage und kein
+Befund.
+
 Das entwertet dieses Ergebnis nicht: Geprüft war genau das, was
 registriert war, und die Antwort darauf lautet nein. Es sagt, welche
 Frage die nächste wäre — und dass sie ein angepasstes Optimum bräuchte,

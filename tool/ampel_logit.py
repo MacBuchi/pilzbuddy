@@ -94,7 +94,8 @@ def inverse(matrix):
 # --- Das Logit -------------------------------------------------------------
 
 
-def fit_conditional_logit(strata, l2=1e-6, max_iter=100, tol=1e-10):
+def fit_conditional_logit(strata, l2=1e-6, max_iter=100, tol=1e-10,
+                          cluster=None):
     """Bedingtes Logit fuer 1:k-Strata. Newton-Raphson.
 
     `strata` ist eine Liste von `(fall, [kontrolle, …])`, jedes davon ein
@@ -110,6 +111,23 @@ def fit_conditional_logit(strata, l2=1e-6, max_iter=100, tol=1e-10):
     **Nicht konvergiert heisst nicht „ungefaehr richtig".** Das Feld
     `konvergiert` gehoert in jeden Bericht, der eine dieser Zahlen
     zeigt.
+
+    **`cluster` ist der wichtigere Parameter, nicht der optionale.** Ohne
+    ihn unterstellt der Standardfehler, dass alle Strata unabhaengig
+    sind — und das sind unsere nicht: Funde teilen sich Fundjahr, Zelle
+    und Melder, und ein gutes Pilzjahr hebt alle zugleich. Der naive
+    Fehler faellt dann zu klein aus, und Saetze wie „das sind vier
+    Standardfehler" stehen auf zu schmalen Balken. Mit `cluster` (eine
+    Marke je Stratum, bei uns das Fundjahr) kommt zusaetzlich der
+    Sandwich-Schaetzer
+
+        V = I⁻¹ · (Σ_c g_c g_cᵀ) · I⁻¹
+
+    mit `g_c` als Summe der Score-Beitraege innerhalb einer Gruppe, dazu
+    die uebliche Korrektur fuer wenige Gruppen. **Seine eigene Grenze
+    gehoert dazugesagt:** Bei einem Dutzend Gruppen ist er selbst
+    verrauscht und eher zu klein als zu gross. Er ist die ehrlichere
+    Zahl, nicht die genaue.
     """
     if not strata:
         return None
@@ -121,6 +139,7 @@ def fit_conditional_logit(strata, l2=1e-6, max_iter=100, tol=1e-10):
         grad = [0.0] * dim
         hess = [[0.0] * dim for _ in range(dim)]
         loglik = 0.0
+        scores = []
         for fall, kontrollen in strata:
             reihen = [fall] + list(kontrollen)
             roh = [sum(b * x for b, x in zip(beta, reihe)) for reihe in reihen]
@@ -131,6 +150,7 @@ def fit_conditional_logit(strata, l2=1e-6, max_iter=100, tol=1e-10):
             loglik += roh[0] - (groesster + math.log(summe))
             mittel = [sum(p[i] * reihen[i][d] for i in range(len(reihen)))
                       for d in range(dim)]
+            scores.append([fall[d] - mittel[d] for d in range(dim)])
             for d in range(dim):
                 grad[d] += fall[d] - mittel[d]
             for i in range(len(reihen)):
@@ -146,6 +166,7 @@ def fit_conditional_logit(strata, l2=1e-6, max_iter=100, tol=1e-10):
             hess[d][d] += l2
         loglik -= 0.5 * l2 * sum(b * b for b in beta)
         schritt = solve(hess, grad)
+        letzte_scores = scores
         beta = [b + s for b, s in zip(beta, schritt)]
         if max(abs(s) for s in schritt) < tol:
             konvergiert = True
@@ -153,7 +174,7 @@ def fit_conditional_logit(strata, l2=1e-6, max_iter=100, tol=1e-10):
     else:
         konvergiert = False
     kov = inverse(hess)
-    return {
+    ergebnis = {
         "beta": beta,
         "se": [math.sqrt(kov[d][d]) if kov[d][d] > 0 else float("nan")
                for d in range(dim)],
@@ -162,6 +183,45 @@ def fit_conditional_logit(strata, l2=1e-6, max_iter=100, tol=1e-10):
         "strata": len(strata),
         "schritte": schritte,
         "konvergiert": konvergiert,
+        "kovarianz_cluster": None, "se_cluster": None, "gruppen": None,
+    }
+    if cluster is not None:
+        ergebnis.update(_sandwich(letzte_scores, cluster, kov, dim))
+    return ergebnis
+
+
+def _sandwich(scores, cluster, kov, dim):
+    """Cluster-robuste Kovarianz ueber die Gruppen in `cluster`."""
+    gruppen = {}
+    for marke, score in zip(cluster, scores):
+        summe = gruppen.setdefault(marke, [0.0] * dim)
+        for d in range(dim):
+            summe[d] += score[d]
+    anzahl = len(gruppen)
+    if anzahl < 2:
+        return {"kovarianz_cluster": None, "se_cluster": None,
+                "gruppen": anzahl}
+    mitte = [[0.0] * dim for _ in range(dim)]
+    for summe in gruppen.values():
+        for d in range(dim):
+            for e in range(dim):
+                mitte[d][e] += summe[d] * summe[e]
+    # Uebliche Korrektur fuer endlich viele Gruppen. Bei zwanzig Jahren
+    # sind das gut 5 % auf die Varianz — kein Schmuck, aber auch keine
+    # Rettung: Der Sandwich bleibt bei so wenigen Gruppen zu klein.
+    n = len(scores)
+    faktor = (anzahl / (anzahl - 1)) * ((n - 1) / max(n - dim, 1))
+    for d in range(dim):
+        for e in range(dim):
+            mitte[d][e] *= faktor
+    kov_cl = [[sum(kov[d][i] * mitte[i][j] * kov[j][e]
+                   for i in range(dim) for j in range(dim))
+               for e in range(dim)] for d in range(dim)]
+    return {
+        "kovarianz_cluster": kov_cl,
+        "se_cluster": [math.sqrt(kov_cl[d][d]) if kov_cl[d][d] > 0
+                       else float("nan") for d in range(dim)],
+        "gruppen": anzahl,
     }
 
 
@@ -249,6 +309,13 @@ def _paired_sigmoid(strata, l2=1e-6, max_iter=200):
         if max(abs(s) for s in schritt) < 1e-12:
             break
     return beta
+
+
+def streuung_von(werte):
+    """Stichproben-Streuung — fuer die Proben unten."""
+    mittel = sum(werte) / len(werte)
+    return math.sqrt(sum((w - mittel) ** 2 for w in werte)
+                     / (len(werte) - 1))
 
 
 def self_test():
@@ -416,20 +483,101 @@ def self_test():
         gemeldet_br.append(g["se_breite"])
     assert len(optima) >= 35, len(optima)
 
-    def streuung(werte):
-        mittel = sum(werte) / len(werte)
-        return math.sqrt(sum((w - mittel) ** 2 for w in werte)
-                         / (len(werte) - 1))
-
     for name, echt, behauptet in (
-            ("Optimum", streuung(optima),
+            ("Optimum", streuung_von(optima),
              sum(gemeldet_opt) / len(gemeldet_opt)),
-            ("Breite", streuung(breiten),
+            ("Breite", streuung_von(breiten),
              sum(gemeldet_br) / len(gemeldet_br))):
         verhaeltnis = behauptet / echt
         assert 0.75 < verhaeltnis < 1.35, \
             f"{name}: gemeldet {behauptet:.4f}, wirklich {echt:.4f} " \
             f"(Verhaeltnis {verhaeltnis:.2f})"
+
+    # --- Der Sandwich an einer Zahl, die man von Hand nachrechnet ---
+    #
+    # Die Simulation weiter unten sieht die Korrektur fuer wenige Gruppen
+    # nicht: Bei zwoelf Gruppen sind es 4,7 % auf den Fehler, und das
+    # verschwindet im Rauschen. Hier steht sie exakt.
+    #
+    # Gruppen-Scores 1+2 = 3 und −1+4 = 3, also Σ g² = 18. Bei zwei
+    # Gruppen, vier Strata und einer Dimension ist der Faktor
+    # (2/1)·(3/3) = 2, das Mittelstueck also 36. Mit I⁻¹ = 0,5 links und
+    # rechts ergibt das 9, und die Wurzel daraus 3.
+    hand = _sandwich([[1.0], [2.0], [-1.0], [4.0]], [0, 0, 1, 1],
+                     [[0.5]], 1)
+    assert hand["gruppen"] == 2, hand
+    assert abs(hand["kovarianz_cluster"][0][0] - 9.0) < 1e-12, hand
+    assert abs(hand["se_cluster"][0] - 3.0) < 1e-12, hand
+    # Dieselben Zahlen in VIER Gruppen streuen weniger, weil sich 1 und 2
+    # dann nicht mehr addieren: Σ g² = 1+4+1+16 = 22, Faktor (4/3)·(3/3).
+    einzeln = _sandwich([[1.0], [2.0], [-1.0], [4.0]], [0, 1, 2, 3],
+                        [[0.5]], 1)
+    assert abs(einzeln["kovarianz_cluster"][0][0]
+               - 0.25 * 22 * (4 / 3)) < 1e-12, einzeln
+
+    # --- Cluster-robust: der Grund, warum es ihn gibt ---
+    #
+    # **Gebaut wird eine Welt, in der die Strata NICHT unabhaengig
+    # sind**: Jedes Jahr hat sein eigenes Optimum, gezogen um 13 herum.
+    # Genau so ist die Wirklichkeit — ein gutes Pilzjahr hebt alle Funde
+    # zugleich. Der naive Fehler muss hier deutlich zu klein ausfallen
+    # und der Sandwich deutlich naeher an der wirklichen Streuung liegen.
+    # Ohne diese Probe waere die Cluster-Rechnung eine Behauptung.
+    rng_c = random.Random(23)
+
+    def ziehe_geclustert(jahre=12, je_jahr=40, streuung=1.5):
+        strata, marken = [], []
+        for jahr in range(jahre):
+            opt_jahr = 13.0 + rng_c.gauss(0.0, streuung)
+            for _ in range(je_jahr):
+                reihen = [(rng_c.uniform(0.05, 1.0), rng_c.uniform(2.0, 24.0))
+                          for _ in range(6)]
+                nutzen = [math.log(f) - ((t - opt_jahr) / sigma_wahr) ** 2
+                          - math.log(-math.log(rng_c.random()))
+                          for f, t in reihen]
+                sieger = max(range(6), key=lambda i: nutzen[i])
+                zeilen = [merkmale(f, t) for f, t in reihen]
+                strata.append((zeilen[sieger],
+                               [z for i, z in enumerate(zeilen)
+                                if i != sieger]))
+                marken.append(jahr)
+        return strata, marken
+
+    opt_werte, naiv, robust = [], [], []
+    for _ in range(40):
+        st, mk = ziehe_geclustert()
+        f = fit_conditional_logit(st, cluster=mk)
+        assert f["gruppen"] == 12, f["gruppen"]
+        g_naiv = bell_from_beta(f["beta"], f["kovarianz"])
+        g_rob = bell_from_beta(f["beta"], f["kovarianz_cluster"])
+        if g_naiv["optimum"] is None:
+            continue
+        opt_werte.append(g_naiv["optimum"])
+        naiv.append(g_naiv["se_optimum"])
+        robust.append(g_rob["se_optimum"])
+    assert len(opt_werte) >= 35, len(opt_werte)
+
+    def mittel(werte):
+        return sum(werte) / len(werte)
+
+    echt = streuung_von(opt_werte)
+    # Der naive Fehler ist hier deutlich zu klein — das IST der Befund.
+    assert mittel(naiv) < 0.6 * echt, (mittel(naiv), echt)
+    # Und der Sandwich trifft die Groessenordnung. Nach oben grosszuegig,
+    # weil er bei zwoelf Gruppen selbst verrauscht ist.
+    verhaeltnis = mittel(robust) / echt
+    assert 0.7 < verhaeltnis < 1.4, (mittel(robust), echt, verhaeltnis)
+    # Und er ist in JEDEM Lauf breiter als der naive, nicht nur im Mittel.
+    assert all(r > n for r, n in zip(robust, naiv))
+
+    # Ohne `cluster` gibt es ihn nicht — und das Feld luegt nicht mit
+    # einer Null, sondern steht auf None.
+    ohne = fit_conditional_logit(ziehe_geclustert()[0])
+    assert ohne["kovarianz_cluster"] is None and ohne["se_cluster"] is None
+    # Eine einzige Gruppe laesst sich nicht clustern.
+    st, _ = ziehe_geclustert(jahre=1, je_jahr=60)
+    eine = fit_conditional_logit(st, cluster=[0] * len(st))
+    assert eine["kovarianz_cluster"] is None and eine["gruppen"] == 1
 
     # --- Nicht konvergiert wird gemeldet, nicht verschwiegen ---
     knapp = fit_conditional_logit(ziehe(200), max_iter=1)
