@@ -2588,11 +2588,19 @@ def render_logit(zeilen):
     w("    log(F · exp(−((T−opt)/σ)²)) = log F − T²/σ² + 2·opt·T/σ² − opt²/σ²\n")
     w("Der letzte Summand ist je Stratum konstant und fällt heraus. Also "
       "`Optimum = −b_T / (2 b_T²)` und `Breite = sqrt(b_logF / −b_T²)`.\n")
-    w("**Die Breite ist relativ zum Gewicht der Feuchte.** Sie ist nur "
-      "dann in Kelvin lesbar wie das σ der Ampel, wenn `b_logF` bei 1 "
-      "liegt. Steht dort etwas anderes, sagt das Modell auch etwas über "
-      "die Gewichtung von Feuchte gegen Temperatur — deshalb steht die "
-      "Zahl in der Tabelle und nicht im Kleingedruckten.\n")
+    w("**Beide Größen sind maßstabsfrei**, und das ist wichtig für den "
+      "Vergleich: Skaliert man alle Koeffizienten mit demselben Faktor, "
+      "kürzt er sich in beiden Formeln heraus. Die Breite ist damit "
+      "unmittelbar das σ, das zu einem Einheitsgewicht auf `log F` "
+      "gehört — also genau das, was die Ampel rechnet.\n")
+    w("`b_logF` sagt deshalb nichts über eine Gewichtung, sondern "
+      "darüber, **wie scharf die Wahl überhaupt ist**: Es ist der "
+      "gemeinsame Faktor vor dem ganzen Nutzen, und ein kleiner Wert "
+      "heißt viel Rauschen. Bei AUC-Werten um 0,6 gehört ein kleines "
+      "`b_logF` zum Bild. Es steht in der Tabelle, weil es die Schärfe "
+      "beziffert — nicht, weil die Breite ohne es unlesbar wäre. (In "
+      "einer früheren Fassung dieses Werkzeugs stand genau das, und es "
+      "war falsch.)\n")
 
     w("\n## Gemessen\n")
     w("| Art | Gruppe | Strata | Optimum | ± | ausgeliefert | Breite | ± | "

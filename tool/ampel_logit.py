@@ -26,11 +26,20 @@ Also `b_T = 2·opt/σ²` und `b_T² = −1/σ²`, und daraus
 
     Optimum = −b_T / (2 b_T²)        Breite = sqrt( b_logF / −b_T² )
 
-Die Breite ist dabei **relativ zum Gewicht des Feuchtemerkmals** — sie
-faellt nur dann mit dem sigma der Ampel zusammen, wenn `b_logF` bei 1
-liegt. Steht dort etwas anderes, sagt das Modell auch etwas ueber die
-Gewichtung von Feuchte gegen Temperatur, und die Breite ist ohne diese
-Zahl nicht lesbar. `bell_from_beta` gibt sie deshalb mit zurueck.
+**Beide Groessen sind massstabsfrei, und hier stand erst das
+Gegenteil.** Der Kommentar behauptete, die Breite sei nur bei `b_logF`
+nahe 1 mit dem sigma der Ampel vergleichbar. Das ist falsch: Skaliert
+man alle Koeffizienten mit demselben Faktor c, so kuerzt er sich in
+`−b_T/(2 b_T²)` und in `sqrt(b_logF / −b_T²)` heraus. Die Breite ist
+damit unmittelbar das sigma, das zu einem Einheitsgewicht auf `log F`
+gehoert — also genau das, was die Ampel rechnet.
+
+Was `b_logF` stattdessen sagt: **wie scharf die Wahl ueberhaupt ist.**
+Es ist der gemeinsame Faktor vor dem ganzen Nutzen; ein kleiner Wert
+heisst viel Rauschen, nicht ein anderes Gewicht. Bei AUC-Werten um 0,6
+gehoert ein kleines `b_logF` zum Bild. `bell_from_beta` gibt es mit
+zurueck, weil es die Schaerfe beziffert — nicht, weil die Breite ohne
+es unlesbar waere.
 
 Nur Standardbibliothek, wie jedes Werkzeug in `tool/`.
 """
@@ -158,6 +167,10 @@ def fit_conditional_logit(strata, l2=1e-6, max_iter=100, tol=1e-10):
 
 def bell_from_beta(beta, kovarianz):
     """Optimum und Breite aus `[log F, T, T²]`, mit Standardfehler.
+
+    Beide Groessen sind massstabsfrei (siehe Modulkopf): Ein gemeinsamer
+    Faktor vor allen Koeffizienten kuerzt sich heraus. Die Breite ist
+    deshalb unmittelbar mit dem sigma der Ampel vergleichbar.
 
     Delta-Methode. Sie unterstellt, dass die Umformung im Bereich eines
     Standardfehlers ungefaehr gerade ist — bei einer flachen Likelihood
@@ -295,9 +308,23 @@ def self_test():
     assert abs(glocke["breite"] - sigma_wahr) < 3 * glocke["se_breite"], glocke
     assert abs(glocke["optimum"] - opt_wahr) < 1.0, glocke
     assert abs(glocke["breite"] - sigma_wahr) < 0.6, glocke
-    # Das Feuchtegewicht ist gepflanzt auf 1 — steht dort etwas anderes,
-    # ist die Breite nicht als Kelvin lesbar.
+    # Das gepflanzte Feuchtegewicht ist 1, und der Schaetzer findet es.
     assert abs(glocke["b_logf"] - 1.0) < 0.15, glocke
+
+    # **Optimum und Breite sind massstabsfrei — das muss eine Zeile
+    # festhalten.** Der Modulkopf behauptete zuerst, die Breite sei nur
+    # bei `b_logF` nahe 1 mit dem sigma der Ampel vergleichbar. Ein
+    # gemeinsamer Faktor vor allen Koeffizienten aendert an beiden
+    # Groessen aber nichts; er aendert nur, wie scharf die Wahl ist.
+    for faktor in (0.25, 4.0):
+        skaliert = [b * faktor for b in fit["beta"]]
+        kov_skaliert = [[k * faktor * faktor for k in zeile]
+                        for zeile in fit["kovarianz"]]
+        g2 = bell_from_beta(skaliert, kov_skaliert)
+        assert abs(g2["optimum"] - glocke["optimum"]) < 1e-9, (faktor, g2)
+        assert abs(g2["breite"] - glocke["breite"]) < 1e-9, (faktor, g2)
+        # Nur die Schaerfe zieht mit.
+        assert abs(g2["b_logf"] - faktor * glocke["b_logf"]) < 1e-9
 
     # --- Die zweite Fassung: 1:1 muss Zahl fuer Zahl uebereinstimmen ---
     eins_zu_eins = ziehe(800, kontrollen=1)
