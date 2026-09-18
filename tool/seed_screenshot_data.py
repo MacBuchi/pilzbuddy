@@ -23,7 +23,7 @@ jeden Spot auf seine Ziel-Pixelposition setzen.
     python3 tool/seed_screenshot_data.py --cleanup
 
 Die Zugangsdaten des Testkontos stehen im Austauschordner
-(`Claude_exchange/Testkonten.md`) und gehören NICHT hierher.
+(Schlüsselordner des Betreibers) und gehören NICHT hierher.
 
 Nur Standardbibliothek, wie feedback_bot.py und rain_grid.py.
 """

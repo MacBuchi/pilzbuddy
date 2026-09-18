@@ -71,7 +71,7 @@ beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
     Einstellungen, die Vorschau würde sie also mitbenutzen UND verändern.
     Der eigene Origin ist der Grund, warum man sich dort neu anmelden muss.
   - **Zugang ist ein Deploy Key** (`PREVIEW_DEPLOY_KEY`, öffentlicher Teil
-    im Vorschau-Repo mit Schreibrecht, privater in `~/pilzbuddy-keys/`).
+    im Vorschau-Repo mit Schreibrecht, privater im Schlüsselordner des Betreibers).
     Bewusst kein PAT wie beim Backup: Das braucht die GitHub-API, hier
     wird nur gepusht. Ein Deploy Key hängt an genau einem Repo, kann
     nichts außer pushen — und **läuft nicht ab**.
@@ -172,7 +172,9 @@ Vier Dinge, die man wissen muss:
   liefert danach ihre 300 Treffer — von außen ununterscheidbar von einem
   Hänger, und mit gesetztem Timeout ein Abbruch ohne erkennbaren Grund.
   Wer doch über die API geht, kachelt (`tool/gbif_effort.py`).
-- **Zugangsdaten liegen in `~/pilzbuddy-keys/gbif_account.md`.** Ein dort
+- **Zugangsdaten liegen im Schlüsselordner des Betreibers**; wo genau, steht im DocuHub `guidelines/signing-und-secrets.md`
+  und bewusst nicht hier — dieses Repo ist öffentlich. Die Werkzeuge
+  finden sie über `KEYS_DIR` bzw. `GBIF_ACCOUNT` aus der Umgebung. Ein dort
   abgelegtes Passwort kann **Markdown-Escapes** tragen, die nicht dazu
   gehören (`\*` statt `*`) — daran ist die erste Anmeldung gescheitert,
   und die Fehlersuche war teuer, weil GBIF einen erfundenen Benutzernamen
@@ -186,7 +188,7 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
 ## Technik-Notizen
 
 - Signing: `android/key.properties` + `android/pilzbuddy-release.jks` (beide
-  gitignored; Backup in `~/pilzbuddy-keys/`). CI erzeugt beides aus den Secrets
+  gitignored; Backup im Schlüsselordner des Betreibers). CI erzeugt beides aus den Secrets
   `ANDROID_KEYSTORE_*`. PKCS12: keyPassword == storePassword.
 - Web-Builds für Pages brauchen `--base-href /pilzbuddy/` und eine `404.html`
   (Kopie von `index.html`) als SPA-Fallback.
@@ -1437,7 +1439,7 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   `pilzbuddy-backups` (dieses Repo ist öffentlich, seine Artefakte wären es
   auch). Verschlüsselt wird asymmetrisch — der öffentliche Schlüssel steht
   im Skript, der private liegt **nur** in
-  `~/pilzbuddy-keys/pilzbuddy-backup.agekey` und nie in GitHub; sein Verlust
+  im Schlüsselordner des Betreibers und nie in GitHub; sein Verlust
   macht alle Backups wertlos. Vor dem Hochladen prüft das Skript, ob die
   erwarteten Tabellen (inkl. `auth.users`) wirklich im Dump stehen — ein
   halber Dump wird nicht abgelegt. Aufbewahrung: die letzten 12 Läufe.

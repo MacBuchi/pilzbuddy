@@ -29,11 +29,12 @@ lokal gesetzt. Enger zu ziehen spart einmalig Platz und kostet bei der
 nächsten Frage einen neuen Download; der Effort-Nenner (#467) braucht
 ohnehin alles, auch die Bodenproben, die kein Sammler je sieht.
 
-ZUGANGSDATEN liegen in ~/pilzbuddy-keys/gbif_account.md (Projektstandard
-für Geheimnisse, wie Keystore und age-Schlüssel) — ersatzweise im
-Austauschordner, und dort gehören sie laut DocuHub NICHT hin, weil er
-über Nextcloud synchronisiert. Alternativ GBIF_USER/GBIF_PW aus der
-Umgebung. Die Datei wird gelesen, nie geschrieben und nie ausgegeben.
+ZUGANGSDATEN kommen aus der UMGEBUNG, nicht aus einem einprogrammierten
+Pfad: `GBIF_USER`/`GBIF_PW` direkt, oder `GBIF_ACCOUNT` (Datei) bzw.
+`KEYS_DIR` (Ordner). Wo die Datei liegt, steht in der internen Doku und
+bewusst nicht hier — dieses Repo ist öffentlich, und ein Pfad verrät den
+Aufbau einer fremden Maschine, auch wenn er von außen nicht erreichbar
+ist. Die Datei wird gelesen, nie geschrieben und nie ausgegeben.
 
 Nur Standardbibliothek — sqlite3 ist Teil davon.
 """
@@ -54,10 +55,34 @@ import zipfile
 
 API = "https://api.gbif.org/v1"
 HOME = os.path.expanduser("~")
-CRED_PATHS = [
-    os.path.join(HOME, "pilzbuddy-keys", "gbif_account.md"),
-    "/Volumes/MacStore/nextcloud_msb/Claude_exchange/gbif_account.md",
-]
+def cred_paths():
+    """Wo nach den Zugangsdaten gesucht wird — aus der Umgebung, nicht
+    aus dem Quelltext.
+
+    Bis zum 2026-09-18 standen hier zwei feste Pfade, einer davon im über
+    Nextcloud synchronisierten Austauschordner. Beides gehört nicht in
+    ein öffentliches Repo: der erste, weil er den Aufbau einer fremden
+    Maschine beschreibt, der zweite zusätzlich, weil er einen Ort
+    empfahl, an dem Geheimnisse nichts verloren haben.
+    """
+    kandidaten = []
+    datei = os.environ.get("GBIF_ACCOUNT")
+    if datei:
+        kandidaten.append(os.path.expanduser(datei))
+    ordner = os.environ.get("KEYS_DIR")
+    if ordner:
+        kandidaten.append(
+            os.path.join(os.path.expanduser(ordner), "gbif_account.md"))
+    return kandidaten
+
+
+CRED_HINT = (
+    "Keine GBIF-Zugangsdaten gefunden.\n"
+    "  Entweder GBIF_USER und GBIF_PW setzen, oder den Ablageort nennen:\n"
+    "    export KEYS_DIR=<Schlüsselordner>      # enthält gbif_account.md\n"
+    "    export GBIF_ACCOUNT=<Pfad zur Datei>   # oder direkt die Datei\n"
+    "  Wo das ist, steht in der internen Doku (DocuHub,\n"
+    "  guidelines/signing-und-secrets.md) und nicht in diesem Repo.")
 STORE = os.path.expanduser(os.environ.get("GBIF_STORE", "~/pilzbuddy-gbif"))
 DB = os.path.join(STORE, "dach_fungi.sqlite")
 KEYFILE = os.path.join(STORE, "download.json")
@@ -95,7 +120,7 @@ def credentials():
     """
     if os.environ.get("GBIF_USER") and os.environ.get("GBIF_PW"):
         return os.environ["GBIF_USER"], os.environ["GBIF_PW"]
-    for path in CRED_PATHS:
+    for path in cred_paths():
         if not os.path.exists(path):
             continue
         text = io.open(path, encoding="utf-8").read()
@@ -121,10 +146,7 @@ def credentials():
         if user and pw:
             return user, pw
         raise SystemExit(f"{path}: 'User' oder 'PW' nicht lesbar.")
-    raise SystemExit(
-        "Keine Zugangsdaten. Erwartet werden GBIF_USER/GBIF_PW oder eine "
-        "Datei mit den Zeilen 'User:' und 'PW:' unter:\n  "
-        + "\n  ".join(CRED_PATHS))
+    raise SystemExit(CRED_HINT)
 
 
 def _call(path, method="GET", payload=None):

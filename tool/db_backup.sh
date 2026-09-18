@@ -7,7 +7,7 @@
 #
 # Encryption is asymmetric on purpose. The recipient below is the PUBLIC age
 # key and may live in this repository; the private key exists only in
-# ~/pilzbuddy-keys/pilzbuddy-backup.agekey on the operator's machine and
+# in the operator's key folder (location: internal DocuHub) and
 # never reaches GitHub. Someone who breaks into the repository or the
 # backup store gets ciphertext and nothing else.
 #
@@ -27,7 +27,7 @@ PG_DUMP="${PG_DUMP:-pg_dump}"
 PSQL="${PSQL:-psql}"
 
 # Öffentlicher age-Schlüssel — Chiffrat, kein Geheimnis. Der private Teil
-# liegt ausschließlich in ~/pilzbuddy-keys/pilzbuddy-backup.agekey.
+# liegt ausschließlich im Schlüsselordner des Betreibers.
 RECIPIENT="${BACKUP_AGE_RECIPIENT:-age1cvve78dxxq8axsa6kvhe4ynm2m6waavf3s7x4ayaqvhy8pwpj5tsw3l7rr}"
 BACKUP_REPO="${BACKUP_REPO:-MacBuchi/pilzbuddy-backups}"
 
