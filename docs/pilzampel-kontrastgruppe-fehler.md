@@ -55,6 +55,24 @@ Das ist das Verhalten einer **Temperaturnische** und gerade nicht das
 eines Modells, das allgemeines Pilzwetter misst: Ein generisches Modell
 müsste auch bei Winterarten anschlagen, und es tut das Gegenteil.
 
+### Nachtrag vom 2026-09-18: die 0,283 ist überwiegend Kalender
+
+Der Absatz darüber bleibt stehen, aber er trägt weniger, als er
+behauptet. Alle Zahlen dieser Tabelle stammen aus **Design A** — der
+Vergleichstag liegt 26–45 Tage neben dem Fund im selben Jahr, die
+Jahreszeit kürzt sich damit nur ungefähr heraus. Phase 1.5 hat dieselben
+Arten gegen **dasselbe Datum anderer Jahre** gerechnet
+(`docs/pilzampel-kontrolldesign.md`), und dort bleibt vom Samtfußrübling
+nichts: **0,506** bei einem Jahres-Bootstrap [0,417, 0,607], der die 0,50
+einschließt.
+
+Ein Wert von 0,283 heißt also nicht „die Glocke zeigt bei dieser Art in
+die Gegenrichtung", sondern: Die Fundtage einer Winterart liegen im
+Kalender weit weg von den Tagen 26–45 Tage daneben, und die Glocke misst
+diesen Abstand mit. Die Monotonie der Tabelle bleibt ein Hinweis; als
+Beleg für eine Temperaturnische taugt sie nicht mehr, weil dieselbe
+Monotonie auch aus dem Kalender folgen kann.
+
 ## Was daraus NICHT folgt
 
 **Der Ausgang wird nicht umgedeutet.** „Die Kontrastarten bestehen,

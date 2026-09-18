@@ -355,6 +355,24 @@ def _fmt(value, digits=3):
     return "—" if value is None else f"{value:.{digits}f}"
 
 
+def _pwert(band):
+    """Der p-Wert eines Bandes, mit genug Stellen fuer knappe Faelle.
+
+    Vier Stellen, und ein Ausrufezeichen, wo die Entscheidung dicht an
+    der Grenze liegt: Bei 20 000 Zuegen hat ein p von 0,025 noch einen
+    eigenen Standardfehler von 0,0011, ein Abstand darunter ist also
+    keiner. Wer die Marke sieht, soll nicht die Stufe lesen, sondern die
+    Zahl.
+    """
+    if band is None or len(band) < 3:
+        return ""
+    if band[2] == 0:
+        text = f"<{1 / BOOTSTRAP_ROUNDS_B:.5f}"
+    else:
+        text = f"{band[2]:.4f}"
+    return text + (" ⚠" if abs(band[2] - P_GRENZE) < 0.005 else "")
+
+
 def _signed(value, digits=3):
     """Mit Vorzeichen — auch bei null, damit die Spalte lesbar bleibt."""
     return "—" if value is None else f"{value:+.{digits}f}"
@@ -531,6 +549,172 @@ def self_test():
     assert [s["year"] for s in nur_fit] == [2016, 2018], \
         "Pruefjahre duerfen in Phase 1 nicht auftauchen"
     assert av.FIT_UNTIL_YEAR == 2018
+
+    # --- Nachtrag 1: N1 bis N4 ----------------------------------------
+
+    # N4 — die Jahreszahl als Score. **Von Konstruktion wegen 0,500**,
+    # wenn die Ziehung ausgeglichen ist; jede Abweichung ist Unwucht.
+    def b_probe(jahr, kontrolljahre):
+        return {"year": jahr, "control_years": list(kontrolljahre),
+                "found": ([3.0] * 26, [13.0] * 20),
+                "controls": [([3.0] * 26, [13.0] * 20)
+                             for _ in kontrolljahre]}
+    wert, n, frueher, spaeter = score_b_year(
+        [b_probe(2012, [2010, 2011, 2013, 2014])] * 10)
+    assert wert == 0.5 and n == 10, (wert, n)
+    assert frueher == 20 and spaeter == 20, (frueher, spaeter)
+    # Nur frueher: der Fundtag „schlaegt" jedes Kontrolljahr.
+    wert, _, frueher, spaeter = score_b_year(
+        [b_probe(2012, [2010, 2011])] * 4)
+    assert wert == 1.0 and frueher == 8 and spaeter == 0, (wert, frueher)
+    # Nur spaeter: keines. Ein Gleichstand kann nicht vorkommen — ein
+    # Kontrolljahr ist nie das Fundjahr.
+    wert, _, _, _ = score_b_year([b_probe(2012, [2013, 2014])] * 4)
+    assert wert == 0.0, wert
+    # Halb und halb ueber die FUNDE statt ueber die Jahre: der Mittelwert
+    # wird je Fund gebildet, also 0,5 — nicht etwa gewichtet.
+    wert, _, _, _ = score_b_year([b_probe(2012, [2010, 2011, 2013]),
+                                  b_probe(2012, [2013])])
+    assert abs(wert - (2 / 3 + 0.0) / 2) < 1e-12, wert
+    # **Das Fundjahr als eigenes Kontrolljahr kann die Ziehung nicht
+    # erzeugen — und genau deshalb steht es hier.** Ein solcher Fall
+    # waere ein Fehler stromaufwaerts, und dann darf er weder als
+    # „frueher" noch als „spaeter" mitzaehlen, sondern muss den Wert wie
+    # jeder Gleichstand mit 0,5 treffen. Ohne diese Zeile bleibt die
+    # Grenze `<` gegen `<=` austauschbar, ohne dass es auffaellt.
+    wert, _, frueher, spaeter = score_b_year([b_probe(2012, [2012, 2010])])
+    assert frueher == 1 and spaeter == 0, (frueher, spaeter)
+    assert wert == 0.75, wert
+
+    # **Der Schnellweg muss Zahl fuer Zahl derselbe sein wie `score_b`.**
+    # Ohne diese Zeile waere die Beschleunigung eine Behauptung: Beide
+    # Wege koennten dauerhaft auseinanderliegen, ohne dass ein Band
+    # auffaellig aussieht.
+    bunt = []
+    for j, jahr in enumerate(range(2008, 2018)):
+        for k in range(4):
+            bunt.append({
+                "year": jahr, "control_years": [jahr - 1, jahr + 1],
+                "found": ([1.0 + k] * 26, [8.0 + j] * 20),
+                "controls": [([2.0] * 26, [11.0 + k] * 20),
+                             ([0.5] * 26, [17.0 - j] * 20)]})
+    fr = _fractions(bunt, 13.0, lambda s: s["year"])
+    flach = [w for werte in fr.values() for w in werte]
+    assert len(flach) == len(bunt)
+    assert abs(sum(flach) / len(flach) - av.score_b(bunt, 13.0)[0]) < 1e-12
+    # Und der Schnellweg darf nicht heimlich zum langen werden: Mit
+    # `limit` ist der Anteil je Fund ein anderer, dort gilt er nicht.
+    assert av.score_b(bunt, 13.0, limit=1)[0] != av.score_b(bunt, 13.0)[0]
+
+    # N2 — Vertrauensbereich der Differenz zur Referenz.
+    # **Gegenprobe-tauglich gebaut:** Die Art trennt perfekt, die
+    # Referenz gar nicht. Das Band der Differenz MUSS die Null
+    # ausschliessen; bei identischen Listen muss es sie einschliessen.
+    def bb(jahr, gut):
+        temp = 13.0 if gut else 30.0
+        return {"year": jahr, "control_years": [jahr - 1, jahr + 1],
+                "found": ([3.0] * 26, [temp] * 20),
+                "controls": [([3.0] * 26, [30.0] * 20),
+                             ([3.0] * 26, [30.0] * 20)]}
+    kunst_art = [bb(j, True) for j in range(2008, 2018) for _ in range(5)]
+    kunst_ref = [bb(j, False) for j in range(2008, 2018) for _ in range(5)]
+    b = bootstrap_ref_diff(kunst_art, kunst_ref, 13.0, rounds=120)
+    assert b is not None and b[0] > 0 and b[2] == 0.0, b
+    gleich = bootstrap_ref_diff(kunst_art, list(kunst_art), 13.0, rounds=120)
+    assert gleich is not None and gleich[0] <= 0 <= gleich[1], gleich
+    # Identische Listen heissen Differenz genau null in JEDEM Zug — der
+    # p-Wert zaehlt Gleichstand mit 0,5 und muss deshalb 0,5 sein, nicht
+    # 0,0. Ohne diese Zeile faerbte ein „<" statt „<=" die Sache still.
+    assert gleich[2] == 0.5, gleich
+    # **Und die Art muss WIRKLICH mitgezogen werden.** Die beiden Faelle
+    # oben trennen perfekt und haben deshalb gar keine Jahresstreuung —
+    # ein Bootstrap, der die Art gar nicht neu zieht, sieht dort genauso
+    # aus. Hier schwankt die Art von Jahr zu Jahr zwischen 1,0 und 0,0,
+    # waehrend die Referenz still liegt: Wird sie nicht mitgezogen,
+    # schrumpft das Band auf nahezu nichts.
+    schwankend = [bb(j, j % 2 == 0)
+                  for j in range(2008, 2018) for _ in range(5)]
+    still = [bb(j, False) for j in range(2008, 2018) for _ in range(5)]
+    breit = bootstrap_ref_diff(schwankend, still, 13.0, rounds=200)
+    assert breit is not None and breit[1] - breit[0] > 0.2, breit
+    # Und dieselbe Probe seitenverkehrt, sonst deckt sie nur die eine
+    # Haelfte des gemeinsamen Zugs ab: Jetzt schwankt die REFERENZ.
+    breit = bootstrap_ref_diff(still, schwankend, 13.0, rounds=200)
+    assert breit is not None and breit[1] - breit[0] > 0.2, breit
+
+    # **`bootstrap_b` selbst, ueber dieselbe schwankende Liste.** Auch
+    # hier gilt: Wer nicht wirklich zieht, bekommt ein Band der Breite
+    # null und merkt es nie, weil ein schmales Band wie ein gutes
+    # aussieht.
+    jb = bootstrap_b(schwankend, 13.0, lambda s: s["year"], rounds=200)
+    assert jb is not None and jb[1] - jb[0] > 0.2, jb
+    # Der p-Wert zaehlt gegen 0,50, und dieses Band liegt darueber.
+    assert 0.0 <= jb[2] < 0.5, jb
+    # Ein einziges Jahr laesst sich nicht ueber Jahre ziehen.
+    assert bootstrap_b(schwankend[:5], 13.0, lambda s: s["year"]) is None
+    # Ein einziges Jahr laesst sich nicht ueber Jahre ziehen.
+    assert bootstrap_ref_diff(kunst_art[:5], kunst_ref[:5], 13.0) is None
+
+    # N3 — die nachweisbare Effektgroesse. Ein Band der Breite
+    # 2 * 1,96 * SE muss genau (1,96 + 0,84) * SE ergeben.
+    se = 0.05
+    got = mde_from_band((0.5 - 1.959964 * se, 0.5 + 1.959964 * se, 0.03))
+    assert abs(got - MDE_FAKTOR * se) < 1e-12, got
+    assert mde_from_band(None) is None
+
+    # N1 — die Evidenzstufen. Eine Zeile, die alle vier Bedingungen
+    # erfuellt, und dann je eine gebrochen.
+    def zeile(**kwargs):
+        basis = {"name": "Test", "b_auc": 0.65, "ref_b": 0.58,
+                 "b_band_jahr": (0.58, 0.71, 0.001),
+                 "ref_band": (0.02, 0.11, 0.004),
+                 "b_n": 500, "a_auc": 0.74,
+                 "a_mirror": 0.50, "a_mirror_n": 500,
+                 "b_plac": 0.50, "b_plac_n": 500}
+        basis.update(kwargs)
+        return basis
+    stufe, bed = evidenzstufe(zeile())
+    assert stufe == "belegt" and all(bed.values()), (stufe, bed)
+    # Zu wenige Funde: eine Bedingung wackelt, die Aussage bleibt.
+    assert evidenzstufe(zeile(b_n=100))[0] == "vorläufig"
+    # **Referenzabstand positiv, aber das Band streift die Null** — das
+    # ist der ERSTE Ausschluss und nicht bloss ein Wackeln: N1 macht die
+    # Referenz zum entscheidenden Mass, und N2 gibt ihr dafuer gerade
+    # erst einen Vertrauensbereich.
+    assert evidenzstufe(zeile(ref_band=(-0.01, 0.13, 0.08)))[0] \
+        == "keine Aussage"
+    # Kontrolle daneben — 0,60 liegt weit ausserhalb von 2 SE bei n=500.
+    assert evidenzstufe(zeile(b_plac=0.60))[0] == "vorläufig"
+    # **Die beiden Ausschluesse schlagen die vier Haken.** Unter der
+    # Referenz oder mit 0,50 im Band gibt es keine Aussage, auch wenn
+    # sonst alles stimmt.
+    assert evidenzstufe(zeile(ref_b=0.66))[0] == "keine Aussage"
+    assert evidenzstufe(zeile(ref_b=None))[0] == "keine Aussage"
+    # **Der Bootstrap ist KEIN eigener Ausschluss** — so loest der
+    # Nachtrag seinen eigenen Widerspruch auf (Fichtenreizker steht dort
+    # unter „vorlaeufig" mit der Begruendung „Bootstrap streift 0,50").
+    # Waere er einer, faerbte er eine Art schwarz, deren Referenzabstand
+    # sauber ueber null liegt.
+    assert evidenzstufe(zeile(b_band_jahr=(0.49, 0.71, 0.09)))[0] \
+        == "vorläufig"
+    # Erst wenn B selbst nicht ueber 0,50 liegt, ist auch das vorbei.
+    assert evidenzstufe(zeile(b_auc=0.50, ref_b=0.44,
+                              b_band_jahr=(0.44, 0.57, 0.31)))[0] \
+        == "keine Aussage"
+    # Die p-Grenze liegt bei 0,025 und wird scharf gelesen.
+    assert evidenzstufe(zeile(ref_band=(0.0, 0.11, 0.025)))[0] \
+        == "keine Aussage"
+    assert evidenzstufe(zeile(ref_band=(0.0, 0.11, 0.024)))[0] == "belegt"
+    # Und dieselbe Grenze am anderen Band — sonst bleibt sie dort
+    # austauschbar, ohne dass eine Zeile widerspricht.
+    assert evidenzstufe(zeile(b_band_jahr=(0.5, 0.71, 0.025)))[0] \
+        == "vorläufig"
+    assert evidenzstufe(zeile(b_band_jahr=(0.5, 0.71, 0.024)))[0] == "belegt"
+    # Und der entscheidende Unterschied zur ALTEN Regel: Ein grosser
+    # Abschlag A-B ist kein Ausschlussgrund mehr.
+    assert evidenzstufe(zeile(a_auc=0.95))[0] == "belegt"
+    # Die alte Zuordnung ist woertlich aufgehoben und deckt alle Arten.
+    assert {n for n, _, _ in DESIGN_ARTEN} == set(STUFE_ALT)
 
     print("Selbsttest ok")
 
@@ -827,14 +1011,75 @@ DESIGN_ARTEN = [
 MIN_FINDS_B = 150
 
 
+def _band(zuege, null):
+    """Aus den Zuegen das 95-%-Band UND den Anteil auf der falschen Seite.
+
+    **Der dritte Wert ist der wichtigere**, sobald eine Entscheidung an
+    der Bandkante haengt: Der Anteil der Zuege jenseits von `null` ist
+    eine stetige Groesse, die 2,5-%-Kante dagegen ist der zehnte von 400
+    Zuegen und traegt allein aus dem Losverfahren mehr Rauschen, als
+    manche Entscheidung Abstand hat. Zusammen mit einer hohen Zugzahl
+    wird daraus eine Zahl, die man hinschreiben kann, statt eines Hakens,
+    der kippelt.
+    """
+    zuege.sort()
+    unter = (sum(1 for z in zuege if z < null)
+             + 0.5 * sum(1 for z in zuege if z == null))
+    return (zuege[int(0.025 * len(zuege))],
+            zuege[min(len(zuege) - 1, int(0.975 * len(zuege)))],
+            unter / len(zuege))
+
+
+def _fractions(samples, optimum, schluessel):
+    """Je Gruppe die vorgerechneten Anteile aus `score_b`.
+
+    **Dieselbe Groesse, nur einmal statt je Zug gerechnet.** `score_b`
+    bildet fuer jeden Fund den Anteil der geschlagenen Kontrolljahre und
+    mittelt darueber; der Anteil haengt ausschliesslich an diesem einen
+    Fund. Ein Bootstrap ueber Gruppen zieht also Mittelwerte ueber eine
+    feste Zahlenliste — das Neubewerten aller Vergleiche in jedem Zug war
+    reine Wiederholung. Der Selbsttest haelt beide Wege gegeneinander.
+    """
+    gruppen = {}
+    for s in samples:
+        wert = ab.beat_fraction(
+            av.ampel_score(*s["found"], optimum),
+            [av.ampel_score(*c, optimum) for c in s["controls"]])
+        if wert is not None:
+            gruppen.setdefault(schluessel(s), []).append(wert)
+    return gruppen
+
+
+def _ziehe(gruppen, rounds, seed, null):
+    """Ein Bootstrap ueber die vorgerechneten Gruppen."""
+    namen = sorted(gruppen, key=str)
+    if len(namen) < 2:
+        return None
+    rng = random.Random(seed)
+    zuege = []
+    for _ in range(rounds):
+        werte = [w for name in rng.choices(namen, k=len(namen))
+                 for w in gruppen[name]]
+        if werte:
+            zuege.append(sum(werte) / len(werte))
+    return _band(zuege, null) if zuege else None
+
+
 def bootstrap_b(samples, optimum, schluessel, rounds=BOOTSTRAP_ROUNDS,
-                seed=42, limit=None):
+                seed=42, limit=None, null=0.5):
     """95-%-Bereich des B-Masses, gezogen ueber Gruppen.
 
     Ueber das FUNDJAHR, nicht ueber „das Jahr": Ein B-Paar gehoert zu
     zwei Jahren, und ohne diese Festlegung aenderte dieselbe Spalte ihre
     Bedeutung zwischen den Designs, ohne dass es jemand saehe.
+
+    Rueckgabe: `(unten, oben, p)` — siehe `_band`.
     """
+    if limit is None:
+        return _ziehe(_fractions(samples, optimum, schluessel), rounds,
+                      seed, null)
+    # Mit `limit` zaehlen nur die ersten Kontrolljahre, der Anteil je Fund
+    # ist also ein anderer — dann den langen Weg.
     gruppen = {}
     for s in samples:
         gruppen.setdefault(schluessel(s), []).append(s)
@@ -851,9 +1096,186 @@ def bootstrap_b(samples, optimum, schluessel, rounds=BOOTSTRAP_ROUNDS,
             zuege.append(wert)
     if not zuege:
         return None
-    zuege.sort()
-    return (zuege[int(0.025 * len(zuege))],
-            zuege[min(len(zuege) - 1, int(0.975 * len(zuege)))])
+    return _band(zuege, null)
+
+
+# --- Nachtrag 1 zu Auftrag 2: N1 bis N4 ------------------------------------
+
+# Zweiseitig, alpha = 0,05, Trennschaerfe 80 %: z(0,975) + z(0,80).
+MDE_FAKTOR = 1.959964 + 0.841621
+
+# Zuege fuer die Baender in Phase 1.5. **Deutlich mehr als die 400 der
+# Phase-1-Diagnosen**, und das hat einen Grund: Hier haengen Urteile an
+# der Frage, ob ein Band eine Null einschliesst. Mit 400 Zuegen ist die
+# 2,5-%-Kante der zehnte Zug, und ihr Eigenrauschen ist groesser als der
+# Abstand, den die knappsten Faelle haben.
+# Zwanzigtausend statt zweitausend, und das kostet fast nichts: `score_b`
+# mittelt je Fund einen Anteil, und dieser Anteil haengt am Fund allein.
+# Einmal vorgerechnet (`_fractions`), ist ein Zug nur noch ein Mittelwert
+# ueber Gleitkommazahlen statt ein Neubewerten aller Vergleiche. Erst
+# damit ist der p-Wert genauer als die Entscheidung, die an ihm haengt:
+# bei 2000 Zuegen hat ein p von 0,025 einen eigenen Standardfehler von
+# 0,0035 — und ein Urteil, das zwischen 0,0245 und 0,0255 kippt, ist
+# keines.
+BOOTSTRAP_ROUNDS_B = 20000
+
+# Ab hier gilt ein Band als „schliesst die Null aus" — dieselbe Grenze,
+# die ein 95-%-Band zieht, nur als stetige Zahl statt als Kante.
+P_GRENZE = 0.025
+
+# **Die Zuordnung, wie sie im angenommenen Bericht stand** (Commit
+# `fb6f2db`, Auftrag 2 Abschnitt 5). Sie wird hier woertlich aufgehoben
+# und nicht nachgerechnet: Die alte Regel haengt am Abschlag A-B, und
+# eine nachgebaute Regel koennte still von dem abweichen, was damals
+# tatsaechlich dastand. Der Nachtrag verlangt beide Zuordnungen
+# nebeneinander — dafuer muss die alte unveraenderlich sein.
+STUFE_ALT = {
+    "Pfifferling": "belegt",
+    "Steinpilz": "vorläufig", "Maronenröhrling": "vorläufig",
+    "Birkenpilz": "vorläufig", "Fichtenreizker": "vorläufig",
+    "Herbsttrompete": "vorläufig",
+    "Stockschwämmchen": "keine Aussage", "Judasohr": "keine Aussage",
+    "Samtfußrübling": "keine Aussage", "Austernseitling": "keine Aussage",
+    "Hallimasch": "keine Aussage",
+}
+
+
+def score_b_year(samples):
+    """N4 — die JAHRESZAHL allein als Score auf denselben B-Paaren.
+
+    Die Frage dahinter: Bei neun von elf Arten sind spaetere Kontrolljahre
+    leichter zu schlagen. Ein Instrumentwechsel kann es nicht sein, der
+    Datensatz ist gepinnt. Bleibt die Moeglichkeit, dass B einen Anteil
+    „das Fundjahr liegt frueh im Zeitraum" enthaelt — und der schlaegt nur
+    durch, wenn die ZIEHUNG schief liegt.
+
+    Genau das misst dieser Wert. Er ist `score_b` mit der Jahreszahl
+    anstelle des Ampel-Scores; ein Gleichstand kann nicht vorkommen, weil
+    ein Kontrolljahr nie das Fundjahr ist. Eine perfekt ausgeglichene
+    Ziehung ergibt **0,500 von Konstruktion wegen**. Jede Abweichung ist
+    Unwucht, und ueber der Richtungs-Differenz gewichtet sagt sie, wieviel
+    davon in der B-Zahl steckt.
+
+    Rueckgabe: (wert, n, frueher, spaeter) — die beiden Zaehler sind
+    KONTROLLJAHRE, nicht Funde.
+    """
+    anteile = []
+    frueher = spaeter = 0
+    for s in samples:
+        jahre = s.get("control_years") or []
+        if not jahre:
+            continue
+        frueher += sum(1 for y in jahre if y < s["year"])
+        spaeter += sum(1 for y in jahre if y > s["year"])
+        anteile.append(ab.beat_fraction(s["year"], jahre))
+    return ab.mean_beat(anteile), len(anteile), frueher, spaeter
+
+
+def bootstrap_ref_diff(art, referenz, optimum, rounds=BOOTSTRAP_ROUNDS,
+                       seed=42):
+    """N2 — Vertrauensbereich der Differenz Art minus Referenz.
+
+    Gezogen wird ueber das FUNDJAHR wie beim Bootstrap von B, und
+    **gemeinsam**: Ein gezogenes Jahr bringt seine Funde der Art UND seine
+    Referenzfunde mit. Getrennt zu ziehen unterstellte, die beiden Zahlen
+    streuten unabhaengig — sie teilen sich aber das Wetter derselben
+    Jahre, und genau deshalb kann die Differenz enger sein als jeder
+    ihrer beiden Summanden.
+
+    Warum das noetig wurde: Der Referenzabstand traegt inzwischen die
+    haerteste Einzelentscheidung (Stockschwaemmchen +0,001), stand aber
+    als Punktschaetzer ohne jede Streuung da.
+    """
+    jahr = lambda s: s["year"]
+    a_jahre = _fractions(art, optimum, jahr)
+    r_jahre = _fractions(referenz, optimum, jahr)
+    namen = sorted(set(a_jahre) | set(r_jahre))
+    if len(namen) < 2:
+        return None
+    rng = random.Random(seed)
+    zuege = []
+    for _ in range(rounds):
+        gezogen = rng.choices(namen, k=len(namen))
+        a = [w for j in gezogen for w in a_jahre.get(j, ())]
+        r = [w for j in gezogen for w in r_jahre.get(j, ())]
+        if a and r:
+            zuege.append(sum(a) / len(a) - sum(r) / len(r))
+    if not zuege:
+        return None
+    return _band(zuege, 0.0)
+
+
+def mde_from_band(band):
+    """N3 — der kleinste Effekt, der bei dieser Streuung 80 % sichtbar wird.
+
+    Der Standardfehler kommt aus dem JAHRES-Bootstrap und nicht aus der
+    Paarzahl: `sqrt(0.25/n)` unterstellt unabhaengige Paare, und B-Paare
+    desselben Jahres teilen sich das Wetter. Der geclusterte Fehler ist
+    hier der groessere — und damit der ehrliche.
+
+    Die Zahl beantwortet „wie gross haette ein Auslaesereffekt sein
+    muessen, um aufzufallen", nicht „wie gross ist er". Unterhalb davon
+    sagt dieser Aufbau nichts, weder ja noch nein.
+    """
+    if band is None:
+        return None
+    return MDE_FAKTOR * (band[1] - band[0]) / (2 * 1.959964)
+
+
+def evidenzstufe(z):
+    """Die Evidenzstufe nach N1 des Nachtrags — vier Bedingungen.
+
+    **Was die alte Regel falsch machte:** Auftrag 2, Abschnitt 5 machte
+    den Abschlag `A - B < 0,05` zur Bedingung fuer „belegt". Abschnitt 3
+    desselben Auftrags sagt aber, dass B aus zwei strukturellen Gruenden
+    kleiner sein MUSS. Die Latte bestrafte damit genau den erwarteten
+    Effekt und mass nicht die Belastbarkeit — der Pfifferling galt als
+    belegt, weil sein A wenig Kalender zu verlieren hatte.
+
+    Der Abschlag bleibt in jeder Tabelle stehen, als Auskunft darueber,
+    wieviel Kalender in der A-Zahl steckt. Er ist nur kein Tor mehr.
+
+    Rueckgabe: (stufe, bedingungen) — `bedingungen` ist ein dict mit
+    genau den vier Namen, damit der Bericht zeigen kann, WELCHE wackelt.
+    """
+    ref_d = (None if z["b_auc"] is None or z["ref_b"] is None
+             else z["b_auc"] - z["ref_b"])
+    band = z["b_band_jahr"]
+    ref_band = z.get("ref_band")
+    bed = {
+        "bootstrap": band is not None and band[2] < P_GRENZE,
+        "referenz": (ref_d is not None and ref_d > 0
+                     and ref_band is not None and ref_band[2] < P_GRENZE),
+        "funde": z["b_n"] is not None and z["b_n"] >= MIN_FINDS_B,
+        "kontrollen": (
+            z["a_mirror"] is not None
+            and av.control_clean(z["a_mirror"], z["a_mirror_n"])
+            and z["b_plac"] is not None
+            and av.control_clean(z["b_plac"], z["b_plac_n"])),
+    }
+    # **Der Ausschluss ist die REFERENZ, und nur sie.**
+    #
+    # N1 nennt zwei Saetze, die sich an einer Stelle widersprechen:
+    # „vorlaeufig" gilt, wenn B ueber der Referenz und ueber 0,50 liegt
+    # und EINE der vier Bedingungen wackelt — „keine Aussage" gilt, wenn
+    # B die Referenz nicht erreicht ODER der Bootstrap 0,50 einschliesst.
+    # Eine Art, deren Bootstrap wackelt und die sonst traegt, faellt
+    # unter beide Saetze zugleich.
+    #
+    # Aufgeloest wird es ueber die Erwartung, die der Nachtrag selbst
+    # nennt: Dort steht der Fichtenreizker unter „vorlaeufig" mit der
+    # Begruendung „Bootstrap streift 0,50". Der speziellere Satz gewinnt
+    # also, und der Bootstrap ist eine der vier wackelnden Bedingungen,
+    # kein eigener Ausschluss. Uebrig bleibt als Ausschluss die Referenz
+    # — die Groesse, die N2 gerade erst mit einem Vertrauensbereich
+    # versehen hat, und nach N1 ohnehin „der inhaltlich bessere" Massstab.
+    if not bed["referenz"]:
+        return "keine Aussage", bed
+    if all(bed.values()):
+        return "belegt", bed
+    if z["b_auc"] is None or z["b_auc"] <= 0.5:
+        return "keine Aussage", bed
+    return "vorläufig", bed
 
 
 def run_designs(args):
@@ -912,13 +1334,23 @@ def run_designs(args):
             pool = target_group_finds(progress=True)
         ref_finds, ref_info = matched_reference(finds, pool, sci,
                                                 seed=args.seed)
-        ref_b = None
+        ref_b = ref_band = None
         if len(ref_finds) >= 50:
             rb = av.collect_pairs_b("Referenz " + name, "—", finds=ref_finds,
                                     cache_dir=args.cache, seed=args.seed,
                                     progress=False)
             if rb:
-                ref_b = av.score_b(fit_years_only(rb["samples"]), optimum)[0]
+                ref_s = fit_years_only(rb["samples"])
+                ref_b = av.score_b(ref_s, optimum)[0]
+                # N2 — die Differenz bekommt ihre eigene Streuung, und
+                # zwar aus demselben Zug: gemeinsam ueber das Fundjahr.
+                ref_band = bootstrap_ref_diff(b_s, ref_s, optimum,
+                                              rounds=BOOTSTRAP_ROUNDS_B,
+                                              seed=args.seed)
+
+        # N4 — traegt die Ziehung einen Zeitanteil? Kostet nichts, die
+        # Paare liegen schon da.
+        jahr_auc, jahr_n, jahr_frueher, jahr_spaeter = score_b_year(b_s)
 
         zeilen.append({
             "name": name, "gruppe": gruppe, "optimum": optimum,
@@ -928,13 +1360,18 @@ def run_designs(args):
             "b_plac": b_plac, "b_plac_n": b_plac_n,
             "b_frueh": b_frueh, "b_spaet": b_spaet,
             "b_band_jahr": bootstrap_b(b_s, optimum, lambda s: s["year"],
+                                       rounds=BOOTSTRAP_ROUNDS_B,
                                        seed=args.seed),
             "b_band_melder": bootstrap_b(
                 b_s, optimum,
-                lambda s: s.get("recordedBy") or f"a{id(s)}", seed=args.seed),
+                lambda s: s.get("recordedBy") or f"a{id(s)}",
+                rounds=BOOTSTRAP_ROUNDS_B, seed=args.seed),
             "ausgewichen": b["ausgewichen"], "ohne_jahr": b["ohne_jahr"],
             "fehlende_jahre": b["fehlende_jahre"],
             "ref_b": ref_b, "ref_n": len(ref_finds), "ref_info": ref_info,
+            "ref_band": ref_band,
+            "jahr_auc": jahr_auc, "jahr_n": jahr_n,
+            "jahr_frueher": jahr_frueher, "jahr_spaeter": jahr_spaeter,
             "duenn": b_n < MIN_FINDS_B,
             "frost_b": frost_profile_b(b_s) if gruppe == "kalt" else None,
         })
@@ -1054,8 +1491,8 @@ def render_designs(zeilen):
 
     w("\n## Kontrollen und Vertrauensbereiche\n")
     w("| Art | Spiegel A | Toleranz A | Placebo B | Toleranz B | "
-      "B über Jahre | B über Melder |")
-    w("|---|--:|--:|--:|--:|---|---|")
+      "B über Jahre | p | B über Melder |")
+    w("|---|--:|--:|--:|--:|---|--:|---|")
     for z in zeilen:
         ta = av.control_tolerance(z["a_mirror_n"])
         tb = av.control_tolerance(z["b_plac_n"])
@@ -1065,7 +1502,8 @@ def render_designs(zeilen):
             z["b_plac"], z["b_plac_n"]) else " ⚠"
         w(f"| {z['name']} | {_fmt(z['a_mirror'])}{ma} | ±{ta:.3f} | "
           f"{_fmt(z['b_plac'])}{mb} | ±{tb:.3f} | "
-          f"{band(z['b_band_jahr'])} | {band(z['b_band_melder'])} |")
+          f"{band(z['b_band_jahr'])} | {_pwert(z['b_band_jahr'])} | "
+          f"{band(z['b_band_melder'])} |")
     w("")
     w("Die Toleranz ist **zwei Standardfehler bei der jeweiligen "
       "Paarzahl** (A2), nicht mehr die feste ±0,03. Der Bootstrap in "
@@ -1109,13 +1547,51 @@ def render_designs(zeilen):
       "und die allgemeine Pilz-Wetterreaktion nach unten; dieses Design "
       "kann die beiden nicht trennen.\n")
     w("| Art | B der Art | B der Referenz | Differenz zur Referenz | "
-      "Referenzfunde | Zellen |")
-    w("|---|--:|--:|--:|--:|--:|")
+      "95 % der Differenz | p | Referenzfunde | Zellen |")
+    w("|---|--:|--:|--:|---|--:|--:|--:|")
     for z in zeilen:
         d = (None if z["b_auc"] is None or z["ref_b"] is None
              else z["b_auc"] - z["ref_b"])
         w(f"| {z['name']} | {_fmt(z['b_auc'])} | {_fmt(z['ref_b'])} | "
-          f"{_signed(d)} | {z['ref_n']} | {z['ref_info']['zellen']} |")
+          f"{_signed(d)} | {band(z.get('ref_band'))} | "
+          f"{_pwert(z.get('ref_band'))} | {z['ref_n']} | "
+          f"{z['ref_info']['zellen']} |")
+    w("")
+    w("Der Vertrauensbereich der Differenz (N2) ist **gemeinsam über das "
+      "Fundjahr** gezogen: Ein gezogenes Jahr bringt seine Funde der Art "
+      "und seine Referenzfunde mit. Getrennt zu ziehen unterstellte, die "
+      "beiden Zahlen streuten unabhängig — sie teilen sich aber das "
+      "Wetter derselben Jahre.\n")
+    w("Und eine Korrektur am eigenen Text: Schwelle und Referenzabstand "
+      "sind **nicht zwei unabhängige Kriterien**. Beide beruhen auf "
+      "denselben B-AUCs; sie sind zwei Blickwinkel auf dieselbe Zahl, und "
+      "der Referenzabstand ist der inhaltlich bessere, weil er den "
+      "Suchaufwand mitführt.\n")
+
+    w("\n## Die Jahreszahl allein als Score (N4)\n")
+    w("Der Richtungs-Split oben zeigt bei neun von elf Arten: **spätere "
+      "Kontrolljahre sind leichter zu schlagen.** Ein Instrumentwechsel "
+      "kann es nicht sein, der Datensatz ist gepinnt. Bleibt die Frage, "
+      "ob B einen Anteil „das Fundjahr liegt früh im Zeitraum\u201c "
+      "enthält — und der schlägt nur durch, wenn die **Ziehung** schief "
+      "liegt.\n")
+    w("Dieselbe Rechnung wie B, nur mit der Jahreszahl statt des "
+      "Ampel-Scores. Eine ausgeglichene Ziehung ergibt **0,500 von "
+      "Konstruktion wegen**; jede Abweichung ist Unwucht.\n")
+    w("| Art | Jahr als Score | Kontrolljahre früher | später | "
+      "Richtungs-Differenz | Beitrag |")
+    w("|---|--:|--:|--:|--:|--:|")
+    for z in zeilen:
+        rd = (None if z["b_frueh"] is None or z["b_spaet"] is None
+              else z["b_spaet"] - z["b_frueh"])
+        # Was die Unwucht zur B-Zahl beitraegt. Mit p = Anteil frueherer
+        # Kontrolljahre ist B ~ p*B_frueh + (1-p)*B_spaet; eine
+        # ausgeglichene Ziehung waere der Mittelwert der beiden Seiten.
+        # Die Differenz dazu ist -(p - 0,5) * (B_spaet - B_frueh).
+        schief = (None if z["jahr_auc"] is None else z["jahr_auc"] - 0.5)
+        beitrag = (None if schief is None or rd is None else -schief * rd)
+        w(f"| {z['name']} | {_fmt(z['jahr_auc'])} | {z['jahr_frueher']} | "
+          f"{z['jahr_spaeter']} | {_signed(rd)} | {_signed(beitrag)} |")
 
     kalt = [z for z in zeilen if z["frost_b"]]
     if kalt:
@@ -1142,6 +1618,81 @@ def render_designs(zeilen):
               f"{paar('frosttag_in_14d')} | {paar('frosttag_in_28d')} | "
               f"{paar('tage_seit_frost', False, 1)} | "
               f"{paar('waerme_seit_frost', False, 0)} |")
+
+        w("")
+        w("**Wie groß hätte ein Auslösereffekt sein müssen, um hier "
+          "aufzufallen?** (N3) Nicht „kein Effekt\u201c, sondern eine "
+          "Grenze: Unterhalb davon sagt dieser Aufbau nichts, weder ja "
+          "noch nein.\n")
+        w("| Art | Funde in B | B | Standardfehler (Jahre) | "
+          "nachweisbar ab | zum Vergleich: unabhängige Paare |")
+        w("|---|--:|--:|--:|--:|--:|")
+        for z in kalt:
+            b = z["b_band_jahr"]
+            se = None if b is None else (b[1] - b[0]) / (2 * 1.959964)
+            mde = mde_from_band(b)
+            naiv = (MDE_FAKTOR * (0.25 / z["b_n"]) ** 0.5
+                    if z["b_n"] else None)
+            w(f"| {z['name']} | {z['b_n']} | {_fmt(z['b_auc'])} | "
+              f"{_fmt(se)} | {_signed(mde)} | {_signed(naiv)} |")
+        w("")
+        w("Der Standardfehler kommt aus dem **Jahres-Bootstrap**, nicht "
+          "aus der Paarzahl: `sqrt(0,25/n)` unterstellt unabhängige "
+          "Paare, und B-Paare desselben Jahres teilen sich das Wetter. "
+          "Die letzte Spalte zeigt, was die Vernachlässigung kostet — "
+          "sie ist die schönere und die falsche Zahl.\n")
+        w("Gelesen wird es so: Ein Auslösereffekt, der die B-AUC um "
+          "mindestens den Betrag in der vorletzten Spalte über 0,50 "
+          "hebt, wäre hier mit 80 % Wahrscheinlichkeit aufgefallen "
+          "(zweiseitig, α = 0,05). Ein kleinerer nicht. Die "
+          "Feldbeobachtung zur kälteinduzierten Fruktifikation bleibt "
+          "damit eine **offene** Frage, keine widerlegte.\n")
+
+    w("\n## Evidenzstufen nach N1\n")
+    w("**Die alte Regel ist ersetzt, und zwar nach dem Blick auf die "
+      "Zahlen.** Das wird hier hingeschrieben, statt es zu verschweigen. "
+      "Sie machte den Abschlag `A − B < 0,05` zur Bedingung für "
+      "„belegt\u201c — während derselbe Auftrag an anderer Stelle sagt, "
+      "dass B strukturell kleiner sein MUSS. Die Latte bestrafte also "
+      "genau den erwarteten Effekt.\n")
+    w("Vertretbar ist der Austausch, weil er kein Ergebnis umdeutet, "
+      "sondern ein Kriterium ersetzt, das die falsche Größe gemessen "
+      "hat — und weil er die Anforderungen eher **verschärft**: Die "
+      "Referenz-Bedingung verlangt seit N2 zusätzlich einen "
+      "Vertrauensbereich ohne die Null.\n")
+    w("| Bedingung für „belegt\u201c | Schwelle |")
+    w("|---|---|")
+    w("| Jahres-Bootstrap von B | schließt 0,50 aus |")
+    w("| Differenz zur artgematchten Referenz | > 0, Vertrauensbereich "
+      "ohne die Null |")
+    w(f"| Funde in Design B | ≥ {MIN_FINDS_B} |")
+    w("| Kontrollen (Placebo B, Spiegel A) | innerhalb 2 SE |")
+    w("")
+    w(f"Die beiden Bänder entscheiden über ihren **p-Wert** und nicht "
+      f"über ihre Kante: Anteil der {BOOTSTRAP_ROUNDS_B} Züge auf der "
+      "falschen Seite, Grenze 0,025. Eine Kante ist der 50. von 2000 "
+      "Zügen und rauscht; der Anteil tut es nicht. Wo ein p dicht an "
+      "0,025 liegt, steht das Urteil auf der Kippe, und dann soll man "
+      "das sehen.\n")
+    w("| Art | alt | **neu** | Bootstrap (p) | Referenz (p) | Funde | "
+      "Kontrollen | Abschlag A−B |")
+    w("|---|---|---|:-:|:-:|:-:|:-:|--:|")
+    haken = lambda ok, wert: (
+        ("✓ " if ok else "✗ ") + wert if wert else ("✓" if ok else "✗"))
+    for z in zeilen:
+        stufe, bed = evidenzstufe(z)
+        d = (None if z["a_auc"] is None or z["b_auc"] is None
+             else z["a_auc"] - z["b_auc"])
+        alt_stufe = STUFE_ALT.get(z["name"], "—")
+        marke = "**" if stufe != alt_stufe else ""
+        w(f"| {z['name']} | {alt_stufe} | {marke}{stufe}{marke} | "
+          f"{haken(bed['bootstrap'], _pwert(z['b_band_jahr']))} | "
+          f"{haken(bed['referenz'], _pwert(z.get('ref_band')))} | "
+          f"{haken(bed['funde'], str(z['b_n']))} | "
+          f"{haken(bed['kontrollen'], '')} | {_signed(d)} |")
+    w("")
+    w("Der Abschlag steht weiter in der Tabelle — als Auskunft darüber, "
+      "wieviel Kalender in der A-Zahl steckt. Er ist nur kein Tor mehr.\n")
 
     w("\n## Grenzen\n")
     w("Beide Designs messen an GBIF, in Deutschland, auf den "

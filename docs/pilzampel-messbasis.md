@@ -397,6 +397,31 @@ Messung stützt genau diese Trennung — **sie ersetzt aber keinen neuen
 Hold-out.** Was hier steht, ist eine Nachmessung auf denselben Arten; eine
 Klasse aus zwei Mitgliedern muss registriert und neu geprüft werden.
 
+> ### ÜBERHOLT seit 2026-09-18 — H3 wird nicht registriert
+>
+> Der Absatz darüber bleibt stehen, weil er den Stand von damals richtig
+> wiedergibt. **Seine Empfehlung gilt nicht mehr.**
+>
+> Die Trennung „zwei Mitglieder gehören zusammen, das dritte nicht" stützte
+> sich auf vier Beobachtungen: die gleichgerichteten Hold-out-Zahlen
+> (+0.139 und +0.252), die Nachanpassung im Ausland, die Biologie des
+> Judasohrs und die Vorwegnahme im Fahrplan. Die erste davon trägt das
+> Gewicht — und sie ist in Phase 1.5 zerfallen: Gegen **dasselbe Datum
+> anderer Jahre** kommt der Samtfußrübling auf **0.506** [0.413, 0.606]
+> und der Austernseitling auf **0.489**. Die +0.252 waren fast
+> vollständig Kalender.
+>
+> Damit ist auch die Prämisse von H3 gemessen: Die Frost-Signatur, die
+> ein Zwei-Phasen-Wintermodell hätte tragen sollen, verschwindet im
+> Design B (Samtfußrübling 67 % / 44 % Frosttage wird zu 70 % / 73 %).
+> H3 und H3b sind daraufhin **geschlossen, nicht registriert**
+> (`docs/pilzampel-auftrag-2-nachtrag-1.md`, N3).
+>
+> Was bleibt: Ein Auslösereffekt ab etwa +0,09 bis +0,14 AUC ist
+> ausgeschlossen, ein kleinerer nicht. Die Feldbeobachtung zur
+> kälteinduzierten Fruktifikation ist damit **offen**, nicht widerlegt.
+> Einzelheiten in `docs/pilzampel-kontrolldesign.md`.
+
 ## Instrument oder Entdoppeln? Die Zuschreibung
 
 Der Referenzlauf ändert zwei Dinge auf einmal. Stufe 5 lässt das
