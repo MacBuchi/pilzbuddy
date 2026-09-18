@@ -716,6 +716,225 @@ def self_test():
     # Die alte Zuordnung ist woertlich aufgehoben und deckt alle Arten.
     assert {n for n, _, _ in DESIGN_ARTEN} == set(STUFE_ALT)
 
+    # --- H1: die schmalere Glocke -------------------------------------
+    #
+    # **Warum eine Breite ueberhaupt etwas aendern KANN.** Die gepaarte
+    # AUC ist rangbasiert; eine monotone Umformung der Temperaturglocke
+    # allein liesse jede Zahl unveraendert. Wirksam wird sigma erst, weil
+    # der Score ein PRODUKT ist: Die Breite verschiebt das Gewicht
+    # zwischen Regen und Temperatur. Genau darauf ist die Probe gebaut —
+    # der Fundtag hat wenig Regen bei idealer Temperatur, der
+    # Vergleichstag viel Regen bei 5 K Abstand.
+    def h1_probe(jahr, fund_mm, fund_c, ktrl_mm, ktrl_c, anzahl=1):
+        return [{"year": jahr, "control_years": [jahr - 1, jahr + 1],
+                 "found": ([fund_mm] * av.RAIN_WINDOW,
+                           [fund_c] * av.TEMP_WINDOW),
+                 "controls": [([ktrl_mm] * av.RAIN_WINDOW,
+                               [ktrl_c] * av.TEMP_WINDOW)] * 2}
+                for _ in range(anzahl)]
+
+    # Zahlen nachgerechnet: Regen 1 mm/Tag -> 0,299; 3 mm/Tag -> 0,897.
+    # Glocke bei 5 K Abstand: 0,368 (sigma 5) gegen 0,094 (sigma 3,25).
+    # Also 0,299 gegen 0,330 -> der Fund verliert; 0,299 gegen 0,084 ->
+    # er gewinnt. Die Breite dreht das Paar um.
+    assert abs(av.rain_factor([1.0] * av.RAIN_WINDOW) - 26 / 87) < 1e-12
+    schmal_hilft = [s for jahr in range(2008, 2018)
+                    for s in h1_probe(jahr, 1.0, 13.0, 3.0, 8.0, 20)]
+    d = h1_delta(schmal_hilft, 13.0, H1_SIGMA_NEU, rounds=200)
+    assert d["n"] == 200, d
+    assert abs(d["b_alt"] - 0.0) < 1e-9 and abs(d["b_neu"] - 1.0) < 1e-9, d
+    assert abs(d["delta"] - 1.0) < 1e-9, d
+    assert d["band"] is not None and d["band"][0] > 0 and d["band"][2] == 0.0
+    assert d["jahre"] == 10 and d["jahre_besser"] == 10, d
+    assert d["jahr_anteil"] == 1.0
+
+    # **Die Gegenrichtung muss genauso sichtbar sein.** Seitenverkehrt
+    # gebaut verliert die schmalere Glocke, und Δ ist negativ.
+    schmal_schadet = [s for jahr in range(2008, 2018)
+                      for s in h1_probe(jahr, 3.0, 8.0, 1.0, 13.0, 20)]
+    d_gegen = h1_delta(schmal_schadet, 13.0, H1_SIGMA_NEU, rounds=200)
+    assert abs(d_gegen["delta"] + 1.0) < 1e-9, d_gegen
+    assert d_gegen["band"][1] < 0, d_gegen
+    assert d_gegen["jahre_besser"] == 0, d_gegen
+
+    # Ohne Unterschied zwischen den Breiten ist Δ exakt null — und das
+    # Band schliesst die Null ein statt sie knapp zu verfehlen.
+    gleich = [s for jahr in range(2008, 2018)
+              for s in h1_probe(jahr, 2.0, 13.0, 2.0, 20.0, 20)]
+    d_null = h1_delta(gleich, 13.0, H1_SIGMA_NEU, rounds=200)
+    assert d_null["delta"] == 0.0, d_null
+    assert d_null["band"][0] <= 0 <= d_null["band"][1], d_null
+
+    # Duenne Jahre tragen kein Vorzeichen. Neun volle Jahre plus ein
+    # Jahr mit drei Funden ergeben neun gezaehlte Jahre, nicht zehn.
+    duenn = ([s for jahr in range(2008, 2017)
+              for s in h1_probe(jahr, 1.0, 13.0, 3.0, 8.0, 20)]
+             + h1_probe(2017, 1.0, 13.0, 3.0, 8.0, 3))
+    assert h1_delta(duenn, 13.0, H1_SIGMA_NEU, rounds=100)["jahre"] == 9
+    assert H1_MIN_JAHR_FUNDE == 10
+
+    # Die Zerlegung: NUR Temperatur sieht den Regen nicht, NUR Regen
+    # sieht die Breite nicht.
+    nur_r = h1_delta(schmal_hilft, 13.0, H1_SIGMA_NEU, rounds=50,
+                     nur="regen")
+    assert nur_r["delta"] == 0.0, "der Regenanteil kennt kein sigma"
+    # **B auf der Temperatur allein ist von sigma UNABHAENGIG** — das
+    # Mass ist rangbasiert, und die Glocke ist fuer jedes sigma streng
+    # monoton im Abstand zum Optimum. Wer hier eine Differenz sucht,
+    # sucht etwas, das es nicht geben kann.
+    gemischt = [s for jahr in range(2008, 2018)
+                for s in (h1_probe(jahr, 1.0, 11.0, 3.0, 19.0, 3)
+                          + h1_probe(jahr, 1.0, 19.0, 3.0, 11.0, 2))]
+    temp_b = {sigma: h1_b(gemischt, 13.0, h1_scorer(13.0, sigma, "temp"))
+              for sigma in (3.25, 5.0, 8.0)}
+    assert len(set(temp_b.values())) == 1, temp_b
+    assert 0.0 < temp_b[5.0] < 1.0, temp_b
+    # Der Regenzweig sieht die Temperatur nicht und umgekehrt.
+    assert h1_b(gemischt, 13.0, h1_scorer(13.0, 5.0, "regen")) == 0.0
+    assert h1_b(schmal_hilft, 13.0, h1_scorer(13.0, 5.0, "regen")) == 0.0
+    # **Bei GLEICHEM Regen muss der Regenzweig genau 0,5 sagen**, egal
+    # wie weit die Temperaturen auseinanderliegen. Ohne diese Zeile
+    # duerfte er heimlich auf die Temperatur schielen: Wo der Regen
+    # ohnehin in dieselbe Richtung zeigt, faellt das nicht auf.
+    blind = [s for jahr in range(2008, 2018)
+             for s in h1_probe(jahr, 2.0, 13.0, 2.0, 30.0, 5)]
+    assert h1_b(blind, 13.0, h1_scorer(13.0, 5.0, "regen")) == 0.5
+    assert h1_b(blind, 13.0, h1_scorer(13.0, 5.0, "temp")) == 1.0
+
+    # Gleichstand: zwei Tage weit jenseits der Glocke sind beide null.
+    tot = [s for jahr in range(2008, 2018)
+           for s in h1_probe(jahr, 2.0, 60.0, 2.0, 70.0, 20)]
+    t = h1_ties(tot, 13.0, H1_SIGMA_NEU)
+    assert t["fund_tot"] == 1.0 and t["beide_null"] == 1.0, t
+    # **Der exakte Gleichstand traegt hier NICHTS** — genau deshalb steht
+    # er in der Tabelle neben dem eps-Mass und nicht an dessen Stelle:
+    # exp(-209) ist 1e-91 und nicht null, die beiden toten Tage gelten
+    # dem Rechner also als verschieden.
+    assert t["alle_gleich"] == 0.0, t
+    assert av.ampel_score([2.0] * av.RAIN_WINDOW,
+                          [60.0] * av.TEMP_WINDOW, 13.0, 3.25) > 0.0
+    lebendig = h1_ties(schmal_hilft, 13.0, H1_SIGMA_NEU)
+    assert lebendig["fund_tot"] == 0.0 and lebendig["beide_null"] == 0.0
+    # **Ein Fund zaehlt erst als tot, wenn JEDER seiner Vergleiche tot
+    # ist.** Halb tot ist lebendig: Der Fund traegt dann noch eine
+    # Aussage, und sie darf nicht weggezaehlt werden.
+    halb = [{"year": 2010, "control_years": [2009, 2011],
+             "found": ([2.0] * av.RAIN_WINDOW, [60.0] * av.TEMP_WINDOW),
+             "controls": [([2.0] * av.RAIN_WINDOW, [70.0] * av.TEMP_WINDOW),
+                          ([2.0] * av.RAIN_WINDOW, [13.0] * av.TEMP_WINDOW)]}]
+    h = h1_ties(halb, 13.0, H1_SIGMA_NEU)
+    assert h["fund_tot"] == 0.0 and h["beide_null"] == 0.5, h
+
+    # Panels und mittlere Temperatur.
+    assert len(h1_panel(schmal_hilft, von=2015)) == 60
+    assert len(h1_panel(schmal_hilft, bis=2009)) == 40
+    assert len(h1_panel(schmal_hilft)) == 200
+    assert abs(h1_mean_temp(schmal_hilft) - 13.0) < 1e-9
+
+    # --- Das Urteil, Bedingung fuer Bedingung -------------------------
+    def urteil(p1=None, placebo=0.5, placebo_n=500, p2=None, **anders):
+        basis = {"delta": 0.05, "band": (0.02, 0.08, 0.001), "n": 500,
+                 "jahre": 10, "jahre_besser": 9, "jahr_anteil": 0.9}
+        basis.update(anders)
+        return h1_urteil(p1 or basis, placebo, placebo_n, p2)
+    assert urteil()[0] == "bestanden"
+    # 1 — der Gewinn. Die Latte ist +0,020 und wird scharf gelesen.
+    assert urteil(delta=0.02)[0] == "bestanden"
+    assert urteil(delta=0.0199)[0] == "nicht bestanden"
+    # 2 — das Band.
+    assert urteil(band=(-0.01, 0.09, 0.08))[0] == "nicht bestanden"
+    assert urteil(band=None)[0] == "nicht bestanden"
+    # 3 — der Jahresanteil, ebenfalls scharf an 70 %.
+    assert urteil(jahre=10, jahre_besser=7, jahr_anteil=0.7)[0] == "bestanden"
+    assert urteil(jahre=10, jahre_besser=6,
+                  jahr_anteil=0.6)[0] == "nicht bestanden"
+    # 4 — das Placebo. 0,60 liegt bei n = 500 weit ausserhalb von 2 SE.
+    assert urteil(placebo=0.60)[0] == "nicht bestanden"
+    assert urteil(placebo=None)[0] == "nicht bestanden"
+    # **Zu duenn ist kein Fehlschlag, sondern kein Urteil.**
+    assert urteil(n=MIN_FINDS_B - 1)[0] == "zu dünn"
+    assert h1_urteil(None, 0.5, 500, None)[0] == "zu dünn"
+    # P2 kann kippen, aber nicht herstellen: ein Band ganz UNTER null
+    # laesst die Art durchfallen, ein blosses „nicht signifikant" nicht.
+    assert urteil(p2={"band": (-0.09, -0.02, 0.99)})[0] == "nicht bestanden"
+    assert urteil(p2={"band": (-0.04, 0.06, 0.30)})[0] == "bestanden"
+    assert urteil(p2={"band": None})[0] == "bestanden"
+    assert urteil(delta=0.001, p2={"band": (0.05, 0.15, 0.0)})[0] \
+        == "nicht bestanden", "Ausland darf nicht herstellen"
+
+    # --- Klassenurteil: alle oder keine -------------------------------
+    def klasse(**urteile):
+        return h1_klassenurteil(
+            [{"name": name, "urteil": wert} for name, wert in urteile.items()])
+    alle_gut = {name: "bestanden"
+                for arten in H1_KLASSEN.values() for name in arten}
+    got = klasse(**alle_gut)
+    assert got["herbst"] == "bestanden" and got["sommer"] == "bestanden"
+    assert got["_sigma"] == "wird geändert"
+    # Ein einziges Mitglied reicht zum Fall der ganzen Klasse.
+    einer_faellt = dict(alle_gut, Birkenpilz="nicht bestanden")
+    got = klasse(**einer_faellt)
+    assert got["herbst"] == "nicht bestanden", got
+    assert got["_sigma"] == "bleibt 5,0"
+    # **Und sigma braucht BEIDE Klassen** — es ist eine Konstante.
+    got = klasse(**dict(alle_gut, Pfifferling="nicht bestanden"))
+    assert got["herbst"] == "bestanden" and got["sommer"] == "nicht bestanden"
+    assert got["_sigma"] == "bleibt 5,0", got
+    # „Zu dünn" traegt kein Urteil, verhindert aber auch keines.
+    got = klasse(**dict(alle_gut, Herbsttrompete="zu dünn"))
+    assert got["herbst"] == "bestanden", got
+    got = klasse(**{name: "zu dünn" for name in alle_gut})
+    assert got["herbst"] == "kein Urteil" and got["_sigma"] == "bleibt 5,0"
+
+    # Die Registrierung in Codeform — wer eine dieser Zahlen nach dem
+    # Lauf anfasst, hebt sie auf.
+    assert (H1_SIGMA_ALT, H1_SIGMA_NEU, H1_SIGMA_GEGEN) == (5.0, 3.25, 8.0)
+    assert (H1_MIN_GAIN, H1_MIN_JAHR_ANTEIL) == (0.02, 0.70)
+    assert H1_SIGMA_ALT == av.TEMP_SIGMA, "der Amtsinhaber ist der Ausgeliefertee"
+    assert set(H1_KLASSEN) == {"herbst", "sommer"}
+    assert len(H1_KLASSEN["herbst"]) == 5 and H1_KLASSEN["sommer"] == \
+        ["Pfifferling"]
+
+    # **Der Bericht muss sich bauen lassen, BEVOR gemessen wird.** Ein
+    # Formatfehler faellt sonst erst nach dem Lauf auf, und dann steht
+    # die Frage im Raum, ob man ihn noch anfassen darf. Gefuettert wird
+    # mit erfundenen Zeilen, darunter eine halb leere — Arten ohne
+    # Ausland oder ohne P1 gibt es in der Wirklichkeit auch.
+    erfunden = [
+        {"name": "Steinpilz", "gruppe": "herbst", "optimum": 13.0,
+         "klasse": "herbst",
+         "panel": {"P1": {"delta": 0.03, "band": (0.01, 0.05, 0.004),
+                          "n": 900, "jahre": 7, "jahre_besser": 6,
+                          "jahr_anteil": 6 / 7},
+                   "P2": {"delta": 0.01, "band": (-0.02, 0.04, 0.3),
+                          "n": 300, "jahre": 20, "jahre_besser": 12,
+                          "jahr_anteil": 0.6},
+                   "P3": None},
+         "gegenprobe": {"delta": -0.01, "band": None, "n": 900,
+                        "jahre": 7, "jahre_besser": 2, "jahr_anteil": 2 / 7},
+         "b_nur_temp": 0.61, "b_nur_regen": 0.55, "t20": 12.4,
+         "ties_alt": {"alle_gleich": 0.0, "fund_tot": 0.01,
+                      "beide_null": 0.02, "funde": 900},
+         "ties_neu": {"alle_gleich": 0.0, "fund_tot": 0.04,
+                      "beide_null": 0.07, "funde": 900},
+         "placebo_alt": 0.50, "placebo_alt_n": 900,
+         "placebo_neu": 0.499, "placebo_neu_n": 900,
+         "urteil": "bestanden",
+         "bedingungen": {"gewinn": True, "band": True, "jahre": True,
+                         "placebo": True, "ausland": True}},
+        {"name": "Judasohr", "gruppe": "kalt", "optimum": -2.5,
+         "klasse": None,
+         "panel": {"P1": None, "P2": None, "P3": None},
+         "urteil": "zu dünn", "bedingungen": {}},
+    ]
+    text = render_h1(erfunden)
+    assert "## Das Urteil" in text and "bestanden" in text
+    assert "zu dünn" in text
+    # Die Klasse `sommer` hat in dieser Liste kein Mitglied — der
+    # Bericht muss das aushalten und darf nicht so tun, als waere sie
+    # bestanden.
+    assert "bleibt 5,0" in text, text[:400]
+
     print("Selbsttest ok")
 
 
@@ -1030,8 +1249,13 @@ def _band(zuege, null):
             unter / len(zuege))
 
 
-def _fractions(samples, optimum, schluessel):
+def _fractions(samples, optimum, schluessel, score=None):
     """Je Gruppe die vorgerechneten Anteile aus `score_b`.
+
+    `score` ist der Bewerter `(regen, temp) -> Zahl`; ohne ihn der
+    ausgelieferte mit dem uebergebenen Optimum. Ueber ihn laufen die
+    H1-Breiten und die Zerlegung in Temperatur- und Regenanteil, ohne
+    dass diese Funktion von ihnen wissen muss.
 
     **Dieselbe Groesse, nur einmal statt je Zug gerechnet.** `score_b`
     bildet fuer jeden Fund den Anteil der geschlagenen Kontrolljahre und
@@ -1040,11 +1264,12 @@ def _fractions(samples, optimum, schluessel):
     feste Zahlenliste — das Neubewerten aller Vergleiche in jedem Zug war
     reine Wiederholung. Der Selbsttest haelt beide Wege gegeneinander.
     """
+    if score is None:
+        score = lambda regen, temp: av.ampel_score(regen, temp, optimum)
     gruppen = {}
     for s in samples:
-        wert = ab.beat_fraction(
-            av.ampel_score(*s["found"], optimum),
-            [av.ampel_score(*c, optimum) for c in s["controls"]])
+        wert = ab.beat_fraction(score(*s["found"]),
+                                [score(*c) for c in s["controls"]])
         if wert is not None:
             gruppen.setdefault(schluessel(s), []).append(wert)
     return gruppen
@@ -1703,6 +1928,463 @@ def render_designs(zeilen):
       "Abwesenheit nicht kennt.")
     return "\n".join(aus) + "\n"
 
+
+# --- H1: schmalere Temperaturglocke ----------------------------------------
+#
+# Registriert in `docs/pilzampel-h1-registrierung.md`, VOR diesem Lauf.
+# Was dort nicht steht, entscheidet hier nichts. Die Konstanten unten sind
+# die Registrierung in Codeform; wer eine davon nach dem Lauf anfasst,
+# hebt die Registrierung auf.
+
+H1_SIGMA_ALT = 5.0        # der Amtsinhaber, gesetzt und nie gemessen
+H1_SIGMA_NEU = 3.25       # extern: Nachrechnung der Bielefelder Tagesdaten
+H1_SIGMA_GEGEN = 8.0      # Umkehrprobe — eine BREITERE Glocke
+
+H1_MIN_GAIN = 0.02        # Standardlatte des Fahrplans
+H1_MIN_JAHR_ANTEIL = 0.70
+H1_MIN_JAHR_FUNDE = 10    # duennere Jahre tragen kein Vorzeichen
+
+# Die ausgelieferten Klassen. **Nur sie entscheiden** — und beide
+# zusammen, weil sigma EINE Konstante fuer beide ist.
+H1_KLASSEN = {
+    "herbst": ["Steinpilz", "Maronenröhrling", "Birkenpilz",
+               "Fichtenreizker", "Herbsttrompete"],
+    "sommer": ["Pfifferling"],
+}
+
+
+def h1_scorer(optimum, sigma, nur=None):
+    """Der Bewerter eines Laufs: ganze Formel, nur Temperatur, nur Regen.
+
+    Die beiden Teilbewerter sind die Zerlegung aus Abschnitt 7 der
+    Registrierung. Eine schmalere Glocke verschiebt zwangslaeufig Gewicht
+    zur Temperatur; ohne die Zerlegung liesse sich ein Gewinn nicht davon
+    unterscheiden, dass die Temperatur bloss lauter geworden ist.
+    """
+    if nur == "temp":
+        # **Der Temperaturzweig kennt kein sigma, und das ist kein
+        # Versehen.** Das Mass ist rangbasiert, und die Glocke faellt
+        # fuer JEDES sigma > 0 streng monoton im Abstand zum Optimum — B
+        # auf der Temperatur allein ist deshalb von der Breite
+        # unabhaengig. Die Zerlegung liefert also eine Obergrenze und
+        # keinen Vergleich: „so weit kaeme die Temperatur allein". Der
+        # Selbsttest rechnet die Unabhaengigkeit nach, damit niemand
+        # spaeter eine Differenz sucht, die es nicht geben kann.
+        #
+        # Abschnitt 7 der Registrierung sprach von „B nur aus dem
+        # Temperaturfaktor, JE BREITE". Das war ein Denkfehler;
+        # aufgefallen ist er an einer Gegenprobe, die gruen blieb — vor
+        # dem ersten gemessenen Wert.
+        return lambda regen, temp: av.temperature_factor(temp, optimum,
+                                                         H1_SIGMA_ALT)
+    if nur == "regen":
+        return lambda regen, temp: av.rain_factor(regen)
+    return lambda regen, temp: av.ampel_score(regen, temp, optimum, sigma)
+
+
+def h1_b(samples, optimum, score):
+    """Das B-Mass unter einem beliebigen Bewerter."""
+    werte = [w for liste in _fractions(samples, optimum, lambda s: 0,
+                                       score).values() for w in liste]
+    return sum(werte) / len(werte) if werte else None
+
+
+def h1_paare(samples, optimum, sigma_neu, sigma_alt=H1_SIGMA_ALT, nur=None):
+    """Je Fund die beiden Anteile — alte und neue Breite, DERSELBE Fund.
+
+    Das ist die tragende Festlegung des Tests: Gezogen wird einmal, und
+    danach wird jeder Fund zweimal bewertet. Zwei Ziehungen machten den
+    Unterschied teils zur Stichprobe.
+    """
+    alt = h1_scorer(optimum, sigma_alt, nur)
+    neu = h1_scorer(optimum, sigma_neu, nur)
+    jahre = {}
+    for s in samples:
+        controls = s.get("controls") or []
+        if not controls:
+            continue
+        a = ab.beat_fraction(alt(*s["found"]), [alt(*c) for c in controls])
+        n = ab.beat_fraction(neu(*s["found"]), [neu(*c) for c in controls])
+        if a is None or n is None:
+            continue
+        jahre.setdefault(s["year"], []).append((a, n))
+    return jahre
+
+
+def h1_delta(samples, optimum, sigma_neu, sigma_alt=H1_SIGMA_ALT,
+             rounds=BOOTSTRAP_ROUNDS_B, seed=42, nur=None):
+    """Δ = B(neu) − B(alt), mit Band ueber Fundjahre und Jahresanteil.
+
+    **Gezogen wird die DIFFERENZ, nicht die beiden Werte getrennt.** Sie
+    teilen sich jeden einzelnen Fund; getrennt gezogen waere das Band
+    weit breiter, als die Frage es hergibt — und der Test damit
+    stumpfer, ohne dass es jemand saehe.
+    """
+    jahre = h1_paare(samples, optimum, sigma_neu, sigma_alt, nur)
+    flach = [wert for werte in jahre.values() for wert in werte]
+    if not flach:
+        return None
+    b_alt = sum(a for a, _ in flach) / len(flach)
+    b_neu = sum(n for _, n in flach) / len(flach)
+
+    namen = sorted(jahre)
+    band = None
+    if len(namen) >= 2:
+        rng = random.Random(seed)
+        zuege = []
+        for _ in range(rounds):
+            werte = [w for name in rng.choices(namen, k=len(namen))
+                     for w in jahre[name]]
+            if werte:
+                zuege.append(sum(n - a for a, n in werte) / len(werte))
+        if zuege:
+            band = _band(zuege, 0.0)
+
+    # Der Jahresanteil. Duenne Jahre tragen kein Vorzeichen — ein Jahr
+    # mit drei Funden wuerde sonst so viel zaehlen wie eines mit dreihundert.
+    gezaehlt = besser = 0
+    for name in namen:
+        werte = jahre[name]
+        if len(werte) < H1_MIN_JAHR_FUNDE:
+            continue
+        gezaehlt += 1
+        if (sum(n - a for a, n in werte) / len(werte)) > 0:
+            besser += 1
+    return {
+        "b_alt": b_alt, "b_neu": b_neu, "delta": b_neu - b_alt,
+        "band": band, "n": len(flach),
+        "jahre": gezaehlt, "jahre_besser": besser,
+        "jahr_anteil": besser / gezaehlt if gezaehlt else None,
+    }
+
+
+def h1_ties(samples, optimum, sigma, eps=1e-6):
+    """Wo das Modell aufhoert zu unterscheiden.
+
+    Bei sehr schmaler Glocke laufen Scores weit vom Optimum gegen null,
+    und dann traegt der Regen nichts mehr bei. Ein Δ nahe null hiesse
+    dann „das Modell unterscheidet nicht mehr" und nicht „kein Effekt" —
+    ein Unterschied, den man nur sieht, wenn man ihn vorher zaehlt.
+
+    **Der EXAKTE Gleichstand ist dafuer das falsche Mass**, und das war
+    beim Schreiben der Registrierung nicht klar: `exp(-209)` ist nicht
+    null, sondern 1e-91, und zwei solche Zahlen sind verschieden. Der
+    Selbsttest hat es gezeigt — zwei Tage 47 und 57 K neben dem Optimum,
+    beide praktisch tot, und `alle_gleich` blieb bei 0 %. Getragen wird
+    die Aussage deshalb von `fund_tot` (jeder Vergleich beidseitig unter
+    `eps`); der exakte Gleichstand bleibt als Zahl stehen, damit
+    sichtbar ist, dass er nichts traegt.
+    """
+    score = h1_scorer(optimum, sigma)
+    alle_gleich = fund_tot = funde = beide_null = vergleiche = 0
+    for s in samples:
+        controls = s.get("controls") or []
+        if not controls:
+            continue
+        f = score(*s["found"])
+        cs = [score(*c) for c in controls]
+        funde += 1
+        if all(c == f for c in cs):
+            alle_gleich += 1
+        if all(f < eps and c < eps for c in cs):
+            fund_tot += 1
+        for c in cs:
+            vergleiche += 1
+            if f < eps and c < eps:
+                beide_null += 1
+    return {
+        "alle_gleich": alle_gleich / funde if funde else None,
+        "fund_tot": fund_tot / funde if funde else None,
+        "beide_null": beide_null / vergleiche if vergleiche else None,
+        "funde": funde,
+    }
+
+
+def h1_mean_temp(samples):
+    """Mittlere 20-Tage-Temperatur am Fundtag — wem eine schmalere
+    Glocke ueberhaupt nuetzen kann."""
+    werte = []
+    for s in samples:
+        temps = [c for c in s["found"][1][:av.TEMP_WINDOW] if c is not None]
+        if temps:
+            werte.append(sum(temps) / len(temps))
+    return statistics.fmean(werte) if werte else None
+
+
+def h1_panel(samples, von=None, bis=None):
+    """Die Jahresscheibe eines Panels."""
+    return [s for s in samples
+            if (von is None or s["year"] >= von)
+            and (bis is None or s["year"] <= bis)]
+
+
+def h1_urteil(p1, placebo, placebo_n, p2):
+    """Die vier Bedingungen aus Abschnitt 5 der Registrierung.
+
+    Rueckgabe: (urteil, bedingungen). „zu dünn" ist KEIN Fehlschlag,
+    sondern kein Urteil — sonst entschiede eine fehlende Zahl wie eine
+    gemessene.
+    """
+    if p1 is None or p1["n"] < MIN_FINDS_B:
+        return "zu dünn", {}
+    bed = {
+        "gewinn": p1["delta"] >= H1_MIN_GAIN,
+        "band": p1["band"] is not None and p1["band"][2] < P_GRENZE,
+        "jahre": (p1["jahr_anteil"] is not None
+                  and p1["jahr_anteil"] >= H1_MIN_JAHR_ANTEIL),
+        "placebo": (placebo is not None
+                    and av.control_clean(placebo, placebo_n)),
+    }
+    # **P2 kann kippen, aber nicht herstellen.** Ein Band, das die Null
+    # ausschliesst und UNTER ihr liegt, heisst: die schmalere Glocke
+    # reist nicht. Ein blosses „nicht signifikant" im Ausland reicht
+    # nicht zum Durchfallen — die Stichprobe ist dort duenner, und eine
+    # duenne Zahl darf keine dicke schlagen.
+    reist_nicht = (p2 is not None and p2.get("band") is not None
+                   and p2["band"][1] < 0)
+    bed["ausland"] = not reist_nicht
+    return ("bestanden" if all(bed.values()) else "nicht bestanden"), bed
+
+
+def run_h1(args):
+    """Der registrierte Prueflauf zu H1."""
+    if args.api:
+        av.OPEN_METEO = args.api.rstrip("/")
+    av.DEDUPE = args.dedupe
+    av.use_dataset(args.dataset)
+    print(f"H1 — Datensatz {av.DATASET}, Entdoppeln "
+          f"{'an' if av.DEDUPE else 'aus'}, σ {H1_SIGMA_ALT} gegen "
+          f"{H1_SIGMA_NEU} (Gegenprobe {H1_SIGMA_GEGEN})", file=sys.stderr)
+    print(f"Registrierung: docs/pilzampel-h1-registrierung.md",
+          file=sys.stderr)
+
+    mapping = av.read_species()
+    wanted = DESIGN_ARTEN
+    if args.only:
+        gesucht = {n.strip() for n in args.only.split(",") if n.strip()}
+        wanted = [z for z in DESIGN_ARTEN if z[0] in gesucht]
+
+    zeilen = []
+    for name, gruppe, optimum in wanted:
+        if name not in mapping:
+            continue
+        sci = mapping[name]
+        klasse = next((k for k, arten in H1_KLASSEN.items() if name in arten),
+                      None)
+        print(f"  {name} ({sci}) — Klasse {klasse or 'nachrichtlich'}",
+              file=sys.stderr)
+
+        # **Einmal ziehen je Laendergruppe, dann in Jahresscheiben
+        # schneiden.** P1 und P3 sind dieselbe Ziehung; sie zweimal zu
+        # holen hiesse, zwei verschiedene Stichproben zu vergleichen.
+        roh = {}
+        for laender in (("DE",), ("AT", "CH")):
+            finds, _ = av.select_finds(sci, args.cache, args.seed, True,
+                                       laender)
+            if not finds:
+                continue
+            gezogen = av.collect_pairs_b(name, sci, finds=finds,
+                                         cache_dir=args.cache, seed=args.seed,
+                                         progress=False, countries=laender)
+            if gezogen:
+                roh[laender] = gezogen["samples"]
+
+        panels = {
+            "P1": h1_panel(roh.get(("DE",), []), von=av.FIT_UNTIL_YEAR + 1),
+            "P2": list(roh.get(("AT", "CH"), [])),
+            "P3": h1_panel(roh.get(("DE",), []), bis=av.FIT_UNTIL_YEAR),
+        }
+        eintrag = {"name": name, "gruppe": gruppe, "optimum": optimum,
+                   "klasse": klasse, "panel": {}}
+        for schluessel, samples in panels.items():
+            eintrag["panel"][schluessel] = (
+                h1_delta(samples, optimum, H1_SIGMA_NEU, seed=args.seed)
+                if samples else None)
+
+        p1 = panels["P1"]
+        if p1:
+            eintrag["gegenprobe"] = h1_delta(p1, optimum, H1_SIGMA_GEGEN,
+                                             seed=args.seed)
+            # Zerlegung: zwei Obergrenzen, kein Vergleich — siehe
+            # `h1_scorer`. Beide sind von sigma unabhaengig.
+            eintrag["b_nur_temp"] = h1_b(
+                p1, optimum, h1_scorer(optimum, H1_SIGMA_ALT, "temp"))
+            eintrag["b_nur_regen"] = h1_b(
+                p1, optimum, h1_scorer(optimum, H1_SIGMA_ALT, "regen"))
+            eintrag["ties_alt"] = h1_ties(p1, optimum, H1_SIGMA_ALT)
+            eintrag["ties_neu"] = h1_ties(p1, optimum, H1_SIGMA_NEU)
+            eintrag["t20"] = h1_mean_temp(p1)
+            for marke, sigma in (("alt", H1_SIGMA_ALT), ("neu", H1_SIGMA_NEU)):
+                wert, anzahl = av.placebo_b(p1, optimum, sigma)
+                eintrag[f"placebo_{marke}"] = wert
+                eintrag[f"placebo_{marke}_n"] = anzahl
+        eintrag["urteil"], eintrag["bedingungen"] = h1_urteil(
+            eintrag["panel"]["P1"], eintrag.get("placebo_neu"),
+            eintrag.get("placebo_neu_n") or 0, eintrag["panel"]["P2"])
+        zeilen.append(eintrag)
+        p1_wert = eintrag["panel"]["P1"]
+        print(f"    P1 Δ {_signed(p1_wert['delta']) if p1_wert else '—'}   "
+              f"{eintrag['urteil']}", file=sys.stderr)
+
+    bericht = render_h1(zeilen)
+    if args.out:
+        open(args.out, "w", encoding="utf-8").write(bericht)
+        print(f"\n{args.out} geschrieben", file=sys.stderr)
+    else:
+        print(bericht)
+
+
+def h1_klassenurteil(zeilen):
+    """Alle oder keine — und sigma nur, wenn BEIDE Klassen bestehen.
+
+    Die Regel ist die, an der am 2026-09-13 die Herbst-Holz-Klasse und
+    die Kaltklasse gescheitert sind: Ein sauber gemessener Fehlschlag
+    eines Mitglieds entscheidet, auch wenn ein anderes glaenzt. „Zu
+    dünn" ist kein Fehlschlag, sondern kein Urteil.
+    """
+    aus = {}
+    for klasse, arten in H1_KLASSEN.items():
+        urteile = [z["urteil"] for z in zeilen if z["name"] in arten]
+        geurteilt = [u for u in urteile if u != "zu dünn"]
+        if not geurteilt:
+            aus[klasse] = "kein Urteil"
+        elif all(u == "bestanden" for u in geurteilt):
+            aus[klasse] = "bestanden"
+        else:
+            aus[klasse] = "nicht bestanden"
+    aus["_sigma"] = ("wird geändert"
+                     if all(aus.get(k) == "bestanden" for k in H1_KLASSEN)
+                     else "bleibt 5,0")
+    return aus
+
+
+def render_h1(zeilen):
+    """Der Ergebnisbericht zu H1."""
+    import time as _t
+    aus = []
+    w = aus.append
+    band = lambda b: "—" if b is None else f"[{b[0]:+.3f}, {b[1]:+.3f}]"
+    haken = lambda ok: "✓" if ok else "✗"
+    w("# H1 geprüft: schmalere Temperaturglocke (3,25 K statt 5 K)\n")
+    w(f"Stand: {_t.strftime('%Y-%m-%d')} · Erzeugt von "
+      "`tool/ampel_diagnose.py --h1` · **Registrierung (vor dem Lauf "
+      "geschrieben): `docs/pilzampel-h1-registrierung.md`**\n")
+    w(f"Messbasis `{av.DATASET}`, Entdoppeln "
+      f"{'an' if av.DEDUPE else 'aus'}, Design B, σ = {H1_SIGMA_ALT} gegen "
+      f"σ = {H1_SIGMA_NEU}. Beide Breiten laufen auf **denselben "
+      "Funden** — gezogen wird einmal, bewertet zweimal.\n")
+
+    urteile = h1_klassenurteil(zeilen)
+    w("\n## Das Urteil\n")
+    w("| Klasse | Mitglieder | Ausgang |")
+    w("|---|---|---|")
+    for klasse, arten in H1_KLASSEN.items():
+        dabei = [z for z in zeilen if z["name"] in arten]
+        text = ", ".join(f"{z['name']} ({z['urteil']})" for z in dabei) or "—"
+        w(f"| `{klasse}` | {text} | **{urteile.get(klasse)}** |")
+    w("")
+    w(f"**σ {urteile['_sigma']}.** Die Breite ist EINE Konstante für beide "
+      "ausgelieferten Klassen; geändert wird sie nur, wenn beide "
+      "bestehen (Registrierung, Abschnitt 1). Ein σ je Klasse wäre ein "
+      "neuer Freiheitsgrad und bräuchte eine eigene Registrierung.\n")
+    w("**An der ausgelieferten Ampel ist nichts geändert.**\n")
+
+    w("\n## Die Bedingung, Punkt für Punkt\n")
+    w(f"Latte: Δ ≥ +{H1_MIN_GAIN:.3f} · Band ohne die Null (p < "
+      f"{P_GRENZE}) · ≥ {H1_MIN_JAHR_ANTEIL:.0%} der Fundjahre besser · "
+      "Placebo innerhalb 2 SE · Ausland widerspricht nicht.\n")
+    w("| Art | Klasse | Δ auf P1 | 95 % | p | Jahre besser | Placebo neu | "
+      "Ausland | **Ausgang** |")
+    w("|---|---|--:|---|--:|--:|--:|:-:|---|")
+    for z in zeilen:
+        p1 = z["panel"]["P1"]
+        bed = z["bedingungen"]
+        jahre = ("—" if not p1 or p1["jahr_anteil"] is None
+                 else f"{p1['jahre_besser']}/{p1['jahre']}")
+        w(f"| {z['name']} | {z['klasse'] or '—'} | "
+          f"{_signed(p1['delta']) if p1 else '—'} | "
+          f"{band(p1['band']) if p1 else '—'} | "
+          f"{_pwert(p1['band']) if p1 else '—'} | {jahre} | "
+          f"{_fmt(z.get('placebo_neu'))} | "
+          f"{haken(bed['ausland']) if bed else '—'} | "
+          f"**{z['urteil']}** |")
+    w("")
+    w("Arten ohne Klasse laufen **nachrichtlich** mit und entscheiden "
+      "nichts: Ihre Klassen sind nicht ausgeliefert, und nach Phase 1.5 "
+      "steht für alle fünf „keine Aussage“.\n")
+
+    w("\n## Die drei Panels\n")
+    w("P1 = DE ab 2019 (entscheidend) · P2 = AT + CH, alle Jahre "
+      "(Reisetest, bindend als Ausschluss) · P3 = DE bis 2018 "
+      "(nachrichtlich — dort wurde das Sommer-Optimum angepasst).\n")
+    w("| Art | P1 Δ | P1 n | P2 Δ | P2 n | P3 Δ | P3 n |")
+    w("|---|--:|--:|--:|--:|--:|--:|")
+    for z in zeilen:
+        teile = []
+        for schluessel in ("P1", "P2", "P3"):
+            d = z["panel"].get(schluessel)
+            teile.append(_signed(d["delta"]) if d else "—")
+            teile.append(str(d["n"]) if d else "—")
+        w(f"| {z['name']} | " + " | ".join(teile) + " |")
+
+    w("\n## Gegenprobe: eine BREITERE Glocke\n")
+    w(f"Dieselbe Rechnung mit σ = {H1_SIGMA_GEGEN} K auf P1. Ergibt auch "
+      "sie einen Gewinn über der Latte, misst das Verfahren nicht die "
+      "Breite, sondern irgendetwas anderes. Diese Spalte entscheidet "
+      "nichts.\n")
+    w("| Art | Δ bei 3,25 K | Δ bei 8,0 K | beide über der Latte? |")
+    w("|---|--:|--:|:-:|")
+    for z in zeilen:
+        p1, gegen = z["panel"]["P1"], z.get("gegenprobe")
+        beide = (p1 and gegen and p1["delta"] >= H1_MIN_GAIN
+                 and gegen["delta"] >= H1_MIN_GAIN)
+        w(f"| {z['name']} | {_signed(p1['delta']) if p1 else '—'} | "
+          f"{_signed(gegen['delta']) if gegen else '—'} | "
+          f"{'**ja ⚠**' if beide else 'nein'} |")
+
+    w("\n## Diagnosen (entscheiden nichts)\n")
+    w("Vorab festgelegt, damit sie hinterher nicht als Erklärung "
+      "erfunden wirken.\n")
+    w("| Art | T̄₂₀ am Fundtag | Optimum | Abstand | B nur Temperatur "
+      "| B nur Regen | tote Funde alt → neu | exakt gleich alt → neu |")
+    w("|---|--:|--:|--:|--:|--:|--:|--:|")
+    for z in zeilen:
+        t20 = z.get("t20")
+        ta, tn = z.get("ties_alt"), z.get("ties_neu")
+        quote = lambda a, b, key: (
+            "—" if not a or not b or a[key] is None or b[key] is None
+            else f"{a[key]:.1%} → {b[key]:.1%}")
+        w(f"| {z['name']} | {_fmt(t20, 1)} | {z['optimum']:.1f} | "
+          f"{_fmt(abs(t20 - z['optimum']), 1) if t20 is not None else '—'} | "
+          f"{_fmt(z.get('b_nur_temp'))} | "
+          f"{_fmt(z.get('b_nur_regen'))} | {quote(ta, tn, 'fund_tot')} | "
+          f"{quote(ta, tn, 'alle_gleich')} |")
+    w("")
+    w("**Die vorletzte Spalte ist die wichtigste dieser Tabelle.** Sie "
+      "zählt Funde, bei denen jeder Vergleich beidseitig unter 10⁻⁶ "
+      "liegt — dort rechnet das Modell noch und sagt nichts mehr. "
+      "Steigt der Anteil deutlich, hat eine schmalere Glocke nicht "
+      "besser getrennt, sondern aufgehört zu trennen; dann heißt ein Δ "
+      "nahe null „die Messung kann die Frage hier nicht beantworten“ "
+      "und nicht „kein Effekt“.\n")
+    w("Die letzte Spalte zählt **exakte** Gleichstände und steht nur da, "
+      "damit sichtbar bleibt, dass sie nichts trägt: `exp(−209)` ist "
+      "1e−91 und nicht null, zwei tote Tage gelten dem Rechner also als "
+      "verschieden. Beim Schreiben der Registrierung war das nicht klar "
+      "— der Selbsttest hat es gezeigt, bevor eine einzige Zahl gemessen "
+      "war.\n")
+
+    w("\n## Grenzen\n")
+    w("Design B misst gegen dasselbe Datum anderer Jahre am selben Ort, "
+      "und „üblich“ schließt die guten Jahre ein — das dämpft beide "
+      "Breiten gleich und ist für eine Differenz unkritisch, für die "
+      "absoluten Werte nicht.\n")
+    w("Und geprüft ist eine **Form**, keine Biologie: Dass eine Glocke "
+      "mit σ = 3,25 besser trennt, hieße nicht, dass Steinpilze bei "
+      "9,75 °C auf ein Drittel fallen. Es hieße, dass die Rangfolge der "
+      "Tage damit besser stimmt.")
+    return "\n".join(aus) + "\n"
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--self-test", action="store_true")
@@ -1710,6 +2392,9 @@ if __name__ == "__main__":
     parser.add_argument("--designs", action="store_true",
                         help="Phase 1.5: Design A und B "
                              "nebeneinander")
+    parser.add_argument("--h1", action="store_true",
+                        help="der registrierte Prüflauf zu H1 "
+                             "(docs/pilzampel-h1-registrierung.md)")
     parser.add_argument("--dataset", default="vorgabe")
     parser.add_argument("--dedupe", action="store_true")
     parser.add_argument("--api", default=None)
@@ -1723,6 +2408,9 @@ if __name__ == "__main__":
         raise SystemExit(0)
     if args.designs:
         run_designs(args)
+        raise SystemExit(0)
+    if args.h1:
+        run_h1(args)
         raise SystemExit(0)
     if not args.all:
         parser.print_help()

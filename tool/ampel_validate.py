@@ -444,24 +444,27 @@ def rain_factor(daily_mm):
     return min(effective / RAIN_SATURATION_MM, 1.0)
 
 
-def temperature_factor(daily_c, optimum=OPTIMUM_C):
+def temperature_factor(daily_c, optimum=OPTIMUM_C, sigma=TEMP_SIGMA):
     """Glocke um [optimum] über das Mittel der letzten 20 Tage, 0…1.
 
-    Der Vorgabewert ist der ausgelieferte (13 °C) — die Spiegel-Regel zu
-    `ampel_model.dart` gilt für ihn. [optimum] ist NUR für die Anpassung
-    je Art da (`docs/pilzampel-artenfenster.md`); ein anderer Wert hier
+    Die Vorgabewerte sind die ausgelieferten (13 °C, σ = 5 K) — die
+    Spiegel-Regel zu `ampel_model.dart` gilt für sie. [optimum] ist NUR
+    für die Anpassung je Art da (`docs/pilzampel-artenfenster.md`),
+    [sigma] NUR für die Registrierung H1
+    (`docs/pilzampel-h1-registrierung.md`). Ein anderer Wert hier
     bedeutet nicht, dass die App ihn rechnet.
     """
     values = [c for c in daily_c[:TEMP_WINDOW] if c is not None]
     if not values:
         return 0.0
     mean = sum(values) / len(values)
-    return math.exp(-(((mean - optimum) / TEMP_SIGMA) ** 2))
+    return math.exp(-(((mean - optimum) / sigma) ** 2))
 
 
-def ampel_score(daily_mm, daily_c, optimum=OPTIMUM_C):
+def ampel_score(daily_mm, daily_c, optimum=OPTIMUM_C, sigma=TEMP_SIGMA):
     """Der Wetterteil der Ampel — OHNE Saisonfaktor, siehe Kopf."""
-    return rain_factor(daily_mm) * temperature_factor(daily_c, optimum)
+    return rain_factor(daily_mm) * temperature_factor(daily_c, optimum,
+                                                      sigma)
 
 
 # --- Statistik -------------------------------------------------------------
@@ -1456,7 +1459,8 @@ def collect_pairs_b(name, sci, finds=None, cache_dir=None, seed=42,
     }
 
 
-def score_b(samples, optimum=OPTIMUM_C, limit=None, side=None):
+def score_b(samples, optimum=OPTIMUM_C, limit=None, side=None,
+            sigma=TEMP_SIGMA):
     """Das Maß von Design B — Mittel der geschlagenen Anteile.
 
     `limit` schneidet auf die ersten `limit` Kontrolljahre (für k = 1 zum
@@ -1474,20 +1478,20 @@ def score_b(samples, optimum=OPTIMUM_C, limit=None, side=None):
         if not paare:
             continue
         anteile.append(ampel_basis.beat_fraction(
-            ampel_score(*s["found"], optimum),
-            [ampel_score(*c, optimum) for _, c in paare]))
+            ampel_score(*s["found"], optimum, sigma),
+            [ampel_score(*c, optimum, sigma) for _, c in paare]))
     return ampel_basis.mean_beat(anteile), len(anteile)
 
 
-def placebo_b(samples, optimum=OPTIMUM_C):
+def placebo_b(samples, optimum=OPTIMUM_C, sigma=TEMP_SIGMA):
     """Zwei Nicht-Fundjahre gegeneinander — MUSS 0,5 sein."""
     anteile = []
     for s in samples:
         if not s.get("placebo_found") or not s.get("placebo_controls"):
             continue
         anteile.append(ampel_basis.beat_fraction(
-            ampel_score(*s["placebo_found"], optimum),
-            [ampel_score(*c, optimum) for c in s["placebo_controls"]]))
+            ampel_score(*s["placebo_found"], optimum, sigma),
+            [ampel_score(*c, optimum, sigma) for c in s["placebo_controls"]]))
     return ampel_basis.mean_beat(anteile), len(anteile)
 
 
@@ -4525,6 +4529,27 @@ def self_test():
     assert temperature_factor([13.0] * TEMP_WINDOW) == \
         temperature_factor([13.0] * TEMP_WINDOW, OPTIMUM_C)
     assert temperature_factor([7.0] * TEMP_WINDOW, 7.0) == 1.0
+
+    # **Die Breite ist ab H1 ein Parameter — der Vorgabewert bleibt der
+    # ausgelieferte.** Die Spiegel-Regel zu `ampel_model.dart` haengt
+    # daran: Wer die Vorgabe verschiebt, aendert die App-Rechnung, ohne
+    # eine Zeile Dart anzufassen.
+    assert TEMP_SIGMA == 5.0
+    assert temperature_factor([8.0] * TEMP_WINDOW) == \
+        temperature_factor([8.0] * TEMP_WINDOW, OPTIMUM_C, TEMP_SIGMA)
+    # Eine schmalere Glocke faellt schneller ab, eine breitere langsamer
+    # — und am Gipfel sind alle drei gleich 1,0.
+    schmal = temperature_factor([8.0] * TEMP_WINDOW, OPTIMUM_C, 3.25)
+    breit = temperature_factor([8.0] * TEMP_WINDOW, OPTIMUM_C, 8.0)
+    mittel = temperature_factor([8.0] * TEMP_WINDOW, OPTIMUM_C, 5.0)
+    assert schmal < mittel < breit, (schmal, mittel, breit)
+    for sigma in (3.25, 5.0, 8.0):
+        assert temperature_factor([13.0] * TEMP_WINDOW, OPTIMUM_C,
+                                  sigma) == 1.0
+    # Und `ampel_score` reicht die Breite durch, statt sie zu schlucken.
+    regen = [5.0] * RAIN_WINDOW
+    assert ampel_score(regen, [8.0] * TEMP_WINDOW, OPTIMUM_C, 3.25) < \
+        ampel_score(regen, [8.0] * TEMP_WINDOW, OPTIMUM_C, 8.0)
 
     # Ein trockener, kalter Tag darf nie über einem feuchten, milden liegen.
     good = ampel_score([6.0] * RAIN_WINDOW, [13.0] * TEMP_WINDOW)
