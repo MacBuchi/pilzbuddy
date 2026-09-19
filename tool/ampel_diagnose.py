@@ -1533,6 +1533,85 @@ def self_test():
     assert "P3 sind die Anpassjahre" in quelle_h6
     assert "eingefroren" in quelle_h6
 
+    # --- H6, der registrierte Prueflauf --------------------------------
+
+    # Die Ziehung wird EINMAL gemacht und zweimal bewertet.
+    h6_gepaart = [s for jahr in range(2006, 2020)
+                  for s in h1_probe(jahr, 2.0, 14.0, 2.0, 17.5, 12)]
+    dj = h6_paare(h6_gepaart, H6_OPTIMUM_ALT, H6_OPTIMUM_NEU)
+    assert len(dj) == 14, sorted(dj)
+    assert all(len(v) == 12 for v in dj.values())
+    # Fundtag genau auf dem neuen Optimum, Kontrolltag auf dem alten:
+    # das neue Fenster dreht jedes Paar, das alte keines.
+    assert all(a == 0.0 and n == 1.0 for werte in dj.values()
+               for a, n in werte), dj[2006][:2]
+
+    dd6 = h6_delta(h6_gepaart, H6_OPTIMUM_ALT, H6_OPTIMUM_NEU, 200, 1)
+    assert abs(dd6["delta"] - 1.0) < 1e-12, dd6
+    assert dd6["jahr_anteil"] == 1.0 and dd6["jahre"] == 14, dd6
+    assert dd6["band"] is not None and dd6["band"][2] == 0.0, dd6
+    # Der Standardfehler wird aus dem Band zurueckgerechnet; bei einem
+    # Band der Breite null ist er null und die MDE damit auch.
+    assert dd6["se"] == 0.0 and dd6["mde"] == 0.0, dd6
+    # Und die Latte faellt dann auf den Mindestwert zurueck.
+    assert h6_latte(dd6) == H6_MIN_GAIN
+    assert h6_latte(None) == H6_MIN_GAIN
+    assert h6_latte({"mde": 0.03}) == 0.03, "die Aufloesung hebt die Latte"
+
+    # --- Das Urteil, Bedingung fuer Bedingung --------------------------
+    def h6t(**anders):
+        lage = {
+            "delta": {"delta": 0.05, "band": (0.01, 0.09, 0.001),
+                      "jahr_anteil": 0.9, "mde": 0.02},
+            "gegen": {"delta": -0.01, "band": (-0.05, 0.03, 0.4)},
+            "placebo": 0.5, "placebo_n": 500,
+        }
+        for k, v in anders.items():
+            if v is None or not isinstance(v, dict):
+                lage[k] = v
+            else:
+                lage[k] = {**lage[k], **v}
+        return h6_test_urteil(lage["delta"], lage["gegen"], lage["placebo"],
+                              lage["placebo_n"])
+
+    assert h6t()["urteil"] == "H6 bestanden"
+    # **Das Vorzeichen muss das Urteil kippen** (Registrierung, 8).
+    assert h6t(delta={"delta": -0.05})["urteil"] == "H6 nicht bestanden"
+    # Genau auf der Latte gilt als erfuellt, knapp darunter nicht.
+    assert h6t(delta={"delta": 0.02})["bedingungen"]["gewinn"] is True
+    assert h6t(delta={"delta": 0.0199})["bedingungen"]["gewinn"] is False
+    # Der Mindestwert traegt, wenn die Aufloesung kleiner ist.
+    assert h6t(delta={"delta": 0.012, "mde": 0.001})[
+        "bedingungen"]["gewinn"] is True
+    assert h6t(delta={"delta": 0.009, "mde": 0.001})[
+        "bedingungen"]["gewinn"] is False
+    # Band, Jahresanteil, Placebo — jedes allein kippt das Urteil.
+    assert h6t(delta={"band": (-0.01, 0.09, 0.2)})["urteil"] == \
+        "H6 nicht bestanden"
+    assert h6t(delta={"jahr_anteil": H6_MIN_JAHR_ANTEIL - 0.01})[
+        "urteil"] == "H6 nicht bestanden"
+    assert h6t(delta={"jahr_anteil": H6_MIN_JAHR_ANTEIL})[
+        "bedingungen"]["jahre"] is True
+    assert h6t(placebo=0.62)["urteil"] == "H6 nicht bestanden"
+    # **Die Gegenprobe kann kippen, aber nicht herstellen.**
+    assert h6t(gegen={"delta": 0.05, "band": (0.01, 0.09, 0.001)})[
+        "urteil"] == "H6 nicht bestanden", "Gegenprobe ignoriert"
+    # Ein grosses Δ' ohne Band kippt nicht — das waere Rauschen.
+    assert h6t(gegen={"delta": 0.05, "band": (-0.01, 0.11, 0.3)})[
+        "bedingungen"]["gegenprobe"] is True
+    # Fehlende Gegenprobe ist kein Fehlschlag, fehlende Messung schon.
+    assert h6t(gegen=None)["bedingungen"]["gegenprobe"] is True
+    assert h6t(delta=None)["urteil"] == "H6 nicht bestanden"
+    assert h6t(placebo=None)["bedingungen"]["placebo"] is False
+
+    # Die eingefrorenen Zahlen stehen als Konstanten da, nicht im Text.
+    assert H6_OPTIMUM_NEU == 14.0 and H6_OPTIMUM_ALT == 17.5
+    assert H6_OPTIMUM_GEGEN > H6_OPTIMUM_ALT, "Gegenprobe muss nach OBEN"
+    assert H6_ACHSE == ("AT", "CH")
+    # Der Bericht nennt Achse und Mangel.
+    quelle_t = inspect.getsource(render_h6_test)
+    assert "Prüfachse" in quelle_t and "gefallenem V1" in quelle_t
+
     print("Selbsttest ok")
 
 
@@ -4082,6 +4161,126 @@ def h6_urteil(v1, v2, v3, v4):
     return {"urteil": urteil, "bedingungen": bed}
 
 
+# --- H6, der registrierte Prueflauf --------------------------------------
+#
+# Registrierung: `docs/pilzampel-h6-registrierung.md`.
+
+H6_OPTIMUM_NEU = 14.0
+# Die Gegenprobe in die ANDERE Richtung (Auftrag 3 B). Verbessert eine
+# Verschiebung nach oben UND nach unten das Mass, misst der Aufbau nicht
+# das Optimum — dann ist jedes Δ wertlos, auch ein schoenes.
+H6_OPTIMUM_GEGEN = 20.0
+H6_MIN_GAIN = 0.010
+H6_MIN_JAHR_ANTEIL = 0.70
+H6_ACHSE = ("AT", "CH")
+
+
+def h6_paare(samples, alt, neu, nur=None):
+    """Je Fundjahr die Paare (B_alt, B_neu) — DERSELBE Fund zweimal.
+
+    Die tragende Festlegung des Tests, wortgleich mit H1: Gezogen wird
+    einmal, bewertet zweimal. Zwei Ziehungen machten den Unterschied
+    teils zur Stichprobe.
+    """
+    s_alt = h1_scorer(alt, av.TEMP_SIGMA, nur)
+    s_neu = h1_scorer(neu, av.TEMP_SIGMA, nur)
+    jahre = {}
+    for s in samples:
+        controls = s.get("controls") or []
+        if not controls:
+            continue
+        a = ab.beat_fraction(s_alt(*s["found"]), [s_alt(*c) for c in controls])
+        n = ab.beat_fraction(s_neu(*s["found"]), [s_neu(*c) for c in controls])
+        if a is None or n is None:
+            continue
+        jahre.setdefault(s["year"], []).append((a, n))
+    return jahre
+
+
+def h6_delta(samples, alt, neu, rounds=BOOTSTRAP_ROUNDS_B, seed=42,
+             nur=None):
+    """Δ = B(neu) − B(alt), mit Band, p-Wert und Jahresanteil."""
+    jahre = h6_paare(samples, alt, neu, nur)
+    flach = [wert for werte in jahre.values() for wert in werte]
+    if not flach:
+        return None
+    b_alt = sum(a for a, _ in flach) / len(flach)
+    b_neu = sum(n for _, n in flach) / len(flach)
+
+    namen = sorted(jahre)
+    band = None
+    if len(namen) >= 2:
+        rng = random.Random(seed)
+        zuege = []
+        for _ in range(rounds):
+            werte = [w for name in rng.choices(namen, k=len(namen))
+                     for w in jahre[name]]
+            if werte:
+                zuege.append(sum(n - a for a, n in werte) / len(werte))
+        if zuege:
+            band = _band(zuege, 0.0)
+
+    # Duenne Jahre tragen kein Vorzeichen — dieselbe Grenze wie bei H1.
+    gezaehlt = besser = 0
+    for name in namen:
+        werte = jahre[name]
+        if len(werte) < H1_MIN_JAHR_FUNDE:
+            continue
+        gezaehlt += 1
+        if (sum(n - a for a, n in werte) / len(werte)) > 0:
+            besser += 1
+    se = None
+    if band is not None:
+        # Aus dem Band zurueckgerechnet: die halbe Breite ist 1,96 SE.
+        se = (band[1] - band[0]) / (2 * 1.959964)
+    return {
+        "b_alt": b_alt, "b_neu": b_neu, "delta": b_neu - b_alt,
+        "band": band, "n": len(flach), "se": se,
+        "mde": None if se is None else MDE_FAKTOR * se,
+        "jahre": gezaehlt, "jahre_besser": besser,
+        "jahr_anteil": besser / gezaehlt if gezaehlt else None,
+    }
+
+
+def h6_latte(delta):
+    """Die Latte aus der gemessenen Aufloesung — Mindestwert aus dem Auftrag.
+
+    Ein Standardfehler haengt nicht am Ergebnis; die Latte bewegt sich
+    also nicht mit ihm. Fehlt die Aufloesung, bleibt der Mindestwert.
+    """
+    if delta is None or delta.get("mde") is None:
+        return H6_MIN_GAIN
+    return max(H6_MIN_GAIN, delta["mde"])
+
+
+def h6_test_urteil(delta, gegen, placebo, placebo_n):
+    """Die vier Bedingungen aus Abschnitt 6 der Registrierung — plus die
+    Gegenprobe aus Abschnitt 7.
+
+    `None` faellt wie ein Nein aus: Eine fehlende Zahl darf nicht
+    entscheiden wie eine gemessene.
+    """
+    latte = h6_latte(delta)
+    bed = {
+        "gewinn": delta is not None and delta["delta"] >= latte,
+        "band": (delta is not None and delta["band"] is not None
+                 and delta["band"][2] < P_GRENZE),
+        "jahre": (delta is not None and delta["jahr_anteil"] is not None
+                  and delta["jahr_anteil"] >= H6_MIN_JAHR_ANTEIL),
+        "placebo": (placebo is not None
+                    and av.control_clean(placebo, placebo_n)),
+    }
+    # **Die Gegenprobe kann nur kippen, nicht herstellen.** Schlaegt eine
+    # Verschiebung in die ANDERE Richtung genauso an, misst der Aufbau
+    # nicht das Optimum — und dann ist auch ein schoenes Δ wertlos.
+    bed["gegenprobe"] = not (
+        gegen is not None and gegen["delta"] >= H6_MIN_GAIN
+        and gegen["band"] is not None and gegen["band"][2] < P_GRENZE)
+    urteil = ("H6 bestanden" if all(bed.values())
+              else "H6 nicht bestanden")
+    return {"urteil": urteil, "bedingungen": bed, "latte": latte}
+
+
 # Die Bedingungen, unter denen die ausgelieferten Schwellen gemessen
 # wurden. Nur unter genau diesen darf der Waechter abbrechen — auf einer
 # anderen Messbasis oder ohne Entdoppeln MUESSEN die Zahlen abweichen,
@@ -5013,6 +5212,190 @@ def render_h6(d):
           "keine, die dieser Bericht still trifft.")
     return "\n".join(aus) + "\n"
 
+
+def run_h6_test(args):
+    """Der registrierte Prueflauf zu H6 — auf AT+CH."""
+    if args.api:
+        av.OPEN_METEO = args.api.rstrip("/")
+    av.DEDUPE = args.dedupe
+    av.use_dataset(args.dataset)
+    print("H6 auf " + "+".join(H6_ACHSE) + " — **Pruefachse**",
+          file=sys.stderr)
+    print("Registrierung: docs/pilzampel-h6-registrierung.md",
+          file=sys.stderr)
+    print(f"  eingefroren: {H6_OPTIMUM_NEU} °C gegen "
+          f"{H6_OPTIMUM_ALT} °C", file=sys.stderr)
+
+    mapping = av.read_species()
+    finds, _ = av.select_finds(mapping[H6_ART], args.cache, args.seed, True,
+                               H6_ACHSE)
+    if not finds:
+        raise SystemExit("keine Funde auf der Achse")
+    gezogen = av.collect_pairs_b(H6_ART, mapping[H6_ART], finds=finds,
+                                 cache_dir=args.cache, seed=args.seed,
+                                 progress=False)
+    if not gezogen:
+        raise SystemExit("keine Paare")
+    samples = gezogen["samples"]
+    print(f"  {len(samples)} Funde", file=sys.stderr)
+
+    delta = h6_delta(samples, H6_OPTIMUM_ALT, H6_OPTIMUM_NEU,
+                     BOOTSTRAP_ROUNDS_B, args.seed)
+    gegen = h6_delta(samples, H6_OPTIMUM_ALT, H6_OPTIMUM_GEGEN,
+                     BOOTSTRAP_ROUNDS_B, args.seed)
+    placebo, placebo_n = av.placebo_b(samples, H6_OPTIMUM_NEU)
+    tot_alt = h1_ties(samples, H6_OPTIMUM_ALT, av.TEMP_SIGMA)
+    tot_neu = h1_ties(samples, H6_OPTIMUM_NEU, av.TEMP_SIGMA)
+    zerlegung = {}
+    for name, optimum in (("alt", H6_OPTIMUM_ALT), ("neu", H6_OPTIMUM_NEU)):
+        zerlegung[name] = {
+            v: h1_b(samples, optimum, zerlegung_scorer(optimum, v))
+            for v in ZERLEGUNG_VARIANTEN}
+
+    urteil = h6_test_urteil(delta, gegen, placebo, placebo_n)
+    print(f"  Δ {_signed(delta['delta'] if delta else None)}  "
+          f"Latte {urteil['latte']:.3f}  {urteil['urteil']}",
+          file=sys.stderr)
+
+    bericht = render_h6_test({
+        "n": len(samples), "delta": delta, "gegen": gegen,
+        "placebo": placebo, "placebo_n": placebo_n,
+        "tot_alt": tot_alt, "tot_neu": tot_neu,
+        "zerlegung": zerlegung, "urteil": urteil,
+        "laender": gezogen.get("partial_years"),
+    })
+    if args.out:
+        open(args.out, "w", encoding="utf-8").write(bericht)
+        print(f"\n{args.out} geschrieben", file=sys.stderr)
+    else:
+        print(bericht)
+
+
+def render_h6_test(d):
+    """Der Bericht zum registrierten H6-Lauf."""
+    import time as _t
+    aus = []
+    w = aus.append
+    ok = lambda b: "**ja**" if b else "**nein**"
+    u, bed = d["urteil"], d["urteil"]["bedingungen"]
+    delta, gegen = d["delta"], d["gegen"]
+
+    w("# H6 auf AT+CH — das Sommer-Optimum bei 14,0 °C\n")
+    w(f"Stand: {_t.strftime('%Y-%m-%d')} · Erzeugt von "
+      "`tool/ampel_diagnose.py --h6-test` · Registrierung: "
+      "`docs/pilzampel-h6-registrierung.md`\n")
+    w("> **Diese Datei wird erzeugt.** Wer sie von Hand ändert, "
+      "verliert die Änderung beim nächsten Lauf.\n")
+    w("> **Das ist ein Lauf auf einer Prüfachse** — der sechste auf "
+      "AT+CH. Eingetragen in `docs/pilzampel-pruefachsen.md`.\n")
+
+    w("## Das Urteil\n")
+    w(f"# {u['urteil']}\n")
+    w("| Bedingung | Wert | erfüllt |")
+    w("|---|--:|---|")
+    latte = f"{u['latte']:.3f}".replace(".", ",")
+    w(f"| Gewinn ≥ {latte} | {_signed(delta['delta']) if delta else '—'} | "
+      f"{ok(bed['gewinn'])} |")
+    w(f"| Band schließt die Null aus (p < {P_GRENZE}) | "
+      f"{_pwert(delta['band']) if delta else '—'} | {ok(bed['band'])} |")
+    w(f"| ≥ {_sp(H6_MIN_JAHR_ANTEIL, 0)} der Fundjahre in dieselbe "
+      f"Richtung | "
+      + (f"{delta['jahre_besser']}/{delta['jahre']}" if delta else "—")
+      + f" | {ok(bed['jahre'])} |")
+    w(f"| Placebo sauber bei 0,50 | {_fmt(d['placebo'])} "
+      f"({d['placebo_n']} Paare) | {ok(bed['placebo'])} |")
+    w(f"| Gegenprobe (20 °C) schlägt NICHT an | "
+      f"{_signed(gegen['delta']) if gegen else '—'} | "
+      f"{ok(bed['gegenprobe'])} |")
+    w("")
+    w(f"Material: **{d['n']} Funde** des {H6_ART}s in "
+      + " und ".join(H6_ACHSE) + ".\n")
+
+    w("## Die Messung\n")
+    if not delta:
+        w("Keine Paare.")
+    else:
+        w("| Größe | Wert |")
+        w("|---|--:|")
+        w(f"| B bei {_grad(H6_OPTIMUM_ALT, 1)} (ausgeliefert) | "
+          f"{_fmt(delta['b_alt'])} |")
+        w(f"| B bei {_grad(H6_OPTIMUM_NEU, 1)} (registriert) | "
+          f"{_fmt(delta['b_neu'])} |")
+        w(f"| **Δ** | {_signed(delta['delta'])} |")
+        w(f"| 95 %-Band | "
+          + (f"[{_signed(delta['band'][0])}, "
+             f"{_signed(delta['band'][1])}]" if delta["band"] else "—")
+          + " |")
+        w(f"| p | {_pwert(delta['band'])} |")
+        w(f"| Standardfehler | "
+          + ("—" if delta["se"] is None
+             else f"{delta['se']:.4f}".replace(".", ",")) + " |")
+        w(f"| nachweisbare Effektgröße (MDE) | "
+          + ("—" if delta["mde"] is None
+             else f"{delta['mde']:.3f}".replace(".", ",")) + " |")
+        w(f"| Latte = max(+0,010, MDE) | {latte} |")
+        w("")
+        if delta["mde"] is not None and not bed["gewinn"]:
+            w("**Wie ein Fehlschlag zu lesen ist.** Liegt Δ unter der "
+              "Latte, sagt die MDE-Zeile, was das heißt: Ein Δ deutlich "
+              "unter der MDE heißt „der Aufbau sieht es nicht“; ein Δ "
+              "nahe null bei kleiner MDE heißt „es ist nichts da“. "
+              + (f"Hier liegt Δ bei {_signed(delta['delta'])} und die "
+                 f"MDE bei "
+                 + f"{delta['mde']:.3f}".replace(".", ",") + ".") + "\n")
+
+    w("## Pflichtspalten\n")
+    w("| Spalte | bei 17,5 °C | bei 14,0 °C |")
+    w("|---|--:|--:|")
+    for schluessel, label in (("fund_tot", "tote Funde"),
+                              ("beide_null", "tote Vergleiche"),
+                              ("alle_gleich", "exakter Gleichstand")):
+        a = d["tot_alt"].get(schluessel) if d["tot_alt"] else None
+        n = d["tot_neu"].get(schluessel) if d["tot_neu"] else None
+        w(f"| {label} | {_sp(a) if a is not None else '—'} | "
+          f"{_sp(n) if n is not None else '—'} |")
+    w("")
+    w("**Tote Vergleiche** sind die, bei denen Fund- und Kontrolltag "
+      "beide unter 1e-6 liegen — dort unterscheidet das Modell nicht "
+      "mehr, und ein Δ nahe null hieße etwas anderes als "
+      "„kein Effekt“.\n")
+
+    w("### Die Zerlegung — nicht entscheidend, aber die eigentliche Frage\n")
+    w("Auf P3 und P1 trägt die Glocke dieser Art nichts bei: 0,629 "
+      "gegen 0,632 an Regen allein, und auf den Prüfjahren 0,557 gegen "
+      "0,630. Ob ein anderes Fenster daran etwas ändert, ist das, was "
+      "man wissen will — es entscheidet hier aber nichts.\n")
+    w("| Fenster | voll | nur Regen | nur Temperatur | voll − Regen |")
+    w("|---|--:|--:|--:|--:|")
+    for name, label in (("alt", "17,5 °C"), ("neu", "14,0 °C")):
+        z = d["zerlegung"][name]
+        diff = (None if z["voll"] is None or z["nur Regen"] is None
+                else z["voll"] - z["nur Regen"])
+        w(f"| {label} | {_fmt(z['voll'])} | {_fmt(z['nur Regen'])} | "
+          f"{_fmt(z['nur Temperatur'])} | {_signed(diff)} |")
+
+    w("\n## Was daraus folgt\n")
+    if u["urteil"] == "H6 bestanden":
+        w("**14,0 °C wird ausgeliefert** — zusammen mit neu gemessenen "
+          "Sommer-Schwellen. Die 0,385 und 0,729 sind Quantile der "
+          "Verteilung unter 17,5 °C; mit einem anderen Fenster bedeuten "
+          "dieselben Zahlen eine andere Häufigkeit. Fenster und "
+          "Schwellen gehen **zusammen** in eine Version "
+          "(`--schwellen --scheibe p1`).\n")
+        w("Die Herkunft bleibt „gemessen (Design B), mit gefallenem V1 "
+          "in der Vorprüfung“ — der Mangel aus "
+          "`docs/pilzampel-h6-registrierung.md`, Abschnitt 3, wandert "
+          "mit der Zahl.")
+    else:
+        gefallen = [name for name, wert in bed.items() if not wert]
+        w(f"Gefallen ist: **{', '.join(gefallen)}**. **Die 17,5 °C "
+          "bleiben**, und die Herabstufung in `docs/pilzampel-formel.md` "
+          "bleibt, wie sie ist.\n")
+        w("Die Achse ist verbraucht. Ein zweiter Lauf mit einem anderen "
+          "Wert wäre die Suche nach der Zahl, die besteht — und genau "
+          "davor steht die Registrierung.")
+    return "\n".join(aus) + "\n"
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--self-test", action="store_true")
@@ -5029,6 +5412,10 @@ if __name__ == "__main__":
     parser.add_argument("--h1", action="store_true",
                         help="der registrierte Prüflauf zu H1 "
                              "(docs/pilzampel-h1-registrierung.md)")
+    parser.add_argument("--h6-test", action="store_true",
+                        dest="h6_test",
+                        help="der registrierte Prüflauf zu H6 auf AT+CH "
+                             "(docs/pilzampel-h6-registrierung.md)")
     parser.add_argument("--h6", action="store_true",
                         help="B aus Auftrag 3: die Vorprüfung zum "
                              "Sommer-Optimum, auf P3")
@@ -5071,6 +5458,9 @@ if __name__ == "__main__":
         raise SystemExit(0)
     if args.h6:
         run_h6(args)
+        raise SystemExit(0)
+    if args.h6_test:
+        run_h6_test(args)
         raise SystemExit(0)
     if not args.all:
         parser.print_help()
