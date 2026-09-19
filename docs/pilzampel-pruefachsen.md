@@ -75,6 +75,35 @@ eine Wiederholung an denselben Arten wäre keine frische Prüfung mehr.
 
 ---
 
+## Die Regel, die seit dem 2026-09-19 gilt
+
+> **Kein Lauf auf einer Achse ohne vorherigen Auflösungs- und
+> Plausibilitätscheck auf den Anpassjahren DE ≤ 2018.**
+
+Betreiberauflage vom 2026-09-19. Sie hätte #7 verhindert: Dort waren die
+Gruppen nach dem **Saisongipfel** gebildet, während die Hypothese über
+**Temperatur** ging — und die mittlere Fundtag-Temperatur je Art hing an
+keiner AUC, war also vorher auf den Anpassjahren ablesbar. Zwei der drei
+„Kontrastarten" fruchten bei 10,6 und 16,7 °C, beide mitten in der
+Glocke. Der Plan konnte die Frage nicht beantworten, und das war vor der
+Messung zu sehen (`pilzampel-kontrastgruppe-fehler.md`).
+
+Der Check beantwortet zwei Fragen, beide auf Anpassjahren:
+
+- **Auflösung:** Kann der Aufbau einen Effekt dieser Größe überhaupt
+  sehen? Paarzahl, Standardfehler über Fundjahre, nachweisbare
+  Effektgröße — wie in N3 gerechnet.
+- **Plausibilität:** Misst der Plan die Größe, um die es geht? Stehen
+  die Gruppen, Fenster und Stellvertreter zu der Hypothese, die geprüft
+  werden soll?
+
+Er ist **kein Vortest**: Ein gutes Ergebnis auf den Anpassjahren belegt
+nichts und darf die Latte der eigentlichen Prüfung nicht verschieben. Er
+verhindert nur, dass eine Achse für eine Frage ausgegeben wird, die so
+nicht beantwortbar ist.
+
+**Erster Lauf unter dieser Regel:** `docs/pilzampel-h5-vorpruefung.md`.
+
 ## Folge für die nächste Hypothese
 
 Wer eine neue Bedingung registriert, trägt **vorher** ein, welche Achse
