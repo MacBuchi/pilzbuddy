@@ -1400,6 +1400,7 @@ def collect_pairs_b(name, sci, finds=None, cache_dir=None, seed=42,
                 used=[y for y in kandidaten if y not in brauchbar])
             ausgewichen += aus
             controls, control_years, extra_controls = [], [], []
+            control_days = []
             for other in jahre:
                 tag = found_day + rng.randint(-ampel_basis.DAY_JITTER,
                                               ampel_basis.DAY_JITTER)
@@ -1409,6 +1410,14 @@ def collect_pairs_b(name, sci, finds=None, cache_dir=None, seed=42,
                     continue
                 controls.append((b_rain, b_temp))
                 control_years.append(other)
+                # **Der Kalendertag des Kontrolltags, mitgefuehrt.** Er
+                # steckt sonst nur im Zufallszahlengenerator, und eine
+                # Frage nach dem MONAT (wie haeufig stuende die Ampel im
+                # September guenstig?) liesse sich nachtraeglich nur
+                # beantworten, indem man die ganze Ziehung mit demselben
+                # Seed nachspielt. Eine Zahl, die man nur durch
+                # Nachspielen bekommt, ist eine, die niemand nachrechnet.
+                control_days.append(tag)
                 extra_controls.append(_extra_windows(reihen[other][index], tag))
             if not controls:
                 ohne_jahr += 1
@@ -1430,8 +1439,10 @@ def collect_pairs_b(name, sci, finds=None, cache_dir=None, seed=42,
             samples.append({
                 "year": year,
                 "found": (a_rain, a_temp),
+                "found_day": found_day,
                 "controls": controls,
                 "control_years": control_years,
+                "control_days": control_days,
                 "placebo_found": placebo_found,
                 "placebo_controls": placebo_controls,
                 "recordedBy": find.get("recordedBy"),

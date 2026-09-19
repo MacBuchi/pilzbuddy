@@ -36,6 +36,7 @@ verbrauchen.
 Nur Standardbibliothek, wie jedes Werkzeug in `tool/`.
 """
 import argparse
+import bisect
 import importlib.util
 import inspect
 import math
@@ -1149,6 +1150,123 @@ def self_test():
     # Bericht muss das aushalten und darf nicht so tun, als waere sie
     # bestanden.
     assert "bleibt 5,0" in text, text[:400]
+
+    # --- A aus Auftrag 3: die Schwellen aus Design B -------------------
+    #
+    # Jede Behauptung hier ist einmal absichtlich gebrochen worden,
+    # bevor sie stehen blieb.
+
+    # **Der Kalendertag muss aus der Ziehung kommen, nicht aus einer
+    # Nachstellung.** Ohne diese Zeile in `collect_pairs_b` liefe der
+    # Monatsteil auf einer erfundenen Spalte, und der Bericht saehe
+    # genauso aus.
+    quelle_b = inspect.getsource(av.collect_pairs_b)
+    assert '"control_days": control_days' in quelle_b, \
+        "collect_pairs_b fuehrt die Kontrolltage nicht mit"
+    assert '"found_day": found_day' in quelle_b
+
+    # Der Monat eines Kontrolltags — auch wenn die Streuung aus dem Jahr
+    # faellt. Ein geklemmter Index gaebe einen stillen Dezember-Ueberschuss.
+    assert schwellen_monat(2015, 0) == 1
+    assert schwellen_monat(2015, 364) == 12
+    assert schwellen_monat(2015, 365) == 1      # ins Folgejahr gerutscht
+    assert schwellen_monat(2015, -1) == 12      # ins Vorjahr gerutscht
+    assert schwellen_monat(2016, 59) == 2       # Schaltjahr: 29. Februar
+    assert schwellen_monat(2015, 59) == 3       # kein Schaltjahr
+
+    # Ein Fund zaehlt EINMAL, egal wieviele Kontrolljahre er hat.
+    def _probe(jahr, tag, controls):
+        # Regen gesaettigt (26 x 4 mm > 87 mm), damit der Score allein an
+        # der Temperatur haengt: 13 Grad ergibt 1,0, 30 Grad fast 0.
+        return {"year": jahr, "found_day": tag,
+                "found": ([4.0] * 26, [13.0] * 20),
+                "controls": [([4.0] * 26, [c] * 20) for c in controls],
+                "control_years": [jahr - 2, jahr - 1, jahr + 1,
+                                  jahr + 2][:len(controls)],
+                "control_days": [tag] * len(controls)}
+
+    viele = _probe(2010, 250, [13.0] * 4)
+    wenige = _probe(2010, 250, [30.0])
+    tage = schwellen_tage([viele, wenige], 13.0)
+    assert len(tage) == 1 and len(tage[2010]) == 5, tage
+    assert abs(sum(g for _, _, g in tage[2010]) - 2.0) < 1e-12
+    assert abs(sum(g for w, _, g in tage[2010] if w > 0.5) - 1.0) < 1e-12, \
+        "der Fund mit vier Kontrolljahren wiegt nicht mehr als der mit einem"
+
+    # Fehlt die Spalte, bricht der Lauf ab — statt still ohne Monat zu
+    # rechnen.
+    ohne = dict(viele)
+    del ohne["control_days"]
+    try:
+        schwellen_tage([ohne], 13.0)
+        raise AssertionError("fehlende Kontrolltage bleiben unbemerkt")
+    except SystemExit:
+        pass
+
+    # Jahresbalance: ein Jahr mit zehnmal so vielen Funden wiegt nicht
+    # mehr. Und ueber die ganze Art summiert sich das Gewicht auf 1.
+    roh = {2010: [(0.9, 9, 1.0)] * 10, 2011: [(0.1, 9, 1.0)]}
+    gew = schwellen_gewichte(roh)
+    assert abs(sum(g for e in gew.values() for _, _, g in e) - 1.0) < 1e-12
+    assert abs(sum(g for _, _, g in gew[2010]) - 0.5) < 1e-12, gew
+    assert schwellen_gewichte({}) == {}
+    assert schwellen_gewichte({2010: []}) == {}
+
+    # **Die schnelle Quantil-Suche muss dasselbe liefern wie
+    # `av.quantile_at`.** Zwei Definitionen nebeneinander waeren genau
+    # der Fall, in dem die Schlagzeilenzahl und ihr Band von
+    # verschiedenen Groessen reden.
+    rng = random.Random(7)
+    for _ in range(40):
+        bloecke_roh = [[(rng.random(), rng.random()) for _ in
+                        range(rng.randint(1, 12))]
+                       for _ in range(rng.randint(1, 5))]
+        werte = [w for b in bloecke_roh for w, _ in b]
+        gewichte = [g for b in bloecke_roh for _, g in b]
+        bloecke = [schwellen_block([(w, 0, g) for w, g in b])
+                   for b in bloecke_roh]
+        kandidaten = sorted(set(werte))
+        for q in (0.0, 0.1, 0.5, 0.8, 1.0):
+            assert quantil_bloecke(bloecke, q, kandidaten) == \
+                av.quantile_at(werte, gewichte, q), (q, bloecke_roh)
+    assert quantil_bloecke([], 0.5, []) is None
+
+    # Der Anteil ueber einer Grenze, mit und ohne Monatsfilter.
+    proben = [(0.1, 9, 1.0), (0.9, 9, 1.0), (0.9, 10, 2.0)]
+    assert abs(schwellen_anteil(proben, 0.5) - 0.75) < 1e-12
+    assert abs(schwellen_anteil(proben, 0.5, 9) - 0.5) < 1e-12
+    assert abs(schwellen_anteil(proben, 0.5, 10) - 1.0) < 1e-12
+    assert schwellen_anteil(proben, 0.5, 3) is None
+    # Auf der Grenze zaehlt mit — wie `level_with` in der App.
+    assert schwellen_anteil([(0.5, 9, 1.0)], 0.5) == 1.0
+
+    # **Jede Art gleich schwer.** Eine Art mit hundertmal so vielen
+    # Tagen darf die Klassenschwelle nicht allein setzen.
+    gross = schwellen_gewichte({2010: [(0.9, 9, 1.0)] * 100})
+    klein = schwellen_gewichte({2010: [(0.1, 9, 1.0)]})
+    klasse = schwellen_klasse([gross, klein], (0.25, 0.75), 0, 1)
+    assert klasse["punkt"] == (0.1, 0.9), klasse["punkt"]
+
+    # Das Band kommt aus einem Jahres-Bootstrap: eine Art mit genau
+    # einem Jahr kann nicht streuen, zwei verschiedene Jahre schon.
+    einjahr = schwellen_klasse([schwellen_gewichte(
+        {2010: [(0.2, 9, 1.0), (0.8, 9, 1.0)]})], (0.5, 0.5), 50, 1)
+    # Der Median zweier gleich schwerer Werte ist der UNTERE: das
+    # 50-%-Quantil ist der kleinste Wert, bis zu dem die halbe Masse
+    # liegt — dieselbe Definition wie in `av.quantile_at`.
+    assert einjahr["punkt"] == (0.2, 0.2), einjahr
+    assert einjahr["band"][0] == einjahr["band"][1] == (0.2, 0.2), einjahr
+    zweijahr = schwellen_klasse([schwellen_gewichte(
+        {2010: [(0.2, 9, 1.0)], 2011: [(0.8, 9, 1.0)]})], (0.5, 0.5), 200, 1)
+    assert zweijahr["band"][0][0] < zweijahr["band"][0][1], zweijahr
+
+    # Die Quantile sind die der Auslieferung — nicht die des Fits.
+    assert SCHWELLEN_QUANTILE == (av.SHIP_QUANTILE_VERHALTEN,
+                                  av.SHIP_QUANTILE_GUENSTIG)
+    # Nur ausgelieferte Klassen. `holz` und `kalt` haben kein Fenster in
+    # der App, also auch keine Schwelle, die man ersetzen koennte.
+    assert {g for _, g, _ in SCHWELLEN_ARTEN} == {"herbst", "sommer"}
+    assert len(SCHWELLEN_ARTEN) == 6, SCHWELLEN_ARTEN
 
     print("Selbsttest ok")
 
@@ -3146,6 +3264,555 @@ def render_zerlegung(zeilen):
       "oben.")
     return "\n".join(aus) + "\n"
 
+
+# --- A aus Auftrag 3: die Schwellen aus Design B --------------------------
+#
+# `docs/pilzampel-auftrag-3.md`, Abschnitt A. **Vor dem Lauf
+# geschrieben**; was danach geaendert wurde, steht im Korrekturkasten des
+# Berichts.
+#
+# Die vier ausgelieferten Schwellen sind Quantile der Score-Verteilung an
+# VERGLEICHSTAGEN. Sie entscheiden nicht, wie gut die Ampel trennt,
+# sondern wie oft sie „guenstig" sagt — eine Haeufigkeitsfrage. Gesetzt
+# wurden sie an Design-A-Vergleichstagen: ein anderer Tag derselben
+# Saison, 26 bis 45 Tage neben dem Fund, im selben Jahr. Dieselbe
+# Jahreszeit-Unwucht, die Phase 1.5 an der AUC gemessen hat, steckt
+# damit auch in ihnen.
+#
+# Design B fragt dieselbe Frage an einem anderen Tag: dasselbe Datum,
+# derselbe Ort, ein anderes Jahr. Was dabei herauskommt, ist die
+# Verteilung „wie ist das Wetter an diesem Ort um diese Zeit ueblich" —
+# und das ist die Bezugsgroesse, die zur Aussage „heute ist es
+# ungewoehnlich gut" gehoert.
+#
+# **Drei Zellen, nicht zwei.** Die ausgelieferten Zahlen stammen aus
+# Design A auf den PRUEFJAHREN (P1). Ein blosser Vergleich „alt gegen
+# Design B auf P3" vermengte zwei Unterschiede: das Design UND die
+# Zeitscheibe. Deshalb wird Design A auf P3 mitgerechnet — es kostet
+# nichts, weil P3 die Anpassjahre sind, und erst damit laesst sich
+# sagen, welcher Anteil woher kommt. Die vierte Zelle (Design B auf P1)
+# faellt aus: Sie waere die auslieferbare Zahl, fasst aber eine
+# Pruefachse an und ist deshalb eine eigene Entscheidung.
+
+# Die Quantile der Auslieferung — „gleich haeufig wie bisher",
+# Betreiberentscheidung vom 2026-09-12. Sie sind hier NICHT zur
+# Diskussion gestellt: Gefragt ist, welche Zahl dasselbe Quantil in
+# Design B traegt.
+SCHWELLEN_QUANTILE = (av.SHIP_QUANTILE_VERHALTEN, av.SHIP_QUANTILE_GUENSTIG)
+
+# Der Jahres-Bootstrap der Schwelle. Weniger Zuege als bei den
+# Pruefbaendern (20 000), und das ist Absicht: Hier haengt keine
+# Entscheidung an einer Bandkante, das Band ist eine Auskunft ueber die
+# Genauigkeit. 2000 Zuege geben die zweite Nachkommastelle stabil.
+SCHWELLEN_ROUNDS = 2000
+
+# Nur die ausgelieferten Klassen. `holz` und `kalt` haben kein Fenster
+# in der App und damit auch keine Schwelle, die man ersetzen koennte.
+SCHWELLEN_ARTEN = [(n, g, o) for n, g, o in DESIGN_ARTEN
+                   if g in ("herbst", "sommer")]
+
+MONATSNAMEN = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli",
+               "August", "September", "Oktober", "November", "Dezember"]
+
+
+def schwellen_monat(jahr, tagindex):
+    """Der Monat eines Kontrolltags aus Jahr und Tagesindex.
+
+    Der Index kann durch die ±7-Tage-Streuung aus dem Jahr fallen; dann
+    gehoert der Tag zum Nachbarjahr. Ihn auf den 31.12. zu klemmen waere
+    ein stiller Dezember-Ueberschuss.
+    """
+    while tagindex < 0:
+        jahr -= 1
+        tagindex += 366 if av._leap(jahr) else 365
+    laenge = 366 if av._leap(jahr) else 365
+    while tagindex >= laenge:
+        tagindex -= laenge
+        jahr += 1
+        laenge = 366 if av._leap(jahr) else 365
+    return int(av._date_from_index(jahr, tagindex)[5:7])
+
+
+def schwellen_tage(samples, optimum, sigma=None):
+    """Die bewerteten Kontrolltage einer Art, je Fundjahr gebuendelt.
+
+    Rueckgabe: {fundjahr: [(score, monat, gewicht), …]} mit Gewicht 1 je
+    FUND — auf seine Kontrolltage verteilt. Ein Fund mit fuenf
+    brauchbaren Jahren zaehlt damit genauso viel wie einer mit zweien;
+    ohne das entschiede die Cache-Lage mit, welcher Ort die Schwelle
+    zieht.
+    """
+    sigma = av.TEMP_SIGMA if sigma is None else sigma
+    aus = {}
+    for s in samples:
+        tage = s.get("control_days")
+        if tage is None:
+            raise SystemExit(
+                "Die Ziehung fuehrt keine Kontrolltage mit. "
+                "`collect_pairs_b` muss `control_days` schreiben — "
+                "ohne den Kalendertag gibt es keine Monatsspalte.")
+        if not s["controls"]:
+            continue
+        anteil = 1.0 / len(s["controls"])
+        for (regen, temp), jahr, tag in zip(s["controls"],
+                                            s["control_years"], tage):
+            aus.setdefault(s["year"], []).append(
+                (av.ampel_score(regen, temp, optimum, sigma),
+                 schwellen_monat(jahr, tag), anteil))
+    return aus
+
+
+def schwellen_funde(samples, optimum, sigma=None):
+    """Dieselbe Buendelung fuer die FUNDTAGE — Gewicht 1 je Fund."""
+    sigma = av.TEMP_SIGMA if sigma is None else sigma
+    aus = {}
+    for s in samples:
+        aus.setdefault(s["year"], []).append(
+            (av.ampel_score(*s["found"], optimum, sigma),
+             schwellen_monat(s["year"], s.get("found_day", 0)), 1.0))
+    return aus
+
+
+def schwellen_gewichte(nach_jahr):
+    """Jahresbalance und Artnormierung in einem Schritt.
+
+    Zwei Regeln, beide aus `class_thresholds` uebernommen und beide mit
+    demselben Grund: Stichprobengroesse soll nicht fuer Bedeutung
+    einstehen.
+
+    - **Jedes Fundjahr gleich schwer.** Ein gutes Pilzjahr liefert mehr
+      Funde, mehr Kontrolltage — und zoege die Schwelle zu seinem
+      Wetter.
+    - **Jede Art gleich schwer.** Der Steinpilz bringt zehnmal so viele
+      Funde mit wie die Herbsttrompete; ungewichtet waere die
+      Klassenschwelle die Steinpilzschwelle mit anderem Namen.
+
+    Rueckgabe: {jahr: [(score, monat, gewicht), …]} mit Gesamtgewicht 1
+    ueber die ganze Art.
+    """
+    jahre = [j for j, eintraege in nach_jahr.items() if eintraege]
+    if not jahre:
+        return {}
+    aus = {}
+    for jahr in jahre:
+        eintraege = nach_jahr[jahr]
+        summe = sum(g for _, _, g in eintraege)
+        if summe <= 0:
+            continue
+        faktor = 1.0 / (summe * len(jahre))
+        aus[jahr] = [(w, m, g * faktor) for w, m, g in eintraege]
+    return aus
+
+
+def schwellen_block(eintraege):
+    """Ein vorsortierter Block fuer die schnelle Quantil-Suche.
+
+    Rueckgabe: (werte_sortiert, kumulierte_gewichte, summe).
+    """
+    paare = sorted((w, g) for w, _, g in eintraege)
+    werte = [w for w, _ in paare]
+    kum, laufend = [], 0.0
+    for _, g in paare:
+        laufend += g
+        kum.append(laufend)
+    return werte, kum, laufend
+
+
+def quantil_bloecke(bloecke, q, kandidaten):
+    """Gewichtetes Quantil ueber vorsortierte Bloecke.
+
+    **Dieselbe Definition wie `av.quantile_at`**: der kleinste Wert, bis
+    zu dem (einschliesslich) mindestens `q` der Gewichtsmasse liegt. Nur
+    der Weg dorthin ist ein anderer — Bisektion ueber die Kandidatenwerte
+    statt ein Durchlauf durch alle Punkte. Das ist der Unterschied
+    zwischen einem Bootstrap in einer Minute und einem in einer Stunde;
+    dass beide Wege dasselbe liefern, prueft der Selbsttest an
+    Zufallsdaten nach.
+    """
+    gesamt = sum(s for _, _, s in bloecke)
+    if gesamt <= 0 or not kandidaten:
+        return None
+    ziel = q * gesamt
+
+    def masse_bis(wert):
+        summe = 0.0
+        for werte, kum, _ in bloecke:
+            i = bisect.bisect_right(werte, wert)
+            if i:
+                summe += kum[i - 1]
+        return summe
+
+    lo, hi = 0, len(kandidaten) - 1
+    if masse_bis(kandidaten[hi]) < ziel:
+        return kandidaten[hi]
+    while lo < hi:
+        mitte = (lo + hi) // 2
+        if masse_bis(kandidaten[mitte]) >= ziel:
+            hi = mitte
+        else:
+            lo = mitte + 1
+    return kandidaten[lo]
+
+
+def schwellen_klasse(arten, quantile, rounds, seed):
+    """Die beiden Schwellen einer Klasse, mit Jahres-Bootstrap.
+
+    Gezogen werden FUNDJAHRE je Art, mit Zuruecklegen — dieselbe
+    Gruppierung wie ueberall hier. Zwei Kontrolltage desselben Jahres
+    sind einander aehnlicher als zwei aus verschiedenen Jahren; ueber
+    Tage zu ziehen ergaebe ein Band, das zu schmal ist und deshalb luegt.
+    """
+    if not arten:
+        return None
+    alle = [(w, g) for art in arten for eintraege in art.values()
+            for w, _, g in eintraege]
+    if not alle:
+        return None
+    werte = [w for w, _ in alle]
+    gewichte = [g for _, g in alle]
+    # **Die Schlagzeilenzahl kommt aus `av.quantile_at` selbst**, nicht
+    # aus der schnellen Fassung. Die ausgelieferten Schwellen sind mit
+    # genau dieser Funktion entstanden; eine zweite Implementierung
+    # daneben waere eine zweite Definition, und die Ruecknahme
+    # „dieselbe Rechnung, andere Daten" waere hin.
+    punkt = tuple(av.quantile_at(werte, gewichte, q) for q in quantile)
+
+    kandidaten = sorted(set(werte))
+    bloecke_je_art = [[schwellen_block(e) for e in art.values()]
+                      for art in arten]
+    rng = random.Random(seed)
+    zuege = [[], []]
+    for _ in range(rounds):
+        gezogen = []
+        for bloecke in bloecke_je_art:
+            gezogen.extend(rng.choice(bloecke) for _ in bloecke)
+        for i, q in enumerate(quantile):
+            zuege[i].append(quantil_bloecke(gezogen, q, kandidaten))
+    baender = []
+    for spalte in zuege:
+        spalte = [z for z in spalte if z is not None]
+        if not spalte:
+            baender.append(None)
+            continue
+        spalte.sort()
+        baender.append((spalte[int(0.025 * len(spalte))],
+                        spalte[min(len(spalte) - 1,
+                                   int(0.975 * len(spalte)))]))
+    return {"punkt": punkt, "band": baender, "n": len(alle)}
+
+
+def schwellen_anteil(eintraege, grenze, monat=None):
+    """Der Gewichtsanteil auf oder ueber [grenze], gegebenenfalls je Monat."""
+    oben = unten = 0.0
+    for wert, m, g in eintraege:
+        if monat is not None and m != monat:
+            continue
+        unten += g
+        if wert >= grenze:
+            oben += g
+    return None if unten <= 0 else oben / unten
+
+
+def run_schwellen(args):
+    """A aus Auftrag 3 — die Schwellen an Design-B-Kontrolltagen.
+
+    Kostet keine Pruefachse: gerechnet wird auf DE bis `FIT_UNTIL_YEAR`.
+    """
+    if args.api:
+        av.OPEN_METEO = args.api.rstrip("/")
+    av.DEDUPE = args.dedupe
+    av.use_dataset(args.dataset)
+    print(f"Schwellen auf DE 2006-{av.FIT_UNTIL_YEAR} — Anpassjahre, "
+          "keine Pruefachse", file=sys.stderr)
+    print("Auftrag: docs/pilzampel-auftrag-3.md, Abschnitt A",
+          file=sys.stderr)
+
+    mapping = av.read_species()
+    wanted = SCHWELLEN_ARTEN
+    if args.only:
+        gesucht = {n.strip() for n in args.only.split(",") if n.strip()}
+        wanted = [z for z in SCHWELLEN_ARTEN if z[0] in gesucht]
+
+    zeilen = []
+    for name, gruppe, optimum in wanted:
+        if name not in mapping:
+            continue
+        sci = mapping[name]
+        print(f"  {name}", file=sys.stderr)
+        finds, _ = av.select_finds(sci, args.cache, args.seed, True, ("DE",))
+        if not finds:
+            continue
+        gezogen = av.collect_pairs_b(name, sci, finds=finds,
+                                     cache_dir=args.cache, seed=args.seed,
+                                     progress=False)
+        if not gezogen:
+            continue
+        samples = fit_years_only(gezogen["samples"])
+        if len(samples) < MIN_FINDS_B:
+            print(f"    zu duenn: {len(samples)} Funde", file=sys.stderr)
+            continue
+        tage_b = schwellen_gewichte(schwellen_tage(samples, optimum))
+        funde_b = schwellen_gewichte(schwellen_funde(samples, optimum))
+
+        # **Die Bruecke: dasselbe auf Design A, gleiche Zeitscheibe.**
+        # Ohne sie waere der Unterschied zur ausgelieferten Zahl teils
+        # das Design und teils die Jahre, und niemand koennte sagen,
+        # welcher Teil welcher ist.
+        tage_a = {}
+        gezogen_a = av.collect_pairs(name, sci, cache_dir=args.cache,
+                                     seed=args.seed, progress=False)
+        if gezogen_a:
+            roh = {}
+            for s in gezogen_a["samples"]:
+                if s["year"] > av.FIT_UNTIL_YEAR:
+                    continue
+                roh.setdefault(s["year"], []).append(
+                    (av.ampel_score(*s["control"], optimum), 0, 1.0))
+            tage_a = schwellen_gewichte(roh)
+
+        zeilen.append({
+            "name": name, "gruppe": gruppe, "optimum": optimum,
+            "n": len(samples),
+            "n_tage": sum(len(e) for e in tage_b.values()),
+            "jahre": len(tage_b),
+            "tage_b": tage_b, "funde_b": funde_b, "tage_a": tage_a,
+            "n_a": sum(len(e) for e in tage_a.values()),
+        })
+        print(f"    {len(samples)} Funde, "
+              f"{sum(len(e) for e in tage_b.values())} Kontrolltage, "
+              f"{len(tage_a)} Jahre in Design A", file=sys.stderr)
+
+    ergebnis = {}
+    for key in ("herbst", "sommer"):
+        mitglieder = [z for z in zeilen if z["gruppe"] == key]
+        if not mitglieder:
+            continue
+        ergebnis[key] = {
+            "mitglieder": [z["name"] for z in mitglieder],
+            "b": schwellen_klasse([z["tage_b"] for z in mitglieder],
+                                  SCHWELLEN_QUANTILE, SCHWELLEN_ROUNDS,
+                                  args.seed),
+            "a": schwellen_klasse([z["tage_a"] for z in mitglieder
+                                   if z["tage_a"]],
+                                  SCHWELLEN_QUANTILE, 0, args.seed),
+        }
+        got = ergebnis[key]["b"]
+        if got:
+            print(f"  {key}: verhalten {got['punkt'][0]:.3f}  "
+                  f"guenstig {got['punkt'][1]:.3f}", file=sys.stderr)
+
+    bericht = render_schwellen(zeilen, ergebnis)
+    if args.out:
+        open(args.out, "w", encoding="utf-8").write(bericht)
+        print(f"\n{args.out} geschrieben", file=sys.stderr)
+    else:
+        print(bericht)
+
+
+def _sp(value, digits=1):
+    """Prozent mit deutschem Komma."""
+    return "—" if value is None else f"{value * 100:.{digits}f} %".replace(
+        ".", ",")
+
+
+def _spanne(band):
+    if not band:
+        return "—"
+    return f"[{_fmt(band[0])}, {_fmt(band[1])}]"
+
+
+def render_schwellen(zeilen, ergebnis):
+    """Der Bericht zu A — eine Vorlage, keine Uebernahme."""
+    import time as _t
+    AUF, ZU = "„", "“"
+
+    def z(text):
+        """Deutsche Anfuehrungszeichen, ohne sie im Quelltext zu tippen."""
+        return AUF + text + ZU
+
+    aus = []
+    w = aus.append
+    w("# Die Schwellen aus Design B — Vorlage, nicht Übernahme\n")
+    w(f"Stand: {_t.strftime('%Y-%m-%d')} · Erzeugt von "
+      "`tool/ampel_diagnose.py --schwellen` · Auftrag: "
+      "`docs/pilzampel-auftrag-3.md`, Abschnitt A\n")
+    w("> **Diese Datei wird erzeugt.** Wer sie von Hand ändert, verliert "
+      "die Änderung beim nächsten Lauf.\n")
+
+    w("## Was hier gefragt wird\n")
+    w("Die vier ausgelieferten Schwellen sind **Quantile der "
+      "Score-Verteilung an Vergleichstagen**. Sie entscheiden nicht, wie "
+      "gut die Ampel trennt, sondern **wie oft sie " + z("günstig")
+      + " sagt**. Das ist eine Häufigkeitsfrage, und die Antwort hängt "
+      "daran, welche Tage man " + z("üblich") + " nennt.\n")
+    w("Gesetzt wurden sie an **Design-A-Vergleichstagen**: ein anderer "
+      "Tag derselben Saison, 26 bis 45 Tage neben dem Fund, im selben "
+      "Jahr. Phase 1.5 hat gemessen, dass in dieser Paarung bei den "
+      "Herbstarten rund 0,09 AUC Kalender stecken. Was in der "
+      "Trennschärfe steckt, steckt auch in der Verteilung, aus der die "
+      "Schwelle gezogen wurde.\n")
+    w("**Design B fragt dasselbe an einem anderen Tag:** gleicher Ort, "
+      "gleiches Datum, anderes Jahr. Die Verteilung heißt dann "
+      + z("wie ist das Wetter hier um diese Zeit üblich") + " — und "
+      "genau das ist die Bezugsgröße, die zur Aussage "
+      + z("heute ist es ungewöhnlich gut") + " gehört.\n")
+
+    w("## Wie gemessen wurde\n")
+    w("Vor dem Lauf festgelegt (`tool/ampel_diagnose.py`, Abschnitt "
+      + z("A aus Auftrag 3") + "):\n")
+    w(f"- **Gerechnet wird auf P3** — Deutschland bis {av.FIT_UNTIL_YEAR}. "
+      "Das sind die Anpassjahre; der Lauf verbraucht keine Prüfachse.")
+    w("- **Bewertet wird mit dem ausgelieferten Fenster** der Klasse "
+      "(13,0 °C bzw. 17,5 °C) und σ = 5,0 K. Hier geht es um die "
+      "Schwelle, nicht um das Fenster — das ist H6.")
+    w(f"- **Die Quantile bleiben {_sp(SCHWELLEN_QUANTILE[0], 0)} und "
+      f"{_sp(SCHWELLEN_QUANTILE[1], 0)}**, die Auslieferungsquantile vom "
+      "2026-09-12 (" + z("gleich häufig wie bisher") + "). Gefragt ist, "
+      "welche ZAHL dasselbe Quantil in Design B trägt.")
+    w("- **Jedes Fundjahr gleich schwer, jede Art gleich schwer** — "
+      "dieselben zwei Regeln wie in `class_thresholds`, aus demselben "
+      "Grund: Stichprobengröße soll nicht für Bedeutung einstehen.")
+    w("- **Ein Fund zählt einmal**, nicht einmal je Kontrolljahr. Wer "
+      "fünf brauchbare Jahre hat, verteilt sein Gewicht darauf.")
+    w(f"- **Das Band ist ein Jahres-Bootstrap** über Fundjahre, "
+      f"{SCHWELLEN_ROUNDS} Züge. Es ist eine Auskunft über die "
+      "Genauigkeit, keine Entscheidungsgrundlage.\n")
+
+    w("## Das Material\n")
+    w("| Art | Klasse | Funde auf P3 | Kontrolltage | Fundjahre | "
+      "Design-A-Jahre |")
+    w("|---|---|--:|--:|--:|--:|")
+    for row in zeilen:
+        w(f"| {row['name']} | {av.AMPEL_CLASSES[row['gruppe']]['label']} | "
+          f"{row['n']} | {row['n_tage']} | {row['jahre']} | "
+          f"{len(row['tage_a'])} |")
+
+    w("\n## Die Schwellen je Klasse\n")
+    w("Drei Zellen. Die erste ist die App von heute, die zweite trennt "
+      "die Zeitscheibe vom Design ab, die dritte ist die gefragte "
+      "Zahl.\n")
+    w("| Klasse | Stufe | ausgeliefert (A, P1) | Design A auf P3 | "
+      "Design B auf P3 | 95 % |")
+    w("|---|---|--:|--:|--:|---|")
+    for key in ("herbst", "sommer"):
+        if key not in ergebnis:
+            continue
+        klass = av.AMPEL_CLASSES[key]
+        got = ergebnis[key]
+        for i, stufe in enumerate(("verhalten", "günstig")):
+            alt = klass["verhalten"] if i == 0 else klass["guenstig"]
+            a = got["a"]["punkt"][i] if got["a"] else None
+            b = got["b"]["punkt"][i] if got["b"] else None
+            band = got["b"]["band"][i] if got["b"] else None
+            w(f"| {klass['label'] if i == 0 else ''} | {stufe} | "
+              f"{alt:.3f} | {_fmt(a)} | {_fmt(b)} | {_spanne(band)} |")
+
+    w("\n### Woher der Unterschied kommt\n")
+    w("| Klasse | Stufe | Zeitscheibe (A: P1 → P3) | Design (P3: A → B) | "
+      "gesamt |")
+    w("|---|---|--:|--:|--:|")
+    for key in ("herbst", "sommer"):
+        if key not in ergebnis:
+            continue
+        klass = av.AMPEL_CLASSES[key]
+        got = ergebnis[key]
+        for i, stufe in enumerate(("verhalten", "günstig")):
+            alt = klass["verhalten"] if i == 0 else klass["guenstig"]
+            a = got["a"]["punkt"][i] if got["a"] else None
+            b = got["b"]["punkt"][i] if got["b"] else None
+            w(f"| {klass['label'] if i == 0 else ''} | {stufe} | "
+              f"{_signed(None if a is None else a - alt)} | "
+              f"{_signed(None if (a is None or b is None) else b - a)} | "
+              f"{_signed(None if b is None else b - alt)} |")
+    w("")
+    w("**Die Zeitscheiben-Spalte ist kein Nebeneffekt.** Die "
+      "ausgelieferten Zahlen stammen mit Absicht aus den Prüfjahren — "
+      "für die Auslieferung zählt, wo die App HEUTE steht "
+      "(`docs/pilzampel-schwellen-messung.md`). Eine auf P3 gemessene "
+      "Schwelle beantwortet " + z("was war 2006 bis 2018 üblich") + ", "
+      "nicht " + z("was ist heute üblich") + ". Und zwischen beiden "
+      "Scheiben liegt nachweislich etwas: Dieselbe feste Zahl wurde vor "
+      "2019 an rund 30 %, danach an rund 20 % der Vergleichstage "
+      "überschritten (`docs/pilzampel-schwellen-messung.md`), und die "
+      "Glocke trennt in den Prüfjahren schwächer als in den Anpassjahren "
+      "(`docs/pilzampel-alterung.md`).\n")
+
+    w("## Was sich für Nutzer ändert\n")
+    w("Gemessen an denselben Design-B-Kontrolltagen. " + z("Kontrolltage")
+      + " sind Tage an Pilzorten in der Fruchtzeit der Art — also die "
+      "Tage, an denen jemand die App aufmacht, ohne dass etwas "
+      "Besonderes wäre. Die Fundtag-Spalte steht daneben, damit sichtbar "
+      "bleibt, ob die Schwelle noch trennt.\n")
+    w("| Art | Kontrolltage günstig, alt → neu | Fundtage günstig, "
+      "alt → neu | Abstand, alt → neu |")
+    w("|---|--:|--:|--:|")
+    for row in zeilen:
+        klass = av.AMPEL_CLASSES[row["gruppe"]]
+        got = ergebnis.get(row["gruppe"], {}).get("b")
+        if not got:
+            continue
+        neu = got["punkt"][1]
+        tage = [e for eintraege in row["tage_b"].values() for e in eintraege]
+        funde = [e for eintraege in row["funde_b"].values() for e in eintraege]
+        ka = schwellen_anteil(tage, klass["guenstig"])
+        kn = schwellen_anteil(tage, neu)
+        fa = schwellen_anteil(funde, klass["guenstig"])
+        fn = schwellen_anteil(funde, neu)
+        w(f"| {row['name']} | {_sp(ka)} → {_sp(kn)} | "
+          f"{_sp(fa)} → {_sp(fn)} | "
+          f"{_sp(None if (fa is None or ka is None) else fa - ka)} → "
+          f"{_sp(None if (fn is None or kn is None) else fn - kn)} |")
+
+    w("\n### Je Monat\n")
+    w("Anteil der Kontrolltage, an denen die Ampel **günstig** stünde. "
+      "Monate unter 5 % des Materials einer Art stehen nicht da — dort "
+      "wäre die Zahl ein Gerücht.\n")
+    w("| Art | Monat | Anteil des Materials | alt | neu |")
+    w("|---|---|--:|--:|--:|")
+    for row in zeilen:
+        klass = av.AMPEL_CLASSES[row["gruppe"]]
+        got = ergebnis.get(row["gruppe"], {}).get("b")
+        if not got:
+            continue
+        neu = got["punkt"][1]
+        tage = [e for eintraege in row["tage_b"].values() for e in eintraege]
+        gesamt = sum(g for _, _, g in tage)
+        erste = True
+        for monat in range(1, 13):
+            anteil = sum(g for _, m, g in tage if m == monat)
+            if gesamt <= 0 or anteil / gesamt < 0.05:
+                continue
+            w(f"| {row['name'] if erste else ''} | "
+              f"{MONATSNAMEN[monat - 1]} | {_sp(anteil / gesamt, 0)} | "
+              f"{_sp(schwellen_anteil(tage, klass['guenstig'], monat))} | "
+              f"{_sp(schwellen_anteil(tage, neu, monat))} |")
+            erste = False
+
+    w("\n## Die Zelle, die fehlt\n")
+    w("**Design B auf P1.** Das wäre die auslieferbare Zahl: dasselbe "
+      "Design, aber die Jahre, in denen die App benutzt wird. Sie ist "
+      "hier nicht gerechnet, weil P1 eine Prüfachse ist "
+      "(`docs/pilzampel-pruefachsen.md`) und Auftrag 3 A ausdrücklich "
+      "als achsenfreier Lauf angelegt ist.\n")
+    w("Ob sie gerechnet wird, ist eine eigene Entscheidung. Dafür "
+      "spricht, dass eine Schwelle keine Hypothese ist, sondern eine "
+      "beschreibende Zahl — die ausgelieferten vier sind auf demselben "
+      "Weg entstanden und stehen in der Strichliste als Diagnose. "
+      "Dagegen spricht die Regel vom 2026-09-19: kein Lauf auf einer "
+      "Achse ohne vorherigen Check auf P3. Dieser Bericht IST dieser "
+      "Check.\n")
+
+    w("## Vorlage, keine Übernahme\n")
+    w("**Hier wird nichts übernommen.** Wie oft die Ampel "
+      + z("günstig") + " sagen soll, ist eine Produktentscheidung und "
+      "keine Messung. Diese Seite sagt nur, welche Zahl welches "
+      "Verhalten trägt.\n")
+    w("Wer sie übernimmt, ändert **vier Konstanten in "
+      "`ampel_model.dart` und `tool/ampel_validate.py` zusammen** — die "
+      "Spiegel-Regel gilt, und `verify_class_constants` bricht ab, "
+      "sobald eine allein wandert.")
+    return "\n".join(aus) + "\n"
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--self-test", action="store_true")
@@ -3162,6 +3829,9 @@ if __name__ == "__main__":
     parser.add_argument("--h1", action="store_true",
                         help="der registrierte Prüflauf zu H1 "
                              "(docs/pilzampel-h1-registrierung.md)")
+    parser.add_argument("--schwellen", action="store_true",
+                        help="A aus Auftrag 3: die Schwellen an "
+                             "Design-B-Kontrolltagen, auf P3")
     parser.add_argument("--dataset", default="vorgabe")
     parser.add_argument("--dedupe", action="store_true")
     parser.add_argument("--api", default=None)
@@ -3187,6 +3857,9 @@ if __name__ == "__main__":
         raise SystemExit(0)
     if args.zerlegung:
         run_zerlegung(args)
+        raise SystemExit(0)
+    if args.schwellen:
+        run_schwellen(args)
         raise SystemExit(0)
     if not args.all:
         parser.print_help()
