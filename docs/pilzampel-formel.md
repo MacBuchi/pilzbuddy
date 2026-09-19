@@ -35,7 +35,7 @@ Drei Stufen, und die mittlere ist neu:
 | `ampelRainSaturationMm` | 87 mm | **gesetzt** — dieselbe Regel | `docs/pilzampel-konzept.md` |
 | `ampelTempWindow` | 20 d | **extern gemessen** — Bielefelder Steinpilz-Reihe, zehn Jahre, ein Standort, eine Art | Brejon Lamartiniere & Hoffman 2025 |
 | `ampelOptimumC` (herbst) | 13,0 °C | **extern gemessen** — dieselbe Reihe. In GBIF nie angepasst, aber an fremden Arten geprüft | `docs/pilzampel-herbstklasse-messung.md` |
-| `ampelTempSigma` | 5,0 K | **gesetzt** — das Papier nennt einen Gipfel, keine Streuung. Am 2026-09-18 erstmals angegriffen und **nicht geschlagen** | `docs/pilzampel-h1-ergebnis.md` |
+| `ampelTempSigma` | 5,0 K | **gesetzt** — das Papier nennt einen Gipfel, keine Streuung. Am 2026-09-18 angegriffen und **nicht geschlagen** | `docs/pilzampel-h1-ergebnis.md` |
 | `ampelSommerClass.optimumC` | 17,5 °C | **gemessen (Design A)** — angepasst auf DE ≤ 2018, Hold-out AT+CH bestanden. **Siehe Herabstufung unten.** | `docs/pilzampel-artenfenster-messung.md`, `…-holdout.md` |
 | `ampelHerbstClass` Schwellen | 0,187 / 0,512 | **gemessen (Design A)** — 50-%- und 80-%-Quantil der Score-Verteilung an Vergleichstagen, Anpassjahre | `docs/pilzampel-schwellen-messung.md` |
 | `ampelSommerClass` Schwellen | 0,287 / 0,677 | **gemessen (Design A)** — dito | `docs/pilzampel-schwellen-messung.md` |
@@ -86,15 +86,65 @@ trägt denselben Anteil.
 
 ---
 
-## Was daraus folgt, und was nicht
+## Stand der Dinge, 2026-09-19
 
-**Die Ampel ruht auf mehr Gesetztem als auf Gemessenem.** Von den vier
-Größen der Kernformel sind zwei gesetzt (Regenfenster, Sättigung), eine
-extern gemessen an einem Standort (Optimum 13 °C) und eine gesetzt und
-inzwischen erfolglos angegriffen (σ = 5 K). Das ist kein Vorwurf —
-so fängt jedes Modell an. Es ist der Grund, warum das Feature hinter
-einem Schalter steht und „experimentell" heißt.
+**Drei registrierte Versuche, die gesetzten Konstanten zu verbessern,
+sind ergebnislos geblieben.**
 
-**Und eine erfolglos angegriffene Zahl ist nicht bestätigt.** σ = 5 K hat
-H1 überstanden; das heißt, dass 3,25 K bei festgehaltenem Optimum nicht
-besser trennt. Es heißt nicht, dass 5 K richtig ist.
+| # | Versuch | Ausgang | Beleg |
+|--:|---|---|---|
+| 1 | **H3** — Zwei-Phasen-Wintermodell (Frostreiz, dann Wärmesumme) | **geschlossen, nicht registriert.** Die Prämisse ist gemessen und trägt nicht: Die Frost-Signatur des Samtfußrüblings (67 % gegen 44 % Frosttage) wird gegen dieselben Kalendertage anderer Jahre zu 70 % gegen 73 %. | `pilzampel-kontrolldesign.md` |
+| 2 | **H1** — schmalere Glocke, 3,25 K statt 5,0 K | **nicht bestanden.** Keine Art erreicht die Latte; bei den sechs ausgelieferten liegt der Gewinn zwischen −0,011 und +0,010. | `pilzampel-h1-ergebnis.md` |
+| 3 | **H5** — Feuchte allein, Temperatur raus | **nicht registriert.** Die Beobachtung dahinter stammte aus den Prüfjahren und kehrt auf den Anpassjahren nicht wieder: dort gilt sie bei 1 von 6 Arten statt bei 6 von 6. | `pilzampel-h5-vorpruefung-ergebnis.md` |
+
+Dazu zwei Nachmessungen, die nichts verändert haben und viel erklären:
+das bedingte Logit mit cluster-robusten Fehlern (`pilzampel-logit.md`)
+und die Alterungsfrage auf den geteilten Anpassjahren
+(`pilzampel-alterung.md`).
+
+### Warum das kein schwaches Ergebnis ist
+
+Die Ampel rechnet heute **Zahl für Zahl dasselbe wie vor vier Wochen**.
+Was sich geändert hat, ist, was wir über sie sagen dürfen:
+
+- **Sie überlebt den Kalender.** Die sechs ausgelieferten Arten halten
+  auch dann, wenn man die Jahreszeit vollständig herausrechnet (Design
+  B, 0,63 bis 0,70) — und liegen +0,054 bis +0,116 über einer Referenz
+  aus denselben Gegenden und Monaten. Vorher war das eine Hoffnung.
+- **Die drei Arten, die zusammenbrechen, waren nie ausgeliefert.**
+  Hallimasch, Austernseitling und Samtfußrübling fallen in Design B auf
+  0,49 bis 0,51. Hätte jemand sie zwischendurch freigegeben, wüsste man
+  es heute erst recht nicht.
+- **Jede Art trägt eine Evidenzstufe**, und seit 1.143.0 steht sie in
+  der App: fünf „gut belegt", eine „unsichere Datenlage". Keine Art
+  verliert ihre Ampel — die Stufe begrenzt die Behauptung.
+- **Drei Konstanten sind als „gesetzt" kenntlich**, zwei weitere als
+  „in einem Design gemessen, das die Jahreszeit mitmisst". Vorher stand
+  alles gleichrangig da.
+- **Die Prüfachsen sind gezählt** (`pilzampel-pruefachsen.md`), und
+  seit dem 2026-09-19 geht keine Frage mehr an eine Achse, ohne vorher
+  auf den Anpassjahren geprüft zu haben, ob sie dort überhaupt
+  beantwortbar ist. Diese Regel hat auf ihrem ersten Lauf eine Achse
+  gespart.
+
+**Ein erfolgloser Angriff ist keine Bestätigung.** σ = 5 K hat H1
+überstanden; das heißt, dass 3,25 K bei festgehaltenem Optimum nicht
+besser trennt — nicht, dass 5 K richtig ist. Dasselbe gilt für alles
+andere in der Tabelle oben. Die Ampel ruht weiterhin auf mehr Gesetztem
+als auf Gemessenem, und genau deshalb steht sie hinter einem Schalter
+und heißt „experimentell".
+
+### Was die nächste Verbesserung bräuchte
+
+Nicht noch eine Konstante, sondern **andere Daten**. Die Achsen sind
+knapp (AT+CH fünfmal benutzt, einmal bestanden), und die offenen Fragen
+hängen an Material, das heute nicht da ist:
+
+- **Mehr Winter.** Beim Samtfußrübling ist der Standardfehler über
+  Fundjahre fast doppelt so groß wie bei unabhängigen Paaren. Mehr
+  Meldungen aus denselben zwanzig Wintern helfen kaum; mehr Winter
+  schon.
+- **Begehungen mit „nichts gefunden"** aus der App selbst (#199). In
+  einer solchen Stichprobe heißt Abwesenheit wirklich Abwesenheit und
+  nicht „niemand war da" — das ist die Grenze, an der jede Zahl dieser
+  Arbeit endet.

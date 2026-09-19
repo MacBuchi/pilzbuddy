@@ -1077,6 +1077,28 @@ def self_test():
     text = render_zerlegung(roh)
     assert "H5 wird registriert" in text and "Die Zerlegung je Art" in text
 
+    # --- Der Riegel vor der Jahresscheibe -----------------------------
+    #
+    # **Eine verrutschte Ziffer darf keine Pruefachse kosten.** `--jahre`
+    # ist eine Zeile im Aufruf; ohne Riegel machte `2006-2020` aus einer
+    # kostenlosen Diagnose einen Lauf auf DE ab 2019, und nichts waere
+    # rot geworden.
+    class _Args:
+        def __init__(self, jahre=None):
+            self.jahre = jahre
+    assert zerlegung_scheibe(_Args()) == (None, av.FIT_UNTIL_YEAR)
+    assert zerlegung_scheibe(_Args("2006-2012")) == (2006, 2012)
+    assert zerlegung_scheibe(_Args(f"2013-{av.FIT_UNTIL_YEAR}")) \
+        == (2013, av.FIT_UNTIL_YEAR)
+    for schlecht in (f"2006-{av.FIT_UNTIL_YEAR + 1}", "2006-2025",
+                     "2012-2006", "2006", "zwanzig-zwölf", "2006-2012-2018"):
+        try:
+            zerlegung_scheibe(_Args(schlecht))
+        except SystemExit:
+            pass
+        else:
+            raise AssertionError(f"--jahre {schlecht} muss abbrechen")
+
     # Die Registrierung in Codeform — wer eine dieser Zahlen nach dem
     # Lauf anfasst, hebt sie auf.
     assert (H1_SIGMA_ALT, H1_SIGMA_NEU, H1_SIGMA_GEGEN) == (5.0, 3.25, 8.0)
@@ -2917,13 +2939,42 @@ def zerlegung_urteil(zeilen):
     }
 
 
+def zerlegung_scheibe(args):
+    """Die Jahresscheibe des Laufs — und der Riegel davor.
+
+    Ohne `--jahre` sind es die Anpassjahre als Ganzes. Mit `--jahre
+    2006-2012` eine Teilscheibe davon.
+
+    **Der Riegel ist der Zweck dieser Funktion.** Eine Jahresangabe ist
+    eine Zeile im Aufruf, und eine verrutschte Ziffer machte aus einer
+    kostenlosen Diagnose einen Lauf auf einer Pruefachse — ohne dass
+    irgendwo etwas rot wuerde. Deshalb bricht der Lauf ab, statt zu
+    rechnen: `--zerlegung` kommt nie ueber `FIT_UNTIL_YEAR` hinaus.
+    """
+    if not getattr(args, "jahre", None):
+        return None, av.FIT_UNTIL_YEAR
+    teile = args.jahre.split("-")
+    if len(teile) != 2 or not all(t.strip().isdigit() for t in teile):
+        raise SystemExit("--jahre erwartet die Form 2006-2012")
+    von, bis = int(teile[0]), int(teile[1])
+    if von > bis:
+        raise SystemExit(f"--jahre {args.jahre}: von liegt hinter bis")
+    if bis > av.FIT_UNTIL_YEAR:
+        raise SystemExit(
+            f"--jahre {args.jahre} reicht über die Anpassjahre hinaus "
+            f"(bis {av.FIT_UNTIL_YEAR}). `--zerlegung` ist eine Diagnose "
+            "und darf keine Prüfachse anfassen.")
+    return von, bis
+
+
 def run_zerlegung(args):
     """Die Vorpruefung zu H5 — auf P3, ohne eine Achse zu verbrauchen."""
     if args.api:
         av.OPEN_METEO = args.api.rstrip("/")
     av.DEDUPE = args.dedupe
     av.use_dataset(args.dataset)
-    print(f"Zerlegung auf P3 (DE ≤ {av.FIT_UNTIL_YEAR}) — Anpassjahre, "
+    von, bis = zerlegung_scheibe(args)
+    print(f"Zerlegung auf DE {von or 2006}–{bis} — Anpassjahre, "
           "keine Prüfachse", file=sys.stderr)
     print("Registrierung: docs/pilzampel-h5-vorpruefung.md", file=sys.stderr)
 
@@ -2951,7 +3002,7 @@ def run_zerlegung(args):
         # **Dieselbe Ziehung wie in Phase 1.5** — gleicher Seed, gleiche
         # Fundliste, gleiche Jahresscheibe. Sonst waere der Unterschied
         # zu jenen Zahlen teils die Stichprobe.
-        samples = fit_years_only(gezogen["samples"])
+        samples = h1_panel(fit_years_only(gezogen["samples"]), von, bis)
 
         if pool is None:
             print("    Referenzbestand wird geladen …", file=sys.stderr)
@@ -2964,7 +3015,7 @@ def run_zerlegung(args):
                                     cache_dir=args.cache, seed=args.seed,
                                     progress=False)
             if rb:
-                ref_s = fit_years_only(rb["samples"])
+                ref_s = h1_panel(fit_years_only(rb["samples"]), von, bis)
 
         b, ref_b, delta, band = {}, {}, {}, {}
         for variante in ZERLEGUNG_VARIANTEN:
@@ -2984,6 +3035,7 @@ def run_zerlegung(args):
             "n": len(samples), "ref_n": len(ref_s),
             "zellen": ref_info["zellen"],
             "b": b, "ref_b": ref_b, "delta": delta, "band": band,
+            "scheibe": f"{von or 2006}–{bis}",
         })
         print(f"    voll {_fmt(b['voll'])}  Regen {_fmt(b['nur Regen'])}  "
               f"Temp {_fmt(b['nur Temperatur'])}   "
@@ -3009,9 +3061,10 @@ def render_zerlegung(zeilen):
     w(f"Stand: {_t.strftime('%Y-%m-%d')} · Erzeugt von "
       "`tool/ampel_diagnose.py --zerlegung` · **Registrierung (vor dem "
       "Lauf geschrieben): `docs/pilzampel-h5-vorpruefung.md`**\n")
-    w(f"Gerechnet auf **P3, DE ≤ {av.FIT_UNTIL_YEAR}** — den "
-      "Anpassjahren. Das ist keine Prüfachse; dieser Lauf verbraucht "
-      "nichts (`docs/pilzampel-pruefachsen.md`).\n")
+    scheibe = zeilen[0].get("scheibe") if zeilen else None
+    w(f"Gerechnet auf **DE {scheibe or f'≤ {av.FIT_UNTIL_YEAR}'}** — "
+      "innerhalb der Anpassjahre. Das ist keine Prüfachse; dieser Lauf "
+      "verbraucht nichts (`docs/pilzampel-pruefachsen.md`).\n")
     w(f"Messbasis `{av.DATASET}`, Entdoppeln "
       f"{'an' if av.DEDUPE else 'aus'}, Design B, dieselbe Ziehung wie "
       "Phase 1.5.\n")
@@ -3115,6 +3168,9 @@ if __name__ == "__main__":
     parser.add_argument("--cache", default=None)
     parser.add_argument("--out", default=None)
     parser.add_argument("--only", default=None)
+    parser.add_argument("--jahre", default=None,
+                        help="Teilscheibe der Anpassjahre für "
+                             "--zerlegung, z. B. 2006-2012")
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
     if args.self_test:

@@ -927,6 +927,19 @@ class _AmpelSection extends StatelessWidget {
               ),
             ),
         ],
+        // **Hier steht bewusst KEINE Evidenzstufe** (N7, versucht und
+        // zurückgenommen am 2026-09-19). Zwei Gründe, und der zweite
+        // wiegt schwerer:
+        //
+        // Eine Klasse hat keine Stufe — ihre Mitglieder sind verschieden
+        // gut belegt, in der Herbstklasse steht die Herbsttrompete auf
+        // „vorläufig" und vier Arten auf „belegt". Und die Legende hat
+        // dafür kein Höhenbudget: Eine zusätzliche Zeile lief um 19 px
+        // über, was `ampel_flow_test.dart` sofort gemeldet hat.
+        //
+        // Die Zeile auf Feature-Ebene steht deshalb dort, wo eine Art
+        // genannt wird — unter den Ampel-Zeilen im Spot-Blatt und in
+        // „Was ist hier?" (`ampel_section.dart`).
       ],
     );
   }
