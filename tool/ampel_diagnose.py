@@ -1375,6 +1375,164 @@ def self_test():
         "der Bericht liest die Alt-Spalte wieder aus den Konstanten"
     assert "Im Oktober" in quelle_v, "die Oktober-Zeile fehlt"
 
+    # --- B aus Auftrag 3: die H6-Vorpruefung ---------------------------
+
+    # Das Gitter muss die ausgelieferte Zahl treffen — laege sie
+    # zwischen zwei Stuetzstellen, koennte der Vergleich „alt gegen neu"
+    # sie nie ergeben.
+    gitter = h6_gitterwerte()
+    assert H6_OPTIMUM_ALT in gitter, H6_OPTIMUM_ALT
+    assert gitter[0] == H6_GITTER_VON and gitter[-1] == H6_GITTER_BIS
+    assert abs((gitter[1] - gitter[0]) - H6_GITTER_SCHRITT) < 1e-12
+    # Und sie darf nicht am Rand liegen: ein Optimum am Gitterrand ist
+    # keine Schaetzung, sondern eine Schranke.
+    assert H6_GITTER_VON < H6_OPTIMUM_ALT < H6_GITTER_BIS
+
+    # **Die schnelle Tabelle muss dasselbe liefern wie der ehrliche
+    # Weg.** Sonst reden Schlagzeilenzahl und Bootstrap ueber
+    # verschiedene Groessen — dieselbe Falle wie bei den Schwellen.
+    h6_proben = []
+    for jahr in range(2006, 2019):
+        h6_proben += h1_probe(jahr, 2.0, 12.0 + (jahr % 3), 2.0, 17.0, 3)
+    h6_tab = h6_tabelle(h6_proben)
+    h6_jahre = sorted({s["year"] for s in h6_proben})
+    for optimum in (10.0, 13.0, 17.5):
+        assert abs(h6_b_aus_tabelle(h6_tab, optimum, h6_jahre)
+                   - h1_b(h6_proben, optimum, None)) < 1e-12, optimum
+
+    # Ein gepflanztes Optimum wird gefunden: Fundtage bei 12 Grad,
+    # Kontrolltage bei 20 — dazwischen trennt es am besten, und zwar auf
+    # der Fundseite.
+    scharf = [s for jahr in range(2006, 2019)
+              for s in h1_probe(jahr, 2.0, 12.0, 2.0, 20.0, 5)]
+    got = h6_gitter_optimum(h6_tabelle(scharf),
+                            sorted({s["year"] for s in scharf}))
+    assert got["b"] == 1.0, got
+    # **Bei Gleichstand die MITTE des Blocks, nicht sein linker Rand.**
+    # Nachgerechnet: Ein Optimum o bewertet den Fund (12 Grad) hoeher
+    # als die Kontrolle (20 Grad), solange |12 − o| < |20 − o|, also
+    # o < 16. Gleich gut sind damit alle Stuetzstellen von 5,00 bis
+    # 15,75; ihre Mitte ist 10,375. Der linke Rand waere 5,00 — eine
+    # Eigenschaft des Gitterrands und keine Schaetzung. Genau diese
+    # Verwechslung ist in der Gegenprobe gruen geblieben, bis die Zahl
+    # hier stand.
+    assert abs(got["optimum"] - 10.375) < 1e-9, got
+    assert got["plateau"] == (5.0, 15.75), got
+
+    # **Plateau und Gleichstand sind zwei verschiedene Dinge**, und aus
+    # gefaltetem Wetter lassen sie sich schlecht auseinanderhalten.
+    # Deshalb hier eine von Hand gesetzte B-Kurve: Gleichstand auf
+    # 12,00 bis 13,00 (Mitte 12,50), und knapp darunter — weniger als
+    # H6_PLATEAU — zwei Nachbarn bei 11,75 und 13,25.
+    def h6_kurve(werte):
+        return {o: {2010: (werte(o), 1)} for o in h6_gitterwerte()}
+
+    gebaut = h6_kurve(lambda o: 1.0 if 12.0 <= o <= 13.0
+                      else (1.0 - H6_PLATEAU / 2
+                            if o in (11.75, 13.25) else 0.5))
+    fein = h6_gitter_optimum(gebaut, [2010])
+    assert abs(fein["optimum"] - 12.5) < 1e-9, fein
+    assert fein["plateau"] == (11.75, 13.25), fein
+    assert abs(fein["plateau_breite"] - 1.5) < 1e-9, fein
+    # Und ein einzelner Gipfel hat ein Plateau der Breite null.
+    spitz = h6_gitter_optimum(h6_kurve(lambda o: 1.0 if o == 14.0 else 0.0),
+                              [2010])
+    assert spitz["optimum"] == 14.0 and spitz["plateau_breite"] == 0.0
+
+    # Ohne Jahre gibt es kein Optimum und keinen Fehler.
+    assert h6_gitter_optimum(h6_tab, []) is None
+    assert h6_gitter_se(h6_tab, [2010], 10, 1) is None
+
+    # **Der Bootstrap muss wirklich ziehen.** In `h6_proben` hat jedes
+    # dritte Jahr eine andere Fundtemperatur (12, 13, 14 Grad), die
+    # Jahre tragen also verschiedene Optima — eine Ziehung mit
+    # Zuruecklegen MUSS dann streuen. Ohne diese Zahl bliebe eine
+    # Schleife, die jedes Jahr genau einmal nimmt, unbemerkt: Sie
+    # lieferte in jedem Zug dasselbe und damit einen Standardfehler von
+    # null, der wie Praezision aussieht.
+    se = h6_gitter_se(h6_tab, h6_jahre, 200, 1)
+    assert se is not None and se["n"] == 200, se
+    assert se["se"] > 0, se
+    assert se["band"][0] <= se["band"][1], se
+
+    # Diskordanz: dasselbe Optimum ordnet nichts um.
+    gleich = h6_diskordanz(h6_proben, 13.0, 13.0)
+    assert gleich["anteil"] == 0.0 and gleich["mittlere_aenderung"] == 0.0
+    # Und ein Optimum auf der Kontrollseite dreht jedes Paar um.
+    dreht = h6_diskordanz(scharf, 12.0, 20.0)
+    assert dreht["anteil"] == 1.0, dreht
+    assert dreht["paare"] == 2 * len(scharf), dreht
+
+    # Die Differenz aus dem Bootstrap ist die Differenz der beiden
+    # B-Masse — nicht der Unterschied zweier getrennter Ziehungen.
+    dd = h6_delta_bootstrap(scharf, 20.0, 12.0, 200, 1)
+    assert abs(dd["delta"] - (h1_b(scharf, 12.0, None)
+                              - h1_b(scharf, 20.0, None))) < 1e-12, dd
+    assert abs(dd["mde"] - MDE_FAKTOR * dd["se"]) < 1e-12
+    assert h6_delta_bootstrap(h1_probe(2010, 2.0, 12.0, 2.0, 20.0, 5),
+                              20.0, 12.0, 10, 1) is None, "ein Jahr"
+    # Und auch hier: Bei Jahren mit verschiedenen Differenzen muss das
+    # Band Breite haben. `scharf` allein streut nicht (alle Jahre
+    # gleich) und taugt dafuer nicht.
+    # Ungerade Jahre: Fund 12, Kontrolle 20 — das neue Optimum (12)
+    # dreht das Paar zu seinen Gunsten, Delta +1. Gerade Jahre genau
+    # andersherum, Delta −1. Nur so tragen die Jahre verschiedene
+    # Differenzen, und nur dann kann eine Ziehung ueberhaupt streuen.
+    gemischt_j = []
+    for jahr in range(2006, 2019):
+        if jahr % 2:
+            gemischt_j += h1_probe(jahr, 2.0, 12.0, 2.0, 20.0, 4)
+        else:
+            gemischt_j += h1_probe(jahr, 2.0, 20.0, 2.0, 12.0, 4)
+    dd2 = h6_delta_bootstrap(gemischt_j, 20.0, 12.0, 400, 1)
+    assert dd2["se"] > 0, dd2
+    assert dd2["band"][0] < dd2["band"][1], dd2
+
+    # --- Das Urteil, Bedingung fuer Bedingung --------------------------
+    def h6_lage(**anders):
+        lage = {
+            "v1": {"abstand": 0.5},
+            "v2": {"drift": 0.2, "se_ganz": 0.5},
+            "v3": {"anteil": 0.20},
+            "v4": {"mde": 0.05},
+        }
+        for schluessel, wert in anders.items():
+            if wert is None:
+                lage[schluessel] = None
+            else:
+                lage[schluessel] = {**lage[schluessel], **wert}
+        return h6_urteil(lage["v1"], lage["v2"], lage["v3"], lage["v4"])
+
+    assert h6_lage()["urteil"] == "H6 wird registriert"
+    # V1: zwei Wege, die ueber mehr als die Latte streiten.
+    assert h6_lage(v1={"abstand": H6_V1_MAX_ABWEICHUNG + 0.01})[
+        "bedingungen"]["wege_einig"] is False
+    # Genau auf der Latte gilt als erfuellt.
+    assert h6_lage(v1={"abstand": H6_V1_MAX_ABWEICHUNG})[
+        "bedingungen"]["wege_einig"] is True
+    # V2: die Drift uebersteigt den Standardfehler.
+    assert h6_lage(v2={"drift": 0.51})["bedingungen"]["stabil"] is False
+    assert h6_lage(v2={"drift": 0.5})["bedingungen"]["stabil"] is True
+    # **Nicht auswertbar faellt wie ein Nein aus.**
+    assert h6_lage(v2={"drift": None})["bedingungen"]["stabil"] is False
+    assert h6_lage(v2=None)["bedingungen"]["stabil"] is False
+    assert h6_lage(v1=None)["bedingungen"]["wege_einig"] is False
+    assert h6_lage(v4=None)["bedingungen"]["aufloesung"] is False
+    assert h6_lage(v3=None)["bedingungen"]["aufloesung"] is False
+    # V4: die Aufloesung reicht nicht an die Obergrenze heran.
+    assert h6_lage(v4={"mde": 0.20})["bedingungen"]["aufloesung"] is False
+    assert h6_lage(v4={"mde": 0.199})["bedingungen"]["aufloesung"] is True
+    # Eine einzige gefallene Bedingung kippt das Urteil.
+    for anders in ({"v1": {"abstand": 9.0}}, {"v2": {"drift": 9.0}},
+                   {"v4": {"mde": 9.0}}):
+        assert h6_lage(**anders)["urteil"] == "H6 wird NICHT registriert", \
+            anders
+
+    # Der Bericht nennt das Urteil und die Scheibe.
+    quelle_h6 = inspect.getsource(render_h6)
+    assert "P3 sind die Anpassjahre" in quelle_h6
+    assert "eingefroren" in quelle_h6
+
     print("Selbsttest ok")
 
 
@@ -3710,6 +3868,220 @@ def schwellen_anteil(eintraege, grenze, monat=None):
     return None if unten <= 0 else oben / unten
 
 
+# --- B aus Auftrag 3: H6, das Sommer-Optimum ------------------------------
+#
+# Registrierung: `docs/pilzampel-h6-vorpruefung.md`, vor diesem Code
+# geschrieben. Was danach anders gemacht wurde, steht im Korrekturkasten
+# des Berichts.
+
+H6_ART = "Pfifferling"
+H6_KLASSE = "sommer"
+H6_OPTIMUM_ALT = 17.5
+
+# Das Gitter der Vorpruefung — feiner und weiter als `FIT_GRID_*` in
+# `ampel_validate.py` (dort −5 bis 20 in 0,5-K-Schritten). Weiter, weil
+# die ausgelieferten 17,5 nicht am Rand liegen duerfen; feiner, weil die
+# Streitfrage gut 4 K gross ist und eine halbe Stufe davon ein Achtel
+# waere.
+H6_GITTER_VON, H6_GITTER_BIS, H6_GITTER_SCHRITT = 5.0, 25.0, 0.25
+
+# Ein Plateau: alle Optima, die weniger als so viel unter dem besten
+# liegen. Dieselbe Zahl wie `grid_optimum` in `ampel_validate.py`.
+H6_PLATEAU = 0.005
+
+H6_V1_MAX_ABWEICHUNG = 1.0
+H6_HAELFTEN = ((2006, 2012), (2013, 2018))
+
+
+def h6_gitterwerte():
+    """Die Stuetzstellen des Optimum-Gitters."""
+    n = int(round((H6_GITTER_BIS - H6_GITTER_VON) / H6_GITTER_SCHRITT))
+    return [round(H6_GITTER_VON + i * H6_GITTER_SCHRITT, 4)
+            for i in range(n + 1)]
+
+
+def h6_tabelle(samples):
+    """Je Optimum und Fundjahr die Summe der Anteile und ihre Zahl.
+
+    **Das ist der ganze Grund, warum der Bootstrap in Sekunden laeuft.**
+    Der Anteil geschlagener Kontrolljahre haengt ausschliesslich an
+    EINEM Fund; ein Zug, der Fundjahre zieht, mittelt also ueber eine
+    feste Zahlenliste. Einmal 81 Optima x 716 Funde vorrechnen kostet
+    so viel wie ein einziger naiver Zug — und danach ist jeder weitere
+    Zug eine Addition ueber 13 Jahre.
+    """
+    tabelle = {}
+    for optimum in h6_gitterwerte():
+        gruppen = _fractions(samples, optimum, lambda s: s["year"])
+        tabelle[optimum] = {jahr: (sum(werte), len(werte))
+                            for jahr, werte in gruppen.items()}
+    return tabelle
+
+
+def h6_b_aus_tabelle(tabelle, optimum, jahre):
+    """Das B-Mass eines Optimums ueber eine Jahresliste (mit Wiederholung)."""
+    summe = anzahl = 0.0
+    je_jahr = tabelle[optimum]
+    for jahr in jahre:
+        if jahr in je_jahr:
+            s, n = je_jahr[jahr]
+            summe += s
+            anzahl += n
+    return summe / anzahl if anzahl else None
+
+
+def h6_gitter_optimum(tabelle, jahre):
+    """Das Optimum, das das B-Mass maximiert — samt Plateau.
+
+    **Bei Gleichstand die Mitte, nicht das erste.** Zwei Optima ordnen
+    ein Paar nur dann verschieden, wenn sie auf verschiedenen Seiten
+    seines Mittelpunkts liegen; gleich gute Optima kommen deshalb in
+    Bloecken, und der linke Rand eines Blocks ist keine Schaetzung,
+    sondern eine Eigenschaft der Gitterweite. Dieselbe Regel wie in
+    `av.grid_optimum`.
+    """
+    werte = [(o, h6_b_aus_tabelle(tabelle, o, jahre))
+             for o in h6_gitterwerte()]
+    werte = [(o, b) for o, b in werte if b is not None]
+    if not werte:
+        return None
+    best = max(b for _, b in werte)
+    gleich = [o for o, b in werte if b >= best - 1e-12]
+    plateau = [o for o, b in werte if b >= best - H6_PLATEAU]
+    return {"optimum": (gleich[0] + gleich[-1]) / 2, "b": best,
+            "plateau": (min(plateau), max(plateau)),
+            "plateau_breite": max(plateau) - min(plateau)}
+
+
+def h6_gitter_se(tabelle, jahre, rounds, seed):
+    """Der Standardfehler des Gitter-Optimums aus dem Jahres-Bootstrap.
+
+    Gezogen werden Fundjahre mit Zuruecklegen — dieselbe Gruppe wie bei
+    jedem Bootstrap dieser Arbeit. Zurueck kommen Standardabweichung und
+    95-%-Band; das Band steht daneben, weil eine Verteilung ueber einem
+    Gitter schief sein kann und die Standardabweichung das dann
+    verschweigt.
+    """
+    present = sorted(jahre)
+    if len(present) < 2:
+        return None
+    rng = random.Random(seed)
+    zuege = []
+    for _ in range(rounds):
+        gezogen = [rng.choice(present) for _ in present]
+        got = h6_gitter_optimum(tabelle, gezogen)
+        if got:
+            zuege.append(got["optimum"])
+    if len(zuege) < 2:
+        return None
+    zuege.sort()
+    return {"se": statistics.stdev(zuege),
+            "band": (zuege[int(0.025 * len(zuege))],
+                     zuege[min(len(zuege) - 1, int(0.975 * len(zuege)))]),
+            "n": len(zuege)}
+
+
+def h6_logit(samples):
+    """Das Optimum per bedingtem Logit, cluster-robust ueber Fundjahre."""
+    strata, jahre, abgeschnitten, gesamt = logit_strata(samples)
+    if len(strata) < 30:
+        return {"optimum": None, "grund": f"nur {len(strata)} Strata"}
+    fit = ampel_logit.fit_conditional_logit(strata, cluster=jahre)
+    got = ampel_logit.bell_from_beta(fit["beta"], fit["kovarianz"])
+    got.update({"strata": len(strata), "konvergiert": fit["konvergiert"],
+                "abgeschnitten": abgeschnitten, "gesamt": gesamt,
+                "gruppen": len(set(jahre))})
+    return got
+
+
+def h6_diskordanz(samples, alt, neu):
+    """Wie oft ordnen altes und neues Optimum ein B-Paar verschieden?
+
+    Zurueck kommen zwei Zahlen. Der **Diskordanzanteil** ist der Anteil
+    der Vergleiche, bei denen sich der Beitrag ueberhaupt aendert — das
+    ist die Obergrenze aus der Registrierung. Die **mittlere Aenderung**
+    ist die schaerfere Schranke: Ein Vergleich, der von „geschlagen" auf
+    „gleich" kippt, verschiebt nur um einen halben Punkt, nicht um einen
+    ganzen.
+    """
+    s_alt = lambda regen, temp: av.ampel_score(regen, temp, alt)
+    s_neu = lambda regen, temp: av.ampel_score(regen, temp, neu)
+    anders = aenderung = paare = 0
+    for s in samples:
+        fa, fn = s_alt(*s["found"]), s_neu(*s["found"])
+        for c in s["controls"]:
+            ba = 1.0 if fa > s_alt(*c) else (0.5 if fa == s_alt(*c) else 0.0)
+            bn = 1.0 if fn > s_neu(*c) else (0.5 if fn == s_neu(*c) else 0.0)
+            paare += 1
+            if ba != bn:
+                anders += 1
+                aenderung += abs(bn - ba)
+    if not paare:
+        return None
+    return {"anteil": anders / paare, "mittlere_aenderung": aenderung / paare,
+            "paare": paare}
+
+
+def h6_delta_bootstrap(samples, alt, neu, rounds, seed):
+    """Jahres-Bootstrap der DIFFERENZ je Zug — nicht zweier Baender.
+
+    Bewertet werden in jedem Zug **dieselben** Funde zweimal. Zwei
+    getrennte Baender wuerfen die Paarung weg und ueberschaetzen die
+    Streuung; der Unterschied ist genau das, was der Test sehen soll.
+    """
+    a = _fractions(samples, alt, lambda s: s["year"])
+    n = _fractions(samples, neu, lambda s: s["year"])
+    jahre = sorted(set(a) & set(n))
+    if len(jahre) < 2:
+        return None
+    # Je Jahr die Summe der DIFFERENZEN und die Zahl der Funde.
+    je_jahr = {}
+    for jahr in jahre:
+        paare = list(zip(a[jahr], n[jahr]))
+        je_jahr[jahr] = (sum(y - x for x, y in paare), len(paare))
+    rng = random.Random(seed)
+    zuege = []
+    for _ in range(rounds):
+        summe = anzahl = 0.0
+        for _ in jahre:
+            s, k = je_jahr[rng.choice(jahre)]
+            summe += s
+            anzahl += k
+        if anzahl:
+            zuege.append(summe / anzahl)
+    if len(zuege) < 2:
+        return None
+    punkt = sum(je_jahr[j][0] for j in jahre) / sum(
+        je_jahr[j][1] for j in jahre)
+    zuege.sort()
+    se = statistics.stdev(zuege)
+    return {"delta": punkt, "se": se, "mde": MDE_FAKTOR * se,
+            "band": (zuege[int(0.025 * len(zuege))],
+                     zuege[min(len(zuege) - 1, int(0.975 * len(zuege)))]),
+            "n": len(zuege)}
+
+
+def h6_urteil(v1, v2, v3, v4):
+    """Die vier Bedingungen aus der Registrierung.
+
+    `None` heisst **nicht auswertbar** und faellt wie ein Nein aus: Ein
+    Kriterium, das man nicht pruefen kann, ist keines, das man bestanden
+    hat (Registrierung, Abschnitt V2).
+    """
+    bed = {
+        "wege_einig": (v1 is not None
+                       and v1["abstand"] <= H6_V1_MAX_ABWEICHUNG),
+        "stabil": v2 is not None and v2.get("drift") is not None
+        and v2.get("se_ganz") is not None
+        and v2["drift"] <= v2["se_ganz"],
+        "aufloesung": (v4 is not None and v3 is not None
+                       and v4["mde"] < v3["anteil"]),
+    }
+    urteil = ("H6 wird registriert" if all(bed.values())
+              else "H6 wird NICHT registriert")
+    return {"urteil": urteil, "bedingungen": bed}
+
+
 # Die Bedingungen, unter denen die ausgelieferten Schwellen gemessen
 # wurden. Nur unter genau diesen darf der Waechter abbrechen — auf einer
 # anderen Messbasis oder ohne Entdoppeln MUESSEN die Zahlen abweichen,
@@ -4344,6 +4716,291 @@ def render_schwellen(zeilen, ergebnis, auf_p1=False, scheibe=None):
       "sobald eine allein wandert.")
     return "\n".join(aus) + "\n"
 
+
+def run_h6(args):
+    """Die Vorpruefung zu H6 — auf P3, ohne eine Achse zu verbrauchen."""
+    if args.api:
+        av.OPEN_METEO = args.api.rstrip("/")
+    av.DEDUPE = args.dedupe
+    av.use_dataset(args.dataset)
+    print(f"H6-Vorpruefung auf DE bis {av.FIT_UNTIL_YEAR} — Anpassjahre, "
+          "keine Pruefachse", file=sys.stderr)
+    print("Registrierung: docs/pilzampel-h6-vorpruefung.md",
+          file=sys.stderr)
+
+    mapping = av.read_species()
+    if H6_ART not in mapping:
+        raise SystemExit(f"{H6_ART} hat kein `sci`")
+    finds, _ = av.select_finds(mapping[H6_ART], args.cache, args.seed, True,
+                               ("DE",))
+    gezogen = av.collect_pairs_b(H6_ART, mapping[H6_ART], finds=finds,
+                                 cache_dir=args.cache, seed=args.seed,
+                                 progress=False)
+    if not gezogen:
+        raise SystemExit("keine Paare")
+    samples = fit_years_only(gezogen["samples"])
+    print(f"  {len(samples)} Funde auf P3", file=sys.stderr)
+
+    print("  Gittertabelle …", file=sys.stderr)
+    tabelle = h6_tabelle(samples)
+    jahre = sorted({s["year"] for s in samples})
+
+    ganz = h6_gitter_optimum(tabelle, jahre)
+    ganz_se = h6_gitter_se(tabelle, jahre, BOOTSTRAP_ROUNDS_B, args.seed)
+    logit_ganz = h6_logit(samples)
+    print(f"  Gitter {_fmt(ganz['optimum'], 2)} °C, "
+          f"Logit {_fmt(logit_ganz.get('optimum'), 2)} °C",
+          file=sys.stderr)
+
+    # --- V1 ------------------------------------------------------------
+    v1 = None
+    if ganz and logit_ganz.get("optimum") is not None:
+        se_l = logit_ganz.get("se_optimum")
+        se_g = ganz_se["se"] if ganz_se else None
+        v1 = {"gitter": ganz["optimum"], "logit": logit_ganz["optimum"],
+              "abstand": abs(ganz["optimum"] - logit_ganz["optimum"]),
+              "se_logit": se_l, "se_gitter": se_g,
+              "statistisch": (None if se_l is None or se_g is None
+                              else 1.959964 * math.sqrt(se_l ** 2
+                                                        + se_g ** 2))}
+
+    # --- V2: die geteilten Anpassjahre ---------------------------------
+    haelften = []
+    for von, bis in H6_HAELFTEN:
+        teil = [s for s in samples if von <= s["year"] <= bis]
+        teil_jahre = sorted({s["year"] for s in teil})
+        eintrag = {"von": von, "bis": bis, "n": len(teil),
+                   "duenn": len(teil) < MIN_FINDS_B,
+                   "gitter": None, "logit": None, "se": None}
+        if teil_jahre:
+            eintrag["gitter"] = h6_gitter_optimum(tabelle, teil_jahre)
+            eintrag["se"] = h6_gitter_se(tabelle, teil_jahre,
+                                         BOOTSTRAP_ROUNDS_B, args.seed)
+            eintrag["logit"] = h6_logit(teil)
+        haelften.append(eintrag)
+        print(f"  {von}–{bis}: {len(teil)} Funde, Gitter "
+              f"{_fmt((eintrag['gitter'] or {}).get('optimum'), 2)} °C",
+              file=sys.stderr)
+
+    v2 = {"haelften": haelften,
+          "se_ganz": ganz_se["se"] if ganz_se else None,
+          "drift": None, "drift_logit": None, "grossz": None}
+    a, b = haelften
+    if not a["duenn"] and not b["duenn"] and a["gitter"] and b["gitter"]:
+        v2["drift"] = abs(a["gitter"]["optimum"] - b["gitter"]["optimum"])
+        if a["se"] and b["se"]:
+            v2["grossz"] = math.sqrt(a["se"]["se"] ** 2 + b["se"]["se"] ** 2)
+    if (a["logit"] and b["logit"] and a["logit"].get("optimum") is not None
+            and b["logit"].get("optimum") is not None):
+        v2["drift_logit"] = abs(a["logit"]["optimum"]
+                                - b["logit"]["optimum"])
+
+    # --- V3 und V4 ------------------------------------------------------
+    neu = ganz["optimum"] if ganz else None
+    v3 = h6_diskordanz(samples, H6_OPTIMUM_ALT, neu) if neu else None
+    v4 = (h6_delta_bootstrap(samples, H6_OPTIMUM_ALT, neu,
+                             BOOTSTRAP_ROUNDS_B, args.seed) if neu else None)
+
+    urteil = h6_urteil(v1, v2, v3, v4)
+    print(f"  {urteil['urteil']}", file=sys.stderr)
+
+    bericht = render_h6({
+        "n": len(samples), "jahre": jahre, "ganz": ganz,
+        "ganz_se": ganz_se, "logit": logit_ganz,
+        "v1": v1, "v2": v2, "v3": v3, "v4": v4, "urteil": urteil,
+        "alt": H6_OPTIMUM_ALT, "neu": neu,
+    })
+    if args.out:
+        open(args.out, "w", encoding="utf-8").write(bericht)
+        print(f"\n{args.out} geschrieben", file=sys.stderr)
+    else:
+        print(bericht)
+
+
+def _grad(wert, stellen=2):
+    return "—" if wert is None else f"{wert:.{stellen}f} °C".replace(".", ",")
+
+
+def _k(wert, stellen=2):
+    return "—" if wert is None else f"{wert:.{stellen}f} K".replace(".", ",")
+
+
+def render_h6(d):
+    """Der Bericht zur H6-Vorpruefung."""
+    import time as _t
+    AUF, ZU = "„", "“"
+
+    def z(text):
+        return AUF + text + ZU
+
+    aus = []
+    w = aus.append
+    ok = lambda b: "**ja**" if b else "**nein**"
+
+    w("# H6-Vorprüfung: hält das Sommer-Optimum still?\n")
+    w(f"Stand: {_t.strftime('%Y-%m-%d')} · Erzeugt von "
+      "`tool/ampel_diagnose.py --h6` · Registrierung: "
+      "`docs/pilzampel-h6-vorpruefung.md`\n")
+    w("> **Diese Datei wird erzeugt.** Wer sie von Hand ändert, verliert "
+      "die Änderung beim nächsten Lauf.\n")
+    w(f"> **P3 sind die Anpassjahre.** Jede Zahl hier ist eine Diagnose "
+      "und kein Beleg. Sie entscheidet nur, ob H6 auf AT+CH geprüft "
+      "wird.\n")
+
+    w("## Das Urteil\n")
+    w(f"# {d['urteil']['urteil']}\n")
+    w("| Bedingung | erfüllt |")
+    w("|---|---|")
+    bed = d["urteil"]["bedingungen"]
+    w(f"| **V1** — Gitter und Logit einig (≤ "
+      f"{_k(H6_V1_MAX_ABWEICHUNG, 1)}) | {ok(bed['wege_einig'])} |")
+    w(f"| **V2** — Optimum stabil über die geteilten Anpassjahre "
+      f"(Drift ≤ SE) | {ok(bed['stabil'])} |")
+    w(f"| **V4** — Auflösung reicht (MDE < Diskordanzanteil) | "
+      f"{ok(bed['aufloesung'])} |")
+    w("")
+    w(f"Material: **{d['n']} Funde** des {H6_ART}s auf P3, "
+      f"{len(d['jahre'])} Fundjahre.\n")
+
+    w("## V1 — zwei Wege, ein Optimum?\n")
+    v1 = d["v1"]
+    w("| Weg | Optimum | Standardfehler |")
+    w("|---|--:|--:|")
+    w(f"| **Gitter** (maximiert B) | {_grad(d['ganz']['optimum'] if d['ganz'] else None)} | "
+      f"{_k(d['ganz_se']['se'] if d['ganz_se'] else None)} |")
+    w(f"| **Logit** (cluster-robust) | {_grad(d['logit'].get('optimum'))} | "
+      f"{_k(d['logit'].get('se_optimum'))} |")
+    w(f"| ausgeliefert | {_grad(d['alt'], 1)} | — |")
+    w("")
+    if v1:
+        w(f"**Abstand der beiden Wege: {_k(v1['abstand'])}** gegen die "
+          f"Latte von {_k(H6_V1_MAX_ABWEICHUNG, 1)}.")
+        if v1["statistisch"] is not None:
+            w(f"Die statistische Fassung, nur zur Einordnung: "
+              f"1,96·√(SE²+SE²) = {_k(v1['statistisch'])}. Sie ist hier "
+              "zu großzügig, weil beide Schätzer auf denselben Daten "
+              "laufen — deshalb steht sie nicht in der Bedingung.")
+    if d["ganz"]:
+        w(f"\nDas Plateau des Gitters reicht von "
+          f"{_grad(d['ganz']['plateau'][0])} bis "
+          f"{_grad(d['ganz']['plateau'][1])} "
+          f"({_k(d['ganz']['plateau_breite'])} breit) — alle Optima, die "
+          f"weniger als {H6_PLATEAU} B darunter liegen. Ein breites "
+          "Plateau heißt: Der Gipfel ist eine Nachkommastelle ohne "
+          "Deckung.")
+    if d["logit"].get("grund"):
+        w(f"\n⚠ Logit: {d['logit']['grund']}")
+    if d["logit"].get("konvergiert") is False:
+        w("\n⚠ **Das Logit ist nicht konvergiert.** Die Zahl daneben ist "
+          "keine Schätzung.")
+
+    w("\n## V2 — das harte Abbruchkriterium\n")
+    v2 = d["v2"]
+    w("| Scheibe | Funde | Gitter | 95 % | Logit |")
+    w("|---|--:|--:|---|--:|")
+    for h in v2["haelften"]:
+        g = h["gitter"]
+        band = h["se"]["band"] if h["se"] else None
+        w(f"| {h['von']}–{h['bis']}{' ⚠ zu dünn' if h['duenn'] else ''} | "
+          f"{h['n']} | {_grad(g['optimum'] if g else None)} | "
+          + ("—" if not band else
+             f"[{_grad(band[0])}, {_grad(band[1])}]") + " | "
+          f"{_grad((h['logit'] or {}).get('optimum'))} |")
+    w(f"| **ganz P3** | {d['n']} | "
+      f"{_grad(d['ganz']['optimum'] if d['ganz'] else None)} | "
+      + ("—" if not d["ganz_se"] else
+         f"[{_grad(d['ganz_se']['band'][0])}, "
+         f"{_grad(d['ganz_se']['band'][1])}]") + " | "
+      f"{_grad(d['logit'].get('optimum'))} |")
+    w("")
+    if v2["drift"] is None:
+        w("**Nicht auswertbar** — eine Hälfte ist zu dünn. Ein "
+          "Kriterium, das man nicht prüfen kann, ist keines, das man "
+          "bestanden hat: H6 wird nicht registriert.")
+    else:
+        w(f"**Drift des Gitter-Optimums: {_k(v2['drift'])}** gegen den "
+          f"Standardfehler auf ganz P3 von {_k(v2['se_ganz'])}.")
+        if v2["grossz"] is not None:
+            w(f"\nDie großzügige Fassung, zur Einordnung: Die Differenz "
+              f"zweier Halbschätzer trägt selbst rund "
+              f"{_k(v2['grossz'])} Fehler. Gegen die gemessen wäre die "
+              "Drift "
+              + ("auffällig" if v2["drift"] > 1.96 * v2["grossz"]
+                 else "unauffällig")
+              + ". Bindend ist die strenge Fassung aus der "
+                "Registrierung — gefragt ist nicht, ob die Drift "
+                "signifikant ist, sondern ob die Genauigkeit haltbar "
+                "wäre, die wir für die ausgelieferte Zahl behaupten "
+                "würden.")
+        if v2["drift_logit"] is not None:
+            w(f"\nDas Logit driftet um {_k(v2['drift_logit'])} — es "
+              "läuft daneben und entscheidet nicht, aber wenn beide "
+              "Wege verschieden urteilten, stünde V1 in Frage.")
+
+    w("\n## V3 — wieviel kann überhaupt herauskommen?\n")
+    v3 = d["v3"]
+    if not v3:
+        w("Nicht gerechnet.")
+    else:
+        w(f"Zwischen {_grad(d['alt'], 1)} und {_grad(d['neu'])} ordnen "
+          f"**{_sp(v3['anteil'])}** der {v3['paare']} B-Vergleiche das "
+          "Paar verschieden.\n")
+        w(f"> **Obergrenze der Effektgröße: |ΔB| ≤ "
+          f"{v3['anteil']:.3f}**".replace(".", ",") + "\n")
+        w(f"Die schärfere Schranke liegt darunter: Im Mittel ändert "
+          f"sich der Beitrag je Vergleich um "
+          + f"{v3['mittlere_aenderung']:.3f}".replace(".", ",")
+          + " — ein Vergleich, der von " + z("geschlagen") + " auf "
+          + z("gleich") + " kippt, verschiebt nur einen halben Punkt.")
+
+    w("\n## V4 — kann der Aufbau das sehen?\n")
+    v4 = d["v4"]
+    if not v4:
+        w("Nicht gerechnet.")
+    else:
+        w(f"Jahres-Bootstrap der **Differenz je Zug**, {v4['n']} Züge "
+          "über die Fundjahre. Bewertet werden in jedem Zug dieselben "
+          "Funde zweimal.\n")
+        w("| Größe | Wert |")
+        w("|---|--:|")
+        w(f"| ΔB auf P3 ({_grad(d['neu'])} gegen {_grad(d['alt'], 1)}) | "
+          + f"{v4['delta']:+.3f}".replace(".", ",") + " |")
+        w(f"| 95 %-Band | ["
+          + f"{v4['band'][0]:+.3f}".replace(".", ",") + ", "
+          + f"{v4['band'][1]:+.3f}".replace(".", ",") + "] |")
+        w(f"| Standardfehler | " + f"{v4['se']:.4f}".replace(".", ",")
+          + " |")
+        w(f"| **nachweisbare Effektgröße (MDE)** | "
+          + f"{v4['mde']:.3f}".replace(".", ",") + " |")
+        w("")
+        if v3:
+            w(f"**MDE {v4['mde']:.3f} gegen Obergrenze "
+              f"{v3['anteil']:.3f}**".replace(".", ",") + " — "
+              + ("die Auflösung reicht." if v4["mde"] < v3["anteil"]
+                 else "**die Auflösung reicht nicht**: Der "
+                      "größtmögliche Effekt wäre von null nicht zu "
+                      "unterscheiden."))
+        w(f"\nDas ΔB oben ist **kein Beleg**: Das neue Optimum stammt "
+          "von denselben Anpassjahren, auf denen es hier bewertet wird. "
+          "Es steht da, damit die Größenordnung sichtbar ist.")
+
+    w("\n## Was daraus folgt\n")
+    if d["urteil"]["urteil"].startswith("H6 wird registriert"):
+        w("Alle Bedingungen sind erfüllt. **H6 wird registriert** — "
+          "geprüft wird auf **AT + CH**, mit einem auf P3 festgelegten "
+          "und danach eingefrorenen Wert. Die Registrierung ist ein "
+          "eigenes Dokument und kommt vor dem Achsenlauf.")
+    else:
+        gefallen = [name for name, wert in
+                    d["urteil"]["bedingungen"].items() if not wert]
+        w(f"Gefallen ist: **{', '.join(gefallen)}**. **H6 wird nicht "
+          "registriert**, und AT+CH bleibt unangetastet.\n")
+        w("Das ist ein Ergebnis und kein Anlass für einen zweiten "
+          "Anlauf mit verschobener Latte. Was hier gemessen wurde, "
+          "steht oben; ob es reicht, ist eine Betreiberentscheidung und "
+          "keine, die dieser Bericht still trifft.")
+    return "\n".join(aus) + "\n"
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--self-test", action="store_true")
@@ -4360,6 +5017,9 @@ if __name__ == "__main__":
     parser.add_argument("--h1", action="store_true",
                         help="der registrierte Prüflauf zu H1 "
                              "(docs/pilzampel-h1-registrierung.md)")
+    parser.add_argument("--h6", action="store_true",
+                        help="B aus Auftrag 3: die Vorprüfung zum "
+                             "Sommer-Optimum, auf P3")
     parser.add_argument("--schwellen", action="store_true",
                         help="A aus Auftrag 3: die Schwellen an "
                              "Design-B-Kontrolltagen")
@@ -4396,6 +5056,9 @@ if __name__ == "__main__":
         raise SystemExit(0)
     if args.schwellen:
         run_schwellen(args)
+        raise SystemExit(0)
+    if args.h6:
+        run_h6(args)
         raise SystemExit(0)
     if not args.all:
         parser.print_help()
