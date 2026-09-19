@@ -187,8 +187,13 @@ class AmpelSection extends ConsumerWidget {
             //
             // EINMAL unter allen Zeilen: Der Satz gilt dem Modell, nicht
             // der Art, und unter jeder Zeile wiederholt wäre er Lärm.
+            // Der zweite Satz ist die Zeile auf FEATURE-Ebene aus N7:
+            // Er sagt einmal, dass die Güte je Art verschieden ist, und
+            // verweist auf das Feld in der Zeile darüber. Fünf Hinweise
+            // auf sechs Arten läsen sich wie „kaputt".
             'Bewertet Bedingungen, nicht Vorkommen — Formel nach '
-            'einer 10-Jahres-Studie bei Bielefeld (Preprint 2025).',
+            'einer 10-Jahres-Studie bei Bielefeld (Preprint 2025). '
+            'Wie gut sie für eine Art belegt ist, steht je Zeile dabei.',
             style: theme.textTheme.bodySmall
                 ?.copyWith(color: theme.hintColor, fontSize: 11),
           ),
@@ -304,6 +309,15 @@ class AmpelSection extends ConsumerWidget {
                   ? 'Randzeit'
                   : 'kaum gemeldet';
       parts.add('Saison: $season');
+    }
+    // **Die Stufe steht dort, wo die Erklärung steht** (N7): in der
+    // Fakten-Zeile der Art, nicht als eigener Hinweis. Für eine KLASSE
+    // („Steinpilz & Co." in „Was ist hier?") gibt es keine — eine
+    // Klasse ist keine Art, und ihre Mitglieder sind verschieden gut
+    // belegt.
+    final evidence = ampelEvidenceFor(species);
+    if (evidence != null) {
+      parts.add('Belege: ${ampelEvidenceWord(evidence)}');
     }
     return parts.join(' · ');
   }

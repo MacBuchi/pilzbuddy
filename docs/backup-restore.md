@@ -5,6 +5,14 @@ automatischen Dumps. Eine fehlgeschlagene Migration oder ein versehentliches
 `delete` trifft die Nutzerdaten ohne Zwischenstufe. Diese Seite beschreibt,
 was dagegen läuft und wie man im Ernstfall zurückkommt.
 
+
+> **`$KEYS` in diesem Dokument** ist der Schlüsselordner des Betreibers.
+> Wo er liegt, steht in der internen Doku (DocuHub,
+> `guidelines/signing-und-secrets.md`) und bewusst nicht hier: Dieses
+> Repo ist öffentlich, und ein Pfad verrät den Aufbau einer fremden
+> Maschine, auch wenn er von außen nicht erreichbar ist. Vor den
+> Befehlen unten einmal `export KEYS=…` setzen.
+
 ## Was gesichert wird
 
 `.github/workflows/backup.yml` zieht montags 03:17 UTC (und auf Zuruf per
@@ -29,12 +37,12 @@ und `auth`, verschlüsselt ihn mit age und legt ihn als Release-Asset im
 
 Verschlüsselt wird **asymmetrisch**: der öffentliche age-Schlüssel steht im
 Klartext in `tool/db_backup.sh`, der private liegt ausschließlich in
-`~/pilzbuddy-keys/pilzbuddy-backup.agekey` — neben dem Keystore-Backup und
+`$KEYS/pilzbuddy-backup.agekey` — neben dem Keystore-Backup und
 **nie** in GitHub. Wer sich Zugang zu Repo oder Backup-Ablage verschafft,
 bekommt Chiffrat und sonst nichts.
 
 > ⚠️ Geht `pilzbuddy-backup.agekey` verloren, sind **alle** Backups wertlos.
-> Der Ordner `~/pilzbuddy-keys/` gehört auf dasselbe Sicherungsmedium wie der
+> Der Schlüsselordner gehört auf dasselbe Sicherungsmedium wie der
 > Keystore.
 
 ## Einmaliges Setup
@@ -51,7 +59,7 @@ bekommt Chiffrat und sonst nichts.
 
 ## Wiederherstellung
 
-Voraussetzung: `age` und `psql` lokal, `~/pilzbuddy-keys/pilzbuddy-backup.agekey`
+Voraussetzung: `age` und `psql` lokal, `$KEYS/pilzbuddy-backup.agekey`
 zur Hand.
 
 ```bash
@@ -60,7 +68,7 @@ gh release list --repo MacBuchi/pilzbuddy-backups
 gh release download backup-2026-07-27 --repo MacBuchi/pilzbuddy-backups
 
 # 2. Entschlüsseln
-age -d -i ~/pilzbuddy-keys/pilzbuddy-backup.agekey \
+age -d -i "$KEYS/pilzbuddy-backup.agekey" \
   -o pilzbuddy.sql pilzbuddy-2026-07-27.sql.age
 
 # 3. Plausibilität prüfen, BEVOR irgendwo eingespielt wird
@@ -115,7 +123,7 @@ unten bleibt der Weg für den Restore in ein echtes Supabase-Projekt.
 ### Stand 2026-07-25: Inhalt geprüft, Einspielen noch nicht
 
 Das erste Backup (`backup-2026-07-25`) wurde heruntergeladen und mit
-`~/pilzbuddy-keys/pilzbuddy-backup.agekey` entschlüsselt. Der Klartext enthielt:
+`$KEYS/pilzbuddy-backup.agekey` entschlüsselt. Der Klartext enthielt:
 
 | Prüfung | Ergebnis |
 |---|---|

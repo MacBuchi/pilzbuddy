@@ -7,6 +7,25 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Ampel sagt jetzt, wie sicher sie sich ist
+
+*19. September 2026 · Version 1.143.0*
+
+Die Pilzampel ist ein Versuch, und wie gut sie für eine Art belegt ist,
+war bisher nirgends zu sehen. Jetzt steht es in der Zeile der Art im
+Spot-Blatt, hinter Regen, Temperatur und Saison: „Belege: gut belegt"
+oder „Belege: unsichere Datenlage".
+
+Fünf der sechs Arten stehen auf „gut belegt". Bei der Herbsttrompete
+reichen die Daten noch nicht — sie hat schlicht zu wenige Meldungen, um
+das Ergebnis abzusichern. **Die Ampel bleibt für sie trotzdem an:** Die
+Angabe begrenzt, was sie behauptet, sie schaltet nichts ab.
+
+In der ausgeklappten Kartenlegende steht der Hinweis dazu einmal für
+das ganze Feature.
+
+Und wie immer: Die Ampel bewertet **Bedingungen**, nicht Vorkommen.
+
 ## Selbst entscheiden, für welche Pilze die Ampel spricht
 
 *12. September 2026 · Version 1.142.0*

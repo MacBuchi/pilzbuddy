@@ -138,7 +138,7 @@ Release neuer ist als die installierte Version, lädt es auf Wunsch herunter
 und übergibt es dem System-Installer; der Browser-Download bleibt als
 Rückfallweg. Im Play-Build ist dieser ganze Pfad aus
 (`AppDistribution.showsUpdateHints`). Keystore-Sicherung liegt außerhalb
-des Repos (`~/pilzbuddy-keys/`); CI bezieht ihn aus den Repo-Secrets
+des Repos (im Schlüsselordner des Betreibers); CI bezieht ihn aus den Repo-Secrets
 `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_PASSWORD`,
 `ANDROID_KEY_ALIAS`.
 

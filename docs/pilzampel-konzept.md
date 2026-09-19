@@ -234,6 +234,15 @@ Ampel(Art, Ort, Tag) = Saisonfaktor(Art, Tag, Breite, Höhe)   // 0…1, aus GBI
   sie ist näher an dem, was der Pilz merkt, als der Regen an der Oberfläche.
 - **Temperatur:** Glockenkurve um **13 °C** (20-Tage-Mittel) für
   Herbst-Mykorrhiza; für Frühjahrsarten stattdessen Gradtagsumme.
+  Die **Breite** dieser Glocke (σ = 5 K) ist gesetzt und nicht gemessen —
+  das Bielefelder Papier nennt einen Gipfel, keine Streuung. Am
+  2026-09-18 wurde sie erstmals geprüft: σ = 3,25 K aus der
+  Nachrechnung derselben Bielefelder Tagesdaten hat die Latte bei keiner
+  Art erreicht, weder in Deutschland ab 2019 noch in AT+CH
+  (`docs/pilzampel-h1-ergebnis.md`). **Die 5 K sind damit nicht besser
+  begründet als vorher — sie sind nur nicht geschlagen worden.** Wer sie
+  das nächste Mal anfasst, sollte Breite und Mitte zusammen bewegen; die
+  Begründung dafür steht in `docs/pilzampel-logit.md`.
 - **Dämpfer:** Frost in den letzten Tagen, Hitze über ~27 °C, anhaltende
   Dürre.
 - **Holzbewohner:** nur Saisonfaktor, plus ein Feuchte-Dämpfer. Kein

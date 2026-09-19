@@ -199,6 +199,70 @@ const ampelSpeciesClass = <String, String>{
   'Pfifferling': 'sommer',
 };
 
+/// Wie gut die Ampel für eine Art belegt ist.
+///
+/// **Die Stufe begrenzt die Behauptung, sie schafft sie nicht ab**
+/// (Auftrag 2, Abschnitt 5). Keine Art verliert ihre Ampel, weil sie
+/// hier unten steht.
+///
+/// Vergeben nach den vier Bedingungen aus N1 des Nachtrags
+/// (`docs/pilzampel-kontrolldesign.md`): Jahres-Bootstrap in Design B
+/// ohne die 0,50, Abstand zur artgematchten Referenz mit
+/// Vertrauensbereich ohne die Null, ≥ 150 Funde, Kontrollen innerhalb
+/// 2 SE. Gemessen wird in **Design B** — gleicher Ort, gleiches Datum
+/// in anderen Jahren —, weil sich dort die Jahreszeit vollständig
+/// herauskürzt.
+///
+/// **Es gibt nur zwei Werte, und das ist kein Versehen.** „Keine
+/// Aussage" bräuchte eine Art, die eine Ampel zeigt, obwohl nichts
+/// gemessen ist — und genau die gibt es nicht: [ampelSpeciesClass] ist
+/// das Tor davor. Wer je eine dritte Klasse ausliefert, braucht dann
+/// auch den dritten Wert.
+enum AmpelEvidence {
+  /// Alle vier Bedingungen erfüllt.
+  belegt,
+
+  /// Der Effekt ist da, aber eine Bedingung wackelt.
+  vorlaeufig,
+}
+
+/// Stand 2026-09-18, `docs/pilzampel-kontrolldesign.md`.
+///
+/// Die Herbsttrompete steht auf `vorlaeufig`, weil sie mit 147 Funden
+/// unter der 150er-Grenze liegt und ihre Spiegel-Kontrolle in Design A
+/// bei 0,395 außerhalb der Toleranz steht. Ihre Zahlen sind die besten
+/// der Tabelle — nur trägt eine dünne Zahl kein Urteil.
+///
+/// **Diese Liste MUSS deckungsgleich mit [ampelSpeciesClass] sein.**
+/// Eine Art mit Klasse und ohne Stufe zeigte eine Ampel ohne Auskunft
+/// darüber, was sie wert ist; eine Stufe ohne Klasse wäre eine Aussage
+/// über etwas, das nie erscheint. `test/ampel_evidence_test.dart` hält
+/// beide Richtungen zusammen.
+const ampelEvidenceBySpecies = <String, AmpelEvidence>{
+  'Steinpilz': AmpelEvidence.belegt,
+  'Maronenröhrling': AmpelEvidence.belegt,
+  'Birkenpilz': AmpelEvidence.belegt,
+  'Fichtenreizker': AmpelEvidence.belegt,
+  'Herbsttrompete': AmpelEvidence.vorlaeufig,
+  'Pfifferling': AmpelEvidence.belegt,
+};
+
+/// Die Stufe einer Art — `null`, wo es keine Ampel gibt.
+AmpelEvidence? ampelEvidenceFor(String? species) => species == null
+    ? null
+    : ampelEvidenceBySpecies[canonicalSpecies(species)];
+
+/// Der Satz dazu, in Alltagssprache.
+///
+/// **Keine Warnung, eine Auskunft** (N7): Fünf Warnungen auf sechs
+/// Arten lesen sich wie „kaputt", und dann wird auch der belastbare
+/// Teil abgewertet. Deshalb steht bei jeder Art dasselbe Feld, und nur
+/// sein Inhalt unterscheidet sich.
+String ampelEvidenceWord(AmpelEvidence evidence) => switch (evidence) {
+      AmpelEvidence.belegt => 'gut belegt',
+      AmpelEvidence.vorlaeufig => 'unsichere Datenlage',
+    };
+
 /// Gewichtete Niederschlagskumulation, 0…1.
 ///
 /// `dailyMm[0]` ist der VORTAG, `dailyMm[last]` der älteste Tag —

@@ -62,6 +62,8 @@ Angabe, dort zählt nur der Monat.
 """
 import argparse
 import ast
+import contextlib
+import io
 import inspect
 import datetime
 import importlib.util
@@ -85,6 +87,46 @@ _spec = importlib.util.spec_from_file_location(
                                "gbif_local.py"))
 gbif_local = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(gbif_local)
+
+_spec = importlib.util.spec_from_file_location(
+    "ampel_basis", os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                "ampel_basis.py"))
+ampel_basis = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(ampel_basis)
+
+# **Welcher Wetterdatensatz** — ab 2026-09-17 ein ausdrücklicher Wert
+# statt eines Weglassens (`docs/pilzampel-messbasis.md`, Phase 0.1).
+#
+# Die Vorgabe bleibt `vorgabe`, also Open-Meteos „best match", damit jeder
+# frühere Lauf sich reproduzieren lässt. Sie ist aber nachweislich KEIN
+# fester Datensatz: Bis 2016 ist sie ERA5-Land, ab 2017 IFS HRES, und die
+# Hold-out-Trennlinie liegt genau auf dieser Naht. Jede neue Messung läuft
+# deshalb mit `--dataset pinned`.
+DATASET = ampel_basis.DEFAULT_DATASET
+
+# Die Felder JENSEITS von Regen und Temperatur, die der gewählte Datensatz
+# mitbringt — Tiefstwert, Schnee, Bodenfeuchte, Bodentemperatur. Auf der
+# Vorgabe ist die Liste leer; das Modell der ausgelieferten Ampel rührt
+# sie ohnehin nicht an. Sie werden mitgezogen, damit Phase 1 und 2 ohne
+# einen zweiten vollständigen Neuabruf auskommen.
+EXTRA_FIELDS = []
+
+
+def use_dataset(name):
+    """Den Datensatz wählen — und alles, was daran hängt, mitziehen."""
+    global DATASET, EXTRA_FIELDS, SPAN_LOOKBACK
+    if name not in ampel_basis.DATASETS:
+        raise SystemExit(
+            f"Unbekannter Datensatz {name!r}. Bekannt: "
+            f"{', '.join(sorted(ampel_basis.DATASETS))}")
+    DATASET = name
+    EXTRA_FIELDS = [f for f in ampel_basis.dataset_fields(name)
+                    if f not in ("rain", "temp")]
+    # Der Vorlauf muss reichen, sobald es etwas zu rechnen gibt, was über
+    # das Regenfenster hinausgeht (Frostdosis über 28 Tage in H3).
+    SPAN_LOOKBACK = 28 if EXTRA_FIELDS else RAIN_WINDOW
+    return DATASET
+
 # **Die Vorgabe bleibt der öffentliche Dienst** (#460). Eine eigene
 # Instanz ist per `--api` erreichbar, aber nicht die Vorgabe: Ein
 # Werkzeug, das stillschweigend mit localhost redet, erzeugt Zahlen, die
@@ -402,24 +444,27 @@ def rain_factor(daily_mm):
     return min(effective / RAIN_SATURATION_MM, 1.0)
 
 
-def temperature_factor(daily_c, optimum=OPTIMUM_C):
+def temperature_factor(daily_c, optimum=OPTIMUM_C, sigma=TEMP_SIGMA):
     """Glocke um [optimum] über das Mittel der letzten 20 Tage, 0…1.
 
-    Der Vorgabewert ist der ausgelieferte (13 °C) — die Spiegel-Regel zu
-    `ampel_model.dart` gilt für ihn. [optimum] ist NUR für die Anpassung
-    je Art da (`docs/pilzampel-artenfenster.md`); ein anderer Wert hier
+    Die Vorgabewerte sind die ausgelieferten (13 °C, σ = 5 K) — die
+    Spiegel-Regel zu `ampel_model.dart` gilt für sie. [optimum] ist NUR
+    für die Anpassung je Art da (`docs/pilzampel-artenfenster.md`),
+    [sigma] NUR für die Registrierung H1
+    (`docs/pilzampel-h1-registrierung.md`). Ein anderer Wert hier
     bedeutet nicht, dass die App ihn rechnet.
     """
     values = [c for c in daily_c[:TEMP_WINDOW] if c is not None]
     if not values:
         return 0.0
     mean = sum(values) / len(values)
-    return math.exp(-(((mean - optimum) / TEMP_SIGMA) ** 2))
+    return math.exp(-(((mean - optimum) / sigma) ** 2))
 
 
-def ampel_score(daily_mm, daily_c, optimum=OPTIMUM_C):
+def ampel_score(daily_mm, daily_c, optimum=OPTIMUM_C, sigma=TEMP_SIGMA):
     """Der Wetterteil der Ampel — OHNE Saisonfaktor, siehe Kopf."""
-    return rain_factor(daily_mm) * temperature_factor(daily_c, optimum)
+    return rain_factor(daily_mm) * temperature_factor(daily_c, optimum,
+                                                      sigma)
 
 
 # --- Statistik -------------------------------------------------------------
@@ -643,20 +688,41 @@ def _finds_from_local(sci, limit, progress, countries):
     # gegen GBIF geprüft hat und bei allem außer EXACT/ACCEPTED abbricht.
     rank = "GENUS" if " " not in sci.strip() else "SPECIES"
     where, args = gbif_local.taxon_where(sci, rank, taxon_key(sci))
+    # **Der lokale Bestand kennt keine Obergrenze mehr** (A4, 2026-09-17).
+    #
+    # Die 3000 stammen vom NETZWEG, wo tiefes Blättern kriecht (ab
+    # `offset` ~10 000 braucht dieselbe Seite 341 s statt 0,3 s,
+    # CLAUDE.md). Hier kostet die Grenze nichts und schneidet dafür nach
+    # `gbifID`, also die JÜNGSTEN Einträge ab — und `gbifID` korreliert
+    # mit dem Meldeportal.
+    #
+    # Betroffen war unter den gemessenen Arten genau eine: **Judasohr**
+    # mit 3097 Meldungen in DE. Ausgerechnet die Art, gegen die vier
+    # Befunde stehen — und alle vier stammen aus derselben,
+    # möglicherweise beschnittenen Stichprobe. Vier Blickwinkel sind
+    # keine vier unabhängigen Tests.
+    limit = None
     rows = con.execute(
-        f"SELECT decimalLatitude, decimalLongitude, year, month, day "
+        f"SELECT decimalLatitude, decimalLongitude, year, month, day, "
+        f"       recordedBy, countryCode, gbifID "
         f"FROM occ WHERE {gbif_local.WHERE_USABLE} AND {where} "
         f"  AND countryCode IN ({','.join('?' * len(countries))}) "
         f"  AND year >= ? AND day IS NOT NULL AND month IS NOT NULL "
         f"  AND (coordinateUncertaintyInMeters IS NULL "
         f"       OR coordinateUncertaintyInMeters <= ?) "
-        f"ORDER BY gbifID LIMIT ?",
-        (*args, *countries, FIRST_YEAR, MAX_UNCERTAINTY_M, limit)).fetchall()
+        f"ORDER BY gbifID" + ("" if limit is None else " LIMIT ?"),
+        (*args, *countries, FIRST_YEAR, MAX_UNCERTAINTY_M)
+        + ((), (limit,))[limit is not None]).fetchall()
     con.close()
     if progress:
         print(f"    {len(rows)} Meldungen (lokaler Bestand)", file=sys.stderr)
+    # `recordedBy` und `countryCode` seit Phase 0.2: Das erste trägt das
+    # Entdoppeln (eine Exkursion ist keine zehn Beobachtungen), das
+    # zweite die Melder-Diagnose aus Phase 1.4. Beide Spalten lagen die
+    # ganze Zeit im Bestand und wurden nur nie gelesen.
     return [{"lat": r[0], "lon": r[1], "year": r[2], "month": r[3],
-             "day": r[4]} for r in rows]
+             "day": r[4], "recordedBy": r[5], "countryCode": r[6],
+             "gbifID": r[7]} for r in rows]
 
 
 def _fetch_finds_raw(sci, limit=3000, progress=True, countries=("DE",)):
@@ -722,6 +788,19 @@ def _leap(year):
     return year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
 
 
+# **Wieviel Vorlauf geholt wird**, in Tagen vor dem frühesten Fund
+# (zusätzlich zum Höchstabstand des Vergleichstags).
+#
+# Das ist NICHT dasselbe wie der Mindestabstand des Vergleichstags, auch
+# wenn beide bisher 26 waren. Der Vorlauf sagt, wieviel Wetter im Cache
+# liegt; der Abstand sagt, wie weit der Vergleichstag wegrückt. Phase 2
+# will Frostdosen über 28 Tage rechnen — dafür muss der Vorlauf jetzt
+# reichen, denn nachträglich wäre es ein zweiter vollständiger Neuabruf.
+# Der Abstand bleibt davon unberührt bei 26, sonst wäre der Referenzlauf
+# in 0.4 nicht mehr nur ein Instrumentwechsel.
+SPAN_LOOKBACK = RAIN_WINDOW
+
+
 def season_span(days_of_year, year=None):
     """Der Zeitraum, den ein Jahrgang wirklich braucht — nicht mehr.
 
@@ -738,9 +817,29 @@ def season_span(days_of_year, year=None):
     Spätfunden.
     """
     last_index = 365 if year is not None and _leap(year) else 364
-    first = max(1, min(days_of_year) - CONTROL_MAX_GAP - RAIN_WINDOW - 1)
+    first = max(1, min(days_of_year) - CONTROL_MAX_GAP - SPAN_LOOKBACK - 1)
     last = min(last_index, max(days_of_year) + CONTROL_MAX_GAP * 2 + 1)
     return first, last
+
+
+def clamp_span(span, year):
+    """Einen Zeitraum auf ein ANDERES Jahr zuschneiden.
+
+    **Index 365 gibt es nur in Schaltjahren.** `season_span` klemmt
+    deshalb schon auf das Jahr, aus dem es gerufen wurde — Design B
+    reicht denselben Zeitraum aber an bis zu zehn andere Jahre weiter,
+    und in einem Nicht-Schaltjahr wird aus Index 365 das Datum
+    „JJJJ-13-01". Open-Meteo antwortet darauf mit einem 400, und zwar
+    ohne zu sagen, welches Feld es stört.
+
+    Genau so ist beim ersten Probelauf die Hälfte der Kontrolljahre
+    ausgefallen — und weil Design B fehlende Jahre absichtlich nur zählt
+    statt abzubrechen, wäre es als „dünne Datenlage" durchgegangen. Der
+    Zähler hat den Fehler sichtbar gemacht; das ist der Grund, warum er
+    da ist.
+    """
+    last_index = 365 if _leap(year) else 364
+    return span[0], min(span[1], last_index)
 
 
 def _date_from_index(year, index):
@@ -774,41 +873,70 @@ def fetch_weather(points, year, cache_dir=None, progress=True, span=None):
     if cached is not None:
         return cached
 
+    sources = ampel_basis.DATASETS[DATASET]
     series = []
     for start in range(0, len(points), 100):
         chunk = points[start:start + 100]
-        params = {
-            "latitude": ",".join(f"{p[0]:.4f}" for p in chunk),
-            "longitude": ",".join(f"{p[1]:.4f}" for p in chunk),
-            "start_date": _date_from_index(year, first_day),
-            "end_date": _date_from_index(year, last_day),
-            "daily": "precipitation_sum,temperature_2m_mean",
-            "timezone": "Europe/Berlin",
-        }
-        answer = _get(OPEN_METEO, params, timeout=180)
-        if isinstance(answer, dict):
-            answer = [answer]
-        for place in answer:
-            daily = place["daily"]
-            series.append({
-                "first": first_day,
-                "rain": daily["precipitation_sum"],
-                "temp": daily["temperature_2m_mean"],
-            })
+        # **Ein Ort, mehrere Modelle, EINE Reihe.** Kein Modell liefert
+        # alle Variablen (ERA5-Land hat keinen Niederschlag, ERA5 keine
+        # Schneehöhe), also wird je Modell einmal gefragt und das
+        # Ergebnis feldweise zusammengelegt. Die Zuordnung Feld → Modell
+        # steht in `ampel_basis.DATASETS` und ist dort eindeutig; ein
+        # Selbsttest verbietet, dass zwei Modelle dasselbe Feld füllen.
+        merged = [{"first": first_day} for _ in chunk]
+        for model, mapping in sources:
+            params = ampel_basis.weather_params(
+                model, mapping, chunk,
+                _date_from_index(year, first_day),
+                _date_from_index(year, last_day))
+            answer = _get(OPEN_METEO, params, timeout=180)
+            if isinstance(answer, dict):
+                answer = [answer]
+            # **Eine kürzere Antwort wäre ein stiller Versatz.** `zip`
+            # würde sie klaglos annehmen, und ab dem fehlenden Ort trüge
+            # jede Reihe das Wetter eines anderen Fundorts.
+            if len(answer) != len(chunk):
+                raise RuntimeError(
+                    f"Wetter {year}: {len(answer)} Antworten für "
+                    f"{len(chunk)} Orte (Modell {model or 'Vorgabe'})")
+            for place, target in zip(answer, merged):
+                ampel_basis.merge_place(target, mapping,
+                                        place.get("daily", {}))
+            if len(sources) > 1:
+                time.sleep(_politeness())
+        series.extend(merged)
         if progress:
             print(f"    Wetter {year}: {len(series)}/{len(points)} Orte",
                   file=sys.stderr)
-        time.sleep(2.0)
+        time.sleep(_politeness())
     _cache_write(cache_dir, year, points, series, first_day, last_day)
     return series
 
 
+def _politeness():
+    """Wie lange zwischen zwei Abrufen gewartet wird.
+
+    Gegen den oeffentlichen Dienst zwei Sekunden — er ist kostenlos, hat
+    ein Kontingent und gehoert nicht geflutet. Gegen die eigene Instanz
+    null: Dort wartet das Werkzeug nur auf sich selbst, und beim gepinnten
+    Datensatz sind es zwei Abrufe je Ortsgruppe statt einem. Ueber einen
+    Lauf von Stunden ist das der Unterschied zwischen einem Abend und
+    einer Nacht.
+    """
+    host = urllib.parse.urlparse(OPEN_METEO).hostname or ""
+    return 0.0 if host in ("127.0.0.1", "localhost", "::1") else 2.0
+
+
 def _cache_key(year, points, first_day, last_day):
-    import hashlib
-    digest = hashlib.sha256(
-        json.dumps([[round(a, 4), round(b, 4)] for a, b in points]).encode()
-    ).hexdigest()[:16]
-    return f"weather_{year}_{first_day}_{last_day}_{digest}.json"
+    """Der Dateiname im Cache — er trägt seit Phase 0.1 den Datensatz.
+
+    Die Vorgabe behält ihren alten Namen, damit die 1241 schon geholten
+    Dateien weiter gefunden werden; jeder gepinnte Datensatz bekommt
+    einen Fingerabdruck und landet in eigenen Dateien. Ein Lauf kann
+    damit nicht halb aus dem einen und halb aus dem anderen Instrument
+    kommen.
+    """
+    return ampel_basis.cache_name(DATASET, year, points, first_day, last_day)
 
 
 def _cache_read(cache_dir, year, points, first_day, last_day):
@@ -839,6 +967,20 @@ def window_before(series, day_of_year, length):
         return None, None
     rain = list(reversed(series["rain"][end - length:end]))
     temp = list(reversed(series["temp"][end - length:end]))
+    # **Eine Lücke macht das Fenster ungültig, nicht nur dünn.**
+    # Ohne diese Zeile liest das Modell fehlende Werte als Zahlen:
+    # `rain_factor` nimmt `mm or 0.0`, also erfundene Trockenheit, und
+    # `temperature_factor` siebt sie aus und liefert bei lauter Lücken
+    # 0.0 — das heißt „Temperatur maximal daneben“ und nicht „unbekannt“.
+    #
+    # Auf der Vorgabe fiel das nie auf, weil sie keine Lücken hat. Der
+    # gepinnte Datensatz hat welche: **ERA5-Land ist landgebunden**, eine
+    # Fundkoordinate in einer Seezelle bekommt gar keine Temperatur.
+    # Gemessen sind es 6 von 8492 Fenstern (0,07 %), alle mit komplett
+    # leerer Temperatur — numerisch klein, aber eine erfundene Zahl bleibt
+    # eine erfundene Zahl.
+    if any(v is None for v in rain) or any(v is None for v in temp):
+        return None, None
     return rain, temp
 
 
@@ -866,16 +1008,51 @@ def window_before(series, day_of_year, length):
 CONTROL_MIN_GAP = RAIN_WINDOW
 CONTROL_MAX_GAP = 45
 
+# **Der Mindestabstand hängt ab Phase 0.3 am geprüften MODELL**, nicht an
+# einer festen Zahl: Er ist das längste Fenster dessen, was gerade
+# gemessen wird. Für die ausgelieferte Ampel ist das das Regenfenster mit
+# 26 Tagen, deshalb ändert sich hier vorerst nichts. Ein Zwei-Phasen-
+# Wintermodell mit 28-Tage-Rückblick bräuchte 28, sonst teilen sich Fund-
+# und Vergleichstag Tage ihrer Frostdosis.
+LONGEST_WINDOW = RAIN_WINDOW
+
+# **Entdoppeln: höchstens eine Meldung je Melder × ~1 km × Tag.** Aus
+# ("vorgabe") bleibt jeder frühere Lauf reproduzierbar; für den
+# vollständigen Bestand an (Phase 0.2), weil er Exkursions-Cluster
+# verstärkt.
+DEDUPE = False
+
 
 def pick_control_day(day_of_year, rng):
-    gap = rng.randint(CONTROL_MIN_GAP, CONTROL_MAX_GAP)
-    if rng.random() < 0.5:
-        gap = -gap
-    return day_of_year + gap
+    """Wie `ampel_basis.pick_control`, nur ohne das Vorzeichen.
+
+    Bleibt stehen, weil die REIHENFOLGE der Zufallsgriffe an dieser
+    Vorschrift hängt: erst `randint`, dann `random`. Wer sie ändert,
+    verschiebt die ganze Folge — und damit jede bisher berichtete Zahl.
+    """
+    day, _gap = ampel_basis.pick_control(
+        day_of_year, rng, CONTROL_MIN_GAP, CONTROL_MAX_GAP)
+    return day
+
+
+def _extra_windows(place, day):
+    """Die Zusatzreihen eines Tages — nur die, die vollständig sind.
+
+    Ein Feld, das der Datensatz nicht liefert, und eines mit einer Lücke
+    im Fenster fehlen hier gleichermaßen. Das ist Absicht: Beides heißt
+    „darauf lässt sich nicht rechnen", und eine Unterscheidung an dieser
+    Stelle lüde dazu ein, doch zu rechnen.
+    """
+    out = {}
+    for field in EXTRA_FIELDS:
+        window = ampel_basis.window_of(place, field, day, SPAN_LOOKBACK)
+        if window is not None:
+            out[field] = window
+    return out
 
 
 def collect_pairs(name, sci, cache_dir=None, seed=42, progress=True,
-                  countries=("DE",)):
+                  countries=("DE",), finds=None):
     """Zieht die Paare EINMAL und gibt die rohen Fenster zurück.
 
     **Warum getrennt vom Bewerten.** Seit der Anpassung je Art
@@ -893,13 +1070,30 @@ def collect_pairs(name, sci, cache_dir=None, seed=42, progress=True,
     """
     if progress:
         print(f"  {name} ({sci})", file=sys.stderr)
-    finds = fetch_finds(sci, progress=progress, cache_dir=cache_dir,
-                        countries=countries)
+    # **Eine fertige Liste darf hereingereicht werden** — dann gilt sie,
+    # wie sie ist. So laufen Design A und Design B auf DERSELBEN
+    # Stichprobe; zögen beide für sich, wäre ihr Unterschied teils die
+    # Stichprobe statt das Design. Ohne das Argument ändert sich nichts.
+    vorgegeben = finds is not None
+    if not vorgegeben:
+        finds = fetch_finds(sci, progress=progress, cache_dir=cache_dir,
+                            countries=countries)
     if not finds:
         return None
 
     total_available = len(finds)
-    if len(finds) > SAMPLE_PER_SPECIES:
+    # **Entdoppeln VOR dem Stichprobenziehen.** Andersherum zöge man aus
+    # einem von Clustern aufgeblähten Topf: Eine Exkursion mit zwanzig
+    # Fotos hätte zwanzigfache Chance, in die 2000 zu kommen, und die
+    # Stichprobe bestünde am Ende überproportional aus Serien.
+    deduped = 0
+    if DEDUPE and not vorgegeben:
+        finds, deduped = ampel_basis.dedupe_finds(finds)
+        if progress:
+            print(f"    entdoppelt: {deduped} von {total_available} "
+                  f"Meldungen fallen weg ({len(finds)} bleiben)",
+                  file=sys.stderr)
+    if len(finds) > SAMPLE_PER_SPECIES and not vorgegeben:
         # Zufällig, mit festem Seed — nicht „die ersten N". GBIF liefert
         # nach id sortiert, und das korreliert mit dem Meldeportal: Die
         # ersten 500 kämen überwiegend aus derselben Quelle und derselben
@@ -916,6 +1110,7 @@ def collect_pairs(name, sci, cache_dir=None, seed=42, progress=True,
     rng = random.Random(seed)
     samples = []
     skipped = 0
+    incomplete_extra = 0
     lost_years = []
     partial_years = []
     for year in sorted(by_year):
@@ -948,7 +1143,8 @@ def collect_pairs(name, sci, cache_dir=None, seed=42, progress=True,
             continue
         for find, place in zip(group, series):
             found_day = day_index(year, find["month"], find["day"])
-            control_day = pick_control_day(found_day, rng)
+            control_day, control_gap = ampel_basis.pick_control(
+                found_day, rng, CONTROL_MIN_GAP, CONTROL_MAX_GAP)
             # Das Placebo-Paar: Der Vergleichstag spielt jetzt selbst den
             # „Fundtag", und sein Partner wird nach derselben Vorschrift
             # VON IHM AUS gezogen. Was dabei herauskommt, MUSS 0,5 sein.
@@ -984,6 +1180,17 @@ def collect_pairs(name, sci, cache_dir=None, seed=42, progress=True,
             if a_rain is None or b_rain is None:
                 skipped += 1
                 continue
+            extra_found = _extra_windows(place, found_day)
+            extra_control = _extra_windows(place, control_day)
+            # **Ein Paar mit halben Zusatzreihen wird NICHT verworfen**,
+            # sondern gezählt. Die ausgelieferte Ampel braucht sie nicht;
+            # ein Paar wegen einer Lücke in der Bodenfeuchte zu streichen
+            # würde den Referenzlauf verfälschen, um einer späteren
+            # Hypothese zu dienen. Wer die Felder braucht, sieht an dieser
+            # Zahl, wieviel ihm fehlt.
+            if (len(extra_found) < len(EXTRA_FIELDS)
+                    or len(extra_control) < len(EXTRA_FIELDS)):
+                incomplete_extra += 1
             samples.append({
                 "year": year,
                 "found": (a_rain, a_temp),
@@ -995,8 +1202,38 @@ def collect_pairs(name, sci, cache_dir=None, seed=42, progress=True,
                 "mirror": (m_rain, m_temp) if m_rain is not None else None,
                 "d_control": abs(control_day - found_day),
                 "d_placebo": abs(placebo_day - found_day),
+                # **Mit Vorzeichen** seit Phase 0.2: Der Richtungs-Split
+                # aus 1.1 ist ohne die Seite nicht messbar. Eine Reaktion
+                # auf das NIVEAU gibt vor und nach dem Fund ähnliche
+                # Werte, eine Reaktion auf ABKÜHLUNG nicht. Der Betrag
+                # oben bleibt stehen, weil die Kontrollen ihn lesen.
+                "gap_control": control_gap,
+                # Woher die Meldung stammt — für das Melder-Bootstrap
+                # (1.4) und den Länder-Hold-out. Kein Wetter, nur Herkunft.
+                "recordedBy": find.get("recordedBy"),
+                "country": find.get("countryCode"),
+                # Die zusätzlichen Wetterreihen des gepinnten Datensatzes.
+                # Leer, solange auf der Vorgabe gemessen wird — dort gibt
+                # es sie nicht, und ein leeres dict ist ehrlicher als
+                # Felder voller None.
+                "extra": extra_found,
+                "extra_control": extra_control,
             })
 
+    if progress and (skipped or incomplete_extra):
+        # **Verworfenes gehört gezählt und genannt.** Zwei verschiedene
+        # Gründe, und sie dürfen nicht verwechselt werden:
+        #   * `skipped` heißt, dass Fund- oder Vergleichstag kein
+        #     vollständiges Fenster hatten — das Paar gibt es nicht.
+        #     Unter dem gepinnten Datensatz kommt ein neuer Fall dazu:
+        #     ERA5-Land ist LANDGEBUNDEN und liefert über See gar nichts,
+        #     eine Fundkoordinate in einer Seezelle hat also keine
+        #     Temperatur (gemessen: 9 von 15 865 Ortsreihen, 0,06 %).
+        #   * `incomplete_extra` heißt, dass das Paar steht, aber eine
+        #     Zusatzreihe fehlt. Phase 2 sieht daran, wieviel ihr fehlt.
+        print(f"    verworfen: {skipped} Paare ohne vollständiges Fenster"
+              + (f", {incomplete_extra} ohne vollständige Zusatzreihen"
+                 if incomplete_extra else ""), file=sys.stderr)
     if not samples:
         return None
     if lost_years:
@@ -1016,7 +1253,246 @@ def collect_pairs(name, sci, cache_dir=None, seed=42, progress=True,
         # Jahreszahl, die sie mitzählt, wäre eine falsche Angabe.
         "years": len(by_year) - len(partial_years),
         "partial_years": partial_years,
+        "dataset": DATASET,
+        "deduped": deduped,
+        "available": total_available,
+        "incomplete_extra": incomplete_extra,
     }
+
+
+def select_finds(sci, cache_dir=None, seed=42, progress=True,
+                 countries=("DE",)):
+    """Die Fundliste — entdoppelt und auf die Stichprobe gezogen.
+
+    **Herausgelöst, damit Design A und Design B auf DERSELBEN Liste
+    laufen.** Zögen beide für sich, wäre ihr Unterschied teils die
+    Stichprobe statt das Design — und genau das soll Phase 1.5 messen.
+
+    Die Reihenfolge der Griffe ist die von `collect_pairs`: erst
+    entdoppeln, dann `random.Random(seed).sample`. Wer sie ändert,
+    verschiebt jede bisher berichtete Zahl.
+    """
+    finds = fetch_finds(sci, progress=progress, cache_dir=cache_dir,
+                        countries=countries)
+    if not finds:
+        return None, {}
+    total = len(finds)
+    deduped = 0
+    if DEDUPE:
+        finds, deduped = ampel_basis.dedupe_finds(finds)
+        if progress:
+            print(f"    entdoppelt: {deduped} von {total} Meldungen fallen "
+                  f"weg ({len(finds)} bleiben)", file=sys.stderr)
+    if len(finds) > SAMPLE_PER_SPECIES:
+        finds = random.Random(seed).sample(finds, SAMPLE_PER_SPECIES)
+        if progress:
+            print(f"    Stichprobe: {SAMPLE_PER_SPECIES} von {total}",
+                  file=sys.stderr)
+    return finds, {"available": total, "deduped": deduped}
+
+
+def collect_pairs_b(name, sci, finds=None, cache_dir=None, seed=42,
+                    progress=True, countries=("DE",),
+                    control_count=None):
+    """Design B: gleicher Ort, gleiches Kalenderfenster, ANDERES Jahr.
+
+    Design A vergleicht den Fundtag mit einem Tag 26–45 Tage daneben im
+    selben Jahr. Das kürzt die Saison nur ungefähr heraus — bei Arten,
+    deren Fruchtzeit auf einem steilen Stück des Jahresgangs liegt, misst
+    die AUC dann zu einem großen Teil den Kalender (Phase 1.1).
+
+    Design B fragt stattdessen: **War das Wetter in diesem Jahr an diesem
+    Datum besser als an diesem Datum üblich?** Die Saison kürzt sich
+    vollständig heraus, und übrig bleibt genau der Zusatznutzen, den die
+    Ampel neben der ohnehin angezeigten Saisonkurve haben soll.
+
+    Vier Dinge, die man wissen muss:
+
+    - **Die Seiten wechseln sich ab**, beginnend mit einer gewürfelten.
+      Ein Münzwurf je Zug wäre im Erwartungswert ausgeglichen und im
+      Einzelfall nicht — und diese Unwucht ist es, die in Design A die
+      Spiegel-Kontrolle stört (A5). Wo eine Seite leer ist (Funde von
+      2006 oder 2025), wird die andere genommen und es wird GEZÄHLT.
+    - **Fünf Kontrolljahre statt einem.** Das Wetter liegt nach dem
+      ersten Lauf ohnehin im Cache, und der Mittelwert über fünf Jahre
+      hängt viel weniger am Seed. Der Wert je Fund ist der Anteil der
+      Kontrolljahre, die der Fundtag schlägt; für ein einziges
+      Kontrolljahr ist das genau der Beitrag eines Paares zur gepaarten
+      AUC, die Größe bleibt also mit A vergleichbar. `k = 1` wird
+      zusätzlich mitgerechnet.
+    - **Der Kontrolltag streut ±7 Tage, je Kontrolljahr neu gezogen.**
+      Ohne Streuung träfe die Ziehung in jedem Jahr denselben
+      Wochentag-Rhythmus und dieselbe Meldeportal-Kampagne.
+    - **Ein fehlendes Jahr bricht nicht ab**, anders als in Design A. Es
+      verkleinert den Kandidatenkreis, wird gezählt und berichtet; erst
+      wenn ein Fund gar kein brauchbares Jahr hat, entsteht kein Wert.
+
+    **Was B NICHT kann:** Ein Kontrolljahr kann am selben Ort zur selben
+    Woche sehr wohl einen Fund getragen haben — Presence-only trennt
+    „kein Fund" nicht von „niemand war da". Solche Jahre auszuschließen
+    wäre genau der Detektionsfehler, den die Daten nicht hergeben. „Üblich"
+    schließt also die guten Jahre ein, und das dämpft die Zahl zusätzlich.
+    """
+    if control_count is None:
+        control_count = ampel_basis.CONTROL_YEARS
+    if finds is None:
+        finds, _ = select_finds(sci, cache_dir, seed, progress, countries)
+    if not finds:
+        return None
+
+    by_year = {}
+    for find in finds:
+        by_year.setdefault(find["year"], []).append(find)
+
+    rng = random.Random(seed)
+    samples = []
+    fehlende_jahre = {}
+    ausgewichen = 0
+    ohne_jahr = 0
+    skipped = 0
+    partial_years = []
+
+    for year in sorted(by_year):
+        if year > LAST_COMPLETE_YEAR:
+            partial_years.append(year)
+            continue
+        group = by_year[year]
+        points = [(f["lat"], f["lon"]) for f in group]
+        span = season_span(
+            [day_index(year, f["month"], f["day"]) for f in group], year=year)
+
+        # **Derselbe Zeitraum und dieselben Punkte in allen Jahren.** Der
+        # Vorlauf von `season_span` (45 + 28 Tage) deckt ±7 Tage plus den
+        # 28-Tage-Rückblick mit Abstand; damit ist der Cache-Schlüssel
+        # (Jahr, gleiche Punkte, gleicher Zeitraum) und über die
+        # Kontrolljahre hinweg wiederverwendbar.
+        reihen = {}
+        kandidaten = [y for y in range(year - ampel_basis.YEAR_SPAN,
+                                       year + ampel_basis.YEAR_SPAN + 1)
+                      if FIRST_YEAR <= y <= LAST_COMPLETE_YEAR]
+        for other in kandidaten:
+            try:
+                reihen[other] = fetch_weather(points, other, cache_dir,
+                                              progress=False,
+                                              span=clamp_span(span, other))
+            except Exception as error:  # noqa: BLE001
+                fehlende_jahre.setdefault(other, 0)
+                fehlende_jahre[other] += 1
+                if progress:
+                    print(f"    Kontrolljahr {other} fehlt: {error}",
+                          file=sys.stderr)
+        if year not in reihen:
+            continue
+        brauchbar = sorted(y for y in reihen if y != year)
+        if progress:
+            print(f"    {year}: {len(group)} Funde, {len(brauchbar)} "
+                  f"Kontrolljahre", file=sys.stderr)
+
+        for index, find in enumerate(group):
+            found_day = day_index(year, find["month"], find["day"])
+            a_rain, a_temp = window_before(reihen[year][index], found_day,
+                                           RAIN_WINDOW)
+            if a_rain is None:
+                skipped += 1
+                continue
+            jahre, aus = ampel_basis.pick_control_years(
+                year, rng, control_count, FIRST_YEAR, LAST_COMPLETE_YEAR,
+                used=[y for y in kandidaten if y not in brauchbar])
+            ausgewichen += aus
+            controls, control_years, extra_controls = [], [], []
+            for other in jahre:
+                tag = found_day + rng.randint(-ampel_basis.DAY_JITTER,
+                                              ampel_basis.DAY_JITTER)
+                b_rain, b_temp = window_before(reihen[other][index], tag,
+                                               RAIN_WINDOW)
+                if b_rain is None:
+                    continue
+                controls.append((b_rain, b_temp))
+                control_years.append(other)
+                extra_controls.append(_extra_windows(reihen[other][index], tag))
+            if not controls:
+                ohne_jahr += 1
+                continue
+            # **Das Placebo zieht nach DERSELBEN Regel.** Ein Nicht-Fundjahr
+            # spielt den Fundtag, die übrigen sind seine Kontrollen. Zöge
+            # es anders, prüfte es eine andere Ziehung als die, die oben
+            # gelaufen ist.
+            placebo_found = placebo_controls = None
+            if len(control_years) >= 2:
+                anker_jahr = control_years[0]
+                tag = found_day + rng.randint(-ampel_basis.DAY_JITTER,
+                                              ampel_basis.DAY_JITTER)
+                p_rain, p_temp = window_before(reihen[anker_jahr][index], tag,
+                                               RAIN_WINDOW)
+                if p_rain is not None:
+                    placebo_found = (p_rain, p_temp)
+                    placebo_controls = controls[1:]
+            samples.append({
+                "year": year,
+                "found": (a_rain, a_temp),
+                "controls": controls,
+                "control_years": control_years,
+                "placebo_found": placebo_found,
+                "placebo_controls": placebo_controls,
+                "recordedBy": find.get("recordedBy"),
+                "country": find.get("countryCode"),
+                "extra": _extra_windows(reihen[year][index], found_day),
+                "extra_controls": extra_controls,
+            })
+
+    if not samples:
+        return None
+    if progress:
+        print(f"    Design B: {len(samples)} Funde, "
+              f"{sum(len(s['controls']) for s in samples)} Vergleiche, "
+              f"{ausgewichen} mal die Seite gewechselt, {ohne_jahr} Funde "
+              f"ohne brauchbares Jahr, {skipped} ohne Fenster",
+              file=sys.stderr)
+    return {
+        "name": name, "sci": sci, "samples": samples,
+        "design": "B", "control_count": control_count,
+        "ausgewichen": ausgewichen, "ohne_jahr": ohne_jahr,
+        "skipped": skipped, "fehlende_jahre": fehlende_jahre,
+        "years": len({s["year"] for s in samples}),
+        "partial_years": partial_years,
+        "dataset": DATASET,
+    }
+
+
+def score_b(samples, optimum=OPTIMUM_C, limit=None, side=None,
+            sigma=TEMP_SIGMA):
+    """Das Maß von Design B — Mittel der geschlagenen Anteile.
+
+    `limit` schneidet auf die ersten `limit` Kontrolljahre (für k = 1 zum
+    Vergleich mit A), `side` auf „früher" oder „später" (Richtungs-Split).
+    """
+    anteile = []
+    for s in samples:
+        paare = list(zip(s["control_years"], s["controls"]))
+        if side == "frueher":
+            paare = [p for p in paare if p[0] < s["year"]]
+        elif side == "spaeter":
+            paare = [p for p in paare if p[0] > s["year"]]
+        if limit is not None:
+            paare = paare[:limit]
+        if not paare:
+            continue
+        anteile.append(ampel_basis.beat_fraction(
+            ampel_score(*s["found"], optimum, sigma),
+            [ampel_score(*c, optimum, sigma) for _, c in paare]))
+    return ampel_basis.mean_beat(anteile), len(anteile)
+
+
+def placebo_b(samples, optimum=OPTIMUM_C, sigma=TEMP_SIGMA):
+    """Zwei Nicht-Fundjahre gegeneinander — MUSS 0,5 sein."""
+    anteile = []
+    for s in samples:
+        if not s.get("placebo_found") or not s.get("placebo_controls"):
+            continue
+        anteile.append(ampel_basis.beat_fraction(
+            ampel_score(*s["placebo_found"], optimum, sigma),
+            [ampel_score(*c, optimum, sigma) for c in s["placebo_controls"]]))
+    return ampel_basis.mean_beat(anteile), len(anteile)
 
 
 def score_pairs(samples, optimum=OPTIMUM_C):
@@ -1712,12 +2188,33 @@ def verify_class_constants(measured):
                     f"  {key}.optimum: gemessen "
                     f"{got['optimum_measured']!r} °C, Konstante "
                     f"{expected!r} °C")
-    if findings:
-        raise SystemExit(
-            "Klassen-Konstanten passen nicht zu den Daten:\n"
-            + "\n".join(findings)
-            + "\n\nKonstante, Bericht UND ampel_model.dart gehören "
-              "zusammen neu gesetzt — nicht einzeln.")
+    if not findings:
+        return findings
+    # **Auf einer anderen Messbasis vergleicht der Wächter Äpfel mit
+    # Birnen** (seit 2026-09-17). Die ausgelieferten Konstanten sind auf
+    # der Vorgabe gemessen — also auf einem Instrument, das bis 2016
+    # ERA5-Land ist und ab 2017 IFS HRES. Auf einem gepinnten Datensatz
+    # MÜSSEN sie abweichen; das ist der Befund, nicht der Fehler.
+    #
+    # Würde hier trotzdem abgebrochen, wäre jede künftige Messung auf
+    # einer neuen Basis blockiert — und der Wächter genau das, wovor sein
+    # eigener Kommentar warnt: einer, den man nach dem zweiten Mal
+    # abschaltet. Er wacht weiter scharf über den Gleichlauf von Werkzeug
+    # und `ampel_model.dart`, aber nur dort, wo beide dasselbe messen.
+    if DATASET != ampel_basis.DEFAULT_DATASET:
+        print("\nKlassen-Konstanten weichen ab — erwartet, denn gemessen "
+              f"wird auf '{DATASET}' und die Konstanten stammen von "
+              f"'{ampel_basis.DEFAULT_DATASET}':\n"
+              + "\n".join(findings)
+              + "\n\nDas ist eine Nachmessung, keine Freigabe. Übernommen "
+                "wird nichts ohne Betreiberentscheidung.\n",
+              file=sys.stderr)
+        return findings
+    raise SystemExit(
+        "Klassen-Konstanten passen nicht zu den Daten:\n"
+        + "\n".join(findings)
+        + "\n\nKonstante, Bericht UND ampel_model.dart gehören "
+          "zusammen neu gesetzt — nicht einzeln.")
 
 
 def class_table_row(key, klass, got):
@@ -2147,6 +2644,48 @@ HOLDOUT_MIN_GAIN = 0.05
 PLACEBO_TOLERANCE = 0.03
 
 
+def control_tolerance(n):
+    """Zwei Standardfehler bei DIESER Paarzahl — statt einer festen Zahl.
+
+    ±0,03 war eine feste Grenze an einer Größe, deren Streuung an `n`
+    hängt. Zwei Standardfehler sind **±0,045 bei 538 Paaren** und
+    **±0,022 bei 2000**: Die feste Zahl war bei kleinen Stichproben zu
+    lasch und bei großen zu streng — ein Filter auf die Stichprobengröße
+    und nicht auf die Gültigkeit.
+
+    Genau das war schon am 2026-09-17 gemessen worden
+    (`docs/pilzampel-kontrolltoleranz.md`: alle acht Ablehnungen lagen
+    innerhalb von 2,5 Standardfehlern, 0 von 16 großen Stichproben wurden
+    abgelehnt gegen 7 von 18 kleinen). Damals wurde daraus der
+    Jahres-Bootstrap; wo es den nicht gibt, stand die feste Zahl weiter.
+
+    Ohne Paarzahl bleibt es bei der alten Grenze — dann ist sie die
+    einzige Auskunft, die da ist.
+    """
+    if not n:
+        return PLACEBO_TOLERANCE
+    return 2.0 * math.sqrt(0.25 / n)
+
+
+def control_clean(auc, n):
+    """Hält die Kontrolle bei dieser Paarzahl?"""
+    return abs(auc - 0.5) <= control_tolerance(n)
+
+
+def _tolerance_text(n):
+    """Die verwendete Toleranz IM BERICHT nennen, nicht nur anwenden.
+
+    Der Auftrag verlangt sie in jeder Tabelle: Eine Grenze, die sich mit
+    der Paarzahl ändert, ist ohne die Zahl daneben nicht nachvollziehbar.
+    Die alte feste Grenze steht dabei, solange es Berichte gibt, die sie
+    benutzt haben.
+    """
+    if not n:
+        return f"Toleranz ±{PLACEBO_TOLERANCE:.2f}"
+    return (f"Toleranz ±{control_tolerance(n):.3f} = 2 SE bei {n} Paaren; "
+            f"früher fest ±{PLACEBO_TOLERANCE:.2f}")
+
+
 def holdout_species(name, sci, countries, cache_dir=None, seed=42,
                     progress=True, window=None):
     """In Deutschland anpassen, im Ausland prüfen.
@@ -2224,7 +2763,7 @@ def class_holdout_clean(row):
     nicht bei 0,50, ist die Ziehung verzerrt, und die Zahl darüber ist
     wertlos — egal wie gut sie aussieht.
     """
-    return abs(row["mirror_auc"] - 0.5) <= PLACEBO_TOLERANCE
+    return control_clean(row["mirror_auc"], row.get("mirror_n"))
 
 
 def class_holdout_verdict(rows, members):
@@ -2333,11 +2872,17 @@ def render_class_holdout_report(rows, countries, key, window, fits,
         out.append(f"| {name} | {row['n']} | {row['years']} | "
                    f"{row['auc_shared']:.3f} | {row['auc_fitted']:.3f} | "
                    f"{ci} | {row['mirror_auc']:.3f} | {mark} |")
-    out += ["", f"Die Spalte „Kontrolle“ ist die abstandsgleiche "
-            f"Kontrolle — Vergleichstag gegen seinen am Fundtag "
-            f"gespiegelten Partner. Sie MUSS bei 0,50 liegen (Toleranz "
-            f"±{PLACEBO_TOLERANCE:.2f}); tut sie es nicht, ist die Ziehung "
-            "verzerrt und die Zahl daneben wertlos.", "",
+    out += ["", "Die Spalte „Kontrolle“ ist die abstandsgleiche "
+            "Kontrolle — Vergleichstag gegen seinen am Fundtag "
+            "gespiegelten Partner. Sie MUSS bei 0,50 liegen; tut sie es "
+            "nicht, ist die Ziehung verzerrt und die Zahl daneben wertlos.",
+            "", "**Die Toleranz hängt seit 2026-09-17 an der Paarzahl** "
+            "(zwei Standardfehler, `2·√(0,25/n)`) statt an festen ±0,03. "
+            "Die feste Zahl war ein Filter auf die Stichprobengröße: Zwei "
+            "Standardfehler sind ±0,045 bei 538 Paaren und ±0,022 bei 2000. "
+            "Frühere Berichte nennen weiterhin die ±0,03, unter der sie "
+            "entstanden sind — sie werden nicht rückwirkend umetikettiert.",
+            "",
             "## Der Ausgang", ""]
 
     if state == "offen":
@@ -2507,7 +3052,7 @@ def render_holdout_report(rows, countries, fetched_on):
         # Bericht schrieb „bestätigt" und zwei Zeilen darunter „nicht
         # auswertbar"; von zwei widersprüchlichen Sätzen liest jeder den,
         # der ihm passt.
-        clean = abs(row["mirror_auc"] - 0.5) <= PLACEBO_TOLERANCE
+        clean = control_clean(row["mirror_auc"], row.get("mirror_n"))
         met = clean and row["gain"] >= HOLDOUT_MIN_GAIN
         span = (row.get("ci") or {}).get("difference")
         ci = f" [{span[0]:+.3f}, {span[1]:+.3f}]" if span else ""
@@ -2528,10 +3073,10 @@ def render_holdout_report(rows, countries, fetched_on):
         # in der Rückwärtsvalidierung.
         off = abs(row["placebo_auc"] - 0.5)
         out += [f"Placebo-Kontrolle im Hold-out: {row['placebo_auc']:.3f} "
-                f"bei {row['placebo_n']} Paaren (Toleranz "
-                f"±{PLACEBO_TOLERANCE:.2f})"
+                f"bei {row['placebo_n']} Paaren "
+                f"({_tolerance_text(row['placebo_n'])})"
                 + (" — erwartbar abweichend, siehe unten."
-                   if abs(row["placebo_auc"] - 0.5) > PLACEBO_TOLERANCE
+                   if not control_clean(row["placebo_auc"], row["placebo_n"])
                    else " — unauffällig.")]
         out += [f"**Abstandsgleiche Kontrolle: {row['mirror_auc']:.3f}** bei "
                 f"{row['mirror_n']} Paaren — der Vergleichstag gegen seine "
@@ -3148,7 +3693,7 @@ def membership_control_clean(row):
     """
     band = row.get("mirror_ci")
     if band is None:
-        return abs(row["mirror_auc"] - 0.5) <= PLACEBO_TOLERANCE
+        return control_clean(row["mirror_auc"], row.get("mirror_n"))
     return band[0] <= 0.5 <= band[1]
 
 
@@ -3697,6 +4242,35 @@ def self_test():
     else:
         raise AssertionError("fünf falsche Konstanten müssen auffallen")
 
+    # **Auf einer anderen Basis darf derselbe Fund NICHT abbrechen.**
+    # Sonst wäre jede Messung auf einem gepinnten Datensatz blockiert —
+    # genau das ist am 2026-09-17 im Referenzlauf passiert.
+    try:
+        use_dataset("pinned")
+        with contextlib.redirect_stderr(io.StringIO()) as _quiet:
+            gemeldet = verify_class_constants({
+                "herbst": {"verhalten": 0.0, "guenstig": 0.0,
+                           "optimum_measured": 99.0},
+                "sommer": {"verhalten": 0.0, "guenstig": 0.0},
+            })
+        # Die Meldung muss den Grund nennen, sonst liest sie sich wie ein
+        # verschluckter Fehler.
+        assert "pinned" in _quiet.getvalue(), _quiet.getvalue()
+        assert "Nachmessung" in _quiet.getvalue()
+        assert len(gemeldet) == 5, gemeldet
+        assert any("herbst.optimum" in f for f in gemeldet), gemeldet
+    finally:
+        use_dataset(ampel_basis.DEFAULT_DATASET)
+    # Und auf der Vorgabe bricht er weiter ab — der Wächter ist nicht
+    # abgeschaltet, nur auf das eingeschränkt, was er beantworten kann.
+    try:
+        verify_class_constants({"herbst": {"verhalten": 0.0,
+                                           "guenstig": 0.0}})
+    except SystemExit:
+        pass
+    else:
+        raise AssertionError("auf der Vorgabe muss er weiter abbrechen")
+
     # **Und der Erfolgsfall.** Hier stand nach einem Umbau ein verirrtes
     # `return out`, und der Selbsttest hat es nicht bemerkt, weil er nur
     # den Fehlerpfad ging: Ein Wächter, der prüft, dass FALSCHE
@@ -3956,6 +4530,27 @@ def self_test():
         temperature_factor([13.0] * TEMP_WINDOW, OPTIMUM_C)
     assert temperature_factor([7.0] * TEMP_WINDOW, 7.0) == 1.0
 
+    # **Die Breite ist ab H1 ein Parameter — der Vorgabewert bleibt der
+    # ausgelieferte.** Die Spiegel-Regel zu `ampel_model.dart` haengt
+    # daran: Wer die Vorgabe verschiebt, aendert die App-Rechnung, ohne
+    # eine Zeile Dart anzufassen.
+    assert TEMP_SIGMA == 5.0
+    assert temperature_factor([8.0] * TEMP_WINDOW) == \
+        temperature_factor([8.0] * TEMP_WINDOW, OPTIMUM_C, TEMP_SIGMA)
+    # Eine schmalere Glocke faellt schneller ab, eine breitere langsamer
+    # — und am Gipfel sind alle drei gleich 1,0.
+    schmal = temperature_factor([8.0] * TEMP_WINDOW, OPTIMUM_C, 3.25)
+    breit = temperature_factor([8.0] * TEMP_WINDOW, OPTIMUM_C, 8.0)
+    mittel = temperature_factor([8.0] * TEMP_WINDOW, OPTIMUM_C, 5.0)
+    assert schmal < mittel < breit, (schmal, mittel, breit)
+    for sigma in (3.25, 5.0, 8.0):
+        assert temperature_factor([13.0] * TEMP_WINDOW, OPTIMUM_C,
+                                  sigma) == 1.0
+    # Und `ampel_score` reicht die Breite durch, statt sie zu schlucken.
+    regen = [5.0] * RAIN_WINDOW
+    assert ampel_score(regen, [8.0] * TEMP_WINDOW, OPTIMUM_C, 3.25) < \
+        ampel_score(regen, [8.0] * TEMP_WINDOW, OPTIMUM_C, 8.0)
+
     # Ein trockener, kalter Tag darf nie über einem feuchten, milden liegen.
     good = ampel_score([6.0] * RAIN_WINDOW, [13.0] * TEMP_WINDOW)
     bad = ampel_score([0.0] * RAIN_WINDOW, [-2.0] * TEMP_WINDOW)
@@ -4084,6 +4679,173 @@ def self_test():
     assert OPEN_METEO == OPEN_METEO_DEFAULT, \
         "der Selbsttest läuft mit der Vorgabe, nicht mit --api"
 
+    # --- Design B: das Maß, netzfrei ----------------------------------
+    #
+    # Gepflanzt: Ein Fund schlägt drei von vier Kontrolljahren, der
+    # zweite keines. Das Mittel muss 0,375 sein.
+    def _b(jahr, found_c, controls):
+        return {"year": jahr, "found": ([1.0] * 26, [found_c] * 20),
+                "controls": [([1.0] * 26, [c] * 20) for c in controls],
+                "control_years": [jahr - 2, jahr - 1, jahr + 1, jahr + 2],
+                "placebo_found": None, "placebo_controls": None}
+    # 13 °C trifft das Optimum; 30 °C liegt weit daneben.
+    gut = _b(2015, 13.0, [30.0, 30.0, 30.0, 13.0])     # 3 geschlagen, 1 gleich
+    schlecht = _b(2016, 30.0, [13.0, 13.0, 13.0, 13.0])
+    wert, n = score_b([gut, schlecht])
+    assert n == 2 and abs(wert - 0.4375) < 1e-9, (wert, n)
+
+    # `limit` schneidet auf die ersten k — für k = 1 ist es der Beitrag
+    # eines einzelnen Paares und damit dieselbe Größe wie in Design A.
+    assert score_b([gut], limit=1)[0] == 1.0
+    assert score_b([schlecht], limit=1)[0] == 0.0
+
+    # Der Richtungs-Split trennt frühere von späteren Kontrolljahren.
+    assert score_b([gut], side="frueher")[0] == 1.0      # 2013, 2014
+    assert score_b([gut], side="spaeter")[0] == 0.75     # 2016 ja, 2017 gleich
+    # Eine Art ohne Kontrolljahr auf einer Seite liefert dort nichts,
+    # statt eine Null beizusteuern.
+    einseitig = dict(gut, control_years=[2013, 2014, 2013, 2014])
+    assert score_b([einseitig], side="spaeter") == (None, 0)
+
+    # Das Placebo greift nur, wo es gezogen wurde.
+    assert placebo_b([gut]) == (None, 0)
+    mit = dict(gut, placebo_found=([1.0] * 26, [13.0] * 20),
+               placebo_controls=[([1.0] * 26, [30.0] * 20)])
+    assert placebo_b([mit]) == (1.0, 1)
+
+    # **Ein Zeitraum aus einem Schaltjahr passt nicht in jedes andere.**
+    # Index 365 existiert nur in Schaltjahren; ungeklemmt wird daraus
+    # das Datum „JJJJ-13-01" und Open-Meteo antwortet mit einem 400.
+    assert clamp_span((10, 365), 2020) == (10, 365)      # Schaltjahr
+    assert clamp_span((10, 365), 2021) == (10, 364)      # keines
+    assert clamp_span((10, 300), 2021) == (10, 300)      # nichts zu tun
+    assert _date_from_index(2020, 365) == "2020-12-31"
+    assert _date_from_index(2021, 364) == "2021-12-31"
+    # Und der Beweis, dass es ohne Klemmen schiefgeht:
+    assert _date_from_index(2021, 365).startswith("2021-13"), \
+        "ohne Klemmen entsteht ein Monat 13 — genau der stille 400er"
+
+    # **`select_finds` wird netzfrei durch BEIDE Zweige geschickt.**
+    # Der Stichproben-Zweig laeuft erst ab SAMPLE_PER_SPECIES Meldungen,
+    # und genau dort stand eine Zeile mit einer Variablen, die es in
+    # dieser Funktion gar nicht gibt. Der Selbsttest lief gruen, der
+    # Probelauf lief gruen (die Art hatte zu wenige Meldungen), und der
+    # Volllauf brach bei der ersten haeufigen Art ab. Ein Zweig, der nur
+    # bei grossen Eingaben genommen wird, braucht eine grosse Eingabe.
+    _echte_finds = globals()["fetch_finds"]
+    try:
+        _viele = [{"lat": 51.0 + i * 1e-4, "lon": 10.0, "year": 2010,
+                   "month": 9, "day": 1 + (i % 28), "recordedBy": f"M{i}"}
+                  for i in range(SAMPLE_PER_SPECIES + 500)]
+        globals()["fetch_finds"] = lambda sci, **kw: _viele
+        _gezogen, _info = select_finds("x", None, 42, False)
+        assert len(_gezogen) == SAMPLE_PER_SPECIES, len(_gezogen)
+        assert _info["available"] == SAMPLE_PER_SPECIES + 500
+        # Und der kleine Zweig: weniger als die Grenze bleibt unangetastet.
+        globals()["fetch_finds"] = lambda sci, **kw: _viele[:10]
+        _gezogen, _info = select_finds("x", None, 42, False)
+        assert len(_gezogen) == 10, len(_gezogen)
+        # Leere Liste ergibt None statt eines Absturzes weiter unten.
+        globals()["fetch_finds"] = lambda sci, **kw: []
+        assert select_finds("x", None, 42, False) == (None, {})
+    finally:
+        globals()["fetch_finds"] = _echte_finds
+
+    # --- Design B: das Mass, netzfrei ----------------------------------
+    #
+    # Gepflanzt: Ein Fund schlaegt drei von vier Kontrolljahren und steht
+    # beim vierten gleich; der zweite schlaegt keines.
+    def _b(jahr, found_c, controls):
+        return {"year": jahr, "found": ([1.0] * 26, [found_c] * 20),
+                "controls": [([1.0] * 26, [c] * 20) for c in controls],
+                "control_years": [jahr - 2, jahr - 1, jahr + 1, jahr + 2],
+                "placebo_found": None, "placebo_controls": None}
+    gut = _b(2015, 13.0, [30.0, 30.0, 30.0, 13.0])
+    schlecht = _b(2016, 30.0, [13.0, 13.0, 13.0, 13.0])
+    wert, n = score_b([gut, schlecht])
+    assert n == 2 and abs(wert - 0.4375) < 1e-9, (wert, n)
+
+    # `limit` schneidet auf die ersten k — fuer k = 1 ist es der Beitrag
+    # eines einzelnen Paares und damit dieselbe Groesse wie in Design A.
+    assert score_b([gut], limit=1)[0] == 1.0
+    assert score_b([schlecht], limit=1)[0] == 0.0
+
+    # Der Richtungs-Split trennt fruehere von spaeteren Kontrolljahren.
+    assert score_b([gut], side="frueher")[0] == 1.0
+    assert score_b([gut], side="spaeter")[0] == 0.75
+    # Eine Seite ohne Kontrolljahr liefert dort nichts, statt eine Null
+    # beizusteuern — sonst saehe „fehlt" aus wie „schlecht".
+    einseitig = dict(gut, control_years=[2013, 2014, 2013, 2014])
+    assert score_b([einseitig], side="spaeter") == (None, 0)
+
+    # Das Placebo greift nur, wo es gezogen wurde.
+    assert placebo_b([gut]) == (None, 0)
+    mit = dict(gut, placebo_found=([1.0] * 26, [13.0] * 20),
+               placebo_controls=[([1.0] * 26, [30.0] * 20)])
+    assert placebo_b([mit]) == (1.0, 1)
+
+    # Und `collect_pairs` muss eine fertige Liste unveraendert uebernehmen,
+    # sonst laufen A und B doch auf verschiedenen Stichproben.
+    _quelle = inspect.getsource(collect_pairs)
+    assert "if DEDUPE and not vorgegeben:" in _quelle, \
+        "eine hereingereichte Liste wuerde noch einmal entdoppelt"
+    assert "if len(finds) > SAMPLE_PER_SPECIES and not vorgegeben:" in _quelle, \
+        "eine hereingereichte Liste wuerde noch einmal beprobt"
+
+    # --- A4: der lokale Bestand wird nicht mehr beschnitten -----------
+    #
+    # Netzfrei prüfbar ist nur die Absicht im Quelltext — die Datenbank
+    # liegt nicht in CI. Das ist als Wächter dünn, aber es fängt genau
+    # den Fall, um den es geht: dass jemand die Grenze wieder einbaut,
+    # weil sie beim Netzweg sinnvoll ist.
+    _quelle = inspect.getsource(_finds_from_local)
+    assert "limit = None" in _quelle, \
+        "der lokale Bestand darf nicht nach gbifID beschnitten werden"
+    assert "LIMIT ?" in _quelle, \
+        "der Netzweg braucht seine Grenze weiterhin"
+
+    # --- A2: die Kontroll-Toleranz hängt an der Paarzahl --------------
+    #
+    # Die feste ±0,03 war ein Filter auf die Stichprobengröße. Der Test
+    # nagelt beide Richtungen fest: dieselbe Abweichung muss bei kleiner
+    # Paarzahl durchgehen und bei großer auffallen.
+    assert abs(control_tolerance(2000) - 0.0224) < 1e-3, control_tolerance(2000)
+    assert abs(control_tolerance(538) - 0.0431) < 1e-3, control_tolerance(538)
+    assert control_tolerance(2000) < control_tolerance(538), \
+        "mehr Paare müssen eine ENGERE Grenze geben"
+    assert control_tolerance(0) == PLACEBO_TOLERANCE
+    assert control_tolerance(None) == PLACEBO_TOLERANCE
+    # 0,470 — genau der Wert der Aufwands-Referenz aus Phase 1.3.
+    assert control_clean(0.470, 538), "bei 538 Paaren sind das 1,4 SE"
+    assert not control_clean(0.470, 2000), "bei 2000 Paaren sind das 2,7 SE"
+    # Und die alte feste Grenze hätte beides gleich behandelt — genau das
+    # war der Fehler.
+    assert (abs(0.470 - 0.5) > PLACEBO_TOLERANCE) is True
+    # Der Bericht muss die verwendete Grenze NENNEN, nicht nur anwenden.
+    text = _tolerance_text(538)
+    assert "0.043" in text and "538" in text and "0.03" in text, text
+    assert "±0.03" in _tolerance_text(0)
+
+    # **Ein Fenster mit Lücke ist kein Fenster.** Die beiden Faktoren
+    # verrechnen fehlende Werte still (Regen als 0 mm, Temperatur als
+    # „maximal daneben“) — beides sind Zahlen, die niemand gemessen hat.
+    _heil = {"first": 0, "rain": [1.0] * 40, "temp": [10.0] * 40}
+    assert window_before(_heil, 30, 26)[0] is not None
+    _loch_regen = {"first": 0, "rain": [1.0] * 20 + [None] + [1.0] * 19,
+                   "temp": [10.0] * 40}
+    assert window_before(_loch_regen, 30, 26) == (None, None), \
+        "Regen-Lücke käme als erfundene Trockenheit durch"
+    _loch_temp = {"first": 0, "rain": [1.0] * 40,
+                  "temp": [10.0] * 20 + [None] + [10.0] * 19}
+    assert window_before(_loch_temp, 30, 26) == (None, None), \
+        "Temperatur-Lücke käme durch"
+    # Eine Lücke AUSSERHALB des Fensters darf es nicht ungültig machen.
+    _loch_daneben = {"first": 0, "rain": [None] + [1.0] * 39,
+                     "temp": [10.0] * 40}
+    assert window_before(_loch_daneben, 30, 26)[0] is not None
+    # Die Bremse gilt dem oeffentlichen Dienst, nicht der eigenen Instanz.
+    assert _politeness() == 2.0, "der oeffentliche Dienst wird geflutet"
+
     # --- Keine Zuweisung in `main` darf eine Funktion verdecken --------
     #
     # Genau das ist am 2026-09-17 passiert: `verdict = membership_verdict(…)`
@@ -4123,6 +4885,61 @@ def self_test():
             f"{_node.name}() weist {sorted(_shadowed)} zu und verdeckt damit "
             f"die gleichnamige Funktion in der GANZEN Funktion — auch in "
             f"Zweigen, die die Zuweisung nie erreichen.")
+
+    # --- Die Messbasis (Phase 0, docs/pilzampel-messbasis.md) ----------
+    #
+    # **Die Vorgabe muss Zeile für Zeile das alte Verhalten sein.** Sonst
+    # wäre jede schon veröffentlichte Zahl still eine andere geworden —
+    # und zwar ohne dass irgendein Bericht sich ändert.
+    assert DATASET == ampel_basis.DEFAULT_DATASET == "vorgabe"
+    assert EXTRA_FIELDS == [], EXTRA_FIELDS
+    assert SPAN_LOOKBACK == RAIN_WINDOW == 26
+    assert DEDUPE is False, "Entdoppeln ist ab Werk aus"
+    probe = [(51.0, 10.0), (48.0, 11.0)]
+    assert _cache_key(2020, probe, 100, 300).startswith("weather_2020_"), \
+        "der alte Cache wäre unsichtbar"
+
+    # Die Zufallsfolge ist die von vorher: erst `randint`, dann `random`.
+    # Wer die Reihenfolge ändert, verschiebt jede bisher berichtete Zahl.
+    # Deshalb steht hier eine festgenagelte Folge und keine Eigenschaft.
+    rng = random.Random(42)
+    drawn = [pick_control_day(100, rng) for _ in range(5)]
+    assert drawn == [71, 66, 130, 57, 61], drawn
+    # Und dieselbe Folge muss aus `ampel_basis` kommen — sonst laufen die
+    # beiden Wege auseinander, sobald einer angefasst wird.
+    rng = random.Random(42)
+    mirror = [ampel_basis.pick_control(100, rng, CONTROL_MIN_GAP,
+                                       CONTROL_MAX_GAP)[0] for _ in range(5)]
+    assert mirror == drawn, (mirror, drawn)
+
+    # Umschalten zieht Felder UND Vorlauf mit.
+    try:
+        use_dataset("pinned")
+        assert DATASET == "pinned"
+        assert EXTRA_FIELDS == ["smoist", "snow", "stemp", "tmin"], EXTRA_FIELDS
+        assert SPAN_LOOKBACK == 28, \
+            "ohne größeren Vorlauf fehlt Phase 2 die Frostdosis über 28 Tage"
+        assert not _cache_key(2020, probe, 100, 300).startswith(
+            "weather_2020_"), "gepinnt und Vorgabe teilten sich eine Datei"
+        # Der größere Vorlauf muss sich auch im Zeitraum niederschlagen.
+        assert season_span([200], year=2020)[0] == 200 - 45 - 28 - 1
+    finally:
+        use_dataset(ampel_basis.DEFAULT_DATASET)
+    assert SPAN_LOOKBACK == RAIN_WINDOW and EXTRA_FIELDS == []
+    assert season_span([200], year=2020)[0] == 200 - 45 - 26 - 1
+
+    # Ein unbekannter Datensatz bricht ab, statt still auf die Vorgabe
+    # zurückzufallen — ein Tippfehler im Flag wäre sonst ein ganzer Lauf
+    # auf dem falschen Instrument.
+    try:
+        use_dataset("era5land")
+    except SystemExit:
+        pass
+    else:
+        raise AssertionError("unbekannter Datensatz angenommen")
+    assert DATASET == "vorgabe"
+
+    ampel_basis.self_test_quiet()
 
     # Die Kandidaten des Kalttests stehen NICHT im Standardlauf — geprüft
     # wird trotzdem, dass es sie gibt: Ein Tippfehler fiele sonst erst
@@ -5126,14 +5943,15 @@ def render_report(mycorrhizal, wood, crosscheck, fetched_on):
     ]
     for row in mycorrhizal + wood:
         noise = 1 / (2 * math.sqrt(row["mirror_n"])) if row["mirror_n"] else 0
-        mark = "" if abs(row["mirror_auc"] - 0.5) <= PLACEBO_TOLERANCE else " ⚠"
+        mark = "" if control_clean(
+            row["mirror_auc"], row["mirror_n"]) else " ⚠"
         lines.append(
             f"| {row['name']} | {row['mirror_n']} | "
             f"{row['mirror_auc']:.3f}{mark} | ±{noise:.3f} | "
             f"{row['placebo_auc']:.3f} |")
 
     failed = [r for r in mycorrhizal + wood
-              if abs(r["mirror_auc"] - 0.5) > PLACEBO_TOLERANCE]
+              if not control_clean(r["mirror_auc"], r["mirror_n"])]
     lines += [""]
     if failed:
         # **Je Art, nicht pauschal.** Ein durchgefallener Wächter bei
@@ -5251,6 +6069,7 @@ def render_report(mycorrhizal, wood, crosscheck, fetched_on):
 
 
 def main():
+    global OPEN_METEO, SAMPLE_PER_SPECIES, DEDUPE
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", default=None,
                         help="Bericht schreiben (z. B. docs/…​.md)")
@@ -5305,11 +6124,37 @@ def main():
     parser.add_argument("--cache", default=None,
                         help="Verzeichnis für Wetterantworten")
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--dataset", default=ampel_basis.DEFAULT_DATASET,
+                        choices=sorted(ampel_basis.DATASETS),
+                        help="Wetterdatensatz: 'vorgabe' ist Open-Meteos "
+                             "'best match' und wechselt 2017 das Instrument "
+                             "(reproduziert alte Laeufe); 'pinned' ist "
+                             "ERA5-Land + ERA5 ueber alle Jahre")
+    parser.add_argument("--window", type=float, default=None,
+                        help="Fenster der Klasse von Hand setzen statt es "
+                             "abzuleiten — fuer Nachmessungen auf einer "
+                             "anderen Messbasis, nie fuer einen neuen "
+                             "Hold-out-Versuch")
+    parser.add_argument("--dedupe", action="store_true",
+                        help="hoechstens eine Meldung je Melder x ~1 km x Tag")
+    parser.add_argument("--sample", type=int, default=None,
+                        help=f"Meldungen je Art (Vorgabe {SAMPLE_PER_SPECIES})")
     args = parser.parse_args()
     if args.api:
-        global OPEN_METEO
         OPEN_METEO = args.api.rstrip("/")
         print(f"Archiv-API: {OPEN_METEO}", file=sys.stderr)
+    if args.sample is not None:
+        SAMPLE_PER_SPECIES = args.sample
+    DEDUPE = args.dedupe
+    use_dataset(args.dataset)
+    # **Die Basis steht im Protokoll, immer.** Ein Lauf, dem man nicht
+    # ansieht, auf welchem Instrument er lief, ist spaeter nicht mehr
+    # einzuordnen — und genau das war der Zustand, den Phase 0 aufraeumt.
+    print(f"Datensatz: {DATASET} "
+          f"({ampel_basis.dataset_fingerprint(DATASET)}), "
+          f"Vorlauf {SPAN_LOOKBACK} d, "
+          f"Entdoppeln {'an' if DEDUPE else 'aus'}, "
+          f"Stichprobe {SAMPLE_PER_SPECIES}", file=sys.stderr)
 
     if args.self_test:
         self_test()
@@ -5478,6 +6323,21 @@ def main():
                 raise SystemExit(
                     "Kein Fenster: keines der Mitglieder ist in Deutschland "
                     "auswertbar.")
+            if args.window is not None:
+                # **Ein von Hand gesetztes Fenster ist kein neuer
+                # Hold-out-Versuch, sondern eine Nachmessung** — und es
+                # muss eine geben: Beim Wechsel der Messbasis verschieben
+                # sich die angepassten Optima, und damit das abgeleitete
+                # Fenster. Ohne diese Möglichkeit ließe sich nie sagen, ob
+                # ein anderer Ausgang am INSTRUMENT hing oder daran, dass
+                # das Fenster mitgewandert ist.
+                #
+                # Der abgeleitete Wert wird trotzdem gerechnet und
+                # genannt, damit im Protokoll steht, wovon abgewichen wird.
+                print(f"  Fenster der Klasse wäre {_optimum_text(window)} °C "
+                      f"— gesetzt auf {args.window} °C (Nachmessung)",
+                      file=sys.stderr)
+                window = args.window
             print(f"  Fenster der Klasse: {_optimum_text(window)} °C",
                   file=sys.stderr)
             rows = [holdout_species(name, mapping[name], countries,
@@ -5614,19 +6474,38 @@ def main():
     # `--crosscheck` allein braucht KEIN Open-Meteo — nur GBIF und
     # Mushroom Observer. Deshalb lässt es sich getrennt laufen, etwa wenn
     # das Tageskontingent des Wetterdienstes erschöpft ist.
+    # **`--only` gilt auch hier.** Bis 2026-09-17 tat es das NICHT: Der
+    # Standardlauf ignorierte das Flag stillschweigend und maß trotzdem
+    # alle Arten — ein Aufruf mit `--only Steinpilz` lief also eine
+    # Stunde länger als verlangt, ohne dass irgendwo stand, warum. Ein
+    # Flag, das nichts tut, ist schlimmer als keines.
+    only_mycorrhizal, only_wood = MYCORRHIZAL, WOOD_DWELLERS
+    if args.only:
+        asked = [n.strip() for n in args.only.split(",") if n.strip()]
+        unknown = [n for n in asked
+                   if n not in MYCORRHIZAL and n not in WOOD_DWELLERS]
+        if unknown:
+            raise SystemExit(
+                f"Unbekannte Art(en) für den Standardlauf: "
+                f"{', '.join(unknown)}.\n"
+                f"Er kennt nur die Listen MYCORRHIZAL und WOOD_DWELLERS; "
+                f"für andere Arten gibt es --fit, --membership oder "
+                f"--thresholds.")
+        only_mycorrhizal = [n for n in MYCORRHIZAL if n in asked]
+        only_wood = [n for n in WOOD_DWELLERS if n in asked]
     if not args.crosscheck_only:
         print("Mykorrhiza-Speisepilze:", file=sys.stderr)
         mycorrhizal = [
             row for row in (
                 validate_species(name, mapping[name], args.cache, args.seed)
-                for name in MYCORRHIZAL if name in mapping)
+                for name in only_mycorrhizal if name in mapping)
             if row
         ]
         print("Arten-Kontrolle (Holzbewohner):", file=sys.stderr)
         wood = [
             row for row in (
                 validate_species(name, mapping[name], args.cache, args.seed)
-                for name in WOOD_DWELLERS if name in mapping)
+                for name in only_wood if name in mapping)
             if row
         ]
 
@@ -5668,7 +6547,7 @@ def main():
     print(f"  Abstandsgleiche Kontrolle (soll 0,50): grösste Abweichung "
           f"{worst:.3f}", file=sys.stderr)
     broken = [row["name"] for row in mycorrhizal + wood
-              if abs(row["mirror_auc"] - 0.5) > PLACEBO_TOLERANCE]
+              if not control_clean(row["mirror_auc"], row["mirror_n"])]
     if broken:
         print(f"  ⚠ Nicht auswertbar: {', '.join(broken)} — dort ist die "
               f"Ziehung verzerrt. Die übrigen Arten sind davon nicht "
