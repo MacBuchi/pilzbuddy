@@ -153,6 +153,7 @@ Beobachtung, die eine Zeitscheibe weiter nicht mehr da ist.
 | 2026-09-19 | Trägt die Glocke etwas bei? Zerlegung auf P3 | **H5 nicht registriert** — 1 von 6 statt 5 von 6 | `pilzampel-h5-vorpruefung-ergebnis.md` |
 | 2026-09-19 | Wo lägen die Schwellen an Design-B-Kontrolltagen? (Auftrag 3 A) | Vorlage, nichts übernommen — die ausgelieferten Schwellen greifen an B-Tagen 1,7-mal so oft wie vorgesehen | `pilzampel-schwellen-designb.md` |
 | 2026-09-19 | Alterung: dieselbe Zerlegung auf geteilten Anpassjahren | die Glocke altert nicht, der Einbruch liegt in den Prüfjahren | `pilzampel-alterung.md` |
+| 2026-09-19 | H6: hält das Sommer-Optimum still? (Auftrag 3 B) | **H6 nicht registriert** — V1 gefallen (Gitter 15,00 gegen Logit 13,16 °C); das harte Abbruchkriterium V2 hat gehalten | `pilzampel-h6-vorpruefung-ergebnis.md` |
 
 ### Diagnosen auf P1 (kosten ebenfalls keine Achse)
 

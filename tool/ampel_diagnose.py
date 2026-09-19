@@ -4885,9 +4885,9 @@ def render_h6(d):
           f"{_grad(d['ganz']['plateau'][0])} bis "
           f"{_grad(d['ganz']['plateau'][1])} "
           f"({_k(d['ganz']['plateau_breite'])} breit) — alle Optima, die "
-          f"weniger als {H6_PLATEAU} B darunter liegen. Ein breites "
-          "Plateau heißt: Der Gipfel ist eine Nachkommastelle ohne "
-          "Deckung.")
+          "weniger als " + f"{H6_PLATEAU:.3f}".replace(".", ",")
+          + " B darunter liegen. Ein breites Plateau heißt: Der Gipfel "
+            "ist eine Nachkommastelle ohne Deckung.")
     if d["logit"].get("grund"):
         w(f"\n⚠ Logit: {d['logit']['grund']}")
     if d["logit"].get("konvergiert") is False:
@@ -4947,11 +4947,19 @@ def render_h6(d):
           "Paar verschieden.\n")
         w(f"> **Obergrenze der Effektgröße: |ΔB| ≤ "
           f"{v3['anteil']:.3f}**".replace(".", ",") + "\n")
-        w(f"Die schärfere Schranke liegt darunter: Im Mittel ändert "
-          f"sich der Beitrag je Vergleich um "
+        schaerfer = v3["mittlere_aenderung"] < v3["anteil"] - 1e-12
+        w("Die zweite, schärfere Schranke ist die mittlere Änderung des "
+          "Beitrags je Vergleich: "
           + f"{v3['mittlere_aenderung']:.3f}".replace(".", ",")
-          + " — ein Vergleich, der von " + z("geschlagen") + " auf "
-          + z("gleich") + " kippt, verschiebt nur einen halben Punkt.")
+          + (" — sie liegt darunter, weil ein Vergleich, der von "
+             + z("geschlagen") + " auf " + z("gleich") + " kippt, nur "
+             "einen halben Punkt verschiebt." if schaerfer else
+             ". **Sie ist hier genauso groß wie der Diskordanzanteil.** "
+             "Das heißt: Jeder Vergleich, der überhaupt kippt, kippt "
+             "ganz — von " + z("geschlagen") + " auf "
+             + z("nicht geschlagen") + ", nie auf " + z("gleich") + ". "
+             "Exakte Gleichstände gibt es bei Fließkommazahlen "
+             "praktisch nicht."))
 
     w("\n## V4 — kann der Aufbau das sehen?\n")
     v4 = d["v4"]
@@ -4991,10 +4999,14 @@ def render_h6(d):
           "und danach eingefrorenen Wert. Die Registrierung ist ein "
           "eigenes Dokument und kommt vor dem Achsenlauf.")
     else:
-        gefallen = [name for name, wert in
+        namen = {"wege_einig": "V1 — Gitter und Logit sind sich nicht "
+                                "einig",
+                 "stabil": "V2 — das Optimum wandert",
+                 "aufloesung": "V4 — die Auflösung reicht nicht"}
+        gefallen = [namen[name] for name, wert in
                     d["urteil"]["bedingungen"].items() if not wert]
-        w(f"Gefallen ist: **{', '.join(gefallen)}**. **H6 wird nicht "
-          "registriert**, und AT+CH bleibt unangetastet.\n")
+        w("Gefallen ist: **" + "**, **".join(gefallen) + "**. **H6 wird "
+          "nicht registriert**, und AT+CH bleibt unangetastet.\n")
         w("Das ist ein Ergebnis und kein Anlass für einen zweiten "
           "Anlauf mit verschobener Latte. Was hier gemessen wurde, "
           "steht oben; ob es reicht, ist eine Betreiberentscheidung und "
