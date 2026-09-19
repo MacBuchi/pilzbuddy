@@ -102,7 +102,21 @@ nichts und darf die Latte der eigentlichen Prüfung nicht verschieben. Er
 verhindert nur, dass eine Achse für eine Frage ausgegeben wird, die so
 nicht beantwortbar ist.
 
-**Erster Lauf unter dieser Regel:** `docs/pilzampel-h5-vorpruefung.md`.
+**Erster Lauf unter dieser Regel:** `docs/pilzampel-h5-vorpruefung.md`
+— und er hat sofort getragen. Die Zerlegung „Regen allein schlägt
+Temperatur allein", auf P1 bei 11 von 11 Arten sichtbar, kehrt auf den
+Anpassjahren bei nur 1 von 6 wieder. **H5 wurde deshalb nicht
+registriert, und AT+CH ist nicht angefasst worden**
+(`docs/pilzampel-h5-vorpruefung-ergebnis.md`).
+
+Ohne die Regel wäre die sechste Frage an AT+CH gegangen — für eine
+Beobachtung, die eine Zeitscheibe weiter nicht mehr da ist.
+
+### Vorprüfungen (kosten keine Achse)
+
+| Datum | Frage | Ausgang | Beleg |
+|---|---|---|---|
+| 2026-09-19 | Trägt die Glocke etwas bei? Zerlegung auf P3 | **H5 nicht registriert** — 1 von 6 statt 5 von 6 | `pilzampel-h5-vorpruefung-ergebnis.md` |
 
 ## Folge für die nächste Hypothese
 
