@@ -57,6 +57,11 @@ _logit_spec = importlib.util.spec_from_file_location(
 ampel_logit = importlib.util.module_from_spec(_logit_spec)
 _logit_spec.loader.exec_module(ampel_logit)
 
+_grafik_spec = importlib.util.spec_from_file_location(
+    "ampel_grafik", os.path.join(_HERE, "ampel_grafik.py"))
+ag = importlib.util.module_from_spec(_grafik_spec)
+_grafik_spec.loader.exec_module(ag)
+
 FROST_C = 0.0          # Tmin, ab der ein Tag als Frosttag zaehlt
 FROST_LOOKBACKS = (7, 14, 21, 28)
 GDD_BASE = 0.0         # Basis der Waermesumme seit dem letzten Frost
@@ -1611,6 +1616,65 @@ def self_test():
     # Der Bericht nennt Achse und Mangel.
     quelle_t = inspect.getsource(render_h6_test)
     assert "Prüfachse" in quelle_t and "gefallenem V1" in quelle_t
+
+    # --- Bodenfeuchte --------------------------------------------------
+    assert boden_mittel(None, 7) is None and boden_mittel([], 7) is None
+    # Juengste Tage zuerst — `window_of` dreht die Reihe um.
+    assert boden_mittel([1.0, 2.0, 3.0, 4.0], 2) == 1.5
+    assert boden_mittel([1.0, None, 3.0], 3) == 2.0, "Luecken fallen raus"
+    assert boden_mittel([None, None], 2) is None
+
+    def _bp(jahr, fund, ktrl, anzahl=1):
+        """Eine Probe mit Zusatzreihen — Regen und Temperatur gleich,
+        damit NUR die Bodenfeuchte den Ausschlag geben kann."""
+        return [{"year": jahr, "control_years": [jahr - 1, jahr + 1],
+                 "found": ([2.0] * av.RAIN_WINDOW, [13.0] * av.TEMP_WINDOW),
+                 "controls": [([2.0] * av.RAIN_WINDOW,
+                               [13.0] * av.TEMP_WINDOW)] * 2,
+                 "extra": {"smoist": [fund] * 28},
+                 "extra_controls": [{"smoist": [ktrl] * 28}] * 2}
+                for _ in range(anzahl)]
+
+    nass = [s for jahr in range(2008, 2018) for s in _bp(jahr, 0.4, 0.2, 5)]
+    trocken = [s for jahr in range(2008, 2018) for s in _bp(jahr, 0.2, 0.4, 5)]
+    sc = boden_scorer("smoist", 7)
+    assert boden_b(nass, sc, sc) == (1.0, 0), boden_b(nass, sc, sc)
+    assert boden_b(trocken, sc, sc) == (0.0, 0)
+    # Der Regen ist in beiden gleich — er darf nichts unterscheiden.
+    assert h1_b(nass, 13.0, zerlegung_scorer(13.0, "nur Regen")) == 0.5
+
+    # **Fehlende Reihen werden gezaehlt, nicht als Niederlage gewertet.**
+    luecke = [dict(s, extra={}) for s in nass[:3]] + nass[3:]
+    wert, fehlt = boden_b(luecke, sc, sc)
+    assert fehlt == 3 and wert == 1.0, (wert, fehlt)
+    # Ebenso, wenn die Zahl der Kontrollreihen nicht passt.
+    schief = [dict(s, extra_controls=[{"smoist": [0.2] * 28}]) for s in nass]
+    assert boden_b(schief, sc, sc) == (None, len(nass))
+    # **Und wenn EIN Kontrolltag keine Reihe hat, faellt der ganze Fund
+    # heraus.** Ihn auf den verbliebenen Kontrollen zu bewerten waere
+    # eine andere Ziehung als die, die oben gelaufen ist: Der Fund
+    # stuende dann gegen weniger Jahre und traege trotzdem dasselbe
+    # Gewicht.
+    halb = [dict(s, extra_controls=[{"smoist": [0.2] * 28},
+                                    {"smoist": [None] * 28}])
+            for s in nass[:4]] + nass[4:]
+    wert2, fehlt2 = boden_b(halb, sc, sc)
+    assert fehlt2 == 4, (wert2, fehlt2)
+
+    # Bodenfeuchte mal Glocke: bei gleicher Temperatur entscheidet die
+    # Feuchte, bei gleicher Feuchte die Temperatur.
+    assert boden_kombi(nass, 13.0, 7)[0] == 1.0
+    kalt = [dict(s, found=([2.0] * av.RAIN_WINDOW, [0.0] * av.TEMP_WINDOW))
+            for s in nass]
+    assert boden_kombi(kalt, 13.0, 7)[0] == 0.0, \
+        "die Glocke muss die nassere Probe schlagen koennen"
+
+    # Ohne Bodenfeuchte im Datensatz bricht der Lauf ab, statt eine
+    # leere Tabelle zu schreiben.
+    assert "smoist" in av.ampel_basis.dataset_fields("pinned")
+    assert "smoist" not in av.ampel_basis.dataset_fields("vorgabe")
+    assert "keine Bodenfeuchte" in inspect.getsource(run_boden)
+    assert BODEN_FENSTER[0] == 1 and BODEN_FENSTER[-1] == av.RAIN_WINDOW
 
     print("Selbsttest ok")
 
@@ -5396,6 +5460,562 @@ def render_h6_test(d):
           "davor steht die Registrierung.")
     return "\n".join(aus) + "\n"
 
+
+# --- Grafiken: die Aussagen als Bild --------------------------------------
+#
+# **Warum es die gibt** (Betreiberfrage 2026-09-19): „Ich kann mir nicht
+# vorstellen, dass es hier gar keine Zusammenhaenge gibt." Die Frage war
+# berechtigt, und die Tabellen haben sie nicht beantwortet — weil sie
+# eine ANDERE Frage beantworten, als sie zu beantworten schienen.
+#
+# Design B vergleicht einen Fundtag mit demselben Kalenderdatum anderer
+# Jahre am selben Ort. Die Jahreszeit kuerzt sich dabei heraus, und
+# damit auch der offensichtliche Zusammenhang „im Februar waechst kein
+# Pfifferling". Was uebrig bleibt, ist eine viel engere Frage: Sagt die
+# Abweichung dieses Jahres von der ortsueblichen Temperatur dieser Woche
+# etwas vorher? Ein B von 0,51 heisst „diese enge Frage: nein" und NICHT
+# „Temperatur ist egal".
+#
+# Genau das zeigen die Bilder, und deshalb stehen hier zwei
+# Vergleichsmengen nebeneinander: Design A (26 bis 45 Tage daneben, also
+# quer durch die Saison) und Design B (dieselbe Woche, anderes Jahr).
+
+GRAFIK_ORDNER = "docs/bilder"
+GRAFIK_ARTEN = ["Pfifferling", "Steinpilz"]
+GRAFIK_STUFEN = 32
+
+
+def grafik_mittel(paar):
+    """Das 20-Tage-Temperaturmittel eines Fenster-Paares."""
+    werte = [c for c in paar[1][:av.TEMP_WINDOW] if c is not None]
+    return sum(werte) / len(werte) if werte else None
+
+
+def grafik_glocke(optimum, sigma, x_von, x_bis, hoehe, schritte=120):
+    """Die Glocke als Stuetzstellen — auf eine Hoehe skaliert.
+
+    Sie steht im Bild neben Haeufigkeiten und hat mit ihnen keine
+    gemeinsame Einheit; skaliert wird deshalb auf die Bildhoehe, und die
+    y-Achse gilt ausdruecklich nur fuer die Balken.
+    """
+    punkte = []
+    for i in range(schritte + 1):
+        x = x_von + (x_bis - x_von) * i / schritte
+        punkte.append((x, hoehe * math.exp(-(((x - optimum) / sigma) ** 2))))
+    return punkte
+
+
+def grafik_temperaturen(art, samples_b, samples_a):
+    """Zwei Bilder: Design A quer durch die Saison, Design B in der Woche."""
+    fund = [t for t in (grafik_mittel(s["found"]) for s in samples_b)
+            if t is not None]
+    b_ktrl = [t for t in (grafik_mittel(c) for s in samples_b
+                          for c in s["controls"]) if t is not None]
+    a_ktrl = [t for t in (grafik_mittel(s["control"]) for s in samples_a)
+              if t is not None]
+    if not fund:
+        return {}
+
+    alle = fund + b_ktrl + a_ktrl
+    von, bis = math.floor(min(alle)) - 1, math.ceil(max(alle)) + 1
+    klass = av.class_of(art)
+    optimum = (av.AMPEL_CLASSES[klass]["optimum"] if klass
+               else av.OPTIMUM_C)
+
+    bilder = {}
+    for schluessel, ktrl, titel, unter, ktrl_name in (
+            ("saison", a_ktrl,
+             f"{art}: Fundtage gegen Tage QUER DURCH DIE SAISON",
+             "Design A — Vergleichstag 26 bis 45 Tage neben dem Fund, "
+             "gleiches Jahr, gleicher Ort",
+             "Vergleichstage (quer durch die Saison)"),
+            ("woche", b_ktrl,
+             f"{art}: Fundtage gegen DIESELBE WOCHE anderer Jahre",
+             "Design B — gleicher Ort, gleiches Kalenderdatum ±7 Tage, "
+             "anderes Jahr",
+             "Kontrolltage (dieselbe Woche)")):
+        if not ktrl:
+            continue
+        mitten, a_fund = ag.histogramm(fund, von, bis, GRAFIK_STUFEN)
+        _, a_ktrl_h = ag.histogramm(ktrl, von, bis, GRAFIK_STUFEN)
+        hoch = max(a_fund + a_ktrl_h) * 1.25
+        d = ag.Diagramm(titel, von, bis, 0, hoch,
+                        x_titel="20-Tage-Mittel der Temperatur (°C)",
+                        y_titel="Anteil der Tage", untertitel=unter)
+        weite = (bis - von) / GRAFIK_STUFEN
+        d.balken(mitten, a_ktrl_h, weite, ag.FARBEN["kontrolle"], 0.55,
+                 name=ktrl_name)
+        d.balken(mitten, a_fund, weite, ag.FARBEN["fund"], 0.6,
+                 name="Fundtage")
+        d.linie(grafik_glocke(optimum, av.TEMP_SIGMA, von, bis, hoch * 0.92),
+                ag.FARBEN["kurve"],
+                name=f"Glocke der App ({ag.Diagramm.zahl(optimum)} °C, "
+                     "eigene Höhe)")
+        d.senkrechte(optimum, ag.FARBEN["warn"],
+                     f"{ag.Diagramm.zahl(optimum)} °C")
+        bilder[schluessel] = d.svg()
+    return bilder
+
+
+def grafik_antwortkurve(art, samples_b, samples_a):
+    """Wie stark sind Funde bei welcher Temperatur ueberrepraesentiert?
+
+    **Das ist die Frage, die die B-Tabellen NICHT beantworten** und die
+    der Betreiber am 2026-09-19 gestellt hat: Wachsen bei −5 Grad
+    genauso viele Pfifferlinge wie bei 15?
+
+    Geteilt wird der Anteil der FUNDTAGE in einer Temperaturklasse durch
+    den Anteil der VERGLEICHSTAGE in derselben Klasse. Ueber 1 heisst
+    ueberrepraesentiert, unter 1 unterrepraesentiert. Das ist eine
+    Beschreibung und kein Modell — es wird nichts angepasst und nichts
+    geprueft.
+
+    **Die Grenze, und sie ist wichtig:** Die Vergleichstage aus Design A
+    liegen 26 bis 45 Tage neben einem Fund, sind also selbst noch
+    saisonnah. Eine gleichverteilte Stichprobe ueber das ganze Jahr
+    waere die ehrlichere Bezugsmenge, und gegen sie faellt die Kurve an
+    den Raendern noch steiler ab. Was hier steht, ist die UNTERGRENZE
+    des Zusammenhangs.
+    """
+    fund = [t for t in (grafik_mittel(s["found"]) for s in samples_b)
+            if t is not None]
+    ktrl = [t for t in (grafik_mittel(s["control"]) for s in samples_a)
+            if t is not None]
+    if not fund or not ktrl:
+        return None
+    alle = fund + ktrl
+    von, bis = math.floor(min(alle)) - 1, math.ceil(max(alle)) + 1
+    stufen = 22
+    mitten, a_fund = ag.histogramm(fund, von, bis, stufen)
+    _, a_ktrl = ag.histogramm(ktrl, von, bis, stufen)
+    # **Duenn besetzte Klassen tragen kein Verhaeltnis.** Ein Fund gegen
+    # einen Vergleichstag ergibt rechnerisch eine 1,0 und sagt nichts;
+    # solche Klassen bleiben leer statt eine Zacke zu malen.
+    mindest = 0.005
+    punkte = [(m, f / k) for m, f, k in zip(mitten, a_fund, a_ktrl)
+              if k >= mindest]
+    if len(punkte) < 3:
+        return None
+    hoch = max(y for _, y in punkte) * 1.2
+    klass = av.class_of(art)
+    optimum = (av.AMPEL_CLASSES[klass]["optimum"] if klass
+               else av.OPTIMUM_C)
+    d = ag.Diagramm(
+        f"{art}: Bei welcher Temperatur wird überhaupt gefunden?",
+        von, bis, 0, hoch,
+        x_titel="20-Tage-Mittel der Temperatur (°C)",
+        y_titel="Fundtage je Vergleichstag",
+        untertitel="Über 1 heißt: bei dieser Temperatur wird häufiger "
+                   "gemeldet, als es solche Tage überhaupt gibt. "
+                   "Beschreibung, kein Modell.")
+    d.linie([(von, 1.0), (bis, 1.0)], ag.FARBEN["blass"], 1.4,
+            gestrichelt=True, name="1,0 — so häufig wie die Tage selbst")
+    d.balken([m for m, _ in punkte], [y for _, y in punkte],
+             (bis - von) / stufen, ag.FARBEN["fund"], 0.55,
+             name="Fundtage je Vergleichstag")
+    d.senkrechte(optimum, ag.FARBEN["warn"],
+                 f"Glocke der App: {ag.Diagramm.zahl(optimum)} °C")
+    return d.svg()
+
+
+def grafik_differenz(art, samples_b):
+    """Wie weit Fund- und Kontrolltag in Design B ueberhaupt auseinanderliegen."""
+    diffs = []
+    for s in samples_b:
+        f = grafik_mittel(s["found"])
+        if f is None:
+            continue
+        for c in s["controls"]:
+            k = grafik_mittel(c)
+            if k is not None:
+                diffs.append(f - k)
+    if not diffs:
+        return None
+    grenze = max(6.0, math.ceil(max(abs(min(diffs)), abs(max(diffs)))))
+    mitten, anteile = ag.histogramm(diffs, -grenze, grenze, GRAFIK_STUFEN)
+    hoch = max(anteile) * 1.25
+    innerhalb = sum(1 for x in diffs if abs(x) < 2.0) / len(diffs)
+    d = ag.Diagramm(
+        f"{art}: Wie viel wärmer war der Fundtag als sein Vergleichstag?",
+        -grenze, grenze, 0, hoch,
+        x_titel="Fundtag minus Vergleichstag (K)",
+        y_titel="Anteil der Vergleiche",
+        untertitel=f"Design B — {_sp(innerhalb, 0)} aller Vergleiche "
+                   "liegen innerhalb von ±2 K. Auf diesem schmalen Band "
+                   "wird die Glocke befragt.")
+    d.flaeche_x(-2, 2, ag.FARBEN["kurve"], 0.10, name="±2 K")
+    d.balken(mitten, anteile, 2 * grenze / GRAFIK_STUFEN,
+             ag.FARBEN["kontrolle"], 0.7, name="Vergleiche")
+    d.senkrechte(0, ag.FARBEN["achse"], "kein Unterschied")
+    return d.svg()
+
+
+def grafik_optimumkurve(art, samples_b, tabelle=None):
+    """Das B-Mass als Funktion des Optimums — wie flach der Gipfel ist."""
+    jahre = sorted({s["year"] for s in samples_b})
+    tabelle = tabelle or h6_tabelle(samples_b)
+    punkte = [(o, h6_b_aus_tabelle(tabelle, o, jahre))
+              for o in h6_gitterwerte()]
+    punkte = [(o, b) for o, b in punkte if b is not None]
+    if len(punkte) < 2:
+        return None
+    best = h6_gitter_optimum(tabelle, jahre)
+    werte = [b for _, b in punkte]
+    spanne = max(werte) - min(werte)
+    y_von = min(werte) - spanne * 0.25
+    y_bis = max(werte) + spanne * 0.35
+    klass = av.class_of(art)
+    ausgeliefert = (av.AMPEL_CLASSES[klass]["optimum"] if klass
+                    else av.OPTIMUM_C)
+    d = ag.Diagramm(
+        f"{art}: Wie gut trennt die Ampel bei welchem Optimum?",
+        H6_GITTER_VON, H6_GITTER_BIS, y_von, y_bis,
+        x_titel="Angenommenes Optimum (°C)",
+        y_titel="B — Anteil geschlagener Kontrolljahre",
+        untertitel="Design B auf den Anpassjahren. 0,50 hieße: kein "
+                   "Unterschied zu einem gewöhnlichen Tag derselben "
+                   "Woche.")
+    if best:
+        d.flaeche_x(best["plateau"][0], best["plateau"][1],
+                    ag.FARBEN["kurve"], 0.10,
+                    name="Plateau (weniger als 0,005 unter dem Gipfel)")
+    d.linie(punkte, ag.FARBEN["kurve"], 2.6, name="B")
+    if y_von <= 0.5 <= y_bis:
+        d.linie([(H6_GITTER_VON, 0.5), (H6_GITTER_BIS, 0.5)],
+                ag.FARBEN["blass"], 1.4, gestrichelt=True,
+                name="0,50 — kein Signal")
+    d.senkrechte(ausgeliefert, ag.FARBEN["warn"],
+                 f"ausgeliefert: {ag.Diagramm.zahl(ausgeliefert)} °C")
+    if best:
+        d.senkrechte(best["optimum"], ag.FARBEN["neben"],
+                     f"bestes: {ag.Diagramm.zahl(best['optimum'])} °C",
+                     oben=False)
+    return d.svg()
+
+
+def run_grafiken(args):
+    """Die Aussagen der Berichte als Bild — reine Beschreibung."""
+    if args.api:
+        av.OPEN_METEO = args.api.rstrip("/")
+    av.DEDUPE = args.dedupe
+    av.use_dataset(args.dataset)
+    print(f"Grafiken auf DE bis {av.FIT_UNTIL_YEAR} — Anpassjahre, "
+          "keine Pruefachse", file=sys.stderr)
+
+    arten = GRAFIK_ARTEN
+    if args.only:
+        arten = [n.strip() for n in args.only.split(",") if n.strip()]
+    mapping = av.read_species()
+    os.makedirs(GRAFIK_ORDNER, exist_ok=True)
+    geschrieben = []
+    for art in arten:
+        if art not in mapping:
+            continue
+        print(f"  {art}", file=sys.stderr)
+        sci = mapping[art]
+        finds, _ = av.select_finds(sci, args.cache, args.seed, True, ("DE",))
+        if not finds:
+            continue
+        b = av.collect_pairs_b(art, sci, finds=finds, cache_dir=args.cache,
+                               seed=args.seed, progress=False)
+        a = av.collect_pairs(art, sci, cache_dir=args.cache, seed=args.seed,
+                             progress=False)
+        if not b:
+            continue
+        sb = fit_years_only(b["samples"])
+        sa = ([s for s in a["samples"] if s["year"] <= av.FIT_UNTIL_YEAR]
+              if a else [])
+        kurz = art.lower().replace("ä", "ae").replace("ö", "oe") \
+                  .replace("ü", "ue").replace("ß", "ss")
+        bilder = grafik_temperaturen(art, sb, sa)
+        bilder["antwort"] = grafik_antwortkurve(art, sb, sa)
+        bilder["differenz"] = grafik_differenz(art, sb)
+        bilder["optimum"] = grafik_optimumkurve(art, sb)
+        for schluessel, svg in bilder.items():
+            if not svg:
+                continue
+            pfad = os.path.join(GRAFIK_ORDNER, f"{kurz}-{schluessel}.svg")
+            open(pfad, "w", encoding="utf-8").write(svg)
+            geschrieben.append(pfad)
+            print(f"    {pfad}", file=sys.stderr)
+    print(f"\n{len(geschrieben)} Bilder geschrieben", file=sys.stderr)
+    return geschrieben
+
+
+# --- Bodenfeuchte: die nie ausgewertete Spalte ----------------------------
+#
+# **Betreiberfrage vom 2026-09-19: „Haben wir schon eine Auswertung mit
+# der Bodenfeuchte gemacht?" Nein.** Seit der Messbasis `pinned`
+# (2026-09-18) holt jeder Lauf `soil_moisture_7_to_28cm` und
+# `soil_temperature_0_to_7cm` mit und legt sie im Cache ab; benutzt
+# wurde davon bisher nur `tmin`, fuer die Frost-Diagnose zu H3. Die
+# Bodenfeuchte lag zwei Tage lang vollstaendig da und ist nie
+# angesehen worden.
+#
+# **Warum sie der naheliegendere Kandidat ist als der Regen.** Die
+# Ampel rechnet eine gewichtete Regensumme ueber 26 Tage — ein
+# Stellvertreter fuer das, was das Myzel erreicht. Die Bodenfeuchte in
+# 7 bis 28 cm Tiefe IST diese Groesse, und zwar schon integriert:
+# Versickerung, Verdunstung und Vorgeschichte stecken drin, ohne dass
+# jemand eine Gewichtskurve setzen muss. Der 26-Tage-Vorlauf und die
+# 87-mm-Saettigung sind beide GESETZT (`docs/pilzampel-formel.md`);
+# eine Groesse ohne gesetzte Konstanten waere ein Fortschritt, selbst
+# wenn sie gleich gut traegt.
+#
+# **Das Mass ist rangbasiert, also braucht es hier keine Eichung.** B
+# fragt nur, ob der Fundtag seinen Kontrolltag schlaegt; jede monotone
+# Umformung laesst die Zahl unveraendert. Eine Saettigungskurve fuer
+# die Bodenfeuchte zu setzen waere also fuer diesen Vergleich
+# ueberfluessig — und fuer eine spaetere Ampel eine eigene Frage.
+
+BODEN_FENSTER = (1, 7, 14, 26)
+
+
+def boden_mittel(reihe, tage):
+    """Mittel der juengsten [tage] Tage einer Zusatzreihe."""
+    if not reihe:
+        return None
+    werte = [v for v in reihe[:tage] if v is not None]
+    return sum(werte) / len(werte) if werte else None
+
+
+def boden_scorer(feld, tage):
+    """Ein Bewerter, der NUR auf einer Zusatzreihe rangt.
+
+    Er bekommt die Reihe nicht ueber `(regen, temp)` wie die anderen
+    Bewerter, sondern ueber die Stichprobe — deshalb nimmt `boden_b`
+    ihn gesondert entgegen und nicht ueber `h1_b`.
+    """
+    def wert(extra):
+        return boden_mittel((extra or {}).get(feld), tage)
+    return wert
+
+
+def boden_b(samples, fund_wert, ktrl_wert):
+    """Das B-Mass auf einer Groesse, die in `extra` steht.
+
+    Funde, bei denen die Groesse fehlt, fallen heraus und werden
+    gezaehlt — sie stillschweigend als „nicht geschlagen" zu werten
+    waere eine erfundene Beobachtung.
+    """
+    anteile, fehlend = [], 0
+    for s in samples:
+        f = fund_wert(s.get("extra"))
+        extras = s.get("extra_controls") or []
+        if f is None or len(extras) != len(s.get("controls") or []):
+            fehlend += 1
+            continue
+        ks = [ktrl_wert(e) for e in extras]
+        if any(k is None for k in ks):
+            fehlend += 1
+            continue
+        anteil = ab.beat_fraction(f, ks)
+        if anteil is not None:
+            anteile.append(anteil)
+    if not anteile:
+        return None, fehlend
+    return sum(anteile) / len(anteile), fehlend
+
+
+def boden_kombi(samples, optimum, tage, sigma=None):
+    """Bodenfeuchte MAL Glocke — die Ampel mit getauschtem Feuchtemass."""
+    sigma = av.TEMP_SIGMA if sigma is None else sigma
+
+    def wert(s, extra, paar):
+        feuchte = boden_mittel((extra or {}).get("smoist"), tage)
+        if feuchte is None:
+            return None
+        return feuchte * av.temperature_factor(paar[1], optimum, sigma)
+
+    anteile, fehlend = [], 0
+    for s in samples:
+        extras = s.get("extra_controls") or []
+        controls = s.get("controls") or []
+        if len(extras) != len(controls):
+            fehlend += 1
+            continue
+        f = wert(s, s.get("extra"), s["found"])
+        ks = [wert(s, e, c) for e, c in zip(extras, controls)]
+        if f is None or any(k is None for k in ks):
+            fehlend += 1
+            continue
+        anteil = ab.beat_fraction(f, ks)
+        if anteil is not None:
+            anteile.append(anteil)
+    return (sum(anteile) / len(anteile) if anteile else None), fehlend
+
+
+def run_boden(args):
+    """Die erste Auswertung der Bodenfeuchte — Diagnose auf P3."""
+    if args.api:
+        av.OPEN_METEO = args.api.rstrip("/")
+    av.DEDUPE = args.dedupe
+    av.use_dataset(args.dataset)
+    if "smoist" not in av.EXTRA_FIELDS:
+        raise SystemExit(
+            f"Der Datensatz '{args.dataset}' liefert keine Bodenfeuchte. "
+            "`--dataset pinned` holt sie mit.")
+    print(f"Bodenfeuchte auf DE bis {av.FIT_UNTIL_YEAR} — Anpassjahre, "
+          "keine Prüfachse", file=sys.stderr)
+
+    mapping = av.read_species()
+    wanted = SCHWELLEN_ARTEN
+    if args.only:
+        gesucht = {n.strip() for n in args.only.split(",") if n.strip()}
+        wanted = [z for z in DESIGN_ARTEN if z[0] in gesucht]
+
+    zeilen = []
+    for name, gruppe, optimum in wanted:
+        if name not in mapping:
+            continue
+        print(f"  {name}", file=sys.stderr)
+        finds, _ = av.select_finds(mapping[name], args.cache, args.seed,
+                                   True, ("DE",))
+        if not finds:
+            continue
+        gezogen = av.collect_pairs_b(name, mapping[name], finds=finds,
+                                     cache_dir=args.cache, seed=args.seed,
+                                     progress=False)
+        if not gezogen:
+            continue
+        samples = fit_years_only(gezogen["samples"])
+        if len(samples) < SCHWELLEN_MIN_FUNDE:
+            continue
+        zeile = {
+            "name": name, "gruppe": gruppe, "optimum": optimum,
+            "n": len(samples),
+            "voll": h1_b(samples, optimum, zerlegung_scorer(optimum, "voll")),
+            "regen": h1_b(samples, optimum,
+                          zerlegung_scorer(optimum, "nur Regen")),
+            "temp": h1_b(samples, optimum,
+                         zerlegung_scorer(optimum, "nur Temperatur")),
+            "smoist": {}, "stemp": {}, "kombi": {}, "fehlend": 0,
+        }
+        for tage in BODEN_FENSTER:
+            s = boden_scorer("smoist", tage)
+            wert, fehlt = boden_b(samples, s, s)
+            zeile["smoist"][tage] = wert
+            zeile["fehlend"] = max(zeile["fehlend"], fehlt)
+            zeile["kombi"][tage] = boden_kombi(samples, optimum, tage)[0]
+        st = boden_scorer("stemp", av.TEMP_WINDOW)
+        zeile["stemp"] = boden_b(samples, st, st)[0]
+        zeilen.append(zeile)
+        beste = max((v for v in zeile["smoist"].values() if v is not None),
+                    default=None)
+        print(f"    Regen {_fmt(zeile['regen'])}  "
+              f"Bodenfeuchte bestes Fenster {_fmt(beste)}  "
+              f"voll {_fmt(zeile['voll'])}", file=sys.stderr)
+
+    bericht = render_boden(zeilen)
+    if args.out:
+        open(args.out, "w", encoding="utf-8").write(bericht)
+        print(f"\n{args.out} geschrieben", file=sys.stderr)
+    else:
+        print(bericht)
+
+
+def render_boden(zeilen):
+    """Der Bericht zur ersten Bodenfeuchte-Auswertung."""
+    import time as _t
+    aus = []
+    w = aus.append
+    w("# Die Bodenfeuchte — die Spalte, die zwei Tage lang dalag\n")
+    w(f"Stand: {_t.strftime('%Y-%m-%d')} · Erzeugt von "
+      "`tool/ampel_diagnose.py --boden` · Betreiberfrage vom "
+      "2026-09-19\n")
+    w("> **Diese Datei wird erzeugt.** Wer sie von Hand ändert, "
+      "verliert die Änderung beim nächsten Lauf.\n")
+    w("> **P3 sind die Anpassjahre.** Jede Zahl hier ist eine Diagnose "
+      "und kein Beleg.\n")
+
+    w("## Warum das eine naheliegende Frage ist\n")
+    w("Die Ampel rechnet eine gewichtete **Regensumme** über 26 Tage — "
+      "einen Stellvertreter für das, was beim Myzel ankommt. Die "
+      "Bodenfeuchte in 7 bis 28 cm Tiefe **ist** diese Größe, und zwar "
+      "schon integriert: Versickerung, Verdunstung und Vorgeschichte "
+      "stecken darin, ohne dass jemand eine Gewichtskurve setzen "
+      "muss.\n")
+    w("Für den Vergleich unten muss nichts geeicht werden: Das B-Maß "
+      "ist rangbasiert, jede monotone Umformung lässt es unverändert. "
+      "Verglichen wird also die **rohe** Bodenfeuchte gegen den "
+      "fertigen Regenfaktor der App — kein Handicap für die App, eher "
+      "eines für die Bodenfeuchte.\n")
+    w("**Eine Einschränkung, die man dabei nicht übersehen darf.** Für "
+      "die erste Spalte gilt die Rang-Unempfindlichkeit; für eine "
+      "ausgelieferte Ampel nicht. Dort werden Feuchte und Glocke "
+      "**multipliziert**, und ein Produkt hängt sehr wohl an der Skala "
+      "seiner Faktoren — der Regenfaktor sättigt bei 87 mm, die rohe "
+      "Bodenfeuchte sättigt nirgends. Genau deshalb steht die letzte "
+      "Spalte unten nicht überall dort vorn, wo die "
+      "Bodenfeuchte-Spalte vorn steht. Eine Ampel auf Bodenfeuchte "
+      "bräuchte also **eine eigene Übertragungskurve** — eine neue "
+      "Konstante, gesetzt oder angepasst. Der Gewinn wäre dann nicht "
+      "„eine Konstante weniger“, sondern eine bessere "
+      "Eingangsgröße.\n")
+
+    w("## Was die Spalten heißen\n")
+    w("- **Regen**: der ausgelieferte Regenfaktor allein, 26 Tage "
+      "gewichtet.")
+    w("- **Boden 1/7/14/26 d**: das Mittel der Bodenfeuchte über so "
+      "viele Tage vor dem Tag, sonst nichts.")
+    w("- **voll**: die ausgelieferte Ampel (Regen × Glocke).")
+    w("- **Boden × Glocke**: dieselbe Formel mit getauschtem "
+      "Feuchtemaß, bestes Fenster.\n")
+
+    w("| Art | Funde | Regen | Boden 1 d | Boden 7 d | Boden 14 d | "
+      "Boden 26 d | Temperatur | voll | Boden × Glocke |")
+    w("|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|")
+    for z in zeilen:
+        beste_k = max((v for v in z["kombi"].values() if v is not None),
+                      default=None)
+        w(f"| {z['name']}{' ⚠' if z['n'] < MIN_FINDS_B else ''} | "
+          f"{z['n']} | **{_fmt(z['regen'])}** | "
+          + " | ".join(_fmt(z["smoist"].get(t)) for t in BODEN_FENSTER)
+          + f" | {_fmt(z['temp'])} | **{_fmt(z['voll'])}** | "
+          f"{_fmt(beste_k)} |")
+
+    # --- Die Auswertung, gerechnet statt behauptet ---------------------
+    if any(z["n"] < MIN_FINDS_B for z in zeilen):
+        w(f"\n⚠ unter {MIN_FINDS_B} Funden — die Zeile steht zur "
+          "Vollständigkeit da und trägt kein eigenes Urteil.")
+    besser = [z for z in zeilen
+              if z["regen"] is not None
+              and max((v for v in z["smoist"].values() if v is not None),
+                      default=-1) > z["regen"]]
+    kombi_besser = [z for z in zeilen
+                    if z["voll"] is not None
+                    and max((v for v in z["kombi"].values()
+                             if v is not None), default=-1) > z["voll"]]
+    w("\n## Was daraus folgt\n")
+    w(f"**Bei {len(besser)} von {len(zeilen)} Arten trennt die rohe "
+      "Bodenfeuchte besser als der ausgelieferte Regenfaktor**, und bei "
+      f"{len(kombi_besser)} von {len(zeilen)} schlägt „Bodenfeuchte × "
+      "Glocke“ die ausgelieferte Ampel.\n")
+    if zeilen:
+        fenster_siege = {t: sum(1 for z in zeilen
+                                if z["smoist"].get(t) is not None
+                                and z["smoist"][t] == max(
+                                    v for v in z["smoist"].values()
+                                    if v is not None))
+                         for t in BODEN_FENSTER}
+        w("Welches Fenster je Art das beste ist: "
+          + ", ".join(f"{t} d bei {n} " + ("Art" if n == 1 else "Arten")
+                      for t, n in fenster_siege.items() if n) + ".\n")
+        w("Ein an denselben Daten ausgesuchtes Fenster ist keine "
+          "Messung — die Spalten stehen alle da, damit sichtbar ist, "
+          "wie wenig die Wahl ausmacht.\n")
+    w("**Das ist eine Diagnose und kein Beleg.** Die Fensterlänge ist "
+      "hier an denselben Daten ausgesucht worden, auf denen sie bewertet "
+      "wird — wer eine davon ausliefern will, braucht eine "
+      "Registrierung mit EINEM eingefrorenen Fenster und eine Prüfachse. "
+      "Die Zahlen oben sagen nur, ob sich das lohnt.\n")
+    w("**Was hier noch nicht steht:** die Bodentemperatur "
+      "(`soil_temperature_0_to_7cm`) liegt ebenso vollständig im Cache. "
+      "Sie mit der Luft-Glocke zu bewerten wäre falsch — die Niveaus "
+      "sind verschieden, das Optimum müsste neu bestimmt werden. Die "
+      "Temperaturspalte oben ist die der Luft.")
+    return "\n".join(aus) + "\n"
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--self-test", action="store_true")
@@ -5412,6 +6032,10 @@ if __name__ == "__main__":
     parser.add_argument("--h1", action="store_true",
                         help="der registrierte Prüflauf zu H1 "
                              "(docs/pilzampel-h1-registrierung.md)")
+    parser.add_argument("--boden", action="store_true",
+                        help="erste Auswertung der Bodenfeuchte, auf P3")
+    parser.add_argument("--grafiken", action="store_true",
+                        help="die Aussagen als SVG nach docs/bilder/")
     parser.add_argument("--h6-test", action="store_true",
                         dest="h6_test",
                         help="der registrierte Prüflauf zu H6 auf AT+CH "
@@ -5461,6 +6085,12 @@ if __name__ == "__main__":
         raise SystemExit(0)
     if args.h6_test:
         run_h6_test(args)
+        raise SystemExit(0)
+    if args.grafiken:
+        run_grafiken(args)
+        raise SystemExit(0)
+    if args.boden:
+        run_boden(args)
         raise SystemExit(0)
     if not args.all:
         parser.print_help()
