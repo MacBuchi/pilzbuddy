@@ -155,6 +155,8 @@ Beobachtung, die eine Zeitscheibe weiter nicht mehr da ist.
 | 2026-09-19 | Wo lägen die Schwellen an Design-B-Kontrolltagen? (Auftrag 3 A) | Vorlage, nichts übernommen — die ausgelieferten Schwellen greifen an B-Tagen 1,7-mal so oft wie vorgesehen | `pilzampel-schwellen-designb.md` |
 | 2026-09-19 | Alterung: dieselbe Zerlegung auf geteilten Anpassjahren | die Glocke altert nicht, der Einbruch liegt in den Prüfjahren | `pilzampel-alterung.md` |
 | 2026-09-19 | H6: hält das Sommer-Optimum still? (Auftrag 3 B) | **H6 nicht registriert** — V1 gefallen (Gitter 15,00 gegen Logit 13,16 °C); das harte Abbruchkriterium V2 hat gehalten | `pilzampel-h6-vorpruefung-ergebnis.md` |
+| 2026-09-19 | Antwortkurven und Verteilungen als Bild | rein beschreibend — der Temperaturzusammenhang ist massiv, und Design B misst ihn bauartbedingt nicht | `pilzampel-bilder.md` |
+| 2026-09-19 | **Bodenfeuchte**, erste Auswertung überhaupt | roh besser als der Regenfaktor bei 6 von 6 Arten | `pilzampel-bodenfeuchte.md` |
 
 ### Diagnosen auf P1 (kosten ebenfalls keine Achse)
 
