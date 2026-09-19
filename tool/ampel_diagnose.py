@@ -3311,6 +3311,26 @@ SCHWELLEN_ROUNDS = 2000
 SCHWELLEN_ARTEN = [(n, g, o) for n, g, o in DESIGN_ARTEN
                    if g in ("herbst", "sommer")]
 
+# **Eine eigene Untergrenze, und zwar eine niedrigere als `MIN_FINDS_B`.**
+# Nachtraeglich gesetzt, am 2026-09-19, und deshalb im Korrekturkasten
+# des Berichts: Mit der Verdikt-Grenze (150 Funde) fiel die
+# Herbsttrompete mit 147 aus der Klasse heraus — die Klassenschwelle
+# haette dann auf vier statt fuenf Mitgliedern geruht, obwohl die App
+# sie fuer fuenf ausliefert.
+#
+# Die beiden Grenzen messen nicht dasselbe. `MIN_FINDS_B` entscheidet,
+# ob eine Art ein URTEIL traegt — dort steht eine einzelne Zahl gegen
+# eine Latte, und eine duenne Zahl darf das nicht. Hier steuert eine Art
+# ein Fuenftel zu einem Quantil bei, und ihr Beitrag wird mit vier
+# anderen gemittelt. Die Fehlerrichtung ist umgekehrt: Eine
+# ausgelieferte Art WEGZULASSEN verzerrt die Schwelle sicher, sie mit
+# 147 Funden mitzunehmen nur vielleicht.
+#
+# Damit das keine Ausrede bleibt, steht im Bericht eine
+# Leave-one-out-Spalte: was die Schwelle waere, wenn genau diese Art
+# fehlte. Traegt eine einzelne Art die Zahl, sieht man es dort.
+SCHWELLEN_MIN_FUNDE = 100
+
 MONATSNAMEN = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli",
                "August", "September", "Oktober", "November", "Dezember"]
 
@@ -3548,7 +3568,7 @@ def run_schwellen(args):
         if not gezogen:
             continue
         samples = fit_years_only(gezogen["samples"])
-        if len(samples) < MIN_FINDS_B:
+        if len(samples) < SCHWELLEN_MIN_FUNDE:
             print(f"    zu duenn: {len(samples)} Funde", file=sys.stderr)
             continue
         tage_b = schwellen_gewichte(schwellen_tage(samples, optimum))
@@ -3572,7 +3592,7 @@ def run_schwellen(args):
 
         zeilen.append({
             "name": name, "gruppe": gruppe, "optimum": optimum,
-            "n": len(samples),
+            "n": len(samples), "duenn": len(samples) < MIN_FINDS_B,
             "n_tage": sum(len(e) for e in tage_b.values()),
             "jahre": len(tage_b),
             "tage_b": tage_b, "funde_b": funde_b, "tage_a": tage_a,
@@ -3595,6 +3615,12 @@ def run_schwellen(args):
             "a": schwellen_klasse([z["tage_a"] for z in mitglieder
                                    if z["tage_a"]],
                                   SCHWELLEN_QUANTILE, 0, args.seed),
+            # **Traegt eine einzelne Art die Zahl?** Ohne diese Spalte
+            # ist die Gewichtungsregel „jede Art gleich schwer“ eine
+            # Behauptung ueber den Code und keine ueber das Ergebnis.
+            "ohne": {z["name"]: schwellen_klasse(
+                [m["tage_b"] for m in mitglieder if m is not z],
+                SCHWELLEN_QUANTILE, 0, args.seed) for z in mitglieder},
         }
         got = ergebnis[key]["b"]
         if got:
@@ -3678,14 +3704,39 @@ def render_schwellen(zeilen, ergebnis):
       f"{SCHWELLEN_ROUNDS} Züge. Es ist eine Auskunft über die "
       "Genauigkeit, keine Entscheidungsgrundlage.\n")
 
+    w("## Korrekturkasten\n")
+    w("**Eine Methodenentscheidung ist nach der Datensicht gefallen** "
+      "und steht deshalb hier, nicht oben.\n")
+    w(f"Der erste Lauf benutzte `MIN_FINDS_B` ({MIN_FINDS_B} Funde) als "
+      "Untergrenze. Damit fiel die Herbsttrompete mit 147 Funden aus "
+      "der Klasse heraus, und die Klassenschwelle haette auf vier statt "
+      "fünf Mitgliedern geruht — obwohl die App sie für fünf "
+      "ausliefert.\n")
+    w("Die beiden Grenzen messen nicht dasselbe. `MIN_FINDS_B` "
+      "entscheidet, ob eine Art ein URTEIL trägt: Dort steht eine "
+      "einzelne Zahl gegen eine Latte, und eine dünne Zahl darf das "
+      "nicht. Hier steuert eine Art ein Fünftel zu einem Quantil bei, "
+      "das mit vier anderen gemittelt wird. **Die Fehlerrichtung ist "
+      "umgekehrt** — eine ausgelieferte Art wegzulassen verzerrt die "
+      "Schwelle sicher, sie mit 147 Funden mitzunehmen nur "
+      f"vielleicht. Die Grenze für den Beitrag zu einem Quantil steht "
+      f"deshalb bei {SCHWELLEN_MIN_FUNDE}.\n")
+    w("Damit das keine Ausrede bleibt, steht unten eine "
+      "**Leave-one-out-Spalte**: was die Schwelle wäre, wenn genau "
+      "diese Art fehlte.\n")
+
     w("## Das Material\n")
     w("| Art | Klasse | Funde auf P3 | Kontrolltage | Fundjahre | "
       "Design-A-Jahre |")
     w("|---|---|--:|--:|--:|--:|")
     for row in zeilen:
-        w(f"| {row['name']} | {av.AMPEL_CLASSES[row['gruppe']]['label']} | "
+        w(f"| {row['name']}{' ⚠' if row['duenn'] else ''} | "
+          f"{av.AMPEL_CLASSES[row['gruppe']]['label']} | "
           f"{row['n']} | {row['n_tage']} | {row['jahre']} | "
           f"{len(row['tage_a'])} |")
+    if any(row["duenn"] for row in zeilen):
+        w(f"\n⚠ unter {MIN_FINDS_B} Funden — trägt kein eigenes Urteil, "
+          "steuert aber zum Klassenquantil bei (Korrekturkasten).")
 
     w("\n## Die Schwellen je Klasse\n")
     w("Drei Zellen. Die erste ist die App von heute, die zweite trennt "
@@ -3737,15 +3788,39 @@ def render_schwellen(zeilen, ergebnis):
       "Glocke trennt in den Prüfjahren schwächer als in den Anpassjahren "
       "(`docs/pilzampel-alterung.md`).\n")
 
+    w("### Trägt eine einzelne Art die Zahl?\n")
+    w("Die Klassenschwelle, jeweils **ohne** ein Mitglied. Bei fünf "
+      "Mitgliedern verschiebt das Weglassen eines Fünftels die Zahl "
+      "immer ein wenig; interessant ist nur, ob eine Art heraussticht.\n")
+    w("| Klasse | ohne … | verhalten | günstig |")
+    w("|---|---|--:|--:|")
+    for key in ("herbst", "sommer"):
+        if key not in ergebnis or not ergebnis[key].get("ohne"):
+            continue
+        klass = av.AMPEL_CLASSES[key]
+        erste = True
+        for name, got in ergebnis[key]["ohne"].items():
+            if not got:
+                continue
+            w(f"| {klass['label'] if erste else ''} | {name} | "
+              f"{_fmt(got['punkt'][0])} | {_fmt(got['punkt'][1])} |")
+            erste = False
+    w("")
+
     w("## Was sich für Nutzer ändert\n")
     w("Gemessen an denselben Design-B-Kontrolltagen. " + z("Kontrolltage")
       + " sind Tage an Pilzorten in der Fruchtzeit der Art — also die "
       "Tage, an denen jemand die App aufmacht, ohne dass etwas "
       "Besonderes wäre. Die Fundtag-Spalte steht daneben, damit sichtbar "
       "bleibt, ob die Schwelle noch trennt.\n")
-    w("| Art | Kontrolltage günstig, alt → neu | Fundtage günstig, "
-      "alt → neu | Abstand, alt → neu |")
-    w("|---|--:|--:|--:|")
+    w("Die erste Spalte ist die Probe aufs Exempel: Wie oft überschreitet "
+      "die heutige Schwelle die Tage, an denen sie GESETZT wurde? Nahe "
+      "20 % heißt, dass die Zahl in ihrer eigenen Welt genau das tut, "
+      "was sie soll — und dass der Sprung daneben wirklich vom Wechsel "
+      "der Bezugstage kommt.\n")
+    w("| Art | alt an A-Tagen | B-Tage günstig, alt → neu | "
+      "Fundtage günstig, alt → neu | Hebel, alt → neu |")
+    w("|---|--:|--:|--:|--:|")
     for row in zeilen:
         klass = av.AMPEL_CLASSES[row["gruppe"]]
         got = ergebnis.get(row["gruppe"], {}).get("b")
@@ -3754,14 +3829,31 @@ def render_schwellen(zeilen, ergebnis):
         neu = got["punkt"][1]
         tage = [e for eintraege in row["tage_b"].values() for e in eintraege]
         funde = [e for eintraege in row["funde_b"].values() for e in eintraege]
+        a_tage = [e for eintraege in row["tage_a"].values() for e in eintraege]
+        aa = schwellen_anteil(a_tage, klass["guenstig"]) if a_tage else None
         ka = schwellen_anteil(tage, klass["guenstig"])
         kn = schwellen_anteil(tage, neu)
         fa = schwellen_anteil(funde, klass["guenstig"])
         fn = schwellen_anteil(funde, neu)
-        w(f"| {row['name']} | {_sp(ka)} → {_sp(kn)} | "
+
+        def hebel(oben, unten):
+            if oben is None or not unten:
+                return "—"
+            return f"{oben / unten:.2f}".replace(".", ",")
+
+        w(f"| {row['name']} | {_sp(aa)} | {_sp(ka)} → {_sp(kn)} | "
           f"{_sp(fa)} → {_sp(fn)} | "
-          f"{_sp(None if (fa is None or ka is None) else fa - ka)} → "
-          f"{_sp(None if (fn is None or kn is None) else fn - kn)} |")
+          f"{hebel(fa, ka)} → {hebel(fn, kn)} |")
+    w("")
+    w("**Der Hebel ist die Spalte, die entscheidet, ob eine Schwelle "
+      "besser ist.** Er sagt, um welchen Faktor ein Fundtag "
+      "wahrscheinlicher günstig ist als ein gewöhnlicher Tag. Ein "
+      "seltenerer Hinweis ist nicht von selbst ein besserer: Wer die "
+      "Latte hebt, senkt beide Raten, und der Abstand in Prozentpunkten "
+      "schrumpft mit. Bleibt der Hebel gleich, ist die neue Schwelle "
+      "**dieselbe Aussage an einer anderen Stelle** — eine Frage der "
+      "Häufigkeit, wie Abschnitt A von Auftrag 3 sie nennt, und keine "
+      "der Trennschärfe.\n")
 
     w("\n### Je Monat\n")
     w("Anteil der Kontrolltage, an denen die Ampel **günstig** stünde. "
@@ -3787,6 +3879,74 @@ def render_schwellen(zeilen, ergebnis):
               f"{_sp(schwellen_anteil(tage, klass['guenstig'], monat))} | "
               f"{_sp(schwellen_anteil(tage, neu, monat))} |")
             erste = False
+
+    w("\n## Was die Zahlen sagen\n")
+    kenn = []
+    for row in zeilen:
+        klass = av.AMPEL_CLASSES[row["gruppe"]]
+        got = ergebnis.get(row["gruppe"], {}).get("b")
+        if not got:
+            continue
+        tage = [e for eintraege in row["tage_b"].values() for e in eintraege]
+        funde = [e for eintraege in row["funde_b"].values() for e in eintraege]
+        a_tage = [e for eintraege in row["tage_a"].values() for e in eintraege]
+        kenn.append({
+            "a_alt": schwellen_anteil(a_tage, klass["guenstig"])
+            if a_tage else None,
+            "b_alt": schwellen_anteil(tage, klass["guenstig"]),
+            "b_neu": schwellen_anteil(tage, got["punkt"][1]),
+            "f_alt": schwellen_anteil(funde, klass["guenstig"]),
+            "f_neu": schwellen_anteil(funde, got["punkt"][1]),
+        })
+
+    def _med(feld):
+        werte = sorted(k[feld] for k in kenn if k[feld] is not None)
+        return statistics.median(werte) if werte else None
+
+    hebel_alt = [k["f_alt"] / k["b_alt"] for k in kenn
+                 if k["b_alt"] and k["f_alt"] is not None]
+    hebel_neu = [k["f_neu"] / k["b_neu"] for k in kenn
+                 if k["b_neu"] and k["f_neu"] is not None]
+
+    w("**Die ausgelieferten Schwellen sind in ihrer eigenen Welt in "
+      f"Ordnung.** An Design-A-Vergleichstagen liegen im Mittel "
+      f"{_sp(_med('a_alt'))} der Tage über der günstig-Schwelle — also "
+      "ungefähr das eine Fünftel, für das sie gesetzt wurde. Der "
+      "Kalibrierung fehlt nichts.\n")
+    faktor = (None if not _med("a_alt")
+              else _med("b_alt") / _med("a_alt"))
+    w("**Sie messen nur gegen die falschen Tage.** Dieselbe Zahl an "
+      f"Design-B-Kontrolltagen: {_sp(_med('b_alt'))}. Die Ampel steht "
+      "an einem gewöhnlichen Tag am Fundort zur Fundzeit also "
+      + ("" if faktor is None else
+         f"**{faktor:.1f}-mal so oft** auf günstig".replace(".", ","))
+      + ", wie ihre eigene Kalibrierung vorsieht.\n")
+    w("**Der Grund ist die Jahreszeit, und er ist mechanisch.** Ein "
+      "Design-A-Vergleichstag liegt 26 bis 45 Tage neben dem Fund — bei "
+      "einem Herbstpilz also im Hochsommer oder im Spätherbst, und "
+      "beides ist weiter vom Fenster der Klasse entfernt als der "
+      "Fundtag selbst. Die Glocke steht dort niedriger, die ganze "
+      "Verteilung rutscht nach unten, und eine daraus gezogene Schwelle "
+      "rutscht mit. Genau der Kalenderanteil, den Phase 1.5 in der AUC "
+      "gemessen hat, steckt auch hier — nur sieht man ihn in der "
+      "Häufigkeit statt in der Trennschärfe.\n")
+    if hebel_alt and hebel_neu:
+        w("**Die neue Schwelle trennt aber nicht besser.** Der Hebel "
+          "steht vorher im Mittel bei "
+          + f"{statistics.median(hebel_alt):.2f}".replace(".", ",")
+          + " und nachher bei "
+          + f"{statistics.median(hebel_neu):.2f}".replace(".", ",")
+          + ". Was sich ändert, ist die Häufigkeit — "
+          f"{_sp(_med('b_alt'))} gegen {_sp(_med('b_neu'))} der Tage — "
+          "und nicht, wie verlässlich der Hinweis ist. Das ist keine "
+          "Enttäuschung, sondern die Bestätigung, dass hier eine "
+          "Häufigkeitsfrage vorliegt.\n")
+    w("**Und die Zahl ist noch nicht auslieferbar.** Zwischen der "
+      "Zeitscheibe P3 und den Jahren, in denen die App läuft, liegen "
+      "bei den vier Zahlen oben zwischen +0,05 und +0,15 — mehr als ein "
+      "Drittel des Gesamtsprungs beim Pfifferling. Wer die Spalte "
+      "„Design B auf P3“ direkt übernimmt, liefert eine Schwelle aus, "
+      "die für 2006 bis 2018 gemessen wurde.\n")
 
     w("\n## Die Zelle, die fehlt\n")
     w("**Design B auf P1.** Das wäre die auslieferbare Zahl: dasselbe "
