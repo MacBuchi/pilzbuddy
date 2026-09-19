@@ -59,6 +59,57 @@ behaupten. Was wir dürfen: Kandidaten gegeneinander ranken.
 gefunden" aus der App selbst. Solange die nicht da sind, bleibt jede
 Zahl dieser Arbeit relativ.
 
+### 2a. Beide Vergleichsarten zusammen (Betreiber, 2026-09-19)
+
+> „Vielleicht können wir das Beste aus beiden Welten nutzen: Tage im
+> selben Jahr davor/danach in einem Fenster, und auch in anderen
+> Jahren."
+
+**Angenommen — und es löst ein gemessenes Problem.**
+
+Die beiden Designs haben gegenläufige Schwächen:
+
+| | Kontrast | Kalender |
+|---|---|---|
+| **A** — 26 bis 45 Tage daneben, selbes Jahr | breit (SD 4,4 K) | steckt drin, rund 0,09 AUC |
+| **B** — selbes Datum ±7 d, anderes Jahr | schmal (SD 3,2 K; 60 % der Vergleiche unter ±2 K) | vollständig heraus |
+
+Das schmale Band von B ist nicht bloß unschön, es hat H6 umgebracht:
+Um die **Krümmung** einer Glocke zu schätzen, braucht man Temperaturen
+über einen weiten Bereich. Auf ±2 K ist das Optimum kaum identifiziert
+— daher das 2 K breite Plateau und der 1,84-K-Streit zwischen Gitter
+und Logit (`pilzampel-h6-vorpruefung-ergebnis.md`).
+
+**Die Auflösung: beide Arten beim SCHÄTZEN, nur B beim BEWERTEN.**
+
+1. **Anpassen** auf Strata, die **beide** Kontrolltypen enthalten —
+   plus einen flexiblen Saisonterm (Spline im Tag-des-Jahres). Die
+   A-Kontrollen spannen den Temperaturbereich auf und identifizieren
+   den Saisonterm; die B-Kontrollen identifizieren den Wetterterm
+   innerhalb der Woche.
+2. **Bewerten** ausschließlich auf **B-Strata**. Dort ist die Saison
+   innerhalb des Stratums konstant und kürzt sich in der bedingten
+   Likelihood heraus — der Saisonterm ist eine Störgröße, die
+   geschätzt, aber nicht mitbewertet wird. **Der Kalender kann den
+   Score also nicht aufblähen.**
+
+Damit fällt der Einwand gegen A weg, ohne seinen Vorteil zu verlieren.
+
+**Die Pflichtdiagnose, die das ehrlich hält:** Die Wetterkoeffizienten
+aus der gemeinsamen Anpassung werden **immer** neben die aus der
+B-only-Anpassung gestellt. Stimmen sie überein, tut der Saisonterm
+seine Arbeit. Sind die gemeinsamen deutlich größer, tut er sie nicht,
+und der Kalender ist durch die Hintertür zurück. Ohne diese Spalte ist
+das gemeinsame Design nicht zu verantworten.
+
+**Und eine harte Nebenbedingung:** Der Mindestabstand der A-Kontrollen
+muss **mindestens so groß sein wie das längste benutzte Wetterfenster**.
+Heute sind es 26 Tage Abstand bei 26 Tagen Fenster — das passt gerade
+so. Sobald in der Fenstersuche 35 Tage vorkommen, müssen die
+A-Kontrollen auf ≥ 35 Tage Abstand, sonst überlappt das Fenster des
+Vergleichstags mit dem des Fundtags und beide teilen sich denselben
+Regen.
+
 ## 3. Die Aufteilung
 
 **Betreiberauflage vom 2026-09-19: „Ich würde gern den Testteil
@@ -166,6 +217,7 @@ Nächste Stufe erst, wenn die vorige ausgereizt ist:
 | 0 | Klimatologie (nur Saison) | Pflicht-Baseline |
 | 1 | die ausgelieferte Formel | Pflicht-Baseline |
 | 2 | bedingtes Logit, Features linear/quadratisch | **liegt fertig vor** (`tool/ampel_logit.py`) |
+| 2a | dasselbe auf A+B-Strata mit Saison-Spline | der Zuschnitt aus 2a — bessere Identifikation des Optimums |
 | 3 | bedingtes Logit mit Splines, regularisiert | |
 | 4 | Gradient Boosting auf Strata | |
 | 5 | alles Rekurrente | **zuletzt, und nur mit Begründung** |
