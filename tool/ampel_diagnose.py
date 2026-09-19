@@ -961,10 +961,128 @@ def self_test():
     got = klasse(**{name: "zu dünn" for name in alle_gut})
     assert got["herbst"] == "kein Urteil" and got["_sigma"] == "bleibt 5,0"
 
+    # --- Vorpruefung zu H5: die Zerlegung auf P3 -----------------------
+    #
+    # Die drei Bewerter muessen wirklich verschiedene Dinge sehen. Probe:
+    # gleicher Regen, verschiedene Temperatur — dann darf NUR der
+    # Temperaturzweig etwas anderes als 0,5 sagen.
+    gleich_regen = [s for jahr in range(2008, 2018)
+                    for s in h1_probe(jahr, 2.0, 13.0, 2.0, 25.0, 5)]
+    werte = {v: h1_b(gleich_regen, 13.0, zerlegung_scorer(13.0, v))
+             for v in ZERLEGUNG_VARIANTEN}
+    assert werte["nur Regen"] == 0.5, werte
+    assert werte["nur Temperatur"] == 1.0 and werte["voll"] == 1.0, werte
+    # Und umgekehrt: gleiche Temperatur, verschiedener Regen.
+    gleich_temp = [s for jahr in range(2008, 2018)
+                   for s in h1_probe(jahr, 3.0, 13.0, 1.0, 13.0, 5)]
+    werte = {v: h1_b(gleich_temp, 13.0, zerlegung_scorer(13.0, v))
+             for v in ZERLEGUNG_VARIANTEN}
+    assert werte["nur Temperatur"] == 0.5, werte
+    assert werte["nur Regen"] == 1.0 and werte["voll"] == 1.0, werte
+    # Der Referenz-Bootstrap muss den Bewerter durchreichen. Ohne ihn
+    # rechnete er die volle Formel, und Bedingung 3 pruefte etwas
+    # anderes, als in der Registrierung steht.
+    ref_kunst = [s for jahr in range(2008, 2018)
+                 for s in h1_probe(jahr, 1.0, 13.0, 3.0, 13.0, 5)]
+    nur_r = bootstrap_ref_diff(gleich_temp, ref_kunst, 13.0, rounds=100,
+                               score=zerlegung_scorer(13.0, "nur Regen"))
+    assert nur_r is not None and nur_r[0] > 0, nur_r
+    nur_t = bootstrap_ref_diff(gleich_temp, ref_kunst, 13.0, rounds=100,
+                               score=zerlegung_scorer(13.0, "nur Temperatur"))
+    assert nur_t is not None and abs(nur_t[0]) < 1e-9 \
+        and abs(nur_t[1]) < 1e-9, nur_t
+
+    # --- Das Urteil der Vorpruefung, Bedingung fuer Bedingung ---------
+    def z_zeile(name, voll, regen, temp, d_voll, d_regen, p_regen=0.001):
+        return {"name": name, "ausgeliefert": True,
+                "b": {"voll": voll, "nur Regen": regen,
+                      "nur Temperatur": temp},
+                "delta": {"voll": d_voll, "nur Regen": d_regen,
+                          "nur Temperatur": 0.0},
+                "band": {"voll": (0.01, 0.09, 0.001),
+                         "nur Regen": (0.01, 0.09, p_regen),
+                         "nur Temperatur": None}}
+
+    def z_alle(**anders):
+        zeilen = []
+        for name in ZERLEGUNG_AUSGELIEFERT:
+            felder = dict(voll=0.64, regen=0.645, temp=0.58,
+                          d_voll=0.06, d_regen=0.06)
+            felder.update(anders.get(name, {}))
+            zeilen.append(z_zeile(name, **felder))
+        return zeilen
+
+    assert len(ZERLEGUNG_AUSGELIEFERT) == 6, ZERLEGUNG_AUSGELIEFERT
+    gut = zerlegung_urteil(z_alle())
+    assert gut["urteil"] == "H5 wird registriert", gut
+    assert gut["arten"] == 6 and gut["n_reist"] == 6
+
+    # Bedingung 1: bei zwei Arten traegt die Temperatur mehr.
+    kippt = {n: {"temp": 0.70} for n in ZERLEGUNG_AUSGELIEFERT[:2]}
+    schlecht = zerlegung_urteil(z_alle(**kippt))
+    assert schlecht["bedingungen"]["reist"] is False, schlecht
+    assert schlecht["urteil"] == "H5 wird NICHT registriert"
+    # Genau eine Art darf kippen — fuenf von sechs reichen.
+    assert zerlegung_urteil(z_alle(**{ZERLEGUNG_AUSGELIEFERT[0]:
+                                      {"temp": 0.70}}))["bedingungen"][
+        "reist"] is True
+
+    # Bedingung 2: die Glocke traegt doch etwas bei.
+    traegt = {n: {"voll": 0.68, "regen": 0.645}
+              for n in ZERLEGUNG_AUSGELIEFERT[:2]}
+    assert zerlegung_urteil(z_alle(**traegt))["bedingungen"][
+        "glocke_traegt_nichts"] is False
+    # Die Grenze wird scharf gelesen: genau +0,020 traegt schon.
+    knapp = {n: {"voll": 0.665, "regen": 0.645}
+             for n in ZERLEGUNG_AUSGELIEFERT[:2]}
+    assert zerlegung_urteil(z_alle(**knapp))["bedingungen"][
+        "glocke_traegt_nichts"] is False
+
+    # Bedingung 3, erste Haelfte: das Band schliesst die Null ein.
+    wackelt = {n: {"p_regen": 0.30} for n in ZERLEGUNG_AUSGELIEFERT[:2]}
+    assert zerlegung_urteil(z_alle(**wackelt))["bedingungen"][
+        "abstand_haelt"] is False
+    # **Zweite Haelfte — die Falle, auf die es ankommt.** Der Abstand
+    # darf nicht schrumpfen, auch wenn jedes einzelne Band sauber ist:
+    # Ein Regen-Score, der Art UND Referenz gleichermassen hebt, laesst
+    # die Baender stehen und den Abstand fallen.
+    schrumpft = {n: {"d_regen": 0.01, "d_voll": 0.06}
+                 for n in ZERLEGUNG_AUSGELIEFERT}
+    geschrumpft = zerlegung_urteil(z_alle(**schrumpft))
+    assert geschrumpft["n_abstand"] == 6, geschrumpft
+    assert geschrumpft["median_ok"] is False, geschrumpft
+    assert geschrumpft["bedingungen"]["abstand_haelt"] is False
+    assert geschrumpft["urteil"] == "H5 wird NICHT registriert"
+    # Ein Verlust von genau 0,020 ist noch erlaubt, mehr nicht.
+    assert zerlegung_urteil(z_alle(**{n: {"d_regen": 0.04, "d_voll": 0.06}
+                                      for n in ZERLEGUNG_AUSGELIEFERT}))[
+        "median_ok"] is True
+    assert zerlegung_urteil(z_alle(**{n: {"d_regen": 0.039, "d_voll": 0.06}
+                                      for n in ZERLEGUNG_AUSGELIEFERT}))[
+        "median_ok"] is False
+
+    # Nachrichtliche Arten entscheiden nichts.
+    mit_gast = z_alle() + [dict(z_zeile("Judasohr", 0.50, 0.62, 0.46,
+                                        0.0, 0.0, 0.9),
+                                ausgeliefert=False)]
+    assert zerlegung_urteil(mit_gast)["arten"] == 6
+    assert zerlegung_urteil(mit_gast)["urteil"] == "H5 wird registriert"
+
+    # Und der Bericht muss sich bauen lassen, bevor gemessen wird.
+    roh = [dict(z, gruppe="herbst", optimum=13.0, n=900, ref_n=1500,
+                zellen=600,
+                ref_b={"voll": 0.58, "nur Regen": 0.585,
+                       "nur Temperatur": 0.55})
+           for z in z_alle()]
+    text = render_zerlegung(roh)
+    assert "H5 wird registriert" in text and "Die Zerlegung je Art" in text
+
     # Die Registrierung in Codeform — wer eine dieser Zahlen nach dem
     # Lauf anfasst, hebt sie auf.
     assert (H1_SIGMA_ALT, H1_SIGMA_NEU, H1_SIGMA_GEGEN) == (5.0, 3.25, 8.0)
     assert (H1_MIN_GAIN, H1_MIN_JAHR_ANTEIL) == (0.02, 0.70)
+    assert (Z_MIN_ARTEN, Z_GLOCKE_BEITRAG, Z_ABSTAND_VERLUST) == \
+        (5, 0.020, 0.020)
     assert H1_SIGMA_ALT == av.TEMP_SIGMA, "der Amtsinhaber ist der Ausgeliefertee"
     assert set(H1_KLASSEN) == {"herbst", "sommer"}
     assert len(H1_KLASSEN["herbst"]) == 5 and H1_KLASSEN["sommer"] == \
@@ -1472,7 +1590,7 @@ def score_b_year(samples):
 
 
 def bootstrap_ref_diff(art, referenz, optimum, rounds=BOOTSTRAP_ROUNDS,
-                       seed=42):
+                       seed=42, score=None):
     """N2 — Vertrauensbereich der Differenz Art minus Referenz.
 
     Gezogen wird ueber das FUNDJAHR wie beim Bootstrap von B, und
@@ -1487,8 +1605,8 @@ def bootstrap_ref_diff(art, referenz, optimum, rounds=BOOTSTRAP_ROUNDS,
     als Punktschaetzer ohne jede Streuung da.
     """
     jahr = lambda s: s["year"]
-    a_jahre = _fractions(art, optimum, jahr)
-    r_jahre = _fractions(referenz, optimum, jahr)
+    a_jahre = _fractions(art, optimum, jahr, score)
+    r_jahre = _fractions(referenz, optimum, jahr, score)
     namen = sorted(set(a_jahre) | set(r_jahre))
     if len(namen) < 2:
         return None
@@ -2709,6 +2827,272 @@ def render_logit(zeilen):
       "Deshalb hilft im Zweifel der Blick auf `b_T²` selbst.")
     return "\n".join(aus) + "\n"
 
+
+# --- Vorpruefung zu H5: die Zerlegung auf den Anpassjahren -----------------
+#
+# Registriert in `docs/pilzampel-h5-vorpruefung.md`, VOR diesem Lauf.
+# Gerechnet auf P3 (DE <= FIT_UNTIL_YEAR) — den Anpassjahren. Das ist
+# **keine Pruefachse**: Dort wird ohnehin gefittet und diagnostiziert,
+# der Lauf verbraucht nichts.
+#
+# Der Anlass steht in `docs/pilzampel-pruefachsen.md`: Die Zerlegung aus
+# `--h1` lief auf P1 und damit auf einer Achse. Eine Hypothese, die dort
+# entsteht, kann dort nicht mehr unbefangen geprueft werden.
+
+ZERLEGUNG_VARIANTEN = ("voll", "nur Regen", "nur Temperatur")
+
+# Die Schwellen der Registrierung, Abschnitt „Die Entscheidung".
+Z_MIN_ARTEN = 5           # von den sechs ausgelieferten
+Z_GLOCKE_BEITRAG = 0.020  # ab hier traegt die Glocke etwas
+Z_ABSTAND_VERLUST = 0.020 # so viel darf der Referenzabstand verlieren
+
+ZERLEGUNG_AUSGELIEFERT = (H1_KLASSEN["herbst"] + H1_KLASSEN["sommer"])
+
+
+def zerlegung_scorer(optimum, variante):
+    """Der Bewerter je Variante — die ausgelieferte Breite durchweg.
+
+    `nur Temperatur` ist von sigma unabhaengig (siehe `h1_scorer`); hier
+    wird sigma deshalb gar nicht erst zur Wahl gestellt.
+    """
+    if variante == "nur Regen":
+        return lambda regen, temp: av.rain_factor(regen)
+    if variante == "nur Temperatur":
+        return lambda regen, temp: av.temperature_factor(temp, optimum,
+                                                         H1_SIGMA_ALT)
+    return lambda regen, temp: av.ampel_score(regen, temp, optimum,
+                                              H1_SIGMA_ALT)
+
+
+def zerlegung_urteil(zeilen):
+    """Die drei Bedingungen aus der Registrierung, Zeile fuer Zeile.
+
+    **Betrachtet werden nur die sechs ausgelieferten Arten.** Die
+    uebrigen laufen nachrichtlich mit und entscheiden nichts — ihre
+    Klassen sind nicht ausgeliefert, und nach Phase 1.5 steht fuer alle
+    fuenf „keine Aussage".
+    """
+    dabei = [z for z in zeilen if z["name"] in ZERLEGUNG_AUSGELIEFERT
+             and z.get("b") and z["b"].get("voll") is not None]
+    if not dabei:
+        return {"urteil": "kein Urteil", "arten": 0}
+
+    reist = [z for z in dabei
+             if z["b"]["nur Regen"] is not None
+             and z["b"]["nur Temperatur"] is not None
+             and z["b"]["nur Regen"] > z["b"]["nur Temperatur"]]
+    glocke = [z for z in dabei
+              if z["b"]["nur Regen"] is not None
+              and (z["b"]["voll"] - z["b"]["nur Regen"]) < Z_GLOCKE_BEITRAG]
+    # Bedingung 3, erste Haelfte: Der Abstand zur Referenz ueberlebt den
+    # Wechsel auf den reinen Regen-Score — Band ohne die Null.
+    abstand = [z for z in dabei
+               if z.get("delta", {}).get("nur Regen") is not None
+               and z["delta"]["nur Regen"] > 0
+               and z.get("band", {}).get("nur Regen") is not None
+               and z["band"]["nur Regen"][2] < P_GRENZE]
+    # Zweite Haelfte: Er schrumpft nicht. Verglichen werden MEDIANE, weil
+    # eine einzelne Art mit duenner Referenz sonst das Bild traegt.
+    d_regen = [z["delta"]["nur Regen"] for z in dabei
+               if z.get("delta", {}).get("nur Regen") is not None]
+    d_voll = [z["delta"]["voll"] for z in dabei
+              if z.get("delta", {}).get("voll") is not None]
+    median_ok = (bool(d_regen) and bool(d_voll)
+                 and statistics.median(d_regen)
+                 >= statistics.median(d_voll) - Z_ABSTAND_VERLUST)
+
+    bed = {
+        "reist": len(reist) >= Z_MIN_ARTEN,
+        "glocke_traegt_nichts": len(glocke) >= Z_MIN_ARTEN,
+        "abstand_haelt": len(abstand) >= Z_MIN_ARTEN and median_ok,
+    }
+    return {
+        "urteil": ("H5 wird registriert" if all(bed.values())
+                   else "H5 wird NICHT registriert"),
+        "bedingungen": bed, "arten": len(dabei),
+        "n_reist": len(reist), "n_glocke": len(glocke),
+        "n_abstand": len(abstand), "median_ok": median_ok,
+        "median_regen": statistics.median(d_regen) if d_regen else None,
+        "median_voll": statistics.median(d_voll) if d_voll else None,
+    }
+
+
+def run_zerlegung(args):
+    """Die Vorpruefung zu H5 — auf P3, ohne eine Achse zu verbrauchen."""
+    if args.api:
+        av.OPEN_METEO = args.api.rstrip("/")
+    av.DEDUPE = args.dedupe
+    av.use_dataset(args.dataset)
+    print(f"Zerlegung auf P3 (DE ≤ {av.FIT_UNTIL_YEAR}) — Anpassjahre, "
+          "keine Prüfachse", file=sys.stderr)
+    print("Registrierung: docs/pilzampel-h5-vorpruefung.md", file=sys.stderr)
+
+    mapping = av.read_species()
+    wanted = DESIGN_ARTEN
+    if args.only:
+        gesucht = {n.strip() for n in args.only.split(",") if n.strip()}
+        wanted = [z for z in DESIGN_ARTEN if z[0] in gesucht]
+
+    pool = None
+    zeilen = []
+    for name, gruppe, optimum in wanted:
+        if name not in mapping:
+            continue
+        sci = mapping[name]
+        print(f"  {name}", file=sys.stderr)
+        finds, _ = av.select_finds(sci, args.cache, args.seed, True, ("DE",))
+        if not finds:
+            continue
+        gezogen = av.collect_pairs_b(name, sci, finds=finds,
+                                     cache_dir=args.cache, seed=args.seed,
+                                     progress=False)
+        if not gezogen:
+            continue
+        # **Dieselbe Ziehung wie in Phase 1.5** — gleicher Seed, gleiche
+        # Fundliste, gleiche Jahresscheibe. Sonst waere der Unterschied
+        # zu jenen Zahlen teils die Stichprobe.
+        samples = fit_years_only(gezogen["samples"])
+
+        if pool is None:
+            print("    Referenzbestand wird geladen …", file=sys.stderr)
+            pool = target_group_finds(progress=True)
+        ref_finds, ref_info = matched_reference(finds, pool, sci,
+                                                seed=args.seed)
+        ref_s = []
+        if len(ref_finds) >= 50:
+            rb = av.collect_pairs_b("Referenz " + name, "—", finds=ref_finds,
+                                    cache_dir=args.cache, seed=args.seed,
+                                    progress=False)
+            if rb:
+                ref_s = fit_years_only(rb["samples"])
+
+        b, ref_b, delta, band = {}, {}, {}, {}
+        for variante in ZERLEGUNG_VARIANTEN:
+            score = zerlegung_scorer(optimum, variante)
+            b[variante] = h1_b(samples, optimum, score)
+            ref_b[variante] = h1_b(ref_s, optimum, score) if ref_s else None
+            delta[variante] = (None if b[variante] is None
+                               or ref_b[variante] is None
+                               else b[variante] - ref_b[variante])
+            band[variante] = (bootstrap_ref_diff(
+                samples, ref_s, optimum, rounds=BOOTSTRAP_ROUNDS_B,
+                seed=args.seed, score=score) if ref_s else None)
+
+        zeilen.append({
+            "name": name, "gruppe": gruppe, "optimum": optimum,
+            "ausgeliefert": name in ZERLEGUNG_AUSGELIEFERT,
+            "n": len(samples), "ref_n": len(ref_s),
+            "zellen": ref_info["zellen"],
+            "b": b, "ref_b": ref_b, "delta": delta, "band": band,
+        })
+        print(f"    voll {_fmt(b['voll'])}  Regen {_fmt(b['nur Regen'])}  "
+              f"Temp {_fmt(b['nur Temperatur'])}   "
+              f"Δ_Regen {_signed(delta['nur Regen'])}", file=sys.stderr)
+
+    bericht = render_zerlegung(zeilen)
+    if args.out:
+        open(args.out, "w", encoding="utf-8").write(bericht)
+        print(f"\n{args.out} geschrieben", file=sys.stderr)
+    else:
+        print(bericht)
+
+
+def render_zerlegung(zeilen):
+    """Der Bericht zur H5-Vorprüfung."""
+    import time as _t
+    aus = []
+    w = aus.append
+    band = lambda b: "—" if b is None else f"[{b[0]:+.3f}, {b[1]:+.3f}]"
+    haken = lambda ok: "✓" if ok else "✗"
+    urteil = zerlegung_urteil(zeilen)
+    w("# Vorprüfung zu H5: trägt die Glocke etwas bei? — die Messung\n")
+    w(f"Stand: {_t.strftime('%Y-%m-%d')} · Erzeugt von "
+      "`tool/ampel_diagnose.py --zerlegung` · **Registrierung (vor dem "
+      "Lauf geschrieben): `docs/pilzampel-h5-vorpruefung.md`**\n")
+    w(f"Gerechnet auf **P3, DE ≤ {av.FIT_UNTIL_YEAR}** — den "
+      "Anpassjahren. Das ist keine Prüfachse; dieser Lauf verbraucht "
+      "nichts (`docs/pilzampel-pruefachsen.md`).\n")
+    w(f"Messbasis `{av.DATASET}`, Entdoppeln "
+      f"{'an' if av.DEDUPE else 'aus'}, Design B, dieselbe Ziehung wie "
+      "Phase 1.5.\n")
+    w("> **Achtung beim Wiederholen:** Dieser Lauf überschreibt die "
+      "Datei vollständig. Einordnende Abschnitte (`### …`) sind von Hand "
+      "geschrieben und danach weg.\n")
+
+    w("\n## Das Ergebnis\n")
+    w(f"### {urteil['urteil']}\n")
+    if urteil.get("bedingungen"):
+        b = urteil["bedingungen"]
+        w(f"| Bedingung | Schwelle | erreicht | |")
+        w("|---|---|--:|:-:|")
+        w(f"| 1 — die Zerlegung reist | B(Regen) > B(Temp) bei ≥ "
+          f"{Z_MIN_ARTEN} von 6 | {urteil['n_reist']} von "
+          f"{urteil['arten']} | {haken(b['reist'])} |")
+        w(f"| 2 — die Glocke trägt nichts bei | B(voll) − B(Regen) < "
+          f"{Z_GLOCKE_BEITRAG:.3f} bei ≥ {Z_MIN_ARTEN} von 6 | "
+          f"{urteil['n_glocke']} von {urteil['arten']} | "
+          f"{haken(b['glocke_traegt_nichts'])} |")
+        w(f"| 3 — der Referenzabstand hält | Band ohne Null bei ≥ "
+          f"{Z_MIN_ARTEN} von 6 **und** Median nicht mehr als "
+          f"{Z_ABSTAND_VERLUST:.3f} darunter | {urteil['n_abstand']} von "
+          f"{urteil['arten']}, Median {_signed(urteil['median_regen'])} "
+          f"gegen {_signed(urteil['median_voll'])} | "
+          f"{haken(b['abstand_haelt'])} |")
+        w("")
+    w("**Kein Zwischenergebnis wird nachverhandelt** — die Schwellen "
+      "standen vor dem Lauf fest.\n")
+
+    w("\n## Die Zerlegung je Art\n")
+    w("Dieselben Paare, drei Bewerter. „Nur Temperatur“ ist von der "
+      "Glockenbreite unabhängig, weil das Maß rangbasiert ist.\n")
+    w("| Art | ausgeliefert | Funde | B voll | B nur Regen | "
+      "B nur Temperatur | voll − Regen |")
+    w("|---|:-:|--:|--:|--:|--:|--:|")
+    for z in zeilen:
+        d = (None if z["b"]["voll"] is None or z["b"]["nur Regen"] is None
+             else z["b"]["voll"] - z["b"]["nur Regen"])
+        w(f"| {z['name']} | {'**ja**' if z['ausgeliefert'] else 'nein'} | "
+          f"{z['n']} | {_fmt(z['b']['voll'])} | "
+          f"{_fmt(z['b']['nur Regen'])} | "
+          f"{_fmt(z['b']['nur Temperatur'])} | {_signed(d)} |")
+
+    w("\n## Die Referenz, in denselben drei Bewertern\n")
+    w("Meldungen anderer Pilze aus denselben ~10-km-Zellen und mit der "
+      "Monatsverteilung der Zielart. **Sie ist kein Abzugsposten** (A6): "
+      "„irgendeine Pilzmeldung“ ist überwiegend *andere Pilze*, die "
+      "auf dasselbe Wetter reagieren.\n")
+    w("| Art | Referenzfunde | Zellen | Ref voll | Ref nur Regen | "
+      "Ref nur Temperatur |")
+    w("|---|--:|--:|--:|--:|--:|")
+    for z in zeilen:
+        w(f"| {z['name']} | {z['ref_n']} | {z['zellen']} | "
+          f"{_fmt(z['ref_b']['voll'])} | {_fmt(z['ref_b']['nur Regen'])} | "
+          f"{_fmt(z['ref_b']['nur Temperatur'])} |")
+
+    w("\n## Die Entscheidung: der Abstand zur Referenz je Bewerter\n")
+    w("**Regen wirkt auch auf den Sammler.** Design B nimmt Ort und "
+      "Jahreszeit heraus, nicht die Wetterabhängigkeit des Suchens. "
+      "Steigt die Referenz mit einem Regen-Score genauso wie die Art, "
+      "ist nichts gewonnen — nur der Abstand zählt.\n")
+    w("| Art | Δ voll | 95 % | Δ nur Regen | 95 % | p | Δ nur Temperatur |")
+    w("|---|--:|---|--:|---|--:|--:|")
+    for z in zeilen:
+        w(f"| {z['name']} | {_signed(z['delta']['voll'])} | "
+          f"{band(z['band']['voll'])} | "
+          f"{_signed(z['delta']['nur Regen'])} | "
+          f"{band(z['band']['nur Regen'])} | "
+          f"{_pwert(z['band']['nur Regen'])} | "
+          f"{_signed(z['delta']['nur Temperatur'])} |")
+
+    w("\n## Grenzen\n")
+    w(f"**P3 sind die Anpassjahre. Jede Zahl hier ist eine Diagnose.** "
+      "Auch ein glänzendes Ergebnis belegt H5 nicht — es erlaubt nur, "
+      "H5 zu registrieren und dann auf AT+CH zu prüfen.\n")
+    w("Und die Referenz trennt Suchaufwand und allgemeine "
+      "Pilz-Wetterreaktion nicht (A6); sie begrenzt beide zusammen nach "
+      "oben.")
+    return "\n".join(aus) + "\n"
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--self-test", action="store_true")
@@ -2716,6 +3100,9 @@ if __name__ == "__main__":
     parser.add_argument("--designs", action="store_true",
                         help="Phase 1.5: Design A und B "
                              "nebeneinander")
+    parser.add_argument("--zerlegung", action="store_true",
+                        help="Vorprüfung zu H5 auf P3 "
+                             "(docs/pilzampel-h5-vorpruefung.md)")
     parser.add_argument("--logit", action="store_true",
                         help="N5: Optimum und Breite mit Standardfehler "
                              "— Information, kein Prüfwert")
@@ -2741,6 +3128,9 @@ if __name__ == "__main__":
         raise SystemExit(0)
     if args.logit:
         run_logit(args)
+        raise SystemExit(0)
+    if args.zerlegung:
+        run_zerlegung(args)
         raise SystemExit(0)
     if not args.all:
         parser.print_help()
