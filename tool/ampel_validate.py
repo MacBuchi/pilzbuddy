@@ -270,10 +270,13 @@ AMPEL_CLASSES = {
         # nach einer Jahreszeit. „Sommerpilze" behauptete eine Gruppe;
         # drin steht ein Pfifferling.
         "label": "Pfifferling",
-        # Gemessen am 2026-09-12; `class_thresholds` rechnet beide Zahlen
-        # bei jedem Lauf nach und bricht ab, wenn sie gewandert sind.
-        "verhalten": 0.287,
-        "guenstig": 0.677,
+        # **Neu gesetzt am 2026-09-19** (Auftrag 3 A). Vorher 0,287 und
+        # 0,677 aus Design A; die Herkunft steht in
+        # `docs/pilzampel-schwellen-designb-p1.md`. Nachgerechnet wird
+        # bei jedem `--schwellen --scheibe p1`.
+        "verhalten": 0.385,
+        "guenstig": 0.729,
+        "schwellen_quelle": "Design B, P1, pinned (2026-09-19)",
         "optimum": 17.5,
         "members": ["Pfifferling"],
         "confirmed": True,
@@ -287,10 +290,13 @@ AMPEL_CLASSES = {
         # nach einer Jahreszeit. „Sommerpilze" behauptete eine Gruppe;
         # drin steht ein Pfifferling.
         "label": "Steinpilz & Co.",
-        # Gemessen am 2026-09-12; `class_thresholds` rechnet beide Zahlen
-        # bei jedem Lauf nach und bricht ab, wenn sie gewandert sind.
-        "verhalten": 0.187,
-        "guenstig": 0.512,
+        # **Neu gesetzt am 2026-09-19** (Auftrag 3 A). Vorher 0,187 und
+        # 0,512 aus Design A; die Herkunft steht in
+        # `docs/pilzampel-schwellen-designb-p1.md`. Nachgerechnet wird
+        # bei jedem `--schwellen --scheibe p1`.
+        "verhalten": 0.389,
+        "guenstig": 0.742,
+        "schwellen_quelle": "Design B, P1, pinned (2026-09-19)",
         "optimum": 13.0,
         "members": ["Steinpilz", "Maronenröhrling", "Birkenpilz",
                     "Fichtenreizker", "Herbsttrompete"],
@@ -2166,12 +2172,22 @@ def class_thresholds(rows, quantiles, verify=True):
         # auch in Dart.
         out[key] = got
     if verify:
-        verify_class_constants(out)
+        verify_class_constants(out, schwellen=(verify != "fenster"))
     return out
 
 
-def verify_class_constants(measured):
+def verify_class_constants(measured, schwellen=True):
     """Konstanten gegen Daten — **alle Abweichungen auf einmal.**
+
+    [schwellen] schaltet die beiden Schwellen ab. **Seit dem
+    2026-09-19 stammen sie nicht mehr aus Design A** (Auftrag 3 A,
+    `docs/pilzampel-schwellen-designb-p1.md`), und ein Waechter, der
+    sie gegen Design-A-Quantile haelt, vergleicht dann zwei
+    verschiedene Groessen — dieselbe Falle wie beim Messbasis-Wechsel
+    einen Absatz tiefer. Genagelt werden sie jetzt dort, wo sie
+    herkommen: in `ampel_diagnose.py --schwellen --scheibe p1`. Das
+    Fenster prueft diese Funktion weiter, denn das kommt nach wie vor
+    aus Design A.
 
     Bis zum 2026-09-12 brach die Prüfung beim ersten Fund ab. Das ist
     genau der Wächter, den man nach dem zweiten Mal abschaltet: Ein
@@ -2186,7 +2202,7 @@ def verify_class_constants(measured):
         # es auch nichts, was auseinanderlaufen könnte.
         if not klass.get("dart"):
             continue
-        for field in ("verhalten", "guenstig"):
+        for field in ("verhalten", "guenstig") if schwellen else ():
             expected = klass.get(field)
             if expected is not None and round(got[field], 3) != expected:
                 findings.append(
@@ -6229,7 +6245,9 @@ def main():
         ship = deployment_quantiles(rows)
         if ship:
             attach_class_scores(rows)
-            class_thresholds(rows, ship, verify=True)
+            # Nur das Fenster: die Schwellen kommen seit dem
+            # 2026-09-19 aus Design B auf P1 und werden dort genagelt.
+            class_thresholds(rows, ship, verify="fenster")
         # Fenster UND Schwellen jeder Klasse gegen die Daten — in EINEM
         # Durchgang, damit ein Lauf alle Abweichungen nennt. Bis hierher
         # wachte das Werkzeug nur über die Schwellen; das Fenster der

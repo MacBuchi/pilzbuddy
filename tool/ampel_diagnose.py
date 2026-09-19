@@ -1268,6 +1268,113 @@ def self_test():
     assert {g for _, g, _ in SCHWELLEN_ARTEN} == {"herbst", "sommer"}
     assert len(SCHWELLEN_ARTEN) == 6, SCHWELLEN_ARTEN
 
+    # **Die Scheibenwahl und ihr Riegel** (Betreiber, 2026-09-19).
+    class _Args:
+        scheibe = None
+    assert schwellen_scheibe(_Args())[0] is False
+    _Args.scheibe = "p3"
+    assert schwellen_scheibe(_Args())[0] is False
+    _Args.scheibe = "p1"
+    auf_p1, wie = schwellen_scheibe(_Args())
+    assert auf_p1 is True and str(av.FIT_UNTIL_YEAR + 1) in wie, wie
+    _Args.scheibe = "P1"
+    assert schwellen_scheibe(_Args())[0] is True, "Grossschreibung"
+    _Args.scheibe = "at_ch"
+    try:
+        schwellen_scheibe(_Args())
+        raise AssertionError("eine fremde Scheibe geht durch")
+    except SystemExit:
+        pass
+
+    # Ein schwellenabhaengiges Guetemass bricht auf P1 ab und laeuft auf
+    # P3 durch. Das ist der Unterschied zwischen einer beschriebenen
+    # Verteilung und einer Guete, die die ausgelieferte Zahl mitbewertet.
+    verbiete_schwellenmass(False, "Der Hebel")
+    try:
+        verbiete_schwellenmass(True, "Der Hebel")
+        raise AssertionError("die Sperre greift nicht")
+    except SystemExit as fehler:
+        assert "P1" in str(fehler) and "AT+CH" in str(fehler), fehler
+    assert "Trefferquote" in P1_GESPERRTE_MASSE
+    assert "Hebel" in P1_GESPERRTE_MASSE
+
+    # **Der Riegel steht im Bericht, nicht nur im Kommentar.** Wer die
+    # Fundtagsspalte spaeter wieder einbaut, laeuft hinein.
+    quelle_r = inspect.getsource(render_schwellen)
+    assert "verbiete_schwellenmass(auf_p1" in quelle_r, \
+        "der Bericht ruft die Sperre nicht auf"
+    # Und der Lauf rechnet sie auf P1 gar nicht erst.
+    quelle_l = inspect.getsource(run_schwellen)
+    assert "funde_b = ({} if auf_p1" in quelle_l, \
+        "der Lauf bewertet auf P1 doch Fundtage"
+
+    # **Der Waechter ueber die ausgelieferten Schwellen.** Er ersetzt
+    # den, der sie bis zum 2026-09-19 gegen Design-A-Quantile hielt.
+    class _PinArgs:
+        dataset = "pinned"
+        dedupe = True
+        seed = 42
+        only = None
+
+    def _erg(herbst, sommer):
+        return {"herbst": {"b": {"punkt": herbst}},
+                "sommer": {"b": {"punkt": sommer}}}
+
+    passend = _erg((av.AMPEL_CLASSES["herbst"]["verhalten"],
+                    av.AMPEL_CLASSES["herbst"]["guenstig"]),
+                   (av.AMPEL_CLASSES["sommer"]["verhalten"],
+                    av.AMPEL_CLASSES["sommer"]["guenstig"]))
+    verify_schwellen_konstanten(passend, _PinArgs(), True)
+
+    gewandert = _erg((0.111, 0.222), (0.333, 0.444))
+    try:
+        verify_schwellen_konstanten(gewandert, _PinArgs(), True)
+        raise AssertionError("gewanderte Schwellen bleiben unbemerkt")
+    except SystemExit as fehler:
+        # Alle vier auf einmal, nicht nur die erste.
+        for stueck in ("herbst.verhalten", "herbst.guenstig",
+                       "sommer.verhalten", "sommer.guenstig"):
+            assert stueck in str(fehler), (stueck, str(fehler))
+        assert "ampel_model.dart" in str(fehler)
+
+    # Auf einer anderen Messbasis MUSS er nur warnen: Dort weicht die
+    # Zahl zwangslaeufig ab, und ein Abbruch blockierte jede kuenftige
+    # Messung auf neuer Basis.
+    class _AndereBasis(_PinArgs):
+        dataset = "vorgabe"
+    verify_schwellen_konstanten(gewandert, _AndereBasis(), True)
+    # Ebenso auf P3 und bei einem Teillauf mit --only.
+    verify_schwellen_konstanten(gewandert, _PinArgs(), False)
+
+    class _Teillauf(_PinArgs):
+        only = "Steinpilz"
+    verify_schwellen_konstanten(gewandert, _Teillauf(), True)
+
+    # Die Herkunft steht als Bedingung da, nicht nur im Fliesstext.
+    assert SCHWELLEN_HERKUNFT["dataset"] == "pinned"
+    assert SCHWELLEN_HERKUNFT["scheibe"] == "p1"
+    # Und der Lauf ruft ihn auch auf.
+    assert "verify_schwellen_konstanten(ergebnis, args, auf_p1)" in \
+        inspect.getsource(run_schwellen)
+
+    # **Das Vorher darf sich nicht mitbewegen.** Liest die Alt-Spalte
+    # wieder die Konstanten, zeigt der Bericht nach jeder Uebernahme
+    # ueberall null Unterschied — und wird nicht rot dabei.
+    assert set(SCHWELLEN_VORHER) == {
+        k for k, v in av.AMPEL_CLASSES.items() if v.get("dart")}
+    for key, (v, g) in SCHWELLEN_VORHER.items():
+        assert (v, g) != (av.AMPEL_CLASSES[key]["verhalten"],
+                          av.AMPEL_CLASSES[key]["guenstig"]), (
+            f"{key}: das Vorher ist dasselbe wie das Jetzt — die "
+            "Vorher-Nachher-Tabelle zeigt dann nichts")
+    assert schwelle_vorher("herbst", 0) == SCHWELLEN_VORHER["herbst"][0]
+    assert schwelle_vorher("herbst", 1) == SCHWELLEN_VORHER["herbst"][1]
+    assert schwelle_vorher("gibtsnicht", 0) is None
+    quelle_v = inspect.getsource(render_schwellen)
+    assert 'klass["guenstig"]' not in quelle_v, \
+        "der Bericht liest die Alt-Spalte wieder aus den Konstanten"
+    assert "Im Oktober" in quelle_v, "die Oktober-Zeile fehlt"
+
     print("Selbsttest ok")
 
 
@@ -3331,6 +3438,76 @@ SCHWELLEN_ARTEN = [(n, g, o) for n, g, o in DESIGN_ARTEN
 # fehlte. Traegt eine einzelne Art die Zahl, sieht man es dort.
 SCHWELLEN_MIN_FUNDE = 100
 
+# **Die Schwellen VOR der Uebernahme, ausgeschrieben.**
+# Bis zum 2026-09-19 las die Alt-Spalte dieses Berichts die Konstanten
+# aus `AMPEL_CLASSES`. Das ging genau so lange gut, bis die neuen Zahlen
+# uebernommen wurden — danach haette der Bericht „alt" gegen „alt"
+# verglichen und ueberall null Unterschied gezeigt, ohne rot zu werden.
+# Ein Vorher-Nachher braucht ein Vorher, das sich nicht mitbewegt.
+#
+# Herkunft dieser vier Zahlen: Design A, Quantile 50/80 auf den
+# Pruefjahren, gesetzt am 2026-09-12
+# (`docs/pilzampel-schwellen-messung.md`).
+SCHWELLEN_VORHER = {"herbst": (0.187, 0.512), "sommer": (0.287, 0.677)}
+
+
+def schwelle_vorher(key, i):
+    """Die alte Schwelle einer Klasse — Stufe 0 verhalten, 1 guenstig."""
+    return SCHWELLEN_VORHER[key][i] if key in SCHWELLEN_VORHER else None
+
+# **Warum eine Schwelle auf P1 gerechnet werden DARF** (Betreiber,
+# 2026-09-19). Der Grund ist, dass Schwelle und gepaarte AUC disjunkte
+# Statistiken sind: Die AUC ist rangbasiert und von jeder Schwelle
+# voellig unabhaengig. Eine aus P1 gezogene Schwelle kann deshalb keinen
+# bisherigen und keinen kuenftigen AUC-Test beruehren — es gibt dort
+# keine Latte, kein Band und nichts zu bestehen. Beschrieben wird eine
+# Verteilung, nicht ausgewaehlt.
+#
+# Und P1 ist hier sogar die RICHTIGE Scheibe: Die App steht heute, nicht
+# 2012, und die Zeitscheibe macht beim Pfifferling ueber ein Drittel des
+# Sprungs aus (`docs/pilzampel-schwellen-designb.md`).
+#
+# **Die Grenze dieser Erlaubnis, und sie ist scharf:** Sobald ein Mass
+# eine Schwelle BENUTZT, um Fundtage zu bewerten, ist es kein
+# Verteilungsbefund mehr, sondern eine Guete — Trefferquote, POD, FAR,
+# TSS, und auch der Hebel aus dem P3-Bericht. Solche Zahlen auf P1 zu
+# rechnen waere echte Kontamination, denn dort entschiede die
+# ausgelieferte Schwelle mit, wie gut die Ampel aussieht. Sie sind auf
+# P1 gesperrt; wer sie braucht, rechnet sie auf AT+CH.
+P1_GESPERRTE_MASSE = ("Trefferquote", "POD", "FAR", "TSS", "Hebel",
+                      "Fundtag-Anteil")
+
+
+def verbiete_schwellenmass(auf_p1, was):
+    """Der Riegel zur Regel vom 2026-09-19.
+
+    Ein Verteilungsbefund auf P1 ist erlaubt, eine schwellenabhaengige
+    Guete nicht. Der Unterschied ist eine Zeile im Aufruf und deshalb
+    leicht zu uebersehen — also bricht der Lauf ab, statt eine Zahl zu
+    liefern, die hinterher niemand mehr von einer erlaubten
+    unterscheiden kann.
+    """
+    if auf_p1:
+        raise SystemExit(
+            f"{was} ist ein schwellenabhaengiges Guetemass und auf P1 "
+            "gesperrt (Regel vom 2026-09-19, "
+            "docs/pilzampel-pruefachsen.md). Auf P3 ist es erlaubt, auf "
+            "AT+CH waere es ein Pruefachsenlauf.")
+
+
+def schwellen_scheibe(args):
+    """Welche Zeitscheibe der Lauf beschreibt — und was das erlaubt.
+
+    Rueckgabe: (auf_p1, name). Vorgabe ist P3; P1 muss ausdruecklich
+    verlangt werden, damit niemand versehentlich dort landet.
+    """
+    wahl = (getattr(args, "scheibe", None) or "p3").lower()
+    if wahl not in ("p1", "p3"):
+        raise SystemExit("--scheibe erwartet p3 oder p1")
+    if wahl == "p1":
+        return True, f"DE ab {av.FIT_UNTIL_YEAR + 1}"
+    return False, f"DE bis {av.FIT_UNTIL_YEAR}"
+
 MONATSNAMEN = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli",
                "August", "September", "Oktober", "November", "Dezember"]
 
@@ -3533,6 +3710,59 @@ def schwellen_anteil(eintraege, grenze, monat=None):
     return None if unten <= 0 else oben / unten
 
 
+# Die Bedingungen, unter denen die ausgelieferten Schwellen gemessen
+# wurden. Nur unter genau diesen darf der Waechter abbrechen — auf einer
+# anderen Messbasis oder ohne Entdoppeln MUESSEN die Zahlen abweichen,
+# und ein Abbruch waere dann der Waechter, den man nach dem zweiten Mal
+# abschaltet (dieselbe Lehre wie bei `verify_class_constants`).
+SCHWELLEN_HERKUNFT = {"dataset": "pinned", "dedupe": True, "seed": 42,
+                      "scheibe": "p1"}
+
+
+def verify_schwellen_konstanten(ergebnis, args, auf_p1):
+    """Die vier ausgelieferten Schwellen gegen die Daten, die sie gesetzt haben.
+
+    Seit dem 2026-09-19 stammen sie aus Design B auf P1 (Auftrag 3 A).
+    Genagelt werden sie deshalb hier und nicht mehr in
+    `class_thresholds`: Ein Waechter gehoert dorthin, wo die Zahl
+    herkommt, sonst vergleicht er zwei verschiedene Groessen.
+
+    **Alle Abweichungen auf einmal** — ein geaendertes Quantil
+    verschiebt beide Stufen einer Klasse, es gibt also selten nur eine,
+    und jede kostete sonst einen eigenen Lauf.
+    """
+    passt = (auf_p1 and args.dataset == SCHWELLEN_HERKUNFT["dataset"]
+             and bool(args.dedupe) == SCHWELLEN_HERKUNFT["dedupe"]
+             and args.seed == SCHWELLEN_HERKUNFT["seed"]
+             and not args.only)
+    funde = []
+    for key, got in ergebnis.items():
+        if not got or not got.get("b"):
+            continue
+        klass = av.AMPEL_CLASSES[key]
+        for i, feld in enumerate(("verhalten", "guenstig")):
+            erwartet = klass.get(feld)
+            gemessen = round(got["b"]["punkt"][i], 3)
+            if erwartet is not None and gemessen != erwartet:
+                funde.append(f"  {key}.{feld}: gemessen {gemessen}, "
+                             f"Konstante {erwartet}")
+    if not funde:
+        return
+    text = "\n".join(funde)
+    if not passt:
+        print("\nSchwellen weichen ab — erwartet, denn dieser Lauf hat "
+              "nicht die Herkunftsbedingungen "
+              f"({SCHWELLEN_HERKUNFT}):\n{text}", file=sys.stderr)
+        return
+    raise SystemExit(
+        "Die ausgelieferten Schwellen passen nicht mehr zu den Daten, "
+        f"die sie gesetzt haben:\n{text}\n\n"
+        "Konstante, Bericht UND ampel_model.dart gehoeren zusammen neu "
+        "gesetzt — nicht einzeln. Die Spiegelpruefung in "
+        "`ampel_validate.py --self-test` haelt die beiden Codeseiten "
+        "zusammen, diese hier haelt sie an den Daten.")
+
+
 def run_schwellen(args):
     """A aus Auftrag 3 — die Schwellen an Design-B-Kontrolltagen.
 
@@ -3542,8 +3772,14 @@ def run_schwellen(args):
         av.OPEN_METEO = args.api.rstrip("/")
     av.DEDUPE = args.dedupe
     av.use_dataset(args.dataset)
-    print(f"Schwellen auf DE 2006-{av.FIT_UNTIL_YEAR} — Anpassjahre, "
-          "keine Pruefachse", file=sys.stderr)
+    auf_p1, scheibe = schwellen_scheibe(args)
+    print(f"Schwellen auf {scheibe} — "
+          + ("Pruefjahre, als DIAGNOSE (Schwelle und Rang sind disjunkt)"
+             if auf_p1 else "Anpassjahre, keine Pruefachse"),
+          file=sys.stderr)
+    if auf_p1:
+        print("  schwellenabhaengige Guetemasse sind hier gesperrt: "
+              + ", ".join(P1_GESPERRTE_MASSE), file=sys.stderr)
     print("Auftrag: docs/pilzampel-auftrag-3.md, Abschnitt A",
           file=sys.stderr)
 
@@ -3567,20 +3803,28 @@ def run_schwellen(args):
                                      progress=False)
         if not gezogen:
             continue
-        samples = fit_years_only(gezogen["samples"])
+        samples = [z for z in gezogen["samples"]
+                   if (z["year"] > av.FIT_UNTIL_YEAR) == auf_p1]
         if len(samples) < SCHWELLEN_MIN_FUNDE:
             print(f"    zu duenn: {len(samples)} Funde", file=sys.stderr)
             continue
         tage_b = schwellen_gewichte(schwellen_tage(samples, optimum))
-        funde_b = schwellen_gewichte(schwellen_funde(samples, optimum))
+        # **Auf P1 werden die Fundtage nicht einmal bewertet.** Ihr
+        # Anteil ueber der Schwelle IST die Trefferquote; sie hier zu
+        # rechnen und nur nicht zu drucken waere derselbe Fehler, eine
+        # Datei weiter.
+        funde_b = ({} if auf_p1
+                   else schwellen_gewichte(schwellen_funde(samples,
+                                                           optimum)))
 
         # **Die Bruecke: dasselbe auf Design A, gleiche Zeitscheibe.**
         # Ohne sie waere der Unterschied zur ausgelieferten Zahl teils
         # das Design und teils die Jahre, und niemand koennte sagen,
         # welcher Teil welcher ist.
         tage_a = {}
-        gezogen_a = av.collect_pairs(name, sci, cache_dir=args.cache,
-                                     seed=args.seed, progress=False)
+        gezogen_a = (None if auf_p1 else
+                     av.collect_pairs(name, sci, cache_dir=args.cache,
+                                      seed=args.seed, progress=False))
         if gezogen_a:
             roh = {}
             for s in gezogen_a["samples"]:
@@ -3627,7 +3871,8 @@ def run_schwellen(args):
             print(f"  {key}: verhalten {got['punkt'][0]:.3f}  "
                   f"guenstig {got['punkt'][1]:.3f}", file=sys.stderr)
 
-    bericht = render_schwellen(zeilen, ergebnis)
+    verify_schwellen_konstanten(ergebnis, args, auf_p1)
+    bericht = render_schwellen(zeilen, ergebnis, auf_p1, scheibe)
     if args.out:
         open(args.out, "w", encoding="utf-8").write(bericht)
         print(f"\n{args.out} geschrieben", file=sys.stderr)
@@ -3647,7 +3892,7 @@ def _spanne(band):
     return f"[{_fmt(band[0])}, {_fmt(band[1])}]"
 
 
-def render_schwellen(zeilen, ergebnis):
+def render_schwellen(zeilen, ergebnis, auf_p1=False, scheibe=None):
     """Der Bericht zu A — eine Vorlage, keine Uebernahme."""
     import time as _t
     AUF, ZU = "„", "“"
@@ -3660,8 +3905,18 @@ def render_schwellen(zeilen, ergebnis):
     w = aus.append
     w("# Die Schwellen aus Design B — Vorlage, nicht Übernahme\n")
     w(f"Stand: {_t.strftime('%Y-%m-%d')} · Erzeugt von "
-      "`tool/ampel_diagnose.py --schwellen` · Auftrag: "
-      "`docs/pilzampel-auftrag-3.md`, Abschnitt A\n")
+      "`tool/ampel_diagnose.py --schwellen"
+      + (" --scheibe p1" if auf_p1 else "") + "` · Auftrag: "
+      "`docs/pilzampel-auftrag-3.md`, Abschnitt A · Zeitscheibe: "
+      f"**{scheibe or 'P3'}**\n")
+    if auf_p1:
+        w("> **Diagnose, kein Prüflauf.** Schwelle und gepaarte AUC sind "
+          "disjunkte Statistiken: Die AUC ist rangbasiert und von jeder "
+          "Schwelle unabhängig. Hier wird eine Verteilung beschrieben, "
+          "nicht ausgewählt — es gibt keine Latte, kein Band und nichts "
+          "zu bestehen. **Schwellenabhängige Gütemaße sind auf dieser "
+          "Scheibe gesperrt** (" + ", ".join(P1_GESPERRTE_MASSE) + "); "
+          "sie stehen im P3-Bericht.\n")
     w("> **Diese Datei wird erzeugt.** Wer sie von Hand ändert, verliert "
       "die Änderung beim nächsten Lauf.\n")
 
@@ -3686,8 +3941,15 @@ def render_schwellen(zeilen, ergebnis):
     w("## Wie gemessen wurde\n")
     w("Vor dem Lauf festgelegt (`tool/ampel_diagnose.py`, Abschnitt "
       + z("A aus Auftrag 3") + "):\n")
-    w(f"- **Gerechnet wird auf P3** — Deutschland bis {av.FIT_UNTIL_YEAR}. "
-      "Das sind die Anpassjahre; der Lauf verbraucht keine Prüfachse.")
+    if auf_p1:
+        w(f"- **Gerechnet wird auf P1** — Deutschland ab "
+          f"{av.FIT_UNTIL_YEAR + 1}, also die Jahre, in denen die App "
+          "benutzt wird. Das ist die Scheibe, für die eine "
+          "ausgelieferte Schwelle gelten soll.")
+    else:
+        w(f"- **Gerechnet wird auf P3** — Deutschland bis "
+          f"{av.FIT_UNTIL_YEAR}. Das sind die Anpassjahre; der Lauf "
+          "verbraucht keine Prüfachse.")
     w("- **Bewertet wird mit dem ausgelieferten Fenster** der Klasse "
       "(13,0 °C bzw. 17,5 °C) und σ = 5,0 K. Hier geht es um die "
       "Schwelle, nicht um das Fenster — das ist H6.")
@@ -3726,67 +3988,76 @@ def render_schwellen(zeilen, ergebnis):
       "diese Art fehlte.\n")
 
     w("## Das Material\n")
-    w("| Art | Klasse | Funde auf P3 | Kontrolltage | Fundjahre | "
-      "Design-A-Jahre |")
-    w("|---|---|--:|--:|--:|--:|")
+    spalte_a = "" if auf_p1 else " Design-A-Jahre |"
+    w(f"| Art | Klasse | Funde | Kontrolltage | Fundjahre |{spalte_a}")
+    w("|---|---|--:|--:|--:|" + ("" if auf_p1 else "--:|"))
     for row in zeilen:
         w(f"| {row['name']}{' ⚠' if row['duenn'] else ''} | "
           f"{av.AMPEL_CLASSES[row['gruppe']]['label']} | "
-          f"{row['n']} | {row['n_tage']} | {row['jahre']} | "
-          f"{len(row['tage_a'])} |")
+          f"{row['n']} | {row['n_tage']} | {row['jahre']} |"
+          + ("" if auf_p1 else f" {len(row['tage_a'])} |"))
     if any(row["duenn"] for row in zeilen):
         w(f"\n⚠ unter {MIN_FINDS_B} Funden — trägt kein eigenes Urteil, "
           "steuert aber zum Klassenquantil bei (Korrekturkasten).")
 
     w("\n## Die Schwellen je Klasse\n")
-    w("Drei Zellen. Die erste ist die App von heute, die zweite trennt "
-      "die Zeitscheibe vom Design ab, die dritte ist die gefragte "
-      "Zahl.\n")
-    w("| Klasse | Stufe | ausgeliefert (A, P1) | Design A auf P3 | "
-      "Design B auf P3 | 95 % |")
-    w("|---|---|--:|--:|--:|---|")
+    if auf_p1:
+        w("Die auslieferbare Zahl: dasselbe Design wie im P3-Bericht, "
+          "aber die Jahre, in denen die App läuft.\n")
+        w("| Klasse | Stufe | ausgeliefert | Design B auf P1 | 95 % |")
+        w("|---|---|--:|--:|---|")
+    else:
+        w("Drei Zellen. Die erste ist die App von heute, die zweite "
+          "trennt die Zeitscheibe vom Design ab, die dritte ist die "
+          "gefragte Zahl.\n")
+        w("| Klasse | Stufe | ausgeliefert (A, P1) | Design A auf P3 | "
+          "Design B auf P3 | 95 % |")
+        w("|---|---|--:|--:|--:|---|")
     for key in ("herbst", "sommer"):
         if key not in ergebnis:
             continue
         klass = av.AMPEL_CLASSES[key]
         got = ergebnis[key]
         for i, stufe in enumerate(("verhalten", "günstig")):
-            alt = klass["verhalten"] if i == 0 else klass["guenstig"]
+            alt = schwelle_vorher(key, i)
             a = got["a"]["punkt"][i] if got["a"] else None
             b = got["b"]["punkt"][i] if got["b"] else None
             band = got["b"]["band"][i] if got["b"] else None
+            mitte = "" if auf_p1 else f"{_fmt(a)} | "
             w(f"| {klass['label'] if i == 0 else ''} | {stufe} | "
-              f"{alt:.3f} | {_fmt(a)} | {_fmt(b)} | {_spanne(band)} |")
+              f"{alt:.3f} | {mitte}{_fmt(b)} | {_spanne(band)} |")
 
-    w("\n### Woher der Unterschied kommt\n")
-    w("| Klasse | Stufe | Zeitscheibe (A: P1 → P3) | Design (P3: A → B) | "
-      "gesamt |")
-    w("|---|---|--:|--:|--:|")
-    for key in ("herbst", "sommer"):
-        if key not in ergebnis:
-            continue
-        klass = av.AMPEL_CLASSES[key]
-        got = ergebnis[key]
-        for i, stufe in enumerate(("verhalten", "günstig")):
-            alt = klass["verhalten"] if i == 0 else klass["guenstig"]
-            a = got["a"]["punkt"][i] if got["a"] else None
-            b = got["b"]["punkt"][i] if got["b"] else None
-            w(f"| {klass['label'] if i == 0 else ''} | {stufe} | "
-              f"{_signed(None if a is None else a - alt)} | "
-              f"{_signed(None if (a is None or b is None) else b - a)} | "
-              f"{_signed(None if b is None else b - alt)} |")
-    w("")
-    w("**Die Zeitscheiben-Spalte ist kein Nebeneffekt.** Die "
-      "ausgelieferten Zahlen stammen mit Absicht aus den Prüfjahren — "
-      "für die Auslieferung zählt, wo die App HEUTE steht "
-      "(`docs/pilzampel-schwellen-messung.md`). Eine auf P3 gemessene "
-      "Schwelle beantwortet " + z("was war 2006 bis 2018 üblich") + ", "
-      "nicht " + z("was ist heute üblich") + ". Und zwischen beiden "
-      "Scheiben liegt nachweislich etwas: Dieselbe feste Zahl wurde vor "
-      "2019 an rund 30 %, danach an rund 20 % der Vergleichstage "
-      "überschritten (`docs/pilzampel-schwellen-messung.md`), und die "
-      "Glocke trennt in den Prüfjahren schwächer als in den Anpassjahren "
-      "(`docs/pilzampel-alterung.md`).\n")
+    if not auf_p1:
+        w("\n### Woher der Unterschied kommt\n")
+        w("| Klasse | Stufe | Zeitscheibe (A: P1 → P3) | "
+          "Design (P3: A → B) | gesamt |")
+        w("|---|---|--:|--:|--:|")
+        for key in ("herbst", "sommer"):
+            if key not in ergebnis:
+                continue
+            klass = av.AMPEL_CLASSES[key]
+            got = ergebnis[key]
+            for i, stufe in enumerate(("verhalten", "günstig")):
+                alt = schwelle_vorher(key, i)
+                a = got["a"]["punkt"][i] if got["a"] else None
+                b = got["b"]["punkt"][i] if got["b"] else None
+                w(f"| {klass['label'] if i == 0 else ''} | {stufe} | "
+                  f"{_signed(None if a is None else a - alt)} | "
+                  f"{_signed(None if (a is None or b is None) else b - a)} | "
+                  f"{_signed(None if b is None else b - alt)} |")
+        w("")
+        w("**Die Zeitscheiben-Spalte ist kein Nebeneffekt.** Die "
+          "ausgelieferten Zahlen stammen mit Absicht aus den Prüfjahren "
+          "— für die Auslieferung zählt, wo die App HEUTE steht "
+          "(`docs/pilzampel-schwellen-messung.md`). Eine auf P3 "
+          "gemessene Schwelle beantwortet "
+          + z("was war 2006 bis 2018 üblich") + ", nicht "
+          + z("was ist heute üblich") + ". Und zwischen beiden Scheiben "
+          "liegt nachweislich etwas: Dieselbe feste Zahl wurde vor 2019 "
+          "an rund 30 %, danach an rund 20 % der Vergleichstage "
+          "überschritten (`docs/pilzampel-schwellen-messung.md`), und "
+          "die Glocke trennt in den Prüfjahren schwächer als in den "
+          "Anpassjahren (`docs/pilzampel-alterung.md`).\n")
 
     w("### Trägt eine einzelne Art die Zahl?\n")
     w("Die Klassenschwelle, jeweils **ohne** ein Mitglied. Bei fünf "
@@ -3811,49 +4082,79 @@ def render_schwellen(zeilen, ergebnis):
     w("Gemessen an denselben Design-B-Kontrolltagen. " + z("Kontrolltage")
       + " sind Tage an Pilzorten in der Fruchtzeit der Art — also die "
       "Tage, an denen jemand die App aufmacht, ohne dass etwas "
-      "Besonderes wäre. Die Fundtag-Spalte steht daneben, damit sichtbar "
-      "bleibt, ob die Schwelle noch trennt.\n")
-    w("Die erste Spalte ist die Probe aufs Exempel: Wie oft überschreitet "
-      "die heutige Schwelle die Tage, an denen sie GESETZT wurde? Nahe "
-      "20 % heißt, dass die Zahl in ihrer eigenen Welt genau das tut, "
-      "was sie soll — und dass der Sprung daneben wirklich vom Wechsel "
-      "der Bezugstage kommt.\n")
-    w("| Art | alt an A-Tagen | B-Tage günstig, alt → neu | "
-      "Fundtage günstig, alt → neu | Hebel, alt → neu |")
-    w("|---|--:|--:|--:|--:|")
-    for row in zeilen:
-        klass = av.AMPEL_CLASSES[row["gruppe"]]
-        got = ergebnis.get(row["gruppe"], {}).get("b")
-        if not got:
-            continue
-        neu = got["punkt"][1]
-        tage = [e for eintraege in row["tage_b"].values() for e in eintraege]
-        funde = [e for eintraege in row["funde_b"].values() for e in eintraege]
-        a_tage = [e for eintraege in row["tage_a"].values() for e in eintraege]
-        aa = schwellen_anteil(a_tage, klass["guenstig"]) if a_tage else None
-        ka = schwellen_anteil(tage, klass["guenstig"])
-        kn = schwellen_anteil(tage, neu)
-        fa = schwellen_anteil(funde, klass["guenstig"])
-        fn = schwellen_anteil(funde, neu)
+      "Besonderes wäre.\n")
 
-        def hebel(oben, unten):
-            if oben is None or not unten:
-                return "—"
-            return f"{oben / unten:.2f}".replace(".", ",")
+    def _flach(feld, row):
+        return [e for eintraege in row[feld].values() for e in eintraege]
 
-        w(f"| {row['name']} | {_sp(aa)} | {_sp(ka)} → {_sp(kn)} | "
-          f"{_sp(fa)} → {_sp(fn)} | "
-          f"{hebel(fa, ka)} → {hebel(fn, kn)} |")
-    w("")
-    w("**Der Hebel ist die Spalte, die entscheidet, ob eine Schwelle "
-      "besser ist.** Er sagt, um welchen Faktor ein Fundtag "
-      "wahrscheinlicher günstig ist als ein gewöhnlicher Tag. Ein "
-      "seltenerer Hinweis ist nicht von selbst ein besserer: Wer die "
-      "Latte hebt, senkt beide Raten, und der Abstand in Prozentpunkten "
-      "schrumpft mit. Bleibt der Hebel gleich, ist die neue Schwelle "
-      "**dieselbe Aussage an einer anderen Stelle** — eine Frage der "
-      "Häufigkeit, wie Abschnitt A von Auftrag 3 sie nennt, und keine "
-      "der Trennschärfe.\n")
+    if auf_p1:
+        # **Hier steht mit Absicht keine Fundtagsspalte.** Ihr Anteil
+        # ueber der Schwelle ist die Trefferquote, und die ist auf P1
+        # gesperrt (Regel vom 2026-09-19). Der Riegel steht trotzdem
+        # da: Wer die Spalte spaeter einbaut, laeuft in ihn hinein
+        # statt an ihm vorbei.
+        for row in zeilen:
+            if row["funde_b"]:
+                verbiete_schwellenmass(auf_p1, "Der Fundtag-Anteil")
+        w("| Art | Kontrolltage günstig, alt → neu |")
+        w("|---|--:|")
+        for row in zeilen:
+            got = ergebnis.get(row["gruppe"], {}).get("b")
+            if not got:
+                continue
+            klass = av.AMPEL_CLASSES[row["gruppe"]]
+            tage = _flach("tage_b", row)
+            w(f"| {row['name']} | "
+              f"{_sp(schwellen_anteil(tage, schwelle_vorher(row['gruppe'], 1)))} → "
+              f"{_sp(schwellen_anteil(tage, got['punkt'][1]))} |")
+        w("")
+        w("**Die Fundtagsspalte fehlt hier mit Absicht.** Ihr Anteil "
+          "über der Schwelle ist eine Trefferquote, und die ist auf "
+          "dieser Scheibe gesperrt. Wie verlässlich der Hinweis ist, "
+          "steht im P3-Bericht; was hier steht, ist allein, **wie oft** "
+          "er erscheint.\n")
+    else:
+        w("Die erste Spalte ist die Probe aufs Exempel: Wie oft "
+          "überschreitet die heutige Schwelle die Tage, an denen sie "
+          "GESETZT wurde? Nahe 20 % heißt, dass die Zahl in ihrer "
+          "eigenen Welt genau das tut, was sie soll — und dass der "
+          "Sprung daneben wirklich vom Wechsel der Bezugstage kommt.\n")
+        w("| Art | alt an A-Tagen | B-Tage günstig, alt → neu | "
+          "Fundtage günstig, alt → neu | Hebel, alt → neu |")
+        w("|---|--:|--:|--:|--:|")
+        for row in zeilen:
+            klass = av.AMPEL_CLASSES[row["gruppe"]]
+            got = ergebnis.get(row["gruppe"], {}).get("b")
+            if not got:
+                continue
+            neu_g = got["punkt"][1]
+            tage = _flach("tage_b", row)
+            funde = _flach("funde_b", row)
+            a_tage = _flach("tage_a", row)
+            aa = schwellen_anteil(a_tage, schwelle_vorher(row["gruppe"], 1)) if a_tage else None
+            ka = schwellen_anteil(tage, schwelle_vorher(row["gruppe"], 1))
+            kn = schwellen_anteil(tage, neu_g)
+            fa = schwellen_anteil(funde, schwelle_vorher(row["gruppe"], 1))
+            fn = schwellen_anteil(funde, neu_g)
+
+            def hebel(oben, unten):
+                if oben is None or not unten:
+                    return "—"
+                return f"{oben / unten:.2f}".replace(".", ",")
+
+            w(f"| {row['name']} | {_sp(aa)} | {_sp(ka)} → {_sp(kn)} | "
+              f"{_sp(fa)} → {_sp(fn)} | "
+              f"{hebel(fa, ka)} → {hebel(fn, kn)} |")
+        w("")
+        w("**Der Hebel ist die Spalte, die entscheidet, ob eine "
+          "Schwelle besser ist.** Er sagt, um welchen Faktor ein "
+          "Fundtag wahrscheinlicher günstig ist als ein gewöhnlicher "
+          "Tag. Ein seltenerer Hinweis ist nicht von selbst ein "
+          "besserer: Wer die Latte hebt, senkt beide Raten, und der "
+          "Abstand in Prozentpunkten schrumpft mit. Bleibt der Hebel "
+          "gleich, ist die neue Schwelle **dieselbe Aussage an einer "
+          "anderen Stelle** — eine Frage der Häufigkeit, wie Abschnitt "
+          "A von Auftrag 3 sie nennt, und keine der Trennschärfe.\n")
 
     w("\n### Je Monat\n")
     w("Anteil der Kontrolltage, an denen die Ampel **günstig** stünde. "
@@ -3876,9 +4177,40 @@ def render_schwellen(zeilen, ergebnis):
                 continue
             w(f"| {row['name'] if erste else ''} | "
               f"{MONATSNAMEN[monat - 1]} | {_sp(anteil / gesamt, 0)} | "
-              f"{_sp(schwellen_anteil(tage, klass['guenstig'], monat))} | "
+              f"{_sp(schwellen_anteil(tage, schwelle_vorher(row['gruppe'], 1), monat))} | "
               f"{_sp(schwellen_anteil(tage, neu, monat))} |")
             erste = False
+
+    # **Die Oktober-Zeile** (Betreiberauflage 2026-09-19): Das ist die
+    # Zahl, an der ein Betreiber entscheidet — nicht die Schwelle
+    # selbst, sondern wieviele grüne Tage sie im wichtigsten Monat
+    # kostet. Gerechnet, nicht geschätzt, und je Art gleich gewichtet.
+    okt_alt, okt_neu, okt_arten = [], [], []
+    for row in zeilen:
+        got = ergebnis.get(row["gruppe"], {}).get("b")
+        if not got:
+            continue
+        tage = [e for eintraege in row["tage_b"].values() for e in eintraege]
+        a = schwellen_anteil(tage, schwelle_vorher(row["gruppe"], 1), 10)
+        n = schwellen_anteil(tage, got["punkt"][1], 10)
+        if a is None or n is None:
+            continue
+        okt_alt.append(a)
+        okt_neu.append(n)
+        okt_arten.append(row["name"])
+    if okt_alt:
+        ma, mn = statistics.median(okt_alt), statistics.median(okt_neu)
+        w(f"\n**Im Oktober** — dem Monat mit dem meisten Material — "
+          f"sinkt der Anteil günstiger Tage im Median über "
+          f"{len(okt_arten)} Arten von {_sp(ma)} auf {_sp(mn)}. Der "
+          "Median und nicht der Durchschnitt, weil der Pfifferling im "
+          "Oktober praktisch nie günstig steht und einen Schnitt nach "
+          "unten zöge, der für keine Art gilt. Auf die "
+          f"31 Oktobertage gerechnet: "
+          + f"{ma * 31:.1f}".replace(".", ",") + " grüne Tage vorher, "
+          + f"{mn * 31:.1f}".replace(".", ",") + " nachher — es fallen "
+          + f"{(ma - mn) * 31:.1f}".replace(".", ",")
+          + " weg. **Das ist die Zahl, an der entschieden wird.**\n")
 
     w("\n## Was die Zahlen sagen\n")
     kenn = []
@@ -3891,76 +4223,115 @@ def render_schwellen(zeilen, ergebnis):
         funde = [e for eintraege in row["funde_b"].values() for e in eintraege]
         a_tage = [e for eintraege in row["tage_a"].values() for e in eintraege]
         kenn.append({
-            "a_alt": schwellen_anteil(a_tage, klass["guenstig"])
+            "a_alt": schwellen_anteil(a_tage, schwelle_vorher(row["gruppe"], 1))
             if a_tage else None,
-            "b_alt": schwellen_anteil(tage, klass["guenstig"]),
+            "b_alt": schwellen_anteil(tage, schwelle_vorher(row["gruppe"], 1)),
             "b_neu": schwellen_anteil(tage, got["punkt"][1]),
-            "f_alt": schwellen_anteil(funde, klass["guenstig"]),
-            "f_neu": schwellen_anteil(funde, got["punkt"][1]),
+            "f_alt": schwellen_anteil(funde, schwelle_vorher(row["gruppe"], 1))
+            if funde else None,
+            "f_neu": schwellen_anteil(funde, got["punkt"][1])
+            if funde else None,
         })
 
     def _med(feld):
         werte = sorted(k[feld] for k in kenn if k[feld] is not None)
         return statistics.median(werte) if werte else None
 
-    hebel_alt = [k["f_alt"] / k["b_alt"] for k in kenn
-                 if k["b_alt"] and k["f_alt"] is not None]
-    hebel_neu = [k["f_neu"] / k["b_neu"] for k in kenn
-                 if k["b_neu"] and k["f_neu"] is not None]
+    if auf_p1:
+        faktor = (None if not _med("b_neu")
+                  else _med("b_alt") / _med("b_neu"))
+        w("**Die ausgelieferte Schwelle hält ihr Versprechen nicht.** "
+          "Gegen die Tage gemessen, für die sie gelten soll — gleicher "
+          "Ort, gleiche Zeit im Jahr, andere Jahre — steht die Ampel an "
+          f"{_sp(_med('b_alt'))} der Saisontage auf günstig. Vorgesehen "
+          f"war {_sp(1 - SCHWELLEN_QUANTILE[1], 0)}"
+          ", also etwa jeder fünfte Tag."
+          + ("" if faktor is None else
+             f" Das ist das {faktor:.1f}-fache.".replace(".", ",")) + "\n")
+        w("**Die neue Schwelle stellt das Versprechen wieder her**, ohne "
+          "eine Modellzahl anzufassen. Fenster, Breite und Regenkurve "
+          "bleiben Zahl für Zahl, wie sie sind; es ändert sich nur, wo "
+          "der Schnitt liegt.\n")
+        w("**Was hier NICHT steht:** ob der Hinweis dadurch "
+          "verlässlicher wird. Das wäre ein schwellenabhängiges Maß und "
+          "ist auf dieser Scheibe gesperrt. Auf P3 gemessen bleibt der "
+          "Hebel praktisch gleich — die Neukalibrierung ist eine "
+          "Häufigkeitsentscheidung, keine Genauigkeitsverbesserung.\n")
+    else:
+        faktor = (None if not _med("a_alt")
+                  else _med("b_alt") / _med("a_alt"))
+        w("**Die ausgelieferten Schwellen sind in ihrer eigenen Welt in "
+          f"Ordnung.** An Design-A-Vergleichstagen liegen im Mittel "
+          f"{_sp(_med('a_alt'))} der Tage über der günstig-Schwelle — "
+          "also ungefähr das eine Fünftel, für das sie gesetzt wurde. "
+          "Der Kalibrierung fehlt nichts.\n")
+        w("**Sie messen nur gegen die falschen Tage.** Dieselbe Zahl an "
+          f"Design-B-Kontrolltagen: {_sp(_med('b_alt'))}. Die Ampel "
+          "steht an einem gewöhnlichen Tag am Fundort zur Fundzeit also "
+          + ("" if faktor is None else
+             f"**{faktor:.1f}-mal so oft** auf günstig".replace(".", ","))
+          + ", wie ihre eigene Kalibrierung vorsieht.\n")
+        w("**Der Grund ist die Jahreszeit, und er ist mechanisch.** Ein "
+          "Design-A-Vergleichstag liegt 26 bis 45 Tage neben dem Fund — "
+          "bei einem Herbstpilz also im Hochsommer oder im Spätherbst, "
+          "und beides ist weiter vom Fenster der Klasse entfernt als "
+          "der Fundtag selbst. Die Glocke steht dort niedriger, die "
+          "ganze Verteilung rutscht nach unten, und eine daraus "
+          "gezogene Schwelle rutscht mit. Genau der Kalenderanteil, den "
+          "Phase 1.5 in der AUC gemessen hat, steckt auch hier — nur "
+          "sieht man ihn in der Häufigkeit statt in der "
+          "Trennschärfe.\n")
+        hebel_alt = [k["f_alt"] / k["b_alt"] for k in kenn
+                     if k["b_alt"] and k["f_alt"] is not None]
+        hebel_neu = [k["f_neu"] / k["b_neu"] for k in kenn
+                     if k["b_neu"] and k["f_neu"] is not None]
+        if hebel_alt and hebel_neu:
+            w("**Die neue Schwelle trennt aber nicht besser.** Der "
+              "Hebel steht vorher im Mittel bei "
+              + f"{statistics.median(hebel_alt):.2f}".replace(".", ",")
+              + " und nachher bei "
+              + f"{statistics.median(hebel_neu):.2f}".replace(".", ",")
+              + ". Was sich ändert, ist die Häufigkeit — "
+              f"{_sp(_med('b_alt'))} gegen {_sp(_med('b_neu'))} der "
+              "Tage — und nicht, wie verlässlich der Hinweis ist. Das "
+              "ist keine Enttäuschung, sondern die Bestätigung, dass "
+              "hier eine Häufigkeitsfrage vorliegt.\n")
+        w("**Und die Zahl ist noch nicht auslieferbar.** Zwischen der "
+          "Zeitscheibe P3 und den Jahren, in denen die App läuft, "
+          "liegen bei den vier Zahlen oben zwischen +0,05 und +0,15 — "
+          "mehr als ein Drittel des Gesamtsprungs beim Pfifferling. Wer "
+          "die Spalte " + z("Design B auf P3") + " direkt übernimmt, "
+          "liefert eine Schwelle aus, die für 2006 bis 2018 gemessen "
+          "wurde.\n")
 
-    w("**Die ausgelieferten Schwellen sind in ihrer eigenen Welt in "
-      f"Ordnung.** An Design-A-Vergleichstagen liegen im Mittel "
-      f"{_sp(_med('a_alt'))} der Tage über der günstig-Schwelle — also "
-      "ungefähr das eine Fünftel, für das sie gesetzt wurde. Der "
-      "Kalibrierung fehlt nichts.\n")
-    faktor = (None if not _med("a_alt")
-              else _med("b_alt") / _med("a_alt"))
-    w("**Sie messen nur gegen die falschen Tage.** Dieselbe Zahl an "
-      f"Design-B-Kontrolltagen: {_sp(_med('b_alt'))}. Die Ampel steht "
-      "an einem gewöhnlichen Tag am Fundort zur Fundzeit also "
-      + ("" if faktor is None else
-         f"**{faktor:.1f}-mal so oft** auf günstig".replace(".", ","))
-      + ", wie ihre eigene Kalibrierung vorsieht.\n")
-    w("**Der Grund ist die Jahreszeit, und er ist mechanisch.** Ein "
-      "Design-A-Vergleichstag liegt 26 bis 45 Tage neben dem Fund — bei "
-      "einem Herbstpilz also im Hochsommer oder im Spätherbst, und "
-      "beides ist weiter vom Fenster der Klasse entfernt als der "
-      "Fundtag selbst. Die Glocke steht dort niedriger, die ganze "
-      "Verteilung rutscht nach unten, und eine daraus gezogene Schwelle "
-      "rutscht mit. Genau der Kalenderanteil, den Phase 1.5 in der AUC "
-      "gemessen hat, steckt auch hier — nur sieht man ihn in der "
-      "Häufigkeit statt in der Trennschärfe.\n")
-    if hebel_alt and hebel_neu:
-        w("**Die neue Schwelle trennt aber nicht besser.** Der Hebel "
-          "steht vorher im Mittel bei "
-          + f"{statistics.median(hebel_alt):.2f}".replace(".", ",")
-          + " und nachher bei "
-          + f"{statistics.median(hebel_neu):.2f}".replace(".", ",")
-          + ". Was sich ändert, ist die Häufigkeit — "
-          f"{_sp(_med('b_alt'))} gegen {_sp(_med('b_neu'))} der Tage — "
-          "und nicht, wie verlässlich der Hinweis ist. Das ist keine "
-          "Enttäuschung, sondern die Bestätigung, dass hier eine "
-          "Häufigkeitsfrage vorliegt.\n")
-    w("**Und die Zahl ist noch nicht auslieferbar.** Zwischen der "
-      "Zeitscheibe P3 und den Jahren, in denen die App läuft, liegen "
-      "bei den vier Zahlen oben zwischen +0,05 und +0,15 — mehr als ein "
-      "Drittel des Gesamtsprungs beim Pfifferling. Wer die Spalte "
-      "„Design B auf P3“ direkt übernimmt, liefert eine Schwelle aus, "
-      "die für 2006 bis 2018 gemessen wurde.\n")
-
-    w("\n## Die Zelle, die fehlt\n")
-    w("**Design B auf P1.** Das wäre die auslieferbare Zahl: dasselbe "
-      "Design, aber die Jahre, in denen die App benutzt wird. Sie ist "
-      "hier nicht gerechnet, weil P1 eine Prüfachse ist "
-      "(`docs/pilzampel-pruefachsen.md`) und Auftrag 3 A ausdrücklich "
-      "als achsenfreier Lauf angelegt ist.\n")
-    w("Ob sie gerechnet wird, ist eine eigene Entscheidung. Dafür "
-      "spricht, dass eine Schwelle keine Hypothese ist, sondern eine "
-      "beschreibende Zahl — die ausgelieferten vier sind auf demselben "
-      "Weg entstanden und stehen in der Strichliste als Diagnose. "
-      "Dagegen spricht die Regel vom 2026-09-19: kein Lauf auf einer "
-      "Achse ohne vorherigen Check auf P3. Dieser Bericht IST dieser "
-      "Check.\n")
+    if auf_p1:
+        w("\n## Warum diese Scheibe erlaubt ist\n")
+        w("**Schwelle und gepaarte AUC sind disjunkte Statistiken.** Die "
+          "AUC ist rangbasiert: Sie zählt, wie oft der Fundtag seinen "
+          "Kontrolltag schlägt, und kennt keine Schwelle. Eine aus P1 "
+          "gezogene Schwelle kann deshalb keinen bisherigen und keinen "
+          "künftigen AUC-Test berühren — es gibt hier keine Latte, kein "
+          "Band, nichts zu bestehen. Beschrieben wird eine Verteilung, "
+          "nicht ausgewählt.\n")
+        w("Und P1 ist hier die richtige Scheibe: Die App steht heute, "
+          "nicht 2012. Der P3-Bericht hat gemessen, dass die "
+          "Zeitscheibe beim Pfifferling über ein Drittel des Sprungs "
+          "ausmacht.\n")
+        w("**Die Grenze dieser Erlaubnis** steht in "
+          "`docs/pilzampel-pruefachsen.md` als Regel: "
+          + ", ".join(P1_GESPERRTE_MASSE) + " sind auf P1 gesperrt. "
+          "Sobald ein Maß eine Schwelle benutzt, um Fundtage zu "
+          "bewerten, entschiede die ausgelieferte Zahl mit, wie gut die "
+          "Ampel aussieht. `verbiete_schwellenmass` bricht den Lauf ab, "
+          "statt eine solche Zahl zu liefern.\n")
+    else:
+        w("\n## Die Zelle, die fehlt\n")
+        w("**Design B auf P1.** Das wäre die auslieferbare Zahl: "
+          "dasselbe Design, aber die Jahre, in denen die App benutzt "
+          "wird. Sie ist hier nicht gerechnet, weil Auftrag 3 A "
+          "ausdrücklich als achsenfreier Lauf angelegt ist. Ob sie "
+          "gerechnet wird, ist eine eigene Entscheidung; dieser Bericht "
+          "ist der Check, der ihr vorausgeht.\n")
 
     w("## Vorlage, keine Übernahme\n")
     w("**Hier wird nichts übernommen.** Wie oft die Ampel "
@@ -3991,7 +4362,12 @@ if __name__ == "__main__":
                              "(docs/pilzampel-h1-registrierung.md)")
     parser.add_argument("--schwellen", action="store_true",
                         help="A aus Auftrag 3: die Schwellen an "
-                             "Design-B-Kontrolltagen, auf P3")
+                             "Design-B-Kontrolltagen")
+    parser.add_argument("--scheibe", default="p3", choices=("p3", "p1"),
+                        help="Zeitscheibe für --schwellen. p1 ist "
+                             "erlaubt, weil Schwelle und Rang disjunkt "
+                             "sind; schwellenabhängige Gütemaße sind "
+                             "dort gesperrt")
     parser.add_argument("--dataset", default="vorgabe")
     parser.add_argument("--dedupe", action="store_true")
     parser.add_argument("--api", default=None)

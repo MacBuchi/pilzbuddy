@@ -29,6 +29,40 @@ diagnostiziert; ein Ergebnis von dort ist nie ein Beleg.
 
 ---
 
+## Was auf einer Achse KEINE Achse verbraucht
+
+**Beschreibende Statistiken, die von keiner Schwelle abhängen** — seit
+dem 2026-09-19 (Betreiberentscheidung, Auftrag 3 A).
+
+Der Grund ist, dass **Schwelle und gepaarte AUC disjunkte Statistiken**
+sind. Die AUC ist rangbasiert: Sie zählt, wie oft ein Fundtag seinen
+Kontrolltag schlägt, und kennt keine Schwelle. Eine aus P1 gezogene
+Schwelle kann deshalb keinen bisherigen und keinen künftigen AUC-Test
+berühren — es gibt dort keine Latte, kein Band und nichts zu bestehen.
+Beschrieben wird eine Verteilung, nicht ausgewählt.
+
+Und für eine Schwelle ist P1 sogar die richtige Scheibe: Die App steht
+heute, nicht 2012. Die Zeitscheibe allein macht beim Pfifferling über
+ein Drittel des gemessenen Sprungs aus
+(`pilzampel-schwellen-designb.md`).
+
+### Die Gegenregel, und sie ist scharf
+
+> **Schwellenabhängige Gütemaße sind auf P1 gesperrt** — Trefferquote,
+> POD, FAR, TSS und der Hebel. Wer so etwas braucht, rechnet es auf
+> AT+CH.
+
+Sobald ein Maß eine Schwelle BENUTZT, um Fundtage zu bewerten, ist es
+kein Verteilungsbefund mehr, sondern eine Güte — und dann entschiede
+die ausgelieferte Zahl mit, wie gut die Ampel aussieht. Dort wäre die
+Kontamination echt.
+
+Der Riegel steht im Code, nicht nur hier: `verbiete_schwellenmass` in
+`tool/ampel_diagnose.py` bricht den Lauf ab, und auf P1 werden die
+Fundtage gar nicht erst bewertet.
+
+---
+
 ## Strichliste
 
 | # | Datum | Was geprüft wurde | Achse | Ausgang | Beleg |
@@ -119,6 +153,15 @@ Beobachtung, die eine Zeitscheibe weiter nicht mehr da ist.
 | 2026-09-19 | Trägt die Glocke etwas bei? Zerlegung auf P3 | **H5 nicht registriert** — 1 von 6 statt 5 von 6 | `pilzampel-h5-vorpruefung-ergebnis.md` |
 | 2026-09-19 | Wo lägen die Schwellen an Design-B-Kontrolltagen? (Auftrag 3 A) | Vorlage, nichts übernommen — die ausgelieferten Schwellen greifen an B-Tagen 1,7-mal so oft wie vorgesehen | `pilzampel-schwellen-designb.md` |
 | 2026-09-19 | Alterung: dieselbe Zerlegung auf geteilten Anpassjahren | die Glocke altert nicht, der Einbruch liegt in den Prüfjahren | `pilzampel-alterung.md` |
+
+### Diagnosen auf P1 (kosten ebenfalls keine Achse)
+
+Nur, was von keiner Schwelle abhängt — die Begründung steht oben unter
+„Was auf einer Achse KEINE Achse verbraucht".
+
+| Datum | Frage | Ausgang | Beleg |
+|---|---|---|---|
+| 2026-09-19 | Wo liegen die Schwellen an Design-B-Kontrolltagen der Prüfjahre? | **übernommen in 1.144.0** — 0,389/0,742 und 0,385/0,729 | `pilzampel-schwellen-designb-p1.md` |
 
 ## Folge für die nächste Hypothese
 

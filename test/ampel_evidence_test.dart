@@ -4,6 +4,8 @@
 // Art verliert ihre Ampel, weil sie auf „vorläufig" steht. Geprüft wird
 // hier deshalb beides — dass die Stufe ankommt UND dass sie nichts
 // verdeckt.
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/features/ampel/ampel_model.dart';
@@ -87,6 +89,29 @@ void main() {
         expect(wort.toLowerCase(), isNot(contains('achtung')));
         expect(wort.toLowerCase(), isNot(contains('warn')));
       }
+    });
+
+    test('die Bezugsmenge und der Hebel stehen im Fließtext', () {
+      // **Betreiberauflage vom 2026-09-19.** Ohne die Bezugsmenge
+      // bedeutet „günstig" nichts Bestimmtes, und ohne den Hebel klingt
+      // es nach einer Zusage. Beides gehört neben die Evidenzstufe,
+      // nicht in eine Fußnote — geprüft wird deshalb, dass es im
+      // Feature-Satz steht und nicht bloß irgendwo im Code.
+      final quelle = File('lib/features/spots/widgets/ampel_section.dart')
+          .readAsStringSync();
+      final satz = quelle
+          .split("'Bewertet Bedingungen, nicht Vorkommen")
+          .last
+          .split(';')
+          .first;
+      expect(satz, contains('jeder fünfte Tag der Saison'),
+          reason: 'die Bezugsmenge fehlt — dann ist „günstig" keine '
+              'bestimmte Aussage mehr');
+      expect(satz, contains('1,3-mal'),
+          reason: 'der Hebel fehlt — er ist die ehrliche Größe hinter '
+              'der Anzeige');
+      expect(satz, isNot(contains('%')),
+          reason: 'Prozente stehen nirgends im Blatt (#298)');
     });
 
     testWidgets('die Stufe steht in der Fakten-Zeile der Art',

@@ -72,11 +72,21 @@ typedef AmpelClass = ({
 /// stünden 110 Einträge da, von denen keiner mehr prüfbar ist. Zwischen
 /// den Fenstern liegen dagegen Welten (0,512 gegen 0,038 beim
 /// Austernseitling).
+///
+/// **Die Schwellen sind am 2026-09-19 neu gesetzt worden** (Auftrag 3 A,
+/// `docs/pilzampel-schwellen-designb-p1.md`) — vorher 0,187 und 0,512.
+/// Geändert hat sich nicht das Modell, sondern die Tage, gegen die
+/// gemessen wird: Die alten Zahlen waren an Vergleichstagen 26 bis 45
+/// Tage NEBEN dem Fund geeicht, also zum Teil außerhalb der Saison, wo
+/// die Glocke ohnehin niedrig steht. Gegen Tage am selben Ort zur
+/// selben Jahreszeit anderer Jahre gemessen, stand die Ampel dadurch an
+/// 35 bis 38 Prozent der Saisontage auf „günstig" — gedacht war etwa
+/// jeder fünfte.
 const ampelHerbstClass = (
   name: 'Steinpilz & Co.',
   optimumC: ampelOptimumC,
-  verhaltenAbove: 0.187,
-  guenstigAbove: 0.512,
+  verhaltenAbove: 0.389,
+  guenstigAbove: 0.742,
 );
 
 /// Der Pfifferling ist ein Sommerfrüchter — Gipfel im Juli, nicht im
@@ -86,11 +96,14 @@ const ampelHerbstClass = (
 /// Kontrolle 0,510 (`docs/pilzampel-artenfenster-holdout.md`). Ohne
 /// diesen Nachweis stünde er hier nicht: Gemessen wurde er, weil er in
 /// einer Tabelle auffiel, und das allein ist kein Befund.
+/// Seine Schwellen stammen aus demselben Lauf wie die der Herbstklasse
+/// und sind aus demselben Grund gestiegen; er war mit 23,7 Prozent
+/// günstiger Saisontage allerdings der am wenigsten großzügige.
 const ampelSommerClass = (
   name: 'Pfifferling',
   optimumC: 17.5,
-  verhaltenAbove: 0.287,
-  guenstigAbove: 0.677,
+  verhaltenAbove: 0.385,
+  guenstigAbove: 0.729,
 );
 
 const ampelClasses = <String, AmpelClass>{

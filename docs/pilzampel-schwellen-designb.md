@@ -1,6 +1,6 @@
 # Die Schwellen aus Design B — Vorlage, nicht Übernahme
 
-Stand: 2026-09-19 · Erzeugt von `tool/ampel_diagnose.py --schwellen` · Auftrag: `docs/pilzampel-auftrag-3.md`, Abschnitt A
+Stand: 2026-09-19 · Erzeugt von `tool/ampel_diagnose.py --schwellen` · Auftrag: `docs/pilzampel-auftrag-3.md`, Abschnitt A · Zeitscheibe: **DE bis 2018**
 
 > **Diese Datei wird erzeugt.** Wer sie von Hand ändert, verliert die Änderung beim nächsten Lauf.
 
@@ -35,7 +35,7 @@ Damit das keine Ausrede bleibt, steht unten eine **Leave-one-out-Spalte**: was d
 
 ## Das Material
 
-| Art | Klasse | Funde auf P3 | Kontrolltage | Fundjahre | Design-A-Jahre |
+| Art | Klasse | Funde | Kontrolltage | Fundjahre | Design-A-Jahre |
 |---|---|--:|--:|--:|--:|
 | Steinpilz | Steinpilz & Co. | 951 | 4755 | 13 | 13 |
 | Maronenröhrling | Steinpilz & Co. | 886 | 4428 | 13 | 13 |
@@ -82,7 +82,7 @@ Die Klassenschwelle, jeweils **ohne** ein Mitglied. Bei fünf Mitgliedern versch
 
 ## Was sich für Nutzer ändert
 
-Gemessen an denselben Design-B-Kontrolltagen. „Kontrolltage“ sind Tage an Pilzorten in der Fruchtzeit der Art — also die Tage, an denen jemand die App aufmacht, ohne dass etwas Besonderes wäre. Die Fundtag-Spalte steht daneben, damit sichtbar bleibt, ob die Schwelle noch trennt.
+Gemessen an denselben Design-B-Kontrolltagen. „Kontrolltage“ sind Tage an Pilzorten in der Fruchtzeit der Art — also die Tage, an denen jemand die App aufmacht, ohne dass etwas Besonderes wäre.
 
 Die erste Spalte ist die Probe aufs Exempel: Wie oft überschreitet die heutige Schwelle die Tage, an denen sie GESETZT wurde? Nahe 20 % heißt, dass die Zahl in ihrer eigenen Welt genau das tut, was sie soll — und dass der Sprung daneben wirklich vom Wechsel der Bezugstage kommt.
 
@@ -134,6 +134,9 @@ Anteil der Kontrolltage, an denen die Ampel **günstig** stünde. Monate unter 5
 |  | September | 28 % | 19,3 % | 10,6 % |
 |  | Oktober | 16 % | 1,2 % | 0,5 % |
 
+**Im Oktober** — dem Monat mit dem meisten Material — sinkt der Anteil günstiger Tage im Mittel über 6 Arten von 44,3 % auf 24,4 %. Auf die 31 Oktobertage gerechnet: 13,7 grüne Tage vorher, 7,6 nachher — es fallen 6,2 weg. **Das ist die Zahl, an der entschieden wird.**
+
+
 ## Was die Zahlen sagen
 
 **Die ausgelieferten Schwellen sind in ihrer eigenen Welt in Ordnung.** An Design-A-Vergleichstagen liegen im Mittel 21,7 % der Tage über der günstig-Schwelle — also ungefähr das eine Fünftel, für das sie gesetzt wurde. Der Kalibrierung fehlt nichts.
@@ -149,9 +152,7 @@ Anteil der Kontrolltage, an denen die Ampel **günstig** stünde. Monate unter 5
 
 ## Die Zelle, die fehlt
 
-**Design B auf P1.** Das wäre die auslieferbare Zahl: dasselbe Design, aber die Jahre, in denen die App benutzt wird. Sie ist hier nicht gerechnet, weil P1 eine Prüfachse ist (`docs/pilzampel-pruefachsen.md`) und Auftrag 3 A ausdrücklich als achsenfreier Lauf angelegt ist.
-
-Ob sie gerechnet wird, ist eine eigene Entscheidung. Dafür spricht, dass eine Schwelle keine Hypothese ist, sondern eine beschreibende Zahl — die ausgelieferten vier sind auf demselben Weg entstanden und stehen in der Strichliste als Diagnose. Dagegen spricht die Regel vom 2026-09-19: kein Lauf auf einer Achse ohne vorherigen Check auf P3. Dieser Bericht IST dieser Check.
+**Design B auf P1.** Das wäre die auslieferbare Zahl: dasselbe Design, aber die Jahre, in denen die App benutzt wird. Sie ist hier nicht gerechnet, weil Auftrag 3 A ausdrücklich als achsenfreier Lauf angelegt ist. Ob sie gerechnet wird, ist eine eigene Entscheidung; dieser Bericht ist der Check, der ihr vorausgeht.
 
 ## Vorlage, keine Übernahme
 

@@ -37,8 +37,8 @@ Drei Stufen, und die mittlere ist neu:
 | `ampelOptimumC` (herbst) | 13,0 °C | **extern gemessen** — dieselbe Reihe. In GBIF nie angepasst, aber an fremden Arten geprüft | `docs/pilzampel-herbstklasse-messung.md` |
 | `ampelTempSigma` | 5,0 K | **gesetzt** — das Papier nennt einen Gipfel, keine Streuung. Am 2026-09-18 angegriffen und **nicht geschlagen** | `docs/pilzampel-h1-ergebnis.md` |
 | `ampelSommerClass.optimumC` | 17,5 °C | **gemessen (Design A)** — angepasst auf DE ≤ 2018, Hold-out AT+CH bestanden. **Siehe Herabstufung unten.** | `docs/pilzampel-artenfenster-messung.md`, `…-holdout.md` |
-| `ampelHerbstClass` Schwellen | 0,187 / 0,512 | **gemessen (Design A)** — 50-%- und 80-%-Quantil der Score-Verteilung an Vergleichstagen, Anpassjahre | `docs/pilzampel-schwellen-messung.md` |
-| `ampelSommerClass` Schwellen | 0,287 / 0,677 | **gemessen (Design A)** — dito | `docs/pilzampel-schwellen-messung.md` |
+| `ampelHerbstClass` Schwellen | 0,389 / 0,742 | **gemessen (Design B)** — 50-%- und 80-%-Quantil an Design-B-Kontrolltagen, Prüfjahre. Neu gesetzt am 2026-09-19 | `docs/pilzampel-schwellen-designb-p1.md` |
+| `ampelSommerClass` Schwellen | 0,385 / 0,729 | **gemessen (Design B)** — dito | `docs/pilzampel-schwellen-designb-p1.md` |
 | Höhenkorrektur | 0,65 K/100 m | **extern gesetzt** — trockenadiabatischer Standardwert, nicht an unseren Daten geprüft | `lib/features/ampel/ampel_providers.dart` |
 | Messbasis | `era5_seamless` | **gemessen** — der Instrumentwechsel und seine Folgen sind beziffert | `docs/pilzampel-messbasis.md` |
 
@@ -79,10 +79,39 @@ gemessen", liest jetzt dazu, in welchem Design. Wer es anfassen will,
 braucht eine eigene Registrierung — und die müsste in Design B laufen.
 
 Dieselbe Herabstufung gilt sinngemäß für **jede** Zeile, die oben
-„gemessen (Design A)" trägt, auch für die vier Schwellen. Phase 1.5 hat
-gezeigt, dass Design A bei den Herbstarten rund 0,09 AUC Kalender enthält
-(`docs/pilzampel-kontrolldesign.md`); eine auf Design A geeichte Schwelle
-trägt denselben Anteil.
+„gemessen (Design A)" trägt. Phase 1.5 hat gezeigt, dass Design A bei den
+Herbstarten rund 0,09 AUC Kalender enthält
+(`docs/pilzampel-kontrolldesign.md`).
+
+---
+
+## Aufstufung vom 2026-09-19: die vier Schwellen
+
+**Die Schwellen sind die erste Konstante, die den Weg von Design A nach
+Design B gegangen ist** (Auftrag 3 A). Bis dahin standen sie in der
+Tabelle oben als „gemessen (Design A)" und trugen denselben
+Kalenderanteil wie alles andere aus jenem Design — nur sah man ihn nicht
+in der Trennschärfe, sondern in der Häufigkeit.
+
+Gemessen: An Design-A-Vergleichstagen greift die alte günstig-Schwelle
+an 21,7 % der Tage, also an dem einen Fünftel, für das sie gesetzt war.
+An Design-B-Kontrolltagen — gleicher Ort, gleiche Zeit im Jahr, andere
+Jahre — greift dieselbe Zahl an 37,5 %. Der Grund ist mechanisch: Ein
+Design-A-Vergleichstag liegt 26 bis 45 Tage neben dem Fund und damit
+außerhalb der Hochsaison, wo die Glocke ohnehin niedriger steht.
+
+**Was das NICHT ist: eine Verbesserung der Trennschärfe.** Der Hebel —
+um welchen Faktor ein Fundtag wahrscheinlicher günstig ist als ein
+gewöhnlicher Tag — steht vorher bei 1,29 und nachher bei 1,30. Die Ampel
+trennt genau so gut wie vorher; sie behauptet nur nicht mehr, dass jeder
+zweite Oktobertag günstig sei.
+
+**Warum die Messung auf den Prüfjahren erlaubt war:** Schwelle und
+gepaarte AUC sind disjunkte Statistiken. Die AUC ist rangbasiert und von
+jeder Schwelle unabhängig; eine aus P1 gezogene Schwelle kann keinen
+AUC-Test berühren. Die Gegenregel — schwellenabhängige Gütemaße sind auf
+P1 gesperrt — steht in `docs/pilzampel-pruefachsen.md` und als Riegel im
+Werkzeug.
 
 ---
 
@@ -101,6 +130,14 @@ Dazu zwei Nachmessungen, die nichts verändert haben und viel erklären:
 das bedingte Logit mit cluster-robusten Fehlern (`pilzampel-logit.md`)
 und die Alterungsfrage auf den geteilten Anpassjahren
 (`pilzampel-alterung.md`).
+
+**Und eine vierte Sache, die sehr wohl etwas verändert hat** — ohne eine
+Hypothese, ohne eine verbrauchte Achse und ohne eine angepasste
+Konstante der Formel: die Neueichung der vier Schwellen (Abschnitt
+„Aufstufung vom 2026-09-19" weiter oben, ausgeliefert in 1.144.0). Sie
+ist der Beleg dafür, dass die drei ergebnislosen Versuche oben nicht
+heißen, es sei nichts zu holen gewesen — es war nur nicht dort zu holen,
+wo gesucht wurde.
 
 ### Warum das kein schwaches Ergebnis ist
 

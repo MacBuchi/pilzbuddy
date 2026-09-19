@@ -37,12 +37,21 @@ AmpelLevelGrid levelsOf(List<List<AmpelLevel?>> rows,
     double south = 49.988}) {
   final flat = [for (final row in rows) ...row];
   return AmpelLevelGrid(
+    // **Die Regenfaktoren kommen aus den Schwellen, nicht aus dem
+    // Kopf.** Bei 13 °C ist die Herbst-Glocke 1,0, der Score also genau
+    // der Regenfaktor — jeder Wert hier landet somit in der Stufe, die
+    // danebensteht. Bis zum 2026-09-19 standen hier 0,1 / 0,3 / 1,0
+    // fest; mit der Neukalibrierung (verhalten ab 0,389 statt 0,187)
+    // wurde aus der 0,3 stillschweigend „ungünstig", und drei Tests
+    // prüften plötzlich eine andere Aussage als ihren Namen.
     rainFactor: Float32List.fromList([
       for (final level in flat)
         switch (level) {
           null => 0,
-          AmpelLevel.unguenstig => 0.1,
-          AmpelLevel.verhalten => 0.3,
+          AmpelLevel.unguenstig => ampelHerbstClass.verhaltenAbove / 2,
+          AmpelLevel.verhalten => (ampelHerbstClass.verhaltenAbove +
+                  ampelHerbstClass.guenstigAbove) /
+              2,
           AmpelLevel.guenstig => 1.0,
         },
     ]),

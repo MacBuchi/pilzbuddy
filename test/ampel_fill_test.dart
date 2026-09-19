@@ -181,12 +181,19 @@ void main() {
         [for (final mm in young.reversed) mm.toDouble()]));
     final expectedOld = ampelLevelOf(klass: ampelHerbstClass, ampelRainFactor(
         [for (final mm in old.reversed) mm.toDouble()]));
+    // **Geprüft wird die Ordnung, nicht die Kalibrierung.** Hier
+    // standen bis zum 2026-09-19 „günstig" und „verhalten" als feste
+    // Stufen; die Neukalibrierung der Schwellen hat sie verschoben,
+    // ohne dass an der Altersgewichtung — dem Gegenstand dieses Tests —
+    // etwas anders wäre. Was der Test behaupten will, ist: jüngerer
+    // Regen ergibt eine STRENG bessere Stufe, und das Gitter sagt
+    // dasselbe wie die Punkt-Ablesung.
     expect(expectedYoung, isNot(expectedOld),
         reason: 'sonst prüft dieser Test nichts');
-    expect(expectedYoung, AmpelLevel.guenstig);
-    expect(expectedOld, AmpelLevel.verhalten);
-    expect(levelOf(grid, 0), AmpelLevel.guenstig);
-    expect(levelOf(grid, 1), AmpelLevel.verhalten);
+    expect(expectedYoung.index, greaterThan(expectedOld.index),
+        reason: 'jüngerer Regen muss die bessere Stufe ergeben');
+    expect(levelOf(grid, 0), expectedYoung);
+    expect(levelOf(grid, 1), expectedOld);
   });
 
   test('die Temperatur dämpft: 27 °C macht aus sattem Regen ungünstig',

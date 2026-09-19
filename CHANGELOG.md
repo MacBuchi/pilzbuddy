@@ -7,6 +7,30 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Ampel wird wählerischer
+
+*19. September 2026 · Version 1.144.0*
+
+Bisher stand die Pilzampel im Oktober an mehr als jedem zweiten Tag auf
+„günstig". Das klang nach einer guten Nachricht und war keine: Wenn fast
+jeder Tag gut ist, sagt das Wort nichts mehr.
+
+Der Grund war eine Feinheit in der Eichung. Die Grenze zwischen den
+Stufen war an Vergleichstagen gesetzt worden, die vier bis sechs Wochen
+neben der eigentlichen Pilzzeit lagen — also an Tagen, an denen ohnehin
+wenig geht. Gemessen an Tagen aus derselben Jahreszeit liegt die Latte
+höher. Genau dorthin ist sie jetzt gerückt.
+
+An der Rechnung selbst hat sich nichts geändert. Dieselbe Formel,
+dieselben Zahlen für Regen und Temperatur — nur der Schnitt liegt
+woanders. Im Oktober werden aus rund 17 grünen Tagen etwa 10.
+
+Dazu steht jetzt im Spot-Blatt, was „günstig" überhaupt heißt: etwa
+jeder fünfte Tag der Saison, dort wo die Art vorkommt. Und wieviel der
+Hinweis wert ist — an solchen Tagen wurde rund 1,3-mal so oft etwas
+gemeldet wie an einem gewöhnlichen Tag. Das ist wenig, und es ist mehr
+als nichts; beides soll dastehen.
+
 ## Die Ampel sagt jetzt, wie sicher sie sich ist
 
 *19. September 2026 · Version 1.143.0*

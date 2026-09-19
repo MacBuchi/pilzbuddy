@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><meta name="design_doc_mode" content="canvas"><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet"><style>body{margin:0;background:#f0eee9;font-family:Roboto,system-ui,sans-serif}a{color:#2E7D32}a:hover{color:#1b5e20}.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}.dv-tname{font:600 13px/1.2 system-ui,sans-serif;color:#1a1a1a}.dv-opts{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 system-ui,sans-serif;color:rgba(0,0,0,.55)}.dv-card{max-width:100%;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden}.dv-opt:target .dv-oid{background:#2a78d6;color:#fff}.dv-next{margin:22px 0 0;font:12px/1.5 system-ui,sans-serif;color:rgba(0,0,0,.5)}</style></helmet>
+
+<section class="dv-turn" id="t2">
+<div class="dv-thd"><a class="dv-tid" href="#t2">2</a><span class="dv-tname">Legende in drei Zonen · Ebenen-Blatt ohne Verschachtelung</span></div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="2a">
+<div class="dv-olabel"><a class="dv-oid" href="#2a">2a</a>Ebenen-Blatt: Regen flach, Pilzampel eigene Zeile</div>
+<div class="dv-card">
+<x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" width="{{ deviceW }}" height="{{ deviceH }}" hint-size="428px,896px">
+<div style="position:relative;height:100%;min-height:800px;overflow:hidden;font-family:Roboto,system-ui,sans-serif">
+  <div style="position:absolute;inset:0;background:#E2DFDA"></div>
+  <div style="position:absolute;inset:0;background:radial-gradient(120px 90px at 16% 12%,rgba(138,184,78,.5),transparent 70%),radial-gradient(170px 120px at 74% 20%,rgba(138,184,78,.42),transparent 70%),radial-gradient(210px 150px at 52% 30%,rgba(138,184,78,.3),transparent 72%)"></div>
+  <div style="position:absolute;left:-12%;top:18%;width:130%;height:3px;background:#fff;opacity:.9;transform:rotate(-6deg)"></div>
+  <div style="position:absolute;inset:0;background:rgba(0,0,0,.32)"></div>
+
+  <div style="position:absolute;left:0;right:0;bottom:64px;border-radius:24px 24px 0 0;background:#F4F7EF;padding:14px 0 14px;box-shadow:0 -4px 16px rgba(0,0,0,.2)">
+    <div style="width:36px;height:4px;border-radius:2px;background:rgba(62,39,35,.25);margin:0 auto 12px"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:0 16px;margin-bottom:6px">
+      <div style="font-size:20px;font-weight:500;color:#2E7D32">Ebenen</div>
+      <div style="display:flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:17px;border:1px solid rgba(46,125,50,.35);color:#2E7D32;font-size:13px;font-weight:500">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2E7D32" stroke-width="2.2" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.3-5.6"></path><path d="M20 4v4h-4"></path></svg>Aktualisieren
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:12px;padding:11px 16px">
+      <div style="width:10px;height:10px;border-radius:50%;background:#6D4C41;flex:none"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:15px;color:#1a1a1a">Offline-Karte</div>
+        <div style="font-size:12.5px;color:#5b5b5b">Heruntergeladene Regionen statt OSM</div>
+      </div>
+      <div style="width:46px;height:26px;border-radius:13px;background:#2E7D32;position:relative;flex:none"><div style="position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:10px;background:#fff"></div></div>
+      <span style="color:#8a8a8a;font-size:15px">›</span>
+    </div>
+    <div style="height:1px;background:rgba(0,0,0,.06);margin:0 16px"></div>
+
+    <div style="display:flex;align-items:center;gap:12px;padding:11px 16px">
+      <div style="width:10px;height:10px;border-radius:50%;background:#8AB84E;flex:none"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:15px;color:#1a1a1a">Waldtypen</div>
+        <div style="font-size:12.5px;color:#5b5b5b">Laub, Nadel, Misch als Waben</div>
+      </div>
+      <div style="width:46px;height:26px;border-radius:13px;background:#2E7D32;position:relative;flex:none"><div style="position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:10px;background:#fff"></div></div>
+      <span style="color:#8a8a8a;font-size:15px">›</span>
+    </div>
+    <div style="height:1px;background:rgba(0,0,0,.06);margin:0 16px"></div>
+
+    <div style="display:flex;align-items:center;gap:12px;padding:11px 16px">
+      <div style="width:10px;height:10px;border-radius:50%;background:#5B6B7A;flex:none"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:15px;color:#1a1a1a">Höhenlinien</div>
+        <div style="font-size:12.5px;color:#5b5b5b">Gelände · alle 50 m · hier 220 m</div>
+      </div>
+      <div style="width:46px;height:26px;border-radius:13px;background:#2E7D32;position:relative;flex:none"><div style="position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:10px;background:#fff"></div></div>
+      <span style="color:#8a8a8a;font-size:15px">›</span>
+    </div>
+    <div style="height:1px;background:rgba(0,0,0,.06);margin:0 16px"></div>
+
+    <div style="padding:11px 16px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="width:10px;height:10px;border-radius:50%;background:#1565C0;flex:none"></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:15px;color:#1a1a1a">Regen · DWD</div>
+          <div style="font-size:12.5px;color:#5b5b5b">Summe · hier 53 mm</div>
+        </div>
+        <div style="width:46px;height:26px;border-radius:13px;background:#2E7D32;position:relative;flex:none"><div style="position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:10px;background:#fff"></div></div>
+        <span style="color:#8a8a8a;font-size:15px">›</span>
+      </div>
+      <div style="display:flex;gap:6px;margin:8px 0 0 22px">
+        <div style="padding:5px 11px;border-radius:14px;border:1px solid rgba(0,0,0,.14);font-size:12.5px;color:#3a3a3a">Jetzt</div>
+        <div style="padding:5px 11px;border-radius:14px;border:1px solid rgba(0,0,0,.14);font-size:12.5px;color:#3a3a3a">+1 h</div>
+        <div style="padding:5px 11px;border-radius:14px;border:1px solid rgba(0,0,0,.14);font-size:12.5px;color:#3a3a3a">24 h</div>
+        <div style="padding:5px 11px;border-radius:14px;background:#2E7D32;color:#fff;font-size:12.5px;font-weight:500">30 Tage</div>
+      </div>
+    </div>
+    <div style="height:1px;background:rgba(0,0,0,.06);margin:0 16px"></div>
+
+    <div style="display:flex;align-items:flex-start;gap:12px;padding:11px 16px 4px">
+      <div style="width:10px;height:10px;border-radius:50%;background:#5412C0;flex:none;margin-top:5px"></div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:7px">
+          <span style="font-size:15px;color:#1a1a1a">Pilzampel</span>
+          <span style="padding:1px 6px;border-radius:8px;background:rgba(84,18,192,.1);color:#34199B;font-size:10px;font-weight:600">experimentell</span>
+        </div>
+        <div style="font-size:12.5px;color:#5b5b5b;line-height:1.35">Färbt die Waldwaben, wo es für Steinpilz &amp; Co. gerade stimmt</div>
+        <div style="display:flex;align-items:center;gap:5px;margin-top:5px;font-size:11.5px;color:#4E342E;opacity:.85">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="#1565C0"><path d="M12 3c3.5 4 6 7 6 10a6 6 0 0 1-12 0c0-3 2.5-6 6-10z"></path></svg>
+          rechnet aus Regen + Temperatur · schaltet Regen mit an
+        </div>
+      </div>
+      <div style="width:46px;height:26px;border-radius:13px;background:#2E7D32;position:relative;flex:none;margin-top:3px"><div style="position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:10px;background:#fff"></div></div>
+      <span style="color:#8a8a8a;font-size:15px;margin-top:3px">›</span>
+    </div>
+  </div>
+
+  <div style="position:absolute;left:0;right:0;bottom:0;height:64px;background:#EDF3E7;display:flex;align-items:center;justify-content:space-around;border-top:1px solid rgba(0,0,0,.05)">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+      <div style="padding:4px 20px;border-radius:16px;background:#C8E6C9"><svg width="22" height="22" viewBox="0 0 24 24" fill="#1B5E20"><path d="M4 6 9 4l6 2 5-2v14l-5 2-6-2-5 2V6z"></path></svg></div>
+      <span style="font-size:12px;color:#1B5E20;font-weight:500">Karte</span>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+      <div style="padding:4px 20px"><svg width="22" height="22" viewBox="0 0 24 24" fill="#3E2723"><circle cx="9" cy="8" r="3.2"></circle><circle cx="16.5" cy="9" r="2.4"></circle><path d="M2.5 18c0-3.3 2.9-5 6.5-5s6.5 1.7 6.5 5v1h-13v-1z"></path><path d="M16.5 12.5c2.8 0 5 1.3 5 3.8V19h-3.8v-1c0-2.2-.9-3.9-2.4-5 .4-.3.8-.5 1.2-.5z"></path></svg></div>
+      <span style="font-size:12px;color:#3E2723">Freunde</span>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+      <div style="padding:4px 20px"><svg width="22" height="22" viewBox="0 0 24 24" fill="#3E2723"><circle cx="12" cy="7.5" r="3.6"></circle><path d="M4.5 19c0-3.6 3.4-5.6 7.5-5.6s7.5 2 7.5 5.6v.5h-15V19z"></path></svg></div>
+      <span style="font-size:12px;color:#3E2723">Profil</span>
+    </div>
+  </div>
+</div>
+</x-import>
+</div>
+</div>
+
+<div class="dv-opt" id="2b">
+<div class="dv-olabel"><a class="dv-oid" href="#2b">2b</a>Was sich geändert hat</div>
+<div class="dv-card" style="width:400px;padding:20px;box-sizing:border-box">
+  <div style="font:700 11px/1 system-ui;letter-spacing:.7px;color:#2E7D32;text-transform:uppercase;margin-bottom:10px">Legende: drei Zonen (in <a class="dv-oid" href="#1b">1b</a>)</div>
+  <div style="display:flex;flex-direction:column;gap:9px;font:11.5px/1.5 system-ui;color:#3a3a3a;margin-bottom:20px">
+    <div><strong>1 · Diskret — Pilzampel als Daumen.</strong> Drei Lampen waren nicht eindeutig (welche ist gut?), ein Daumen ist es: hoch = günstig, seitlich = verhalten, runter = ungünstig. Eingeklappt ist das die ganze Aussage — man muss keine Skala lesen. Ausgeklappt steht derselbe Daumen in der Kopfzeile und vor den Rasterzeilen, und darunter bleibt das Farbraster Laub/Misch/Nadel × verhalten/günstig: <em>die Ampel sagt den Zustand hier, das Raster entschlüsselt die Farben auf der Karte</em> (Farbton = Waldklasse, Deckkraft = Stufe). Zwei verschiedene Fragen, deshalb beides.</div>
+    <div><strong>2 · Kontinuierlich — Regen und Waldtypen, mit Symbolen an den Enden.</strong> Beide als Balken mit Messstrich; Regen trägt „letzte 30 Tage · hier 53 mm", Wald „1 km: Laubfaktor 0,89". Die Enden sind beschriftet <em>und</em> bebildert: ein Tropfen (hell = wenig, dunkel = viel) am nassen Ende, ein Buchenblatt mit Mittelrippe und Seitenadern und ein Nadelzweig an den Waldenden. Eingeklappt tragen die senkrechten Balken dieselben Symbole — Tropfen oben, Blatt oben, Nadelzweig unten — damit die Schiene ohne Text lesbar ist.</div>
+    <div><strong>3 · Wert — Höhe.</strong> Ganz unten, abgesetzt und als große Zahl: „220 m · Höhe hier, Linien alle 50 m". Nicht mehr in derselben Zeile wie die Ampel — es ist eine andere Art von Angabe.</div>
+    <div><strong>Eingeklappt (40 px) zeigt dieselben drei Zonen senkrecht:</strong> oben die Ampel, darunter die zwei Farbbalken mit Messstrich und ihren Symbolen, unten die Zahl 220 m. Zustand, Messwerte und Wert — alles ohne Ausklappen ablesbar.</div>
+  </div>
+  <div style="font:700 11px/1 system-ui;letter-spacing:.7px;color:#2E7D32;text-transform:uppercase;margin-bottom:10px">Ebenen-Blatt (<a class="dv-oid" href="#2a">2a</a>)</div>
+  <div style="display:flex;flex-direction:column;gap:9px;font:11.5px/1.5 system-ui;color:#3a3a3a">
+    <div><strong>Regen nicht mehr doppelt verschachtelt.</strong> Der Zeitraum ist eine Chip-Zeile direkt in der Zeile (Jetzt · +1 h · 24 h · 30 Tage) statt fünf Radiobuttons in einem Unterblatt. Das Unterblatt bleibt hinter dem › für Darstellung/Quelle — aber niemand muss mehr hinein, um den Zeitraum zu wechseln.</div>
+    <div><strong>Pilzampel raus aus dem Regen-Blatt.</strong> Sie ist eine eigene Ebene mit eigener Farbe und eigenem Schalter. Die Abhängigkeit steht als Fußnote in der Zeile („rechnet aus Regen + Temperatur · schaltet Regen mit an") — das erklärt die Kopplung, ohne sie zu verstecken.</div>
+    <div><strong>„Karte aktualisieren" als Kopfzeilen-Knopf</strong> statt als sechste Listenzeile: es ist keine Ebene.</div>
+    <div><strong>Der Wert steht in der Zeile</strong> („hier 53 mm", „hier 220 m") — dieselbe Ablesung wie in der Legende, damit Blatt und Karte nicht zwei Wahrheiten haben.</div>
+  </div>
+</div>
+</div>
+
+</div>
+<p class="dv-next">Weiter möglich: „mach die Chips im Regen-Blatt auch für die Waldtypen" · „Legende eingeklappt noch schmaler" · „zeig das Regen-Unterblatt hinter dem ›"</p>
+</section>
+
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Karte: Ist-Zustand, aufgeräumte Fassung, Bausteine</span></div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="1a">
+<div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Ist-Zustand (nachgebaut aus map_screen.dart + Screenshots)</div>
+<div class="dv-card">
+<x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" width="{{ deviceW }}" height="{{ deviceH }}" hint-size="428px,896px">
+<div style="position:relative;height:100%;min-height:800px;overflow:hidden;font-family:Roboto,system-ui,sans-serif">
+  <div style="position:absolute;inset:0;background:#E2DFDA"></div>
+  <div style="position:absolute;inset:0;background:radial-gradient(120px 90px at 16% 12%,rgba(138,184,78,.5),transparent 70%),radial-gradient(170px 120px at 74% 24%,rgba(138,184,78,.42),transparent 70%),radial-gradient(100px 76px at 28% 46%,rgba(23,63,56,.22),transparent 70%),radial-gradient(210px 150px at 52% 74%,rgba(138,184,78,.3),transparent 72%),radial-gradient(120px 90px at 90% 58%,rgba(217,142,50,.24),transparent 70%)"></div>
+  <div style="position:absolute;left:-12%;top:34%;width:130%;height:3px;background:#fff;opacity:.9;transform:rotate(-6deg)"></div>
+  <div style="position:absolute;left:-12%;top:63%;width:130%;height:2px;background:#fff;opacity:.75;transform:rotate(4deg)"></div>
+  <div style="position:absolute;left:46%;top:0;width:2px;height:100%;background:#fff;opacity:.7;transform:rotate(9deg)"></div>
+  <div style="position:absolute;left:8%;top:16%;width:170px;height:104px;border:1.4px solid rgba(91,107,122,.4);border-radius:50%"></div>
+  <div style="position:absolute;left:14%;top:21%;width:120px;height:70px;border:1.4px solid rgba(91,107,122,.32);border-radius:50%"></div>
+  <div style="position:absolute;left:55%;top:52%;width:190px;height:120px;border:1.4px solid rgba(91,107,122,.35);border-radius:50%"></div>
+  <div style="position:absolute;left:16%;top:26%;font-size:11px;color:#6b6b6b">Hochhausen</div>
+  <div style="position:absolute;left:58%;top:30%;font-size:11px;color:#6b6b6b">Gundelsheim</div>
+  <div style="position:absolute;left:10%;top:44%;font-size:11px;color:#6b6b6b">Untergimpern</div>
+  <div style="position:absolute;left:40%;top:48%;font-size:11px;color:#2E7D32">Siegelsbach</div>
+  <div style="position:absolute;left:36%;top:56%;font-size:11px;color:#6b6b6b">Bad Rappenau</div>
+  <div style="position:absolute;left:60%;top:68%;font-size:11px;color:#6b6b6b">Bonfeld</div>
+
+  <div style="position:absolute;left:64%;top:30%;width:44px;height:44px">
+    <div style="position:absolute;left:7px;bottom:2px;width:30px;height:9px;border-radius:50%;background:rgba(46,125,50,.55)"></div>
+    <div style="position:absolute;left:16px;bottom:6px;width:12px;height:17px;border-radius:4px;background:#FFF6E3;border:1px solid rgba(78,52,46,.75);box-shadow:0 0 0 2.5px #fff"></div>
+    <div style="position:absolute;left:5px;top:6px;width:34px;height:19px;border-radius:17px 17px 7px 7px;background:#795548;border:1px solid rgba(78,52,46,.75);box-shadow:0 0 0 2.5px #fff"></div>
+    <div style="position:absolute;left:19px;bottom:16px;width:3px;height:3px;border-radius:50%;background:#3E2723"></div>
+    <div style="position:absolute;left:25px;bottom:16px;width:3px;height:3px;border-radius:50%;background:#3E2723"></div>
+    <div style="position:absolute;left:20px;bottom:11px;width:7px;height:4px;border-bottom:1.4px solid #3E2723;border-radius:0 0 7px 7px"></div>
+  </div>
+  <div style="position:absolute;left:47%;top:38%;width:44px;height:44px">
+    <div style="position:absolute;left:7px;bottom:2px;width:30px;height:9px;border-radius:50%;background:rgba(46,125,50,.55)"></div>
+    <div style="position:absolute;left:17px;bottom:6px;width:11px;height:17px;border-radius:4px;background:#F9A825;border:1px solid rgba(78,52,46,.75);box-shadow:0 0 0 2.5px #fff"></div>
+    <div style="position:absolute;left:4px;top:5px;width:36px;height:17px;border-radius:18px 18px 14px 14px;background:#F9A825;border:1px solid rgba(78,52,46,.75);box-shadow:0 0 0 2.5px #fff"></div>
+    <div style="position:absolute;left:19px;bottom:15px;width:3px;height:3px;border-radius:50%;background:#3E2723"></div>
+    <div style="position:absolute;left:25px;bottom:15px;width:3px;height:3px;border-radius:50%;background:#3E2723"></div>
+  </div>
+  <div style="position:absolute;left:44%;top:46%;width:44px;height:44px">
+    <div style="position:absolute;left:7px;bottom:2px;width:30px;height:9px;border-radius:50%;background:rgba(46,125,50,.55)"></div>
+    <div style="position:absolute;left:17px;bottom:6px;width:11px;height:16px;border-radius:4px;background:#5D4037;border:1px solid rgba(78,52,46,.75);box-shadow:0 0 0 2.5px #fff"></div>
+    <div style="position:absolute;left:8px;top:8px;width:28px;height:18px;border-radius:14px 14px 20px 20px;background:#5D4037;border:1px solid rgba(78,52,46,.75);box-shadow:0 0 0 2.5px #fff"></div>
+    <div style="position:absolute;left:19px;bottom:14px;width:3px;height:3px;border-radius:50%;background:#FFF6E3"></div>
+    <div style="position:absolute;left:25px;bottom:14px;width:3px;height:3px;border-radius:50%;background:#FFF6E3"></div>
+  </div>
+  <div style="position:absolute;left:38%;top:52%;width:44px;height:44px">
+    <div style="position:absolute;left:7px;bottom:2px;width:30px;height:9px;border-radius:50%;background:rgba(46,125,50,.55)"></div>
+    <div style="position:absolute;left:16px;bottom:6px;width:12px;height:16px;border-radius:4px;background:#FFF6E3;border:1px solid rgba(78,52,46,.75);box-shadow:0 0 0 2.5px #fff"></div>
+    <div style="position:absolute;left:5px;top:8px;width:34px;height:16px;border-radius:16px;background:#E8833A;border:1px solid rgba(78,52,46,.75);box-shadow:0 0 0 2.5px #fff"></div>
+    <div style="position:absolute;left:19px;bottom:14px;width:3px;height:3px;border-radius:50%;background:#3E2723"></div>
+    <div style="position:absolute;left:25px;bottom:14px;width:3px;height:3px;border-radius:50%;background:#3E2723"></div>
+  </div>
+
+  <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:34px;height:34px;border:2px solid rgba(46,125,50,.9);border-radius:50%;box-shadow:0 0 0 1.5px rgba(255,255,255,.9),inset 0 0 0 1.5px rgba(255,255,255,.9)"></div>
+
+  <div style="position:absolute;left:12px;right:12px;top:8px;display:flex;flex-direction:column;gap:8px;align-items:center">
+    <div style="width:100%;box-sizing:border-box;display:flex;align-items:flex-start;gap:8px;padding:10px 6px 10px 12px;border-radius:12px;background:#6D4C41;color:#fff;font-size:14px;line-height:1.3">
+      <span>🍄</span><span style="flex:1">An 3 Spots stünde die Ampel günstig (experimentell) — antippen</span><span style="opacity:.9;padding:0 6px">✕</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:20px;background:#FFF8E1;color:#6D4C41;font-size:14px">
+      <span>💡</span><span>Wunsch, Fehler oder Pilzart melden!</span><span style="opacity:.7">✕</span>
+    </div>
+  </div>
+
+  <div style="position:absolute;right:12px;bottom:74px;display:flex;flex-direction:column;align-items:flex-end;gap:12px">
+    <div style="position:relative;width:40px;height:40px;border-radius:12px;background:#C8E6C9;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 4px rgba(0,0,0,.25)">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="#1B5E20"><path d="M12 3 2 8l10 5 10-5-10-5zm0 7.9L4.2 7l7.8-3.9L19.8 7 12 10.9z"></path><path d="M2 12.5 12 17.5l10-5-1.8-.9-8.2 4.1-8.2-4.1-1.8.9zM2 16.6l10 5 10-5-1.8-.9-8.2 4.1-8.2-4.1-1.8.9z"></path></svg>
+      <div style="position:absolute;top:-4px;left:-4px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:#6D4C41;color:#fff;font-size:10px;line-height:16px;text-align:center;box-sizing:border-box">4</div>
+    </div>
+    <div style="width:40px;height:40px;border-radius:12px;background:#C8E6C9;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 4px rgba(0,0,0,.25)">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1B5E20" stroke-width="2"><path d="M3 5h18l-7 8v6l-4-2v-4L3 5z"></path></svg>
+    </div>
+    <div style="width:40px;height:40px;border-radius:12px;background:#C8E6C9;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 4px rgba(0,0,0,.25)">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="#1B5E20" stroke="#1B5E20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.2" cy="4" r="2"></circle><path d="M7.8 7 9 12.4" stroke-width="2.3"></path><path d="M9 12.4 6.2 15.4 3.4 20.4M9 12.4 11 16.2 10.4 20.4" stroke-width="2.1"></path><path d="M7.9 8.2 4.4 11M8.2 8.2 13.6 12.6" stroke-width="1.8"></path><circle cx="15.9" cy="13.4" r="1.7" stroke="none"></circle><circle cx="19.3" cy="13.8" r="1.3" stroke="none"></circle><path d="M13.4 14.2h8.2l-1.4 6.2h-5.4z" stroke="none"></path></svg>
+    </div>
+    <div style="width:40px;height:40px;border-radius:12px;background:#C8E6C9;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 4px rgba(0,0,0,.25)">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1B5E20" stroke-width="2"><circle cx="12" cy="12" r="4"></circle><circle cx="12" cy="12" r="1.5" fill="#1B5E20"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3"></path></svg>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding:0 18px;height:48px;border-radius:16px;background:#C8E6C9;color:#1B5E20;font-size:16px;font-weight:500;box-shadow:0 2px 4px rgba(0,0,0,.25)">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="#1B5E20"><path d="M12 2a7 7 0 0 1 7 7c0 5-7 13-7 13S5 14 5 9a7 7 0 0 1 7-7z" opacity=".9"></path><path d="M11 5h2v3h3v2h-3v3h-2v-3H8V8h3V5z" fill="#C8E6C9"></path></svg>
+      Neuer Spot
+    </div>
+  </div>
+
+  <div style="position:absolute;left:12px;bottom:132px;display:flex;align-items:flex-start;gap:2px;padding:6px 2px 6px 8px;border-radius:8px;background:rgba(255,246,227,.88)">
+    <div>
+      <div style="font-size:10px;color:#2E7D32">Wald + Pilzwetter (experimentell) · hier: ungünstig</div>
+      <div style="display:flex;margin-top:3px"><div style="width:46px"></div><div style="width:30px;font-size:9px;color:#4E342E">Laub</div><div style="width:30px;font-size:9px;color:#4E342E">Misch</div><div style="width:30px;font-size:9px;color:#4E342E">Nadel</div></div>
+      <div style="display:flex;align-items:center;margin-top:2px"><div style="width:46px;font-size:9px;color:#4E342E">verhalten</div><div style="width:30px"><div style="width:12px;height:9px;border-radius:2px;background:rgba(155,97,221,.5)"></div></div><div style="width:30px"><div style="width:12px;height:9px;border-radius:2px;background:rgba(104,88,221,.5)"></div></div><div style="width:30px"><div style="width:12px;height:9px;border-radius:2px;background:rgba(60,97,197,.5)"></div></div></div>
+      <div style="display:flex;align-items:center;margin-top:2px"><div style="width:46px;font-size:9px;color:#4E342E">günstig</div><div style="width:30px"><div style="width:12px;height:9px;border-radius:2px;background:rgba(132,15,216,.85)"></div></div><div style="width:30px"><div style="width:12px;height:9px;border-radius:2px;background:rgba(84,18,192,.85)"></div></div><div style="width:30px"><div style="width:12px;height:9px;border-radius:2px;background:rgba(14,32,147,.85)"></div></div></div>
+      <div style="font-size:10px;color:#2E7D32;margin-top:6px">Waldtypen · 1 km: Laubfaktor 0,89 · Wald 62 %</div>
+      <div style="display:flex;margin-top:3px"><div style="width:36px;height:9px;background:rgba(217,142,50,.55)"></div><div style="width:36px;height:9px;background:rgba(138,184,78,.55)"></div><div style="width:36px;height:9px;background:rgba(23,63,56,.55)"></div></div>
+      <div style="display:flex;justify-content:space-between;width:108px;margin-top:2px"><span style="font-size:9px;color:#4E342E">Laub</span><span style="font-size:9px;color:#4E342E">Nadel</span></div>
+      <div style="display:flex;align-items:center;gap:4px;margin-top:6px"><span style="font-size:11px;color:#5B6B7A">▲</span><span style="font-size:11px;color:#4E342E">Höhenlinien alle 50 m · hier 220 m</span></div>
+    </div>
+    <div style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;color:#4E342E;font-size:12px">✕</div>
+  </div>
+
+  <div style="position:absolute;left:10px;bottom:110px;padding:2px 8px;border:1.5px solid #222;background:rgba(255,255,255,.7);font-size:12px;color:#222">5 km</div>
+  <div style="position:absolute;right:12px;bottom:126px;font-size:11px;color:#4E342E;background:rgba(255,246,227,.8);padding:2px 6px;border-radius:4px">MapLibre © OpenStreetMap</div>
+
+  <div style="position:absolute;left:0;right:0;bottom:0;height:64px;background:#EDF3E7;display:flex;align-items:center;justify-content:space-around;border-top:1px solid rgba(0,0,0,.05)">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+      <div style="padding:4px 20px;border-radius:16px;background:#C8E6C9"><svg width="22" height="22" viewBox="0 0 24 24" fill="#1B5E20"><path d="M4 6 9 4l6 2 5-2v14l-5 2-6-2-5 2V6z"></path></svg></div>
+      <span style="font-size:12px;color:#1B5E20">Karte</span>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+      <div style="padding:4px 20px"><svg width="22" height="22" viewBox="0 0 24 24" fill="#3E2723"><circle cx="9" cy="8" r="3.2"></circle><circle cx="16.5" cy="9" r="2.4"></circle><path d="M2.5 18c0-3.3 2.9-5 6.5-5s6.5 1.7 6.5 5v1h-13v-1z"></path><path d="M16.5 12.5c2.8 0 5 1.3 5 3.8V19h-3.8v-1c0-2.2-.9-3.9-2.4-5 .4-.3.8-.5 1.2-.5z"></path></svg></div>
+      <span style="font-size:12px;color:#3E2723">Freunde</span>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+      <div style="padding:4px 20px"><svg width="22" height="22" viewBox="0 0 24 24" fill="#3E2723"><circle cx="12" cy="7.5" r="3.6"></circle><path d="M4.5 19c0-3.6 3.4-5.6 7.5-5.6s7.5 2 7.5 5.6v.5h-15V19z"></path></svg></div>
+      <span style="font-size:12px;color:#3E2723">Profil</span>
+    </div>
+  </div>
+</div>
+</x-import>
+</div>
+</div>
+
+<div class="dv-opt" id="1b">
+<div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Optimiert · Legende links ein-/ausklappbar, ruhigere Knopfspalte (antippbar)</div>
+<div class="dv-card">
+<x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" width="{{ deviceW }}" height="{{ deviceH }}" hint-size="428px,896px">
+<div style="position:relative;height:100%;min-height:800px;overflow:hidden;font-family:Roboto,system-ui,sans-serif">
+  <div style="position:absolute;inset:0;background:#E2DFDA"></div>
+  <div style="position:absolute;inset:0;background:radial-gradient(120px 90px at 16% 12%,rgba(138,184,78,.5),transparent 70%),radial-gradient(170px 120px at 74% 24%,rgba(138,184,78,.42),transparent 70%),radial-gradient(100px 76px at 28% 46%,rgba(23,63,56,.22),transparent 70%),radial-gradient(210px 150px at 52% 74%,rgba(138,184,78,.3),transparent 72%),radial-gradient(120px 90px at 90% 58%,rgba(217,142,50,.24),transparent 70%)"></div>
+  <div style="position:absolute;left:-12%;top:34%;width:130%;height:3px;background:#fff;opacity:.9;transform:rotate(-6deg)"></div>
+  <div style="position:absolute;left:-12%;top:63%;width:130%;height:2px;background:#fff;opacity:.75;transform:rotate(4deg)"></div>
+  <div style="position:absolute;left:46%;top:0;width:2px;height:100%;background:#fff;opacity:.7;transform:rotate(9deg)"></div>
+  <div style="position:absolute;left:8%;top:16%;width:170px;height:104px;border:1.4px solid rgba(91,107,122,.4);border-radius:50%"></div>
+  <div style="position:absolute;left:14%;top:21%;width:120px;height:70px;border:1.4px solid rgba(91,107,122,.32);border-radius:50%"></div>
+  <div style="position:absolute;left:55%;top:52%;width:190px;height:120px;border:1.4px solid rgba(91,107,122,.35);border-radius:50%"></div>
+  <div style="position:absolute;left:16%;top:26%;font-size:11px;color:#6b6b6b">Hochhausen</div>
+  <div style="position:absolute;left:58%;top:30%;font-size:11px;color:#6b6b6b">Gundelsheim</div>
+  <div style="position:absolute;left:10%;top:44%;font-size:11px;color:#6b6b6b">Untergimpern</div>
+  <div style="position:absolute;left:40%;top:48%;font-size:11px;color:#2E7D32">Siegelsbach</div>
+  <div style="position:absolute;left:36%;top:56%;font-size:11px;color:#6b6b6b">Bad Rappenau</div>
+  <div style="position:absolute;left:60%;top:68%;font-size:11px;color:#6b6b6b">Bonfeld</div>
+
+  <div style="position:absolute;left:64%;top:30%;width:44px;height:44px">
+    <div style="position:absolute;left:7px;bottom:2px;width:30px;height:9px;border-radius:50%;background:rgba(46,125,50,.55)"></div>
+    <div style="position:absolute;left:16px;bottom:6px;width:12px;height:17px;border-radius:4px;background:#FFF6E3;border:1px solid rgba(78,52,46,.75);box-shadow:0 0 0 2.5px #fff"></div>
+    <div style="position:absolute;left:5px;top:6px;width:34px;height:19px;border-radius:17px 17px 7px 7px;background:#795548;border:1px solid rgba(78,52,46,.75);box-shadow:0 0 0 2.5px #fff"></div>
+    <div style="position:absolute;left:19px;bottom:16px;width:3px;height:3px;border-radius:50%;background:#3E2723"></div>
+    <div style="position:absolute;left:25px;bottom:16px;width:3px;height:3px;border-radius:50%;background:#3E2723"></div>
+    <div style="position:absolute;left:20px;bottom:11px;width:7px;height:4px;border-bottom:1.4px solid #3E2723;border-radius:0 0 7px 7px"></div>
+  </div>
+  <div style="position:absolute;left:47%;top:38%;width:44px;height:44px">
+    <div style="position:absolute;left:7px;bottom:2px;width:30px;height:9px;border-radius:50%;background:rgba(46,125,50,.55)"></div>
+    <div style="position:absolute;left:17px;bottom:6px;width:11px;height:17px;border-radius:4px;background:#F9A825;border:1px solid rgba(78,52,46,.75);box-shadow:0 0 0 2.5px #fff"></div>
+    <div style="position:absolute;left:4px;top:5px;width:36px;height:17px;border-radius:18px 18px 14px 14px;background:#F9A825;border:1px solid rgba(78,52,46,.75);box-shadow:0 0 0 2.5px #fff"></div>
+    <div style="position:absolute;left:19px;bottom:15px;width:3px;height:3px;border-radius:50%;background:#3E2723"></div>
+    <div style="position:absolute;left:25px;bottom:15px;width:3px;height:3px;border-radius:50%;background:#3E2723"></div>
+  </div>
+  <div style="position:absolute;left:44%;top:46%;width:44px;height:44px">
+    <div style="position:absolute;left:7px;bottom:2px;width:30px;height:9px;border-radius:50%;background:rgba(46,125,50,.55)"></div>
+    <div style="position:absolute;left:17px;bottom:6px;width:11px;height:16px;border-radius:4px;background:#5D4037;border:1px solid rgba(78,52,46,.75);box-shadow:0 0 0 2.5px #fff"></div>
+    <div style="position:absolute;left:8px;top:8px;width:28px;height:18px;border-radius:14px 14px 20px 20px;background:#5D4037;border:1px solid rgba(78,52,46,.75);box-shadow:0 0 0 2.5px #fff"></div>
+    <div style="position:absolute;left:19px;bottom:14px;width:3px;height:3px;border-radius:50%;background:#FFF6E3"></div>
+    <div style="position:absolute;left:25px;bottom:14px;width:3px;height:3px;border-radius:50%;background:#FFF6E3"></div>
+  </div>
+  <div style="position:absolute;left:38%;top:52%;width:44px;height:44px">
+    <div style="position:absolute;left:7px;bottom:2px;width:30px;height:9px;border-radius:50%;background:rgba(46,125,50,.55)"></div>
+    <div style="position:absolute;left:16px;bottom:6px;width:12px;height:16px;border-radius:4px;background:#FFF6E3;border:1px solid rgba(78,52,46,.75);box-shadow:0 0 0 2.5px #fff"></div>
+    <div style="position:absolute;left:5px;top:8px;width:34px;height:16px;border-radius:16px;background:#E8833A;border:1px solid rgba(78,52,46,.75);box-shadow:0 0 0 2.5px #fff"></div>
+    <div style="position:absolute;left:19px;bottom:14px;width:3px;height:3px;border-radius:50%;background:#3E2723"></div>
+    <div style="position:absolute;left:25px;bottom:14px;width:3px;height:3px;border-radius:50%;background:#3E2723"></div>
+  </div>
+
+  <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:34px;height:34px;border:2px solid rgba(46,125,50,.9);border-radius:50%;box-shadow:0 0 0 1.5px rgba(255,255,255,.9),inset 0 0 0 1.5px rgba(255,255,255,.9)"></div>
+
+  <sc-if value="{{ showBanner }}" hint-placeholder-val="{{ true }}">
+  <div style="position:absolute;left:12px;right:12px;top:8px;display:flex;gap:8px;align-items:center">
+    <div style="display:flex;align-items:center;gap:8px;height:34px;padding:0 6px 0 12px;border-radius:17px;background:rgba(109,76,65,.95);color:#fff;font-size:13px;font-weight:500;box-shadow:0 1px 3px rgba(0,0,0,.2)">
+      <span style="font-size:13px">🍄</span><span>3 Spots · Ampel günstig</span><span style="opacity:.75;padding:0 4px">✕</span>
+    </div>
+    <div style="width:34px;height:34px;border-radius:17px;background:rgba(255,248,225,.95);display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 1px 3px rgba(0,0,0,.15)" title="Wunsch, Fehler oder Pilzart melden">💡</div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ legendClosed }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ toggleLegend }}" style="position:absolute;left:0;bottom:150px;width:40px;padding:9px 0 8px 4px;border-radius:0 14px 14px 0;background:rgba(255,246,227,.94);box-shadow:1px 1px 4px rgba(0,0,0,.18);display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer" title="Legende einblenden">
+    <sc-if value="{{ ampelBad }}" hint-placeholder-val="{{ true }}">
+      <div style="width:24px;height:24px;border-radius:8px;background:rgba(78,52,46,.14);display:flex;align-items:center;justify-content:center" title="Pilzampel: hier ungünstig">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="#6D4C41"><g transform="rotate(180 12 12)"><path d="M8.5 21H5.6A1.6 1.6 0 0 1 4 19.4v-6.8A1.6 1.6 0 0 1 5.6 11h2.9v10z"></path><path d="M10 11.4 14.2 3.5a1.7 1.7 0 0 1 3.15 1.15L16.5 9.2h3.3a1.9 1.9 0 0 1 1.86 2.3l-1.35 6.45A2.4 2.4 0 0 1 17.9 21H10V11.4z"></path></g></svg>
+      </div>
+    </sc-if>
+    <sc-if value="{{ ampelMild }}" hint-placeholder-val="{{ false }}">
+      <div style="width:24px;height:24px;border-radius:8px;background:rgba(139,111,224,.18);display:flex;align-items:center;justify-content:center" title="Pilzampel: hier verhalten">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="#8B6FE0"><g transform="rotate(-90 12 12)"><path d="M8.5 21H5.6A1.6 1.6 0 0 1 4 19.4v-6.8A1.6 1.6 0 0 1 5.6 11h2.9v10z"></path><path d="M10 11.4 14.2 3.5a1.7 1.7 0 0 1 3.15 1.15L16.5 9.2h3.3a1.9 1.9 0 0 1 1.86 2.3l-1.35 6.45A2.4 2.4 0 0 1 17.9 21H10V11.4z"></path></g></svg>
+      </div>
+    </sc-if>
+    <sc-if value="{{ ampelGood }}" hint-placeholder-val="{{ false }}">
+      <div style="width:24px;height:24px;border-radius:8px;background:rgba(52,25,155,.16);display:flex;align-items:center;justify-content:center" title="Pilzampel: hier günstig">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="#34199B"><path d="M8.5 21H5.6A1.6 1.6 0 0 1 4 19.4v-6.8A1.6 1.6 0 0 1 5.6 11h2.9v10z"></path><path d="M10 11.4 14.2 3.5a1.7 1.7 0 0 1 3.15 1.15L16.5 9.2h3.3a1.9 1.9 0 0 1 1.86 2.3l-1.35 6.45A2.4 2.4 0 0 1 17.9 21H10V11.4z"></path></svg>
+      </div>
+    </sc-if>
+    <div style="width:22px;height:1px;background:rgba(78,52,46,.18)"></div>
+    <div style="display:flex;gap:7px;align-items:center">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:3px" title="Regen · hier 53 mm">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="#1565C0"><path d="M12 3c3.5 4 6 7 6 10a6 6 0 0 1-12 0c0-3 2.5-6 6-10z"></path></svg>
+        <div style="position:relative;width:9px;height:46px;border-radius:3px;background:linear-gradient(to top,rgba(200,161,101,.75),rgba(134,160,85,.75),rgba(46,125,50,.8),rgba(30,138,122,.8),rgba(21,101,192,.85),rgba(48,63,159,.9))">
+          <div style="position:absolute;left:-2px;right:-2px;bottom:44%;height:2px;background:#3E2723"></div>
+        </div>
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#C8A165" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13.6 2.5 10 8l3.2 2.2-4 4.6 2.6 2-2.2 4.7"></path><path d="M11.4 12.6 7.6 14.6M12.6 17.4l3.4-1.9"></path></svg>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:3px" title="Waldtypen · Laubfaktor 0,89">
+        <svg width="11" height="11" viewBox="0 0 24 24"><path d="M12 2.6c4.3 3.4 6.6 6.8 6.6 10.2 0 3.9-2.9 6.9-6.6 8.6-3.7-1.7-6.6-4.7-6.6-8.6C5.4 9.4 7.7 6 12 2.6z" fill="#D98E32"></path><path d="M12 5.4v15M12 9.6 8.6 8M12 9.6l3.4-1.6M12 13.6 8.4 11.8M12 13.6l3.6-1.8" stroke="#8a5a1e" stroke-width="1.1" fill="none" stroke-linecap="round"></path></svg>
+        <div style="position:relative;width:9px;height:46px;border-radius:3px;background:linear-gradient(to bottom,rgba(217,142,50,.75),rgba(138,184,78,.75),rgba(23,63,56,.8))">
+          <div style="position:absolute;left:-2px;right:-2px;top:11%;height:2px;background:#3E2723"></div>
+        </div>
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#173F38" stroke-width="2" stroke-linecap="round"><path d="M12 21V6"></path><path d="M12 8 7.5 4.5M12 8l4.5-3.5M12 13 7 10M12 13l5-3M12 18l-4.5-2.6M12 18l4.5-2.6"></path></svg>
+      </div>
+    </div>
+    <div style="width:22px;height:1px;background:rgba(78,52,46,.18)"></div>
+    <div style="display:flex;flex-direction:column;align-items:center;line-height:1.1">
+      <span style="font-size:11px;font-weight:700;color:#3E2723">220</span>
+      <span style="font-size:8.5px;color:#4E342E">m</span>
+    </div>
+    <div style="font-size:13px;color:#2E7D32;line-height:1">›</div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ legendOpen }}" hint-placeholder-val="{{ true }}">
+  <div style="position:absolute;left:0;bottom:112px;width:236px;border-radius:0 14px 14px 0;background:rgba(255,246,227,.96);box-shadow:1px 1px 6px rgba(0,0,0,.2);padding:10px 12px 10px 12px;box-sizing:border-box">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.6px;color:#2E7D32;text-transform:uppercase">Legende · 4 Ebenen</div>
+      <div onClick="{{ toggleLegend }}" style="width:24px;height:24px;margin-right:-4px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#2E7D32;font-size:14px;cursor:pointer" title="Legende ausblenden">‹</div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+      <div style="display:flex;align-items:center;gap:6px">
+        <sc-if value="{{ ampelBad }}" hint-placeholder-val="{{ true }}">
+          <div style="width:20px;height:20px;border-radius:7px;background:rgba(78,52,46,.14);display:flex;align-items:center;justify-content:center">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="#6D4C41"><g transform="rotate(180 12 12)"><path d="M8.5 21H5.6A1.6 1.6 0 0 1 4 19.4v-6.8A1.6 1.6 0 0 1 5.6 11h2.9v10z"></path><path d="M10 11.4 14.2 3.5a1.7 1.7 0 0 1 3.15 1.15L16.5 9.2h3.3a1.9 1.9 0 0 1 1.86 2.3l-1.35 6.45A2.4 2.4 0 0 1 17.9 21H10V11.4z"></path></g></svg>
+          </div>
+        </sc-if>
+        <sc-if value="{{ ampelMild }}" hint-placeholder-val="{{ false }}">
+          <div style="width:20px;height:20px;border-radius:7px;background:rgba(139,111,224,.18);display:flex;align-items:center;justify-content:center">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="#8B6FE0"><g transform="rotate(-90 12 12)"><path d="M8.5 21H5.6A1.6 1.6 0 0 1 4 19.4v-6.8A1.6 1.6 0 0 1 5.6 11h2.9v10z"></path><path d="M10 11.4 14.2 3.5a1.7 1.7 0 0 1 3.15 1.15L16.5 9.2h3.3a1.9 1.9 0 0 1 1.86 2.3l-1.35 6.45A2.4 2.4 0 0 1 17.9 21H10V11.4z"></path></g></svg>
+          </div>
+        </sc-if>
+        <sc-if value="{{ ampelGood }}" hint-placeholder-val="{{ false }}">
+          <div style="width:20px;height:20px;border-radius:7px;background:rgba(52,25,155,.16);display:flex;align-items:center;justify-content:center">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="#34199B"><path d="M8.5 21H5.6A1.6 1.6 0 0 1 4 19.4v-6.8A1.6 1.6 0 0 1 5.6 11h2.9v10z"></path><path d="M10 11.4 14.2 3.5a1.7 1.7 0 0 1 3.15 1.15L16.5 9.2h3.3a1.9 1.9 0 0 1 1.86 2.3l-1.35 6.45A2.4 2.4 0 0 1 17.9 21H10V11.4z"></path></svg>
+          </div>
+        </sc-if>
+        <span style="font-size:10.5px;font-weight:500;color:#2E7D32">Pilzampel · exp.</span>
+      </div>
+      <span style="font-size:10.5px;color:#3E2723;white-space:nowrap">hier: <strong style="font-weight:700">{{ ampelWord }}</strong></span>
+    </div>
+    <div style="display:flex;margin-bottom:2px"><div style="width:58px"></div><div style="width:36px;font-size:9.5px;color:#4E342E">Laub</div><div style="width:36px;font-size:9.5px;color:#4E342E">Misch</div><div style="width:36px;font-size:9.5px;color:#4E342E">Nadel</div></div>
+    <div style="display:flex;align-items:center;margin-bottom:3px"><div style="width:58px;display:flex;align-items:center;gap:4px;font-size:9.5px;color:#4E342E"><svg width="11" height="11" viewBox="0 0 24 24" fill="#8B6FE0"><g transform="rotate(-90 12 12)"><path d="M8.5 21H5.6A1.6 1.6 0 0 1 4 19.4v-6.8A1.6 1.6 0 0 1 5.6 11h2.9v10z"></path><path d="M10 11.4 14.2 3.5a1.7 1.7 0 0 1 3.15 1.15L16.5 9.2h3.3a1.9 1.9 0 0 1 1.86 2.3l-1.35 6.45A2.4 2.4 0 0 1 17.9 21H10V11.4z"></path></g></svg>verhalten</div><div style="width:36px"><div style="width:26px;height:11px;border-radius:3px;background:rgba(155,97,221,.5)"></div></div><div style="width:36px"><div style="width:26px;height:11px;border-radius:3px;background:rgba(104,88,221,.5)"></div></div><div style="width:36px"><div style="width:26px;height:11px;border-radius:3px;background:rgba(60,97,197,.5)"></div></div></div>
+    <div style="display:flex;align-items:center;margin-bottom:11px"><div style="width:58px;display:flex;align-items:center;gap:4px;font-size:9.5px;color:#4E342E"><svg width="11" height="11" viewBox="0 0 24 24" fill="#34199B"><path d="M8.5 21H5.6A1.6 1.6 0 0 1 4 19.4v-6.8A1.6 1.6 0 0 1 5.6 11h2.9v10z"></path><path d="M10 11.4 14.2 3.5a1.7 1.7 0 0 1 3.15 1.15L16.5 9.2h3.3a1.9 1.9 0 0 1 1.86 2.3l-1.35 6.45A2.4 2.4 0 0 1 17.9 21H10V11.4z"></path></svg>günstig</div><div style="width:36px"><div style="width:26px;height:11px;border-radius:3px;background:rgba(132,15,216,.85)"></div></div><div style="width:36px"><div style="width:26px;height:11px;border-radius:3px;background:rgba(84,18,192,.85)"></div></div><div style="width:36px"><div style="width:26px;height:11px;border-radius:3px;background:rgba(14,32,147,.85)"></div></div></div>
+    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px">
+      <span style="font-size:10.5px;font-weight:500;color:#2E7D32">Regen · letzte 30 Tage</span>
+      <span style="font-size:10.5px;color:#3E2723;white-space:nowrap">hier 53 mm</span>
+    </div>
+    <div style="position:relative;width:210px;height:13px;margin-bottom:3px">
+      <div style="display:flex;position:absolute;top:2px">
+        <div style="width:26px;height:10px;background:rgba(200,161,101,.6)"></div>
+        <div style="width:26px;height:10px;background:rgba(168,160,92,.6)"></div>
+        <div style="width:26px;height:10px;background:rgba(134,160,85,.6)"></div>
+        <div style="width:26px;height:10px;background:rgba(94,154,78,.6)"></div>
+        <div style="width:26px;height:10px;background:rgba(46,125,50,.6)"></div>
+        <div style="width:26px;height:10px;background:rgba(30,138,122,.6)"></div>
+        <div style="width:26px;height:10px;background:rgba(21,101,192,.6)"></div>
+        <div style="width:26px;height:10px;background:rgba(48,63,159,.6)"></div>
+      </div>
+      <div style="position:absolute;left:116px;top:0;width:2px;height:14px;background:#3E2723"></div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;width:210px;margin-bottom:11px">
+      <span style="font-size:9.5px;color:#4E342E">10 mm</span>
+      <span style="display:flex;align-items:center;gap:3px;font-size:9.5px;color:#4E342E">150+
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="#1565C0"><path d="M12 3c3.5 4 6 7 6 10a6 6 0 0 1-12 0c0-3 2.5-6 6-10z"></path></svg>
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="#303F9F"><path d="M12 3c3.5 4 6 7 6 10a6 6 0 0 1-12 0c0-3 2.5-6 6-10z"></path></svg>
+      </span>
+    </div>
+    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px">
+      <span style="font-size:10.5px;font-weight:500;color:#2E7D32">Waldtypen · 1 km</span>
+      <span style="font-size:10.5px;color:#3E2723;white-space:nowrap">Laubfaktor 0,89</span>
+    </div>
+    <div style="position:relative;width:210px;height:13px;margin-bottom:3px">
+      <div style="display:flex;position:absolute;top:2px"><div style="width:70px;height:10px;background:rgba(217,142,50,.6)"></div><div style="width:70px;height:10px;background:rgba(138,184,78,.6)"></div><div style="width:70px;height:10px;background:rgba(23,63,56,.6)"></div></div>
+      <div style="position:absolute;left:22px;top:0;width:2px;height:14px;background:#3E2723"></div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;width:210px;margin-bottom:10px">
+      <span style="display:flex;align-items:center;gap:3px;font-size:9.5px;color:#4E342E">
+        <svg width="12" height="12" viewBox="0 0 24 24"><path d="M12 2.6c4.3 3.4 6.6 6.8 6.6 10.2 0 3.9-2.9 6.9-6.6 8.6-3.7-1.7-6.6-4.7-6.6-8.6C5.4 9.4 7.7 6 12 2.6z" fill="#D98E32"></path><path d="M12 5.4v15M12 9.6 8.6 8M12 9.6l3.4-1.6M12 13.6 8.4 11.8M12 13.6l3.6-1.8" stroke="#8a5a1e" stroke-width="1.1" fill="none" stroke-linecap="round"></path></svg>Laub
+      </span>
+      <span style="font-size:9.5px;color:#4E342E">Wald 62 %</span>
+      <span style="display:flex;align-items:center;gap:3px;font-size:9.5px;color:#4E342E">Nadel
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#173F38" stroke-width="2" stroke-linecap="round"><path d="M12 21V6"></path><path d="M12 8 7.5 4.5M12 8l4.5-3.5M12 13 7 10M12 13l5-3M12 18l-4.5-2.6M12 18l4.5-2.6"></path></svg>
+      </span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:10px;border-radius:8px;background:rgba(91,107,122,.1)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="#5B6B7A"><path d="M12 5 3 19h18L12 5z"></path></svg>
+      <span style="font-size:14px;font-weight:700;color:#3E2723;line-height:1">220 m</span>
+      <span style="font-size:9.5px;color:#4E342E;line-height:1.2">Höhe hier<br>Linien alle 50 m</span>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding-top:8px;border-top:1px solid rgba(78,52,46,.12)">
+      <span style="font-size:11px;font-weight:500;color:#2E7D32;cursor:pointer">Was ist hier? →</span>
+      <span style="font-size:10.5px;color:#4E342E;opacity:.7;cursor:pointer">Ebenen</span>
+    </div>
+  </div>
+  </sc-if>
+
+  <div style="position:absolute;right:12px;bottom:78px;display:flex;flex-direction:column;align-items:flex-end;gap:10px">
+    <div style="display:flex;flex-direction:column;align-items:center;border-radius:14px;background:rgba(255,255,255,.97);box-shadow:0 2px 6px rgba(0,0,0,.18);overflow:hidden">
+      <div style="position:relative;width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer" title="Ebenen">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="#2E7D32"><path d="M12 3 2 8l10 5 10-5-10-5zm0 7.9L4.2 7l7.8-3.9L19.8 7 12 10.9z"></path><path d="M2 12.5 12 17.5l10-5-1.8-.9-8.2 4.1-8.2-4.1-1.8.9zM2 16.6l10 5 10-5-1.8-.9-8.2 4.1-8.2-4.1-1.8.9z"></path></svg>
+        <div style="position:absolute;top:6px;right:6px;min-width:15px;height:15px;padding:0 3px;border-radius:8px;background:#6D4C41;color:#fff;font-size:9.5px;line-height:15px;text-align:center;box-sizing:border-box">4</div>
+      </div>
+      <div style="width:28px;height:1px;background:rgba(0,0,0,.08)"></div>
+      <div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer" title="Spots filtern">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#2E7D32" stroke-width="2" stroke-linejoin="round"><path d="M3 5h18l-7 8v6l-4-2v-4L3 5z"></path></svg>
+      </div>
+      <div style="width:28px;height:1px;background:rgba(0,0,0,.08)"></div>
+      <div onClick="{{ openSheet }}" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer" title="Unterwegs">
+        <sc-if value="{{ iconRoute }}" hint-placeholder-val="{{ true }}">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2E7D32" stroke-width="2" stroke-linecap="round"><path d="M5 20c0-4 4-4 4-7.5S4.5 9 6.5 5.5" stroke-dasharray="0.1 3.6"></path><circle cx="5.4" cy="20.2" r="2" fill="#2E7D32" stroke="none"></circle><path d="M10.4 10.5c0-3.3 2.7-5.6 6.1-5.6s6.1 2.3 6.1 5.6c0 .7-.6 1.2-1.3 1.2H11.7c-.7 0-1.3-.5-1.3-1.2z" fill="#2E7D32" stroke="none"></path><path d="M14.6 11.7h3.8v4.6c0 1.3-.9 2.1-1.9 2.1s-1.9-.8-1.9-2.1z" fill="#2E7D32" stroke="none"></path></svg>
+        </sc-if>
+        <sc-if value="{{ iconBasket }}" hint-placeholder-val="{{ false }}">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2E7D32" stroke-width="2" stroke-linecap="round"><path d="M8 9c0-2.9 1.8-5 4-5s4 2.1 4 5" stroke-width="1.8"></path><path d="M6.6 9.2c0-1.7 1.4-2.9 3-2.9s3 1.2 3 2.9z" fill="#2E7D32" stroke="none"></path><path d="M13.3 9.2c0-1.3 1-2.2 2.2-2.2s2.2.9 2.2 2.2z" fill="#2E7D32" stroke="none"></path><rect x="3.2" y="9.2" width="17.6" height="2.4" rx="1.2" fill="#2E7D32" stroke="none"></rect><path d="M5.2 12.2h13.6l-1.3 6.6a2 2 0 0 1-2 1.6H8.5a2 2 0 0 1-2-1.6z" fill="#2E7D32" stroke="none"></path><path d="M9.8 14.2v3.6M14.2 14.2v3.6" stroke="#fff" stroke-width="1.5"></path></svg>
+        </sc-if>
+        <sc-if value="{{ iconTrail }}" hint-placeholder-val="{{ false }}">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="#2E7D32"><ellipse cx="8" cy="8.5" rx="3.4" ry="4.6"></ellipse><ellipse cx="16" cy="15.5" rx="3.4" ry="4.6"></ellipse><circle cx="5.2" cy="14.2" r="1.5"></circle><circle cx="19" cy="6.6" r="1.5"></circle></svg>
+        </sc-if>
+      </div>
+      <div style="width:28px;height:1px;background:rgba(0,0,0,.08)"></div>
+      <div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer" title="Meine Position">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#2E7D32" stroke-width="2"><circle cx="12" cy="12" r="4"></circle><circle cx="12" cy="12" r="1.4" fill="#2E7D32"></circle><path d="M12 2.5v3.2M12 18.3v3.2M2.5 12h3.2M18.3 12h3.2"></path></svg>
+      </div>
+    </div>
+    <sc-if value="{{ tourRunning }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ toggleTour }}" style="display:flex;align-items:center;gap:8px;height:40px;padding:0 14px;border-radius:20px;background:#2E7D32;color:#fff;font-size:14px;font-weight:500;box-shadow:0 2px 6px rgba(0,0,0,.25);cursor:pointer">
+        <span style="width:12px;height:12px;border-radius:2px;background:#fff;display:inline-block"></span>Tour · 1:24 h
+      </div>
+    </sc-if>
+    <div style="display:flex;align-items:center;gap:6px;height:44px;padding:0 14px;border-radius:14px;background:#2E7D32;color:#fff;font-size:14.5px;font-weight:500;box-shadow:0 3px 8px rgba(0,0,0,.28);cursor:pointer">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="#fff"><path d="M12 2a7 7 0 0 1 7 7c0 5-7 13-7 13S5 14 5 9a7 7 0 0 1 7-7z"></path><path d="M11 5h2v3h3v2h-3v3h-2v-3H8V8h3V5z" fill="#2E7D32"></path></svg>
+      Neuer Spot
+    </div>
+  </div>
+
+  <div style="position:absolute;left:12px;bottom:74px;display:flex;align-items:center;gap:8px">
+    <div style="padding:2px 8px;border-radius:4px;background:rgba(255,255,255,.75);border-bottom:2px solid #3E2723;border-left:1px solid #3E2723;border-right:1px solid #3E2723;font-size:11px;color:#3E2723">5 km</div>
+    <div onClick="{{ toggleAttrib }}" style="width:22px;height:22px;border-radius:11px;background:rgba(255,255,255,.75);display:flex;align-items:center;justify-content:center;font-size:11px;color:#4E342E;cursor:pointer" title="Kartendaten">ⓘ</div>
+    <sc-if value="{{ attribOpen }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:3px 8px;border-radius:6px;background:rgba(255,255,255,.9);font-size:10.5px;color:#4E342E">MapLibre © OpenStreetMap</div>
+    </sc-if>
+  </div>
+
+  <div style="position:absolute;left:0;right:0;bottom:0;height:64px;background:#EDF3E7;display:flex;align-items:center;justify-content:space-around;border-top:1px solid rgba(0,0,0,.05)">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+      <div style="padding:4px 20px;border-radius:16px;background:#C8E6C9"><svg width="22" height="22" viewBox="0 0 24 24" fill="#1B5E20"><path d="M4 6 9 4l6 2 5-2v14l-5 2-6-2-5 2V6z"></path></svg></div>
+      <span style="font-size:12px;color:#1B5E20;font-weight:500">Karte</span>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+      <div style="padding:4px 20px"><svg width="22" height="22" viewBox="0 0 24 24" fill="#3E2723"><circle cx="9" cy="8" r="3.2"></circle><circle cx="16.5" cy="9" r="2.4"></circle><path d="M2.5 18c0-3.3 2.9-5 6.5-5s6.5 1.7 6.5 5v1h-13v-1z"></path><path d="M16.5 12.5c2.8 0 5 1.3 5 3.8V19h-3.8v-1c0-2.2-.9-3.9-2.4-5 .4-.3.8-.5 1.2-.5z"></path></svg></div>
+      <span style="font-size:12px;color:#3E2723">Freunde</span>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+      <div style="padding:4px 20px"><svg width="22" height="22" viewBox="0 0 24 24" fill="#3E2723"><circle cx="12" cy="7.5" r="3.6"></circle><path d="M4.5 19c0-3.6 3.4-5.6 7.5-5.6s7.5 2 7.5 5.6v.5h-15V19z"></path></svg></div>
+      <span style="font-size:12px;color:#3E2723">Profil</span>
+    </div>
+  </div>
+
+  <sc-if value="{{ sheetOpen }}" hint-placeholder-val="{{ false }}">
+  <div style="position:absolute;inset:0;background:rgba(0,0,0,.32)" onClick="{{ closeSheet }}"></div>
+  </sc-if>
+  <sc-if value="{{ sheetOpen }}" hint-placeholder-val="{{ false }}">
+  <div style="position:absolute;left:0;right:0;bottom:0;border-radius:24px 24px 0 0;background:#F4F7EF;padding:14px 16px 20px;box-shadow:0 -4px 16px rgba(0,0,0,.2)">
+    <div style="width:36px;height:4px;border-radius:2px;background:rgba(62,39,35,.25);margin:0 auto 12px"></div>
+    <div style="font-size:20px;font-weight:500;color:#2E7D32;margin-bottom:12px">Unterwegs</div>
+    <div onClick="{{ toggleTour }}" style="display:flex;align-items:center;gap:14px;padding:14px;border-radius:16px;background:#fff;border:1px solid rgba(46,125,50,.18);margin-bottom:10px;cursor:pointer">
+      <div style="width:44px;height:44px;border-radius:14px;background:#E8F1E4;display:flex;align-items:center;justify-content:center;flex:none">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2E7D32" stroke-width="2" stroke-linecap="round"><path d="M8 9c0-2.9 1.8-5 4-5s4 2.1 4 5" stroke-width="1.8"></path><path d="M6.6 9.2c0-1.7 1.4-2.9 3-2.9s3 1.2 3 2.9z" fill="#2E7D32" stroke="none"></path><path d="M13.3 9.2c0-1.3 1-2.2 2.2-2.2s2.2.9 2.2 2.2z" fill="#2E7D32" stroke="none"></path><rect x="3.2" y="9.2" width="17.6" height="2.4" rx="1.2" fill="#2E7D32" stroke="none"></rect><path d="M5.2 12.2h13.6l-1.3 6.6a2 2 0 0 1-2 1.6H8.5a2 2 0 0 1-2-1.6z" fill="#2E7D32" stroke="none"></path><path d="M9.8 14.2v3.6M14.2 14.2v3.6" stroke="#fff" stroke-width="1.5"></path></svg>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:16px;color:#1a1a1a;font-weight:500">{{ tourTitle }}</div>
+        <div style="font-size:13px;color:#5b5b5b;line-height:1.35">{{ tourSubtitle }}</div>
+      </div>
+      <sc-if value="{{ tourOff }}" hint-placeholder-val="{{ true }}">
+        <div style="width:52px;height:30px;border-radius:15px;background:#DCE7D6;position:relative;flex:none">
+          <div style="position:absolute;top:3px;left:4px;width:24px;height:24px;border-radius:12px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25)"></div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ tourRunning }}" hint-placeholder-val="{{ false }}">
+        <div style="width:52px;height:30px;border-radius:15px;background:#2E7D32;position:relative;flex:none">
+          <div style="position:absolute;top:3px;right:4px;width:24px;height:24px;border-radius:12px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25)"></div>
+        </div>
+      </sc-if>
+    </div>
+    <div onClick="{{ toggleSharing }}" style="display:flex;align-items:center;gap:14px;padding:14px;border-radius:16px;background:#fff;border:1px solid rgba(21,101,192,.16);cursor:pointer">
+      <div style="width:44px;height:44px;border-radius:14px;background:#E3ECF7;display:flex;align-items:center;justify-content:center;flex:none">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1565C0" stroke-width="2"><circle cx="12" cy="10.5" r="3"></circle><path d="M12 2.5c-4.1 0-7.5 3.3-7.5 7.4C4.5 15.5 12 22 12 22s7.5-6.5 7.5-12.1c0-4.1-3.4-7.4-7.5-7.4z" stroke-dasharray="3 3"></path></svg>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:16px;color:#1a1a1a;font-weight:500">{{ shareTitle }}</div>
+        <div style="font-size:13px;color:#5b5b5b;line-height:1.35">{{ shareSubtitle }}</div>
+      </div>
+      <sc-if value="{{ sharingOff }}" hint-placeholder-val="{{ true }}">
+        <div style="width:52px;height:30px;border-radius:15px;background:#DCE7D6;position:relative;flex:none">
+          <div style="position:absolute;top:3px;left:4px;width:24px;height:24px;border-radius:12px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25)"></div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ sharing }}" hint-placeholder-val="{{ false }}">
+        <div style="width:52px;height:30px;border-radius:15px;background:#1565C0;position:relative;flex:none">
+          <div style="position:absolute;top:3px;right:4px;width:24px;height:24px;border-radius:12px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25)"></div>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+  </sc-if>
+</div>
+</x-import>
+</div>
+</div>
+
+<div class="dv-opt" id="1c">
+<div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>Bausteine: Tour-Symbol, Legenden-Zustände, UX-Notizen</div>
+<div class="dv-card" style="width:420px;padding:20px;box-sizing:border-box">
+  <div style="font:700 11px/1 system-ui;letter-spacing:.7px;color:#2E7D32;text-transform:uppercase;margin-bottom:12px">Tour-Symbol statt Strichmännchen</div>
+  <div style="display:flex;gap:12px;margin-bottom:8px">
+    <div onClick="{{ pickRoute }}" style="position:relative;flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 6px;border-radius:12px;border:1px solid rgba(0,0,0,.1);cursor:pointer">
+      <sc-if value="{{ iconRoute }}" hint-placeholder-val="{{ true }}"><div style="position:absolute;inset:0;border-radius:12px;border:2px solid #2E7D32;background:rgba(46,125,50,.07)"></div></sc-if>
+      <sc-if value="{{ iconRoute }}" hint-placeholder-val="{{ true }}"><div style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);padding:1px 7px;border-radius:8px;background:#2E7D32;color:#fff;font:600 9.5px system-ui;white-space:nowrap">aktiv</div></sc-if>
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#2E7D32" stroke-width="2" stroke-linecap="round"><path d="M5 20c0-4 4-4 4-7.5S4.5 9 6.5 5.5" stroke-dasharray="0.1 3.6"></path><circle cx="5.4" cy="20.2" r="2" fill="#2E7D32" stroke="none"></circle><path d="M10.4 10.5c0-3.3 2.7-5.6 6.1-5.6s6.1 2.3 6.1 5.6c0 .7-.6 1.2-1.3 1.2H11.7c-.7 0-1.3-.5-1.3-1.2z" fill="#2E7D32" stroke="none"></path><path d="M14.6 11.7h3.8v4.6c0 1.3-.9 2.1-1.9 2.1s-1.9-.8-1.9-2.1z" fill="#2E7D32" stroke="none"></path></svg>
+      <div style="font:500 12px system-ui;color:#1a1a1a">Weg + Pilz</div>
+      <div style="font:11px/1.35 system-ui;color:#6b6b6b;text-align:center">Empfehlung: sagt „aufzeichnen" und bleibt bei 24 dp klar</div>
+    </div>
+    <div onClick="{{ pickBasket }}" style="position:relative;flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 6px;border-radius:12px;border:1px solid rgba(0,0,0,.1);cursor:pointer">
+      <sc-if value="{{ iconBasket }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;border-radius:12px;border:2px solid #2E7D32;background:rgba(46,125,50,.07)"></div></sc-if>
+      <sc-if value="{{ iconBasket }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);padding:1px 7px;border-radius:8px;background:#2E7D32;color:#fff;font:600 9.5px system-ui;white-space:nowrap">aktiv</div></sc-if>
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#2E7D32" stroke-width="2" stroke-linecap="round"><path d="M8 9c0-2.9 1.8-5 4-5s4 2.1 4 5" stroke-width="1.8"></path><path d="M6.6 9.2c0-1.7 1.4-2.9 3-2.9s3 1.2 3 2.9z" fill="#2E7D32" stroke="none"></path><path d="M13.3 9.2c0-1.3 1-2.2 2.2-2.2s2.2.9 2.2 2.2z" fill="#2E7D32" stroke="none"></path><rect x="3.2" y="9.2" width="17.6" height="2.4" rx="1.2" fill="#2E7D32" stroke="none"></rect><path d="M5.2 12.2h13.6l-1.3 6.6a2 2 0 0 1-2 1.6H8.5a2 2 0 0 1-2-1.6z" fill="#2E7D32" stroke="none"></path><path d="M9.8 14.2v3.6M14.2 14.2v3.6" stroke="#fff" stroke-width="1.5"></path></svg>
+      <div style="font:500 12px system-ui;color:#1a1a1a">Korb</div>
+      <div style="font:11px/1.35 system-ui;color:#6b6b6b;text-align:center">Eine Form, sehr ruhig — aber ohne „unterwegs"</div>
+    </div>
+    <div onClick="{{ pickTrail }}" style="position:relative;flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 6px;border-radius:12px;border:1px solid rgba(0,0,0,.1);cursor:pointer">
+      <sc-if value="{{ iconTrail }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;border-radius:12px;border:2px solid #2E7D32;background:rgba(46,125,50,.07)"></div></sc-if>
+      <sc-if value="{{ iconTrail }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);padding:1px 7px;border-radius:8px;background:#2E7D32;color:#fff;font:600 9.5px system-ui;white-space:nowrap">aktiv</div></sc-if>
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="#2E7D32"><ellipse cx="8" cy="8.5" rx="3.4" ry="4.6"></ellipse><ellipse cx="16" cy="15.5" rx="3.4" ry="4.6"></ellipse><circle cx="5.2" cy="14.2" r="1.5"></circle><circle cx="19" cy="6.6" r="1.5"></circle></svg>
+      <div style="font:500 12px system-ui;color:#1a1a1a">Fußspur</div>
+      <div style="font:11px/1.35 system-ui;color:#6b6b6b;text-align:center">Am robustesten klein, aber generisch</div>
+    </div>
+  </div>
+  <div style="font:11px/1.4 system-ui;color:#6b6b6b;margin-bottom:16px">Antippen setzt das Symbol in <a class="dv-oid" href="#1b">1b</a>. Alle drei sind eine Fläche in der IconTheme-Farbe — der bestehende <code>TourIcon</code>-Painter bleibt, nur die Pfade werden ersetzt.</div>
+  <div style="padding:12px;border-radius:12px;background:#F6F9F3;border:1px solid rgba(46,125,50,.2);font:11.5px/1.5 system-ui;color:#3a3a3a;margin-bottom:20px"><strong>Zwei Ebenen, zwei Symbole.</strong> Der Kartenknopf steht für „Unterwegs" und damit für BEIDE Funktionen — dafür ist Weg + Pilz richtig: der Weg trägt das Unterwegs, der Pilz das Thema. Im Blatt selbst wird dann getrennt: die <strong>Pilztour bekommt das Körbchen</strong> (mit zwei Pilzköpfen über der Kante), das <strong>Standort-Teilen den gestrichelten Pin in Buddy-Blau</strong>. Kein Symbol muss zwei Dinge gleichzeitig sagen.</div>
+
+  <div style="font:700 11px/1 system-ui;letter-spacing:.7px;color:#2E7D32;text-transform:uppercase;margin:0 0 12px">Legende: zwei Zustände, kein Menü</div>
+  <div style="display:flex;align-items:flex-start;gap:14px;padding:14px;border-radius:12px;background:#EFEDE8;margin-bottom:8px">
+    <div style="width:40px;padding:9px 0 8px 4px;border-radius:0 14px 14px 0;background:#FFF6E3;box-shadow:1px 1px 4px rgba(0,0,0,.16);display:flex;flex-direction:column;align-items:center;gap:8px">
+      <div style="width:24px;height:24px;border-radius:8px;background:rgba(78,52,46,.14);display:flex;align-items:center;justify-content:center">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="#6D4C41"><g transform="rotate(180 12 12)"><path d="M8.5 21H5.6A1.6 1.6 0 0 1 4 19.4v-6.8A1.6 1.6 0 0 1 5.6 11h2.9v10z"></path><path d="M10 11.4 14.2 3.5a1.7 1.7 0 0 1 3.15 1.15L16.5 9.2h3.3a1.9 1.9 0 0 1 1.86 2.3l-1.35 6.45A2.4 2.4 0 0 1 17.9 21H10V11.4z"></path></g></svg>
+      </div>
+      <div style="width:22px;height:1px;background:rgba(78,52,46,.18)"></div>
+      <div style="display:flex;gap:7px;align-items:center">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="#1565C0"><path d="M12 3c3.5 4 6 7 6 10a6 6 0 0 1-12 0c0-3 2.5-6 6-10z"></path></svg>
+          <div style="position:relative;width:9px;height:46px;border-radius:3px;background:linear-gradient(to top,rgba(200,161,101,.75),rgba(134,160,85,.75),rgba(46,125,50,.8),rgba(30,138,122,.8),rgba(21,101,192,.85),rgba(48,63,159,.9))"><div style="position:absolute;left:-2px;right:-2px;bottom:44%;height:2px;background:#3E2723"></div></div>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#C8A165" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13.6 2.5 10 8l3.2 2.2-4 4.6 2.6 2-2.2 4.7"></path><path d="M11.4 12.6 7.6 14.6M12.6 17.4l3.4-1.9"></path></svg>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+          <svg width="11" height="11" viewBox="0 0 24 24"><path d="M12 2.6c4.3 3.4 6.6 6.8 6.6 10.2 0 3.9-2.9 6.9-6.6 8.6-3.7-1.7-6.6-4.7-6.6-8.6C5.4 9.4 7.7 6 12 2.6z" fill="#D98E32"></path><path d="M12 5.4v15M12 9.6 8.6 8M12 9.6l3.4-1.6M12 13.6 8.4 11.8M12 13.6l3.6-1.8" stroke="#8a5a1e" stroke-width="1.1" fill="none" stroke-linecap="round"></path></svg>
+          <div style="position:relative;width:9px;height:46px;border-radius:3px;background:linear-gradient(to bottom,rgba(217,142,50,.75),rgba(138,184,78,.75),rgba(23,63,56,.8))"><div style="position:absolute;left:-2px;right:-2px;top:11%;height:2px;background:#3E2723"></div></div>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#173F38" stroke-width="2" stroke-linecap="round"><path d="M12 21V6"></path><path d="M12 8 7.5 4.5M12 8l4.5-3.5M12 13 7 10M12 13l5-3M12 18l-4.5-2.6M12 18l4.5-2.6"></path></svg>
+        </div>
+      </div>
+      <div style="width:22px;height:1px;background:rgba(78,52,46,.18)"></div>
+      <div style="display:flex;flex-direction:column;align-items:center;line-height:1.1">
+        <span style="font:700 11px system-ui;color:#3E2723">220</span>
+        <span style="font:8.5px system-ui;color:#4E342E">m</span>
+      </div>
+      <div style="font:13px system-ui;color:#2E7D32">›</div>
+    </div>
+    <div style="flex:1;font:11.5px/1.5 system-ui;color:#3a3a3a">
+      <strong>Eingeklappt: 40 px, unten links.</strong> Tiefer gesetzt als zuvor, damit die Kartenmitte um das Fadenkreuz frei bleibt. Sie zeigt dieselben drei Zonen senkrecht: oben die Pilzampel als Daumen (hier: runter = ungünstig), darunter zwei senkrechte Farbbalken für Regen und Wald mit Messstrich und ihren Symbolen, unten der Höhenwert. Ein Tipp klappt aus, kein Weg über das Ebenen-Blatt mehr. Details in <a class="dv-oid" href="#2b">2b</a>.
+    </div>
+  </div>
+  <div style="font:11.5px/1.5 system-ui;color:#3a3a3a;margin-bottom:20px"><strong>Ausgeklappt: 236 px</strong> mit allen vier Ebenen und der Ablesung „hier" je Zeile — heute steckt sie in den Überschriften. Fußzeile führt nach „Was ist hier?" und zu den Ebenen. Zustand persistent wie bisher (<code>Settings.mapLegendEnabled</code>), das ✕ verschwindet: Ausblenden ist jetzt Einklappen, also nie ein Sackgassen-Zustand.</div>
+
+  <div style="font:700 11px/1 system-ui;letter-spacing:.7px;color:#2E7D32;text-transform:uppercase;margin:0 0 10px">Weitere UX-Punkte in <a class="dv-oid" href="#1b">1b</a></div>
+  <div style="display:flex;flex-direction:column;gap:9px;font:11.5px/1.45 system-ui;color:#3a3a3a">
+    <div><strong>Banner → eine Chip-Zeile (34 px statt ~150 px).</strong> Zwei gestapelte Karten verdecken heute ein Sechstel der Karte. Die Ampel-Meldung wird ein Chip mit Zahl, der Feedback-Hinweis ein 💡-Knopf.</div>
+    <div><strong>Knopfspalte als eine Fläche.</strong> Vier gleichrangige Werkzeuge in einer weißen Leiste mit Haarlinien statt vier freistehender grüner Kreise: weniger Farbflächen über der Karte, gleiche Trefferfläche (44 px), und „Neuer Spot" ist als einzige grüne Fläche endlich unverwechselbar die Hauptaktion.</div>
+    <div><strong>Attribution nicht mehr unter dem FAB.</strong> Heute liegt „Neuer Spot" auf dem vierzeiligen OSM-Block. Neu: ⓘ neben dem Maßstab, Text auf Tipp — lizenzkonform und ruhig.</div>
+    <div><strong>Laufende Tour zeigt Laufzeit.</strong> Statt eines zweiten grünen Stopp-Kreises ein Pill „Tour · 1:24 h" — Zustand und Ausgang in einem Element.</div>
+    <div><strong>Unterwegs-Blatt mit Schaltern.</strong> Die zwei Zeilen sind Dauerzustände, keine Befehle; als Karten mit Toggle sieht man an/aus auf einen Blick. Öffnen: Tour-Knopf in <a class="dv-oid" href="#1b">1b</a> antippen.</div>
+  </div>
+</div>
+</div>
+
+</div>
+<p class="dv-next">Weiter möglich: „nimm den Korb statt Weg+Pilz" · „Legende soll auch eingeklappt den Wert am Fadenkreuz zeigen" · „mach die Filter-Ansicht und das Spot-Blatt genauso"</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;tourIcon&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Weg + Pilz&quot;,&quot;Korb&quot;,&quot;Fußspur&quot;],&quot;default&quot;:&quot;Weg + Pilz&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Karte&quot;},&quot;ampelLevel&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;günstig&quot;,&quot;verhalten&quot;,&quot;ungünstig&quot;],&quot;default&quot;:&quot;ungünstig&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Karte&quot;},&quot;legendStartOpen&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Karte&quot;},&quot;showBanner&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Karte&quot;}}">
+class Component extends DCLogic {
+  state = { legend: null, sheet: false, attrib: false, tour: false, sharing: false, icon: null };
+
+  componentDidMount() {
+    try {
+      const v = localStorage.getItem('pb-legend-open');
+      if (v !== null) this.setState({ legend: v === '1' });
+    } catch (e) {}
+  }
+
+  toggleLegend() {
+    const next = !this.legendOpen();
+    this.setState({ legend: next });
+    try { localStorage.setItem('pb-legend-open', next ? '1' : '0'); } catch (e) {}
+  }
+
+  legendOpen() {
+    return this.state.legend ?? (this.props.legendStartOpen ?? true);
+  }
+
+  renderVals() {
+    const open = this.legendOpen();
+    const icon = this.state.icon ?? (this.props.tourIcon ?? 'Weg + Pilz');
+    const running = this.state.tour;
+    return {
+      deviceW: 412,
+      deviceH: 880,
+      ampelGood: (this.props.ampelLevel ?? 'ungünstig') === 'günstig',
+      ampelMild: (this.props.ampelLevel ?? 'ungünstig') === 'verhalten',
+      ampelBad: (this.props.ampelLevel ?? 'ungünstig') === 'ungünstig',
+      ampelWord: this.props.ampelLevel ?? 'ungünstig',
+      legendOpen: open,
+      legendClosed: !open,
+      toggleLegend: () => this.toggleLegend(),
+      showBanner: this.props.showBanner ?? true,
+      sheetOpen: this.state.sheet,
+      openSheet: () => this.setState({ sheet: true }),
+      closeSheet: () => this.setState({ sheet: false }),
+      attribOpen: this.state.attrib,
+      toggleAttrib: () => this.setState({ attrib: !this.state.attrib }),
+      tourRunning: running,
+      tourTitle: running ? 'Pilztour läuft' : 'Pilztour starten',
+      tourSubtitle: running
+        ? 'Seit 00:06 Uhr · 412 Punkte · Antippen beendet'
+        : 'Zeichnet deinen Weg auf und schlägt hinterher die Leergänge vor',
+      toggleTour: () => this.setState({ tour: !running, sheet: false }),
+      tourOff: !running,
+      sharing: this.state.sharing,
+      sharingOff: !this.state.sharing,
+      toggleSharing: () => this.setState({ sharing: !this.state.sharing }),
+      shareTitle: this.state.sharing
+        ? 'Standort-Teilen läuft'
+        : 'Standort mit Buddies teilen',
+      shareSubtitle: this.state.sharing
+        ? 'Läuft bis 02:30 Uhr · Antippen beendet'
+        : 'Deine Buddys sehen dich live auf ihrer Karte',
+      iconRoute: icon === 'Weg + Pilz',
+      iconBasket: icon === 'Korb',
+      iconTrail: icon === 'Fußspur',
+      pickRoute: () => this.setState({ icon: 'Weg + Pilz' }),
+      pickBasket: () => this.setState({ icon: 'Korb' }),
+      pickTrail: () => this.setState({ icon: 'Fußspur' }),
+    };
+  }
+}
+</script>
+</body>
+</html>

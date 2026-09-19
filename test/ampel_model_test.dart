@@ -101,12 +101,29 @@ void main() {
       // bedeutet dieselbe Zahl etwas anderes. Gemessen:
       // Der Austernseitling kommt mit 0,5 auf 1,1 % günstige Fundtage,
       // der Steinpilz auf 58,4 % (docs/pilzampel-ampel-vergleich.md).
-      expect(ampelLevelOf(0.6, klass: ampelHerbstClass),
+      //
+      // **Die Zahl dazwischen wird aus den Konstanten gerechnet, nicht
+      // hingeschrieben.** Bis zur Neukalibrierung vom 2026-09-19 stand
+      // hier 0,6 zwischen 0,512 und 0,677; seither liegt der Spalt
+      // woanders UND andersherum — der Pfifferling ist jetzt die
+      // großzügigere Klasse. Eine feste Zahl prüfte danach nichts mehr,
+      // ohne rot zu werden.
+      final sorted = [...ampelShippedClasses]
+        ..sort((a, b) => a.guenstigAbove.compareTo(b.guenstigAbove));
+      final (frueher, spaeter) = (sorted.first, sorted.last);
+      expect(frueher.guenstigAbove, lessThan(spaeter.guenstigAbove),
+          reason: 'stünden beide gleich, prüfte dieser Test nichts');
+      final dazwischen =
+          (frueher.guenstigAbove + spaeter.guenstigAbove) / 2;
+
+      expect(ampelLevelOf(dazwischen, klass: frueher),
           AmpelLevel.guenstig,
-          reason: 'Herbst wird ab 0,512 günstig');
-      expect(ampelLevelOf(0.6, klass: ampelSommerClass),
+          reason: '${frueher.name} wird ab ${frueher.guenstigAbove} '
+              'günstig');
+      expect(ampelLevelOf(dazwischen, klass: spaeter),
           AmpelLevel.verhalten,
-          reason: 'Sommer erst ab 0,677 — dieselbe Zahl, andere Stufe');
+          reason: '${spaeter.name} erst ab ${spaeter.guenstigAbove} — '
+              'dieselbe Zahl, andere Stufe');
     });
   });
 

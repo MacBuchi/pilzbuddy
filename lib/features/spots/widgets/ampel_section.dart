@@ -191,9 +191,23 @@ class AmpelSection extends ConsumerWidget {
             // Er sagt einmal, dass die Güte je Art verschieden ist, und
             // verweist auf das Feld in der Zeile darüber. Fünf Hinweise
             // auf sechs Arten läsen sich wie „kaputt".
+            //
+            // **Die dritte und vierte Zeile sind seit 1.144.0 da**
+            // (Betreiber, 2026-09-19). Ohne die BEZUGSMENGE bedeutet
+            // „günstig" nichts Bestimmtes — es ist kein Versprechen
+            // über Pilze, sondern eine Aussage über den Rang dieses
+            // Tages unter den Tagen der Saison. Und der Hebel ist die
+            // ehrliche Größe dahinter: Er gehört neben die
+            // Evidenzstufe und nicht in eine Fußnote, weil er als
+            // einziger sagt, wieviel der Hinweis überhaupt wert ist.
+            // 1,3-mal ist wenig und trotzdem mehr als nichts; wer das
+            // verschweigt, lässt „günstig" nach einer Zusage klingen.
             'Bewertet Bedingungen, nicht Vorkommen — Formel nach '
             'einer 10-Jahres-Studie bei Bielefeld (Preprint 2025). '
-            'Wie gut sie für eine Art belegt ist, steht je Zeile dabei.',
+            'Wie gut sie für eine Art belegt ist, steht je Zeile dabei. '
+            '„Günstig" heißt: etwa jeder fünfte Tag der Saison, dort wo '
+            'die Art vorkommt. An solchen Tagen wurde rund 1,3-mal so '
+            'oft etwas gemeldet wie an einem gewöhnlichen.',
             style: theme.textTheme.bodySmall
                 ?.copyWith(color: theme.hintColor, fontSize: 11),
           ),
