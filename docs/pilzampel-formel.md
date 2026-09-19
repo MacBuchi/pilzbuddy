@@ -75,8 +75,36 @@ ausgelieferten Zahl den robusten Fehler übersteht.
   (`docs/pilzampel-kontrolldesign.md`).
 
 **Was sich ändert:** Wer künftig liest „das Fenster des Pfifferlings ist
-gemessen", liest jetzt dazu, in welchem Design. Wer es anfassen will,
-braucht eine eigene Registrierung — und die müsste in Design B laufen.
+gemessen", liest jetzt dazu, in welchem Design.
+
+### Nachtrag vom 2026-09-19: H6 ist gelaufen und gefallen
+
+Genau diese eigene Registrierung hat es am selben Tag gegeben
+(`docs/pilzampel-h6-registrierung.md`), mit 14,0 °C als eingefrorenem
+Wert auf AT+CH. **Sie ist nicht bestanden** — und der Grund ist nicht
+nur die Auflösung: 9 von 20 Fundjahren bewegen sich in die
+Gegenrichtung. Das ist ein Münzwurf, nicht ein Effekt, den der Aufbau
+bloß nicht sieht.
+
+**Der Befund daneben wiegt schwerer als das Urteil.** Auf AT+CH steht
+die volle Ampel des Pfifferlings in Design B bei 0,545 — und der Regen
+allein bei 0,554. Die Glocke trägt **nichts** bei, und zwar bei beiden
+Fenstern (−0,009 bei 17,5 °C, +0,005 bei 14,0 °C). Dasselbe Bild auf
+P3 (0,629 gegen 0,632) und auf P1 (0,557 gegen 0,630). Drei Scheiben,
+dieselbe Richtung.
+
+**Und das trifft die Herkunft der 17,5 selbst.** Der Hold-out, der sie
+in die App gebracht hat, maß in Design A auf denselben Ländern +0,104
+gegenüber 13 °C (`docs/pilzampel-artenfenster-holdout.md`). In Design B
+auf derselben Achse ist von diesem Vorsprung nichts übrig. Die Zahl
+bleibt trotzdem stehen — eine Konstante wird nicht verschoben, weil ein
+Angriff auf sie gescheitert ist —, aber ihre Herkunftszeile ist damit
+so schwach, wie eine Herkunftszeile werden kann, ohne zu fallen.
+
+Was daraus folgt, ist **kein drittes Optimum**. Die Frage, die die
+Zahlen stellen, lautet, ob die Ampel des Pfifferlings überhaupt eine
+Temperaturaussage ist oder ein Regensignal — und das ist eine
+Produktentscheidung, keine Messung.
 
 Dieselbe Herabstufung gilt sinngemäß für **jede** Zeile, die oben
 „gemessen (Design A)" trägt. Phase 1.5 hat gezeigt, dass Design A bei den
@@ -117,7 +145,7 @@ Werkzeug.
 
 ## Stand der Dinge, 2026-09-19
 
-**Drei registrierte Versuche, die gesetzten Konstanten zu verbessern,
+**Vier registrierte Versuche, die gesetzten Konstanten zu verbessern,
 sind ergebnislos geblieben.**
 
 | # | Versuch | Ausgang | Beleg |
@@ -125,6 +153,7 @@ sind ergebnislos geblieben.**
 | 1 | **H3** — Zwei-Phasen-Wintermodell (Frostreiz, dann Wärmesumme) | **geschlossen, nicht registriert.** Die Prämisse ist gemessen und trägt nicht: Die Frost-Signatur des Samtfußrüblings (67 % gegen 44 % Frosttage) wird gegen dieselben Kalendertage anderer Jahre zu 70 % gegen 73 %. | `pilzampel-kontrolldesign.md` |
 | 2 | **H1** — schmalere Glocke, 3,25 K statt 5,0 K | **nicht bestanden.** Keine Art erreicht die Latte; bei den sechs ausgelieferten liegt der Gewinn zwischen −0,011 und +0,010. | `pilzampel-h1-ergebnis.md` |
 | 3 | **H5** — Feuchte allein, Temperatur raus | **nicht registriert.** Die Beobachtung dahinter stammte aus den Prüfjahren und kehrt auf den Anpassjahren nicht wieder: dort gilt sie bei 1 von 6 Arten statt bei 6 von 6. | `pilzampel-h5-vorpruefung-ergebnis.md` |
+| 4 | **H6** — Sommer-Optimum 14,0 °C statt 17,5 °C | **nicht bestanden** auf AT+CH. Δ +0,014 [−0,033, +0,063], p = 0,29 — und 9 von 20 Fundjahren bewegen sich in die Gegenrichtung. | `pilzampel-h6-ergebnis.md` |
 
 Dazu zwei Nachmessungen, die nichts verändert haben und viel erklären:
 das bedingte Logit mit cluster-robusten Fehlern (`pilzampel-logit.md`)

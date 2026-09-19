@@ -77,20 +77,21 @@ Fundtage gar nicht erst bewertet.
 | 8 | 2026-09-18 | Kaltklasse erneut, auf der gepinnten Messbasis | **AT + CH** (Wiederholung von #4) | nicht bestanden, Begründung von #4 trägt nicht mehr | `pilzampel-messbasis.md` |
 | 9 | 2026-09-18 | H1: σ = 3,25 K gegen 5,0 K | DE ≥ 2019 (P1) | **nicht bestanden** | `pilzampel-h1-ergebnis.md` |
 | 10 | 2026-09-18 | H1, Reisetest derselben Frage | **AT + CH** (P2) | Pfifferling kippt nach unten | `pilzampel-h1-ergebnis.md` |
+| 11 | 2026-09-19 | H6: Sommer-Optimum 14,0 °C statt 17,5 °C | **AT + CH** | **nicht bestanden** — Δ +0,014, p = 0,29, und 9 von 20 Fundjahren bewegen sich in die Gegenrichtung | `pilzampel-h6-ergebnis.md` |
 
 ### Stand je Achse
 
 | Achse | Läufe | davon bestanden |
 |---|--:|--:|
 | DE ≥ 2019 | 3 (#1, #3, #9) | 1½ |
-| **AT + CH** | **5** (#2, #4, #5, #8, #10) | 1 |
+| **AT + CH** | **6** (#2, #4, #5, #8, #10, #11) | 1 |
 | fremde Arten | 1 (#7) | 0 — der Plan war fehlerhaft |
 
 ---
 
 ## Was diese Liste sagt
 
-**AT + CH ist die meistbenutzte und die knappste Achse.** Fünf Läufe,
+**AT + CH ist die meistbenutzte und die knappste Achse.** Sechs Läufe,
 davon #8 eine Wiederholung von #4 auf neuer Messbasis. Die
 Meldungszahlen dort sind klein (Austernseitling 288, Samtfußrübling 367),
 und jede weitere Frage macht die verbleibenden enger — nicht rechnerisch,
