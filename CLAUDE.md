@@ -201,6 +201,19 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   Live-Schema passen — ohne eingespielten Patch ist kein Merge möglich
   (Lehre aus Issue #27). Der Release-Workflow wiederholt beides als
   Sicherheitsnetz vor dem Ausliefern.
+  **Ein Wächter darf sich irren, aber nie die Ursache erfinden.** Seit
+  #457 trennt `app_config` „Dienst nicht erreichbar" von einem echten
+  Befund; seit dem 2026-09-20 gilt das für ALLE Abfragen
+  (`response_diagnosis`, im `--self-test` mitgeprüft). Vorher machte ein
+  `curl`-Timeout zwei Sorten Schaden: Die Schlussmeldung riet zu einem
+  fehlenden `patch_NNN` — also ausgerechnet dazu, SQL anzufassen —, und
+  bei den geschützten RPCs trug die Ersatzantwort selbst ein `"code"`
+  und galt damit als „vorhanden und für anon gesperrt". Ein Netzaussetzer
+  erzeugte dort ein grünes Häkchen auf einer RECHTE-Prüfung. Eine
+  erfundene Ursache kostet Zeit, ein erfundener Erfolg kostet die
+  Prüfung. Transport-Fehler zählen jetzt getrennt, scheitern den Lauf
+  („unentschieden") und sagen, dass er zu wiederholen ist.
+
   Vorgeschaltet ist der Pflicht-Check „Schema Dry Run" (`needs:` am Schema
   Check): ein lokaler Supabase-Stack auf dem Runner (`supabase/config.toml`,
   bewusst minimal — nur db, auth, api) fährt **beide** Wege, die es in der
