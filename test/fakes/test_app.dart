@@ -209,6 +209,17 @@ List<Override> overridesFor(FakeBackend backend,
         return Stream.fromFuture(
             ref.watch(liveShareRepositoryProvider).fetchFriendLocations());
       }),
+      // Dasselbe für die Buddy-Spuren (#340): einmal laden statt
+      // Minutenschleife. Das TOR bleibt echt — ohne geteilten Standort
+      // wird auch im Test nicht gefragt, sonst prüfte kein Test mehr,
+      // dass die Spur an der Freigabe hängt.
+      friendTracksProvider.overrideWith((ref) {
+        final sharing =
+            ref.watch(friendLocationsProvider).valueOrNull ?? const [];
+        if (sharing.isEmpty) return Stream.value(const []);
+        return Stream.fromFuture(
+            ref.watch(tourTrackRepositoryProvider).fetchFriendTracks());
+      }),
       tileProviderFactoryProvider.overrideWithValue(FakeTileProvider.new),
       // Auch die Regenebene und ihre Legende holen sonst echte Bilder vom
       // DWD — dieselbe Naht wie beim Kachel-Provider.

@@ -869,6 +869,24 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     Die vier Stellen, an denen die alte Zusage stand, sind im selben PR
     mitgezogen: `web/datenschutz.html`, `docs/play-console.md`,
     `docs/datenschutz-nachweise.md` und dieser Abschnitt.
+  - **Die Anzeige (1.148.0) hat kein eigenes Tor.** `friendTracksProvider`
+    hängt am ERGEBNIS von `friendLocationsProvider`: Eine Spur gibt es
+    nur, wo ein geteilter Standort ist, also spart man sich den Poll,
+    wenn niemand teilt — statt dessen drei Tore (Freundschaft,
+    Vordergrund, träger Takt) zu kopieren. `select` auf „teilt überhaupt
+    jemand", nicht auf die Liste: Der Standort-Strom liefert alle paar
+    Sekunden neu und baute die Schleife sonst jedes Mal neu auf.
+    Der Takt ist der des SENDERS (`kTrackUploadInterval`) — häufiger zu
+    fragen, als geschrieben wird, holt dieselben Punkte noch einmal.
+    Im Test ist der Provider wie `friendLocationsProvider` auf einen
+    Einmal-Abruf überschrieben (`test/fakes/test_app.dart`), sonst
+    hinge nach jedem Widget-Test ein Timer.
+    **Die Farbe je Buddy kommt aus der Spanne, nicht aus einem
+    Sonderfall**: 190°…429°, umgebrochen also [190°,359°] ∪ [0°,69°] —
+    `forestGreen` (~123°) liegt außerhalb. Ein erster Entwurf hatte
+    zusätzlich einen Sprung über den grünen Sektor; die Gegenprobe zeigte
+    ihn als toten Code (entfernen ließ den Test grün). Wer die Spanne
+    ändert, muss den Test lesen.
 - **Das Ampel-Banner rechnet beim Start, nicht auf einem Server**
   (Baustein B aus #277, seit 1.101.0): Ein Hinweis auf der Karte, wenn
   die Ampel an einem EIGENEN Spot günstig steht
