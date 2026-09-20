@@ -20,3 +20,6 @@ class _NoKeepAlive implements DownloadKeepAlive {
 }
 
 DownloadKeepAlive createDownloadKeepAlive() => const _NoKeepAlive();
+
+/// Web: es gibt kein Service-Isolate, also auch nichts anzumelden.
+void initKeepAliveCommunicationImpl() {}

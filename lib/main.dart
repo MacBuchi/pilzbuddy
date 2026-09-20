@@ -14,6 +14,7 @@ import 'core/tile_memory.dart';
 import 'data/error_report_repository.dart';
 import 'data/exit_info_repository.dart';
 import 'data/exit_reporting.dart';
+import 'features/offline_maps/download_keep_alive.dart';
 
 Future<void> main() async {
   final binding = WidgetsFlutterBinding.ensureInitialized();
@@ -21,6 +22,11 @@ Future<void> main() async {
   // großzügigen Vorgabe (siehe lib/core/tile_memory.dart, Issue #142).
   applyTileImageBudget(
       binding.platformDispatcher.views.firstOrNull?.physicalSize);
+  // Die Rückrichtung des Service-Isolates — vor allem, was eine Tour
+  // starten könnte (#465). Ohne sie schreibt die Pilztour zwar jeden
+  // Takt, meldet ihn der Karte aber ins Leere; auf Web tut die Zeile
+  // nichts.
+  initKeepAliveCommunication();
   registerMapDataLicense();
   await Supabase.initialize(
     url: SupabaseConfig.url,

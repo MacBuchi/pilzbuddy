@@ -52,6 +52,29 @@ abstract class DownloadKeepAlive {
   Future<void> stop();
 }
 
+/// Meldet den Main-Isolate als Empfänger für das Service-Isolate an.
+///
+/// **Gehört in `main()`, vor `runApp` — ohne sie ist die Rückrichtung
+/// stumm** (#465). `FlutterForegroundTask.sendDataToMain` schlägt seinen
+/// Port über `IsolateNameServer.lookupPortByName` nach, und angelegt wird
+/// der ausschließlich hier; das Paket ruft es nie von selbst. Fehlt die
+/// Anmeldung, findet der Aufruf drüben `null` vor und verwirft die
+/// Meldung — ohne Fehler, ohne Spur.
+///
+/// Genau das ist seit #342 (1.103.0) passiert: Die Pilztour schrieb jeden
+/// Takt korrekt in die Datei und meldete ihn ins Leere. Die Karte kannte
+/// deshalb nur den einen Punkt, den `_firstFix` noch im Main-Isolate
+/// beisteuert — als Punkt ein Pünktchen am Start, als Linie gar nichts
+/// (`tourTrackPolyline` braucht zwei). Sichtbar wurde es erst am
+/// Linien-Modus, und der Weg war die ganze Zeit vollständig auf der
+/// Platte: Ein Neustart holte ihn über `restore()` zurück.
+///
+/// Sie ist bewusst getrennt vom [DownloadKeepAlive]-Vertrag: Die
+/// Anmeldung gilt dem PROZESS und nicht einem Melder, sie passiert genau
+/// einmal beim Start, und sie muss auch dann laufen, wenn nie ein
+/// Download und nie eine Tour startet.
+void initKeepAliveCommunication() => initKeepAliveCommunicationImpl();
+
 /// Plattform-Implementierung: Foreground-Service auf Android, sonst nichts.
 /// Tests überschreiben diesen Provider (siehe `test/fakes/test_app.dart`).
 final downloadKeepAliveProvider =

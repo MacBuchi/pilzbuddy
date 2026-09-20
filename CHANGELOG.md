@@ -7,6 +7,20 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Pilztour zeichnet wieder sichtbar mit
+
+*20. September 2026 · Version 1.143.1*
+
+Während einer Pilztour blieb die Karte leer: Der zurückgelegte Weg
+erschien erst, wenn man die App einmal geschlossen und wieder geöffnet
+hatte. Wer die Spur als Linie eingestellt hatte, sah bis dahin gar
+nichts, wer sie als Punkte anzeigen ließ, nur den Startpunkt.
+
+Aufgezeichnet wurde die ganze Zeit alles — verloren gegangen ist nie
+etwas, auch nicht bei den Touren aus den letzten Wochen. Nur der Weg von
+der Aufzeichnung zur Karte war unterbrochen. Jetzt wächst die Spur
+wieder mit, während du gehst.
+
 ## Die Ampel sagt jetzt, wie sicher sie sich ist
 
 *19. September 2026 · Version 1.143.0*
