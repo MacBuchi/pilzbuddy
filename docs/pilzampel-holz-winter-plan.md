@@ -146,8 +146,8 @@ class AmpelLogitClass extends AmpelClass { bRain, bT, bT2, bM, bMT }        // n
   rechnet zuerst nur am Spot und steht in der Legende als „nur am Spot“;
   das ist eine Betreiberentscheidung, Vorgabe ist die Fläche.
 - Klassenschlüssel `holz_winter`, Anzeigename nach Mitgliedern:
-  **„Judasohr & Co.“** (Vorschlag; Regel aus 1.137.0: nach Mitgliedern,
-  nicht nach Jahreszeit).
+  **„Austernseitling & Co.“** (Betreiber, 2026-09-20: „Judasohr ist
+  nicht der aussagekräftigste Winterpilz“).
 - `ampelSpeciesClass`: die acht Arten → `holz_winter`. Judasohr,
   Austernseitling und Samtfußrübling hatten am 2026-09-13 den
   Kalt-Hold-out mit einer GLOCKE bei −1 °C nicht bestanden
@@ -224,3 +224,33 @@ Kein neuer Beleg. Alle Zahlen sind gemessen und stehen in den
 Laborberichten; dieses Dokument übersetzt sie in Code-Änderungen. Der
 Testteil ist für Auswahl tabu — wer an den Konstanten dreht, misst neu
 und schreibt das Datum dazu.
+
+## Nachtrag 2026-09-20 — die Entscheidungen des Betreibers, und was sich am Schnitt ändert
+
+1. **Anzeigename:** „Austernseitling & Co.“ (Schlüssel `holz_winter`).
+2. **Fläche in PR 3**, ja. Die Klassen werden über die **Chips im
+   Filtermenü** zugeschnitten — wie seit 1.142.0; neue Klassen erscheinen
+   dort, weil die Chips aus `ampelClasses` kommen.
+3. **Cantharellales** (Leistlinge: die Ordnung, zu der auch der
+   Pfifferling gehört; in den Daten steht er aber für sich) wird
+   angelegt — als **„Herbsttrompete & Co.“** {Herbsttrompete,
+   Semmelstoppelpilz, Trompetenpfifferling}, Schlüssel `cantharellales`,
+   Logit, **nur für Deutschland belegt** (die App ist hauptsächlich auf
+   Deutschland ausgelegt). Die Herbsttrompete verlässt damit
+   „Steinpilz & Co.“; deren Schwellen werden mit vier Mitgliedern neu
+   gemessen — in PR 3, zusammen mit dem Umzug, damit Werkzeug und App
+   nie verschiedene Mitglieder sehen.
+4. **Basis:** `main` ist in `feat/ampel-auftrag-3` gemergt (0e18b56);
+   PR 2 setzt darauf auf.
+
+**Der Schnitt, wie er jetzt läuft:**
+
+| PR | Stand | Inhalt |
+|---|---|---|
+| #482 (PR 1) | offen | Bodenfeuchte-Stationen in Tabelle und Spot-Blatt, 1.149.0 |
+| #485 (PR 2) | offen | `tool/ampel_logit_klasse.py` (Spiegel, Schwellen gemessen und gepinnt), **Pfifferling 14,5 °C** samt neu gemessener Schwellen und Evidenzstufe `vorlaeufig`, 1.150.0 — Pfifferling ist von PR 3 hierher gewandert, weil `ampel_validate --self-test` Werkzeug und Dart zusammenhält und ein Werkzeug-only-PR sonst rot wäre |
+| PR 3 | folgt | `AmpelLogitClass`, beide Klassen, Herbsttrompete-Umzug + `herbst`-Schwellen neu, Fläche mit Feuchtestation je Zelle, Evidenzstufen, Changelog |
+| PR 4 | Vorschlag | **Reiter „Pilze“**: die Klassen und ihre Arten, je Art eine Mini-Saisonkurve, hervorgehoben, was gerade Saison hat (Kurve über einer Schwelle, z. B. 15 %). Damit bleibt für den Nutzer transparent, was wozu gehört. Eigener Plan vor der Umsetzung. |
+
+Reihenfolge beim Mergen: #482, dann #485 (trägt 1.150.0; wer #485 zuerst
+mergt, muss #482 auf 1.151.0 heben), dann PR 3.
