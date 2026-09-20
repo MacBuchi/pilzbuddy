@@ -801,6 +801,24 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
       und über die Brücke gereicht; `recordTourTick` fängt alles, weil
       eine durchgereichte Ausnahme dort niemanden hat, der sie fängt —
       und die Tour für den Rest des Wegs still beenden würde.
+    - **Die Rückrichtung muss in `main()` ANGEMELDET werden** (#465,
+      behoben in 1.143.1). `sendDataToMain` schlägt seinen Port über
+      `IsolateNameServer.lookupPortByName` nach, und angelegt wird der
+      ausschließlich von `FlutterForegroundTask.initCommunicationPort()`
+      — das Paket ruft es nie von selbst, es steht als Zeile für `main()`
+      in dessen README. Sie hat von #342 an gefehlt: Jeder Takt landete
+      korrekt in der Datei und die Meldung im Nichts, weil
+      `sendPort?.send(data)` auf `null` still durchfällt. Vier Wochen
+      unbemerkt, und zwar weil `_firstFix` noch im Main-Isolate
+      `acceptTick` ruft — die Karte hatte damit GENAU EINEN Punkt: als
+      Punkt ein Pünktchen unterm Fadenkreuz, das nach „läuft" aussieht,
+      als Linie gar nichts (`tourTrackPolyline` braucht zwei). Gemeldet
+      wurde deshalb „die Linie geht nicht", kaputt war die Anzeige
+      insgesamt. Verloren ging nie etwas; ein Neustart holte den Weg
+      über `restore()` zurück, und genau das war beim Nachstellen der
+      entscheidende Kontrollversuch. `test/tour_live_bridge_test.dart`
+      prüft Rundlauf, Gegenprobe UND die Zeile in `main.dart` — die
+      ersten beiden allein leuchten grün, während die App steht.
     Ebenfalls gefallen: das `timeLimit` von 20 s auf dem Fix. Es machte
     aus jedem langsamen Hintergrund-Fix stillschweigend gar keinen.
   - **Der Track liegt in `tours/` als JSON Lines** und wird beim Gehen
