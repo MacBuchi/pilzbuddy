@@ -25,13 +25,6 @@ abstract interface class Settings {
   Future<void> setOfflineMapEnabled(bool value);
 
   /// Bisherige Karten-Engine (flutter_map) statt der neuen (MapLibre)?
-  /// Seit der Abnahme des Direktvergleichs (docs/map-performance.md) ist
-  /// MapLibre auf Android Standard; dieser Schalter ist das Opt-out und
-  /// bleibt mindestens eine Release-Reihe als Rückfalllinie.
-  bool get classicMapEnabled;
-
-  Future<void> setClassicMapEnabled(bool value);
-
   /// Ist die Legende aktiver Ebenen AUSGEKLAPPT? (#231)
   ///
   /// Standardmäßig JA — eine Fläche ohne Legende bedeutet nichts, das
@@ -67,10 +60,10 @@ abstract interface class Settings {
   /// Bewegungstoleranz einstellen. Zum Heranzoomen gibt es den Doppeltipp,
   /// den beide Engines ohnehin können.
   ///
-  /// Gespeichert wird das FEATURE, nicht sein Opt-out — anders als bei
-  /// [classicMapEnabled]. Dort war „aus" der Sonderfall, hier ist es der
-  /// Normalzustand, und ein doppelt verneinter Schlüssel wäre beim Lesen
-  /// eine Stolperfalle.
+  /// Gespeichert wird das FEATURE, nicht sein Opt-out. Der
+  /// Engine-Schalter machte es bis #433 andersherum, weil dort „aus" der
+  /// Sonderfall war; hier ist er der Normalzustand, und ein doppelt
+  /// verneinter Schlüssel wäre beim Lesen eine Stolperfalle.
   bool get mapLongPressEnabled;
 
   Future<void> setMapLongPressEnabled(bool value);
@@ -302,12 +295,12 @@ class PrefsSettings implements Settings {
 
   static const _offlineMapEnabledKey = 'offline_map_enabled';
 
-  /// Bewusst ein NEUER Schlüssel: Der Beta-Schalter (1.39.0–1.42.0)
-  /// speicherte ein Opt-in unter 'maplibre_enabled', und ein dort
-  /// hinterlegtes false hieß nur „Beta nicht angefasst" — es darf die
-  /// neue Standard-Engine nicht abschalten. Das Opt-out ist eine
-  /// frische, bewusste Entscheidung; der alte Schlüssel wird ignoriert.
-  static const _classicMapEnabledKey = 'classic_map_enabled';
+  // Zwei Schlüssel liegen auf Bestandsgeräten herum und werden NIE
+  // wieder gelesen: 'maplibre_enabled' (Beta-Opt-in, 1.39.0–1.42.0) und
+  // 'classic_map_enabled' (das Opt-out danach, 1.43.0–1.145.0). Seit
+  // #433 gibt es auf Android nur noch MapLibre. Aufräumen lohnt nicht —
+  // ein `remove` beim Start wäre Code, der genau einmal etwas tut und
+  // danach für immer nichts.
 
   @override
   bool get offlineMapEnabled => _prefs.getBool(_offlineMapEnabledKey) ?? false;
@@ -330,19 +323,12 @@ class PrefsSettings implements Settings {
       _prefs.setBool(_mapLegendEnabledKey, value);
 
   @override
-  bool get classicMapEnabled => _prefs.getBool(_classicMapEnabledKey) ?? false;
-
-  @override
   bool get mapLongPressEnabled =>
       _prefs.getBool(_mapLongPressEnabledKey) ?? false;
 
   @override
   Future<void> setMapLongPressEnabled(bool value) =>
       _prefs.setBool(_mapLongPressEnabledKey, value);
-
-  @override
-  Future<void> setClassicMapEnabled(bool value) =>
-      _prefs.setBool(_classicMapEnabledKey, value);
 
   @override
   bool get rainCourseEnabled => _prefs.getBool(_rainCourseEnabledKey) ?? false;

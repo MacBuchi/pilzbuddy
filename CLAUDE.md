@@ -1259,17 +1259,31 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   MapLibre (nativer Renderer, `maplibre` 0.3.5 exakt gepinnt) hinter der
   MapView-Fassade (`lib/features/map/map_view/`); Grundlage ist der
   nachgemessene Direktvergleich in `docs/map-performance.md`
-  (Wiederholung: `tool/measure_map.sh`). Der Profil-Schalter ist ein
-  OPT-OUT zur bisherigen flutter_map-Karte (`classicMapEnabled`,
-  bewusst neuer Prefs-Schlüssel — der alte Beta-Schlüssel
-  `maplibre_enabled` wird ignoriert, sonst bliebe ein nie angefasstes
-  Beta-„aus" als Opt-out kleben). Die Rückfalllinie bleibt mindestens
-  eine Release-Reihe; der flutter_map-Android-Pfad wird erst nach einer
-  Beobachtungsphase über den Wochendigest aufgeräumt. Web rendert
-  weiterhin flutter_map (bedingter Import, Web-Build sieht
-  `package:maplibre` nie). Die folgenden flutter_map-Notizen
-  (Stellschrauben, Kamera-Wächter, TileProvider-Lebenszyklus) gelten
-  für diesen Rückfall- und den Web-Pfad.
+  (Wiederholung: `tool/measure_map.sh`). Web rendert weiterhin
+  flutter_map (bedingter Import, Web-Build sieht `package:maplibre`
+  nie).
+  **Seit 1.146.0 (#433) gibt es dazwischen keinen Schalter mehr.** Das
+  Profil-Opt-out (`classicMapEnabled`) war als befristete Rückfalllinie
+  gedacht, und die Frist ist um: zehn Wochendigests ohne einen einzigen
+  Fund gegen MapLibre. Die Engine-Wahl ist jetzt `if (!kIsWeb)` in
+  `mapViewBuilderProvider` — eine Kompilierzeit-Konstante, in jedem
+  Build vorentschieden. Zwei Prefs-Schlüssel liegen auf
+  Bestandsgeräten herum und werden nie wieder gelesen
+  (`maplibre_enabled` aus der Beta, `classic_map_enabled` danach);
+  `map_engine.dart` ist gelöscht.
+  **Kleiner wird das APK dadurch NICHT**, und das ist die Korrektur an
+  der Annahme im Issue: `maplibre_map_view.dart` fällt selbst auf
+  `FlutterMapView` zurück, wenn der Style nicht baut — ohne Style lieber
+  die alte Karte als gar keine. Dazu benutzt die Mini-Karte (#373)
+  flutter_map ohnehin auf jeder Plattform. Gemessen am `github`-Flavor:
+  130 396 207 Bytes vorher, 130 396 251 danach — **44 Bytes MEHR**, also
+  Rauschen der ZIP-Kompression. Der Gewinn ist ein Zustand weniger,
+  keine Größe. `test/map_engine_choice_test.dart`
+  nagelt beide Seiten fest — dass Android MapLibre bekommt UND dass der
+  Rückfall im Build bleibt.
+  Die folgenden flutter_map-Notizen (Stellschrauben, Kamera-Wächter,
+  TileProvider-Lebenszyklus) gelten für diesen Rückfall- und den
+  Web-Pfad.
 - **`alignment` bedeutet in den beiden Karten-Engines das GEGENTEIL**
   (#409, behoben in 1.123.0): Beide nehmen ein `Alignment` und rechnen
   daraus die Bildschirmposition — flutter_map als

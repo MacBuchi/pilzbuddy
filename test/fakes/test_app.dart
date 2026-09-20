@@ -129,11 +129,19 @@ List<Override> overridesFor(FakeBackend backend,
           ),
         ),
       // `useRealMap` heißt flutter_map-Interna prüfen (Layer, Puffer,
-      // Kamera-Wächter) — seit dem Default-Flip wählt es die klassische
-      // Engine ausdrücklich: Die MapLibre-Platform-View ist im Widget-Test
-      // nicht renderbar, ihr Gate ist das Gerät.
-      settingsProvider.overrideWithValue(
-          settings ?? FakeSettings(classicMapEnabled: useRealMap)),
+      // Kamera-Wächter). Die Engine wird dafür DIREKT gesetzt und nicht
+      // mehr über eine Einstellung: Seit #433 gibt es keine mehr, und
+      // die MapLibre-Platform-View ist im Widget-Test ohnehin nicht
+      // renderbar — ihr Gate ist das Gerät.
+      if (useRealMap)
+        mapViewBuilderProvider.overrideWithValue(
+          (config, controller, markers) => FlutterMapView(
+            config: config,
+            controller: controller,
+            markers: markers,
+          ),
+        ),
+      settingsProvider.overrideWithValue(settings ?? FakeSettings()),
       // Kein Method-Channel im Test: Der Update-Dialog würde sonst gegen
       // Androids System-Installer laufen.
       apkInstallerProvider.overrideWithValue(apkInstaller ?? FakeApkInstaller()),
