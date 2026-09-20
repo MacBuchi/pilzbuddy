@@ -43,16 +43,29 @@ Damit das keine Ausrede bleibt, steht unten eine **Leave-one-out-Spalte**: was d
 | Maronenröhrling | Steinpilz & Co. | 1109 | 5545 | 7 |
 | Birkenpilz | Steinpilz & Co. | 564 | 2820 | 7 |
 | Fichtenreizker | Steinpilz & Co. | 378 | 1890 | 7 |
+<<<<<<< HEAD
 | Pfifferling | Pfifferling | 605 | 3021 | 7 |
 
+=======
+| Herbsttrompete ⚠ | Steinpilz & Co. | 145 | 725 | 7 |
+| Pfifferling | Pfifferling | 605 | 3021 | 7 |
+
+⚠ unter 150 Funden — trägt kein eigenes Urteil, steuert aber zum Klassenquantil bei (Korrekturkasten).
+
+>>>>>>> origin/main
 ## Die Schwellen je Klasse
 
 Die auslieferbare Zahl: dasselbe Design wie im P3-Bericht, aber die Jahre, in denen die App läuft.
 
 | Klasse | Stufe | ausgeliefert | Design B auf P1 | 95 % |
 |---|---|--:|--:|---|
+<<<<<<< HEAD
 | Steinpilz & Co. | verhalten | 0.187 | 0.393 | [0.362, 0.422] |
 |  | günstig | 0.512 | 0.747 | [0.714, 0.779] |
+=======
+| Steinpilz & Co. | verhalten | 0.187 | 0.389 | [0.355, 0.422] |
+|  | günstig | 0.512 | 0.742 | [0.710, 0.772] |
+>>>>>>> origin/main
 | Pfifferling | verhalten | 0.287 | 0.348 | [0.310, 0.391] |
 |  | günstig | 0.677 | 0.669 | [0.628, 0.699] |
 ### Trägt eine einzelne Art die Zahl?
@@ -61,10 +74,18 @@ Die Klassenschwelle, jeweils **ohne** ein Mitglied. Bei fünf Mitgliedern versch
 
 | Klasse | ohne … | verhalten | günstig |
 |---|---|--:|--:|
+<<<<<<< HEAD
 | Steinpilz & Co. | Steinpilz | 0.398 | 0.751 |
 |  | Maronenröhrling | 0.390 | 0.750 |
 |  | Birkenpilz | 0.392 | 0.746 |
 |  | Fichtenreizker | 0.389 | 0.741 |
+=======
+| Steinpilz & Co. | Steinpilz | 0.393 | 0.744 |
+|  | Maronenröhrling | 0.386 | 0.743 |
+|  | Birkenpilz | 0.388 | 0.739 |
+|  | Fichtenreizker | 0.386 | 0.737 |
+|  | Herbsttrompete | 0.393 | 0.747 |
+>>>>>>> origin/main
 
 ## Was sich für Nutzer ändert
 
@@ -72,10 +93,18 @@ Gemessen an denselben Design-B-Kontrolltagen. „Kontrolltage“ sind Tage an Pi
 
 | Art | Kontrolltage günstig, alt → neu |
 |---|--:|
+<<<<<<< HEAD
 | Steinpilz | 35,9 % → 19,3 % |
 | Maronenröhrling | 37,8 % → 19,5 % |
 | Birkenpilz | 37,7 % → 20,1 % |
 | Fichtenreizker | 37,9 % → 21,0 % |
+=======
+| Steinpilz | 35,9 % → 19,6 % |
+| Maronenröhrling | 37,8 % → 19,8 % |
+| Birkenpilz | 37,7 % → 20,5 % |
+| Fichtenreizker | 37,9 % → 21,5 % |
+| Herbsttrompete | 34,4 % → 18,7 % |
+>>>>>>> origin/main
 | Pfifferling | 19,2 % → 20,0 % |
 
 **Die Fundtagsspalte fehlt hier mit Absicht.** Ihr Anteil über der Schwelle ist eine Trefferquote, und die ist auf dieser Scheibe gesperrt. Wie verlässlich der Hinweis ist, steht im P3-Bericht; was hier steht, ist allein, **wie oft** er erscheint.
@@ -88,6 +117,7 @@ Anteil der Kontrolltage, an denen die Ampel **günstig** stünde. Monate unter 5
 | Art | Monat | Anteil des Materials | alt | neu |
 |---|---|--:|--:|--:|
 | Steinpilz | August | 11 % | 7,7 % | 1,7 % |
+<<<<<<< HEAD
 |  | September | 28 % | 27,3 % | 13,8 % |
 |  | Oktober | 45 % | 54,1 % | 32,1 % |
 |  | November | 11 % | 21,5 % | 5,2 % |
@@ -103,6 +133,28 @@ Anteil der Kontrolltage, an denen die Ampel **günstig** stünde. Monate unter 5
 |  | September | 24 % | 40,2 % | 24,2 % |
 |  | Oktober | 47 % | 51,0 % | 30,0 % |
 |  | November | 19 % | 17,0 % | 4,2 % |
+=======
+|  | September | 28 % | 27,3 % | 13,9 % |
+|  | Oktober | 45 % | 54,1 % | 32,6 % |
+|  | November | 11 % | 21,5 % | 5,2 % |
+| Maronenröhrling | August | 7 % | 8,4 % | 2,8 % |
+|  | September | 21 % | 28,1 % | 13,9 % |
+|  | Oktober | 48 % | 55,7 % | 32,7 % |
+|  | November | 21 % | 22,2 % | 5,3 % |
+| Birkenpilz | August | 8 % | 4,7 % | 0,0 % |
+|  | September | 32 % | 25,3 % | 11,8 % |
+|  | Oktober | 46 % | 55,5 % | 33,7 % |
+|  | November | 8 % | 34,5 % | 11,0 % |
+| Fichtenreizker | August | 7 % | 14,2 % | 4,8 % |
+|  | September | 24 % | 40,2 % | 24,2 % |
+|  | Oktober | 47 % | 51,0 % | 30,8 % |
+|  | November | 19 % | 17,0 % | 4,2 % |
+| Herbsttrompete | Juli | 6 % | 8,2 % | 0,0 % |
+|  | August | 11 % | 7,0 % | 1,9 % |
+|  | September | 16 % | 19,1 % | 11,8 % |
+|  | Oktober | 47 % | 53,2 % | 33,2 % |
+|  | November | 19 % | 27,4 % | 5,0 % |
+>>>>>>> origin/main
 | Pfifferling | Juni | 13 % | 31,0 % | 31,0 % |
 |  | Juli | 13 % | 8,3 % | 8,8 % |
 |  | August | 17 % | 16,7 % | 17,5 % |
@@ -110,12 +162,20 @@ Anteil der Kontrolltage, an denen die Ampel **günstig** stünde. Monate unter 5
 |  | Oktober | 20 % | 25,7 % | 27,5 % |
 |  | November | 8 % | 2,7 % | 2,7 % |
 
+<<<<<<< HEAD
 **Im Oktober** — dem Monat mit dem meisten Material — sinkt der Anteil günstiger Tage im Median über 5 Arten von 54,1 % auf 32,1 %. Der Median und nicht der Durchschnitt, weil der Pfifferling im Oktober praktisch nie günstig steht und einen Schnitt nach unten zöge, der für keine Art gilt. Auf die 31 Oktobertage gerechnet: 16,8 grüne Tage vorher, 10,0 nachher — es fallen 6,8 weg. **Das ist die Zahl, an der entschieden wird.**
+=======
+**Im Oktober** — dem Monat mit dem meisten Material — sinkt der Anteil günstiger Tage im Median über 6 Arten von 53,6 % auf 32,7 %. Der Median und nicht der Durchschnitt, weil der Pfifferling im Oktober praktisch nie günstig steht und einen Schnitt nach unten zöge, der für keine Art gilt. Auf die 31 Oktobertage gerechnet: 16,6 grüne Tage vorher, 10,1 nachher — es fallen 6,5 weg. **Das ist die Zahl, an der entschieden wird.**
+>>>>>>> origin/main
 
 
 ## Was die Zahlen sagen
 
+<<<<<<< HEAD
 **Die ausgelieferte Schwelle hält ihr Versprechen nicht.** Gegen die Tage gemessen, für die sie gelten soll — gleicher Ort, gleiche Zeit im Jahr, andere Jahre — steht die Ampel an 37,7 % der Saisontage auf günstig. Vorgesehen war 20 %, also etwa jeder fünfte Tag. Das ist das 1,9-fache,
+=======
+**Die ausgelieferte Schwelle hält ihr Versprechen nicht.** Gegen die Tage gemessen, für die sie gelten soll — gleicher Ort, gleiche Zeit im Jahr, andere Jahre — steht die Ampel an 36,8 % der Saisontage auf günstig. Vorgesehen war 20 %, also etwa jeder fünfte Tag. Das ist das 1,8-fache,
+>>>>>>> origin/main
 
 **Die neue Schwelle stellt das Versprechen wieder her**, ohne eine Modellzahl anzufassen. Fenster, Breite und Regenkurve bleiben Zahl für Zahl, wie sie sind; es ändert sich nur, wo der Schnitt liegt.
 

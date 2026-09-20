@@ -108,12 +108,17 @@ void main() {
       // woanders UND andersherum — der Pfifferling ist jetzt die
       // großzügigere Klasse. Eine feste Zahl prüfte danach nichts mehr,
       // ohne rot zu werden.
+<<<<<<< HEAD
       // Nur die Glockenklassen: Die Logit-Klassen rechnen auf der Skala
       // von `s`, und „dieselbe Zahl" gibt es zwischen den Skalen nicht.
       final sorted = [
         for (final k in ampelShippedClasses)
           if (k.logit == null) k
       ]..sort((a, b) => a.guenstigAbove.compareTo(b.guenstigAbove));
+=======
+      final sorted = [...ampelShippedClasses]
+        ..sort((a, b) => a.guenstigAbove.compareTo(b.guenstigAbove));
+>>>>>>> origin/main
       final (frueher, spaeter) = (sorted.first, sorted.last);
       expect(frueher.guenstigAbove, lessThan(spaeter.guenstigAbove),
           reason: 'stünden beide gleich, prüfte dieser Test nichts');

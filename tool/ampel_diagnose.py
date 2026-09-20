@@ -1271,9 +1271,13 @@ def self_test():
     # Nur ausgelieferte Klassen. `holz` und `kalt` haben kein Fenster in
     # der App, also auch keine Schwelle, die man ersetzen koennte.
     assert {g for _, g, _ in SCHWELLEN_ARTEN} == {"herbst", "sommer"}
+<<<<<<< HEAD
     # Fuenf seit dem Umzug der Herbsttrompete (2026-09-20): vier in
     # `herbst`, der Pfifferling in `sommer`.
     assert len(SCHWELLEN_ARTEN) == 5, SCHWELLEN_ARTEN
+=======
+    assert len(SCHWELLEN_ARTEN) == 6, SCHWELLEN_ARTEN
+>>>>>>> origin/main
 
     # **Die Scheibenwahl und ihr Riegel** (Betreiber, 2026-09-19).
     class _Args:
@@ -3724,12 +3728,17 @@ SCHWELLEN_ROUNDS = 2000
 # Fenster; als das Pfifferling-Fenster auf 14,5 °C gesetzt wurde, mass
 # dieser Lauf still weiter mit den 17,5 aus der Diagnosetabelle und
 # lieferte die alten Zahlen — eine zweite Quelle fuer dieselbe Konstante.
+<<<<<<< HEAD
 # **Und die Mitglieder ebenso** — seit dem Umzug der Herbsttrompete
 # (2026-09-20) misst die Klassenschwelle genau die Arten, die die App der
 # Klasse zuordnet, nicht die Diagnose-Tabelle von damals.
 SCHWELLEN_ARTEN = [(n, g, av.AMPEL_CLASSES[g]["optimum"])
                    for g in ("herbst", "sommer")
                    for n in av.AMPEL_CLASSES[g]["members"]]
+=======
+SCHWELLEN_ARTEN = [(n, g, av.AMPEL_CLASSES[g]["optimum"])
+                   for n, g, _ in DESIGN_ARTEN if g in ("herbst", "sommer")]
+>>>>>>> origin/main
 
 # **Eine eigene Untergrenze, und zwar eine niedrigere als `MIN_FINDS_B`.**
 # Nachtraeglich gesetzt, am 2026-09-19, und deshalb im Korrekturkasten

@@ -160,6 +160,7 @@ typedef AmpelClass = ({
 const ampelHerbstClass = (
   name: 'Steinpilz & Co.',
   optimumC: ampelOptimumC,
+<<<<<<< HEAD
   // Seit 2026-09-20 mit vier Mitgliedern gemessen (die Herbsttrompete
   // ist zu „Herbsttrompete & Co." gezogen): 0,393 / 0,747 statt 0,389 /
   // 0,742 — innerhalb des Bandes, aber die Regel heißt: wer die Klasse
@@ -167,6 +168,10 @@ const ampelHerbstClass = (
   verhaltenAbove: 0.393,
   guenstigAbove: 0.747,
   logit: null,
+=======
+  verhaltenAbove: 0.389,
+  guenstigAbove: 0.742,
+>>>>>>> origin/main
 );
 
 /// Der Pfifferling ist ein Sommerfrüchter — Gipfel im Juli, nicht im
@@ -193,6 +198,7 @@ const ampelSommerClass = (
   optimumC: 14.5,
   verhaltenAbove: 0.348,
   guenstigAbove: 0.669,
+<<<<<<< HEAD
   logit: null,
 );
 
@@ -241,6 +247,8 @@ const ampelCantharellalesClass = (
     moisture: 0.00333,
     moistureTemp: 0.002237,
   ),
+=======
+>>>>>>> origin/main
 );
 
 const ampelClasses = <String, AmpelClass>{
@@ -448,8 +456,14 @@ const ampelEvidenceBySpecies = <String, AmpelEvidence>{
   // +0,261] am Rand, Herbsttrompete mit 147 Funden unter der Grenze —
   // beide vorläufig.
   'Herbsttrompete': AmpelEvidence.vorlaeufig,
+<<<<<<< HEAD
   'Semmelstoppelpilz': AmpelEvidence.vorlaeufig,
   'Trompetenpfifferling': AmpelEvidence.belegt,
+=======
+  // Seit dem 2026-09-20: Fenster auf 14,5 °C gesetzt, ohne Hold-out
+  // dafür — siehe [ampelSommerClass].
+  'Pfifferling': AmpelEvidence.vorlaeufig,
+>>>>>>> origin/main
 };
 
 /// Die Stufe einer Art — `null`, wo es keine Ampel gibt.
