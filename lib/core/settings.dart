@@ -51,22 +51,12 @@ abstract interface class Settings {
 
   Future<void> setMapLegendOpen(bool value);
 
-  /// Richtet langes Draufhalten das Fadenkreuz aus? (#210)
-  ///
-  /// Standardmäßig NEIN. Die Geste sprang auf die gedrückte Stelle **und**
-  /// auf Zoom 16; ein Fehlgriff aus der Übersicht warf einen damit
-  /// woanders hin und viel zu nah heran. Entschärfen ließ sie sich nicht:
-  /// Weder flutter_map noch MapLibre lassen Haltedauer oder
-  /// Bewegungstoleranz einstellen. Zum Heranzoomen gibt es den Doppeltipp,
-  /// den beide Engines ohnehin können.
-  ///
-  /// Gespeichert wird das FEATURE, nicht sein Opt-out. Der
-  /// Engine-Schalter machte es bis #433 andersherum, weil dort „aus" der
-  /// Sonderfall war; hier ist er der Normalzustand, und ein doppelt
-  /// verneinter Schlüssel wäre beim Lesen eine Stolperfalle.
-  bool get mapLongPressEnabled;
+  // Der Schalter „Karte gedrückt halten" (#210) ist mit #483 entfallen,
+  // und mit ihm der Prefs-Schlüssel 'map_long_press_enabled'. Er stand
+  // AUS, weil die Geste sofort die Kamera warf; seit sie erst ein Menü
+  // öffnet, ist sie ungefährlich und ab Werk an. Der alte Schlüssel
+  // liegt auf Bestandsgeräten herum und wird nie wieder gelesen.
 
-  Future<void> setMapLongPressEnabled(bool value);
 
   /// Darf der Regenverlauf am Spot Daten nachladen?
   ///
@@ -311,8 +301,6 @@ class PrefsSettings implements Settings {
 
   static const _rainCourseEnabledKey = 'rain_course_enabled';
 
-  static const _mapLongPressEnabledKey = 'map_long_press_enabled';
-
   static const _mapLegendEnabledKey = 'map_legend_enabled';
 
   @override
@@ -321,14 +309,6 @@ class PrefsSettings implements Settings {
   @override
   Future<void> setMapLegendOpen(bool value) =>
       _prefs.setBool(_mapLegendEnabledKey, value);
-
-  @override
-  bool get mapLongPressEnabled =>
-      _prefs.getBool(_mapLongPressEnabledKey) ?? false;
-
-  @override
-  Future<void> setMapLongPressEnabled(bool value) =>
-      _prefs.setBool(_mapLongPressEnabledKey, value);
 
   @override
   bool get rainCourseEnabled => _prefs.getBool(_rainCourseEnabledKey) ?? false;
