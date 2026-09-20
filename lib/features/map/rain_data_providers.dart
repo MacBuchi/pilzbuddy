@@ -13,6 +13,7 @@ import 'rain_contours.dart';
 import 'rain_fill.dart';
 import 'rain_grid.dart';
 import 'rain_layer.dart';
+import 'map_overlays.dart';
 import 'rain_stack.dart';
 import 'spot_weather.dart';
 
@@ -170,7 +171,7 @@ class RainFill {
 /// flutter_map die Bytes direkt.
 final rainFillFileProvider =
     FutureProvider<({String url, RainFill fill})?>((ref) async {
-  final layer = ref.watch(rainLayerProvider);
+  final layer = ref.watch(drawnRainLayerProvider);
   final key = rainGridKeyFor(layer);
   if (key == null) return null;
   final fill = await ref.watch(rainFillProvider(layer).future);

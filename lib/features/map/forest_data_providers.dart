@@ -23,6 +23,7 @@ import 'forest_block_providers.dart' show forestBlocksReadyProvider;
 import 'forest_fill.dart';
 import 'forest_fill_window.dart';
 import 'forest_grid.dart';
+import 'map_overlays.dart';
 import 'map_view/marker_culling.dart' show MapViewBounds;
 import 'rain_data_providers.dart' show rainGridRepositoryProvider;
 import 'spot_filter.dart' show selectedAmpelClassesProvider;
@@ -160,6 +161,11 @@ final forestFillWindowProvider =
 /// bei jeder Verschiebung durchzublitzen.
 final forestFillProvider = FutureProvider<ForestFillImage?>((ref) async {
   if (!ref.watch(forestLayerEnabledProvider)) return null;
+  // Der Vorhang (#464) — direkt neben dem Schalter, also VOR jedem
+  // Gitterzugriff: Ausgeblendet soll nichts gerechnet und nichts
+  // ausgepackt werden. Der Preis steht am Provider drüben: Das
+  // Einblenden lädt neu.
+  if (ref.watch(mapOverlaysHiddenProvider)) return null;
   final classes = ref.watch(forestClassesProvider);
   if (classes.isEmpty) return null; // alles abgewählt = nichts zu zeichnen
   final window = ref.watch(forestFillWindowProvider);

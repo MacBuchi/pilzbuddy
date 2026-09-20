@@ -778,3 +778,48 @@ aussahen als die leere Fläche. Ohne Empfang bleibt es beim Landton, und
 die Geometrie (Spot-Pin, 20-m-Ring, Streukreis, Maßstab) trägt die
 Aussage. Eine *installierte Regionskarte* (PMTiles, ~z15) wäre hier
 wirklich nützlich — das ist eine eigene Stufe und braucht eine Messung.
+
+## Der Vorhang über den Flächen (#464, 1.145.0)
+
+Ein Knopf nimmt Wald, Ampel, Regen und Höhenlinien weg, ein zweiter holt
+sie zurück. Die offene Frage beim Bauen war, **wo** die Sperre sitzt, und
+sie war ausdrücklich eine Messfrage: Sitzt sie früh (in den
+Quell-Providern, drei Zeilen), werden die Gitter beim Ausblenden
+freigegeben und das Einblenden rechnet neu. Sitzt sie spät (im
+Zeichenweg beider Engines, acht Stellen plus die `_fillWork`-Warteschlange
+mit ihrer Nachstups-Logik), bleibt das fertige Bild im Speicher und beide
+Richtungen wären sofort.
+
+Gemessen am Emulator (Pixel_7_Pro_API36, Release-Build, MapLibre, drei
+Ebenen an: Waldtypen, Höhenlinien, Regen „Jetzt"). Die Zeitauflösung ist
+die Dauer eines `screencap`, rund 650 ms — die Zahlen sind also
+Schranken, keine Punktwerte:
+
+| Richtung | Flächen weg bzw. da |
+|---|---|
+| Ausblenden | zwischen 1,1 s und 2,5 s |
+| Einblenden | zwischen 1,1 s und 1,7 s |
+
+**Das Ergebnis kehrt das Argument um.** Erwartet hatte ich, dass das
+EINBLENDEN teuer ist — es rechnet die Waldfläche im Isolate neu, die
+Höhenlinien auf dem Gerät und holt das Radarbild erneut. Gemessen ist es
+die schnellere der beiden Richtungen. Teurer ist das AUSBLENDEN, und
+zwar aus einem Grund, der mit der Sperre nichts zu tun hat:
+maplibre-native zeichnet nach dem *Entfernen* einer Ebene nicht von
+selbst neu (siehe `_nudgeEngine`), der Stups läuft am Ende der
+`_fillWork`-Kette.
+
+Daraus folgt: Die Sperre auf den Zeichenweg zu verschieben hätte die
+teurere Richtung **nicht** verbessert — der Nachstups wäre derselbe — und
+die billigere um höchstens eine Sekunde. Acht Stellen statt drei, für
+nichts. Die frühe Sperre bleibt.
+
+Beobachtet nebenbei: Die Legende ist beim Einblenden VOR den Flächen
+zurück (bei ~1,1 s steht sie, die Flächen kommen bis ~1,7 s). Das ist
+dasselbe Verhalten wie beim normalen Einschalten einer Ebene und
+deshalb nicht eigens behandelt.
+
+Wiederholen: drei Ebenen anschalten, dann
+`adb shell input tap <x> <y>` auf den Vorhang-Knopf und in einer Schleife
+`adb exec-out screencap` mit Zeitstempeln — die Schrittweite ist der
+`screencap` selbst.
