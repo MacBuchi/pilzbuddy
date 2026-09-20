@@ -49,6 +49,20 @@ void main() {
       (tester) async {
     // Der ganze Weg: Schalter im Profil → Einstellung → Karte. Sonst
     // bewiese der Provider-Test nur sich selbst.
+    //
+    // **Ein hoher Testschirm, damit das Profil gar nicht erst scrollt.**
+    // Vorher stand hier `scrollUntilVisible` plus ein Tipp — und das
+    // hing daran, wie viele Zeilen über dem Schalter liegen: Die Methode
+    // hält an, sobald die Zeile im Sichtfenster IST, und dessen unteren
+    // Rand verdeckt die Reiterleiste. Beim Rückbau der Engine-Wahl
+    // (#433) fiel eine Zeile weg, der Tipp landete auf der Leiste, und
+    // der Test scheiterte an etwas, das er nicht prüft. Die Höhe kommt
+    // aus `tester.view` — `setSurfaceSize` zieht die MediaQuery nicht
+    // mit.
+    tester.view.physicalSize = const Size(1080, 3000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
     final settings = FakeSettings();
     await pumpApp(tester, signedIn(), settings: settings);
 
@@ -60,8 +74,6 @@ void main() {
 
     await tester.tap(find.text('Profil'));
     await settle(tester);
-    await tester.scrollUntilVisible(find.text('Karte gedrückt halten'), 200,
-        scrollable: find.byType(Scrollable).first);
     await tester.tap(find.text('Karte gedrückt halten'));
     await settle(tester);
     expect(settings.mapLongPressEnabled, isTrue);

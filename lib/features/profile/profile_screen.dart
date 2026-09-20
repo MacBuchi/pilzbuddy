@@ -32,7 +32,6 @@ import '../tour/tour_providers.dart';
 import '../tour/widgets/tour_icon.dart';
 import '../import_export/gpx_export.dart';
 import '../map/map_gestures.dart';
-import '../map/map_view/map_engine.dart';
 import '../spots/nearby_spots.dart';
 import '../spots/spot_providers.dart';
 import 'account_dialogs.dart';
@@ -198,21 +197,6 @@ class ProfileScreen extends ConsumerWidget {
                   const Text('Deine Region herunterladen — Karte ohne Empfang'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => context.push('/profile/offline-maps'),
-            ),
-            // Opt-in zur MapLibre-Engine (Migrationsplan „Lupo → Porsche"):
-            // seit 1.41.0 funktional gleichauf (Spots, Online-Karte,
-            // Maßstab, Hinweis) — Beta bleibt sie bis zur Abnahme des
-            // Direktvergleichs. Standard bleibt flutter_map.
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              secondary: const Icon(Icons.speed_outlined),
-              title: const Text('Neue Karten-Engine'),
-              subtitle: const Text(
-                  'Seit dem Direktvergleich der Standard. Ausgeschaltet '
-                  'gilt die bisherige Karte als Rückfalllinie.'),
-              value: ref.watch(mapLibreEnabledProvider),
-              onChanged: (_) =>
-                  ref.read(mapLibreEnabledProvider.notifier).toggle(),
             ),
           ],
           // Außerhalb des Android-Blocks: Die Geste gibt es auch im Web.

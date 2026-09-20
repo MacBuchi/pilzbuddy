@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 
 import 'flutter_map_view.dart';
-import 'map_engine.dart';
 import 'marker_culling.dart' show MapViewBounds;
 export 'marker_culling.dart' show MapViewBounds;
 // Web darf `package:maplibre` nie sehen — der Stub liefert dieselbe
@@ -228,11 +227,27 @@ typedef MapViewBuilder = Widget Function(
   MapViewMarkers markers,
 );
 
-/// Die Engine-Wahl: flutter_map ist Standard, MapLibre kommt nur per
-/// Opt-in-Schalter (Beta, Profil) und nie im Web. Tests überschreiben den
-/// Provider mit der Fake (`test/fakes/fake_map_view.dart`).
+/// Die Engine-Wahl: **Android MapLibre, Web flutter_map** — seit #433
+/// ohne Schalter dazwischen.
+///
+/// `kIsWeb` ist eine Kompilierzeit-Konstante, die Verzweigung also in
+/// jedem Build schon entschieden. Der Profil-Schalter davor war ein
+/// Opt-out auf die alte Engine und hat seine Beobachtungsphase hinter
+/// sich (MapLibre steht seit 1.43.0 vorn, in zehn Wochendigests kein
+/// einziger Fund gegen ihn).
+///
+/// **`flutter_map_view.dart` bleibt trotzdem im Android-Build**, und
+/// zwar nicht aus Versehen: `maplibre_map_view.dart` greift selbst
+/// darauf zurück, wenn der Style nicht baut — ohne Style lieber die alte
+/// Karte als gar keine. Diese Änderung macht den Build deshalb NICHT
+/// kleiner, sie nimmt einen Zustand weg.
+///
+/// Tests überschreiben diesen Provider: mit der Fake
+/// (`test/fakes/fake_map_view.dart`) oder, wo flutter_map-Interna
+/// geprüft werden, direkt mit [FlutterMapView] — die MapLibre-Platform-
+/// View ist im Widget-Test nicht renderbar, ihr Gate ist das Gerät.
 final mapViewBuilderProvider = Provider<MapViewBuilder>((ref) {
-  if (!kIsWeb && ref.watch(mapLibreEnabledProvider)) {
+  if (!kIsWeb) {
     return (config, controller, markers) => createMapLibreMapView(
         config: config, controller: controller, markers: markers);
   }

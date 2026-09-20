@@ -7,6 +7,19 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Ein Schalter weniger im Profil
+
+*20. September 2026 · Version 1.146.0*
+
+Der Schalter „Neue Karten-Engine" ist weg. Seit Ende Juli zeichnet die
+Karte auf Android mit der neuen Engine, und der Schalter war nur die
+Rückfalllinie für den Fall, dass sich das nicht bewährt. Es hat sich
+bewährt — in den Fehlerberichten der letzten zehn Wochen steht nichts
+dagegen.
+
+Falls du ihn ausgeschaltet hattest: Deine Karte sieht ab jetzt aus wie
+bei allen anderen. Im Browser ändert sich nichts.
+
 ## Ebenen kurz wegblenden
 
 *20. September 2026 · Version 1.145.0*
