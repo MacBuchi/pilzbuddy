@@ -55,6 +55,7 @@ import '../forest_fill.dart' show ampelGuenstigAlpha, ampelVerhaltenAlpha;
 import '../forest_grid.dart';
 import '../rain_data_providers.dart';
 import '../rain_fill.dart';
+import '../map_overlays.dart';
 import '../rain_layer.dart';
 import '../spot_filter.dart' show selectedAmpelClassesProvider;
 import 'here_sheet.dart';
@@ -101,6 +102,16 @@ class MapLegend extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Liegt der Vorhang, gibt es nichts zu erklären (#464). Die Legende
+    // nennt jede aktive Ebene samt Farbskala — sie weiter aufzuzählen,
+    // während die Karte nackt ist, wäre die Behauptung von vier Ebenen,
+    // von denen keine zu sehen ist.
+    //
+    // Und sie verschwindet WORTLOS, statt „ausgeblendet" zu schreiben:
+    // Der Sinn des Vorhangs ist eine freie Karte. Ein Hinweis darauf,
+    // dass gerade nichts im Weg liegt, läge im Weg. Den Zustand trägt
+    // der Knopf in der Werkzeugleiste.
+    if (ref.watch(mapOverlaysHiddenProvider)) return const SizedBox.shrink();
     final rainLayer = ref.watch(rainLayerProvider);
     // Regen-Sektion nur zu den eigenen Farben — beim Radar und im
     // Rückfall liegt das DWD-Bild in DWD-Farben auf der Karte, dafür

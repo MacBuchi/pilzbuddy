@@ -7,6 +7,22 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Ebenen kurz wegblenden
+
+*20. September 2026 · Version 1.145.0*
+
+Waldtypen, Pilzampel, Regen und Höhenlinien liegen als farbige Flächen
+über der Karte — praktisch, solange man sie lesen will, und im Weg,
+sobald man wissen möchte, wo der Weg eigentlich hinführt.
+
+Sobald mindestens eine Ebene an ist, steht dafür ein neuer Knopf in der
+Leiste am rechten Rand. Ein Tipp nimmt alle Flächen weg, ein zweiter
+holt sie zurück — genau die, die vorher an waren. Deine Einstellungen
+werden dabei nicht angefasst; es ist ein Vorhang, kein Ausschalter.
+
+Deine Spots, die Tourspur und die Karte selbst bleiben immer sichtbar.
+Nach einem Neustart ist der Vorhang wieder offen.
+
 ## Spots lassen sich nachträglich korrigieren
 
 *20. September 2026 · Version 1.144.0*

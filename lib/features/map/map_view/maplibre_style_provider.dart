@@ -21,6 +21,7 @@ import '../../../core/errors.dart';
 import '../../offline_maps/offline_map_providers.dart';
 import '../rain_data_providers.dart';
 import '../rain_layer.dart';
+import '../map_overlays.dart';
 import 'map_style_composer.dart';
 
 /// Die fünf Unicode-Bereiche, die für deutsche Kartenbeschriftung reichen
@@ -199,9 +200,9 @@ final maplibreStyleProvider = FutureProvider<String?>((ref) async {
         // select baute jede Summenaktivierung den Style zweimal komplett
         // neu (inkl. Glyph-I/O), und jeder Rebuild geht per setStyle an
         // die Engine.
-        if (ref.watch(rainPaintProvider(ref.watch(rainLayerProvider))
+        if (ref.watch(rainPaintProvider(ref.watch(drawnRainLayerProvider))
             .select((paint) => paint == RainPaint.dwd)))
-          ?_rainOverlay(ref.watch(rainLayerProvider), DateTime.now()),
+          ?_rainOverlay(ref.watch(drawnRainLayerProvider), DateTime.now()),
       ],
     );
   } catch (e, stackTrace) {

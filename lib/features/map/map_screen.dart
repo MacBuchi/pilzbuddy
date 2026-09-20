@@ -46,6 +46,7 @@ import 'widgets/map_layers_sheet.dart';
 import 'widgets/map_trip_sheet.dart';
 import 'map_gestures.dart';
 import 'map_view/camera_tour.dart';
+import 'map_overlays.dart';
 import 'map_view/map_view.dart';
 import 'position_provider.dart';
 import 'spot_filter.dart';
@@ -759,6 +760,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
     // Karten-Knopf (#347). Sie ersetzt die vier eingefärbten Knöpfe für
     // alle, die die Legende ausgeschaltet haben.
     final activeLayers = activeMapLayerCount(ref);
+    // Liegt der Vorhang über den Flächen (#464)? Der Knopf trägt den
+    // Zustand selbst — anders als bei der Banner-Stummschaltung aus
+    // #425, die unsichtbar war und deshalb als Fehler ankam.
+    final overlaysHidden = ref.watch(mapOverlaysHiddenProvider);
     final longPressEnabled = ref.watch(mapLongPressEnabledProvider);
 
     // Die Tour liegt ÜBER dem Scaffold, nicht in seinem `body` (#350):
@@ -1008,6 +1013,32 @@ class _MapScreenState extends ConsumerState<MapScreen>
                           : Icons.layers_outlined),
                     ),
                   ),
+                  // Der Vorhang (#464). **Nur da, wenn es etwas
+                  // auszublenden gibt** — alle Ebenen stehen ab Werk auf
+                  // aus, wer nie eine einschaltet, behält die vier
+                  // Knöpfe aus #440. Der Knopf verdient seinen Platz
+                  // erst, wenn er Arbeit hat.
+                  //
+                  // Kein Eintrag im Karten-Blatt, sondern hier: Der
+                  // Zweck ist, sich KURZ auf der nackten Karte zu
+                  // orientieren. Über ein Blatt wären das vier Tipps
+                  // statt einem, und man sähe die Wirkung erst nach dem
+                  // Schließen.
+                  if (activeLayers > 0)
+                    _Tool(
+                      tooltip: overlaysHidden
+                          ? 'Ebenen einblenden'
+                          : 'Ebenen ausblenden',
+                      onPressed: () => ref
+                          .read(mapOverlaysHiddenProvider.notifier)
+                          .state = !overlaysHidden,
+                      child: Icon(
+                        overlaysHidden
+                            ? Icons.layers_clear
+                            : Icons.layers_clear_outlined,
+                        color: overlaysHidden ? AppColors.warmBrown : null,
+                      ),
+                    ),
                   _Tool(
                     key: _tourAnchors.filter,
                     tooltip: 'Karte filtern',
