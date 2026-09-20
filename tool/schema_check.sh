@@ -225,6 +225,13 @@ check_get "finds-Spalten" \
 check_get "live_locations-Embed (Freundes-Standorte)" \
   "/rest/v1/live_locations?select=user_id,lat,lng,expires_at,profiles(username,avatar)&limit=1"
 
+# tour_tracks: exakt die Query aus TourTrackRepository.fetchFriendTracks
+# (Patch 023, #340). Das `profiles`-Embed hängt am Fremdschlüssel auf
+# profiles(id) — fehlt der, antwortet PostgREST mit PGRST200 statt mit
+# einer leeren Liste.
+check_get "tour_tracks-Embed (Buddy-Spuren)" \
+  "/rest/v1/tour_tracks?select=user_id,started_at,points,expires_at,profiles(username,avatar)&limit=1"
+
 # feedback: Spalten, die App (Insert) und Feedback-Bot (Select) nutzen
 check_get "feedback-Spalten" \
   "/rest/v1/feedback?select=id,user_id,type,message,species_name,created_at,processed_at,app_version&limit=1"

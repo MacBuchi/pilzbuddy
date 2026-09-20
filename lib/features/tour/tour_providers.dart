@@ -16,9 +16,12 @@ import '../../core/errors.dart';
 import '../../core/settings.dart';
 import '../../data/providers.dart';
 import '../offline_maps/download_keep_alive.dart';
+import '../map/live_share_providers.dart';
 import 'tour_store.dart';
+import 'tour_sharing.dart';
 import 'tour_task_handler.dart';
 import 'tour_track.dart';
+import 'widgets/tour_track_marker.dart';
 
 /// Woher ein einzelner Fix kommt. Test-Naht: Ohne sie ginge jeder
 /// Flow-Test, der eine Tour startet, an echtes Plattform-IO.
@@ -287,3 +290,71 @@ class TourNotifier extends Notifier<RecordedTour?> {
 
 final tourProvider =
     NotifierProvider<TourNotifier, RecordedTour?>(TourNotifier.new);
+
+/// Schiebt die eigene Spur zu den Buddys — und nimmt sie wieder weg
+/// (#340, Stufe 2).
+///
+/// **Läuft im MAIN-Isolate, anders als das Messen.** Das ist eine echte
+/// Grenze und keine Nachlässigkeit: Supabase-Client und Sitzung leben
+/// hier, im Service-Isolate gäbe es beides nicht (siehe
+/// `tour_task_handler.dart`). Die Folge ist benennbar — wer die App aus
+/// der Übersicht WISCHT, zeichnet weiter auf (der Service überlebt), lädt
+/// aber nichts mehr hoch, bis er sie wieder öffnet. Verloren geht dabei
+/// nichts; die Buddys sehen bis dahin den Stand von vorhin. Im
+/// Normalfall — Telefon in der Tasche, App im Hintergrund — hält der
+/// Foreground-Service den Prozess wach, und der Takt läuft weiter.
+class TourSharingNotifier extends Notifier<void> {
+  DateTime? _lastUploadAt;
+  int _lastCount = 0;
+
+  @override
+  void build() {}
+
+  /// Anzustoßen, wann immer sich etwas geändert haben KANN — neuer
+  /// Messpunkt, Tour beendet, Freigabe beendet. Die Entscheidung trifft
+  /// [planTrackShare], nicht der Aufrufer.
+  Future<void> sync() async {
+    final tour = ref.read(tourProvider);
+    final expiresAt = ref.read(myShareProvider).valueOrNull;
+    final points = tour == null ? const <TourPoint>[] : thinnedTrack(tour.points);
+    final action = planTrackShare(
+      tourRunning: tour != null,
+      pointCount: points.length,
+      shareExpiresAt: expiresAt,
+      lastUploadAt: _lastUploadAt,
+      lastUploadedCount: _lastCount,
+      now: DateTime.now().toUtc(),
+    );
+    final repo = ref.read(tourTrackRepositoryProvider);
+    try {
+      switch (action) {
+        case TrackShareAction.upload:
+          await repo.uploadMyTrack(
+            startedAt: tour!.startedAt,
+            points: points,
+            expiresAt: expiresAt!,
+          );
+          _lastUploadAt = DateTime.now().toUtc();
+          _lastCount = points.length;
+        case TrackShareAction.remove:
+          await repo.deleteMyTrack();
+          _lastUploadAt = null;
+          _lastCount = 0;
+        case TrackShareAction.nothing:
+          break;
+      }
+    } catch (e, stackTrace) {
+      // **Still degradieren, und zwar OHNE Ausgangskorb.** Die Spur ist
+      // eine Zugabe zum Standort, den der Buddy ohnehin sieht; ein
+      // fehlgeschlagener Upload aus dem Funkloch wird beim nächsten Takt
+      // von selbst nachgeholt, weil immer die GANZE Spur geschrieben
+      // wird. Ein Auftrag im Korb (#267) wäre hier falsch: Er trüge
+      // einen Bewegungsstand, der beim Zustellen längst veraltet ist.
+      if (e is NotSignedInException) return;
+      logError('Tourspur teilen', e, stackTrace);
+    }
+  }
+}
+
+final tourSharingProvider =
+    NotifierProvider<TourSharingNotifier, void>(TourSharingNotifier.new);

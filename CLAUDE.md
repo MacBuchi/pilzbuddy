@@ -843,9 +843,32 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     wenig verloren wie die Fundstellen. Gelöscht wird **erst nach dem
     Blatt**: Wer vorher aufräumt, verliert drei Stunden Gehen, wenn das
     Blatt weggewischt wird.
-  Nicht gebaut, bewusst: Server-Speicherung und die Tracks der Buddys —
-  das braucht RLS, Datenschutzerklärung und Data-Safety und ist ein
-  eigenes Issue.
+  - **Die Spur verlässt das Gerät seit 1.147.0 doch** (#340 Stufe 2) —
+    aber nur, wenn BEIDES läuft: eine Tour UND die Standort-Freigabe.
+    Die Bedingung ist ein UND und steht als eine Zeile in
+    `planTrackShare` (`tour_sharing.dart`); wer aufzeichnet, ohne zu
+    teilen, behält Stufe 1 unverändert. `expires_at` wird aus der
+    Freigabe GEERBT statt neu eingeholt: eine Zustimmung statt zwei, und
+    zwei Fristen könnten auseinanderlaufen. Tour- oder Teilen-Ende
+    löscht die Zeile sofort — nicht erst beim Ablauf, sonst läge dort
+    eine Freigabe, die niemand mehr gibt.
+    **Eine Zeile je Nutzer, ersetzt statt angehängt** (`tour_tracks`,
+    Patch 023, Policies als Spiegel von `live_locations`): Eine Zeile je
+    Messpunkt wären ~720 je Person und Drei-Stunden-Tour — die erste
+    Tabelle, deren Größe mit der verbrachten ZEIT wächst statt mit den
+    Funden. Gedünnt sind es ≤ 400 Punkte, rund 10 KB.
+    **Hochgeladen wird im MAIN-Isolate**, gemessen wird im Service-Isolate
+    (#342). Die Folge ist benennbar: Wer die App wegwischt, zeichnet
+    weiter auf, lädt aber nichts mehr hoch, bis er sie öffnet. Verloren
+    geht nichts, weil immer die GANZE Spur geschrieben wird — deshalb
+    braucht der Weg auch keinen Ausgangskorb.
+    **Die Spur eines Buddys darf die eigenen Leergänge NIE beeinflussen.**
+    Boden, den jemand anders gegangen ist, ist kein Boden, den ICH
+    abgesucht habe; `tourVisits` sieht weiterhin nur eigene Punkte. Das
+    ist die Stichprobe, die #199 als unabhängigen Prüfstein aufhebt.
+    Die vier Stellen, an denen die alte Zusage stand, sind im selben PR
+    mitgezogen: `web/datenschutz.html`, `docs/play-console.md`,
+    `docs/datenschutz-nachweise.md` und dieser Abschnitt.
 - **Das Ampel-Banner rechnet beim Start, nicht auf einem Server**
   (Baustein B aus #277, seit 1.101.0): Ein Hinweis auf der Karte, wenn
   die Ampel an einem EIGENEN Spot günstig steht
