@@ -250,7 +250,55 @@ und schreibt das Datum dazu.
 | #482 (PR 1) | offen | Bodenfeuchte-Stationen in Tabelle und Spot-Blatt, 1.149.0 |
 | #485 (PR 2) | offen | `tool/ampel_logit_klasse.py` (Spiegel, Schwellen gemessen und gepinnt), **Pfifferling 14,5 °C** samt neu gemessener Schwellen und Evidenzstufe `vorlaeufig`, 1.150.0 — Pfifferling ist von PR 3 hierher gewandert, weil `ampel_validate --self-test` Werkzeug und Dart zusammenhält und ein Werkzeug-only-PR sonst rot wäre |
 | #486 (PR 3) | offen | `AmpelLogit` + `logit` an `AmpelClass`, beide Klassen, Herbsttrompete-Umzug + `herbst`-Schwellen neu (0,393 / 0,747), Fläche mit Feuchtestation je Zelle, klassenspezifisches Grau, Evidenzstufen, Changelog, 1.151.0 |
-| PR 4 | Vorschlag | **Reiter „Pilze“**: die Klassen und ihre Arten, je Art eine Mini-Saisonkurve, hervorgehoben, was gerade Saison hat (Kurve über einer Schwelle, z. B. 15 %). Damit bleibt für den Nutzer transparent, was wozu gehört. Eigener Plan vor der Umsetzung. |
+| PR 4 | gebaut (2026-09-21) | **Reiter „Pilze“**: die Klassen und ihre Arten, je Art eine Mini-Saisonkurve, hervorgehoben, was gerade Saison hat. Damit bleibt für den Nutzer transparent, was wozu gehört. Zuschnitt siehe unten. |
 
 Reihenfolge beim Mergen: #482, dann #485 (trägt 1.150.0; wer #485 zuerst
 mergt, muss #482 auf 1.151.0 heben), dann PR 3.
+
+## Nachtrag 2026-09-21 — PR 4, der Reiter „Pilze“
+
+Betreiber: „Wir brauchen vielleicht einen weiteren Reiter in der App
+mit den Pilz-Inhalten — die Klassen, welche Pilze darunter, vielleicht
+mit einer Mini-Saisonkurve je Pilzart und hervorgehobene Pilze mit
+aktuell aktiver Saisonkurve (> 15 % oder so). Es muss ja für den Nutzer
+transparent bleiben, was wozu gehört.“ Freigabe zum Bau am 2026-09-21.
+
+**Zuschnitt, wie gebaut:**
+
+- **Vierter Reiter „Pilze“** zwischen Karte und Freunde
+  (`lib/features/species/species_screen.dart`, Route `/pilze`). Ein
+  Reiter, kein Profil-Untermenü: Die Frage „was gehört wozu“ stellt sich
+  auf der Karte, und der Weg dorthin soll ein Tipp sein.
+- **Der Inhalt kommt aus dem Modellkern** (`species_catalogue.dart`,
+  rein, ohne Widgets): je Klasse aus `ampelClasses` ein Abschnitt mit
+  Name und Fenster-Wort, darin die Mitglieder aus `ampelSpeciesClass`
+  in der Reihenfolge der Artenliste; danach „Ohne Ampel“ mit allen
+  übrigen bekannten Arten und dem Grund („lieber grau als erfunden“).
+  `test/species_catalogue_test.dart` rechnet nach, dass jede bekannte
+  Art genau einmal vorkommt und die Gruppen genau die Mitglieder des
+  Modells tragen — eine Liste von Hand wäre die Legenden-Falle von
+  1.140.0 noch einmal.
+- **Je Art:** Icon der Gruppe, Name, Saisonwort und Evidenzstufe in
+  einer Zeile (dieselben Wörter wie in der Fakten-Zeile des Blatts),
+  rechts die Mini-Saisonkurve (18 px hoch, ohne Monatsbuchstaben). Die
+  Balken sind dasselbe Widget wie im Spot-Blatt
+  (`lib/core/widgets/season_bars.dart`, vorher `_Bars`); die Wortleiter
+  „Hauptzeit / Nebenzeit / Randzeit / kaum gemeldet“ ist nach
+  `season_curves.dart::seasonShareWord` gezogen und wird an beiden
+  Stellen benutzt.
+- **Hervorhebung = `kSeasonNowThreshold`** (15), nicht eine eigene
+  Zahl: Der Reiter hebt genau die Arten hervor, für die Filter und
+  Banner-Nachlauf „hat Saison“ sagen. Der Monat kommt aus
+  `currentMonthProvider`.
+- **Filter „Nur jetzt Saison“** (Chip im Kopf): blendet Arten ohne
+  Saison aus; Arten OHNE Kurve bleiben stehen und heißen „keine
+  Saisonkurve“ — dieselbe Regel wie beim Saison-Filter der Karte
+  (#414): wer nichts weiß, verdeckt nichts. Leere Gruppen behalten
+  ihre Überschrift, sonst sähe „leer“ aus wie „fehlt“.
+- **Keine Prozentzahlen, kein Urteil**: „wird gemeldet“, nicht
+  „wächst“; Quelle und Schwelle stehen als Fußzeile.
+
+**Nicht gebaut, bewusst:** kein Tipp auf eine Art (kein Art-Blatt, kein
+Sprung in den Kartenfilter) — das wäre ein zweiter Einstieg in den
+Filter mit eigener Zustandsfrage; wenn er gewünscht ist, ist er ein
+eigener Schritt.

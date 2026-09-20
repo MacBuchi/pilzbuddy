@@ -171,6 +171,23 @@ class SeasonCurve {
 /// diesem Rauschen.
 const kSeasonNowThreshold = 15;
 
+/// Das Wort zur Höhe der Kurve in einem Monat — die EINE Leiter für
+/// Spot-Blatt und Reiter „Pilze".
+///
+/// **Die unterste Stufe hängt an [kSeasonNowThreshold]** — derselben
+/// Zahl, mit der der Banner-Nachlauf entscheidet, ob eine Art jetzt
+/// überhaupt auftaucht. Bis 1.137.0 endete die Skala bei 40, und
+/// zwischen 15 und 40 stand im Blatt „außerhalb der Hauptzeit", während
+/// das Banner für dieselbe Art anschlug: zwei Schwellen für dieselbe
+/// Frage, und die Anzeige widersprach dem Hinweis.
+String seasonShareWord(int share) => share >= 80
+    ? 'Hauptzeit'
+    : share >= 40
+        ? 'Nebenzeit'
+        : share >= kSeasonNowThreshold
+            ? 'Randzeit'
+            : 'kaum gemeldet';
+
 /// Hat [species] im Monat [month] (1…12) Saison?
 ///
 /// **`null` heißt „wir wissen es nicht"** und ist der Normalfall für
