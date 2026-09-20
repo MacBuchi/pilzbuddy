@@ -891,6 +891,7 @@ class FakeSpotRepository implements SpotRepository {
   Future<void> updateFind({
     required String findId,
     required NewFind find,
+    required FindPosition? position,
   }) async {
     for (final row in backend.spots) {
       final index = row.finds.indexWhere((f) => f.id == findId);
@@ -914,13 +915,15 @@ class FakeSpotRepository implements SpotRepository {
         createdAt: old.createdAt,
         authorId: old.authorId,
         blank: find.blank,
-        // Die Position ÜBERLEBT die Korrektur — sie steht nicht in der
-        // Spaltenliste des echten `updateFind`, ein Postgres-UPDATE fasst
-        // sie also gar nicht an. Hier muss man sie ausdrücklich
-        // mitnehmen: Der Fake baut den Fund feldweise neu und würde sie
-        // sonst stillschweigend wegwerfen — genau die Divergenz, die kein
-        // Schema-Check bemerkt.
-        position: old.position,
+        // Seit #466 schreibt das echte `updateFind` die drei Spalten
+        // MIT, und zwar immer — auch als `null`, sonst ließe sich eine
+        // Stelle nie wieder entfernen. Der Fake nimmt deshalb den
+        // übergebenen Wert und NICHT `old.position`: Stünde hier weiter
+        // der alte, sähe jeder Test eine Unveränderlichkeit, die es live
+        // nicht mehr gibt — genau die Divergenz, die kein Schema-Check
+        // bemerkt. Dass eine gemessene Stelle trotzdem stehen bleibt,
+        // entscheidet das Blatt und ist dort geprüft.
+        position: position,
       );
       return;
     }

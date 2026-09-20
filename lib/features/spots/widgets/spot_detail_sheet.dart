@@ -148,7 +148,8 @@ class _SpotDetailSheet extends ConsumerWidget {
       } else if (result.changed case final changed?) {
         await ref
             .read(mySpotsProvider.notifier)
-            .updateFind(findId: find.id, find: changed);
+            .updateFind(
+                findId: find.id, find: changed, position: result.position);
       }
     } catch (e, stackTrace) {
       if (context.mounted) {

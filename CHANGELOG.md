@@ -30,6 +30,13 @@ Zwei Dinge dazu:
   noch auf die Übertragung wartet, lässt sich noch nicht bearbeiten; du
   kannst ihn aber verwerfen und neu anlegen.
 
+Dasselbe gilt jetzt auch für einzelne Fundstellen — aber nur für die,
+die du auf der Karte gewählt hast. Öffne den Fund, und die Karte steht
+da wie beim Eintragen. Eine Stelle, die dein Gerät gemessen hat, bleibt
+unverändert stehen: Sie ist eine Messung von damals, und ein Fix von
+heute würde sagen, wo du jetzt bist — nicht, wo der Pilz stand. Wenn die
+falsch ist, lösch den Fund und trag ihn neu ein.
+
 ## Die Pilztour zeichnet wieder sichtbar mit
 
 *20. September 2026 · Version 1.143.1*

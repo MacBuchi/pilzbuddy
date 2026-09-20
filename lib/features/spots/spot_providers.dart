@@ -9,6 +9,7 @@ import '../../data/outbox_runner.dart';
 import '../../data/outbox_view.dart';
 import '../../data/providers.dart';
 import '../../data/spot_repository.dart';
+import '../../models/find_position.dart';
 import '../../models/spot.dart';
 import 'nearby_spots.dart';
 import 'species_suggestions.dart';
@@ -184,10 +185,11 @@ class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox>
   Future<void> updateFind({
     required String findId,
     required NewFind find,
+    required FindPosition? position,
   }) async {
     await ref
         .read(spotRepositoryProvider)
-        .updateFind(findId: findId, find: find);
+        .updateFind(findId: findId, find: find, position: position);
     ref.invalidate(friendSpotsProvider);
     await reloadAfterWrite('Spots neu laden');
   }
