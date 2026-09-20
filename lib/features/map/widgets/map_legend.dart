@@ -52,6 +52,8 @@ import '../forest_block_providers.dart';
 import '../elevation_contour_providers.dart';
 import '../forest_data_providers.dart';
 import '../forest_fill.dart' show ampelGuenstigAlpha, ampelVerhaltenAlpha;
+import '../gbif_fill.dart' show gbifClassColour;
+import '../gbif_finds_providers.dart' show gbifLayerEnabledProvider;
 import '../forest_grid.dart';
 import '../rain_data_providers.dart';
 import '../rain_fill.dart';
@@ -130,7 +132,10 @@ class MapLegend extends ConsumerWidget {
     // Gitter fehlt, bleibt die Zeile bei „wird gerechnet …" — und den
     // echten Grund nennt das Blatt.
     final showContours = ref.watch(contourLayerEnabledProvider);
-    if (!showRain && !showForest && !showAmpel && !showContours) {
+    // Nur der Schalter, nicht das Asset — aus demselben Grund wie bei
+    // den Höhenlinien: Beobachten ist laden.
+    final showGbif = ref.watch(gbifLayerEnabledProvider);
+    if (!showRain && !showForest && !showAmpel && !showContours && !showGbif) {
       return const SizedBox.shrink();
     }
 
@@ -217,6 +222,7 @@ class MapLegend extends ConsumerWidget {
               .valueOrNull
           : null,
       contoursTooFarOut: contoursTooFarOut,
+      showGbif: showGbif,
     );
     final open = ref.watch(mapLegendOpenProvider);
 
@@ -277,6 +283,9 @@ typedef LegendZones = ({
   int? equidistanceM,
   int? heightM,
   bool contoursTooFarOut,
+
+  /// Die gemeldeten Fundorte (#467): Ihre Farben sind die Ampel-Gruppen.
+  bool showGbif,
 });
 
 /// Die eingeklappte Legende: 40 Pixel, dieselben drei Zonen senkrecht.
@@ -339,6 +348,23 @@ class _LegendRail extends StatelessWidget {
               ? 'Waldtypen'
               : 'Waldtypen · Laubfaktor '
                   '${zones.around!.factor!.toStringAsFixed(2).replaceAll('.', ',')}',
+        ),
+      if (zones.showGbif)
+        _VerticalScale(
+          key: const Key('legend-rail-gbif'),
+          // Kein Verlauf mit Richtung, sondern die vier Gruppenfarben
+          // übereinander — die Schiene sagt nur „Fundorte liegen", die
+          // Tafel nennt die Gruppen.
+          colours: [
+            for (final key in ampelClasses.keys)
+              gbifClassColour(key).withValues(alpha: 0.75),
+          ],
+          fraction: null,
+          topIcon: Icons.place,
+          topColour: gbifClassColour('herbst'),
+          bottomIcon: Icons.place_outlined,
+          bottomColour: gbifClassColour(null),
+          tooltip: 'Gemeldete Fundorte',
         ),
     ];
 
@@ -600,6 +626,10 @@ class _LegendPanel extends StatelessWidget {
             if (zones.showForest) ...[
               _ForestSection(
                   classes: zones.forestClasses, around: zones.around),
+              const SizedBox(height: 10),
+            ],
+            if (zones.showGbif) ...[
+              const _GbifSection(),
               const SizedBox(height: 10),
             ],
             if (zones.showContours) ...[
@@ -1158,3 +1188,65 @@ Color forestClassColor(ForestClass forestClass) => switch (forestClass) {
 // unten. Die Äquidistanz kommt weiter aus dem ERGEBNIS und nicht aus
 // der Zoomregel — reißt die Punktschranke, liegt Gröberes auf der
 // Karte, als gewünscht war.
+
+/// Die Fundorte-Legende (#467): eine Farbe je Ampel-Gruppe, dazu Grau
+/// für Arten ohne Gruppe. Dieselbe Tabelle wie beim Malen.
+class _GbifSection extends StatelessWidget {
+  const _GbifSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Gemeldete Fundorte (GBIF)',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.primary,
+              fontSize: 10,
+            )),
+        const SizedBox(height: 3),
+        Wrap(
+          spacing: 8,
+          runSpacing: 2,
+          children: [
+            for (final entry in ampelClasses.entries)
+              _GbifDot(colour: gbifClassColour(entry.key), label: entry.value.name),
+            _GbifDot(colour: gbifClassColour(null), label: 'ohne Ampel'),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Text('Scheibe = eine Meldung, so groß wie ihre Genauigkeit',
+            style: theme.textTheme.bodySmall
+                ?.copyWith(fontSize: 8.5, height: 1.1, color: AppColors.barkBrown)),
+      ],
+    );
+  }
+}
+
+class _GbifDot extends StatelessWidget {
+  const _GbifDot({required this.colour, required this.label});
+
+  final Color colour;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+              color: colour.withValues(alpha: 0.75), shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 3),
+        Text(label,
+            style: const TextStyle(
+                fontSize: 8.5, height: 1.1, color: AppColors.barkBrown)),
+      ],
+    );
+  }
+}

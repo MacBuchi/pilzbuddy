@@ -50,6 +50,17 @@
     "assets/elevation/elevation_manifest.json": {
       "sha256": "49f948824f56fb8568c89c45c3479510d33da4e0f2bd7d07ae16f01a0be0cb93",
       "regenerate": "entsteht im selben Lauf wie elevation.bin.gz — siehe dort"
+    },
+    "assets/gbif/gbif_finds.bin.gz": {
+      "sha256": "811938dd913e3a9bd31143658d9b431ba162fd925e5c3565e17b3d7f943bb591",
+      "regenerate": "python3 tool/gbif_finds.py build — braucht die lokale GBIF-Datenbank (tool/gbif_download.py); der DOI des Stands steht im Manifest",
+      "checks": {
+        "self_recorded_sha256": "assets/gbif/gbif_finds_manifest.json"
+      }
+    },
+    "assets/gbif/gbif_finds_manifest.json": {
+      "sha256": "9687d230a2b6c5a17780e258cce44869ca5f9355a21bfde5a479cdba6c35405d",
+      "regenerate": "entsteht im selben Lauf wie gbif_finds.bin.gz — siehe dort"
     }
   }
 }

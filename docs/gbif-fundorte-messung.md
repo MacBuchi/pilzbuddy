@@ -151,3 +151,41 @@ Verwendungen derselben Daten kommen ohne Flächendeckung aus:
    häufiger in Waben mit hoher Eignung als in zufälligen Waben derselben
    Region und desselben Monats? Dafür ist die Melder-Schieflage
    verkraftbar, weil beide Seiten des Vergleichs sie tragen.
+
+## Nachtrag 2026-09-21 — was gebaut wurde (1.154.0)
+
+Der Betreiber hat entschieden: **gebaut, aber als Meldungen, nicht als
+Heatmap.** Die Ebene „Gemeldete Fundorte" zeichnet je Meldung einer
+unserer Arten EINE Scheibe in der Größe ihrer Koordinaten-Unschärfe —
+das ist die Aussage, die die Daten Zeile für Zeile tragen, und die
+Flächendeckung spielt dabei keine Rolle. Dazu die Umkreis-Liste in
+„Was ist hier?" (Verwendung 1 von oben). Werkzeug `tool/gbif_finds.py`,
+Asset `assets/gbif/`.
+
+Dabei kam eine Verteilung heraus, die in diesem Bericht bis dahin
+fehlte und die Karte prägt — **die drei Länder melden grundverschieden**
+(nur Sichtungen, CC0/CC BY, unsere 91 Arten):
+
+| Unschärfe | DE | AT | CH |
+|---|--:|--:|--:|
+| ≤ 250 m | **69 974** | 1 800 | 1 639 |
+| 250 m – 1 km | 380 | 596 | 40 |
+| genau 3 535 m | 441 | 76 | **116 316** |
+| sonst ≤ 10 km | 468 | 155 | 1 143 |
+| ohne Angabe | 3 197 | **96 044** (auf 8 565 Koordinaten) | 234 |
+| > 10 km (verworfen) | 808 | 147 | 33 |
+
+Deutschland sind Punkte (naturgucker, iNaturalist, ArtenFinder), die
+Schweiz sind Kilometerquadrate (SwissFungi meldet 3535 m — die halbe
+Diagonale von 5 km), Österreich sind Rasterpunkte der ÖMG ohne
+Unschärfe-Angabe, elf Meldungen je Koordinate. Der frühere Satz im
+Issue, die Quadrant-Mittelpunkte seien „die deutschen Kartierer", war
+falsch; die deutschen Kartierungsdaten stehen bei GBIF überwiegend
+unter CC BY-NC und bleiben deshalb draußen.
+
+Folgen für den Bau: unbekannte Unschärfe wird als 3535 m gezeichnet
+(die größere Scheibe ist die harmlose Fehlerrichtung), über 10 km
+fliegt raus, scharf und grob tragen verschiedene Deckkraft, und die
+Ebene sagt in ihrem Blatt, dass ein Punkt in Deutschland, ein Quadrat
+in der Schweiz und ein Rasterpunkt in Österreich dieselbe Sache
+sind: eine Meldung.

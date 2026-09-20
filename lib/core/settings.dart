@@ -126,6 +126,14 @@ abstract interface class Settings {
 
   Future<void> setContourLayerEnabled(bool value);
 
+  /// Lagen beim letzten Mal die gemeldeten Fundorte (GBIF, #467) auf der
+  /// Karte? Begründung siehe [forestLayerEnabled]. Der Preis ist ein
+  /// Asset von 0,6 MB, das beim Start ausgepackt wird — nur für den, der
+  /// den Schalter selbst umgelegt hat.
+  bool get gbifLayerEnabled;
+
+  Future<void> setGbifLayerEnabled(bool value);
+
   /// Leuchtete beim letzten Mal die Pilzampel? Begründung siehe
   /// [forestLayerEnabled].
   ///
@@ -356,6 +364,16 @@ class PrefsSettings implements Settings {
   @override
   Future<void> setContourLayerEnabled(bool value) =>
       _prefs.setBool(_contourLayerEnabledKey, value);
+
+  static const _gbifLayerEnabledKey = 'gbif_layer_enabled';
+
+  @override
+  bool get gbifLayerEnabled =>
+      _prefs.getBool(_gbifLayerEnabledKey) ?? false;
+
+  @override
+  Future<void> setGbifLayerEnabled(bool value) =>
+      _prefs.setBool(_gbifLayerEnabledKey, value);
 
   static const _ampelLayerEnabledKey = 'ampel_layer_enabled';
 

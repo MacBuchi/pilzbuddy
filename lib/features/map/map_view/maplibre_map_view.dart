@@ -20,12 +20,14 @@ import 'package:maplibre/maplibre.dart' as ml;
 
 import '../elevation_contour_providers.dart';
 import '../forest_data_providers.dart';
+import '../gbif_finds_providers.dart';
 import '../rain_data_providers.dart';
 import '../rain_layer.dart';
 import 'flutter_map_view.dart';
 import 'map_view.dart';
 import 'maplibre_contour_lines.dart';
 import 'maplibre_forest_fill.dart';
+import 'maplibre_gbif_fill.dart';
 import 'maplibre_image_fill.dart' show fillRemovalNeedsNudge;
 import 'maplibre_rain_fill.dart';
 import 'maplibre_style_provider.dart';
@@ -148,7 +150,8 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
   /// Ebenen unabhängig kommen und gehen.
   String? _appliedForestUrl;
 
-  /// Analog für die Pilzwetter-Fläche (Ampel-Vorschau).
+  /// Und für die Fundorte (#467) — eigener Merker, gleicher Grund.
+  String? _appliedGbifUrl;
 
   /// Die Kennung der zuletzt gelegten Höhenlinien — Fenster plus
   /// Äquidistanz. Eigener Merker, aus demselben Grund wie bei den
@@ -246,6 +249,31 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
     });
   }
 
+  void _syncGbifFill() {
+    final style = _style;
+    if (style == null) return;
+    final fill = ref.read(gbifFillFileProvider).valueOrNull;
+    _fillWork = _fillWork.then((_) async {
+      try {
+        final before = _appliedGbifUrl;
+        _appliedGbifUrl = await applyGbifFill(style,
+            fill: fill,
+            appliedUrl: _appliedGbifUrl,
+            // Unter dem Regen wie der Wald (#232): Regen ist die
+            // flüchtige Information. Über dem Wald liegen die Scheiben
+            // von selbst, weil sie später angehängt werden.
+            belowLayerId:
+                _appliedFillUrl != null ? rainFillLayerId : null);
+        if (fillRemovalNeedsNudge(
+            before: before, after: _appliedGbifUrl)) {
+          _nudgeEngine();
+        }
+      } catch (_) {
+        // Wie beim Regen: still degradieren, Begründung dort.
+      }
+    });
+  }
+
   /// Die Höhenlinien — GANZ ANS ENDE derselben Warteschlange.
   ///
   /// Die Reihenfolge ist die Aussage: Angehängt nach beiden Flächen
@@ -327,6 +355,7 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
     // Provider einen neuen Stand hat.
     ref.listen(rainFillFileProvider, (previous, next) => _syncRainFill());
     ref.listen(forestFillFileProvider, (previous, next) => _syncForestFill());
+    ref.listen(gbifFillFileProvider, (previous, next) => _syncGbifFill());
     ref.listen(contourGeoJsonProvider, (previous, next) => _syncContours());
     // Jeder Wechsel der Regenebene nimmt etwas von der Karte: die Fläche
     // hier, die Linienebenen im LayerManager des Pakets. Beides braucht
@@ -334,6 +363,8 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
     ref.listen(rainLayerProvider, (previous, next) => _requestRepaint());
     ref.listen(
         forestLayerEnabledProvider, (previous, next) => _requestRepaint());
+    ref.listen(
+        gbifLayerEnabledProvider, (previous, next) => _requestRepaint());
 
     final styleAsync = ref.watch(maplibreStyleProvider);
     final style = styleAsync.valueOrNull;
@@ -378,9 +409,11 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
         _style = style;
         _appliedFillUrl = null;
         _appliedForestUrl = null;
+        _appliedGbifUrl = null;
         _appliedContourKey = null;
         _syncRainFill();
         _syncForestFill();
+        _syncGbifFill();
         // Zuletzt, damit die Linien über den Flächen liegen.
         _syncContours();
       },

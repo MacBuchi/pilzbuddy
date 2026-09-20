@@ -9,6 +9,7 @@ import '../../offline_maps/offline_map_providers.dart';
 import '../elevation_contour_providers.dart';
 import '../finite_camera_constraint.dart';
 import '../forest_data_providers.dart';
+import '../gbif_finds_providers.dart';
 import '../map_overlays.dart';
 import '../rain_data_providers.dart';
 import '../rain_layer.dart';
@@ -158,6 +159,9 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
     // Die Waldtypen-Fläche (#213) — wie der Regen auch auf diesem Pfad,
     // denn er ist der einzige im Web.
     final forestFill = ref.watch(forestFillProvider).valueOrNull;
+    // Die gemeldeten Fundorte (#467) — Scheiben über dem Wald, unter
+    // dem Regen.
+    final gbifFill = ref.watch(gbifFillProvider).valueOrNull;
     // Die Pilzwetter-Fläche (Ampel-Vorschau) — im Blatt exklusiv zu den
     // Regenflächen, liegt wie diese über dem Wald.
     if (offlineActive) {
@@ -296,6 +300,24 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
                 filterQuality: FilterQuality.none,
                 gaplessPlayback: true,
                 imageProvider: MemoryImage(forestFill.png),
+              ),
+            ],
+          ),
+        // Die Fundorte (#467): weiche Scheiben, deshalb `medium` und
+        // nicht `none` — hart gerastert sähe eine 3-px-Scheibe aus wie
+        // ein Pixelfehler. Über dem Wald (sie sind die Aussage, er die
+        // Kulisse), unter dem Regen wie alles andere.
+        if (gbifFill != null)
+          OverlayImageLayer(
+            overlayImages: [
+              OverlayImage(
+                bounds: LatLngBounds(
+                  LatLng(gbifFill.south, gbifFill.west),
+                  LatLng(gbifFill.north, gbifFill.east),
+                ),
+                filterQuality: FilterQuality.medium,
+                gaplessPlayback: true,
+                imageProvider: MemoryImage(gbifFill.png),
               ),
             ],
           ),

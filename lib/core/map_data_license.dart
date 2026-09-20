@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
@@ -52,20 +54,37 @@ void registerMapDataLicense() {
     );
     yield const LicenseEntryWithLineBreaks(
       ['Funddaten (GBIF)'],
-      'Die Saisonkurven („Wann diese Art gemeldet wird") sind aus '
-      'Beobachtungsdaten der Global Biodiversity Information Facility '
-      'gerechnet — aggregiert zu zwölf Monatswerten je Art, für '
-      'Deutschland, Österreich und die Schweiz.\n'
+      'Zwei Dinge in dieser App kommen aus Beobachtungsdaten der Global '
+      'Biodiversity Information Facility: die Saisonkurven („Wann diese '
+      'Art gemeldet wird", aggregiert zu zwölf Monatswerten je Art) und '
+      'die Kartenebene „Gemeldete Fundorte" — dort liegen die einzelnen '
+      'Meldungen unserer Arten als Scheiben in der Genauigkeit, die der '
+      'Melder angegeben hat, für Deutschland, Österreich und die '
+      'Schweiz. Namen der Melder werden nicht mitgeliefert.\n'
       'https://www.gbif.org\n\n'
       'Berücksichtigt werden ausschließlich Datensätze unter CC0 1.0 und '
       'CC BY 4.0; die nicht-kommerziell lizenzierten bleiben bewusst '
       'draußen.\n'
       'https://creativecommons.org/publicdomain/zero/1.0/\n'
       'https://creativecommons.org/licenses/by/4.0/\n\n'
-      'Die Daten stammen von vielen einzelnen Sammlungen und '
-      'Meldeportalen, darunter SwissFungi und die Österreichische '
-      'Mykologische Gesellschaft.',
+      'Die Fundorte stammen aus dem GBIF-Download '
+      'https://doi.org/10.15468/dl.dwbsuf (Stand 16. September 2026). '
+      'Die Quell-Datensätze mit ihrem Anteil stehen im nächsten '
+      'Eintrag.',
     );
+    // Die Namensnennung je Quell-Datensatz — CC-BY-Pflicht. Aus dem
+    // Manifest des Assets, damit sie beim nächsten Download von selbst
+    // mitzieht statt hier zu veralten; ohne Asset bleibt der Eintrag
+    // schlicht weg.
+    final datasets = await _gbifDatasetLines();
+    if (datasets != null) {
+      yield LicenseEntryWithLineBreaks(
+        const ['Funddaten (GBIF) — Quell-Datensätze'],
+        'Die Kartenebene „Gemeldete Fundorte" enthält Meldungen aus '
+        'diesen Datensätzen (CC0 1.0 oder CC BY 4.0), mit der Zahl der '
+        'übernommenen Meldungen:\n\n$datasets',
+      );
+    }
     yield const LicenseEntryWithLineBreaks(
       ['Regendaten (Deutscher Wetterdienst)'],
       'Die Regenradar- und Niederschlagssummen-Ebenen der Karte und die '
@@ -156,4 +175,25 @@ void registerMapDataLicense() {
       await rootBundle.loadString(notoSansLicenseAsset),
     );
   });
+}
+
+/// Eine Zeile je Quell-Datensatz aus `assets/gbif/gbif_finds_manifest.json`,
+/// die größten zuerst — oder `null`, wenn das Asset fehlt oder nicht
+/// lesbar ist.
+Future<String?> _gbifDatasetLines() async {
+  try {
+    final raw =
+        await rootBundle.loadString('assets/gbif/gbif_finds_manifest.json');
+    final manifest = jsonDecode(raw) as Map<String, dynamic>;
+    final datasets = (manifest['datasets'] as List).cast<Map<String, dynamic>>();
+    if (datasets.isEmpty) return null;
+    return [
+      for (final d in datasets)
+        '${d['title']} — ${d['observations']} Meldungen',
+    ].join('\n');
+  } catch (_) {
+    // Kein Asset, kein Eintrag — die Lizenzseite ist kein Ort für eine
+    // Fehlermeldung über ein fehlendes Asset.
+    return null;
+  }
 }

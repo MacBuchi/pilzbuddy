@@ -25,6 +25,8 @@ const _attributedAssets = <String, String>{
   'assets/forest/forest_species_manifest.json': 'DLR',
   'assets/elevation/elevation.bin.gz': 'Copernicus DEM',
   'assets/elevation/elevation_manifest.json': 'Copernicus DEM',
+  'assets/gbif/gbif_finds.bin.gz': 'GBIF',
+  'assets/gbif/gbif_finds_manifest.json': 'GBIF',
 };
 
 /// Eigenerzeugnis — keine fremde Lizenz, nichts zu attribuieren.
@@ -115,11 +117,23 @@ void main() {
     final entries = await LicenseRegistry.licenses.toList();
     final gbif =
         entries.where((e) => e.packages.any((p) => p.contains('GBIF')));
-    expect(gbif, hasLength(1), reason: 'GBIF-Eintrag fehlt');
+    // Zwei Einträge seit den Fundorten (#467): der allgemeine und die
+    // Quell-Datensätze aus dem Manifest des Assets — die CC-BY-Nennung
+    // je Datensatz, die bei Einzelmeldungen schärfer wird als bei
+    // Monatswerten.
+    expect(gbif, hasLength(2), reason: 'GBIF-Einträge fehlen');
 
-    final text = gbif.single.paragraphs.map((p) => p.text).join(' ');
+    final text = gbif
+        .expand((e) => e.paragraphs)
+        .map((p) => p.text)
+        .join(' ');
     expect(text, contains('Global Biodiversity Information Facility'));
     expect(text, contains('CC BY 4.0'));
+    expect(text, contains('Gemeldete Fundorte'));
+    expect(text, contains('10.15468/dl.dwbsuf'));
+    // Die Datensätze aus dem echten Manifest, mit Zahl.
+    expect(text, contains('Swiss National Fungi Databank'));
+    expect(text, matches(RegExp(r'\d+ Meldungen')));
     // Der Lizenzfilter ist eine bewusste Entscheidung (26 % weniger
     // Daten). Wer ihn im Skript entfernt, muss auch hier vorbeikommen.
     expect(text, contains('nicht-kommerziell'));

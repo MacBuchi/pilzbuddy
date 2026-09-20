@@ -7,6 +7,37 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Gemeldete Fundorte auf der Karte
+
+*21. September 2026 · Version 1.154.0*
+
+Eine neue Ebene unter „Ebenen": **Gemeldete Fundorte**. Sie zeigt, wo
+Menschen eine unserer Pilzarten bei GBIF gemeldet haben — der weltweiten
+Sammlung von Naturbeobachtungen, aus der auch die Saisonkurven stammen.
+Rund 300 000 Meldungen aus Deutschland, Österreich und der Schweiz liegen
+dafür in der App, ohne Netz und ohne dass eine Koordinate das Gerät
+verlässt.
+
+- **Jede Scheibe ist eine Meldung, so groß wie ihre Genauigkeit.** In
+  Deutschland sind das meist Punkte von einigen hundert Metern, in der
+  Schweiz Quadrate von fünf Kilometern, in Österreich Rasterpunkte. Wo
+  sich Scheiben überlagern, wird es dichter — die Dichte entsteht aus den
+  Meldungen, sie wird nicht behauptet.
+- **Die Farbe ist die Ampel-Gruppe** der Art: Steinpilz & Co. rot,
+  Pfifferling gelb, Austernseitling & Co. magenta, Herbsttrompete & Co.
+  türkis, Arten ohne Ampel grau. Die Legende links unten nennt sie.
+- **Der Kartenfilter gilt auch hier.** Wer im Filter eine Art oder eine
+  Ampel-Gruppe wählt, sieht nur deren Meldungen — kein zweiter Wähler.
+- **„Was ist hier?" zählt mit:** Für jede Stelle steht jetzt, welche
+  Arten im Umkreis von fünf Kilometern gemeldet wurden, wie oft und
+  zuletzt wann.
+
+Was die Ebene nicht sagt, steht in ihrem Blatt und gehört hierher:
+„gemeldet" heißt nicht „wächst dort heute", und **keine Scheibe heißt
+„keine Meldung"**, nicht „nichts da" — dort hat einfach niemand gemeldet.
+Wer die Meldungen verfolgen will: Die Quell-Datensätze mit ihrem Anteil
+stehen unter „Über PilzBuddy" → Lizenzen.
+
 ## Ein Reiter „Pilze" — was wozu gehört
 
 *21. September 2026 · Version 1.153.0*

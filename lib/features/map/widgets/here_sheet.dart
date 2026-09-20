@@ -19,6 +19,7 @@ import '../../spots/widgets/ampel_section.dart';
 import '../../spots/widgets/spot_forest_section.dart';
 import '../../spots/widgets/spot_rain_section.dart';
 import '../forest_block_providers.dart';
+import 'gbif_around_section.dart';
 
 /// Öffnet das Blatt für [point].
 Future<void> showHereSheet(BuildContext context, LatLng point) {
@@ -85,6 +86,9 @@ class _HereSheet extends ConsumerWidget {
               // hinter dem Experimentell-Schalter.
               AmpelSection(lat: point.latitude, lon: point.longitude),
               SpotRainSection(lat: point.latitude, lon: point.longitude),
+              // Was GBIF rund um den Punkt kennt (#467) — die Liste, die
+              // keine Flächendeckung braucht.
+              GbifAroundSection(lat: point.latitude, lon: point.longitude),
               SizedBox(height: MediaQuery.of(context).viewPadding.bottom),
             ],
           ),

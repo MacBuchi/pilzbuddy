@@ -15,6 +15,7 @@ class FakeSettings implements Settings {
     this.ampelBannerEnabled = false,
     this.forestLayerEnabled = false,
     this.contourLayerEnabled = false,
+    this.gbifLayerEnabled = false,
     this.ampelLayerEnabled = false,
     this.rainLayerName,
     // **Vorgabe hier TRUE, in der App false.** Sonst bekäme jeder
@@ -111,6 +112,14 @@ class FakeSettings implements Settings {
 
   @override
   bool contourLayerEnabled;
+
+  @override
+  bool gbifLayerEnabled;
+
+  @override
+  Future<void> setGbifLayerEnabled(bool value) async {
+    gbifLayerEnabled = value;
+  }
 
   @override
   Future<void> setContourLayerEnabled(bool value) async {

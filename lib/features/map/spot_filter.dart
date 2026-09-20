@@ -30,11 +30,15 @@ class SpotFilter {
   /// Für welche Pilzgruppen die Ampel sprechen soll — Schlüssel aus
   /// [ampelClasses]. **Leer = alle**, wie bei [species].
   ///
-  /// **Das ist der einzige Filter, der auch die FLÄCHE betrifft**
-  /// (Betreiber, 2026-09-12: „auch die Fläche"). Die Karte zeigt seit
-  /// 1.140.0 das Maximum über alle Klassen; wer den Pfifferling
-  /// abwählt, will genau dieses Maximum enger haben — sonst leuchtete
-  /// im Juli eine Fläche, die für die gesuchte Gruppe nichts sagt.
+  /// **Dieser Filter betrifft auch die FLÄCHE** (Betreiber, 2026-09-12:
+  /// „auch die Fläche"). Die Karte zeigt seit 1.140.0 das Maximum über
+  /// alle Klassen; wer den Pfifferling abwählt, will genau dieses
+  /// Maximum enger haben — sonst leuchtete im Juli eine Fläche, die für
+  /// die gesuchte Gruppe nichts sagt. Bis 1.153.0 war er der EINZIGE
+  /// Flächen-Filter; seit den gemeldeten Fundorten (#467, 1.154.0)
+  /// folgen ihm und [species] auch deren Scheiben — bewusst kein
+  /// zweiter Artenwähler, zwei Filter wären zwei Antworten auf dieselbe
+  /// Frage.
   ///
   /// Dass ein Filter hier steht und nicht bei den Ebenen-Schaltern, hat
   /// denselben Grund wie alles andere in dieser Klasse: Er versteckt
