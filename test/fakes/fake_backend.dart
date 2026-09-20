@@ -67,8 +67,11 @@ class FakeSpotRow {
   final String id;
   final String ownerId;
   String? name;
-  final double lat;
-  final double lng;
+  // Veränderlich wie in der Tabelle: `spots_owner_all` ist `for all`,
+  // Name und Stelle sind seit #466 korrigierbar. Als `final` hätte der
+  // Fake eine Unveränderlichkeit behauptet, die es live nie gab.
+  double lat;
+  double lng;
   bool sharingExcluded;
 
   /// Vom Gerät vergebene Kennung (Patch 016) — hier, damit der Fake die
@@ -888,6 +891,7 @@ class FakeSpotRepository implements SpotRepository {
   Future<void> updateFind({
     required String findId,
     required NewFind find,
+    required FindPosition? position,
   }) async {
     for (final row in backend.spots) {
       final index = row.finds.indexWhere((f) => f.id == findId);
@@ -911,13 +915,15 @@ class FakeSpotRepository implements SpotRepository {
         createdAt: old.createdAt,
         authorId: old.authorId,
         blank: find.blank,
-        // Die Position ÜBERLEBT die Korrektur — sie steht nicht in der
-        // Spaltenliste des echten `updateFind`, ein Postgres-UPDATE fasst
-        // sie also gar nicht an. Hier muss man sie ausdrücklich
-        // mitnehmen: Der Fake baut den Fund feldweise neu und würde sie
-        // sonst stillschweigend wegwerfen — genau die Divergenz, die kein
-        // Schema-Check bemerkt.
-        position: old.position,
+        // Seit #466 schreibt das echte `updateFind` die drei Spalten
+        // MIT, und zwar immer — auch als `null`, sonst ließe sich eine
+        // Stelle nie wieder entfernen. Der Fake nimmt deshalb den
+        // übergebenen Wert und NICHT `old.position`: Stünde hier weiter
+        // der alte, sähe jeder Test eine Unveränderlichkeit, die es live
+        // nicht mehr gibt — genau die Divergenz, die kein Schema-Check
+        // bemerkt. Dass eine gemessene Stelle trotzdem stehen bleibt,
+        // entscheidet das Blatt und ist dort geprüft.
+        position: position,
       );
       return;
     }
@@ -975,6 +981,34 @@ class FakeSpotRepository implements SpotRepository {
       into.finds.add(find);
     }
     await deleteSpot(fromId);
+  }
+
+  /// Spiegelt `SpotRepository.editSpot` (#466) samt der Grenze, die live
+  /// `spots_owner_all` zieht: Der `using`-Teil prüft
+  /// `owner_id = auth.uid()`, ein fremder Spot trifft also null Zeilen
+  /// und das `.select('id')` macht daraus eine Ausnahme. Ohne diesen
+  /// Nachbau bewiese ein grüner Test eine Erlaubnis, die es live nicht
+  /// gibt.
+  ///
+  /// Die Funde bleiben ausdrücklich unangetastet — ihre absoluten
+  /// Koordinaten sind eigene Messungen, der Versatz wird beim Lesen
+  /// gerechnet. Genau das prüft der Flow-Test gegen.
+  @override
+  Future<void> editSpot({
+    required String spotId,
+    required String? name,
+    required double lat,
+    required double lng,
+  }) async {
+    for (final row in backend.spots) {
+      if (row.id == spotId && row.ownerId == _uid) {
+        row.name = name;
+        row.lat = lat;
+        row.lng = lng;
+        return;
+      }
+    }
+    throw const WriteRejectedException('Spot ändern');
   }
 
   @override

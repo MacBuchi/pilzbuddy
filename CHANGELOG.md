@@ -7,6 +7,36 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Spots lassen sich nachträglich korrigieren
+
+*20. September 2026 · Version 1.144.0*
+
+Ein Spot landete bisher genau dort, wo er beim Anlegen gesetzt wurde —
+und blieb da. Unter dichtem Blätterdach liegt das GPS aber schnell
+zwanzig Meter daneben, und wer den Namen in der Eile vertippt hatte,
+wurde ihn nie wieder los.
+
+Im Spot-Blatt gibt es jetzt einen Stift-Knopf oben rechts. Dahinter
+lassen sich Name und Stelle ändern: Die Karte zeigt einen Ring um die
+bisherige Stelle und darunter, wie weit du sie verschoben hast.
+
+Zwei Dinge dazu:
+
+- **Deine Funde ziehen sinnvoll mit.** Funde ohne eigene Stelle hängen
+  am Spot und wandern mit ihm. Ein Fund, für den du eine eigene Stelle
+  angegeben hast, bleibt dort, wo du ihn gemessen hast — seine
+  Entfernung zum Spot wird nur neu berechnet.
+- **Es geht nur bei eigenen Spots und nur mit Empfang.** Ein Spot, der
+  noch auf die Übertragung wartet, lässt sich noch nicht bearbeiten; du
+  kannst ihn aber verwerfen und neu anlegen.
+
+Dasselbe gilt jetzt auch für einzelne Fundstellen — aber nur für die,
+die du auf der Karte gewählt hast. Öffne den Fund, und die Karte steht
+da wie beim Eintragen. Eine Stelle, die dein Gerät gemessen hat, bleibt
+unverändert stehen: Sie ist eine Messung von damals, und ein Fix von
+heute würde sagen, wo du jetzt bist — nicht, wo der Pilz stand. Wenn die
+falsch ist, lösch den Fund und trag ihn neu ein.
+
 ## Die Pilztour zeichnet wieder sichtbar mit
 
 *20. September 2026 · Version 1.143.1*

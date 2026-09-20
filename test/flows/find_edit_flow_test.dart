@@ -194,7 +194,8 @@ void main() {
     expect(
         () => repo.updateFind(
             findId: myFind.id,
-            find: NewFind(species: 'Marone', foundOn: DateTime(2026, 7, 1))),
+            find: NewFind(species: 'Marone', foundOn: DateTime(2026, 7, 1)),
+            position: null),
         throwsA(isA<WriteRejectedException>()));
     await repo.deleteFind(myFind.id);
     expect(backend.spots.single.finds.map((f) => f.species), ['Steinpilz']);
@@ -217,7 +218,8 @@ void main() {
     expect(
         () => repo.updateFind(
             findId: buddyFind.id,
-            find: NewFind(species: 'Marone', foundOn: DateTime(2026, 7, 1))),
+            find: NewFind(species: 'Marone', foundOn: DateTime(2026, 7, 1)),
+            position: null),
         throwsA(isA<WriteRejectedException>()));
     expect(() => repo.deleteFind(buddyFind.id),
         throwsA(isA<WriteRejectedException>()));

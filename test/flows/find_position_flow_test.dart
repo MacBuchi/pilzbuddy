@@ -7,6 +7,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:pilzbuddy/features/map/widgets/mini_map.dart';
 import 'package:pilzbuddy/features/spots/find_offset.dart';
 import 'package:pilzbuddy/models/find_position.dart';
 
@@ -260,8 +262,131 @@ void main() {
 
     final saved = backend.spots.single.finds.single;
     expect(saved.note, 'am Wurzelteller');
-    // Eine Position ist eine MESSUNG, keine Angabe: Sie steht nicht in
-    // der Spaltenliste von `updateFind` und überlebt jede Korrektur.
+    // Eine GEMESSENE Stelle überlebt jede Korrektur. Seit #466 nicht
+    // mehr deshalb, weil `updateFind` die Spalten ausließe — es schreibt
+    // sie mit —, sondern weil das Blatt sie unverändert zurückgibt. Die
+    // Zusage ist dieselbe, der Grund ist ein anderer, und genau deshalb
+    // muss dieser Test stehen bleiben.
     expect(saved.position?.accuracyM, 5);
+  });
+
+  testWidgets('Eine gemessene Stelle bekommt keine Karte zum Verschieben',
+      (tester) async {
+    // Die Grenze aus #466: Ein Fix ist eine Messung. Ihn zwei Tage
+    // später vom Sofa aus zu rücken ersetzte sie durch eine Erinnerung.
+    final (backend, me) = loggedInBackend();
+    final spotId = backend.addSpot(
+        ownerId: me.id, name: 'Buchenhang', lat: spotLat, lng: spotLng);
+    backend.addFindRow(spotId,
+        species: 'Steinpilz',
+        foundOn: DateTime(2026, 9, 12),
+        position: const FindPosition.gps(
+            lat: 51.16349, lng: 10.44784, accuracy: 5));
+    await pumpApp(tester, backend);
+
+    await tester.tap(find.byTooltip('Buchenhang'));
+    await settle(tester);
+    await tester.tap(find.byIcon(Icons.edit_outlined));
+    await settle(tester);
+
+    expect(find.byType(MiniMap), findsNothing);
+    // Stattdessen steht sie weiter als Auskunft da.
+    expect(find.textContaining('Lag '), findsOneWidget);
+  });
+
+  testWidgets('Eine gewählte Stelle lässt sich verschieben', (tester) async {
+    // Die Gegenrichtung, und der eigentliche Zweck: Was auf der Karte
+    // gewählt wurde, ist eine Angabe wie der Ort des Spots — und der ist
+    // seit #466 korrigierbar. Beides anders zu behandeln wäre dieselbe
+    // Aussage mit zwei Antworten.
+    final (backend, me) = loggedInBackend();
+    final spotId = backend.addSpot(
+        ownerId: me.id, name: 'Buchenhang', lat: spotLat, lng: spotLng);
+    backend.addFindRow(spotId,
+        species: 'Steinpilz',
+        foundOn: DateTime(2026, 9, 12),
+        position: const FindPosition.picked(lat: 51.16349, lng: 10.44784));
+    await pumpApp(tester, backend);
+
+    await tester.tap(find.byTooltip('Buchenhang'));
+    await settle(tester);
+    await tester.tap(find.byIcon(Icons.edit_outlined));
+    await settle(tester);
+
+    final map = tester.widget<MiniMap>(find.byType(MiniMap));
+    expect(map.mode, MiniMapMode.pick);
+    expect(map.reference.latitude, closeTo(spotLat, 1e-9),
+        reason: 'der Ring liegt auf dem SPOT — er ist der Bezugspunkt');
+    // Kein Weg zu einem frischen Fix: Der misst, wo man jetzt steht,
+    // nicht wo der Fund lag.
+    expect(find.text('Meine Position'), findsNothing);
+
+    map.onCenterChanged!(const LatLng(51.1636, 10.4480));
+    await settle(tester);
+    await tester.ensureVisible(find.text('Speichern'));
+    await tester.tap(find.text('Speichern'));
+    await settle(tester);
+
+    final saved = backend.spots.single.finds.single.position!;
+    expect(saved.lat, closeTo(51.1636, 1e-9));
+    expect(saved.lng, closeTo(10.4480, 1e-9));
+    expect(saved.measured, isFalse,
+        reason: 'ein Fadenkreuz hat keinen Messfehler — auch beim Rücken');
+  });
+
+  testWidgets('Eine gewählte Stelle ohne Zutun bleibt, wo sie ist',
+      (tester) async {
+    // Die teuerste Falle dieser Änderung: `updateFind` schreibt die
+    // Spalten jetzt MIT. Ein Blatt, das sie beim Speichern vergisst,
+    // löscht sie — und das sähe aus wie „hat nie eine gehabt".
+    final (backend, me) = loggedInBackend();
+    final spotId = backend.addSpot(
+        ownerId: me.id, name: 'Buchenhang', lat: spotLat, lng: spotLng);
+    backend.addFindRow(spotId,
+        species: 'Steinpilz',
+        foundOn: DateTime(2026, 9, 12),
+        position: const FindPosition.picked(lat: 51.16349, lng: 10.44784));
+    await pumpApp(tester, backend);
+
+    await tester.tap(find.byTooltip('Buchenhang'));
+    await settle(tester);
+    await tester.tap(find.byIcon(Icons.edit_outlined));
+    await settle(tester);
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Notiz (optional)'), 'am Wurzelteller');
+    await settle(tester);
+    await tester.ensureVisible(find.text('Speichern'));
+    await tester.tap(find.text('Speichern'));
+    await settle(tester);
+
+    final saved = backend.spots.single.finds.single;
+    expect(saved.note, 'am Wurzelteller');
+    expect(saved.position?.lat, closeTo(51.16349, 1e-9));
+    expect(saved.position?.lng, closeTo(10.44784, 1e-9));
+  });
+
+  testWidgets('Ein Fund ohne eigene Stelle bekommt hier keine',
+      (tester) async {
+    // Eine Stelle nachträglich zu ERFINDEN ist nicht Korrigieren — und
+    // sie ginge in die Stichprobe ein, die #199 als unabhängigen
+    // Prüfstein aufhebt.
+    final (backend, me) = loggedInBackend();
+    final spotId = backend.addSpot(
+        ownerId: me.id, name: 'Buchenhang', lat: spotLat, lng: spotLng);
+    backend.addFindRow(spotId,
+        species: 'Steinpilz', foundOn: DateTime(2026, 9, 12));
+    await pumpApp(tester, backend);
+
+    await tester.tap(find.byTooltip('Buchenhang'));
+    await settle(tester);
+    await tester.tap(find.byIcon(Icons.edit_outlined));
+    await settle(tester);
+
+    expect(find.byType(MiniMap), findsNothing);
+
+    await tester.ensureVisible(find.text('Speichern'));
+    await tester.tap(find.text('Speichern'));
+    await settle(tester);
+    expect(backend.spots.single.finds.single.position, isNull);
   });
 }
