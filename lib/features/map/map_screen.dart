@@ -160,6 +160,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final point = decodeTourTick(data);
     if (point == null || !mounted) return;
     ref.read(tourProvider.notifier).acceptTick(point);
+    // Und, falls der Nutzer teilt, weiter zu den Buddys (#340). Der
+    // Takt liegt NICHT hier, sondern in `planTrackShare` — dieser
+    // Aufruf sagt nur „es könnte sich etwas geändert haben".
+    unawaited(ref.read(tourSharingProvider.notifier).sync());
   }
 
   @override
@@ -742,6 +746,15 @@ class _MapScreenState extends ConsumerState<MapScreen>
     ref.listen<MapFocus?>(mapFocusProvider, (_, next) {
       if (next == null) return;
       _map.move(next.target, math.max(_map.zoom, kSpotFocusZoom));
+    });
+    // Ende der Freigabe ODER Ende der Tour nimmt die geteilte Spur
+    // zurück (#340) — nicht erst, wenn `expires_at` abläuft. Bis dahin
+    // läge dort eine Freigabe, die niemand mehr gibt.
+    ref.listen(myShareProvider, (_, _) {
+      unawaited(ref.read(tourSharingProvider.notifier).sync());
+    });
+    ref.listen(tourProvider, (_, _) {
+      unawaited(ref.read(tourSharingProvider.notifier).sync());
     });
     // Solange ich teile, jede neue Position hochschieben (Bewegung sichtbar).
     ref.listen(positionStreamProvider, (_, next) {

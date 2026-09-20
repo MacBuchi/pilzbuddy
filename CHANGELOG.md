@@ -7,6 +7,25 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Deine Tour-Spur für die Buddys
+
+*20. September 2026 · Version 1.147.0*
+
+Wenn ihr zu mehreren unterwegs seid, könnt ihr jetzt sehen, welche
+Strecke die anderen schon abgesucht haben — so läuft niemand zweimal
+denselben Hang ab.
+
+**Es passiert nur, wenn du ohnehin deinen Standort teilst.** Die Spur
+hängt an genau dieser Freigabe: Zeichnest du eine Tour auf, ohne den
+Standort zu teilen, bleibt der Weg auf deinem Gerät, so wie bisher.
+Beendest du die Tour oder das Teilen, wird die Spur sofort wieder
+gelöscht — spätestens, wenn die Freigabe abläuft.
+
+Sehen können sie nur Freunde, die du bestätigt hast.
+
+In dieser Version wird deine Spur übertragen; **zu sehen** sind die
+Spuren der anderen mit dem nächsten Update.
+
 ## Ein Schalter weniger im Profil
 
 *20. September 2026 · Version 1.146.0*

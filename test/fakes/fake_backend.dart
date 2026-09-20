@@ -19,6 +19,9 @@ import 'package:pilzbuddy/data/live_share_repository.dart';
 import 'package:pilzbuddy/data/profile_repository.dart';
 import 'package:pilzbuddy/data/spot_repository.dart';
 import 'package:pilzbuddy/models/find.dart';
+import 'package:pilzbuddy/data/tour_track_repository.dart';
+import 'package:pilzbuddy/features/tour/tour_track.dart';
+import 'package:pilzbuddy/models/buddy_track.dart';
 import 'package:pilzbuddy/models/find_position.dart';
 import 'package:pilzbuddy/models/friend_location.dart';
 import 'package:pilzbuddy/models/friendship.dart';
@@ -109,9 +112,25 @@ class FakeLiveShareRow {
   DateTime expiresAt;
 }
 
+class FakeTourTrackRow {
+  FakeTourTrackRow({
+    required this.userId,
+    required this.startedAt,
+    required this.points,
+    required this.expiresAt,
+  });
+
+  final String userId;
+  DateTime startedAt;
+  List<TourPoint> points;
+  DateTime expiresAt;
+}
+
 class FakeBackend {
   final users = <FakeUser>[];
   final spots = <FakeSpotRow>[];
+  /// Eine Zeile je Nutzer (Patch 023) — wie live_locations.
+  final tourTracks = <FakeTourTrackRow>[];
   final friendships = <FakeFriendshipRow>[];
   final liveLocations = <FakeLiveShareRow>[];
   final feedback = <Map<String, dynamic>>[];
@@ -1169,6 +1188,65 @@ class FakeLiveShareRepository implements LiveShareRepository {
               userId: row.userId,
               lat: row.lat,
               lng: row.lng,
+              expiresAt: row.expiresAt,
+              username: backend.userById(row.userId).username,
+              avatar: backend.userById(row.userId).avatar,
+            ),
+      ];
+}
+
+class FakeTourTrackRepository implements TourTrackRepository {
+  FakeTourTrackRepository(this.backend);
+
+  final FakeBackend backend;
+
+  String get _uid => backend.currentUserId!;
+
+  @override
+  Future<void> uploadMyTrack({
+    required DateTime startedAt,
+    required List<TourPoint> points,
+    required DateTime expiresAt,
+  }) async {
+    // Upsert auf den Primärschlüssel `user_id` — genau EINE Zeile je
+    // Nutzer, wie in Patch 023. Ein Fake, der anhinge statt zu
+    // ersetzen, ließe die Zeilenzahl mit der Tour wachsen und würde
+    // damit die Eigenschaft verbergen, für die die Tabelle so
+    // geschnitten ist.
+    final existing =
+        backend.tourTracks.where((r) => r.userId == _uid).firstOrNull;
+    if (existing == null) {
+      backend.tourTracks.add(FakeTourTrackRow(
+          userId: _uid,
+          startedAt: startedAt,
+          points: points,
+          expiresAt: expiresAt));
+    } else {
+      existing
+        ..startedAt = startedAt
+        ..points = points
+        ..expiresAt = expiresAt;
+    }
+  }
+
+  @override
+  Future<void> deleteMyTrack() async =>
+      backend.tourTracks.removeWhere((r) => r.userId == _uid);
+
+  /// Spiegelt `tt_friend_select`: sichtbar sind nicht abgelaufene
+  /// Spuren akzeptierter Freunde, die eigene ausgeblendet. Ohne diesen
+  /// Nachbau bewiese ein grüner Test eine Sichtbarkeit, die es live
+  /// nicht gibt — und hier geht es um Bewegungsdaten.
+  @override
+  Future<List<BuddyTrack>> fetchFriendTracks() async => [
+        for (final row in backend.tourTracks)
+          if (row.userId != _uid &&
+              backend.areFriends(_uid, row.userId) &&
+              row.expiresAt.isAfter(DateTime.now().toUtc()))
+            BuddyTrack(
+              userId: row.userId,
+              startedAt: row.startedAt,
+              points: row.points,
               expiresAt: row.expiresAt,
               username: backend.userById(row.userId).username,
               avatar: backend.userById(row.userId).avatar,

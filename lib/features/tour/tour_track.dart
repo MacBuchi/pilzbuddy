@@ -21,6 +21,43 @@ import '../../core/geo.dart';
 import '../../models/spot.dart';
 import '../spots/nearby_spots.dart';
 
+/// Ein Punkt, wie er in `tour_tracks.points` liegt (#340): `[lat, lng,
+/// "iso8601"]`.
+///
+/// **Ohne Genauigkeit, und das ist eine Entscheidung.** Der Streuradius
+/// trägt auf dem eigenen Gerät die Wahrheit — `tourVisits` zählt einen
+/// Zeitabschnitt nur, wenn BEIDE Fixes scharf genug sind. Für die Spur
+/// eines Buddys wird er nirgends gebraucht: Sie wird gezeichnet, nicht
+/// ausgewertet, und fremde Punkte dürfen die eigenen Leergänge
+/// ausdrücklich nicht beeinflussen. Ihn trotzdem mitzuschicken hieße,
+/// Daten zu übertragen, für die es keinen Empfänger gibt — und beim
+/// Einlesen eine Genauigkeit anzubieten, mit der niemand rechnen darf.
+List<Object> encodeTrackPoint(TourPoint point) =>
+    [point.lat, point.lng, point.at.toUtc().toIso8601String()];
+
+/// Die Gegenrichtung. Unlesbare Einträge werden ÜBERSPRUNGEN, nicht
+/// geworfen: Eine Spur mit einem kaputten Punkt ist immer noch eine
+/// Spur, und eine Ausnahme nähme dem Betrachter die ganze.
+///
+/// Die Genauigkeit ist beim Lesen `double.infinity` — nicht 0. Null
+/// hieße „perfekt gemessen"; unendlich heißt „darüber wissen wir
+/// nichts", und genau das ist der Fall. Wer je auf die Idee käme,
+/// fremde Punkte auszuwerten, bekommt so keine Zahl, die ihn trägt.
+List<TourPoint> decodeTrackPoints(Object? raw) {
+  if (raw is! List) return const [];
+  final points = <TourPoint>[];
+  for (final entry in raw) {
+    if (entry is! List || entry.length < 3) continue;
+    final lat = (entry[0] as num?)?.toDouble();
+    final lng = (entry[1] as num?)?.toDouble();
+    final at = DateTime.tryParse('${entry[2]}');
+    if (lat == null || lng == null || at == null) continue;
+    points.add(TourPoint(
+        lat: lat, lng: lng, at: at.toUtc(), accuracyM: double.infinity));
+  }
+  return points;
+}
+
 /// Ein aufgezeichneter Punkt der Tour.
 class TourPoint {
   const TourPoint({

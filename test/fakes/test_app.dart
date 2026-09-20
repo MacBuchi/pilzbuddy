@@ -141,6 +141,8 @@ List<Override> overridesFor(FakeBackend backend,
             markers: markers,
           ),
         ),
+      tourTrackRepositoryProvider
+          .overrideWithValue(FakeTourTrackRepository(backend)),
       settingsProvider.overrideWithValue(settings ?? FakeSettings()),
       // Kein Method-Channel im Test: Der Update-Dialog würde sonst gegen
       // Androids System-Installer laufen.
