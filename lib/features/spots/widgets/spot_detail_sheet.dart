@@ -16,6 +16,7 @@ import '../spot_navigation.dart';
 import '../spot_providers.dart';
 import 'add_find_sheet.dart';
 import 'edit_find_sheet.dart';
+import 'edit_spot_sheet.dart';
 import 'ampel_section.dart';
 import '../../ampel/ampel_scan.dart' show scanSpeciesOf;
 import 'species_season_section.dart';
@@ -187,6 +188,42 @@ class _SpotDetailSheet extends ConsumerWidget {
       ));
   }
 
+  /// Öffnet das Korrektur-Blatt für Name und Stelle (#466).
+  ///
+  /// Nur für EIGENE, bereits übertragene Spots verdrahtet. Beides ist
+  /// eine Grenze, die woanders gezogen ist, und die Oberfläche darf
+  /// nicht anbieten, was dahinter scheitert: `spots_owner_all` lässt nur
+  /// den Besitzer schreiben, und einem Spot, der noch im Ausgangskorb
+  /// wartet, fehlt die Server-id, auf die das Update zeigen müsste.
+  Future<void> _edit(
+      BuildContext context, WidgetRef ref, Spot spot) async {
+    final edited = await showEditSpotSheet(
+      context,
+      name: spot.name,
+      position: spot.position,
+    );
+    if (edited == null || !context.mounted) return;
+    try {
+      final fresh = await ref.read(mySpotsProvider.notifier).editSpot(
+            spotId: spot.id,
+            name: edited.name,
+            lat: edited.position.latitude,
+            lng: edited.position.longitude,
+          );
+      // Wie beim Eintragen: Die Quittung ist normalerweise das Blatt
+      // selbst — Name und Entfernungen stehen danach neu da. Nur wenn
+      // die Liste nicht neu laden konnte, braucht es den Satz, sonst
+      // sähe die unveränderte Anzeige nach einem Fehlschlag aus.
+      if (!fresh && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Spot geändert$staleAfterWriteHint'),
+        ));
+      }
+    } catch (e, stackTrace) {
+      if (context.mounted) _showError(context, 'Spot ändern', e, stackTrace);
+    }
+  }
+
   Future<void> _delete(BuildContext context, WidgetRef ref, Spot spot) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -310,6 +347,15 @@ class _SpotDetailSheet extends ConsumerWidget {
                 icon: const Icon(Icons.directions_outlined),
                 tooltip: 'In Navi-App öffnen',
               ),
+              // Ein wartender Spot lässt sich nicht ändern — ihm fehlt
+              // die Server-id (#267). Der Löschen-Knopf daneben kann es
+              // trotzdem: Der nimmt dann den Auftrag zurück.
+              if (spot.isOwn && !spot.pending)
+                IconButton(
+                  onPressed: () => _edit(context, ref, spot),
+                  icon: const Icon(Icons.edit_location_alt_outlined),
+                  tooltip: 'Spot bearbeiten',
+                ),
               if (spot.isOwn)
                 IconButton(
                   onPressed: () => _delete(context, ref, spot),

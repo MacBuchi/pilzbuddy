@@ -67,8 +67,11 @@ class FakeSpotRow {
   final String id;
   final String ownerId;
   String? name;
-  final double lat;
-  final double lng;
+  // Veränderlich wie in der Tabelle: `spots_owner_all` ist `for all`,
+  // Name und Stelle sind seit #466 korrigierbar. Als `final` hätte der
+  // Fake eine Unveränderlichkeit behauptet, die es live nie gab.
+  double lat;
+  double lng;
   bool sharingExcluded;
 
   /// Vom Gerät vergebene Kennung (Patch 016) — hier, damit der Fake die
@@ -975,6 +978,34 @@ class FakeSpotRepository implements SpotRepository {
       into.finds.add(find);
     }
     await deleteSpot(fromId);
+  }
+
+  /// Spiegelt `SpotRepository.editSpot` (#466) samt der Grenze, die live
+  /// `spots_owner_all` zieht: Der `using`-Teil prüft
+  /// `owner_id = auth.uid()`, ein fremder Spot trifft also null Zeilen
+  /// und das `.select('id')` macht daraus eine Ausnahme. Ohne diesen
+  /// Nachbau bewiese ein grüner Test eine Erlaubnis, die es live nicht
+  /// gibt.
+  ///
+  /// Die Funde bleiben ausdrücklich unangetastet — ihre absoluten
+  /// Koordinaten sind eigene Messungen, der Versatz wird beim Lesen
+  /// gerechnet. Genau das prüft der Flow-Test gegen.
+  @override
+  Future<void> editSpot({
+    required String spotId,
+    required String? name,
+    required double lat,
+    required double lng,
+  }) async {
+    for (final row in backend.spots) {
+      if (row.id == spotId && row.ownerId == _uid) {
+        row.name = name;
+        row.lat = lat;
+        row.lng = lng;
+        return;
+      }
+    }
+    throw const WriteRejectedException('Spot ändern');
   }
 
   @override

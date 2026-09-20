@@ -281,6 +281,30 @@ class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox>
     await reloadAfterWrite('Spots neu laden');
   }
 
+  /// Korrigiert Name und Stelle eines eigenen Spots (#466).
+  ///
+  /// Gibt wie [addSpot] zurück, ob die Liste danach frisch ist — der
+  /// Aufrufer hängt sonst `staleAfterWriteHint` an, statt „gespeichert"
+  /// über eine unveränderte Karte zu schreiben.
+  ///
+  /// **Kein Ausgangskorb.** Ein Korrigieren gehört zu den Wegen, die
+  /// offline sichtbar scheitern (#267): Die beiden Wege in den Korb sind
+  /// „neuer Spot" und „Fund am Spot". Ein Verschieben, das Tage später
+  /// zuschlägt, wäre schlimmer als eine Fehlermeldung — und einem noch
+  /// wartenden Spot fehlt ohnehin die Server-id, weshalb die Oberfläche
+  /// die Aktion dort gar nicht erst anbietet.
+  Future<bool> editSpot({
+    required String spotId,
+    required String? name,
+    required double lat,
+    required double lng,
+  }) async {
+    await ref
+        .read(spotRepositoryProvider)
+        .editSpot(spotId: spotId, name: name, lat: lat, lng: lng);
+    return reloadAfterWrite('Spots neu laden');
+  }
+
   Future<void> setSharingExcluded(String spotId, bool excluded) async {
     await ref.read(spotRepositoryProvider).setSharingExcluded(spotId, excluded);
     await reloadAfterWrite('Spots neu laden');

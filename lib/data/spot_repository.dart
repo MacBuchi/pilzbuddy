@@ -399,6 +399,40 @@ class SpotRepository {
     if (rows.isEmpty) throw const WriteRejectedException('Fund löschen');
   }
 
+  /// Korrigiert Name und Stelle eines eigenen Spots (#466).
+  ///
+  /// **Warum es das überhaupt braucht:** Unter Blätterdach liegt ein Fix
+  /// 10–20 m daneben, und bis hierher war die Stelle beim Anlegen
+  /// endgültig. Der Name ebenso — er wurde beim Anlegen gesetzt und war
+  /// danach nie wieder erreichbar.
+  ///
+  /// **Die Funde ziehen NICHT mit, und das ist die richtige Antwort.**
+  /// `findOffset` rechnet den Versatz beim Lesen aus absoluten
+  /// Koordinaten: Ein Fund ohne eigene Stelle hat gar keine und erbt die
+  /// des Spots, wandert also von selbst mit. Ein Fund MIT eigener Stelle
+  /// (#373) hat eine eigene Messung, die von dieser Korrektur nichts
+  /// weiß — sein Versatz wird neu gerechnet, und genau das soll er.
+  /// Hier etwas zu verschieben hieße, fremde Messungen umzuschreiben.
+  ///
+  /// Fremde Spots kann diese Methode nicht treffen: `spots_owner_all`
+  /// prüft `owner_id = auth.uid()`, und das `.select('id')` macht die
+  /// abgelehnte Zeile sichtbar — ohne sie meldete die App Erfolg für
+  /// einen Vorgang, den RLS stillschweigend auf null Zeilen reduziert
+  /// hat (dieselbe Begründung wie bei [updateFind]).
+  Future<void> editSpot({
+    required String spotId,
+    required String? name,
+    required double lat,
+    required double lng,
+  }) async {
+    final rows = await _client
+        .from('spots')
+        .update({'name': name, 'lat': lat, 'lng': lng})
+        .eq('id', spotId)
+        .select('id');
+    if (rows.isEmpty) throw const WriteRejectedException('Spot ändern');
+  }
+
   Future<void> deleteSpot(String spotId) async {
     await _client.from('spots').delete().eq('id', spotId);
   }
