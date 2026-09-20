@@ -104,19 +104,59 @@ class SoilStation extends WeatherStation {
   int get measuredDays => soil.whereType<double>().length;
 }
 
+/// Eine Station des Bodenfeuchte-Produkts: Bodenfeuchte 0–60 cm unter
+/// Gras in Prozent nutzbarer Feldkapazität (`BFGL_AG`, AMBAV-Modell des
+/// DWD), Tageswerte, ältester Tag zuerst. Seit 2026-09-20 — die einzige
+/// Bodenfeuchte, die die App LIVE bekommen kann; die Ampel-Klasse für
+/// Holz- und Winterpilze ist mit genau dieser Größe validiert
+/// (`docs/pilzampel-holz-winter-plan.md`).
+class MoistureStation extends WeatherStation {
+  const MoistureStation({
+    required super.name,
+    required super.lat,
+    required super.lon,
+    required super.height,
+    required this.bfgl,
+  });
+
+  final List<double?> bfgl;
+
+  @override
+  int get measuredDays => bfgl.whereType<double>().length;
+
+  /// Der jüngste gemessene Wert — für die Zeile im Spot-Blatt. `null`,
+  /// wenn die ganze Reihe leer ist.
+  double? get latest {
+    for (var i = bfgl.length - 1; i >= 0; i--) {
+      if (bfgl[i] case final value?) return value;
+    }
+    return null;
+  }
+}
+
 /// Die Stationstabelle: die Tage, die alle Reihen abdecken, und die
-/// beiden Netze — Luft (~465 Stationen) und Boden (~293) sind getrennte
-/// Messnetze, die nächste Station darf also je Netz eine andere sein.
+/// Netze — Luft (~465 Stationen), Boden (~293) und seit 2026-09-20 die
+/// Bodenfeuchte (~493) sind getrennte Messnetze, die nächste Station
+/// darf also je Netz eine andere sein.
+///
+/// **Die Bodenfeuchte hat ihre EIGENE Tagesliste** (`moistureDays`):
+/// Das Produkt läuft ein bis zwei Tage hinter den Beobachtungen her,
+/// und eine am Luftnetz verankerte Reihe endete jeden Tag in einer
+/// Lücke. Sie ist 26 Tage lang — das Feuchtefenster des Modells.
 class WeatherTable {
   const WeatherTable({
     required this.days,
     required this.air,
     required this.soil,
+    this.moistureDays = const [],
+    this.moisture = const [],
   });
 
   final List<DateTime> days;
   final List<AirStation> air;
   final List<SoilStation> soil;
+  final List<DateTime> moistureDays;
+  final List<MoistureStation> moisture;
 
   /// Mindestens 10 der 14 Tage müssen gemessen sein, sonst tritt die
   /// Station nicht an: Eine Linie, die überwiegend aus Lücken besteht,
@@ -159,13 +199,30 @@ class WeatherTable {
   ({AirStation station, double km})? nearestAir(double lat, double lon) =>
       _nearest(air, lat, lon);
 
+  /// Die nächste brauchbare Bodenfeuchtestation — dieselbe Regel wie
+  /// bei den anderen Netzen (10 gemessene Tage, 100 km). Ob die Reihe
+  /// für ein 26-Tage-Mittel VOLLSTÄNDIG ist, entscheidet der Abnehmer;
+  /// hier geht es nur darum, welche Station antritt.
+  ({MoistureStation station, double km})? nearestMoisture(
+          double lat, double lon) =>
+      _nearest(moisture, lat, lon);
+
   /// Was am Spot gezeigt wird — `null`, wenn kein Netz eine brauchbare
   /// Station in Reichweite hat.
   SpotTemperature? at(double lat, double lon) {
     final airPick = nearestAir(lat, lon);
     final soilPick = _nearest(soil, lat, lon);
-    if (airPick == null && soilPick == null) return null;
-    return SpotTemperature(days: days, air: airPick, soil: soilPick);
+    final moisturePick = nearestMoisture(lat, lon);
+    if (airPick == null && soilPick == null && moisturePick == null) {
+      return null;
+    }
+    return SpotTemperature(
+      days: days,
+      air: airPick,
+      soil: soilPick,
+      moisture: moisturePick,
+      moistureDays: moistureDays,
+    );
   }
 }
 
@@ -177,11 +234,31 @@ class SpotTemperature {
     required this.days,
     required this.air,
     required this.soil,
+    this.moisture,
+    this.moistureDays = const [],
   });
 
   final List<DateTime> days;
   final ({AirStation station, double km})? air;
   final ({SoilStation station, double km})? soil;
+
+  /// Die Bodenfeuchte steht NICHT im Diagramm (andere Einheit, andere
+  /// Tagesliste), sondern als eigene Zeile darunter.
+  final ({MoistureStation station, double km})? moisture;
+  final List<DateTime> moistureDays;
+
+  /// Der Tag des jüngsten Feuchtewerts der gewählten Station — `null`
+  /// ohne Station oder ohne Wert.
+  DateTime? get moistureNewest {
+    final station = moisture?.station;
+    if (station == null) return null;
+    for (var i = station.bfgl.length - 1; i >= 0; i--) {
+      if (station.bfgl[i] != null && i < moistureDays.length) {
+        return moistureDays[i];
+      }
+    }
+    return null;
+  }
 
   List<double?>? get max => air?.station.max;
   List<double?>? get min => air?.station.min;
@@ -201,7 +278,7 @@ class SpotTemperature {
     return low == null || high == null ? null : (low: low, high: high);
   }
 
-  bool get isEmpty => span == null;
+  bool get isEmpty => span == null && moisture == null;
 }
 
 /// Packt aus, was `tool/spot_weather.py` geschrieben hat — `null`, wenn
@@ -257,8 +334,38 @@ WeatherTable? weatherTableFrom(List<int> gzippedJson) {
         soil: values,
       ));
     }
-    if (air.isEmpty && soil.isEmpty) return null;
-    return WeatherTable(days: days, air: air, soil: soil);
+    // Bodenfeuchte (seit 2026-09-20): eigene Tagesliste, eigener
+    // Abschnitt — beides optional, ältere Tabellen kennen es nicht.
+    final moistureDays = [
+      for (final day in json['moisture_days'] as List? ?? const [])
+        DateTime.parse(day as String),
+    ];
+    final moisture = <MoistureStation>[];
+    if (moistureDays.isNotEmpty) {
+      for (final entry in json['moisture'] as List? ?? const []) {
+        final station = entry as Map<String, dynamic>;
+        final raw = station['bfgl'];
+        if (raw is! List || raw.length != moistureDays.length) continue;
+        moisture.add(MoistureStation(
+          name: station['name'] as String,
+          lat: (station['lat'] as num).toDouble(),
+          lon: (station['lon'] as num).toDouble(),
+          height: station['h'] as int,
+          bfgl: [
+            for (final value in raw)
+              value == null ? null : (value as num).toDouble(),
+          ],
+        ));
+      }
+    }
+    if (air.isEmpty && soil.isEmpty && moisture.isEmpty) return null;
+    return WeatherTable(
+      days: days,
+      air: air,
+      soil: soil,
+      moistureDays: moistureDays,
+      moisture: moisture,
+    );
   } catch (_) {
     // Kaputte Datei, fremdes Format: kein Fall für error_reports — die
     // Temperatur ist eine Zugabe im Spot-Blatt, kein Kernpfad.
