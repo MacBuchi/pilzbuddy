@@ -263,6 +263,11 @@ WOOD_DWELLERS = [
 COLD_MAX_OPTIMUM_C = 5.0
 COLD_MIN_GAIN = 0.05
 
+# **Seit 2026-09-20 gibt es Klassen, die KEIN Fenster sind:** die
+# Logit-Klassen in `tool/ampel_logit_klasse.py` (Austernseitling & Co.,
+# Herbsttrompete & Co.). Sie stehen dort, nicht hier — die Tabelle hier
+# ist die der Glocke. Ihr Selbsttest verbietet, dass eine Art zugleich in
+# einer Fensterklasse mit Dart-Namen und in einer Logit-Klasse steht.
 AMPEL_CLASSES = {
     "sommer": {
         "dart": "ampelSommerClass",
@@ -270,11 +275,25 @@ AMPEL_CLASSES = {
         # nach einer Jahreszeit. „Sommerpilze" behauptete eine Gruppe;
         # drin steht ein Pfifferling.
         "label": "Pfifferling",
-        # Gemessen am 2026-09-12; `class_thresholds` rechnet beide Zahlen
-        # bei jedem Lauf nach und bricht ab, wenn sie gewandert sind.
-        "verhalten": 0.287,
-        "guenstig": 0.677,
-        "optimum": 17.5,
+        # **Neu gesetzt am 2026-09-19** (Auftrag 3 A). Vorher 0,287 und
+        # 0,677 aus Design A; die Herkunft steht in
+        # `docs/pilzampel-schwellen-designb-p1.md`. Nachgerechnet wird
+        # bei jedem `--schwellen --scheibe p1`.
+        # **Neu gemessen am 2026-09-20 unter dem Fenster 14,5 °C** (vorher
+        # 0,385 / 0,729 unter 17,5): `ampel_diagnose.py --schwellen
+        # --scheibe p1`, docs/pilzampel-schwellen-designb-p1.md.
+        "verhalten": 0.348,
+        "guenstig": 0.669,
+        "schwellen_quelle": "Design B, P1, pinned (2026-09-20)",
+        # **17,5 → 14,5 °C am 2026-09-20, Betreiberentscheidung** auf einem
+        # nicht gesicherten Ergebnis (Labor 14/15/16/18: Vorzeichen fuenfmal
+        # positiv, DE-Test +0,035 [-0,012, +0,079], AT/CH +0,066 ▲, AUC auf
+        # dem DE-Test leicht ruecklaeufig). Der Wert ist damit GESETZT, nicht
+        # gemessen — `fenster_quelle` sagt es, und `verify_class_constants`
+        # haelt ihn deshalb nicht mehr gegen den Design-A-Median. Die
+        # Evidenzstufe des Pfifferlings in der App ist seither `vorlaeufig`.
+        "optimum": 14.5,
+        "fenster_quelle": "Betreiber 2026-09-20, docs/pilzampel-holz-winter-plan.md §1B",
         "members": ["Pfifferling"],
         "confirmed": True,
         "why": "Hold-out in AT+CH bestätigt: AUC 0,584 → 0,689 "
@@ -287,11 +306,21 @@ AMPEL_CLASSES = {
         # nach einer Jahreszeit. „Sommerpilze" behauptete eine Gruppe;
         # drin steht ein Pfifferling.
         "label": "Steinpilz & Co.",
-        # Gemessen am 2026-09-12; `class_thresholds` rechnet beide Zahlen
-        # bei jedem Lauf nach und bricht ab, wenn sie gewandert sind.
-        "verhalten": 0.187,
-        "guenstig": 0.512,
+        # **Neu gesetzt am 2026-09-19** (Auftrag 3 A). Vorher 0,187 und
+        # 0,512 aus Design A; die Herkunft steht in
+        # `docs/pilzampel-schwellen-designb-p1.md`. Nachgerechnet wird
+        # bei jedem `--schwellen --scheibe p1`.
+        "verhalten": 0.389,
+        "guenstig": 0.742,
+        "schwellen_quelle": "Design B, P1, pinned (2026-09-19)",
         "optimum": 13.0,
+        # **Die Herbsttrompete zieht um** — in die Logit-Klasse
+        # `cantharellales` (`tool/ampel_logit_klasse.py`, UMZUG), wo sie auf
+        # dem DE-Test +0,189 [+0,048, +0,294] gegen dieses Fenster gewinnt.
+        # Sie steht hier, bis der Dart-Kern sie umhaengt (PR 3): Werkzeug
+        # und App muessen dieselben fuenf sehen, sonst messen die Schwellen
+        # eine andere Klasse als die ausgelieferte. Mit dem Umzug sind die
+        # Schwellen dieser Klasse neu zu messen (vier Mitglieder).
         "members": ["Steinpilz", "Maronenröhrling", "Birkenpilz",
                     "Fichtenreizker", "Herbsttrompete"],
         "confirmed": True,
@@ -1400,6 +1429,7 @@ def collect_pairs_b(name, sci, finds=None, cache_dir=None, seed=42,
                 used=[y for y in kandidaten if y not in brauchbar])
             ausgewichen += aus
             controls, control_years, extra_controls = [], [], []
+            control_days = []
             for other in jahre:
                 tag = found_day + rng.randint(-ampel_basis.DAY_JITTER,
                                               ampel_basis.DAY_JITTER)
@@ -1409,6 +1439,14 @@ def collect_pairs_b(name, sci, finds=None, cache_dir=None, seed=42,
                     continue
                 controls.append((b_rain, b_temp))
                 control_years.append(other)
+                # **Der Kalendertag des Kontrolltags, mitgefuehrt.** Er
+                # steckt sonst nur im Zufallszahlengenerator, und eine
+                # Frage nach dem MONAT (wie haeufig stuende die Ampel im
+                # September guenstig?) liesse sich nachtraeglich nur
+                # beantworten, indem man die ganze Ziehung mit demselben
+                # Seed nachspielt. Eine Zahl, die man nur durch
+                # Nachspielen bekommt, ist eine, die niemand nachrechnet.
+                control_days.append(tag)
                 extra_controls.append(_extra_windows(reihen[other][index], tag))
             if not controls:
                 ohne_jahr += 1
@@ -1430,8 +1468,10 @@ def collect_pairs_b(name, sci, finds=None, cache_dir=None, seed=42,
             samples.append({
                 "year": year,
                 "found": (a_rain, a_temp),
+                "found_day": found_day,
                 "controls": controls,
                 "control_years": control_years,
+                "control_days": control_days,
                 "placebo_found": placebo_found,
                 "placebo_controls": placebo_controls,
                 "recordedBy": find.get("recordedBy"),
@@ -2155,12 +2195,22 @@ def class_thresholds(rows, quantiles, verify=True):
         # auch in Dart.
         out[key] = got
     if verify:
-        verify_class_constants(out)
+        verify_class_constants(out, schwellen=(verify != "fenster"))
     return out
 
 
-def verify_class_constants(measured):
+def verify_class_constants(measured, schwellen=True):
     """Konstanten gegen Daten — **alle Abweichungen auf einmal.**
+
+    [schwellen] schaltet die beiden Schwellen ab. **Seit dem
+    2026-09-19 stammen sie nicht mehr aus Design A** (Auftrag 3 A,
+    `docs/pilzampel-schwellen-designb-p1.md`), und ein Waechter, der
+    sie gegen Design-A-Quantile haelt, vergleicht dann zwei
+    verschiedene Groessen — dieselbe Falle wie beim Messbasis-Wechsel
+    einen Absatz tiefer. Genagelt werden sie jetzt dort, wo sie
+    herkommen: in `ampel_diagnose.py --schwellen --scheibe p1`. Das
+    Fenster prueft diese Funktion weiter, denn das kommt nach wie vor
+    aus Design A.
 
     Bis zum 2026-09-12 brach die Prüfung beim ersten Fund ab. Das ist
     genau der Wächter, den man nach dem zweiten Mal abschaltet: Ein
@@ -2175,13 +2225,16 @@ def verify_class_constants(measured):
         # es auch nichts, was auseinanderlaufen könnte.
         if not klass.get("dart"):
             continue
-        for field in ("verhalten", "guenstig"):
+        for field in ("verhalten", "guenstig") if schwellen else ():
             expected = klass.get(field)
             if expected is not None and round(got[field], 3) != expected:
                 findings.append(
                     f"  {key}.{field}: gemessen {round(got[field], 3)}, "
                     f"Konstante {expected}")
-        if "optimum_measured" in got:
+        # Ein GESETZTES Fenster (`fenster_quelle`) hat keine Messung, gegen
+        # die es zu halten waere — die Abweichung ist dort der Befund, nicht
+        # der Fehler, und steht im Klasseneintrag.
+        if "optimum_measured" in got and not klass.get("fenster_quelle"):
             expected = klass["optimum"]
             if abs(got["optimum_measured"] - expected) > 1e-9:
                 findings.append(
@@ -6218,7 +6271,9 @@ def main():
         ship = deployment_quantiles(rows)
         if ship:
             attach_class_scores(rows)
-            class_thresholds(rows, ship, verify=True)
+            # Nur das Fenster: die Schwellen kommen seit dem
+            # 2026-09-19 aus Design B auf P1 und werden dort genagelt.
+            class_thresholds(rows, ship, verify="fenster")
         # Fenster UND Schwellen jeder Klasse gegen die Daten — in EINEM
         # Durchgang, damit ein Lauf alle Abweichungen nennt. Bis hierher
         # wachte das Werkzeug nur über die Schwellen; das Fenster der

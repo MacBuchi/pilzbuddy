@@ -7,6 +7,57 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Der Pfifferling mag es etwas kühler
+
+*20. September 2026 · Version 1.151.0*
+
+Das Temperaturfenster der Pfifferling-Ampel rückt von 17,5 auf 14,5 °C.
+In einer großen Nachrechnung über Deutschland, Österreich und die Schweiz
+zeigte das kühlere Fenster durchweg ein kleines Plus — klein genug, dass
+wir es ehrlich als Versuch führen: Im Spot-Blatt steht der Pfifferling
+deshalb ab jetzt auf „unsichere Datenlage" statt „gut belegt", bis ein
+weiteres Jahr die Änderung bestätigt oder widerlegt. Die beiden Stufen
+„verhalten" und „günstig" sind für das neue Fenster neu geeicht.
+
+Im Hintergrund ist mit dieser Version die Vorarbeit für eine Ampel für
+Winter- und Holzpilze abgeschlossen; sie selbst kommt mit einem der
+nächsten Updates.
+
+## Die Bodenfeuchte steht jetzt am Spot
+
+*20. September 2026 · Version 1.150.0*
+
+Unter dem Wetterdiagramm eines Spots steht eine neue Zeile: die
+Bodenfeuchte der nächsten Messstelle des Deutschen Wetterdienstes, in
+Prozent dessen, was der Boden dort an Wasser für Pflanzen halten kann.
+100 % heißt „voll", egal ob Sand oder Lehm. Dazu Datum und Entfernung der
+Station — sie liegt in Deutschland im Schnitt gut zehn Kilometer weg, in
+Österreich und der Schweiz meist zu weit, dann fehlt die Zeile.
+
+Das ist Vorarbeit: Für Winter- und Holzpilze wie Judasohr, Austernseitling
+oder Samtfußrübling hat sich in der Auswertung gezeigt, dass die Ampel
+mit dieser Größe rechnen muss, um überhaupt etwas Sinnvolles zu sagen.
+Dafür braucht die App die Daten zuerst auf dem Gerät — wie beim Regen
+ohne dass eine Fundstelle das Telefon verlässt.
+
+## Lange auf die Karte tippen
+
+*20. September 2026 · Version 1.149.0*
+
+Halte irgendwo auf der Karte gedrückt — ein kleines Menü fächert auf und
+fragt, was du willst:
+
+- **Was ist hier?** — Regen, Temperatur, Wald und Pilzampel für genau
+  diese Stelle. Das gab es schon, aber nur versteckt in der Legende.
+- **Navigation** — übergibt den Punkt an deine Navi-App, so wie es am
+  Spot längst geht.
+- **Heranzoomen** — springt hin und zoomt heran.
+
+Den Schalter „Karte gedrückt halten" im Profil gibt es nicht mehr. Er war
+nötig, weil die Geste früher sofort die Karte verschob und ein Fehlgriff
+einen aus der Übersicht warf. Jetzt fragt sie erst — und ein
+versehentliches Menü tippst du einfach weg.
+
 ## Und jetzt siehst du die Spuren der anderen
 
 *20. September 2026 · Version 1.148.0*
@@ -114,6 +165,30 @@ Aufgezeichnet wurde die ganze Zeit alles — verloren gegangen ist nie
 etwas, auch nicht bei den Touren aus den letzten Wochen. Nur der Weg von
 der Aufzeichnung zur Karte war unterbrochen. Jetzt wächst die Spur
 wieder mit, während du gehst.
+
+## Die Ampel wird wählerischer
+
+*19. September 2026 · Version 1.144.0*
+
+Bisher stand die Pilzampel im Oktober an mehr als jedem zweiten Tag auf
+„günstig". Das klang nach einer guten Nachricht und war keine: Wenn fast
+jeder Tag gut ist, sagt das Wort nichts mehr.
+
+Der Grund war eine Feinheit in der Eichung. Die Grenze zwischen den
+Stufen war an Vergleichstagen gesetzt worden, die vier bis sechs Wochen
+neben der eigentlichen Pilzzeit lagen — also an Tagen, an denen ohnehin
+wenig geht. Gemessen an Tagen aus derselben Jahreszeit liegt die Latte
+höher. Genau dorthin ist sie jetzt gerückt.
+
+An der Rechnung selbst hat sich nichts geändert. Dieselbe Formel,
+dieselben Zahlen für Regen und Temperatur — nur der Schnitt liegt
+woanders. Im Oktober werden aus rund 17 grünen Tagen etwa 10.
+
+Dazu steht jetzt im Spot-Blatt, was „günstig" überhaupt heißt: etwa
+jeder fünfte Tag der Saison, dort wo die Art vorkommt. Und wieviel der
+Hinweis wert ist — an solchen Tagen wurde rund 1,3-mal so oft etwas
+gemeldet wie an einem gewöhnlichen Tag. Das ist wenig, und es ist mehr
+als nichts; beides soll dastehen.
 
 ## Die Ampel sagt jetzt, wie sicher sie sich ist
 

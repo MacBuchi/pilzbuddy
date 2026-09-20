@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 380" width="720" height="380" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+<rect width="720" height="380" fill="#ffffff"/>
+<text x="62" y="22" font-size="14" font-weight="600" fill="#222222">Pfifferling: Wie viel wärmer war der Fundtag als sein Vergleichstag?</text>
+<text x="62" y="38" font-size="11" fill="#777777">Design B — 60 % aller Vergleiche liegen innerhalb von ±2 K. Auf diesem schmalen Band wird die Glocke befragt.</text>
+<text x="14" y="175.0" font-size="11" fill="#777777" text-anchor="middle" transform="rotate(-90 14 175.0)">Anteil der Vergleiche</text>
+<text x="382.0" y="342" font-size="11" fill="#777777" text-anchor="middle">Fundtag minus Vergleichstag (K)</text>
+<line x1="62" y1="306.0" x2="702" y2="306.0" stroke="#dddddd" stroke-width="1"/>
+<text x="54" y="310.0" font-size="11" fill="#777777" text-anchor="end">0</text>
+<line x1="62" y1="256.4" x2="702" y2="256.4" stroke="#dddddd" stroke-width="1"/>
+<text x="54" y="260.4" font-size="11" fill="#777777" text-anchor="end">0,03</text>
+<line x1="62" y1="206.8" x2="702" y2="206.8" stroke="#dddddd" stroke-width="1"/>
+<text x="54" y="210.8" font-size="11" fill="#777777" text-anchor="end">0,05</text>
+<line x1="62" y1="157.2" x2="702" y2="157.2" stroke="#dddddd" stroke-width="1"/>
+<text x="54" y="161.2" font-size="11" fill="#777777" text-anchor="end">0,07</text>
+<line x1="62" y1="107.5" x2="702" y2="107.5" stroke="#dddddd" stroke-width="1"/>
+<text x="54" y="111.5" font-size="11" fill="#777777" text-anchor="end">0,1</text>
+<line x1="62" y1="57.9" x2="702" y2="57.9" stroke="#dddddd" stroke-width="1"/>
+<text x="54" y="61.9" font-size="11" fill="#777777" text-anchor="end">0,12</text>
+<text x="62.0" y="323" font-size="11" fill="#777777" text-anchor="middle">-10</text>
+<text x="222.0" y="323" font-size="11" fill="#777777" text-anchor="middle">-5</text>
+<text x="382.0" y="323" font-size="11" fill="#777777" text-anchor="middle">0</text>
+<text x="542.0" y="323" font-size="11" fill="#777777" text-anchor="middle">5</text>
+<text x="702.0" y="323" font-size="11" fill="#777777" text-anchor="middle">10</text>
+<line x1="62" y1="306" x2="702" y2="306" stroke="#444444" stroke-width="1.4"/>
+<rect x="318.0" y="44.0" width="128.0" height="262.0" fill="#1565c0" fill-opacity="0.1"/>
+<rect x="122.0" y="304.3" width="20.0" height="1.7" fill="#8d6e63" fill-opacity="0.7"/>
+<rect x="142.0" y="303.8" width="20.0" height="2.2" fill="#8d6e63" fill-opacity="0.7"/>
+<rect x="162.0" y="303.2" width="20.0" height="2.8" fill="#8d6e63" fill-opacity="0.7"/>
+<rect x="182.0" y="294.9" width="20.0" height="11.1" fill="#8d6e63" fill-opacity="0.7"/>
+<rect x="202.0" y="277.2" width="20.0" height="28.8" fill="#8d6e63" fill-opacity="0.7"/>
+<rect x="222.0" y="257.8" width="20.0" height="48.2" fill="#8d6e63" fill-opacity="0.7"/>
+<rect x="242.0" y="230.6" width="20.0" height="75.4" fill="#8d6e63" fill-opacity="0.7"/>
+<rect x="262.0" y="216.7" width="20.0" height="89.3" fill="#8d6e63" fill-opacity="0.7"/>
+<rect x="282.0" y="177.4" width="20.0" height="128.6" fill="#8d6e63" fill-opacity="0.7"/>
+<rect x="302.0" y="153.0" width="20.0" height="153.0" fill="#8d6e63" fill-opacity="0.7"/>
+<rect x="322.0" y="114.1" width="20.0" height="191.9" fill="#8d6e63" fill-opacity="0.7"/>
+<rect x="342.0" y="106.4" width="20.0" height="199.6" fill="#8d6e63" fill-opacity="0.7"/>
+<rect x="362.0" y="96.4" width="20.0" height="209.6" fill="#8d6e63" fill-opacity="0.7"/>
+<rect x="382.0" y="99.7" width="20.0" height="206.3" fill="#8d6e63" fill-opacity="0.7"/>
+<rect x="402.0" y="123.0" width="20.0" height="183.0" fill="#8d6e63" fill-opacity="0.7"/>
+<rect x="422.0" y="167.9" width="20.0" height="138.1" fill="#8d6e63" fill-opacity="0.7"/>
+<rect x="442.0" y="194.0" width="20.0" height="112.0" fill="#8d6e63" fill-opacity="0.7"/>
+<rect x="462.0" y="218.4" width="20.0" height="87.6" fill="#8d6e63" fill-opacity="0.7"/>
+<rect x="482.0" y="255.0" width="20.0" height="51.0" fill="#8d6e63" fill-opacity="0.7"/>
+<rect x="502.0" y="274.9" width="20.0" height="31.1" fill="#8d6e63" fill-opacity="0.7"/>
+<rect x="522.0" y="287.7" width="20.0" height="18.3" fill="#8d6e63" fill-opacity="0.7"/>
+<rect x="542.0" y="297.1" width="20.0" height="8.9" fill="#8d6e63" fill-opacity="0.7"/>
+<rect x="562.0" y="302.7" width="20.0" height="3.3" fill="#8d6e63" fill-opacity="0.7"/>
+<rect x="602.0" y="304.9" width="20.0" height="1.1" fill="#8d6e63" fill-opacity="0.7"/>
+<rect x="622.0" y="305.4" width="20.0" height="0.6" fill="#8d6e63" fill-opacity="0.7"/>
+<rect x="662.0" y="305.4" width="20.0" height="0.6" fill="#8d6e63" fill-opacity="0.7"/>
+<rect x="682.0" y="305.4" width="20.0" height="0.6" fill="#8d6e63" fill-opacity="0.7"/>
+<line x1="382.0" y1="306.0" x2="382.0" y2="44.0" stroke="#444444" stroke-width="1.8" stroke-dasharray="5 3"/>
+<text x="377.0" y="56" font-size="11" fill="#444444" text-anchor="end">kein Unterschied</text>
+<rect x="62" y="359" width="16" height="10" fill="#1565c0" fill-opacity="0.75"/>
+<text x="83" y="368" font-size="11" fill="#222222">±2 K</text>
+<rect x="114.4" y="359" width="16" height="10" fill="#8d6e63" fill-opacity="0.75"/>
+<text x="135.4" y="368" font-size="11" fill="#222222">Vergleiche</text>
+</svg>

@@ -93,15 +93,21 @@ void main() {
 
     test('bester zuerst — das Banner öffnet EINEN Spot', () {
       // Drei sattgeregnete Spots, deren Temperaturen ALLE noch günstig
-      // sind (13 °C ist das Optimum der Glocke; 11 und 9 liegen darunter,
-      // aber über der Schwelle). Das ist der Punkt: Lägen zwei davon
-      // außerhalb, bliebe nur ein Treffer übrig, und die Sortierung wäre
-      // trivial erfüllt — dann prüfte der Test nichts. Genau so ist er
-      // beim ersten Anlauf durch eine Gegenprobe gefallen.
+      // sind (13 °C ist das Optimum der Glocke; 12 und 11 liegen
+      // darunter, aber über der Schwelle). Das ist der Punkt: Lägen
+      // zwei davon außerhalb, bliebe nur ein Treffer übrig, und die
+      // Sortierung wäre trivial erfüllt — dann prüfte der Test nichts.
+      // Genau so ist er beim ersten Anlauf durch eine Gegenprobe
+      // gefallen.
+      //
+      // Bis zum 2026-09-19 stand hier 9 °C statt 11. Mit der
+      // Neukalibrierung (günstig ab 0,742 statt 0,512) fällt 9 °C aus
+      // der Stufe — die Glocke steht dort bei 0,527. Das `hasLength(3)`
+      // darunter hat es gemeldet, und genau dafür steht es da.
       final table = tableOfStations([
-        (lat: 51.0, lon: 11.0, meanC: 9, measured: 20),
+        (lat: 51.0, lon: 11.0, meanC: 11, measured: 20),
         (lat: 51.0, lon: 11.5, meanC: 13, measured: 20),
-        (lat: 51.0, lon: 12.0, meanC: 11, measured: 20),
+        (lat: 51.0, lon: 12.0, meanC: 12, measured: 20),
       ]);
       final hits = ampelScanOf(
         spots: [
@@ -281,7 +287,8 @@ void main() {
     test('jede Art bringt ihre eigene Klasse in die Paarung mit', () {
       // **Der Fall, für den das Ganze gebaut ist.** Juli, 17,5 °C: Für
       // den Steinpilz ist das zu warm (Herbstfenster, Score 0,445 →
-      // „verhalten"), für den Pfifferling ist es genau sein Optimum.
+      // „verhalten"), für den Pfifferling (Fenster 14,5 °C) reicht es
+      // mit 0,70 ≥ 0,669 für „günstig".
       // Beide haben Saison; entschieden wird über die KLASSE, und der
       // Treffer sagt, für wen er gilt.
       final hits = scan(

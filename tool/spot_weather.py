@@ -6,7 +6,13 @@ Same rule as the rain grid: the app looks the value up ON THE DEVICE, so
 no coordinate ever reaches a weather service. Here that means shipping
 every station's last twenty days — air maxima and minima from the `kl`
 network, soil means at 5 cm depth from the `EB` network — and letting the
-app pick the nearest one itself.
+app pick the nearest one itself. Since 2026-09-20 a third network rides
+along: soil MOISTURE 0-60 cm in % of usable field capacity from the DWD's
+derived soil product (`BFGL_AG`, 493 stations, AMBAV model), 26 days —
+the moisture window of the validated Ampel class for wood and winter
+species (docs/pilzampel-holz-winter-plan.md). It is the only soil
+moisture the app can get live; ERA5 at the coordinate never leaves a
+weather service's side.
 
     weather_stations.json.gz   stations with coordinates and 14 days
     (merged into rain_manifest.json under "weather")
@@ -61,11 +67,30 @@ SOIL = {
     "stations": "EB_Tageswerte_Beschreibung_Stationen.txt",
     "columns": ("V_TE005M",),
 }
+# The derived soil product is a different shape from the two observation
+# networks: one gzipped text per station (no ZIP), a semicolon station
+# list with a header, dates in a column called `Datum`. Missing values
+# are -999 as everywhere. The column is picked by NAME — the file carries
+# 30 of them, and `BFGL_AG` (grass, sandy loam, 0-60 cm) is the one the
+# class was validated with; its neighbour `BFGS_AG` (sand) is not.
+MOISTURE = {
+    "base": ("https://opendata.dwd.de/climate_environment/CDC/"
+             "derived_germany/soil/daily/recent/"),
+    "stations": "derived_germany_soil_daily_recent_stations_list.txt",
+    "columns": ("BFGL_AG",),
+    "date_column": "Datum",
+}
 
 # 20 days since 2026-08-09 (was 14): the temperature window of the
 # validated Ampel model (20-day mean, docs/pilzampel-konzept.md). The
 # chart keeps drawing the last 14 days; the extra days feed the model.
 DAYS = 20
+# The moisture window of the Ampel model (26-day mean, like the rain
+# window). Its own anchor day, too: the product runs one to two days
+# behind the observations, and a window anchored at the air network's
+# newest day would end in a gap every single day — the model wants the
+# 26 most recent days that EXIST.
+MOISTURE_DAYS = 26
 MISSING = -999  # the DWD's own marker, in every numeric column
 
 
@@ -117,20 +142,22 @@ def parse_stations(text, keep):
     return stations
 
 
-def parse_measurements(text, dates, columns):
+def parse_measurements(text, dates, columns, date_column="MESS_DATUM"):
     """{date: value tuple} for the wanted dates, from a produkt_*.txt.
 
     Columns are found by NAME from the header, never by position: the
     DWD has more than one daily product and they do not share a column
     order. Air reads ("TXK", "TNK") — daily maximum and minimum; soil
-    reads ("V_TE005M",) — the daily mean at 5 cm. All in °C.
+    reads ("V_TE005M",) — the daily mean at 5 cm. All in °C. The derived
+    soil product calls its date column `Datum` and reads ("BFGL_AG",) —
+    soil moisture in % nFK.
     """
     lines = [line for line in text.splitlines() if line.strip()]
     if not lines:
         return {}
     header = [part.strip() for part in lines[0].split(";")]
     try:
-        i_date = header.index("MESS_DATUM")
+        i_date = header.index(date_column)
         i_cols = [header.index(name) for name in columns]
     except ValueError:
         return {}
@@ -148,6 +175,41 @@ def parse_measurements(text, dates, columns):
             continue
         out[date] = tuple(_value(parts[i]) for i in i_cols)
     return out
+
+
+def moisture_ids(index_html):
+    """The station ids that deliver, from the directory listing."""
+    return {int(m) for m in re.findall(
+        r"derived_germany_soil_daily_recent_v2_(\d+)\.txt\.gz", index_html)}
+
+
+def parse_moisture_stations(text, keep):
+    """`Stationsindex; Höhe in m;Breite;Länge;Name;Bundesland` — semicolon
+    separated with a header, unlike the fixed-width observation lists.
+    Same output shape as `parse_stations`, so one station record serves
+    all three networks."""
+    stations = []
+    for line in text.splitlines()[1:]:
+        parts = [part.strip() for part in line.split(";")]
+        if len(parts) < 5:
+            continue
+        try:
+            sid = int(parts[0])
+            height = int(float(parts[1]))
+            lat = float(parts[2])
+            lon = float(parts[3])
+        except ValueError:
+            continue
+        if sid not in keep:
+            continue
+        stations.append({
+            "id": sid,
+            "lat": round(lat, 4),
+            "lon": round(lon, 4),
+            "h": height,
+            "name": parts[4],
+        })
+    return stations
 
 
 def has_temperature(values):
@@ -284,13 +346,72 @@ def _collect(network, dates, days, limit=None):
     return dates, rows, missing
 
 
-def _payload(dates, air, soil):
+def _collect_moisture(days, limit=None):
+    """The derived soil product: listing, station list, one gz per station.
+
+    Anchored at its OWN newest day (see MOISTURE_DAYS). Returns the
+    dates, the stations with their values, and the skip count.
+    """
+    base = MOISTURE["base"]
+    index = _fetch(base).decode("utf-8", "replace")
+    ids = moisture_ids(index)
+    stations = parse_moisture_stations(
+        _fetch(base + MOISTURE["stations"]).decode("latin-1"), ids)
+    if limit:
+        stations = stations[:limit]
+    dates, rows, missing = None, [], 0
+    for station in stations:
+        try:
+            text = gzip.decompress(_fetch(
+                f"{base}derived_germany_soil_daily_recent_v2_{station['id']}"
+                ".txt.gz")).decode("latin-1")
+        except Exception:
+            missing += 1
+            continue
+        if dates is None:
+            last = _newest_date_in(text, MOISTURE["date_column"])
+            if last is None:
+                missing += 1
+                continue
+            dates = _dates_ending(last, days)
+        values = parse_measurements(text, dates, MOISTURE["columns"],
+                                    MOISTURE["date_column"])
+        if not has_temperature(values):
+            missing += 1
+            continue
+        rows.append((station, values))
+    return dates, rows, missing
+
+
+def _newest_date_in(text, date_column):
+    """The last measured day of a file whose date column is named."""
+    lines = [l for l in text.splitlines() if l.strip()]
+    if not lines:
+        return None
+    header = [part.strip() for part in lines[0].split(";")]
+    try:
+        i_date = header.index(date_column)
+    except ValueError:
+        return None
+    for line in reversed(lines[1:]):
+        parts = [part.strip() for part in line.split(";")]
+        if len(parts) > i_date and parts[i_date].isdigit() \
+                and len(parts[i_date]) == 8:
+            raw = parts[i_date]
+            return f"{raw[:4]}-{raw[4:6]}-{raw[6:]}"
+    return None
+
+
+def _payload(dates, air, soil, moisture_days=None, moisture=()):
     """The asset's content — pure, so the self-test can pin the mapping.
 
     A reversed day list or a swapped max/min slot would not fail
     anything at build time; it would ship weather that looks right.
+    Moisture carries ITS OWN day list (`moisture_days`) — see
+    MOISTURE_DAYS; an app reading an older table finds neither key and
+    shows what it showed before.
     """
-    return {
+    out = {
         "days": dates,
         "stations": [{
             **station,
@@ -302,6 +423,13 @@ def _payload(dates, air, soil):
             "soil": [values.get(d, (None,))[0] for d in dates],
         } for station, values in soil],
     }
+    if moisture_days:
+        out["moisture_days"] = moisture_days
+        out["moisture"] = [{
+            **station,
+            "bfgl": [values.get(d, (None,))[0] for d in moisture_days],
+        } for station, values in moisture]
+    return out
 
 
 def build(out_dir, days=DAYS, limit=None):
@@ -315,9 +443,13 @@ def build(out_dir, days=DAYS, limit=None):
     # None — die Linie endet früher, statt zu raten. Ein leeres Bodennetz
     # ist erlaubt: Dann trägt das Asset nur Luft, die App zeigt weniger.
     _, soil, soil_skipped = _collect(SOIL, dates, days, limit)
+    # Die Bodenfeuchte haengt an ihrem eigenen juengsten Tag (MOISTURE_DAYS);
+    # ein leeres Netz ist erlaubt, das Asset traegt dann keinen Abschnitt.
+    moisture_days, moisture, moisture_skipped = _collect_moisture(
+        MOISTURE_DAYS, limit)
 
     payload = gzip.compress(json.dumps(
-        _payload(dates, air, soil),
+        _payload(dates, air, soil, moisture_days, moisture),
         separators=(",", ":")).encode("utf-8"), 9)
     os.makedirs(out_dir, exist_ok=True)
     name = "weather_stations.json.gz"
@@ -328,7 +460,9 @@ def build(out_dir, days=DAYS, limit=None):
         "days": dates,
         "stations": len(air),
         "soil": len(soil),
-        "skipped": air_skipped + soil_skipped,
+        "moisture": len(moisture),
+        "moisture_days": moisture_days or [],
+        "skipped": air_skipped + soil_skipped + moisture_skipped,
         "bytes": len(payload),
     }
 
@@ -447,6 +581,51 @@ def self_test():
     assert _payload(["2026-08-02"], [(station, {})], [])["soil"] == [], \
         "an empty soil network must not break the asset"
 
+    # --- Bodenfeuchte (2026-09-20) ------------------------------------
+    # Listing: nur das abgeleitete Produkt zaehlt, und die id steht ohne
+    # fuehrende Nullen.
+    listing_m = ('href="derived_germany_soil_daily_recent_v2_44.txt.gz" '
+                 'href="derived_germany_soil_daily_recent_v2_1001.txt.gz" '
+                 'href="tageswerte_EB_00078_akt.zip"')
+    assert moisture_ids(listing_m) == {44, 1001}, moisture_ids(listing_m)
+    # Stationsliste: Semikolon, Kopfzeile, Hoehe ganzzahlig — zwei echte
+    # Zeilen (abgerufen 2026-09-20).
+    liste = ("Stationsindex; Höhe in m;Breite   ;Länge    ;Name"
+             "                 ;Bundesland\n"
+             "           44;        44;    52.93;     8.24;Großenkneten"
+             "                 ;Niedersachsen\n"
+             "           73;       374;    48.62;    13.06;Aldersbach-Kramersepp"
+             "        ;Bayern\n")
+    mst = parse_moisture_stations(liste, {44})
+    assert len(mst) == 1 and mst[0]["id"] == 44 and mst[0]["h"] == 44, mst
+    assert abs(mst[0]["lat"] - 52.93) < 1e-6 and abs(mst[0]["lon"] - 8.24) < 1e-6
+    assert mst[0]["name"] == "Großenkneten", mst
+    assert parse_moisture_stations(liste, {73})[0]["name"] == "Aldersbach-Kramersepp"
+    # Messdatei: Datumsspalte heisst `Datum`, BFGL_AG neben BFGS_AG — per
+    # NAME, eine Spalte daneben waere der Sandboden.
+    feucht = (
+        "Stationsindex;Datum;TS05;BFGS_AG;BFGL_AG;eor\n"
+        "           44;20260917;   16.8;     21;     23;eor\n"
+        "           44;20260918;   17.1;     20;   -999;eor\n"
+    )
+    tage = ["2026-09-17", "2026-09-18"]
+    vals = parse_measurements(feucht, tage, MOISTURE["columns"],
+                              MOISTURE["date_column"])
+    assert vals["2026-09-17"] == (23.0,), vals
+    assert vals["2026-09-18"] == (None,), vals
+    assert parse_measurements(feucht, tage, MOISTURE["columns"]) == {}, \
+        "without the right date column name nothing must be read"
+    assert _newest_date_in(feucht, "Datum") == "2026-09-18"
+    assert _newest_date_in(feucht, "MESS_DATUM") is None
+    assert _newest_date_in("", "Datum") is None
+    # Zusammenbau: eigene Tagesliste, eigener Schluessel — und ohne
+    # Feuchte fehlen beide Schluessel, statt leer dazustehen.
+    built = _payload(["2026-08-02"], [(station, {})], [],
+                     tage, [(station, {"2026-09-17": (23.0,)})])
+    assert built["moisture_days"] == tage
+    assert built["moisture"][0]["bfgl"] == [23.0, None], built
+    assert "moisture" not in _payload(["2026-08-02"], [(station, {})], [])
+
     print("spot_weather self-test: ok")
 
 
@@ -473,9 +652,11 @@ def main():
     with open(manifest_path, "w") as handle:
         json.dump(manifest, handle, indent=2, sort_keys=True)
 
+    feuchte = (f", {entry['moisture']} Bodenfeuchte bis "
+               f"{entry['moisture_days'][-1]}" if entry["moisture"] else "")
     summary = (
         f"### Stationswerte ({entry['stations']} Luft, "
-        f"{entry['soil']} Boden)\n\n"
+        f"{entry['soil']} Boden{feuchte})\n\n"
         f"- Zeitraum: {entry['days'][0]} bis {entry['days'][-1]}\n"
         f"- Ohne Messwerte übersprungen: {entry['skipped']}\n"
         f"- Datei: {entry['bytes'] / 1024:.0f} KB gepackt\n"

@@ -6,7 +6,6 @@ import 'package:pilzbuddy/core/settings.dart';
 class FakeSettings implements Settings {
   FakeSettings({
     this.offlineMapEnabled = false,
-    this.mapLongPressEnabled = false,
     this.mapLegendOpen = true,
     this.rainCourseEnabled = false,
     this.prereleaseUpdatesEnabled = false,
@@ -45,12 +44,6 @@ class FakeSettings implements Settings {
   }
 
   @override
-  bool mapLongPressEnabled;
-
-  @override
-  Future<void> setMapLongPressEnabled(bool value) async {
-    mapLongPressEnabled = value;
-  }
 
   @override
   bool mapLegendOpen;

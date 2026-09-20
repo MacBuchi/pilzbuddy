@@ -14,6 +14,7 @@
 // Bestätigung, und er nennt die Ziel-App beim Namen. Ohne ihn wäre ein
 // Dialog nötig — die Koordinate ist die geheime Fundstelle.
 
+import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -126,3 +127,33 @@ Future<SpotNavigationOutcome> openInNavigationApp({
 
 Future<bool> _launchExternally(Uri uri) =>
     launchUrl(uri, mode: LaunchMode.externalApplication);
+
+/// Übergibt [lat]/[lng] an eine Navi-App und sagt es, wenn das nicht
+/// geht (#367, seit #483 auch für einen beliebigen Kartenpunkt).
+///
+/// **Gemeldet wird nur, was der Nutzer sonst nicht sieht:** Klappt der
+/// App-Wähler auf, steht die andere App im Vordergrund und eine
+/// SnackBar dahinter wäre für niemanden. Die beiden Rückfälle dagegen
+/// sehen ohne Meldung aus wie ein Knopf, der nichts tut.
+///
+/// Hier und nicht im Spot-Blatt, seit es zwei Aufrufer gibt: Zwei
+/// Kopien hätten genau eine Stelle, an der die Meldung beim nächsten
+/// Anfassen auseinanderläuft.
+Future<void> navigateToPoint(
+  BuildContext context, {
+  required double lat,
+  required double lng,
+  String? label,
+}) async {
+  final messenger = ScaffoldMessenger.of(context);
+  final outcome = await openInNavigationApp(lat: lat, lng: lng, label: label);
+  if (outcome == SpotNavigationOutcome.opened) return;
+  final coordinates = formatCoordinates(lat, lng);
+  messenger
+    ..clearSnackBars()
+    ..showSnackBar(SnackBar(
+      content: Text(outcome == SpotNavigationOutcome.copiedNoNaviApp
+          ? 'Keine Navi-App gefunden — Koordinaten kopiert: $coordinates'
+          : 'Koordinaten kopiert: $coordinates'),
+    ));
+}

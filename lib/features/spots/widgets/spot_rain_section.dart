@@ -51,6 +51,24 @@ String? stationLine(SpotTemperature? temperature) {
   return null;
 }
 
+/// Die Bodenfeuchte-Zeile — oder `null`, wenn keine Station in
+/// Reichweite ist oder sie im Fenster nichts gemessen hat.
+///
+/// Prozent nutzbarer Feldkapazität ist eine je Boden NORMIERTE Größe:
+/// 100 % heißt „so viel Wasser, wie dieser Boden den Pflanzen halten
+/// kann", unabhängig davon, ob Sand oder Lehm. Deshalb steht die Zahl
+/// ohne Umrechnung da — und mit Datum, weil das Produkt ein bis zwei
+/// Tage hinterherläuft.
+String? moistureLine(SpotTemperature? temperature) {
+  final pick = temperature?.moisture;
+  final value = pick?.station.latest;
+  final newest = temperature?.moistureNewest;
+  if (pick == null || value == null || newest == null) return null;
+  return 'Bodenfeuchte 0–60 cm: ${value.round()} % der nutzbaren '
+      'Feldkapazität (${DateFormat('d.M.').format(newest)}, Station '
+      '${pick.station.name}, ${pick.km.round()} km).';
+}
+
 class SpotRainSection extends ConsumerWidget {
   const SpotRainSection({super.key, required this.lat, required this.lon});
 
@@ -96,6 +114,7 @@ class SpotRainSection extends ConsumerWidget {
         final peak = shown.peak;
         final dry = shown.daysSinceRain();
         final stations = stationLine(temperature);
+        final moisture = moistureLine(temperature);
         final theme = Theme.of(context);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -137,6 +156,14 @@ class SpotRainSection extends ConsumerWidget {
               style: theme.textTheme.bodySmall
                   ?.copyWith(color: theme.hintColor, fontSize: 11),
             ),
+            if (moisture != null) ...[
+              const SizedBox(height: 2),
+              Text(
+                moisture,
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.hintColor, fontSize: 11),
+              ),
+            ],
           ],
         );
       },

@@ -101,12 +101,29 @@ void main() {
       // bedeutet dieselbe Zahl etwas anderes. Gemessen:
       // Der Austernseitling kommt mit 0,5 auf 1,1 % günstige Fundtage,
       // der Steinpilz auf 58,4 % (docs/pilzampel-ampel-vergleich.md).
-      expect(ampelLevelOf(0.6, klass: ampelHerbstClass),
+      //
+      // **Die Zahl dazwischen wird aus den Konstanten gerechnet, nicht
+      // hingeschrieben.** Bis zur Neukalibrierung vom 2026-09-19 stand
+      // hier 0,6 zwischen 0,512 und 0,677; seither liegt der Spalt
+      // woanders UND andersherum — der Pfifferling ist jetzt die
+      // großzügigere Klasse. Eine feste Zahl prüfte danach nichts mehr,
+      // ohne rot zu werden.
+      final sorted = [...ampelShippedClasses]
+        ..sort((a, b) => a.guenstigAbove.compareTo(b.guenstigAbove));
+      final (frueher, spaeter) = (sorted.first, sorted.last);
+      expect(frueher.guenstigAbove, lessThan(spaeter.guenstigAbove),
+          reason: 'stünden beide gleich, prüfte dieser Test nichts');
+      final dazwischen =
+          (frueher.guenstigAbove + spaeter.guenstigAbove) / 2;
+
+      expect(ampelLevelOf(dazwischen, klass: frueher),
           AmpelLevel.guenstig,
-          reason: 'Herbst wird ab 0,512 günstig');
-      expect(ampelLevelOf(0.6, klass: ampelSommerClass),
+          reason: '${frueher.name} wird ab ${frueher.guenstigAbove} '
+              'günstig');
+      expect(ampelLevelOf(dazwischen, klass: spaeter),
           AmpelLevel.verhalten,
-          reason: 'Sommer erst ab 0,677 — dieselbe Zahl, andere Stufe');
+          reason: '${spaeter.name} erst ab ${spaeter.guenstigAbove} — '
+              'dieselbe Zahl, andere Stufe');
     });
   });
 
@@ -134,9 +151,10 @@ void main() {
     });
 
     test('eine abgewählte Gruppe nimmt ihre Stufe mit', () {
-      // 17,5 °C ist das Pfifferling-Fenster: volle Glocke, satter Regen
-      // — das ist günstig. Im Herbstfenster liegt dieselbe Lage bei
-      // 0,445 und damit nur bei „verhalten" (Glocke exp(-0,81)).
+      // 17,5 °C bei sattem Regen: im Pfifferling-Fenster (14,5 °C seit
+      // 2026-09-20) Glocke exp(-0,36) = 0,70 ≥ 0,669 — günstig. Im
+      // Herbstfenster liegt dieselbe Lage bei 0,445 und damit nur bei
+      // „verhalten" (Glocke exp(-0,81)).
       const sommertag = (rainFactor: 1.0, meanC: 17.5);
       expect(
           ampelBestOf(
@@ -163,15 +181,19 @@ void main() {
     });
 
     test('und das gilt in beide Richtungen', () {
-      // Umgekehrt: Ein Herbsttag, auf die Sommergruppe eingeengt.
+      // Umgekehrt: Ein kühler Herbsttag, auf die Sommergruppe eingeengt.
+      // 11 °C: Herbstglocke exp(-0,16) = 0,85 ≥ 0,742 — günstig; im
+      // Pfifferling-Fenster (14,5 °C) exp(-0,49) = 0,61 < 0,669 — nur
+      // „verhalten". (Bis 2026-09-20 stand hier 13 °C; unter 14,5 liegt
+      // das für den Pfifferling selbst schon im Günstigen.)
       expect(
-          ampelBestOf(rainFactor: 1.0, meanC: 13, classes: ampelShippedClasses)
+          ampelBestOf(rainFactor: 1.0, meanC: 11, classes: ampelShippedClasses)
               .level,
           AmpelLevel.guenstig);
       expect(
           ampelBestOf(
                   rainFactor: 1.0,
-                  meanC: 13,
+                  meanC: 11,
                   classes: const [ampelSommerClass])
               .level,
           AmpelLevel.verhalten);

@@ -86,6 +86,18 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
   /// Karte tatsächlich aufgebaut wird.
   late double _idleZoom = widget.controller.zoom;
 
+  /// Rechnet einen Punkt der Kartenfläche auf den Schirm um.
+  ///
+  /// MapLibre meldet `screenPoint` LOKAL zur Fläche, flutter_map meldet
+  /// `tapPosition.global`. Die Fassade sagt „global" zu, also rechnet
+  /// diese Seite um — ohne das säße das Kontextmenü um die Höhe der
+  /// Statusleiste zu hoch.
+  Offset _globalOf(Offset local) {
+    final box = context.findRenderObject();
+    if (box is! RenderBox || !box.hasSize) return local;
+    return box.localToGlobal(local);
+  }
+
   /// Liest das Sichtfenster der Engine und stößt bei Änderung den
   /// Rebuild an, der die Markerliste neu filtert.
   void _updateVisibleBounds() {
@@ -388,9 +400,13 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
       },
       onEvent: (event) {
         if (event is ml.MapEventLongClick) {
-          widget.config.onLongPress
-              ?.call(LatLng(event.point.lat.toDouble(),
-                  event.point.lon.toDouble()));
+          widget.config.onLongPress?.call(
+              LatLng(event.point.lat.toDouble(), event.point.lon.toDouble()),
+              // `screenPoint` ist LOKAL zur Kartenfläche; das Menü
+              // verankert sich global. Die Karte füllt hier den Body,
+              // aber sie fängt unter der Statusleiste an — ohne die
+              // Umrechnung säße das Menü um deren Höhe zu hoch.
+              _globalOf(event.screenPoint));
         }
         // Culling bei Kamera-Idle, NICHT pro Frame: Zwischen zwei
         // Idle-Momenten bewegt die Engine die eingebauten Marker selbst.
