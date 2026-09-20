@@ -15,6 +15,7 @@ import '../features/import_export/import_screen.dart';
 import '../features/map/map_screen.dart';
 import '../features/offline_maps/offline_maps_screen.dart';
 import '../features/profile/profile_screen.dart';
+import '../features/species/species_screen.dart';
 import '../features/spots/spot_cleanup_screen.dart';
 
 /// Stößt den Router-Redirect an, sobald sich der Auth-Zustand ändert.
@@ -68,6 +69,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         branches: [
           StatefulShellBranch(routes: [
             GoRoute(path: '/', builder: (context, state) => const MapScreen()),
+          ]),
+          // Der Reiter „Pilze" (seit 1.153.0) steht neben der Karte,
+          // weil er ihre Legende ist: Welche Art gehört zu welcher
+          // Ampel-Gruppe, und wann wird sie gemeldet.
+          StatefulShellBranch(routes: [
+            GoRoute(
+                path: '/pilze',
+                builder: (context, state) => const SpeciesScreen()),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(
@@ -143,6 +152,7 @@ class AppShell extends StatelessWidget {
         ),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.map_outlined), selectedIcon: Icon(Icons.map), label: 'Karte'),
+          NavigationDestination(icon: Icon(Icons.menu_book_outlined), selectedIcon: Icon(Icons.menu_book), label: 'Pilze'),
           NavigationDestination(icon: Icon(Icons.group_outlined), selectedIcon: Icon(Icons.group), label: 'Freunde'),
           NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Profil'),
         ],

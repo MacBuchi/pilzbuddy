@@ -1129,6 +1129,24 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   (im Profil, „halte auf der Karte gedrückt"), wies auf eine Geste, die
   seit #210 abschaltbar war und **ab Werk aus** stand. Seit #483 stimmt
   der Satz wieder — er steht jetzt in der Kurzanleitung.
+- **Der Reiter „Pilze"** (seit 1.153.0): das Artenverzeichnis — je
+  Ampel-Gruppe ihre Mitglieder, je Art die Mini-Saisonkurve, hervorgehoben,
+  was jetzt Saison hat. Drei Dinge, die man wissen muss:
+  - **Der Inhalt ist GERECHNET, nicht geschrieben**
+    (`lib/features/species/species_catalogue.dart`, ohne Widgets): Gruppen
+    aus `ampelClasses`, Mitglieder aus `ampelSpeciesClass`, Kurven aus
+    `season_curves.g.dart`, Belege aus `ampelEvidenceBySpecies`. Wer eine
+    Klasse oder Art hinzufügt, muss hier NICHTS tun —
+    `test/species_catalogue_test.dart` verlangt, dass jede bekannte Art
+    genau einmal darin steht.
+  - **Eine Schwelle, ein Balken-Widget, eine Wortleiter.** Hervorhebung ist
+    `kSeasonNowThreshold`; die Balken sind `SeasonBars`
+    (`lib/core/widgets/`), die auch das Spot-Blatt zeichnet; die Wörter
+    kommen aus `seasonShareWord`. Der Reiter darf der Karte nie
+    widersprechen — er ist ihre Legende.
+  - **Der Filter „Nur jetzt Saison" verdeckt nichts, was er nicht weiß**:
+    Arten ohne Kurve bleiben stehen (#414-Regel), leere Gruppen behalten
+    die Überschrift.
 - **Der lange Tipp öffnet ein Kontextmenü** (#483, seit 1.149.0):
   „Was ist hier?" (#245), „Navigation" (#367) und „Heranzoomen". Alle
   drei Ziele gab es schon; neu ist der Weg dorthin.

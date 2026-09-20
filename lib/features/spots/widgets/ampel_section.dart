@@ -341,19 +341,9 @@ class AmpelSection extends ConsumerWidget {
     if (curve != null) {
       final month = (today ?? DateTime.now()).month;
       final share = curve.months[month - 1];
-      // **Die unterste Stufe hängt an [kSeasonNowThreshold]** — derselben
-      // Zahl, mit der der Banner-Nachlauf entscheidet, ob eine Art jetzt
-      // überhaupt auftaucht. Vorher endete die Skala bei 40, und
-      // zwischen 15 und 40 stand hier „außerhalb der Hauptzeit",
-      // während das Banner für dieselbe Art anschlug: zwei Schwellen
-      // für dieselbe Frage, und die Anzeige widersprach dem Hinweis.
-      final season = share >= 80
-          ? 'Hauptzeit'
-          : share >= 40
-              ? 'Nebenzeit'
-              : share >= kSeasonNowThreshold
-                  ? 'Randzeit'
-                  : 'kaum gemeldet';
+      // Die Wortleiter steht in `season_curves.dart`, weil der Reiter
+      // „Pilze" dieselbe Zahl mit demselben Wort beschriftet.
+      final season = seasonShareWord(share);
       parts.add('Saison: $season');
     }
     // **Die Stufe steht dort, wo die Erklärung steht** (N7): in der

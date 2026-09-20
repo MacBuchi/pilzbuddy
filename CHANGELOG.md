@@ -7,6 +7,25 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Ein Reiter „Pilze" — was wozu gehört
+
+*21. September 2026 · Version 1.153.0*
+
+Unten in der Leiste gibt es einen neuen Reiter „Pilze". Er zeigt für
+jede Art, die die App kennt, zu welcher Pilzampel-Gruppe sie gehört —
+„Steinpilz & Co.", „Pfifferling", „Austernseitling & Co.",
+„Herbsttrompete & Co." — und daneben in klein, in welchen Monaten sie
+gemeldet wird. Arten, die gerade Saison haben, sind grün hervorgehoben;
+ein Schalter oben blendet die übrigen aus. Am Ende stehen die Arten
+ohne Ampel, mit dem Grund. Bis jetzt fand man die Zuordnung nur in der
+ausgeklappten Legende der Ampel-Ebene, und die Saisonkurve nur an einem
+Spot, der die Art schon trägt.
+
+Die Saisonwörter im Spot-Blatt („Hauptzeit", „Nebenzeit", „Randzeit")
+und die Balken sind dieselben wie dort — an einer Stelle gerechnet,
+zweimal gezeigt.
+
+
 ## Eine Ampel für Winter- und Holzpilze
 
 *20. September 2026 · Version 1.152.0*

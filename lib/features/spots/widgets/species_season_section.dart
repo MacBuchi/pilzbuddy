@@ -15,9 +15,9 @@
 // weg — wie `stationLine` es vormacht, statt einen Platzhalter zu zeigen.
 import 'package:flutter/material.dart';
 
-import '../../../core/app_colors.dart';
 import '../../../core/mushroom_species.dart';
 import '../../../core/season_curves.dart';
+import '../../../core/widgets/season_bars.dart';
 
 class SpeciesSeasonSection extends StatelessWidget {
   const SpeciesSeasonSection({super.key, required this.species, this.today});
@@ -67,7 +67,7 @@ class SpeciesSeasonSection extends StatelessWidget {
                 ?.copyWith(color: theme.colorScheme.primary)),
         for (final entry in curves) ...[
           const SizedBox(height: 8),
-          _Bars(months: entry.curve.months, currentMonth: month),
+          SeasonBars(months: entry.curve.months, currentMonth: month),
           const SizedBox(height: 8),
           Text(
             _sentence(entry.name, entry.curve),
@@ -131,73 +131,4 @@ class SpeciesSeasonSection extends StatelessWidget {
       'Aus ${curve.observations} Beobachtungen in Deutschland, Österreich '
       'und der Schweiz (GBIF), verrechnet gegen den allgemeinen '
       'Meldeeifer. Das beschreibt frühere Jahre, nicht dieses.';
-}
-
-/// Zwölf Balken, einer je Monat, der laufende hervorgehoben.
-///
-/// Von Hand statt mit fl_chart: Es gibt keine Achse, keine Skala und
-/// nichts zu skalieren — die Werte sind bereits auf 0…100 normiert. Ein
-/// Diagrammpaket brächte hier Konfiguration statt Ersparnis.
-class _Bars extends StatelessWidget {
-  const _Bars({required this.months, required this.currentMonth});
-
-  final List<int> months;
-  final int currentMonth;
-
-  static const _height = 44.0;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        for (var index = 0; index < 12; index++)
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 1.5),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    height: _height,
-                    child: Align(
-                      alignment: Alignment.bottomCenter,
-                      child: FractionallySizedBox(
-                        // Ein Wert von 0 bekommt trotzdem eine dünne
-                        // Linie: Die leere Spalte soll als „fast nie"
-                        // lesbar sein und nicht als Lücke im Diagramm.
-                        heightFactor: (months[index] / 100).clamp(0.04, 1.0),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: index == currentMonth
-                                ? AppColors.forestGreen
-                                : AppColors.forestGreen.withValues(alpha: 0.35),
-                            borderRadius: const BorderRadius.vertical(
-                                top: Radius.circular(2)),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    kMonthLetters[index],
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      fontSize: 10,
-                      color: index == currentMonth
-                          ? AppColors.forestGreen
-                          : theme.hintColor,
-                      fontWeight: index == currentMonth
-                          ? FontWeight.bold
-                          : FontWeight.normal,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-      ],
-    );
-  }
 }
