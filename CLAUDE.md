@@ -1127,7 +1127,40 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   Neuinstallation läuft sie wieder, und das ist angenommen.
   Nebenbefund aus #350: Der einzige Erklärsatz, den die App davor hatte
   (im Profil, „halte auf der Karte gedrückt"), wies auf eine Geste, die
-  seit #210 abschaltbar ist und **ab Werk aus** steht.
+  seit #210 abschaltbar war und **ab Werk aus** stand. Seit #483 stimmt
+  der Satz wieder — er steht jetzt in der Kurzanleitung.
+- **Der lange Tipp öffnet ein Kontextmenü** (#483, seit 1.149.0):
+  „Was ist hier?" (#245), „Navigation" (#367) und „Heranzoomen". Alle
+  drei Ziele gab es schon; neu ist der Weg dorthin.
+  **Damit konnte der Schalter entfallen.** Die Geste stand seit #210 ab
+  Werk AUS, weil sie sofort die Kamera warf — „ein Fehlgriff aus der
+  Übersicht warf einen woanders hin", und entschärfen ließ sie sich
+  nicht, da keine der beiden Bibliotheken Haltedauer oder Toleranz
+  einstellen lässt. Ein Menü IST die fehlende Entschärfung: Ein
+  versehentliches Menü wischt man weg, ein versehentlicher Kamerasprung
+  kostet die Orientierung. Der Sprung überlebt als dritter Eintrag und
+  ist damit eine Wahl statt eines Unfalls. `map_gestures.dart` und der
+  Prefs-Schlüssel `map_long_press_enabled` sind weg.
+  Vier Dinge, die man wissen muss:
+  - **Die Fassade reicht die Bildschirmposition mit durch**
+    (`onLongPress(latLng, screenPoint)`). Beide Engines liefern sie im
+    Ereignis; sie wegzuwerfen und aus `LatLng` zurückzurechnen wären
+    zwei Wege für dieselbe Zahl. **MapLibre meldet sie LOKAL zur
+    Kartenfläche**, flutter_map global — die MapLibre-Seite rechnet
+    deshalb um, sonst säße das Menü um die Höhe der Statusleiste zu
+    hoch.
+  - **Die Geometrie ist rein** (`MapContextMenuLayout`) und deshalb
+    prüfbar: Auf einer bildschirmfüllenden Karte ist der Rand der
+    Normalfall, und ein Menü, das dort hinausragt, ist genau dann
+    kaputt, wenn man es braucht. Richtung folgt dem Platz — nach oben,
+    solange oben Platz ist, nach links, wenn rechts keiner ist.
+  - **44 px bleiben 44 px.** Ein aufgefächertes Menü darf von der
+    Trefferfläche nichts abziehen, nur weil es hübsch aussieht; die
+    Begründung steht an `_Tool` in `map_screen.dart`.
+  - **Kein Dauerhinweis auf der Karte.** Bis 1.148.0 stand dort eine
+    Erklärzeile, solange der Schalter an war. Mit einer Geste, die immer
+    an ist, stünde sie auf jedem Bildschirm und kostete Platz über den
+    Bannern — sie wohnt jetzt in `help_screen.dart`.
 - **Erzeugte Assets** (`tool/generated_assets.py` + `.json`, #226, im Job
   „Analyze & Test"): Vier Dateien unter `assets/` sind ERZEUGT, nicht
   geschrieben — Kartenstil, DACH-Übersicht, Waldgitter und dessen
