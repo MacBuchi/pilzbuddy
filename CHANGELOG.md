@@ -7,6 +7,23 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Bodenfeuchte steht jetzt am Spot
+
+*20. September 2026 · Version 1.150.0*
+
+Unter dem Wetterdiagramm eines Spots steht eine neue Zeile: die
+Bodenfeuchte der nächsten Messstelle des Deutschen Wetterdienstes, in
+Prozent dessen, was der Boden dort an Wasser für Pflanzen halten kann.
+100 % heißt „voll", egal ob Sand oder Lehm. Dazu Datum und Entfernung der
+Station — sie liegt in Deutschland im Schnitt gut zehn Kilometer weg, in
+Österreich und der Schweiz meist zu weit, dann fehlt die Zeile.
+
+Das ist Vorarbeit: Für Winter- und Holzpilze wie Judasohr, Austernseitling
+oder Samtfußrübling hat sich in der Auswertung gezeigt, dass die Ampel
+mit dieser Größe rechnen muss, um überhaupt etwas Sinnvolles zu sagen.
+Dafür braucht die App die Daten zuerst auf dem Gerät — wie beim Regen
+ohne dass eine Fundstelle das Telefon verlässt.
+
 ## Lange auf die Karte tippen
 
 *20. September 2026 · Version 1.149.0*
