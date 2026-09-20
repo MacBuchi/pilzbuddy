@@ -315,7 +315,6 @@ class AmpelSection extends ConsumerWidget {
     if ((reading.heightCorrectionK ?? 0).abs() >= 0.3) {
       meanText = '$meanText auf Spothöhe ${reading.spotHeightM} m';
     }
-<<<<<<< HEAD
     // Bei einer Logit-Klasse gibt es kein „passt": Das Logit kennt kein
     // Optimum, es rechnet die Temperatur linear und quadratisch ein.
     // Dann steht die Zahl allein — und die Bodenfeuchte daneben, weil
@@ -332,17 +331,6 @@ class AmpelSection extends ConsumerWidget {
             : mean > klass.optimumC!
                 ? 'zu warm ($meanText)'
                 : 'zu kühl ($meanText)';
-=======
-    final tempWord = reading.tempFactor! >= 0.6
-        ? 'passt ($meanText)'
-        // **Gegen das Fenster der KLASSE, nicht gegen 13 °C.** Sonst
-        // stünde beim Pfifferling (14,5 °C) bei 13 °C „zu warm“,
-        // während seine Stufe gleichzeitig sagt, es sei zu kühl — die
-        // Fakten-Zeile widerspräche der Ampel darüber.
-        : mean > klass.optimumC
-            ? 'zu warm ($meanText)'
-            : 'zu kühl ($meanText)';
->>>>>>> origin/main
     final parts = [
       'Regen ($ampelRainWindow Tage): $rainWord',
       'Temperatur: $tempWord',

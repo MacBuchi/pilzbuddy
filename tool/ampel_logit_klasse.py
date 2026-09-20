@@ -104,18 +104,10 @@ KLASSEN = {
 
 
 # **Arten, die noch in einer Fensterklasse stehen und hierher umziehen.**
-<<<<<<< HEAD
 # Waehrend des Umzugs der Herbsttrompete (1.150.0 → 1.151.0) stand sie
 # hier; seit der Dart-Kern sie umgehaengt hat, ist die Menge leer und der
 # Riegel im Selbsttest scharf: keine Art in Glocke UND Logit.
 UMZUG = set()
-=======
-# Die Herbsttrompete gehoert heute zu `herbst` (Steinpilz & Co.) und wird
-# erst mit dem Dart-Kern (PR 3) umgehaengt — vorher waere sie grau. Bis
-# dahin duldet der Selbsttest genau diese Ueberschneidung; danach ist die
-# Menge leer und der Riegel wieder scharf.
-UMZUG = {"Herbsttrompete"}
->>>>>>> origin/main
 
 
 def class_of(name):
@@ -608,7 +600,6 @@ def self_test():
     assert voll[0]["feuchte_controls"][1][0] == 59.0
     assert mit_bodenfeuchte([s], _B())[0] == []   # Tag 1 hat keine 26 Tage davor
 
-<<<<<<< HEAD
     # **Der Spiegel in Dart, Zahl fuer Zahl** — wie `ampel_validate
     # --self-test` fuer die Glockenklassen: Konstanten, Schwellen und
     # Mitglieder jeder Logit-Klasse muessen in `ampel_model.dart` so
@@ -635,8 +626,6 @@ def self_test():
         for key, klasse in KLASSEN.items():
             assert {a for a, k in in_dart.items() if k == key} == set(klasse["members"]), key
 
-=======
->>>>>>> origin/main
     # Fixtures sind deterministisch und vollstaendig.
     fx = fixtures()
     assert fx == fixtures()

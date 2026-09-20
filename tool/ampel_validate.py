@@ -310,7 +310,6 @@ AMPEL_CLASSES = {
         # 0,512 aus Design A; die Herkunft steht in
         # `docs/pilzampel-schwellen-designb-p1.md`. Nachgerechnet wird
         # bei jedem `--schwellen --scheibe p1`.
-<<<<<<< HEAD
         # **Neu gemessen am 2026-09-20 mit vier Mitgliedern** (vorher
         # 0,389 / 0,742 mit der Herbsttrompete): dieselbe Messung, eine
         # Art weniger — der Unterschied liegt innerhalb des Bandes.
@@ -324,19 +323,6 @@ AMPEL_CLASSES = {
         # gewinnt. Vier Mitglieder: Die Schwellen dieser Klasse sind am
         # selben Tag neu gemessen (`ampel_diagnose.py --schwellen --scheibe
         # p1`); die Zahlen unten tragen das Datum.
-=======
-        "verhalten": 0.389,
-        "guenstig": 0.742,
-        "schwellen_quelle": "Design B, P1, pinned (2026-09-19)",
-        "optimum": 13.0,
-        # **Die Herbsttrompete zieht um** — in die Logit-Klasse
-        # `cantharellales` (`tool/ampel_logit_klasse.py`, UMZUG), wo sie auf
-        # dem DE-Test +0,189 [+0,048, +0,294] gegen dieses Fenster gewinnt.
-        # Sie steht hier, bis der Dart-Kern sie umhaengt (PR 3): Werkzeug
-        # und App muessen dieselben fuenf sehen, sonst messen die Schwellen
-        # eine andere Klasse als die ausgelieferte. Mit dem Umzug sind die
-        # Schwellen dieser Klasse neu zu messen (vier Mitglieder).
->>>>>>> origin/main
         "members": ["Steinpilz", "Maronenröhrling", "Birkenpilz",
                     "Fichtenreizker"],
         "confirmed": True,

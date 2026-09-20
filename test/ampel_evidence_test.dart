@@ -54,7 +54,6 @@ void main() {
           .where((e) => e.value == AmpelEvidence.vorlaeufig)
           .map((e) => e.key)
           .toSet();
-<<<<<<< HEAD
       // Seit 1.151.0 dazu: aus „Austernseitling & Co." die zwei Arten mit
       // Band um die Null, aus „Herbsttrompete & Co." der Semmelstoppelpilz.
       expect(vorlaeufig, {
@@ -64,9 +63,6 @@ void main() {
         'Krause Glucke',
         'Semmelstoppelpilz',
       });
-=======
-      expect(vorlaeufig, {'Herbsttrompete', 'Pfifferling'});
->>>>>>> origin/main
       expect(vorlaeufig.length * 2, lessThan(ampelEvidenceBySpecies.length),
           reason: 'die Minderheit — sonst ist die Darstellung neu zu entscheiden');
     });
