@@ -48,9 +48,10 @@ Im Hintergrund ist mit dieser Version die Vorarbeit für eine Ampel für
 Winter- und Holzpilze abgeschlossen; sie selbst kommt mit einem der
 nächsten Updates.
 
+
 ## Die Bodenfeuchte steht jetzt am Spot
 
-*20. September 2026 · Version 1.149.0*
+*20. September 2026 · Version 1.150.0*
 
 Unter dem Wetterdiagramm eines Spots steht eine neue Zeile: die
 Bodenfeuchte der nächsten Messstelle des Deutschen Wetterdienstes, in
