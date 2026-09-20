@@ -7,6 +7,22 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Und jetzt siehst du die Spuren der anderen
+
+*20. September 2026 · Version 1.148.0*
+
+Die andere Hälfte: Wenn deine Buddys eine Pilztour aufzeichnen und dabei
+ihren Standort teilen, liegen ihre Wege jetzt auf deiner Karte. Jeder
+bekommt eine eigene Farbe, die sich nicht ändert — die blaue Linie
+bleibt dieselbe Person. Grün ist dabei immer deine eigene Spur.
+
+Punkte oder Linie richtet sich nach deiner Einstellung im Profil; sie
+gilt für alle Spuren gleichermaßen.
+
+**Fremde Spuren zählen nicht als deine Leergänge.** Wo dein Buddy
+gelaufen ist, hast nicht du gesucht — das Abschluss-Blatt deiner Tour
+schlägt weiterhin nur Spots vor, an denen *du* warst.
+
 ## Deine Tour-Spur für die Buddys
 
 *20. September 2026 · Version 1.147.0*

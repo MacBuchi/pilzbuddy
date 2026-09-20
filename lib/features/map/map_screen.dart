@@ -20,6 +20,7 @@ import '../../core/widgets/safety_note.dart';
 import '../../core/widgets/mushroom_icon.dart';
 import '../../data/providers.dart';
 import '../../models/friend_location.dart';
+import '../../models/buddy_track.dart';
 import '../../models/spot.dart';
 import 'elevation_contour_providers.dart';
 import 'fit_to_spots.dart';
@@ -718,6 +719,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
     // Die laufende Pilztour (#338) — `null`, solange keine läuft.
     final tour = ref.watch(tourProvider);
     final asLine = ref.watch(tourTrackAsLineProvider);
+    // Die Spuren der Buddys (#340, Stufe 2). Sie folgen derselben
+    // Darstellungswahl wie die eigene: Wer Punkte sehen will, will sie
+    // überall — eine Karte mit einer Linie und drei Punktwolken wäre
+    // zwei Aussagen über dieselbe Sache.
+    final buddyTracks =
+        ref.watch(friendTracksProvider).valueOrNull ?? const <BuddyTrack>[];
     final shareUntil = ref.watch(myShareProvider).valueOrNull;
     // Verbindung zurück ⇒ Ausgangskorb losschicken (#267). Genau hier
     // und nicht am App-Resume: Wer aus dem Wald nach Hause kommt, ohne
@@ -829,13 +836,26 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 // Punkte ODER Linie, nie beides — sonst läge der Strich
                 // auf seinen eigenen Stützstellen und beide sähen
                 // schmutzig aus (#340).
-                polylines: tour == null || !asLine
-                    ? const []
-                    : tourTrackPolyline(tour.points),
-                tourTrack:
-                    tour == null || asLine
-                        ? const []
-                        : tourTrackMarkers(tour.points),
+                polylines: [
+                  // Die fremden ZUERST: Sie sind Zusatz, die eigene Spur
+                  // gehört obenauf. Bei gleicher Farbe wäre das egal —
+                  // gerade weil sie verschieden sind, soll die eigene
+                  // nicht unter einer fremden verschwinden.
+                  if (asLine)
+                    for (final track in buddyTracks)
+                      ...tourTrackPolyline(track.points,
+                          color: buddyTrackColor(track.userId)),
+                  if (tour != null && asLine)
+                    ...tourTrackPolyline(tour.points),
+                ],
+                tourTrack: [
+                  if (!asLine)
+                    for (final track in buddyTracks)
+                      ...tourTrackMarkers(track.points,
+                          color: buddyTrackColor(track.userId)),
+                  if (tour != null && !asLine)
+                    ...tourTrackMarkers(tour.points),
+                ],
                 myPosition: [
                   if (myPosition != null) _myPositionMarker(myPosition, myAvatar),
                 ],
