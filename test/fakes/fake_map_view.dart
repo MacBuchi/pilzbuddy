@@ -136,9 +136,13 @@ class FakeMapViewState extends State<FakeMapView>
 
 /// Löst den Long-Press-Callback der Karte aus, als hätte der Nutzer auf
 /// die Stelle [latLng] gedrückt gehalten.
-Future<void> simulateMapLongPress(WidgetTester tester, LatLng latLng) async {
+/// [at] ist die Bildschirmposition — sie entscheidet, wohin sich das
+/// Kontextmenü verankert und in welche Richtung es auffächert (#483).
+/// Vorbelegt mit der Mitte eines 800×600-Testschirms.
+Future<void> simulateMapLongPress(WidgetTester tester, LatLng latLng,
+    {Offset at = const Offset(400, 300)}) async {
   final fake = tester.widget<FakeMapView>(find.byType(FakeMapView));
-  fake.config.onLongPress?.call(latLng);
+  fake.config.onLongPress?.call(latLng, at);
   await tester.pump();
 }
 

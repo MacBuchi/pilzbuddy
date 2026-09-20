@@ -43,7 +43,16 @@ class MapViewConfig {
   final Color backgroundColor;
 
   /// Long-Press auf die Karte (richtet das Fadenkreuz aus).
-  final void Function(LatLng latLng)? onLongPress;
+  /// Langer Tipp auf die Karte — mit der Stelle **und** ihrem Punkt auf
+  /// dem Schirm (#483).
+  ///
+  /// Die Bildschirmposition trägt das Kontextmenü: Es verankert sich an
+  /// der gedrückten Stelle, und am Rand entscheidet sie, in welche
+  /// Richtung es auffächern darf. Aus `LatLng` ließe sie sich zwar
+  /// zurückrechnen (beide Engines können das), aber beide liefern sie
+  /// im Ereignis ohnehin mit — sie erst wegzuwerfen und dann wieder
+  /// auszurechnen wäre zwei Wege für dieselbe Zahl.
+  final void Function(LatLng latLng, Offset screenPoint)? onLongPress;
 
   /// Die Karte ist zum Stehen gekommen — mit der neuen Mitte und dem
   /// Sichtfenster.
