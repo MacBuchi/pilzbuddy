@@ -155,16 +155,26 @@ abstract final class AppColors {
   ///
   /// Gesucht war eine Familie, die auf JEDER anderen Fläche der Karte
   /// noch als eigene Ebene lesbar ist: nicht der Laub-Ocker und das
-  /// Nadel-Blaugrün des Waldes, nicht das Blau des Regens, nicht das
-  /// Violett-bis-Königsblau der Ampel und nicht das Cyan des
-  /// Kartenwassers. Übrig bleiben Rot, Gelb, Magenta und ein Türkis,
-  /// das dunkler ist als jedes Wasser — kräftig, weil die Scheiben mit
-  /// niedriger Deckkraft liegen und sich erst in der Überlagerung
-  /// verdichten.
+  /// Nadel-Blaugrün des Waldes, nicht das Violett-bis-Königsblau der
+  /// Ampel und nicht das Cyan des Kartenwassers. Kräftige Töne, weil
+  /// die Scheiben mit niedriger Deckkraft liegen und sich erst in der
+  /// Überlagerung verdichten.
+  ///
+  /// **Die Töne müssen sich UNTEREINANDER unterscheiden, und zwar bei
+  /// der Deckkraft der Scheiben** (Betreiber, 2026-09-21: „Auster und
+  /// Steinpilz zu nah"). 1.154.0 hatte Magenta für Austernseitling &
+  /// Co.; bei Alpha 130 über dem Kartengrund liegt das nur ΔE 19 vom
+  /// Rot des Steinpilzes entfernt — nebeneinander zwei Rottöne. Blau
+  /// liegt bei 57 vom Rot und 70 vom Gelb; der kleinste Abstand in der
+  /// Familie ist jetzt 24 (Türkis gegen Grau). Der Preis ist die Nähe
+  /// zum Buddy-Blau der Marker und zum Nadel-Blau der FEINEN
+  /// Waldblöcke — beides keine Flächen, die mit den Scheiben
+  /// verwechselbar wären: das eine ein Symbol, das andere ein Opt-in.
+  /// `test/gbif_colours_test.dart` rechnet die Abstände nach.
   static const gbifClassColours = <String, Color>{
     'herbst': Color(0xFFC62828), // Steinpilz & Co. — Rot
     'sommer': Color(0xFFF9A825), // Pfifferling — Gelb
-    'holz_winter': Color(0xFFAD1457), // Austernseitling & Co. — Magenta
+    'holz_winter': Color(0xFF1E88E5), // Austernseitling & Co. — Blau
     'cantharellales': Color(0xFF00897B), // Herbsttrompete & Co. — Türkis
   };
 

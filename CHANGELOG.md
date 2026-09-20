@@ -7,6 +7,15 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Fundorte: Austernseitling & Co. jetzt in Blau
+
+*21. September 2026 · Version 1.154.2*
+
+Die Scheiben der gemeldeten Fundorte für Austernseitling & Co. waren
+magenta — neben dem Rot von Steinpilz & Co. auf der Karte kaum zu
+unterscheiden. Sie sind jetzt blau; Legende und Ebenen-Blatt zeigen die
+neue Farbe mit.
+
 ## Bodenfeuchte kam auf manchen Geräten nicht an
 
 *21. September 2026 · Version 1.154.1*
