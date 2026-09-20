@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../core/app_colors.dart';
+import '../../../core/widgets/mushroom_icon.dart' show stableSeed;
 import '../../map/map_view/map_view.dart';
 import '../tour_track.dart';
 
@@ -48,6 +49,40 @@ List<TourPoint> thinnedTrack(List<TourPoint> points,
 /// sobald die Spur eines Buddys danebenliegt, sagt sie das Gegenteil von
 /// dem, was sie meint.
 const kOwnTrackColor = AppColors.forestGreen;
+
+/// Die Farbe der Spur eines BUDDYS (#340, Stufe 2).
+///
+/// **Warum nicht einfach [AppColors.friendBlue] für alle.** Dieselbe
+/// Farbe für drei Leute an einem Hang beantwortet genau die Frage
+/// nicht, für die das Feature da ist: welche Linien hat WER schon
+/// abgelaufen. Die Farbe kommt deshalb aus der Nutzer-id, über
+/// dasselbe [stableSeed] wie das Aussehen eines Spot-Pilzes — sie
+/// bleibt damit über Sitzungen und Geräte hinweg dieselbe.
+///
+/// **Grün bleibt frei, und zwar durch die SPANNE selbst.** Grün heißt in
+/// dieser App „gehört mir" (eigene Spur, Boden-Ellipse an eigenen Spots,
+/// eigener Standort-Tropfen). Ein Buddy in Grün sagte das Gegenteil von
+/// dem, was er meint — derselbe Fehler, den die eigene Spur bis 1.125.1
+/// hatte, nur andersherum.
+///
+/// Die Töne laufen von 190° über 360° hinaus bis 70°, decken also
+/// **[190°, 359°] ∪ [0°, 69°]** ab. [AppColors.forestGreen] liegt bei
+/// ~123°, der ganze grüne Sektor damit außerhalb — ohne Sonderfall im
+/// Code.
+///
+/// **Ein erster Entwurf hatte hier zusätzlich einen Sprung über 75°–165°.
+/// Der war toter Code**: Die Spanne erreicht diesen Bereich nie. Die
+/// Gegenprobe hat ihn entlarvt — ihn zu entfernen ließ den Test grün,
+/// was nur heißen kann, dass er nichts tat. Wer [span] oder den
+/// Startwert ändert, muss deshalb den Test lesen: Er prüft die Zusage,
+/// nicht die Rechnung.
+Color buddyTrackColor(String userId) {
+  // 190° … 429°, umgebrochen: die Spanne IST die Aussage, siehe oben.
+  const span = 240;
+  var hue = 190.0 + (stableSeed(userId) % span);
+  if (hue >= 360) hue -= 360;
+  return HSLColor.fromAHSL(1, hue, 0.62, 0.42).toColor();
+}
 
 /// Ein Punkt der Spur. Klein und halbdurchsichtig: Die Spur ist
 /// Hintergrund, kein Inhalt — sie darf die Pilze nicht überstrahlen.

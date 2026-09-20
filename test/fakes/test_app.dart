@@ -129,11 +129,21 @@ List<Override> overridesFor(FakeBackend backend,
           ),
         ),
       // `useRealMap` heißt flutter_map-Interna prüfen (Layer, Puffer,
-      // Kamera-Wächter) — seit dem Default-Flip wählt es die klassische
-      // Engine ausdrücklich: Die MapLibre-Platform-View ist im Widget-Test
-      // nicht renderbar, ihr Gate ist das Gerät.
-      settingsProvider.overrideWithValue(
-          settings ?? FakeSettings(classicMapEnabled: useRealMap)),
+      // Kamera-Wächter). Die Engine wird dafür DIREKT gesetzt und nicht
+      // mehr über eine Einstellung: Seit #433 gibt es keine mehr, und
+      // die MapLibre-Platform-View ist im Widget-Test ohnehin nicht
+      // renderbar — ihr Gate ist das Gerät.
+      if (useRealMap)
+        mapViewBuilderProvider.overrideWithValue(
+          (config, controller, markers) => FlutterMapView(
+            config: config,
+            controller: controller,
+            markers: markers,
+          ),
+        ),
+      tourTrackRepositoryProvider
+          .overrideWithValue(FakeTourTrackRepository(backend)),
+      settingsProvider.overrideWithValue(settings ?? FakeSettings()),
       // Kein Method-Channel im Test: Der Update-Dialog würde sonst gegen
       // Androids System-Installer laufen.
       apkInstallerProvider.overrideWithValue(apkInstaller ?? FakeApkInstaller()),
@@ -198,6 +208,17 @@ List<Override> overridesFor(FakeBackend backend,
         }
         return Stream.fromFuture(
             ref.watch(liveShareRepositoryProvider).fetchFriendLocations());
+      }),
+      // Dasselbe für die Buddy-Spuren (#340): einmal laden statt
+      // Minutenschleife. Das TOR bleibt echt — ohne geteilten Standort
+      // wird auch im Test nicht gefragt, sonst prüfte kein Test mehr,
+      // dass die Spur an der Freigabe hängt.
+      friendTracksProvider.overrideWith((ref) {
+        final sharing =
+            ref.watch(friendLocationsProvider).valueOrNull ?? const [];
+        if (sharing.isEmpty) return Stream.value(const []);
+        return Stream.fromFuture(
+            ref.watch(tourTrackRepositoryProvider).fetchFriendTracks());
       }),
       tileProviderFactoryProvider.overrideWithValue(FakeTileProvider.new),
       // Auch die Regenebene und ihre Legende holen sonst echte Bilder vom

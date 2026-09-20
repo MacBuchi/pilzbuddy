@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/errors.dart';
 import '../../data/providers.dart';
+import '../tour/tour_sharing.dart';
+import '../../models/buddy_track.dart';
 import '../../models/friend_location.dart';
 import '../friends/friend_providers.dart';
 import '../../core/read_after_write.dart';
@@ -132,5 +134,48 @@ final friendLocationsProvider =
       if (!looksOffline(e)) logError('Freundes-Standorte laden', e, stackTrace);
     }
     await Future<void>.delayed(anyoneSharing ? interval : idle);
+  }
+});
+
+/// Die Tourspuren meiner Buddys (#340, Stufe 2).
+///
+/// **Kein eigener Torwächter, und das ist der Trick.** Eine Spur gibt es
+/// nur, wo auch ein Live-Standort ist — beide hängen an derselben
+/// Freigabe (`planTrackShare`). Statt die drei Tore von
+/// [friendLocationsProvider] zu kopieren (Freundschaft, Vordergrund,
+/// träger Takt), hängt dieser Provider an dessen ERGEBNIS: Sieht niemand
+/// einen geteilten Standort, wird auch nicht nach Spuren gefragt.
+///
+/// `select` auf „teilt überhaupt jemand" statt auf die Liste: Der
+/// Standort-Strom liefert alle paar Sekunden neu, und ein `watch` auf
+/// den ganzen Wert baute diese Schleife jedes Mal neu auf — der eigene
+/// Takt wäre damit wirkungslos.
+///
+/// **Der Takt ist der des Senders** ([kTrackUploadInterval]): Häufiger
+/// zu fragen, als geschrieben wird, holt dieselben Punkte noch einmal.
+/// Eine Spur sind rund 10 KB; bei drei Buddys und dem Standort-Takt
+/// wären das einige Megabyte je Stunde gegen 5 GB Egress im Monat.
+final friendTracksProvider = StreamProvider<List<BuddyTrack>>((ref) async* {
+  final anyoneSharing = ref.watch(friendLocationsProvider
+      .select((v) => (v.valueOrNull ?? const <FriendLocation>[]).isNotEmpty));
+  if (!anyoneSharing) {
+    yield const [];
+    return;
+  }
+  final repo = ref.watch(tourTrackRepositoryProvider);
+  while (true) {
+    try {
+      yield await repo.fetchFriendTracks();
+    } on NotSignedInException {
+      // Wie beim Standort-Strom: Abmelden ist kein Fehler (Issue #124).
+      yield const [];
+      return;
+    } catch (e, stackTrace) {
+      // Und aus demselben Grund kein Bericht bei fehlendem Empfang —
+      // diese Schleife läuft im Minutentakt und füllte sonst den
+      // Wochendigest.
+      if (!looksOffline(e)) logError('Buddy-Spuren laden', e, stackTrace);
+    }
+    await Future<void>.delayed(kTrackUploadInterval);
   }
 });

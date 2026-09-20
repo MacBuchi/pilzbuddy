@@ -118,6 +118,22 @@ create table public.live_locations (
 -- Die Freundes-Select-Policy filtert über expires_at.
 create index live_locations_expires_idx on public.live_locations (expires_at);
 
+-- Die Spur einer laufenden Pilztour, teilbar mit Buddys (Patch 023,
+-- #340). EINE Zeile je Nutzer, an Ort und Stelle ersetzt — eine Zeile
+-- je Messpunkt wären ~720 pro Person und Drei-Stunden-Tour und damit
+-- die erste Tabelle, deren Größe mit der verbrachten Zeit wächst.
+-- `expires_at` wird aus der laufenden Standort-Freigabe GEERBT: eine
+-- Zustimmung statt zwei. Wer nicht teilt, lädt nichts hoch.
+create table public.tour_tracks (
+  user_id uuid primary key references public.profiles(id) on delete cascade,
+  started_at timestamptz not null,
+  -- [[lat, lng, "iso8601"], …] — vor dem Hochladen gedünnt.
+  points jsonb not null,
+  updated_at timestamptz not null default now(),
+  expires_at timestamptz not null
+);
+create index tour_tracks_expires_idx on public.tour_tracks (expires_at);
+
 -- Feature-Wünsche / Feedback aus der App. Der Feedback-Bot
 -- (.github/workflows/feedback.yml) macht daraus GitHub-Issues bzw.
 -- Pilzart-PRs und setzt processed_at.
@@ -305,6 +321,7 @@ alter table public.spots          enable row level security;
 alter table public.finds          enable row level security;
 alter table public.friendships    enable row level security;
 alter table public.live_locations enable row level security;
+alter table public.tour_tracks    enable row level security;
 alter table public.feedback       enable row level security;
 alter table public.error_reports  enable row level security;
 alter table public.app_config     enable row level security;
@@ -422,6 +439,16 @@ create policy fr_delete on public.friendships for delete   -- ablehnen / zurück
 create policy ll_owner_all on public.live_locations for all
   using (user_id = auth.uid()) with check (user_id = auth.uid());
 create policy ll_friend_select on public.live_locations for select
+  using (user_id <> auth.uid()
+     and app_internal.are_friends(user_id, auth.uid())
+     and expires_at > now());
+
+-- tour_tracks: Spiegel der beiden Policies darüber (Patch 023). Zwei
+-- Tabellen mit demselben Sichtbarkeitsversprechen formulieren es
+-- gleich — sonst driftet beim nächsten Anfassen eine davon.
+create policy tt_owner_all on public.tour_tracks for all
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy tt_friend_select on public.tour_tracks for select
   using (user_id <> auth.uid()
      and app_internal.are_friends(user_id, auth.uid())
      and expires_at > now());
@@ -708,5 +735,6 @@ insert into public.applied_patches (filename) values
   ('patch_019_push_leerlauf.sql'),
   ('patch_020_push_text.sql'),
   ('patch_021_feedback_version.sql'),
-  ('patch_022_fund_position.sql')
+  ('patch_022_fund_position.sql'),
+  ('patch_023_tour_tracks.sql')
 on conflict do nothing;

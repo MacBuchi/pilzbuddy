@@ -22,6 +22,9 @@ if [ -z "$URL" ] || [ -z "$KEY" ]; then
 fi
 
 fail=0
+# Getrennt gezählt: „wir konnten nicht fragen" ist keine Aussage über
+# das Schema. Siehe [response_diagnosis].
+transport_fail=0
 
 check_get() {
   local name="$1" path="$2" out
@@ -48,7 +51,16 @@ check_rpc_protected() {
   out=$(curl -s --max-time 20 -X POST "$URL/rest/v1/rpc/$fn" \
     -H "apikey: $KEY" -H "Content-Type: application/json" -d "$body" \
     || echo '{"code":"curl","message":"Verbindung fehlgeschlagen"}')
-  if printf '%s' "$out" | grep -q 'PGRST202'; then
+  # **Zuerst die Leitung.** Die Ersatzantwort eines gescheiterten curl
+  # trägt selbst ein `"code"` — und genau das hieß hier bis #433
+  # „vorhanden und für anon gesperrt". Ein Netzaussetzer erzeugte also
+  # ein grünes Häkchen auf einer RECHTE-Prüfung. Das ist die
+  # gefährlichere Hälfte dieses Fehlers: Eine erfundene Ursache kostet
+  # Zeit, ein erfundener Erfolg kostet die Prüfung.
+  if [ "$(response_diagnosis "$out")" = transport ]; then
+    echo "::error::Schema-Check unentschieden: $name — der Dienst war nicht erreichbar. Über die Rechte sagt dieser Lauf NICHTS; wiederholen. Antwort: ${out:-<leer>}"
+    transport_fail=1
+  elif printf '%s' "$out" | grep -q 'PGRST202'; then
     echo "::error::Schema-Check fehlgeschlagen: $name — Funktion fehlt in der Live-DB: $out"
     fail=1
   elif printf '%s' "$out" | grep -q '"code"'; then
@@ -70,6 +82,29 @@ app_config_version() {
   [ "$status" = "200" ] || return 0
   printf '%s' "$body" \
     | sed -n 's/.*"minimum_supported_version":"\([^"]*\)".*/\1/p'
+}
+
+# Was sagt eine Antwort — und worüber?
+#
+# `transport` heißt: Wir haben den Dienst NICHT erreicht. Das ist eine
+# Aussage über die Leitung, nicht über das Schema, und darf deshalb auch
+# keine über das Schema auslösen. Genau derselbe Grundsatz, der seit
+# #457 über `app_config_diagnosis` steht — er galt bis #433 nur für
+# diese eine Abfrage, während die anderen dreizehn einen Netzfehler wie
+# einen Schemafehler behandelten.
+#
+# Ein LEERER Rumpf zählt mit dazu: PostgREST antwortet auf die Abfragen
+# hier immer mit etwas (und sei es `[]`). Nichts zu bekommen heißt, dass
+# wir nichts erfahren haben — bis hierher galt das als Erfolg.
+response_diagnosis() {
+  local body="$1"
+  if [ -z "$body" ] || printf '%s' "$body" | grep -q '"code":"curl"'; then
+    echo transport
+  elif printf '%s' "$body" | grep -q '"code"'; then
+    echo schema
+  else
+    echo ok
+  fi
 }
 
 app_config_diagnosis() {
@@ -111,18 +146,46 @@ if [ "${1:-}" = "--self-test" ]; then
   # Ohne 200 gibt es keine Version — auch wenn im Rumpf eine steht.
   [ -z "$(app_config_version 500 '[{"minimum_supported_version":"9.9.9"}]')" ] \
     || { echo "  ✗ Version aus einer Fehlantwort gelesen"; fehler=1; }
+  echo "Antwort-Diagnose:"
+  probe_response() {
+    local erwartet="$1" body="$2" ist
+    ist=$(response_diagnosis "$body")
+    if [ "$ist" = "$erwartet" ]; then
+      echo "  ✓ ${body:-<leer>} → $ist"
+    else
+      echo "  ✗ ${body:-<leer>} → $ist statt $erwartet"
+      fehler=1
+    fi
+  }
+  # Genau die Antwort, die ein gescheiterter curl einsetzt — und die
+  # bis #433 als Schemafehler galt bzw. bei den geschützten RPCs sogar
+  # als Erfolg.
+  probe_response transport '{"code":"curl","message":"Verbindung fehlgeschlagen"}'
+  probe_response transport ""
+  # Ein echter PostgREST-Fehler bleibt einer.
+  probe_response schema '{"code":"42703","message":"column does not exist"}'
+  probe_response schema '{"code":"PGRST202"}'
+  probe_response ok '[]'
+  probe_response ok '[{"id":"x"}]'
   [ "$fehler" = 0 ] && echo "schema_check self-test: ok"
   exit "$fehler"
 fi
 
 verdict() {
   local name="$1" out="$2"
-  if printf '%s' "$out" | grep -q '"code"'; then
+  case "$(response_diagnosis "$out")" in
+  transport)
+    echo "::error::Schema-Check unentschieden: $name — der Dienst war nicht erreichbar. Das ist eine Aussage über die LEITUNG, nicht über das Schema; den Lauf wiederholen. Antwort: ${out:-<leer>}"
+    transport_fail=1
+    ;;
+  schema)
     echo "::error::Schema-Check fehlgeschlagen: $name — $out"
     fail=1
-  else
+    ;;
+  *)
     echo "✓ $name"
-  fi
+    ;;
+  esac
 }
 
 # profiles: alle Spalten, die ProfileRepository/Profile.fromJson nutzen
@@ -161,6 +224,13 @@ check_get "finds-Spalten" \
 # live_locations: exakt die Query aus LiveShareRepository.fetchFriendLocations
 check_get "live_locations-Embed (Freundes-Standorte)" \
   "/rest/v1/live_locations?select=user_id,lat,lng,expires_at,profiles(username,avatar)&limit=1"
+
+# tour_tracks: exakt die Query aus TourTrackRepository.fetchFriendTracks
+# (Patch 023, #340). Das `profiles`-Embed hängt am Fremdschlüssel auf
+# profiles(id) — fehlt der, antwortet PostgREST mit PGRST200 statt mit
+# einer leeren Liste.
+check_get "tour_tracks-Embed (Buddy-Spuren)" \
+  "/rest/v1/tour_tracks?select=user_id,started_at,points,expires_at,profiles(username,avatar)&limit=1"
 
 # feedback: Spalten, die App (Insert) und Feedback-Bot (Select) nutzen
 check_get "feedback-Spalten" \
@@ -272,6 +342,14 @@ check_rpc_protected "delete_own_account-RPC" "delete_own_account" '{}'
 
 if [ "$fail" -ne 0 ]; then
   echo "::error::Live-Schema passt nicht zu den App-Queries. Fehlt ein supabase/patch_NNN_*.sql bzw. wurde er noch nicht eingespielt (tool/db_migrate.sh, Secret SUPABASE_DB_URL)?"
+  exit 1
+fi
+# Kein Schemafehler, aber auch keine vollständige Antwort: Der Lauf
+# scheitert — er hat ja nicht alles geprüft —, sagt aber nicht, woran.
+# Die Patch-Vermutung oben würde hier auf „SQL anfassen" zeigen, und das
+# ist bei einem Netzfehler die teuerste mögliche Reaktion.
+if [ "$transport_fail" -ne 0 ]; then
+  echo "::error::Schema-Check unentschieden: Mindestens eine Abfrage hat den Dienst nicht erreicht. Über das Live-Schema sagt dieser Lauf NICHTS — Lauf wiederholen."
   exit 1
 fi
 echo "Live-Schema passt zu allen App-Queries."

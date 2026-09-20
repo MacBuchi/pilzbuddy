@@ -9,6 +9,7 @@ import '../../offline_maps/offline_map_providers.dart';
 import '../elevation_contour_providers.dart';
 import '../finite_camera_constraint.dart';
 import '../forest_data_providers.dart';
+import '../map_overlays.dart';
 import '../rain_data_providers.dart';
 import '../rain_layer.dart';
 import 'map_view.dart';
@@ -138,7 +139,10 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
     // Die Regenebene liegt auch auf diesem Pfad — er ist der einzige im
     // Web, und die PWA ist ein erklärtes Ziel. Ein Knopf, der nur auf
     // Android etwas tut, wäre ein Fehler ohne Fehlermeldung.
-    final rainLayer = ref.watch(rainLayerProvider);
+    // Die GEZEICHNETE Ebene, nicht die gewählte (#464): Steht hier
+    // `off`, fallen Grenzen, Darstellung, Fläche und DWD-Bild in einem
+    // zu, weil alle vier daraus abgeleitet sind.
+    final rainLayer = ref.watch(drawnRainLayerProvider);
     final rainBounds = rainLayer.bounds;
     // Der Dreizustand entscheidet: eigene Fläche, noch nichts (Gitter
     // lädt — KEIN DWD-Bild, das gleich wieder verschwände), oder das

@@ -7,6 +7,7 @@ import 'auth_repository.dart';
 import 'feedback_repository.dart';
 import 'friend_repository.dart';
 import 'live_share_repository.dart';
+import 'tour_track_repository.dart';
 import 'browser_db.dart';
 import 'idb_factory.dart';
 import 'outbox.dart';
@@ -78,6 +79,9 @@ final feedbackRepositoryProvider =
 
 final liveShareRepositoryProvider =
     Provider((ref) => LiveShareRepository(ref.watch(supabaseClientProvider)));
+
+final tourTrackRepositoryProvider =
+    Provider((ref) => TourTrackRepository(ref.watch(supabaseClientProvider)));
 
 final appConfigRepositoryProvider =
     Provider((ref) => AppConfigRepository(ref.watch(supabaseClientProvider)));

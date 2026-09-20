@@ -41,7 +41,7 @@ Stand 2026-09-08, nachgesehen im Code, nicht angenommen.
 | Feedback wird öffentlich | `feedback_bot.py` legt daraus GitHub-Issues an — das Repo ist öffentlich |
 | Live-Standort läuft von selbst ab | `live_locations.expires_at`, gespiegelt in der RLS-Policy und im Fake |
 | Benachrichtigungen sind ab Werk aus | `push_devices` hat keine Zeile ohne Zustimmung; eine Zeile IST die Zustimmung |
-| Die Pilztour verlässt das Gerät nie | `tours/` als JSON Lines im App-Verzeichnis; in beiden Backup-Ausschlüssen |
+| Die Pilztour verlässt das Gerät nur bei laufender Standort-Freigabe | `tours/` als JSON Lines im App-Verzeichnis, in beiden Backup-Ausschlüssen. Hochgeladen wird ausschließlich, wenn BEIDES läuft — Tour und Standort-Freigabe (`planTrackShare` in `lib/features/tour/tour_sharing.dart`, geprüft in `test/flows/tour_sharing_flow_test.dart`). Die Frist wird aus der Freigabe geerbt, Sichtbarkeit über `tt_friend_select` (Patch 023); Tour- oder Teilen-Ende löscht die Zeile |
 | Kein Tracking, keine Analyse-SDKs | Die einzige Firebase-Nutzung ist Cloud Messaging (`pubspec.yaml`: `firebase_core`, `firebase_messaging` — kein Analytics, kein Crashlytics) |
 | Serverstandort EU | AWS `eu-west-1` (Irland), Supabase-Dashboard, bestätigt 2026-09-08 |
 | Im Browser lädt Push einen Baustein von Google | `web/push/firebase-messaging-sw.js`; ausgelöst erst durch `getToken` in `requestPushToken` |

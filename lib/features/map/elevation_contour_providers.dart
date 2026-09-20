@@ -12,6 +12,7 @@ import '../../core/settings.dart';
 import 'elevation_contours.dart';
 import 'elevation_grid.dart';
 import 'elevation_providers.dart';
+import 'map_overlays.dart';
 import 'forest_data_providers.dart' show mapIdleBoundsProvider;
 import 'forest_fill_window.dart';
 
@@ -85,6 +86,10 @@ final contourWindowProvider =
 final elevationContoursProvider =
     FutureProvider<ElevationContours?>((ref) async {
   if (!ref.watch(contourLayerEnabledProvider)) return null;
+  // Wie beim Wald: Vorhang zu heißt gar nicht erst rechnen (#464).
+  // `contourLabelsProvider` und `contourGeoJsonProvider` hängen an
+  // diesem Provider und folgen deshalb ohne eigene Abfrage.
+  if (ref.watch(mapOverlaysHiddenProvider)) return null;
   final metersPerPixel = ref.watch(mapIdleGroundResolutionProvider);
   if (metersPerPixel == null ||
       metersPerPixel > contourMaxMetersPerPixel) {

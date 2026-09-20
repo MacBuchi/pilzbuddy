@@ -19,6 +19,11 @@ import 'download_keep_alive.dart';
 void startDownloadKeepAlive() =>
     FlutterForegroundTask.setTaskHandler(ServiceTaskHandler());
 
+/// Legt den Port an, über den das Service-Isolate den Main-Isolate
+/// erreicht (#465) — das Warum steht an [initKeepAliveCommunication].
+void initKeepAliveCommunicationImpl() =>
+    FlutterForegroundTask.initCommunicationPort();
+
 /// Der Manifest-Eintrag, unter dem das Symbol der Download-Meldung steht
 /// (#331). Muss Zeichen für Zeichen dem `meta-data`-Namen im Manifest
 /// entsprechen.

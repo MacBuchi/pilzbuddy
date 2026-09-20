@@ -201,6 +201,19 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   Live-Schema passen — ohne eingespielten Patch ist kein Merge möglich
   (Lehre aus Issue #27). Der Release-Workflow wiederholt beides als
   Sicherheitsnetz vor dem Ausliefern.
+  **Ein Wächter darf sich irren, aber nie die Ursache erfinden.** Seit
+  #457 trennt `app_config` „Dienst nicht erreichbar" von einem echten
+  Befund; seit dem 2026-09-20 gilt das für ALLE Abfragen
+  (`response_diagnosis`, im `--self-test` mitgeprüft). Vorher machte ein
+  `curl`-Timeout zwei Sorten Schaden: Die Schlussmeldung riet zu einem
+  fehlenden `patch_NNN` — also ausgerechnet dazu, SQL anzufassen —, und
+  bei den geschützten RPCs trug die Ersatzantwort selbst ein `"code"`
+  und galt damit als „vorhanden und für anon gesperrt". Ein Netzaussetzer
+  erzeugte dort ein grünes Häkchen auf einer RECHTE-Prüfung. Eine
+  erfundene Ursache kostet Zeit, ein erfundener Erfolg kostet die
+  Prüfung. Transport-Fehler zählen jetzt getrennt, scheitern den Lauf
+  („unentschieden") und sagen, dass er zu wiederholen ist.
+
   Vorgeschaltet ist der Pflicht-Check „Schema Dry Run" (`needs:` am Schema
   Check): ein lokaler Supabase-Stack auf dem Runner (`supabase/config.toml`,
   bewusst minimal — nur db, auth, api) fährt **beide** Wege, die es in der
@@ -801,6 +814,24 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
       und über die Brücke gereicht; `recordTourTick` fängt alles, weil
       eine durchgereichte Ausnahme dort niemanden hat, der sie fängt —
       und die Tour für den Rest des Wegs still beenden würde.
+    - **Die Rückrichtung muss in `main()` ANGEMELDET werden** (#465,
+      behoben in 1.143.1). `sendDataToMain` schlägt seinen Port über
+      `IsolateNameServer.lookupPortByName` nach, und angelegt wird der
+      ausschließlich von `FlutterForegroundTask.initCommunicationPort()`
+      — das Paket ruft es nie von selbst, es steht als Zeile für `main()`
+      in dessen README. Sie hat von #342 an gefehlt: Jeder Takt landete
+      korrekt in der Datei und die Meldung im Nichts, weil
+      `sendPort?.send(data)` auf `null` still durchfällt. Vier Wochen
+      unbemerkt, und zwar weil `_firstFix` noch im Main-Isolate
+      `acceptTick` ruft — die Karte hatte damit GENAU EINEN Punkt: als
+      Punkt ein Pünktchen unterm Fadenkreuz, das nach „läuft" aussieht,
+      als Linie gar nichts (`tourTrackPolyline` braucht zwei). Gemeldet
+      wurde deshalb „die Linie geht nicht", kaputt war die Anzeige
+      insgesamt. Verloren ging nie etwas; ein Neustart holte den Weg
+      über `restore()` zurück, und genau das war beim Nachstellen der
+      entscheidende Kontrollversuch. `test/tour_live_bridge_test.dart`
+      prüft Rundlauf, Gegenprobe UND die Zeile in `main.dart` — die
+      ersten beiden allein leuchten grün, während die App steht.
     Ebenfalls gefallen: das `timeLimit` von 20 s auf dem Fix. Es machte
     aus jedem langsamen Hintergrund-Fix stillschweigend gar keinen.
   - **Der Track liegt in `tours/` als JSON Lines** und wird beim Gehen
@@ -812,9 +843,50 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     wenig verloren wie die Fundstellen. Gelöscht wird **erst nach dem
     Blatt**: Wer vorher aufräumt, verliert drei Stunden Gehen, wenn das
     Blatt weggewischt wird.
-  Nicht gebaut, bewusst: Server-Speicherung und die Tracks der Buddys —
-  das braucht RLS, Datenschutzerklärung und Data-Safety und ist ein
-  eigenes Issue.
+  - **Die Spur verlässt das Gerät seit 1.147.0 doch** (#340 Stufe 2) —
+    aber nur, wenn BEIDES läuft: eine Tour UND die Standort-Freigabe.
+    Die Bedingung ist ein UND und steht als eine Zeile in
+    `planTrackShare` (`tour_sharing.dart`); wer aufzeichnet, ohne zu
+    teilen, behält Stufe 1 unverändert. `expires_at` wird aus der
+    Freigabe GEERBT statt neu eingeholt: eine Zustimmung statt zwei, und
+    zwei Fristen könnten auseinanderlaufen. Tour- oder Teilen-Ende
+    löscht die Zeile sofort — nicht erst beim Ablauf, sonst läge dort
+    eine Freigabe, die niemand mehr gibt.
+    **Eine Zeile je Nutzer, ersetzt statt angehängt** (`tour_tracks`,
+    Patch 023, Policies als Spiegel von `live_locations`): Eine Zeile je
+    Messpunkt wären ~720 je Person und Drei-Stunden-Tour — die erste
+    Tabelle, deren Größe mit der verbrachten ZEIT wächst statt mit den
+    Funden. Gedünnt sind es ≤ 400 Punkte, rund 10 KB.
+    **Hochgeladen wird im MAIN-Isolate**, gemessen wird im Service-Isolate
+    (#342). Die Folge ist benennbar: Wer die App wegwischt, zeichnet
+    weiter auf, lädt aber nichts mehr hoch, bis er sie öffnet. Verloren
+    geht nichts, weil immer die GANZE Spur geschrieben wird — deshalb
+    braucht der Weg auch keinen Ausgangskorb.
+    **Die Spur eines Buddys darf die eigenen Leergänge NIE beeinflussen.**
+    Boden, den jemand anders gegangen ist, ist kein Boden, den ICH
+    abgesucht habe; `tourVisits` sieht weiterhin nur eigene Punkte. Das
+    ist die Stichprobe, die #199 als unabhängigen Prüfstein aufhebt.
+    Die vier Stellen, an denen die alte Zusage stand, sind im selben PR
+    mitgezogen: `web/datenschutz.html`, `docs/play-console.md`,
+    `docs/datenschutz-nachweise.md` und dieser Abschnitt.
+  - **Die Anzeige (1.148.0) hat kein eigenes Tor.** `friendTracksProvider`
+    hängt am ERGEBNIS von `friendLocationsProvider`: Eine Spur gibt es
+    nur, wo ein geteilter Standort ist, also spart man sich den Poll,
+    wenn niemand teilt — statt dessen drei Tore (Freundschaft,
+    Vordergrund, träger Takt) zu kopieren. `select` auf „teilt überhaupt
+    jemand", nicht auf die Liste: Der Standort-Strom liefert alle paar
+    Sekunden neu und baute die Schleife sonst jedes Mal neu auf.
+    Der Takt ist der des SENDERS (`kTrackUploadInterval`) — häufiger zu
+    fragen, als geschrieben wird, holt dieselben Punkte noch einmal.
+    Im Test ist der Provider wie `friendLocationsProvider` auf einen
+    Einmal-Abruf überschrieben (`test/fakes/test_app.dart`), sonst
+    hinge nach jedem Widget-Test ein Timer.
+    **Die Farbe je Buddy kommt aus der Spanne, nicht aus einem
+    Sonderfall**: 190°…429°, umgebrochen also [190°,359°] ∪ [0°,69°] —
+    `forestGreen` (~123°) liegt außerhalb. Ein erster Entwurf hatte
+    zusätzlich einen Sprung über den grünen Sektor; die Gegenprobe zeigte
+    ihn als toten Code (entfernen ließ den Test grün). Wer die Spanne
+    ändert, muss den Test lesen.
 - **Das Ampel-Banner rechnet beim Start, nicht auf einem Server**
   (Baustein B aus #277, seit 1.101.0): Ein Hinweis auf der Karte, wenn
   die Ampel an einem EIGENEN Spot günstig steht
@@ -1241,17 +1313,31 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   MapLibre (nativer Renderer, `maplibre` 0.3.5 exakt gepinnt) hinter der
   MapView-Fassade (`lib/features/map/map_view/`); Grundlage ist der
   nachgemessene Direktvergleich in `docs/map-performance.md`
-  (Wiederholung: `tool/measure_map.sh`). Der Profil-Schalter ist ein
-  OPT-OUT zur bisherigen flutter_map-Karte (`classicMapEnabled`,
-  bewusst neuer Prefs-Schlüssel — der alte Beta-Schlüssel
-  `maplibre_enabled` wird ignoriert, sonst bliebe ein nie angefasstes
-  Beta-„aus" als Opt-out kleben). Die Rückfalllinie bleibt mindestens
-  eine Release-Reihe; der flutter_map-Android-Pfad wird erst nach einer
-  Beobachtungsphase über den Wochendigest aufgeräumt. Web rendert
-  weiterhin flutter_map (bedingter Import, Web-Build sieht
-  `package:maplibre` nie). Die folgenden flutter_map-Notizen
-  (Stellschrauben, Kamera-Wächter, TileProvider-Lebenszyklus) gelten
-  für diesen Rückfall- und den Web-Pfad.
+  (Wiederholung: `tool/measure_map.sh`). Web rendert weiterhin
+  flutter_map (bedingter Import, Web-Build sieht `package:maplibre`
+  nie).
+  **Seit 1.146.0 (#433) gibt es dazwischen keinen Schalter mehr.** Das
+  Profil-Opt-out (`classicMapEnabled`) war als befristete Rückfalllinie
+  gedacht, und die Frist ist um: zehn Wochendigests ohne einen einzigen
+  Fund gegen MapLibre. Die Engine-Wahl ist jetzt `if (!kIsWeb)` in
+  `mapViewBuilderProvider` — eine Kompilierzeit-Konstante, in jedem
+  Build vorentschieden. Zwei Prefs-Schlüssel liegen auf
+  Bestandsgeräten herum und werden nie wieder gelesen
+  (`maplibre_enabled` aus der Beta, `classic_map_enabled` danach);
+  `map_engine.dart` ist gelöscht.
+  **Kleiner wird das APK dadurch NICHT**, und das ist die Korrektur an
+  der Annahme im Issue: `maplibre_map_view.dart` fällt selbst auf
+  `FlutterMapView` zurück, wenn der Style nicht baut — ohne Style lieber
+  die alte Karte als gar keine. Dazu benutzt die Mini-Karte (#373)
+  flutter_map ohnehin auf jeder Plattform. Gemessen am `github`-Flavor:
+  130 396 207 Bytes vorher, 130 396 251 danach — **44 Bytes MEHR**, also
+  Rauschen der ZIP-Kompression. Der Gewinn ist ein Zustand weniger,
+  keine Größe. `test/map_engine_choice_test.dart`
+  nagelt beide Seiten fest — dass Android MapLibre bekommt UND dass der
+  Rückfall im Build bleibt.
+  Die folgenden flutter_map-Notizen (Stellschrauben, Kamera-Wächter,
+  TileProvider-Lebenszyklus) gelten für diesen Rückfall- und den
+  Web-Pfad.
 - **`alignment` bedeutet in den beiden Karten-Engines das GEGENTEIL**
   (#409, behoben in 1.123.0): Beide nehmen ein `Alignment` und rechnen
   daraus die Bildschirmposition — flutter_map als

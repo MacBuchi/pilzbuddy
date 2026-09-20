@@ -41,7 +41,7 @@ verarbeitet*, *erforderlich oder optional* — plus die Zwecke.
 
 | Datentyp | Erhoben | Geteilt | Pflicht? | Zweck | Woher |
 |---|---|---|---|---|---|
-| **Standort → Genauer Standort** | Ja | Nein¹ | Optional | App-Funktionalität | `spots.lat/lng`, `live_locations`, seit #373 auf Wunsch auch `finds.lat/lng/accuracy_m` — die Stelle eines EINZELNEN Fundes samt gemeldeter Messgenauigkeit, nur wenn der Nutzer sie im Fund-Blatt wählt. Seit 1.112.0 lässt sich ein Spot per `geo:`-URI an eine Navi-App auf demselben Gerät übergeben (#367) — auf Knopfdruck und mit dem System-Wähler als Bestätigung, siehe ¹. Der Weg einer Pilztour (#338) wird ebenfalls erhoben, verlässt das Gerät aber NIE — er liegt in `tours/` im App-Verzeichnis, ist vom Backup ausgenommen und wird nach dem Abschluss gelöscht; hochgeladen werden nur die daraus bestätigten Leergänge |
+| **Standort → Genauer Standort** | Ja | Nein¹ | Optional | App-Funktionalität | `spots.lat/lng`, `live_locations`, seit #373 auf Wunsch auch `finds.lat/lng/accuracy_m` — die Stelle eines EINZELNEN Fundes samt gemeldeter Messgenauigkeit, nur wenn der Nutzer sie im Fund-Blatt wählt. Seit 1.112.0 lässt sich ein Spot per `geo:`-URI an eine Navi-App auf demselben Gerät übergeben (#367) — auf Knopfdruck und mit dem System-Wähler als Bestätigung, siehe ¹. Der Weg einer Pilztour (#338) liegt in `tours/` im App-Verzeichnis und ist vom Backup ausgenommen. Er verlässt das Gerät **nur**, wenn gleichzeitig der Live-Standort geteilt wird (#340, seit 1.147.0): dann liegt er als `tour_tracks`-Zeile beim Server, sichtbar ausschließlich für akzeptierte Freunde und nur so lange wie die Standort-Freigabe, aus der er seine Frist erbt. Tour beenden oder Teilen beenden löscht die Zeile sofort. Ohne Standort-Freigabe bleibt der Weg auf dem Gerät; hochgeladen werden dann nur die daraus bestätigten Leergänge |
 | **Standort → Ungefährer Standort** | Ja | Nein¹ | Optional | App-Funktionalität | `ACCESS_COARSE_LOCATION` ist deklariert; ein grober Fix wird genauso gespeichert |
 | **Persönliche Infos → E-Mail-Adresse** | Ja | Nein³ | Erforderlich | App-Funktionalität, Kontoverwaltung | Supabase Auth; zusätzlich Freundessuche über die exakte Adresse; Versand der Bestätigungs- und Reset-Mails über Brevo |
 | **Persönliche Infos → Name** | Ja | Nein¹ | Erforderlich | App-Funktionalität, Kontoverwaltung | `profiles.username` (nicht null) und `display_name`; der Benutzername ist für alle Nutzer suchbar |
@@ -249,6 +249,15 @@ Play-Manifests — und das soll im PR auffallen, nicht im Release-Workflow.
   Prüfrunde, ohne dass die App mehr könnte.
   `test/android_manifest_test.dart` hält beide Hälften fest — dass die
   Berechtigung fehlt und dass der Service-Typ da ist.
+- **Der geteilte Tour-Weg** (#340, seit 1.147.0) ändert daran nichts, und
+  zwar weil er keine zusätzliche Erhebung ist, sondern eine zusätzliche
+  EMPFÄNGERGRUPPE für dieselben Daten. Er erbt seine Zustimmung von der
+  Standort-Freigabe: Ohne sie wird nichts hochgeladen, mit ihr steht die
+  Freigabe bereits als Banner auf der Karte. Zwei Zustimmungen auf eine
+  Entscheidung wären zwei Fristen, die auseinanderlaufen können — die
+  Kopplung ist in `planTrackShare` eine Zeile und in
+  `test/flows/tour_sharing_flow_test.dart` in beide Richtungen geprüft
+  (Tour ohne Freigabe lädt nichts, Freigabe ohne Tour lädt nichts).
 - **Die Berechtigung wird ausschließlich nach einer sichtbaren
   Nutzeraktion erfragt** (`positionFixProvider` in
   `lib/features/map/position_provider.dart`, ausgelöst vom Knopf

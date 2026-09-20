@@ -9,6 +9,7 @@ import '../../data/outbox_runner.dart';
 import '../../data/outbox_view.dart';
 import '../../data/providers.dart';
 import '../../data/spot_repository.dart';
+import '../../models/find_position.dart';
 import '../../models/spot.dart';
 import 'nearby_spots.dart';
 import 'species_suggestions.dart';
@@ -184,10 +185,11 @@ class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox>
   Future<void> updateFind({
     required String findId,
     required NewFind find,
+    required FindPosition? position,
   }) async {
     await ref
         .read(spotRepositoryProvider)
-        .updateFind(findId: findId, find: find);
+        .updateFind(findId: findId, find: find, position: position);
     ref.invalidate(friendSpotsProvider);
     await reloadAfterWrite('Spots neu laden');
   }
@@ -279,6 +281,30 @@ class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox>
     if (_isPending(spotId)) return discardJob(spotId);
     await ref.read(spotRepositoryProvider).deleteSpot(spotId);
     await reloadAfterWrite('Spots neu laden');
+  }
+
+  /// Korrigiert Name und Stelle eines eigenen Spots (#466).
+  ///
+  /// Gibt wie [addSpot] zurück, ob die Liste danach frisch ist — der
+  /// Aufrufer hängt sonst `staleAfterWriteHint` an, statt „gespeichert"
+  /// über eine unveränderte Karte zu schreiben.
+  ///
+  /// **Kein Ausgangskorb.** Ein Korrigieren gehört zu den Wegen, die
+  /// offline sichtbar scheitern (#267): Die beiden Wege in den Korb sind
+  /// „neuer Spot" und „Fund am Spot". Ein Verschieben, das Tage später
+  /// zuschlägt, wäre schlimmer als eine Fehlermeldung — und einem noch
+  /// wartenden Spot fehlt ohnehin die Server-id, weshalb die Oberfläche
+  /// die Aktion dort gar nicht erst anbietet.
+  Future<bool> editSpot({
+    required String spotId,
+    required String? name,
+    required double lat,
+    required double lng,
+  }) async {
+    await ref
+        .read(spotRepositoryProvider)
+        .editSpot(spotId: spotId, name: name, lat: lat, lng: lng);
+    return reloadAfterWrite('Spots neu laden');
   }
 
   Future<void> setSharingExcluded(String spotId, bool excluded) async {

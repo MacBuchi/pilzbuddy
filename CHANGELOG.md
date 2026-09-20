@@ -7,6 +7,114 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Und jetzt siehst du die Spuren der anderen
+
+*20. September 2026 · Version 1.148.0*
+
+Die andere Hälfte: Wenn deine Buddys eine Pilztour aufzeichnen und dabei
+ihren Standort teilen, liegen ihre Wege jetzt auf deiner Karte. Jeder
+bekommt eine eigene Farbe, die sich nicht ändert — die blaue Linie
+bleibt dieselbe Person. Grün ist dabei immer deine eigene Spur.
+
+Punkte oder Linie richtet sich nach deiner Einstellung im Profil; sie
+gilt für alle Spuren gleichermaßen.
+
+**Fremde Spuren zählen nicht als deine Leergänge.** Wo dein Buddy
+gelaufen ist, hast nicht du gesucht — das Abschluss-Blatt deiner Tour
+schlägt weiterhin nur Spots vor, an denen *du* warst.
+
+## Deine Tour-Spur für die Buddys
+
+*20. September 2026 · Version 1.147.0*
+
+Wenn ihr zu mehreren unterwegs seid, könnt ihr jetzt sehen, welche
+Strecke die anderen schon abgesucht haben — so läuft niemand zweimal
+denselben Hang ab.
+
+**Es passiert nur, wenn du ohnehin deinen Standort teilst.** Die Spur
+hängt an genau dieser Freigabe: Zeichnest du eine Tour auf, ohne den
+Standort zu teilen, bleibt der Weg auf deinem Gerät, so wie bisher.
+Beendest du die Tour oder das Teilen, wird die Spur sofort wieder
+gelöscht — spätestens, wenn die Freigabe abläuft.
+
+Sehen können sie nur Freunde, die du bestätigt hast.
+
+In dieser Version wird deine Spur übertragen; **zu sehen** sind die
+Spuren der anderen mit dem nächsten Update.
+
+## Ein Schalter weniger im Profil
+
+*20. September 2026 · Version 1.146.0*
+
+Der Schalter „Neue Karten-Engine" ist weg. Seit Ende Juli zeichnet die
+Karte auf Android mit der neuen Engine, und der Schalter war nur die
+Rückfalllinie für den Fall, dass sich das nicht bewährt. Es hat sich
+bewährt — in den Fehlerberichten der letzten zehn Wochen steht nichts
+dagegen.
+
+Falls du ihn ausgeschaltet hattest: Deine Karte sieht ab jetzt aus wie
+bei allen anderen. Im Browser ändert sich nichts.
+
+## Ebenen kurz wegblenden
+
+*20. September 2026 · Version 1.145.0*
+
+Waldtypen, Pilzampel, Regen und Höhenlinien liegen als farbige Flächen
+über der Karte — praktisch, solange man sie lesen will, und im Weg,
+sobald man wissen möchte, wo der Weg eigentlich hinführt.
+
+Sobald mindestens eine Ebene an ist, steht dafür ein neuer Knopf in der
+Leiste am rechten Rand. Ein Tipp nimmt alle Flächen weg, ein zweiter
+holt sie zurück — genau die, die vorher an waren. Deine Einstellungen
+werden dabei nicht angefasst; es ist ein Vorhang, kein Ausschalter.
+
+Deine Spots, die Tourspur und die Karte selbst bleiben immer sichtbar.
+Nach einem Neustart ist der Vorhang wieder offen.
+
+## Spots lassen sich nachträglich korrigieren
+
+*20. September 2026 · Version 1.144.0*
+
+Ein Spot landete bisher genau dort, wo er beim Anlegen gesetzt wurde —
+und blieb da. Unter dichtem Blätterdach liegt das GPS aber schnell
+zwanzig Meter daneben, und wer den Namen in der Eile vertippt hatte,
+wurde ihn nie wieder los.
+
+Im Spot-Blatt gibt es jetzt einen Stift-Knopf oben rechts. Dahinter
+lassen sich Name und Stelle ändern: Die Karte zeigt einen Ring um die
+bisherige Stelle und darunter, wie weit du sie verschoben hast.
+
+Zwei Dinge dazu:
+
+- **Deine Funde ziehen sinnvoll mit.** Funde ohne eigene Stelle hängen
+  am Spot und wandern mit ihm. Ein Fund, für den du eine eigene Stelle
+  angegeben hast, bleibt dort, wo du ihn gemessen hast — seine
+  Entfernung zum Spot wird nur neu berechnet.
+- **Es geht nur bei eigenen Spots und nur mit Empfang.** Ein Spot, der
+  noch auf die Übertragung wartet, lässt sich noch nicht bearbeiten; du
+  kannst ihn aber verwerfen und neu anlegen.
+
+Dasselbe gilt jetzt auch für einzelne Fundstellen — aber nur für die,
+die du auf der Karte gewählt hast. Öffne den Fund, und die Karte steht
+da wie beim Eintragen. Eine Stelle, die dein Gerät gemessen hat, bleibt
+unverändert stehen: Sie ist eine Messung von damals, und ein Fix von
+heute würde sagen, wo du jetzt bist — nicht, wo der Pilz stand. Wenn die
+falsch ist, lösch den Fund und trag ihn neu ein.
+
+## Die Pilztour zeichnet wieder sichtbar mit
+
+*20. September 2026 · Version 1.143.1*
+
+Während einer Pilztour blieb die Karte leer: Der zurückgelegte Weg
+erschien erst, wenn man die App einmal geschlossen und wieder geöffnet
+hatte. Wer die Spur als Linie eingestellt hatte, sah bis dahin gar
+nichts, wer sie als Punkte anzeigen ließ, nur den Startpunkt.
+
+Aufgezeichnet wurde die ganze Zeit alles — verloren gegangen ist nie
+etwas, auch nicht bei den Touren aus den letzten Wochen. Nur der Weg von
+der Aufzeichnung zur Karte war unterbrochen. Jetzt wächst die Spur
+wieder mit, während du gehst.
+
 ## Die Ampel wird wählerischer
 
 *19. September 2026 · Version 1.144.0*

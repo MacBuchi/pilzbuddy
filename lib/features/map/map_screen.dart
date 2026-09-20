@@ -20,6 +20,7 @@ import '../../core/widgets/safety_note.dart';
 import '../../core/widgets/mushroom_icon.dart';
 import '../../data/providers.dart';
 import '../../models/friend_location.dart';
+import '../../models/buddy_track.dart';
 import '../../models/spot.dart';
 import 'elevation_contour_providers.dart';
 import 'fit_to_spots.dart';
@@ -46,6 +47,7 @@ import 'widgets/map_layers_sheet.dart';
 import 'widgets/map_trip_sheet.dart';
 import 'map_gestures.dart';
 import 'map_view/camera_tour.dart';
+import 'map_overlays.dart';
 import 'map_view/map_view.dart';
 import 'position_provider.dart';
 import 'spot_filter.dart';
@@ -159,6 +161,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final point = decodeTourTick(data);
     if (point == null || !mounted) return;
     ref.read(tourProvider.notifier).acceptTick(point);
+    // Und, falls der Nutzer teilt, weiter zu den Buddys (#340). Der
+    // Takt liegt NICHT hier, sondern in `planTrackShare` — dieser
+    // Aufruf sagt nur „es könnte sich etwas geändert haben".
+    unawaited(ref.read(tourSharingProvider.notifier).sync());
   }
 
   @override
@@ -713,6 +719,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
     // Die laufende Pilztour (#338) — `null`, solange keine läuft.
     final tour = ref.watch(tourProvider);
     final asLine = ref.watch(tourTrackAsLineProvider);
+    // Die Spuren der Buddys (#340, Stufe 2). Sie folgen derselben
+    // Darstellungswahl wie die eigene: Wer Punkte sehen will, will sie
+    // überall — eine Karte mit einer Linie und drei Punktwolken wäre
+    // zwei Aussagen über dieselbe Sache.
+    final buddyTracks =
+        ref.watch(friendTracksProvider).valueOrNull ?? const <BuddyTrack>[];
     final shareUntil = ref.watch(myShareProvider).valueOrNull;
     // Verbindung zurück ⇒ Ausgangskorb losschicken (#267). Genau hier
     // und nicht am App-Resume: Wer aus dem Wald nach Hause kommt, ohne
@@ -742,6 +754,15 @@ class _MapScreenState extends ConsumerState<MapScreen>
       if (next == null) return;
       _map.move(next.target, math.max(_map.zoom, kSpotFocusZoom));
     });
+    // Ende der Freigabe ODER Ende der Tour nimmt die geteilte Spur
+    // zurück (#340) — nicht erst, wenn `expires_at` abläuft. Bis dahin
+    // läge dort eine Freigabe, die niemand mehr gibt.
+    ref.listen(myShareProvider, (_, _) {
+      unawaited(ref.read(tourSharingProvider.notifier).sync());
+    });
+    ref.listen(tourProvider, (_, _) {
+      unawaited(ref.read(tourSharingProvider.notifier).sync());
+    });
     // Solange ich teile, jede neue Position hochschieben (Bewegung sichtbar).
     ref.listen(positionStreamProvider, (_, next) {
       _maybeUploadLocation(next.valueOrNull);
@@ -759,6 +780,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
     // Karten-Knopf (#347). Sie ersetzt die vier eingefärbten Knöpfe für
     // alle, die die Legende ausgeschaltet haben.
     final activeLayers = activeMapLayerCount(ref);
+    // Liegt der Vorhang über den Flächen (#464)? Der Knopf trägt den
+    // Zustand selbst — anders als bei der Banner-Stummschaltung aus
+    // #425, die unsichtbar war und deshalb als Fehler ankam.
+    final overlaysHidden = ref.watch(mapOverlaysHiddenProvider);
     final longPressEnabled = ref.watch(mapLongPressEnabledProvider);
 
     // Die Tour liegt ÜBER dem Scaffold, nicht in seinem `body` (#350):
@@ -811,13 +836,26 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 // Punkte ODER Linie, nie beides — sonst läge der Strich
                 // auf seinen eigenen Stützstellen und beide sähen
                 // schmutzig aus (#340).
-                polylines: tour == null || !asLine
-                    ? const []
-                    : tourTrackPolyline(tour.points),
-                tourTrack:
-                    tour == null || asLine
-                        ? const []
-                        : tourTrackMarkers(tour.points),
+                polylines: [
+                  // Die fremden ZUERST: Sie sind Zusatz, die eigene Spur
+                  // gehört obenauf. Bei gleicher Farbe wäre das egal —
+                  // gerade weil sie verschieden sind, soll die eigene
+                  // nicht unter einer fremden verschwinden.
+                  if (asLine)
+                    for (final track in buddyTracks)
+                      ...tourTrackPolyline(track.points,
+                          color: buddyTrackColor(track.userId)),
+                  if (tour != null && asLine)
+                    ...tourTrackPolyline(tour.points),
+                ],
+                tourTrack: [
+                  if (!asLine)
+                    for (final track in buddyTracks)
+                      ...tourTrackMarkers(track.points,
+                          color: buddyTrackColor(track.userId)),
+                  if (tour != null && !asLine)
+                    ...tourTrackMarkers(tour.points),
+                ],
                 myPosition: [
                   if (myPosition != null) _myPositionMarker(myPosition, myAvatar),
                 ],
@@ -1008,6 +1046,32 @@ class _MapScreenState extends ConsumerState<MapScreen>
                           : Icons.layers_outlined),
                     ),
                   ),
+                  // Der Vorhang (#464). **Nur da, wenn es etwas
+                  // auszublenden gibt** — alle Ebenen stehen ab Werk auf
+                  // aus, wer nie eine einschaltet, behält die vier
+                  // Knöpfe aus #440. Der Knopf verdient seinen Platz
+                  // erst, wenn er Arbeit hat.
+                  //
+                  // Kein Eintrag im Karten-Blatt, sondern hier: Der
+                  // Zweck ist, sich KURZ auf der nackten Karte zu
+                  // orientieren. Über ein Blatt wären das vier Tipps
+                  // statt einem, und man sähe die Wirkung erst nach dem
+                  // Schließen.
+                  if (activeLayers > 0)
+                    _Tool(
+                      tooltip: overlaysHidden
+                          ? 'Ebenen einblenden'
+                          : 'Ebenen ausblenden',
+                      onPressed: () => ref
+                          .read(mapOverlaysHiddenProvider.notifier)
+                          .state = !overlaysHidden,
+                      child: Icon(
+                        overlaysHidden
+                            ? Icons.layers_clear
+                            : Icons.layers_clear_outlined,
+                        color: overlaysHidden ? AppColors.warmBrown : null,
+                      ),
+                    ),
                   _Tool(
                     key: _tourAnchors.filter,
                     tooltip: 'Karte filtern',

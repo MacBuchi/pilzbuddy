@@ -356,10 +356,27 @@ class SpotRepository {
   /// dieselbe Antwort wie beim Umwandeln zwischen Fund und Leergang
   /// (`edit_find_sheet.dart`).
   ///
-  /// Weil die Spaltenliste unten namentlich ist, überlebt die Position
-  /// jede Korrektur von selbst. Im Fake gilt das NICHT automatisch: Der
-  /// baut den `Find` feldweise neu und würde sie stillschweigend
-  /// wegwerfen — deshalb prüft ein Test genau diesen Fall.
+  /// **[position] ist ein eigener Parameter und `required`** (#466), auch
+  /// wenn `NewFind` das Feld schon trägt: Dort gilt es beim ANLEGEN. Hier
+  /// muss der Aufrufer sich entscheiden, denn seit die Stelle
+  /// mitgeschrieben wird, LÖSCHT ein vergessener Wert sie. Ein `required`
+  /// auf einem nullbaren Typ ist genau das — „sag es, ich rate nicht"
+  /// (wie [editSpot] beim Namen). `find.position` wird auf diesem Weg
+  /// bewusst NICHT gelesen; zwei Quellen für dieselbe Angabe wären eine
+  /// zu viel.
+  ///
+  /// **Wer sie ändern darf, entscheidet das Blatt, nicht diese Methode.**
+  /// Eine GEMESSENE Stelle bleibt unantastbar — sie ist ein Fix, kein
+  /// Gedächtnis, und ihn zwei Tage später vom Sofa aus zu korrigieren
+  /// ersetzte eine Messung durch eine Erinnerung. Eine auf der Karte
+  /// GEWÄHLTE Stelle ist dagegen genau das, was auch der Spot-Ort ist:
+  /// eine Angabe. Die Grenze hängt an `FindPosition.measured` und steht
+  /// in `edit_find_sheet.dart`; hier liefe sie auf einen Vergleich mit
+  /// dem alten Zeilenstand hinaus, den diese Methode nicht hat.
+  ///
+  /// Im Fake muss die Stelle ausdrücklich mitgeführt werden: Der baut den
+  /// `Find` feldweise neu und würde sie stillschweigend wegwerfen —
+  /// deshalb prüft ein Test genau diesen Fall.
   ///
   /// Die Normalisierung läuft wie beim Anlegen ([addFinds]) über
   /// [canonicalSpecies] — sonst entstünden über den Korrekturweg
@@ -367,6 +384,7 @@ class SpotRepository {
   Future<void> updateFind({
     required String findId,
     required NewFind find,
+    required FindPosition? position,
   }) async {
     final rows = await _client
         .from('finds')
@@ -376,6 +394,13 @@ class SpotRepository {
           'found_on': isoDate(find.foundOn),
           'note': find.note,
           'blank': find.blank,
+          // Anders als beim Insert werden die drei Spalten IMMER
+          // genannt, auch mit `null`: Ein Update, das sie wegließe,
+          // könnte eine Stelle nie wieder entfernen — und `null` ist
+          // hier eine Aussage („gilt am Spot"), keine Auslassung.
+          'lat': position?.lat,
+          'lng': position?.lng,
+          'accuracy_m': position?.accuracyM,
         })
         .eq('id', findId)
         // `.select()` ist hier keine Zierde, sondern die einzige
@@ -397,6 +422,40 @@ class SpotRepository {
     final rows =
         await _client.from('finds').delete().eq('id', findId).select('id');
     if (rows.isEmpty) throw const WriteRejectedException('Fund löschen');
+  }
+
+  /// Korrigiert Name und Stelle eines eigenen Spots (#466).
+  ///
+  /// **Warum es das überhaupt braucht:** Unter Blätterdach liegt ein Fix
+  /// 10–20 m daneben, und bis hierher war die Stelle beim Anlegen
+  /// endgültig. Der Name ebenso — er wurde beim Anlegen gesetzt und war
+  /// danach nie wieder erreichbar.
+  ///
+  /// **Die Funde ziehen NICHT mit, und das ist die richtige Antwort.**
+  /// `findOffset` rechnet den Versatz beim Lesen aus absoluten
+  /// Koordinaten: Ein Fund ohne eigene Stelle hat gar keine und erbt die
+  /// des Spots, wandert also von selbst mit. Ein Fund MIT eigener Stelle
+  /// (#373) hat eine eigene Messung, die von dieser Korrektur nichts
+  /// weiß — sein Versatz wird neu gerechnet, und genau das soll er.
+  /// Hier etwas zu verschieben hieße, fremde Messungen umzuschreiben.
+  ///
+  /// Fremde Spots kann diese Methode nicht treffen: `spots_owner_all`
+  /// prüft `owner_id = auth.uid()`, und das `.select('id')` macht die
+  /// abgelehnte Zeile sichtbar — ohne sie meldete die App Erfolg für
+  /// einen Vorgang, den RLS stillschweigend auf null Zeilen reduziert
+  /// hat (dieselbe Begründung wie bei [updateFind]).
+  Future<void> editSpot({
+    required String spotId,
+    required String? name,
+    required double lat,
+    required double lng,
+  }) async {
+    final rows = await _client
+        .from('spots')
+        .update({'name': name, 'lat': lat, 'lng': lng})
+        .eq('id', spotId)
+        .select('id');
+    if (rows.isEmpty) throw const WriteRejectedException('Spot ändern');
   }
 
   Future<void> deleteSpot(String spotId) async {
