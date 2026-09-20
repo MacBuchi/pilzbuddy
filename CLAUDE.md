@@ -1147,6 +1147,48 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   - **Der Filter „Nur jetzt Saison" verdeckt nichts, was er nicht weiß**:
     Arten ohne Kurve bleiben stehen (#414-Regel), leere Gruppen behalten
     die Überschrift.
+- **Gemeldete Fundorte (GBIF) als Kartenebene** (#467, seit 1.154.0):
+  je Meldung einer unserer Arten EINE Scheibe in der Größe ihrer
+  Koordinaten-Unschärfe, gefärbt nach Ampel-Gruppe, gefiltert über
+  `SpotFilter` (Art UND Gruppe, kein zweiter Wähler). Dazu „Im Umkreis
+  von 5 km gemeldet" im „Was ist hier?"-Blatt. Fünf Dinge, die man
+  wissen muss:
+  - **Keine Heatmap, und zwar gemessen** (`docs/gbif-fundorte-messung.md`):
+    In Sammler-Auflösung wäre eine Dichtekarte auf 91–98 % von DACH
+    leer, und leer läse sich als „hier wächst nichts". Eine Scheibe
+    behauptet nur „hier hat jemand gemeldet, auf so viel Meter genau".
+    Wortlaut überall: „gemeldet", nie „wächst"; keine Scheibe heißt
+    „keine Meldung", nicht „nichts da".
+  - **Die drei Länder melden GRUNDVERSCHIEDEN**, und das sieht man auf
+    der Karte: Deutschland scharfe Punkte (≤ 250 m, naturgucker und
+    iNaturalist), die Schweiz 3535 m (SwissFungi meldet
+    Kilometerquadrate — die halbe Diagonale von 5 km), Österreich
+    Rasterpunkte OHNE Unschärfe-Angabe (ÖMG, 11 Meldungen je
+    Koordinate). Unbekannt wird wie ein Quadrat gezeichnet — die
+    größere Scheibe ist die harmlose Fehlerrichtung. Über 10 km fliegt
+    raus.
+  - **Aus dem lokalen Download gebaut, nie über die API**
+    (`tool/gbif_finds.py build`, DOI im Manifest,
+    `tool/generated_assets.py` wacht über die Prüfsumme). Gruppiert je
+    (Art, Koordinate, Unschärfe) mit Zähler und jüngstem Jahr: 305 506
+    Meldungen werden 147 734 Orte, 636 KB. **Keine Meldernamen im
+    Asset** — `recordedBy` ist eine Person, das Asset liegt in jedem
+    APK. Die Quell-Datensätze stehen im Manifest und kommen daraus auf
+    die Lizenzseite (CC-BY-Nennung je Datensatz).
+  - **Gezeichnet über die PNG-Overlay-Strecke** wie Wald und Regen,
+    also auf beiden Engines gleich. Scharf und grob tragen verschiedene
+    Deckkraft (130/48), die Summe ist bei 175 gedeckelt — auf einem
+    Rasterpunkt mit dreißig Arten wäre die Karte sonst zu. Über dem
+    Budget (24 M Pixeloperationen; 40 000 Schweizer Quadrate bei
+    100 km Fensterbreite wären 360 M) werden die groben Scheiben in
+    einem verkleinerten Puffer gemalt und bilinear hochgezogen; die
+    scharfen bleiben immer in voller Auflösung.
+  - **Beobachten ist laden** gilt auch hier: `gbifFindsProvider` hängt
+    nur am eingeschalteten Schalter und am „Was ist hier?"-Blatt; die
+    Legende fragt nur den Schalter. Der Filter-Schlüssel reist als
+    zusammengefügte Zeichenkette (zwei gleiche Mengen sind für `==`
+    verschieden) und steht im Dateinamen der Fläche, sonst tauscht
+    MapLibre das Bild nicht.
 - **Der lange Tipp öffnet ein Kontextmenü** (#483, seit 1.149.0):
   „Was ist hier?" (#245), „Navigation" (#367) und „Heranzoomen". Alle
   drei Ziele gab es schon; neu ist der Weg dorthin.

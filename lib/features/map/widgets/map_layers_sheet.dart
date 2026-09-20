@@ -41,6 +41,7 @@ import '../../offline_maps/offline_map_providers.dart';
 import '../elevation_contour_providers.dart';
 import '../elevation_providers.dart';
 import '../forest_data_providers.dart';
+import '../gbif_finds_providers.dart';
 import '../rain_data_providers.dart';
 import '../rain_layer.dart';
 import 'map_legend.dart' show mapIdleCenterProvider;
@@ -52,7 +53,7 @@ import 'map_legend.dart' show mapIdleCenterProvider;
 /// der Zeit, als sie ein Modus des Regens war. Sie ist seit 1.76.0 ein
 /// Modus der WALDfläche; der Weg ins Regen-Blatt war seither eine
 /// falsche Fährte.
-enum MapLayerDetail { offline, forest, terrain, rain, ampel, refresh }
+enum MapLayerDetail { offline, forest, terrain, rain, ampel, gbif, refresh }
 
 Future<MapLayerDetail?> showMapLayersSheet(BuildContext context) {
   return showModalBottomSheet<MapLayerDetail>(
@@ -83,6 +84,7 @@ int activeMapLayerCount(WidgetRef ref) {
   if (ref.watch(contourLayerEnabledProvider)) n++;
   if (ref.watch(rainLayerProvider) != RainLayer.off) n++;
   if (ref.watch(ampelLayerEnabledProvider)) n++;
+  if (ref.watch(gbifLayerEnabledProvider)) n++;
   return n;
 }
 
@@ -219,6 +221,24 @@ class _MapLayersSheet extends ConsumerWidget {
                       detail: MapLayerDetail.ampel,
                       colour: AppColors.ampelStrong,
                     ),
+                  // Zuletzt, nach der Ampel: Sie ist die Aussage der
+                  // Beobachtungen, nicht der Bedingungen — und die Ampel-
+                  // Tests der Bestandsblätter finden ihre Zeile weiter dort,
+                  // wo sie war.
+                  _LayerRow(
+                    title: 'Gemeldete Fundorte',
+                    badge: 'GBIF',
+                    // „gemeldet", nie „wächst": Die Scheibe sagt, dass
+                    // jemand die Art dort gemeldet hat — und wo keine
+                    // liegt, hat niemand gemeldet, nicht „nichts da".
+                    subtitle: 'Wo unsere Arten gemeldet wurden — Scheiben '
+                        'in Melde-Genauigkeit, folgen dem Filter',
+                    value: ref.watch(gbifLayerEnabledProvider),
+                    onChanged: (value) =>
+                        ref.read(gbifLayerEnabledProvider.notifier).set(value),
+                    detail: MapLayerDetail.gbif,
+                    colour: AppColors.gbifClassColours['herbst']!,
+                  ),
                 ],
               ),
             ),

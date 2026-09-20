@@ -148,6 +148,28 @@ abstract final class AppColors {
   /// Kontrast (beide erreichen 3:1 bzw. 11:1).
   static const ampelMild = Color(0xFF8B6FE0);
   static const ampelStrong = Color(0xFF34199B);
+
+  /// Die Scheiben der GBIF-Fundorte (#467), je Ampel-Klasse ein Ton —
+  /// Schlüssel wie in `ampelClasses`, dazu [gbifNoClass] für Arten ohne
+  /// Ampel.
+  ///
+  /// Gesucht war eine Familie, die auf JEDER anderen Fläche der Karte
+  /// noch als eigene Ebene lesbar ist: nicht der Laub-Ocker und das
+  /// Nadel-Blaugrün des Waldes, nicht das Blau des Regens, nicht das
+  /// Violett-bis-Königsblau der Ampel und nicht das Cyan des
+  /// Kartenwassers. Übrig bleiben Rot, Gelb, Magenta und ein Türkis,
+  /// das dunkler ist als jedes Wasser — kräftig, weil die Scheiben mit
+  /// niedriger Deckkraft liegen und sich erst in der Überlagerung
+  /// verdichten.
+  static const gbifClassColours = <String, Color>{
+    'herbst': Color(0xFFC62828), // Steinpilz & Co. — Rot
+    'sommer': Color(0xFFF9A825), // Pfifferling — Gelb
+    'holz_winter': Color(0xFFAD1457), // Austernseitling & Co. — Magenta
+    'cantharellales': Color(0xFF00897B), // Herbsttrompete & Co. — Türkis
+  };
+
+  /// Arten ohne Ampel-Klasse: ein neutrales Grau, das nichts behauptet.
+  static const gbifNoClass = Color(0xFF616161);
 }
 
 // **Es gibt keine wählbare Ampel-Farbfamilie mehr** (Betreiber,

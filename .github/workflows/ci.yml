@@ -75,6 +75,7 @@ jobs:
           python3 tool/gbif_local.py > /dev/null
           python3 tool/gbif_effort.py --self-test > /dev/null
           python3 tool/gbif_download.py --self-test > /dev/null
+          python3 tool/gbif_finds.py --self-test > /dev/null
           # Der einzige Shell-Wächter hier: Die app_config-Diagnose des
           # Schema Checks. Sie stand bis zum 2026-09-12 unter jeder
           # Ursache auf „hat keine Zeile" — auch wenn nur die Antwort

@@ -57,6 +57,7 @@ import '../spots/spot_navigation.dart';
 import 'widgets/here_sheet.dart';
 import 'widgets/map_context_menu.dart';
 import 'widgets/forest_layer_sheet.dart';
+import 'widgets/gbif_layer_sheet.dart';
 import 'widgets/terrain_layer_sheet.dart';
 import 'widgets/rain_layer_sheet.dart';
 import 'widgets/map_legend.dart';
@@ -327,6 +328,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
         await showRainLayerSheet(context);
       case MapLayerDetail.ampel:
         await showAmpelLayerSheet(context);
+      case MapLayerDetail.gbif:
+        await showGbifLayerSheet(context);
       case MapLayerDetail.refresh:
         _refreshData();
         _showMessage('Karte aktualisiert');
