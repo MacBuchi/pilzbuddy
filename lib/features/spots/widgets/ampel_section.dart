@@ -154,8 +154,20 @@ class AmpelSection extends ConsumerWidget {
 
     // Grau ist eine Aussage über den ORT (keine Regendaten, keine
     // Station) und trifft damit alle Arten gleich — einmal sagen reicht.
-    final grau = readings.first.reading;
-    if (grau.isGrau) {
+    // **Grau ist seit 1.151.0 eine Eigenschaft der ZEILE, nicht des
+    // Blocks.** Eine Logit-Klasse ohne Bodenfeuchte-Station ist grau,
+    // während „Steinpilz & Co." am selben Spot rechnet; erst wenn keine
+    // Zeile eine Stufe hat, steht der eine graue Satz mit dem Grund.
+    final mitStufe = [
+      for (final entry in readings)
+        if (!entry.reading.isGrau) entry
+    ];
+    final ohneStufe = [
+      for (final entry in readings)
+        if (entry.reading.isGrau) entry
+    ];
+    if (mitStufe.isEmpty) {
+      final grau = ohneStufe.first.reading;
       return _line(
         theme,
         icon: Icon(Icons.circle_outlined, size: 14, color: theme.hintColor),
@@ -166,13 +178,24 @@ class AmpelSection extends ConsumerWidget {
         ),
       );
     }
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final entry in readings)
+        for (final entry in mitStufe)
           ..._blockFor(theme, entry.label, entry.species, entry.klass,
               entry.reading),
+        for (final entry in ohneStufe)
+          _line(
+            theme,
+            icon: Icon(Icons.circle_outlined,
+                size: 14, color: theme.hintColor),
+            text: TextSpan(
+              text: 'Pilzwetter (experimentell): keine Aussage für '
+                  '${entry.label} — ${entry.reading.reason}.',
+              style:
+                  theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
+            ),
+          ),
         Padding(
           padding: const EdgeInsets.only(left: 22, top: 2),
           child: Text(
@@ -292,18 +315,27 @@ class AmpelSection extends ConsumerWidget {
     if ((reading.heightCorrectionK ?? 0).abs() >= 0.3) {
       meanText = '$meanText auf Spothöhe ${reading.spotHeightM} m';
     }
-    final tempWord = reading.tempFactor! >= 0.6
-        ? 'passt ($meanText)'
-        // **Gegen das Fenster der KLASSE, nicht gegen 13 °C.** Sonst
-        // stünde beim Pfifferling (14,5 °C) bei 13 °C „zu warm“,
-        // während seine Stufe gleichzeitig sagt, es sei zu kühl — die
-        // Fakten-Zeile widerspräche der Ampel darüber.
-        : mean > klass.optimumC
-            ? 'zu warm ($meanText)'
-            : 'zu kühl ($meanText)';
+    // Bei einer Logit-Klasse gibt es kein „passt": Das Logit kennt kein
+    // Optimum, es rechnet die Temperatur linear und quadratisch ein.
+    // Dann steht die Zahl allein — und die Bodenfeuchte daneben, weil
+    // sie dort die dritte Zutat ist.
+    final tempFactor = reading.tempFactor;
+    final tempWord = tempFactor == null
+        ? meanText
+        : tempFactor >= 0.6
+            ? 'passt ($meanText)'
+            // **Gegen das Fenster der KLASSE, nicht gegen 13 °C.** Sonst
+            // stünde beim Pfifferling (14,5 °C) bei 13 °C „zu warm“,
+            // während seine Stufe gleichzeitig sagt, es sei zu kühl — die
+            // Fakten-Zeile widerspräche der Ampel darüber.
+            : mean > klass.optimumC!
+                ? 'zu warm ($meanText)'
+                : 'zu kühl ($meanText)';
     final parts = [
       'Regen ($ampelRainWindow Tage): $rainWord',
       'Temperatur: $tempWord',
+      if (reading.moistureMean case final moisture?)
+        'Bodenfeuchte: ${moisture.round()} % nFK',
     ];
     final curve = seasonCurveFor(species);
     if (curve != null) {

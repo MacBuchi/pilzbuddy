@@ -108,8 +108,12 @@ void main() {
       // woanders UND andersherum — der Pfifferling ist jetzt die
       // großzügigere Klasse. Eine feste Zahl prüfte danach nichts mehr,
       // ohne rot zu werden.
-      final sorted = [...ampelShippedClasses]
-        ..sort((a, b) => a.guenstigAbove.compareTo(b.guenstigAbove));
+      // Nur die Glockenklassen: Die Logit-Klassen rechnen auf der Skala
+      // von `s`, und „dieselbe Zahl" gibt es zwischen den Skalen nicht.
+      final sorted = [
+        for (final k in ampelShippedClasses)
+          if (k.logit == null) k
+      ]..sort((a, b) => a.guenstigAbove.compareTo(b.guenstigAbove));
       final (frueher, spaeter) = (sorted.first, sorted.last);
       expect(frueher.guenstigAbove, lessThan(spaeter.guenstigAbove),
           reason: 'stünden beide gleich, prüfte dieser Test nichts');
@@ -140,7 +144,11 @@ void main() {
       // Stufe gewinnt die frühere Klasse. Käme die Reihenfolge aus der
       // Nutzerauswahl, entschiede die Tippreihenfolge, welche Gruppe im
       // Blatt genannt wird.
-      expect(ampelClassesOf(const {'sommer', 'herbst'}), ampelShippedClasses);
+      expect(ampelClassesOf(const {'sommer', 'herbst'}),
+          const [ampelHerbstClass, ampelSommerClass]);
+      expect(ampelClassesOf(const {'cantharellales', 'herbst'}),
+          const [ampelHerbstClass, ampelCantharellalesClass]);
+      expect(ampelClassesOf(ampelClasses.keys.toSet()), ampelShippedClasses);
     });
 
     test('jeder Schlüssel findet zu seiner Klasse zurück', () {
@@ -200,6 +208,81 @@ void main() {
     });
   });
 
+  group('Logit-Klassen spiegeln tool/ampel_logit_klasse.py', () {
+    // Fixtures aus `python3 tool/ampel_logit_klasse.py --fixtures`
+    // (2026-09-20), nicht von Hand gerechnet.
+    final regen20 = [20.0, ...List.filled(25, 0.0)];
+    final m60 = List<double?>.filled(26, 60.0);
+
+    test('der Score, Zahl für Zahl', () {
+      final f = ampelRainFactor(regen20);
+      expect(
+          ampelHolzWinterClass.logit
+              .score(rainFactor: f, meanC: 8.0, moistureMean: 60.0),
+          closeTo(0.5378604756070783, 1e-9));
+      expect(
+          ampelCantharellalesClass.logit
+              .score(rainFactor: f, meanC: 8.0, moistureMean: 60.0),
+          closeTo(1.5311455016768087, 1e-9));
+      // Trocken: der Boden 1e-3 vor dem Logarithmus, kein -unendlich.
+      expect(
+          ampelHolzWinterClass.logit.score(
+              rainFactor: ampelRainFactor(List.filled(26, 0.0)),
+              meanC: 3.0,
+              moistureMean: 90.0),
+          closeTo(-0.8652195435044383, 1e-9));
+      expect(
+          ampelCantharellalesClass.logit
+              .score(rainFactor: 1.0, meanC: 13.0, moistureMean: 40.0),
+          closeTo(0.9432299999999996, 1e-9));
+      expect(ampelMoistureMean(m60), 60.0);
+    });
+
+    test('das Feuchtefenster: 26 Tage, vollständig, die jüngsten', () {
+      expect(ampelMoistureMean(List<double?>.filled(25, 60)), isNull,
+          reason: 'zu kurz');
+      expect(
+          ampelMoistureMean([...List<double?>.filled(25, 60), null]), isNull,
+          reason: 'eine Lücke im Fenster');
+      // Ältere Tage vor dem Fenster zählen nicht — die Reihe ist ältester
+      // Tag zuerst, das Fenster sind die LETZTEN 26.
+      expect(ampelMoistureMean([0.0, ...List<double?>.filled(26, 60)]), 60.0);
+    });
+
+    test('ohne Bodenfeuchte zählt eine Logit-Klasse nicht mit', () {
+      // Satter Regen bei 13 °C und 60 % nFK: günstig. Ohne Feuchte fällt
+      // die Klasse aus der Wahl, statt mit einem Ersatzwert zu rechnen.
+      final ohne = ampelBestOf(
+          rainFactor: 1.0, meanC: 13, classes: const [ampelHolzWinterClass]);
+      expect(ohne.level, AmpelLevel.unguenstig);
+      expect(ampelScoreFor(ampelHolzWinterClass, rainFactor: 1.0, meanC: 13),
+          isNull);
+      final mit = ampelBestOf(
+          rainFactor: 1.0,
+          meanC: 13,
+          classes: const [ampelHolzWinterClass],
+          moistureMean: 60);
+      expect(mit.level, AmpelLevel.guenstig);
+      expect(mit.klass, ampelHolzWinterClass);
+    });
+
+    test('die Schwellen liegen auf der Skala von s, nicht auf 0…1', () {
+      // Herbsttrompete & Co.: verhalten ab 2,191 — eine Glocke käme da nie
+      // hin. Wer die Skalen vergleicht, vergleicht Zentimeter mit Grad.
+      expect(ampelCantharellalesClass.verhaltenAbove, greaterThan(1.0));
+      expect(ampelLevelOf(2.5, klass: ampelCantharellalesClass),
+          AmpelLevel.verhalten);
+      expect(ampelLevelOf(3.0, klass: ampelCantharellalesClass),
+          AmpelLevel.guenstig);
+    });
+
+    test('die Legende nennt beim Logit die Zutaten, nicht ein Fenster', () {
+      expect(ampelClassWindowWord(ampelHerbstClass), '13,0 °C');
+      expect(ampelClassWindowWord(ampelHolzWinterClass),
+          'Regen, Temperatur und Bodenfeuchte');
+    });
+  });
+
   group('Klassen-Tor', () {
     test('nur Arten einer bestätigten Klasse bekommen eine Stufe', () {
       expect(ampelClassFor('Steinpilz'), ampelHerbstClass);
@@ -212,7 +295,12 @@ void main() {
       // rechnen wäre (sie gewinnen in Stufen am meisten), sondern weil
       // ihr Fenster keinen Hold-out hat.
       expect(ampelClassFor('Hallimasch'), isNull);
-      expect(ampelClassFor('Austernseitling'), isNull);
+      // Seit 1.151.0: die beiden Logit-Klassen — und die Herbsttrompete
+      // ist aus „Steinpilz & Co." zu den Leistlingen gezogen.
+      expect(ampelClassFor('Austernseitling'), ampelHolzWinterClass);
+      expect(ampelClassFor('Judasohr'), ampelHolzWinterClass);
+      expect(ampelClassFor('Herbsttrompete'), ampelCantharellalesClass);
+      expect(ampelClassFor('Semmelstoppelpilz'), ampelCantharellalesClass);
       // Freitext-Arten kennen wir nicht → grau.
       expect(ampelClassFor('Omas Lieblingspilz'), isNull);
     });

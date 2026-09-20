@@ -7,6 +7,32 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Eine Ampel für Winter- und Holzpilze
+
+*20. September 2026 · Version 1.152.0*
+
+Austernseitling, Judasohr, Samtfußrübling, Krause Glucke, Leberpilz,
+Lungenseitling, Rehbrauner Dachpilz und Schwefelporling bekommen eine
+eigene Pilzampel: „Austernseitling & Co.". Sie rechnet anders als die
+bisherigen Gruppen — nicht mit einem Temperaturfenster, sondern mit
+Regen, Temperatur und der Bodenfeuchte der nächsten Messstelle zusammen,
+weil sich für diese Pilze gezeigt hat, dass „je kälter, desto besser"
+mit einem Fenster nicht zu fassen ist. Geprüft an Fundmeldungen aus
+Deutschland, Österreich und der Schweiz, die an der Anpassung nicht
+beteiligt waren.
+
+Dazu „Herbsttrompete & Co.": Herbsttrompete, Semmelstoppelpilz und
+Trompetenpfifferling, nach demselben Rezept — belegt bislang nur für
+Deutschland. Die Herbsttrompete wechselt dafür aus „Steinpilz & Co."
+dorthin.
+
+Beide Gruppen stehen in der Karte, in der Legende, im Filter und im
+Spot-Blatt wie die anderen. Wo keine Bodenfeuchte-Messstelle in
+Reichweite ist — in Österreich und der Schweiz fast überall —, bleiben
+sie grau statt zu raten. Die Stufen von „Steinpilz & Co." sind nach dem
+Auszug der Herbsttrompete neu geeicht; der Unterschied ist winzig.
+
+
 ## Der Pfifferling mag es etwas kühler
 
 *20. September 2026 · Version 1.151.0*
@@ -22,6 +48,9 @@ weiteres Jahr die Änderung bestätigt oder widerlegt. Die beiden Stufen
 Im Hintergrund ist mit dieser Version die Vorarbeit für eine Ampel für
 Winter- und Holzpilze abgeschlossen; sie selbst kommt mit einem der
 nächsten Updates.
+
+
+
 
 ## Die Bodenfeuchte steht jetzt am Spot
 

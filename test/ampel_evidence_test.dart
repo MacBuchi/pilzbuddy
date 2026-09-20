@@ -54,7 +54,15 @@ void main() {
           .where((e) => e.value == AmpelEvidence.vorlaeufig)
           .map((e) => e.key)
           .toSet();
-      expect(vorlaeufig, {'Herbsttrompete', 'Pfifferling'});
+      // Seit 1.151.0 dazu: aus „Austernseitling & Co." die zwei Arten mit
+      // Band um die Null, aus „Herbsttrompete & Co." der Semmelstoppelpilz.
+      expect(vorlaeufig, {
+        'Herbsttrompete',
+        'Pfifferling',
+        'Rehbrauner Dachpilz',
+        'Krause Glucke',
+        'Semmelstoppelpilz',
+      });
       expect(vorlaeufig.length * 2, lessThan(ampelEvidenceBySpecies.length),
           reason: 'die Minderheit — sonst ist die Darstellung neu zu entscheiden');
     });
@@ -64,13 +72,9 @@ void main() {
       // sie zeigen aber gar keine Ampel, also gibt es hier nichts
       // einzuordnen. Eine Stufe für sie wäre eine Aussage über eine
       // Zeile, die nie erscheint.
-      for (final art in const [
-        'Hallimasch',
-        'Stockschwämmchen',
-        'Austernseitling',
-        'Judasohr',
-        'Samtfußrübling',
-      ]) {
+      // Austernseitling, Judasohr und Samtfußrübling standen bis 1.150.0
+      // hier — seit „Austernseitling & Co." haben sie eine Klasse.
+      for (final art in const ['Hallimasch', 'Stockschwämmchen']) {
         expect(ampelClassFor(art), isNull, reason: art);
         expect(ampelEvidenceFor(art), isNull, reason: art);
       }

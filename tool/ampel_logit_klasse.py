@@ -104,11 +104,10 @@ KLASSEN = {
 
 
 # **Arten, die noch in einer Fensterklasse stehen und hierher umziehen.**
-# Die Herbsttrompete gehoert heute zu `herbst` (Steinpilz & Co.) und wird
-# erst mit dem Dart-Kern (PR 3) umgehaengt — vorher waere sie grau. Bis
-# dahin duldet der Selbsttest genau diese Ueberschneidung; danach ist die
-# Menge leer und der Riegel wieder scharf.
-UMZUG = {"Herbsttrompete"}
+# Waehrend des Umzugs der Herbsttrompete (1.150.0 → 1.151.0) stand sie
+# hier; seit der Dart-Kern sie umgehaengt hat, ist die Menge leer und der
+# Riegel im Selbsttest scharf: keine Art in Glocke UND Logit.
+UMZUG = set()
 
 
 def class_of(name):
@@ -600,6 +599,32 @@ def self_test():
     assert len(voll) == 1 and voll[0]["feuchte"][:2] == [39.0, 38.0]
     assert voll[0]["feuchte_controls"][1][0] == 59.0
     assert mit_bodenfeuchte([s], _B())[0] == []   # Tag 1 hat keine 26 Tage davor
+
+    # **Der Spiegel in Dart, Zahl fuer Zahl** — wie `ampel_validate
+    # --self-test` fuer die Glockenklassen: Konstanten, Schwellen und
+    # Mitglieder jeder Logit-Klasse muessen in `ampel_model.dart` so
+    # stehen wie hier.
+    dart_pfad = os.path.join(av.repo_path(""), av.AMPEL_MODEL_FILE) \
+        if hasattr(av, "AMPEL_MODEL_FILE") else None
+    if dart_pfad and os.path.isfile(dart_pfad):
+        dart = open(dart_pfad, encoding="utf-8").read()
+        for key, klasse in KLASSEN.items():
+            m = re.search(r"const %s = \((.*?)\n\);" % klasse["dart"], dart, re.S)
+            assert m, f"{klasse['dart']} fehlt in ampel_model.dart"
+            block = m.group(1)
+            for feld, erwartet in (("verhaltenAbove", klasse["verhalten"]),
+                                   ("guenstigAbove", klasse["guenstig"])):
+                w = re.search(r"%s: ([-0-9.e]+)" % feld, block)
+                assert w and float(w.group(1)) == erwartet, (key, feld, w and w.group(1))
+            for feld, erwartet in zip(("rain", "temp", "temp2", "moisture", "moistureTemp"),
+                                      klasse["koeffizienten"]):
+                w = re.search(r"\b%s: ([-0-9.e]+)" % feld, block)
+                assert w and float(w.group(1)) == erwartet, (key, feld, w and w.group(1))
+            assert "logit: AmpelLogit(" in block, key
+        arten = re.search(r"const ampelSpeciesClass = <String, String>\{(.*?)\};", dart, re.S)
+        in_dart = dict(re.findall(r"'([^']+)': '([^']+)'", arten.group(1)))
+        for key, klasse in KLASSEN.items():
+            assert {a for a, k in in_dart.items() if k == key} == set(klasse["members"]), key
 
     # Fixtures sind deterministisch und vollstaendig.
     fx = fixtures()

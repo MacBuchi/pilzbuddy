@@ -48,6 +48,72 @@ const ampelRainSaturationMm = 87.0;
 /// also gilt die Gildenfrage „Steinpilz & Co.".
 const ampelOptimumC = 13.0;
 
+/// Der Boden unter dem Regenfaktor vor dem Logarithmus einer
+/// Logit-Klasse — wie `REGEN_BODEN` in `tool/ampel_logit_klasse.py`: ein
+/// trockenes Fenster ist sehr ungünstig, nicht minus unendlich.
+const ampelLogitRainFloor = 1e-3;
+
+/// Das Feuchtefenster einer Logit-Klasse: 26 Tage, wie der Regen.
+const ampelMoistureWindow = 26;
+
+/// Der zweite Rechenkern der Ampel (seit 2026-09-20,
+/// `docs/pilzampel-holz-winter-plan.md`): ein bedingtes Logit mit fünf
+/// Konstanten über `ln F`, `T`, `T²`, `M` und `M·T` — `F` der Regenfaktor,
+/// `T` das 20-Tage-Mittel in °C, `M` die Bodenfeuchte der nächsten
+/// DWD-Station in % nutzbarer Feldkapazität, 26-Tage-Mittel.
+///
+/// **Warum kein weiteres Fenster:** Für Holz- und Winterpilze verliert
+/// die Glocke bei jedem Optimum gesichert gegen dieses Logit, weil „je
+/// kälter, desto besser" mit einer Glocke nicht darstellbar ist. Spiegel
+/// von `tool/ampel_logit_klasse.py`, Zahl für Zahl; die Schwellen einer
+/// Logit-Klasse liegen auf der Skala von `s`, nicht auf 0…1.
+class AmpelLogit {
+  const AmpelLogit({
+    required this.rain,
+    required this.temp,
+    required this.temp2,
+    required this.moisture,
+    required this.moistureTemp,
+  });
+
+  final double rain;
+  final double temp;
+  final double temp2;
+  final double moisture;
+  final double moistureTemp;
+
+  /// Die lineare Vorhersage `s` aus fertigen Zutaten.
+  double score({
+    required double rainFactor,
+    required double meanC,
+    required double moistureMean,
+  }) {
+    final logRain = math.log(math.max(rainFactor, ampelLogitRainFloor));
+    return rain * logRain +
+        temp * meanC +
+        temp2 * meanC * meanC +
+        moisture * moistureMean +
+        moistureTemp * moistureMean * meanC;
+  }
+}
+
+/// Das 26-Tage-Mittel der Bodenfeuchte aus der Stationsreihe (ältester
+/// Tag zuerst) — `null`, wenn die Reihe kürzer ist oder im Fenster eine
+/// Lücke hat. Kein Mittel aus halben Fenstern: Eine erfundene Feuchte
+/// wäre eine erfundene Beobachtung (dieselbe Regel wie `feuchte_mittel`
+/// im Werkzeug).
+double? ampelMoistureMean(List<double?> bfglOldestFirst) {
+  if (bfglOldestFirst.length < ampelMoistureWindow) return null;
+  final window =
+      bfglOldestFirst.sublist(bfglOldestFirst.length - ampelMoistureWindow);
+  var sum = 0.0;
+  for (final value in window) {
+    if (value == null) return null;
+    sum += value;
+  }
+  return sum / ampelMoistureWindow;
+}
+
 /// Eine Ampel-Klasse ist **ein Temperaturfenster** — die beiden
 /// Schwellen sind kein zweiter freier Parameter, sondern fallen daraus:
 /// das 50-%- und das 80-%-Quantil der Score-Verteilung, die dieses
@@ -59,9 +125,18 @@ typedef AmpelClass = ({
   /// „Sommerpilze" behauptete eine ganze Gruppe; drin steht bislang ein
   /// Pfifferling. Der Name wächst mit der Klasse.
   String name,
-  double optimumC,
+
+  /// Das Fenster der Glocke — `null` bei einer Logit-Klasse, die keins
+  /// hat. (Kein `double.nan`: Ein Record mit NaN wäre sich selbst nicht
+  /// gleich, und `ampelClassKeyOf` fände die Klasse nie wieder.)
+  double? optimumC,
   double verhaltenAbove,
   double guenstigAbove,
+
+  /// `null` heißt Glocke; sonst rechnet die Klasse mit diesem Logit und
+  /// braucht dafür die Bodenfeuchte der nächsten Station — ohne sie
+  /// bleibt sie grau, nirgends wird ein Ersatzwert eingesetzt.
+  AmpelLogit? logit,
 });
 
 /// **Warum die Klasse die Einheit ist und nicht die Art**
@@ -85,8 +160,13 @@ typedef AmpelClass = ({
 const ampelHerbstClass = (
   name: 'Steinpilz & Co.',
   optimumC: ampelOptimumC,
-  verhaltenAbove: 0.389,
-  guenstigAbove: 0.742,
+  // Seit 2026-09-20 mit vier Mitgliedern gemessen (die Herbsttrompete
+  // ist zu „Herbsttrompete & Co." gezogen): 0,393 / 0,747 statt 0,389 /
+  // 0,742 — innerhalb des Bandes, aber die Regel heißt: wer die Klasse
+  // ändert, misst neu und schreibt das Datum dazu.
+  verhaltenAbove: 0.393,
+  guenstigAbove: 0.747,
+  logit: null,
 );
 
 /// Der Pfifferling ist ein Sommerfrüchter — Gipfel im Juli, nicht im
@@ -113,11 +193,61 @@ const ampelSommerClass = (
   optimumC: 14.5,
   verhaltenAbove: 0.348,
   guenstigAbove: 0.669,
+  logit: null,
+);
+
+/// **Austernseitling & Co. — die Holz- und Winterpilze**, seit 2026-09-20
+/// der erste Logit-Kern. Belegt auf drei Hürden (Labor 15/16/18, Design B):
+/// DE-Testblöcke +0,402 [+0,255, +0,596], AT/CH-Testblöcke +0,206
+/// [+0,081, +0,352], gegen die Klimatologie +0,020 [+0,000, +0,038] —
+/// jeweils Log-Likelihood je Stratum gegen die 13-°C-Glocke. Der große
+/// Gewinn gegenüber heute entsteht, weil die Glocke Winterarten
+/// kategorisch falsch bewertet; der Gewinn gegenüber der reinen
+/// Saisonkurve ist klein. Konstanten aus `18-testteil-dach.md` (Fit auf
+/// allen DACH-Erkundungsstrata), Schwellen Design B auf P1
+/// (`docs/pilzampel-logit-schwellen.md`).
+const ampelHolzWinterClass = (
+  name: 'Austernseitling & Co.',
+  optimumC: null,
+  verhaltenAbove: 0.454,
+  guenstigAbove: 0.606,
+  logit: AmpelLogit(
+    rain: 0.1882,
+    temp: 0.1321,
+    temp2: -0.00446,
+    moisture: 0.00220,
+    moistureTemp: -0.000442,
+  ),
+);
+
+/// **Herbsttrompete & Co. — die Leistlinge und der Stoppelpilz**
+/// (Cantharellales; der Pfifferling gehört botanisch dazu, in den Daten
+/// aber zu sich selbst). Auf den DE-Testblöcken angenommen (+0,417
+/// [+0,131, +0,769]), **reist aber nicht** nach AT/CH (+0,047 [−0,058,
+/// +0,129]) — dort liegt die nächste Bodenfeuchtestation ohnehin jenseits
+/// der 100 km, die Klasse bleibt dort grau. Nur für Deutschland belegt;
+/// aufgenommen, weil die App vor allem dort läuft (Betreiber 2026-09-20).
+/// Die Herbsttrompete ist dafür aus „Steinpilz & Co." ausgezogen, wo sie
+/// gegen dieses Logit gesichert verlor.
+const ampelCantharellalesClass = (
+  name: 'Herbsttrompete & Co.',
+  optimumC: null,
+  verhaltenAbove: 2.191,
+  guenstigAbove: 2.952,
+  logit: AmpelLogit(
+    rain: 0.1039,
+    temp: 0.1547,
+    temp2: -0.01399,
+    moisture: 0.00333,
+    moistureTemp: 0.002237,
+  ),
 );
 
 const ampelClasses = <String, AmpelClass>{
   'herbst': ampelHerbstClass,
   'sommer': ampelSommerClass,
+  'holz_winter': ampelHolzWinterClass,
+  'cantharellales': ampelCantharellalesClass,
 };
 
 /// Alle ausgelieferten Klassen, in der Reihenfolge, in der sie bei
@@ -126,6 +256,8 @@ const ampelClasses = <String, AmpelClass>{
 const ampelShippedClasses = <AmpelClass>[
   ampelHerbstClass,
   ampelSommerClass,
+  ampelHolzWinterClass,
+  ampelCantharellalesClass,
 ];
 
 /// Die gewählten Klassen, in Auslieferungsreihenfolge — die Übersetzung
@@ -191,18 +323,39 @@ String? ampelClassKeyOf(AmpelClass klass) {
   required double rainFactor,
   required double meanC,
   required List<AmpelClass> classes,
+  double? moistureMean,
 }) {
   var best = (
     level: AmpelLevel.unguenstig,
     klass: classes.first,
   );
   for (final klass in classes) {
-    final level = ampelLevelOf(
-        rainFactor * ampelBellOfMean(meanC, optimumC: klass.optimumC),
-        klass: klass);
+    final score = ampelScoreFor(klass,
+        rainFactor: rainFactor, meanC: meanC, moistureMean: moistureMean);
+    // Eine Logit-Klasse ohne Bodenfeuchte sagt nichts — sie zählt hier
+    // nicht mit, statt mit einem Ersatzwert zu rechnen.
+    if (score == null) continue;
+    final level = ampelLevelOf(score, klass: klass);
     if (level.index > best.level.index) best = (level: level, klass: klass);
   }
   return best;
+}
+
+/// Der Score EINER Klasse aus fertigen Zutaten — Glocke oder Logit.
+/// `null`, wenn eine Logit-Klasse ohne Bodenfeuchte gefragt wird.
+double? ampelScoreFor(
+  AmpelClass klass, {
+  required double rainFactor,
+  required double meanC,
+  double? moistureMean,
+}) {
+  final logit = klass.logit;
+  if (logit == null) {
+    return rainFactor * ampelBellOfMean(meanC, optimumC: klass.optimumC!);
+  }
+  if (moistureMean == null) return null;
+  return logit.score(
+      rainFactor: rainFactor, meanC: meanC, moistureMean: moistureMean);
 }
 
 /// **Nur Arten einer BESTÄTIGTEN Klasse stehen hier.** Hallimasch und
@@ -217,8 +370,20 @@ const ampelSpeciesClass = <String, String>{
   'Maronenröhrling': 'herbst',
   'Birkenpilz': 'herbst',
   'Fichtenreizker': 'herbst',
-  'Herbsttrompete': 'herbst',
   'Pfifferling': 'sommer',
+  // Seit 2026-09-20 die beiden Logit-Klassen (`docs/pilzampel-holz-winter-plan.md`).
+  'Austernseitling': 'holz_winter',
+  'Judasohr': 'holz_winter',
+  'Krause Glucke': 'holz_winter',
+  'Leberpilz': 'holz_winter',
+  'Lungenseitling': 'holz_winter',
+  'Rehbrauner Dachpilz': 'holz_winter',
+  'Samtfußrübling': 'holz_winter',
+  'Schwefelporling': 'holz_winter',
+  // Die Herbsttrompete stand bis 1.150.0 in `herbst`.
+  'Herbsttrompete': 'cantharellales',
+  'Semmelstoppelpilz': 'cantharellales',
+  'Trompetenpfifferling': 'cantharellales',
 };
 
 /// Wie gut die Ampel für eine Art belegt ist.
@@ -265,10 +430,26 @@ const ampelEvidenceBySpecies = <String, AmpelEvidence>{
   'Maronenröhrling': AmpelEvidence.belegt,
   'Birkenpilz': AmpelEvidence.belegt,
   'Fichtenreizker': AmpelEvidence.belegt,
-  'Herbsttrompete': AmpelEvidence.vorlaeufig,
   // Seit dem 2026-09-20: Fenster auf 14,5 °C gesetzt, ohne Hold-out
   // dafür — siehe [ampelSommerClass].
   'Pfifferling': AmpelEvidence.vorlaeufig,
+  // Austernseitling & Co. — je Art auf dem Testteil (Labor 18, DE + AT/CH):
+  // ▲ mit Band ohne Null heißt belegt, Band mit Null heißt vorläufig.
+  'Samtfußrübling': AmpelEvidence.belegt,
+  'Judasohr': AmpelEvidence.belegt,
+  'Austernseitling': AmpelEvidence.belegt,
+  'Schwefelporling': AmpelEvidence.belegt,
+  'Lungenseitling': AmpelEvidence.belegt,
+  'Leberpilz': AmpelEvidence.belegt,
+  'Rehbrauner Dachpilz': AmpelEvidence.vorlaeufig,
+  'Krause Glucke': AmpelEvidence.vorlaeufig,
+  // Herbsttrompete & Co. — nur DE-Test (Labor 15): Trompetenpfifferling
+  // +0,206 [+0,048, +0,334] belegt; Semmelstoppelpilz +0,149 [+0,000,
+  // +0,261] am Rand, Herbsttrompete mit 147 Funden unter der Grenze —
+  // beide vorläufig.
+  'Herbsttrompete': AmpelEvidence.vorlaeufig,
+  'Semmelstoppelpilz': AmpelEvidence.vorlaeufig,
+  'Trompetenpfifferling': AmpelEvidence.belegt,
 };
 
 /// Die Stufe einer Art — `null`, wo es keine Ampel gibt.
@@ -378,6 +559,12 @@ AmpelLevel ampelLevelOf(double score, {required AmpelClass klass}) {
   if (score >= klass.verhaltenAbove) return AmpelLevel.verhalten;
   return AmpelLevel.unguenstig;
 }
+
+/// Wie die Legende das Fenster einer Klasse nennt: die Zahl bei der
+/// Glocke, die Zutaten beim Logit.
+String ampelClassWindowWord(AmpelClass klass) => klass.optimumC == null
+    ? 'Regen, Temperatur und Bodenfeuchte'
+    : '${klass.optimumC!.toStringAsFixed(1).replaceAll('.', ',')} °C';
 
 /// Das Wort zur Stufe — die EINE Stelle für die Beschriftung.
 String ampelLevelWord(AmpelLevel level) => switch (level) {
