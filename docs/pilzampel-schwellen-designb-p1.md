@@ -1,6 +1,6 @@
 # Die Schwellen aus Design B — Vorlage, nicht Übernahme
 
-Stand: 2026-09-19 · Erzeugt von `tool/ampel_diagnose.py --schwellen --scheibe p1` · Auftrag: `docs/pilzampel-auftrag-3.md`, Abschnitt A · Zeitscheibe: **DE ab 2019**
+Stand: 2026-09-20 · Erzeugt von `tool/ampel_diagnose.py --schwellen --scheibe p1` · Auftrag: `docs/pilzampel-auftrag-3.md`, Abschnitt A · Zeitscheibe: **DE ab 2019**
 
 > **Diagnose, kein Prüflauf.** Schwelle und gepaarte AUC sind disjunkte Statistiken: Die AUC ist rangbasiert und von jeder Schwelle unabhängig. Hier wird eine Verteilung beschrieben, nicht ausgewählt — es gibt keine Latte, kein Band und nichts zu bestehen. **Schwellenabhängige Gütemaße sind auf dieser Scheibe gesperrt** (Trefferquote, POD, FAR, TSS, Hebel, Fundtag-Anteil); sie stehen im P3-Bericht.
 
@@ -56,8 +56,8 @@ Die auslieferbare Zahl: dasselbe Design wie im P3-Bericht, aber die Jahre, in de
 |---|---|--:|--:|---|
 | Steinpilz & Co. | verhalten | 0.187 | 0.389 | [0.355, 0.422] |
 |  | günstig | 0.512 | 0.742 | [0.710, 0.772] |
-| Pfifferling | verhalten | 0.287 | 0.385 | [0.350, 0.414] |
-|  | günstig | 0.677 | 0.729 | [0.678, 0.774] |
+| Pfifferling | verhalten | 0.287 | 0.348 | [0.310, 0.391] |
+|  | günstig | 0.677 | 0.669 | [0.628, 0.699] |
 ### Trägt eine einzelne Art die Zahl?
 
 Die Klassenschwelle, jeweils **ohne** ein Mitglied. Bei fünf Mitgliedern verschiebt das Weglassen eines Fünftels die Zahl immer ein wenig; interessant ist nur, ob eine Art heraussticht.
@@ -81,7 +81,7 @@ Gemessen an denselben Design-B-Kontrolltagen. „Kontrolltage“ sind Tage an Pi
 | Birkenpilz | 37,7 % → 20,5 % |
 | Fichtenreizker | 37,9 % → 21,5 % |
 | Herbsttrompete | 34,4 % → 18,7 % |
-| Pfifferling | 23,7 % → 20,0 % |
+| Pfifferling | 19,2 % → 20,0 % |
 
 **Die Fundtagsspalte fehlt hier mit Absicht.** Ihr Anteil über der Schwelle ist eine Trefferquote, und die ist auf dieser Scheibe gesperrt. Wie verlässlich der Hinweis ist, steht im P3-Bericht; was hier steht, ist allein, **wie oft** er erscheint.
 
@@ -113,12 +113,12 @@ Anteil der Kontrolltage, an denen die Ampel **günstig** stünde. Monate unter 5
 |  | September | 16 % | 19,1 % | 11,8 % |
 |  | Oktober | 47 % | 53,2 % | 33,2 % |
 |  | November | 19 % | 27,4 % | 5,0 % |
-| Pfifferling | Juni | 13 % | 38,7 % | 32,1 % |
-|  | Juli | 13 % | 42,8 % | 37,6 % |
-|  | August | 17 % | 39,7 % | 35,9 % |
-|  | September | 24 % | 23,6 % | 17,9 % |
-|  | Oktober | 20 % | 0,8 % | 0,5 % |
-|  | November | 8 % | 1,1 % | 0,6 % |
+| Pfifferling | Juni | 13 % | 31,0 % | 31,0 % |
+|  | Juli | 13 % | 8,3 % | 8,8 % |
+|  | August | 17 % | 16,7 % | 17,5 % |
+|  | September | 24 % | 23,3 % | 24,3 % |
+|  | Oktober | 20 % | 25,7 % | 27,5 % |
+|  | November | 8 % | 2,7 % | 2,7 % |
 
 **Im Oktober** — dem Monat mit dem meisten Material — sinkt der Anteil günstiger Tage im Median über 6 Arten von 53,6 % auf 32,7 %. Der Median und nicht der Durchschnitt, weil der Pfifferling im Oktober praktisch nie günstig steht und einen Schnitt nach unten zöge, der für keine Art gilt. Auf die 31 Oktobertage gerechnet: 16,6 grüne Tage vorher, 10,1 nachher — es fallen 6,5 weg. **Das ist die Zahl, an der entschieden wird.**
 
@@ -145,3 +145,4 @@ Und P1 ist hier die richtige Scheibe: Die App steht heute, nicht 2012. Der P3-Be
 **Hier wird nichts übernommen.** Wie oft die Ampel „günstig“ sagen soll, ist eine Produktentscheidung und keine Messung. Diese Seite sagt nur, welche Zahl welches Verhalten trägt.
 
 Wer sie übernimmt, ändert **vier Konstanten in `ampel_model.dart` und `tool/ampel_validate.py` zusammen** — die Spiegel-Regel gilt, und `verify_class_constants` bricht ab, sobald eine allein wandert.
+

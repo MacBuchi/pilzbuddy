@@ -263,6 +263,11 @@ WOOD_DWELLERS = [
 COLD_MAX_OPTIMUM_C = 5.0
 COLD_MIN_GAIN = 0.05
 
+# **Seit 2026-09-20 gibt es Klassen, die KEIN Fenster sind:** die
+# Logit-Klassen in `tool/ampel_logit_klasse.py` (Austernseitling & Co.,
+# Herbsttrompete & Co.). Sie stehen dort, nicht hier — die Tabelle hier
+# ist die der Glocke. Ihr Selbsttest verbietet, dass eine Art zugleich in
+# einer Fensterklasse mit Dart-Namen und in einer Logit-Klasse steht.
 AMPEL_CLASSES = {
     "sommer": {
         "dart": "ampelSommerClass",
@@ -274,10 +279,21 @@ AMPEL_CLASSES = {
         # 0,677 aus Design A; die Herkunft steht in
         # `docs/pilzampel-schwellen-designb-p1.md`. Nachgerechnet wird
         # bei jedem `--schwellen --scheibe p1`.
-        "verhalten": 0.385,
-        "guenstig": 0.729,
-        "schwellen_quelle": "Design B, P1, pinned (2026-09-19)",
-        "optimum": 17.5,
+        # **Neu gemessen am 2026-09-20 unter dem Fenster 14,5 °C** (vorher
+        # 0,385 / 0,729 unter 17,5): `ampel_diagnose.py --schwellen
+        # --scheibe p1`, docs/pilzampel-schwellen-designb-p1.md.
+        "verhalten": 0.348,
+        "guenstig": 0.669,
+        "schwellen_quelle": "Design B, P1, pinned (2026-09-20)",
+        # **17,5 → 14,5 °C am 2026-09-20, Betreiberentscheidung** auf einem
+        # nicht gesicherten Ergebnis (Labor 14/15/16/18: Vorzeichen fuenfmal
+        # positiv, DE-Test +0,035 [-0,012, +0,079], AT/CH +0,066 ▲, AUC auf
+        # dem DE-Test leicht ruecklaeufig). Der Wert ist damit GESETZT, nicht
+        # gemessen — `fenster_quelle` sagt es, und `verify_class_constants`
+        # haelt ihn deshalb nicht mehr gegen den Design-A-Median. Die
+        # Evidenzstufe des Pfifferlings in der App ist seither `vorlaeufig`.
+        "optimum": 14.5,
+        "fenster_quelle": "Betreiber 2026-09-20, docs/pilzampel-holz-winter-plan.md §1B",
         "members": ["Pfifferling"],
         "confirmed": True,
         "why": "Hold-out in AT+CH bestätigt: AUC 0,584 → 0,689 "
@@ -298,6 +314,13 @@ AMPEL_CLASSES = {
         "guenstig": 0.742,
         "schwellen_quelle": "Design B, P1, pinned (2026-09-19)",
         "optimum": 13.0,
+        # **Die Herbsttrompete zieht um** — in die Logit-Klasse
+        # `cantharellales` (`tool/ampel_logit_klasse.py`, UMZUG), wo sie auf
+        # dem DE-Test +0,189 [+0,048, +0,294] gegen dieses Fenster gewinnt.
+        # Sie steht hier, bis der Dart-Kern sie umhaengt (PR 3): Werkzeug
+        # und App muessen dieselben fuenf sehen, sonst messen die Schwellen
+        # eine andere Klasse als die ausgelieferte. Mit dem Umzug sind die
+        # Schwellen dieser Klasse neu zu messen (vier Mitglieder).
         "members": ["Steinpilz", "Maronenröhrling", "Birkenpilz",
                     "Fichtenreizker", "Herbsttrompete"],
         "confirmed": True,
@@ -2208,7 +2231,10 @@ def verify_class_constants(measured, schwellen=True):
                 findings.append(
                     f"  {key}.{field}: gemessen {round(got[field], 3)}, "
                     f"Konstante {expected}")
-        if "optimum_measured" in got:
+        # Ein GESETZTES Fenster (`fenster_quelle`) hat keine Messung, gegen
+        # die es zu halten waere — die Abweichung ist dort der Befund, nicht
+        # der Fehler, und steht im Klasseneintrag.
+        if "optimum_measured" in got and not klass.get("fenster_quelle"):
             expected = klass["optimum"]
             if abs(got["optimum_measured"] - expected) > 1e-9:
                 findings.append(

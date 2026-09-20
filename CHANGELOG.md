@@ -7,6 +7,22 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Der Pfifferling mag es etwas kühler
+
+*20. September 2026 · Version 1.150.0*
+
+Das Temperaturfenster der Pfifferling-Ampel rückt von 17,5 auf 14,5 °C.
+In einer großen Nachrechnung über Deutschland, Österreich und die Schweiz
+zeigte das kühlere Fenster durchweg ein kleines Plus — klein genug, dass
+wir es ehrlich als Versuch führen: Im Spot-Blatt steht der Pfifferling
+deshalb ab jetzt auf „unsichere Datenlage" statt „gut belegt", bis ein
+weiteres Jahr die Änderung bestätigt oder widerlegt. Die beiden Stufen
+„verhalten" und „günstig" sind für das neue Fenster neu geeicht.
+
+Im Hintergrund ist mit dieser Version die Vorarbeit für eine Ampel für
+Winter- und Holzpilze abgeschlossen; sie selbst kommt mit einem der
+nächsten Updates.
+
 ## Und jetzt siehst du die Spuren der anderen
 
 *20. September 2026 · Version 1.148.0*

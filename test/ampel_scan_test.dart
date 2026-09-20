@@ -287,7 +287,8 @@ void main() {
     test('jede Art bringt ihre eigene Klasse in die Paarung mit', () {
       // **Der Fall, für den das Ganze gebaut ist.** Juli, 17,5 °C: Für
       // den Steinpilz ist das zu warm (Herbstfenster, Score 0,445 →
-      // „verhalten"), für den Pfifferling ist es genau sein Optimum.
+      // „verhalten"), für den Pfifferling (Fenster 14,5 °C) reicht es
+      // mit 0,70 ≥ 0,669 für „günstig".
       // Beide haben Saison; entschieden wird über die KLASSE, und der
       // Treffer sagt, für wen er gilt.
       final hits = scan(

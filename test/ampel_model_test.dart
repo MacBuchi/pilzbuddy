@@ -151,9 +151,10 @@ void main() {
     });
 
     test('eine abgewählte Gruppe nimmt ihre Stufe mit', () {
-      // 17,5 °C ist das Pfifferling-Fenster: volle Glocke, satter Regen
-      // — das ist günstig. Im Herbstfenster liegt dieselbe Lage bei
-      // 0,445 und damit nur bei „verhalten" (Glocke exp(-0,81)).
+      // 17,5 °C bei sattem Regen: im Pfifferling-Fenster (14,5 °C seit
+      // 2026-09-20) Glocke exp(-0,36) = 0,70 ≥ 0,669 — günstig. Im
+      // Herbstfenster liegt dieselbe Lage bei 0,445 und damit nur bei
+      // „verhalten" (Glocke exp(-0,81)).
       const sommertag = (rainFactor: 1.0, meanC: 17.5);
       expect(
           ampelBestOf(
@@ -180,15 +181,19 @@ void main() {
     });
 
     test('und das gilt in beide Richtungen', () {
-      // Umgekehrt: Ein Herbsttag, auf die Sommergruppe eingeengt.
+      // Umgekehrt: Ein kühler Herbsttag, auf die Sommergruppe eingeengt.
+      // 11 °C: Herbstglocke exp(-0,16) = 0,85 ≥ 0,742 — günstig; im
+      // Pfifferling-Fenster (14,5 °C) exp(-0,49) = 0,61 < 0,669 — nur
+      // „verhalten". (Bis 2026-09-20 stand hier 13 °C; unter 14,5 liegt
+      // das für den Pfifferling selbst schon im Günstigen.)
       expect(
-          ampelBestOf(rainFactor: 1.0, meanC: 13, classes: ampelShippedClasses)
+          ampelBestOf(rainFactor: 1.0, meanC: 11, classes: ampelShippedClasses)
               .level,
           AmpelLevel.guenstig);
       expect(
           ampelBestOf(
                   rainFactor: 1.0,
-                  meanC: 13,
+                  meanC: 11,
                   classes: const [ampelSommerClass])
               .level,
           AmpelLevel.verhalten);

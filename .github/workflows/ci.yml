@@ -62,6 +62,8 @@ jobs:
           python3 tool/spot_weather.py --self-test > /dev/null
           python3 tool/season_curves.py --self-test > /dev/null
           python3 tool/ampel_validate.py --self-test > /dev/null
+          python3 tool/ampel_diagnose.py --self-test > /dev/null
+          python3 tool/ampel_logit_klasse.py --self-test > /dev/null
           python3 tool/forest_grid.py --self-test > /dev/null
           python3 tool/forest_species.py --self-test > /dev/null
           python3 tool/elevation_grid.py --self-test > /dev/null

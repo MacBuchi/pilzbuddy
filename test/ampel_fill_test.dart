@@ -299,16 +299,22 @@ void main() {
     ///
     /// **Die Werte sind seit 1.140.0 weiter auseinander** (vorher 13/17/
     /// 20 °C), und das ist keine Willkür, sondern die Folge der zweiten
-    /// Klasse: Zwischen 13 und 17,5 °C ist jetzt IMMER eine Glocke nahe
+    /// Klasse: Zwischen den beiden Fenstern ist IMMER eine Glocke nahe
     /// an ihrem Gipfel, dort gibt es keinen Kontrast mehr. Wer drei
     /// Stufen sehen will, muss aus beiden Fenstern heraus.
+    ///
+    /// **Seit dem Pfifferling-Fenster 14,5 °C (2026-09-20) liegt die
+    /// mittlere Station bei 19 °C** (vorher 22): Im Herbstfenster ist
+    /// das exp(-1,44) = 0,24 — ungünstig; im Sommerfenster exp(-0,81) =
+    /// 0,445 — „verhalten" (0,348 ≤ 0,445 < 0,669). Bei 22 °C wäre auch
+    /// das Sommerfenster längst ungünstig.
     ///
     /// 26 °C über zwanzig Tage ist für Deutschland unrealistisch — das
     /// ist hier Absicht und kein Wetterszenario: Geprüft wird, dass
     /// Fläche und Blatt dieselbe Stufe sagen, nicht welche.
     final threeBands = <TestStation>[
       (lat: 51.32, lon: 10.05, meanC: 13, measured: 20),
-      (lat: 51.28, lon: 10.45, meanC: 22, measured: 20),
+      (lat: 51.28, lon: 10.45, meanC: 19, measured: 20),
       (lat: 50.95, lon: 10.25, meanC: 26, measured: 20),
     ];
 
@@ -361,7 +367,7 @@ void main() {
         }
       }
       expect(geaendert, greaterThan(0),
-          reason: 'die 22-°C-Station steht nur wegen des Sommerfensters '
+          reason: 'die 19-°C-Station steht nur wegen des Sommerfensters '
               'auf „verhalten" — ohne es fällt sie zurück');
     });
 

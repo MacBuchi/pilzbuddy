@@ -34,7 +34,8 @@ AmpelLevelGrid levelsOf(List<List<AmpelLevel?>> rows,
     {double west = 10,
     double east = 10.018,
     double north = 50,
-    double south = 49.988}) {
+    double south = 49.988,
+    double meanC = 13.0}) {
   final flat = [for (final row in rows) ...row];
   return AmpelLevelGrid(
     // **Die Regenfaktoren kommen aus den Schwellen, nicht aus dem
@@ -55,7 +56,9 @@ AmpelLevelGrid levelsOf(List<List<AmpelLevel?>> rows,
           AmpelLevel.guenstig => 1.0,
         },
     ]),
-    meanC: Float32List.fromList(List.filled(flat.length, 13.0)),
+    // 13 °C, sofern der Test nichts anderes sagt — der Gipfel der
+    // Herbstglocke, damit die Regenfaktoren oben ihre Stufe treffen.
+    meanC: Float32List.fromList(List.filled(flat.length, meanC)),
     stationHeightM: Int16List(flat.length),
     valid: Uint8List.fromList([for (final l in flat) l == null ? 0 : 1]),
     width: rows.first.length,
@@ -150,11 +153,15 @@ void main() {
     // leuchtet die Fläche weiter für eine Gruppe, die der Chip auf der
     // Karte gar nicht mehr nennt.
     //
-    // Das Testgitter steht auf 13 °C — dem Herbstfenster. Ein Regen von
-    // 0,3 ist dort „verhalten"; im Sommerfenster schrumpft derselbe Tag
-    // auf 0,3 · 0,445 = 0,133 und liegt unter jeder Schwelle.
+    // Das Testgitter steht hier auf 9 °C bei vollem Regen: Im
+    // Herbstfenster (13 °C) ist die Glocke exp(-0,64) = 0,53 —
+    // „verhalten"; im Pfifferling-Fenster (14,5 °C seit 2026-09-20)
+    // exp(-1,21) = 0,30 und damit unter jeder Schwelle (0,348). Bis
+    // dahin stand das Gitter auf 13 °C mit Regen 0,3 gegen ein
+    // Sommerfenster von 17,5 °C; mit 14,5 liegen beide Glocken bei 13 °C
+    // so nah beieinander, dass kein Regenfaktor sie mehr trennt.
     Map<String, Object> pixelAt(List<AmpelClass> classes,
-        {AmpelLevel? level = AmpelLevel.verhalten}) {
+        {AmpelLevel? level = AmpelLevel.guenstig}) {
       final png = decodePng(forestAmpelFillPng(
         [forest],
         ampelClasses: classes,
@@ -162,7 +169,7 @@ void main() {
         levels: levelsOf([
           [level, level],
           [level, level],
-        ]),
+        ], meanC: 9),
       ));
       final px = at(png, latOf(0), lonOf(0, 0));
       return {'rgb': (px.r, px.g, px.b), 'a': px.a};

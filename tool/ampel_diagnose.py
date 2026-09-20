@@ -3716,8 +3716,14 @@ SCHWELLEN_ROUNDS = 2000
 
 # Nur die ausgelieferten Klassen. `holz` und `kalt` haben kein Fenster
 # in der App und damit auch keine Schwelle, die man ersetzen koennte.
-SCHWELLEN_ARTEN = [(n, g, o) for n, g, o in DESIGN_ARTEN
-                   if g in ("herbst", "sommer")]
+#
+# **Das Fenster kommt aus der Klassentabelle, nicht aus DESIGN_ARTEN**
+# (seit 2026-09-20). Die Schwellen sind Quantile UNTER dem ausgelieferten
+# Fenster; als das Pfifferling-Fenster auf 14,5 °C gesetzt wurde, mass
+# dieser Lauf still weiter mit den 17,5 aus der Diagnosetabelle und
+# lieferte die alten Zahlen — eine zweite Quelle fuer dieselbe Konstante.
+SCHWELLEN_ARTEN = [(n, g, av.AMPEL_CLASSES[g]["optimum"])
+                   for n, g, _ in DESIGN_ARTEN if g in ("herbst", "sommer")]
 
 # **Eine eigene Untergrenze, und zwar eine niedrigere als `MIN_FINDS_B`.**
 # Nachtraeglich gesetzt, am 2026-09-19, und deshalb im Korrekturkasten

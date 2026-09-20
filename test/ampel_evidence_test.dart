@@ -28,27 +28,35 @@ void main() {
       // Zahlen schlecht wären; sie sind die besten der Tabelle.
       expect(ampelEvidenceFor('Herbsttrompete'),
           AmpelEvidence.vorlaeufig);
+      // Der Pfifferling seit dem 2026-09-20: Sein Fenster ist auf 14,5 °C
+      // GESETZT, nicht per Hold-out belegt — also „vorläufig", obwohl
+      // seine 17,5 °C den Hold-out bestanden hatten.
+      expect(ampelEvidenceFor('Pfifferling'), AmpelEvidence.vorlaeufig);
       for (final art in const [
         'Steinpilz',
         'Maronenröhrling',
         'Birkenpilz',
         'Fichtenreizker',
-        'Pfifferling',
       ]) {
         expect(ampelEvidenceFor(art), AmpelEvidence.belegt, reason: art);
       }
     });
 
-    test('genau eine Art steht auf vorläufig', () {
+    test('vorläufig bleibt die Minderheit', () {
       // **Der Grund für N7s „keine Warnung pro Art".** Fünf Hinweise auf
       // sechs Arten lesen sich wie „kaputt", und dann wird auch der
-      // belastbare Teil abgewertet. Nach der Neuvergabe nach N1 ist es
-      // eine — wäre es je wieder die Mehrheit, gehört die Darstellung
-      // neu entschieden und nicht stillschweigend weitergeführt.
-      final vorlaeufig = ampelEvidenceBySpecies.values
-          .where((e) => e == AmpelEvidence.vorlaeufig)
-          .length;
-      expect(vorlaeufig, 1);
+      // belastbare Teil abgewertet. Nach der Neuvergabe nach N1 war es
+      // eine (Herbsttrompete); seit dem 2026-09-20 sind es zwei, weil
+      // das Pfifferling-Fenster gesetzt und nicht belegt ist. Wäre es je
+      // die Mehrheit, gehört die Darstellung neu entschieden und nicht
+      // stillschweigend weitergeführt.
+      final vorlaeufig = ampelEvidenceBySpecies.entries
+          .where((e) => e.value == AmpelEvidence.vorlaeufig)
+          .map((e) => e.key)
+          .toSet();
+      expect(vorlaeufig, {'Herbsttrompete', 'Pfifferling'});
+      expect(vorlaeufig.length * 2, lessThan(ampelEvidenceBySpecies.length),
+          reason: 'die Minderheit — sonst ist die Darstellung neu zu entscheiden');
     });
 
     test('Arten ohne Ampel haben keine Stufe', () {

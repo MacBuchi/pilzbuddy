@@ -295,7 +295,7 @@ class AmpelSection extends ConsumerWidget {
     final tempWord = reading.tempFactor! >= 0.6
         ? 'passt ($meanText)'
         // **Gegen das Fenster der KLASSE, nicht gegen 13 °C.** Sonst
-        // stünde beim Pfifferling (17,5 °C) bei 15 °C „zu warm“,
+        // stünde beim Pfifferling (14,5 °C) bei 13 °C „zu warm“,
         // während seine Stufe gleichzeitig sagt, es sei zu kühl — die
         // Fakten-Zeile widerspräche der Ampel darüber.
         : mean > klass.optimumC

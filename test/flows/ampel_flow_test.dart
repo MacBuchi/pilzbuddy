@@ -263,9 +263,12 @@ void main() {
     // Der Pfifferling ist Sommerfrüchter mit Gipfel im Juli; sein
     // Fenster ist die einzige Art-Abweichung, die den geografischen
     // Hold-out bestanden hat (docs/pilzampel-artenfenster-holdout.md).
+    // 10,5 °C (seit dem Fenster 14,5 °C, 2026-09-20; vorher 13,5 gegen
+    // 17,5): Herbstglocke 0,78 — günstig; Pfifferling-Glocke exp(-0,64)
+    // = 0,527 — „verhalten" und unter 0,6, also „zu kühl".
     await pumpWithWeather(
         tester, loggedInWithSpot(species: 'Pfifferling'),
-        preview: true, meanC: 13.5);
+        preview: true, meanC: 10.5);
     await openSpot(tester);
     await acceptAndSettle(tester);
     expect(find.textContaining(': verhalten'), findsOneWidget,
@@ -273,12 +276,11 @@ void main() {
             'die Klasse im Modellkern eine Zahl ohne Wirkung');
     expect(find.textContaining('für Pfifferling'), findsOneWidget);
     // **Und die Fakten-Zeile misst gegen DIESES Fenster.** Gegen 13 °C
-    // gerechnet stünde hier „zu warm", während die Stufe darüber sagt,
+    // gerechnet stünde hier „passt", während die Stufe darüber sagt,
     // die Bedingungen seien noch nicht günstig — die Zeile widerspräche
     // der Ampel, auf die sie sich bezieht.
-    expect(find.textContaining('zu kühl (13,5 °C)'), findsOneWidget,
-        reason: '13,5 °C ist für einen 17,5-°C-Pilz zu kühl, nicht zu '
-            'warm');
+    expect(find.textContaining('zu kühl (10,5 °C)'), findsOneWidget,
+        reason: '10,5 °C ist für einen 14,5-°C-Pilz zu kühl');
   });
 
   testWidgets('mehrere Arten am Spot: eine Zeile je Art', (tester) async {
@@ -290,12 +292,13 @@ void main() {
     // einen hergeführt hat — dieselbe Regel wie zwischen Fläche und
     // Blatt (#279), eine Ebene tiefer.
     //
-    // 13,5 °C: Steinpilz günstig (0,990), Pfifferling verhalten (0,527).
+    // 10,5 °C: Steinpilz günstig (Glocke 0,78), Pfifferling verhalten
+    // (0,527) — seit dem Fenster 14,5 °C; bei 13,5 wären beide günstig.
     await pumpWithWeather(
         tester,
         loggedInWithSpot(species: 'Steinpilz', alsoSpecies: 'Pfifferling'),
         preview: true,
-        meanC: 13.5);
+        meanC: 10.5);
     await openSpot(tester);
     await acceptAndSettle(tester);
 
