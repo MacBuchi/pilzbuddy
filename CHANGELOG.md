@@ -9,7 +9,7 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Eine Ampel für Winter- und Holzpilze
 
-*20. September 2026 · Version 1.151.0*
+*20. September 2026 · Version 1.152.0*
 
 Austernseitling, Judasohr, Samtfußrübling, Krause Glucke, Leberpilz,
 Lungenseitling, Rehbrauner Dachpilz und Schwefelporling bekommen eine
