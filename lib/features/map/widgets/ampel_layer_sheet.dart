@@ -105,11 +105,14 @@ class _AmpelLayerSheet extends ConsumerWidget {
                     ?.copyWith(color: theme.hintColor),
               ),
             ),
-            const _ClassList(),
             Flexible(
               child: ListView(
                 shrinkWrap: true,
                 children: [
+                  // **In der Liste, nicht darüber** (seit 1.151.0): Mit
+                  // vier Gruppen läuft die ausgeklappte Liste sonst über
+                  // den Rand des Blatts — jetzt scrollt sie mit.
+                  const _ClassList(),
                   SwitchListTile(
                     title: const Text('Ampel-Fläche auf der Karte'),
                     // Dieselbe Nebenwirkung wie in der Ebenen-Zeile, und
@@ -249,8 +252,7 @@ class _ClassList extends StatelessWidget {
                 children: [
                   Text(
                     '${entry.value.name} · '
-                    '${entry.value.optimumC.toStringAsFixed(1)
-                        .replaceAll('.', ',')} °C',
+                    '${ampelClassWindowWord(entry.value)}',
                     style: theme.textTheme.bodyMedium
                         ?.copyWith(fontWeight: FontWeight.w600),
                   ),

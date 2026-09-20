@@ -310,19 +310,21 @@ AMPEL_CLASSES = {
         # 0,512 aus Design A; die Herkunft steht in
         # `docs/pilzampel-schwellen-designb-p1.md`. Nachgerechnet wird
         # bei jedem `--schwellen --scheibe p1`.
-        "verhalten": 0.389,
-        "guenstig": 0.742,
-        "schwellen_quelle": "Design B, P1, pinned (2026-09-19)",
+        # **Neu gemessen am 2026-09-20 mit vier Mitgliedern** (vorher
+        # 0,389 / 0,742 mit der Herbsttrompete): dieselbe Messung, eine
+        # Art weniger — der Unterschied liegt innerhalb des Bandes.
+        "verhalten": 0.393,
+        "guenstig": 0.747,
+        "schwellen_quelle": "Design B, P1, pinned (2026-09-20)",
         "optimum": 13.0,
-        # **Die Herbsttrompete zieht um** — in die Logit-Klasse
-        # `cantharellales` (`tool/ampel_logit_klasse.py`, UMZUG), wo sie auf
-        # dem DE-Test +0,189 [+0,048, +0,294] gegen dieses Fenster gewinnt.
-        # Sie steht hier, bis der Dart-Kern sie umhaengt (PR 3): Werkzeug
-        # und App muessen dieselben fuenf sehen, sonst messen die Schwellen
-        # eine andere Klasse als die ausgelieferte. Mit dem Umzug sind die
-        # Schwellen dieser Klasse neu zu messen (vier Mitglieder).
+        # **Die Herbsttrompete ist am 2026-09-20 ausgezogen** — in die
+        # Logit-Klasse `cantharellales` (`tool/ampel_logit_klasse.py`), wo
+        # sie auf dem DE-Test +0,189 [+0,048, +0,294] gegen dieses Fenster
+        # gewinnt. Vier Mitglieder: Die Schwellen dieser Klasse sind am
+        # selben Tag neu gemessen (`ampel_diagnose.py --schwellen --scheibe
+        # p1`); die Zahlen unten tragen das Datum.
         "members": ["Steinpilz", "Maronenröhrling", "Birkenpilz",
-                    "Fichtenreizker", "Herbsttrompete"],
+                    "Fichtenreizker"],
         "confirmed": True,
         "why": "der ausgelieferte Stand; die eigenen Optima dieser fünf "
                "liegen zwischen 12,0 und 14,5 °C, und keine Abweichung "
@@ -4490,6 +4492,13 @@ def self_test():
     in_tool = {name: key for key, klass in AMPEL_CLASSES.items()
                if klass.get("dart")
                for name in klass["members"]}
+    # Die Logit-Klassen stehen in ihrer eigenen Datei (2026-09-20) —
+    # fuer die Mitgliederliste zaehlen sie genauso.
+    import ampel_logit_klasse
+    in_tool.update({name: key
+                    for key, klasse in ampel_logit_klasse.KLASSEN.items()
+                    if klasse.get("dart")
+                    for name in klasse["members"]})
     assert in_dart == in_tool, (
         f"Spiegel gebrochen: ampelSpeciesClass ist in Dart {in_dart}, "
         f"hier {in_tool}")

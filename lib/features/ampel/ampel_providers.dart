@@ -59,17 +59,20 @@ class AmpelReading {
     this.tempMeanC,
     this.spotHeightM,
     this.heightCorrectionK,
+    this.moistureMean,
     this.reason,
+    this.classSpecific = false,
   });
 
-  const AmpelReading.grau(String this.reason)
+  const AmpelReading.grau(String this.reason, {this.classSpecific = false})
       : level = null,
         score = null,
         rainFactor = null,
         tempFactor = null,
         tempMeanC = null,
         spotHeightM = null,
-        heightCorrectionK = null;
+        heightCorrectionK = null,
+        moistureMean = null;
 
   final AmpelLevel? level;
   final double? score;
@@ -91,7 +94,16 @@ class AmpelReading {
   /// Umrechnung eine Erwähnung wert ist.
   final double? heightCorrectionK;
 
+  /// Das 26-Tage-Mittel der Bodenfeuchte (% nFK) — nur bei einer
+  /// Logit-Klasse gefüllt; die Glocke fragt nicht danach.
+  final double? moistureMean;
+
   final String? reason;
+
+  /// Grau aus einem Grund, der nur DIESE Klasse betrifft (eine
+  /// Logit-Klasse ohne Bodenfeuchte) — die anderen Klassen rechnen
+  /// weiter. Grau wegen Regen oder Luftstation betrifft alle.
+  final bool classSpecific;
 
   bool get isGrau => reason != null;
 }
@@ -138,15 +150,24 @@ class AmpelReading {
     RainCourse? course, SpotTemperature? temperature,
     {required List<AmpelClass> classes, int? spotHeightM}) {
   ({AmpelReading reading, AmpelClass klass})? best;
+  ({AmpelReading reading, AmpelClass klass})? nurGrau;
   for (final klass in classes) {
     final reading = ampelReadingFrom(course, temperature,
         klass: klass, spotHeightM: spotHeightM);
-    if (reading.isGrau) return (reading: reading, klass: klass);
+    if (reading.isGrau) {
+      // Grau wegen Regen oder Luftstation gilt für alle Klassen — dann
+      // ist die Antwort grau. Grau nur für diese Klasse (Logit ohne
+      // Bodenfeuchte) nimmt sie aus der Wahl; bleibt keine übrig, ist
+      // auch das die Antwort, mit ihrem Grund.
+      if (!reading.classSpecific) return (reading: reading, klass: klass);
+      nurGrau ??= (reading: reading, klass: klass);
+      continue;
+    }
     if (best == null || reading.level!.index > best.reading.level!.index) {
       best = (reading: reading, klass: klass);
     }
   }
-  return best!;
+  return best ?? nurGrau!;
 }
 
 AmpelReading ampelReadingFrom(
@@ -198,9 +219,27 @@ AmpelReading ampelReadingFrom(
         'Temperaturreihe der Station zu lückig');
   }
 
+  // **Eine Logit-Klasse braucht die Bodenfeuchte der nächsten Station**
+  // (26 Tage, vollständig). Ohne sie gibt es keine Stufe — kein
+  // Ersatzwert, kein Rückfall auf die Glocke: Die Klasse ist mit genau
+  // dieser Größe validiert und mit keiner anderen.
+  final logit = klass.logit;
+  double? moistureMean;
+  if (logit != null) {
+    final pick = temperature?.moisture;
+    if (pick == null) {
+      return const AmpelReading.grau(
+          'keine Bodenfeuchte-Station in Reichweite (100 km)',
+          classSpecific: true);
+    }
+    moistureMean = ampelMoistureMean(pick.station.bfgl);
+    if (moistureMean == null) {
+      return const AmpelReading.grau(
+          'Bodenfeuchte-Reihe der Station unvollständig',
+          classSpecific: true);
+    }
+  }
   final rainFactor = ampelRainFactor(rain);
-  final tempFactor = ampelTemperatureFactor(temps, optimumC: klass.optimumC);
-  final score = rainFactor * tempFactor;
   var tempSum = 0.0;
   var tempCount = 0;
   for (final c in temps.take(ampelTempWindow)) {
@@ -208,13 +247,24 @@ AmpelReading ampelReadingFrom(
     tempSum += c;
     tempCount++;
   }
+  final tempMeanC = tempSum / tempCount;
+  final tempFactor = logit == null
+      ? ampelTemperatureFactor(temps, optimumC: klass.optimumC!)
+      : null;
+  final score = logit == null
+      ? rainFactor * tempFactor!
+      : logit.score(
+          rainFactor: rainFactor,
+          meanC: tempMeanC,
+          moistureMean: moistureMean!);
   return AmpelReading(
     level: ampelLevelOf(score, klass: klass),
     score: score,
     rainFactor: rainFactor,
     tempFactor: tempFactor,
-    tempMeanC: tempSum / tempCount,
+    tempMeanC: tempMeanC,
     spotHeightM: correction == null ? null : spotHeightM,
     heightCorrectionK: correction,
+    moistureMean: moistureMean,
   );
 }

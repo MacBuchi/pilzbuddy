@@ -197,11 +197,19 @@ void main() {
       await settle(tester);
 
       // Ab Werk sind beide an — und das ist KEIN aktiver Filter.
-      expect(find.byType(FilterChip), findsNWidgets(2));
+      // Vier Gruppen seit 1.151.0 — alle bis auf „Steinpilz & Co." ab.
+      expect(find.byType(FilterChip), findsNWidgets(4));
       expect(find.textContaining('Gefiltert'), findsNothing);
 
-      await tester.tap(find.widgetWithText(FilterChip, 'Pfifferling'));
-      await settle(tester);
+      for (final name in const [
+        'Pfifferling',
+        'Austernseitling & Co.',
+        'Herbsttrompete & Co.',
+      ]) {
+        await tester.ensureVisible(find.widgetWithText(FilterChip, name));
+        await tester.tap(find.widgetWithText(FilterChip, name));
+        await settle(tester);
+      }
       // Die letzte gewählte Gruppe lässt sich nicht abwählen: Der Chip
       // ist deaktiviert, statt folgenlos zu bleiben — und die Zeile
       // darunter sagt, warum.

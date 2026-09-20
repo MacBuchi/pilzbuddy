@@ -190,6 +190,28 @@ AmpelLevelGrid? ampelLevelsFrom(RainStackData stack, WeatherTable? table) {
   }
   if (competing.isEmpty) return null;
 
+  // **Die Bodenfeuchte-Stationen, dasselbe Muster** (seit 2026-09-20 für
+  // die Logit-Klassen): je Station EIN 26-Tage-Mittel, `answers` sagt,
+  // ob die Reihe vollständig war. Wer antritt, entscheidet wieder
+  // `competes`; wer antworten kann, steht getrennt daneben — sonst
+  // griffe die Fläche zur übernächsten Station, das Blatt nicht (#279).
+  final moistureStations = table?.moisture ?? const <MoistureStation>[];
+  final moistureLat = Float64List(moistureStations.length);
+  final moistureLon = Float64List(moistureStations.length);
+  final moistureMean = Float64List(moistureStations.length);
+  final moistureAnswers = Uint8List(moistureStations.length);
+  final moistureCompeting = <int>[];
+  for (var s = 0; s < moistureStations.length; s++) {
+    final station = moistureStations[s];
+    if (!station.competes) continue;
+    moistureLat[s] = station.lat;
+    moistureLon[s] = station.lon;
+    final mean = ampelMoistureMean(station.bfgl);
+    moistureMean[s] = mean ?? 0;
+    moistureAnswers[s] = mean == null ? 0 : 1;
+    moistureCompeting.add(s);
+  }
+
   final blocksX = (width + ampelTempBlockCells - 1) ~/ ampelTempBlockCells;
   final blocksY = (height + ampelTempBlockCells - 1) ~/ ampelTempBlockCells;
   final probe = RainGrid(
@@ -213,41 +235,54 @@ AmpelLevelGrid? ampelLevelsFrom(RainStackData stack, WeatherTable? table) {
   // `dist(Mitte, s) <= dMin + 2 * reach`. `reach` ist der echte Abstand
   // Mitte→Ecke DIESER Kachel, deckt also auch die angeschnittene letzte
   // und die mit der Breite wandernde Zellgröße ab.
-  final candidateStart = Int32List(blocksX * blocksY + 1);
-  final candidates = <int>[];
-  final fromCentre = Float64List(stations.length);
-  for (var by = 0; by < blocksY; by++) {
-    final rowEnd = (by + 1) * ampelTempBlockCells > height
-        ? height
-        : (by + 1) * ampelTempBlockCells;
-    final rowStart = by * ampelTempBlockCells;
-    // Mitte aus Kachelanfang und -ENDE — die letzte (angeschnittene)
-    // hat ihre Mitte sonst außerhalb des Gitters.
-    final lat = probe.latAtRow((rowStart + rowEnd) / 2);
-    final cornerLat = probe.latAtRow(rowStart.toDouble());
-    for (var bx = 0; bx < blocksX; bx++) {
-      final colEnd = (bx + 1) * ampelTempBlockCells > width
-          ? width
-          : (bx + 1) * ampelTempBlockCells;
-      final colStart = bx * ampelTempBlockCells;
-      final lon = probe.lonAtColumn((colStart + colEnd) / 2);
-      final reach = distanceKm(
-          lat, lon, cornerLat, probe.lonAtColumn(colStart.toDouble()));
-      var bestKm = double.infinity;
-      for (final s in competing) {
-        final km = distanceKm(lat, lon, stationLat[s], stationLon[s]);
-        fromCentre[s] = km;
-        if (km < bestKm) bestKm = km;
-      }
-      final limit = bestKm + 2 * reach + _candidateMarginKm;
-      candidateStart[by * blocksX + bx] = candidates.length;
-      for (final s in competing) {
-        if (fromCentre[s] <= limit) candidates.add(s);
+  // **Die Kandidatensuche je Block, einmal geschrieben** — sie läuft für
+  // das Luftnetz und (seit 2026-09-20) für das Bodenfeuchtenetz. Je
+  // Block: die nächste Station vom Blockmittelpunkt aus, dazu alle, die
+  // vom Rand des Blocks aus noch näher sein könnten (Reichweite +
+  // Spielraum); die Zellschleife sucht dann nur noch in dieser Liste.
+  ({Int32List start, Int32List of}) candidatesFor(
+      Float64List lats, Float64List lons, List<int> competing) {
+    final start = Int32List(blocksX * blocksY + 1);
+    final list = <int>[];
+    final fromCentre = Float64List(lats.length);
+    for (var by = 0; by < blocksY; by++) {
+      final rowEnd = (by + 1) * ampelTempBlockCells > height
+          ? height
+          : (by + 1) * ampelTempBlockCells;
+      final rowStart = by * ampelTempBlockCells;
+      final lat = probe.latAtRow((rowStart + rowEnd) / 2);
+      final cornerLat = probe.latAtRow(rowStart.toDouble());
+      for (var bx = 0; bx < blocksX; bx++) {
+        final colEnd = (bx + 1) * ampelTempBlockCells > width
+            ? width
+            : (bx + 1) * ampelTempBlockCells;
+        final colStart = bx * ampelTempBlockCells;
+        final lon = probe.lonAtColumn((colStart + colEnd) / 2);
+        final reach = distanceKm(
+            lat, lon, cornerLat, probe.lonAtColumn(colStart.toDouble()));
+        var bestKm = double.infinity;
+        for (final s in competing) {
+          final km = distanceKm(lat, lon, lats[s], lons[s]);
+          fromCentre[s] = km;
+          if (km < bestKm) bestKm = km;
+        }
+        final limit = bestKm + 2 * reach + _candidateMarginKm;
+        start[by * blocksX + bx] = list.length;
+        for (final s in competing) {
+          if (fromCentre[s] <= limit) list.add(s);
+        }
       }
     }
+    start[blocksX * blocksY] = list.length;
+    return (start: start, of: Int32List.fromList(list));
   }
-  candidateStart[blocksX * blocksY] = candidates.length;
-  final candidateOf = Int32List.fromList(candidates);
+
+  final airCandidates = candidatesFor(stationLat, stationLon, competing);
+  final candidateStart = airCandidates.start;
+  final candidateOf = airCandidates.of;
+  final moisture = moistureCompeting.isEmpty
+      ? null
+      : candidatesFor(moistureLat, moistureLon, moistureCompeting);
 
   // Die Zutaten je Zelle. `valid` 0 heißt „keine Aussage" — zu wenige
   // Regentage, keine Station in Reichweite oder eine zu lückige
@@ -262,6 +297,8 @@ AmpelLevelGrid? ampelLevelsFrom(RainStackData stack, WeatherTable? table) {
   final cellMean = Float32List(width * height);
   final cellStationHeight = Int16List(width * height);
   final cellValid = Uint8List(width * height);
+  final cellMoisture = Float32List(width * height);
+  final cellMoistureValid = Uint8List(width * height);
   final cellLon = Float64List(width);
   for (var x = 0; x < width; x++) {
     cellLon[x] = probe.lonAtColumn(x + 0.5);
@@ -292,6 +329,31 @@ AmpelLevelGrid? ampelLevelsFrom(RainStackData stack, WeatherTable? table) {
       cellMean[i] = stationMean[best];
       cellStationHeight[i] = stationHeight[best];
       cellValid[i] = 1;
+      // Die Feuchtestation ist ein eigenes Netz: die nächste antretende,
+      // in Reichweite, mit vollständiger Reihe — sonst bleibt die Zelle
+      // für die Logit-Klassen ohne Antwort, und die Glocken-Klassen
+      // rechnen weiter.
+      if (moisture != null) {
+        var bestMoistureKm = double.infinity;
+        var bestMoisture = -1;
+        for (var c = moisture.start[block];
+            c < moisture.start[block + 1];
+            c++) {
+          final s = moisture.of[c];
+          final km =
+              distanceKm(lat, cellLon[x], moistureLat[s], moistureLon[s]);
+          if (km < bestMoistureKm) {
+            bestMoistureKm = km;
+            bestMoisture = s;
+          }
+        }
+        if (bestMoisture >= 0 &&
+            bestMoistureKm <= WeatherTable.maxStationKm &&
+            moistureAnswers[bestMoisture] == 1) {
+          cellMoisture[i] = moistureMean[bestMoisture];
+          cellMoistureValid[i] = 1;
+        }
+      }
     }
   }
   return AmpelLevelGrid(
@@ -299,6 +361,8 @@ AmpelLevelGrid? ampelLevelsFrom(RainStackData stack, WeatherTable? table) {
     meanC: cellMean,
     stationHeightM: cellStationHeight,
     valid: cellValid,
+    moistureMean: cellMoisture,
+    moistureValid: cellMoistureValid,
     width: width,
     height: height,
     west: info.west,
@@ -317,6 +381,8 @@ class AmpelLevelGrid {
     required this.meanC,
     required this.stationHeightM,
     required this.valid,
+    this.moistureMean,
+    this.moistureValid,
     required this.width,
     required this.height,
     required this.west,
@@ -339,6 +405,12 @@ class AmpelLevelGrid {
   /// 1 = Aussage möglich; 0 deckt alle drei Gründe ab (Regen lückig,
   /// keine Station, Stationsreihe lückig).
   final Uint8List valid;
+
+  /// Das 26-Tage-Mittel der Bodenfeuchte der nächsten Station je Zelle
+  /// (% nFK) und ob es eins gibt — die dritte Zutat der Logit-Klassen.
+  /// `null` in Gittern ohne Feuchtenetz (ältere Tabellen, Tests).
+  final Float32List? moistureMean;
+  final Uint8List? moistureValid;
   final int width;
   final int height;
   final double west;
@@ -419,8 +491,14 @@ class AmpelLevelGrid {
     // trägt die Zutaten und ist teuer (Isolate, 26 Entpackungen) —
     // hinge die Auswahl darin, würfe jeder Chip-Tipp es weg. So kostet
     // ein Tipp nur das neue Bild.
+    final moisture = moistureValid != null && moistureValid![i] == 1
+        ? moistureMean![i].toDouble()
+        : null;
     return ampelBestOf(
-            rainFactor: rainFactor[i], meanC: mean, classes: classes)
+            rainFactor: rainFactor[i],
+            meanC: mean,
+            classes: classes,
+            moistureMean: moisture)
         .level;
   }
 }

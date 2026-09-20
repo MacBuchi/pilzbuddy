@@ -125,10 +125,33 @@ WeatherTable tableOfStations(List<TestStation> stations) {
         },
     ],
     'soil': const [],
+    // **Seit 1.151.0 auch das Feuchtenetz**, an denselben Punkten und mit
+    // einem festen Wert: So rechnen Fläche und Blatt auch die
+    // Logit-Klassen — und der Walker unten prüft sie mit (#279).
+    'moisture_days': [
+      for (var i = 0; i < 26; i++)
+        iso(DateTime.utc(2026, 7, 1).add(Duration(days: i))),
+    ],
+    'moisture': [
+      for (final (index, station) in stations.indexed)
+        {
+          'id': index + 1,
+          'lat': station.lat,
+          'lon': station.lon,
+          'h': 300,
+          'name': 'Feuchtestation ${index + 1}',
+          'bfgl': List.filled(26, testMoistureNfk),
+        },
+    ],
   };
   return weatherTableFrom(
       GZipEncoder().encode(utf8.encode(jsonEncode(json)))!)!;
 }
+
+/// Die Bodenfeuchte aller Teststationen, in % nFK — ein mittlerer Wert,
+/// bei dem „Austernseitling & Co." über die Temperatur alle drei Stufen
+/// erreicht (13 °C günstig, 19 °C verhalten, 26 °C ungünstig).
+const testMoistureNfk = 55.0;
 
 /// Eine einzelne Luftstation mit konstantem Tagesmittel [meanC].
 ///
@@ -143,7 +166,13 @@ WeatherTable tableOf(
 void main() {
   /// Die Stufe der Zelle [x] in der einzigen Zeile — `null` heißt
   /// „keine Aussage" (zu wenige Regentage, keine Station in Reichweite).
-  AmpelLevel? levelOf(AmpelLevelGrid grid, int x) => grid.levelFor(0, x, classes: ampelShippedClasses);
+  // Die Regen-Tests unten prüfen das Herbstmodell je Zelle gegen
+  // `ampelLevelOf(klass: ampelHerbstClass, …)` — also auch nur mit ihm.
+  // Seit die Testtabelle ein Feuchtenetz trägt (1.151.0), rechneten alle
+  // Klassen mit, und „Austernseitling & Co." hebt bei 13 °C und 55 % nFK
+  // schon wenig Regen auf „verhalten".
+  AmpelLevel? levelOf(AmpelLevelGrid grid, int x) =>
+      grid.levelFor(0, x, classes: const [ampelHerbstClass]);
 
   test('je Zelle exakt die Stufe, die das Modell für ihre Reihe nennt',
       () {

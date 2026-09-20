@@ -221,7 +221,9 @@ void main() {
       // ab, er wählt nicht an.
       expect(c.read(spotFilterProvider).classes, isEmpty);
       notifierOf(c).toggleClass('sommer');
-      expect(c.read(spotFilterProvider).classes, {'herbst'});
+      // Seit 1.151.0 vier Gruppen: eine abgewählt, drei bleiben.
+      expect(c.read(spotFilterProvider).classes,
+          {'herbst', 'holz_winter', 'cantharellales'});
       notifierOf(c).toggleClass('sommer');
       expect(c.read(spotFilterProvider).classes, isEmpty,
           reason: 'wieder alle heißt wieder „kein Filter"');
@@ -233,7 +235,9 @@ void main() {
       // dieselbe Frage.
       final c = ProviderContainer();
       addTearDown(c.dispose);
-      notifierOf(c).toggleClass('sommer');
+      for (final key in const ['sommer', 'holz_winter', 'cantharellales']) {
+        notifierOf(c).toggleClass(key);
+      }
       notifierOf(c).toggleClass('herbst');
       expect(c.read(spotFilterProvider).classes, {'herbst'});
     });
@@ -252,7 +256,11 @@ void main() {
       addTearDown(c.dispose);
       expect(c.read(selectedAmpelClassesProvider), ampelShippedClasses);
       notifierOf(c).toggleClass('sommer');
-      expect(c.read(selectedAmpelClassesProvider), [ampelHerbstClass]);
+      expect(c.read(selectedAmpelClassesProvider), [
+        ampelHerbstClass,
+        ampelHolzWinterClass,
+        ampelCantharellalesClass,
+      ]);
     });
 
     test('„Alle Arten" räumt die Arten weg, nicht „Nur meine"', () {

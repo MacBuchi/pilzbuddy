@@ -431,7 +431,11 @@ void main() {
     expect(find.text('Pfifferling'), findsOneWidget,
         reason: 'ungefiltert nennt die Legende beide Gruppen');
 
-    container.read(spotFilterProvider.notifier).toggleClass('sommer');
+    // Alles außer „Steinpilz & Co." abwählen — seit 1.151.0 sind es vier
+    // Gruppen, und Chip wie Blatt nennen die EINE, die bleibt.
+    for (final key in const ['sommer', 'holz_winter', 'cantharellales']) {
+      container.read(spotFilterProvider.notifier).toggleClass(key);
+    }
     await settle(tester);
     expect(find.text('Steinpilz & Co.'), findsOneWidget);
     expect(find.text('Pfifferling'), findsNothing);
@@ -592,7 +596,7 @@ void main() {
     for (final klass in ampelShippedClasses) {
       expect(
           find.textContaining('${klass.name} · '
-              '${klass.optimumC.toStringAsFixed(1).replaceAll('.', ',')} °C'),
+              '${ampelClassWindowWord(klass)}'),
           findsOneWidget,
           reason: '${klass.name} fehlt in der Auflistung');
     }
@@ -621,7 +625,11 @@ void main() {
     await pumpApp(tester, backend, settings: settings);
     final container = ProviderScope.containerOf(
         tester.element(find.byType(Scaffold).first));
-    container.read(spotFilterProvider.notifier).toggleClass('sommer');
+    // Alles außer „Steinpilz & Co." abwählen — seit 1.151.0 sind es vier
+    // Gruppen, und Chip wie Blatt nennen die EINE, die bleibt.
+    for (final key in const ['sommer', 'holz_winter', 'cantharellales']) {
+      container.read(spotFilterProvider.notifier).toggleClass(key);
+    }
     await settle(tester);
 
     await openLayerSheet(tester, 'Pilzampel');
