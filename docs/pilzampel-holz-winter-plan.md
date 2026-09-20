@@ -1,4 +1,4 @@
-# Pilzampel — Zuschnitt: die Klasse „Judasohr & Co.“ und Pfifferling 14,5 °C
+# Pilzampel — Zuschnitt: die Klasse „Austernseitling & Co.“ und Pfifferling 14,5 °C
 
 Stand: 2026-09-20. Plan vor Implementierung; nichts hiervon ist gebaut.
 Grundlage sind die Läufe 11–18 des privaten Labors (`pilzbuddy-lab`,
@@ -249,7 +249,7 @@ und schreibt das Datum dazu.
 |---|---|---|
 | #482 (PR 1) | offen | Bodenfeuchte-Stationen in Tabelle und Spot-Blatt, 1.149.0 |
 | #485 (PR 2) | offen | `tool/ampel_logit_klasse.py` (Spiegel, Schwellen gemessen und gepinnt), **Pfifferling 14,5 °C** samt neu gemessener Schwellen und Evidenzstufe `vorlaeufig`, 1.150.0 — Pfifferling ist von PR 3 hierher gewandert, weil `ampel_validate --self-test` Werkzeug und Dart zusammenhält und ein Werkzeug-only-PR sonst rot wäre |
-| PR 3 | folgt | `AmpelLogitClass`, beide Klassen, Herbsttrompete-Umzug + `herbst`-Schwellen neu, Fläche mit Feuchtestation je Zelle, Evidenzstufen, Changelog |
+| #486 (PR 3) | offen | `AmpelLogit` + `logit` an `AmpelClass`, beide Klassen, Herbsttrompete-Umzug + `herbst`-Schwellen neu (0,393 / 0,747), Fläche mit Feuchtestation je Zelle, klassenspezifisches Grau, Evidenzstufen, Changelog, 1.151.0 |
 | PR 4 | Vorschlag | **Reiter „Pilze“**: die Klassen und ihre Arten, je Art eine Mini-Saisonkurve, hervorgehoben, was gerade Saison hat (Kurve über einer Schwelle, z. B. 15 %). Damit bleibt für den Nutzer transparent, was wozu gehört. Eigener Plan vor der Umsetzung. |
 
 Reihenfolge beim Mergen: #482, dann #485 (trägt 1.150.0; wer #485 zuerst
