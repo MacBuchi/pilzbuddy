@@ -174,20 +174,8 @@ class _SpotDetailSheet extends ConsumerWidget {
   /// jüngsten Fund zu richten hieße, dass ein Knopf mit dem Spot-Namen
   /// woandershin führt — und sein Ziel mit jedem neuen Fund wanderte.
   Future<void> _navigateToPoint(
-      BuildContext context, double lat, double lng, String label) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final outcome =
-        await openInNavigationApp(lat: lat, lng: lng, label: label);
-    if (outcome == SpotNavigationOutcome.opened) return;
-    final coordinates = formatCoordinates(lat, lng);
-    messenger
-      ..clearSnackBars()
-      ..showSnackBar(SnackBar(
-        content: Text(outcome == SpotNavigationOutcome.copiedNoNaviApp
-            ? 'Keine Navi-App gefunden — Koordinaten kopiert: $coordinates'
-            : 'Koordinaten kopiert: $coordinates'),
-      ));
-  }
+          BuildContext context, double lat, double lng, String label) =>
+      navigateToPoint(context, lat: lat, lng: lng, label: label);
 
   /// Öffnet das Korrektur-Blatt für Name und Stelle (#466).
   ///

@@ -95,7 +95,10 @@ const kHelpSteps = <HelpStep>[
         'Pilzampel. Die kleine Zahl am Knopf sagt, wie viele gerade an '
         'sind; was ihre Farben bedeuten, steht links unten in der '
         'Legende — ein Tipp klappt sie ein und wieder aus. Mit '
-        '„Filter" blendest du Spots nach Art oder Zeit aus.',
+        '„Filter" blendest du Spots nach Art oder Zeit aus. '
+        'Hältst du irgendwo auf der Karte gedrückt, fragt dich ein '
+        'kleines Menü, ob du wissen willst, was dort ist, dorthin '
+        'navigieren oder heranzoomen möchtest.',
   ),
   HelpStep(
     icon: TourIcon(size: 24),
