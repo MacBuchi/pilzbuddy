@@ -4,6 +4,8 @@
 // Art verliert ihre Ampel, weil sie auf „vorläufig" steht. Geprüft wird
 // hier deshalb beides — dass die Stufe ankommt UND dass sie nichts
 // verdeckt.
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/features/ampel/ampel_model.dart';
@@ -26,27 +28,35 @@ void main() {
       // Zahlen schlecht wären; sie sind die besten der Tabelle.
       expect(ampelEvidenceFor('Herbsttrompete'),
           AmpelEvidence.vorlaeufig);
+      // Der Pfifferling seit dem 2026-09-20: Sein Fenster ist auf 14,5 °C
+      // GESETZT, nicht per Hold-out belegt — also „vorläufig", obwohl
+      // seine 17,5 °C den Hold-out bestanden hatten.
+      expect(ampelEvidenceFor('Pfifferling'), AmpelEvidence.vorlaeufig);
       for (final art in const [
         'Steinpilz',
         'Maronenröhrling',
         'Birkenpilz',
         'Fichtenreizker',
-        'Pfifferling',
       ]) {
         expect(ampelEvidenceFor(art), AmpelEvidence.belegt, reason: art);
       }
     });
 
-    test('genau eine Art steht auf vorläufig', () {
+    test('vorläufig bleibt die Minderheit', () {
       // **Der Grund für N7s „keine Warnung pro Art".** Fünf Hinweise auf
       // sechs Arten lesen sich wie „kaputt", und dann wird auch der
-      // belastbare Teil abgewertet. Nach der Neuvergabe nach N1 ist es
-      // eine — wäre es je wieder die Mehrheit, gehört die Darstellung
-      // neu entschieden und nicht stillschweigend weitergeführt.
-      final vorlaeufig = ampelEvidenceBySpecies.values
-          .where((e) => e == AmpelEvidence.vorlaeufig)
-          .length;
-      expect(vorlaeufig, 1);
+      // belastbare Teil abgewertet. Nach der Neuvergabe nach N1 war es
+      // eine (Herbsttrompete); seit dem 2026-09-20 sind es zwei, weil
+      // das Pfifferling-Fenster gesetzt und nicht belegt ist. Wäre es je
+      // die Mehrheit, gehört die Darstellung neu entschieden und nicht
+      // stillschweigend weitergeführt.
+      final vorlaeufig = ampelEvidenceBySpecies.entries
+          .where((e) => e.value == AmpelEvidence.vorlaeufig)
+          .map((e) => e.key)
+          .toSet();
+      expect(vorlaeufig, {'Herbsttrompete', 'Pfifferling'});
+      expect(vorlaeufig.length * 2, lessThan(ampelEvidenceBySpecies.length),
+          reason: 'die Minderheit — sonst ist die Darstellung neu zu entscheiden');
     });
 
     test('Arten ohne Ampel haben keine Stufe', () {
@@ -87,6 +97,29 @@ void main() {
         expect(wort.toLowerCase(), isNot(contains('achtung')));
         expect(wort.toLowerCase(), isNot(contains('warn')));
       }
+    });
+
+    test('die Bezugsmenge und der Hebel stehen im Fließtext', () {
+      // **Betreiberauflage vom 2026-09-19.** Ohne die Bezugsmenge
+      // bedeutet „günstig" nichts Bestimmtes, und ohne den Hebel klingt
+      // es nach einer Zusage. Beides gehört neben die Evidenzstufe,
+      // nicht in eine Fußnote — geprüft wird deshalb, dass es im
+      // Feature-Satz steht und nicht bloß irgendwo im Code.
+      final quelle = File('lib/features/spots/widgets/ampel_section.dart')
+          .readAsStringSync();
+      final satz = quelle
+          .split("'Bewertet Bedingungen, nicht Vorkommen")
+          .last
+          .split(';')
+          .first;
+      expect(satz, contains('jeder fünfte Tag der Saison'),
+          reason: 'die Bezugsmenge fehlt — dann ist „günstig" keine '
+              'bestimmte Aussage mehr');
+      expect(satz, contains('1,3-mal'),
+          reason: 'der Hebel fehlt — er ist die ehrliche Größe hinter '
+              'der Anzeige');
+      expect(satz, isNot(contains('%')),
+          reason: 'Prozente stehen nirgends im Blatt (#298)');
     });
 
     testWidgets('die Stufe steht in der Fakten-Zeile der Art',

@@ -29,6 +29,40 @@ diagnostiziert; ein Ergebnis von dort ist nie ein Beleg.
 
 ---
 
+## Was auf einer Achse KEINE Achse verbraucht
+
+**Beschreibende Statistiken, die von keiner Schwelle abhängen** — seit
+dem 2026-09-19 (Betreiberentscheidung, Auftrag 3 A).
+
+Der Grund ist, dass **Schwelle und gepaarte AUC disjunkte Statistiken**
+sind. Die AUC ist rangbasiert: Sie zählt, wie oft ein Fundtag seinen
+Kontrolltag schlägt, und kennt keine Schwelle. Eine aus P1 gezogene
+Schwelle kann deshalb keinen bisherigen und keinen künftigen AUC-Test
+berühren — es gibt dort keine Latte, kein Band und nichts zu bestehen.
+Beschrieben wird eine Verteilung, nicht ausgewählt.
+
+Und für eine Schwelle ist P1 sogar die richtige Scheibe: Die App steht
+heute, nicht 2012. Die Zeitscheibe allein macht beim Pfifferling über
+ein Drittel des gemessenen Sprungs aus
+(`pilzampel-schwellen-designb.md`).
+
+### Die Gegenregel, und sie ist scharf
+
+> **Schwellenabhängige Gütemaße sind auf P1 gesperrt** — Trefferquote,
+> POD, FAR, TSS und der Hebel. Wer so etwas braucht, rechnet es auf
+> AT+CH.
+
+Sobald ein Maß eine Schwelle BENUTZT, um Fundtage zu bewerten, ist es
+kein Verteilungsbefund mehr, sondern eine Güte — und dann entschiede
+die ausgelieferte Zahl mit, wie gut die Ampel aussieht. Dort wäre die
+Kontamination echt.
+
+Der Riegel steht im Code, nicht nur hier: `verbiete_schwellenmass` in
+`tool/ampel_diagnose.py` bricht den Lauf ab, und auf P1 werden die
+Fundtage gar nicht erst bewertet.
+
+---
+
 ## Strichliste
 
 | # | Datum | Was geprüft wurde | Achse | Ausgang | Beleg |
@@ -43,20 +77,21 @@ diagnostiziert; ein Ergebnis von dort ist nie ein Beleg.
 | 8 | 2026-09-18 | Kaltklasse erneut, auf der gepinnten Messbasis | **AT + CH** (Wiederholung von #4) | nicht bestanden, Begründung von #4 trägt nicht mehr | `pilzampel-messbasis.md` |
 | 9 | 2026-09-18 | H1: σ = 3,25 K gegen 5,0 K | DE ≥ 2019 (P1) | **nicht bestanden** | `pilzampel-h1-ergebnis.md` |
 | 10 | 2026-09-18 | H1, Reisetest derselben Frage | **AT + CH** (P2) | Pfifferling kippt nach unten | `pilzampel-h1-ergebnis.md` |
+| 11 | 2026-09-19 | H6: Sommer-Optimum 14,0 °C statt 17,5 °C | **AT + CH** | **nicht bestanden** — Δ +0,014, p = 0,29, und 9 von 20 Fundjahren bewegen sich in die Gegenrichtung | `pilzampel-h6-ergebnis.md` |
 
 ### Stand je Achse
 
 | Achse | Läufe | davon bestanden |
 |---|--:|--:|
 | DE ≥ 2019 | 3 (#1, #3, #9) | 1½ |
-| **AT + CH** | **5** (#2, #4, #5, #8, #10) | 1 |
+| **AT + CH** | **6** (#2, #4, #5, #8, #10, #11) | 1 |
 | fremde Arten | 1 (#7) | 0 — der Plan war fehlerhaft |
 
 ---
 
 ## Was diese Liste sagt
 
-**AT + CH ist die meistbenutzte und die knappste Achse.** Fünf Läufe,
+**AT + CH ist die meistbenutzte und die knappste Achse.** Sechs Läufe,
 davon #8 eine Wiederholung von #4 auf neuer Messbasis. Die
 Meldungszahlen dort sind klein (Austernseitling 288, Samtfußrübling 367),
 und jede weitere Frage macht die verbleibenden enger — nicht rechnerisch,
@@ -117,6 +152,20 @@ Beobachtung, die eine Zeitscheibe weiter nicht mehr da ist.
 | Datum | Frage | Ausgang | Beleg |
 |---|---|---|---|
 | 2026-09-19 | Trägt die Glocke etwas bei? Zerlegung auf P3 | **H5 nicht registriert** — 1 von 6 statt 5 von 6 | `pilzampel-h5-vorpruefung-ergebnis.md` |
+| 2026-09-19 | Wo lägen die Schwellen an Design-B-Kontrolltagen? (Auftrag 3 A) | Vorlage, nichts übernommen — die ausgelieferten Schwellen greifen an B-Tagen 1,7-mal so oft wie vorgesehen | `pilzampel-schwellen-designb.md` |
+| 2026-09-19 | Alterung: dieselbe Zerlegung auf geteilten Anpassjahren | die Glocke altert nicht, der Einbruch liegt in den Prüfjahren | `pilzampel-alterung.md` |
+| 2026-09-19 | H6: hält das Sommer-Optimum still? (Auftrag 3 B) | **H6 nicht registriert** — V1 gefallen (Gitter 15,00 gegen Logit 13,16 °C); das harte Abbruchkriterium V2 hat gehalten | `pilzampel-h6-vorpruefung-ergebnis.md` |
+| 2026-09-19 | Antwortkurven und Verteilungen als Bild | rein beschreibend — der Temperaturzusammenhang ist massiv, und Design B misst ihn bauartbedingt nicht | `pilzampel-bilder.md` |
+| 2026-09-19 | **Bodenfeuchte**, erste Auswertung überhaupt | roh besser als der Regenfaktor bei 6 von 6 Arten | `pilzampel-bodenfeuchte.md` |
+
+### Diagnosen auf P1 (kosten ebenfalls keine Achse)
+
+Nur, was von keiner Schwelle abhängt — die Begründung steht oben unter
+„Was auf einer Achse KEINE Achse verbraucht".
+
+| Datum | Frage | Ausgang | Beleg |
+|---|---|---|---|
+| 2026-09-19 | Wo liegen die Schwellen an Design-B-Kontrolltagen der Prüfjahre? | **übernommen in 1.144.0** — 0,389/0,742 und 0,385/0,729 | `pilzampel-schwellen-designb-p1.md` |
 
 ## Folge für die nächste Hypothese
 

@@ -72,11 +72,21 @@ typedef AmpelClass = ({
 /// stünden 110 Einträge da, von denen keiner mehr prüfbar ist. Zwischen
 /// den Fenstern liegen dagegen Welten (0,512 gegen 0,038 beim
 /// Austernseitling).
+///
+/// **Die Schwellen sind am 2026-09-19 neu gesetzt worden** (Auftrag 3 A,
+/// `docs/pilzampel-schwellen-designb-p1.md`) — vorher 0,187 und 0,512.
+/// Geändert hat sich nicht das Modell, sondern die Tage, gegen die
+/// gemessen wird: Die alten Zahlen waren an Vergleichstagen 26 bis 45
+/// Tage NEBEN dem Fund geeicht, also zum Teil außerhalb der Saison, wo
+/// die Glocke ohnehin niedrig steht. Gegen Tage am selben Ort zur
+/// selben Jahreszeit anderer Jahre gemessen, stand die Ampel dadurch an
+/// 35 bis 38 Prozent der Saisontage auf „günstig" — gedacht war etwa
+/// jeder fünfte.
 const ampelHerbstClass = (
   name: 'Steinpilz & Co.',
   optimumC: ampelOptimumC,
-  verhaltenAbove: 0.187,
-  guenstigAbove: 0.512,
+  verhaltenAbove: 0.389,
+  guenstigAbove: 0.742,
 );
 
 /// Der Pfifferling ist ein Sommerfrüchter — Gipfel im Juli, nicht im
@@ -86,11 +96,23 @@ const ampelHerbstClass = (
 /// Kontrolle 0,510 (`docs/pilzampel-artenfenster-holdout.md`). Ohne
 /// diesen Nachweis stünde er hier nicht: Gemessen wurde er, weil er in
 /// einer Tabelle auffiel, und das allein ist kein Befund.
+///
+/// **Seit dem 2026-09-20 steht das Fenster auf 14,5 °C — eine
+/// Betreiberentscheidung, kein Befund.** Das Labor (Design B, DE + AT/CH)
+/// sah das Vorzeichen fünfmal von fünf positiv, aber nie gesichert:
+/// DE-Test +0,035 [−0,012, +0,079], AT/CH +0,066 [+0,004, +0,135], und
+/// die AUC auf dem DE-Test ging leicht zurück
+/// (`docs/pilzampel-holz-winter-plan.md`, §1B). „Kleine Schritte" — und
+/// deshalb steht der Pfifferling seither auf `vorlaeufig`: Die Klasse
+/// hat ihren bestätigten Hold-out mit der Änderung verlassen. Die
+/// Schwellen sind unter dem neuen Fenster neu gemessen (Design B, P1,
+/// `docs/pilzampel-schwellen-designb-p1.md`; unter 17,5 °C waren es
+/// 0,385 und 0,729).
 const ampelSommerClass = (
   name: 'Pfifferling',
-  optimumC: 17.5,
-  verhaltenAbove: 0.287,
-  guenstigAbove: 0.677,
+  optimumC: 14.5,
+  verhaltenAbove: 0.348,
+  guenstigAbove: 0.669,
 );
 
 const ampelClasses = <String, AmpelClass>{
@@ -244,7 +266,9 @@ const ampelEvidenceBySpecies = <String, AmpelEvidence>{
   'Birkenpilz': AmpelEvidence.belegt,
   'Fichtenreizker': AmpelEvidence.belegt,
   'Herbsttrompete': AmpelEvidence.vorlaeufig,
-  'Pfifferling': AmpelEvidence.belegt,
+  // Seit dem 2026-09-20: Fenster auf 14,5 °C gesetzt, ohne Hold-out
+  // dafür — siehe [ampelSommerClass].
+  'Pfifferling': AmpelEvidence.vorlaeufig,
 };
 
 /// Die Stufe einer Art — `null`, wo es keine Ampel gibt.

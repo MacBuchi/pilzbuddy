@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 380" width="720" height="380" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+<rect width="720" height="380" fill="#ffffff"/>
+<text x="62" y="22" font-size="14" font-weight="600" fill="#222222">Pfifferling: Bei welcher Temperatur wird überhaupt gefunden?</text>
+<text x="62" y="38" font-size="11" fill="#777777">Über 1 heißt: bei dieser Temperatur wird häufiger gemeldet, als es solche Tage überhaupt gibt. Beschreibung, kein Modell.</text>
+<text x="14" y="175.0" font-size="11" fill="#777777" text-anchor="middle" transform="rotate(-90 14 175.0)">Fundtage je Vergleichstag</text>
+<text x="382.0" y="342" font-size="11" fill="#777777" text-anchor="middle">20-Tage-Mittel der Temperatur (°C)</text>
+<line x1="62" y1="306.0" x2="702" y2="306.0" stroke="#dddddd" stroke-width="1"/>
+<text x="54" y="310.0" font-size="11" fill="#777777" text-anchor="end">0</text>
+<line x1="62" y1="241.0" x2="702" y2="241.0" stroke="#dddddd" stroke-width="1"/>
+<text x="54" y="245.0" font-size="11" fill="#777777" text-anchor="end">0,5</text>
+<line x1="62" y1="176.1" x2="702" y2="176.1" stroke="#dddddd" stroke-width="1"/>
+<text x="54" y="180.1" font-size="11" fill="#777777" text-anchor="end">1</text>
+<line x1="62" y1="111.1" x2="702" y2="111.1" stroke="#dddddd" stroke-width="1"/>
+<text x="54" y="115.1" font-size="11" fill="#777777" text-anchor="end">1,5</text>
+<line x1="62" y1="46.2" x2="702" y2="46.2" stroke="#dddddd" stroke-width="1"/>
+<text x="54" y="50.2" font-size="11" fill="#777777" text-anchor="end">2</text>
+<text x="165.2" y="323" font-size="11" fill="#777777" text-anchor="middle">0</text>
+<text x="371.7" y="323" font-size="11" fill="#777777" text-anchor="middle">10</text>
+<text x="578.1" y="323" font-size="11" fill="#777777" text-anchor="middle">20</text>
+<line x1="62" y1="306" x2="702" y2="306" stroke="#444444" stroke-width="1.4"/>
+<path d="M62.0,176.1 L702.0,176.1" fill="none" stroke="#777777" stroke-width="1.4" stroke-linejoin="round" stroke-dasharray="6 4"/>
+<rect x="207.5" y="287.6" width="29.1" height="18.4" fill="#2e7d32" fill-opacity="0.55"/>
+<rect x="236.5" y="234.3" width="29.1" height="71.7" fill="#2e7d32" fill-opacity="0.55"/>
+<rect x="265.6" y="200.4" width="29.1" height="105.6" fill="#2e7d32" fill-opacity="0.55"/>
+<rect x="294.7" y="241.5" width="29.1" height="64.5" fill="#2e7d32" fill-opacity="0.55"/>
+<rect x="323.8" y="245.8" width="29.1" height="60.2" fill="#2e7d32" fill-opacity="0.55"/>
+<rect x="352.9" y="256.1" width="29.1" height="49.9" fill="#2e7d32" fill-opacity="0.55"/>
+<rect x="382.0" y="201.0" width="29.1" height="105.0" fill="#2e7d32" fill-opacity="0.55"/>
+<rect x="411.1" y="130.1" width="29.1" height="175.9" fill="#2e7d32" fill-opacity="0.55"/>
+<rect x="440.2" y="165.6" width="29.1" height="140.4" fill="#2e7d32" fill-opacity="0.55"/>
+<rect x="469.3" y="87.7" width="29.1" height="218.3" fill="#2e7d32" fill-opacity="0.55"/>
+<rect x="498.4" y="144.4" width="29.1" height="161.6" fill="#2e7d32" fill-opacity="0.55"/>
+<rect x="527.5" y="167.2" width="29.1" height="138.8" fill="#2e7d32" fill-opacity="0.55"/>
+<rect x="556.5" y="183.9" width="29.1" height="122.1" fill="#2e7d32" fill-opacity="0.55"/>
+<rect x="585.6" y="272.0" width="29.1" height="34.0" fill="#2e7d32" fill-opacity="0.55"/>
+<rect x="614.7" y="289.9" width="29.1" height="16.1" fill="#2e7d32" fill-opacity="0.55"/>
+<line x1="526.5" y1="306.0" x2="526.5" y2="44.0" stroke="#c62828" stroke-width="1.8" stroke-dasharray="5 3"/>
+<text x="521.5" y="56" font-size="11" fill="#c62828" text-anchor="end">Glocke der App: 17,5 °C</text>
+<line x1="62" y1="364" x2="78" y2="364" stroke="#777777" stroke-width="2.4"/>
+<text x="83" y="368" font-size="11" fill="#222222">1,0 — so häufig wie die Tage selbst</text>
+<rect x="319.0" y="359" width="16" height="10" fill="#2e7d32" fill-opacity="0.75"/>
+<text x="340.0" y="368" font-size="11" fill="#222222">Fundtage je Vergleichstag</text>
+</svg>

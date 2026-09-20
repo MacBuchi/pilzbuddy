@@ -263,9 +263,12 @@ void main() {
     // Der Pfifferling ist Sommerfrüchter mit Gipfel im Juli; sein
     // Fenster ist die einzige Art-Abweichung, die den geografischen
     // Hold-out bestanden hat (docs/pilzampel-artenfenster-holdout.md).
+    // 10,5 °C (seit dem Fenster 14,5 °C, 2026-09-20; vorher 13,5 gegen
+    // 17,5): Herbstglocke 0,78 — günstig; Pfifferling-Glocke exp(-0,64)
+    // = 0,527 — „verhalten" und unter 0,6, also „zu kühl".
     await pumpWithWeather(
         tester, loggedInWithSpot(species: 'Pfifferling'),
-        preview: true, meanC: 13.5);
+        preview: true, meanC: 10.5);
     await openSpot(tester);
     await acceptAndSettle(tester);
     expect(find.textContaining(': verhalten'), findsOneWidget,
@@ -273,12 +276,11 @@ void main() {
             'die Klasse im Modellkern eine Zahl ohne Wirkung');
     expect(find.textContaining('für Pfifferling'), findsOneWidget);
     // **Und die Fakten-Zeile misst gegen DIESES Fenster.** Gegen 13 °C
-    // gerechnet stünde hier „zu warm", während die Stufe darüber sagt,
+    // gerechnet stünde hier „passt", während die Stufe darüber sagt,
     // die Bedingungen seien noch nicht günstig — die Zeile widerspräche
     // der Ampel, auf die sie sich bezieht.
-    expect(find.textContaining('zu kühl (13,5 °C)'), findsOneWidget,
-        reason: '13,5 °C ist für einen 17,5-°C-Pilz zu kühl, nicht zu '
-            'warm');
+    expect(find.textContaining('zu kühl (10,5 °C)'), findsOneWidget,
+        reason: '10,5 °C ist für einen 14,5-°C-Pilz zu kühl');
   });
 
   testWidgets('mehrere Arten am Spot: eine Zeile je Art', (tester) async {
@@ -290,12 +292,13 @@ void main() {
     // einen hergeführt hat — dieselbe Regel wie zwischen Fläche und
     // Blatt (#279), eine Ebene tiefer.
     //
-    // 13,5 °C: Steinpilz günstig (0,990), Pfifferling verhalten (0,527).
+    // 10,5 °C: Steinpilz günstig (Glocke 0,78), Pfifferling verhalten
+    // (0,527) — seit dem Fenster 14,5 °C; bei 13,5 wären beide günstig.
     await pumpWithWeather(
         tester,
         loggedInWithSpot(species: 'Steinpilz', alsoSpecies: 'Pfifferling'),
         preview: true,
-        meanC: 13.5);
+        meanC: 10.5);
     await openSpot(tester);
     await acceptAndSettle(tester);
 
@@ -313,19 +316,26 @@ void main() {
   testWidgets('Höhenkorrektur: die Zeile rechnet auf Spothöhe um '
       'und sagt es', (tester) async {
     // Station Erfurt-Weimar liegt auf 316 m, der Spot laut Gitter auf
-    // 1200 m: (316 − 1200) · 0,65/100 = −5,746 K — aus 13,0 °C werden
-    // 7,3 °C, die Glocke fällt auf 0,267 und die Stufe von „günstig"
+    // 920 m: (316 − 920) · 0,65/100 = −3,926 K — aus 13,0 °C werden
+    // 9,1 °C, die Glocke fällt auf 0,540 und die Stufe von „günstig"
     // auf „verhalten". Die Zeile MUSS die Umrechnung nennen: Eine
     // still verschobene Zahl neben dem rohen Stationsdiagramm sähe
     // aus wie ein Rechenfehler.
+    //
+    // **Die Höhe ist am 2026-09-19 von 1200 m auf 920 m gegangen.**
+    // Nicht, weil an der Korrektur etwas anders wäre, sondern weil die
+    // neuen Schwellen (verhalten ab 0,389 statt 0,187) aus den 7,3 °C
+    // von damals „ungünstig" machen — und dieser Test wie die drei
+    // darunter genau die MITTLERE Stufe braucht, sonst zeigen sie
+    // nichts mehr.
     await pumpWithWeather(tester, loggedInWithSpot(),
-        preview: true, spotHeightM: 1200);
+        preview: true, spotHeightM: 920);
     await openSpot(tester);
     await acceptAndSettle(tester);
 
     expect(find.textContaining(': verhalten'), findsOneWidget);
     expect(
-        find.textContaining('zu kühl (7,3 °C auf Spothöhe 1200 m)'),
+        find.textContaining('zu kühl (9,1 °C auf Spothöhe 920 m)'),
         findsOneWidget);
   });
 
@@ -335,10 +345,10 @@ void main() {
     // Die FLÄCHE malte „günstig" (korrigiert), die Legende sagte am
     // Fadenkreuz „ungünstig" — sie war der dritte Abnehmer der
     // Ablesung, der die Spothöhe nicht übergab. Aufbau wie im
-    // Blatt-Test: Station 316 m, Gitter 1200 m → 7,3 °C → „verhalten";
+    // Blatt-Test: Station 316 m, Gitter 920 m → 9,1 °C → „verhalten";
     // unkorrigiert stünde „günstig" (13,0 °C), und genau das stand da.
     await pumpWithWeather(tester, loggedInWithSpot(),
-        preview: true, spotHeightM: 1200);
+        preview: true, spotHeightM: 920);
     await openSpot(tester);
     await acceptAndSettle(tester);
     await tester.tapAt(const Offset(20, 20)); // Blatt schließen
@@ -370,11 +380,11 @@ void main() {
     // Klassen malt, behauptete die Legende „hier: günstig", ohne sagen
     // zu können, welche Gruppe es trägt.
     //
-    // Station 316 m, Gitter 1200 m → 7,3 °C: Für „Steinpilz & Co."
+    // Station 316 m, Gitter 920 m → 9,1 °C: Für „Steinpilz & Co."
     // (13 °C) reicht das zu „verhalten", für den Pfifferling (17,5 °C)
     // nicht einmal dazu.
     await pumpWithWeather(tester, loggedInWithSpot(),
-        preview: true, spotHeightM: 1200);
+        preview: true, spotHeightM: 920);
     await openSpot(tester);
     await acceptAndSettle(tester);
     await tester.tapAt(const Offset(20, 20));
@@ -394,7 +404,7 @@ void main() {
     // darunter einzeln.
     expect(find.textContaining('hier: verhalten'), findsOneWidget);
     expect(find.text('ungünstig'), findsOneWidget,
-        reason: 'der Pfifferling kommt bei 7,3 °C nicht einmal auf '
+        reason: 'der Pfifferling kommt bei 9,1 °C nicht einmal auf '
             'verhalten — stünde er auf derselben Stufe, zeigte die '
             'Legende zweimal dasselbe und wäre keine Auskunft');
   });
@@ -406,7 +416,7 @@ void main() {
     // der Karte nicht mehr leuchtet, wäre sie die Auskunft zu einer
     // anderen Karte.
     await pumpWithWeather(tester, loggedInWithSpot(),
-        preview: true, spotHeightM: 1200);
+        preview: true, spotHeightM: 920);
     await openSpot(tester);
     await acceptAndSettle(tester);
     await tester.tapAt(const Offset(20, 20));
@@ -436,7 +446,7 @@ void main() {
     // und trägt ihr Urteil in der Form des Daumens — eine Aufzählung
     // passt dort weder hin noch dazu.
     await pumpWithWeather(tester, loggedInWithSpot(),
-        preview: true, spotHeightM: 1200);
+        preview: true, spotHeightM: 920);
     await openSpot(tester);
     await acceptAndSettle(tester);
     await tester.tapAt(const Offset(20, 20));
@@ -471,7 +481,7 @@ void main() {
     // wegnimmt, macht aus „verhalten" ein zweites „günstig", und im
     // Diff sähe das nach nichts aus.
     await pumpWithWeather(tester, loggedInWithSpot(),
-        preview: true, spotHeightM: 1200);
+        preview: true, spotHeightM: 920);
     await openSpot(tester);
     await acceptAndSettle(tester);
     await tester.tapAt(const Offset(20, 20)); // Blatt schließen
@@ -484,7 +494,7 @@ void main() {
         const LatLng(spotLat, spotLng);
     await settle(tester);
 
-    // Aufbau wie im Test darüber: Station 316 m auf 1200 m gerechnet
+    // Aufbau wie im Test darüber: Station 316 m auf 920 m gerechnet
     // ergibt „verhalten" — also der SEITLICHE Daumen.
     expect(find.textContaining('hier: verhalten'), findsOneWidget,
         reason: 'ohne diese Stufe prüft der Rest nichts');
