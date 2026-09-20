@@ -194,7 +194,7 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
         // die Kachelberechnung (#141). Details am Wächter selbst.
         cameraConstraint: const FiniteCameraConstraint(),
         onLongPress: (tapPosition, latLng) =>
-            config.onLongPress?.call(latLng),
+            config.onLongPress?.call(latLng, tapPosition.global),
         // „Zum Stehen gekommen" (#235): Gesten- und Animationsenden,
         // nicht jede Bewegung — die Fadenkreuz-Werte rechnen daraufhin.
         // Das Mausrad hat kein Ende-Ereignis, sein Einzelschritt IST

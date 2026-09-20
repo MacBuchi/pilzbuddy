@@ -45,7 +45,6 @@ import 'map_focus.dart';
 import 'widgets/ampel_layer_sheet.dart';
 import 'widgets/map_layers_sheet.dart';
 import 'widgets/map_trip_sheet.dart';
-import 'map_gestures.dart';
 import 'map_view/camera_tour.dart';
 import 'map_overlays.dart';
 import 'map_view/map_view.dart';
@@ -54,6 +53,9 @@ import 'spot_filter.dart';
 import 'widgets/add_spot_sheet.dart';
 import 'widgets/crosshair.dart';
 import 'widgets/map_banners.dart';
+import '../spots/spot_navigation.dart';
+import 'widgets/here_sheet.dart';
+import 'widgets/map_context_menu.dart';
 import 'widgets/forest_layer_sheet.dart';
 import 'widgets/terrain_layer_sheet.dart';
 import 'widgets/rain_layer_sheet.dart';
@@ -416,6 +418,29 @@ class _MapScreenState extends ConsumerState<MapScreen>
       if (e is NotSignedInException) return;
       logError('Live-Standort aktualisieren', e, st);
     });
+  }
+
+  /// Das Kontextmenü an der gedrückten Stelle (#483).
+  ///
+  /// Alle drei Ziele gab es schon: „Was ist hier?" hing bis hierher
+  /// allein in der ausgeklappten Legende (#245), die Navi-Übergabe nur
+  /// am Spot (#367), und das Heranzoomen war die alte, schalterlose
+  /// Bedeutung des langen Tipps. Neu ist nur der Weg dorthin.
+  Future<void> _openContextMenu(LatLng latLng, Offset at) async {
+    final action = await showMapContextMenu(context, at);
+    if (action == null || !mounted) return;
+    switch (action) {
+      case MapContextAction.whatIsHere:
+        await showHereSheet(context, latLng);
+      case MapContextAction.navigate:
+        // OHNE Namen: Ein Punkt auf der Karte heißt nicht, anders als
+        // ein Spot. Ein erfundenes Etikett („Kartenpunkt") stünde
+        // danach in der fremden App als Ortsname.
+        await navigateToPoint(context,
+            lat: latLng.latitude, lng: latLng.longitude);
+      case MapContextAction.zoomHere:
+        _map.move(latLng, math.max(_map.zoom, 16));
+    }
   }
 
   /// Startet die Pilztour oder beendet sie (#338).
@@ -784,7 +809,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
     // Zustand selbst — anders als bei der Banner-Stummschaltung aus
     // #425, die unsichtbar war und deshalb als Fehler ankam.
     final overlaysHidden = ref.watch(mapOverlaysHiddenProvider);
-    final longPressEnabled = ref.watch(mapLongPressEnabledProvider);
 
     // Die Tour liegt ÜBER dem Scaffold, nicht in seinem `body` (#350):
     // Die Knopfspalte hängt an `floatingActionButton` und läge sonst
@@ -811,13 +835,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 minZoom: _minZoom,
                 maxZoom: _maxZoom,
                 backgroundColor: AppColors.mapBackground,
-                // Long-Press richtet das Fadenkreuz auf die gedrückte Stelle
-                // — ab Werk aus (#210), Begründung am Schalter im Profil.
-                // `null` heißt für beide Engines schon „nichts tun", die
-                // Geste wird also gar nicht erst weitergereicht.
-                onLongPress: longPressEnabled
-                    ? (latLng) => _map.move(latLng, math.max(_map.zoom, 16))
-                    : null,
+                // Langer Tipp öffnet das Kontextmenü (#483) — seit
+                // 1.149.0 ohne Schalter und ab Werk an. Er stand aus,
+                // weil er SOFORT die Kamera warf; jetzt fragt er erst,
+                // und ein versehentliches Menü wischt man weg.
+                onLongPress: _openContextMenu,
                 // Fadenkreuz-Werte (#235) und Wald-Bildausschnitt (#249):
                 // beides rechnet an diesem Stillstand, nie während der
                 // Geste.
@@ -891,24 +913,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Nur solange es die Geste gibt (#210): Eine
-                      // dauerhafte Zeile, die eine abgeschaltete Bedienung
-                      // erklärt, wäre schlicht falsch — und sie kostet auf
-                      // jedem Bildschirm Platz über den Bannern.
-                      if (longPressEnabled)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .surface
-                                .withValues(alpha: 0.9),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Text(
-                              'Gedrückt halten richtet das Fadenkreuz aus'),
-                        ),
+                      // **Kein Dauerhinweis mehr für die Geste** (#483).
+                      // Bis 1.148.0 stand hier eine Zeile, solange der
+                      // Schalter an war — mit einer Geste, die IMMER an
+                      // ist, stünde sie auf jedem Bildschirm und kostete
+                      // dort Platz über den Bannern. Erklärt wird sie in
+                      // der Kurzanleitung, wo #350 schon vermerkt hat,
+                      // dass der einzige Erklärsatz der App auf eine
+                      // abgeschaltete Geste zeigte.
                       MapBanners(onFit: _fitAction(ref, mapWidthPixels)),
                       // Ein aktiver Filter versteckt Spots — das muss man
                       // sehen, ohne das Blatt zu öffnen, sonst sucht man eine

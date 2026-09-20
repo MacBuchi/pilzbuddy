@@ -34,7 +34,7 @@ Auszug der Herbsttrompete neu geeicht; der Unterschied ist winzig.
 
 ## Der Pfifferling mag es etwas kühler
 
-*20. September 2026 · Version 1.150.0*
+*20. September 2026 · Version 1.151.0*
 
 Das Temperaturfenster der Pfifferling-Ampel rückt von 17,5 auf 14,5 °C.
 In einer großen Nachrechnung über Deutschland, Österreich und die Schweiz
@@ -64,6 +64,24 @@ oder Samtfußrübling hat sich in der Auswertung gezeigt, dass die Ampel
 mit dieser Größe rechnen muss, um überhaupt etwas Sinnvolles zu sagen.
 Dafür braucht die App die Daten zuerst auf dem Gerät — wie beim Regen
 ohne dass eine Fundstelle das Telefon verlässt.
+
+## Lange auf die Karte tippen
+
+*20. September 2026 · Version 1.149.0*
+
+Halte irgendwo auf der Karte gedrückt — ein kleines Menü fächert auf und
+fragt, was du willst:
+
+- **Was ist hier?** — Regen, Temperatur, Wald und Pilzampel für genau
+  diese Stelle. Das gab es schon, aber nur versteckt in der Legende.
+- **Navigation** — übergibt den Punkt an deine Navi-App, so wie es am
+  Spot längst geht.
+- **Heranzoomen** — springt hin und zoomt heran.
+
+Den Schalter „Karte gedrückt halten" im Profil gibt es nicht mehr. Er war
+nötig, weil die Geste früher sofort die Karte verschob und ein Fehlgriff
+einen aus der Übersicht warf. Jetzt fragt sie erst — und ein
+versehentliches Menü tippst du einfach weg.
 
 ## Und jetzt siehst du die Spuren der anderen
 

@@ -58,8 +58,7 @@ void main() {
     final a = ProviderContainer(
         overrides: [settingsProvider.overrideWithValue(FakeSettings())]);
     final b = ProviderContainer(overrides: [
-      settingsProvider
-          .overrideWithValue(FakeSettings(mapLongPressEnabled: true)),
+      settingsProvider.overrideWithValue(FakeSettings(mapLegendOpen: false)),
     ]);
     addTearDown(a.dispose);
     addTearDown(b.dispose);
