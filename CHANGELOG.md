@@ -32,6 +32,7 @@ Reichweite ist — in Österreich und der Schweiz fast überall —, bleiben
 sie grau statt zu raten. Die Stufen von „Steinpilz & Co." sind nach dem
 Auszug der Herbsttrompete neu geeicht; der Unterschied ist winzig.
 
+
 ## Der Pfifferling mag es etwas kühler
 
 *20. September 2026 · Version 1.151.0*
@@ -47,6 +48,8 @@ weiteres Jahr die Änderung bestätigt oder widerlegt. Die beiden Stufen
 Im Hintergrund ist mit dieser Version die Vorarbeit für eine Ampel für
 Winter- und Holzpilze abgeschlossen; sie selbst kommt mit einem der
 nächsten Updates.
+
+
 
 
 ## Die Bodenfeuchte steht jetzt am Spot
