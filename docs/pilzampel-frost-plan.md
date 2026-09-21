@@ -271,3 +271,27 @@ einem Merkmal, das die Trennung begründen würde. Vorschlag: Lauf 23,
 eigene Winter-Klasse (Trio) mit Logit + „milder“, vorregistriert,
 gleiche Regel. Live-Voraussetzung: 28 Tage `min` in der
 Stationstabelle statt 20. Bestätigung weiterhin Winter 2026/27.
+
+## Nachtrag 3, 2026-09-21 — Lauf 23 und der Abschluss der Serie
+
+Eigene Winter-Klasse {Austernseitling, Samtfußrübling, Judasohr} mit
+Logit + „milder“ gegen das heutige Klassen-Logit auf den Trio-Strata
+(`23-winter-klasse.md`): +0,013 [−0,005, +0,031] — **nach Regel nichts
+angenommen.** Die Teilung allein bringt nichts (+0,001) und kostet
+Streuung; innerhalb der Teilung trägt das Merkmal gesichert (+0,012 ▲,
+Samtfußrübling +0,034 ▲); Placebo 0.
+
+**Serie 19–23 zusammen:** Vor Winter-Fundtagen ist es milder geworden
+als vor den Nachbartagen — real, klein, mit denselben Vorzeichen in
+Verlauf (21), getrennter Zählung (22) und eigener Klasse (23), rund
++0,01 Log-Likelihood je Stratum. Auf den Erkundungsblöcken reicht das
+nicht für ein ▲ nach der Regel; die Testblöcke sind verbraucht.
+
+**Entscheidung, die daraus folgt (Empfehlung):** jetzt nichts
+ausliefern. Der Kandidat wird vorab festgeschrieben — Klassen-Logit +
+milder_5 (kälteste Nacht Tage 1–5 minus Tage 6–28), aktiv nur für die
+drei Winterarten — und einmal auf den Funden des Winters 2026/27
+geprüft (GBIF-Download Frühjahr 2027, Funde Nov 2026 – Mär 2027, von
+keinem Lauf gesehen), gepaart, gleiche Regel. Trägt er dort, kommt er
+in die App, mit 28 Tagen `min` in der Stationstabelle; trägt er nicht,
+ist die Frage beantwortet. #497 bleibt als Erinnerung offen.
