@@ -36,6 +36,7 @@ class MushroomIcon extends StatelessWidget {
     this.ground = true,
     this.pending = false,
     this.unknown = false,
+    this.drift = false,
   });
 
   /// Art-Icon für Listenzeilen. Kein Boden — die Ellipse ist Kartensprache
@@ -56,6 +57,7 @@ class MushroomIcon extends StatelessWidget {
         ground = false,
         // Listenzeilen zeigen Arten, keine Zeilen-Zustände.
         pending = false,
+        drift = false,
         unknown = isUnknownSpecies(name);
 
   final int seed;
@@ -93,6 +95,14 @@ class MushroomIcon extends StatelessWidget {
   /// [isUnknownSpecies].
   final bool unknown;
 
+  /// Fundstellen weit vom Spot, noch nicht bestätigt (#475): ein
+  /// Ausrufezeichen als Abzeichen — im selben weißen Kreis wie Uhr und
+  /// Fragezeichen, das dritte Mitglied dieser Familie (Betreiber,
+  /// 2026-09-21: ein Warndreieck fiel aus ihr heraus, ein Pilz-Glyph
+  /// wäre ein Pilz auf einem Pilz und bei 18 px unlesbar). Weg, sobald
+  /// der Besitzer „So gewollt" sagt.
+  final bool drift;
+
   @override
   Widget build(BuildContext context) {
     final mushroom = CustomPaint(
@@ -104,7 +114,7 @@ class MushroomIcon extends StatelessWidget {
           species: species,
           ground: ground),
     );
-    if (!pending && !unknown) return mushroom;
+    if (!pending && !unknown && !drift) return mushroom;
 
     // Ein Abzeichen oben rechts auf weißer Scheibe: klein genug, um die
     // Silhouette nicht zu zerschneiden, kontrastreich genug, um bei
@@ -136,8 +146,19 @@ class MushroomIcon extends StatelessWidget {
                 color: Colors.white,
                 shape: BoxShape.circle,
               ),
-              child: Icon(pending ? Icons.schedule : Icons.question_mark,
-                  size: badge * 0.82, color: AppColors.warmBrown),
+              // Reihenfolge = Dringlichkeit: Ein wartender Eintrag ist
+              // wichtiger als eine Abweichung, die wichtiger als eine
+              // unbekannte Art ist.
+              child: Icon(
+                  pending
+                      ? Icons.schedule
+                      : drift
+                          ? Icons.priority_high
+                          : Icons.question_mark,
+                  size: badge * 0.82,
+                  color: !pending && drift
+                      ? AppColors.warningAmber
+                      : AppColors.warmBrown),
             ),
           ),
         ],

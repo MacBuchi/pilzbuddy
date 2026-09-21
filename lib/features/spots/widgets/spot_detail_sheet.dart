@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/app_colors.dart';
 import '../../../core/errors.dart';
+import '../../../core/geo.dart' show formatMeters;
 import '../../../core/mushroom_species.dart';
 import '../../../core/widgets/mushroom_avatar.dart';
 import '../../../core/widgets/mushroom_icon.dart';
@@ -146,10 +148,27 @@ class _SpotDetailSheet extends ConsumerWidget {
       if (result.delete) {
         await ref.read(mySpotsProvider.notifier).deleteFind(find.id);
       } else if (result.changed case final changed?) {
-        await ref
-            .read(mySpotsProvider.notifier)
-            .updateFind(
-                findId: find.id, find: changed, position: result.position);
+        final moved = result.position != null &&
+            result.position != find.position;
+        // Eine verlegte Fundstelle fragt, ob Spot und alle Fundstellen
+        // mitgehen (#475) — Vorgabe Nein. Vielleicht war der Spot von
+        // Anfang an falsch, und diese Stelle ist die richtige.
+        final withSpot = moved && await _askMoveFindWithSpot(context);
+        if (moved && !context.mounted) return;
+        if (withSpot) {
+          await ref.read(mySpotsProvider.notifier).moveFindWithSpot(
+                spot: spot,
+                findId: find.id,
+                find: changed,
+                lat: result.position!.lat,
+                lng: result.position!.lng,
+              );
+        } else {
+          await ref
+              .read(mySpotsProvider.notifier)
+              .updateFind(
+                  findId: find.id, find: changed, position: result.position);
+        }
       }
     } catch (e, stackTrace) {
       if (context.mounted) {
@@ -192,13 +211,34 @@ class _SpotDetailSheet extends ConsumerWidget {
       position: spot.position,
     );
     if (edited == null || !context.mounted) return;
+    // Der Spot rückt, und es gibt Fundstellen mit eigener Position:
+    // mitnehmen oder nicht (#475)? Ohne solche Stellen gibt es nichts
+    // zu fragen — dann ist „nur den Spot" dasselbe wie „alles".
+    final moved = edited.position != spot.position;
+    final hasPositions = spot.finds.any((f) => f.position != null);
+    bool? withFinds = false;
+    if (moved && hasPositions) {
+      withFinds = await _askMoveSpotWithFinds(context, spot);
+      if (withFinds == null || !context.mounted) return;
+    }
     try {
-      final fresh = await ref.read(mySpotsProvider.notifier).editSpot(
-            spotId: spot.id,
-            name: edited.name,
-            lat: edited.position.latitude,
-            lng: edited.position.longitude,
-          );
+      final notifier = ref.read(mySpotsProvider.notifier);
+      final fresh = withFinds
+          ? await notifier.moveSpotWithFinds(
+              spotId: spot.id,
+              name: edited.name,
+              lat: edited.position.latitude,
+              lng: edited.position.longitude,
+            )
+          : await notifier.editSpot(
+              spotId: spot.id,
+              name: edited.name,
+              lat: edited.position.latitude,
+              lng: edited.position.longitude,
+              // Nur der Spot rückt: Die Fundstellen stehen neu zu ihm,
+              // eine frühere Bestätigung gilt nicht mehr.
+              resetOffsetConfirmation: moved,
+            );
       // Wie beim Eintragen: Die Quittung ist normalerweise das Blatt
       // selbst — Name und Entfernungen stehen danach neu da. Nur wenn
       // die Liste nicht neu laden konnte, braucht es den Satz, sonst
@@ -210,6 +250,86 @@ class _SpotDetailSheet extends ConsumerWidget {
       }
     } catch (e, stackTrace) {
       if (context.mounted) _showError(context, 'Spot ändern', e, stackTrace);
+    }
+  }
+
+  /// „Fundstellen mitnehmen?" beim Verlegen des Spots (#475). `null`
+  /// heißt abgebrochen — dann wird gar nichts geschrieben.
+  Future<bool?> _askMoveSpotWithFinds(BuildContext context, Spot spot) {
+    final own = spot.finds.where((f) => f.isOwn && f.position != null).length;
+    final foreign = spot.finds.where((f) => !f.isOwn && f.position != null).length;
+    final measured = spot.finds
+        .any((f) => f.isOwn && (f.position?.measured ?? false));
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Fundstellen mitnehmen?'),
+        content: Text([
+          '$own ${own == 1 ? 'Fundstelle hat' : 'Fundstellen haben'} eine '
+              'eigene Position. Mitnehmen heißt: Sie gelten danach am '
+              'neuen Spot, ihre eigene Position entfällt.',
+          if (measured)
+            'Darunter sind gemessene Positionen — die gehen dabei verloren.',
+          if (foreign > 0)
+            '$foreign ${foreign == 1 ? 'Fundstelle' : 'Fundstellen'} von '
+                'Buddys ${foreign == 1 ? 'bleibt' : 'bleiben'} in jedem '
+                'Fall, wo ${foreign == 1 ? 'sie ist' : 'sie sind'}.',
+        ].join(' ')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Abbrechen'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Nur den Spot'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Spot und alle Fundstellen'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// „Alle Fundstellen und den Spot mitverschieben?" beim Verlegen einer
+  /// Fundstelle (#475). Vorgabe Nein — Wegwischen heißt Nein.
+  Future<bool> _askMoveFindWithSpot(BuildContext context) async {
+    final answer = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Spot mitverschieben?'),
+        content: const Text(
+            'Nur diese Fundstelle rückt an die neue Position. Oder soll '
+            'der Spot samt allen deinen Fundstellen dorthin — falls der '
+            'Spot von Anfang an falsch lag? Dann gelten alle deine '
+            'Fundstellen am Spot; Fundstellen von Buddys bleiben, wo sie '
+            'sind.'),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Nur diese Fundstelle'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Spot und alle Fundstellen'),
+          ),
+        ],
+      ),
+    );
+    return answer ?? false;
+  }
+
+  /// „So gewollt" (#475): nimmt die Warnung vom Spot.
+  Future<void> _confirmOffset(
+      BuildContext context, WidgetRef ref, Spot spot) async {
+    try {
+      await ref.read(mySpotsProvider.notifier).confirmOffset(spot.id);
+    } catch (e, stackTrace) {
+      if (context.mounted) {
+        _showError(context, 'Fundstellen bestätigen', e, stackTrace);
+      }
     }
   }
 
@@ -381,6 +501,19 @@ class _SpotDetailSheet extends ConsumerWidget {
               padding: const EdgeInsets.only(top: 4, left: 28),
               child: Text(line,
                   style: Theme.of(context).textTheme.bodySmall),
+            ),
+          // Fundstellen weit vom Spot (#475): „!" im Kreis, solange der
+          // Besitzer es nicht bestätigt hat; danach dieselbe Zeile als
+          // Auskunft. Am Buddy-Spot nur die Auskunft — bestätigen kann
+          // dort niemand, und ein Knopf, der scheitert, ist keiner.
+          if (driftingFinds(spot) case final drifting when drifting.isNotEmpty)
+            _DriftLine(
+              spot: spot,
+              drifting: drifting,
+              dateFormat: dateFormat,
+              onConfirm: spot.isOwn && !spot.pending && spotDriftUnconfirmed(spot)
+                  ? () => _confirmOffset(context, ref, spot)
+                  : null,
             ),
           const SizedBox(height: 12),
           if (spot.entriesSorted.isEmpty)
@@ -572,6 +705,73 @@ class _SpotDetailSheet extends ConsumerWidget {
         ],
       ),
     ),
+      ),
+    );
+  }
+}
+
+/// Die Zeile zu Fundstellen weit vom Spot (#475).
+///
+/// Unbestätigt: „!" im Kreis in Orange — dasselbe Zeichen wie das
+/// Abzeichen am Marker — und der Knopf „So gewollt".
+/// Bestätigt: Info-Symbol, derselbe Text mit „bestätigt" — die Auskunft
+/// bleibt, nur der Vorwurf geht. Der Text nennt jede Stelle mit Datum,
+/// Eintrag und Versatz, weiteste zuerst; die Zahl 100 m ist
+/// `kFindFixMaxOffsetM`, dieselbe Grenze wie beim Eintragen.
+class _DriftLine extends StatelessWidget {
+  const _DriftLine({
+    required this.spot,
+    required this.drifting,
+    required this.dateFormat,
+    required this.onConfirm,
+  });
+
+  final Spot spot;
+  final List<Find> drifting;
+  final DateFormat dateFormat;
+  final VoidCallback? onConfirm;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final unconfirmed = spotDriftUnconfirmed(spot);
+    final n = drifting.length;
+    final details = [
+      for (final find in drifting)
+        '${dateFormat.format(find.foundOn)} ${find.label} '
+            '${findPositionLabel(find, spot)}',
+    ].join(', ');
+    final text = '$n ${n == 1 ? 'Fundstelle liegt' : 'Fundstellen liegen'} '
+        'über ${formatMeters(kFindFixMaxOffsetM)} vom Spot entfernt: $details'
+        '${unconfirmed ? '' : ' — bestätigt'}';
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                unconfirmed ? Icons.error_outline : Icons.info_outline,
+                size: 18,
+                color: unconfirmed ? AppColors.warningAmber : theme.hintColor,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(text, style: theme.textTheme.bodySmall),
+              ),
+            ],
+          ),
+          if (onConfirm != null)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: onConfirm,
+                child: const Text('So gewollt'),
+              ),
+            ),
+        ],
       ),
     );
   }

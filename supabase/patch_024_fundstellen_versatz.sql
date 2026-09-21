@@ -1,0 +1,24 @@
+-- Patch 024: Ein Spot merkt sich, dass seine abweichenden Fundstellen so
+-- gewollt sind (#475, der dort beschriebene Mittelweg).
+--
+-- Seit Patch 022 darf ein Fund seine eigene Stelle tragen, seit #466 lässt
+-- sich beides verschieben — und nichts begrenzt, wie weit ein Fund von
+-- seinem Spot entfernt liegen darf. Die App rechnet den Abstand beim
+-- Lesen und warnt ab 100 m (`kFindFixMaxOffsetM`, dieselbe Grenze, ab
+-- der beim Eintragen die eigene Position nicht mehr angeboten wird).
+--
+-- DIE BESTÄTIGUNG HÄNGT AM SPOT, NICHT AM FUND, und zwar als Zeitpunkt:
+-- Eine Warnung gilt, solange eine abweichende Fundstelle JÜNGER ist als
+-- die Bestätigung. Ein später eingetragener Fund weit weg bringt sie
+-- also zurück, ein bestätigter Zustand bleibt ruhig. Ein Flag je Fund
+-- ginge nicht: `finds_author_all` lässt nur den Autor schreiben, und den
+-- Fund eines Buddys am eigenen Spot könnte der Besitzer nie bestätigen —
+-- die Warnung stünde für immer.
+--
+-- Nur der Besitzer schreibt sie (`spots_owner_all`, unverändert); ein
+-- Buddy sieht am geteilten Spot die Abweichung als Hinweis ohne Knopf.
+--
+-- KEIN Bump von minimum_supported_version: rein additiv, nullable. Ein
+-- älterer Client ignoriert die Spalte im `*`-Select und warnt eben nicht.
+alter table public.spots
+  add column offset_confirmed_at timestamptz;

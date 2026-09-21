@@ -81,6 +81,9 @@ class FakeSpotRow {
   /// Idempotenz der Wiedervorlage spiegelt und nicht nur behauptet.
   final String? clientId;
 
+  /// Spiegel von `spots.offset_confirmed_at` (Patch 024, #475).
+  DateTime? offsetConfirmedAt;
+
   final List<Find> finds = [];
 }
 
@@ -671,6 +674,7 @@ class FakeSpotRepository implements SpotRepository {
         ownerUsername: owner?.username,
         ownerAvatar: owner?.avatar ?? 0,
         finds: finds,
+        offsetConfirmedAt: row.offsetConfirmedAt,
       );
 
   /// Baut einen gespeicherten Fund aus Sicht des Betrachters neu — wie
@@ -763,6 +767,7 @@ class FakeSpotRepository implements SpotRepository {
               isOwn: false,
               ownerUsername: backend.userById(row.ownerId).username,
               ownerAvatar: backend.userById(row.ownerId).avatar,
+              offsetConfirmedAt: row.offsetConfirmedAt,
               finds: [
                 for (final f in row.finds)
                   if (f.authorId == _uid ||
@@ -1018,16 +1023,56 @@ class FakeSpotRepository implements SpotRepository {
     required String? name,
     required double lat,
     required double lng,
+    bool resetOffsetConfirmation = false,
   }) async {
     for (final row in backend.spots) {
       if (row.id == spotId && row.ownerId == _uid) {
         row.name = name;
         row.lat = lat;
         row.lng = lng;
+        if (resetOffsetConfirmation) row.offsetConfirmedAt = null;
         return;
       }
     }
     throw const WriteRejectedException('Spot ändern');
+  }
+
+  /// Spiegelt `SpotRepository.pinFindsToSpot` (#475) samt der Grenze von
+  /// `finds_author_all`: nur die EIGENEN Funde verlieren ihre Stelle,
+  /// fremde bleiben, wo sie sind. Null Treffer sind kein Fehler.
+  @override
+  Future<void> pinFindsToSpot(String spotId) async {
+    final row = backend.spots.firstWhere((s) => s.id == spotId);
+    for (var i = 0; i < row.finds.length; i++) {
+      final f = row.finds[i];
+      if (f.authorId != null && f.authorId != _uid) continue;
+      if (f.position == null) continue;
+      row.finds[i] = Find(
+        id: f.id,
+        spotId: f.spotId,
+        species: f.species,
+        count: f.count,
+        foundOn: f.foundOn,
+        note: f.note,
+        createdAt: f.createdAt,
+        authorId: f.authorId,
+        blank: f.blank,
+        position: null,
+      );
+    }
+  }
+
+  /// Spiegelt `SpotRepository.confirmOffset` (#475) samt `spots_owner_all`:
+  /// ein fremder Spot trifft null Zeilen, also Ausnahme.
+  @override
+  Future<void> confirmOffset(String spotId) async {
+    for (final row in backend.spots) {
+      if (row.id == spotId && row.ownerId == _uid) {
+        row.offsetConfirmedAt = DateTime.now();
+        return;
+      }
+    }
+    throw const WriteRejectedException('Spot bestätigen');
   }
 
   @override

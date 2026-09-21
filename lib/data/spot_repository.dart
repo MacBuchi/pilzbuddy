@@ -449,13 +449,51 @@ class SpotRepository {
     required String? name,
     required double lat,
     required double lng,
+    bool resetOffsetConfirmation = false,
   }) async {
     final rows = await _client
         .from('spots')
-        .update({'name': name, 'lat': lat, 'lng': lng})
+        .update({
+          'name': name,
+          'lat': lat,
+          'lng': lng,
+          // Wer den Spot allein verlegt, hat die Fundstellen neu ins
+          // Verhältnis gesetzt (#475): Eine frühere Bestätigung gilt
+          // dann nicht mehr, sonst bliebe eine neue Abweichung stumm.
+          if (resetOffsetConfirmation) 'offset_confirmed_at': null,
+        })
         .eq('id', spotId)
         .select('id');
     if (rows.isEmpty) throw const WriteRejectedException('Spot ändern');
+  }
+
+  /// Pinnt alle EIGENEN Fundstellen eines Spots an den Spot (#475): Die
+  /// eigene Position wird gelöscht, der Fund „gilt am Spot" — keine
+  /// erfundene Koordinate, auch nicht die des Spots. Gemessene Stellen
+  /// gehen dabei verloren; das Blatt sagt es, bevor es fragt.
+  ///
+  /// Fremde Funde am eigenen Spot bleiben, wo sie sind: `finds_author_all`
+  /// lässt nur den Autor schreiben, und das ist richtig so — es ist
+  /// seine Messung. Deshalb hier kein `.select()`-Riegel: Null getroffene
+  /// Zeilen sind der Normalfall eines Spots ohne eigene Stellen.
+  Future<void> pinFindsToSpot(String spotId) async {
+    await _client
+        .from('finds')
+        .update({'lat': null, 'lng': null, 'accuracy_m': null})
+        .eq('spot_id', spotId)
+        .eq('author_id', _client.requireUid);
+  }
+
+  /// Der Besitzer bestätigt, dass die abweichenden Fundstellen so gewollt
+  /// sind (#475). Ein Zeitpunkt, kein Flag — die Regel steht bei
+  /// `spotDriftUnconfirmed`.
+  Future<void> confirmOffset(String spotId) async {
+    final rows = await _client
+        .from('spots')
+        .update({'offset_confirmed_at': DateTime.now().toUtc().toIso8601String()})
+        .eq('id', spotId)
+        .select('id');
+    if (rows.isEmpty) throw const WriteRejectedException('Spot bestätigen');
   }
 
   Future<void> deleteSpot(String spotId) async {

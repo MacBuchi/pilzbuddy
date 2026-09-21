@@ -326,6 +326,9 @@ void main() {
     await tester.ensureVisible(find.text('Speichern'));
     await tester.tap(find.text('Speichern'));
     await settle(tester);
+    // Seit #475 fragt das Blatt, ob der Spot mitkommt — hier nicht.
+    await tester.tap(find.text('Nur diese Fundstelle'));
+    await settle(tester);
 
     final saved = backend.spots.single.finds.single.position!;
     expect(saved.lat, closeTo(51.1636, 1e-9));

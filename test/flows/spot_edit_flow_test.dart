@@ -180,6 +180,9 @@ void main() {
         .onCenterChanged!(const LatLng(50.502, 7.502));
     await settle(tester);
     await save(tester);
+    // Seit #475 fragt das Blatt, ob die Stellen mitkommen — hier nicht.
+    await tester.tap(find.text('Nur den Spot'));
+    await settle(tester);
 
     final position = backend.spots.single.finds.single.position!;
     expect(position.lat, closeTo(50.5004, 1e-9));

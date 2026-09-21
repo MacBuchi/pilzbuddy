@@ -1192,6 +1192,31 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     zusammengefügte Zeichenkette (zwei gleiche Mengen sind für `==`
     verschieden) und steht im Dateinamen der Fläche, sonst tauscht
     MapLibre das Bild nicht.
+- **Fundstellen weit vom Spot** (#475, seit 1.156.0): Ab 100 m
+  (`kFindFixMaxOffsetM`, dieselbe Grenze wie der Riegel beim Eintragen)
+  trägt der eigene Spot ein „!"-Abzeichen (im selben Kreis wie Uhr und
+  Fragezeichen — kein Dreieck, kein Pilz-Glyph), das Blatt nennt die Stellen,
+  „So gewollt" bestätigt. Vier Dinge, die man wissen muss:
+  - **Abgeleitet, nicht gespeichert** (`driftingFinds` in
+    `find_offset.dart`). Gespeichert ist nur die Bestätigung, und die
+    hängt als ZEITPUNKT am Spot (`spots.offset_confirmed_at`, Patch
+    024): Warnung, solange eine abweichende Fundstelle jünger ist als
+    die Bestätigung. Ein Flag je Fund ginge nicht — den Fund eines
+    Buddys darf der Besitzer per RLS nicht schreiben, die Warnung stünde
+    für immer.
+  - **Verlegen fragt.** Spot mit eigenen Fundstellen: „Nur den Spot"
+    (Bestätigung wird gelöscht, eine neue Abweichung fällt wieder auf)
+    oder „Spot und alle Fundstellen" (`pinFindsToSpot`: eigene Position
+    der Funde wird GELÖSCHT, keine erfundene Koordinate — gemessene
+    Stellen gehen verloren, der Dialog sagt es). Fundstelle verlegt:
+    „Spot mitverschieben?", Vorgabe Nein.
+  - **Fremde Fundstellen bleiben immer**, wo sie sind (RLS
+    `finds_author_all`); kein RPC, keine Security-Definer-Funktion.
+    Zwei Schreibvorgänge statt einer Transaktion — bricht der zweite ab,
+    ist der Spot verlegt und die Warnung zeigt genau das.
+  - **Gemessen vor dem Bau** (2026-09-21, Kommentar in #475): 9 von 166
+    Funden hatten eine eigene Position, alle innerhalb 20 m. Der
+    Hinweis ist eine Vorsorge für #473, kein Befund.
 - **Der lange Tipp öffnet ein Kontextmenü** (#483, seit 1.149.0):
   „Was ist hier?" (#245), „Navigation" (#367) und „Heranzoomen". Alle
   drei Ziele gab es schon; neu ist der Weg dorthin.

@@ -19,6 +19,11 @@ class Spot {
   /// Ausgangskorb, keine Server-id.
   final bool pending;
 
+  /// Wann der Besitzer bestätigt hat, dass Fundstellen weit vom Spot so
+  /// gewollt sind (Patch 024, #475). `null` heißt: nie. Die Regel dazu
+  /// steht in `find_offset.dart` (`spotDriftUnconfirmed`).
+  final DateTime? offsetConfirmedAt;
+
   const Spot({
     required this.id,
     required this.ownerId,
@@ -31,6 +36,7 @@ class Spot {
     this.ownerAvatar = 0,
     this.finds = const [],
     this.pending = false,
+    this.offsetConfirmedAt,
   });
 
   LatLng get position => LatLng(lat, lng);
@@ -104,6 +110,7 @@ class Spot {
         ownerAvatar: ownerAvatar,
         finds: finds ?? this.finds,
         pending: pending,
+        offsetConfirmedAt: offsetConfirmedAt,
       );
 
   factory Spot.fromJson(Map<String, dynamic> json, {required String currentUserId}) {
@@ -124,6 +131,9 @@ class Spot {
           .map((f) => Find.fromJson(f as Map<String, dynamic>,
               currentUserId: currentUserId))
           .toList(),
+      offsetConfirmedAt: json['offset_confirmed_at'] == null
+          ? null
+          : DateTime.parse(json['offset_confirmed_at'] as String),
     );
   }
 

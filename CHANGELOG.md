@@ -7,6 +7,24 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Fundstellen weit vom Spot: Hinweis, Bestätigung, Mitnehmen
+
+*21. September 2026 · Version 1.156.0*
+
+Liegt eine Fundstelle mehr als 100 m von ihrem Spot entfernt, trägt der
+Spot auf der Karte jetzt ein kleines Ausrufezeichen, und sein Blatt nennt
+die Stellen mit Datum und Entfernung. Ist das so gewollt, tippst du
+„So gewollt": Das Zeichen verschwindet, die Zeile bleibt als Auskunft.
+Ein später weit entfernt eingetragener Fund bringt den Hinweis zurück.
+
+Beim Verlegen eines Spots mit eigenen Fundstellen fragt die App, ob die
+Fundstellen mitkommen sollen. Mitnehmen heißt: Sie gelten danach am
+Spot, ihre eigene Position entfällt — gemessene Positionen gehen dabei
+verloren, das sagt die Frage dazu. Umgekehrt fragt eine verlegte
+Fundstelle, ob der Spot samt allen deinen Fundstellen dorthin soll;
+Vorgabe ist Nein. Fundstellen von Buddys bleiben in beiden Fällen, wo
+sie sind.
+
 ## Fundorte: Gruppen direkt im Blatt an- und abwählen
 
 *21. September 2026 · Version 1.155.0*
