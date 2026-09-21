@@ -127,7 +127,10 @@ so in der Erklärung.
 | Konto führen | E-Mail, Benutzername, Avatar | Art. 6 (1) b | Supabase | bis zur Löschung |
 | Spots und Funde speichern | Koordinaten, Art, Anzahl, Datum, Notiz | Art. 6 (1) b | Supabase | bis zur Löschung |
 | Mit Freunden teilen | wie oben, für bestätigte Freunde | Art. 6 (1) b | Supabase | bis zur Löschung |
+| Freundschaften verwalten | wer wen angefragt hat, Status, Zeitpunkt | Art. 6 (1) b | Supabase, die angefragte Person | bis eine Seite sie auflöst oder ihr Konto löscht |
+| Freunde suchen | eingegebene E-Mail-Adresse oder Benutzername-Anfang; zurück kommen Benutzername, Anzeigename, Avatar | Art. 6 (1) b | Supabase | nicht gespeichert, nur im Moment der Abfrage |
 | Live-Standort teilen | Koordinate, Ablaufzeit | Art. 6 (1) a | Supabase | selbst gewählte Dauer |
+| Pilztour-Weg teilen | Wegpunkte der laufenden Tour: Koordinate und Zeitpunkt, gedünnt auf ≤ 400 | Art. 6 (1) a | Supabase, sichtbar für bestätigte Freunde | Frist der Standort-Freigabe; Tour- oder Teilen-Ende löscht sofort |
 | Konto-Mails | E-Mail-Adresse | Art. 6 (1) b | Brevo | Versand |
 | Benachrichtigungen | Gerätekennung (Token) | Art. 6 (1) a | Google (FCM) | bis zum Ausschalten |
 | Vorhersage prüfen | Fund/Leergang mit Ort und Datum | Art. 6 (1) f | Supabase | bis zur Löschung |
@@ -136,3 +139,40 @@ so in der Erklärung.
 
 Keine automatisierte Entscheidungsfindung, kein Profiling, keine
 Werbung. Betroffene sind ausschließlich Nutzer der App.
+
+**Warum der Tour-Weg eine eigene Zeile hat und nicht in der des
+Live-Standorts steht.** Rechtsgrundlage und Frist sind dieselben — die
+Frist wird sogar aus der Standort-Freigabe geerbt, es gibt nur eine
+Zustimmung. Die Datenkategorie ist es nicht: Ein Live-Standort ist ein
+Punkt, ein Tour-Weg ist ein Bewegungsprofil über Stunden. Ein
+Verzeichnis, das beides in einer Zeile führt, benennt die eingreifendere
+Verarbeitung nicht.
+
+Zwei Eigenschaften gehören dazu, weil sie die Datenminimierung nach
+Art. 5 (1) c belegen und aus der Zeile allein nicht hervorgehen. Der Weg
+wird **vor** dem Hochladen gedünnt (`thinnedTrack`) — roh wären es bei
+drei Stunden rund 720 Punkte, hochgeladen werden höchstens 400. Und die
+gemeldete **Messgenauigkeit fährt bewusst nicht mit**
+(`encodeTrackPoint`): Sie trägt auf dem eigenen Gerät die Auswertung der
+Leergänge, für die Spur eines Buddys wird sie nirgends gebraucht.
+
+**Die Freundessuche verarbeitet die Daten DRITTER**, nicht nur die des
+Suchenden — deshalb die eigene Zeile. Zwei Eigenschaften begrenzen sie,
+und beide stehen in `search_profiles` (Patch 011): Die E-Mail-Adresse
+wird nur **exakt** verglichen und **nie zurückgegeben**; wer sie nicht
+schon kennt, erfährt nichts. Beim Benutzernamen genügt der Anfang, und
+das ist der Unterschied — ein Name ist ein selbst gewähltes öffentliches
+Kennzeichen, eine Adresse nicht. Die Funktion ist `anon` entzogen: ohne
+Anmeldung gibt es die Abfrage nicht, sonst wäre sie ein
+E-Mail-Orakel.
+
+**Nicht im Verzeichnis, weil keine personenbezogenen Daten:**
+`app_config` — eine Zeile mit der Mindestversion, für alle gleich und
+bewusst ohne Anmeldung lesbar, weil die Prüfung vor dem Login läuft.
+
+**Was NICHT in diesem Verzeichnis steht, weil es das Gerät nie
+verlässt:** die Tour selbst. Sie liegt als JSON Lines in `tours/` im
+App-Verzeichnis, ist von beiden Backup-Ausschlüssen erfasst und wird nur
+hochgeladen, solange Tour UND Standort-Freigabe laufen (`planTrackShare`
+in `lib/features/tour/tour_sharing.dart`). Wer aufzeichnet, ohne zu
+teilen, erzeugt hier keine Verarbeitung.
