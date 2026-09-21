@@ -1338,6 +1338,40 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     - **Reihenfolge auf der Seite: erst die Warnungen, dann die
       Beschreibung.** Wer von oben liest, weiß vor dem ersten Merkmal,
       ob er es mit einem Giftpilz zu tun hat.
+  - **Bildpaare** (`lib/core/species_photos.dart` + `assets/species/`,
+    seit 1.167.0): elf Fotos von Wikimedia Commons, 700x700 WebP,
+    zusammen 0,85 MB. Fünf Dinge, die man wissen muss:
+    - **Zwei oder keines.** Ein einzelnes Bild zeigt, wie EINER von
+      beiden aussieht, und das genügt zum Verwechseln — erst das Paar
+      stellt die Frage. Deshalb steht kein Porträt am Seitenkopf, und
+      eine einseitig bebilderte Zeile bleibt bildlos (den Fall gibt es:
+      Grüner Knollenblätterpilz ↔ Frauentäubling).
+    - **Die Auswahl hat ein Mensch ANGESEHEN.** Ein Werkzeug kann nicht
+      beurteilen, ob ein Foto das Merkmal zeigt, das der
+      Unterschiedssatz nennt. Zwei Kandidaten sind beim Ansehen
+      ausgeschieden, weil sie eine andere Art zeigten als ihr Dateiname
+      behauptete (eine nordamerikanische *Amanita*; ein als
+      „Weisser Knollenblätterpilz" abgelegter Scheidenstreifling) — auf
+      Commons ist die Bestimmung nicht garantiert. Wer ein Bild tauscht,
+      sieht es an.
+    - **Die Namensnennung steht an ZWEI Stellen**, und beide kommen aus
+      derselben Tabelle: als Zeile unter dem Bild und auf der
+      Lizenzseite (`speciesPhotoCredits()`). Eine von Hand gepflegte
+      zweite Liste wäre die Stelle, an der ein getauschtes Bild seinen
+      alten Urheber behält. NC- und ND-Lizenzen sind ausgeschlossen —
+      ein Test prüft es, und der Zuschnitt allein verstößt schon gegen
+      ND.
+    - **`commons.wikimedia.org` ist `textOnly`** im Datenschutz-Wächter:
+      Die Bilder liegen im Binary, die Adresse ist Quellenangabe.
+      Geholt werden sie von `tool/species_photos.py` — das Werkzeug
+      erzeugt die Assets Byte-genau reproduzierbar.
+    - **Die Detailseite braucht einen Schlüssel je Art**
+      (`ValueKey(name)` in `router.dart`). Ohne ihn hält Flutter die
+      Seite der nächsten Art für dieselbe, verwendet das Element weiter
+      — und die `ListView` behält ihre Scrollposition. Wer von einem
+      Verwechslungspartner aus weitertippt, landete mitten auf dessen
+      Seite statt oben bei Namen und Einstufung. Gefunden hat das ein
+      Test, der eigentlich etwas anderes prüfen sollte.
 - **Der Reiter „Spots"** (#509, seit 1.161.0): die Karte als Liste
   (`lib/features/spots/spots_screen.dart`) plus die Statistik, die bis
   1.160.0 im Profil stand. Sechs Dinge, die man wissen muss:

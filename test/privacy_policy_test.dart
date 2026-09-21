@@ -176,6 +176,11 @@ void main() {
       // Die Zitation der Pilzwetter-Formel (Lizenzseite, seit 1.92.0):
       // ein DOI ist eine Fundstellenangabe, kein Abrufziel der App.
       'doi.org',
+      // Die Artfotos (#511): Die Bilder liegen als Asset im Binary,
+      // geholt hat sie `tool/species_photos.py` von Hand. Die Adresse
+      // der Commons-Dateiseite steht nur als QUELLENANGABE im Code —
+      // CC BY verlangt die Fundstelle, und die App ruft sie nie ab.
+      'commons.wikimedia.org',
       // Das Höhengitter — dieselbe Lage wie Copernicus/DLR: Asset im
       // Binary, geholt nur in CI (`tool/elevation_grid.py`).
       'dataspace.copernicus.eu',

@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import 'species_photos.dart';
+
 /// Der OFL-Wortlaut der Kartenschrift. Muss in `pubspec.yaml` als Asset
 /// stehen — ein Verzeichnis-Eintrag wie `assets/map_glyphs/noto-sans-regular/`
 /// nimmt die Datei NICHT mit, sie liegt eine Ebene höher.
@@ -85,6 +87,17 @@ void registerMapDataLicense() {
         'übernommenen Meldungen:\n\n$datasets',
       );
     }
+    // Die Artfotos — Namensnennung je Bild, ERZEUGT aus derselben
+    // Tabelle, aus der die App sie anzeigt. Eine von Hand gepflegte
+    // zweite Liste hier wäre genau die Stelle, an der ein getauschtes
+    // Bild seinen alten Urheber behält.
+    yield LicenseEntryWithLineBreaks(
+      const ['Artfotos (Wikimedia Commons)'],
+      'Die Bilder bei den Verwechslungspaaren im Reiter „Pilze" stammen '
+      'von Wikimedia Commons. Sie sind quadratisch zugeschnitten und auf '
+      '700 Pixel verkleinert, sonst unverändert.\n\n'
+      '${speciesPhotoCredits()}',
+    );
     yield const LicenseEntryWithLineBreaks(
       ['Regendaten (Deutscher Wetterdienst)'],
       'Die Regenradar- und Niederschlagssummen-Ebenen der Karte und die '

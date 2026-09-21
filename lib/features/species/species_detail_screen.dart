@@ -31,6 +31,7 @@ import '../../core/router_branches.dart';
 import '../../core/season_curves.dart';
 import '../../core/species_edibility.dart';
 import '../../core/species_lookalikes.dart';
+import '../../core/species_photos.dart';
 import '../../core/widgets/mushroom_icon.dart';
 import '../../core/widgets/season_bars.dart';
 import '../ampel/ampel_model.dart';
@@ -42,6 +43,10 @@ import 'species_catalogue.dart';
 
 /// Die Karte mit der Einstufung DIESER Art — siehe [_Edibility].
 const kEdibilityCardKey = ValueKey('species-edibility');
+
+/// Die antippbare Zeile eines Verwechslungspartners.
+ValueKey<String> lookalikeRowKey(String species) =>
+    ValueKey('lookalike-$species');
 
 class SpeciesDetailScreen extends ConsumerWidget {
   const SpeciesDetailScreen({super.key, required this.species});
@@ -267,7 +272,7 @@ class _Lookalikes extends StatelessWidget {
       children: [
         const _SectionTitle('Verwechslungspartner'),
         for (final partner in detail.lookalikes)
-          _LookalikeRow(partner: partner),
+          _LookalikeRow(own: detail.name, partner: partner),
         const SizedBox(height: 6),
         Text(
           // **Leer ist nicht dasselbe wie sicher.** Der Satz steht auch
@@ -283,8 +288,10 @@ class _Lookalikes extends StatelessWidget {
 }
 
 class _LookalikeRow extends StatelessWidget {
-  const _LookalikeRow({required this.partner});
+  const _LookalikeRow({required this.own, required this.partner});
 
+  /// Die Art, auf deren Seite diese Zeile steht — für das Bildpaar.
+  final String own;
   final Lookalike partner;
 
   @override
@@ -297,6 +304,9 @@ class _LookalikeRow extends StatelessWidget {
       _ => AppColors.warmBrown,
     };
     return InkWell(
+      // Benannt, weil der Name des Partners seit den Bildpaaren zweimal
+      // in der Zeile steht — hier und als Bildunterschrift.
+      key: lookalikeRowKey(partner.species),
       onTap: () =>
           context.go('/pilze/${Uri.encodeComponent(partner.species)}'),
       child: Padding(
@@ -330,9 +340,96 @@ class _LookalikeRow extends StatelessWidget {
               ],
             ),
             Text(partner.difference, style: theme.textTheme.bodySmall),
+            _PhotoPair(own: own, partner: partner.species),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Zwei Bilder nebeneinander: links diese Art, rechts der Partner.
+///
+/// **Nur wenn es BEIDE gibt.** Ein einzelnes Bild beantwortet die Frage
+/// nicht, die hier gestellt wird — es zeigt, wie einer der beiden
+/// aussieht, und das genügt zum Verwechseln vollkommen. Fehlt eines,
+/// bleibt der Platz leer und der Unterschiedssatz steht für sich.
+///
+/// Quadratisch, weil zwei verschiedene Seitenverhältnisse nebeneinander
+/// den Vergleich stören, um den es geht.
+class _PhotoPair extends StatelessWidget {
+  const _PhotoPair({required this.own, required this.partner});
+
+  final String own;
+  final String partner;
+
+  @override
+  Widget build(BuildContext context) {
+    // **Zwei oder keines.** So geschrieben, dass die Regel eine Zahl ist
+    // und nicht eine Verkettung von Bedingungen — sie lässt sich damit
+    // auch in der Gegenprobe brechen.
+    final photos = [
+      (name: own, photo: photoFor(own)),
+      (name: partner, photo: photoFor(partner)),
+    ].where((e) => e.photo != null).toList();
+    if (photos.length < 2) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      // **Feste Breite, nicht halbe Zeile.** Über die volle Breite
+      // geteilt würden die Bilder auf einem Tablet riesig und auf einem
+      // schmalen Telefon winzig; und eine Zeile, die der Bildschirm
+      // nicht mehr fasst, lässt sich nicht mehr antippen.
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final entry in photos) ...[
+            if (entry != photos.first) const SizedBox(width: 8),
+            SizedBox(
+                width: 150,
+                child: _Photo(name: entry.name, photo: entry.photo!)),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _Photo extends StatelessWidget {
+  const _Photo({required this.name, required this.photo});
+
+  final String name;
+  final SpeciesPhoto photo;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: AspectRatio(
+            aspectRatio: 1,
+            child: Image.asset(
+              photo.asset,
+              fit: BoxFit.cover,
+              // Ohne Bild bleibt die Zeile lesbar — ein Asset-Fehler darf
+              // die Warnung nicht mitreißen.
+              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+            ),
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(name,
+            style: theme.textTheme.bodySmall
+                ?.copyWith(fontWeight: FontWeight.w600),
+            overflow: TextOverflow.ellipsis),
+        // **Die Namensnennung steht AM Bild.** Sie auf die Lizenzseite
+        // allein zu schieben wäre bei CC-BY die Bedingung knapp verfehlt.
+        Text(photoCredit(photo),
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: theme.hintColor, fontSize: 10)),
+      ],
     );
   }
 }
