@@ -134,6 +134,13 @@ abstract interface class Settings {
 
   Future<void> setGbifLayerEnabled(bool value);
 
+  /// Arten, die der Nutzer von der Pilzampel ausgenommen hat (#495,
+  /// Schalter je Art im Reiter „Pilze"). Gerätelokal wie die
+  /// Ebenen-Schalter; leer ab Werk.
+  Set<String> get ampelExcludedSpecies;
+
+  Future<void> setAmpelExcludedSpecies(Set<String> value);
+
   /// Leuchtete beim letzten Mal die Pilzampel? Begründung siehe
   /// [forestLayerEnabled].
   ///
@@ -374,6 +381,16 @@ class PrefsSettings implements Settings {
   @override
   Future<void> setGbifLayerEnabled(bool value) =>
       _prefs.setBool(_gbifLayerEnabledKey, value);
+
+  static const _ampelExcludedSpeciesKey = 'ampel_excluded_species';
+
+  @override
+  Set<String> get ampelExcludedSpecies =>
+      (_prefs.getStringList(_ampelExcludedSpeciesKey) ?? const []).toSet();
+
+  @override
+  Future<void> setAmpelExcludedSpecies(Set<String> value) =>
+      _prefs.setStringList(_ampelExcludedSpeciesKey, value.toList()..sort());
 
   static const _ampelLayerEnabledKey = 'ampel_layer_enabled';
 

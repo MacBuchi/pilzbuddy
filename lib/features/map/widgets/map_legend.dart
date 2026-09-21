@@ -59,7 +59,10 @@ import '../rain_data_providers.dart';
 import '../rain_fill.dart';
 import '../map_overlays.dart';
 import '../rain_layer.dart';
-import '../spot_filter.dart' show selectedAmpelClassesProvider;
+import '../../ampel/ampel_season_gate.dart' show ampelNowLine;
+import '../../ampel/ampel_species_exclusion.dart';
+import '../spot_filter.dart'
+    show activeAmpelClassesProvider, currentMonthProvider, selectedAmpelClassesProvider;
 import 'here_sheet.dart';
 
 /// Ist die Legende ausgeklappt?
@@ -165,7 +168,8 @@ class MapLegend extends ConsumerWidget {
     // baut: `ampelReadingFrom` verlangt die Höhe nicht per Typ, der
     // Flow-Test „die Legende rechnet mit derselben Höhe" ist das Netz.
     AmpelReading? ampelAt;
-    var ampelByClass = const <({AmpelClass klass, AmpelReading reading})>[];
+    var ampelByClass =
+        const <({AmpelClass klass, AmpelReading reading, String? now})>[];
     if (showAmpel && center != null) {
       final at = (lat: center.latitude, lon: center.longitude);
       final course = ref.watch(rainCourseProvider(at));
@@ -184,7 +188,12 @@ class MapLegend extends ConsumerWidget {
         // Maximum nimmt. Stünde hier `ampelShippedClasses`, nennte die
         // Legende eine Gruppe, die auf der Karte gar nicht mehr
         // leuchtet; #279 verlangt eine Antwort, nicht zwei.
-        final selected = ref.watch(selectedAmpelClassesProvider);
+        // Seit 1.157.0 die AKTIVEN Klassen (#495): Auswahl minus
+        // Saison-Tor minus ausgenommene Arten — dieselbe Liste wie die
+        // Fläche.
+        final selected = ref.watch(activeAmpelClassesProvider);
+        final month = ref.watch(currentMonthProvider);
+        final excluded = ref.watch(ampelExcludedSpeciesProvider);
         ampelAt = ampelBestReadingFrom(
                 course.valueOrNull, temperature.valueOrNull,
                 classes: selected, spotHeightM: spotHeight.valueOrNull)
@@ -196,6 +205,10 @@ class MapLegend extends ConsumerWidget {
               reading: ampelReadingFrom(
                   course.valueOrNull, temperature.valueOrNull,
                   klass: klass, spotHeightM: spotHeight.valueOrNull),
+              // Wer die Klasse gerade trägt, wenn es nicht der
+              // Namensgeber ist: „Austernseitling & Co." heißt im
+              // September Krause Glucke und Leberpilz.
+              now: ampelNowLine(klass, month: month, excluded: excluded),
             ),
         ];
       }
@@ -272,7 +285,7 @@ typedef LegendZones = ({
   /// AUSGEKLAPPTE Legende zeigt sie (Betreiber, 2026-09-12). Die
   /// eingeklappte Schiene trägt weiter nur den Daumen: Sie ist 40 px
   /// breit, und ein Urteil in Formsprache verträgt keine Aufzählung.
-  List<({AmpelClass klass, AmpelReading reading})> ampelByClass,
+  List<({AmpelClass klass, AmpelReading reading, String? now})> ampelByClass,
   bool showRain,
   RainLayer rainLayer,
   int? rainMm,
@@ -824,7 +837,8 @@ class _AmpelSection extends StatelessWidget {
   final AmpelReading? reading;
 
   /// Jede ausgelieferte Klasse einzeln, für die Detailzeilen.
-  final List<({AmpelClass klass, AmpelReading reading})> byClass;
+  final List<({AmpelClass klass, AmpelReading reading, String? now})>
+      byClass;
 
   /// Die Spalten in der Reihenfolge von [AppColors.ampelCombined] —
   /// dieselbe wie `ForestClass` ohne `none`.
@@ -946,7 +960,7 @@ class _AmpelSection extends StatelessWidget {
           const SizedBox(height: 6),
           Text('am Fadenkreuz',
               style: small?.copyWith(color: theme.hintColor)),
-          for (final entry in details)
+          for (final entry in details) ...[
             Padding(
               padding: const EdgeInsets.only(top: 2),
               child: Row(
@@ -967,6 +981,14 @@ class _AmpelSection extends StatelessWidget {
                 ],
               ),
             ),
+            if (entry.now case final now?)
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: Text(now,
+                    style: small?.copyWith(color: theme.hintColor),
+                    overflow: TextOverflow.ellipsis),
+              ),
+          ],
         ],
         // **Hier steht bewusst KEINE Evidenzstufe** (N7, versucht und
         // zurückgenommen am 2026-09-19). Zwei Gründe, und der zweite

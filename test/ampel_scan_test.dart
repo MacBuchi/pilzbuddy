@@ -63,6 +63,29 @@ ElevationGrid flatGrid(int meters) => ElevationGrid(
 
 void main() {
   group('ampelScanOf', () {
+    test('eine ausgenommene Art gibt keinen Treffer (#495)', () {
+      final spots = [spotAt(id: 'satt', species: ['Steinpilz'])];
+      final withHit = ampelScanOf(
+        spots: spots,
+        courses: [courseOf(5)],
+        table: tableOf(),
+        elevation: null,
+        classes: ampelShippedClasses,
+        month: 9,
+      );
+      expect(withHit, isNotEmpty, reason: 'ohne Ausnahme ist der Spot dran');
+      final excluded = ampelScanOf(
+        spots: spots,
+        courses: [courseOf(5)],
+        table: tableOf(),
+        elevation: null,
+        classes: ampelShippedClasses,
+        month: 9,
+        excluded: const {'Steinpilz'},
+      );
+      expect(excluded, isEmpty);
+    });
+
     test('meldet nur GÜNSTIG, nicht „verhalten"', () {
       // 5 mm/Tag sättigt den Regenfaktor, 1 mm/Tag landet bei ~0,30 —
       // die Stufen dazu bestimmt das Modell, nicht dieser Test.

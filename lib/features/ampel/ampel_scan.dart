@@ -26,7 +26,8 @@ import '../map/elevation_providers.dart';
 import '../map/rain_data_providers.dart';
 import '../map/rain_stack.dart';
 import '../map/spot_filter.dart'
-    show currentMonthProvider, selectedAmpelClassesProvider;
+    show activeAmpelClassesProvider, currentMonthProvider;
+import 'ampel_species_exclusion.dart';
 import '../map/spot_weather.dart';
 import '../../core/season_curves.dart';
 import '../spots/spot_providers.dart';
@@ -113,11 +114,14 @@ List<AmpelHit> ampelScanOf({
   required ElevationGrid? elevation,
   required List<AmpelClass> classes,
   required int month,
+  Set<String> excluded = const {},
 }) {
   final hits = <AmpelHit>[];
   for (final (index, spot) in spots.indexed) {
     AmpelHit? best;
     for (final species in scanSpeciesOf(spot)) {
+      // Vom Nutzer ausgenommen (#495): kein Treffer für diese Art.
+      if (species != null && excluded.contains(species)) continue;
       final klass = ampelClassFor(species);
       // Eine Art ohne bestätigte Klasse bekommt keine Stufe — grau ist
       // eine Antwort, aber kein Grund, jemanden in den Wald zu schicken.
@@ -201,7 +205,8 @@ final ampelScanProvider = FutureProvider<List<AmpelHit>>((ref) async {
   // NACH den Schaltern und VOR dem ersten Gitter: Die Auswahl kostet
   // nichts (zwei Konstanten aus einer Map), aber die Reihenfolge in
   // dieser Funktion ist die Zusage — beobachten IST laden.
-  final classes = ref.watch(selectedAmpelClassesProvider);
+  final classes = ref.watch(activeAmpelClassesProvider);
+  final excluded = ref.watch(ampelExcludedSpeciesProvider);
 
   final spots = ref.watch(mySpotListProvider);
   if (spots.isEmpty) return const [];
@@ -222,6 +227,7 @@ final ampelScanProvider = FutureProvider<List<AmpelHit>>((ref) async {
     // Derselbe Provider, an dem der Saison-Filter hängt — nicht
     // `DateTime.now()`: Banner und Filter müssen denselben Monat sehen,
     // sonst zeigt der Tipp auf eine Karte, die etwas anderes filtert.
+    excluded: excluded,
     month: ref.watch(currentMonthProvider),
   );
 });

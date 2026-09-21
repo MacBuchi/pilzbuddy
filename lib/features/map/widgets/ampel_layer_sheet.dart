@@ -22,7 +22,7 @@ import '../../../core/app_colors.dart';
 import '../../ampel/ampel_map_providers.dart';
 import '../../../core/mushroom_species.dart';
 import '../../ampel/ampel_model.dart';
-import '../spot_filter.dart' show selectedAmpelClassesProvider;
+import '../spot_filter.dart' show activeAmpelClassesProvider, selectedAmpelClassesProvider;
 
 Future<void> showAmpelLayerSheet(BuildContext context) {
   return showModalBottomSheet<void>(
@@ -45,6 +45,13 @@ class _AmpelLayerSheet extends ConsumerWidget {
     // auf dieselbe Frage (die Lehre aus `setAmpelLayerEnabled`), und
     // melden kann sich auf der Karte ohnehin nur der Filter-Chip.
     final selected = ref.watch(selectedAmpelClassesProvider);
+    // Was gerade rechnet (#495): die Auswahl ohne die Gruppen, deren
+    // Arten alle außerhalb ihrer Saison liegen oder ausgenommen sind.
+    final active = ref.watch(activeAmpelClassesProvider);
+    final paused = [
+      for (final klass in selected)
+        if (!active.contains(klass)) klass.name,
+    ];
     final restricted = selected.length < ampelShippedClasses.length;
 
     return SafeArea(
@@ -95,7 +102,7 @@ class _AmpelLayerSheet extends ConsumerWidget {
                 restricted
                     ? 'Lässt die Waldwaben dort leuchten, wo die '
                         'Bedingungen für '
-                        '${selected.map((k) => k.name).join(' oder ')} '
+                        '${active.map((k) => k.name).join(' oder ')} '
                         'gerade stimmen. Die übrigen Gruppen hast du im '
                         'Kartenfilter abgewählt.'
                     : 'Lässt die Waldwaben dort leuchten, wo die '
@@ -105,6 +112,22 @@ class _AmpelLayerSheet extends ConsumerWidget {
                     ?.copyWith(color: theme.hintColor),
               ),
             ),
+            // Das Saison-Tor (#495): Eine gewählte Gruppe, deren Arten
+            // gerade alle außerhalb ihrer Saison liegen (oder ausgenommen
+            // sind), leuchtet nicht — und das muss hier stehen, sonst
+            // sähe die fehlende Gruppe nach einem Fehler aus.
+            if (paused.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                child: Text(
+                  'Gerade ohne Saison: ${paused.join(', ')} — keine '
+                  '${paused.length == 1 ? 'ihrer' : 'ihrer'} Arten wird '
+                  'in diesem Monat gemeldet, oder du hast sie im Reiter '
+                  '„Pilze" ausgenommen.',
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.hintColor),
+                ),
+              ),
             Flexible(
               child: ListView(
                 shrinkWrap: true,
