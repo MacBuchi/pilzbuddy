@@ -7,6 +7,25 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Bestimmungsmerkmale bei 58 Arten
+
+*22. September 2026 · Version 1.166.0*
+
+Unter den Warnungen steht jetzt, woran eine Art erkannt wird — immer in
+denselben sechs Feldern: Hut, Unterseite, Stiel, Fleisch, Geruch,
+Vorkommen. Dass die Reihenfolge fest ist, hat einen Grund: Wer zwei
+Arten vergleicht, springt zwischen zwei Seiten hin und her und liest
+dieselbe Zeile zweimal.
+
+Beschrieben sind die Arten, bei denen es zählt: alle mit einem
+Verwechslungspartner und alle giftigen. Für die übrigen steht kein
+Abschnitt da — lieber nichts als eine halbe Beschreibung.
+
+Auch hier gilt, was auf der ganzen Seite gilt: Das beschreibt, woran
+eine Art in der Literatur erkannt wird, nicht was du in der Hand hältst.
+Ein einzelnes Merkmal entscheidet nie. **PilzBuddy bestimmt keine
+Pilze** — wer unsicher ist, fragt einen Pilzsachverständigen.
+
 ## Verwechslungspartner bei jeder Art
 
 *22. September 2026 · Version 1.165.0*

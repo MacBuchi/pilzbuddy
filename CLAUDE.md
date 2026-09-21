@@ -1314,6 +1314,30 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     tödlichen Paare drinstehen, und dass jede giftige Art mit Partnern
     mindestens einen Speisepilz nennt — sonst erklärt die Warnung nicht,
     warum jemand sie überhaupt im Korb hätte.
+  - **Bestimmungsmerkmale** (`lib/core/species_features.dart`, seit
+    1.166.0): sechs Felder je Art — Hut, Unterseite, Stiel, Fleisch,
+    Geruch, Vorkommen. Vier Dinge, die man wissen muss:
+    - **Die Pflichtmenge ist eine REGEL, keine Liste**: jede Art mit
+      einem Verwechslungspartner (ohne Merkmale ließe sich der
+      Unterschied nicht nachlesen) und jede giftige Art. Das sind
+      derzeit 58; `test/species_features_test.dart` rechnet es nach, wer
+      ein Paar ergänzt, wird zu den Merkmalen gezwungen.
+    - **Das Raster ist fest, und das ist kein Ordnungssinn.** Wer zwei
+      Arten vergleicht, springt zwischen zwei Seiten und liest dieselbe
+      Zeile zweimal; Freitext in wechselnder Reihenfolge macht genau das
+      unmöglich — und Vergleichen ist der einzige Grund, aus dem jemand
+      hier liest. „Trifft nicht zu" wird ausgeschrieben („keine
+      Lamellen"), ein leeres Feld sähe aus wie eine Lücke.
+    - **Geprüft wird die Pflege, nicht die Mykologie.** Ob der
+      Gifthäubling einen glatten Stiel hat, steht in der Literatur. Der
+      Test fängt, was beim Pflegen schiefgeht: zu kurze Felder,
+      kopierte GESTALT-Zeilen (Hut/Unterseite/Stiel — Geruch und
+      Vorkommen dürfen sich wiederholen, weil zwei Pilze eben beide mild
+      riechen), zwei Arten mit demselben ganzen Satz. Beim ersten Lauf
+      hat er neun echte Schlampigkeiten gefunden.
+    - **Reihenfolge auf der Seite: erst die Warnungen, dann die
+      Beschreibung.** Wer von oben liest, weiß vor dem ersten Merkmal,
+      ob er es mit einem Giftpilz zu tun hat.
 - **Der Reiter „Spots"** (#509, seit 1.161.0): die Karte als Liste
   (`lib/features/spots/spots_screen.dart`) plus die Statistik, die bis
   1.160.0 im Profil stand. Sechs Dinge, die man wissen muss:

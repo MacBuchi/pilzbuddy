@@ -78,6 +78,10 @@ class SpeciesDetailScreen extends ConsumerWidget {
                 // müssen zusammen gelesen werden, sonst nützt keins von
                 // beidem.
                 _Lookalikes(detail: detail),
+                // Erst die Warnungen, dann die Beschreibung: Wer die
+                // Seite von oben liest, weiß vor dem ersten Merkmal, ob
+                // er es mit einem Giftpilz zu tun hat.
+                _Features(detail: detail),
                 _Season(detail: detail, month: month),
                 _Ampel(detail: detail),
                 _OwnFinds(detail: detail),
@@ -329,6 +333,65 @@ class _LookalikeRow extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Die sechs Bestimmungsmerkmale.
+///
+/// **Ein festes Raster, immer in derselben Reihenfolge.** Das ist nicht
+/// Ordnungsliebe: Wer zwei Arten vergleicht, springt zwischen zwei Seiten
+/// hin und her und liest dieselbe Zeile zweimal. Freitext in wechselnder
+/// Reihenfolge macht genau das unmöglich — und Vergleichen ist der
+/// einzige Grund, aus dem jemand hier liest.
+class _Features extends StatelessWidget {
+  const _Features({required this.detail});
+
+  final SpeciesDetail detail;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final f = detail.features;
+    if (f == null) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SectionTitle('Merkmale'),
+        for (final (label, value) in [
+          ('Hut', f.hut),
+          ('Unterseite', f.unterseite),
+          ('Stiel', f.stiel),
+          ('Fleisch', f.fleisch),
+          ('Geruch', f.geruch),
+          ('Vorkommen', f.vorkommen),
+        ])
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 86,
+                  child: Text(label,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w600)),
+                ),
+                Expanded(
+                  child: Text(value, style: theme.textTheme.bodySmall),
+                ),
+              ],
+            ),
+          ),
+        Text(
+          // Der Satz, der DIESEM Abschnitt gehört — die anderen
+          // Vorbehalte auf der Seite sagen etwas anderes.
+          'Beschrieben ist, woran die Art in der Literatur erkannt wird. '
+          'Ein einzelnes Merkmal entscheidet nie.',
+          style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
+        ),
+      ],
     );
   }
 }

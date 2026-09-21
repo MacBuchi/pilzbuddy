@@ -17,6 +17,7 @@
 import '../../core/mushroom_species.dart';
 import '../../core/season_curves.dart';
 import '../../core/species_edibility.dart';
+import '../../core/species_features.dart';
 import '../../core/species_lookalikes.dart';
 import '../../models/spot.dart';
 import '../ampel/ampel_model.dart';
@@ -156,6 +157,7 @@ class SpeciesDetail {
     required this.evidence,
     required this.edibility,
     required this.lookalikes,
+    required this.features,
     required this.ownFinds,
     required this.ownSpots,
     required this.lastFound,
@@ -192,6 +194,11 @@ class SpeciesDetail {
   /// Womit diese Art verwechselt wird. **Leer heißt „uns ist keine
   /// häufige Verwechslung bekannt"**, nicht „es gibt keine".
   final List<Lookalike> lookalikes;
+
+  /// Die sechs Bestimmungsmerkmale — `null` für die Arten, für die keine
+  /// gepflegt sind. Dann zeigt die Seite den Abschnitt gar nicht, statt
+  /// eine halbe Beschreibung zu behaupten.
+  final SpeciesFeatures? features;
 
   /// **Nur EIGENE Funde**, dieselbe Grenze wie in der Statistik (#211):
   /// gezählt wird über `Spot.ownFinds`, nicht über `spot.finds`. Ein
@@ -259,6 +266,7 @@ SpeciesDetail? speciesDetailFor(
     evidence: ampelEvidenceFor(entry.name),
     edibility: edibilityFor(entry.name),
     lookalikes: lookalikesFor(entry.name),
+    features: featuresFor(entry.name),
     ownFinds: finds,
     ownSpots: spotCount,
     lastFound: last,
