@@ -59,9 +59,13 @@ Stand 2026-09-08, nachgesehen im Code, nicht angenommen.
   Erklärung nennt jetzt beides getrennt — wo die Daten liegen, und wer
   darauf zugreifen kann.
 
-  **Noch zu tun:** Den Auftragsverarbeitungsvertrag samt
-  Unterauftragnehmer-Liste bei Supabase abrufen und ablegen (Art. 28).
-  Die Erklärung beruft sich darauf; abgeheftet ist er noch nicht.
+  **Nachgetragen am 2026-09-21:** Der Auftragsverarbeitungsvertrag ist
+  nichts, was hier fehlen könnte — er gilt durch Annahme der
+  Nutzungsbedingungen, und Klausel 12.2 stellt das der Unterschrift
+  unter die Standardvertragsklauseln ausdrücklich gleich. Zu belegen
+  ist die FASSUNG, nicht der Abschluss. Welche gilt, steht in der
+  Verarbeiter-Tabelle in `docs/datenschutz-verfahren.md`, zusammen mit
+  den drei Handgriffen, die daraus folgen.
 - ~~Impressumspflicht (§ 5 DDG)~~ — **entschieden am 2026-09-21**
   (Betreiber): `web/impressum.html` mit voller Anschrift, verlinkt aus
   der Erklärung, aus der Lösch-Seite und als Zeile im Profil.
