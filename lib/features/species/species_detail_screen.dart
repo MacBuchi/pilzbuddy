@@ -30,6 +30,7 @@ import '../../core/app_colors.dart';
 import '../../core/router_branches.dart';
 import '../../core/season_curves.dart';
 import '../../core/species_edibility.dart';
+import '../../core/species_lookalikes.dart';
 import '../../core/widgets/mushroom_icon.dart';
 import '../../core/widgets/season_bars.dart';
 import '../ampel/ampel_model.dart';
@@ -38,6 +39,9 @@ import '../map/gbif_finds_providers.dart';
 import '../map/spot_filter.dart' show currentMonthProvider, spotFilterProvider;
 import '../spots/spot_providers.dart' show mySpotListProvider;
 import 'species_catalogue.dart';
+
+/// Die Karte mit der Einstufung DIESER Art — siehe [_Edibility].
+const kEdibilityCardKey = ValueKey('species-edibility');
 
 class SpeciesDetailScreen extends ConsumerWidget {
   const SpeciesDetailScreen({super.key, required this.species});
@@ -70,6 +74,10 @@ class SpeciesDetailScreen extends ConsumerWidget {
                 // **Ganz oben, gleich unter dem Namen.** Eine Warnung,
                 // zu der man erst scrollen muss, ist im Wald keine.
                 _Edibility(detail: detail),
+                // Direkt darunter: „giftig" und „wird verwechselt mit …"
+                // müssen zusammen gelesen werden, sonst nützt keins von
+                // beidem.
+                _Lookalikes(detail: detail),
                 _Season(detail: detail, month: month),
                 _Ampel(detail: detail),
                 _OwnFinds(detail: detail),
@@ -187,6 +195,10 @@ class _Edibility extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(top: 16),
       child: Container(
+        // Benannt, damit ein Test die EIGENE Einstufung von der eines
+        // Verwechslungspartners unterscheiden kann — beide tragen
+        // dasselbe Warnzeichen, und nur eine gehört diesem Pilz.
+        key: kEdibilityCardKey,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: level.isWarning
@@ -223,6 +235,97 @@ class _Edibility extends StatelessWidget {
             Text(kEdibilityDisclaimer,
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: theme.hintColor)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Womit diese Art verwechselt wird.
+///
+/// **Jeder Partner ist antippbar** — er ist selbst eine Art mit eigener
+/// Seite, und wer hier landet, will als Nächstes meistens genau dorthin.
+/// Und jede Zeile trägt die EINSTUFUNG des Partners: „Pantherpilz" allein
+/// sagt nichts, „Pantherpilz · Giftig" beantwortet die Frage, wegen der
+/// man hinsieht.
+class _Lookalikes extends StatelessWidget {
+  const _Lookalikes({required this.detail});
+
+  final SpeciesDetail detail;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    if (detail.lookalikes.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SectionTitle('Verwechslungspartner'),
+        for (final partner in detail.lookalikes)
+          _LookalikeRow(partner: partner),
+        const SizedBox(height: 6),
+        Text(
+          // **Leer ist nicht dasselbe wie sicher.** Der Satz steht auch
+          // unter einer vollen Liste: Vollständigkeit ist hier nie
+          // behauptet.
+          'Aufgeführt ist, was häufig verwechselt wird — die Liste ist '
+          'nicht vollständig, und ein Merkmal allein entscheidet nie.',
+          style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
+        ),
+      ],
+    );
+  }
+}
+
+class _LookalikeRow extends StatelessWidget {
+  const _LookalikeRow({required this.partner});
+
+  final Lookalike partner;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final level = edibilityFor(partner.species)?.level;
+    final colour = switch (level) {
+      Edibility.toedlichGiftig || Edibility.giftig => theme.colorScheme.error,
+      null || Edibility.speisepilz => theme.colorScheme.onSurface,
+      _ => AppColors.warmBrown,
+    };
+    return InkWell(
+      onTap: () =>
+          context.go('/pilze/${Uri.encodeComponent(partner.species)}'),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                if (level?.isWarning ?? false)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: Icon(Icons.warning_amber_rounded,
+                        size: 16, color: colour),
+                  ),
+                Flexible(
+                  child: Text(
+                    partner.species,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                if (level != null) ...[
+                  Text(' · ', style: theme.textTheme.bodySmall),
+                  Text(level.label,
+                      style: theme.textTheme.bodySmall?.copyWith(color: colour)),
+                ],
+                const Spacer(),
+                Icon(Icons.chevron_right, size: 18, color: theme.hintColor),
+              ],
+            ),
+            Text(partner.difference, style: theme.textTheme.bodySmall),
           ],
         ),
       ),

@@ -1291,6 +1291,29 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
       Speisepilz galten, und deutsche Namen, die eine Gattung meinen.
       Eine Bemerkung an jeder Zeile wäre Lärm, in dem die wichtigen
       untergehen.
+  - **Verwechslungspartner** (`lib/core/species_lookalikes.dart`, seit
+    1.165.0): je Paar ZWEI Einträge, einer je Richtung. Vier Dinge, die
+    man wissen muss:
+    - **Die Beziehung ist symmetrisch, und ein Test erzwingt das.** Wer
+      auf der Seite des Giftpilzes landet, ist oft gerade der, der dort
+      nicht hinwollte; eine einseitige Warnung findet nur, wer schon
+      weiß, wonach er sucht.
+    - **Der Unterscheidungssatz steht je RICHTUNG.** „Der Perlpilz
+      rötet" ist beim Perlpilz eine Bestätigung und beim Pantherpilz ein
+      Ausschluss. Ein Test verlangt, dass die beiden Sätze eines Paares
+      verschieden sind — wortgleich hieße, eine Seite wurde nur kopiert.
+    - **Jede Zeile trägt die Einstufung des PARTNERS** und führt auf
+      dessen Seite. „Gifthäubling" allein sagt nichts, „Gifthäubling ·
+      Tödlich giftig" beantwortet die Frage, wegen der man hinsieht.
+    - **Leer heißt „keine bekannt", nicht „keine vorhanden"** — deshalb
+      fällt der Abschnitt bei einer Art ohne Partner ganz weg statt als
+      leere Überschrift dazustehen, und unter jeder vollen Liste steht,
+      dass sie nicht vollständig ist.
+    Geprüft wird außerdem, dass jeder genannte Partner eine bekannte Art
+    ist (ein Verweis ins Leere wäre schlimmer als keiner), dass die acht
+    tödlichen Paare drinstehen, und dass jede giftige Art mit Partnern
+    mindestens einen Speisepilz nennt — sonst erklärt die Warnung nicht,
+    warum jemand sie überhaupt im Korb hätte.
 - **Der Reiter „Spots"** (#509, seit 1.161.0): die Karte als Liste
   (`lib/features/spots/spots_screen.dart`) plus die Statistik, die bis
   1.160.0 im Profil stand. Sechs Dinge, die man wissen muss:

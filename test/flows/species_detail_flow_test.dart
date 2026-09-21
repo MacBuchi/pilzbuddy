@@ -256,9 +256,13 @@ void main() {
     await openSpecies(tester, 'Steinpilz');
 
     expect(find.text('Gilt als Speisepilz'), findsOneWidget);
+    // **Auf die eigene Einstufung gezielt.** Seit es
+    // Verwechslungspartner gibt, trägt die Seite sehr wohl Warnzeichen
+    // — die des Gallenröhrlings und des Satansröhrlings. Die gehören
+    // ihnen, nicht dem Steinpilz.
     expect(
         find.descendant(
-            of: find.byType(SpeciesDetailScreen),
+            of: find.byKey(kEdibilityCardKey),
             matching: find.byIcon(Icons.warning_amber_rounded)),
         findsNothing);
     expect(Edibility.speisepilz.isWarning, isFalse);
@@ -298,5 +302,51 @@ void main() {
 
     await searchFor('Satansröhrling');
     expect(rowIcon('Satansröhrling'), findsOneWidget);
+  });
+
+  testWidgets('die Verwechslungspartner stehen unter der Einstufung — mit '
+      'ihrer eigenen', (tester) async {
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend);
+    await openSpecies(tester, 'Stockschwämmchen');
+
+    // Das Paar, an dem in Mitteleuropa Menschen gestorben sind.
+    expect(find.text('Gifthäubling'), findsOneWidget);
+    // **Die Einstufung des Partners gehört in dieselbe Zeile.**
+    // „Gifthäubling" allein sagt jemandem, der ihn nicht kennt, nichts.
+    expect(find.text('Tödlich giftig'), findsOneWidget);
+    expect(find.textContaining('unterhalb des Rings deutlich SCHUPPIG'),
+        findsOneWidget);
+    // Und die Liste behauptet nirgends, vollständig zu sein.
+    expect(find.textContaining('nicht vollständig'), findsOneWidget);
+  });
+
+  testWidgets('ein Partner führt auf seine eigene Seite', (tester) async {
+    // Wer hier landet, will als Nächstes meistens genau dorthin — und
+    // die Seite des Gifthäublings muss dann zurück auf das
+    // Stockschwämmchen zeigen (die Symmetrie, die der Modelltest
+    // erzwingt, als Weg durch die Oberfläche).
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend);
+    await openSpecies(tester, 'Stockschwämmchen');
+
+    await tester.tap(find.text('Gifthäubling'));
+    await settle(tester);
+
+    expect(find.text('Galerina marginata'), findsOneWidget,
+        reason: 'jetzt steht die Seite des Gifthäublings da');
+    expect(find.text('Stockschwämmchen'), findsOneWidget,
+        reason: 'und sie warnt zurück');
+  });
+
+  testWidgets('eine Art ohne bekannte Verwechslung schweigt',
+      (tester) async {
+    // Leer heißt „uns ist keine häufige Verwechslung bekannt" — ein
+    // leerer Abschnitt mit Überschrift läse sich als „es gibt keine".
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend);
+    await openSpecies(tester, 'Judasohr');
+
+    expect(find.text('Verwechslungspartner'), findsNothing);
   });
 }
