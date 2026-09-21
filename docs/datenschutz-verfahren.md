@@ -4,20 +4,69 @@ Ergänzt `web/datenschutz.html` (die Erklärung für Nutzer) um das, was der
 Betreiber braucht: wer welche Daten im Auftrag verarbeitet, wann Mails
 rausgehen und wie eine Auskunftsanfrage beantwortet wird.
 
-Teil von Issue #110 (DSGVO-Epic). Diese Datei deckt die **mailbezogenen**
-Punkte ab; Impressum, Verarbeitungsverzeichnis nach Art. 30, der
-Haftungshinweis in der App und die Prüfung der übrigen Datenflüsse bleiben
-dort offen.
+Teil von Issue #110 (DSGVO-Epic). Impressum (#500),
+Verarbeitungsverzeichnis nach Art. 30 (#502), Haftungshinweis in der App
+und die Prüfung der Datenflüsse sind erledigt und stehen in
+`docs/datenschutz-nachweise.md`.
 
-Stand: 26. Juli 2026.
+Stand: 21. September 2026.
 
 ## Auftragsverarbeiter
 
 | Wer | Wofür | Serverstandort | AV-Vertrag |
 |---|---|---|---|
-| **Supabase** | Konto (`auth.users`), Spots, Freundschaften, Fehlerberichte | EU | Über die Supabase-Nutzungsbedingungen (DPA); im Dashboard unter Organization → Legal einsehbar |
+| **Supabase** | Konto (`auth.users`), Spots, Funde, Freundschaften, Standort- und Tourfreigaben, Fehlerberichte | AWS `eu-west-1` (Irland) | supabase.com/legal/dpa, Fassung 1 vom 2026-08-01. **Gilt durch Annahme der Nutzungsbedingungen** — Klausel 12.2 stellt das der Unterschrift unter die Standardvertragsklauseln ausdrücklich gleich |
 | **Brevo** (Sendinblue GmbH) | Zustellung der Konto-Mails; erhält nur die E-Mail-Adresse | EU | Brevos AVV, Bestandteil der Nutzungsbedingungen |
-| **GitHub** | Hosting der Web-App und der Rechtsseiten (GitHub Pages), Feedback-Issues, Release-Downloads | USA (Standardvertragsklauseln) | GitHub DPA |
+| **GitHub** | Hosting der Web-App und der Rechtsseiten (GitHub Pages), Feedback-Issues, Release-Downloads | USA (Standardvertragsklauseln) | GitHub Data Protection Agreement, Bestandteil der Nutzungsbedingungen |
+| **Google** (Firebase Cloud Messaging) | Zustellung der Benachrichtigungen; erhält die Gerätekennung (Token) | USA (Standardvertragsklauseln) | Firebase Data Processing and Security Terms, angenommen mit der Firebase-Nutzung |
+| **Proton** (Proton AG) | Postfach `pilzbuddy@proton.me` — dort laufen Auskunftsersuchen und Löschbitten ein | Schweiz (Angemessenheitsbeschluss, keine Standardvertragsklauseln nötig) | proton.me/legal/dpa — siehe Vorbehalt unten |
+
+**Google hat hier gefehlt, obwohl die Erklärung es längst nannte.** In
+`web/datenschutz.html` steht seit #277 eine eigene Überschrift „Google
+(Auftragsverarbeiter, Benachrichtigungen)", im Art.-30-Verzeichnis steht
+es als Empfänger — nur diese Tabelle führte drei statt vier. Zwei
+Unterlagen über denselben Sachverhalt, die sich widersprechen, sind
+schlechter als eine.
+
+**Das Postfach ist der wacklige Eintrag, und das steht hier statt es zu
+glätten.** Proton veröffentlicht einen AVV, adressiert ihn aber an
+Geschäfts- und Enterprise-Kunden; ob er ein kostenloses persönliches
+Konto erfasst, ist daraus nicht zu entnehmen. Solange das so ist, gilt
+für diesen einen Verarbeiter nur die veröffentlichte Fassung, nicht eine
+geprüfte Zusage. Wer das sauber haben will, hat zwei Wege: ein
+Proton-Business-Konto, oder das Postfach zu einem Anbieter mit
+unstrittigem AVV. Beides kostet Geld und ist deshalb eine Entscheidung,
+keine Aufgabe.
+
+## Was für Art. 28 wirklich zu tun ist
+
+Der offene Punkt in #110 war als „AV-Vertrag abrufen und ablegen"
+notiert. Beim Nachsehen am 2026-09-21 stellte sich heraus, dass das die
+falsche Vorstellung von der Sache war: **Es gibt nichts zu
+unterschreiben.** Bei allen fünf Verarbeitern ist der AVV Bestandteil
+der Nutzungsbedingungen; bei Supabase sagt Klausel 12.2 das sogar
+wörtlich. Es gibt also keinen gegengezeichneten Vertrag, der irgendwo
+fehlen könnte.
+
+Was Rechenschaftspflicht nach Art. 5 (2) trotzdem verlangt, ist der
+Nachweis, **welche Fassung** gilt. Daraus folgen drei Handgriffe, und
+nur der dritte ist wiederkehrend:
+
+1. Die AVV-Fassungen als PDF sichern, mit Datum im Dateinamen. Bei
+   Supabase ist das Fassung 1 vom 2026-08-01.
+2. Die Unterauftragnehmer-Liste sichern —
+   supabase.com/legal/customer-resources/subprocessor-list, PDF vom
+   2026-06-01.
+3. **Auf derselben Seite die Änderungsbenachrichtigung abonnieren.**
+   Das ist der eigentliche Gewinn: Supabase kündigt Änderungen 30 Tage
+   vorher an, und ein Abo verwandelt eine Pflicht, die man sonst
+   halbjährlich von Hand prüfen müsste, in eine Mail. Eine Aufgabe, die
+   halbjährlich fällig wird, passiert einmal.
+
+Abgelegt wird im Unterlagenordner des Betreibers, nicht im Repo — es
+sind fremde Dokumente, und das Repo ist öffentlich. Hierher gehört nur,
+welche Fassung gilt und wann sie geholt wurde; genau dafür steht sie in
+der Tabelle.
 
 Feedback ist kein Auftragsverarbeitungs-, sondern ein Veröffentlichungsfall:
 Der Text wird mit Benutzernamen zu einem **öffentlichen** GitHub-Issue. Das
