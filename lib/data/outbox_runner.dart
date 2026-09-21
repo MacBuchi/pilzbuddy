@@ -100,6 +100,7 @@ class OutboxRunner {
               name: job.name,
               finds: job.finds,
               clientId: job.id,
+              expectedSpecies: job.expectedSpecies,
             );
             resolved[job.id] = id;
           case NewFindsJob():

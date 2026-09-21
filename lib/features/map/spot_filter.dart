@@ -229,8 +229,17 @@ bool matchesSpotFilter(Spot spot, SpotFilter filter,
   };
   // `findsSorted` und nicht `finds`: Leergänge tragen ohnehin keine Art
   // (#211) und haben in der Frage „wo stand diese Art" nichts zu suchen.
-  return spot.findsSorted
-      .any((f) => wanted.contains(canonicalSpecies(f.species)?.toLowerCase()));
+  // Eine Vormerkung (#499) steht für ihre erwarteten Arten.
+  return spotSpeciesNames(spot)
+      .any((s) => wanted.contains(canonicalSpecies(s)?.toLowerCase()));
+}
+
+/// Die Arten, für die ein Spot steht: die seiner Funde — oder, bei einer
+/// Vormerkung (#499), die erwarteten. Leergänge tragen keine Art.
+List<String?> spotSpeciesNames(Spot spot) {
+  final finds = spot.findsSorted;
+  if (finds.isNotEmpty) return [for (final f in finds) f.species];
+  return spot.isPlanned ? spot.expectedSpecies : const [];
 }
 
 /// Hat an diesem Spot gerade eine der dort eingetragenen Arten Saison?
@@ -252,9 +261,9 @@ bool matchesSpotFilter(Spot spot, SpotFilter filter,
 ///    leergangsfrei (#211); wer dort nur „nichts gefunden" gebucht hat,
 ///    hat nichts behauptet, worüber eine Saison zu urteilen wäre.
 bool spotHasSeasonNow(Spot spot, {required int month}) {
-  final finds = spot.findsSorted;
-  if (finds.isEmpty) return true;
-  return finds.any((f) => speciesInSeason(f.species, month) ?? true);
+  final names = spotSpeciesNames(spot);
+  if (names.isEmpty) return true;
+  return names.any((s) => speciesInSeason(s, month) ?? true);
 }
 
 List<Spot> applySpotFilter(List<Spot> spots, SpotFilter filter,
@@ -282,8 +291,10 @@ List<SpeciesTally> speciesTally(List<Spot> spots) {
   final labels = <String, String>{};
   for (final spot in spots) {
     final seen = <String>{};
-    for (final find in spot.findsSorted) {
-      final name = canonicalSpecies(find.species);
+    // Vormerkungen zählen mit ihren erwarteten Arten (#499) — sonst
+    // ließe sich nach ihnen nicht filtern.
+    for (final species in spotSpeciesNames(spot)) {
+      final name = canonicalSpecies(species);
       if (name == null) continue;
       final key = name.toLowerCase();
       if (!seen.add(key)) continue;

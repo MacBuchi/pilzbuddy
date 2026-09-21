@@ -15,10 +15,16 @@ import 'package:latlong2/latlong.dart';
 
 import '../../../core/app_colors.dart';
 import '../../map/widgets/spot_position_field.dart';
+import 'species_collector.dart';
 
 /// Was der Nutzer korrigiert hat.
 class EditedSpotData {
-  const EditedSpotData({required this.name, required this.position});
+  const EditedSpotData(
+      {required this.name, required this.position, this.expectedSpecies});
+
+  /// Erwartete Arten einer Vormerkung (#499) — `null`, wenn das Blatt
+  /// sie nicht angeboten hat (der Spot hat Einträge).
+  final List<String>? expectedSpecies;
 
   /// `null` heißt „kein Name" — dieselbe Bedeutung wie beim Anlegen, wo
   /// ein leeres Feld zu `null` wird und die Liste „Pilz-Spot" anzeigt.
@@ -33,19 +39,34 @@ Future<EditedSpotData?> showEditSpotSheet(
   BuildContext context, {
   required String? name,
   required LatLng position,
+  List<String>? expectedSpecies,
+  List<String> ownSpecies = const [],
 }) {
   return showModalBottomSheet<EditedSpotData>(
     context: context,
     isScrollControlled: true,
-    builder: (context) => _EditSpotSheet(name: name, position: position),
+    builder: (context) => _EditSpotSheet(
+        name: name,
+        position: position,
+        expectedSpecies: expectedSpecies,
+        ownSpecies: ownSpecies),
   );
 }
 
 class _EditSpotSheet extends StatefulWidget {
-  const _EditSpotSheet({required this.name, required this.position});
+  const _EditSpotSheet(
+      {required this.name,
+      required this.position,
+      this.expectedSpecies,
+      this.ownSpecies = const []});
 
   final String? name;
   final LatLng position;
+
+  /// Nur bei einer Vormerkung gesetzt — dann zeigt das Blatt den
+  /// Arten-Sammler für die Erwartung (#499).
+  final List<String>? expectedSpecies;
+  final List<String> ownSpecies;
 
   @override
   State<_EditSpotSheet> createState() => _EditSpotSheetState();
@@ -56,6 +77,11 @@ class _EditSpotSheetState extends State<_EditSpotSheet> {
 
   /// Die Stelle, die gerade gilt — anfangs die bisherige.
   late LatLng _position = widget.position;
+
+  late List<SpeciesEntry> _expected = [
+    for (final s in widget.expectedSpecies ?? const <String>[])
+      (species: s, count: null),
+  ];
 
   @override
   void dispose() {
@@ -68,6 +94,12 @@ class _EditSpotSheetState extends State<_EditSpotSheet> {
     Navigator.of(context).pop(EditedSpotData(
       name: name.isEmpty ? null : name,
       position: _position,
+      expectedSpecies: widget.expectedSpecies == null
+          ? null
+          : [
+              for (final entry in _expected)
+                if (entry.species case final s? when s.isNotEmpty) s,
+            ],
     ));
   }
 
@@ -112,6 +144,18 @@ class _EditSpotSheetState extends State<_EditSpotSheet> {
                 border: OutlineInputBorder(),
               ),
             ),
+            if (widget.expectedSpecies case final expected?) ...[
+              const SizedBox(height: 12),
+              Text('Vorgemerkt für',
+                  style: Theme.of(context).textTheme.labelLarge),
+              const SizedBox(height: 4),
+              SpeciesCollector(
+                ownSpecies: widget.ownSpecies,
+                initialCollected: expected,
+                onChanged: (entries) => _expected = entries,
+                trailing: const SizedBox.shrink(),
+              ),
+            ],
             const SizedBox(height: 16),
             FilledButton.icon(
               onPressed: _save,

@@ -174,6 +174,14 @@ List<String?> scanSpeciesOf(Spot spot) {
     if (species == null || !seen.add(species)) continue;
     out.add(species);
   }
+  // Eine Vormerkung (#499) spricht über ihre erwarteten Arten — sonst
+  // wäre sie die Gildenfrage, und genau dafür hat der Nutzer die Arten
+  // eingetragen.
+  if (out.isEmpty && spot.isPlanned) {
+    for (final species in spot.expectedSpecies) {
+      if (seen.add(species)) out.add(species);
+    }
+  }
   return out.isEmpty ? const [null] : out;
 }
 

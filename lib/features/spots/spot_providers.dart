@@ -115,6 +115,7 @@ class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox>
     required double lng,
     String? name,
     required List<NewFind> finds,
+    List<String> expectedSpecies = const [],
   }) async {
     final job = NewSpotJob(
       id: newClientId(),
@@ -123,6 +124,7 @@ class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox>
       lng: lng,
       name: name,
       finds: [for (final find in finds) find.withClientId(newClientId())],
+      expectedSpecies: expectedSpecies,
     );
     try {
       await ref.read(spotRepositoryProvider).addSpot(
@@ -131,6 +133,7 @@ class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox>
             name: job.name,
             finds: job.finds,
             clientId: job.id,
+            expectedSpecies: job.expectedSpecies,
           );
     } catch (error, stackTrace) {
       await _queueIfOffline(error, stackTrace, job);
@@ -301,13 +304,15 @@ class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox>
     required double lat,
     required double lng,
     bool resetOffsetConfirmation = false,
+    List<String>? expectedSpecies,
   }) async {
     await ref.read(spotRepositoryProvider).editSpot(
         spotId: spotId,
         name: name,
         lat: lat,
         lng: lng,
-        resetOffsetConfirmation: resetOffsetConfirmation);
+        resetOffsetConfirmation: resetOffsetConfirmation,
+        expectedSpecies: expectedSpecies);
     return reloadAfterWrite('Spots neu laden');
   }
 

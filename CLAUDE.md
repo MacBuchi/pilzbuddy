@@ -1208,6 +1208,24 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     zusammengefügte Zeichenkette (zwei gleiche Mengen sind für `==`
     verschieden) und steht im Dateinamen der Fläche, sonst tauscht
     MapLibre das Bild nicht.
+- **Vormerkung** (#499, seit 1.159.0): ein Spot OHNE Einträge, mit
+  erwarteten Arten (`spots.expected_species`, Patch 025). Drei Dinge,
+  die man wissen muss:
+  - **Vorgemerkt IST `finds.isEmpty`**, keine Zustandsspalte: Der erste
+    Eintrag beendet die Vormerkung von selbst, zwei Wahrheiten könnten
+    auseinanderlaufen. Bis 1.158.0 legte der Anlege-Weg immer einen
+    Fund an (der Arten-Sammler meldet auch eine leere Zeile — bewusst:
+    „da stand was, ich weiß nicht was"); der Schalter „Nur vormerken"
+    im Blatt umgeht genau diese Zeile.
+  - **Erwartete Arten sind KEINE Funde.** Als Fund-Sorte (wie der
+    Leergang) sickerten sie in Statistik, Marker-Art und
+    Artenvorschläge; als Liste am Spot liest sie nur, wer sie braucht:
+    `scanSpeciesOf` (Ampel-Blatt, Nachlauf) und `spotSpeciesNames`
+    (Arten-Filter, Saison-Filter, Arten-Zähler) — jeweils nur, solange
+    der Spot keine Funde hat.
+  - **Verblasst wie wartend, aber ohne Uhr** (`MushroomIcon.planned`);
+    kein viertes Abzeichen. Der Ausgangskorb trägt die Liste im
+    Auftrag mit (`NewSpotJob.expectedSpecies`).
 - **Fundstellen weit vom Spot** (#475, seit 1.156.0): Ab 100 m
   (`kFindFixMaxOffsetM`, dieselbe Grenze wie der Riegel beim Eintragen)
   trägt der eigene Spot ein „!"-Abzeichen (im selben Kreis wie Uhr und

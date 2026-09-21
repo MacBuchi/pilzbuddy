@@ -32,6 +32,7 @@ class SpeciesCollector extends StatefulWidget {
     required this.trailing,
     this.initialSpecies,
     this.initialCount,
+    this.initialCollected = const [],
   });
 
   final List<String> ownSpecies;
@@ -45,6 +46,10 @@ class SpeciesCollector extends StatefulWidget {
   final String? initialSpecies;
   final int? initialCount;
 
+  /// Schon abgelegte Zeilen beim Öffnen — die erwarteten Arten einer
+  /// Vormerkung im Bearbeiten-Blatt (#499).
+  final List<String> initialCollected;
+
   @override
   State<SpeciesCollector> createState() => _SpeciesCollectorState();
 }
@@ -53,7 +58,9 @@ class _SpeciesCollectorState extends State<SpeciesCollector> {
   late final TextEditingController _controller =
       TextEditingController(text: widget.initialSpecies ?? '');
   late int? _count = widget.initialCount;
-  final _collected = <SpeciesEntry>[];
+  late final _collected = <SpeciesEntry>[
+    for (final s in widget.initialCollected) (species: s, count: null),
+  ];
 
   @override
   void dispose() {

@@ -30,6 +30,15 @@ void main() {
       await settle(tester, frames: 4);
     }
     expect(find.text('Was ist neu'), findsOneWidget);
+    // In die MITTE des Fensters holen: Seit dem Impressum (#500) ist das
+    // Profil so lang, dass der Eintrag nach den Wischern unter der
+    // App-Leiste liegt (y ≈ 1 px) und der Tipp ins Leere geht. Der Test
+    // blieb trotzdem grün — die jüngste Überschrift hieß „Impressum",
+    // und die stand als Profil-Kachel auf dem Bildschirm. Aufgefallen
+    // erst mit #499, dessen Block einen anderen Namen trägt.
+    await Scrollable.ensureVisible(tester.element(find.text('Was ist neu')),
+        alignment: 0.5);
+    await settle(tester, frames: 4);
 
     await tester.tap(find.text('Was ist neu'));
     // Der Bildschirm holt CHANGELOG.md über `rootBundle` — echtes
@@ -52,6 +61,11 @@ void main() {
     // Der neueste Block steht oben und ist ohne Scrollen sichtbar. Die
     // Überschrift kommt aus der Datei statt fest im Test zu stehen — sonst
     // bricht dieser Test bei jedem Release, das einen Block ergänzt.
+    // Erst der Beweis, dass der Bildschirm überhaupt offen ist — sonst
+    // findet die Suche unten Profil-Texte gleichen Wortlauts.
+    expect(find.byType(ChangelogScreen), findsOneWidget,
+        reason: 'ohne diesen Beweis fand die Suche unten die Profil-Kachel '
+            '„Impressum" statt der Überschrift');
     final newest = parseChangelog(File(changelogAsset).readAsStringSync())
         .firstWhere((line) => line.kind == ChangelogLineKind.section);
     expect(find.text(newest.text), findsOneWidget);

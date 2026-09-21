@@ -585,6 +585,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
             lng: data.position.longitude,
             name: data.name,
             finds: data.finds,
+            expectedSpecies: data.expectedSpecies,
           );
       _showMessage('Spot gespeichert 🍄${fresh ? '' : staleAfterWriteHint}');
     } catch (e, stackTrace) {
@@ -681,6 +682,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
             // am EIGENEN Spot: Ein Buddy kann nichts daran tun, und ein
             // Abzeichen ohne Handlung wäre ein Vorwurf.
             drift: spot.isOwn && spotDriftUnconfirmed(spot),
+            // Vorgemerkt (#499): verblasst, ohne Abzeichen — nur EIGENE:
+            // Ein Buddy-Spot ohne sichtbare Funde teilt vielleicht nur
+            // den Standort, das ist keine Vormerkung.
+            planned: spot.isOwn && spot.isPlanned,
             group: groupFor(spot.lastFind?.species),
             species: spot.lastFind?.species,
           ),

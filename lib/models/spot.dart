@@ -24,6 +24,12 @@ class Spot {
   /// steht in `find_offset.dart` (`spotDriftUnconfirmed`).
   final DateTime? offsetConfirmedAt;
 
+  /// Erwartete Arten einer Vormerkung (#499): der Spot wurde ohne Fund
+  /// angelegt, „hier will ich nach X schauen". Keine Funde — sie zählen
+  /// nirgends als Sichtung; Ampel, Saison-Filter und Nachlauf nehmen sie,
+  /// solange der Spot keine Einträge hat (`isPlanned`).
+  final List<String> expectedSpecies;
+
   const Spot({
     required this.id,
     required this.ownerId,
@@ -37,7 +43,13 @@ class Spot {
     this.finds = const [],
     this.pending = false,
     this.offsetConfirmedAt,
+    this.expectedSpecies = const [],
   });
+
+  /// Vorgemerkt heißt: noch kein Eintrag, weder Fund noch Leergang. Der
+  /// erste Eintrag beendet die Vormerkung von selbst — keine zweite
+  /// Zustandsspalte, die auseinanderlaufen könnte.
+  bool get isPlanned => finds.isEmpty;
 
   LatLng get position => LatLng(lat, lng);
 
@@ -111,6 +123,7 @@ class Spot {
         finds: finds ?? this.finds,
         pending: pending,
         offsetConfirmedAt: offsetConfirmedAt,
+        expectedSpecies: expectedSpecies,
       );
 
   factory Spot.fromJson(Map<String, dynamic> json, {required String currentUserId}) {
@@ -134,6 +147,10 @@ class Spot {
       offsetConfirmedAt: json['offset_confirmed_at'] == null
           ? null
           : DateTime.parse(json['offset_confirmed_at'] as String),
+      expectedSpecies: [
+        for (final s in json['expected_species'] as List<dynamic>? ?? const [])
+          if (s is String && s.isNotEmpty) s,
+      ],
     );
   }
 

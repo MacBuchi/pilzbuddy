@@ -32,6 +32,7 @@ class _RecordingRepository implements SpotRepository {
     String? name,
     required List<NewFind> finds,
     String? clientId,
+    List<String> expectedSpecies = const [],
   }) async {
     final error = onSpot?.call(clientId!);
     if (error != null) throw error;
@@ -249,6 +250,7 @@ class _SlowRepository implements SpotRepository {
     String? name,
     required List<NewFind> finds,
     String? clientId,
+    List<String> expectedSpecies = const [],
   }) async {
     await _gate;
     return _inner.addSpot(

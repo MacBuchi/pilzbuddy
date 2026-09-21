@@ -62,6 +62,20 @@ ElevationGrid flatGrid(int meters) => ElevationGrid(
     );
 
 void main() {
+  group('scanSpeciesOf', () {
+    test('eine Vormerkung spricht über ihre erwarteten Arten (#499)', () {
+      const planned = Spot(
+          id: 'p', ownerId: 'me', lat: 51, lng: 11.5,
+          expectedSpecies: ['Steinpilz', 'Pfifferling']);
+      expect(scanSpeciesOf(planned), ['Steinpilz', 'Pfifferling']);
+      // Ohne Erwartung bleibt es die Gildenfrage.
+      expect(scanSpeciesOf(spotAt(id: 'x')), [null]);
+      // Mit Fund zählt der Fund.
+      final withFind = spotAt(id: 'y', species: ['Maronenröhrling']);
+      expect(scanSpeciesOf(withFind), ['Maronenröhrling']);
+    });
+  });
+
   group('ampelScanOf', () {
     test('eine ausgenommene Art gibt keinen Treffer (#495)', () {
       final spots = [spotAt(id: 'satt', species: ['Steinpilz'])];

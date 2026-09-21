@@ -37,6 +37,7 @@ class MushroomIcon extends StatelessWidget {
     this.pending = false,
     this.unknown = false,
     this.drift = false,
+    this.planned = false,
   });
 
   /// Art-Icon für Listenzeilen. Kein Boden — die Ellipse ist Kartensprache
@@ -58,6 +59,7 @@ class MushroomIcon extends StatelessWidget {
         // Listenzeilen zeigen Arten, keine Zeilen-Zustände.
         pending = false,
         drift = false,
+        planned = false,
         unknown = isUnknownSpecies(name);
 
   final int seed;
@@ -103,6 +105,11 @@ class MushroomIcon extends StatelessWidget {
   /// der Besitzer „So gewollt" sagt.
   final bool drift;
 
+  /// Vorgemerkt (#499): noch kein Fund. Verblasst wie ein wartender
+  /// Spot, aber ohne Uhr — kein viertes Abzeichen; die Blässe allein
+  /// sagt „hier war noch nichts".
+  final bool planned;
+
   @override
   Widget build(BuildContext context) {
     final mushroom = CustomPaint(
@@ -114,7 +121,9 @@ class MushroomIcon extends StatelessWidget {
           species: species,
           ground: ground),
     );
-    if (!pending && !unknown && !drift) return mushroom;
+    if (!pending && !unknown && !drift) {
+      return planned ? Opacity(opacity: 0.55, child: mushroom) : mushroom;
+    }
 
     // Ein Abzeichen oben rechts auf weißer Scheibe: klein genug, um die
     // Silhouette nicht zu zerschneiden, kontrastreich genug, um bei
@@ -135,7 +144,9 @@ class MushroomIcon extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          pending ? Opacity(opacity: 0.55, child: mushroom) : mushroom,
+          pending || planned
+              ? Opacity(opacity: 0.55, child: mushroom)
+              : mushroom,
           Positioned(
             right: 0,
             top: 0,

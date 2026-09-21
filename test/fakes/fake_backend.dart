@@ -84,6 +84,9 @@ class FakeSpotRow {
   /// Spiegel von `spots.offset_confirmed_at` (Patch 024, #475).
   DateTime? offsetConfirmedAt;
 
+  /// Spiegel von `spots.expected_species` (Patch 025, #499).
+  List<String> expectedSpecies = [];
+
   final List<Find> finds = [];
 }
 
@@ -675,6 +678,7 @@ class FakeSpotRepository implements SpotRepository {
         ownerAvatar: owner?.avatar ?? 0,
         finds: finds,
         offsetConfirmedAt: row.offsetConfirmedAt,
+        expectedSpecies: row.expectedSpecies,
       );
 
   /// Baut einen gespeicherten Fund aus Sicht des Betrachters neu — wie
@@ -768,6 +772,7 @@ class FakeSpotRepository implements SpotRepository {
               ownerUsername: backend.userById(row.ownerId).username,
               ownerAvatar: backend.userById(row.ownerId).avatar,
               offsetConfirmedAt: row.offsetConfirmedAt,
+              expectedSpecies: row.expectedSpecies,
               finds: [
                 for (final f in row.finds)
                   if (f.authorId == _uid ||
@@ -790,6 +795,7 @@ class FakeSpotRepository implements SpotRepository {
     String? name,
     required List<NewFind> finds,
     String? clientId,
+    List<String> expectedSpecies = const [],
   }) async {
     if (backend.offline) throw const SocketException('kein Netz (Fake)');
     if (backend.gatewayTimeout) {
@@ -811,6 +817,10 @@ class FakeSpotRepository implements SpotRepository {
     }
     final id = backend.addSpot(
         ownerId: _uid, lat: lat, lng: lng, name: name, clientId: clientId);
+    // Normalisiert wie das echte Repository (#499).
+    backend.spots.firstWhere((s) => s.id == id).expectedSpecies = [
+      for (final s in expectedSpecies) canonicalSpecies(s) ?? s,
+    ];
     // Wie im echten Repository über addFinds, damit die Normalisierung des
     // Artnamens nur an einer Stelle steht.
     await addFinds(spotId: id, finds: finds);
@@ -1024,6 +1034,7 @@ class FakeSpotRepository implements SpotRepository {
     required double lat,
     required double lng,
     bool resetOffsetConfirmation = false,
+    List<String>? expectedSpecies,
   }) async {
     for (final row in backend.spots) {
       if (row.id == spotId && row.ownerId == _uid) {
@@ -1031,6 +1042,11 @@ class FakeSpotRepository implements SpotRepository {
         row.lat = lat;
         row.lng = lng;
         if (resetOffsetConfirmation) row.offsetConfirmedAt = null;
+        if (expectedSpecies != null) {
+          row.expectedSpecies = [
+            for (final s in expectedSpecies) canonicalSpecies(s) ?? s,
+          ];
+        }
         return;
       }
     }
