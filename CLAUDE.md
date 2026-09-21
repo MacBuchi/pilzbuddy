@@ -1150,7 +1150,10 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
 - **Gemeldete Fundorte (GBIF) als Kartenebene** (#467, seit 1.154.0):
   je Meldung einer unserer Arten EINE Scheibe in der Größe ihrer
   Koordinaten-Unschärfe, gefärbt nach Ampel-Gruppe, gefiltert über
-  `SpotFilter` (Art UND Gruppe, kein zweiter Wähler). Dazu „Im Umkreis
+  `SpotFilter` (Art UND Gruppe, kein zweiter Wähler — die Gruppen-Chips
+  stehen seit 1.155.0 als geteiltes `AmpelClassChips` auch im
+  Fundorte-Blatt, und der Kartenfilter zeigt sie, sobald Ampel-Vorschau
+  ODER Ebene an ist). Dazu „Im Umkreis
   von 5 km gemeldet" im „Was ist hier?"-Blatt. Fünf Dinge, die man
   wissen muss:
   - **Keine Heatmap, und zwar gemessen** (`docs/gbif-fundorte-messung.md`):

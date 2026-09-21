@@ -7,6 +7,19 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Fundorte: Gruppen direkt im Blatt an- und abwählen
+
+*21. September 2026 · Version 1.155.0*
+
+Im Blatt der gemeldeten Fundorte stehen die Ampel-Gruppen jetzt als
+Chips mit ihrer Farbe: Antippen blendet die Gruppe auf der Karte aus,
+Legende und Fläche folgen. Es ist dieselbe Auswahl wie im Kartenfilter
+— was hier abgewählt ist, gilt auch für die Pilzampel, und der
+Filter-Chip auf der Karte nennt es. Der Kartenfilter zeigt die Chips
+außerdem auch dann, wenn nur die Fundorte-Ebene an ist. Arten ohne
+Ampel-Gruppe haben keinen Chip; das Blatt sagt, wann sie mit
+ausgeblendet sind.
+
 ## Fundorte: Austernseitling & Co. jetzt in Blau
 
 *21. September 2026 · Version 1.154.2*

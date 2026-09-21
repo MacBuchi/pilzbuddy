@@ -1190,13 +1190,20 @@ Color forestClassColor(ForestClass forestClass) => switch (forestClass) {
 // Karte, als gewünscht war.
 
 /// Die Fundorte-Legende (#467): eine Farbe je Ampel-Gruppe, dazu Grau
-/// für Arten ohne Gruppe. Dieselbe Tabelle wie beim Malen.
-class _GbifSection extends StatelessWidget {
+/// für Arten ohne Gruppe. Dieselbe Tabelle wie beim Malen — und nur
+/// die Gruppen, die der Filter gerade zeigt: Eine abgewählte Gruppe
+/// liegt nicht auf der Karte, also steht sie auch nicht in der Legende
+/// (dieselbe Regel wie bei der Ampel). Die grauen Scheiben fallen mit
+/// jeder Abwahl heraus, ihr Punkt also auch.
+class _GbifSection extends ConsumerWidget {
   const _GbifSection();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final shown =
+        ref.watch(selectedAmpelClassesProvider).map(ampelClassKeyOf).toSet();
+    final allShown = shown.length == ampelClasses.length;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1212,8 +1219,12 @@ class _GbifSection extends StatelessWidget {
           runSpacing: 2,
           children: [
             for (final entry in ampelClasses.entries)
-              _GbifDot(colour: gbifClassColour(entry.key), label: entry.value.name),
-            _GbifDot(colour: gbifClassColour(null), label: 'ohne Ampel'),
+              if (shown.contains(entry.key))
+                _GbifDot(
+                    colour: gbifClassColour(entry.key),
+                    label: entry.value.name),
+            if (allShown)
+              _GbifDot(colour: gbifClassColour(null), label: 'ohne Ampel'),
           ],
         ),
         const SizedBox(height: 2),
