@@ -7,6 +7,18 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Bodenfeuchte kam auf manchen Geräten nicht an
+
+*21. September 2026 · Version 1.154.1*
+
+Die Stationstabelle mit Temperatur und Bodenfeuchte wird einmal am Tag
+geholt und bis zum nächsten Stand aufgehoben. Wird sie am selben Tag neu
+veröffentlicht — so geschehen am 20. September, als die Bodenfeuchte
+dazukam —, blieb bisher die alte Fassung liegen, und die Pilzampel
+meldete „keine Bodenfeuchte-Station in Reichweite", obwohl 483
+Stationen bereitstanden. Die App erkennt einen neu veröffentlichten
+Stand jetzt an seiner Größe und holt ihn nach.
+
 ## Gemeldete Fundorte auf der Karte
 
 *21. September 2026 · Version 1.154.0*

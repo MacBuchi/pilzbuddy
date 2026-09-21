@@ -136,6 +136,54 @@ void main() {
               'wären der Preis');
     });
 
+    test('derselbe Tag, neu veröffentlicht: die Größe im Manifest holt '
+        'den neuen Stand', () async {
+      // 2026-09-20: mittags ohne Bodenfeuchte gebaut, abends mit — beide
+      // Tabellen mit demselben jüngsten Tag. Ein Cache, der nur den Tag
+      // kennt, behält die alte bis zum nächsten Morgen.
+      dir().createSync(recursive: true);
+      File('${dir().path}/weather_2026-08-03.json.gz').writeAsBytesSync([1]);
+      File('${dir().path}/weather_2026-08-03_100.json.gz')
+          .writeAsBytesSync([2]);
+      const withBytes = '{"weather": {"file": "weather_stations.json.gz", '
+          '"bytes": 76344, "days": ["2026-07-21", "2026-08-03"]}}';
+
+      final bytes = await repo(client: serving(manifestBody: withBytes))
+          .loadWeatherTable();
+
+      expect(bytes, goodBytes, reason: 'anderer Inhalt, also neu laden');
+      expect(onDisk(), ['weather_2026-08-03_76344.json.gz'],
+          reason: 'Tag und Größe im Namen; die alten Stände sind weg');
+    });
+
+    test('gleicher Tag, gleiche Größe: der Zwischenspeicher bleibt',
+        () async {
+      dir().createSync(recursive: true);
+      File('${dir().path}/weather_2026-08-03_76344.json.gz')
+          .writeAsBytesSync([5, 5]);
+      const withBytes = '{"weather": {"file": "weather_stations.json.gz", '
+          '"bytes": 76344, "days": ["2026-07-21", "2026-08-03"]}}';
+
+      final bytes = await repo(client: serving(manifestBody: withBytes))
+          .loadWeatherTable();
+
+      expect(bytes, [5, 5]);
+    });
+
+    test('ohne Netz gewinnt bei gleichem Tag der Stand mit Größe',
+        () async {
+      // Der Rückfall sortiert nach Namen; ein Stand mit Größe muss
+      // vor dem alten ohne liegen, sonst käme im Funkloch die Fassung
+      // von vor dem Fix.
+      dir().createSync(recursive: true);
+      File('${dir().path}/weather_2026-08-03.json.gz').writeAsBytesSync([1]);
+      File('${dir().path}/weather_2026-08-03_76344.json.gz')
+          .writeAsBytesSync([2]);
+      final offline = MockClient((_) async => throw const SocketException(''));
+
+      expect(await repo(client: offline).loadWeatherTable(), [2]);
+    });
+
     test('ohne Netz kommt der jüngste Stand von der Platte', () async {
       dir().createSync(recursive: true);
       File('${dir().path}/weather_2026-08-01.json.gz').writeAsBytesSync([1]);

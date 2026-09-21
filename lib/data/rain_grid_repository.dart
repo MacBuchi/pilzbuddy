@@ -335,12 +335,22 @@ class RainGridRepository {
   /// wenn weder Netz noch Platte etwas hergeben. Ausgepackt wird im
   /// Isolate des Aufrufers (`weatherTableFrom`), nicht hier.
   ///
-  /// Der Zwischenspeichername trägt den jüngsten Tag der Tabelle
-  /// (`weather_2026-08-03.json.gz`): Das Release-Asset heißt jeden Tag
-  /// gleich, und unter einem gleichbleibenden Namen wäre ein alter Stand
-  /// nicht von einem neuen zu unterscheiden. Ohne Empfang wird der
-  /// jüngste Stand von Platte genommen — zwölf Tage alte Temperaturen
-  /// sind im Wald mehr wert als keine, und das Datum steht im Diagramm.
+  /// Der Zwischenspeichername trägt den jüngsten Tag der Tabelle UND
+  /// ihre Größe aus dem Manifest (`weather_2026-08-03_76344.json.gz`):
+  /// Das Release-Asset heißt jeden Tag gleich, und unter einem
+  /// gleichbleibenden Namen wäre ein alter Stand nicht von einem neuen
+  /// zu unterscheiden. Ohne Empfang wird der jüngste Stand von Platte
+  /// genommen — zwölf Tage alte Temperaturen sind im Wald mehr wert als
+  /// keine, und das Datum steht im Diagramm.
+  ///
+  /// **Warum der Tag allein nicht reicht** (2026-09-20): Die Tabelle
+  /// wurde an einem Tag zweimal gebaut — mittags noch ohne den
+  /// Bodenfeuchte-Abschnitt (#482), abends mit ihm, beide mit demselben
+  /// jüngsten Tag. Jedes Gerät, das dazwischen geladen hatte, behielt
+  /// die Fassung ohne Bodenfeuchte bis zum nächsten Tag, und die Ampel
+  /// meldete „keine Bodenfeuchte-Station in Reichweite" über einem
+  /// Netz von 483 Stationen. Die Größe ändert sich mit jedem Inhalt;
+  /// fehlt sie im Manifest (ältere Stände), gilt der Tag allein.
   Future<List<int>?> loadWeatherTable() async {
     String? newestDay;
     try {
@@ -351,8 +361,13 @@ class RainGridRepository {
         throw HttpException('Manifest: HTTP ${response.statusCode}');
       }
       final json = jsonDecode(response.body) as Map<String, dynamic>;
-      final days = (json['weather'] as Map<String, dynamic>?)?['days'];
-      if (days is List && days.isNotEmpty) newestDay = days.last as String;
+      final weather = json['weather'] as Map<String, dynamic>?;
+      final days = weather?['days'];
+      final bytes = weather?['bytes'];
+      if (days is List && days.isNotEmpty) {
+        newestDay = days.last as String;
+        if (bytes is int) newestDay = '${newestDay}_$bytes';
+      }
     } catch (_) {
       // Still: kein Empfang oder GitHub weg — unten liegt vielleicht
       // noch ein Stand auf Platte. Kein `logError` (#124/#136).
