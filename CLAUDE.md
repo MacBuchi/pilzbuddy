@@ -503,6 +503,26 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   Range-Unterstützung wäre technisch machbar (`PmTilesArchive.fromUri`
   kann das ganz ohne Download), ist aber eine Finanzierungsfrage —
   `docs/finanzierung-und-skalierung.md`.
+  **Seit 2026-09-21 (#496) gibt es dafür einen gemessenen Weg, und er
+  braucht kein Geld:** `raw.githubusercontent.com` beantwortet
+  Range-Anfragen mit 206, `accept-ranges: bytes` und
+  `access-control-allow-origin: *` — also genau das, was
+  `PmTilesArchive.fromUri` verlangt, und es ist der Host, den
+  `rain-data-mirror` seit #365/#366 ohnehin trägt. Der Preis ist eine
+  harte Grenze von **100 MB je Datei** (git nimmt keinen größeren Blob
+  an, also kann raw keinen ausliefern), und deshalb ist der Zuschnitt
+  eine MESSUNG: `tool/map_tiles.py plan` liest nur Header und
+  Verzeichnisse und sagt Bytes je Zoom, `.github/workflows/map-data.yml`
+  fährt das in CI. Einzelheiten und der offene nächste Schritt stehen in
+  `docs/offline-karten-web.md`.
+  **Die Falle, gegen die das Werkzeug gebaut ist:** Bytes je Zoom wachsen
+  nicht um 4x, sondern um das, was die Datendichte tut — in der
+  Übersicht war z6 → z7 ein Faktor **6,4**, und z7 allein sind 77 % der
+  Datei. Eine Hochrechnung „eine Stufe mehr, viermal so viel"
+  unterschätzt genau die oberste Stufe, und die ist die ganze Rechnung.
+  Geschnitten wird mit dem offiziellen `pmtiles extract`, nie mit einem
+  eigenen Schreiber: Ein leicht kaputtes Archiv scheitert im Browser,
+  nicht in CI.
   **Die Einschränkung liegt nie bei PMTiles.** Das Paket bietet
   `fromFile`, `fromBytes` und `fromUri`; nur `FileAt` wirft im Browser, und
   das Entpacken hat dort einen eigenen Zweig über `package:archive`.
