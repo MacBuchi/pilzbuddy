@@ -200,4 +200,31 @@ void main() {
     await openSpecies(tester, 'Steinpilz');
     expect(calls, 1);
   });
+
+  testWidgets('auf Telefonbreite passt auch der längste Name',
+      (tester) async {
+    // Die Seite ist die erste im Reiter, die eine volle Spalte Text
+    // trägt — und Überlauf sieht man im Widget-Test nur, wenn man in
+    // der Breite misst, in der die App benutzt wird. Gemessen wird
+    // gegen `tester.view`, nicht mit `setSurfaceSize`: Das ändert die
+    // MediaQuery nicht (#414).
+    //
+    // „Frühjahrsknollenblätterpilz" ist zugleich der Fall OHNE Kurve —
+    // der bekommt bewusst keine, weil die Gattungskurve für ihn in die
+    // Gegenrichtung zeigte und Scheingenauigkeit bei einem tödlich
+    // giftigen Pilz teurer ist als eine Lücke.
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend);
+    await openSpecies(tester, 'Frühjahrsknollenblätterpilz');
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Amanita verna'), findsOneWidget);
+    expect(find.textContaining('keine belastbare Kurve'), findsOneWidget);
+    await scrollDetail(tester, find.textContaining('bestimmt keine Pilze'));
+    expect(tester.takeException(), isNull);
+  });
 }
