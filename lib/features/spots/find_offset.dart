@@ -75,3 +75,40 @@ String? findPositionLabel(Find find, Spot spot) {
   return '${formatMeters(offset.meters)} '
       '${compassPoint(offset.bearing)}$suffix';
 }
+
+/// Die Fundstellen, die weiter als [kFindFixMaxOffsetM] vom Spot liegen
+/// (#475, Mittelweg) — weiteste zuerst. Dieselbe Zahl wie der Riegel
+/// beim Eintragen: „100 m entfernt trägt man nicht dort ein, wo man
+/// steht" gilt in beide Richtungen, und eine zweite Grenze wäre eine
+/// zweite Antwort auf dieselbe Frage.
+///
+/// Rein, wie alles hier: gerechnet beim Lesen, nichts gespeichert. Ein
+/// Fund OHNE eigene Stelle liegt per Definition am Spot und kann nicht
+/// abweichen.
+List<Find> driftingFinds(Spot spot) {
+  final out = <(double, Find)>[];
+  for (final find in spot.finds) {
+    final offset = findOffset(find, spot);
+    if (offset == null || offset.meters <= kFindFixMaxOffsetM) continue;
+    out.add((offset.meters, find));
+  }
+  out.sort((a, b) => b.$1.compareTo(a.$1));
+  return [for (final entry in out) entry.$2];
+}
+
+/// Ob der Spot wegen abweichender Fundstellen gewarnt werden muss.
+///
+/// Bestätigt ist ein ZEITPUNKT am Spot (Patch 024): Die Warnung gilt,
+/// solange eine abweichende Fundstelle jünger ist als die Bestätigung —
+/// oder ihr Alter unbekannt ist (ein wartender Eintrag hat noch keins;
+/// im Zweifel warnen). Ein später eingetragener Fund weit weg bringt
+/// die Warnung also zurück; ein bestätigter Zustand bleibt ruhig.
+bool spotDriftUnconfirmed(Spot spot) {
+  final confirmedAt = spot.offsetConfirmedAt;
+  for (final find in driftingFinds(spot)) {
+    if (confirmedAt == null) return true;
+    final createdAt = find.createdAt;
+    if (createdAt == null || createdAt.isAfter(confirmedAt)) return true;
+  }
+  return false;
+}

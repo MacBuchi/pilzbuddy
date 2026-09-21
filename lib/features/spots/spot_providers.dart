@@ -300,11 +300,67 @@ class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox>
     required String? name,
     required double lat,
     required double lng,
+    bool resetOffsetConfirmation = false,
   }) async {
-    await ref
-        .read(spotRepositoryProvider)
-        .editSpot(spotId: spotId, name: name, lat: lat, lng: lng);
+    await ref.read(spotRepositoryProvider).editSpot(
+        spotId: spotId,
+        name: name,
+        lat: lat,
+        lng: lng,
+        resetOffsetConfirmation: resetOffsetConfirmation);
     return reloadAfterWrite('Spots neu laden');
+  }
+
+  /// Spot verlegen UND die eigenen Fundstellen mitnehmen (#475): Sie
+  /// gelten danach am Spot. Zwei Schreibvorgänge, keine Transaktion —
+  /// bricht der zweite ab, ist der Spot verlegt und die Warnung im Blatt
+  /// zeigt genau das. Fremde Fundstellen bleiben (RLS).
+  Future<bool> moveSpotWithFinds({
+    required String spotId,
+    required String? name,
+    required double lat,
+    required double lng,
+  }) async {
+    final repository = ref.read(spotRepositoryProvider);
+    await repository.editSpot(
+        spotId: spotId,
+        name: name,
+        lat: lat,
+        lng: lng,
+        resetOffsetConfirmation: true);
+    await repository.pinFindsToSpot(spotId);
+    ref.invalidate(friendSpotsProvider);
+    return reloadAfterWrite('Spots neu laden');
+  }
+
+  /// Eine Fundstelle verlegen und Spot samt allen eigenen Fundstellen
+  /// hinterherziehen (#475): Der Spot rückt auf die neue Stelle, alle
+  /// eigenen Funde — auch dieser — gelten danach dort. Erst der Fund
+  /// (seine übrigen Felder), dann der Spot, dann das Pinnen.
+  Future<bool> moveFindWithSpot({
+    required Spot spot,
+    required String findId,
+    required NewFind find,
+    required double lat,
+    required double lng,
+  }) async {
+    final repository = ref.read(spotRepositoryProvider);
+    await repository.updateFind(findId: findId, find: find, position: null);
+    await repository.editSpot(
+        spotId: spot.id,
+        name: spot.name,
+        lat: lat,
+        lng: lng,
+        resetOffsetConfirmation: true);
+    await repository.pinFindsToSpot(spot.id);
+    ref.invalidate(friendSpotsProvider);
+    return reloadAfterWrite('Spots neu laden');
+  }
+
+  /// „So gewollt" (#475) — der Besitzer nimmt die Warnung vom Spot.
+  Future<void> confirmOffset(String spotId) async {
+    await ref.read(spotRepositoryProvider).confirmOffset(spotId);
+    await reloadAfterWrite('Spots neu laden');
   }
 
   Future<void> setSharingExcluded(String spotId, bool excluded) async {

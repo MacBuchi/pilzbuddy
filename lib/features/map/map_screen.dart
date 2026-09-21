@@ -28,6 +28,7 @@ import 'elevation_contours.dart';
 import '../friends/friend_providers.dart';
 import '../profile/profile_providers.dart';
 import '../spots/nearby_spots.dart';
+import '../spots/find_offset.dart' show spotDriftUnconfirmed;
 import '../spots/spot_providers.dart';
 import '../tour/tour_providers.dart';
 import '../tour/tour_task_handler.dart';
@@ -676,6 +677,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
             // OHNE Art bekommt keins: Dort weiß die App nichts, weil
             // nichts gesagt wurde.
             unknown: isUnknownSpecies(spot.lastFind?.species),
+            // Fundstellen über 100 m vom Spot, unbestätigt (#475) — nur
+            // am EIGENEN Spot: Ein Buddy kann nichts daran tun, und ein
+            // Abzeichen ohne Handlung wäre ein Vorwurf.
+            drift: spot.isOwn && spotDriftUnconfirmed(spot),
             group: groupFor(spot.lastFind?.species),
             species: spot.lastFind?.species,
           ),

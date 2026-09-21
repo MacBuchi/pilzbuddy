@@ -31,7 +31,11 @@ create table public.spots (
   -- Vom Gerät vergebene Kennung des Auftrags aus dem Ausgangskorb
   -- (Patch 016): macht die Wiedervorlage nach einem abgerissenen Insert
   -- idempotent. Leer bei allem, was nicht über den Korb kam.
-  client_id uuid
+  client_id uuid,
+  -- Wann der Besitzer bestätigt hat, dass Fundstellen über 100 m vom
+  -- Spot entfernt so gewollt sind (Patch 024, #475). Zeitpunkt statt
+  -- Flag: Eine jüngere abweichende Fundstelle warnt wieder.
+  offset_confirmed_at timestamptz
 );
 create index spots_owner_idx on public.spots (owner_id);
 -- Zweimal derselbe Auftrag ⇒ 23505 statt Dublette. Partiell, weil die
@@ -736,5 +740,6 @@ insert into public.applied_patches (filename) values
   ('patch_020_push_text.sql'),
   ('patch_021_feedback_version.sql'),
   ('patch_022_fund_position.sql'),
-  ('patch_023_tour_tracks.sql')
+  ('patch_023_tour_tracks.sql'),
+  ('patch_024_fundstellen_versatz.sql')
 on conflict do nothing;
