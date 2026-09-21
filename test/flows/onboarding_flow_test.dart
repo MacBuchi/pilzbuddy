@@ -162,7 +162,7 @@ void main() {
     expect(seen, containsAll(titles));
   });
 
-  testWidgets('das Profil rät nicht zu einer abgeschalteten Geste',
+  testWidgets('die leere Spot-Liste rät nicht zu einer abgeschalteten Geste',
       (tester) async {
     // **Der Fund, der diesen Test veranlasst hat.** Der einzige
     // Erklärsatz, den die App bis 1.106.1 hatte, stand im Profil und
@@ -173,19 +173,15 @@ void main() {
     // Geprüft wird beides: dass die abgeschaltete Geste nicht mehr
     // empfohlen wird UND dass der Weg genannt ist, den es ab Werk
     // wirklich gibt.
+    //
+    // Seit #509 steht der Satz im Reiter „Spots" statt im Profil — die
+    // leere Liste ist der Ort, an dem jemand nach dem ersten Spot
+    // sucht. Der Wortlaut ist derselbe wie auf der Karte.
     final (backend, _) = loggedInBackend();
     await pumpApp(tester, backend);
-    await tester.tap(find.text('Profil'));
-    await settle(tester);
+    await openTab(tester, 'Spots');
 
-    // Erst heranscrollen: Ohne das wäre „findsNothing" auch dann wahr,
-    // wenn der falsche Satz nur unterhalb des Bildrands stünde.
-    final card = find.textContaining('Noch keine Funde');
-    for (var i = 0; i < 8 && card.evaluate().isEmpty; i++) {
-      await tester.drag(find.byType(Scrollable).first, const Offset(0, -300));
-      await settle(tester, frames: 4);
-    }
-    expect(card, findsOneWidget);
+    expect(find.textContaining('Noch kein eigener Spot'), findsOneWidget);
 
     expect(find.textContaining('gedrückt'), findsNothing);
     expect(find.textContaining('Neuer Spot'), findsWidgets);

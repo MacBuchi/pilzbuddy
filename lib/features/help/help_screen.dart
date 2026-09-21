@@ -86,7 +86,9 @@ const kHelpSteps = <HelpStep>[
         'Erst beide zusammen ergeben die Fundhistorie eines Spots — '
         'fünfmal da gewesen und einmal fündig ist etwas anderes als '
         'einmal da gewesen und einmal fündig; an ihr misst sich auch, '
-        'ob die Pilzampel recht hat.',
+        'ob die Pilzampel recht hat. Im Reiter „Spots" stehen alle '
+        'Stellen als Liste, die neueste zuerst, und daneben deine '
+        'Statistik.',
   ),
   HelpStep(
     icon: Icon(Icons.layers_outlined, color: AppColors.warmBrown),

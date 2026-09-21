@@ -429,6 +429,17 @@ final friendSpotsProvider = FutureProvider<List<Spot>>((ref) {
   return ref.watch(spotRepositoryProvider).fetchFriendSpots();
 });
 
+/// Der heutige Tag, auf Mitternacht gerundet.
+///
+/// Als Provider aus demselben Grund wie `currentMonthProvider`: Die
+/// Liste schreibt „heute" und „vor 3 Tagen", die Statistik vergleicht
+/// bis zum selben Tag des Vorjahres — an der Systemuhr hinge beides am
+/// Kalender des Testlaufs. Mitternacht, weil in Tagen gerechnet wird.
+final todayProvider = Provider<DateTime>((ref) {
+  final now = DateTime.now();
+  return DateTime(now.year, now.month, now.day);
+});
+
 /// Eigene Pilzarten, zuletzt benutzt zuerst — abgeleitet aus den EIGENEN
 /// Funden (Buddy-Funde auf eigenen Spots sind nicht „meine Arten").
 /// Erster Eintrag = Default-Vorauswahl für neue Spots/Funde.

@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/widgets/mushroom_icon.dart';
+import 'package:pilzbuddy/features/spots/widgets/spot_stats_view.dart';
 
 import '../fakes/fake_backend.dart';
 import '../fakes/test_app.dart';
@@ -134,13 +135,20 @@ void main() {
         reason: 'fremde Funde tragen ihren Eintrager');
 
     // Blatt schließen, dann die Statistik: Lillis Parasol ist ihr Fund,
-    // nicht meiner — er gehört nicht in meine Top-Arten.
+    // nicht meiner — er gehört nicht in meine Top-Arten. Sie steht seit
+    // #509 im Reiter „Spots".
     await tester.tapAt(const Offset(20, 20));
     await settle(tester);
-    await tester.tap(find.text('Profil'));
+    await openTab(tester, 'Spots');
+    await tester.tap(find.text('Statistik'));
     await settle(tester);
+    // Gescrollt wird IM Statistik-Reiter: Der `TabBarView` hält die
+    // Liste daneben am Leben, und `Scrollable.first` wäre sie — ein Zug
+    // daran bewegt nichts Sichtbares.
     await tester.scrollUntilVisible(find.text('Top-Arten'), 200,
-        scrollable: find.byType(Scrollable).first);
+        scrollable: find.descendant(
+            of: find.byType(SpotStatsView),
+            matching: find.byType(Scrollable)));
     expect(find.text('Parasol'), findsNothing,
         reason: 'fremde Funde zählen nicht zu meinen Top-Arten');
   });

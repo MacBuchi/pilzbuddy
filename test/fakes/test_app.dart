@@ -6,7 +6,7 @@
 import 'dart:typed_data';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter/painting.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -340,6 +340,15 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
   ));
   await tester.pump();
   await tester.pump(const Duration(seconds: 3));
+  await settle(tester);
+}
+
+/// Auf einen Reiter wechseln — über die Leiste und nicht über den
+/// nackten Text: „Spots" und „Pilze" stehen seit #509 auch im Inhalt
+/// (Kennzahl-Kachel, Artenliste), `find.text` träfe dann zwei Widgets.
+Future<void> openTab(WidgetTester tester, String label) async {
+  await tester.tap(find.descendant(
+      of: find.byType(NavigationBar), matching: find.text(label)));
   await settle(tester);
 }
 

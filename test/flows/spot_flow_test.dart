@@ -317,13 +317,13 @@ void main() {
             matching: find.byType(MushroomIcon)),
         findsOneWidget);
 
-    // … und die Statistik zählt weiterhin genau einen Fund.
+    // … und die Statistik zählt weiterhin genau einen Fund (seit #509
+    // im Reiter „Spots").
     await tester.tapAt(const Offset(20, 20)); // Sheet schließen
     await settle(tester);
-    await tester.tap(find.text('Profil'));
+    await openTab(tester, 'Spots');
+    await tester.tap(find.text('Statistik'));
     await settle(tester);
-    await tester.scrollUntilVisible(find.text('Funde'), 200,
-        scrollable: find.byType(Scrollable).first);
     final funde = find.ancestor(
         of: find.text('Funde'), matching: find.byType(Column));
     expect(find.descendant(of: funde.first, matching: find.text('1')),
@@ -362,18 +362,14 @@ void main() {
     expect(find.byTooltip('Alter Spot'), findsNothing);
   });
 
-  testWidgets('Profil zeigt Statistik und schaltet die Detail-Freigabe',
+  testWidgets('Profil schaltet die Detail-Freigabe und zeigt „Über"',
       (tester) async {
+    // Die Statistik ist seit #509 im Reiter „Spots" — was hier bleibt,
+    // ist das Konto: Name, Freigabe-Schalter, „Über PilzBuddy". Die
+    // Kennzahlen prüft `flows/spots_tab_flow_test.dart`.
     final (backend, me) = loggedInBackend();
-    final spotA = backend.addSpot(
-        ownerId: me.id, species: 'Steinpilz', foundOn: DateTime(2025, 9, 1));
-    backend.addFindRow(spotA,
-        species: 'Steinpilz', foundOn: DateTime(2025, 10, 3));
     backend.addSpot(
-        ownerId: me.id,
-        lat: 51.5,
-        species: 'Pfifferling',
-        foundOn: DateTime(2025, 8, 2));
+        ownerId: me.id, species: 'Steinpilz', foundOn: DateTime(2025, 9, 1));
     await pumpApp(tester, backend);
 
     await tester.tap(find.text('Profil'));
@@ -386,27 +382,10 @@ void main() {
     await settle(tester);
     expect(me.shareDetails, isFalse);
 
-    // Statistik liegt unter Offline-Karten/Import/Export — hinscrollen.
-    await tester.scrollUntilVisible(find.text('Spots'), 200,
+    // Der Verweis auf die umgezogene Statistik steht da, wo sie war.
+    await tester.scrollUntilVisible(find.text('Statistik'), 200,
         scrollable: find.byType(Scrollable).first);
-    expect(find.text('Spots'), findsOneWidget);
-    expect(find.text('Funde'), findsOneWidget);
-    // 2 Spots, 3 Funde, 1 mehrfach besuchter Spot
-    expect(find.text('2'), findsAtLeastNWidgets(1));
-    expect(find.text('3'), findsAtLeastNWidgets(1));
-
-    // Top-Arten liegt noch weiter unten im ListView.
-    await tester.scrollUntilVisible(find.text('Top-Arten'), 200,
-        scrollable: find.byType(Scrollable).first);
-    expect(find.text('Top-Arten'), findsOneWidget);
-    // Jede Art-Zeile zeigt ihr eigenes Icon — vorher fünf gleiche 🍄 (#103).
-    expect(
-        find.descendant(
-          of: find.ancestor(
-              of: find.text('Top-Arten'), matching: find.byType(Card)),
-          matching: find.byType(MushroomIcon),
-        ),
-        findsNWidgets(2)); // Steinpilz, Pfifferling
+    expect(find.textContaining('stehen im Reiter'), findsOneWidget);
 
     // Ganz unten: die „Über"-Sektion mit Version und Links.
     await tester.scrollUntilVisible(find.text('Über PilzBuddy'), 200,

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -16,16 +15,12 @@ import '../offline_maps/offline_map_providers.dart';
 import '../../core/app_distribution.dart';
 import '../../core/settings.dart';
 import '../../core/app_info.dart';
-import '../../core/axis_scale.dart';
 import '../../core/errors.dart';
-import '../../core/mushroom_species.dart';
 import '../../core/update_check.dart';
 import '../../core/widgets/form_notice.dart';
 import '../../core/widgets/mushroom_avatar.dart';
-import '../../core/widgets/mushroom_icon.dart';
 import '../../core/widgets/password_field.dart';
 import '../../data/providers.dart';
-import '../../models/find.dart';
 import '../ampel/ampel_providers.dart';
 import '../ampel/ampel_scan.dart';
 import '../tour/tour_providers.dart';
@@ -38,11 +33,6 @@ import 'profile_providers.dart';
 import 'push_providers.dart';
 import 'sharing_rank_tile.dart';
 import '../../core/app_colors.dart';
-
-// Re-Export mit Absicht: Die Achsen-Helfer sind nach core/ gezogen (das
-// Wetterdiagramm am Spot nutzt sie mit), aber ihre Tests und ihr
-// bisheriger Ort bleiben gültig.
-export '../../core/axis_scale.dart' show yAxisStep, showsYAxisLabel;
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -83,14 +73,7 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(myProfileProvider);
-    final spots = ref.watch(mySpotListProvider);
     final profile = profileAsync.valueOrNull;
-
-    // Nur die EIGENEN Funde: Seit #190 können auch Buddies an geteilten
-    // Spots eintragen, und deren Funde sind nicht meine Statistik — ein
-    // Spot ist auch nicht „mehrfach besucht", weil ein Buddy dort war.
-    final allFinds = [for (final s in spots) ...s.ownFinds];
-    final revisited = spots.where((s) => s.ownFinds.length > 1).length;
 
     return Scaffold(
       appBar: AppBar(
@@ -376,40 +359,19 @@ class ProfileScreen extends ConsumerWidget {
               padding: EdgeInsets.all(16),
               child: Center(child: CircularProgressIndicator()),
             ),
-          Text('Statistik', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _StatTile(label: 'Spots', value: spots.length.toString()),
-              const SizedBox(width: 12),
-              _StatTile(label: 'Funde', value: allFinds.length.toString()),
-              const SizedBox(width: 12),
-              _StatTile(label: 'Mehrfach\nbesucht', value: revisited.toString()),
-            ],
+          // Die Statistik steht seit 1.160.0 im Reiter „Spots" (#509).
+          // Hier bleibt ein Verweis und keine Kurzfassung: Zwei Orte mit
+          // derselben Aussage laufen auseinander, und das Profil ist für
+          // das Konto da, nicht für die Auswertung.
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.insights_outlined),
+            title: const Text('Statistik'),
+            subtitle: const Text('Jahresgang, Top-Arten und die laufende '
+                'Saison stehen im Reiter „Spots"'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.go('/spots'),
           ),
-          const SizedBox(height: 20),
-          if (allFinds.isNotEmpty) ...[
-            _FindsPerYearChart(finds: allFinds),
-            const SizedBox(height: 20),
-            _TopSpecies(finds: allFinds),
-            const SizedBox(height: 20),
-            _SeasonList(finds: allFinds),
-          ] else
-            const Card(
-              child: Padding(
-                padding: EdgeInsets.all(16),
-                // **Der Satz stand hier falsch** (#350): „halte gedrückt"
-                // ist seit #210 ein Schalter, und er steht ab Werk auf
-                // AUS. Der einzige Erklärsatz, den die App hatte, wies
-                // damit auf eine Geste, die beim neuen Nutzer nichts tut.
-                // Jetzt derselbe Wortlaut wie der leere Kartenzustand —
-                // eine Handlung, eine Formulierung.
-                child: Text(
-                    'Noch keine Funde – schieb die Karte, bis das '
-                    'Fadenkreuz in der Mitte auf deiner Stelle liegt, und '
-                    'tipp auf „Neuer Spot". 🍄'),
-              ),
-            ),
           const Divider(height: 40),
           const _AboutSection(),
           const Divider(height: 40),
@@ -963,240 +925,5 @@ Future<void> _pickAvatar(
   );
   if (selected != null && selected != current) {
     await ref.read(myProfileProvider.notifier).updateAvatar(selected);
-  }
-}
-
-class _StatTile extends StatelessWidget {
-  const _StatTile({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: Column(
-            children: [
-              Text(value, style: Theme.of(context).textTheme.headlineMedium),
-              const SizedBox(height: 4),
-              Text(label,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodySmall),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _FindsPerYearChart extends StatelessWidget {
-  const _FindsPerYearChart({required this.finds});
-
-  final List<Find> finds;
-
-  @override
-  Widget build(BuildContext context) {
-    final byYear = <int, int>{};
-    for (final f in finds) {
-      byYear[f.foundOn.year] = (byYear[f.foundOn.year] ?? 0) + 1;
-    }
-    final years = byYear.keys.toList()..sort();
-    final maxCount =
-        byYear.values.reduce((a, b) => a > b ? a : b).toDouble();
-    final barColor = Theme.of(context).colorScheme.primary;
-    final maxY = maxCount * 1.2;
-    final step = yAxisStep(maxY);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Funde pro Jahr',
-                style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 160,
-              child: BarChart(
-                BarChartData(
-                  maxY: maxY,
-                  barGroups: [
-                    for (final year in years)
-                      BarChartGroupData(x: year, barRods: [
-                        BarChartRodData(
-                          toY: byYear[year]!.toDouble(),
-                          color: barColor,
-                          width: 22,
-                          borderRadius: const BorderRadius.vertical(
-                              top: Radius.circular(4)),
-                        ),
-                      ]),
-                  ],
-                  titlesData: FlTitlesData(
-                    topTitles: const AxisTitles(),
-                    rightTitles: const AxisTitles(),
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 30,
-                        interval: step,
-                        getTitlesWidget: (value, meta) =>
-                            showsYAxisLabel(value, step)
-                                ? Text(value.toInt().toString(),
-                                    style:
-                                        Theme.of(context).textTheme.bodySmall)
-                                : const SizedBox.shrink(),
-                      ),
-                    ),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) => Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Text(value.toInt().toString(),
-                              style:
-                                  Theme.of(context).textTheme.bodySmall),
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Ohne festes Intervall zieht fl_chart die Linien in einem
-                  // eigenen Raster — sie lägen dann neben den Beschriftungen.
-                  gridData: FlGridData(
-                      drawVerticalLine: false, horizontalInterval: step),
-                  borderData: FlBorderData(show: false),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Häufigste Arten über alle Funde, mit Stückzahl — anders als
-/// `speciesTally` (Karte) zählt das die Funde selbst, nicht die Fundstellen.
-///
-/// Zusammengefasst wird über die Hauptbezeichnung. Bis 1.37.0 steckte das im
-/// Widget und gruppierte über den rohen String: „steinpilz" und „Steinpilz"
-/// standen getrennt untereinander, Zweitnamen sowieso.
-List<({String name, int count})> topSpecies(List<Find> finds) {
-  final counts = <String, int>{};
-  final labels = <String, String>{};
-  for (final f in finds) {
-    final name = canonicalSpecies(f.species);
-    if (name == null) continue;
-    final key = name.toLowerCase();
-    counts[key] = (counts[key] ?? 0) + (f.count ?? 1);
-    labels[key] ??= name;
-  }
-  final top = [
-    for (final e in counts.entries) (name: labels[e.key]!, count: e.value),
-  ];
-  top.sort((a, b) {
-    final byCount = b.count.compareTo(a.count);
-    return byCount != 0 ? byCount : a.name.compareTo(b.name);
-  });
-  return top;
-}
-
-class _TopSpecies extends StatelessWidget {
-  const _TopSpecies({required this.finds});
-
-  final List<Find> finds;
-
-  @override
-  Widget build(BuildContext context) {
-    final top = topSpecies(finds);
-    if (top.isEmpty) return const SizedBox.shrink();
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Top-Arten', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            for (final entry in top.take(5))
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  children: [
-                    MushroomIcon.forSpecies(entry.name, size: 24),
-                    const SizedBox(width: 6),
-                    Expanded(child: Text(entry.name)),
-                    Text('${entry.count}×',
-                        style: Theme.of(context).textTheme.titleSmall),
-                  ],
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SeasonList extends StatelessWidget {
-  const _SeasonList({required this.finds});
-
-  final List<Find> finds;
-
-  static const _seasons = ['Frühling', 'Sommer', 'Herbst', 'Winter'];
-
-  int _seasonIndex(DateTime date) {
-    if (date.month >= 3 && date.month <= 5) return 0;
-    if (date.month >= 6 && date.month <= 8) return 1;
-    if (date.month >= 9 && date.month <= 11) return 2;
-    return 3;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final counts = List<int>.filled(4, 0);
-    for (final f in finds) {
-      counts[_seasonIndex(f.foundOn)]++;
-    }
-    final total = finds.length;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Funde nach Jahreszeit',
-                style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            for (var i = 0; i < 4; i++)
-              if (counts[i] > 0)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    children: [
-                      SizedBox(width: 80, child: Text(_seasons[i])),
-                      Expanded(
-                        child: LinearProgressIndicator(
-                          value: counts[i] / total,
-                          minHeight: 8,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text('${counts[i]}'),
-                    ],
-                  ),
-                ),
-          ],
-        ),
-      ),
-    );
   }
 }
