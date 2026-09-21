@@ -502,7 +502,7 @@ class _SpotDetailSheet extends ConsumerWidget {
               child: Text(line,
                   style: Theme.of(context).textTheme.bodySmall),
             ),
-          // Fundstellen weit vom Spot (#475): Warndreieck, solange der
+          // Fundstellen weit vom Spot (#475): „!" im Kreis, solange der
           // Besitzer es nicht bestätigt hat; danach dieselbe Zeile als
           // Auskunft. Am Buddy-Spot nur die Auskunft — bestätigen kann
           // dort niemand, und ein Knopf, der scheitert, ist keiner.
@@ -712,7 +712,8 @@ class _SpotDetailSheet extends ConsumerWidget {
 
 /// Die Zeile zu Fundstellen weit vom Spot (#475).
 ///
-/// Unbestätigt: Warndreieck in Orange und der Knopf „So gewollt".
+/// Unbestätigt: „!" im Kreis in Orange — dasselbe Zeichen wie das
+/// Abzeichen am Marker — und der Knopf „So gewollt".
 /// Bestätigt: Info-Symbol, derselbe Text mit „bestätigt" — die Auskunft
 /// bleibt, nur der Vorwurf geht. Der Text nennt jede Stelle mit Datum,
 /// Eintrag und Versatz, weiteste zuerst; die Zahl 100 m ist
@@ -752,7 +753,7 @@ class _DriftLine extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Icon(
-                unconfirmed ? Icons.warning_amber_rounded : Icons.info_outline,
+                unconfirmed ? Icons.error_outline : Icons.info_outline,
                 size: 18,
                 color: unconfirmed ? AppColors.warningAmber : theme.hintColor,
               ),

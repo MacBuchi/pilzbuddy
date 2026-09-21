@@ -12,9 +12,9 @@ https://github.com/MacBuchi/pilzbuddy/releases
 *21. September 2026 · Version 1.156.0*
 
 Liegt eine Fundstelle mehr als 100 m von ihrem Spot entfernt, trägt der
-Spot auf der Karte jetzt ein kleines Warndreieck, und sein Blatt nennt
+Spot auf der Karte jetzt ein kleines Ausrufezeichen, und sein Blatt nennt
 die Stellen mit Datum und Entfernung. Ist das so gewollt, tippst du
-„So gewollt": Das Dreieck verschwindet, die Zeile bleibt als Auskunft.
+„So gewollt": Das Zeichen verschwindet, die Zeile bleibt als Auskunft.
 Ein später weit entfernt eingetragener Fund bringt den Hinweis zurück.
 
 Beim Verlegen eines Spots mit eigenen Fundstellen fragt die App, ob die

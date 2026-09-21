@@ -96,9 +96,11 @@ class MushroomIcon extends StatelessWidget {
   final bool unknown;
 
   /// Fundstellen weit vom Spot, noch nicht bestätigt (#475): ein
-  /// Warndreieck als Abzeichen — dieselbe Stelle wie Uhr und
-  /// Fragezeichen, damit die Karte EINE Sprache für „hier stimmt
-  /// etwas nicht" hat. Weg, sobald der Besitzer „So gewollt" sagt.
+  /// Ausrufezeichen als Abzeichen — im selben weißen Kreis wie Uhr und
+  /// Fragezeichen, das dritte Mitglied dieser Familie (Betreiber,
+  /// 2026-09-21: ein Warndreieck fiel aus ihr heraus, ein Pilz-Glyph
+  /// wäre ein Pilz auf einem Pilz und bei 18 px unlesbar). Weg, sobald
+  /// der Besitzer „So gewollt" sagt.
   final bool drift;
 
   @override
@@ -151,7 +153,7 @@ class MushroomIcon extends StatelessWidget {
                   pending
                       ? Icons.schedule
                       : drift
-                          ? Icons.warning_amber_rounded
+                          ? Icons.priority_high
                           : Icons.question_mark,
                   size: badge * 0.82,
                   color: !pending && drift

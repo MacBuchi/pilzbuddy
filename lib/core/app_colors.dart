@@ -181,7 +181,7 @@ abstract final class AppColors {
   /// Arten ohne Ampel-Klasse: ein neutrales Grau, das nichts behauptet.
   static const gbifNoClass = Color(0xFF616161);
 
-  /// Das Warndreieck am Spot-Marker (#475): Fundstellen weit vom Spot,
+  /// Das „!"-Abzeichen am Spot-Marker (#475): Fundstellen weit vom Spot,
   /// noch nicht bestätigt. Ein Orange, das auf der Karte weder Herbst-
   /// Ocker des Waldes noch Rot der Fundorte ist.
   static const warningAmber = Color(0xFFEF6C00);

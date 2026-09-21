@@ -1,4 +1,4 @@
-// Fundstellen weit vom Spot (#475): Warndreieck auf der Karte, Zeile im
+// Fundstellen weit vom Spot (#475): „!"-Abzeichen auf der Karte, Zeile im
 // Blatt, „So gewollt" — und die beiden Fragen beim Verlegen.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -31,7 +31,7 @@ void main() {
     await settle(tester);
   }
 
-  testWidgets('eine Fundstelle über 100 m: Dreieck am Marker, Zeile im '
+  testWidgets('eine Fundstelle über 100 m: „!" am Marker, Zeile im '
       'Blatt, „So gewollt" nimmt beides', (tester) async {
     final (backend, me) = loggedInBackend();
     final spotId = backend.addSpot(
@@ -48,7 +48,7 @@ void main() {
     expect(find.textContaining('1 Fundstelle liegt über 100 m vom Spot'),
         findsOneWidget);
     expect(find.textContaining('Steinpilz'), findsWidgets);
-    expect(find.byIcon(Icons.warning_amber_rounded), findsWidgets);
+    expect(find.byIcon(Icons.error_outline), findsOneWidget);
     expect(find.text('So gewollt'), findsOneWidget);
 
     await tester.tap(find.text('So gewollt'));
@@ -87,7 +87,7 @@ void main() {
     expect(find.text('So gewollt'), findsOneWidget);
   });
 
-  testWidgets('am Buddy-Spot nur die Auskunft: kein Knopf, kein Dreieck',
+  testWidgets('am Buddy-Spot nur die Auskunft: kein Knopf, kein Abzeichen',
       (tester) async {
     final (backend, me) = loggedInBackend();
     final buddy = backend.addUser(username: 'buddy');

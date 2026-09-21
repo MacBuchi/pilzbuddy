@@ -1194,7 +1194,8 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     MapLibre das Bild nicht.
 - **Fundstellen weit vom Spot** (#475, seit 1.156.0): Ab 100 m
   (`kFindFixMaxOffsetM`, dieselbe Grenze wie der Riegel beim Eintragen)
-  trägt der eigene Spot ein Warndreieck, das Blatt nennt die Stellen,
+  trägt der eigene Spot ein „!"-Abzeichen (im selben Kreis wie Uhr und
+  Fragezeichen — kein Dreieck, kein Pilz-Glyph), das Blatt nennt die Stellen,
   „So gewollt" bestätigt. Vier Dinge, die man wissen muss:
   - **Abgeleitet, nicht gespeichert** (`driftingFinds` in
     `find_offset.dart`). Gespeichert ist nur die Bestätigung, und die
