@@ -1204,6 +1204,48 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   - **Der Filter „Nur jetzt Saison" verdeckt nichts, was er nicht weiß**:
     Arten ohne Kurve bleiben stehen (#414-Regel), leere Gruppen behalten
     die Überschrift.
+- **Der Reiter „Spots"** (#509, seit 1.161.0): die Karte als Liste
+  (`lib/features/spots/spots_screen.dart`) plus die Statistik, die bis
+  1.160.0 im Profil stand. Sechs Dinge, die man wissen muss:
+  - **Keine neue Abfrage, kein Schema-Patch.** Alles kommt aus
+    `mySpotListProvider` und `friendSpotsProvider` — der Reiter
+    funktioniert damit offline und zeigt den Ausgangskorb mit. Wer hier
+    etwas ergänzt, das eine eigene Abfrage bräuchte, hat die Idee
+    verlassen.
+  - **Sortiert wird nach dem jüngsten EINTRAG, nicht nach dem jüngsten
+    Fund** (`spot_list.dart`, ohne Widgets, wie `species_catalogue.dart`):
+    Ein Leergang ist Aktivität. Die Trennlinie aus #211 gilt weiter — die
+    STATISTIK zählt nur `ownFinds`.
+  - **Drei Gruppen, und die dritte gibt es nur wegen der Freigaben.**
+    Ein Buddy-Spot ohne `share_details` kommt ohne einen einzigen
+    Eintrag an und sähe aus wie eine Vormerkung (#499). Er steht
+    deshalb unter „Ohne Einträge" mit demselben Satz, den auch das
+    Spot-Blatt sagt. Dieselbe Falle umgeht die Karte am Marker mit
+    `spot.isOwn && spot.isPlanned`.
+  - **Zwei Ziele je Zeile.** Antippen öffnet `showSpotDetailSheet` an
+    Ort und Stelle (das Blatt braucht nur eine id und hängt an keiner
+    Karte), das Kartensymbol wechselt den Reiter (`kMapBranchIndex` in
+    `lib/core/router_branches.dart` — eigene Datei, weil `router.dart`
+    jeden Screen importiert) und stellt dann den Fokus-Wunsch (#345).
+    Reihenfolge: erst Reiter, dann Wunsch.
+  - **Der Reiter schaltet die Buddy-Meldung NICHT stumm.**
+    `lastFindSeenAt` gehört dem Karten-Banner; hier wird nur gelesen
+    (`spotsWithNewsProvider` fasst `newBuddyFindsProvider` zusammen —
+    EINE Definition von „neu"). Wer das ändert, holt #349/#425 zurück:
+    ein Feature, das nach dem ersten Benutzen kaputt aussieht.
+  - **Der Karten-Filter bleibt bei der Karte.** Hier stehen eigene,
+    leichte Regler (Suche über Name/Art/Buddy mit derselben Faltung wie
+    die Artensuche, #395; Dreier-Schalter nur, wenn es geteilte Spots
+    gibt). Ein Filter, der an zwei Orten verschieden wirkt, wäre
+    schlimmer als zwei getrennte — auf der Karte muss er sich melden
+    (#154).
+  Die Statistik (`widgets/spot_stats_view.dart`, gerechnet in
+  `spot_stats.dart`) ist UMGEZOGEN, nicht verdoppelt: Im Profil steht ein
+  Verweis. „Funde nach Jahreszeit" ist dabei einem Monatsverlauf
+  gewichen, der `SeasonBars` benutzt — nur so lässt sich der eigene
+  Jahresgang neben den gemeldeten legen. Der Vorjahresvergleich rechnet
+  **bis zum selben Tag**, sonst stünde man jeden Herbst gegen ein volles
+  Vorjahr im Rückstand.
 - **Gemeldete Fundorte (GBIF) als Kartenebene** (#467, seit 1.154.0):
   je Meldung einer unserer Arten EINE Scheibe in der Größe ihrer
   Koordinaten-Unschärfe, gefärbt nach Ampel-Gruppe, gefiltert über

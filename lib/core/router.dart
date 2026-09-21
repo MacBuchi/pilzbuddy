@@ -17,6 +17,7 @@ import '../features/offline_maps/offline_maps_screen.dart';
 import '../features/profile/profile_screen.dart';
 import '../features/species/species_screen.dart';
 import '../features/spots/spot_cleanup_screen.dart';
+import '../features/spots/spots_screen.dart';
 
 /// Stößt den Router-Redirect an, sobald sich der Auth-Zustand ändert.
 class _AuthRefresh extends ChangeNotifier {
@@ -69,6 +70,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         branches: [
           StatefulShellBranch(routes: [
             GoRoute(path: '/', builder: (context, state) => const MapScreen()),
+          ]),
+          // Der Reiter „Spots" (#509) steht direkt neben der Karte,
+          // weil er dieselben Daten zeigt — nur als Liste, sortiert
+          // nach dem, was die Karte nicht kann: der Zeit.
+          StatefulShellBranch(routes: [
+            GoRoute(
+                path: '/spots',
+                builder: (context, state) => const SpotsScreen()),
           ]),
           // Der Reiter „Pilze" (seit 1.153.0) steht neben der Karte,
           // weil er ihre Legende ist: Welche Art gehört zu welcher
@@ -152,6 +161,7 @@ class AppShell extends StatelessWidget {
         ),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.map_outlined), selectedIcon: Icon(Icons.map), label: 'Karte'),
+          NavigationDestination(icon: Icon(Icons.list_alt_outlined), selectedIcon: Icon(Icons.list_alt), label: 'Spots'),
           NavigationDestination(icon: Icon(Icons.menu_book_outlined), selectedIcon: Icon(Icons.menu_book), label: 'Pilze'),
           NavigationDestination(icon: Icon(Icons.group_outlined), selectedIcon: Icon(Icons.group), label: 'Freunde'),
           NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Profil'),

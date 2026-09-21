@@ -3,7 +3,7 @@
 // erst bei einem gut gefüllten Konto. Deshalb prüft der letzte Test die
 // gesamte Spanne statt einzelner Beispiele.
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pilzbuddy/features/profile/profile_screen.dart';
+import 'package:pilzbuddy/core/axis_scale.dart';
 
 /// So viele Beschriftungen zeichnet fl_chart für [maxY] bei diesem Schritt:
 /// 0, step, 2·step … bis einschließlich maxY.

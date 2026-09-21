@@ -7,6 +7,35 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Neuer Reiter „Spots": alle Stellen als Liste, mit Statistik
+
+*21. September 2026 · Version 1.161.0*
+
+Neben der Karte gibt es jetzt den Reiter „Spots". Er zeigt dieselben
+Stellen als Liste — die mit der jüngsten Aktivität oben, eigene und
+geteilte gemischt. Jede Zeile nennt den letzten Eintrag, wann er war
+und, wenn er von einem Buddy stammt, von wem. Ein Leergang zählt dabei
+als Aktivität: „gestern nichts gefunden" ist auch eine Nachricht über
+den Ort. Antippen öffnet das gewohnte Spot-Blatt; das Kartensymbol
+daneben springt auf die Karte und zentriert die Stelle. Oben suchst du
+nach Name, Pilzart oder Buddy — „Staeubling" findet auch den
+„Flaschenstäubling".
+
+Vorgemerkte Spots stehen in einer eigenen Gruppe am Ende. Und wenn ein
+Buddy nur den Standort teilt, sagt die Liste das, statt die Zeile leer
+zu lassen.
+
+Im zweiten Reiter steht die Statistik, die bisher im Profil war — mit
+drei Ergänzungen: die laufende Saison im Vergleich zum Vorjahr bis zum
+selben Tag, dein Jahresgang über alle zwölf Monate (in derselben
+Darstellung wie die Saisonkurven im Reiter „Pilze", damit du beide
+nebeneinanderlegen kannst) und, falls du Leergänge einträgst, bei wie
+vielen Besuchen nichts da war. Gezählt werden weiterhin nur deine
+eigenen Funde.
+
+Das Banner über neue Buddy-Funde bleibt davon unberührt: Ein Blick in
+die Liste schaltet es nicht stumm.
+
 ## Pilzampel: „Austernseitling & Co." achtet auf die Nächte
 
 *21. September 2026 · Version 1.160.0*
