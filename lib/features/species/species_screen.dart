@@ -19,6 +19,7 @@
 // ein relativer Jahresgang, sonst nichts.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/season_curves.dart';
@@ -191,56 +192,65 @@ class _EntryTile extends ConsumerWidget {
         'Belege: ${ampelEvidenceWord(evidence)}',
       if (excluded) 'von der Ampel ausgenommen',
     ].join(' · ');
-    return Container(
-      color: now ? AppColors.forestGreen.withValues(alpha: 0.08) : null,
-      child: ListTile(
-        dense: true,
-        leading: MushroomIcon(
-          seed: stableSeed(entry.name),
-          size: 30,
-          group: entry.group,
-          species: entry.name,
-          ground: false,
-        ),
-        title: Text(
-          entry.name,
-          style: now
-              ? const TextStyle(
-                  fontWeight: FontWeight.w600, color: AppColors.forestGreen)
-              : null,
-        ),
-        subtitle: Text(facts, style: theme.textTheme.bodySmall),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (entry.curve != null)
-              SizedBox(
-                width: 84,
-                child: SeasonBars(
-                  months: entry.curve!.months,
-                  currentMonth: month - 1,
-                  height: 18,
-                  showLetters: false,
-                ),
+    return ListTile(
+      dense: true,
+      // **Die Farbe gehört an die Kachel, nicht in einen Container
+      // darum.** Mit `onTap` malt `ListTile` Tinte auf das nächste
+      // `Material` — ein farbiger Container davor verdeckt sie, und
+      // Flutter bricht mit genau dieser Meldung ab.
+      tileColor: now ? AppColors.forestGreen.withValues(alpha: 0.08) : null,
+      // Eine Ebene tiefer steht, wofür in dieser Zeile kein Platz ist
+      // (#511): wissenschaftlicher Name, Zweitnamen, die volle Kurve
+      // mit Monatsbuchstaben, eigene Funde und die GBIF-Meldungen.
+      // Der Name reist als Pfadstück — `Uri.encodeComponent`, weil
+      // „Krause Glucke" ein Leerzeichen trägt.
+      onTap: () =>
+          context.go('/pilze/${Uri.encodeComponent(entry.name)}'),
+      leading: MushroomIcon(
+        seed: stableSeed(entry.name),
+        size: 30,
+        group: entry.group,
+        species: entry.name,
+        ground: false,
+      ),
+      title: Text(
+        entry.name,
+        style: now
+            ? const TextStyle(
+                fontWeight: FontWeight.w600, color: AppColors.forestGreen)
+            : null,
+      ),
+      subtitle: Text(facts, style: theme.textTheme.bodySmall),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (entry.curve != null)
+            SizedBox(
+              width: 84,
+              child: SeasonBars(
+                months: entry.curve!.months,
+                currentMonth: month - 1,
+                height: 18,
+                showLetters: false,
               ),
-            if (inAmpel) ...[
-              const SizedBox(width: 4),
-              // AN heißt „zählt für die Ampel" — die Vorgabe. Aus nimmt
-              // die Art aus Banner, Spot-Blatt und dem Saison-Tor der
-              // Fläche; die Fundorte-Scheiben zeigt sie weiter.
-              Semantics(
-                label: '${entry.name} in der Ampel',
-                child: Switch(
-                  value: !excluded,
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  onChanged: (_) => ref
-                      .read(ampelExcludedSpeciesProvider.notifier)
-                      .toggle(entry.name),
-                ),
+            ),
+          if (inAmpel) ...[
+            const SizedBox(width: 4),
+            // AN heißt „zählt für die Ampel" — die Vorgabe. Aus nimmt
+            // die Art aus Banner, Spot-Blatt und dem Saison-Tor der
+            // Fläche; die Fundorte-Scheiben zeigt sie weiter.
+            Semantics(
+              label: '${entry.name} in der Ampel',
+              child: Switch(
+                value: !excluded,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                onChanged: (_) => ref
+                    .read(ampelExcludedSpeciesProvider.notifier)
+                    .toggle(entry.name),
               ),
-            ],
+            ),
           ],
-        ),
+        ],
       ),
     );
   }

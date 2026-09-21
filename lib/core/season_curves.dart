@@ -219,3 +219,52 @@ SeasonCurve? seasonCurveFor(String? species) {
   if (curve == null || !curve.isReliable) return null;
   return curve;
 }
+
+/// Der Satz über den Balken. Er nennt IMMER die Art — nie „die Pilze" —
+/// und bleibt beim Melden: „wird gemeldet", nicht „wächst".
+///
+/// **Steht hier und nicht im Blatt**, seit die Detailseite je Art
+/// (#511) dieselbe Kurve groß zeigt. Zwei Fassungen wären zwei
+/// Meinungen darüber, wie stark eine geborgte Kurve einzuschränken ist
+/// — und genau die Einschränkung ist der Zweck des Satzes.
+String seasonSentence(String name, SeasonCurve curve) {
+  // **Drei verschiedene Aussagen, drei verschiedene Sätze.**
+  //
+  // GEBORGT wiegt schwerer als ein Sammelbegriff und wird deshalb
+  // zuerst geprüft: Bei „Rotkappe" umfasst der eingetragene NAME
+  // mehrere Arten, die Kurve gehört also dem, was dasteht. Beim
+  // Igelstachelbart meint der Name genau eine Art, und die Kurve
+  // kommt von ihren Verwandten — wer das nicht liest, hält 1147
+  // Meldungen über Stachelbärte für 1147 Meldungen über diesen Pilz.
+  final borrowed = curve.borrowedFrom;
+  final subject = borrowed != null
+      ? '$name (Saison nach verwandten Arten: $borrowed)'
+      : curve.isGenus
+          // Ein Sammelbegriff ist keine Art. Wer „Rotkappe" einträgt,
+          // meint je nach Wald eine andere — das gehört in den Satz,
+          // sonst liest sich die Kurve genauer, als sie ist.
+          ? '$name (mehrere ähnliche Arten)'
+          : name;
+  if (curve.isFlat) {
+    return '$subject wird das ganze Jahr über etwa gleich häufig '
+        'gemeldet — die Jahreszeit sagt hier wenig.';
+  }
+  final peak = curve.peakLabel;
+  final run = curve.peakMonths;
+  if (peak == null || run == null) return '';
+  // „im April", aber „von August bis September" — mit einer einzigen
+  // Präposition wird eines von beiden falsch.
+  final preposition = run.length == 1 ? 'im' : 'von';
+  return '$subject wird am häufigsten $preposition $peak gemeldet.';
+}
+
+/// Woher die Zahlen kommen und was sie NICHT sind.
+///
+/// Der zweite Halbsatz ist der wichtige: Die Kurve ist gegen den
+/// allgemeinen Meldeeifer verrechnet (ohne das trüge jede Art denselben
+/// Herbstberg), sie ist also relativ zur Pilzsaison — und sie beschreibt
+/// Meldungen, nicht das Wetter dieses Jahres.
+String seasonSourceLine(SeasonCurve curve) =>
+    'Aus ${curve.observations} Beobachtungen in Deutschland, Österreich '
+    'und der Schweiz (GBIF), verrechnet gegen den allgemeinen '
+    'Meldeeifer. Das beschreibt frühere Jahre, nicht dieses.';

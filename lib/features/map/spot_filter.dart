@@ -154,6 +154,18 @@ class SpotFilterNotifier extends Notifier<SpotFilter> {
   /// „Alle Arten": hebt die Artenauswahl auf, lässt „Nur meine" stehen.
   void clearSpecies() => state = state.copyWith(species: const {});
 
+  /// Genau EINE Art zeigen — der Weg von der Detailseite (#511) auf die
+  /// Karte.
+  ///
+  /// **Setzt, statt umzuschalten.** Wer von einer Art kommt, will sie
+  /// sehen; sie zu einer vorher gewählten hinzuzufügen wäre eine andere
+  /// Frage. Die übrigen Schalter bleiben stehen — der Chip nennt sie
+  /// ohnehin alle (#154), und einen Filter im Vorbeigehen aufzuheben
+  /// wäre genauso überraschend wie einen zu setzen, der sich nicht
+  /// meldet.
+  void showOnlySpecies(String species) => state = state.copyWith(
+      species: {canonicalSpecies(species) ?? species});
+
   /// Eine Pilzgruppe an-/abwählen.
   ///
   /// Zwei Regeln, und beide stehen HIER und nicht im Blatt, damit die

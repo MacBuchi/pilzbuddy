@@ -16,7 +16,9 @@
 // zwei Gruppen, was das Modell ausschließt.
 import '../../core/mushroom_species.dart';
 import '../../core/season_curves.dart';
+import '../../models/spot.dart';
 import '../ampel/ampel_model.dart';
+import '../map/gbif_finds.dart' show GbifSpeciesTotals;
 
 /// Eine Art im Verzeichnis.
 class CatalogueEntry {
@@ -120,4 +122,129 @@ List<CatalogueSection> speciesCatalogue({required int month}) {
     ),
   ];
   return sections;
+}
+
+/// Was die Detailseite je Art zeigt (#511) — zusammengesetzt aus dem,
+/// was ohnehin im Binary und im Spot-Cache liegt.
+///
+/// **Kein neues Wissen, nur ein zweiter Blick darauf.** Jedes Feld hier
+/// hat schon eine Quelle: der wissenschaftliche Name und die Zweitnamen
+/// stehen in `kBekannteArten`, die Kurve in `season_curves.g.dart`, die
+/// Klasse in `ampelSpeciesClass`, die eigenen Funde im Cache und die
+/// Meldungen im GBIF-Asset. Was NICHT dazugehört und warum, steht am
+/// Kopf von `species_detail_screen.dart`.
+class SpeciesDetail {
+  const SpeciesDetail({
+    required this.name,
+    required this.group,
+    required this.sci,
+    required this.synonyms,
+    required this.curve,
+    required this.share,
+    required this.klass,
+    required this.classKey,
+    required this.evidence,
+    required this.ownFinds,
+    required this.ownSpots,
+    required this.lastFound,
+    required this.gbif,
+  });
+
+  /// Die Hauptbezeichnung — ein Zweitname in der Adresse landet hier
+  /// aufgelöst, sonst gäbe es zwei Seiten für denselben Pilz.
+  final String name;
+  final SpeciesGroup group;
+
+  /// `null` bei Arten ohne zweifelsfreie GBIF-Zuordnung. Die Seite sagt
+  /// das, statt die Zeile wegzulassen: Ohne diesen Namen gibt es auch
+  /// keine Kurve, und der Zusammenhang gehört genannt.
+  final String? sci;
+
+  /// „auch: Marone" — die Namen, unter denen die Eingabe dieselbe Art
+  /// findet. Leer, wenn es keine gibt.
+  final List<String> synonyms;
+
+  final SeasonCurve? curve;
+
+  /// Die Höhe der Kurve im laufenden Monat, 0…100; `null` ohne Kurve.
+  final int? share;
+
+  /// Die Ampel-Gruppe, `null` bei den grauen Arten.
+  final AmpelClass? klass;
+  final String? classKey;
+  final AmpelEvidence? evidence;
+
+  /// **Nur EIGENE Funde**, dieselbe Grenze wie in der Statistik (#211):
+  /// gezählt wird über `Spot.ownFinds`, nicht über `spot.finds`. Ein
+  /// Buddy-Fund am eigenen Spot ist seine Ausbeute, nicht meine.
+  final int ownFinds;
+
+  /// An wie vielen Spots — die zweite Zahl, weil acht Funde an einem
+  /// Spot etwas anderes sind als acht an acht.
+  final int ownSpots;
+  final DateTime? lastFound;
+
+  /// Was GBIF meldet — `null` heißt „noch nicht geladen ODER nicht im
+  /// Asset"; die beiden auseinanderzuhalten ist Sache der Seite.
+  final GbifSpeciesTotals? gbif;
+
+  bool get inSeason => share != null && share! >= kSeasonNowThreshold;
+  String? get seasonWord => share == null ? null : seasonShareWord(share!);
+}
+
+/// Die Detailseite zu [name] — `null`, wenn die App die Art nicht kennt.
+///
+/// **`null` ist ein echter Fall und kein Fehler:** Die Route trägt den
+/// Namen in der Adresse (`/pilze/Steinpilz`), und die kann aus einem
+/// Lesezeichen kommen, aus dem Web oder aus einer Fassung, die eine Art
+/// noch nicht hatte. Die Seite sagt dann, dass sie die Art nicht kennt,
+/// statt mit einem `!` abzustürzen.
+SpeciesDetail? speciesDetailFor(
+  String name, {
+  required int month,
+  List<Spot> spots = const [],
+  GbifSpeciesTotals? gbif,
+}) {
+  // Über die Hauptbezeichnung, wie überall: „Marone" und
+  // „Maronenröhrling" sind eine Art und eine Seite.
+  final canonical = canonicalSpecies(name);
+  KnownSpecies? entry;
+  for (final s in kBekannteArten) {
+    if (!s.isSynonym && s.name == canonical) entry = s;
+  }
+  if (entry == null) return null;
+
+  final curve = seasonCurveFor(entry.name);
+  final klass = ampelClassFor(entry.name);
+
+  var finds = 0;
+  var spotCount = 0;
+  DateTime? last;
+  for (final spot in spots) {
+    var here = 0;
+    for (final find in spot.ownFinds) {
+      if (canonicalSpecies(find.species) != entry.name) continue;
+      here++;
+      if (last == null || find.foundOn.isAfter(last)) last = find.foundOn;
+    }
+    if (here == 0) continue;
+    finds += here;
+    spotCount++;
+  }
+
+  return SpeciesDetail(
+    name: entry.name,
+    group: entry.group,
+    sci: entry.sci,
+    synonyms: synonymsOf(entry.name),
+    curve: curve,
+    share: curve?.months[month - 1],
+    klass: klass,
+    classKey: klass == null ? null : ampelClassKeyOf(klass),
+    evidence: ampelEvidenceFor(entry.name),
+    ownFinds: finds,
+    ownSpots: spotCount,
+    lastFound: last,
+    gbif: gbif,
+  );
 }

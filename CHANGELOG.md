@@ -7,6 +7,25 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Jede Pilzart hat jetzt eine eigene Seite
+
+*21. September 2026 · Version 1.162.0*
+
+Im Reiter „Pilze" war bisher jede Art eine einzige Zeile. Tipp sie jetzt
+an, und du bekommst alles, was PilzBuddy über sie weiß: den
+wissenschaftlichen Namen, die anderen Namen, unter denen du sie
+eintragen kannst, den vollen Jahresgang mit allen zwölf Monaten
+beschriftet, zu welcher Ampel-Gruppe sie gehört und wie gut das belegt
+ist, wie oft du sie selbst gefunden hast und wann zuletzt, und wie viele
+Meldungen es zu ihr in Deutschland, Österreich und der Schweiz gibt. Ein
+Knopf stellt die Karte auf genau diese Art ein.
+
+Wo eine Kurve von verwandten Arten geborgt ist, sagt die Seite das jetzt
+auch — bisher stand das nur im Spot-Blatt.
+
+Was dort ausdrücklich NICHT steht: ob ein Pilz essbar ist und wie man
+ihn erkennt. PilzBuddy bestimmt keine Pilze, und die Seite sagt das auch.
+
 ## Neuer Reiter „Spots": alle Stellen als Liste, mit Statistik
 
 *21. September 2026 · Version 1.161.0*

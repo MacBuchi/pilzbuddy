@@ -170,6 +170,32 @@ void main() {
     expect(finds.around(40.0, 10.0, radiusM: 5000), isEmpty);
   });
 
+  test('totalsFor: eine Art über den ganzen Bestand, unbekannt ist null',
+      () {
+    // Das Gegenstück zu `around`, für die Detailseite (#511): dieselben
+    // drei Zahlen, nur ohne Umkreis — auch die 9 km entfernte Zeile
+    // zählt hier mit.
+    final finds = findsOf([
+      (species: 0, lat: 51.0, lon: 10.0285, uncertaintyM: 25, count: 1, year: 2019),
+      (species: 0, lat: 51.081, lon: 10.0, uncertaintyM: 3535, count: 9, year: 2025),
+      (species: 1, lat: 51.001, lon: 10.0, uncertaintyM: null, count: 3, year: null),
+    ], species: [
+      'Steinpilz',
+      'Pfifferling'
+    ]);
+    final steinpilz = finds.totalsFor('Steinpilz')!;
+    expect(steinpilz.observations, 10);
+    expect(steinpilz.places, 2);
+    expect(steinpilz.newestYear, 2025);
+    final pfifferling = finds.totalsFor('Pfifferling')!;
+    expect(pfifferling.observations, 3);
+    expect(pfifferling.newestYear, isNull,
+        reason: 'Jahr 0 heißt unbekannt, nicht 1900');
+    // **`null` heißt „steht nicht im Asset"** und ist etwas anderes als
+    // „null Meldungen" — die Seite sagt dafür einen anderen Satz.
+    expect(finds.totalsFor('Parasol'), isNull);
+  });
+
   test('das echte Asset lässt sich lesen und passt zur Artenliste', () {
     // Bewusst mit dem ausgelieferten Asset: Ein Baufehler im Werkzeug
     // soll hier auffallen, nicht auf dem Gerät.
@@ -187,6 +213,12 @@ void main() {
     };
     for (final s in finds.species) {
       expect(known, contains(s.name));
+    }
+    // Und `totalsFor` findet jede Art des Manifests wieder — sonst
+    // stünde auf der Detailseite „nicht abgefragt", obwohl Meldungen da
+    // sind.
+    for (final s in finds.species) {
+      expect(finds.totalsFor(s.name)?.places, greaterThan(0), reason: s.name);
     }
     // Und die Namensnennung ist dabei.
     expect(finds.datasets, isNotEmpty);

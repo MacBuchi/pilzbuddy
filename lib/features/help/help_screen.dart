@@ -98,6 +98,9 @@ const kHelpSteps = <HelpStep>[
         'sind; was ihre Farben bedeuten, steht links unten in der '
         'Legende — ein Tipp klappt sie ein und wieder aus. Mit '
         '„Filter" blendest du Spots nach Art oder Zeit aus. '
+        'Welche Art zu welcher Ampel-Gruppe gehört, steht im Reiter '
+        '„Pilze"; tippst du dort eine Art an, siehst du ihren ganzen '
+        'Jahresgang, ihre Zweitnamen und deine eigenen Funde. '
         'Hältst du irgendwo auf der Karte gedrückt, fragt dich ein '
         'kleines Menü, ob du wissen willst, was dort ist, dorthin '
         'navigieren oder heranzoomen möchtest.',
