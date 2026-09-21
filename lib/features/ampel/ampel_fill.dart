@@ -163,6 +163,12 @@ AmpelLevelGrid? ampelLevelsFrom(RainStackData stack, WeatherTable? table) {
   final stationMean = Float64List(stations.length);
   final stationHeight = Int32List(stations.length);
   final stationAnswers = Uint8List(stations.length);
+  // Und je Station „milder" aus den rohen Minima (seit 1.160.0) —
+  // getrennt beantwortbar: Eine Station mit 20 vollen Tagen trägt das
+  // Mittel, aber kein 28er-Fenster, und dann rechnen die Glocken-Klassen
+  // weiter, während Holz & Winter grau bleibt — wie im Blatt.
+  final stationMilder = Float64List(stations.length);
+  final milderAnswers = Uint8List(stations.length);
   final competing = <int>[];
   for (var s = 0; s < stations.length; s++) {
     final station = stations[s];
@@ -186,6 +192,9 @@ AmpelLevelGrid? ampelLevelsFrom(RainStackData stack, WeatherTable? table) {
         : window.reduce((a, b) => a + b) / window.length;
     stationHeight[s] = station.height;
     stationAnswers[s] = window.length >= ampelMinTempDays ? 1 : 0;
+    final milder = ampelMilderOf(mins);
+    stationMilder[s] = milder ?? 0;
+    milderAnswers[s] = milder == null ? 0 : 1;
     competing.add(s);
   }
   if (competing.isEmpty) return null;
@@ -299,6 +308,8 @@ AmpelLevelGrid? ampelLevelsFrom(RainStackData stack, WeatherTable? table) {
   final cellValid = Uint8List(width * height);
   final cellMoisture = Float32List(width * height);
   final cellMoistureValid = Uint8List(width * height);
+  final cellMilder = Float32List(width * height);
+  final cellMilderValid = Uint8List(width * height);
   final cellLon = Float64List(width);
   for (var x = 0; x < width; x++) {
     cellLon[x] = probe.lonAtColumn(x + 0.5);
@@ -329,6 +340,8 @@ AmpelLevelGrid? ampelLevelsFrom(RainStackData stack, WeatherTable? table) {
       cellMean[i] = stationMean[best];
       cellStationHeight[i] = stationHeight[best];
       cellValid[i] = 1;
+      cellMilder[i] = stationMilder[best];
+      cellMilderValid[i] = milderAnswers[best];
       // Die Feuchtestation ist ein eigenes Netz: die nächste antretende,
       // in Reichweite, mit vollständiger Reihe — sonst bleibt die Zelle
       // für die Logit-Klassen ohne Antwort, und die Glocken-Klassen
@@ -363,6 +376,8 @@ AmpelLevelGrid? ampelLevelsFrom(RainStackData stack, WeatherTable? table) {
     valid: cellValid,
     moistureMean: cellMoisture,
     moistureValid: cellMoistureValid,
+    milder: cellMilder,
+    milderValid: cellMilderValid,
     width: width,
     height: height,
     west: info.west,
@@ -383,6 +398,8 @@ class AmpelLevelGrid {
     required this.valid,
     this.moistureMean,
     this.moistureValid,
+    this.milder,
+    this.milderValid,
     required this.width,
     required this.height,
     required this.west,
@@ -411,6 +428,12 @@ class AmpelLevelGrid {
   /// `null` in Gittern ohne Feuchtenetz (ältere Tabellen, Tests).
   final Float32List? moistureMean;
   final Uint8List? moistureValid;
+
+  /// „Milder" der nächsten Luftstation je Zelle (°C, [ampelMilderOf])
+  /// und ob es eins gibt — die vierte Zutat der Klasse Holz & Winter
+  /// (seit 1.160.0). `null` in Gittern ohne das Feld (Tests).
+  final Float32List? milder;
+  final Uint8List? milderValid;
   final int width;
   final int height;
   final double west;
@@ -494,11 +517,15 @@ class AmpelLevelGrid {
     final moisture = moistureValid != null && moistureValid![i] == 1
         ? moistureMean![i].toDouble()
         : null;
+    final milderK = milderValid != null && milderValid![i] == 1
+        ? milder![i].toDouble()
+        : null;
     return ampelBestOf(
             rainFactor: rainFactor[i],
             meanC: mean,
             classes: classes,
-            moistureMean: moisture)
+            moistureMean: moisture,
+            milder: milderK)
         .level;
   }
 }

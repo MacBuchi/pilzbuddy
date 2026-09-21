@@ -913,8 +913,9 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
       es nicht der Namensgeber ist. Fläche, Legende, Ampel-Blatt,
       Spot-Blatt und Nachlauf lesen `activeAmpelClassesProvider`; die
       Fundorte-Scheiben lesen weiter die rohe Auswahl, sie zeigen
-      Meldungen, keine Ampel. Frost/Mindesttemperatur ist Laborarbeit
-      (#497), kein Code-Wert.
+      Meldungen, keine Ampel. Frost/Mindesttemperatur war Laborarbeit
+      (#497) — und ist seit 1.160.0 als „milder" ein Code-Wert, siehe
+      unten.
     - **Arten lassen sich von der Ampel ausnehmen** (#495, Schalter je
       Art im Reiter „Pilze", gerätelokal `ampel_excluded_species`):
       raus aus Nachlauf, Spot-Blatt und dem Saison-Tor — alle Arten
@@ -1004,6 +1005,46 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
       die Ampel „günstig" sagen soll, ist dabei eine
       Produktentscheidung und keine Messung; sie steckt im Quantil
       (80 %) und lautet „gleich häufig wie bisher".
+    - **Die Klasse Holz & Winter hat seit 1.160.0 eine SECHSTE
+      Konstante, „milder"** (#497, Labor 19–24, `docs/pilzampel-frost-plan.md`):
+      das Mittel der Tagesminima der letzten fünf Tage minus das der
+      Tage 6 bis 28, in °C, +0,042 je Grad. Fünf Dinge, die man wissen
+      muss:
+      - **Es ist die ABFOLGE, nicht der Frost.** Vor Fundtagen der
+        Winterarten sind die letzten Tage milder und die Wochen davor
+        kälter (Labor 21); Frosttage-Zählungen summieren genau das weg
+        und trugen auf den Testblöcken nichts (Labor 19). Der Anlass
+        war die Betreiberfrage „Minusgrade (Aktivierung) gefolgt von
+        milderen Bedingungen?" — und die Regel dahinter: erst die
+        vorhandenen Daten verstehen, dann eine Hypothese rechnen.
+      - **Gewählt auf Training, bestätigt auf Test** (Betreiberregel
+        vom 2026-09-21: Anpassungen nur auf den Trainingsblöcken DE +
+        AT + CH, die Testblöcke bewerten). Auf den 1 970 Teststrata
+        +0,007 [+0,001, +0,013] je Stratum gegen das
+        Fünf-Konstanten-Logit, keine Art schlechter, Placebo mit
+        permutiertem Merkmal −0,002 ▼ — der Preis EINES nutzlosen
+        Parameters, und die Messlatte für jeden weiteren. Ein
+        Zwanzigstel dessen, was die Klasse selbst gebracht hat.
+      - **Die Stationstabelle trägt dafür 28 statt 20 Tage** (#506,
+        `tool/spot_weather.py`, seit dem 2026-09-21). Eine ältere
+        Tabelle füllt das Fenster nicht, und dann ist DIESE Klasse grau
+        mit Grund („Tagesminima der Station: keine 28 vollständigen
+        Tage"), klassenspezifisch wie ohne Bodenfeuchte — kein Mittel
+        aus 20 Tagen, das wäre eine erfundene Beobachtung. Die Glocken
+        rechnen weiter. `ampelMilderOf` verlangt 28 lückenlose Werte;
+        die Höhenkorrektur kürzt sich in der Differenz heraus, die
+        Minima gehen ROH hinein.
+      - **Die Konstante 0 heißt „keine Reihe nötig"** (`AmpelLogit.needsMilder`):
+        Herbsttrompete & Co. trägt sie, weil das Merkmal dort nie
+        gemessen wurde, und rechnet ohne Minima weiter. Wer einer
+        Klasse das Merkmal gibt, misst es für SIE — die Null ist keine
+        Vorgabe.
+      - **Alle sechs Konstanten sind neu gefittet, die Schwellen neu
+        gezogen** (Kandidat K6_5 in `24-testbloecke-abfolge.md`;
+        0,387 / 0,558 statt 0,454 / 0,606, `tool/ampel_logit_klasse.py
+        --schwellen`). Der Python-Selbsttest hält Dart und Werkzeug
+        Zahl für Zahl zusammen — deshalb kommen Werkzeug und Dart-Kern
+        immer im SELBEN PR.
   - **Es gibt keinen dritten Modellkern.** `ampelScanOf` ruft dasselbe
     `ampelReadingFrom` wie das Spot-Blatt. Ein nächtlicher Server-Push
     hätte das Modell neben `ampel_model.dart` und

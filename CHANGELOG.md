@@ -7,6 +7,24 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Pilzampel: „Austernseitling & Co." achtet auf die Nächte
+
+*21. September 2026 · Version 1.160.0*
+
+Die Ampel-Gruppe der Holz- und Winterpilze rechnet jetzt eine vierte
+Zutat ein: ob die letzten fünf Nächte milder waren als die drei Wochen
+davor. Das Labor hat in den Fundmeldungen genau dieses Muster gefunden —
+erst kalt, dann milder — und auf zurückgehaltenen Daten bestätigt; eine
+reine Frost-Zählung hatte es nicht. Der Gewinn ist klein und sauber
+belegt, die Stufen der Gruppe sind darunter neu geeicht. Im Spot-Blatt
+steht die Zutat als Satz dabei („Nächte zuletzt: 2,3 °C milder als in
+den drei Wochen davor").
+
+Dafür trägt die Stationstabelle jetzt 28 statt 20 Tage. Solange dein
+Gerät noch die alte Tabelle hat, bleibt diese eine Gruppe grau und sagt
+warum; die anderen Gruppen rechnen weiter. Die Tabelle erneuert sich
+von selbst mit den nächsten Regendaten.
+
 ## Spots vormerken — ohne Fund, mit erwarteten Arten
 
 *21. September 2026 · Version 1.159.0 und 1.159.1*

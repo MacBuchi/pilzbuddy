@@ -210,32 +210,104 @@ void main() {
 
   group('Logit-Klassen spiegeln tool/ampel_logit_klasse.py', () {
     // Fixtures aus `python3 tool/ampel_logit_klasse.py --fixtures`
-    // (2026-09-20), nicht von Hand gerechnet.
+    // (2026-09-21, seit der sechsten Konstante), nicht von Hand
+    // gerechnet.
     final regen20 = [20.0, ...List.filled(25, 0.0)];
     final m60 = List<double?>.filled(26, 60.0);
+    // Ältester Tag zuerst wie die Stationsreihe: 23 kalte Nächte, dann
+    // fünf milde — „milder" = 2 − (−1) = +3 °C.
+    final mins3 = <double?>[...List.filled(23, -1.0), ...List.filled(5, 2.0)];
 
     test('der Score, Zahl für Zahl', () {
       final f = ampelRainFactor(regen20);
+      expect(ampelMilderOf(mins3), 3.0);
       expect(
-          ampelHolzWinterClass.logit
-              .score(rainFactor: f, meanC: 8.0, moistureMean: 60.0),
-          closeTo(0.5378604756070783, 1e-9));
+          ampelHolzWinterClass.logit.score(
+              rainFactor: f, meanC: 8.0, moistureMean: 60.0, milder: 3.0),
+          closeTo(0.6565497379317509, 1e-9));
       expect(
-          ampelCantharellalesClass.logit
-              .score(rainFactor: f, meanC: 8.0, moistureMean: 60.0),
-          closeTo(1.5311455016768087, 1e-9));
+          ampelCantharellalesClass.logit.score(
+              rainFactor: f, meanC: 8.0, moistureMean: 60.0, milder: 3.0),
+          closeTo(1.5311455016768085, 1e-9));
       // Trocken: der Boden 1e-3 vor dem Logarithmus, kein -unendlich.
       expect(
           ampelHolzWinterClass.logit.score(
               rainFactor: ampelRainFactor(List.filled(26, 0.0)),
               meanC: 3.0,
-              moistureMean: 90.0),
-          closeTo(-0.8652195435044383, 1e-9));
+              moistureMean: 90.0,
+              milder: 3.0),
+          closeTo(-0.751959135925079, 1e-9));
+      expect(
+          ampelCantharellalesClass.logit.score(
+              rainFactor: 1.0, meanC: 13.0, moistureMean: 40.0, milder: 0.0),
+          closeTo(0.9432299999999996, 1e-9));
+      expect(
+          ampelHolzWinterClass.logit.score(
+              rainFactor: 1.0, meanC: 13.0, moistureMean: 40.0, milder: 0.0),
+          closeTo(0.7998160000000001, 1e-9));
+      // Kälter zuletzt: −2 °C senkt den Score um 5 × 0,04193.
+      expect(
+          ampelHolzWinterClass.logit.score(
+              rainFactor: f, meanC: 8.0, moistureMean: 60.0, milder: -2.0),
+          closeTo(0.4468997379317509, 1e-9));
+      expect(ampelMoistureMean(m60), 60.0);
+    });
+
+    test('„milder": 28 Tage, vollständig, die jüngsten fünf gegen den Rest',
+        () {
+      expect(ampelMilderOf(mins3.sublist(1)), isNull, reason: '27 Tage');
+      expect(ampelMilderOf([...mins3.sublist(0, 10), null, ...mins3.sublist(11)]),
+          isNull,
+          reason: 'eine Lücke im Fenster');
+      // Ältere Tage vor dem Fenster zählen nicht — das Fenster sind die
+      // LETZTEN 28.
+      expect(ampelMilderOf([50.0, 50.0, ...mins3]), 3.0);
+      expect(ampelMilderOf(List<double?>.filled(28, 4.0)), 0.0);
+      expect(
+          ampelMilderOf(
+              [...List<double?>.filled(23, -1.0), ...List.filled(5, -3.0)]),
+          -2.0,
+          reason: 'kälter zuletzt ist negativ');
+      // Nur Holz & Winter trägt das Merkmal; die Null der Leistlinge
+      // heißt „keine Reihe nötig".
+      expect(ampelHolzWinterClass.logit.needsMilder, isTrue);
+      expect(ampelCantharellalesClass.logit.needsMilder, isFalse);
+      expect(
+          ampelHolzWinterClass.logit
+              .score(rainFactor: 1.0, meanC: 13.0, moistureMean: 40.0),
+          isNull,
+          reason: 'ohne Minima kein Score — kein Ersatzwert');
       expect(
           ampelCantharellalesClass.logit
               .score(rainFactor: 1.0, meanC: 13.0, moistureMean: 40.0),
           closeTo(0.9432299999999996, 1e-9));
-      expect(ampelMoistureMean(m60), 60.0);
+      // Der Satz in der Zutaten-Zeile.
+      expect(ampelMilderWord(2.34),
+          'Nächte zuletzt: 2,3 °C milder als in den drei Wochen davor');
+      expect(ampelMilderWord(-1.0),
+          'Nächte zuletzt: 1,0 °C kälter als in den drei Wochen davor');
+      expect(ampelMilderWord(0.04),
+          'Nächte zuletzt: wie in den drei Wochen davor');
+    });
+
+    test('ohne Minima zählt Holz & Winter nicht mit, die Leistlinge schon',
+        () {
+      final ohne = ampelBestOf(
+          rainFactor: 1.0,
+          meanC: 13,
+          classes: const [ampelHolzWinterClass],
+          moistureMean: 60);
+      expect(ohne.level, isNull,
+          reason: 'keine Antwort ist keine Stufe — die Fläche bleibt '
+              'transparent, nicht rot');
+      expect(
+          ampelScoreFor(ampelHolzWinterClass,
+              rainFactor: 1.0, meanC: 13, moistureMean: 60),
+          isNull);
+      expect(
+          ampelScoreFor(ampelCantharellalesClass,
+              rainFactor: 1.0, meanC: 13, moistureMean: 60),
+          isNotNull);
     });
 
     test('das Feuchtefenster: 26 Tage, vollständig, die jüngsten', () {
@@ -254,14 +326,15 @@ void main() {
       // die Klasse aus der Wahl, statt mit einem Ersatzwert zu rechnen.
       final ohne = ampelBestOf(
           rainFactor: 1.0, meanC: 13, classes: const [ampelHolzWinterClass]);
-      expect(ohne.level, AmpelLevel.unguenstig);
+      expect(ohne.level, isNull);
       expect(ampelScoreFor(ampelHolzWinterClass, rainFactor: 1.0, meanC: 13),
           isNull);
       final mit = ampelBestOf(
           rainFactor: 1.0,
           meanC: 13,
           classes: const [ampelHolzWinterClass],
-          moistureMean: 60);
+          moistureMean: 60,
+          milder: 0);
       expect(mit.level, AmpelLevel.guenstig);
       expect(mit.klass, ampelHolzWinterClass);
     });
@@ -279,6 +352,8 @@ void main() {
     test('die Legende nennt beim Logit die Zutaten, nicht ein Fenster', () {
       expect(ampelClassWindowWord(ampelHerbstClass), '13,0 °C');
       expect(ampelClassWindowWord(ampelHolzWinterClass),
+          'Regen, Temperatur, Bodenfeuchte und Nächte');
+      expect(ampelClassWindowWord(ampelCantharellalesClass),
           'Regen, Temperatur und Bodenfeuchte');
     });
   });

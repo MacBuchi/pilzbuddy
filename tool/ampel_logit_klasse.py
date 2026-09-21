@@ -4,8 +4,9 @@
 **Warum eine eigene Datei.** `ampel_validate.py` kennt Klassen als
 Temperaturfenster: ein Optimum, eine Glocke, zwei Schwellen als Quantile.
 Die Klasse für Holz- und Winterpilze ist kein Fenster — sie ist ein
-bedingtes Logit mit fünf Konstanten und der Bodenfeuchte der nächsten
-DWD-Station (`docs/pilzampel-holz-winter-plan.md`). Sie in die
+bedingtes Logit mit sechs Konstanten und der Bodenfeuchte der nächsten
+DWD-Station (`docs/pilzampel-holz-winter-plan.md`; die sechste,
+„milder", seit Labor 24 — `docs/pilzampel-frost-plan.md`). Sie in die
 Fenster-Maschinerie zu pressen hiesse, an sechzig Stellen „wenn Fenster,
 sonst …" zu schreiben. Hier steht sie EINMAL, und `ampel_model.dart`
 spiegelt sie Zahl fuer Zahl; `test/ampel_model_test.dart` prueft das mit
@@ -50,8 +51,20 @@ import ampel_validate as av  # noqa: E402
 # in `ampel_logit.py` und `REGEN_BODEN` im Labor.
 REGEN_BODEN = 1e-3
 FEUCHTE_FENSTER = 26      # Tage, Mittel — das Feuchtefenster des Modells
+# **„milder"** (seit 2026-09-21, Labor 22/24): Mittel der Tagesminima der
+# juengsten MILDER_JUNG Tage minus Mittel der Tage danach bis
+# MILDER_FENSTER — „erst kalt, dann milder" als EINE Zahl in °C. Vor
+# Fundtagen der Winterarten sind die letzten Tage milder und die Wochen
+# davor kaelter (Labor 21); Frosttage-Zaehlungen (Labor 19) sahen das
+# nicht, weil sie die ABFOLGE wegsummieren. Die Grenze 5 kam auf den
+# Trainingsbloecken heraus (22), das Merkmal ist auf den Testbloecken
+# bestaetigt (24: +0,007 [+0,001, +0,013] je Stratum, keine Art
+# schlechter, Placebo darunter). Reihe wie die Feuchte: Vortag zuerst,
+# und ein Fenster mit Luecke ist KEIN Fenster.
+MILDER_FENSTER = 28
+MILDER_JUNG = 5
 QUANTILE = (0.50, 0.80)   # die Auslieferungsquantile (2026-09-12)
-SPALTEN = ("log_regen", "temp", "temp2", "feuchte", "feuchte_x_temp")
+SPALTEN = ("log_regen", "temp", "temp2", "feuchte", "feuchte_x_temp", "milder")
 
 KLASSEN = {
     "holz_winter": {
@@ -63,28 +76,35 @@ KLASSEN = {
         "members": ["Austernseitling", "Judasohr", "Krause Glucke", "Leberpilz",
                     "Lungenseitling", "Rehbrauner Dachpilz", "Samtfußrübling",
                     "Schwefelporling"],
-        # Aus `18-testteil-dach.md` (Labor): Fit auf allen DACH-Erkundungs-
-        # strata der acht Arten, Reihenfolge wie SPALTEN.
-        "koeffizienten": (0.1882, 0.1321, -0.00446, 0.00220, -0.000442),
+        # Aus `24-testbloecke-abfolge.md` (Labor, Kandidat K6_5): Fit auf
+        # allen DACH-Trainingsstrata der acht Arten, Reihenfolge wie
+        # SPALTEN. Bis 2026-09-21 die fuenf aus `18-testteil-dach.md`
+        # (0.1882, 0.1321, -0.00446, 0.00220, -0.000442).
+        "koeffizienten": (0.1915, 0.1350, -0.004712, 0.002383, -0.0004888, 0.04193),
         # Die Schwellen — gemessen mit `--schwellen` (Design B, P1, 2000
         # Zuege), hier gepinnt; der Lauf prueft sie bei jedem Mal nach.
-        # Bänder: verhalten [0,445, 0,462], guenstig [0,599, 0,612].
-        "verhalten": 0.454,
-        "guenstig": 0.606,
-        "schwellen_quelle": "Design B, P1, pinned (2026-09-20), docs/pilzampel-logit-schwellen.md",
+        # Neu gezogen am 2026-09-21 unter der sechsten Konstante (vorher
+        # 0,454 / 0,606 unter fuenf). Baender: verhalten [0,378, 0,396],
+        # guenstig [0,551, 0,566]; 23 200 Kontrolltage.
+        "verhalten": 0.387,
+        "guenstig": 0.558,
+        "schwellen_quelle": "Design B, P1, pinned (2026-09-21), docs/pilzampel-logit-schwellen.md",
         "gilt": "DE",
         "confirmed": True,
         "why": "Phase G auf DE-Test +0,402 [+0,255, +0,596], AT/CH-Test "
                "+0,206 [+0,081, +0,352], gegen die Klimatologie +0,020 "
-               "[+0,000, +0,038] — Labor 15/16/18 (2026-09-20)",
+               "[+0,000, +0,038] — Labor 15/16/18 (2026-09-20); milder "
+               "auf den Testbloecken +0,007 [+0,001, +0,013] — Labor 24 "
+               "(2026-09-21)",
     },
     "cantharellales": {
         "dart": "ampelCantharellalesClass",
         "label": "Herbsttrompete & Co.",
         "members": ["Herbsttrompete", "Semmelstoppelpilz", "Trompetenpfifferling"],
         # Aus `15-testteil.md` (Labor): Fit auf allen DE-Erkundungsstrata
-        # der drei Arten.
-        "koeffizienten": (0.1039, 0.1547, -0.01399, 0.00333, 0.002237),
+        # der drei Arten. Ohne „milder" (0): Das Merkmal ist fuer diese
+        # Klasse nie gemessen worden, und eine Null braucht keine Reihe.
+        "koeffizienten": (0.1039, 0.1547, -0.01399, 0.00333, 0.002237, 0.0),
         # Bänder: verhalten [2,035, 2,339], guenstig [2,861, 3,032] — die
         # Skala ist die von `s`, nicht die 0…1 der Glocke.
         "verhalten": 2.191,
@@ -142,26 +162,56 @@ def temperatur_mittel(daily_c):
     return sum(werte) / len(werte)
 
 
-def merkmale(regen, temp, feuchte):
-    """Die fuenf Spalten (Reihenfolge SPALTEN) oder `None` bei Luecke."""
+def milder(tmin, fenster=MILDER_FENSTER, jung=MILDER_JUNG):
+    """Mittel der Tagesminima der juengsten `jung` Tage minus Mittel der
+    Tage `jung + 1` bis `fenster` — `None`, wenn die Reihe kuerzer ist
+    oder im Fenster eine Luecke hat (wie `feuchte_mittel`, und wie das
+    Labor gerechnet hat: ein Stratum mit Luecke fiel weg). Nur die
+    ersten `fenster` Werte zaehlen, Vortag zuerst. Eine Hoehenkorrektur
+    kuerzt sich in der Differenz heraus — die App rechnet deshalb mit
+    den rohen Stationsminima."""
+    if tmin is None or len(tmin) < fenster:
+        return None
+    werte = tmin[:fenster]
+    if any(v is None for v in werte):
+        return None
+    return sum(werte[:jung]) / jung - sum(werte[jung:]) / (fenster - jung)
+
+
+def merkmale(regen, temp, feuchte, tmin=None):
+    """Die sechs Spalten (Reihenfolge SPALTEN) oder `None` bei Luecke in
+    Temperatur oder Feuchte. Die Spalte `milder` ist fuer sich `None`,
+    wenn die Minima fehlen — ob das den Score kostet, entscheidet die
+    Konstante der Klasse (`score`)."""
     t = temperatur_mittel(temp)
     m = feuchte_mittel(feuchte)
     if t is None or m is None:
         return None
     log_f = math.log(max(av.rain_factor(regen), REGEN_BODEN))
-    return (log_f, t, t * t, m, m * t)
+    return (log_f, t, t * t, m, m * t, milder(tmin))
 
 
-def score(regen, temp, feuchte, koeffizienten):
-    """`s` = Σ Koeffizient × Spalte — oder `None`, wenn eine Reihe fehlt.
+def score(regen, temp, feuchte, koeffizienten, tmin=None):
+    """`s` = Σ Koeffizient × Spalte — oder `None`, wenn eine Reihe fehlt,
+    die die Klasse braucht.
 
     `regen`: 26 Tageswerte mm, Vortag zuerst. `temp`: 20 Tageswerte °C,
-    Vortag zuerst. `feuchte`: 26 Tageswerte % nFK, Vortag zuerst.
+    Vortag zuerst. `feuchte`: 26 Tageswerte % nFK, Vortag zuerst. `tmin`:
+    28 Tagesminima °C, Vortag zuerst — nur Pflicht, wo die Konstante fuer
+    `milder` nicht 0 ist; eine Klasse ohne das Merkmal rechnet ohne die
+    Reihe, statt an ihr zu scheitern.
     """
-    spalten = merkmale(regen, temp, feuchte)
+    spalten = merkmale(regen, temp, feuchte, tmin)
     if spalten is None:
         return None
-    return sum(k * x for k, x in zip(koeffizienten, spalten))
+    s = 0.0
+    for k, x in zip(koeffizienten, spalten):
+        if x is None:
+            if k == 0:
+                continue
+            return None
+        s += k * x
+    return s
 
 
 def stufe(s, klasse):
@@ -370,10 +420,16 @@ def schwellen_tage(strata, koeffizienten):
         if not s["controls"]:
             continue
         anteil = 1.0 / len(s["controls"])
-        for (regen, temp), feuchte, jahr, tag in zip(
-                s["controls"], s["feuchte_controls"], s["control_years"],
-                s["control_days"]):
-            wert = score(regen, temp, feuchte, koeffizienten)
+        # Die Minima kommen aus den Zusatzreihen des gepinnten Datensatzes
+        # (`tmin`, 28 Tage, Vortag zuerst) — an der Fundkoordinate, wie T;
+        # live nimmt die App die naechste Luftstation, mit demselben
+        # Vorbehalt. Ein Kontrolltag ohne die Reihe traegt nichts bei.
+        extras = s.get("extra_controls") or [None] * len(s["controls"])
+        for (regen, temp), feuchte, extra, jahr, tag in zip(
+                s["controls"], s["feuchte_controls"], extras,
+                s["control_years"], s["control_days"]):
+            wert = score(regen, temp, feuchte, koeffizienten,
+                         tmin=(extra or {}).get("tmin"))
             if wert is None:
                 continue
             aus.setdefault(s["year"], []).append(
@@ -452,7 +508,11 @@ def schreibe_bericht(ergebnisse, pfad):
       "Datum, anderes Jahr), Quantile 50 % / 80 %, jedes Fundjahr und jede "
       "Art gleich schwer, Jahres-Bootstrap mit 2000 Zügen. Die "
       "Bodenfeuchte kommt von der nächsten DWD-Station (`BFGL_AG`), "
-      "26-Tage-Mittel — genau so, wie die App sie holt.\n")
+      "26-Tage-Mittel — genau so, wie die App sie holt. Das Merkmal "
+      "„milder“ (Tagesminima der jüngsten 5 Tage gegen die Tage 6–28, "
+      "seit 2026-09-21) kommt aus den Minima des gepinnten Datensatzes an "
+      "der Fundkoordinate; die App nimmt dafür die nächste Luftstation — "
+      "dieselbe Ersetzung wie bei der Temperatur.\n")
     for key, e in ergebnisse.items():
         klasse = KLASSEN[key]
         w(f"## {klasse['label']} (`{key}`)\n")
@@ -489,41 +549,69 @@ def fixtures():
     regen = [20.0] + [0.0] * 25
     temp = [8.0] * 20
     feuchte = [60.0] * 26
+    # Minima: fuenf milde Naechte nach 23 kalten — milder = +3 °C.
+    tmin3 = [2.0] * 5 + [-1.0] * 23
     aus = {}
     for key, klasse in KLASSEN.items():
+        k = klasse["koeffizienten"]
         aus[key] = {
-            "koeffizienten": list(klasse["koeffizienten"]),
-            "s_regen20_t8_m60": score(regen, temp, feuchte, klasse["koeffizienten"]),
-            "s_trocken_t3_m90": score([0.0] * 26, [3.0] * 20, [90.0] * 26,
-                                      klasse["koeffizienten"]),
-            "s_gleichmaessig_t13_m40": score([87 / 26] * 26, [13.0] * 20, [40.0] * 26,
-                                             klasse["koeffizienten"]),
+            "koeffizienten": list(k),
+            "s_regen20_t8_m60_milder3": score(regen, temp, feuchte, k, tmin=tmin3),
+            "s_trocken_t3_m90_milder3": score([0.0] * 26, [3.0] * 20, [90.0] * 26, k,
+                                              tmin=tmin3),
+            "s_gleichmaessig_t13_m40_milder0": score([87 / 26] * 26, [13.0] * 20,
+                                                     [40.0] * 26, k, tmin=[4.0] * 28),
+            "s_regen20_t8_m60_milderMinus2": score(regen, temp, feuchte, k,
+                                                   tmin=[-3.0] * 5 + [-1.0] * 23),
         }
-    aus["merkmale_regen20_t8_m60"] = list(merkmale(regen, temp, feuchte))
+    aus["merkmale_regen20_t8_m60_milder3"] = list(merkmale(regen, temp, feuchte, tmin3))
     return aus
 
 
 # --- Selbsttest --------------------------------------------------------------
 
 def self_test():
-    k = (1.0, 0.5, -0.01, 0.02, -0.001)
+    # Sechs Konstanten; die sechste (milder) mit 0,1 je °C.
+    k = (1.0, 0.5, -0.01, 0.02, -0.001, 0.1)
     regen = [20.0] + [0.0] * 25
     temp = [8.0] * 20
     feuchte = [60.0] * 26
-    # Von Hand: log F + 0,5·8 − 0,01·64 + 0,02·60 − 0,001·60·8
+    tmin = [2.0] * 5 + [-1.0] * 23      # milder = 2 − (−1) = +3 °C
+    # Von Hand: log F + 0,5·8 − 0,01·64 + 0,02·60 − 0,001·60·8 + 0,1·3
     f = av.rain_factor(regen)
-    soll = math.log(f) + 4.0 - 0.64 + 1.2 - 0.48
-    assert abs(score(regen, temp, feuchte, k) - soll) < 1e-12
+    soll = math.log(f) + 4.0 - 0.64 + 1.2 - 0.48 + 0.3
+    assert abs(score(regen, temp, feuchte, k, tmin=tmin) - soll) < 1e-12
     # Trockener Regen: Boden 1e-3 vor dem Logarithmus, kein log(0).
-    assert abs(score([0.0] * 26, temp, feuchte, k) - (math.log(1e-3) + 4.0 - 0.64 + 1.2 - 0.48)) < 1e-12
+    assert abs(score([0.0] * 26, temp, feuchte, k, tmin=tmin)
+               - (math.log(1e-3) + 4.0 - 0.64 + 1.2 - 0.48 + 0.3)) < 1e-12
     # Feuchte: zu kurz oder mit Luecke -> kein Score; Temperatur mit
     # Luecke -> Fehltag uebersprungen (wie die Glocke).
-    assert score(regen, temp, feuchte[:25], k) is None
-    assert score(regen, temp, feuchte[:10] + [None] + feuchte[11:], k) is None
-    assert abs(score(regen, [8.0] * 10 + [None] * 10, feuchte, k) - soll) < 1e-12
-    assert score(regen, [None] * 20, feuchte, k) is None
+    assert score(regen, temp, feuchte[:25], k, tmin=tmin) is None
+    assert score(regen, temp, feuchte[:10] + [None] + feuchte[11:], k, tmin=tmin) is None
+    assert abs(score(regen, [8.0] * 10 + [None] * 10, feuchte, k, tmin=tmin) - soll) < 1e-12
+    assert score(regen, [None] * 20, feuchte, k, tmin=tmin) is None
     # Nur die ersten 26 Feuchtetage zaehlen (juengste zuerst).
-    assert abs(score(regen, temp, feuchte + [0.0] * 5, k) - soll) < 1e-12
+    assert abs(score(regen, temp, feuchte + [0.0] * 5, k, tmin=tmin) - soll) < 1e-12
+    # **milder**: 28 Tage, Vortag zuerst, jung gegen alt; zu kurz oder
+    # mit Luecke ist KEIN Fenster; nur die ersten 28 Werte zaehlen.
+    assert milder(tmin) == 3.0
+    assert milder([2.0] * 5 + [-1.0] * 22) is None, "27 Tage sind kein Fenster"
+    assert milder([2.0] * 5 + [-1.0] * 10 + [None] + [-1.0] * 12) is None
+    assert milder(tmin + [50.0] * 3) == 3.0, "der 29. Tag zaehlt nicht"
+    assert milder([4.0] * 28) == 0.0
+    assert milder([-3.0] * 5 + [-1.0] * 23) == -2.0, "kaelter zuletzt ist negativ"
+    assert milder(None) is None
+    # Ohne Minima: kein Score, wo die Konstante nicht 0 ist — und der
+    # alte Score, wo sie es ist (Cantharellales braucht die Reihe nicht).
+    assert score(regen, temp, feuchte, k) is None
+    assert score(regen, temp, feuchte, k, tmin=tmin[:27]) is None
+    k0 = k[:5] + (0.0,)
+    assert abs(score(regen, temp, feuchte, k0) - (soll - 0.3)) < 1e-12
+    assert abs(score(regen, temp, feuchte, k0, tmin=tmin) - (soll - 0.3)) < 1e-12
+    assert merkmale(regen, temp, feuchte)[5] is None
+    assert merkmale(regen, temp, feuchte, tmin)[5] == 3.0
+    assert KLASSEN["cantharellales"]["koeffizienten"][5] == 0.0
+    assert KLASSEN["holz_winter"]["koeffizienten"][5] != 0.0
     # Stufen wie in Dart.
     kl = {"verhalten": 1.0, "guenstig": 2.0}
     assert stufe(2.0, kl) == 2 and stufe(1.5, kl) == 1 and stufe(0.9, kl) == 0
@@ -616,8 +704,9 @@ def self_test():
                                    ("guenstigAbove", klasse["guenstig"])):
                 w = re.search(r"%s: ([-0-9.e]+)" % feld, block)
                 assert w and float(w.group(1)) == erwartet, (key, feld, w and w.group(1))
-            for feld, erwartet in zip(("rain", "temp", "temp2", "moisture", "moistureTemp"),
-                                      klasse["koeffizienten"]):
+            felder = ("rain", "temp", "temp2", "moisture", "moistureTemp", "milder")
+            assert len(felder) == len(SPALTEN) == len(klasse["koeffizienten"]), key
+            for feld, erwartet in zip(felder, klasse["koeffizienten"]):
                 w = re.search(r"\b%s: ([-0-9.e]+)" % feld, block)
                 assert w and float(w.group(1)) == erwartet, (key, feld, w and w.group(1))
             assert "logit: AmpelLogit(" in block, key

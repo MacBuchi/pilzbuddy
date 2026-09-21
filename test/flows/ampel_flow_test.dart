@@ -67,9 +67,11 @@ void main() {
 
   /// Die Stationstabelle: eine Luftstation neben dem Spot, konstant
   /// Max 16 / Min 10 → Tagesmittel 13 °C — das Optimum der Glocke.
-  /// [meanC] verschiebt beide Enden, das Mittel bleibt ihr Wert.
+  /// [meanC] verschiebt beide Enden, das Mittel bleibt ihr Wert. 28
+  /// Tage wie die echte Tabelle seit dem 2026-09-21: Mit 20 bliebe
+  /// „Austernseitling & Co." ohne ihr „milder"-Fenster grau.
   List<int> weatherBytes(
-      {int days = 20, double meanC = 13.0, bool withMoisture = false}) {
+      {int days = 28, double meanC = 13.0, bool withMoisture = false}) {
     String iso(DateTime d) => '${d.year.toString().padLeft(4, '0')}-'
         '${d.month.toString().padLeft(2, '0')}-'
         '${d.day.toString().padLeft(2, '0')}';
@@ -154,6 +156,7 @@ void main() {
     double meanC = 13.0,
     int month = 9,
     bool withMoisture = false,
+    int weatherDays = 28,
   }) async {
     // Ein flaches Höhengitter über dem ganzen Testfenster — nur wenn
     // der Test eine Spothöhe verlangt; sonst bleibt die Basis-Naht aus
@@ -192,7 +195,10 @@ void main() {
             .overrideWithValue(() async => stackOf(days: stackDays)),
         weatherTableLoaderProvider
             .overrideWithValue(() async =>
-                weatherBytes(meanC: meanC, withMoisture: withMoisture)),
+                weatherBytes(
+                    days: weatherDays,
+                    meanC: meanC,
+                    withMoisture: withMoisture)),
         if (elevation != null)
           elevationLoaderProvider.overrideWithValue(() async => elevation),
       ],
@@ -954,6 +960,43 @@ void main() {
       expect(find.textContaining('jetzt: Krause Glucke'), findsOneWidget);
       expect(find.text('Steinpilz & Co.'), findsOneWidget,
           reason: 'der Steinpilz hat im September Saison — keine Zeile');
+    });
+
+    testWidgets(
+        '„milder" (#497): mit einer 20-Tage-Tabelle bleibt Austernseitling '
+        '& Co. grau und sagt warum', (tester) async {
+      // Der Stand jeder Tabelle vor dem 2026-09-21 — und der auf jedem
+      // Gerät, das die neue noch nicht geholt hat. Kein Mittel aus 20
+      // Tagen: Diese eine Klasse ist grau, mit Grund.
+      await pumpWithWeather(
+          tester, loggedInWithSpot(species: 'Austernseitling'),
+          preview: true, withMoisture: true, weatherDays: 20, month: 12);
+      await openSpot(tester);
+      await acceptAndSettle(tester);
+      expect(
+          find.textContaining('keine Aussage — Tagesminima der Station: '
+              'keine 28 vollständigen Tage'),
+          findsOneWidget);
+      expect(find.textContaining('Nächte zuletzt'), findsNothing);
+    });
+
+    testWidgets(
+        '„milder" (#497): mit 28 Tagen rechnet Austernseitling & Co. und '
+        'nennt die Nächte', (tester) async {
+      await pumpWithWeather(
+          tester, loggedInWithSpot(species: 'Austernseitling'),
+          preview: true, withMoisture: true, month: 12);
+      await openSpot(tester);
+      await acceptAndSettle(tester);
+      expect(find.textContaining('für Austernseitling'), findsOneWidget);
+      // Konstante Minima: die letzten fünf Nächte wie die drei Wochen
+      // davor — die Zutat steht als Satz dabei, wie die Bodenfeuchte.
+      expect(
+          find.textContaining(
+              'Nächte zuletzt: wie in den drei Wochen davor'),
+          findsOneWidget);
+      expect(find.textContaining('Bodenfeuchte: 60 % nFK'), findsOneWidget);
+      expect(find.textContaining('keine Aussage'), findsNothing);
     });
 
     testWidgets('eine ausgenommene Art fällt aus dem Spot-Blatt',

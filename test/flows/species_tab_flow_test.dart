@@ -43,7 +43,9 @@ void main() {
 
     // Der Austernseitling hat im September keine Saison.
     await scrollTo(tester, 'Austernseitling & Co.');
-    expect(find.textContaining('Regen, Temperatur und Bodenfeuchte'),
+    // Seit 1.160.0 mit der vierten Zutat „milder" — die Gruppe nennt sie.
+    expect(
+        find.textContaining('Regen, Temperatur, Bodenfeuchte und Nächte'),
         findsOneWidget);
     await scrollTo(tester, 'Austernseitling');
     expect(highlighted(tester, 'Austernseitling'), isFalse);

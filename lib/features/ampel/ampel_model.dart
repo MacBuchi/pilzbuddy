@@ -56,17 +56,36 @@ const ampelLogitRainFloor = 1e-3;
 /// Das Feuchtefenster einer Logit-Klasse: 26 Tage, wie der Regen.
 const ampelMoistureWindow = 26;
 
+/// Das Fenster des Merkmals „milder" (seit 1.160.0, Labor 22/24): 28
+/// Tagesminima der nächsten Luftstation, die jüngsten
+/// [ampelMilderFreshDays] gegen die 23 davor. Genau deshalb trägt die
+/// Stationstabelle seit dem 2026-09-21 28 statt 20 Tage.
+const ampelMilderWindow = 28;
+const ampelMilderFreshDays = 5;
+
 /// Der zweite Rechenkern der Ampel (seit 2026-09-20,
-/// `docs/pilzampel-holz-winter-plan.md`): ein bedingtes Logit mit fünf
-/// Konstanten über `ln F`, `T`, `T²`, `M` und `M·T` — `F` der Regenfaktor,
-/// `T` das 20-Tage-Mittel in °C, `M` die Bodenfeuchte der nächsten
-/// DWD-Station in % nutzbarer Feldkapazität, 26-Tage-Mittel.
+/// `docs/pilzampel-holz-winter-plan.md`): ein bedingtes Logit mit sechs
+/// Konstanten über `ln F`, `T`, `T²`, `M`, `M·T` und `D` — `F` der
+/// Regenfaktor, `T` das 20-Tage-Mittel in °C, `M` die Bodenfeuchte der
+/// nächsten DWD-Station in % nutzbarer Feldkapazität, 26-Tage-Mittel,
+/// `D` „milder": das Mittel der Tagesminima der letzten fünf Tage minus
+/// das der Tage 6 bis 28, in °C (seit 1.160.0, `docs/pilzampel-frost-plan.md`).
 ///
 /// **Warum kein weiteres Fenster:** Für Holz- und Winterpilze verliert
 /// die Glocke bei jedem Optimum gesichert gegen dieses Logit, weil „je
-/// kälter, desto besser" mit einer Glocke nicht darstellbar ist. Spiegel
-/// von `tool/ampel_logit_klasse.py`, Zahl für Zahl; die Schwellen einer
-/// Logit-Klasse liegen auf der Skala von `s`, nicht auf 0…1.
+/// kälter, desto besser" mit einer Glocke nicht darstellbar ist.
+///
+/// **Warum „milder" und nicht Frosttage:** Vor Fundtagen der Winterarten
+/// sind die letzten Tage milder und die Wochen davor kälter (Labor 21);
+/// eine Frosttage-Zählung summiert genau diese Abfolge weg und trug auf
+/// den Testblöcken nichts (Labor 19). Die Grenze 5 kam auf den
+/// Trainingsblöcken heraus (Labor 22), das Merkmal ist auf den
+/// Testblöcken bestätigt (Labor 24). Eine Klasse, die das Merkmal nicht
+/// hat, trägt hier die Konstante 0 — und braucht dann keine Minima.
+///
+/// Spiegel von `tool/ampel_logit_klasse.py`, Zahl für Zahl; die
+/// Schwellen einer Logit-Klasse liegen auf der Skala von `s`, nicht auf
+/// 0…1.
 class AmpelLogit {
   const AmpelLogit({
     required this.rain,
@@ -74,6 +93,7 @@ class AmpelLogit {
     required this.temp2,
     required this.moisture,
     required this.moistureTemp,
+    required this.milder,
   });
 
   final double rain;
@@ -81,20 +101,67 @@ class AmpelLogit {
   final double temp2;
   final double moisture;
   final double moistureTemp;
+  final double milder;
 
-  /// Die lineare Vorhersage `s` aus fertigen Zutaten.
-  double score({
+  /// Braucht diese Klasse die Minima-Reihe? Eine Konstante 0 heißt: Das
+  /// Merkmal ist nicht Teil des Modells, und die Reihe darf fehlen.
+  bool get needsMilder => milder != 0;
+
+  /// Die lineare Vorhersage `s` aus fertigen Zutaten — `null`, wenn die
+  /// Klasse „milder" braucht und [milder] fehlt. Kein Ersatzwert: Ein
+  /// Merkmal, das nicht gemessen ist, ist keins.
+  double? score({
     required double rainFactor,
     required double meanC,
     required double moistureMean,
+    double? milder,
   }) {
+    if (milder == null && needsMilder) return null;
     final logRain = math.log(math.max(rainFactor, ampelLogitRainFloor));
     return rain * logRain +
         temp * meanC +
         temp2 * meanC * meanC +
         moisture * moistureMean +
-        moistureTemp * moistureMean * meanC;
+        moistureTemp * moistureMean * meanC +
+        this.milder * (milder ?? 0);
   }
+}
+
+/// „Milder": das Mittel der Tagesminima der jüngsten
+/// [ampelMilderFreshDays] Tage minus das Mittel der Tage danach bis
+/// [ampelMilderWindow], aus der Stationsreihe (ältester Tag zuerst) —
+/// `null`, wenn die Reihe kürzer ist oder im Fenster eine Lücke hat.
+/// Dieselbe Regel wie [ampelMoistureMean] und wie das Labor gerechnet
+/// hat: Ein Stratum mit Lücke fiel weg, also gibt es hier keins aus
+/// halben Fenstern. Die Höhenkorrektur kürzt sich in der Differenz
+/// heraus — die Aufrufer geben die ROHEN Stationsminima herein.
+double? ampelMilderOf(List<double?> minsOldestFirst) {
+  if (minsOldestFirst.length < ampelMilderWindow) return null;
+  final window =
+      minsOldestFirst.sublist(minsOldestFirst.length - ampelMilderWindow);
+  var fresh = 0.0;
+  var older = 0.0;
+  for (var i = 0; i < ampelMilderWindow; i++) {
+    final value = window[i];
+    if (value == null) return null;
+    if (i >= ampelMilderWindow - ampelMilderFreshDays) {
+      fresh += value;
+    } else {
+      older += value;
+    }
+  }
+  return fresh / ampelMilderFreshDays -
+      older / (ampelMilderWindow - ampelMilderFreshDays);
+}
+
+/// Der Satz zu „milder" in der Zutaten-Zeile des Blatts.
+String ampelMilderWord(double milderK) {
+  if (milderK.abs() < 0.05) {
+    return 'Nächte zuletzt: wie in den drei Wochen davor';
+  }
+  final amount = milderK.abs().toStringAsFixed(1).replaceAll('.', ',');
+  return 'Nächte zuletzt: $amount °C ${milderK > 0 ? 'milder' : 'kälter'} '
+      'als in den drei Wochen davor';
 }
 
 /// Das 26-Tage-Mittel der Bodenfeuchte aus der Stationsreihe (ältester
@@ -203,20 +270,33 @@ const ampelSommerClass = (
 /// jeweils Log-Likelihood je Stratum gegen die 13-°C-Glocke. Der große
 /// Gewinn gegenüber heute entsteht, weil die Glocke Winterarten
 /// kategorisch falsch bewertet; der Gewinn gegenüber der reinen
-/// Saisonkurve ist klein. Konstanten aus `18-testteil-dach.md` (Fit auf
-/// allen DACH-Erkundungsstrata), Schwellen Design B auf P1
-/// (`docs/pilzampel-logit-schwellen.md`).
+/// Saisonkurve ist klein.
+///
+/// **Seit 1.160.0 mit der sechsten Konstante „milder"** (Labor 24,
+/// `docs/pilzampel-frost-plan.md`, #497): auf den Trainingsblöcken
+/// DE + AT + CH gewählt, auf den Testblöcken +0,007 [+0,001, +0,013] je
+/// Stratum gegen das Fünf-Konstanten-Logit, AT/CH +0,011 ▲, DE +0,006,
+/// keine Art schlechter, Judasohr ▲, gegen die Klimatologie +0,028 ▲
+/// (vorher +0,021); das Placebo mit permutiertem Merkmal −0,002 ▼. Ein
+/// Zwanzigstel dessen, was die Klasse selbst gebracht hat — aber der
+/// erste Zusatz, der auf unabhängigen Blöcken trägt. Die fünf anderen
+/// Konstanten sind dabei mit neu gefittet (Kandidat K6_5 in
+/// `24-testbloecke-abfolge.md`; bis 1.159.x: 0,1882, 0,1321, −0,00446,
+/// 0,00220, −0,000442 aus `18-testteil-dach.md`). Schwellen Design B
+/// auf P1, unter der sechsten Konstante neu gezogen am 2026-09-21
+/// (`docs/pilzampel-logit-schwellen.md`; vorher 0,454 / 0,606).
 const ampelHolzWinterClass = (
   name: 'Austernseitling & Co.',
   optimumC: null,
-  verhaltenAbove: 0.454,
-  guenstigAbove: 0.606,
+  verhaltenAbove: 0.387,
+  guenstigAbove: 0.558,
   logit: AmpelLogit(
-    rain: 0.1882,
-    temp: 0.1321,
-    temp2: -0.00446,
-    moisture: 0.00220,
-    moistureTemp: -0.000442,
+    rain: 0.1915,
+    temp: 0.1350,
+    temp2: -0.004712,
+    moisture: 0.002383,
+    moistureTemp: -0.0004888,
+    milder: 0.04193,
   ),
 );
 
@@ -240,6 +320,9 @@ const ampelCantharellalesClass = (
     temp2: -0.01399,
     moisture: 0.00333,
     moistureTemp: 0.002237,
+    // Kein „milder": für diese Klasse nie gemessen (Labor 24 galt den
+    // acht Holz- und Winterarten). Null heißt: keine Minima nötig.
+    milder: 0.0,
   ),
 );
 
@@ -319,35 +402,51 @@ String? ampelClassKeyOf(AmpelClass klass) {
 /// 0,55 heißt im Herbstfenster „günstig" und im Sommerfenster
 /// „verhalten". Wer sie gegeneinander stellt, vergleicht Zentimeter mit
 /// Grad.
-({AmpelLevel level, AmpelClass klass}) ampelBestOf({
+///
+/// **`level` ist `null`, wenn KEINE der Klassen antworten kann** (seit
+/// 1.160.0; vorher stand dort „ungünstig"). Nur Logit-Klassen gewählt
+/// und die Zelle ohne Bodenfeuchte oder ohne 28 Minima: Das Blatt sagt
+/// dort grau mit Grund (`ampelBestReadingFrom`), und die Fläche muss
+/// dasselbe sagen — transparent, nicht rot. Der Walker in
+/// `test/ampel_fill_test.dart` hat den Unterschied gefunden.
+({AmpelLevel? level, AmpelClass klass}) ampelBestOf({
   required double rainFactor,
   required double meanC,
   required List<AmpelClass> classes,
   double? moistureMean,
+  double? milder,
 }) {
   var best = (
-    level: AmpelLevel.unguenstig,
+    level: null as AmpelLevel?,
     klass: classes.first,
   );
   for (final klass in classes) {
     final score = ampelScoreFor(klass,
-        rainFactor: rainFactor, meanC: meanC, moistureMean: moistureMean);
-    // Eine Logit-Klasse ohne Bodenfeuchte sagt nichts — sie zählt hier
-    // nicht mit, statt mit einem Ersatzwert zu rechnen.
+        rainFactor: rainFactor,
+        meanC: meanC,
+        moistureMean: moistureMean,
+        milder: milder);
+    // Eine Logit-Klasse ohne Bodenfeuchte (oder ohne die Minima, die
+    // ihr „milder" braucht) sagt nichts — sie zählt hier nicht mit,
+    // statt mit einem Ersatzwert zu rechnen.
     if (score == null) continue;
     final level = ampelLevelOf(score, klass: klass);
-    if (level.index > best.level.index) best = (level: level, klass: klass);
+    if (level.index > (best.level?.index ?? -1)) {
+      best = (level: level, klass: klass);
+    }
   }
   return best;
 }
 
 /// Der Score EINER Klasse aus fertigen Zutaten — Glocke oder Logit.
-/// `null`, wenn eine Logit-Klasse ohne Bodenfeuchte gefragt wird.
+/// `null`, wenn eine Logit-Klasse ohne Bodenfeuchte gefragt wird — oder
+/// ohne [milder], wo ihr Logit es braucht ([AmpelLogit.needsMilder]).
 double? ampelScoreFor(
   AmpelClass klass, {
   required double rainFactor,
   required double meanC,
   double? moistureMean,
+  double? milder,
 }) {
   final logit = klass.logit;
   if (logit == null) {
@@ -355,7 +454,10 @@ double? ampelScoreFor(
   }
   if (moistureMean == null) return null;
   return logit.score(
-      rainFactor: rainFactor, meanC: meanC, moistureMean: moistureMean);
+      rainFactor: rainFactor,
+      meanC: meanC,
+      moistureMean: moistureMean,
+      milder: milder);
 }
 
 /// **Nur Arten einer BESTÄTIGTEN Klasse stehen hier.** Hallimasch und
@@ -435,6 +537,11 @@ const ampelEvidenceBySpecies = <String, AmpelEvidence>{
   'Pfifferling': AmpelEvidence.vorlaeufig,
   // Austernseitling & Co. — je Art auf dem Testteil (Labor 18, DE + AT/CH):
   // ▲ mit Band ohne Null heißt belegt, Band mit Null heißt vorläufig.
+  // Die sechste Konstante „milder" (1.160.0, Labor 24) ändert daran
+  // nichts: Sie ist gegen das Fünf-Konstanten-Logit gemessen, auf den
+  // Testblöcken keine Art ▼ (Judasohr ▲) — der Beleg der Klasse gegen die
+  // Glocke aus Labor 18 trägt also weiter, und neu beleg-BAR wird durch
+  // einen Zusatz, der niemanden schlechter stellt, keine Art.
   'Samtfußrübling': AmpelEvidence.belegt,
   'Judasohr': AmpelEvidence.belegt,
   'Austernseitling': AmpelEvidence.belegt,
@@ -563,7 +670,9 @@ AmpelLevel ampelLevelOf(double score, {required AmpelClass klass}) {
 /// Wie die Legende das Fenster einer Klasse nennt: die Zahl bei der
 /// Glocke, die Zutaten beim Logit.
 String ampelClassWindowWord(AmpelClass klass) => klass.optimumC == null
-    ? 'Regen, Temperatur und Bodenfeuchte'
+    ? (klass.logit!.needsMilder
+        ? 'Regen, Temperatur, Bodenfeuchte und Nächte'
+        : 'Regen, Temperatur und Bodenfeuchte')
     : '${klass.optimumC!.toStringAsFixed(1).replaceAll('.', ',')} °C';
 
 /// Das Wort zur Stufe — die EINE Stelle für die Beschriftung.
