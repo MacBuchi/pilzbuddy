@@ -187,6 +187,23 @@ void main() {
       expect(find.byType(FilterChip), findsNothing);
     });
 
+    testWidgets('mit der Fundorte-Ebene stehen sie auch ohne Vorschau im '
+        'Blatt', (tester) async {
+      // Seit 1.155.0 bewirkt die Auswahl auch ohne Ampel etwas: Sie
+      // blendet Scheiben der Fundorte-Ebene aus. Ohne die Chips hier
+      // wäre die Auswahl aus dem Fundorte-Blatt vom Filter aus nicht
+      // erreichbar — und nicht zurücknehmbar.
+      final (backend, _) = backendWithSpots();
+      await pumpApp(tester, backend,
+          settings: FakeSettings(gbifLayerEnabled: true));
+      await onPhone(tester);
+      await tester.tap(find.byTooltip('Karte filtern'));
+      await settle(tester);
+      expect(find.byType(FilterChip), findsNWidgets(4));
+      expect(find.textContaining('Gruppen für Ampel und Fundorte'), findsOneWidget,
+          reason: 'der Satz über den Chips nennt, was sie hier bewirken');
+    });
+
     testWidgets('abwählen engt die Ampel ein — und die Karte sagt es',
         (tester) async {
       final (backend, _) = backendWithSpots();

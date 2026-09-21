@@ -8,9 +8,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../ampel/ampel_model.dart' show ampelClasses;
 import '../gbif_fill.dart';
 import '../gbif_finds_providers.dart';
+import '../spot_filter.dart' show spotFilterProvider;
+import 'ampel_class_chips.dart';
 
 Future<void> showGbifLayerSheet(BuildContext context) => showModalBottomSheet(
       context: context,
@@ -24,6 +25,7 @@ class _GbifLayerSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final enabled = ref.watch(gbifLayerEnabledProvider);
+    final classFiltered = ref.watch(spotFilterProvider).classes.isNotEmpty;
     // Wie beim Wald: Das Asset wird HIER zum ersten Mal angefasst, nicht
     // am Knopf. Wer das Blatt öffnet, will die Ebene; dafür darf es
     // 0,6 MB kosten.
@@ -93,15 +95,32 @@ class _GbifLayerSheet extends ConsumerWidget {
                             .set(value),
                   ),
                   const Divider(height: 16),
-                  // Die Farben sind die Ampel-Gruppen — dieselbe Tabelle
-                  // wie beim Malen, damit Blatt und Fläche nie zwei Töne
-                  // zeigen.
-                  for (final entry in ampelClasses.entries)
-                    _ColourRow(
-                        colour: gbifClassColour(entry.key),
-                        label: entry.value.name),
+                  // Die Gruppen als Chips (seit 1.155.0) — mit den Farben
+                  // aus derselben Tabelle wie beim Malen, damit Blatt und
+                  // Fläche nie zwei Töne zeigen. Es ist DIE Auswahl des
+                  // Kartenfilters, kein eigener Wähler (#154): Was hier
+                  // weg ist, ist auch für die Ampel weg, und die Karte
+                  // sagt es.
+                  const AmpelClassChips(
+                    intro: 'Welche Gruppen die Karte zeigt — dieselbe '
+                        'Auswahl wie im Kartenfilter, sie gilt auch für '
+                        'die Ampel:',
+                    withColours: true,
+                  ),
                   const _ColourRow(
                       colour: null, label: 'Arten ohne Ampel'),
+                  // Eine Art ohne Gruppe hat keinen Chip: Sobald eine
+                  // Gruppe abgewählt ist, fällt sie mit heraus — wie
+                  // beim Ampel-Filter der Spots. Das steht hier, statt
+                  // die grauen Scheiben still verschwinden zu lassen.
+                  if (classFiltered)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(44, 0, 20, 4),
+                      child: Text(
+                        'ausgeblendet, solange eine Gruppe abgewählt ist',
+                        style: hint,
+                      ),
+                    ),
                   if (finds != null) ...[
                     const Divider(height: 16),
                     Padding(
@@ -120,19 +139,24 @@ class _GbifLayerSheet extends ConsumerWidget {
                       ),
                     ),
                   ],
+                  // Die Quelle SCROLLT MIT (seit 1.155.0): Als fester
+                  // Fuß unter der Liste nahm sie ihr auf einem Telefon
+                  // ein Drittel der Höhe, und die Chips lagen hinter
+                  // ihr — gemessen im Flow-Test: Liste 192 px, Chips
+                  // 18 px darunter, ein Tipp traf den Fußtext.
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                    child: Text(
+                      // CC-BY-Pflicht und Herkunft: Die Quell-Datensätze
+                      // einzeln stehen auf der Lizenzseite.
+                      'Daten: GBIF-Meldungen unter CC0 und CC BY 4.0, Stand '
+                      '${finds?.fetchedOn ?? '2026-09-16'}'
+                      '${finds?.doi == null ? '' : ' (doi.org/${finds!.doi})'}. '
+                      'Quell-Datensätze unter „Über PilzBuddy" → Lizenzen.',
+                      style: hint,
+                    ),
+                  ),
                 ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-              child: Text(
-                // CC-BY-Pflicht und Herkunft: Die Quell-Datensätze
-                // einzeln stehen auf der Lizenzseite.
-                'Daten: GBIF-Meldungen unter CC0 und CC BY 4.0, Stand '
-                '${finds?.fetchedOn ?? '2026-09-16'}'
-                '${finds?.doi == null ? '' : ' (doi.org/${finds!.doi})'}. '
-                'Quell-Datensätze unter „Über PilzBuddy" → Lizenzen.',
-                style: hint,
               ),
             ),
           ],

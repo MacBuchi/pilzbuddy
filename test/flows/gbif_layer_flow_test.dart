@@ -217,6 +217,59 @@ void main() {
     expect(find.text('Hallimasch'), findsNothing);
   });
 
+  testWidgets('die Chips im Fundorte-Blatt blenden eine Gruppe aus — '
+      'dieselbe Auswahl wie der Kartenfilter', (tester) async {
+    // Betreiber, 2026-09-21: „Können wir auch hier Chips nutzen, um
+    // einzelne Teillayer auszublenden?" Ja — und zwar als DIE Auswahl
+    // des Filters, nicht als zweiter Wähler: Die Karte muss sagen, was
+    // sie enger macht (#154).
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend,
+        useRealMap: true, extraOverrides: withFinds(testFinds()));
+    final container = containerOf(tester);
+    await enableLayer(tester, container);
+
+    await openLayerSheet(tester, 'Gemeldete Fundorte');
+    expect(find.byType(FilterChip), findsNWidgets(4));
+    expect(find.textContaining('ausgeblendet, solange'), findsNothing);
+
+    // Die Chips liegen im Blatt unter dem Falz. Seit die Quelle mit der
+    // Liste scrollt, reicht Scrollen — vorher stand sie als fester Fuß
+    // ÜBER den Chips, und ein Tipp traf den Fußtext (auf 412 × 915
+    // gemessen: Liste 192 px hoch, Chip 18 px darunter).
+    await tester.scrollUntilVisible(
+        find.widgetWithText(FilterChip, 'Steinpilz & Co.'), 60,
+        scrollable: find.byType(Scrollable).last);
+    await tester.tap(find.widgetWithText(FilterChip, 'Steinpilz & Co.'));
+    await settle(tester);
+    expect(container.read(spotFilterProvider).classes,
+        {'sommer', 'holz_winter', 'cantharellales'});
+    // Die grauen Scheiben fallen mit heraus — und das Blatt sagt es,
+    // statt sie still verschwinden zu lassen.
+    await tester.scrollUntilVisible(
+        find.textContaining('ausgeblendet, solange eine Gruppe'), 60,
+        scrollable: find.byType(Scrollable).last);
+    expect(find.textContaining('ausgeblendet, solange eine Gruppe'),
+        findsOneWidget);
+    await tester.tapAt(const Offset(20, 20)); // Blatt schließen
+    await settle(tester);
+
+    // Dass die Fläche dieser Auswahl folgt, prüft der Filter-Test oben
+    // an demselben Zustand. Hier NICHT noch einmal auf den Fill warten:
+    // Der Chip-Tipp hat ihn in der FakeAsync-Zone angestoßen, und das
+    // `compute`-Isolate meldet sich dort nie zurück — der Test hinge auf
+    // immer (so gemessen, auch mit `invalidate` in `runAsync`).
+    // #154: Die Karte nennt die Einengung — derselbe Chip wie beim
+    // Kartenfilter.
+    expect(find.textContaining('Gefiltert: Ampel: 3 Gruppen'), findsOneWidget);
+    // Und die Legende führt die abgewählte Gruppe nicht mehr, ebenso
+    // wenig „ohne Ampel".
+    expect(find.text('Gemeldete Fundorte (GBIF)'), findsOneWidget);
+    expect(find.text('Steinpilz & Co.'), findsNothing);
+    expect(find.text('ohne Ampel'), findsNothing);
+    expect(find.text('Austernseitling & Co.'), findsOneWidget);
+  });
+
   testWidgets('ohne Asset sagt das Blatt es und schaltet nicht', (tester) async {
     final (backend, _) = loggedInBackend();
     await pumpApp(tester, backend, extraOverrides: withFinds(null));
