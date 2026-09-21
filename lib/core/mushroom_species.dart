@@ -344,6 +344,20 @@ bool isUnknownSpecies(String? name) {
   return groupFor(trimmed) == null;
 }
 
+/// Der Listeneintrag zur HAUPTBEZEICHNUNG einer Art — `null` für eigene
+/// Arten der Nutzer und für alles, was die Liste nicht kennt.
+///
+/// Zweitnamen lösen sich auf: „Marone" liefert den Eintrag des
+/// Maronenröhrlings, samt dessen wissenschaftlichem Namen. Genau dafür
+/// gibt es die Funktion — ohne sie schrieb jede Stelle, die `sci` oder
+/// `curveFrom` braucht, ihre eigene Schleife über [kBekannteArten].
+KnownSpecies? knownSpeciesFor(String? name) {
+  final canonical = canonicalSpecies(name);
+  if (canonical == null) return null;
+  final entry = _entryFor(canonical);
+  return entry == null || entry.isSynonym ? null : entry;
+}
+
 /// Die Zweitnamen einer Art — für den Hinweis „auch: …". Nimmt Haupt- wie
 /// Zweitnamen entgegen; leer, wenn es keine gibt.
 List<String> synonymsOf(String? name) {

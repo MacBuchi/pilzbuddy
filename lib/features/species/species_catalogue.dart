@@ -220,11 +220,7 @@ SpeciesDetail? speciesDetailFor(
 }) {
   // Über die Hauptbezeichnung, wie überall: „Marone" und
   // „Maronenröhrling" sind eine Art und eine Seite.
-  final canonical = canonicalSpecies(name);
-  KnownSpecies? entry;
-  for (final s in kBekannteArten) {
-    if (!s.isSynonym && s.name == canonical) entry = s;
-  }
+  final entry = knownSpeciesFor(name);
   if (entry == null) return null;
 
   final curve = seasonCurveFor(entry.name);
@@ -261,4 +257,31 @@ SpeciesDetail? speciesDetailFor(
     lastFound: last,
     gbif: gbif,
   );
+}
+
+/// Passt [name] zur Sucheingabe [query]?
+///
+/// **Gesucht wird über dieselbe Faltung wie beim Eintragen** (#395):
+/// klein, ohne Umlaut-Schreibweise, ohne Binde- und Leerzeichen. „staub",
+/// „Staeubling" und „Stäubling" finden denselben Pilz, und das ist der
+/// ganze Zweck — 40 der 110 Namen tragen einen Umlaut oder ein ß.
+///
+/// **Gesucht wird in drei Namen**: der Hauptbezeichnung, den Zweitnamen
+/// und dem wissenschaftlichen. Der letzte ist kein Schmuck — er ist der
+/// einzige eindeutige Schlüssel, und wer ihn aus einem Buch abliest,
+/// soll die Art damit finden.
+///
+/// **Teiltreffer, kein Editierabstand.** Anders als bei den Vorschlägen
+/// im Eingabefeld tippt hier jemand, der eine Liste vor sich hat und
+/// sie enger machen will; eine Liste, die bei „stein" auch
+/// „Stockschwämmchen" zeigt, wäre kein Filter mehr.
+bool speciesMatchesQuery(String name, String query) {
+  final needle = foldSpeciesName(query);
+  if (needle.isEmpty) return true;
+  if (foldSpeciesName(name).contains(needle)) return true;
+  for (final synonym in synonymsOf(name)) {
+    if (foldSpeciesName(synonym).contains(needle)) return true;
+  }
+  final sci = knownSpeciesFor(name)?.sci;
+  return sci != null && foldSpeciesName(sci).contains(needle);
 }

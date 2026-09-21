@@ -178,4 +178,64 @@ void main() {
       expect(detail.gbif, isNull, reason: 'ohne Asset keine Meldungen');
     });
   });
+
+  group('die Suche im Reiter', () {
+    test('leere Eingabe lässt alles stehen', () {
+      for (final species in known) {
+        expect(speciesMatchesQuery(species.name, ''), isTrue);
+        expect(speciesMatchesQuery(species.name, '   '), isTrue,
+            reason: 'nur Leerzeichen ist keine Suche');
+      }
+    });
+
+    test('findet über Umlaut-Schreibweisen hinweg', () {
+      // Der Grund, warum #395 die Faltung gebaut hat: Wer unterwegs ohne
+      // Umlaut tippt, schreibt mal „ae", mal gar nichts.
+      for (final query in ['Stäubling', 'Staeubling', 'staubling', 'STÄUB']) {
+        expect(speciesMatchesQuery('Flaschenstäubling', query), isTrue,
+            reason: query);
+      }
+      expect(speciesMatchesQuery('Grünling', 'grunling'), isTrue);
+      expect(speciesMatchesQuery('Krause Glucke', 'krauseglucke'), isTrue,
+          reason: 'das Leerzeichen fällt in der Faltung weg');
+    });
+
+    test('findet über Zweitnamen und wissenschaftlichen Namen', () {
+      // Beides ist in der Liste unsichtbar — wer den Pilz nur als
+      // „Marone" kennt oder ihn aus einem Buch abliest, findet ihn sonst
+      // nicht.
+      expect(speciesMatchesQuery('Maronenröhrling', 'Marone'), isTrue);
+      expect(speciesMatchesQuery('Herbsttrompete', 'Totentrompete'), isTrue);
+      expect(speciesMatchesQuery('Steinpilz', 'Boletus'), isTrue);
+      expect(speciesMatchesQuery('Steinpilz', 'boletus edulis'), isTrue);
+      expect(speciesMatchesQuery('Pfifferling', 'Boletus'), isFalse);
+    });
+
+    test('Teiltreffer, aber kein Raten', () {
+      // Hier tippt jemand in eine Liste, die er vor sich hat. Ein
+      // Editierabstand wie bei den Eingabe-Vorschlägen (#395) wäre hier
+      // falsch: Eine Suche nach „stein", die auch „Stockschwämmchen"
+      // zeigt, ist kein Filter mehr.
+      expect(speciesMatchesQuery('Steinpilz', 'stein'), isTrue);
+      expect(speciesMatchesQuery('Kiefernsteinpilz', 'stein'), isTrue,
+          reason: 'auch mitten im Wort');
+      expect(speciesMatchesQuery('Stockschwämmchen', 'stein'), isFalse);
+      expect(speciesMatchesQuery('Steinpilz', 'steinpliz'), isFalse,
+          reason: 'ein Vertipper rät hier nicht');
+    });
+
+    test('jede Art findet sich unter ihrem eigenen Namen', () {
+      // Die Zusage, an der die Suche hängt — sonst gäbe es eine Art, die
+      // im Verzeichnis steht und nicht auffindbar ist.
+      for (final species in known) {
+        expect(speciesMatchesQuery(species.name, species.name), isTrue,
+            reason: species.name);
+      }
+      // Und jeder Zweitname führt auf seine Hauptbezeichnung.
+      for (final species in kBekannteArten.where((s) => s.isSynonym)) {
+        expect(speciesMatchesQuery(species.sameAs!, species.name), isTrue,
+            reason: '${species.name} → ${species.sameAs}');
+      }
+    });
+  });
 }

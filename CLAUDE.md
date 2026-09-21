@@ -1204,6 +1204,19 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   - **Der Filter „Nur jetzt Saison" verdeckt nichts, was er nicht weiß**:
     Arten ohne Kurve bleiben stehen (#414-Regel), leere Gruppen behalten
     die Überschrift.
+  - **Die Suche (seit 1.164.0) trifft über drei Namen** — Hauptbezeichnung,
+    Zweitnamen und den wissenschaftlichen —, alle drei durch
+    `foldSpeciesName` (#395). `speciesMatchesQuery` steht widgetfrei im
+    Katalog. Drei Unterschiede zu den Vorschlägen im Eingabefeld, alle
+    Absicht: **Teiltreffer statt Editierabstand** (wer eine Liste vor
+    sich hat, will filtern, nicht geraten bekommen); **leere Gruppen
+    fallen weg**, anders als beim Saison-Filter, der seine Überschrift
+    behält, um „keine" zeigen zu können; und die **Gesamtzahl im leeren
+    Zustand ist gezählt**, nicht geschrieben.
+    Nebenwirkung für Tests: Ein `TextField` bringt einen eigenen
+    `Scrollable` mit, der im Reiter ist also nicht mehr der einzige.
+    `species_detail_flow_test.dart` sucht seither, statt zu scrollen —
+    kürzer UND eindeutig.
   - **Je Art eine Seite darunter** (#511, seit 1.162.0): Route
     `/pilze/:name` als Unterroute wie die Seiten des Profil-Tabs,
     gerechnet in `speciesDetailFor` (weiter widgetfrei), gezeichnet von

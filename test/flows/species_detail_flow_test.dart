@@ -28,15 +28,18 @@ void main() {
 
   /// Zum Reiter „Pilze" und dort auf eine Art tippen.
   ///
-  /// Gescrollt wird im Reiter selbst — `Scrollable.first` wäre die
-  /// Karte nebenan, die im IndexedStack am Leben bleibt.
+  /// **Gesucht statt gescrollt.** Seit der Reiter ein Suchfeld hat, ist
+  /// das nicht nur kürzer, es ist auch das einzig Eindeutige: Ein
+  /// `TextField` bringt seinen eigenen `Scrollable` mit, und der im
+  /// Reiter ist damit nicht mehr der einzige. Getippt wird auf die
+  /// ZEILE mit dem genauen Namen — „Steinpilz" lässt auch
+  /// „Sommersteinpilz" stehen.
   Future<void> openSpecies(WidgetTester tester, String name) async {
     await openTab(tester, 'Pilze');
-    await tester.scrollUntilVisible(find.text(name), 200,
-        scrollable: find.descendant(
-            of: find.byType(SpeciesScreen), matching: find.byType(Scrollable)));
-    await settle(tester, frames: 4);
-    await tester.tap(find.text(name));
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Art suchen'), name);
+    await settle(tester);
+    await tester.tap(find.widgetWithText(ListTile, name));
     await settle(tester);
   }
 
@@ -275,26 +278,25 @@ void main() {
     /// baut nur, was in Sichtweite ist — „diese Zeile trägt kein
     /// Zeichen" ist sonst trivial wahr, weil die Zeile gar nicht da
     /// ist. In der Gegenprobe genau so gemessen: „warnt bei allem"
-    /// blieb grün.
-    Future<void> scrollTo(String name) async {
-      await tester.scrollUntilVisible(find.text(name), 200,
-          scrollable: find.descendant(
-              of: find.byType(SpeciesScreen),
-              matching: find.byType(Scrollable)));
-      await settle(tester, frames: 4);
+    /// blieb grün. Die Suche holt die Zeile nach oben und der `expect`
+    /// belegt, dass sie wirklich da ist.
+    Future<void> searchFor(String name) async {
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Art suchen'), name);
+      await settle(tester);
       expect(row(name), findsOneWidget, reason: '$name muss gebaut sein');
     }
 
-    await scrollTo('Steinpilz');
+    await searchFor('Steinpilz');
     expect(rowIcon('Steinpilz'), findsNothing,
         reason: 'ein Speisepilz trägt kein Zeichen');
 
     // Ungenießbar ist nicht giftig — der Gallenröhrling drängt sich
     // nicht in die volle Zeile.
-    await scrollTo('Gallenröhrling');
+    await searchFor('Gallenröhrling');
     expect(rowIcon('Gallenröhrling'), findsNothing);
 
-    await scrollTo('Satansröhrling');
+    await searchFor('Satansröhrling');
     expect(rowIcon('Satansröhrling'), findsOneWidget);
   });
 }

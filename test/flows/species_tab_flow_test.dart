@@ -111,4 +111,82 @@ void main() {
     await scrollTo(tester, 'Hallimasch');
     expect(switchOf('Hallimasch'), findsNothing);
   });
+
+  testWidgets('die Suche macht die Liste enger und sagt, wie viel übrig ist',
+      (tester) async {
+    await openTab(tester, 9);
+
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Art suchen'), 'marone');
+    await settle(tester);
+
+    // Der Zweitname führt auf die Hauptbezeichnung — in der Liste steht
+    // nur die.
+    expect(find.text('Maronenröhrling'), findsOneWidget);
+    expect(find.text('Eine Art gefunden.'), findsOneWidget);
+
+    // **Und die übrigen Gruppen sind WEG, nicht bloß unterhalb des
+    // Bildschirms.** Der Unterschied ist im Widget-Test alles: Eine
+    // `ListView.builder` baut nur, was in Sichtweite ist, und ein
+    // nacktes `findsNothing` wäre hier auch dann grün, wenn elf leere
+    // Überschriften darunter stünden — in der Gegenprobe genau so
+    // gemessen. Deshalb über die ganze Liste eingesammelt.
+    final titles = speciesCatalogue(month: 9).map((s) => s.title).toList();
+    final seen = <String>{};
+    for (var i = 0; i < 10; i++) {
+      for (final title in titles) {
+        if (find.text(title).evaluate().isNotEmpty) seen.add(title);
+      }
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -300));
+      await settle(tester, frames: 4);
+    }
+    expect(seen, {'Steinpilz & Co.'},
+        reason: 'nur die Gruppe mit dem Treffer behält ihre Überschrift');
+  });
+
+  testWidgets('sie findet auch über den wissenschaftlichen Namen',
+      (tester) async {
+    // Der steht in der Liste nirgends — wer ihn aus einem Buch abliest,
+    // fände die Art sonst nicht.
+    await openTab(tester, 9);
+
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Art suchen'), 'Cantharellus');
+    await settle(tester);
+
+    // Auf die ZEILE gezielt: Die Ampel-Gruppe heißt hier wie die Art,
+    // der nackte Text stünde also zweimal im Baum.
+    expect(find.widgetWithText(ListTile, 'Pfifferling'), findsOneWidget);
+    expect(find.widgetWithText(ListTile, 'Steinpilz'), findsNothing);
+  });
+
+  testWidgets('ohne Treffer sagt sie es, statt leer dazustehen',
+      (tester) async {
+    await openTab(tester, 9);
+
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Art suchen'), 'Trüffel');
+    await settle(tester);
+
+    expect(find.textContaining('Keine Art mit diesem Namen'), findsOneWidget);
+    // Die Zahl ist gezählt, nicht geschrieben.
+    expect(find.textContaining('kennt 91 Arten'), findsOneWidget);
+    expect(find.text('0 Arten gefunden.'), findsOneWidget);
+  });
+
+  testWidgets('das X stellt die ganze Liste wieder her', (tester) async {
+    // Ein Filter ohne Rückweg ist der Fall aus #425: Wer nicht erkennen
+    // kann, wie er ihn loswird, hält die App für kaputt.
+    await openTab(tester, 9);
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Art suchen'), 'marone');
+    await settle(tester);
+    expect(find.text('Steinpilz'), findsNothing);
+
+    await tester.tap(find.byTooltip('Suche löschen'));
+    await settle(tester);
+
+    expect(find.text('Steinpilz'), findsOneWidget);
+    expect(find.text('Steinpilz & Co.'), findsOneWidget);
+  });
 }
