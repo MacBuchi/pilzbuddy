@@ -229,3 +229,45 @@ Erkundungsblöcken OOF bei −0,021 [−0,048, +0,002] (in 18 auf den
 Testteilen +0,020 ▲) — der Gewinn gegenüber der 13-°C-Glocke ist real,
 der Gewinn gegenüber „nur die Saison“ klein und wackelig. Was die App
 an Aussage trägt, kommt zum größeren Teil aus dem Saison-Tor.
+
+## Nachtrag 2, 2026-09-21 — der Verlauf statt des Fensters (Läufe 21 und 22)
+
+Einwand des Betreibers nach Stufe 1: „Wir sollten anhand der Wetterdaten
+der Fundtage lernen und nicht Hypothesen blind mit Vergleichstagen
+abbilden.“ Also der Verlauf selbst, Tag für Tag vor dem Fund
+(`21-frost-verlauf.md`):
+
+- Vor Winter-Fundtagen ist die kälteste Nacht der Tage 1–3 gesichert
+  milder als vor den Kontrolltagen (+0,4 bis +0,9 °C ▲, alle drei
+  Winterarten), die Tage 14–28 eher kälter. „Milder geworden“ (Tage 1–7
+  gegen 8–14) ▲ bei allen drei, exakt null bei den Holz-Arten. Das
+  Muster „Frost in 8–28, frostfrei in 1–7“ ist vor Fundtagen um 3–6
+  Prozentpunkte häufiger, am stärksten im November und März.
+- Warum Stufe 1 das nicht sah: Eine Fensterzählung summiert frischen
+  Frost (senkt) und alten Frost (hebt) zu einer Zahl, und die hebt sich
+  auf.
+
+Daraus Lauf 22, vorregistriert, Grenzen 5/7/10/14/21 Tage, zwei
+Fassungen (zwei Frostspalten; „milder“ = kälteste Nacht Tage 1–b minus
+b+1–28) zusätzlich zum angenommenen Logit
+(`22-abfolge-holz-winter.md`):
+
+| | gegen das angenommene Logit |
+|---|--:|
+| ganze Klasse, „milder“ Grenze 5 | +0,004 [−0,002, +0,009] n.s. — **nach Regel nichts angenommen** |
+| nur Winter-Trio, „milder“ Grenze 5 / 7 / 10 | +0,011 ▲ / +0,010 ▲ / +0,009 ▲ |
+| Samtfußrübling / Judasohr / Austernseitling | +0,025 ▲ / +0,006 ▲ / +0,009 knapp |
+| Holz-Sommer/Herbst-Arten | −0,001 |
+| Gegenprüfung Testteile, „milder“ 5 | +0,007 ▲ (AT/CH +0,011 ▲) — bestätigt nichts, widerspricht nicht |
+
+Koeffizienten: frischer Frost −0,09 je Nacht, alter Frost +0,03 je
+Nacht, milder +0,042 je °C — die Vorzeichen des Verlaufs.
+
+**Folgerung:** Die Klasse „Austernseitling & Co.“ ist ein Kompromiss aus
+Winter- und Herbst-Holzarten; ein Merkmal der Winterhälfte kommt
+gepoolt nicht durch. Die Frage aus #495, ob das zwei Klassen unter
+einem Namen sind, stellt sich damit ein zweites Mal, und diesmal mit
+einem Merkmal, das die Trennung begründen würde. Vorschlag: Lauf 23,
+eigene Winter-Klasse (Trio) mit Logit + „milder“, vorregistriert,
+gleiche Regel. Live-Voraussetzung: 28 Tage `min` in der
+Stationstabelle statt 20. Bestätigung weiterhin Winter 2026/27.
