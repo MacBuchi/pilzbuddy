@@ -359,6 +359,7 @@ class AmpelSection extends ConsumerWidget {
       'Temperatur: $tempWord',
       if (reading.moistureMean case final moisture?)
         'Bodenfeuchte: ${moisture.round()} % nFK',
+      if (reading.milderK case final milder?) ampelMilderWord(milder),
     ];
     final curve = seasonCurveFor(species);
     if (curve != null) {

@@ -101,8 +101,9 @@ WeatherTable tableOfStations(List<TestStation> stations) {
       '${d.day.toString().padLeft(2, '0')}';
   final start = DateTime.utc(2026, 7, 7);
   final json = {
+    // 28 Tage seit 1.160.0 — das Fenster von „milder" (vorher 20).
     'days': [
-      for (var i = 0; i < 20; i++) iso(start.add(Duration(days: i))),
+      for (var i = 0; i < 28; i++) iso(start.add(Duration(days: i))),
     ],
     'stations': [
       for (final (index, station) in stations.indexed)
@@ -115,12 +116,12 @@ WeatherTable tableOfStations(List<TestStation> stations) {
           // Die Lücken liegen vorn, also bei den ÄLTESTEN Tagen — die
           // Reihe kommt ältester-zuerst.
           'max': [
-            for (var i = 0; i < 20; i++)
-              i < 20 - station.measured ? null : station.meanC + 3,
+            for (var i = 0; i < 28; i++)
+              i < 28 - station.measured ? null : station.meanC + 3,
           ],
           'min': [
-            for (var i = 0; i < 20; i++)
-              i < 20 - station.measured ? null : station.meanC - 3,
+            for (var i = 0; i < 28; i++)
+              i < 28 - station.measured ? null : station.meanC - 3,
           ],
         },
     ],
@@ -161,7 +162,7 @@ const testMoistureNfk = 55.0;
 /// nicht mehr der zur Kachelmitte.
 WeatherTable tableOf(
         {double meanC = 13, double lat = 51, double lon = 11.5}) =>
-    tableOfStations([(lat: lat, lon: lon, meanC: meanC, measured: 20)]);
+    tableOfStations([(lat: lat, lon: lon, meanC: meanC, measured: 28)]);
 
 void main() {
   /// Die Stufe der Zelle [x] in der einzigen Zeile — `null` heißt
@@ -342,9 +343,9 @@ void main() {
     /// ist hier Absicht und kein Wetterszenario: Geprüft wird, dass
     /// Fläche und Blatt dieselbe Stufe sagen, nicht welche.
     final threeBands = <TestStation>[
-      (lat: 51.32, lon: 10.05, meanC: 13, measured: 20),
-      (lat: 51.28, lon: 10.45, meanC: 19, measured: 20),
-      (lat: 50.95, lon: 10.25, meanC: 26, measured: 20),
+      (lat: 51.32, lon: 10.05, meanC: 13, measured: 28),
+      (lat: 51.28, lon: 10.45, meanC: 19, measured: 28),
+      (lat: 50.95, lon: 10.25, meanC: 26, measured: 28),
     ];
 
     /// Läuft jede Zellmitte ab und vergleicht Karte gegen Blatt.
@@ -474,7 +475,7 @@ void main() {
       // dass die Korrektur wirklich rechnet — ein Gitter ohne Wirkung
       // bestünde diesen Test nicht.
       final table = tableOfStations(
-          [(lat: 51.15, lon: 10.25, meanC: 13, measured: 20)]);
+          [(lat: 51.15, lon: 10.25, meanC: 13, measured: 28)]);
       final elevation = ElevationGrid(
         values: Uint8List.fromList([
           for (var y = 0; y < 8; y++)
@@ -530,7 +531,7 @@ void main() {
         () {
       final stack = stackForArea();
       final table = tableOfStations(
-          [(lat: 51.15, lon: 10.25, meanC: 13, measured: 20)]);
+          [(lat: 51.15, lon: 10.25, meanC: 13, measured: 28)]);
       RainCourse courseAt(double lat, double lon) => rainCourseFrom(
             stack.days,
             width: stack.info.width,
@@ -583,7 +584,7 @@ void main() {
       final cornerLat = probe.latAtRow(0.5);
       final cornerLon = probe.lonAtColumn(0.5);
       final table = tableOfStations([
-        (lat: centreLat, lon: centreLon, meanC: 13, measured: 20),
+        (lat: centreLat, lon: centreLon, meanC: 13, measured: 28),
         (
           lat: centreLat + (cornerLat - centreLat) * 1.5,
           lon: centreLon + (cornerLon - centreLon) * 1.5,
@@ -593,7 +594,7 @@ void main() {
           // keinen Stufenwechsel mehr — und der Test prüfte eine Lage,
           // in der beide Stationen dasselbe sagen.
           meanC: 26,
-          measured: 20,
+          measured: 28,
         ),
       ]);
       // Ohne diesen Vorspann prüfte der Test eine Lage, die es gar nicht
@@ -624,7 +625,7 @@ void main() {
                 lat: 50.94 + i * 0.09 + (j.isEven ? 0.018 : -0.013),
                 lon: 9.96 + j * 0.10 + (i.isOdd ? 0.021 : -0.016),
                 meanC: 11.0 + ((i * 7 + j) % 13),
-                measured: 20,
+                measured: 28,
               ),
       ];
       final stack = stackForArea();
@@ -634,6 +635,34 @@ void main() {
 
       expect(walkAndCompare(stack, table, grid).length, greaterThan(1),
           reason: 'ohne Stufenwechsel wäre der Vergleich zahnlos');
+    });
+
+    test('„milder" (#497): eine Station mit 20 von 28 Tagen — Holz & '
+        'Winter grau, die Glocken rechnen, Fläche wie Blatt', () {
+      // Die acht ÄLTESTEN Tage fehlen: Das 20-Tage-Mittel steht, das
+      // 28er-Fenster von „milder" nicht. Genau der Stand einer Tabelle
+      // von vor dem 2026-09-21 auf einem Gerät, das die neue noch nicht
+      // hat — und die Fläche muss dann dasselbe sagen wie das Blatt:
+      // nichts für diese Klasse, weiter alles für die anderen.
+      final stack = stackForArea();
+      final table = tableOfStations(
+          [(lat: 51.15, lon: 10.25, meanC: 13, measured: 20)]);
+      final grid = ampelLevelsFrom(stack, table)!;
+      expect(walkAndCompare(stack, table, grid,
+              classes: const [ampelHolzWinterClass]),
+          equals({null}),
+          reason: 'ohne 28 Minima keine Stufe — nirgends');
+      expect(walkAndCompare(stack, table, grid,
+              classes: const [ampelHerbstClass]),
+          isNot(contains(null)),
+          reason: 'die Glocke braucht die Minima nicht');
+      // Und mit 28 vollen Tagen rechnet die Klasse überall.
+      final full = tableOfStations(
+          [(lat: 51.15, lon: 10.25, meanC: 13, measured: 28)]);
+      expect(
+          walkAndCompare(stack, full, ampelLevelsFrom(stack, full)!,
+              classes: const [ampelHolzWinterClass]),
+          isNot(contains(null)));
     });
 
     test('eine zu lückige Station macht die Zelle transparent, statt '
@@ -646,7 +675,7 @@ void main() {
       // die Karte darf sich die weitere nicht holen.
       final gappy = <TestStation>[
         (lat: 51.0, lon: 10.5, meanC: 13, measured: 12),
-        (lat: 51.0, lon: 10.4, meanC: 13, measured: 20),
+        (lat: 51.0, lon: 10.4, meanC: 13, measured: 28),
       ];
       final table = tableOfStations(gappy);
       final grid = ampelLevelsFrom(stack, table)!;

@@ -60,6 +60,7 @@ class AmpelReading {
     this.spotHeightM,
     this.heightCorrectionK,
     this.moistureMean,
+    this.milderK,
     this.reason,
     this.classSpecific = false,
   });
@@ -72,7 +73,8 @@ class AmpelReading {
         tempMeanC = null,
         spotHeightM = null,
         heightCorrectionK = null,
-        moistureMean = null;
+        moistureMean = null,
+        milderK = null;
 
   final AmpelLevel? level;
   final double? score;
@@ -97,6 +99,11 @@ class AmpelReading {
   /// Das 26-Tage-Mittel der Bodenfeuchte (% nFK) — nur bei einer
   /// Logit-Klasse gefüllt; die Glocke fragt nicht danach.
   final double? moistureMean;
+
+  /// „Milder" in °C ([ampelMilderOf]) — nur bei einer Logit-Klasse, die
+  /// das Merkmal trägt; steht in der Zutaten-Zeile, damit die Stufe
+  /// nachvollziehbar bleibt.
+  final double? milderK;
 
   final String? reason;
 
@@ -239,6 +246,21 @@ AmpelReading ampelReadingFrom(
           classSpecific: true);
     }
   }
+  // **Und „milder" die Minima derselben Luftstation** — 28 Tage,
+  // vollständig, ROH (die Höhenkorrektur kürzt sich in der Differenz
+  // heraus). Fehlen sie, ist diese Klasse grau wie ohne Bodenfeuchte:
+  // Eine Tabelle mit 20 Tagen (Stand vor dem 2026-09-21) füllt das
+  // Fenster nicht, und aus 20 Tagen ein 28er zu machen wäre eine
+  // erfundene Beobachtung.
+  double? milder;
+  if (logit != null && logit.needsMilder) {
+    milder = ampelMilderOf(mins);
+    if (milder == null) {
+      return const AmpelReading.grau(
+          'Tagesminima der Station: keine 28 vollständigen Tage',
+          classSpecific: true);
+    }
+  }
   final rainFactor = ampelRainFactor(rain);
   var tempSum = 0.0;
   var tempCount = 0;
@@ -256,7 +278,8 @@ AmpelReading ampelReadingFrom(
       : logit.score(
           rainFactor: rainFactor,
           meanC: tempMeanC,
-          moistureMean: moistureMean!);
+          moistureMean: moistureMean!,
+          milder: milder)!;
   return AmpelReading(
     level: ampelLevelOf(score, klass: klass),
     score: score,
@@ -266,5 +289,6 @@ AmpelReading ampelReadingFrom(
     spotHeightM: correction == null ? null : spotHeightM,
     heightCorrectionK: correction,
     moistureMean: moistureMean,
+    milderK: milder,
   );
 }
