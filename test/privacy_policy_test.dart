@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/app_info.dart';
 
 const _privacy = 'web/datenschutz.html';
+const _impressum = 'web/impressum.html';
 
 String _read(String path) {
   final file = File(path);
@@ -21,8 +22,55 @@ void main() {
     // Ein Tippfehler im Dateinamen fiele sonst erst im Store auf.
     expect(AppInfo.privacyUrl, endsWith('/datenschutz.html'));
     expect(AppInfo.deleteAccountUrl, endsWith('/konto-loeschen.html'));
+    expect(AppInfo.impressumUrl, endsWith('/impressum.html'));
     expect(File(_privacy).existsSync(), isTrue);
     expect(File('web/konto-loeschen.html').existsSync(), isTrue);
+    expect(File(_impressum).existsSync(), isTrue);
+  });
+
+  test('Das Impressum trägt eine ladungsfähige Anschrift', () {
+    // **Der eigentliche Inhalt der Pflicht.** § 5 DDG verlangt Namen UND
+    // Anschrift; Name plus E-Mail ist genau der Zustand, aus dem diese
+    // Seite entstanden ist (so stand es bis 1.157.0 unter
+    // „Verantwortlicher"). Ein Postfach genügt ebenfalls nicht — deshalb
+    // wird auf Straße mit Hausnummer und auf PLZ mit Ort geprüft und
+    // nicht bloß darauf, dass irgendein Text dasteht.
+    final html = _read(_impressum);
+
+    expect(html, contains('Marcus Bucher'));
+    expect(RegExp(r'[A-ZÄÖÜ][\wäöüß.\-]*\s?(str\.|straße|weg|platz|gasse)\s+\d',
+            caseSensitive: false)
+        .hasMatch(html),
+        isTrue, reason: 'Straße mit Hausnummer fehlt');
+    expect(RegExp(r'\b\d{5}\s+\S').hasMatch(html), isTrue,
+        reason: 'Postleitzahl und Ort fehlen');
+    expect(html, contains('pilzbuddy@proton.me'));
+  });
+
+  test('Das Impressum ist aus der App und von den Nachbarseiten erreichbar',
+      () {
+    // „Leicht erkennbar, unmittelbar erreichbar und ständig verfügbar"
+    // gilt für die App so gut wie für die Seite. Eine Datei, die im
+    // Web-Ordner liegt und die niemand verlinkt, erfüllt nichts —
+    // genau das ist der Fehler, den dieser Test fängt.
+    final profile =
+        _read('lib/features/profile/profile_screen.dart');
+    expect(profile, contains('AppInfo.impressumUrl'),
+        reason: 'ohne Zeile im Profil ist es in der App nicht erreichbar');
+
+    expect(_read(_privacy), contains('impressum.html'));
+    expect(_read('web/konto-loeschen.html'), contains('impressum.html'));
+  });
+
+  test('Kein toter Pflichtlink auf die EU-Streitschlichtung', () {
+    // Die OS-Plattform der EU ist im Juli 2025 abgeschaltet worden. Der
+    // Absatz steht in jeder zweiten Impressum-Vorlage und wandert beim
+    // Abschreiben mit; ein Pflichtlink ins Leere ist schlechter als
+    // keiner, weil er Sorgfalt vortäuscht.
+    for (final path in const [_impressum, _privacy]) {
+      expect(_read(path), isNot(contains('ec.europa.eu/consumers/odr')),
+          reason: '$path verweist auf eine abgeschaltete Plattform');
+    }
   });
 
   test('Die Erklärung benennt die heiklen Punkte', () {

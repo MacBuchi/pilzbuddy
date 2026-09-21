@@ -62,13 +62,39 @@ Stand 2026-09-08, nachgesehen im Code, nicht angenommen.
   **Noch zu tun:** Den Auftragsverarbeitungsvertrag samt
   Unterauftragnehmer-Liste bei Supabase abrufen und ablegen (Art. 28).
   Die Erklärung beruft sich darauf; abgeheftet ist er noch nicht.
-- **Impressumspflicht (§ 5 DDG).** Bewusst offen (Betreiber, 2026-09-08).
-  Dafür spricht: Die App liegt bald im Play Store, und die Abgrenzung
-  „geschäftsmäßig" ist bei dauerhaft angebotenen Diensten weit ausgelegt.
-  Dagegen: erklärtermaßen privates Projekt ohne Gewinnabsicht, keine
-  Werbung, keine Käufe. Name und E-Mail stehen bereits im Abschnitt
-  „Verantwortlicher". **Spätestens beim Play-Store-Eintrag entscheiden**,
-  dort werden ohnehin Kontaktangaben verlangt.
+- ~~Impressumspflicht (§ 5 DDG)~~ — **entschieden am 2026-09-21**
+  (Betreiber): `web/impressum.html` mit voller Anschrift, verlinkt aus
+  der Erklärung, aus der Lösch-Seite und als Zeile im Profil.
+
+  Die Abwägung stand seit dem 2026-09-08 offen und ist so ausgegangen:
+  Die Ausnahme „rein privat" trägt nicht. Gerichte werten die dauerhafte
+  Verfügbarkeit im App Store regelmäßig als öffentliches Angebot, und
+  „geschäftsmäßig" verlangt keine Gewinnabsicht — die Planmäßigkeit
+  genügt. Kostenlose Apps sind ausdrücklich mitgemeint.
+
+  **Was die Entscheidung wirklich gekostet hat, war nicht Arbeit,
+  sondern die Adresse.** Eine naheliegende Annahme erwies sich beim
+  Nachsehen als falsch: Play macht die Anschrift NICHT ohnehin
+  öffentlich. Bei einem privaten Entwicklerkonto ohne Monetarisierung
+  zeigt Google nur Name, Land und E-Mail; die volle Anschrift erst beim
+  Monetarisieren. Das Impressum ist also eine echte zusätzliche
+  Offenlegung — genau die Sorte, die der Paketnamen-Umzug auf
+  `de.mcbuchi.pilzbuddy` vermeiden sollte. Ein Postfach wäre kein
+  Ausweg gewesen (keine ladungsfähige Anschrift), ein c/o-Dienst hätte
+  laufende Kosten bedeutet und damit die Null-Kosten-Zusage aus #92
+  gebrochen.
+
+  **Zwei Bausteine fehlen mit Absicht.** Kein Link auf die
+  EU-Streitschlichtung — die OS-Plattform ist im Juli 2025 abgeschaltet
+  worden, ein toter Pflichtlink täuscht Sorgfalt vor; ein Test
+  verbietet ihn auf beiden Seiten. Und kein Verantwortlicher nach § 18
+  Abs. 2 MStV, dafür bräuchte es journalistisch-redaktionelle Inhalte.
+
+  **Der Sicherheitshinweis steht NICHT im Impressum.** „PilzBuddy
+  bestimmt keine Pilze" lebt an einer Stelle (`safety_note.dart`) und
+  wird von dort in Erststart-Dialog und Kurzanleitung gereicht. Eine
+  zweite Fassung liefe auseinander, und bei einer Pilz-App ist das die
+  teuerste Sorte Dopplung.
 
 ## Auskunft nach Art. 15 — das Verfahren
 

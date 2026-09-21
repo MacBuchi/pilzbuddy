@@ -297,8 +297,24 @@ Antwort.
 | Kontakt-E-Mail | `pilzbuddy@proton.me` (dieselbe wie in der Datenschutzerklärung) |
 | Website | `https://macbuchi.github.io/pilzbuddy/` |
 | Datenschutzerklärung | `https://macbuchi.github.io/pilzbuddy/datenschutz.html` |
+| Impressum | `https://macbuchi.github.io/pilzbuddy/impressum.html` (seit 1.158.0, #110) |
 | Enthält Werbung | Nein |
 | In-App-Käufe | Nein |
+
+**Das Impressum hat in der Konsole kein eigenes Feld.** Play fragt
+Datenschutzerklärung und Kontaktangaben ab, eine Anbieterkennzeichnung
+nach § 5 DDG nicht — sie wird trotzdem geschuldet. Erreichbar ist sie
+über drei Wege, die alle im Repo stehen und von
+`test/privacy_policy_test.dart` bewacht werden: als Zeile im Profil
+(„Über PilzBuddy"), aus der Datenschutzerklärung und aus der
+Lösch-Seite. Wer das Store-Listing ausfüllt, sollte den Link zusätzlich
+in die lange Beschreibung setzen — er kostet dort nichts und ist die
+einzige Stelle, die jemand ohne Installation sieht.
+
+**Die Anschrift ist damit öffentlich, und zwar nur hierdurch.** Play
+zeigt bei einem privaten Entwicklerkonto ohne Monetarisierung lediglich
+Name, Land und E-Mail; würde je monetarisiert, käme sie ohnehin dazu.
+Wer die Angaben ändert, ändert sie an beiden Stellen.
 
 ### Kurzbeschreibung (max. 80 Zeichen)
 
