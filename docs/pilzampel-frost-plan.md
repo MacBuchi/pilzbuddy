@@ -295,3 +295,37 @@ geprüft (GBIF-Download Frühjahr 2027, Funde Nov 2026 – Mär 2027, von
 keinem Lauf gesehen), gepaart, gleiche Regel. Trägt er dort, kommt er
 in die App, mit 28 Tagen `min` in der Stationstabelle; trägt er nicht,
 ist die Frage beantwortet. #497 bleibt als Erinnerung offen.
+
+## Nachtrag 4, 2026-09-21 — Betreiberregel und Lauf 24: angenommen
+
+Korrektur des Betreibers: Anpassungen nur auf den Trainingsblöcken (DE
++ AT + CH), die Testblöcke bewerten. Die Lesart „Testteil verbraucht“
+ist zurückgenommen; Nachtrag 3 ist damit in seinem Schluss überholt.
+
+Lauf 24 (`24-testbloecke-abfolge.md`): alle Kandidaten der Serie einmal
+auf dem Training gefittet, auf den 1 970 Teststrata bewertet.
+**Angenommen nach Regel: das Klassen-Logit plus „milder“** (kälteste
+Nacht der Tage 1–5 minus Tage 6–28, +0,042 je °C), für alle acht Arten:
+
+| | Testblöcke, gegen das heutige Modell |
+|---|--:|
+| gesamt | +0,007 [+0,001, +0,013] ▲ |
+| DE / AT+CH | +0,006 n.s. / +0,011 ▲ |
+| Winter-Trio / Holz-Arten | +0,012 [−0,001, +0,023] / +0,004 |
+| je Art | keine ▼, Judasohr ▲ |
+| gegen Klimatologie | +0,028 ▲ (heute +0,021) |
+| Placebo | −0,002 ▼ = Preis eines nutzlosen Parameters |
+
+AUC 0,562 → 0,576. Nicht besser: das Merkmal nur für die drei
+Winterarten (+0,005, knapp), die Teilung der Klasse, zwei Frostspalten.
+
+**Was das für die App hieße** (Entscheidung beim Betreiber):
+
+1. Stationstabelle mit 28 statt 20 Tagen `min` (`tool/spot_weather.py`,
+   ein Parameter; rund 100 statt 76 KB).
+2. Sechste Logit-Konstante `milder` für die Klasse Holz & Winter in
+   `ampel_model.dart` (0 für Cantharellales), gerechnet aus den Minima
+   der nächsten Luftstation — dieselbe Ersetzung wie bei T, mit
+   demselben Vorbehalt (gemessen wurde an der Fundkoordinate).
+3. Spiegel in `tool/ampel_validate.py` Zahl für Zahl; Schwellen der
+   Klasse neu als Quantile; Changelog, CLAUDE.md, Evidenzstufe.
