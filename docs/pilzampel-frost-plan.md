@@ -188,3 +188,44 @@ Stufe 2 zusätzlich Abruf und ein Werkzeugparameter.
    Regel 1–4 (▲ auf Erkundung, alle oder keine, nicht hinter der
    Klimatologie, Gegenprüfung nicht ▼), sichtbar als „experimentell“,
    und mit der Zusage, nach dem Winter 2026/27 nachzumessen.
+
+## Nachtrag 2026-09-21 — Ergebnis Stufe 1 (Labor, Lauf 19)
+
+Freigegeben als „Dann Stufe 1“, gelaufen wie oben festgelegt
+(`pilzbuddy-lab/berichte/19-frost-holz-winter.md`): 9 735 Strata der
+acht Arten, DACH-Erkundungsblöcke, LOYO, Placebo −0,000 (der Lauf misst,
+was er soll).
+
+**Angenommen: keiner.** Kein Frost- oder Mindesttemperatur-Merkmal
+gewinnt gesichert gegen das angenommene Logit:
+
+| Kandidat | Δ Log-Lik. gegen K0 (gepaart, OOF) |
+|---|--:|
+| Frosttage 7 d (bestes Fenster) | +0,002 [−0,000, +0,004] n.s. |
+| Frosttage 14 d | −0,001 n.s. |
+| Frosttage 21 d | −0,001 ▼ |
+| Frost ja/nein 28 d | −0,001 ▼ |
+| kälteste Nacht 14 d | −0,000 n.s. |
+| Teilung Winter / Holz Sommer-Herbst | +0,001 / −0,002 n.s. |
+| Winter-Trio + Frosttage | +0,005 [−0,000, +0,010] n.s. |
+
+Gegenprüfung auf den verbrauchten Testteilen: überall nicht
+unterscheidbar.
+
+**Der eine Befund mit Vorzeichen:** Der Koeffizient der Frosttage ist
+NEGATIV (−0,08 je Frostnacht). Ein Tag mit mehr Frostnächten davor als
+seine Nachbartage ist seltener ein Meldetag; beim Samtfußrübling ist
+das gesichert (+0,013 ▲). Nach Frostnächten wird also WENIGER gemeldet
+— gefrorene Fruchtkörper, weniger Sammler, oder beides. Die Hypothese
+„braucht initial Minustemperaturen“ ist auf der Wochenskala nicht zu
+sehen; der saisonale Teil („nach dem ersten Frost beginnt es“) ist der
+Kalender, und den trägt seit 1.157.0 das Saison-Tor.
+
+**Folgen:** Stufe 2 (120-Tage-Reihe, Stationsfeld „erster Frost“) wird
+nicht empfohlen. Die Klasse bleibt, wie sie in 18 angenommen wurde,
+mit einem Parametersatz. Nebenbefund für die Einordnung der Klasse:
+Gegen die Klimatologie liegt das angenommene Logit auf den
+Erkundungsblöcken OOF bei −0,021 [−0,048, +0,002] (in 18 auf den
+Testteilen +0,020 ▲) — der Gewinn gegenüber der 13-°C-Glocke ist real,
+der Gewinn gegenüber „nur die Saison“ klein und wackelig. Was die App
+an Aussage trägt, kommt zum größeren Teil aus dem Saison-Tor.
