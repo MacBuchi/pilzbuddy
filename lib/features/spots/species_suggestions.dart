@@ -79,32 +79,6 @@ List<SpeciesSuggestion> suggestSpecies(
 String? _synonymHit(String typed, String canonical) =>
     typed.toLowerCase() == canonical.toLowerCase() ? null : typed;
 
-/// Wie weit eine Eingabe danebenliegen darf, damit sie noch als Tippfehler
-/// gilt — abhängig von ihrer Länge, weil bei kurzen Wörtern alles nah an
-/// allem liegt. `-1` heißt „gar nicht raten".
-///
-/// **Die Kosten sind unsymmetrisch, und darum ist die Grenze locker.** Ein
-/// überflüssiger Vorschlag ist eine Zeile, die man nicht antippt. Eine
-/// leere Liste dagegen ist genau das, was #395 ausgelöst hat: Der Nutzer
-/// schließt daraus, die Art fehle, und meldet sie — obwohl sie dasteht.
-/// Ein Vorschlag kann dabei nie falsche Daten erzeugen; er wirkt erst beim
-/// Antippen, frei Getipptes wird unverändert gespeichert.
-///
-/// Ein erster Entwurf zog die Grenze auf sechs Zeichen hoch, weil „hallo"
-/// sonst den Hallimasch vorschlug. Das war das falsche Kriterium: In einem
-/// Artenfeld IST „hallo" höchstwahrscheinlich ein vertipptes „Halli…" —
-/// der Fall, für den dieser Rückfall da ist, nicht der, gegen den er
-/// schützen soll (Betreiber, 2026-09-06).
-///
-/// Bei vier und nicht bei drei: Ein Fehler auf drei Zeichen heißt, ein
-/// Drittel der Eingabe ist falsch — das ist kein Tippfehlermodell mehr.
-/// Darunter liefert der Contains-Vergleich ohnehin fast immer Treffer.
-///
-/// Gemessen (#395): 23 von 25 geprüften Nicht-Arten bleiben auch so still,
-/// „abc" und „xyz" eingeschlossen. Nur „Auto" und „Regen" liegen zufällig
-/// einen Fehler neben einem Wortstück — angenommen, siehe oben.
-int _maxTypoDistance(int length) => length < 4 ? -1 : (length <= 7 ? 1 : 2);
-
 /// Der Tippfehler-Ausgleich: der beste Treffer, wenn es keinen gab.
 ///
 /// Läuft **nur**, wenn die normale Suche leer ausging — er ist ein
@@ -118,12 +92,12 @@ List<SpeciesSuggestion> _guesses(
   List<KnownSpecies> builtin,
   int limit,
 ) {
-  final maxDistance = _maxTypoDistance(q.length);
+  final maxDistance = speciesTypoTolerance(q.length);
   if (maxDistance < 0) return const [];
 
   final best = <String, (int, SpeciesSuggestion)>{};
   void consider(String typed, {required bool isOwn, SpeciesGroup? group}) {
-    final distance = _nearContains(q, foldSpeciesName(typed));
+    final distance = nearContainsDistance(q, foldSpeciesName(typed));
     if (distance > maxDistance) return;
     final canonical = canonicalSpecies(typed) ?? typed;
     final key = foldSpeciesName(canonical);
@@ -153,37 +127,6 @@ List<SpeciesSuggestion> _guesses(
     for (final entry in best.values)
       if (entry.$1 == closest) entry.$2,
   ].take(limit).toList();
-}
-
-/// Der kleinste Editierabstand zwischen [needle] und **irgendeinem**
-/// Teilstück von [hay].
-///
-/// Also nicht der Abstand der ganzen Wörter: „bofist" gegen
-/// „flaschenbovist" sind acht Änderungen, gegen das Teilstück „bovist"
-/// aber eine — und genau das ist die Frage, die hier zählt. Erreicht wird
-/// es über eine Nullzeile (freier Start) und das Minimum über die letzte
-/// Zeile (freies Ende); sonst ist es die gewöhnliche
-/// Levenshtein-Rechnung.
-int _nearContains(String needle, String hay) {
-  if (needle.isEmpty) return 0;
-  var previous = List<int>.generate(needle.length + 1, (i) => i);
-  var best = previous[needle.length];
-  final current = List<int>.filled(needle.length + 1, 0);
-  for (var j = 1; j <= hay.length; j++) {
-    current[0] = 0;
-    for (var i = 1; i <= needle.length; i++) {
-      final substitution =
-          previous[i - 1] + (needle[i - 1] == hay[j - 1] ? 0 : 1);
-      final insertion = current[i - 1] + 1;
-      final deletion = previous[i] + 1;
-      var value = substitution < insertion ? substitution : insertion;
-      if (deletion < value) value = deletion;
-      current[i] = value;
-    }
-    if (current[needle.length] < best) best = current[needle.length];
-    previous = List<int>.of(current);
-  }
-  return best;
 }
 
 /// Leitet aus Funden (bereits nach „neueste zuerst" sortiert) die Liste der

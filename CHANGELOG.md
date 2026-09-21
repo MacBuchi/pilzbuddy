@@ -7,6 +7,24 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Suchfeld im Reiter „Pilze"
+
+*21. September 2026 · Version 1.164.0*
+
+91 Arten sind zum Durchscrollen zu viele. Oben im Reiter steht jetzt ein
+Suchfeld: Es findet über den deutschen Namen, über die Zweitnamen und
+über den wissenschaftlichen — „Marone" führt zum Maronenröhrling,
+„Boletus" zum Steinpilz. Umlaute sind dabei egal, „Staeubling" und
+„Stäubling" finden denselben Pilz.
+
+Vertippt? Findet das Feld nichts, schlägt es vor, was gemeint sein
+könnte — „Steinpliz" führt zum Steinpilz — und sagt dazu, dass es rät.
+Das ist dieselbe Hilfe, die das Eingabefeld beim Fund eintragen längst
+gibt.
+
+Gruppen ohne Treffer verschwinden, solange gesucht wird; das X stellt
+die ganze Liste wieder her.
+
 ## Essbar oder giftig — jetzt bei jeder Art
 
 *21. September 2026 · Version 1.163.0*

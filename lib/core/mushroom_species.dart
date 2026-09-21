@@ -344,6 +344,87 @@ bool isUnknownSpecies(String? name) {
   return groupFor(trimmed) == null;
 }
 
+// ---------------------------------------------------------------------
+// Tippfehler-Ausgleich (#395) — hier und nicht bei den Vorschlägen.
+//
+// Bis 1.164.0 lagen die beiden Funktionen privat in
+// `species_suggestions.dart`. Seit die Suche im Reiter „Pilze" denselben
+// Rückfall braucht, stehen sie hier neben [foldSpeciesName]: Zwei
+// Fassungen wären zwei Antworten auf „ist das ein Tippfehler" — und die
+// Oberfläche behauptet an beiden Stellen dasselbe.
+// ---------------------------------------------------------------------
+
+/// Wie weit eine Eingabe danebenliegen darf, damit sie noch als Tippfehler
+/// gilt — abhängig von ihrer Länge, weil bei kurzen Wörtern alles nah an
+/// allem liegt. `-1` heißt „gar nicht raten".
+///
+/// **Die Kosten sind unsymmetrisch, und darum ist die Grenze locker.** Ein
+/// überflüssiger Vorschlag ist eine Zeile, die man nicht antippt. Eine
+/// leere Liste dagegen ist genau das, was #395 ausgelöst hat: Der Nutzer
+/// schließt daraus, die Art fehle, und meldet sie — obwohl sie dasteht.
+/// Ein Vorschlag kann dabei nie falsche Daten erzeugen; er wirkt erst beim
+/// Antippen, frei Getipptes wird unverändert gespeichert.
+///
+/// Ein erster Entwurf zog die Grenze auf sechs Zeichen hoch, weil „hallo"
+/// sonst den Hallimasch vorschlug. Das war das falsche Kriterium: In einem
+/// Artenfeld IST „hallo" höchstwahrscheinlich ein vertipptes „Halli…" —
+/// der Fall, für den dieser Rückfall da ist, nicht der, gegen den er
+/// schützen soll (Betreiber, 2026-09-06).
+///
+/// Bei vier und nicht bei drei: Ein Fehler auf drei Zeichen heißt, ein
+/// Drittel der Eingabe ist falsch — das ist kein Tippfehlermodell mehr.
+/// Darunter liefert der Contains-Vergleich ohnehin fast immer Treffer.
+///
+/// Gemessen (#395): 23 von 25 geprüften Nicht-Arten bleiben auch so still,
+/// „abc" und „xyz" eingeschlossen. Nur „Auto" und „Regen" liegen zufällig
+/// einen Fehler neben einem Wortstück — angenommen, siehe oben.
+int speciesTypoTolerance(int length) => length < 4 ? -1 : (length <= 7 ? 1 : 2);
+
+/// Der kleinste Editierabstand zwischen [needle] und **irgendeinem**
+/// Teilstück von [hay].
+///
+/// Also nicht der Abstand der ganzen Wörter: „bofist" gegen
+/// „flaschenbovist" sind acht Änderungen, gegen das Teilstück „bovist"
+/// aber eine — und genau das ist die Frage, die hier zählt. Erreicht wird
+/// es über eine Nullzeile (freier Start) und das Minimum über die letzte
+/// Zeile (freies Ende); sonst ist es die gewöhnliche
+/// Levenshtein-Rechnung.
+int nearContainsDistance(String needle, String hay) {
+  if (needle.isEmpty) return 0;
+  var previous = List<int>.generate(needle.length + 1, (i) => i);
+  var best = previous[needle.length];
+  final current = List<int>.filled(needle.length + 1, 0);
+  for (var j = 1; j <= hay.length; j++) {
+    current[0] = 0;
+    for (var i = 1; i <= needle.length; i++) {
+      final substitution =
+          previous[i - 1] + (needle[i - 1] == hay[j - 1] ? 0 : 1);
+      final insertion = current[i - 1] + 1;
+      final deletion = previous[i] + 1;
+      var value = substitution < insertion ? substitution : insertion;
+      if (deletion < value) value = deletion;
+      current[i] = value;
+    }
+    if (current[needle.length] < best) best = current[needle.length];
+    previous = List<int>.of(current);
+  }
+  return best;
+}
+
+/// Der Listeneintrag zur HAUPTBEZEICHNUNG einer Art — `null` für eigene
+/// Arten der Nutzer und für alles, was die Liste nicht kennt.
+///
+/// Zweitnamen lösen sich auf: „Marone" liefert den Eintrag des
+/// Maronenröhrlings, samt dessen wissenschaftlichem Namen. Genau dafür
+/// gibt es die Funktion — ohne sie schrieb jede Stelle, die `sci` oder
+/// `curveFrom` braucht, ihre eigene Schleife über [kBekannteArten].
+KnownSpecies? knownSpeciesFor(String? name) {
+  final canonical = canonicalSpecies(name);
+  if (canonical == null) return null;
+  final entry = _entryFor(canonical);
+  return entry == null || entry.isSynonym ? null : entry;
+}
+
 /// Die Zweitnamen einer Art — für den Hinweis „auch: …". Nimmt Haupt- wie
 /// Zweitnamen entgegen; leer, wenn es keine gibt.
 List<String> synonymsOf(String? name) {

@@ -46,23 +46,47 @@ class _SpeciesScreenState extends ConsumerState<SpeciesScreen> {
   /// „keine Saisonkurve" beschriftet, und das ist die Auskunft.
   bool _onlyNow = false;
 
+  /// Die Sucheingabe. **Der Controller lebt im State**, nicht im
+  /// `itemBuilder`: Die Liste baut sich bei jedem Tastendruck neu, und
+  /// ein dort erzeugtes Feld verlöre Fokus und Cursor.
+  final _search = TextEditingController();
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final month = ref.watch(currentMonthProvider);
+    final query = _search.text.trim();
     final sections = speciesCatalogue(month: month);
-    final withCurve = sections
-        .expand((s) => s.entries)
-        .where((e) => e.curve != null)
-        .length;
+    final all = sections.expand((s) => s.entries).toList();
+    final withCurve = all.where((e) => e.curve != null).length;
     final inSeason = sections.fold(0, (n, s) => n + s.inSeasonCount);
 
+    // Ein Suchlauf für die ganze Liste, nicht einer je Zeile: Der
+    // Tippfehler-Ausgleich muss wissen, ob IRGENDWO ein Treffer war.
+    final search = speciesSearch(query);
     final rows = <_Row>[];
+    var matches = 0;
     for (final section in sections) {
-      final entries = _onlyNow
-          ? section.entries.where((e) => e.inSeason || e.curve == null)
-          : section.entries;
+      var entries =
+          section.entries.where((e) => search.names.contains(e.name));
+      if (_onlyNow) {
+        entries = entries.where((e) => e.inSeason || e.curve == null);
+      }
+      final shown = entries.toList();
+      matches += shown.length;
+      // **Bei einer Suche fällt die leere Gruppe weg, beim Saison-Filter
+      // nicht.** Die beiden beantworten verschiedene Fragen: „Welche
+      // meiner Gruppen hat gerade Saison?" braucht die Überschrift, um
+      // „keine" zeigen zu können; „wo steht der Steinpilz?" braucht sie
+      // nicht — dort wären elf leere Überschriften der Treffer.
+      if (shown.isEmpty && query.isNotEmpty) continue;
       rows.add(_Row.header(section));
-      rows.addAll(entries.map(_Row.entry));
+      rows.addAll(shown.map(_Row.entry));
     }
 
     return Scaffold(
@@ -76,8 +100,14 @@ class _SpeciesScreenState extends ConsumerState<SpeciesScreen> {
               month: month,
               inSeason: inSeason,
               withCurve: withCurve,
+              total: all.length,
               onlyNow: _onlyNow,
               onToggle: (value) => setState(() => _onlyNow = value),
+              search: _search,
+              query: query,
+              matches: matches,
+              isGuess: search.isGuess,
+              onSearch: () => setState(() {}),
             );
           }
           if (index == rows.length + 1) return const _Source();
@@ -105,15 +135,35 @@ class _Intro extends StatelessWidget {
     required this.month,
     required this.inSeason,
     required this.withCurve,
+    required this.total,
     required this.onlyNow,
     required this.onToggle,
+    required this.search,
+    required this.query,
+    required this.matches,
+    required this.isGuess,
+    required this.onSearch,
   });
 
   final int month;
   final int inSeason;
   final int withCurve;
+
+  /// Wie viele Arten das Verzeichnis überhaupt kennt — gezählt, nicht
+  /// geschrieben: Eine Zahl im Text veraltet bei der nächsten neuen Art,
+  /// ohne dass irgendwo etwas rot wird.
+  final int total;
   final bool onlyNow;
   final ValueChanged<bool> onToggle;
+  final TextEditingController search;
+  final String query;
+  final int matches;
+
+  /// Geraten statt gefunden — die Zeilen kommen aus dem
+  /// Tippfehler-Ausgleich. Muss dastehen, sonst behauptet die Liste,
+  /// der Nutzer habe das so gesucht.
+  final bool isGuess;
+  final VoidCallback onSearch;
 
   @override
   Widget build(BuildContext context) {
@@ -124,13 +174,48 @@ class _Intro extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Welche Arten zu welcher Pilzampel gehören, und wann sie '
-                'gemeldet werden. Im ${kMonthNames[month - 1]} haben '
-                '$inSeason von $withCurve Arten mit Saisonkurve Saison — '
-                'sie sind hervorgehoben. Der Schalter nimmt eine Art aus '
-                'der Ampel; eine Gruppe rechnet nur, solange eine ihrer '
-                'Arten Saison hat.',
+            // **Bei einer Suche zählt der Satz die Treffer.** Die
+            // Saison-Zahlen beschreiben das ganze Verzeichnis; über einer
+            // gefilterten Liste stünden sie da wie eine Auskunft über
+            // das, was man gerade sieht, und wären falsch.
+            query.isEmpty
+                ? 'Welche Arten zu welcher Pilzampel gehören, und wann sie '
+                    'gemeldet werden. Im ${kMonthNames[month - 1]} haben '
+                    '$inSeason von $withCurve Arten mit Saisonkurve Saison — '
+                    'sie sind hervorgehoben. Der Schalter nimmt eine Art aus '
+                    'der Ampel; eine Gruppe rechnet nur, solange eine ihrer '
+                    'Arten Saison hat.'
+                : isGuess && matches > 0
+                    ? 'Keine Art heißt so. Meintest du …?'
+                    : matches == 1
+                        ? 'Eine Art gefunden.'
+                        : '$matches Arten gefunden.',
             style: theme.textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: search,
+            onChanged: (_) => onSearch(),
+            textInputAction: TextInputAction.search,
+            decoration: InputDecoration(
+              isDense: true,
+              border: const OutlineInputBorder(),
+              prefixIcon: const Icon(Icons.search),
+              hintText: 'Art suchen',
+              // Wonach gesucht wird, gehört sichtbar dazu — sonst
+              // probiert niemand den wissenschaftlichen Namen.
+              helperText: 'Deutscher Name, Zweitname oder wissenschaftlicher',
+              suffixIcon: query.isEmpty
+                  ? null
+                  : IconButton(
+                      icon: const Icon(Icons.clear),
+                      tooltip: 'Suche löschen',
+                      onPressed: () {
+                        search.clear();
+                        onSearch();
+                      },
+                    ),
+            ),
           ),
           const SizedBox(height: 8),
           FilterChip(
@@ -138,6 +223,17 @@ class _Intro extends StatelessWidget {
             selected: onlyNow,
             onSelected: onToggle,
           ),
+          if (query.isNotEmpty && matches == 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Text(
+                'Keine Art mit diesem Namen. PilzBuddy kennt $total Arten '
+                '— eigene lassen sich beim Eintragen frei schreiben, sie '
+                'stehen dann aber nicht in diesem Verzeichnis.',
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.hintColor),
+              ),
+            ),
         ],
       ),
     );
