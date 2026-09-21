@@ -44,6 +44,15 @@ typedef GbifAround = ({
   int? newestYear,
 });
 
+/// Was über EINE Art im ganzen Bestand steht — die Zeile der
+/// Detailseite (#511). Dieselben drei Zahlen wie in [GbifAround], nur
+/// ohne Umkreis.
+typedef GbifSpeciesTotals = ({
+  int observations,
+  int places,
+  int? newestYear,
+});
+
 /// Meter je Grad Breite — grob, wie überall auf der Karte.
 const _metersPerDegree = 111320.0;
 
@@ -240,5 +249,33 @@ class GbifFinds {
         return byCount != 0 ? byCount : a.species.compareTo(b.species);
       });
     return rows;
+  }
+
+  /// Was zu [species] im ganzen Bestand gemeldet ist — `null`, wenn die
+  /// Art im Asset gar nicht vorkommt.
+  ///
+  /// **`null` und „0 Meldungen" sind zwei verschiedene Auskünfte**, und
+  /// beide kommen vor: Das Asset trägt nur Arten mit wissenschaftlichem
+  /// Namen, eine Art ohne zweifelsfreie GBIF-Zuordnung steht dort nie. Die
+  /// Seite muss das anders sagen als „hier hat niemand gemeldet" —
+  /// sonst liest sich eine fehlende Zuordnung als Aussage über den Pilz.
+  ///
+  /// Die Meldungen SELBST kommen aus der Spalte, nicht aus dem
+  /// Manifest-Zähler: Der zählt vor dem Zuschnitt auf die Box und wäre
+  /// damit eine andere Zahl als die, die die Karte zeichnet.
+  GbifSpeciesTotals? totalsFor(String species) {
+    final index = this.species.indexWhere((s) => s.name == species);
+    if (index < 0) return null;
+    var observations = 0;
+    var places = 0;
+    int? newest;
+    for (var i = 0; i < length; i++) {
+      if (speciesIndex[i] != index) continue;
+      observations += count[i];
+      places++;
+      final year = yearAt(i);
+      if (year != null && (newest == null || year > newest)) newest = year;
+    }
+    return (observations: observations, places: places, newestYear: newest);
   }
 }

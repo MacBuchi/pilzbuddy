@@ -1204,6 +1204,43 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   - **Der Filter „Nur jetzt Saison" verdeckt nichts, was er nicht weiß**:
     Arten ohne Kurve bleiben stehen (#414-Regel), leere Gruppen behalten
     die Überschrift.
+  - **Je Art eine Seite darunter** (#511, seit 1.162.0): Route
+    `/pilze/:name` als Unterroute wie die Seiten des Profil-Tabs,
+    gerechnet in `speciesDetailFor` (weiter widgetfrei), gezeichnet von
+    `species_detail_screen.dart`. Sie zeigt, wofür in der Zeile kein
+    Platz war — wissenschaftlicher Name, Zweitnamen („auch: …", derselbe
+    Wortlaut wie im Spot-Blatt), die volle Kurve MIT Monatsbuchstaben,
+    Gruppe samt Fenster und Belegen, eigene Funde und die
+    GBIF-Meldungen. Fünf Dinge, die man wissen muss:
+    - **Der Satz zur Kurve steht seither in `season_curves.dart`**
+      (`seasonSentence`/`seasonSourceLine`), nicht mehr im Spot-Blatt:
+      Zwei Fassungen wären zwei Meinungen darüber, wie stark eine
+      GEBORGTE Kurve einzuschränken ist — und bis 1.161.0 sagte der
+      Reiter „Pilze" davon gar nichts, die Kurve des Igelstachelbarts
+      las sich dort als Aussage über ihn.
+    - **Hier werden die 0,6 MB der Fundorte ausgepackt, in der Liste
+      nicht.** Beobachten ist laden; eine bewusst geöffnete Seite darf
+      das (wie das „Was ist hier?"-Blatt), ein Reiterwechsel nicht. Ein
+      Flow-Test zählt die Aufrufe der Lade-Naht.
+    - **`GbifFinds.totalsFor` unterscheidet „0 Meldungen" von „nicht im
+      Asset".** Eine Art ohne wissenschaftlichen Namen wird bei GBIF nie
+      abgefragt — das ist eine Lücke bei uns, keine bei den Meldern, und
+      die Seite sagt es anders. (Heute trägt jede der 91 Arten einen;
+      der Zweig ist gemessen unbenutzt und bleibt trotzdem, weil `sci`
+      bewusst nullbar ist.)
+    - **Ein Weg auf die Karte, nicht zwei.** `showOnlySpecies` SETZT den
+      Artenfilter, und der wirkt auf eigene Spots UND die
+      GBIF-Scheiben; zwei Knöpfe wären zwei Antworten auf dieselbe
+      Frage. Reihenfolge wie in der Spot-Liste: erst der Reiter, dann
+      der Filter.
+    - **Keine Bestimmungshilfe, keine Essbarkeit, keine Fotos** — und
+      ein Satz am Fuß, der das sagt. Eine Detailseite weckt die
+      Erwartung, die eine Listenzeile nicht weckt, und in der Liste
+      stehen Satansröhrling, Karbolchampignon und der
+      Frühjahrsknollenblätterpilz. Eine Einstufung nach essbar/giftig
+      ist vom Betreiber gewünscht (2026-09-21) und ausdrücklich ein
+      EIGENER Schritt: Sie sind Daten, die es im Repo nicht gibt, und
+      ihr Diff gehört gelesen.
 - **Der Reiter „Spots"** (#509, seit 1.161.0): die Karte als Liste
   (`lib/features/spots/spots_screen.dart`) plus die Statistik, die bis
   1.160.0 im Profil stand. Sechs Dinge, die man wissen muss:

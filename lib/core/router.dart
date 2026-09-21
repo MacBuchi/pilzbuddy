@@ -15,6 +15,7 @@ import '../features/import_export/import_screen.dart';
 import '../features/map/map_screen.dart';
 import '../features/offline_maps/offline_maps_screen.dart';
 import '../features/profile/profile_screen.dart';
+import '../features/species/species_detail_screen.dart';
 import '../features/species/species_screen.dart';
 import '../features/spots/spot_cleanup_screen.dart';
 import '../features/spots/spots_screen.dart';
@@ -85,7 +86,16 @@ final routerProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(routes: [
             GoRoute(
                 path: '/pilze',
-                builder: (context, state) => const SpeciesScreen()),
+                builder: (context, state) => const SpeciesScreen(),
+                // Die Detailseite je Art (#511) als Unterroute, wie die
+                // Seiten des Profil-Tabs: Die Reiterleiste bleibt
+                // stehen, und der Weg zurück ist der übliche.
+                routes: [
+                  GoRoute(
+                      path: ':name',
+                      builder: (context, state) => SpeciesDetailScreen(
+                          species: state.pathParameters['name'] ?? '')),
+                ]),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(
