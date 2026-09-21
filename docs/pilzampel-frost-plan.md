@@ -329,3 +329,26 @@ Winterarten (+0,005, knapp), die Teilung der Klasse, zwei Frostspalten.
    demselben Vorbehalt (gemessen wurde an der Fundkoordinate).
 3. Spiegel in `tool/ampel_validate.py` Zahl für Zahl; Schwellen der
    Klasse neu als Quantile; Changelog, CLAUDE.md, Evidenzstufe.
+
+## Nachtrag 5, 2026-09-21 — umgesetzt
+
+Betreiber: „ja baue das so". Zwei PRs statt der geplanten drei, weil der
+Selbsttest von `tool/ampel_logit_klasse.py` die Dart-Konstanten Zahl für
+Zahl prüft — Werkzeug und Dart-Kern müssen im selben PR kommen.
+
+- **#506** — Stationstabelle mit 28 statt 20 Tagen (`tool/spot_weather.py`,
+  gegen den DWD mit drei Stationen geprüft). Zuerst mergen; die nächste
+  `rain-data` liefert die Tabelle.
+- **#508** — sechste Konstante „milder" (`0,1915, 0,1350, −0,004712,
+  0,002383, −0,0004888, 0,04193`, alle sechs aus dem K6_5-Fit in Lauf 24),
+  Schwellen der Klasse neu gezogen: **0,387 / 0,558** (vorher 0,454 /
+  0,606; Bänder [0,378, 0,396] und [0,551, 0,566], 23 200 Kontrolltage).
+  Blatt und Fläche lesen die rohen Minima der nächsten Luftstation; eine
+  20-Tage-Tabelle macht nur diese Klasse grau, mit Grund. Nebenbefund des
+  Walkers: `ampelBestOf` sagte „ungünstig", wo keine Klasse antworten
+  konnte, das Blatt grau — die Stufe ist jetzt `null`, die Fläche
+  transparent.
+
+Was NICHT umgesetzt ist: das Merkmal für Herbsttrompete & Co. (dort nie
+gemessen, Konstante 0), und die Evidenzstufen bleiben die aus Labor 18 —
+ein Zusatz, der keine Art schlechter stellt, macht keine neu belegbar.
