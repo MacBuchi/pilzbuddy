@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pilzbuddy/core/widgets/season_bars.dart';
 import 'package:pilzbuddy/core/species_edibility.dart';
+import 'package:pilzbuddy/core/species_photos.dart';
 import 'package:pilzbuddy/features/map/gbif_finds_providers.dart';
 import 'package:pilzbuddy/features/species/species_detail_screen.dart';
 import 'package:pilzbuddy/features/species/species_screen.dart';
@@ -316,7 +317,7 @@ void main() {
     await openSpecies(tester, 'Stockschwämmchen');
 
     // Das Paar, an dem in Mitteleuropa Menschen gestorben sind.
-    expect(find.text('Gifthäubling'), findsOneWidget);
+    expect(find.byKey(lookalikeRowKey('Gifthäubling')), findsOneWidget);
     // **Die Einstufung des Partners gehört in dieselbe Zeile.**
     // „Gifthäubling" allein sagt jemandem, der ihn nicht kennt, nichts.
     expect(find.text('Tödlich giftig'), findsOneWidget);
@@ -335,12 +336,19 @@ void main() {
     await pumpApp(tester, backend);
     await openSpecies(tester, 'Stockschwämmchen');
 
-    await tester.tap(find.text('Gifthäubling'));
+    await scrollDetail(tester, find.byKey(lookalikeRowKey('Gifthäubling')));
+    await tester.tap(find.byKey(lookalikeRowKey('Gifthäubling')));
     await settle(tester);
 
+    // **Und zwar OBEN.** Ohne einen Schlüssel je Art hält Flutter die
+    // Seite für dieselbe, verwendet das Element weiter — und die
+    // `ListView` behält ihre Scrollposition. Man landete dann mitten
+    // auf der Seite des Gifthäublings, nicht bei seinem Namen und
+    // seiner Einstufung.
     expect(find.text('Galerina marginata'), findsOneWidget,
-        reason: 'jetzt steht die Seite des Gifthäublings da');
-    expect(find.text('Stockschwämmchen'), findsOneWidget,
+        reason: 'jetzt steht die Seite des Gifthäublings da — von oben');
+    expect(find.text('Tödlich giftig'), findsWidgets);
+    expect(find.byKey(lookalikeRowKey('Stockschwämmchen')), findsOneWidget,
         reason: 'und sie warnt zurück');
   });
 
@@ -391,5 +399,90 @@ void main() {
     await openSpecies(tester, 'Judasohr');
 
     expect(find.text('Merkmale'), findsNothing);
+  });
+
+  testWidgets('das Bildpaar steht in der Verwechslungszeile — mit '
+      'Namensnennung', (tester) async {
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend);
+    await openSpecies(tester, 'Stockschwämmchen');
+
+    // Beide Bilder, nebeneinander in derselben Zeile.
+    expect(
+        find.image(const AssetImage(
+            'assets/species/stockschwaemmchen.webp')),
+        findsOneWidget);
+    expect(find.image(const AssetImage('assets/species/gifthaeubling.webp')),
+        findsOneWidget);
+    // **Die Namensnennung steht AM Bild**, nicht nur auf der
+    // Lizenzseite — bei CC-BY ist das die Bedingung.
+    expect(find.text(photoCredit(speciesPhotos['Stockschwämmchen']!)),
+        findsOneWidget);
+    expect(find.text(photoCredit(speciesPhotos['Gifthäubling']!)),
+        findsOneWidget);
+  });
+
+  testWidgets('ohne Bild für den Partner bleibt die Zeile bildlos',
+      (tester) async {
+    // Ein einzelnes Bild zeigt, wie EINER von beiden aussieht — und das
+    // genügt zum Verwechseln. Der Steinpilz hat keines, der
+    // Gallenröhrling auch nicht; die Zeile steht trotzdem.
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend);
+    await openSpecies(tester, 'Steinpilz');
+
+    expect(find.text('Gallenröhrling'), findsOneWidget);
+    expect(
+        find.descendant(
+            of: find.byType(SpeciesDetailScreen),
+            matching: find.byType(Image)),
+        findsNothing);
+  });
+
+  testWidgets('einseitig bebildert heißt: gar kein Bild', (tester) async {
+    // **Der Fall, den es in den Daten wirklich gibt.** Der Grüne
+    // Knollenblätterpilz hat ein Bild, sein Partner Frauentäubling
+    // nicht — dort bleibt die Zeile bildlos, während die Zeile zum
+    // Wiesenchampignon zwei zeigt. Ein einzelnes Bild zeigt, wie EINER
+    // von beiden aussieht, und das genügt zum Verwechseln.
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend);
+    await openSpecies(tester, 'Grüner Knollenblätterpilz');
+
+    await scrollDetail(tester, find.byKey(lookalikeRowKey('Frauentäubling')));
+    expect(
+        find.descendant(
+            of: find.byKey(lookalikeRowKey('Frauentäubling')),
+            matching: find.byType(Image)),
+        findsNothing);
+
+    await scrollDetail(
+        tester, find.byKey(lookalikeRowKey('Wiesenchampignon')));
+    expect(
+        find.descendant(
+            of: find.byKey(lookalikeRowKey('Wiesenchampignon')),
+            matching: find.byType(Image)),
+        findsNWidgets(2));
+  });
+
+  testWidgets('kein Bild am Seitenkopf — Bilder gibt es nur beim Paar',
+      (tester) async {
+    // **Die Entscheidung, die den Abschnitt trägt.** Ein Foto je Art
+    // läse sich als Porträt und damit als Bestimmungshilfe; ein einzelnes
+    // Bild kann einen Perlpilz nicht von einem Pantherpilz trennen.
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend);
+    await openSpecies(tester, 'Perlpilz');
+
+    // Gemessen statt gezählt: Es gibt Bilder auf dieser Seite — aber
+    // KEINES über der Einstufung. Ein bloßes „findsNothing" wäre auch
+    // dann grün, wenn es überhaupt keine gäbe.
+    final images = find.byType(Image);
+    expect(images, findsWidgets);
+    final card = tester.getTopLeft(find.byKey(kEdibilityCardKey)).dy;
+    for (var i = 0; i < images.evaluate().length; i++) {
+      expect(tester.getTopLeft(images.at(i)).dy, greaterThan(card),
+          reason: 'ein Bild steht über der Einstufung');
+    }
   });
 }

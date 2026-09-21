@@ -27,6 +27,9 @@ const _attributedAssets = <String, String>{
   'assets/elevation/elevation_manifest.json': 'Copernicus DEM',
   'assets/gbif/gbif_finds.bin.gz': 'GBIF',
   'assets/gbif/gbif_finds_manifest.json': 'GBIF',
+  // Die Artfotos (#511). Je Bild steht der Urheber in
+  // `species_photos.dart`; die Lizenzseite erzeugt ihre Liste daraus.
+  'assets/species/': 'Wikimedia Commons',
 };
 
 /// Eigenerzeugnis — keine fremde Lizenz, nichts zu attribuieren.
@@ -44,6 +47,7 @@ const _bundledSources = <String>[
   'Copernicus Land Monitoring Service',
   'DLR',
   'Copernicus DEM',
+  'Wikimedia Commons',
 ];
 
 /// Die Asset-Einträge aus `pubspec.yaml`. Bewusst per Regex statt mit dem

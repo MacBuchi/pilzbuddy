@@ -123,6 +123,7 @@ const kBekannteArten = <KnownSpecies>[
   KnownSpecies('Netzstieliger Hexenröhrling', _roe, sci: 'Suillellus luridus'), // via In-App-Wunsch
   KnownSpecies('Gallenröhrling', _roe, sci: 'Tylopilus felleus'),
   KnownSpecies('Satansröhrling', _roe, sci: 'Rubroboletus satanas'),
+  KnownSpecies('Schönfußröhrling', _roe, sci: 'Caloboletus calopus'),
   // Pfifferlingsartige (Leistlinge)
   KnownSpecies('Pfifferling', _lei, sci: 'Cantharellus cibarius'),
   KnownSpecies('Trompetenpfifferling', _lei, sci: 'Craterellus tubaeformis'),

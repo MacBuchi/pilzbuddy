@@ -114,6 +114,12 @@ const speciesEdibility = <String, EdibilityEntry>{
         'Gericht. Wird mit dem Steinpilz verwechselt.'
   ),
   'Satansröhrling': (level: Edibility.giftig, note: null),
+  'Schönfußröhrling': (
+    level: Edibility.ungeniessbar,
+    note: 'Gallenbitter — ein einziger verdirbt das Gericht, und roh '
+        'oder in Menge macht er Magen-Darm-Beschwerden. Wird für Steinpilz '
+        'oder Hexenröhrling gehalten.'
+  ),
 
   // Leistlinge
   'Pfifferling': (level: Edibility.speisepilz, note: null),
@@ -142,7 +148,13 @@ const speciesEdibility = <String, EdibilityEntry>{
   ),
 
   // Schirmlinge
-  'Parasol': (level: Edibility.speisepilz, note: null),
+  'Parasol': (
+    level: Edibility.speisepilz,
+    note: 'Nur ausgewachsene Exemplare mit genattertem Stiel und '
+        'verschiebbarem Ring — Hüte unter zehn Zentimetern stehen lassen: '
+        'Kleine Schirmlinge sind zum Teil tödlich giftig, und die sind in '
+        'diesem Verzeichnis nicht einmal aufgeführt.'
+  ),
   'Safranschirmling': (
     level: Edibility.umstritten,
     note: 'Der Name meint mehrere Arten der Gattung Chlorophyllum. Roh '

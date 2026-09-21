@@ -93,8 +93,20 @@ final routerProvider = Provider<GoRouter>((ref) {
                 routes: [
                   GoRoute(
                       path: ':name',
-                      builder: (context, state) => SpeciesDetailScreen(
-                          species: state.pathParameters['name'] ?? '')),
+                      // **Der Schlüssel ist Pflicht, nicht Kosmetik.**
+                      // Ohne ihn ist die Seite der nächsten Art für
+                      // Flutter dasselbe Widget, das Element wird
+                      // weiterverwendet — und die `ListView` behält ihre
+                      // Scrollposition. Wer von einem
+                      // Verwechslungspartner aus weitertippt, landete
+                      // dann mitten auf dessen Seite statt oben bei
+                      // Namen und Einstufung, also genau dort, wo die
+                      // Auskunft steht, wegen der er getippt hat.
+                      builder: (context, state) {
+                        final name = state.pathParameters['name'] ?? '';
+                        return SpeciesDetailScreen(
+                            key: ValueKey(name), species: name);
+                      }),
                 ]),
           ]),
           StatefulShellBranch(routes: [

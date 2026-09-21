@@ -7,6 +7,33 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Bildpaare bei den gefährlichen Verwechslungen
+
+*22. September 2026 · Version 1.167.0*
+
+Acht Verwechslungen zeigen jetzt zwei Fotos nebeneinander: Stockschwämmchen
+neben Gifthäubling, Speisemorchel und Spitzmorchel neben Frühjahrslorchel,
+Perlpilz neben Pantherpilz, Wiesenchampignon und Flaschenstäubling neben
+dem Grünen Knollenblätterpilz, Samtfußrübling neben Gifthäubling — und
+der Flockenstielige Hexenröhrling neben dem Satansröhrling.
+
+**Bilder gibt es nur dort, wo zwei Arten nebeneinanderstehen** — nicht
+als Porträt am Seitenkopf. Ein einzelnes Foto zeigt, wie einer von beiden
+aussieht, und das genügt zum Verwechseln; erst das Paar stellt die Frage,
+um die es geht. Fehlt eines der beiden Bilder, bleibt die Zeile bildlos.
+
+Die Fotos stammen von Wikimedia Commons und stehen unter CC0, CC BY oder
+CC BY-SA. Urheber und Lizenz stehen unter jedem Bild, die vollständigen
+Angaben im Profil unter „Lizenzen".
+
+**Neu im Verzeichnis: der Schönfußröhrling.** Gallenbitter, rot genetzter
+Stiel, gelbe Poren — er wird für Steinpilz oder Hexenröhrling gehalten und
+stand bisher gar nicht in der App. Jetzt mit Einstufung, Saisonkurve,
+gemeldeten Fundorten, Merkmalen und vier Verwechslungspartnern. Dazu
+haben Sommer-, Kiefernsteinpilz und Bronzeröhrling den Gallenröhrling als
+Partner bekommen, der Flockenstielige Hexenröhrling den Satansröhrling —
+und der Parasol den Hinweis, warum kleine Schirmlinge stehen bleiben.
+
 ## Bestimmungsmerkmale bei 58 Arten
 
 *22. September 2026 · Version 1.166.0*
