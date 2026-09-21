@@ -7,6 +7,29 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Essbar oder giftig — jetzt bei jeder Art
+
+*21. September 2026 · Version 1.163.0*
+
+Jede der 91 Arten trägt jetzt eine Einstufung: Speisepilz, nur gegart
+essbar, uneinheitlich beurteilt, ungenießbar, giftig oder tödlich
+giftig. Sie steht ganz oben auf der Artseite, und in der Liste bekommen
+die giftigen ein Warnzeichen — eine Warnung, zu der man erst scrollen
+muss, ist im Wald keine.
+
+Wo die Einstufung allein in die Irre führt, steht ein Satz dabei: bei
+Verwechslungen, die Menschen das Leben gekostet haben (Stockschwämmchen
+und Gifthäubling, Perlpilz und Pantherpilz), bei Pilzen, die
+jahrzehntelang im Korb lagen und heute als gefährlich gelten (Kahler
+Krempling, Frühjahrslorchel, Grünling), und bei deutschen Namen, die
+eine ganze Gattung meinen.
+
+Zwei Dinge, die dabei Absicht sind. „Speisepilz" bekommt kein Grün und
+kein Häkchen — grün läse sich als Freigabe, und freigeben kann die App
+nichts. Und unter jeder Einstufung steht, worauf sie sich bezieht: auf
+die Art, nicht auf den Pilz in deinem Korb. **PilzBuddy bestimmt keine
+Pilze.** Wer unsicher ist, fragt einen Pilzsachverständigen.
+
 ## Jede Pilzart hat jetzt eine eigene Seite
 
 *21. September 2026 · Version 1.162.0*
