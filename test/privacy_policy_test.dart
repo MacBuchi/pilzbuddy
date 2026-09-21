@@ -238,6 +238,86 @@ void main() {
     }
   });
 
+  test('Kein Supabase-Ziel ohne Eintrag im Verarbeitungsverzeichnis', () {
+    // Derselbe Weg RÜCKWÄRTS wie beim Netzziel-Wächter darüber, nur für
+    // die Datenbank statt für Hosts: Nicht das Verzeichnis wird auf
+    // Vollständigkeit geprüft (das kann kein Test), sondern ob in `lib/`
+    // eine Tabelle beschrieben wird, die dort niemand eingeordnet hat.
+    //
+    // **Warum es ihn gibt.** Das Verzeichnis ist zweimal still veraltet.
+    // Die geteilte Tourspur (#340) fehlte von 1.147.0 an; Freundschaften
+    // und die Freundessuche standen NIE darin, obwohl sie Monate älter
+    // sind. Beides ist beim Nachzählen von Hand aufgefallen, nicht beim
+    // Bauen — und Handarbeit, die halbjährlich fällig wird, passiert
+    // einmal.
+    //
+    // **Die Zuordnung liegt HIER und nicht im Dokument.** Das
+    // Verzeichnis ist in Alltagssprache geschrieben und nennt keine
+    // Tabellennamen; sie hineinzuschreiben, nur damit ein Test sie
+    // findet, würde das Dokument für seinen Leser schlechter machen.
+    // Die Übersetzung ist genau die Entscheidung, die jemand treffen
+    // muss — deshalb steht sie im Test.
+    const record = 'docs/datenschutz-nachweise.md';
+
+    /// Ziel → die Zweck-Formulierung, die im Verzeichnis stehen muss.
+    const recorded = {
+      'profiles': 'Konto führen',
+      'spots': 'Spots und Funde speichern',
+      'finds': 'Spots und Funde speichern',
+      'friendships': 'Freundschaften verwalten',
+      'search_profiles': 'Freunde suchen',
+      'live_locations': 'Live-Standort teilen',
+      'tour_tracks': 'Pilztour-Weg teilen',
+      'push_devices': 'Benachrichtigungen',
+      'error_reports': 'Fehlerdiagnose',
+      'feedback': 'Feedback',
+    };
+
+    /// Ziele ohne Personenbezug — sie gehören NICHT ins Verzeichnis, und
+    /// das ist auch eine Entscheidung, die jemand getroffen haben muss.
+    ///
+    /// `app_config`: eine Zeile mit der Mindestversion, für alle gleich
+    /// und bewusst ohne Anmeldung lesbar, weil die Prüfung vor dem Login
+    /// läuft. Wer hier etwas hinzufügt, das einen Nutzer unterscheidbar
+    /// macht, hat kein Config-Feld mehr.
+    const noPersonalData = {'app_config'};
+
+    final targets = <String>{};
+    for (final file in Directory('lib')
+        .listSync(recursive: true)
+        .whereType<File>()
+        .where((f) => f.path.endsWith('.dart'))) {
+      final source = file.readAsStringSync();
+      for (final match
+          in RegExp(r"\.(?:from|rpc)\('([a-z_]+)'").allMatches(source)) {
+        targets.add(match.group(1)!);
+      }
+    }
+
+    // Die Gegenprobe zum Wächter selbst: Findet die Suche gar nichts,
+    // wäre er grün und nutzlos.
+    expect(targets.length, greaterThanOrEqualTo(10),
+        reason: 'der Wächter hat nichts gefunden — stimmt das Muster noch?');
+
+    final unclassified = targets
+        .where((t) => !recorded.containsKey(t) && !noPersonalData.contains(t));
+    expect(unclassified, isEmpty,
+        reason: 'Neues Supabase-Ziel in lib/: ${unclassified.join(", ")}. '
+            'Entscheide, ob dort personenbezogene Daten verarbeitet '
+            'werden — dann gehört ein Zweck in $record und hier die '
+            'Zuordnung dazu — oder ob nicht; dann in noPersonalData '
+            'eintragen, mit Begründung.');
+
+    final text = _read(record);
+    for (final entry in recorded.entries) {
+      if (!targets.contains(entry.key)) continue;
+      expect(text, contains(entry.value),
+          reason: 'Der Zweck „${entry.value}" (${entry.key}) fehlt in '
+              '$record — oder die Zeile wurde umbenannt, dann gehört die '
+              'Zuordnung hier nachgezogen');
+    }
+  });
+
   test('Keine unersetzten Platzhalter mehr', () {
     // ABSICHTLICH ROT, solange Name, Anschrift, Kontakt, Supabase-Region und
     // Datum fehlen. Dieser Test ist die Bremse davor, eine unfertige

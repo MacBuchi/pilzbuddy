@@ -9,7 +9,7 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Spots vormerken — ohne Fund, mit erwarteten Arten
 
-*21. September 2026 · Version 1.159.0*
+*21. September 2026 · Version 1.159.0 und 1.159.1*
 
 Bisher legte jeder neue Spot sofort einen Fund an, notfalls ohne Art
 und mit heutigem Datum. Jetzt gibt es im Anlege-Blatt den Schalter „Nur
