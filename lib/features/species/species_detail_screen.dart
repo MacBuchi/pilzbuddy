@@ -29,6 +29,7 @@ import 'package:intl/intl.dart';
 import '../../core/app_colors.dart';
 import '../../core/router_branches.dart';
 import '../../core/season_curves.dart';
+import '../../core/species_edibility.dart';
 import '../../core/widgets/mushroom_icon.dart';
 import '../../core/widgets/season_bars.dart';
 import '../ampel/ampel_model.dart';
@@ -66,6 +67,9 @@ class SpeciesDetailScreen extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
               children: [
                 _Header(detail: detail),
+                // **Ganz oben, gleich unter dem Namen.** Eine Warnung,
+                // zu der man erst scrollen muss, ist im Wald keine.
+                _Edibility(detail: detail),
                 _Season(detail: detail, month: month),
                 _Ampel(detail: detail),
                 _OwnFinds(detail: detail),
@@ -151,6 +155,77 @@ class _Header extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Essbar oder giftig — mit Absicht der erste Abschnitt.
+///
+/// **Kein Grün für „Speisepilz".** Die Farbe gehört der Warnung: Ein
+/// grüner Balken über einem Namen läse sich als Freigabe, und freigeben
+/// kann die App nichts — sie weiß nicht, was jemand in der Hand hält.
+/// Deshalb tragen nur die Stufen ab „nur gegart" Farbe, und der Satz
+/// darunter sagt genau das noch einmal.
+class _Edibility extends StatelessWidget {
+  const _Edibility({required this.detail});
+
+  final SpeciesDetail detail;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final entry = detail.edibility;
+    if (entry == null) return const SizedBox.shrink();
+    final level = entry.level;
+    // Rot für giftig, Bernstein für alles dazwischen, neutral für den
+    // Speisepilz.
+    final colour = switch (level) {
+      Edibility.toedlichGiftig || Edibility.giftig => theme.colorScheme.error,
+      Edibility.speisepilz => theme.colorScheme.onSurface,
+      _ => AppColors.warmBrown,
+    };
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: level.isWarning
+              ? colour.withValues(alpha: 0.08)
+              : theme.colorScheme.surfaceContainerHighest
+                  .withValues(alpha: 0.4),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                if (level.isWarning)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Icon(Icons.warning_amber_rounded,
+                        size: 20, color: colour),
+                  ),
+                Expanded(
+                  child: Text(
+                    level.label,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                        color: colour, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+            if (entry.note case final note?) ...[
+              const SizedBox(height: 6),
+              Text(note, style: theme.textTheme.bodySmall),
+            ],
+            const SizedBox(height: 6),
+            Text(kEdibilityDisclaimer,
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.hintColor)),
+          ],
+        ),
+      ),
     );
   }
 }

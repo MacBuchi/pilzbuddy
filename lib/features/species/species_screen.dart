@@ -213,12 +213,32 @@ class _EntryTile extends ConsumerWidget {
         species: entry.name,
         ground: false,
       ),
-      title: Text(
-        entry.name,
-        style: now
-            ? const TextStyle(
-                fontWeight: FontWeight.w600, color: AppColors.forestGreen)
-            : null,
+      title: Row(
+        children: [
+          Flexible(
+            child: Text(
+              entry.name,
+              overflow: TextOverflow.ellipsis,
+              style: now
+                  ? const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.forestGreen)
+                  : null,
+            ),
+          ),
+          // **Nur die giftigen, und nur als Zeichen.** Die Zeile ist
+          // voll; knappen Platz bekommt die Fehlerrichtung, die wehtut.
+          // Was genau, steht eine Ebene tiefer.
+          if (entry.edibility?.level.warnsInList ?? false)
+            Padding(
+              padding: const EdgeInsets.only(left: 6),
+              child: Tooltip(
+                message: entry.edibility!.level.label,
+                child: Icon(Icons.warning_amber_rounded,
+                    size: 16, color: theme.colorScheme.error),
+              ),
+            ),
+        ],
       ),
       subtitle: Text(facts, style: theme.textTheme.bodySmall),
       trailing: Row(

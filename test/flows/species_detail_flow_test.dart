@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pilzbuddy/core/widgets/season_bars.dart';
+import 'package:pilzbuddy/core/species_edibility.dart';
 import 'package:pilzbuddy/features/map/gbif_finds_providers.dart';
 import 'package:pilzbuddy/features/species/species_detail_screen.dart';
 import 'package:pilzbuddy/features/species/species_screen.dart';
@@ -226,5 +227,74 @@ void main() {
     expect(find.textContaining('keine belastbare Kurve'), findsOneWidget);
     await scrollDetail(tester, find.textContaining('bestimmt keine Pilze'));
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('die Einstufung steht oben, nicht unten', (tester) async {
+    // Eine Warnung, zu der man erst scrollen muss, ist im Wald keine —
+    // deshalb ohne `scrollDetail`: Sie muss schon beim Öffnen da sein.
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend);
+    await openSpecies(tester, 'Grüner Knollenblätterpilz');
+
+    expect(find.text('Tödlich giftig'), findsOneWidget);
+    expect(find.textContaining('erst Stunden später'), findsOneWidget);
+    // Und der Vorbehalt gehört dazu: Die Stufe gilt der Art, nicht dem
+    // Pilz im Korb.
+    expect(find.textContaining('ersetzt keine Bestimmung'), findsOneWidget);
+  });
+
+  testWidgets('ein Speisepilz bekommt kein grünes Häkchen', (tester) async {
+    // **Die Asymmetrie, an der alles hängt.** Ein zu vorsichtiges
+    // „ungenießbar" kostet eine Mahlzeit, ein zu großzügiges „essbar"
+    // eine Leber. Also trägt nur die Warnung Farbe und ein Zeichen —
+    // „Speisepilz" steht da wie eine Auskunft, nicht wie eine Freigabe.
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend);
+    await openSpecies(tester, 'Steinpilz');
+
+    expect(find.text('Gilt als Speisepilz'), findsOneWidget);
+    expect(
+        find.descendant(
+            of: find.byType(SpeciesDetailScreen),
+            matching: find.byIcon(Icons.warning_amber_rounded)),
+        findsNothing);
+    expect(Edibility.speisepilz.isWarning, isFalse);
+  });
+
+  testWidgets('die Liste warnt bei den giftigen, sonst nicht',
+      (tester) async {
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend);
+    await openTab(tester, 'Pilze');
+
+    Finder row(String name) => find.widgetWithText(ListTile, name);
+    Finder rowIcon(String name) => find.descendant(
+        of: row(name), matching: find.byIcon(Icons.warning_amber_rounded));
+
+    /// **Jede Verneinung braucht ihren Anker.** Eine `ListView.builder`
+    /// baut nur, was in Sichtweite ist — „diese Zeile trägt kein
+    /// Zeichen" ist sonst trivial wahr, weil die Zeile gar nicht da
+    /// ist. In der Gegenprobe genau so gemessen: „warnt bei allem"
+    /// blieb grün.
+    Future<void> scrollTo(String name) async {
+      await tester.scrollUntilVisible(find.text(name), 200,
+          scrollable: find.descendant(
+              of: find.byType(SpeciesScreen),
+              matching: find.byType(Scrollable)));
+      await settle(tester, frames: 4);
+      expect(row(name), findsOneWidget, reason: '$name muss gebaut sein');
+    }
+
+    await scrollTo('Steinpilz');
+    expect(rowIcon('Steinpilz'), findsNothing,
+        reason: 'ein Speisepilz trägt kein Zeichen');
+
+    // Ungenießbar ist nicht giftig — der Gallenröhrling drängt sich
+    // nicht in die volle Zeile.
+    await scrollTo('Gallenröhrling');
+    expect(rowIcon('Gallenröhrling'), findsNothing);
+
+    await scrollTo('Satansröhrling');
+    expect(rowIcon('Satansröhrling'), findsOneWidget);
   });
 }

@@ -16,6 +16,7 @@
 // zwei Gruppen, was das Modell ausschließt.
 import '../../core/mushroom_species.dart';
 import '../../core/season_curves.dart';
+import '../../core/species_edibility.dart';
 import '../../models/spot.dart';
 import '../ampel/ampel_model.dart';
 import '../map/gbif_finds.dart' show GbifSpeciesTotals;
@@ -28,10 +29,17 @@ class CatalogueEntry {
     required this.curve,
     required this.share,
     required this.evidence,
+    required this.edibility,
   });
 
   final String name;
   final SpeciesGroup group;
+
+  /// Essbar oder giftig — `null` gibt es hier nicht, die Tabelle deckt
+  /// jede bekannte Art ab (`test/species_edibility_test.dart`). Die
+  /// LISTE zeigt davon nur die Warnung ([Edibility.warnsInList]); alles
+  /// Weitere steht auf der Detailseite.
+  final EdibilityEntry? edibility;
 
   /// Die belastbare Saisonkurve — `null` heißt „wir wissen es nicht",
   /// dieselbe Grenze wie in [seasonCurveFor].
@@ -90,6 +98,7 @@ List<CatalogueSection> speciesCatalogue({required int month}) {
       curve: curve,
       share: curve?.months[month - 1],
       evidence: ampelEvidenceFor(species.name),
+      edibility: edibilityFor(species.name),
     );
   }
 
@@ -144,6 +153,7 @@ class SpeciesDetail {
     required this.klass,
     required this.classKey,
     required this.evidence,
+    required this.edibility,
     required this.ownFinds,
     required this.ownSpots,
     required this.lastFound,
@@ -173,6 +183,9 @@ class SpeciesDetail {
   final AmpelClass? klass;
   final String? classKey;
   final AmpelEvidence? evidence;
+
+  /// Essbar oder giftig, samt Freitext — siehe `species_edibility.dart`.
+  final EdibilityEntry? edibility;
 
   /// **Nur EIGENE Funde**, dieselbe Grenze wie in der Statistik (#211):
   /// gezählt wird über `Spot.ownFinds`, nicht über `spot.finds`. Ein
@@ -242,6 +255,7 @@ SpeciesDetail? speciesDetailFor(
     klass: klass,
     classKey: klass == null ? null : ampelClassKeyOf(klass),
     evidence: ampelEvidenceFor(entry.name),
+    edibility: edibilityFor(entry.name),
     ownFinds: finds,
     ownSpots: spotCount,
     lastFound: last,

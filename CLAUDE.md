@@ -1233,14 +1233,38 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
       GBIF-Scheiben; zwei Knöpfe wären zwei Antworten auf dieselbe
       Frage. Reihenfolge wie in der Spot-Liste: erst der Reiter, dann
       der Filter.
-    - **Keine Bestimmungshilfe, keine Essbarkeit, keine Fotos** — und
-      ein Satz am Fuß, der das sagt. Eine Detailseite weckt die
-      Erwartung, die eine Listenzeile nicht weckt, und in der Liste
-      stehen Satansröhrling, Karbolchampignon und der
-      Frühjahrsknollenblätterpilz. Eine Einstufung nach essbar/giftig
-      ist vom Betreiber gewünscht (2026-09-21) und ausdrücklich ein
-      EIGENER Schritt: Sie sind Daten, die es im Repo nicht gibt, und
-      ihr Diff gehört gelesen.
+    - **Keine Bestimmungshilfe und keine Fotos** — und ein Satz am Fuß,
+      der das sagt. Eine Detailseite weckt die Erwartung, die eine
+      Listenzeile nicht weckt.
+  - **Essbar oder giftig** (`lib/core/species_edibility.dart`, seit
+    1.163.0): eine Stufe je Art, sechs Stufen, dazu Freitext. Vier
+    Dinge, die man wissen muss:
+    - **Die Fehlerrichtung ist nicht symmetrisch, und der Code richtet
+      sich danach.** Ein zu vorsichtiges „ungenießbar" kostet eine
+      Mahlzeit, ein zu großzügiges „essbar" eine Leber. Deshalb: im
+      Zweifel die Warnung; `Edibility.umstritten` für die Fälle, in
+      denen die Literatur uneins ist (die DGfM führt dafür selbst die
+      Kategorie „uneinheitlich beurteilte Arten"); **kein Grün und kein
+      Häkchen für „Speisepilz"** (`isWarning`) — Grün läse sich als
+      Freigabe; und in der LISTE nur die beiden giftigen Stufen
+      (`warnsInList`), weil knapper Platz der teuren Fehlerrichtung
+      gehört.
+    - **Die Tabelle ordnet NAMEN Stufen zu, nicht Pilzen.** Wer sich bei
+      der Bestimmung irrt, liest die Einstufung des falschen Pilzes —
+      `kEdibilityDisclaimer` sagt das unter jeder Stufe, einmal
+      formuliert.
+    - **Prüfbar ist nur das Drumherum.** Ob der Grünling giftig ist,
+      steht in der Literatur und nicht in Dart. `test/species_edibility_test.dart`
+      prüft stattdessen die Pflegefehler: jede bekannte Art hat genau
+      einen Eintrag (eine neue Art erzwingt damit eine Entscheidung,
+      statt still ohne Einstufung zu erscheinen), keine Karteileichen,
+      Zweitnamen erben, `umstritten` trägt immer eine Begründung, und
+      die tödlichen stehen als tödlich da.
+    - **Der Freitext steht nur, wo die Stufe allein in die Irre
+      führt**: tödliche Verwechslungen, Arten, die jahrzehntelang als
+      Speisepilz galten, und deutsche Namen, die eine Gattung meinen.
+      Eine Bemerkung an jeder Zeile wäre Lärm, in dem die wichtigen
+      untergehen.
 - **Der Reiter „Spots"** (#509, seit 1.161.0): die Karte als Liste
   (`lib/features/spots/spots_screen.dart`) plus die Statistik, die bis
   1.160.0 im Profil stand. Sechs Dinge, die man wissen muss:
