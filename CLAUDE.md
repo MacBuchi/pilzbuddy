@@ -1372,6 +1372,15 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
       Verwechslungspartner aus weitertippt, landete mitten auf dessen
       Seite statt oben bei Namen und Einstufung. Gefunden hat das ein
       Test, der eigentlich etwas anderes prüfen sollte.
+  - **Eine neue Art durch die ganze Kette** (Schönfußröhrling, 1.167.0,
+    als Muster): `kBekannteArten` mit akzeptiertem GBIF-Namen →
+    `tool/season_curves.py --out` (Netz, dabei die Zahl der
+    Art-Monate messen, die an `kSeasonNowThreshold` kippen) →
+    `tool/gbif_finds.py build` (lokale DB) → `tool/generated_assets.py
+    --update` → Einstufung, Paare, Merkmale. Die Tests verlangen jeden
+    Schritt: ohne Einstufung rot, mit Paar ohne Merkmale rot, und
+    `_Reported` sagte ohne neu gebautes Fundorte-Asset „lässt sich nicht
+    laden" über eine Art, die schlicht nicht drin war.
 - **Der Reiter „Spots"** (#509, seit 1.161.0): die Karte als Liste
   (`lib/features/spots/spots_screen.dart`) plus die Statistik, die bis
   1.160.0 im Profil stand. Sechs Dinge, die man wissen muss:

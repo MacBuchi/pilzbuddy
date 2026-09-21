@@ -43,6 +43,37 @@ const speciesLookalikes = <String, List<Lookalike>>{
           'Anschnitt; beim Steinpilz sind die Poren weiß bis gelbgrün, '
           'und sein Fleisch verfärbt sich nicht.'
     ),
+    (
+      species: 'Schönfußröhrling',
+      difference: 'Der Schönfußröhrling trägt ein ROTES Netz auf gelbem '
+          'Stiel, blaut im Schnitt und schmeckt bitter; beim Steinpilz '
+          'ist das Netz weiß, und nichts verfärbt sich.'
+    ),
+  ],
+  'Sommersteinpilz': [
+    (
+      species: 'Gallenröhrling',
+      difference: 'Der Sommersteinpilz hat ein weißes Netz über den GANZEN '
+          'Stiel und eine feinrissige, matte Huthaut; der Gallenröhrling '
+          'ein grobes dunkles Netz, rosa werdende Poren und '
+          'Gallengeschmack.'
+    ),
+  ],
+  'Kiefernsteinpilz': [
+    (
+      species: 'Gallenröhrling',
+      difference: 'Der Kiefernsteinpilz ist rotbraun bis weinrot mit '
+          'weißem Netz; der Gallenröhrling hell lederbraun mit grobem '
+          'dunklem Netz — und bitter.'
+    ),
+  ],
+  'Bronzeröhrling': [
+    (
+      species: 'Gallenröhrling',
+      difference: 'Der Bronzeröhrling ist sehr dunkel, fast schwarzbraun, '
+          'und trägt ein weißes Netz; der Gallenröhrling ist hell mit '
+          'dunklem Netz. Bitter ist nur der Gallenröhrling.'
+    ),
   ],
   'Maronenröhrling': [
     (
@@ -76,12 +107,39 @@ const speciesLookalikes = <String, List<Lookalike>>{
       difference: 'Der Birkenpilz hat Schüppchen auf dem Stiel, der '
           'Gallenröhrling ein Netz.'
     ),
+    (
+      species: 'Sommersteinpilz',
+      difference: 'Grobes dunkles Netz, rosa Poren und Gallengeschmack — '
+          'der Sommersteinpilz hat ein weißes Netz und schmeckt nussig.'
+    ),
+    (
+      species: 'Kiefernsteinpilz',
+      difference: 'Der Kiefernsteinpilz ist deutlich dunkler, rotbraun, '
+          'mit weißem Netz; der Gallenröhrling hell und bitter.'
+    ),
+    (
+      species: 'Bronzeröhrling',
+      difference: 'Der Bronzeröhrling ist fast schwarzbraun mit weißem '
+          'Netz; der Gallenröhrling hell lederbraun mit dunklem Netz.'
+    ),
   ],
   'Satansröhrling': [
     (
       species: 'Steinpilz',
       difference: 'Rote Poren und kräftiges Blauen im Schnitt — beides '
           'hat der Steinpilz nicht.'
+    ),
+    (
+      species: 'Flockenstieliger Hexenröhrling',
+      difference: 'Der Satansröhrling hat einen WEISSLICH-GRAUEN Hut und '
+          'einen rot genetzten, bauchigen Stiel; der Flockenstielige '
+          'einen dunkelbraunen Hut und rote FLOCKEN statt eines Netzes. '
+          'Beide haben rote Poren.'
+    ),
+    (
+      species: 'Schönfußröhrling',
+      difference: 'Der Schönfußröhrling hat GELBE Poren, nie rote; das '
+          'rote Netz auf dem Stiel haben beide.'
     ),
     (
       species: 'Netzstieliger Hexenröhrling',
@@ -97,6 +155,18 @@ const speciesLookalikes = <String, List<Lookalike>>{
       difference: 'Der Stiel trägt rote FLOCKEN, kein Netz. Beide sind '
           'gegart essbar, roh giftig.'
     ),
+    (
+      species: 'Satansröhrling',
+      difference: 'Der Flockenstielige hat einen DUNKELBRAUNEN Hut und '
+          'rote Flocken auf gelbem Stiel; der Satansröhrling einen '
+          'weißlich-grauen Hut und ein rotes Netz auf bauchigem Stiel. '
+          'Rote Poren haben beide — der Hut entscheidet.'
+    ),
+    (
+      species: 'Schönfußröhrling',
+      difference: 'Der Schönfußröhrling hat GELBE Poren statt roter und '
+          'ein rotes Netz statt Flocken; er ist bitter.'
+    ),
   ],
   'Netzstieliger Hexenröhrling': [
     (
@@ -108,6 +178,36 @@ const speciesLookalikes = <String, List<Lookalike>>{
       difference: 'Der Netzstielige hat einen braunen Hut und blaut '
           'sofort kräftig; der Satansröhrling ist weißlich-grau und '
           'blaut nur schwach.'
+    ),
+    (
+      species: 'Schönfußröhrling',
+      difference: 'Beide haben ein rotes Stielnetz und blauen — aber der '
+          'Schönfußröhrling hat GELBE Poren, der Netzstielige rote.'
+    ),
+  ],
+  'Schönfußröhrling': [
+    (
+      species: 'Steinpilz',
+      difference: 'Rotes Netz auf gelbem Stiel, gelbe Poren, Blauen im '
+          'Schnitt und Gallengeschmack — der Steinpilz hat ein weißes '
+          'Netz, verfärbt sich nicht und schmeckt mild.'
+    ),
+    (
+      species: 'Flockenstieliger Hexenröhrling',
+      difference: 'Gelbe Poren und ein rotes NETZ — der Flockenstielige '
+          'hat rote Poren und rote FLOCKEN. Und der Schönfußröhrling ist '
+          'bitter.'
+    ),
+    (
+      species: 'Netzstieliger Hexenröhrling',
+      difference: 'Gelbe Poren statt roter; das rote Stielnetz haben '
+          'beide. Ein Bissen entscheidet: bitter heißt Schönfußröhrling.'
+    ),
+    (
+      species: 'Satansröhrling',
+      difference: 'Gelbe Poren statt roter; beide haben einen hellen Hut '
+          'und ein rotes Netz. Der Schönfußröhrling ist bitter, der '
+          'Satansröhrling giftig.'
     ),
   ],
   'Butterpilz': [

@@ -2,6 +2,7 @@
 // Filter „Nur jetzt Saison" — vom Reiter aus, nicht aus dem Modell.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pilzbuddy/core/mushroom_species.dart';
 import 'package:pilzbuddy/core/widgets/season_bars.dart';
 import 'package:pilzbuddy/features/species/species_catalogue.dart';
 
@@ -190,8 +191,11 @@ void main() {
     await settle(tester);
 
     expect(find.textContaining('Keine Art mit diesem Namen'), findsOneWidget);
-    // Die Zahl ist gezählt, nicht geschrieben.
-    expect(find.textContaining('kennt 91 Arten'), findsOneWidget);
+    // Die Zahl ist gezählt, nicht geschrieben — auch hier im Test: Mit
+    // dem Schönfußröhrling (1.167.0) wurden es 92, und ein fest
+    // geschriebenes „91" war der einzige rote Test des Tages.
+    final known = kBekannteArten.where((s) => !s.isSynonym).length;
+    expect(find.textContaining('kennt $known Arten'), findsOneWidget);
     expect(find.text('0 Arten gefunden.'), findsOneWidget);
   });
 

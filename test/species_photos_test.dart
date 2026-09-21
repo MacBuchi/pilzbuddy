@@ -92,7 +92,7 @@ void main() {
     }
   });
 
-  test('die sieben Paare, für die es die Bilder gibt', () {
+  test('die acht Paare, für die es die Bilder gibt', () {
     const pairs = [
       ('Stockschwämmchen', 'Gifthäubling'),
       ('Samtfußrübling', 'Gifthäubling'),
@@ -101,6 +101,9 @@ void main() {
       ('Perlpilz', 'Pantherpilz'),
       ('Wiesenchampignon', 'Grüner Knollenblätterpilz'),
       ('Flaschenstäubling', 'Grüner Knollenblätterpilz'),
+      // Die rotporigen Röhrlinge — der Hut entscheidet, und den zeigt
+      // ein Foto (Betreiber, 2026-09-22).
+      ('Flockenstieliger Hexenröhrling', 'Satansröhrling'),
     ];
     for (final (a, b) in pairs) {
       expect(photoFor(a), isNotNull, reason: a);

@@ -56,6 +56,10 @@ CHOSEN = {
     'Flaschenstäubling': (
         '2025-10-15 D500-1015 Achim-Lammerts Lycoperdon-perlatum.jpg',
         'flaschenstaeubling'),
+    'Flockenstieliger Hexenröhrling': (
+        'Boletus erythropus 2010 G3.jpg', 'flockenstieligerhexenroehrling'),
+    'Satansröhrling': (
+        'Frankenwarte 10.08.2016 Satan's Bolete - Rubroboletus satanas (29135732512).jpg', 'satansroehrling'),
 }
 
 # Nur diese Lizenzen kommen in Frage. NC- und ND-Varianten sind

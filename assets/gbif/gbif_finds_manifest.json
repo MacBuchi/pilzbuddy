@@ -2,7 +2,7 @@
  "source": "GBIF Occurrence Download",
  "doi": "10.15468/dl.dwbsuf",
  "fetched_on": "2026-09-16",
- "built_on": "2026-09-21",
+ "built_on": "2026-09-22",
  "encoding": "gzip-columns",
  "columns": [
   "species",
@@ -12,8 +12,8 @@
   "count",
   "year"
  ],
- "records": 147734,
- "observations": 305506,
+ "records": 148991,
+ "observations": 308241,
  "west": 5.8,
  "east": 17.3,
  "north": 55.1,
@@ -27,13 +27,13 @@
    "CC_BY_4_0"
   ],
   "dropped_outside_box": 0,
-  "dropped_too_coarse": 1056,
-  "without_uncertainty": 104185
+  "dropped_too_coarse": 1059,
+  "without_uncertainty": 105258
  },
  "countries": {
-  "AT": 103398,
-  "CH": 123652,
-  "DE": 78456
+  "AT": 104482,
+  "CH": 125027,
+  "DE": 78732
  },
  "species": [
   {
@@ -130,6 +130,11 @@
    "name": "Satansröhrling",
    "sci": "Rubroboletus satanas",
    "observations": 673
+  },
+  {
+   "name": "Schönfußröhrling",
+   "sci": "Caloboletus calopus",
+   "observations": 2735
   },
   {
    "name": "Pfifferling",
@@ -496,37 +501,37 @@
   {
    "key": "c0633ec5-19cd-4a58-b84c-ca55c2e7ae64",
    "title": "Swiss National Fungi Databank",
-   "observations": 122067
+   "observations": 123429
   },
   {
    "key": "71d34a18-4dad-4d2d-9cb3-c1e91317faad",
    "title": "Österreichische Mykologische Gesellschaft - Austrian Mycological Society Observations",
-   "observations": 99835
+   "observations": 100876
   },
   {
    "key": "6ac3f774-d9fb-4796-b3e9-92bf6c81c084",
    "title": "NABU|naturgucker",
-   "observations": 62642
+   "observations": 62810
   },
   {
    "key": "50c9509d-22c7-4a22-a47d-8c48425ef4a7",
    "title": "iNaturalist Research-grade Observations",
-   "observations": 13042
+   "observations": 13101
   },
   {
    "key": "aa6c5ee6-d4d7-4a65-a04f-379cffbf4842",
    "title": "ArtenFinder",
-   "observations": 6785
+   "observations": 6873
   },
   {
    "key": "644536b8-e3a1-46bd-95cc-ebfb8e7d2c53",
    "title": "Biodiversitätsdatenbank Nationalpark Kalkalpen",
-   "observations": 436
+   "observations": 444
   },
   {
    "key": "3b216808-9943-4ba5-b486-3b1619d5f7d5",
    "title": "Biosphärenpark Wienerwald - Tag der Artenvielfalt",
-   "observations": 143
+   "observations": 149
   },
   {
    "key": "7ba0e7fa-f762-11e1-a439-00145eb45e9a",
@@ -536,7 +541,7 @@
   {
    "key": "857bce66-f762-11e1-a439-00145eb45e9a",
    "title": "ZOBODAT (Zoological Botanical Database)",
-   "observations": 60
+   "observations": 61
   },
   {
    "key": "b318ccf0-3c99-4eff-ac4b-a28488852e4e",
@@ -659,6 +664,11 @@
    "observations": 4
   },
   {
+   "key": "89e33052-f762-11e1-a439-00145eb45e9a",
+   "title": "BUND - Dassower See (Lübeck/Dassow)",
+   "observations": 4
+  },
+  {
    "key": "61d8651e-f762-11e1-a439-00145eb45e9a",
    "title": "Wasserwerkspark (Chemnitz)",
    "observations": 4
@@ -679,8 +689,8 @@
    "observations": 4
   },
   {
-   "key": "89e33052-f762-11e1-a439-00145eb45e9a",
-   "title": "BUND - Dassower See (Lübeck/Dassow)",
+   "key": "8a9b29e6-f762-11e1-a439-00145eb45e9a",
+   "title": "Dreilinden Gymnasium-Schulgelände",
    "observations": 3
   },
   {
@@ -726,11 +736,6 @@
   {
    "key": "897d23e8-f762-11e1-a439-00145eb45e9a",
    "title": "Am Moosangerweg",
-   "observations": 2
-  },
-  {
-   "key": "8a9b29e6-f762-11e1-a439-00145eb45e9a",
-   "title": "Dreilinden Gymnasium-Schulgelände",
    "observations": 2
   },
   {
@@ -1129,6 +1134,6 @@
    "observations": 1
   }
  ],
- "bytes": 635846,
- "sha256": "811938dd913e3a9bd31143658d9b431ba162fd925e5c3565e17b3d7f943bb591"
+ "bytes": 640492,
+ "sha256": "2ddce8f16a89aa9aaaf784a88493cf584674ccbdc24e33463530db2b2d242342"
 }

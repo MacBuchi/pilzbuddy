@@ -114,6 +114,22 @@ const speciesPhotos = <String, SpeciesPhoto>{
     licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
     source: 'https://commons.wikimedia.org/wiki/File:2025-10-15_D500-1015_Achim-Lammerts_Lycoperdon-perlatum.jpg',
   ),
+  'Flockenstieliger Hexenröhrling': (
+    asset: 'assets/species/flockenstieligerhexenroehrling.webp',
+    author: 'George Chernilevsky',
+    licence: 'Public domain',
+    // Gemeinfrei gestellt vom Urheber; Commons liefert dafür keine
+    // Lizenz-URL, die Freigabe steht auf der Dateiseite.
+    licenceUrl: 'https://creativecommons.org/publicdomain/mark/1.0/',
+    source: 'https://commons.wikimedia.org/wiki/File:Boletus_erythropus_2010_G3.jpg',
+  ),
+  'Satansröhrling': (
+    asset: 'assets/species/satansroehrling.webp',
+    author: 'Björn S...',
+    licence: 'CC BY-SA 2.0',
+    licenceUrl: 'https://creativecommons.org/licenses/by-sa/2.0',
+    source: 'https://commons.wikimedia.org/wiki/File:Frankenwarte_10.08.2016_Satan%27s_Bolete_-_Rubroboletus_satanas_(29135732512).jpg',
+  ),
 };
 
 /// Das Bild zu einem Artnamen — `null`, wenn es keines gibt.

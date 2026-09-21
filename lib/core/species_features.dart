@@ -63,6 +63,40 @@ const speciesFeatures = <String, SpeciesFeatures>{
     vorkommen: 'Mykorrhiza bei Fichte, Kiefer, Buche und Eiche; Juni bis '
         'November, Hauptzeit August und September.',
   ),
+  'Sommersteinpilz': (
+    hut: 'Sechs bis 20 cm, hell- bis ockerbraun, matt und feinsamtig; die '
+        'Huthaut reißt bei Trockenheit FEINRISSIG auf.',
+    unterseite: 'Röhren jung weiß, später gelb bis olivgrün, ausgebuchtet '
+        'angewachsen.',
+    stiel: 'Bauchig, hellbraun, mit weißem Netz über den GANZEN Stiel bis '
+        'zur Basis — beim Steinpilz nur oben.',
+    fleisch: 'Weiß und fest, unverändert im Schnitt; im Alter schnell '
+        'weich.',
+    geruch: 'Nussig, mild — wie der Steinpilz.',
+    vorkommen: 'Wärmeliebend bei Eiche und Buche; schon ab Mai bis '
+        'Oktober, der früheste der Steinpilze.',
+  ),
+  'Kiefernsteinpilz': (
+    hut: 'Sechs bis 25 cm, rotbraun bis weinbraun, jung fast kugelig, '
+        'matt, oft mit runzeliger Oberfläche.',
+    unterseite: 'Röhren jung weiß, später gelblich bis olivgrün.',
+    stiel: 'Kräftig bauchig, rötlichbraun getönt, mit weißem bis '
+        'rötlichem Netz im oberen Teil.',
+    fleisch: 'Weiß, unter der Huthaut rötlich, unverändert im Schnitt.',
+    geruch: 'Nussig und mild, wie beim Steinpilz.',
+    vorkommen: 'Bei Kiefer und Fichte auf sauren, sandigen Böden, oft im '
+        'Gebirge; Juni bis Oktober.',
+  ),
+  'Bronzeröhrling': (
+    hut: 'Sechs bis 20 cm, sehr dunkel bronze- bis schwarzbraun, jung '
+        'samtig, wirkt fast rußig.',
+    unterseite: 'Röhren jung weiß, später gelb bis olivgrün.',
+    stiel: 'Bauchig, braun mit feinem weißlichem bis bräunlichem Netz.',
+    fleisch: 'Weiß, fest, unverändert im Schnitt.',
+    geruch: 'Angenehm nussig, mild.',
+    vorkommen: 'Wärmeliebend bei Eiche und Edelkastanie, in Deutschland '
+        'selten und im Süden; Juli bis September.',
+  ),
   'Maronenröhrling': (
     hut: 'Fünf bis 15 cm, kastanien- bis dunkelbraun, jung samtig matt, '
         'bei Nässe schmierig glänzend.',
@@ -172,6 +206,18 @@ const speciesFeatures = <String, SpeciesFeatures>{
     geruch: 'Alt unangenehm, aasartig süßlich.',
     vorkommen: 'Wärmeliebend bei Eiche, Buche und Linde auf Kalk; '
         'Juni bis September, im Norden selten.',
+  ),
+  'Schönfußröhrling': (
+    hut: 'Fünf bis 15 cm, hell graubraun bis olivgrau, matt und '
+        'feinfilzig — dem Steinpilz ähnlich.',
+    unterseite: 'Röhren GELB, auch im Alter, auf Druck blauend — nie rot.',
+    stiel: 'Kräftig, oben gelb, nach unten leuchtend ROT, mit feinem '
+        'ROTEM NETZ; der „schöne Fuß", der ihm den Namen gibt.',
+    fleisch: 'Blassgelb, im Schnitt blauend.',
+    geruch: 'Unauffällig, Geschmack deutlich BITTER — ein Stückchen auf '
+        'der Zunge genügt; ausspucken.',
+    vorkommen: 'In Nadel- und Laubwäldern auf sauren Böden, häufig im '
+        'Gebirge; Juli bis Oktober.',
   ),
 
   // ── Leistlinge und Stachelpilze ──────────────────────────────────
