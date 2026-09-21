@@ -17,6 +17,11 @@ Suchfeld: Es findet über den deutschen Namen, über die Zweitnamen und
 „Boletus" zum Steinpilz. Umlaute sind dabei egal, „Staeubling" und
 „Stäubling" finden denselben Pilz.
 
+Vertippt? Findet das Feld nichts, schlägt es vor, was gemeint sein
+könnte — „Steinpliz" führt zum Steinpilz — und sagt dazu, dass es rät.
+Das ist dieselbe Hilfe, die das Eingabefeld beim Fund eintragen längst
+gibt.
+
 Gruppen ohne Treffer verschwinden, solange gesucht wird; das X stellt
 die ganze Liste wieder her.
 

@@ -285,3 +285,72 @@ bool speciesMatchesQuery(String name, String query) {
   final sci = knownSpeciesFor(name)?.sci;
   return sci != null && foldSpeciesName(sci).contains(needle);
 }
+
+/// Was eine Sucheingabe im Verzeichnis trifft.
+///
+/// [isGuess] heißt: Der Contains-Vergleich hat NICHTS geliefert, und was
+/// hier steht, ist geraten. **Die Oberfläche muss das sagen** — dieselbe
+/// Auflage wie bei [SpeciesSuggestion.isGuess] im Eingabefeld: Ein
+/// geratener Treffer, der aussieht wie ein gefundener, ist eine
+/// Behauptung über die Eingabe des Nutzers.
+typedef SpeciesSearch = ({Set<String> names, bool isGuess});
+
+/// Die Arten, die zu [query] passen — Hauptbezeichnungen.
+///
+/// **Derselbe Zweischritt wie im Blatt „Fund eintragen"**
+/// (`suggestSpecies`), und das ist seit 1.164.0 Absicht statt Zufall:
+/// erst Teiltreffer über die gefaltete Form, und NUR wenn der leer
+/// ausgeht, der Tippfehler-Ausgleich. Zwei verschiedene Antworten auf
+/// „kennt die App diesen Pilz?" wären eine zu viel — wer „Steinpliz"
+/// ins Eingabefeld tippt, bekommt den Steinpilz angeboten; im
+/// Verzeichnis stand bis dahin „Keine Art mit diesem Namen", also genau
+/// der Satz, aus dem #395 entstanden ist.
+///
+/// **Leere Eingabe trifft ALLES.** Nicht nichts: Ein Aufrufer, der den
+/// Sonderfall vergisst, zeigte sonst eine leere Liste, und ein
+/// Verzeichnis, das nichts enthält, sieht kaputt aus. Die harmlose
+/// Fehlerrichtung ist „zu viel".
+SpeciesSearch speciesSearch(String query) {
+  final known = kBekannteArten.where((s) => !s.isSynonym);
+  final needle = foldSpeciesName(query);
+  if (needle.isEmpty) {
+    return (names: {for (final s in known) s.name}, isGuess: false);
+  }
+
+  final hits = {
+    for (final s in known)
+      if (speciesMatchesQuery(s.name, query)) s.name,
+  };
+  if (hits.isNotEmpty) return (names: hits, isGuess: false);
+
+  // Ab hier wird geraten. Angeboten wird ausschließlich der geringste
+  // gefundene Abstand — wie im Eingabefeld: Wer „Steinpiltz" tippt, will
+  // die Steinpilze sehen und nicht dahinter alles, was zufällig auch in
+  // die Nähe passt.
+  final tolerance = speciesTypoTolerance(needle.length);
+  if (tolerance < 0) return (names: const {}, isGuess: true);
+  final distances = <String, int>{};
+  for (final species in known) {
+    // Über dieselben drei Namen wie der Contains-Vergleich, sonst fände
+    // der Rückfall weniger als der Weg davor.
+    for (final name in [
+      species.name,
+      ...synonymsOf(species.name),
+      ?species.sci,
+    ]) {
+      final distance = nearContainsDistance(needle, foldSpeciesName(name));
+      if (distance > tolerance) continue;
+      final best = distances[species.name];
+      if (best == null || distance < best) distances[species.name] = distance;
+    }
+  }
+  if (distances.isEmpty) return (names: const {}, isGuess: true);
+  final closest = distances.values.reduce((a, b) => a < b ? a : b);
+  return (
+    names: {
+      for (final e in distances.entries)
+        if (e.value == closest) e.key,
+    },
+    isGuess: true
+  );
+}

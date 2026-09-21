@@ -160,6 +160,27 @@ void main() {
     expect(find.widgetWithText(ListTile, 'Steinpilz'), findsNothing);
   });
 
+  testWidgets('ein Vertipper bekommt einen Vorschlag — und sieht, dass es '
+      'einer ist', (tester) async {
+    // Dieselbe Antwort wie im Blatt „Fund eintragen": Wer „Steinpliz"
+    // tippt, bekommt den Steinpilz. Bis 1.164.0 stand hier „Keine Art
+    // mit diesem Namen" — also genau der Satz, aus dem #395 entstanden
+    // ist, nur an der anderen Stelle.
+    await openTab(tester, 9);
+
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Art suchen'), 'steinpliz');
+    await settle(tester);
+
+    expect(find.widgetWithText(ListTile, 'Steinpilz'), findsOneWidget);
+    // **Und die Liste sagt, dass sie rät.** Ein geratener Treffer, der
+    // aussieht wie ein gefundener, ist eine Behauptung über die Eingabe
+    // des Nutzers — dieselbe Auflage wie bei den Vorschlägen im
+    // Eingabefeld.
+    expect(find.text('Keine Art heißt so. Meintest du …?'), findsOneWidget);
+    expect(find.textContaining('Arten gefunden'), findsNothing);
+  });
+
   testWidgets('ohne Treffer sagt sie es, statt leer dazustehen',
       (tester) async {
     await openTab(tester, 9);

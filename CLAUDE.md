@@ -1206,13 +1206,26 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     die Überschrift.
   - **Die Suche (seit 1.164.0) trifft über drei Namen** — Hauptbezeichnung,
     Zweitnamen und den wissenschaftlichen —, alle drei durch
-    `foldSpeciesName` (#395). `speciesMatchesQuery` steht widgetfrei im
-    Katalog. Drei Unterschiede zu den Vorschlägen im Eingabefeld, alle
-    Absicht: **Teiltreffer statt Editierabstand** (wer eine Liste vor
-    sich hat, will filtern, nicht geraten bekommen); **leere Gruppen
-    fallen weg**, anders als beim Saison-Filter, der seine Überschrift
-    behält, um „keine" zeigen zu können; und die **Gesamtzahl im leeren
-    Zustand ist gezählt**, nicht geschrieben.
+    `foldSpeciesName` (#395). `speciesSearch` steht widgetfrei im Katalog.
+    **Sie macht DENSELBEN Zweischritt wie `suggestSpecies` im Blatt
+    „Fund eintragen"**: erst Teiltreffer, und nur wenn der leer ausgeht,
+    der Tippfehler-Ausgleich über den Editierabstand. Der erste Entwurf
+    ließ den Rückfall weg („ein Filter, der aufweitet, ist keiner") —
+    das Argument trägt genau dort nicht, wo der Rückfall greift: Ist
+    nichts gefunden, gibt es nichts aufzuweiten, und die Alternative war
+    „Keine Art mit diesem Namen", also der Satz, aus dem #395 entstanden
+    ist (Betreiber, 2026-09-21). `speciesTypoTolerance` und
+    `nearContainsDistance` liegen deshalb seither in
+    `mushroom_species.dart` statt privat bei den Vorschlägen.
+    Zwei Auflagen dabei: **Die Oberfläche muss sagen, dass sie rät**
+    („Meintest du …?") — ein geratener Treffer, der aussieht wie ein
+    gefundener, ist eine Behauptung über die Eingabe. Und **nur der
+    beste Abstand** wird angeboten: Bei „Steipilz" liegen acht Arten in
+    der Toleranz und drei auf dem besten Abstand.
+    Zwei Unterschiede bleiben: **leere Gruppen fallen weg**, anders als
+    beim Saison-Filter, der seine Überschrift behält, um „keine" zeigen
+    zu können; und die **Gesamtzahl im leeren Zustand ist gezählt**,
+    nicht geschrieben.
     Nebenwirkung für Tests: Ein `TextField` bringt einen eigenen
     `Scrollable` mit, der im Reiter ist also nicht mehr der einzige.
     `species_detail_flow_test.dart` sucht seither, statt zu scrollen —

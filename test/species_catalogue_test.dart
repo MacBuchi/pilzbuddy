@@ -224,6 +224,80 @@ void main() {
           reason: 'ein Vertipper rät hier nicht');
     });
 
+    test('leere Eingabe trifft ALLES, nicht nichts', () {
+      // Die harmlose Fehlerrichtung: Wer den Sonderfall im Aufrufer
+      // vergisst, zeigt zu viel statt eines Verzeichnisses, das leer
+      // aussieht und damit kaputt.
+      final all = speciesSearch('');
+      expect(all.names.length, known.length);
+      expect(all.isGuess, isFalse);
+    });
+
+    test('derselbe Zweischritt wie im Eingabefeld: erst finden, dann '
+        'raten', () {
+      // **Der Grund für diesen Test.** Bis 1.164.0 hatte die Suche im
+      // Reiter nur den ersten Schritt — „Steinpliz" ergab dort „Keine
+      // Art mit diesem Namen", während dasselbe Wort im Blatt „Fund
+      // eintragen" längst den Steinpilz vorschlug. Zwei Antworten auf
+      // „kennt die App diesen Pilz?", und die strengere stand
+      // ausgerechnet im Verzeichnis.
+      final found = speciesSearch('steinpilz');
+      expect(found.isGuess, isFalse);
+      expect(found.names, contains('Steinpilz'));
+
+      final guessed = speciesSearch('steinpliz');
+      expect(guessed.isGuess, isTrue, reason: 'geraten, nicht gefunden');
+      expect(guessed.names, contains('Steinpilz'));
+
+      // Geraten wird auch über Zweitnamen und wissenschaftliche Namen —
+      // sonst fände der Rückfall weniger als der Weg davor.
+      expect(speciesSearch('Bofist').names, contains('Riesenbovist'));
+      expect(speciesSearch('Boletus edulus').names, contains('Steinpilz'));
+    });
+
+    test('geraten wird nur der beste Treffer, und unter vier Zeichen gar '
+        'nicht', () {
+      // Beide Grenzen gehören dem Eingabefeld (#395) und gelten hier
+      // unverändert — sie stehen seit 1.164.0 in `mushroom_species.dart`,
+      // damit es sie nur einmal gibt.
+      expect(speciesTypoTolerance(3), -1);
+      expect(speciesSearch('abc').names, isEmpty);
+      // **Gleich nah heißt: alle drei.** `nearContainsDistance` misst
+      // gegen das beste TEILSTÜCK, und „pfiferling" liegt bei
+      // „Pfifferling", „Trompetenpfifferling" und „Falscher
+      // Pfifferling" gleichermaßen einen Fehler daneben. Das ist die
+      // richtige Antwort — welchen der drei jemand meinte, weiß die App
+      // nicht, und eine Auswahl zu treffen wäre geraten hoch zwei.
+      final guessed = speciesSearch('Pfiferling');
+      expect(guessed.isGuess, isTrue);
+      expect(guessed.names,
+          {'Pfifferling', 'Trompetenpfifferling', 'Falscher Pfifferling'});
+      // Weiter weg fällt dagegen raus: Der Steinpilz ist kein Tippfehler.
+      expect(guessed.names, isNot(contains('Steinpilz')));
+
+      // **Und hier hängt mehr daran als Bequemlichkeit.** „Steipilz"
+      // liegt einen Fehler neben den drei Steinpilzen — und innerhalb
+      // der Toleranz (hier 2) liegen ACHT Arten. Böte der Rückfall alle
+      // an, stünden fünf Pilze in der Liste, die niemand gesucht hat.
+      // Nur der beste Abstand zählt, und das ist keine Sparsamkeit:
+      // Ein Vorschlag, den man nicht gesucht hat, wirkt beim Antippen.
+      final typo = speciesSearch('Steipilz');
+      expect(typo.isGuess, isTrue);
+      expect(typo.names, {'Steinpilz', 'Sommersteinpilz', 'Kiefernsteinpilz'});
+
+      // Gegenprobe zur Gegenprobe: „Morchell" wird GEFUNDEN, nicht
+      // geraten — über die Gattung „Morchella". Dass der
+      // wissenschaftliche Name mitgesucht wird, macht den Rückfall hier
+      // überflüssig, und das ist die bessere Auskunft. Die tödlich
+      // giftige Frühjahrslorchel bleibt so oder so draußen; sie heißt
+      // Gyromitra und ist keine Morchel.
+      final morchel = speciesSearch('Morchell');
+      expect(morchel.isGuess, isFalse);
+      expect(morchel.names,
+          {'Speisemorchel', 'Spitzmorchel', 'Käppchenmorchel'});
+      expect(morchel.names, isNot(contains('Frühjahrslorchel')));
+    });
+
     test('jede Art findet sich unter ihrem eigenen Namen', () {
       // Die Zusage, an der die Suche hängt — sonst gäbe es eine Art, die
       // im Verzeichnis steht und nicht auffindbar ist.

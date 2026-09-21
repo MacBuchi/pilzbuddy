@@ -66,11 +66,14 @@ class _SpeciesScreenState extends ConsumerState<SpeciesScreen> {
     final withCurve = all.where((e) => e.curve != null).length;
     final inSeason = sections.fold(0, (n, s) => n + s.inSeasonCount);
 
+    // Ein Suchlauf für die ganze Liste, nicht einer je Zeile: Der
+    // Tippfehler-Ausgleich muss wissen, ob IRGENDWO ein Treffer war.
+    final search = speciesSearch(query);
     final rows = <_Row>[];
     var matches = 0;
     for (final section in sections) {
-      var entries = section.entries.where(
-          (e) => speciesMatchesQuery(e.name, query));
+      var entries =
+          section.entries.where((e) => search.names.contains(e.name));
       if (_onlyNow) {
         entries = entries.where((e) => e.inSeason || e.curve == null);
       }
@@ -103,6 +106,7 @@ class _SpeciesScreenState extends ConsumerState<SpeciesScreen> {
               search: _search,
               query: query,
               matches: matches,
+              isGuess: search.isGuess,
               onSearch: () => setState(() {}),
             );
           }
@@ -137,6 +141,7 @@ class _Intro extends StatelessWidget {
     required this.search,
     required this.query,
     required this.matches,
+    required this.isGuess,
     required this.onSearch,
   });
 
@@ -153,6 +158,11 @@ class _Intro extends StatelessWidget {
   final TextEditingController search;
   final String query;
   final int matches;
+
+  /// Geraten statt gefunden — die Zeilen kommen aus dem
+  /// Tippfehler-Ausgleich. Muss dastehen, sonst behauptet die Liste,
+  /// der Nutzer habe das so gesucht.
+  final bool isGuess;
   final VoidCallback onSearch;
 
   @override
@@ -175,9 +185,11 @@ class _Intro extends StatelessWidget {
                     'sie sind hervorgehoben. Der Schalter nimmt eine Art aus '
                     'der Ampel; eine Gruppe rechnet nur, solange eine ihrer '
                     'Arten Saison hat.'
-                : matches == 1
-                    ? 'Eine Art gefunden.'
-                    : '$matches Arten gefunden.',
+                : isGuess && matches > 0
+                    ? 'Keine Art heißt so. Meintest du …?'
+                    : matches == 1
+                        ? 'Eine Art gefunden.'
+                        : '$matches Arten gefunden.',
             style: theme.textTheme.bodyMedium,
           ),
           const SizedBox(height: 8),
