@@ -79,6 +79,10 @@ void main() {
     await pumpApp(tester, backend);
     await openSpecies(tester, 'Steinpilz');
 
+    // Seit die Seite Einstufung, Verwechslungspartner und Merkmale
+    // trägt, liegt die Kurve unter dem Bildschirmrand.
+    await scrollDetail(tester, find.text('Wann diese Art gemeldet wird'));
+
     // Zwölf Balken MIT Monatsbuchstaben — in der Liste sind sie 84 px
     // breit und unbeschriftet, und genau das ist der Unterschied.
     final bars = tester.widget<SeasonBars>(
@@ -227,6 +231,7 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Amanita verna'), findsOneWidget);
+    await scrollDetail(tester, find.textContaining('keine belastbare Kurve'));
     expect(find.textContaining('keine belastbare Kurve'), findsOneWidget);
     await scrollDetail(tester, find.textContaining('bestimmt keine Pilze'));
     expect(tester.takeException(), isNull);
@@ -348,5 +353,43 @@ void main() {
     await openSpecies(tester, 'Judasohr');
 
     expect(find.text('Verwechslungspartner'), findsNothing);
+  });
+
+  testWidgets('die Merkmale stehen im festen Raster, unter den Warnungen',
+      (tester) async {
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend);
+    await openSpecies(tester, 'Stockschwämmchen');
+
+    await scrollDetail(tester, find.text('Merkmale'));
+    // Alle sechs Felder, immer dieselben Überschriften — daran hängt,
+    // dass sich zwei Arten überhaupt vergleichen lassen.
+    for (final label in [
+      'Hut',
+      'Unterseite',
+      'Stiel',
+      'Fleisch',
+      'Geruch',
+      'Vorkommen'
+    ]) {
+      expect(find.text(label), findsOneWidget, reason: label);
+    }
+    // Und das Merkmal, das beim Stockschwämmchen wirklich entscheidet.
+    expect(find.textContaining('DARUNTER deutlich dunkel SCHUPPIG'),
+        findsOneWidget);
+    expect(find.textContaining('Ein einzelnes Merkmal entscheidet nie'),
+        findsOneWidget);
+  });
+
+  testWidgets('eine Art ohne gepflegte Merkmale zeigt keinen leeren '
+      'Abschnitt', (tester) async {
+    // Gepflegt ist die Pflichtmenge — Arten mit Verwechslungspartner und
+    // alle giftigen. Der Rest schweigt, statt eine halbe Beschreibung
+    // zu behaupten.
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend);
+    await openSpecies(tester, 'Judasohr');
+
+    expect(find.text('Merkmale'), findsNothing);
   });
 }
