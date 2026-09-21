@@ -17,6 +17,7 @@
 import '../../core/mushroom_species.dart';
 import '../../core/season_curves.dart';
 import '../../core/species_edibility.dart';
+import '../../core/species_lookalikes.dart';
 import '../../models/spot.dart';
 import '../ampel/ampel_model.dart';
 import '../map/gbif_finds.dart' show GbifSpeciesTotals;
@@ -154,6 +155,7 @@ class SpeciesDetail {
     required this.classKey,
     required this.evidence,
     required this.edibility,
+    required this.lookalikes,
     required this.ownFinds,
     required this.ownSpots,
     required this.lastFound,
@@ -186,6 +188,10 @@ class SpeciesDetail {
 
   /// Essbar oder giftig, samt Freitext — siehe `species_edibility.dart`.
   final EdibilityEntry? edibility;
+
+  /// Womit diese Art verwechselt wird. **Leer heißt „uns ist keine
+  /// häufige Verwechslung bekannt"**, nicht „es gibt keine".
+  final List<Lookalike> lookalikes;
 
   /// **Nur EIGENE Funde**, dieselbe Grenze wie in der Statistik (#211):
   /// gezählt wird über `Spot.ownFinds`, nicht über `spot.finds`. Ein
@@ -252,6 +258,7 @@ SpeciesDetail? speciesDetailFor(
     classKey: klass == null ? null : ampelClassKeyOf(klass),
     evidence: ampelEvidenceFor(entry.name),
     edibility: edibilityFor(entry.name),
+    lookalikes: lookalikesFor(entry.name),
     ownFinds: finds,
     ownSpots: spotCount,
     lastFound: last,

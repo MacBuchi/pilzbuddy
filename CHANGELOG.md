@@ -7,6 +7,25 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Verwechslungspartner bei jeder Art
+
+*22. September 2026 · Version 1.165.0*
+
+Unter der Einstufung steht jetzt, womit eine Art verwechselt wird — und
+woran du den Unterschied merkst. Beim Stockschwämmchen der Gifthäubling
+(glatter statt schuppiger Stiel unterhalb des Rings), bei der
+Speisemorchel die Frühjahrslorchel (innen hohl statt kammerig), beim
+Perlpilz der Pantherpilz (rötet an Fraßstellen, geriefelter Ring).
+
+Jede Zeile nennt die Einstufung des Partners gleich mit — „Gifthäubling ·
+Tödlich giftig" sagt mehr als der Name allein — und führt beim Antippen
+auf dessen Seite. Von dort geht es zurück: Die Warnungen stehen immer in
+beide Richtungen.
+
+Was dabei ausdrücklich nicht behauptet wird: Vollständigkeit. Die Liste
+nennt, was häufig verwechselt wird, und ein einzelnes Merkmal
+entscheidet nie. PilzBuddy bestimmt keine Pilze.
+
 ## Suchfeld im Reiter „Pilze"
 
 *21. September 2026 · Version 1.164.0*
