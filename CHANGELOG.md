@@ -7,6 +7,22 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Pilzampel: Saison zählt auch auf der Karte, Arten ausnehmen
+
+*21. September 2026 · Version 1.157.0*
+
+Eine Ampel-Gruppe leuchtet auf der Karte jetzt nur noch, solange
+mindestens eine ihrer Arten gerade Saison hat. „Austernseitling & Co."
+war Anfang September günstig, weil Krause Glucke und Leberpilz Saison
+haben, nicht der Austernseitling — die Legende sagt jetzt dazu, welche
+Arten die Gruppe gerade tragen („jetzt: Krause Glucke, Leberpilz"). Das
+Ampel-Blatt nennt Gruppen, die gerade pausieren.
+
+Im Reiter „Pilze" hat jede Art mit Ampel einen Schalter. Aus heißt: Die
+Art zählt nicht mehr für Hinweis, Spot-Blatt und Karte. Sind alle Arten
+einer Gruppe aus, ist die Gruppe aus. Die gemeldeten Fundorte zeigt die
+Karte weiter, das ist eine andere Ebene.
+
 ## Fundstellen weit vom Spot: Hinweis, Bestätigung, Mitnehmen
 
 *21. September 2026 · Version 1.156.0*

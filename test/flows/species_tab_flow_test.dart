@@ -3,11 +3,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/widgets/season_bars.dart';
-import 'package:pilzbuddy/features/map/spot_filter.dart'
-    show currentMonthProvider;
 import 'package:pilzbuddy/features/species/species_catalogue.dart';
 
 import '../fakes/fake_backend.dart';
+import '../fakes/fake_settings.dart';
 import '../fakes/test_app.dart';
 
 void main() {
@@ -15,8 +14,7 @@ void main() {
     final backend = FakeBackend();
     final me = backend.addUser(username: 'testpilz');
     backend.signInAs(me.id);
-    await pumpApp(tester, backend,
-        extraOverrides: [currentMonthProvider.overrideWithValue(month)]);
+    await pumpApp(tester, backend, month: month);
     await tester.tap(find.text('Pilze'));
     await settle(tester);
   }
@@ -77,5 +75,38 @@ void main() {
     await scrollTo(tester, 'Hallimasch');
     expect(find.text('Randzeit'), findsWidgets);
     expect(find.text('Hallimasch'), findsOneWidget);
+  });
+
+  testWidgets('der Schalter nimmt eine Art aus der Ampel — und merkt es sich',
+      (tester) async {
+    final backend = FakeBackend();
+    final me = backend.addUser(username: 'testpilz');
+    backend.signInAs(me.id);
+    final settings = FakeSettings();
+    await pumpApp(tester, backend, settings: settings, month: 9);
+    await tester.tap(find.text('Pilze'));
+    await settle(tester);
+
+    Finder switchOf(String name) => find.descendant(
+        of: find.widgetWithText(ListTile, name), matching: find.byType(Switch));
+
+    await scrollTo(tester, 'Steinpilz');
+    expect(tester.widget<Switch>(switchOf('Steinpilz')).value, isTrue,
+        reason: 'ab Werk zählt jede Art');
+    await tester.tap(switchOf('Steinpilz'));
+    await settle(tester);
+    expect(settings.ampelExcludedSpecies, {'Steinpilz'});
+    expect(find.textContaining('von der Ampel ausgenommen'), findsOneWidget);
+    expect(tester.widget<Switch>(switchOf('Steinpilz')).value, isFalse);
+
+    // Zurück — der Satz geht wieder.
+    await tester.tap(switchOf('Steinpilz'));
+    await settle(tester);
+    expect(settings.ampelExcludedSpecies, isEmpty);
+    expect(find.textContaining('von der Ampel ausgenommen'), findsNothing);
+
+    // Ohne Ampel gibt es nichts auszunehmen: kein Schalter.
+    await scrollTo(tester, 'Hallimasch');
+    expect(switchOf('Hallimasch'), findsNothing);
   });
 }

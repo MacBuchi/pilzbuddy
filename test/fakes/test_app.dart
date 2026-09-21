@@ -39,6 +39,9 @@ import 'fake_keep_alive.dart';
 import 'fake_outbox.dart';
 import 'fake_map_view.dart';
 import 'fake_offline_maps.dart';
+import 'package:pilzbuddy/features/map/spot_filter.dart'
+    show currentMonthProvider;
+
 import 'fake_settings.dart';
 import 'fake_tour.dart';
 import 'fake_spot_cache.dart';
@@ -303,6 +306,12 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
     FakeSpotCache? spotCache,
     FakeOutbox? outbox,
     bool useRealMap = false,
+    // Fester Monat (September) statt `DateTime.now()`: Seit dem
+    // Saison-Tor je Klasse (#495) hinge sonst jeder Legenden- und
+    // Ampel-Test am Kalender — im Dezember fiele „Pfifferling" aus der
+    // Legende. Tests, die einen anderen Monat brauchen, geben ihn hier
+    // an statt über `extraOverrides`, sonst stünde der Provider zweimal.
+    int month = 9,
     List<Override> extraOverrides = const []}) async {
   addTearDown(backend.dispose);
   await tester.pumpWidget(ProviderScope(
@@ -323,7 +332,10 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
         spotCache: spotCache,
         outbox: outbox,
         useRealMap: useRealMap,
-        extra: extraOverrides),
+        extra: [
+          currentMonthProvider.overrideWithValue(month),
+          ...extraOverrides,
+        ]),
     child: const PilzBuddyApp(),
   ));
   await tester.pump();

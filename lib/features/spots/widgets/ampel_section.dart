@@ -16,6 +16,8 @@ import '../../ampel/ampel_model.dart';
 import '../../ampel/ampel_providers.dart';
 import '../../map/elevation_providers.dart';
 import '../../map/rain_data_providers.dart';
+import '../../ampel/ampel_species_exclusion.dart';
+import '../../map/spot_filter.dart' show activeAmpelClassesProvider;
 
 class AmpelSection extends ConsumerWidget {
   const AmpelSection({
@@ -66,18 +68,39 @@ class AmpelSection extends ConsumerWidget {
     // der Art, eine Klasse hat keine. Beides in einem Feld zu führen
     // ginge gut, bis jemand „Steinpilz & Co." nachschlägt und die
     // fehlende Zeile für einen Datenfehler hält.
+    // Ausgenommene Arten (#495) fallen heraus; ein Spot ohne Art fragt
+    // die AKTIVEN Klassen (Saison-Tor), nicht alle ausgelieferten —
+    // dieselbe Liste wie die Fläche, #279 verlangt eine Antwort.
+    final excluded = ref.watch(ampelExcludedSpeciesProvider);
+    final active = ref.watch(activeAmpelClassesProvider);
     final entries = <({String label, String? species, AmpelClass klass})>[];
+    final skipped = <String>[];
     for (final s in species) {
       if (s == null) {
-        for (final klass in ampelShippedClasses) {
+        for (final klass in active) {
           entries.add((label: klass.name, species: null, klass: klass));
         }
+        continue;
+      }
+      if (excluded.contains(s)) {
+        skipped.add(s);
         continue;
       }
       final klass = ampelClassFor(s);
       if (klass != null) {
         entries.add((label: s, species: s, klass: klass));
       }
+    }
+    if (entries.isEmpty && skipped.isNotEmpty) {
+      return _line(
+        theme,
+        icon: Icon(Icons.circle_outlined, size: 14, color: theme.hintColor),
+        text: TextSpan(
+          text: 'Pilzwetter (experimentell): ${skipped.join(' und ')} '
+              'hast du von der Ampel ausgenommen (Reiter „Pilze").',
+          style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
+        ),
+      );
     }
     if (entries.isEmpty) {
       final names = species.whereType<String>().toList();

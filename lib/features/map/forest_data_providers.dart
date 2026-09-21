@@ -26,7 +26,7 @@ import 'forest_grid.dart';
 import 'map_overlays.dart';
 import 'map_view/marker_culling.dart' show MapViewBounds;
 import 'rain_data_providers.dart' show rainGridRepositoryProvider;
-import 'spot_filter.dart' show selectedAmpelClassesProvider;
+import 'spot_filter.dart' show activeAmpelClassesProvider;
 
 /// Ob die Waldebene auf der Karte liegt — seit #349 über den Neustart
 /// hinaus gemerkt.
@@ -194,7 +194,7 @@ final forestFillProvider = FutureProvider<ForestFillImage?>((ref) async {
   // beim Auswerten gebraucht. So kostet ein Chip-Tipp das Bild, nicht
   // die Rechnung.
   final ampelClasses =
-      combined ? ref.watch(selectedAmpelClassesProvider) : null;
+      combined ? ref.watch(activeAmpelClassesProvider) : null;
   // Die Höhe je Wabe fürs Leuchten — dieselbe Quelle wie Blatt und
   // Legende, Watch-vor-Await wie alles hier.
   final elevationFuture =

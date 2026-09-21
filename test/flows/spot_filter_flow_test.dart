@@ -3,10 +3,8 @@
 // dass ein aktiver Filter sichtbar ist und sich wieder aufheben lässt —
 // ein unbemerkt versteckter Spot ist der eigentliche Schaden.
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/widgets/mushroom_icon.dart';
-import 'package:pilzbuddy/features/map/spot_filter.dart';
 
 import '../fakes/fake_backend.dart';
 import '../fakes/fake_settings.dart';
@@ -291,15 +289,13 @@ void main() {
       return backend;
     }
 
-    /// Der Monat kommt aus einem Provider, nicht von der Uhr — sonst
-    /// wäre dieser Test im September grün und im Dezember rot.
-    List<Override> inMonth(int month) =>
-        [currentMonthProvider.overrideWithValue(month)];
+    // Der Monat kommt aus dem Harness (`month:`), nicht von der Uhr —
+    // sonst wäre dieser Test im September grün und im Dezember rot.
 
     testWidgets('im Juli bleibt der Pfifferling, im Dezember der andere',
         (tester) async {
       await pumpApp(tester, backendWithSeasons(),
-          extraOverrides: inMonth(7));
+          month: 7);
 
       expect(find.byType(MushroomIcon), findsNWidgets(2));
       await tester.tap(find.byTooltip('Karte filtern'));
@@ -330,7 +326,7 @@ void main() {
       // `onChanged: null` allein ist keine Auskunft — deshalb sagt der
       // Untertitel, WARUM.
       await pumpApp(tester, backendWithSeasons(),
-          extraOverrides: inMonth(5));
+          month: 5);
       await tester.tap(find.byTooltip('Karte filtern'));
       await settle(tester);
 

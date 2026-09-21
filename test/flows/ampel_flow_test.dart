@@ -14,6 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/data/rain_grid_repository.dart';
 import 'package:pilzbuddy/features/ampel/ampel_map_providers.dart';
 import 'package:pilzbuddy/features/ampel/ampel_model.dart';
+import 'package:pilzbuddy/features/ampel/ampel_species_exclusion.dart';
 import 'package:pilzbuddy/features/map/forest_data_providers.dart'
     show
         ForestFillImage,
@@ -67,7 +68,8 @@ void main() {
   /// Die Stationstabelle: eine Luftstation neben dem Spot, konstant
   /// Max 16 / Min 10 → Tagesmittel 13 °C — das Optimum der Glocke.
   /// [meanC] verschiebt beide Enden, das Mittel bleibt ihr Wert.
-  List<int> weatherBytes({int days = 20, double meanC = 13.0}) {
+  List<int> weatherBytes(
+      {int days = 20, double meanC = 13.0, bool withMoisture = false}) {
     String iso(DateTime d) => '${d.year.toString().padLeft(4, '0')}-'
         '${d.month.toString().padLeft(2, '0')}-'
         '${d.day.toString().padLeft(2, '0')}';
@@ -97,6 +99,25 @@ void main() {
           'soil': [for (var i = 0; i < days; i++) 15.0],
         },
       ],
+      // Nur auf Wunsch eine Feuchtestation: Mit ihr rechnen auch die
+      // Logit-Klassen, und die Bestandstests kennen die Legende ohne
+      // sie. Feste 26 Tage, fester Wert — wie `tableOf` im Fill-Test.
+      if (withMoisture) ...{
+        'moisture_days': [
+          for (var i = 0; i < 26; i++)
+            iso(DateTime.utc(2026, 7, 1).add(Duration(days: i))),
+        ],
+        'moisture': [
+          {
+            'id': 7,
+            'lat': 51.1,
+            'lon': 11.0,
+            'h': 316,
+            'name': 'Feuchtestation',
+            'bfgl': List.filled(26, 60.0),
+          },
+        ],
+      },
     };
     return GZipEncoder().encode(utf8.encode(jsonEncode(json)))!;
   }
@@ -131,6 +152,8 @@ void main() {
     int stackDays = 26,
     int? spotHeightM,
     double meanC = 13.0,
+    int month = 9,
+    bool withMoisture = false,
   }) async {
     // Ein flaches Höhengitter über dem ganzen Testfenster — nur wenn
     // der Test eine Spothöhe verlangt; sonst bleibt die Basis-Naht aus
@@ -163,11 +186,13 @@ void main() {
       // Absicht: Der „braucht die Wetterdaten"-Zustand der Ampel wird
       // so in jedem Test mit geprüft.
       settings: FakeSettings(ampelPreviewEnabled: preview),
+      month: month,
       extraOverrides: [
         rainStackLoaderProvider
             .overrideWithValue(() async => stackOf(days: stackDays)),
         weatherTableLoaderProvider
-            .overrideWithValue(() async => weatherBytes(meanC: meanC)),
+            .overrideWithValue(() async =>
+                weatherBytes(meanC: meanC, withMoisture: withMoisture)),
         if (elevation != null)
           elevationLoaderProvider.overrideWithValue(() async => elevation),
       ],
@@ -882,5 +907,68 @@ void main() {
     expect(chart.course.days, hasLength(14),
         reason: '26 Balken auf Handybreite wären Streichhölzer — die '
             'zusätzlichen Tage füttern das Modell, nicht das Auge');
+  });
+
+  group('Saison-Tor je Klasse (#495)', () {
+    Future<ProviderContainer> layerOn(WidgetTester tester) async {
+      await openSpot(tester);
+      await acceptAndSettle(tester);
+      await tester.tapAt(const Offset(20, 20));
+      await settle(tester);
+      final container = ProviderScope.containerOf(
+          tester.element(find.byType(Scaffold).first));
+      container.read(ampelLayerEnabledProvider.notifier).state = true;
+      container.read(mapIdleCenterProvider.notifier).state =
+          const LatLng(spotLat, spotLng);
+      await settle(tester);
+      return container;
+    }
+
+    testWidgets('im Dezember pausieren Steinpilz & Co. und Pfifferling — '
+        'Legende und Ampel-Blatt sagen es', (tester) async {
+      await pumpWithWeather(tester, loggedInWithSpot(),
+          preview: true, spotHeightM: 920, month: 12, withMoisture: true);
+      await layerOn(tester);
+
+      expect(find.text('Steinpilz & Co.'), findsNothing,
+          reason: 'keine Herbstart wird im Dezember gemeldet');
+      expect(find.text('Pfifferling'), findsNothing);
+      expect(find.text('Austernseitling & Co.'), findsOneWidget);
+      expect(find.textContaining('jetzt:'), findsNothing,
+          reason: 'im Dezember trägt der Austernseitling selbst');
+
+      await openLayerSheet(tester, 'Pilzampel');
+      expect(
+          find.textContaining(
+              'Gerade ohne Saison: Steinpilz & Co., Pfifferling'),
+          findsOneWidget);
+    });
+
+    testWidgets('im September nennt die Legende, wer Austernseitling & Co. '
+        'gerade trägt', (tester) async {
+      await pumpWithWeather(tester, loggedInWithSpot(),
+          preview: true, spotHeightM: 920, withMoisture: true);
+      await layerOn(tester);
+
+      expect(find.text('Austernseitling & Co.'), findsOneWidget);
+      expect(find.textContaining('jetzt: Krause Glucke'), findsOneWidget);
+      expect(find.text('Steinpilz & Co.'), findsOneWidget,
+          reason: 'der Steinpilz hat im September Saison — keine Zeile');
+    });
+
+    testWidgets('eine ausgenommene Art fällt aus dem Spot-Blatt',
+        (tester) async {
+      await pumpWithWeather(tester, loggedInWithSpot(), preview: true);
+      final container = ProviderScope.containerOf(
+          tester.element(find.byType(Scaffold).first));
+      container
+          .read(ampelExcludedSpeciesProvider.notifier)
+          .toggle('Steinpilz');
+      await settle(tester);
+      await openSpot(tester);
+      await acceptAndSettle(tester);
+      expect(find.textContaining('Steinpilz hast du von der Ampel '
+          'ausgenommen'), findsOneWidget);
+    });
   });
 }

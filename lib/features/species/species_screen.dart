@@ -25,6 +25,7 @@ import '../../core/season_curves.dart';
 import '../../core/widgets/mushroom_icon.dart';
 import '../../core/widgets/season_bars.dart';
 import '../ampel/ampel_model.dart';
+import '../ampel/ampel_species_exclusion.dart';
 import '../map/spot_filter.dart' show currentMonthProvider;
 import 'species_catalogue.dart';
 
@@ -125,7 +126,9 @@ class _Intro extends StatelessWidget {
             'Welche Arten zu welcher Pilzampel gehören, und wann sie '
                 'gemeldet werden. Im ${kMonthNames[month - 1]} haben '
                 '$inSeason von $withCurve Arten mit Saisonkurve Saison — '
-                'sie sind hervorgehoben.',
+                'sie sind hervorgehoben. Der Schalter nimmt eine Art aus '
+                'der Ampel; eine Gruppe rechnet nur, solange eine ihrer '
+                'Arten Saison hat.',
             style: theme.textTheme.bodyMedium,
           ),
           const SizedBox(height: 8),
@@ -165,22 +168,28 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-class _EntryTile extends StatelessWidget {
+class _EntryTile extends ConsumerWidget {
   const _EntryTile({required this.entry, required this.month});
 
   final CatalogueEntry entry;
   final int month;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final now = entry.inSeason;
+    // Der Schalter je Art (#495): nur bei Arten, für die die Ampel
+    // überhaupt spricht — bei „Ohne Ampel" gäbe es nichts auszunehmen.
+    final inAmpel = ampelClassFor(entry.name) != null;
+    final excluded = inAmpel &&
+        ref.watch(ampelExcludedSpeciesProvider).contains(entry.name);
     // Saison und Belege in einer Zeile — dieselben Wörter wie in der
     // Fakten-Zeile des Spot-Blatts (`ampel_section.dart`).
     final facts = [
       entry.seasonWord ?? 'keine Saisonkurve',
       if (entry.evidence case final evidence?)
         'Belege: ${ampelEvidenceWord(evidence)}',
+      if (excluded) 'von der Ampel ausgenommen',
     ].join(' · ');
     return Container(
       color: now ? AppColors.forestGreen.withValues(alpha: 0.08) : null,
@@ -201,9 +210,11 @@ class _EntryTile extends StatelessWidget {
               : null,
         ),
         subtitle: Text(facts, style: theme.textTheme.bodySmall),
-        trailing: entry.curve == null
-            ? null
-            : SizedBox(
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (entry.curve != null)
+              SizedBox(
                 width: 84,
                 child: SeasonBars(
                   months: entry.curve!.months,
@@ -212,6 +223,24 @@ class _EntryTile extends StatelessWidget {
                   showLetters: false,
                 ),
               ),
+            if (inAmpel) ...[
+              const SizedBox(width: 4),
+              // AN heißt „zählt für die Ampel" — die Vorgabe. Aus nimmt
+              // die Art aus Banner, Spot-Blatt und dem Saison-Tor der
+              // Fläche; die Fundorte-Scheiben zeigt sie weiter.
+              Semantics(
+                label: '${entry.name} in der Ampel',
+                child: Switch(
+                  value: !excluded,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  onChanged: (_) => ref
+                      .read(ampelExcludedSpeciesProvider.notifier)
+                      .toggle(entry.name),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

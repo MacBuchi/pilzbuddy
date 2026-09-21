@@ -899,10 +899,26 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     dort; Fläche, Legende und „Was ist hier?" müssen dieselbe Antwort
     geben, `test/ampel_fill_test.dart` hält sie Zelle für Zelle zusammen
     (#279). Fünf Dinge:
-    - **Kein Saison-Tor auf der Fläche** (Betreiber: „Saisonkurve hängt
-      immer an der Pilzart, und die gibt es auf der reinen Karte
-      nicht"). Die Fläche sagt rein etwas über BEDINGUNGEN. An den
-      Spots bleibt die Paarung Klasse × Saison.
+    - **Saison-Tor je KLASSE auf der Fläche** (seit 1.157.0, #495;
+      davor galt „kein Saison-Tor auf der Fläche", weil die Fläche keine
+      Art kennt). Die Antwort darauf ist das Maximum über die
+      Mitglieder: Eine Klasse rechnet, solange mindestens eine ihrer
+      Arten Saison hat (`ampel_season_gate.dart`, Tor, kein Faktor).
+      Anlass: „Austernseitling & Co." war im September günstig — zu
+      Recht, für Krause Glucke und Leberpilz (Saisonanteil 100), der
+      Austernseitling liegt bei 3. Das Fenster kommt aus dem
+      Case-Crossover, die Saison kürzt sich dort heraus; die Klasse
+      sagt nie „es ist die Saison". Die Legende nennt deshalb, wer die
+      Klasse gerade trägt („jetzt: Krause Glucke, Leberpilz"), sobald
+      es nicht der Namensgeber ist. Fläche, Legende, Ampel-Blatt,
+      Spot-Blatt und Nachlauf lesen `activeAmpelClassesProvider`; die
+      Fundorte-Scheiben lesen weiter die rohe Auswahl, sie zeigen
+      Meldungen, keine Ampel. Frost/Mindesttemperatur ist Laborarbeit
+      (#497), kein Code-Wert.
+    - **Arten lassen sich von der Ampel ausnehmen** (#495, Schalter je
+      Art im Reiter „Pilze", gerätelokal `ampel_excluded_species`):
+      raus aus Nachlauf, Spot-Blatt und dem Saison-Tor — alle Arten
+      einer Klasse aus heißt Klasse aus.
     - **Bei Gleichstand gewinnt die frühere Klasse, nicht der höhere
       Score.** Scores verschiedener Klassen sind nicht vergleichbar:
       Jede Schwelle ist auf ihre eigene Verteilung kalibriert, 0,55

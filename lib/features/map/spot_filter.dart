@@ -5,6 +5,8 @@ import '../../core/season_curves.dart';
 import '../../models/spot.dart';
 import '../ampel/ampel_model.dart';
 import '../ampel/ampel_scan.dart';
+import '../ampel/ampel_season_gate.dart';
+import '../ampel/ampel_species_exclusion.dart';
 import '../spots/spot_providers.dart';
 
 /// Was die Karte gerade zeigt (Issue #154).
@@ -310,6 +312,19 @@ List<SpeciesTally> speciesTally(List<Spot> spots) {
 /// Auflösung gibt. Kostet nichts — zwei Konstanten aus einer Map.
 final selectedAmpelClassesProvider = Provider<List<AmpelClass>>(
     (ref) => ampelClassesOf(ref.watch(spotFilterProvider).classes));
+
+/// Die Klassen, die gerade RECHNEN (#495, seit 1.157.0): die Auswahl
+/// oben, gefiltert durch das Saison-Tor je Klasse und die vom Nutzer
+/// ausgenommenen Arten (`ampel_season_gate.dart`). Fläche, Legende,
+/// Ampel-Blatt und Nachlauf lesen DIESE Liste; die Auswahl selbst bleibt
+/// für den Filter-Chip und für die Fundorte-Scheiben, die keine Saison
+/// kennen.
+final activeAmpelClassesProvider = Provider<List<AmpelClass>>((ref) =>
+    ampelActiveClasses(
+      ref.watch(selectedAmpelClassesProvider),
+      month: ref.watch(currentMonthProvider),
+      excluded: ref.watch(ampelExcludedSpeciesProvider),
+    ));
 
 /// Die Spot-ids, an denen die Ampel gerade günstig steht — leer, solange
 /// der Filter sie nicht verlangt (#399).

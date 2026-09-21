@@ -122,6 +122,14 @@ class FakeSettings implements Settings {
   }
 
   @override
+  Set<String> ampelExcludedSpecies = {};
+
+  @override
+  Future<void> setAmpelExcludedSpecies(Set<String> value) async {
+    ampelExcludedSpecies = {...value};
+  }
+
+  @override
   Future<void> setContourLayerEnabled(bool value) async {
     contourLayerEnabled = value;
   }
