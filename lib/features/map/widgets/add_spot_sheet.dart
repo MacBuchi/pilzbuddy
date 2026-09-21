@@ -24,8 +24,14 @@ class NewSpotData {
   /// wäre der stille Fehler: gespeichert wird woanders als gezeigt.
   final LatLng position;
 
+  /// Erwartete Arten einer Vormerkung (#499) — dann ist [finds] leer.
+  final List<String> expectedSpecies;
+
   const NewSpotData(
-      {this.name, required this.finds, required this.position});
+      {this.name,
+      required this.finds,
+      required this.position,
+      this.expectedSpecies = const []});
 }
 
 /// Bottom-Sheet zum schnellen Anlegen eines Spots. Alle Felder optional,
@@ -95,6 +101,9 @@ class _AddSpotSheetState extends State<_AddSpotSheet> {
     (species: widget.defaultSpecies, count: null),
   ];
 
+  /// „Nur vormerken" (#499): kein Fund, die Arten sind Erwartung.
+  bool _planned = false;
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -121,15 +130,26 @@ class _AddSpotSheetState extends State<_AddSpotSheet> {
           ? null
           : _nameController.text.trim(),
       // Datum und Notiz gelten für alle Arten, die hier zusammenkommen.
-      finds: [
-        for (final entry in _entries)
-          NewFind(
-            species: entry.species,
-            count: entry.count,
-            foundOn: _foundOn,
-            note: note,
-          ),
-      ],
+      // Vorgemerkt: KEIN Fund — auch nicht der artlose, den der Sammler
+      // sonst meldet. Die Arten werden zur Erwartung; Anzahl und Datum
+      // haben dort keine Bedeutung.
+      finds: _planned
+          ? const []
+          : [
+              for (final entry in _entries)
+                NewFind(
+                  species: entry.species,
+                  count: entry.count,
+                  foundOn: _foundOn,
+                  note: note,
+                ),
+            ],
+      expectedSpecies: _planned
+          ? [
+              for (final entry in _entries)
+                if (entry.species case final s? when s.isNotEmpty) s,
+            ]
+          : const [],
     ));
   }
 
@@ -176,16 +196,36 @@ class _AddSpotSheetState extends State<_AddSpotSheet> {
               ownSpecies: widget.ownSpecies,
               initialSpecies: widget.defaultSpecies,
               onChanged: (entries) => _entries = entries,
-              trailing: OutlinedButton.icon(
-                onPressed: _pickDate,
-                icon: const Icon(Icons.calendar_today, size: 18),
-                label: Text(dateFormat.format(_foundOn)),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                ),
-              ),
+              // Ein Datum hat eine Erwartung nicht.
+              trailing: _planned
+                  ? const SizedBox.shrink()
+                  : OutlinedButton.icon(
+                      onPressed: _pickDate,
+                      icon: const Icon(Icons.calendar_today, size: 18),
+                      label: Text(dateFormat.format(_foundOn)),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                      ),
+                    ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 4),
+            // Vormerken (#499): Bis 1.158.0 legte jeder neue Spot einen
+            // Fund an — notfalls ohne Art, mit heutigem Datum. Wer eine
+            // Stelle nur für später notiert, hatte keinen Weg. Der
+            // Schalter steht UNTER den Arten: Über ihnen schöbe er die
+            // Vorschlagsliste unter den Falz (im Flow-Test gemessen).
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              value: _planned,
+              onChanged: (value) => setState(() => _planned = value),
+              title: const Text('Nur vormerken, noch kein Fund'),
+              subtitle: Text(_planned
+                  ? 'Die Arten oben sind Erwartung, kein Fund — die '
+                      'Ampel spricht trotzdem für sie.'
+                  : 'Aus: Der Spot bekommt gleich einen Fund.'),
+            ),
+            const SizedBox(height: 8),
             TextField(
               controller: _noteController,
               textCapitalization: TextCapitalization.sentences,

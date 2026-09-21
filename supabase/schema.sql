@@ -35,7 +35,11 @@ create table public.spots (
   -- Wann der Besitzer bestätigt hat, dass Fundstellen über 100 m vom
   -- Spot entfernt so gewollt sind (Patch 024, #475). Zeitpunkt statt
   -- Flag: Eine jüngere abweichende Fundstelle warnt wieder.
-  offset_confirmed_at timestamptz
+  offset_confirmed_at timestamptz,
+  -- Erwartete Arten einer Vormerkung (Patch 025, #499): ein Spot ohne
+  -- Funde, für den die Ampel trotzdem je Art sprechen soll. Keine Funde
+  -- — eine Absicht, keine Sichtung.
+  expected_species text[]
 );
 create index spots_owner_idx on public.spots (owner_id);
 -- Zweimal derselbe Auftrag ⇒ 23505 statt Dublette. Partiell, weil die
@@ -741,5 +745,6 @@ insert into public.applied_patches (filename) values
   ('patch_021_feedback_version.sql'),
   ('patch_022_fund_position.sql'),
   ('patch_023_tour_tracks.sql'),
-  ('patch_024_fundstellen_versatz.sql')
+  ('patch_024_fundstellen_versatz.sql'),
+  ('patch_025_vormerkung.sql')
 on conflict do nothing;

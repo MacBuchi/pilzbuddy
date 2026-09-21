@@ -7,6 +7,19 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Spots vormerken — ohne Fund, mit erwarteten Arten
+
+*21. September 2026 · Version 1.159.0*
+
+Bisher legte jeder neue Spot sofort einen Fund an, notfalls ohne Art
+und mit heutigem Datum. Jetzt gibt es im Anlege-Blatt den Schalter „Nur
+vormerken, noch kein Fund": Der Spot wird ohne Fund gespeichert, die
+eingetragenen Arten gelten als Erwartung. Auf der Karte erscheint er
+verblasst, sein Blatt sagt „Vorgemerkt für Steinpilz — noch kein Fund".
+Pilzampel, Saison-Filter und der Hinweis auf günstige Spots sprechen für
+die erwarteten Arten, als wären sie schon gefunden. Der erste Fund
+beendet die Vormerkung; die erwartete Art ist dabei vorbelegt. Die
+Erwartung lässt sich im Bearbeiten-Blatt ändern.
 ## Impressum
 
 *21. September 2026 · Version 1.158.0*

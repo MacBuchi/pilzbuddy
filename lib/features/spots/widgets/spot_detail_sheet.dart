@@ -94,7 +94,10 @@ class _SpotDetailSheet extends ConsumerWidget {
       // Freundes-Spot soll nicht dessen Art im Formular vorstehen.
       lastFind: spot.lastOwnFind,
       ownSpecies: ownSpecies,
-      fallbackSpecies: ownSpecies.firstOrNull,
+      // Der erste Fund an einer Vormerkung: die erwartete Art steht
+      // schon da (#499).
+      fallbackSpecies:
+          spot.expectedSpecies.firstOrNull ?? ownSpecies.firstOrNull,
       blank: blank,
     );
     if (finds == null) return;
@@ -209,6 +212,9 @@ class _SpotDetailSheet extends ConsumerWidget {
       context,
       name: spot.name,
       position: spot.position,
+      // Nur eine Vormerkung bietet die erwarteten Arten an (#499).
+      expectedSpecies: spot.isPlanned ? spot.expectedSpecies : null,
+      ownSpecies: ref.read(ownSpeciesProvider),
     );
     if (edited == null || !context.mounted) return;
     // Der Spot rückt, und es gibt Fundstellen mit eigener Position:
@@ -238,6 +244,7 @@ class _SpotDetailSheet extends ConsumerWidget {
               // Nur der Spot rückt: Die Fundstellen stehen neu zu ihm,
               // eine frühere Bestätigung gilt nicht mehr.
               resetOffsetConfirmation: moved,
+              expectedSpecies: edited.expectedSpecies,
             );
       // Wie beim Eintragen: Die Quittung ist normalerweise das Blatt
       // selbst — Name und Entfernungen stehen danach neu da. Nur wenn
@@ -501,6 +508,30 @@ class _SpotDetailSheet extends ConsumerWidget {
               padding: const EdgeInsets.only(top: 4, left: 28),
               child: Text(line,
                   style: Theme.of(context).textTheme.bodySmall),
+            ),
+          // Vorgemerkt (#499): noch kein Eintrag. Die erwarteten Arten
+          // stehen hier, weil sie sonst nirgends stünden — der Marker
+          // trägt keine Art, die Liste unten ist leer.
+          if (spot.isOwn && spot.isPlanned)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.bookmark_border,
+                      size: 18, color: Theme.of(context).hintColor),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      spot.expectedSpecies.isEmpty
+                          ? 'Vorgemerkt — noch kein Fund.'
+                          : 'Vorgemerkt für ${spot.expectedSpecies.join(', ')} '
+                              '— noch kein Fund.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                ],
+              ),
             ),
           // Fundstellen weit vom Spot (#475): „!" im Kreis, solange der
           // Besitzer es nicht bestätigt hat; danach dieselbe Zeile als

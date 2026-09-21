@@ -1,0 +1,25 @@
+-- Patch 025: Ein Spot lässt sich VORMERKEN — ohne Fund, mit erwarteten
+-- Arten (#499).
+--
+-- > Wenn ich einen guten Spot habe, möchte ich ihn vorgemerkt anlegen.
+-- > Damit hier die Ampel auch funktioniert, sollte man eine oder mehr
+-- > Pilzarten für den Spot angeben können.
+--
+-- Ein Spot ohne Funde war im Schema immer erlaubt (Import, Blatt sagt
+-- „Noch keine Funde eingetragen"); nur der Anlege-Weg der App legte
+-- immer einen Fund an. Die Vormerkung IST der Spot ohne Einträge — es
+-- gibt keine eigene Zustandsspalte, denn der erste Fund beendet sie von
+-- selbst, und zwei Wahrheiten über „vorgemerkt" könnten auseinanderlaufen.
+--
+-- ERWARTETE ARTEN SIND KEINE FUNDE. Ein Fund ist eine Sichtung; eine
+-- erwartete Art ist eine Absicht. Als Fund-Sorte (wie der Leergang in
+-- Patch 015) würde sie in Statistik, Marker-Art und Artenvorschläge
+-- einsickern, und jede dieser Stellen bräuchte eine Ausnahme. Als Liste
+-- am Spot liest sie nur, wer sie braucht: Ampel, Saison-Filter und
+-- Hinweis-Nachlauf, wenn der Spot keine Funde hat.
+--
+-- KEIN Bump von minimum_supported_version: rein additiv, nullable. Ein
+-- älterer Client ignoriert die Spalte im `*`-Select und zeigt den Spot
+-- wie einen ohne Funde.
+alter table public.spots
+  add column expected_species text[];

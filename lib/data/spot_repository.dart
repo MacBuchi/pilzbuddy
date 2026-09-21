@@ -178,6 +178,7 @@ class SpotRepository {
     String? name,
     required List<NewFind> finds,
     String? clientId,
+    List<String> expectedSpecies = const [],
   }) async {
     String spotId;
     try {
@@ -189,6 +190,13 @@ class SpotRepository {
             'lat': lat,
             'lng': lng,
             'client_id': ?clientId,
+            // Vormerkung (#499): erwartete Arten, normalisiert wie ein
+            // Fund — sonst stünde hier eine Schreibweise, die der
+            // Anlegeweg nie erzeugt.
+            if (expectedSpecies.isNotEmpty)
+              'expected_species': [
+                for (final s in expectedSpecies) canonicalSpecies(s) ?? s,
+              ],
           })
           .select('id')
           .single();
@@ -450,6 +458,7 @@ class SpotRepository {
     required double lat,
     required double lng,
     bool resetOffsetConfirmation = false,
+    List<String>? expectedSpecies,
   }) async {
     final rows = await _client
         .from('spots')
@@ -457,6 +466,12 @@ class SpotRepository {
           'name': name,
           'lat': lat,
           'lng': lng,
+          // `null` heißt hier „nicht anfassen" — nur das
+          // Bearbeiten-Blatt einer Vormerkung schreibt die Liste.
+          if (expectedSpecies != null)
+            'expected_species': [
+              for (final s in expectedSpecies) canonicalSpecies(s) ?? s,
+            ],
           // Wer den Spot allein verlegt, hat die Fundstellen neu ins
           // Verhältnis gesetzt (#475): Eine frühere Bestätigung gilt
           // dann nicht mehr, sonst bliebe eine neue Abweichung stumm.

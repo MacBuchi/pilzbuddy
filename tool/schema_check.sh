@@ -209,7 +209,7 @@ check_get "friendships-Embed" \
 # `*` und würde eine umbenannte Spalte deshalb nicht bemerken; hier
 # stehen sie namentlich.
 check_get "spots-Schreibspalten" \
-  "/rest/v1/spots?select=id,owner_id,name,lat,lng,sharing_excluded,client_id,offset_confirmed_at&limit=1"
+  "/rest/v1/spots?select=id,owner_id,name,lat,lng,sharing_excluded,client_id,offset_confirmed_at,expected_species&limit=1"
 
 # finds: Spalten aus Find.fromJson / SpotRepository.addFinds und dem
 # Batch-Insert aus restoreSpot (#112). `blank` seit Patch 015 (#211),

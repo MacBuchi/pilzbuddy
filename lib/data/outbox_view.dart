@@ -54,6 +54,7 @@ List<Spot> withPendingJobs(
       lat: job.lat,
       lng: job.lng,
       pending: true,
+      expectedSpecies: job.expectedSpecies,
       finds: [
         for (final find in job.finds)
           _pendingFind(find, spotId: job.id, ownerId: ownerId, at: job.createdAt),

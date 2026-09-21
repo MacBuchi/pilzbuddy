@@ -317,4 +317,24 @@ void main() {
           reason: '$id muss als uuid durchgehen — die Spalte ist uuid');
     }
   });
+
+  test('eine Vormerkung überlebt den Korb: leere Fundliste, erwartete Arten',
+      () {
+    final job = NewSpotJob(
+      id: 'planned-1',
+      createdAt: DateTime.utc(2026, 9, 21, 9),
+      lat: 51.1,
+      lng: 10.4,
+      name: 'Buchenhang',
+      finds: const [],
+      expectedSpecies: const ['Steinpilz', 'Pfifferling'],
+    );
+    final back = OutboxJob.tryParse(
+        jsonDecode(jsonEncode(job.toJson())) as Map<String, dynamic>);
+    expect(back, isA<NewSpotJob>());
+    expect((back! as NewSpotJob).expectedSpecies, ['Steinpilz', 'Pfifferling']);
+    expect(back.finds, isEmpty);
+    // Und ohne Erwartung steht der Schlüssel gar nicht in der Datei.
+    expect(spotJob().toJson().containsKey('expected_species'), isFalse);
+  });
 }

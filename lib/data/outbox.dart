@@ -153,6 +153,11 @@ sealed class OutboxJob {
             lat: (json['lat'] as num).toDouble(),
             lng: (json['lng'] as num).toDouble(),
             name: json['name'] as String?,
+            expectedSpecies: [
+              for (final s in json['expected_species'] as List<dynamic>? ??
+                  const [])
+                if (s is String) s,
+            ],
             attempts: attempts,
             failure: failure,
           ),
@@ -182,6 +187,7 @@ class NewSpotJob extends OutboxJob {
     required this.lat,
     required this.lng,
     this.name,
+    this.expectedSpecies = const [],
     super.attempts,
     super.failure,
   });
@@ -189,6 +195,10 @@ class NewSpotJob extends OutboxJob {
   final double lat;
   final double lng;
   final String? name;
+
+  /// Erwartete Arten einer Vormerkung (#499) — ein Auftrag mit leerer
+  /// Fundliste und dieser Liste ist der vorgemerkte Spot.
+  final List<String> expectedSpecies;
 
   @override
   Map<String, dynamic> toJson() => {
@@ -201,6 +211,7 @@ class NewSpotJob extends OutboxJob {
         'attempts': attempts,
         'failure': failure,
         'finds': [for (final find in finds) _findToJson(find)],
+        if (expectedSpecies.isNotEmpty) 'expected_species': expectedSpecies,
       };
 
   @override
@@ -211,6 +222,7 @@ class NewSpotJob extends OutboxJob {
         lat: lat,
         lng: lng,
         name: name,
+        expectedSpecies: expectedSpecies,
         attempts: attempts ?? this.attempts,
         failure: failure ?? this.failure,
       );

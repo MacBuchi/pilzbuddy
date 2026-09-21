@@ -496,4 +496,47 @@ void main() {
           ['nur Pfifferling']);
     });
   });
+
+  group('Vormerkung (#499)', () {
+    Spot planned(List<String> expected) => Spot(
+          id: 'planned-${_id++}',
+          ownerId: 'me',
+          lat: 51.0,
+          lng: 10.0,
+          expectedSpecies: expected,
+        );
+
+    test('steht für ihre erwarteten Arten — solange sie keine Funde hat', () {
+      expect(spotSpeciesNames(planned(['Steinpilz'])), ['Steinpilz']);
+      expect(spotSpeciesNames(spot(species: ['Pfifferling'])), ['Pfifferling']);
+      // Mit Fund zählt der Fund, nicht mehr die Erwartung.
+      final withFind = spot(species: ['Pfifferling']);
+      final mixed = Spot(
+        id: 'mixed',
+        ownerId: 'me',
+        lat: 51.0,
+        lng: 10.0,
+        finds: withFind.finds,
+        expectedSpecies: const ['Steinpilz'],
+      );
+      expect(spotSpeciesNames(mixed), ['Pfifferling']);
+    });
+
+    test('der Arten-Filter findet sie, der Saison-Filter kennt sie', () {
+      const filter = SpotFilter(species: {'Steinpilz'});
+      expect(matchesSpotFilter(planned(['Steinpilz']), filter), isTrue);
+      expect(matchesSpotFilter(planned(['Pfifferling']), filter), isFalse);
+      // Steinpilz: September ja, Dezember nein (Saisonkurve).
+      expect(spotHasSeasonNow(planned(['Steinpilz']), month: 9), isTrue);
+      expect(spotHasSeasonNow(planned(['Steinpilz']), month: 12), isFalse);
+      // Ohne Erwartung bleibt die Vormerkung sichtbar (im Zweifel zeigen).
+      expect(spotHasSeasonNow(planned(const []), month: 12), isTrue);
+    });
+
+    test('der Arten-Zähler zählt die Erwartung mit', () {
+      final tally = speciesTally([planned(['Steinpilz']), spot(species: ['Steinpilz'])]);
+      expect(tally.single.name, 'Steinpilz');
+      expect(tally.single.spots, 2);
+    });
+  });
 }

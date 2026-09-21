@@ -52,7 +52,13 @@ void main() {
     // Namen.
     final (backend, me) = loggedInBackend();
     backend.addSpot(
-        ownerId: me.id, name: 'Buchenhang', lat: 50.5, lng: 7.5);
+        ownerId: me.id,
+        name: 'Buchenhang',
+        lat: 50.5,
+        lng: 7.5,
+        // Mit Fund: Ein Spot ohne Einträge ist seit #499 eine Vormerkung
+        // und heißt auf der Karte anders.
+        species: 'Steinpilz');
     await pumpApp(tester, backend);
 
     await openSpot(tester, 'Buchenhang');
@@ -75,7 +81,13 @@ void main() {
       (tester) async {
     final (backend, me) = loggedInBackend();
     backend.addSpot(
-        ownerId: me.id, name: 'Buchenhang', lat: 50.5, lng: 7.5);
+        ownerId: me.id,
+        name: 'Buchenhang',
+        lat: 50.5,
+        lng: 7.5,
+        // Mit Fund: Ein Spot ohne Einträge ist seit #499 eine Vormerkung
+        // und heißt auf der Karte anders.
+        species: 'Steinpilz');
     await pumpApp(tester, backend);
 
     await openSpot(tester, 'Buchenhang');
@@ -97,7 +109,13 @@ void main() {
       (tester) async {
     final (backend, me) = loggedInBackend();
     backend.addSpot(
-        ownerId: me.id, name: 'Buchenhang', lat: 50.5, lng: 7.5);
+        ownerId: me.id,
+        name: 'Buchenhang',
+        lat: 50.5,
+        lng: 7.5,
+        // Mit Fund: Ein Spot ohne Einträge ist seit #499 eine Vormerkung
+        // und heißt auf der Karte anders.
+        species: 'Steinpilz');
     await pumpApp(tester, backend);
 
     await openSpot(tester, 'Buchenhang');
@@ -122,7 +140,7 @@ void main() {
     // „Pilz-Spot". Ein leerer String käme dort an wie `null` — aber nur
     // hier, und beim nächsten Leser vielleicht nicht.
     final (backend, me) = loggedInBackend();
-    backend.addSpot(ownerId: me.id, name: 'Buchenhang');
+    backend.addSpot(ownerId: me.id, name: 'Buchenhang', species: 'Steinpilz');
     await pumpApp(tester, backend);
 
     await openSpot(tester, 'Buchenhang');
@@ -142,7 +160,13 @@ void main() {
     // Speichern etwas verschiebt, wäre schlimmer als gar keins.
     final (backend, me) = loggedInBackend();
     backend.addSpot(
-        ownerId: me.id, name: 'Buchenhang', lat: 50.5, lng: 7.5);
+        ownerId: me.id,
+        name: 'Buchenhang',
+        lat: 50.5,
+        lng: 7.5,
+        // Mit Fund: Ein Spot ohne Einträge ist seit #499 eine Vormerkung
+        // und heißt auf der Karte anders.
+        species: 'Steinpilz');
     await pumpApp(tester, backend);
 
     await openSpot(tester, 'Buchenhang');
@@ -165,6 +189,7 @@ void main() {
     // von dieser Korrektur nichts weiß. Sie mitzuschieben hieße, fremde
     // Messungen umzuschreiben.
     final (backend, me) = loggedInBackend();
+    // Der Fund kommt gleich mit Stelle — kein zweiter nötig.
     final spotId = backend.addSpot(
         ownerId: me.id, name: 'Buchenhang', lat: 50.5, lng: 7.5);
     backend.addFindRow(spotId,
