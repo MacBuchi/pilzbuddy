@@ -7,6 +7,18 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Impressum
+
+*21. September 2026 · Version 1.158.0*
+
+PilzBuddy hat jetzt ein Impressum — im Profil unter „Über PilzBuddy",
+und im Netz unter
+https://macbuchi.github.io/pilzbuddy/impressum.html
+
+Inhaltlich ändert sich für dich nichts: Es steht dort, wer die App
+anbietet und wie man ihn erreicht. Bisher stand das nur verkürzt in der
+Datenschutzerklärung.
+
 ## Pilzampel: Saison zählt auch auf der Karte, Arten ausnehmen
 
 *21. September 2026 · Version 1.157.0*

@@ -817,6 +817,14 @@ class _AboutSection extends ConsumerWidget {
         ListTile(
           contentPadding: EdgeInsets.zero,
           dense: true,
+          leading: const Icon(Icons.info_outline),
+          title: const Text('Impressum'),
+          subtitle: const Text('Wer PilzBuddy anbietet'),
+          onTap: () => _open(AppInfo.impressumUrl),
+        ),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
           leading: const Icon(Icons.description_outlined),
           title: const Text('Open-Source-Lizenzen'),
           subtitle: const Text('PilzBuddy steht unter der MIT-Lizenz'),

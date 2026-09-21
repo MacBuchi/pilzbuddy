@@ -37,6 +37,16 @@ class AppInfo {
   static const deleteAccountUrl =
       'https://macbuchi.github.io/pilzbuddy/konto-loeschen.html';
 
+  /// Die Anbieterkennzeichnung nach § 5 DDG (#110).
+  ///
+  /// Sie muss „leicht erkennbar, unmittelbar erreichbar und ständig
+  /// verfügbar" sein — und das gilt für die App genauso wie für die
+  /// Seite. Deshalb steht sie nicht nur im Web, sondern auch als Zeile
+  /// im Profil neben der Datenschutzerklärung: In der Web-App ist sie
+  /// damit zwei Tipps entfernt, in der Android-App ebenso.
+  static const impressumUrl =
+      'https://macbuchi.github.io/pilzbuddy/impressum.html';
+
   static String inviteText(String? username) => [
         'Komm zu PilzBuddy 🍄 – wir teilen unsere Pilz-Spots!',
         'Web-App: $webAppUrl',
