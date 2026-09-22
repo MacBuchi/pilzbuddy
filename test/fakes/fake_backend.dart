@@ -8,7 +8,9 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:pilzbuddy/core/errors.dart';
+import 'package:pilzbuddy/data/species_photo_repository.dart';
 import 'package:pilzbuddy/core/mushroom_species.dart';
 import 'package:pilzbuddy/data/app_config_repository.dart';
 import 'package:pilzbuddy/data/auth_repository.dart';
@@ -1398,4 +1400,31 @@ class FakeAppConfigRepository implements AppConfigRepository {
     if (fails) throw Exception('kein Netz');
     return minimumSupportedVersion;
   }
+}
+
+/// Der Fake für die großen Artbilder (#537).
+///
+/// **Er zählt mit, was geholt wurde.** Daran hängt die Zusage
+/// „beobachten ist laden": Der Bildstreifen zeigt ein Lupensymbol, darf
+/// deswegen aber nichts anstoßen — geholt wird erst beim Antippen.
+class FakeSpeciesPhotos implements SpeciesPhotoRepository {
+  FakeSpeciesPhotos({this.bytes});
+
+  /// Was der Abruf liefert. `null` heißt „nicht zu holen" — der Fall
+  /// ohne Empfang, in dem das mitgelieferte Bild stehen bleibt.
+  final Uint8List? bytes;
+
+  final loaded = <String>[];
+
+  @override
+  Future<Uint8List?> load(String assetPath) async {
+    loaded.add(assetPath);
+    return bytes;
+  }
+
+  @override
+  bool get cachesToDisk => false;
+
+  @override
+  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

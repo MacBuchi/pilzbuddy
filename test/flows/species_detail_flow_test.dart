@@ -6,6 +6,7 @@
 // stellt den Filter und wechselt den Reiter; und die 0,6 MB der
 // Fundorte werden erst hier gelesen, nicht schon in der Liste.
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pilzbuddy/core/widgets/season_bars.dart';
@@ -625,4 +626,60 @@ void main() {
     await scrollDetail(tester, find.text('Bilder'));
     expect(find.byType(Image), findsWidgets);
   });
+
+  testWidgets('ein Tipp auf die Kachel zeigt das Bild groß — mit Nennung',
+      (tester) async {
+    // **Vergrößert wird IMMER**, auch ohne Empfang: Gezeigt wird sofort
+    // das mitgelieferte 400er, das große ersetzt es, sobald es da ist.
+    // Andersherum wäre die Lupe ein Versprechen, das im Wald nicht hält
+    // — und genau dort wird die App benutzt (#537).
+    final (backend, _) = loggedInBackend();
+    final fotos = FakeSpeciesPhotos();     // liefert nichts, wie im Funkloch
+    await pumpApp(tester, backend, speciesPhotos: fotos);
+    await openSpecies(tester, 'Fliegenpilz');
+    await scrollDetail(tester, find.text('Bilder'));
+
+    // **Vor dem Tipp wurde NICHTS geholt.** Das Lupensymbol steht da,
+    // löst aber nichts aus — „beobachten ist laden" gilt hier wie beim
+    // Höhengitter.
+    expect(find.byIcon(Icons.zoom_in), findsWidgets);
+    expect(fotos.loaded, isEmpty);
+
+    await tester.tap(find.byKey(pictureTileKey(
+        'assets/species/fliegenpilz-1.webp')));
+    await settle(tester);
+
+    expect(fotos.loaded, ['assets/species/fliegenpilz-1.webp']);
+    // Das mitgelieferte Bild steht trotzdem groß da.
+    expect(
+        find.image(const AssetImage('assets/species/fliegenpilz-1.webp')),
+        findsWidgets);
+    // Und die Nennung reist mit: Bei CC-BY ist sie die Bedingung.
+    expect(
+        find.text(photoCredit(speciesPortraits['Fliegenpilz']!.first)),
+        findsOneWidget);
+    expect(find.text(kPhotoDisclaimer), findsWidgets);
+  });
+
+  testWidgets('das große Bild ersetzt das mitgelieferte, wenn es kommt',
+      (tester) async {
+    // Die Gegenrichtung. Ohne sie wäre der Test oben auch mit einer
+    // Ansicht grün, die das große Bild nie zeigt.
+    final (backend, _) = loggedInBackend();
+    final gross = await rootBundle.load('assets/species/fliegenpilz-2.webp');
+    final fotos =
+        FakeSpeciesPhotos(bytes: gross.buffer.asUint8List());
+    await pumpApp(tester, backend, speciesPhotos: fotos);
+    await openSpecies(tester, 'Fliegenpilz');
+    await scrollDetail(tester, find.text('Bilder'));
+    await tester.tap(find.byKey(pictureTileKey(
+        'assets/species/fliegenpilz-1.webp')));
+    await settle(tester);
+
+    final bilder = tester
+        .widgetList<Image>(find.byType(Image))
+        .where((i) => i.image is MemoryImage);
+    expect(bilder, isNotEmpty, reason: 'das große Bild ist eingezogen');
+  });
+
 }
