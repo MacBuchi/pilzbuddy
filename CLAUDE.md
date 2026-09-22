@@ -1316,6 +1316,16 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
       fällt der Abschnitt bei einer Art ohne Partner ganz weg statt als
       leere Überschrift dazustehen, und unter jeder vollen Liste steht,
       dass sie nicht vollständig ist.
+    - **Die harmlosen Partner klappen ein, die warnenden nie** (seit
+      1.172.0). Drei Bedingungen, jede mit eigenem Grund: Die Art
+      selbst darf nicht warnen (auf der Seite eines Giftpilzes sind die
+      Speisepilz-Partner der Punkt), es muss überhaupt eine Warnung
+      geben (sonst nimmt das Einklappen nur den Inhalt weg — die vier
+      Reizker sind genau dieser Fall), und es muss beides geben. Anlass
+      war der Steinpilz mit sechs Partnern, bei dem die harmlosen die
+      Warnung aus dem ersten Bildschirm drückten. Dieselbe Trennlinie
+      wie in `confusionHint`.
+
     - **Der Einzeiler beim Eintragen nennt nur, was etwas ändern
       kann** (seit 1.171.0). Ist die eingetippte Art selbst harmlos,
       fallen die harmlosen Partner weg. Anlass: Mit der

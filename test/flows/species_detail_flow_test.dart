@@ -373,6 +373,61 @@ void main() {
         reason: 'und sie warnt zurück');
   });
 
+  testWidgets('die harmlosen Partner klappen ein, die warnenden nie',
+      (tester) async {
+    // **Die Warnung darf nicht nach unten rutschen.** Der Steinpilz hat
+    // sechs Partner; die drei harmlosen drückten Gallen- und
+    // Satansröhrling aus dem ersten Bildschirm.
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend);
+    await openSpecies(tester, 'Steinpilz');
+
+    // Die drei, die warnen, stehen offen da.
+    for (final warner in ['Gallenröhrling', 'Satansröhrling',
+      'Schönfußröhrling']) {
+      expect(find.byKey(lookalikeRowKey(warner)), findsOneWidget,
+          reason: warner);
+    }
+    // Die drei harmlosen nicht — sie stecken hinter dem Ausklapper.
+    expect(find.text('Weitere ähnliche Arten (3)'), findsOneWidget);
+    expect(find.byKey(lookalikeRowKey('Sommersteinpilz')), findsNothing);
+
+    await scrollDetail(tester, find.text('Weitere ähnliche Arten (3)'));
+    await tester.tap(find.text('Weitere ähnliche Arten (3)'));
+    await settle(tester);
+    // Aufgeklappt stehen sie unter dem Falz — die Liste baut nur, was
+    // in Sichtweite ist.
+    await scrollDetail(tester, find.byKey(lookalikeRowKey('Sommersteinpilz')));
+    expect(find.byKey(lookalikeRowKey('Sommersteinpilz')), findsOneWidget);
+  });
+
+  testWidgets('wo nichts warnt, wird auch nichts eingeklappt',
+      (tester) async {
+    // Die vier Reizker sind alle Speisepilze. Hätte das Einklappen hier
+    // gegriffen, sähe die Seite wieder aus wie vor 1.169.0 — eine
+    // Überschrift ohne Inhalt, und genau das war die Beschwerde.
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend);
+    await openSpecies(tester, 'Edelreizker');
+
+    expect(find.textContaining('Weitere ähnliche Arten'), findsNothing);
+    for (final r in ['Fichtenreizker', 'Lachsreizker', 'Kiefernreizker']) {
+      expect(find.byKey(lookalikeRowKey(r)), findsOneWidget, reason: r);
+    }
+  });
+
+  testWidgets('auf der Seite eines Giftpilzes klappt nichts ein',
+      (tester) async {
+    // Dort sind die Speisepilz-Partner der Punkt: Sie erklären, warum
+    // jemand den Pilz überhaupt im Korb hätte.
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend);
+    await openSpecies(tester, 'Grüner Knollenblätterpilz');
+
+    expect(find.textContaining('Weitere ähnliche Arten'), findsNothing);
+    expect(find.byKey(lookalikeRowKey('Wiesenchampignon')), findsOneWidget);
+  });
+
   testWidgets('eine Art ohne bekannte Verwechslung schweigt',
       (tester) async {
     // Leer heißt „uns ist keine häufige Verwechslung bekannt" — ein

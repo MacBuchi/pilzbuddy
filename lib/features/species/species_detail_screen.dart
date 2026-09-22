@@ -287,12 +287,54 @@ class _Lookalikes extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     if (detail.lookalikes.isEmpty) return const SizedBox.shrink();
+
+    // **Eingeklappt wird nur, was sonst eine Warnung nach unten
+    // schöbe.** Der Steinpilz hat seit 1.171.0 sechs Partner; drei
+    // davon sind harmlos, und sie drückten Gallen- und Satansröhrling
+    // aus dem ersten Bildschirm (Betreiber, 2026-09-22: „genau das
+    // sollten wir kompakter machen").
+    //
+    // Daraus folgen drei Bedingungen, jede mit eigenem Grund:
+    // Die Art selbst darf nicht warnen — auf der Seite eines Giftpilzes
+    // sind die Speisepilz-Partner gerade der Punkt, sie erklären,
+    // warum jemand ihn im Korb hätte. Es muss überhaupt eine Warnung
+    // geben, sonst ist nichts zu schützen und das Einklappen nähme dem
+    // Leser nur den Inhalt (die vier Reizker sind genau dieser Fall).
+    // Und es muss beides geben, sonst klappt sich der Abschnitt selbst
+    // ein. Dieselbe Trennlinie wie in `confusionHint`.
+    final warning = <Lookalike>[];
+    final harmless = <Lookalike>[];
+    for (final p in detail.lookalikes) {
+      final level = edibilityFor(p.species)?.level;
+      ((level?.isWarning ?? false) ? warning : harmless).add(p);
+    }
+    final ownWarns = edibilityFor(detail.name)?.level.isWarning ?? false;
+    final fold = !ownWarns && warning.isNotEmpty && harmless.isNotEmpty;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const _SectionTitle('Verwechslungspartner'),
-        for (final partner in detail.lookalikes)
+        for (final partner in fold ? warning : detail.lookalikes)
           _LookalikeRow(own: detail.name, partner: partner),
+        if (fold)
+          Theme(
+            data: theme.copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              // Neutral formuliert: Welche Einstufung eine Art trägt,
+              // steht in ihrer Zeile. Eine Überschrift, die
+              // „ungefährlich" behauptet, wäre eine Freigabe.
+              title: Text('Weitere ähnliche Arten (${harmless.length})',
+                  style: theme.textTheme.bodyMedium),
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: EdgeInsets.zero,
+              expandedCrossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final partner in harmless)
+                  _LookalikeRow(own: detail.name, partner: partner),
+              ],
+            ),
+          ),
         const SizedBox(height: 6),
         Text(
           // **Leer ist nicht dasselbe wie sicher.** Der Satz steht auch
