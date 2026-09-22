@@ -7,6 +7,22 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Bilder antippen und groß ansehen
+
+*22. September 2026 · Version 1.179.0*
+
+Jede Bildkachel auf einer Artseite trägt jetzt eine kleine Lupe. Antippen
+zeigt das Bild formatfüllend, mit Namen, Nennung und dem Hinweis
+darunter. Nochmal tippen schließt es, und mit zwei Fingern lässt es sich
+weiter vergrößern.
+
+**Ohne Empfang funktioniert es genauso.** Gezeigt wird sofort das Bild,
+das in der App steckt. Ist eine Verbindung da, wird im Hintergrund eine
+schärfere Fassung geladen und eingesetzt, sobald sie angekommen ist. Die
+großen Bilder liegen nicht in der App, sondern werden nur geholt, wenn
+du eines wirklich ansiehst — und höchstens 24 Megabyte davon bleiben auf
+dem Gerät liegen.
+
 ## Jetzt hat jeder Pilz ein Bild
 
 *22. September 2026 · Version 1.178.0*

@@ -18,6 +18,7 @@ import 'push_repository.dart';
 import 'spot_cache.dart';
 import 'spot_cache_idb.dart';
 import 'spot_repository.dart';
+import 'species_photo_repository.dart';
 
 final supabaseClientProvider =
     Provider<SupabaseClient>((ref) => Supabase.instance.client);
@@ -88,6 +89,14 @@ final appConfigRepositoryProvider =
 
 final pushRepositoryProvider =
     Provider((ref) => PushRepository(ref.watch(supabaseClientProvider)));
+
+/// Die hochaufgelösten Artbilder (#537).
+///
+/// **Ohne Supabase-Abhängigkeit**, anders als fast alles hier: Die
+/// Bilder liegen auf einem Branch bei GitHub, nicht im Backend. Im Test
+/// wird der Provider überschrieben, damit kein Netz angefasst wird.
+final speciesPhotoRepositoryProvider =
+    Provider((ref) => SpeciesPhotoRepository());
 
 /// Auth-Zustand als Stream — steuert den Router-Redirect und sorgt dafür,
 /// dass alle Daten-Provider bei Login/Logout neu laden.

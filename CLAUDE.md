@@ -1479,6 +1479,31 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
       darüber ist nicht gebaut, und `findsNothing` ist dann grün, egal
       was dort stünde. In der Gegenprobe genau so passiert.
 
+  - **Bilder antippen und groß ansehen** (#537, seit 1.179.0): Die
+    großen Fassungen (1200x1200, 78 Dateien, 15,9 MB) liegen NICHT im
+    APK, sondern auf dem Branch `species-photos`. Fünf Dinge:
+    - **Ein Branch, kein Release-Anhang**, aus demselben Grund wie beim
+      Regengitter: Release-Anhänge tragen kein
+      `access-control-allow-origin`, der Web-Build bekäme still nichts.
+      Nachgemessen am 2026-09-22: `raw.githubusercontent.com` liefert
+      `*`. Ein Wurzel-Commit, force gepusht — jedes Commons-Bild ist
+      ein Platzhalter, wird also ersetzt, und sonst wüchse die Historie
+      je Tausch um die volle Bildgröße.
+    - **Kein neues Netzziel**, der Host steht schon in der
+      Datenschutzerklärung.
+    - **Der Tipp vergrößert IMMER**, auch ohne Empfang: erst das
+      mitgelieferte 400er, das große ersetzt es, sobald es da ist. Erst
+      laden und dann zeigen wäre ein Versprechen, das im Wald nicht
+      hält.
+    - **Die Lupe an der Kachel löst nichts aus** — „beobachten ist
+      laden", geholt wird erst beim Antippen. Ein Test zählt die
+      Abrufe.
+    - **Eine GRÖSSENgrenze, keine Frist** (24 MB, älteste Ansicht
+      fliegt zuerst). Das unterscheidet diesen Speicher von
+      `spot_cache/`, `outbox/` und `tours/`: Ein Bild ist jederzeit
+      nachladbar, deren Inhalt nicht. Im Browser gibt es keinen eigenen
+      Speicher — der HTTP-Cache und der Service Worker tun es schon.
+
   - **Eine neue Art durch die ganze Kette** (Schönfußröhrling, 1.167.0,
     als Muster): `kBekannteArten` mit akzeptiertem GBIF-Namen →
     `tool/season_curves.py --out` (Netz, dabei die Zahl der

@@ -44,6 +44,7 @@ import '../map/gbif_finds_providers.dart';
 import '../map/spot_filter.dart' show currentMonthProvider, spotFilterProvider;
 import '../spots/spot_providers.dart' show mySpotListProvider;
 import 'species_catalogue.dart';
+import 'species_photo_view.dart';
 
 /// Die Karte mit der Einstufung DIESER Art — siehe [_Edibility].
 /// Eine Kachel im Bildstreifen, benannt nach dem BILD.
@@ -584,22 +585,50 @@ class _StripTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: colour, width: warns ? 3 : 1),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: Image.asset(
-                photo.asset,
-                width: 144,
-                height: 144,
-                fit: BoxFit.cover,
-                semanticLabel:
-                    own ? '$name, Foto' : '$name, Verwechslungspartner, Foto',
-                errorBuilder: (_, _, _) => const SizedBox(width: 144),
-              ),
+          // **Antippen vergrößert** (#537). Das Lupensymbol sagt es an,
+          // ohne selbst etwas zu laden: „Beobachten ist laden" gilt
+          // auch hier, geholt wird erst beim Tipp.
+          InkWell(
+            borderRadius: BorderRadius.circular(6),
+            onTap: () =>
+                showSpeciesPhoto(context, species: name, photo: photo),
+            child: Stack(
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: colour, width: warns ? 3 : 1),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: Image.asset(
+                      photo.asset,
+                      width: 144,
+                      height: 144,
+                      fit: BoxFit.cover,
+                      semanticLabel: own
+                          ? '$name, Foto'
+                          : '$name, Verwechslungspartner, Foto',
+                      errorBuilder: (_, _, _) => const SizedBox(width: 144),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: 6,
+                  bottom: 6,
+                  child: IgnorePointer(
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.45),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Icon(Icons.zoom_in,
+                          size: 16, color: Colors.white),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 2),

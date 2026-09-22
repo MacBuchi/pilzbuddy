@@ -100,7 +100,8 @@ class FakePositionFix {
 }
 
 List<Override> overridesFor(FakeBackend backend,
-        {FakeOfflineMapRepository? offlineMaps,
+        {FakeSpeciesPhotos? speciesPhotos,
+        FakeOfflineMapRepository? offlineMaps,
         FakeKeepAlive? keepAlive,
         List<ConnectivityResult> connectivity = const [
           ConnectivityResult.wifi
@@ -159,6 +160,13 @@ List<Override> overridesFor(FakeBackend backend,
       // Override bliebe der Abruf der eigenen Spots hängen — er liest
       // den Korb mit.
       outboxProvider.overrideWithValue(outbox ?? FakeOutbox()),
+      // **Kein Netz und kein path_provider für die großen Artbilder**
+      // (#537). Ohne den Override liefe jeder Test, der eine Artseite
+      // öffnet und ein Bild antippt, gegen raw.githubusercontent.com.
+      // Der Fake zählt mit, WAS geholt wurde — daran hängt die Zusage
+      // „beobachten ist laden": Der Streifen selbst darf nichts holen.
+      speciesPhotoRepositoryProvider
+          .overrideWithValue(speciesPhotos ?? FakeSpeciesPhotos()),
       positionStreamProvider.overrideWith((ref) => Stream.value(position)),
       // Vorgabe ist derselbe Wert, den auch der Strom bekommt: Ein Test,
       // der `position:` setzt, meint „der Nutzer steht dort" — und dann
@@ -312,10 +320,12 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
     // Legende. Tests, die einen anderen Monat brauchen, geben ihn hier
     // an statt über `extraOverrides`, sonst stünde der Provider zweimal.
     int month = 9,
+    FakeSpeciesPhotos? speciesPhotos,
     List<Override> extraOverrides = const []}) async {
   addTearDown(backend.dispose);
   await tester.pumpWidget(ProviderScope(
     overrides: overridesFor(backend,
+        speciesPhotos: speciesPhotos,
         offlineMaps: offlineMaps,
         keepAlive: keepAlive,
         connectivity: connectivity,
