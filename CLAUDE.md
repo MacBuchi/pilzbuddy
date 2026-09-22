@@ -1664,6 +1664,23 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     Normalfall, und ein Menü, das dort hinausragt, ist genau dann
     kaputt, wenn man es braucht. Richtung folgt dem Platz — nach oben,
     solange oben Platz ist, nach links, wenn rechts keiner ist.
+  - **Vier Einträge seit 1.177.0, und „Spot anlegen" ist der erste**
+    (#513, Feldwunsch). Er liegt am Finger, weil die Reihenfolge nach
+    Nähe geht, und trägt als einziger die Füllfarbe des „Neuer
+    Spot"-Knopfs — genau einer, sonst hebt sich nichts mehr ab. Der
+    Weg dahinter ist DIESELBE Naht wie beim Fadenkreuz (`_addSpotAt`);
+    zwei Kopien wären zwei Stellen, an denen die Doppel-Spot-Warnung
+    vergessen werden kann.
+  - **Der Fächer ist ein Bogen, aber ein flacher** (#513). Der
+    seitliche Versatz folgt einem Viertelkreis, die STUFENHÖHE bleibt
+    fest — sie verhindert das Überlappen, und ein Bogen, der auch
+    senkrecht rundet, drängt die oberen Chips ineinander. Ein echter
+    Fächer um den Punkt geht nicht, und das ist gerechnet: Bei 190 px
+    breiten Pillen bräuchte ein Kreis rund 190 px Radius, damit sich
+    zwei Chips vertikal nicht berühren — der unterste läge dann fast
+    200 px seitlich plus eigene Breite, auf keinem Telefon im Bild.
+    Der Test misst den Unterschied zur Geraden daran, dass der Zuwachs
+    je Stufe KLEINER wird.
   - **44 px bleiben 44 px.** Ein aufgefächertes Menü darf von der
     Trefferfläche nichts abziehen, nur weil es hübsch aussieht; die
     Begründung steht an `_Tool` in `map_screen.dart`.

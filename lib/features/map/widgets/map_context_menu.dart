@@ -25,6 +25,8 @@
 // bildschirmfüllenden Karte ist der Rand der Normalfall; ein fester
 // Fächer überragte ihn dort. Siehe [MapContextMenuLayout] — die
 // Geometrie ist rein und deshalb prüfbar, das Widget zeichnet nur.
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../core/app_colors.dart';
@@ -35,6 +37,15 @@ import '../../../core/app_colors.dart';
 /// gewählt wurde, der Karten-Screen führt es aus — dieselbe Regel wie
 /// beim Ebenen-Blatt.
 enum MapContextAction {
+  /// Einen Spot an der gedrückten Stelle anlegen (#513).
+  ///
+  /// **Zuerst, weil die Reihenfolge nach Nähe zum Finger geht.** Der
+  /// Wunsch kam aus dem Feld: Wer lange auf eine Stelle drückt, will
+  /// dort oft einen Spot. Bis 1.177.0 führte der einzige Weg dahin über
+  /// das Fadenkreuz in der Bildmitte — man musste die Karte erst
+  /// verschieben, bis die Stelle in der Mitte lag.
+  addSpot,
+
   /// Wetter, Pilzampel und Waldtyp an dieser Stelle (#245).
   whatIsHere,
 
@@ -54,8 +65,20 @@ enum MapContextAction {
 const kContextChipHeight = 44.0;
 const kContextChipGap = 10.0;
 
-/// Wie weit die Treppe je Stufe seitlich versetzt.
-const kContextChipStagger = 18.0;
+/// Wie weit der Bogen seitlich ausholt, gemessen vom obersten Chip.
+///
+/// **Ein Bogen, keine schräge Gerade** (Betreiber, #513). Die Chips
+/// steigen weiter in festen Stufen — das ist es, was ihr Überlappen
+/// verhindert —, aber ihr seitlicher Versatz folgt einem Viertelkreis
+/// statt einer Geraden.
+///
+/// **Ein echter Fächer um den Punkt geht nicht**, und das ist gemessen,
+/// nicht vermutet: Chips sind Pillen von rund 190 Punkten Breite. Auf
+/// einem Kreis mit genug Radius, dass sich zwei Chips vertikal nicht
+/// berühren (~190), läge der unterste fast 200 Punkte seitlich, plus
+/// seine eigene Breite — auf keinem Telefon im Bild. Der Bogen ist
+/// deshalb flach, und die Rundung liegt in der Verteilung.
+const kContextChipArc = 44.0;
 
 /// Abstand des untersten Chips zur gedrückten Stelle — so viel, dass
 /// Finger und Menü sich nicht überdecken.
@@ -99,19 +122,33 @@ class MapContextMenuLayout {
   /// Nach rechts ist die Vorgabe; wer in der rechten Bildschirmhälfte
   /// drückt, bekommt den Fächer nach links, weil dort der Platz ist.
   bool get fansRight =>
-      origin.dx + chipWidth + count * kContextChipStagger <= screen.width;
+      origin.dx + chipWidth + kContextChipArc <= screen.width;
+
+  /// Der seitliche Versatz von Chip [index] — der Bogen.
+  ///
+  /// Ein Viertelkreis: Der unterste Chip liegt am Finger, die weiteren
+  /// holen aus und laufen nach oben wieder flach aus. Mit einer Geraden
+  /// wäre der Zuwachs je Stufe gleich, und genau das sah aus wie eine
+  /// schräge Reihe.
+  double arcOffset(int index) {
+    if (count < 2) return 0;
+    final t = index / (count - 1);
+    return kContextChipArc * math.sin(t * math.pi / 2);
+  }
 
   /// Die linke obere Ecke von Chip [index] (0 ist der gedrückten Stelle
   /// am nächsten).
   Offset chipTopLeft(int index) {
-    final stagger = kContextChipStagger * index;
+    // **Die Stufenhöhe bleibt fest.** Sie ist es, die das Überlappen
+    // verhindert; ein Bogen, der auch senkrecht rundet, drängt die
+    // oberen Chips ineinander.
     final dy = kContextMenuLift + index * (kContextChipHeight + kContextChipGap);
     final top = opensUpward
         ? origin.dy - dy - kContextChipHeight
         : origin.dy + dy;
     final left = fansRight
-        ? origin.dx + stagger
-        : origin.dx - chipWidth - stagger;
+        ? origin.dx + arcOffset(index)
+        : origin.dx - chipWidth - arcOffset(index);
     return Offset(left, top);
   }
 
@@ -127,28 +164,48 @@ class MapContextMenuLayout {
 }
 
 /// Ein Eintrag, wie er im Menü steht.
-typedef _Entry = ({MapContextAction action, IconData icon, String label});
+typedef _Entry = ({
+  MapContextAction action,
+  IconData icon,
+  String label,
+  /// Hervorgehoben — gefüllt in der Farbe des „Neuer Spot"-Knopfs.
+  ///
+  /// **Genau einer**, sonst hebt sich nichts mehr ab. Die Farbe leitet
+  /// sich vom Knopf unten rechts ab, damit erkennbar ist, dass beide
+  /// dasselbe tun (Betreiber, #513).
+  bool prominent,
+});
 
 const _entries = <_Entry>[
   // Reihenfolge nach Nähe zum Finger: Was man am häufigsten will, liegt
-  // am nächsten. „Was ist hier?" ist der Grund, warum man irgendwo
-  // hindrückt; „heranzoomen" ist die alte Nebenbedeutung.
+  // am nächsten. „Spot anlegen" ist seit #513 der erste — der Wunsch kam
+  // aus dem Feld. „Was ist hier?" ist der Grund, warum man sonst
+  // irgendwo hindrückt; „heranzoomen" ist die alte Nebenbedeutung.
+  (
+    action: MapContextAction.addSpot,
+    icon: Icons.add_location_alt_outlined,
+    label: 'Spot anlegen',
+    prominent: true,
+  ),
   (
     action: MapContextAction.whatIsHere,
     icon: Icons.help_outline,
     // Wortgleich mit der Legende (#245) — ein zweites Wort für dieselbe
     // Sache wäre schlimmer als ein längeres Chip.
     label: 'Was ist hier?',
+    prominent: false,
   ),
   (
     action: MapContextAction.navigate,
     icon: Icons.directions_outlined,
     label: 'Navigation',
+    prominent: false,
   ),
   (
     action: MapContextAction.zoomHere,
     icon: Icons.zoom_in,
     label: 'Heranzoomen',
+    prominent: false,
   ),
 ];
 
@@ -233,7 +290,9 @@ class _Chip extends StatelessWidget {
         child: Transform.scale(scale: 0.85 + 0.15 * t, alignment: Alignment.centerLeft, child: child),
       ),
       child: Material(
-        color: theme.colorScheme.surface,
+        color: entry.prominent
+            ? AppColors.forestGreen
+            : theme.colorScheme.surface,
         elevation: 3,
         borderRadius: BorderRadius.circular(kContextChipHeight / 2),
         child: InkWell(
@@ -246,9 +305,17 @@ class _Chip extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(entry.icon, size: 22, color: theme.colorScheme.primary),
+                  Icon(entry.icon,
+                      size: 22,
+                      color: entry.prominent
+                          ? Colors.white
+                          : theme.colorScheme.primary),
                   const SizedBox(width: 10),
-                  Text(entry.label, style: theme.textTheme.bodyLarge),
+                  Text(entry.label,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                          color: entry.prominent ? Colors.white : null,
+                          fontWeight:
+                              entry.prominent ? FontWeight.w600 : null)),
                 ],
               ),
             ),

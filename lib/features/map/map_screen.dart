@@ -444,6 +444,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
             lat: latLng.latitude, lng: latLng.longitude);
       case MapContextAction.zoomHere:
         _map.move(latLng, math.max(_map.zoom, 16));
+      case MapContextAction.addSpot:
+        // **Die gedrückte Stelle, nicht die Bildmitte.** Genau das war
+        // der Wunsch: Bis #513 führte der einzige Weg über das
+        // Fadenkreuz, man musste die Karte also erst verschieben.
+        await _addSpotAt(latLng);
     }
   }
 
@@ -561,8 +566,16 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 
   /// Neuer Spot an der aktuellen Fadenkreuz-Position (Kartenmitte).
-  Future<void> _addSpotAtCrosshair() async {
-    final center = _map.center;
+  Future<void> _addSpotAtCrosshair() => _addSpotAt(_map.center);
+
+  /// Einen Spot an [at] anlegen — vom Fadenkreuz oder aus dem
+  /// Kontextmenü (#513).
+  ///
+  /// **Eine Naht für beide Wege.** Der Ablauf danach ist derselbe:
+  /// Nachbarschaft prüfen, Blatt zeigen, speichern. Zwei Kopien wären
+  /// zwei Stellen, an denen die Doppel-Spot-Warnung vergessen werden
+  /// kann.
+  Future<void> _addSpotAt(LatLng center) async {
     if (!await _confirmNewSpotNear(center)) return;
     if (!mounted) return;
     final ownSpecies = ref.read(ownSpeciesProvider);

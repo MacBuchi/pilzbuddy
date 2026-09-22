@@ -7,6 +7,23 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Spot anlegen direkt am langen Tipp
+
+*22. September 2026 · Version 1.177.0*
+
+Das Menü am langen Tipp auf die Karte hat einen vierten Eintrag:
+**Spot anlegen**. Er steht zuunterst, also am Finger, und trägt die
+Farbe des Knopfs unten rechts, damit erkennbar ist, dass beide dasselbe
+tun.
+
+Der Unterschied liegt in der Stelle. Bisher führte der einzige Weg über
+das Fadenkreuz in der Bildmitte, man musste die Karte also erst
+verschieben, bis der gewünschte Punkt mittig lag. Jetzt reicht langes
+Drücken dort, wo der Spot hin soll.
+
+Die Chips fächern außerdem in einem Bogen auf statt in einer schrägen
+Reihe.
+
 ## Jede Art, die warnt, zeigt jetzt auch ein Bild
 
 *22. September 2026 · Version 1.176.0*
