@@ -513,8 +513,19 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   an, also kann raw keinen ausliefern), und deshalb ist der Zuschnitt
   eine MESSUNG: `tool/map_tiles.py plan` liest nur Header und
   Verzeichnisse und sagt Bytes je Zoom, `.github/workflows/map-data.yml`
-  fährt das in CI. Einzelheiten und der offene nächste Schritt stehen in
+  fährt das in CI. Einzelheiten stehen in
   `docs/offline-karten-web.md`.
+  **Die Messung liegt seit 2026-09-22 vor, und „braucht kein Geld" ist
+  seither die halbe Wahrheit:** DACH passt als EINE Datei nur bis **z8**
+  (30,5 MB). Das Ziel z14 sind **5,54 GB**, also mindestens 57 Dateien —
+  und das angenommene z12 mit 73 MB sind in Wirklichkeit 1,39 GB, Faktor
+  19. Damit ist die Aufteilung keine Option mehr, sondern eine
+  Bedingung, solange raw der Host ist; sie kostet einen Gebietsindex in
+  der App, also Komplexität genau dort, wo ohne Empfang gearbeitet wird.
+  Die offene Frage ist deshalb keine Messung mehr, sondern die
+  Host-Entscheidung (raw mit Aufteilung, niedrigeres Zoomziel, oder ein
+  Objektspeicher ohne Größengrenze) — sie steht ausgeschrieben in
+  `docs/offline-karten-web.md` und in #496.
   **Die Falle, gegen die das Werkzeug gebaut ist:** Bytes je Zoom wachsen
   nicht um 4x, sondern um das, was die Datendichte tut — in der
   Übersicht war z6 → z7 ein Faktor **6,4**, und z7 allein sind 77 % der
