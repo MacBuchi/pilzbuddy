@@ -7,6 +7,19 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Das Auge zeigt jetzt alle Arten, die ein Bild haben
+
+*22. September 2026 · Version 1.174.1*
+
+Zwölf Arten tragen kein eigenes Foto, aber ein Bild aus einem
+Vergleichspaar — und ihre Seite zeigt es auch. In der Liste bekamen sie
+trotzdem kein Auge. Das war ein Widerspruch in derselben App und ist
+behoben: Das Auge steht jetzt überall dort, wo es etwas zu sehen gibt.
+
+Betroffen sind unter anderem Perlpilz, Pantherpilz, Grüner
+Knollenblätterpilz, Wiesenchampignon, beide Morcheln und das
+Stockschwämmchen.
+
 ## Ein Bildstreifen: erst der Pilz, dann was er nicht ist
 
 *22. September 2026 · Version 1.174.0*
