@@ -7,6 +7,7 @@ import 'auth_repository.dart';
 import 'feedback_repository.dart';
 import 'friend_repository.dart';
 import 'live_share_repository.dart';
+import 'find_photo_repository.dart';
 import 'tour_track_repository.dart';
 import 'browser_db.dart';
 import 'idb_factory.dart';
@@ -83,6 +84,9 @@ final liveShareRepositoryProvider =
 
 final tourTrackRepositoryProvider =
     Provider((ref) => TourTrackRepository(ref.watch(supabaseClientProvider)));
+
+final findPhotoRepositoryProvider =
+    Provider((ref) => FindPhotoRepository(ref.watch(supabaseClientProvider)));
 
 final appConfigRepositoryProvider =
     Provider((ref) => AppConfigRepository(ref.watch(supabaseClientProvider)));

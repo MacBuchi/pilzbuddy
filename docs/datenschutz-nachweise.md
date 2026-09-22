@@ -40,6 +40,7 @@ Stand 2026-09-08, nachgesehen im Code, nicht angenommen.
 | Fehlerberichte werden nach 90 Tagen gelöscht | `tool/feedback_bot.py`, `ERROR_REPORT_RETENTION_DAYS`; läuft im 2-Stunden-Cron mit |
 | Feedback wird öffentlich | `feedback_bot.py` legt daraus GitHub-Issues an — das Repo ist öffentlich |
 | Live-Standort läuft von selbst ab | `live_locations.expires_at`, gespiegelt in der RLS-Policy und im Fake |
+| Fundfotos tragen keine Aufnahmedaten und laufen nach 14 Tagen ab | `lib/core/photo_pipeline.dart` kodiert neu, leert EXIF und liest die Segmente des Ergebnisses; `test/photo_pipeline_test.dart` schickt ein Bild mit GPS-EXIF, XMP und Kommentar hindurch und prüft die Bytes. Frist: `find_photos.expires_at` mit Default UND Constraint (Patch 026), Freundes-Policy filtert darüber, `tool/feedback_bot.py` (`sweep_find_photos`) löscht Zeilen und Bucket-Objekte per Abgleich |
 | Benachrichtigungen sind ab Werk aus | `push_devices` hat keine Zeile ohne Zustimmung; eine Zeile IST die Zustimmung |
 | Die Pilztour verlässt das Gerät nur bei laufender Standort-Freigabe | `tours/` als JSON Lines im App-Verzeichnis, in beiden Backup-Ausschlüssen. Hochgeladen wird ausschließlich, wenn BEIDES läuft — Tour und Standort-Freigabe (`planTrackShare` in `lib/features/tour/tour_sharing.dart`, geprüft in `test/flows/tour_sharing_flow_test.dart`). Die Frist wird aus der Freigabe geerbt, Sichtbarkeit über `tt_friend_select` (Patch 023); Tour- oder Teilen-Ende löscht die Zeile |
 | Kein Tracking, keine Analyse-SDKs | Die einzige Firebase-Nutzung ist Cloud Messaging (`pubspec.yaml`: `firebase_core`, `firebase_messaging` — kein Analytics, kein Crashlytics) |
@@ -111,7 +112,9 @@ ehrlicher als eine Automatik, die selten läuft und darum kaputtgeht.
    wir haben. Aus einer fremden Adresse wird nichts herausgegeben.
 2. **Zusammenstellen**, im Supabase-Dashboard per SQL über die
    `user_id`: `profiles`, `spots` (mit `finds`), `friendships`,
-   `live_locations`, `push_devices`, `feedback`, `error_reports`.
+   `live_locations`, `find_photos` (dazu die Objekte im Bucket
+   `find-photos` unter `<user_id>/`), `push_devices`, `feedback`,
+   `error_reports`.
    Das sind alle Tabellen mit Personenbezug — der Abgleich gehört bei
    jedem neuen Patch wiederholt.
 3. **Als JSON schicken**, innerhalb eines Monats (Art. 12 Abs. 3).
@@ -135,6 +138,7 @@ so in der Erklärung.
 | Freunde suchen | eingegebene E-Mail-Adresse oder Benutzername-Anfang; zurück kommen Benutzername, Anzeigename, Avatar | Art. 6 (1) b | Supabase | nicht gespeichert, nur im Moment der Abfrage |
 | Live-Standort teilen | Koordinate, Ablaufzeit | Art. 6 (1) a | Supabase | selbst gewählte Dauer |
 | Pilztour-Weg teilen | Wegpunkte der laufenden Tour: Koordinate und Zeitpunkt, gedünnt auf ≤ 400 | Art. 6 (1) a | Supabase, sichtbar für bestätigte Freunde | Frist der Standort-Freigabe; Tour- oder Teilen-Ende löscht sofort |
+| Fundfoto teilen | Bild (≤ 1024 px, ohne Metadaten), Fund-Bezug, Ablaufdatum | Art. 6 (1) a | Supabase (Storage), sichtbar für Freunde, die den Fund sehen dürfen | 14 Tage; Zurücknehmen löscht sofort |
 | Konto-Mails | E-Mail-Adresse | Art. 6 (1) b | Brevo | Versand |
 | Benachrichtigungen | Gerätekennung (Token) | Art. 6 (1) a | Google (FCM) | bis zum Ausschalten |
 | Vorhersage prüfen | Fund/Leergang mit Ort und Datum | Art. 6 (1) f | Supabase | bis zur Löschung |

@@ -27,6 +27,7 @@ import '../tour/tour_providers.dart';
 import '../tour/widgets/tour_icon.dart';
 import '../import_export/gpx_export.dart';
 import '../spots/nearby_spots.dart';
+import '../spots/find_photo_providers.dart';
 import '../spots/spot_providers.dart';
 import 'account_dialogs.dart';
 import 'profile_providers.dart';
@@ -238,6 +239,22 @@ class ProfileScreen extends ConsumerWidget {
             value: ref.watch(tourTrackAsLineProvider),
             onChanged: (value) =>
                 ref.read(tourTrackAsLineProvider.notifier).set(value),
+          ),
+          // Fundfotos (#532). Ab Werk AN — ein Posteingang, den erst ein
+          // Schalter öffnet, ist einer, den niemand findet. Der Schalter
+          // ist für die andere Richtung: Aus heißt, dass keine Vorschau
+          // geholt wird, nicht nur keine gezeigt. Eigene Fotos bleiben.
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            secondary: const Icon(Icons.photo_outlined),
+            title: const Text('Fundfotos von Buddys anzeigen'),
+            subtitle: const Text(
+                'Im Reiter „Spots" und im Spot-Blatt, jeweils 14 Tage lang. '
+                'Aus heißt: Es werden keine Bilder geladen — deine eigenen '
+                'siehst du weiterhin.'),
+            value: ref.watch(findPhotosEnabledProvider),
+            onChanged: (value) =>
+                ref.read(findPhotosEnabledProvider.notifier).set(value),
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,

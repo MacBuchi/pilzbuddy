@@ -1670,6 +1670,54 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   - **Verblasst wie wartend, aber ohne Uhr** (`MushroomIcon.planned`);
     kein viertes Abzeichen. Der Ausgangskorb trägt die Liste im
     Auftrag mit (`NewSpotJob.expectedSpecies`).
+- **Fundfotos für Buddys** (#532, seit 1.185.0): ein Foto am eigenen
+  Fund, 14 Tage sichtbar für die, die den Fund sehen dürfen; Posteingang
+  ist der Reiter „Spots". Sechs Dinge, die man wissen muss:
+  - **Die Bytes liegen im Bucket `find-photos`, nicht in Postgres.**
+    Je Foto eine Zeile `find_photos` (~200 Byte, Patch 026) und zwei
+    JPEGs (1024 px ≈ 150 KB, Vorschau 200 px ≈ 12 KB). Der Speicher
+    ist damit KONSTANT: 14 Tage Frist als Default UND Constraint in der
+    Datenbank (ein Client kann sie nicht verlängern), und der
+    Feedback-Bot räumt alle zwei Stunden per ABGLEICH — jedes Objekt
+    ohne lebende Zeile fliegt (`sweep_find_photos`, Schonfrist 1 h für
+    Uploads im Aufbau). Kein „erst Zeile, dann Objekt": Das ließe
+    Uploads, deren Zeile nie kam, für immer liegen.
+  - **Das Foto erbt die Sichtbarkeit des FUNDES.** `fp_friend_select`
+    fragt nur `exists (select … from finds)`; die Storage-Policy
+    `find_photos_read` fragt nur, ob eine Zeile sichtbar ist. Keine
+    zweite Freigabe, die neben der ersten driften kann. Ein Objekt ohne
+    Zeile ist für niemanden lesbar — deshalb erst die Objekte, dann die
+    Zeile. Im Fake spiegelt `findVisibleTo` die drei finds-Policies an
+    EINER Stelle; Spot-Abruf und Fotos lesen dieselbe Antwort.
+  - **Die Fundstelle steckt im Foto, und die Bibliotheken lassen sie
+    drin.** `image_picker` kopiert beim Verkleinern auf Android
+    absichtlich alle 30 GPS-Tags zurück (`ExifDataCopier.java`);
+    `package:image` reicht EXIF durch `bakeOrientation` und
+    `copyResize` und schreibt es in `encodeJpg` wieder hinein.
+    `lib/core/photo_pipeline.dart` leert `exif` ausdrücklich und LIEST
+    das Ergebnis (`jpegForeignMarkers`, Erlaubnisliste der Segmente,
+    dazu „Bytes hinter EOI") — bei jedem Upload, nicht nur im Test. In
+    der Gegenprobe ohne die eine Zeile wurden drei Tests rot, darunter
+    der Laufzeit-Riegel selbst. Der Dialog sagt dazu, was bleibt: Ein
+    erkennbarer Ort ist erkennbar.
+  - **Die Kachel lädt die Vorschau, die Vergrößerung das Bild** — der
+    Egress-Hebel (Faktor 10) auf 5 GB im Monat. Beides über
+    `BoundedFileCache` (aus #537 herausgelöst, 24 MB, älteste fliegt).
+    Der Profil-Schalter „Fundfotos von Buddys anzeigen" (Vorgabe AN)
+    filtert im PROVIDER, nicht in der Kachel: aus heißt kein Abruf,
+    eigene bleiben. Rand, Wischen und Ausgänge der Vergrößerung wohnen
+    in `PhotoOverlay`, geteilt mit den Artbildern.
+  - **Offline scheitert sichtbar, kein dritter Korb-Weg.** Ein Foto ist
+    ein Extra-Schritt nach dem Eintragen; ein Binärauftrag im Korb wäre
+    eine eigene Idempotenz-Geschichte. Wartende Funde haben keine id
+    und deshalb keine Kamera, Leergänge nichts zu zeigen.
+  - **Keine neue Berechtigung, kein neues Netzziel** — Storage liegt
+    unter der Supabase-Adresse. Trotzdem eine neue Datenkategorie:
+    `web/datenschutz.html`, `docs/play-console.md` (Fotos: erhoben,
+    optional; die Zeile „Fotos: NICHT erhoben" ist gefallen) und
+    `docs/datenschutz-nachweise.md` sind im selben PR mitgezogen. Der
+    Schema Dry Run braucht seither `[storage] enabled = true` in
+    `config.toml`, sonst gibt es `storage.buckets` nicht.
 - **Fundstellen weit vom Spot** (#475, seit 1.156.0): Ab 100 m
   (`kFindFixMaxOffsetM`, dieselbe Grenze wie der Riegel beim Eintragen)
   trägt der eigene Spot ein „!"-Abzeichen (im selben Kreis wie Uhr und

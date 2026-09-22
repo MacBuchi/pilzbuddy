@@ -39,6 +39,7 @@ import '../map/map_focus.dart';
 import '../map/widgets/map_banners.dart' show newBuddyFindsProvider;
 import 'spot_list.dart';
 import 'spot_providers.dart';
+import 'widgets/find_photo_strip.dart';
 import 'widgets/spot_detail_sheet.dart';
 import 'widgets/spot_stats_view.dart';
 
@@ -102,7 +103,7 @@ class _SpotListTabState extends ConsumerState<_SpotListTab> {
       spotsWithNews: ref.watch(spotsWithNewsProvider),
     );
 
-    final items = <_Item>[
+    final rows = <_Item>[
       for (final row in list.active) _Item.row(row),
       if (list.planned.isNotEmpty)
         const _Item.header('Vorgemerkt',
@@ -113,6 +114,14 @@ class _SpotListTabState extends ConsumerState<_SpotListTab> {
             'Wer nur den Standort teilt, zeigt keine Arten und keine '
             'Daten.'),
       for (final row in list.silent) _Item.row(row),
+    ];
+    // Der Posteingang der Fundfotos (#532) als erste Zeile — in der
+    // Liste, nicht darüber: Ein Streifen im Kopf stünde auf jedem
+    // Bildschirm und nähme der Liste 140 px. Und nur, wenn es Zeilen
+    // gibt: Ein Foto hängt an einem Fund, ein Fund an einem Spot.
+    final items = <_Item>[
+      if (rows.isNotEmpty) const _Item.photos(),
+      ...rows,
     ];
 
     return Column(
@@ -136,6 +145,7 @@ class _SpotListTabState extends ConsumerState<_SpotListTab> {
                   itemCount: items.length,
                   itemBuilder: (context, index) {
                     final item = items[index];
+                    if (item.photos) return const FindPhotoStrip();
                     return item.row != null
                         ? _SpotTile(row: item.row!, today: today)
                         : _SectionHeader(
@@ -153,12 +163,23 @@ class _SpotListTabState extends ConsumerState<_SpotListTab> {
 class _Item {
   const _Item.row(this.row)
       : title = null,
-        hint = null;
-  const _Item.header(this.title, this.hint) : row = null;
+        hint = null,
+        photos = false;
+  const _Item.header(this.title, this.hint)
+      : row = null,
+        photos = false;
+  const _Item.photos()
+      : row = null,
+        title = null,
+        hint = null,
+        photos = true;
 
   final SpotRow? row;
   final String? title;
   final String? hint;
+
+  /// Der Fundfoto-Streifen (#532).
+  final bool photos;
 }
 
 class _Controls extends StatelessWidget {

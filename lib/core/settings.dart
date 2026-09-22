@@ -280,6 +280,20 @@ abstract interface class Settings {
   DateTime? get lastFindSeenAt;
 
   Future<void> setLastFindSeenAt(DateTime value);
+
+  /// Fundfotos von Buddys anzeigen — und damit laden (#532)?
+  ///
+  /// Ab Werk JA, anders als die meisten Schalter hier: Ein Foto kommt
+  /// nur, weil ein Buddy es ausdrücklich für seine Buddys geteilt hat,
+  /// und ein Posteingang, den erst ein Schalter öffnet, ist einer, den
+  /// niemand findet. Der Schalter ist für die andere Richtung da — wer
+  /// unterwegs kein Datenvolumen für Bilder ausgeben will, stellt ihn
+  /// aus, und dann wird KEINE Vorschau geholt, nicht nur keine gezeigt.
+  /// Eigene Fotos bleiben sichtbar; die hat man selbst hochgeladen.
+  /// Gerätelokal, wie alle Schalter hier.
+  bool get findPhotosEnabled;
+
+  Future<void> setFindPhotosEnabled(bool value);
 }
 
 /// Erstlauf-Schutz für das Buddy-Fund-Banner: Ohne Marker gälte ALLES als
@@ -522,6 +536,16 @@ class PrefsSettings implements Settings {
   @override
   Future<void> setLastFindSeenAt(DateTime value) =>
       _prefs.setString(_lastFindSeenAtKey, value.toUtc().toIso8601String());
+
+  static const _findPhotosEnabledKey = 'find_photos_enabled';
+
+  @override
+  bool get findPhotosEnabled =>
+      _prefs.getBool(_findPhotosEnabledKey) ?? true;
+
+  @override
+  Future<void> setFindPhotosEnabled(bool value) =>
+      _prefs.setBool(_findPhotosEnabledKey, value);
 }
 
 /// Wird in `main()` mit den geladenen Einstellungen überschrieben, in Tests

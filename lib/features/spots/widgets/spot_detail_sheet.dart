@@ -21,6 +21,7 @@ import '../spot_providers.dart';
 import 'add_find_sheet.dart';
 import 'edit_find_sheet.dart';
 import 'edit_spot_sheet.dart';
+import 'find_photo_strip.dart';
 import 'ampel_section.dart';
 import '../../ampel/ampel_scan.dart' show scanSpeciesOf;
 import 'species_season_section.dart';
@@ -595,6 +596,10 @@ class _SpotDetailSheet extends ConsumerWidget {
                   ? () => _confirmOffset(context, ref, spot)
                   : null,
             ),
+          // Fundfotos an diesem Spot (#532) — eigene und die der Buddys,
+          // solange sie laufen. Über der Liste, weil ein Bild zeigt, was
+          // die Zeile darunter nur benennt. Leer heißt unsichtbar.
+          FindPhotoStrip(spotId: spot.id),
           const SizedBox(height: 12),
           if (spot.entriesSorted.isEmpty)
             Padding(
@@ -662,9 +667,30 @@ class _SpotDetailSheet extends ConsumerWidget {
                           ? Icon(Icons.schedule,
                               size: 18, color: Theme.of(context).hintColor)
                           : find.isOwn
-                              ? Icon(Icons.edit_outlined,
-                                  size: 18,
-                                  color: Theme.of(context).hintColor)
+                              ? Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // Foto teilen (#532) — nur am eigenen
+                                    // Fund, nicht am Leergang (der hat
+                                    // nichts zu zeigen) und nicht am
+                                    // wartenden (der hat keine id, an
+                                    // der ein Foto hängen könnte).
+                                    if (!find.blank)
+                                      IconButton(
+                                        key: shareFindPhotoKey(find.id),
+                                        tooltip: 'Foto teilen',
+                                        visualDensity: VisualDensity.compact,
+                                        icon: Icon(Icons.add_a_photo_outlined,
+                                            size: 20,
+                                            color: Theme.of(context).hintColor),
+                                        onPressed: () =>
+                                            shareFindPhoto(context, ref, find),
+                                      ),
+                                    Icon(Icons.edit_outlined,
+                                        size: 18,
+                                        color: Theme.of(context).hintColor),
+                                  ],
+                                )
                               : MushroomAvatar(
                                   index: find.authorAvatar, size: 22),
                     ),

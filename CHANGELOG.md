@@ -7,6 +7,31 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Fundfotos für deine Buddys
+
+*22. September 2026 · Version 1.185.0*
+
+Ein besonders schönes Fundstück lässt sich jetzt fotografieren und mit
+den Buddys teilen: Am eigenen Fund im Spot-Blatt steht eine kleine
+Kamera, und wer den Fund sehen darf, sieht 14 Tage lang auch das Foto —
+im Reiter „Spots" ganz oben und im Blatt des Spots. Dann wird es
+gelöscht, auch für dich; auf deinem Telefon bleibt das Original.
+Zurücknehmen geht jederzeit vorher, ein Tipp auf das Bild zeigt es groß.
+
+Das Wichtigste passiert vor dem Hochladen: Die App verkleinert das Bild
+und entfernt **alle Aufnahmedaten** — Ort, Zeit, Gerät. Ein Foto vom
+Telefon trägt die Fundstelle sonst unsichtbar in sich, und genau die
+soll niemand bekommen, dem du sie nicht selbst zeigst. Die App prüft
+das an jedem Bild nach, statt sich darauf zu verlassen. Was auf dem Bild
+zu sehen ist, bleibt natürlich zu sehen.
+
+- Fotos von Buddys lassen sich im Profil abstellen („Fundfotos von
+  Buddys anzeigen"): Dann lädt die App keine Bilder — für unterwegs ohne
+  Datenvolumen. Deine eigenen siehst du weiterhin.
+- Ohne Empfang scheitert das Teilen sichtbar, statt im Ausgangskorb zu
+  warten; ein Foto ist ein Extra-Schritt nach dem Eintragen.
+- Keine neue Berechtigung: Kamera und Galerie kommen ohne aus.
+
 ## Jeder Pilz hat jetzt sein eigenes Zeichen
 
 *22. September 2026 · Version 1.184.0*

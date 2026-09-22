@@ -47,11 +47,12 @@ verarbeitet*, *erforderlich oder optional* — plus die Zwecke.
 | **Persönliche Infos → Name** | Ja | Nein¹ | Erforderlich | App-Funktionalität, Kontoverwaltung | `profiles.username` (nicht null) und `display_name`; der Benutzername ist für alle Nutzer suchbar |
 | **Persönliche Infos → Nutzer-IDs** | Ja | Nein | Erforderlich | App-Funktionalität, Kontoverwaltung | `profiles.id` (UUID aus `auth.users`) |
 | **App-Aktivität → Andere nutzergenerierte Inhalte** | Ja | **Ja²** | Optional | App-Funktionalität, Entwicklerkommunikation | Spot-Name, Art, Notiz (`spots`, `finds`) sowie Feedback-Text und App-Version (`feedback`) |
+| **Fotos und Videos → Fotos** | Ja | Nein¹ | Optional | App-Funktionalität | Fundfotos (#532, seit 1.185.0): ein Bild, das der Nutzer ausdrücklich zu einem eigenen Fund teilt. Vor dem Hochladen auf 1024 px verkleinert und von ALLEN Metadaten befreit (`lib/core/photo_pipeline.dart` — geprüft an den Bytes, weil `image_picker` beim Verkleinern die GPS-Tags zurückkopiert). Liegt im Supabase-Bucket `find-photos`, sichtbar nur für Buddys, die den Fund sehen dürfen (Policy erbt von `finds`), und läuft nach 14 Tagen ab (`find_photos.expires_at`, Bot räumt Zeilen und Objekte). Keine Kamera-Berechtigung: Kamera-Intent und Photo Picker kommen ohne aus |
 | **App-Info und -Leistung → Absturzprotokolle** | Ja | Nein | Erforderlich | App-Funktionalität | `error_reports`: Fehlertyp, Meldung, Stacktrace, App-Version, Plattform |
 | **Geräte- oder andere IDs** | Ja⁴ | **Ja⁴** | Optional | App-Funktionalität | `push_devices.token` — die FCM-Gerätekennung, sobald jemand Benachrichtigungen einschaltet |
 
 **Ausdrücklich NICHT erhoben** — im Formular alles andere leer lassen:
-Fotos/Videos, Audio, Kontakte, Kalender, Finanzdaten, Gesundheits-/Fitnessdaten,
+Videos, Audio, Kontakte, Kalender, Finanzdaten, Gesundheits-/Fitnessdaten,
 SMS/E-Mail-Inhalte, Web-Browsing-Verlauf, installierte Apps. **Keine
 Advertising-ID** — `error_reports` speichert nur `platform`, also
 „android"/„web". GPX-Import und -Export laufen lokal auf dem Gerät; es werden
