@@ -14,7 +14,8 @@ void main() {
   MapContextMenuLayout at(double x, double y) => MapContextMenuLayout(
         origin: Offset(x, y),
         screen: screen,
-        count: 3,
+        // Vier seit #513 — „Spot anlegen" ist dazugekommen.
+        count: 4,
       );
 
   test('In der Mitte klappt es nach oben und fächert nach rechts', () {
@@ -83,4 +84,54 @@ void main() {
           reason: 'Chip ${i - 1} und $i liegen übereinander');
     }
   });
+
+  test('Der seitliche Versatz folgt einem BOGEN, keiner Geraden', () {
+    // **Das war der Wunsch** (#513): „Chips aufgefächert in Bogenform um
+    // den Punkt, aktuell ist es eine schräge Gerade."
+    //
+    // Der Unterschied ist messbar: Auf einer Geraden ist der Zuwachs je
+    // Stufe gleich groß, auf einem Viertelkreis wird er von Stufe zu
+    // Stufe kleiner.
+    final layout = at(100, 500);
+    final versatz = [for (var i = 0; i < 4; i++) layout.arcOffset(i)];
+    expect(versatz.first, 0, reason: 'der unterste liegt am Finger');
+    expect(versatz.last, closeTo(kContextChipArc, 0.01));
+
+    final zuwachs = [
+      for (var i = 1; i < versatz.length; i++) versatz[i] - versatz[i - 1],
+    ];
+    for (final z in zuwachs) {
+      expect(z, greaterThan(0), reason: 'der Bogen läuft nur in eine Richtung');
+    }
+    for (var i = 1; i < zuwachs.length; i++) {
+      expect(zuwachs[i], lessThan(zuwachs[i - 1]),
+          reason: 'gleich große Stufen wären wieder eine Gerade');
+    }
+  });
+
+  test('Der Bogen ändert die Stufenhöhe nicht', () {
+    // **Sie ist es, die das Überlappen verhindert.** Ein Bogen, der auch
+    // senkrecht rundet, drängt die oberen Chips ineinander — deshalb
+    // krümmt nur der seitliche Versatz.
+    final layout = at(100, 600);
+    final hoehen = [for (var i = 0; i < 4; i++) layout.chipTopLeft(i).dy];
+    final schritte = [
+      for (var i = 1; i < hoehen.length; i++) (hoehen[i] - hoehen[i - 1]).abs(),
+    ];
+    for (final schritt in schritte) {
+      expect(schritt, closeTo(kContextChipHeight + kContextChipGap, 0.01));
+    }
+  });
+
+  test('Auch mit vier Chips bleibt in den Ecken alles im Bild', () {
+    for (final ecke in [
+      const Offset(4, 4),
+      Offset(screen.width - 4, 4),
+      Offset(4, screen.height - 4),
+      Offset(screen.width - 4, screen.height - 4),
+    ]) {
+      expect(at(ecke.dx, ecke.dy).fitsOnScreen, isTrue, reason: '$ecke');
+    }
+  });
+
 }
