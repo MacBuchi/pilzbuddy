@@ -7,6 +7,33 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Merkmale zu jedem Pilz, nicht nur zu den gefährlichen
+
+*22. September 2026 · Version 1.169.0*
+
+Die Bestimmungsmerkmale gab es bisher nur dort, wo eine Verwechslung
+eingetragen war oder der Pilz giftig ist. Das klang vernünftig und war
+es nicht: Gemessen wurde am Giftpilz und nicht an dem, was tatsächlich
+im Korb landet. Die vier Reizker zum Beispiel sind Speisepilze ohne
+eingetragenen Verwechslungspartner — ihre Seite sagte über den Pilz
+kein einziges Wort.
+
+**Jetzt trägt jede der 92 Arten ihre sechs Felder**: Hut, Unterseite,
+Stiel, Fleisch, Geruch und Vorkommen. Dazugekommen sind 30 Arten,
+darunter Reizker, Krause Glucke, Schopftintling, Habichtspilz,
+Brätling, Nelkenschwindling, Riesenbovist, Schwefelporling, Judasohr,
+Leberpilz, Igelstachelbart und die Rotkappen.
+
+Ein paar Beispiele für das, was dort jetzt steht: Der Edelreizker hat
+dunkle Grübchen am Stiel und seine Milch bleibt stundenlang
+karottenrot, der Fichtenreizker läuft rasch grün an. Der Brätling
+riecht nach Heringslake. Der Goldröhrling wächst ausschließlich bei
+Lärche. Beim Riesenbovist zählt nur, dass das Fleisch beim
+Durchschneiden rein weiß ist.
+
+Wie bisher gilt: Das ist beschrieben, woran eine Art in der Literatur
+erkannt wird. PilzBuddy bestimmt keine Pilze.
+
 ## Die Warnung dort, wo der Pilz ist
 
 *22. September 2026 · Version 1.168.0*

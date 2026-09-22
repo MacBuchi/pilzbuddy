@@ -8,7 +8,6 @@
 // vor allem die REGEL, welche Arten überhaupt Merkmale tragen müssen.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/mushroom_species.dart';
-import 'package:pilzbuddy/core/species_edibility.dart';
 import 'package:pilzbuddy/core/species_features.dart';
 import 'package:pilzbuddy/core/species_lookalikes.dart';
 
@@ -18,17 +17,22 @@ void main() {
       if (!s.isSynonym) s.name
   };
 
-  /// Wer Merkmale tragen MUSS — als Regel, nicht als abgeschriebene
-  /// Liste: jede Art mit einem Verwechslungspartner (ohne Merkmale
-  /// ließe sich der Unterschied nicht nachlesen) und jede giftige Art
-  /// (die muss beschrieben sein, auch wenn sie niemand sucht).
-  final required = <String>{
-    ...speciesLookalikes.keys,
-    for (final e in speciesEdibility.entries)
-      if (e.value.level == Edibility.giftig ||
-          e.value.level == Edibility.toedlichGiftig)
-        e.key,
-  };
+  /// Wer Merkmale tragen MUSS: **JEDE bekannte Art.**
+  ///
+  /// Bis 1.168.0 war die Pflichtmenge enger — Arten mit einem
+  /// Verwechslungspartner plus die giftigen. Die Regel maß am Giftpilz
+  /// und nicht am Sammler, und genau daran ist sie gescheitert: Die
+  /// vier Reizker sind als Speisepilz eingestuft und hatten keinen
+  /// eingetragenen Partner, fielen also durch beide Siebe. Ihre Seite
+  /// sagte über den Pilz kein Wort (Betreiber, 2026-09-22: „zu den
+  /// Reizkern finde ich gar keine Erkennungsmerkmale"). Betroffen waren
+  /// 30 Arten, fast alle Speisepilze — also durchweg das, was jemand
+  /// wirklich im Korb hat.
+  ///
+  /// Eine Art ohne Merkmale ist damit kein Grenzfall mehr, sondern ein
+  /// roter Test. Das ist der Preis, und er ist gewollt: Eine Detailseite
+  /// ohne eine Zeile über den Pilz ist schlechter als keine Seite.
+  final required = known;
 
   test('die Pflichtmenge ist vollständig beschrieben', () {
     final missing = required.difference(speciesFeatures.keys.toSet());

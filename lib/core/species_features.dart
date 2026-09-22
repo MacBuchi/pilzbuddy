@@ -16,11 +16,18 @@
 // Lamellen" ist bei einer Morchel die Auskunft; ein leeres Feld sähe aus
 // wie eine Lücke.
 //
-// **Gepflegt für 58 Arten, und die Menge ist eine Regel:** jede Art mit
-// einem Verwechslungspartner (ohne Merkmale ließe sich der Unterschied
-// nicht nachlesen) und jede giftige Art (die muss beschrieben sein, auch
-// wenn sie niemand sucht). `test/species_features_test.dart` rechnet das
-// nach — wer ein Paar ergänzt, wird zu den Merkmalen gezwungen.
+// **Gepflegt für JEDE bekannte Art**, seit 1.169.0. Davor galt eine
+// engere Regel — Arten mit einem Verwechslungspartner plus die giftigen
+// —, und die hat am falschen Ende gemessen: am Giftpilz statt am
+// Sammler. Die vier Reizker sind Speisepilze ohne eingetragenen Partner
+// und fielen durch beide Siebe; ihre Seite sagte über den Pilz kein
+// Wort. So gemeldet vom Betreiber am 2026-09-22, und es betraf 30
+// Arten, fast alle Speisepilze.
+//
+// `test/species_features_test.dart` rechnet die Menge nach: Eine neue
+// Art OHNE Merkmale macht den Lauf rot. Das ist die teurere Pflicht,
+// aber die billigere Alternative war eine Detailseite, die über den
+// Pilz schweigt.
 import 'mushroom_species.dart';
 
 /// Die sechs Felder. Alle sind Pflicht; „trifft nicht zu" wird
@@ -220,6 +227,70 @@ const speciesFeatures = <String, SpeciesFeatures>{
         'Gebirge; Juli bis Oktober.',
   ),
 
+  'Rotkappe': (
+    hut: 'Fünf bis 20 cm, halbkugelig und lange geschlossen, orange bis '
+        'ziegelrot; die Huthaut steht am Rand etwas über den Röhren '
+        'vor.',
+    unterseite: 'Röhren jung weißlich bis grau, auf Druck graubraun '
+        'anlaufend, am Stiel frei bleibend und fein.',
+    stiel: 'Lang und schlank, weißlich, dicht mit SCHUPPEN besetzt, die '
+        'je nach Art weiß, rotbraun oder schwarz sind.',
+    fleisch: 'Weiß, im Schnitt erst weinrot bis grau, dann schwarz '
+        'anlaufend; jung fest, alt schwammig.',
+    geruch: 'Angenehm pilzig, Geschmack mild.',
+    vorkommen: 'Mykorrhiza bei Birke, Espe, Eiche und Nadelbäumen; der '
+        'deutsche Name meint MEHRERE Arten. Juni bis Oktober.',
+  ),
+  'Espenrotkappe': (
+    hut: 'Sechs bis 20 cm, leuchtend orangerot bis ziegelrot, trocken '
+        'und feinfilzig, alt etwas runzelig.',
+    unterseite: 'Röhren weißlich bis cremegrau, auf Druck bräunend, am '
+        'Stiel ausgebuchtet angewachsen.',
+    stiel: 'Kräftig und keulig, weiß, mit anfangs WEISSLICHEN, später '
+        'rotbraunen Schuppen.',
+    fleisch: 'Weiß, im Anschnitt rasch violettgrau und dann schwarz; '
+        'fest und dickfleischig.',
+    geruch: 'Angenehm pilzig, Geschmack mild — roh jedoch unverträglich.',
+    vorkommen: 'Mykorrhiza bei Espe und Pappel, seltener bei Eiche; Juni '
+        'bis Oktober.',
+  ),
+  'Birkenrotkappe': (
+    hut: 'Fünf bis 20 cm, orange bis gelbbraun, matt und feinfilzig, mit '
+        'deutlich überstehender Huthaut am Rand.',
+    unterseite: 'Röhren grauweiß, auf Druck schmutzig grau; die Poren '
+        'sind sehr fein und rund.',
+    stiel: 'Hoch und schlank, weiß mit SCHWARZEN Schuppen, zur Basis hin '
+        'oft blaugrün fleckend.',
+    fleisch: 'Weiß, im Schnitt rosa bis graurot, dann schwarzgrau; im '
+        'Stielgrund blaugrün.',
+    geruch: 'Mild und unauffällig; roh unverträglich.',
+    vorkommen: 'Mykorrhiza ausschließlich bei Birke, gern in feuchten '
+        'Mooren und Heiden; Juni bis Oktober.',
+  ),
+  'Goldröhrling': (
+    hut: 'Vier bis zwölf cm, goldgelb bis rotbraun, bei Feuchtigkeit '
+        'stark SCHLEIMIG und glänzend, trocken lackartig.',
+    unterseite: 'Röhren jung zitronengelb, später ockergelb, am Stiel '
+        'kurz herablaufend; jung von einem Velum verdeckt.',
+    stiel: 'Gelb, oberhalb des häutigen RINGES genetzt, unterhalb '
+        'rotbraun gefleckt.',
+    fleisch: 'Hellgelb, weich, im Schnitt kaum verfärbend.',
+    geruch: 'Schwach säuerlich, Geschmack mild.',
+    vorkommen: 'Mykorrhiza AUSSCHLIESSLICH bei Lärche; Juli bis Oktober.',
+  ),
+  'Sandröhrling': (
+    hut: 'Fünf bis 14 cm, ockergelb bis semmelbraun, feinschuppig-körnig '
+        'und nur bei Nässe leicht klebrig.',
+    unterseite: 'Röhren jung olivgrau, später zimtbraun, sehr feinporig, '
+        'auf Druck schwach blauend.',
+    stiel: 'Kräftig und walzig, gelblich bis ockerbraun, ohne Ring und '
+        'ohne Netz.',
+    fleisch: 'Blassgelb, weich, im Schnitt schwach blauend.',
+    geruch: 'Streng säuerlich, fast nach Chlor; Geschmack mild.',
+    vorkommen: 'Mykorrhiza bei Kiefer auf Sandböden und in Heiden; Juli '
+        'bis November.',
+  ),
+
   // ── Leistlinge und Stachelpilze ──────────────────────────────────
   'Pfifferling': (
     hut: 'Drei bis zehn cm, dottergelb, jung gewölbt, später trichterig '
@@ -280,6 +351,58 @@ const speciesFeatures = <String, SpeciesFeatures>{
         'August bis November.',
   ),
 
+  'Krause Glucke': (
+    hut: 'Kein Hut: ein 10 bis 40 cm großer, blumenkohlartiger Ballen '
+        'aus krausen, BANDFÖRMIGEN Lappen, cremeweiß bis ockergelb.',
+    unterseite: 'Weder Lamellen noch Poren; die Sporen sitzen glatt auf '
+        'der Unterseite der Lappen.',
+    stiel: 'Ein kurzer, wurzelnder Strunk, der in die Baumwurzel '
+        'übergeht.',
+    fleisch: 'Zäh-elastisch, bei jungen Stücken zart, im Alter ledrig '
+        'und brüchig.',
+    geruch: 'Würzig, fast nach Anis oder Marzipan; Geschmack mild und '
+        'nussig.',
+    vorkommen: 'Am Stammfuß von KIEFERN, seltener anderer Nadelbäume, '
+        'oft jahrelang an derselben Stelle; August bis November.',
+  ),
+  'Habichtspilz': (
+    hut: 'Acht bis 25 cm, graubraun, trichterig vertieft und mit groben, '
+        'aufgerichteten SCHUPPEN wie ein Vogelgefieder besetzt.',
+    unterseite: 'STACHELN statt Lamellen, grau bis braun, am Stiel '
+        'deutlich herablaufend.',
+    stiel: 'Kurz und dick, graubraun, oft seitlich am Hut angesetzt.',
+    fleisch: 'Weißlich bis graubraun, jung fest, im Alter zäh.',
+    geruch: 'Würzig; jung mild, mit dem Alter zunehmend BITTER.',
+    vorkommen: 'Mykorrhiza bei Fichte auf saurem Boden im Bergwald; '
+        'August bis Oktober.',
+  ),
+  'Ziegenbart': (
+    hut: 'Kein Hut: ein fünf bis 20 cm hoher, korallenartig verzweigter '
+        'Busch, je nach Art ocker, gelb, rosa oder violett gespitzt.',
+    unterseite: 'Weder Lamellen noch Poren; die Sporen sitzen außen an '
+        'den Ästen.',
+    stiel: 'Ein dicker, weißlicher Strunk, aus dem sich die Äste '
+        'wiederholt gabeln.',
+    fleisch: 'Weiß bis blass, brüchig; bei manchen Arten auf Druck '
+        'weinrot fleckend.',
+    geruch: 'Unauffällig bis leicht erdig; bitterer Geschmack spricht '
+        'gegen einen Speisepilz.',
+    vorkommen: 'Auf Waldboden bei Laub- und Nadelbäumen; der deutsche '
+        'Name meint die ganze Gattung. Juli bis Oktober.',
+  ),
+  'Igelstachelbart': (
+    hut: 'Kein Hut: ein fünf bis 25 cm großer, rein weißer Klumpen, von '
+        'dem lange, herabhängende STACHELN wie ein Bart ausgehen.',
+    unterseite: 'Weder Lamellen noch Poren; die Stacheln selbst tragen '
+        'die Sporen.',
+    stiel: 'Kein Stiel; der Fruchtkörper sitzt mit schmaler Basis direkt '
+        'am Stamm.',
+    fleisch: 'Weiß, weich und faserig, im Alter gilbend und zäh.',
+    geruch: 'Angenehm pilzig, Geschmack mild.',
+    vorkommen: 'An Wunden lebender Laubbäume, vor allem Buche und Eiche; '
+        'in Deutschland besonders geschützt. September bis November.',
+  ),
+
   // ── Champignons ──────────────────────────────────────────────────
   'Wiesenchampignon': (
     hut: 'Vier bis zehn cm, weiß bis cremefarben, seidig, jung '
@@ -325,6 +448,20 @@ const speciesFeatures = <String, SpeciesFeatures>{
         'Juli bis Oktober.',
   ),
 
+  'Stadtchampignon': (
+    hut: 'Fünf bis 15 cm, weiß bis cremefarben, dickfleischig, lange '
+        'flach gewölbt und oft vom Aufstemmen der Erde rissig.',
+    unterseite: 'Lamellen jung blassrosa, dann schokoladenbraun, frei '
+        'stehend und sehr dicht.',
+    stiel: 'Kurz und dick, weiß, mit DOPPELTEM Ring — einem oberen '
+        'häutigen und einem unteren, wulstigen.',
+    fleisch: 'Weiß, sehr fest, im Schnitt kaum verfärbend.',
+    geruch: 'Angenehm nach Champignon, Geschmack mild; kein Anis und '
+        'keine Tinte.',
+    vorkommen: 'An Wegrändern, auf Parkrasen und in Pflasterritzen, oft '
+        'mitten in Städten; Mai bis Oktober.',
+  ),
+
   // ── Schirmlinge ──────────────────────────────────────────────────
   'Parasol': (
     hut: 'Zehn bis 30 cm, jung paukenschlägelförmig geschlossen, später '
@@ -350,6 +487,21 @@ const speciesFeatures = <String, SpeciesFeatures>{
     geruch: 'Angenehm pilzig, mild.',
     vorkommen: 'In Gärten, an Komposthaufen und in Nadelwäldern; '
         'Juli bis Oktober.',
+  ),
+
+  'Schopftintling': (
+    hut: 'Vier bis 15 cm hoch, walzlich-eiförmig wie eine Perücke, weiß '
+        'mit abstehenden bräunlichen SCHUPPEN; öffnet sich nie ganz.',
+    unterseite: 'Lamellen jung weiß, dann von unten her rosa, '
+        'schließlich schwarz und zu Tinte zerfließend.',
+    stiel: 'Lang, schlank und hohl, weiß, mit einem beweglichen schmalen '
+        'Ring.',
+    fleisch: 'Jung weiß und zart, altert von unten her schwarz und '
+        'flüssig.',
+    geruch: 'Mild und angenehm; brauchbar NUR jung mit rein weißen '
+        'Lamellen.',
+    vorkommen: 'Auf gedüngten Wiesen, an Wegrändern und in Gärten, oft '
+        'in Reihen; Mai bis November.',
   ),
 
   // ── Wulstlinge ───────────────────────────────────────────────────
@@ -475,6 +627,92 @@ const speciesFeatures = <String, SpeciesFeatures>{
         'Juli bis Oktober.',
   ),
 
+  'Ledertäubling': (
+    hut: 'Fünf bis 13 cm, kastanien- bis purpurbraun, in der Mitte oft '
+        'heller ocker, der Rand alt deutlich gerieft.',
+    unterseite: 'Lamellen jung weiß, reif kräftig OCKERGELB durch das '
+        'Sporenpulver, brüchig.',
+    stiel: 'Weiß und keulig, fest, ohne Ring; bricht wie Kreide, statt '
+        'zu fasern.',
+    fleisch: 'Weiß und fest, unter der Huthaut bräunlich; OHNE Milch.',
+    geruch: 'Schwach obstartig, Geschmack MILD — auch in den Lamellen.',
+    vorkommen: 'Mykorrhiza bei Fichte und Tanne im Bergwald; Juli bis '
+        'Oktober.',
+  ),
+  'Fichtenreizker': (
+    hut: 'Fünf bis zwölf cm, orange mit undeutlichen Zonen, bald '
+        'trichterig, auf Druck und im Alter rasch GRÜN fleckend.',
+    unterseite: 'Lamellen orange, dicht, am Stiel herablaufend, mit der '
+        'Zeit ebenfalls grünfleckig.',
+    stiel: 'Kurz und hohl, orange, meist OHNE die dunklen Grübchen des '
+        'Edelreizkers.',
+    fleisch: 'Blass orange und brüchig; Milch KAROTTENROT, nach einer '
+        'halben Stunde weinrot bis grünlich.',
+    geruch: 'Obstig, Geschmack mild bis leicht bitterlich.',
+    vorkommen: 'Mykorrhiza AUSSCHLIESSLICH bei Fichte; Juli bis Oktober.',
+  ),
+  'Edelreizker': (
+    hut: 'Vier bis 14 cm, orange mit deutlich konzentrischen ZONEN, '
+        'trichterig vertieft, nur wenig und spät grünend.',
+    unterseite: 'Lamellen leuchtend orange, gedrängt und weit am Stiel '
+        'herablaufend.',
+    stiel: 'Fest und hohl, orange, mit dunkleren GRÜBCHEN gezeichnet.',
+    fleisch: 'Weißlich mit orangefarbenen Zonen; Milch karottenrot und '
+        'über Stunden unverändert.',
+    geruch: 'Angenehm obstig, Geschmack mild und leicht harzig.',
+    vorkommen: 'Mykorrhiza bei Kiefer auf kalkhaltigem Boden; August bis '
+        'Oktober.',
+  ),
+  'Lachsreizker': (
+    hut: 'Sechs bis 15 cm, lachs- bis aprikosenfarben, kaum gezont, der '
+        'Rand lange eingerollt; grünt nicht.',
+    unterseite: 'Lamellen blass lachsfarben, sehr dicht stehend und am '
+        'Stiel herablaufend.',
+    stiel: 'Kräftig und lachsfarben, mit nur schwach angedeuteten '
+        'Grübchen.',
+    fleisch: 'Cremefarben; Milch orangerot und an der Luft LANGSAM '
+        'weinrot werdend.',
+    geruch: 'Schwach obstartig, Geschmack mild bis leicht bitter.',
+    vorkommen: 'Mykorrhiza AUSSCHLIESSLICH bei Weißtanne; August bis '
+        'Oktober.',
+  ),
+  'Kiefernreizker': (
+    hut: 'Fünf bis zwölf cm, ockerorange bis fleischrosa mit grünlichen '
+        'Flecken, nur schwach gezont.',
+    unterseite: 'Lamellen weinrot überhaucht und damit DUNKLER als bei '
+        'den anderen Reizkern, dicht, herablaufend.',
+    stiel: 'Kurz und grubig, blass mit weinroten Tönen.',
+    fleisch: 'Blass, im Schnitt weinrot; Milch von Anfang an DUNKEL '
+        'WEINROT statt orange.',
+    geruch: 'Mild und obstig, Geschmack mild.',
+    vorkommen: 'Mykorrhiza bei Kiefer auf Kalk, wärmeliebend; September '
+        'bis November.',
+  ),
+  'Mohrenkopfmilchling': (
+    hut: 'Drei bis acht cm, SAMTIG dunkelbraun bis fast schwarz, mit '
+        'kleinem spitzem Buckel und gekerbtem Rand.',
+    unterseite: 'Lamellen auffallend WEISS bis cremefarben und weit '
+        'stehend — der Kontrast zum Hut ist das Kennzeichen.',
+    stiel: 'Lang und schlank, samtig dunkelbraun, oft längsrunzelig.',
+    fleisch: 'Weiß, im Schnitt langsam rosa bis rötlich; Milch weiß und '
+        'rötend.',
+    geruch: 'Unauffällig, Geschmack mild.',
+    vorkommen: 'Mykorrhiza bei Fichte und Tanne im Bergwald, gern in '
+        'Moos; Juli bis Oktober.',
+  ),
+  'Brätling': (
+    hut: 'Fünf bis 14 cm, orangebraun bis rostrot, matt und fein samtig, '
+        'im Alter felderig rissig.',
+    unterseite: 'Lamellen cremeweiß und gedrängt, auf Druck BRAUN '
+        'fleckend, am Stiel kurz herablaufend.',
+    stiel: 'Fest und hart, in Hutfarbe, ohne Grübchen und ohne Ring.',
+    fleisch: 'Weiß und fest; Milch reichlich, WEISS wie Milch, klebrig '
+        'und braun eintrocknend.',
+    geruch: 'Deutlich nach HERINGSLAKE, Geschmack mild und nussig.',
+    vorkommen: 'Mykorrhiza bei Eiche, Buche und Hainbuche auf warmen '
+        'Böden; Juli bis September.',
+  ),
+
   // ── Morcheln und Lorcheln ────────────────────────────────────────
   'Speisemorchel': (
     hut: 'Vier bis zehn cm, eiförmig bis rundlich, ockerbraun, mit '
@@ -534,6 +772,21 @@ const speciesFeatures = <String, SpeciesFeatures>{
         'März bis Mai.',
   ),
 
+  'Morchelbecherling': (
+    hut: 'Kein Hut: ein fünf bis 15 cm breiter, anfangs tief '
+        'BECHERFÖRMIGER Fruchtkörper, der sich ausbreitet und wellig '
+        'verbiegt.',
+    unterseite: 'Weder Lamellen noch Röhren; die olivbraune Innenseite '
+        'trägt das Sporenlager und ist grob ADERIG gerunzelt, außen '
+        'weißlich und kleiig.',
+    stiel: 'Nur ein kurzer, weißlicher Stummel, der meist ganz im Boden '
+        'steckt.',
+    fleisch: 'Dünn und brüchig, wässrig braun.',
+    geruch: 'Deutlich nach CHLOR oder Schwimmbad; roh giftig.',
+    vorkommen: 'In Auwäldern und an feuchten Wegrändern, gern bei Esche '
+        'und Pappel; März bis Mai.',
+  ),
+
   // ── Boviste ──────────────────────────────────────────────────────
   'Flaschenstäubling': (
     hut: 'Kein Hut: ein zwei bis sechs cm großer, keulen- bis '
@@ -548,6 +801,35 @@ const speciesFeatures = <String, SpeciesFeatures>{
     geruch: 'Jung mild und angenehm, reif muffig nach altem Staub.',
     vorkommen: 'In Wäldern auf Boden und Nadelstreu, oft in Gruppen; '
         'Juni bis November.',
+  ),
+
+  'Riesenbovist': (
+    hut: 'Kein Hut: eine 20 bis 50 cm große, weiße Kugel ohne jeden '
+        'Stiel, die Oberfläche wie Wildleder.',
+    unterseite: 'Weder Lamellen noch Röhren noch Stacheln; die Hülle '
+        'reißt reif unregelmäßig auf und entlässt olivbraunes '
+        'Sporenpulver.',
+    stiel: 'Fehlt vollständig; der Fruchtkörper sitzt mit einer '
+        'Mycelschnur direkt dem Boden auf.',
+    fleisch: 'Jung rein WEISS und gleichmäßig wie Frischkäse — längs '
+        'durchschneiden ist Pflicht. Gelb oder oliv heißt reif und '
+        'nicht mehr essbar.',
+    geruch: 'Jung angenehm pilzig, reif unangenehm streng.',
+    vorkommen: 'Auf gedüngten Wiesen, Weiden und in Parks, gern an '
+        'Brennnesselsäumen; Juli bis Oktober.',
+  ),
+  'Birnenstäubling': (
+    hut: 'Kein Hut: ein zwei bis fünf cm großer, deutlich BIRNENFÖRMIGER '
+        'Fruchtkörper, jung weiß, später ockerbraun, feinwarzig bis '
+        'glatt.',
+    unterseite: 'Keine Lamellen und keine Röhren; oben öffnet sich reif '
+        'ein enges Loch, aus dem die Sporen stäuben.',
+    stiel: 'Ein kurzer, zusammengezogener Stielteil, aus dem WEISSE '
+        'Mycelstränge ins Holz ziehen.',
+    fleisch: 'Jung weiß und fest, später olivbraun und pulverig.',
+    geruch: 'Jung mild und angenehm, reif muffig.',
+    vorkommen: 'IMMER an morschem Holz, an Stümpfen und vergrabenen '
+        'Wurzeln, meist in dichten Rasen; Juli bis November.',
   ),
 
   // ── Baumpilze ────────────────────────────────────────────────────
@@ -573,6 +855,47 @@ const speciesFeatures = <String, SpeciesFeatures>{
     geruch: 'Mild, schwach mehlig.',
     vorkommen: 'An Laubholz, vor allem Buche; Mai bis September — die '
         'SOMMERform.',
+  ),
+
+  'Schwefelporling': (
+    hut: 'Dachziegelig übereinander stehende, 10 bis 40 cm breite '
+        'Konsolen, schwefelgelb bis orange, am Rand wellig; alt blass '
+        'und kreidig.',
+    unterseite: 'Feine, schwefelgelbe PORENSCHICHT statt Lamellen, auf '
+        'Druck dunkler werdend.',
+    stiel: 'Kein Stiel; die Konsolen sitzen breit und seitlich am Stamm '
+        'an.',
+    fleisch: 'Jung saftig, weich und blassgelb, im Alter hart, faserig '
+        'und bröckelig.',
+    geruch: 'Säuerlich-fruchtig; brauchbar sind nur die jungen, weichen '
+        'Ränder.',
+    vorkommen: 'An lebenden und toten Laubbäumen, vor allem Eiche, Weide '
+        'und Obstbäumen; Mai bis Juli.',
+  ),
+  'Leberpilz': (
+    hut: 'Zehn bis 25 cm, zungen- bis leberförmig, blutrot bis rotbraun, '
+        'feucht klebrig und rau wie eine Katzenzunge.',
+    unterseite: 'Cremeweiße bis rosa RÖHRCHEN, die EINZELN nebeneinander '
+        'stehen und sich voneinander lösen lassen.',
+    stiel: 'Kein oder nur ein kurzer seitlicher Ansatz am Stamm.',
+    fleisch: 'Rot marmoriert wie ein Stück Fleisch, saftig; im Schnitt '
+        'tritt rötlicher Saft aus.',
+    geruch: 'Schwach säuerlich, Geschmack deutlich SAUER.',
+    vorkommen: 'Am Stammfuß alter Eichen, seltener an Esskastanien; '
+        'August bis Oktober.',
+  ),
+  'Judasohr': (
+    hut: 'Drei bis zehn cm, ohrmuschelförmig und gewellt, rotbraun bis '
+        'olivbraun, außen fein samtig behaart.',
+    unterseite: 'Keine Lamellen: eine glatte bis aderig gefaltete, '
+        'graubraune Fläche.',
+    stiel: 'Kein Stiel; seitlich oder mit einem Punkt am Holz '
+        'angewachsen.',
+    fleisch: 'GALLERTARTIG und elastisch wie Gummi, trocken hornhart, '
+        'quillt bei Nässe wieder auf.',
+    geruch: 'Nahezu geruchlos, Geschmack mild.',
+    vorkommen: 'An totem Laubholz, vor allem HOLUNDER; das ganze Jahr, '
+        'besonders in milden Wintern.',
   ),
 
   // ── Lamellenpilze am Holz ────────────────────────────────────────
@@ -633,6 +956,20 @@ const speciesFeatures = <String, SpeciesFeatures>{
     geruch: 'Streng, im Alter unangenehm; roh scharf.',
     vorkommen: 'In großen Büscheln an lebendem und totem Holz, auch an '
         'Wurzeln im Boden; August bis November.',
+  ),
+
+  'Dunkler Hallimasch': (
+    hut: 'Drei bis 15 cm, dunkel rotbraun, dicht mit dunklen abstehenden '
+        'SCHUPPEN besetzt, vor allem zur Mitte hin.',
+    unterseite: 'Lamellen weißlich, im Alter rostfleckig, am Stiel etwas '
+        'herablaufend.',
+    stiel: 'Fest und braun genattert, mit dickem weißem RING, der außen '
+        'bräunlich beflockt ist.',
+    fleisch: 'Weiß und fest, im Stiel zäh und faserig.',
+    geruch: 'Streng pilzig; roh GIFTIG, nur gut durchgegart und ohne das '
+        'Kochwasser.',
+    vorkommen: 'An Nadelholz, vor allem Fichte, als Parasit an lebenden '
+        'Stämmen und an Stümpfen; August bis November.',
   ),
 
   // ── Lamellenpilze am Boden ───────────────────────────────────────
@@ -769,14 +1106,75 @@ const speciesFeatures = <String, SpeciesFeatures>{
     vorkommen: 'In sandigen Kiefernwäldern und Dünen, oft halb '
         'vergraben; September bis November.',
   ),
+  'Nelkenschwindling': (
+    hut: 'Zwei bis fünf cm, ledergelb bis hellbraun, jung glockig, '
+        'später flach mit stumpfem Buckel; trocknet aus und lebt bei '
+        'Regen wieder auf.',
+    unterseite: 'Lamellen blass ockerfarben, dick, auffallend WEIT '
+        'stehend und am Stiel frei endend.',
+    stiel: 'Dünn und zäh wie Draht, hellbraun; lässt sich verdrehen, '
+        'ohne zu brechen.',
+    fleisch: 'Blass und dünn, im Stiel zäh und faserig.',
+    geruch: 'Würzig nach Bittermandel oder Nelken, Geschmack mild.',
+    vorkommen: 'Auf Wiesen, Rasen und an Wegrändern, oft in HEXENRINGEN; '
+        'Mai bis November.',
+  ),
+  'Rehbrauner Dachpilz': (
+    hut: 'Vier bis zwölf cm, graubraun bis rehbraun und radialfaserig, '
+        'jung glockig, später flach mit Buckel.',
+    unterseite: 'Lamellen jung weiß, bald FLEISCHROSA durch das '
+        'Sporenpulver, frei stehend und dicht.',
+    stiel: 'Weißlich mit dunklen Längsfasern, ohne Ring, an der Basis '
+        'leicht verdickt.',
+    fleisch: 'Weiß und weich, im Hut dünn, im Schnitt ohne Verfärbung.',
+    geruch: 'Schwach rettichartig, Geschmack mild.',
+    vorkommen: 'An morschem Laub- und Nadelholz, auf Sägemehl und '
+        'Rindenmulch; fast ganzjährig, Schwerpunkt Mai bis Oktober.',
+  ),
+  'Riesenträuschling': (
+    hut: 'Fünf bis 20 cm, jung weinrot bis rotbraun, später ockerbraun '
+        'ausblassend, trocken und glatt.',
+    unterseite: 'Lamellen jung blassgrau, dann VIOLETTSCHWARZ, breit am '
+        'Stiel angewachsen.',
+    stiel: 'Kräftig und weiß, mit dickem Ring, dessen Oberseite '
+        'STERNFÖRMIG gefurcht ist.',
+    fleisch: 'Weiß und fest, im Schnitt unverändert.',
+    geruch: 'Angenehm pilzig, Geschmack mild und nussig.',
+    vorkommen: 'Auf Stroh, Holzhäcksel und Komposterde in Gärten und '
+        'Beeten, selten im Wald; Juni bis Oktober.',
+  ),
+  'Fuchsiger Rötelritterling': (
+    hut: 'Vier bis zehn cm, fuchsig orangebraun, bald tief TRICHTERIG '
+        'mit lange eingerolltem Rand, feucht wasserfleckig.',
+    unterseite: 'Lamellen gleichfarben bis heller, sehr gedrängt, weit '
+        'herablaufend und leicht vom Hut abzulösen.',
+    stiel: 'Schlank, in Hutfarbe, an der Basis weißfilzig, ohne Ring.',
+    fleisch: 'Dünn, blass orangebraun und wässrig.',
+    geruch: 'Schwach süßlich, Geschmack mild.',
+    vorkommen: 'In Reihen und Hexenringen auf Nadelstreu, oft in '
+        'Fichtenforsten; September bis Dezember.',
+  ),
+  'Reifpilz': (
+    hut: 'Fünf bis zwölf cm, ockergelb bis semmelfarben, jung wie von '
+        'WEISSEM Reif überzogen; der Scheitel bleibt runzelig.',
+    unterseite: 'Lamellen jung blass, später TONBRAUN durch das '
+        'Sporenpulver, am Stiel angewachsen.',
+    stiel: 'Kräftig und weißlich, mit häutigem aufsteigendem Ring und '
+        'einer bandartigen Zone darunter.',
+    fleisch: 'Weiß bis blassgelb, weich, im Schnitt unverändert.',
+    geruch: 'Mild und angenehm pilzig, Geschmack nussig.',
+    vorkommen: 'Bei Fichte und Birke auf saurem Boden, gern zwischen '
+        'Heidelbeeren; August bis Oktober.',
+  ),
 };
 
 /// Die Merkmale zu einem Artnamen — `null`, wenn keine gepflegt sind.
 ///
-/// **`null` heißt „hier steht nichts", nicht „es gibt nichts zu sagen".**
-/// Gepflegt ist die Pflichtmenge (siehe Kopf der Datei); für die übrigen
-/// Arten zeigt die Seite den Abschnitt gar nicht erst an, statt eine
-/// halbe Beschreibung zu behaupten.
+/// **`null` heißt „diesen Namen kennen wir nicht".** Seit 1.169.0 trägt
+/// JEDE bekannte Art Merkmale, der Fall tritt für sie also nicht mehr
+/// ein. Der Zweig bleibt trotzdem: Hier kommt auch Freitext aus dem
+/// Eingabefeld an, und der zeigt den Abschnitt dann gar nicht erst an,
+/// statt eine halbe Beschreibung zu behaupten.
 SpeciesFeatures? featuresFor(String? species) {
   final canonical = canonicalSpecies(species);
   return canonical == null ? null : speciesFeatures[canonical];
