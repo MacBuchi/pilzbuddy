@@ -386,6 +386,26 @@ const speciesPortraits = <String, List<SpeciesPhoto>>{
       source: 'Eigene Aufnahme',
     ),
   ],
+  'Krause Glucke': [
+    (
+      asset: 'assets/species/krauseglucke-1.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+    (
+      // **Die Hand ist Absicht.** Sonst gilt sie als Fremdkörper im
+      // Bild, hier trägt sie das Merkmal: Die Krause Glucke wird
+      // kopfgroß, und an einem Ballen ohne Bezugsgröße sieht man das
+      // nicht.
+      asset: 'assets/species/krauseglucke-2.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+  ],
   'Herbsttrompete': [
     (
       asset: 'assets/species/herbsttrompete-1.webp',

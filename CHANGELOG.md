@@ -7,6 +7,14 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Bilder von der Krausen Glucke
+
+*22. September 2026 · Version 1.172.1*
+
+Zwei Aufnahmen, eine am Kiefernstrunk und eine mit der Hand daneben.
+Die Hand steht da mit Absicht: Die Krause Glucke wird kopfgroß, und an
+einem Ballen ohne Bezugsgröße sieht man das nicht.
+
 ## Die Verwechslungsliste bleibt kurz, auch mit sechs Partnern
 
 *22. September 2026 · Version 1.172.0*
