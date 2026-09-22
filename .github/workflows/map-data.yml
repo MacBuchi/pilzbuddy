@@ -133,13 +133,20 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           python3 - "$SOURCE" "$ZOOMS" <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
           import json, subprocess, sys
+          # The tool's own formatter, not a second one: a table that
+          # rounds differently from the `plan` output it summarises
+          # invites exactly the "which number is right" question this
+          # whole workflow exists to remove.
+          sys.path.insert(0, "tool")
+          from map_tiles import human
           source, zooms = sys.argv[1], sys.argv[2].split()
           config = json.load(open("tool/map_areas.json"))
           for area in config["areas"]:
               bbox = ",".join(str(v) for v in area["bbox"])
               print(f"### {area['name']} (`{area['key']}`)\n")
-              print("| asked | measured | estimated file | verdict |")
-              print("|---|---|---|---|")
+              print("| asked | measured | estimated file | measuring cost "
+                    "| verdict |")
+              print("|---|---|---|---|---|")
               for zoom in zooms:
                   # `--bbox=…` und nicht `--bbox …`: Eine westliche Länge
                   # ist negativ, und argparse liest ein führendes Minus
@@ -152,7 +159,7 @@ jobs:
                        "--source", source, f"--bbox={bbox}",
                        f"--maxzoom={zoom}"],
                       capture_output=True, text=True)
-                  size = verdict = span = "?"
+                  size = verdict = span = cost = "?"
                   for line in out.stdout.splitlines():
                       if line.startswith("zoom "):
                           span = line.split(None, 1)[1].strip()
@@ -160,13 +167,24 @@ jobs:
                           size = line.split(None, 3)[3].split("(")[0].strip()
                       if line.startswith("VERDICT"):
                           verdict = line.split(None, 1)[1].strip()
+                      # "read 371 bytes in 2 requests" — what THIS
+                      # measurement cost to take. It has to survive into
+                      # the summary, because it is the only place the
+                      # number exists: the run's stdout is captured here
+                      # and thrown away. The first run against the planet
+                      # dropped it exactly that way, and the docs kept a
+                      # guessed "a few hundred KB" for want of it — the
+                      # one kind of number this tool was built to retire.
+                      if line.startswith("read "):
+                          got = line.split()
+                          cost = f"{human(int(got[1]))} in {got[4]} req"
                   if out.returncode not in (0, 2):
                       verdict = f"failed: {out.stderr.strip()[:200]}"
                   # The measured span is its own column because `plan`
                   # clamps to what the archive holds. Without it, asking a
                   # z0-z7 source for z14 reports z7's size under z14's
                   # name — a number that looks like an answer and is not.
-                  print(f"| z{zoom} | {span} | {size} | {verdict} |")
+                  print(f"| z{zoom} | {span} | {size} | {cost} | {verdict} |")
                   sys.stdout.flush()
               print()
           PY

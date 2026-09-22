@@ -1,6 +1,6 @@
 # Offline-Karten im Browser
 
-**Stand:** 2026-09-21 · **Issue:** #496 · **Werkzeug:** `tool/map_tiles.py`,
+**Stand:** 2026-09-22 · **Issue:** #496 · **Werkzeug:** `tool/map_tiles.py`,
 `.github/workflows/map-data.yml`
 
 ## Die Frage
@@ -66,7 +66,7 @@ eine bewusste Architekturentscheidung ist und keine Zufälligkeit. Der
 Spiegel-Branch braucht nichts davon und folgt einem Muster, das seit
 #365/#366 läuft.
 
-## Was offen ist: die Messung
+## Die Messung — und was sie ergeben hat
 
 Ob ein Gebiet unter 100 MB passt, ist keine Schätzung. `map-data.yml` hat
 deshalb zwei Modi, und `plan` ist die Vorgabe:
@@ -74,27 +74,67 @@ deshalb zwei Modi, und `plan` ist die Vorgabe:
 - **`plan`** lädt keine Kacheln, sondern nur Header und die
   Verzeichnisse, die das Gebiet überhaupt berühren, und schreibt Bytes je
   Zoom und je Gebiet in die Run-Summary. Veröffentlicht nichts.
-  **Wie viel das ist, sagt der Lauf selbst** — die letzte Zeile jeder
-  Messung ist `read N bytes in M requests`. Gegen die mitgelieferte
-  Übersicht sind es 371 Bytes in 2 Anfragen; gegen den PLANETEN bei z14
-  wird es deutlich mehr, denn die Hilbert-Kurve zerlegt ein Rechteck wie
-  DACH in viele getrennte Abschnitte, und jeder davon zieht eigene
-  Leaf-Verzeichnisse nach sich. Hier stand zuerst „wenige hundert KB" —
-  das war für den Planeten geraten und ist damit genau die Sorte Zahl,
-  gegen die dieses Werkzeug gebaut ist. Die echte Zahl steht nach dem
-  ersten Lauf in der Run-Summary und gehört dann hierher.
 - **`publish`** schneidet die Auszüge mit dem offiziellen `pmtiles`,
   prüft jeden gegen seine Quelle und spiegelt sie auf
   `map-data-mirror`.
 
-`tool/map_areas.json` steht bewusst auf **einem** Gebiet (DACH). Achtzehn
-Bundesland-Bboxen von Hand einzutragen, bevor die Messung vorliegt, hieße
-zweimal raten: beim Zuschnitt UND bei den Zahlen, die ihn entscheiden. Eine
-falsche Bbox ist schlimmer als keine — sie veröffentlicht eine Karte, die
-genau dort leer ist, wo jemand läuft.
+**Gemessen am 2026-09-22** gegen `build.protomaps.com/20260922.pmtiles`,
+DACH als EIN Archiv (Läufe
+[#1](https://github.com/MacBuchi/pilzbuddy/actions/runs/35758853942) und
+[#2](https://github.com/MacBuchi/pilzbuddy/actions/runs/35763247618), Zahl
+für Zahl gleich):
 
-**Nächster Schritt:** `Map Data` im Modus `plan` starten. Das Ergebnis sagt,
-ob DACH bei z12/z13/z14 in eine Datei passt oder in wie viele.
+| bestellt | gemessen | geschätzte Datei | Messung kostete | Urteil |
+|---|---|---|---|---|
+| z8 | z0–z8 | **30,5 MB** | 144,5 KB in 3 Anfragen | passt (31 %) |
+| z10 | z0–z10 | 260,4 MB | 374,1 KB in 5 | 2,6x über |
+| z11 | z0–z11 | 610,0 MB | 648,4 KB in 7 | 6,1x über |
+| z12 | z0–z12 | 1,39 GB | 922,3 KB in 9 | 14,3x über |
+| z13 | z0–z13 | 2,87 GB | 1,4 MB in 13 | 29,4x über |
+| z14 | z0–z14 | **5,54 GB** | 3,0 MB in 26 | 56,7x über |
+
+**Als eine Datei auf raw passt nur z8.** Das Ziel dieses Dokuments ist
+z14, und das sind 5,54 GB — bei 100 MB je Datei **mindestens 57 Dateien**,
+in Wirklichkeit mehr, weil ein Schnitt Kachelgrenzen folgt und nicht
+Bytes. Die Aufteilung ist damit keine Möglichkeit mehr, sondern eine
+Bedingung, solange raw der Host ist.
+
+Und sie widerlegt die Annahme, mit der #496 angetreten war: eine einzige
+`dach.pmtiles` bei maxzoom 12 mit rund 73 MB. Gemessen sind es 1,39 GB,
+Faktor 19. Die Zahl war nie gemessen — genau die Sorte Zahl, gegen die
+dieses Werkzeug gebaut ist.
+
+**Was die Messung selbst kostet, steht jetzt neben ihr.** Hier stand
+zuerst „wenige hundert KB"; das war für den Planeten geraten. Für z8 bis
+z12 lag die Schätzung grob richtig, für z13 und z14 zu niedrig — also
+ausgerechnet dort, wo die Entscheidung fällt. Der Anstieg ist nicht die
+Dateigröße, sondern die Hilbert-Kurve: Sie zerlegt ein Rechteck wie DACH
+in immer mehr getrennte Abschnitte, und jeder zieht eigene
+Leaf-Verzeichnisse nach sich — 3 Anfragen bei z8, 26 bei z14. Drei MB, um
+5,54 GB zu vermessen, ohne sie zu laden.
+
+`tool/map_areas.json` steht weiterhin auf **einem** Gebiet (DACH). Das war
+richtig, solange die Messung fehlte, und wird erst dann falsch, wenn der
+Host feststeht: Bei raw braucht es Dutzende Bboxen, bei einem
+Objektspeicher ohne Größengrenze gar keine.
+
+**Nächster Schritt ist keine Messung mehr, sondern eine Entscheidung** —
+und sie hat drei Ausgänge:
+
+1. **Aufteilen auf raw.** Dutzende Gebietsdateien plus ein Gebietsindex in
+   der App, dazu die Frage, was mit einem Ausschnitt über einer
+   Gebietsgrenze passiert. Kostet kein Geld, und die Komplexität landet
+   genau in dem Teil, der ohne Empfang funktionieren muss.
+2. **Zoomziel senken.** z8 in einer Datei ist heute machbar. Es löst aber
+   nicht das Problem, aus dem dieses Dokument entstanden ist — „im Wald
+   sieht man Autobahnen und Ortsnamen und sonst nichts".
+3. **Ein Host ohne die 100-MB-Grenze** (Cloudflare R2). Der sauberste Weg
+   für „Ausschnitt laden", und zwar aus einem Grund, der erst durch die
+   Messung sichtbar wird: Der Mechanismus wollte nie vorgeschnittene
+   Archive, er liest Bereiche aus EINER Datei. Die 100-MB-Grenze ist das
+   Einzige, was den Schnitt erzwingt, und der Schnitt ist das Einzige, was
+   den Gebietsindex erzwingt. Der Preis ist ein Konto, ein Secret und ab
+   etwa 10 GB Geld.
 
 ## Was danach kommt (App-Seite)
 
@@ -159,6 +199,14 @@ Zwei Fallen, gegen die `check` und `HttpSource` da sind:
 
 Der Self-Test läuft netzfrei im Job „Analyze & Test" und fährt dafür einen
 Loopback-HTTP-Server, der `Range` einmal beachtet und einmal ignoriert.
-Zusätzlich läuft `info` dort gegen die **echte** mitgelieferte Übersicht:
-Ein synthetisches Fixture prüft nur, ob unser Leser zu unserem eigenen
-Test-Schreiber passt — beide könnten dieselbe falsche Annahme tragen.
+Zusätzlich laufen dort `info`, `plan` und `check` gegen die **echte**
+mitgelieferte Übersicht: Ein synthetisches Fixture prüft nur, ob unser
+Leser zu unserem eigenen Test-Schreiber passt — beide könnten dieselbe
+falsche Annahme tragen.
+
+**`info` allein reichte dafür nicht**, und das war eine eigene Lücke: Es
+liest Header und Metadaten und fasst nie ein Verzeichnis an — also genau
+den verwickelten Teil nicht (Varints, delta-kodierte `tile_id`,
+`run_length`, Leaf-Rekursion, Hilbert-Kurve). `plan` läuft durch den
+ganzen Baum, und `check` der Datei gegen SICH SELBST übt zusätzlich
+`find()` und das Lesen echter Kachelbytes.
