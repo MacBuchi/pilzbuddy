@@ -21,6 +21,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/app_colors.dart';
 import '../../ampel/ampel_map_providers.dart';
 import '../../../core/mushroom_species.dart';
+import '../../../core/widgets/sheet_close_button.dart';
 import '../../ampel/ampel_model.dart';
 import '../spot_filter.dart' show activeAmpelClassesProvider, selectedAmpelClassesProvider;
 
@@ -66,7 +67,7 @@ class _AmpelLayerSheet extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
               child: Row(
                 children: [
                   Text('Pilzampel',
@@ -88,6 +89,8 @@ class _AmpelLayerSheet extends ConsumerWidget {
                           )),
                     ),
                   ),
+                  const Spacer(),
+                  const SheetCloseButton(),
                 ],
               ),
             ),

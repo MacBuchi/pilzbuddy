@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/app_colors.dart';
+import '../../../core/widgets/sheet_close_button.dart';
 
 /// Auswahl des Nutzers im Standort-Teilen-Sheet.
 enum ShareAction { share1h, share2h, share4h, stop }
@@ -50,6 +51,7 @@ Future<ShareAction?> showShareLocationSheet(
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                     ),
+                    const SheetCloseButton(),
                   ],
                 ),
                 const SizedBox(height: 6),

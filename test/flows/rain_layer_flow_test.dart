@@ -85,6 +85,7 @@ void main() {
 
     await tester.tap(find.text('Letzte 24 Stunden'));
     await settle(tester);
+    await scrollSheet(tester);
 
     expect(find.textContaining('Nur Deutschland'), findsOneWidget,
         reason: 'Ohne diesen Satz sieht eine leere Fläche in Österreich '
@@ -271,6 +272,7 @@ void main() {
         reason: 'die Karten-Legende ist statisch und steht sofort');
 
     await openLayerSheet(tester, 'Regen');
+    await scrollSheet(tester);
     expect(find.text('ab 10 mm'), findsOneWidget,
         reason: 'das Blatt zeigt sofort die eigene Legende, nicht erst '
             'die des DWD');
@@ -314,6 +316,7 @@ void main() {
         reason: 'die eigene Skala neben DWD-Farben wäre schlicht falsch');
 
     await openLayerSheet(tester, 'Regen');
+    await scrollSheet(tester);
     expect(find.text('ab 10 mm'), findsNothing);
     expect(
         find.descendant(
@@ -332,6 +335,7 @@ void main() {
     await settleRain(tester, RainLayer.last30d);
 
     await openLayerSheet(tester, 'Regen');
+    await scrollSheet(tester);
 
     expect(find.text('ab 10 mm'), findsOneWidget);
     expect(find.text('ab 150 mm'), findsOneWidget);

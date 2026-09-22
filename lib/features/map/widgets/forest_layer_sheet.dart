@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/settings.dart';
+import '../../../core/widgets/sheet_close_button.dart';
 import '../../ampel/ampel_map_providers.dart'
     show ampelLayerEnabledProvider;
 import '../forest_block_providers.dart';
@@ -50,10 +51,17 @@ class _ForestLayerSheet extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-              child: Text('Waldtypen',
-                  style: theme.textTheme.titleLarge
-                      ?.copyWith(color: theme.colorScheme.primary)),
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text('Waldtypen',
+                        style: theme.textTheme.titleLarge
+                            ?.copyWith(color: theme.colorScheme.primary)),
+                  ),
+                  const SheetCloseButton(),
+                ],
+              ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),

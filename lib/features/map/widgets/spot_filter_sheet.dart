@@ -5,6 +5,7 @@ import '../../../core/app_colors.dart';
 import '../../../core/widgets/mushroom_icon.dart';
 import '../../../core/mushroom_species.dart';
 import '../../../core/season_curves.dart';
+import '../../../core/widgets/sheet_close_button.dart';
 import '../../ampel/ampel_providers.dart' show ampelPreviewEnabledProvider;
 import '../../ampel/ampel_scan.dart';
 import '../gbif_finds_providers.dart' show gbifLayerEnabledProvider;
@@ -60,11 +61,13 @@ class _SpotFilterSheet extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 12, 4),
+              padding: const EdgeInsets.fromLTRB(20, 4, 12, 4),
               child: Row(
                 children: [
                   Expanded(
                     child: Text('Karte filtern',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.titleLarge),
                   ),
                   // Der Zoom sitzt in der Kopfzeile und nicht als eigene
@@ -93,6 +96,7 @@ class _SpotFilterSheet extends ConsumerWidget {
                       },
                       child: const Text('Zurücksetzen'),
                     ),
+                  const SheetCloseButton(),
                 ],
               ),
             ),

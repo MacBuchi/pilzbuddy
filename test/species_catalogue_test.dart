@@ -368,4 +368,51 @@ void main() {
     }
   });
 
+  test('ein Partner mit Bild steht im Streifen — über die ganze Liste', () {
+    // **Die Regel, nicht ein Beispiel.** Bis 1.180.0 las
+    // `partnerPictures` die Vergleichstabelle mit ihren 13 Einträgen,
+    // während die Bilder der Art selbst längst auf die 80 Porträts
+    // zurückfallen: 33 von 124 Partnerzeilen trugen ein Bild, obwohl
+    // für alle 124 eines im Binary lag. Ein Test an einer Art hätte das
+    // nie gefunden — dieselbe Lehre wie bei `onlyWithOwn`.
+    var geprueft = 0;
+    for (final art in known) {
+      final detail = speciesDetailFor(art.name, month: 9);
+      if (detail == null || ownPictures(art.name).isEmpty) continue;
+      final erwartet = [
+        for (final p in detail.lookalikes)
+          if (ownPictures(p.species).isNotEmpty) p.species,
+      ];
+      expect(partnerPictures(detail).map((e) => e.species).toList(), erwartet,
+          reason: art.name);
+      geprueft += erwartet.length;
+    }
+    // Reißleine: Prüft der Lauf nichts, ist er kein Nachweis.
+    expect(geprueft, greaterThanOrEqualTo(100),
+        reason: 'so viele Partnerzeilen tragen ein Bild');
+  });
+
+  test('je Partner EIN Bild, auch wenn er mehrere hat', () {
+    // Der Streifen beantwortet „das ist er / das ist er nicht". Drei
+    // Aufnahmen eines Partners schöben den nächsten aus dem Bild.
+    final mehrere = known
+        .where((a) => ownPictures(a.name).length > 1)
+        .map((a) => a.name)
+        .toSet();
+    expect(mehrere, isNotEmpty, reason: 'sonst prüft der Test nichts');
+    var gesehen = 0;
+    for (final art in known) {
+      final detail = speciesDetailFor(art.name, month: 9);
+      if (detail == null || ownPictures(art.name).isEmpty) continue;
+      final bilder = partnerPictures(detail);
+      for (final name in bilder.map((e) => e.species)) {
+        if (mehrere.contains(name)) gesehen++;
+      }
+      expect(bilder.map((e) => e.species).toSet().length, bilder.length,
+          reason: '${art.name}: ein Partner steht doppelt im Streifen');
+    }
+    expect(gesehen, greaterThan(0),
+        reason: 'kein Partner mit mehreren Bildern kam vor');
+  });
+
 }
