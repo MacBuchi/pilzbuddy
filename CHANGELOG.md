@@ -7,6 +7,38 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Sechzehn neue Verwechslungspaare, zwei davon waren Lücken
+
+*22. September 2026 · Version 1.171.0*
+
+Ein Abgleich mit iNaturalist, wo Bestimmungen von Menschen korrigiert
+werden, hat zwei unangenehme Lücken gezeigt.
+
+**Der Fliegenpilz hatte bei uns gar keinen Verwechslungspartner** —
+obwohl er dort einer der am häufigsten korrigierten Pilze überhaupt ist.
+Ein regennasser, ausgeblasster Fliegenpilz verliert sein Rot und sieht
+aus wie ein Perlpilz. Beide Richtungen stehen jetzt da, mit dem
+Merkmal, das entscheidet: Der Perlpilz rötet an Fraßstellen fleischrosa,
+der Fliegenpilz bleibt weiß.
+
+**Und der Perlpilz nannte den Grünen Knollenblätterpilz nicht**, nur den
+Pantherpilz. Jetzt warnt er vor beiden.
+
+Dazu zwei Gruppen, die sich untereinander kaum trennen lassen und bei
+denen die App mit eigenen Merkmalstabellen behauptet, dass sie es kann:
+
+- **Die vier Reizker.** Fichten-, Edel-, Lachs- und Kiefernreizker. Was
+  sie trennt, ist vor allem der Baum: Fichte, Kiefer oder Weißtanne.
+  Dazu die Farbe der Milch und ob der Pilz grün anläuft.
+- **Die vier Steinpilze.** Steinpilz, Sommer-, Kiefernsteinpilz und
+  Bronzeröhrling, unterschieden nach Huthaut, Netz am Stiel und Baum.
+
+**Die Hinweiszeile beim Eintragen bleibt trotzdem kurz.** Sie nennt nur
+noch die Partner, bei denen etwas passieren kann. Wer „Steinpilz"
+eintippt und einen Sommersteinpilz in der Hand hält, dem passiert
+nichts — wer einen Satansröhrling in der Hand hält, schon. Die
+vollständige Liste steht weiterhin auf der Artseite.
+
 ## Bilder zu 14 Arten — und ein Hinweis dazu, was sie nicht leisten
 
 *22. September 2026 · Version 1.170.0*

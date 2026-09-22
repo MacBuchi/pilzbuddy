@@ -55,7 +55,10 @@ void main() {
 
     await tester.enterText(speciesField, 'Perlpilz');
     await settle(tester);
-    expect(find.text('Wird verwechselt mit: Pantherpilz (Giftig)'),
+    expect(
+        find.text('Wird verwechselt mit: Pantherpilz (Giftig), '
+            'Fliegenpilz (Giftig), Grüner Knollenblätterpilz '
+            '(Tödlich giftig)'),
         findsOneWidget);
 
     // Ein Speisepilz als Partner heißt nur beim Namen — keine Freigabe.
