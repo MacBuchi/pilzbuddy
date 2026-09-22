@@ -33,6 +33,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/app_colors.dart';
+import '../../../core/widgets/sheet_close_button.dart';
 import '../../tour/tour_providers.dart';
 import '../../tour/widgets/tour_icon.dart';
 import '../live_share_providers.dart';
@@ -66,10 +67,17 @@ class _TripSheet extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-            child: Text('Unterwegs',
-                style: theme.textTheme.titleLarge
-                    ?.copyWith(color: theme.colorScheme.primary)),
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text('Unterwegs',
+                      style: theme.textTheme.titleLarge
+                          ?.copyWith(color: theme.colorScheme.primary)),
+                ),
+                const SheetCloseButton(),
+              ],
+            ),
           ),
           _TripCard(
             icon: const MushroomBasketIcon(size: 24),

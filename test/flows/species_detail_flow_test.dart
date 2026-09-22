@@ -14,6 +14,7 @@ import 'package:pilzbuddy/core/species_edibility.dart';
 import 'package:pilzbuddy/core/species_photos.dart';
 import 'package:pilzbuddy/features/map/gbif_finds_providers.dart';
 import 'package:pilzbuddy/features/species/species_detail_screen.dart';
+import 'package:pilzbuddy/features/species/species_photo_view.dart';
 import 'package:pilzbuddy/features/species/species_screen.dart';
 
 import '../fakes/fake_backend.dart';
@@ -680,6 +681,77 @@ void main() {
         .widgetList<Image>(find.byType(Image))
         .where((i) => i.image is MemoryImage);
     expect(bilder, isNotEmpty, reason: 'das große Bild ist eingezogen');
+  });
+
+  /// Bild groß aufziehen und sagen, woran man erkennt, dass es offen ist.
+  Future<Finder> openPicture(WidgetTester tester) async {
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend);
+    await openSpecies(tester, 'Fliegenpilz');
+    await scrollDetail(tester, find.text('Bilder'));
+    await tester.tap(
+        find.byKey(pictureTileKey('assets/species/fliegenpilz-1.webp')));
+    await settle(tester);
+    // Die Nennung steht NUR in der großen Ansicht, nicht am Streifen.
+    final offen = find.text(photoCredit(speciesPortraits['Fliegenpilz']!.first));
+    expect(offen, findsOneWidget);
+    return offen;
+  }
+
+  testWidgets('das Bild schließt sich per x', (tester) async {
+    final offen = await openPicture(tester);
+    await tester.tap(find.widgetWithIcon(IconButton, Icons.close));
+    await settle(tester);
+    expect(offen, findsNothing);
+  });
+
+  testWidgets('ein Tipp neben das Bild schließt auch', (tester) async {
+    // **Der Fall, den die Vorgabe verschluckt hat.** `Listener` und
+    // `GestureDetector` reichen die Treffprüfung an ihr Kind weiter;
+    // das Kind ist das Bild, und das hat vor dem Entschlüsseln die
+    // Größe null. „Irgendwohin tippen schließt" stimmte deshalb nur
+    // über dem Bild selbst — auf der schwarzen Fläche daneben passierte
+    // nichts.
+    final offen = await openPicture(tester);
+    await tester.tapAt(const Offset(40, 300));
+    await settle(tester);
+    expect(offen, findsNothing);
+  });
+
+  testWidgets('das Bild schließt sich mit der Zurück-Geste', (tester) async {
+    // Auf Android ist das der Systemweg, und er ist auf keinem
+    // Bildschirm zu sehen — deshalb steht er hier und nicht nur in der
+    // Annahme, dass ein Dialog das eben kann.
+    final offen = await openPicture(tester);
+    await tester.binding.handlePopRoute();
+    await settle(tester);
+    expect(offen, findsNothing);
+  });
+
+  testWidgets('das Bild schließt sich per Wischen', (tester) async {
+    final offen = await openPicture(tester);
+    await tester.drag(
+        find.byKey(kPhotoViewKey), const Offset(0, kPhotoDismissDistance + 20));
+    await settle(tester);
+    expect(offen, findsNothing);
+  });
+
+  testWidgets('ein kurzer Zug schließt NICHT', (tester) async {
+    // Die Gegenrichtung, und sie trägt die Schwelle: Ohne sie wäre der
+    // Test darüber auch mit einer Ansicht grün, die beim ersten
+    // Verrutschen zugeht — und dann verlöre jedes Lesen das Bild.
+    //
+    // **Die Strecken stehen relativ zur Schwelle, ihr Wert einmal
+    // absolut.** Nur die zweite Zeile macht eine Änderung der Schwelle
+    // sichtbar: Ohne sie zöge eine verstellte Konstante die Eingabe
+    // dieses Tests einfach mit, und die Gegenprobe bliebe grün —
+    // gemessen, nicht vermutet.
+    expect(kPhotoDismissDistance, 96.0);
+    final offen = await openPicture(tester);
+    await tester.drag(
+        find.byKey(kPhotoViewKey), const Offset(0, kPhotoDismissDistance - 20));
+    await settle(tester);
+    expect(offen, findsOneWidget);
   });
 
 }

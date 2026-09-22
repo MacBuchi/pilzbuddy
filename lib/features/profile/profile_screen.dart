@@ -33,6 +33,7 @@ import 'profile_providers.dart';
 import 'push_providers.dart';
 import 'sharing_rank_tile.dart';
 import '../../core/app_colors.dart';
+import '../../core/widgets/sheet_close_button.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -885,13 +886,20 @@ Future<void> _pickAvatar(
     isScrollControlled: true,
     builder: (context) => SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 0, 4, 16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Such dir deinen Pilz-Buddy aus!',
-                style: Theme.of(context).textTheme.titleLarge),
+            Row(
+              children: [
+                Expanded(
+                  child: Text('Such dir deinen Pilz-Buddy aus!',
+                      style: Theme.of(context).textTheme.titleLarge),
+                ),
+                const SheetCloseButton(),
+              ],
+            ),
             const SizedBox(height: 12),
             Flexible(
               child: GridView.count(

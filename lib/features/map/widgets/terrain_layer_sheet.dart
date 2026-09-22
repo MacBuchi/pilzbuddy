@@ -4,6 +4,7 @@
 // wie bei Wald, Regen und Filter: Die Karte ist der Inhalt.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/widgets/sheet_close_button.dart';
 
 import '../elevation_contour_providers.dart';
 import '../elevation_providers.dart';
@@ -42,10 +43,17 @@ class _TerrainLayerSheet extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-              child: Text('Höhenlinien',
-                  style: theme.textTheme.titleLarge
-                      ?.copyWith(color: theme.colorScheme.primary)),
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text('Höhenlinien',
+                        style: theme.textTheme.titleLarge
+                            ?.copyWith(color: theme.colorScheme.primary)),
+                  ),
+                  const SheetCloseButton(),
+                ],
+              ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),

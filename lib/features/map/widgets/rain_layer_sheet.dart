@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/app_colors.dart';
+import '../../../core/widgets/sheet_close_button.dart';
 import '../rain_data_providers.dart';
 import '../rain_fill.dart';
 import '../rain_layer.dart';
@@ -38,10 +39,17 @@ class _RainLayerSheet extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-              child: Text('Regen',
-                  style: theme.textTheme.titleLarge
-                      ?.copyWith(color: theme.colorScheme.primary)),
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text('Regen',
+                        style: theme.textTheme.titleLarge
+                            ?.copyWith(color: theme.colorScheme.primary)),
+                  ),
+                  const SheetCloseButton(),
+                ],
+              ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),

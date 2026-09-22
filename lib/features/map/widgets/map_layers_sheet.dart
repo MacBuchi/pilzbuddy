@@ -35,6 +35,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/app_colors.dart';
+import '../../../core/widgets/sheet_close_button.dart';
 import '../../ampel/ampel_map_providers.dart';
 import '../../ampel/ampel_providers.dart';
 import '../../offline_maps/offline_map_providers.dart';
@@ -121,7 +122,7 @@ class _MapLayersSheet extends ConsumerWidget {
             // nannte sie selbst „den schwächsten Eintrag dieses
             // Blattes, und das ist bekannt".
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 12, 8),
+              padding: const EdgeInsets.fromLTRB(20, 4, 12, 8),
               child: Row(
                 children: [
                   Expanded(
@@ -135,6 +136,7 @@ class _MapLayersSheet extends ConsumerWidget {
                     icon: const Icon(Icons.refresh, size: 18),
                     label: const Text('Aktualisieren'),
                   ),
+                  const SheetCloseButton(),
                 ],
               ),
             ),
