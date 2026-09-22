@@ -180,6 +180,16 @@ class FakeBackend {
   /// Wochendigest untestbar.
   int passwordResetMailLimit = 100;
 
+  /// Antwortet das Gateway gar nicht? Der Fall aus dem Digest KW39:
+  /// `AuthRetryableFetchException(statusCode: 504)` aus dem Reset —
+  /// dasselbe wie fehlender Empfang, nur ging die Geduld dem Gateway aus
+  /// und nicht unserem Client.
+  bool passwordResetTimesOut = false;
+
+  /// Ein echter Fehler aus dem Reset — der MUSS gemeldet werden, sonst
+  /// sähe niemand, wenn der Weg wirklich kaputt ist (#80).
+  bool passwordResetFails = false;
+
   /// Steht für die „Leaked Password Protection" im Dashboard: Passwörter,
   /// die HaveIBeenPwned kennt, lehnt Supabase mit `weak_password` ab.
   final weakPasswords = <String>{'passwort123'};
@@ -568,6 +578,13 @@ class FakeAuthRepository implements AuthRepository {
   /// Supabase, damit die Antwort kein Konto-Orakel wird.
   @override
   Future<void> sendPasswordResetCode(String email) async {
+    if (backend.passwordResetTimesOut) {
+      throw AuthRetryableFetchException(statusCode: '504');
+    }
+    if (backend.passwordResetFails) {
+      throw const AuthApiException('Password recovery requires an email',
+          statusCode: '400', code: 'validation_failed');
+    }
     final sent = backend.passwordResets.where((m) => m == email).length;
     if (sent >= backend.passwordResetMailLimit) {
       throw const AuthApiException(

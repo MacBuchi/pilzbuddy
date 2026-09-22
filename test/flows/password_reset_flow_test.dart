@@ -279,6 +279,50 @@ void main() {
         findsOneWidget);
   });
 
+  testWidgets('Ein 504 aus dem Reset landet nicht im Fehlerbericht',
+      (tester) async {
+    // **11 von 13 Berichten in KW39 waren genau das.** Ein 504 heißt,
+    // das Gateway hat nicht geantwortet — `looksOffline` führt das
+    // überall sonst als fehlenden Empfang. Hier rutschte es durch, weil
+    // ein `logError` mit eigenem Kontext ALLES meldet und der Pfad nur
+    // das Rate-Limit filterte.
+    final reported = <String>[];
+    setErrorSink((context, _, _) => reported.add(context));
+    addTearDown(() => setErrorSink(null));
+
+    final backend = FakeBackend()
+      ..addUser(username: 'testpilz')
+      ..passwordResetTimesOut = true;
+    await pumpApp(tester, backend);
+
+    await _requestCode(tester, 'testpilz@test.de');
+
+    expect(reported, isEmpty);
+    // Und nach außen bleibt es bei derselben einen Auskunft — eine
+    // sichtbare Fehlermeldung wäre wieder ein Konto-Orakel.
+    expect(find.textContaining('Wenn es zu testpilz@test.de ein Konto gibt'),
+        findsOneWidget);
+  });
+
+  testWidgets('Ein echter Auth-Fehler landet sehr wohl im Bericht',
+      (tester) async {
+    // Die Gegenrichtung. Ohne sie wäre der Filter auch dann grün, wenn
+    // er alles schluckte — und dann sähe niemand mehr, wenn der Reset
+    // wirklich kaputt ist (Lehre aus #80).
+    final reported = <String>[];
+    setErrorSink((context, _, _) => reported.add(context));
+    addTearDown(() => setErrorSink(null));
+
+    final backend = FakeBackend()
+      ..addUser(username: 'testpilz')
+      ..passwordResetFails = true;
+    await pumpApp(tester, backend);
+
+    await _requestCode(tester, 'testpilz@test.de');
+
+    expect(reported, contains('Passwort-Reset anfordern'));
+  });
+
   group('Transparenz im Formular (Issue #131)', () {
     testWidgets('Das Auge macht das Passwort sichtbar', (tester) async {
       final backend = FakeBackend()..addUser(username: 'testpilz');

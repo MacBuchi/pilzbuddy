@@ -9,7 +9,7 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Bilder antippen und groß ansehen
 
-*22. September 2026 · Version 1.179.0*
+*22. September 2026 · Versionen 1.179.0 und 1.179.1*
 
 Jede Bildkachel auf einer Artseite trägt jetzt eine kleine Lupe. Antippen
 zeigt das Bild formatfüllend, mit Namen, Nennung und dem Hinweis

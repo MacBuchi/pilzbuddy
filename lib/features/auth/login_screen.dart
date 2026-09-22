@@ -86,7 +86,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       // Nur protokollieren, nicht zeigen — siehe oben. Ein abgelehnter
       // Mailversand ist dabei kein Fund fürs Protokoll, sondern das
       // Limit bei der Arbeit (siehe looksLikeMailRateLimit).
-      if (!looksLikeMailRateLimit(e)) {
+      //
+      // **Und ein 504 auch nicht.** Ein `logError` mit eigenem Kontext
+      // meldet ALLES — `worthReporting` fasst es nicht an, weil der
+      // Aufrufer sich bewusst fürs Melden entschieden hat. Hier war das
+      // zu breit: Im Digest KW39 waren 11 von 13 Berichten
+      // `AuthRetryableFetchException(statusCode: 504)` aus genau dieser
+      // Zeile, also das, was `looksOffline` überall sonst als fehlenden
+      // Empfang führt. Dieselbe Lehre wie #124 und #136 — ein normaler
+      // Vorgang, der den Digest anführt, verstopft ihn für echte Funde.
+      if (!looksLikeMailRateLimit(e) && !looksOffline(e)) {
         logError('Passwort-Reset anfordern', e, stackTrace);
       }
     } finally {
@@ -122,7 +131,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       await ref.read(authRepositoryProvider).sendPasswordResetCode(email);
     } catch (e, stackTrace) {
-      if (!looksLikeMailRateLimit(e)) {
+      // Dieselbe Grenze wie beim ersten Versand: Rate-Limit und
+      // fehlender Empfang sind keine Funde.
+      if (!looksLikeMailRateLimit(e) && !looksOffline(e)) {
         logError('Reset-Code erneut anfordern', e, stackTrace);
       }
     } finally {
