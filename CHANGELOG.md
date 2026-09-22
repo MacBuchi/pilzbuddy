@@ -7,6 +7,38 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Bilder zu 14 Arten — und ein Hinweis dazu, was sie nicht leisten
+
+*22. September 2026 · Version 1.170.0*
+
+Bisher gab es Fotos nur dort, wo zwei Arten nebeneinanderstehen, also
+bei den gefährlichen Verwechslungen. Jetzt haben 14 Arten zusätzlich
+eine eigene Bildreihe: zwei bis drei Aufnahmen, waagerecht
+durchzublättern, unter den Warnungen und über den Merkmalen.
+
+**Die Bilder sind selbst aufgenommen.** Sie stammen aus echten Funden im
+Schwarzwald und anderswo, nicht aus einem Lehrbuch. Das ist der
+eigentliche Gewinn: Ein Lehrbuchbild zeigt die Lehrbuchform, ein
+Fundbild zeigt, wie der Pilz wirklich dasteht. Beim Fichtenreizker hat
+genau das eine Zeile in unserer Merkmalstabelle widerlegt, die zu
+absolut formuliert war.
+
+Dabei sind: Fliegenpilz, Fichtenreizker, Stadtchampignon,
+Schopftintling, Birnenstäubling, Grünblättriger Schwefelkopf,
+Austernseitling, Parasol, Hallimasch, Steinpilz, Maronenröhrling,
+Falscher Pfifferling, Herbsttrompete und Samtfußrübling.
+
+**Zwei bis drei statt einem**, weil sich Farbe und Form mit Alter und
+Wetter stark ändern. Beim Parasol siehst du den jungen Paukenschläger,
+den aufgeschirmten Hut und die Unteransicht mit dem verschiebbaren
+Doppelring — die Abfolge, an der man ihn erkennt.
+
+Unter den Bildern steht jetzt ein Hinweis, und zwar unter allen, auch
+unter den Vergleichspaaren: **Nicht von einem Pilzsachverständigen
+geprüft. Im Zweifel den Pilz stehen lassen.** Wer wissen will, warum ein
+Foto zum Bestimmen nicht reicht, klappt die Begründung darunter auf. Die
+beiden wichtigen Sätze bleiben immer sichtbar.
+
 ## Merkmale zu jedem Pilz, nicht nur zu den gefährlichen
 
 *22. September 2026 · Version 1.169.0*

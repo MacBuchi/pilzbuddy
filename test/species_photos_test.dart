@@ -114,6 +114,99 @@ void main() {
     }
   });
 
+  group('Porträts', () {
+    test('jedes Porträt gehört zu einer bekannten Art und liegt wirklich da',
+        () {
+      expect(speciesPortraits, isNotEmpty);
+      for (final entry in speciesPortraits.entries) {
+        expect(known, contains(entry.key), reason: entry.key);
+        for (final photo in entry.value) {
+          final file = File(photo.asset);
+          expect(file.existsSync(), isTrue,
+              reason: '${entry.key}: ${photo.asset} fehlt');
+          expect(file.lengthSync(), greaterThan(10000), reason: entry.key);
+          expect(photo.asset, endsWith('.webp'));
+        }
+      }
+    });
+
+    test('zwei bis drei Bilder je Art — nicht eines, nicht zwanzig', () {
+      // **Die Zahl IST die Regel.** Ein Bild zeigt einen Einzelfall und
+      // lädt dazu ein, ihn für die Art zu halten; zu viele machen aus der
+      // Seite eine Galerie, durch die niemand scrollt.
+      for (final entry in speciesPortraits.entries) {
+        expect(entry.value.length, inInclusiveRange(1, 3), reason: entry.key);
+      }
+    });
+
+    test('kein Asset wird zweimal benutzt', () {
+      // Der billigste Pflegefehler: beim Kopieren die Nummer vergessen.
+      // Zwei gleiche Bilder nebeneinander sähen aus wie ein Ladefehler.
+      final seen = <String, String>{};
+      for (final entry in allSpeciesPhotos()) {
+        final previous = seen[entry.photo.asset];
+        expect(previous, isNull,
+            reason: '${entry.species} und $previous teilen sich '
+                '${entry.photo.asset}');
+        seen[entry.photo.asset] = entry.species;
+      }
+    });
+
+    test('auch die Porträts tragen Urheber, Lizenz und Herkunft', () {
+      for (final entry in speciesPortraits.entries) {
+        for (final p in entry.value) {
+          expect(p.author.trim(), isNotEmpty, reason: entry.key);
+          expect(p.licence.trim(), isNotEmpty, reason: entry.key);
+          expect(p.licenceUrl, startsWith('http'), reason: entry.key);
+          // Eigene Aufnahmen haben keine Fundstelle im Netz — aber eine
+          // Herkunftsangabe müssen sie trotzdem tragen, sonst steht auf
+          // der Lizenzseite eine leere Zeile.
+          expect(p.source.trim(), isNotEmpty, reason: entry.key);
+        }
+      }
+    });
+
+    test('die Lizenzseite nennt JEDES Bild, auch die Porträts', () {
+      // **Die Naht, an der ein Bild verloren geht.** Vor den Porträts
+      // las `speciesPhotoCredits` nur eine Tabelle; eine zweite Quelle
+      // wäre dort stillschweigend unerwähnt geblieben, und ein nicht
+      // genanntes CC-BY-Bild ist ein Lizenzverstoß.
+      final credits = speciesPhotoCredits();
+      for (final entry in allSpeciesPhotos()) {
+        expect(credits, contains(entry.photo.author), reason: entry.species);
+      }
+      expect(allSpeciesPhotos().length,
+          speciesPhotos.length +
+              speciesPortraits.values.fold<int>(0, (a, b) => a + b.length));
+    });
+
+    test('auch Porträts tragen keine NC- oder ND-Lizenz', () {
+      for (final entry in speciesPortraits.entries) {
+        for (final p in entry.value) {
+          expect(p.licence.toUpperCase(), isNot(contains('NC')),
+              reason: entry.key);
+          expect(p.licence.toUpperCase(), isNot(contains('ND')),
+              reason: entry.key);
+        }
+      }
+    });
+
+    test('Zweitnamen finden die Porträts ihrer Hauptbezeichnung', () {
+      expect(portraitsFor('Marone'), portraitsFor('Maronenröhrling'));
+      expect(portraitsFor('Geheimpilz'), isEmpty);
+      expect(portraitsFor(null), isEmpty);
+    });
+
+    test('der Hinweis sagt beides: ungeprüft UND was zu tun ist', () {
+      // Die zwei Sätze stehen außerhalb des Ausklappers, weil sie das
+      // sind, was jemand lesen muss, der es eilig hat.
+      expect(kPhotoDisclaimer, contains('Pilzsachverständigen'));
+      expect(kPhotoDisclaimer, contains('stehen lassen'));
+      expect(kPhotoDisclaimerDetail.length,
+          greaterThan(kPhotoDisclaimer.length));
+    });
+  });
+
   test('Zweitnamen finden das Bild ihrer Hauptbezeichnung', () {
     expect(photoFor('Geheimpilz'), isNull);
     expect(photoFor(null), isNull);

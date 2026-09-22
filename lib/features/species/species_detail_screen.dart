@@ -46,6 +46,15 @@ import '../spots/spot_providers.dart' show mySpotListProvider;
 import 'species_catalogue.dart';
 
 /// Die Karte mit der Einstufung DIESER Art — siehe [_Edibility].
+/// Die senkrechte Liste der Detailseite.
+///
+/// **Sie braucht einen Namen, seit es auch waagerecht scrollt.** Die
+/// Porträtreihe ist ein zweites `Scrollable` innerhalb desselben
+/// Screens; ein Test, der „das Scrollable dieser Seite" sucht, findet
+/// seither zwei und scheitert im Zug. Dieselbe Falle wie beim Suchfeld
+/// im Reiter „Pilze" (#516).
+const kSpeciesDetailListKey = ValueKey('species-detail-list');
+
 const kEdibilityCardKey = ValueKey('species-edibility');
 
 /// Die antippbare Zeile eines Verwechslungspartners.
@@ -77,6 +86,7 @@ class SpeciesDetailScreen extends ConsumerWidget {
       body: detail == null
           ? const _Unknown()
           : ListView(
+              key: kSpeciesDetailListKey,
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
               children: [
                 _Header(detail: detail),
@@ -87,6 +97,11 @@ class SpeciesDetailScreen extends ConsumerWidget {
                 // müssen zusammen gelesen werden, sonst nützt keins von
                 // beidem.
                 _Lookalikes(detail: detail),
+                // Bilder NACH den Warnungen. Ein Porträt am Seitenkopf
+                // läse sich als „so sieht er aus, das genügt" — genau
+                // die Erwartung, die der Hinweis darunter zurücknimmt.
+                _Portraits(detail: detail),
+                _PhotoNote(detail: detail),
                 // Erst die Warnungen, dann die Beschreibung: Wer die
                 // Seite von oben liest, weiß vor dem ersten Merkmal, ob
                 // er es mit einem Giftpilz zu tun hat.
@@ -362,6 +377,116 @@ class _LookalikeRow extends StatelessWidget {
 ///
 /// Quadratisch, weil zwei verschiedene Seitenverhältnisse nebeneinander
 /// den Vergleich stören, um den es geht.
+/// Die Porträtreihe — zwei bis drei Bilder, waagerecht zu schieben.
+///
+/// **Waagerecht statt untereinander.** Drei Bilder übereinander wären
+/// ein halber Bildschirm, den jeder wegscrollen muss, der zu den
+/// Merkmalen will; nebeneinander bleibt die Seite kompakt, und dass es
+/// weitergeht, zeigt das angeschnittene dritte Bild (Betreiber,
+/// 2026-09-22: „dennoch schön kompakt").
+class _Portraits extends StatelessWidget {
+  const _Portraits({required this.detail});
+
+  final SpeciesDetail detail;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final photos = portraitsFor(detail.name);
+    if (photos.isEmpty) return const SizedBox.shrink();
+    // Die Nennung kommt aus den Bildern, nicht aus dem Code. Ein
+    // getauschtes Bild bringt seinen Urheber damit selbst mit.
+    final authors = {for (final p in photos) p.author};
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SectionTitle('Bilder'),
+        SizedBox(
+          height: 150,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: photos.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 8),
+            itemBuilder: (context, i) => ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: Image.asset(
+                photos[i].asset,
+                width: 150,
+                height: 150,
+                fit: BoxFit.cover,
+                // Inhalt, kein Schmuck — und nummeriert, damit der
+                // Screenreader die Reihe unterscheiden kann.
+                semanticLabel: '${detail.name}, Foto ${i + 1} von '
+                    '${photos.length}',
+                // Ein fehlendes Asset darf die Seite nicht mitreißen.
+                errorBuilder: (_, _, _) => const SizedBox(width: 150),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text('Fotos: ${authors.join(', ')}',
+            style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor)),
+      ],
+    );
+  }
+}
+
+/// Der Hinweis unter den Bildern — EINMAL je Seite.
+///
+/// **Die beiden tragenden Sätze stehen außerhalb des Ausklappers.**
+/// „Nicht geprüft" und „im Zweifel stehen lassen" muss lesen können, wer
+/// es eilig hat; eine eingeklappte Warnung ist Deko. Was verschwindet,
+/// ist die BEGRÜNDUNG, nicht die Aussage.
+///
+/// **Und er gilt für beide Bildarten.** Die Vergleichspaare stehen
+/// weiter oben in den Verwechslungszeilen, die Porträts direkt darüber —
+/// ein Hinweis je Bildblock wäre derselbe Satz zweimal auf einer Seite.
+/// Deshalb fragt er nicht „gibt es Porträts", sondern „steht auf dieser
+/// Seite irgendein Bild".
+class _PhotoNote extends StatelessWidget {
+  const _PhotoNote({required this.detail});
+
+  final SpeciesDetail detail;
+
+  /// Zeigt diese Seite überhaupt ein Bild? Für die Paare gilt dieselbe
+  /// Regel wie in [_PhotoPair]: zwei oder keines.
+  bool get _hasPhoto {
+    if (portraitsFor(detail.name).isNotEmpty) return true;
+    if (photoFor(detail.name) == null) return false;
+    return detail.lookalikes.any((p) => photoFor(p.species) != null);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    if (!_hasPhoto) return const SizedBox.shrink();
+    final small = theme.textTheme.bodySmall?.copyWith(color: theme.hintColor);
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(kPhotoDisclaimer,
+              style: small?.copyWith(fontWeight: FontWeight.w600)),
+          Theme(
+            // ExpansionTile zieht sonst eine Trennlinie über die ganze
+            // Breite und sieht aus wie ein eigener Abschnitt.
+            data: theme.copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              title: Text(kPhotoDisclaimerTitle, style: small),
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: const EdgeInsets.only(bottom: 8),
+              expandedCrossAxisAlignment: CrossAxisAlignment.start,
+              children: [Text(kPhotoDisclaimerDetail, style: small)],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _PhotoPair extends StatelessWidget {
   const _PhotoPair({required this.own, required this.partner});
 

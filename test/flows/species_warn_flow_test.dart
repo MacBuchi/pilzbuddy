@@ -130,9 +130,14 @@ void main() {
 
     await tester.scrollUntilVisible(
         find.text('Hinweis zu dieser Art melden'), 300,
-        scrollable: find.descendant(
-            of: find.byType(SpeciesDetailScreen),
-            matching: find.byType(Scrollable)));
+        // Das ÄUSSERE, senkrechte Scrollable: Seit der Porträtreihe
+        // (1.170.0) steckt ein waagerechtes darin, und das ist sein
+        // Nachfahre — `descendant` trifft sonst beide.
+        scrollable: find
+            .descendant(
+                of: find.byKey(kSpeciesDetailListKey),
+                matching: find.byType(Scrollable))
+            .first);
     await settle(tester, frames: 4);
     await tester.tap(find.text('Hinweis zu dieser Art melden'));
     await settle(tester);
@@ -161,9 +166,14 @@ void main() {
     await settle(tester);
     await tester.scrollUntilVisible(
         find.text('Hinweis zu dieser Art melden'), 300,
-        scrollable: find.descendant(
-            of: find.byType(SpeciesDetailScreen),
-            matching: find.byType(Scrollable)));
+        // Das ÄUSSERE, senkrechte Scrollable: Seit der Porträtreihe
+        // (1.170.0) steckt ein waagerechtes darin, und das ist sein
+        // Nachfahre — `descendant` trifft sonst beide.
+        scrollable: find
+            .descendant(
+                of: find.byKey(kSpeciesDetailListKey),
+                matching: find.byType(Scrollable))
+            .first);
     await settle(tester, frames: 4);
 
     await tester.tap(find.text('Hinweis zu dieser Art melden'));
