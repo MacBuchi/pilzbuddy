@@ -314,22 +314,25 @@ void main() {
     });
   });
 
-  test('das Auge folgt den Porträts, nicht den Vergleichspaaren', () {
-    // **Eine Art kann ein Bild im PAAR tragen und trotzdem keins
-    // eigenes haben.** Für die Frage „wovon fehlen uns noch Fotos"
-    // zählt das Paar nicht mit — sonst sähe die Liste vollständiger
-    // aus, als sie ist. Das Stockschwämmchen ist genau dieser Fall.
+  test('das Auge folgt dem, was die Seite ZEIGT', () {
+    // **Eine Naht, nicht zwei.** Bis 1.174.0 zählte das Auge nur die
+    // Porträts, der Bildstreifen fiel aber auf das Paarbild zurück —
+    // zwölf Arten zeigten damit ein Bild und bekamen in der Liste
+    // trotzdem keins angezeigt. Ein Widerspruch in derselben App.
     final alle = [
       for (final section in speciesCatalogue(month: 9)) ...section.entries,
     ];
     final mitBild = alle.where((e) => e.hasPictures).map((e) => e.name);
-    expect(mitBild, contains('Fliegenpilz'));
-    expect(mitBild, contains('Krause Glucke'));
-    expect(speciesPhotos.containsKey('Stockschwämmchen'), isTrue,
-        reason: 'trägt ein Bild im Vergleichspaar');
-    expect(mitBild, isNot(contains('Stockschwämmchen')),
-        reason: 'aber kein eigenes Porträt');
-    expect(mitBild.length, speciesPortraits.length);
+    expect(mitBild, contains('Fliegenpilz'), reason: 'eigene Porträts');
+    expect(mitBild, contains('Stockschwämmchen'),
+        reason: 'nur ein Commons-Bild aus dem Paar — wird trotzdem gezeigt');
+    expect(mitBild, isNot(contains('Ledertäubling')), reason: 'gar kein Bild');
+    // Gezählt statt geschrieben: Porträts plus die Arten, die allein
+    // ein Paarbild tragen.
+    final nurPaar = speciesPhotos.keys
+        .where((n) => portraitsFor(n).isEmpty)
+        .length;
+    expect(mitBild.length, speciesPortraits.length + nurPaar);
   });
 
 }

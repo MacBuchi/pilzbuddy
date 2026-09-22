@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/mushroom_species.dart';
 import 'package:pilzbuddy/core/widgets/season_bars.dart';
+import 'package:pilzbuddy/core/species_photos.dart';
 import 'package:pilzbuddy/features/species/species_catalogue.dart';
 
 import '../fakes/fake_backend.dart';
@@ -235,6 +236,25 @@ void main() {
     // **Die Reihenfolge ist die Zusage.** Buchführung darf der Warnung
     // nicht den Platz nehmen.
     expect(tester.getTopLeft(warnung).dx, lessThan(tester.getTopLeft(auge).dx));
+  });
+
+  testWidgets('auch ein Commons-Bild aus dem Paar zählt', (tester) async {
+    // **Das Auge sagt „hier gibt es etwas zu sehen".** Zwölf Arten
+    // tragen kein eigenes Porträt, aber ein Bild aus einem
+    // Vergleichspaar, und ihre Seite zeigt es. Bis 1.174.0 bekamen sie
+    // in der Liste trotzdem keins — ein Widerspruch in derselben App.
+    await openTab(tester, 9);
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Art suchen'), 'Stockschwämmchen');
+    await settle(tester);
+
+    final zeile = find.widgetWithText(ListTile, 'Stockschwämmchen');
+    expect(portraitsFor('Stockschwämmchen'), isEmpty);
+    expect(photoFor('Stockschwämmchen'), isNotNull);
+    expect(
+        find.descendant(
+            of: zeile, matching: find.byIcon(Icons.visibility_outlined)),
+        findsOneWidget);
   });
 
   testWidgets('ohne Bilder steht dort nichts', (tester) async {

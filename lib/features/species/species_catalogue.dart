@@ -62,14 +62,20 @@ class CatalogueEntry {
   /// „Hauptzeit", „Randzeit" … — `null` ohne Kurve.
   String? get seasonWord => share == null ? null : seasonShareWord(share!);
 
-  /// Hat die Art eine eigene Bildreihe?
+  /// Zeigt die Seite dieser Art ein Bild?
   ///
-  /// **Gemeint ist das Porträt, nicht das Vergleichspaar.** Eine Art
-  /// kann ein Bild im Paar tragen und trotzdem kein eigenes haben — der
-  /// Samtfußrübling ist so ein Fall. Für die Frage „wovon fehlen uns
-  /// noch Fotos" zählt das Paar nicht mit, sonst sieht die Liste
-  /// vollständiger aus, als sie ist.
-  bool get hasPictures => portraitsFor(name).isNotEmpty;
+  /// **Dieselbe Naht wie der Bildstreifen** ([ownPictures]). Bis
+  /// 1.174.0 zählte hier nur das Porträt, und das war ein Widerspruch
+  /// in der eigenen App: Zwölf Arten tragen ein Commons-Bild aus einem
+  /// Vergleichspaar, zeigen es auf ihrer Seite auch — und bekamen in
+  /// der Liste trotzdem kein Auge. Das Auge sagt dem Nutzer „hier gibt
+  /// es etwas zu sehen", nicht „wir haben ein eigenes Foto".
+  ///
+  /// Die andere Frage — **wovon fehlt uns noch ein EIGENES Bild** —
+  /// gehört nicht in die App. Sie steht im Fotokatalog des privaten
+  /// Repos, wo auch vermerkt ist, welches Commons-Bild ersetzt werden
+  /// soll.
+  bool get hasPictures => ownPictures(name).isNotEmpty;
 }
 
 /// Ein Abschnitt: eine Ampel-Gruppe oder der Rest.
