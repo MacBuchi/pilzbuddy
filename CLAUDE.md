@@ -1727,6 +1727,15 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     Upload, steht er trotzdem, und die Meldung sagt beides. Wandert er
     in den Korb, gibt es keine id und damit kein Foto — ein wartender
     Spot bietet es deshalb gar nicht erst an.
+  - **Galerie im Reiter „Buddys"** (seit 1.189.0): `FindPhotoGallery`
+    ganz oben, dieselbe `findPhotosProvider`-Liste wie der Streifen —
+    keine eigene Abfrage, also keine eigenen Sichtbarkeitsregeln. Der
+    Neu-Punkt ist GERÄTELOKAL (`Settings.seenFindPhotoIds`), weil eine
+    Tabelle dafür eine Lesequittung wäre, die niemand bestellt hat;
+    gesetzt beim Öffnen, nicht beim Vorbeiscrollen, und beim Setzen auf
+    lebende Fotos gestutzt. Eigene Fotos sind nie neu. Der Ring rechnet
+    über die volle Restdauer, nicht über `daysLeft` — ganze Tage
+    springen, ein frisches Foto stünde sonst bei 13/14.
   - **Ein Bild am Feedback** (#525, seit 1.186.0, Patch 027) läuft
     über dieselbe Naht — `PhotoAttachment` in beiden Melde-Dialogen,
     `photoPickerProvider`/`photoPreparerProvider` aus

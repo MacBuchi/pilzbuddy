@@ -35,7 +35,8 @@ class FakeSettings implements Settings {
     // das Banner wollen, geben einen alten Zeitstempel mit.
     this.lastFindSeenAt,
     this.findPhotosEnabled = true,
-  });
+    Set<String>? seenFindPhotoIds,
+  }) : seenFindPhotoIds = seenFindPhotoIds ?? {};
 
   @override
   bool offlineMapEnabled;
@@ -101,6 +102,14 @@ class FakeSettings implements Settings {
   @override
   Future<void> setFindPhotosEnabled(bool value) async {
     findPhotosEnabled = value;
+  }
+
+  @override
+  Set<String> seenFindPhotoIds;
+
+  @override
+  Future<void> setSeenFindPhotoIds(Set<String> value) async {
+    seenFindPhotoIds = {...value};
   }
 
   @override

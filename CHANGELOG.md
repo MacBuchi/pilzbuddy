@@ -7,6 +7,20 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Alle Fundfotos im Reiter „Buddys"
+
+*23. September 2026 · Version 1.189.0*
+
+Ganz oben im Reiter „Buddys" stehen jetzt alle Fundfotos, die gerade
+laufen — deine und die deiner Buddys, die neuesten zuerst.
+
+- Ein **Punkt** oben links markiert Fotos von Buddys, die du noch nicht
+  geöffnet hast. Er verschwindet, sobald du das Foto antippst.
+- Ein kleiner **Ring** oben rechts zeigt, wie lange ein Foto noch
+  bleibt: voll, wenn es frisch ist, fast leer kurz bevor es nach 14
+  Tagen gelöscht wird. Die genaue Zahl steht in der Großansicht.
+- Aus der Großansicht kommst du wie gewohnt mit „Zum Spot" zum Fundort.
+
 ## Fundfoto gleich beim Eintragen
 
 *23. September 2026 · Version 1.188.0*

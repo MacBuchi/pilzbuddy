@@ -32,9 +32,17 @@ import '../find_photo_providers.dart';
 import 'spot_detail_sheet.dart';
 
 const kFindPhotoStripKey = Key('find-photo-strip');
+const kFindPhotoGalleryKey = Key('find-photo-gallery');
 
 Key findPhotoTileKey(String id) => ValueKey('find-photo-$id');
 Key shareFindPhotoKey(String findId) => ValueKey('share-photo-$findId');
+Key findPhotoNewKey(String id) => ValueKey('find-photo-new-$id');
+Key findPhotoRingKey(String id) => ValueKey('find-photo-ring-$id');
+
+/// Die Restzeit in Worten — Kachel, Ring und Großansicht sagen dasselbe.
+String findPhotoLifeText(int daysLeft) => daysLeft == 0
+    ? 'Läuft heute ab'
+    : 'Noch $daysLeft ${daysLeft == 1 ? 'Tag' : 'Tage'} sichtbar';
 
 /// Was der Teilen-Dialog sagt — an einer Stelle, damit Test und Blatt
 /// dasselbe meinen.
@@ -87,7 +95,7 @@ class FindPhotoStrip extends ConsumerWidget {
             children: [
               for (final photo in photos) ...[
                 if (photo != photos.first) const SizedBox(width: 8),
-                _PhotoTile(
+                FindPhotoTile(
                   photo: photo,
                   // Im Blatt ist man schon am Spot. Sonst führt der Weg
                   // ins Blatt — es braucht nur eine id, keine Karte.
@@ -104,8 +112,12 @@ class FindPhotoStrip extends ConsumerWidget {
   }
 }
 
-class _PhotoTile extends ConsumerWidget {
-  const _PhotoTile({required this.photo, required this.onOpenSpot});
+/// Eine Kachel: Vorschau, Art, Absender — dazu der Ring, der die
+/// Restzeit zeigt, und bei fremden, noch nicht angesehenen Fotos der
+/// Neu-Punkt. Streifen (Reiter „Spots", Spot-Blatt) und Galerie (Reiter
+/// „Buddys") benutzen dieselbe.
+class FindPhotoTile extends ConsumerWidget {
+  const FindPhotoTile({super.key, required this.photo, required this.onOpenSpot});
 
   final FindPhoto photo;
   final void Function(String spotId)? onOpenSpot;
@@ -114,6 +126,7 @@ class _PhotoTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final bytes = ref.watch(findPhotoBytesProvider(photo.thumbPath)).valueOrNull;
+    final isNew = isNewFindPhoto(photo, ref.watch(seenFindPhotosProvider));
     final who = photo.isOwn ? 'dein Foto' : 'von ${photo.username ?? 'Buddy'}';
     return SizedBox(
       key: findPhotoTileKey(photo.id),
@@ -123,25 +136,54 @@ class _PhotoTile extends ConsumerWidget {
         children: [
           InkWell(
             borderRadius: BorderRadius.circular(6),
-            onTap: () => showFindPhoto(context, photo, onOpenSpot: onOpenSpot),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: SizedBox(
-                width: 96,
-                height: 96,
-                child: bytes == null
-                    ? ColoredBox(
-                        color: theme.colorScheme.surfaceContainerHighest,
-                        child: Icon(Icons.image_outlined,
-                            color: theme.hintColor))
-                    : Image.memory(
-                        bytes,
-                        fit: BoxFit.cover,
-                        gaplessPlayback: true,
-                        semanticLabel:
-                            '${photo.species ?? 'Fund'}, Fundfoto, $who',
+            onTap: () {
+              // Gesehen ist, was geöffnet wurde — nicht, was im Bild
+              // vorbeigescrollt ist.
+              ref.read(seenFindPhotosProvider.notifier).markSeen(photo);
+              showFindPhoto(context, photo, onOpenSpot: onOpenSpot);
+            },
+            child: Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: SizedBox(
+                    width: 96,
+                    height: 96,
+                    child: bytes == null
+                        ? ColoredBox(
+                            color: theme.colorScheme.surfaceContainerHighest,
+                            child: Icon(Icons.image_outlined,
+                                color: theme.hintColor))
+                        : Image.memory(
+                            bytes,
+                            fit: BoxFit.cover,
+                            gaplessPlayback: true,
+                            semanticLabel: '${photo.species ?? 'Fund'}, '
+                                'Fundfoto, $who${isNew ? ', neu' : ''}',
+                          ),
+                  ),
+                ),
+                Positioned(
+                  top: 4,
+                  right: 4,
+                  child: FindPhotoLifeRing(photo: photo),
+                ),
+                if (isNew)
+                  Positioned(
+                    top: 5,
+                    left: 5,
+                    child: Container(
+                      key: findPhotoNewKey(photo.id),
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
                       ),
-              ),
+                    ),
+                  ),
+              ],
             ),
           ),
           const SizedBox(height: 2),
@@ -156,6 +198,96 @@ class _PhotoTile extends ConsumerWidget {
                   ?.copyWith(color: theme.hintColor)),
         ],
       ),
+    );
+  }
+}
+
+/// Ein Ring, der sich über die 14 Tage leert — die Frist als Form statt
+/// als Zahl, damit man in der Galerie sieht, was bald geht. Die Zahl
+/// steht im Tooltip und in der Großansicht.
+///
+/// Gerechnet über die volle Restdauer, nicht über [FindPhoto.daysLeft]:
+/// Ganze Tage springen, und ein frisches Foto stünde dann schon bei
+/// 13/14.
+class FindPhotoLifeRing extends StatelessWidget {
+  const FindPhotoLifeRing({super.key, required this.photo, this.size = 18});
+
+  final FindPhoto photo;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final now = DateTime.now().toUtc();
+    const total = Duration(days: kFindPhotoDays);
+    final left = photo.expiresAt.difference(now);
+    final share =
+        (left.inSeconds / total.inSeconds).clamp(0.0, 1.0).toDouble();
+    return Tooltip(
+      message: findPhotoLifeText(photo.daysLeft(now)),
+      child: Container(
+        key: findPhotoRingKey(photo.id),
+        width: size,
+        height: size,
+        padding: const EdgeInsets.all(2),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface.withValues(alpha: 0.85),
+          shape: BoxShape.circle,
+        ),
+        child: CircularProgressIndicator(
+          value: share,
+          strokeWidth: 2.5,
+          backgroundColor: theme.colorScheme.outlineVariant,
+          color: theme.colorScheme.primary,
+        ),
+      ),
+    );
+  }
+}
+
+/// Die Galerie im Reiter „Buddys" (#532 Stufe 3): alle laufenden Fotos,
+/// eigene wie fremde, jüngste zuerst.
+///
+/// **Keine eigene Abfrage** — dieselbe Liste wie der Streifen im Reiter
+/// „Spots" (`findPhotosProvider`). Leer heißt unsichtbar, wie dort.
+class FindPhotoGallery extends ConsumerWidget {
+  const FindPhotoGallery({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final photos =
+        ref.watch(findPhotosProvider).valueOrNull ?? const <FindPhoto>[];
+    if (photos.isEmpty) return const SizedBox.shrink();
+    final seen = ref.watch(seenFindPhotosProvider);
+    final fresh = photos.where((p) => isNewFindPhoto(p, seen)).length;
+    return Column(
+      key: kFindPhotoGalleryKey,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(fresh == 0 ? 'Fundfotos' : 'Fundfotos · $fresh neu',
+            style: theme.textTheme.titleMedium),
+        const SizedBox(height: 2),
+        Text(
+          'Was du und deine Buddys in den letzten $kFindPhotoDays Tagen '
+          'geteilt habt. Der Ring zeigt, wie lange ein Foto noch bleibt.',
+          style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final photo in photos)
+              FindPhotoTile(
+                photo: photo,
+                onOpenSpot: (id) => showSpotDetailSheet(context, id),
+              ),
+          ],
+        ),
+        // Der Abstand gehört der Galerie: Ohne Fotos fällt er mit weg.
+        const SizedBox(height: 20),
+      ],
     );
   }
 }
@@ -235,12 +367,17 @@ class _FindPhotoView extends ConsumerWidget {
             if (photo.foundOn != null)
               'Fund vom ${dateFormat.format(photo.foundOn!)}',
           ].join(' · '), style: hint),
-          Text(
-              days == 0
-                  ? 'Läuft heute ab.'
-                  : 'Noch $days ${days == 1 ? 'Tag' : 'Tage'} sichtbar, '
-                      'dann wird es gelöscht.',
-              style: hint),
+          Row(children: [
+            FindPhotoLifeRing(photo: photo, size: 16),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                  days == 0
+                      ? '${findPhotoLifeText(days)}.'
+                      : '${findPhotoLifeText(days)}, dann wird es gelöscht.',
+                  style: hint),
+            ),
+          ]),
         ],
       ),
       actions: [

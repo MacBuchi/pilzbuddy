@@ -294,6 +294,14 @@ abstract interface class Settings {
   bool get findPhotosEnabled;
 
   Future<void> setFindPhotosEnabled(bool value);
+
+  /// Welche Fundfotos von Buddys schon angesehen wurden — daran hängt der
+  /// Neu-Punkt der Galerie im Reiter „Buddys". Gerätelokal wie
+  /// [lastFindSeenAt]; die Menge wird beim Setzen auf die noch lebenden
+  /// Fotos gestutzt, wächst also nie über die 14-Tage-Frist hinaus.
+  Set<String> get seenFindPhotoIds;
+
+  Future<void> setSeenFindPhotoIds(Set<String> value);
 }
 
 /// Erstlauf-Schutz für das Buddy-Fund-Banner: Ohne Marker gälte ALLES als
@@ -546,6 +554,16 @@ class PrefsSettings implements Settings {
   @override
   Future<void> setFindPhotosEnabled(bool value) =>
       _prefs.setBool(_findPhotosEnabledKey, value);
+
+  static const _seenFindPhotoIdsKey = 'seen_find_photo_ids';
+
+  @override
+  Set<String> get seenFindPhotoIds =>
+      (_prefs.getStringList(_seenFindPhotoIdsKey) ?? const []).toSet();
+
+  @override
+  Future<void> setSeenFindPhotoIds(Set<String> value) =>
+      _prefs.setStringList(_seenFindPhotoIdsKey, value.toList()..sort());
 }
 
 /// Wird in `main()` mit den geladenen Einstellungen überschrieben, in Tests
