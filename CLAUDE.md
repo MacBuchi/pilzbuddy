@@ -1718,6 +1718,17 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     `docs/datenschutz-nachweise.md` sind im selben PR mitgezogen. Der
     Schema Dry Run braucht seither `[storage] enabled = true` in
     `config.toml`, sonst gibt es `storage.buckets` nicht.
+  - **Ein Bild am Feedback** (#525, seit 1.186.0, Patch 027) läuft
+    über dieselbe Naht — `PhotoAttachment` in beiden Melde-Dialogen,
+    `photoPickerProvider`/`photoPreparerProvider` aus
+    `core/photo_providers.dart`, Repository nimmt nur ein
+    `PreparedPhoto`. Der Bucket `feedback-photos` ist STRENGER: Nutzer
+    legen nur hinein, lesen darf allein der Betreiber (Service-
+    Schlüssel, Dashboard). Der Text einer Meldung wird öffentlich, das
+    Bild nicht — das Issue nennt nur den Dateinamen, keinen Pfad und
+    keine Nutzer-id (`feedback_issue_body`, Selbsttest). Frist 90 Tage
+    wie die Fehlerberichte, der Bot fegt per Erstellzeit; die Zeile
+    behält ihren Pfad ins Leere, das Issue existiert ja.
 - **Fundstellen weit vom Spot** (#475, seit 1.156.0): Ab 100 m
   (`kFindFixMaxOffsetM`, dieselbe Grenze wie der Riegel beim Eintragen)
   trägt der eigene Spot ein „!"-Abzeichen (im selben Kreis wie Uhr und

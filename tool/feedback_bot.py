@@ -393,6 +393,66 @@ def sweep_find_photos() -> None:
     print(f"Fundfotos: {len(live)} Zeilen, {len(objects)} Objekte, {len(doomed)} entfernt.")
 
 
+FEEDBACK_PHOTO_BUCKET = "feedback-photos"
+
+
+def dashboard_bucket_url(bucket: str) -> str:
+    """Der Bucket im Dashboard — den Link öffnet nur, wer dort angemeldet ist."""
+    ref = os.environ.get("SUPABASE_URL", "").split("//")[-1].split(".")[0]
+    return f"https://supabase.com/dashboard/project/{ref}/storage/buckets/{bucket}"
+
+
+def feedback_issue_body(row: dict, username: str) -> str:
+    """Der Text des Issues.
+
+    Die App-Version (#358) steht dabei, wenn sie da ist; alte Zeilen und
+    ältere Clients haben sie nicht, und dann steht sie eben nicht da,
+    statt geraten zu werden.
+
+    Ein Bild (#525) wird NICHT verlinkt und nicht angehängt — das Issue
+    ist öffentlich, der Bucket nicht. Genannt wird nur der Dateiname;
+    der Ordner ist die Nutzer-id, und die gehört so wenig ins Issue wie
+    das Bild. Wer nachsehen will, öffnet den Bucket im Dashboard und
+    sucht den Namen."""
+    version = row.get("app_version")
+    aus = f" aus Version {version}" if version else ""
+    photo = row.get("photo_path")
+    bild = ""
+    if photo:
+        name = photo.rsplit("/", 1)[-1]
+        bild = (
+            f"\n\n📎 Ein Bild ist angehängt — nicht öffentlich, nur im Bucket "
+            f"`{FEEDBACK_PHOTO_BUCKET}` als `{name}` "
+            f"({dashboard_bucket_url(FEEDBACK_PHOTO_BUCKET)}); "
+            f"wird nach {ERROR_REPORT_RETENTION_DAYS} Tagen gelöscht."
+        )
+    return (
+        f"> {row['message']}\n\n"
+        f"Eingereicht in der App von **{username}**{aus} "
+        f"am {row['created_at'][:10]}.{bild}\n\n"
+        f"_Automatisch erstellt vom Feedback-Bot._"
+    )
+
+
+def feedback_photo_sweep_plan(objects: list[tuple[str, datetime | None]],
+                              now: datetime) -> list[str]:
+    """Feedback-Bilder älter als die Fehlerbericht-Frist — rein, für den Selbsttest.
+
+    Ohne Erstellzeit bleibt ein Objekt stehen: Die Liste liefert sie
+    immer, und ein Sonderfall, der löscht, ist der falsche Sonderfall."""
+    cutoff = now - timedelta(days=ERROR_REPORT_RETENTION_DAYS)
+    return [path for path, created in objects if created is not None and created < cutoff]
+
+
+def sweep_feedback_photos() -> None:
+    now = datetime.now(timezone.utc)
+    objects = list_bucket_objects(FEEDBACK_PHOTO_BUCKET)
+    doomed = feedback_photo_sweep_plan(objects, now)
+    if doomed:
+        api("DELETE", f"/storage/v1/object/{FEEDBACK_PHOTO_BUCKET}", {"prefixes": doomed})
+    print(f"Feedback-Bilder: {len(objects)} Objekte, {len(doomed)} entfernt.")
+
+
 def main() -> None:
     # Before the early return below — otherwise digest and purge would only
     # ever run on the rare tick that also has unprocessed feedback.
@@ -402,13 +462,14 @@ def main() -> None:
     # Der nächste Tick räumt nach, die Zeilen laufen ohnehin ab.
     try:
         sweep_find_photos()
+        sweep_feedback_photos()
     except Exception as e:  # noqa: BLE001 — jede Ursache ist hier gleich
-        print(f"::warning::Fundfotos nicht abgeräumt: {e}")
+        print(f"::warning::Bilder nicht abgeräumt: {e}")
 
     rows = api(
         "GET",
         "/rest/v1/feedback?processed_at=is.null&order=created_at"
-        "&select=id,type,message,species_name,created_at,app_version,profiles(username)",
+        "&select=id,type,message,species_name,created_at,app_version,photo_path,profiles(username)",
     )
     if not rows:
         print("No unprocessed feedback.")
@@ -433,7 +494,8 @@ def main() -> None:
                 mark_processed([row["id"]])
             else:
                 species_additions.append((name, group_for(name)))
-                species_authors.append(f"{name} (von {username})")
+                bild = " — mit Bild im Bucket" if row.get("photo_path") else ""
+                species_authors.append(f"{name} (von {username}){bild}")
                 known.add(name.lower())
                 species_ids.append(row["id"])
         else:
@@ -452,14 +514,7 @@ def main() -> None:
                 # Melder zurückgestellt werden. Alte Zeilen und ältere
                 # Clients haben sie nicht; dann steht sie eben nicht da,
                 # statt geraten zu werden.
-                version = row.get("app_version")
-                aus = f" aus Version {version}" if version else ""
-                body = (
-                    f"> {row['message']}\n\n"
-                    f"Eingereicht in der App von **{username}**{aus} "
-                    f"am {row['created_at'][:10]}.\n\n"
-                    f"_Automatisch erstellt vom Feedback-Bot._"
-                )
+                body = feedback_issue_body(row, username)
                 issue_url = run("gh", "issue", "create", "--title", title,
                                 "--body", body, "--label", label)
                 print(f"Issue created [{label}]: {title}")
@@ -551,6 +606,25 @@ def self_test_sweep() -> None:
     assert photo_key_of("u/k_s.jpg") == "u/k" and photo_key_of("u/k.jpg") == "u/k"
     assert _parse_ts("2026-09-22T10:00:00.000Z") == datetime(2026, 9, 22, 10, tzinfo=timezone.utc)
     assert _parse_ts(None) is None and _parse_ts("kaputt") is None
+
+    # Feedback-Bilder: nur die alten fliegen, ohne Zeit bleibt es stehen.
+    stale = now - timedelta(days=ERROR_REPORT_RETENTION_DAYS + 1)
+    keep = now - timedelta(days=ERROR_REPORT_RETENTION_DAYS - 1)
+    plan = feedback_photo_sweep_plan(
+        [("u/a.jpg", stale), ("u/b.jpg", keep), ("u/c.jpg", None)], now)
+    assert plan == ["u/a.jpg"], plan
+
+    # Das Issue nennt das Bild ohne Pfad und ohne Nutzer-id.
+    os.environ.setdefault("SUPABASE_URL", "https://abcdefgh.supabase.co")
+    row = {"message": "Hut ist rot", "created_at": "2026-09-22T10:00:00Z",
+           "app_version": "1.186.0", "photo_path": "1234-uid/deadbeef.jpg"}
+    body = feedback_issue_body(row, "waldfee")
+    assert "`deadbeef.jpg`" in body, body
+    assert "1234-uid" not in body, body
+    assert "storage/buckets/feedback-photos" in body, body
+    assert "aus Version 1.186.0" in body, body
+    plain = feedback_issue_body({"message": "x", "created_at": "2026-09-22"}, "w")
+    assert "📎" not in plain and "aus Version" not in plain, plain
     print("sweep self-test passed (no network, nothing written)")
 
 

@@ -81,7 +81,15 @@ class PhotoPipelineException implements Exception {
 /// Top-Level und mit genau einem Argument, damit `compute` sie nehmen
 /// kann.
 PreparedPhoto preparePhoto(Uint8List original) {
-  final decoded = img.decodeImage(original);
+  img.Image? decoded;
+  try {
+    decoded = img.decodeImage(original);
+  } catch (_) {
+    // Der Dekodierer stolpert über Müll nicht immer mit `null`, sondern
+    // auch mit einem RangeError (vier Bytes reichen dafür). Für den
+    // Nutzer ist beides dasselbe: kein Bild.
+    decoded = null;
+  }
   if (decoded == null) {
     throw const PhotoPipelineException(
         'Dieses Bildformat kann die App nicht lesen.');

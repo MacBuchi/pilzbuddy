@@ -7,6 +7,21 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Ein Bild zum Feedback
+
+*22. September 2026 · Version 1.186.0*
+
+Wer einen Fehler meldet oder einen Hinweis zu einer Pilzart gibt, kann
+jetzt ein Bild anhängen — einen Screenshot zum Bug, ein Foto zu dem
+Pilz, der anders aussieht, als die Artseite es beschreibt. Der Knopf
+„Bild anhängen" steht im Melde-Dialog und unter „Hinweis zu dieser Art
+melden".
+
+Anders als dein Text wird das Bild **nicht veröffentlicht**: Es geht nur
+an den Entwickler und wird nach 90 Tagen gelöscht. Und wie bei den
+Fundfotos entfernt die App vorher alle Aufnahmedaten — Ort, Zeit,
+Gerät.
+
 ## Fundfotos für deine Buddys
 
 *22. September 2026 · Version 1.185.0*
