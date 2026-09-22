@@ -27,6 +27,10 @@ import 'package:pilzbuddy/models/buddy_track.dart';
 import 'package:pilzbuddy/models/find_position.dart';
 import 'package:pilzbuddy/models/friend_location.dart';
 import 'package:pilzbuddy/models/friendship.dart';
+import 'package:pilzbuddy/core/photo_pipeline.dart';
+import 'package:pilzbuddy/data/find_photo_repository.dart';
+import 'package:pilzbuddy/features/spots/find_photo_providers.dart';
+import 'package:pilzbuddy/models/find_photo.dart';
 import 'package:pilzbuddy/models/profile.dart';
 import 'package:pilzbuddy/models/spot.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -134,9 +138,34 @@ class FakeTourTrackRow {
   DateTime expiresAt;
 }
 
+/// Spiegel von `find_photos` (Patch 026, #532).
+class FakeFindPhotoRow {
+  FakeFindPhotoRow({
+    required this.id,
+    required this.findId,
+    required this.userId,
+    required this.key,
+    required this.createdAt,
+    required this.expiresAt,
+  });
+
+  final String id;
+  final String findId;
+  final String userId;
+  final String key;
+  final DateTime createdAt;
+  DateTime expiresAt;
+}
+
 class FakeBackend {
   final users = <FakeUser>[];
   final spots = <FakeSpotRow>[];
+
+  /// Die Zeilen der Fundfotos — und der Bucket dazu: Pfad → Bytes.
+  /// Getrennt wie live, damit ein Test „Objekt ohne Zeile" oder „Zeile
+  /// ohne Objekt" nachstellen kann.
+  final findPhotos = <FakeFindPhotoRow>[];
+  final photoObjects = <String, Uint8List>{};
   /// Eine Zeile je Nutzer (Patch 023) — wie live_locations.
   final tourTracks = <FakeTourTrackRow>[];
   final friendships = <FakeFriendshipRow>[];
@@ -391,6 +420,34 @@ class FakeBackend {
       f.status == 'accepted' &&
       ((f.requesterId == a && f.addresseeId == b) ||
           (f.requesterId == b && f.addresseeId == a)));
+
+  /// Spiegel der drei finds-Policies aus Patch 014 für EINEN Betrachter
+  /// — an einer Stelle, damit Spot-Abruf und Fundfotos (#532) dieselbe
+  /// Antwort geben. `null` als Autor zählt als Fund des Besitzers
+  /// (Zeilen von vor Patch 014).
+  bool findVisibleTo(String uid, FakeSpotRow row, Find f) {
+    if (row.ownerId == uid) {
+      // finds_author_all + finds_owner_select: eigene immer, fremde nur
+      // solange die Freigabe-Beziehung zum Autor besteht — dieselbe
+      // Freundschaft, der EIGENE globale Schalter, derselbe
+      // Spot-Ausschluss.
+      return f.authorId == null ||
+          f.authorId == uid ||
+          (areFriends(uid, f.authorId!) &&
+              userById(uid).shareSpotsDefault &&
+              !row.sharingExcluded);
+    }
+    // Am Freundes-Spot: Der Spot muss sichtbar sein; von den Funden die
+    // EIGENEN immer (finds_author_all), die des Besitzers nur mit dessen
+    // Detail-Freigabe (finds_friend_select), die dritter Buddies nie.
+    final spotVisible = areFriends(uid, row.ownerId) &&
+        userById(row.ownerId).shareSpotsDefault &&
+        !row.sharingExcluded;
+    return spotVisible &&
+        (f.authorId == uid ||
+            ((f.authorId == null || f.authorId == row.ownerId) &&
+                userById(row.ownerId).shareDetails));
+  }
 
   void setCurrentUser(FakeUser? user, AuthChangeEvent event) {
     currentUserId = user?.id;
@@ -757,12 +814,7 @@ class FakeSpotRepository implements SpotRepository {
               // Freundschaft, der EIGENE globale Schalter, derselbe
               // Spot-Ausschluss.
               for (final f in row.finds)
-                if (f.authorId == null ||
-                    f.authorId == _uid ||
-                    (backend.areFriends(_uid, f.authorId!) &&
-                        backend.userById(_uid).shareSpotsDefault &&
-                        !row.sharingExcluded))
-                  _viewFind(f),
+                if (backend.findVisibleTo(_uid, row, f)) _viewFind(f),
             ]),
       ],
       cachedAt: cachedAt,
@@ -794,10 +846,7 @@ class FakeSpotRepository implements SpotRepository {
               expectedSpecies: row.expectedSpecies,
               finds: [
                 for (final f in row.finds)
-                  if (f.authorId == _uid ||
-                      ((f.authorId == null || f.authorId == row.ownerId) &&
-                          backend.userById(row.ownerId).shareDetails))
-                    _viewFind(f),
+                  if (backend.findVisibleTo(_uid, row, f)) _viewFind(f),
               ],
             ),
       ];
@@ -1424,6 +1473,140 @@ class FakeAppConfigRepository implements AppConfigRepository {
 /// **Er zählt mit, was geholt wurde.** Daran hängt die Zusage
 /// „beobachten ist laden": Der Bildstreifen zeigt ein Lupensymbol, darf
 /// deswegen aber nichts anstoßen — geholt wird erst beim Antippen.
+/// Spiegelt `FindPhotoRepository` samt Policies aus Patch 026 (#532).
+///
+/// Die Sichtbarkeit einer Zeile ist die des FUNDES — genau wie live,
+/// wo `fp_friend_select` nur `exists (select … from finds)` fragt. Und
+/// der Bucket gibt ein Objekt nur heraus, wenn eine sichtbare Zeile dazu
+/// gehört (`find_photos_read`): [loadBytes] prüft das nach, statt
+/// einfach in die Map zu greifen.
+class FakeFindPhotoRepository implements FindPhotoRepository {
+  FakeFindPhotoRepository(this.backend);
+
+  final FakeBackend backend;
+
+  String get _uid => backend.currentUserId!;
+
+  /// Welche Pfade abgerufen wurden — für die Zusage „aus heißt kein
+  /// Download".
+  final loaded = <String>[];
+
+  /// Wo ein Fund liegt: (Spot, Fund) oder null.
+  (FakeSpotRow, Find)? _locate(String findId) {
+    for (final row in backend.spots) {
+      for (final f in row.finds) {
+        if (f.id == findId) return (row, f);
+      }
+    }
+    return null;
+  }
+
+  bool _visible(FakeFindPhotoRow p) {
+    if (p.userId == _uid) return true;
+    if (!p.expiresAt.isAfter(DateTime.now().toUtc())) return false;
+    final where = _locate(p.findId);
+    return where != null && backend.findVisibleTo(_uid, where.$1, where.$2);
+  }
+
+  FindPhoto _view(FakeFindPhotoRow p) {
+    final where = _locate(p.findId);
+    final user = backend.userById(p.userId);
+    return FindPhoto(
+      id: p.id,
+      findId: p.findId,
+      userId: p.userId,
+      key: p.key,
+      createdAt: p.createdAt,
+      expiresAt: p.expiresAt,
+      isOwn: p.userId == _uid,
+      username: user.username,
+      avatar: user.avatar,
+      species: where?.$2.species,
+      foundOn: where?.$2.foundOn,
+      spotId: where?.$1.id,
+      spotName: where?.$1.name,
+    );
+  }
+
+  static int _seq = 0;
+
+  @override
+  Future<FindPhoto> share(
+      {required String findId, required PreparedPhoto photo}) async {
+    if (backend.offline) throw const SocketException('kein Netz (Fake)');
+    final key = '$_uid/fake-${++_seq}';
+    // Reihenfolge wie live: erst die Objekte, dann die Zeile.
+    backend.photoObjects['$key.jpg'] = photo.full;
+    backend.photoObjects['${key}_s.jpg'] = photo.thumb;
+    final where = _locate(findId);
+    // `fp_owner_all` mit check: nur an EIGENEN Funden.
+    if (where == null || (where.$2.authorId ?? _uid) != _uid) {
+      backend.photoObjects.remove('$key.jpg');
+      backend.photoObjects.remove('${key}_s.jpg');
+      throw const PostgrestException(
+          message: 'new row violates row-level security policy',
+          code: '42501');
+    }
+    final now = DateTime.now().toUtc();
+    final row = FakeFindPhotoRow(
+      id: 'photo-$_seq',
+      findId: findId,
+      userId: _uid,
+      key: key,
+      createdAt: now,
+      expiresAt: now.add(const Duration(days: kFindPhotoDays)),
+    );
+    backend.findPhotos.add(row);
+    return _view(row);
+  }
+
+  @override
+  Future<void> delete(FindPhoto photo) async {
+    if (backend.offline) throw const SocketException('kein Netz (Fake)');
+    backend.findPhotos
+        .removeWhere((p) => p.id == photo.id && p.userId == _uid);
+    backend.photoObjects.remove(photo.fullPath);
+    backend.photoObjects.remove(photo.thumbPath);
+  }
+
+  @override
+  Future<List<FindPhoto>> fetchVisible() async {
+    if (backend.offline) throw const SocketException('kein Netz (Fake)');
+    final rows = [
+      for (final p in backend.findPhotos)
+        if (_visible(p)) p
+    ]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return [for (final p in rows) _view(p)];
+  }
+
+  @override
+  Future<Uint8List?> loadBytes(String path) async {
+    loaded.add(path);
+    if (backend.offline) return null;
+    final visible = backend.findPhotos
+        .any((p) => _visible(p) && (path == '${p.key}.jpg' || path == '${p.key}_s.jpg'));
+    return visible ? backend.photoObjects[path] : null;
+  }
+
+  @override
+  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// Was der Bildwähler liefert — steuerbar, zählend.
+class FakePhotoPicker {
+  FakePhotoPicker([this.next]);
+
+  /// Die Bytes des nächsten „ausgewählten" Bildes; `null` heißt: der
+  /// Nutzer bricht ab.
+  Uint8List? next;
+  final sources = <PhotoSource>[];
+
+  Future<Uint8List?> call(PhotoSource source) async {
+    sources.add(source);
+    return next;
+  }
+}
+
 class FakeSpeciesPhotos implements SpeciesPhotoRepository {
   FakeSpeciesPhotos({this.bytes});
 

@@ -273,6 +273,10 @@ void main() {
       'search_profiles': 'Freunde suchen',
       'live_locations': 'Live-Standort teilen',
       'tour_tracks': 'Pilztour-Weg teilen',
+      // Die Zeile, das Bild liegt im Bucket `find-photos` — den sieht
+      // dieses Muster nicht (Bindestrich), die Verzeichniszeile nennt
+      // Storage deshalb ausdrücklich als Empfänger.
+      'find_photos': 'Fundfoto teilen',
       'push_devices': 'Benachrichtigungen',
       'error_reports': 'Fehlerdiagnose',
       'feedback': 'Feedback',

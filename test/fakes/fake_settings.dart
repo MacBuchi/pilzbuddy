@@ -34,6 +34,7 @@ class FakeSettings implements Settings {
     // Bestandstest ungefragt ein Buddy-Fund-Banner bekommt. Tests, die
     // das Banner wollen, geben einen alten Zeitstempel mit.
     this.lastFindSeenAt,
+    this.findPhotosEnabled = true,
   });
 
   @override
@@ -92,6 +93,14 @@ class FakeSettings implements Settings {
   @override
   Future<void> setAmpelPreviewEnabled(bool value) async {
     ampelPreviewEnabled = value;
+  }
+
+  @override
+  bool findPhotosEnabled;
+
+  @override
+  Future<void> setFindPhotosEnabled(bool value) async {
+    findPhotosEnabled = value;
   }
 
   @override

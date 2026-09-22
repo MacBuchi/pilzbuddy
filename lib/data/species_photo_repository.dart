@@ -18,9 +18,8 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
 
-import '../core/errors.dart';
+import 'file_cache.dart';
 
 /// Wo die großen Fassungen liegen.
 ///
@@ -33,11 +32,9 @@ const kSpeciesPhotoBaseUrl =
 
 /// Wie viel der Zwischenspeicher höchstens belegen darf.
 ///
-/// **Eine Größengrenze, keine Frist** — und das ist der Unterschied zu
-/// `spot_cache/`, `outbox/` und `tours/`. Deren Inhalt ist entweder eine
-/// Kopie, die man nicht neu holen kann, oder das Original. Ein Bild ist
-/// beides nicht: Es ist jederzeit nachladbar, also darf es weg, sobald
-/// es Platz kostet.
+/// **Eine Größengrenze, keine Frist** — warum, steht in
+/// `file_cache.dart`, wo das Aufräumen seit #532 für alle Bildspeicher
+/// wohnt.
 const kSpeciesPhotoCacheBytes = 24 * 1024 * 1024;
 
 /// Holt ein hochaufgelöstes Artbild und hebt es auf.
@@ -51,7 +48,11 @@ class SpeciesPhotoRepository {
     HttpClient? client,
     this.cachesToDisk = !kIsWeb,
     this.baseUrl = kSpeciesPhotoBaseUrl,
-  }) : _client = client ?? HttpClient();
+  })  : _client = client ?? HttpClient(),
+        _cache = BoundedFileCache(
+            dirName: 'species_photos',
+            maxBytes: kSpeciesPhotoCacheBytes,
+            enabled: cachesToDisk);
 
   final HttpClient _client;
 
@@ -60,31 +61,11 @@ class SpeciesPhotoRepository {
   /// scheitert" gegen den echten Dienst und wäre in CI ein Flatterer.
   final String baseUrl;
 
-  /// **Im Browser speichern wir nichts selbst.** `path_provider` gibt es
-  /// dort nicht, und es braucht auch keinen eigenen Speicher: Der
-  /// Browser hat seinen HTTP-Zwischenspeicher, und der eigene Service
-  /// Worker legt jede erfolgreiche Antwort ohnehin ab (#387). Ein
-  /// dritter Speicher daneben wäre eine dritte Stelle, an der etwas
-  /// veralten kann.
+  /// **Im Browser speichern wir nichts selbst** — Begründung in
+  /// `file_cache.dart`, wo der Speicher seit #532 wohnt.
   final bool cachesToDisk;
 
-  Directory? _dir;
-
-  Future<Directory?> _cacheDir() async {
-    if (!cachesToDisk) return null;
-    if (_dir != null) return _dir;
-    try {
-      final base = await getApplicationSupportDirectory();
-      _dir = Directory('${base.path}/species_photos');
-      await _dir!.create(recursive: true);
-      return _dir;
-    } catch (e, s) {
-      // Kein Verzeichnis heißt: jedes Mal frisch holen. Unschön, aber
-      // kein Grund, die Ansicht scheitern zu lassen.
-      logError('Bildspeicher anlegen', e, s);
-      return null;
-    }
-  }
+  final BoundedFileCache _cache;
 
   /// Das große Bild zu einem Asset-Pfad — `null`, wenn es nicht zu
   /// holen war.
@@ -94,33 +75,11 @@ class SpeciesPhotoRepository {
   /// getauschtes Bild seinen alten Namen behält.
   Future<Uint8List?> load(String assetPath) async {
     final name = assetPath.split('/').last;
-    final dir = await _cacheDir();
-    final file = dir == null ? null : File('${dir.path}/$name');
-    if (file != null) {
-      try {
-        if (await file.exists()) {
-          // Beim Lesen die Zeit anfassen: Danach entscheidet das
-          // Aufräumen, was am längsten nicht gesehen wurde.
-          final bytes = await file.readAsBytes();
-          unawaited(file.setLastAccessed(DateTime.now()));
-          return bytes;
-        }
-      } catch (e, s) {
-        logError('Bild aus dem Speicher lesen', e, s);
-      }
-    }
+    final cached = await _cache.read(name);
+    if (cached != null) return cached;
     final bytes = await _fetch('$baseUrl/$name');
     if (bytes == null) return null;
-    if (file != null) {
-      // **Erst schreiben, dann aufräumen.** Andersherum könnte das
-      // gerade geholte Bild dem Aufräumen zum Opfer fallen.
-      try {
-        await file.writeAsBytes(bytes, flush: true);
-        await _prune(dir!);
-      } catch (e, s) {
-        logError('Bild ablegen', e, s);
-      }
-    }
+    await _cache.write(name, bytes);
     return bytes;
   }
 
@@ -141,33 +100,4 @@ class SpeciesPhotoRepository {
       return null;
     }
   }
-
-  /// Wirft weg, was am längsten nicht angesehen wurde, bis die Grenze
-  /// wieder eingehalten ist.
-  Future<void> _prune(Directory dir) async {
-    try {
-      final files = <({File file, int size, DateTime seen})>[];
-      await for (final entry in dir.list()) {
-        if (entry is! File) continue;
-        final stat = await entry.stat();
-        files.add((file: entry, size: stat.size, seen: stat.accessed));
-      }
-      var total = files.fold<int>(0, (sum, f) => sum + f.size);
-      if (total <= kSpeciesPhotoCacheBytes) return;
-      files.sort((a, b) => a.seen.compareTo(b.seen));
-      for (final f in files) {
-        if (total <= kSpeciesPhotoCacheBytes) break;
-        await f.file.delete();
-        total -= f.size;
-      }
-    } catch (e, s) {
-      logError('Bildspeicher aufräumen', e, s);
-    }
-  }
-}
-
-/// `unawaited` ohne `dart:async` zu importieren — das Anfassen der
-/// Zugriffszeit darf das Lesen nicht aufhalten und darf auch scheitern.
-void unawaited(Future<void> future) {
-  future.catchError((_) {});
 }

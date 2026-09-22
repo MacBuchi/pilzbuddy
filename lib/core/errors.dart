@@ -7,6 +7,8 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'photo_pipeline.dart';
+
 /// Empfänger für Fehlerberichte. `main()` hängt hier das Schreiben nach
 /// Supabase ein (siehe `ErrorReportRepository`); in Tests bleibt der Haken
 /// leer, damit `flutter test` ohne Netz auskommt.
@@ -233,6 +235,10 @@ String friendlyError(Object error) {
   if (error is AuthException) {
     return 'Anmeldung abgelaufen — bitte neu anmelden.';
   }
+  // Trägt seinen Satz selbst (#532): „Bildformat nicht lesbar" oder
+  // „Metadaten nicht entfernt" — beides ist eine Auskunft an den, der
+  // gerade ein Foto teilen wollte, kein Unfall.
+  if (error is PhotoPipelineException) return error.message;
   return 'Unerwarteter Fehler (${error.runtimeType}) — '
       'bitte über das Banner melden.';
 }

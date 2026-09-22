@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.184.0+271
+version: 1.185.0+272
 
 environment:
   sdk: ^3.11.0
@@ -102,6 +102,20 @@ dependencies:
 
   # GPX/KML-Import & GPX-Export der eigenen Spots
   file_selector: ^1.0.3
+
+  # Fundfotos (#532): Aufnahme und Auswahl. Offizielles Flutter-Paket,
+  # KEINE neue Android-Berechtigung — Kamera-Intent und Photo Picker
+  # kommen ohne aus, und das Plugin-Manifest deklariert keine (geprüft
+  # am 2026-09-22). Was es NICHT tut: Metadaten entfernen. Seine
+  # Android-Verkleinerung kopiert im Gegenteil alle 30 GPS-Tags ins
+  # verkleinerte Bild zurück (`ExifDataCopier.java`). Deshalb kodiert
+  # `lib/core/photo_pipeline.dart` selbst neu und prüft das Ergebnis.
+  image_picker: ^1.2.0
+  # Der Kodierer dafür — reines Dart, läuft im Isolate und auf der
+  # Test-VM. Bisher nur transitiv (flutter_launcher_icons); direkt, weil
+  # eigener Code darauf baut und die Auflösung nicht an einem
+  # Dev-Werkzeug hängen soll.
+  image: ^4.3.0
   xml: ^6.5.0
   archive: ^3.4.10
 

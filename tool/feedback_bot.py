@@ -18,6 +18,7 @@ Required environment: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, GH_TOKEN
 (the workflow provides these). Self-tests without any network access:
     python3 tool/feedback_bot.py --test-insert "Violetter Lacktrichterling"
     python3 tool/feedback_bot.py --test-digest
+    python3 tool/feedback_bot.py --test-sweep
 
 Eine vergangene Woche nachträglich ansehen (liest nur, schreibt nichts —
 die Rohdaten liegen 90 Tage):
@@ -306,11 +307,103 @@ def purge_error_reports() -> None:
     print(f"Purged error reports older than {ERROR_REPORT_RETENTION_DAYS} days.")
 
 
+# Fundfotos (#532, Patch 026): Zeilen laufen nach 14 Tagen ab, die Bytes
+# liegen im Bucket `find-photos`. Beides räumt derselbe Tick ab — per
+# ABGLEICH, nicht per Reihenfolge: Jedes Objekt, zu dem keine lebende
+# Zeile mehr gehört, fliegt. Das fängt drei Fälle mit einem Griff:
+# abgelaufene Zeilen, gelöschte Zeilen (Cascade über Fund, Spot oder
+# Konto) und Uploads, deren Zeile nie geschrieben wurde (Netz weg
+# zwischen Objekt und Zeile). Eine Reihenfolge „erst Zeile, dann Objekt"
+# ließe den dritten Fall für immer liegen.
+FIND_PHOTO_BUCKET = "find-photos"
+# Ein Objekt, das jünger ist als das, gilt als „im Aufbau": hochgeladen,
+# die Zeile folgt gleich. Ohne die Schonfrist löschte ein Tick, der
+# zwischen die beiden Schritte fällt, ein Foto mitten im Teilen.
+PHOTO_ORPHAN_GRACE = timedelta(hours=1)
+
+
+def photo_key_of(path: str) -> str:
+    """`<uid>/<id>.jpg` und `<uid>/<id>_s.jpg` gehören zum Schlüssel `<uid>/<id>`."""
+    if path.endswith("_s.jpg"):
+        return path[:-6]
+    if path.endswith(".jpg"):
+        return path[:-4]
+    return path
+
+
+def photo_sweep_plan(live_keys: set[str], objects: list[tuple[str, datetime | None]],
+                     now: datetime) -> list[str]:
+    """Welche Objekte weg müssen: ohne lebende Zeile — und nicht ganz frisch.
+
+    Rein, damit der Selbsttest sie ohne Netz prüfen kann. `created` ist
+    None, wenn der Dienst keine Zeit meldet; dann gilt das Objekt als alt —
+    ein Objekt ohne Zeile UND ohne Alter ist keines, das jemand gerade
+    hochlädt."""
+    doomed = []
+    for path, created in objects:
+        if photo_key_of(path) in live_keys:
+            continue
+        if created is not None and now - created < PHOTO_ORPHAN_GRACE:
+            continue
+        doomed.append(path)
+    return doomed
+
+
+def _parse_ts(value) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _storage_list(bucket: str, prefix: str) -> list[dict]:
+    return api("POST", f"/storage/v1/object/list/{bucket}",
+               {"prefix": prefix, "limit": 1000, "offset": 0}) or []
+
+
+def list_bucket_objects(bucket: str) -> list[tuple[str, datetime | None]]:
+    """Alle Objekte mit Pfad und Erstellzeit.
+
+    Die Liste antwortet je EBENE: Auf der obersten stehen die Ordner (ein
+    Eintrag ohne `id`), darin die Dateien mit ihrem Namen ohne Ordner. Ein
+    Ordner je Nutzer, also ein Aufruf je Nutzer plus einer."""
+    out: list[tuple[str, datetime | None]] = []
+    for entry in _storage_list(bucket, ""):
+        if entry.get("id") is None:
+            folder = entry["name"]
+            for obj in _storage_list(bucket, folder):
+                if obj.get("id") is None:
+                    continue
+                out.append((f"{folder}/{obj['name']}", _parse_ts(obj.get("created_at"))))
+        else:
+            out.append((entry["name"], _parse_ts(entry.get("created_at"))))
+    return out
+
+
+def sweep_find_photos() -> None:
+    now = datetime.now(timezone.utc)
+    api("DELETE", f"/rest/v1/find_photos?expires_at=lt.{now.isoformat()}")
+    live = {row["key"] for row in (api("GET", "/rest/v1/find_photos?select=key") or [])}
+    objects = list_bucket_objects(FIND_PHOTO_BUCKET)
+    doomed = photo_sweep_plan(live, objects, now)
+    if doomed:
+        api("DELETE", f"/storage/v1/object/{FIND_PHOTO_BUCKET}", {"prefixes": doomed})
+    print(f"Fundfotos: {len(live)} Zeilen, {len(objects)} Objekte, {len(doomed)} entfernt.")
+
+
 def main() -> None:
     # Before the early return below — otherwise digest and purge would only
     # ever run on the rare tick that also has unprocessed feedback.
     report_error_digest()
     purge_error_reports()
+    # Ein Aussetzer des Storage-Dienstes darf die Issues nicht aufhalten:
+    # Der nächste Tick räumt nach, die Zeilen laufen ohnehin ab.
+    try:
+        sweep_find_photos()
+    except Exception as e:  # noqa: BLE001 — jede Ursache ist hier gleich
+        print(f"::warning::Fundfotos nicht abgeräumt: {e}")
 
     rows = api(
         "GET",
@@ -440,6 +533,27 @@ def self_test(names: list[str]) -> None:
     print("self-test passed (no files were written)")
 
 
+def self_test_sweep() -> None:
+    """Der Abgleich, ohne Netz: was fliegt, was bleibt."""
+    now = datetime(2026, 9, 22, 12, 0, tzinfo=timezone.utc)
+    old = now - timedelta(days=2)
+    fresh = now - timedelta(minutes=5)
+    live = {"u1/a", "u2/b"}
+    objects = [
+        ("u1/a.jpg", old), ("u1/a_s.jpg", old),      # lebende Zeile: bleibt
+        ("u2/b.jpg", old), ("u2/b_s.jpg", None),     # dito, auch ohne Zeit
+        ("u1/x.jpg", old), ("u1/x_s.jpg", old),      # Zeile weg: fliegt
+        ("u3/y.jpg", fresh),                          # im Aufbau: bleibt
+        ("u3/z_s.jpg", None),                         # ohne Zeile, ohne Zeit: fliegt
+    ]
+    doomed = photo_sweep_plan(live, objects, now)
+    assert doomed == ["u1/x.jpg", "u1/x_s.jpg", "u3/z_s.jpg"], doomed
+    assert photo_key_of("u/k_s.jpg") == "u/k" and photo_key_of("u/k.jpg") == "u/k"
+    assert _parse_ts("2026-09-22T10:00:00.000Z") == datetime(2026, 9, 22, 10, tzinfo=timezone.utc)
+    assert _parse_ts(None) is None and _parse_ts("kaputt") is None
+    print("sweep self-test passed (no network, nothing written)")
+
+
 def self_test_digest() -> None:
     """Grouping and body rendering without any network access."""
     framework_stack = (
@@ -499,6 +613,8 @@ if __name__ == "__main__":
         self_test(sys.argv[2].split(","))
     elif len(sys.argv) > 1 and sys.argv[1] == "--test-digest":
         self_test_digest()
+    elif len(sys.argv) > 1 and sys.argv[1] == "--test-sweep":
+        self_test_sweep()
     elif len(sys.argv) > 2 and sys.argv[1] == "--digest-week":
         print_past_digest(sys.argv[2])
     else:

@@ -142,6 +142,30 @@ create table public.tour_tracks (
 );
 create index tour_tracks_expires_idx on public.tour_tracks (expires_at);
 
+-- Fundfotos für Buddys (Patch 026, #532). Die BYTES liegen im Bucket
+-- `find-photos`, hier steht je Foto nur eine Zeile: Schlüssel, Fund,
+-- Frist. Das Foto hängt am FUND und erbt dessen Sichtbarkeit (die
+-- Freundes-Policy fragt `finds`); die Frist gehört der Datenbank —
+-- Default 14 Tage, per Constraint nicht verlängerbar. Der Bot räumt
+-- Zeilen und Objekte per Abgleich ab. Begründungen im Patch.
+create table public.find_photos (
+  id uuid primary key default gen_random_uuid(),
+  find_id uuid not null references public.finds(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  -- Pfad im Bucket ohne Endung: `<user_id>/<zufall>`; Bild unter
+  -- `<key>.jpg`, Vorschau unter `<key>_s.jpg`.
+  key text not null unique,
+  created_at timestamptz not null default now(),
+  expires_at timestamptz not null default (now() + interval '14 days'),
+  constraint find_photos_frist
+    check (expires_at <= created_at + interval '14 days'),
+  -- Der Ordner ist der Nutzer — dieselbe Bindung wie in der Upload-Policy.
+  constraint find_photos_key_owner
+    check (key like (user_id::text || '/%'))
+);
+create index find_photos_find_idx on public.find_photos (find_id);
+create index find_photos_expires_idx on public.find_photos (expires_at);
+
 -- Feature-Wünsche / Feedback aus der App. Der Feedback-Bot
 -- (.github/workflows/feedback.yml) macht daraus GitHub-Issues bzw.
 -- Pilzart-PRs und setzt processed_at.
@@ -330,6 +354,7 @@ alter table public.finds          enable row level security;
 alter table public.friendships    enable row level security;
 alter table public.live_locations enable row level security;
 alter table public.tour_tracks    enable row level security;
+alter table public.find_photos    enable row level security;
 alter table public.feedback       enable row level security;
 alter table public.error_reports  enable row level security;
 alter table public.app_config     enable row level security;
@@ -341,6 +366,9 @@ alter table app_internal.push_outbox    enable row level security;
 -- einen Patch, deshalb kein insert/update/delete-Grant.
 create policy app_config_read on public.app_config for select using (true);
 grant select on public.app_config to anon, authenticated;
+-- find_photos (Patch 026): ausdrücklich, nicht über auto_expose — die
+-- Vorgabe fällt am 2026-10-30 (config.toml).
+grant select, insert, delete on public.find_photos to authenticated;
 
 -- push_devices: nur die eigenen Geräte, in beide Richtungen. Ohne das
 -- `with check` könnte jemand ein Token auf ein fremdes Konto schreiben
@@ -460,6 +488,44 @@ create policy tt_friend_select on public.tour_tracks for select
   using (user_id <> auth.uid()
      and app_internal.are_friends(user_id, auth.uid())
      and expires_at > now());
+
+-- find_photos (Patch 026): eigene Zeilen voll, anlegen nur an EIGENEN
+-- Funden. Fremde: nicht abgelaufen UND der Fund ist für mich lesbar —
+-- die Freigabe steht in den finds-Policies, nicht hier. Das ist der
+-- Punkt: Ein Foto ist genau so sichtbar wie der Fund, an dem es hängt.
+create policy fp_owner_all on public.find_photos for all
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid()
+    and exists (select 1 from public.finds f
+                where f.id = find_id and f.author_id = auth.uid()));
+create policy fp_friend_select on public.find_photos for select
+  using (user_id <> auth.uid()
+     and expires_at > now()
+     and exists (select 1 from public.finds f where f.id = find_id));
+
+-- ---------------------------------------------------------------------------
+-- Storage: der Bucket der Fundfotos (Patch 026)
+-- ---------------------------------------------------------------------------
+-- Privat, JPEG, gedeckelt. Hochladen und Löschen nur im eigenen Ordner;
+-- lesen darf, wer eine Zeile dazu sieht — und das entscheiden die
+-- Policies oben. Ein Objekt ohne Zeile ist für niemanden lesbar.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('find-photos', 'find-photos', false, 600000, array['image/jpeg'])
+on conflict (id) do nothing;
+
+create policy find_photos_upload on storage.objects for insert
+  to authenticated
+  with check (bucket_id = 'find-photos'
+    and (storage.foldername(name))[1] = auth.uid()::text);
+create policy find_photos_read on storage.objects for select
+  to authenticated
+  using (bucket_id = 'find-photos'
+    and exists (select 1 from public.find_photos p
+                where name in (p.key || '.jpg', p.key || '_s.jpg')));
+create policy find_photos_remove on storage.objects for delete
+  to authenticated
+  using (bucket_id = 'find-photos'
+    and (storage.foldername(name))[1] = auth.uid()::text);
 
 -- ---------------------------------------------------------------------------
 -- Patch-Buchführung
@@ -746,5 +812,6 @@ insert into public.applied_patches (filename) values
   ('patch_022_fund_position.sql'),
   ('patch_023_tour_tracks.sql'),
   ('patch_024_fundstellen_versatz.sql'),
-  ('patch_025_vormerkung.sql')
+  ('patch_025_vormerkung.sql'),
+  ('patch_026_fundfotos.sql')
 on conflict do nothing;

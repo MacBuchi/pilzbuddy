@@ -3,7 +3,7 @@
 # wird davon nicht berührt; sie wird weiter über tool/db_migrate.sh +
 # supabase/patch_NNN_*.sql migriert.
 #
-# Bewusst minimal: nur Datenbank, Auth und PostgREST. schema.sql braucht
+# Bewusst minimal: nur Datenbank, Auth, PostgREST — und seit Patch 026 Storage. schema.sql braucht
 # Auth zwingend (references auth.users, auth.uid() in Policies, Trigger auf
 # auth.users) — alles andere kostet auf dem CI-Runner nur Startzeit.
 project_id = "PilzBuddy"
@@ -85,7 +85,12 @@ enabled = false
 enabled = false
 
 [storage]
-enabled = false
+# Seit Patch 026 (#532) AN: schema.sql legt den Bucket `find-photos` an
+# und Policies auf `storage.objects` — beides braucht das storage-Schema,
+# und das legen die Migrationen des Storage-Dienstes beim Start an.
+# Kostet ein paar Sekunden Startzeit; ohne ihn fiele der Dry Run an
+# einer Tabelle, die es live längst gibt.
+enabled = true
 
 [edge_runtime]
 enabled = true

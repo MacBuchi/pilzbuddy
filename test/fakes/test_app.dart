@@ -14,6 +14,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:pilzbuddy/app.dart';
 import 'package:pilzbuddy/core/app_info.dart';
 import 'package:pilzbuddy/core/push_messaging.dart';
+import 'package:pilzbuddy/core/photo_pipeline.dart';
 import 'package:pilzbuddy/core/settings.dart';
 import 'package:pilzbuddy/core/update_check.dart';
 import 'package:pilzbuddy/data/apk_installer.dart';
@@ -31,6 +32,7 @@ import 'package:pilzbuddy/features/map/rain_data_providers.dart';
 import 'package:pilzbuddy/features/map/rain_layer.dart';
 import 'package:pilzbuddy/features/offline_maps/download_keep_alive.dart';
 import 'package:pilzbuddy/features/offline_maps/offline_map_providers.dart';
+import 'package:pilzbuddy/features/spots/find_photo_providers.dart';
 import 'package:pilzbuddy/features/tour/tour_providers.dart';
 
 import 'fake_apk_installer.dart';
@@ -118,6 +120,8 @@ List<Override> overridesFor(FakeBackend backend,
         FakeApkInstaller? apkInstaller,
         FakeSpotCache? spotCache,
         FakeOutbox? outbox,
+        FakePhotoPicker? photoPicker,
+        FakeFindPhotoRepository? findPhotos,
         bool useRealMap = false,
         List<Override> extra = const []}) =>
     [
@@ -211,6 +215,15 @@ List<Override> overridesFor(FakeBackend backend,
       feedbackRepositoryProvider
           .overrideWithValue(FakeFeedbackRepository(backend)),
       pushRepositoryProvider.overrideWithValue(FakePushRepository(backend)),
+      // Fundfotos (#532): Zeilen und Bucket im Fake, der Bildwähler
+      // steuerbar — und die Pipeline DIREKT statt über `compute`, das
+      // unter FakeAsync kein Isolate bekommt. Es läuft also dieselbe
+      // Funktion mit denselben Bytes, nur im selben Thread.
+      findPhotoRepositoryProvider
+          .overrideWithValue(findPhotos ?? FakeFindPhotoRepository(backend)),
+      photoPickerProvider
+          .overrideWithValue((photoPicker ?? FakePhotoPicker()).call),
+      photoPreparerProvider.overrideWithValue((bytes) async => preparePhoto(bytes)),
       liveShareRepositoryProvider
           .overrideWithValue(FakeLiveShareRepository(backend)),
       // Kein 15-Sekunden-Poll im Test: einmal laden statt Dauerschleife.
@@ -313,6 +326,8 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
     FakeApkInstaller? apkInstaller,
     FakeSpotCache? spotCache,
     FakeOutbox? outbox,
+    FakePhotoPicker? photoPicker,
+    FakeFindPhotoRepository? findPhotos,
     bool useRealMap = false,
     // Fester Monat (September) statt `DateTime.now()`: Seit dem
     // Saison-Tor je Klasse (#495) hinge sonst jeder Legenden- und
@@ -341,6 +356,8 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
         apkInstaller: apkInstaller,
         spotCache: spotCache,
         outbox: outbox,
+        photoPicker: photoPicker,
+        findPhotos: findPhotos,
         useRealMap: useRealMap,
         extra: [
           currentMonthProvider.overrideWithValue(month),

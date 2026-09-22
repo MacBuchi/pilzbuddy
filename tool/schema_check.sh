@@ -232,6 +232,12 @@ check_get "live_locations-Embed (Freundes-Standorte)" \
 check_get "tour_tracks-Embed (Buddy-Spuren)" \
   "/rest/v1/tour_tracks?select=user_id,started_at,points,expires_at,profiles(username,avatar)&limit=1"
 
+# find_photos (Patch 026, #532): exakt die Query aus
+# FindPhotoRepository.fetchVisible. ZWEI Embeds, davon eines
+# verschachtelt (finds → spots) — jeder hängt an einem Fremdschlüssel.
+check_get "find_photos-Embed (Fundfotos)" \
+  "/rest/v1/find_photos?select=id,find_id,user_id,key,created_at,expires_at,profiles(username,avatar),finds(species,found_on,spot_id,spots(name))&limit=1"
+
 # feedback: Spalten, die App (Insert) und Feedback-Bot (Select) nutzen
 check_get "feedback-Spalten" \
   "/rest/v1/feedback?select=id,user_id,type,message,species_name,created_at,processed_at,app_version&limit=1"
