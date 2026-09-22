@@ -589,6 +589,137 @@ const speciesPortraits = <String, List<SpeciesPhoto>>{
       source: 'https://commons.wikimedia.org/wiki/File:Cantharellus_tubaeformis2.JPG',
     ),
   ],
+  // ── Warnarten, ebenfalls von Commons ─────────────────────────────
+  //
+  // **Eine Seite, die warnt, sollte zeigen wovor.** Diese 14 waren nach
+  // der ersten Tranche die letzten Arten mit einer Einstufung, die
+  // warnt, und ohne jedes Bild. Auch sie sind Platzhalter.
+  'Böhmische Verpel': [
+    (
+      asset: 'assets/species/boehmischeverpel-1.webp',
+      author: 'Ireen Trummer',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Kurrel.JPG',
+    ),
+  ],
+  'Frühjahrsknollenblätterpilz': [
+    (
+      asset: 'assets/species/fruehjahrsknollenblaetterpilz-1.webp',
+      author: 'Sinisa Radic',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Amanita_verna_2.jpg',
+    ),
+  ],
+  'Fuchsiger Rötelritterling': [
+    (
+      asset: 'assets/species/fuchsigerroetelritterling-1.webp',
+      author: 'NorbertNagel',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'https://commons.wikimedia.org/wiki/File:2025_-_Fuchsiger_Roetelritterling_-_Tawny_Funnel_Cap_-_01.jpg',
+    ),
+  ],
+  'Grünling': [
+    (
+      asset: 'assets/species/gruenling-1.webp',
+      author: 'Aorg1961',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'https://commons.wikimedia.org/wiki/File:G%C4%85ska_zielonka_3148095286_71aaf31eab_o.jpg',
+    ),
+  ],
+  'Kahler Krempling': [
+    (
+      asset: 'assets/species/kahlerkrempling-1.webp',
+      author: 'Achim Lammerts (Syntaxys)',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'https://commons.wikimedia.org/wiki/File:2025-10-15_D500-0990_Achim-Lammerts_Paxillus-involutus.jpg',
+    ),
+  ],
+  'Nebelkappe': [
+    (
+      asset: 'assets/species/nebelkappe-1.webp',
+      author: 'Archenzo, Bearbeitung Ak ccm',
+      licence: 'CC BY-SA 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/3.0',
+      source: 'https://commons.wikimedia.org/wiki/File:2008-11-22_Clitocybe_nebularis.jpg',
+    ),
+  ],
+  'Orangefuchsiger Raukopf': [
+    (
+      asset: 'assets/species/orangefuchsigerraukopf-1.webp',
+      author: 'Thomas Pruß',
+      licence: 'CC BY-SA 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/3.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Cortinarius_orellanus_(1).JPG',
+    ),
+  ],
+  'Riesenrötling': [
+    (
+      asset: 'assets/species/riesenroetling-1.webp',
+      author: 'Gerhard Koller',
+      licence: 'CC BY-SA 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/3.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Entoloma_sinuatum_40542.jpg',
+    ),
+  ],
+  'Safranschirmling': [
+    (
+      asset: 'assets/species/safranschirmling-1.webp',
+      author: 'Strobilomyces',
+      licence: 'CC BY-SA 3.0',
+      licenceUrl: 'http://creativecommons.org/licenses/by-sa/3.0/',
+      source: 'https://commons.wikimedia.org/wiki/File:Chlorophyllum_olivieri_20061022wa.jpg',
+    ),
+  ],
+  'Speitäubling': [
+    (
+      asset: 'assets/species/speitaeubling-1.webp',
+      author: 'Dohduhdah',
+      licence: 'Public domain',
+      licenceUrl: 'https://creativecommons.org/publicdomain/mark/1.0/',
+      source: 'https://commons.wikimedia.org/wiki/File:Mushroom-IMG_4384.JPG',
+    ),
+  ],
+  'Spitzgebuckelter Raukopf': [
+    (
+      asset: 'assets/species/spitzgebuckelterraukopf-1.webp',
+      author: 'Andreas Kunze',
+      licence: 'CC BY-SA 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/3.0',
+      source: 'https://commons.wikimedia.org/wiki/File:2006-07-12_Cortinarius_rubellus_1.jpg',
+    ),
+  ],
+  'Tigerritterling': [
+    (
+      asset: 'assets/species/tigerritterling-1.webp',
+      author: 'Ron Pastorino (Mushroom Observer)',
+      licence: 'CC BY-SA 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/3.0',
+      source: 'https://commons.wikimedia.org/wiki/File:2008-11-26_Tricholoma_pardinum_Qu%C3%A9l_30173.jpg',
+    ),
+  ],
+  'Ziegelroter Risspilz': [
+    (
+      asset: 'assets/species/ziegelroterrisspilz-1.webp',
+      author: 'Andreas Kunze',
+      licence: 'CC BY-SA 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/3.0',
+      source: 'https://commons.wikimedia.org/wiki/File:2010-04-27_Inocybe_erubescens.jpg',
+    ),
+  ],
+  'Ziegenbart': [
+    (
+      asset: 'assets/species/ziegenbart-1.webp',
+      author: 'Jason Hollinger',
+      licence: 'CC BY 2.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by/2.0',
+      source: 'https://commons.wikimedia.org/wiki/File:2010-09-17_Ramaria_botrytis.jpg',
+    ),
+  ],
 };
 
 /// Die Porträts zu einem Artnamen — leer, wenn keine gepflegt sind.

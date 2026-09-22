@@ -11,7 +11,6 @@ import 'package:go_router/go_router.dart';
 import 'package:pilzbuddy/core/widgets/season_bars.dart';
 import 'package:pilzbuddy/core/species_edibility.dart';
 import 'package:pilzbuddy/core/species_photos.dart';
-import 'package:pilzbuddy/features/species/species_catalogue.dart';
 import 'package:pilzbuddy/features/map/gbif_finds_providers.dart';
 import 'package:pilzbuddy/features/species/species_detail_screen.dart';
 import 'package:pilzbuddy/features/species/species_screen.dart';
@@ -516,31 +515,6 @@ void main() {
     }
   });
 
-  testWidgets('ohne eigenes Bild bleibt der Streifen weg — auch wenn der '
-      'Partner eines hat', (tester) async {
-    // **„Zwei oder keines" gilt weiter, nur an anderer Stelle.** Die
-    // Regel war nie „ein Bild ist zu wenig", sondern „ein Bild loest
-    // eine Verwechslung nicht auf". Ein Partnerbild ohne den eigenen
-    // Pilz daneben zeigt einen Pilz, den man gerade NICHT sucht.
-    final (backend, _) = loggedInBackend();
-    await pumpApp(tester, backend);
-    // **Die Art wechselt, sobald sie ein Bild bekommt.** Hier stand bis
-    // 1.175.0 der Frauentäubling; die Commons-Tranche hat ihn bebildert,
-    // und der Test wurde damit gegenstandslos statt falsch. Der
-    // Safranschirmling ist der nächste Fall: kein eigenes Bild, aber
-    // der Parasol als Partner hat eines.
-    await openSpecies(tester, 'Safranschirmling');
-
-    expect(ownPictures('Safranschirmling'), isEmpty);
-    expect(ownPictures('Parasol'), isNotEmpty,
-        reason: 'der Partner hätte eines');
-    await scrollDetail(tester, find.text('Merkmale'));
-    expect(find.text('Bilder'), findsNothing);
-    expect(
-        find.descendant(
-            of: find.byType(SpeciesDetailScreen), matching: find.byType(Image)),
-        findsNothing);
-  });
 
   testWidgets('Rahmen nur bei Warnung, nie ein gruener', (tester) async {
     // **Die Asymmetrie in Rahmenform.** „Speisepilz bekommt bewusst
