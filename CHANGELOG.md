@@ -7,6 +7,22 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Verwechslungsliste bleibt kurz, auch mit sechs Partnern
+
+*22. September 2026 · Version 1.172.0*
+
+Seit der Steinpilz sechs Verwechslungspartner hat, standen drei
+harmlose davon zwischen dir und der Warnung vor Gallen- und
+Satansröhrling. Jetzt stehen die warnenden oben und offen, die
+harmlosen klappen unter „Weitere ähnliche Arten" zusammen.
+
+Eingeklappt wird nur da, wo es etwas zu schützen gibt. Bei den vier
+Reizkern warnt keiner, also bleibt alles offen — sonst sähe die Seite
+wieder aus wie vorher, nämlich nach einer Überschrift ohne Inhalt. Und
+auf der Seite eines Giftpilzes klappt gar nichts zusammen: Dort sind
+die Speisepilze in der Liste der Punkt, sie erklären, warum jemand ihn
+überhaupt im Korb hätte.
+
 ## Sechzehn neue Verwechslungspaare, zwei davon waren Lücken
 
 *22. September 2026 · Version 1.171.0*
