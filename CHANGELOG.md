@@ -7,6 +7,27 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Ein Bildstreifen: erst der Pilz, dann was er nicht ist
+
+*22. September 2026 · Version 1.174.0*
+
+Die Vergleichsbilder lagen bisher verstreut in den einzelnen
+Verwechslungszeilen — und seit die harmlosen Zeilen einklappen, konnte
+ein Paar hinter einem Tipp verschwinden. Jetzt stehen alle Bilder einer
+Art in einer Reihe: links der Pilz selbst, dann eine Trennlinie, rechts
+seine Verwechslungspartner.
+
+**Die gefährlichen Partner tragen einen farbigen, dicken Rahmen**, die
+harmlosen und der eigene Pilz einen dünnen, neutralen. Grün gibt es
+nicht, und das ist Absicht: Ein grüner Rahmen läse sich als Freigabe,
+und freigeben kann die App nichts. Dass kein Rahmen leuchtet, ist die
+Auskunft.
+
+Unter jedem Bild steht, welcher Pilz es ist, bei den Partnern zusätzlich
+ihre Einstufung. Die Beschriftung trägt die Aussage, nicht die Farbe —
+wer den Streifen überfliegt, soll das Pantherpilz-Bild nicht für den
+Perlpilz halten können.
+
 ## Ein Auge zeigt, von welchen Pilzen wir Bilder haben
 
 *22. September 2026 · Version 1.173.0*

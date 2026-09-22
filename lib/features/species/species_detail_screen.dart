@@ -46,6 +46,17 @@ import '../spots/spot_providers.dart' show mySpotListProvider;
 import 'species_catalogue.dart';
 
 /// Die Karte mit der Einstufung DIESER Art — siehe [_Edibility].
+/// Eine Kachel im Bildstreifen, benannt nach dem BILD.
+///
+/// **Nicht nach der Art.** Eine Art bringt bis zu drei Bilder mit, und
+/// drei Geschwister mit demselben `ValueKey` sind kein Schluessel mehr:
+/// `getTopLeft` findet dann drei Treffer und bricht ab. Der Asset-Pfad
+/// ist je Kachel eindeutig.
+Key pictureTileKey(String asset) => ValueKey('bild-$asset');
+
+/// Die Trennung zwischen dem eigenen Pilz und den Partnern.
+const kPictureStripDividerKey = ValueKey('bildstreifen-trennung');
+
 /// Die senkrechte Liste der Detailseite.
 ///
 /// **Sie braucht einen Namen, seit es auch waagerecht scrollt.** Die
@@ -100,7 +111,7 @@ class SpeciesDetailScreen extends ConsumerWidget {
                 // Bilder NACH den Warnungen. Ein Porträt am Seitenkopf
                 // läse sich als „so sieht er aus, das genügt" — genau
                 // die Erwartung, die der Hinweis darunter zurücknimmt.
-                _Portraits(detail: detail),
+                _PictureStrip(detail: detail),
                 _PhotoNote(detail: detail),
                 // Erst die Warnungen, dann die Beschreibung: Wer die
                 // Seite von oben liest, weiß vor dem ersten Merkmal, ob
@@ -316,7 +327,7 @@ class _Lookalikes extends StatelessWidget {
       children: [
         const _SectionTitle('Verwechslungspartner'),
         for (final partner in fold ? warning : detail.lookalikes)
-          _LookalikeRow(own: detail.name, partner: partner),
+          _LookalikeRow(partner: partner),
         if (fold)
           Theme(
             data: theme.copyWith(dividerColor: Colors.transparent),
@@ -331,7 +342,7 @@ class _Lookalikes extends StatelessWidget {
               expandedCrossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 for (final partner in harmless)
-                  _LookalikeRow(own: detail.name, partner: partner),
+                  _LookalikeRow(partner: partner),
               ],
             ),
           ),
@@ -350,21 +361,15 @@ class _Lookalikes extends StatelessWidget {
 }
 
 class _LookalikeRow extends StatelessWidget {
-  const _LookalikeRow({required this.own, required this.partner});
+  const _LookalikeRow({required this.partner});
 
-  /// Die Art, auf deren Seite diese Zeile steht — für das Bildpaar.
-  final String own;
   final Lookalike partner;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final level = edibilityFor(partner.species)?.level;
-    final colour = switch (level) {
-      Edibility.toedlichGiftig || Edibility.giftig => theme.colorScheme.error,
-      null || Edibility.speisepilz => theme.colorScheme.onSurface,
-      _ => AppColors.warmBrown,
-    };
+    final colour = levelColour(theme, level);
     return InkWell(
       // Benannt, weil der Name des Partners seit den Bildpaaren zweimal
       // in der Zeile steht — hier und als Bildunterschrift.
@@ -402,74 +407,9 @@ class _LookalikeRow extends StatelessWidget {
               ],
             ),
             Text(partner.difference, style: theme.textTheme.bodySmall),
-            _PhotoPair(own: own, partner: partner.species),
           ],
         ),
       ),
-    );
-  }
-}
-
-/// Zwei Bilder nebeneinander: links diese Art, rechts der Partner.
-///
-/// **Nur wenn es BEIDE gibt.** Ein einzelnes Bild beantwortet die Frage
-/// nicht, die hier gestellt wird — es zeigt, wie einer der beiden
-/// aussieht, und das genügt zum Verwechseln vollkommen. Fehlt eines,
-/// bleibt der Platz leer und der Unterschiedssatz steht für sich.
-///
-/// Quadratisch, weil zwei verschiedene Seitenverhältnisse nebeneinander
-/// den Vergleich stören, um den es geht.
-/// Die Porträtreihe — zwei bis drei Bilder, waagerecht zu schieben.
-///
-/// **Waagerecht statt untereinander.** Drei Bilder übereinander wären
-/// ein halber Bildschirm, den jeder wegscrollen muss, der zu den
-/// Merkmalen will; nebeneinander bleibt die Seite kompakt, und dass es
-/// weitergeht, zeigt das angeschnittene dritte Bild (Betreiber,
-/// 2026-09-22: „dennoch schön kompakt").
-class _Portraits extends StatelessWidget {
-  const _Portraits({required this.detail});
-
-  final SpeciesDetail detail;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final photos = portraitsFor(detail.name);
-    if (photos.isEmpty) return const SizedBox.shrink();
-    // Die Nennung kommt aus den Bildern, nicht aus dem Code. Ein
-    // getauschtes Bild bringt seinen Urheber damit selbst mit.
-    final authors = {for (final p in photos) p.author};
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _SectionTitle('Bilder'),
-        SizedBox(
-          height: 150,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: photos.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 8),
-            itemBuilder: (context, i) => ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: Image.asset(
-                photos[i].asset,
-                width: 150,
-                height: 150,
-                fit: BoxFit.cover,
-                // Inhalt, kein Schmuck — und nummeriert, damit der
-                // Screenreader die Reihe unterscheiden kann.
-                semanticLabel: '${detail.name}, Foto ${i + 1} von '
-                    '${photos.length}',
-                // Ein fehlendes Asset darf die Seite nicht mitreißen.
-                errorBuilder: (_, _, _) => const SizedBox(width: 150),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text('Fotos: ${authors.join(', ')}',
-            style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor)),
-      ],
     );
   }
 }
@@ -491,13 +431,10 @@ class _PhotoNote extends StatelessWidget {
 
   final SpeciesDetail detail;
 
-  /// Zeigt diese Seite überhaupt ein Bild? Für die Paare gilt dieselbe
-  /// Regel wie in [_PhotoPair]: zwei oder keines.
-  bool get _hasPhoto {
-    if (portraitsFor(detail.name).isNotEmpty) return true;
-    if (photoFor(detail.name) == null) return false;
-    return detail.lookalikes.any((p) => photoFor(p.species) != null);
-  }
+  /// Zeigt diese Seite überhaupt ein Bild? Dieselbe Naht wie der
+  /// Streifen — zwei Antworten darauf wären ein Hinweis, der mal steht
+  /// und mal fehlt.
+  bool get _hasPhoto => ownPictures(detail.name).isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -529,85 +466,6 @@ class _PhotoNote extends StatelessWidget {
   }
 }
 
-class _PhotoPair extends StatelessWidget {
-  const _PhotoPair({required this.own, required this.partner});
-
-  final String own;
-  final String partner;
-
-  @override
-  Widget build(BuildContext context) {
-    // **Zwei oder keines.** So geschrieben, dass die Regel eine Zahl ist
-    // und nicht eine Verkettung von Bedingungen — sie lässt sich damit
-    // auch in der Gegenprobe brechen.
-    final photos = [
-      (name: own, photo: photoFor(own)),
-      (name: partner, photo: photoFor(partner)),
-    ].where((e) => e.photo != null).toList();
-    if (photos.length < 2) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      // **Feste Breite, nicht halbe Zeile.** Über die volle Breite
-      // geteilt würden die Bilder auf einem Tablet riesig und auf einem
-      // schmalen Telefon winzig; und eine Zeile, die der Bildschirm
-      // nicht mehr fasst, lässt sich nicht mehr antippen.
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          for (final entry in photos) ...[
-            if (entry != photos.first) const SizedBox(width: 8),
-            SizedBox(
-                width: 150,
-                child: _Photo(name: entry.name, photo: entry.photo!)),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _Photo extends StatelessWidget {
-  const _Photo({required this.name, required this.photo});
-
-  final String name;
-  final SpeciesPhoto photo;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(6),
-          child: AspectRatio(
-            aspectRatio: 1,
-            child: Image.asset(
-              photo.asset,
-              fit: BoxFit.cover,
-              // Für den Screenreader: Das Bild ist Inhalt, kein Schmuck.
-              semanticLabel: '$name, Foto',
-              // Ohne Bild bleibt die Zeile lesbar — ein Asset-Fehler darf
-              // die Warnung nicht mitreißen.
-              errorBuilder: (_, _, _) => const SizedBox.shrink(),
-            ),
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(name,
-            style: theme.textTheme.bodySmall
-                ?.copyWith(fontWeight: FontWeight.w600),
-            overflow: TextOverflow.ellipsis),
-        // **Die Namensnennung steht AM Bild.** Sie auf die Lizenzseite
-        // allein zu schieben wäre bei CC-BY die Bedingung knapp verfehlt.
-        Text(photoCredit(photo),
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.hintColor, fontSize: 10)),
-      ],
-    );
-  }
-}
-
 /// Die sechs Bestimmungsmerkmale.
 ///
 /// **Ein festes Raster, immer in derselben Reihenfolge.** Das ist nicht
@@ -615,6 +473,150 @@ class _Photo extends StatelessWidget {
 /// hin und her und liest dieselbe Zeile zweimal. Freitext in wechselnder
 /// Reihenfolge macht genau das unmöglich — und Vergleichen ist der
 /// einzige Grund, aus dem jemand hier liest.
+/// Die Farbe zu einer Einstufung - EINMAL, fuer Zeile und Bildstreifen.
+///
+/// Zwei Fassungen waeren zwei Meinungen darueber, wie gefaehrlich
+/// "ungeniessbar" aussieht. **Speisepilz bekommt die neutrale Farbe**,
+/// kein Gruen: Gruen laese sich als Freigabe (`Edibility.isWarning`).
+Color levelColour(ThemeData theme, Edibility? level) => switch (level) {
+      Edibility.toedlichGiftig || Edibility.giftig => theme.colorScheme.error,
+      null || Edibility.speisepilz => theme.colorScheme.onSurface,
+      _ => AppColors.warmBrown,
+    };
+
+/// Die Bilder einer Art: erst sie selbst, dann ihre Verwechslungspartner.
+///
+/// **Ein Streifen statt verstreuter Paare.** Bis 1.173.0 sass das
+/// Vergleichspaar in der Verwechslungszeile - und seit die harmlosen
+/// Zeilen einklappen (1.172.0), konnte ein Paar hinter einem Tipp
+/// verschwinden. Nebeneinander in einer Reihe ist die Gegenueberstellung
+/// immer da, und man scrollt einmal statt an jeder Zeile.
+///
+/// **Rahmen NUR bei Warnung.** Der eigene Pilz und ein harmloser Partner
+/// bekommen einen neutralen Rand; die Abwesenheit der Farbe ist die
+/// Auskunft. Ein gruener Rahmen fuer "Speisepilz" waere eine Freigabe in
+/// gross - dieselbe Asymmetrie wie beim fehlenden Haekchen.
+///
+/// **Die Unterschrift traegt die Aussage, nicht die Farbe.** Wer den
+/// Streifen ueberfliegt, koennte sonst das Pantherpilz-Bild fuer den
+/// Perlpilz halten. Deshalb steht unter jedem Bild der Name, bei den
+/// Partnern zusaetzlich die Einstufung, und zwischen "das ist er" und
+/// "das ist er nicht" liegt eine sichtbare Trennung.
+class _PictureStrip extends StatelessWidget {
+  const _PictureStrip({required this.detail});
+
+  final SpeciesDetail detail;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final own = ownPictures(detail.name);
+    if (own.isEmpty) return const SizedBox.shrink();
+    final partners = partnerPictures(detail);
+    final authors = {
+      for (final p in [...own, ...partners.map((e) => e.photo)]) p.author
+    };
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SectionTitle('Bilder'),
+        SizedBox(
+          height: 190,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              for (final photo in own) ...[
+                if (photo != own.first) const SizedBox(width: 8),
+                _StripTile(
+                    name: detail.name, photo: photo, level: null, own: true),
+              ],
+              if (partners.isNotEmpty) ...[
+                const SizedBox(width: 12),
+                // Die sichtbare Grenze. Links der Pilz, rechts das,
+                // was er NICHT ist.
+                Container(
+                    key: kPictureStripDividerKey,
+                    width: 1,
+                    color: theme.dividerColor),
+                const SizedBox(width: 12),
+              ],
+              for (final entry in partners) ...[
+                if (entry != partners.first) const SizedBox(width: 8),
+                _StripTile(
+                    name: entry.species,
+                    photo: entry.photo,
+                    level: edibilityFor(entry.species)?.level,
+                    own: false),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text('Fotos: ${authors.join(', ')}',
+            style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor)),
+      ],
+    );
+  }
+}
+
+/// Ein Bild im Streifen, mit Rand und Unterschrift.
+class _StripTile extends StatelessWidget {
+  const _StripTile({
+    required this.name,
+    required this.photo,
+    required this.level,
+    required this.own,
+  });
+
+  final String name;
+  final SpeciesPhoto photo;
+  final Edibility? level;
+  final bool own;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final warns = level?.isWarning ?? false;
+    final colour = warns ? levelColour(theme, level) : theme.dividerColor;
+    return SizedBox(
+      key: pictureTileKey(photo.asset),
+      width: 150,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: colour, width: warns ? 3 : 1),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: Image.asset(
+                photo.asset,
+                width: 144,
+                height: 144,
+                fit: BoxFit.cover,
+                semanticLabel:
+                    own ? '$name, Foto' : '$name, Verwechslungspartner, Foto',
+                errorBuilder: (_, _, _) => const SizedBox(width: 144),
+              ),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(name,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(fontWeight: FontWeight.w600)),
+          if (warns)
+            Text(level!.label,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(color: colour)),
+        ],
+      ),
+    );
+  }
+}
+
 class _Features extends StatelessWidget {
   const _Features({required this.detail});
 

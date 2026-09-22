@@ -1407,6 +1407,23 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
       Die Bilder liegen im Binary, die Adresse ist Quellenangabe.
       Geholt werden sie von `tool/species_photos.py` — das Werkzeug
       erzeugt die Assets Byte-genau reproduzierbar.
+    - **Alle Bilder stehen in EINEM Streifen** (seit 1.174.0): links
+      die Art selbst, dann eine sichtbare Trennung, rechts ihre
+      Verwechslungspartner. Vorher saß das Paar in der
+      Verwechslungszeile — und seit die harmlosen Zeilen einklappen
+      (1.172.0), konnte es hinter einem Tipp verschwinden. Vier Dinge:
+      **Rahmen nur bei Warnung**, der eigene Pilz und ein harmloser
+      Partner bekommen den neutralen Rand; Grün gibt es nicht, es läse
+      sich als Freigabe. **Die Unterschrift trägt die Aussage**, nicht
+      die Farbe — sonst hält jemand beim Überfliegen das
+      Pantherpilz-Bild für den Perlpilz; der Screenreader hört
+      „Verwechslungspartner" mit. **„Zwei oder keines" gilt weiter**,
+      nur an anderer Stelle: `ownPictures` leer heißt kein Streifen,
+      auch wenn ein Partner ein Bild hätte. Und **die Kachel wird nach
+      dem BILD geschlüsselt, nicht nach der Art** — drei Porträts einer
+      Art hätten sonst denselben Schlüssel, und `getTopLeft` bricht bei
+      drei Treffern ab.
+
     - **Die Detailseite braucht einen Schlüssel je Art**
       (`ValueKey(name)` in `router.dart`). Ohne ihn hält Flutter die
       Seite der nächsten Art für dieselbe, verwendet das Element weiter
