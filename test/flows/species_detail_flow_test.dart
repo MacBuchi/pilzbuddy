@@ -448,8 +448,21 @@ void main() {
     await openSpecies(tester, 'Stockschwämmchen');
 
     await scrollDetail(tester, find.text('Merkmale'));
-    // Alle sechs Felder, immer dieselben Überschriften — daran hängt,
-    // dass sich zwei Arten überhaupt vergleichen lassen.
+    // **Die Form steht, der Rest klappt auf** (seit 1.181.0). Dass
+    // eingeklappt werden DARF, hängt daran, dass hier beschrieben und
+    // nicht gewarnt wird — bei den giftigen Partnern gilt genau das
+    // Gegenteil.
+    for (final label in ['Hut', 'Unterseite', 'Stiel']) {
+      expect(find.text(label), findsOneWidget, reason: label);
+    }
+    for (final label in ['Fleisch', 'Geruch', 'Vorkommen']) {
+      expect(find.text(label), findsNothing, reason: label);
+    }
+
+    await tester.tap(find.byKey(kMoreFeaturesKey));
+    await settle(tester);
+    // Und danach alle sechs, immer dieselben Überschriften — daran
+    // hängt, dass sich zwei Arten überhaupt vergleichen lassen.
     for (final label in [
       'Hut',
       'Unterseite',
@@ -481,8 +494,12 @@ void main() {
 
     await scrollDetail(tester, find.text('Merkmale'));
     expect(find.text('Merkmale'), findsOneWidget);
-    // Und zwar mit Inhalt, nicht als leere Überschrift: die gallertige
-    // Beschaffenheit ist das Merkmal, an dem das Judasohr hängt.
+    // Und zwar mit Inhalt, nicht als leere Überschrift.
+    expect(find.textContaining('ohrmuschelförmig'), findsOneWidget);
+    // Die gallertige Beschaffenheit ist das Merkmal, an dem das
+    // Judasohr hängt — sie steht im Fleisch und damit im Ausklapper.
+    await tester.tap(find.byKey(kMoreFeaturesKey));
+    await settle(tester);
     expect(find.textContaining('GALLERTARTIG'), findsOneWidget);
   });
 
@@ -714,6 +731,26 @@ void main() {
     // nichts.
     final offen = await openPicture(tester);
     await tester.tapAt(const Offset(40, 300));
+    await settle(tester);
+    expect(offen, findsNothing);
+  });
+
+  testWidgets('die Karte lässt Rand frei — und der Rand schließt',
+      (tester) async {
+    // **Der Rand IST der vierte Ausgang** (Betreiber, 2026-09-22).
+    // Beide Hälften stehen hier: dass überhaupt ein Außen existiert,
+    // und dass ein Tipp dorthin schließt. Ohne die erste wäre die
+    // zweite auf einer formatfüllenden Ansicht unerreichbar und
+    // trotzdem grün.
+    final offen = await openPicture(tester);
+    final karte = tester.getRect(find.byKey(kPhotoViewKey));
+    final schirm = tester.view.physicalSize / tester.view.devicePixelRatio;
+    expect(karte.left, greaterThan(0));
+    expect(karte.right, lessThan(schirm.width));
+    expect(karte.top, greaterThan(0));
+    expect(karte.bottom, lessThan(schirm.height));
+
+    await tester.tapAt(const Offset(4, 4));
     await settle(tester);
     expect(offen, findsNothing);
   });

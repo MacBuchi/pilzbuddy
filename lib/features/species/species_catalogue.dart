@@ -350,8 +350,21 @@ List<({String species, SpeciesPhoto photo})> partnerPictures(
     SpeciesDetail detail) {
   final out = <({String species, SpeciesPhoto photo})>[];
   for (final partner in detail.lookalikes) {
-    final photo = photoFor(partner.species);
-    if (photo != null) out.add((species: partner.species, photo: photo));
+    // **Dieselbe Naht wie für die Art selbst**, seit 1.181.0. Bis dahin
+    // stand hier `photoFor` — die Vergleichstabelle mit ihren 13
+    // Einträgen —, während die eigenen Bilder längst auf die 80
+    // Porträts zurückfallen. Gemessen am 2026-09-22: 33 von 124
+    // Partnerzeilen trugen ein Bild, obwohl für alle 124 eines im
+    // Binary lag. Zwei Wege zum Bild einer Art sind einer zu viel.
+    final pictures = ownPictures(partner.species);
+    if (pictures.isNotEmpty) {
+      // **Eins je Partner, nicht die ganze Reihe.** Der Streifen
+      // beantwortet „das ist er / das ist er nicht"; drei Aufnahmen
+      // eines Partners schöben den nächsten aus dem Bild, und bei
+      // sechs Partnern liegt der gefährliche dann an Position zwölf.
+      // Aufzuweiten ist eine Zeile, wenn die Bilder dafür da sind.
+      out.add((species: partner.species, photo: pictures.first));
+    }
   }
   return onlyWithOwn(ownPictures(detail.name), out);
 }

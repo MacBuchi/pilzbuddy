@@ -19,6 +19,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/species_photos.dart';
+import '../../core/widgets/sheet_close_button.dart';
 import '../../data/providers.dart';
 
 /// Die Fläche, die das Wischen entgegennimmt.
@@ -106,107 +107,125 @@ class _SpeciesPhotoViewState extends ConsumerState<_SpeciesPhotoView> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Dialog.fullscreen(
-      backgroundColor: Colors.transparent,
-      child: Stack(
-        children: [
-          Positioned.fill(
-            // **`Listener`, nicht `GestureDetector`.** Roher Zeiger statt
-            // erkannter Geste: Der `InteractiveViewer` meldet für das
-            // Zoomen einen eigenen Erkenner an, und zwei Erkenner um
-            // dieselbe Bewegung streiten in der Arena — wer gewinnt,
-            // hängt an Millimetern. Ein `Listener` streitet nicht mit,
-            // er sieht einfach zu; über das Zoomen entscheidet damit
-            // weiter der Viewer allein.
-            child: Listener(
-              key: kPhotoViewKey,
-              // **`opaque`, nicht die Vorgabe.** `Listener` und
-              // `GestureDetector` reichen die Treffprüfung sonst an ihr
-              // Kind weiter — und das Kind ist das Bild, das erst nach
-              // dem Entschlüsseln eine Größe hat und bei einem
-              // Ladefehler nie eine bekommt. Auf der leeren Fläche
-              // daneben blieben Tipp und Wisch dann folgenlos, und das
-              // war seit 1.169.0 so: „Irgendwohin tippen schließt"
-              // stimmte nur über dem Bild selbst.
-              behavior: HitTestBehavior.opaque,
-              onPointerDown: (e) {
-                _pointers++;
-                _startY = e.position.dy;
-              },
-              onPointerMove: (e) {
-                if (_zoomedIn || _pointers != 1) return;
-                setState(() => _dragY = e.position.dy - _startY);
-              },
-              onPointerUp: (e) {
-                _pointers = 0;
-                if (_dragY.abs() >= kPhotoDismissDistance) {
-                  Navigator.of(context).pop();
-                  return;
-                }
-                setState(() => _dragY = 0);
-              },
-              onPointerCancel: (_) {
-                _pointers = 0;
-                setState(() => _dragY = 0);
-              },
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                // Irgendwohin tippen schließt — wie beim Kontextmenü.
-                onTap: () => Navigator.of(context).pop(),
-                child: Center(
-                  child: Transform.translate(
-                    offset: Offset(0, _dragY),
-                    child: InteractiveViewer(
-                      transformationController: _zoom,
-                      maxScale: 4,
-                      child: Image(
-                        // Solange das große nicht da ist, steht das
-                        // mitgelieferte. Es ist weich, aber es ist da.
-                        image: _sharp ?? AssetImage(widget.photo.asset),
-                        fit: BoxFit.contain,
-                        semanticLabel: '${widget.species}, Foto',
-                        errorBuilder: (_, _, _) => const SizedBox.shrink(),
+    // **Überlagert mit Rand, nicht formatfüllend** (Betreiber,
+    // 2026-09-22). Der Rand ist kein Schmuck: Er IST der vierte Ausgang.
+    // Ein Tipp daneben trifft den Hintergrund des Dialogs, und der
+    // schließt von selbst — ohne dass die Ansicht dafür eine Zeile Code
+    // bekommt. Formatfüllend gab es dieses Außen nicht.
+    //
+    // Der Preis ist ehrlich: Das Bild wird um die Ränder kleiner. Bei
+    // 16 px seitlich sind das rund 8 % der Breite, und dafür sieht man,
+    // dass etwas DARUNTER liegt, zu dem man zurückkommt.
+    return Transform.translate(
+      // Die ganze Karte folgt dem Finger, nicht nur das Bild darin.
+      offset: Offset(0, _dragY),
+      child: Dialog(
+        insetPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 48),
+        clipBehavior: Clip.antiAlias,
+        child: Listener(
+          key: kPhotoViewKey,
+          // **`opaque`, nicht die Vorgabe.** `Listener` und
+          // `GestureDetector` reichen die Treffprüfung sonst an ihr Kind
+          // weiter — und das Kind ist das Bild, das erst nach dem
+          // Entschlüsseln eine Größe hat und bei einem Ladefehler nie
+          // eine bekommt. Auf der Fläche daneben blieben Tipp und Wisch
+          // dann folgenlos; genau so war es in 1.179.0.
+          behavior: HitTestBehavior.opaque,
+          onPointerDown: (e) {
+            _pointers++;
+            _startY = e.position.dy;
+          },
+          onPointerMove: (e) {
+            if (_zoomedIn || _pointers != 1) return;
+            setState(() => _dragY = e.position.dy - _startY);
+          },
+          onPointerUp: (e) {
+            _pointers = 0;
+            if (_dragY.abs() >= kPhotoDismissDistance) {
+              Navigator.of(context).pop();
+              return;
+            }
+            setState(() => _dragY = 0);
+          },
+          onPointerCancel: (_) {
+            _pointers = 0;
+            setState(() => _dragY = 0);
+          },
+          child: GestureDetector(
+            // Irgendwohin auf die Karte tippen schließt — wie beim
+            // Kontextmenü, und wie ein Tipp daneben.
+            behavior: HitTestBehavior.opaque,
+            onTap: () => Navigator.of(context).pop(),
+            child: Stack(
+              children: [
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Flexible(
+                      // **Das Quadrat ist reserviert, bevor das Bild da
+                      // ist.** Alle Artbilder sind quadratisch
+                      // zugeschnitten (`tool/species_photos.py`); ohne
+                      // die Reservierung wäre die Karte bis zum
+                      // Entschlüsseln nur so hoch wie ihre Unterschrift
+                      // und spränge danach auf.
+                      child: AspectRatio(
+                        aspectRatio: 1,
+                        child: InteractiveViewer(
+                          transformationController: _zoom,
+                          maxScale: 4,
+                          child: Image(
+                            // Solange das große nicht da ist, steht das
+                            // mitgelieferte. Es ist weich, aber es ist
+                            // da.
+                            image: _sharp ?? AssetImage(widget.photo.asset),
+                            fit: BoxFit.contain,
+                            semanticLabel: '${widget.species}, Foto',
+                            errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                          ),
+                        ),
                       ),
                     ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(widget.species,
+                              style: theme.textTheme.titleMedium),
+                          Text(photoCredit(widget.photo),
+                              style: theme.textTheme.bodySmall
+                                  ?.copyWith(color: theme.hintColor)),
+                          const SizedBox(height: 6),
+                          // **Derselbe Satz wie unter dem Streifen.** Ein
+                          // groß gezeigtes Bild sieht mehr nach Beweis
+                          // aus als eine Kachel; der Vorbehalt darf hier
+                          // nicht fehlen.
+                          Text(kPhotoDisclaimer,
+                              style: theme.textTheme.bodySmall
+                                  ?.copyWith(color: theme.hintColor)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                Positioned(
+                  top: 4,
+                  right: 4,
+                  child: SheetCloseButton(
+                    tooltip: 'Schließen',
+                    // Auf dem Bild, nicht auf der Fläche darunter: Ohne
+                    // eigenen Grund verschwände das Zeichen auf einem
+                    // hellen Foto.
+                    background: theme.colorScheme.surface.withValues(alpha: 0.8),
                   ),
                 ),
-              ),
-            ),
-          ),
-          Positioned(
-            left: 16,
-            right: 16,
-            bottom: 24,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(widget.species,
-                    style: theme.textTheme.titleMedium
-                        ?.copyWith(color: Colors.white)),
-                Text(photoCredit(widget.photo),
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: Colors.white70)),
-                const SizedBox(height: 8),
-                // **Derselbe Satz wie unter dem Streifen.** Ein Bild
-                // formatfüllend sieht mehr nach Beweis aus als eine
-                // Kachel; der Vorbehalt darf hier nicht fehlen.
-                Text(kPhotoDisclaimer,
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: Colors.white70)),
               ],
             ),
           ),
-          Positioned(
-            top: 8,
-            right: 8,
-            child: IconButton(
-              icon: const Icon(Icons.close, color: Colors.white),
-              tooltip: 'Schließen',
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
