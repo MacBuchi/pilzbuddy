@@ -1,6 +1,7 @@
 // Die Zusagen des Verzeichnisses im Reiter „Pilze", nachgerechnet über
 // die ganze Artenliste — nicht an drei Beispielen.
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pilzbuddy/core/species_photos.dart';
 import 'package:pilzbuddy/core/mushroom_species.dart';
 import 'package:pilzbuddy/core/season_curves.dart';
 import 'package:pilzbuddy/features/ampel/ampel_model.dart';
@@ -312,4 +313,23 @@ void main() {
       }
     });
   });
+
+  test('das Auge folgt den Porträts, nicht den Vergleichspaaren', () {
+    // **Eine Art kann ein Bild im PAAR tragen und trotzdem keins
+    // eigenes haben.** Für die Frage „wovon fehlen uns noch Fotos"
+    // zählt das Paar nicht mit — sonst sähe die Liste vollständiger
+    // aus, als sie ist. Das Stockschwämmchen ist genau dieser Fall.
+    final alle = [
+      for (final section in speciesCatalogue(month: 9)) ...section.entries,
+    ];
+    final mitBild = alle.where((e) => e.hasPictures).map((e) => e.name);
+    expect(mitBild, contains('Fliegenpilz'));
+    expect(mitBild, contains('Krause Glucke'));
+    expect(speciesPhotos.containsKey('Stockschwämmchen'), isTrue,
+        reason: 'trägt ein Bild im Vergleichspaar');
+    expect(mitBild, isNot(contains('Stockschwämmchen')),
+        reason: 'aber kein eigenes Porträt');
+    expect(mitBild.length, speciesPortraits.length);
+  });
+
 }

@@ -214,4 +214,41 @@ void main() {
     expect(find.text('Steinpilz'), findsOneWidget);
     expect(find.text('Steinpilz & Co.'), findsOneWidget);
   });
+
+  testWidgets('das Auge steht bei den Arten mit Bildern — und nie vor '
+      'der Warnung', (tester) async {
+    await openTab(tester, 9);
+    // Über die Suche, nicht über einen Zug: Eine `ListView.builder`
+    // baut nur, was in Sichtweite ist.
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Art suchen'), 'Fliegenpilz');
+    await settle(tester);
+
+    final zeile = find.widgetWithText(ListTile, 'Fliegenpilz');
+    expect(zeile, findsOneWidget);
+    final auge = find.descendant(
+        of: zeile, matching: find.byIcon(Icons.visibility_outlined));
+    final warnung = find.descendant(
+        of: zeile, matching: find.byIcon(Icons.warning_amber_rounded));
+    expect(auge, findsOneWidget, reason: 'der Fliegenpilz hat drei Bilder');
+    expect(warnung, findsOneWidget, reason: 'und er ist giftig');
+    // **Die Reihenfolge ist die Zusage.** Buchführung darf der Warnung
+    // nicht den Platz nehmen.
+    expect(tester.getTopLeft(warnung).dx, lessThan(tester.getTopLeft(auge).dx));
+  });
+
+  testWidgets('ohne Bilder steht dort nichts', (tester) async {
+    await openTab(tester, 9);
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Art suchen'), 'Judasohr');
+    await settle(tester);
+
+    final zeile = find.widgetWithText(ListTile, 'Judasohr');
+    expect(zeile, findsOneWidget, reason: 'die Zeile steht da');
+    expect(
+        find.descendant(
+            of: zeile, matching: find.byIcon(Icons.visibility_outlined)),
+        findsNothing);
+  });
+
 }
