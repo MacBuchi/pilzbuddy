@@ -33,7 +33,13 @@ class SpeciesCollector extends StatefulWidget {
     this.initialSpecies,
     this.initialCount,
     this.initialCollected = const [],
+    this.speciesRequired = false,
   });
+
+  /// Die Art ist Pflicht — nur die Beschriftung, die Prüfung macht der
+  /// Elternteil (#549). Der Sammler weiß nicht, was „Art unbekannt"
+  /// bedeuten soll; das Blatt weiß es.
+  final bool speciesRequired;
 
   final List<String> ownSpecies;
   final ValueChanged<List<SpeciesEntry>> onChanged;
@@ -156,6 +162,9 @@ class _SpeciesCollectorState extends State<SpeciesCollector> {
           const SizedBox(height: 8),
         ],
         SpeciesField(
+          label: widget.speciesRequired
+              ? 'Pilzart'
+              : 'Pilzart (optional)',
           controller: _controller,
           ownSpecies: widget.ownSpecies,
           onChanged: () {

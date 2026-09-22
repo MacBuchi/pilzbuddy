@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/widgets/mushroom_avatar.dart';
 import 'package:pilzbuddy/core/widgets/mushroom_icon.dart';
 
+import '../fakes/map_ui.dart';
 import '../fakes/fake_backend.dart';
 import '../fakes/test_app.dart';
 
@@ -52,7 +53,7 @@ void main() {
 
     // Tippen zeigt Vorschläge aus der eingebauten Artenliste …
     await tester.enterText(
-        find.widgetWithText(TextField, 'Pilzart (optional)'), 'Steinpil');
+        speciesField(), 'Steinpil');
     await settle(tester, frames: 4);
     // … Antippen übernimmt den Treffer ins Feld.
     await tester.tap(find.widgetWithText(ListTile, 'Steinpilz').first);
@@ -81,7 +82,7 @@ void main() {
     // „Herrenpilz" ist der Steinpilz. Der Vorschlag zeigt die
     // Hauptbezeichnung und nennt den getippten Namen als Grund.
     await tester.enterText(
-        find.widgetWithText(TextField, 'Pilzart (optional)'), 'Herrenpilz');
+        speciesField(), 'Herrenpilz');
     await settle(tester, frames: 4);
     expect(find.widgetWithText(ListTile, 'Steinpilz'), findsOneWidget);
     expect(find.text('auch: Herrenpilz'), findsOneWidget);
@@ -112,7 +113,7 @@ void main() {
     await settle(tester);
 
     await tester.enterText(
-        find.widgetWithText(TextField, 'Pilzart (optional)'),
+        speciesField(),
         'Flaschen-Stäubling');
     await settle(tester, frames: 4);
     expect(find.widgetWithText(ListTile, 'Flaschenstäubling'), findsOneWidget);
@@ -123,7 +124,7 @@ void main() {
     // Jetzt ein echter Vertipper — derselbe Pilz, aber geraten, und die
     // Liste sagt es dazu.
     await tester.enterText(
-        find.widgetWithText(TextField, 'Pilzart (optional)'),
+        speciesField(),
         'Flaschenbofist');
     await settle(tester, frames: 4);
     expect(find.text('Meintest du …?'), findsOneWidget);
@@ -151,7 +152,7 @@ void main() {
     // den Namen kennt, tut genau das — dann muss die Umsetzung auf die
     // Hauptbezeichnung beim Schreiben greifen, nicht erst bei der Auswahl.
     await tester.enterText(
-        find.widgetWithText(TextField, 'Pilzart (optional)'), 'Totentrompete');
+        speciesField(), 'Totentrompete');
     await settle(tester, frames: 4);
 
     await tester.ensureVisible(find.text('Speichern'));
@@ -182,7 +183,7 @@ void main() {
 
     expect(find.widgetWithText(TextField, 'Pfifferling'), findsNothing);
     final field = tester.widget<TextField>(
-        find.widgetWithText(TextField, 'Pilzart (optional)'));
+        speciesField());
     expect(field.controller?.text, isEmpty);
 
     // Als Vorschlag bleibt die eigene Art erreichbar — ein Tipp statt
@@ -250,7 +251,7 @@ void main() {
     expect(find.widgetWithText(InputChip, 'Steinpilz'), findsOneWidget);
 
     await tester.enterText(
-        find.widgetWithText(TextField, 'Pilzart (optional)'), 'Pfifferling');
+        speciesField(), 'Pfifferling');
     await settle(tester, frames: 4);
     await tester.enterText(
         find.widgetWithText(TextField, 'Notiz (optional)'), 'am Bachlauf');
@@ -286,7 +287,7 @@ void main() {
 
     // Das Blatt fragt weder nach Art noch nach Anzahl — der Leergang ist
     // eine Aussage über den Ort.
-    expect(find.widgetWithText(TextField, 'Pilzart (optional)'), findsNothing);
+    expect(speciesField(), findsNothing);
     expect(find.text('Anzahl'), findsNothing);
 
     await tester.ensureVisible(find.text('Speichern'));

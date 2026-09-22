@@ -5,6 +5,8 @@ import 'package:latlong2/latlong.dart';
 import '../../spots/widgets/species_collector.dart';
 import 'spot_position_field.dart';
 import '../../../core/app_colors.dart';
+import '../../../core/mushroom_species.dart';
+import '../../spots/species_suggestions.dart';
 import '../../../data/spot_repository.dart';
 
 /// Ergebnis des Anlege-Formulars.
@@ -104,6 +106,22 @@ class _AddSpotSheetState extends State<_AddSpotSheet> {
   /// „Nur vormerken" (#499): kein Fund, die Arten sind Erwartung.
   bool _planned = false;
 
+  /// „Art unbekannt" wurde bewusst gewählt.
+  ///
+  /// **Pflicht, aber mit Ausweg** (#549, Betreiber 2026-09-22). Bis
+  /// 1.182.0 legte ein leeres Artfeld stillschweigend einen artlosen
+  /// Fund an — bewusst, für „da stand was, ich weiß nicht was", aber
+  /// nicht zu unterscheiden vom Vergessen. Jetzt ist die Art Pflicht
+  /// UND der unbekannte Pilz bleibt eintragbar: Wer hier tippt, hat
+  /// entschieden. Gespeichert wird danach dasselbe wie vorher, nämlich
+  /// ein Fund OHNE Art — „Unbekannt" als Artname stünde sonst im
+  /// Artenfilter, in den Vorschlägen und auf dem Marker.
+  bool _unknownOk = false;
+
+  /// Beim Speichern fehlte die Art — die Zeile sagt es, statt dass der
+  /// Knopf nur nichts tut.
+  bool _missingSpecies = false;
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -121,7 +139,80 @@ class _AddSpotSheetState extends State<_AddSpotSheet> {
     if (picked != null) setState(() => _foundOn = picked);
   }
 
-  void _save() {
+  /// Die ausgefüllten Zeilen, getrimmt.
+  List<SpeciesEntry> get _named => [
+        for (final e in _entries)
+          if (e.species?.trim() case final name? when name.isNotEmpty)
+            (species: name, count: e.count),
+      ];
+
+  /// Fragt nach, wenn ein Name nicht in der Artenliste steht.
+  ///
+  /// **Die Rückfrage bietet den besten Treffer an** (#549). Dieselbe
+  /// Maschinerie wie die Vorschlagskarte (#395), nur zum Schluss: Wer
+  /// „Steipilz" tippt und das Blatt zuklappt, hat sonst einen Spot mit
+  /// einer Art, die es nicht gibt — und die steht danach in seiner
+  /// eigenen Artenliste und schlägt sich beim nächsten Mal selbst vor.
+  ///
+  /// Gibt den zu verwendenden Namen zurück, oder `null` für Abbrechen.
+  Future<String?> _confirmUnknown(String typed) async {
+    final best = suggestSpecies(typed, widget.ownSpecies, kBekannteArten,
+            limit: 3)
+        .where((s) => !s.isOwn && s.name.toLowerCase() != typed.toLowerCase())
+        .firstOrNull;
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Art nicht bekannt'),
+        content: Text(best == null
+            ? '„$typed" steht nicht in der Artenliste. So eintragen?'
+            : '„$typed" steht nicht in der Artenliste. '
+                'Meintest du „${best.name}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Zurück'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(typed),
+            child: const Text('So eintragen'),
+          ),
+          if (best != null)
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(best.name),
+              child: Text('„${best.name}"'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _save() async {
+    final named = _named;
+    // **Ohne Art kein Spot** — außer, „Art unbekannt" ist gewählt.
+    if (named.isEmpty && !_unknownOk) {
+      setState(() => _missingSpecies = true);
+      return;
+    }
+    // Drei Zeichen: Ein oder zwei Buchstaben sind ein Verrutscher, kein
+    // Pilzname, und stünden danach als eigene Art in der Liste.
+    if (named.any((e) => e.species!.length < 3)) {
+      setState(() => _missingSpecies = true);
+      return;
+    }
+
+    final resolved = <SpeciesEntry>[];
+    for (final entry in named) {
+      var name = entry.species!;
+      if (isUnknownSpecies(name)) {
+        final decided = await _confirmUnknown(name);
+        if (decided == null) return;
+        name = decided;
+      }
+      resolved.add((species: name, count: entry.count));
+    }
+    if (!mounted) return;
+
     final note =
         _noteController.text.trim().isEmpty ? null : _noteController.text.trim();
     Navigator.of(context).pop(NewSpotData(
@@ -130,13 +221,17 @@ class _AddSpotSheetState extends State<_AddSpotSheet> {
           ? null
           : _nameController.text.trim(),
       // Datum und Notiz gelten für alle Arten, die hier zusammenkommen.
-      // Vorgemerkt: KEIN Fund — auch nicht der artlose, den der Sammler
-      // sonst meldet. Die Arten werden zur Erwartung; Anzahl und Datum
-      // haben dort keine Bedeutung.
+      // Vorgemerkt: KEIN Fund — auch nicht der artlose. Die Arten werden
+      // zur Erwartung; Anzahl und Datum haben dort keine Bedeutung.
       finds: _planned
           ? const []
+          // Nichts benannt heißt: „Art unbekannt" war gewählt, und dann
+          // ist es GENAU EIN Fund ohne Art. Leere Zusatzzeilen neben
+          // benannten fallen weg — sie wären ein zweiter, artloser Fund
+          // am selben Spot.
           : [
-              for (final entry in _entries)
+              for (final entry
+                  in resolved.isEmpty ? const [(species: null, count: null)] : resolved)
                 NewFind(
                   species: entry.species,
                   count: entry.count,
@@ -145,10 +240,7 @@ class _AddSpotSheetState extends State<_AddSpotSheet> {
                 ),
             ],
       expectedSpecies: _planned
-          ? [
-              for (final entry in _entries)
-                if (entry.species case final s? when s.isNotEmpty) s,
-            ]
+          ? [for (final entry in resolved) entry.species!]
           : const [],
     ));
   }
@@ -186,16 +278,22 @@ class _AddSpotSheetState extends State<_AddSpotSheet> {
               controller: _nameController,
               textCapitalization: TextCapitalization.sentences,
               decoration: const InputDecoration(
-                labelText: 'Name (optional)',
+                labelText: 'Name des Spots (optional)',
                 hintText: 'z. B. Fichtenhang am Bach',
                 border: OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 12),
             SpeciesCollector(
+              speciesRequired: true,
               ownSpecies: widget.ownSpecies,
               initialSpecies: widget.defaultSpecies,
-              onChanged: (entries) => _entries = entries,
+              onChanged: (entries) {
+                _entries = entries;
+                // Der Hinweis verschwindet, sobald jemand etwas tut —
+                // stehenbleiben würde er wie ein Vorwurf lesen.
+                if (_missingSpecies) setState(() => _missingSpecies = false);
+              },
               // Ein Datum hat eine Erwartung nicht.
               trailing: _planned
                   ? const SizedBox.shrink()
@@ -208,6 +306,37 @@ class _AddSpotSheetState extends State<_AddSpotSheet> {
                       ),
                     ),
             ),
+            const SizedBox(height: 4),
+            // **Der Ausweg zur Pflichtangabe** (#549). Er steht neben
+            // der Artzeile und nicht in der Vorschlagskarte: Ein
+            // Vorschlag „Unbekannt" wäre eine Art unter Arten und
+            // landete als Name in den Daten. Hier ist er eine
+            // Entscheidung über die Zeile.
+            Row(
+              children: [
+                FilterChip(
+                  visualDensity: VisualDensity.compact,
+                  label: const Text('Art unbekannt'),
+                  tooltip: 'Trägt den Fund ohne Artnamen ein',
+                  selected: _unknownOk,
+                  onSelected: (value) => setState(() {
+                    _unknownOk = value;
+                    if (value) _missingSpecies = false;
+                  }),
+                ),
+              ],
+            ),
+            if (_missingSpecies)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  // Sagt BEIDE Auswege, nicht nur den ersten.
+                  'Bitte eine Pilzart mit mindestens drei Zeichen angeben '
+                  '— oder „Art unbekannt" wählen.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.error),
+                ),
+              ),
             const SizedBox(height: 4),
             // Vormerken (#499): Bis 1.158.0 legte jeder neue Spot einen
             // Fund an — notfalls ohne Art, mit heutigem Datum. Wer eine

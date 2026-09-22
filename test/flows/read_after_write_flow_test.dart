@@ -17,6 +17,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/data/providers.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 
+import '../fakes/map_ui.dart';
 import '../fakes/fake_backend.dart';
 import '../fakes/test_app.dart';
 
@@ -38,7 +39,7 @@ void main() {
     await tester.tap(find.text('Neuer Spot'));
     await settle(tester);
     await tester.enterText(
-        find.widgetWithText(TextField, 'Pilzart (optional)'), 'Steinpil');
+        speciesField(), 'Steinpil');
     await settle(tester, frames: 4);
     await tester.tap(find.widgetWithText(ListTile, 'Steinpilz').first);
     await settle(tester, frames: 4);

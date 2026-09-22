@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/features/species/species_detail_screen.dart';
 
+import '../fakes/map_ui.dart';
 import '../fakes/fake_backend.dart';
 import '../fakes/test_app.dart';
 
@@ -20,7 +21,7 @@ void main() {
     return (backend, me);
   }
 
-  final speciesField = find.widgetWithText(TextField, 'Pilzart (optional)');
+  final feld = speciesField();
 
   testWidgets('das Eingabefeld warnt, sobald der Name feststeht — und '
       'nennt die Einstufung nur, wenn sie warnt', (tester) async {
@@ -39,7 +40,7 @@ void main() {
     // Name ist also noch keine Entscheidung. (Ein halber Name wie
     // „Perlpi" wäre hier trivial: Für ihn gibt es gar keine Partner —
     // in der Gegenprobe blieb die Bedingung damit unbemerkt.)
-    await tester.enterText(speciesField, 'Steinpilz');
+    await tester.enterText(feld, 'Steinpilz');
     await settle(tester);
     expect(find.byType(Card), findsOneWidget, reason: 'die Karte ist offen');
     expect(find.textContaining('Wird verwechselt mit'), findsNothing);
@@ -53,7 +54,7 @@ void main() {
             'Satansröhrling (Giftig), Schönfußröhrling (Ungenießbar)'),
         findsOneWidget);
 
-    await tester.enterText(speciesField, 'Perlpilz');
+    await tester.enterText(feld, 'Perlpilz');
     await settle(tester);
     expect(
         find.text('Wird verwechselt mit: Pantherpilz (Giftig), '
@@ -62,12 +63,12 @@ void main() {
         findsOneWidget);
 
     // Ein Speisepilz als Partner heißt nur beim Namen — keine Freigabe.
-    await tester.enterText(speciesField, 'Speitäubling');
+    await tester.enterText(feld, 'Speitäubling');
     await settle(tester);
     expect(find.text('Wird verwechselt mit: Speisetäubling'), findsOneWidget);
 
     // Ohne Partner steht dort nichts, kein „keine bekannt".
-    await tester.enterText(speciesField, 'Judasohr');
+    await tester.enterText(feld, 'Judasohr');
     await settle(tester);
     expect(find.textContaining('Wird verwechselt mit'), findsNothing);
   });

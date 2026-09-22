@@ -8,6 +8,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:pilzbuddy/features/spots/widgets/species_field.dart';
+
 import 'test_app.dart';
 
 /// Das Karten-Blatt öffnen (Ebenen, Offline-Umschaltung, Aktualisieren).
@@ -117,3 +119,25 @@ Future<void> scrollSheet(WidgetTester tester, {double by = 120}) async {
       Offset(0, -by));
   await settle(tester);
 }
+
+/// Im Blatt „Neuer Pilz-Spot" die Pflichtangabe ohne Artnamen erfüllen.
+///
+/// **Seit 1.183.0 ist die Pilzart Pflicht** (#549), und „Art unbekannt"
+/// ist die zweite gültige Antwort darauf. Tests, die einen Spot anlegen,
+/// ohne dass die Art zur Sache gehört, tippen sie hier an — das ist
+/// genau der Weg, den ein Nutzer im Wald nimmt, wenn er den Pilz nicht
+/// bestimmen kann.
+Future<void> markSpeciesUnknown(WidgetTester tester) async {
+  await tester.ensureVisible(find.text('Art unbekannt'));
+  await tester.tap(find.text('Art unbekannt'));
+  await settle(tester);
+}
+
+/// Das Artfeld, unabhängig von seiner Beschriftung.
+///
+/// **Sie unterscheidet seit 1.183.0 zwischen Pflicht und Kür** — im
+/// Anlege-Blatt „Pilzart", im Fund-Blatt „Pilzart (optional)", weil dort
+/// ein Leergang bewusst keine Art trägt (#549). Ohne diesen Helfer hinge
+/// jeder Test, der eine Art eintippt, an einem Wort der Oberfläche.
+Finder speciesField() => find.descendant(
+    of: find.byType(SpeciesField), matching: find.byType(TextField));

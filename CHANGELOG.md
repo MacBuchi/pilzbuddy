@@ -7,6 +7,23 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Spot anlegen: die Pilzart gehört dazu
+
+*22. September 2026 · Version 1.183.0*
+
+Das erste Feld heißt jetzt „Name des Spots" — dort gehört der Ort hin,
+nicht der Pilz. Die Pilzart ist dafür Pflicht geworden: Ohne Namen
+entsteht kein Spot mehr. Wer den Pilz nicht bestimmen kann, tippt „Art
+unbekannt"; eingetragen wird dann genau wie bisher ein Fund ohne Art.
+
+**Steht ein Name nicht in der Artenliste, fragt die App nach** und
+schlägt den nächstliegenden vor: „Steipilz" führt zu „Meintest du
+Steinpilz?". Wer seinen eigenen Namen will, wählt „So eintragen".
+
+**Die Anzahl lässt sich eintippen oder am Rad wählen.** Ein Tipp auf die
+Zahl öffnet beides. Plus und Minus bleiben für die kleinen Schritte; für
+zweihundert Pilze waren sie nichts.
+
 ## Weniger Vorrede, mehr Liste
 
 *22. September 2026 · Version 1.182.0*

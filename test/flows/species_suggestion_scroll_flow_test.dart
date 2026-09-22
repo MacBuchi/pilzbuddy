@@ -14,6 +14,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../fakes/map_ui.dart';
 import '../fakes/fake_backend.dart';
 import '../fakes/test_app.dart';
 
@@ -28,13 +29,13 @@ void main() {
     await tester.tap(find.text('Neuer Spot'));
     await settle(tester);
     await tester.enterText(
-        find.widgetWithText(TextField, 'Pilzart (optional)'), 'Steinpil');
+        speciesField(), 'Steinpil');
     await settle(tester, frames: 4);
     expect(find.widgetWithText(ListTile, 'Steinpilz'), findsOneWidget);
   }
 
   String speciesText(WidgetTester tester) => tester
-      .widget<TextField>(find.widgetWithText(TextField, 'Pilzart (optional)'))
+      .widget<TextField>(speciesField())
       .controller!
       .text;
 
