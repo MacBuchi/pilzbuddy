@@ -720,6 +720,332 @@ const speciesPortraits = <String, List<SpeciesPhoto>>{
       source: 'https://commons.wikimedia.org/wiki/File:2010-09-17_Ramaria_botrytis.jpg',
     ),
   ],
+  // ── Der Rest, ebenfalls von Commons ──────────────────────────────
+  //
+  // **Damit trägt jede bekannte Art ein Bild.** Diese 35 sind alle
+  // Speisepilze oder „nur gegart" — der Fall, in dem ein Bild nicht
+  // warnt, sondern beim Wiedererkennen hilft. Auch sie sind
+  // Platzhalter.
+  'Anischampignon': [
+    (
+      asset: 'assets/species/anischampignon-1.webp',
+      author: 'Salix',
+      licence: 'CC BY-SA 3.0',
+      licenceUrl: 'http://creativecommons.org/licenses/by-sa/3.0/',
+      source: 'https://commons.wikimedia.org/wiki/File:2008-08-Agaricus-Stuttgart.JPG',
+    ),
+  ],
+  'Birkenpilz': [
+    (
+      asset: 'assets/species/birkenpilz-1.webp',
+      author: 'Holger Krisp',
+      licence: 'CC BY 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by/3.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Birken-R%C3%B6hrling_Leccinum_scabrum.JPG',
+    ),
+  ],
+  'Birkenrotkappe': [
+    (
+      asset: 'assets/species/birkenrotkappe-1.webp',
+      author: 'Włodzimierz Wysocki',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Leccinum_versipelle_3.jpg',
+    ),
+  ],
+  'Brätling': [
+    (
+      asset: 'assets/species/braetling-1.webp',
+      author: 'H. Krisp',
+      licence: 'CC BY 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by/3.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Br%C3%A4tling_Lactarius_volemus.JPG',
+    ),
+  ],
+  'Butterpilz': [
+    (
+      asset: 'assets/species/butterpilz-1.webp',
+      author: 'Achim Lammerts (Syntaxys)',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'https://commons.wikimedia.org/wiki/File:2025-10-15_D500-1030_Achim-Lammerts_Suillus-luteus.jpg',
+    ),
+  ],
+  'Dunkler Hallimasch': [
+    (
+      asset: 'assets/species/dunklerhallimasch-1.webp',
+      author: 'MdE',
+      licence: 'CC BY-SA 3.0 de',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/3.0/de/deed.en',
+      source: 'https://commons.wikimedia.org/wiki/File:Armillaria_mellea_MdE_3.jpg',
+    ),
+  ],
+  'Espenrotkappe': [
+    (
+      asset: 'assets/species/espenrotkappe-1.webp',
+      author: 'Tifred25',
+      licence: 'CC BY-SA 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/3.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Bolet_Orange_01.jpg',
+    ),
+  ],
+  'Goldröhrling': [
+    (
+      asset: 'assets/species/goldroehrling-1.webp',
+      author: 'Holger Krisp',
+      licence: 'CC BY 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by/3.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Gold-R%C3%B6hrling_Suillus_grevillei.jpg',
+    ),
+  ],
+  'Habichtspilz': [
+    (
+      asset: 'assets/species/habichtspilz-1.webp',
+      author: 'Holger Krisp',
+      licence: 'CC BY 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by/3.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Habichtspilz-Sarcodon-imbricatus.jpg',
+    ),
+  ],
+  'Igelstachelbart': [
+    (
+      asset: 'assets/species/igelstachelbart-1.webp',
+      author: 'Apple2000',
+      licence: 'CC BY 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by/3.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Hericium_erinaceum01.jpg',
+    ),
+  ],
+  'Judasohr': [
+    (
+      asset: 'assets/species/judasohr-1.webp',
+      author: 'José Roberto Peruca from Araçatuba/SP, Brasil',
+      licence: 'CC BY 2.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by/2.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Auricularia_auricula_(Auriculariaceae)_(16096787664).jpg',
+    ),
+  ],
+  'Kiefernreizker': [
+    (
+      asset: 'assets/species/kiefernreizker-1.webp',
+      author: 'Holger Krisp',
+      licence: 'CC BY 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by/3.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Weinroter_Kiefern-Reizker_Lactarius_sanguifluus.jpg',
+    ),
+  ],
+  'Käppchenmorchel': [
+    (
+      asset: 'assets/species/kaeppchenmorchel-1.webp',
+      author: 'Holger Krisp',
+      licence: 'CC BY 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by/3.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Halbfreie_Morchel_Morchella_gigas.jpg',
+    ),
+  ],
+  'Körnchenröhrling': [
+    (
+      asset: 'assets/species/koernchenroehrling-1.webp',
+      author: 'Holger Krisp',
+      licence: 'CC BY 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by/3.0',
+      source: 'https://commons.wikimedia.org/wiki/File:K%C3%B6rnchen-R%C3%B6hrling_Suillus_granulatus_1.jpg',
+    ),
+  ],
+  'Leberpilz': [
+    (
+      asset: 'assets/species/leberpilz-1.webp',
+      author: 'This image was created by user Dan Molter (shroomydan) at Mushroom Observer , a source for mycological images. You can contact this user here .',
+      licence: 'CC BY-SA 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/3.0',
+      source: 'https://commons.wikimedia.org/wiki/File:2010-06-26_Fistulina_hepatica_47685.jpg',
+    ),
+  ],
+  'Ledertäubling': [
+    (
+      asset: 'assets/species/ledertaeubling-1.webp',
+      author: 'Holger Krisp',
+      licence: 'CC BY 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by/3.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Braune_Leder-T%C3%A4ubling_Russula_integra.jpg',
+    ),
+  ],
+  'Maipilz': [
+    (
+      asset: 'assets/species/maipilz-1.webp',
+      author: 'User:Strobilomyces',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Calocybe_gambosa_080420wb.jpg',
+    ),
+  ],
+  'Mohrenkopfmilchling': [
+    (
+      asset: 'assets/species/mohrenkopfmilchling-1.webp',
+      author: 'This image was created by user Gerhard Koller (Gerhard) at Mushroom Observer , a source for mycological images. You can contact this user here .',
+      licence: 'CC BY-SA 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/3.0',
+      source: 'https://commons.wikimedia.org/wiki/File:2008-07-11_Lactarius_lignyotus_Fr_41556.jpg',
+    ),
+  ],
+  'Morchelbecherling': [
+    (
+      asset: 'assets/species/morchelbecherling-1.webp',
+      author: 'Holger Krisp',
+      licence: 'CC BY 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by/3.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Disciotis_venosa_Morchelbecherling.jpg',
+    ),
+  ],
+  'Mönchskopf': [
+    (
+      asset: 'assets/species/moenchskopf-1.webp',
+      author: 'Ermell',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Infundibulicybe_geotropa_(M%C3%B6nchskopf)_-20201108-RM-155413.jpg',
+    ),
+  ],
+  'Nelkenschwindling': [
+    (
+      asset: 'assets/species/nelkenschwindling-1.webp',
+      author: 'Archenzo',
+      licence: 'CC BY-SA 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/3.0',
+      source: 'https://commons.wikimedia.org/wiki/File:MarasmiusOreades.jpg',
+    ),
+  ],
+  'Rehbrauner Dachpilz': [
+    (
+      asset: 'assets/species/rehbraunerdachpilz-1.webp',
+      author: 'Achim Lammerts (Syntaxys)',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'https://commons.wikimedia.org/wiki/File:2025-11-04_D500-1570_Achim-Lammerts_Pluteus-cervinus-agg.jpg',
+    ),
+  ],
+  'Reifpilz': [
+    (
+      asset: 'assets/species/reifpilz-1.webp',
+      author: 'Szabi237',
+      licence: 'CC BY 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by/3.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Rozites_caperata.JPG',
+    ),
+  ],
+  'Riesenbovist': [
+    (
+      asset: 'assets/species/riesenbovist-1.webp',
+      author: 'Hans Hillewaert',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Calvatia_gigantea.jpg',
+    ),
+  ],
+  'Riesenträuschling': [
+    (
+      asset: 'assets/species/riesentraeuschling-1.webp',
+      author: 'Holger Krisp',
+      licence: 'CC BY 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by/3.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Kulturtr%C3%A4uschling_Stropharia_rugosoannulata.jpg',
+    ),
+  ],
+  'Rotfußröhrling': [
+    (
+      asset: 'assets/species/rotfussroehrling-1.webp',
+      author: 'Holger Krisp',
+      licence: 'CC BY 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by/3.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Mold_boletus_chrysenteron_rotfussroehrling.jpg',
+    ),
+  ],
+  'Sandröhrling': [
+    (
+      asset: 'assets/species/sandroehrling-1.webp',
+      author: 'Aorg1961',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Ma%C5%9Blak_pstry_1.jpg',
+    ),
+  ],
+  'Schwefelporling': [
+    (
+      asset: 'assets/species/schwefelporling-1.webp',
+      author: 'Doug Bowman from DeKalb IL, USA',
+      licence: 'CC BY 2.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by/2.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Chicken_of_the_Woods.jpg',
+    ),
+  ],
+  'Semmelstoppelpilz': [
+    (
+      asset: 'assets/species/semmelstoppelpilz-1.webp',
+      author: 'Borch3kawki at Polish Wikipedia',
+      licence: 'CC BY-SA 3.0',
+      licenceUrl: 'http://creativecommons.org/licenses/by-sa/3.0/',
+      source: 'https://commons.wikimedia.org/wiki/File:Hydnum_repandum_01.jpg',
+    ),
+  ],
+  'Speisetäubling': [
+    (
+      asset: 'assets/species/speisetaeubling-1.webp',
+      author: 'Archenzo',
+      licence: 'CC BY-SA 3.0',
+      licenceUrl: 'http://creativecommons.org/licenses/by-sa/3.0/',
+      source: 'https://commons.wikimedia.org/wiki/File:RussulaVesca1.JPG',
+    ),
+  ],
+  'Violetter Lacktrichterling': [
+    (
+      asset: 'assets/species/violetterlacktrichterling-1.webp',
+      author: 'Norbert Nagel',
+      licence: 'CC BY-SA 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/3.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Amethyst_Deceiver_-_Laccaria_amethystea_-_Violetter_Lacktrichterling_-_Laccaria_amethystina_-_02.jpg',
+    ),
+  ],
+  'Violetter Rötelritterling': [
+    (
+      asset: 'assets/species/violetterroetelritterling-1.webp',
+      author: 'Dan Molter (shroomydan)',
+      licence: 'CC BY-SA 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/3.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Clitocybe_nuda_60302.jpg',
+    ),
+  ],
+  'Waldchampignon': [
+    (
+      asset: 'assets/species/waldchampignon-1.webp',
+      author: 'Holger Krisp',
+      licence: 'CC BY 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by/3.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Kleiner_Waldchampignon_Agaricus_silvaticus.jpg',
+    ),
+  ],
+  'Ziegenlippe': [
+    (
+      asset: 'assets/species/ziegenlippe-1.webp',
+      author: 'Daniel Ullrich, Threedots',
+      licence: 'CC BY-SA 3.0',
+      licenceUrl: 'http://creativecommons.org/licenses/by-sa/3.0/',
+      source: 'https://commons.wikimedia.org/wiki/File:Boletus_subtomentosus.jpg',
+    ),
+  ],
+  'Rotkappe': [
+    // **Dieselbe Datei wie die Espenrotkappe**, mit Absicht
+    // (Betreiber, 2026-09-22). „Rotkappe" ist bei uns ein
+    // Sammelname — die Bemerkung zur Einstufung sagt es auch —,
+    // und ein eigenes Bild müsste trotzdem EINE der Arten
+    // zeigen. Dann lieber sichtbar dieselbe.
+    (
+      asset: 'assets/species/espenrotkappe-1.webp',
+      author: 'Tifred25',
+      licence: 'CC BY-SA 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/3.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Bolet_Orange_01.jpg',
+    ),
+  ],
 };
 
 /// Die Porträts zu einem Artnamen — leer, wenn keine gepflegt sind.

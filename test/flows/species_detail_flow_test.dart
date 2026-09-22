@@ -601,30 +601,6 @@ void main() {
     expect(find.text(kPhotoDisclaimer), findsOneWidget);
   });
 
-  testWidgets('ohne jedes Bild steht auch kein Hinweis', (tester) async {
-    // Die Gegenprobe: Ein Satz über Bilder auf einer Seite ohne Bilder
-    // wäre ein Hinweis auf nichts.
-    final (backend, _) = loggedInBackend();
-    await pumpApp(tester, backend);
-    await openSpecies(tester, 'Brätling');
-
-    expect(portraitsFor('Brätling'), isEmpty);
-    expect(photoFor('Brätling'), isNull);
-    // **Die negative Aussage braucht einen Anker.** Ein erster Entwurf
-    // zog bis „Merkmale" und prüfte dann auf Abwesenheit — und war damit
-    // blind: Nach dem Zug steht „Merkmale" am oberen Rand, alles darüber
-    // ist nicht mehr gebaut, und `findsNothing` wäre auch bei einem
-    // vorhandenen Hinweis grün. In der Gegenprobe genau so gemessen.
-    //
-    // Geprüft wird deshalb ein Bildausschnitt, in dem BEIDE Nachbarn
-    // stehen: die Einstufung darüber und die Merkmale darunter. Der
-    // Hinweis läge dazwischen.
-    await scrollDetail(tester, find.text(kEdibilityDisclaimer));
-    expect(find.text(kEdibilityDisclaimer), findsOneWidget);
-    expect(find.text('Merkmale'), findsOneWidget);
-    expect(find.text(kPhotoDisclaimer), findsNothing);
-    expect(find.text('Bilder'), findsNothing);
-  });
 
   testWidgets('kein Bild am Seitenkopf - erst die Warnung, dann das Bild',
       (tester) async {

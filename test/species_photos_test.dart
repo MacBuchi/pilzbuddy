@@ -13,6 +13,33 @@ import 'package:pilzbuddy/core/mushroom_species.dart';
 import 'package:pilzbuddy/core/species_lookalikes.dart';
 import 'package:pilzbuddy/core/species_photos.dart';
 
+
+/// Die Kantenlängen eines WebP-Bildes, aus dem Dateikopf gelesen.
+///
+/// **Statt einer Mindestgröße in Bytes.** Die stand hier bei 10 000 und
+/// sollte leere oder abgebrochene Dateien fangen. Am 2026-09-22 fiel
+/// sie über ein gültiges Bild mit 9 998 Bytes — ein violetter Hut vor
+/// unscharfem Grund komprimiert eben gut. Eine Schwelle, die aus dem
+/// falschen Grund anschlägt, wird beim dritten Mal hochgesetzt und
+/// prüft dann nichts mehr.
+///
+/// Der Kopf sagt es genau: RIFF-Kennung, WEBP-Kennung, dann der
+/// `VP8 `-Block mit Startcode und den beiden 14-Bit-Maßen. Das fängt
+/// die Null-Datei, die halbe Datei und das falsche Format.
+({int width, int height}) webpSize(File file) {
+  final b = file.readAsBytesSync();
+  expect(b.length, greaterThan(30), reason: '${file.path}: zu kurz für WebP');
+  expect(String.fromCharCodes(b.sublist(0, 4)), 'RIFF', reason: file.path);
+  expect(String.fromCharCodes(b.sublist(8, 12)), 'WEBP', reason: file.path);
+  expect(String.fromCharCodes(b.sublist(12, 16)), 'VP8 ',
+      reason: '${file.path}: nur verlustbehaftetes VP8 wird hier erzeugt');
+  // 20..22 ist das Frame-Tag, 23..25 der Startcode, dann die Maße.
+  expect(b.sublist(23, 26), [0x9d, 0x01, 0x2a], reason: file.path);
+  final w = (b[26] | (b[27] << 8)) & 0x3fff;
+  final h = (b[28] | (b[29] << 8)) & 0x3fff;
+  return (width: w, height: h);
+}
+
 void main() {
   final known = {
     for (final s in kBekannteArten)
@@ -28,7 +55,9 @@ void main() {
       expect(file.existsSync(), isTrue,
           reason: '${entry.key}: ${entry.value.asset} fehlt');
       // Eine leere oder abgebrochene Datei wäre im Diff unsichtbar.
-      expect(file.lengthSync(), greaterThan(10000), reason: entry.key);
+      final size = webpSize(file);
+      expect(size.width, greaterThan(100), reason: entry.key);
+      expect(size.height, size.width, reason: '${entry.key}: quadratisch');
       expect(entry.value.asset, endsWith('.webp'));
     }
   });
@@ -124,7 +153,9 @@ void main() {
           final file = File(photo.asset);
           expect(file.existsSync(), isTrue,
               reason: '${entry.key}: ${photo.asset} fehlt');
-          expect(file.lengthSync(), greaterThan(10000), reason: entry.key);
+          final size = webpSize(file);
+          expect(size.width, greaterThan(100), reason: entry.key);
+          expect(size.height, size.width, reason: '${entry.key}: quadratisch');
           expect(photo.asset, endsWith('.webp'));
         }
       }
@@ -139,16 +170,47 @@ void main() {
       }
     });
 
-    test('kein Asset wird zweimal benutzt', () {
+    test('ein Asset steht nie zweimal auf DERSELBEN Seite', () {
       // Der billigste Pflegefehler: beim Kopieren die Nummer vergessen.
       // Zwei gleiche Bilder nebeneinander sähen aus wie ein Ladefehler.
-      final seen = <String, String>{};
+      for (final entry in speciesPortraits.entries) {
+        final gesehen = <String>{};
+        for (final photo in entry.value) {
+          expect(gesehen.add(photo.asset), isTrue,
+              reason: '${entry.key}: ${photo.asset} doppelt');
+        }
+      }
+    });
+
+    test('zwei Arten teilen ein Bild nur, wenn eine die Gattung der '
+        'anderen ist', () {
+      // **Der Sammelname-Fall, und nur der.** „Rotkappe" meint bei uns
+      // die ganze Gattung Leccinum — ein eigenes Bild müsste trotzdem
+      // EINE der Arten zeigen, also lieber sichtbar dieselbe wie die
+      // Espenrotkappe (Betreiber, 2026-09-22).
+      //
+      // Geprüft wird die BEGRÜNDUNG, nicht das Paar: Die eine Art trägt
+      // als `sci` die Gattung der anderen. Wer zwei beliebige Arten
+      // dasselbe Bild geben will, kommt hier nicht durch.
+      String? sciOf(String name) => kBekannteArten
+          .firstWhere((s) => s.name == name,
+              orElse: () => const KnownSpecies('', SpeciesGroup.sonstige))
+          .sci;
+      final besitzer = <String, String>{};
       for (final entry in allSpeciesPhotos()) {
-        final previous = seen[entry.photo.asset];
-        expect(previous, isNull,
-            reason: '${entry.species} und $previous teilen sich '
-                '${entry.photo.asset}');
-        seen[entry.photo.asset] = entry.species;
+        final vorher = besitzer[entry.photo.asset];
+        if (vorher == null) {
+          besitzer[entry.photo.asset] = entry.species;
+          continue;
+        }
+        final a = sciOf(vorher), b = sciOf(entry.species);
+        expect(a, isNotNull, reason: vorher);
+        expect(b, isNotNull, reason: entry.species);
+        final gattung = a!.split(' ').first == b!.split(' ').first;
+        final sammelname = !a.contains(' ') || !b.contains(' ');
+        expect(gattung && sammelname, isTrue,
+            reason: '$vorher und ${entry.species} teilen sich '
+                '${entry.photo.asset}, sind aber keine Gattung und Art');
       }
     });
 
