@@ -99,8 +99,9 @@ const kHelpSteps = <HelpStep>[
         'Legende — ein Tipp klappt sie ein und wieder aus. Mit '
         '„Filter" blendest du Spots nach Art oder Zeit aus. '
         'Welche Art zu welcher Ampel-Gruppe gehört, steht im Reiter '
-        '„Pilze"; tippst du dort eine Art an, siehst du ihren ganzen '
-        'Jahresgang, ihre Zweitnamen und deine eigenen Funde. '
+        '„Pilze"; tippst du dort eine Art an, siehst du, ob sie als '
+        'Speisepilz gilt, womit sie verwechselt wird und woran man den '
+        'Unterschied erkennt. Denselben Weg gibt es aus jedem Spot-Blatt. '
         'Hältst du irgendwo auf der Karte gedrückt, fragt dich ein '
         'kleines Menü, ob du wissen willst, was dort ist, dorthin '
         'navigieren oder heranzoomen möchtest.',

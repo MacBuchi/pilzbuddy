@@ -1381,6 +1381,27 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     Schritt: ohne Einstufung rot, mit Paar ohne Merkmale rot, und
     `_Reported` sagte ohne neu gebautes Fundorte-Asset „lässt sich nicht
     laden" über eine Art, die schlicht nicht drin war.
+  - **Die Warnung dort, wo der Pilz ist** (seit 1.168.0; Betreiber-
+    Durchsicht 2026-09-22: „haben wir was Essenzielles vergessen?" —
+    ja, genau das). Bis dahin führte von KEINER anderen Stelle der App
+    ein Weg zur Artseite; Einstufung und Partner waren ein
+    Nachschlagewerk, das man aufsuchen musste. Drei Dinge:
+    - **Eingabefeld** (`species_field.dart`): `confusionHint` unter dem
+      Feld, sobald die Vorschlagskarte zu ist — dieselbe Bedingung wie
+      das Symbol, denn ein voller Name mit mehreren Treffern
+      („Steinpilz") ist noch keine Entscheidung. Bewusst OHNE Verweis:
+      Das Blatt ist ein Formular, ein Wechsel würde die Eingabe
+      verwerfen. Die Einstufung des Partners steht nur dabei, wenn sie
+      warnt (Asymmetrie).
+    - **Spot-Blatt**: ein `ActionChip` je bekannter Art des Spots
+      (`scanSpeciesOf` → `knownSpeciesFor`, Freitext-Arten haben keine
+      Seite). Der Router wird VOR `pop()` gegriffen — danach ist der
+      Kontext des Blatts nicht mehr eingehängt.
+    - **Rückkanal**: „Hinweis zu dieser Art melden" am Fuß der Artseite,
+      als `FeedbackType.bug` mit dem Artnamen im Text — der Bot macht
+      daraus ein Bug-Issue. Handgepflegte Tabellen, an denen eine
+      Vergiftung hängen kann, brauchen den Weg dort, wo man den Fehler
+      sieht.
 - **Der Reiter „Spots"** (#509, seit 1.161.0): die Karte als Liste
   (`lib/features/spots/spots_screen.dart`) plus die Statistik, die bis
   1.160.0 im Profil stand. Sechs Dinge, die man wissen muss:

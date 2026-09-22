@@ -119,4 +119,23 @@ void main() {
     expect(lookalikesFor('Geheimpilz'), isEmpty);
     expect(lookalikesFor(null), isEmpty);
   });
+
+  test('der Einzeiler fürs Eingabefeld nennt die Partner — und die '
+      'Einstufung nur, wenn sie warnt', () {
+    // Die Asymmetrie im Kleinen: „Pantherpilz (Giftig)" ja,
+    // „Speisetäubling (Gilt als Speisepilz)" nie — das läse sich beim
+    // Tippen als Freigabe.
+    expect(confusionHint('Perlpilz'),
+        'Wird verwechselt mit: Pantherpilz (Giftig)');
+    expect(confusionHint('Speitäubling'),
+        'Wird verwechselt mit: Speisetäubling');
+    expect(confusionHint('Stockschwämmchen'),
+        startsWith('Wird verwechselt mit: Gifthäubling (Tödlich giftig)'));
+    // Zweitname und Schreibweise lösen sich auf wie überall.
+    expect(confusionHint('marone'), confusionHint('Maronenröhrling'));
+    // Unbekannt oder ohne Partner: nichts — kein „keine bekannt".
+    expect(confusionHint('Judasohr'), isNull);
+    expect(confusionHint('Geheimpilz'), isNull);
+    expect(confusionHint(null), isNull);
+  });
 }
