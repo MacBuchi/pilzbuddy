@@ -7,6 +7,22 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Weniger Vorrede, mehr Liste
+
+*22. September 2026 · Version 1.182.0*
+
+Im Reiter „Pilze" stand ein sechszeiliger Erklärabsatz über dem
+Suchfeld, und er scrollte mit: Wer in der Liste nach unten ging, verlor
+das Suchfeld und musste zum Tippen zurück nach oben. Jetzt bleiben
+Suchfeld und Saison-Schalter oben stehen, und über der ersten Art steht
+nur noch, wie viele Arten diesen Monat Saison haben. Die Erklärung
+steckt im „i" daneben.
+
+**Im Kartenfilter sind aus drei Schaltzeilen drei Chips geworden** —
+„Nur meine", „Ampel günstig" und „Saison". Was ein Filter tut und warum
+er gerade nicht wählbar ist, steht am Chip und im „i"; der Artenliste
+darunter bleibt dadurch deutlich mehr Platz.
+
 ## Mehr Bilder bei den Verwechslungspartnern
 
 *22. September 2026 · Version 1.181.0*

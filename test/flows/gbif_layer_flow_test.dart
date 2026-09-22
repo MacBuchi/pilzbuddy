@@ -15,6 +15,7 @@ import 'package:pilzbuddy/features/map/map_view/marker_culling.dart'
     show MapViewBounds;
 import 'package:pilzbuddy/features/map/rain_grid.dart' show mercatorY;
 import 'package:pilzbuddy/features/map/spot_filter.dart';
+import 'package:pilzbuddy/features/map/widgets/ampel_class_chips.dart';
 import 'package:pilzbuddy/features/map/widgets/map_legend.dart'
     show mapIdleCenterProvider;
 
@@ -230,7 +231,7 @@ void main() {
     await enableLayer(tester, container);
 
     await openLayerSheet(tester, 'Gemeldete Fundorte');
-    expect(find.byType(FilterChip), findsNWidgets(4));
+    expect(find.descendant(of: find.byKey(kAmpelClassChipsKey), matching: find.byType(FilterChip)), findsNWidgets(4));
     expect(find.textContaining('ausgeblendet, solange'), findsNothing);
 
     // Die Chips liegen im Blatt unter dem Falz. Seit die Quelle mit der

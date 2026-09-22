@@ -40,7 +40,7 @@ void main() {
   Future<void> openSpecies(WidgetTester tester, String name) async {
     await openTab(tester, 'Pilze');
     await tester.enterText(
-        find.widgetWithText(TextField, 'Art suchen'), name);
+        find.widgetWithText(TextField, 'Art oder wissenschaftlicher Name'), name);
     await settle(tester);
     await tester.tap(find.widgetWithText(ListTile, name));
     await settle(tester);
@@ -315,7 +315,7 @@ void main() {
     /// belegt, dass sie wirklich da ist.
     Future<void> searchFor(String name) async {
       await tester.enterText(
-          find.widgetWithText(TextField, 'Art suchen'), name);
+          find.widgetWithText(TextField, 'Art oder wissenschaftlicher Name'), name);
       await settle(tester);
       expect(row(name), findsOneWidget, reason: '$name muss gebaut sein');
     }

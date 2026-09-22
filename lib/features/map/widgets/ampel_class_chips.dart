@@ -25,6 +25,13 @@ import '../spot_filter.dart';
 /// [intro] ist der Satz über den Chips — je Blatt ein anderer, weil er
 /// sagt, was die Auswahl HIER bewirkt. Mit [withColours] trägt jeder
 /// Chip den Farbpunkt seiner Gruppe aus der Fundorte-Tabelle.
+/// Die Gruppen-Chips als Block.
+///
+/// **Benannt, seit der Filter eigene Chips hat** (1.181.0): „wie viele
+/// `FilterChip` stehen im Blatt" trifft seither beide Sorten, und ein
+/// Test, der die Gruppen zählen will, zählte die Filter mit.
+const kAmpelClassChipsKey = ValueKey('ampel-klassen-chips');
+
 class AmpelClassChips extends ConsumerWidget {
   const AmpelClassChips({
     super.key,
@@ -45,6 +52,7 @@ class AmpelClassChips extends ConsumerWidget {
     final selected = chosen.isEmpty ? ampelClasses.keys.toSet() : chosen;
     final last = selected.length == 1;
     return Padding(
+      key: kAmpelClassChipsKey,
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
