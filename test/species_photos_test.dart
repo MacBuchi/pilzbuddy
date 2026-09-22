@@ -197,13 +197,36 @@ void main() {
       expect(portraitsFor(null), isEmpty);
     });
 
-    test('der Hinweis sagt beides: ungeprüft UND was zu tun ist', () {
-      // Die zwei Sätze stehen außerhalb des Ausklappers, weil sie das
-      // sind, was jemand lesen muss, der es eilig hat.
+    test('der sichtbare Hinweis trägt die ganze Aussage', () {
+      // Drei Teile, und alle drei stehen AUSSERHALB des Ausklappers:
+      // dass ein Bild falsch sein kann, dass niemand vom Fach es
+      // geprüft hat, und was daraus folgt. Eingeklappt ist nur das
+      // Warum.
+      expect(kPhotoDisclaimer, contains('falsch zugeordnet'));
       expect(kPhotoDisclaimer, contains('Pilzsachverständigen'));
       expect(kPhotoDisclaimer, contains('stehen lassen'));
       expect(kPhotoDisclaimerDetail.length,
           greaterThan(kPhotoDisclaimer.length));
+    });
+
+    test('der Hinweis spricht nicht von „uns" und nennt keine Quelle', () {
+      // **Wer die Bilder zugeordnet hat, ändert für den Leser nichts.**
+      // Der erste Entwurf schrieb „Bestimmt haben sie wir, nicht ein
+      // Pilzsachverständiger" — grammatisch falsch und um eine Aussage
+      // herumgebaut, die niemanden weiterbringt (Betreiber,
+      // 2026-09-22).
+      //
+      // Und er nennt keine Herkunft: Eigene Aufnahmen und
+      // Commons-Material stehen im selben Streifen, wer welches Bild
+      // gemacht hat, steht in der Zeile darüber, und zwei Hinweise für
+      // zwei Herkünfte wären zwei Antworten auf dieselbe Frage.
+      // **Auf ganze Wörter, nicht auf Teilzeichenketten.** Der erste
+      // Entwurf prüfte `contains('wir')` und fiel über „wirklich".
+      final ganz = '$kPhotoDisclaimer $kPhotoDisclaimerDetail';
+      for (final wort in ['wir', 'uns', 'Commons']) {
+        expect(RegExp('\\b$wort\\b', caseSensitive: false).hasMatch(ganz),
+            isFalse, reason: wort);
+      }
     });
   });
 

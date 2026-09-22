@@ -7,6 +7,19 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Klarerer Hinweis unter den Bildern
+
+*22. September 2026 · Version 1.175.1*
+
+Der Satz unter den Bildern war umständlich und sprach davon, wer die
+Bilder zugeordnet hat. Das hilft niemandem weiter. Jetzt steht dort, was
+zählt:
+
+> Bilder können falsch zugeordnet sein und wurden nicht von einem
+> Pilzsachverständigen geprüft. Im Zweifel den Pilz stehen lassen.
+
+Aufgeklappt folgt weiterhin, warum ein Foto zum Bestimmen nicht reicht.
+
 ## Sechzehn Arten mehr mit Bild
 
 *22. September 2026 · Version 1.175.0*

@@ -599,31 +599,37 @@ List<SpeciesPhoto> portraitsFor(String? species) {
 
 /// Der Satz, der IMMER unter den Bildern steht.
 ///
-/// **Zwei Sätze, und beide stehen außerhalb des Ausklappers.** „Nicht
-/// geprüft" und „im Zweifel stehen lassen" sind das, was jemand lesen
-/// muss, der es eilig hat; hinter einem Tipp versteckt wäre die Warnung
-/// Deko. Kompakt bleibt die Seite, weil die BEGRÜNDUNG verschwindet und
-/// nicht die Aussage (Betreiber, 2026-09-22).
+/// **Die ganze Aussage steht außerhalb des Ausklappers**, seit 1.176.0
+/// auch „können falsch zugeordnet sein": Das ist der Satz, wegen dem
+/// der Hinweis überhaupt da ist, und hinter einem Tipp versteckt wäre
+/// er Deko. Eingeklappt ist nur, WARUM ein Foto nicht reicht.
+///
+/// **Er gilt für beide Quellen und nennt deshalb keine.** Eigene
+/// Aufnahmen und Commons-Material stehen im selben Streifen
+/// nebeneinander, und wer welches Bild gemacht hat, steht ohnehin in
+/// der Zeile darüber. Zwei Hinweise für zwei Herkünfte wären zwei
+/// Antworten auf dieselbe Frage (Betreiber, 2026-09-22).
+///
+/// **Ohne „wir".** Der erste Entwurf schrieb „Bestimmt haben sie wir,
+/// nicht ein Pilzsachverständiger" — grammatisch falsch und um eine
+/// Aussage herumgebaut, die niemanden weiterbringt. Wer die Bilder
+/// zugeordnet hat, ändert für den Leser nichts; dass sie falsch sein
+/// können, ändert alles.
 const kPhotoDisclaimer =
-    'Nicht von einem Pilzsachverständigen geprüft. Im Zweifel den Pilz '
-    'stehen lassen.';
+    'Bilder können falsch zugeordnet sein und wurden nicht von einem '
+    'Pilzsachverständigen geprüft. Im Zweifel den Pilz stehen lassen.';
 
 /// Die Überschrift des aufklappbaren Teils.
 const kPhotoDisclaimerTitle = 'Warum ein Foto nicht zum Bestimmen reicht';
 
 /// Was beim Aufklappen erscheint — die Begründung zu [kPhotoDisclaimer].
 const kPhotoDisclaimerDetail =
-    'Die Bilder stammen aus eigenen Funden und von Wikimedia Commons. '
-    'Bestimmt haben sie wir, nicht ein Pilzsachverständiger. Eine falsche '
-    'Bestimmung ist möglich, und auf Commons ist sie ohnehin nicht '
-    'garantiert.\n\n'
-    'Ein Foto zeigt außerdem immer nur ein einzelnes Exemplar. Farbe, Form '
-    'und Größe ändern sich mit Alter, Wetter und Standort. Die Merkmale, '
-    'die wirklich entscheiden, liegen oft dort, wo kein Bild hinkommt: an '
-    'der Stielbasis, im Schnitt, im Geruch.\n\n'
-    'Wer sich nicht sicher ist, lässt den Pilz stehen. Ein '
-    'Pilzsachverständiger schaut ihn sich an, die Deutsche Gesellschaft '
-    'für Mykologie vermittelt sie ortsnah.';
+    'Ein Foto zeigt nur ein einzelnes Exemplar. Farbe, Form und Größe '
+    'ändern sich mit Alter, Wetter und Standort. Was wirklich '
+    'entscheidet, liegt oft dort, wo kein Bild hinkommt: an der '
+    'Stielbasis, im Schnitt, im Geruch.\n\n'
+    'Ein Pilzsachverständiger sieht sich einen Fund an. Die Deutsche '
+    'Gesellschaft für Mykologie vermittelt sie ortsnah.';
 
 SpeciesPhoto? photoFor(String? species) {
   final canonical = canonicalSpecies(species);
