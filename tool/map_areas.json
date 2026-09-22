@@ -1,0 +1,28 @@
+{
+  "_comment": [
+    "Areas the web offline map (#496) offers as vector tiles. Read by",
+    ".github/workflows/map-data.yml; the app reads the manifest the",
+    "workflow publishes, never this file.",
+    "",
+    "It starts with ONE area on purpose. Whether DACH fits into a single",
+    "file is a measurement, not a guess: raw.githubusercontent.com serves",
+    "no blob above 100 MB, and bytes per zoom grow by whatever the data",
+    "density does (6.4x from z6 to z7 in the bundled overview, measured",
+    "2026-09-21). Run the workflow in `plan` mode first; it prints bytes",
+    "per zoom and says whether the budget holds. Only then decide whether",
+    "this list needs splitting into states, and at which maxzoom.",
+    "",
+    "Typing eighteen hand-made bounding boxes before that measurement",
+    "would be guessing twice: at the split AND at the numbers that decide",
+    "it. A wrong bbox is worse than none — it publishes a map that is",
+    "simply blank where somebody walks."
+  ],
+  "attribution": "© OpenStreetMap contributors · Protomaps (ODbL)",
+  "areas": [
+    {
+      "key": "dach",
+      "name": "Deutschland, Österreich, Schweiz",
+      "bbox": [5.5, 45.5, 17.5, 55.5]
+    }
+  ]
+}

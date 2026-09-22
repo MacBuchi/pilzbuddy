@@ -1,0 +1,325 @@
+name: Map Data
+
+# Vector map tiles for the WEB offline map (#496).
+#
+# The PWA has an offline map today, but only the bundled DACH overview,
+# and that stops at z7. Above it the renderer upscales, so in the forest
+# one sees motorways and town names and nothing else. The Android region
+# maps cannot close the gap in a browser for two independent reasons:
+# they are release assets of a FOREIGN repo without CORS, and they are
+# 44 MB to 2 GB each.
+#
+# `raw.githubusercontent.com` answers Range requests with 206,
+# `accept-ranges: bytes` and `access-control-allow-origin: *` (measured
+# 2026-09-21) — which is exactly what `PmTilesArchive.fromUri` needs, and
+# it is the host this repo already trusts for `rain-data-mirror`. The
+# price is a hard 100 MB per file: git refuses to store a bigger blob, so
+# raw can never serve one.
+#
+# Whether an area fits under that limit is a MEASUREMENT. Hence two
+# modes, and `plan` is the default:
+#
+#   plan     reads only headers and directories — a few hundred KB — and
+#            prints bytes per zoom for each area at a range of maxzooms.
+#            Publishes nothing. This is what decides the split in
+#            tool/map_areas.json.
+#   publish  cuts the extracts with the official `pmtiles` tool, proves
+#            each one against its source, and force-pushes them onto the
+#            mirror branch.
+#
+# Why `workflow_dispatch` only: the source is a daily planet build, but
+# our extracts are a basemap — it does not change in a way a forager
+# would notice, and a schedule that pushes hundreds of megabytes on its
+# own is a schedule nobody asked for. Re-run it when the basemap should
+# be refreshed.
+#
+# No Version Guard concern: nothing here lands in a binary, and
+# `.github/` and `tool/` are exempt anyway.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "plan = measure only, publish = cut and mirror"
+        required: true
+        type: choice
+        options: ["plan", "publish"]
+        default: "plan"
+      maxzoom:
+        description: "Highest zoom to include (publish mode)"
+        required: false
+        type: string
+        default: "12"
+      plan_zooms:
+        description: "Zooms to measure (plan mode), space separated"
+        required: false
+        type: string
+        default: "8 10 11 12 13 14"
+
+# Never two runs at once: publish force-pushes a shared branch, and two
+# runs would race on which extract set the branch ends up holding.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+env:
+  # Pinned deliberately, like every other version in this repo: a basemap
+  # that changes shape under us would change what the extracts contain
+  # without anyone choosing it.
+  PMTILES_VERSION: "1.28.0"
+  MIRROR_BRANCH: map-data-mirror
+
+jobs:
+  maps:
+    name: Measure and publish map extracts
+    runs-on: ubuntu-latest
+    # Only the mirror push actually needs this. Job-level is as narrow as
+    # GitHub goes — there is no per-step scope — so it covers the `plan`
+    # runs too, which write nothing at all. Worth saying plainly rather
+    # than letting the comment claim a separation that does not exist.
+    permissions:
+      contents: write
+    # Publish mode moves real data: a planet extract reads a few hundred
+    # MB through Range requests per area.
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Find the newest Protomaps daily build
+        id: source
+        # The builds are dated files; there is no "latest" alias. A HEAD
+        # is not enough — some CDNs answer HEAD differently from GET — so
+        # the probe asks for ONE byte and insists on a 206. That also
+        # proves the host serves ranges before we spend an hour on it.
+        #
+        # `-L` is not cosmetic: the reader (`urllib` in map_tiles.py)
+        # follows redirects, so a probe that does NOT would disagree with
+        # it about the very same URL — and disagree silently, because a
+        # 302 simply is not 206. Ten of those in a row produced the error
+        # message below, which named the host's Range support as the
+        # cause. A guard may be wrong, but it must never invent the
+        # reason: the last seen status code is now part of the message.
+        run: |
+          set -euo pipefail
+          found=""
+          last=""
+          for back in $(seq 0 9); do
+            day=$(date -u -d "-${back} day" +%Y%m%d)
+            url="https://build.protomaps.com/${day}.pmtiles"
+            code=$(curl -sSL -o /dev/null -w '%{http_code}' \
+                     -r 0-0 --max-time 60 "$url" || echo "000")
+            echo "  $day -> $code"
+            last="$day:$code"
+            if [ "$code" = "206" ]; then found="$url"; echo "build=$day" >> "$GITHUB_OUTPUT"; break; fi
+          done
+          if [ -z "$found" ]; then
+            echo "::error::No Protomaps daily build answered a Range request in the last 10 days (last probe: ${last}). 000 means the host was unreachable, 4xx/5xx that it answered but refused, 200 that it ignored Range. Only the last of those is about Range support."
+            exit 1
+          fi
+          echo "url=$found" >> "$GITHUB_OUTPUT"
+          echo "Quelle: $found"
+
+      - name: Measure bytes per zoom
+        if: inputs.mode == 'plan'
+        env:
+          SOURCE: ${{ steps.source.outputs.url }}
+          ZOOMS: ${{ inputs.plan_zooms }}
+        run: |
+          set -euo pipefail
+          {
+            echo "## Map extract plan"
+            echo
+            echo "Source: \`$SOURCE\`"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+          python3 - "$SOURCE" "$ZOOMS" <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
+          import json, subprocess, sys
+          source, zooms = sys.argv[1], sys.argv[2].split()
+          config = json.load(open("tool/map_areas.json"))
+          for area in config["areas"]:
+              bbox = ",".join(str(v) for v in area["bbox"])
+              print(f"### {area['name']} (`{area['key']}`)\n")
+              print("| asked | measured | estimated file | verdict |")
+              print("|---|---|---|---|")
+              for zoom in zooms:
+                  # `--bbox=…` und nicht `--bbox …`: Eine westliche Länge
+                  # ist negativ, und argparse liest ein führendes Minus
+                  # als Option — `--bbox -5.5,45,…` scheitert mit
+                  # „expected one argument". DACH fängt bei 5,5 an und
+                  # fällt deshalb heute nicht auf; jeder Zuschnitt
+                  # westlich von Greenwich schon.
+                  out = subprocess.run(
+                      ["python3", "tool/map_tiles.py", "plan",
+                       "--source", source, f"--bbox={bbox}",
+                       f"--maxzoom={zoom}"],
+                      capture_output=True, text=True)
+                  size = verdict = span = "?"
+                  for line in out.stdout.splitlines():
+                      if line.startswith("zoom "):
+                          span = line.split(None, 1)[1].strip()
+                      if line.startswith("estimated file size"):
+                          size = line.split(None, 3)[3].split("(")[0].strip()
+                      if line.startswith("VERDICT"):
+                          verdict = line.split(None, 1)[1].strip()
+                  if out.returncode not in (0, 2):
+                      verdict = f"failed: {out.stderr.strip()[:200]}"
+                  # The measured span is its own column because `plan`
+                  # clamps to what the archive holds. Without it, asking a
+                  # z0-z7 source for z14 reports z7's size under z14's
+                  # name — a number that looks like an answer and is not.
+                  print(f"| z{zoom} | {span} | {size} | {verdict} |")
+                  sys.stdout.flush()
+              print()
+          PY
+
+      - name: Install the pmtiles tool
+        if: inputs.mode == 'publish'
+        # The official Go implementation cuts the extracts. Writing a
+        # second implementation of a format we do not own would put a
+        # subtly malformed archive in front of users, where it fails in a
+        # browser rather than in CI.
+        run: |
+          set -euo pipefail
+          url="https://github.com/protomaps/go-pmtiles/releases/download/v${PMTILES_VERSION}/go-pmtiles_${PMTILES_VERSION}_Linux_x86_64.tar.gz"
+          if ! curl -sSL --fail "$url" -o /tmp/pmtiles.tar.gz; then
+            echo "::error::Could not download $url — check PMTILES_VERSION in this workflow against the go-pmtiles releases; the asset naming changed between major versions."
+            exit 1
+          fi
+          tar -xzf /tmp/pmtiles.tar.gz -C /tmp pmtiles
+          sudo install -m 0755 /tmp/pmtiles /usr/local/bin/pmtiles
+          pmtiles version
+
+      - name: Cut, check and describe the extracts
+        if: inputs.mode == 'publish'
+        env:
+          SOURCE: ${{ steps.source.outputs.url }}
+          SOURCE_BUILD: ${{ steps.source.outputs.build }}
+          MAXZOOM: ${{ inputs.maxzoom }}
+        run: |
+          set -euo pipefail
+          rm -rf build/maps && mkdir -p build/maps
+          python3 - <<'PY'
+          import hashlib, json, os, subprocess, sys, time
+
+          source = os.environ["SOURCE"]
+          maxzoom = int(os.environ["MAXZOOM"])
+          config = json.load(open("tool/map_areas.json"))
+          limit = 100 * 1024 * 1024
+          areas = []
+
+          for area in config["areas"]:
+              key = area["key"]
+              west, south, east, north = area["bbox"]
+              path = f"build/maps/{key}.pmtiles"
+              print(f"--- {key}: z0-z{maxzoom} {area['bbox']}", flush=True)
+              subprocess.run(
+                  ["pmtiles", "extract", source, path,
+                   f"--bbox={west},{south},{east},{north}",
+                   f"--maxzoom={maxzoom}"],
+                  check=True)
+
+              size = os.path.getsize(path)
+              if size > limit:
+                  # Loud and specific: a blob over the limit is not
+                  # rejected by raw, it is rejected by the PUSH, which
+                  # would fail three steps later with a git error that
+                  # says nothing about maps.
+                  # Durch 1048576, nicht durch 1e6: `limit` sind
+                  # 100 * 1024 * 1024, und durch 1e6 geteilt stünde in der
+                  # Fehlermeldung „105 MB" als Grenze — eine Zahl, die
+                  # nirgends sonst im Projekt vorkommt und die beim
+                  # Nachrechnen niemand wiederfindet. Derselbe Teiler wie
+                  # in `human()` im Werkzeug, damit beide Ausgaben
+                  # dieselbe Grenze nennen.
+                  print(f"::error::{key}.pmtiles is {size / 1048576:.0f} MB, "
+                        f"over the {limit // 1048576} MB "
+                        "raw.githubusercontent.com "
+                        "limit. Lower --maxzoom or split the area in "
+                        "tool/map_areas.json — run the workflow in plan mode "
+                        "to see where it fits.")
+                  sys.exit(1)
+
+              # An extract that holds the wrong tiles is a valid archive.
+              # In the browser that reads as "the map is blank here", with
+              # no error anywhere, so it gets proven here instead.
+              #
+              # The bbox and the maxzoom come from what was ORDERED, not
+              # from the extract's own header: an archive cut with the
+              # wrong bbox states that wrong bbox without contradicting
+              # itself. `check` needs both to prove coverage, and without
+              # coverage it proves only that nothing in the file is
+              # foreign — which the wrong region passes.
+              subprocess.run(
+                  ["python3", "tool/map_tiles.py", "check",
+                   "--source", source, "--extract", path,
+                   f"--bbox={west},{south},{east},{north}",
+                   f"--maxzoom={maxzoom}", "--samples=80"],
+                  check=True)
+
+              digest = hashlib.sha256()
+              with open(path, "rb") as handle:
+                  for chunk in iter(lambda: handle.read(1 << 20), b""):
+                      digest.update(chunk)
+              areas.append({
+                  "key": key,
+                  "name": area["name"],
+                  "bbox": area["bbox"],
+                  "file": f"{key}.pmtiles",
+                  "maxzoom": maxzoom,
+                  "bytes": size,
+                  "sha256": digest.hexdigest(),
+              })
+
+          manifest = {
+              "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+              "source": source,
+              "source_build": os.environ["SOURCE_BUILD"],
+              "maxzoom": maxzoom,
+              "attribution": config["attribution"],
+              "areas": areas,
+          }
+          with open("build/maps/map_manifest.json", "w") as handle:
+              json.dump(manifest, handle, indent=2, sort_keys=True)
+
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write(f"## Map extracts (z0-z{maxzoom})\n\n")
+              summary.write(f"Source: `{source}`\n\n")
+              summary.write("| area | size | budget |\n|---|---|---|\n")
+              for entry in areas:
+                  share = entry["bytes"] / limit
+                  summary.write(f"| {entry['name']} | "
+                                f"{entry['bytes'] / 1048576:.1f} MB | "
+                                f"{share:.0%} |\n")
+          PY
+
+      - name: Mirror the extracts onto a branch the browser can read
+        if: inputs.mode == 'publish'
+        # Same reasoning as rain-data.yml: release assets carry no
+        # `access-control-allow-origin`, and neither does the target of
+        # the API's 302 — the browser checks at the END of the redirect.
+        # Only a branch on raw.githubusercontent.com answers with `*`.
+        #
+        # A ROOT commit per run, force-pushed: the branch keeps no
+        # history nobody reads, and the previous extracts fall out of
+        # reference instead of growing the repository by their size every
+        # time.
+        #
+        # The branch is deliberately not named like any tag: a raw URL
+        # has one name slot, and with a tag and a branch of the same name
+        # the service decides which it serves, not us.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SOURCE_BUILD: ${{ steps.source.outputs.build }}
+        run: |
+          set -euo pipefail
+          cd build/maps
+          git init -q
+          git checkout -q --orphan "${MIRROR_BRANCH}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Map extracts from ${SOURCE_BUILD} ($(date -u +%FT%TZ))"
+          git push -q --force \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            "${MIRROR_BRANCH}"
+          echo "Gespiegelt: $(find . -maxdepth 1 -type f | wc -l) Dateien"
+          echo "Basis-URL: https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${MIRROR_BRANCH}/"
