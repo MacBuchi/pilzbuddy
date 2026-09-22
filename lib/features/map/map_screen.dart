@@ -14,6 +14,7 @@ import '../offline_maps/offline_map_providers.dart';
 import '../../core/errors.dart';
 import '../../core/geo.dart';
 import '../../core/mushroom_species.dart';
+import '../../core/photo_providers.dart';
 import '../../core/update_check.dart';
 import '../../core/widgets/location_pin.dart';
 import '../../core/widgets/safety_note.dart';
@@ -37,6 +38,7 @@ import '../tour/widgets/tour_icon.dart';
 import '../tour/widgets/tour_summary_sheet.dart';
 import '../tour/widgets/tour_track_marker.dart';
 import '../spots/widgets/add_find_sheet.dart';
+import '../spots/widgets/find_photo_strip.dart' show shareFreshFindPhoto;
 import '../help/map_tour.dart';
 import '../spots/widgets/spot_detail_sheet.dart';
 import 'live_share_providers.dart';
@@ -545,18 +547,26 @@ class _MapScreenState extends ConsumerState<MapScreen>
   /// „Dort eintragen": derselbe Weg wie „Fund eintragen" im Spot-Blatt.
   Future<void> _addFindTo(Spot spot) async {
     final ownSpecies = ref.read(ownSpeciesProvider);
-    final finds = await showAddFindSheet(
+    final result = await showAddFindSheet(
       context,
       spotAt: spot.position,
       lastFind: spot.lastOwnFind,
       ownSpecies: ownSpecies,
       fallbackSpecies: ownSpecies.firstOrNull,
+      pickPhoto: spot.pending ? null : ref.read(photoPickerProvider),
+      preparePhoto: spot.pending ? null : ref.read(photoPreparerProvider),
     );
-    if (finds == null) return;
+    if (result == null || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
     try {
-      final fresh = await ref
+      final (:fresh, :ids) = await ref
           .read(mySpotsProvider.notifier)
-          .addFinds(spotId: spot.id, finds: finds);
+          .addFinds(spotId: spot.id, finds: result.finds);
+      final photo = result.photo;
+      if (photo != null) {
+        await shareFreshFindPhoto(ref, messenger, ids: ids, photo: photo);
+        return;
+      }
       _showMessage('Fund bei „${spot.displayName}" eingetragen 🍄'
           '${fresh ? '' : staleAfterWriteHint}');
     } catch (e, stackTrace) {

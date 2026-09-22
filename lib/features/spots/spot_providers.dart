@@ -144,8 +144,12 @@ class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox>
   /// Einträge an einem Spot — auch an einem, der selbst noch im Korb
   /// liegt: Wer offline einen Spot anlegt und gleich noch eine zweite Art
   /// nachträgt, soll nicht am fehlenden Netz scheitern.
-  /// Gibt wie [addSpot] zurück, ob die Liste danach frisch ist.
-  Future<bool> addFinds({
+  /// Gibt wie [addSpot] zurück, ob die Liste danach frisch ist — und
+  /// dazu die Server-ids der Einträge. Leer, wenn sie in den Korb
+  /// gewandert sind: Dann gibt es noch keine, und woran ein Foto hängen
+  /// soll, entscheidet sich erst beim Nachholen (dort gibt es keinen
+  /// Foto-Weg, #532).
+  Future<({bool fresh, List<String> ids})> addFinds({
     required String spotId,
     required List<NewFind> finds,
   }) async {
@@ -157,6 +161,7 @@ class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox>
       spotIsPending: spotIsPending,
       finds: [for (final find in finds) find.withClientId(newClientId())],
     );
+    var ids = const <String>[];
     if (spotIsPending) {
       // Es gibt nichts, wohin gesendet werden könnte — der Spot selbst
       // wartet noch. Direkt in den Korb, hinter seinen Spot.
@@ -165,7 +170,7 @@ class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox>
       await ref.read(outboxProvider).append(job, uid: uid);
     } else {
       try {
-        await ref
+        ids = await ref
             .read(spotRepositoryProvider)
             .addFinds(spotId: spotId, finds: job.finds);
       } catch (error, stackTrace) {
@@ -178,7 +183,7 @@ class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox>
     // ein überflüssiger Refetch bei Hobby-Datenmengen ist billiger als
     // eine Fallunterscheidung.
     ref.invalidate(friendSpotsProvider);
-    return reloadAfterWrite('Spots neu laden');
+    return (fresh: await reloadAfterWrite('Spots neu laden'), ids: ids);
   }
 
   /// Korrigiert einen einzelnen Eintrag (#240) — und löscht einen
