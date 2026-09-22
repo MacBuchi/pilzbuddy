@@ -29,7 +29,7 @@ class FriendshipEntry {
   String otherUsername(String uid) => (requesterId == uid
           ? addresseeUsername
           : requesterUsername) ??
-      'Pilzfreund';
+      'Buddy';
 
   int otherAvatar(String uid) =>
       requesterId == uid ? addresseeAvatar : requesterAvatar;

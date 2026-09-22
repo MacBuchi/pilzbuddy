@@ -344,8 +344,8 @@ KARTE
 • Wiederbesuch mit zwei Taps — Art und Anzahl sind vom letzten Fund vorbelegt.
 
 FREUNDE
-• Freunde über Benutzername oder E-Mail finden, Anfrage senden, annehmen.
-• Freundes-Spots erscheinen blau auf deiner Karte.
+• Buddys über Benutzername oder E-Mail finden, Anfrage senden, annehmen.
+• Buddy-Spots erscheinen blau auf deiner Karte.
 • Du entscheidest, was sichtbar ist: alle Spots oder keine, mit Art und Anzahl
   oder nur der Standort, und einzelne Spots lassen sich ausnehmen.
 • Live-Standort für 1, 2 oder 4 Stunden teilen — praktisch, wenn ihr euch im

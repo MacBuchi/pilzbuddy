@@ -57,9 +57,9 @@ Future<ShareAction?> showShareLocationSheet(
                 const SizedBox(height: 6),
                 Text(
                   active && until != null
-                      ? 'Deine Freunde sehen dich noch bis $until Uhr live '
+                      ? 'Deine Buddys sehen dich noch bis $until Uhr live '
                           'auf der Karte.'
-                      : 'Deine Freunde sehen dich für die gewählte Dauer live '
+                      : 'Deine Buddys sehen dich für die gewählte Dauer live '
                           'auf der Karte. Du kannst jederzeit beenden.',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),

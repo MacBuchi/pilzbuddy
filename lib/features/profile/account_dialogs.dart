@@ -31,7 +31,7 @@ class ChangeUsernameTile extends ConsumerWidget {
       contentPadding: EdgeInsets.zero,
       leading: const Icon(Icons.badge_outlined),
       title: const Text('Benutzername ändern'),
-      subtitle: const Text('Der Name, unter dem Freunde dich finden'),
+      subtitle: const Text('Der Name, unter dem Buddys dich finden'),
       trailing: const Icon(Icons.chevron_right),
       enabled: name != null,
       onTap: name == null
@@ -239,7 +239,7 @@ class _ChangeEmailDialogState extends ConsumerState<_ChangeEmailDialog> {
                   Text(
                     // Die Suche matcht auf die exakte Adresse — das
                     // gehört gesagt, BEVOR jemand wechselt.
-                    'Freunde finden dich danach über die neue Adresse — '
+                    'Buddys finden dich danach über die neue Adresse — '
                     'die alte kennt die Suche nicht mehr.',
                     style: hint,
                   ),
@@ -454,7 +454,7 @@ class _ChangeUsernameDialogState extends ConsumerState<_ChangeUsernameDialog> {
             Text(
               // Die Suche läuft über das Namens-Präfix — das gehört
               // gesagt, bevor jemand seinen bekannten Namen aufgibt.
-              'Freunde finden dich künftig unter dem neuen Namen.',
+              'Buddys finden dich künftig unter dem neuen Namen.',
               style: Theme.of(context)
                   .textTheme
                   .bodySmall

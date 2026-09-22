@@ -105,7 +105,7 @@ void main() {
       backend.addSpot(ownerId: lilli.id);
     }
     await pumpApp(tester, backend, settings: FakeSettings());
-    await tester.tap(find.text('Freunde'));
+    await tester.tap(find.text('Buddys'));
     await settle(tester);
 
     final tile = find.ancestor(

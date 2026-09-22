@@ -117,7 +117,7 @@ const kHelpSteps = <HelpStep>[
   HelpStep(
     icon: Icon(Icons.group_outlined, color: AppColors.forestGreen),
     title: 'Mit Buddies teilen',
-    text: 'Unter „Freunde" suchst du nach Benutzername oder E-Mail. Ob '
+    text: 'Unter „Buddys" suchst du nach Benutzername oder E-Mail. Ob '
         'deine Spots geteilt werden — und ob mit Art und Anzahl — '
         'entscheidest du im Profil, und für einzelne Spots im Spot '
         'selbst.',

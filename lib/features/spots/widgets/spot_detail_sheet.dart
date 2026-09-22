@@ -509,7 +509,7 @@ class _SpotDetailSheet extends ConsumerWidget {
                 Text(
                   spot.isOwn
                       ? 'Dein Spot'
-                      : 'Gefunden von ${spot.ownerUsername ?? 'einem Pilzfreund'}',
+                      : 'Gefunden von ${spot.ownerUsername ?? 'einem Buddy'}',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
@@ -648,7 +648,7 @@ class _SpotDetailSheet extends ConsumerWidget {
                         // Fremde Funde nennen ihren Eintrager (#190) —
                         // unmarkiert heißt: meiner.
                         if (!find.isOwn)
-                          'von ${find.authorUsername ?? 'einem Pilzfreund'}',
+                          'von ${find.authorUsername ?? 'einem Buddy'}',
                         // Wartet noch auf die Übertragung (#267). Der
                         // Eintrag zählt trotzdem überall mit — er ist
                         // passiert; nur ändern lässt er sich nicht.
@@ -702,7 +702,7 @@ class _SpotDetailSheet extends ConsumerWidget {
               contentPadding: EdgeInsets.zero,
               title: const Text('Von Freigabe ausschließen'),
               subtitle: const Text(
-                  'Diesen Spot nicht mit Freunden teilen – auch wenn das Teilen global an ist.'),
+                  'Diesen Spot nicht mit Buddys teilen – auch wenn das Teilen global an ist.'),
               value: spot.sharingExcluded,
               onChanged: (value) async {
                 try {

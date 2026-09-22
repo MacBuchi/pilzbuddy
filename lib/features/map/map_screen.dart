@@ -676,7 +676,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
               ? '${spot.displayName} — wartet auf Verbindung'
               : spot.isOwn
                   ? spot.displayName
-                  : '${spot.displayName} (${spot.ownerUsername ?? 'Freund'})',
+                  : '${spot.displayName} (${spot.ownerUsername ?? 'Buddy'})',
           child: MushroomIcon(
             seed: stableSeed(spot.id),
             size: 44,
@@ -716,7 +716,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
       // Die Spitze auf die Koordinate, wie bei den Spot-Markern (#403).
       alignment: Alignment.topCenter,
       child: Tooltip(
-        message: '${loc.username ?? 'Freund'} (live)',
+        message: '${loc.username ?? 'Buddy'} (live)',
         child: LocationPin(
           avatar: loc.avatar,
           color: AppColors.friendBlue,

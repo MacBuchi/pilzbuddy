@@ -210,7 +210,7 @@ void main() {
     // Solange die Anfrage offen ist, bleibt Bobs Spot unsichtbar.
     expect(find.byType(MushroomIcon), findsNothing);
     await tester.tap(
-        find.text('🔔 1 offene Freundschaftsanfrage — antippen'));
+        find.text('🔔 1 offene Buddy-Anfrage — antippen'));
     await settle(tester);
 
     expect(find.text('Anfragen an dich'), findsOneWidget);
@@ -231,10 +231,10 @@ void main() {
     backend.addUser(username: 'lilli92');
     await pumpApp(tester, backend);
 
-    await tester.tap(find.text('Freunde'));
+    await tester.tap(find.text('Buddys'));
     await settle(tester);
     await tester.enterText(
-        find.widgetWithText(TextField, 'Freund finden'), 'lilli');
+        find.widgetWithText(TextField, 'Buddy finden'), 'lilli');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await settle(tester);
 

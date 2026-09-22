@@ -49,7 +49,7 @@ void main() {
     expect(bannerWith('12.9.2026'), findsOneWidget,
         reason: 'Ohne Datum weiß niemand, wie alt der Stand ist — und ein '
             'fehlender Spot von gestern sähe nach einem App-Fehler aus.');
-    expect(bannerWith('Freundes-Spots fehlen'), findsOneWidget,
+    expect(bannerWith('Buddy-Spots fehlen'), findsOneWidget,
         reason: 'Freundes-Spots werden bewusst nicht zwischengespeichert; '
             'ungesagt sähe ihr Fehlen nach einem Fehler aus.');
   });

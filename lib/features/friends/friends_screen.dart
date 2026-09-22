@@ -103,7 +103,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
     };
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Freunde')),
+      appBar: AppBar(title: const Text('Buddys')),
       body: RefreshIndicator(
         onRefresh: () async => ref.invalidate(friendshipsProvider),
         child: ListView(
@@ -112,7 +112,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
             OutlinedButton.icon(
               onPressed: _invite,
               icon: const Icon(Icons.share),
-              label: const Text('Freunde zu PilzBuddy einladen'),
+              label: const Text('Buddys zu PilzBuddy einladen'),
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
@@ -122,7 +122,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
               controller: _searchController,
               onSubmitted: (_) => _search(),
               decoration: InputDecoration(
-                labelText: 'Freund finden',
+                labelText: 'Buddy finden',
                 hintText: 'Benutzername oder genaue E-Mail',
                 border: const OutlineInputBorder(),
                 suffixIcon: _searching
@@ -210,7 +210,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
                 ),
             ],
             const SizedBox(height: 16),
-            Text('Meine Freunde',
+            Text('Meine Buddys',
                 style: Theme.of(context).textTheme.titleMedium),
             if (friendshipsAsync.isLoading && friendships.isEmpty)
               const Padding(
@@ -221,7 +221,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
               const Padding(
                 padding: EdgeInsets.all(8),
                 child: Text(
-                    'Noch keine Freunde verbunden. Suche oben nach Benutzername oder E-Mail!'),
+                    'Noch keine Buddys verbunden. Suche oben nach Benutzername oder E-Mail!'),
               )
             else
               for (final f in accepted)
@@ -245,7 +245,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
                         context: context,
                         builder: (context) => AlertDialog(
                           title: Text(
-                              '${f.otherUsername(uid)} als Freund entfernen?'),
+                              '${f.otherUsername(uid)} als Buddy entfernen?'),
                           content: const Text(
                               'Ihr seht danach gegenseitig keine geteilten Spots mehr.'),
                           actions: [
@@ -267,7 +267,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
                       }
                     },
                     icon: const Icon(Icons.person_remove_outlined),
-                    tooltip: 'Freund entfernen',
+                    tooltip: 'Buddy entfernen',
                   ),
                 ),
           ],
