@@ -137,6 +137,323 @@ const speciesPhotos = <String, SpeciesPhoto>{
 /// **Die meisten Arten haben keines**, und das ist der Normalfall: Bilder
 /// gibt es zu den Paaren, bei denen eine Verwechslung teuer ist.
 /// Zweitnamen lösen sich auf wie überall.
+/// Die Porträts je Art — zwei bis drei Bilder, waagerecht durchblätterbar.
+///
+/// **Das ist bewusst etwas anderes als [speciesPhotos].** Dort gilt „zwei
+/// oder keines", weil ein einzelnes Bild eine Verwechslung nicht
+/// auflösen kann. Hier geht es nicht ums Unterscheiden, sondern ums
+/// Wiedererkennen: wie die Art überhaupt aussieht. Dafür ist ein Bild zu
+/// wenig und zwanzig sind zu viel — zwei bis drei zeigen, wie stark sich
+/// Farbe und Form mit Alter und Wetter ändern (Betreiber, 2026-09-22:
+/// „wir können auch 2-3 Bilder je nehmen").
+///
+/// **Alle Aufnahmen stammen vom Betreiber selbst.** Das ist der Grund,
+/// warum es sie überhaupt gibt: Auf Commons ist die Bestimmung nicht
+/// garantiert, und Lehrbuchbilder zeigen die Lehrbuchform. Genau daran
+/// hat sich in 1.169.0 eine Merkmalszeile als zu absolut erwiesen — der
+/// Fichtenreizker auf dem eigenen Foto trug die Stielgrübchen, die die
+/// Tabelle dem Edelreizker allein zuschrieb.
+///
+/// **Die Reihenfolge ist die Aussage.** Das erste Bild ist das Porträt,
+/// die weiteren zeigen eine andere Ansicht oder ein anderes Alter: beim
+/// Parasol Seitenansicht, Doppelring und junger Paukenschläger, beim
+/// Falschen Pfifferling drei Blickwinkel auf dieselbe Gruppe.
+const speciesPortraits = <String, List<SpeciesPhoto>>{
+  'Fliegenpilz': [
+    (
+      asset: 'assets/species/fliegenpilz-1.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+    (
+      asset: 'assets/species/fliegenpilz-2.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+    (
+      asset: 'assets/species/fliegenpilz-3.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+  ],
+  'Fichtenreizker': [
+    (
+      asset: 'assets/species/fichtenreizker-1.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+    (
+      asset: 'assets/species/fichtenreizker-2.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+    (
+      asset: 'assets/species/fichtenreizker-3.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+  ],
+  'Stadtchampignon': [
+    (
+      asset: 'assets/species/stadtchampignon-1.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+    (
+      asset: 'assets/species/stadtchampignon-2.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+  ],
+  'Schopftintling': [
+    (
+      asset: 'assets/species/schopftintling-1.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+    (
+      asset: 'assets/species/schopftintling-2.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+  ],
+  'Birnenstäubling': [
+    (
+      asset: 'assets/species/birnenstaeubling-1.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+  ],
+  'Grünblättriger Schwefelkopf': [
+    (
+      asset: 'assets/species/gruenblaettrigerschwefelkopf-1.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+    (
+      asset: 'assets/species/gruenblaettrigerschwefelkopf-2.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+  ],
+  'Austernseitling': [
+    (
+      asset: 'assets/species/austernseitling-1.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+    (
+      asset: 'assets/species/austernseitling-2.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+    (
+      asset: 'assets/species/austernseitling-3.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+  ],
+  'Parasol': [
+    (
+      asset: 'assets/species/parasol-1.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+    (
+      asset: 'assets/species/parasol-2.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+    (
+      asset: 'assets/species/parasol-3.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+  ],
+  'Hallimasch': [
+    (
+      asset: 'assets/species/hallimasch-1.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+    (
+      asset: 'assets/species/hallimasch-2.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+    (
+      asset: 'assets/species/hallimasch-3.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+  ],
+  'Steinpilz': [
+    (
+      asset: 'assets/species/steinpilz-1.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+    (
+      asset: 'assets/species/steinpilz-2.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+  ],
+  'Maronenröhrling': [
+    (
+      asset: 'assets/species/maronenroehrling-1.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+    (
+      asset: 'assets/species/maronenroehrling-2.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+  ],
+  'Falscher Pfifferling': [
+    (
+      asset: 'assets/species/falscherpfifferling-1.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+    (
+      asset: 'assets/species/falscherpfifferling-2.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+    (
+      asset: 'assets/species/falscherpfifferling-3.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+  ],
+  'Herbsttrompete': [
+    (
+      asset: 'assets/species/herbsttrompete-1.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+  ],
+  'Samtfußrübling': [
+    (
+      asset: 'assets/species/samtfussruebling-1.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+    (
+      asset: 'assets/species/samtfussruebling-2.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+    (
+      asset: 'assets/species/samtfussruebling-3.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+  ],
+};
+
+/// Die Porträts zu einem Artnamen — leer, wenn keine gepflegt sind.
+List<SpeciesPhoto> portraitsFor(String? species) {
+  final canonical = canonicalSpecies(species);
+  return canonical == null ? const [] : speciesPortraits[canonical] ?? const [];
+}
+
+/// Der Satz, der IMMER unter den Bildern steht.
+///
+/// **Zwei Sätze, und beide stehen außerhalb des Ausklappers.** „Nicht
+/// geprüft" und „im Zweifel stehen lassen" sind das, was jemand lesen
+/// muss, der es eilig hat; hinter einem Tipp versteckt wäre die Warnung
+/// Deko. Kompakt bleibt die Seite, weil die BEGRÜNDUNG verschwindet und
+/// nicht die Aussage (Betreiber, 2026-09-22).
+const kPhotoDisclaimer =
+    'Nicht von einem Pilzsachverständigen geprüft. Im Zweifel den Pilz '
+    'stehen lassen.';
+
+/// Die Überschrift des aufklappbaren Teils.
+const kPhotoDisclaimerTitle = 'Warum ein Foto nicht zum Bestimmen reicht';
+
+/// Was beim Aufklappen erscheint — die Begründung zu [kPhotoDisclaimer].
+const kPhotoDisclaimerDetail =
+    'Die Bilder stammen aus eigenen Funden und von Wikimedia Commons. '
+    'Bestimmt haben sie wir, nicht ein Pilzsachverständiger. Eine falsche '
+    'Bestimmung ist möglich, und auf Commons ist sie ohnehin nicht '
+    'garantiert.\n\n'
+    'Ein Foto zeigt außerdem immer nur ein einzelnes Exemplar. Farbe, Form '
+    'und Größe ändern sich mit Alter, Wetter und Standort. Die Merkmale, '
+    'die wirklich entscheiden, liegen oft dort, wo kein Bild hinkommt: an '
+    'der Stielbasis, im Schnitt, im Geruch.\n\n'
+    'Wer sich nicht sicher ist, lässt den Pilz stehen. Ein '
+    'Pilzsachverständiger schaut ihn sich an, die Deutsche Gesellschaft '
+    'für Mykologie vermittelt sie ortsnah.';
+
 SpeciesPhoto? photoFor(String? species) {
   final canonical = canonicalSpecies(species);
   return canonical == null ? null : speciesPhotos[canonical];
@@ -156,7 +473,24 @@ String photoCredit(SpeciesPhoto photo) =>
 /// getauschtes Bild seinen alten Urheber behält — und eine falsche
 /// Namensnennung ist schlimmer als gar keine.
 String speciesPhotoCredits() => [
-      for (final entry in speciesPhotos.entries)
-        '${entry.key}: ${entry.value.author}, ${entry.value.licence}\n'
-            '${entry.value.licenceUrl}\n${entry.value.source}',
+      for (final entry in allSpeciesPhotos())
+        '${entry.species}: ${entry.photo.author}, ${entry.photo.licence}\n'
+            '${entry.photo.licenceUrl}\n${entry.photo.source}',
     ].join('\n\n');
+
+/// Jedes Bild der App mit seiner Art — Vergleichspaare UND Porträts.
+///
+/// **Eine Naht, zwei Tabellen.** Die Lizenzseite und der Test, der die
+/// Lizenzen prüft, dürfen nicht je selbst wissen müssen, welche Tabellen
+/// es gibt: Eine dritte Bildquelle würde sonst an beiden Stellen
+/// vergessen, und ein nicht genanntes Bild ist ein Lizenzverstoß.
+Iterable<({String species, SpeciesPhoto photo})> allSpeciesPhotos() sync* {
+  for (final entry in speciesPhotos.entries) {
+    yield (species: entry.key, photo: entry.value);
+  }
+  for (final entry in speciesPortraits.entries) {
+    for (final photo in entry.value) {
+      yield (species: entry.key, photo: photo);
+    }
+  }
+}

@@ -50,9 +50,16 @@ void main() {
   /// der Liste im Reiter dahinter.
   Future<void> scrollDetail(WidgetTester tester, Finder target) async {
     await tester.scrollUntilVisible(target, 200,
-        scrollable: find.descendant(
-            of: find.byType(SpeciesDetailScreen),
-            matching: find.byType(Scrollable)));
+        // **Das ÄUSSERE Scrollable, ausdrücklich.** Seit der
+        // Porträtreihe steckt in der senkrechten Liste ein zweites,
+        // waagerechtes — und das ist ein Nachfahre des ersten, ein
+        // `descendant` trifft also beide. Der äußere kommt in der
+        // Baumreihenfolge zuerst.
+        scrollable: find
+            .descendant(
+                of: find.byKey(kSpeciesDetailListKey),
+                matching: find.byType(Scrollable))
+            .first);
     await settle(tester, frames: 4);
   }
 
@@ -479,11 +486,86 @@ void main() {
         findsNWidgets(2));
   });
 
-  testWidgets('kein Bild am Seitenkopf — Bilder gibt es nur beim Paar',
+  testWidgets('die Porträtreihe steht unter den Warnungen, mit Nennung',
       (tester) async {
-    // **Die Entscheidung, die den Abschnitt trägt.** Ein Foto je Art
-    // läse sich als Porträt und damit als Bestimmungshilfe; ein einzelnes
-    // Bild kann einen Perlpilz nicht von einem Pantherpilz trennen.
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend);
+    await openSpecies(tester, 'Fliegenpilz');
+
+    await scrollDetail(tester, find.text('Bilder'));
+    expect(find.text('Bilder'), findsOneWidget);
+    // Alle drei Bilder der Reihe, nicht nur das erste: Die Serie IST die
+    // Aussage — eine Art sieht je nach Alter verschieden aus.
+    for (var i = 1; i <= 3; i++) {
+      expect(find.image(AssetImage('assets/species/fliegenpilz-$i.webp')),
+          findsOneWidget);
+    }
+    // Die Nennung kommt aus der Tabelle, nicht aus dem Code.
+    expect(find.text('Fotos: MacBuchi'), findsOneWidget);
+  });
+
+  testWidgets('der Hinweis steht da, seine Begründung erst auf Tippen',
+      (tester) async {
+    // **Die beiden tragenden Sätze stehen außerhalb des Ausklappers.**
+    // Eine eingeklappte Warnung ist Deko; was verschwinden darf, ist die
+    // Begründung (Betreiber, 2026-09-22).
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend);
+    await openSpecies(tester, 'Fliegenpilz');
+
+    await scrollDetail(tester, find.text(kPhotoDisclaimer));
+    expect(find.text(kPhotoDisclaimer), findsOneWidget);
+    expect(find.text(kPhotoDisclaimerDetail), findsNothing);
+
+    await tester.tap(find.text(kPhotoDisclaimerTitle));
+    await settle(tester);
+    expect(find.text(kPhotoDisclaimerDetail), findsOneWidget);
+  });
+
+  testWidgets('der Hinweis gilt auch, wo es nur ein Bildpaar gibt',
+      (tester) async {
+    // Er hängt an „steht hier irgendein Bild", nicht an „gibt es
+    // Porträts" — sonst stünde unter den Vergleichsbildern nichts.
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend);
+    await openSpecies(tester, 'Stockschwämmchen');
+
+    expect(portraitsFor('Stockschwämmchen'), isEmpty);
+    await scrollDetail(tester, find.text(kPhotoDisclaimer));
+    expect(find.text(kPhotoDisclaimer), findsOneWidget);
+  });
+
+  testWidgets('ohne jedes Bild steht auch kein Hinweis', (tester) async {
+    // Die Gegenprobe: Ein Satz über Bilder auf einer Seite ohne Bilder
+    // wäre ein Hinweis auf nichts.
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend);
+    await openSpecies(tester, 'Brätling');
+
+    expect(portraitsFor('Brätling'), isEmpty);
+    expect(photoFor('Brätling'), isNull);
+    // **Die negative Aussage braucht einen Anker.** Ein erster Entwurf
+    // zog bis „Merkmale" und prüfte dann auf Abwesenheit — und war damit
+    // blind: Nach dem Zug steht „Merkmale" am oberen Rand, alles darüber
+    // ist nicht mehr gebaut, und `findsNothing` wäre auch bei einem
+    // vorhandenen Hinweis grün. In der Gegenprobe genau so gemessen.
+    //
+    // Geprüft wird deshalb ein Bildausschnitt, in dem BEIDE Nachbarn
+    // stehen: die Einstufung darüber und die Merkmale darunter. Der
+    // Hinweis läge dazwischen.
+    await scrollDetail(tester, find.text(kEdibilityDisclaimer));
+    expect(find.text(kEdibilityDisclaimer), findsOneWidget);
+    expect(find.text('Merkmale'), findsOneWidget);
+    expect(find.text(kPhotoDisclaimer), findsNothing);
+    expect(find.text('Bilder'), findsNothing);
+  });
+
+  testWidgets('kein Bild am Seitenkopf — erst die Warnung, dann das Bild',
+      (tester) async {
+    // **Die Entscheidung, die beide Bildarten trägt.** Seit 1.170.0 gibt
+    // es Porträts, aber NICHT über der Einstufung: Ein Bild am Seitenkopf
+    // läse sich als „so sieht er aus, das genügt" — genau die Erwartung,
+    // die der Hinweis darunter zurücknimmt.
     final (backend, _) = loggedInBackend();
     await pumpApp(tester, backend);
     await openSpecies(tester, 'Perlpilz');

@@ -1378,6 +1378,43 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
       Verwechslungspartner aus weitertippt, landete mitten auf dessen
       Seite statt oben bei Namen und Einstufung. Gefunden hat das ein
       Test, der eigentlich etwas anderes prüfen sollte.
+  - **Porträts je Art** (`speciesPortraits`, seit 1.170.0): zwei bis
+    drei EIGENE Aufnahmen des Betreibers je Art, waagerecht
+    durchblätterbar, für 14 Arten. Fünf Dinge, die man wissen muss:
+    - **Das ist etwas anderes als das Bildpaar, und beide bleiben.**
+      Beim Paar gilt „zwei oder keines", weil ein einzelnes Bild eine
+      Verwechslung nicht auflöst. Das Porträt beantwortet die andere
+      Frage — wie die Art überhaupt aussieht —, und dafür ist ein Bild
+      zu wenig: Farbe und Form ändern sich mit Alter und Wetter
+      (Betreiber, 2026-09-22: „wir können auch 2-3 Bilder je nehmen").
+      Ein Test hält die Spanne 1 bis 3 fest.
+    - **Eigene Fundbilder schlagen Lehrbuchbilder**, und das ist
+      gemessen, nicht behauptet: Das Reizker-Foto des Betreibers trug
+      die Stielgrübchen, die unsere Merkmalstabelle dem Edelreizker
+      ALLEIN zuschrieb — die Zeile war zu absolut und ist in 1.169.0
+      berichtigt worden. Ein Commons-Bild hätte den Fehler bestätigt,
+      weil dort die Lehrbuchform abgelegt wird.
+    - **Der Hinweis darunter steht EINMAL je Seite** und hängt an
+      „zeigt diese Seite irgendein Bild", nicht an „gibt es Porträts" —
+      sonst stünde unter den Vergleichspaaren nichts. Die beiden
+      tragenden Sätze (`kPhotoDisclaimer`) stehen AUSSERHALB des
+      Ausklappers; eingeklappt wird nur die Begründung. Eine
+      eingeklappte Warnung ist Deko.
+    - **Die Lizenzseite liest EINE Naht** (`allSpeciesPhotos()`).
+      Vorher kannte `speciesPhotoCredits` nur die Paar-Tabelle; eine
+      zweite Bildquelle wäre dort stillschweigend unerwähnt geblieben,
+      und ein nicht genanntes CC-BY-Bild ist ein Lizenzverstoß. Die
+      Gegenprobe dazu ist gemessen.
+    - **Die Detailseite hat seither ZWEI Scrollables**, und die
+      senkrechte trägt deshalb `kSpeciesDetailListKey`. Ein Test, der
+      „das Scrollable dieser Seite" sucht, fand zwei und scheiterte im
+      Zug; `descendant` trifft dabei auch das innere, es braucht
+      ausdrücklich das erste. Dieselbe Falle wie beim Suchfeld (#516).
+      Und eine negative Aussage über die Seite braucht einen ANKER:
+      Nach `scrollUntilVisible` steht das Ziel am oberen Rand, alles
+      darüber ist nicht gebaut, und `findsNothing` ist dann grün, egal
+      was dort stünde. In der Gegenprobe genau so passiert.
+
   - **Eine neue Art durch die ganze Kette** (Schönfußröhrling, 1.167.0,
     als Muster): `kBekannteArten` mit akzeptiertem GBIF-Namen →
     `tool/season_curves.py --out` (Netz, dabei die Zahl der
