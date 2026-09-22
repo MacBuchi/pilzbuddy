@@ -71,9 +71,18 @@ Spiegel-Branch braucht nichts davon und folgt einem Muster, das seit
 Ob ein Gebiet unter 100 MB passt, ist keine Schätzung. `map-data.yml` hat
 deshalb zwei Modi, und `plan` ist die Vorgabe:
 
-- **`plan`** liest nur Header und Verzeichnisse — wenige hundert KB — und
-  schreibt Bytes je Zoom und je Gebiet in die Run-Summary. Veröffentlicht
-  nichts.
+- **`plan`** lädt keine Kacheln, sondern nur Header und die
+  Verzeichnisse, die das Gebiet überhaupt berühren, und schreibt Bytes je
+  Zoom und je Gebiet in die Run-Summary. Veröffentlicht nichts.
+  **Wie viel das ist, sagt der Lauf selbst** — die letzte Zeile jeder
+  Messung ist `read N bytes in M requests`. Gegen die mitgelieferte
+  Übersicht sind es 371 Bytes in 2 Anfragen; gegen den PLANETEN bei z14
+  wird es deutlich mehr, denn die Hilbert-Kurve zerlegt ein Rechteck wie
+  DACH in viele getrennte Abschnitte, und jeder davon zieht eigene
+  Leaf-Verzeichnisse nach sich. Hier stand zuerst „wenige hundert KB" —
+  das war für den Planeten geraten und ist damit genau die Sorte Zahl,
+  gegen die dieses Werkzeug gebaut ist. Die echte Zahl steht nach dem
+  ersten Lauf in der Run-Summary und gehört dann hierher.
 - **`publish`** schneidet die Auszüge mit dem offiziellen `pmtiles`,
   prüft jeden gegen seine Quelle und spiegelt sie auf
   `map-data-mirror`.
@@ -129,8 +138,20 @@ Zwei Fallen, gegen die `check` und `HttpSource` da sind:
 
 - **Ein Auszug mit den falschen Kacheln ist ein gültiges Archiv.** Eine
   falsche Bbox oder eine veraltete Quelle erzeugt keine Fehlermeldung,
-  sondern eine Karte, die stellenweise leer ist. `check` zieht deshalb
-  eine Stichprobe und vergleicht Byte für Byte gegen die Quelle.
+  sondern eine Karte, die stellenweise leer ist. `check` prüft deshalb
+  **zwei Richtungen**, und nur eine davon ist die naheliegende:
+  *Einschluss* — was im Auszug steht, ist Byte für Byte die Quelle;
+  *Abdeckung* — was die Quelle INNERHALB der bestellten Bbox hat, steht
+  auch im Auszug. Einschluss allein war die Falle: Er zieht die
+  Stichprobe aus dem, was der Auszug enthält, und ein Auszug der falschen
+  Region besteht ihn mit jeder einzelnen Probe. Genau der Fehler, den der
+  Absatz verspricht zu fangen, war der, den er nicht sehen konnte.
+  Bbox und Maxzoom sind deshalb Pflichtargumente und kommen aus dem, was
+  BESTELLT war (`tool/map_areas.json`) — den Header des Auszugs zu
+  befragen hieße, den Verdächtigen nach seinem Alibi zu fragen. Die
+  Stichprobe hat ein festes Budget je Zoom und nimmt die vier Ecken
+  zuerst: proportional gezogen sähe sie nur die oberste Stufe, und ein
+  falscher Zuschnitt verliert zuerst seine Ränder.
 - **Ein Server, der `Range` ignoriert, antwortet mit 200 und der ganzen
   Datei.** Das lokal zu zerschneiden sähe nach Erfolg aus, während ein
   Planet-Build durch die Leitung geht. `HttpSource` behandelt alles außer

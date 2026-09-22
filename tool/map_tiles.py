@@ -706,49 +706,144 @@ def command_plan(args):
     return 0 if estimate <= budget else 2
 
 
+def coverage_sample(bbox, minzoom, maxzoom, budget, rng):
+    """Tile ids spread over the AREA and over the ZOOMS, corners first.
+
+    Two biases have to be defeated here, and both of them make a sample
+    look thorough while it is blind:
+
+    A draw proportional to tile count is a draw from the top zoom alone —
+    z12 holds 4096 times as many tiles as z6, so the coarse levels, which
+    are exactly the ones an overview needs, are never looked at. Hence a
+    fixed budget PER ZOOM.
+
+    And a wrong cut loses its EDGES first: a bbox short by half a degree
+    is complete everywhere except along one side. A uniform interior draw
+    almost never lands there, so the four corners go in before anything
+    random does.
+    """
+    zooms = list(range(minzoom, maxzoom + 1))
+    if not zooms:
+        return []
+    per_zoom = max(1, budget // len(zooms))
+    west, south, east, north = bbox
+    picked = []
+    for z in zooms:
+        x0, y0 = lonlat_to_tile(west, north, z)
+        x1, y1 = lonlat_to_tile(east, south, z)
+        x_lo, x_hi = min(x0, x1), max(x0, x1)
+        y_lo, y_hi = min(y0, y1), max(y0, y1)
+        corners = [(x_lo, y_lo), (x_hi, y_lo), (x_lo, y_hi), (x_hi, y_hi)]
+        # Reicht das Budget nur für eine Ecke je Zoom, nähme man sonst
+        # dreizehnmal dieselbe Nordwestecke und sähe die anderen drei
+        # Ränder nie. Durchrotieren kostet nichts und deckt sie ab.
+        shift = z % 4
+        chosen = corners[shift:] + corners[:shift]
+        del chosen[per_zoom:]
+        while len(chosen) < per_zoom:
+            chosen.append((rng.randint(x_lo, x_hi), rng.randint(y_lo, y_hi)))
+        for x, y in dict.fromkeys(chosen):  # ordered, deduplicated
+            picked.append(zxy_to_tile_id(z, x, y))
+    return picked
+
+
 def command_check(args):
-    """Proves an extract carries the source's bytes, not merely a header.
+    """Proves an extract carries the source's bytes for the area it claims.
 
     `pmtiles extract` is trustworthy; a workflow around it is not. A wrong
     bbox, a stale source or a truncated upload all produce a valid archive
     that simply holds the wrong tiles, and every one of those reaches the
     browser as "the map is blank here" with no error anywhere.
+
+    That takes BOTH directions, and only one of them is obvious:
+
+    - inclusion — everything the extract holds really is the source's
+      bytes. Catches a stale or corrupted cut.
+    - coverage — everything the source holds INSIDE THE BBOX really is in
+      the extract. Catches the wrong cut.
+
+    Inclusion alone is the trap this function was rewritten out of: it
+    samples from what the extract contains, so an extract of the wrong
+    region passes it with every single sample matching. The one failure
+    the docstring above promises to catch — a wrong bbox — was the one it
+    could not see.
     """
+    bbox = parse_bbox(args.bbox)
     extract = Archive(open_source(args.extract))
     source = Archive(open_source(args.source))
+    rng = random.Random(args.seed)
+    mismatches = []
 
+    # --- Einschluss: was drin ist, stammt aus der Quelle ---------------
     entries = [e for e in extract.walk() if e.run_length > 0]
     if not entries:
         raise SystemExit("the extract holds no tiles at all")
-
     ids = []
     for entry in entries:
         ids.extend(range(entry.tile_id, entry.tile_id + entry.run_length))
-    rng = random.Random(args.seed)
-    sample = rng.sample(ids, min(args.samples, len(ids)))
-
-    mismatches = []
-    for tile_id in sorted(sample):
+    inclusion = rng.sample(ids, min(args.samples, len(ids)))
+    for tile_id in sorted(inclusion):
         z, x, y = tile_id_to_zxy(tile_id)
-        mine = extract.find(tile_id)
         theirs = source.find(tile_id)
         if theirs is None:
             mismatches.append(f"z{z}/{x}/{y} is in the extract but not the source")
             continue
+        if extract.tile_bytes(extract.find(tile_id)) != source.tile_bytes(theirs):
+            mismatches.append(f"z{z}/{x}/{y} differs from the source")
+
+    # --- Abdeckung: was die Quelle im Gebiet hat, ist auch drin --------
+    # Gemessen wird gegen die Zoomspanne, die VERLANGT wurde, nicht gegen
+    # die, die der Auszug behauptet. Andersherum verstoppte ein bei z10
+    # abgebrochener Auszug seine eigene Prüfung: Er sagt „ich gehe bis
+    # z10", und danach befragt, fehlte ihm nichts.
+    top = min(args.maxzoom, source.header.max_zoom)
+    bottom = max(0, source.header.min_zoom)
+    wanted = coverage_sample(bbox, bottom, top, args.samples, rng)
+    empty = 0
+    for tile_id in wanted:
+        z, x, y = tile_id_to_zxy(tile_id)
+        theirs = source.find(tile_id)
+        if theirs is None:
+            # Die Quelle hat dort selbst nichts — offenes Meer, leeres
+            # Gebiet. Das ist kein Befund, aber es zählt auch nicht als
+            # Beweis, deshalb wird es gezählt und nicht verschwiegen.
+            empty += 1
+            continue
+        mine = extract.find(tile_id)
+        if mine is None:
+            mismatches.append(
+                f"z{z}/{x}/{y} is in the source inside the bbox but MISSING "
+                "from the extract")
+            continue
         if extract.tile_bytes(mine) != source.tile_bytes(theirs):
             mismatches.append(f"z{z}/{x}/{y} differs from the source")
+    proven = len(wanted) - empty
 
     print(f"extract   {extract.source.name}")
     print(f"source    {source.source.name}")
-    print(f"tiles     {len(ids)} addressed, {len(sample)} sampled")
+    print(f"bbox      {','.join(str(v) for v in bbox)} z{bottom}-z{top}")
+    print(f"inclusion {len(ids)} addressed, {len(inclusion)} sampled")
+    print(f"coverage  {len(wanted)} sampled, {proven} present in the source"
+          f" ({empty} empty there)")
     for line in mismatches:
         print(f"MISMATCH  {line}")
     extract.close()
     source.close()
+
     if mismatches:
-        print(f"FAILED    {len(mismatches)} of {len(sample)} samples differ")
+        print(f"FAILED    {len(mismatches)} mismatches")
         return 1
-    print("ok        every sampled tile matches the source byte for byte")
+    if proven == 0:
+        # Ohne eine einzige belegte Kachel hat die Abdeckungsprüfung
+        # nichts geprüft, und ein grünes Häkchen darauf wäre schlimmer
+        # als gar keins — dieselbe Linie wie bei den Transport-Fehlern
+        # im Schema Check: lieber „unentschieden" als erfundener Erfolg.
+        print("FAILED    the source holds none of the sampled tiles in this "
+              "bbox — wrong area, wrong source, or a zoom range that does "
+              "not overlap")
+        return 1
+    print("ok        every sampled tile matches the source byte for byte, "
+          f"and all {proven} tiles the source has inside the bbox are present")
     return 0
 
 
@@ -756,9 +851,29 @@ def parse_bbox(text):
     parts = text.split(",")
     if len(parts) != 4:
         raise SystemExit("--bbox wants west,south,east,north")
-    west, south, east, north = (float(p) for p in parts)
+    try:
+        west, south, east, north = (float(p) for p in parts)
+    except ValueError:
+        raise SystemExit(f"--bbox {text} is not four numbers")
     if west >= east or south >= north:
         raise SystemExit(f"--bbox {text} is empty or inverted")
+    # Ohne Bereichsprüfung klemmt `lonlat_to_tile` eine vertippte Bbox
+    # still an den Weltrand: aus `500,600,700,800` wird ein Streifen von
+    # einer Kachel, und `plan` meldet dafür ein völlig plausibles
+    # „fits (1 % of budget)". Eine Zahl, die wie eine Antwort aussieht und
+    # keine ist, ist hier der teuerste Fehler überhaupt — sie entscheidet
+    # den Zuschnitt, und der entscheidet, wo die Karte später leer ist.
+    # Die Klemmung selbst bleibt richtig und nötig (Web Mercator kennt den
+    # 90. Breitengrad nicht, siehe `_test_bbox_clamps_to_the_projection`);
+    # was hier abgewiesen wird, ist der Tippfehler davor.
+    if west < -180.0 or east > 180.0:
+        raise SystemExit(
+            f"--bbox {text}: longitude outside -180..180 — a typo here is "
+            "clamped to the edge of the world and still reports a size")
+    if south < -90.0 or north > 90.0:
+        raise SystemExit(
+            f"--bbox {text}: latitude outside -90..90 — a typo here is "
+            "clamped to the edge of the world and still reports a size")
     return west, south, east, north
 
 
@@ -888,6 +1003,8 @@ def self_test():
     _test_plan_counts_shared_content_once()
     _test_leaf_pointer_is_not_a_tile()
     _test_check_fails_on_a_wrong_tile()
+    _test_check_fails_on_the_wrong_region()
+    _test_bbox_rejects_nonsense()
     _test_http_source_insists_on_range()
     print("map_tiles self-test: ok")
 
@@ -1100,8 +1217,9 @@ def _test_check_fails_on_a_wrong_tile():
             handle.write(_build_archive(spoiled, leaf_size=8))
 
         def run(extract):
-            args = argparse.Namespace(source=source_path, extract=extract,
-                                      samples=1000, seed=1)
+            args = argparse.Namespace(
+                source=source_path, extract=extract, samples=1000, seed=1,
+                bbox="-180,-85,180,85", maxzoom=3)
             with contextlib.redirect_stdout(io.StringIO()) as captured:
                 code = command_check(args)
             return code, captured.getvalue()
@@ -1111,6 +1229,77 @@ def _test_check_fails_on_a_wrong_tile():
         code, output = run(bad_path)
         assert code == 1, "a spoiled extract must fail"
         assert "z3/4/4" in output, output
+
+
+def _test_check_fails_on_the_wrong_region():
+    """The failure the old `check` could not see — and the reason for #496.
+
+    Every tile in this extract is the source's own byte string; nothing in
+    it is stale, truncated or corrupt. It is simply the WRONG HALF of the
+    world. Sampling from what the extract holds — the only direction the
+    first version had — passes it with every single sample matching, and
+    the browser then shows a map that is blank exactly where somebody
+    walks.
+
+    Two guards in one: the eastern half must fail against a western bbox,
+    and the full extract must still pass, so the coverage check cannot be
+    satisfied by simply always failing.
+    """
+    source_tiles = _fixture_tiles()
+    west_only = {key: value for key, value in source_tiles.items()
+                 if key[0] <= 3 and key[1] < (1 << key[0]) / 2}
+    everything = {key: value for key, value in source_tiles.items()
+                  if key[0] <= 3}
+
+    with tempfile.TemporaryDirectory() as folder:
+        source_path = os.path.join(folder, "source.pmtiles")
+        half_path = os.path.join(folder, "half.pmtiles")
+        full_path = os.path.join(folder, "full.pmtiles")
+        with open(source_path, "wb") as handle:
+            handle.write(_build_archive(source_tiles, leaf_size=16))
+        with open(half_path, "wb") as handle:
+            handle.write(_build_archive(west_only, leaf_size=8))
+        with open(full_path, "wb") as handle:
+            handle.write(_build_archive(everything, leaf_size=8))
+
+        def run(extract, bbox):
+            args = argparse.Namespace(
+                source=source_path, extract=extract, samples=400, seed=7,
+                bbox=bbox, maxzoom=3)
+            with contextlib.redirect_stdout(io.StringIO()) as captured:
+                code = command_check(args)
+            return code, captured.getvalue()
+
+        # Asked for the whole world, given the western half.
+        code, output = run(half_path, "-180,-85,180,85")
+        assert code == 1, f"a half extract must fail coverage:\n{output}"
+        assert "MISSING" in output, output
+        # The same archive is correct for the area it really covers.
+        code, output = run(half_path, "-180,-85,-1,85")
+        assert code == 0, f"the western half must pass a western bbox:\n{output}"
+        # And a complete extract must not be failed by the new direction.
+        code, output = run(full_path, "-180,-85,180,85")
+        assert code == 0, f"a complete extract must pass:\n{output}"
+
+
+def _test_bbox_rejects_nonsense():
+    """A typo must stop the run, not produce a plausible size.
+
+    `lonlat_to_tile` clamps, and clamping is right — Web Mercator has no
+    90th parallel. But clamping a TYPO turns `500,600,700,800` into a
+    one-tile sliver at the edge of the world, for which `plan` reports a
+    perfectly believable "fits (1 % of budget)". That number then decides
+    the cut, and the cut decides where the map is blank.
+    """
+    assert parse_bbox("5.5,45.5,17.5,55.5") == (5.5, 45.5, 17.5, 55.5)
+    for bad in ("500,600,700,800", "-181,45,17,55", "5,45,181,55",
+                "5,-91,17,55", "5,45,17,91", "5,45,17", "a,b,c,d",
+                "17.5,45.5,5.5,55.5"):
+        try:
+            parse_bbox(bad)
+        except SystemExit:
+            continue
+        raise AssertionError(f"--bbox {bad} was accepted")
 
 
 def _test_http_source_insists_on_range():
@@ -1201,6 +1390,15 @@ def main():
     check = sub.add_parser("check", help="compare an extract against its source")
     check.add_argument("--source", required=True)
     check.add_argument("--extract", required=True)
+    # Beide sind Pflicht, obwohl der Auszug seine Bbox im Header trägt.
+    # Genau den zu glauben hieße, den Verdächtigen nach seinem Alibi zu
+    # fragen: Ein bei der falschen Bbox geschnittenes Archiv behauptet
+    # widerspruchsfrei die falsche Bbox. Geprüft wird gegen das, was
+    # bestellt war — `tool/map_areas.json`.
+    check.add_argument("--bbox", required=True,
+                       help="west,south,east,north the extract should cover")
+    check.add_argument("--maxzoom", type=int, required=True,
+                       help="highest zoom the extract was asked for")
     check.add_argument("--samples", type=int, default=24)
     check.add_argument("--seed", type=int, default=20260921)
 

@@ -72,9 +72,10 @@ jobs:
   maps:
     name: Measure and publish map extracts
     runs-on: ubuntu-latest
-    # Only the mirror push needs it, and only in publish mode. On the
-    # workflow level this would also cover the plan runs, which write
-    # nothing at all.
+    # Only the mirror push actually needs this. Job-level is as narrow as
+    # GitHub goes — there is no per-step scope — so it covers the `plan`
+    # runs too, which write nothing at all. Worth saying plainly rather
+    # than letting the comment claim a separation that does not exist.
     permissions:
       contents: write
     # Publish mode moves real data: a planet extract reads a few hundred
@@ -89,19 +90,29 @@ jobs:
         # is not enough — some CDNs answer HEAD differently from GET — so
         # the probe asks for ONE byte and insists on a 206. That also
         # proves the host serves ranges before we spend an hour on it.
+        #
+        # `-L` is not cosmetic: the reader (`urllib` in map_tiles.py)
+        # follows redirects, so a probe that does NOT would disagree with
+        # it about the very same URL — and disagree silently, because a
+        # 302 simply is not 206. Ten of those in a row produced the error
+        # message below, which named the host's Range support as the
+        # cause. A guard may be wrong, but it must never invent the
+        # reason: the last seen status code is now part of the message.
         run: |
           set -euo pipefail
           found=""
+          last=""
           for back in $(seq 0 9); do
             day=$(date -u -d "-${back} day" +%Y%m%d)
             url="https://build.protomaps.com/${day}.pmtiles"
-            code=$(curl -sS -o /dev/null -w '%{http_code}' \
+            code=$(curl -sSL -o /dev/null -w '%{http_code}' \
                      -r 0-0 --max-time 60 "$url" || echo "000")
             echo "  $day -> $code"
+            last="$day:$code"
             if [ "$code" = "206" ]; then found="$url"; echo "build=$day" >> "$GITHUB_OUTPUT"; break; fi
           done
           if [ -z "$found" ]; then
-            echo "::error::No Protomaps daily build answered a Range request in the last 10 days."
+            echo "::error::No Protomaps daily build answered a Range request in the last 10 days (last probe: ${last}). 000 means the host was unreachable, 4xx/5xx that it answered but refused, 200 that it ignored Range. Only the last of those is about Range support."
             exit 1
           fi
           echo "url=$found" >> "$GITHUB_OUTPUT"
@@ -130,9 +141,16 @@ jobs:
               print("| asked | measured | estimated file | verdict |")
               print("|---|---|---|---|")
               for zoom in zooms:
+                  # `--bbox=…` und nicht `--bbox …`: Eine westliche Länge
+                  # ist negativ, und argparse liest ein führendes Minus
+                  # als Option — `--bbox -5.5,45,…` scheitert mit
+                  # „expected one argument". DACH fängt bei 5,5 an und
+                  # fällt deshalb heute nicht auf; jeder Zuschnitt
+                  # westlich von Greenwich schon.
                   out = subprocess.run(
                       ["python3", "tool/map_tiles.py", "plan",
-                       "--source", source, "--bbox", bbox, "--maxzoom", zoom],
+                       "--source", source, f"--bbox={bbox}",
+                       f"--maxzoom={zoom}"],
                       capture_output=True, text=True)
                   size = verdict = span = "?"
                   for line in out.stdout.splitlines():
@@ -205,8 +223,16 @@ jobs:
                   # rejected by raw, it is rejected by the PUSH, which
                   # would fail three steps later with a git error that
                   # says nothing about maps.
-                  print(f"::error::{key}.pmtiles is {size / 1e6:.0f} MB, over "
-                        f"the {limit / 1e6:.0f} MB raw.githubusercontent.com "
+                  # Durch 1048576, nicht durch 1e6: `limit` sind
+                  # 100 * 1024 * 1024, und durch 1e6 geteilt stünde in der
+                  # Fehlermeldung „105 MB" als Grenze — eine Zahl, die
+                  # nirgends sonst im Projekt vorkommt und die beim
+                  # Nachrechnen niemand wiederfindet. Derselbe Teiler wie
+                  # in `human()` im Werkzeug, damit beide Ausgaben
+                  # dieselbe Grenze nennen.
+                  print(f"::error::{key}.pmtiles is {size / 1048576:.0f} MB, "
+                        f"over the {limit // 1048576} MB "
+                        "raw.githubusercontent.com "
                         "limit. Lower --maxzoom or split the area in "
                         "tool/map_areas.json — run the workflow in plan mode "
                         "to see where it fits.")
@@ -215,9 +241,18 @@ jobs:
               # An extract that holds the wrong tiles is a valid archive.
               # In the browser that reads as "the map is blank here", with
               # no error anywhere, so it gets proven here instead.
+              #
+              # The bbox and the maxzoom come from what was ORDERED, not
+              # from the extract's own header: an archive cut with the
+              # wrong bbox states that wrong bbox without contradicting
+              # itself. `check` needs both to prove coverage, and without
+              # coverage it proves only that nothing in the file is
+              # foreign — which the wrong region passes.
               subprocess.run(
                   ["python3", "tool/map_tiles.py", "check",
-                   "--source", source, "--extract", path],
+                   "--source", source, "--extract", path,
+                   f"--bbox={west},{south},{east},{north}",
+                   f"--maxzoom={maxzoom}", "--samples=80"],
                   check=True)
 
               digest = hashlib.sha256()
@@ -252,7 +287,7 @@ jobs:
               for entry in areas:
                   share = entry["bytes"] / limit
                   summary.write(f"| {entry['name']} | "
-                                f"{entry['bytes'] / 1e6:.1f} MB | "
+                                f"{entry['bytes'] / 1048576:.1f} MB | "
                                 f"{share:.0%} |\n")
           PY
 

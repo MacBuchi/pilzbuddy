@@ -82,8 +82,22 @@ jobs:
           # offiziellen `pmtiles`-Werkzeug. Ein synthetisches Fixture
           # prüft nur, ob unser Leser zu unserem eigenen Schreiber passt
           # — beide könnten dieselbe falsche Annahme tragen.
+          #
+          # `info` allein reichte dafür NICHT: Es liest Header und
+          # Metadaten und fasst nie ein Verzeichnis an — also genau den
+          # verwickelten Teil nicht (Varints, Delta-kodierte tile_id,
+          # run_length, Leaf-Rekursion, Hilbert-Kurve). `plan` läuft durch
+          # den ganzen Baum, und `check` der Datei gegen SICH SELBST übt
+          # zusätzlich `find()` und das Lesen echter Kachelbytes.
           python3 tool/map_tiles.py info \
             --source assets/offline_maps/overview_dach.pmtiles > /dev/null
+          python3 tool/map_tiles.py plan \
+            --source assets/offline_maps/overview_dach.pmtiles \
+            --bbox=5.5,45.5,17.5,55.5 --maxzoom=7 > /dev/null
+          python3 tool/map_tiles.py check \
+            --source assets/offline_maps/overview_dach.pmtiles \
+            --extract assets/offline_maps/overview_dach.pmtiles \
+            --bbox=5.5,45.5,17.5,55.5 --maxzoom=7 > /dev/null
           # Der einzige Shell-Wächter hier: Die app_config-Diagnose des
           # Schema Checks. Sie stand bis zum 2026-09-12 unter jeder
           # Ursache auf „hat keine Zeile" — auch wenn nur die Antwort
