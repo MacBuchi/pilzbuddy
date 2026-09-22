@@ -11,6 +11,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pilzbuddy/core/widgets/season_bars.dart';
 import 'package:pilzbuddy/core/species_edibility.dart';
 import 'package:pilzbuddy/core/species_photos.dart';
+import 'package:pilzbuddy/features/species/species_catalogue.dart';
 import 'package:pilzbuddy/features/map/gbif_finds_providers.dart';
 import 'package:pilzbuddy/features/species/species_detail_screen.dart';
 import 'package:pilzbuddy/features/species/species_screen.dart';
@@ -484,88 +485,110 @@ void main() {
     expect(find.textContaining('GALLERTARTIG'), findsOneWidget);
   });
 
-  testWidgets('das Bildpaar steht in der Verwechslungszeile — mit '
-      'Namensnennung', (tester) async {
+  testWidgets('der Partner steht im Streifen, hinter der Trennung',
+      (tester) async {
+    // **Die Gegenueberstellung sitzt seit 1.174.0 in EINER Reihe.**
+    // Vorher lag sie in der Verwechslungszeile — und seit die harmlosen
+    // Zeilen einklappen, konnte sie hinter einem Tipp verschwinden.
     final (backend, _) = loggedInBackend();
     await pumpApp(tester, backend);
     await openSpecies(tester, 'Stockschwämmchen');
 
-    // Beide Bilder, nebeneinander in derselben Zeile.
-    expect(
-        find.image(const AssetImage(
-            'assets/species/stockschwaemmchen.webp')),
+    await scrollDetail(tester, find.text('Bilder'));
+    expect(find.image(const AssetImage('assets/species/stockschwaemmchen.webp')),
         findsOneWidget);
     expect(find.image(const AssetImage('assets/species/gifthaeubling.webp')),
         findsOneWidget);
-    // Und der Screenreader hört, was das Bild ist — Inhalt, kein Schmuck.
-    expect(find.bySemanticsLabel('Gifthäubling, Foto'), findsOneWidget);
-    // **Die Namensnennung steht AM Bild**, nicht nur auf der
-    // Lizenzseite — bei CC-BY ist das die Bedingung.
-    expect(find.text(photoCredit(speciesPhotos['Stockschwämmchen']!)),
+    // Der Screenreader hoert, dass das zweite Bild NICHT der gesuchte
+    // Pilz ist — die Unterschrift traegt die Aussage, nicht die Farbe.
+    expect(find.bySemanticsLabel('Stockschwämmchen, Foto'), findsOneWidget);
+    expect(
+        find.bySemanticsLabel('Gifthäubling, Verwechslungspartner, Foto'),
         findsOneWidget);
-    expect(find.text(photoCredit(speciesPhotos['Gifthäubling']!)),
-        findsOneWidget);
+    // Und dazwischen liegt die sichtbare Grenze.
+    expect(find.byKey(kPictureStripDividerKey), findsOneWidget);
+    // Namensnennung am Ort der Verwendung: JEDER Urheber der gezeigten
+    // Bilder steht in der Zeile darunter. Bei CC-BY ist das die
+    // Bedingung, unter der wir sie ueberhaupt ausliefern duerfen.
+    for (final art in ['Stockschwämmchen', 'Gifthäubling']) {
+      expect(find.textContaining(speciesPhotos[art]!.author), findsOneWidget,
+          reason: art);
+    }
   });
 
-  testWidgets('ohne Bild für den Partner bleibt die Zeile bildlos',
-      (tester) async {
-    // Ein einzelnes Bild zeigt, wie EINER von beiden aussieht — und das
-    // genügt zum Verwechseln. Der Steinpilz hat keines, der
-    // Gallenröhrling auch nicht; die Zeile steht trotzdem.
+  testWidgets('ohne eigenes Bild bleibt der Streifen weg — auch wenn der '
+      'Partner eines hat', (tester) async {
+    // **„Zwei oder keines" gilt weiter, nur an anderer Stelle.** Die
+    // Regel war nie „ein Bild ist zu wenig", sondern „ein Bild loest
+    // eine Verwechslung nicht auf". Ein Partnerbild ohne den eigenen
+    // Pilz daneben zeigt einen Pilz, den man gerade NICHT sucht.
     final (backend, _) = loggedInBackend();
     await pumpApp(tester, backend);
-    await openSpecies(tester, 'Steinpilz');
+    await openSpecies(tester, 'Frauentäubling');
 
-    expect(find.text('Gallenröhrling'), findsOneWidget);
+    expect(ownPictures('Frauentäubling'), isEmpty);
+    expect(photoFor('Grüner Knollenblätterpilz'), isNotNull,
+        reason: 'der Partner haette eines');
+    await scrollDetail(tester, find.text('Merkmale'));
+    expect(find.text('Bilder'), findsNothing);
     expect(
         find.descendant(
-            of: find.byType(SpeciesDetailScreen),
-            matching: find.byType(Image)),
+            of: find.byType(SpeciesDetailScreen), matching: find.byType(Image)),
         findsNothing);
   });
 
-  testWidgets('einseitig bebildert heißt: gar kein Bild', (tester) async {
-    // **Der Fall, den es in den Daten wirklich gibt.** Der Grüne
-    // Knollenblätterpilz hat ein Bild, sein Partner Frauentäubling
-    // nicht — dort bleibt die Zeile bildlos, während die Zeile zum
-    // Wiesenchampignon zwei zeigt. Ein einzelnes Bild zeigt, wie EINER
-    // von beiden aussieht, und das genügt zum Verwechseln.
+  testWidgets('Rahmen nur bei Warnung, nie ein gruener', (tester) async {
+    // **Die Asymmetrie in Rahmenform.** „Speisepilz bekommt bewusst
+    // kein Gruen" steht so an `Edibility.isWarning` — Gruen laese sich
+    // als Freigabe, und freigeben kann die App nichts. Der eigene Pilz
+    // und ein harmloser Partner bekommen deshalb den neutralen Rand.
     final (backend, _) = loggedInBackend();
     await pumpApp(tester, backend);
-    await openSpecies(tester, 'Grüner Knollenblätterpilz');
+    await openSpecies(tester, 'Stockschwämmchen');
+    await scrollDetail(tester, find.text('Bilder'));
 
-    await scrollDetail(tester, find.byKey(lookalikeRowKey('Frauentäubling')));
-    expect(
-        find.descendant(
-            of: find.byKey(lookalikeRowKey('Frauentäubling')),
-            matching: find.byType(Image)),
-        findsNothing);
+    Border randVon(String art) {
+      final kachel = find.descendant(
+          of: find.byKey(pictureTileKey(speciesPhotos[art]!.asset)),
+          matching: find.byType(Container));
+      final deko = tester.widget<Container>(kachel.first).decoration;
+      return (deko as BoxDecoration).border! as Border;
+    }
 
-    await scrollDetail(
-        tester, find.byKey(lookalikeRowKey('Wiesenchampignon')));
-    expect(
-        find.descendant(
-            of: find.byKey(lookalikeRowKey('Wiesenchampignon')),
-            matching: find.byType(Image)),
-        findsNWidgets(2));
+    final gift = randVon('Gifthäubling');
+    final eigen = randVon('Stockschwämmchen');
+    // Der toedliche Partner traegt einen dicken, farbigen Rand.
+    expect(gift.top.width, greaterThan(eigen.top.width),
+        reason: 'die Warnung ist auch ohne Farbsehen zu erkennen');
+    expect(gift.top.color, isNot(eigen.top.color));
+    // Und der eigene Pilz traegt NIE eine Signalfarbe — kein Gruen,
+    // kein Rot. Sein Rand ist der der Trennlinien.
+    final theme = Theme.of(tester.element(find.byType(SpeciesDetailScreen)));
+    expect(eigen.top.color, theme.dividerColor);
+    expect(gift.top.color, theme.colorScheme.error);
   });
 
-  testWidgets('die Porträtreihe steht unter den Warnungen, mit Nennung',
+  testWidgets('der Streifen zeigt erst den Pilz, dann was er nicht ist',
       (tester) async {
     final (backend, _) = loggedInBackend();
     await pumpApp(tester, backend);
     await openSpecies(tester, 'Fliegenpilz');
 
     await scrollDetail(tester, find.text('Bilder'));
-    expect(find.text('Bilder'), findsOneWidget);
-    // Alle drei Bilder der Reihe, nicht nur das erste: Die Serie IST die
-    // Aussage — eine Art sieht je nach Alter verschieden aus.
+    // Alle drei eigenen Bilder: Die Serie IST die Aussage — eine Art
+    // sieht je nach Alter verschieden aus.
     for (var i = 1; i <= 3; i++) {
       expect(find.image(AssetImage('assets/species/fliegenpilz-$i.webp')),
           findsOneWidget);
     }
-    // Die Nennung kommt aus der Tabelle, nicht aus dem Code.
-    expect(find.text('Fotos: MacBuchi'), findsOneWidget);
+    // **Die Reihenfolge ist die Zusage.** Der eigene Pilz steht links
+    // der Trennung, die Partner rechts davon.
+    final trennung = find.byKey(kPictureStripDividerKey);
+    expect(trennung, findsOneWidget);
+    final eigenes = tester.getTopLeft(
+        find.byKey(pictureTileKey('assets/species/fliegenpilz-1.webp')));
+    expect(eigenes.dx, lessThan(tester.getTopLeft(trennung).dx));
+    expect(find.textContaining('MacBuchi'), findsOneWidget);
   });
 
   testWidgets('der Hinweis steht da, seine Begründung erst auf Tippen',
@@ -624,25 +647,27 @@ void main() {
     expect(find.text('Bilder'), findsNothing);
   });
 
-  testWidgets('kein Bild am Seitenkopf — erst die Warnung, dann das Bild',
+  testWidgets('kein Bild am Seitenkopf - erst die Warnung, dann das Bild',
       (tester) async {
-    // **Die Entscheidung, die beide Bildarten trägt.** Seit 1.170.0 gibt
-    // es Porträts, aber NICHT über der Einstufung: Ein Bild am Seitenkopf
-    // läse sich als „so sieht er aus, das genügt" — genau die Erwartung,
-    // die der Hinweis darunter zurücknimmt.
+    // **Die Entscheidung, die den Streifen traegt.** Ein Bild am
+    // Seitenkopf laese sich als „so sieht er aus, das genuegt" - genau
+    // die Erwartung, die der Hinweis darunter zuruecknimmt.
     final (backend, _) = loggedInBackend();
     await pumpApp(tester, backend);
     await openSpecies(tester, 'Perlpilz');
 
-    // Gemessen statt gezählt: Es gibt Bilder auf dieser Seite — aber
-    // KEINES über der Einstufung. Ein bloßes „findsNothing" wäre auch
-    // dann grün, wenn es überhaupt keine gäbe.
-    final images = find.byType(Image);
-    expect(images, findsWidgets);
-    final card = tester.getTopLeft(find.byKey(kEdibilityCardKey)).dy;
-    for (var i = 0; i < images.evaluate().length; i++) {
-      expect(tester.getTopLeft(images.at(i)).dy, greaterThan(card),
-          reason: 'ein Bild steht über der Einstufung');
-    }
+    // **Verankert, nicht bloss abwesend.** Oben auf der Seite steht die
+    // Einstufung und KEIN Bild; ein blosses „findsNothing" waere auch
+    // dann gruen, wenn es auf der ganzen Seite keines gaebe. Der zweite
+    // Teil zeigt, dass es welche gibt.
+    expect(find.byKey(kEdibilityCardKey), findsOneWidget);
+    expect(
+        find.descendant(
+            of: find.byType(SpeciesDetailScreen), matching: find.byType(Image)),
+        findsNothing,
+        reason: 'ueber der Einstufung steht kein Bild');
+
+    await scrollDetail(tester, find.text('Bilder'));
+    expect(find.byType(Image), findsWidgets);
   });
 }

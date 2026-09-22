@@ -318,6 +318,39 @@ bool speciesMatchesQuery(String name, String query) {
 /// Auflage wie bei [SpeciesSuggestion.isGuess] im Eingabefeld: Ein
 /// geratener Treffer, der aussieht wie ein gefundener, ist eine
 /// Behauptung über die Eingabe des Nutzers.
+/// Die Bilder der Art SELBST, für den Bildstreifen.
+///
+/// **Das Porträt zuerst, das Paarbild als Rückfall.** Seit 1.170.0 gibt
+/// es beides: eine eigene Reihe und, älter, ein einzelnes Bild für die
+/// Gegenüberstellung. Wo eine Art nur das zweite hat — Stockschwämmchen
+/// und Samtfußrübling sind die Fälle —, trägt es den Streifen allein,
+/// sonst stünde der Partner ohne Gegenstück da.
+List<SpeciesPhoto> ownPictures(String name) {
+  final portraits = portraitsFor(name);
+  if (portraits.isNotEmpty) return portraits;
+  final single = photoFor(name);
+  return single == null ? const [] : [single];
+}
+
+/// Die Bilder der Verwechslungspartner, in der Reihenfolge der Liste.
+///
+/// **„Zwei oder keines" gilt weiter, nur an anderer Stelle.** Die Regel
+/// war nie „ein Bild ist zu wenig", sondern „ein Bild löst eine
+/// Verwechslung nicht auf". Der Aufrufer zeigt diese Liste deshalb nur,
+/// wenn [ownPictures] etwas hergibt — ein Partnerbild ohne den eigenen
+/// Pilz daneben zeigt einen Pilz, den man gerade NICHT sucht, und das
+/// ist schlimmer als kein Bild.
+List<({String species, SpeciesPhoto photo})> partnerPictures(
+    SpeciesDetail detail) {
+  final out = <({String species, SpeciesPhoto photo})>[];
+  for (final partner in detail.lookalikes) {
+    final photo = photoFor(partner.species);
+    if (photo != null) out.add((species: partner.species, photo: photo));
+  }
+  return out;
+}
+
+
 typedef SpeciesSearch = ({Set<String> names, bool isGuess});
 
 /// Die Arten, die zu [query] passen — Hauptbezeichnungen.
