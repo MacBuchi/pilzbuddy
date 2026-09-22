@@ -353,8 +353,25 @@ List<({String species, SpeciesPhoto photo})> partnerPictures(
     final photo = photoFor(partner.species);
     if (photo != null) out.add((species: partner.species, photo: photo));
   }
-  return out;
+  return onlyWithOwn(ownPictures(detail.name), out);
 }
+
+/// „Zwei oder keines": Partnerbilder nur, wenn die Art SELBST eines hat.
+///
+/// **Als eigene Funktion, damit die Regel prüfbar bleibt.** Sie stand
+/// bis 1.176.0 als Bedingung im Bildstreifen und hing damit daran, dass
+/// die Daten zufällig eine Art ohne eigenes Bild mit bebildertem
+/// Partner enthielten. Dreimal musste der Test dafür eine neue Art
+/// bekommen; nach der zweiten Commons-Tranche gab es keine mehr, und
+/// die Gegenprobe blieb grün, obwohl der Riegel entfernt war.
+///
+/// Über zwei Listen ist sie unabhängig vom Datenbestand rot zu
+/// bekommen. Der Fall selbst kommt heute nicht vor — der Riegel bleibt
+/// trotzdem, wie der ungenutzte `sci`-Zweig bei den GBIF-Meldungen:
+/// Ein Bild wird ersetzt, ein Partner kommt dazu, und dann zählt er
+/// wieder.
+List<T> onlyWithOwn<T>(List<SpeciesPhoto> own, List<T> partners) =>
+    own.isEmpty ? const [] : partners;
 
 
 typedef SpeciesSearch = ({Set<String> names, bool isGuess});

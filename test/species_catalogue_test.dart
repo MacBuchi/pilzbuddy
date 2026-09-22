@@ -335,4 +335,32 @@ void main() {
     expect(mitBild.length, speciesPortraits.length + nurPaar);
   });
 
+
+  test('„zwei oder keines": ohne eigenes Bild keine Partnerbilder', () {
+    // **Über zwei Listen geprüft, nicht über den Datenbestand.** Die
+    // Regel hing bis 1.176.0 daran, dass es zufällig eine Art ohne
+    // eigenes Bild mit bebildertem Partner gab. Dreimal musste der Test
+    // dafür eine neue Art bekommen; nach der zweiten Commons-Tranche
+    // gab es keine mehr, und die Gegenprobe blieb grün, obwohl der
+    // Riegel entfernt war. So ist sie unabhängig davon rot zu bekommen.
+    final bild = speciesPhotos.values.first;
+    expect(onlyWithOwn<int>(const [], [1, 2]), isEmpty);
+    expect(onlyWithOwn<int>([bild], [1, 2]), [1, 2]);
+    expect(onlyWithOwn<int>([bild], const []), isEmpty);
+  });
+
+  test('der Riegel greift auch am echten Modell', () {
+    // Die Gegenrichtung am Bestand: Wo es ein eigenes Bild gibt, kommen
+    // die Partner durch. Den anderen Fall gibt es heute nicht mehr —
+    // jede Art mit bebildertem Partner hat selbst eines.
+    final detail = speciesDetailFor('Steinpilz', month: 9)!;
+    expect(ownPictures('Steinpilz'), isNotEmpty);
+    expect(partnerPictures(detail), isNotEmpty);
+    for (final sp in kBekannteArten) {
+      if (sp.isSynonym || ownPictures(sp.name).isNotEmpty) continue;
+      final d = speciesDetailFor(sp.name, month: 9);
+      if (d != null) expect(partnerPictures(d), isEmpty, reason: sp.name);
+    }
+  });
+
 }

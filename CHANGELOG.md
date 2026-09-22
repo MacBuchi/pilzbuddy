@@ -7,6 +7,25 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Jede Art, die warnt, zeigt jetzt auch ein Bild
+
+*22. September 2026 · Version 1.176.0*
+
+Vierzehn giftige, tödlich giftige und umstrittene Arten standen bisher
+ohne Bild da. Eine Seite, die warnt, sollte aber zeigen, wovor.
+
+Dazugekommen sind Kahler Krempling, Frühjahrsknollenblätterpilz,
+Orangefuchsiger und Spitzgebuckelter Raukopf, Grünling, Riesenrötling,
+Speitäubling, Tigerritterling, Ziegelroter Risspilz, Nebelkappe,
+Böhmische Verpel, Fuchsiger Rötelritterling, Safranschirmling und
+Ziegenbart.
+
+Damit haben 57 der 92 Arten ein Bild. Die verbleibenden 35 sind alle
+Speisepilze oder „nur gegart".
+
+Wie bei der ersten Tranche sind auch diese Bilder von Wikimedia Commons
+und stehen dort, bis eigene Aufnahmen sie ersetzen.
+
 ## Klarerer Hinweis unter den Bildern
 
 *22. September 2026 · Version 1.175.1*

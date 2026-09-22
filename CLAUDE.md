@@ -1407,6 +1407,17 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
       Die Bilder liegen im Binary, die Adresse ist Quellenangabe.
       Geholt werden sie von `tool/species_photos.py` — das Werkzeug
       erzeugt die Assets Byte-genau reproduzierbar.
+    - **„Zwei oder keines" ist seit 1.176.0 eine FUNKTION**
+      (`onlyWithOwn`), keine Bedingung im Widget. Sie hing sonst daran,
+      dass es zufällig eine Art ohne eigenes Bild mit bebildertem
+      Partner gibt: Dreimal musste der Flow-Test dafür eine neue Art
+      bekommen, und nach der zweiten Commons-Tranche gab es keine mehr
+      — die Gegenprobe blieb grün, obwohl der Riegel entfernt war. Über
+      zwei Listen geprüft ist die Regel unabhängig vom Datenbestand rot
+      zu bekommen. Der Riegel bleibt, obwohl der Fall heute nicht
+      vorkommt: Ein Bild wird ersetzt, ein Partner kommt dazu, und dann
+      zählt er wieder.
+
     - **Alle Bilder stehen in EINEM Streifen** (seit 1.174.0): links
       die Art selbst, dann eine sichtbare Trennung, rechts ihre
       Verwechslungspartner. Vorher saß das Paar in der
