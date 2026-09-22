@@ -438,6 +438,157 @@ const speciesPortraits = <String, List<SpeciesPhoto>>{
       source: 'Eigene Aufnahme',
     ),
   ],
+  // ── Aus Wikimedia Commons, bis eigene Bilder da sind ─────────────
+  //
+  // **Jedes hier ist ein Platzhalter.** Sie stehen da, weil eine
+  // Verwechslungszeile ohne Gegenstück nur die halbe Frage stellt: Bei
+  // allen 16 hatte der Partner schon ein Bild und diese Art nicht. Wer
+  // eine davon selbst fotografiert, ersetzt den Eintrag — der
+  // Fotokatalog im privaten Repo führt, welche noch offen sind.
+  'Bronzeröhrling': [
+    (
+      asset: 'assets/species/bronzeroehrling-1.webp',
+      author: 'Paffka, Bearbeitung Xth-Floor',
+      licence: 'CC BY-SA 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/3.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Boletus_aereusBG_crop.jpg',
+    ),
+  ],
+  'Edelreizker': [
+    (
+      asset: 'assets/species/edelreizker-1.webp',
+      author: 'Ian Sutton from Collinsville and Oberon, Australia',
+      licence: 'CC BY 2.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by/2.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Lactarius_deliciosus_1_(1).jpg',
+    ),
+  ],
+  'Frauentäubling': [
+    (
+      asset: 'assets/species/frauentaeubling-1.webp',
+      author: 'Holger Krisp',
+      licence: 'CC BY 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by/3.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Frauen-T%C3%A4ubling_Russula_cyanoxantha.jpg',
+    ),
+  ],
+  'Gallenröhrling': [
+    (
+      asset: 'assets/species/gallenroehrling-1.webp',
+      author: 'Holger Krisp',
+      licence: 'CC BY 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by/3.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Gemeine_Gallenr%C3%B6hrling_Tylopilus_felleus.jpg',
+    ),
+  ],
+  'Grüngefelderter Täubling': [
+    (
+      asset: 'assets/species/gruengefeldertertaeubling-1.webp',
+      author: 'Bubbah63',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Gol%C4%8Duba%C4%8Da_3.JPG',
+    ),
+  ],
+  'Karbolchampignon': [
+    (
+      asset: 'assets/species/karbolchampignon-1.webp',
+      author: 'Ron Pastorino (Mushroom Observer)',
+      licence: 'CC BY-SA 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/3.0',
+      source: 'https://commons.wikimedia.org/wiki/File:2012-04-19_Agaricus_xanthodermus_Genev_213787.jpg',
+    ),
+  ],
+  'Kegelhütiger Knollenblätterpilz': [
+    (
+      asset: 'assets/species/kegelhuetigerknollenblaetterpilz-1.webp',
+      author: 'Quartl',
+      licence: 'CC BY-SA 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/3.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Amanita_virosa_qtl1.jpg',
+    ),
+  ],
+  'Kiefernsteinpilz': [
+    (
+      asset: 'assets/species/kiefernsteinpilz-1.webp',
+      author: 'LitvinovSS, Bearbeitung Ak ccm',
+      licence: 'CC BY 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by/3.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Boletus_pinophilus_cropped.jpg',
+    ),
+  ],
+  'Lachsreizker': [
+    (
+      asset: 'assets/species/lachsreizker-1.webp',
+      author: 'Holger Krisp',
+      licence: 'CC BY 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by/3.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Lachs-Reizker_(Lactarius_salmonicolor).JPG',
+    ),
+  ],
+  'Lungenseitling': [
+    (
+      asset: 'assets/species/lungenseitling-1.webp',
+      author: 'Amanita77',
+      licence: 'CC BY-SA 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/3.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Pleurotus_pulmonarius.001.COPY.jpg',
+    ),
+  ],
+  'Netzstieliger Hexenröhrling': [
+    (
+      asset: 'assets/species/netzstieligerhexenroehrling-1.webp',
+      author: 'George Chernilevsky',
+      licence: 'Public domain',
+      licenceUrl: 'https://creativecommons.org/publicdomain/mark/1.0/',
+      source: 'https://commons.wikimedia.org/wiki/File:Boletus_luridus_2011_G1.jpg',
+    ),
+  ],
+  'Pfifferling': [
+    (
+      asset: 'assets/species/pfifferling-1.webp',
+      author: 'Heisenberg-pl',
+      licence: 'CC BY-SA 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/3.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Cantharellus_cibarius_20090717-02.jpg',
+    ),
+  ],
+  'Scheidenstreifling': [
+    (
+      asset: 'assets/species/scheidenstreifling-1.webp',
+      author: 'Stu\'s Images',
+      licence: 'CC BY-SA 3.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/3.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Amanita_vaginata,_Grisette,_UK.jpg',
+    ),
+  ],
+  'Schönfußröhrling': [
+    (
+      asset: 'assets/species/schoenfussroehrling-1.webp',
+      author: 'Jerzy Opioła',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'https://commons.wikimedia.org/wiki/File:Boletus_calopus_a1.jpg',
+    ),
+  ],
+  'Sommersteinpilz': [
+    (
+      asset: 'assets/species/sommersteinpilz-1.webp',
+      author: 'Archenzo, Bearbeitung Ak ccm',
+      licence: 'CC BY-SA 3.0',
+      licenceUrl: 'http://creativecommons.org/licenses/by-sa/3.0/',
+      source: 'https://commons.wikimedia.org/wiki/File:2006-10-07_Boletus_aestivalis_cropped.jpg',
+    ),
+  ],
+  'Trompetenpfifferling': [
+    (
+      asset: 'assets/species/trompetenpfifferling-1.webp',
+      author: 'Ben Mitchell - Wildeep',
+      licence: 'Public domain',
+      licenceUrl: 'https://creativecommons.org/publicdomain/mark/1.0/',
+      source: 'https://commons.wikimedia.org/wiki/File:Cantharellus_tubaeformis2.JPG',
+    ),
+  ],
 };
 
 /// Die Porträts zu einem Artnamen — leer, wenn keine gepflegt sind.

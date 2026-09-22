@@ -524,11 +524,16 @@ void main() {
     // Pilz daneben zeigt einen Pilz, den man gerade NICHT sucht.
     final (backend, _) = loggedInBackend();
     await pumpApp(tester, backend);
-    await openSpecies(tester, 'Frauentäubling');
+    // **Die Art wechselt, sobald sie ein Bild bekommt.** Hier stand bis
+    // 1.175.0 der Frauentäubling; die Commons-Tranche hat ihn bebildert,
+    // und der Test wurde damit gegenstandslos statt falsch. Der
+    // Safranschirmling ist der nächste Fall: kein eigenes Bild, aber
+    // der Parasol als Partner hat eines.
+    await openSpecies(tester, 'Safranschirmling');
 
-    expect(ownPictures('Frauentäubling'), isEmpty);
-    expect(photoFor('Grüner Knollenblätterpilz'), isNotNull,
-        reason: 'der Partner haette eines');
+    expect(ownPictures('Safranschirmling'), isEmpty);
+    expect(ownPictures('Parasol'), isNotEmpty,
+        reason: 'der Partner hätte eines');
     await scrollDetail(tester, find.text('Merkmale'));
     expect(find.text('Bilder'), findsNothing);
     expect(
