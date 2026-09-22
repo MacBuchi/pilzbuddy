@@ -1718,6 +1718,15 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     `docs/datenschutz-nachweise.md` sind im selben PR mitgezogen. Der
     Schema Dry Run braucht seither `[storage] enabled = true` in
     `config.toml`, sonst gibt es `storage.buckets` nicht.
+  - **Foto gleich beim Eintragen** (seit 1.188.0): Das Blatt „Fund
+    eintragen" nimmt ein `PreparedPhoto` mit und gibt es als
+    `AddFindResult` zurück; hochgeladen wird erst NACH dem Schreiben,
+    an die id des ERSTEN Fundes (`SpotRepository.addFinds` liefert die
+    ids seither, per `client_id` zugeordnet — `RETURNING` verspricht
+    keine Reihenfolge). Der Fund ist das Original: Scheitert der
+    Upload, steht er trotzdem, und die Meldung sagt beides. Wandert er
+    in den Korb, gibt es keine id und damit kein Foto — ein wartender
+    Spot bietet es deshalb gar nicht erst an.
   - **Ein Bild am Feedback** (#525, seit 1.186.0, Patch 027) läuft
     über dieselbe Naht — `PhotoAttachment` in beiden Melde-Dialogen,
     `photoPickerProvider`/`photoPreparerProvider` aus

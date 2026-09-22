@@ -22,6 +22,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/errors.dart';
+import '../../../core/photo_pipeline.dart';
 import '../../../core/widgets/photo_overlay.dart';
 import '../../../data/find_photo_repository.dart';
 import '../../../data/providers.dart';
@@ -303,15 +304,7 @@ Future<void> shareFindPhoto(
         content: Text('Foto wird vorbereitet …'),
         duration: Duration(seconds: 30)));
     final prepared = await ref.read(photoPreparerProvider)(bytes);
-    await ref
-        .read(findPhotoRepositoryProvider)
-        .share(findId: find.id, photo: prepared);
-    ref.invalidate(findPhotosProvider);
-    messenger
-      ..clearSnackBars()
-      ..showSnackBar(const SnackBar(
-          content: Text('Foto geteilt — $kFindPhotoDays Tage für deine '
-              'Buddys sichtbar.')));
+    await uploadFindPhoto(ref, messenger, findId: find.id, photo: prepared);
   } catch (e, s) {
     logError('Fundfoto teilen', e, s);
     messenger
@@ -319,3 +312,59 @@ Future<void> shareFindPhoto(
       ..showSnackBar(SnackBar(content: Text(friendlyError(e))));
   }
 }
+
+const kFindPhotoSharedMessage =
+    'Foto geteilt — $kFindPhotoDays Tage für deine Buddys sichtbar.';
+
+/// Ein schon entkerntes Foto an [findId] hängen und quittieren — der
+/// gemeinsame Schluss von [shareFindPhoto] und dem Blatt „Fund
+/// eintragen". Wirft weiter; was dann gesagt wird, weiß der Aufrufer.
+Future<void> uploadFindPhoto(
+  WidgetRef ref,
+  ScaffoldMessengerState messenger, {
+  required String findId,
+  required PreparedPhoto photo,
+}) async {
+  await ref
+      .read(findPhotoRepositoryProvider)
+      .share(findId: findId, photo: photo);
+  ref.invalidate(findPhotosProvider);
+  messenger
+    ..clearSnackBars()
+    ..showSnackBar(const SnackBar(content: Text(kFindPhotoSharedMessage)));
+}
+
+/// Nach „Fund eintragen" mit angehängtem Foto (#532 Stufe 2).
+///
+/// **Der Fund ist das Original, das Foto die Beigabe.** Scheitert der
+/// Upload, steht der Fund trotzdem — die Meldung sagt deshalb beides,
+/// und der Weg zum Nachreichen ist die Kamera am Fund. Liegt der Fund im
+/// Korb ([ids] leer), gibt es noch keine id, an die das Foto könnte;
+/// einen dritten Korb-Weg für Bilder gibt es bewusst nicht.
+Future<void> shareFreshFindPhoto(
+  WidgetRef ref,
+  ScaffoldMessengerState messenger, {
+  required List<String> ids,
+  required PreparedPhoto photo,
+}) async {
+  if (ids.isEmpty) {
+    messenger
+      ..clearSnackBars()
+      ..showSnackBar(const SnackBar(content: Text(kFindPhotoQueuedMessage)));
+    return;
+  }
+  try {
+    await uploadFindPhoto(ref, messenger, findId: ids.first, photo: photo);
+  } catch (e, s) {
+    logError('Fundfoto beim Eintragen teilen', e, s);
+    messenger
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(
+          content: Text('Fund eingetragen, das Foto nicht: '
+              '${friendlyError(e)} Du kannst es am Fund nachreichen.')));
+  }
+}
+
+const kFindPhotoQueuedMessage =
+    'Fund wartet auf Verbindung — das Foto lässt sich am Fund '
+    'nachreichen, sobald er übertragen ist.';

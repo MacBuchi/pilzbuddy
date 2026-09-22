@@ -2,9 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../core/photo_pipeline.dart';
+import '../../../core/photo_providers.dart';
+import '../../../core/widgets/photo_attachment.dart';
+import '../../../data/find_photo_repository.dart';
 import '../../../data/spot_repository.dart';
 import '../../../models/find.dart';
 import '../../../models/find_position.dart';
+import 'find_photo_strip.dart';
 import 'find_position_field.dart';
 import 'species_collector.dart';
 
@@ -16,15 +21,24 @@ import 'species_collector.dart';
 /// Artfeld, keine Anzahl, kein Sammler — nur Datum und Notiz. Der Leergang
 /// ist eine Aussage über den ORT, nicht über eine Art; die Datenbank hält
 /// das mit einem Constraint fest (`finds_blank_leer`, Patch 015).
-Future<List<NewFind>?> showAddFindSheet(
+///
+/// Mit [pickPhoto]/[preparePhoto] bietet das Blatt an, gleich ein Foto
+/// für die Buddys mitzugeben (#532 Stufe 2) — vorher ging das nur über
+/// die kleine Kamera am fertigen Fund, und die fand man erst nach
+/// Anleitung. Geholt und entkernt wird schon HIER; hochgeladen erst,
+/// wenn der Fund eine Server-id hat. Ohne die beiden bleibt der
+/// Abschnitt weg — so beim wartenden Spot, dessen Fund in den Korb geht.
+Future<AddFindResult?> showAddFindSheet(
   BuildContext context, {
   required LatLng spotAt,
   Find? lastFind,
   List<String> ownSpecies = const [],
   String? fallbackSpecies,
   bool blank = false,
+  PhotoPicker? pickPhoto,
+  PhotoPreparer? preparePhoto,
 }) {
-  return showModalBottomSheet<List<NewFind>>(
+  return showModalBottomSheet<AddFindResult>(
     context: context,
     isScrollControlled: true,
     builder: (context) => _AddFindSheet(
@@ -33,9 +47,17 @@ Future<List<NewFind>?> showAddFindSheet(
       ownSpecies: ownSpecies,
       fallbackSpecies: fallbackSpecies,
       blank: blank,
+      pickPhoto: pickPhoto,
+      preparePhoto: preparePhoto,
     ),
   );
 }
+
+/// Was das Blatt zurückgibt: die Einträge und, wenn angehängt, das
+/// Foto für den ERSTEN davon.
+typedef AddFindResult = ({List<NewFind> finds, PreparedPhoto? photo});
+
+const kFindPhotoMultiNote = Key('find-photo-multi-note');
 
 class _AddFindSheet extends StatefulWidget {
   const _AddFindSheet({
@@ -44,6 +66,8 @@ class _AddFindSheet extends StatefulWidget {
     this.ownSpecies = const [],
     this.fallbackSpecies,
     this.blank = false,
+    this.pickPhoto,
+    this.preparePhoto,
   });
 
   /// Der Ort des Spots — Bezugspunkt der Fundstellen-Wahl (#373). Bis
@@ -54,6 +78,13 @@ class _AddFindSheet extends StatefulWidget {
   final List<String> ownSpecies;
   final String? fallbackSpecies;
   final bool blank;
+  final PhotoPicker? pickPhoto;
+  final PhotoPreparer? preparePhoto;
+
+  /// Ein Leergang hat nichts zu zeigen — dieselbe Regel wie an der
+  /// Kamera am fertigen Eintrag.
+  bool get offersPhoto =>
+      !blank && pickPhoto != null && preparePhoto != null;
 
   @override
   State<_AddFindSheet> createState() => _AddFindSheetState();
@@ -91,6 +122,8 @@ class _AddFindSheetState extends State<_AddFindSheet> {
   /// #373.
   FindPosition? _position;
 
+  PreparedPhoto? _photo;
+
   void _save() {
     final note =
         _noteController.text.trim().isEmpty ? null : _noteController.text.trim();
@@ -99,18 +132,22 @@ class _AddFindSheetState extends State<_AddFindSheet> {
     // darauf bauen GPX-Export und die Sicht der Buddys auf. Bei der
     // Stelle ist das auch inhaltlich richtig: Wer drei Arten auf einmal
     // einträgt, stand dabei an EINEM Ort.
-    Navigator.of(context).pop(widget.blank
-        ? [NewFind.blank(foundOn: _foundOn, note: note, position: _position)]
-        : [
-            for (final entry in _entries)
-              NewFind(
-                species: entry.species,
-                count: entry.count,
-                foundOn: _foundOn,
-                note: note,
-                position: _position,
-              ),
-          ]);
+    final AddFindResult result = (
+      finds: widget.blank
+          ? [NewFind.blank(foundOn: _foundOn, note: note, position: _position)]
+          : [
+              for (final entry in _entries)
+                NewFind(
+                  species: entry.species,
+                  count: entry.count,
+                  foundOn: _foundOn,
+                  note: note,
+                  position: _position,
+                ),
+            ],
+      photo: widget.offersPhoto ? _photo : null,
+    );
+    Navigator.of(context).pop(result);
   }
 
   @override
@@ -164,8 +201,42 @@ class _AddFindSheetState extends State<_AddFindSheet> {
                     widget.lastFind?.species ?? widget.fallbackSpecies,
                 initialCount: widget.lastFind?.count,
                 trailing: dateButton,
-                onChanged: (entries) => _entries = entries,
+                // Neu gezeichnet wird nur, wenn sich die ZAHL der Arten
+                // ändert — daran hängt der Satz unter dem Foto.
+                onChanged: (entries) {
+                  if (entries.length == _entries.length) {
+                    _entries = entries;
+                  } else {
+                    setState(() => _entries = entries);
+                  }
+                },
               ),
+            if (widget.offersPhoto) ...[
+              const SizedBox(height: 12),
+              PhotoAttachment(
+                pick: widget.pickPhoto!,
+                prepare: widget.preparePhoto!,
+                photo: _photo,
+                label: 'Foto für Buddys teilen',
+                attachedNote: 'Foto angehängt: ohne Aufnahmedaten, für '
+                    'Buddys, die diesen Fund sehen — $kFindPhotoDays Tage '
+                    'lang.',
+                onChanged: (photo) => setState(() => _photo = photo),
+              ),
+              // Vorher: was passiert, wenn man es tut (derselbe Text wie
+              // im Dialog an der Kamera). Nachher: nur noch, woran es
+              // hängt, sobald das nicht eindeutig ist.
+              if (_photo == null)
+                Text(kFindPhotoShareNote,
+                    style: Theme.of(context).textTheme.bodySmall)
+              else if (_entries.length > 1)
+                Text(
+                  'Das Foto hängt am ersten Fund '
+                  '(${_entries.first.species ?? 'ohne Art'}).',
+                  key: kFindPhotoMultiNote,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+            ],
             const SizedBox(height: 12),
             // Auch im Leergang-Modus: „Ich war hier und da stand nichts"
             // ist die Aussage, die am stärksten an einem Ort hängt —

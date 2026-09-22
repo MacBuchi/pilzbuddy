@@ -277,19 +277,52 @@ class SpotRepository {
   /// `author_id` wird bewusst NICHT mitgesendet: Der Spalten-Default
   /// `auth.uid()` füllt ihn serverseitig (Patch 014) — derselbe Weg, den
   /// auch ältere Clients nehmen, die die Spalte gar nicht kennen.
-  Future<void> addFinds({
+  ///
+  /// Gibt die Server-ids der Einträge zurück, in der Reihenfolge von
+  /// [finds] — das Blatt „Fund eintragen" hängt daran ein Foto an den
+  /// ersten Fund. Auch im Wiederholungsfall: Dann stammen manche ids
+  /// aus einem früheren Anlauf und werden über `client_id` nachgeschlagen.
+  Future<List<String>> addFinds({
     required String spotId,
     required List<NewFind> finds,
   }) async {
-    if (finds.isEmpty) return;
+    if (finds.isEmpty) return const [];
     try {
-      await _client.from('finds').insert(_findRows(spotId, finds));
+      final rows = await _client
+          .from('finds')
+          .insert(_findRows(spotId, finds))
+          .select('id, client_id');
+      return _idsInOrder(finds, rows);
     } on PostgrestException catch (error) {
       final remaining = await _unwrittenFinds(error, finds);
       if (remaining == null) rethrow;
-      if (remaining.isEmpty) return; // Ein früherer Anlauf war vollständig.
-      await _client.from('finds').insert(_findRows(spotId, remaining));
+      if (remaining.isNotEmpty) {
+        await _client.from('finds').insert(_findRows(spotId, remaining));
+      }
+      // `_unwrittenFinds` gibt nur dann eine Liste, wenn JEDER Eintrag
+      // eine Kennung trägt — darüber lassen sich alle ids nachschlagen.
+      final rows = await _client
+          .from('finds')
+          .select('id, client_id')
+          .eq('author_id', _uid)
+          .inFilter('client_id', [for (final f in finds) f.clientId!]);
+      return _idsInOrder(finds, rows);
     }
+  }
+
+  /// Ordnet die zurückgegebenen Zeilen den Einträgen zu — über
+  /// `client_id`, wo es sie gibt. `RETURNING` sagt über die Reihenfolge
+  /// nichts zu; nur ohne Kennungen bleibt die Position als Rückfall.
+  List<String> _idsInOrder(
+      List<NewFind> finds, List<Map<String, dynamic>> rows) {
+    final byClientId = {
+      for (final row in rows)
+        if (row['client_id'] != null) row['client_id'] as String: row['id'] as String,
+    };
+    if (finds.every((f) => byClientId.containsKey(f.clientId))) {
+      return [for (final f in finds) byClientId[f.clientId]!];
+    }
+    return [for (final row in rows) row['id'] as String];
   }
 
   List<Map<String, dynamic>> _findRows(String spotId, List<NewFind> finds) => [

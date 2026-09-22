@@ -41,13 +41,14 @@ class _RecordingRepository implements SpotRepository {
   }
 
   @override
-  Future<void> addFinds({
+  Future<List<String>> addFinds({
     required String spotId,
     required List<NewFind> finds,
   }) async {
     final error = onFinds?.call(spotId);
     if (error != null) throw error;
     this.finds.add(spotId);
+    return [for (final f in finds) 'server-${f.clientId}'];
   }
 
   @override
@@ -258,7 +259,7 @@ class _SlowRepository implements SpotRepository {
   }
 
   @override
-  Future<void> addFinds({
+  Future<List<String>> addFinds({
     required String spotId,
     required List<NewFind> finds,
   }) =>

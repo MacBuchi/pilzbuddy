@@ -1,4 +1,6 @@
-// „Bild anhängen" für Dialoge, die eine Meldung verschicken (#525).
+// „Bild anhängen" für Dialoge, die eine Meldung verschicken (#525) —
+// und seit #532 Stufe 2 für das Blatt „Fund eintragen", dort mit
+// eigener Beschriftung ([label], [attachedNote]).
 //
 // Holen und entkernen passieren HIER, beim Anhängen, nicht erst beim
 // Senden: Ein Bild, das die Pipeline nicht lesen kann, soll sofort
@@ -22,12 +24,21 @@ class PhotoAttachment extends StatefulWidget {
     required this.prepare,
     required this.photo,
     required this.onChanged,
+    this.label = 'Bild anhängen',
+    this.attachedNote = kFeedbackPhotoAttachedNote,
   });
 
   final PhotoPicker pick;
   final PhotoPreparer prepare;
   final PreparedPhoto? photo;
   final ValueChanged<PreparedPhoto?> onChanged;
+
+  /// Die Beschriftung des Knopfs.
+  final String label;
+
+  /// Der Satz neben der Vorschau: was mit dem Bild passiert — und was
+  /// nicht. Er hängt am Zweck, deshalb gibt ihn der Aufrufer.
+  final String attachedNote;
 
   @override
   State<PhotoAttachment> createState() => _PhotoAttachmentState();
@@ -73,7 +84,7 @@ class _PhotoAttachmentState extends State<PhotoAttachment> {
         OutlinedButton.icon(
           key: kAttachPhotoKey,
           icon: const Icon(Icons.image_outlined, size: 18),
-          label: const Text('Bild anhängen'),
+          label: Text(widget.label),
           onPressed: () => _pick(PhotoSource.gallery),
         ),
         IconButton(
@@ -93,13 +104,7 @@ class _PhotoAttachmentState extends State<PhotoAttachment> {
       ),
       const SizedBox(width: 10),
       Expanded(
-        child: Text(
-          // Was der Anhang NICHT tut — das Gegenteil des Textes darüber,
-          // und deshalb nicht in demselben Satz.
-          'Bild angehängt: ohne Aufnahmedaten, nicht öffentlich — nur '
-          'der Entwickler sieht es, $kFeedbackPhotoDaysText Tage lang.',
-          style: theme.textTheme.bodySmall,
-        ),
+        child: Text(widget.attachedNote, style: theme.textTheme.bodySmall),
       ),
       IconButton(
         key: kRemovePhotoKey,
@@ -114,3 +119,9 @@ class _PhotoAttachmentState extends State<PhotoAttachment> {
 /// Die Frist als Text — die Zahl wohnt bei `FeedbackRepository`, hier
 /// steht sie nur, damit das Widget keine Datenschicht importiert.
 const kFeedbackPhotoDaysText = '90';
+
+/// Was der Anhang am Feedback NICHT tut — das Gegenteil des Textes
+/// darüber, und deshalb nicht in demselben Satz.
+const kFeedbackPhotoAttachedNote =
+    'Bild angehängt: ohne Aufnahmedaten, nicht öffentlich — nur '
+    'der Entwickler sieht es, $kFeedbackPhotoDaysText Tage lang.';

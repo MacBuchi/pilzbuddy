@@ -7,6 +7,23 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Fundfoto gleich beim Eintragen
+
+*23. September 2026 · Version 1.188.0*
+
+Ein Foto für deine Buddys lässt sich jetzt direkt im Blatt „Fund
+eintragen" anhängen — über „Foto für Buddys teilen", aus der Galerie
+oder mit der Kamera. Bisher ging das nur über das kleine Kamerasymbol
+am fertigen Fund, und das hat kaum jemand gefunden.
+
+- Das Foto wird wie bisher verkleinert und ohne Aufnahmedaten
+  hochgeladen und ist 14 Tage lang sichtbar.
+- Trägst du mehrere Arten auf einmal ein, hängt das Foto am ersten
+  Fund — das Blatt sagt es dir vorher.
+- Ohne Empfang wartet der Fund wie gewohnt auf Verbindung; das Foto
+  kannst du danach am Fund nachreichen.
+- Bei „Nichts gefunden" gibt es kein Foto — da ist ja nichts zu zeigen.
+
 ## Freunde heißen jetzt Buddys
 
 *23. September 2026 · Version 1.187.0*

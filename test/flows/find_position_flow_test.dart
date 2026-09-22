@@ -225,6 +225,10 @@ void main() {
     expect(find.byType(FlutterMap), findsOneWidget);
 
     // Karte unter dem Fadenkreuz wegschieben — die Mitte ist die Wahl.
+    // Erst in den Blick holen: Seit 1.188.0 steht der Foto-Abschnitt
+    // darüber, und ein Zug neben die Karte „besteht" still.
+    await tester.ensureVisible(find.byType(FlutterMap));
+    await settle(tester);
     await tester.drag(find.byType(FlutterMap), const Offset(0, -40));
     await settle(tester);
     await tester.ensureVisible(find.text('Speichern'));

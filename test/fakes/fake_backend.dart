@@ -283,10 +283,15 @@ class FakeBackend {
   /// erste Hälfte: behandelt wie fehlender Empfang.
   bool gatewayTimeout = false;
 
+  /// Nur der Foto-Upload scheitert, alles andere trägt — der Fall
+  /// „Fund eingetragen, Foto nicht" (#532 Stufe 2).
+  bool photoUploadFails = false;
+
   /// Kennungen (Patch 016) der Funde, die schon geschrieben wurden —
   /// spiegelt `finds_author_client_id_key`. Das Modell `Find` trägt sie
-  /// nicht: Die App liest die Spalte nie zurück.
-  final findClientIds = <String>{};
+  /// nicht: Die App liest die Spalte nur beim Anlegen zurück, um die
+  /// Server-id zuzuordnen — deshalb Kennung → id.
+  final findClientIds = <String, String>{};
 
   String addSpot({
     required String ownerId,
@@ -320,7 +325,7 @@ class FakeBackend {
   /// [createdAt] für Tests, die das Buddy-Fund-Banner (#202) gegen einen
   /// festen „gesehen bis"-Marker prüfen.
   /// [blank] wie `finds.blank` (Patch 015): „Nichts gefunden".
-  void addFindRow(
+  String addFindRow(
     String spotId, {
     String? species,
     int? count,
@@ -350,8 +355,9 @@ class FakeBackend {
       throw ArgumentError(
           'Die Erde ist endlich (finds_position_bereich).');
     }
+    final id = _newId('find');
     row.finds.add(Find(
-      id: _newId('find'),
+      id: id,
       spotId: spotId,
       species: species,
       count: count,
@@ -362,7 +368,8 @@ class FakeBackend {
       blank: blank,
       position: position,
     ));
-    if (clientId != null) findClientIds.add(clientId);
+    if (clientId != null) findClientIds[clientId] = id;
+    return id;
   }
 
   String addFriendship(
@@ -938,11 +945,11 @@ class FakeSpotRepository implements SpotRepository {
   /// `FakeBackend.addSpot` normalisiert bewusst NICHT: damit legen Tests
   /// Bestandsdaten aus der Zeit vor der Vereinheitlichung an.
   @override
-  Future<void> addFinds({
+  Future<List<String>> addFinds({
     required String spotId,
     required List<NewFind> finds,
   }) async {
-    if (finds.isEmpty) return;
+    if (finds.isEmpty) return const [];
     if (backend.offline) throw const SocketException('kein Netz (Fake)');
     if (backend.gatewayTimeout) {
       throw const PostgrestException(
@@ -962,17 +969,19 @@ class FakeSpotRepository implements SpotRepository {
               'new row violates row-level security policy for table "finds"',
           code: '42501');
     }
+    final ids = <String>[];
     for (final find in finds) {
       // Spiegel von `finds_author_client_id_key` (Patch 016): Eine
       // Kennung, die schon steht, wird übersprungen statt doppelt
       // geschrieben. Live macht das der Unique-Index plus die
       // Nachfrage in `_unwrittenFinds`; hier ist das Ergebnis dasselbe,
-      // und darauf kommt es dem Test an.
-      if (find.clientId != null &&
-          backend.findClientIds.contains(find.clientId)) {
+      // und darauf kommt es dem Test an — die id von damals inklusive.
+      final earlier = backend.findClientIds[find.clientId];
+      if (earlier != null) {
+        ids.add(earlier);
         continue;
       }
-      backend.addFindRow(spotId,
+      ids.add(backend.addFindRow(spotId,
           species: canonicalSpecies(find.species),
           count: find.count,
           foundOn: find.foundOn,
@@ -980,8 +989,9 @@ class FakeSpotRepository implements SpotRepository {
           authorId: _uid,
           blank: find.blank,
           clientId: find.clientId,
-          position: find.position);
+          position: find.position));
     }
+    return ids;
   }
 
   /// Spiegelt `SpotRepository.updateFind` (#240) samt der Grenze, die
@@ -1553,7 +1563,9 @@ class FakeFindPhotoRepository implements FindPhotoRepository {
   @override
   Future<FindPhoto> share(
       {required String findId, required PreparedPhoto photo}) async {
-    if (backend.offline) throw const SocketException('kein Netz (Fake)');
+    if (backend.offline || backend.photoUploadFails) {
+      throw const SocketException('kein Netz (Fake)');
+    }
     final key = '$_uid/fake-${++_seq}';
     // Reihenfolge wie live: erst die Objekte, dann die Zeile.
     backend.photoObjects['$key.jpg'] = photo.full;

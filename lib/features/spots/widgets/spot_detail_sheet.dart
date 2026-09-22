@@ -9,6 +9,7 @@ import '../../../core/app_colors.dart';
 import '../../../core/errors.dart';
 import '../../../core/geo.dart' show formatMeters;
 import '../../../core/mushroom_species.dart';
+import '../../../core/photo_providers.dart';
 import '../../../core/species_edibility.dart';
 import '../../../core/widgets/mushroom_avatar.dart';
 import '../../../core/widgets/mushroom_icon.dart';
@@ -102,7 +103,7 @@ class _SpotDetailSheet extends ConsumerWidget {
   Future<void> _addFinds(BuildContext context, WidgetRef ref, Spot spot,
       {bool blank = false}) async {
     final ownSpecies = ref.read(ownSpeciesProvider);
-    final finds = await showAddFindSheet(
+    final result = await showAddFindSheet(
       context,
       spotAt: spot.position,
       // Der letzte EIGENE Fund, nicht der letzte überhaupt: Am
@@ -114,12 +115,23 @@ class _SpotDetailSheet extends ConsumerWidget {
       fallbackSpecies:
           spot.expectedSpecies.firstOrNull ?? ownSpecies.firstOrNull,
       blank: blank,
+      // Ein wartender Spot schickt seinen Fund sicher in den Korb —
+      // dort gäbe es für das Foto keinen Weg, also gar nicht anbieten.
+      pickPhoto: spot.pending ? null : ref.read(photoPickerProvider),
+      preparePhoto: spot.pending ? null : ref.read(photoPreparerProvider),
     );
-    if (finds == null) return;
+    if (result == null) return;
+    if (!context.mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
     try {
-      final fresh = await ref
+      final (:fresh, :ids) = await ref
           .read(mySpotsProvider.notifier)
-          .addFinds(spotId: spot.id, finds: finds);
+          .addFinds(spotId: spot.id, finds: result.finds);
+      final photo = result.photo;
+      if (photo != null) {
+        await shareFreshFindPhoto(ref, messenger, ids: ids, photo: photo);
+        return;
+      }
       // Nur im Ausnahmefall eine Meldung: Sonst trägt die Liste im Blatt
       // die Quittung selbst — sie steht direkt darunter. Konnte sie
       // nicht neu laden, steht dort nichts Neues, und ohne diesen Satz
