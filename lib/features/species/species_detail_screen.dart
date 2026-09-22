@@ -27,6 +27,10 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/app_info.dart' show appVersionProvider;
+import '../../core/errors.dart';
+import '../../data/feedback_repository.dart';
+import '../../data/providers.dart';
 import '../../core/router_branches.dart';
 import '../../core/season_curves.dart';
 import '../../core/species_edibility.dart';
@@ -93,6 +97,7 @@ class SpeciesDetailScreen extends ConsumerWidget {
                 _Reported(detail: detail, loading: findsAsync.isLoading),
                 const SizedBox(height: 20),
                 const _NotAFieldGuide(),
+                _ReportButton(species: detail.name),
               ],
             ),
     );
@@ -413,6 +418,8 @@ class _Photo extends StatelessWidget {
             child: Image.asset(
               photo.asset,
               fit: BoxFit.cover,
+              // Für den Screenreader: Das Bild ist Inhalt, kein Schmuck.
+              semanticLabel: '$name, Foto',
               // Ohne Bild bleibt die Zeile lesbar — ein Asset-Fehler darf
               // die Warnung nicht mitreißen.
               errorBuilder: (_, _, _) => const SizedBox.shrink(),
@@ -730,4 +737,103 @@ class _NotAFieldGuide extends StatelessWidget {
       style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
     );
   }
+}
+
+/// „Hinweis zu dieser Art melden" — der Rückkanal für handgepflegte
+/// Daten.
+///
+/// Vier Tabellen auf dieser Seite sind von Hand geschrieben, und keine
+/// davon kann ein Test bestätigen. Wer einen Fehler sieht, sieht ihn
+/// HIER — nicht auf der Karte, wo das Feedback-Banner wohnt. Der Knopf
+/// nimmt den Artnamen mit, damit die Meldung beim Bot als Bug-Issue mit
+/// klarem Betreff ankommt (`tool/feedback_bot.py`, Typ `bug`).
+class _ReportButton extends ConsumerWidget {
+  const _ReportButton({required this.species});
+
+  final String species;
+
+  Future<void> _report(BuildContext context, WidgetRef ref) async {
+    final text = await showDialog<String>(
+      context: context,
+      builder: (_) => _ReportDialog(species: species),
+    );
+    if (text == null || text.trim().isEmpty) return;
+    try {
+      String? version;
+      try {
+        version = await ref.read(appVersionProvider.future);
+      } catch (_) {
+        // Ohne Version ist die Meldung immer noch wertvoll — wie beim
+        // Feedback-Banner auf der Karte.
+      }
+      await ref.read(feedbackRepositoryProvider).submit(
+          FeedbackType.bug, 'Hinweis zur Art „$species": ${text.trim()}',
+          appVersion: version);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Danke — der Hinweis wird geprüft. 🍄')));
+      }
+    } catch (e, stackTrace) {
+      logError('Art-Hinweis senden', e, stackTrace);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(friendlyError(e))));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton.icon(
+          icon: const Icon(Icons.flag_outlined, size: 18),
+          label: const Text('Hinweis zu dieser Art melden'),
+          onPressed: () => _report(context, ref),
+        ),
+      );
+}
+
+class _ReportDialog extends StatefulWidget {
+  const _ReportDialog({required this.species});
+
+  final String species;
+
+  @override
+  State<_ReportDialog> createState() => _ReportDialogState();
+}
+
+class _ReportDialogState extends State<_ReportDialog> {
+  final _text = TextEditingController();
+
+  @override
+  void dispose() {
+    _text.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: Text('Hinweis zu „${widget.species}"'),
+        content: TextField(
+          controller: _text,
+          autofocus: true,
+          maxLines: 4,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: const InputDecoration(
+            hintText: 'Was stimmt nicht — Einstufung, Merkmal, '
+                'Verwechslung, Bild?',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(_text.text),
+            child: const Text('Senden'),
+          ),
+        ],
+      );
 }

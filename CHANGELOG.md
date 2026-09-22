@@ -7,6 +7,25 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Warnung dort, wo der Pilz ist
+
+*22. September 2026 · Version 1.168.0*
+
+Bisher standen Einstufung, Verwechslungspartner und Bildpaare nur im
+Reiter „Pilze" — dem Ort, den man aufsuchen muss. Jetzt melden sie sich
+an den zwei Stellen, an denen man den Pilz tatsächlich in der Hand hat:
+
+- **Beim Eintragen.** Steht der Name im Feld, sagt eine Zeile darunter,
+  womit er verwechselt wird — „Wird verwechselt mit: Pantherpilz
+  (Giftig)". Die Einstufung des Partners steht nur dabei, wenn sie
+  warnt; ein Speisepilz wird nur genannt, nie freigegeben.
+- **Im Spot-Blatt.** Jede bekannte Art des Spots ist ein Chip, der auf
+  ihre Seite führt — die giftigen tragen ihr Zeichen schon dort.
+
+Und weil die Tabellen von Hand gepflegt sind: Am Fuß jeder Artseite steht
+„Hinweis zu dieser Art melden". Was du dort schreibst, kommt mit dem
+Artnamen bei uns an.
+
 ## Bildpaare bei den gefährlichen Verwechslungen
 
 *22. September 2026 · Version 1.167.0*

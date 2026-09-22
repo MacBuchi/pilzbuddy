@@ -77,7 +77,11 @@ void main() {
     // Fundzeile (exakter Text, denn „Gefunden von lilli92" steht auch im
     // Kopf), meiner ohne. Die Aktualisierung beweist nebenbei die
     // friendSpots-Invalidierung.
-    expect(find.text('Pfifferling'), findsOneWidget);
+    // Seit 1.168.0 steht die Art zusätzlich als Chip im Kopf des Blatts
+    // (der Weg zur Artseite) — der Fund selbst ist die Zeile darunter.
+    expect(find.byKey(const ValueKey('species-chip-Pfifferling')),
+        findsOneWidget);
+    expect(find.text('Pfifferling'), findsNWidgets(2));
     expect(find.text('Steinpilz, 2 Stück'), findsOneWidget);
     expect(find.text('10.7.2026 – von lilli92'), findsOneWidget);
   });

@@ -2,12 +2,14 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/app_colors.dart';
 import '../../../core/errors.dart';
 import '../../../core/geo.dart' show formatMeters;
 import '../../../core/mushroom_species.dart';
+import '../../../core/species_edibility.dart';
 import '../../../core/widgets/mushroom_avatar.dart';
 import '../../../core/widgets/mushroom_icon.dart';
 import '../../profile/profile_providers.dart';
@@ -64,6 +66,18 @@ class _SpotDetailSheet extends ConsumerWidget {
   const _SpotDetailSheet({required this.spotId});
 
   final String spotId;
+
+  /// Die BEKANNTEN Arten des Spots, je einmal, in der Reihenfolge von
+  /// [scanSpeciesOf] — dieselbe Liste wie Ampel und Saison. Eigene
+  /// Freitext-Arten fallen weg: Für sie gibt es keine Seite.
+  List<String> _knownSpeciesOf(Spot spot) {
+    final seen = <String>{};
+    return [
+      for (final raw in scanSpeciesOf(spot))
+        if (knownSpeciesFor(raw) case final known?)
+          if (seen.add(known.name)) known.name,
+    ];
+  }
 
   /// „Herbsttrompete · auch: Totentrompete" — oder `null`, wenn die Art
   /// unbekannt ist oder keine Zweitnamen hat.
@@ -508,6 +522,41 @@ class _SpotDetailSheet extends ConsumerWidget {
               padding: const EdgeInsets.only(top: 4, left: 28),
               child: Text(line,
                   style: Theme.of(context).textTheme.bodySmall),
+            ),
+          // **Der Weg zur Artseite** (seit 1.168.0). Hier steht jemand
+          // mit dem Pilz — und Einstufung, Verwechslungspartner und
+          // Bildpaare standen bis dahin nur im Reiter, den man aufsuchen
+          // musste. Ein Chip je bekannter Art des Spots; die giftigen
+          // tragen ihr Zeichen. Das Blatt schließt vorher: Es liegt über
+          // dem Karten-Zweig, und die Artseite gehört in einen anderen.
+          if (_knownSpeciesOf(spot) case final names when names.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 6, left: 28),
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: [
+                  for (final name in names)
+                    ActionChip(
+                      key: ValueKey('species-chip-$name'),
+                      visualDensity: VisualDensity.compact,
+                      avatar: (edibilityFor(name)?.level.warnsInList ?? false)
+                          ? Icon(Icons.warning_amber_rounded,
+                              size: 16,
+                              color: Theme.of(context).colorScheme.error)
+                          : const Icon(Icons.menu_book_outlined, size: 16),
+                      label: Text(name),
+                      tooltip: 'Zur Art: $name',
+                      onPressed: () {
+                        // Router VOR dem Schließen greifen — danach ist
+                        // der Kontext des Blatts nicht mehr eingehängt.
+                        final router = GoRouter.of(context);
+                        Navigator.of(context).pop();
+                        router.go('/pilze/${Uri.encodeComponent(name)}');
+                      },
+                    ),
+                ],
+              ),
             ),
           // Vorgemerkt (#499): noch kein Eintrag. Die erwarteten Arten
           // stehen hier, weil sie sonst nirgends stünden — der Marker

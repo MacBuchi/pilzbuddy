@@ -23,6 +23,7 @@
 // oft verwechselt werden. Eine Art ohne Eintrag heißt „uns ist keine
 // häufige Verwechslung bekannt", nicht „die gibt es nicht".
 import 'mushroom_species.dart';
+import 'species_edibility.dart';
 
 /// Ein Verwechslungspartner, aus Sicht EINER Art.
 typedef Lookalike = ({String species, String difference});
@@ -686,4 +687,26 @@ List<Lookalike> lookalikesFor(String? species) {
   return canonical == null
       ? const []
       : speciesLookalikes[canonical] ?? const [];
+}
+
+/// Der Einzeiler für den Moment, in dem jemand den Pilz in der Hand hat
+/// (Eingabefeld beim Eintragen): „Wird verwechselt mit: Pantherpilz
+/// (Giftig)". `null`, wenn die Art unbekannt ist oder keine Partner hat —
+/// dann steht dort nichts, kein „keine bekannt".
+///
+/// **Die Einstufung des Partners steht nur dabei, wenn sie warnt.** Ein
+/// Speisepilz als Partner heißt schlicht „Speisetäubling", nie
+/// „Speisetäubling (Gilt als Speisepilz)" — das läse sich im Eingabefeld
+/// als Freigabe, und freigeben kann die App nichts. Dieselbe Asymmetrie
+/// wie in der Liste und auf der Seite.
+String? confusionHint(String? species) {
+  final partners = lookalikesFor(species);
+  if (partners.isEmpty) return null;
+  final parts = partners.map((p) {
+    final level = edibilityFor(p.species)?.level;
+    return level != null && level.isWarning
+        ? '${p.species} (${level.label})'
+        : p.species;
+  });
+  return 'Wird verwechselt mit: ${parts.join(', ')}';
 }

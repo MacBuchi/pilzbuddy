@@ -414,6 +414,8 @@ void main() {
         findsOneWidget);
     expect(find.image(const AssetImage('assets/species/gifthaeubling.webp')),
         findsOneWidget);
+    // Und der Screenreader hört, was das Bild ist — Inhalt, kein Schmuck.
+    expect(find.bySemanticsLabel('Gifthäubling, Foto'), findsOneWidget);
     // **Die Namensnennung steht AM Bild**, nicht nur auf der
     // Lizenzseite — bei CC-BY ist das die Bedingung.
     expect(find.text(photoCredit(speciesPhotos['Stockschwämmchen']!)),

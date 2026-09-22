@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/mushroom_species.dart';
+import '../../../core/species_lookalikes.dart';
 import '../../../core/widgets/mushroom_icon.dart';
 import '../species_suggestions.dart';
 
@@ -217,6 +218,31 @@ class _SpeciesFieldState extends State<SpeciesField> {
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
+        // **Die Warnung dort, wo der Pilz ist** (seit 1.168.0). Bis dahin
+        // stand „wird verwechselt mit …" nur im Reiter „Pilze" — also an
+        // dem Ort, den man aufsuchen muss, statt an dem, an dem man
+        // gerade tippt. Gezeigt genau dann, wenn die Vorschlagskarte ZU
+        // ist, wie das Symbol im Feld: Während des Tippens ist der Name
+        // noch keine Entscheidung. Bewusst OHNE Verweis auf die Artseite:
+        // Das Blatt ist ein Formular, ein Wechsel würde die Eingabe
+        // verwerfen; Name und Einstufung des Partners stehen hier.
+        if (!showSuggestionCard)
+          if (confusionHint(widget.controller.text) case final hint?)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.warning_amber_rounded,
+                      size: 16, color: Theme.of(context).colorScheme.error),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(hint,
+                        style: Theme.of(context).textTheme.bodySmall),
+                  ),
+                ],
+              ),
+            ),
         if (showSuggestionCard)
           Card(
             margin: const EdgeInsets.only(top: 4),
