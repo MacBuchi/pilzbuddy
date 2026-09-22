@@ -7,6 +7,29 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Sechzehn Arten mehr mit Bild
+
+*22. September 2026 · Version 1.175.0*
+
+Bisher blieb manche Verwechslungszeile halb leer: Der eine Pilz hatte
+ein Bild, der andere nicht — und ein Vergleich mit nur einer Seite ist
+keiner. Für genau diese Fälle sind jetzt Bilder von Wikimedia Commons
+dazugekommen.
+
+Dabei sind der Gallenröhrling neben dem Steinpilz, der echte Pfifferling
+neben dem falschen, der Scheidenstreifling neben dem Grünen
+Knollenblätterpilz und der Karbolchampignon neben dem Wiesenchampignon.
+Dazu Netzstieliger Hexenröhrling, Schönfußröhrling, Frauentäubling,
+Grüngefelderter Täubling, Sommersteinpilz, Kiefernsteinpilz,
+Bronzeröhrling, Edelreizker, Lachsreizker, Trompetenpfifferling,
+Lungenseitling und der Kegelhütige Knollenblätterpilz.
+
+Damit haben 43 der 92 Arten ein Bild, vorher waren es 27.
+
+**Diese Bilder sind Platzhalter.** Sie stehen da, bis eigene Aufnahmen
+sie ersetzen. Woher jedes stammt und unter welcher Lizenz, steht wie
+immer unter dem Bild und auf der Lizenzseite im Profil.
+
 ## Das Auge zeigt jetzt alle Arten, die ein Bild haben
 
 *22. September 2026 · Version 1.174.1*
