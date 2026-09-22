@@ -7,6 +7,27 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Jeder Pilz hat jetzt sein eigenes Zeichen
+
+*22. September 2026 · Version 1.184.0*
+
+Auf der Karte und in den Listen sahen 68 der 92 Arten aus wie der
+Durchschnitt ihrer Gruppe. Das war stellenweise schlicht falsch: Die
+Gruppe der Wulstlinge wird rot mit weißen Punkten gezeichnet, also wie
+ein Fliegenpilz — und damit trugen auch der Grüne Knollenblätterpilz und
+seine beiden weißen Verwandten dieses Zeichen. Der tödlichste Pilz der
+Liste sah aus wie der bekannteste.
+
+Jetzt hat jede Art ihre eigene Farbe und Form, abgelesen aus der
+Hutbeschreibung, die auf ihrer Artseite steht: der Grüne
+Knollenblätterpilz olivgrün und ohne Punkte, der Satansröhrling weißlich
+mit rotem Stiel, der Schopftintling weiß und walzlich, die
+Rötelritterlinge violett.
+
+**Verwechslungspartner tragen nie dasselbe Zeichen.** Das gilt jetzt
+nachweislich für alle Paare — ein Symbol, das den Verwechselten
+nachmacht, wäre genau der Fehler, vor dem die Artseite warnt.
+
 ## Spot anlegen: die Pilzart gehört dazu
 
 *22. September 2026 · Version 1.183.0*

@@ -178,6 +178,39 @@ class MushroomIcon extends StatelessWidget {
   }
 }
 
+/// Wie das Symbol einer Art aussieht — die prüfbare Fassung.
+///
+/// **Ohne diese Naht ließe sich über die Symbole nichts zusagen.** Die
+/// Stile sind privat und werden auf eine Leinwand gemalt; ein Test käme
+/// nur über Screenshots heran, und die prüft dieses Projekt bewusst
+/// nicht. Was hier herauskommt, ist kein Bild, sondern die Entscheidung
+/// dahinter: Form, Hutfarbe, Punkte, Stielfarbe.
+typedef SpeciesIconLook = ({
+  String shape,
+  int capColour,
+  bool whiteDots,
+  bool darkDots,
+  int? stemColour,
+  /// Das Netz bzw. die Flöckchen am Stiel — bei den Hexenröhrlingen ist
+  /// genau das der Unterschied, an dem man die beiden Arten hält.
+  String? stemPattern,
+});
+
+/// Das eigene Aussehen einer Art — `null`, wenn sie auf den Look ihrer
+/// Gruppe zurückfällt.
+SpeciesIconLook? speciesIconLook(String? name) {
+  final style = _MushroomPainter._speciesStyleFor(name);
+  if (style == null) return null;
+  return (
+    shape: style.shape.name,
+    capColour: style.capColors.first.toARGB32(),
+    whiteDots: style.whiteDots,
+    darkDots: style.darkDots,
+    stemColour: style.stemColor?.toARGB32(),
+    stemPattern: style.stemPattern?.name,
+  );
+}
+
 enum _CapShape {
   dome,
   cone,
@@ -271,8 +304,180 @@ class _MushroomPainter extends CustomPainter {
   /// Art-spezifische Looks für besonders charakteristische Pilze —
   /// Details siehe .claude/skills/pilz-designer. Matcht per Namensteil,
   /// damit auch „Echter Pfifferling" oder „Kiefernreizker" greifen.
+  /// Ein eigener Look je Art — die Farbe kommt aus der EIGENEN
+  /// Merkmalstabelle.
+  ///
+  /// **Warum überhaupt** (#548, Betreiber 2026-09-22: „jetzt, wo wir
+  /// quasi Bilder für fast alle Arten beisammen haben, sollten auch die
+  /// Pilz-Icons entsprechend überarbeitet werden, dass sie dem Charakter
+  /// ihres Pilzes entsprechen"). 68 der 92 Arten fielen auf den Look
+  /// ihrer Gruppe zurück, und der behauptet stellenweise etwas Falsches:
+  /// Die Gruppe „Wulstlinge" ist rot mit weißen Punkten, also der
+  /// Fliegenpilz — und damit wurde auch der GRÜNE KNOLLENBLÄTTERPILZ
+  /// gezeichnet, der oliv- bis gelbgrün und meist ohne Flocken ist. Das
+  /// tödlichste Symbol der App trug das Aussehen des harmlos bekannten.
+  ///
+  /// **Die Farben sind nicht erfunden**, sondern aus `hut:` in
+  /// `species_features.dart` abgelesen — derselben Beschreibung, die die
+  /// Artseite anzeigt. Zwei Quellen für dieselbe Aussage liefen sonst
+  /// auseinander, und die Tabelle ist die geprüfte.
+  ///
+  /// **Diese Tabelle greift VOR den Familienregeln darunter.** Die sind
+  /// von Hand abgestimmt (Pfifferling, Reizker, Hexenröhrlinge …) und
+  /// bleiben unberührt; hier steht nur, was vorher gar keinen eigenen
+  /// Look hatte. Geschlüsselt wird über die Hauptbezeichnung, kleiner
+  /// Schreibweise — Zweitnamen erben darüber.
+  static const _speciesStyles = <String, _Style>{
+    // --- Röhrlinge: die Gruppe ist braune Kuppel, aber nicht jeder ist braun
+    'bronzeröhrling': _Style(_CapShape.dome, [Color(0xFF4E3B2F)],
+        lightFace: true, stemBulge: 0.06),
+    'birkenpilz': _Style(_CapShape.dome, [Color(0xFF9E8B79)],
+        stemPattern: _StemPattern.flecks),
+    'butterpilz': _Style(_CapShape.dome, [Color(0xFF7B4A2D)]),
+    'körnchenröhrling': _Style(_CapShape.dome, [Color(0xFFA9683F)]),
+    'ziegenlippe': _Style(_CapShape.dome, [Color(0xFF9A8B5A)]),
+    'rotfußröhrling': _Style(_CapShape.dome, [Color(0xFF8A7A4E)],
+        stemColor: Color(0xFFC1553F)),
+    'gallenröhrling': _Style(_CapShape.dome, [Color(0xFFC4A176)],
+        stemPattern: _StemPattern.net),
+    // Weißlicher Hut über rotem Stiel — beides zusammen ist das Bild,
+    // an dem man ihn vom Steinpilz unterscheidet.
+    'satansröhrling': _Style(_CapShape.dome, [Color(0xFFE3E0D6)],
+        stemColor: Color(0xFFC0392B), stemBulge: 0.06),
+    'schönfußröhrling': _Style(_CapShape.dome, [Color(0xFFAFA68C)],
+        stemColor: Color(0xFFC0392B)),
+    'rotkappe': _Style(_CapShape.dome, [Color(0xFFE2622A)],
+        stemPattern: _StemPattern.flecks),
+    'espenrotkappe': _Style(_CapShape.dome, [Color(0xFFE04A22)],
+        stemPattern: _StemPattern.flecks),
+    'birkenrotkappe': _Style(_CapShape.dome, [Color(0xFFD98436)],
+        stemPattern: _StemPattern.flecks),
+    'goldröhrling': _Style(_CapShape.dome, [Color(0xFFD9A036)]),
+    'sandröhrling': _Style(_CapShape.dome, [Color(0xFFC9A468)]),
+
+    // Die drei Steinpilze teilten sich den Look ihrer Familienregel.
+    // Sie sind aber verschieden gefärbt, und der Sommersteinpilz reißt
+    // bei Trockenheit feinrissig auf.
+    'sommersteinpilz': _Style(_CapShape.dome, [Color(0xFFBE9A6A)],
+        darkDots: true, stemBulge: 0.06, stemPattern: _StemPattern.net),
+    'kiefernsteinpilz': _Style(_CapShape.dome, [Color(0xFF7A3B2E)],
+        lightFace: true, stemBulge: 0.06, stemPattern: _StemPattern.net),
+
+    // --- Leistlinge: der Pfifferling hatte seine Familie mitgefärbt
+    // Graubrauner Trichter, in der Mitte durchbohrt — vom dottergelben
+    // Pfifferling so weit entfernt wie möglich.
+    'trompetenpfifferling': _Style(_CapShape.funnel, [Color(0xFF8A7B6B)],
+        stemColor: Color(0xFFC9AE72)),
+    // Orangegelb bis orangerot und damit SATTER als der Pfifferling —
+    // er ist dessen Verwechslungspartner, die beiden müssen sich
+    // unterscheiden.
+    'falscher pfifferling': _Style(_CapShape.funnel, [Color(0xFFE8833A)],
+        stemColor: Color(0xFFD98A4A)),
+
+    // --- Champignons
+    'wiesenchampignon': _Style(_CapShape.dome, [Color(0xFFF5F0E4)]),
+    'anischampignon': _Style(_CapShape.dome, [Color(0xFFF7F1DA)]),
+    'waldchampignon': _Style(_CapShape.dome, [Color(0xFFD7C3A8)], darkDots: true),
+    'karbolchampignon': _Style(_CapShape.flat, [Color(0xFFE8E6DE)]),
+    'stadtchampignon': _Style(_CapShape.dome, [Color(0xFFF2EDE0)]),
+
+    // --- Schirmlinge
+    'parasol': _Style(_CapShape.flat, [Color(0xFFC9B79B)],
+        darkDots: true, stemTop: 0.30),
+    'safranschirmling': _Style(_CapShape.flat, [Color(0xFFE0D2BC)],
+        darkDots: true, stemTop: 0.34),
+    // Walzlich wie eine Perücke: hoher schmaler Kegel statt Schirm.
+    'schopftintling': _Style(_CapShape.cone, [Color(0xFFF3F0E6)],
+        darkDots: true, stemTop: 0.20, stemWidth: 0.16),
+
+    // --- Wulstlinge: die Gruppe IST der Fliegenpilz. Alle anderen nicht.
+    'fliegenpilz': _Style(_CapShape.dome, [Color(0xFFE53935)], whiteDots: true),
+    'perlpilz': _Style(_CapShape.dome, [Color(0xFFC9A0A0)], whiteDots: true),
+    'pantherpilz': _Style(_CapShape.dome, [Color(0xFF8A7A66)], whiteDots: true),
+    // **Ohne Punkte.** „Meist ohne Flocken", und der Rand ist nicht
+    // gerieft — er sieht aus wie ein gewöhnlicher grüner Blätterpilz,
+    // und genau darin liegt die Gefahr.
+    'grüner knollenblätterpilz':
+        _Style(_CapShape.dome, [Color(0xFF9AAE5E)]),
+    'kegelhütiger knollenblätterpilz':
+        _Style(_CapShape.cone, [Color(0xFFF7F5EE)]),
+    'frühjahrsknollenblätterpilz':
+        _Style(_CapShape.dome, [Color(0xFFF7F5EE)]),
+
+    // --- Täublinge und Milchlinge
+    'frauentäubling': _Style(_CapShape.flat, [Color(0xFF8E7BA6)]),
+    'grüngefelderter täubling':
+        _Style(_CapShape.flat, [Color(0xFF7E9455)], darkDots: true),
+    'speisetäubling': _Style(_CapShape.flat, [Color(0xFFB5566A)]),
+    'speitäubling': _Style(_CapShape.flat, [Color(0xFFD32F2F)]),
+    'ledertäubling': _Style(_CapShape.flat, [Color(0xFF8C5145)]),
+    'mohrenkopfmilchling': _Style(_CapShape.cone, [Color(0xFF4A3B33)],
+        lightFace: true),
+    'brätling': _Style(_CapShape.flat, [Color(0xFFB8642E)]),
+
+    // --- Morcheln
+    'speisemorchel': _Style(_CapShape.dome, [Color(0xFFA98C63)], darkDots: true),
+    'spitzmorchel': _Style(_CapShape.cone, [Color(0xFF6A5A46)],
+        darkDots: true, ridges: true, lightFace: true),
+    // Hirnartig gewunden, NICHT wabig — deshalb Runzeln statt Punkte.
+    'frühjahrslorchel':
+        _Style(_CapShape.dome, [Color(0xFF8C4A32)], ridges: true),
+
+    // --- Boviste
+    'riesenbovist': _Style(_CapShape.ball, [Color(0xFFF5F2E8)]),
+    'flaschenstäubling':
+        _Style(_CapShape.ball, [Color(0xFFEFEAD8)], darkDots: true),
+    'birnenstäubling':
+        _Style(_CapShape.ball, [Color(0xFFD9C9A6)], darkDots: true),
+
+    // --- Baumpilze
+    'austernseitling': _Style(_CapShape.shelf, [Color(0xFF8E96A0)]),
+    'lungenseitling': _Style(_CapShape.shelf, [Color(0xFFEDE7D8)]),
+    'schwefelporling': _Style(_CapShape.shelf, [Color(0xFFF5A623)]),
+    'leberpilz':
+        _Style(_CapShape.shelf, [Color(0xFF9B3A2E)], lightFace: true),
+    'judasohr': _Style(_CapShape.shelf, [Color(0xFF7A4638)], lightFace: true),
+
+    // --- Der große Rest, der bisher ein grauer Kegel war
+    'stockschwämmchen': _Style(_CapShape.dome, [Color(0xFFB87B3F)]),
+    // **Muss sich vom Stockschwämmchen unterscheiden** — die beiden sind
+    // das tödlichste Paar der Liste. Andere Form, andere Farbe.
+    'gifthäubling': _Style(_CapShape.cone, [Color(0xFFC2903F)]),
+    'grünblättriger schwefelkopf':
+        _Style(_CapShape.dome, [Color(0xFFD9C542)]),
+    'hallimasch':
+        _Style(_CapShape.dome, [Color(0xFFB8903C)], darkDots: true),
+    'dunkler hallimasch': _Style(_CapShape.dome, [Color(0xFF8A4B33)],
+        darkDots: true, lightFace: true),
+    'maipilz': _Style(_CapShape.dome, [Color(0xFFF0E9D6)]),
+    'ziegelroter risspilz': _Style(_CapShape.cone, [Color(0xFFD98A72)]),
+    'riesenrötling': _Style(_CapShape.flat, [Color(0xFFCFC3A9)]),
+    'mönchskopf': _Style(_CapShape.funnel, [Color(0xFFC09A63)]),
+    'nebelkappe': _Style(_CapShape.dome, [Color(0xFFA8A69C)]),
+    'violetter rötelritterling': _Style(_CapShape.dome, [Color(0xFF7E57C2)]),
+    'violetter lacktrichterling':
+        _Style(_CapShape.cone, [Color(0xFF9575CD)], stemWidth: 0.18),
+    'kahler krempling': _Style(_CapShape.funnel, [Color(0xFF8B5E34)]),
+    'spitzgebuckelter raukopf': _Style(_CapShape.cone, [Color(0xFFC1662F)]),
+    'orangefuchsiger raukopf': _Style(_CapShape.dome, [Color(0xFFCC6B2E)]),
+    'tigerritterling':
+        _Style(_CapShape.flat, [Color(0xFFBFBDB4)], darkDots: true),
+    'grünling': _Style(_CapShape.flat, [Color(0xFFD6C84A)]),
+    'nelkenschwindling':
+        _Style(_CapShape.dome, [Color(0xFFD9B878)], stemWidth: 0.16),
+    'rehbrauner dachpilz': _Style(_CapShape.dome, [Color(0xFF9C8266)]),
+    'riesenträuschling': _Style(_CapShape.dome, [Color(0xFF94534A)]),
+    'fuchsiger rötelritterling':
+        _Style(_CapShape.funnel, [Color(0xFFC97A3E)]),
+    'reifpilz': _Style(_CapShape.dome, [Color(0xFFD8B87A)]),
+  };
+
   static _Style? _speciesStyleFor(String? name) {
     if (name == null) return null;
+    // Erst die Tabelle (genauer Artname), dann die Familienregeln.
+    final canonical = canonicalSpecies(name) ?? name;
+    final exact = _speciesStyles[canonical.toLowerCase()];
+    if (exact != null) return exact;
     // Erst auf die Hauptbezeichnung bringen: dann erbt jeder Zweitname den
     // Look seiner Art, ohne dass er hier eigens auftauchen muss. „Marone"
     // kommt als „Maronenröhrling" an, „Löwenmähne" als „Igelstachelbart".
