@@ -88,6 +88,7 @@ void main() {
       ('Wiesenchampignon', 'Grüner Knollenblätterpilz'),
       ('Flaschenstäubling', 'Grüner Knollenblätterpilz'),
       ('Maipilz', 'Frühjahrsknollenblätterpilz'),
+      ('Perlpilz', 'Grüner Knollenblätterpilz'),
     ];
     for (final (edible, dangerous) in deadlyPairs) {
       expect(lookalikesFor(edible).map((p) => p.species), contains(dangerous),
@@ -125,8 +126,23 @@ void main() {
     // Die Asymmetrie im Kleinen: „Pantherpilz (Giftig)" ja,
     // „Speisetäubling (Gilt als Speisepilz)" nie — das läse sich beim
     // Tippen als Freigabe.
-    expect(confusionHint('Perlpilz'),
-        'Wird verwechselt mit: Pantherpilz (Giftig)');
+    expect(
+        confusionHint('Perlpilz'),
+        'Wird verwechselt mit: Pantherpilz (Giftig), Fliegenpilz '
+            '(Giftig), Grüner Knollenblätterpilz (Tödlich giftig)');
+    // **Ist die Art selbst harmlos, zählen nur die Partner, die
+    // warnen.** Der Steinpilz hat seit 1.171.0 sechs Partner; die drei
+    // harmlosen davon ändern beim Eintragen keine Entscheidung und
+    // schöben die Warnung nur nach hinten.
+    expect(
+        confusionHint('Steinpilz'),
+        'Wird verwechselt mit: Gallenröhrling (Ungenießbar), '
+            'Satansröhrling (Giftig), Schönfußröhrling (Ungenießbar)');
+    expect(lookalikesFor('Steinpilz').length, 6,
+        reason: 'die Artseite zeigt weiterhin alle sechs');
+    // Und wenn ALLE Partner harmlos sind, steht dort nichts.
+    expect(lookalikesFor('Edelreizker'), isNotEmpty);
+    expect(confusionHint('Edelreizker'), isNull);
     expect(confusionHint('Speitäubling'),
         'Wird verwechselt mit: Speisetäubling');
     expect(confusionHint('Stockschwämmchen'),

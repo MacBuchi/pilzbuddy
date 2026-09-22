@@ -930,6 +930,13 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
       günstige Vergleichstage (`docs/pilzampel-schwellen-messung.md`).
       Es wird mehr behauptet — „für mindestens eine von zwei Gruppen" —,
       also gilt es öfter. Wer eine Klasse hinzufügt, misst die Quote neu.
+    - **Die Ampel gilt nur für SAMMELPILZE** (Betreiber, 2026-09-22:
+      „für giftige / ungenießbare Pilze brauchen wir keine Ampel").
+      Heute stimmt das ohnehin — 16 Arten, alle Speisepilz oder nur
+      gegart —, aber seit 1.171.0 hält `test/ampel_model_test.dart`
+      es fest. Eine Günstig-Meldung über einen Giftpilz läse sich als
+      Einladung, und der Weg von einem neuen Verwechslungspartner in
+      eine Ampel-Gruppe ist eine Zeile.
     - **Die Klassen stehen einzeln nur in der AUSGEKLAPPTEN Legende**
       (Betreiberauflage). `_AmpelSection` steckt ohnehin nur im
       `_LegendPanel`; die 40-px-Schiene trägt ihr Urteil in der Form des
@@ -1309,6 +1316,25 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
       fällt der Abschnitt bei einer Art ohne Partner ganz weg statt als
       leere Überschrift dazustehen, und unter jeder vollen Liste steht,
       dass sie nicht vollständig ist.
+    - **Der Einzeiler beim Eintragen nennt nur, was etwas ändern
+      kann** (seit 1.171.0). Ist die eingetippte Art selbst harmlos,
+      fallen die harmlosen Partner weg. Anlass: Mit der
+      Steinpilz-Gruppe bekam der Steinpilz sechs Partner und die Zeile
+      158 Zeichen, mit dem Satansröhrling als zweitem von sechs — eine
+      Warnung, die man suchen muss. Bei einer Art, die SELBST warnt,
+      bleibt alles stehen; dort erklärt der Speisepilz-Partner erst,
+      warum jemand sie im Korb hätte. Die volle Liste trägt die
+      Artseite.
+    - **iNaturalist ist als Fundquelle brauchbar, als Beleg nicht.**
+      `identifications/similar_species` liefert, wie oft eine
+      Bestimmung von A nach B korrigiert wurde — daraus kamen die
+      beiden echten Lücken (Fliegenpilz ohne jeden Partner, Perlpilz
+      ohne den Grünen Knollenblätterpilz). Von 197 gemeldeten Paaren
+      waren die meisten Rauschen: „Marone ↔ Steinpilz" mit 180
+      Korrekturen sind Anfängerfehler zwischen Arten, die sich nicht
+      ähneln. Was aus dieser Quelle kommt, wird gegen Literatur
+      geprüft, bevor es in die Tabelle geht.
+
     Geprüft wird außerdem, dass jeder genannte Partner eine bekannte Art
     ist (ein Verweis ins Leere wäre schlimmer als keiner), dass die acht
     tödlichen Paare drinstehen, und dass jede giftige Art mit Partnern

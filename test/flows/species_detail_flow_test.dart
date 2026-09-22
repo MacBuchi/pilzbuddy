@@ -273,7 +273,16 @@ void main() {
     await pumpApp(tester, backend);
     await openSpecies(tester, 'Steinpilz');
 
-    expect(find.text('Gilt als Speisepilz'), findsOneWidget);
+    // **Auf die Karte gezielt, nicht auf die Seite.** Seit die
+    // Steinpilz-Gruppe untereinander verzeichnet ist (1.171.0), steht
+    // „Gilt als Speisepilz" viermal auf dieser Seite — einmal für den
+    // Steinpilz und dreimal für seine harmlosen Partner. Die drei
+    // gehören ihnen; geprüft wird die eigene Einstufung.
+    expect(
+        find.descendant(
+            of: find.byKey(kEdibilityCardKey),
+            matching: find.text('Gilt als Speisepilz')),
+        findsOneWidget);
     // **Auf die eigene Einstufung gezielt.** Seit es
     // Verwechslungspartner gibt, trägt die Seite sehr wohl Warnzeichen
     // — die des Gallenröhrlings und des Satansröhrlings. Die gehören

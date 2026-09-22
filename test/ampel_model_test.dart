@@ -11,6 +11,7 @@
 //   print(av.rain_factor([20.0]+[0.0]*25))  # usw.
 //   EOF
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pilzbuddy/core/species_edibility.dart';
 import 'package:pilzbuddy/features/ampel/ampel_model.dart';
 
 void main() {
@@ -402,4 +403,25 @@ void main() {
           reason: 'dasselbe Fenster, mit dem auch die Karte rechnet');
     });
   });
+
+  test('die Ampel gilt nur für Sammelpilze', () {
+    // **Betreiber, 2026-09-22: „für giftige / ungenießbare Pilze
+    // brauchen wir keine Ampel. Nur Speisepilze kommen in Frage."**
+    //
+    // Heute stimmt das schon — 16 Arten, alle Speisepilz oder nur
+    // gegart. Was fehlte, war der Riegel: Ein Giftpilz in einer
+    // Ampel-Gruppe würde eine Vorhersage über etwas treffen, das
+    // niemand sammeln soll, und die Günstig-Meldung auf der Karte
+    // läse sich als Einladung. Die Gefahr ist real geworden, seit wir
+    // Verwechslungspartner ergänzen: Dabei kommen giftige Arten in den
+    // Blick, und der Weg von dort in eine Ampel-Gruppe ist eine Zeile.
+    for (final entry in ampelSpeciesClass.entries) {
+      final level = edibilityFor(entry.key)?.level;
+      expect(level, isNotNull, reason: '${entry.key} hat keine Einstufung');
+      expect([Edibility.speisepilz, Edibility.nurGegart], contains(level),
+          reason: '${entry.key} ist ${level!.label} und gehört damit in '
+              'keine Ampel-Gruppe (${entry.value})');
+    }
+  });
+
 }

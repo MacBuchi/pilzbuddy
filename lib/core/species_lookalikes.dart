@@ -50,6 +50,27 @@ const speciesLookalikes = <String, List<Lookalike>>{
           'Stiel, blaut im Schnitt und schmeckt bitter; beim Steinpilz '
           'ist das Netz weiß, und nichts verfärbt sich.'
     ),
+    (
+      species: 'Sommersteinpilz',
+      difference: 'Der Sommersteinpilz hat eine matte, trockene Huthaut, die '
+          'bald felderig aufreißt, und sein Netz zieht sich über den '
+          'GANZEN Stiel. Beim Steinpilz ist der Hut glatt und feucht '
+          'klebrig, das Netz sitzt nur oben.'
+    ),
+    (
+      species: 'Kiefernsteinpilz',
+      difference: 'Der Kiefernsteinpilz hat einen dunkel rotbraunen bis '
+          'kupferfarbenen, oft höckerig-runzeligen Hut und ein '
+          'rötlichbraunes Netz auf bräunlichem Stiel. Er wächst bei '
+          'Kiefer und Fichte.'
+    ),
+    (
+      species: 'Bronzeröhrling',
+      difference: 'Der Bronzeröhrling ist fast SCHWARZBRAUN, seine Huthaut '
+          'trocken und feinsamtig, der Stiel bräunlich mit feinem '
+          'braunem Netz. Er steht bei Eiche und Buche an warmen '
+          'Stellen.'
+    ),
   ],
   'Sommersteinpilz': [
     (
@@ -59,6 +80,26 @@ const speciesLookalikes = <String, List<Lookalike>>{
           'ein grobes dunkles Netz, rosa werdende Poren und '
           'Gallengeschmack.'
     ),
+    (
+      species: 'Steinpilz',
+      difference: 'Der Steinpilz hat einen glatten, bei Nässe klebrigen Hut '
+          'und ein weißes Netz nur im oberen Stieldrittel. Der '
+          'Sommersteinpilz reißt auf der Huthaut felderig auf und ist '
+          'bis zur Basis genetzt.'
+    ),
+    (
+      species: 'Kiefernsteinpilz',
+      difference: 'Der Kiefernsteinpilz ist kupfer- bis rotbraun mit '
+          'rötlichbraunem Netz und an Kiefer gebunden. Der '
+          'Sommersteinpilz ist heller lederbraun und steht bei Eiche '
+          'und Buche.'
+    ),
+    (
+      species: 'Bronzeröhrling',
+      difference: 'Der Bronzeröhrling ist fast schwarzbraun und gleichmäßig '
+          'feinsamtig, ohne die felderigen Risse des '
+          'Sommersteinpilzes; sein Netz ist fein und braun.'
+    ),
   ],
   'Kiefernsteinpilz': [
     (
@@ -67,6 +108,25 @@ const speciesLookalikes = <String, List<Lookalike>>{
           'weißem Netz; der Gallenröhrling hell lederbraun mit grobem '
           'dunklem Netz — und bitter.'
     ),
+    (
+      species: 'Steinpilz',
+      difference: 'Der Steinpilz ist heller hell- bis dunkelbraun, sein Hut '
+          'glatt, und sein Netz ist WEISS auf hellem Grund. Der '
+          'Kiefernsteinpilz ist kupferrot und trägt ein '
+          'rötlichbraunes Netz.'
+    ),
+    (
+      species: 'Sommersteinpilz',
+      difference: 'Der Sommersteinpilz ist lederbraun, und seine Huthaut '
+          'reißt bei Trockenheit FELDERIG auf. Der Kiefernsteinpilz '
+          'bleibt kupferrot und runzelig-höckerig.'
+    ),
+    (
+      species: 'Bronzeröhrling',
+      difference: 'Der Bronzeröhrling ist schwarzbraun statt kupferrot und '
+          'steht bei Eiche und Buche im Warmen, nicht bei Kiefer und '
+          'Fichte.'
+    ),
   ],
   'Bronzeröhrling': [
     (
@@ -74,6 +134,24 @@ const speciesLookalikes = <String, List<Lookalike>>{
       difference: 'Der Bronzeröhrling ist sehr dunkel, fast schwarzbraun, '
           'und trägt ein weißes Netz; der Gallenröhrling ist hell mit '
           'dunklem Netz. Bitter ist nur der Gallenröhrling.'
+    ),
+    (
+      species: 'Steinpilz',
+      difference: 'Der Steinpilz ist deutlich heller, sein Hut bei Nässe '
+          'klebrig, und sein Netz ist weiß auf hellem Grund. Der '
+          'Bronzeröhrling ist fast schwarzbraun und durchweg matt.'
+    ),
+    (
+      species: 'Sommersteinpilz',
+      difference: 'Der Sommersteinpilz ist lederbraun und reißt auf dem Hut '
+          'felderig auf. Der Bronzeröhrling bleibt dunkel und '
+          'geschlossen samtig.'
+    ),
+    (
+      species: 'Kiefernsteinpilz',
+      difference: 'Der Kiefernsteinpilz ist kupfer- bis rotbraun und an '
+          'Kiefer und Fichte gebunden; der Bronzeröhrling ist dunkler '
+          'und ein Laubwaldpilz warmer Lagen.'
     ),
   ],
   'Maronenröhrling': [
@@ -360,6 +438,13 @@ const speciesLookalikes = <String, List<Lookalike>>{
       difference: 'Dem Scheidenstreifling fehlt der RING, und sein '
           'Hutrand ist deutlich gerieft. Beide stecken in einer Scheide.'
     ),
+    (
+      species: 'Perlpilz',
+      difference: 'Der Perlpilz trägt Flocken auf dem Hut, hat KEINE häutige '
+          'Scheide an der Basis, und er rötet an Fraßstellen '
+          'fleischrosa. Der Grüne Knollenblätterpilz ist glatthütig '
+          'und bleibt überall weiß.'
+    ),
   ],
   'Kegelhütiger Knollenblätterpilz': [
     (
@@ -395,6 +480,22 @@ const speciesLookalikes = <String, List<Lookalike>>{
   ],
 
   // ── Wulstlinge ───────────────────────────────────────────────────
+  'Fliegenpilz': [
+    (
+      species: 'Perlpilz',
+      difference: 'Der Perlpilz RÖTET: Fraßstellen, Schnittflächen und die '
+          'Stielbasis laufen fleischrosa an, und seine Hutflocken '
+          'sind schmutzig grau bis rosa. Beim Fliegenpilz bleibt das '
+          'Fleisch weiß und die Flocken sind rein weiß.'
+    ),
+    (
+      species: 'Pantherpilz',
+      difference: 'Der Pantherpilz hat einen braunen bis olivbraunen Hut, '
+          'einen glatten Ring und eine scharf gerandete Knolle. Der '
+          'Fliegenpilz ist rot bis orangerot, sein Ring ist oberseits '
+          'gerieft, und über der Knolle stehen ringförmige Gürtel.'
+    ),
+  ],
   'Perlpilz': [
     (
       species: 'Pantherpilz',
@@ -403,6 +504,20 @@ const speciesLookalikes = <String, List<Lookalike>>{
           'Pantherpilz bleibt weiß, sein Ring ist glatt, und er hat eine '
           'abgesetzte Knolle mit Bergsteigersöckchen.'
     ),
+    (
+      species: 'Fliegenpilz',
+      difference: 'Der Fliegenpilz trägt REIN WEISSE Flocken auf rotem bis '
+          'orangerotem Hut und bleibt im Schnitt weiß. Ein vom Regen '
+          'ausgeblasster Fliegenpilz kann ockerrot wirken — dann '
+          'entscheidet, dass nur der Perlpilz fleischrosa rötet.'
+    ),
+    (
+      species: 'Grüner Knollenblätterpilz',
+      difference: 'Der Grüne Knollenblätterpilz hat eine häutige SCHEIDE an '
+          'der Basis, einen glatten, oliv- bis gelbgrünen Hut ohne '
+          'Flocken, und er rötet nie. Die Stielbasis freizulegen ist '
+          'Pflicht, bevor ein Wulstling in den Korb kommt.'
+    ),
   ],
   'Pantherpilz': [
     (
@@ -410,6 +525,13 @@ const speciesLookalikes = <String, List<Lookalike>>{
       difference: 'Der Pantherpilz rötet NIE, sein Ring ist glatt, und '
           'am Stielgrund sitzt eine gerandete Knolle. Rötendes Fleisch '
           'und ein geriefelter Ring sprechen für den Perlpilz.'
+    ),
+    (
+      species: 'Fliegenpilz',
+      difference: 'Der Fliegenpilz ist rot bis orangerot, sein Ring ist '
+          'oberseits GERIEFT, und über der Knolle stehen ringförmige '
+          'Gürtel statt eines scharfen Randes. Der Pantherpilz ist '
+          'braun und sein Ring glatt.'
     ),
   ],
   'Scheidenstreifling': [
@@ -453,6 +575,89 @@ const speciesLookalikes = <String, List<Lookalike>>{
     ),
   ],
 
+  'Fichtenreizker': [
+    (
+      species: 'Edelreizker',
+      difference: 'Der Edelreizker steht bei KIEFER, sein Hut ist deutlich '
+          'konzentrisch gezont, und seine Milch bleibt stundenlang '
+          'karottenrot. Der Fichtenreizker grünt rasch und '
+          'großflächig.'
+    ),
+    (
+      species: 'Lachsreizker',
+      difference: 'Der Lachsreizker steht bei WEISSTANNE, ist lachs- bis '
+          'aprikosenfarben und grünt nicht. Der Fichtenreizker läuft '
+          'großflächig grün an und ist an Fichte gebunden.'
+    ),
+    (
+      species: 'Kiefernreizker',
+      difference: 'Der Kiefernreizker führt von Anfang an DUNKEL WEINROTE '
+          'Milch und hat weinrot überhauchte Lamellen; beim '
+          'Fichtenreizker ist die Milch zunächst karottenrot.'
+    ),
+  ],
+  'Edelreizker': [
+    (
+      species: 'Fichtenreizker',
+      difference: 'Der Fichtenreizker steht bei FICHTE und läuft auf Hut und '
+          'Lamellen rasch großflächig grün an; seine Milch wird schon '
+          'nach einer halben Stunde weinrot bis grünlich.'
+    ),
+    (
+      species: 'Lachsreizker',
+      difference: 'Der Lachsreizker ist blasser lachs- bis aprikosenfarben, '
+          'kaum gezont und an Weißtanne gebunden. Der Edelreizker ist '
+          'kräftig orange mit deutlichen Zonen und steht bei Kiefer.'
+    ),
+    (
+      species: 'Kiefernreizker',
+      difference: 'Der Kiefernreizker führt von Anfang an dunkel weinrote '
+          'Milch; die des Edelreizkers ist karottenrot. Beide stehen '
+          'bei Kiefer, der Kiefernreizker aber auf Kalk und später im '
+          'Jahr.'
+    ),
+  ],
+  'Lachsreizker': [
+    (
+      species: 'Fichtenreizker',
+      difference: 'Der Fichtenreizker läuft grün an — beim Lachsreizker '
+          'geschieht das nicht — und er ist an Fichte gebunden statt '
+          'an Weißtanne.'
+    ),
+    (
+      species: 'Edelreizker',
+      difference: 'Der Edelreizker hat einen kräftig orangen, deutlich '
+          'gezonten Hut und dunkle Stielgrübchen; er wächst bei '
+          'Kiefer, der Lachsreizker bei Weißtanne.'
+    ),
+    (
+      species: 'Kiefernreizker',
+      difference: 'Der Kiefernreizker hat weinrote Milch und weinrot '
+          'überhauchte Lamellen und steht bei Kiefer auf Kalk. Der '
+          'Lachsreizker ist lachsfarben und an Weißtanne gebunden.'
+    ),
+  ],
+  'Kiefernreizker': [
+    (
+      species: 'Fichtenreizker',
+      difference: 'Der Fichtenreizker hat orange Lamellen und karottenrote '
+          'Milch, die erst später umschlägt, und er grünt '
+          'großflächig. Er steht bei Fichte, nicht bei Kiefer auf '
+          'Kalk.'
+    ),
+    (
+      species: 'Edelreizker',
+      difference: 'Der Edelreizker hat KAROTTENROTE Milch und leuchtend '
+          'orange Lamellen. Beim Kiefernreizker sind Milch und '
+          'Lamellen weinrot überlaufen.'
+    ),
+    (
+      species: 'Lachsreizker',
+      difference: 'Der Lachsreizker ist lachs- bis aprikosenfarben mit '
+          'orangeroter Milch und wächst bei WEISSTANNE, nicht bei '
+          'Kiefer.'
+    ),
+  ],
   // ── Morcheln und Lorcheln ────────────────────────────────────────
   'Speisemorchel': [
     (
@@ -577,6 +782,13 @@ const speciesLookalikes = <String, List<Lookalike>>{
           'Gifthäubling trägt einen Ring. Beide wachsen im Winter am '
           'selben Holz.'
     ),
+    (
+      species: 'Grünblättriger Schwefelkopf',
+      difference: 'Der Grünblättrige Schwefelkopf hat SCHWEFELGELBE bis '
+          'grünliche Lamellen und schmeckt bitter. Die Lamellen des '
+          'Samtfußrüblings sind cremefarben bis blassgelb, und sein '
+          'Stiel ist nach unten samtig schwarzbraun.'
+    ),
   ],
   'Grünblättriger Schwefelkopf': [
     (
@@ -589,6 +801,13 @@ const speciesLookalikes = <String, List<Lookalike>>{
       species: 'Hallimasch',
       difference: 'Dem Schwefelkopf fehlt der wattige Ring, und seine '
           'Lamellen sind grünlich statt weißlich.'
+    ),
+    (
+      species: 'Samtfußrübling',
+      difference: 'Der Samtfußrübling hat cremefarbene Lamellen, einen nach '
+          'unten SAMTIG SCHWARZBRAUNEN Stiel und einen schmierig '
+          'honiggelben Hut. Beim Schwefelkopf sind die Lamellen '
+          'grünlich und der Geschmack bitter.'
     ),
   ],
   'Hallimasch': [
@@ -694,14 +913,40 @@ List<Lookalike> lookalikesFor(String? species) {
 /// (Giftig)". `null`, wenn die Art unbekannt ist oder keine Partner hat —
 /// dann steht dort nichts, kein „keine bekannt".
 ///
+/// **Genannt wird nur, was etwas ändern kann.** Ist die eingetippte Art
+/// selbst harmlos, bleiben die harmlosen Partner weg: Wer „Steinpilz"
+/// tippt und einen Sommersteinpilz in der Hand hält, dem passiert
+/// nichts. Bei einer Art, die selbst warnt, steht alles da. Die volle
+/// Liste trägt ohnehin die Artseite.
+///
 /// **Die Einstufung des Partners steht nur dabei, wenn sie warnt.** Ein
 /// Speisepilz als Partner heißt schlicht „Speisetäubling", nie
 /// „Speisetäubling (Gilt als Speisepilz)" — das läse sich im Eingabefeld
 /// als Freigabe, und freigeben kann die App nichts. Dieselbe Asymmetrie
 /// wie in der Liste und auf der Seite.
 String? confusionHint(String? species) {
-  final partners = lookalikesFor(species);
+  var partners = lookalikesFor(species);
   if (partners.isEmpty) return null;
+  // **Ist die eingetippte Art selbst harmlos, zählen nur die Partner,
+  // die warnen.** Seit die Steinpilz-Gruppe und die Reizker
+  // untereinander verzeichnet sind (1.171.0), hat der Steinpilz sechs
+  // Partner, und die Zeile lief auf 158 Zeichen — mit dem
+  // Satansröhrling als zweitem von sechs. Ein Formular ist nicht der
+  // Ort für Vollständigkeit: Wer „Steinpilz" eintippt und stattdessen
+  // einen Sommersteinpilz in der Hand hält, dem passiert nichts. Wer
+  // einen Satansröhrling in der Hand hält, schon.
+  //
+  // Bei einer Art, die SELBST warnt, bleibt alles stehen — dort
+  // erklärt der Speisepilz-Partner erst, warum jemand sie überhaupt im
+  // Korb hätte („Speitäubling → Speisetäubling"). Die volle Liste
+  // steht ohnehin auf der Artseite.
+  final ownLevel = edibilityFor(species)?.level;
+  if (ownLevel == null || !ownLevel.isWarning) {
+    partners = partners
+        .where((p) => edibilityFor(p.species)?.level.isWarning ?? false)
+        .toList();
+    if (partners.isEmpty) return null;
+  }
   final parts = partners.map((p) {
     final level = edibilityFor(p.species)?.level;
     return level != null && level.isWarning
