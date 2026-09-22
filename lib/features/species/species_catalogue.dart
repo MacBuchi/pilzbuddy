@@ -17,6 +17,7 @@
 import '../../core/mushroom_species.dart';
 import '../../core/season_curves.dart';
 import '../../core/species_edibility.dart';
+import '../../core/species_photos.dart';
 import '../../core/species_features.dart';
 import '../../core/species_lookalikes.dart';
 import '../../models/spot.dart';
@@ -60,6 +61,15 @@ class CatalogueEntry {
 
   /// „Hauptzeit", „Randzeit" … — `null` ohne Kurve.
   String? get seasonWord => share == null ? null : seasonShareWord(share!);
+
+  /// Hat die Art eine eigene Bildreihe?
+  ///
+  /// **Gemeint ist das Porträt, nicht das Vergleichspaar.** Eine Art
+  /// kann ein Bild im Paar tragen und trotzdem kein eigenes haben — der
+  /// Samtfußrübling ist so ein Fall. Für die Frage „wovon fehlen uns
+  /// noch Fotos" zählt das Paar nicht mit, sonst sieht die Liste
+  /// vollständiger aus, als sie ist.
+  bool get hasPictures => portraitsFor(name).isNotEmpty;
 }
 
 /// Ein Abschnitt: eine Ampel-Gruppe oder der Rest.

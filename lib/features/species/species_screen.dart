@@ -334,6 +334,20 @@ class _EntryTile extends ConsumerWidget {
                     size: 16, color: theme.colorScheme.error),
               ),
             ),
+          // **Nach der Warnung, nie davor.** Das Auge ist Buchführung
+          // und keine Aussage über den Pilz: Es sagt, dass wir Bilder
+          // haben. Der eigentliche Zweck ist die Umkehrung — auf einen
+          // Blick zu sehen, wovon noch welche fehlen, damit ein
+          // Waldgang darauf zielen kann.
+          if (entry.hasPictures)
+            Padding(
+              padding: const EdgeInsets.only(left: 6),
+              child: Tooltip(
+                message: 'Bilder vorhanden',
+                child: Icon(Icons.visibility_outlined,
+                    size: 15, color: theme.hintColor),
+              ),
+            ),
         ],
       ),
       subtitle: Text(facts, style: theme.textTheme.bodySmall),

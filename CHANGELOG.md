@@ -7,6 +7,18 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Ein Auge zeigt, von welchen Pilzen wir Bilder haben
+
+*22. September 2026 · Version 1.173.0*
+
+Im Reiter „Pilze" trägt jede Art, zu der es Bilder gibt, ein kleines
+Auge hinter dem Namen. Gemeint ist eigentlich die Umkehrung: Man sieht
+auf einen Blick, wovon noch welche fehlen — und kann einen Waldgang
+darauf ausrichten.
+
+Das Auge steht immer hinter dem Warnzeichen, nie davor. Es ist
+Buchführung und keine Aussage über den Pilz.
+
 ## Bilder von der Krausen Glucke
 
 *22. September 2026 · Version 1.172.1*
