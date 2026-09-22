@@ -135,7 +135,7 @@ class _SpotFilterSheet extends ConsumerWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 6, vertical: 4),
                           label: const Text('Nur meine'),
-                          tooltip: 'Blendet die Spots deiner Freunde aus',
+                          tooltip: 'Blendet die Spots deiner Buddys aus',
                           selected: filter.onlyMine,
                           onSelected: notifier.setOnlyMine,
                         ),
@@ -191,7 +191,7 @@ class _SpotFilterSheet extends ConsumerWidget {
                       if (seasonCount == 0)
                         '„Saison" ist gerade nicht wählbar: Im $monthName '
                             'hat keine deiner Arten Saison.',
-                      '„Nur meine" blendet die Spots deiner Freunde aus.',
+                      '„Nur meine" blendet die Spots deiner Buddys aus.',
                       '„Ampel günstig" zeigt nur Spots, an denen die '
                           'Pilzampel gerade günstig steht — experimentell.',
                       '„Saison" zeigt nur Spots mit einer Art, die in '

@@ -229,7 +229,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   autofillHints: const [AutofillHints.newUsername],
                   decoration: const InputDecoration(
                     labelText: 'Benutzername',
-                    helperText: 'Darüber können Freunde dich finden.',
+                    helperText: 'Darüber können Buddys dich finden.',
                     border: OutlineInputBorder(),
                   ),
                 ),

@@ -9,7 +9,7 @@ eintragen und Spots mit Freunden teilen.
 
 ## Screenshots
 
-| Spots mit Arten | Wald + Pilzwetter | Spot-Detail | Freunde | Statistik | Live-Standort |
+| Spots mit Arten | Wald + Pilzwetter | Spot-Detail | Buddys | Statistik | Live-Standort |
 |---|---|---|---|---|---|
 | <img src="store/screenshots/01-karte-spots.png" width="140" alt="Karte mit Spots verschiedener Pilzarten"> | <img src="store/screenshots/02-karte-pilzwetter.png" width="140" alt="Wald- und Pilzwetter-Ebene mit Legende"> | <img src="store/screenshots/03-spot-detail.png" width="140" alt="Spot-Detail mit Fundhistorie"> | <img src="store/screenshots/04-freunde.png" width="140" alt="Freundesliste"> | <img src="store/screenshots/05-statistik.png" width="140" alt="Statistik mit Funden pro Jahr"> | <img src="store/screenshots/06-live-standort.png" width="140" alt="Geteilter Live-Standort"> |
 
@@ -36,8 +36,8 @@ eintragen und Spots mit Freunden teilen.
   Genauigkeit, die dein Gerät meldet. Trägst du später von zu Hause nach,
   setzt du sie im Kartenausschnitt per Fadenkreuz. In der Fundliste steht
   dann „14 m nordöstlich (±5 m)", und du kannst genau dorthin navigieren.
-- **Freunde:** Suche per Benutzername oder genauer E-Mail, Anfrage → Annahme.
-  Freundes-Spots erscheinen blau auf der Karte.
+- **Buddys:** Suche per Benutzername oder genauer E-Mail, Anfrage → Annahme.
+  Buddy-Spots erscheinen blau auf der Karte.
 - **Live-Standort teilen:** Auf der Karte den Teilen-Button tippen → 1, 2 oder
   4 Stunden. Freunde sehen dich für die gewählte Dauer als Buddy-Avatar live auf
   ihrer Karte; die Freigabe läuft automatisch ab und lässt sich jederzeit beenden.

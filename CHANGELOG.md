@@ -7,6 +7,15 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Freunde heißen jetzt Buddys
+
+*23. September 2026 · Version 1.187.0*
+
+Der Reiter „Freunde" heißt jetzt „Buddys" — und so heißen sie überall
+in der App: die Leute, mit denen du Spots, Standort und Fundfotos
+teilst. Das Wort stand schon an vielen Stellen, jetzt an allen. Sonst
+ändert sich nichts.
+
 ## Ein Bild zum Feedback
 
 *22. September 2026 · Version 1.186.0*

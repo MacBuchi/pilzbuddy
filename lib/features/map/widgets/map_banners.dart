@@ -551,7 +551,7 @@ class MapBanners extends ConsumerWidget {
                 // deren Freigabe entscheidet der Server bei jeder Abfrage
                 // neu). Ohne diesen Satz sähe ihr Fehlen nach einem Fehler
                 // aus.
-                Text('Freundes-Spots fehlen, bis du wieder Empfang hast.',
+                Text('Buddy-Spots fehlen, bis du wieder Empfang hast.',
                     style: Theme.of(context)
                         .textTheme
                         .bodySmall
@@ -685,8 +685,8 @@ class MapBanners extends ConsumerWidget {
             foreground: Colors.white,
             onTap: () => context.go('/friends'),
             content: Text(incoming == 1
-                ? '🔔 1 offene Freundschaftsanfrage — antippen'
-                : '🔔 $incoming offene Freundschaftsanfragen — antippen'),
+                ? '🔔 1 offene Buddy-Anfrage — antippen'
+                : '🔔 $incoming offene Buddy-Anfragen — antippen'),
           ),
         // Neue Buddy-Funde (#202) — NACH den Anfragen (dort wartet eine
         // Entscheidung, hier nur eine Neuigkeit), in derselben Buddy-

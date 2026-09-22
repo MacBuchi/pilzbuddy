@@ -137,14 +137,14 @@ class ProfileScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 20),
-            Text('Teilen mit Freunden',
+            Text('Teilen mit Buddys',
                 style: Theme.of(context).textTheme.titleMedium),
             // Rang und Spiegel (#276) stehen VOR dem Schalter: Sie sind
             // der Grund, ihn anzulassen.
             const SharingRankTile(),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('Meine Spots mit Freunden teilen'),
+              title: const Text('Meine Spots mit Buddys teilen'),
               subtitle: const Text(
                   'Einzelne Spots kannst du auf der Karte davon ausnehmen.'),
               value: profile.shareSpotsDefault,
@@ -156,7 +156,7 @@ class ProfileScreen extends ConsumerWidget {
               contentPadding: EdgeInsets.zero,
               title: const Text('Auch Art, Anzahl und Funddatum teilen'),
               subtitle:
-                  const Text('Ausgeschaltet sehen Freunde nur den Standort.'),
+                  const Text('Ausgeschaltet sehen Buddys nur den Standort.'),
               value: profile.shareDetails,
               onChanged: profile.shareSpotsDefault
                   ? (value) => ref
@@ -619,12 +619,12 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
           children: [
             const Text(
                 'Sofort und unwiderruflich gelöscht werden: dein Profil, '
-                'alle Spots samt Fundhistorie, deine Freundschaften und ein '
+                'alle Spots samt Fundhistorie, deine Buddy-Verbindungen und ein '
                 'laufend geteilter Standort.'),
             const SizedBox(height: 12),
             const Text(
                 'Deine Spots verschwinden damit auch von den Karten deiner '
-                'Freunde — geteilte Spots sind Kopien deiner Daten, keine '
+                'Buddys — geteilte Spots sind Kopien deiner Daten, keine '
                 'eigenen.'),
             const SizedBox(height: 12),
             Text(
