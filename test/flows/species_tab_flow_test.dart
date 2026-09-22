@@ -6,6 +6,8 @@ import 'package:pilzbuddy/core/mushroom_species.dart';
 import 'package:pilzbuddy/core/widgets/season_bars.dart';
 import 'package:pilzbuddy/core/species_photos.dart';
 import 'package:pilzbuddy/features/species/species_catalogue.dart';
+import 'package:pilzbuddy/core/widgets/info_button.dart';
+import 'package:pilzbuddy/features/species/species_screen.dart';
 
 import '../fakes/fake_backend.dart';
 import '../fakes/fake_settings.dart';
@@ -27,7 +29,16 @@ void main() {
 
   Future<void> scrollTo(WidgetTester tester, String name) async {
     await tester.scrollUntilVisible(find.text(name), 200,
-        scrollable: find.byType(Scrollable).first);
+        // **Der `Scrollable` IN der Liste, nicht die Liste.**
+        // `scrollUntilVisible` schlägt den `ScrollableState` nach; ein
+        // Schlüssel auf der `ListView` liefert das falsche Widget und
+        // wirft einen Typfehler. `.first`, weil `descendant` auch
+        // innere Scrollables mitnimmt (#516).
+        scrollable: find
+            .descendant(
+                of: find.byKey(kSpeciesListKey),
+                matching: find.byType(Scrollable))
+            .first);
     await settle(tester, frames: 4);
   }
 
@@ -58,7 +69,7 @@ void main() {
     await openTab(tester, 2);
     expect(highlighted(tester, 'Steinpilz'), isFalse);
 
-    await tester.tap(find.text('Nur jetzt Saison'));
+    await tester.tap(find.widgetWithText(FilterChip, 'Saison'));
     await settle(tester);
 
     expect(find.text('Steinpilz'), findsNothing);
@@ -119,7 +130,7 @@ void main() {
     await openTab(tester, 9);
 
     await tester.enterText(
-        find.widgetWithText(TextField, 'Art suchen'), 'marone');
+        find.widgetWithText(TextField, 'Art oder wissenschaftlicher Name'), 'marone');
     await settle(tester);
 
     // Der Zweitname führt auf die Hauptbezeichnung — in der Liste steht
@@ -139,7 +150,8 @@ void main() {
       for (final title in titles) {
         if (find.text(title).evaluate().isNotEmpty) seen.add(title);
       }
-      await tester.drag(find.byType(Scrollable).first, const Offset(0, -300));
+      await tester.drag(
+          find.byKey(kSpeciesListKey), const Offset(0, -300));
       await settle(tester, frames: 4);
     }
     expect(seen, {'Steinpilz & Co.'},
@@ -153,7 +165,7 @@ void main() {
     await openTab(tester, 9);
 
     await tester.enterText(
-        find.widgetWithText(TextField, 'Art suchen'), 'Cantharellus');
+        find.widgetWithText(TextField, 'Art oder wissenschaftlicher Name'), 'Cantharellus');
     await settle(tester);
 
     // Auf die ZEILE gezielt: Die Ampel-Gruppe heißt hier wie die Art,
@@ -171,7 +183,7 @@ void main() {
     await openTab(tester, 9);
 
     await tester.enterText(
-        find.widgetWithText(TextField, 'Art suchen'), 'steinpliz');
+        find.widgetWithText(TextField, 'Art oder wissenschaftlicher Name'), 'steinpliz');
     await settle(tester);
 
     expect(find.widgetWithText(ListTile, 'Steinpilz'), findsOneWidget);
@@ -188,7 +200,7 @@ void main() {
     await openTab(tester, 9);
 
     await tester.enterText(
-        find.widgetWithText(TextField, 'Art suchen'), 'Trüffel');
+        find.widgetWithText(TextField, 'Art oder wissenschaftlicher Name'), 'Trüffel');
     await settle(tester);
 
     expect(find.textContaining('Keine Art mit diesem Namen'), findsOneWidget);
@@ -205,7 +217,7 @@ void main() {
     // kann, wie er ihn loswird, hält die App für kaputt.
     await openTab(tester, 9);
     await tester.enterText(
-        find.widgetWithText(TextField, 'Art suchen'), 'marone');
+        find.widgetWithText(TextField, 'Art oder wissenschaftlicher Name'), 'marone');
     await settle(tester);
     expect(find.text('Steinpilz'), findsNothing);
 
@@ -222,7 +234,7 @@ void main() {
     // Über die Suche, nicht über einen Zug: Eine `ListView.builder`
     // baut nur, was in Sichtweite ist.
     await tester.enterText(
-        find.widgetWithText(TextField, 'Art suchen'), 'Fliegenpilz');
+        find.widgetWithText(TextField, 'Art oder wissenschaftlicher Name'), 'Fliegenpilz');
     await settle(tester);
 
     final zeile = find.widgetWithText(ListTile, 'Fliegenpilz');
@@ -245,7 +257,7 @@ void main() {
     // in der Liste trotzdem keins — ein Widerspruch in derselben App.
     await openTab(tester, 9);
     await tester.enterText(
-        find.widgetWithText(TextField, 'Art suchen'), 'Stockschwämmchen');
+        find.widgetWithText(TextField, 'Art oder wissenschaftlicher Name'), 'Stockschwämmchen');
     await settle(tester);
 
     final zeile = find.widgetWithText(ListTile, 'Stockschwämmchen');
@@ -257,5 +269,43 @@ void main() {
         findsOneWidget);
   });
 
+
+  testWidgets('das Suchfeld bleibt beim Scrollen stehen', (tester) async {
+    // **Bis 1.181.0 war der ganze Kopf die erste Zeile der Liste.** Wer
+    // nach unten scrollte, verlor das Suchfeld und musste zum Tippen
+    // zurück nach oben (Betreiber, 2026-09-22). Die Spot-Liste macht es
+    // seit 1.161.0 richtig.
+    await openTab(tester, 9);
+    final vorher = tester.getRect(find.byType(TextField));
+
+    await tester.drag(
+        find
+            .descendant(
+                of: find.byKey(kSpeciesListKey),
+                matching: find.byType(Scrollable))
+            .first,
+        const Offset(0, -600));
+    await settle(tester);
+
+    expect(find.byType(TextField), findsOneWidget, reason: 'noch da');
+    expect(tester.getRect(find.byType(TextField)), vorher,
+        reason: 'und an derselben Stelle');
+  });
+
+  testWidgets('der Erklärtext steckt im „i", nicht über der Liste',
+      (tester) async {
+    // **Der Absatz kostete gemessen 220 der 444 px** über der ersten
+    // Art. Gelesen wird er einmal, im Weg stand er immer. Was bleibt,
+    // ist die Zahl — sie ändert sich mit dem Monat.
+    await openTab(tester, 9);
+    const satz = 'Der Schalter an einer Art nimmt sie aus der Ampel';
+    expect(find.textContaining(satz), findsNothing);
+    expect(find.textContaining('haben'), findsWidgets,
+        reason: 'die Saison-Zahl bleibt sichtbar');
+
+    await tester.tap(find.byType(InfoButton));
+    await settle(tester);
+    expect(find.textContaining(satz), findsOneWidget);
+  });
 
 }

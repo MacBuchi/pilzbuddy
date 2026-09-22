@@ -126,7 +126,7 @@ void main() {
     await pumpApp(tester, backend);
     await openTab(tester, 'Pilze');
     await tester.enterText(
-        find.widgetWithText(TextField, 'Art suchen'), 'Steinpilz');
+        find.widgetWithText(TextField, 'Art oder wissenschaftlicher Name'), 'Steinpilz');
     await settle(tester);
     await tester.tap(find.widgetWithText(ListTile, 'Steinpilz'));
     await settle(tester);
@@ -163,7 +163,7 @@ void main() {
     await pumpApp(tester, backend);
     await openTab(tester, 'Pilze');
     await tester.enterText(
-        find.widgetWithText(TextField, 'Art suchen'), 'Judasohr');
+        find.widgetWithText(TextField, 'Art oder wissenschaftlicher Name'), 'Judasohr');
     await settle(tester);
     await tester.tap(find.widgetWithText(ListTile, 'Judasohr'));
     await settle(tester);

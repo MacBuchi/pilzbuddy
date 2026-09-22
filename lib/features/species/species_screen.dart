@@ -23,12 +23,22 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/season_curves.dart';
+import '../../core/widgets/info_button.dart';
 import '../../core/widgets/mushroom_icon.dart';
 import '../../core/widgets/season_bars.dart';
 import '../ampel/ampel_model.dart';
 import '../ampel/ampel_species_exclusion.dart';
 import '../map/spot_filter.dart' show currentMonthProvider;
 import 'species_catalogue.dart';
+
+/// Die senkrechte Liste des Reiters.
+///
+/// **Sie braucht einen Namen, seit das Suchfeld ÜBER ihr steht** (seit
+/// 1.181.0). Ein `TextField` bringt sein eigenes `Scrollable` mit, und
+/// das kommt jetzt zuerst im Baum: `find.byType(Scrollable).first` zog
+/// vorher die Liste und zieht seither das Eingabefeld. Dieselbe Falle
+/// wie auf der Artseite (#516) und im Reiter-Test (#414).
+const kSpeciesListKey = ValueKey('species-list');
 
 class SpeciesScreen extends ConsumerStatefulWidget {
   const SpeciesScreen({super.key});
@@ -91,31 +101,43 @@ class _SpeciesScreenState extends ConsumerState<SpeciesScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Pilze')),
-      body: ListView.builder(
-        // Kopf + Zeilen + Quelle.
-        itemCount: rows.length + 2,
-        itemBuilder: (context, index) {
-          if (index == 0) {
-            return _Intro(
-              month: month,
-              inSeason: inSeason,
-              withCurve: withCurve,
-              total: all.length,
-              onlyNow: _onlyNow,
-              onToggle: (value) => setState(() => _onlyNow = value),
-              search: _search,
-              query: query,
-              matches: matches,
-              isGuess: search.isGuess,
-              onSearch: () => setState(() {}),
-            );
-          }
-          if (index == rows.length + 1) return const _Source();
-          final row = rows[index - 1];
-          return row.section != null
-              ? _SectionHeader(section: row.section!)
-              : _EntryTile(entry: row.entry!, month: month);
-        },
+      // **Die Regler stehen ÜBER der Liste, nicht darin** (Betreiber,
+      // 2026-09-22). Bis 1.181.0 war der ganze Kopf die erste Zeile der
+      // `ListView` und scrollte mit: Wer in der Liste nach unten ging,
+      // verlor das Suchfeld, und zum Tippen musste er zurück nach oben.
+      // Die Spot-Liste macht es seit 1.161.0 richtig; hier ist es
+      // nachgezogen.
+      body: Column(
+        children: [
+          _Controls(
+            month: month,
+            inSeason: inSeason,
+            withCurve: withCurve,
+            onlyNow: _onlyNow,
+            onToggle: (value) => setState(() => _onlyNow = value),
+            search: _search,
+            query: query,
+            matches: matches,
+            isGuess: search.isGuess,
+            onSearch: () => setState(() {}),
+          ),
+          Expanded(
+            child: query.isNotEmpty && matches == 0
+                ? _NoMatch(total: all.length)
+                : ListView.builder(
+                    key: kSpeciesListKey,
+                    // Zeilen + Quelle.
+                    itemCount: rows.length + 1,
+                    itemBuilder: (context, index) {
+                      if (index == rows.length) return const _Source();
+                      final row = rows[index];
+                      return row.section != null
+                          ? _SectionHeader(section: row.section!)
+                          : _EntryTile(entry: row.entry!, month: month);
+                    },
+                  ),
+          ),
+        ],
       ),
     );
   }
@@ -130,12 +152,19 @@ class _Row {
   final CatalogueEntry? entry;
 }
 
-class _Intro extends StatelessWidget {
-  const _Intro({
+/// Der feste Kopf: eine Zeile Auskunft, das Suchfeld, ein Chip.
+///
+/// **Der Erklärabsatz steckt im „i"** (Betreiber, 2026-09-22). Er stand
+/// bis 1.181.0 als sechszeiliger Text über dem Suchfeld und kostete
+/// gemessen 220 der 444 px, die über der ersten Art lagen — gelesen
+/// wird er einmal, im Weg steht er immer. Die ZAHL bleibt sichtbar:
+/// Sie ändert sich mit dem Monat und ist der Grund, aus dem jemand den
+/// Reiter überhaupt öffnet.
+class _Controls extends StatelessWidget {
+  const _Controls({
     required this.month,
     required this.inSeason,
     required this.withCurve,
-    required this.total,
     required this.onlyNow,
     required this.onToggle,
     required this.search,
@@ -148,20 +177,11 @@ class _Intro extends StatelessWidget {
   final int month;
   final int inSeason;
   final int withCurve;
-
-  /// Wie viele Arten das Verzeichnis überhaupt kennt — gezählt, nicht
-  /// geschrieben: Eine Zahl im Text veraltet bei der nächsten neuen Art,
-  /// ohne dass irgendwo etwas rot wird.
-  final int total;
   final bool onlyNow;
   final ValueChanged<bool> onToggle;
   final TextEditingController search;
   final String query;
   final int matches;
-
-  /// Geraten statt gefunden — die Zeilen kommen aus dem
-  /// Tippfehler-Ausgleich. Muss dastehen, sonst behauptet die Liste,
-  /// der Nutzer habe das so gesucht.
   final bool isGuess;
   final VoidCallback onSearch;
 
@@ -169,72 +189,109 @@ class _Intro extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      padding: const EdgeInsets.fromLTRB(16, 4, 4, 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            // **Bei einer Suche zählt der Satz die Treffer.** Die
-            // Saison-Zahlen beschreiben das ganze Verzeichnis; über einer
-            // gefilterten Liste stünden sie da wie eine Auskunft über
-            // das, was man gerade sieht, und wären falsch.
-            query.isEmpty
-                ? 'Welche Arten zu welcher Pilzampel gehören, und wann sie '
-                    'gemeldet werden. Im ${kMonthNames[month - 1]} haben '
-                    '$inSeason von $withCurve Arten mit Saisonkurve Saison — '
-                    'sie sind hervorgehoben. Der Schalter nimmt eine Art aus '
-                    'der Ampel; eine Gruppe rechnet nur, solange eine ihrer '
-                    'Arten Saison hat.'
-                : isGuess && matches > 0
-                    ? 'Keine Art heißt so. Meintest du …?'
-                    : matches == 1
-                        ? 'Eine Art gefunden.'
-                        : '$matches Arten gefunden.',
-            style: theme.textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: search,
-            onChanged: (_) => onSearch(),
-            textInputAction: TextInputAction.search,
-            decoration: InputDecoration(
-              isDense: true,
-              border: const OutlineInputBorder(),
-              prefixIcon: const Icon(Icons.search),
-              hintText: 'Art suchen',
-              // Wonach gesucht wird, gehört sichtbar dazu — sonst
-              // probiert niemand den wissenschaftlichen Namen.
-              helperText: 'Deutscher Name, Zweitname oder wissenschaftlicher',
-              suffixIcon: query.isEmpty
-                  ? null
-                  : IconButton(
-                      icon: const Icon(Icons.clear),
-                      tooltip: 'Suche löschen',
-                      onPressed: () {
-                        search.clear();
-                        onSearch();
-                      },
-                    ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          FilterChip(
-            label: const Text('Nur jetzt Saison'),
-            selected: onlyNow,
-            onSelected: onToggle,
-          ),
-          if (query.isNotEmpty && matches == 0)
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Text(
-                'Keine Art mit diesem Namen. PilzBuddy kennt $total Arten '
-                '— eigene lassen sich beim Eintragen frei schreiben, sie '
-                'stehen dann aber nicht in diesem Verzeichnis.',
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.hintColor),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  // **Bei einer Suche zählt die Zeile die Treffer.** Die
+                  // Saison-Zahl beschreibt das ganze Verzeichnis; über
+                  // einer gefilterten Liste stünde sie da wie eine
+                  // Auskunft über das, was man gerade sieht.
+                  query.isEmpty
+                      ? 'Im ${kMonthNames[month - 1]} haben $inSeason von '
+                          '$withCurve Arten Saison.'
+                      : isGuess && matches > 0
+                          ? 'Keine Art heißt so. Meintest du …?'
+                          : matches == 1
+                              ? 'Eine Art gefunden.'
+                              : '$matches Arten gefunden.',
+                  style: theme.textTheme.bodyMedium,
+                ),
               ),
+              const InfoButton(
+                title: 'Der Reiter „Pilze"',
+                text: 'Hier steht, welche Arten zu welcher Pilzampel '
+                    'gehören und wann sie gemeldet werden. Hervorgehoben '
+                    'ist, was jetzt Saison hat.\n\n'
+                    'Der Schalter an einer Art nimmt sie aus der Ampel. '
+                    'Eine Gruppe rechnet nur, solange mindestens eine '
+                    'ihrer Arten Saison hat.\n\n'
+                    'Gesucht wird über den deutschen Namen, Zweitnamen '
+                    'und den wissenschaftlichen Namen.',
+              ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: search,
+                    onChanged: (_) => onSearch(),
+                    textInputAction: TextInputAction.search,
+                    decoration: InputDecoration(
+                      isDense: true,
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.search),
+                      // **Ohne `helperText`.** Wonach gesucht werden
+                      // kann, stand als eigene Zeile unter dem Feld und
+                      // machte es 68 statt 48 px hoch; jetzt steht es im
+                      // „i" daneben. Sichtbar bleibt es dadurch, dass
+                      // der Platzhalter den zweiten Namen nennt.
+                      hintText: 'Art oder wissenschaftlicher Name',
+                      suffixIcon: query.isEmpty
+                          ? null
+                          : IconButton(
+                              icon: const Icon(Icons.clear),
+                              tooltip: 'Suche löschen',
+                              onPressed: () {
+                                search.clear();
+                                onSearch();
+                              },
+                            ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // **Der Chip steht NEBEN dem Feld, nicht darunter.** Eine
+                // eigene Zeile kostete 40 px, die der Liste fehlen.
+                FilterChip(
+                  visualDensity: VisualDensity.compact,
+                  label: const Text('Saison'),
+                  tooltip: 'Nur Arten, die jetzt Saison haben',
+                  selected: onlyNow,
+                  onSelected: onToggle,
+                ),
+              ],
             ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+/// Die leere Liste — sie erklärt sich, statt nur leer zu sein.
+class _NoMatch extends StatelessWidget {
+  const _NoMatch({required this.total});
+
+  final int total;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
+      child: Text(
+        'Keine Art mit diesem Namen. PilzBuddy kennt $total Arten — eigene '
+        'lassen sich beim Eintragen frei schreiben, sie stehen dann aber '
+        'nicht in diesem Verzeichnis.',
+        style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
       ),
     );
   }

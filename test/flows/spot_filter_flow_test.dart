@@ -5,6 +5,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/widgets/mushroom_icon.dart';
+import 'package:pilzbuddy/core/widgets/info_button.dart';
+import 'package:pilzbuddy/features/map/widgets/ampel_class_chips.dart';
 
 import '../fakes/fake_backend.dart';
 import '../fakes/fake_settings.dart';
@@ -182,7 +184,7 @@ void main() {
       await onPhone(tester);
       await tester.tap(find.byTooltip('Karte filtern'));
       await settle(tester);
-      expect(find.byType(FilterChip), findsNothing);
+      expect(find.descendant(of: find.byKey(kAmpelClassChipsKey), matching: find.byType(FilterChip)), findsNothing);
     });
 
     testWidgets('mit der Fundorte-Ebene stehen sie auch ohne Vorschau im '
@@ -197,7 +199,7 @@ void main() {
       await onPhone(tester);
       await tester.tap(find.byTooltip('Karte filtern'));
       await settle(tester);
-      expect(find.byType(FilterChip), findsNWidgets(4));
+      expect(find.descendant(of: find.byKey(kAmpelClassChipsKey), matching: find.byType(FilterChip)), findsNWidgets(4));
       expect(find.textContaining('Gruppen für Ampel und Fundorte'), findsOneWidget,
           reason: 'der Satz über den Chips nennt, was sie hier bewirken');
     });
@@ -213,7 +215,7 @@ void main() {
 
       // Ab Werk sind beide an — und das ist KEIN aktiver Filter.
       // Vier Gruppen seit 1.151.0 — alle bis auf „Steinpilz & Co." ab.
-      expect(find.byType(FilterChip), findsNWidgets(4));
+      expect(find.descendant(of: find.byKey(kAmpelClassChipsKey), matching: find.byType(FilterChip)), findsNWidgets(4));
       expect(find.textContaining('Gefiltert'), findsNothing);
 
       for (final name in const [
@@ -244,6 +246,37 @@ void main() {
     });
   });
 
+  testWidgets('das Blatt bleibt unter 320 px auf dem Telefon',
+      (tester) async {
+    // **Die Zusage misst die HÖHE, nicht die Zeilen** — und das ist
+    // keine Bequemlichkeit. Der Testrahmen rendert mit einer
+    // Prüfschrift, deren Zeichen alle gleich breit sind und rund doppelt
+    // so breit wie Roboto: „Ampel günstig" ist hier 179 px und auf dem
+    // Gerät etwa 94. Eine Zusage „die drei Chips stehen in einer Zeile"
+    // wäre damit eine Aussage über die Schrift des Testrahmens, nicht
+    // über die App (Lehre aus #414: „ein Test, der dort scheitert, misst
+    // die Testhülle").
+    //
+    // Die Höhe trägt trotzdem: Gemessen sind die 299 px MIT dem
+    // ungünstigen Umbruch auf drei Zeilen, auf dem Gerät ist es weniger.
+    // Vorher waren es 435 px, davon 210 für drei `SwitchListTile`.
+    final backend = FakeBackend();
+    final me = backend.addUser(username: 'testpilz');
+    backend.signInAs(me.id);
+    backend.addSpot(ownerId: me.id, name: 'Hang', species: 'Steinpilz');
+    await pumpApp(tester, backend);
+    await onPhone(tester);
+    await tester.tap(find.byTooltip('Karte filtern'));
+    await settle(tester);
+
+    for (final label in ['Nur meine', 'Ampel günstig', 'Saison']) {
+      expect(find.widgetWithText(FilterChip, label), findsOneWidget,
+          reason: label);
+    }
+    expect(tester.getRect(find.byType(BottomSheet)).height, lessThan(320),
+        reason: 'die drei Filter sollen keine Schaltzeilen mehr sein');
+  });
+
   testWidgets('„Nur meine Spots" blendet die der Freundin aus',
       (tester) async {
     final (backend, _) = backendWithSpots();
@@ -251,7 +284,7 @@ void main() {
 
     await tester.tap(find.byTooltip('Karte filtern'));
     await settle(tester);
-    await tester.tap(find.text('Nur meine Spots'));
+    await tester.tap(find.widgetWithText(FilterChip, 'Nur meine'));
     await settle(tester);
     Navigator.of(tester.element(find.text('Karte filtern'))).pop();
     await settle(tester);
@@ -300,10 +333,15 @@ void main() {
       expect(find.byType(MushroomIcon), findsNWidgets(2));
       await tester.tap(find.byTooltip('Karte filtern'));
       await settle(tester);
-      // Der Untertitel nennt Zahl und Monat, damit der Schalter sagt, was
-      // er tun wird, bevor man ihn umlegt.
-      expect(find.text('1 Fundstelle im Juli'), findsOneWidget);
-      await tester.tap(find.text('Nur was jetzt Saison hat'));
+      // Zahl und Monat stehen am Chip, damit er sagt, was er tun wird,
+      // bevor man ihn antippt — seit 1.181.0 als Tooltip statt als
+      // Untertitel, die Aussage ist dieselbe geblieben.
+      expect(
+          tester
+              .widget<FilterChip>(find.widgetWithText(FilterChip, 'Saison'))
+              .tooltip,
+          '1 Fundstelle im Juli');
+      await tester.tap(find.widgetWithText(FilterChip, 'Saison'));
       await settle(tester);
       Navigator.of(tester.element(find.text('Karte filtern'))).pop();
       await settle(tester);
@@ -330,11 +368,22 @@ void main() {
       await tester.tap(find.byTooltip('Karte filtern'));
       await settle(tester);
 
-      expect(find.text('Im Mai hat keine deiner Arten Saison'),
-          findsOneWidget);
-      final tile = tester.widget<SwitchListTile>(
-          find.widgetWithText(SwitchListTile, 'Nur was jetzt Saison hat'));
-      expect(tile.onChanged, isNull);
+      // **Seit 1.181.0 trägt den Grund der Chip, nicht ein Untertitel.**
+      // Die Zusage aus #399 ist dieselbe geblieben — gesperrt UND
+      // begründet —, nur die Stelle hat gewechselt: Tooltip am Chip und
+      // erster Absatz im „i". Beide werden hier geprüft, denn einer
+      // allein wäre der halbe Nachweis.
+      final chip = tester.widget<FilterChip>(
+          find.widgetWithText(FilterChip, 'Saison'));
+      expect(chip.onSelected, isNull, reason: 'gesperrt');
+      expect(chip.tooltip, contains('Im Mai hat keine deiner Arten Saison'));
+
+      await tester.tap(find.byType(InfoButton));
+      await settle(tester);
+      expect(
+          find.textContaining('Im Mai hat keine deiner Arten Saison'),
+          findsOneWidget,
+          reason: 'der Grund steht im „i" ganz oben');
     });
   });
 

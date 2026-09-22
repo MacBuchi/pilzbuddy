@@ -5,6 +5,7 @@ import '../../../core/app_colors.dart';
 import '../../../core/widgets/mushroom_icon.dart';
 import '../../../core/mushroom_species.dart';
 import '../../../core/season_curves.dart';
+import '../../../core/widgets/info_button.dart';
 import '../../../core/widgets/sheet_close_button.dart';
 import '../../ampel/ampel_providers.dart' show ampelPreviewEnabledProvider;
 import '../../ampel/ampel_scan.dart';
@@ -38,6 +39,7 @@ class _SpotFilterSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
     final filter = ref.watch(spotFilterProvider);
     final species = ref.watch(filterSpeciesProvider);
     final notifier = ref.read(spotFilterProvider.notifier);
@@ -100,31 +102,107 @@ class _SpotFilterSheet extends ConsumerWidget {
                 ],
               ),
             ),
-            // `dense` seit dem dritten Schalter (#414): Drei Zeilen zu
-            // 72 dp kosteten der Artenliste 216 dp, und im 600-dp-Fenster
-            // blieb ihr damit weniger als eine Bildschirmzeile. Die Liste
-            // scrollt zwar, aber was man scrollen muss, findet man
-            // seltener.
-            SwitchListTile(
-              dense: true,
-              value: filter.onlyMine,
-              onChanged: notifier.setOnlyMine,
-              title: const Text('Nur meine Spots'),
-              subtitle: const Text('Blendet die Spots deiner Freunde aus'),
-            ),
-            // Nur wählbar, solange es überhaupt günstige Spots gibt (#399)
-            // — ein Schalter, der auf eine leere Karte führt, wäre von
-            // „kaputt" nicht zu unterscheiden. Und `onChanged: null` allein
-            // ist keine Auskunft, deshalb sagt der Untertitel, WARUM:
-            // „kein Fehler ohne Fehlermeldung".
-            SwitchListTile(
-              dense: true,
-              value: filter.onlyAmpel,
-              onChanged: ampelHits.isEmpty ? null : notifier.setOnlyAmpel,
-              title: const Text('Nur wo die Ampel günstig steht'),
-              subtitle: Text(ampelHits.isEmpty
-                  ? 'Gerade an keinem deiner Spots'
-                  : '${ampelHits.length} deiner Spots · experimentell'),
+            // **Drei Chips statt drei Schaltzeilen** (Betreiber,
+            // 2026-09-22: „die Chips können kleiner, sodass alles in
+            // eine Zeile passt"). Gemessen kosteten die
+            // `SwitchListTile` mit Titel und Untertitel 210 der 435 px
+            // des Blatts, und der Artenliste blieben 141 — drei Zeilen.
+            //
+            // **Der Grund einer Sperre geht dabei NICHT verloren.** Ein
+            // Regler, der auf eine leere Karte führt, ist von kaputt
+            // nicht zu unterscheiden (#399), und das galt auch für die
+            // Untertitel, die hier verschwinden. Ein gesperrter Chip
+            // trägt seinen Grund deshalb als Tooltip UND im „i"
+            // daneben; was gesperrt ist, steht dort immer zuerst.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 4, 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        // Stil wie die Gruppen-Chips darunter, damit das
+                        // Blatt eine Sprache spricht.
+                        FilterChip(
+                          visualDensity: VisualDensity.compact,
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                          labelStyle: theme.textTheme.bodySmall,
+                          labelPadding:
+                              const EdgeInsets.symmetric(horizontal: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 4),
+                          label: const Text('Nur meine'),
+                          tooltip: 'Blendet die Spots deiner Freunde aus',
+                          selected: filter.onlyMine,
+                          onSelected: notifier.setOnlyMine,
+                        ),
+                        FilterChip(
+                          visualDensity: VisualDensity.compact,
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                          labelStyle: theme.textTheme.bodySmall,
+                          labelPadding:
+                              const EdgeInsets.symmetric(horizontal: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 4),
+                          label: const Text('Ampel günstig'),
+                          tooltip: ampelHits.isEmpty
+                              ? 'Gerade an keinem deiner Spots'
+                              : '${ampelHits.length} deiner Spots · '
+                                  'experimentell',
+                          selected: filter.onlyAmpel,
+                          onSelected: ampelHits.isEmpty
+                              ? null
+                              : notifier.setOnlyAmpel,
+                        ),
+                        FilterChip(
+                          visualDensity: VisualDensity.compact,
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                          labelStyle: theme.textTheme.bodySmall,
+                          labelPadding:
+                              const EdgeInsets.symmetric(horizontal: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 4),
+                          label: const Text('Saison'),
+                          tooltip: seasonCount == 0
+                              ? 'Im $monthName hat keine deiner Arten Saison'
+                              : '$seasonCount '
+                                  '${seasonCount == 1 ? 'Fundstelle' : 'Fundstellen'} '
+                                  'im $monthName',
+                          selected: filter.onlySeason,
+                          onSelected:
+                              seasonCount == 0 ? null : notifier.setOnlySeason,
+                        ),
+                      ],
+                    ),
+                  ),
+                  InfoButton(
+                    title: 'Karte filtern',
+                    text: [
+                      // Gesperrtes zuerst: Das ist die Frage, mit der
+                      // jemand das „i" antippt.
+                      if (ampelHits.isEmpty)
+                        '„Ampel günstig" ist gerade nicht wählbar: An '
+                            'keinem deiner Spots steht die Ampel günstig.',
+                      if (seasonCount == 0)
+                        '„Saison" ist gerade nicht wählbar: Im $monthName '
+                            'hat keine deiner Arten Saison.',
+                      '„Nur meine" blendet die Spots deiner Freunde aus.',
+                      '„Ampel günstig" zeigt nur Spots, an denen die '
+                          'Pilzampel gerade günstig steht — experimentell.',
+                      '„Saison" zeigt nur Spots mit einer Art, die in '
+                          'diesem Monat üblicherweise gemeldet wird. Das '
+                          'ist Tabellenarbeit, keine Aussage über diesen '
+                          'Wald.',
+                      'Die Auswahl meldet sich auf der Karte als Chip.',
+                    ].join('\n\n'),
+                  ),
+                ],
+              ),
             ),
             // Die Gruppen-Chips (Betreiber, 2026-09-12: „Macht es
             // vielleicht auch Sinn, die Klassen als Chips im Ampel-Filter
@@ -152,18 +230,6 @@ class _SpotFilterSheet extends ConsumerWidget {
             // (#414). Deshalb steht hier kein „experimentell": Der
             // Schalter behauptet nichts über diesen Wald, er sagt nur,
             // wann die Art üblicherweise gemeldet wird.
-            SwitchListTile(
-              dense: true,
-              value: filter.onlySeason,
-              onChanged:
-                  seasonCount == 0 ? null : notifier.setOnlySeason,
-              title: const Text('Nur was jetzt Saison hat'),
-              subtitle: Text(seasonCount == 0
-                  ? 'Im $monthName hat keine deiner Arten Saison'
-                  : '$seasonCount '
-                      '${seasonCount == 1 ? 'Fundstelle' : 'Fundstellen'} '
-                      'im $monthName'),
-            ),
             const Divider(height: 1),
             Flexible(
               child: species.isEmpty
