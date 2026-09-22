@@ -257,18 +257,5 @@ void main() {
         findsOneWidget);
   });
 
-  testWidgets('ohne Bilder steht dort nichts', (tester) async {
-    await openTab(tester, 9);
-    await tester.enterText(
-        find.widgetWithText(TextField, 'Art suchen'), 'Judasohr');
-    await settle(tester);
-
-    final zeile = find.widgetWithText(ListTile, 'Judasohr');
-    expect(zeile, findsOneWidget, reason: 'die Zeile steht da');
-    expect(
-        find.descendant(
-            of: zeile, matching: find.byIcon(Icons.visibility_outlined)),
-        findsNothing);
-  });
 
 }

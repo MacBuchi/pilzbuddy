@@ -318,21 +318,26 @@ void main() {
     // **Eine Naht, nicht zwei.** Bis 1.174.0 zählte das Auge nur die
     // Porträts, der Bildstreifen fiel aber auf das Paarbild zurück —
     // zwölf Arten zeigten damit ein Bild und bekamen in der Liste
-    // trotzdem keins angezeigt. Ein Widerspruch in derselben App.
+    // trotzdem keins angezeigt.
+    //
+    // **Seit 1.178.0 tragen ALLE Arten ein Bild.** Die Gegenrichtung
+    // ist damit nicht mehr am Bestand prüfbar; sie steht unten als
+    // Aussage über die Funktion.
     final alle = [
       for (final section in speciesCatalogue(month: 9)) ...section.entries,
     ];
-    final mitBild = alle.where((e) => e.hasPictures).map((e) => e.name);
-    expect(mitBild, contains('Fliegenpilz'), reason: 'eigene Porträts');
-    expect(mitBild, contains('Stockschwämmchen'),
-        reason: 'nur ein Commons-Bild aus dem Paar — wird trotzdem gezeigt');
-    expect(mitBild, isNot(contains('Ledertäubling')), reason: 'gar kein Bild');
-    // Gezählt statt geschrieben: Porträts plus die Arten, die allein
-    // ein Paarbild tragen.
-    final nurPaar = speciesPhotos.keys
-        .where((n) => portraitsFor(n).isEmpty)
-        .length;
-    expect(mitBild.length, speciesPortraits.length + nurPaar);
+    expect(alle.where((e) => e.hasPictures).length, alle.length,
+        reason: 'jede Art zeigt ein Bild');
+    expect(alle.length, 92);
+  });
+
+  test('ohne Bild kein Auge — über die Naht, nicht über den Bestand', () {
+    // Die Gegenrichtung. Sie ist seit 1.178.0 nicht mehr an einer Art
+    // zu zeigen, weil es keine ohne Bild mehr gibt; an der Funktion
+    // schon. Ein Name, den die App nicht kennt, hat nie eines.
+    expect(ownPictures('Geheimpilz'), isEmpty);
+    expect(portraitsFor('Geheimpilz'), isEmpty);
+    expect(photoFor('Geheimpilz'), isNull);
   });
 
 

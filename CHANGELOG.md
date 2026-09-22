@@ -7,6 +7,24 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Jetzt hat jeder Pilz ein Bild
+
+*22. September 2026 · Version 1.178.0*
+
+Die letzten 35 Arten haben ihres bekommen, alle essbar oder „nur
+gegart". Damit zeigt jede der 92 Arten in PilzBuddy mindestens ein Bild.
+
+Dabei sind unter anderem Maipilz, Semmelstoppelpilz mit seinen Stacheln,
+Riesenbovist auf der Kuhweide, Butterpilz, Ziegenlippe, Judasohr,
+Nelkenschwindling, Schwefelporling und der Igelstachelbart.
+
+Rotkappe und Espenrotkappe teilen sich absichtlich dasselbe Bild:
+„Rotkappe" ist ein Sammelname für mehrere Arten, und ein eigenes Bild
+müsste trotzdem eine davon zeigen.
+
+Auch diese Bilder stammen von Wikimedia Commons und stehen dort, bis
+eigene Aufnahmen sie ersetzen.
+
 ## Spot anlegen direkt am langen Tipp
 
 *22. September 2026 · Version 1.177.0*
