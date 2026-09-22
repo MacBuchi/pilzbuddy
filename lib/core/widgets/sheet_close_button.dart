@@ -27,15 +27,31 @@ import 'package:flutter/material.dart';
 /// Gehört an das ENDE der Kopfzeile, hinter einen `Spacer` — links steht
 /// der Titel, und ein Knopf davor schöbe ihn aus der Lesespur.
 class SheetCloseButton extends StatelessWidget {
-  const SheetCloseButton({super.key, this.tooltip = 'Schließen'});
+  const SheetCloseButton({
+    super.key,
+    this.tooltip = 'Schließen',
+    this.background,
+  });
 
   final String tooltip;
+
+  /// Eine Fläche unter dem Zeichen — für die Bildansicht.
+  ///
+  /// **Nur dort, und nur weil der Untergrund fremd ist.** Auf einem
+  /// Blatt liegt das x auf der Blattfarbe und ist immer zu sehen; auf
+  /// einem Foto kann es in einem hellen Himmel verschwinden. Eine
+  /// Fläche an jedem x wäre Lärm, eine Fläche auf einem Bild ist die
+  /// Bedingung dafür, dass es überhaupt eins gibt.
+  final Color? background;
 
   @override
   Widget build(BuildContext context) {
     return IconButton(
       icon: const Icon(Icons.close),
       tooltip: tooltip,
+      style: background == null
+          ? null
+          : IconButton.styleFrom(backgroundColor: background),
       // **44 bleiben 44.** Dieselbe Trefferfläche wie in der
       // Werkzeugleiste; an der wird nicht gespart, weil die App im Gehen
       // bedient wird.

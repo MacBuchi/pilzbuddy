@@ -69,6 +69,9 @@ const kSpeciesDetailListKey = ValueKey('species-detail-list');
 
 const kEdibilityCardKey = ValueKey('species-edibility');
 
+/// Der Ausklapper mit Fleisch, Geruch und Vorkommen.
+const kMoreFeaturesKey = ValueKey('merkmale-mehr');
+
 /// Die antippbare Zeile eines Verwechslungspartners.
 ValueKey<String> lookalikeRowKey(String species) =>
     ValueKey('lookalike-$species');
@@ -646,6 +649,40 @@ class _StripTile extends StatelessWidget {
   }
 }
 
+/// Eine Merkmalszeile — dieselbe Form oben wie im Ausklapper.
+///
+/// **Ein Widget, nicht zwei Kopien.** Das feste Raster ist der Grund,
+/// aus dem jemand hier liest: Wer zwei Arten vergleicht, springt
+/// zwischen zwei Seiten und liest dieselbe Zeile zweimal. Zwei
+/// Fassungen wären zwei Breiten für die Beschriftung.
+class _FeatureRow extends StatelessWidget {
+  const _FeatureRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 86,
+            child: Text(label,
+                style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.w600)),
+          ),
+          Expanded(child: Text(value, style: theme.textTheme.bodySmall)),
+        ],
+      ),
+    );
+  }
+}
+
 class _Features extends StatelessWidget {
   const _Features({required this.detail});
 
@@ -660,32 +697,46 @@ class _Features extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const _SectionTitle('Merkmale'),
+        // **Die GESTALT steht, der Rest klappt auf.** Gemessen am
+        // 2026-09-22 war dieser Abschnitt mit 614 px der höchste der
+        // Seite, höher als die Verwechslungspartner — sechs Felder, von
+        // denen drei die Form beschreiben und drei dazukommen, wenn man
+        // den Pilz schon in der Hand hat.
+        //
+        // **Hier gilt „eine eingeklappte Warnung ist Deko" NICHT**, und
+        // das ist der ganze Grund, warum an dieser Stelle eingeklappt
+        // werden darf und bei den warnenden Partnern nicht: Merkmale
+        // beschreiben, sie warnen nicht. Die Einstufung steht weit
+        // darüber und bleibt sichtbar.
+        //
+        // Dieselben drei Felder nennt `species_features_test.dart` die
+        // GESTALT-Felder — wer die Aufteilung ändert, muss dort
+        // nachsehen.
         for (final (label, value) in [
           ('Hut', f.hut),
           ('Unterseite', f.unterseite),
           ('Stiel', f.stiel),
-          ('Fleisch', f.fleisch),
-          ('Geruch', f.geruch),
-          ('Vorkommen', f.vorkommen),
         ])
-          Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  width: 86,
-                  child: Text(label,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.primary,
-                          fontWeight: FontWeight.w600)),
-                ),
-                Expanded(
-                  child: Text(value, style: theme.textTheme.bodySmall),
-                ),
-              ],
-            ),
+          _FeatureRow(label: label, value: value),
+        Theme(
+          data: theme.copyWith(dividerColor: Colors.transparent),
+          child: ExpansionTile(
+            key: kMoreFeaturesKey,
+            title: Text('Fleisch, Geruch und Vorkommen',
+                style: theme.textTheme.bodyMedium),
+            tilePadding: EdgeInsets.zero,
+            childrenPadding: EdgeInsets.zero,
+            expandedCrossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final (label, value) in [
+                ('Fleisch', f.fleisch),
+                ('Geruch', f.geruch),
+                ('Vorkommen', f.vorkommen),
+              ])
+                _FeatureRow(label: label, value: value),
+            ],
           ),
+        ),
         Text(
           // Der Satz, der DIESEM Abschnitt gehört — die anderen
           // Vorbehalte auf der Seite sagen etwas anderes.

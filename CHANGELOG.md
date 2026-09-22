@@ -7,6 +7,25 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Mehr Bilder bei den Verwechslungspartnern
+
+*22. September 2026 · Version 1.181.0*
+
+Bisher zeigte die Artseite ein Bild nur zu jedem vierten
+Verwechslungspartner, obwohl für fast alle eines in der App steckt — sie
+griff in die falsche Schublade. Jetzt hat jeder Partner sein Bild: aus 33
+Zeilen mit Bild werden 124.
+
+**Das große Bild liegt nicht mehr über dem ganzen Bildschirm**, sondern
+als Karte darauf, mit Rand ringsum. Ein Tipp neben die Karte schließt sie,
+genauso wie das Kreuz, die Zurück-Geste, ein Tipp auf das Bild und ein
+Wisch nach unten.
+
+**Bei den Merkmalen stehen Hut, Unterseite und Stiel gleich da**, Fleisch,
+Geruch und Vorkommen klappen auf Tippen auf. Die Beschreibung war der
+längste Abschnitt der Seite. Eingeklappt wird hier nur, was beschreibt —
+Warnungen und Einstufungen bleiben, wo sie sind.
+
 ## Jedes Fenster hat jetzt ein Kreuz
 
 *22. September 2026 · Version 1.180.0*
