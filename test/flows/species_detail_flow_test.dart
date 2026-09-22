@@ -111,8 +111,13 @@ void main() {
     await pumpApp(tester, backend);
     await openSpecies(tester, 'Igelstachelbart');
 
-    expect(find.textContaining('Saison nach verwandten Arten: Stachelbärte'),
-        findsOneWidget);
+    // Seit 1.169.0 steht über der Kurve die Merkmalstabelle, die Zeile
+    // liegt damit unter dem Falz — eine `ListView` baut nur, was in
+    // Sichtweite ist.
+    final line =
+        find.textContaining('Saison nach verwandten Arten: Stachelbärte');
+    await scrollDetail(tester, line);
+    expect(line, findsOneWidget);
   });
 
   testWidgets('eigene Funde zählen, Buddy-Funde nicht', (tester) async {
@@ -389,16 +394,23 @@ void main() {
         findsOneWidget);
   });
 
-  testWidgets('eine Art ohne gepflegte Merkmale zeigt keinen leeren '
-      'Abschnitt', (tester) async {
-    // Gepflegt ist die Pflichtmenge — Arten mit Verwechslungspartner und
-    // alle giftigen. Der Rest schweigt, statt eine halbe Beschreibung
-    // zu behaupten.
+  testWidgets('auch ein Speisepilz ohne Verwechslungspartner zeigt seine '
+      'Merkmale', (tester) async {
+    // **Die Umkehrung der alten Zusage.** Bis 1.168.0 trugen nur Arten
+    // mit Verwechslungspartner und die giftigen eine Beschreibung, und
+    // genau hier stand, dass der Rest schweigt. Das war der Fehler: Das
+    // Judasohr ist ein Speisepilz ohne eingetragenen Partner, seine
+    // Seite sagte über den Pilz kein Wort. Seit 1.169.0 ist die
+    // Pflichtmenge jede bekannte Art.
     final (backend, _) = loggedInBackend();
     await pumpApp(tester, backend);
     await openSpecies(tester, 'Judasohr');
 
-    expect(find.text('Merkmale'), findsNothing);
+    await scrollDetail(tester, find.text('Merkmale'));
+    expect(find.text('Merkmale'), findsOneWidget);
+    // Und zwar mit Inhalt, nicht als leere Überschrift: die gallertige
+    // Beschaffenheit ist das Merkmal, an dem das Judasohr hängt.
+    expect(find.textContaining('GALLERTARTIG'), findsOneWidget);
   });
 
   testWidgets('das Bildpaar steht in der Verwechslungszeile — mit '

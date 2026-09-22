@@ -1317,11 +1317,17 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   - **Bestimmungsmerkmale** (`lib/core/species_features.dart`, seit
     1.166.0): sechs Felder je Art — Hut, Unterseite, Stiel, Fleisch,
     Geruch, Vorkommen. Vier Dinge, die man wissen muss:
-    - **Die Pflichtmenge ist eine REGEL, keine Liste**: jede Art mit
-      einem Verwechslungspartner (ohne Merkmale ließe sich der
-      Unterschied nicht nachlesen) und jede giftige Art. Das sind
-      derzeit 58; `test/species_features_test.dart` rechnet es nach, wer
-      ein Paar ergänzt, wird zu den Merkmalen gezwungen.
+    - **Die Pflichtmenge ist JEDE bekannte Art** (seit 1.169.0).
+      Vorher war sie enger — Arten mit Verwechslungspartner plus die
+      giftigen —, und sie hat am falschen Ende gemessen: am Giftpilz
+      statt am Sammler. Die vier Reizker sind Speisepilze ohne
+      eingetragenen Partner und fielen durch beide Siebe; ihre Seite
+      sagte über den Pilz kein Wort (Betreiber, 2026-09-22). Betroffen
+      waren 30 Arten, fast alle Speisepilze — also durchweg das, was
+      jemand wirklich im Korb hat. `test/species_features_test.dart`
+      rechnet die Menge nach: eine neue Art OHNE Merkmale macht den
+      Lauf rot. Die Pflicht ist teurer, die Alternative war eine
+      Detailseite, die über den Pilz schweigt.
     - **Das Raster ist fest, und das ist kein Ordnungssinn.** Wer zwei
       Arten vergleicht, springt zwischen zwei Seiten und liest dieselbe
       Zeile zweimal; Freitext in wechselnder Reihenfolge macht genau das
