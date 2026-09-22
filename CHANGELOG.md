@@ -7,6 +7,29 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Jedes Fenster hat jetzt ein Kreuz
+
+*22. September 2026 · Version 1.180.0*
+
+Die Blätter, die von unten hereinfahren — „Was ist hier?", die Ebenen,
+Regen, Waldtypen, Höhenlinien, Pilzampel, gemeldete Fundorte, der
+Kartenfilter, „Unterwegs", das Standort-Teilen und die Buddy-Auswahl —
+tragen oben rechts ein Kreuz. Bisher kam nur heraus, wer wusste, dass
+sich so ein Blatt nach unten wegwischen lässt.
+
+Weggewischt werden können sie weiterhin, und die Zurück-Geste des
+Telefons schließt sie auch. Neu ist nur, dass man es sehen kann.
+
+**Beim großen Bild einer Art ist mehr passiert.** Es schließt sich jetzt
+auch, indem man es nach unten wegwischt. Und ein Tipp auf die schwarze
+Fläche neben dem Bild wirkt endlich — das war als Weg hinaus gedacht,
+hat aber nur über dem Bild selbst funktioniert.
+
+Zwei Blätter behalten ihr Aussehen: Im Spot-Blatt liegen oben schon
+Navigation, Bearbeiten und Löschen, und ein Kreuz einen Daumenbreit
+neben „Löschen" wäre ein teurer Fehlgriff. Die Formulare zum Eintragen
+und Bearbeiten haben ihre eigenen Knöpfe am Fuß.
+
 ## Bilder antippen und groß ansehen
 
 *22. September 2026 · Versionen 1.179.0 und 1.179.1*

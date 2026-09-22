@@ -102,3 +102,18 @@ Future<void> startTour(WidgetTester tester) =>
 /// grünen Kreises: Zustand und Ausgang in einem Element. Der Tooltip ist
 /// derselbe geblieben, damit die Tests keine zweite Wahrheit brauchen.
 Finder tourStopButton() => find.byTooltip('Pilztour beenden');
+
+/// Im offenen Blatt nach unten scrollen.
+///
+/// **Warum das nötig wurde:** Seit jedes Blatt ein „x" in der Kopfzeile
+/// trägt (2026-09-22), steht sein Fuß auf dem 600 px hohen Testschirm
+/// ein Stück tiefer — und eine `ListView` baut nur, was in Sichtweite
+/// ist. Auf einem echten Telefon (915 px) bleibt der Fuß sichtbar; der
+/// Testschirm ist der engste Fall, nicht der normale.
+Future<void> scrollSheet(WidgetTester tester, {double by = 120}) async {
+  await tester.drag(
+      find.descendant(
+          of: find.byType(BottomSheet), matching: find.byType(ListView)),
+      Offset(0, -by));
+  await settle(tester);
+}

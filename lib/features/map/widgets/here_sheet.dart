@@ -14,6 +14,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
+import '../../../core/widgets/sheet_close_button.dart';
 
 import '../../spots/widgets/ampel_section.dart';
 import '../../spots/widgets/spot_forest_section.dart';
@@ -60,6 +61,8 @@ class _HereSheet extends ConsumerWidget {
                   const SizedBox(width: 8),
                   Text('Was ist hier?',
                       style: Theme.of(context).textTheme.titleLarge),
+                  const Spacer(),
+                  const SheetCloseButton(),
                 ],
               ),
               const SizedBox(height: 4),
