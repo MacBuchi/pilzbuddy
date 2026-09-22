@@ -80,10 +80,15 @@ void main() {
   });
 
   test('was kein Bild ist, scheitert mit einem Satz für den Nutzer', () {
-    expect(
-        () => preparePhoto(Uint8List.fromList(utf8.encode('kein Bild'))),
-        throwsA(isA<PhotoPipelineException>()
-            .having((e) => e.message, 'message', contains('Bildformat'))));
+    final says = throwsA(isA<PhotoPipelineException>()
+        .having((e) => e.message, 'message', contains('Bildformat')));
+    expect(() => preparePhoto(Uint8List.fromList(utf8.encode('kein Bild'))),
+        says);
+    // Vier Bytes: Hier antwortet der Dekodierer nicht mit `null`,
+    // sondern mit einem RangeError — im Flow-Test als „Unerwarteter
+    // Fehler (RangeError)" gesehen.
+    expect(() => preparePhoto(Uint8List.fromList([1, 2, 3, 4])), says);
+    expect(() => preparePhoto(Uint8List(0)), says);
   });
 
   group('jpegForeignMarkers', () {

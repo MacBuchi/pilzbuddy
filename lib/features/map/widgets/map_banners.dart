@@ -9,6 +9,9 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/app_info.dart';
 import '../../../core/errors.dart';
+import '../../../core/photo_pipeline.dart';
+import '../../../core/photo_providers.dart';
+import '../../../core/widgets/photo_attachment.dart';
 import '../../../core/mushroom_species.dart';
 import '../../../core/settings.dart';
 import '../../../core/update_check.dart';
@@ -373,7 +376,9 @@ class MapBanners extends ConsumerWidget {
   Future<void> _openFeedbackDialog(BuildContext context, WidgetRef ref) async {
     final result = await showDialog<_FeedbackInput>(
       context: context,
-      builder: (context) => const _FeedbackDialog(),
+      builder: (context) => _FeedbackDialog(
+          pickPhoto: ref.read(photoPickerProvider),
+          preparePhoto: ref.read(photoPreparerProvider)),
     );
     if (result == null) return;
 
@@ -397,13 +402,12 @@ class MapBanners extends ConsumerWidget {
         // Das ist kein Fehler des Nutzers und keiner, den jemand sucht.
       }
       if (result.type == FeedbackType.species) {
-        await ref
-            .read(feedbackRepositoryProvider)
-            .submitSpecies(result.text, note: result.note, appVersion: version);
+        await ref.read(feedbackRepositoryProvider).submitSpecies(result.text,
+            note: result.note, appVersion: version, photo: result.photo);
       } else {
-        await ref
-            .read(feedbackRepositoryProvider)
-            .submit(result.type, result.text, appVersion: version);
+        await ref.read(feedbackRepositoryProvider).submit(
+            result.type, result.text,
+            appVersion: version, photo: result.photo);
       }
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -1017,11 +1021,19 @@ class _FeedbackInput {
   final String text;
   final String? note;
 
-  const _FeedbackInput(this.type, this.text, this.note);
+  /// Ein Bild dazu (#525) — schon durch die Pipeline.
+  final PreparedPhoto? photo;
+
+  const _FeedbackInput(this.type, this.text, this.note, this.photo);
 }
 
 class _FeedbackDialog extends StatefulWidget {
-  const _FeedbackDialog();
+  const _FeedbackDialog({required this.pickPhoto, required this.preparePhoto});
+
+  /// Von außen gereicht, weil der Dialog kein `ref` hat — und damit der
+  /// Test den Wähler steuern kann.
+  final PhotoPicker pickPhoto;
+  final PhotoPreparer preparePhoto;
 
   @override
   State<_FeedbackDialog> createState() => _FeedbackDialogState();
@@ -1031,6 +1043,7 @@ class _FeedbackDialogState extends State<_FeedbackDialog> {
   FeedbackType _type = FeedbackType.feature;
   final _textController = TextEditingController();
   final _noteController = TextEditingController();
+  PreparedPhoto? _photo;
 
   bool get _isSpecies => _type == FeedbackType.species;
 
@@ -1054,6 +1067,7 @@ class _FeedbackDialogState extends State<_FeedbackDialog> {
       _type,
       text,
       _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
+      _photo,
     ));
   }
 
@@ -1184,7 +1198,17 @@ class _FeedbackDialogState extends State<_FeedbackDialog> {
                 ),
               ),
             ],
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
+            // Ein Bild dazu (#525): ein Screenshot zum Bug, ein Foto zur
+            // Pilzart. Es geht NICHT nach GitHub — der Satz dazu steht
+            // am Anhang selbst, sobald einer da ist.
+            PhotoAttachment(
+              pick: widget.pickPhoto,
+              prepare: widget.preparePhoto,
+              photo: _photo,
+              onChanged: (photo) => setState(() => _photo = photo),
+            ),
+            const SizedBox(height: 8),
             Text(
               'ℹ️ Dein Text erscheint zusammen mit deinem Benutzernamen '
               'öffentlich im GitHub-Projekt der App — bitte keine '

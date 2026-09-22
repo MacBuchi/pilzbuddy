@@ -16,7 +16,6 @@
 // nicht hier, weil ein Repository nicht der Ort ist, an dem ein Bild
 // dekodiert wird — aber der Typ sorgt dafür, dass niemand daran vorbei
 // kann.
-import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -25,6 +24,7 @@ import '../core/errors.dart';
 import '../core/photo_pipeline.dart';
 import '../models/find_photo.dart';
 import 'file_cache.dart';
+import 'object_token.dart';
 import 'session.dart';
 
 const kFindPhotoBucket = 'find-photos';
@@ -65,9 +65,8 @@ class FindPhotoRepository {
     required PreparedPhoto photo,
   }) async {
     // `<user_id>/<zufall>`: Der Ordner ist der Nutzer, das ist die
-    // Bedingung der Upload-Policy. Der Zufall statt einer laufenden
-    // Nummer, damit zwei Geräte desselben Kontos nie kollidieren.
-    final key = '$_uid/${_token()}';
+    // Bedingung der Upload-Policy.
+    final key = '$_uid/${newObjectToken()}';
     const jpeg = FileOptions(contentType: 'image/jpeg', upsert: false);
     await _bucket.uploadBinary('$key.jpg', photo.full, fileOptions: jpeg);
     await _bucket.uploadBinary('${key}_s.jpg', photo.thumb, fileOptions: jpeg);
@@ -140,10 +139,4 @@ class FindPhotoRepository {
       return null;
     }
   }
-
-  static final _random = Random.secure();
-
-  static String _token() =>
-      List.generate(16, (_) => _random.nextInt(256).toRadixString(16).padLeft(2, '0'))
-          .join();
 }

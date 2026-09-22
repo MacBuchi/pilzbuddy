@@ -179,7 +179,12 @@ create table public.feedback (
   -- Aus welchem Stand die Meldung kam (Patch 021). Nullable: Zeilen von
   -- vor der Migration und von älteren Clients haben die Angabe nicht.
   app_version text,
-  created_at timestamptz not null default now()
+  -- Ein Bild dazu (Patch 027, #525): Pfad im Bucket `feedback-photos`,
+  -- `<user_id>/<zufall>.jpg`. Anders als der Text NICHT öffentlich.
+  photo_path text,
+  created_at timestamptz not null default now(),
+  constraint feedback_photo_owner
+    check (photo_path is null or photo_path like (user_id::text || '/%'))
 );
 
 -- Gefangene Fehler aus dem Feld (Patch 009). Android Vitals sieht nur harte
@@ -527,6 +532,19 @@ create policy find_photos_remove on storage.objects for delete
   using (bucket_id = 'find-photos'
     and (storage.foldername(name))[1] = auth.uid()::text);
 
+-- Der Bucket der Feedback-Bilder (Patch 027, #525). Strenger als oben:
+-- Nutzer legen nur hinein, lesen darf allein der Betreiber (Service-
+-- Schlüssel) — der Text einer Meldung wird öffentlich, das Bild nicht.
+-- Objekte älter als 90 Tage räumt der Bot ab.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('feedback-photos', 'feedback-photos', false, 600000, array['image/jpeg'])
+on conflict (id) do nothing;
+
+create policy feedback_photos_upload on storage.objects for insert
+  to authenticated
+  with check (bucket_id = 'feedback-photos'
+    and (storage.foldername(name))[1] = auth.uid()::text);
+
 -- ---------------------------------------------------------------------------
 -- Patch-Buchführung
 -- ---------------------------------------------------------------------------
@@ -813,5 +831,6 @@ insert into public.applied_patches (filename) values
   ('patch_023_tour_tracks.sql'),
   ('patch_024_fundstellen_versatz.sql'),
   ('patch_025_vormerkung.sql'),
-  ('patch_026_fundfotos.sql')
+  ('patch_026_fundfotos.sql'),
+  ('patch_027_feedback_bild.sql')
 on conflict do nothing;

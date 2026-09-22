@@ -29,6 +29,9 @@ import 'package:intl/intl.dart';
 import '../../core/app_colors.dart';
 import '../../core/app_info.dart' show appVersionProvider;
 import '../../core/errors.dart';
+import '../../core/photo_pipeline.dart';
+import '../../core/photo_providers.dart';
+import '../../core/widgets/photo_attachment.dart';
 import '../../data/feedback_repository.dart';
 import '../../data/providers.dart';
 import '../../core/router_branches.dart';
@@ -1002,11 +1005,15 @@ class _ReportButton extends ConsumerWidget {
   final String species;
 
   Future<void> _report(BuildContext context, WidgetRef ref) async {
-    final text = await showDialog<String>(
+    final result = await showDialog<_ReportInput>(
       context: context,
-      builder: (_) => _ReportDialog(species: species),
+      builder: (_) => _ReportDialog(
+          species: species,
+          pickPhoto: ref.read(photoPickerProvider),
+          preparePhoto: ref.read(photoPreparerProvider)),
     );
-    if (text == null || text.trim().isEmpty) return;
+    if (result == null || result.text.trim().isEmpty) return;
+    final text = result.text;
     try {
       String? version;
       try {
@@ -1017,7 +1024,7 @@ class _ReportButton extends ConsumerWidget {
       }
       await ref.read(feedbackRepositoryProvider).submit(
           FeedbackType.bug, 'Hinweis zur Art „$species": ${text.trim()}',
-          appVersion: version);
+          appVersion: version, photo: result.photo);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('Danke — der Hinweis wird geprüft. 🍄')));
@@ -1042,10 +1049,18 @@ class _ReportButton extends ConsumerWidget {
       );
 }
 
+typedef _ReportInput = ({String text, PreparedPhoto? photo});
+
 class _ReportDialog extends StatefulWidget {
-  const _ReportDialog({required this.species});
+  const _ReportDialog({
+    required this.species,
+    required this.pickPhoto,
+    required this.preparePhoto,
+  });
 
   final String species;
+  final PhotoPicker pickPhoto;
+  final PhotoPreparer preparePhoto;
 
   @override
   State<_ReportDialog> createState() => _ReportDialogState();
@@ -1053,6 +1068,10 @@ class _ReportDialog extends StatefulWidget {
 
 class _ReportDialogState extends State<_ReportDialog> {
   final _text = TextEditingController();
+
+  /// Ein Bild dazu (#525): der Fund, der der Merkmalstabelle
+  /// widerspricht — genau der Fall, aus dem der Wunsch kam.
+  PreparedPhoto? _photo;
 
   @override
   void dispose() {
@@ -1063,16 +1082,29 @@ class _ReportDialogState extends State<_ReportDialog> {
   @override
   Widget build(BuildContext context) => AlertDialog(
         title: Text('Hinweis zu „${widget.species}"'),
-        content: TextField(
-          controller: _text,
-          autofocus: true,
-          maxLines: 4,
-          textCapitalization: TextCapitalization.sentences,
-          decoration: const InputDecoration(
-            hintText: 'Was stimmt nicht — Einstufung, Merkmal, '
-                'Verwechslung, Bild?',
-            border: OutlineInputBorder(),
-          ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              controller: _text,
+              autofocus: true,
+              maxLines: 4,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: const InputDecoration(
+                hintText: 'Was stimmt nicht — Einstufung, Merkmal, '
+                    'Verwechslung, Bild?',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 8),
+            PhotoAttachment(
+              pick: widget.pickPhoto,
+              prepare: widget.preparePhoto,
+              photo: _photo,
+              onChanged: (photo) => setState(() => _photo = photo),
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -1080,7 +1112,8 @@ class _ReportDialogState extends State<_ReportDialog> {
             child: const Text('Abbrechen'),
           ),
           FilledButton(
-            onPressed: () => Navigator.of(context).pop(_text.text),
+            onPressed: () => Navigator.of(context)
+                .pop((text: _text.text, photo: _photo)),
             child: const Text('Senden'),
           ),
         ],

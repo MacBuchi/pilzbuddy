@@ -29,7 +29,7 @@ import 'package:pilzbuddy/models/friend_location.dart';
 import 'package:pilzbuddy/models/friendship.dart';
 import 'package:pilzbuddy/core/photo_pipeline.dart';
 import 'package:pilzbuddy/data/find_photo_repository.dart';
-import 'package:pilzbuddy/features/spots/find_photo_providers.dart';
+import 'package:pilzbuddy/core/photo_providers.dart';
 import 'package:pilzbuddy/models/find_photo.dart';
 import 'package:pilzbuddy/models/profile.dart';
 import 'package:pilzbuddy/models/spot.dart';
@@ -166,6 +166,11 @@ class FakeBackend {
   /// ohne Objekt" nachstellen kann.
   final findPhotos = <FakeFindPhotoRow>[];
   final photoObjects = <String, Uint8List>{};
+
+  /// Der Bucket `feedback-photos` (Patch 027): Pfad → Bytes. Nur der
+  /// Betreiber liest ihn — die App hat keinen Leseweg, deshalb auch
+  /// keine Fake-Methode dafür.
+  final feedbackPhotoObjects = <String, Uint8List>{};
   /// Eine Zeile je Nutzer (Patch 023) — wie live_locations.
   final tourTracks = <FakeTourTrackRow>[];
   final friendships = <FakeFriendshipRow>[];
@@ -1388,26 +1393,41 @@ class FakeFeedbackRepository implements FeedbackRepository {
 
   final FakeBackend backend;
 
+  static int _seq = 0;
+
+  /// Spiegel von Patch 027: Objekt in den Bucket, Pfad in die Zeile —
+  /// nur JPEG, nur der eigene Ordner.
+  String? _store(PreparedPhoto? photo) {
+    if (photo == null) return null;
+    final path = '${backend.currentUserId}/feedback-${++_seq}.jpg';
+    backend.feedbackPhotoObjects[path] = photo.full;
+    return path;
+  }
+
   @override
   Future<void> submit(FeedbackType type, String message,
-      {String? appVersion}) async {
+      {String? appVersion, PreparedPhoto? photo}) async {
+    if (backend.offline) throw const SocketException('kein Netz (Fake)');
     backend.feedback.add({
       'user_id': backend.currentUserId,
       'type': type == FeedbackType.bug ? 'bug' : 'feature',
       'message': message.trim(),
       'app_version': appVersion,
+      'photo_path': _store(photo),
     });
   }
 
   @override
   Future<void> submitSpecies(String speciesName,
-      {String? note, String? appVersion}) async {
+      {String? note, String? appVersion, PreparedPhoto? photo}) async {
+    if (backend.offline) throw const SocketException('kein Netz (Fake)');
     backend.feedback.add({
       'user_id': backend.currentUserId,
       'type': 'species',
       'species_name': speciesName.trim(),
       'message': note,
       'app_version': appVersion,
+      'photo_path': _store(photo),
     });
   }
 }

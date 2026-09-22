@@ -32,7 +32,7 @@ import 'package:pilzbuddy/features/map/rain_data_providers.dart';
 import 'package:pilzbuddy/features/map/rain_layer.dart';
 import 'package:pilzbuddy/features/offline_maps/download_keep_alive.dart';
 import 'package:pilzbuddy/features/offline_maps/offline_map_providers.dart';
-import 'package:pilzbuddy/features/spots/find_photo_providers.dart';
+import 'package:pilzbuddy/core/photo_providers.dart';
 import 'package:pilzbuddy/features/tour/tour_providers.dart';
 
 import 'fake_apk_installer.dart';
