@@ -8,9 +8,25 @@
 # auth.users) — alles andere kostet auf dem CI-Runner nur Startzeit.
 project_id = "PilzBuddy"
 
+# ⚠️ EIGENER PORTBLOCK, NICHT DIE VORGABE (54321 ff.).
+# Auf demselben Rechner liegen mehrere Projekte mit lokalem Stack. FWApp
+# steht auf der Vorgabe 5432x, MitFahrBar auf 5532x — PilzBuddy lag bis
+# hierher ebenfalls auf 5432x und kollidierte damit mit FWApp.
+#
+# Das Ärgerliche daran ist nicht die Kollision, sondern ihre Stille: Läuft
+# FWApps Stack schon, scheitert `supabase start` hier, und alles danach
+# redet mit FWApps Datenbank statt mit einer eigenen. Am 2026-09-22 ist
+# genau das passiert — ein Dry Run schrieb in FWApps Buckets, und in FWApps
+# Datenbank lag anschließend `public.applied_patches`, die Patch-Buchführung
+# dieses Projekts. Aufgefallen ist es dort durch einen fremden Tabellennamen
+# im Schema-Guard, nicht hier durch einen Fehler.
+#
+# Jedes Projekt bekommt deshalb seinen eigenen Hunderterblock. PilzBuddy:
+# 5442x. Wer einen Port ändert, ändert ihn auch in .github/workflows/ci.yml
+# und tool/auth_reset_check.sh mit.
 [api]
 enabled = true
-port = 54321
+port = 54421
 schemas = ["public"]
 extra_search_path = ["public"]
 # Wie das Live-Projekt (Bestandsprojekt, Legacy-Verhalten): Tabellen im
@@ -22,7 +38,10 @@ extra_search_path = ["public"]
 auto_expose_new_tables = true
 
 [db]
-port = 54322
+port = 54422
+# Ausdrücklich gesetzt: Ohne diese Zeile nimmt die CLI die Vorgabe 54320 —
+# und damit wieder den Port, auf dem FWApps Schattendatenbank liegt.
+shadow_port = 54420
 # Wie die Live-DB (Server 17.x) — sonst prüft der Dry Run ein anderes Postgres.
 major_version = 17
 
@@ -41,7 +60,7 @@ site_url = "http://127.0.0.1:3000"
 # nicht, kostet aber nur wenige Sekunden Startzeit.
 [local_smtp]
 enabled = true
-port = 54324
+port = 54424
 
 # Spiegelt die Härtung im Dashboard, damit lokal nicht laxer geprüft wird
 # als in Produktion — genau solcher Drift bleibt sonst unbemerkt.

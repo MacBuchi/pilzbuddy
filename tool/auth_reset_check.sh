@@ -21,8 +21,8 @@
 # blind spot is the operator's, not CI's, and is noted in CLAUDE.md.
 set -euo pipefail
 
-URL="${SUPABASE_URL:-http://127.0.0.1:54321}"
-MAIL="${MAILPIT_URL:-http://127.0.0.1:54324}"
+URL="${SUPABASE_URL:-http://127.0.0.1:54421}"
+MAIL="${MAILPIT_URL:-http://127.0.0.1:54424}"
 KEY="${SUPABASE_KEY:-$(supabase status -o json 2>/dev/null | jq -r '.ANON_KEY')}"
 if [ -z "$KEY" ] || [ "$KEY" = "null" ]; then
   echo "::error::Kein anon-Key — läuft der lokale Stack (supabase start)?"

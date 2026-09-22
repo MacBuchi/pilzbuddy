@@ -213,10 +213,10 @@ jobs:
           BASE_REF: origin/${{ github.base_ref || 'main' }}
         run: |
           git show "$BASE_REF:supabase/schema.sql" > /tmp/base_schema.sql
-          psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -q -f /tmp/base_schema.sql
+          psql "postgresql://postgres:postgres@127.0.0.1:54422/postgres" -v ON_ERROR_STOP=1 -q -f /tmp/base_schema.sql
       - name: Neue Patches dieses PRs obendrauf
         env:
-          SUPABASE_DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+          SUPABASE_DB_URL: postgresql://postgres:postgres@127.0.0.1:54422/postgres
         run: bash tool/db_migrate.sh
       - name: App-Queries gegen den aufgerüsteten Bestand prüfen
         env:
@@ -225,7 +225,7 @@ jobs:
           # Runnern das IP-Limit der GitHub-API.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          SUPABASE_URL=http://127.0.0.1:54321 \
+          SUPABASE_URL=http://127.0.0.1:54421 \
           SUPABASE_KEY=$(supabase status -o json | jq -r '.ANON_KEY') \
           bash tool/schema_check.sh
       # Pfad 2 — FRISCHINSTALLATION: alles weg, nur schema.sql. Beweist, dass
@@ -241,16 +241,16 @@ jobs:
       - name: Datenbank auf null zurücksetzen
         run: supabase db reset
       - name: Nur schema.sql einspielen (Frischinstallation)
-        run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -q -f supabase/schema.sql
+        run: psql "postgresql://postgres:postgres@127.0.0.1:54422/postgres" -v ON_ERROR_STOP=1 -q -f supabase/schema.sql
       - name: Nichts mehr offen (die Saat trägt die alten Patches)
         env:
-          SUPABASE_DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+          SUPABASE_DB_URL: postgresql://postgres:postgres@127.0.0.1:54422/postgres
         run: bash tool/db_migrate.sh
       - name: App-Queries gegen das frische Schema prüfen
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          SUPABASE_URL=http://127.0.0.1:54321 \
+          SUPABASE_URL=http://127.0.0.1:54421 \
           SUPABASE_KEY=$(supabase status -o json | jq -r '.ANON_KEY') \
           bash tool/schema_check.sh
       # Registrierung und Reset sind die Flows, deren Kern außerhalb der
