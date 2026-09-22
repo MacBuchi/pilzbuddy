@@ -644,8 +644,9 @@ const speciesFeatures = <String, SpeciesFeatures>{
         'trichterig, auf Druck und im Alter rasch GRÜN fleckend.',
     unterseite: 'Lamellen orange, dicht, am Stiel herablaufend, mit der '
         'Zeit ebenfalls grünfleckig.',
-    stiel: 'Kurz und hohl, orange, meist OHNE die dunklen Grübchen des '
-        'Edelreizkers.',
+    stiel: 'Kurz und hohl, orange. Grübchen KÖNNEN auftreten, meist '
+        'flacher und blasser als beim Edelreizker — auf dieses Merkmal '
+        'allein ist kein Verlass, der Baum entscheidet.',
     fleisch: 'Blass orange und brüchig; Milch KAROTTENROT, nach einer '
         'halben Stunde weinrot bis grünlich.',
     geruch: 'Obstig, Geschmack mild bis leicht bitterlich.',
@@ -656,7 +657,9 @@ const speciesFeatures = <String, SpeciesFeatures>{
         'trichterig vertieft, nur wenig und spät grünend.',
     unterseite: 'Lamellen leuchtend orange, gedrängt und weit am Stiel '
         'herablaufend.',
-    stiel: 'Fest und hohl, orange, mit dunkleren GRÜBCHEN gezeichnet.',
+    stiel: 'Fest und hohl, orange, mit auffällig dunklen GRÜBCHEN '
+        'gezeichnet; da auch der Fichtenreizker grubig sein kann, trennt '
+        'das die beiden nicht für sich allein.',
     fleisch: 'Weißlich mit orangefarbenen Zonen; Milch karottenrot und '
         'über Stunden unverändert.',
     geruch: 'Angenehm obstig, Geschmack mild und leicht harzig.',
