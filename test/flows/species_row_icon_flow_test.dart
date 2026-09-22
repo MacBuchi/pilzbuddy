@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/widgets/mushroom_icon.dart';
 
+import '../fakes/map_ui.dart';
 import '../fakes/fake_backend.dart';
 import '../fakes/test_app.dart';
 
@@ -25,7 +26,7 @@ void main() {
     await tester.tap(find.text('Neuer Spot'));
     await settle(tester);
     await tester.enterText(
-        find.widgetWithText(TextField, 'Pilzart (optional)'), 'Steinpil');
+        speciesField(), 'Steinpil');
     await settle(tester, frames: 4);
 
     // Die Treffer stehen da …
@@ -54,7 +55,7 @@ void main() {
     await tester.tap(find.text('Neuer Spot'));
     await settle(tester);
 
-    final field = find.widgetWithText(TextField, 'Pilzart (optional)');
+    final field = speciesField();
     final iconInField =
         find.descendant(of: field, matching: find.byType(MushroomIcon));
 
@@ -84,7 +85,7 @@ void main() {
     await tester.tap(find.text('Neuer Spot'));
     await settle(tester);
 
-    final field = find.widgetWithText(TextField, 'Pilzart (optional)');
+    final field = speciesField();
     await tester.enterText(field, 'Totentrompete');
     await settle(tester, frames: 4);
     // Ein Zweitname hält die Karte offen — sie bietet ja die Hauptart an.
@@ -113,7 +114,7 @@ void main() {
     await tester.tap(find.text('Neuer Spot'));
     await settle(tester);
     await tester.enterText(
-        find.widgetWithText(TextField, 'Pilzart (optional)'), 'Steinpilz');
+        speciesField(), 'Steinpilz');
     await settle(tester, frames: 4);
     await tester.ensureVisible(find.text('weitere Art'));
     await settle(tester, frames: 4);

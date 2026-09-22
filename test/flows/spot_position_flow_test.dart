@@ -11,6 +11,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:pilzbuddy/features/map/widgets/mini_map.dart';
 import 'package:pilzbuddy/features/map/widgets/spot_position_field.dart';
 
+import '../fakes/map_ui.dart';
 import '../fakes/fake_backend.dart';
 import '../fakes/test_app.dart';
 
@@ -54,6 +55,7 @@ void main() {
         .onCenterChanged!(moved);
     await settle(tester);
 
+    await markSpeciesUnknown(tester);
     await tester.ensureVisible(find.text('Speichern'));
     await tester.tap(find.text('Speichern'));
     await settle(tester);
@@ -74,6 +76,7 @@ void main() {
     // also genau der Ort, an dem der Spot ohne Zutun landen muss.
     final crosshair = tester.widget<MiniMap>(find.byType(MiniMap)).reference;
 
+    await markSpeciesUnknown(tester);
     await tester.ensureVisible(find.text('Speichern'));
     await tester.tap(find.text('Speichern'));
     await settle(tester);
@@ -108,6 +111,7 @@ void main() {
     await settle(tester);
     expect(fix.calls, 1, reason: 'der Systemdialog gehört hinter einen Tipp');
 
+    await markSpeciesUnknown(tester);
     await tester.ensureVisible(find.text('Speichern'));
     await tester.tap(find.text('Speichern'));
     await settle(tester);

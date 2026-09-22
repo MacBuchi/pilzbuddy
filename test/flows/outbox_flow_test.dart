@@ -4,11 +4,11 @@
 // Der Fund entsteht hier über die echte Oberfläche (Fadenkreuz →
 // Anlege-Blatt), weil genau dort entschieden wird, ob ein Netzfehler die
 // Nutzerin erreicht oder der Korb übernimmt.
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/data/outbox.dart';
 import 'package:pilzbuddy/features/spots/spot_providers.dart';
 
+import '../fakes/map_ui.dart';
 import '../fakes/fake_backend.dart';
 import '../fakes/fake_outbox.dart';
 import '../fakes/test_app.dart';
@@ -27,7 +27,7 @@ void main() {
     await tester.tap(find.text('Neuer Spot'));
     await settle(tester);
     await tester.enterText(
-        find.widgetWithText(TextField, 'Pilzart (optional)'), species);
+        speciesField(), species);
     await settle(tester);
     // Das Blatt ist höher als der Testschirm — sonst geht der Tipp ins
     // Leere und der Test „besteht", ohne je etwas gespeichert zu haben.

@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/widgets/mushroom_icon.dart';
 import 'package:pilzbuddy/features/spots/widgets/spot_stats_view.dart';
 
+import '../fakes/map_ui.dart';
 import '../fakes/fake_backend.dart';
 import '../fakes/test_app.dart';
 
@@ -65,7 +66,7 @@ void main() {
     await tester.tap(find.text('Fund eintragen'));
     await settle(tester);
     await tester.enterText(
-        find.widgetWithText(TextField, 'Pilzart (optional)'), 'Pfifferling');
+        speciesField(), 'Pfifferling');
     await tester.ensureVisible(find.text('Speichern'));
     await tester.tap(find.text('Speichern'));
     await settle(tester);

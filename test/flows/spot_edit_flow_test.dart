@@ -17,6 +17,7 @@ import 'package:pilzbuddy/features/map/widgets/spot_position_field.dart';
 import 'package:pilzbuddy/core/errors.dart';
 import 'package:pilzbuddy/models/find_position.dart';
 
+import '../fakes/map_ui.dart';
 import '../fakes/fake_backend.dart';
 import '../fakes/fake_outbox.dart';
 import '../fakes/test_app.dart';
@@ -228,6 +229,7 @@ void main() {
 
     await tester.tap(find.text('Neuer Spot'));
     await settle(tester);
+    await markSpeciesUnknown(tester);
     await tester.ensureVisible(find.text('Speichern'));
     await tester.tap(find.text('Speichern'));
     await settle(tester);

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/widgets/mushroom_icon.dart';
 
+import '../fakes/map_ui.dart';
 import '../fakes/fake_backend.dart';
 import '../fakes/test_app.dart';
 
@@ -30,7 +31,7 @@ void main() {
     await settle(tester);
     if (species != null) {
       await tester.enterText(
-          find.widgetWithText(TextField, 'Pilzart (optional)'), species);
+          speciesField(), species);
       await settle(tester, frames: 4);
     }
     await save(tester);
@@ -70,6 +71,7 @@ void main() {
     await pumpApp(tester, backend);
     await tester.tap(find.text('Neuer Spot'));
     await settle(tester);
+    await markSpeciesUnknown(tester);
     await save(tester);
     await drainSnackbars(tester);
 
@@ -90,11 +92,11 @@ void main() {
     await tester.tap(find.text('Fund eintragen'));
     await settle(tester);
     // Die erwartete Art steht schon im Feld.
-    expect(find.widgetWithText(TextField, 'Pilzart (optional)'), findsOneWidget);
+    expect(speciesField(), findsOneWidget);
     expect(
         tester
             .widget<TextField>(
-                find.widgetWithText(TextField, 'Pilzart (optional)'))
+                speciesField())
             .controller
             ?.text,
         'Steinpilz');
@@ -129,7 +131,7 @@ void main() {
     tester.widget<InputChip>(find.byType(InputChip)).onDeleted!();
     await settle(tester);
     await tester.enterText(
-        find.widgetWithText(TextField, 'Pilzart (optional)'), 'Pfifferling');
+        speciesField(), 'Pfifferling');
     await settle(tester, frames: 4);
     await save(tester);
     await drainSnackbars(tester);

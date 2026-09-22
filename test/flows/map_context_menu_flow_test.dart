@@ -15,6 +15,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:pilzbuddy/core/app_colors.dart';
 
+import '../fakes/map_ui.dart';
 import '../fakes/fake_backend.dart';
 import '../fakes/fake_map_view.dart';
 import '../fakes/test_app.dart';
@@ -91,6 +92,7 @@ void main() {
     // **Bis zum Speichern durchgespielt.** Dass ein Blatt aufgeht,
     // beweist nichts über die Stelle; erst die Koordinate in der
     // Datenbank tut es. Vorher nahm dieser Weg die Bildmitte.
+    await markSpeciesUnknown(tester);
     await tester.ensureVisible(find.text('Speichern'));
     await tester.tap(find.text('Speichern'));
     await settle(tester);

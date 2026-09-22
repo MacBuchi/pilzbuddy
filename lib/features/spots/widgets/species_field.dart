@@ -15,10 +15,20 @@ class SpeciesField extends StatefulWidget {
     required this.controller,
     this.ownSpecies = const [],
     this.onChanged,
+    this.label = 'Pilzart (optional)',
   });
 
   final TextEditingController controller;
   final List<String> ownSpecies;
+
+  /// Die Beschriftung des Feldes.
+  ///
+  /// **„(optional)" ist eine Zusage, keine Verzierung.** Im Blatt „Neuer
+  /// Pilz-Spot" ist die Art seit 1.183.0 Pflicht (#549), im Fund-Blatt
+  /// nicht — dort trägt ein Leergang bewusst keine. Ein Feld, das
+  /// „optional" sagt und beim Speichern blockt, wäre schlimmer als
+  /// beides.
+  final String label;
 
   /// Wird nach jeder Änderung des Feldes gerufen — auch bei Auswahl über
   /// Chip oder Vorschlag und beim Leeren. Für Aufrufer, deren eigene
@@ -172,7 +182,7 @@ class _SpeciesFieldState extends State<SpeciesField> {
             widget.onChanged?.call();
           },
           decoration: InputDecoration(
-            labelText: 'Pilzart (optional)',
+            labelText: widget.label,
             hintText: 'z. B. Steinpilz',
             border: const OutlineInputBorder(),
             // `Center` mit Shrink-Wrap, nicht ein nacktes `Padding`:

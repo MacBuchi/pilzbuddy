@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../fakes/map_ui.dart';
 import '../fakes/fake_backend.dart';
 import '../fakes/test_app.dart';
 
@@ -75,6 +76,7 @@ void main() {
       await settle(tester);
 
       expect(find.text('Neuer Pilz-Spot'), findsOneWidget);
+      await markSpeciesUnknown(tester);
       await tester.ensureVisible(find.text('Speichern'));
       await tester.tap(find.text('Speichern'));
       await settle(tester);
