@@ -1,0 +1,92 @@
+name: Protected Areas
+
+# Builds the protected-area grid (#580) from OpenStreetMap: the places in
+# Germany, Austria and Switzerland where picking mushrooms is forbidden
+# (nature reserves, national parks, core zones). See
+# tool/protected_areas.py for the rule and the byte contract.
+#
+# Runs in CI rather than locally because of the download: 6.2 GB of
+# Geofabrik extracts come in at ~250 KB/s per connection on a home line
+# (measured 2026-09-23, about seven hours), and Geofabrik's terms ask
+# not to parallelise. On a runner it takes minutes.
+#
+# Also runs on pull requests that touch the tool or this file, so a
+# change to the classification rule shows its effect on all of DACH in
+# the PR itself (the report goes to the step summary) — not only after
+# the merge, when workflow_dispatch becomes available.
+#
+# Like the forest grids this does NOT publish to a release tag: the grid
+# ships as an APK asset, so an update belongs in a human-reviewed PR
+# with a version bump and a changelog line.
+on:
+  schedule:
+    # Quarterly: reserves change slowly, OSM mapping of them less so.
+    - cron: "23 5 7 1,4,7,10 *"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - tool/protected_areas.py
+      - .github/workflows/protected-areas.yml
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Fetch the OSM extracts and build the grid
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Self-test first
+        run: python3 tool/protected_areas.py --self-test
+
+      - name: Install osmium
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q osmium-tool
+
+      - name: Download the Geofabrik extracts
+        run: |
+          mkdir -p build/osm
+          for region in germany austria switzerland; do
+            curl -sSfL -o "build/osm/${region}-latest.osm.pbf" \
+              "https://download.geofabrik.de/europe/${region}-latest.osm.pbf"
+          done
+          ls -la build/osm
+
+      - name: Extract the protected areas
+        run: |
+          python3 tool/protected_areas.py extract --out build/protected \
+            --pbf build/osm/germany-latest.osm.pbf \
+                  build/osm/austria-latest.osm.pbf \
+                  build/osm/switzerland-latest.osm.pbf
+
+      - name: Report what warns and what stays silent
+        run: |
+          {
+            echo '## Classification'
+            echo '```'
+            python3 tool/protected_areas.py report --out build/protected
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build the grid
+        run: |
+          python3 tool/protected_areas.py build --out build/protected \
+            --assets build/protected/assets | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the grid as an artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: protected-areas
+          path: |
+            build/protected/assets/protected_grid.bin.gz
+            build/protected/assets/protected_manifest.json
+          retention-days: 30
+          if-no-files-found: error

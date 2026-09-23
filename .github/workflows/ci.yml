@@ -68,6 +68,7 @@ jobs:
           python3 tool/ampel_logit_klasse.py --self-test > /dev/null
           python3 tool/forest_grid.py --self-test > /dev/null
           python3 tool/forest_species.py --self-test > /dev/null
+          python3 tool/protected_areas.py --self-test > /dev/null
           python3 tool/elevation_grid.py --self-test > /dev/null
           python3 tool/release_notes.py --self-test > /dev/null
           python3 tool/generated_assets.py --self-test > /dev/null
