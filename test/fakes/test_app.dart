@@ -34,9 +34,12 @@ import 'package:pilzbuddy/features/offline_maps/download_keep_alive.dart';
 import 'package:pilzbuddy/features/offline_maps/offline_map_providers.dart';
 import 'package:pilzbuddy/core/photo_providers.dart';
 import 'package:pilzbuddy/features/tour/tour_providers.dart';
+import 'package:pilzbuddy/features/inat/inat_providers.dart';
+import 'package:http/testing.dart';
 
 import 'fake_apk_installer.dart';
 import 'fake_backend.dart';
+import 'fake_inat.dart';
 import 'fake_keep_alive.dart';
 import 'fake_outbox.dart';
 import 'fake_map_view.dart';
@@ -122,6 +125,7 @@ List<Override> overridesFor(FakeBackend backend,
         FakeOutbox? outbox,
         FakePhotoPicker? photoPicker,
         FakeFindPhotoRepository? findPhotos,
+        FakeInat? inat,
         bool useRealMap = false,
         List<Override> extra = const []}) =>
     [
@@ -302,6 +306,20 @@ List<Override> overridesFor(FakeBackend backend,
       appConfigRepositoryProvider
           .overrideWithValue(appConfig ?? FakeAppConfigRepository()),
       appVersionProvider.overrideWith((ref) => Future.value(appVersion)),
+      // iNaturalist (#553). Ohne `inat` ist der Weg AUS — wie in der
+      // App, solange keine Application ID eingetragen ist —, und der
+      // HTTP-Client wirft: Ein Test, der doch hinausgreift, scheitert
+      // laut statt ins Netz zu gehen.
+      inatAppIdProvider.overrideWithValue(inat == null ? '' : 'test-app-id'),
+      inatAccountStoreProvider
+          .overrideWithValue(inat?.store ?? FakeInatAccountStore()),
+      inatHttpClientProvider.overrideWithValue(inat?.server.client ??
+          MockClient((request) async =>
+              throw StateError('iNaturalist ohne FakeInat: ${request.url}'))),
+      inatAuthorizerProvider.overrideWithValue(inat?.authorize ??
+          (url) async => throw StateError('Custom Tab ohne FakeInat')),
+      findReportRepositoryProvider
+          .overrideWithValue(FakeFindReportRepository(backend)),
       // Zuletzt, damit ein Test gezielt etwas aus der Liste oben ersetzen
       // kann — bei Riverpod gewinnt der spätere Eintrag.
       ...extra,
@@ -328,6 +346,7 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
     FakeOutbox? outbox,
     FakePhotoPicker? photoPicker,
     FakeFindPhotoRepository? findPhotos,
+    FakeInat? inat,
     bool useRealMap = false,
     // Fester Monat (September) statt `DateTime.now()`: Seit dem
     // Saison-Tor je Klasse (#495) hinge sonst jeder Legenden- und
@@ -358,6 +377,7 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
         outbox: outbox,
         photoPicker: photoPicker,
         findPhotos: findPhotos,
+        inat: inat,
         useRealMap: useRealMap,
         extra: [
           currentMonthProvider.overrideWithValue(month),

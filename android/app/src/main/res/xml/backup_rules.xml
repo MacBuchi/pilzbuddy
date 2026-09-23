@@ -10,6 +10,14 @@
     Online zurück. Das ist der richtige Tausch: Der Token wiegt schwerer,
     und ohne heruntergeladene Regionskarte (die ebenfalls nicht mitkommt)
     wäre eine gemerkte Offline-Karte auf dem neuen Gerät ohnehin leer.
+  * FlutterSecureStorage.xml + FlutterSecureKeyStorage.xml — der
+    iNaturalist-Zugang (#553), verschlüsselt mit einem Schlüssel aus dem
+    Android-Keystore. Doppelt falsch in einem Backup: Der Zugang darf im
+    Namen des Nutzers Beobachtungen anlegen, und der Keystore-Schlüssel
+    kommt ohnehin nicht mit — auf dem neuen Gerät wäre der Inhalt
+    unlesbar, und `flutter_secure_storage` scheitert dann beim Lesen
+    („Failed to unwrap key", README des Pakets). Neu verbinden kostet
+    einen Tipp.
   * updates/ — die geladene Update-APK (~60 MB). Reiner Zwischenschritt,
     beim nächsten Update ohnehin neu geladen.
   * offline_maps/ — die Bundesland-PMTiles sind 44 MB bis 1,7 GB groß und
@@ -30,6 +38,8 @@
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="sharedpref" path="FlutterSharedPreferences.xml"/>
+        <exclude domain="sharedpref" path="FlutterSecureStorage.xml"/>
+        <exclude domain="sharedpref" path="FlutterSecureKeyStorage.xml"/>
         <exclude domain="file" path="offline_maps"/>
         <exclude domain="file" path="outbox"/>
         <exclude domain="file" path="spot_cache"/>
@@ -38,6 +48,8 @@
     </cloud-backup>
     <device-transfer>
         <exclude domain="sharedpref" path="FlutterSharedPreferences.xml"/>
+        <exclude domain="sharedpref" path="FlutterSecureStorage.xml"/>
+        <exclude domain="sharedpref" path="FlutterSecureKeyStorage.xml"/>
         <exclude domain="file" path="offline_maps"/>
         <exclude domain="file" path="outbox"/>
         <exclude domain="file" path="spot_cache"/>

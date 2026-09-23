@@ -4,6 +4,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pilzbuddy/data/inat_api.dart';
 import 'package:pilzbuddy/features/offline_maps/download_keep_alive_service.dart';
 import 'package:pilzbuddy/features/offline_maps/network_metering.dart';
 import 'package:pilzbuddy/features/spots/spot_navigation.dart';
@@ -471,6 +472,60 @@ void main() {
               'ein Bewegungsprofil und hat in Googles Cloud so wenig '
               'verloren wie die Fundstellen');
     }
+  });
+
+  test('Der iNaturalist-Zugang kommt in kein Backup (#553)', () {
+    // `flutter_secure_storage` legt Daten und Schlüsselhülle in zwei
+    // SharedPreferences-Dateien; der Schlüssel selbst liegt im
+    // Android-Keystore und kommt NIE mit. Ein wiederhergestelltes Paar
+    // wäre auf dem neuen Gerät unlesbar („Failed to unwrap key") — und
+    // der Zugang darf im Namen des Nutzers Beobachtungen anlegen.
+    const secure = [
+      ('sharedpref', 'FlutterSecureStorage.xml'),
+      ('sharedpref', 'FlutterSecureKeyStorage.xml'),
+    ];
+    final rules = _load('android/app/src/main/res/xml/backup_rules.xml')
+        .rootElement;
+    for (final section in ['cloud-backup', 'device-transfer']) {
+      final excludes = _excludes(rules.findElements(section).single);
+      for (final entry in secure) {
+        expect(excludes, contains(entry), reason: '$section: $entry');
+      }
+    }
+    final legacy = _excludes(
+        _load('android/app/src/main/res/xml/full_backup_content.xml')
+            .rootElement);
+    for (final entry in secure) {
+      expect(legacy, contains(entry), reason: 'bis Android 11: $entry');
+    }
+  });
+
+  test('Die iNaturalist-Rückleitung landet in der App (#553)', () {
+    // Drei Stellen müssen dieselbe Adresse meinen: die Konstante in
+    // Dart, der Intent-Filter hier und die Redirect-URI bei iNaturalist
+    // (Wortlaut in #553). Stimmt der Filter nicht, bleibt der Custom Tab
+    // nach dem Bestätigen einfach offen — ohne Fehlermeldung.
+    final redirect = Uri.parse(kInatRedirectUri);
+    final activity = _load('android/app/src/main/AndroidManifest.xml')
+        .rootElement
+        .findElements('application')
+        .single
+        .findElements('activity')
+        .singleWhere((a) =>
+            a.getAttribute('android:name') ==
+            'com.linusu.flutter_web_auth_2.CallbackActivity');
+    expect(activity.getAttribute('android:exported'), 'true',
+        reason: 'der Browser ist ein fremder Prozess');
+    final filter = activity.findElements('intent-filter').single;
+    final categories = {
+      for (final c in filter.findElements('category'))
+        c.getAttribute('android:name'),
+    };
+    expect(categories, contains('android.intent.category.BROWSABLE'));
+    final data = filter.findElements('data').single;
+    expect(data.getAttribute('android:scheme'), redirect.scheme);
+    expect(data.getAttribute('android:scheme'), kInatCallbackScheme);
+    expect(data.getAttribute('android:host'), redirect.host);
   });
 
   test('Backup-Regeln bis Android 11 schließen dasselbe aus', () {

@@ -41,14 +41,14 @@ verarbeitet*, *erforderlich oder optional* — plus die Zwecke.
 
 | Datentyp | Erhoben | Geteilt | Pflicht? | Zweck | Woher |
 |---|---|---|---|---|---|
-| **Standort → Genauer Standort** | Ja | Nein¹ | Optional | App-Funktionalität | `spots.lat/lng`, `live_locations`, seit #373 auf Wunsch auch `finds.lat/lng/accuracy_m` — die Stelle eines EINZELNEN Fundes samt gemeldeter Messgenauigkeit, nur wenn der Nutzer sie im Fund-Blatt wählt. Seit 1.112.0 lässt sich ein Spot per `geo:`-URI an eine Navi-App auf demselben Gerät übergeben (#367) — auf Knopfdruck und mit dem System-Wähler als Bestätigung, siehe ¹. Der Weg einer Pilztour (#338) liegt in `tours/` im App-Verzeichnis und ist vom Backup ausgenommen. Er verlässt das Gerät **nur**, wenn gleichzeitig der Live-Standort geteilt wird (#340, seit 1.147.0): dann liegt er als `tour_tracks`-Zeile beim Server, sichtbar ausschließlich für akzeptierte Freunde und nur so lange wie die Standort-Freigabe, aus der er seine Frist erbt. Tour beenden oder Teilen beenden löscht die Zeile sofort. Ohne Standort-Freigabe bleibt der Weg auf dem Gerät; hochgeladen werden dann nur die daraus bestätigten Leergänge |
+| **Standort → Genauer Standort** | Ja | **Ja⁵** | Optional | App-Funktionalität | `spots.lat/lng`, `live_locations`, seit #373 auf Wunsch auch `finds.lat/lng/accuracy_m` — die Stelle eines EINZELNEN Fundes samt gemeldeter Messgenauigkeit, nur wenn der Nutzer sie im Fund-Blatt wählt. Seit 1.112.0 lässt sich ein Spot per `geo:`-URI an eine Navi-App auf demselben Gerät übergeben (#367) — auf Knopfdruck und mit dem System-Wähler als Bestätigung, siehe ¹. Der Weg einer Pilztour (#338) liegt in `tours/` im App-Verzeichnis und ist vom Backup ausgenommen. Er verlässt das Gerät **nur**, wenn gleichzeitig der Live-Standort geteilt wird (#340, seit 1.147.0): dann liegt er als `tour_tracks`-Zeile beim Server, sichtbar ausschließlich für akzeptierte Freunde und nur so lange wie die Standort-Freigabe, aus der er seine Frist erbt. Tour beenden oder Teilen beenden löscht die Zeile sofort. Ohne Standort-Freigabe bleibt der Weg auf dem Gerät; hochgeladen werden dann nur die daraus bestätigten Leergänge. Seit #553 geht die Fundstelle eines EINZELNEN Fundes auf ausdrücklichen Wunsch an iNaturalist, siehe ⁵ |
 | **Standort → Ungefährer Standort** | Ja | Nein¹ | Optional | App-Funktionalität | `ACCESS_COARSE_LOCATION` ist deklariert; ein grober Fix wird genauso gespeichert |
 | **Persönliche Infos → E-Mail-Adresse** | Ja | Nein³ | Erforderlich | App-Funktionalität, Kontoverwaltung | Supabase Auth; zusätzlich Freundessuche über die exakte Adresse; Versand der Bestätigungs- und Reset-Mails über Brevo |
 | **Persönliche Infos → Name** | Ja | Nein¹ | Erforderlich | App-Funktionalität, Kontoverwaltung | `profiles.username` (nicht null) und `display_name`; der Benutzername ist für alle Nutzer suchbar |
 | **Persönliche Infos → Nutzer-IDs** | Ja | Nein | Erforderlich | App-Funktionalität, Kontoverwaltung | `profiles.id` (UUID aus `auth.users`) |
 | **App-Aktivität → App-Interaktionen** | Ja | Nein¹ | Optional | App-Funktionalität | Kudos an Fundfotos (Patch 028, seit 1.190.0): je Nutzer und Foto eine Zeile `find_photo_kudos` (Foto, Nutzer-id, Zeitpunkt) — ein ausdrücklicher Tipp, kein Mitschnitt von Nutzungsverhalten. Sichtbar für alle, die das Foto sehen dürfen (Policy erbt von `find_photos`), gelöscht per Cascade mit dem Foto nach spätestens 14 Tagen |
 | **App-Aktivität → Andere nutzergenerierte Inhalte** | Ja | **Ja²** | Optional | App-Funktionalität, Entwicklerkommunikation | Spot-Name, Art, Notiz (`spots`, `finds`) sowie Feedback-Text und App-Version (`feedback`) |
-| **Fotos und Videos → Fotos** | Ja | Nein¹ | Optional | App-Funktionalität, Entwicklerkommunikation | Fundfotos (#532, seit 1.185.0): ein Bild, das der Nutzer ausdrücklich zu einem eigenen Fund teilt. Dazu seit 1.186.0 (#525) optional ein Bild an einer Feedback-Meldung — Bucket `feedback-photos`, ohne Leserecht für Nutzer, nur der Betreiber sieht es, der Bot löscht es nach 90 Tagen; anders als der Text wird es NICHT veröffentlicht. Vor dem Hochladen auf 1024 px verkleinert und von ALLEN Metadaten befreit (`lib/core/photo_pipeline.dart` — geprüft an den Bytes, weil `image_picker` beim Verkleinern die GPS-Tags zurückkopiert). Liegt im Supabase-Bucket `find-photos`, sichtbar nur für Buddys, die den Fund sehen dürfen (Policy erbt von `finds`), und läuft nach 14 Tagen ab (`find_photos.expires_at`, Bot räumt Zeilen und Objekte). Keine Kamera-Berechtigung: Kamera-Intent und Photo Picker kommen ohne aus |
+| **Fotos und Videos → Fotos** | Ja | **Ja⁵** | Optional | App-Funktionalität, Entwicklerkommunikation | Fundfotos (#532, seit 1.185.0): ein Bild, das der Nutzer ausdrücklich zu einem eigenen Fund teilt. Dazu seit 1.186.0 (#525) optional ein Bild an einer Feedback-Meldung — Bucket `feedback-photos`, ohne Leserecht für Nutzer, nur der Betreiber sieht es, der Bot löscht es nach 90 Tagen; anders als der Text wird es NICHT veröffentlicht. Vor dem Hochladen auf 1024 px verkleinert und von ALLEN Metadaten befreit (`lib/core/photo_pipeline.dart` — geprüft an den Bytes, weil `image_picker` beim Verkleinern die GPS-Tags zurückkopiert). Liegt im Supabase-Bucket `find-photos`, sichtbar nur für Buddys, die den Fund sehen dürfen (Policy erbt von `finds`), und läuft nach 14 Tagen ab (`find_photos.expires_at`, Bot räumt Zeilen und Objekte). Keine Kamera-Berechtigung: Kamera-Intent und Photo Picker kommen ohne aus. Seit #553 auf ausdrücklichen Wunsch Fotos eines Fundes an iNaturalist, siehe ⁵ |
 | **App-Info und -Leistung → Absturzprotokolle** | Ja | Nein | Erforderlich | App-Funktionalität | `error_reports`: Fehlertyp, Meldung, Stacktrace, App-Version, Plattform |
 | **Geräte- oder andere IDs** | Ja⁴ | **Ja⁴** | Optional | App-Funktionalität | `push_devices.token` — die FCM-Gerätekennung, sobald jemand Benachrichtigungen einschaltet |
 
@@ -95,6 +95,22 @@ unwiderruflich. Das ist eine Weitergabe an einen Dritten (GitHub), auch wenn der
 Nutzer sie auslöst. Der Absende-Dialog, die Datenschutzerklärung und die
 Löschseite sagen es; das Formular sollte es auch sagen. Untertreiben ist hier
 das teurere Risiko.
+
+**⁵ Melden an iNaturalist (#553) — *geteilt*.**
+Empfehlung: **ja, als geteilt deklarieren** — dieselbe Abwägung wie bei ².
+Der Nutzer verbindet ein EIGENES iNaturalist-Konto (OAuth im Custom Tab)
+und meldet dann einzelne Funde ausdrücklich: Art, Datum, genaue
+Fundstelle samt Genauigkeit, Anzahl, ausgewählte Bäume und Fotos (ohne
+Metadaten). Das ist nutzerinitiiert und im Verbinden-Dialog erklärt — aber
+die Beobachtung wird dort öffentlich (auf Wunsch mit verschleierter
+Stelle), iNaturalist ist ein eigener Verantwortlicher und gibt bestätigte
+Beobachtungen an GBIF weiter. Das liegt außerhalb unserer Kontrolle und
+lässt sich nur dort löschen. Bei uns liegt nur die Buchführung
+(`find_reports`: Fund, uuid, Beobachtungs-id, Status, nur für den Nutzer
+selbst lesbar); der Zugang zum iNaturalist-Konto liegt im Keystore des
+Geräts, nie auf dem Server, und ist vom Backup ausgenommen. Keine neue
+Berechtigung. Netzziele: `www.inaturalist.org`, `api.inaturalist.org` —
+beide erst nach dem Verbinden.
 
 **³ Der Mailversand über Brevo — *geteilt*?**
 Empfehlung: **nein**. Brevo ist Auftragsverarbeiter für genau zwei Zwecke:

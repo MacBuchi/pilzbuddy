@@ -140,6 +140,12 @@ void main() {
     /// der Fall bei Roboto, #393).
     const afterConsent = {
       'www.gstatic.com',
+      // iNaturalist (#553): kein Aufruf, bevor jemand im Profil
+      // „Mit iNaturalist verbinden" bestätigt hat — der Dialog davor
+      // sagt, was hinausgeht. Anmeldung und Zugang über `www`, Arten,
+      // Beobachtungen und Fotos über `api`.
+      'www.inaturalist.org',
+      'api.inaturalist.org',
     };
 
     /// Ziele, die erst der Nutzer mit einem Tipp öffnet (Lizenz- und
@@ -278,6 +284,10 @@ void main() {
       // Storage deshalb ausdrücklich als Empfänger.
       'find_photos': 'Fundfoto teilen',
       'find_photo_kudos': 'Kudos vergeben',
+      // Nur die Buchführung (was, wann, welche Beobachtungs-id); die
+      // Beobachtung selbst liegt bei iNaturalist, den Zugang hat nur
+      // das Gerät.
+      'find_reports': 'An iNaturalist melden',
       'push_devices': 'Benachrichtigungen',
       'error_reports': 'Fehlerdiagnose',
       'feedback': 'Feedback',

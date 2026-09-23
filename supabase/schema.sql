@@ -181,6 +181,27 @@ create table public.find_photo_kudos (
 );
 create index find_photo_kudos_user_idx on public.find_photo_kudos (user_id);
 
+-- Meldungen an iNaturalist (Patch 029, #553): eine Zeile je Fund und
+-- Plattform, angelegt BEVOR gesendet wird — `remote_uuid` macht den
+-- Wiederholversuch idempotent. Nur der eigene Fund, nur für mich.
+-- `user_id` auf auth.users aus demselben Grund wie bei den Kudos.
+-- Begründung und Statusliste im Patch.
+create table public.find_reports (
+  find_id uuid not null references public.finds(id) on delete cascade,
+  user_id uuid not null default auth.uid()
+    references auth.users(id) on delete cascade,
+  platform text not null default 'inat' check (platform in ('inat')),
+  remote_uuid uuid not null,
+  remote_id bigint,
+  status text not null default 'sending' check (status in
+    ('sending', 'reported', 'needs_id', 'research', 'casual', 'withdrawn')),
+  gbif_id bigint,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (find_id, platform)
+);
+create index find_reports_user_idx on public.find_reports (user_id);
+
 -- Feature-Wünsche / Feedback aus der App. Der Feedback-Bot
 -- (.github/workflows/feedback.yml) macht daraus GitHub-Issues bzw.
 -- Pilzart-PRs und setzt processed_at.
@@ -376,6 +397,7 @@ alter table public.live_locations enable row level security;
 alter table public.tour_tracks    enable row level security;
 alter table public.find_photos    enable row level security;
 alter table public.find_photo_kudos enable row level security;
+alter table public.find_reports   enable row level security;
 alter table public.feedback       enable row level security;
 alter table public.error_reports  enable row level security;
 alter table public.app_config     enable row level security;
@@ -391,6 +413,7 @@ grant select on public.app_config to anon, authenticated;
 -- Vorgabe fällt am 2026-10-30 (config.toml).
 grant select, insert, delete on public.find_photos to authenticated;
 grant select, insert, delete on public.find_photo_kudos to authenticated;
+grant select, insert, update, delete on public.find_reports to authenticated;
 
 -- push_devices: nur die eigenen Geräte, in beide Richtungen. Ohne das
 -- `with check` könnte jemand ein Token auf ein fremdes Konto schreiben
@@ -535,6 +558,21 @@ create policy fpk_insert on public.find_photo_kudos for insert
     and exists (select 1 from public.find_photos p
                 where p.id = photo_id and p.user_id <> auth.uid()));
 create policy fpk_delete on public.find_photo_kudos for delete
+  using (user_id = auth.uid());
+
+-- find_reports (Patch 029): nur die eigene Zeile, nur am eigenen Fund.
+create policy fr_select on public.find_reports for select
+  using (user_id = auth.uid());
+create policy fr_insert on public.find_reports for insert
+  with check (user_id = auth.uid()
+    and exists (select 1 from public.finds f
+                where f.id = find_id and f.author_id = auth.uid()));
+create policy fr_update on public.find_reports for update
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid()
+    and exists (select 1 from public.finds f
+                where f.id = find_id and f.author_id = auth.uid()));
+create policy fr_delete on public.find_reports for delete
   using (user_id = auth.uid());
 
 -- ---------------------------------------------------------------------------
@@ -862,5 +900,6 @@ insert into public.applied_patches (filename) values
   ('patch_025_vormerkung.sql'),
   ('patch_026_fundfotos.sql'),
   ('patch_027_feedback_bild.sql'),
-  ('patch_028_fundfoto_kudos.sql')
+  ('patch_028_fundfoto_kudos.sql'),
+  ('patch_029_inat_meldungen.sql')
 on conflict do nothing;

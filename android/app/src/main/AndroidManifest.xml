@@ -64,6 +64,25 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- Rückleitung der iNaturalist-Anmeldung (#553). Der Custom Tab
+             landet nach dem Bestätigen auf `de.mcbuchi.pilzbuddy://inat`,
+             und diese Aktivität aus `flutter_web_auth_2` reicht die Adresse
+             samt Code an die App zurück. Schema UND Host müssen mit der bei
+             iNaturalist hinterlegten Redirect-URI übereinstimmen und mit
+             `kInatRedirectUri` in Dart — ein Test hält alle drei zusammen.
+             `exported="true"` ist Pflicht: Der Browser ist ein fremder
+             Prozess. Mehr als einen Code, der ohne unseren PKCE-Verifier
+             wertlos ist, kann niemand hier hineinreichen. -->
+        <activity
+            android:name="com.linusu.flutter_web_auth_2.CallbackActivity"
+            android:exported="true">
+            <intent-filter android:label="flutter_web_auth_2">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="de.mcbuchi.pilzbuddy" android:host="inat"/>
+            </intent-filter>
+        </activity>
         <!-- Foreground-Service für Karten-Download und Pilztour
              (flutter_foreground_task). Der Klassenname stammt aus dem
              Paket und darf nicht geändert werden.

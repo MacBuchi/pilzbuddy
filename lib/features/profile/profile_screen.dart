@@ -35,6 +35,7 @@ import 'push_providers.dart';
 import 'sharing_rank_tile.dart';
 import '../../core/app_colors.dart';
 import '../../core/widgets/sheet_close_button.dart';
+import '../inat/inat_profile_tile.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -256,6 +257,10 @@ class ProfileScreen extends ConsumerWidget {
             onChanged: (value) =>
                 ref.read(findPhotosEnabledProvider.notifier).set(value),
           ),
+          // Funde an iNaturalist und damit an GBIF melden (#553).
+          // Unsichtbar, solange die App keine Application ID hat; ohne
+          // verbundenes Konto ändert sich sonst nirgends etwas.
+          const InatProfileTile(),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             secondary: const Icon(Icons.science_outlined),
