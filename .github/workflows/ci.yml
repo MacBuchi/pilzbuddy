@@ -203,8 +203,12 @@ jobs:
         with:
           # Wie lokal beim Betreiber — bei lokalem CLI-Upgrade mitziehen.
           version: 2.109.1
+      # Nicht `supabase start` direkt: Die Action legt die Registry auf
+      # ghcr.io fest, und die drosselte am 2026-09-23 die Runner. Das
+      # Skript hebt das auf, startet nur, was der Dry Run braucht, und
+      # versucht es dreimal (Begründung im Skript).
       - name: Lokalen Supabase-Stack starten
-        run: supabase start
+        run: bash tool/ci_supabase_start.sh
       # Pfad 1 — BESTANDSPROJEKT: der Stand des Basis-Branches, dann nur die
       # Patches dieses PRs obendrauf. Das ist der Weg, den die Produktion
       # nimmt; alles andere nimmt sie genau einmal im Leben. Der Schema Check
