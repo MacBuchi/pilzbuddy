@@ -27,6 +27,10 @@ const _attributedAssets = <String, String>{
   'assets/elevation/elevation_manifest.json': 'Copernicus DEM',
   'assets/gbif/gbif_finds.bin.gz': 'GBIF',
   'assets/gbif/gbif_finds_manifest.json': 'GBIF',
+  // Die Schutzgebiete (#580): eine aus OSM ABGELEITETE Datenbank, die
+  // ODbL verlangt dieselbe Nennung wie die Karte.
+  'assets/protected/protected_grid.bin.gz': 'Schutzgebiete (OpenStreetMap)',
+  'assets/protected/protected_manifest.json': 'Schutzgebiete (OpenStreetMap)',
   // Die Artfotos (#511). Je Bild steht der Urheber in
   // `species_photos.dart`; die Lizenzseite erzeugt ihre Liste daraus.
   'assets/species/': 'Wikimedia Commons',
@@ -48,6 +52,7 @@ const _bundledSources = <String>[
   'DLR',
   'Copernicus DEM',
   'Wikimedia Commons',
+  'Schutzgebiete (OpenStreetMap)',
 ];
 
 /// Die Asset-Einträge aus `pubspec.yaml`. Bewusst per Regex statt mit dem

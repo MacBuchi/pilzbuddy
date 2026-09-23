@@ -32,8 +32,15 @@ eine Wabe, bekommt so trotzdem seine Wabe, und am Rand warnt die App
 lieber 250 m zu früh als zu spät.
 
 Byte-Vertrag (das Pendant liest `lib/features/map/protected_areas.dart`):
-je Zelle ein uint16 little-endian, 0 = kein Gebiet, sonst der 1-basierte
-Index in `areas` des Manifests. Überlappen sich Gebiete, gewinnt das
+LÄUFE je Zeile, alles uint16 little-endian — für jede der `height`
+Zeilen erst die Zahl der Läufe, dann je Lauf (x0, Länge, Index). Der
+Index ist 1-basiert in `areas` des Manifests; Zellen außerhalb eines
+Laufs sind kein Gebiet. **Warum Läufe statt ein Wert je Zelle:** Das
+volle Gitter sind 13,6 Mio. Zellen × 2 Byte = 27 MB im Arbeitsspeicher
+der App, neben den 13 MB des Waldgitters — für eine Auskunft, die an
+5,5 % der Zellen überhaupt etwas sagt. Als Läufe sind es 102 004 × 6
+Byte = 0,6 MB (gemessen am ersten DACH-Lauf), und die App muss nie das
+volle Gitter auspacken, auch nicht kurz. Überlappen sich Gebiete, gewinnt das
 KLEINERE — sein Name ist der genauere („Wutachschlucht" statt
 „Naturpark Südschwarzwald" gäbe es ohnehin nicht, aber „Kernzone" statt
 „Nationalpark").
@@ -379,7 +386,8 @@ def build(out_dir, assets_dir, forest_manifest):
     split = [(kind, name, *rasterize_split(rings, width, height))
              for _, kind, name, rings in candidates]
     grid, areas = assign(split, width, height)
-    payload = gzip.compress(bytes(grid), compresslevel=9, mtime=0)
+    payload = gzip.compress(encode_runs(grid, width, height),
+                            compresslevel=9, mtime=0)
     os.makedirs(assets_dir, exist_ok=True)
     grid_path = os.path.join(assets_dir, "protected_grid.bin.gz")
     open(grid_path, "wb").write(payload)
@@ -402,7 +410,7 @@ def build(out_dir, assets_dir, forest_manifest):
         "south": BOUNDS[1],
         "hex_lon_step": round(lon_step, 9),
         "hex_lat_step": round(lat_step, 9),
-        "encoding": "gzip-u16le",
+        "encoding": "gzip-runs-u16le",
         "cells_marked": marked,
         "bytes": len(payload),
         "sha256": hashlib.sha256(payload).hexdigest(),
@@ -417,12 +425,57 @@ def build(out_dir, assets_dir, forest_manifest):
     return manifest
 
 
+def encode_runs(grid, width, height):
+    """uint16-Gitter (2 Byte je Zelle) → Läufe je Zeile, siehe Vertrag."""
+    out = bytearray()
+    for hy in range(height):
+        row = struct.unpack_from(f"<{width}H", grid, hy * width * 2)
+        runs = []
+        hx = 0
+        while hx < width:
+            v = row[hx]
+            if v == 0:
+                hx += 1
+                continue
+            start = hx
+            while hx < width and row[hx] == v:
+                hx += 1
+            runs.append((start, hx - start, v))
+        out += struct.pack("<H", len(runs))
+        for run in runs:
+            out += struct.pack("<3H", *run)
+    return bytes(out)
+
+
+def decode_runs(raw, height):
+    """Läufe je Zeile zurück — [[(x0, Länge, Index), …], …]."""
+    rows = []
+    o = 0
+    for _ in range(height):
+        (n,) = struct.unpack_from("<H", raw, o)
+        o += 2
+        rows.append([struct.unpack_from("<3H", raw, o + 6 * k) for k in range(n)])
+        o += 6 * n
+    if o != len(raw):
+        raise ValueError(f"{len(raw) - o} Byte hinter der letzten Zeile")
+    return rows
+
+
+def index_at(runs, hx, hy):
+    """Der Gebietsindex einer Zelle, 0 = keins."""
+    for x0, n, idx in runs[hy]:
+        if x0 <= hx < x0 + n:
+            return idx
+    return 0
+
+
 def lookup(assets_dir, points):
     """Was das Gitter an einer Koordinate sagt — für Stichproben am
     fertigen Gitter, auf demselben Weg, den die App geht."""
     m = json.load(open(os.path.join(assets_dir, "protected_manifest.json")))
-    raw = gzip.decompress(
-        open(os.path.join(assets_dir, "protected_grid.bin.gz"), "rb").read())
+    runs = decode_runs(gzip.decompress(
+        open(os.path.join(assets_dir, "protected_grid.bin.gz"), "rb").read()),
+        m["height"])
     lat_c = (m["west"], m["north"], m["hex_lon_step"], m["hex_lat_step"],
              m["width"], m["height"])
     out = []
@@ -430,7 +483,7 @@ def lookup(assets_dir, points):
         cell = nearest_cell(*to_uv(lon, lat, lat_c), m["width"], m["height"])
         idx = 0
         if cell:
-            idx = struct.unpack_from("<H", raw, (cell[1] * m["width"] + cell[0]) * 2)[0]
+            idx = index_at(runs, *cell)
         area = m["areas"][idx - 1] if idx else None
         out.append(area)
         label = f"{area['kind']} „{area['name']}\"" if area else "kein Gebiet"
@@ -523,6 +576,16 @@ def self_test():
                           ("Nationalpark", "groß", b_in, set())], w, h)
     o = (shared[1] * w + shared[0]) * 2
     assert areas[struct.unpack_from("<H", grid, o)[0] - 1]["name"] == "groß"
+    # Läufe: hin und zurück verlustfrei, auch am Zeilenrand und bei zwei
+    # verschiedenen Gebieten direkt nebeneinander.
+    g = bytearray(6 * 3 * 2)
+    for hx, v in ((0, 1), (1, 1), (2, 2), (5, 3)):
+        struct.pack_into("<H", g, (1 * 6 + hx) * 2, v)
+    struct.pack_into("<H", g, (2 * 6 + 5) * 2, 4)
+    rows = decode_runs(encode_runs(g, 6, 3), 3)
+    assert rows == [[], [(0, 2, 1), (2, 1, 2), (5, 1, 3)], [(5, 1, 4)]], rows
+    assert index_at(rows, 1, 1) == 1 and index_at(rows, 3, 1) == 0
+    assert index_at(rows, 5, 2) == 4
     # Nachschlag wie in Dart: Mittelpunkt → eigene Wabe.
     for hy in (4, 5):
         for hx in (3, 8):

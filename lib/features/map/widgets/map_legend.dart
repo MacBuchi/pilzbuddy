@@ -59,7 +59,8 @@ import '../elevation_providers.dart';
 import '../forest_block_providers.dart';
 import '../elevation_contour_providers.dart';
 import '../forest_data_providers.dart';
-import '../forest_fill.dart' show ampelGuenstigAlpha, ampelVerhaltenAlpha;
+import '../forest_fill.dart'
+    show ampelGuenstigAlpha, ampelVerhaltenAlpha, hatchGapShare;
 import '../gbif_fill.dart' show gbifClassColour, gbifClassCountsFrom;
 import '../gbif_finds_providers.dart'
     show gbifFilterKeyProvider, gbifFindsProvider, gbifLayerEnabledProvider;
@@ -68,6 +69,7 @@ import '../forest_grid.dart';
 import '../rain_data_providers.dart';
 import '../rain_fill.dart';
 import '../map_overlays.dart';
+import '../protected_area_providers.dart' show protectedAreasProvider;
 import '../rain_layer.dart';
 import '../../ampel/ampel_season_gate.dart' show ampelNowLine;
 import '../../ampel/ampel_species_exclusion.dart';
@@ -288,6 +290,10 @@ class MapLegend extends ConsumerWidget {
       showGbif: showGbif,
       gbifKeys: gbifKeys,
       gbifCounts: showGbif ? ref.watch(legendGbifCountsProvider) : null,
+      // Nur mit Waldfläche — und dann hat die Fläche das Asset ohnehin
+      // gelesen (beobachten ist laden).
+      hatched: showForest &&
+          ref.watch(protectedAreasProvider).valueOrNull != null,
     );
     final open = ref.watch(mapLegendOpenProvider);
 
@@ -360,6 +366,10 @@ typedef LegendZones = ({
 
   /// Meldungen je Gruppe im Umkreis — `null` ohne Zählung.
   Map<String?, int>? gbifCounts,
+
+  /// Ist die Wald- bzw. Ampelfläche in Schutzgebieten schraffiert
+  /// (#580)? Nur dann erklärt die Legende das Muster.
+  bool hatched,
 });
 
 /// Die eingeklappte Legende: 40 Pixel, dieselben drei Zonen senkrecht.
@@ -805,6 +815,8 @@ class _LegendPanel extends StatelessWidget {
                   forest: zones.showForest
                       ? (classes: zones.forestClasses, around: zones.around)
                       : null),
+              if (zones.hatched)
+                const _HatchLine(colour: AppColors.ampelStrong),
               const SizedBox(height: 8),
             ],
             if (zones.showRain) ...[
@@ -814,6 +826,8 @@ class _LegendPanel extends StatelessWidget {
             if (zones.showForest && !zones.showAmpel) ...[
               _ForestSection(
                   classes: zones.forestClasses, around: zones.around),
+              if (zones.hatched)
+                const _HatchLine(colour: AppColors.forestMixed),
               const SizedBox(height: 8),
             ],
             if (zones.showGbif) ...[
@@ -1446,6 +1460,64 @@ class _ForestScale extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Die Legendenzeile zur Schraffur (#580): ein kleines Feld mit
+/// demselben Muster wie auf der Karte, daneben die Aussage.
+///
+/// „meist verboten", nicht „verboten": Was in einem Gebiet gilt, regelt
+/// dessen Verordnung, und die kennt die App nicht (siehe
+/// `protected_area_note.dart`).
+class _HatchLine extends StatelessWidget {
+  const _HatchLine({required this.colour});
+
+  final Color colour;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      key: const Key('legend-hatch'),
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        children: [
+          CustomPaint(
+              size: const Size(26, 11), painter: _HatchPainter(colour)),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text('Schutzgebiet · Sammeln meist verboten',
+                style: _tick(Theme.of(context))),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HatchPainter extends CustomPainter {
+  _HatchPainter(this.colour);
+
+  final Color colour;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    canvas.save();
+    canvas.clipRRect(RRect.fromRectAndRadius(rect, const Radius.circular(2)));
+    // Die Lücken mit der Deckkraft der Karte, die Streifen voll — wie im
+    // Zeichner (`hatchGapShare`).
+    canvas.drawRect(
+        rect, Paint()..color = colour.withValues(alpha: 0.85 * hatchGapShare));
+    final stripe = Paint()
+      ..color = colour.withValues(alpha: 0.85)
+      ..strokeWidth = 2.5;
+    for (var x = -size.height; x < size.width; x += 6) {
+      canvas.drawLine(Offset(x, size.height), Offset(x + size.height, 0), stripe);
+    }
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_HatchPainter old) => old.colour != colour;
 }
 
 TextStyle? _tick(ThemeData theme) => theme.textTheme.labelSmall

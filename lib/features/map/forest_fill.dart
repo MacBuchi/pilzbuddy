@@ -43,7 +43,32 @@ import '../ampel/ampel_model.dart' show AmpelClass, AmpelLevel;
 import 'forest_fill_window.dart';
 import 'forest_grid.dart';
 import 'overlay_png.dart';
+import 'protected_areas.dart';
 import 'rain_grid.dart' show latFromMercatorY, mercatorY;
+
+/// **Schutzgebiete sind schraffiert, nicht gefüllt** (#580, Betreiber
+/// 2026-09-23: „die Ampel schraffieren an den Stellen und nicht komplett
+/// füllen — das spart eine Zusatzebene"). Ein Pixel, das überwiegend in
+/// einem Schutzgebiet liegt, behält auf den Streifen seine Farbe und hat
+/// dazwischen nur [hatchGapShare] seiner Deckkraft. Die Aussage steckt
+/// damit in der Fläche selbst: „hier wäre es günstig — und hier ist
+/// Sammeln verboten".
+///
+/// Streifenabstand und -breite in BILDpixeln. Ein Bildpixel ist bei
+/// frisch geplantem Fenster ~0,5 dp und wird bis zum Neuplanen auf
+/// höchstens ~1,9 dp gestreckt (`fillWindowZoomFactor`); 14 px sind auf
+/// dem Schirm also 7 bis 27 dp. Die Spanne bringt die Bildstrecke mit.
+const hatchPeriodPx = 14;
+const hatchStripePx = 6;
+
+/// Deckkraft ZWISCHEN den Streifen, als Anteil der normalen.
+const hatchGapShare = 0.25;
+
+/// Ab dieser Wabenbreite im Bild wird schraffiert. Darunter wären die
+/// Streifen breiter als die Gebiete, und der Nachschlag je Wabe liefe im
+/// Übersichtszoom über 13,6 Millionen Waben. Weit draußen malt die
+/// Fläche deshalb wie ohne Schutzgebiete.
+const hatchMinHexPx = 2.0;
 
 /// Deckkraft der Waldfläche, 0–255. Startwert = die 55 % des Regen-Fills
 /// (`rainFillAlpha`), am Gerät gegenzuprüfen — der Regen brauchte dafür
@@ -92,7 +117,8 @@ const allForestClasses = {
 Uint8List forestFillPng(ForestGrid grid,
     {int alpha = forestFillAlpha,
     Set<ForestClass> classes = allForestClasses,
-    FillWindow? window}) {
+    FillWindow? window,
+    ProtectedAreas? protected}) {
   window ??= FillWindow(
     west: grid.west,
     east: grid.east,
@@ -105,7 +131,8 @@ Uint8List forestFillPng(ForestGrid grid,
   final rows = window.height;
 
   if (grid.isHex) {
-    final coverage = _HexCoverage(window)..add(grid, classes);
+    final coverage = _HexCoverage(window, protected: protected)
+      ..add(grid, classes);
     return overlayPng(width, rows,
         coverage.resolve(_forestBandColours, List.filled(3, alpha)));
   }
@@ -195,8 +222,9 @@ Uint8List _paletteFor(int alpha, Set<ForestClass> classes) {
 Uint8List forestFillPngMulti(List<ForestGrid> grids,
     {int alpha = forestFillAlpha,
     Set<ForestClass> classes = allForestClasses,
-    required FillWindow window}) {
-  final coverage = _HexCoverage(window);
+    required FillWindow window,
+    ProtectedAreas? protected}) {
+  final coverage = _HexCoverage(window, protected: protected);
   for (final grid in grids) {
     coverage.add(grid, classes);
   }
@@ -241,8 +269,10 @@ Uint8List forestAmpelFillPng(List<ForestGrid> grids,
     required AmpelLevelGrid levels,
     required List<AmpelClass> ampelClasses,
     ElevationGrid? elevation,
-    Set<ForestClass> classes = allForestClasses}) {
-  final coverage = _HexCoverage(window, bandCount: 5);
+    Set<ForestClass> classes = allForestClasses,
+    ProtectedAreas? protected}) {
+  final coverage =
+      _HexCoverage(window, bandCount: 5, protected: protected);
   final highlight = (levels: levels, classes: ampelClasses);
   for (final grid in grids) {
     coverage.add(grid, classes, highlight: highlight, elevation: elevation);
@@ -315,10 +345,24 @@ const ampelGuenstigAlpha = 215;
 /// zweite Weg ist der, den es vorher nicht gab — und ohne ihn
 /// verschwindet die Karte beim Rauszoomen (Kopfkommentar).
 class _HexCoverage {
-  _HexCoverage(this.window, {this.bandCount = 3})
-      : _bands = Uint16List(window.width * window.height * bandCount),
+  _HexCoverage(this.window, {this.bandCount = 3, this.protected})
+      : _stride = bandCount + (protected == null ? 0 : 1),
+        _bands = Uint16List(window.width *
+            window.height *
+            (bandCount + (protected == null ? 0 : 1))),
         _mercNorth = mercatorY(window.north),
         _mercSpan = mercatorY(window.south) - mercatorY(window.north);
+
+  /// Die Schutzgebiete für die Schraffur — `null` malt wie vor 1.201.0.
+  /// Sie zahlen in ein EIGENES Band ein ([_protectedBand]), das keine
+  /// Farbe hat: Es sagt nur, wie viel eines Pixels im Schutzgebiet liegt.
+  final ProtectedAreas? protected;
+
+  /// Werte je Pixel im Puffer: die [bandCount] Farbbänder, dazu das
+  /// Schutzgebiets-Band, wenn es eines gibt.
+  final int _stride;
+
+  int get _protectedBand => bandCount;
 
   final FillWindow window;
 
@@ -411,6 +455,9 @@ class _HexCoverage {
         continue;
       }
 
+      // Schraffur erst ab [hatchMinHexPx] — darunter kostete der
+      // Nachschlag je Wabe mehr, als die Streifen sagen könnten.
+      final areas = wPx >= hatchMinHexPx ? protected : null;
       var cx = cxFirst;
       var lonC = lonFirst;
       for (var hx = hx0; hx <= hx1; hx++, cx += wPx, lonC += lonStep) {
@@ -418,6 +465,11 @@ class _HexCoverage {
         if (band < 0) continue;
         if (cx + wPx / 2 <= 0 || cx - wPx / 2 >= width) continue;
         final lit = _litBand(highlight, elevation, ampelRow, latC, lonC);
+        // Am MITTELPUNKT der Wabe, wie das Leuchten: Eine Waldwabe ist
+        // ganz Schutzgebiet oder gar nicht. Die feinen 100-m-Blöcke
+        // liegen auf einem anderen Raster, deshalb über die Koordinate
+        // und nicht über den Index.
+        final inside = areas != null && areas.isProtectedAt(latC, lonC);
         final py0 = math.max(0, yTop.floor());
         final py1 = math.min(rows - 1, yBot.floor());
         for (var py = py0; py <= py1; py++) {
@@ -449,12 +501,14 @@ class _HexCoverage {
             if (right <= left) continue;
             final share =
                 (vertical * (right - left) * _coverageUnit).round();
-            final offset = (rowOffset + px) * bandCount;
+            final offset = (rowOffset + px) * _stride;
             _bands[offset + band] += share;
             // Leuchtende Waben zählen DOPPELT: einmal für ihre Klasse,
             // einmal für ihre Stufe. Derselbe gerundete Betrag, damit
             // die Leuchtdeckung nie größer wird als die Klassendeckung.
             if (lit >= 0) _bands[offset + lit] += share;
+            // Ebenso das Schutzgebiets-Band: nie größer als die Deckung.
+            if (inside) _bands[offset + _protectedBand] += share;
           }
         }
       }
@@ -517,15 +571,15 @@ class _HexCoverage {
       }
 
       if (hasA) {
-        if (px >= 0) put((offsetA + px) * bandCount, weightA * (1 - tx));
+        if (px >= 0) put((offsetA + px) * _stride, weightA * (1 - tx));
         if (px + 1 < width) {
-          put((offsetA + px + 1) * bandCount, weightA * tx);
+          put((offsetA + px + 1) * _stride, weightA * tx);
         }
       }
       if (hasB) {
-        if (px >= 0) put((offsetB + px) * bandCount, weightB * (1 - tx));
+        if (px >= 0) put((offsetB + px) * _stride, weightB * (1 - tx));
         if (px + 1 < width) {
-          put((offsetB + px + 1) * bandCount, weightB * tx);
+          put((offsetB + px + 1) * _stride, weightB * tx);
         }
       }
     }
@@ -556,6 +610,27 @@ class _HexCoverage {
       _ => -1,
     };
   }
+
+  /// Ob ein Pixel in eine LÜCKE der Schraffur fällt: überwiegend im
+  /// Schutzgebiet und nicht auf einem Streifen.
+  ///
+  /// **Die Streifen hängen an der Karte, nicht am Bild.** Das Fenster
+  /// wird bei jedem Verschieben über seinen Rand neu geplant; zählte das
+  /// Muster ab der linken oberen Bildecke, sprängen die Streifen dabei
+  /// sichtbar. [_originX]/[_originY] sind die Pixelkoordinaten der
+  /// Bildecke in einem Raster, das bei gleichem Maßstab für jedes
+  /// Fenster dasselbe ist (Länge ab −180°, Mercator ab dem Äquator).
+  bool _hatched(int offset, int total, int x, int y) {
+    if (protected == null || total == 0) return false;
+    final inside = _bands[offset + _protectedBand];
+    if (inside * 2 < total) return false;
+    final diagonal = (x + _originX + y + _originY).floor();
+    return diagonal % hatchPeriodPx >= hatchStripePx;
+  }
+
+  late final double _originX =
+      (window.west + 180) / (window.east - window.west) * window.width;
+  late final double _originY = _mercNorth / _mercSpan * window.height;
 
   /// Deckung → Bild: Farbe des deckungsstärksten Bandes, Deckkraft nach
   /// Gesamtdeckung.
@@ -599,7 +674,8 @@ class _HexCoverage {
             best = band;
           }
         }
-        offset += bandCount;
+        final hatched = _hatched(offset, total, x, y);
+        offset += _stride;
         if (total == 0) {
           cursor += 4; // durchsichtig: kein Wald, keine Daten, abgewählt
           continue;
@@ -608,9 +684,10 @@ class _HexCoverage {
         raw[cursor++] = red[best];
         raw[cursor++] = green[best];
         raw[cursor++] = blue[best];
-        raw[cursor++] = total >= _coverageUnit
+        final full = total >= _coverageUnit
             ? alpha
             : (alpha * total / _coverageUnit).round();
+        raw[cursor++] = hatched ? (full * hatchGapShare).round() : full;
       }
     }
     return raw;
@@ -677,7 +754,8 @@ class _HexCoverage {
         }
         final verhalten = _bands[offset + _bandVerhalten];
         final guenstig = _bands[offset + _bandGuenstig];
-        offset += bandCount;
+        final hatched = _hatched(offset, total, x, y);
+        offset += _stride;
         if (total == 0) {
           cursor += 4; // durchsichtig: kein Wald, keine Daten, abgewählt
           continue;
@@ -692,9 +770,10 @@ class _HexCoverage {
         raw[cursor++] = red[i];
         raw[cursor++] = green[i];
         raw[cursor++] = blue[i];
-        raw[cursor++] = total >= _coverageUnit
+        final full = total >= _coverageUnit
             ? alphas[i]
             : (alphas[i] * total / _coverageUnit).round();
+        raw[cursor++] = hatched ? (full * hatchGapShare).round() : full;
       }
     }
     return raw;

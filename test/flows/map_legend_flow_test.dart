@@ -15,6 +15,8 @@ import 'package:pilzbuddy/features/ampel/ampel_model.dart'
     show ampelClassKeyOf, ampelClassFor;
 import 'package:pilzbuddy/features/map/forest_data_providers.dart';
 import 'package:pilzbuddy/features/map/gbif_finds_providers.dart';
+import 'package:pilzbuddy/features/map/protected_area_providers.dart';
+import 'package:pilzbuddy/features/map/protected_areas.dart';
 import 'package:pilzbuddy/features/map/rain_data_providers.dart';
 import 'package:pilzbuddy/features/map/spot_filter.dart'
     show spotFilterProvider;
@@ -26,13 +28,14 @@ import '../fakes/fake_settings.dart';
 import '../fakes/test_app.dart';
 import '../forest_grid_test.dart' show forestOf;
 import '../gbif_finds_test.dart' show findsOf;
+import '../protected_areas_test.dart' show protectedOf;
 import '../rain_grid_test.dart' show gridOf;
 
 void main() {
   const centre = LatLng(51.1634, 10.4477);
 
   Future<ProviderContainer> pumpAllLayers(WidgetTester tester,
-      {required bool open}) async {
+      {required bool open, ProtectedAreas? protected}) async {
     final backend = FakeBackend();
     final me = backend.addUser(username: 'testpilz');
     backend.signInAs(me.id);
@@ -69,11 +72,15 @@ void main() {
             (species: 3, lat: centre.latitude - 0.01, lon: centre.longitude, uncertaintyM: 250, count: 4, year: 2020),
             (species: 0, lat: centre.latitude + 0.18, lon: centre.longitude, uncertaintyM: 250, count: 50, year: 2024),
           ], species: ['Steinpilz', 'Maronenröhrling', 'Pfifferling', 'Hallimasch'])),
+      if (protected != null)
+        protectedAreasLoaderProvider.overrideWithValue(() async => protected),
     ]);
     final container =
         ProviderScope.containerOf(tester.element(find.byType(MapLegend)));
     await tester.runAsync(() => container.read(forestGridProvider.future));
     await tester.runAsync(() => container.read(gbifFindsProvider.future));
+    await tester
+        .runAsync(() => container.read(protectedAreasProvider.future));
     container.read(mapIdleCenterProvider.notifier).state = centre;
     await settle(tester, frames: 12);
     return container;
@@ -141,5 +148,21 @@ void main() {
     expect(find.text('Pfifferling'), findsNothing);
     expect(find.text('ohne Ampel'), findsNothing);
     expect(textsIn('Steinpilz & Co.'), contains('5'));
+  });
+
+  testWidgets('die Schraffur steht in der Legende genau dann, wenn '
+      'Schutzgebiete geladen sind (#580)', (tester) async {
+    await pumpAllLayers(tester, open: true);
+    expect(find.byKey(const Key('legend-hatch')), findsNothing,
+        reason: 'ohne Daten gibt es keine Schraffur zu erklären');
+    await tester.pumpWidget(const SizedBox());
+
+    await pumpAllLayers(tester,
+        open: true,
+        protected: protectedOf([
+          [(0, 1, 1)],
+        ]));
+    expect(find.byKey(const Key('legend-hatch')), findsOneWidget);
+    expect(find.text('Schutzgebiet · Sammeln meist verboten'), findsOneWidget);
   });
 }

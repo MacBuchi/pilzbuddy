@@ -13,6 +13,7 @@ import '../../inat/inat_reporter.dart';
 import '../../inat/inat_report_section.dart';
 import 'find_photo_strip.dart';
 import 'find_position_field.dart';
+import '../../map/widgets/protected_area_note.dart';
 import 'species_collector.dart';
 
 /// Sheet für den Wiederbesuch: Art und Anzahl sind mit dem letzten Fund
@@ -294,8 +295,14 @@ class _AddFindSheetState extends State<_AddFindSheet> {
             // `finds_blank_leer` verbietet Art und Anzahl, nicht den Ort.
             FindPositionField(
               spotAt: widget.spotAt,
-              onChanged: (position) => _position = position,
+              // Neu zeichnen, weil der Schutzgebiets-Hinweis der
+              // FUNDstelle folgt, nicht nur dem Spot.
+              onChanged: (position) => setState(() => _position = position),
             ),
+            ProtectedAreaNote(
+                at: _position == null
+                    ? widget.spotAt
+                    : LatLng(_position!.lat, _position!.lng)),
             const SizedBox(height: 12),
             TextField(
               controller: _noteController,

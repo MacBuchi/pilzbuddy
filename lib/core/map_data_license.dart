@@ -98,6 +98,23 @@ void registerMapDataLicense() {
       '700 Pixel verkleinert, sonst unverändert.\n\n'
       '${speciesPhotoCredits()}',
     );
+    // Eigener Eintrag und nicht im Kartendaten-Absatz oben: Die
+    // Schutzgebiete sind eine ABGELEITETE Datenbank (#580, gebaut von
+    // `tool/protected_areas.py`) — die ODbL verlangt für sie dieselbe
+    // Nennung, und wer die Schraffur sieht, soll ihre Quelle finden.
+    yield const LicenseEntryWithLineBreaks(
+      ['Schutzgebiete (OpenStreetMap)'],
+      'Die Schraffur der Wald- und Ampelfläche und der Hinweis beim '
+      'Eintragen beruhen auf den in OpenStreetMap erfassten '
+      'Naturschutzgebieten, Nationalparks und Kernzonen in Deutschland, '
+      'Österreich, der Schweiz und Liechtenstein, zusammengefasst auf ein '
+      'Wabengitter (≈ 250 m).\n'
+      '© OpenStreetMap-Mitwirkende, lizenziert unter der Open Data '
+      'Commons Open Database License (ODbL) 1.0.\n'
+      'https://www.openstreetmap.org/copyright\n\n'
+      'Die Daten sind keine Rechtsauskunft: Was in einem Gebiet gilt, '
+      'regelt dessen Verordnung und die Beschilderung vor Ort.',
+    );
     yield const LicenseEntryWithLineBreaks(
       ['Regendaten (Deutscher Wetterdienst)'],
       'Die Regenradar- und Niederschlagssummen-Ebenen der Karte und die '
