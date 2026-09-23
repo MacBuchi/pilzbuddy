@@ -69,6 +69,7 @@ import 'widgets/spot_filter_sheet.dart';
 import '../../core/app_colors.dart';
 import '../../core/read_after_write.dart';
 import '../inat/inat_report_flow.dart';
+import 'widgets/new_spot_style.dart';
 
 /// Antwort auf „hier liegt schon ein Spot" (#215).
 enum _NearbyChoice { existingSpot, newSpot }
@@ -1187,8 +1188,15 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 key: _tourAnchors.add,
                 heroTag: 'add',
                 onPressed: _addSpotAtCrosshair,
-                icon: const Icon(Icons.add_location_alt),
-                label: const Text('Neuer Spot'),
+                // Dieselben Farben wie der Eintrag im Kontextmenü —
+                // ausdrücklich gesetzt statt der Theme-Vorgabe, damit
+                // beide aus EINER Quelle kommen (new_spot_style.dart).
+                backgroundColor:
+                    newSpotColors(Theme.of(context)).background,
+                foregroundColor:
+                    newSpotColors(Theme.of(context)).foreground,
+                icon: const Icon(kNewSpotIcon),
+                label: const Text(kNewSpotLabel),
               ),
               // Messhaken des Engine-Direktvergleichs: deterministische
               // Kamerafahrt gegen die Fassade — identisch auf beiden

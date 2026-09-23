@@ -29,6 +29,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import 'new_spot_style.dart';
+
 import '../../../core/app_colors.dart';
 
 /// Was im Menü gewählt wurde.
@@ -163,6 +165,11 @@ class MapContextMenuLayout {
   }
 }
 
+/// Der Schlüssel eines Eintrags. Seit „Neuer Spot" im Menü genauso
+/// heißt wie der Knopf unten rechts, trifft `find.text` zwei Widgets.
+Key contextMenuEntryKey(MapContextAction action) =>
+    ValueKey('context-menu-${action.name}');
+
 /// Ein Eintrag, wie er im Menü steht.
 typedef _Entry = ({
   MapContextAction action,
@@ -170,21 +177,22 @@ typedef _Entry = ({
   String label,
   /// Hervorgehoben — gefüllt in der Farbe des „Neuer Spot"-Knopfs.
   ///
-  /// **Genau einer**, sonst hebt sich nichts mehr ab. Die Farbe leitet
-  /// sich vom Knopf unten rechts ab, damit erkennbar ist, dass beide
-  /// dasselbe tun (Betreiber, #513).
+  /// **Genau einer**, sonst hebt sich nichts mehr ab. Farbe und Name
+  /// kommen aus `new_spot_style.dart`, derselben Quelle wie der Knopf
+  /// unten rechts — erkennbar dasselbe (Betreiber, #513). Bis 1.192.0
+  /// stand hier eine eigene Konstante, und beide sahen verschieden aus.
   bool prominent,
 });
 
 const _entries = <_Entry>[
   // Reihenfolge nach Nähe zum Finger: Was man am häufigsten will, liegt
-  // am nächsten. „Spot anlegen" ist seit #513 der erste — der Wunsch kam
+  // am nächsten. „Neuer Spot" ist seit #513 der erste — der Wunsch kam
   // aus dem Feld. „Was ist hier?" ist der Grund, warum man sonst
   // irgendwo hindrückt; „heranzoomen" ist die alte Nebenbedeutung.
   (
     action: MapContextAction.addSpot,
-    icon: Icons.add_location_alt_outlined,
-    label: 'Spot anlegen',
+    icon: kNewSpotIcon,
+    label: kNewSpotLabel,
     prominent: true,
   ),
   (
@@ -290,8 +298,9 @@ class _Chip extends StatelessWidget {
         child: Transform.scale(scale: 0.85 + 0.15 * t, alignment: Alignment.centerLeft, child: child),
       ),
       child: Material(
+        key: contextMenuEntryKey(entry.action),
         color: entry.prominent
-            ? AppColors.forestGreen
+            ? newSpotColors(theme).background
             : theme.colorScheme.surface,
         elevation: 3,
         borderRadius: BorderRadius.circular(kContextChipHeight / 2),
@@ -308,12 +317,14 @@ class _Chip extends StatelessWidget {
                   Icon(entry.icon,
                       size: 22,
                       color: entry.prominent
-                          ? Colors.white
+                          ? newSpotColors(theme).foreground
                           : theme.colorScheme.primary),
                   const SizedBox(width: 10),
                   Text(entry.label,
                       style: theme.textTheme.bodyLarge?.copyWith(
-                          color: entry.prominent ? Colors.white : null,
+                          color: entry.prominent
+                              ? newSpotColors(theme).foreground
+                              : null,
                           fontWeight:
                               entry.prominent ? FontWeight.w600 : null)),
                 ],

@@ -13,12 +13,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:pilzbuddy/core/app_colors.dart';
+import 'package:pilzbuddy/features/map/widgets/map_context_menu.dart';
+import 'package:pilzbuddy/features/map/widgets/new_spot_style.dart';
 
 import '../fakes/map_ui.dart';
 import '../fakes/fake_backend.dart';
 import '../fakes/fake_map_view.dart';
 import '../fakes/test_app.dart';
+
+/// „Neuer Spot" im Kontextmenü — nicht der gleichnamige Knopf.
+Finder menuNewSpot() => find.descendant(
+    of: find.byKey(contextMenuEntryKey(MapContextAction.addSpot)),
+    matching: find.text(kNewSpotLabel));
 
 void main() {
   (FakeBackend, FakeUser) loggedInBackend() {
@@ -38,8 +44,8 @@ void main() {
     await simulateMapLongPress(tester, const LatLng(48.15, 11.55));
     await settle(tester);
 
+    expect(menuNewSpot(), findsOneWidget);
     for (final label in [
-      'Spot anlegen',
       'Was ist hier?',
       'Navigation',
       'Heranzoomen',
@@ -48,8 +54,8 @@ void main() {
     }
   });
 
-  testWidgets('„Spot anlegen" liegt am Finger und trägt die Farbe des '
-      'Knopfs', (tester) async {
+  testWidgets('„Neuer Spot" liegt am Finger und sieht aus wie der Knopf',
+      (tester) async {
     // **Zwei Zusagen in einem Test** (#513). Die Reihenfolge geht nach
     // Nähe zum Finger, und der Wunsch kam aus dem Feld: Wer lange
     // drückt, will dort oft einen Spot. Und die Farbe leitet sich vom
@@ -61,7 +67,7 @@ void main() {
     await settle(tester);
 
     // Nach oben aufgeklappt heißt: der erste Eintrag liegt am TIEFSTEN.
-    final anlegen = tester.getTopLeft(find.text('Spot anlegen')).dy;
+    final anlegen = tester.getTopLeft(menuNewSpot()).dy;
     for (final label in ['Was ist hier?', 'Navigation', 'Heranzoomen']) {
       expect(tester.getTopLeft(find.text(label)).dy, lessThan(anlegen),
           reason: label);
@@ -71,11 +77,24 @@ void main() {
         .widget<Material>(find.ancestor(
             of: find.text(label), matching: find.byType(Material)).first)
         .color;
-    expect(fuellung('Spot anlegen'), AppColors.forestGreen);
-    expect(fuellung('Was ist hier?'), isNot(AppColors.forestGreen));
+    // Gegen den KNOPF geprüft, nicht gegen eine Konstante: Bis 1.192.0
+    // stand hier `AppColors.forestGreen` — der Test bestätigte damit
+    // genau die Abweichung, die der Betreiber dann im Feld sah.
+    final knopf = tester.widget<FloatingActionButton>(find.ancestor(
+        of: find.text(kNewSpotLabel).first,
+        matching: find.byType(FloatingActionButton)));
+    final eintrag = tester
+        .widget<Material>(find.byKey(
+            contextMenuEntryKey(MapContextAction.addSpot)))
+        .color;
+    expect(knopf.backgroundColor, isNotNull);
+    expect(eintrag, knopf.backgroundColor);
+    expect(fuellung('Was ist hier?'), isNot(knopf.backgroundColor));
+    expect(find.text(kNewSpotLabel), findsNWidgets(2),
+        reason: 'derselbe Name am Knopf und im Menü');
   });
 
-  testWidgets('„Spot anlegen" öffnet das Blatt für DIESE Stelle',
+  testWidgets('„Neuer Spot" im Menü öffnet das Blatt für DIESE Stelle',
       (tester) async {
     // **Die gedrückte Stelle, nicht die Bildmitte.** Genau das war der
     // Wunsch: Bis #513 führte der einzige Weg über das Fadenkreuz, man
@@ -85,7 +104,7 @@ void main() {
 
     await simulateMapLongPress(tester, const LatLng(47.9, 10.2));
     await settle(tester);
-    await tester.tap(find.text('Spot anlegen'));
+    await tester.tap(menuNewSpot());
     await settle(tester);
 
     expect(find.text('Neuer Pilz-Spot'), findsOneWidget);

@@ -7,6 +7,15 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## „Neuer Spot" sieht überall gleich aus
+
+*23. September 2026 · Version 1.192.1*
+
+Hältst du den Finger auf die Karte, heißt der erste Eintrag im Menü
+jetzt „Neuer Spot" und sieht aus wie der Knopf unten rechts — beide tun
+dasselbe. Vorher stand dort „Spot anlegen" in einem dunkleren Grün, und
+das sah nach etwas anderem aus.
+
 ## Ein Pilz für ein schönes Foto
 
 *23. September 2026 · Version 1.190.0 · 1.191.0 und 1.192.0: nur Innenausbau, nichts Sichtbares*
