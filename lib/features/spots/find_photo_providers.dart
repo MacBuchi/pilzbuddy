@@ -74,6 +74,48 @@ final findPhotosProvider = FutureProvider<List<FindPhoto>>((ref) async {
   ];
 });
 
+/// Die schon angesehenen Buddy-Fotos — der Neu-Punkt ist ihr Gegenteil.
+///
+/// **Gerätelokal, nicht in der Datenbank.** „Gesehen" ist hier eine
+/// Frage an dieses Telefon, wie der Merker des Buddy-Fund-Banners; eine
+/// Tabelle dafür wäre eine Lesequittung, die niemand bestellt hat.
+///
+/// Eigene Fotos gelten immer als gesehen ([isNewFindPhoto]) und stehen
+/// deshalb gar nicht erst in der Menge.
+class SeenFindPhotos extends Notifier<Set<String>> {
+  @override
+  Set<String> build() => ref.read(settingsProvider).seenFindPhotoIds;
+
+  /// Merkt [photo] als gesehen und stutzt die Menge dabei auf die Fotos,
+  /// die es noch gibt — sonst wüchse sie mit jedem abgelaufenen Bild.
+  void markSeen(FindPhoto photo) {
+    if (photo.isOwn || state.contains(photo.id)) return;
+    final live = {
+      for (final p in ref.read(findPhotosProvider).valueOrNull ??
+          const <FindPhoto>[])
+        p.id,
+    };
+    final next = {
+      for (final id in state)
+        if (live.contains(id)) id,
+      photo.id,
+    };
+    state = next;
+    unawaited(ref
+        .read(settingsProvider)
+        .setSeenFindPhotoIds(next)
+        .catchError((Object e, StackTrace s) =>
+            logError('Gesehene Fundfotos merken', e, s)));
+  }
+}
+
+final seenFindPhotosProvider =
+    NotifierProvider<SeenFindPhotos, Set<String>>(SeenFindPhotos.new);
+
+/// Trägt [photo] den Neu-Punkt? Nur fremde, noch nicht angesehene.
+bool isNewFindPhoto(FindPhoto photo, Set<String> seen) =>
+    !photo.isOwn && !seen.contains(photo.id);
+
 /// Die Bytes zu einem Pfad im Bucket — `null`, solange (oder weil) sie
 /// nicht da sind.
 ///

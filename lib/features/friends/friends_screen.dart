@@ -11,6 +11,7 @@ import '../../models/friendship.dart';
 import '../profile/profile_providers.dart';
 import '../profile/sharing_rank.dart';
 import '../profile/sharing_rank_providers.dart';
+import '../spots/widgets/find_photo_strip.dart' show FindPhotoGallery;
 import 'friend_providers.dart';
 import '../../core/app_colors.dart';
 
@@ -109,6 +110,10 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // Ganz oben, weil es das ist, was sich hier ändert: Anfragen
+            // und Buddys bleiben wochenlang gleich, Fotos laufen nach 14
+            // Tagen ab.
+            const FindPhotoGallery(),
             OutlinedButton.icon(
               onPressed: _invite,
               icon: const Icon(Icons.share),
