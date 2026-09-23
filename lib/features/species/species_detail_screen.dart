@@ -1016,7 +1016,10 @@ class _ReportButton extends ConsumerWidget {
           // Artgalerie, und das Hochgeladene ist die einzige Kopie.
           preparePhoto: ref.read(galleryPhotoPreparerProvider)),
     );
-    if (result == null || result.text.trim().isEmpty) return;
+    // Nur `null` (Abbrechen) kommt hier ohne Senden an: Leeren Text
+    // lässt der Dialog gar nicht erst durch. Bis 1.201.0 stand hier
+    // zusätzlich „Text leer ⇒ still zurück" — und nahm die Fotos mit.
+    if (result == null) return;
     final text = result.text;
     try {
       String? version;
@@ -1062,6 +1065,7 @@ typedef _ReportInput = ({
 });
 
 const kGalleryConsentKey = Key('gallery-consent');
+const kReportSendKey = Key('species-report-send');
 
 class _ReportDialog extends StatefulWidget {
   const _ReportDialog({
@@ -1097,6 +1101,11 @@ class _ReportDialogState extends State<_ReportDialog> {
   /// sonst für das nächste Bild, das niemand mehr angesehen hat.
   bool _consent = false;
 
+  /// Erst mit Text geht die Meldung wirklich raus — vorher ist „Senden"
+  /// grau ([kFeedbackMinChars]). Bis 1.201.0 war der Knopf immer aktiv,
+  /// und ohne Text verschwand die Meldung samt Fotos wortlos.
+  bool get _canSend => _text.text.trim().length >= kFeedbackMinChars;
+
   @override
   void dispose() {
     _text.dispose();
@@ -1118,10 +1127,22 @@ class _ReportDialogState extends State<_ReportDialog> {
               autofocus: true,
               maxLines: 4,
               textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
+              // Knopf und Hinweis hängen an jedem Zeichen.
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
                 hintText: 'Was stimmt nicht — Einstufung, Merkmal, '
                     'Verwechslung, Bild?',
-                border: OutlineInputBorder(),
+                // Der Grund für den grauen Knopf, VOR dem Tipp. Mit Bild
+                // besonders: Ein Foto allein sagt nicht, was daran
+                // auffällt.
+                helperText: _canSend
+                    ? null
+                    : _photos.isEmpty
+                        ? 'Ein paar Worte, dann lässt sich senden.'
+                        : 'Schreib kurz dazu, was auf dem Bild auffällt — '
+                            'dann lässt sich senden.',
+                helperMaxLines: 2,
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 8),
@@ -1163,12 +1184,14 @@ class _ReportDialogState extends State<_ReportDialog> {
             child: const Text('Abbrechen'),
           ),
           FilledButton(
-            onPressed: () => Navigator.of(context)
-                .pop((
-                  text: _text.text,
-                  photos: _photos,
-                  consent: _consent && _photos.isNotEmpty,
-                )),
+            key: kReportSendKey,
+            onPressed: _canSend
+                ? () => Navigator.of(context).pop((
+                      text: _text.text,
+                      photos: _photos,
+                      consent: _consent && _photos.isNotEmpty,
+                    ))
+                : null,
             child: const Text('Senden'),
           ),
         ],

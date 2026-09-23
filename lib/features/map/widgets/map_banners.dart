@@ -1049,6 +1049,9 @@ class _FeedbackDialogState extends State<_FeedbackDialog> {
 
   bool get _isSpecies => _type == FeedbackType.species;
 
+  bool get _canSend =>
+      _textController.text.trim().length >= kFeedbackMinChars;
+
   @override
   void dispose() {
     _textController.dispose();
@@ -1058,13 +1061,8 @@ class _FeedbackDialogState extends State<_FeedbackDialog> {
 
   void _submit() {
     final text = _textController.text.trim();
-    if (text.length < 3) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(_isSpecies
-              ? 'Bitte gib den Namen der Pilzart an.'
-              : 'Bitte schreib ein paar Worte mehr. 🙂')));
-      return;
-    }
+    // Kein zweiter Riegel mit eigener Meldung: Der Knopf ist unter
+    // [kFeedbackMinChars] gar nicht erst aktiv.
     Navigator.of(context).pop(_FeedbackInput(
       _type,
       text,
@@ -1184,6 +1182,13 @@ class _FeedbackDialogState extends State<_FeedbackDialog> {
                     'z. B. „Beim Löschen eines Spots bleibt der Marker stehen"',
                   FeedbackType.feature => 'z. B. „Fotos zu Funden wären toll!"',
                 },
+                // Der Grund für den grauen „Senden"-Knopf, VOR dem Tipp —
+                // bis 1.201.0 kam er erst danach als SnackBar.
+                helperText: _canSend
+                    ? null
+                    : _isSpecies
+                        ? 'Name der Pilzart, dann lässt sich senden.'
+                        : 'Ein paar Worte, dann lässt sich senden.',
                 border: const OutlineInputBorder(),
               ),
             ),
@@ -1231,7 +1236,9 @@ class _FeedbackDialogState extends State<_FeedbackDialog> {
           child: const Text('Abbrechen'),
         ),
         FilledButton.icon(
-          onPressed: _submit,
+          // Nur aktiv, wenn danach wirklich gesendet wird
+          // ([kFeedbackMinChars], Betreiber 2026-09-23).
+          onPressed: _canSend ? _submit : null,
           icon: const Icon(Icons.send, size: 18),
           label: const Text('Senden'),
         ),

@@ -124,9 +124,42 @@ final pushTapListenerProvider =
 /// gestartet wurde. `onMessageOpenedApp` sieht nur den Fall „lief im
 /// Hintergrund"; ohne diese Abfrage öffnete ein Tipp auf eine
 /// Nachrichten-Meldung nach einem Neustart nur die Karte (#564).
+///
+/// **Erst Firebase starten, dann fragen.** Bis 1.201.0 stand hier
+/// `FirebaseMessaging.instance.getInitialMessage()` direkt — beim
+/// App-Start, bevor irgendetwas Firebase in Dart gestartet hatte (das
+/// tat nur [requestPushToken]). Es warf also bei JEDEM Start
+/// „[core/no-app] No Firebase App '[DEFAULT]'": gut hundert
+/// Fehlerberichte am 2026-09-23, auf Android und im Web — und der Tipp
+/// aus dem beendeten Zustand öffnete den Verlauf nie.
 final pushInitialMessageProvider =
-    Provider<Future<RemoteMessage?> Function()>(
-        (ref) => () => FirebaseMessaging.instance.getInitialMessage());
+    Provider<Future<RemoteMessage?> Function()>((ref) => initialPushMessage);
+
+/// Die Startmeldung — oder `null`, auch wenn Push hier gar nicht geht.
+///
+/// Ohne Firebase (Web ohne Konfiguration, Gerät ohne Play-Dienste) gibt
+/// es schlicht keine Startmeldung. Das ist kein Fehler, den der
+/// Wochendigest sehen soll: Push ist ein Nebenfeature, und eine Zeile je
+/// App-Start ersäufte die echten Befunde (dieselbe Regel wie `worthReporting`).
+///
+/// **Im Web gar nicht.** Dort gibt es keine Startmeldung — ein Tipp auf
+/// eine Web-Push öffnet die Seite selbst —, und `initializeApp` lädt
+/// im Browser das Firebase-SDK von `www.gstatic.com`: bei JEDEM
+/// Seitenaufruf, auch für alle, die Push nie eingeschaltet haben. Die
+/// erste Fassung dieser Korrektur tat genau das, und
+/// `tool/check_service_worker.mjs` fing es als fremden Ursprung beim
+/// Laden. Auf Android ist die Standard-App längst nativ gestartet
+/// (google-services), `_ensureFirebase` lädt dort nichts nach.
+Future<RemoteMessage?> initialPushMessage() async {
+  if (kIsWeb) return null;
+  try {
+    await _ensureFirebase();
+  } catch (_) {
+    // Kein Firebase ⇒ keine Startmeldung. Begründung oben.
+    return null;
+  }
+  return FirebaseMessaging.instance.getInitialMessage();
+}
 
 /// Nachrichten, die eintreffen, **während die App im Vordergrund ist**.
 ///

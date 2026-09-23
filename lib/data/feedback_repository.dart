@@ -16,6 +16,17 @@ const kFeedbackPhotoBucket = 'feedback-photos';
 /// Check in Patch 033 (#569).
 const kFeedbackMaxPhotos = 3;
 
+/// So viele Zeichen braucht der Text, bevor „Senden" antippbar wird —
+/// in BEIDEN Melde-Dialogen.
+///
+/// **„Senden" ist nur aktiv, wenn danach wirklich gesendet wird**
+/// (Betreiber, 2026-09-23). Bis 1.201.0 schloss der Art-Hinweis ohne
+/// Text einfach den Dialog und verwarf die angehängten Fotos — ohne ein
+/// Wort; der Feldtest mit drei Schwefelporling-Fotos kam so nie an. Der
+/// allgemeine Dialog sagte es immerhin per SnackBar, aber erst NACH dem
+/// Tipp. Ein grauer Knopf mit dem Grund darunter sagt es vorher.
+const kFeedbackMinChars = 3;
+
 /// Unter dieser Lizenz dürfen Bilder mit Einwilligung in die Artgalerie
 /// (Patch 034) — dieselbe wie bei den eigenen Aufnahmen des Betreibers.
 /// NC und ND scheiden aus: `species_photos_test.dart` lässt sie nicht zu.
