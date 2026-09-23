@@ -142,4 +142,34 @@ void main() {
 
     expect(calls, 1);
   });
+
+  group('reportsFromHost — keine Berichte aus Testläufen (2026-09-23)', () {
+    // 117 von 222 Berichten eines Tages kamen vom Browser-Check der CI und
+    // von lokalen Läufen — gegen das Live-Supabase, im Wochendigest wie
+    // echte Nutzer gezählt.
+    test('die eigene Maschine meldet nicht', () {
+      for (final host in ['localhost', '127.0.0.1', '::1', '[::1]', '0.0.0.0',
+          'LOCALHOST']) {
+        expect(reportsFromHost(host), isFalse, reason: host);
+      }
+    });
+
+    test('die echten Adressen melden', () {
+      for (final host in ['macbuchi.github.io', 'example.org', '']) {
+        expect(reportsFromHost(host), isTrue, reason: host);
+      }
+    });
+
+    test('main() hängt den Sink im Web nur über diese Prüfung ein', () {
+      // Die Funktion allein schützt nichts — sie muss dort stehen, wo der
+      // Sink gesetzt wird. Ohne diese Zeile wäre der Test oben grün und
+      // der Digest trotzdem voll.
+      final main = File('lib/main.dart').readAsStringSync();
+      expect(main, contains('if (!kIsWeb || reportsFromHost(Uri.base.host))'));
+      final guard = main.indexOf('reportsFromHost(Uri.base.host)');
+      final sink = main.indexOf('setErrorSink(');
+      expect(sink, greaterThan(guard),
+          reason: 'setErrorSink steht INNERHALB der Prüfung');
+    });
+  });
 }

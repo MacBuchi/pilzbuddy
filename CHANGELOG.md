@@ -9,13 +9,16 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Mehrere Fotos auf einmal auswählen
 
-*23. September 2026 · Version 1.202.0*
+*23. September 2026 · Versionen 1.202.0 und 1.202.1*
 
 Beim Feedback und bei „Hinweis zu dieser Art melden" lassen sich bis zu
 drei Fotos in einem Schritt aus der Galerie auswählen, statt jedes
 einzeln. Hut, Unterseite und Stiel gehen damit in einem Griff. Wer mehr
 markiert, als Platz ist, bekommt die ersten und einen Hinweis dazu. Die
 Kamera nimmt weiter ein Foto je Aufnahme.
+
+In 1.202.1 außerdem: Die Web-Fassung meldete bei jedem Seitenaufruf
+einen harmlosen Fehler an die Entwickler. Das ist behoben.
 
 ## Schwefelporling: ein zweites Bild
 

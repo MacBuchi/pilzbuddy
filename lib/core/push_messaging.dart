@@ -114,7 +114,15 @@ final pushTokenProvider =
 /// **Bewusst KEIN eigener `onBackgroundMessage`-Handler.** Er erzeugte im
 /// Nachbarprojekt eine zweite Benachrichtigung neben der, die das System
 /// ohnehin anzeigt.
-Stream<RemoteMessage> pushTaps() => FirebaseMessaging.onMessageOpenedApp;
+///
+/// **Im Web ein leerer Strom.** Dort holt sich `onMessageOpenedApp` die
+/// Firebase-App — und die gibt es erst, wenn jemand Push eingeschaltet
+/// hat. Bis 1.202.0 warf das bei jedem Seitenaufruf („Cannot read
+/// properties of undefined (reading 'getApp')"). Zu tun gibt es dort
+/// ohnehin nichts: Ein Tipp auf eine Web-Push öffnet die Seite selbst,
+/// den Weg in den Verlauf gibt es im Web bewusst noch nicht.
+Stream<RemoteMessage> pushTaps() =>
+    kIsWeb ? const Stream.empty() : FirebaseMessaging.onMessageOpenedApp;
 
 /// Dieselbe Naht für das Antippen.
 final pushTapListenerProvider =

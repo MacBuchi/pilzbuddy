@@ -20,6 +20,23 @@ ErrorSink? _sink;
 /// Einmalig in `main()` setzen. `null` schaltet das Melden wieder ab.
 void setErrorSink(ErrorSink? sink) => _sink = sink;
 
+/// Ob eine Web-App, die von [host] geladen wurde, Fehlerberichte in die
+/// ECHTE Tabelle schreiben darf.
+///
+/// **Nicht von der eigenen Maschine.** Der Browser-Check der CI
+/// (`tool/check_service_worker.mjs`), lokale Läufe und `flutter run -d
+/// chrome` laden die App von `127.0.0.1` oder `localhost` — gegen das
+/// Live-Supabase. Am 2026-09-23 waren 117 von 222 Berichten des Tages
+/// genau solche Testläufe, und der Wochendigest zählte sie wie echte
+/// Nutzer. Echte Nutzer rufen die App nie über diese Adressen auf.
+bool reportsFromHost(String host) => !const {
+      'localhost',
+      '127.0.0.1',
+      '::1',
+      '[::1]',
+      '0.0.0.0',
+    }.contains(host.toLowerCase());
+
 /// Zentrales, bewusst minimales Logging: gefangene Fehler landen mit
 /// Stacktrace im Log (dart:developer → adb logcat / DevTools), statt
 /// still in generischen SnackBars zu verschwinden. Optionale Features
