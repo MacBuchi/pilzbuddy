@@ -1853,6 +1853,23 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     `pushRouteOf` (Erlaubnisliste) — Tipp aus dem Hintergrund
     (`onMessageOpenedApp`) UND aus dem beendeten Zustand
     (`getInitialMessage`, `pushInitialMessageProvider`).
+- **Aliase für Buddys** (#567, seit 1.195.0, Patch 032): ein eigener
+  Name je Buddy, nur für den Besitzer, geräteübergreifend. Vier Dinge,
+  die man wissen muss:
+  - **Jeder Buddy-Name geht über `BuddyNames.of`**
+    (`lib/features/friends/buddy_alias.dart`). Namen stehen an rund
+    fünfzehn Stellen; wer dort `username` direkt liest, zeigt an genau
+    einer Stelle den alten Namen, und die fällt dann auf. Liste und
+    Verlaufskopf zeigen Alias UND Namen, alles andere nur den Alias.
+  - **Nur für bestätigte Buddys** (`are_friends` in `fa_insert`/
+    `fa_update`), sonst ließe sich jedem Konto aus der Namenssuche ein
+    Etikett anheften. Ende der Freundschaft löscht beide Seiten
+    (Trigger `friendships_delete_aliases`, Betreiber-Entscheidung).
+  - **Die Push trägt den Alias des EMPFÄNGERS** — `push_flush` schlägt
+    ihn nach; `tool/push_flush_check.sh` prüft Alias, Rückfall auf den
+    Namen und dass der Alias der Gegenseite nicht durchsickert.
+  - **Ohne Empfang fällt der Alias weg** und der Name steht da: kein
+    eigener Zwischenspeicher, er ist Bequemlichkeit, kein Inhalt.
 - **Fundstellen weit vom Spot** (#475, seit 1.156.0): Ab 100 m
   (`kFindFixMaxOffsetM`, dieselbe Grenze wie der Riegel beim Eintragen)
   trägt der eigene Spot ein „!"-Abzeichen (im selben Kreis wie Uhr und

@@ -283,6 +283,12 @@ check_get "find_reports-Spalten (Meldungen an iNaturalist)" \
 check_get_protected "buddy_messages-Spalten (Nachrichten)" \
   "/rest/v1/buddy_messages?select=id,sender_id,recipient_id,body,created_at,expires_at,read_at&limit=1"
 
+# friend_aliases (Patch 032, #567): die Spalten aus
+# FriendRepository.aliasColumns. Wie bei den Nachrichten hat anon keinen
+# Grant — 42501 heißt: Tabelle und Spalten gibt es.
+check_get_protected "friend_aliases-Spalten (Aliase)" \
+  "/rest/v1/friend_aliases?select=friend_id,alias&limit=1"
+
 # feedback: Spalten, die App (Insert) und Feedback-Bot (Select) nutzen
 check_get "feedback-Spalten" \
   "/rest/v1/feedback?select=id,user_id,type,message,species_name,created_at,processed_at,app_version,photo_path&limit=1"

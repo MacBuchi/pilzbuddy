@@ -13,6 +13,8 @@ import '../profile/profile_providers.dart';
 import '../profile/sharing_rank.dart';
 import '../profile/sharing_rank_providers.dart';
 import '../spots/widgets/find_photo_strip.dart' show FindPhotoGallery;
+import 'buddy_alias.dart';
+import 'buddy_alias_dialog.dart';
 import 'friend_providers.dart';
 import 'message_providers.dart';
 import '../../core/app_colors.dart';
@@ -100,6 +102,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
     final outgoing = friendships.where((f) => f.isOutgoingFor(uid)).toList();
     final accepted = friendships.where((f) => f.isAccepted).toList();
     final buddyCounts = ref.watch(buddySharedCountsProvider);
+    final names = ref.watch(buddyNamesViewProvider);
 
     final requestedIds = {
       for (final f in friendships) ...[f.requesterId, f.addresseeId]
@@ -246,19 +249,31 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
                   contentPadding: EdgeInsets.zero,
                   leading:
                       MushroomAvatar(index: f.otherAvatar(uid), size: 40),
-                  title: Text(f.otherUsername(uid)),
+                  // Mit Alias (#567) steht er oben und der Name darunter —
+                  // genau dafür ist er da: wissen, wer „klabusterbärchen 2"
+                  // eigentlich ist.
+                  title: Text(names.of(f.otherId(uid), f.otherUsername(uid))),
                   // Der Teil-Rang (#276) — nur HIER, bei angenommenen
                   // Buddies. In der Suchergebnis-Liste weiter oben steht
                   // er bewusst nicht: Fremden verriete er, wie aktiv ein
                   // Konto ist, und dafür gibt es keinen Grund.
-                  subtitle: switch (sharingTitleOf(
-                      buddyCounts[f.otherId(uid)] ?? 0)) {
-                    final title? => Text(title),
-                    _ => null,
+                  subtitle: switch ((
+                    names.aliasOf(f.otherId(uid)) == null
+                        ? null
+                        : f.otherUsername(uid),
+                    sharingTitleOf(buddyCounts[f.otherId(uid)] ?? 0),
+                  )) {
+                    (null, null) => null,
+                    (final name?, null) => Text(name),
+                    (null, final title?) => Text(title),
+                    (final name?, final title?) => Text('$name · $title'),
                   },
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                  AliasButton(
+                      friendId: f.otherId(uid),
+                      username: f.otherUsername(uid)),
                   MessageButton(otherId: f.otherId(uid)),
                   IconButton(
                     onPressed: () async {
@@ -266,7 +281,8 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
                         context: context,
                         builder: (context) => AlertDialog(
                           title: Text(
-                              '${f.otherUsername(uid)} als Buddy entfernen?'),
+                              '${names.of(f.otherId(uid), f.otherUsername(uid))} '
+                              'als Buddy entfernen?'),
                           content: const Text(
                               'Ihr seht danach gegenseitig keine geteilten '
                               'Spots mehr, und eure Nachrichten werden '

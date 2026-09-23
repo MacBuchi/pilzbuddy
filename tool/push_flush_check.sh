@@ -19,6 +19,7 @@ set -euo pipefail
 DB="${SUPABASE_DB_URL:?SUPABASE_DB_URL fehlt}"
 A=aaaaaaaa-0000-0000-0000-00000000000a
 B=bbbbbbbb-0000-0000-0000-00000000000b
+C=cccccccc-0000-0000-0000-00000000000c
 
 out=$(psql "$DB" -v ON_ERROR_STOP=1 -q -At <<SQL
 begin;
@@ -27,11 +28,18 @@ select vault.create_secret('dry-run', 'push_job_secret');
 select vault.create_secret('dry-run', 'push_service_key');
 insert into auth.users (id, email, aud, role, instance_id) values
   ('$A', 'a@push.check', 'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000'),
-  ('$B', 'b@push.check', 'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000');
-insert into public.profiles (id, username) values ('$A', 'anna'), ('$B', 'bert')
+  ('$B', 'b@push.check', 'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000'),
+  ('$C', 'c@push.check', 'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000');
+insert into public.profiles (id, username) values ('$A', 'anna'), ('$B', 'bert'), ('$C', 'carl')
   on conflict (id) do update set username = excluded.username;
 insert into public.friendships (requester_id, addressee_id, status)
-  values ('$A', '$B', 'accepted');
+  values ('$A', '$B', 'accepted'), ('$C', '$B', 'accepted');
+-- Bert hat Anna einen Alias gegeben (Patch 032), Carl keinen: Die
+-- Meldung von Anna muss den Alias tragen, die von Carl den Namen.
+-- Anna selbst hat Bert AUCH einen gegeben — der darf in Berts Meldung
+-- nicht auftauchen, er gehört ihr.
+insert into public.friend_aliases (owner_id, friend_id, alias)
+  values ('$B', '$A', 'Andi'), ('$A', '$B', 'Bertchen');
 insert into public.push_devices (token, user_id, platform)
   values ('tok-bert', '$B', 'android');
 -- Drei Nachrichten von Anna an Bert; die mittlere wird vor dem Lauf
@@ -47,6 +55,8 @@ insert into public.buddy_messages (id, sender_id, recipient_id, body, created_at
           now() - interval '2 minutes', now() - interval '2 minutes' + interval '30 days'),
          ('11111111-0000-0000-0000-000000000003', '$A', '$B', repeat('x', 200),
           now() - interval '1 minute', now() - interval '1 minute' + interval '30 days');
+insert into public.buddy_messages (sender_id, recipient_id, body)
+  values ('$C', '$B', 'hallo');
 delete from public.buddy_messages where id = '11111111-0000-0000-0000-000000000002';
 select app_internal.push_flush();
 select convert_from(body, 'utf8') from net.http_request_queue order by id desc limit 1;
@@ -75,10 +85,13 @@ expect() {
   fi
 }
 
-expect "eine Meldung verschickt" "$sent" "1"
-msg=$(printf '%s' "$body" | jq -c '.messages[0]')
+expect "zwei Meldungen verschickt (je Absender eine)" "$sent" "2"
+# Die Reihenfolge von jsonb_agg ist nicht zugesagt — über das Ziel wählen.
+msg=$(printf '%s' "$body" | jq -c --arg r "/friends/chat/$A" '.messages[] | select(.route == $r)')
+carl=$(printf '%s' "$body" | jq -c --arg r "/friends/chat/$C" '.messages[] | select(.route == $r)')
 expect "an Berts Gerät" "$(jq -r .token <<<"$msg")" "tok-bert"
-expect "Titel: Name und Zahl" "$(jq -r .title <<<"$msg")" "anna · 2 Nachrichten"
+expect "Titel: Berts Alias für Anna und Zahl" "$(jq -r .title <<<"$msg")" "Andi · 2 Nachrichten"
+expect "Titel ohne Alias: der Name" "$(jq -r .title <<<"$carl")" "carl"
 expect "Text: die NEUESTE, auf 180 Zeichen gekürzt" \
   "$(jq -r .body <<<"$msg")" "$(printf 'x%.0s' $(seq 1 179))…"
 expect "Ziel: der Verlauf mit Anna" "$(jq -r .route <<<"$msg")" "/friends/chat/$A"

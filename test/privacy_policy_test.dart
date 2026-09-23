@@ -297,6 +297,7 @@ void main() {
       // Verzeichnis sagt ausdrücklich, dass er nicht Ende-zu-Ende
       // verschlüsselt ist.
       'buddy_messages': 'Nachrichten an Buddys',
+      'friend_aliases': 'Aliase für Buddys',
       'push_devices': 'Benachrichtigungen',
       'error_reports': 'Fehlerdiagnose',
       'feedback': 'Feedback',

@@ -35,6 +35,7 @@ import '../../core/router_branches.dart';
 import '../../core/widgets/mushroom_avatar.dart';
 import '../../core/widgets/mushroom_icon.dart';
 import '../../models/spot.dart';
+import '../friends/buddy_alias.dart';
 import '../map/map_focus.dart';
 import '../map/widgets/map_banners.dart' show newBuddyFindsProvider;
 import 'spot_list.dart';
@@ -101,6 +102,7 @@ class _SpotListTabState extends ConsumerState<_SpotListTab> {
       owner: _owner,
       query: _search.text,
       spotsWithNews: ref.watch(spotsWithNewsProvider),
+      aliases: ref.watch(buddyNamesViewProvider).aliases,
     );
 
     final rows = <_Item>[
@@ -324,11 +326,11 @@ class _SpotTile extends ConsumerWidget {
                     ],
                   ),
                   const SizedBox(height: 2),
-                  Text(_subtitle(),
+                  Text(_subtitle(ref.watch(buddyNamesViewProvider)),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodyMedium),
-                  _Meta(row: row),
+                  _Meta(row: row, names: ref.watch(buddyNamesViewProvider)),
                 ],
               ),
             ),
@@ -343,10 +345,12 @@ class _SpotTile extends ConsumerWidget {
     );
   }
 
-  String _subtitle() {
+  String _subtitle(BuddyNames names) {
     final last = row.lastEntry;
     if (last != null) {
-      final who = last.isOwn ? '' : ' · ${last.authorUsername ?? 'Buddy'}';
+      final who = last.isOwn
+          ? ''
+          : ' · ${names.of(last.authorId, last.authorUsername)}';
       return '${last.label}$who';
     }
     if (row.isSilent) return 'Nur der Standort wurde geteilt.';
@@ -358,9 +362,10 @@ class _SpotTile extends ConsumerWidget {
 
 /// Die kleine Zeile unter dem Eintrag: Umfang, Herkunft, Zustand.
 class _Meta extends StatelessWidget {
-  const _Meta({required this.row});
+  const _Meta({required this.row, required this.names});
 
   final SpotRow row;
+  final BuddyNames names;
 
   @override
   Widget build(BuildContext context) {
@@ -371,7 +376,9 @@ class _Meta extends StatelessWidget {
       if (row.species.length > 1) '${row.species.length} Arten',
       if (row.entryCount > 1) '${row.entryCount} Einträge',
     ];
-    final owner = row.spot.isOwn ? null : row.spot.ownerUsername;
+    final owner = row.spot.isOwn
+        ? null
+        : names.aliasOf(row.spot.ownerId) ?? row.spot.ownerUsername;
     if (facts.isEmpty && owner == null && !row.waiting && !row.hasNews) {
       return const SizedBox.shrink();
     }

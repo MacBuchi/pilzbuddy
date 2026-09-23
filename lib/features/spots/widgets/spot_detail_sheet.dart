@@ -13,6 +13,7 @@ import '../../../core/photo_providers.dart';
 import '../../../core/species_edibility.dart';
 import '../../../core/widgets/mushroom_avatar.dart';
 import '../../../core/widgets/mushroom_icon.dart';
+import '../../friends/buddy_alias.dart';
 import '../../profile/profile_providers.dart';
 import '../../../models/find.dart';
 import '../../../models/spot.dart';
@@ -538,7 +539,7 @@ class _SpotDetailSheet extends ConsumerWidget {
                 Text(
                   spot.isOwn
                       ? 'Dein Spot'
-                      : 'Gefunden von ${spot.ownerUsername ?? 'einem Buddy'}',
+                      : 'Gefunden von ${ref.watch(buddyNamesViewProvider).of(spot.ownerId, spot.ownerUsername, fallback: 'einem Buddy')}',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
@@ -678,7 +679,7 @@ class _SpotDetailSheet extends ConsumerWidget {
                         // Fremde Funde nennen ihren Eintrager (#190) —
                         // unmarkiert heißt: meiner.
                         if (!find.isOwn)
-                          'von ${find.authorUsername ?? 'einem Buddy'}',
+                          'von ${ref.watch(buddyNamesViewProvider).of(find.authorId, find.authorUsername, fallback: 'einem Buddy')}',
                         // Wartet noch auf die Übertragung (#267). Der
                         // Eintrag zählt trotzdem überall mit — er ist
                         // passiert; nur ändern lässt er sich nicht.

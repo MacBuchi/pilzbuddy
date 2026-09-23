@@ -19,6 +19,7 @@ import '../../core/errors.dart';
 import '../../core/settings.dart';
 import '../../data/providers.dart';
 import '../../models/find_photo.dart';
+import '../friends/buddy_alias.dart';
 import '../friends/friend_providers.dart';
 import 'spot_providers.dart';
 
@@ -125,9 +126,12 @@ final buddyNamesProvider = Provider<Map<String, String>>((ref) {
   final uid = ref.watch(currentUserIdProvider);
   if (uid == null) return const {};
   final friendships = ref.watch(friendshipsProvider).valueOrNull ?? const [];
+  // Mit Alias (#567), wie überall.
+  final names = ref.watch(buddyNamesViewProvider);
   return {
     for (final f in friendships)
-      if (f.isAccepted) f.otherId(uid): f.otherUsername(uid),
+      if (f.isAccepted)
+        f.otherId(uid): names.of(f.otherId(uid), f.otherUsername(uid)),
   };
 });
 
