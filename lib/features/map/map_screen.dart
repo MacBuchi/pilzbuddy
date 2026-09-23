@@ -26,6 +26,7 @@ import '../../models/spot.dart';
 import 'elevation_contour_providers.dart';
 import 'fit_to_spots.dart';
 import 'elevation_contours.dart';
+import '../friends/buddy_alias.dart';
 import '../friends/friend_providers.dart';
 import '../profile/profile_providers.dart';
 import '../spots/nearby_spots.dart';
@@ -682,7 +683,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     };
   }
 
-  MapViewMarker _spotMarker(Spot spot) {
+  MapViewMarker _spotMarker(Spot spot, BuddyNames names) {
     return MapViewMarker(
       point: spot.position,
       width: 44,
@@ -695,7 +696,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
               ? '${spot.displayName} — wartet auf Verbindung'
               : spot.isOwn
                   ? spot.displayName
-                  : '${spot.displayName} (${spot.ownerUsername ?? 'Buddy'})',
+                  : '${spot.displayName} '
+                      '(${names.of(spot.ownerId, spot.ownerUsername)})',
           child: MushroomIcon(
             seed: stableSeed(spot.id),
             size: 44,
@@ -727,7 +729,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 
   /// Live-Standort eines Freundes: sein Avatar im blauen Tropfen.
-  MapViewMarker _friendLocationMarker(FriendLocation loc) {
+  MapViewMarker _friendLocationMarker(FriendLocation loc, BuddyNames names) {
     return MapViewMarker(
       point: loc.position,
       width: _locationPinHead,
@@ -735,7 +737,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
       // Die Spitze auf die Koordinate, wie bei den Spot-Markern (#403).
       alignment: Alignment.topCenter,
       child: Tooltip(
-        message: '${loc.username ?? 'Buddy'} (live)',
+        message: '${names.of(loc.userId, loc.username)} (live)',
         child: LocationPin(
           avatar: loc.avatar,
           color: AppColors.friendBlue,
@@ -782,6 +784,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final visible = ref.watch(visibleSpotsProvider);
     final mySpots = visible.mine;
     final friendSpots = visible.friends;
+    final names = ref.watch(buddyNamesViewProvider);
     final filter = ref.watch(spotFilterProvider);
     final friendLocations = ref.watch(friendLocationsProvider).valueOrNull ??
         const <FriendLocation>[];
@@ -927,11 +930,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   if (myPosition != null) _myPositionMarker(myPosition, myAvatar),
                 ],
                 friendLocations: [
-                  for (final loc in friendLocations) _friendLocationMarker(loc),
+                  for (final loc in friendLocations)
+                    _friendLocationMarker(loc, names),
                 ],
                 spots: [
-                  for (final s in friendSpots) _spotMarker(s),
-                  for (final s in mySpots) _spotMarker(s),
+                  for (final s in friendSpots) _spotMarker(s, names),
+                  for (final s in mySpots) _spotMarker(s, names),
                 ],
               ),
             ),

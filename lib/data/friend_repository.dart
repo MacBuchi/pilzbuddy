@@ -43,4 +43,34 @@ class FriendRepository {
   Future<void> remove(String friendshipId) async {
     await _client.from('friendships').delete().eq('id', friendshipId);
   }
+
+  /// Exakt diese Spalten prüft `tool/schema_check.sh`.
+  static const aliasColumns = 'friend_id, alias';
+
+  /// Die eigenen Aliase (#567, Patch 032): Buddy-id → Alias. Die Policy
+  /// liefert nur, was ICH vergeben habe.
+  Future<Map<String, String>> fetchAliases() async {
+    final rows = await _client.from('friend_aliases').select(aliasColumns);
+    return {
+      for (final r in rows) r['friend_id'] as String: r['alias'] as String,
+    };
+  }
+
+  /// Setzt den Alias für [friendId]; ein leerer Text entfernt ihn.
+  Future<void> setAlias(String friendId, String alias) async {
+    final text = alias.trim();
+    if (text.isEmpty) {
+      await _client.from('friend_aliases').delete().eq('friend_id', friendId);
+      return;
+    }
+    await _client.from('friend_aliases').upsert({
+      'owner_id': _uid,
+      'friend_id': friendId,
+      'alias': text,
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    }, onConflict: 'owner_id,friend_id');
+  }
 }
+
+/// So lang darf ein Alias sein — derselbe Wert wie der Check in Patch 032.
+const kAliasMaxLength = 40;

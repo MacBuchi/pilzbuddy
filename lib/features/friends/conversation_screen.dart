@@ -19,6 +19,8 @@ import '../../core/errors.dart';
 import '../../data/message_repository.dart';
 import '../../data/providers.dart';
 import '../../models/buddy_message.dart';
+import 'buddy_alias.dart';
+import 'buddy_alias_dialog.dart';
 import 'friend_providers.dart';
 import 'message_providers.dart';
 
@@ -150,7 +152,10 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     final friendship = friendshipWith(friendships, uid, widget.otherId);
     final all = ref.watch(messagesProvider).valueOrNull ?? const [];
     final messages = conversationWith(all, uid, widget.otherId);
-    final name = friendship?.otherUsername(uid) ?? 'Buddy';
+    final names = ref.watch(buddyNamesViewProvider);
+    final username = friendship?.otherUsername(uid) ?? 'Buddy';
+    final alias = names.aliasOf(widget.otherId);
+    final name = alias ?? username;
     final left = friendship == null ? 0 : messagesLeft(friendship, all, uid);
     final time = DateFormat('d.M. HH:mm');
 
@@ -179,7 +184,23 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     final canWrite = friendship != null && left != 0;
 
     return Scaffold(
-      appBar: AppBar(title: Text(name)),
+      // Mit Alias (#567) beide Namen, wie in der Buddy-Liste.
+      appBar: AppBar(
+        title: alias == null
+            ? Text(name)
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(alias),
+                  Text(username, style: theme.textTheme.bodySmall),
+                ],
+              ),
+        actions: [
+          // Einen Alias gibt es nur für bestätigte Buddys (Patch 032).
+          if (friendship?.isAccepted ?? false)
+            AliasButton(friendId: widget.otherId, username: username),
+        ],
+      ),
       body: Column(
         children: [
           Expanded(

@@ -226,6 +226,21 @@ create index buddy_messages_recipient_idx
 create index buddy_messages_expires_idx
   on public.buddy_messages (expires_at);
 
+-- Aliase für Buddys (Patch 032, #567): eine private Notiz je Buddy, nur
+-- für den, der sie vergibt; nur für bestätigte Buddys; Ende der
+-- Freundschaft löscht sie (Trigger unten). Beide Personen auf auth.users
+-- (Begründung wie Patch 028). Begründungen im Patch.
+create table public.friend_aliases (
+  owner_id uuid not null default auth.uid()
+    references auth.users(id) on delete cascade,
+  friend_id uuid not null references auth.users(id) on delete cascade,
+  alias text not null check (char_length(btrim(alias)) between 1 and 40),
+  updated_at timestamptz not null default now(),
+  primary key (owner_id, friend_id),
+  check (owner_id <> friend_id)
+);
+create index friend_aliases_friend_idx on public.friend_aliases (friend_id);
+
 -- Feature-Wünsche / Feedback aus der App. Der Feedback-Bot
 -- (.github/workflows/feedback.yml) macht daraus GitHub-Issues bzw.
 -- Pilzart-PRs und setzt processed_at.
@@ -454,6 +469,7 @@ alter table public.find_photos    enable row level security;
 alter table public.find_photo_kudos enable row level security;
 alter table public.find_reports   enable row level security;
 alter table public.buddy_messages enable row level security;
+alter table public.friend_aliases enable row level security;
 alter table public.feedback       enable row level security;
 alter table public.error_reports  enable row level security;
 alter table public.app_config     enable row level security;
@@ -478,6 +494,9 @@ revoke all on public.buddy_messages from anon, authenticated;
 grant select, delete on public.buddy_messages to authenticated;
 grant insert (recipient_id, body) on public.buddy_messages to authenticated;
 grant update (read_at) on public.buddy_messages to authenticated;
+-- friend_aliases (Patch 032): ebenfalls erst alles weg, anon bekommt nichts.
+revoke all on public.friend_aliases from anon, authenticated;
+grant select, insert, update, delete on public.friend_aliases to authenticated;
 
 -- push_devices: nur die eigenen Geräte, in beide Richtungen. Ohne das
 -- `with check` könnte jemand ein Token auf ein fremdes Konto schreiben
@@ -653,6 +672,20 @@ create policy bm_read on public.buddy_messages for update
   with check (recipient_id = auth.uid());
 create policy bm_delete on public.buddy_messages for delete
   using (sender_id = auth.uid());
+
+-- friend_aliases (Patch 032): alles nur für den Besitzer; anlegen und
+-- ändern nur für bestätigte Buddys.
+create policy fa_select on public.friend_aliases for select
+  using (owner_id = auth.uid());
+create policy fa_insert on public.friend_aliases for insert
+  with check (owner_id = auth.uid()
+    and app_internal.are_friends(owner_id, friend_id));
+create policy fa_update on public.friend_aliases for update
+  using (owner_id = auth.uid())
+  with check (owner_id = auth.uid()
+    and app_internal.are_friends(owner_id, friend_id));
+create policy fa_delete on public.friend_aliases for delete
+  using (owner_id = auth.uid());
 
 -- ---------------------------------------------------------------------------
 -- Storage: der Bucket der Fundfotos (Patch 026)
@@ -964,7 +997,9 @@ begin
   )
   select jsonb_agg(jsonb_build_object(
            'token', d.token,
-           'title', coalesce(p.username, 'Buddy') ||
+           -- Der Alias, den der EMPFÄNGER vergeben hat (Patch 032) —
+           -- sonst stünde in der Meldung ein anderer Name als in der App.
+           'title', coalesce(a.alias, p.username, 'Buddy') ||
              case when s.n > 1 then ' · ' || s.n || ' Nachrichten'
                   else '' end,
            'body', case when char_length(s.last_body) > 180
@@ -974,7 +1009,9 @@ begin
     into message_payload
     from per_sender s
     join public.push_devices d on d.user_id = s.recipient_id
-    left join public.profiles p on p.id = s.sender_id;
+    left join public.profiles p on p.id = s.sender_id
+    left join public.friend_aliases a
+      on a.owner_id = s.recipient_id and a.friend_id = s.sender_id;
 
   payload := coalesce(payload, '[]'::jsonb) ||
              coalesce(message_payload, '[]'::jsonb);
@@ -1021,6 +1058,20 @@ revoke all on function app_internal.messages_on_unfriend() from public, anon, au
 create trigger friendships_delete_messages
   after delete on public.friendships
   for each row execute function app_internal.messages_on_unfriend();
+-- Aliase (Patch 032): Ende der Freundschaft löscht sie beider Seiten.
+create or replace function app_internal.aliases_on_unfriend()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  delete from friend_aliases a
+  where (a.owner_id = old.requester_id and a.friend_id = old.addressee_id)
+     or (a.owner_id = old.addressee_id and a.friend_id = old.requester_id);
+  return old;
+end;
+$$;
+revoke all on function app_internal.aliases_on_unfriend() from public, anon, authenticated;
+create trigger friendships_delete_aliases
+  after delete on public.friendships
+  for each row execute function app_internal.aliases_on_unfriend();
 select cron.schedule('buddy-messages-sweep', '17 3 * * *',
                      $cron$delete from public.buddy_messages where expires_at < now()$cron$);
 
@@ -1055,5 +1106,6 @@ insert into public.applied_patches (filename) values
   ('patch_028_fundfoto_kudos.sql'),
   ('patch_029_inat_meldungen.sql'),
   ('patch_030_buddy_nachrichten.sql'),
-  ('patch_031_nachrichten_push.sql')
+  ('patch_031_nachrichten_push.sql'),
+  ('patch_032_buddy_alias.sql')
 on conflict do nothing;

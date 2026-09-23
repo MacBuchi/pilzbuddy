@@ -105,12 +105,13 @@ class SpotRow {
   SpotOwnerFilter owner = SpotOwnerFilter.all,
   String query = '',
   Set<String> spotsWithNews = const {},
+  Map<String, String> aliases = const {},
 }) {
   final rows = <SpotRow>[];
   for (final spot in [...mine, ...friends]) {
     if (owner == SpotOwnerFilter.mine && !spot.isOwn) continue;
     if (owner == SpotOwnerFilter.buddies && spot.isOwn) continue;
-    if (!_matches(spot, query)) continue;
+    if (!_matches(spot, query, aliases)) continue;
     final entries = spot.entriesSorted;
     rows.add(SpotRow(
       spot: spot,
@@ -172,18 +173,23 @@ List<String> _speciesOf(Spot spot) {
   return names;
 }
 
-/// Sucht in Spot-Name, Arten und Buddy-Name.
+/// Sucht in Spot-Name, Arten und Buddy-Name — und im eigenen Alias des
+/// Buddys (#567): Wer „Andi" vergeben hat, sucht auch so.
 ///
 /// Die Arten laufen über [foldSpeciesName] (#395): Wer „Staeubling"
 /// tippt, sucht den Stäubling. Name und Buddy bleiben bei einfacher
 /// Kleinschreibung — sie sind keine Artnamen, und die Faltung würfe dort
 /// Leerzeichen weg, die man beim Tippen mit eingibt.
-bool _matches(Spot spot, String query) {
+bool _matches(Spot spot, String query, Map<String, String> aliases) {
   final needle = query.trim();
   if (needle.isEmpty) return true;
   final plain = needle.toLowerCase();
   if (spot.displayName.toLowerCase().contains(plain)) return true;
   if ((spot.ownerUsername ?? '').toLowerCase().contains(plain)) return true;
+  if (!spot.isOwn &&
+      (aliases[spot.ownerId] ?? '').toLowerCase().contains(plain)) {
+    return true;
+  }
   final folded = foldSpeciesName(needle);
   if (folded.isEmpty) return false;
   for (final name in _speciesOf(spot)) {

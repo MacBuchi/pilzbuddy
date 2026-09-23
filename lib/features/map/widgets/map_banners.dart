@@ -22,6 +22,7 @@ import '../../../data/outbox.dart';
 import '../../../data/providers.dart';
 import '../../../models/find.dart';
 import '../../../models/spot.dart';
+import '../../friends/buddy_alias.dart';
 import '../../friends/friend_providers.dart';
 import '../../offline_maps/offline_map_providers.dart';
 import '../../spots/species_suggestions.dart';
@@ -484,6 +485,7 @@ class MapBanners extends ConsumerWidget {
     final updateInfo = ref.watch(updateInfoProvider).valueOrNull;
     final updateDismissed = ref.watch(updateBannerDismissedProvider);
     final freshFinds = ref.watch(newBuddyFindsProvider);
+    final names = ref.watch(buddyNamesViewProvider);
 
     // Ohne Empfang kommen die Spots aus dem Zwischenspeicher. Das gehört
     // dazugesagt: Wer im Wald einen Spot vermisst, den er gestern angelegt
@@ -704,7 +706,7 @@ class MapBanners extends ConsumerWidget {
             onDismiss: () => _markFindsSeen(ref, freshFinds),
             content: Text(freshFinds.length == 1
                 ? '🔔 Neuer Fund von '
-                    '${freshFinds.first.find.authorUsername ?? 'deinem Buddy'}'
+                    '${names.of(freshFinds.first.find.authorId, freshFinds.first.find.authorUsername, fallback: 'deinem Buddy')}'
                     ' — antippen'
                 : '🔔 ${freshFinds.length} neue Funde deiner Buddys '
                     '— antippen'),

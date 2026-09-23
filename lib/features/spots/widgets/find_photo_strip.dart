@@ -21,6 +21,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../friends/buddy_alias.dart';
 import '../../../core/errors.dart';
 import '../../../core/photo_pipeline.dart';
 import '../../../core/widgets/photo_overlay.dart';
@@ -129,7 +130,9 @@ class FindPhotoTile extends ConsumerWidget {
     final theme = Theme.of(context);
     final bytes = ref.watch(findPhotoBytesProvider(photo.thumbPath)).valueOrNull;
     final isNew = isNewFindPhoto(photo, ref.watch(seenFindPhotosProvider));
-    final who = photo.isOwn ? 'dein Foto' : 'von ${photo.username ?? 'Buddy'}';
+    final who = photo.isOwn
+        ? 'dein Foto'
+        : 'von ${ref.watch(buddyNamesViewProvider).of(photo.userId, photo.username)}';
     return SizedBox(
       key: findPhotoTileKey(photo.id),
       width: 96,
@@ -402,7 +405,9 @@ class _FindPhotoView extends ConsumerWidget {
     final full = ref.watch(findPhotoBytesProvider(photo.fullPath)).valueOrNull;
     final bytes = full ?? thumb;
     final hint = theme.textTheme.bodySmall?.copyWith(color: theme.hintColor);
-    final who = photo.isOwn ? 'dein Foto' : 'von ${photo.username ?? 'Buddy'}';
+    final who = photo.isOwn
+        ? 'dein Foto'
+        : 'von ${ref.watch(buddyNamesViewProvider).of(photo.userId, photo.username)}';
     final dateFormat = DateFormat('d. MMMM yyyy', 'de');
     final now = DateTime.now();
     final days = photo.daysLeft(now);

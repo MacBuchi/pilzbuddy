@@ -181,6 +181,11 @@ class FakeBackend {
   /// Entfernen stehen in [FakeMessageRepository] bzw. im Freund-Fake.
   final messages = <BuddyMessage>[];
 
+  /// Aliase (Patch 032): (Besitzer, Buddy) → Alias. Die Policies
+  /// (nur der Besitzer, nur für bestätigte Buddys) und das Löschen beim
+  /// Entfernen stehen im Freund-Fake.
+  final aliases = <({String owner, String friend}), String>{};
+
   /// „Gelesen" bewirkt still nichts (null Zeilen, kein Fehler) — der
   /// Fall, der ohne Sperre eine Endlosschleife auslöste.
   bool markReadIgnored = false;
@@ -1325,7 +1330,40 @@ class FakeFriendRepository implements FriendRepository {
           (m.senderId == f.requesterId && m.recipientId == f.addresseeId) ||
           (m.senderId == f.addresseeId && m.recipientId == f.requesterId));
     }
+    for (final f in gone) {
+      // Trigger `friendships_delete_aliases` (Patch 032): beider Seiten.
+      backend.aliases.removeWhere((k, _) =>
+          (k.owner == f.requesterId && k.friend == f.addresseeId) ||
+          (k.owner == f.addresseeId && k.friend == f.requesterId));
+    }
     backend.friendships.removeWhere((f) => f.id == friendshipId);
+  }
+
+  /// Policy `fa_select`: nur, was ICH vergeben habe.
+  @override
+  Future<Map<String, String>> fetchAliases() async {
+    backend.failIfOffline();
+    return {
+      for (final e in backend.aliases.entries)
+        if (e.key.owner == _uid) e.key.friend: e.value,
+    };
+  }
+
+  /// `fa_insert`/`fa_update`: nur für bestätigte Buddys; Check 1–40.
+  @override
+  Future<void> setAlias(String friendId, String alias) async {
+    backend.failIfOffline();
+    final key = (owner: _uid, friend: friendId);
+    final text = alias.trim();
+    if (text.isEmpty) {
+      backend.aliases.remove(key);
+      return;
+    }
+    if (!backend.areFriends(_uid, friendId)) {
+      throw StateError('RLS: fa_insert (kein bestätigter Buddy)');
+    }
+    if (text.length > kAliasMaxLength) throw StateError('Check verletzt: alias');
+    backend.aliases[key] = text;
   }
 }
 

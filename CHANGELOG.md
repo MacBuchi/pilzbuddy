@@ -7,6 +7,27 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Aliase für deine Buddys
+
+*23. September 2026 · Version 1.195.0*
+
+Du kannst jedem Buddy einen eigenen Namen geben — zum Beispiel „Andi"
+für „stinkmorchel 1". Benennt er sich später um, weißt du trotzdem, wer
+es ist.
+
+- Den Stift neben einem Buddy im Reiter „Buddys" antippen, Alias
+  eintragen, speichern. Leer speichern entfernt ihn wieder.
+- In der Buddy-Liste und oben im Verlauf stehen beide Namen: dein Alias
+  groß, darunter der Name, den er sich selbst gegeben hat.
+- Überall sonst steht der Alias: auf der Karte, im Spot-Blatt, bei
+  Fundfotos und Kudos, im Reiter „Spots" — und die Suche dort findet
+  den Buddy auch unter dem Alias.
+- Schreibt er dir, steht der Alias auch in der Benachrichtigung.
+- **Nur du siehst ihn**, dafür auf allen deinen Geräten. Dein Buddy
+  erfährt nichts davon. Endet die Freundschaft, wird der Alias gelöscht.
+- Einen Alias gibt es nur für bestätigte Buddys, nicht bei offenen
+  Anfragen.
+
 ## Stielfarben bei vier Pilzsymbolen
 
 *23. September 2026 · Version 1.194.1*
