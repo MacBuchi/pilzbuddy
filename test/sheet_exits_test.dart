@@ -33,6 +33,9 @@ const _ohneSchliessen = <String, String>{
   'add_find_sheet.dart': 'Formular mit eigenen Knöpfen am Fuß',
   'edit_find_sheet.dart': 'Formular mit eigenen Knöpfen am Fuß',
   'edit_spot_sheet.dart': 'Formular mit eigenen Knöpfen am Fuß',
+  // Nachträglich an iNaturalist melden (#553): ein Formular wie das
+  // Eintrage-Blatt, dessen Abschnitt es wiederverwendet; „Melden" am Fuß.
+  'inat_report_sheet.dart': 'Formular mit eigenem Knopf am Fuß',
   'tour_summary_sheet.dart': 'Entscheidungsblatt am Ende der Tour',
   // **Die eine Stelle, an der ein x teuer wäre.** In der Kopfzeile
   // stehen schon Navi, Bearbeiten und Löschen; ein viertes Symbol

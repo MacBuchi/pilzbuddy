@@ -30,6 +30,9 @@ import 'spot_forest_section.dart';
 import 'spot_rain_section.dart';
 import '../../../core/read_after_write.dart';
 import '../../inat/inat_report_flow.dart';
+import '../../../data/find_report_repository.dart';
+import '../../inat/inat_find_status.dart';
+import '../../inat/inat_providers.dart';
 
 /// Wie viel Platz über dem Blatt frei bleibt — in logischen Pixeln.
 ///
@@ -435,6 +438,10 @@ class _SpotDetailSheet extends ConsumerWidget {
 
   Widget _body(BuildContext context, WidgetRef ref, Spot spot,
       DateFormat dateFormat, double available) {
+    // Die eigenen Meldungen an iNaturalist (#553). Ohne Application ID
+    // leer, ohne dass etwas abgefragt wird (`inatAvailableProvider`).
+    final inatReports = ref.watch(myFindReportsProvider).valueOrNull ??
+        const <String, FindReport>{};
     return ConstrainedBox(
       // Der Regenabschnitt hat das Blatt über die Bildschirmhöhe hinaus
       // wachsen lassen. Zwei Änderungen statt einer Kürzung: eine
@@ -645,6 +652,7 @@ class _SpotDetailSheet extends ConsumerWidget {
                   // einen Blick zeigt, was ein Fund war und was nicht.
                   for (final find in spot.entriesSorted)
                     ListTile(
+                      key: ValueKey('find-row-${find.id}'),
                       dense: true,
                       leading: find.blank
                           ? Icon(Icons.search_off,
@@ -675,6 +683,10 @@ class _SpotDetailSheet extends ConsumerWidget {
                         // Eintrag zählt trotzdem überall mit — er ist
                         // passiert; nur ändern lässt er sich nicht.
                         if (find.pending) 'wartet auf Verbindung',
+                        // Der Stand einer Meldung an iNaturalist (#553).
+                        // Nur eigene Meldungen — die Policy gibt keine
+                        // fremden heraus.
+                        ?inatStatusLine(inatReports[find.id]),
                       ].join(' – ')),
                       // Eigene Einträge lassen sich antippen und
                       // korrigieren (#240); der Stift sagt das. Fremde
@@ -697,6 +709,7 @@ class _SpotDetailSheet extends ConsumerWidget {
                                     // nichts zu zeigen) und nicht am
                                     // wartenden (der hat keine id, an
                                     // der ein Foto hängen könnte).
+                                    InatFindButton(find: find, spot: spot),
                                     if (!find.blank)
                                       IconButton(
                                         key: shareFindPhotoKey(find.id),

@@ -19,6 +19,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:pilzbuddy/data/find_report_repository.dart';
 import 'package:pilzbuddy/data/inat_account.dart';
+import 'package:pilzbuddy/data/inat_api.dart';
 
 import 'fake_backend.dart';
 
@@ -74,6 +75,16 @@ class FakeInatServer {
 
   /// Kein Netz — wie ein Funkloch mitten im Melden.
   bool offline = false;
+
+  /// Qualitätsstufe je Beobachtung, wie sie die Community gesetzt hat —
+  /// ohne Eintrag „needs_id".
+  final grades = <int, String>{};
+
+  /// Bei iNaturalist gelöschte Beobachtungen.
+  final deleted = <int>{};
+
+  /// Was GBIF schon führt: Beobachtungsnummer → GBIF-Kennung.
+  final gbif = <int, int>{};
 
   var _nextId = 1000;
 
@@ -133,6 +144,28 @@ class FakeInatServer {
         observations
             .add((id: id, uuid: uuid, fields: fields, photos: <List<int>>[]));
         return (200, {'id': id, 'uuid': uuid});
+      case ('GET', 'api.inaturalist.org', '/v1/observations'):
+        final ids = (request.url.queryParameters['id'] ?? '')
+            .split(',')
+            .where((x) => x.isNotEmpty)
+            .map(int.parse)
+            .toSet();
+        return (200, {
+          'results': [
+            for (final o in observations)
+              if (ids.contains(o.id) && !deleted.contains(o.id))
+                {'id': o.id, 'quality_grade': grades[o.id] ?? 'needs_id'},
+          ]
+        });
+      case ('GET', 'api.gbif.org', '/v1/occurrence/search'):
+        final q = request.url.queryParameters;
+        final id = int.tryParse(q['catalogNumber'] ?? '');
+        final key = q['datasetKey'] == kInatGbifDataset ? gbif[id] : null;
+        return (200, {
+          'results': [
+            if (key != null) {'key': key, 'catalogNumber': '$id'}
+          ]
+        });
       case ('POST', 'api.inaturalist.org', '/v1/observation_photos'):
         if (auth != jwt) return (401, {'error': 'unauthorized'});
         if (photosFail) return (500, {'error': 'boom'});
@@ -204,13 +237,15 @@ class FakeFindReportRepository implements FindReportRepository {
   Future<void> setRemoteId(String findId, int remoteId) async {
     backend.failIfOffline();
     final row = _own(findId);
+    final r = row.report;
     backend.findReports[findId] = (
       userId: row.userId,
       report: FindReport(
           findId: findId,
-          remoteUuid: row.report.remoteUuid,
+          remoteUuid: r.remoteUuid,
           remoteId: remoteId,
-          status: row.report.status),
+          status: r.status,
+          gbifId: r.gbifId),
     );
   }
 
@@ -218,14 +253,26 @@ class FakeFindReportRepository implements FindReportRepository {
   Future<void> setStatus(String findId, FindReportStatus status) async {
     backend.failIfOffline();
     final row = _own(findId);
-    backend.findReports[findId] = (
-      userId: row.userId,
-      report: FindReport(
-          findId: findId,
-          remoteUuid: row.report.remoteUuid,
-          remoteId: row.report.remoteId,
-          status: status),
-    );
+    backend.findReports[findId] =
+        (userId: row.userId, report: row.report.copyWith(status: status));
+  }
+
+  @override
+  Future<void> setGbifId(String findId, int gbifId) async {
+    backend.failIfOffline();
+    final row = _own(findId);
+    backend.findReports[findId] =
+        (userId: row.userId, report: row.report.copyWith(gbifId: gbifId));
+  }
+
+  /// `fr_select`: nur die eigenen.
+  @override
+  Future<List<FindReport>> mine() async {
+    backend.failIfOffline();
+    return [
+      for (final row in backend.findReports.values)
+        if (row.userId == _uid) row.report,
+    ];
   }
 
   FakeFindReportRow _own(String findId) {

@@ -146,6 +146,11 @@ void main() {
       // Beobachtungen und Fotos über `api`.
       'www.inaturalist.org',
       'api.inaturalist.org',
+      // Der Stand einer Meldung (#553 Stufe 2): ob GBIF die bestätigte
+      // Beobachtung schon führt. Gefragt wird nur für eigene, gemeldete
+      // Funde — also erst, nachdem jemand verbunden UND gemeldet hat —,
+      // und nur mit der öffentlichen Beobachtungsnummer.
+      'api.gbif.org',
     };
 
     /// Ziele, die erst der Nutzer mit einem Tipp öffnet (Lizenz- und

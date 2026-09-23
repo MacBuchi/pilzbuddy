@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:http/http.dart' as http;
 
+import '../../core/errors.dart';
+
 import '../../data/find_report_repository.dart';
 import '../../data/inat_account.dart';
 import '../../data/inat_api.dart';
@@ -98,3 +100,32 @@ class InatAccountNotifier extends AsyncNotifier<InatAccount?> {
     state = AsyncData(updated);
   }
 }
+
+/// Die eigenen Meldungen, nach Fund — für den Stand am Fund (#553
+/// Stufe 2).
+///
+/// **Einmal je Sitzung abgeglichen, nicht bei jedem Blatt.** Der Stand
+/// bei iNaturalist ändert sich in Tagen, nicht in Sekunden; nach einer
+/// neuen Meldung wird der Provider verworfen und fragt dann neu.
+///
+/// **Beobachten ist laden** — aber nur, wo es den Weg gibt: Ohne
+/// Application ID gibt es keine Meldungen und damit keine Abfrage.
+/// Scheitert der Abgleich (Funkloch), gilt, was gespeichert ist.
+final myFindReportsProvider =
+    FutureProvider<Map<String, FindReport>>((ref) async {
+  if (!ref.watch(inatAvailableProvider)) return const {};
+  final rows = await ref.watch(findReportRepositoryProvider).mine();
+  var current = rows;
+  try {
+    current = await ref.read(inatReporterProvider).refresh(rows);
+  } catch (e, s) {
+    // Ohne Empfang oder bei einem Aussetzer von iNaturalist/GBIF: der
+    // gespeicherte Stand ist nicht falsch, nur vielleicht alt. Gemeldet
+    // wird nur, was weder Funkloch noch Antwort der Gegenseite ist — ein
+    // Ausfall bei iNaturalist gehört nicht in UNSEREN Wochendigest.
+    if (!looksOffline(e) && e is! InatException) {
+      logError('iNaturalist-Stand abgleichen', e, s);
+    }
+  }
+  return {for (final r in current) r.findId: r};
+});

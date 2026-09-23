@@ -1796,7 +1796,22 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     Buddy-Foto nur mit ausdrücklichem Haken (Betreiber: „nicht blind").
     Vorgabe der Stelle ist VERSCHLEIERT; iNaturalist kennt die genaue
     trotzdem, der Verbinden-Dialog sagt es.
-  Stufe 2 (Status am Fund, nachträglich melden) folgt als eigener PR.
+  **Stufe 2 (seit 1.192.0): Stand am Fund, nachträglich melden.** Drei
+  Dinge:
+  - **Einmal je Sitzung abgeglichen, EINE Abfrage für alle**
+    (`myFindReportsProvider`, `InatReporter.refresh`): iNaturalist nimmt
+    eine id-Liste; GBIF wird nur für bestätigte gefragt, im Datensatz
+    `kInatGbifDataset` über `catalogNumber` = Beobachtungsnummer
+    (nachgesehen an einer echten Beobachtung). `sending` gleicht niemand
+    ab — dort fehlt etwas, das nur ein neuer Versuch nachholt. Fehlt eine
+    Beobachtung in der Antwort, gilt sie als gelöscht; deshalb reicht
+    `per_page` immer für alle gefragten ids.
+  - **„Vervollständigen" ist derselbe Weg wie Melden** und knüpft über
+    die uuid an: auch wenn die Beobachtungs-id nie in der Zeile ankam,
+    entsteht keine zweite (Flow-Test mit genau diesem Abbruch).
+  - **Ein Ausfall bei iNaturalist/GBIF gehört nicht in den
+    Wochendigest** — `InatException` und Funklöcher werden beim
+    Abgleich verschluckt, der gespeicherte Stand gilt.
 - **Fundstellen weit vom Spot** (#475, seit 1.156.0): Ab 100 m
   (`kFindFixMaxOffsetM`, dieselbe Grenze wie der Riegel beim Eintragen)
   trägt der eigene Spot ein „!"-Abzeichen (im selben Kreis wie Uhr und

@@ -38,6 +38,7 @@ class FindReport {
     required this.remoteUuid,
     this.remoteId,
     this.status = FindReportStatus.sending,
+    this.gbifId,
   });
 
   final String findId;
@@ -45,11 +46,29 @@ class FindReport {
   final int? remoteId;
   final FindReportStatus status;
 
+  /// Die Kennung bei GBIF — gesetzt, sobald GBIF die Beobachtung führt.
+  final int? gbifId;
+
+  /// Nichts mehr zu erwarten: bei GBIF angekommen oder bei iNaturalist
+  /// gelöscht. Alles andere kann sich noch ändern — auch „Casual" wird
+  /// „Research Grade", wenn jemand ein Foto nachreicht.
+  bool get settled =>
+      gbifId != null || status == FindReportStatus.withdrawn;
+
+  FindReport copyWith({FindReportStatus? status, int? gbifId}) => FindReport(
+        findId: findId,
+        remoteUuid: remoteUuid,
+        remoteId: remoteId,
+        status: status ?? this.status,
+        gbifId: gbifId ?? this.gbifId,
+      );
+
   factory FindReport.fromJson(Map<String, dynamic> json) => FindReport(
         findId: json['find_id'] as String,
         remoteUuid: json['remote_uuid'] as String,
         remoteId: (json['remote_id'] as num?)?.toInt(),
         status: FindReportStatus.fromDb(json['status'] as String?),
+        gbifId: (json['gbif_id'] as num?)?.toInt(),
       );
 }
 
@@ -97,6 +116,18 @@ class FindReportRepository {
 
   Future<void> setStatus(String findId, FindReportStatus status) =>
       _update(findId, {'status': status.dbValue});
+
+  Future<void> setGbifId(String findId, int gbifId) =>
+      _update(findId, {'gbif_id': gbifId});
+
+  /// Alle eigenen Meldungen — die Policy gibt ohnehin nur die heraus.
+  Future<List<FindReport>> mine() async {
+    final rows = await _client
+        .from('find_reports')
+        .select(columns)
+        .eq('platform', kInatPlatform);
+    return [for (final row in rows) FindReport.fromJson(row)];
+  }
 
   Future<FindReport?> _row(String findId) async {
     final row = await _client

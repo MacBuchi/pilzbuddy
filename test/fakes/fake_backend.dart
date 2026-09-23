@@ -1083,6 +1083,8 @@ class FakeSpotRepository implements SpotRepository {
       if (index < 0) continue;
       if (row.finds[index].authorId != _uid) break;
       row.finds.removeAt(index);
+      // `find_reports.find_id … on delete cascade` (Patch 029).
+      backend.findReports.remove(findId);
       return;
     }
     throw const WriteRejectedException('Fund löschen');

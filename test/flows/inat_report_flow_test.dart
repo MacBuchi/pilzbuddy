@@ -198,7 +198,12 @@ void main() {
 
     final fresh = backend.spots.single.finds.last;
     final row = backend.findReports[fresh.id]!.report;
-    expect(row.status, FindReportStatus.reported);
+    // Gemeldet und gleich abgeglichen: Das offene Spot-Blatt lädt den
+    // Stand neu, und iNaturalist sagt „Needs ID".
+    expect(row.status, FindReportStatus.needsId);
+    expect(row.remoteId, isNotNull);
+    expect(find.textContaining('iNaturalist: wartet auf Bestätigung'),
+        findsOneWidget);
     final obs = inat.server.observations.single;
     expect(obs.uuid, row.remoteUuid);
     expect(obs.fields['taxon_id'], 48701);
