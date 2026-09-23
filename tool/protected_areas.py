@@ -211,20 +211,38 @@ _RESERVE_TITLE = re.compile(
 
 def classify(tags):
     """Die Art des Gebiets, wenn dort das Sammeln verboten ist — sonst
-    None. Reihenfolge: erst die Ausschlüsse, dann das Strengste."""
+    None.
+
+    Reihenfolge, und sie ist der Kern: Ein ausdrücklicher Schutztitel
+    entscheidet ZUERST. Danach schließen Titel aus, und erst ganz zum
+    Schluss der NAME — nur für Flächen, deren Titel nichts sagt (die
+    zwei Naturparks mit Nationalpark-Klasse in Österreich). Im ersten
+    DACH-Lauf stand der Name vorn und nahm 48 echte Naturschutzgebiete
+    heraus: „Vogelschutzgebiet Heisinger Bogen", „Bannwald Wehratal",
+    „Markbach und Jagdhäuser Wald"."""
     title = (tags.get("protection_title") or "").strip()
     name = (tags.get("name") or "").strip()
     pc = (tags.get("protect_class") or "").strip()
     boundary = tags.get("boundary")
     reserve = tags.get("leisure") == "nature_reserve"
-    if _NEVER.search(title) or _NEVER.search(name):
-        return None
-    if boundary == "national_park" or pc == "2" or "nationalpark" in title.lower():
+    lt = title.lower()
+    national = ("nationalpark" in lt or boundary == "national_park"
+                or pc == "2")
+    if national and "kernzone" not in lt:
+        # Die EINE Stelle, an der der Name den Titel schlägt: Weißensee
+        # und Dobratsch in Kärnten sind Naturparks, tragen in OSM aber
+        # Titel UND Grenze eines Nationalparks (gemessen 2026-09-23).
+        if re.match(r"naturpark\b", name, re.IGNORECASE):
+            return None
         return NATIONAL_PARK
-    if pc in ("1", "1a", "1b") or "kernzone" in title.lower():
+    if "kernzone" in lt:
         return CORE_ZONE
     if _RESERVE_TITLE.search(title):
         return NATURE_RESERVE
+    if _NEVER.search(title) or _NEVER.search(name):
+        return None
+    if pc in ("1", "1a", "1b"):
+        return CORE_ZONE
     if pc == "4" and not title:
         return NATURE_RESERVE
     if reserve and not title and not pc:
@@ -444,6 +462,9 @@ def self_test():
               "name": "Naturpark Thal"}) is None, "Schweizer Regionalpark"
     assert c({"boundary": "protected_area", "protect_class": "2",
               "name": "Naturpark Dobratsch"}) is None, "falsch erfasster Naturpark"
+    assert c({"boundary": "national_park", "leisure": "nature_reserve",
+              "protect_class": "2", "protection_title": "Nationalpark",
+              "name": "Naturpark Weißensee"}) is None, "Titel falsch, Name richtig"
     assert c({"boundary": "protected_area", "protect_class": "4",
               "protection_title": 'Schutzzone nach Empfehlung "Bergwelt '
               'Tirol - Miteinander erleben"'}) is None, "Tiroler Empfehlung"
@@ -457,6 +478,25 @@ def self_test():
               "protection_title": "Wasserschutzgebiet-Schutzzone I"}) is None
     assert c({"boundary": "protected_area",
               "protection_title": "Biosphärengebiet"}) is None
+    # Der Titel schlägt den Namen — alles echte Fälle aus dem ersten
+    # DACH-Lauf, die vorher still blieben.
+    for name in ("Vogelschutzgebiet Heisinger Bogen", "Bannwald Wehratal",
+                 "Naturwaldreservat Eichhall", "Markbach und Jagdhäuser Wald",
+                 "Köllnischer Wald - FFH"):
+        assert c({"boundary": "protected_area", "protect_class": "4",
+                  "protection_title": "Naturschutzgebiet",
+                  "name": name}) == NATURE_RESERVE, name
+    assert c({"boundary": "protected_area", "protect_class": "4",
+              "protection_title": "Fauna Flora Habitat; Naturschutzgebiet",
+              "name": "Wildoner Buchkogel"}) == NATURE_RESERVE
+    assert c({"boundary": "protected_area", "protect_class": "1",
+              "protection_title": "Naturschutzgebiet-Kernzone"}) == CORE_ZONE
+    assert c({"boundary": "national_park",
+              "name": "Nationalpark Hainich"}) == NATIONAL_PARK
+    assert c({"boundary": "national_park", "leisure": "nature_reserve",
+              "protect_class": "2", "protection_title": "Naturschutzgebiet",
+              "name": "Nationalpark Donau-Auen"}) == NATIONAL_PARK, \
+        "Grenze und Klasse schlagen einen Titel, der zu schwach ist"
     # Raster: ein Quadrat von 10 × 10 Waben trifft etwa 100 Waben, ein
     # winziges Gebiet trotzdem genau eine.
     w, h = 50, 50
