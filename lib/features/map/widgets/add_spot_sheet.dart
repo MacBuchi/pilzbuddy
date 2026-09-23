@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../spots/widgets/species_collector.dart';
+import 'protected_area_note.dart';
 import 'spot_position_field.dart';
 import '../../../core/app_colors.dart';
 import '../../../core/mushroom_species.dart';
@@ -271,8 +272,12 @@ class _AddSpotSheetState extends State<_AddSpotSheet> {
             const SizedBox(height: 8),
             SpotPositionField(
               initial: widget.position,
-              onChanged: (at) => _position = at,
+              // Neu zeichnen, weil der Schutzgebiets-Hinweis darunter der
+              // Stelle folgt — wer den Spot verschiebt, verschiebt ihn
+              // womöglich hinaus oder hinein.
+              onChanged: (at) => setState(() => _position = at),
             ),
+            ProtectedAreaNote(at: _position),
             const SizedBox(height: 12),
             TextField(
               controller: _nameController,

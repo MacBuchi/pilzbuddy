@@ -1660,6 +1660,43 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     zusammengefügte Zeichenkette (zwei gleiche Mengen sind für `==`
     verschieden) und steht im Dateinamen der Fläche, sonst tauscht
     MapLibre das Bild nicht.
+- **Schutzgebiete** (#580, seit 1.201.0): Wo Pilze sammeln meist
+  verboten ist, schraffiert die Wald- und Ampelfläche statt zu füllen,
+  und „Neuer Spot"/„Fund eintragen" sagen es in einem Satz. Beides liest
+  EIN Gitter (`lib/features/map/protected_areas.dart`, gebaut von
+  `tool/protected_areas.py` aus OSM, Workflow `protected-areas.yml`).
+  Sechs Dinge, die man wissen muss:
+  - **Die Regel hat der Betreiber entschieden** (2026-09-23):
+    Naturschutzgebiete, Nationalparks, Kernzonen — auch Flächen, die nur
+    `leisure=nature_reserve` tragen. NICHT Landschaftsschutzgebiete,
+    Natur-/Regionalparks, Natura 2000. Ein ausdrücklicher Schutztitel
+    entscheidet vor dem Namen; der erste DACH-Lauf hatte es andersherum
+    und verlor 48 echte Naturschutzgebiete („Vogelschutzgebiet
+    Heisinger Bogen", „Bannwald Wehratal"). Messung und Fehlschläge
+    stehen in #581.
+  - **Nicht aus den Kartenkacheln.** Deren Flächen tragen nur `kind`,
+    und Schweizer Regionalparks kommen dort als `nature_reserve` an —
+    29 × 16 km, von einem Naturschutzgebiet nicht zu unterscheiden.
+  - **Keine Bevormundung** (Betreiber): kein Schalter, keine Sperre,
+    keine Rückfrage; das Ampel-Banner bleibt unverändert. Der Hinweis
+    sagt „wahrscheinlich" und „meist" — die Waben sind 250 m, und was im
+    Gebiet gilt, regelt dessen Verordnung, nicht die App.
+  - **Schweigen heißt nicht „erlaubt".** Daten gibt es für DE, AT, CH
+    und LI; die Nachbarländer im Raster sind leer. Deshalb steht nirgends
+    „kein Schutzgebiet".
+  - **Läufe je Zeile statt ein Wert je Zelle**: 0,6 statt 27 MB im
+    Speicher, und das volle Gitter wird nie ausgepackt. Die Schraffur
+    schlägt je Wabe am MITTELPUNKT nach (wie das Leuchten), erst ab
+    `hatchMinHexPx` Wabenbreite — darunter wären die Streifen breiter als
+    die Gebiete. Das Muster hängt an Kartenkoordinaten, sonst spränge es
+    bei jedem Neuplanen des Fensters; `test/forest_fill_hatch_test.dart`
+    hält das fest.
+  - **`nsg` gehört in den Dateinamen der Fläche** (`forestFillVariant`):
+    Die erste Fläche nach dem Start kann vor den Schutzgebieten fertig
+    sein, und MapLibre tauscht ein Bild nur bei neuem Namen.
+  Aktualisiert wird vierteljährlich: Workflow laufen lassen, Artefakt
+  prüfen (`python3 tool/protected_areas.py lookup` an Stichproben), als
+  Asset committen, `tool/generated_assets.py --update`.
 - **Vormerkung** (#499, seit 1.159.0): ein Spot OHNE Einträge, mit
   erwarteten Arten (`spots.expected_species`, Patch 025). Drei Dinge,
   die man wissen muss:

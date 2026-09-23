@@ -25,6 +25,8 @@ import 'forest_fill_window.dart';
 import 'forest_grid.dart';
 import 'map_overlays.dart';
 import 'map_view/marker_culling.dart' show MapViewBounds;
+import 'protected_area_providers.dart' show protectedAreasProvider;
+import 'protected_areas.dart' show ProtectedAreas;
 import 'rain_data_providers.dart' show rainGridRepositoryProvider;
 import 'spot_filter.dart' show activeAmpelClassesProvider;
 
@@ -199,8 +201,13 @@ final forestFillProvider = FutureProvider<ForestFillImage?>((ref) async {
   // Legende, Watch-vor-Await wie alles hier.
   final elevationFuture =
       combined ? ref.watch(elevationGridProvider.future) : null;
+  // Die Schutzgebiete für die Schraffur (#580) — geholt, nicht schon
+  // erwartet (Watch-vor-Await). Kein eigener Schalter: Wo Wald oder
+  // Ampel malen, sind Schutzgebiete schraffiert.
+  final protectedFuture = ref.watch(protectedAreasProvider.future);
   final grid = await ref.watch(forestGridProvider.future);
   if (grid == null) return null;
+  final protected = await protectedFuture;
   // Ohne Stufen (Vorschau aus, Wetterdaten fehlen, Stapel zu flach)
   // malt die Fläche schlicht wie immer — der Schalter verspricht ein
   // Leuchten, keine leere Karte.
@@ -216,15 +223,20 @@ final forestFillProvider = FutureProvider<ForestFillImage?>((ref) async {
   if (blocks != null && blocks.covers(window)) {
     final grids = blocks.gridsFor(window);
     final png = levels == null
-        ? await compute(
-            _fillFine, (grids: grids, classes: classes, window: window))
+        ? await compute(_fillFine, (
+            grids: grids,
+            classes: classes,
+            window: window,
+            protected: protected
+          ))
         : await compute(_fillCombined, (
             grids: grids,
             classes: classes,
             window: window,
             levels: levels,
             ampelClasses: ampelClasses!,
-            elevation: elevation
+            elevation: elevation,
+            protected: protected
           ));
     return ForestFillImage(
       png: png,
@@ -237,18 +249,25 @@ final forestFillProvider = FutureProvider<ForestFillImage?>((ref) async {
       windowKey: window.key,
       fine: true,
       ampel: ampel,
+      hatched: protected != null,
     );
   }
 
   final png = levels == null
-      ? await compute(_fill, (grid: grid, classes: classes, window: window))
+      ? await compute(_fill, (
+          grid: grid,
+          classes: classes,
+          window: window,
+          protected: protected
+        ))
       : await compute(_fillCombined, (
           grids: [grid],
           classes: classes,
           window: window,
           levels: levels,
           ampelClasses: ampelClasses!,
-          elevation: elevation
+          elevation: elevation,
+          protected: protected
         ));
   return ForestFillImage(
     png: png,
@@ -261,6 +280,7 @@ final forestFillProvider = FutureProvider<ForestFillImage?>((ref) async {
     windowKey: window.key,
     fine: false,
     ampel: ampel,
+    hatched: protected != null,
   );
 });
 
@@ -271,25 +291,40 @@ Uint8List _fillCombined(
           FillWindow window,
           AmpelLevelGrid levels,
           List<AmpelClass> ampelClasses,
-          ElevationGrid? elevation
+          ElevationGrid? elevation,
+          ProtectedAreas? protected
         }) input) =>
     forestAmpelFillPng(input.grids,
         window: input.window,
         levels: input.levels,
         ampelClasses: input.ampelClasses,
         elevation: input.elevation,
-        classes: input.classes);
+        classes: input.classes,
+        protected: input.protected);
 
 Uint8List _fill(
-        ({ForestGrid grid, Set<ForestClass> classes, FillWindow window})
-            input) =>
-    forestFillPng(input.grid, classes: input.classes, window: input.window);
+        ({
+          ForestGrid grid,
+          Set<ForestClass> classes,
+          FillWindow window,
+          ProtectedAreas? protected
+        }) input) =>
+    forestFillPng(input.grid,
+        classes: input.classes,
+        window: input.window,
+        protected: input.protected);
 
 Uint8List _fillFine(
-        ({List<ForestGrid> grids, Set<ForestClass> classes, FillWindow window})
-            input) =>
+        ({
+          List<ForestGrid> grids,
+          Set<ForestClass> classes,
+          FillWindow window,
+          ProtectedAreas? protected
+        }) input) =>
     forestFillPngMulti(input.grids,
-        classes: input.classes, window: input.window);
+        classes: input.classes,
+        window: input.window,
+        protected: input.protected);
 
 
 /// Der „Stand" für den Dateinamen der Fläche — kodiert Jahr UND
@@ -348,7 +383,14 @@ class ForestFillImage {
     required this.windowKey,
     required this.fine,
     this.ampel,
+    this.hatched = false,
   });
+
+  /// Wurde mit Schutzgebiets-Schraffur gemalt (#580)? Gehört in den
+  /// Dateinamen: Die erste Fläche nach dem Start kann entstehen, bevor
+  /// die Schutzgebiete geladen sind — ohne eigenen Namen tauschte
+  /// MapLibre das schraffierte Bild danach nie ein.
+  final bool hatched;
 
   final Uint8List png;
   final double west;
@@ -390,6 +432,7 @@ String forestFillVariant(ForestFillImage fill) {
   return [
     fill.windowKey,
     if (fill.fine) 'fein',
+    if (fill.hatched) 'nsg',
     if (ampel != null)
       'ampel-${ampel.newest.toUtc().toIso8601String().split('T').first}'
           // Die Gruppen IM Namen, nicht nur ihre Zahl: „eine von zwei"

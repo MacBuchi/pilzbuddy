@@ -61,6 +61,17 @@
     "assets/gbif/gbif_finds_manifest.json": {
       "sha256": "86f5bd4e9c49d63408f73ae2f2518b48d379c1f376545d9c2ef181f11ae52ed7",
       "regenerate": "entsteht im selben Lauf wie gbif_finds.bin.gz — siehe dort"
+    },
+    "assets/protected/protected_grid.bin.gz": {
+      "sha256": "05a95e47194e0b5eb07ed1febd97d5dea2b25492e2fbcbc6ea47a49fda1f2f5f",
+      "regenerate": "Workflow „Protected Areas\" von Hand starten (oder auf einem PR, der tool/protected_areas.py ändert), Artefakt protected-areas herunterladen, beide Dateien nach assets/protected/ legen; vorher mit `python3 tool/protected_areas.py lookup` Stichproben prüfen",
+      "checks": {
+        "self_recorded_sha256": "assets/protected/protected_manifest.json"
+      }
+    },
+    "assets/protected/protected_manifest.json": {
+      "sha256": "089b7fc8745dde3b1813e91a04b7950bcba302ae75a5b0ef74a52cd2705181e7",
+      "regenerate": "entsteht im selben Lauf wie protected_grid.bin.gz — siehe dort"
     }
   }
 }

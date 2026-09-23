@@ -21,6 +21,7 @@ import 'package:pilzbuddy/data/apk_installer.dart';
 import 'package:pilzbuddy/data/providers.dart';
 import 'package:pilzbuddy/features/map/forest_block_providers.dart';
 import 'package:pilzbuddy/features/map/forest_data_providers.dart';
+import 'package:pilzbuddy/features/map/protected_area_providers.dart';
 import 'package:pilzbuddy/features/map/elevation_providers.dart';
 import 'package:pilzbuddy/features/map/forest_species_providers.dart';
 import 'package:pilzbuddy/features/map/gbif_finds_providers.dart';
@@ -268,6 +269,10 @@ List<Override> overridesFor(FakeBackend backend,
       // Und dieselbe Naht für das Baumarten-Gitter (#227). Kein Gitter
       // heißt: keine Artenzeile im Spot-Blatt.
       forestSpeciesLoaderProvider.overrideWithValue(() async => null),
+      // Und für die Schutzgebiete (#580): kein Asset heißt keine
+      // Schraffur und kein Hinweis. Wer sie prüft, reicht eigene über
+      // `extraOverrides` herein.
+      protectedAreasLoaderProvider.overrideWithValue(() async => null),
       // Und für die gemeldeten Fundorte (#467): Kein Asset heißt, die
       // Ebene fehlt und das Blatt sagt es.
       gbifFindsLoaderProvider.overrideWithValue(() async => null),

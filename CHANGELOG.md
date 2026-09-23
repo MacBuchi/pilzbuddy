@@ -7,6 +7,24 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Naturschutzgebiete auf der Karte
+
+*23. September 2026 · Version 1.201.0*
+
+Wo Pilze sammeln meist verboten ist, sagt es die App jetzt.
+
+- **Schraffiert statt gefüllt:** In Naturschutzgebieten, Nationalparks
+  und deren Kernzonen ist die Wald- und die Ampelfläche diagonal
+  gestreift. So sieht man beides zugleich: wie der Wald steht und dass
+  man dort nicht sammeln darf. Die Legende erklärt das Muster.
+- **Hinweis beim Eintragen:** Liegt ein neuer Spot oder ein Fund in
+  einem solchen Gebiet, steht ein Satz mit dessen Namen im Blatt.
+  Speichern geht trotzdem — es ist ein Hinweis, keine Sperre.
+- Was im Gebiet wirklich gilt, steht auf den Schildern vor Ort. Die
+  Daten stammen aus OpenStreetMap und decken Deutschland, Österreich,
+  die Schweiz und Liechtenstein ab; Landschaftsschutzgebiete und
+  Naturparks sind nicht dabei, dort ist Sammeln in der Regel erlaubt.
+
 ## Aufgeräumte Kartenlegende
 
 *23. September 2026 · Version 1.200.0*
