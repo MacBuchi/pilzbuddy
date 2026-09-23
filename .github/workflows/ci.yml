@@ -228,6 +228,13 @@ jobs:
           SUPABASE_URL=http://127.0.0.1:54421 \
           SUPABASE_KEY=$(supabase status -o json | jq -r '.ANON_KEY') \
           bash tool/schema_check.sh
+      - name: Push-Versand wirklich aufrufen (push_flush)
+        # PL/pgSQL prüft den Rumpf erst beim Aufruf; live ruft ihn der
+        # Cron-Job jede Minute. Ein Fehler legte ALLE Benachrichtigungen
+        # still. Läuft in einer zurückgerollten Transaktion (#564).
+        env:
+          SUPABASE_DB_URL: postgresql://postgres:postgres@127.0.0.1:54422/postgres
+        run: bash tool/push_flush_check.sh
       # Pfad 2 — FRISCHINSTALLATION: alles weg, nur schema.sql. Beweist, dass
       # die Datei für sich vollständig ist. Genau das verdeckte der frühere
       # Aufbau: Weil dort die alten Patches erneut liefen, flickte ein

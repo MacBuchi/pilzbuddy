@@ -302,6 +302,7 @@ List<Override> overridesFor(FakeBackend backend,
       pushMessageListenerProvider
           .overrideWithValue(() => const Stream.empty()),
       pushTapListenerProvider.overrideWithValue(() => const Stream.empty()),
+      pushInitialMessageProvider.overrideWithValue(() async => null),
       // Mindestversion: ohne Angabe sperrt nichts. PackageInfo gibt es im
       // Test nicht, deshalb kommt die eigene Version aus dem Harness.
       appConfigRepositoryProvider

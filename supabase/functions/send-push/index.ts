@@ -26,6 +26,12 @@
 // Einzelheiten holt die App nach dem Antippen — dieselbe Linie, aus der
 // heraus das Regen-Gitter auf dem Gerät liegt, statt den DWD nach der
 // Fundstelle zu fragen.
+//
+// **Die eine Ausnahme (Patch 031, #564):** Nachrichten zwischen Buddys
+// tragen Absendernamen und Text — Betreiber-Entscheidung, in der
+// Datenschutzerklärung benannt. Der Text stammt von einem Menschen, nicht
+// von der App; diese Datei reicht ihn nur durch. Dazu kommt `route`: das
+// Ziel in der App, als FCM-`data` (dort sind nur Zeichenketten erlaubt).
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
@@ -131,6 +137,9 @@ interface Message {
   token: string
   title: string
   body: string
+  /// Wohin ein Tipp führt, z. B. `/friends/chat/<id>` — die App prüft
+  /// den Pfad gegen eine Erlaubnisliste, bevor sie ihm folgt.
+  route?: string
 }
 
 /// Ergebnis je Token: 'ok', 'unregistered' (die Zeile ist tot und gehört
@@ -152,6 +161,7 @@ async function send(
         message: {
           token: message.token,
           notification: { title: message.title, body: message.body },
+          ...(message.route ? { data: { route: message.route } } : {}),
           android: { priority: 'high' },
           // Der Pfad MUSS das Präfix tragen — die Web-App liegt unter
           // /pilzbuddy/ auf GitHub Pages, nicht am Origin-Root.

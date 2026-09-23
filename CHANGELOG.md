@@ -7,6 +7,23 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Benachrichtigung bei neuen Nachrichten
+
+*23. September 2026 · Version 1.194.0*
+
+Hast du Benachrichtigungen eingeschaltet, meldet sich PilzBuddy jetzt,
+sobald dir ein Buddy schreibt — mit seinem Namen und dem Text der
+Nachricht. Ein Tipp darauf öffnet den Verlauf.
+
+- Ist die App gerade offen, erscheint die Nachricht unten als Leiste mit
+  „Öffnen". Steht der Verlauf mit diesem Buddy schon auf dem Bildschirm,
+  kommt keine Leiste — die Nachricht steht dann einfach da.
+- Der Text läuft dabei über die Server von Google, die Benachrichtigungen
+  zustellen. Für alles andere, was PilzBuddy meldet, bleibt es wie
+  bisher: Fundorte und Spot-Namen stehen nie in einer Benachrichtigung.
+- Nimmst du eine Nachricht gleich nach dem Senden zurück, geht meist gar
+  keine Benachrichtigung mehr raus.
+
 ## Nachrichten an Buddys
 
 *23. September 2026 · Version 1.193.0*
@@ -24,8 +41,6 @@ Punkt am Reiter.
   den Verlauf** — für beide Seiten.
 - Nachrichten sind nicht Ende-zu-Ende-verschlüsselt. Sie liegen geschützt
   in der Datenbank der App, so wie deine Spots.
-- Eine Benachrichtigung bei neuen Nachrichten kommt in einer der nächsten
-  Versionen.
 
 ## „Neuer Spot" sieht überall gleich aus
 

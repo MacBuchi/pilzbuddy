@@ -1838,7 +1838,21 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     über Microtasks läuft und kein Test-Timeout greift).
   - **Die Nachrichten lädt der Reiter-Punkt beim Start** (`BuddysNavIcon`)
     — eine Abfrage für alle Verläufe. Kein Realtime; frisch geholt wird
-    beim Öffnen eines Verlaufs und per Ziehen. Push mit Text ist Stufe 2.
+    beim Öffnen eines Verlaufs, per Ziehen und bei jeder eintreffenden
+    Nachrichten-Meldung.
+  - **Push MIT Text** (seit 1.194.0, Patch 031) — die EINE Ausnahme von
+    „nie Inhalt über Google", Betreiber-Entscheidung; Profil-Schalter,
+    Datenschutzerklärung und `send-push` sagen es. Eigene Warteschlange
+    `app_internal.push_messages` (Cascade an der Nachricht: zurückgenommen
+    ⇒ keine Meldung), versandt im selben minütlichen `push_flush`, je
+    Empfänger und Absender eine Meldung. **`tool/push_flush_check.sh`
+    ruft `push_flush` im Schema Dry Run WIRKLICH auf** (zurückgerollte
+    Transaktion, Schein-Geheimnisse): PL/pgSQL prüft den Rumpf erst beim
+    Aufruf, und ein Fehler dort legte live ALLE Benachrichtigungen still.
+    Das Ziel reist als `data.route`; die App folgt nur Pfaden aus
+    `pushRouteOf` (Erlaubnisliste) — Tipp aus dem Hintergrund
+    (`onMessageOpenedApp`) UND aus dem beendeten Zustand
+    (`getInitialMessage`, `pushInitialMessageProvider`).
 - **Fundstellen weit vom Spot** (#475, seit 1.156.0): Ab 100 m
   (`kFindFixMaxOffsetM`, dieselbe Grenze wie der Riegel beim Eintragen)
   trägt der eigene Spot ein „!"-Abzeichen (im selben Kreis wie Uhr und

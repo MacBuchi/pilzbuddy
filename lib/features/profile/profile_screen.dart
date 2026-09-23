@@ -313,10 +313,12 @@ class ProfileScreen extends ConsumerWidget {
             contentPadding: EdgeInsets.zero,
             secondary: const Icon(Icons.notifications_outlined),
             title: const Text('Benachrichtigungen'),
+            // Seit #564 mit einer Ausnahme, und die steht hier, wo man den
+            // Schalter umlegt: Nachrichten von Buddys kommen MIT Text.
             subtitle: const Text(
-                'Gilt nur für dieses Gerät. Was gemeldet wird, steht nie '
-                'in der Meldung selbst — Fundort und Spot-Name holt die '
-                'App erst beim Öffnen.'),
+                'Gilt nur für dieses Gerät. Fundort und Spot-Name stehen nie '
+                'in einer Meldung — die holt die App erst beim Öffnen. '
+                'Nachrichten deiner Buddys erscheinen mit ihrem Text.'),
             value: ref.watch(pushEnabledProvider),
             onChanged: (value) async {
               final problem =
