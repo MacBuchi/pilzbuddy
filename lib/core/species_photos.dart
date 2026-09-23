@@ -182,6 +182,9 @@ const speciesPortraits = <String, List<SpeciesPhoto>>{
       source: 'Eigene Aufnahme',
     ),
   ],
+  // Hut mit Grübchen, Unterseite, Schnitt mit Milch und Grünen (#568:
+  // „es gilt immer best of" — der Schnitt zeigt als einziges Bild, woran
+  // man ihn wirklich erkennt).
   'Fichtenreizker': [
     (
       asset: 'assets/species/fichtenreizker-1.webp',
@@ -191,14 +194,32 @@ const speciesPortraits = <String, List<SpeciesPhoto>>{
       source: 'Eigene Aufnahme',
     ),
     (
-      asset: 'assets/species/fichtenreizker-2.webp',
+      asset: 'assets/species/fichtenreizker-4.webp',
       author: 'MacBuchi',
       licence: 'CC BY-SA 4.0',
       licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
       source: 'Eigene Aufnahme',
     ),
     (
-      asset: 'assets/species/fichtenreizker-3.webp',
+      asset: 'assets/species/fichtenreizker-5.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+  ],
+  // Hut und Unterseite mit Grübchenstiel (#568) — die Unterseite neben
+  // der des Fichtenreizkers ist der Vergleich, um den es geht.
+  'Grubiger Milchling': [
+    (
+      asset: 'assets/species/grubigermilchling-1.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+    (
+      asset: 'assets/species/grubigermilchling-2.webp',
       author: 'MacBuchi',
       licence: 'CC BY-SA 4.0',
       licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',

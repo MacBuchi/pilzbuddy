@@ -7,6 +7,26 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Neue Art: Grubiger Milchling — der giftige Doppelgänger der Reizker
+
+*23. September 2026 · Version 1.198.0*
+
+Aus einem Fund im Wald: Der **Grubige Milchling** hat dieselben
+Grübchen am Stiel wie Edel- und Fichtenreizker, und ein verblasster
+Reizker sieht ihm in der Farbe zum Verwechseln ähnlich. Er ist aber
+**giftig**.
+
+- Er steht jetzt im Reiter „Pilze" mit Saison, Merkmalen, Fundorten und
+  zwei eigenen Fotos.
+- Auf den Seiten von Edel- und Fichtenreizker steht er als
+  Verwechslungspartner, und beim Eintragen eines Reizkers erscheint die
+  Warnung unter dem Feld.
+- **Der Unterschied liegt in der Milch:** beim Reizker orange bis
+  karottenrot, beim Grubigen Milchling weiß — und sie wird an der Luft
+  in Sekunden schwefelgelb. Auf die Farbe des Huts ist kein Verlass.
+- Der Fichtenreizker hat neue Bilder: die Unterseite und einen Schnitt,
+  in dem man die orange Milch und das Grünen sieht.
+
 ## Eigene Fotos für die Artgalerie anbieten
 
 *23. September 2026 · Version 1.197.0*

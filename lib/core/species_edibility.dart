@@ -205,6 +205,13 @@ const speciesEdibility = <String, EdibilityEntry>{
   'Edelreizker': (level: Edibility.speisepilz, note: null),
   'Lachsreizker': (level: Edibility.speisepilz, note: null),
   'Kiefernreizker': (level: Edibility.speisepilz, note: null),
+  'Grubiger Milchling': (
+    level: Edibility.giftig,
+    note: 'In Mitteleuropa ein Giftpilz (Magen-Darm). Dass er in Osteuropa '
+        'nach langem Abkochen gegessen wird, ist kein Freibrief. Wird wegen '
+        'der Stielgrübchen und verblasst fast gleicher Farbe für einen '
+        'Reizker gehalten — den Unterschied trägt die Milch.'
+  ),
   'Mohrenkopfmilchling': (level: Edibility.speisepilz, note: null),
   'Brätling': (level: Edibility.speisepilz, note: null),
 

@@ -7,7 +7,7 @@
 // dieselbe Kurve ohne Korrektur — sie steht daneben, damit
 // nachprüfbar bleibt, was die Korrektur bewirkt.
 //
-// Abgerufen am 2026-09-22 gegen 2012515 Pilzmeldungen
+// Abgerufen am 2026-09-23 gegen 2012515 Pilzmeldungen
 // als Effort-Baseline. Neu bauen:
 //   python3 tool/season_curves.py --out lib/core/season_curves.g.dart
 
@@ -229,6 +229,15 @@ const kSeasonCurves = <String, SeasonCurve>{
     peakSupport: 1391,
     months: [4, 0, 0, 1, 6, 36, 67, 100, 91, 59, 22, 2],
     raw: [1, 0, 0, 0, 1, 13, 28, 71, 100, 64, 8, 0],
+  ),
+  'Grubiger Milchling': SeasonCurve(
+    sci: 'Lactarius scrobiculatus',
+    taxonKey: 8881331,
+    isGenus: false,
+    observations: 3200,
+    peakSupport: 833,
+    months: [5, 1, 0, 0, 0, 2, 28, 100, 95, 63, 26, 4],
+    raw: [1, 0, 0, 0, 0, 1, 11, 69, 100, 66, 9, 0],
   ),
   'Grünblättriger Schwefelkopf': SeasonCurve(
     sci: 'Hypholoma fasciculare',

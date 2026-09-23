@@ -405,15 +405,17 @@ void main() {
 
   testWidgets('wo nichts warnt, wird auch nichts eingeklappt',
       (tester) async {
-    // Die vier Reizker sind alle Speisepilze. Hätte das Einklappen hier
-    // gegriffen, sähe die Seite wieder aus wie vor 1.169.0 — eine
-    // Überschrift ohne Inhalt, und genau das war die Beschwerde.
+    // Die Partner des Lachsreizkers sind alle Speisepilze. Hätte das
+    // Einklappen hier gegriffen, sähe die Seite wieder aus wie vor
+    // 1.169.0 — eine Überschrift ohne Inhalt, und genau das war die
+    // Beschwerde. (Bis 1.197.x stand hier der Edelreizker; seit #568
+    // warnt einer seiner Partner.)
     final (backend, _) = loggedInBackend();
     await pumpApp(tester, backend);
-    await openSpecies(tester, 'Edelreizker');
+    await openSpecies(tester, 'Lachsreizker');
 
     expect(find.textContaining('Weitere ähnliche Arten'), findsNothing);
-    for (final r in ['Fichtenreizker', 'Lachsreizker', 'Kiefernreizker']) {
+    for (final r in ['Fichtenreizker', 'Edelreizker', 'Kiefernreizker']) {
       expect(find.byKey(lookalikeRowKey(r)), findsOneWidget, reason: r);
     }
   });
