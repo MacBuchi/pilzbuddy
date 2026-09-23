@@ -74,7 +74,7 @@ jobs:
             echo '```'
             python3 tool/protected_areas.py report --out build/protected
             echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Build the grid
         run: |

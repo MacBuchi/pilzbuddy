@@ -124,13 +124,21 @@ def nearest_cell(u, v, width, height):
 
 
 def rasterize(rings, width, height):
-    """Alle Waben eines Polygons (Ringe im (u, v)-Raum, gerade-ungerade-
-    Regel — Löcher sind einfach weitere Ringe). Mittelpunkt innen ODER
-    Grenze durch die Wabe."""
+    """Alle Waben eines Polygons — Mittelpunkt innen ODER Grenze durch
+    die Wabe. Siehe [rasterize_split]."""
+    inner, edge = rasterize_split(rings, width, height)
+    return inner | edge
+
+
+def rasterize_split(rings, width, height):
+    """(Mittelpunkt innen, nur Grenze) — zwei getrennte Mengen, weil
+    [build] sie verschieden gewichtet. Ringe im (u, v)-Raum,
+    gerade-ungerade-Regel: Löcher sind einfach weitere Ringe."""
     cells = set()
+    edge_cells = set()
     vs = [p[1] for ring in rings for p in ring]
     if not vs:
-        return cells
+        return cells, edge_cells
     hy_lo = max(0, math.floor(min(vs) - 2 / 3))
     hy_hi = min(height - 1, math.ceil(max(vs) - 2 / 3))
     edges = []
@@ -158,9 +166,9 @@ def rasterize(rings, width, height):
             t = k / n
             c = nearest_cell(u1 + t * (u2 - u1), v1 + t * (v2 - v1),
                              width, height)
-            if c:
-                cells.add(c)
-    return cells
+            if c and c not in cells:
+                edge_cells.add(c)
+    return cells, edge_cells
 
 
 def area_uv(rings):
@@ -297,6 +305,35 @@ def report(out_dir):
         print(f"schweigt {c:12} class={pc:4} {t:40} {n}")
 
 
+def assign(split, width, height):
+    """Vergibt die Waben: [(kind, name, inner, edge)], KLEINSTES Gebiet
+    zuerst. Gibt (Gitter-Bytes, areas) zurück.
+
+    ZWEI Durchgänge: Erst bekommt jedes Gebiet die Waben, deren
+    Mittelpunkt in ihm liegt, danach füllen Grenzwaben nur noch LEERE
+    Waben auf. In einem Durchgang schlug die gestreifte Teilfläche des
+    „Streuewiesenbiotopverbunds" das Ruggeller Riet in dessen eigener
+    Mitte — kleiner war sie ja (gemessen am ersten DACH-Lauf)."""
+    grid = bytearray(width * height * 2)
+    areas = []
+    index = {}
+    for pass_ in (0, 1):
+        for kind, name, inner, edge in split:
+            key = (kind, name)
+            idx = index.get(key)
+            for hx, hy in (inner if pass_ == 0 else edge):
+                o = (hy * width + hx) * 2
+                if grid[o] or grid[o + 1]:
+                    continue
+                if idx is None:
+                    areas.append({"kind": kind, "name": name})
+                    idx = index[key] = len(areas)
+                    if idx > 0xFFFF:
+                        sys.exit("mehr als 65535 Gebiete — uint16 reicht nicht")
+                struct.pack_into("<H", grid, o, idx)
+    return grid, areas
+
+
 def build(out_dir, assets_dir, forest_manifest):
     assert_matches_forest_grid(forest_manifest)
     lat_c = lattice()
@@ -321,23 +358,9 @@ def build(out_dir, assets_dir, forest_manifest):
                                (props.get("name") or "").strip(), rings))
     # Kleinere zuerst: Wer schon eine Wabe hat, behält sie.
     candidates.sort(key=lambda c: c[0])
-    grid = bytearray(width * height * 2)
-    areas = []
-    index = {}
-    for _, kind, name, rings in candidates:
-        cells = rasterize(rings, width, height)
-        key = (kind, name)
-        idx = index.get(key)
-        for hx, hy in cells:
-            o = (hy * width + hx) * 2
-            if grid[o] or grid[o + 1]:
-                continue
-            if idx is None:
-                areas.append({"kind": kind, "name": name})
-                idx = index[key] = len(areas)
-                if idx > 0xFFFF:
-                    sys.exit("mehr als 65535 Gebiete — uint16 reicht nicht")
-            struct.pack_into("<H", grid, o, idx)
+    split = [(kind, name, *rasterize_split(rings, width, height))
+             for _, kind, name, rings in candidates]
+    grid, areas = assign(split, width, height)
     payload = gzip.compress(bytes(grid), compresslevel=9, mtime=0)
     os.makedirs(assets_dir, exist_ok=True)
     grid_path = os.path.join(assets_dir, "protected_grid.bin.gz")
@@ -446,6 +469,20 @@ def self_test():
     donut = sq + [[(13, 13), (17, 13), (17, 17), (13, 17), (13, 13)]]
     inner = nearest_cell(15, 15, w, h)
     assert inner in cells and inner not in rasterize(donut, w, h)
+    # Mittelpunkt schlägt Grenze: Das große Gebiet behält seine Mitte,
+    # auch wenn die Grenze eines kleineren durch dieselbe Wabe läuft.
+    big = [[(0, 0), (40, 0), (40, 40), (0, 40), (0, 0)]]
+    sliver = [[(20.0, 20.7), (22.0, 20.7), (22.0, 20.72), (20.0, 20.7)]]
+    b_in, _ = rasterize_split(big, w, h)
+    s_in, s_edge = rasterize_split(sliver, w, h)
+    shared = nearest_cell(20.5, 20 + 2 / 3, w, h)
+    assert shared in b_in and shared in s_edge and shared not in s_in
+    # … und die Vergabe hält sich daran, obwohl das kleine Gebiet ZUERST
+    # dran ist (kleiner gewinnt sonst).
+    grid, areas = assign([("Naturschutzgebiet", "klein", s_in, s_edge),
+                          ("Nationalpark", "groß", b_in, set())], w, h)
+    o = (shared[1] * w + shared[0]) * 2
+    assert areas[struct.unpack_from("<H", grid, o)[0] - 1]["name"] == "groß"
     # Nachschlag wie in Dart: Mittelpunkt → eigene Wabe.
     for hy in (4, 5):
         for hx in (3, 8):
