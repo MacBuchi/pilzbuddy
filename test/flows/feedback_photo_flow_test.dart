@@ -388,4 +388,100 @@ void main() {
     expect(sendEnabled(), isTrue);
     expect(find.text('Ein paar Worte, dann lässt sich senden.'), findsNothing);
   });
+
+  group('Mehrfachauswahl aus der Galerie (#585)', () {
+    Finder attached() => find.byKey(kRemovePhotoKey);
+
+    testWidgets('drei in einem Griff — jedes einzeln entkernt, dann kein '
+        'freies Feld mehr', (tester) async {
+      final (backend, _) = loggedInBackend();
+      final picker = FakePhotoPicker()
+        ..nextMany = [dirtyJpeg(), dirtyJpeg(), dirtyJpeg()];
+      await pumpApp(tester, backend, photoPicker: picker);
+      await openFeedback(tester);
+
+      await tester.tap(find.byKey(kAttachPhotoKey));
+      await settle(tester, frames: 20);
+      expect(picker.limits, [kFeedbackMaxPhotos],
+          reason: 'der Dialog fragt mit der Obergrenze des freien Platzes');
+      expect(attached(), findsNWidgets(3));
+      expect(find.byKey(kAttachPhotoKey), findsNothing,
+          reason: 'drei sind das Maximum');
+
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Dein Wunsch'), 'Drei auf einmal');
+      await tester.pump();
+      await tester.tap(find.text('Senden'));
+      await settle(tester);
+      expect(backend.feedbackPhotoObjects, hasLength(3));
+      for (final bytes in backend.feedbackPhotoObjects.values) {
+        expect(jpegForeignMarkers(bytes), isEmpty,
+            reason: 'jedes Bild durch dieselbe Entkernung');
+      }
+      await drainSnackbars(tester);
+    });
+
+    testWidgets('mehr als Platz ist: die ersten, und die App SAGT es',
+        (tester) async {
+      // Im Browser ist die Obergrenze nur eine Bitte. Still kappen hieße,
+      // Bilder verschwinden zu lassen, die der Nutzer angehängt glaubt.
+      final (backend, _) = loggedInBackend();
+      final picker = FakePhotoPicker(dirtyJpeg());
+      await pumpApp(tester, backend, photoPicker: picker);
+      await openFeedback(tester);
+      // Eins per Kamera, dann fünf aus der Galerie auf zwei freie Plätze.
+      await tester.tap(find.byKey(kAttachPhotoCameraKey));
+      await settle(tester, frames: 12);
+      picker.nextMany = List.generate(5, (_) => dirtyJpeg());
+      await tester.ensureVisible(find.byKey(kAttachPhotoKey));
+      await tester.tap(find.byKey(kAttachPhotoKey));
+      await settle(tester, frames: 20);
+
+      expect(picker.limits, [2]);
+      expect(attached(), findsNWidgets(3));
+      expect(find.textContaining('Nur die ersten 2 Bilder übernommen'),
+          findsOneWidget);
+      await drainSnackbars(tester);
+    });
+
+    testWidgets('beim letzten freien Platz fragt das Feld nach EINEM Bild',
+        (tester) async {
+      // Androids Mehrfachauswahl wirft bei einer Obergrenze von 1 — der
+      // echte Wähler nimmt dann die Einzelauswahl. Hier: die Grenze stimmt.
+      final (backend, _) = loggedInBackend();
+      final picker = FakePhotoPicker()..nextMany = [dirtyJpeg(), dirtyJpeg()];
+      await pumpApp(tester, backend, photoPicker: picker);
+      await openFeedback(tester);
+      await tester.tap(find.byKey(kAttachPhotoKey));
+      await settle(tester, frames: 20);
+      expect(attached(), findsNWidgets(2));
+
+      picker.nextMany = [dirtyJpeg()];
+      await tester.ensureVisible(find.byKey(kAttachPhotoKey));
+      await tester.tap(find.byKey(kAttachPhotoKey));
+      await settle(tester, frames: 12);
+      expect(picker.limits, [3, 1]);
+      expect(attached(), findsNWidgets(3));
+    });
+
+    testWidgets('ein unlesbares Bild nimmt die anderen nicht mit',
+        (tester) async {
+      final (backend, _) = loggedInBackend();
+      final picker = FakePhotoPicker()
+        ..nextMany = [
+          dirtyJpeg(),
+          Uint8List.fromList([1, 2, 3, 4]),
+          dirtyJpeg(),
+        ];
+      await pumpApp(tester, backend, photoPicker: picker);
+      await openFeedback(tester);
+      await tester.tap(find.byKey(kAttachPhotoKey));
+      await settle(tester, frames: 20);
+
+      expect(attached(), findsNWidgets(2), reason: 'die zwei guten hängen');
+      expect(find.textContaining('Ein Bild ließ sich nicht anhängen'),
+          findsOneWidget);
+      await drainSnackbars(tester);
+    });
+  });
 }

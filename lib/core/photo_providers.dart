@@ -37,6 +37,42 @@ final photoPickerProvider = Provider<PhotoPicker>((ref) => (source) async {
       return file?.readAsBytes();
     });
 
+/// Holt MEHRERE Bilder aus der Galerie, höchstens [limit] (#585) — leer,
+/// wenn der Nutzer abbricht.
+///
+/// Der Aufrufer muss damit rechnen, MEHR als [limit] zu bekommen: Im
+/// Browser ist die Grenze nur eine Bitte, dort lässt der Dateidialog
+/// beliebig viele Dateien markieren.
+typedef MultiPhotoPicker = Future<List<Uint8List>> Function(int limit);
+
+/// Der echte Weg: `pickMultiImage` mit Obergrenze — dieselben Maße und
+/// dieselbe Qualität wie [photoPickerProvider], aus denselben Gründen.
+///
+/// **Bei einem freien Platz die Einzelauswahl.** Androids
+/// `PickMultipleVisualMedia` verlangt eine Obergrenze von mindestens 2
+/// und wirft bei 1 — wer zwei Bilder angehängt hat und ein drittes
+/// sucht, bekäme sonst einen Fehler statt eines Dialogs.
+final multiPhotoPickerProvider =
+    Provider<MultiPhotoPicker>((ref) => (limit) async {
+          final picker = ImagePicker();
+          if (limit < 2) {
+            final file = await picker.pickImage(
+              source: ImageSource.gallery,
+              maxWidth: 2048,
+              maxHeight: 2048,
+              imageQuality: 90,
+            );
+            return file == null ? const [] : [await file.readAsBytes()];
+          }
+          final files = await picker.pickMultiImage(
+            maxWidth: 2048,
+            maxHeight: 2048,
+            imageQuality: 90,
+            limit: limit,
+          );
+          return [for (final file in files) await file.readAsBytes()];
+        });
+
 /// Verkleinern und entkernen — im Isolate, damit die Oberfläche nicht
 /// steht. Im Test überschrieben mit dem direkten Aufruf: `compute`
 /// braucht ein echtes Isolate, und das gibt es unter FakeAsync nicht.

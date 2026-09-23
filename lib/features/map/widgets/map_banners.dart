@@ -379,6 +379,7 @@ class MapBanners extends ConsumerWidget {
       context: context,
       builder: (context) => _FeedbackDialog(
           pickPhoto: ref.read(photoPickerProvider),
+          pickPhotos: ref.read(multiPhotoPickerProvider),
           preparePhoto: ref.read(photoPreparerProvider)),
     );
     if (result == null) return;
@@ -1030,11 +1031,17 @@ class _FeedbackInput {
 }
 
 class _FeedbackDialog extends StatefulWidget {
-  const _FeedbackDialog({required this.pickPhoto, required this.preparePhoto});
+  const _FeedbackDialog(
+      {required this.pickPhoto,
+      required this.pickPhotos,
+      required this.preparePhoto});
 
   /// Von außen gereicht, weil der Dialog kein `ref` hat — und damit der
   /// Test den Wähler steuern kann.
   final PhotoPicker pickPhoto;
+
+  /// Mehrere auf einmal aus der Galerie (#585).
+  final MultiPhotoPicker pickPhotos;
   final PhotoPreparer preparePhoto;
 
   @override
@@ -1212,6 +1219,7 @@ class _FeedbackDialogState extends State<_FeedbackDialog> {
             // selbst, sobald einer da ist.
             PhotoAttachmentList(
               pick: widget.pickPhoto,
+              pickMany: widget.pickPhotos,
               prepare: widget.preparePhoto,
               photos: _photos,
               max: kFeedbackMaxPhotos,

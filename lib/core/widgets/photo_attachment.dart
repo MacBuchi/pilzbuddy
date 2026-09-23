@@ -26,9 +26,22 @@ class PhotoAttachment extends StatefulWidget {
     required this.onChanged,
     this.label = 'Bild anhängen',
     this.attachedNote = kFeedbackPhotoAttachedNote,
+    this.pickMany,
+    this.room = 1,
+    this.onPickedMany,
   });
 
   final PhotoPicker pick;
+
+  /// Mehrere auf einmal aus der Galerie (#585) — nur im freien Feld einer
+  /// [PhotoAttachmentList]. `null` heißt: ein Bild je Tipp, wie vorher.
+  final MultiPhotoPicker? pickMany;
+
+  /// Wie viele Bilder noch Platz haben — die Obergrenze für [pickMany].
+  final int room;
+
+  /// Bekommt ALLE vorbereiteten Bilder eines Mehrfach-Griffs auf einmal.
+  final ValueChanged<List<PreparedPhoto>>? onPickedMany;
   final PhotoPreparer prepare;
   final PreparedPhoto? photo;
   final ValueChanged<PreparedPhoto?> onChanged;
@@ -46,6 +59,67 @@ class PhotoAttachment extends StatefulWidget {
 
 class _PhotoAttachmentState extends State<PhotoAttachment> {
   bool _busy = false;
+
+  /// Beim Mehrfach-Griff: wie weit die Vorbereitung ist („2/3").
+  String? _progress;
+
+  /// Galerie mit Mehrfachauswahl (#585). Drei Dinge:
+  /// - **Nie mehr als [PhotoAttachment.room]** — im Browser ist die
+  ///   Obergrenze nur eine Bitte. Übernommen werden die ersten, und die
+  ///   App SAGT, dass es nicht alle sind; still kappen hieße, Bilder
+  ///   verschwinden zu lassen, von denen der Nutzer glaubt, er habe sie
+  ///   angehängt (dieselbe Falle wie der Art-Hinweis ohne Text, #586).
+  /// - **Ein unlesbares Bild nimmt die anderen nicht mit.** Angehängt wird,
+  ///   was die Pipeline vorbereiten konnte; gemeldet, was nicht ging.
+  /// - Jedes Bild geht einzeln durch [PhotoAttachment.prepare], also
+  ///   durch dieselbe Entkernung wie bisher.
+  Future<void> _pickMany() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final room = widget.room;
+    setState(() => _busy = true);
+    try {
+      final all = await widget.pickMany!(room);
+      if (all.isEmpty) return; // abgebrochen
+      final taken = all.take(room).toList();
+      final prepared = <PreparedPhoto>[];
+      Object? firstError;
+      var failed = 0;
+      for (final (i, bytes) in taken.indexed) {
+        if (mounted && taken.length > 1) {
+          setState(() => _progress = '${i + 1}/${taken.length}');
+        }
+        try {
+          prepared.add(await widget.prepare(bytes));
+        } catch (e, s) {
+          logError('Bild anhängen', e, s);
+          firstError ??= e;
+          failed++;
+        }
+      }
+      if (mounted && prepared.isNotEmpty) widget.onPickedMany!(prepared);
+      final notes = [
+        if (all.length > room)
+          'Nur ${room == 1 ? 'das erste Bild' : 'die ersten $room Bilder'} '
+              'übernommen — mehr gehen nicht.',
+        if (failed > 0)
+          '${failed == 1 ? 'Ein Bild' : '$failed Bilder'} ließ sich nicht '
+              'anhängen: ${friendlyError(firstError!)}',
+      ];
+      if (notes.isNotEmpty) {
+        messenger.showSnackBar(SnackBar(content: Text(notes.join(' '))));
+      }
+    } catch (e, s) {
+      logError('Bilder anhängen', e, s);
+      messenger.showSnackBar(SnackBar(content: Text(friendlyError(e))));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _progress = null;
+        });
+      }
+    }
+  }
 
   Future<void> _pick(PhotoSource source) async {
     final messenger = ScaffoldMessenger.of(context);
@@ -68,14 +142,16 @@ class _PhotoAttachmentState extends State<PhotoAttachment> {
     final theme = Theme.of(context);
     final photo = widget.photo;
     if (_busy) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 8),
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
         child: Row(children: [
-          SizedBox(
+          const SizedBox(
               width: 18, height: 18,
               child: CircularProgressIndicator(strokeWidth: 2)),
-          SizedBox(width: 10),
-          Text('Bild wird vorbereitet …'),
+          const SizedBox(width: 10),
+          Text(_progress == null
+              ? 'Bild wird vorbereitet …'
+              : 'Bilder werden vorbereitet … $_progress'),
         ]),
       );
     }
@@ -85,7 +161,9 @@ class _PhotoAttachmentState extends State<PhotoAttachment> {
           key: kAttachPhotoKey,
           icon: const Icon(Icons.image_outlined, size: 18),
           label: Text(widget.label),
-          onPressed: () => _pick(PhotoSource.gallery),
+          onPressed: widget.pickMany != null && widget.onPickedMany != null
+              ? _pickMany
+              : () => _pick(PhotoSource.gallery),
         ),
         IconButton(
           key: kAttachPhotoCameraKey,
@@ -134,9 +212,14 @@ class PhotoAttachmentList extends StatelessWidget {
     this.label = 'Bild anhängen',
     this.moreLabel = 'Weiteres Bild',
     this.attachedNote = kFeedbackPhotoAttachedNote,
+    this.pickMany,
   });
 
   final PhotoPicker pick;
+
+  /// Galerie mit Mehrfachauswahl bis zum freien Platz (#585) — `null`
+  /// hält es bei einem Bild je Tipp.
+  final MultiPhotoPicker? pickMany;
   final PhotoPreparer prepare;
   final List<PreparedPhoto> photos;
   final ValueChanged<List<PreparedPhoto>> onChanged;
@@ -171,6 +254,9 @@ class PhotoAttachmentList extends StatelessWidget {
             photo: null,
             label: photos.isEmpty ? label : moreLabel,
             attachedNote: attachedNote,
+            pickMany: pickMany,
+            room: max - photos.length,
+            onPickedMany: (picked) => onChanged([...photos, ...picked]),
             onChanged: (photo) {
               if (photo != null) onChanged([...photos, photo]);
             },
