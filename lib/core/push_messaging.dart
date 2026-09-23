@@ -141,7 +141,17 @@ final pushInitialMessageProvider =
 /// es schlicht keine Startmeldung. Das ist kein Fehler, den der
 /// Wochendigest sehen soll: Push ist ein Nebenfeature, und eine Zeile je
 /// App-Start ersäufte die echten Befunde (dieselbe Regel wie `worthReporting`).
+///
+/// **Im Web gar nicht.** Dort gibt es keine Startmeldung — ein Tipp auf
+/// eine Web-Push öffnet die Seite selbst —, und `initializeApp` lädt
+/// im Browser das Firebase-SDK von `www.gstatic.com`: bei JEDEM
+/// Seitenaufruf, auch für alle, die Push nie eingeschaltet haben. Die
+/// erste Fassung dieser Korrektur tat genau das, und
+/// `tool/check_service_worker.mjs` fing es als fremden Ursprung beim
+/// Laden. Auf Android ist die Standard-App längst nativ gestartet
+/// (google-services), `_ensureFirebase` lädt dort nichts nach.
 Future<RemoteMessage?> initialPushMessage() async {
+  if (kIsWeb) return null;
   try {
     await _ensureFirebase();
   } catch (_) {
