@@ -52,6 +52,18 @@ const kPhotoThumbEdge = 200;
 const kPhotoJpegQuality = 80;
 const kPhotoThumbJpegQuality = 75;
 
+/// Längste Kante und Qualität für Bilder, die in die ARTGALERIE dürfen
+/// (Art-Hinweis mit Einwilligung, #569).
+///
+/// Die Galerie zeigt vergrößert 1200x1200, quadratisch zugeschnitten. Aus
+/// einem 4:3-Bild mit 1024er Kante blieben dafür 768 px — sichtbar
+/// hochgezogen. 2048 lassen 1536 px im Quadrat, also Spielraum für einen
+/// engeren Ausschnitt. Das Hochgeladene ist bei einem fremden Melder die
+/// EINZIGE Kopie, die es je gibt: Ein Original lässt sich später nicht
+/// nachfordern.
+const kGalleryPhotoMaxEdge = 2048;
+const kGalleryPhotoJpegQuality = 85;
+
 /// Das Ergebnis: zwei JPEGs ohne Metadaten und die Maße des großen.
 typedef PreparedPhoto = ({
   Uint8List full,
@@ -80,7 +92,16 @@ class PhotoPipelineException implements Exception {
 ///
 /// Top-Level und mit genau einem Argument, damit `compute` sie nehmen
 /// kann.
-PreparedPhoto preparePhoto(Uint8List original) {
+PreparedPhoto preparePhoto(Uint8List original) =>
+    _prepare(original, kPhotoMaxEdge, kPhotoJpegQuality);
+
+/// Wie [preparePhoto], aber groß genug für die Artgalerie
+/// ([kGalleryPhotoMaxEdge]). Dieselbe Entkernung, dieselbe Prüfung —
+/// nur die Größe unterscheidet sich.
+PreparedPhoto prepareGalleryPhoto(Uint8List original) =>
+    _prepare(original, kGalleryPhotoMaxEdge, kGalleryPhotoJpegQuality);
+
+PreparedPhoto _prepare(Uint8List original, int maxEdge, int quality) {
   img.Image? decoded;
   try {
     decoded = img.decodeImage(original);
@@ -105,9 +126,9 @@ PreparedPhoto preparePhoto(Uint8List original) {
   // die es nachmisst.
   upright.exif = img.ExifData();
 
-  final full = _shrink(upright, kPhotoMaxEdge);
+  final full = _shrink(upright, maxEdge);
   final thumb = _shrink(upright, kPhotoThumbEdge);
-  final fullBytes = img.encodeJpg(full, quality: kPhotoJpegQuality);
+  final fullBytes = img.encodeJpg(full, quality: quality);
   final thumbBytes = img.encodeJpg(thumb, quality: kPhotoThumbJpegQuality);
 
   for (final (name, bytes) in [('Bild', fullBytes), ('Vorschau', thumbBytes)]) {

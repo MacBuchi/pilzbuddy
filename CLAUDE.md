@@ -1779,6 +1779,15 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     die eigenen Aufnahmen (ein Test hält Dialog, Galerie und Bot
     zusammen); Urheber ist der Benutzername, festgehalten im Issue zum
     Zeitpunkt der Meldung. Übernommen wird weiter nur nach Ansicht.
+    **Art-Hinweise laden in Galerie-Größe hoch** (seit 1.199.0, Patch
+    035): 2048er Kante, Qualität 85 (`prepareGalleryPhoto`,
+    `galleryPhotoPreparerProvider`), allgemeines Feedback bleibt bei
+    1024. Die Galerie zeigt 1200x1200 im Quadrat, aus 4:3 mit 1024er
+    Kante blieben 768 px. Bei einem fremden Melder ist das Hochgeladene
+    die EINZIGE Kopie — der Austauschordner ist nur der Weg des
+    Betreibers. Gemessen an elf Pixel-Fotos: 581–1186 KB, deshalb
+    Bucket-Grenze 2 MB statt 600 KB. Freigegebene Bilder innerhalb der
+    90 Tage mit `tool/feedback_photos.py` abholen, danach sind sie weg.
 - **Funde an iNaturalist melden — und darüber an GBIF** (#553, seit
   1.191.0, **noch unsichtbar**): Alle Entscheidungen stehen im TEXT von
   #553 (maßgeblich vor dem Plan-Kommentar), die Registrierung als

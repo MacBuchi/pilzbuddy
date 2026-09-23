@@ -44,3 +44,8 @@ typedef PhotoPreparer = Future<PreparedPhoto> Function(Uint8List bytes);
 
 final photoPreparerProvider =
     Provider<PhotoPreparer>((ref) => (bytes) => compute(preparePhoto, bytes));
+
+/// Dasselbe in Galerie-Größe — nur für den Art-Hinweis, dessen Bilder
+/// mit Einwilligung in die Artgalerie dürfen ([prepareGalleryPhoto]).
+final galleryPhotoPreparerProvider = Provider<PhotoPreparer>(
+    (ref) => (bytes) => compute(prepareGalleryPhoto, bytes));

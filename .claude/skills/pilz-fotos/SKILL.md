@@ -61,6 +61,23 @@ Drei Dinge, die man wissen muss:
 
 ---
 
+## 1a. Bilder aus Art-Hinweisen anderer Nutzer
+
+Seit 1.197.0 kann ein Melder beim „Hinweis zu dieser Art melden" einen
+Haken für die Artgalerie setzen (Patch 034). Nur MIT diesem Haken darf
+ein solches Bild hinein; das Issue sagt es in der Zeile „✅ Für die
+Artgalerie freigegeben" und nennt den Urheber (Benutzername statt
+`MacBuchi`, sonst dieselbe Lizenz CC BY-SA 4.0).
+
+- **Holen:** `python3 tool/feedback_photos.py <issue>` legt die Bilder
+  außerhalb des Repos ab. Nie ans Issue hängen, das ist öffentlich.
+- **Innerhalb von 90 Tagen**, danach fegt der Bot den Bucket. Bei einem
+  fremden Melder gibt es kein Original im Austauschordner; was im
+  Bucket liegt, ist die einzige Kopie.
+- **Auflösung:** Seit 1.199.0 kommen diese Bilder mit 2048er Kante an,
+  genug für die 1200er Fassung. Ältere Meldungen haben nur 1024 — die
+  taugen für das 400er Asset, für die große Fassung nicht.
+
 ## 2. Alle ansehen, nicht eine Vorauswahl
 
 **Die Vorschau lügt.** Zwei Bilder, die im Kontaktbogen wie ein dunkler

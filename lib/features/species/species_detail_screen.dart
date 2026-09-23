@@ -1012,7 +1012,9 @@ class _ReportButton extends ConsumerWidget {
           species: species,
           username: ref.read(myProfileProvider).valueOrNull?.username,
           pickPhoto: ref.read(photoPickerProvider),
-          preparePhoto: ref.read(photoPreparerProvider)),
+          // Galerie-Größe: Diese Bilder dürfen mit Haken in die
+          // Artgalerie, und das Hochgeladene ist die einzige Kopie.
+          preparePhoto: ref.read(galleryPhotoPreparerProvider)),
     );
     if (result == null || result.text.trim().isEmpty) return;
     final text = result.text;

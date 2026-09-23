@@ -737,9 +737,10 @@ create policy find_photos_remove on storage.objects for delete
 -- Der Bucket der Feedback-Bilder (Patch 027, #525). Strenger als oben:
 -- Nutzer legen nur hinein, lesen darf allein der Betreiber (Service-
 -- Schlüssel) — der Text einer Meldung wird öffentlich, das Bild nicht.
--- Objekte älter als 90 Tage räumt der Bot ab.
+-- Objekte älter als 90 Tage räumt der Bot ab. Grenze 2 MB seit Patch
+-- 035: Art-Hinweise laden in Galerie-Größe (2048 px) hoch.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('feedback-photos', 'feedback-photos', false, 600000, array['image/jpeg'])
+values ('feedback-photos', 'feedback-photos', false, 2000000, array['image/jpeg'])
 on conflict (id) do nothing;
 
 create policy feedback_photos_upload on storage.objects for insert
@@ -1132,5 +1133,6 @@ insert into public.applied_patches (filename) values
   ('patch_031_nachrichten_push.sql'),
   ('patch_032_buddy_alias.sql'),
   ('patch_033_feedback_bilder.sql'),
-  ('patch_034_galerie_einwilligung.sql')
+  ('patch_034_galerie_einwilligung.sql'),
+  ('patch_035_feedback_bild_groesse.sql')
 on conflict do nothing;

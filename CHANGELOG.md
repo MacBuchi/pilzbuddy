@@ -7,6 +7,16 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Schärfere Bilder beim Art-Hinweis
+
+*23. September 2026 · Version 1.199.0*
+
+Bilder, die du mit „Hinweis zu dieser Art melden" schickst, gehen jetzt
+in doppelter Auflösung hinaus. Wer den Haken für die Artgalerie setzt,
+dessen Foto soll dort auch in der Vergrößerung scharf sein — bisher wäre
+es sichtbar weich geworden. Standortdaten werden weiterhin vor dem
+Senden entfernt. Das allgemeine Feedback bleibt bei der kleineren Größe.
+
 ## Neue Art: Grubiger Milchling — der giftige Doppelgänger der Reizker
 
 *23. September 2026 · Version 1.198.0*
