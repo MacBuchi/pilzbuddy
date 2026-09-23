@@ -7,6 +7,21 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Ein Pilz für ein schönes Foto
+
+*23. September 2026 · Version 1.190.0*
+
+Gefällt dir ein Fundfoto eines Buddys, kannst du ihm einen Pilz geben:
+Foto antippen, dann „Pilz geben". Einer je Foto, keine Sterne und keine
+Punkte — nur ein „schön gefunden".
+
+- Auf der Kachel steht, wie viele Pilze ein Foto bekommen hat, in der
+  Großansicht auch von wem. Buddys, die du selbst nicht kennst, werden
+  nur mitgezählt.
+- Mit „Pilz zurücknehmen" nimmst du deinen wieder weg.
+- An deine eigenen Fotos kannst du dir keinen Pilz geben.
+- Die Pilze verschwinden zusammen mit dem Foto nach spätestens 14 Tagen.
+
 ## Alle Fundfotos im Reiter „Buddys"
 
 *23. September 2026 · Version 1.189.0*

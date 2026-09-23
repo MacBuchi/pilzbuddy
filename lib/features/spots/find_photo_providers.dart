@@ -19,6 +19,7 @@ import '../../core/errors.dart';
 import '../../core/settings.dart';
 import '../../data/providers.dart';
 import '../../models/find_photo.dart';
+import '../friends/friend_providers.dart';
 import 'spot_providers.dart';
 
 // Wähler und Pipeline wohnen seit #525 in `core/photo_providers.dart`,
@@ -115,6 +116,45 @@ final seenFindPhotosProvider =
 /// Trägt [photo] den Neu-Punkt? Nur fremde, noch nicht angesehene.
 bool isNewFindPhoto(FindPhoto photo, Set<String> seen) =>
     !photo.isOwn && !seen.contains(photo.id);
+
+/// Nutzer-id → Name, für die Kudos (Patch 028): meine bestätigten
+/// Buddys. Die Kudos-Tabelle verweist auf `auth.users`, nicht auf
+/// `profiles`, und trägt deshalb keinen Namen mit — mehr als die eigene
+/// Buddy-Liste gäbe die profiles-Policy aber ohnehin nicht her.
+final buddyNamesProvider = Provider<Map<String, String>>((ref) {
+  final uid = ref.watch(currentUserIdProvider);
+  if (uid == null) return const {};
+  final friendships = ref.watch(friendshipsProvider).valueOrNull ?? const [];
+  return {
+    for (final f in friendships)
+      if (f.isAccepted) f.otherId(uid): f.otherUsername(uid),
+  };
+});
+
+/// Die Zeile unter dem Foto: wer einen Pilz gegeben hat.
+///
+/// „dir" zuerst, dann die bekannten Buddys alphabetisch, und wer nicht
+/// in meiner Liste steht, wird nur gezählt — ein Buddy meines Buddys
+/// ist für mich kein Name, sondern „1 weiterer Buddy". `null` ohne Kudos.
+String? kudosLine(
+    List<String> from, String? myUid, Map<String, String> names) {
+  if (from.isEmpty) return null;
+  final known = <String>[
+    for (final id in from)
+      if (id != myUid && names.containsKey(id)) names[id]!,
+  ]..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+  final others =
+      from.where((id) => id != myUid && !names.containsKey(id)).length;
+  final parts = [
+    if (from.contains(myUid)) 'dir',
+    ...known,
+    if (others > 0) '$others ${others == 1 ? 'weiteren Buddy' : 'weiteren Buddys'}',
+  ];
+  final list = parts.length == 1
+      ? parts.single
+      : '${parts.sublist(0, parts.length - 1).join(', ')} und ${parts.last}';
+  return '🍄 von $list';
+}
 
 /// Die Bytes zu einem Pfad im Bucket — `null`, solange (oder weil) sie
 /// nicht da sind.

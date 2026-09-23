@@ -166,6 +166,21 @@ create table public.find_photos (
 create index find_photos_find_idx on public.find_photos (find_id);
 create index find_photos_expires_idx on public.find_photos (expires_at);
 
+-- Kudos für Fundfotos (Patch 028): ein Pilz je Buddy und Foto, keine
+-- Skala. Sichtbarkeit geerbt vom Foto, abgeräumt per Cascade mit ihm.
+-- `user_id` verweist bewusst auf auth.users und nicht auf profiles —
+-- sonst wäre die Tabelle für PostgREST eine Verbindungstabelle zwischen
+-- find_photos und profiles, und das profiles-Embed der Fotos würde
+-- mehrdeutig (PGRST201). Begründung im Patch.
+create table public.find_photo_kudos (
+  photo_id uuid not null references public.find_photos(id) on delete cascade,
+  user_id uuid not null default auth.uid()
+    references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (photo_id, user_id)
+);
+create index find_photo_kudos_user_idx on public.find_photo_kudos (user_id);
+
 -- Feature-Wünsche / Feedback aus der App. Der Feedback-Bot
 -- (.github/workflows/feedback.yml) macht daraus GitHub-Issues bzw.
 -- Pilzart-PRs und setzt processed_at.
@@ -360,6 +375,7 @@ alter table public.friendships    enable row level security;
 alter table public.live_locations enable row level security;
 alter table public.tour_tracks    enable row level security;
 alter table public.find_photos    enable row level security;
+alter table public.find_photo_kudos enable row level security;
 alter table public.feedback       enable row level security;
 alter table public.error_reports  enable row level security;
 alter table public.app_config     enable row level security;
@@ -374,6 +390,7 @@ grant select on public.app_config to anon, authenticated;
 -- find_photos (Patch 026): ausdrücklich, nicht über auto_expose — die
 -- Vorgabe fällt am 2026-10-30 (config.toml).
 grant select, insert, delete on public.find_photos to authenticated;
+grant select, insert, delete on public.find_photo_kudos to authenticated;
 
 -- push_devices: nur die eigenen Geräte, in beide Richtungen. Ohne das
 -- `with check` könnte jemand ein Token auf ein fremdes Konto schreiben
@@ -507,6 +524,18 @@ create policy fp_friend_select on public.find_photos for select
   using (user_id <> auth.uid()
      and expires_at > now()
      and exists (select 1 from public.finds f where f.id = find_id));
+
+-- find_photo_kudos (Patch 028): lesen, was an sichtbaren Fotos hängt;
+-- geben nur als ich selbst und nie ans eigene Foto; zurücknehmen nur
+-- die eigenen.
+create policy fpk_select on public.find_photo_kudos for select
+  using (exists (select 1 from public.find_photos p where p.id = photo_id));
+create policy fpk_insert on public.find_photo_kudos for insert
+  with check (user_id = auth.uid()
+    and exists (select 1 from public.find_photos p
+                where p.id = photo_id and p.user_id <> auth.uid()));
+create policy fpk_delete on public.find_photo_kudos for delete
+  using (user_id = auth.uid());
 
 -- ---------------------------------------------------------------------------
 -- Storage: der Bucket der Fundfotos (Patch 026)
@@ -832,5 +861,6 @@ insert into public.applied_patches (filename) values
   ('patch_024_fundstellen_versatz.sql'),
   ('patch_025_vormerkung.sql'),
   ('patch_026_fundfotos.sql'),
-  ('patch_027_feedback_bild.sql')
+  ('patch_027_feedback_bild.sql'),
+  ('patch_028_fundfoto_kudos.sql')
 on conflict do nothing;

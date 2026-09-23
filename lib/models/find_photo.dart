@@ -24,6 +24,7 @@ class FindPhoto {
     this.foundOn,
     this.spotId,
     this.spotName,
+    this.kudosFrom = const [],
   });
 
   final String id;
@@ -53,6 +54,15 @@ class FindPhoto {
   final DateTime? foundOn;
   final String? spotId;
   final String? spotName;
+
+  /// Wer einen Pilz gegeben hat (Patch 028) — Nutzer-ids, keine Namen:
+  /// Die Tabelle verweist auf `auth.users`, die Namen löst die App über
+  /// die eigene Buddy-Liste auf (`kudosNamesFor`).
+  final List<String> kudosFrom;
+
+  int get kudosCount => kudosFrom.length;
+
+  bool hasKudosFrom(String uid) => kudosFrom.contains(uid);
 
   bool get isActive => expiresAt.isAfter(DateTime.now().toUtc());
 
@@ -84,6 +94,10 @@ class FindPhoto {
           : DateTime.parse(find!['found_on'] as String),
       spotId: find?['spot_id'] as String?,
       spotName: spot?['name'] as String?,
+      kudosFrom: [
+        for (final k in (json['find_photo_kudos'] as List?) ?? const [])
+          (k as Map<String, dynamic>)['user_id'] as String,
+      ],
     );
   }
 }

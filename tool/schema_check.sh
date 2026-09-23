@@ -233,9 +233,15 @@ check_get "tour_tracks-Embed (Buddy-Spuren)" \
   "/rest/v1/tour_tracks?select=user_id,started_at,points,expires_at,profiles(username,avatar)&limit=1"
 
 # find_photos (Patch 026, #532): exakt die Query aus
-# FindPhotoRepository.fetchVisible. ZWEI Embeds, davon eines
+# FindPhotoRepository.fetchVisible. DREI Embeds, davon eines
 # verschachtelt (finds → spots) — jeder hängt an einem Fremdschlüssel.
+# Seit Patch 028 mit den Kudos; deren `user_id` zeigt bewusst auf
+# auth.users, sonst wäre `profiles(...)` hier mehrdeutig (PGRST201).
 check_get "find_photos-Embed (Fundfotos)" \
+  "/rest/v1/find_photos?select=id,find_id,user_id,key,created_at,expires_at,profiles(username,avatar),finds(species,found_on,spot_id,spots(name)),find_photo_kudos(user_id)&limit=1"
+# Und die Fassung OHNE Kudos, wie sie die ausgelieferten Clients bis
+# 1.189.0 schicken: Eine neue Tabelle darf ihr Embed nicht brechen.
+check_get "find_photos-Embed (Fundfotos, Stand 1.189.0)" \
   "/rest/v1/find_photos?select=id,find_id,user_id,key,created_at,expires_at,profiles(username,avatar),finds(species,found_on,spot_id,spots(name))&limit=1"
 
 # feedback: Spalten, die App (Insert) und Feedback-Bot (Select) nutzen
