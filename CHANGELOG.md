@@ -7,6 +7,22 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Stielfarben bei vier Pilzsymbolen
+
+*23. September 2026 · Version 1.194.1*
+
+Vier Symbole zeigen den Stiel jetzt so, wie er im Wald aussieht:
+
+- **Trompetenpfifferling:** Der Stiel ist gelb statt beige — genau daran
+  unterscheidet man ihn von der Herbsttrompete.
+- **Sommer- und Kiefernsteinpilz:** Das Netz am Stiel ist weiß statt rot.
+  Rot gehört dem Netzstieligen Hexenröhrling, und dort bleibt es.
+- **Gallenröhrling:** Er trägt jetzt ein dezentes dunkles Netz — das
+  Merkmal, an dem man ihn vom Steinpilz trennt.
+
+Beim Kiefernsteinpilz ist dabei auch das Gesicht wieder zu sehen; es war
+hell auf hellem Stiel.
+
 ## Benachrichtigung bei neuen Nachrichten
 
 *23. September 2026 · Version 1.194.0*

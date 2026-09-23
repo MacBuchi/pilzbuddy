@@ -15,7 +15,7 @@ import 'package:pilzbuddy/core/widgets/mushroom_icon.dart';
 /// Übersichtsbild (PNG) für den Design-Review gespeichert.
 void main() {
   testWidgets('alle Pilz-Icon-Varianten rendern', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(760, 2600));
+    await tester.binding.setSurfaceSize(const Size(760, 2960));
     final key = GlobalKey();
 
     final groups = <(String, SpeciesGroup?)>[
@@ -27,12 +27,16 @@ void main() {
     const speciesRows = [
       'Pfifferling',
       'Herbsttrompete',
+      'Trompetenpfifferling',
       'Edelreizker',
       'Lachsreizker',
       'Kiefernreizker',
       'Fichtenreizker',
       'Marone',
       'Steinpilz',
+      'Sommersteinpilz',
+      'Kiefernsteinpilz',
+      'Gallenröhrling',
       'Samtfußrübling',
       'Netzstieliger Hexenröhrling',
       'Flockenstieliger Hexenröhrling',
