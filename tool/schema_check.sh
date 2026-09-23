@@ -244,6 +244,15 @@ check_get "find_photos-Embed (Fundfotos)" \
 check_get "find_photos-Embed (Fundfotos, Stand 1.189.0)" \
   "/rest/v1/find_photos?select=id,find_id,user_id,key,created_at,expires_at,profiles(username,avatar),finds(species,found_on,spot_id,spots(name))&limit=1"
 
+# find_reports (Patch 029, #553): die Spalten aus
+# FindReportRepository.columns. RLS gibt anon nichts zurück — eine
+# unbekannte Spalte quittiert PostgREST trotzdem mit einem Fehler. Dass
+# die neue Tabelle das `finds`-/`profiles`-Embed der Spot-Abfrage nicht
+# mehrdeutig macht, prüft der spots-Check weiter oben mit: Ihr
+# `user_id` zeigt deshalb auf auth.users, wie bei den Kudos.
+check_get "find_reports-Spalten (Meldungen an iNaturalist)" \
+  "/rest/v1/find_reports?select=find_id,remote_uuid,remote_id,status,gbif_id&limit=1"
+
 # feedback: Spalten, die App (Insert) und Feedback-Bot (Select) nutzen
 check_get "feedback-Spalten" \
   "/rest/v1/feedback?select=id,user_id,type,message,species_name,created_at,processed_at,app_version,photo_path&limit=1"

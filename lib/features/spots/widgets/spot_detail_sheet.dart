@@ -29,6 +29,7 @@ import 'species_season_section.dart';
 import 'spot_forest_section.dart';
 import 'spot_rain_section.dart';
 import '../../../core/read_after_write.dart';
+import '../../inat/inat_report_flow.dart';
 
 /// Wie viel Platz über dem Blatt frei bleibt — in logischen Pixeln.
 ///
@@ -103,6 +104,10 @@ class _SpotDetailSheet extends ConsumerWidget {
   Future<void> _addFinds(BuildContext context, WidgetRef ref, Spot spot,
       {bool blank = false}) async {
     final ownSpecies = ref.read(ownSpeciesProvider);
+    // Leergänge haben nichts zu melden — und brauchen deshalb auch den
+    // Blick in Konto und Baumartenkarte nicht.
+    final inat = blank ? null : await inatOfferFor(ref, spot);
+    if (!context.mounted) return;
     final result = await showAddFindSheet(
       context,
       spotAt: spot.position,
@@ -119,6 +124,7 @@ class _SpotDetailSheet extends ConsumerWidget {
       // dort gäbe es für das Foto keinen Weg, also gar nicht anbieten.
       pickPhoto: spot.pending ? null : ref.read(photoPickerProvider),
       preparePhoto: spot.pending ? null : ref.read(photoPreparerProvider),
+      inat: inat,
     );
     if (result == null) return;
     if (!context.mounted) return;
@@ -130,8 +136,12 @@ class _SpotDetailSheet extends ConsumerWidget {
       final photo = result.photo;
       if (photo != null) {
         await shareFreshFindPhoto(ref, messenger, ids: ids, photo: photo);
-        return;
       }
+      if (result.inat case final draft?) {
+        await reportFreshFindToInat(ref, messenger,
+            ids: ids, find: result.finds.first, spot: spot, draft: draft);
+      }
+      if (photo != null || result.inat != null) return;
       // Nur im Ausnahmefall eine Meldung: Sonst trägt die Liste im Blatt
       // die Quittung selbst — sie steht direkt darunter. Konnte sie
       // nicht neu laden, steht dort nichts Neues, und ohne diesen Satz

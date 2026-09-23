@@ -68,6 +68,7 @@ import 'widgets/share_location_sheet.dart';
 import 'widgets/spot_filter_sheet.dart';
 import '../../core/app_colors.dart';
 import '../../core/read_after_write.dart';
+import '../inat/inat_report_flow.dart';
 
 /// Antwort auf „hier liegt schon ein Spot" (#215).
 enum _NearbyChoice { existingSpot, newSpot }
@@ -547,6 +548,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
   /// „Dort eintragen": derselbe Weg wie „Fund eintragen" im Spot-Blatt.
   Future<void> _addFindTo(Spot spot) async {
     final ownSpecies = ref.read(ownSpeciesProvider);
+    final inat = await inatOfferFor(ref, spot);
+    if (!mounted) return;
     final result = await showAddFindSheet(
       context,
       spotAt: spot.position,
@@ -555,6 +558,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
       fallbackSpecies: ownSpecies.firstOrNull,
       pickPhoto: spot.pending ? null : ref.read(photoPickerProvider),
       preparePhoto: spot.pending ? null : ref.read(photoPreparerProvider),
+      inat: inat,
     );
     if (result == null || !mounted) return;
     final messenger = ScaffoldMessenger.of(context);
@@ -565,8 +569,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
       final photo = result.photo;
       if (photo != null) {
         await shareFreshFindPhoto(ref, messenger, ids: ids, photo: photo);
-        return;
       }
+      if (result.inat case final draft?) {
+        await reportFreshFindToInat(ref, messenger,
+            ids: ids, find: result.finds.first, spot: spot, draft: draft);
+      }
+      if (photo != null || result.inat != null) return;
       _showMessage('Fund bei „${spot.displayName}" eingetragen 🍄'
           '${fresh ? '' : staleAfterWriteHint}');
     } catch (e, stackTrace) {

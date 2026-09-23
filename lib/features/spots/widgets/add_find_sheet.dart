@@ -9,6 +9,8 @@ import '../../../data/find_photo_repository.dart';
 import '../../../data/spot_repository.dart';
 import '../../../models/find.dart';
 import '../../../models/find_position.dart';
+import '../../inat/inat_reporter.dart';
+import '../../inat/inat_report_section.dart';
 import 'find_photo_strip.dart';
 import 'find_position_field.dart';
 import 'species_collector.dart';
@@ -28,6 +30,10 @@ import 'species_collector.dart';
 /// Anleitung. Geholt und entkernt wird schon HIER; hochgeladen erst,
 /// wenn der Fund eine Server-id hat. Ohne die beiden bleibt der
 /// Abschnitt weg — so beim wartenden Spot, dessen Fund in den Korb geht.
+///
+/// Mit [inat] (nur bei verbundenem Konto, #553) kommt der Schalter
+/// „An iNaturalist melden" dazu — Vorgabe aus. Er braucht ebenfalls
+/// [pickPhoto]/[preparePhoto]: Ohne Foto wird dort nie etwas bestätigt.
 Future<AddFindResult?> showAddFindSheet(
   BuildContext context, {
   required LatLng spotAt,
@@ -37,6 +43,7 @@ Future<AddFindResult?> showAddFindSheet(
   bool blank = false,
   PhotoPicker? pickPhoto,
   PhotoPreparer? preparePhoto,
+  InatOffer? inat,
 }) {
   return showModalBottomSheet<AddFindResult>(
     context: context,
@@ -49,13 +56,22 @@ Future<AddFindResult?> showAddFindSheet(
       blank: blank,
       pickPhoto: pickPhoto,
       preparePhoto: preparePhoto,
+      inat: inat,
     ),
   );
 }
 
+/// Dass gemeldet werden KANN: ein Konto ist verbunden. Dazu die
+/// Vorauswahl der Bäume am Ort.
+typedef InatOffer = ({List<String> presetTrees});
+
 /// Was das Blatt zurückgibt: die Einträge und, wenn angehängt, das
-/// Foto für den ERSTEN davon.
-typedef AddFindResult = ({List<NewFind> finds, PreparedPhoto? photo});
+/// Foto für den ERSTEN davon — ebenso die Meldung an iNaturalist.
+typedef AddFindResult = ({
+  List<NewFind> finds,
+  PreparedPhoto? photo,
+  InatReportDraft? inat,
+});
 
 const kFindPhotoMultiNote = Key('find-photo-multi-note');
 
@@ -68,6 +84,7 @@ class _AddFindSheet extends StatefulWidget {
     this.blank = false,
     this.pickPhoto,
     this.preparePhoto,
+    this.inat,
   });
 
   /// Der Ort des Spots — Bezugspunkt der Fundstellen-Wahl (#373). Bis
@@ -80,11 +97,14 @@ class _AddFindSheet extends StatefulWidget {
   final bool blank;
   final PhotoPicker? pickPhoto;
   final PhotoPreparer? preparePhoto;
+  final InatOffer? inat;
 
   /// Ein Leergang hat nichts zu zeigen — dieselbe Regel wie an der
   /// Kamera am fertigen Eintrag.
   bool get offersPhoto =>
       !blank && pickPhoto != null && preparePhoto != null;
+
+  bool get offersInat => offersPhoto && inat != null;
 
   @override
   State<_AddFindSheet> createState() => _AddFindSheetState();
@@ -124,7 +144,20 @@ class _AddFindSheetState extends State<_AddFindSheet> {
 
   PreparedPhoto? _photo;
 
+  InatSectionValue _inat = const InatSectionValue();
+
+  /// „Speichern" wurde mit Meldung, aber ohne Foto versucht.
+  bool _inatMissingPhoto = false;
+
   void _save() {
+    final inat = widget.offersInat ? _inat.draftWith(_photo) : null;
+    // Ohne Foto kein Speichern MIT Meldung — das Blatt bleibt offen und
+    // sagt, warum. Stumm nur den Fund zu speichern hieße, eine
+    // ausdrücklich gewählte Meldung zu verschlucken.
+    if (inat != null && inat.photos.isEmpty) {
+      setState(() => _inatMissingPhoto = true);
+      return;
+    }
     final note =
         _noteController.text.trim().isEmpty ? null : _noteController.text.trim();
     // Datum, Notiz und Fundstelle gelten für alle Zeilen. Jede Zeile
@@ -146,6 +179,7 @@ class _AddFindSheetState extends State<_AddFindSheet> {
                 ),
             ],
       photo: widget.offersPhoto ? _photo : null,
+      inat: inat,
     );
     Navigator.of(context).pop(result);
   }
@@ -202,9 +236,13 @@ class _AddFindSheetState extends State<_AddFindSheet> {
                 initialCount: widget.lastFind?.count,
                 trailing: dateButton,
                 // Neu gezeichnet wird nur, wenn sich die ZAHL der Arten
-                // ändert — daran hängt der Satz unter dem Foto.
+                // ändert — daran hängt der Satz unter dem Foto — oder
+                // die erste Art, solange gemeldet werden kann: Ob sie
+                // meldbar ist, entscheidet über den Schalter.
                 onChanged: (entries) {
-                  if (entries.length == _entries.length) {
+                  final firstChanged = widget.offersInat &&
+                      entries.first.species != _entries.first.species;
+                  if (entries.length == _entries.length && !firstChanged) {
                     _entries = entries;
                   } else {
                     setState(() => _entries = entries);
@@ -236,6 +274,19 @@ class _AddFindSheetState extends State<_AddFindSheet> {
                   key: kFindPhotoMultiNote,
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
+            ],
+            if (widget.offersInat) ...[
+              const SizedBox(height: 4),
+              InatReportSection(
+                species: _entries.first.species,
+                multiple: _entries.length > 1,
+                presetTrees: widget.inat!.presetTrees,
+                pickPhoto: widget.pickPhoto!,
+                preparePhoto: widget.preparePhoto!,
+                buddyPhoto: _photo,
+                showMissingPhoto: _inatMissingPhoto,
+                onChanged: (value) => setState(() => _inat = value),
+              ),
             ],
             const SizedBox(height: 12),
             // Auch im Leergang-Modus: „Ich war hier und da stand nichts"

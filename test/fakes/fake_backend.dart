@@ -29,6 +29,7 @@ import 'package:pilzbuddy/models/friend_location.dart';
 import 'package:pilzbuddy/models/friendship.dart';
 import 'package:pilzbuddy/core/photo_pipeline.dart';
 import 'package:pilzbuddy/data/find_photo_repository.dart';
+import 'package:pilzbuddy/data/find_report_repository.dart';
 import 'package:pilzbuddy/core/photo_providers.dart';
 import 'package:pilzbuddy/models/find_photo.dart';
 import 'package:pilzbuddy/models/profile.dart';
@@ -169,6 +170,10 @@ class FakeBackend {
   /// Kudos (Patch 028): je (Foto, Nutzer) höchstens einer — der
   /// Primärschlüssel. Gelöscht per Cascade mit dem Foto.
   final findPhotoKudos = <({String photoId, String userId})>[];
+
+  /// Meldungen an iNaturalist (Patch 029): Fund-id → Zeile. Je Fund und
+  /// Plattform eine — der Primärschlüssel.
+  final findReports = <String, FakeFindReportRow>{};
   final photoObjects = <String, Uint8List>{};
 
   /// Der Bucket `feedback-photos` (Patch 027): Pfad → Bytes. Nur der
@@ -271,6 +276,22 @@ class FakeBackend {
   /// gesetzt, bis ein Test ihn zurücknimmt — ein Waldbesuch ist kein
   /// Einzelereignis.
   bool offline = false;
+
+  /// Für Fakes außerhalb dieser Datei: dasselbe Funkloch.
+  void failIfOffline() {
+    if (offline) throw const SocketException('kein Netz (Fake)');
+  }
+
+  /// Ein Fund irgendwo im Bestand — für die Policies, die nach dem
+  /// Autor fragen.
+  Find? findById(String id) {
+    for (final row in spots) {
+      for (final f in row.finds) {
+        if (f.id == id) return f;
+      }
+    }
+    return null;
+  }
 
   /// Der Server lehnt Schreibvorgänge ab (RLS, kaputtes Deployment). Muss
   /// sich vom Funkloch unterscheiden: Ein Serverfehler gehört NICHT in
@@ -1702,3 +1723,6 @@ class FakeSpeciesPhotos implements SpeciesPhotoRepository {
   @override
   noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
+
+/// Eine Zeile `find_reports`: wem sie gehört, und was darin steht.
+typedef FakeFindReportRow = ({String userId, FindReport report});

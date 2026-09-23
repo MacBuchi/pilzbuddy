@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.190.0+277
+version: 1.191.0+278
 
 environment:
   sdk: ^3.11.0
@@ -138,6 +138,18 @@ dependencies:
   # nicht am Starten hindern — dieselbe Linie wie beim Update-Check.
   firebase_core: ^4.14.0
   firebase_messaging: ^16.6.0
+
+  # Funde an iNaturalist melden (#553) — und über iNaturalist an GBIF.
+  # `flutter_web_auth_2` öffnet die Anmeldung in einem Custom Tab und
+  # fängt die Rückleitung ab (eigene CallbackActivity im Manifest); ein
+  # selbstgebauter Weg über `url_launcher` hieße neuer Kotlin-Code in
+  # `MainActivity.kt`, der Datei ohne Test-Netz. Keine neue Berechtigung.
+  # `flutter_secure_storage` hält den iNaturalist-Zugang: Er darf im
+  # Namen des Nutzers Beobachtungen anlegen und gehört deshalb in den
+  # Keystore, nicht in die SharedPreferences der Einstellungen — und nie
+  # nach Supabase.
+  flutter_web_auth_2: ^5.1.0
+  flutter_secure_storage: ^11.2.0
 
 dev_dependencies:
   flutter_test:

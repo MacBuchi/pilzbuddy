@@ -7,6 +7,8 @@
 -->
 <full-backup-content>
     <exclude domain="sharedpref" path="FlutterSharedPreferences.xml"/>
+        <exclude domain="sharedpref" path="FlutterSecureStorage.xml"/>
+        <exclude domain="sharedpref" path="FlutterSecureKeyStorage.xml"/>
     <exclude domain="file" path="offline_maps"/>
     <exclude domain="file" path="outbox"/>
     <exclude domain="file" path="spot_cache"/>
