@@ -1736,6 +1736,18 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     lebende Fotos gestutzt. Eigene Fotos sind nie neu. Der Ring rechnet
     über die volle Restdauer, nicht über `daysLeft` — ganze Tage
     springen, ein frisches Foto stünde sonst bei 13/14.
+  - **Kudos** (Patch 028, seit 1.190.0): `find_photo_kudos`, ein Pilz
+    je Buddy und Foto, keine Skala. Sichtbarkeit geerbt vom Foto
+    (`fpk_select` fragt `find_photos`), abgeräumt per Cascade mit ihm.
+    **`user_id` verweist auf `auth.users`, NICHT auf `profiles`** — mit
+    Fremdschlüsseln auf `find_photos` UND `profiles` hielt PostgREST die
+    Tabelle für eine Verbindungstabelle, und das `profiles`-Embed der
+    Fotos wurde mehrdeutig (PGRST201). Lokal gegengeprobt: Beide
+    Fassungen der Abfrage, auch die der ausgelieferten Clients, brachen.
+    Der Schema Check prüft deshalb auch die Abfrage OHNE Kudos (Stand
+    1.189.0). Namen löst die App über die eigene Buddy-Liste auf
+    (`buddyNamesProvider`); Buddys von Buddys werden nur gezählt — mehr
+    gäbe die profiles-Policy ohnehin nicht her.
   - **Ein Bild am Feedback** (#525, seit 1.186.0, Patch 027) läuft
     über dieselbe Naht — `PhotoAttachment` in beiden Melde-Dialogen,
     `photoPickerProvider`/`photoPreparerProvider` aus

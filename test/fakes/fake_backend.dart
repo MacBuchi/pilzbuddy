@@ -165,6 +165,10 @@ class FakeBackend {
   /// Getrennt wie live, damit ein Test „Objekt ohne Zeile" oder „Zeile
   /// ohne Objekt" nachstellen kann.
   final findPhotos = <FakeFindPhotoRow>[];
+
+  /// Kudos (Patch 028): je (Foto, Nutzer) höchstens einer — der
+  /// Primärschlüssel. Gelöscht per Cascade mit dem Foto.
+  final findPhotoKudos = <({String photoId, String userId})>[];
   final photoObjects = <String, Uint8List>{};
 
   /// Der Bucket `feedback-photos` (Patch 027): Pfad → Bytes. Nur der
@@ -1555,7 +1559,40 @@ class FakeFindPhotoRepository implements FindPhotoRepository {
       foundOn: where?.$2.foundOn,
       spotId: where?.$1.id,
       spotName: where?.$1.name,
+      // `fpk_select`: alle Kudos an einem Foto, das ich sehe — und dieses
+      // sehe ich, sonst stünde es nicht hier.
+      kudosFrom: [
+        for (final k in backend.findPhotoKudos)
+          if (k.photoId == p.id) k.userId,
+      ],
     );
+  }
+
+  @override
+  Future<void> giveKudos(String photoId) async {
+    if (backend.offline) throw const SocketException('kein Netz (Fake)');
+    // `fpk_insert`: nur an ein Foto, das ich sehe, und nie ans eigene.
+    final photo = backend.findPhotos.where((p) => p.id == photoId).firstOrNull;
+    if (photo == null || !_visible(photo) || photo.userId == _uid) {
+      throw const PostgrestException(
+          message: 'new row violates row-level security policy',
+          code: '42501');
+    }
+    // Der Primärschlüssel — und das Repository deutet 23505 als „steht
+    // schon", der Fake nimmt das Ergebnis vorweg.
+    if (backend.findPhotoKudos
+        .any((k) => k.photoId == photoId && k.userId == _uid)) {
+      return;
+    }
+    backend.findPhotoKudos.add((photoId: photoId, userId: _uid));
+  }
+
+  @override
+  Future<void> takeBackKudos(String photoId) async {
+    if (backend.offline) throw const SocketException('kein Netz (Fake)');
+    // `fpk_delete`: nur die eigenen.
+    backend.findPhotoKudos
+        .removeWhere((k) => k.photoId == photoId && k.userId == _uid);
   }
 
   static int _seq = 0;
@@ -1595,8 +1632,13 @@ class FakeFindPhotoRepository implements FindPhotoRepository {
   @override
   Future<void> delete(FindPhoto photo) async {
     if (backend.offline) throw const SocketException('kein Netz (Fake)');
-    backend.findPhotos
-        .removeWhere((p) => p.id == photo.id && p.userId == _uid);
+    final removed = backend.findPhotos
+        .where((p) => p.id == photo.id && p.userId == _uid)
+        .map((p) => p.id)
+        .toSet();
+    backend.findPhotos.removeWhere((p) => removed.contains(p.id));
+    // `on delete cascade` der Kudos.
+    backend.findPhotoKudos.removeWhere((k) => removed.contains(k.photoId));
     backend.photoObjects.remove(photo.fullPath);
     backend.photoObjects.remove(photo.thumbPath);
   }

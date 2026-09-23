@@ -277,6 +277,7 @@ void main() {
       // dieses Muster nicht (Bindestrich), die Verzeichniszeile nennt
       // Storage deshalb ausdrücklich als Empfänger.
       'find_photos': 'Fundfoto teilen',
+      'find_photo_kudos': 'Kudos vergeben',
       'push_devices': 'Benachrichtigungen',
       'error_reports': 'Fehlerdiagnose',
       'feedback': 'Feedback',

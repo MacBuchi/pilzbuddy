@@ -52,9 +52,14 @@ class FindPhotoRepository {
   /// Exakt diese Spalten prüft `tool/schema_check.sh` gegen das
   /// Live-Schema — die beiden Embeds hängen an Fremdschlüsseln, und ein
   /// fehlender antwortet mit PGRST200 statt mit einer leeren Liste.
+  ///
+  /// Das Kudos-Embed (Patch 028) holt nur `user_id`: Die Tabelle
+  /// verweist auf `auth.users`, nicht auf `profiles` — sonst wäre das
+  /// `profiles`-Embed daneben mehrdeutig (PGRST201).
   static const columns = 'id, find_id, user_id, key, created_at, expires_at, '
       'profiles(username, avatar), '
-      'finds(species, found_on, spot_id, spots(name))';
+      'finds(species, found_on, spot_id, spots(name)), '
+      'find_photo_kudos(user_id)';
 
   StorageFileApi get _bucket => _client.storage.from(kFindPhotoBucket);
 
@@ -107,6 +112,27 @@ class FindPhotoRepository {
       logError('Fundfoto-Datei löschen', e, s);
     }
   }
+
+  /// Einen Pilz geben (Patch 028). `user_id` füllt der Spalten-Default;
+  /// ans eigene Foto lehnt die Policy ab.
+  ///
+  /// Ein zweites Geben ist kein Fehler: Die Zeile steht schon (23505),
+  /// und das ist genau der Zustand, den der Tipp wollte — etwa nach
+  /// einem Doppeltipp oder einer Antwort, die unterwegs verloren ging.
+  Future<void> giveKudos(String photoId) async {
+    try {
+      await _client.from('find_photo_kudos').insert({'photo_id': photoId});
+    } on PostgrestException catch (e) {
+      if (e.code != '23505') rethrow;
+    }
+  }
+
+  /// Den eigenen Pilz zurücknehmen.
+  Future<void> takeBackKudos(String photoId) => _client
+      .from('find_photo_kudos')
+      .delete()
+      .eq('photo_id', photoId)
+      .eq('user_id', _uid);
 
   /// Alle Fotos, die ich sehen darf — jüngste zuerst, so wie die
   /// Policies sie liefern: eigene immer, fremde nur mit lesbarem Fund

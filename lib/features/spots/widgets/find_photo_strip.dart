@@ -38,6 +38,8 @@ Key findPhotoTileKey(String id) => ValueKey('find-photo-$id');
 Key shareFindPhotoKey(String findId) => ValueKey('share-photo-$findId');
 Key findPhotoNewKey(String id) => ValueKey('find-photo-new-$id');
 Key findPhotoRingKey(String id) => ValueKey('find-photo-ring-$id');
+Key findPhotoKudosKey(String id) => ValueKey('find-photo-kudos-$id');
+const kKudosButtonKey = Key('kudos-button');
 
 /// Die Restzeit in Worten — Kachel, Ring und Großansicht sagen dasselbe.
 String findPhotoLifeText(int daysLeft) => daysLeft == 0
@@ -168,6 +170,26 @@ class FindPhotoTile extends ConsumerWidget {
                   right: 4,
                   child: FindPhotoLifeRing(photo: photo),
                 ),
+                // Die Zahl, keine Namen — die stehen in der Großansicht.
+                if (photo.kudosCount > 0)
+                  Positioned(
+                    left: 4,
+                    bottom: 4,
+                    child: Container(
+                      key: findPhotoKudosKey(photo.id),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 5, vertical: 1),
+                      decoration: BoxDecoration(
+                        color:
+                            theme.colorScheme.surface.withValues(alpha: 0.85),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text('🍄 ${photo.kudosCount}',
+                          semanticsLabel:
+                              '${photo.kudosCount} ${photo.kudosCount == 1 ? 'Pilz' : 'Pilze'}',
+                          style: theme.textTheme.labelSmall),
+                    ),
+                  ),
                 if (isNew)
                   Positioned(
                     top: 5,
@@ -339,9 +361,40 @@ class _FindPhotoView extends ConsumerWidget {
     }
   }
 
+  /// Einen Pilz geben oder zurücknehmen — und danach neu lesen statt
+  /// den Zähler vorzuziehen (read-after-write, wie überall).
+  Future<void> _toggleKudos(
+      BuildContext context, WidgetRef ref, bool given) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final repo = ref.read(findPhotoRepositoryProvider);
+    try {
+      if (given) {
+        await repo.takeBackKudos(photo.id);
+      } else {
+        await repo.giveKudos(photo.id);
+      }
+    } catch (e, s) {
+      logError('Kudos', e, s);
+      messenger.showSnackBar(SnackBar(content: Text(friendlyError(e))));
+      return;
+    }
+    ref.invalidate(findPhotosProvider);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final myUid = ref.watch(currentUserIdProvider);
+    // Die Kudos kommen aus der LISTE, nicht aus dem übergebenen Foto —
+    // sonst bliebe der Zähler nach dem Tipp stehen, bis man schließt.
+    final live = (ref.watch(findPhotosProvider).valueOrNull ??
+            const <FindPhoto>[])
+        .where((p) => p.id == photo.id)
+        .firstOrNull ??
+        photo;
+    final kudos =
+        kudosLine(live.kudosFrom, myUid, ref.watch(buddyNamesProvider));
+    final given = myUid != null && live.hasKudosFrom(myUid);
     // **Sofort die Vorschau, die der Streifen längst hat** — und das
     // volle Bild, sobald es da ist. Dieselbe Linie wie bei den
     // Artbildern: Der Tipp zeigt IMMER etwas, auch ohne Empfang.
@@ -378,9 +431,19 @@ class _FindPhotoView extends ConsumerWidget {
                   style: hint),
             ),
           ]),
+          if (kudos != null) Text(kudos, style: hint),
         ],
       ),
       actions: [
+        // Ein Pilz je Buddy — kein Zähler zum Hochtippen, und nicht fürs
+        // eigene Foto (die Policy lehnt es ohnehin ab).
+        if (!photo.isOwn)
+          TextButton.icon(
+            key: kKudosButtonKey,
+            icon: const Text('🍄', style: TextStyle(fontSize: 18)),
+            label: Text(given ? 'Pilz zurücknehmen' : 'Pilz geben'),
+            onPressed: () => _toggleKudos(context, ref, given),
+          ),
         if (photo.spotId != null && onOpenSpot != null)
           TextButton.icon(
             icon: const Icon(Icons.place_outlined),

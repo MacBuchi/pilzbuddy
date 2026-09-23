@@ -141,6 +141,7 @@ so in der Erklärung.
 | Live-Standort teilen | Koordinate, Ablaufzeit | Art. 6 (1) a | Supabase | selbst gewählte Dauer |
 | Pilztour-Weg teilen | Wegpunkte der laufenden Tour: Koordinate und Zeitpunkt, gedünnt auf ≤ 400 | Art. 6 (1) a | Supabase, sichtbar für bestätigte Freunde | Frist der Standort-Freigabe; Tour- oder Teilen-Ende löscht sofort |
 | Fundfoto teilen | Bild (≤ 1024 px, ohne Metadaten), Fund-Bezug, Ablaufdatum | Art. 6 (1) a | Supabase (Storage), sichtbar für Freunde, die den Fund sehen dürfen | 14 Tage; Zurücknehmen löscht sofort |
+| Kudos vergeben | wer an welches Fundfoto einen Pilz gegeben hat, Zeitpunkt | Art. 6 (1) a | Supabase, sichtbar für alle, die das Foto sehen (Namen nur unter gegenseitigen Freunden) | mit dem Foto, spätestens 14 Tage; Zurücknehmen löscht sofort |
 | Konto-Mails | E-Mail-Adresse | Art. 6 (1) b | Brevo | Versand |
 | Benachrichtigungen | Gerätekennung (Token) | Art. 6 (1) a | Google (FCM) | bis zum Ausschalten |
 | Vorhersage prüfen | Fund/Leergang mit Ort und Datum | Art. 6 (1) f | Supabase | bis zur Löschung |
