@@ -16,6 +16,11 @@ const kFeedbackPhotoBucket = 'feedback-photos';
 /// Check in Patch 033 (#569).
 const kFeedbackMaxPhotos = 3;
 
+/// Unter dieser Lizenz dürfen Bilder mit Einwilligung in die Artgalerie
+/// (Patch 034) — dieselbe wie bei den eigenen Aufnahmen des Betreibers.
+/// NC und ND scheiden aus: `species_photos_test.dart` lässt sie nicht zu.
+const kGalleryPhotoLicence = 'CC BY-SA 4.0';
+
 /// Wie lange ein Bild am Feedback bleibt — dieselbe Frist wie die
 /// Fehlerberichte (`ERROR_REPORT_RETENTION_DAYS` im Bot).
 const kFeedbackPhotoDays = 90;
@@ -41,13 +46,21 @@ class FeedbackRepository {
   /// [photos] (#525, seit #569 bis zu [kFeedbackMaxPhotos]): nur als
   /// [PreparedPhoto], also nach der Pipeline. Sie gehen in den Bucket,
   /// die Zeile trägt die Pfade.
+  ///
+  /// [galleryConsent] (Patch 034): Die Bilder dürfen unter
+  /// [kGalleryPhotoLicence] mit dem Benutzernamen als Urheber in die
+  /// Artgalerie. Ohne Bilder wird es ignoriert — die Datenbank ließe es
+  /// ohnehin nicht zu.
   Future<void> submit(FeedbackType type, String message,
-      {String? appVersion, List<PreparedPhoto> photos = const []}) async {
+      {String? appVersion,
+      List<PreparedPhoto> photos = const [],
+      bool galleryConsent = false}) async {
     await _insert({
       'user_id': _client.requireUid,
       'type': type == FeedbackType.bug ? 'bug' : 'feature',
       'message': message.trim(),
       'app_version': appVersion,
+      if (galleryConsent && photos.isNotEmpty) 'photo_consent': true,
     }, photos);
   }
 

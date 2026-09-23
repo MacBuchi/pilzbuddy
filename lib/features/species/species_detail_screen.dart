@@ -45,6 +45,7 @@ import '../ampel/ampel_model.dart';
 import '../ampel/ampel_species_exclusion.dart';
 import '../map/gbif_finds_providers.dart';
 import '../map/spot_filter.dart' show currentMonthProvider, spotFilterProvider;
+import '../profile/profile_providers.dart' show myProfileProvider;
 import '../spots/spot_providers.dart' show mySpotListProvider;
 import 'species_catalogue.dart';
 import 'species_photo_view.dart';
@@ -1009,6 +1010,7 @@ class _ReportButton extends ConsumerWidget {
       context: context,
       builder: (_) => _ReportDialog(
           species: species,
+          username: ref.read(myProfileProvider).valueOrNull?.username,
           pickPhoto: ref.read(photoPickerProvider),
           preparePhoto: ref.read(photoPreparerProvider)),
     );
@@ -1024,7 +1026,9 @@ class _ReportButton extends ConsumerWidget {
       }
       await ref.read(feedbackRepositoryProvider).submit(
           FeedbackType.bug, 'Hinweis zur Art „$species": ${text.trim()}',
-          appVersion: version, photos: result.photos);
+          appVersion: version,
+          photos: result.photos,
+          galleryConsent: result.consent);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('Danke — der Hinweis wird geprüft. 🍄')));
@@ -1049,16 +1053,28 @@ class _ReportButton extends ConsumerWidget {
       );
 }
 
-typedef _ReportInput = ({String text, List<PreparedPhoto> photos});
+typedef _ReportInput = ({
+  String text,
+  List<PreparedPhoto> photos,
+  bool consent,
+});
+
+const kGalleryConsentKey = Key('gallery-consent');
 
 class _ReportDialog extends StatefulWidget {
   const _ReportDialog({
     required this.species,
+    required this.username,
     required this.pickPhoto,
     required this.preparePhoto,
   });
 
   final String species;
+
+  /// Der Name, der als Urheber genannt würde — im Häkchen AUSGESCHRIEBEN,
+  /// damit man sieht, was öffentlich würde. `null`, solange das Profil
+  /// nicht geladen ist.
+  final String? username;
   final PhotoPicker pickPhoto;
   final PhotoPreparer preparePhoto;
 
@@ -1073,6 +1089,11 @@ class _ReportDialogState extends State<_ReportDialog> {
   /// Merkmalstabelle widerspricht — Hut, Unterseite, Stiel; ein Bild
   /// allein zeigt selten das Merkmal, um das es geht.
   List<PreparedPhoto> _photos = const [];
+
+  /// Einwilligung für die Artgalerie (Patch 034) — ab Werk AUS, und sie
+  /// fällt mit dem letzten Bild weg: Ein Haken, der stehen bleibt, gälte
+  /// sonst für das nächste Bild, das niemand mehr angesehen hat.
+  bool _consent = false;
 
   @override
   void dispose() {
@@ -1107,8 +1128,30 @@ class _ReportDialogState extends State<_ReportDialog> {
               prepare: widget.preparePhoto,
               photos: _photos,
               max: kFeedbackMaxPhotos,
-              onChanged: (photos) => setState(() => _photos = photos),
+              onChanged: (photos) => setState(() {
+                _photos = photos;
+                if (photos.isEmpty) _consent = false;
+              }),
             ),
+            if (_photos.isNotEmpty)
+              CheckboxListTile(
+                key: kGalleryConsentKey,
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                dense: true,
+                value: _consent,
+                onChanged: (v) => setState(() => _consent = v ?? false),
+                title: Text(
+                    'Ich habe ${_photos.length == 1 ? 'das Foto' : 'die Fotos'} '
+                    'selbst gemacht. PilzBuddy darf '
+                    '${_photos.length == 1 ? 'es' : 'sie'} in der Artgalerie '
+                    'zeigen — unter $kGalleryPhotoLicence, mit '
+                    '${widget.username == null ? 'meinem Benutzernamen' : '„${widget.username}"'} '
+                    'als Urheber.'),
+                subtitle: const Text('Freiwillig. Ohne Haken sieht nur der '
+                    'Entwickler die Bilder. Ob eines übernommen wird, '
+                    'entscheidet er nach Ansicht.'),
+              ),
           ],
           ),
         ),
@@ -1119,7 +1162,11 @@ class _ReportDialogState extends State<_ReportDialog> {
           ),
           FilledButton(
             onPressed: () => Navigator.of(context)
-                .pop((text: _text.text, photos: _photos)),
+                .pop((
+                  text: _text.text,
+                  photos: _photos,
+                  consent: _consent && _photos.isNotEmpty,
+                )),
             child: const Text('Senden'),
           ),
         ],

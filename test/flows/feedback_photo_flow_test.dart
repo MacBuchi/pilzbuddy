@@ -219,4 +219,77 @@ void main() {
     expect(backend.feedback.single['photo_paths'], hasLength(2));
     await drainSnackbars(tester);
   });
+
+  Future<void> openSpeciesReport(WidgetTester tester) async {
+    await openTab(tester, 'Pilze');
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Art oder wissenschaftlicher Name'),
+        'Judasohr');
+    await settle(tester);
+    await tester.tap(find.widgetWithText(ListTile, 'Judasohr'));
+    await settle(tester);
+    await tester.scrollUntilVisible(
+        find.text('Hinweis zu dieser Art melden'), 300,
+        scrollable: find
+            .descendant(
+                of: find.byKey(kSpeciesDetailListKey),
+                matching: find.byType(Scrollable))
+            .first);
+    await settle(tester, frames: 4);
+    await tester.tap(find.text('Hinweis zu dieser Art melden'));
+    await settle(tester);
+  }
+
+  testWidgets('Galerie-Einwilligung (Patch 034): erst mit Bild, nennt den '
+      'Namen, ab Werk aus', (tester) async {
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend, photoPicker: FakePhotoPicker(dirtyJpeg()));
+    await openSpeciesReport(tester);
+
+    expect(find.byKey(kGalleryConsentKey), findsNothing,
+        reason: 'ohne Bild gibt es nichts freizugeben');
+    await attach(tester);
+    expect(find.byKey(kGalleryConsentKey), findsOneWidget);
+    expect(
+        tester.widget<CheckboxListTile>(find.byKey(kGalleryConsentKey)).value,
+        isFalse,
+        reason: 'ab Werk aus');
+    expect(find.textContaining('„testpilz" als Urheber'), findsOneWidget,
+        reason: 'der Name, der öffentlich würde, steht ausgeschrieben da');
+    expect(find.textContaining(kGalleryPhotoLicence), findsOneWidget);
+
+    await tester.tap(find.byKey(kGalleryConsentKey));
+    await settle(tester);
+    await tester.enterText(find.byType(TextField).first, 'Mein Fund');
+    await tester.tap(find.text('Senden'));
+    await settle(tester);
+    expect(backend.feedback.single['photo_consent'], isTrue);
+    await drainSnackbars(tester);
+  });
+
+  testWidgets('ohne Haken keine Einwilligung — und das letzte Bild weg '
+      'nimmt den Haken mit', (tester) async {
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend, photoPicker: FakePhotoPicker(dirtyJpeg()));
+    await openSpeciesReport(tester);
+    await attach(tester);
+    await tester.tap(find.byKey(kGalleryConsentKey));
+    await settle(tester);
+
+    await tester.tap(find.byKey(kRemovePhotoKey));
+    await settle(tester);
+    expect(find.byKey(kGalleryConsentKey), findsNothing);
+    await attach(tester);
+    expect(
+        tester.widget<CheckboxListTile>(find.byKey(kGalleryConsentKey)).value,
+        isFalse,
+        reason: 'ein Haken für ein Bild, das es nicht mehr gibt, gilt '
+            'nicht für das nächste');
+
+    await tester.enterText(find.byType(TextField).first, 'Mein Fund');
+    await tester.tap(find.text('Senden'));
+    await settle(tester);
+    expect(backend.feedback.single['photo_consent'], isFalse);
+    await drainSnackbars(tester);
+  });
 }

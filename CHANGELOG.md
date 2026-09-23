@@ -7,6 +7,22 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Eigene Fotos für die Artgalerie anbieten
+
+*23. September 2026 · Version 1.197.0*
+
+Hast du einen Pilz gut fotografiert, kannst du das Bild für die
+Artgalerie anbieten: Unter „Hinweis zu dieser Art melden" erscheint,
+sobald ein Bild angehängt ist, ein Haken dafür.
+
+- Mit dem Haken erlaubst du, dass PilzBuddy deine Fotos in der
+  Artgalerie zeigt — unter CC BY-SA 4.0, mit deinem Benutzernamen als
+  Urheber. Welcher Name das ist, steht direkt am Haken.
+- Der Haken ist freiwillig und ab Werk aus. Ohne ihn sieht wie bisher
+  nur der Entwickler die Bilder.
+- Ob ein Bild wirklich in die Galerie kommt, entscheidet der Entwickler,
+  nachdem er es angesehen hat.
+
 ## Bis zu drei Bilder an einer Meldung
 
 *23. September 2026 · Version 1.196.0*
