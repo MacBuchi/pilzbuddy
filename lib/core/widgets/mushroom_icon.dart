@@ -194,6 +194,7 @@ typedef SpeciesIconLook = ({
   /// Das Netz bzw. die Flöckchen am Stiel — bei den Hexenröhrlingen ist
   /// genau das der Unterschied, an dem man die beiden Arten hält.
   String? stemPattern,
+  int? stemPatternColour,
 });
 
 /// Das eigene Aussehen einer Art — `null`, wenn sie auf den Look ihrer
@@ -208,6 +209,7 @@ SpeciesIconLook? speciesIconLook(String? name) {
     darkDots: style.darkDots,
     stemColour: style.stemColor?.toARGB32(),
     stemPattern: style.stemPattern?.name,
+    stemPatternColour: style.stemPatternColor?.toARGB32(),
   );
 }
 
@@ -247,6 +249,12 @@ class _Style {
   final Color? stemColor; // abweichende Stielfarbe (Pfifferling gelb …)
   final _StemPattern? stemPattern;
 
+  /// Farbe von Netz bzw. Flöckchen. Ohne Angabe das Rot der
+  /// Hexenröhrlinge — dort IST die Farbe das Merkmal. Die Steinpilze
+  /// tragen ein weißes Netz, der Gallenröhrling ein dunkles; mit dem Rot
+  /// sahen alle drei nach Hexenröhrling aus (#571).
+  final Color? stemPatternColor;
+
   /// Stielbreite, symmetrisch um die Mitte. Der Vorgabewert ist die
   /// Breite, die neun Hutformen sich teilen; kleiner macht ihn dünn
   /// (Samtfußrübling), und nur dafür gibt es das Feld.
@@ -279,6 +287,7 @@ class _Style {
       this.stemTop = 0.42,
       this.stemColor,
       this.stemPattern,
+      this.stemPatternColor,
       this.stemWidth = 0.28,
       this.stemBulge = 0.0,
       this.lightFace = false})
@@ -338,8 +347,12 @@ class _MushroomPainter extends CustomPainter {
     'ziegenlippe': _Style(_CapShape.dome, [Color(0xFF9A8B5A)]),
     'rotfußröhrling': _Style(_CapShape.dome, [Color(0xFF8A7A4E)],
         stemColor: Color(0xFFC1553F)),
+    // Grobes DUNKLES Netz auf hellem Stiel — das Gegenstück zum weißen
+    // Netz des Steinpilzes und damit das Merkmal, an dem man ihn hält.
     'gallenröhrling': _Style(_CapShape.dome, [Color(0xFFC4A176)],
-        stemPattern: _StemPattern.net),
+        stemColor: Color(0xFFDCC49A),
+        stemPattern: _StemPattern.net,
+        stemPatternColor: Color(0x8C5D4037)),
     // Weißlicher Hut über rotem Stiel — beides zusammen ist das Bild,
     // an dem man ihn vom Steinpilz unterscheidet.
     'satansröhrling': _Style(_CapShape.dome, [Color(0xFFE3E0D6)],
@@ -358,16 +371,31 @@ class _MushroomPainter extends CustomPainter {
     // Die drei Steinpilze teilten sich den Look ihrer Familienregel.
     // Sie sind aber verschieden gefärbt, und der Sommersteinpilz reißt
     // bei Trockenheit feinrissig auf.
+    // Das Netz ist bei beiden WEISS; damit es auf dem Stiel überhaupt
+    // zu sehen ist, ist der Stiel hellbraun bzw. rötlich getönt statt
+    // cremefarben (#571).
     'sommersteinpilz': _Style(_CapShape.dome, [Color(0xFFBE9A6A)],
-        darkDots: true, stemBulge: 0.06, stemPattern: _StemPattern.net),
+        darkDots: true,
+        stemBulge: 0.06,
+        stemColor: Color(0xFFD9C09A),
+        stemPattern: _StemPattern.net,
+        stemPatternColor: Color(0xE6FFFBF2)),
+    // Kein `lightFace`: Das Gesicht sitzt beim Dom auf dem STIEL, und der
+    // ist hell — das helle Gesicht war darauf unsichtbar.
     'kiefernsteinpilz': _Style(_CapShape.dome, [Color(0xFF7A3B2E)],
-        lightFace: true, stemBulge: 0.06, stemPattern: _StemPattern.net),
+        stemBulge: 0.06,
+        stemColor: Color(0xFFD4AE96),
+        stemPattern: _StemPattern.net,
+        stemPatternColor: Color(0xE6FFFBF2)),
 
     // --- Leistlinge: der Pfifferling hatte seine Familie mitgefärbt
     // Graubrauner Trichter, in der Mitte durchbohrt — vom dottergelben
     // Pfifferling so weit entfernt wie möglich.
+    // Der Stiel ist deutlich GELB (#570) — das Merkmal gegen die
+    // Herbsttrompete. Blasser als der Pfifferling-Stiel, damit die beiden
+    // auch unten nicht gleich aussehen.
     'trompetenpfifferling': _Style(_CapShape.funnel, [Color(0xFF8A7B6B)],
-        stemColor: Color(0xFFC9AE72)),
+        stemColor: Color(0xFFE9C441)),
     // Orangegelb bis orangerot und damit SATTER als der Pfifferling —
     // er ist dessen Verwechslungspartner, die beiden müssen sich
     // unterscheiden.
@@ -969,16 +997,17 @@ class _MushroomPainter extends CustomPainter {
     canvas.drawPath(stemPath,
         Paint()..color = style.stemColor ?? AppColors.cream);
 
-    // Stielzeichnung der Hexenröhrlinge: liegt zwischen Füllung und Kontur,
+    // Stielzeichnung (Hexenröhrlinge, Netz der Steinpilze): liegt zwischen Füllung und Kontur,
     // damit die Kontur den Rand sauber abschließt.
     if (style.stemPattern != null) {
       canvas.save();
       canvas.clipPath(stemPath);
-      final red = const Color(0xFFC62828).withValues(alpha: 0.7);
+      final mark = style.stemPatternColor ??
+          const Color(0xFFC62828).withValues(alpha: 0.7);
       switch (style.stemPattern!) {
         case _StemPattern.net:
           final mesh = Paint()
-            ..color = red
+            ..color = mark
             ..style = PaintingStyle.stroke
             ..strokeWidth = u(0.016);
           for (var i = -3; i <= 3; i++) {
@@ -989,7 +1018,7 @@ class _MushroomPainter extends CustomPainter {
         case _StemPattern.flecks:
           // Tupfen ober- und unterhalb des Gesichts — mittig würden sie
           // mit Augen und Mund um denselben Platz streiten.
-          final fleck = Paint()..color = red;
+          final fleck = Paint()..color = mark;
           canvas.drawCircle(p(0.41, 0.50), u(0.026), fleck);
           canvas.drawCircle(p(0.57, 0.47), u(0.023), fleck);
           canvas.drawCircle(p(0.49, 0.56), u(0.020), fleck);
