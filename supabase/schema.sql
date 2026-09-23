@@ -202,6 +202,30 @@ create table public.find_reports (
 );
 create index find_reports_user_idx on public.find_reports (user_id);
 
+-- Nachrichten zwischen Buddys (Patch 030, #564): angenommen unbegrenzt,
+-- bei offener Anfrage höchstens drei eigene je Person, sonst keine.
+-- 30 Tage, erzwungen über Check UND Spalten-Grants. Beide Personen auf
+-- auth.users (Begründung wie Patch 028). Ende der Freundschaft löscht
+-- den Verlauf (Trigger unten). Begründungen im Patch.
+create table public.buddy_messages (
+  id uuid primary key default gen_random_uuid(),
+  sender_id uuid not null default auth.uid()
+    references auth.users(id) on delete cascade,
+  recipient_id uuid not null references auth.users(id) on delete cascade,
+  body text not null check (char_length(btrim(body)) between 1 and 500),
+  created_at timestamptz not null default now(),
+  expires_at timestamptz not null default now() + interval '30 days',
+  read_at timestamptz,
+  check (sender_id <> recipient_id),
+  check (expires_at <= created_at + interval '30 days')
+);
+create index buddy_messages_pair_idx
+  on public.buddy_messages (sender_id, recipient_id, created_at);
+create index buddy_messages_recipient_idx
+  on public.buddy_messages (recipient_id);
+create index buddy_messages_expires_idx
+  on public.buddy_messages (expires_at);
+
 -- Feature-Wünsche / Feedback aus der App. Der Feedback-Bot
 -- (.github/workflows/feedback.yml) macht daraus GitHub-Issues bzw.
 -- Pilzart-PRs und setzt processed_at.
@@ -340,6 +364,28 @@ returns boolean language sql stable security definer set search_path = public as
        or (requester_id = b and addressee_id = a));
 $$;
 
+-- Darf ich [other] schreiben? (Patch 030) Angenommen ⇒ ja; offen ⇒
+-- solange ich weniger als drei Nachrichten an sie geschickt habe.
+create or replace function app_internal.may_message(other uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select case
+    when exists (
+      select 1 from friendships f
+      where f.status = 'accepted'
+        and ((f.requester_id = auth.uid() and f.addressee_id = other)
+          or (f.requester_id = other and f.addressee_id = auth.uid())))
+      then true
+    when exists (
+      select 1 from friendships f
+      where f.status = 'pending'
+        and ((f.requester_id = auth.uid() and f.addressee_id = other)
+          or (f.requester_id = other and f.addressee_id = auth.uid())))
+      then (select count(*) from buddy_messages m
+            where m.sender_id = auth.uid() and m.recipient_id = other) < 3
+    else false
+  end;
+$$;
+
 create or replace function app_internal.owner_shares_spots(owner uuid)
 returns boolean language sql stable security definer set search_path = public as $$
   select share_spots_default from profiles where id = owner;
@@ -398,6 +444,7 @@ alter table public.tour_tracks    enable row level security;
 alter table public.find_photos    enable row level security;
 alter table public.find_photo_kudos enable row level security;
 alter table public.find_reports   enable row level security;
+alter table public.buddy_messages enable row level security;
 alter table public.feedback       enable row level security;
 alter table public.error_reports  enable row level security;
 alter table public.app_config     enable row level security;
@@ -414,6 +461,12 @@ grant select on public.app_config to anon, authenticated;
 grant select, insert, delete on public.find_photos to authenticated;
 grant select, insert, delete on public.find_photo_kudos to authenticated;
 grant select, insert, update, delete on public.find_reports to authenticated;
+-- buddy_messages (Patch 030): ERST alles weg — die Legacy-Vorgabe gäbe
+-- sonst Tabellen-INSERT, und der schlüge die Spalten-Grants.
+revoke all on public.buddy_messages from anon, authenticated;
+grant select, delete on public.buddy_messages to authenticated;
+grant insert (recipient_id, body) on public.buddy_messages to authenticated;
+grant update (read_at) on public.buddy_messages to authenticated;
 
 -- push_devices: nur die eigenen Geräte, in beide Richtungen. Ohne das
 -- `with check` könnte jemand ein Token auf ein fremdes Konto schreiben
@@ -574,6 +627,21 @@ create policy fr_update on public.find_reports for update
                 where f.id = find_id and f.author_id = auth.uid()));
 create policy fr_delete on public.find_reports for delete
   using (user_id = auth.uid());
+
+-- buddy_messages (Patch 030): lesen, was mich betrifft und nicht
+-- abgelaufen ist; schreiben nach `may_message`; gelesen markieren nur,
+-- was an mich ging; zurücknehmen nur die eigenen.
+create policy bm_select on public.buddy_messages for select
+  using ((sender_id = auth.uid() or recipient_id = auth.uid())
+     and expires_at > now());
+create policy bm_insert on public.buddy_messages for insert
+  with check (sender_id = auth.uid()
+    and app_internal.may_message(recipient_id));
+create policy bm_read on public.buddy_messages for update
+  using (recipient_id = auth.uid())
+  with check (recipient_id = auth.uid());
+create policy bm_delete on public.buddy_messages for delete
+  using (sender_id = auth.uid());
 
 -- ---------------------------------------------------------------------------
 -- Storage: der Bucket der Fundfotos (Patch 026)
@@ -872,6 +940,24 @@ revoke all on function app_internal.push_friends(uuid) from public, anon, authen
 select cron.schedule('push-flush', '* * * * *',
                      $cron$select app_internal.push_flush()$cron$);
 
+-- Nachrichten (Patch 030): Ende der Freundschaft löscht den Verlauf
+-- beider Seiten; Abgelaufenes räumt ein Cron-Job täglich.
+create or replace function app_internal.messages_on_unfriend()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  delete from buddy_messages m
+  where (m.sender_id = old.requester_id and m.recipient_id = old.addressee_id)
+     or (m.sender_id = old.addressee_id and m.recipient_id = old.requester_id);
+  return old;
+end;
+$$;
+revoke all on function app_internal.messages_on_unfriend() from public, anon, authenticated;
+create trigger friendships_delete_messages
+  after delete on public.friendships
+  for each row execute function app_internal.messages_on_unfriend();
+select cron.schedule('buddy-messages-sweep', '17 3 * * *',
+                     $cron$delete from public.buddy_messages where expires_at < now()$cron$);
+
 insert into public.applied_patches (filename) values
   ('patch_001_anfragen_namen.sql'),
   ('patch_002_feedback.sql'),
@@ -901,5 +987,6 @@ insert into public.applied_patches (filename) values
   ('patch_026_fundfotos.sql'),
   ('patch_027_feedback_bild.sql'),
   ('patch_028_fundfoto_kudos.sql'),
-  ('patch_029_inat_meldungen.sql')
+  ('patch_029_inat_meldungen.sql'),
+  ('patch_030_buddy_nachrichten.sql')
 on conflict do nothing;

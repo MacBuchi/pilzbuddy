@@ -7,6 +7,26 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Nachrichten an Buddys
+
+*23. September 2026 · Version 1.193.0*
+
+Im Reiter „Buddys" steht jetzt neben jedem Buddy eine Sprechblase: Dort
+schreibst du ihm eine kurze Nachricht, und er dir. Ungelesenes zeigt ein
+Punkt am Reiter.
+
+- **Auch bei einer offenen Anfrage** kannst du schreiben — höchstens drei
+  Nachrichten je Seite, bis die Anfrage angenommen ist. So kannst du
+  fragen, wer da anfragt, bevor du annimmst.
+- **Nachrichten verschwinden nach 30 Tagen.** Eigene kannst du vorher
+  zurücknehmen: lange auf die Nachricht drücken.
+- **Wer eine Anfrage ablehnt oder einen Buddy entfernt, löscht damit auch
+  den Verlauf** — für beide Seiten.
+- Nachrichten sind nicht Ende-zu-Ende-verschlüsselt. Sie liegen geschützt
+  in der Datenbank der App, so wie deine Spots.
+- Eine Benachrichtigung bei neuen Nachrichten kommt in einer der nächsten
+  Versionen.
+
 ## „Neuer Spot" sieht überall gleich aus
 
 *23. September 2026 · Version 1.192.1*

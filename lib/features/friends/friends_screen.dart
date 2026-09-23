@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/app_info.dart';
@@ -13,6 +14,7 @@ import '../profile/sharing_rank.dart';
 import '../profile/sharing_rank_providers.dart';
 import '../spots/widgets/find_photo_strip.dart' show FindPhotoGallery;
 import 'friend_providers.dart';
+import 'message_providers.dart';
 import '../../core/app_colors.dart';
 
 class FriendsScreen extends ConsumerStatefulWidget {
@@ -178,6 +180,9 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      // Erst fragen, dann annehmen (#564): „Man muss ja
+                      // wissen, wen man reinnimmt."
+                      MessageButton(otherId: f.otherId(uid)),
                       IconButton(
                         onPressed: () =>
                             ref.read(friendshipsProvider.notifier).accept(f.id),
@@ -206,11 +211,18 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
                       MushroomAvatar(index: f.otherAvatar(uid), size: 40),
                   title: Text(f.otherUsername(uid)),
                   subtitle: const Text('Ausstehend'),
-                  trailing: IconButton(
-                    onPressed: () =>
-                        ref.read(friendshipsProvider.notifier).remove(f.id),
-                    icon: const Icon(Icons.cancel_outlined),
-                    tooltip: 'Zurückziehen',
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      MessageButton(otherId: f.otherId(uid)),
+                      IconButton(
+                        onPressed: () => ref
+                            .read(friendshipsProvider.notifier)
+                            .remove(f.id),
+                        icon: const Icon(Icons.cancel_outlined),
+                        tooltip: 'Zurückziehen',
+                      ),
+                    ],
                   ),
                 ),
             ],
@@ -244,7 +256,11 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
                     final title? => Text(title),
                     _ => null,
                   },
-                  trailing: IconButton(
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                  MessageButton(otherId: f.otherId(uid)),
+                  IconButton(
                     onPressed: () async {
                       final confirmed = await showDialog<bool>(
                         context: context,
@@ -252,7 +268,9 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
                           title: Text(
                               '${f.otherUsername(uid)} als Buddy entfernen?'),
                           content: const Text(
-                              'Ihr seht danach gegenseitig keine geteilten Spots mehr.'),
+                              'Ihr seht danach gegenseitig keine geteilten '
+                              'Spots mehr, und eure Nachrichten werden '
+                              'für beide gelöscht.'),
                           actions: [
                             TextButton(
                                 onPressed: () =>
@@ -274,10 +292,34 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
                     icon: const Icon(Icons.person_remove_outlined),
                     tooltip: 'Buddy entfernen',
                   ),
+                    ],
+                  ),
                 ),
           ],
         ),
       ),
+    );
+  }
+}
+
+Key messageButtonKey(String otherId) => ValueKey('message-button-$otherId');
+
+/// Der Weg in den Verlauf mit einem Buddy (#564) — mit Zahl, solange
+/// Ungelesenes da ist.
+class MessageButton extends ConsumerWidget {
+  const MessageButton({super.key, required this.otherId});
+
+  final String otherId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unread = ref.watch(unreadMessagesProvider)[otherId] ?? 0;
+    const icon = Icon(Icons.chat_bubble_outline);
+    return IconButton(
+      key: messageButtonKey(otherId),
+      tooltip: unread == 0 ? 'Nachrichten' : '$unread ungelesen',
+      onPressed: () => context.go('/friends/chat/$otherId'),
+      icon: unread == 0 ? icon : Badge(label: Text('$unread'), child: icon),
     );
   }
 }

@@ -71,6 +71,28 @@ check_rpc_protected() {
   fi
 }
 
+# Für Tabellen, die anon GAR NICHT lesen darf (kein Grant, nicht nur
+# RLS): `buddy_messages` (Patch 030). Postgres löst Spalten VOR der
+# Rechteprüfung auf — gemessen am lokalen Stack: vollständige Abfrage ⇒
+# 42501, fehlende Spalte ⇒ 42703, fehlende Tabelle ⇒ PGRST205. Nur 42501
+# ist also der Erfolgsfall; eine Liste hieße, dass anon lesen darf.
+check_get_protected() {
+  local name="$1" path="$2" out
+  out=$(curl -s --max-time 20 "$URL$path" -H "apikey: $KEY" || echo '{"code":"curl","message":"Verbindung fehlgeschlagen"}')
+  if [ "$(response_diagnosis "$out")" = transport ]; then
+    echo "::error::Schema-Check unentschieden: $name — der Dienst war nicht erreichbar. Über die Rechte sagt dieser Lauf NICHTS; wiederholen. Antwort: ${out:-<leer>}"
+    transport_fail=1
+  elif printf '%s' "$out" | grep -q '"code":"42501"'; then
+    echo "✓ $name (vorhanden und für anon gesperrt)"
+  elif printf '%s' "$out" | grep -q '"code"'; then
+    echo "::error::Schema-Check fehlgeschlagen: $name — $out"
+    fail=1
+  else
+    echo "::error::Schema-Check fehlgeschlagen: $name — anon darf die Tabelle lesen!"
+    fail=1
+  fi
+}
+
 # Die Mindestversion aus der Antwort — LEER, wenn sie nicht drinsteht.
 #
 # Eigene Funktion, damit sich die drei Fälle (Dienst antwortet nicht /
@@ -252,6 +274,14 @@ check_get "find_photos-Embed (Fundfotos, Stand 1.189.0)" \
 # `user_id` zeigt deshalb auf auth.users, wie bei den Kudos.
 check_get "find_reports-Spalten (Meldungen an iNaturalist)" \
   "/rest/v1/find_reports?select=find_id,remote_uuid,remote_id,status,gbif_id&limit=1"
+
+# buddy_messages (Patch 030, #564): die Spalten aus
+# MessageRepository.columns. anon hat hier gar keinen Grant (Patch 030
+# entzieht die Legacy-Vorgabe ausdrücklich) — PostgREST antwortet dann
+# mit 42501 statt mit einer leeren Liste. Beides heißt: Tabelle und
+# Spalten gibt es; eine fehlende Spalte käme als 42703 zurück.
+check_get_protected "buddy_messages-Spalten (Nachrichten)" \
+  "/rest/v1/buddy_messages?select=id,sender_id,recipient_id,body,created_at,expires_at,read_at&limit=1"
 
 # feedback: Spalten, die App (Insert) und Feedback-Bot (Select) nutzen
 check_get "feedback-Spalten" \
