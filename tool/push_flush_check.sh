@@ -37,10 +37,16 @@ insert into public.push_devices (token, user_id, platform)
 -- Drei Nachrichten von Anna an Bert; die mittlere wird vor dem Lauf
 -- zurückgenommen (Cascade aus der Warteschlange). Zeitpunkte ausdrücklich,
 -- sonst entschiede bei gleichem now() der Zufall, welche die neueste ist.
-insert into public.buddy_messages (id, sender_id, recipient_id, body, created_at)
-  values ('11111111-0000-0000-0000-000000000001', '$A', '$B', 'alt', now() - interval '3 minutes'),
-         ('11111111-0000-0000-0000-000000000002', '$A', '$B', 'zurückgenommen', now() - interval '2 minutes'),
-         ('11111111-0000-0000-0000-000000000003', '$A', '$B', repeat('x', 200), now() - interval '1 minute');
+-- `expires_at` MIT: Der Default ist now() + 30 Tage, und zu einem
+-- zurückdatierten `created_at` läge er über der Grenze aus Patch 030 —
+-- der Check lehnt das ab (im ersten CI-Lauf genau so passiert).
+insert into public.buddy_messages (id, sender_id, recipient_id, body, created_at, expires_at)
+  values ('11111111-0000-0000-0000-000000000001', '$A', '$B', 'alt',
+          now() - interval '3 minutes', now() - interval '3 minutes' + interval '30 days'),
+         ('11111111-0000-0000-0000-000000000002', '$A', '$B', 'zurückgenommen',
+          now() - interval '2 minutes', now() - interval '2 minutes' + interval '30 days'),
+         ('11111111-0000-0000-0000-000000000003', '$A', '$B', repeat('x', 200),
+          now() - interval '1 minute', now() - interval '1 minute' + interval '30 days');
 delete from public.buddy_messages where id = '11111111-0000-0000-0000-000000000002';
 select app_internal.push_flush();
 select convert_from(body, 'utf8') from net.http_request_queue order by id desc limit 1;
