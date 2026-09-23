@@ -36,6 +36,7 @@ void main() {
     await tester.enterText(
         find.widgetWithText(TextField, 'Was ist passiert?'),
         'Beim Löschen eines Spots bleibt der Marker stehen');
+    await tester.pump(); // „Senden“ wird erst mit dem nächsten Frame aktiv
     await tester.tap(find.text('Senden'));
     await settle(tester);
 
@@ -65,6 +66,7 @@ void main() {
     await settle(tester);
     await tester.enterText(
         find.widgetWithText(TextField, 'Dein Wunsch'), 'Fotos zu Funden');
+    await tester.pump(); // „Senden“ wird erst mit dem nächsten Frame aktiv
     await tester.tap(find.widgetWithText(FilledButton, 'Senden'));
     await settle(tester);
 
@@ -119,6 +121,7 @@ void main() {
     expect(find.textContaining('Schon in der Liste'), findsNothing);
 
     // Und sie lässt sich weiterhin senden.
+    await tester.pump(); // „Senden“ wird erst mit dem nächsten Frame aktiv
     await tester.tap(find.text('Senden'));
     await settle(tester);
     expect(backend.feedback.single['type'], 'species');

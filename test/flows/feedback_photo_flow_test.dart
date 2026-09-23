@@ -55,6 +55,7 @@ void main() {
     await settle(tester, frames: 4);
     await tester.enterText(find.widgetWithText(TextField, 'Was ist passiert?'),
         'Der Marker steht neben dem Weg');
+    await tester.pump(); // „Senden“ wird erst mit dem nächsten Frame aktiv
     await tester.tap(find.text('Senden'));
     await settle(tester);
 
@@ -90,6 +91,7 @@ void main() {
 
     await tester.enterText(
         find.widgetWithText(TextField, 'Dein Wunsch'), 'Mehr Pilze bitte');
+    await tester.pump(); // „Senden“ wird erst mit dem nächsten Frame aktiv
     await tester.tap(find.text('Senden'));
     await settle(tester);
     expect(backend.feedback.single['photo_paths'], isNull);
@@ -151,6 +153,7 @@ void main() {
     expect(find.byKey(kRemovePhotoKey), findsOneWidget);
     await tester.enterText(
         find.byType(TextField).last, 'Bei mir sind sie viel dunkler.');
+    await tester.pump(); // „Senden“ wird erst mit dem nächsten Frame aktiv
     await tester.tap(find.text('Senden'));
     await settle(tester);
 
@@ -198,6 +201,7 @@ void main() {
 
     await tester.enterText(
         find.widgetWithText(TextField, 'Dein Wunsch'), 'Drei Ansichten');
+    await tester.pump(); // „Senden“ wird erst mit dem nächsten Frame aktiv
     await tester.tap(find.text('Senden'));
     await settle(tester);
 
@@ -227,6 +231,7 @@ void main() {
 
     await tester.enterText(
         find.widgetWithText(TextField, 'Dein Wunsch'), 'Zwei reichen');
+    await tester.pump(); // „Senden“ wird erst mit dem nächsten Frame aktiv
     await tester.tap(find.text('Senden'));
     await settle(tester);
     expect(backend.feedback.single['photo_paths'], hasLength(2));
@@ -274,6 +279,7 @@ void main() {
     await tester.tap(find.byKey(kGalleryConsentKey));
     await settle(tester);
     await tester.enterText(find.byType(TextField).first, 'Mein Fund');
+    await tester.pump(); // „Senden“ wird erst mit dem nächsten Frame aktiv
     await tester.tap(find.text('Senden'));
     await settle(tester);
     expect(backend.feedback.single['photo_consent'], isTrue);
@@ -300,9 +306,86 @@ void main() {
             'nicht für das nächste');
 
     await tester.enterText(find.byType(TextField).first, 'Mein Fund');
+    await tester.pump(); // „Senden“ wird erst mit dem nächsten Frame aktiv
     await tester.tap(find.text('Senden'));
     await settle(tester);
     expect(backend.feedback.single['photo_consent'], isFalse);
     await drainSnackbars(tester);
+  });
+
+  testWidgets('Art-Hinweis: „Senden" ist nur aktiv, wenn danach wirklich '
+      'gesendet wird — auch mit Fotos', (tester) async {
+    // Feldtest 2026-09-23: drei Schwefelporling-Fotos, kein Text,
+    // „Senden" — und nichts kam an. Ohne Text schloss der Dialog und
+    // verwarf die Fotos, ohne ein Wort.
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend, photoPicker: FakePhotoPicker(dirtyJpeg()));
+    await openTab(tester, 'Pilze');
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Art oder wissenschaftlicher Name'),
+        'Judasohr');
+    await settle(tester);
+    await tester.tap(find.widgetWithText(ListTile, 'Judasohr'));
+    await settle(tester);
+    await tester.scrollUntilVisible(
+        find.text('Hinweis zu dieser Art melden'), 300,
+        scrollable: find
+            .descendant(
+                of: find.byKey(kSpeciesDetailListKey),
+                matching: find.byType(Scrollable))
+            .first);
+    await settle(tester, frames: 4);
+    await tester.tap(find.text('Hinweis zu dieser Art melden'));
+    await settle(tester);
+
+    bool sendEnabled() =>
+        tester.widget<FilledButton>(find.byKey(kReportSendKey)).onPressed !=
+        null;
+    expect(sendEnabled(), isFalse, reason: 'leer: nichts zu senden');
+
+    await tester.tap(find.byKey(kAttachPhotoKey));
+    await settle(tester, frames: 12);
+    expect(sendEnabled(), isFalse,
+        reason: 'ein Foto allein sagt nicht, was daran auffällt');
+    expect(find.textContaining('was auf dem Bild auffällt'), findsOneWidget,
+        reason: 'der Grund steht VOR dem Tipp da');
+
+    await tester.enterText(find.byType(TextField).last, 'ok');
+    await settle(tester);
+    expect(sendEnabled(), isFalse, reason: 'unter $kFeedbackMinChars Zeichen');
+
+    await tester.enterText(
+        find.byType(TextField).last, 'Hut viel gelber als auf den Bildern');
+    await settle(tester);
+    expect(sendEnabled(), isTrue);
+    await tester.tap(find.byKey(kReportSendKey));
+    await settle(tester);
+    expect(backend.feedback, hasLength(1));
+    expect(backend.feedbackPhotoObjects, hasLength(1),
+        reason: 'und die Fotos kommen mit');
+    await drainSnackbars(tester);
+  });
+
+  testWidgets('„Wünsch dir was!": „Senden" bleibt grau, bis genug dasteht',
+      (tester) async {
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend);
+    await openFeedback(tester);
+
+    bool sendEnabled() => tester
+            .widget<ButtonStyleButton>(find.ancestor(
+                of: find.text('Senden'),
+                matching: find.byWidgetPredicate((w) => w is ButtonStyleButton)))
+            .onPressed !=
+        null;
+    expect(sendEnabled(), isFalse);
+    expect(find.text('Ein paar Worte, dann lässt sich senden.'),
+        findsOneWidget);
+
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Dein Wunsch'), 'Fotos zu Funden');
+    await settle(tester);
+    expect(sendEnabled(), isTrue);
+    expect(find.text('Ein paar Worte, dann lässt sich senden.'), findsNothing);
   });
 }

@@ -149,6 +149,7 @@ void main() {
     expect(find.text('Hinweis zu „Steinpilz"'), findsOneWidget);
     await tester.enterText(
         find.byType(TextField).last, 'Das Netz ist auch unten weiß.');
+    await tester.pump(); // „Senden“ wird erst mit dem nächsten Frame aktiv
     await tester.tap(find.text('Senden'));
     await settle(tester);
 
@@ -182,6 +183,7 @@ void main() {
 
     await tester.tap(find.text('Hinweis zu dieser Art melden'));
     await settle(tester);
+    await tester.pump(); // „Senden“ wird erst mit dem nächsten Frame aktiv
     await tester.tap(find.text('Senden'));
     await settle(tester);
     expect(backend.feedback, isEmpty, reason: 'leer heißt nichts');

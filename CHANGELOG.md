@@ -7,6 +7,18 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Meldungen gehen nicht mehr verloren
+
+*23. September 2026 · Version 1.201.1*
+
+- **„Senden" nur, wenn wirklich gesendet wird:** Bei „Hinweis zu dieser
+  Art melden" verschwand eine Meldung ohne Text samt angehängter Fotos
+  still. Jetzt bleibt „Senden" grau, bis ein paar Worte dastehen, und
+  darunter steht, warum. Dasselbe gilt für „Wünsch dir was!".
+- **Tipp auf eine Nachricht nach einem Neustart:** Wer die App vorher
+  ganz geschlossen hatte, landete beim Antippen einer
+  Nachrichten-Meldung nur auf der Karte. Jetzt öffnet sich der Verlauf.
+
 ## Naturschutzgebiete auf der Karte
 
 *23. September 2026 · Version 1.201.0*
