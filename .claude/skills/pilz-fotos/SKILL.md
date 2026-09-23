@@ -249,8 +249,9 @@ Stand. **In zsh die Refspec in Anführungszeichen oder Klammern**
 Modifikator „Endung entfernen", und der Push scheitert mit „src refspec
 … does not match any" (so passiert beim Schwefelporling, #585).
 
-**Nicht jedes kleine Bild hat eine große Fassung** (Stand 2026-09-23: 32
-von 114 fehlen auf dem Branch, darunter die Commons-Tranchen). Die App
+**Nicht jedes kleine Bild hat eine große Fassung** (Stand 2026-09-23: 34
+fehlen auf dem Branch — genau die Commons-Bilder aus #541, das NACH #537
+kam und die 1200er nie nachgezogen hat; Liste im Issue dazu). Die App
 zeigt dann in der Vergrößerung das 400er — kein Fehler, aber eine Lücke.
 Wer ein Bild neu einträgt, legt die 1200er immer mit auf den Branch.
 
