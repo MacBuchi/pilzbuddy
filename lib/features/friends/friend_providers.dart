@@ -4,6 +4,7 @@ import '../../data/providers.dart';
 import '../../models/friendship.dart';
 import '../spots/spot_providers.dart';
 import '../../core/read_after_write.dart';
+import 'message_providers.dart';
 
 class FriendshipsNotifier extends AsyncNotifier<List<FriendshipEntry>>
     with ReadAfterWrite<List<FriendshipEntry>> {
@@ -30,6 +31,10 @@ class FriendshipsNotifier extends AsyncNotifier<List<FriendshipEntry>>
     await ref.read(friendRepositoryProvider).remove(friendshipId);
     await reloadAfterWrite('Freundschaften neu laden');
     ref.invalidate(friendSpotsProvider);
+    // Ablehnen, zurückziehen, entfernen: Die Datenbank löscht den
+    // Verlauf beider Seiten (Trigger, Patch 030) — die Liste muss es
+    // mitbekommen.
+    ref.invalidate(messagesProvider);
   }
 }
 

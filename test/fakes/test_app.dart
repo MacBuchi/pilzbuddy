@@ -35,6 +35,7 @@ import 'package:pilzbuddy/features/offline_maps/offline_map_providers.dart';
 import 'package:pilzbuddy/core/photo_providers.dart';
 import 'package:pilzbuddy/features/tour/tour_providers.dart';
 import 'package:pilzbuddy/features/inat/inat_providers.dart';
+import 'package:pilzbuddy/features/friends/message_providers.dart';
 import 'package:http/testing.dart';
 
 import 'fake_apk_installer.dart';
@@ -320,6 +321,8 @@ List<Override> overridesFor(FakeBackend backend,
           (url) async => throw StateError('Custom Tab ohne FakeInat')),
       findReportRepositoryProvider
           .overrideWithValue(FakeFindReportRepository(backend)),
+      messageRepositoryProvider
+          .overrideWithValue(FakeMessageRepository(backend)),
       // Zuletzt, damit ein Test gezielt etwas aus der Liste oben ersetzen
       // kann — bei Riverpod gewinnt der spätere Eintrag.
       ...extra,

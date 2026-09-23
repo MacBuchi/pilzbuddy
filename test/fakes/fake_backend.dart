@@ -23,7 +23,9 @@ import 'package:pilzbuddy/data/spot_repository.dart';
 import 'package:pilzbuddy/models/find.dart';
 import 'package:pilzbuddy/data/tour_track_repository.dart';
 import 'package:pilzbuddy/features/tour/tour_track.dart';
+import 'package:pilzbuddy/models/buddy_message.dart';
 import 'package:pilzbuddy/models/buddy_track.dart';
+import 'package:pilzbuddy/data/message_repository.dart';
 import 'package:pilzbuddy/models/find_position.dart';
 import 'package:pilzbuddy/models/friend_location.dart';
 import 'package:pilzbuddy/models/friendship.dart';
@@ -174,6 +176,15 @@ class FakeBackend {
   /// Meldungen an iNaturalist (Patch 029): Fund-id → Zeile. Je Fund und
   /// Plattform eine — der Primärschlüssel.
   final findReports = <String, FakeFindReportRow>{};
+
+  /// Nachrichten (Patch 030). Das Limit, der Ablauf und das Löschen beim
+  /// Entfernen stehen in [FakeMessageRepository] bzw. im Freund-Fake.
+  final messages = <BuddyMessage>[];
+
+  /// „Gelesen" bewirkt still nichts (null Zeilen, kein Fehler) — der
+  /// Fall, der ohne Sperre eine Endlosschleife auslöste.
+  bool markReadIgnored = false;
+  int markReadCalls = 0;
   final photoObjects = <String, Uint8List>{};
 
   /// Der Bucket `feedback-photos` (Patch 027): Pfad → Bytes. Nur der
@@ -1305,8 +1316,17 @@ class FakeFriendRepository implements FriendRepository {
           'accepted';
 
   @override
-  Future<void> remove(String friendshipId) async =>
-      backend.friendships.removeWhere((f) => f.id == friendshipId);
+  Future<void> remove(String friendshipId) async {
+    final gone = backend.friendships.where((f) => f.id == friendshipId);
+    for (final f in gone) {
+      // Trigger `friendships_delete_messages` (Patch 030): der Verlauf
+      // beider Seiten geht mit.
+      backend.messages.removeWhere((m) =>
+          (m.senderId == f.requesterId && m.recipientId == f.addresseeId) ||
+          (m.senderId == f.addresseeId && m.recipientId == f.requesterId));
+    }
+    backend.friendships.removeWhere((f) => f.id == friendshipId);
+  }
 }
 
 class FakeLiveShareRepository implements LiveShareRepository {
@@ -1728,3 +1748,88 @@ class FakeSpeciesPhotos implements SpeciesPhotoRepository {
 
 /// Eine Zeile `find_reports`: wem sie gehört, und was darin steht.
 typedef FakeFindReportRow = ({String userId, FindReport report});
+
+/// `buddy_messages` im Fake — mit den Policies aus Patch 030: lesen, was
+/// mich betrifft und nicht abgelaufen ist; schreiben nur bei offener
+/// Anfrage (höchstens drei eigene) oder angenommener Freundschaft;
+/// gelesen markieren nur, was an mich ging; zurücknehmen nur eigene.
+class FakeMessageRepository implements MessageRepository {
+  FakeMessageRepository(this.backend);
+
+  final FakeBackend backend;
+
+  String get _uid => backend.currentUserId!;
+  var _next = 1;
+
+  FakeFriendshipRow? _between(String a, String b) => backend.friendships
+      .where((f) =>
+          (f.requesterId == a && f.addresseeId == b) ||
+          (f.requesterId == b && f.addresseeId == a))
+      .firstOrNull;
+
+  @override
+  Future<List<BuddyMessage>> fetchAll() async {
+    backend.failIfOffline();
+    final now = DateTime.now();
+    return [
+      for (final m in backend.messages)
+        if ((m.senderId == _uid || m.recipientId == _uid) &&
+            m.expiresAt.isAfter(now))
+          m,
+    ]..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+  }
+
+  @override
+  Future<void> send({required String recipientId, required String body}) async {
+    backend.failIfOffline();
+    final f = _between(_uid, recipientId);
+    final sent = backend.messages
+        .where((m) => m.senderId == _uid && m.recipientId == recipientId)
+        .length;
+    final allowed = f != null &&
+        (f.status == 'accepted' || sent < kPendingMessageLimit);
+    final text = body.trim();
+    if (!allowed) throw const MessageRejectedException();
+    if (text.isEmpty || text.length > kMessageMaxLength) {
+      throw StateError('Check verletzt: body');
+    }
+    final now = DateTime.now();
+    backend.messages.add(BuddyMessage(
+      id: 'msg-${_next++}',
+      senderId: _uid,
+      recipientId: recipientId,
+      body: text,
+      createdAt: now,
+      expiresAt: now.add(const Duration(days: kMessageDays)),
+    ));
+  }
+
+  @override
+  Future<void> markRead(String otherId) async {
+    backend.failIfOffline();
+    backend.markReadCalls++;
+    if (backend.markReadIgnored) return;
+    final now = DateTime.now();
+    for (var i = 0; i < backend.messages.length; i++) {
+      final m = backend.messages[i];
+      if (m.senderId == otherId && m.recipientId == _uid && m.readAt == null) {
+        backend.messages[i] = BuddyMessage(
+          id: m.id,
+          senderId: m.senderId,
+          recipientId: m.recipientId,
+          body: m.body,
+          createdAt: m.createdAt,
+          expiresAt: m.expiresAt,
+          readAt: now,
+        );
+      }
+    }
+  }
+
+  @override
+  Future<void> delete(String messageId) async {
+    backend.failIfOffline();
+    backend.messages
+        .removeWhere((m) => m.id == messageId && m.senderId == _uid);
+  }
+}

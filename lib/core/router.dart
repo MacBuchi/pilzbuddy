@@ -10,7 +10,9 @@ import '../features/auth/login_screen.dart';
 import '../features/auth/signup_screen.dart';
 import '../features/changelog/changelog_screen.dart';
 import '../features/help/help_screen.dart';
+import '../features/friends/conversation_screen.dart';
 import '../features/friends/friends_screen.dart';
+import '../features/friends/message_providers.dart';
 import '../features/import_export/import_screen.dart';
 import '../features/map/map_screen.dart';
 import '../features/offline_maps/offline_maps_screen.dart';
@@ -112,7 +114,21 @@ final routerProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(routes: [
             GoRoute(
                 path: '/friends',
-                builder: (context, state) => const FriendsScreen()),
+                builder: (context, state) => const FriendsScreen(),
+                // Der Verlauf mit einem Buddy (#564) als Unterroute: Die
+                // Reiterleiste bleibt, und der Weg zurück ist der
+                // übliche. Der Schlüssel aus demselben Grund wie bei den
+                // Artseiten — sonst übernähme der nächste Verlauf das
+                // Element samt Textfeld des vorigen.
+                routes: [
+                  GoRoute(
+                      path: 'chat/:id',
+                      builder: (context, state) {
+                        final id = state.pathParameters['id'] ?? '';
+                        return ConversationScreen(
+                            key: ValueKey(id), otherId: id);
+                      }),
+                ]),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(
@@ -185,10 +201,37 @@ class AppShell extends StatelessWidget {
           NavigationDestination(icon: Icon(Icons.map_outlined), selectedIcon: Icon(Icons.map), label: 'Karte'),
           NavigationDestination(icon: Icon(Icons.list_alt_outlined), selectedIcon: Icon(Icons.list_alt), label: 'Spots'),
           NavigationDestination(icon: Icon(Icons.menu_book_outlined), selectedIcon: Icon(Icons.menu_book), label: 'Pilze'),
-          NavigationDestination(icon: Icon(Icons.group_outlined), selectedIcon: Icon(Icons.group), label: 'Buddys'),
+          // Ungelesene Nachrichten (#564) als Punkt am Reiter.
+          NavigationDestination(
+              icon: BuddysNavIcon(selected: false),
+              selectedIcon: BuddysNavIcon(selected: true),
+              label: 'Buddys'),
           NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Profil'),
         ],
       ),
+    );
+  }
+}
+
+/// Das Symbol des Reiters „Buddys" — mit Punkt, solange ungelesene
+/// Nachrichten da sind (#564). Beobachten ist laden: Das ist die EINE
+/// Stelle, an der die Nachrichten schon beim Start geholt werden; eine
+/// Zeile je Nachricht aus 30 Tagen, und ohne sie gäbe es den Punkt nicht.
+class BuddysNavIcon extends ConsumerWidget {
+  const BuddysNavIcon({super.key, required this.selected});
+
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unread =
+        ref.watch(unreadMessagesProvider).values.fold(0, (a, b) => a + b);
+    final icon = Icon(selected ? Icons.group : Icons.group_outlined);
+    if (unread == 0) return icon;
+    return Badge(
+      key: const Key('buddys-unread-badge'),
+      label: Text('$unread'),
+      child: icon,
     );
   }
 }

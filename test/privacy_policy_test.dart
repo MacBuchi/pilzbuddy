@@ -293,6 +293,10 @@ void main() {
       // Beobachtung selbst liegt bei iNaturalist, den Zugang hat nur
       // das Gerät.
       'find_reports': 'An iNaturalist melden',
+      // Der Text liegt in der Tabelle, nicht in einem Bucket; das
+      // Verzeichnis sagt ausdrücklich, dass er nicht Ende-zu-Ende
+      // verschlüsselt ist.
+      'buddy_messages': 'Nachrichten an Buddys',
       'push_devices': 'Benachrichtigungen',
       'error_reports': 'Fehlerdiagnose',
       'feedback': 'Feedback',

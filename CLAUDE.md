@@ -1812,6 +1812,33 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   - **Ein Ausfall bei iNaturalist/GBIF gehört nicht in den
     Wochendigest** — `InatException` und Funklöcher werden beim
     Abgleich verschluckt, der gespeicherte Stand gilt.
+- **Nachrichten zwischen Buddys** (#564, seit 1.193.0, Patch 030): Text
+  bis 500 Zeichen, 30 Tage. Entscheidungen im Text von #564. Fünf Dinge,
+  die man wissen muss:
+  - **Die Grenzen zieht die Datenbank.** `app_internal.may_message`:
+    angenommen ⇒ frei, offene Anfrage ⇒ höchstens drei eigene je Person,
+    sonst nichts. Die Zahl im Verlauf („Noch 2 Nachrichten …") ist nur
+    die Ansage vorher.
+  - **Die 30 Tage hängen an SPALTEN-Grants**, nicht nur am Check: Ein
+    Client darf beim Anlegen nur `recipient_id` und `body` setzen, beim
+    Ändern nur `read_at`. Dafür steht zuerst ein `revoke all` — die
+    Legacy-Vorgabe `auto_expose_new_tables` gäbe sonst Tabellen-INSERT,
+    und der schlüge jeden Spalten-Grant. `anon` hat damit GAR keinen
+    Grant; der Schema Check prüft die Tabelle deshalb über
+    `check_get_protected` (42501 = vorhanden, 42703 = Spalte fehlt —
+    gemessen, Postgres löst Spalten vor der Rechteprüfung auf).
+  - **Ende der Freundschaft löscht den Verlauf beider Seiten** (Trigger
+    `friendships_delete_messages`, Definer). `FriendshipsNotifier.remove`
+    verwirft danach die Nachrichtenliste, sonst bliebe der
+    Ungelesen-Punkt stehen.
+  - **„Gelesen" hat eine Sperre: ein Versuch je Nachricht und Öffnen.**
+    Ohne sie markierte der Verlauf bei jeder neuen Liste erneut, und
+    jede Markierung lud neu — bewirkte der Server nichts, lief das ohne
+    Ende (Gegenprobe; der Test dazu HÄNGT ohne Sperre, weil die Schleife
+    über Microtasks läuft und kein Test-Timeout greift).
+  - **Die Nachrichten lädt der Reiter-Punkt beim Start** (`BuddysNavIcon`)
+    — eine Abfrage für alle Verläufe. Kein Realtime; frisch geholt wird
+    beim Öffnen eines Verlaufs und per Ziehen. Push mit Text ist Stufe 2.
 - **Fundstellen weit vom Spot** (#475, seit 1.156.0): Ab 100 m
   (`kFindFixMaxOffsetM`, dieselbe Grenze wie der Riegel beim Eintragen)
   trägt der eigene Spot ein „!"-Abzeichen (im selben Kreis wie Uhr und
