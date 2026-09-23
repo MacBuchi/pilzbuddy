@@ -63,6 +63,23 @@ void main() {
     expect((small.width, small.height), (300, 200), reason: 'nicht vergrößert');
   });
 
+  test('Galerie-Größe: 2048er Kante, genauso nackt', () {
+    // Art-Hinweise dürfen in die 1200er Artgalerie (#569). Aus 4:3
+    // müssen im Quadrat mehr als 1200 px bleiben.
+    final prepared = prepareGalleryPhoto(dirtyJpeg(width: 4000, height: 3000));
+    expect((prepared.width, prepared.height), (kGalleryPhotoMaxEdge, 1536));
+    expect(prepared.height, greaterThan(1200));
+    final thumb = img.decodeJpg(prepared.thumb)!;
+    expect(thumb.width, kPhotoThumbEdge, reason: 'die Vorschau bleibt klein');
+    for (final bytes in [prepared.full, prepared.thumb]) {
+      expect(jpegForeignMarkers(bytes), isEmpty);
+      expect(hasText(bytes, 'Buchenhang'), isFalse);
+      expect(img.decodeJpg(bytes)!.exif.isEmpty, isTrue);
+    }
+    final small = prepareGalleryPhoto(dirtyJpeg(width: 300, height: 200));
+    expect((small.width, small.height), (300, 200), reason: 'nicht vergrößert');
+  });
+
   test('die Drehung wird eingebacken, bevor EXIF wegfällt', () {
     // Orientierung 6: das Bild liegt um 90° gedreht auf dem Sensor und
     // muss zur Anzeige im Uhrzeigersinn gedreht werden. Danach steht die

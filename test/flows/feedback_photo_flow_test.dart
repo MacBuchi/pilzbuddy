@@ -10,6 +10,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
 import 'package:pilzbuddy/core/photo_pipeline.dart';
 import 'package:pilzbuddy/core/widgets/photo_attachment.dart';
 import 'package:pilzbuddy/data/feedback_repository.dart';
@@ -38,7 +39,7 @@ void main() {
   testWidgets('ein Bild am Bug: nackt im Bucket, Pfad im eigenen Ordner, '
       'nicht öffentlich', (tester) async {
     final (backend, me) = loggedInBackend();
-    final picker = FakePhotoPicker(dirtyJpeg());
+    final picker = FakePhotoPicker(dirtyJpeg(width: 3000, height: 2250));
     await pumpApp(tester, backend, photoPicker: picker);
     await openFeedback(tester);
 
@@ -68,6 +69,9 @@ void main() {
     expect(jpegForeignMarkers(bytes), isEmpty);
     expect(hasText(bytes, 'Buchenhang'), isFalse);
     expect(hasText(bytes, 'Exif'), isFalse);
+    expect(img.decodeJpg(bytes)!.width, kPhotoMaxEdge,
+        reason: 'allgemeines Feedback bleibt klein — Screenshots, keine '
+            'Galerie');
     expect(backend.feedbackPhotoObjects, hasLength(1),
         reason: 'nur das Bild, keine Vorschau — die braucht hier niemand');
     await drainSnackbars(tester);
@@ -119,10 +123,11 @@ void main() {
     await drainSnackbars(tester);
   });
 
-  testWidgets('„Hinweis zu dieser Art melden" nimmt ein Bild mit',
-      (tester) async {
+  testWidgets('„Hinweis zu dieser Art melden" nimmt ein Bild mit — in '
+      'Galerie-Größe', (tester) async {
     final (backend, me) = loggedInBackend();
-    await pumpApp(tester, backend, photoPicker: FakePhotoPicker(dirtyJpeg()));
+    await pumpApp(tester, backend,
+        photoPicker: FakePhotoPicker(dirtyJpeg(width: 3000, height: 2250)));
     await openTab(tester, 'Pilze');
     await tester.enterText(
         find.widgetWithText(TextField, 'Art oder wissenschaftlicher Name'),
@@ -153,9 +158,17 @@ void main() {
     expect(row['type'], 'bug');
     expect(row['message'],
         'Hinweis zur Art „Judasohr": Bei mir sind sie viel dunkler.');
-    expect((row['photo_paths'] as List<String>).single,
-        startsWith('${me.id}/'));
+    final path = (row['photo_paths'] as List<String>).single;
+    expect(path, startsWith('${me.id}/'));
     expect(backend.feedbackPhotoObjects, hasLength(1));
+    // Das Hochgeladene ist bei einem fremden Melder die einzige Kopie —
+    // mit 1024 blieben der 1200er Galerie aus 4:3 nur 768 px im Quadrat.
+    final bytes = backend.feedbackPhotoObjects[path]!;
+    final uploaded = img.decodeJpg(bytes)!;
+    expect((uploaded.width, uploaded.height), (kGalleryPhotoMaxEdge, 1536));
+    expect(jpegForeignMarkers(bytes), isEmpty,
+        reason: 'größer heißt nicht weniger entkernt');
+    expect(hasText(bytes, 'Buchenhang'), isFalse);
     await drainSnackbars(tester);
   });
 

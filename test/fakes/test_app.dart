@@ -229,6 +229,8 @@ List<Override> overridesFor(FakeBackend backend,
       photoPickerProvider
           .overrideWithValue((photoPicker ?? FakePhotoPicker()).call),
       photoPreparerProvider.overrideWithValue((bytes) async => preparePhoto(bytes)),
+      galleryPhotoPreparerProvider
+          .overrideWithValue((bytes) async => prepareGalleryPhoto(bytes)),
       liveShareRepositoryProvider
           .overrideWithValue(FakeLiveShareRepository(backend)),
       // Kein 15-Sekunden-Poll im Test: einmal laden statt Dauerschleife.
