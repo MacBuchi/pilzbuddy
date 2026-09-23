@@ -244,7 +244,15 @@ ihrem alten kleinen Bild das neue große zeigen. Die alte große Datei
 bleibt auf dem Branch liegen; aus `assets/species/` fliegt die kleine.
 Der Branch ist ein Wurzel-Commit: alten Baum übernehmen, neue Dateien
 dazu, `git commit-tree`, dann `--force-with-lease` auf den bekannten
-Stand.
+Stand. **In zsh die Refspec in Anführungszeichen oder Klammern**
+(`"${commit}:refs/heads/species-photos"`): `$commit:r…` liest zsh als
+Modifikator „Endung entfernen", und der Push scheitert mit „src refspec
+… does not match any" (so passiert beim Schwefelporling, #585).
+
+**Nicht jedes kleine Bild hat eine große Fassung** (Stand 2026-09-23: 32
+von 114 fehlen auf dem Branch, darunter die Commons-Tranchen). Die App
+zeigt dann in der Vergrößerung das 400er — kein Fehler, aber eine Lücke.
+Wer ein Bild neu einträgt, legt die 1200er immer mit auf den Branch.
 
 Unter den Bildern steht `kPhotoDisclaimer`, einmal je Seite, und zwar
 gebunden an „zeigt diese Seite irgendein Bild" — nicht an „gibt es

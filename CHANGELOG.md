@@ -7,6 +7,14 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Schwefelporling: ein zweites Bild
+
+*23. September 2026 · Version 1.201.2*
+
+Der Schwefelporling hat ein zweites Foto aus dem Feld bekommen: ein
+älteres, ausgeblichenes Stück an einem Stamm. So steht er im Herbst oft
+da — cremig statt schwefelgelb. Das gelbe Bild bleibt vorn, denn daran
+erkennt man ihn.
 ## Meldungen gehen nicht mehr verloren
 
 *23. September 2026 · Version 1.201.1*
