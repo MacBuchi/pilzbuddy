@@ -328,7 +328,7 @@ void main() {
     ];
     expect(alle.where((e) => e.hasPictures).length, alle.length,
         reason: 'jede Art zeigt ein Bild');
-    expect(alle.length, 92);
+    expect(alle.length, 93);
   });
 
   test('ohne Bild kein Auge — über die Naht, nicht über den Bestand', () {

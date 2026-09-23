@@ -210,6 +210,25 @@ umbenannt).
 dritte Bildquelle anlegt, hängt sie dort ein; ein nicht genanntes
 CC-BY-Bild ist ein Lizenzverstoß, und der fiele sonst niemandem auf.
 
+**Die Obergrenze von drei heißt „best of", nicht „wer zuerst kam".**
+Ein neues Bild darf ein altes verdrängen, wenn es mehr zeigt — beim
+Fichtenreizker (#568) flog der Hut von oben für das Schnittbild mit
+Milch und Grünen raus, weil nur das den Pilz wirklich erkennbar macht.
+Jede Reihe braucht dabei die Ansicht, an der man unterscheidet: Fehlt
+etwa die Unterseite, ist das die Lücke, die zuerst gefüllt wird
+(Betreiber). Eine Collage aus zwei Ansichten ist erlaubt, wenn sonst ein
+Detail fehlt — dann aber so zugeschnitten, dass sie bei 400 px lesbar
+bleibt.
+
+**Ein ersetztes Bild bekommt einen NEUEN Dateinamen** (`-4`, `-5` …),
+nie den alten. Die große Fassung liegt unter demselben Namen auf dem
+Branch `species-photos` (#537), und ausgelieferte Apps würden sonst zu
+ihrem alten kleinen Bild das neue große zeigen. Die alte große Datei
+bleibt auf dem Branch liegen; aus `assets/species/` fliegt die kleine.
+Der Branch ist ein Wurzel-Commit: alten Baum übernehmen, neue Dateien
+dazu, `git commit-tree`, dann `--force-with-lease` auf den bekannten
+Stand.
+
 Unter den Bildern steht `kPhotoDisclaimer`, einmal je Seite, und zwar
 gebunden an „zeigt diese Seite irgendein Bild" — nicht an „gibt es
 Porträts", sonst stünde unter den Vergleichspaaren nichts.

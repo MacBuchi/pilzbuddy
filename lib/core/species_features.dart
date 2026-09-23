@@ -652,6 +652,21 @@ const speciesFeatures = <String, SpeciesFeatures>{
     geruch: 'Obstig, Geschmack mild bis leicht bitterlich.',
     vorkommen: 'Mykorrhiza AUSSCHLIESSLICH bei Fichte; Juli bis Oktober.',
   ),
+  'Grubiger Milchling': (
+    hut: 'Acht bis 20 cm, stroh- bis ockergelb, schwach gezont, trichterig '
+        'vertieft; der Rand jung eingerollt und ZOTTIG-wollig.',
+    unterseite: 'Lamellen cremeweiß, gedrängt, kurz herablaufend, im Alter '
+        'bräunlich fleckig.',
+    stiel: 'Kurz, dick und hohl, blass mit auffälligen ockergelben '
+        'GRÜBCHEN — wie beim Reizker; das Merkmal trennt die beiden nicht.',
+    fleisch: 'Weiß und fest; Milch WEISS, an der Luft binnen Sekunden '
+        'SCHWEFELGELB.',
+    geruch: 'Unauffällig; die Milch schmeckt nach kurzer Zeit bitter und '
+        'scharf.',
+    vorkommen: 'Mykorrhiza mit FICHTE, in Fichten- und Tannen-Buchenwäldern '
+        'auf feuchtem, kalkhaltigem Boden im Hügel- und Bergland; Juli bis '
+        'November.',
+  ),
   'Edelreizker': (
     hut: 'Vier bis 14 cm, orange mit deutlich konzentrischen ZONEN, '
         'trichterig vertieft, nur wenig und spät grünend.',

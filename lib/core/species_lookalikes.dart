@@ -595,6 +595,13 @@ const speciesLookalikes = <String, List<Lookalike>>{
           'Milch und hat weinrot überhauchte Lamellen; beim '
           'Fichtenreizker ist die Milch zunächst karottenrot.'
     ),
+    (
+      species: 'Grubiger Milchling',
+      difference: 'Der Grubige Milchling hat dieselben Stielgrübchen, und '
+          'ein VERBLASSTER Fichtenreizker ist in der Farbe kaum von ihm zu '
+          'trennen (#568). Seine Milch aber ist WEISS und wird rasch '
+          'schwefelgelb, der Hutrand ist zottig, und er grünt nie.'
+    ),
   ],
   'Edelreizker': [
     (
@@ -615,6 +622,27 @@ const speciesLookalikes = <String, List<Lookalike>>{
           'Milch; die des Edelreizkers ist karottenrot. Beide stehen '
           'bei Kiefer, der Kiefernreizker aber auf Kalk und später im '
           'Jahr.'
+    ),
+    (
+      species: 'Grubiger Milchling',
+      difference: 'Der Grubige Milchling trägt dieselben dunklen '
+          'Stielgrübchen, ist aber stroh- bis ockergelb statt orange, hat '
+          'einen zottigen Rand und WEISSE Milch, die rasch schwefelgelb '
+          'wird. Er steht bei Fichte, nicht bei Kiefer.'
+    ),
+  ],
+  'Grubiger Milchling': [
+    (
+      species: 'Fichtenreizker',
+      difference: 'Der Fichtenreizker führt KAROTTENROTE Milch, läuft '
+          'großflächig grün an und hat einen kahlen Rand. Auf die Farbe '
+          'ist kein Verlass: Verblasst sehen beide fast gleich aus.'
+    ),
+    (
+      species: 'Edelreizker',
+      difference: 'Der Edelreizker ist kräftig orange und deutlich gezont, '
+          'seine Milch bleibt KAROTTENROT, und er steht bei Kiefer. Die '
+          'Grübchen am Stiel haben beide — sie trennen nichts.'
     ),
   ],
   'Lachsreizker': [

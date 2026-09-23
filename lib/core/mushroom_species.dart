@@ -161,6 +161,10 @@ const kBekannteArten = <KnownSpecies>[
   KnownSpecies('Edelreizker', _tae, sci: 'Lactarius deliciosus'),
   KnownSpecies('Lachsreizker', _tae, sci: 'Lactarius salmonicolor'),
   KnownSpecies('Kiefernreizker', _tae, sci: 'Lactarius sanguifluus'),
+  // Giftig, und mit dem Reizker verwechselt: Stielgrübchen wie der
+  // Edel- und Fichtenreizker, verblasst fast dieselbe Farbe (#568,
+  // Betreiber-Fund). Den Unterschied trägt die Milch.
+  KnownSpecies('Grubiger Milchling', _tae, sci: 'Lactarius scrobiculatus'),
   KnownSpecies('Mohrenkopfmilchling', _tae, sci: 'Lactarius lignyotus'),
   KnownSpecies('Brätling', _tae, sci: 'Lactifluus volemus'),
   // Morcheln & Lorcheln

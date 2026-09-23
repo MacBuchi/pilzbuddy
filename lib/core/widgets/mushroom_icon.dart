@@ -388,6 +388,15 @@ class _MushroomPainter extends CustomPainter {
         stemPattern: _StemPattern.net,
         stemPatternColor: Color(0xE6FFFBF2)),
 
+    // Grubiger Milchling (#568): strohgelber Trichter über einem blassen
+    // Stiel mit ockergelben Grübchen. Die Grübchen hat auch der Reizker —
+    // was das Symbol vom Reizker trennt, ist das GELB statt Orange und
+    // die fehlenden Zonen.
+    'grubiger milchling': _Style(_CapShape.funnel, [Color(0xFFE3C97A)],
+        stemColor: Color(0xFFF1E6C8),
+        stemPattern: _StemPattern.flecks,
+        stemPatternColor: Color(0xCCC08A2E)),
+
     // --- Leistlinge: der Pfifferling hatte seine Familie mitgefärbt
     // Graubrauner Trichter, in der Mitte durchbohrt — vom dottergelben
     // Pfifferling so weit entfernt wie möglich.

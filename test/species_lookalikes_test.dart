@@ -140,9 +140,16 @@ void main() {
             'Satansröhrling (Giftig), Schönfußröhrling (Ungenießbar)');
     expect(lookalikesFor('Steinpilz').length, 6,
         reason: 'die Artseite zeigt weiterhin alle sechs');
-    // Und wenn ALLE Partner harmlos sind, steht dort nichts.
-    expect(lookalikesFor('Edelreizker'), isNotEmpty);
-    expect(confusionHint('Edelreizker'), isNull);
+    // Und wenn ALLE Partner harmlos sind, steht dort nichts. (Bis
+    // 1.197.x war das der Edelreizker — seit #568 hat er mit dem
+    // Grubigen Milchling einen giftigen Partner, und genau der steht
+    // jetzt da.)
+    expect(lookalikesFor('Lachsreizker'), isNotEmpty);
+    expect(confusionHint('Lachsreizker'), isNull);
+    expect(confusionHint('Edelreizker'),
+        'Wird verwechselt mit: Grubiger Milchling (Giftig)');
+    expect(confusionHint('Fichtenreizker'),
+        'Wird verwechselt mit: Grubiger Milchling (Giftig)');
     expect(confusionHint('Speitäubling'),
         'Wird verwechselt mit: Speisetäubling');
     expect(confusionHint('Stockschwämmchen'),
