@@ -39,7 +39,7 @@ Stand 2026-09-08, nachgesehen im Code, nicht angenommen.
 |---|---|
 | Fehlerberichte werden nach 90 Tagen gelöscht | `tool/feedback_bot.py`, `ERROR_REPORT_RETENTION_DAYS`; läuft im 2-Stunden-Cron mit |
 | Feedback wird öffentlich | `feedback_bot.py` legt daraus GitHub-Issues an — das Repo ist öffentlich |
-| Ein Bild am Feedback wird NICHT veröffentlicht und nach 90 Tagen gelöscht | Bucket `feedback-photos` hat keine Select-Policy für Nutzer (Patch 027); `feedback_issue_body` nennt im Issue nur den Dateinamen, keinen Pfad und keine Nutzer-id (Selbsttest); `sweep_feedback_photos` löscht Objekte älter als `ERROR_REPORT_RETENTION_DAYS` |
+| Bilder am Feedback (bis zu drei, Patch 033) werden NICHT veröffentlicht und nach 90 Tagen gelöscht | Bucket `feedback-photos` hat keine Select-Policy für Nutzer (Patch 027); `feedback_issue_body` nennt im Issue nur den Dateinamen, keinen Pfad und keine Nutzer-id (Selbsttest); `sweep_feedback_photos` löscht Objekte älter als `ERROR_REPORT_RETENTION_DAYS` |
 | Live-Standort läuft von selbst ab | `live_locations.expires_at`, gespiegelt in der RLS-Policy und im Fake |
 | Fundfotos tragen keine Aufnahmedaten und laufen nach 14 Tagen ab | `lib/core/photo_pipeline.dart` kodiert neu, leert EXIF und liest die Segmente des Ergebnisses; `test/photo_pipeline_test.dart` schickt ein Bild mit GPS-EXIF, XMP und Kommentar hindurch und prüft die Bytes. Frist: `find_photos.expires_at` mit Default UND Constraint (Patch 026), Freundes-Policy filtert darüber, `tool/feedback_bot.py` (`sweep_find_photos`) löscht Zeilen und Bucket-Objekte per Abgleich |
 | Benachrichtigungen sind ab Werk aus | `push_devices` hat keine Zeile ohne Zustimmung; eine Zeile IST die Zustimmung |
@@ -151,7 +151,7 @@ so in der Erklärung.
 | Vorhersage prüfen | Fund/Leergang mit Ort und Datum | Art. 6 (1) f | Supabase | bis zur Löschung |
 | Fehlerdiagnose | Fehlertext, Stack, Version, Plattform | Art. 6 (1) f | Supabase | 90 Tage |
 | Feedback | Text, Benutzername | Art. 6 (1) a | GitHub, öffentlich | dauerhaft |
-| Bild am Feedback | Bild (≤ 1024 px, ohne Metadaten) | Art. 6 (1) a | Supabase (Storage), nur der Betreiber | 90 Tage |
+| Bilder am Feedback | bis zu drei Bilder (≤ 1024 px, ohne Metadaten) | Art. 6 (1) a | Supabase (Storage), nur der Betreiber | 90 Tage |
 
 Keine automatisierte Entscheidungsfindung, kein Profiling, keine
 Werbung. Betroffene sind ausschließlich Nutzer der App.

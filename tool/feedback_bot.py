@@ -402,6 +402,18 @@ def dashboard_bucket_url(bucket: str) -> str:
     return f"https://supabase.com/dashboard/project/{ref}/storage/buckets/{bucket}"
 
 
+def feedback_photo_names(row: dict) -> list[str]:
+    """Die Dateinamen der Bilder einer Zeile — ohne Ordner.
+
+    Neue Clients schreiben `photo_paths` (Patch 033, bis zu drei), die
+    Clients 1.186.0–1.195.x weiter `photo_path`. Beide werden gelesen;
+    steht (warum auch immer) beides da, zählt jedes Bild einmal."""
+    paths = list(row.get("photo_paths") or [])
+    if row.get("photo_path") and row["photo_path"] not in paths:
+        paths.insert(0, row["photo_path"])
+    return [p.rsplit("/", 1)[-1] for p in paths]
+
+
 def feedback_issue_body(row: dict, username: str) -> str:
     """Der Text des Issues.
 
@@ -416,13 +428,15 @@ def feedback_issue_body(row: dict, username: str) -> str:
     sucht den Namen."""
     version = row.get("app_version")
     aus = f" aus Version {version}" if version else ""
-    photo = row.get("photo_path")
+    names = feedback_photo_names(row)
     bild = ""
-    if photo:
-        name = photo.rsplit("/", 1)[-1]
+    if names:
+        liste = ", ".join(f"`{n}`" for n in names)
+        was = ("Ein Bild ist angehängt" if len(names) == 1
+               else f"{len(names)} Bilder sind angehängt")
         bild = (
-            f"\n\n📎 Ein Bild ist angehängt — nicht öffentlich, nur im Bucket "
-            f"`{FEEDBACK_PHOTO_BUCKET}` als `{name}` "
+            f"\n\n📎 {was} — nicht öffentlich, nur im Bucket "
+            f"`{FEEDBACK_PHOTO_BUCKET}` als {liste} "
             f"({dashboard_bucket_url(FEEDBACK_PHOTO_BUCKET)}); "
             f"wird nach {ERROR_REPORT_RETENTION_DAYS} Tagen gelöscht."
         )
@@ -469,7 +483,7 @@ def main() -> None:
     rows = api(
         "GET",
         "/rest/v1/feedback?processed_at=is.null&order=created_at"
-        "&select=id,type,message,species_name,created_at,app_version,photo_path,profiles(username)",
+        "&select=id,type,message,species_name,created_at,app_version,photo_path,photo_paths,profiles(username)",
     )
     if not rows:
         print("No unprocessed feedback.")
@@ -494,7 +508,7 @@ def main() -> None:
                 mark_processed([row["id"]])
             else:
                 species_additions.append((name, group_for(name)))
-                bild = " — mit Bild im Bucket" if row.get("photo_path") else ""
+                bild = " — mit Bild im Bucket" if feedback_photo_names(row) else ""
                 species_authors.append(f"{name} (von {username}){bild}")
                 known.add(name.lower())
                 species_ids.append(row["id"])
@@ -623,6 +637,16 @@ def self_test_sweep() -> None:
     assert "1234-uid" not in body, body
     assert "storage/buckets/feedback-photos" in body, body
     assert "aus Version 1.186.0" in body, body
+    # Drei Bilder (Patch 033): alle Namen, keiner mit Ordner.
+    many = {**row, "photo_path": None,
+            "photo_paths": ["1234-uid/a1.jpg", "1234-uid/b2.jpg", "1234-uid/c3.jpg"]}
+    body = feedback_issue_body(many, "waldfee")
+    assert "3 Bilder sind angehängt" in body, body
+    assert "`a1.jpg`, `b2.jpg`, `c3.jpg`" in body, body
+    assert "1234-uid" not in body, body
+    # Beide Spalten gefüllt: jedes Bild einmal.
+    both = {**row, "photo_paths": ["1234-uid/deadbeef.jpg", "1234-uid/x.jpg"]}
+    assert feedback_photo_names(both) == ["deadbeef.jpg", "x.jpg"], feedback_photo_names(both)
     plain = feedback_issue_body({"message": "x", "created_at": "2026-09-22"}, "w")
     assert "📎" not in plain and "aus Version" not in plain, plain
     print("sweep self-test passed (no network, nothing written)")

@@ -1024,7 +1024,7 @@ class _ReportButton extends ConsumerWidget {
       }
       await ref.read(feedbackRepositoryProvider).submit(
           FeedbackType.bug, 'Hinweis zur Art „$species": ${text.trim()}',
-          appVersion: version, photo: result.photo);
+          appVersion: version, photos: result.photos);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('Danke — der Hinweis wird geprüft. 🍄')));
@@ -1049,7 +1049,7 @@ class _ReportButton extends ConsumerWidget {
       );
 }
 
-typedef _ReportInput = ({String text, PreparedPhoto? photo});
+typedef _ReportInput = ({String text, List<PreparedPhoto> photos});
 
 class _ReportDialog extends StatefulWidget {
   const _ReportDialog({
@@ -1069,9 +1069,10 @@ class _ReportDialog extends StatefulWidget {
 class _ReportDialogState extends State<_ReportDialog> {
   final _text = TextEditingController();
 
-  /// Ein Bild dazu (#525): der Fund, der der Merkmalstabelle
-  /// widerspricht — genau der Fall, aus dem der Wunsch kam.
-  PreparedPhoto? _photo;
+  /// Bilder dazu (#525, bis zu drei seit #569): der Fund, der der
+  /// Merkmalstabelle widerspricht — Hut, Unterseite, Stiel; ein Bild
+  /// allein zeigt selten das Merkmal, um das es geht.
+  List<PreparedPhoto> _photos = const [];
 
   @override
   void dispose() {
@@ -1082,7 +1083,10 @@ class _ReportDialogState extends State<_ReportDialog> {
   @override
   Widget build(BuildContext context) => AlertDialog(
         title: Text('Hinweis zu „${widget.species}"'),
-        content: Column(
+        // Scrollbar: Mit drei Bildern ist der Dialog auf einem kleinen
+        // Telefon mit offener Tastatur höher als der Platz.
+        content: SingleChildScrollView(
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -1098,13 +1102,15 @@ class _ReportDialogState extends State<_ReportDialog> {
               ),
             ),
             const SizedBox(height: 8),
-            PhotoAttachment(
+            PhotoAttachmentList(
               pick: widget.pickPhoto,
               prepare: widget.preparePhoto,
-              photo: _photo,
-              onChanged: (photo) => setState(() => _photo = photo),
+              photos: _photos,
+              max: kFeedbackMaxPhotos,
+              onChanged: (photos) => setState(() => _photos = photos),
             ),
           ],
+          ),
         ),
         actions: [
           TextButton(
@@ -1113,7 +1119,7 @@ class _ReportDialogState extends State<_ReportDialog> {
           ),
           FilledButton(
             onPressed: () => Navigator.of(context)
-                .pop((text: _text.text, photo: _photo)),
+                .pop((text: _text.text, photos: _photos)),
             child: const Text('Senden'),
           ),
         ],

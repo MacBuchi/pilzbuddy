@@ -257,6 +257,10 @@ create table public.feedback (
   -- Ein Bild dazu (Patch 027, #525): Pfad im Bucket `feedback-photos`,
   -- `<user_id>/<zufall>.jpg`. Anders als der Text NICHT öffentlich.
   photo_path text,
+  -- Bis zu drei Bilder (Patch 033, #569) — neue Clients schreiben NUR
+  -- hierhin, `photo_path` bleibt für 1.186.0–1.195.x. Der Check dazu
+  -- steht nach `app_internal` weiter unten (er braucht eine Funktion).
+  photo_paths text[],
   created_at timestamptz not null default now(),
   constraint feedback_photo_owner
     check (photo_path is null or photo_path like (user_id::text || '/%'))
@@ -368,6 +372,19 @@ create table app_internal.push_messages (
   created_at timestamptz not null default now()
 );
 grant usage on schema app_internal to anon, authenticated;
+
+-- Feedback-Bilder (Patch 033): höchstens drei, jedes im Ordner des
+-- Melders. Eine Funktion, weil ein CHECK kein Array durchlaufen kann.
+create or replace function app_internal.feedback_photos_ok(paths text[], owner uuid)
+returns boolean language sql immutable as $$
+  select paths is null
+      or (cardinality(paths) between 1 and 3
+          and not exists (select 1 from unnest(paths) p
+                          where p is null or p not like (owner::text || '/%')));
+$$;
+alter table public.feedback
+  add constraint feedback_photos_owner
+  check (app_internal.feedback_photos_ok(photo_paths, user_id));
 
 create or replace function app_internal.are_friends(a uuid, b uuid)
 returns boolean language sql stable security definer set search_path = public as $$
@@ -1107,5 +1124,6 @@ insert into public.applied_patches (filename) values
   ('patch_029_inat_meldungen.sql'),
   ('patch_030_buddy_nachrichten.sql'),
   ('patch_031_nachrichten_push.sql'),
-  ('patch_032_buddy_alias.sql')
+  ('patch_032_buddy_alias.sql'),
+  ('patch_033_feedback_bilder.sql')
 on conflict do nothing;

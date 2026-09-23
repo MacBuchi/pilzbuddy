@@ -1492,29 +1492,40 @@ class FakeFeedbackRepository implements FeedbackRepository {
 
   /// Spiegel von Patch 027: Objekt in den Bucket, Pfad in die Zeile —
   /// nur JPEG, nur der eigene Ordner.
-  String? _store(PreparedPhoto? photo) {
-    if (photo == null) return null;
-    final path = '${backend.currentUserId}/feedback-${++_seq}.jpg';
-    backend.feedbackPhotoObjects[path] = photo.full;
-    return path;
+  /// Wie in echt: erst die Objekte, dann die Zeile; der Check aus
+  /// Patch 033 lässt höchstens drei Pfade zu.
+  List<String>? _store(List<PreparedPhoto> photos) {
+    if (photos.length > kFeedbackMaxPhotos) {
+      throw StateError('Check verletzt: feedback_photos_owner');
+    }
+    if (photos.isEmpty) return null;
+    final paths = <String>[];
+    for (final photo in photos) {
+      final path = '${backend.currentUserId}/feedback-${++_seq}.jpg';
+      backend.feedbackPhotoObjects[path] = photo.full;
+      paths.add(path);
+    }
+    return paths;
   }
 
   @override
   Future<void> submit(FeedbackType type, String message,
-      {String? appVersion, PreparedPhoto? photo}) async {
+      {String? appVersion, List<PreparedPhoto> photos = const []}) async {
     if (backend.offline) throw const SocketException('kein Netz (Fake)');
     backend.feedback.add({
       'user_id': backend.currentUserId,
       'type': type == FeedbackType.bug ? 'bug' : 'feature',
       'message': message.trim(),
       'app_version': appVersion,
-      'photo_path': _store(photo),
+      'photo_paths': _store(photos),
     });
   }
 
   @override
   Future<void> submitSpecies(String speciesName,
-      {String? note, String? appVersion, PreparedPhoto? photo}) async {
+      {String? note,
+      String? appVersion,
+      List<PreparedPhoto> photos = const []}) async {
     if (backend.offline) throw const SocketException('kein Netz (Fake)');
     backend.feedback.add({
       'user_id': backend.currentUserId,
@@ -1522,7 +1533,7 @@ class FakeFeedbackRepository implements FeedbackRepository {
       'species_name': speciesName.trim(),
       'message': note,
       'app_version': appVersion,
-      'photo_path': _store(photo),
+      'photo_paths': _store(photos),
     });
   }
 }

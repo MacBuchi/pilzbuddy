@@ -404,11 +404,11 @@ class MapBanners extends ConsumerWidget {
       }
       if (result.type == FeedbackType.species) {
         await ref.read(feedbackRepositoryProvider).submitSpecies(result.text,
-            note: result.note, appVersion: version, photo: result.photo);
+            note: result.note, appVersion: version, photos: result.photos);
       } else {
         await ref.read(feedbackRepositoryProvider).submit(
             result.type, result.text,
-            appVersion: version, photo: result.photo);
+            appVersion: version, photos: result.photos);
       }
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -1023,10 +1023,10 @@ class _FeedbackInput {
   final String text;
   final String? note;
 
-  /// Ein Bild dazu (#525) — schon durch die Pipeline.
-  final PreparedPhoto? photo;
+  /// Bilder dazu (#525, bis zu drei seit #569) — schon durch die Pipeline.
+  final List<PreparedPhoto> photos;
 
-  const _FeedbackInput(this.type, this.text, this.note, this.photo);
+  const _FeedbackInput(this.type, this.text, this.note, this.photos);
 }
 
 class _FeedbackDialog extends StatefulWidget {
@@ -1045,7 +1045,7 @@ class _FeedbackDialogState extends State<_FeedbackDialog> {
   FeedbackType _type = FeedbackType.feature;
   final _textController = TextEditingController();
   final _noteController = TextEditingController();
-  PreparedPhoto? _photo;
+  List<PreparedPhoto> _photos = const [];
 
   bool get _isSpecies => _type == FeedbackType.species;
 
@@ -1069,7 +1069,7 @@ class _FeedbackDialogState extends State<_FeedbackDialog> {
       _type,
       text,
       _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
-      _photo,
+      _photos,
     ));
   }
 
@@ -1201,14 +1201,16 @@ class _FeedbackDialogState extends State<_FeedbackDialog> {
               ),
             ],
             const SizedBox(height: 8),
-            // Ein Bild dazu (#525): ein Screenshot zum Bug, ein Foto zur
-            // Pilzart. Es geht NICHT nach GitHub — der Satz dazu steht
-            // am Anhang selbst, sobald einer da ist.
-            PhotoAttachment(
+            // Bilder dazu (#525, bis zu drei seit #569): ein Screenshot
+            // zum Bug, Fotos zur Pilzart — Hut, Unterseite, Stiel. Sie
+            // gehen NICHT nach GitHub — der Satz dazu steht am Anhang
+            // selbst, sobald einer da ist.
+            PhotoAttachmentList(
               pick: widget.pickPhoto,
               prepare: widget.preparePhoto,
-              photo: _photo,
-              onChanged: (photo) => setState(() => _photo = photo),
+              photos: _photos,
+              max: kFeedbackMaxPhotos,
+              onChanged: (photos) => setState(() => _photos = photos),
             ),
             const SizedBox(height: 8),
             Text(

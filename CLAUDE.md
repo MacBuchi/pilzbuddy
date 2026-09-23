@@ -1759,6 +1759,17 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     keine Nutzer-id (`feedback_issue_body`, Selbsttest). Frist 90 Tage
     wie die Fehlerberichte, der Bot fegt per Erstellzeit; die Zeile
     behält ihren Pfad ins Leere, das Issue existiert ja.
+    **Seit 1.196.0 bis zu DREI Bilder** (#569, Patch 033):
+    `PhotoAttachmentList`, Repository nimmt eine Liste. Die Pfade stehen
+    als Array `photo_paths` in der Zeile, KEINE Kindtabelle — die App
+    darf ihre Feedback-Zeile nicht zurücklesen, eine Kindtabelle
+    bräuchte deshalb eine vorab erzeugte id und eine Definer-Funktion.
+    Grenze und Ordner erzwingt der Check über
+    `app_internal.feedback_photos_ok` (ein CHECK kann kein Array
+    durchlaufen). **`photo_path` bleibt**, solange 1.186.0–1.195.x im
+    Feld sind; neue Clients schreiben nur `photo_paths`, der Bot liest
+    beide (`feedback_photo_names`). Erst danach darf die alte Spalte
+    weg — erweitern → ausliefern → entfernen.
 - **Funde an iNaturalist melden — und darüber an GBIF** (#553, seit
   1.191.0, **noch unsichtbar**): Alle Entscheidungen stehen im TEXT von
   #553 (maßgeblich vor dem Plan-Kommentar), die Registrierung als

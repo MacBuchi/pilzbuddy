@@ -7,6 +7,19 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Bis zu drei Bilder an einer Meldung
+
+*23. September 2026 · Version 1.196.0*
+
+An einen Wunsch, eine Fehlermeldung oder einen „Hinweis zu dieser Art"
+kannst du jetzt bis zu drei Bilder hängen statt nur eines — etwa Hut,
+Unterseite und Stiel eines Pilzes, der nicht zur Beschreibung passt.
+
+- Ist ein Bild angehängt, erscheint darunter „Weiteres Bild". Jedes Bild
+  lässt sich einzeln wieder entfernen.
+- Wie bisher gilt: Die Bilder werden **nicht** veröffentlicht, nur der
+  Entwickler sieht sie, und nach 90 Tagen werden sie gelöscht.
+
 ## Aliase für deine Buddys
 
 *23. September 2026 · Version 1.195.0*
