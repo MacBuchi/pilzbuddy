@@ -226,14 +226,6 @@ create index buddy_messages_recipient_idx
 create index buddy_messages_expires_idx
   on public.buddy_messages (expires_at);
 
--- Warteschlange für Nachrichten-Pushes (Patch 031). In app_internal wie
--- push_outbox; RLS an, keine Policy, keine Grants.
-create table app_internal.push_messages (
-  message_id uuid primary key
-    references public.buddy_messages(id) on delete cascade,
-  created_at timestamptz not null default now()
-);
-
 -- Feature-Wünsche / Feedback aus der App. Der Feedback-Bot
 -- (.github/workflows/feedback.yml) macht daraus GitHub-Issues bzw.
 -- Pilzart-PRs und setzt processed_at.
@@ -351,6 +343,15 @@ create table app_internal.push_outbox (
   primary key (recipient_id, kind, spot_id)
 );
 create index push_outbox_due_idx on app_internal.push_outbox (due_at);
+
+-- Warteschlange für Nachrichten-Pushes (Patch 031). In app_internal wie
+-- push_outbox (und erst HIER: vorher gibt es das Schema app_internal
+-- noch nicht); RLS an, keine Policy, keine Grants.
+create table app_internal.push_messages (
+  message_id uuid primary key
+    references public.buddy_messages(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
 grant usage on schema app_internal to anon, authenticated;
 
 create or replace function app_internal.are_friends(a uuid, b uuid)

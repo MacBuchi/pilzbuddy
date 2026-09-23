@@ -37,8 +37,8 @@ insert into public.push_devices (token, user_id, platform)
 -- Drei Nachrichten von Anna an Bert; die mittlere wird vor dem Lauf
 -- zurückgenommen (Cascade aus der Warteschlange). Zeitpunkte ausdrücklich,
 -- sonst entschiede bei gleichem now() der Zufall, welche die neueste ist.
--- `expires_at` MIT: Der Default ist now() + 30 Tage, und zu einem
--- zurückdatierten `created_at` läge er über der Grenze aus Patch 030 —
+-- expires_at MIT: Der Default ist now() + 30 Tage, und zu einem
+-- zurückdatierten created_at läge er über der Grenze aus Patch 030 —
 -- der Check lehnt das ab (im ersten CI-Lauf genau so passiert).
 insert into public.buddy_messages (id, sender_id, recipient_id, body, created_at, expires_at)
   values ('11111111-0000-0000-0000-000000000001', '$A', '$B', 'alt',
@@ -54,6 +54,9 @@ select count(*) from app_internal.push_messages;
 rollback;
 SQL
 )
+# ACHTUNG: Der Heredoc oben ist absichtlich NICHT gequotet (\$A, \$B
+# werden eingesetzt) — Backticks in SQL-Kommentaren führte die Shell
+# deshalb als Befehle aus. Keine Backticks dort.
 
 # Die Ausgabe: Rückgabe von push_flush, dann die Nutzlast, dann der Rest
 # der Warteschlange (die create_secret-Zeilen stehen davor).
