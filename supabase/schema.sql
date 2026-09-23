@@ -226,6 +226,14 @@ create index buddy_messages_recipient_idx
 create index buddy_messages_expires_idx
   on public.buddy_messages (expires_at);
 
+-- Warteschlange für Nachrichten-Pushes (Patch 031). In app_internal wie
+-- push_outbox; RLS an, keine Policy, keine Grants.
+create table app_internal.push_messages (
+  message_id uuid primary key
+    references public.buddy_messages(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
 -- Feature-Wünsche / Feedback aus der App. Der Feedback-Bot
 -- (.github/workflows/feedback.yml) macht daraus GitHub-Issues bzw.
 -- Pilzart-PRs und setzt processed_at.
@@ -450,6 +458,8 @@ alter table public.error_reports  enable row level security;
 alter table public.app_config     enable row level security;
 alter table public.push_devices   enable row level security;
 alter table app_internal.push_outbox    enable row level security;
+alter table app_internal.push_messages  enable row level security;
+revoke all on app_internal.push_messages from public, anon, authenticated;
 
 -- app_config: lesen darf jeder, auch anon — die Mindestversion wird beim
 -- Start und damit vor der Anmeldung geprüft. Geändert wird der Wert über
@@ -821,6 +831,20 @@ create trigger push_on_find_trg after insert on public.finds
 create trigger push_on_spot_trg after insert on public.spots
   for each row execute function app_internal.push_on_spot();
 
+-- Nachrichten (Patch 031): eigene Warteschlange, per Cascade an der
+-- Nachricht — zurückgenommen oder mit der Freundschaft gelöscht, löst
+-- sie keine Meldung mehr aus. Versand im selben `push_flush`.
+create or replace function app_internal.push_on_message()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  insert into app_internal.push_messages (message_id) values (new.id);
+  return new;
+end;
+$$;
+revoke all on function app_internal.push_on_message() from public, anon, authenticated;
+create trigger push_on_message_trg after insert on public.buddy_messages
+  for each row execute function app_internal.push_on_message();
+
 -- ---------------------------------------------------------- Der Versand
 --
 -- Holt die fälligen Zeilen, macht daraus Nachrichten je Gerät und ruft
@@ -841,6 +865,9 @@ create trigger push_on_spot_trg after insert on public.spots
 --
 -- Der Text ist ABSICHTLICH nichtssagend: keine Koordinaten, kein
 -- Spot-Name, kein Benutzername. Eine Push läuft über Googles Server.
+-- AUSNAHME seit Patch 031: Nachrichten zwischen Buddys tragen den Namen
+-- des Absenders und ihren Text (Betreiber-Entscheidung, #564) — der Text
+-- stammt von einem Menschen, nicht von der App.
 create or replace function app_internal.push_flush()
 returns integer
 language plpgsql security definer
@@ -850,6 +877,7 @@ declare
   job_secret text;
   service_key text;
   payload jsonb;
+  message_payload jsonb;
   sent integer;
 begin
   select decrypted_secret into base_url
@@ -863,6 +891,7 @@ begin
   -- zurück. Ohne das Löschen wüchse der Korb bis zur Einrichtung.
   if base_url is null or job_secret is null or service_key is null then
     delete from app_internal.push_outbox where due_at <= now();
+    delete from app_internal.push_messages;
     return 0;
   end if;
 
@@ -912,7 +941,43 @@ begin
     from grouped g
     join public.push_devices d on d.user_id = g.recipient_id;
 
-  if payload is null then return 0; end if;
+  -- Nachrichten (Patch 031): OHNE Entprellung — eine Nachricht will
+  -- gelesen werden, solange sie aktuell ist; der Minutentakt fasst
+  -- trotzdem zusammen, was in derselben Minute kam. Je Empfänger UND
+  -- Absender eine Meldung: der Name als Titel, die NEUESTE Nachricht als
+  -- Text, gekürzt. MIT Text — Betreiber-Entscheidung in #564, die
+  -- Datenschutzerklärung sagt es. Das Ziel in der App reist als `route`.
+  -- Eine Nachricht, die vor dem Lauf zurückgenommen oder mit der
+  -- Freundschaft gelöscht wurde, ist per Cascade schon aus der
+  -- Warteschlange — sie löst keine Meldung mehr aus.
+  with due_msgs as (
+    delete from app_internal.push_messages q
+     using public.buddy_messages m
+     where q.message_id = m.id
+    returning m.sender_id, m.recipient_id, m.body, m.created_at
+  ),
+  per_sender as (
+    select recipient_id, sender_id, count(*) as n,
+           (array_agg(body order by created_at desc))[1] as last_body
+      from due_msgs group by recipient_id, sender_id
+  )
+  select jsonb_agg(jsonb_build_object(
+           'token', d.token,
+           'title', coalesce(p.username, 'Buddy') ||
+             case when s.n > 1 then ' · ' || s.n || ' Nachrichten'
+                  else '' end,
+           'body', case when char_length(s.last_body) > 180
+                        then left(s.last_body, 179) || '…'
+                        else s.last_body end,
+           'route', '/friends/chat/' || s.sender_id))
+    into message_payload
+    from per_sender s
+    join public.push_devices d on d.user_id = s.recipient_id
+    left join public.profiles p on p.id = s.sender_id;
+
+  payload := coalesce(payload, '[]'::jsonb) ||
+             coalesce(message_payload, '[]'::jsonb);
+  if jsonb_array_length(payload) = 0 then return 0; end if;
   select jsonb_array_length(payload) into sent;
 
   -- Asynchron (pg_net): Die Antwort landet in `net._http_response`, der
@@ -988,5 +1053,6 @@ insert into public.applied_patches (filename) values
   ('patch_027_feedback_bild.sql'),
   ('patch_028_fundfoto_kudos.sql'),
   ('patch_029_inat_meldungen.sql'),
-  ('patch_030_buddy_nachrichten.sql')
+  ('patch_030_buddy_nachrichten.sql'),
+  ('patch_031_nachrichten_push.sql')
 on conflict do nothing;

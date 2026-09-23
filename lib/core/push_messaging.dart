@@ -120,6 +120,14 @@ Stream<RemoteMessage> pushTaps() => FirebaseMessaging.onMessageOpenedApp;
 final pushTapListenerProvider =
     Provider<Stream<RemoteMessage> Function()>((ref) => pushTaps);
 
+/// Die Meldung, mit deren Tipp die App aus dem BEENDETEN Zustand
+/// gestartet wurde. `onMessageOpenedApp` sieht nur den Fall „lief im
+/// Hintergrund"; ohne diese Abfrage öffnete ein Tipp auf eine
+/// Nachrichten-Meldung nach einem Neustart nur die Karte (#564).
+final pushInitialMessageProvider =
+    Provider<Future<RemoteMessage?> Function()>(
+        (ref) => () => FirebaseMessaging.instance.getInitialMessage());
+
 /// Nachrichten, die eintreffen, **während die App im Vordergrund ist**.
 ///
 /// Ohne diesen Zweig verschwinden sie spurlos, und das ist kein
