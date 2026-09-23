@@ -39,6 +39,12 @@ import '../fakes/map_ui.dart';
 import '../fakes/test_app.dart';
 import '../rain_grid_test.dart' show encode;
 
+/// Der Wert in der Kopfzeile der Legenden-Ampel — über den Schlüssel,
+/// weil die Detailzeilen darunter dieselben Wörter tragen. Bis 1.199.0
+/// hieß die Zeile „hier: verhalten", und der Präfix war der Unterschied.
+Finder hereWord(String word) => find.byWidgetPredicate((w) =>
+    w is Text && w.key == const Key('legend-ampel-here') && w.data == word);
+
 void main() {
   const spotLat = 51.0;
   const spotLng = 11.0;
@@ -395,10 +401,10 @@ void main() {
     // Erst die Gegenrichtung: Die Legende ist überhaupt da und zeigt
     // eine Stufe — sonst prüfte die Zeile darunter gegen ein leeres
     // Fenster statt gegen die falsche Stufe.
-    expect(find.textContaining('hier: '), findsOneWidget,
+    expect(find.byKey(const Key('legend-ampel-here')), findsOneWidget,
         reason: 'keine Pilzwetter-Zeile in der Legende — der Aufbau '
             'des Tests trägt nicht');
-    expect(find.textContaining('hier: verhalten'), findsOneWidget,
+    expect(hereWord('verhalten'), findsOneWidget,
         reason: 'die Legende muss dieselbe Höhenkorrektur rechnen wie '
             'Fläche und Blatt — unkorrigiert hieße es „günstig", und '
             'Farbe und Text widersprächen sich am selben Punkt');
@@ -433,7 +439,7 @@ void main() {
     expect(find.text('Pfifferling'), findsOneWidget);
     // Und die Stufen stehen daneben: das Maximum oben, die Klassen
     // darunter einzeln.
-    expect(find.textContaining('hier: verhalten'), findsOneWidget);
+    expect(hereWord('verhalten'), findsOneWidget);
     expect(find.text('ungünstig'), findsOneWidget,
         reason: 'der Pfifferling kommt bei 9,1 °C nicht einmal auf '
             'verhalten — stünde er auf derselben Stufe, zeigte die '
@@ -531,7 +537,7 @@ void main() {
 
     // Aufbau wie im Test darüber: Station 316 m auf 920 m gerechnet
     // ergibt „verhalten" — also der SEITLICHE Daumen.
-    expect(find.textContaining('hier: verhalten'), findsOneWidget,
+    expect(hereWord('verhalten'), findsOneWidget,
         reason: 'ohne diese Stufe prüft der Rest nichts');
     // **`.toList()` ist Pflicht, kein Stilfrage.** `widgetList` ist
     // faul; nach dem Einklappen weiter unten wären die Elemente längst
@@ -556,7 +562,7 @@ void main() {
     // beides denselben Record.
     container.read(mapLegendOpenProvider.notifier).set(false);
     await settle(tester);
-    expect(find.textContaining('hier: verhalten'), findsNothing,
+    expect(hereWord('verhalten'), findsNothing,
         reason: 'die Schiene trägt keine Sätze');
     expect(turnsOfThumb(), expanded,
         reason: 'ein- und ausgeklappt dürfen nicht zwei Urteile fällen');

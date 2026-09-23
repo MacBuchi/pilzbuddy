@@ -88,17 +88,46 @@ GbifPaint gbifPaintFor(GbifFinds finds,
   final allowed = Uint8List(finds.species.length);
   for (var i = 0; i < finds.species.length; i++) {
     final name = finds.species[i].name;
-    final klass = ampelClassFor(name);
-    final key = klass == null ? null : ampelClassKeyOf(klass);
-    final colour = key == null
-        ? AppColors.gbifNoClass
-        : AppColors.gbifClassColours[key] ?? AppColors.gbifNoClass;
-    colours[i] = colour.toARGB32();
-    final speciesOk = species.isEmpty || species.contains(name);
-    final classOk = classes.isEmpty || (key != null && classes.contains(key));
-    allowed[i] = speciesOk && classOk ? 1 : 0;
+    final key = gbifClassKeyFor(name);
+    colours[i] = gbifClassColour(key).toARGB32();
+    allowed[i] =
+        gbifShown(name, key, species: species, classes: classes) ? 1 : 0;
   }
   return (colours: colours, allowed: allowed);
+}
+
+/// Die Ampel-Gruppe einer Art als Schlüssel — `null` für Arten ohne
+/// Gruppe (grau).
+String? gbifClassKeyFor(String species) {
+  final klass = ampelClassFor(species);
+  return klass == null ? null : ampelClassKeyOf(klass);
+}
+
+/// Ob eine Art auf der Fläche liegt — die EINE Regel für Fläche und
+/// Legende. [species] und [classes] wie bei [gbifPaintFor], leer = alle.
+bool gbifShown(String name, String? classKey,
+    {Set<String> species = const {}, Set<String> classes = const {}}) {
+  final speciesOk = species.isEmpty || species.contains(name);
+  final classOk =
+      classes.isEmpty || (classKey != null && classes.contains(classKey));
+  return speciesOk && classOk;
+}
+
+/// Meldungen je Ampel-Gruppe aus einer Umkreisliste — mit DERSELBEN
+/// Auswahl und derselben Farbzuordnung wie die Fläche. Stünden hier
+/// andere Arten als dort, zählte die Legende Scheiben, die auf der Karte
+/// gar nicht liegen (#279). Schlüssel `null` = Arten ohne Gruppe.
+Map<String?, int> gbifClassCountsFrom(List<GbifAround> rows,
+    {Set<String> species = const {}, Set<String> classes = const {}}) {
+  final counts = <String?, int>{};
+  for (final row in rows) {
+    final key = gbifClassKeyFor(row.species);
+    if (!gbifShown(row.species, key, species: species, classes: classes)) {
+      continue;
+    }
+    counts[key] = (counts[key] ?? 0) + row.observations;
+  }
+  return counts;
 }
 
 /// Malt die Fundorte in [window] und gibt ein PNG zurück.

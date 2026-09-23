@@ -1647,8 +1647,16 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     einem verkleinerten Puffer gemalt und bilinear hochgezogen; die
     scharfen bleiben immer in voller Auflösung.
   - **Beobachten ist laden** gilt auch hier: `gbifFindsProvider` hängt
-    nur am eingeschalteten Schalter und am „Was ist hier?"-Blatt; die
-    Legende fragt nur den Schalter. Der Filter-Schlüssel reist als
+    nur am eingeschalteten Schalter und am „Was ist hier?"-Blatt. Die
+    Legende zählt seit 1.200.0 die Meldungen je Gruppe im 5-km-Umkreis
+    (`legendGbifCountsProvider`), fragt aber ZUERST den Schalter — ist
+    die Ebene an, hat die Fläche das Asset ohnehin gelesen. Gezählt wird
+    mit DERSELBEN Auswahl wie gemalt (`gbifShown`, `gbifClassCountsFrom`
+    in `gbif_fill.dart`), sonst zählte die Legende Scheiben, die niemand
+    sieht. In der Schiene sind es dünne Balken als EIGENE Zone, nicht ein
+    dritter Balken neben Regen und Wald: So lief die Reihe 11 px aus der
+    40-px-Schiene, und nur ein Test mit ALLEN Ebenen zugleich sieht das
+    (`test/flows/map_legend_flow_test.dart`). Der Filter-Schlüssel reist als
     zusammengefügte Zeichenkette (zwei gleiche Mengen sind für `==`
     verschieden) und steht im Dateinamen der Fläche, sonst tauscht
     MapLibre das Bild nicht.
