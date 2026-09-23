@@ -1775,6 +1775,20 @@ class FakePhotoPicker {
     sources.add(source);
     return next;
   }
+
+  /// Was der nächste MEHRFACH-Griff liefert (#585). `null` heißt: wie ein
+  /// Einzelgriff — [next] als einziges Bild, oder nichts. So gelten alle
+  /// Tests, die vor der Mehrfachauswahl geschrieben wurden, unverändert.
+  List<Uint8List>? nextMany;
+
+  /// Die Obergrenzen, mit denen gegriffen wurde.
+  final limits = <int>[];
+
+  Future<List<Uint8List>> many(int limit) async {
+    sources.add(PhotoSource.gallery);
+    limits.add(limit);
+    return nextMany ?? (next == null ? const [] : [next!]);
+  }
 }
 
 class FakeSpeciesPhotos implements SpeciesPhotoRepository {

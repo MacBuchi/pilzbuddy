@@ -227,8 +227,15 @@ List<Override> overridesFor(FakeBackend backend,
       // Funktion mit denselben Bytes, nur im selben Thread.
       findPhotoRepositoryProvider
           .overrideWithValue(findPhotos ?? FakeFindPhotoRepository(backend)),
-      photoPickerProvider
-          .overrideWithValue((photoPicker ?? FakePhotoPicker()).call),
+      // Einzel- und Mehrfachgriff (#585) an DERSELBEN Fake-Instanz, damit
+      // ein Test beide Wege steuern und zählen kann.
+      ...() {
+        final picker = photoPicker ?? FakePhotoPicker();
+        return [
+          photoPickerProvider.overrideWithValue(picker.call),
+          multiPhotoPickerProvider.overrideWithValue(picker.many),
+        ];
+      }(),
       photoPreparerProvider.overrideWithValue((bytes) async => preparePhoto(bytes)),
       galleryPhotoPreparerProvider
           .overrideWithValue((bytes) async => prepareGalleryPhoto(bytes)),

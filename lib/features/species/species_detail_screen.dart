@@ -1012,6 +1012,7 @@ class _ReportButton extends ConsumerWidget {
           species: species,
           username: ref.read(myProfileProvider).valueOrNull?.username,
           pickPhoto: ref.read(photoPickerProvider),
+          pickPhotos: ref.read(multiPhotoPickerProvider),
           // Galerie-Größe: Diese Bilder dürfen mit Haken in die
           // Artgalerie, und das Hochgeladene ist die einzige Kopie.
           preparePhoto: ref.read(galleryPhotoPreparerProvider)),
@@ -1072,6 +1073,7 @@ class _ReportDialog extends StatefulWidget {
     required this.species,
     required this.username,
     required this.pickPhoto,
+    required this.pickPhotos,
     required this.preparePhoto,
   });
 
@@ -1082,6 +1084,10 @@ class _ReportDialog extends StatefulWidget {
   /// nicht geladen ist.
   final String? username;
   final PhotoPicker pickPhoto;
+
+  /// Mehrere auf einmal aus der Galerie (#585) — Hut, Unterseite, Stiel
+  /// in einem Griff.
+  final MultiPhotoPicker pickPhotos;
   final PhotoPreparer preparePhoto;
 
   @override
@@ -1148,6 +1154,7 @@ class _ReportDialogState extends State<_ReportDialog> {
             const SizedBox(height: 8),
             PhotoAttachmentList(
               pick: widget.pickPhoto,
+              pickMany: widget.pickPhotos,
               prepare: widget.preparePhoto,
               photos: _photos,
               max: kFeedbackMaxPhotos,
