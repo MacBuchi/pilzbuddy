@@ -998,6 +998,18 @@ const speciesPortraits = <String, List<SpeciesPhoto>>{
       licenceUrl: 'https://creativecommons.org/licenses/by/2.0',
       source: 'https://commons.wikimedia.org/wiki/File:Chicken_of_the_Woods.jpg',
     ),
+    // Ein ÄLTERES, ausgeblichenes Stück (#585, Betreiber 2026-09-23) —
+    // bewusst HINTER dem schwefelgelben: Bei einer Art, deren Name die
+    // Farbe ist, lernt man sie am gelben Bild. Das blasse zeigt, wie sie
+    // im Herbst oft dasteht; die kreidig bröckelnden Aufnahmen derselben
+    // Meldung sind draußen geblieben.
+    (
+      asset: 'assets/species/schwefelporling-2.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
   ],
   'Semmelstoppelpilz': [
     (
