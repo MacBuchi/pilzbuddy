@@ -265,6 +265,90 @@ void main() {
     });
   });
 
+  group('Abgleich', () {
+    late FakeBackend backend;
+    late FakeInatServer server;
+    late InatReporter reporter;
+    late FakeFindReportRepository reports;
+
+    setUp(() {
+      backend = FakeBackend();
+      final me = backend.addUser(username: 'testpilz');
+      backend.signInAs(me.id);
+      final spot = backend.addSpot(ownerId: me.id, name: 'Hang');
+      for (final (i, id) in [1, 2, 3, 4, 5].indexed) {
+        final findId = backend.addFindRow(spot,
+            species: 'Steinpilz',
+            foundOn: DateTime(2026, 9, 1 + i),
+            authorId: me.id);
+        backend.findReports[findId] = (
+          userId: me.id,
+          report: FindReport(
+              findId: findId,
+              remoteUuid: 'u$id',
+              // Auch die halbe Meldung hat schon eine id: Die Fotos
+              // fehlen. Gerade DIE darf der Abgleich nicht anfassen.
+              remoteId: 100 + id,
+              status: id == 5
+                  ? FindReportStatus.sending
+                  : FindReportStatus.reported),
+        );
+      }
+      server = FakeInatServer();
+      for (final id in [101, 102, 103, 104, 105]) {
+        server.observations.add(
+            (id: id, uuid: 'u$id', fields: <String, dynamic>{}, photos: <List<int>>[]));
+      }
+      reports = FakeFindReportRepository(backend);
+      reporter = InatReporter(
+          api: InatApi(server.client, appId: 't'), reports: reports);
+    });
+
+    test('Stufen je Beobachtung, GBIF nur für bestätigte, sending bleibt',
+        () async {
+      server
+        ..grades[101] = 'research'
+        ..grades[102] = 'casual'
+        ..gbif[101] = 555
+        ..gbif[102] = 666 // darf NICHT gefragt werden — casual
+        ..deleted.add(104);
+      final out = {
+        for (final r in await reporter.refresh(await reports.mine()))
+          r.remoteId!: r,
+      };
+      expect(out[101]!.status, FindReportStatus.research);
+      expect(out[101]!.gbifId, 555);
+      expect(out[102]!.status, FindReportStatus.casual);
+      expect(out[102]!.gbifId, isNull);
+      expect(out[103]!.status, FindReportStatus.needsId);
+      expect(out[104]!.status, FindReportStatus.withdrawn);
+      expect(out[105]!.status, FindReportStatus.sending);
+      expect(
+          server.requests.where((r) => r.url.host == 'api.gbif.org'),
+          hasLength(1));
+      // Und es steht in der Datenbank, nicht nur in der Antwort.
+      final stored = {
+        for (final r in await reports.mine()) r.remoteId!: r,
+      };
+      expect(stored[101]!.gbifId, 555);
+      expect(stored[104]!.status, FindReportStatus.withdrawn);
+    });
+
+    test('nichts Offenes, nichts gefragt', () async {
+      for (final key in backend.findReports.keys.toList()) {
+        final row = backend.findReports[key]!;
+        backend.findReports[key] = (
+          userId: row.userId,
+          report: row.report.status == FindReportStatus.sending
+              ? row.report
+              : row.report.copyWith(gbifId: 1),
+        );
+      }
+      await reporter.refresh(await reports.mine());
+      expect(server.requests, isEmpty);
+    });
+  });
+
   test('ein kaputter Kontoeintrag heißt „nicht verbunden"', () {
     expect(InatAccount.fromJson({'login': 'x'}), isNull);
     expect(InatAccount.fromJson('Unsinn'), isNull);

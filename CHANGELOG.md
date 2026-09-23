@@ -9,7 +9,7 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Ein Pilz für ein schönes Foto
 
-*23. September 2026 · Version 1.190.0 · 1.191.0: nur Innenausbau, nichts Sichtbares*
+*23. September 2026 · Version 1.190.0 · 1.191.0 und 1.192.0: nur Innenausbau, nichts Sichtbares*
 
 Gefällt dir ein Fundfoto eines Buddys, kannst du ihm einen Pilz geben:
 Foto antippen, dann „Pilz geben". Einer je Foto, keine Sterne und keine

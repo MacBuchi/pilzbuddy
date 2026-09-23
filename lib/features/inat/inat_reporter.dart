@@ -151,4 +151,44 @@ class InatReporter {
     await reports.setStatus(findId, FindReportStatus.reported);
     return observationId;
   }
+
+  /// Gleicht offene Meldungen mit iNaturalist und GBIF ab und schreibt,
+  /// was sich geändert hat. Gibt die neue Liste zurück.
+  ///
+  /// **Ein Aufruf für alle, nicht einer je Fund**: iNaturalist nimmt
+  /// eine Liste von ids. GBIF wird nur für BESTÄTIGTE gefragt — nur die
+  /// können dort ankommen. `sending` bleibt, wie es ist: Dort fehlt noch
+  /// etwas, das nur ein neuer Versuch nachholt.
+  Future<List<FindReport>> refresh(List<FindReport> rows) async {
+    final open = [
+      for (final r in rows)
+        if (!r.settled &&
+            r.remoteId != null &&
+            r.status != FindReportStatus.sending)
+          r,
+    ];
+    if (open.isEmpty) return rows;
+    final grades =
+        await api.qualityGrades([for (final r in open) r.remoteId!]);
+    final updated = {for (final r in rows) r.findId: r};
+    for (final r in open) {
+      final status = switch (grades[r.remoteId]) {
+        null => FindReportStatus.withdrawn,
+        'research' => FindReportStatus.research,
+        'casual' => FindReportStatus.casual,
+        _ => FindReportStatus.needsId,
+      };
+      var next = r.copyWith(status: status);
+      if (status == FindReportStatus.research) {
+        final gbifId = await api.gbifOccurrenceFor(r.remoteId!);
+        if (gbifId != null) {
+          next = next.copyWith(gbifId: gbifId);
+          await reports.setGbifId(r.findId, gbifId);
+        }
+      }
+      if (status != r.status) await reports.setStatus(r.findId, status);
+      updated[r.findId] = next;
+    }
+    return updated.values.toList();
+  }
 }

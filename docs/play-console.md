@@ -110,7 +110,9 @@ lässt sich nur dort löschen. Bei uns liegt nur die Buchführung
 selbst lesbar); der Zugang zum iNaturalist-Konto liegt im Keystore des
 Geräts, nie auf dem Server, und ist vom Backup ausgenommen. Keine neue
 Berechtigung. Netzziele: `www.inaturalist.org`, `api.inaturalist.org` —
-beide erst nach dem Verbinden.
+beide erst nach dem Verbinden. Seit Stufe 2 dazu `api.gbif.org`: der
+Stand einer BESTÄTIGTEN eigenen Meldung, gefragt mit der öffentlichen
+Beobachtungsnummer, ohne Konto und ohne Ort.
 
 **³ Der Mailversand über Brevo — *geteilt*?**
 Empfehlung: **nein**. Brevo ist Auftragsverarbeiter für genau zwei Zwecke:

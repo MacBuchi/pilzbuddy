@@ -6,12 +6,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/errors.dart';
 import '../../data/inat_api.dart';
+import '../../core/photo_providers.dart';
 import '../../data/spot_repository.dart';
+import '../../models/find.dart';
+import '../../models/find_position.dart';
 import '../../models/spot.dart';
 import '../map/forest_species_providers.dart';
 import '../spots/widgets/add_find_sheet.dart';
 import 'inat_providers.dart';
 import 'inat_report_section.dart';
+import 'inat_report_sheet.dart';
 import 'inat_reporter.dart';
 
 const kInatReportingMessage = 'Wird an iNaturalist gemeldet …';
@@ -60,6 +64,57 @@ Future<void> reportFreshFindToInat(
       ..showSnackBar(const SnackBar(content: Text(kInatQueuedMessage)));
     return;
   }
+  await _report(ref, messenger,
+      findId: ids.first,
+      species: find.species,
+      count: find.count,
+      foundOn: find.foundOn,
+      position: find.position,
+      spot: spot,
+      draft: draft,
+      failurePrefix: 'Fund eingetragen, nicht gemeldet');
+}
+
+/// Nachträglich melden (#553 Stufe 2): kleines Blatt, dann derselbe Weg.
+///
+/// Auch „Meldung vervollständigen" läuft hierüber — eine Zeile im Stand
+/// `sending` trägt schon ihre uuid, und der Versuch knüpft daran an,
+/// statt eine zweite Beobachtung anzulegen.
+Future<void> reportExistingFindToInat(
+    BuildContext context, WidgetRef ref, Find find, Spot spot) async {
+  final offer = await inatOfferFor(ref, spot);
+  if (offer == null || !context.mounted) return;
+  final draft = await showInatReportSheet(
+    context,
+    find: find,
+    presetTrees: offer.presetTrees,
+    pickPhoto: ref.read(photoPickerProvider),
+    preparePhoto: ref.read(photoPreparerProvider),
+  );
+  if (draft == null || !context.mounted) return;
+  await _report(ref, ScaffoldMessenger.of(context),
+      findId: find.id,
+      species: find.species,
+      count: find.count,
+      foundOn: find.foundOn,
+      position: find.position,
+      spot: spot,
+      draft: draft,
+      failurePrefix: 'Nicht gemeldet');
+}
+
+Future<void> _report(
+  WidgetRef ref,
+  ScaffoldMessengerState messenger, {
+  required String findId,
+  required String? species,
+  required int? count,
+  required DateTime foundOn,
+  required FindPosition? position,
+  required Spot spot,
+  required InatReportDraft draft,
+  required String failurePrefix,
+}) async {
   final account = ref.read(inatAccountProvider).valueOrNull;
   if (account == null) return;
   messenger
@@ -68,13 +123,13 @@ Future<void> reportFreshFindToInat(
   try {
     await ref.read(inatReporterProvider).report(
           account: account,
-          findId: ids.first,
-          species: find.species,
-          count: find.count,
-          foundOn: find.foundOn,
-          lat: find.position?.lat ?? spot.position.latitude,
-          lng: find.position?.lng ?? spot.position.longitude,
-          position: find.position,
+          findId: findId,
+          species: species,
+          count: count,
+          foundOn: foundOn,
+          lat: position?.lat ?? spot.position.latitude,
+          lng: position?.lng ?? spot.position.longitude,
+          position: position,
           draft: draft,
         );
     messenger
@@ -83,14 +138,16 @@ Future<void> reportFreshFindToInat(
   } on InatException catch (e) {
     messenger
       ..clearSnackBars()
-      ..showSnackBar(SnackBar(
-          content: Text('Fund eingetragen, nicht gemeldet: ${e.message}')));
+      ..showSnackBar(SnackBar(content: Text('$failurePrefix: ${e.message}')));
   } catch (e, s) {
     logError('An iNaturalist melden', e, s);
     messenger
       ..clearSnackBars()
-      ..showSnackBar(SnackBar(
-          content: Text('Fund eingetragen, nicht gemeldet: '
-              '${friendlyError(e)}')));
+      ..showSnackBar(
+          SnackBar(content: Text('$failurePrefix: ${friendlyError(e)}')));
+  } finally {
+    // Auch nach einem Fehler: Die Zeile kann schon stehen (`sending`),
+    // und der Fund soll das zeigen.
+    ref.invalidate(myFindReportsProvider);
   }
 }

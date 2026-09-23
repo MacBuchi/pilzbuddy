@@ -81,7 +81,12 @@ class InatReportSection extends StatefulWidget {
     required this.buddyPhoto,
     required this.showMissingPhoto,
     required this.onChanged,
+    this.alwaysOn = false,
   });
+
+  /// Im eigenen Meldeblatt (nachträglich melden) gibt es keinen
+  /// Schalter: Wer es geöffnet hat, will melden.
+  final bool alwaysOn;
 
   /// Die Art des ERSTEN Eintrags — nur der wird gemeldet.
   final String? species;
@@ -102,7 +107,7 @@ class InatReportSection extends StatefulWidget {
 
 class _InatReportSectionState extends State<InatReportSection> {
   late InatSectionValue _value =
-      InatSectionValue(trees: widget.presetTrees);
+      InatSectionValue(enabled: widget.alwaysOn, trees: widget.presetTrees);
 
   void _set(InatSectionValue value) {
     setState(() => _value = value);
@@ -146,6 +151,7 @@ class _InatReportSectionState extends State<InatReportSection> {
       key: kInatReportSectionKey,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (!widget.alwaysOn)
         SwitchListTile(
           key: kInatReportSwitchKey,
           contentPadding: EdgeInsets.zero,

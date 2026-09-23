@@ -49,6 +49,17 @@ const kInatRedirectUri = '$kInatCallbackScheme://inat';
 const kInatWebBase = 'https://www.inaturalist.org';
 const kInatApiBase = 'https://api.inaturalist.org';
 
+/// GBIF — nur für die Frage „ist meine bestätigte Beobachtung schon
+/// dort angekommen?" (#553 Stufe 2). Gefragt wird mit der
+/// Beobachtungsnummer, die ohnehin öffentlich ist; kein Konto, kein Ort.
+const kGbifApiBase = 'https://api.gbif.org';
+
+/// Der Datensatz, in dem iNaturalist seine bestätigten Beobachtungen an
+/// GBIF gibt („iNaturalist Research-grade Observations"). Die Nummer
+/// der Beobachtung steht dort als `catalogNumber` — nachgesehen am
+/// 2026-09-23 an einer echten deutschen Beobachtung.
+const kInatGbifDataset = '50c9509d-22c7-4a22-a47d-8c48425ef4a7';
+
 Uri _inat(String base, String path, [Map<String, String>? query]) {
   final uri = Uri.parse('$base$path');
   return query == null ? uri : uri.replace(queryParameters: query);
@@ -315,6 +326,49 @@ class InatApi {
           filename: 'pilzbuddy.jpg'));
     final response = await http.Response.fromStream(await _http.send(request));
     _decode(response, 'Foto');
+  }
+
+  /// Die Qualitätsstufe je Beobachtung — öffentlich, ohne Anmeldung.
+  ///
+  /// **Was fehlt, ist gelöscht** — aber nur, wenn die Antwort vollständig
+  /// ist: `per_page` reicht für alle gefragten ids, sonst stünde eine
+  /// Beobachtung, die bloß auf Seite zwei läge, als gelöscht da.
+  Future<Map<int, String?>> qualityGrades(List<int> ids) async {
+    if (ids.isEmpty) return const {};
+    final response = await _http.get(
+      _inat(kInatApiBase, '/v1/observations', {
+        'id': ids.join(','),
+        'per_page': '${ids.length}',
+      }),
+      headers: _json,
+    );
+    final results = _decode(response, 'Status')['results'];
+    final grades = <int, String?>{for (final id in ids) id: null};
+    if (results is List) {
+      for (final raw in results) {
+        final o = raw as Map<String, dynamic>;
+        if (o['id'] case final int id) {
+          grades[id] = o['quality_grade'] as String? ?? 'needs_id';
+        }
+      }
+    }
+    return grades;
+  }
+
+  /// Die GBIF-Kennung einer bestätigten Beobachtung — `null`, solange
+  /// GBIF sie noch nicht führt (iNaturalist liefert wöchentlich).
+  Future<int?> gbifOccurrenceFor(int observationId) async {
+    final response = await _http.get(
+      _inat(kGbifApiBase, '/v1/occurrence/search', {
+        'datasetKey': kInatGbifDataset,
+        'catalogNumber': '$observationId',
+        'limit': '1',
+      }),
+      headers: _json,
+    );
+    final results = _decode(response, 'GBIF')['results'];
+    if (results is! List || results.isEmpty) return null;
+    return (results.first as Map<String, dynamic>)['key'] as int?;
   }
 
   Map<String, dynamic> _decode(http.Response response, String step) {
