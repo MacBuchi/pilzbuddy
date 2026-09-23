@@ -1510,7 +1510,9 @@ class FakeFeedbackRepository implements FeedbackRepository {
 
   @override
   Future<void> submit(FeedbackType type, String message,
-      {String? appVersion, List<PreparedPhoto> photos = const []}) async {
+      {String? appVersion,
+      List<PreparedPhoto> photos = const [],
+      bool galleryConsent = false}) async {
     if (backend.offline) throw const SocketException('kein Netz (Fake)');
     backend.feedback.add({
       'user_id': backend.currentUserId,
@@ -1518,6 +1520,8 @@ class FakeFeedbackRepository implements FeedbackRepository {
       'message': message.trim(),
       'app_version': appVersion,
       'photo_paths': _store(photos),
+      // Default false, Check `feedback_photo_consent_needs_photos`.
+      'photo_consent': galleryConsent && photos.isNotEmpty,
     });
   }
 

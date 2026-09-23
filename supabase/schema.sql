@@ -261,9 +261,15 @@ create table public.feedback (
   -- hierhin, `photo_path` bleibt für 1.186.0–1.195.x. Der Check dazu
   -- steht nach `app_internal` weiter unten (er braucht eine Funktion).
   photo_paths text[],
+  -- Einwilligung, die Bilder in der Artgalerie zu zeigen (Patch 034):
+  -- selbst aufgenommen, CC BY-SA 4.0, Benutzername als Urheber. Nur mit
+  -- Bildern; übernommen wird trotzdem nur nach Ansicht.
+  photo_consent boolean not null default false,
   created_at timestamptz not null default now(),
   constraint feedback_photo_owner
-    check (photo_path is null or photo_path like (user_id::text || '/%'))
+    check (photo_path is null or photo_path like (user_id::text || '/%')),
+  constraint feedback_photo_consent_needs_photos
+    check (not photo_consent or photo_paths is not null)
 );
 
 -- Gefangene Fehler aus dem Feld (Patch 009). Android Vitals sieht nur harte
@@ -1125,5 +1131,6 @@ insert into public.applied_patches (filename) values
   ('patch_030_buddy_nachrichten.sql'),
   ('patch_031_nachrichten_push.sql'),
   ('patch_032_buddy_alias.sql'),
-  ('patch_033_feedback_bilder.sql')
+  ('patch_033_feedback_bilder.sql'),
+  ('patch_034_galerie_einwilligung.sql')
 on conflict do nothing;

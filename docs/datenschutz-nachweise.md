@@ -151,7 +151,8 @@ so in der Erklärung.
 | Vorhersage prüfen | Fund/Leergang mit Ort und Datum | Art. 6 (1) f | Supabase | bis zur Löschung |
 | Fehlerdiagnose | Fehlertext, Stack, Version, Plattform | Art. 6 (1) f | Supabase | 90 Tage |
 | Feedback | Text, Benutzername | Art. 6 (1) a | GitHub, öffentlich | dauerhaft |
-| Bilder am Feedback | bis zu drei Bilder (≤ 1024 px, ohne Metadaten) | Art. 6 (1) a | Supabase (Storage), nur der Betreiber | 90 Tage |
+| Bilder am Feedback | bis zu drei Bilder (≤ 1024 px, ohne Metadaten); dazu die Einwilligung `photo_consent` (Patch 034) | Art. 6 (1) a | Supabase (Storage), nur der Betreiber | 90 Tage |
+| Bild in der Artgalerie (nur nach Einwilligung und Ansicht) | Bild, Benutzername als Urheber | Art. 6 (1) a | öffentlich, als Asset in der App (`species_photos.dart`, Lizenzseite) | bis zum Widerruf; danach mit der nächsten Version entfernt (ein ausgeliefertes APK lässt sich nicht zurückholen) |
 
 Keine automatisierte Entscheidungsfindung, kein Profiling, keine
 Werbung. Betroffene sind ausschließlich Nutzer der App.

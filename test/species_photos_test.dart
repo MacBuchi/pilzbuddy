@@ -12,6 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/mushroom_species.dart';
 import 'package:pilzbuddy/core/species_lookalikes.dart';
 import 'package:pilzbuddy/core/species_photos.dart';
+import 'package:pilzbuddy/data/feedback_repository.dart';
 
 
 /// Die Kantenlängen eines WebP-Bildes, aus dem Dateikopf gelesen.
@@ -90,6 +91,25 @@ void main() {
           isTrue,
           reason: '${entry.key}: ${entry.value.licence}');
     }
+  });
+
+  test('die Einwilligung beim Melden nennt die Lizenz der eigenen '
+      'Aufnahmen (Patch 034)', () {
+    // Wer den Haken setzt, stimmt GENAU dieser Lizenz zu. Stünde in der
+    // Galerie später eine andere, wäre die Einwilligung für das Bild
+    // wertlos — und NC/ND schieden ohnehin aus (Test darüber).
+    expect(kGalleryPhotoLicence, isNot(contains('NC')));
+    expect(kGalleryPhotoLicence, isNot(contains('ND')));
+    final own = {
+      for (final photos in speciesPortraits.values)
+        for (final p in photos)
+          if (p.source == 'Eigene Aufnahme') p.licence,
+    };
+    expect(own, {kGalleryPhotoLicence},
+        reason: 'eigene Aufnahmen und Einwilligung laufen auseinander');
+    final bot = File('tool/feedback_bot.py').readAsStringSync();
+    expect(bot, contains('GALLERY_PHOTO_LICENCE = "$kGalleryPhotoLicence"'),
+        reason: 'das Issue nennt dieselbe Lizenz wie der Dialog');
   });
 
   test('die Namensnennung der Lizenzseite kommt aus derselben Tabelle',

@@ -1770,6 +1770,15 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     Feld sind; neue Clients schreiben nur `photo_paths`, der Bot liest
     beide (`feedback_photo_names`). Erst danach darf die alte Spalte
     weg — erweitern → ausliefern → entfernen.
+    **Einwilligung für die Artgalerie** (seit 1.197.0, Patch 034,
+    #569 Teil b): ein Haken im Art-Hinweis-Dialog, ab Werk aus, nur mit
+    Bild, fällt mit dem letzten Bild weg. Er ist die EINZIGE Grundlage,
+    ein Feedback-Bild in `species_photos.dart` zu übernehmen — ohne ihn
+    ist ein solches Bild ausdrücklich nicht zur Veröffentlichung
+    gedacht. Lizenz `kGalleryPhotoLicence` = CC BY-SA 4.0, dieselbe wie
+    die eigenen Aufnahmen (ein Test hält Dialog, Galerie und Bot
+    zusammen); Urheber ist der Benutzername, festgehalten im Issue zum
+    Zeitpunkt der Meldung. Übernommen wird weiter nur nach Ansicht.
 - **Funde an iNaturalist melden — und darüber an GBIF** (#553, seit
   1.191.0, **noch unsichtbar**): Alle Entscheidungen stehen im TEXT von
   #553 (maßgeblich vor dem Plan-Kommentar), die Registrierung als

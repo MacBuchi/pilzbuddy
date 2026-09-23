@@ -394,6 +394,8 @@ def sweep_find_photos() -> None:
 
 
 FEEDBACK_PHOTO_BUCKET = "feedback-photos"
+# Dieselbe Lizenz wie `kGalleryPhotoLicence` in der App (Patch 034).
+GALLERY_PHOTO_LICENCE = "CC BY-SA 4.0"
 
 
 def dashboard_bucket_url(bucket: str) -> str:
@@ -434,11 +436,24 @@ def feedback_issue_body(row: dict, username: str) -> str:
         liste = ", ".join(f"`{n}`" for n in names)
         was = ("Ein Bild ist angehängt" if len(names) == 1
                else f"{len(names)} Bilder sind angehängt")
+        # Die Einwilligung (Patch 034) hält HIER den Namen fest, der
+        # genannt werden darf — das Issue bleibt, auch wenn sich der
+        # Melder später umbenennt. Ohne Haken steht das Gegenteil
+        # ausdrücklich da: Wer übernimmt, soll nicht raten müssen.
+        if row.get("photo_consent"):
+            freigabe = (
+                f"\n\n✅ Für die Artgalerie freigegeben: selbst aufgenommen, "
+                f"{GALLERY_PHOTO_LICENCE}, Urheber **{username}** "
+                f"(am {row['created_at'][:10]}). Übernommen wird erst nach Ansicht."
+            )
+        else:
+            freigabe = "\n\n🚫 Nicht für die Artgalerie freigegeben."
         bild = (
             f"\n\n📎 {was} — nicht öffentlich, nur im Bucket "
             f"`{FEEDBACK_PHOTO_BUCKET}` als {liste} "
             f"({dashboard_bucket_url(FEEDBACK_PHOTO_BUCKET)}); "
             f"wird nach {ERROR_REPORT_RETENTION_DAYS} Tagen gelöscht."
+            f"{freigabe}"
         )
     return (
         f"> {row['message']}\n\n"
@@ -483,7 +498,7 @@ def main() -> None:
     rows = api(
         "GET",
         "/rest/v1/feedback?processed_at=is.null&order=created_at"
-        "&select=id,type,message,species_name,created_at,app_version,photo_path,photo_paths,profiles(username)",
+        "&select=id,type,message,species_name,created_at,app_version,photo_path,photo_paths,photo_consent,profiles(username)",
     )
     if not rows:
         print("No unprocessed feedback.")
@@ -647,8 +662,16 @@ def self_test_sweep() -> None:
     # Beide Spalten gefüllt: jedes Bild einmal.
     both = {**row, "photo_paths": ["1234-uid/deadbeef.jpg", "1234-uid/x.jpg"]}
     assert feedback_photo_names(both) == ["deadbeef.jpg", "x.jpg"], feedback_photo_names(both)
+    # Einwilligung (Patch 034): Name, Lizenz, Datum — und ohne Haken das
+    # ausdrückliche Nein.
+    assert "Nicht für die Artgalerie freigegeben" in body, body
+    ok = feedback_issue_body({**many, "photo_consent": True}, "waldfee")
+    assert "✅ Für die Artgalerie freigegeben" in ok, ok
+    assert "CC BY-SA 4.0, Urheber **waldfee** (am 2026-09-22)" in ok, ok
+    assert "Nicht für die Artgalerie" not in ok, ok
     plain = feedback_issue_body({"message": "x", "created_at": "2026-09-22"}, "w")
     assert "📎" not in plain and "aus Version" not in plain, plain
+    assert "Artgalerie" not in plain, plain
     print("sweep self-test passed (no network, nothing written)")
 
 
