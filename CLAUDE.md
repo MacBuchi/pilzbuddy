@@ -1529,6 +1529,12 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     - **Die Lupe an der Kachel löst nichts aus** — „beobachten ist
       laden", geholt wird erst beim Antippen. Ein Test zählt die
       Abrufe.
+    - **Jedes Bild braucht seine große Fassung** (#588): `ci.yml`
+      bricht ab, wenn ein `assets/species/*.webp` keine auf dem Branch
+      hat (`tool/species_photos.py --check-large`). Mit #541 kamen 34
+      ohne — die Vergrößerung zeigte still das 400er. `--large` baut sie
+      aus dem Commons-Original mit demselben Ausschnitt (SSIM-geprüft);
+      kleinere Originale liegen in ihrer Größe da, nie hochgerechnet.
     - **Eine GRÖSSENgrenze, keine Frist** (24 MB, älteste Ansicht
       fliegt zuerst). Das unterscheidet diesen Speicher von
       `spot_cache/`, `outbox/` und `tours/`: Ein Bild ist jederzeit
