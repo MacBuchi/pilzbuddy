@@ -1862,13 +1862,17 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     Normalfall, und ein Menü, das dort hinausragt, ist genau dann
     kaputt, wenn man es braucht. Richtung folgt dem Platz — nach oben,
     solange oben Platz ist, nach links, wenn rechts keiner ist.
-  - **Vier Einträge seit 1.177.0, und „Spot anlegen" ist der erste**
+  - **Vier Einträge seit 1.177.0, und „Neuer Spot" ist der erste**
     (#513, Feldwunsch). Er liegt am Finger, weil die Reihenfolge nach
-    Nähe geht, und trägt als einziger die Füllfarbe des „Neuer
-    Spot"-Knopfs — genau einer, sonst hebt sich nichts mehr ab. Der
-    Weg dahinter ist DIESELBE Naht wie beim Fadenkreuz (`_addSpotAt`);
-    zwei Kopien wären zwei Stellen, an denen die Doppel-Spot-Warnung
-    vergessen werden kann.
+    Nähe geht, und trägt als einziger eine Füllfarbe — genau einer,
+    sonst hebt sich nichts mehr ab. Der Weg dahinter ist DIESELBE Naht
+    wie beim Fadenkreuz (`_addSpotAt`); zwei Kopien wären zwei Stellen,
+    an denen die Doppel-Spot-Warnung vergessen werden kann.
+    **Name und Farbe kommen aus `new_spot_style.dart`**, für Knopf UND
+    Eintrag (seit 1.192.1). Vorher hieß der Eintrag „Spot anlegen" und
+    war fest `forestGreen`, der Knopf hellgrün aus dem Theme; der
+    Kommentar behauptete eine Ableitung, die es nicht gab, und der Test
+    prüfte die Konstante. Er vergleicht jetzt mit dem KNOPF.
   - **Der Fächer ist ein Bogen, aber ein flacher** (#513). Der
     seitliche Versatz folgt einem Viertelkreis, die STUFENHÖHE bleibt
     fest — sie verhindert das Überlappen, und ein Bogen, der auch
