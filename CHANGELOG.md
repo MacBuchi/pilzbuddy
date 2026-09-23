@@ -7,6 +7,23 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Aufgeräumte Kartenlegende
+
+*23. September 2026 · Version 1.200.0*
+
+Die Legende links unten ist schmaler und zeigt mehr.
+
+- **Gemeldete Fundorte mit Zahlen:** Statt eines Farbbalkens, der wie
+  eine Skala aussah, steht jetzt je Pilzgruppe ein Balken für die
+  Meldungen im Umkreis von 5 km um das Fadenkreuz. Ausgeklappt steht
+  die Zahl daneben. Abgewählte Gruppen fallen heraus, wie auf der Karte.
+- **Nichts ragt mehr heraus:** Mit Regen, Wald und Fundorten zugleich
+  lief die eingeklappte Legende über ihren Rand. Das ist behoben.
+- **Weniger wuchtig:** Die ausgeklappte Legende ist ein Fünftel
+  schmaler und hält Abstand zum Fadenkreuz. Mit Pilzampel steht der
+  Wald als Zeile in derselben Tabelle statt als eigener Abschnitt. Auf
+  kleinen Bildschirmen lässt sie sich scrollen.
+
 ## Schärfere Bilder beim Art-Hinweis
 
 *23. September 2026 · Version 1.199.0*

@@ -201,4 +201,30 @@ void main() {
     expect(pixel(small, x - 30, y).a, greaterThan(gbifCoarseAlpha ~/ 2));
     expect(pixel(small, x - 80, y).a, 0);
   });
+
+  test('die Legendenzählung folgt derselben Auswahl wie die Fläche (#279)',
+      () {
+    // Stünden hier andere Arten als auf der Karte, zählte die Legende
+    // Scheiben, die niemand sieht.
+    const rows = [
+      (species: 'Steinpilz', observations: 5, places: 2, newestYear: 2024),
+      (species: 'Maronenröhrling', observations: 2, places: 1, newestYear: 2023),
+      (species: 'Pfifferling', observations: 3, places: 1, newestYear: 2022),
+      (species: 'Hallimasch', observations: 7, places: 3, newestYear: 2021),
+    ];
+    final steinpilz = gbifClassKeyFor('Steinpilz')!;
+    final pfifferling = gbifClassKeyFor('Pfifferling')!;
+    expect(gbifClassKeyFor('Hallimasch'), isNull,
+        reason: 'ohne Ampel-Gruppe — sonst prüft die letzte Zeile nichts');
+    expect(gbifClassKeyFor('Maronenröhrling'), steinpilz);
+
+    expect(gbifClassCountsFrom(rows),
+        {steinpilz: 7, pfifferling: 3, null: 7},
+        reason: 'Arten derselben Gruppe addieren sich, ohne Gruppe = null');
+    expect(gbifClassCountsFrom(rows, species: {'Steinpilz'}), {steinpilz: 5},
+        reason: 'der Artenfilter wie auf der Karte');
+    expect(gbifClassCountsFrom(rows, classes: {pfifferling}),
+        {pfifferling: 3},
+        reason: 'die Gruppenwahl nimmt auch die grauen Arten heraus');
+  });
 }
