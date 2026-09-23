@@ -1,4 +1,5 @@
-// Ein Bild am Feedback (#525) — durch die echte Oberfläche.
+// Bilder am Feedback (#525, bis zu drei seit #569) — durch die echte
+// Oberfläche.
 //
 // Dieselbe Pipeline wie bei den Fundfotos, ein anderer Empfänger: Das
 // Bild geht in einen Bucket, den nur der Betreiber liest, und wird —
@@ -11,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/photo_pipeline.dart';
 import 'package:pilzbuddy/core/widgets/photo_attachment.dart';
+import 'package:pilzbuddy/data/feedback_repository.dart';
 import 'package:pilzbuddy/features/species/species_detail_screen.dart';
 
 import '../fakes/fake_backend.dart';
@@ -57,7 +59,9 @@ void main() {
 
     final row = backend.feedback.single;
     expect(row['type'], 'bug');
-    final path = row['photo_path'] as String;
+    expect(row['photo_path'], isNull,
+        reason: 'die alte Spalte gehört den Clients bis 1.195.x');
+    final path = (row['photo_paths'] as List<String>).single;
     expect(path, startsWith('${me.id}/'));
     expect(path, endsWith('.jpg'));
     final bytes = backend.feedbackPhotoObjects[path]!;
@@ -84,7 +88,7 @@ void main() {
         find.widgetWithText(TextField, 'Dein Wunsch'), 'Mehr Pilze bitte');
     await tester.tap(find.text('Senden'));
     await settle(tester);
-    expect(backend.feedback.single['photo_path'], isNull);
+    expect(backend.feedback.single['photo_paths'], isNull);
     expect(backend.feedbackPhotoObjects, isEmpty);
     await drainSnackbars(tester);
   });
@@ -149,8 +153,70 @@ void main() {
     expect(row['type'], 'bug');
     expect(row['message'],
         'Hinweis zur Art „Judasohr": Bei mir sind sie viel dunkler.');
-    expect(row['photo_path'], startsWith('${me.id}/'));
+    expect((row['photo_paths'] as List<String>).single,
+        startsWith('${me.id}/'));
     expect(backend.feedbackPhotoObjects, hasLength(1));
+    await drainSnackbars(tester);
+  });
+
+  Future<void> attach(WidgetTester tester) async {
+    await tester.ensureVisible(find.byKey(kAttachPhotoKey));
+    await settle(tester);
+    await tester.tap(find.byKey(kAttachPhotoKey));
+    await settle(tester, frames: 12);
+  }
+
+  testWidgets('bis zu drei Bilder — danach kein freies Feld mehr',
+      (tester) async {
+    final (backend, me) = loggedInBackend();
+    await pumpApp(tester, backend, photoPicker: FakePhotoPicker(dirtyJpeg()));
+    await openFeedback(tester);
+
+    await attach(tester);
+    expect(find.text('Weiteres Bild'), findsOneWidget,
+        reason: 'nach dem ersten ein Feld für das nächste');
+    await attach(tester);
+    await attach(tester);
+    expect(find.byKey(kRemovePhotoKey), findsNWidgets(kFeedbackMaxPhotos));
+    expect(find.byKey(kAttachPhotoKey), findsNothing,
+        reason: 'ein viertes lehnte die Datenbank ab (Patch 033)');
+    expect(find.textContaining('nicht öffentlich'), findsOneWidget,
+        reason: 'der Satz einmal, nicht dreimal');
+
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Dein Wunsch'), 'Drei Ansichten');
+    await tester.tap(find.text('Senden'));
+    await settle(tester);
+
+    final paths = backend.feedback.single['photo_paths'] as List<String>;
+    expect(paths, hasLength(3));
+    expect(paths.toSet(), hasLength(3), reason: 'drei Objekte, nicht eins');
+    for (final path in paths) {
+      expect(path, startsWith('${me.id}/'));
+      expect(backend.feedbackPhotoObjects[path], isNotNull);
+    }
+    await drainSnackbars(tester);
+  });
+
+  testWidgets('ein Bild aus der Mitte entfernen: die anderen bleiben, das '
+      'Feld kommt zurück', (tester) async {
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend, photoPicker: FakePhotoPicker(dirtyJpeg()));
+    await openFeedback(tester);
+    await attach(tester);
+    await attach(tester);
+    await attach(tester);
+
+    await tester.tap(find.byKey(kRemovePhotoKey).at(1));
+    await settle(tester);
+    expect(find.byKey(kRemovePhotoKey), findsNWidgets(2));
+    expect(find.byKey(kAttachPhotoKey), findsOneWidget);
+
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Dein Wunsch'), 'Zwei reichen');
+    await tester.tap(find.text('Senden'));
+    await settle(tester);
+    expect(backend.feedback.single['photo_paths'], hasLength(2));
     await drainSnackbars(tester);
   });
 }

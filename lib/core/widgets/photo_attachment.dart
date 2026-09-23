@@ -116,6 +116,70 @@ class _PhotoAttachmentState extends State<PhotoAttachment> {
   }
 }
 
+/// Mehrere Bilder, bis [max] (#569) — je Bild ein [PhotoAttachment],
+/// darunter ein freies Feld, solange Platz ist. Dasselbe Muster wie bei
+/// den Fotos für iNaturalist.
+///
+/// Der Satz zum Anhang steht nur am ERSTEN Bild: dreimal derselbe Satz
+/// über „nicht öffentlich" liest niemand dreimal, er schiebt nur das
+/// Formular aus dem Bild.
+class PhotoAttachmentList extends StatelessWidget {
+  const PhotoAttachmentList({
+    super.key,
+    required this.pick,
+    required this.prepare,
+    required this.photos,
+    required this.onChanged,
+    required this.max,
+    this.label = 'Bild anhängen',
+    this.moreLabel = 'Weiteres Bild',
+    this.attachedNote = kFeedbackPhotoAttachedNote,
+  });
+
+  final PhotoPicker pick;
+  final PhotoPreparer prepare;
+  final List<PreparedPhoto> photos;
+  final ValueChanged<List<PreparedPhoto>> onChanged;
+  final int max;
+  final String label;
+  final String moreLabel;
+  final String attachedNote;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var i = 0; i < photos.length; i++)
+          PhotoAttachment(
+            key: ValueKey('photo-attachment-$i'),
+            pick: pick,
+            prepare: prepare,
+            photo: photos[i],
+            label: label,
+            attachedNote: i == 0 ? attachedNote : '',
+            onChanged: (photo) => onChanged([
+              for (var j = 0; j < photos.length; j++)
+                if (j != i) photos[j] else ?photo,
+            ]),
+          ),
+        if (photos.length < max)
+          PhotoAttachment(
+            key: ValueKey('photo-attachment-${photos.length}'),
+            pick: pick,
+            prepare: prepare,
+            photo: null,
+            label: photos.isEmpty ? label : moreLabel,
+            attachedNote: attachedNote,
+            onChanged: (photo) {
+              if (photo != null) onChanged([...photos, photo]);
+            },
+          ),
+      ],
+    );
+  }
+}
+
 /// Die Frist als Text — die Zahl wohnt bei `FeedbackRepository`, hier
 /// steht sie nur, damit das Widget keine Datenschicht importiert.
 const kFeedbackPhotoDaysText = '90';
@@ -123,5 +187,5 @@ const kFeedbackPhotoDaysText = '90';
 /// Was der Anhang am Feedback NICHT tut — das Gegenteil des Textes
 /// darüber, und deshalb nicht in demselben Satz.
 const kFeedbackPhotoAttachedNote =
-    'Bild angehängt: ohne Aufnahmedaten, nicht öffentlich — nur '
-    'der Entwickler sieht es, $kFeedbackPhotoDaysText Tage lang.';
+    'Ohne Aufnahmedaten, nicht öffentlich — nur der Entwickler sieht '
+    'die Bilder, $kFeedbackPhotoDaysText Tage lang.';

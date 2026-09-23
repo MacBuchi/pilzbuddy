@@ -12,6 +12,10 @@ enum FeedbackType { feature, bug, species }
 /// wird — anders als der Text — NICHT veröffentlicht.
 const kFeedbackPhotoBucket = 'feedback-photos';
 
+/// So viele Bilder darf eine Meldung tragen — derselbe Wert wie der
+/// Check in Patch 033 (#569).
+const kFeedbackMaxPhotos = 3;
+
 /// Wie lange ein Bild am Feedback bleibt — dieselbe Frist wie die
 /// Fehlerberichte (`ERROR_REPORT_RETENTION_DAYS` im Bot).
 const kFeedbackPhotoDays = 90;
@@ -34,24 +38,25 @@ class FeedbackRepository {
   /// `appVersionProvider` hält sie ohnehin schon, und über den Parameter
   /// ist sie im Test überprüfbar statt immer null.
   ///
-  /// [photo] (#525): ein Bild dazu — nur als [PreparedPhoto], also nach
-  /// der Pipeline. Es geht in den Bucket, die Zeile trägt den Pfad;
-  /// scheitert die Zeile, wird das Objekt wieder abgeräumt (der Bot
-  /// fegt nach 90 Tagen ohnehin).
+  /// [photos] (#525, seit #569 bis zu [kFeedbackMaxPhotos]): nur als
+  /// [PreparedPhoto], also nach der Pipeline. Sie gehen in den Bucket,
+  /// die Zeile trägt die Pfade.
   Future<void> submit(FeedbackType type, String message,
-      {String? appVersion, PreparedPhoto? photo}) async {
+      {String? appVersion, List<PreparedPhoto> photos = const []}) async {
     await _insert({
       'user_id': _client.requireUid,
       'type': type == FeedbackType.bug ? 'bug' : 'feature',
       'message': message.trim(),
       'app_version': appVersion,
-    }, photo);
+    }, photos);
   }
 
   /// Neue Pilzart vorschlagen — der Feedback-Bot baut daraus einen PR,
   /// den der Betreiber nur noch annehmen/ablehnen muss.
   Future<void> submitSpecies(String speciesName,
-      {String? note, String? appVersion, PreparedPhoto? photo}) async {
+      {String? note,
+      String? appVersion,
+      List<PreparedPhoto> photos = const []}) async {
     final name = speciesName.trim();
     await _insert({
       'user_id': _client.requireUid,
@@ -62,30 +67,35 @@ class FeedbackRepository {
         'Pilzart-Vorschlag: $name',
         if (note != null && note.trim().isNotEmpty) note.trim(),
       ].join(' — '),
-    }, photo);
+    }, photos);
   }
 
-  Future<void> _insert(Map<String, dynamic> row, PreparedPhoto? photo) async {
-    String? path;
-    if (photo != null) {
-      // Erst das Objekt, dann die Zeile — wie bei den Fundfotos: Ein
-      // Objekt ohne Zeile ist ein Waisenkind für den Bot, eine Zeile
-      // mit fehlendem Bild wäre ein Issue, das auf nichts zeigt.
-      path = '${_client.requireUid}/${newObjectToken()}.jpg';
+  Future<void> _insert(
+      Map<String, dynamic> row, List<PreparedPhoto> photos) async {
+    if (photos.length > kFeedbackMaxPhotos) {
+      throw ArgumentError('höchstens $kFeedbackMaxPhotos Bilder');
+    }
+    // Erst die Objekte, dann die Zeile — wie bei den Fundfotos: Ein
+    // Objekt ohne Zeile ist ein Waisenkind für den Bot, eine Zeile mit
+    // fehlendem Bild wäre ein Issue, das auf nichts zeigt.
+    //
+    // Scheitert ein Upload oder die Zeile, bleiben die schon
+    // hochgeladenen Objekte liegen: Löschen dürfen Nutzer in diesem
+    // Bucket nicht (Patch 027 — das frühere Aufräumen hier lief deshalb
+    // immer ins Leere), und der Bot fegt sie nach [kFeedbackPhotoDays]
+    // Tagen.
+    final paths = <String>[];
+    for (final photo in photos) {
+      final path = '${_client.requireUid}/${newObjectToken()}.jpg';
       await _client.storage.from(kFeedbackPhotoBucket).uploadBinary(
           path, photo.full,
           fileOptions: const FileOptions(contentType: 'image/jpeg'));
+      paths.add(path);
     }
-    try {
-      await _client.from('feedback').insert({...row, 'photo_path': path});
-    } catch (_) {
-      if (path != null) {
-        // Aufräumen nach bestem Bemühen; gemeldet wird der erste Fehler.
-        try {
-          await _client.storage.from(kFeedbackPhotoBucket).remove([path]);
-        } catch (_) {}
-      }
-      rethrow;
-    }
+    // NUR `photo_paths` (Patch 033). `photo_path` gehört den Clients bis
+    // 1.195.x — zwei Spalten mit derselben Aussage wären zwei Wahrheiten.
+    await _client
+        .from('feedback')
+        .insert({...row, 'photo_paths': paths.isEmpty ? null : paths});
   }
 }
