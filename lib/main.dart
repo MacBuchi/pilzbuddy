@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -37,9 +38,14 @@ Future<void> main() async {
   // Absichtlich ohne await: das Melden darf den Programmfluss weder
   // aufhalten noch scheitern lassen. Fehler beim Melden werden geschluckt —
   // sie hier zu loggen wäre eine Endlosschleife.
-  setErrorSink((context, error, stackTrace) {
-    reports.report(context, error, stackTrace).catchError((Object _) {});
-  });
+  //
+  // Im Web nur, wenn die App NICHT von der eigenen Maschine kommt
+  // ([reportsFromHost]) — sonst schreiben Testläufe in die echte Tabelle.
+  if (!kIsWeb || reportsFromHost(Uri.base.host)) {
+    setErrorSink((context, error, stackTrace) {
+      reports.report(context, error, stackTrace).catchError((Object _) {});
+    });
+  }
 
   // Auch nicht gefangene Fehler melden. Android Vitals sieht davon nur die
   // Play-Installationen; Web und die GitHub-APK bleiben sonst blind.
