@@ -16,11 +16,10 @@ findet man nur, wenn man weiß, dass es da ist. Deshalb gibt es jetzt
 zwei Wege dahin:
 
 - **Ein kurzes Blatt nach einem Update.** Nach einer neuen Version
-  zeigt die Karte einmal bis zu drei Neuheiten, jede mit einem Knopf
-  „Ausprobieren", der direkt hinführt. Danach bietet eine Leiste unten
-  an, mit der nächsten Neuheit weiterzumachen. Wegwischen reicht, es
-  kommt nicht wieder. Beim ersten Mal ist es ein Rückblick auf das, was
-  inzwischen dazugekommen ist.
+  zeigt die Karte einmal bis zu drei Neuheiten untereinander, auf einen
+  Blick und ohne Blättern. Ein Tipp auf eine davon führt direkt hin.
+  Wegwischen reicht, es kommt nicht wieder. Beim ersten Mal ist es ein
+  Rückblick auf das, was inzwischen dazugekommen ist.
 - **„Entdecken" im Profil** und in der Kurzanleitung: alle Funktionen
   und Tipps auf einer Seite, nach Reiter geordnet — auch die kleinen,
   etwa das Menü beim langen Drücken auf die Karte oder das Vormerken

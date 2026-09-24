@@ -1267,8 +1267,9 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   der Satz wieder — er steht jetzt in der Kurzanleitung.
 - **Neuheiten und „Entdecken"** (#596, seit 1.204.0,
   `lib/features/highlights/`): EINE Liste (`kFeatureHighlights`), zwei
-  Anzeigen — das Blatt nach einem Update (höchstens drei Highlights,
-  jüngste zuerst) und die Seite „Entdecken" (alles, auch die Tipps).
+  Anzeigen — das Blatt nach einem Update (höchstens drei Highlights
+  untereinander, jüngste zuerst) und die Seite „Entdecken" (alles,
+  auch die Tipps).
   Die Tour bleibt daneben und hat eine andere Aufgabe: Das Blatt sagt,
   WAS es gibt, die Tour zeigt, WO es ist. Fünf Dinge, die man wissen
   muss:
@@ -1292,11 +1293,13 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   - **Gemerkt wird VOR dem Zeigen**, und nie ein älterer Stand über
     einen jüngeren (Rückschritt vom Vorabkanal). Ein weggewischtes
     Blatt kommt nicht wieder; verpasst ist nichts, „Entdecken" hat es.
-    **Als gesehen zählt je Eintrag nur die Seite, die angezeigt WURDE**,
-    und „Ausprobieren" mitten im Blatt bietet am Ziel „Weiter ansehen"
-    an (seit 1.204.1 — vorher war der Rückblick nach dem ersten
-    Ausprobieren weg, und die übrigen Seiten hatten in „Entdecken" kein
-    „Neu" mehr; im Feld gemeldet).
+    **Das Blatt ist EINE Seite, alle Einträge untereinander** (seit
+    1.204.1, Muster der „Neu in …"-Seiten). 1.204.0 blätterte mit
+    „Ausprobieren" je Seite, und wer mittendrin antippte, verlor den
+    Rest — im Feld gemeldet. Eine „Weiter ansehen"-Leiste am Ziel war
+    gebaut und ist verworfen: Sie flickte einen Fall, den der übliche
+    Aufbau gar nicht erst hat. Wer das Blatt wieder zum Blättern macht,
+    muss „gesehen" je angezeigter Seite merken, nicht beim Öffnen.
   - **Bilder aus Widgets** (`HighlightArt`: das echte Knopfsymbol plus
     ein schaukelnder Pilz-Buddy), keine Screenshots — die veralten mit
     jeder Oberflächenänderung —, kein Lottie.
