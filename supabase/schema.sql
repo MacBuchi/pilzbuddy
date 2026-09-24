@@ -382,7 +382,7 @@ grant usage on schema app_internal to anon, authenticated;
 -- Feedback-Bilder (Patch 033): höchstens drei, jedes im Ordner des
 -- Melders. Eine Funktion, weil ein CHECK kein Array durchlaufen kann.
 create or replace function app_internal.feedback_photos_ok(paths text[], owner uuid)
-returns boolean language sql immutable as $$
+returns boolean language sql immutable set search_path = '' as $$
   select paths is null
       or (cardinality(paths) between 1 and 3
           and not exists (select 1 from unnest(paths) p
@@ -798,7 +798,8 @@ create extension if not exists pg_cron;
 -- zwischen den beiden Triggern auseinanderlaufen.
 create or replace function app_internal.push_due_at(first_seen timestamptz)
 returns timestamptz
-language sql immutable as $$
+-- Fester, leerer Suchpfad (Patch 036, Security Advisor).
+language sql immutable set search_path = '' as $$
   select least(now() + interval '5 minutes', first_seen + interval '30 minutes');
 $$;
 
@@ -876,7 +877,9 @@ end $$;
 -- Richtung sonst zweimal dastünde.
 create or replace function app_internal.push_friends(person uuid)
 returns table (friend_id uuid)
-language sql stable as $$
+-- Fester, leerer Suchpfad (Patch 036); `public.friendships` ist deshalb
+-- ausgeschrieben.
+language sql stable set search_path = '' as $$
   select case when requester_id = person then addressee_id else requester_id end
     from public.friendships
    where status = 'accepted'
@@ -1134,5 +1137,6 @@ insert into public.applied_patches (filename) values
   ('patch_032_buddy_alias.sql'),
   ('patch_033_feedback_bilder.sql'),
   ('patch_034_galerie_einwilligung.sql'),
-  ('patch_035_feedback_bild_groesse.sql')
+  ('patch_035_feedback_bild_groesse.sql'),
+  ('patch_036_function_search_path.sql')
 on conflict do nothing;
