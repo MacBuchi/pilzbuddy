@@ -36,6 +36,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/app_colors.dart';
 import '../../../core/widgets/sheet_close_button.dart';
+import '../../coach/coach.dart';
+import '../../help/map_tour.dart' show MapCoach;
 import '../../ampel/ampel_map_providers.dart';
 import '../../ampel/ampel_providers.dart';
 import '../../offline_maps/offline_map_providers.dart';
@@ -166,7 +168,9 @@ class _MapLayersSheet extends ConsumerWidget {
                       detail: MapLayerDetail.offline,
                       colour: AppColors.warmBrown,
                     ),
-                  _LayerRow(
+                  CoachAnchor(
+                    id: MapCoach.layersForest,
+                    child: _LayerRow(
                     title: 'Waldtypen',
                     subtitle: 'Laub, Nadel und Mischwald als Waben',
                     value: ref.watch(forestLayerEnabledProvider),
@@ -175,7 +179,7 @@ class _MapLayersSheet extends ConsumerWidget {
                         .set(value),
                     detail: MapLayerDetail.forest,
                     colour: AppColors.forestMixed,
-                  ),
+                  )),
                   _LayerRow(
                     title: 'Höhenlinien',
                     // Die Ablesung am Fadenkreuz steht in der Zeile —

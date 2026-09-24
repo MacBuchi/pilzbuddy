@@ -1274,22 +1274,45 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   ECHTEN Symbolen (kein `.md`-Asset: das läge im Binary, gälte dem
   Version Guard aber als `*.md` und wäre damit von der Bump-Pflicht
   ausgenommen — dieselbe Falle wie bei `CHANGELOG.md`). **B** ist die
-  geführte Tour (`lib/features/help/map_tour.dart`). Vier Dinge, die man
-  wissen muss:
-  - **Das Overlay liegt ÜBER dem `Scaffold`, nicht in seinem `body`.**
-    Die Knopfspalte hängt an `floatingActionButton` und läge sonst über
-    der Abdunkelung — jeder Knopf sähe aus wie hervorgehoben. Und es
-    liegt INNERHALB des Karten-Zweigs, damit es beim Reiterwechsel
-    verschwindet; die Reiterleiste der Hülle bleibt frei, eine Tour darf
-    nicht einsperren.
-  - **Die Löcher kommen aus dem `RenderBox`, nie aus festen Zahlen.**
-    Die Spalte steckt seit 1.98.0 in einem `FittedBox(scaleDown)`, ihre
-    Maße hängen also an der Bildschirmhöhe. `test/flows/map_tour_flow_test.dart`
-    hält jedes Loch gegen `tester.getRect` des echten Knopfs.
+  geführte Tour (`lib/features/help/map_tour.dart`), seit 1.205.0 ein
+  Skript auf der **Hinweis-Maschine** (`lib/features/coach/coach.dart`,
+  #596). Die erste Fassung schnitt vergrößerte runde Löcher je Knopf —
+  seit die Werkzeuge in EINER Leiste sitzen, griffen die in den
+  Nachbarknopf, und sie zeigte nur, WO etwas ist (PWA-Screenshots des
+  Betreibers, 2026-09-24). Jetzt FÜHRT sie vor: Der lange Druck öffnet
+  das Kontextmenü, die Ebenen öffnen ihr Blatt („wichtig ist mir, dass
+  das Kontextmenü gezeigt wird, nicht nur der erste Button"). Sechs
+  Dinge, die man wissen muss:
+  - **Die Maschine liegt über allem** (`MaterialApp.builder`), also über
+    Dialogen und Blättern, und schluckt jeden Tipp — eine Vorführung
+    löst nie etwas aus. Deshalb meldet sie sich beim **Zurück-Verteiler
+    des Routers** mit Vorrang an, solange sie läuft (sonst verließe
+    Zurück auf der Karte die App), und danach wieder ab (sonst sperrte
+    sie ein). Beide Richtungen stehen im Flow-Test.
+  - **Anker und Szenen haben Kennungen** (`MapCoach`). `CoachAnchor`
+    meldet ein Widget an, der Screen meldet Szenen an (Menü, Blatt), und
+    eine Szene gibt ihren Schließer zurück. Die Maschine schließt beim
+    Szenenwechsel und am Ende immer; das Menü meldet dabei `null`, also
+    keine Aktion. Die Szenen rufen `showMapContextMenu`/
+    `showMapLayersSheet` DIREKT, nicht `_openContextMenu`/`_openLayers`,
+    die das Ergebnis auswerten würden.
+  - **Gemessen wird über die ganze Transformation** (`getTransformTo`)
+    und bei jedem Bild — die Leiste steckt in einem `FittedBox`, ein
+    Blatt fährt animiert herein. **Im Karten-Test wird die Leiste nie
+    verkleinert** (auch bei 360×560 nachgemessen: 44×44), deshalb steht
+    die Zusage in `test/coach_test.dart` mit einem `Transform.scale`.
+  - **Aussparung in Form des Elements, Ring auf dem gemeinten.** Bei der
+    Leiste ist sie ganz ausgespart, der Ring sitzt auf dem Knopf; im
+    ersten Schritt nur um „Neuer Spot", sonst wäre er ein Kasten von der
+    Bildmitte bis in die Ecke. Fehlt ein Ziel ~2 s lang (Menü an der
+    Tour vorbei geschlossen), geht es weiter statt ins Leere.
   - **`FakeSettings.mapTourSeen` steht auf `true`, die App auf `false`.**
     Andersherum bekäme jeder Bestandstest die Tour übergestülpt — in der
     Gegenprobe gemessen: 13 Tests brechen. Muster wie `lastFindSeenAt`.
-  - **Überspringen zählt wie Durchsehen.** Wer abbricht, hat entschieden.
+  - **Überspringen und Zurück zählen wie Durchsehen.** Gemerkt wird über
+    den Notifier von `mapTourSeenProvider`, nicht über den `ref` des
+    Aufrufers — aus der Kurzanleitung gestartet, ist der beim Ende
+    vielleicht schon abgebaut.
   Der Merker ist gerätelokal (Betreiber, 2026-08-29); nach einer
   Neuinstallation läuft sie wieder, und das ist angenommen.
   Nebenbefund aus #350: Der einzige Erklärsatz, den die App davor hatte

@@ -1,63 +1,51 @@
-// Die geführte Tour über die Karte (#350, Baustein B).
+// Die geführte Tour über die Karte (#350, neu gebaut für #596).
 //
-// Vier Zusagen stehen hier, und keine davon ist der Wortlaut:
+// Die Zusagen, und keine davon ist der Wortlaut:
 //
 //   1. Sie läuft beim ersten Start an — und danach nie wieder.
-//   2. Überspringen zählt wie Durchsehen.
-//   3. Das Loch sitzt auf dem ECHTEN Knopf, nicht auf einer festen Zahl.
-//   4. Sie sperrt niemanden ein.
-//   5. Sie lässt keinen Knopf der Hauptseite aus.
-//   6. Am Ende führt ein Knopf in die Kurzanleitung — bis 1.109.0 war
-//      dieser Verweis eine Behauptung im Kopfkommentar und sonst nichts.
+//   2. Überspringen und Zurück zählen wie Durchsehen, und Zurück beendet
+//      die Tour, nicht die App.
+//   3. Aussparung und Ring sitzen auf den ECHTEN Widgets, auf einem
+//      normalen und einem kleinen Schirm — die Leiste steckt in einem
+//      `FittedBox(scaleDown)`.
+//   4. Sie FÜHRT VOR: Das Kontextmenü und das Ebenen-Blatt gehen auf,
+//      und ihre Einträge sind hervorgehoben (Betreiber, 2026-09-24).
+//   5. Was sie öffnet, schließt sie wieder, ohne etwas auszulösen.
+//   6. Die Sprechblase liegt nie auf dem, was sie erklärt.
+//   7. Am Ende führt ein Knopf in die Kurzanleitung, und von dort lässt
+//      sie sich neu starten.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pilzbuddy/features/coach/coach.dart';
 import 'package:pilzbuddy/features/help/map_tour.dart';
 
 import '../fakes/fake_backend.dart';
 import '../fakes/fake_settings.dart';
 import '../fakes/test_app.dart';
 
-/// Ein Knopf der Karten-Spalte.
-///
-/// Bis 1.133.0 waren vier davon `FloatingActionButton`s mit `heroTag`;
-/// seit sie in EINER weißen Leiste sitzen, gibt es die Kennungen nicht
-/// mehr. Der Tooltip ist der bessere Anker — er ist ohnehin die Zusage
-/// an den Nutzer, weil die Leiste keine Beschriftung trägt.
-///
-/// **Das Loch misst weiter den ECHTEN Knopf** (`tester.getRect`), nicht
-/// eine feste Zahl: Die Spalte steckt in einem `FittedBox(scaleDown)`,
-/// ihre Maße hängen also an der Bildschirmhöhe. Genau deshalb überlebt
-/// dieser Test die Umstellung, ohne dass eine Koordinate angefasst
-/// werden musste.
-Finder fab(String tooltip) => find.byTooltip(tooltip);
+/// Ein Knopf der Leiste — über den Tooltip, er ist ohnehin die Zusage an
+/// den Nutzer, weil die Leiste keine Beschriftung trägt.
+Finder tool(String tooltip) => find.byTooltip(tooltip);
 
-/// Die Löcher, die gerade wirklich gemalt werden.
-List<Rect> holes(WidgetTester tester) => tester
+CoachPainter painter(WidgetTester tester) => tester
     .widgetList<CustomPaint>(find.byType(CustomPaint))
     .map((c) => c.painter)
-    .whereType<SpotlightPainter>()
-    .single
-    .holes;
+    .whereType<CoachPainter>()
+    .single;
 
-/// Die Schritte in ihrer Reihenfolge. Einmal hier, weil zwei Tests sie
-/// durchlaufen — und weil die REIHENFOLGE eine Aussage ist: Ab Schritt 3
-/// läuft der Scheinwerfer die Knopfspalte hinunter, und geendet wird auf
-/// „Unterwegs", nicht auf dem Filter.
-const kTourTitles = [
-  'So entsteht ein Spot',
-  'Wo du gerade bist',
-  'Was die Karte zeigt',
-  'Wenn es viele Spots werden',
-  'Unterwegs',
-];
+/// Gleich bis auf Rundung — beide Rechtecke laufen durch Transformationen.
+bool near(Rect a, Rect b) =>
+    (a.left - b.left).abs() < 0.01 &&
+    (a.top - b.top).abs() < 0.01 &&
+    (a.right - b.right).abs() < 0.01 &&
+    (a.bottom - b.bottom).abs() < 0.01;
+
+Rect union(Iterable<Rect> rects) => rects.reduce((a, b) => a.expandToInclude(b));
+
+final kTourTitles = [for (final s in kMapTourScript.steps) s.title];
 
 void main() {
-  /// Ein Gerät dieser Maße — Oberfläche UND `MediaQuery`.
-  ///
-  /// `setSurfaceSize` allein ändert nur die Fläche; `MediaQuery` meldet
-  /// weiter 800×600, und dann rechnet der geprüfte Code mit einem
-  /// Bildschirm, den es im Test nicht gibt. Genau daran ist in #358 eine
-  /// gemessene Zahl falsch ins Repo gewandert.
+  /// Ein Gerät dieser Maße — Oberfläche UND `MediaQuery` (#358).
   void useScreen(WidgetTester tester, Size size) {
     tester.view.physicalSize = size * 3;
     tester.view.devicePixelRatio = 3;
@@ -70,64 +58,25 @@ void main() {
     return backend;
   }
 
-  /// Ein Gerät, das die Tour noch nicht gesehen hat. `FakeSettings`
-  /// stellt bewusst das Gegenteil ein (sonst bekäme jeder Bestandstest
-  /// die Tour übergestülpt), hier wird es ausdrücklich zurückgenommen.
   FakeSettings fresh() => FakeSettings(mapTourSeen: false);
 
-  testWidgets('läuft beim ersten Start an und nennt Fadenkreuz UND Knopf',
-      (tester) async {
-    // Die Hürde des ersten Starts ist nicht der Knopf, sondern dass
-    // Fadenkreuz und Knopf zusammengehören — deshalb stellt Schritt 1
-    // BEIDE frei und nicht nacheinander eines davon.
-    await pumpApp(tester, signedIn(), settings: fresh());
-
-    expect(find.text('So entsteht ein Spot'), findsOneWidget);
-    expect(find.text('1 von 5'), findsOneWidget);
-    expect(holes(tester), hasLength(2));
-  });
-
-  testWidgets('das Loch sitzt auf dem ECHTEN Knopf', (tester) async {
-    // **Der Wächter, ohne den die Tour still danebenzeigen kann.** Die
-    // Knopfspalte steckt seit 1.98.0 in einem `FittedBox(scaleDown)`:
-    // Ihre Maße hängen an der Bildschirmhöhe, und eine feste Zahl wäre
-    // dort am falschesten, wo der Schirm klein ist. Deshalb wird gegen
-    // `getRect` des Knopfs geprüft, nicht gegen eine Konstante.
-    //
-    // **Mit Toleranz, und das ist keine Nachlässigkeit.** Beide Rechtecke
-    // laufen durch die Skalierung der `FittedBox`, und seit die
-    // Werkzeuge in einer Leiste liegen, summiert sich das in anderer
-    // Reihenfolge: gemessen 552.0 gegen 551.9999999999999. Die Zusage
-    // ist „das Loch sitzt auf dem Knopf", nicht „die Doubles sind
-    // bitgleich" — ein exakter Vergleich prüft hier die
-    // Assoziativität von Fließkomma-Addition, nicht die Tour.
-    useScreen(tester, const Size(412, 915));
-    await pumpApp(tester, signedIn(), settings: fresh());
-
+  Future<void> next(WidgetTester tester) async {
     await tester.tap(find.text('Weiter'));
     await settle(tester);
-    expect(find.text('Wo du gerade bist'), findsOneWidget);
-    expect(holes(tester).single,
-        rectMoreOrLessEquals(tester.getRect(fab('Meine Position'))));
+  }
 
-    await tester.tap(find.text('Weiter'));
-    await settle(tester);
-    expect(find.text('Was die Karte zeigt'), findsOneWidget);
-    expect(holes(tester).single,
-        rectMoreOrLessEquals(tester.getRect(fab('Ebenen'))));
+  /// Nichts wurde ausgelöst: kein Anlege-Blatt, kein Menü, kein
+  /// Ebenen-Blatt.
+  void nothingOpen() {
+    expect(find.text('Nur vormerken, noch kein Fund'), findsNothing,
+        reason: 'das Anlege-Blatt ist aufgegangen');
+    expect(find.text('Heranzoomen'), findsNothing, reason: 'Menü noch offen');
+    expect(find.text('Aktualisieren'), findsNothing,
+        reason: 'Ebenen-Blatt noch offen');
+    expect(find.byType(BottomSheet), findsNothing);
+  }
 
-    await tester.tap(find.text('Weiter'));
-    await settle(tester);
-    expect(holes(tester).single,
-        rectMoreOrLessEquals(tester.getRect(fab('Karte filtern'))));
-
-    await tester.tap(find.text('Weiter'));
-    await settle(tester);
-    expect(holes(tester).single,
-        rectMoreOrLessEquals(tester.getRect(fab('Unterwegs'))));
-  });
-
-  testWidgets('fünf Schritte, dann ist sie durch — und kommt nicht wieder',
+  testWidgets('läuft beim ersten Start an, der Reihe nach, dann nie wieder',
       (tester) async {
     final settings = fresh();
     await pumpApp(tester, signedIn(), settings: settings);
@@ -138,153 +87,182 @@ void main() {
           find.text(title == kTourTitles.last ? 'Los geht\'s' : 'Weiter'));
       await settle(tester);
     }
-
-    expect(find.text('So entsteht ein Spot'), findsNothing);
     expect(settings.mapTourSeen, isTrue);
+    expect(find.byKey(const ValueKey('coach-bubble')), findsNothing);
+    nothingOpen();
 
-    // Der Neustart braucht einen leeren Frame dazwischen — ein zweiter
-    // `pumpApp` allein hält dasselbe `ProviderScope`-Element und damit
-    // den ganzen Container am Leben.
     await tester.pumpWidget(const SizedBox());
     await pumpApp(tester, signedIn(), settings: settings);
-    expect(find.text('So entsteht ein Spot'), findsNothing);
+    expect(find.text(kTourTitles.first), findsNothing);
   });
 
-  testWidgets('Überspringen zählt wie Durchsehen', (tester) async {
-    // Wer abbricht, hat entschieden. Eine Tour, die nach dem
-    // Überspringen wiederkommt, ist keine Hilfe mehr.
+  testWidgets('Aussparung und Ring sitzen auf den echten Widgets',
+      (tester) async {
+    // Gegen `getRect` geprüft, nie gegen Zahlen: Auf dem kleinen Schirm
+    // verkleinert die `FittedBox` die Leiste wirklich. Die alte Tour
+    // zeichnete dort eine um 8 px vergrößerte runde Aussparung, die in
+    // den Nachbarknopf griff (Screenshots aus der PWA, 2026-09-24).
+    for (final size in [const Size(412, 915), const Size(360, 640)]) {
+      useScreen(tester, size);
+      await tester.pumpWidget(const SizedBox());
+      await pumpApp(tester, signedIn(), settings: fresh());
+      final at = ' bei ${size.width}×${size.height}';
+      final toolbar = union([
+        tester.getRect(tool('Ebenen')),
+        tester.getRect(tool('Meine Position')),
+      ]);
+
+      // 1 — Fadenkreuz und „Neuer Spot", beide ausgespart.
+      final fab = tester.getRect(find.ancestor(
+          of: find.text('Neuer Spot'),
+          matching: find.byType(FloatingActionButton)));
+      expect(painter(tester).lit, hasLength(2), reason: 'zwei Stellen$at');
+      expect(painter(tester).lit.any((r) => near(r, fab)), isTrue,
+          reason: 'Neuer Spot$at: ${painter(tester).lit} gegen $fab');
+      expect(near(painter(tester).ring.single, fab), isTrue,
+          reason: 'der Ring nur um den Knopf$at');
+
+      await next(tester); // 2 — lange drücken
+      await next(tester); // 3 — Menü: Neuer Spot hier
+      expect(find.text('Heranzoomen'), findsOneWidget,
+          reason: 'das Kontextmenü ist offen$at');
+      final chip = tester.getCenter(find.text('Neuer Spot').last);
+      expect(union(painter(tester).ring).contains(chip), isTrue,
+          reason: 'Ring auf dem Menüeintrag$at');
+
+      await next(tester); // 4 — die übrigen Einträge
+      for (final label in ['Was ist hier?', 'Navigation', 'Heranzoomen']) {
+        expect(
+            painter(tester)
+                .lit
+                .any((r) => r.contains(tester.getCenter(find.text(label).last))),
+            isTrue,
+            reason: '„$label" ausgespart$at');
+      }
+
+      await next(tester); // 5 — Ebenen in der Leiste
+      expect(find.text('Heranzoomen'), findsNothing,
+          reason: 'das Menü ist wieder zu$at');
+      final lit = painter(tester).lit.single;
+      expect(
+          lit.contains(toolbar.topLeft + const Offset(1, 1)) &&
+              lit.contains(toolbar.bottomRight - const Offset(1, 1)),
+          isTrue,
+          reason: 'die ganze Leiste ist ausgespart$at: $lit gegen $toolbar');
+      expect(painter(tester).ring.single,
+          rectMoreOrLessEquals(tester.getRect(tool('Ebenen'))),
+          reason: 'Ring auf „Ebenen"$at');
+
+      await next(tester); // 6 — das Blatt
+      expect(find.text('Aktualisieren'), findsOneWidget,
+          reason: 'das Ebenen-Blatt ist offen$at');
+      expect(union(painter(tester).ring).contains(tester.getCenter(find.text('Waldtypen'))),
+          isTrue,
+          reason: 'Ring auf „Waldtypen"$at');
+
+      await next(tester); // 7 — der Rest der Leiste
+      expect(find.text('Aktualisieren'), findsNothing,
+          reason: 'das Blatt ist wieder zu$at');
+      expect(
+          union(painter(tester).ring),
+          rectMoreOrLessEquals(union([
+            tester.getRect(tool('Karte filtern')),
+            tester.getRect(tool('Unterwegs')),
+            tester.getRect(tool('Meine Position')),
+          ])),
+          reason: 'Ring auf Filter, Unterwegs, Position$at');
+    }
+  });
+
+  testWidgets('der lange Druck wird vorgeführt, nicht beschrieben',
+      (tester) async {
+    await pumpApp(tester, signedIn(), settings: fresh());
+    await next(tester);
+    expect(find.text('Lange drücken'), findsOneWidget);
+    expect(
+        tester
+            .widgetList<CustomPaint>(find.byType(CustomPaint))
+            .map((c) => c.painter)
+            .whereType<FingerPainter>()
+            .single
+            .gesture,
+        CoachGesture.longPress);
+  });
+
+  testWidgets('Tippen während der Vorführung löst nichts aus',
+      (tester) async {
+    // Die Überlagerung schluckt jeden Tipp: Liegt das Menü offen und
+    // tippt jemand auf „Neuer Spot", geht es nur weiter.
+    await pumpApp(tester, signedIn(), settings: fresh());
+    await next(tester);
+    await next(tester);
+    expect(find.text('Neuer Spot, genau hier'), findsOneWidget);
+    await tester.tapAt(tester.getCenter(find.text('Neuer Spot').last));
+    await settle(tester);
+    expect(find.text('Was ist hier?'), findsWidgets, reason: 'Schritt 4');
+    expect(find.text('Nur vormerken, noch kein Fund'), findsNothing);
+  });
+
+  testWidgets('Überspringen mitten im Menü lässt nichts offen',
+      (tester) async {
     final settings = fresh();
     await pumpApp(tester, signedIn(), settings: settings);
-
-    expect(find.text('Überspringen'), findsOneWidget);
+    await next(tester);
+    await next(tester);
+    expect(find.text('Heranzoomen'), findsOneWidget);
     await tester.tap(find.text('Überspringen'));
     await settle(tester);
-
-    expect(find.text('So entsteht ein Spot'), findsNothing);
     expect(settings.mapTourSeen, isTrue);
+    expect(find.byKey(const ValueKey('coach-bubble')), findsNothing);
+    nothingOpen();
+  });
+
+  testWidgets('Überspringen im Blatt lässt nichts offen', (tester) async {
+    await pumpApp(tester, signedIn(), settings: fresh());
+    for (var i = 0; i < 5; i++) {
+      await next(tester);
+    }
+    expect(find.text('Aktualisieren'), findsOneWidget);
+    await tester.tap(find.text('Überspringen'));
+    await settle(tester);
+    nothingOpen();
   });
 
   testWidgets('die Zurück-Taste beendet die Tour, nicht die App',
       (tester) async {
-    // Eine bildschirmfüllende Abdunkelung, die auf Zurück nicht reagiert,
-    // ist eine Falle: Auf der Karte ist Zurück der Weg AUS der App, wer
-    // also den Reflex hat, die Tour damit wegzuwischen, legt PilzBuddy in
-    // den Hintergrund.
+    // Die Überlagerung liegt über dem Router — ohne eigene Anmeldung beim
+    // Zurück-Verteiler bekäme der die Taste, und auf der Karte hieße das,
+    // PilzBuddy zu verlassen.
     final settings = fresh();
     await pumpApp(tester, signedIn(), settings: settings);
-    expect(find.text(kTourTitles.first), findsOneWidget);
-
-    await tester.binding.handlePopRoute();
+    await next(tester);
+    await next(tester); // Menü offen
+    final handled = await tester.binding.handlePopRoute();
     await settle(tester);
-
-    expect(find.text(kTourTitles.first), findsNothing);
-    // Zurück zählt wie Überspringen: Wer abbricht, hat entschieden.
+    expect(handled, isTrue);
+    expect(find.byKey(const ValueKey('coach-bubble')), findsNothing);
     expect(settings.mapTourSeen, isTrue);
-    // Und die App steht noch da, wo sie stand.
-    expect(find.byTooltip('Ebenen'), findsOneWidget);
+    nothingOpen();
+    expect(tool('Ebenen'), findsOneWidget, reason: 'die App steht noch');
   });
 
-  testWidgets('ohne laufende Tour fängt niemand die Zurück-Taste ab',
+  testWidgets('nach der Tour gehört die Zurück-Taste wieder dem System',
       (tester) async {
     // Die andere Hälfte, und die wiegt schwerer: Ein Abfangen, das
-    // stehen bleibt, sperrt den Nutzer für den Rest der Sitzung in der
-    // App ein — ohne dass irgendetwas auf dem Schirm verriete, warum.
-    await pumpApp(tester, signedIn(), settings: FakeSettings());
-    expect(find.text(kTourTitles.first), findsNothing);
-    expect(
-        find.descendant(
-            of: find.byType(MapTourOverlay), matching: find.byType(PopScope)),
-        findsNothing);
-  });
-
-  testWidgets('auf einem anderen Reiter fängt die Tour die Zurück-Taste '
-      'nicht ab', (tester) async {
-    // Die Karte lebt im `IndexedStack` weiter, wenn man den Reiter
-    // wechselt — mit ihr das `PopScope`. Verdeckt darf es nichts
-    // schlucken: Sonst beendete ein Zurück im Profil still eine Tour, die
-    // der Nutzer dort gar nicht sieht. Nachgemessen, nicht angenommen.
+    // stehen bleibt, sperrte den Nutzer in der App ein. Auf der Karte
+    // gibt es nichts zurückzunehmen — die Taste muss bis zum System
+    // durch (`handlePopRoute` meldet dann `false`).
     final settings = fresh();
     await pumpApp(tester, signedIn(), settings: settings);
-    await tester.tap(find.text('Profil'));
+    expect(await tester.binding.handlePopRoute(), isTrue,
+        reason: 'während der Tour fängt sie die Taste');
     await settle(tester);
-
-    await tester.binding.handlePopRoute();
-    await settle(tester);
-
-    expect(settings.mapTourSeen, isFalse,
-        reason: 'im Profil gedrückt, im Profil gewirkt');
-    // Und die Tour steht unversehrt da, wo sie stand.
-    await tester.tap(find.text('Karte'));
-    await settle(tester);
-    expect(find.text(kTourTitles.first), findsOneWidget);
-  });
-
-  testWidgets('sie sperrt nicht ein — die Reiter bleiben erreichbar',
-      (tester) async {
-    // Deshalb liegt das Overlay INNERHALB des Karten-Zweigs und nicht
-    // app-weit: Die Reiterleiste gehört der Hülle und bleibt frei.
-    await pumpApp(tester, signedIn(), settings: fresh());
-    expect(find.text('So entsteht ein Spot'), findsOneWidget);
-
-    await tester.tap(find.text('Profil'));
-    await settle(tester);
-    expect(find.text('So entsteht ein Spot'), findsNothing,
-        reason: 'auf einem anderen Reiter hat die Karten-Tour nichts zu '
-            'suchen');
-  });
-
-  testWidgets('kein Knopf der Hauptseite bleibt ungenannt', (tester) async {
-    // Der Wächter für den Betreiber-Wunsch (2026-08-29): „quasi alle
-    // Knöpfe auf der Hauptseite abgedeckt". Wer sucht, was die Tour
-    // ausgelassen hat, weiß ja nicht, dass sie es ausgelassen hat —
-    // deshalb ist die Deckung eine Zusage und keine Geschmacksfrage. Ein
-    // sechster Knopf in der Spalte ohne eigenen Schritt macht das hier
-    // rot.
-    useScreen(tester, const Size(412, 915));
-    await pumpApp(tester, signedIn(), settings: fresh());
-
-    final seen = <Rect>[];
-    for (final title in kTourTitles) {
-      expect(find.text(title), findsOneWidget, reason: 'Schritt „$title"');
-      seen.addAll(holes(tester));
-      if (title == kTourTitles.last) break;
-      await tester.tap(find.text('Weiter'));
-      await settle(tester);
-    }
-
-    // Dieselbe Toleranz wie oben, aus demselben Grund.
-    bool covered(Rect wanted) =>
-        seen.any((hole) => (hole.left - wanted.left).abs() < 0.01 &&
-            (hole.top - wanted.top).abs() < 0.01 &&
-            (hole.right - wanted.right).abs() < 0.01 &&
-            (hole.bottom - wanted.bottom).abs() < 0.01);
-
-    for (final tooltip in [
-      'Ebenen',
-      'Karte filtern',
-      'Unterwegs',
-      'Meine Position',
-    ]) {
-      expect(covered(tester.getRect(fab(tooltip))), isTrue,
-          reason: 'der Knopf „$tooltip" kommt in keinem Schritt vor');
-    }
-    // „Neuer Spot" ist der einzige geblieben, der ein FAB ist — und
-    // deshalb der einzige, der hier über seinen Text gefunden wird.
-    expect(
-        covered(tester.getRect(find.ancestor(
-            of: find.text('Neuer Spot'),
-            matching: find.byType(FloatingActionButton)))),
-        isTrue,
-        reason: 'der Knopf „Neuer Spot" kommt in keinem Schritt vor');
+    expect(await tester.binding.handlePopRoute(), isFalse,
+        reason: 'danach nicht mehr');
   });
 
   testWidgets('die Sprechblase liegt nie auf dem, was sie erklärt',
       (tester) async {
-    // Eine Sprechblase über dem Loch ist eine Sprechblase über nichts.
-    // Die Seitenwahl hängt an `union.center.dy` gegen die halbe
-    // Schirmhöhe — eine Regel, die genau dann kippt, wenn ein Loch nahe
-    // der Mitte liegt oder der Schirm klein wird. Beides steht hier,
-    // statt es einmal von Hand angesehen zu haben.
     for (final size in [const Size(412, 915), const Size(360, 640)]) {
       useScreen(tester, size);
       await tester.pumpWidget(const SizedBox());
@@ -293,61 +271,43 @@ void main() {
       for (final title in kTourTitles) {
         expect(find.text(title), findsOneWidget,
             reason: 'Schritt „$title" bei ${size.width}×${size.height}');
-        final bubble = tester.getRect(find.descendant(
-            of: find.byType(MapTourOverlay), matching: find.byType(Card)));
-        for (final hole in holes(tester)) {
-          expect(bubble.overlaps(hole), isFalse,
+        final bubble =
+            tester.getRect(find.byKey(const ValueKey('coach-bubble')));
+        final p = painter(tester);
+        for (final r in [...p.lit, ...p.ring]) {
+          expect(bubble.overlaps(r), isFalse,
               reason: 'Schritt „$title" bei ${size.width}×${size.height}: '
-                  'Blase $bubble deckt das Loch $hole zu');
+                  'Blase $bubble deckt $r zu');
         }
         if (title == kTourTitles.last) break;
-        await tester.tap(find.text('Weiter'));
-        await settle(tester);
+        await next(tester);
       }
     }
   });
 
   testWidgets('der letzte Schritt führt weiter in die Kurzanleitung',
       (tester) async {
-    // Die Zusage aus dem Kopfkommentar, die bis 1.109.0 keine war: Die
-    // Tour erklärt nur, was auf diesem Schirm liegt — Leergang, Freigabe
-    // und Offline-Karten stehen in der Kurzanleitung, und ohne diesen
-    // Knopf sagt das niemandem jemand. Der eine andere Weg dorthin, das
-    // grüne Banner, erscheint nur bei völlig leerer Karte.
     final settings = fresh();
-    final backend = signedIn();
-    // Ein Buddy-Spot auf der Karte: genau der Nutzer, für den die Tour
-    // gebaut wurde — und bei dem das Banner mit dem Verweis NICHT steht.
-    final buddy = backend.addUser(username: 'buddy');
-    backend.addSpot(ownerId: buddy.id, lat: 50.5, lng: 12.5, name: 'Hang');
-    await pumpApp(tester, backend, settings: settings);
-
+    await pumpApp(tester, signedIn(), settings: settings);
     for (var i = 0; i < kTourTitles.length - 1; i++) {
-      await tester.tap(find.text('Weiter'));
-      await settle(tester);
+      await next(tester);
     }
     expect(find.text(kTourTitles.last), findsOneWidget);
-    // Im letzten Schritt gibt es nichts mehr zu überspringen — der Platz
-    // trägt den Verweis.
     expect(find.text('Überspringen'), findsNothing);
-
     await tester.tap(find.text('Kurzanleitung'));
     await settle(tester);
-
-    expect(find.text('Kurzanleitung'), findsWidgets, reason: 'Titelzeile');
     expect(find.textContaining('Das Wichtigste in sechs Schritten'),
         findsOneWidget);
-    // Und die Tour ist damit durch: Wer hier abbiegt, hat sie gesehen.
     expect(settings.mapTourSeen, isTrue);
-    expect(find.text(kTourTitles.last), findsNothing);
+    expect(find.byKey(const ValueKey('coach-bubble')), findsNothing);
   });
 
   testWidgets('aus der Kurzanleitung neu startbar', (tester) async {
-    // Wer sie übersprungen hat, soll sie wiederfinden — und zwar dort,
-    // wo er ohnehin nach einer Erklärung sucht.
+    // Wer sie übersprungen hat, soll sie wiederfinden — dort, wo er
+    // ohnehin nach einer Erklärung sucht.
     final settings = FakeSettings(mapTourSeen: true);
     await pumpApp(tester, signedIn(), settings: settings);
-    expect(find.text('So entsteht ein Spot'), findsNothing);
+    expect(find.text(kTourTitles.first), findsNothing);
 
     await tester.tap(find.text('Profil'));
     await settle(tester);
@@ -371,8 +331,7 @@ void main() {
     await tester.tap(start);
     await settle(tester);
 
-    // Zurück auf der Karte, und die Tour läuft.
-    expect(find.text('So entsteht ein Spot'), findsOneWidget);
-    expect(holes(tester), hasLength(2));
+    expect(find.text(kTourTitles.first), findsOneWidget);
+    expect(painter(tester).lit, hasLength(2));
   });
 }

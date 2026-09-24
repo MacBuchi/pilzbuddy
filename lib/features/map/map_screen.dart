@@ -40,6 +40,7 @@ import '../tour/widgets/tour_summary_sheet.dart';
 import '../tour/widgets/tour_track_marker.dart';
 import '../spots/widgets/add_find_sheet.dart';
 import '../spots/widgets/find_photo_strip.dart' show shareFreshFindPhoto;
+import '../coach/coach.dart';
 import '../help/map_tour.dart';
 import '../highlights/highlight_sheet.dart';
 import '../spots/widgets/spot_detail_sheet.dart';
@@ -118,15 +119,37 @@ class _MapScreenState extends ConsumerState<MapScreen>
     initialZoom: _fallbackZoom,
   );
 
-  /// Die Anker der geführten Tour (#350). Je Zustand eine Instanz —
-  /// global wären es `GlobalKey`s, die einen Neuaufbau überleben und
-  /// dann auf abgehängte Elemente zeigen.
-  final _tourAnchors = MapTourAnchors();
+  /// Meldet die Szenen der Hinweis-Maschine wieder ab (#596).
+  final List<VoidCallback> _coachScenes = [];
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Was die Tour vorführt, öffnet der Screen, dem es gehört (#596).
+    // Beide Szenen rufen die Blätter DIREKT und verwerfen das Ergebnis:
+    // Eine Vorführung darf nichts auslösen, und das Menü meldet beim
+    // Schließen durch die Tour ohnehin `null`.
+    final coach = ref.read(coachRegistryProvider);
+    _coachScenes
+      ..add(coach.registerScene(MapCoach.contextMenu, () async {
+        final navigator = Navigator.of(context, rootNavigator: true);
+        var open = true;
+        unawaited(showMapContextMenu(context, _crosshairCenter())
+            .whenComplete(() => open = false));
+        return () {
+          if (open) navigator.pop();
+        };
+      }))
+      ..add(coach.registerScene(MapCoach.layersSheet, () async {
+        final navigator = Navigator.of(context);
+        var open = true;
+        unawaited(
+            showMapLayersSheet(context).whenComplete(() => open = false));
+        return () {
+          if (open) navigator.pop();
+        };
+      }));
     // Der Ausgangskorb (#267) beim Start: Wer gestern im Wald etwas
     // eingetragen hat, soll es heute nicht von Hand losschicken müssen.
     // Nach dem ersten Frame, damit der Start nicht daran hängt; ohne
@@ -160,7 +183,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
         ref.read(safetyNoteSeenProvider.notifier).set(true);
         unawaited(showSafetyNoteDialog(context));
       } else if (!ref.read(mapTourSeenProvider)) {
-        ref.read(mapTourProvider.notifier).start();
+        startMapTour(ref);
       } else {
         overlayShown = false;
       }
@@ -188,6 +211,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   @override
   void dispose() {
+    for (final unregister in _coachScenes) {
+      unregister();
+    }
     FlutterForegroundTask.removeTaskDataCallback(_onTourTick);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -437,6 +463,21 @@ class _MapScreenState extends ConsumerState<MapScreen>
       if (e is NotSignedInException) return;
       logError('Live-Standort aktualisieren', e, st);
     });
+  }
+
+  /// Die Bildmitte in Bildschirmkoordinaten — dort öffnet die Tour das
+  /// Kontextmenü (#596). Über das Fadenkreuz gemessen, nicht aus der
+  /// Schirmgröße: Die Karte liegt unter Streifen und Reiterleiste.
+  Offset _crosshairCenter() {
+    final box = ref
+        .read(coachRegistryProvider)
+        .anchor(MapCoach.crosshair)
+        ?.currentContext
+        ?.findRenderObject();
+    if (box is RenderBox && box.hasSize) {
+      return box.localToGlobal(box.size.center(Offset.zero));
+    }
+    return MediaQuery.sizeOf(context).center(Offset.zero);
   }
 
   /// Das Kontextmenü an der gedrückten Stelle (#483).
@@ -951,8 +992,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
             ),
             // Dauerhaftes, dezentes Fadenkreuz in der Kartenmitte —
             // „Neuer Spot" speichert genau dort.
-            IgnorePointer(
-              child: Center(child: Crosshair(key: _tourAnchors.crosshair)),
+            const IgnorePointer(
+              child: Center(
+                  child: CoachAnchor(
+                      id: MapCoach.crosshair, child: Crosshair())),
             ),
             // Die Legende zu den aktiven Ebenen (#231), links unten über
             // dem Maßstab. Nicht mehr in einem IgnorePointer: Das X zum
@@ -1094,10 +1137,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
               // Die Trefferfläche bleibt bei 44 px je Knopf. Sie ist
               // die eine Zahl, an der hier nicht gespart wird: Die App
               // wird im Gehen bedient, mit kalten Fingern.
-              _ToolBar(
+              CoachAnchor(
+                id: MapCoach.toolbar,
+                child: _ToolBar(
                 children: [
                   _Tool(
-                    key: _tourAnchors.layers,
+                    coachId: MapCoach.layers,
                     // **Nicht „Karte"**: So heißt schon der Reiter unten
                     // (`router.dart`). Zwei Dinge desselben Namens auf
                     // einem Schirm sind für die Nutzerin so mehrdeutig
@@ -1144,7 +1189,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                       ),
                     ),
                   _Tool(
-                    key: _tourAnchors.filter,
+                    coachId: MapCoach.filter,
                     tooltip: 'Karte filtern',
                     onPressed: () => showSpotFilterSheet(context,
                         onFit: _fitAction(ref, mapWidthPixels)),
@@ -1162,7 +1207,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   // beide laufen weiter, wenn das Telefon in der Tasche
                   // steckt.
                   _Tool(
-                    key: _tourAnchors.trip,
+                    coachId: MapCoach.trip,
                     tooltip: 'Unterwegs',
                     onPressed: _openTrip,
                     child: IconTheme(
@@ -1174,12 +1219,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     ),
                   ),
                   _Tool(
-                    key: _tourAnchors.locate,
+                    coachId: MapCoach.locate,
                     tooltip: 'Meine Position',
                     onPressed: _centerOnMe,
                     child: const Icon(Icons.my_location),
                   ),
                 ],
+              ),
               ),
               // **Die laufende Tour ist eine Pille, kein zweiter
               // Kreis.** Sie sagt beides in einem Element: DASS eine
@@ -1198,8 +1244,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 ),
               ],
               const SizedBox(height: 10),
-              FloatingActionButton.extended(
-                key: _tourAnchors.add,
+              CoachAnchor(
+                id: MapCoach.add,
+                child: FloatingActionButton.extended(
                 heroTag: 'add',
                 onPressed: _addSpotAtCrosshair,
                 // Dieselben Farben wie der Eintrag im Kontextmenü —
@@ -1211,6 +1258,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     newSpotColors(Theme.of(context)).foreground,
                 icon: const Icon(kNewSpotIcon),
                 label: const Text(kNewSpotLabel),
+                ),
               ),
               // Messhaken des Engine-Direktvergleichs: deterministische
               // Kamerafahrt gegen die Fassade — identisch auf beiden
@@ -1225,7 +1273,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
           ),
         ),
       ),
-        MapTourOverlay(anchors: _tourAnchors),
       ],
     );
   }
@@ -1282,18 +1329,26 @@ class _ToolBar extends StatelessWidget {
 /// der falschen Stelle.
 class _Tool extends StatelessWidget {
   const _Tool({
-    super.key,
+    this.coachId,
     required this.tooltip,
     required this.onPressed,
     required this.child,
   });
 
+  /// Kennung für die Hinweis-Maschine (#596), wo die Tour den Knopf zeigt.
+  final String? coachId;
   final String tooltip;
   final VoidCallback onPressed;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
+    final tool = _button(context);
+    final id = coachId;
+    return id == null ? tool : CoachAnchor(id: id, child: tool);
+  }
+
+  Widget _button(BuildContext context) {
     return Tooltip(
       message: tooltip,
       child: InkWell(
