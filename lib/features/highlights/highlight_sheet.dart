@@ -1,5 +1,13 @@
 // Das Blatt nach einer Beförderung (#596).
 //
+// **Eine Seite, alle Neuheiten untereinander** — das Muster der
+// „Neu in …"-Seiten bei Apple und vielen anderen. Bis 1.204.0 war es
+// eine Blätterseite mit „Ausprobieren" je Seite, und wer mittendrin
+// antippte, verlor den Rest (im Feld gemeldet, Betreiber 2026-09-24).
+// Eine Leiste „Weiter ansehen" am Ziel hätte das geflickt; übliche
+// Apps lösen es anders, nämlich gar nicht erst: Stehen alle drei auf
+// einem Blick, ist nach dem Antippen einer Zeile nichts verloren.
+//
 // **Gemerkt wird VOR dem Zeigen.** Andersherum käme ein Blatt, das der
 // Prozess-Kill oder ein Wegwischen mitten im Lesen beendet, bei jedem
 // Start wieder — und ein Hinweis, der wiederkommt, nachdem man ihn
@@ -7,7 +15,6 @@
 // Überspringen neu anfängt. Verpasst ist dabei nichts: „Entdecken" hat
 // alles.
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -84,6 +91,9 @@ Future<void> maybeShowHighlights(
       if (!mayShow || ref.read(tourProvider) != null) return;
       await _record(settings, plan.version);
       if (!context.mounted) return;
+      // Alles steht auf EINER Seite, also ist beim Öffnen auch alles
+      // gesehen — anders als beim Blättern, wo das nur für die erste
+      // Seite gälte.
       ref
           .read(seenHighlightIdsProvider.notifier)
           .markSeen(plan.pages.map((h) => h.id));
@@ -103,29 +113,15 @@ Future<void> showHighlightSheet(BuildContext context, HighlightShow plan) =>
       builder: (context) => HighlightSheet(plan: plan),
     );
 
-class HighlightSheet extends StatefulWidget {
+class HighlightSheet extends StatelessWidget {
   const HighlightSheet({super.key, required this.plan});
 
   final HighlightShow plan;
 
-  @override
-  State<HighlightSheet> createState() => _HighlightSheetState();
-}
-
-class _HighlightSheetState extends State<HighlightSheet> {
-  final _pages = PageController();
-  int _page = 0;
-
-  @override
-  void dispose() {
-    _pages.dispose();
-    super.dispose();
-  }
-
   /// Erst den Router greifen, dann schließen: Danach ist der Kontext
   /// des Blatts nicht mehr eingehängt (dieselbe Reihenfolge wie im
   /// Spot-Blatt).
-  void _go(String location) {
+  static void _go(BuildContext context, String location) {
     final router = GoRouter.of(context);
     Navigator.of(context).pop();
     router.go(location);
@@ -133,12 +129,8 @@ class _HighlightSheetState extends State<HighlightSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final plan = widget.plan;
-    final pages = plan.pages;
-    final last = _page == pages.length - 1;
     final theme = Theme.of(context);
-    final height = math.min(420.0, MediaQuery.sizeOf(context).height * 0.6);
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 8, 8, 16),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -151,72 +143,43 @@ class _HighlightSheetState extends State<HighlightSheet> {
                   plan.recap
                       ? 'Das kann PilzBuddy inzwischen'
                       : 'Neu in PilzBuddy',
-                  style: theme.textTheme.titleMedium,
+                  style: theme.textTheme.titleLarge,
                 ),
               ),
               const SheetCloseButton(),
             ],
           ),
-          // `Flexible` um die feste Höhe: Auf einem kleinen Schirm gibt
-          // sie nach, statt das Blatt über den Rand zu schieben — die
-          // Seite selbst scrollt dann.
-          Flexible(
-            child: SizedBox(
-            height: height,
-            child: PageView(
-              controller: _pages,
-              onPageChanged: (i) => setState(() => _page = i),
-              children: [
-                for (final h in pages)
-                  _Page(highlight: h, onTry: () => _go(h.target)),
-              ],
+          const SizedBox(height: 4),
+          for (final h in plan.pages)
+            _Row(
+              key: ValueKey('highlight-row-${h.id}'),
+              highlight: h,
+              onTap: () => _go(context, h.target),
             ),
-          )),
+          const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.only(right: 8),
-            child: Row(
+            child: Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
               children: [
-                for (var i = 0; i < pages.length; i++)
-                  Container(
-                    key: ValueKey('highlight-dot-$i'),
-                    width: 8,
-                    height: 8,
-                    margin: const EdgeInsets.only(right: 6),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: i == _page
-                          ? AppColors.forestGreen
-                          : theme.disabledColor,
-                    ),
-                  ),
-                const Spacer(),
+                TextButton(
+                  onPressed: () => _go(context, '/profile/entdecken'),
+                  child: Text(plan.more > 0
+                      ? '${plan.more} weitere entdecken'
+                      : 'Alle Funktionen und Tipps'),
+                ),
+                TextButton(
+                  onPressed: () => _go(context, '/profile/changelog'),
+                  child: const Text('Alle Änderungen'),
+                ),
                 FilledButton(
-                  onPressed: last
-                      ? () => Navigator.of(context).pop()
-                      : () => _pages.nextPage(
-                          duration: const Duration(milliseconds: 250),
-                          curve: Curves.easeOut),
-                  child: Text(last ? 'Fertig' : 'Weiter'),
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Fertig'),
                 ),
               ],
             ),
-          ),
-          // Der Weg zu allem Übrigen — auf JEDER Seite, nicht erst auf
-          // der letzten: Wer nach Seite eins genug hat, soll trotzdem
-          // wissen, dass es mehr gibt und wo.
-          Wrap(
-            children: [
-              TextButton(
-                onPressed: () => _go('/profile/entdecken'),
-                child: Text(plan.more > 0
-                    ? '${plan.more} weitere entdecken'
-                    : 'Alle Funktionen und Tipps'),
-              ),
-              TextButton(
-                onPressed: () => _go('/profile/changelog'),
-                child: const Text('Alle Änderungen'),
-              ),
-            ],
           ),
         ],
       ),
@@ -224,33 +187,44 @@ class _HighlightSheetState extends State<HighlightSheet> {
   }
 }
 
-class _Page extends StatelessWidget {
-  const _Page({required this.highlight, required this.onTry});
+/// Eine Neuheit als Zeile: Bild, Titel, Text — die ganze Zeile führt
+/// hin. Kein eigener Knopf je Zeile: Drei „Ausprobieren" untereinander
+/// wären Lärm, und das Pfeilsymbol sagt dasselbe.
+class _Row extends StatelessWidget {
+  const _Row({super.key, required this.highlight, required this.onTap});
 
   final FeatureHighlight highlight;
-  final VoidCallback onTry;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return SingleChildScrollView(
-      padding: const EdgeInsets.only(right: 8, top: 8),
-      child: Column(
-        children: [
-          HighlightArt(highlight: highlight),
-          const SizedBox(height: 16),
-          Text(highlight.title,
-              textAlign: TextAlign.center, style: theme.textTheme.titleLarge),
-          const SizedBox(height: 8),
-          Text(highlight.text,
-              textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: onTry,
-            icon: const Icon(Icons.arrow_forward, size: 18),
-            label: const Text('Ausprobieren'),
-          ),
-        ],
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            HighlightArt(highlight: highlight, size: 64),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(highlight.title, style: theme.textTheme.titleMedium),
+                  const SizedBox(height: 2),
+                  Text(highlight.text, style: theme.textTheme.bodySmall),
+                ],
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.only(left: 4, right: 8, top: 4),
+              child: Icon(Icons.chevron_right, color: AppColors.forestGreen),
+            ),
+          ],
+        ),
       ),
     );
   }

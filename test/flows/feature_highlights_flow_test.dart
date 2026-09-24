@@ -6,7 +6,7 @@
 //      Tour, weil sie ihre Version schon beim ersten Start merkt.
 //   3. Liegt schon etwas über der Karte, wartet das Blatt, ohne verloren
 //      zu gehen.
-//   4. „Ausprobieren" führt zum Ziel, und jedes Ziel ist eine Route.
+//   4. Eine Zeile führt zum Ziel, und jedes Ziel ist eine Route.
 //   5. „Entdecken" zeigt den Neu-Punkt und merkt ihn sich danach.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -40,18 +40,12 @@ void main() {
         settings: settings, appVersion: kVersion);
 
     expect(recapTitle, findsOneWidget);
-    expect(find.text(byId(kRecapLead.first).title), findsOneWidget);
-    expect(settings.highlightsSeenVersion, kVersion);
-    // Die Seiten des Blatts gelten als gesehen, der Rest nicht.
-    expect(settings.seenHighlightIds, containsAll(kRecapLead));
-    expect(settings.seenHighlightIds, isNot(contains('langer-tipp')));
-
-    // Durchblättern und schließen.
-    for (var i = 1; i < kRecapLead.length; i++) {
-      await tester.tap(find.text('Weiter'));
-      await settle(tester);
-      expect(find.text(byId(kRecapLead[i]).title), findsOneWidget);
+    // Alle drei auf EINER Seite, ohne Blättern — und damit gesehen.
+    for (final id in kRecapLead) {
+      expect(find.text(byId(id).title), findsOneWidget, reason: id);
     }
+    expect(settings.highlightsSeenVersion, kVersion);
+    expect(settings.seenHighlightIds, kRecapLead.toSet());
     await tester.tap(find.text('Fertig'));
     await settle(tester);
     expect(recapTitle, findsNothing);
@@ -110,18 +104,20 @@ void main() {
     expect(find.text(byId('schutzgebiete').title), findsOneWidget);
   });
 
-  testWidgets('„Ausprobieren" führt zum Ziel', (tester) async {
+  testWidgets('eine Zeile antippen führt zum Ziel', (tester) async {
     final settings = FakeSettings(highlightsSeenVersion: null);
     await pumpApp(tester, signedIn(),
         settings: settings, appVersion: kVersion);
-    await tester.tap(find.text('Ausprobieren'));
+    // Die ZWEITE Zeile: Beim Blättern (bis 1.204.0) war alles nach der
+    // ersten verloren, sobald man dort antippte.
+    final second = byId(kRecapLead[1]);
+    await tester.tap(find.byKey(ValueKey('highlight-row-${second.id}')));
     await settle(tester);
     expect(recapTitle, findsNothing);
     final router = ProviderScope.containerOf(
             tester.element(find.byType(Scaffold).first))
         .read(routerProvider);
-    expect(router.routerDelegate.currentConfiguration.uri.path,
-        byId(kRecapLead.first).target);
+    expect(router.routerDelegate.currentConfiguration.uri.path, second.target);
   });
 
   testWidgets('jedes Ziel ist eine Route der App', (tester) async {
