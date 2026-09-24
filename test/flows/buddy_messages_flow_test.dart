@@ -75,6 +75,29 @@ void main() {
         isEmpty);
   });
 
+  testWidgets('der Verlauf liest sich von oben nach unten: neueste unten, '
+      'direkt über dem Feld', (tester) async {
+    backend.addFriendship(me.id, bert.id);
+    seedMessage(bert.id, me.id, 'Erste', age: const Duration(hours: 3));
+    seedMessage(me.id, bert.id, 'Zweite', age: const Duration(hours: 2));
+    seedMessage(bert.id, me.id, 'Dritte', age: const Duration(hours: 1));
+    await pumpApp(tester, backend);
+    await openConversation(tester, bert.id);
+
+    final y = [
+      for (final t in ['Erste', 'Zweite', 'Dritte'])
+        tester.getTopLeft(find.text(t)).dy,
+    ];
+    expect(y[0], lessThan(y[1]));
+    expect(y[1], lessThan(y[2]));
+    expect(y[2], lessThan(tester.getTopLeft(find.byKey(kMessageFieldKey)).dy));
+
+    // Auch eine frisch geschriebene landet unten.
+    await write(tester, 'Vierte');
+    expect(tester.getTopLeft(find.text('Vierte')).dy,
+        greaterThan(tester.getTopLeft(find.text('Dritte')).dy));
+  });
+
   testWidgets('Ungelesenes: Punkt am Reiter und am Buddy — Öffnen liest',
       (tester) async {
     backend.addFriendship(me.id, bert.id);

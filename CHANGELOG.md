@@ -7,6 +7,14 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Nachrichten in der richtigen Reihenfolge
+
+*24. September 2026 · Version 1.202.2*
+
+Im Verlauf mit einem Buddy stand die neueste Nachricht oben und die
+älteste unten, direkt über dem Eingabefeld. Jetzt liest er sich wie
+jeder Chat von oben nach unten: die neueste unten, gleich über dem Feld.
+
 ## Mehrere Fotos auf einmal auswählen
 
 *23. September 2026 · Versionen 1.202.0 und 1.202.1*

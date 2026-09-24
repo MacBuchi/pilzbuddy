@@ -1843,7 +1843,11 @@ class FakeMessageRepository implements MessageRepository {
         if ((m.senderId == _uid || m.recipientId == _uid) &&
             m.expiresAt.isAfter(now))
           m,
-    ]..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      // Absichtlich NEUESTE zuerst — so, wie postgrest-dart ohne
+      // `ascending` liefert. Die Oberfläche darf sich nicht auf die
+      // Reihenfolge der Abfrage verlassen; ein aufsteigend sortierender
+      // Fake hat den umgedrehten Verlauf bis 1.202.1 verdeckt.
+    ]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   }
 
   @override
