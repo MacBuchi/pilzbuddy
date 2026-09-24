@@ -95,8 +95,7 @@ self.addEventListener('install', (event) => {
 // den neuen nach und räumt den alten erst danach ab.
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
-    const others = (await caches.keys()).filter(
-        (name) => name.startsWith('pilzbuddy-') && name !== CACHE);
+    const others = await previousCaches();
     let keep = null;
     for (const name of others) {
       // `caches.keys()` liefert in Anlegereihenfolge — der letzte
@@ -169,9 +168,16 @@ async function cachedCopy(request, isNavigation) {
   return null;
 }
 
+/// Die Caches FRÜHERER Builds — in Anlegereihenfolge vor dem eigenen.
+/// Nicht „alle anderen": Liegt der Cache eines NEUEREN Workers daneben,
+/// der noch wartet (bei knappem Netz aktiviert der Browser ihn erst, wenn
+/// dieser hier alle offenen Anfragen los ist), nähme der Rückfall sonst
+/// Dateien aus beiden Ständen. Ohne Netz startete die Mischung nicht —
+/// beim Bau so gemessen.
 async function previousCaches() {
-  return (await caches.keys()).filter(
-      (name) => name.startsWith('pilzbuddy-') && name !== CACHE);
+  const names = (await caches.keys()).filter((n) => n.startsWith('pilzbuddy-'));
+  const own = names.indexOf(CACHE);
+  return own < 0 ? names.filter((n) => n !== CACHE) : names.slice(0, own);
 }
 
 async function fetchAndCache(request) {

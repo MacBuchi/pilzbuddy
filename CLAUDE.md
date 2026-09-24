@@ -657,11 +657,18 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     Merker); solange er steht, kommt jeder Rückfall zuerst aus ihm, damit
     ein Start ohne Netz aus EINEM Stand kommt. `topUp` füllt den neuen
     per `If-None-Match` nach — 304 heißt umlegen statt neu laden — und
-    räumt erst dann ab. Zwei Fallen beim Prüfen, beide passiert: Ein
-    Update bei HÄNGENDEM Netz aktiviert nie (der Browser wartet auf die
-    offenen Anfragen des alten Workers), prüft also nur den alten; und
-    304 zählt auch der Browser beim normalen Laden, deshalb trägt das
-    Nachfüllen die Kennung `x-pilzbuddy-topup`.
+    räumt erst dann ab. „Früher" heißt in Anlegereihenfolge VOR dem
+    eigenen Cache — liegt der Cache eines neueren, noch wartenden
+    Workers daneben, mischte der Rückfall sonst zwei Stände, und die
+    Mischung startete ohne Netz nicht (beim Bau gemessen).
+    Drei Fallen beim Prüfen, alle passiert: Ein Update bei HÄNGENDEM
+    Netz aktiviert nie (der Browser wartet auf die offenen Anfragen des
+    alten Workers), prüft also nur den alten. Wird das Netz erst nach
+    dem Update knapp, ist das Nachfüllen auf einem schnellen Rechner
+    schon fertig, und der Schritt prüft nichts (in CI so). Deshalb
+    blockiert der Testserver gezielt nur das Nachfüllen — erkennbar an
+    der Kennung `x-pilzbuddy-topup`, die auch die 304 des Nachfüllens von
+    denen des Browsers trennt.
     `version.json?cachebuster=…` legt der Worker gar nicht ab — sonst
     wüchse der Cache je Start um einen Eintrag.
   - **`web/flutter_bootstrap.js` ist Pflicht, nicht Bequemlichkeit.** Die

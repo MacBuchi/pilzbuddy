@@ -54,6 +54,10 @@ let mode = 'up';
 // Ein neuer Deploy, ohne neu zu bauen: Die Bauversion steht nur in
 // `flutter_bootstrap.js` (`sw.js?v=…`), und genau dort wird sie erhöht.
 let deploy = 0;
+// Das Nachfüllen des Workers hängen lassen — nur DAS, erkennbar an seiner
+// Kennung. So wird ein Update sicher nicht fertig, ohne dass die Seite
+// selbst hängt (dann aktivierte der Browser den neuen Worker nie).
+let blockTopUp = false;
 // Wie oft der Server dem NACHFÜLLEN „unverändert" (304) sagte — GitHub
 // Pages schickt ETags, und genau davon lebt es. Gezählt wird nur, was
 // die Kennung des Nachfüllens trägt; der Browser fragt beim normalen
@@ -70,7 +74,8 @@ const handler = async (req, res) => {
     if (!path.startsWith(base)) throw new Error('außerhalb');
     path = '/' + path.slice(base.length);
     if (path.endsWith('/')) path += 'index.html';
-    if (mode === 'hang' || (mode === 'partial' && !SHELL_PATHS.has(path))) {
+    if (mode === 'hang' || (mode === 'partial' && !SHELL_PATHS.has(path)) ||
+        (blockTopUp && req.headers['x-pilzbuddy-topup'])) {
       return; // nie antworten; `stopServer` räumt die Verbindung ab
     }
     const file = join(ROOT, normalize(path));
@@ -468,19 +473,24 @@ try {
   }
   await stopServer();
 
-  // 4 — ein Update kommt an, der neue Worker übernimmt, und kurz danach
-  // ist das Netz weg. Bis 1.204.1 löschte er beim Aktivieren den alten,
-  // vollständigen Cache; im neuen lag nur die Hülle, und ohne Netz
-  // startete nichts. Mit einem Deploy je Merge war das der Normalfall.
+  // 4 — ein Update kommt an, der neue Worker übernimmt, aber fertig wird
+  // er nicht, und dann ist das Netz weg. Bis 1.204.1 löschte er beim
+  // Aktivieren den alten, vollständigen Cache; im neuen lag nur die
+  // Hülle, und ohne Netz startete nichts. Mit einem Deploy je Merge war
+  // das der Normalfall.
   //
-  // Das Update selbst kommt bei NORMALEM Netz: Solange die Seite noch
-  // Anfragen offen hat, aktiviert der Browser den neuen Worker nicht —
-  // ein hängendes Netz beim Update prüfte also nur den alten.
+  // Das Update kommt bei normalem Netz; hängen bleibt nur das Nachfüllen.
+  // Zwei Anläufe davor sind gescheitert: Hängt das ganze Netz, aktiviert
+  // der Browser den neuen Worker nie (er wartet auf die offenen Anfragen
+  // des alten). Wird es erst DANACH knapp, ist das Nachfüllen auf einem
+  // schnellen Rechner schon fertig, und der Schritt prüft nichts — in CI
+  // so passiert.
   const before = await evaluate(send, '(async () => (await caches.keys()))()');
   const oldScript = await evaluate(send, 'navigator.serviceWorker.controller.scriptURL');
   await startServer();
   mode = 'up';
   deploy = 1;
+  blockTopUp = true;
   await send('Page.navigate', {url});
   try {
     await waitFor(send,
@@ -489,12 +499,9 @@ try {
   } catch (error) {
     fail.push(`neuer Deploy: ${error.message.split('\n')[0]}`);
   }
-  // Ab hier kommt nur noch die Hülle durch: Nachfüllen und Vorwärmen
-  // werden nie fertig, wie bei jemandem, der danach in den Wald fährt.
-  mode = 'partial';
   await sleep(3000);
   await stopServer();
-  mode = 'up';
+  blockTopUp = false;
   await send('Page.navigate', {url});
   try {
     await waitFor(send, APP, 'die App rendert nach halbem Update OHNE Server', 30000);
@@ -503,6 +510,9 @@ try {
     fail.push(`nach halbem Update ohne Netz: ${error.message.split('\n')[0]}\n` +
         await cacheReport(send));
   }
+  const afterUpdate = await evaluate(send, '(async () => (await caches.keys()))()');
+  check(afterUpdate.length === 2,
+      `der alte Cache steht noch, solange der neue unvollständig ist (${JSON.stringify(afterUpdate)})`);
 
   // 5 — wieder online füllt der neue Cache nach, und erst DANN geht der
   // alte. Ein alter Cache, der nie geht, wäre ein Speicherleck je Deploy.
