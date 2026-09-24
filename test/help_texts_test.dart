@@ -85,7 +85,7 @@ void main() {
     // liefert ohne aktive Ebene `SizedBox.shrink()`. Ein eigener Schritt
     // zeigte auf leere Fläche; hier steht der Satz dort, wo man die
     // erste Ebene einschaltet.
-    final layersStep = kMapTourSteps
+    final layersStep = kMapTourScript.steps
         .firstWhere((step) => step.title == 'Was die Karte zeigt');
     expect(layersStep.text, contains('Legende'));
     expect(layersStep.text, contains('links unten'),
@@ -112,7 +112,7 @@ void main() {
     // falschen Grund grün, weil der Unterwegs-Abschnitt das Wort ohnehin
     // enthält. Dafür liegen die Abschnitte jetzt als `kHelpSteps` offen.
     final texte = {
-      'Tour': kMapTourSteps
+      'Tour': kMapTourScript.steps
           .firstWhere((step) => step.title == 'So entsteht ein Spot')
           .text,
       'Kurzanleitung': kHelpSteps

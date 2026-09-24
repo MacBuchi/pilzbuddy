@@ -6,6 +6,7 @@ import 'core/router.dart';
 import 'core/widgets/preview_ribbon.dart';
 import 'core/widgets/push_listener.dart';
 import 'core/widgets/update_gate.dart';
+import 'features/coach/coach.dart';
 import 'features/intro/intro_overlay.dart';
 import 'core/app_colors.dart';
 
@@ -29,11 +30,24 @@ class PilzBuddyApp extends ConsumerWidget {
       // Entwicklungsstand ist, gilt auch über der Update-Sperre und der
       // Intro-Animation — gerade dort, wo sonst nichts von der App zu
       // sehen ist (#388). Im normalen Build reicht er nur durch.
-      builder: (context, child) => PreviewRibbon(
-        child: PushListener(
-          child: IntroOverlay(
-              child: UpdateGate(child: child ?? const SizedBox.shrink())),
-        ),
+      //
+      // Die Hinweis-Maschine (#596) liegt ÜBER allem, auch über dem
+      // Streifen: Sie hebt in Dialogen und Blättern hervor, und ihre
+      // Messung rechnet in den Koordinaten dieses Stapels.
+      builder: (context, child) => Stack(
+        fit: StackFit.expand,
+        children: [
+          PreviewRibbon(
+            child: PushListener(
+              child: IntroOverlay(
+                  child: UpdateGate(child: child ?? const SizedBox.shrink())),
+            ),
+          ),
+          CoachOverlay(
+            onNavigate: (route) => router.push(route),
+            backButtonDispatcher: router.backButtonDispatcher,
+          ),
+        ],
       ),
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(

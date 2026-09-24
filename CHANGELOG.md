@@ -7,6 +7,27 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Tour zeigt jetzt vor, statt nur hinzuzeigen
+
+*24. September 2026 · Version 1.205.0*
+
+Die Einführung über die Karte passte nicht mehr zur Knopfleiste: Sie
+schnitt Stücke aus der Leiste heraus und zeigte nur, wo ein Knopf ist.
+Jetzt führt sie vor, was dahinter kommt:
+
+- **Langes Drücken** zeigt ein Finger, und dann geht das Menü wirklich
+  auf — mit „Neuer Spot" genau an dieser Stelle, „Was ist hier?",
+  Navigation und Heranzoomen.
+- **Die Ebenen** öffnen ihr Blatt, und die Tour zeigt, wo man eine
+  Ebene einschaltet.
+- Hervorgehoben wird die ganze Leiste, ein grüner Ring zeigt den
+  gemeinten Knopf.
+
+Während der Tour passiert nichts aus Versehen: Tippen geht nur weiter,
+und was sie geöffnet hat, schließt sie wieder. „Zurück" beendet die
+Tour, nicht die App. Wer sie schon gesehen hat, findet sie in der
+Kurzanleitung unter „Tour auf der Karte zeigen".
+
 ## Die Web-App startet auch bei schlechtem Empfang
 
 *24. September 2026 · Version 1.204.2*

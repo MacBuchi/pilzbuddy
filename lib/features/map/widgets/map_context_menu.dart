@@ -32,6 +32,8 @@ import 'package:flutter/material.dart';
 import 'new_spot_style.dart';
 
 import '../../../core/app_colors.dart';
+import '../../coach/coach.dart';
+import '../../help/map_tour.dart' show MapCoach;
 
 /// Was im Menü gewählt wurde.
 ///
@@ -268,11 +270,15 @@ class _MapContextMenu extends StatelessWidget {
           Positioned(
             left: layout.chipTopLeft(index).dx,
             top: layout.chipTopLeft(index).dy,
-            child: _Chip(
-              entry: entry,
-              // Gestaffelt: Sie kommen nacheinander heraus, das ist das
-              // „Auffächern". Der unterste zuerst — er liegt am Finger.
-              delay: Duration(milliseconds: 40 * index),
+            // Auffindbar für die Tour (#596), die das Menü vorführt.
+            child: CoachAnchor(
+              id: MapCoach.menuEntry(entry.action.name),
+              child: _Chip(
+                entry: entry,
+                // Gestaffelt: Sie kommen nacheinander heraus, das ist das
+                // „Auffächern". Der unterste zuerst — er liegt am Finger.
+                delay: Duration(milliseconds: 40 * index),
+              ),
             ),
           ),
       ],

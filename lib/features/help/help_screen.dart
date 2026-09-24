@@ -43,7 +43,7 @@ class HelpStep {
 /// die Datei als Text. Der Unterschied ist keine Kosmetik: Die Prüfung
 /// „die Spot-Erklärung nennt das Blatt" war über die ganze Datei aus dem
 /// falschen Grund grün — „Blatt" steht auch im Unterwegs-Abschnitt.
-/// Dieselbe Form wie `kMapTourSteps`.
+/// Dieselbe Form wie `kMapTourScript`.
 const kHelpSteps = <HelpStep>[
   HelpStep(
     icon: Icon(Icons.add_location_alt, color: AppColors.forestGreen),
@@ -171,8 +171,10 @@ class HelpScreen extends ConsumerWidget {
           // Ankern des Karten-Screens und zeigt sonst nichts.
           OutlinedButton.icon(
             onPressed: () {
-              ref.read(mapTourProvider.notifier).start();
+              // Erst die Karte, dann die Tour: Ihre Anker hängen am
+              // Karten-Screen, und dessen Reiter muss sichtbar sein.
               context.go('/');
+              startMapTour(ref);
             },
             icon: const Icon(Icons.play_circle_outline),
             label: const Text('Tour auf der Karte zeigen'),
