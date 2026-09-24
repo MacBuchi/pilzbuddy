@@ -353,8 +353,16 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   Policies die Funktionen mit den Rechten der anfragenden Rolle auswerten.
   Trigger-Funktionen: alle API-Grants entziehen (der Trigger feuert trotzdem).
   Nach jeder Schema-Änderung den Security Advisor im Supabase-Dashboard
-  gegenprüfen; bewusste Reste (RLS ohne Policy auf `applied_patches`,
-  `authenticated` auf `search_profiles`/`delete_own_account`) dort dismissen.
+  gegenprüfen. **Dismissen kann das Dashboard NICHT** (Betreiber,
+  2026-09-24; hier stand bis dahin das Gegenteil). Was sich beheben lässt,
+  wird behoben, auch wenn es nur INFO ist — ein Fund, der für immer
+  stehen bleibt, übertönt den nächsten echten: fester `search_path`
+  (Patch 036), Sperr-Policy `using (false)` statt „RLS ohne Policy"
+  (Patch 037). Dauerhaft stehen bleiben genau vier, alle bewusst:
+  `delete_own_account` und `search_profiles` für `authenticated`
+  ausführbar (die beiden RPCs der App), `pg_net` im Schema `public`
+  (lässt sich nicht verschieben) und Leaked Password Protection (siehe
+  unten). Wer dort mehr sieht, hat einen neuen Fund.
 - Flutter-Version in CI gepinnt (subosito/flutter-action, aktuell 3.44.8) —
   bei lokalem Flutter-Upgrade auch `.github/workflows/*.yml` anpassen. Es
   sind **sechs** Stellen in vier Dateien: dreimal `ci.yml`, je einmal
@@ -382,8 +390,8 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   Security-Advisor-Fund vom 2026-08-05 war kein verlorener Schalter, sondern
   der Normalzustand.
   **Folgen, die man kennen muss:**
-  - Der Advisor-Fund bleibt dauerhaft stehen und gehört dismissed — nicht
-    gesucht. Wer ihn das nächste Mal sieht, soll nicht wieder eine halbe
+  - Der Advisor-Fund bleibt dauerhaft stehen (dismissen geht nicht, siehe
+    oben) — nicht gesucht. Wer ihn das nächste Mal sieht, soll nicht wieder eine halbe
     Stunde nach dem Schalter suchen.
   - Der einzige Passwortschutz ist damit `minPasswordLength = 8`
     (`lib/core/widgets/password_field.dart`). „passwort" hat acht Zeichen —

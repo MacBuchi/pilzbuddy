@@ -500,6 +500,14 @@ alter table public.push_devices   enable row level security;
 alter table app_internal.push_outbox    enable row level security;
 alter table app_internal.push_messages  enable row level security;
 revoke all on app_internal.push_messages from public, anon, authenticated;
+-- Ausdrücklich gesperrt (Patch 037): RLS ohne Policy verweigert ohnehin
+-- alles, aber der Security Advisor meldet es dauerhaft, und dismissen
+-- lässt es sich im Dashboard nicht. Benutzt werden beide nur vom
+-- Eigentümer (Definer-Trigger, push_flush), der RLS umgeht.
+create policy push_outbox_no_client on app_internal.push_outbox
+  for all to anon, authenticated using (false) with check (false);
+create policy push_messages_no_client on app_internal.push_messages
+  for all to anon, authenticated using (false) with check (false);
 
 -- app_config: lesen darf jeder, auch anon — die Mindestversion wird beim
 -- Start und damit vor der Anmeldung geprüft. Geändert wird der Wert über
@@ -759,6 +767,9 @@ create table if not exists public.applied_patches (
 );
 alter table public.applied_patches enable row level security;
 revoke all on table public.applied_patches from anon, authenticated;
+-- Sperr-Policy aus Patch 037 (Grund siehe push_outbox oben).
+create policy applied_patches_no_client on public.applied_patches
+  for all to anon, authenticated using (false) with check (false);
 
 -- Diese Datei bildet den Stand NACH den folgenden Patches ab. Sie werden
 -- deshalb nur eingetragen, nicht ausgeführt: Ein erneuter Lauf über ein
@@ -1138,5 +1149,6 @@ insert into public.applied_patches (filename) values
   ('patch_033_feedback_bilder.sql'),
   ('patch_034_galerie_einwilligung.sql'),
   ('patch_035_feedback_bild_groesse.sql'),
-  ('patch_036_function_search_path.sql')
+  ('patch_036_function_search_path.sql'),
+  ('patch_037_rls_ohne_policy.sql')
 on conflict do nothing;
