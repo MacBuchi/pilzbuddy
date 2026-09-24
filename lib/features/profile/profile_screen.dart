@@ -36,6 +36,7 @@ import 'sharing_rank_tile.dart';
 import '../../core/app_colors.dart';
 import '../../core/widgets/sheet_close_button.dart';
 import '../inat/inat_profile_tile.dart';
+import '../highlights/highlight_sheet.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -768,6 +769,21 @@ class _AboutSection extends ConsumerWidget {
           subtitle: const Text('Wie PilzBuddy benutzt wird — in sechs '
               'Schritten'),
           onTap: () => context.push('/profile/anleitung'),
+        ),
+        // „Entdecken" (#596) direkt über „Was ist neu": Das eine sagt,
+        // was die App kann, das andere, was sich wann geändert hat — wer
+        // eins sucht, sucht oft das andere.
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          leading: const Icon(Icons.lightbulb_outline),
+          title: const Text('Entdecken'),
+          subtitle: Text(switch (ref.watch(unseenHighlightCountProvider)) {
+            0 => 'Funktionen und Tipps, mit einem Tipp dorthin',
+            1 => '1 Eintrag, den du noch nicht angesehen hast',
+            final n => '$n Einträge, die du noch nicht angesehen hast',
+          }),
+          onTap: () => context.push('/profile/entdecken'),
         ),
         ListTile(
           contentPadding: EdgeInsets.zero,

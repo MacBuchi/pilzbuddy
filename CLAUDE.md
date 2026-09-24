@@ -1265,6 +1265,39 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   (im Profil, „halte auf der Karte gedrückt"), wies auf eine Geste, die
   seit #210 abschaltbar war und **ab Werk aus** stand. Seit #483 stimmt
   der Satz wieder — er steht jetzt in der Kurzanleitung.
+- **Neuheiten und „Entdecken"** (#596, seit 1.204.0,
+  `lib/features/highlights/`): EINE Liste (`kFeatureHighlights`), zwei
+  Anzeigen — das Blatt nach einem Update (höchstens drei Highlights,
+  jüngste zuerst) und die Seite „Entdecken" (alles, auch die Tipps).
+  Die Tour bleibt daneben und hat eine andere Aufgabe: Das Blatt sagt,
+  WAS es gibt, die Tour zeigt, WO es ist. Fünf Dinge, die man wissen
+  muss:
+  - **Wer eine Funktion baut, bringt ihren Eintrag im selben PR mit** —
+    Highlight, wenn sie ins Blatt gehört, sonst Tipp. Kuratiert wird
+    nicht bei der Beförderung: Stehen mehr als drei an, zeigt das Blatt
+    die jüngsten, der Rest wartet in „Entdecken".
+    `test/feature_highlights_test.dart` prüft Kennungen, `since` gegen
+    `pubspec.yaml` und die Textlänge, der Flow-Test, dass jedes Ziel
+    eine Route ist.
+  - **Rückwirkend geht es nur über `mapTourSeen`.** Vor 1.204.0 hat kein
+    Gerät seine Version gemerkt (`highlightsSeenVersion` ist dort
+    `null`). Tour gesehen ⇒ Bestandsnutzer ⇒ einmal der Rückblick, mit
+    `kRecapLead` an der Spitze (dort wäre „die jüngsten" die falsche
+    Regel). Tour nicht gesehen ⇒ frisch installiert ⇒ Version merken,
+    nichts zeigen. **Gemerkt wird schon beim ERSTEN Start**, auch wenn
+    Haftungshinweis oder Tour laufen — sonst hielte sich eine frische
+    Installation nach der Tour für einen Bestandsnutzer. Nur ZEIGEN
+    wartet dann auf einen ruhigen Start (keins der beiden, keine
+    laufende Pilztour).
+  - **Gemerkt wird VOR dem Zeigen**, und nie ein älterer Stand über
+    einen jüngeren (Rückschritt vom Vorabkanal). Ein weggewischtes
+    Blatt kommt nicht wieder; verpasst ist nichts, „Entdecken" hat es.
+  - **Bilder aus Widgets** (`HighlightArt`: das echte Knopfsymbol plus
+    ein schaukelnder Pilz-Buddy), keine Screenshots — die veralten mit
+    jeder Oberflächenänderung —, kein Lottie.
+  - **`FakeSettings.highlightsSeenVersion` steht auf `9999.0.0`**, die
+    App auf `null`. Andersherum bekäme jeder Bestandstest das Blatt über
+    die Karte gelegt; Muster wie `mapTourSeen`.
 - **Der Reiter „Pilze"** (seit 1.153.0): das Artenverzeichnis — je
   Ampel-Gruppe ihre Mitglieder, je Art die Mini-Saisonkurve, hervorgehoben,
   was jetzt Saison hat. Drei Dinge, die man wissen muss:

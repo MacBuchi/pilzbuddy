@@ -41,6 +41,7 @@ import '../tour/widgets/tour_track_marker.dart';
 import '../spots/widgets/add_find_sheet.dart';
 import '../spots/widgets/find_photo_strip.dart' show shareFreshFindPhoto;
 import '../help/map_tour.dart';
+import '../highlights/highlight_sheet.dart';
 import '../spots/widgets/spot_detail_sheet.dart';
 import 'live_share_providers.dart';
 import 'resume_refresh.dart';
@@ -149,12 +150,21 @@ class _MapScreenState extends ConsumerState<MapScreen>
       // geführten Tour: Er ist keine Funktionserklärung, sondern die
       // Voraussetzung dafür, die App richtig zu verstehen — und zwei
       // Overlays gleichzeitig wären keins.
+      //
+      // Erst NACH beiden die Neuheiten (#596), und nur, wenn keins von
+      // beiden lief. Gerechnet wird aber immer — eine frische
+      // Installation merkt sich so schon beim ersten Start ihre Version
+      // und hält sich nach der Tour nicht für einen Bestandsnutzer.
+      var overlayShown = true;
       if (!ref.read(safetyNoteSeenProvider)) {
         ref.read(safetyNoteSeenProvider.notifier).set(true);
         unawaited(showSafetyNoteDialog(context));
       } else if (!ref.read(mapTourSeenProvider)) {
         ref.read(mapTourProvider.notifier).start();
+      } else {
+        overlayShown = false;
       }
+      unawaited(maybeShowHighlights(context, ref, mayShow: !overlayShown));
       // Und auf die eigene Position einrasten (#360), falls schon eine
       // dasteht — sonst übernimmt der Listener in `build` den ersten Fix.
       _maybeSnapToStart(ref.read(positionStreamProvider).valueOrNull);
