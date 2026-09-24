@@ -273,6 +273,16 @@ void main() {
             reason: 'Schritt „$title" bei ${size.width}×${size.height}');
         final bubble =
             tester.getRect(find.byKey(const ValueKey('coach-bubble')));
+        // Und ganz im Bild: Bis 1.205.0 ragte sie beim Schritt zur
+        // Leiste auf 360×640 oben hinaus — der Test hier prüfte nur, dass
+        // sie nichts zudeckt, und das tut eine Blase außerhalb nie.
+        final screen = Offset.zero & size;
+        expect(
+            screen.contains(bubble.topLeft) &&
+                screen.contains(bubble.bottomRight - const Offset(1, 1)),
+            isTrue,
+            reason: 'Schritt „$title" bei ${size.width}×${size.height}: '
+                'Blase $bubble außerhalb');
         final p = painter(tester);
         for (final r in [...p.lit, ...p.ring]) {
           expect(bubble.overlaps(r), isFalse,

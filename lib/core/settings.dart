@@ -319,6 +319,14 @@ abstract interface class Settings {
   Set<String> get seenHighlightIds;
 
   Future<void> setSeenHighlightIds(Set<String> value);
+
+  /// Welche Reiter-Touren (#596) schon gelaufen sind — durchgesehen ODER
+  /// übersprungen. Die Karten-Tour steht weiter in [mapTourSeen]: Ihr
+  /// Merker ist älter, und ein Umzug hätte sie jedem Bestandsnutzer noch
+  /// einmal gezeigt.
+  Set<String> get seenCoachTours;
+
+  Future<void> setSeenCoachTours(Set<String> value);
 }
 
 /// Erstlauf-Schutz für das Buddy-Fund-Banner: Ohne Marker gälte ALLES als
@@ -608,6 +616,16 @@ class PrefsSettings implements Settings {
   @override
   Future<void> setSeenHighlightIds(Set<String> value) =>
       _prefs.setStringList(_seenHighlightIdsKey, value.toList()..sort());
+
+  static const _seenCoachToursKey = 'seen_coach_tours';
+
+  @override
+  Set<String> get seenCoachTours =>
+      (_prefs.getStringList(_seenCoachToursKey) ?? const []).toSet();
+
+  @override
+  Future<void> setSeenCoachTours(Set<String> value) =>
+      _prefs.setStringList(_seenCoachToursKey, value.toList()..sort());
 }
 
 /// Wird in `main()` mit den geladenen Einstellungen überschrieben, in Tests

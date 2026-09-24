@@ -24,6 +24,8 @@
 // leichte Regler. Ein Filter, der sich an zwei Orten verschieden
 // auswirkt, wäre schlimmer als zwei getrennte — auf der Karte muss er
 // sich melden (#154), hier sieht man die ganze Liste.
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -35,7 +37,9 @@ import '../../core/router_branches.dart';
 import '../../core/widgets/mushroom_avatar.dart';
 import '../../core/widgets/mushroom_icon.dart';
 import '../../models/spot.dart';
+import '../coach/coach.dart';
 import '../friends/buddy_alias.dart';
+import '../help/tab_tours.dart';
 import '../map/map_focus.dart';
 import '../map/widgets/map_banners.dart' show newBuddyFindsProvider;
 import 'spot_list.dart';
@@ -62,7 +66,10 @@ class SpotsScreen extends StatelessWidget {
         appBar: AppBar(
           title: const Text('Spots'),
           bottom: const TabBar(
-            tabs: [Tab(text: 'Liste'), Tab(text: 'Statistik')],
+            tabs: [
+              Tab(text: 'Liste'),
+              CoachAnchor(id: SpotsCoach.statsTab, child: Tab(text: 'Statistik')),
+            ],
           ),
         ),
         body: const TabBarView(
@@ -84,8 +91,31 @@ class _SpotListTabState extends ConsumerState<_SpotListTab> {
   final _search = TextEditingController();
   SpotOwnerFilter _owner = SpotOwnerFilter.all;
 
+  /// Der Spot der ersten Zeile — ihn öffnet die Tour (#596).
+  String? _firstSpotId;
+  VoidCallback? _unregisterScene;
+
+  @override
+  void initState() {
+    super.initState();
+    _unregisterScene = ref
+        .read(coachRegistryProvider)
+        .registerScene(SpotsCoach.sheet, () async {
+      final id = _firstSpotId;
+      if (id == null || !mounted) return () {};
+      final navigator = Navigator.of(context);
+      var open = true;
+      unawaited(
+          showSpotDetailSheet(context, id).whenComplete(() => open = false));
+      return () {
+        if (open) navigator.pop();
+      };
+    });
+  }
+
   @override
   void dispose() {
+    _unregisterScene?.call();
     _search.dispose();
     super.dispose();
   }
@@ -125,8 +155,14 @@ class _SpotListTabState extends ConsumerState<_SpotListTab> {
       if (rows.isNotEmpty) const _Item.photos(),
       ...rows,
     ];
+    final firstRow = items.indexWhere((item) => item.row != null);
+    _firstSpotId = firstRow < 0 ? null : items[firstRow].row!.spot.id;
 
-    return Column(
+    return TabTourStarter(
+      script: kSpotsTourScript,
+      // Ohne Zeile gäbe es nichts vorzuführen (Kopf von `tab_tours.dart`).
+      ready: firstRow >= 0,
+      child: Column(
       children: [
         _Controls(
           search: _search,
@@ -149,13 +185,17 @@ class _SpotListTabState extends ConsumerState<_SpotListTab> {
                     final item = items[index];
                     if (item.photos) return const FindPhotoStrip();
                     return item.row != null
-                        ? _SpotTile(row: item.row!, today: today)
+                        ? _SpotTile(
+                            row: item.row!,
+                            today: today,
+                            coach: index == firstRow)
                         : _SectionHeader(
                             title: item.title!, hint: item.hint!);
                   },
                 ),
         ),
       ],
+      ),
     );
   }
 }
@@ -205,7 +245,9 @@ class _Controls extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: Column(
         children: [
-          TextField(
+          CoachAnchor(
+            id: SpotsCoach.search,
+            child: TextField(
             controller: search,
             onChanged: (_) => onSearch(),
             textInputAction: TextInputAction.search,
@@ -225,6 +267,7 @@ class _Controls extends StatelessWidget {
                     ),
               border: const OutlineInputBorder(),
             ),
+          ),
           ),
           if (showOwnerFilter) ...[
             const SizedBox(height: 8),
@@ -271,10 +314,13 @@ class _SectionHeader extends StatelessWidget {
 final _dateFormat = DateFormat('d.M.y');
 
 class _SpotTile extends ConsumerWidget {
-  const _SpotTile({required this.row, required this.today});
+  const _SpotTile({required this.row, required this.today, this.coach = false});
 
   final SpotRow row;
   final DateTime today;
+
+  /// Die erste Zeile trägt die Anker der Tour.
+  final bool coach;
 
   /// Springt zur Karte und zentriert den Spot — derselbe Weg, den die
   /// Banner nehmen (#345): erst den Reiter wechseln, dann den Wunsch
@@ -296,7 +342,12 @@ class _SpotTile extends ConsumerWidget {
         ? null
         : relativeDay(last.foundOn, today) ?? _dateFormat.format(last.foundOn);
 
-    return InkWell(
+    final mapButton = IconButton(
+      icon: const Icon(Icons.map_outlined),
+      tooltip: 'Auf der Karte zeigen',
+      onPressed: () => _showOnMap(context, ref),
+    );
+    final tile = InkWell(
       onTap: () => showSpotDetailSheet(context, spot.id),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 10, 4, 10),
@@ -334,15 +385,14 @@ class _SpotTile extends ConsumerWidget {
                 ],
               ),
             ),
-            IconButton(
-              icon: const Icon(Icons.map_outlined),
-              tooltip: 'Auf der Karte zeigen',
-              onPressed: () => _showOnMap(context, ref),
-            ),
+            coach
+                ? CoachAnchor(id: SpotsCoach.rowMap, child: mapButton)
+                : mapButton,
           ],
         ),
       ),
     );
+    return coach ? CoachAnchor(id: SpotsCoach.row, child: tile) : tile;
   }
 
   String _subtitle(BuddyNames names) {

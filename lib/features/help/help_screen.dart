@@ -24,6 +24,7 @@ import '../../core/widgets/mushroom_icon.dart';
 import '../../core/widgets/safety_note.dart';
 import '../tour/widgets/tour_icon.dart';
 import 'map_tour.dart';
+import 'tab_tours.dart';
 
 /// Ein Abschnitt der Anleitung: Symbol, Überschrift, ein bis drei Sätze.
 class HelpStep {
@@ -178,6 +179,30 @@ class HelpScreen extends ConsumerWidget {
             },
             icon: const Icon(Icons.play_circle_outline),
             label: const Text('Tour auf der Karte zeigen'),
+          ),
+          const SizedBox(height: 8),
+          // Die Reiter-Touren (#596) laufen von selbst beim ersten
+          // Besuch; hier noch einmal auf Wunsch. Erst der Reiter, dann
+          // die Tour — sie startet, sobald er sichtbar ist.
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              for (final (label, route, script) in const [
+                ('Spots', '/spots', kSpotsTourScript),
+                ('Pilze', '/pilze', kPilzeTourScript),
+                ('Buddys', '/friends', kBuddysTourScript),
+              ])
+                OutlinedButton.icon(
+                  key: ValueKey('tab-tour-${script.id}'),
+                  onPressed: () {
+                    ref.read(requestedTabTourProvider.notifier).request(script.id);
+                    context.go(route);
+                  },
+                  icon: const Icon(Icons.play_circle_outline, size: 18),
+                  label: Text('Tour: $label'),
+                ),
+            ],
           ),
           const SizedBox(height: 8),
           // Alles, was über die sechs Abschnitte hinausgeht (#596) —

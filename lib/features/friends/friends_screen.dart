@@ -12,6 +12,8 @@ import '../../models/friendship.dart';
 import '../profile/profile_providers.dart';
 import '../profile/sharing_rank.dart';
 import '../profile/sharing_rank_providers.dart';
+import '../coach/coach.dart';
+import '../help/tab_tours.dart';
 import '../spots/widgets/find_photo_strip.dart' show FindPhotoGallery;
 import 'buddy_alias.dart';
 import 'buddy_alias_dialog.dart';
@@ -110,7 +112,12 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Buddys')),
-      body: RefreshIndicator(
+      body: TabTourStarter(
+        script: kBuddysTourScript,
+        // Erst, wenn feststeht, ob es Buddys gibt — sonst fiele der
+        // Schritt am ersten Buddy weg, nur weil die Liste noch lädt.
+        ready: !friendshipsAsync.isLoading,
+        child: RefreshIndicator(
         onRefresh: () async => ref.invalidate(friendshipsProvider),
         child: ListView(
           padding: const EdgeInsets.all(16),
@@ -118,17 +125,23 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
             // Ganz oben, weil es das ist, was sich hier ändert: Anfragen
             // und Buddys bleiben wochenlang gleich, Fotos laufen nach 14
             // Tagen ab.
-            const FindPhotoGallery(),
-            OutlinedButton.icon(
-              onPressed: _invite,
-              icon: const Icon(Icons.share),
-              label: const Text('Buddys zu PilzBuddy einladen'),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
+            const CoachAnchor(
+                id: BuddysCoach.gallery, child: FindPhotoGallery()),
+            CoachAnchor(
+              id: BuddysCoach.invite,
+              child: OutlinedButton.icon(
+                onPressed: _invite,
+                icon: const Icon(Icons.share),
+                label: const Text('Buddys zu PilzBuddy einladen'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
               ),
             ),
             const SizedBox(height: 16),
-            TextField(
+            CoachAnchor(
+              id: BuddysCoach.search,
+              child: TextField(
               controller: _searchController,
               onSubmitted: (_) => _search(),
               decoration: InputDecoration(
@@ -146,6 +159,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
                     : IconButton(
                         onPressed: _search, icon: const Icon(Icons.search)),
               ),
+            ),
             ),
             if (_searched) ...[
               const SizedBox(height: 8),
@@ -271,10 +285,15 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                  AliasButton(
-                      friendId: f.otherId(uid),
-                      username: f.otherUsername(uid)),
-                  MessageButton(otherId: f.otherId(uid)),
+                  // Die Tour zeigt beide am ERSTEN Buddy (#596).
+                  _firstAnchor(
+                      f == accepted.first,
+                      BuddysCoach.alias,
+                      AliasButton(
+                          friendId: f.otherId(uid),
+                          username: f.otherUsername(uid))),
+                  _firstAnchor(f == accepted.first, BuddysCoach.message,
+                      MessageButton(otherId: f.otherId(uid))),
                   IconButton(
                     onPressed: () async {
                       final confirmed = await showDialog<bool>(
@@ -314,9 +333,13 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
           ],
         ),
       ),
+      ),
     );
   }
 }
+
+Widget _firstAnchor(bool first, String id, Widget child) =>
+    first ? CoachAnchor(id: id, child: child) : child;
 
 Key messageButtonKey(String otherId) => ValueKey('message-button-$otherId');
 
