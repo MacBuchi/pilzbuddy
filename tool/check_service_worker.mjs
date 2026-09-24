@@ -15,6 +15,7 @@
 // Ohne Abhängigkeiten: Node bringt seit 22 ein globales `WebSocket` mit,
 // und damit lässt sich das DevTools-Protokoll direkt sprechen.
 import {createServer} from 'node:http';
+import {createHash} from 'node:crypto';
 import {spawn} from 'node:child_process';
 import {existsSync, readFileSync} from 'node:fs';
 import {readFile, mkdtemp, rm} from 'node:fs/promises';
@@ -42,16 +43,57 @@ const TYPES = {
 const index = await readFile(join(ROOT, 'index.html'), 'utf8');
 const base = index.match(/<base href="([^"]*)"/)?.[1] || '/';
 
+// Wie der Server antwortet — das Netz, das der Worker erlebt:
+//   'up'      normal
+//   'hang'    Verbindung steht, Antwort kommt nie: „Empfang ohne Daten",
+//             im Wald der Normalfall und für den Start schlimmer als
+//             „aus" (im Feld 2026-09-24 so gesehen: PWA startete nicht)
+//   'partial' nur die Hülle antwortet, alles andere hängt — ein Update,
+//             das bei schwachem Empfang ankommt, aber nie fertig wird
+let mode = 'up';
+// Ein neuer Deploy, ohne neu zu bauen: Die Bauversion steht nur in
+// `flutter_bootstrap.js` (`sw.js?v=…`), und genau dort wird sie erhöht.
+let deploy = 0;
+// Das Nachfüllen des Workers hängen lassen — nur DAS, erkennbar an seiner
+// Kennung. So wird ein Update sicher nicht fertig, ohne dass die Seite
+// selbst hängt (dann aktivierte der Browser den neuen Worker nie).
+let blockTopUp = false;
+// Wie oft der Server dem NACHFÜLLEN „unverändert" (304) sagte — GitHub
+// Pages schickt ETags, und genau davon lebt es. Gezählt wird nur, was
+// die Kennung des Nachfüllens trägt; der Browser fragt beim normalen
+// Laden ebenfalls mit ETag nach.
+let notModified = 0;
+const SHELL_PATHS = new Set([
+  '/index.html', '/flutter_bootstrap.js', '/main.dart.js',
+  '/manifest.json', '/favicon.png', '/icons/Icon-192.png', '/sw.js',
+]);
+
 const handler = async (req, res) => {
   try {
     let path = decodeURIComponent(new URL(req.url, 'http://x').pathname);
     if (!path.startsWith(base)) throw new Error('außerhalb');
     path = '/' + path.slice(base.length);
     if (path.endsWith('/')) path += 'index.html';
+    if (mode === 'hang' || (mode === 'partial' && !SHELL_PATHS.has(path)) ||
+        (blockTopUp && req.headers['x-pilzbuddy-topup'])) {
+      return; // nie antworten; `stopServer` räumt die Verbindung ab
+    }
     const file = join(ROOT, normalize(path));
-    const body = await readFile(file);
+    let body = await readFile(file);
+    if (deploy && path === '/flutter_bootstrap.js') {
+      body = Buffer.from(body.toString('utf8').replace(
+          /sw\.js\?v=' \+ "?(\d+)"?/,
+          (_, v) => `sw.js?v=' + ${BigInt(v) + BigInt(deploy)}`));
+    }
+    const etag = `"${createHash('sha1').update(body).digest('hex')}"`;
+    if (req.headers['if-none-match'] === etag) {
+      if (req.headers['x-pilzbuddy-topup']) notModified++;
+      res.writeHead(304, {etag}).end();
+      return;
+    }
     res.writeHead(200, {
       'content-type': TYPES[extname(file)] ?? 'application/octet-stream',
+      etag,
     });
     res.end(body);
   } catch (_) {
@@ -357,7 +399,10 @@ try {
       [...new Set(performance.getEntriesByType('resource')
           .filter(e => e.responseStatus === 200)
           .map(e => e.name)
-          .filter(n => n.startsWith(location.origin)))])`));
+          .filter(n => n.startsWith(location.origin))
+          .filter(n => !new URL(n).searchParams.has('cachebuster')))])`));
+  // Flutters Update-Abfrage legt der Worker bewusst NICHT ab (cacheable
+  // in sw.js): je Start ein neuer cachebuster, ohne Netz nutzlos.
   // Was zwischen den beiden Abfragen dazukam, noch ablegen lassen: Der
   // Beobachter meldet es, der Worker holt es — beides braucht einen
   // Augenblick. Andersherum wäre die Reihenfolge falsch; ein Stück, das
@@ -409,8 +454,90 @@ try {
   }
   check(true, 'die App startet ohne Server');
 
-  // 3 — die Notbremse. Eine, die man nie gezogen hat, zählt nicht.
+  // 3 — Empfang ohne Daten. Der Server nimmt Verbindungen an und
+  // antwortet nie. Bis 1.204.1 wartete jede Datei außer der Seite selbst
+  // ohne Grenze darauf, und die PWA blieb weiß.
   await startServer();
+  mode = 'hang';
+  const hangStart = Date.now();
+  await send('Page.navigate', {url});
+  try {
+    await waitFor(send, APP, 'die App rendert bei Empfang ohne Daten', 30000);
+    // Und zwar ZÜGIG: Mit der vollen Grenze je Datei käme bei rund zehn
+    // Dateien nacheinander eine halbe Minute zusammen.
+    const seconds = (Date.now() - hangStart) / 1000;
+    check(seconds < 15,
+        `die App startet bei Empfang ohne Daten aus dem Cache (${seconds.toFixed(1)} s)`);
+  } catch (error) {
+    fail.push(`bei Empfang ohne Daten: ${error.message.split('\n')[0]}`);
+  }
+  await stopServer();
+
+  // 4 — ein Update kommt an, der neue Worker übernimmt, aber fertig wird
+  // er nicht, und dann ist das Netz weg. Bis 1.204.1 löschte er beim
+  // Aktivieren den alten, vollständigen Cache; im neuen lag nur die
+  // Hülle, und ohne Netz startete nichts. Mit einem Deploy je Merge war
+  // das der Normalfall.
+  //
+  // Das Update kommt bei normalem Netz; hängen bleibt nur das Nachfüllen.
+  // Zwei Anläufe davor sind gescheitert: Hängt das ganze Netz, aktiviert
+  // der Browser den neuen Worker nie (er wartet auf die offenen Anfragen
+  // des alten). Wird es erst DANACH knapp, ist das Nachfüllen auf einem
+  // schnellen Rechner schon fertig, und der Schritt prüft nichts — in CI
+  // so passiert.
+  const before = await evaluate(send, '(async () => (await caches.keys()))()');
+  const oldScript = await evaluate(send, 'navigator.serviceWorker.controller.scriptURL');
+  await startServer();
+  mode = 'up';
+  deploy = 1;
+  blockTopUp = true;
+  await send('Page.navigate', {url});
+  try {
+    await waitFor(send,
+        `navigator.serviceWorker.controller?.scriptURL !== ${JSON.stringify(oldScript)}`,
+        'der Worker des neuen Deploys übernimmt', 30000);
+  } catch (error) {
+    fail.push(`neuer Deploy: ${error.message.split('\n')[0]}`);
+  }
+  await sleep(3000);
+  await stopServer();
+  blockTopUp = false;
+  await send('Page.navigate', {url});
+  try {
+    await waitFor(send, APP, 'die App rendert nach halbem Update OHNE Server', 30000);
+    check(true, 'nach einem halben Update startet sie ohne Netz aus dem alten Stand');
+  } catch (error) {
+    fail.push(`nach halbem Update ohne Netz: ${error.message.split('\n')[0]}\n` +
+        await cacheReport(send));
+  }
+  const afterUpdate = await evaluate(send, '(async () => (await caches.keys()))()');
+  check(afterUpdate.length === 2,
+      `der alte Cache steht noch, solange der neue unvollständig ist (${JSON.stringify(afterUpdate)})`);
+
+  // 5 — wieder online füllt der neue Cache nach, und erst DANN geht der
+  // alte. Ein alter Cache, der nie geht, wäre ein Speicherleck je Deploy.
+  // Angestoßen wird das Nachfüllen hier von Hand, VOR dem Neuladen: Die
+  // Seite holte sonst fast alles selbst, und gemessen wäre nur der Rest.
+  await startServer();
+  notModified = 0;
+  await evaluate(send,
+      "navigator.serviceWorker.controller.postMessage({type: 'warm', urls: []})");
+  let caches2 = [];
+  for (let i = 0; i < 40; i++) {
+    await sleep(1000);
+    caches2 = await evaluate(send, '(async () => (await caches.keys()))()');
+    if (caches2.length === 1 && !before.includes(caches2[0])) break;
+  }
+  check(caches2.length === 1 && !before.includes(caches2[0]),
+      `online räumt der neue Cache den alten ab (jetzt: ${JSON.stringify(caches2)})`);
+  // Unverändertes (CanvasKit, Schriften) wird umgelegt, nicht neu geladen.
+  check(notModified >= 5,
+      `unveränderte Dateien kommen per 304 aus dem alten Cache (${notModified}×)`);
+  await send('Page.navigate', {url});
+  await waitFor(send, APP, 'wieder online nach dem Update');
+
+  // 6 — die Notbremse. Eine, die man nie gezogen hat, zählt nicht.
+  // Der Server läuft noch aus Schritt 5.
   await send('Page.navigate', {url});
   await waitFor(send, 'navigator.serviceWorker.controller !== null', 'wieder online');
   await sleep(12000);

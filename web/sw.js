@@ -47,7 +47,28 @@ const SHELL = [
 // Schwacher Empfang ist im Wald der Normalfall, und „langsam" ist für den
 // Start schlimmer als „aus": Ohne Grenze hinge die App am hängenden Netz,
 // statt die Kopie zu nehmen.
+//
+// **Die Grenze gilt für JEDE Datei, die eine Kopie hat** (seit 1.204.2).
+// Bis dahin nur für die Seite selbst: Sie kam nach 3 s aus dem Cache,
+// `main.dart.js` und CanvasKit warteten dann ohne Grenze auf ein Netz,
+// das nie antwortete — Verbindung da, Daten nicht. Im Feld am
+// 2026-09-24 genau so gesehen („quasi kein Empfang", PWA blieb leer).
+// Ohne Kopie wird weiter gewartet: Dann ist das Netz die einzige Chance.
 const NAVIGATION_TIMEOUT_MS = 3000;
+const SUBRESOURCE_TIMEOUT_MS = 4000;
+
+// Die App lädt ihre Dateien nacheinander (Seite, Lader, `main.dart.js`,
+// CanvasKit, Assets …); mit 4 s je Stück stünde man bei totem Netz eine
+// halbe Minute vor einer leeren Seite. Hat gerade eine Anfrage die Grenze
+// gerissen, bekommen die folgenden nur noch diese kurze Frist — bis
+// wieder etwas aus dem Netz ankommt.
+const DEAD_NETWORK_TIMEOUT_MS = 300;
+const DEAD_NETWORK_MEMORY_MS = 30000;
+let lastTimeoutAt = 0;
+
+// Merker „dieser Cache ist vollständig" — als Eintrag im Cache selbst,
+// damit er mit ihm lebt und stirbt.
+const COMPLETE = new URL('__pilzbuddy_cache_complete__', self.registration.scope).href;
 
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
@@ -60,14 +81,36 @@ self.addEventListener('install', (event) => {
   })());
 });
 
+// **Der alte Cache geht erst, wenn der neue alles hat** (seit 1.204.2).
+// Bis dahin löschte das Aktivieren jeden früheren Cache sofort — und im
+// neuen lag nur die Hülle. CanvasKit, Schriften und Assets kamen erst,
+// wenn die neue Version einmal ganz mit Netz lief; wer nach einem Deploy
+// kurz online war, hatte danach KEINEN Offline-Start mehr. Mit einem
+// Deploy je Merge (Vorschau) war das der Normalfall.
+//
+// Jetzt bleibt genau EIN früherer Cache stehen — der vollständige, wenn
+// es einen gibt. Solange er da ist, kommt jeder Rückfall zuerst aus ihm
+// (`cachedCopy`): Ohne Netz startet dann der ALTE Stand, und zwar ganz,
+// statt einer Mischung aus neuer Hülle und alten Assets. `topUp` füllt
+// den neuen nach und räumt den alten erst danach ab.
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
-    // Jeder Cache außer dem eigenen gehört zu einem früheren Build.
-    const names = await caches.keys();
+    const others = await previousCaches();
+    let keep = null;
+    for (const name of others) {
+      // `caches.keys()` liefert in Anlegereihenfolge — der letzte
+      // vollständige ist der jüngste vollständige.
+      if (await (await caches.open(name)).match(COMPLETE)) keep = name;
+    }
+    keep ??= others[others.length - 1] ?? null;
     await Promise.all(
-        names.filter((name) => name !== CACHE).map((name) => caches.delete(name)));
+        others.filter((name) => name !== keep).map((name) => caches.delete(name)));
     await self.clients.claim();
   })());
+  // Nicht in `waitUntil`: Solange das Aktivieren läuft, stehen die
+  // Anfragen der Seite. Bricht der Browser den Lauf ab, holt ihn das
+  // nächste Vorwärmen nach.
+  queue(topUp);
 });
 
 self.addEventListener('fetch', (event) => {
@@ -90,29 +133,59 @@ async function networkFirst(request, isNavigation) {
   // „Zeitlimit gerissen": Die Antwort kommt vielleicht später doch, und
   // dann soll sie wenigstens im Cache landen.
   const fromNetwork = fetchAndCache(request);
+  fromNetwork.catch(() => {}); // verliert es das Rennen, fragt keiner mehr
+  const cached = await cachedCopy(request, isNavigation);
+  // Keine Kopie: Das Netz ist die einzige Chance, also ohne Grenze —
+  // und scheitert es, dann wie ohne Worker.
+  if (!cached) return fromNetwork;
+  const deadNetwork = Date.now() - lastTimeoutAt < DEAD_NETWORK_MEMORY_MS;
   try {
-    return await (isNavigation
-        ? Promise.race([fromNetwork, rejectAfter(NAVIGATION_TIMEOUT_MS)])
-        : fromNetwork);
+    return await Promise.race([
+      fromNetwork,
+      rejectAfter(deadNetwork
+          ? DEAD_NETWORK_TIMEOUT_MS
+          : isNavigation ? NAVIGATION_TIMEOUT_MS : SUBRESOURCE_TIMEOUT_MS),
+    ]);
   } catch (_) {
-    const cached = await caches.match(request, {cacheName: CACHE});
-    if (cached) return cached;
-    // Eine Navigation darf auch dann noch gelingen, wenn genau diese
-    // Adresse nie im Cache lag — die App ist eine einzige Seite.
-    if (isNavigation) {
-      const shell = await caches.match('./', {cacheName: CACHE});
-      if (shell) return shell;
-    }
-    // Nichts da: durchreichen und scheitern wie ohne Worker.
-    return fetch(request);
+    lastTimeoutAt = Date.now();
+    return cached;
   }
+}
+
+/// Die Kopie für den Rückfall. Solange ein früherer Cache steht, ist der
+/// neue unvollständig — dann zuerst der frühere, damit ein Start ohne
+/// Netz aus EINEM Stand kommt.
+async function cachedCopy(request, isNavigation) {
+  const names = [...(await previousCaches()), CACHE];
+  for (const name of names) {
+    const cache = await caches.open(name);
+    const hit = await cache.match(request) ??
+        // Eine Navigation darf auch dann noch gelingen, wenn genau diese
+        // Adresse nie im Cache lag — die App ist eine einzige Seite.
+        (isNavigation ? await cache.match('./') : undefined);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+/// Die Caches FRÜHERER Builds — in Anlegereihenfolge vor dem eigenen.
+/// Nicht „alle anderen": Liegt der Cache eines NEUEREN Workers daneben,
+/// der noch wartet (bei knappem Netz aktiviert der Browser ihn erst, wenn
+/// dieser hier alle offenen Anfragen los ist), nähme der Rückfall sonst
+/// Dateien aus beiden Ständen. Ohne Netz startete die Mischung nicht —
+/// beim Bau so gemessen.
+async function previousCaches() {
+  const names = (await caches.keys()).filter((n) => n.startsWith('pilzbuddy-'));
+  const own = names.indexOf(CACHE);
+  return own < 0 ? names.filter((n) => n !== CACHE) : names.slice(0, own);
 }
 
 async function fetchAndCache(request) {
   const response = await fetch(request);
+  lastTimeoutAt = 0; // das Netz antwortet wieder
   // Nur vollständige, erfolgreiche Antworten. Weiterleitungen und Fehler
   // als Kopie zu behalten hieße, sie später ohne Netz zu wiederholen.
-  if (response.status === 200) {
+  if (response.status === 200 && cacheable(request.url)) {
     const copy = response.clone();
     caches.open(CACHE).then((cache) => cache.put(request, copy)).catch(() => {});
   }
@@ -126,11 +199,18 @@ async function fetchAndCache(request) {
 // ABGELEGT ist, nicht was gerade unterwegs ist.
 let warming = Promise.resolve();
 
+/// Hinten anstellen — Vorwärmen und Nachfüllen laufen nie gleichzeitig.
+function queue(job) {
+  warming = warming.then(job).catch(() => {});
+  return warming;
+}
+
 async function warm(urls) {
   const cache = await caches.open(CACHE);
   for (const url of urls) {
     try {
       if (new URL(url).origin !== self.location.origin) continue;
+      if (!cacheable(url)) continue;
       if (await cache.match(url)) continue;
       const response = await fetch(url);
       if (response.status === 200) await cache.put(url, response);
@@ -139,6 +219,74 @@ async function warm(urls) {
       // aufzuhören — die übrigen sind es wert.
     }
   }
+}
+
+/// Den neuen Cache mit allem füllen, was der frühere hatte — dann erst
+/// den früheren löschen.
+///
+/// **Ohne alles neu zu laden:** Je Datei fragt der Worker mit dem ETag
+/// der alten Kopie nach (`If-None-Match`). Antwortet der Server 304, ist
+/// sie unverändert und wird einfach umgelegt — CanvasKit ändert sich nur
+/// mit der Flutter-Version, die Karten-Assets fast nie, und über
+/// Mobilfunk sollen ein paar Kilobyte Kopfzeilen reichen statt der
+/// vollen Dateien. Was der Server nicht mehr kennt (404), gehört nicht
+/// mehr zur App. Scheitert eine Anfrage, bleibt der alte Cache stehen,
+/// und der nächste Lauf versucht es wieder.
+async function topUp() {
+  const previous = await previousCaches();
+  const cache = await caches.open(CACHE);
+  if (previous.length === 0) {
+    if (!(await cache.match(COMPLETE))) await markComplete(cache);
+    return;
+  }
+  let complete = true;
+  for (const name of previous) {
+    const old = await caches.open(name);
+    for (const request of await old.keys()) {
+      if (request.url === COMPLETE || !cacheable(request.url)) continue;
+      if (await cache.match(request)) continue;
+      try {
+        const copy = await old.match(request);
+        const etag = copy?.headers.get('etag');
+        const response = await fetch(request.url, {
+          cache: 'no-store',
+          // Die Kennung ist für die Prüfung im Browser
+          // (`check_service_worker.mjs`): Nur SO lassen sich die 304 des
+          // Nachfüllens von denen des Browsers unterscheiden, der beim
+          // normalen Laden ebenfalls mit ETag nachfragt.
+          headers: {
+            'x-pilzbuddy-topup': '1',
+            ...(etag ? {'If-None-Match': etag} : {}),
+          },
+          signal: AbortSignal.timeout(30000),
+        });
+        if (response.status === 304 && copy) {
+          await cache.put(request, copy);
+        } else if (response.status === 200) {
+          await cache.put(request, response);
+        } else if (response.status !== 404 && response.status !== 410) {
+          complete = false;
+        }
+      } catch (_) {
+        complete = false; // kein Netz — der alte bleibt, nächster Lauf
+      }
+    }
+  }
+  if (!complete) return;
+  await markComplete(cache);
+  await Promise.all(previous.map((name) => caches.delete(name)));
+}
+
+function markComplete(cache) {
+  return cache.put(COMPLETE, new Response('1'));
+}
+
+/// Flutters Update-Abfrage hängt an `version.json` bei jedem Start einen
+/// neuen `cachebuster` — jede davon wäre ein eigener Eintrag, der Cache
+/// wüchse je Start um einen, und das Nachfüllen trüge sie alle mit. Ohne
+/// Netz braucht sie ohnehin niemand.
+function cacheable(url) {
+  return !new URL(url).searchParams.has('cachebuster');
 }
 
 function rejectAfter(ms) {
@@ -154,8 +302,10 @@ self.addEventListener('message', (event) => {
   // ersten Besuch nur die Hülle im Cache.
   if (event.data.type === 'warm' && Array.isArray(event.data.urls)) {
     const urls = event.data.urls;
-    warming = warming.then(() => warm(urls)).catch(() => {});
-    event.waitUntil(warming);
+    queue(() => warm(urls));
+    // Nach jedem Vorwärmen nachfüllen: Die Seite läuft, also gibt es
+    // gerade Netz — der beste Moment, den früheren Cache loszuwerden.
+    event.waitUntil(queue(topUp));
     return;
   }
   // Die Notbremse. Aus der Konsole:

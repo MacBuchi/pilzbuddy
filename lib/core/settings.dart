@@ -582,7 +582,13 @@ class PrefsSettings implements Settings {
   Future<void> setSeenFindPhotoIds(Set<String> value) =>
       _prefs.setStringList(_seenFindPhotoIdsKey, value.toList()..sort());
 
-  static const _highlightsSeenVersionKey = 'highlights_seen_version';
+  // **`_2`: einmal zurückgesetzt** (1.204.2, Betreiber 2026-09-24). Den
+  // Rückblick hatten bis dahin nur Vorschau und Vorabkanal gesehen — in
+  // der Blätter-Fassung von 1.204.0, die nach dem ersten „Ausprobieren"
+  // verschwand. Ein neuer Name macht jedes Gerät wieder zu „nie
+  // gemerkt"; der alte Schlüssel liegt herum und wird nie wieder gelesen.
+  // Stabile Nutzer merken davon nichts, sie haben 1.204 nie gesehen.
+  static const _highlightsSeenVersionKey = 'highlights_seen_version_2';
 
   @override
   String? get highlightsSeenVersion =>
@@ -592,7 +598,8 @@ class PrefsSettings implements Settings {
   Future<void> setHighlightsSeenVersion(String value) =>
       _prefs.setString(_highlightsSeenVersionKey, value);
 
-  static const _seenHighlightIdsKey = 'seen_highlight_ids';
+  // `_2` aus demselben Grund: „Entdecken" zeigt sein „Neu" wieder.
+  static const _seenHighlightIdsKey = 'seen_highlight_ids_2';
 
   @override
   Set<String> get seenHighlightIds =>
