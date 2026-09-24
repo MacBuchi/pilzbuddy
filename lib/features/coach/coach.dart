@@ -836,35 +836,46 @@ class FingerPainter extends CustomPainter {
 
   /// Die Hand in eigenen Maßen: Kuppe bei (0, 0), der Zeigefinger läuft
   /// nach unten.
+  ///
+  /// **Von hinten nach vorn gemalt, jede Fläche mit eigener Kontur** —
+  /// so verdeckt jedes Teil die Linien dahinter, und es gibt keine Linie,
+  /// die man nicht sehen dürfte. Die Fassung davor malte EINEN Umriss und
+  /// ritzte Trennlinien hinein; die liefen in die Handfläche, und der
+  /// Daumen lag als Wurst quer darüber (Betreiber mit einem Zeige-Icon
+  /// als Vorlage, 2026-09-25). Die Reihenfolge: eingerollte Finger vom
+  /// kleinen her, dann der Zeigefinger, der Daumen, und zuletzt die
+  /// Handfläche OHNE Kontur — sie deckt die unteren Enden der Finger zu,
+  /// die in ihr verschwinden. Den Außenrand zieht danach der Umriss aller
+  /// Teile.
   void _paintHand(Canvas canvas, {required double elevation}) {
     RRect box(double l, double t, double r, double b, double radius) =>
         RRect.fromLTRBR(l, t, r, b, Radius.circular(radius));
 
-    final finger = box(-9, 0, 9, 50, 9);
+    final finger = box(-9, 0, 9, 60, 9);
+    // Treppab nach außen, jeder etwas kleiner — so liegen die Knöchel
+    // einer echten Faust. Hinten zuerst: der kleine Finger.
     final curls = [
-      box(7, 32, 21, 50, 7),
-      box(17, 36, 30, 54, 6.5),
-      box(26, 41, 37, 58, 5.5),
+      box(30, 51, 43, 76, 6.5),
+      box(19, 45, 33, 74, 7),
+      box(7, 39, 22, 72, 7.5),
     ];
-    final palm = box(-11, 38, 36, 84, 16);
-    // Der Daumen liegt QUER über den eingerollten Fingern, die Kuppe zu
-    // ihnen hin — wie beim Zeige-Emoji. Die erste Fassung ließ ihn schräg
-    // unten aus der Handfläche hängen, und das sah gebrochen aus
-    // (Betreiber, 2026-09-25). Er wächst aus der Handkante: Sein Ansatz
-    // gehört zum Umriss der Hand, nur Oberkante und Kuppe bekommen eine
-    // eigene Linie.
-    final thumb = (Path()..addRRect(box(0, -6.5, 30, 6.5, 6.5))).transform(
-        (Matrix4.translationValues(-15, 62, 0)..rotateZ(0.2)).storage);
-    var hand = Path()..addRRect(finger);
+    // Der Daumen steht links schräg nach oben ab, mit einer Kerbe zum
+    // Zeigefinger — nicht quer über der Hand.
+    final thumb = (Path()..addRRect(box(-7, -34, 7, 6, 7))).transform(
+        (Matrix4.translationValues(-6, 80, 0)..rotateZ(-0.36)).storage);
+    final palm = Path()..addRRect(box(-11, 55, 43, 94, 14));
+    final cuff = box(-10, 84, 42, 102, 6);
+
+    var outline = Path()..addRRect(finger);
     for (final part in [
-      Path()..addRRect(palm),
+      palm,
       thumb,
       for (final c in curls) Path()..addRRect(c),
     ]) {
-      hand = Path.combine(PathOperation.union, hand, part);
+      outline = Path.combine(PathOperation.union, outline, part);
     }
-    final cuff = box(-10, 78, 37, 98, 6);
 
+    final skin = Paint()..color = _skin;
     final edge = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2
@@ -877,36 +888,31 @@ class FingerPainter extends CustomPainter {
       ..color = _edge.withValues(alpha: 0.45);
 
     canvas.drawShadow(
-        Path.combine(PathOperation.union, hand, Path()..addRRect(cuff)),
+        Path.combine(PathOperation.union, outline, Path()..addRRect(cuff)),
         Colors.black,
         elevation,
         false);
-    // Der Ärmel zuerst — die Hand liegt darüber, sichtbar bleibt der
+    // Der Ärmel ganz hinten — die Hand liegt darauf, sichtbar bleibt der
     // Bund.
     canvas.drawRRect(cuff, Paint()..color = AppColors.forestGreen);
     canvas.drawRRect(cuff, edge);
-    canvas.drawPath(hand, Paint()..color = _skin);
-    canvas.drawPath(hand, edge);
-    canvas.save();
-    // Links von der Handkante zeichnet schon der Umriss.
-    canvas.clipRect(Rect.fromLTRB(palm.left + 4, 0, 80, 120));
+    for (final c in curls) {
+      canvas.drawRRect(c, skin);
+      canvas.drawRRect(c, edge);
+    }
+    canvas.drawRRect(finger, skin);
+    canvas.drawRRect(finger, edge);
+    canvas.drawPath(thumb, skin);
     canvas.drawPath(thumb, edge);
-    canvas.restore();
+    canvas.drawPath(palm, skin);
+    canvas.drawPath(outline, edge);
 
     // Nagel und Gelenkfalten: Erst sie machen aus der Form einen Finger.
     final nail = box(-5, 3, 5, 15, 4.5);
     canvas.drawRRect(nail, Paint()..color = _nail);
     canvas.drawRRect(nail, fine);
-    canvas.drawLine(const Offset(-4, 22), const Offset(4, 22), fine);
-    canvas.drawLine(const Offset(-4, 33), const Offset(4, 33), fine);
-    // Die Trennung der eingerollten Finger, nur oben — weiter unten
-    // gehen sie in die Handfläche über.
-    canvas.save();
-    canvas.clipRect(const Rect.fromLTRB(9, 0, 60, 47));
-    for (final c in curls.skip(1)) {
-      canvas.drawRRect(c, fine);
-    }
-    canvas.restore();
+    canvas.drawLine(const Offset(-4, 23), const Offset(4, 23), fine);
+    canvas.drawLine(const Offset(-4, 36), const Offset(4, 36), fine);
   }
 
   @override

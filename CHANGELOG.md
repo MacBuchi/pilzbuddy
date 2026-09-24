@@ -9,7 +9,7 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Kurze Touren in jedem Reiter, und eine echte Hand
 
-*24. und 25. September 2026 · Versionen 1.206.0 und 1.206.1*
+*24. und 25. September 2026 · Versionen 1.206.0 bis 1.206.2*
 
 - **Spots, Pilze und Buddys** erklären sich beim ersten Besuch in ein
   paar Schritten. Die Spot-Tour öffnet dabei das Spot-Blatt, die
@@ -17,8 +17,9 @@ https://github.com/MacBuchi/pilzbuddy/releases
   Dingen, die du noch nicht hast (etwa einen Buddy), fallen weg.
 - **Die Hand, die vorführt**, ist jetzt eine Hand: Zeigefinger,
   eingerollte Finger, grüner Ärmel. Sie kommt heran, drückt sichtbar und
-  hebt wieder ab — und kann jetzt auch wischen. Der Daumen liegt seit
-  1.206.1 quer über den eingerollten Fingern, statt schräg abzustehen.
+  hebt wieder ab — und kann jetzt auch wischen. Seit 1.206.2 ist sie
+  neu gezeichnet: der Daumen steht schräg nach oben ab, die Knöchel
+  laufen treppab, und keine Linie scheint mehr durch.
 - Alle Touren lassen sich unter Profil → Kurzanleitung noch einmal
   starten.
 
