@@ -156,7 +156,12 @@ void main() {
       expect(start, greaterThan(-1));
       final body = worker.substring(start, worker.indexOf('\n}', start));
       final netz = body.indexOf('fetchAndCache(request)');
-      final cache = body.indexOf('caches.match(request');
+      // Seit 1.204.2 greift `cachedCopy` in den Cache (erst der frühere
+      // Stand, solange der neue unvollständig ist). Die Zusage bleibt:
+      // Der Netzversuch läuft zuerst los, die Kopie gilt nur nach dem
+      // Zeitlimit — ob sie greift, prüft `check_service_worker.mjs` im
+      // echten Browser.
+      final cache = body.indexOf('cachedCopy(request');
       expect(netz, greaterThan(-1));
       expect(cache, greaterThan(netz),
           reason: 'Innerhalb von networkFirst muss der Netzversuch VOR '

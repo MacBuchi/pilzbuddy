@@ -632,7 +632,7 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   `persist()`), und der Stub auf Android sagt `true` — ein Warnhinweis
   über ein Dateisystem wäre schlicht falsch.
 - **Der eigene Service Worker** (`web/sw.js` + `web/flutter_bootstrap.js`,
-  #387, seit 1.117.0). Sechs Dinge, die man wissen muss:
+  #387, seit 1.117.0). Acht Dinge, die man wissen muss:
   - **Immer zuerst das Netz, der Cache nur als Rückfall.** Das ist die
     tragende Entscheidung: Ein Cache, der gewinnt, nagelt Nutzer auf einen
     alten Stand und umgeht damit genau die kontrollierte Beförderung. Dazu
@@ -640,6 +640,30 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     Inhalts-Prüfsummen (`main.dart.js` heißt immer gleich), ein
     `cache-first` lieferte also stillschweigend die alte App. Der Preis
     ist ehrlich: Die PWA wird dadurch **nicht schneller**, nur startfähig.
+  - **„Zuerst das Netz" heißt nicht „auf das Netz warten"** (seit
+    1.204.2, Feldbefund 2026-09-24: „kein Flugmodus, aber quasi kein
+    Empfang", die PWA blieb leer). Bis dahin hatte nur die Seite selbst
+    eine Grenze (3 s); `main.dart.js` und CanvasKit warteten ohne Grenze
+    auf ein Netz, das Verbindungen annahm und nie antwortete. Jetzt gilt
+    für jede Datei MIT Kopie eine Grenze (4 s), und nach einem Reißen
+    nur noch 300 ms, bis wieder etwas aus dem Netz kommt — die App lädt
+    ihre Dateien nacheinander, mit 4 s je Stück waren es gemessen 20 s
+    statt 1,8. Ohne Kopie wird weiter gewartet.
+  - **Der alte Cache geht erst, wenn der neue alles hat** (seit 1.204.2).
+    Vorher löschte das Aktivieren ihn sofort, im neuen lag nur die
+    Hülle, und wer nach einem Deploy kurz online war, hatte keinen
+    Offline-Start mehr — mit einem Deploy je Merge in der Vorschau der
+    Normalfall. Es bleibt genau EIN früherer (der mit Vollständig-
+    Merker); solange er steht, kommt jeder Rückfall zuerst aus ihm, damit
+    ein Start ohne Netz aus EINEM Stand kommt. `topUp` füllt den neuen
+    per `If-None-Match` nach — 304 heißt umlegen statt neu laden — und
+    räumt erst dann ab. Zwei Fallen beim Prüfen, beide passiert: Ein
+    Update bei HÄNGENDEM Netz aktiviert nie (der Browser wartet auf die
+    offenen Anfragen des alten Workers), prüft also nur den alten; und
+    304 zählt auch der Browser beim normalen Laden, deshalb trägt das
+    Nachfüllen die Kennung `x-pilzbuddy-topup`.
+    `version.json?cachebuster=…` legt der Worker gar nicht ab — sonst
+    wüchse der Cache je Start um einen Eintrag.
   - **`web/flutter_bootstrap.js` ist Pflicht, nicht Bequemlichkeit.** Die
     erzeugte Fassung übergibt dem Loader `serviceWorkerSettings`, und der
     registriert `flutter_service_worker.js` (784 Bytes, meldet sich selbst

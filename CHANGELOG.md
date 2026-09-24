@@ -7,6 +7,21 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Web-App startet auch bei schlechtem Empfang
+
+*24. September 2026 · Version 1.204.2*
+
+Im Wald hat man oft Empfang, aber keine Daten: Die Verbindung steht,
+nur kommt nichts an. Die Web-App blieb dann leer, obwohl alles für den
+Start ohne Netz längst auf dem Gerät lag — sie wartete auf eine
+Antwort, die nie kam. Jetzt nimmt sie nach wenigen Sekunden, was sie
+hat, und startet in ein, zwei Sekunden.
+
+Außerdem ging der Start ohne Netz nach einem Update verloren, wenn man
+die neue Version nur kurz mit Netz geöffnet hatte. Jetzt bleibt der
+alte Stand so lange auf dem Gerät, bis der neue vollständig ist, und
+unveränderte Dateien werden dafür nicht noch einmal heruntergeladen.
+
 ## Neues zeigt sich jetzt von selbst — und „Entdecken" zeigt alles
 
 *24. September 2026 · Versionen 1.204.0 und 1.204.1*
