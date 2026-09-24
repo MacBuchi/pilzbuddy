@@ -9,7 +9,7 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Neues zeigt sich jetzt von selbst — und „Entdecken" zeigt alles
 
-*24. September 2026 · Version 1.204.0*
+*24. September 2026 · Versionen 1.204.0 und 1.204.1*
 
 PilzBuddy ist in den letzten Wochen stark gewachsen, und vieles davon
 findet man nur, wenn man weiß, dass es da ist. Deshalb gibt es jetzt
@@ -17,8 +17,9 @@ zwei Wege dahin:
 
 - **Ein kurzes Blatt nach einem Update.** Nach einer neuen Version
   zeigt die Karte einmal bis zu drei Neuheiten, jede mit einem Knopf
-  „Ausprobieren", der direkt hinführt. Wegwischen reicht, es kommt
-  nicht wieder. Beim ersten Mal ist es ein Rückblick auf das, was
+  „Ausprobieren", der direkt hinführt. Danach bietet eine Leiste unten
+  an, mit der nächsten Neuheit weiterzumachen. Wegwischen reicht, es
+  kommt nicht wieder. Beim ersten Mal ist es ein Rückblick auf das, was
   inzwischen dazugekommen ist.
 - **„Entdecken" im Profil** und in der Kurzanleitung: alle Funktionen
   und Tipps auf einer Seite, nach Reiter geordnet — auch die kleinen,

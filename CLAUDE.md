@@ -1292,6 +1292,11 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   - **Gemerkt wird VOR dem Zeigen**, und nie ein älterer Stand über
     einen jüngeren (Rückschritt vom Vorabkanal). Ein weggewischtes
     Blatt kommt nicht wieder; verpasst ist nichts, „Entdecken" hat es.
+    **Als gesehen zählt je Eintrag nur die Seite, die angezeigt WURDE**,
+    und „Ausprobieren" mitten im Blatt bietet am Ziel „Weiter ansehen"
+    an (seit 1.204.1 — vorher war der Rückblick nach dem ersten
+    Ausprobieren weg, und die übrigen Seiten hatten in „Entdecken" kein
+    „Neu" mehr; im Feld gemeldet).
   - **Bilder aus Widgets** (`HighlightArt`: das echte Knopfsymbol plus
     ein schaukelnder Pilz-Buddy), keine Screenshots — die veralten mit
     jeder Oberflächenänderung —, kein Lottie.

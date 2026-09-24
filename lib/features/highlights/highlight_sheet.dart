@@ -84,9 +84,6 @@ Future<void> maybeShowHighlights(
       if (!mayShow || ref.read(tourProvider) != null) return;
       await _record(settings, plan.version);
       if (!context.mounted) return;
-      ref
-          .read(seenHighlightIdsProvider.notifier)
-          .markSeen(plan.pages.map((h) => h.id));
       await showHighlightSheet(context, plan);
   }
 }
@@ -95,26 +92,37 @@ Future<void> _record(Settings settings, String version) =>
     settings.setHighlightsSeenVersion(version).catchError(
         (Object e, StackTrace s) => logError('Neuheiten-Stand merken', e, s));
 
-Future<void> showHighlightSheet(BuildContext context, HighlightShow plan) =>
+Future<void> showHighlightSheet(BuildContext context, HighlightShow plan,
+        {int initialPage = 0}) =>
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (context) => HighlightSheet(plan: plan),
+      builder: (context) =>
+          HighlightSheet(plan: plan, initialPage: initialPage),
     );
 
-class HighlightSheet extends StatefulWidget {
-  const HighlightSheet({super.key, required this.plan});
+class HighlightSheet extends ConsumerStatefulWidget {
+  const HighlightSheet({super.key, required this.plan, this.initialPage = 0});
 
   final HighlightShow plan;
 
+  /// Wo es weitergeht — nach „Ausprobieren" und „Weiter ansehen".
+  final int initialPage;
+
   @override
-  State<HighlightSheet> createState() => _HighlightSheetState();
+  ConsumerState<HighlightSheet> createState() => _HighlightSheetState();
 }
 
-class _HighlightSheetState extends State<HighlightSheet> {
-  final _pages = PageController();
-  int _page = 0;
+class _HighlightSheetState extends ConsumerState<HighlightSheet> {
+  late final _pages = PageController(initialPage: widget.initialPage);
+  late int _page = widget.initialPage;
+
+  @override
+  void initState() {
+    super.initState();
+    _markSeen(_page);
+  }
 
   @override
   void dispose() {
@@ -122,13 +130,62 @@ class _HighlightSheetState extends State<HighlightSheet> {
     super.dispose();
   }
 
-  /// Erst den Router greifen, dann schließen: Danach ist der Kontext
-  /// des Blatts nicht mehr eingehängt (dieselbe Reihenfolge wie im
-  /// Spot-Blatt).
+  /// Gesehen ist, was angezeigt WURDE — nicht, was im Blatt stand. Bis
+  /// 1.204.0 galten alle Seiten beim Öffnen als gesehen; wer nach der
+  /// ersten „Ausprobieren" tippte, verlor die übrigen auch in
+  /// „Entdecken" (dort fehlte ihnen das „Neu"). Betreiber, 2026-09-24.
+  void _markSeen(int page) {
+    // Nach dem Bild: Aus `initState` heraus darf kein Provider geändert
+    // werden.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref
+          .read(seenHighlightIdsProvider.notifier)
+          .markSeen([widget.plan.pages[page].id]);
+    });
+  }
+
+  /// Erst Router und Navigator greifen, dann schließen: Danach ist der
+  /// Kontext des Blatts nicht mehr eingehängt (dieselbe Reihenfolge wie
+  /// im Spot-Blatt).
   void _go(String location) {
     final router = GoRouter.of(context);
     Navigator.of(context).pop();
     router.go(location);
+  }
+
+  /// „Ausprobieren" mitten im Blatt: hingehen UND den Rest nicht
+  /// verlieren. Das Blatt schließt (sonst verdeckte es das Ziel), und am
+  /// Ziel bietet eine Leiste an, bei der nächsten Seite weiterzumachen.
+  /// Ohne sie war der Rückblick nach dem ersten Ausprobieren weg — im
+  /// Feld so gemeldet (Betreiber, 2026-09-24).
+  void _try(FeatureHighlight h) {
+    final router = GoRouter.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final plan = widget.plan;
+    final next = _page + 1;
+    Navigator.of(context).pop();
+    router.go(h.target);
+    final left = plan.pages.length - next;
+    if (left <= 0) return;
+    messenger
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(
+        duration: const Duration(seconds: 8),
+        content: Text(
+            left == 1 ? 'Noch 1 Neuheit' : 'Noch $left Neuheiten'),
+        action: SnackBarAction(
+          label: 'Weiter ansehen',
+          onPressed: () {
+            // Der Kontext des Navigators selbst: Er bleibt eingehängt,
+            // wenn das Blatt und die Seite, von der es kam, längst weg
+            // sind.
+            final navContext = router.routerDelegate.navigatorKey.currentContext;
+            if (navContext == null || !navContext.mounted) return;
+            unawaited(showHighlightSheet(navContext, plan, initialPage: next));
+          },
+        ),
+      ));
   }
 
   @override
@@ -165,10 +222,13 @@ class _HighlightSheetState extends State<HighlightSheet> {
             height: height,
             child: PageView(
               controller: _pages,
-              onPageChanged: (i) => setState(() => _page = i),
+              onPageChanged: (i) {
+                setState(() => _page = i);
+                _markSeen(i);
+              },
               children: [
                 for (final h in pages)
-                  _Page(highlight: h, onTry: () => _go(h.target)),
+                  _Page(highlight: h, onTry: () => _try(h)),
               ],
             ),
           )),

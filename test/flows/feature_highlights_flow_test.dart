@@ -42,9 +42,8 @@ void main() {
     expect(recapTitle, findsOneWidget);
     expect(find.text(byId(kRecapLead.first).title), findsOneWidget);
     expect(settings.highlightsSeenVersion, kVersion);
-    // Die Seiten des Blatts gelten als gesehen, der Rest nicht.
-    expect(settings.seenHighlightIds, containsAll(kRecapLead));
-    expect(settings.seenHighlightIds, isNot(contains('langer-tipp')));
+    // Gesehen ist, was angezeigt wurde — erst die erste Seite.
+    expect(settings.seenHighlightIds, {kRecapLead.first});
 
     // Durchblättern und schließen.
     for (var i = 1; i < kRecapLead.length; i++) {
@@ -52,6 +51,7 @@ void main() {
       await settle(tester);
       expect(find.text(byId(kRecapLead[i]).title), findsOneWidget);
     }
+    expect(settings.seenHighlightIds, kRecapLead.toSet());
     await tester.tap(find.text('Fertig'));
     await settle(tester);
     expect(recapTitle, findsNothing);
@@ -122,6 +122,34 @@ void main() {
         .read(routerProvider);
     expect(router.routerDelegate.currentConfiguration.uri.path,
         byId(kRecapLead.first).target);
+  });
+
+  testWidgets('nach „Ausprobieren" geht es mit der nächsten Seite weiter',
+      (tester) async {
+    // Im Feld gemeldet (2026-09-24): Der Rückblick war nach dem ersten
+    // „Ausprobieren" weg, und die übrigen Seiten galten trotzdem als
+    // gesehen.
+    final settings = FakeSettings(highlightsSeenVersion: null);
+    await pumpApp(tester, signedIn(),
+        settings: settings, appVersion: kVersion);
+    await tester.tap(find.text('Ausprobieren'));
+    await settle(tester);
+    expect(recapTitle, findsNothing);
+    expect(find.text('Noch 2 Neuheiten'), findsOneWidget);
+    expect(settings.seenHighlightIds, {kRecapLead.first});
+
+    await tester.tap(find.text('Weiter ansehen'));
+    await settle(tester);
+    expect(recapTitle, findsOneWidget);
+    expect(find.text(byId(kRecapLead[1]).title), findsOneWidget);
+    expect(settings.seenHighlightIds, kRecapLead.take(2).toSet());
+
+    // Auf der letzten Seite gibt es nichts mehr anzubieten.
+    await tester.tap(find.text('Weiter'));
+    await settle(tester);
+    await tester.tap(find.text('Ausprobieren'));
+    await settle(tester);
+    expect(find.textContaining('Neuheit'), findsNothing);
   });
 
   testWidgets('jedes Ziel ist eine Route der App', (tester) async {
