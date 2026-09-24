@@ -847,13 +847,18 @@ class FingerPainter extends CustomPainter {
       box(26, 41, 37, 58, 5.5),
     ];
     final palm = box(-11, 38, 36, 84, 16);
-    final thumb = Path()..addRRect(box(-7, -14, 7, 14, 7));
-    final thumbPlaced = thumb.transform(
-        (Matrix4.translationValues(-14, 60, 0)..rotateZ(0.5)).storage);
+    // Der Daumen liegt QUER über den eingerollten Fingern, die Kuppe zu
+    // ihnen hin — wie beim Zeige-Emoji. Die erste Fassung ließ ihn schräg
+    // unten aus der Handfläche hängen, und das sah gebrochen aus
+    // (Betreiber, 2026-09-25). Er wächst aus der Handkante: Sein Ansatz
+    // gehört zum Umriss der Hand, nur Oberkante und Kuppe bekommen eine
+    // eigene Linie.
+    final thumb = (Path()..addRRect(box(0, -6.5, 30, 6.5, 6.5))).transform(
+        (Matrix4.translationValues(-15, 62, 0)..rotateZ(0.2)).storage);
     var hand = Path()..addRRect(finger);
     for (final part in [
       Path()..addRRect(palm),
-      thumbPlaced,
+      thumb,
       for (final c in curls) Path()..addRRect(c),
     ]) {
       hand = Path.combine(PathOperation.union, hand, part);
@@ -882,6 +887,11 @@ class FingerPainter extends CustomPainter {
     canvas.drawRRect(cuff, edge);
     canvas.drawPath(hand, Paint()..color = _skin);
     canvas.drawPath(hand, edge);
+    canvas.save();
+    // Links von der Handkante zeichnet schon der Umriss.
+    canvas.clipRect(Rect.fromLTRB(palm.left + 4, 0, 80, 120));
+    canvas.drawPath(thumb, edge);
+    canvas.restore();
 
     // Nagel und Gelenkfalten: Erst sie machen aus der Form einen Finger.
     final nail = box(-5, 3, 5, 15, 4.5);

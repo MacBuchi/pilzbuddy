@@ -1344,7 +1344,10 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   `mapTourSeen`); `FakeSettings` setzt ab Werk alle, Muster wie bei der
   Karten-Tour.
   **Die Hand** (`FingerPainter`, seit 1.206.0) ist gezeichnet: Zeigefinger
-  mit Nagel, eingerollte Finger, Daumen, grüner Ärmel. Der Ablauf steht
+  mit Nagel, eingerollte Finger, Daumen, grüner Ärmel. Der Daumen liegt
+  QUER über den eingerollten Fingern und wächst aus der Handkante (Ansatz
+  im Umriss, nur Oberkante und Kuppe mit eigener Linie); schräg nach
+  unten abstehend sah er gebrochen aus (Betreiber, 2026-09-25). Der Ablauf steht
   rein in `FingerMotion` (herankommen, drücken, abheben; beim Wischen von
   rechts nach links), damit ein Test ohne Pixel prüfen kann, dass AUF dem
   Ziel gedrückt wird.
