@@ -314,6 +314,39 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   4 s) stand deshalb vor der Meldung, die sie ankündigte, und das sah wie
   ein Empfangsfehler aus. `PushListener` räumt jetzt erst
   (`clearSnackBars`) und zeigt dann.
+- **Web-Push entscheidet unser eigener Worker, nicht Firebase**
+  (`web/push/firebase-messaging-sw.js`, seit 1.203.0). Bis dahin lud er
+  das Firebase-SDK, und das zeigte nichts an, sobald IRGENDEIN Fenster
+  der Domain sichtbar war — auf GitHub Pages liegen Freigabe und
+  Vorschau aber auf einem Ursprung, und „sichtbar" heißt nicht
+  „angesehen". Im Feld (2026-09-24, Opera) kam deshalb in der Vorschau
+  nur die Testnachricht an, obwohl FCM jeden Versand mit `ok`
+  quittierte. Vier Dinge, die man wissen muss:
+  - **Fokus, nicht Sichtbarkeit, und nur DIESE App**
+    (`APP_BASE` = eine Ebene über dem Scope). Fokussiert ⇒ die App bekommt
+    die Meldung per `postMessage` als Leiste; sonst zeigt der Browser
+    sie. Die Fehlerrichtung ist gewählt: Meldet ein Browser keinen
+    Fokus, erscheint die Systembenachrichtigung — eine zu viel statt
+    einer verschluckten.
+  - **Beide Seiten der Übergabe gehören uns** (`kPushBridgeType`,
+    `pushBridgeMessageOf`, `push_web_bridge_web.dart`); im Web hört die
+    App NICHT auf `FirebaseMessaging.onMessage`. Das Firebase-Format
+    nachzubauen hätte an Interna gehangen. Zum Empfangen braucht der
+    Worker kein SDK — das Abo legt die Seite an (`getToken`), nachgeprüft
+    mit echtem Token.
+  - **Der Tipp kennt sein Ziel selbst**: `#` + `route` unter der eigenen
+    App (Hash-Strategie, kein `usePathUrlStrategy`). `send-push` schickt
+    kein `fcmOptions.link` mehr; der feste `/pilzbuddy/` öffnete aus der
+    Vorschau die Freigabe.
+  - **Geprüft im echten Chrome** (`tool/check_push_worker.mjs`, Job
+    „Build Web"): echtes `push`-Ereignis über
+    `ServiceWorker.deliverPushMessage`, Freigabe und Vorschau
+    nebeneinander. Gestellt ist genau eines — der Fokus, weil ein
+    kopfloser Chrome `WindowClient.focused` nie wahr meldet.
+  Den Worker frischt die App bei jedem Start auf (`update()`): Sein
+  Scope wird nie angesteuert, der Browser sähe sonst höchstens einmal
+  am Tag nach. Tote Tokens räumt `send-push` selbst ab („unregistered"),
+  weil `push_flush` die Antwort über pg_net nie abwartet.
 - **Ein eingespielter Patch wird nie wieder angefasst** (Pflicht-Check
   „Patch-Buchführung", `tool/patch_guard.sh`, im Schema Dry Run): Ändern,
   Löschen oder Umbenennen einer Patch-Datei, die es im Ziel-Branch schon

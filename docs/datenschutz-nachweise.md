@@ -17,7 +17,10 @@ die Erklärung auf Vollständigkeit (das kann kein Test), sondern ob in
 Seit #110 sieht der Wächter auch `web/` an. Vorher nur Dart — und genau
 daran ist ihm entgangen, dass `web/push/firebase-messaging-sw.js` das
 Firebase-SDK von `www.gstatic.com` nachlädt. Die Web-Hülle IST Teil der
-ausgelieferten App.
+ausgelieferten App. (Seit 1.203.0 lädt der Worker nichts mehr nach; das
+SDK holt jetzt nur noch die Seite, und zwar weiterhin erst beim
+Einschalten der Benachrichtigungen — `firebase_core_web` bindet es von
+dort ein. Die Aussage in der Erklärung bleibt damit richtig.)
 
 Vier Kategorien, und die Einordnung ist die eigentliche Entscheidung:
 

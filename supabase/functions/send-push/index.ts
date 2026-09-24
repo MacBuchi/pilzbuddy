@@ -163,9 +163,11 @@ async function send(
           notification: { title: message.title, body: message.body },
           ...(message.route ? { data: { route: message.route } } : {}),
           android: { priority: 'high' },
-          // Der Pfad MUSS das Präfix tragen — die Web-App liegt unter
-          // /pilzbuddy/ auf GitHub Pages, nicht am Origin-Root.
-          webpush: { fcmOptions: { link: '/pilzbuddy/' } },
+          // Kein `webpush.fcmOptions.link` mehr (bis 1.202.x
+          // `/pilzbuddy/`): Wohin ein Tipp im Browser führt, weiß nur der
+          // Worker — er kennt seine eigene App, Freigabe ODER Vorschau,
+          // und nimmt das Ziel aus `route`. Der feste Link öffnete aus
+          // der Vorschau heraus die Freigabe.
         },
       }),
     },
@@ -245,6 +247,27 @@ Deno.serve(async (req) => {
       token: message.token,
       status: await send(account, bearer, message),
     })
+  }
+
+  // Tote Geräte wegräumen. FCM sagt „unregistered", wenn ein Abo
+  // erloschen ist (App deinstalliert, Browserdaten gelöscht, Token
+  // erneuert). Der Versand-Job wartet die Antwort nicht ab (pg_net ist
+  // asynchron) — geschieht es nicht HIER, geschieht es nie: Am
+  // 2026-09-24 waren von neun Einträgen zweier Konten sieben tot, und
+  // jeder Lauf schickte an alle. Mit dem Service-Schlüssel, weil ein
+  // Buddy-Gerät nicht der anfragenden Nutzerin gehört.
+  const dead = results
+    .filter((r) => r.status === 'unregistered')
+    .map((r) => r.token)
+  if (dead.length > 0) {
+    const { error } = await createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    )
+      .from('push_devices')
+      .delete()
+      .in('token', dead)
+    if (error) console.error('cleanup', error.message)
   }
   return respond(200, { results })
 })
