@@ -302,6 +302,23 @@ abstract interface class Settings {
   Set<String> get seenFindPhotoIds;
 
   Future<void> setSeenFindPhotoIds(Set<String> value);
+
+  /// Bis zu welcher Version dieses Gerät die Neuheiten kennt (#596).
+  ///
+  /// `null` heißt „nie gemerkt" — und ist damit genau die Frage, an der
+  /// der Rückblick hängt: Vor 1.204.0 hat das kein Gerät gespeichert,
+  /// also ist jeder Bestandsnutzer beim ersten Start damit `null`.
+  /// Gerätelokal wie [mapTourSeen] und aus demselben Grund.
+  String? get highlightsSeenVersion;
+
+  Future<void> setHighlightsSeenVersion(String value);
+
+  /// Welche Einträge der Seite „Entdecken" schon angesehen wurden — daran
+  /// hängt ihr Neu-Punkt. Die Kennungen sind wenige und fest, die Menge
+  /// wächst also nicht.
+  Set<String> get seenHighlightIds;
+
+  Future<void> setSeenHighlightIds(Set<String> value);
 }
 
 /// Erstlauf-Schutz für das Buddy-Fund-Banner: Ohne Marker gälte ALLES als
@@ -564,6 +581,26 @@ class PrefsSettings implements Settings {
   @override
   Future<void> setSeenFindPhotoIds(Set<String> value) =>
       _prefs.setStringList(_seenFindPhotoIdsKey, value.toList()..sort());
+
+  static const _highlightsSeenVersionKey = 'highlights_seen_version';
+
+  @override
+  String? get highlightsSeenVersion =>
+      _prefs.getString(_highlightsSeenVersionKey);
+
+  @override
+  Future<void> setHighlightsSeenVersion(String value) =>
+      _prefs.setString(_highlightsSeenVersionKey, value);
+
+  static const _seenHighlightIdsKey = 'seen_highlight_ids';
+
+  @override
+  Set<String> get seenHighlightIds =>
+      (_prefs.getStringList(_seenHighlightIdsKey) ?? const []).toSet();
+
+  @override
+  Future<void> setSeenHighlightIds(Set<String> value) =>
+      _prefs.setStringList(_seenHighlightIdsKey, value.toList()..sort());
 }
 
 /// Wird in `main()` mit den geladenen Einstellungen überschrieben, in Tests

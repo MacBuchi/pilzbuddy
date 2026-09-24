@@ -10,6 +10,7 @@ import '../features/auth/login_screen.dart';
 import '../features/auth/signup_screen.dart';
 import '../features/changelog/changelog_screen.dart';
 import '../features/help/help_screen.dart';
+import '../features/highlights/discover_screen.dart';
 import '../features/friends/conversation_screen.dart';
 import '../features/friends/friends_screen.dart';
 import '../features/friends/message_providers.dart';
@@ -154,6 +155,9 @@ final routerProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                       path: 'anleitung',
                       builder: (context, state) => const HelpScreen()),
+                  GoRoute(
+                      path: 'entdecken',
+                      builder: (context, state) => const DiscoverScreen()),
                 ]),
           ]),
         ],

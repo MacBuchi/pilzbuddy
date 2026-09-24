@@ -7,6 +7,27 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Neues zeigt sich jetzt von selbst — und „Entdecken" zeigt alles
+
+*24. September 2026 · Version 1.204.0*
+
+PilzBuddy ist in den letzten Wochen stark gewachsen, und vieles davon
+findet man nur, wenn man weiß, dass es da ist. Deshalb gibt es jetzt
+zwei Wege dahin:
+
+- **Ein kurzes Blatt nach einem Update.** Nach einer neuen Version
+  zeigt die Karte einmal bis zu drei Neuheiten, jede mit einem Knopf
+  „Ausprobieren", der direkt hinführt. Wegwischen reicht, es kommt
+  nicht wieder. Beim ersten Mal ist es ein Rückblick auf das, was
+  inzwischen dazugekommen ist.
+- **„Entdecken" im Profil** und in der Kurzanleitung: alle Funktionen
+  und Tipps auf einer Seite, nach Reiter geordnet — auch die kleinen,
+  etwa das Menü beim langen Drücken auf die Karte oder das Vormerken
+  eines Spots. Was du dort noch nicht gesehen hast, trägt ein „Neu".
+
+Wer PilzBuddy neu installiert, bekommt wie bisher die Tour über die
+Karte und kein Blatt dazu.
+
 ## Benachrichtigungen im Browser kommen zuverlässig an
 
 *24. September 2026 · Version 1.203.0*

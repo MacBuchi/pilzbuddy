@@ -177,6 +177,14 @@ class HelpScreen extends ConsumerWidget {
             icon: const Icon(Icons.play_circle_outline),
             label: const Text('Tour auf der Karte zeigen'),
           ),
+          const SizedBox(height: 8),
+          // Alles, was über die sechs Abschnitte hinausgeht (#596) —
+          // die Kurzanleitung bleibt kurz, weil es diesen Weg gibt.
+          OutlinedButton.icon(
+            onPressed: () => context.push('/profile/entdecken'),
+            icon: const Icon(Icons.lightbulb_outline),
+            label: const Text('Funktionen und Tipps entdecken'),
+          ),
         ],
       ),
     );

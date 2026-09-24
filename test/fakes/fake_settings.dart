@@ -36,7 +36,34 @@ class FakeSettings implements Settings {
     this.lastFindSeenAt,
     this.findPhotosEnabled = true,
     Set<String>? seenFindPhotoIds,
-  }) : seenFindPhotoIds = seenFindPhotoIds ?? {};
+    // **Vorgabe hier „alles gesehen", in der App `null`.** Sonst bekäme
+    // jeder Bestandstest das Neuheiten-Blatt über die Karte gelegt —
+    // dieselbe Begründung wie bei `mapTourSeen`. Wer das Blatt prüfen
+    // will, gibt `highlightsSeenVersion: null` (Rückblick) oder eine
+    // alte Version mit.
+    this.highlightsSeenVersion = FakeSettings.kFakeAllHighlightsSeen,
+    Set<String>? seenHighlightIds,
+  })  : seenFindPhotoIds = seenFindPhotoIds ?? {},
+        seenHighlightIds = seenHighlightIds ?? {};
+
+  /// Höher als jede echte Version: Kein Eintrag ist danach neu.
+  static const kFakeAllHighlightsSeen = '9999.0.0';
+
+  @override
+  String? highlightsSeenVersion;
+
+  @override
+  Future<void> setHighlightsSeenVersion(String value) async {
+    highlightsSeenVersion = value;
+  }
+
+  @override
+  Set<String> seenHighlightIds;
+
+  @override
+  Future<void> setSeenHighlightIds(Set<String> value) async {
+    seenHighlightIds = {...value};
+  }
 
   @override
   bool offlineMapEnabled;
