@@ -51,7 +51,9 @@ class MessageRepository {
     final rows = await _client
         .from('buddy_messages')
         .select(columns)
-        .order('created_at');
+        // `ascending` ausdrücklich: postgrest-dart sortiert ohne Angabe
+        // ABSTEIGEND, und so stand der Verlauf bis 1.202.1 auf dem Kopf.
+        .order('created_at', ascending: true);
     return [for (final row in rows) BuddyMessage.fromJson(row)];
   }
 

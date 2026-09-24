@@ -51,9 +51,15 @@ final messagesProvider =
         MessagesNotifier.new);
 
 /// Der Verlauf mit [otherId], älteste zuerst.
+///
+/// **Älteste zuerst, und zwar HIER sortiert**, nicht im Vertrauen auf die
+/// Abfrage: Deren Reihenfolge hing an einem Vorgabewert von
+/// postgrest-dart (absteigend), während der Fake aufsteigend lieferte —
+/// der Verlauf stand im Feld auf dem Kopf, die Tests blieben grün.
 List<BuddyMessage> conversationWith(
         List<BuddyMessage> all, String uid, String otherId) =>
-    [for (final m in all) if (m.otherId(uid) == otherId) m];
+    [for (final m in all) if (m.otherId(uid) == otherId) m]
+      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
 /// Ungelesene je Absender.
 Map<String, int> unreadBySender(List<BuddyMessage> all, String uid) {
