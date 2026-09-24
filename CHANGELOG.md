@@ -7,6 +7,18 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Benachrichtigungen im Browser kommen zuverlässig an
+
+*24. September 2026 · Version 1.203.0*
+
+In der Browser-Fassung blieben Benachrichtigungen aus, sobald irgendein
+Fenster von PilzBuddy offen war — auch eines im Hintergrund, das niemand
+ansah. Jetzt erscheint die Meldung wie gewohnt, außer du hast PilzBuddy
+gerade vor dir; dann steht sie unten in der App.
+
+Ein Tipp auf die Benachrichtigung öffnet jetzt direkt den Verlauf mit
+dem Buddy, statt nur die Startseite.
+
 ## Nachrichten in der richtigen Reihenfolge
 
 *24. September 2026 · Version 1.202.2*

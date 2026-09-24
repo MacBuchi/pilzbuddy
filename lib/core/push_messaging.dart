@@ -21,6 +21,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'errors.dart';
 import 'push_config.dart';
+import 'push_web_bridge.dart';
 
 /// Firebase starten — auf Android OHNE Optionen.
 ///
@@ -115,14 +116,15 @@ final pushTokenProvider =
 /// Nachbarprojekt eine zweite Benachrichtigung neben der, die das System
 /// ohnehin anzeigt.
 ///
-/// **Im Web ein leerer Strom.** Dort holt sich `onMessageOpenedApp` die
-/// Firebase-App — und die gibt es erst, wenn jemand Push eingeschaltet
-/// hat. Bis 1.202.0 warf das bei jedem Seitenaufruf („Cannot read
-/// properties of undefined (reading 'getApp')"). Zu tun gibt es dort
-/// ohnehin nichts: Ein Tipp auf eine Web-Push öffnet die Seite selbst,
-/// den Weg in den Verlauf gibt es im Web bewusst noch nicht.
-Stream<RemoteMessage> pushTaps() =>
-    kIsWeb ? const Stream.empty() : FirebaseMessaging.onMessageOpenedApp;
+/// **Im Web über den eigenen Worker, nicht über Firebase.** Dort holt
+/// sich `onMessageOpenedApp` die Firebase-App — die es erst gibt, wenn
+/// jemand Push eingeschaltet hat; bis 1.202.0 warf das bei jedem
+/// Seitenaufruf. Seit 1.203.0 reicht der Worker den Tipp selbst an ein
+/// offenes Fenster weiter ([pushBridgeMessageOf]); ist keines offen,
+/// öffnet er die App gleich am Ziel.
+Stream<RemoteMessage> pushTaps() => kIsWeb
+    ? _bridged('tap')
+    : FirebaseMessaging.onMessageOpenedApp;
 
 /// Dieselbe Naht für das Antippen.
 final pushTapListenerProvider =
@@ -185,7 +187,49 @@ Future<RemoteMessage?> initialPushMessage() async {
 ///   wenn jemand die App zufällig offen hat. Der Versender verbucht ihn
 ///   als zugestellt (FCM hat ihn ja angenommen) und löscht die Zeile aus
 ///   dem Korb — die Meldung kommt nie wieder.
-Stream<RemoteMessage> pushMessages() => FirebaseMessaging.onMessage;
+///
+/// **Im Web kommt sie vom eigenen Worker** — und nur, wenn ein Fenster
+/// DIESER App im Fokus ist; sonst zeigt der Browser sie an. Bis 1.202.x
+/// entschied das Firebase-SDK im Worker nach „irgendein Fenster der
+/// Domain sichtbar", und dazu zählte auch die Vorschau neben der
+/// Freigabe.
+Stream<RemoteMessage> pushMessages() =>
+    kIsWeb ? _bridged('message') : FirebaseMessaging.onMessage;
+
+/// Die Kennung, mit der der Worker seine Nachrichten markiert — dieselbe
+/// Zeichenkette wie `BRIDGE` in `web/push/firebase-messaging-sw.js`
+/// (`test/push_service_worker_test.dart` hält beide zusammen).
+const kPushBridgeType = 'pilzbuddy-push';
+
+Stream<RemoteMessage> _bridged(String kind) => serviceWorkerMessages()
+    .map(pushBridgeMessageOf)
+    .where((m) => m?.kind == kind)
+    .map((m) => m!.message);
+
+/// Deutet eine Nachricht des Web-Push-Workers — `null` für alles, was
+/// nicht von ihm stammt oder nicht passt. Andere Worker derselben Domain
+/// (der Offline-Start `sw.js`, ein alter Firebase-Worker) schicken der
+/// Seite ebenfalls Nachrichten; die bleiben liegen.
+({String kind, RemoteMessage message})? pushBridgeMessageOf(Object? raw) {
+  if (raw is! Map || raw['type'] != kPushBridgeType) return null;
+  final kind = raw['kind'];
+  if (kind is! String) return null;
+  final data = <String, dynamic>{
+    for (final MapEntry(:key, :value) in (raw['data'] as Map? ?? const {}).entries)
+      if (key is String && value is String) key: value,
+  };
+  final n = raw['notification'];
+  return (
+    kind: kind,
+    message: RemoteMessage(
+      data: data,
+      notification: n is Map
+          ? RemoteNotification(
+              title: n['title'] as String?, body: n['body'] as String?)
+          : null,
+    ),
+  );
+}
 
 /// Dieselbe Naht für Vordergrund-Nachrichten.
 final pushMessageListenerProvider =

@@ -147,6 +147,12 @@ jobs:
       # Webserver dabei WIRKLICH ab (#387).
       - name: Der Service Worker startet die App ohne Server
         run: node tool/check_service_worker.mjs build/web
+      # Der Push-Worker entscheidet, ob eine Meldung im Browser erscheint —
+      # FCM quittiert „ok" auch dann, wenn er sie verschluckt. Echter
+      # Chrome, echtes push-Ereignis, Freigabe und Vorschau auf einem
+      # Ursprung wie auf GitHub Pages.
+      - name: Der Push-Worker zeigt Meldungen und führt den Tipp ans Ziel
+        run: node tool/check_push_worker.mjs
       - uses: actions/upload-artifact@v7
         with:
           name: web-build

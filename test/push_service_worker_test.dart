@@ -13,7 +13,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/push_config.dart';
 import 'package:pilzbuddy/core/push_messaging.dart';
 
-const _config = 'lib/core/push_config.dart';
 
 void main() {
   test('der Web-Push-Schlüssel ist da', () {
@@ -55,44 +54,78 @@ void main() {
             'scheitert getToken im Web dauerhaft und ohne Meldung.');
   });
 
-  test('der Worker zeigt auf dasselbe Firebase-Projekt wie die App', () {
-    // Ein Service Worker kann kein Dart lesen, die Kennung steht deshalb
-    // zwangsläufig zweimal da. Driftete sie, holte die App ein Token für
-    // Projekt A, während der Worker Nachrichten von Projekt B erwartet —
-    // und niemand bekäme etwas, ohne dass irgendwo ein Fehler stünde.
-    final worker = File('web/$webServiceWorkerPath').readAsStringSync();
-    final config = File(_config).readAsStringSync();
+  String workerCode() => File('web/$webServiceWorkerPath')
+      .readAsLinesSync()
+      .where((line) => !line.trimLeft().startsWith('//'))
+      .join('\n');
 
-    String valueOf(String source, String key) {
-      final match = RegExp("$key:\\s*'([^']+)'").firstMatch(source);
-      expect(match, isNotNull, reason: '$key fehlt');
-      return match!.group(1)!;
-    }
-
-    for (final key in const [
-      'apiKey',
-      'appId',
-      'messagingSenderId',
-      'projectId',
-    ]) {
-      expect(valueOf(worker, key), valueOf(config, key),
-          reason: '$key läuft zwischen Worker und $_config auseinander');
-    }
+  test('der Worker lädt nichts nach (seit 1.203.0 ohne Firebase-SDK)', () {
+    // Geprüft wird der CODE, nicht die Datei: Der Kopfkommentar erklärt,
+    // warum das SDK gegangen ist, und nennt es dabei zwangsläufig.
+    final code = workerCode();
+    expect(code, isNot(contains('importScripts')),
+        reason: 'Das SDK entschied nach „irgendein Fenster der Domain '
+            'sichtbar" und schluckte Meldungen, sobald die Vorschau neben '
+            'der Freigabe offen war — und es kam bei jedem Aufwachen von '
+            'www.gstatic.com.');
+    expect(code, isNot(contains('https://')),
+        reason: 'kein fremder Ursprung im Worker');
   });
 
-  test('kein eigener Hintergrund-Handler im Worker', () {
-    // Bei einer Nutzlast mit `notification` zeigt das SDK die Meldung
-    // selbst an; ein eigener Handler erzeugte eine ZWEITE daneben.
-    //
-    // Geprüft wird der CODE, nicht die Datei: Der Kopfkommentar erklärt
-    // die Regel und nennt den Namen dabei zwangsläufig. Ein Test, der
-    // daran scheitert, bestraft das Aufschreiben der Begründung.
-    final code = File('web/$webServiceWorkerPath')
-        .readAsLinesSync()
-        .where((line) => !line.trimLeft().startsWith('//'))
-        .join('\n');
-    expect(code, isNot(contains('onBackgroundMessage')),
-        reason: 'doppelte Benachrichtigung — im Nachbarprojekt so '
-            'passiert');
+  test('Worker und App meinen dieselbe Übergabe-Kennung', () {
+    // Stimmt sie nicht überein, verwirft die App jede weitergereichte
+    // Meldung — im Vordergrund käme dann still nichts an.
+    final match =
+        RegExp(r"const BRIDGE = '([^']+)'").firstMatch(workerCode());
+    expect(match?.group(1), kPushBridgeType);
+  });
+
+  group('pushBridgeMessageOf', () {
+    test('Meldung mit Titel, Text und Ziel', () {
+      final m = pushBridgeMessageOf({
+        'type': kPushBridgeType,
+        'kind': 'message',
+        'notification': {'title': 'bert', 'body': 'Morgen?'},
+        'data': {'route': '/friends/chat/x'},
+      })!;
+      expect(m.kind, 'message');
+      expect(m.message.notification?.title, 'bert');
+      expect(m.message.notification?.body, 'Morgen?');
+      expect(m.message.data, {'route': '/friends/chat/x'});
+    });
+
+    test('Tipp ohne Meldung, nur das Ziel', () {
+      final m = pushBridgeMessageOf({
+        'type': kPushBridgeType,
+        'kind': 'tap',
+        'data': {'route': '/friends/chat/x'},
+      })!;
+      expect(m.kind, 'tap');
+      expect(m.message.notification, isNull);
+      expect(m.message.data['route'], '/friends/chat/x');
+    });
+
+    test('fremde Nachrichten bleiben liegen', () {
+      // `sw.js` und ein alter Firebase-Worker schicken der Seite eigene
+      // Nachrichten; keine davon darf als Push gelten.
+      for (final raw in <Object?>[
+        null,
+        'warm',
+        {'type': 'warm'},
+        {'isFirebaseMessaging': true, 'messageType': 'push-received'},
+        {'type': kPushBridgeType},
+      ]) {
+        expect(pushBridgeMessageOf(raw), isNull, reason: '$raw');
+      }
+    });
+
+    test('nur Zeichenketten in data — wie FCM sie liefert', () {
+      final m = pushBridgeMessageOf({
+        'type': kPushBridgeType,
+        'kind': 'tap',
+        'data': {'route': '/friends/chat/x', 'n': 3, 'x': null},
+      })!;
+      expect(m.message.data, {'route': '/friends/chat/x'});
+    });
   });
 }
