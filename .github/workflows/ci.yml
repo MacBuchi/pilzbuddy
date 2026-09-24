@@ -50,6 +50,13 @@ jobs:
         run: |
           flutter test --platform chrome \
             test/spot_cache_idb_test.dart test/outbox_idb_test.dart
+      # Jedes mitgelieferte Artbild braucht seine große Fassung auf dem
+      # Branch species-photos (#537). Mit #541 kamen 34 Bilder ohne sie,
+      # und niemand merkte es: Die Vergrößerung zeigt dann still das
+      # 400er (#588). Nebenbei führt das das Werkzeug aus — es war mit
+      # einem Syntaxfehler auf main gelandet, weil es nie lief.
+      - name: Artbilder haben eine große Fassung
+        run: python3 tool/species_photos.py --check-large
       # Die Skripte in tool/ hatten Selbsttests, aber niemanden, der sie
       # ausführt — sie wären still verrottet. Beide laufen ohne Netz,
       # ohne Schlüssel und in Sekunden.
