@@ -28,6 +28,8 @@ import '../../core/widgets/mushroom_icon.dart';
 import '../../core/widgets/season_bars.dart';
 import '../ampel/ampel_model.dart';
 import '../ampel/ampel_species_exclusion.dart';
+import '../coach/coach.dart';
+import '../help/tab_tours.dart';
 import '../map/spot_filter.dart' show currentMonthProvider;
 import 'species_catalogue.dart';
 
@@ -61,8 +63,35 @@ class _SpeciesScreenState extends ConsumerState<SpeciesScreen> {
   /// ein dort erzeugtes Feld verlöre Fokus und Cursor.
   final _search = TextEditingController();
 
+  /// Die Art der ersten Zeile — ihre Seite öffnet die Tour (#596).
+  String? _firstSpecies;
+  VoidCallback? _unregisterScene;
+
+  @override
+  void initState() {
+    super.initState();
+    _unregisterScene = ref
+        .read(coachRegistryProvider)
+        .registerScene(PilzeCoach.detail, () async {
+      final name = _firstSpecies;
+      if (name == null || !mounted) return () {};
+      final router = GoRouter.of(context);
+      final path = '/pilze/${Uri.encodeComponent(name)}';
+      router.go(path);
+      // Zurück nur, wenn die Seite noch vorne ist — sonst nähme das
+      // Schließen dem Nutzer eine Seite weg, die er selbst geöffnet hat.
+      return () {
+        if (router.routerDelegate.currentConfiguration.uri.toString() ==
+            path) {
+          router.go('/pilze');
+        }
+      };
+    });
+  }
+
   @override
   void dispose() {
+    _unregisterScene?.call();
     _search.dispose();
     super.dispose();
   }
@@ -98,6 +127,8 @@ class _SpeciesScreenState extends ConsumerState<SpeciesScreen> {
       rows.add(_Row.header(section));
       rows.addAll(shown.map(_Row.entry));
     }
+    final firstEntry = rows.indexWhere((row) => row.entry != null);
+    _firstSpecies = firstEntry < 0 ? null : rows[firstEntry].entry!.name;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Pilze')),
@@ -107,7 +138,9 @@ class _SpeciesScreenState extends ConsumerState<SpeciesScreen> {
       // verlor das Suchfeld, und zum Tippen musste er zurück nach oben.
       // Die Spot-Liste macht es seit 1.161.0 richtig; hier ist es
       // nachgezogen.
-      body: Column(
+      body: TabTourStarter(
+        script: kPilzeTourScript,
+        child: Column(
         children: [
           _Controls(
             month: month,
@@ -133,11 +166,15 @@ class _SpeciesScreenState extends ConsumerState<SpeciesScreen> {
                       final row = rows[index];
                       return row.section != null
                           ? _SectionHeader(section: row.section!)
-                          : _EntryTile(entry: row.entry!, month: month);
+                          : _EntryTile(
+                              entry: row.entry!,
+                              month: month,
+                              coach: index == firstEntry);
                     },
                   ),
           ),
         ],
+        ),
       ),
     );
   }
@@ -230,7 +267,9 @@ class _Controls extends StatelessWidget {
             child: Row(
               children: [
                 Expanded(
-                  child: TextField(
+                  child: CoachAnchor(
+                    id: PilzeCoach.search,
+                    child: TextField(
                     controller: search,
                     onChanged: (_) => onSearch(),
                     textInputAction: TextInputAction.search,
@@ -256,16 +295,20 @@ class _Controls extends StatelessWidget {
                             ),
                     ),
                   ),
+                  ),
                 ),
                 const SizedBox(width: 8),
                 // **Der Chip steht NEBEN dem Feld, nicht darunter.** Eine
                 // eigene Zeile kostete 40 px, die der Liste fehlen.
-                FilterChip(
-                  visualDensity: VisualDensity.compact,
-                  label: const Text('Saison'),
-                  tooltip: 'Nur Arten, die jetzt Saison haben',
-                  selected: onlyNow,
-                  onSelected: onToggle,
+                CoachAnchor(
+                  id: PilzeCoach.seasonChip,
+                  child: FilterChip(
+                    visualDensity: VisualDensity.compact,
+                    label: const Text('Saison'),
+                    tooltip: 'Nur Arten, die jetzt Saison haben',
+                    selected: onlyNow,
+                    onSelected: onToggle,
+                  ),
                 ),
               ],
             ),
@@ -323,10 +366,17 @@ class _SectionHeader extends StatelessWidget {
 }
 
 class _EntryTile extends ConsumerWidget {
-  const _EntryTile({required this.entry, required this.month});
+  const _EntryTile(
+      {required this.entry, required this.month, this.coach = false});
 
   final CatalogueEntry entry;
   final int month;
+
+  /// Die erste Art trägt die Anker der Tour.
+  final bool coach;
+
+  Widget _anchor(String id, Widget child) =>
+      coach ? CoachAnchor(id: id, child: child) : child;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -345,7 +395,7 @@ class _EntryTile extends ConsumerWidget {
         'Belege: ${ampelEvidenceWord(evidence)}',
       if (excluded) 'von der Ampel ausgenommen',
     ].join(' · ');
-    return ListTile(
+    return _anchor(PilzeCoach.row, ListTile(
       dense: true,
       // **Die Farbe gehört an die Kachel, nicht in einen Container
       // darum.** Mit `onTap` malt `ListTile` Tinte auf das nächste
@@ -412,13 +462,16 @@ class _EntryTile extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (entry.curve != null)
-            SizedBox(
-              width: 84,
-              child: SeasonBars(
-                months: entry.curve!.months,
-                currentMonth: month - 1,
-                height: 18,
-                showLetters: false,
+            _anchor(
+              PilzeCoach.rowSeason,
+              SizedBox(
+                width: 84,
+                child: SeasonBars(
+                  months: entry.curve!.months,
+                  currentMonth: month - 1,
+                  height: 18,
+                  showLetters: false,
+                ),
               ),
             ),
           if (inAmpel) ...[
@@ -426,20 +479,23 @@ class _EntryTile extends ConsumerWidget {
             // AN heißt „zählt für die Ampel" — die Vorgabe. Aus nimmt
             // die Art aus Banner, Spot-Blatt und dem Saison-Tor der
             // Fläche; die Fundorte-Scheiben zeigt sie weiter.
-            Semantics(
-              label: '${entry.name} in der Ampel',
-              child: Switch(
-                value: !excluded,
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                onChanged: (_) => ref
-                    .read(ampelExcludedSpeciesProvider.notifier)
-                    .toggle(entry.name),
+            _anchor(
+              PilzeCoach.rowSwitch,
+              Semantics(
+                label: '${entry.name} in der Ampel',
+                child: Switch(
+                  value: !excluded,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  onChanged: (_) => ref
+                      .read(ampelExcludedSpeciesProvider.notifier)
+                      .toggle(entry.name),
+                ),
               ),
             ),
           ],
         ],
       ),
-    );
+    ));
   }
 }
 

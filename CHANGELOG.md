@@ -7,6 +7,20 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Kurze Touren in jedem Reiter, und eine echte Hand
+
+*24. September 2026 · Version 1.206.0*
+
+- **Spots, Pilze und Buddys** erklären sich beim ersten Besuch in ein
+  paar Schritten. Die Spot-Tour öffnet dabei das Spot-Blatt, die
+  Pilz-Tour eine Artseite; hinterher ist beides wieder zu. Schritte zu
+  Dingen, die du noch nicht hast (etwa einen Buddy), fallen weg.
+- **Die Hand, die vorführt**, ist jetzt eine Hand: Zeigefinger,
+  eingerollte Finger, grüner Ärmel. Sie kommt heran, drückt sichtbar und
+  hebt wieder ab — und kann jetzt auch wischen.
+- Alle Touren lassen sich unter Profil → Kurzanleitung noch einmal
+  starten.
+
 ## Die Tour zeigt jetzt vor, statt nur hinzuzeigen
 
 *24. September 2026 · Version 1.205.0*

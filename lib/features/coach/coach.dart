@@ -43,7 +43,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/app_colors.dart';
 
 /// Wie der Finger vorführt, was zu tun ist.
-enum CoachGesture { none, tap, longPress }
+enum CoachGesture { none, tap, longPress, swipe }
 
 /// Ein Schritt.
 class CoachStep {
@@ -54,6 +54,7 @@ class CoachStep {
     this.ring,
     this.scene,
     this.gesture = CoachGesture.none,
+    this.requires = const [],
   });
 
   final String title;
@@ -72,6 +73,14 @@ class CoachStep {
 
   /// Ein Finger auf der Mitte von Ring bzw. Aussparung.
   final CoachGesture gesture;
+
+  /// Anker, ohne die der Schritt wegfällt — etwa die erste Zeile einer
+  /// leeren Liste oder die Bilder einer Art ohne Bilder. Geprüft wird,
+  /// wenn der Schritt dran ist; ohne die Angabe wartete die Maschine rund
+  /// zwei Sekunden auf etwas, das nie kommt. Gehört ein Anker zu einer
+  /// Szene, die dieser Schritt erst öffnet, steht er hier NICHT — der ist
+  /// beim Prüfen noch gar nicht da.
+  final List<String> requires;
 }
 
 /// Ein Ablauf aus Schritten.
@@ -216,6 +225,22 @@ class CoachNotifier extends Notifier<CoachRun?> {
   }
 
   void _go(CoachRun run) {
+    final registry = ref.read(coachRegistryProvider);
+    // Ein Anker ohne Fläche zählt als fehlend: Ein Abschnitt ohne Inhalt
+    // steht oft als `SizedBox.shrink` da, und eine Aussparung der Größe
+    // null wäre ein Schritt über nichts.
+    bool present(String id) {
+      final box = registry.anchor(id)?.currentContext?.findRenderObject();
+      return box is RenderBox && box.hasSize && !box.size.isEmpty;
+    }
+
+    while (!run.step.requires.every(present)) {
+      if (run.isLast) {
+        finish();
+        return;
+      }
+      run = CoachRun(run.script, run.index + 1);
+    }
     final wanted = run.step.scene;
     if (wanted != _scene) {
       _closeCurrentScene();
@@ -358,12 +383,33 @@ class _CoachOverlayState extends ConsumerState<CoachOverlay>
     } else {
       _missingFrames = 0;
     }
+    if (complete && run != _measured) _revealOffscreen(step.lit, lit);
     if (run == _measured && _same(lit, _lit) && _same(ring, _ring)) return;
     setState(() {
       _measured = run;
       _lit = complete ? lit : const [];
       _ring = complete ? ring : const [];
     });
+  }
+
+  /// Holt ein Ziel ins Bild, das in seiner Liste außerhalb liegt — im
+  /// Spot-Blatt stehen die Eintrage-Knöpfe unter einer langen
+  /// Fundliste. Einmal je Schritt; danach misst jedes Bild nach, und die
+  /// Aussparung fährt mit.
+  void _revealOffscreen(List<String> ids, List<Rect> rects) {
+    final bounds = Offset.zero & (_box.currentContext?.size ?? Size.zero);
+    final registry = ref.read(coachRegistryProvider);
+    for (var i = 0; i < rects.length && i < ids.length; i++) {
+      if (bounds.contains(rects[i].topLeft) &&
+          bounds.contains(rects[i].bottomRight - const Offset(1, 1))) {
+        continue;
+      }
+      final context = registry.anchor(ids[i])?.currentContext;
+      if (context == null || Scrollable.maybeOf(context) == null) continue;
+      // Weit oben, damit darunter Platz für die Blase bleibt.
+      unawaited(Scrollable.ensureVisible(context,
+          alignment: 0.15, duration: const Duration(milliseconds: 300)));
+    }
   }
 
   static bool _same(List<Rect> a, List<Rect> b) {
@@ -454,24 +500,46 @@ class _CoachOverlayState extends ConsumerState<CoachOverlay>
     // Auf die andere Seite des Hervorgehobenen: Eine Sprechblase über dem,
     // was sie erklärt, ist eine Sprechblase über nichts. Bei einer Geste
     // bleibt dazu Platz für den Finger.
-    final pad = run.step.gesture == CoachGesture.none ? 20.0 : 64.0;
+    // Die Hand ragt gut 90 px schräg unter ihr Ziel.
+    final pad = run.step.gesture == CoachGesture.none ? 20.0 : 84.0;
     final spaceAbove = union == null ? size.height : union.top;
     final spaceBelow = union == null ? size.height : size.height - union.bottom;
     final below = spaceBelow >= spaceAbove;
     // Mindestens so hoch, dass Titel, Zähler und Knöpfe passen — der
-    // Text scrollt, die Knöpfe nie (bei 360×640 waren 157 und 210 zu wenig: Im Test ist die Schrift breit, die Knöpfe brechen in zwei Zeilen um).
-    final room = math.max((below ? spaceBelow : spaceAbove) - pad - 24, 240.0);
+    // Text scrollt, die Knöpfe nie (bei 360×640 waren 157 und 210 zu
+    // wenig: Im Test ist die Schrift breit, die Knöpfe brechen in zwei
+    // Zeilen um).
+    const minRoom = 240.0;
+    final free = (below ? spaceBelow : spaceAbove) - pad - 24;
+    // Passt sie weder darüber noch darunter — ein hohes, schmales Ziel
+    // wie die Knopfleiste auf einem kleinen Schirm —, steht sie DANEBEN.
+    // Bis 1.205.0 ragte sie dort oben aus dem Bild (360×640, im Test erst
+    // gesehen, als er prüfte, dass die Blase im Bild liegt).
+    final leftRoom = union == null ? 0.0 : union.left - 24;
+    final rightRoom = union == null ? 0.0 : size.width - union.right - 24;
+    final side = union != null &&
+            free < minRoom &&
+            math.max(leftRoom, rightRoom) >= 200
+        ? (leftRoom >= rightRoom ? AxisDirection.left : AxisDirection.right)
+        : null;
+    final room = side != null ? size.height : math.max(free, minRoom);
     final pointAt = ring.isNotEmpty
         ? ring.reduce((a, b) => a.expandToInclude(b)).center
         : union?.center;
     final step = run.step;
     final link = run.isLast ? run.script.endLink : null;
-    return Positioned(
-      left: 16,
-      right: 16,
-      top: below ? (union == null ? size.height / 3 : union.bottom + pad) : null,
-      bottom: below ? null : size.height - union!.top + pad,
-      child: SafeArea(
+    final placement = _BubblePlacement();
+    return Positioned.fill(
+      child: CustomSingleChildLayout(
+        delegate: _BubbleLayout(
+          target: union,
+          pointAt: pointAt,
+          side: side,
+          below: below,
+          pad: pad,
+          insets: MediaQuery.paddingOf(context),
+          placement: placement,
+        ),
         child: ConstrainedBox(
           constraints: BoxConstraints(maxHeight: room),
           child: CustomPaint(
@@ -480,6 +548,7 @@ class _CoachOverlayState extends ConsumerState<CoachOverlay>
             painter: pointAt == null
                 ? null
                 : _ArrowPainter(
+                    placement: placement,
                     towardsX: pointAt.dx - 16,
                     up: below,
                     // Die Flächenfarbe einer M3-Karte, sonst hätte der
@@ -595,9 +664,98 @@ class CoachPainter extends CustomPainter {
       old.pulse != pulse || old.lit != lit || old.ring != ring;
 }
 
-/// Ein Finger, der tippt oder gedrückt hält. Gezeichnet, nicht als
-/// Symbol: Er soll auf den Punkt zeigen, und die Kuppe eines
-/// Material-Symbols sitzt nicht in dessen Mitte.
+/// Wo der Finger in einem Durchlauf gerade ist. Rein und öffentlich, damit
+/// ein Test den Ablauf prüfen kann, ohne Pixel zu lesen: Gedrückt wird
+/// AUF dem Ziel, und nur dort.
+@immutable
+class FingerMotion {
+  const FingerMotion({
+    required this.tipShift,
+    required this.lift,
+    required this.pressed,
+    required this.progress,
+    required this.opacity,
+  });
+
+  /// Wie weit die Kuppe vom Ziel weg ist — nur beim Wischen nicht null.
+  final Offset tipShift;
+
+  /// 0 = auf dem Schirm, 1 = abgehoben.
+  final double lift;
+
+  final bool pressed;
+
+  /// 0…1: wie weit die Geste ist (Kreis beim langen Druck, Welle beim
+  /// Tipp, Strecke beim Wischen).
+  final double progress;
+
+  final double opacity;
+
+  /// Halbe Wischstrecke.
+  static const swipeReach = 40.0;
+
+  static double _seg(double t, double a, double b) =>
+      ((t - a) / (b - a)).clamp(0.0, 1.0);
+
+  static double _in(double v) => Curves.easeOutCubic.transform(v);
+
+  /// Drei Phasen je Geste: herankommen, drücken, abheben. Zwischen den
+  /// Durchläufen ist die Hand weg — sonst sähe der Neustart aus wie ein
+  /// Sprung.
+  factory FingerMotion.of(CoachGesture gesture, double t) {
+    final (down, up) = switch (gesture) {
+      CoachGesture.tap => (0.3, 0.45),
+      CoachGesture.longPress => (0.15, 0.85),
+      CoachGesture.swipe => (0.2, 0.75),
+      CoachGesture.none => (1.0, 1.0),
+    };
+    final lift = t < down
+        ? 1 - _in(_seg(t, 0, down))
+        : t < up
+            ? 0.0
+            : _in(_seg(t, up, math.min(1, up + 0.2)));
+    final opacity = _seg(t, 0, 0.1) * (1 - _seg(t, 0.88, 1));
+    return switch (gesture) {
+      CoachGesture.tap => FingerMotion(
+          tipShift: Offset.zero,
+          lift: lift,
+          pressed: t >= down && t < up,
+          // Die Welle läuft über das Loslassen hinaus aus.
+          progress: _seg(t, down, 0.75),
+          opacity: opacity,
+        ),
+      CoachGesture.swipe => FingerMotion(
+          // Von rechts nach links, wie man durch Bilder blättert.
+          tipShift: Offset(
+              swipeReach -
+                  2 * swipeReach * Curves.easeInOut.transform(_seg(t, 0.25, up)),
+              0),
+          lift: lift,
+          pressed: t >= down && t < up,
+          progress: _seg(t, 0.25, up),
+          opacity: opacity,
+        ),
+      _ => FingerMotion(
+          tipShift: Offset.zero,
+          lift: lift,
+          pressed: t >= down && t < up,
+          progress: _seg(t, down, up),
+          opacity: opacity,
+        ),
+    };
+  }
+}
+
+/// Die Hand, die vorführt (Betreiber, 2026-09-24: „der Finger könnte
+/// etwas besser sein" — die erste Fassung waren zwei abgerundete
+/// Rechtecke).
+///
+/// Gezeichnet, nicht als Bild: Sie folgt so dem Ziel pixelgenau und
+/// braucht kein Asset. Im Stil der Pilz-Buddys — warmes Weiß, weiche
+/// braune Kontur, ein grüner Ärmel —, damit sie zur App gehört und nicht
+/// nach Betriebssystem aussieht. Ausgestreckter Zeigefinger mit Nagel,
+/// die übrigen Finger eingerollt, der Daumen angelegt; schräg von unten
+/// rechts, so wie eine rechte Hand auf den Schirm kommt.
 class FingerPainter extends CustomPainter {
   const FingerPainter({required this.gesture, required this.t});
 
@@ -606,19 +764,41 @@ class FingerPainter extends CustomPainter {
   /// 0…1, ein Durchlauf.
   final double t;
 
+  static const _skin = Color(0xFFFFF6EC);
+  static const _nail = Color(0xFFF6DCCB);
+  static const _edge = Color(0xFF4E342E);
+
   @override
   void paint(Canvas canvas, Size size) {
-    final tip = size.center(Offset.zero);
-    // Anfahren (0–0,15), Drücken, Loslassen (ab 0,85).
-    final pressing = t > 0.15 && t < 0.85;
-    final lift = t < 0.15 ? (0.15 - t) / 0.15 : t > 0.85 ? (t - 0.85) / 0.15 : 0.0;
-    final green = Paint()..color = AppColors.forestGreen;
-    if (pressing) {
-      final p = (t - 0.15) / 0.7;
-      if (gesture == CoachGesture.longPress) {
+    final motion = FingerMotion.of(gesture, t);
+    if (motion.opacity <= 0) return;
+    final target = size.center(Offset.zero);
+    final tip = target + motion.tipShift;
+    _paintTrace(canvas, target, tip, motion);
+
+    canvas.saveLayer(null,
+        Paint()..color = Colors.white.withValues(alpha: motion.opacity));
+    // Abgehoben schwebt die Hand zum Betrachter hin: etwas größer, etwas
+    // weiter weg vom Ziel, mit längerem Schatten. Gedrückt wird sie eine
+    // Spur kleiner — daran sieht man die Berührung.
+    final scale = motion.pressed ? 0.94 : 1 + 0.1 * motion.lift;
+    canvas.translate(tip.dx + 12 * motion.lift, tip.dy + 18 * motion.lift);
+    canvas.rotate(-0.45);
+    canvas.scale(scale);
+    _paintHand(canvas, elevation: motion.pressed ? 2 : 3 + 5 * motion.lift);
+    canvas.restore();
+  }
+
+  /// Was die Geste auf dem Schirm hinterlässt — UNTER der Hand.
+  void _paintTrace(
+      Canvas canvas, Offset target, Offset tip, FingerMotion motion) {
+    final p = motion.progress;
+    final dot = Paint()..color = AppColors.forestGreen;
+    switch (gesture) {
+      case CoachGesture.longPress when motion.pressed:
         // Der Kreis füllt sich — so lange dauert „lange".
-        canvas.drawCircle(tip, 26,
-            Paint()..color = Colors.white.withValues(alpha: 0.35));
+        canvas.drawCircle(
+            tip, 26, Paint()..color = Colors.white.withValues(alpha: 0.35));
         canvas.drawArc(
             Rect.fromCircle(center: tip, radius: 26),
             -math.pi / 2,
@@ -629,36 +809,93 @@ class FingerPainter extends CustomPainter {
               ..strokeWidth = 5
               ..strokeCap = StrokeCap.round
               ..color = AppColors.forestGreen);
-      } else {
+        canvas.drawCircle(tip, 7, dot);
+      case CoachGesture.tap when p > 0 && p < 1:
         canvas.drawCircle(
             tip,
-            10 + 24 * p,
+            10 + 26 * p,
             Paint()
-              ..color = Colors.white.withValues(alpha: 0.5 * (1 - p)));
-      }
-      canvas.drawCircle(tip, 7, green);
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 4
+              ..color = Colors.white.withValues(alpha: 0.7 * (1 - p)));
+        if (motion.pressed) canvas.drawCircle(tip, 7, dot);
+      case CoachGesture.swipe when motion.pressed:
+        final start = target + const Offset(FingerMotion.swipeReach, 0);
+        canvas.drawLine(
+            start,
+            tip,
+            Paint()
+              ..strokeWidth = 12
+              ..strokeCap = StrokeCap.round
+              ..color = Colors.white.withValues(alpha: 0.4));
+        canvas.drawCircle(tip, 7, dot);
+      default:
+        break;
     }
-    // Der Finger selbst: eine Kuppe mit Hand dahinter, schräg von unten
-    // rechts — so, wie ein rechter Daumen auf den Schirm kommt.
-    final offset = const Offset(10, 14) * (1 + lift * 1.5);
-    canvas.save();
-    canvas.translate(tip.dx + offset.dx, tip.dy + offset.dy);
-    canvas.rotate(-0.45);
-    final skin = Paint()..color = Colors.white;
+  }
+
+  /// Die Hand in eigenen Maßen: Kuppe bei (0, 0), der Zeigefinger läuft
+  /// nach unten.
+  void _paintHand(Canvas canvas, {required double elevation}) {
+    RRect box(double l, double t, double r, double b, double radius) =>
+        RRect.fromLTRBR(l, t, r, b, Radius.circular(radius));
+
+    final finger = box(-9, 0, 9, 50, 9);
+    final curls = [
+      box(7, 32, 21, 50, 7),
+      box(17, 36, 30, 54, 6.5),
+      box(26, 41, 37, 58, 5.5),
+    ];
+    final palm = box(-11, 38, 36, 84, 16);
+    final thumb = Path()..addRRect(box(-7, -14, 7, 14, 7));
+    final thumbPlaced = thumb.transform(
+        (Matrix4.translationValues(-14, 60, 0)..rotateZ(0.5)).storage);
+    var hand = Path()..addRRect(finger);
+    for (final part in [
+      Path()..addRRect(palm),
+      thumbPlaced,
+      for (final c in curls) Path()..addRRect(c),
+    ]) {
+      hand = Path.combine(PathOperation.union, hand, part);
+    }
+    final cuff = box(-10, 78, 37, 98, 6);
+
     final edge = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2
-      ..color = const Color(0xFF4E342E);
-    final finger = RRect.fromRectAndRadius(
-        const Rect.fromLTWH(-9, -6, 18, 46), const Radius.circular(9));
-    final hand = RRect.fromRectAndRadius(
-        const Rect.fromLTWH(-16, 26, 34, 30), const Radius.circular(12));
-    canvas.drawShadow(Path()..addRRect(hand)..addRRect(finger),
-        Colors.black, 4, false);
-    canvas.drawRRect(hand, skin);
-    canvas.drawRRect(hand, edge);
-    canvas.drawRRect(finger, skin);
-    canvas.drawRRect(finger, edge);
+      ..strokeJoin = StrokeJoin.round
+      ..color = _edge.withValues(alpha: 0.85);
+    final fine = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4
+      ..strokeCap = StrokeCap.round
+      ..color = _edge.withValues(alpha: 0.45);
+
+    canvas.drawShadow(
+        Path.combine(PathOperation.union, hand, Path()..addRRect(cuff)),
+        Colors.black,
+        elevation,
+        false);
+    // Der Ärmel zuerst — die Hand liegt darüber, sichtbar bleibt der
+    // Bund.
+    canvas.drawRRect(cuff, Paint()..color = AppColors.forestGreen);
+    canvas.drawRRect(cuff, edge);
+    canvas.drawPath(hand, Paint()..color = _skin);
+    canvas.drawPath(hand, edge);
+
+    // Nagel und Gelenkfalten: Erst sie machen aus der Form einen Finger.
+    final nail = box(-5, 3, 5, 15, 4.5);
+    canvas.drawRRect(nail, Paint()..color = _nail);
+    canvas.drawRRect(nail, fine);
+    canvas.drawLine(const Offset(-4, 22), const Offset(4, 22), fine);
+    canvas.drawLine(const Offset(-4, 33), const Offset(4, 33), fine);
+    // Die Trennung der eingerollten Finger, nur oben — weiter unten
+    // gehen sie in die Handfläche über.
+    canvas.save();
+    canvas.clipRect(const Rect.fromLTRB(9, 0, 60, 47));
+    for (final c in curls.skip(1)) {
+      canvas.drawRRect(c, fine);
+    }
     canvas.restore();
   }
 
@@ -666,9 +903,108 @@ class FingerPainter extends CustomPainter {
   bool shouldRepaint(FingerPainter old) => old.t != t || old.gesture != gesture;
 }
 
+/// Wo die Blase gelandet ist — das Layout schreibt, der Pfeil liest es im
+/// selben Bild.
+class _BubblePlacement {
+  bool shifted = false;
+}
+
+/// Setzt die Blase neben ihr Ziel und schiebt sie ins Bild, wenn sie
+/// dort hinausragte.
+///
+/// **Erst messen, dann schieben.** Eine Regel VOR dem Messen („reicht
+/// der Platz nicht, an den Rand") schob die Blase auch dann auf das Ziel,
+/// wenn sie in Wirklichkeit gepasst hätte — sie ist meist kürzer als ihre
+/// Obergrenze. Ohne Schieben ragte sie auf der Artseite unten aus dem
+/// Bild, und „Weiter" war nicht zu erreichen (#596, beides im Test).
+class _BubbleLayout extends SingleChildLayoutDelegate {
+  _BubbleLayout({
+    required this.target,
+    required this.pointAt,
+    required this.side,
+    required this.below,
+    required this.pad,
+    required this.insets,
+    required this.placement,
+  });
+
+  final Rect? target;
+  final Offset? pointAt;
+
+  /// Neben das Ziel statt darüber oder darunter; `null` heißt senkrecht.
+  final AxisDirection? side;
+  final bool below;
+  final double pad;
+  final EdgeInsets insets;
+  final _BubblePlacement placement;
+
+  static const _margin = 16.0;
+
+  static const _gap = 8.0;
+
+  double _width(Size size) => switch ((side, target)) {
+        (AxisDirection.left, final t?) => t.left - _margin - _gap,
+        (AxisDirection.right, final t?) => size.width - t.right - _margin - _gap,
+        _ => size.width - 2 * _margin,
+      };
+
+  @override
+  BoxConstraints getConstraintsForChild(BoxConstraints constraints) {
+    final width = _width(constraints.biggest);
+    return BoxConstraints(
+      minWidth: width,
+      maxWidth: width,
+      maxHeight:
+          math.max(0, constraints.maxHeight - insets.vertical - 2 * _margin),
+    );
+  }
+
+  @override
+  Offset getPositionForChild(Size size, Size child) {
+    final t = target;
+    final lowest = insets.top + _margin;
+    final highest =
+        math.max(lowest, size.height - insets.bottom - _margin - child.height);
+    if (side != null && t != null) {
+      // Auf Höhe dessen, was gemeint ist; ohne Pfeil, der zeigt nur
+      // senkrecht.
+      placement.shifted = true;
+      final centre = pointAt?.dy ?? t.center.dy;
+      return Offset(
+        side == AxisDirection.left ? _margin : t.right + _gap,
+        (centre - child.height / 2).clamp(lowest, highest),
+      );
+    }
+    final wanted = t == null
+        ? size.height / 3
+        : below
+            ? t.bottom + pad
+            : t.top - pad - child.height;
+    final y = wanted.clamp(lowest, highest);
+    placement.shifted = (y - wanted).abs() > 0.5;
+    return Offset(_margin, y);
+  }
+
+  @override
+  bool shouldRelayout(_BubbleLayout old) =>
+      old.target != target ||
+      old.pointAt != pointAt ||
+      old.side != side ||
+      old.below != below ||
+      old.pad != pad ||
+      old.insets != insets;
+}
+
 class _ArrowPainter extends CustomPainter {
-  const _ArrowPainter(
-      {required this.towardsX, required this.up, required this.colour});
+  const _ArrowPainter({
+    required this.placement,
+    required this.towardsX,
+    required this.up,
+    required this.colour,
+  });
+
+  /// Geschoben zeigt der Pfeil nicht mehr auf sein Ziel — dann keiner.
+  final _BubblePlacement placement;
 
   /// Wohin, in Koordinaten dieses Kastens.
   final double towardsX;
@@ -679,6 +1015,7 @@ class _ArrowPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    if (placement.shifted) return;
     final x = towardsX.clamp(24.0, size.width - 24.0);
     final path = Path();
     if (up) {
@@ -698,5 +1035,8 @@ class _ArrowPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_ArrowPainter old) =>
-      old.towardsX != towardsX || old.up != up || old.colour != colour;
+      old.placement != placement ||
+      old.towardsX != towardsX ||
+      old.up != up ||
+      old.colour != colour;
 }

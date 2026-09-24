@@ -1315,6 +1315,39 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     vielleicht schon abgebaut.
   Der Merker ist gerätelokal (Betreiber, 2026-08-29); nach einer
   Neuinstallation läuft sie wieder, und das ist angenommen.
+  **Kurze Touren je Reiter** (seit 1.206.0, `lib/features/help/tab_tours.dart`):
+  Spots, Pilze und Buddys, auf derselben Maschine, beim ERSTEN Besuch
+  des Reiters. Vier Dinge, die man wissen muss:
+  - **Sie startet nur, wenn der Reiter SICHTBAR ist** (`TickerMode`, den
+    go_router für verdeckte Reiter abschaltet). Die Reiter bleiben nach
+    dem ersten Besuch im Baum, und die Spot-Liste lädt gern nach, während
+    man auf der Karte ist — dann fiele die Tour über die Karte. Ein
+    Flow-Test hält es fest, die Gegenprobe ist gemessen.
+  - **Sie wartet auf Inhalt** (`ready`): ohne Spot keine Spot-Tour, und
+    sie bleibt dann ungesehen. Einzelne Schritte an Dingen, die nicht
+    jeder hat, tragen `requires` und fallen sofort weg — ein Anker ohne
+    Fläche (`SizedBox.shrink`) zählt als fehlend.
+  - **Schritttitel dürfen nicht wie etwas auf dem Schirm heißen.** „Buddy
+    finden" ist das Suchfeld; mit dem gleichen Titel prüfte der Test das
+    Feld statt der Blase. Zum zweiten Mal passiert (vorher „Was ist hier?").
+  - **Die Blase wird erst gemessen, dann gesetzt** (`_BubbleLayout`):
+    neben ihr Ziel, bei einem hohen schmalen Ziel (die Leiste auf
+    360×640) DANEBEN, und ragt sie trotzdem hinaus, wird sie ins Bild
+    geschoben — dann ohne Pfeil. Bis 1.205.0 lag sie im Leisten-Schritt
+    bei y = −27 und auf der Artseite unten außerhalb, „Weiter" war nicht
+    zu erreichen. Der Test prüfte nur „deckt nichts zu", und das tut eine
+    Blase außerhalb nie; seither prüft jeder Tour-Test, dass sie ganz im
+    Bild liegt. Eine Regel VOR dem Messen („zu wenig Platz ⇒ an den
+    Rand") war der erste Versuch und schob sie auch dann aufs Ziel, wenn
+    sie gepasst hätte.
+  Gemerkt wird in `seenCoachTours` (die Karten-Tour behält
+  `mapTourSeen`); `FakeSettings` setzt ab Werk alle, Muster wie bei der
+  Karten-Tour.
+  **Die Hand** (`FingerPainter`, seit 1.206.0) ist gezeichnet: Zeigefinger
+  mit Nagel, eingerollte Finger, Daumen, grüner Ärmel. Der Ablauf steht
+  rein in `FingerMotion` (herankommen, drücken, abheben; beim Wischen von
+  rechts nach links), damit ein Test ohne Pixel prüfen kann, dass AUF dem
+  Ziel gedrückt wird.
   Nebenbefund aus #350: Der einzige Erklärsatz, den die App davor hatte
   (im Profil, „halte auf der Karte gedrückt"), wies auf eine Geste, die
   seit #210 abschaltbar war und **ab Werk aus** stand. Seit #483 stimmt

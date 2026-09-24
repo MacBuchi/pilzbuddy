@@ -295,6 +295,17 @@ const kFeatureHighlights = <FeatureHighlight>[
         'Freiwillig, ab Werk aus.',
     target: '/pilze',
   ),
+  FeatureHighlight(
+    id: 'reiter-touren',
+    since: '1.206.0',
+    kind: HighlightKind.tip,
+    tab: HighlightTab.profile,
+    icon: Icons.play_circle_outline,
+    title: 'Kurze Touren in jedem Reiter',
+    text: 'Spots, Pilze und Buddys zeigen beim ersten Besuch, was sie '
+        'können. Noch einmal ansehen: Profil → Kurzanleitung.',
+    target: '/profile/anleitung',
+  ),
 ];
 
 /// Die drei Highlights, mit denen der RÜCKBLICK beginnt. Beim Rückblick

@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../coach/coach.dart';
+import '../../help/tab_tours.dart';
 import '../../../core/app_colors.dart';
 import '../../../core/errors.dart';
 import '../../../core/geo.dart' show formatMeters;
@@ -770,7 +772,9 @@ class _SpotDetailSheet extends ConsumerWidget {
           // bricht die Beschriftung dann auf zwei Zeilen um, statt
           // überzulaufen — ein Überlauf ist hier also kein Risiko, und
           // deshalb steht auch kein Test dafür.
-          Row(
+          CoachAnchor(
+            id: SpotsCoach.sheetEntries,
+            child: Row(
             children: [
               Expanded(
                 child: FilledButton.icon(
@@ -794,6 +798,7 @@ class _SpotDetailSheet extends ConsumerWidget {
                 ),
               ),
             ],
+          ),
           ),
           // Was „Nichts gefunden" bedeutet, erklärt sich nicht von selbst
           // (#350): „Fund ≠ Eintrag" ist eine Unterscheidung, die die App

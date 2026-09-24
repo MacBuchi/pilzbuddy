@@ -43,8 +43,25 @@ class FakeSettings implements Settings {
     // alte Version mit.
     this.highlightsSeenVersion = FakeSettings.kFakeAllHighlightsSeen,
     Set<String>? seenHighlightIds,
+    // **Vorgabe hier „alle gesehen", in der App leer** — wie bei
+    // `mapTourSeen`: Sonst legte sich über jeden Test, der einen Reiter
+    // öffnet, dessen Tour. Wer sie prüfen will, gibt `{}` mit.
+    Set<String>? seenCoachTours,
   })  : seenFindPhotoIds = seenFindPhotoIds ?? {},
-        seenHighlightIds = seenHighlightIds ?? {};
+        seenHighlightIds = seenHighlightIds ?? {},
+        seenCoachTours = seenCoachTours ?? {...kFakeAllTabToursSeen};
+
+  /// Jede Reiter-Tour, die es gibt — ein Test hält die Liste gegen die
+  /// Skripte zusammen.
+  static const kFakeAllTabToursSeen = {'spots', 'pilze', 'buddys'};
+
+  @override
+  Set<String> seenCoachTours;
+
+  @override
+  Future<void> setSeenCoachTours(Set<String> value) async {
+    seenCoachTours = {...value};
+  }
 
   /// Höher als jede echte Version: Kein Eintrag ist danach neu.
   static const kFakeAllHighlightsSeen = '9999.0.0';

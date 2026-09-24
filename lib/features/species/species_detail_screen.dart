@@ -26,6 +26,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../coach/coach.dart';
+import '../help/tab_tours.dart';
 import '../../core/app_colors.dart';
 import '../../core/app_info.dart' show appVersionProvider;
 import '../../core/errors.dart';
@@ -111,7 +113,10 @@ class SpeciesDetailScreen extends ConsumerWidget {
                 _Header(detail: detail),
                 // **Ganz oben, gleich unter dem Namen.** Eine Warnung,
                 // zu der man erst scrollen muss, ist im Wald keine.
-                _Edibility(detail: detail),
+                // Die Anker der Reiter-Tour (#596).
+                CoachAnchor(
+                    id: PilzeCoach.detailEdibility,
+                    child: _Edibility(detail: detail)),
                 // Direkt darunter: „giftig" und „wird verwechselt mit …"
                 // müssen zusammen gelesen werden, sonst nützt keins von
                 // beidem.
@@ -119,7 +124,9 @@ class SpeciesDetailScreen extends ConsumerWidget {
                 // Bilder NACH den Warnungen. Ein Porträt am Seitenkopf
                 // läse sich als „so sieht er aus, das genügt" — genau
                 // die Erwartung, die der Hinweis darunter zurücknimmt.
-                _PictureStrip(detail: detail),
+                CoachAnchor(
+                    id: PilzeCoach.detailPictures,
+                    child: _PictureStrip(detail: detail)),
                 _PhotoNote(detail: detail),
                 // Erst die Warnungen, dann die Beschreibung: Wer die
                 // Seite von oben liest, weiß vor dem ersten Merkmal, ob
