@@ -137,4 +137,5 @@ void main() {
       expect(plan(current: null), isA<HighlightNothing>());
     });
   });
+
 }

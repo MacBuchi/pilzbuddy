@@ -38,26 +38,34 @@ class HighlightArt extends StatefulWidget {
 
 class _HighlightArtState extends State<HighlightArt>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(seconds: 4),
-  );
+  /// Nur, wenn geschaukelt wird — und dann sofort in `initState`, nicht
+  /// als `late`: Ein fauler Controller entstünde bei den stehenden
+  /// Bildern erst im `dispose`, und ein Ticker an einem abgebauten
+  /// Element wirft („deactivated widget's ancestor"). In CI genau so
+  /// passiert, beim Verlassen von „Entdecken".
+  AnimationController? _controller;
 
   @override
   void initState() {
     super.initState();
-    if (widget.animate) _controller.repeat();
+    if (widget.animate) {
+      _controller = AnimationController(
+        vsync: this,
+        duration: const Duration(seconds: 4),
+      )..repeat();
+    }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final s = widget.size;
+    final controller = _controller;
     final buddy = MushroomIcon(
       seed: stableSeed(widget.highlight.id),
       size: s * 0.42,
@@ -84,11 +92,11 @@ class _HighlightArtState extends State<HighlightArt>
           Positioned(
             right: 0,
             bottom: 0,
-            child: widget.animate
+            child: controller != null
                 ? AnimatedBuilder(
-                    animation: _controller,
+                    animation: controller,
                     builder: (context, child) => Transform.rotate(
-                      angle: math.sin(_controller.value * 2 * math.pi) * 0.05,
+                      angle: math.sin(controller.value * 2 * math.pi) * 0.05,
                       alignment: Alignment.bottomCenter,
                       child: child,
                     ),
