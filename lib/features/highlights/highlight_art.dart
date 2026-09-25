@@ -56,6 +56,23 @@ class _HighlightArtState extends State<HighlightArt>
     }
   }
 
+  /// „Animationen entfernen" im System (#596): Dann steht der Pilz
+  /// still. Gefragt in `didChangeDependencies`, weil sich die Einstellung
+  /// während die Seite offen ist ändern kann.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final controller = _controller;
+    if (controller == null) return;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      controller
+        ..stop()
+        ..value = 0;
+    } else if (!controller.isAnimating) {
+      controller.repeat();
+    }
+  }
+
   @override
   void dispose() {
     _controller?.dispose();

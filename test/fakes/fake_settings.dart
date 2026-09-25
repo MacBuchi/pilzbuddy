@@ -23,6 +23,8 @@ class FakeSettings implements Settings {
     // dieselbe Begründung wie bei `lastFindSeenAt` gleich darunter. Wer
     // die Tour prüfen will, gibt `mapTourSeen: false` mit.
     this.mapTourSeen = true,
+    // Der Merker von vor 1.208.0 — nur für die Rückblick-Erkennung.
+    this.legacyMapTourSeen = false,
     // Wie mapTourSeen auf `true`: Sonst bekäme jeder Bestandstest den
     // Haftungshinweis übergestülpt. Wer ihn prüfen will, gibt
     // `safetyNoteSeen: false` mit.
@@ -214,6 +216,9 @@ class FakeSettings implements Settings {
 
   @override
   bool mapTourSeen;
+
+  @override
+  final bool legacyMapTourSeen;
   @override
   bool safetyNoteSeen;
   @override

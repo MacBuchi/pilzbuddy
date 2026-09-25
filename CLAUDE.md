@@ -1315,6 +1315,14 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     vielleicht schon abgebaut.
   Der Merker ist gerätelokal (Betreiber, 2026-08-29); nach einer
   Neuinstallation läuft sie wieder, und das ist angenommen.
+  **Zurückgesetzt für alle in 1.208.0** (Betreiber, 2026-09-25): neue
+  Schlüssel für Karten-Tour (`map_tour_seen_2`), Reiter-Touren,
+  Neuheiten-Stand und „Neu"-Punkte. Der alte Tour-Merker wird weiter
+  GELESEN (`legacyMapTourSeen`), aber nur für die Rückblick-Erkennung —
+  sonst hielte die App nach dem Zurücksetzen jeden für eine
+  Neuinstallation, und der Rückblick fiele weg (Flow-Test mit
+  Gegenprobe). Wer wieder zurücksetzt: dieselbe Trennung, und
+  `LAST_RESET` in `tool/highlights_preview.py` nachziehen.
   **Kurze Touren je Reiter** (seit 1.206.0, `lib/features/help/tab_tours.dart`):
   Spots, Pilze und Buddys, auf derselben Maschine, beim ERSTEN Besuch
   des Reiters. Vier Dinge, die man wissen muss:
@@ -1367,7 +1375,16 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   WAS es gibt, die Tour zeigt, WO es ist. Fünf Dinge, die man wissen
   muss:
   - **Wer eine Funktion baut, bringt ihren Eintrag im selben PR mit** —
-    Highlight, wenn sie ins Blatt gehört, sonst Tipp. Kuratiert wird
+    Highlight, wenn sie ins Blatt gehört, sonst Tipp. Verankert an drei
+    Stellen (seit 1.208.0), weil „steht in CLAUDE.md" allein nicht
+    trägt: die PR-Vorlage (`.github/pull_request_template.md`, erster
+    Haken), die Vorschau in der Run-Summary von `promote.yml`
+    (`tool/highlights_preview.py`: was das Blatt nach dem Update zeigt,
+    Warnung bei keinem Highlight — kein Tor, manche Stände bringen ehrlich
+    nur Korrekturen) und der Skill `pilz-release` für den Ablauf der
+    Beförderung. Die Vorschau kennt den Rückblick: Wer von einem Stand vor
+    1.204.0 kommt, hat keinen Merker und bekommt ihn — dort ist „kein neues
+    Highlight" kein Befund. Kuratiert wird
     nicht bei der Beförderung: Stehen mehr als drei an, zeigt das Blatt
     die jüngsten, der Rest wartet in „Entdecken".
     `test/feature_highlights_test.dart` prüft Kennungen, `since` gegen
@@ -1393,6 +1410,19 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     gebaut und ist verworfen: Sie flickte einen Fall, den der übliche
     Aufbau gar nicht erst hat. Wer das Blatt wieder zum Blättern macht,
     muss „gesehen" je angezeigter Seite merken, nicht beim Öffnen.
+  - **Eine Zeile im Blatt führt es VOR** (seit 1.208.0): Sie startet die
+    Vorführung aus `highlight_demos.dart`, die selbst an die Stelle
+    wechselt. Ohne Vorführung bleibt es beim Sprung.
+  - **„Animationen entfernen" und Bildschirmleser** (seit 1.208.0): Ring
+    und Hand stehen dann still (`gestureStillFrame`, dasselbe Bild wie in
+    „Entdecken"), der Pilz im Bild schaukelt nicht. Während einer Tour
+    blendet `CoachSemanticsGate` (in `app.dart` um den Inhalt UNTER der
+    Überlagerung) alles darunter für TalkBack aus — dort nimmt ohnehin
+    nichts einen Tipp an —, und die Blase ist eine `liveRegion`, ein
+    neuer Schritt wird also angesagt. `BlockSemantics` in der Überlagerung
+    reichte nicht, es wirkt nicht über die Grenze zum Navigator. Im Test
+    `find.semantics.byLabel`, nicht `find.bySemanticsLabel`: Letzteres
+    findet auch ausgeblendete Knoten.
   - **Bilder aus Widgets** (`HighlightArt`: das echte Knopfsymbol plus
     ein schaukelnder Pilz-Buddy), keine Screenshots — die veralten mit
     jeder Oberflächenänderung —, kein Lottie.

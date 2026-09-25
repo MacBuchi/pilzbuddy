@@ -180,6 +180,17 @@ abstract interface class Settings {
 
   Future<void> setMapTourSeen(bool value);
 
+  /// Hat dieses Gerät die Karten-Tour VOR dem Zurücksetzen in 1.208.0
+  /// gesehen? Nur gelesen, nie geschrieben.
+  ///
+  /// **Der Merker hat zwei Aufgaben, und nur eine sollte zurück.** Die
+  /// neue Tour (#596) sollen alle sehen, also liest [mapTourSeen] seit
+  /// 1.208.0 einen neuen Schlüssel. Aber der Rückblick erkennt
+  /// Bestandsnutzer genau an diesem Merker — zurückgesetzt hielte er
+  /// jeden für eine Neuinstallation, und der Rückblick fiele weg. Für
+  /// DIESE Frage zählt deshalb auch der alte Schlüssel.
+  bool get legacyMapTourSeen;
+
   /// Die Tourspur als Linie statt als Punkte? (#340)
   ///
   /// Vorgabe **Punkte**, und das ist keine Geschmacksfrage: Ihr Abstand
@@ -458,10 +469,16 @@ class PrefsSettings implements Settings {
       ? _prefs.remove(_rainLayerNameKey)
       : _prefs.setString(_rainLayerNameKey, value);
 
-  static const _mapTourSeenKey = 'map_tour_seen';
+  // `_2` seit 1.208.0: alle sehen die neue Tour (Betreiber, 2026-09-25).
+  static const _mapTourSeenKey = 'map_tour_seen_2';
+  static const _legacyMapTourSeenKey = 'map_tour_seen';
 
   @override
   bool get mapTourSeen => _prefs.getBool(_mapTourSeenKey) ?? false;
+
+  @override
+  bool get legacyMapTourSeen =>
+      _prefs.getBool(_legacyMapTourSeenKey) ?? false;
 
   @override
   Future<void> setMapTourSeen(bool value) =>
@@ -596,7 +613,9 @@ class PrefsSettings implements Settings {
   // verschwand. Ein neuer Name macht jedes Gerät wieder zu „nie
   // gemerkt"; der alte Schlüssel liegt herum und wird nie wieder gelesen.
   // Stabile Nutzer merken davon nichts, sie haben 1.204 nie gesehen.
-  static const _highlightsSeenVersionKey = 'highlights_seen_version_2';
+  // `_3` seit 1.208.0: zweites Zurücksetzen für alle (Betreiber,
+  // 2026-09-25), zusammen mit Touren und „Neu"-Punkten.
+  static const _highlightsSeenVersionKey = 'highlights_seen_version_3';
 
   @override
   String? get highlightsSeenVersion =>
@@ -606,8 +625,8 @@ class PrefsSettings implements Settings {
   Future<void> setHighlightsSeenVersion(String value) =>
       _prefs.setString(_highlightsSeenVersionKey, value);
 
-  // `_2` aus demselben Grund: „Entdecken" zeigt sein „Neu" wieder.
-  static const _seenHighlightIdsKey = 'seen_highlight_ids_2';
+  // `_2`/`_3` aus demselben Grund: „Entdecken" zeigt sein „Neu" wieder.
+  static const _seenHighlightIdsKey = 'seen_highlight_ids_3';
 
   @override
   Set<String> get seenHighlightIds =>
@@ -617,7 +636,7 @@ class PrefsSettings implements Settings {
   Future<void> setSeenHighlightIds(Set<String> value) =>
       _prefs.setStringList(_seenHighlightIdsKey, value.toList()..sort());
 
-  static const _seenCoachToursKey = 'seen_coach_tours';
+  static const _seenCoachToursKey = 'seen_coach_tours_2';
 
   @override
   Set<String> get seenCoachTours =>
