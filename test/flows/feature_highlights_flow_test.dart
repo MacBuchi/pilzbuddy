@@ -75,6 +75,31 @@ void main() {
     expect(recapTitle, findsNothing);
   });
 
+  testWidgets('nach dem Zurücksetzen (1.208.0): erst die neue Tour, dann der '
+      'Rückblick', (tester) async {
+    // Bestandsnutzer: alter Tour-Merker gesetzt, neuer nicht, keine
+    // gemerkte Version. Die Tour läuft — und der Rückblick darf dabei
+    // NICHT verloren gehen, obwohl der neue Tour-Merker noch fehlt.
+    final settings = FakeSettings(
+        highlightsSeenVersion: null,
+        mapTourSeen: false,
+        legacyMapTourSeen: true);
+    await pumpApp(tester, signedIn(),
+        settings: settings, appVersion: kVersion);
+    expect(find.byKey(const ValueKey('coach-bubble')), findsOneWidget,
+        reason: 'die neue Tour');
+    expect(recapTitle, findsNothing, reason: 'nicht zwei auf einmal');
+    expect(settings.highlightsSeenVersion, isNull,
+        reason: 'nicht als Neuinstallation gemerkt');
+
+    await tester.tap(find.text('Überspringen'));
+    await settle(tester);
+    await tester.pumpWidget(const SizedBox());
+    await pumpApp(tester, signedIn(),
+        settings: settings, appVersion: kVersion);
+    expect(recapTitle, findsOneWidget);
+  });
+
   testWidgets('Haftungshinweis offen: das Blatt wartet auf den nächsten Start',
       (tester) async {
     final settings =
@@ -104,7 +129,7 @@ void main() {
     expect(find.text(byId('schutzgebiete').title), findsOneWidget);
   });
 
-  testWidgets('eine Zeile antippen führt zum Ziel', (tester) async {
+  testWidgets('eine Zeile antippen führt es am Ziel vor', (tester) async {
     final settings = FakeSettings(highlightsSeenVersion: null);
     await pumpApp(tester, signedIn(),
         settings: settings, appVersion: kVersion);
@@ -118,6 +143,8 @@ void main() {
             tester.element(find.byType(Scaffold).first))
         .read(routerProvider);
     expect(router.routerDelegate.currentConfiguration.uri.path, second.target);
+    // Und zwar VORgeführt (#596), nicht nur hingesprungen.
+    expect(find.byKey(const ValueKey('coach-bubble')), findsOneWidget);
   });
 
   testWidgets('jedes Ziel ist eine Route der App', (tester) async {

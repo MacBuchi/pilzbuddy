@@ -128,6 +128,25 @@ jobs:
       - name: Stand der Store-Screenshots
         run: python3 tool/screenshot_stand.py >> "$GITHUB_STEP_SUMMARY"
 
+      # Was das Neuheiten-Blatt nach dem Update zeigt (#596). Es sucht
+      # sich seinen Inhalt selbst aus `kFeatureHighlights` — ein
+      # vergessener Eintrag fiele nirgends auf, die Funktion käme ohne
+      # Ankündigung an. Gelesen aus dem BEFÖRDERTEN Tag, nicht aus main.
+      # Kein Tor: Manche Beförderungen bringen ehrlich nur Korrekturen.
+      - name: Vorschau des Neuheiten-Blatts
+        env:
+          TAG: ${{ steps.pick.outputs.tag }}
+          VERSION: ${{ steps.pick.outputs.version }}
+          PREV: ${{ steps.previous.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git show "$TAG:lib/features/highlights/feature_highlights.dart" \
+            > "$RUNNER_TEMP/feature_highlights.dart" 2>/dev/null || true
+          python3 tool/highlights_preview.py \
+            --version "$VERSION" --since "${PREV#v}" \
+            --source "$RUNNER_TEMP/feature_highlights.dart" \
+            >> "$GITHUB_STEP_SUMMARY"
+
       # Pages aus dem BEFÖRDERTEN Tag, nicht aus main: Sonst läge auf der
       # Web-Adresse der Entwicklungsstand, während Android auf stabil
       # zeigt.

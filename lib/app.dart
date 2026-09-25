@@ -37,10 +37,12 @@ class PilzBuddyApp extends ConsumerWidget {
       builder: (context, child) => Stack(
         fit: StackFit.expand,
         children: [
-          PreviewRibbon(
-            child: PushListener(
-              child: IntroOverlay(
-                  child: UpdateGate(child: child ?? const SizedBox.shrink())),
+          CoachSemanticsGate(
+            child: PreviewRibbon(
+              child: PushListener(
+                child: IntroOverlay(
+                    child: UpdateGate(child: child ?? const SizedBox.shrink())),
+              ),
             ),
           ),
           CoachOverlay(

@@ -25,10 +25,12 @@ import '../../core/app_info.dart';
 import '../../core/errors.dart';
 import '../../core/settings.dart';
 import '../../core/widgets/sheet_close_button.dart';
+import '../coach/coach.dart';
 import '../help/map_tour.dart';
 import '../tour/tour_providers.dart';
 import 'feature_highlights.dart';
 import 'highlight_art.dart';
+import 'highlight_demos.dart';
 
 /// Welche Einträge schon angesehen wurden — der Neu-Punkt in „Entdecken".
 class SeenHighlightIds extends Notifier<Set<String>> {
@@ -75,7 +77,10 @@ Future<void> maybeShowHighlights(
   final plan = planHighlights(
     current: current,
     seenVersion: settings.highlightsSeenVersion,
-    mapTourSeen: ref.read(mapTourSeenProvider),
+    // Auch der alte Merker: Die Tour ist in 1.208.0 für alle
+    // zurückgesetzt, Bestandsnutzer bleiben sie trotzdem
+    // (`Settings.legacyMapTourSeen`).
+    mapTourSeen: ref.read(mapTourSeenProvider) || settings.legacyMapTourSeen,
   );
   switch (plan) {
     case HighlightNothing():
@@ -113,7 +118,7 @@ Future<void> showHighlightSheet(BuildContext context, HighlightShow plan) =>
       builder: (context) => HighlightSheet(plan: plan),
     );
 
-class HighlightSheet extends StatelessWidget {
+class HighlightSheet extends ConsumerWidget {
   const HighlightSheet({super.key, required this.plan});
 
   final HighlightShow plan;
@@ -127,8 +132,23 @@ class HighlightSheet extends StatelessWidget {
     router.go(location);
   }
 
+  /// Eine Zeile führt VOR, nicht nur hin (#596): Die Vorführung wechselt
+  /// selbst an die Stelle und endet in der Funktion. Ohne Vorführung
+  /// bleibt es beim Sprung.
+  static void _show(BuildContext context, WidgetRef ref, FeatureHighlight h) {
+    final demo = kHighlightDemos[h.id];
+    if (demo == null) {
+      _go(context, h.target);
+      return;
+    }
+    final router = GoRouter.of(context);
+    final coach = ref.read(coachProvider.notifier);
+    Navigator.of(context).pop();
+    unawaited(startHighlightDemo(router, coach, demo));
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 8, 8, 16),
@@ -154,7 +174,7 @@ class HighlightSheet extends StatelessWidget {
             _Row(
               key: ValueKey('highlight-row-${h.id}'),
               highlight: h,
-              onTap: () => _go(context, h.target),
+              onTap: () => _show(context, ref, h),
             ),
           const SizedBox(height: 8),
           Padding(
@@ -188,8 +208,8 @@ class HighlightSheet extends StatelessWidget {
 }
 
 /// Eine Neuheit als Zeile: Bild, Titel, Text — die ganze Zeile führt
-/// hin. Kein eigener Knopf je Zeile: Drei „Ausprobieren" untereinander
-/// wären Lärm, und das Pfeilsymbol sagt dasselbe.
+/// es vor. Kein eigener Knopf je Zeile: Drei „Zeig es mir" untereinander
+/// wären Lärm, und das Abspielsymbol sagt dasselbe.
 class _Row extends StatelessWidget {
   const _Row({super.key, required this.highlight, required this.onTap});
 
@@ -221,7 +241,9 @@ class _Row extends StatelessWidget {
             ),
             const Padding(
               padding: EdgeInsets.only(left: 4, right: 8, top: 4),
-              child: Icon(Icons.chevron_right, color: AppColors.forestGreen),
+              child: Icon(Icons.play_circle_outline,
+                  color: AppColors.forestGreen,
+                  semanticLabel: 'Zeig es mir'),
             ),
           ],
         ),

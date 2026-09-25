@@ -27,7 +27,10 @@ Future<ProviderContainer> pumpCoach(WidgetTester tester, Widget home) async {
     child: MaterialApp(
       builder: (context, child) => Stack(
         fit: StackFit.expand,
-        children: [child!, CoachOverlay(onNavigate: (_) {})],
+        children: [
+          CoachSemanticsGate(child: child!),
+          CoachOverlay(onNavigate: (_) {}),
+        ],
       ),
       home: Scaffold(body: home),
     ),
@@ -208,6 +211,65 @@ void main() {
     await frames(tester);
     expect(find.text('2 von 2'), findsOneWidget);
     expect(find.text('Los geht\'s'), findsOneWidget);
+  });
+
+  testWidgets('„Animationen entfernen": Ring und Hand stehen still',
+      (tester) async {
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    final container = await pumpCoach(
+        tester,
+        const Center(
+            child: CoachAnchor(
+                id: 'da', child: SizedBox(width: 50, height: 50))));
+    container.read(coachProvider.notifier).start(const CoachScript(
+        id: 't',
+        steps: [
+          CoachStep(
+              title: 'A', text: 'x', lit: ['da'], gesture: CoachGesture.tap)
+        ]));
+    await frames(tester);
+    final seen = <(double, double)>{};
+    for (var i = 0; i < 12; i++) {
+      await tester.pump(const Duration(milliseconds: 150));
+      final finger = tester
+          .widgetList<CustomPaint>(find.byType(CustomPaint))
+          .map((c) => c.painter)
+          .whereType<FingerPainter>()
+          .single;
+      seen.add((painter(tester).pulse, finger.t));
+    }
+    expect(seen, {(0.0, gestureStillFrame(CoachGesture.tap))});
+  });
+
+  testWidgets('der Bildschirmleser sieht während der Tour nur die Blase',
+      (tester) async {
+    final semantics = tester.ensureSemantics();
+    final container = await pumpCoach(
+        tester,
+        Center(
+            child: CoachAnchor(
+                id: 'da',
+                child: ElevatedButton(
+                    onPressed: () {}, child: const Text('Darunter')))));
+    expect(find.semantics.byLabel('Darunter'), findsOneWidget);
+    container.read(coachProvider.notifier).start(const CoachScript(
+        id: 't', steps: [CoachStep(title: 'Oben', text: 'x', lit: ['da'])]));
+    await frames(tester);
+    expect(find.semantics.byLabel('Darunter'), findsNothing,
+        reason: 'ein Knopf, der unter der Tour keinen Tipp annimmt');
+    expect(find.semantics.byLabel(RegExp('Oben')), findsOneWidget);
+    expect(
+        find.byWidgetPredicate(
+            (w) => w is Semantics && (w.properties.liveRegion ?? false)),
+        findsOneWidget,
+        reason: 'ein neuer Schritt wird angesagt');
+    container.read(coachProvider.notifier).finish();
+    await frames(tester);
+    expect(find.semantics.byLabel('Darunter'), findsOneWidget,
+        reason: 'danach wieder da');
+    semantics.dispose();
   });
 
   group('die Hand', () {

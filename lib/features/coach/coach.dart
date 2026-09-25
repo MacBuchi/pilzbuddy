@@ -382,6 +382,25 @@ class _OpenScene {
 final coachProvider =
     NotifierProvider<CoachNotifier, CoachRun?>(CoachNotifier.new);
 
+/// Blendet [child] für den Bildschirmleser aus, solange eine Tour läuft.
+///
+/// Darunter nimmt nichts einen Tipp an — die Überlagerung schluckt ihn —,
+/// und TalkBack soll nicht auf Knöpfe führen, die nichts tun. Gehört um
+/// den Inhalt UNTER der Überlagerung (`app.dart`). `BlockSemantics` in
+/// der Überlagerung selbst reichte nicht: Es wirkt nicht über die Grenze
+/// zum Navigator (im Test gesehen).
+class CoachSemanticsGate extends ConsumerWidget {
+  const CoachSemanticsGate({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => ExcludeSemantics(
+        excluding: ref.watch(coachProvider) != null,
+        child: child,
+      );
+}
+
 /// Die Überlagerung. Gehört ÜBER den Navigator (`app.dart`).
 class CoachOverlay extends ConsumerStatefulWidget {
   const CoachOverlay({
@@ -587,13 +606,16 @@ class _CoachOverlayState extends ConsumerState<CoachOverlay>
     final measured = _measured == run;
     final lit = measured ? _lit : const <Rect>[];
     final ring = measured ? _ring : const <Rect>[];
+    final still = MediaQuery.disableAnimationsOf(context);
     return Positioned.fill(
       child: LayoutBuilder(
         key: _box,
         builder: (context, constraints) => GestureDetector(
           // Schluckt, was es abdunkelt, und jeder Tipp geht weiter: Ein
           // Tipp, der durchfiele, löste genau das aus, was der Schritt
-          // gerade erst erklärt.
+          // gerade erst erklärt. Für den Bildschirmleser gibt es „Weiter"
+          // in der Blase, dieser Tipp bleibt ihm verborgen.
+          excludeFromSemantics: true,
           behavior: HitTestBehavior.opaque,
           onTap: () => ref.read(coachProvider.notifier).next(),
           child: AnimatedBuilder(
@@ -605,13 +627,15 @@ class _CoachOverlayState extends ConsumerState<CoachOverlay>
                     painter: CoachPainter(
                       lit: lit,
                       ring: ring,
-                      pulse: _clock.value,
+                      // „Animationen entfernen": Der Ring steht, statt zu
+                      // pulsieren — gesucht wird er ja nicht.
+                      pulse: still ? 0 : _clock.value,
                     ),
                   ),
                 ),
                 if (measured && run.step.gesture != CoachGesture.none)
                   _finger(run.step.gesture, ring.isNotEmpty ? ring : lit,
-                      constraints.biggest),
+                      constraints.biggest, still: still),
                 _bubble(context, run, lit, ring, constraints.biggest),
               ],
             ),
@@ -621,7 +645,8 @@ class _CoachOverlayState extends ConsumerState<CoachOverlay>
     );
   }
 
-  Widget _finger(CoachGesture gesture, List<Rect> rects, Size size) {
+  Widget _finger(CoachGesture gesture, List<Rect> rects, Size size,
+      {required bool still}) {
     final target = rects.isEmpty
         ? size.center(Offset.zero)
         : rects.reduce((a, b) => a.expandToInclude(b)).center;
@@ -632,7 +657,11 @@ class _CoachOverlayState extends ConsumerState<CoachOverlay>
       height: 120,
       child: IgnorePointer(
         child: CustomPaint(
-          painter: FingerPainter(gesture: gesture, t: _clock.value),
+          // Bei „Animationen entfernen" steht die Hand im Moment, der
+          // die Geste ausmacht — dasselbe Bild wie in „Entdecken".
+          painter: FingerPainter(
+              gesture: gesture,
+              t: still ? gestureStillFrame(gesture) : _clock.value),
         ),
       ),
     );
@@ -703,7 +732,13 @@ class _CoachOverlayState extends ConsumerState<CoachOverlay>
               key: const ValueKey('coach-bubble'),
               elevation: 6,
               margin: EdgeInsets.zero,
-              child: Padding(
+              child: Semantics(
+                // Ein neuer Schritt wird angesagt — der Bildschirmleser
+                // liest sonst nur, was man antippt, und die Blase kommt
+                // ohne Tipp.
+                container: true,
+                liveRegion: true,
+                child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -753,7 +788,7 @@ class _CoachOverlayState extends ConsumerState<CoachOverlay>
                     ),
                   ],
                 ),
-              ),
+              )),
             ),
           ),
         ),
@@ -909,6 +944,16 @@ class GesturePreview extends StatelessWidget {
       );
 }
 
+/// Der Moment, der eine Geste ausmacht — für das stehende Bild in
+/// „Entdecken" und für die Vorführung, wenn im System „Animationen
+/// entfernen" an ist: beim Tipp die Welle, beim langen Druck der halb
+/// volle Kreis, beim Wischen die halbe Strecke.
+double gestureStillFrame(CoachGesture gesture) => switch (gesture) {
+      CoachGesture.longPress => 0.6,
+      CoachGesture.swipe => 0.55,
+      _ => 0.4,
+    };
+
 class _GesturePreviewPainter extends CustomPainter {
   const _GesturePreviewPainter(this.gesture);
 
@@ -916,11 +961,7 @@ class _GesturePreviewPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final t = switch (gesture) {
-      CoachGesture.longPress => 0.6,
-      CoachGesture.swipe => 0.55,
-      _ => 0.4,
-    };
+    final t = gestureStillFrame(gesture);
     // Die Hand ragt von der Kuppe gut 0,8 ihrer Länge nach rechts unten;
     // die Kuppe sitzt deshalb oben links im Kasten.
     canvas.save();

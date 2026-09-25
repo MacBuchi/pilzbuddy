@@ -193,6 +193,16 @@ void main() {
               'das vorherige Prerelease.');
     });
 
+    test('die Beförderung zeigt, was das Neuheiten-Blatt bringt', () {
+      // #596: Das Blatt sucht sich seinen Inhalt selbst. Ohne diese
+      // Vorschau fiele ein vergessener Eintrag erst auf, wenn die
+      // Funktion ohne Ankündigung bei den Nutzern ist.
+      expect(promote, contains('tool/highlights_preview.py'));
+      expect(promote, contains(r'git show "$TAG:lib/features/highlights/'),
+          reason: 'Aus dem BEFÖRDERTEN Tag lesen, nicht aus main.');
+      expect(ci, contains('tool/highlights_preview.py --self-test'));
+    });
+
     test('der Sammler wird auch geprüft', () {
       expect(ci, contains('tool/release_notes.py --self-test'),
           reason: 'Ein Selbsttest, den niemand ausführt, verrottet still '

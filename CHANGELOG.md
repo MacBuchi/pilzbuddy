@@ -7,6 +7,20 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Neuheiten zeigen vor, und Rücksicht auf Einstellungen
+
+*25. September 2026 · Version 1.208.0*
+
+- Im Blatt „Neu in PilzBuddy" führt ein Tipp auf eine Zeile die Neuheit
+  jetzt gleich vor, wie „Zeig es mir" in Entdecken.
+- Wer im Handy „Animationen entfernen" eingeschaltet hat, bekommt die
+  Touren ohne Bewegung: Hand und Ring stehen still.
+- Mit Bildschirmleser (TalkBack) wird jeder Schritt einer Tour
+  vorgelesen, und was darunter liegt, stört nicht mehr.
+- Einmal für alle zurückgesetzt: Die neue Karten-Tour, die Touren in den
+  Reitern, der Rückblick auf das, was PilzBuddy inzwischen kann, und die
+  „Neu"-Punkte in Entdecken kommen noch einmal.
+
 ## „Zeig es mir" in Entdecken
 
 *25. September 2026 · Version 1.207.0*
