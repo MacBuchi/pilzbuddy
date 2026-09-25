@@ -40,6 +40,7 @@ import '../../models/spot.dart';
 import '../coach/coach.dart';
 import '../friends/buddy_alias.dart';
 import '../help/tab_tours.dart';
+import '../help/tour_examples.dart';
 import '../map/map_focus.dart';
 import '../map/widgets/map_banners.dart' show newBuddyFindsProvider;
 import 'spot_list.dart';
@@ -93,6 +94,10 @@ class _SpotListTabState extends ConsumerState<_SpotListTab> {
 
   /// Der Spot der ersten Zeile — ihn öffnet die Tour (#596).
   String? _firstSpotId;
+
+  /// Steht statt der leeren Liste die Beispielzeile da? Dann öffnet die
+  /// Tour das Beispiel-Blatt (`tour_examples.dart`).
+  bool _showsExample = false;
   VoidCallback? _unregisterScene;
 
   @override
@@ -102,7 +107,10 @@ class _SpotListTabState extends ConsumerState<_SpotListTab> {
         .read(coachRegistryProvider)
         .registerScene(SpotsCoach.sheet, () async {
       final id = _firstSpotId;
-      if (id == null || !mounted) return () {};
+      if (!mounted) return () {};
+      if (id == null) {
+        return _showsExample ? showExampleSpotSheet(context) : () {};
+      }
       final navigator = Navigator.of(context);
       var open = true;
       unawaited(
@@ -157,11 +165,13 @@ class _SpotListTabState extends ConsumerState<_SpotListTab> {
     ];
     final firstRow = items.indexWhere((item) => item.row != null);
     _firstSpotId = firstRow < 0 ? null : items[firstRow].row!.spot.id;
+    // Nur ohne JEDEN Spot — eine leere Suche ist kein leeres Konto.
+    _showsExample = ref.watch(coachExamplesProvider) &&
+        mine.isEmpty &&
+        friends.isEmpty;
 
     return TabTourStarter(
       script: kSpotsTourScript,
-      // Ohne Zeile gäbe es nichts vorzuführen (Kopf von `tab_tours.dart`).
-      ready: firstRow >= 0,
       child: Column(
       children: [
         _Controls(
@@ -175,7 +185,10 @@ class _SpotListTabState extends ConsumerState<_SpotListTab> {
           onSearch: () => setState(() {}),
         ),
         Expanded(
-          child: items.isEmpty
+          child: _showsExample
+              ? const Align(
+                  alignment: Alignment.topCenter, child: ExampleSpotTile())
+              : items.isEmpty
               ? _Empty(
                   hasSpots: mine.isNotEmpty || friends.isNotEmpty,
                   query: _search.text)

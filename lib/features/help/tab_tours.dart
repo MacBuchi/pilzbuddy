@@ -9,11 +9,12 @@
 //
 // Vier Dinge, die man wissen muss:
 //
-// - **Sie wartet auf Inhalt.** Die Spot-Tour zeigt an der ersten Zeile,
-//   was eine Zeile kann — in einer leeren Liste gäbe es nichts zu
-//   zeigen. Dann bleibt sie ungesehen und läuft beim nächsten Besuch,
-//   der eine Zeile hat. Schritte an Dingen, die nicht jeder hat (ein
-//   Buddy, Bilder einer Art), fallen einzeln weg (`requires`).
+// - **Ohne eigene Daten zeigt sie Beispiele** (seit 1.210.0,
+//   `tour_examples.dart`): Die Spot-Tour zeigt an der ersten Zeile, was
+//   eine Zeile kann, und bis 1.209.0 wartete sie deshalb auf einen Spot
+//   — über die Kette lief sie trotzdem und erklärte dann nur das
+//   Suchfeld. Schritte an Dingen, für die es kein Beispiel gibt (Bilder
+//   einer Art), fallen weiter einzeln weg (`requires`).
 // - **Sie läuft nur, wenn der Reiter SICHTBAR ist.** Die Reiter bleiben
 //   nach dem ersten Besuch im Baum (go_router hält sie im
 //   `IndexedStack`), und die Spot-Liste lädt gern nach, während man
@@ -111,6 +112,7 @@ abstract final class HelpCoach {
 
 const kSpotsTourScript = CoachScript(
   id: 'spots',
+  examples: true,
   steps: [
     CoachStep(
       title: 'Deine Spots',
@@ -230,6 +232,7 @@ const kPilzeTourScript = CoachScript(
 
 const kBuddysTourScript = CoachScript(
   id: 'buddys',
+  examples: true,
   steps: [
     CoachStep(
       title: 'Deine Buddys',

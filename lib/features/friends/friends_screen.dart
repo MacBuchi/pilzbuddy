@@ -14,6 +14,8 @@ import '../profile/sharing_rank.dart';
 import '../profile/sharing_rank_providers.dart';
 import '../coach/coach.dart';
 import '../help/tab_tours.dart';
+import '../help/tour_examples.dart';
+import '../spots/find_photo_providers.dart' show findPhotosProvider;
 import '../spots/widgets/find_photo_strip.dart' show FindPhotoGallery;
 import 'buddy_alias.dart';
 import 'buddy_alias_dialog.dart';
@@ -132,6 +134,11 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
     _firstBuddyId = accepted.isEmpty ? null : accepted.first.otherId(uid);
     final buddyCounts = ref.watch(buddySharedCountsProvider);
     final names = ref.watch(buddyNamesViewProvider);
+    // Beispiele nur während der Tour und nur, wo Echtes fehlt
+    // (`tour_examples.dart`).
+    final examples = ref.watch(coachExamplesProvider);
+    final noPhotos =
+        (ref.watch(findPhotosProvider).valueOrNull ?? const []).isEmpty;
 
     final requestedIds = {
       for (final f in friendships) ...[f.requesterId, f.addresseeId]
@@ -152,8 +159,11 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
             // Ganz oben, weil es das ist, was sich hier ändert: Anfragen
             // und Buddys bleiben wochenlang gleich, Fotos laufen nach 14
             // Tagen ab.
-            const CoachAnchor(
-                id: BuddysCoach.gallery, child: FindPhotoGallery()),
+            CoachAnchor(
+                id: BuddysCoach.gallery,
+                child: examples && noPhotos
+                    ? const ExampleFindPhotoGallery()
+                    : const FindPhotoGallery()),
             CoachAnchor(
               id: BuddysCoach.invite,
               child: OutlinedButton.icon(
@@ -278,6 +288,8 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
                 padding: EdgeInsets.all(16),
                 child: Center(child: CircularProgressIndicator()),
               )
+            else if (accepted.isEmpty && examples)
+              const ExampleBuddyTile()
             else if (accepted.isEmpty)
               const Padding(
                 padding: EdgeInsets.all(8),

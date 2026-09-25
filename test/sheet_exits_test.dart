@@ -42,6 +42,11 @@ const _ohneSchliessen = <String, String>{
   // daneben hieße, dass „Schließen" und „Spot löschen" einen
   // Daumenbreit auseinanderliegen. Der Griffbalken trägt das Blatt.
   'spot_detail_sheet.dart': 'Kopfzeile trägt bereits Löschen',
+  // Das Beispiel-Blatt der Spot-Tour: offen nur, solange die Tour läuft,
+  // und die schließt es selbst. Ein x wäre dort ohnehin nicht zu treffen
+  // — die Überlagerung schluckt jeden Tipp; heraus führen „Weiter",
+  // „Überspringen" und Zurück.
+  'tour_examples.dart': 'Nur während einer Tour offen, die Tour schließt es',
 };
 
 /// Was NIE in einem Blatt stehen darf.
