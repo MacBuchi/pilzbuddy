@@ -1,8 +1,8 @@
 {
  "source": "GBIF Occurrence Download",
- "doi": "10.15468/dl.dwbsuf",
- "fetched_on": "2026-09-16",
- "built_on": "2026-09-23",
+ "doi": "10.15468/dl.7d8pd8",
+ "fetched_on": "2026-09-25",
+ "built_on": "2026-09-25",
  "encoding": "gzip-columns",
  "columns": [
   "species",
@@ -12,8 +12,8 @@
   "count",
   "year"
  ],
- "records": 150275,
- "observations": 311441,
+ "records": 151372,
+ "observations": 313127,
  "west": 5.8,
  "east": 17.3,
  "north": 55.1,
@@ -26,30 +26,32 @@
    "CC0_1_0",
    "CC_BY_4_0"
   ],
-  "dropped_outside_box": 0,
-  "dropped_too_coarse": 1059,
-  "without_uncertainty": 106339
+  "dropped_outside_box": 40,
+  "dropped_too_coarse": 1324,
+  "without_uncertainty": 106531
  },
  "countries": {
   "AT": 105592,
   "CH": 127050,
-  "DE": 78799
+  "DE": 78799,
+  "IT": 1492,
+  "LI": 194
  },
  "species": [
   {
    "name": "Steinpilz",
    "sci": "Boletus edulis",
-   "observations": 8565
+   "observations": 8592
   },
   {
    "name": "Sommersteinpilz",
    "sci": "Boletus reticulatus",
-   "observations": 3520
+   "observations": 3527
   },
   {
    "name": "Kiefernsteinpilz",
    "sci": "Boletus pinophilus",
-   "observations": 589
+   "observations": 591
   },
   {
    "name": "Bronzeröhrling",
@@ -59,22 +61,22 @@
   {
    "name": "Maronenröhrling",
    "sci": "Imleria badia",
-   "observations": 7672
+   "observations": 7712
   },
   {
    "name": "Birkenpilz",
    "sci": "Leccinum scabrum",
-   "observations": 3301
+   "observations": 3312
   },
   {
    "name": "Rotkappe",
    "sci": "Leccinum",
-   "observations": 1762
+   "observations": 1778
   },
   {
    "name": "Espenrotkappe",
    "sci": "Leccinum aurantiacum",
-   "observations": 1481
+   "observations": 1486
   },
   {
    "name": "Birkenrotkappe",
@@ -84,32 +86,32 @@
   {
    "name": "Butterpilz",
    "sci": "Suillus luteus",
-   "observations": 1825
+   "observations": 1828
   },
   {
    "name": "Goldröhrling",
    "sci": "Suillus grevillei",
-   "observations": 5687
+   "observations": 5786
   },
   {
    "name": "Sandröhrling",
    "sci": "Suillus variegatus",
-   "observations": 1349
+   "observations": 1354
   },
   {
    "name": "Ziegenlippe",
    "sci": "Xerocomus subtomentosus",
-   "observations": 3590
+   "observations": 3592
   },
   {
    "name": "Rotfußröhrling",
    "sci": "Xerocomellus chrysenteron",
-   "observations": 7760
+   "observations": 7771
   },
   {
    "name": "Körnchenröhrling",
    "sci": "Suillus granulatus",
-   "observations": 2256
+   "observations": 2262
   },
   {
    "name": "Flockenstieliger Hexenröhrling",
@@ -119,52 +121,52 @@
   {
    "name": "Netzstieliger Hexenröhrling",
    "sci": "Suillellus luridus",
-   "observations": 4836
+   "observations": 4865
   },
   {
    "name": "Gallenröhrling",
    "sci": "Tylopilus felleus",
-   "observations": 2385
+   "observations": 2394
   },
   {
    "name": "Satansröhrling",
    "sci": "Rubroboletus satanas",
-   "observations": 673
+   "observations": 678
   },
   {
    "name": "Schönfußröhrling",
    "sci": "Caloboletus calopus",
-   "observations": 2735
+   "observations": 2753
   },
   {
    "name": "Pfifferling",
    "sci": "Cantharellus cibarius",
-   "observations": 8403
+   "observations": 8456
   },
   {
    "name": "Trompetenpfifferling",
    "sci": "Craterellus tubaeformis",
-   "observations": 3802
+   "observations": 3814
   },
   {
    "name": "Herbsttrompete",
    "sci": "Craterellus cornucopioides",
-   "observations": 2669
+   "observations": 2680
   },
   {
    "name": "Falscher Pfifferling",
    "sci": "Hygrophoropsis aurantiaca",
-   "observations": 3725
+   "observations": 3733
   },
   {
    "name": "Wiesenchampignon",
    "sci": "Agaricus campestris",
-   "observations": 1720
+   "observations": 1751
   },
   {
    "name": "Stadtchampignon",
    "sci": "Agaricus bitorquis",
-   "observations": 941
+   "observations": 945
   },
   {
    "name": "Anischampignon",
@@ -174,147 +176,147 @@
   {
    "name": "Waldchampignon",
    "sci": "Agaricus sylvaticus",
-   "observations": 1844
+   "observations": 1846
   },
   {
    "name": "Karbolchampignon",
    "sci": "Agaricus xanthodermus",
-   "observations": 905
+   "observations": 909
   },
   {
    "name": "Parasol",
    "sci": "Macrolepiota procera",
-   "observations": 8420
+   "observations": 8540
   },
   {
    "name": "Safranschirmling",
    "sci": "Chlorophyllum",
-   "observations": 2890
+   "observations": 2897
   },
   {
    "name": "Schopftintling",
    "sci": "Coprinus comatus",
-   "observations": 7154
+   "observations": 7227
   },
   {
    "name": "Fliegenpilz",
    "sci": "Amanita muscaria",
-   "observations": 12819
+   "observations": 13030
   },
   {
    "name": "Perlpilz",
    "sci": "Amanita rubescens",
-   "observations": 11839
+   "observations": 11911
   },
   {
    "name": "Pantherpilz",
    "sci": "Amanita pantherina",
-   "observations": 3277
+   "observations": 3294
   },
   {
    "name": "Grüner Knollenblätterpilz",
    "sci": "Amanita phalloides",
-   "observations": 3768
+   "observations": 3810
   },
   {
    "name": "Kegelhütiger Knollenblätterpilz",
    "sci": "Amanita virosa",
-   "observations": 559
+   "observations": 566
   },
   {
    "name": "Frühjahrsknollenblätterpilz",
    "sci": "Amanita verna",
-   "observations": 56
+   "observations": 59
   },
   {
    "name": "Scheidenstreifling",
    "sci": "Amanita vaginata",
-   "observations": 3227
+   "observations": 3234
   },
   {
    "name": "Frauentäubling",
    "sci": "Russula cyanoxantha",
-   "observations": 9507
+   "observations": 9536
   },
   {
    "name": "Speisetäubling",
    "sci": "Russula vesca",
-   "observations": 4107
+   "observations": 4120
   },
   {
    "name": "Ledertäubling",
    "sci": "Russula integra",
-   "observations": 3864
+   "observations": 3868
   },
   {
    "name": "Grüngefelderter Täubling",
    "sci": "Russula virescens",
-   "observations": 1361
+   "observations": 1363
   },
   {
    "name": "Speitäubling",
    "sci": "Russula emetica",
-   "observations": 1355
+   "observations": 1365
   },
   {
    "name": "Fichtenreizker",
    "sci": "Lactarius deterrimus",
-   "observations": 7333
+   "observations": 7385
   },
   {
    "name": "Edelreizker",
    "sci": "Lactarius deliciosus",
-   "observations": 1541
+   "observations": 1558
   },
   {
    "name": "Lachsreizker",
    "sci": "Lactarius salmonicolor",
-   "observations": 3886
+   "observations": 3889
   },
   {
    "name": "Kiefernreizker",
    "sci": "Lactarius sanguifluus",
-   "observations": 302
+   "observations": 307
   },
   {
    "name": "Grubiger Milchling",
    "sci": "Lactarius scrobiculatus",
-   "observations": 3200
+   "observations": 3215
   },
   {
    "name": "Mohrenkopfmilchling",
    "sci": "Lactarius lignyotus",
-   "observations": 1536
+   "observations": 1542
   },
   {
    "name": "Brätling",
    "sci": "Lactifluus volemus",
-   "observations": 909
+   "observations": 912
   },
   {
    "name": "Speisemorchel",
    "sci": "Morchella esculenta",
-   "observations": 1926
+   "observations": 1941
   },
   {
    "name": "Spitzmorchel",
    "sci": "Morchella elata",
-   "observations": 1052
+   "observations": 1055
   },
   {
    "name": "Frühjahrslorchel",
    "sci": "Gyromitra esculenta",
-   "observations": 440
+   "observations": 444
   },
   {
    "name": "Käppchenmorchel",
    "sci": "Morchella semilibera",
-   "observations": 664
+   "observations": 666
   },
   {
    "name": "Morchelbecherling",
    "sci": "Disciotis venosa",
-   "observations": 825
+   "observations": 828
   },
   {
    "name": "Böhmische Verpel",
@@ -324,22 +326,22 @@
   {
    "name": "Riesenbovist",
    "sci": "Calvatia gigantea",
-   "observations": 1055
+   "observations": 1071
   },
   {
    "name": "Flaschenstäubling",
    "sci": "Lycoperdon perlatum",
-   "observations": 8648
+   "observations": 8687
   },
   {
    "name": "Birnenstäubling",
    "sci": "Apioperdon pyriforme",
-   "observations": 6247
+   "observations": 6281
   },
   {
    "name": "Austernseitling",
    "sci": "Pleurotus ostreatus",
-   "observations": 2858
+   "observations": 2860
   },
   {
    "name": "Lungenseitling",
@@ -349,37 +351,37 @@
   {
    "name": "Schwefelporling",
    "sci": "Laetiporus sulphureus",
-   "observations": 3996
+   "observations": 4015
   },
   {
    "name": "Leberpilz",
    "sci": "Fistulina hepatica",
-   "observations": 1383
+   "observations": 1396
   },
   {
    "name": "Judasohr",
    "sci": "Auricularia auricula-judae",
-   "observations": 6656
+   "observations": 6677
   },
   {
    "name": "Krause Glucke",
    "sci": "Sparassis crispa",
-   "observations": 2119
+   "observations": 2132
   },
   {
    "name": "Semmelstoppelpilz",
    "sci": "Hydnum repandum",
-   "observations": 5336
+   "observations": 5352
   },
   {
    "name": "Habichtspilz",
    "sci": "Sarcodon imbricatus",
-   "observations": 2717
+   "observations": 2751
   },
   {
    "name": "Ziegenbart",
    "sci": "Ramaria",
-   "observations": 4747
+   "observations": 4798
   },
   {
    "name": "Igelstachelbart",
@@ -389,22 +391,22 @@
   {
    "name": "Stockschwämmchen",
    "sci": "Kuehneromyces mutabilis",
-   "observations": 5347
+   "observations": 5367
   },
   {
    "name": "Maipilz",
    "sci": "Calocybe gambosa",
-   "observations": 2382
+   "observations": 2388
   },
   {
    "name": "Nelkenschwindling",
    "sci": "Marasmius oreades",
-   "observations": 3193
+   "observations": 3205
   },
   {
    "name": "Rehbrauner Dachpilz",
    "sci": "Pluteus cervinus",
-   "observations": 6249
+   "observations": 6273
   },
   {
    "name": "Riesenträuschling",
@@ -414,77 +416,77 @@
   {
    "name": "Hallimasch",
    "sci": "Armillaria",
-   "observations": 3604
+   "observations": 3615
   },
   {
    "name": "Dunkler Hallimasch",
    "sci": "Armillaria ostoyae",
-   "observations": 2931
+   "observations": 2941
   },
   {
    "name": "Violetter Rötelritterling",
    "sci": "Lepista nuda",
-   "observations": 4387
+   "observations": 4399
   },
   {
    "name": "Fuchsiger Rötelritterling",
    "sci": "Paralepista flaccida",
-   "observations": 3278
+   "observations": 3286
   },
   {
    "name": "Nebelkappe",
    "sci": "Clitocybe nebularis",
-   "observations": 7531
+   "observations": 7566
   },
   {
    "name": "Mönchskopf",
    "sci": "Infundibulicybe geotropa",
-   "observations": 2281
+   "observations": 2288
   },
   {
    "name": "Reifpilz",
    "sci": "Cortinarius caperatus",
-   "observations": 2382
+   "observations": 2397
   },
   {
    "name": "Samtfußrübling",
    "sci": "Flammulina velutipes",
-   "observations": 3697
+   "observations": 3701
   },
   {
    "name": "Gifthäubling",
    "sci": "Galerina marginata",
-   "observations": 2977
+   "observations": 2984
   },
   {
    "name": "Grünblättriger Schwefelkopf",
    "sci": "Hypholoma fasciculare",
-   "observations": 12767
+   "observations": 12799
   },
   {
    "name": "Kahler Krempling",
    "sci": "Paxillus involutus",
-   "observations": 4984
+   "observations": 4999
   },
   {
    "name": "Spitzgebuckelter Raukopf",
    "sci": "Cortinarius rubellus",
-   "observations": 1187
+   "observations": 1192
   },
   {
    "name": "Orangefuchsiger Raukopf",
    "sci": "Cortinarius orellanus",
-   "observations": 324
+   "observations": 329
   },
   {
    "name": "Riesenrötling",
    "sci": "Entoloma sinuatum",
-   "observations": 471
+   "observations": 472
   },
   {
    "name": "Tigerritterling",
    "sci": "Tricholoma pardinum",
-   "observations": 587
+   "observations": 590
   },
   {
    "name": "Ziegelroter Risspilz",
@@ -494,34 +496,34 @@
   {
    "name": "Grünling",
    "sci": "Tricholoma equestre",
-   "observations": 427
+   "observations": 428
   },
   {
    "name": "Violetter Lacktrichterling",
    "sci": "Laccaria amethystina",
-   "observations": 7338
+   "observations": 7368
   }
  ],
  "datasets": [
   {
    "key": "c0633ec5-19cd-4a58-b84c-ca55c2e7ae64",
    "title": "Swiss National Fungi Databank",
-   "observations": 125434
+   "observations": 125910
   },
   {
    "key": "71d34a18-4dad-4d2d-9cb3-c1e91317faad",
    "title": "Österreichische Mykologische Gesellschaft - Austrian Mycological Society Observations",
-   "observations": 101949
+   "observations": 101963
   },
   {
    "key": "6ac3f774-d9fb-4796-b3e9-92bf6c81c084",
    "title": "NABU|naturgucker",
-   "observations": 62890
+   "observations": 63460
   },
   {
    "key": "50c9509d-22c7-4a22-a47d-8c48425ef4a7",
    "title": "iNaturalist Research-grade Observations",
-   "observations": 13133
+   "observations": 13747
   },
   {
    "key": "aa6c5ee6-d4d7-4a65-a04f-379cffbf4842",
@@ -621,6 +623,11 @@
   {
    "key": "638110a0-f762-11e1-a439-00145eb45e9a",
    "title": "Biosphärenpark Wienerwald - Wiener Steinhofgründe",
+   "observations": 7
+  },
+  {
+   "key": "960af0c2-f762-11e1-a439-00145eb45e9a",
+   "title": "Artenvielfalt am Schlern",
    "observations": 7
   },
   {
@@ -731,6 +738,11 @@
   {
    "key": "7b9ee3cf-c98e-43a3-93b0-1672151e43eb",
    "title": "Biodiversitätsdatenbank Nationalpark Gesäuse",
+   "observations": 3
+  },
+  {
+   "key": "9f24129b-d9e7-4033-a05b-37260b3fde7f",
+   "title": "FunDive: Monitoring and mapping fungal diversity for nature conservation",
    "observations": 3
   },
   {
@@ -846,6 +858,11 @@
   {
    "key": "8aa9a002-f762-11e1-a439-00145eb45e9a",
    "title": "Walldorf-Wiesloch:  \"Natur über den Gleisen\"",
+   "observations": 2
+  },
+  {
+   "key": "8a3c5fa6-f762-11e1-a439-00145eb45e9a",
+   "title": "\"Tre Pini\" (Montebelluna, Italien)",
    "observations": 2
   },
   {
@@ -1139,6 +1156,6 @@
    "observations": 1
   }
  ],
- "bytes": 646115,
- "sha256": "1ce07e3fc9ee122bef8a272e9c6d485ab9c56117ddbbe5b7ddc268900a1b1666"
+ "bytes": 653488,
+ "sha256": "22822ef5d70208f66dbb11f43d17882810f7373202657821e876bbb7c5fe35d2"
 }

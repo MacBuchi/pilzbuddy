@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Holt den DACH-Pilzbestand aus GBIF und macht ihn lokal abfragbar.
+"""Holt den Pilzbestand für DACH und den Alpenraum aus GBIF und macht
+ihn lokal abfragbar.
 
     python3 tool/gbif_download.py request     # Download anstoßen
     python3 tool/gbif_download.py status      # läuft er noch?
@@ -23,7 +24,8 @@ andere Stichprobe. Ein DOI ist dieselbe Zusage, nur zitierfähig, und er
 erledigt zugleich die CC-BY-Namensnennung über alle Quell-Datasets.
 
 BEWUSST GROSSZÜGIG GEFILTERT. Der Download nimmt alle Pilze mit
-Koordinate in DACH — **ohne** Lizenz-, Genauigkeits- oder
+Koordinate in DACH und Liechtenstein, dazu Italien im Alpenraum
+(`ALPINE_ITALY`, seit #612) — **ohne** Lizenz-, Genauigkeits- oder
 basisOfRecord-Filter. Die stehen als SPALTEN zur Verfügung und werden
 lokal gesetzt. Enger zu ziehen spart einmalig Platz und kostet bei der
 nächsten Frage einen neuen Download; der Effort-Nenner (#467) braucht
@@ -100,11 +102,42 @@ COLUMNS = [
     ("recordedBy", "TEXT"), ("countryCode", "TEXT"),
 ]
 
+# Die Länder, die GANZ im Bestand liegen. Liechtenstein seit dem zweiten
+# Download (#612): Es lag mitten in der Box aller Gitter und fehlte nur,
+# weil niemand es aufgeschrieben hatte.
+COUNTRIES = ["DE", "AT", "CH", "LI"]
+
+# Italien nur im Alpenraum (#612, Südtirol). Ganz Italien wären 471 000
+# Meldungen, die meisten davon aus dem Mittelmeerklima — für eine
+# Hold-out-Messung der Alpen-Klassen wären sie Rauschen, für die Karte
+# außerhalb der Box. Der Schnitt ist eine Box, keine Landesgrenze:
+# Aostatal bis Friaul, südlich bis an den Alpenrand (Bergamo liegt drin,
+# Brescia und Mailand nicht). GEMESSEN am 2026-09-25 über die Such-API:
+# 138 962 Meldungen in der Box, 69 265 davon in Südtirol selbst.
+#
+# **`IT` im Bestand HEISST damit „italienische Alpen".** Wer
+# `--holdout IT` in tool/ampel_validate.py aufruft, prüft diese Box —
+# nicht Italien.
+ALPINE_ITALY = {"west": 6.6, "south": 45.6, "east": 13.9, "north": 47.2}
+
+
+def _alpine_italy_wkt(box=ALPINE_ITALY):
+    """Die Box als WKT-Polygon, gegen den Uhrzeigersinn, wie GBIF es will."""
+    w, s, e, n = box["west"], box["south"], box["east"], box["north"]
+    return f"POLYGON(({w} {s},{e} {s},{e} {n},{w} {n},{w} {s}))"
+
+
 PREDICATE = {
     "type": "and",
     "predicates": [
         {"type": "equals", "key": "TAXON_KEY", "value": "5"},      # Fungi
-        {"type": "in", "key": "COUNTRY", "values": ["DE", "AT", "CH"]},
+        {"type": "or", "predicates": [
+            {"type": "in", "key": "COUNTRY", "values": COUNTRIES},
+            {"type": "and", "predicates": [
+                {"type": "equals", "key": "COUNTRY", "value": "IT"},
+                {"type": "within", "geometry": _alpine_italy_wkt()},
+            ]},
+        ]},
         {"type": "equals", "key": "HAS_COORDINATE", "value": "true"},
         {"type": "equals", "key": "HAS_GEOSPATIAL_ISSUE", "value": "false"},
     ],
@@ -323,6 +356,19 @@ def self_test():
                       "decimalLatitude BETWEEN 51 AND 52").fetchone()[0]
     assert got == 1, got
     con.close()
+    # Das Prädikat: Italien NUR mit Box, die Box gegen den Uhrzeigersinn
+    # und geschlossen. Ein „IT" ohne Geometrie holte 471 000 Meldungen
+    # aus dem Mittelmeerraum in einen Bestand, der „Alpen" verspricht.
+    ors = [p for p in PREDICATE["predicates"] if p["type"] == "or"][0]
+    plain = [p for p in ors["predicates"] if p["type"] == "in"][0]
+    assert "IT" not in plain["values"], plain
+    assert "LI" in plain["values"], plain
+    italy = [p for p in ors["predicates"] if p["type"] == "and"][0]
+    kinds = {p["type"] for p in italy["predicates"]}
+    assert kinds == {"equals", "within"}, kinds
+    wkt = _alpine_italy_wkt()
+    assert wkt.startswith("POLYGON((6.6 45.6,13.9 45.6,13.9 47.2,6.6 47.2,"
+                          "6.6 45.6))"), wkt
     print("Selbsttest ok")
 
 

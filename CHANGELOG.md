@@ -7,6 +7,15 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Gemeldete Fundorte auch in Südtirol
+
+*25. September 2026 · Version 1.211.0*
+
+- Die Kartenebene **„Gemeldete Fundorte"** zeigt jetzt auch die
+  GBIF-Meldungen aus **Südtirol und den italienischen Alpen** sowie aus
+  Liechtenstein — bisher endete sie an der DACH-Grenze. Das ist der
+  erste Schritt auf dem Weg zu einer Pilzampel für Südtirol.
+
 ## Die Touren noch einmal, und der neueste Spot obenauf
 
 *25. September 2026 · Versionen 1.210.1 und 1.210.2*
