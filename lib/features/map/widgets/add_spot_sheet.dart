@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../coach/coach.dart';
+import '../../help/map_tour.dart' show MapCoach;
 import '../../spots/widgets/species_collector.dart';
 import 'protected_area_note.dart';
 import 'spot_position_field.dart';
@@ -265,8 +267,11 @@ class _AddSpotSheetState extends State<_AddSpotSheet> {
               children: [
                 const Icon(Icons.add_location_alt, color: AppColors.forestGreen),
                 const SizedBox(width: 8),
-                Text('Neuer Pilz-Spot',
-                    style: Theme.of(context).textTheme.titleLarge),
+                Flexible(
+                  child: Text('Neuer Pilz-Spot',
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleLarge),
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -348,7 +353,9 @@ class _AddSpotSheetState extends State<_AddSpotSheet> {
             // Stelle nur für später notiert, hatte keinen Weg. Der
             // Schalter steht UNTER den Arten: Über ihnen schöbe er die
             // Vorschlagsliste unter den Falz (im Flow-Test gemessen).
-            SwitchListTile(
+            CoachAnchor(
+              id: MapCoach.addPlanned,
+              child: SwitchListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
               value: _planned,
@@ -358,7 +365,7 @@ class _AddSpotSheetState extends State<_AddSpotSheet> {
                   ? 'Die Arten oben sind Erwartung, kein Fund — die '
                       'Ampel spricht trotzdem für sie.'
                   : 'Aus: Der Spot bekommt gleich einen Fund.'),
-            ),
+            )),
             const SizedBox(height: 8),
             TextField(
               controller: _noteController,

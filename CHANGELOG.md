@@ -7,6 +7,26 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## „Zeig es mir" in Entdecken
+
+*25. September 2026 · Version 1.207.0*
+
+Jeder Eintrag unter Profil → Entdecken hat jetzt den Knopf **„Zeig es
+mir"**. Er springt an die richtige Stelle und führt vor, wie es geht —
+bis hinein in das Menü, Blatt oder den Dialog, um den es geht: die
+Regenzeile im Ebenen-Blatt, „Nur vormerken" im Anlege-Blatt, die
+Pilztour im Unterwegs-Blatt, der Meldedialog für die Artgalerie. Danach
+ist alles wieder zu, ausgelöst wird nichts. Ein kleines Bild auf jeder
+Karte zeigt, welche Geste vorgeführt wird.
+
+Fehlt dir etwas, das die Vorführung bräuchte (etwa ein Buddy), zeigt
+sie, wie du es bekommst.
+
+Nebenbei auf kleinen Handys: Das Anzahlfeld beim Eintragen und der Knopf
+„Bild anhängen" im Meldedialog laufen nicht mehr über den Rand, und die
+Pilz-Tour findet den Bildstreifen einer Art auch dann, wenn er unter dem
+Falz liegt.
+
 ## Kurze Touren in jedem Reiter, und eine echte Hand
 
 *24. und 25. September 2026 · Versionen 1.206.0 bis 1.206.2*

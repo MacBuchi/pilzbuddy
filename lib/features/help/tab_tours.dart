@@ -46,6 +46,9 @@ abstract final class SpotsCoach {
   /// Szene: das Spot-Blatt der ersten Zeile.
   static const sheet = 'spots.sheet';
   static const sheetEntries = 'spots.sheet.entries';
+
+  /// Der Stift im Spot-Blatt — nur am eigenen, schon gesendeten Spot.
+  static const sheetEdit = 'spots.sheet.edit';
 }
 
 /// Die Anker des Reiters „Pilze".
@@ -54,6 +57,9 @@ abstract final class PilzeCoach {
   static const row = 'pilze.row';
   static const rowSeason = 'pilze.row.season';
   static const rowSwitch = 'pilze.row.switch';
+
+  /// Das Auge der ersten Art — nur, wenn sie Bilder hat.
+  static const rowEye = 'pilze.row.eye';
   static const search = 'pilze.search';
   static const seasonChip = 'pilze.seasonChip';
 
@@ -61,6 +67,15 @@ abstract final class PilzeCoach {
   static const detail = 'pilze.detail';
   static const detailEdibility = 'pilze.detail.edibility';
   static const detailPictures = 'pilze.detail.pictures';
+
+  /// Die Liste der Artseite — der Meldeknopf steht ganz unten und wird
+  /// erst beim Scrollen gebaut.
+  static const detailList = 'pilze.detail.list';
+  static const detailReport = 'pilze.detail.report';
+
+  /// Szene AUF der Artseite: der Meldedialog, mit den Bildern.
+  static const report = 'pilze.detail/report';
+  static const reportPhotos = 'pilze.report.photos';
 }
 
 /// Die Anker des Reiters „Buddys".
@@ -72,6 +87,24 @@ abstract final class BuddysCoach {
   /// Stift und Sprechblase am ersten Buddy.
   static const alias = 'buddys.alias';
   static const message = 'buddys.message';
+
+  /// Szene: der Verlauf mit dem ersten Buddy, mit dem Eingabefeld.
+  static const chat = 'buddys.chat';
+  static const chatInput = 'buddys.chat.input';
+}
+
+/// Die Anker des Profils — für die Vorführungen aus „Entdecken".
+abstract final class ProfileCoach {
+  /// Die Liste; der Ampel-Schalter steht weit unten und wird erst beim
+  /// Scrollen gebaut.
+  static const list = 'profile.list';
+  static const ampel = 'profile.ampel';
+}
+
+/// Die Anker der Kurzanleitung.
+abstract final class HelpCoach {
+  static const list = 'help.list';
+  static const tabTours = 'help.tabTours';
 }
 
 const kSpotsTourScript = CoachScript(
@@ -170,7 +203,10 @@ const kPilzeTourScript = CoachScript(
       lit: [PilzeCoach.detailPictures],
       ring: [],
       gesture: CoachGesture.swipe,
-      requires: [PilzeCoach.detailPictures],
+      // Kein `requires`: Auf einem kleinen Schirm liegt der Streifen
+      // unter dem Falz, und die Liste baut ihn erst beim Scrollen — der
+      // Schritt fiel dort still weg (360×640, im Test gesehen).
+      scrollIn: PilzeCoach.detailList,
     ),
   ],
 );
@@ -276,6 +312,11 @@ class TabTourStarter extends ConsumerStatefulWidget {
 class _TabTourStarterState extends ConsumerState<TabTourStarter> {
   bool _scheduled = false;
 
+  /// Lief beim Eintreffen schon etwas (eine Vorführung aus „Entdecken"),
+  /// wartet die Tour bis zum nächsten Besuch des Reiters — sonst fiele sie
+  /// über das Ende der Vorführung her, die man gerade bestellt hat.
+  bool _yielded = false;
+
   @override
   Widget build(BuildContext context) {
     final id = widget.script.id;
@@ -284,7 +325,10 @@ class _TabTourStarterState extends ConsumerState<TabTourStarter> {
     // Abhängigkeit, nicht nur Abfrage: Wird der Reiter sichtbar, baut
     // dieses Widget neu, und der Start wird erneut versucht.
     final visible = TickerMode.valuesOf(context).enabled;
-    if (visible && (requested || (!seen && widget.ready))) _schedule();
+    if (!visible) _yielded = false;
+    if (visible && (requested || (!seen && widget.ready && !_yielded))) {
+      _schedule();
+    }
     return widget.child;
   }
 
@@ -299,8 +343,11 @@ class _TabTourStarterState extends ConsumerState<TabTourStarter> {
       // Liegt eine Unterseite darüber (etwa eine Artseite), ist der
       // Reiter zwar aktiv, aber nicht zu sehen.
       if (!(ModalRoute.of(context)?.isCurrent ?? true)) return;
-      if (ref.read(coachProvider) != null) return;
       final requested = ref.read(requestedTabTourProvider) == widget.script.id;
+      if (ref.read(coachProvider.notifier).busy) {
+        if (!requested) _yielded = true;
+        return;
+      }
       if (requested) {
         ref.read(requestedTabTourProvider.notifier).clear();
       } else if (ref.read(seenCoachToursProvider).contains(widget.script.id) ||

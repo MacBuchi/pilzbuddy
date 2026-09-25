@@ -34,8 +34,34 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
   bool _searching = false;
   bool _searched = false;
 
+  /// Der erste angenommene Buddy — seinen Verlauf öffnet die
+  /// Vorführung „Nachrichten" (#596).
+  String? _firstBuddyId;
+  VoidCallback? _unregisterScene;
+
+  @override
+  void initState() {
+    super.initState();
+    _unregisterScene = ref
+        .read(coachRegistryProvider)
+        .registerScene(BuddysCoach.chat, () async {
+      final id = _firstBuddyId;
+      if (id == null || !mounted) return () {};
+      final router = GoRouter.of(context);
+      final path = '/friends/chat/$id';
+      router.go(path);
+      // Zurück nur, wenn der Verlauf noch vorne ist.
+      return () {
+        if (router.routerDelegate.currentConfiguration.uri.path == path) {
+          router.go('/friends');
+        }
+      };
+    });
+  }
+
   @override
   void dispose() {
+    _unregisterScene?.call();
     _searchController.dispose();
     super.dispose();
   }
@@ -103,6 +129,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
     final incoming = friendships.where((f) => f.isIncomingFor(uid)).toList();
     final outgoing = friendships.where((f) => f.isOutgoingFor(uid)).toList();
     final accepted = friendships.where((f) => f.isAccepted).toList();
+    _firstBuddyId = accepted.isEmpty ? null : accepted.first.otherId(uid);
     final buddyCounts = ref.watch(buddySharedCountsProvider);
     final names = ref.watch(buddyNamesViewProvider);
 

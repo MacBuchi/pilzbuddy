@@ -15,7 +15,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/app_colors.dart';
+import '../coach/coach.dart';
 import 'feature_highlights.dart';
+import 'highlight_demos.dart';
 import 'highlight_art.dart';
 import 'highlight_sheet.dart';
 
@@ -55,7 +57,8 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
         children: [
           Text(
             'Was PilzBuddy kann — auch das, was man beim Benutzen leicht '
-            'übersieht. „Ausprobieren" führt direkt hin.',
+            'übersieht. „Zeig es mir" führt es kurz vor, „Ausprobieren" '
+            'führt direkt hin.',
             style: theme.textTheme.bodyMedium
                 ?.copyWith(color: theme.hintColor),
           ),
@@ -86,6 +89,10 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
           highlight: h,
           unseen: _unseen.contains(h.id),
           onTry: () => context.go(h.target),
+          onShow: kHighlightDemos[h.id] == null
+              ? null
+              : () => startHighlightDemo(GoRouter.of(context),
+                  ref.read(coachProvider.notifier), kHighlightDemos[h.id]!),
         ),
     ];
   }
@@ -97,11 +104,15 @@ class _Entry extends StatelessWidget {
     required this.highlight,
     required this.unseen,
     required this.onTry,
+    this.onShow,
   });
 
   final FeatureHighlight highlight;
   final bool unseen;
   final VoidCallback onTry;
+
+  /// „Zeig es mir" — die Vorführung (`highlight_demos.dart`).
+  final VoidCallback? onShow;
 
   @override
   Widget build(BuildContext context) {
@@ -140,13 +151,39 @@ class _Entry extends StatelessWidget {
                 ),
               ],
             ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: onTry,
-                child: const Text('Ausprobieren'),
-              ),
+            Row(
+              children: [
+                // Welche Geste die Vorführung zeigt — gezeichnet mit
+                // derselben Hand.
+                if (kHighlightDemos[highlight.id] case final demo?)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: GesturePreview(gesture: demo.gesture, size: 40),
+                  ),
+                // `Wrap`, keine `Row`: Zwei deutsche Beschriftungen passen
+                // bei 360 px nicht nebeneinander (im Test 162 px Überlauf).
+                Expanded(
+                  child: Wrap(
+                    alignment: WrapAlignment.end,
+                    spacing: 4,
+                    children: [
+                      TextButton(
+                        onPressed: onTry,
+                        child: const Text('Ausprobieren'),
+                      ),
+                      if (onShow != null)
+                        FilledButton.tonalIcon(
+                          key: ValueKey('show-${highlight.id}'),
+                          onPressed: onShow,
+                          icon: const Icon(Icons.play_arrow, size: 18),
+                          label: const Text('Zeig es mir'),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
             ),
+            const SizedBox(height: 4),
           ],
         ),
       ),

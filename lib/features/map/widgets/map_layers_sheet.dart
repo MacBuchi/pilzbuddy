@@ -201,7 +201,8 @@ class _MapLayersSheet extends ConsumerWidget {
                     detail: MapLayerDetail.terrain,
                     colour: AppColors.contourLine,
                   ),
-                  const _RainRow(),
+                  const CoachAnchor(
+                      id: MapCoach.layersRain, child: _RainRow()),
                   if (ref.watch(ampelPreviewEnabledProvider))
                     _LayerRow(
                       title: 'Pilzampel',
@@ -231,7 +232,9 @@ class _MapLayersSheet extends ConsumerWidget {
                   // Beobachtungen, nicht der Bedingungen — und die Ampel-
                   // Tests der Bestandsblätter finden ihre Zeile weiter dort,
                   // wo sie war.
-                  _LayerRow(
+                  CoachAnchor(
+                    id: MapCoach.layersGbif,
+                    child: _LayerRow(
                     title: 'Gemeldete Fundorte',
                     badge: 'GBIF',
                     // „gemeldet", nie „wächst": Die Scheibe sagt, dass
@@ -244,7 +247,7 @@ class _MapLayersSheet extends ConsumerWidget {
                         ref.read(gbifLayerEnabledProvider.notifier).set(value),
                     detail: MapLayerDetail.gbif,
                     colour: AppColors.gbifClassColours['herbst']!,
-                  ),
+                  )),
                 ],
               ),
             ),

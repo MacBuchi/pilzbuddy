@@ -1396,6 +1396,31 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   - **Bilder aus Widgets** (`HighlightArt`: das echte Knopfsymbol plus
     ein schaukelnder Pilz-Buddy), keine Screenshots — die veralten mit
     jeder Oberflächenänderung —, kein Lottie.
+  - **„Zeig es mir" (seit 1.207.0, `highlight_demos.dart`)**: je Eintrag
+    eine Vorführung auf der Hinweis-Maschine, und sie endet IN der
+    Funktion (Blatt, Menü, Dialog, Seite). **Wer einen Eintrag anlegt,
+    bringt seine Vorführung mit** — `highlight_demos_flow_test.dart`
+    verlangt eine je Kennung und fährt JEDE aus „Entdecken" durch: jeder
+    gezeigte Schritt findet sein Ziel, die Blase liegt im Bild, danach
+    ist nichts offen. Was dafür in die Maschine kam:
+    - **Szenen schachteln** (`a/b`): Der Meldedialog liegt AUF der
+      Artseite; die äußere bleibt offen, geschlossen wird von innen.
+    - **Szenen dürfen sich spät anmelden** (`retryScenes`, je Bild) —
+      ihr Besitzer entsteht oft erst, wenn die äußere steht.
+    - **`scrollIn`**: Ziele weit unten in einer `ListView` (Ampel-
+      Schalter im Profil, Meldeknopf der Artseite) sind nicht gebaut,
+      bis man hinscrollt; die Maschine scrollt die genannte Liste weiter,
+      bis der Anker da ist.
+    - **`unless`** als Gegenstück zu `requires`: der Ersatzschritt
+      („erst einen Buddy finden"). Zähler und „Los geht's" rechnen über
+      die Schritte, die WIRKLICH laufen.
+    - **`reserve`**: Zwischen Tipp und Start (drei Bilder, damit der
+      Zielreiter seine Anker meldet) ist die Maschine belegt, und die
+      Reiter-Tour weicht für den Rest dieses Besuchs.
+    Eine Falle beim Bau: Ein Dialog-`builder`, der über `ref` liest,
+    baut beim Schließen noch einmal — schließt die Vorführung erst den
+    Dialog und dann die Seite darunter, ist dieses `ref` schon tot. Werte
+    vor `showDialog` lesen.
   - **`FakeSettings.highlightsSeenVersion` steht auf `9999.0.0`**, die
     App auf `null`. Andersherum bekäme jeder Bestandstest das Blatt über
     die Karte gelegt; Muster wie `mapTourSeen`.

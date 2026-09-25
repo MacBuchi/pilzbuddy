@@ -41,6 +41,19 @@ abstract final class MapCoach {
   /// Szene: das Ebenen-Blatt.
   static const layersSheet = 'map.layersSheet';
   static const layersForest = 'map.layers.forest';
+  static const layersRain = 'map.layers.rain';
+  static const layersGbif = 'map.layers.gbif';
+
+  /// Der Vorhang — nur da, wenn eine Ebene an ist.
+  static const hideLayers = 'map.hideLayers';
+
+  /// Szene: das Unterwegs-Blatt, mit der Zeile der Pilztour.
+  static const tripSheet = 'map.tripSheet';
+  static const tripTour = 'map.trip.tour';
+
+  /// Szene: das Anlege-Blatt am Fadenkreuz, mit „Nur vormerken".
+  static const addSheet = 'map.addSheet';
+  static const addPlanned = 'map.add.planned';
 }
 
 const kMapTourScript = CoachScript(
