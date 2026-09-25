@@ -78,6 +78,8 @@ Fundtage gar nicht erst bewertet.
 | 9 | 2026-09-18 | H1: σ = 3,25 K gegen 5,0 K | DE ≥ 2019 (P1) | **nicht bestanden** | `pilzampel-h1-ergebnis.md` |
 | 10 | 2026-09-18 | H1, Reisetest derselben Frage | **AT + CH** (P2) | Pfifferling kippt nach unten | `pilzampel-h1-ergebnis.md` |
 | 11 | 2026-09-19 | H6: Sommer-Optimum 14,0 °C statt 17,5 °C | **AT + CH** | **nicht bestanden** — Δ +0,014, p = 0,29, und 9 von 20 Fundjahren bewegen sich in die Gegenrichtung | `pilzampel-h6-ergebnis.md` |
+| 12 | 2026-09-25 | Pfifferling-Fenster 17,5 °C, geografisch (#612) | **IT, Alpenbox** | **nicht auswertbar** — 29 Paare, Spiegel-Kontrolle 0,69 | `pilzampel-suedtirol-holdout-sommer.md` |
+| 13 | 2026-09-25 | Klasse `herbst` (13 °C), geografisch (#612) | **IT, Alpenbox** | **leer** — das Fenster IST die Referenz, der Vergleich misst nichts; AUC mit 13 °C je Art 0,60–0,95 bei 5–49 Paaren, keine Latte dafür registriert | `pilzampel-suedtirol-holdout-herbst.md` |
 
 ### Stand je Achse
 
@@ -86,6 +88,7 @@ Fundtage gar nicht erst bewertet.
 | DE ≥ 2019 | 3 (#1, #3, #9) | 1½ |
 | **AT + CH** | **6** (#2, #4, #5, #8, #10, #11) | 1 |
 | fremde Arten | 1 (#7) | 0 — der Plan war fehlerhaft |
+| **IT, Alpenbox** | 2 (#12, #13) | 0 — beide ohne Aussage: eine Ziehung zu dünn, ein Vergleich ohne Inhalt |
 
 ---
 
