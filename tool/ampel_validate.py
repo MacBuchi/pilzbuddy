@@ -94,6 +94,12 @@ _spec = importlib.util.spec_from_file_location(
 ampel_basis = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(ampel_basis)
 
+_spec = importlib.util.spec_from_file_location(
+    "gbif_download", os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                  "gbif_download.py"))
+gbif_download = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(gbif_download)
+
 # **Welcher Wetterdatensatz** — ab 2026-09-17 ein ausdrücklicher Wert
 # statt eines Weglassens (`docs/pilzampel-messbasis.md`, Phase 0.1).
 #
@@ -2856,6 +2862,25 @@ def class_holdout_verdict(rows, members):
     return {"state": "bestanden", "met": met, "failed": [], "offen": []}
 
 
+def holdout_region_notes(countries):
+    """Was ein Ländercode im BESTAND bedeutet, wenn es nicht das Land ist.
+
+    „IT" liegt seit #612 nur als Alpenbox vor (`gbif_download.ALPINE_ITALY`,
+    Südtirol bis Aostatal), nicht als Italien. Ein Bericht, der „geprüft
+    in IT" sagt, behauptete sonst eine Prüfung im Mittelmeerklima, die
+    nie stattgefunden hat — und die Zahl daneben gälte für ein Land.
+    """
+    if "IT" not in countries:
+        return []
+    box = gbif_download.ALPINE_ITALY
+    return [f"**„IT“ ist hier der Alpenraum, nicht Italien:** Der lokale "
+            f"Bestand trägt italienische Meldungen nur aus der Box "
+            f"{box['west']}–{box['east']}° O, {box['south']}–{box['north']}° N "
+            "(Südtirol, Trentino, Belluno, Sondrio, Aostatal; "
+            "`tool/gbif_download.py`, #612). Die Zahlen unten gelten für "
+            "diese Box.", ""]
+
+
 def render_class_holdout_report(rows, countries, key, window, fits,
                                 fetched_on):
     """Der Hold-out einer KLASSE — ein Fenster, mehrere Arten.
@@ -2876,6 +2901,7 @@ def render_class_holdout_report(rows, countries, key, window, fits,
            f"Angepasst wurde in **Deutschland** (Jahre bis {FIT_UNTIL_YEAR}), "
            f"geprüft in **{laender}** — dort sind ALLE Jahre Prüfjahre, denn "
            "an der Anpassung war keiner von ihnen beteiligt.", "",
+           *holdout_region_notes(countries),
            "**Geprüft wird das Fenster der KLASSE, nicht das jeder Art.** "
            "Ausgeliefert würde ein Fenster für alle Mitglieder; eines je "
            "Art zu prüfen beantwortete eine Frage, die sich in der App nie "
@@ -5087,6 +5113,13 @@ def self_test():
     assert "Bestanden" in gut
     assert "Schwellen" in gut, "ohne sie liefert die Klasse nicht aus"
     assert "vorab ausgeschlossen war" not in gut
+    # „IT" heißt im Bestand Alpenbox (#612) — der Bericht muss es sagen,
+    # und zwar NUR dann.
+    assert "Alpenraum, nicht Italien" not in gut
+    alpen = render_class_holdout_report(
+        [hold_row(a, 0.09), hold_row(b, 0.07)], ["IT"], "herbst_holz",
+        fenster, fits, "2026-09-25")
+    assert "Alpenraum, nicht Italien" in alpen and "45.6–47.2" in alpen, alpen
     # Die Richtungsaussage steht NACH dem Urteil und nennt sich kein Tor.
     assert gut.index("## Der Ausgang") < gut.index("## Die Richtungsaussage")
     assert "kein Tor" in gut and "kein Beleg" in gut

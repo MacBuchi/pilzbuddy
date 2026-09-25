@@ -189,3 +189,39 @@ fliegt raus, scharf und grob tragen verschiedene Deckkraft, und die
 Ebene sagt in ihrem Blatt, dass ein Punkt in Deutschland, ein Quadrat
 in der Schweiz und ein Rasterpunkt in Österreich dieselbe Sache
 sind: eine Meldung.
+
+## Nachtrag 2026-09-25 — Alpenraum außerhalb DACH (1.211.0, #612)
+
+Der Bestand trägt seit dem zweiten Download (`10.15468/dl.7d8pd8`)
+Liechtenstein und Italien in der Alpenbox 6,6–13,9° O, 45,6–47,2° N
+(Südtirol bis Aostatal). Ganz Italien wäre das Dreifache gewesen, fast
+alles Mittelmeerklima. Die Fundorte-Ebene nimmt die neuen Länder ohne
+Änderung mit; die Saisonkurven bleiben DACH (`gbif_local.WHERE_CURVES`).
+
+Dieselbe Tabelle wie oben für die beiden neuen Länder (nur Sichtungen,
+CC0/CC BY, unsere Arten):
+
+| Unschärfe | IT (Alpenbox) | LI |
+|---|--:|--:|
+| ≤ 250 m | **918** | 2 |
+| 250 m – 1 km | 38 | 0 |
+| genau 3 535 m | 299 | **177** |
+| sonst ≤ 10 km | 96 | 0 |
+| ohne Angabe | 181 | 15 |
+| > 10 km (verworfen) | 265 | 0 |
+
+Zwei Dinge daran:
+
+- **Wenig, und zwar aus einem benennbaren Grund.** Von 61 880
+  verwertbaren Pilzmeldungen in der Box gehören nur 1 797 zu unseren
+  Arten — 53 972 stammen aus dem Dolichens-Projekt (Flechten der
+  Dolomiten), taxonomisch Pilze, aber keine Speisepilze. Was bleibt,
+  sind iNaturalist-Punkte und ein Rand der Swiss National Fungi Databank
+  (die 3535-m-Quadrate reichen über die Grenze). Für die Karte reicht
+  das; für eine Hold-out-Messung ist die Stichprobe dünn:
+  Steinpilz 196, Pfifferling 63, Fichtenreizker 49, Maronenröhrling 42,
+  Birkenpilz 9 Sichtungen in der ganzen Box.
+- **Liechtenstein meldet wie die Schweiz** — 177 von 194 Meldungen als
+  Kilometerquadrat, aus derselben Datenbank.
+
+Im Asset: 1 492 Orte für IT, 194 für LI; die Datei wächst um 7 KB.

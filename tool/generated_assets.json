@@ -52,14 +52,14 @@
       "regenerate": "entsteht im selben Lauf wie elevation.bin.gz — siehe dort"
     },
     "assets/gbif/gbif_finds.bin.gz": {
-      "sha256": "1ce07e3fc9ee122bef8a272e9c6d485ab9c56117ddbbe5b7ddc268900a1b1666",
+      "sha256": "22822ef5d70208f66dbb11f43d17882810f7373202657821e876bbb7c5fe35d2",
       "regenerate": "python3 tool/gbif_finds.py build — braucht die lokale GBIF-Datenbank (tool/gbif_download.py); der DOI des Stands steht im Manifest",
       "checks": {
         "self_recorded_sha256": "assets/gbif/gbif_finds_manifest.json"
       }
     },
     "assets/gbif/gbif_finds_manifest.json": {
-      "sha256": "86f5bd4e9c49d63408f73ae2f2518b48d379c1f376545d9c2ef181f11ae52ed7",
+      "sha256": "1c734e5ea7b961daff90857b87bfd8b9b2192eb6d30bc610dbb82ff633f51874",
       "regenerate": "entsteht im selben Lauf wie gbif_finds.bin.gz — siehe dort"
     },
     "assets/protected/protected_grid.bin.gz": {

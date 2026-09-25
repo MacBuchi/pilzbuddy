@@ -164,13 +164,23 @@ Datensatz pinnt.
 
 **GBIF hat keine Instanz, sondern einen Bestand.** Eine eigene Instanz
 wäre auch gar nicht zu betreiben — GBIF ist ein Index über 2,5 Mrd
-Datensätze. Stattdessen liegt der DACH-Pilzbestand **als Ganzes** lokal:
+Datensätze. Stattdessen liegt der Pilzbestand für DACH und den
+Alpenraum **als Ganzes** lokal:
 
-    ~/pilzbuddy-gbif/dach_fungi.sqlite    3 782 038 Zeilen, 889 MB
+    ~/pilzbuddy-gbif/dach_fungi.sqlite    3 924 247 Zeilen, 923 MB
     ~/pilzbuddy-gbif/CITATION.txt         der DOI dazu
 
 Gebaut von `tool/gbif_download.py` (`request` → `status` → `fetch` →
-`build`), Stand vom 2026-09-16 ist `10.15468/dl.dwbsuf`. Eine
+`build`), Stand vom 2026-09-25 ist `10.15468/dl.7d8pd8` (davor
+`10.15468/dl.dwbsuf` vom 2026-09-16, nur DACH). **Seit #612 mehr als
+DACH:** Liechtenstein ganz (2 199 Zeilen) und Italien NUR in der
+Alpenbox 6,6–13,9° O, 45,6–47,2° N (138 962 Zeilen, Südtirol bis
+Aostatal; `ALPINE_ITALY` im Werkzeug). Ganz Italien wären 471 000
+Meldungen aus dem Mittelmeerklima. Zwei Folgen: `countryCode = 'IT'` im
+Bestand HEISST Alpenraum, und der Hold-out-Bericht sagt das
+(`holdout_region_notes`); die Saisonkurven bleiben DACH
+(`gbif_local.WHERE_CURVES`, Parität zum Netzweg), die Fundorte-Ebene
+nimmt dagegen alles. Eine
 Regionsabfrage dauert damit **6 ms** statt Minuten; ganz DACH auf einmal
 auszuwerten (2 Mio Sichtungen) dauert Sekunden und war über die API
 schlicht nicht machbar.
@@ -185,7 +195,8 @@ Vier Dinge, die man wissen muss:
   dasselbe, nur zitierfähig, und erledigt zugleich die
   CC-BY-Namensnennung über alle Quell-Datasets.
 - **Der Download ist bewusst UNGEFILTERT** — alle Pilze mit Koordinate in
-  DACH, ohne Lizenz-, Genauigkeits- oder `basisOfRecord`-Schranke. Die
+  DACH, Liechtenstein und der italienischen Alpenbox, ohne Lizenz-,
+  Genauigkeits- oder `basisOfRecord`-Schranke. Die
   stehen als Spalten bereit und werden lokal gesetzt. Enger zu ziehen
   spart einmalig Platz und kostet bei der nächsten Frage einen neuen
   Download; der Effort-Nenner (#467) braucht ohnehin auch die

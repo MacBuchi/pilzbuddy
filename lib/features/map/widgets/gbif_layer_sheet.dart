@@ -78,7 +78,8 @@ class _GbifLayerSheet extends ConsumerWidget {
                 'Wo Menschen eine unserer Arten bei GBIF gemeldet haben. '
                 'Jede Scheibe ist eine Meldung, so groß wie ihre '
                 'Genauigkeit: ein Punkt in Deutschland, ein Quadrat in der '
-                'Schweiz, ein Rasterpunkt in Österreich. Keine Scheibe '
+                'Schweiz, ein Rasterpunkt in Österreich; dazu Liechtenstein '
+                'und die italienischen Alpen mit Südtirol. Keine Scheibe '
                 'heißt „keine Meldung", nicht „nichts da".',
                 style: theme.textTheme.bodyMedium
                     ?.copyWith(color: theme.hintColor),

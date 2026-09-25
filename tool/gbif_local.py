@@ -26,6 +26,18 @@ DB_PATH = os.path.expanduser(
 WHERE_USABLE = ("basisOfRecord = 'HUMAN_OBSERVATION' "
                 "AND license IN ('CC0_1_0', 'CC_BY_4_0')")
 
+# Die Länder der SAISONKURVEN — dieselben wie im Netzweg
+# (`BASE_FILTER["country"]`). Seit #612 trägt der Bestand mehr als DACH
+# (Liechtenstein, Italien im Alpenraum), und die Kurven dürfen davon
+# nichts merken: Sie sind ein ausgeliefertes Asset, und jede
+# Neuerzeugung verschiebt, welche Spots der Ampel-Hinweis meldet. Wer
+# die Kurven je auf den Alpenraum ausweiten will, ändert BEIDE Wege und
+# misst die gekippten Art-Monate (CLAUDE.md). Die Fundorte-Ebene
+# (tool/gbif_finds.py) nimmt dagegen bewusst ALLES aus dem Bestand.
+CURVE_COUNTRIES = ("DE", "AT", "CH")
+WHERE_CURVES = (WHERE_USABLE + " AND countryCode IN ("
+                + ",".join(f"'{c}'" for c in CURVE_COUNTRIES) + ")")
+
 
 def connect(path=None):
     """Die Datenbank — oder `None`, wenn es sie nicht gibt."""
@@ -43,11 +55,11 @@ def month_counts(con, extra="1=1", args=()):
     """
     counts = [0] * 12
     for month, number in con.execute(
-            f"SELECT month, COUNT(*) FROM occ WHERE {WHERE_USABLE} "
+            f"SELECT month, COUNT(*) FROM occ WHERE {WHERE_CURVES} "
             f"AND month IS NOT NULL AND {extra} GROUP BY month", args):
         counts[month - 1] = number
     total = con.execute(
-        f"SELECT COUNT(*) FROM occ WHERE {WHERE_USABLE} AND {extra}",
+        f"SELECT COUNT(*) FROM occ WHERE {WHERE_CURVES} AND {extra}",
         args).fetchone()[0]
     return counts, total
 
@@ -101,26 +113,30 @@ def self_test():
                 "genus TEXT, decimalLatitude REAL, decimalLongitude REAL, "
                 "coordinateUncertaintyInMeters REAL, day INTEGER, "
                 "month INTEGER, year INTEGER, basisOfRecord TEXT, "
-                "license TEXT)")
+                "license TEXT, countryCode TEXT)")
     rows = [
         (1, "Boletus edulis", "Boletus", 51.0, 10.0, 25.0, 3, 9, 2024,
-         "HUMAN_OBSERVATION", "CC0_1_0"),
+         "HUMAN_OBSERVATION", "CC0_1_0", "DE"),
         (2, "Boletus edulis", "Boletus", 51.1, 10.1, None, 4, 9, 2024,
-         "HUMAN_OBSERVATION", "CC_BY_4_0"),
+         "HUMAN_OBSERVATION", "CC_BY_4_0", "AT"),
         # zu grob -> faellt bei finds() raus, zaehlt aber im Monat mit
         (3, "Boletus edulis", "Boletus", 51.2, 10.2, 9000.0, 5, 10, 2024,
-         "HUMAN_OBSERVATION", "CC0_1_0"),
+         "HUMAN_OBSERVATION", "CC0_1_0", "CH"),
         # falsche Lizenz -> zaehlt nirgends
         (4, "Boletus edulis", "Boletus", 51.3, 10.3, 10.0, 6, 9, 2024,
-         "HUMAN_OBSERVATION", "CC_BY_NC_4_0"),
+         "HUMAN_OBSERVATION", "CC_BY_NC_4_0", "DE"),
         # Bodenprobe -> zaehlt nirgends
         (5, "Boletus edulis", "Boletus", 51.4, 10.4, 10.0, 7, 9, 2024,
-         "MATERIAL_SAMPLE", "CC0_1_0"),
+         "MATERIAL_SAMPLE", "CC0_1_0", "DE"),
         # zu alt -> faellt bei finds() raus
         (6, "Boletus edulis", "Boletus", 51.5, 10.5, 10.0, 8, 9, 1999,
-         "HUMAN_OBSERVATION", "CC0_1_0"),
+         "HUMAN_OBSERVATION", "CC0_1_0", "DE"),
+        # Alpenraum ausserhalb DACH (#612): in finds() dabei, in den
+        # Monatszahlen der Saisonkurven NICHT — die bleiben DACH.
+        (7, "Boletus edulis", "Boletus", 46.5, 11.3, 10.0, 9, 9, 2024,
+         "HUMAN_OBSERVATION", "CC0_1_0", "IT"),
     ]
-    con.executemany("INSERT INTO occ VALUES (?,?,?,?,?,?,?,?,?,?,?)", rows)
+    con.executemany("INSERT INTO occ VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", rows)
     con.commit(); con.close()
 
     con = connect(path)
@@ -132,8 +148,8 @@ def self_test():
     assert total == 4, total
 
     got = finds(con, "Boletus edulis", "SPECIES", 2006, 1000)
-    assert len(got) == 2, got                 # 3 zu grob, 6 zu alt
-    assert {g["day"] for g in got} == {3, 4}, got
+    assert len(got) == 3, got                 # 3 zu grob, 6 zu alt
+    assert {g["day"] for g in got} == {3, 4, 9}, got
     assert all(g["lat"] and g["lon"] for g in got)
 
     assert connect("/nicht/vorhanden.sqlite") is None
@@ -154,6 +170,10 @@ def self_test():
         "Lizenzliste weicht von WHERE_USABLE ab"
     for token in ("HUMAN_OBSERVATION", "CC0_1_0", "CC_BY_4_0"):
         assert token in WHERE_USABLE, token
+    # Die Kurven-Länder sind die des Netzwegs — sonst zählte der lokale
+    # Lauf seit #612 den Alpenraum mit, der Netzweg nicht.
+    assert tuple(sc.BASE_FILTER["country"]) == CURVE_COUNTRIES, \
+        (sc.BASE_FILTER["country"], CURVE_COUNTRIES)
     # Der Download muss den Geo-Filter setzen, den BASE_FILTER erwartet —
     # sonst enthaelt der Bestand Zeilen, die der Netzweg nie sieht.
     assert sc.BASE_FILTER.get("hasGeospatialIssue") == "false", \
