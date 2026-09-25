@@ -9,7 +9,7 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Neuheiten zeigen vor, und Rücksicht auf Einstellungen
 
-*25. September 2026 · Versionen 1.208.0 und 1.208.1*
+*25. September 2026 · Versionen 1.208.0 bis 1.208.2*
 
 - Im Blatt „Neu in PilzBuddy" führt ein Tipp auf eine Zeile die Neuheit
   jetzt gleich vor, wie „Zeig es mir" in Entdecken.

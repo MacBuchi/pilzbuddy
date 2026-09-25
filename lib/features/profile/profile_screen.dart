@@ -841,7 +841,10 @@ class _AboutSection extends ConsumerWidget {
             context: context,
             applicationName: 'PilzBuddy',
             applicationVersion: version,
-            applicationLegalese: '© 2026 Marcus Bucher — MIT-Lizenz',
+            // Das Pseudonym wie in LICENSE (Betreiber, 2026-09-25): Der
+            // Klarname steht nur, wo er Pflicht ist — Impressum und
+            // Datenschutzerklärung.
+            applicationLegalese: '© 2026 MacBuchi — MIT-Lizenz',
           ),
         ),
         const SizedBox(height: 8),

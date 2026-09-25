@@ -90,7 +90,9 @@ void main() {
 
     final text = license.readAsStringSync();
     expect(text, contains('MIT License'));
-    expect(text, contains('Marcus Bucher'));
+    // Das Pseudonym, nicht der Klarname (Betreiber, 2026-09-25) — der
+    // steht nur in Impressum und Datenschutzerklärung.
+    expect(text, contains('Copyright (c) 2026 MacBuchi'));
     // Die Haftungsfreistellung ist der Teil, der bei Copy-Paste gern fehlt.
     expect(text, contains('WITHOUT WARRANTY OF ANY KIND'));
   });
