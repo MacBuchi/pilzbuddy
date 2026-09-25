@@ -26,8 +26,10 @@ import 'fakes/test_app.dart';
 /// Lädt Roboto aus dem Flutter-SDK, damit im Bild echter Text steht statt
 /// der Platzhalterkästchen des Testrenderers.
 Future<void> loadRoboto() async {
-  final sdk = Platform.environment['FLUTTER_ROOT'] ??
-      '/Volumes/MacStore/Programming/Flutter/SDK/flutter';
+  // `flutter test` setzt FLUTTER_ROOT selbst; ohne bleibt es bei den
+  // Platzhalterkästchen. Kein fester Pfad: Das Repo ist öffentlich.
+  final sdk = Platform.environment['FLUTTER_ROOT'];
+  if (sdk == null) return;
   final file =
       File('$sdk/bin/cache/artifacts/material_fonts/Roboto-Regular.ttf');
   if (!file.existsSync()) return;

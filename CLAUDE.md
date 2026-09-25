@@ -5,9 +5,23 @@ Flutter-App (Android + Web): Pilz-Spots auf OpenStreetMap-Karte, Supabase-Backen
 Riverpod ohne Codegen, go_router, deutsche UI-Strings direkt im Code.
 
 Projektübergreifende Guidelines (Architektur, State, Testing, CI, Signing,
-In-App-Update/-Feedback) liegen im DocuHub:
-`/Volumes/MacStore/Programming/ProgrammingGuidelineDocuHub/`. Diese Datei
+In-App-Update/-Feedback) liegen im DocuHub des Betreibers; der lokale
+Pfad steht in `CLAUDE.local.md` (nicht eingecheckt). Diese Datei
 beschreibt nur, was für PilzBuddy davon abweicht oder zusätzlich gilt.
+
+**Nichts Privates in dieses Repo — es ist öffentlich** (Betreiber,
+2026-09-25: „dafür haben wir den DocuHub"). Keine absoluten Pfade auf
+dem Rechner des Betreibers (`/Users/…`, `/Volumes/…`), kein
+Schlüsselordner, keine privaten Mailadressen, keine
+Namen von Sync-Ordnern, keine Hosts oder IPs der eigenen Infrastruktur;
+Testdaten mit `example.org`. Das gehört in den DocuHub, hier steht ein
+Verweis darauf. Ausnahme ist nur, was öffentlich sein MUSS (der
+Verantwortliche in Datenschutzerklärung und Impressum).
+`test/private_info_test.dart` prüft jede eingecheckte Datei auf absolute
+Pfade, den Schlüsselordner, den Sync-Ordner und private Mail-Domains.
+Anlass war `AGENTS.md`: eine zweite Kopie dieser Regeln, seit #485
+veraltet, die beides weiter nannte — entfernt. Eine Kopie von Regeln
+veraltet still, und mit ihr, was nicht mehr darin stehen soll.
 
 ## Workflow
 
@@ -495,7 +509,7 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   sign up" auf `{{ .Token }}` ohne Link setzen, dann „Confirm email"
   anschalten. Andersherum bricht die Registrierung still.
   **Unverlangte Reset-Mails an das Play-Testkonto sind erwartbares
-  Rauschen** (Befund 2026-08-17, macbuchi.apps@gmail.com): Die Adresse
+  Rauschen** (Befund 2026-08-17; die Adresse steht im DocuHub, `apps/pilzbuddy.md`): Die Adresse
   liegt als App-Zugriff in der Play Console, und Googles automatische
   Prüf-Robots klicken die App durch — auch „Passwort vergessen" auf dem
   Login-Screen (im Wochendigest als „Passwort-Reset anfordern" mit 429/
@@ -2999,8 +3013,8 @@ das vor dem Produktions-Zugang. Die Antwort zeigt die Konsole erst nach dem
 Anlegen des App-Eintrags, und die 14 Tage sind Kalenderzeit — alles andere
 lässt sich parallel erledigen, das nicht.
 
-**Paketname `de.mcbuchi.pilzbuddy`** (seit 1.88.0, vorher
-`de.marcusbucher.pilzbuddy`): Umgestellt auf Wunsch des Betreibers, damit
+**Paketname `de.mcbuchi.pilzbuddy`** (seit 1.88.0, vorher ein Paketname
+mit dem Klarnamen des Betreibers): Umgestellt auf Wunsch des Betreibers, damit
 sein Klarname nicht im Paket steht — und **vor** der ersten Einreichung,
 weil Play die App ab dem ersten AAB-Upload unwiderruflich daran bindet.
 Drei Folgen:

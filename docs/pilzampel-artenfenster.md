@@ -547,7 +547,7 @@ verloren gegangen wäre.
 | Ort | Was | Wann |
 |---|---|---|
 | `~/pilzbuddy-ampel2000/ampel_cache` | Arbeitsstand, `--cache` zeigt hierher | laufend |
-| Austauschordner des Betreibers, Unterordner `pilzampel-validierung/` | Spiegel, über Nextcloud synchronisiert | nach jedem Abruf |
+| Austauschordner des Betreibers, Unterordner `pilzampel-validierung/` | Spiegel, synchronisiert | nach jedem Abruf |
 | Release `ampel-2000` in `pilzbuddy-backups` | gezippter Stand | **nach jedem Validierungslauf** |
 
 **Warum das Archiv nach dem LAUF entsteht und nicht davor.** Ein Stand,

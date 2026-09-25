@@ -88,7 +88,7 @@ void main() {
   });
 
   testWidgets('Ein nur anders geschriebener Name ist vergeben', (tester) async {
-    // „Marcus" gegen „marcus" — genau die Lücke, die Patch 013 schließt.
+    // „Pilzfreund" gegen „pilzfreund" — genau die Lücke, die Patch 013 schließt.
     // Ohne die case-insensitive Prüfung ginge dieser Test grün durch und
     // live stünden zwei für Suchende gleiche Konten in der Tabelle.
     final backend = FakeBackend();
@@ -135,7 +135,7 @@ void main() {
     await pumpApp(tester, backend);
     await _openDialog(tester);
 
-    await tester.enterText(_field, 'marcus@web.de');
+    await tester.enterText(_field, 'pilzfreund@example.org');
     await settle(tester);
 
     // Der Grund steht AM FELD. Ein „Speichern", das ohne Erklärung tot

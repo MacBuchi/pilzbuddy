@@ -142,8 +142,8 @@ permutiert — muss auf 0 fallen, sonst ist der Lauf falsch verdrahtet).
 ## 5. Ablauf im Labor
 
 1. **Lauf 19** `laeufe/19_frost_holz_winter.py`, Bericht
-   `berichte/19-frost-holz-winter.md`, gespiegelt nach
-   `Claude_exchange/Pilzampel-lab/`. Messbasis der Worktree-Pin
+   `berichte/19-frost-holz-winter.md`, gespiegelt in den
+   Austauschordner des Betreibers. Messbasis der Worktree-Pin
    `9a8a2c414f`; vorab prüfen, dass die Strata der acht Arten `tmin`
    tragen (Lauf 12 hat die Zusatzfelder mitgeholt; fehlt es, liefert
    `stratum_merkmale` `None`, und der Lauf sagt es, statt 0 zu zählen).

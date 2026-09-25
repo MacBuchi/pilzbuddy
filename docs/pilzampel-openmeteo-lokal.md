@@ -106,9 +106,9 @@ Schwellen-Messung.
 ## Der Aufbau
 
 Der Container liegt **außerhalb des Repos**, neben den anderen
-Programmier-Ordnern (Betreiber, 2026-09-13):
-`/Volumes/MacStore/Programming/open-meteo/` mit `docker-compose.yml` und
-`data/`.
+Programmier-Ordnern (Betreiber, 2026-09-13), als Ordner `open-meteo/`
+mit `docker-compose.yml` und `data/`; der genaue Pfad steht im DocuHub
+(`guidelines/tooling-und-zugaenge.md`).
 
 ```yaml
 services:
