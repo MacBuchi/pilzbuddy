@@ -1,0 +1,4195 @@
+# Änderungen in PilzBuddy
+
+Was sich in welcher Version geändert hat — in Alltagssprache und mit dem
+Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
+„Über PilzBuddy" → „Was ist neu".
+
+Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
+https://github.com/MacBuchi/pilzbuddy/releases
+
+## Die Touren noch einmal, und der neueste Spot obenauf
+
+*25. September 2026 · Version 1.210.1*
+
+- Die Touren kommen **noch einmal für alle** — jetzt mit Startseiten
+  und, wo noch nichts da ist, mit Beispielen.
+- Liegen zwei eigene Spots dicht beieinander, liegt auf der Karte jetzt
+  der **neueste obenauf**, nicht der älteste.
+- Der **GPX-Export** listet deine Spots in der Reihenfolge, in der du
+  sie angelegt hast.
+
+## Eine Startseite für jede Tour
+
+*25. September 2026 · Versionen 1.209.0 bis 1.210.0*
+
+- Beim ersten Start begrüßt dich eine **Willkommensseite**, statt dass
+  die Tour sofort losgeht. „Nicht jetzt" fragt beim nächsten Start
+  wieder.
+- **Jede Tour beginnt mit einer Startseite**: ein kleines Bild und zwei
+  Sätze, wofür der Bereich gut ist — danach kommt die Bedienung.
+- Nach der Karte fragt die Tour **„Weiter mit den Spots?"**, dann mit den
+  Pilzen und den Buddys. „Später" beendet sie; die übrigen Bereiche
+  erklären sich dann beim ersten Besuch.
+- Die Karten-Tour nennt zum Schluss die **Bereiche unten** in je einem
+  Halbsatz.
+- Ein zu schneller zweiter Tipp überspringt keinen Schritt mehr, und
+  findet die Tour etwas nicht, sagt sie es, statt still weiterzuspringen.
+- Noch **keinen Spot, keinen Buddy oder keine Fotos**? Dann zeigen die
+  Touren von Spots und Buddys ein **Beispiel**, damit du trotzdem siehst,
+  wie es aussieht. Es ist als „Beispiel" markiert, wird nirgends
+  gespeichert und ist nach der Tour wieder weg.
+
+## Neuheiten zeigen vor, und Rücksicht auf Einstellungen
+
+*25. September 2026 · Versionen 1.208.0 bis 1.208.2*
+
+- Im Blatt „Neu in PilzBuddy" führt ein Tipp auf eine Zeile die Neuheit
+  jetzt gleich vor, wie „Zeig es mir" in Entdecken.
+- Wer im Handy „Animationen entfernen" eingeschaltet hat, bekommt die
+  Touren ohne Bewegung: Hand und Ring stehen still.
+- Mit Bildschirmleser (TalkBack) wird jeder Schritt einer Tour
+  vorgelesen, und was darunter liegt, stört nicht mehr.
+- Einmal für alle zurückgesetzt: Die neue Karten-Tour, die Touren in den
+  Reitern, der Rückblick auf das, was PilzBuddy inzwischen kann, und die
+  „Neu"-Punkte in Entdecken kommen noch einmal.
+
+## „Zeig es mir" in Entdecken
+
+*25. September 2026 · Version 1.207.0*
+
+Jeder Eintrag unter Profil → Entdecken hat jetzt den Knopf **„Zeig es
+mir"**. Er springt an die richtige Stelle und führt vor, wie es geht —
+bis hinein in das Menü, Blatt oder den Dialog, um den es geht: die
+Regenzeile im Ebenen-Blatt, „Nur vormerken" im Anlege-Blatt, die
+Pilztour im Unterwegs-Blatt, der Meldedialog für die Artgalerie. Danach
+ist alles wieder zu, ausgelöst wird nichts. Ein kleines Bild auf jeder
+Karte zeigt, welche Geste vorgeführt wird.
+
+Fehlt dir etwas, das die Vorführung bräuchte (etwa ein Buddy), zeigt
+sie, wie du es bekommst.
+
+Nebenbei auf kleinen Handys: Das Anzahlfeld beim Eintragen und der Knopf
+„Bild anhängen" im Meldedialog laufen nicht mehr über den Rand, und die
+Pilz-Tour findet den Bildstreifen einer Art auch dann, wenn er unter dem
+Falz liegt.
+
+## Kurze Touren in jedem Reiter, und eine echte Hand
+
+*24. und 25. September 2026 · Versionen 1.206.0 bis 1.206.2*
+
+- **Spots, Pilze und Buddys** erklären sich beim ersten Besuch in ein
+  paar Schritten. Die Spot-Tour öffnet dabei das Spot-Blatt, die
+  Pilz-Tour eine Artseite; hinterher ist beides wieder zu. Schritte zu
+  Dingen, die du noch nicht hast (etwa einen Buddy), fallen weg.
+- **Die Hand, die vorführt**, ist jetzt eine Hand: Zeigefinger,
+  eingerollte Finger, grüner Ärmel. Sie kommt heran, drückt sichtbar und
+  hebt wieder ab — und kann jetzt auch wischen. Seit 1.206.2 ist sie
+  neu gezeichnet: der Daumen steht schräg nach oben ab, die Knöchel
+  laufen treppab, und keine Linie scheint mehr durch.
+- Alle Touren lassen sich unter Profil → Kurzanleitung noch einmal
+  starten.
+
+## Die Tour zeigt jetzt vor, statt nur hinzuzeigen
+
+*24. September 2026 · Version 1.205.0*
+
+Die Einführung über die Karte passte nicht mehr zur Knopfleiste: Sie
+schnitt Stücke aus der Leiste heraus und zeigte nur, wo ein Knopf ist.
+Jetzt führt sie vor, was dahinter kommt:
+
+- **Langes Drücken** zeigt ein Finger, und dann geht das Menü wirklich
+  auf — mit „Neuer Spot" genau an dieser Stelle, „Was ist hier?",
+  Navigation und Heranzoomen.
+- **Die Ebenen** öffnen ihr Blatt, und die Tour zeigt, wo man eine
+  Ebene einschaltet.
+- Hervorgehoben wird die ganze Leiste, ein grüner Ring zeigt den
+  gemeinten Knopf.
+
+Während der Tour passiert nichts aus Versehen: Tippen geht nur weiter,
+und was sie geöffnet hat, schließt sie wieder. „Zurück" beendet die
+Tour, nicht die App. Wer sie schon gesehen hat, findet sie in der
+Kurzanleitung unter „Tour auf der Karte zeigen".
+
+## Die Web-App startet auch bei schlechtem Empfang
+
+*24. September 2026 · Version 1.204.2*
+
+Im Wald hat man oft Empfang, aber keine Daten: Die Verbindung steht,
+nur kommt nichts an. Die Web-App blieb dann leer, obwohl alles für den
+Start ohne Netz längst auf dem Gerät lag — sie wartete auf eine
+Antwort, die nie kam. Jetzt nimmt sie nach wenigen Sekunden, was sie
+hat, und startet in ein, zwei Sekunden.
+
+Außerdem ging der Start ohne Netz nach einem Update verloren, wenn man
+die neue Version nur kurz mit Netz geöffnet hatte. Jetzt bleibt der
+alte Stand so lange auf dem Gerät, bis der neue vollständig ist, und
+unveränderte Dateien werden dafür nicht noch einmal heruntergeladen.
+
+## Neues zeigt sich jetzt von selbst — und „Entdecken" zeigt alles
+
+*24. September 2026 · Versionen 1.204.0 und 1.204.1*
+
+PilzBuddy ist in den letzten Wochen stark gewachsen, und vieles davon
+findet man nur, wenn man weiß, dass es da ist. Deshalb gibt es jetzt
+zwei Wege dahin:
+
+- **Ein kurzes Blatt nach einem Update.** Nach einer neuen Version
+  zeigt die Karte einmal bis zu drei Neuheiten untereinander, auf einen
+  Blick und ohne Blättern. Ein Tipp auf eine davon führt direkt hin.
+  Wegwischen reicht, es kommt nicht wieder. Beim ersten Mal ist es ein
+  Rückblick auf das, was inzwischen dazugekommen ist.
+- **„Entdecken" im Profil** und in der Kurzanleitung: alle Funktionen
+  und Tipps auf einer Seite, nach Reiter geordnet — auch die kleinen,
+  etwa das Menü beim langen Drücken auf die Karte oder das Vormerken
+  eines Spots. Was du dort noch nicht gesehen hast, trägt ein „Neu".
+
+Wer PilzBuddy neu installiert, bekommt wie bisher die Tour über die
+Karte und kein Blatt dazu.
+
+## Benachrichtigungen im Browser kommen zuverlässig an
+
+*24. September 2026 · Version 1.203.0*
+
+In der Browser-Fassung blieben Benachrichtigungen aus, sobald irgendein
+Fenster von PilzBuddy offen war — auch eines im Hintergrund, das niemand
+ansah. Jetzt erscheint die Meldung wie gewohnt, außer du hast PilzBuddy
+gerade vor dir; dann steht sie unten in der App.
+
+Ein Tipp auf die Benachrichtigung öffnet jetzt direkt den Verlauf mit
+dem Buddy, statt nur die Startseite.
+
+## Nachrichten in der richtigen Reihenfolge
+
+*24. September 2026 · Version 1.202.2*
+
+Im Verlauf mit einem Buddy stand die neueste Nachricht oben und die
+älteste unten, direkt über dem Eingabefeld. Jetzt liest er sich wie
+jeder Chat von oben nach unten: die neueste unten, gleich über dem Feld.
+
+## Mehrere Fotos auf einmal auswählen
+
+*23. September 2026 · Versionen 1.202.0 und 1.202.1*
+
+Beim Feedback und bei „Hinweis zu dieser Art melden" lassen sich bis zu
+drei Fotos in einem Schritt aus der Galerie auswählen, statt jedes
+einzeln. Hut, Unterseite und Stiel gehen damit in einem Griff. Wer mehr
+markiert, als Platz ist, bekommt die ersten und einen Hinweis dazu. Die
+Kamera nimmt weiter ein Foto je Aufnahme.
+
+In 1.202.1 außerdem: Die Web-Fassung meldete bei jedem Seitenaufruf
+einen harmlosen Fehler an die Entwickler. Das ist behoben.
+
+## Schwefelporling: ein zweites Bild
+
+*23. September 2026 · Version 1.201.2*
+
+Der Schwefelporling hat ein zweites Foto aus dem Feld bekommen: ein
+älteres, ausgeblichenes Stück an einem Stamm. So steht er im Herbst oft
+da — cremig statt schwefelgelb. Das gelbe Bild bleibt vorn, denn daran
+erkennt man ihn.
+## Meldungen gehen nicht mehr verloren
+
+*23. September 2026 · Version 1.201.1*
+
+- **„Senden" nur, wenn wirklich gesendet wird:** Bei „Hinweis zu dieser
+  Art melden" verschwand eine Meldung ohne Text samt angehängter Fotos
+  still. Jetzt bleibt „Senden" grau, bis ein paar Worte dastehen, und
+  darunter steht, warum. Dasselbe gilt für „Wünsch dir was!".
+- **Tipp auf eine Nachricht nach einem Neustart:** Wer die App vorher
+  ganz geschlossen hatte, landete beim Antippen einer
+  Nachrichten-Meldung nur auf der Karte. Jetzt öffnet sich der Verlauf.
+
+## Naturschutzgebiete auf der Karte
+
+*23. September 2026 · Version 1.201.0*
+
+Wo Pilze sammeln meist verboten ist, sagt es die App jetzt.
+
+- **Schraffiert statt gefüllt:** In Naturschutzgebieten, Nationalparks
+  und deren Kernzonen ist die Wald- und die Ampelfläche diagonal
+  gestreift. So sieht man beides zugleich: wie der Wald steht und dass
+  man dort nicht sammeln darf. Die Legende erklärt das Muster.
+- **Hinweis beim Eintragen:** Liegt ein neuer Spot oder ein Fund in
+  einem solchen Gebiet, steht ein Satz mit dessen Namen im Blatt.
+  Speichern geht trotzdem — es ist ein Hinweis, keine Sperre.
+- Was im Gebiet wirklich gilt, steht auf den Schildern vor Ort. Die
+  Daten stammen aus OpenStreetMap und decken Deutschland, Österreich,
+  die Schweiz und Liechtenstein ab; Landschaftsschutzgebiete und
+  Naturparks sind nicht dabei, dort ist Sammeln in der Regel erlaubt.
+
+## Aufgeräumte Kartenlegende
+
+*23. September 2026 · Version 1.200.0*
+
+Die Legende links unten ist schmaler und zeigt mehr.
+
+- **Gemeldete Fundorte mit Zahlen:** Statt eines Farbbalkens, der wie
+  eine Skala aussah, steht jetzt je Pilzgruppe ein Balken für die
+  Meldungen im Umkreis von 5 km um das Fadenkreuz. Ausgeklappt steht
+  die Zahl daneben. Abgewählte Gruppen fallen heraus, wie auf der Karte.
+- **Nichts ragt mehr heraus:** Mit Regen, Wald und Fundorten zugleich
+  lief die eingeklappte Legende über ihren Rand. Das ist behoben.
+- **Weniger wuchtig:** Die ausgeklappte Legende ist ein Fünftel
+  schmaler und hält Abstand zum Fadenkreuz. Mit Pilzampel steht der
+  Wald als Zeile in derselben Tabelle statt als eigener Abschnitt. Auf
+  kleinen Bildschirmen lässt sie sich scrollen.
+
+## Schärfere Bilder beim Art-Hinweis
+
+*23. September 2026 · Version 1.199.0*
+
+Bilder, die du mit „Hinweis zu dieser Art melden" schickst, gehen jetzt
+in doppelter Auflösung hinaus. Wer den Haken für die Artgalerie setzt,
+dessen Foto soll dort auch in der Vergrößerung scharf sein — bisher wäre
+es sichtbar weich geworden. Standortdaten werden weiterhin vor dem
+Senden entfernt. Das allgemeine Feedback bleibt bei der kleineren Größe.
+
+## Neue Art: Grubiger Milchling — der giftige Doppelgänger der Reizker
+
+*23. September 2026 · Version 1.198.0*
+
+Aus einem Fund im Wald: Der **Grubige Milchling** hat dieselben
+Grübchen am Stiel wie Edel- und Fichtenreizker, und ein verblasster
+Reizker sieht ihm in der Farbe zum Verwechseln ähnlich. Er ist aber
+**giftig**.
+
+- Er steht jetzt im Reiter „Pilze" mit Saison, Merkmalen, Fundorten und
+  zwei eigenen Fotos.
+- Auf den Seiten von Edel- und Fichtenreizker steht er als
+  Verwechslungspartner, und beim Eintragen eines Reizkers erscheint die
+  Warnung unter dem Feld.
+- **Der Unterschied liegt in der Milch:** beim Reizker orange bis
+  karottenrot, beim Grubigen Milchling weiß — und sie wird an der Luft
+  in Sekunden schwefelgelb. Auf die Farbe des Huts ist kein Verlass.
+- Der Fichtenreizker hat neue Bilder: die Unterseite und einen Schnitt,
+  in dem man die orange Milch und das Grünen sieht.
+
+## Eigene Fotos für die Artgalerie anbieten
+
+*23. September 2026 · Version 1.197.0*
+
+Hast du einen Pilz gut fotografiert, kannst du das Bild für die
+Artgalerie anbieten: Unter „Hinweis zu dieser Art melden" erscheint,
+sobald ein Bild angehängt ist, ein Haken dafür.
+
+- Mit dem Haken erlaubst du, dass PilzBuddy deine Fotos in der
+  Artgalerie zeigt — unter CC BY-SA 4.0, mit deinem Benutzernamen als
+  Urheber. Welcher Name das ist, steht direkt am Haken.
+- Der Haken ist freiwillig und ab Werk aus. Ohne ihn sieht wie bisher
+  nur der Entwickler die Bilder.
+- Ob ein Bild wirklich in die Galerie kommt, entscheidet der Entwickler,
+  nachdem er es angesehen hat.
+
+## Bis zu drei Bilder an einer Meldung
+
+*23. September 2026 · Version 1.196.0*
+
+An einen Wunsch, eine Fehlermeldung oder einen „Hinweis zu dieser Art"
+kannst du jetzt bis zu drei Bilder hängen statt nur eines — etwa Hut,
+Unterseite und Stiel eines Pilzes, der nicht zur Beschreibung passt.
+
+- Ist ein Bild angehängt, erscheint darunter „Weiteres Bild". Jedes Bild
+  lässt sich einzeln wieder entfernen.
+- Wie bisher gilt: Die Bilder werden **nicht** veröffentlicht, nur der
+  Entwickler sieht sie, und nach 90 Tagen werden sie gelöscht.
+
+## Aliase für deine Buddys
+
+*23. September 2026 · Version 1.195.0*
+
+Du kannst jedem Buddy einen eigenen Namen geben — zum Beispiel „Andi"
+für „stinkmorchel 1". Benennt er sich später um, weißt du trotzdem, wer
+es ist.
+
+- Den Stift neben einem Buddy im Reiter „Buddys" antippen, Alias
+  eintragen, speichern. Leer speichern entfernt ihn wieder.
+- In der Buddy-Liste und oben im Verlauf stehen beide Namen: dein Alias
+  groß, darunter der Name, den er sich selbst gegeben hat.
+- Überall sonst steht der Alias: auf der Karte, im Spot-Blatt, bei
+  Fundfotos und Kudos, im Reiter „Spots" — und die Suche dort findet
+  den Buddy auch unter dem Alias.
+- Schreibt er dir, steht der Alias auch in der Benachrichtigung.
+- **Nur du siehst ihn**, dafür auf allen deinen Geräten. Dein Buddy
+  erfährt nichts davon. Endet die Freundschaft, wird der Alias gelöscht.
+- Einen Alias gibt es nur für bestätigte Buddys, nicht bei offenen
+  Anfragen.
+
+## Stielfarben bei vier Pilzsymbolen
+
+*23. September 2026 · Version 1.194.1*
+
+Vier Symbole zeigen den Stiel jetzt so, wie er im Wald aussieht:
+
+- **Trompetenpfifferling:** Der Stiel ist gelb statt beige — genau daran
+  unterscheidet man ihn von der Herbsttrompete.
+- **Sommer- und Kiefernsteinpilz:** Das Netz am Stiel ist weiß statt rot.
+  Rot gehört dem Netzstieligen Hexenröhrling, und dort bleibt es.
+- **Gallenröhrling:** Er trägt jetzt ein dezentes dunkles Netz — das
+  Merkmal, an dem man ihn vom Steinpilz trennt.
+
+Beim Kiefernsteinpilz ist dabei auch das Gesicht wieder zu sehen; es war
+hell auf hellem Stiel.
+
+## Benachrichtigung bei neuen Nachrichten
+
+*23. September 2026 · Version 1.194.0*
+
+Hast du Benachrichtigungen eingeschaltet, meldet sich PilzBuddy jetzt,
+sobald dir ein Buddy schreibt — mit seinem Namen und dem Text der
+Nachricht. Ein Tipp darauf öffnet den Verlauf.
+
+- Ist die App gerade offen, erscheint die Nachricht unten als Leiste mit
+  „Öffnen". Steht der Verlauf mit diesem Buddy schon auf dem Bildschirm,
+  kommt keine Leiste — die Nachricht steht dann einfach da.
+- Der Text läuft dabei über die Server von Google, die Benachrichtigungen
+  zustellen. Für alles andere, was PilzBuddy meldet, bleibt es wie
+  bisher: Fundorte und Spot-Namen stehen nie in einer Benachrichtigung.
+- Nimmst du eine Nachricht gleich nach dem Senden zurück, geht meist gar
+  keine Benachrichtigung mehr raus.
+
+## Nachrichten an Buddys
+
+*23. September 2026 · Version 1.193.0*
+
+Im Reiter „Buddys" steht jetzt neben jedem Buddy eine Sprechblase: Dort
+schreibst du ihm eine kurze Nachricht, und er dir. Ungelesenes zeigt ein
+Punkt am Reiter.
+
+- **Auch bei einer offenen Anfrage** kannst du schreiben — höchstens drei
+  Nachrichten je Seite, bis die Anfrage angenommen ist. So kannst du
+  fragen, wer da anfragt, bevor du annimmst.
+- **Nachrichten verschwinden nach 30 Tagen.** Eigene kannst du vorher
+  zurücknehmen: lange auf die Nachricht drücken.
+- **Wer eine Anfrage ablehnt oder einen Buddy entfernt, löscht damit auch
+  den Verlauf** — für beide Seiten.
+- Nachrichten sind nicht Ende-zu-Ende-verschlüsselt. Sie liegen geschützt
+  in der Datenbank der App, so wie deine Spots.
+
+## „Neuer Spot" sieht überall gleich aus
+
+*23. September 2026 · Version 1.192.1*
+
+Hältst du den Finger auf die Karte, heißt der erste Eintrag im Menü
+jetzt „Neuer Spot" und sieht aus wie der Knopf unten rechts — beide tun
+dasselbe. Vorher stand dort „Spot anlegen" in einem dunkleren Grün, und
+das sah nach etwas anderem aus.
+
+## Ein Pilz für ein schönes Foto
+
+*23. September 2026 · Version 1.190.0 · 1.191.0 und 1.192.0: nur Innenausbau, nichts Sichtbares*
+
+Gefällt dir ein Fundfoto eines Buddys, kannst du ihm einen Pilz geben:
+Foto antippen, dann „Pilz geben". Einer je Foto, keine Sterne und keine
+Punkte — nur ein „schön gefunden".
+
+- Auf der Kachel steht, wie viele Pilze ein Foto bekommen hat, in der
+  Großansicht auch von wem. Buddys, die du selbst nicht kennst, werden
+  nur mitgezählt.
+- Mit „Pilz zurücknehmen" nimmst du deinen wieder weg.
+- An deine eigenen Fotos kannst du dir keinen Pilz geben.
+- Die Pilze verschwinden zusammen mit dem Foto nach spätestens 14 Tagen.
+
+## Alle Fundfotos im Reiter „Buddys"
+
+*23. September 2026 · Version 1.189.0*
+
+Ganz oben im Reiter „Buddys" stehen jetzt alle Fundfotos, die gerade
+laufen — deine und die deiner Buddys, die neuesten zuerst.
+
+- Ein **Punkt** oben links markiert Fotos von Buddys, die du noch nicht
+  geöffnet hast. Er verschwindet, sobald du das Foto antippst.
+- Ein kleiner **Ring** oben rechts zeigt, wie lange ein Foto noch
+  bleibt: voll, wenn es frisch ist, fast leer kurz bevor es nach 14
+  Tagen gelöscht wird. Die genaue Zahl steht in der Großansicht.
+- Aus der Großansicht kommst du wie gewohnt mit „Zum Spot" zum Fundort.
+
+## Fundfoto gleich beim Eintragen
+
+*23. September 2026 · Version 1.188.0*
+
+Ein Foto für deine Buddys lässt sich jetzt direkt im Blatt „Fund
+eintragen" anhängen — über „Foto für Buddys teilen", aus der Galerie
+oder mit der Kamera. Bisher ging das nur über das kleine Kamerasymbol
+am fertigen Fund, und das hat kaum jemand gefunden.
+
+- Das Foto wird wie bisher verkleinert und ohne Aufnahmedaten
+  hochgeladen und ist 14 Tage lang sichtbar.
+- Trägst du mehrere Arten auf einmal ein, hängt das Foto am ersten
+  Fund — das Blatt sagt es dir vorher.
+- Ohne Empfang wartet der Fund wie gewohnt auf Verbindung; das Foto
+  kannst du danach am Fund nachreichen.
+- Bei „Nichts gefunden" gibt es kein Foto — da ist ja nichts zu zeigen.
+
+## Freunde heißen jetzt Buddys
+
+*23. September 2026 · Version 1.187.0*
+
+Der Reiter „Freunde" heißt jetzt „Buddys" — und so heißen sie überall
+in der App: die Leute, mit denen du Spots, Standort und Fundfotos
+teilst. Das Wort stand schon an vielen Stellen, jetzt an allen. Sonst
+ändert sich nichts.
+
+## Ein Bild zum Feedback
+
+*22. September 2026 · Version 1.186.0*
+
+Wer einen Fehler meldet oder einen Hinweis zu einer Pilzart gibt, kann
+jetzt ein Bild anhängen — einen Screenshot zum Bug, ein Foto zu dem
+Pilz, der anders aussieht, als die Artseite es beschreibt. Der Knopf
+„Bild anhängen" steht im Melde-Dialog und unter „Hinweis zu dieser Art
+melden".
+
+Anders als dein Text wird das Bild **nicht veröffentlicht**: Es geht nur
+an den Entwickler und wird nach 90 Tagen gelöscht. Und wie bei den
+Fundfotos entfernt die App vorher alle Aufnahmedaten — Ort, Zeit,
+Gerät.
+
+## Fundfotos für deine Buddys
+
+*22. September 2026 · Version 1.185.0*
+
+Ein besonders schönes Fundstück lässt sich jetzt fotografieren und mit
+den Buddys teilen: Am eigenen Fund im Spot-Blatt steht eine kleine
+Kamera, und wer den Fund sehen darf, sieht 14 Tage lang auch das Foto —
+im Reiter „Spots" ganz oben und im Blatt des Spots. Dann wird es
+gelöscht, auch für dich; auf deinem Telefon bleibt das Original.
+Zurücknehmen geht jederzeit vorher, ein Tipp auf das Bild zeigt es groß.
+
+Das Wichtigste passiert vor dem Hochladen: Die App verkleinert das Bild
+und entfernt **alle Aufnahmedaten** — Ort, Zeit, Gerät. Ein Foto vom
+Telefon trägt die Fundstelle sonst unsichtbar in sich, und genau die
+soll niemand bekommen, dem du sie nicht selbst zeigst. Die App prüft
+das an jedem Bild nach, statt sich darauf zu verlassen. Was auf dem Bild
+zu sehen ist, bleibt natürlich zu sehen.
+
+- Fotos von Buddys lassen sich im Profil abstellen („Fundfotos von
+  Buddys anzeigen"): Dann lädt die App keine Bilder — für unterwegs ohne
+  Datenvolumen. Deine eigenen siehst du weiterhin.
+- Ohne Empfang scheitert das Teilen sichtbar, statt im Ausgangskorb zu
+  warten; ein Foto ist ein Extra-Schritt nach dem Eintragen.
+- Keine neue Berechtigung: Kamera und Galerie kommen ohne aus.
+
+## Jeder Pilz hat jetzt sein eigenes Zeichen
+
+*22. September 2026 · Version 1.184.0*
+
+Auf der Karte und in den Listen sahen 68 der 92 Arten aus wie der
+Durchschnitt ihrer Gruppe. Das war stellenweise schlicht falsch: Die
+Gruppe der Wulstlinge wird rot mit weißen Punkten gezeichnet, also wie
+ein Fliegenpilz — und damit trugen auch der Grüne Knollenblätterpilz und
+seine beiden weißen Verwandten dieses Zeichen. Der tödlichste Pilz der
+Liste sah aus wie der bekannteste.
+
+Jetzt hat jede Art ihre eigene Farbe und Form, abgelesen aus der
+Hutbeschreibung, die auf ihrer Artseite steht: der Grüne
+Knollenblätterpilz olivgrün und ohne Punkte, der Satansröhrling weißlich
+mit rotem Stiel, der Schopftintling weiß und walzlich, die
+Rötelritterlinge violett.
+
+**Verwechslungspartner tragen nie dasselbe Zeichen.** Das gilt jetzt
+nachweislich für alle Paare — ein Symbol, das den Verwechselten
+nachmacht, wäre genau der Fehler, vor dem die Artseite warnt.
+
+## Spot anlegen: die Pilzart gehört dazu
+
+*22. September 2026 · Version 1.183.0*
+
+Das erste Feld heißt jetzt „Name des Spots" — dort gehört der Ort hin,
+nicht der Pilz. Die Pilzart ist dafür Pflicht geworden: Ohne Namen
+entsteht kein Spot mehr. Wer den Pilz nicht bestimmen kann, tippt „Art
+unbekannt"; eingetragen wird dann genau wie bisher ein Fund ohne Art.
+
+**Steht ein Name nicht in der Artenliste, fragt die App nach** und
+schlägt den nächstliegenden vor: „Steipilz" führt zu „Meintest du
+Steinpilz?". Wer seinen eigenen Namen will, wählt „So eintragen".
+
+**Die Anzahl lässt sich eintippen oder am Rad wählen.** Ein Tipp auf die
+Zahl öffnet beides. Plus und Minus bleiben für die kleinen Schritte; für
+zweihundert Pilze waren sie nichts.
+
+## Weniger Vorrede, mehr Liste
+
+*22. September 2026 · Version 1.182.0*
+
+Im Reiter „Pilze" stand ein sechszeiliger Erklärabsatz über dem
+Suchfeld, und er scrollte mit: Wer in der Liste nach unten ging, verlor
+das Suchfeld und musste zum Tippen zurück nach oben. Jetzt bleiben
+Suchfeld und Saison-Schalter oben stehen, und über der ersten Art steht
+nur noch, wie viele Arten diesen Monat Saison haben. Die Erklärung
+steckt im „i" daneben.
+
+**Im Kartenfilter sind aus drei Schaltzeilen drei Chips geworden** —
+„Nur meine", „Ampel günstig" und „Saison". Was ein Filter tut und warum
+er gerade nicht wählbar ist, steht am Chip und im „i"; der Artenliste
+darunter bleibt dadurch deutlich mehr Platz.
+
+## Mehr Bilder bei den Verwechslungspartnern
+
+*22. September 2026 · Version 1.181.0*
+
+Bisher zeigte die Artseite ein Bild nur zu jedem vierten
+Verwechslungspartner, obwohl für fast alle eines in der App steckt — sie
+griff in die falsche Schublade. Jetzt hat jeder Partner sein Bild: aus 33
+Zeilen mit Bild werden 124.
+
+**Das große Bild liegt nicht mehr über dem ganzen Bildschirm**, sondern
+als Karte darauf, mit Rand ringsum. Ein Tipp neben die Karte schließt sie,
+genauso wie das Kreuz, die Zurück-Geste, ein Tipp auf das Bild und ein
+Wisch nach unten.
+
+**Bei den Merkmalen stehen Hut, Unterseite und Stiel gleich da**, Fleisch,
+Geruch und Vorkommen klappen auf Tippen auf. Die Beschreibung war der
+längste Abschnitt der Seite. Eingeklappt wird hier nur, was beschreibt —
+Warnungen und Einstufungen bleiben, wo sie sind.
+
+## Jedes Fenster hat jetzt ein Kreuz
+
+*22. September 2026 · Version 1.180.0*
+
+Die Blätter, die von unten hereinfahren — „Was ist hier?", die Ebenen,
+Regen, Waldtypen, Höhenlinien, Pilzampel, gemeldete Fundorte, der
+Kartenfilter, „Unterwegs", das Standort-Teilen und die Buddy-Auswahl —
+tragen oben rechts ein Kreuz. Bisher kam nur heraus, wer wusste, dass
+sich so ein Blatt nach unten wegwischen lässt.
+
+Weggewischt werden können sie weiterhin, und die Zurück-Geste des
+Telefons schließt sie auch. Neu ist nur, dass man es sehen kann.
+
+**Beim großen Bild einer Art ist mehr passiert.** Es schließt sich jetzt
+auch, indem man es nach unten wegwischt. Und ein Tipp auf die schwarze
+Fläche neben dem Bild wirkt endlich — das war als Weg hinaus gedacht,
+hat aber nur über dem Bild selbst funktioniert.
+
+Zwei Blätter behalten ihr Aussehen: Im Spot-Blatt liegen oben schon
+Navigation, Bearbeiten und Löschen, und ein Kreuz einen Daumenbreit
+neben „Löschen" wäre ein teurer Fehlgriff. Die Formulare zum Eintragen
+und Bearbeiten haben ihre eigenen Knöpfe am Fuß.
+
+## Bilder antippen und groß ansehen
+
+*22. September 2026 · Versionen 1.179.0 und 1.179.1*
+
+Jede Bildkachel auf einer Artseite trägt jetzt eine kleine Lupe. Antippen
+zeigt das Bild formatfüllend, mit Namen, Nennung und dem Hinweis
+darunter. Nochmal tippen schließt es, und mit zwei Fingern lässt es sich
+weiter vergrößern.
+
+**Ohne Empfang funktioniert es genauso.** Gezeigt wird sofort das Bild,
+das in der App steckt. Ist eine Verbindung da, wird im Hintergrund eine
+schärfere Fassung geladen und eingesetzt, sobald sie angekommen ist. Die
+großen Bilder liegen nicht in der App, sondern werden nur geholt, wenn
+du eines wirklich ansiehst — und höchstens 24 Megabyte davon bleiben auf
+dem Gerät liegen.
+
+## Jetzt hat jeder Pilz ein Bild
+
+*22. September 2026 · Version 1.178.0*
+
+Die letzten 35 Arten haben ihres bekommen, alle essbar oder „nur
+gegart". Damit zeigt jede der 92 Arten in PilzBuddy mindestens ein Bild.
+
+Dabei sind unter anderem Maipilz, Semmelstoppelpilz mit seinen Stacheln,
+Riesenbovist auf der Kuhweide, Butterpilz, Ziegenlippe, Judasohr,
+Nelkenschwindling, Schwefelporling und der Igelstachelbart.
+
+Rotkappe und Espenrotkappe teilen sich absichtlich dasselbe Bild:
+„Rotkappe" ist ein Sammelname für mehrere Arten, und ein eigenes Bild
+müsste trotzdem eine davon zeigen.
+
+Auch diese Bilder stammen von Wikimedia Commons und stehen dort, bis
+eigene Aufnahmen sie ersetzen.
+
+## Spot anlegen direkt am langen Tipp
+
+*22. September 2026 · Version 1.177.0*
+
+Das Menü am langen Tipp auf die Karte hat einen vierten Eintrag:
+**Spot anlegen**. Er steht zuunterst, also am Finger, und trägt die
+Farbe des Knopfs unten rechts, damit erkennbar ist, dass beide dasselbe
+tun.
+
+Der Unterschied liegt in der Stelle. Bisher führte der einzige Weg über
+das Fadenkreuz in der Bildmitte, man musste die Karte also erst
+verschieben, bis der gewünschte Punkt mittig lag. Jetzt reicht langes
+Drücken dort, wo der Spot hin soll.
+
+Die Chips fächern außerdem in einem Bogen auf statt in einer schrägen
+Reihe.
+
+## Jede Art, die warnt, zeigt jetzt auch ein Bild
+
+*22. September 2026 · Version 1.176.0*
+
+Vierzehn giftige, tödlich giftige und umstrittene Arten standen bisher
+ohne Bild da. Eine Seite, die warnt, sollte aber zeigen, wovor.
+
+Dazugekommen sind Kahler Krempling, Frühjahrsknollenblätterpilz,
+Orangefuchsiger und Spitzgebuckelter Raukopf, Grünling, Riesenrötling,
+Speitäubling, Tigerritterling, Ziegelroter Risspilz, Nebelkappe,
+Böhmische Verpel, Fuchsiger Rötelritterling, Safranschirmling und
+Ziegenbart.
+
+Damit haben 57 der 92 Arten ein Bild. Die verbleibenden 35 sind alle
+Speisepilze oder „nur gegart".
+
+Wie bei der ersten Tranche sind auch diese Bilder von Wikimedia Commons
+und stehen dort, bis eigene Aufnahmen sie ersetzen.
+
+## Klarerer Hinweis unter den Bildern
+
+*22. September 2026 · Version 1.175.1*
+
+Der Satz unter den Bildern war umständlich und sprach davon, wer die
+Bilder zugeordnet hat. Das hilft niemandem weiter. Jetzt steht dort, was
+zählt:
+
+> Bilder können falsch zugeordnet sein und wurden nicht von einem
+> Pilzsachverständigen geprüft. Im Zweifel den Pilz stehen lassen.
+
+Aufgeklappt folgt weiterhin, warum ein Foto zum Bestimmen nicht reicht.
+
+## Sechzehn Arten mehr mit Bild
+
+*22. September 2026 · Version 1.175.0*
+
+Bisher blieb manche Verwechslungszeile halb leer: Der eine Pilz hatte
+ein Bild, der andere nicht — und ein Vergleich mit nur einer Seite ist
+keiner. Für genau diese Fälle sind jetzt Bilder von Wikimedia Commons
+dazugekommen.
+
+Dabei sind der Gallenröhrling neben dem Steinpilz, der echte Pfifferling
+neben dem falschen, der Scheidenstreifling neben dem Grünen
+Knollenblätterpilz und der Karbolchampignon neben dem Wiesenchampignon.
+Dazu Netzstieliger Hexenröhrling, Schönfußröhrling, Frauentäubling,
+Grüngefelderter Täubling, Sommersteinpilz, Kiefernsteinpilz,
+Bronzeröhrling, Edelreizker, Lachsreizker, Trompetenpfifferling,
+Lungenseitling und der Kegelhütige Knollenblätterpilz.
+
+Damit haben 43 der 92 Arten ein Bild, vorher waren es 27.
+
+**Diese Bilder sind Platzhalter.** Sie stehen da, bis eigene Aufnahmen
+sie ersetzen. Woher jedes stammt und unter welcher Lizenz, steht wie
+immer unter dem Bild und auf der Lizenzseite im Profil.
+
+## Das Auge zeigt jetzt alle Arten, die ein Bild haben
+
+*22. September 2026 · Version 1.174.1*
+
+Zwölf Arten tragen kein eigenes Foto, aber ein Bild aus einem
+Vergleichspaar — und ihre Seite zeigt es auch. In der Liste bekamen sie
+trotzdem kein Auge. Das war ein Widerspruch in derselben App und ist
+behoben: Das Auge steht jetzt überall dort, wo es etwas zu sehen gibt.
+
+Betroffen sind unter anderem Perlpilz, Pantherpilz, Grüner
+Knollenblätterpilz, Wiesenchampignon, beide Morcheln und das
+Stockschwämmchen.
+
+## Ein Bildstreifen: erst der Pilz, dann was er nicht ist
+
+*22. September 2026 · Version 1.174.0*
+
+Die Vergleichsbilder lagen bisher verstreut in den einzelnen
+Verwechslungszeilen — und seit die harmlosen Zeilen einklappen, konnte
+ein Paar hinter einem Tipp verschwinden. Jetzt stehen alle Bilder einer
+Art in einer Reihe: links der Pilz selbst, dann eine Trennlinie, rechts
+seine Verwechslungspartner.
+
+**Die gefährlichen Partner tragen einen farbigen, dicken Rahmen**, die
+harmlosen und der eigene Pilz einen dünnen, neutralen. Grün gibt es
+nicht, und das ist Absicht: Ein grüner Rahmen läse sich als Freigabe,
+und freigeben kann die App nichts. Dass kein Rahmen leuchtet, ist die
+Auskunft.
+
+Unter jedem Bild steht, welcher Pilz es ist, bei den Partnern zusätzlich
+ihre Einstufung. Die Beschriftung trägt die Aussage, nicht die Farbe —
+wer den Streifen überfliegt, soll das Pantherpilz-Bild nicht für den
+Perlpilz halten können.
+
+## Ein Auge zeigt, von welchen Pilzen wir Bilder haben
+
+*22. September 2026 · Version 1.173.0*
+
+Im Reiter „Pilze" trägt jede Art, zu der es Bilder gibt, ein kleines
+Auge hinter dem Namen. Gemeint ist eigentlich die Umkehrung: Man sieht
+auf einen Blick, wovon noch welche fehlen — und kann einen Waldgang
+darauf ausrichten.
+
+Das Auge steht immer hinter dem Warnzeichen, nie davor. Es ist
+Buchführung und keine Aussage über den Pilz.
+
+## Bilder von der Krausen Glucke
+
+*22. September 2026 · Version 1.172.1*
+
+Zwei Aufnahmen, eine am Kiefernstrunk und eine mit der Hand daneben.
+Die Hand steht da mit Absicht: Die Krause Glucke wird kopfgroß, und an
+einem Ballen ohne Bezugsgröße sieht man das nicht.
+
+## Die Verwechslungsliste bleibt kurz, auch mit sechs Partnern
+
+*22. September 2026 · Version 1.172.0*
+
+Seit der Steinpilz sechs Verwechslungspartner hat, standen drei
+harmlose davon zwischen dir und der Warnung vor Gallen- und
+Satansröhrling. Jetzt stehen die warnenden oben und offen, die
+harmlosen klappen unter „Weitere ähnliche Arten" zusammen.
+
+Eingeklappt wird nur da, wo es etwas zu schützen gibt. Bei den vier
+Reizkern warnt keiner, also bleibt alles offen — sonst sähe die Seite
+wieder aus wie vorher, nämlich nach einer Überschrift ohne Inhalt. Und
+auf der Seite eines Giftpilzes klappt gar nichts zusammen: Dort sind
+die Speisepilze in der Liste der Punkt, sie erklären, warum jemand ihn
+überhaupt im Korb hätte.
+
+## Sechzehn neue Verwechslungspaare, zwei davon waren Lücken
+
+*22. September 2026 · Version 1.171.0*
+
+Ein Abgleich mit iNaturalist, wo Bestimmungen von Menschen korrigiert
+werden, hat zwei unangenehme Lücken gezeigt.
+
+**Der Fliegenpilz hatte bei uns gar keinen Verwechslungspartner** —
+obwohl er dort einer der am häufigsten korrigierten Pilze überhaupt ist.
+Ein regennasser, ausgeblasster Fliegenpilz verliert sein Rot und sieht
+aus wie ein Perlpilz. Beide Richtungen stehen jetzt da, mit dem
+Merkmal, das entscheidet: Der Perlpilz rötet an Fraßstellen fleischrosa,
+der Fliegenpilz bleibt weiß.
+
+**Und der Perlpilz nannte den Grünen Knollenblätterpilz nicht**, nur den
+Pantherpilz. Jetzt warnt er vor beiden.
+
+Dazu zwei Gruppen, die sich untereinander kaum trennen lassen und bei
+denen die App mit eigenen Merkmalstabellen behauptet, dass sie es kann:
+
+- **Die vier Reizker.** Fichten-, Edel-, Lachs- und Kiefernreizker. Was
+  sie trennt, ist vor allem der Baum: Fichte, Kiefer oder Weißtanne.
+  Dazu die Farbe der Milch und ob der Pilz grün anläuft.
+- **Die vier Steinpilze.** Steinpilz, Sommer-, Kiefernsteinpilz und
+  Bronzeröhrling, unterschieden nach Huthaut, Netz am Stiel und Baum.
+
+**Die Hinweiszeile beim Eintragen bleibt trotzdem kurz.** Sie nennt nur
+noch die Partner, bei denen etwas passieren kann. Wer „Steinpilz"
+eintippt und einen Sommersteinpilz in der Hand hält, dem passiert
+nichts — wer einen Satansröhrling in der Hand hält, schon. Die
+vollständige Liste steht weiterhin auf der Artseite.
+
+## Bilder zu 14 Arten — und ein Hinweis dazu, was sie nicht leisten
+
+*22. September 2026 · Version 1.170.0*
+
+Bisher gab es Fotos nur dort, wo zwei Arten nebeneinanderstehen, also
+bei den gefährlichen Verwechslungen. Jetzt haben 14 Arten zusätzlich
+eine eigene Bildreihe: zwei bis drei Aufnahmen, waagerecht
+durchzublättern, unter den Warnungen und über den Merkmalen.
+
+**Die Bilder sind selbst aufgenommen.** Sie stammen aus echten Funden im
+Schwarzwald und anderswo, nicht aus einem Lehrbuch. Das ist der
+eigentliche Gewinn: Ein Lehrbuchbild zeigt die Lehrbuchform, ein
+Fundbild zeigt, wie der Pilz wirklich dasteht. Beim Fichtenreizker hat
+genau das eine Zeile in unserer Merkmalstabelle widerlegt, die zu
+absolut formuliert war.
+
+Dabei sind: Fliegenpilz, Fichtenreizker, Stadtchampignon,
+Schopftintling, Birnenstäubling, Grünblättriger Schwefelkopf,
+Austernseitling, Parasol, Hallimasch, Steinpilz, Maronenröhrling,
+Falscher Pfifferling, Herbsttrompete und Samtfußrübling.
+
+**Zwei bis drei statt einem**, weil sich Farbe und Form mit Alter und
+Wetter stark ändern. Beim Parasol siehst du den jungen Paukenschläger,
+den aufgeschirmten Hut und die Unteransicht mit dem verschiebbaren
+Doppelring — die Abfolge, an der man ihn erkennt.
+
+Unter den Bildern steht jetzt ein Hinweis, und zwar unter allen, auch
+unter den Vergleichspaaren: **Nicht von einem Pilzsachverständigen
+geprüft. Im Zweifel den Pilz stehen lassen.** Wer wissen will, warum ein
+Foto zum Bestimmen nicht reicht, klappt die Begründung darunter auf. Die
+beiden wichtigen Sätze bleiben immer sichtbar.
+
+## Merkmale zu jedem Pilz, nicht nur zu den gefährlichen
+
+*22. September 2026 · Version 1.169.0*
+
+Die Bestimmungsmerkmale gab es bisher nur dort, wo eine Verwechslung
+eingetragen war oder der Pilz giftig ist. Das klang vernünftig und war
+es nicht: Gemessen wurde am Giftpilz und nicht an dem, was tatsächlich
+im Korb landet. Die vier Reizker zum Beispiel sind Speisepilze ohne
+eingetragenen Verwechslungspartner — ihre Seite sagte über den Pilz
+kein einziges Wort.
+
+**Jetzt trägt jede der 92 Arten ihre sechs Felder**: Hut, Unterseite,
+Stiel, Fleisch, Geruch und Vorkommen. Dazugekommen sind 30 Arten,
+darunter Reizker, Krause Glucke, Schopftintling, Habichtspilz,
+Brätling, Nelkenschwindling, Riesenbovist, Schwefelporling, Judasohr,
+Leberpilz, Igelstachelbart und die Rotkappen.
+
+Ein paar Beispiele für das, was dort jetzt steht: Der Edelreizker hat
+dunkle Grübchen am Stiel und seine Milch bleibt stundenlang
+karottenrot, der Fichtenreizker läuft rasch grün an. Der Brätling
+riecht nach Heringslake. Der Goldröhrling wächst ausschließlich bei
+Lärche. Beim Riesenbovist zählt nur, dass das Fleisch beim
+Durchschneiden rein weiß ist.
+
+Wie bisher gilt: Das ist beschrieben, woran eine Art in der Literatur
+erkannt wird. PilzBuddy bestimmt keine Pilze.
+
+## Die Warnung dort, wo der Pilz ist
+
+*22. September 2026 · Version 1.168.0*
+
+Bisher standen Einstufung, Verwechslungspartner und Bildpaare nur im
+Reiter „Pilze" — dem Ort, den man aufsuchen muss. Jetzt melden sie sich
+an den zwei Stellen, an denen man den Pilz tatsächlich in der Hand hat:
+
+- **Beim Eintragen.** Steht der Name im Feld, sagt eine Zeile darunter,
+  womit er verwechselt wird — „Wird verwechselt mit: Pantherpilz
+  (Giftig)". Die Einstufung des Partners steht nur dabei, wenn sie
+  warnt; ein Speisepilz wird nur genannt, nie freigegeben.
+- **Im Spot-Blatt.** Jede bekannte Art des Spots ist ein Chip, der auf
+  ihre Seite führt — die giftigen tragen ihr Zeichen schon dort.
+
+Und weil die Tabellen von Hand gepflegt sind: Am Fuß jeder Artseite steht
+„Hinweis zu dieser Art melden". Was du dort schreibst, kommt mit dem
+Artnamen bei uns an.
+
+## Bildpaare bei den gefährlichen Verwechslungen
+
+*22. September 2026 · Version 1.167.0*
+
+Acht Verwechslungen zeigen jetzt zwei Fotos nebeneinander: Stockschwämmchen
+neben Gifthäubling, Speisemorchel und Spitzmorchel neben Frühjahrslorchel,
+Perlpilz neben Pantherpilz, Wiesenchampignon und Flaschenstäubling neben
+dem Grünen Knollenblätterpilz, Samtfußrübling neben Gifthäubling — und
+der Flockenstielige Hexenröhrling neben dem Satansröhrling.
+
+**Bilder gibt es nur dort, wo zwei Arten nebeneinanderstehen** — nicht
+als Porträt am Seitenkopf. Ein einzelnes Foto zeigt, wie einer von beiden
+aussieht, und das genügt zum Verwechseln; erst das Paar stellt die Frage,
+um die es geht. Fehlt eines der beiden Bilder, bleibt die Zeile bildlos.
+
+Die Fotos stammen von Wikimedia Commons und stehen unter CC0, CC BY oder
+CC BY-SA. Urheber und Lizenz stehen unter jedem Bild, die vollständigen
+Angaben im Profil unter „Lizenzen".
+
+**Neu im Verzeichnis: der Schönfußröhrling.** Gallenbitter, rot genetzter
+Stiel, gelbe Poren — er wird für Steinpilz oder Hexenröhrling gehalten und
+stand bisher gar nicht in der App. Jetzt mit Einstufung, Saisonkurve,
+gemeldeten Fundorten, Merkmalen und vier Verwechslungspartnern. Dazu
+haben Sommer-, Kiefernsteinpilz und Bronzeröhrling den Gallenröhrling als
+Partner bekommen, der Flockenstielige Hexenröhrling den Satansröhrling —
+und der Parasol den Hinweis, warum kleine Schirmlinge stehen bleiben.
+
+## Bestimmungsmerkmale bei 58 Arten
+
+*22. September 2026 · Version 1.166.0*
+
+Unter den Warnungen steht jetzt, woran eine Art erkannt wird — immer in
+denselben sechs Feldern: Hut, Unterseite, Stiel, Fleisch, Geruch,
+Vorkommen. Dass die Reihenfolge fest ist, hat einen Grund: Wer zwei
+Arten vergleicht, springt zwischen zwei Seiten hin und her und liest
+dieselbe Zeile zweimal.
+
+Beschrieben sind die Arten, bei denen es zählt: alle mit einem
+Verwechslungspartner und alle giftigen. Für die übrigen steht kein
+Abschnitt da — lieber nichts als eine halbe Beschreibung.
+
+Auch hier gilt, was auf der ganzen Seite gilt: Das beschreibt, woran
+eine Art in der Literatur erkannt wird, nicht was du in der Hand hältst.
+Ein einzelnes Merkmal entscheidet nie. **PilzBuddy bestimmt keine
+Pilze** — wer unsicher ist, fragt einen Pilzsachverständigen.
+
+## Verwechslungspartner bei jeder Art
+
+*22. September 2026 · Version 1.165.0*
+
+Unter der Einstufung steht jetzt, womit eine Art verwechselt wird — und
+woran du den Unterschied merkst. Beim Stockschwämmchen der Gifthäubling
+(glatter statt schuppiger Stiel unterhalb des Rings), bei der
+Speisemorchel die Frühjahrslorchel (innen hohl statt kammerig), beim
+Perlpilz der Pantherpilz (rötet an Fraßstellen, geriefelter Ring).
+
+Jede Zeile nennt die Einstufung des Partners gleich mit — „Gifthäubling ·
+Tödlich giftig" sagt mehr als der Name allein — und führt beim Antippen
+auf dessen Seite. Von dort geht es zurück: Die Warnungen stehen immer in
+beide Richtungen.
+
+Was dabei ausdrücklich nicht behauptet wird: Vollständigkeit. Die Liste
+nennt, was häufig verwechselt wird, und ein einzelnes Merkmal
+entscheidet nie. PilzBuddy bestimmt keine Pilze.
+
+## Suchfeld im Reiter „Pilze"
+
+*21. September 2026 · Version 1.164.0*
+
+91 Arten sind zum Durchscrollen zu viele. Oben im Reiter steht jetzt ein
+Suchfeld: Es findet über den deutschen Namen, über die Zweitnamen und
+über den wissenschaftlichen — „Marone" führt zum Maronenröhrling,
+„Boletus" zum Steinpilz. Umlaute sind dabei egal, „Staeubling" und
+„Stäubling" finden denselben Pilz.
+
+Vertippt? Findet das Feld nichts, schlägt es vor, was gemeint sein
+könnte — „Steinpliz" führt zum Steinpilz — und sagt dazu, dass es rät.
+Das ist dieselbe Hilfe, die das Eingabefeld beim Fund eintragen längst
+gibt.
+
+Gruppen ohne Treffer verschwinden, solange gesucht wird; das X stellt
+die ganze Liste wieder her.
+
+## Essbar oder giftig — jetzt bei jeder Art
+
+*21. September 2026 · Version 1.163.0*
+
+Jede der 91 Arten trägt jetzt eine Einstufung: Speisepilz, nur gegart
+essbar, uneinheitlich beurteilt, ungenießbar, giftig oder tödlich
+giftig. Sie steht ganz oben auf der Artseite, und in der Liste bekommen
+die giftigen ein Warnzeichen — eine Warnung, zu der man erst scrollen
+muss, ist im Wald keine.
+
+Wo die Einstufung allein in die Irre führt, steht ein Satz dabei: bei
+Verwechslungen, die Menschen das Leben gekostet haben (Stockschwämmchen
+und Gifthäubling, Perlpilz und Pantherpilz), bei Pilzen, die
+jahrzehntelang im Korb lagen und heute als gefährlich gelten (Kahler
+Krempling, Frühjahrslorchel, Grünling), und bei deutschen Namen, die
+eine ganze Gattung meinen.
+
+Zwei Dinge, die dabei Absicht sind. „Speisepilz" bekommt kein Grün und
+kein Häkchen — grün läse sich als Freigabe, und freigeben kann die App
+nichts. Und unter jeder Einstufung steht, worauf sie sich bezieht: auf
+die Art, nicht auf den Pilz in deinem Korb. **PilzBuddy bestimmt keine
+Pilze.** Wer unsicher ist, fragt einen Pilzsachverständigen.
+
+## Jede Pilzart hat jetzt eine eigene Seite
+
+*21. September 2026 · Version 1.162.0*
+
+Im Reiter „Pilze" war bisher jede Art eine einzige Zeile. Tipp sie jetzt
+an, und du bekommst alles, was PilzBuddy über sie weiß: den
+wissenschaftlichen Namen, die anderen Namen, unter denen du sie
+eintragen kannst, den vollen Jahresgang mit allen zwölf Monaten
+beschriftet, zu welcher Ampel-Gruppe sie gehört und wie gut das belegt
+ist, wie oft du sie selbst gefunden hast und wann zuletzt, und wie viele
+Meldungen es zu ihr in Deutschland, Österreich und der Schweiz gibt. Ein
+Knopf stellt die Karte auf genau diese Art ein.
+
+Wo eine Kurve von verwandten Arten geborgt ist, sagt die Seite das jetzt
+auch — bisher stand das nur im Spot-Blatt.
+
+Was dort ausdrücklich NICHT steht: ob ein Pilz essbar ist und wie man
+ihn erkennt. PilzBuddy bestimmt keine Pilze, und die Seite sagt das auch.
+
+## Neuer Reiter „Spots": alle Stellen als Liste, mit Statistik
+
+*21. September 2026 · Version 1.161.0*
+
+Neben der Karte gibt es jetzt den Reiter „Spots". Er zeigt dieselben
+Stellen als Liste — die mit der jüngsten Aktivität oben, eigene und
+geteilte gemischt. Jede Zeile nennt den letzten Eintrag, wann er war
+und, wenn er von einem Buddy stammt, von wem. Ein Leergang zählt dabei
+als Aktivität: „gestern nichts gefunden" ist auch eine Nachricht über
+den Ort. Antippen öffnet das gewohnte Spot-Blatt; das Kartensymbol
+daneben springt auf die Karte und zentriert die Stelle. Oben suchst du
+nach Name, Pilzart oder Buddy — „Staeubling" findet auch den
+„Flaschenstäubling".
+
+Vorgemerkte Spots stehen in einer eigenen Gruppe am Ende. Und wenn ein
+Buddy nur den Standort teilt, sagt die Liste das, statt die Zeile leer
+zu lassen.
+
+Im zweiten Reiter steht die Statistik, die bisher im Profil war — mit
+drei Ergänzungen: die laufende Saison im Vergleich zum Vorjahr bis zum
+selben Tag, dein Jahresgang über alle zwölf Monate (in derselben
+Darstellung wie die Saisonkurven im Reiter „Pilze", damit du beide
+nebeneinanderlegen kannst) und, falls du Leergänge einträgst, bei wie
+vielen Besuchen nichts da war. Gezählt werden weiterhin nur deine
+eigenen Funde.
+
+Das Banner über neue Buddy-Funde bleibt davon unberührt: Ein Blick in
+die Liste schaltet es nicht stumm.
+
+## Pilzampel: „Austernseitling & Co." achtet auf die Nächte
+
+*21. September 2026 · Version 1.160.0*
+
+Die Ampel-Gruppe der Holz- und Winterpilze rechnet jetzt eine vierte
+Zutat ein: ob die letzten fünf Nächte milder waren als die drei Wochen
+davor. Das Labor hat in den Fundmeldungen genau dieses Muster gefunden —
+erst kalt, dann milder — und auf zurückgehaltenen Daten bestätigt; eine
+reine Frost-Zählung hatte es nicht. Der Gewinn ist klein und sauber
+belegt, die Stufen der Gruppe sind darunter neu geeicht. Im Spot-Blatt
+steht die Zutat als Satz dabei („Nächte zuletzt: 2,3 °C milder als in
+den drei Wochen davor").
+
+Dafür trägt die Stationstabelle jetzt 28 statt 20 Tage. Solange dein
+Gerät noch die alte Tabelle hat, bleibt diese eine Gruppe grau und sagt
+warum; die anderen Gruppen rechnen weiter. Die Tabelle erneuert sich
+von selbst mit den nächsten Regendaten.
+
+## Spots vormerken — ohne Fund, mit erwarteten Arten
+
+*21. September 2026 · Version 1.159.0 und 1.159.1*
+
+Bisher legte jeder neue Spot sofort einen Fund an, notfalls ohne Art
+und mit heutigem Datum. Jetzt gibt es im Anlege-Blatt den Schalter „Nur
+vormerken, noch kein Fund": Der Spot wird ohne Fund gespeichert, die
+eingetragenen Arten gelten als Erwartung. Auf der Karte erscheint er
+verblasst, sein Blatt sagt „Vorgemerkt für Steinpilz — noch kein Fund".
+Pilzampel, Saison-Filter und der Hinweis auf günstige Spots sprechen für
+die erwarteten Arten, als wären sie schon gefunden. Der erste Fund
+beendet die Vormerkung; die erwartete Art ist dabei vorbelegt. Die
+Erwartung lässt sich im Bearbeiten-Blatt ändern.
+## Impressum
+
+*21. September 2026 · Version 1.158.0*
+
+PilzBuddy hat jetzt ein Impressum — im Profil unter „Über PilzBuddy",
+und im Netz unter
+https://macbuchi.github.io/pilzbuddy/impressum.html
+
+Inhaltlich ändert sich für dich nichts: Es steht dort, wer die App
+anbietet und wie man ihn erreicht. Bisher stand das nur verkürzt in der
+Datenschutzerklärung.
+
+## Pilzampel: Saison zählt auch auf der Karte, Arten ausnehmen
+
+*21. September 2026 · Version 1.157.0*
+
+Eine Ampel-Gruppe leuchtet auf der Karte jetzt nur noch, solange
+mindestens eine ihrer Arten gerade Saison hat. „Austernseitling & Co."
+war Anfang September günstig, weil Krause Glucke und Leberpilz Saison
+haben, nicht der Austernseitling — die Legende sagt jetzt dazu, welche
+Arten die Gruppe gerade tragen („jetzt: Krause Glucke, Leberpilz"). Das
+Ampel-Blatt nennt Gruppen, die gerade pausieren.
+
+Im Reiter „Pilze" hat jede Art mit Ampel einen Schalter. Aus heißt: Die
+Art zählt nicht mehr für Hinweis, Spot-Blatt und Karte. Sind alle Arten
+einer Gruppe aus, ist die Gruppe aus. Die gemeldeten Fundorte zeigt die
+Karte weiter, das ist eine andere Ebene.
+
+## Fundstellen weit vom Spot: Hinweis, Bestätigung, Mitnehmen
+
+*21. September 2026 · Version 1.156.0*
+
+Liegt eine Fundstelle mehr als 100 m von ihrem Spot entfernt, trägt der
+Spot auf der Karte jetzt ein kleines Ausrufezeichen, und sein Blatt nennt
+die Stellen mit Datum und Entfernung. Ist das so gewollt, tippst du
+„So gewollt": Das Zeichen verschwindet, die Zeile bleibt als Auskunft.
+Ein später weit entfernt eingetragener Fund bringt den Hinweis zurück.
+
+Beim Verlegen eines Spots mit eigenen Fundstellen fragt die App, ob die
+Fundstellen mitkommen sollen. Mitnehmen heißt: Sie gelten danach am
+Spot, ihre eigene Position entfällt — gemessene Positionen gehen dabei
+verloren, das sagt die Frage dazu. Umgekehrt fragt eine verlegte
+Fundstelle, ob der Spot samt allen deinen Fundstellen dorthin soll;
+Vorgabe ist Nein. Fundstellen von Buddys bleiben in beiden Fällen, wo
+sie sind.
+
+## Fundorte: Gruppen direkt im Blatt an- und abwählen
+
+*21. September 2026 · Version 1.155.0*
+
+Im Blatt der gemeldeten Fundorte stehen die Ampel-Gruppen jetzt als
+Chips mit ihrer Farbe: Antippen blendet die Gruppe auf der Karte aus,
+Legende und Fläche folgen. Es ist dieselbe Auswahl wie im Kartenfilter
+— was hier abgewählt ist, gilt auch für die Pilzampel, und der
+Filter-Chip auf der Karte nennt es. Der Kartenfilter zeigt die Chips
+außerdem auch dann, wenn nur die Fundorte-Ebene an ist. Arten ohne
+Ampel-Gruppe haben keinen Chip; das Blatt sagt, wann sie mit
+ausgeblendet sind.
+
+## Fundorte: Austernseitling & Co. jetzt in Blau
+
+*21. September 2026 · Version 1.154.2*
+
+Die Scheiben der gemeldeten Fundorte für Austernseitling & Co. waren
+magenta — neben dem Rot von Steinpilz & Co. auf der Karte kaum zu
+unterscheiden. Sie sind jetzt blau; Legende und Ebenen-Blatt zeigen die
+neue Farbe mit.
+
+## Bodenfeuchte kam auf manchen Geräten nicht an
+
+*21. September 2026 · Version 1.154.1*
+
+Die Stationstabelle mit Temperatur und Bodenfeuchte wird einmal am Tag
+geholt und bis zum nächsten Stand aufgehoben. Wird sie am selben Tag neu
+veröffentlicht — so geschehen am 20. September, als die Bodenfeuchte
+dazukam —, blieb bisher die alte Fassung liegen, und die Pilzampel
+meldete „keine Bodenfeuchte-Station in Reichweite", obwohl 483
+Stationen bereitstanden. Die App erkennt einen neu veröffentlichten
+Stand jetzt an seiner Größe und holt ihn nach.
+
+## Gemeldete Fundorte auf der Karte
+
+*21. September 2026 · Version 1.154.0*
+
+Eine neue Ebene unter „Ebenen": **Gemeldete Fundorte**. Sie zeigt, wo
+Menschen eine unserer Pilzarten bei GBIF gemeldet haben — der weltweiten
+Sammlung von Naturbeobachtungen, aus der auch die Saisonkurven stammen.
+Rund 300 000 Meldungen aus Deutschland, Österreich und der Schweiz liegen
+dafür in der App, ohne Netz und ohne dass eine Koordinate das Gerät
+verlässt.
+
+- **Jede Scheibe ist eine Meldung, so groß wie ihre Genauigkeit.** In
+  Deutschland sind das meist Punkte von einigen hundert Metern, in der
+  Schweiz Quadrate von fünf Kilometern, in Österreich Rasterpunkte. Wo
+  sich Scheiben überlagern, wird es dichter — die Dichte entsteht aus den
+  Meldungen, sie wird nicht behauptet.
+- **Die Farbe ist die Ampel-Gruppe** der Art: Steinpilz & Co. rot,
+  Pfifferling gelb, Austernseitling & Co. magenta, Herbsttrompete & Co.
+  türkis, Arten ohne Ampel grau. Die Legende links unten nennt sie.
+- **Der Kartenfilter gilt auch hier.** Wer im Filter eine Art oder eine
+  Ampel-Gruppe wählt, sieht nur deren Meldungen — kein zweiter Wähler.
+- **„Was ist hier?" zählt mit:** Für jede Stelle steht jetzt, welche
+  Arten im Umkreis von fünf Kilometern gemeldet wurden, wie oft und
+  zuletzt wann.
+
+Was die Ebene nicht sagt, steht in ihrem Blatt und gehört hierher:
+„gemeldet" heißt nicht „wächst dort heute", und **keine Scheibe heißt
+„keine Meldung"**, nicht „nichts da" — dort hat einfach niemand gemeldet.
+Wer die Meldungen verfolgen will: Die Quell-Datensätze mit ihrem Anteil
+stehen unter „Über PilzBuddy" → Lizenzen.
+
+## Ein Reiter „Pilze" — was wozu gehört
+
+*21. September 2026 · Version 1.153.0*
+
+Unten in der Leiste gibt es einen neuen Reiter „Pilze". Er zeigt für
+jede Art, die die App kennt, zu welcher Pilzampel-Gruppe sie gehört —
+„Steinpilz & Co.", „Pfifferling", „Austernseitling & Co.",
+„Herbsttrompete & Co." — und daneben in klein, in welchen Monaten sie
+gemeldet wird. Arten, die gerade Saison haben, sind grün hervorgehoben;
+ein Schalter oben blendet die übrigen aus. Am Ende stehen die Arten
+ohne Ampel, mit dem Grund. Bis jetzt fand man die Zuordnung nur in der
+ausgeklappten Legende der Ampel-Ebene, und die Saisonkurve nur an einem
+Spot, der die Art schon trägt.
+
+Die Saisonwörter im Spot-Blatt („Hauptzeit", „Nebenzeit", „Randzeit")
+und die Balken sind dieselben wie dort — an einer Stelle gerechnet,
+zweimal gezeigt.
+
+
+## Eine Ampel für Winter- und Holzpilze
+
+*20. September 2026 · Version 1.152.0*
+
+Austernseitling, Judasohr, Samtfußrübling, Krause Glucke, Leberpilz,
+Lungenseitling, Rehbrauner Dachpilz und Schwefelporling bekommen eine
+eigene Pilzampel: „Austernseitling & Co.". Sie rechnet anders als die
+bisherigen Gruppen — nicht mit einem Temperaturfenster, sondern mit
+Regen, Temperatur und der Bodenfeuchte der nächsten Messstelle zusammen,
+weil sich für diese Pilze gezeigt hat, dass „je kälter, desto besser"
+mit einem Fenster nicht zu fassen ist. Geprüft an Fundmeldungen aus
+Deutschland, Österreich und der Schweiz, die an der Anpassung nicht
+beteiligt waren.
+
+Dazu „Herbsttrompete & Co.": Herbsttrompete, Semmelstoppelpilz und
+Trompetenpfifferling, nach demselben Rezept — belegt bislang nur für
+Deutschland. Die Herbsttrompete wechselt dafür aus „Steinpilz & Co."
+dorthin.
+
+Beide Gruppen stehen in der Karte, in der Legende, im Filter und im
+Spot-Blatt wie die anderen. Wo keine Bodenfeuchte-Messstelle in
+Reichweite ist — in Österreich und der Schweiz fast überall —, bleiben
+sie grau statt zu raten. Die Stufen von „Steinpilz & Co." sind nach dem
+Auszug der Herbsttrompete neu geeicht; der Unterschied ist winzig.
+
+
+## Der Pfifferling mag es etwas kühler
+
+*20. September 2026 · Version 1.151.0*
+
+Das Temperaturfenster der Pfifferling-Ampel rückt von 17,5 auf 14,5 °C.
+In einer großen Nachrechnung über Deutschland, Österreich und die Schweiz
+zeigte das kühlere Fenster durchweg ein kleines Plus — klein genug, dass
+wir es ehrlich als Versuch führen: Im Spot-Blatt steht der Pfifferling
+deshalb ab jetzt auf „unsichere Datenlage" statt „gut belegt", bis ein
+weiteres Jahr die Änderung bestätigt oder widerlegt. Die beiden Stufen
+„verhalten" und „günstig" sind für das neue Fenster neu geeicht.
+
+Im Hintergrund ist mit dieser Version die Vorarbeit für eine Ampel für
+Winter- und Holzpilze abgeschlossen; sie selbst kommt mit einem der
+nächsten Updates.
+
+
+
+
+## Die Bodenfeuchte steht jetzt am Spot
+
+*20. September 2026 · Version 1.150.0*
+
+Unter dem Wetterdiagramm eines Spots steht eine neue Zeile: die
+Bodenfeuchte der nächsten Messstelle des Deutschen Wetterdienstes, in
+Prozent dessen, was der Boden dort an Wasser für Pflanzen halten kann.
+100 % heißt „voll", egal ob Sand oder Lehm. Dazu Datum und Entfernung der
+Station — sie liegt in Deutschland im Schnitt gut zehn Kilometer weg, in
+Österreich und der Schweiz meist zu weit, dann fehlt die Zeile.
+
+Das ist Vorarbeit: Für Winter- und Holzpilze wie Judasohr, Austernseitling
+oder Samtfußrübling hat sich in der Auswertung gezeigt, dass die Ampel
+mit dieser Größe rechnen muss, um überhaupt etwas Sinnvolles zu sagen.
+Dafür braucht die App die Daten zuerst auf dem Gerät — wie beim Regen
+ohne dass eine Fundstelle das Telefon verlässt.
+
+## Lange auf die Karte tippen
+
+*20. September 2026 · Version 1.149.0*
+
+Halte irgendwo auf der Karte gedrückt — ein kleines Menü fächert auf und
+fragt, was du willst:
+
+- **Was ist hier?** — Regen, Temperatur, Wald und Pilzampel für genau
+  diese Stelle. Das gab es schon, aber nur versteckt in der Legende.
+- **Navigation** — übergibt den Punkt an deine Navi-App, so wie es am
+  Spot längst geht.
+- **Heranzoomen** — springt hin und zoomt heran.
+
+Den Schalter „Karte gedrückt halten" im Profil gibt es nicht mehr. Er war
+nötig, weil die Geste früher sofort die Karte verschob und ein Fehlgriff
+einen aus der Übersicht warf. Jetzt fragt sie erst — und ein
+versehentliches Menü tippst du einfach weg.
+
+## Und jetzt siehst du die Spuren der anderen
+
+*20. September 2026 · Version 1.148.0*
+
+Die andere Hälfte: Wenn deine Buddys eine Pilztour aufzeichnen und dabei
+ihren Standort teilen, liegen ihre Wege jetzt auf deiner Karte. Jeder
+bekommt eine eigene Farbe, die sich nicht ändert — die blaue Linie
+bleibt dieselbe Person. Grün ist dabei immer deine eigene Spur.
+
+Punkte oder Linie richtet sich nach deiner Einstellung im Profil; sie
+gilt für alle Spuren gleichermaßen.
+
+**Fremde Spuren zählen nicht als deine Leergänge.** Wo dein Buddy
+gelaufen ist, hast nicht du gesucht — das Abschluss-Blatt deiner Tour
+schlägt weiterhin nur Spots vor, an denen *du* warst.
+
+## Deine Tour-Spur für die Buddys
+
+*20. September 2026 · Version 1.147.0*
+
+Wenn ihr zu mehreren unterwegs seid, könnt ihr jetzt sehen, welche
+Strecke die anderen schon abgesucht haben — so läuft niemand zweimal
+denselben Hang ab.
+
+**Es passiert nur, wenn du ohnehin deinen Standort teilst.** Die Spur
+hängt an genau dieser Freigabe: Zeichnest du eine Tour auf, ohne den
+Standort zu teilen, bleibt der Weg auf deinem Gerät, so wie bisher.
+Beendest du die Tour oder das Teilen, wird die Spur sofort wieder
+gelöscht — spätestens, wenn die Freigabe abläuft.
+
+Sehen können sie nur Freunde, die du bestätigt hast.
+
+In dieser Version wird deine Spur übertragen; **zu sehen** sind die
+Spuren der anderen mit dem nächsten Update.
+
+## Ein Schalter weniger im Profil
+
+*20. September 2026 · Version 1.146.0*
+
+Der Schalter „Neue Karten-Engine" ist weg. Seit Ende Juli zeichnet die
+Karte auf Android mit der neuen Engine, und der Schalter war nur die
+Rückfalllinie für den Fall, dass sich das nicht bewährt. Es hat sich
+bewährt — in den Fehlerberichten der letzten zehn Wochen steht nichts
+dagegen.
+
+Falls du ihn ausgeschaltet hattest: Deine Karte sieht ab jetzt aus wie
+bei allen anderen. Im Browser ändert sich nichts.
+
+## Ebenen kurz wegblenden
+
+*20. September 2026 · Version 1.145.0*
+
+Waldtypen, Pilzampel, Regen und Höhenlinien liegen als farbige Flächen
+über der Karte — praktisch, solange man sie lesen will, und im Weg,
+sobald man wissen möchte, wo der Weg eigentlich hinführt.
+
+Sobald mindestens eine Ebene an ist, steht dafür ein neuer Knopf in der
+Leiste am rechten Rand. Ein Tipp nimmt alle Flächen weg, ein zweiter
+holt sie zurück — genau die, die vorher an waren. Deine Einstellungen
+werden dabei nicht angefasst; es ist ein Vorhang, kein Ausschalter.
+
+Deine Spots, die Tourspur und die Karte selbst bleiben immer sichtbar.
+Nach einem Neustart ist der Vorhang wieder offen.
+
+## Spots lassen sich nachträglich korrigieren
+
+*20. September 2026 · Version 1.144.0*
+
+Ein Spot landete bisher genau dort, wo er beim Anlegen gesetzt wurde —
+und blieb da. Unter dichtem Blätterdach liegt das GPS aber schnell
+zwanzig Meter daneben, und wer den Namen in der Eile vertippt hatte,
+wurde ihn nie wieder los.
+
+Im Spot-Blatt gibt es jetzt einen Stift-Knopf oben rechts. Dahinter
+lassen sich Name und Stelle ändern: Die Karte zeigt einen Ring um die
+bisherige Stelle und darunter, wie weit du sie verschoben hast.
+
+Zwei Dinge dazu:
+
+- **Deine Funde ziehen sinnvoll mit.** Funde ohne eigene Stelle hängen
+  am Spot und wandern mit ihm. Ein Fund, für den du eine eigene Stelle
+  angegeben hast, bleibt dort, wo du ihn gemessen hast — seine
+  Entfernung zum Spot wird nur neu berechnet.
+- **Es geht nur bei eigenen Spots und nur mit Empfang.** Ein Spot, der
+  noch auf die Übertragung wartet, lässt sich noch nicht bearbeiten; du
+  kannst ihn aber verwerfen und neu anlegen.
+
+Dasselbe gilt jetzt auch für einzelne Fundstellen — aber nur für die,
+die du auf der Karte gewählt hast. Öffne den Fund, und die Karte steht
+da wie beim Eintragen. Eine Stelle, die dein Gerät gemessen hat, bleibt
+unverändert stehen: Sie ist eine Messung von damals, und ein Fix von
+heute würde sagen, wo du jetzt bist — nicht, wo der Pilz stand. Wenn die
+falsch ist, lösch den Fund und trag ihn neu ein.
+
+## Die Pilztour zeichnet wieder sichtbar mit
+
+*20. September 2026 · Version 1.143.1*
+
+Während einer Pilztour blieb die Karte leer: Der zurückgelegte Weg
+erschien erst, wenn man die App einmal geschlossen und wieder geöffnet
+hatte. Wer die Spur als Linie eingestellt hatte, sah bis dahin gar
+nichts, wer sie als Punkte anzeigen ließ, nur den Startpunkt.
+
+Aufgezeichnet wurde die ganze Zeit alles — verloren gegangen ist nie
+etwas, auch nicht bei den Touren aus den letzten Wochen. Nur der Weg von
+der Aufzeichnung zur Karte war unterbrochen. Jetzt wächst die Spur
+wieder mit, während du gehst.
+
+## Die Ampel wird wählerischer
+
+*19. September 2026 · Version 1.144.0*
+
+Bisher stand die Pilzampel im Oktober an mehr als jedem zweiten Tag auf
+„günstig". Das klang nach einer guten Nachricht und war keine: Wenn fast
+jeder Tag gut ist, sagt das Wort nichts mehr.
+
+Der Grund war eine Feinheit in der Eichung. Die Grenze zwischen den
+Stufen war an Vergleichstagen gesetzt worden, die vier bis sechs Wochen
+neben der eigentlichen Pilzzeit lagen — also an Tagen, an denen ohnehin
+wenig geht. Gemessen an Tagen aus derselben Jahreszeit liegt die Latte
+höher. Genau dorthin ist sie jetzt gerückt.
+
+An der Rechnung selbst hat sich nichts geändert. Dieselbe Formel,
+dieselben Zahlen für Regen und Temperatur — nur der Schnitt liegt
+woanders. Im Oktober werden aus rund 17 grünen Tagen etwa 10.
+
+Dazu steht jetzt im Spot-Blatt, was „günstig" überhaupt heißt: etwa
+jeder fünfte Tag der Saison, dort wo die Art vorkommt. Und wieviel der
+Hinweis wert ist — an solchen Tagen wurde rund 1,3-mal so oft etwas
+gemeldet wie an einem gewöhnlichen Tag. Das ist wenig, und es ist mehr
+als nichts; beides soll dastehen.
+
+## Die Ampel sagt jetzt, wie sicher sie sich ist
+
+*19. September 2026 · Version 1.143.0*
+
+Die Pilzampel ist ein Versuch, und wie gut sie für eine Art belegt ist,
+war bisher nirgends zu sehen. Jetzt steht es in der Zeile der Art im
+Spot-Blatt, hinter Regen, Temperatur und Saison: „Belege: gut belegt"
+oder „Belege: unsichere Datenlage".
+
+Fünf der sechs Arten stehen auf „gut belegt". Bei der Herbsttrompete
+reichen die Daten noch nicht — sie hat schlicht zu wenige Meldungen, um
+das Ergebnis abzusichern. **Die Ampel bleibt für sie trotzdem an:** Die
+Angabe begrenzt, was sie behauptet, sie schaltet nichts ab.
+
+In der ausgeklappten Kartenlegende steht der Hinweis dazu einmal für
+das ganze Feature.
+
+Und wie immer: Die Ampel bewertet **Bedingungen**, nicht Vorkommen.
+
+## Selbst entscheiden, für welche Pilze die Ampel spricht
+
+*12. September 2026 · Version 1.142.0*
+
+Die Pilzampel rechnet zwei Gruppen — „Steinpilz & Co." und
+„Pfifferling" — und zeigt auf der Karte, welche von beiden es gerade
+besser trifft. Wer im Juli aber Steinpilze sucht, will die
+Pfifferling-Fläche nicht sehen.
+
+Im Filter (der Trichter auf der Karte) stehen die Gruppen jetzt als
+Chips. Ab Werk sind alle an; wer eine abwählt, ändert damit **alles auf
+einmal**:
+
+- die leuchtende Fläche auf der Karte,
+- die Zeilen „am Fadenkreuz" in der ausgeklappten Legende,
+- den Hinweis oben auf der Karte („2 Spots · Ampel günstig"),
+- und den Filter „Nur wo die Ampel günstig steht".
+
+Dass gefiltert wird, steht wie immer auf der Karte: „🔍 Gefiltert:
+Ampel: Steinpilz & Co.". Eine Gruppe muss anbleiben — keine Gruppe wäre
+eine Ampel ohne Aussage, und dafür gibt es den Schalter für die ganze
+Ebene.
+
+Nebenbei richtiggestellt: Das Ampel-Blatt behauptete, das Modell habe
+sich „an echten Funden bisher nicht bewährt". Das stimmt so nicht mehr —
+an Pilzmeldungen aus ganz Deutschland trennt es Fundtage von normalen
+Tagen deutlich. Ungeprüft ist es an **deinen** Funden, und genau das
+steht jetzt dort.
+
+## Nachschlagen, welche Pilze zu welcher Gruppe gehören
+
+*12. September 2026 · Version 1.141.0*
+
+Die Ampel rechnet je Pilzgruppe, und die Legende nennt sie — aber
+nirgends stand, **wer dazugehört**. Jetzt gibt es im Ampel-Blatt auf der
+Karte eine aufklappbare Liste:
+
+> **Welche Gruppen?**
+> Steinpilz & Co. · 13,0 °C
+> Steinpilz · Maronenröhrling · Birkenpilz · Fichtenreizker · Herbsttrompete
+>
+> Pfifferling · 17,5 °C
+> Pfifferling
+
+Dazu steht dort, warum die übrigen Arten eine **graue** Ampel bekommen:
+Für sie ist noch nicht an unabhängigen Daten bestätigt, dass ein eigener
+Temperaturbereich besser passt.
+
+**Und drei Stellen haben wir richtiggestellt**, an denen die App noch das
+Gegenteil dessen behauptete, was sie tut — im Profil, auf der
+Lizenzseite und im Ampel-Blatt stand sinngemäß „rechnet für alle Arten
+gleich". Das stimmt seit dem letzten Update nicht mehr.
+
+## Die Karte zeigt jetzt alle Pilzgruppen, nicht nur eine
+
+*12. September 2026 · Version 1.140.0*
+
+Seit die Ampel je Pilzgruppe rechnet, zeigte die **Karte** trotzdem nur
+eine davon — das Fenster für Steinpilz & Co. Wer Pfifferlinge suchte, las
+die Farben als für sich gültig, obwohl sie es nicht waren.
+
+Jetzt zeigt die Fläche die **beste** Gruppe: günstig, sobald es für
+mindestens eine günstig wäre. Und die **ausgeklappte Legende** sagt, für
+welche:
+
+> am Fadenkreuz
+> Steinpilz & Co.  verhalten
+> Pfifferling      günstig
+
+Die eingeklappte Schiene bleibt wie sie war. „Was ist hier?" zeigt
+ebenfalls eine Zeile je Gruppe.
+
+**Die Karte wird dadurch öfter grün** — an rund 30 statt 20 Prozent der
+Tage. Das ist kein neuer Optimismus, sondern eine weitere Aussage: Sie
+gilt jetzt für zwei Gruppen statt für eine. An den eigenen Spots ändert
+sich nichts, dort rechnet der Hinweis weiter je Art und mit Saison.
+
+**Und im Spot-Blatt steht jetzt eine Saisonkurve je Art**, wenn du an
+einer Stelle mehrere gefunden hast. Bisher stand dort nur die des
+jüngsten Fundes, während die Ampel darüber schon alle zeigte.
+
+## Der Igelstachelbart hat jetzt auch eine Saisonkurve
+
+*12. September 2026 · Version 1.139.0*
+
+Für die meisten Arten zeigt die App, in welchen Monaten sie gemeldet
+werden. Beim **Igelstachelbart** ging das bisher nicht — es gibt schlicht
+zu wenige Meldungen (94), und aus so wenigen eine Kurve zu zeichnen wäre
+geraten.
+
+Jetzt borgt er sich die Kurve seiner nächsten Verwandten, der
+**Stachelbärte** (1147 Meldungen). Und das steht auch dran: *„Saison nach
+verwandten Arten: Stachelbärte"*. Eine geborgte Kurve ist eine schwächere
+Aussage als eine eigene, und das soll man ihr ansehen.
+
+Beim **Frühjahrsknollenblätterpilz** machen wir das bewusst **nicht**.
+Seine Gattung hätte genug Meldungen, mischt aber Frühjahrs- und
+Herbstarten — die Kurve zeigte für einen Frühjahrspilz in die falsche
+Richtung. Bei einem tödlich giftigen Pilz ist eine Lücke besser als eine
+Zahl, der man zu viel glaubt.
+
+Nebenbei sind alle Saisonkurven mit den aktuellen Meldedaten neu
+gerechnet worden.
+
+## Der Hinweis kommt nur noch, wenn der Pilz auch Saison hat
+
+*12. September 2026 · Version 1.138.0*
+
+Bisher meldete der Hinweis auf der Karte einen Spot, sobald das Wetter
+dort passte — auch im Mai, wenn Steinpilze noch gar nicht auftauchen.
+Jetzt müssen **zwei** Dinge zusammenkommen: Das Wetter muss für diese
+Art günstig sein **und** die Art muss gerade Saison haben.
+
+Beides wird **je Art** geprüft. An einer Stelle, an der du im Juli
+Pfifferlinge und im Oktober Steinpilze gefunden hast, entscheidet also
+im Juli der Pfifferling und im Oktober der Steinpilz — und zwar jeder
+mit seinem eigenen Temperaturbereich.
+
+Der Filter zieht mit: Ein Tipp auf den Hinweis stellt jetzt beide
+Bedingungen ein, und im Filter-Chip steht auch beides. Was das Banner
+meldet und was die Karte danach zeigt, ist damit dieselbe Auswahl.
+
+Im Spot-Blatt steht jetzt **eine Zeile je Art**, wenn du dort mehrere
+gefunden hast — vorher nur die des jüngsten Fundes. Sonst könnte der
+Hinweis wegen eines Pilzes kommen, über den das Blatt kein Wort verliert.
+
+## Die Pilzampel rechnet jetzt nach Pilzart
+
+*12. September 2026 · Version 1.137.0*
+
+Bisher hat die Ampel für jede Art dasselbe gerechnet: rund 13 °C sind
+ideal. Für Steinpilz, Marone, Birkenpilz, Reizker und Herbsttrompete
+stimmt das auch — für den **Pfifferling** nicht. Der ist ein
+Sommerpilz, sein bester Bereich liegt bei etwa **17,5 °C**.
+
+An einem Pfifferling-Spot kann die Ampel jetzt also „verhalten" sagen,
+wo sie an einem Steinpilz-Spot daneben „günstig" zeigt — bei genau
+demselben Wetter. Und die Zeile darunter sagt „zu kühl" statt „zu warm",
+wenn es für Pfifferlinge eben noch zu frisch ist.
+
+Warum ausgerechnet der Pfifferling: Wir haben die Abweichung erst in
+deutschen Funddaten gemessen und sie danach an österreichischen und
+Schweizer Meldungen geprüft, die an der Messung nicht beteiligt waren.
+Nur dort hat sie gehalten. Hallimasch, Stockschwämmchen und
+Austernseitling haben ebenfalls einen eigenen Bereich — solange der
+nicht genauso geprüft ist, bleibt die Ampel bei ihnen **grau**.
+
+Nebenbei haben wir gemerkt, dass die alte Schwelle mit den Jahren
+gewandert ist: Dieselbe Zahl bedeutete vor 2019 etwas anderes als heute,
+die Ampel war also unbemerkt zurückhaltender geworden. Sie zeigt
+„günstig" jetzt wieder ungefähr so oft wie ursprünglich gedacht.
+
+## Die Pilzampel sagt es jetzt kürzer
+
+*12. September 2026 · Version 1.136.0*
+
+Der Hinweis auf der Karte hieß bisher „Buchenhang · Ampel **stünde**
+günstig". Jetzt heißt er **„Buchenhang · Ampel günstig (experimentell)"**.
+
+Der Konjunktiv sollte vorsichtig klingen, hat aber vor allem Platz
+gekostet — und bei längeren Spotnamen war der Name dann abgeschnitten.
+Am Vorbehalt ändert sich nichts: „experimentell" steht weiterhin dabei,
+und die Ampel bewertet nach wie vor nur die **Bedingungen**. Ob an einem
+Ort wirklich Pilze stehen, kann sie nicht wissen — dafür fehlen ihr der
+Zustand des Baumes, der Boden und alles, was nicht in einer Wetterreihe
+steht.
+
+## Ein hakender Server kostet keinen Fund mehr
+
+*10. September 2026 · Version 1.135.0*
+
+Trägst du einen Fund ein und der Server antwortet nicht rechtzeitig, wandert
+er ab sofort in den **Ausgangskorb** — genau wie im Funkloch — und geht los,
+sobald es wieder geht. Bisher gab es an dieser Stelle eine Fehlermeldung,
+und der Eintrag war weg. Im Wald ist das der teure Fall: Man steht vor der
+Fundstelle, hat alles eingetippt, und die App wirft es fort, weil eine
+halbe Minute lang niemand geantwortet hat.
+
+Dazu die passende Meldung: „Der Server hat zu lange gebraucht" statt „bitte
+Internet prüfen". Wer diese Antwort überhaupt bekommt, hat ja eine
+Verbindung — ihn ins eigene Netz zu schicken, war die falsche Fährte.
+
+Unverändert bleibt, was der Server **beantwortet** hat: Lehnt er etwas ab,
+siehst du das weiterhin sofort. Ein Fehler, der still im Korb verschwindet,
+wäre schlimmer als einer, den man liest.
+
+## Klarere Erklärtexte — und ein Weg, der wirklich schlängelt
+
+*10. September 2026 · Version 1.134.0*
+
+Der Hinweis beim ersten Start sagt jetzt auch, was PilzBuddy **kann**:
+„Die App verwaltet deine Fundstellen und schätzt, wo es sich gerade
+lohnen könnte." Bisher stand dort nur, dass sie sich merkt, wo du etwas
+gefunden hast — das hätte auch ein Notizzettel geleistet. Die Grenze
+bleibt unverändert: Die App bestimmt keine Pilze und sagt nicht, ob
+etwas essbar ist.
+
+**Die Anleitung zum neuen Spot war falsch geworden.** Sie behauptete,
+gespeichert werde genau der Punkt unter dem Fadenkreuz — seit 1.124.0
+lässt sich die Stelle im Blatt aber noch auf der kleinen Karte
+verschieben oder mit „Meine Position" auf deinen Standort legen. Jetzt
+steht beides da.
+
+**Und es steht endlich dabei, wozu ein Leergang gut ist.** Erst Funde
+und Leergänge zusammen ergeben die Fundhistorie eines Spots: Fünfmal da
+gewesen und einmal fündig ist etwas anderes als einmal da gewesen und
+einmal fündig. An dieser Historie misst sich außerdem, ob die Pilzampel
+recht hat — in ihre Vorhersage fließt sie bewusst nicht ein, sonst
+könnte man mit ihr nicht mehr prüfen. Der Zweck steht seit dieser
+Version auch in der Datenschutzerklärung.
+
+Zwei Kleinigkeiten dazu:
+
+- Das Symbol für „Unterwegs" zeigt jetzt einen **geschlängelten** Weg
+  aus fünf Punkten. Die drei bisherigen lagen auf einer Geraden.
+- Ist nur der Saisonfilter an, sagt die Karte das auch. Bisher stand
+  dort „Gefiltert:" und danach nichts.
+
+## Verständlichere Erklärtexte zur Pilztour
+
+*10. September 2026 · Version 1.133.1*
+
+Die Beschreibung der Pilztour las sich umständlich: „schlägt dir am Ende
+vor, an welchen Spots du ‚nichts gefunden' buchst". Zwei Sätze
+ineinandergeschachtelt, und „buchen" ist ein Wort aus der Buchhaltung für
+etwas, das man im Wald tut.
+
+Neu heißt es: **„Die Pilztour zeichnet deinen Weg auf. Am Ende fragt sie
+dich, wo du gesucht und nichts gefunden hast — auch das gehört zur
+Geschichte eines Spots."** Damit steht auch endlich dabei, wozu das gut
+ist.
+
+Der Satz stand an drei Stellen in drei Fassungen — in der Erklär-Tour, in
+der Kurzanleitung und im Unterwegs-Blatt. Jetzt sagen alle drei dasselbe.
+
+Außerdem **nennt die Tour jetzt die Legende**: „Was ihre Farben bedeuten,
+steht links unten in der Legende — ein Tipp klappt sie ein und wieder
+aus." Das stand bisher nur in der Kurzanleitung, und das Ein- und
+Ausklappen nirgends.
+
+## Ruhigere Karte: eine Knopfleiste statt vier grüner Kreise
+
+*10. September 2026 · Version 1.133.0*
+
+Rechts unten standen fünf grüne Knöpfe untereinander — vier Werkzeuge und
+„Neuer Spot". Weil alle fünf gleich aussahen, war die eigentliche
+Hauptaktion von den Werkzeugen nicht zu unterscheiden.
+
+**Die vier Werkzeuge sitzen jetzt in einer hellen Leiste**: Ebenen,
+Filter, Unterwegs, Meine Position. Grün gibt es nur noch einmal, nämlich
+für „Neuer Spot". Die Trefferflächen sind gleich groß geblieben — daran
+wird nicht gespart, die App wird im Gehen bedient.
+
+Was die farbigen Knöpfe vorher sagten, sagt jetzt das Symbol: Ein
+ausgefülltes Filtersymbol heißt „Filter aktiv", ein blaues
+Unterwegs-Symbol heißt „du teilst gerade deinen Standort".
+
+**Die laufende Pilztour zeigt ihre Laufzeit.** Statt eines zweiten grünen
+Knopfes steht dort jetzt „Tour · 1:24 h" — und ein Tipp darauf beendet
+sie wie vorher. Unter einer Stunde zählt sie in Minuten.
+
+**Das Unterwegs-Blatt hat Schalter.** Pilztour und Standort-Teilen sind
+Dauerzustände, keine Befehle — man sieht jetzt auf einen Blick, was
+gerade läuft, statt es aus der Beschriftung („starten" oder „beenden")
+erschließen zu müssen.
+
+**Neue Symbole.** Der Knopf auf der Karte steht für beides, also trägt er
+einen gepunkteten Weg mit einem Pilz daneben. Im Blatt bekommt jede Zeile
+ihr eigenes: das Körbchen für die Pilztour, einen gestrichelten Standort-
+Pin fürs Teilen — gestrichelt, weil es bis zu einer Uhrzeit läuft und
+dann von selbst aufhört.
+
+## Die Legende klappt ein, statt zu verschwinden
+
+*10. September 2026 · Version 1.132.0*
+
+Die Legende links unten hatte ein ✕, und das ✕ hat sie weggeschaltet —
+dauerhaft. Zurück kam sie nur über einen Schalter, der in drei
+verschiedenen Blättern stand, und zwar jedes Mal nur dann, wenn genau
+diese Ebene eingeschaltet war. Wer die Legende wegtippte und danach alle
+Ebenen ausschaltete, kam gar nicht mehr an den Schalter heran.
+
+**Jetzt klappt sie ein.** Übrig bleibt eine schmale Schiene am linken
+Rand, und ein Tipp darauf holt sie zurück. Damit kann der Zustand „weg
+und ich weiß nicht wie zurück" nicht mehr entstehen — die Schalter in den
+drei Blättern sind entfallen.
+
+Auch der Inhalt ist neu sortiert, nach der Art der Aussage:
+
+- **Oben die Pilzampel als Daumen** — hoch, seitlich oder runter. Drei
+  Lampen musste man erst lesen lernen (welche ist die gute?), ein Daumen
+  sagt es von selbst. Eingeklappt ist er die ganze Aussage.
+- **In der Mitte die Messwerte** — Regen und Waldtypen als Farbbalken mit
+  einem Strich an der Stelle, wo der Wert unter dem Fadenkreuz liegt.
+  Eingeklappt stehen dieselben Balken senkrecht, mit einem Tropfen und
+  einem Blatt an den Enden, damit man auch ohne Beschriftung weiß, wohin
+  die Skala läuft.
+- **Unten die Höhe** als große Zahl in eigenem Kasten. Sie ist keine
+  Einordnung auf einer Skala, sondern ein Wert — das soll man ihr ansehen.
+
+Und die Fußzeile sagt endlich, was vorher nur ausprobieren konnte: **„Was
+ist hier? →"** führt zur vollen Auskunft über die Stelle unter dem
+Fadenkreuz. Bisher musste man dafür auf die Werte selbst tippen, und
+nirgends stand, dass das geht.
+
+## Mehr Karte: die Hinweise oben werden zu einer schmalen Zeile
+
+*10. September 2026 · Version 1.131.0*
+
+Zwei Hinweise standen bisher als volle Karten übereinander am oberen
+Rand — der Ampel-Hinweis und der Melde-Hinweis. Zusammen verdeckten sie
+rund ein Sechstel der Karte, und zwar dauerhaft: Beides sind keine
+Neuigkeiten, die vorbeigehen.
+
+Beide sind jetzt eine schmale Zeile.
+
+- **Der Ampel-Hinweis ist ein Chip geworden** — „Buchenhang · Ampel
+  stünde günstig (experimentell)". Antippen tut dasselbe wie vorher: Es
+  filtert auf die betroffenen Fundstellen und rückt sie ins Bild. Das ✕
+  behält er, es schaltet ihn für diese Sitzung stumm.
+- **Aus dem Melde-Hinweis ist ein 💡-Knopf geworden.** Er hat kein ✕
+  mehr und braucht auch keins: Ein Knopf von der Größe eines Daumennagels
+  verdeckt nichts, was du suchst. Antippen öffnet dasselbe Formular wie
+  zuvor.
+
+Bei einem langen Namen wird der Name gekürzt, nie das Wort
+„experimentell". Die Pilzampel ist ein Versuch, und das soll man ihr
+ansehen, auch wenn der Platz knapp wird.
+
+Außerdem: **Der Quellenhinweis zur Karte steht nicht mehr unter „Neuer
+Spot".** Er lag bisher unten rechts, also genau unter dem grünen Knopf.
+Jetzt sitzt er als ⓘ unten links neben dem Maßstab und klappt auf
+Antippen auf.
+
+## Das Ebenen-Blatt sagt jetzt, was gerade auf der Karte liegt
+
+*10. September 2026 · Version 1.130.0*
+
+Das Blatt hinter dem Ebenen-Knopf war an drei Stellen umständlicher, als
+es sein muss. Alle drei sind aufgeräumt.
+
+- **Der Regen-Zeitraum steht in der Zeile.** Jetzt · +1 h · 24 h ·
+  30 Tage — antippen genügt. Bisher musste man dafür ein Unterblatt
+  öffnen und dort eine von fünf Zeilen auswählen. Das Unterblatt gibt es
+  weiter hinter dem Pfeil, aber nur noch für Darstellung, Abdeckung und
+  Quelle. Dazu ein Schalter für die ganze Ebene: Aus und wieder an landet
+  bei dem Zeitraum, den du zuletzt gewählt hattest.
+- **Die Pilzampel hat ein eigenes Blatt.** Ihr Schalter wohnte bis jetzt
+  mitten im Regen-Blatt — ein Überbleibsel aus der Zeit, als sie ein
+  Regen-Modus war. Sie färbt seit Langem die Waldwaben, und dort gehört
+  sie hin. Im neuen Blatt stehen auch ihre Grenzen beieinander: nur
+  Deutschland, im Gebirge unsicher, und sie bewertet Bedingungen, keine
+  Vorkommen.
+- **Was der Schalter noch anschaltet, steht dabei.** In der Ampel-Zeile
+  jetzt als eine Zeile darunter: „rechnet aus Regen + Temperatur ·
+  schaltet die Waldtypen mit an".
+
+Außerdem nennen die Zeilen den Wert unter dem Fadenkreuz — „hier 53 mm",
+„Gelände · alle 50 m · hier 220 m" —, sobald die jeweilige Ebene an ist.
+Dieselbe Ablesung wie in der Legende, damit Blatt und Karte nicht zwei
+verschiedene Zahlen zeigen.
+
+„Karte aktualisieren" ist keine Listenzeile mehr, sondern ein Knopf in
+der Überschrift: Es ist keine Ebene, die man anschaltet, sondern ein
+Befehl, der sofort erledigt ist.
+
+## Nur die Fundstellen zeigen, die jetzt Saison haben
+
+*9. September 2026 · Version 1.129.0*
+
+Im Filter der Karte gibt es einen neuen Schalter: **„Nur was jetzt Saison
+hat"**. Er blendet die Fundstellen aus, an denen du bisher nur Arten
+eingetragen hast, die um diese Jahreszeit üblicherweise gar nicht
+gemeldet werden. Im Februar bleibt damit übrig, wonach sich das Losgehen
+lohnt; im September ändert er wenig, weil dann fast alles Saison hat.
+
+Grundlage sind dieselben Saisonkurven, die PilzBuddy am Spot schon
+anzeigt — sie stecken in der App, es geht also nichts ins Netz.
+
+Drei Dinge, damit der Schalter nichts versteckt, was du sehen willst:
+
+- **Alle Arten einer Fundstelle zählen**, nicht nur die zuletzt
+  eingetragene. Wer dort im Juli Pfifferlinge und im Oktober Steinpilze
+  gefunden hat, sieht die Stelle in beiden Monaten.
+- **Arten ohne Kurve bleiben immer sichtbar** — selbst eingetippte Namen
+  zum Beispiel. Worüber wir nichts wissen, darüber urteilt der Filter
+  nicht.
+- Er gilt **nur für diese Sitzung**. Nach einem Neustart liegt wieder
+  alles auf der Karte.
+
+## Die Web-App startet verlässlicher ohne Empfang
+
+*8. September 2026 · Version 1.128.2*
+
+Seit Version 1.117.0 lässt sich PilzBuddy im Browser auch ohne Empfang
+öffnen — vorausgesetzt, die App hat beim ersten Besuch alles beiseite
+gelegt, was sie zum Starten braucht. Genau das war nicht verlässlich: Was
+sie ablegte, war eine Momentaufnahme aus dem Augenblick, in dem das erste
+Bild stand. Alles, was der Browser danach noch holte, fehlte — und ob
+etwas dazu zählte, entschied von Aufruf zu Aufruf der Zufall.
+
+Jetzt legt die App fortlaufend alles beiseite, was sie holt. Betroffen war
+nur der allererste Besuch; ab dem zweiten hat sich der Vorrat ohnehin von
+selbst vervollständigt. Auf dem Telefon ändert sich nichts.
+
+## Das X am Ampel-Hinweis blendet nur noch kurz aus
+
+*8. September 2026 · Version 1.128.1*
+
+Wenn du den Hinweis „An … Spots stünde die Ampel günstig" mit dem X
+wegwischst, war er bisher bis Mitternacht weg. Das ließ sich weder sehen
+noch rückgängig machen — im Profil stand der Schalter weiter auf „an",
+während den ganzen Tag nichts mehr kam. Das sah nach einem Fehler aus, und
+genau so wurde es auch gemeldet.
+
+Jetzt gilt das X nur für die laufende Sitzung: Beim nächsten Start der App
+ist der Hinweis wieder da, wenn die Ampel weiter günstig steht.
+
+## Der Pilz bleibt sichtbar, auch nach der Auswahl
+
+*8. September 2026 · Version 1.128.0*
+
+Beim Eintragen eines Fundes zeigt PilzBuddy zu jeder vorgeschlagenen Art
+ihr Pilz-Symbol. Sobald du eine ausgewählt hattest, blieb aber nur noch
+der Name stehen — ausgerechnet in dem Moment, in dem die App weiß, welcher
+Pilz gemeint ist.
+
+Jetzt steht das Symbol im Artfeld, sobald eine Art drinsteht. Und legst du
+über „weitere Art" mehrere Arten an einem Spot ab, trägt auch jede
+abgelegte Zeile ihren Pilz.
+
+Während du noch tippst, bleibt das Feld wie bisher — ein halb getippter
+Name ist noch keine Art, und der Vorschlag darunter zeigt sein Symbol ja
+schon.
+
+## Die Artenliste lässt sich wieder durchblättern
+
+*8. September 2026 · Version 1.127.2*
+
+Wenn du beim Anlegen eines Spots die Pilzart eintippst, schlägt PilzBuddy
+passende Arten vor. Wolltest du in dieser Liste scrollen, wurde bisher
+sofort die Art ausgewählt, auf der dein Finger gerade lag — durchblättern
+war damit unmöglich.
+
+Jetzt zählt nur noch ein echter Tipp. Wischen scrollt, und die Liste
+bleibt dabei offen.
+
+## Der Zoom auf günstige Spots stimmt jetzt beim ersten Tipp
+
+*8. September 2026 · Version 1.127.1*
+
+Tippst du auf den Hinweis „An … Spots stünde die Ampel günstig", zoomt
+die Karte auf diese Spots. Bisher zoomte sie beim ersten Tipp auf **alle**
+deine Spots statt nur auf die genannten — und jeder weitere Tipp zoomte
+noch ein Stück weiter hinein, bis nichts mehr zu erkennen war.
+
+Beides ist behoben: Der erste Tipp rückt genau die Spots ins Bild, von
+denen der Hinweis spricht, und ein zweiter Tipp lässt die Karte einfach
+stehen, wo sie ist.
+
+Dasselbe galt für den Zoom-Knopf im Filter-Blatt, wenn du den Filter dort
+geändert hast, bevor du ihn gedrückt hast.
+
+## Arten, die die App nicht kennt, tragen jetzt ein Fragezeichen
+
+*8. September 2026 · Version 1.127.0*
+
+Wenn du eine Pilzart einträgst, die nicht in der Liste steht, hat
+PilzBuddy dafür bisher einfach irgendeinen bunten Pilz gezeichnet — das
+sah aus, als wüsste die App, wie er aussieht. Jetzt bekommt so ein
+Eintrag ein kleines Fragezeichen.
+
+Die Farbe und die Form bleiben, wie sie waren: Deine selbst eingetippten
+Arten sehen weiterhin verschieden aus, sonst hättest du auf der Karte
+lauter gleiche Marker.
+
+Ein Eintrag **ohne** Art bekommt kein Fragezeichen — da weiß die App
+nichts, weil nichts eingetragen wurde, und das ist kein Rätsel, sondern
+eine Leerstelle.
+
+## In der Artenauswahl steht jetzt der richtige Pilz
+
+*8. September 2026 · Version 1.126.1*
+
+Wenn du beim Eintragen die Pilzart tippst, schlägt dir die App Arten vor
+— und davor stand bisher immer dasselbe Emoji, das die meisten Geräte als
+roten Fliegenpilz zeichnen. Ausgerechnet dort, wo man die Art auswählt,
+sah damit jeder Pilz giftig aus.
+
+Jetzt steht in jeder Zeile der gezeichnete Pilz dieser Art, genau wie auf
+der Karte und im Spot-Blatt.
+
+## Deine Tourspur ist jetzt grün — und wahlweise eine Linie
+
+*8. September 2026 · Version 1.126.0*
+
+Die Spur deiner Pilztour wurde bisher blau gezeichnet. Blau ist in
+PilzBuddy aber die Farbe für **andere** — für die Spots deiner Freunde
+und ihren geteilten Standort. Deine eigene Spur ist ab jetzt grün, wie
+alles andere, was dir gehört.
+
+Neu im Profil: **„Tourspur als Linie"**. Ab Werk bleiben es einzelne
+Punkte, und das mit Absicht — ihr Abstand zeigt, wo du langsam warst oder
+gestanden hast, und genau daraus schlägt die App dir hinterher die
+Leergänge vor. Wer lieber den Weg als die Verweildauer sieht, schaltet um.
+
+## Ein Hinweis, der bei einer Pilz-App dazugehört
+
+*8. September 2026 · Version 1.125.0, 1.125.1*
+
+Beim ersten Start steht jetzt einmal da, was PilzBuddy ist und was nicht:
+**Die App bestimmt keine Pilze.** Sie merkt sich, wo du etwas gefunden
+hast — sie sagt nicht, was es ist und ob es essbar ist. Nachlesen kannst
+du das jederzeit in der Kurzanleitung.
+
+Außerdem in der Datenschutzerklärung ergänzt: Wenn du die
+Benachrichtigungen in der Browser-Fassung einschaltest, lädt die Seite
+dafür einen Programmteil von einem Google-Server. Das passiert erst beim
+Einschalten und nie davor — es stand nur bisher nicht dort.
+
+Und der Abschnitt zu Supabase ist genauer geworden: Deine Daten liegen in
+Irland, also in der EU. Weil Supabase ein US-Unternehmen ist, lässt sich
+ein Zugriff von dort — etwa durch den Support — aber nicht ausschließen.
+Vorher stand dort, eine Übermittlung in ein Drittland finde nicht statt;
+das war eine Zusage, die wir so nicht halten können.
+
+## Beim Anlegen siehst du jetzt, wo der Spot hinkommt
+
+*7. September 2026 · Version 1.124.0*
+
+Das Blatt „Neuer Pilz-Spot" zeigt jetzt einen Kartenausschnitt. Was im
+Fadenkreuz steht, wird gespeichert — und du kannst die Karte vorher
+verschieben, bis die Stelle stimmt. „Meine Position" springt auf deinen
+aktuellen Standort.
+
+Darunter steht, wie weit du vom ursprünglichen Punkt weg bist. Praktisch
+auch beim Import: Ein fremder GPX-Punkt liegt oft ein Stück daneben, und
+das lässt sich jetzt beim Übernehmen geradeziehen.
+
+## Marker sitzen wieder genau auf ihrer Stelle
+
+*7. September 2026 · Version 1.123.0*
+
+Auf der Karte hingen die Marker ein Stück unterhalb des Ortes, den sie
+meinen — die Spitze des Tropfens zeigte daneben. Bei den Pilz-Markern war
+das schon länger so und fiel kaum auf; mit den neuen Standort-Tropfen
+wurde es deutlich sichtbar.
+
+Der Grund lag tief: Die App kann die Karte mit zwei verschiedenen
+Zeichen-Engines darstellen, und die beiden verstehen dieselbe Angabe zur
+Marker-Ausrichtung genau umgekehrt.
+
+## Abstürze verraten jetzt, wo sie passiert sind
+
+*7. September 2026 · Version 1.122.0*
+
+Stürzt die App ab, meldet sie das beim nächsten Start — damit der Fehler
+gefunden werden kann. Bei einer bestimmten Sorte Absturz kam die Meldung
+bisher ohne jeden Hinweis darauf an, wo es passiert ist, obwohl Android
+die Information bereithält. Jetzt wird sie mitgeschickt.
+
+Für dich ändert sich nichts Sichtbares. Es heißt nur, dass solche Fehler
+schneller behoben werden.
+
+## Standorte zeigen jetzt genau, wo jemand steht
+
+*7. September 2026 · Version 1.120.0*
+
+Der Live-Standort — deiner und der deiner Buddys — war ein Kreis, der
+mittig über der Stelle schwebte. Er zeigte, dass jemand *ungefähr* dort
+ist, nicht wo. Jetzt ist es ein Tropfen, dessen Spitze auf der Stelle
+sitzt, wie bei den Spot-Markern.
+
+Zwei Dinge dazu:
+
+- **Deiner ist grün, die deiner Buddys sind blau** — dieselbe Farbsprache
+  wie bei den Spots. Vorher war der Unterschied nur ein dünner Ring um
+  das Pilz-Porträt, und bei ähnlichen Avataren sah das gleich aus.
+- **Deiner liegt jetzt vorn.** Wenn ihr zusammen sucht und dicht
+  beieinander steht, verschwand dein Punkt bisher unter dem des anderen —
+  ausgerechnet dann, wenn man beide auseinanderhalten will.
+
+## Die Karte zeigt dir, wo die Ampel gerade günstig steht
+
+*6. September 2026 · Version 1.119.0, 1.119.1*
+
+Zwei Dinge, die zusammenarbeiten:
+
+- **Ein neuer Filter**: „Nur wo die Ampel günstig steht". Er lässt genau
+  die Spots stehen, an denen die Ampel gerade auf Grün steht. Wenn das
+  auf keinen zutrifft, ist er nicht anwählbar — statt dich auf eine leere
+  Karte zu schicken.
+- **„Auf Auswahl zoomen"** im Filter-Blatt, oben neben „Zurücksetzen".
+  Rückt alles ins Bild, was der Filter gerade übrig lässt — egal wonach
+  du filterst. Bei drei Fundstellen quer durch den Landkreis sparst du
+  dir das Suchen.
+
+Und wenn du auf den Ampel-Hinweis oben tippst, macht die App beides für
+dich: Filter setzen und hinzoomen. Vorher öffnete der Hinweis ein
+einzelnes Spot-Blatt; jetzt siehst du alle günstigen auf einmal.
+
+Der grüne Balken oben zeigt weiterhin an, dass gefiltert wird — und das X
+darin hebt es auf.
+
+## Die Tastatur schiebt die Karte nicht mehr weg
+
+*6. September 2026 · Version 1.118.1*
+
+Sobald irgendwo ein Textfeld angetippt wurde, rutschte das ganze Layout
+nach oben — Karte, Legende, Knöpfe und die Reiterleiste. Nötig war das
+nie: Auf der Karte selbst gibt es gar kein Eingabefeld, und die Blätter
+zum Eintragen halten sich ohnehin selbst über der Tastatur frei. Jetzt
+legt sich die Tastatur einfach darüber.
+
+Damit verschwindet auch ein selteneres Ärgernis: Manchmal blieb nach dem
+Schließen der Tastatur das untere Drittel des Bildschirms weiß und
+ungenutzt. Warum es dazu kam, wissen wir noch nicht — aber es kann jetzt
+nicht mehr sichtbar werden, weil sich die Karte gar nicht mehr
+verkleinert.
+
+## Die Pilzart wird gefunden, auch wenn du sie anders schreibst
+
+*6. September 2026 · Version 1.118.0*
+
+Bisher musste der Name auf das Zeichen genau stimmen. Ein Bindestrich,
+ein Leerzeichen oder ein weggelassener Umlaut — und die Art war weg:
+„Flaschen-Stäubling" fand nichts, obwohl der Flaschenstäubling seit jeher
+in der Liste steht. Das betraf mehr als ein Drittel aller Arten, denn so
+viele tragen einen Umlaut.
+
+Jetzt findest du sie in jeder dieser Schreibweisen. Und wenn gar nichts
+passt, rät PilzBuddy einmal: Aus „Flaschenbofist" wird ein „Meintest du
+…?" mit dem Flaschenstäubling darunter. Lieber ein Vorschlag zu viel als
+eine leere Liste — die liest sich nämlich, als gäbe es den Pilz nicht.
+
+Dazu kommt: Wenn du eine Pilzart vorschlägst, die es schon gibt, sagt es
+dir der Dialog sofort, statt dich auf ein Update warten zu lassen.
+
+Danke an alle, die fehlende Arten melden — genau daraus ist das hier
+entstanden.
+
+## Die Browser-App startet jetzt auch ohne Empfang
+
+*4. September 2026 · Version 1.117.0*
+
+Bisher galt: Wer PilzBuddy im Browser öffnet und keine Verbindung hat,
+sieht gar nichts — die App wird ja erst beim Öffnen geladen. Das war die
+letzte Lücke: Karte, Spots und Ausgangskorb funktionierten ohne Empfang
+schon, aber nur solange der Reiter offen blieb.
+
+Jetzt merkt sich der Browser die App selbst. Du kannst sie im Funkloch
+öffnen und bekommst deine Spots, die grobe Übersichtskarte und den
+Ausgangskorb für neue Einträge.
+
+Zwei Dinge dazu:
+
+- **Schneller wird sie dadurch nicht.** PilzBuddy fragt bewusst immer
+  zuerst das Netz und greift nur auf die gespeicherte Fassung zurück, wenn
+  keine Verbindung da ist. So bekommst du nie versehentlich einen alten
+  Stand serviert.
+- **Eine Verbindung weniger zu Google.** Ein Teil der Darstellung wurde
+  bisher bei jedem Seitenaufruf von einem Google-Server geladen. Das
+  kommt jetzt aus der App selbst.
+
+## Im Browser kannst du jetzt auch ohne Empfang eintragen
+
+*4. September 2026 · Version 1.116.0*
+
+Bisher galt im Browser: ohne Verbindung kein neuer Spot und kein neuer
+Fund. Der Versuch endete mit einer Fehlermeldung, und das Eingetippte war
+weg. Auf dem Telefon fängt das seit langem ein Ausgangskorb ab — die
+Einträge warten dort, bis wieder Empfang da ist, und gehen dann von
+selbst raus.
+
+Diesen Korb gibt es jetzt auch im Browser. Was du ohne Verbindung
+einträgst, erscheint sofort blass mit einer Uhr auf der Karte und wird
+gesendet, sobald es wieder geht.
+
+Ein Hinweis, der dazugehört: **Browser dürfen ihren Speicher von sich aus
+aufräumen.** PilzBuddy bittet deinen Browser, das für die wartenden
+Einträge zu unterlassen — nicht jeder sagt ja. Wenn deiner ablehnt, steht
+es auf der Karte, und dann gilt: möglichst bald in Reichweite senden. Auf
+dem Telefon gibt es das Problem nicht.
+
+## Im Browser bleiben deine Spots stehen
+
+*3. September 2026 · Version 1.115.0*
+
+Wer PilzBuddy im Browser benutzt, kannte das: Der Empfang bricht weg, die
+App holt die Spots neu — und die Liste ist leer. Auf dem Telefon fängt
+das seit langem ein Zwischenspeicher ab. Im Browser gab es ihn nicht.
+
+Jetzt gibt es ihn. Deine Spots liegen zusätzlich im Speicher des
+Browsers, und fällt die Verbindung weg, zeigt die Karte weiter, was
+zuletzt da war — mit dem Hinweis, aus welchem Stand die Daten stammen,
+genau wie auf dem Telefon.
+
+Zwei Dinge dazu:
+
+- **Beim Neustart hilft es noch nicht.** Ohne Netz startet PilzBuddy im
+  Browser bisher gar nicht erst. Das ist einer der nächsten Schritte.
+- **Abmelden räumt auf.** Der Zwischenspeicher wird dabei gelöscht, wie
+  auf dem Telefon auch — deine Fundstellen bleiben nicht im Browser
+  liegen.
+
+## Im Browser wird die Karte nicht mehr grau
+
+*3. September 2026 · Versionen 1.114.3 bis 1.114.5*
+
+Wer PilzBuddy im Browser benutzt und unterwegs den Empfang verliert, sah
+bisher eine leere Fläche: Die Kartenkacheln kommen aus dem Netz, und ohne
+Netz kommt nichts.
+
+Jetzt liegt darunter eine grobe Übersichtskarte — Wälder, Gewässer, Orte,
+Küsten. Keine Straßen, aber genug, um zu erkennen, wo deine Spots liegen.
+Die Karte war schon immer in der App eingebaut; sie wurde im Browser nur
+nie ausgepackt.
+
+Zwei Dinge dazu:
+
+- **Das kostet dich nichts an Datenvolumen.** Die Karte wurde auch bisher
+  schon geladen — sie wurde nur weggeworfen.
+- **Es hilft, solange die App offen ist.** Startest du sie ohne Netz neu,
+  lädt sie weiterhin nicht. Die Android-App kann das, die Browser-Fassung
+  noch nicht.
+
+Wer im Browser die Seite „Offline-Karten" direkt aufruft, bekommt jetzt
+außerdem eine Erklärung statt einer leeren Liste: Die großen Regionskarten
+gibt es nur in der Android-App, und warum das so ist.
+
+## Die Fundstelle auch auf der Karte setzen
+
+*2. September 2026 · Versionen 1.114.0 bis 1.114.2*
+
+Seit der letzten Version kann ein Fund seine eigene Stelle mitbringen —
+bisher nur die, an der du gerade stehst. Jetzt gibt es im Fund-Formular
+eine dritte Wahl: **Auf Karte**.
+
+Darunter klappt ein kleiner Kartenausschnitt auf, mit einem Fadenkreuz in
+der Mitte. Du schiebst die Karte, bis das Fadenkreuz auf der Stelle steht
+— fertig. Das ist der Weg für alles, was du nicht im Wald einträgst:
+abends von zu Hause, oder wenn der Empfang unter den Bäumen nichts
+hergab.
+
+Auch bei **Meine Position** siehst du jetzt einen Ausschnitt. Er zeigt
+den Punkt und einen Kreis darum: **so genau ist die Messung**. Ist der
+Kreis groß, weißt du auf einen Blick, dass die Zahl mit Vorsicht zu
+genießen ist — das sagt mehr als „±14 m" in Ziffern.
+
+Zwei Dinge, die dir auffallen könnten:
+
+- **Eine auf der Karte gewählte Stelle bekommt kein „±".** Sie ist keine
+  Messung, sondern deine Angabe — es gibt also keine Ungenauigkeit, die
+  man beziffern könnte. Eine Null hinzuschreiben wäre eine Behauptung.
+- **Ohne Empfang bleibt der Ausschnitt leer**, aber nicht nutzlos: Der
+  Spot, der Umkreis, dein Punkt und der Maßstab sind trotzdem da, und ein
+  Hinweis sagt dir, dass die Stelle trotzdem gespeichert wird.
+
+## Wo genau stand er? Jetzt weiß es die App
+
+*2. September 2026 · Version 1.113.0*
+
+Ein Spot war bisher ein einziger Punkt. Ob die Steinpilze im September am
+Wurzelteller standen und die Maronen zwanzig Meter weiter am Hang — das
+wusstest nur du, und nach zwei Saisons vielleicht nicht mehr.
+
+Beim Eintragen eines Fundes gibt es jetzt die Zeile **Fundstelle**. Stehst
+du wirklich davor, ist **Meine Position** schon ausgewählt: Die App
+übernimmt deinen Standort und, genauso wichtig, **wie genau er ist**. In
+der Fundliste liest sich das dann so:
+
+- Steinpilz, 5 Stück — 14 m nordöstlich (±5 m)
+- Maronenröhrling, 2 Stück — 9 m südwestlich (±6 m)
+
+Und über den Stift am Eintrag kommst du zu **Zu diesem Fund navigieren** —
+das führt dich nicht mehr nur zum Spot, sondern zur Stelle.
+
+Vier Dinge, die dir wichtig sein könnten:
+
+- **Nichts passiert ungefragt.** Trägst du den Fund abends von zu Hause
+  nach, steht dort „Am Spot" — genau wie bisher. Die Stelle wird nur
+  übernommen, wenn du beim Eintragen wirklich dort bist.
+- **Beim Öffnen des Formulars fragt die App nie nach dem Standort.** Der
+  Systemdialog kommt nur, wenn du „Meine Position" selbst antippst.
+- **Ist der Empfang schlecht, sagt die App das** — „GPS zu ungenau (±64 m)"
+  — und speichert lieber gar keine Stelle als eine erfundene. Unter
+  Blätterdach liegt GPS schnell zwanzig Meter daneben; eine Zahl, die so
+  tut, als wäre sie genau, wäre schlimmer als keine.
+- **Teilst du Spot-Details mit Pilzfreunden, sehen sie die Stelle mit** —
+  wie den Spot selbst. Über „Von Freigabe ausschließen" und die globale
+  Freigabe steuerst du das weiterhin.
+
+Auch ein Leergang („Nichts gefunden") kann seine Stelle tragen. Das ist
+kein Versehen: „Ich war hier und da stand nichts" ist eine Aussage über
+einen Ort — je genauer der, desto mehr ist sie wert.
+
+## Vom Spot direkt in die Navi-App
+
+*2. September 2026 · Version 1.112.0*
+
+Ein Spot ist schnell gesetzt — aber wie kommt man beim nächsten Mal
+wieder hin? Bisher blieb nur, die Stelle auf der Karte zu suchen und sich
+den Weg selbst zusammenzureimen.
+
+Im Spot-Detail steht jetzt oben ein neuer Knopf: **In Navi-App öffnen**.
+Ein Tipp darauf, und Android fragt, womit du hin willst — Google Maps,
+OsmAnd, Locus, Organic Maps, Komoot, OruxMaps: was immer bei dir
+installiert ist. Der Spot ist dort schon gesetzt, mit seinem Namen als
+Beschriftung.
+
+Das geht auch bei Spots, die ein Pilzfreund mit dir teilt. Löschen darf
+sie weiterhin nur, wem sie gehören — hinfahren darfst du.
+
+Zwei Dinge, die dir wichtig sein könnten:
+
+- **Die Koordinate verlässt dein Gerät dabei nicht ins Internet.** Sie
+  geht an die App, die du im Auswahlfenster antippst, und an sonst
+  niemanden. Wir hätten stattdessen einen Kartendienst im Browser öffnen
+  können — das wäre ein fester Empfänger gewesen und ausgerechnet im
+  Funkloch nutzlos.
+- Ist keine passende App installiert (oder benutzt du PilzBuddy im
+  Browser), landen die Koordinaten in der Zwischenablage, und die App
+  sagt dir das.
+
+## „Nicht gespeichert" — obwohl gespeichert
+
+*2. September 2026 · Version 1.111.1*
+
+Wenn der Server beim Speichern eines Spots oder eines Fundes gerade
+überlastet war, konnte es passieren, dass PilzBuddy „Internet
+verfügbar?" meldete, obwohl alles gut gegangen war. Der Spot lag längst
+auf dem Server — nur die Liste danach kam nicht mehr durch, und die App
+hat diesen zweiten Fehler für den ersten gehalten.
+
+Für dich sah das aus wie ein misslungener Versuch: keine
+Bestätigungsmeldung, und auf der Karte war der neue Spot auch nicht zu
+sehen. Naheliegenderweise trägt man ihn dann noch einmal ein — und
+danach steht er doppelt da.
+
+Jetzt unterscheidet die App die beiden Fälle. Ging das Speichern durch,
+sagt sie das auch, selbst wenn die Liste danach hakt: „Spot gespeichert
+🍄 — sichtbar, sobald die Liste wieder lädt." Ein echter Fehler beim
+Speichern bleibt dagegen ein Fehler; daran ändert sich nichts.
+
+Falls du in den letzten Wochen einen Spot doppelt angelegt hast: Im
+Profil steht dann „Dicht beieinander" — dort lassen sich zwei Spots am
+selben Fleck zusammenführen. Der Eintrag erscheint nur, wenn es
+tatsächlich solche Paare gibt.
+
+## Die Web-App zeigt wieder Regen — und ist auf dem Handy lesbar
+
+*2. September 2026 · Version 1.111.0*
+
+In der Web-App (der Version, die du dir über den Browser auf den
+Startbildschirm legst) fehlten der Pilzampel die Regendaten, und die
+Regenkarte lag in groben Klötzchen statt weich verlaufend auf der Karte.
+Beides hatte dieselbe Ursache: Die Regendaten kamen dort schlicht nie an.
+
+Der Grund liegt in einer Sicherheitsregel der Browser, die den Weg
+verbaut, über den die Android-App ihre Regendaten holt. Die Daten liegen
+jetzt zusätzlich an einer Adresse, die der Browser lesen darf. Was die
+App daraus macht, ist unverändert — es sind dieselben Zahlen aus derselben
+Quelle, sie kommen nur auf einem anderen Weg an.
+
+Ärgerlich daran war vor allem, dass nichts davon nach einem Fehler aussah:
+Ohne Regendaten zeichnet die Karte ersatzweise das Bild des Deutschen
+Wetterdienstes, und das ist absichtlich hart gerastert. Es sah also nicht
+kaputt aus, sondern nur schlechter — und die Ampel schwieg einfach.
+
+**Außerdem hat die Web-App ihre Farbe zurück.** Auf dem Startbildschirm
+installiert, waren die Systemleisten oben und unten weiß, und damit auch
+Uhr, Empfangsbalken und die Bedienelemente von Android darin unsichtbar.
+Sie sind jetzt wieder grün. Und die Seite bringt ihren Maßstab wieder
+selbst mit — ohne das rechnete der Browser mit einer Bildschirmbreite,
+die es nicht gibt.
+
+## Die Einführung zeigt jetzt alle Knöpfe — und weiß, wo es weitergeht
+
+*29. August 2026 · Versionen 1.110.0 und 1.110.1*
+
+Die kurze Einführung beim ersten Start führte an vier Bedienelementen
+entlang. Zwei davon fehlten: „Meine Position" kam gar nicht vor, und am
+Ende stand kein Weg zur Kurzanleitung — obwohl gerade die Dinge, die die
+Einführung bewusst auslässt, dort erklärt sind: Leergänge, was du mit
+Buddies teilst, und Karten für unterwegs ohne Empfang.
+
+Jetzt sind es fünf Schritte, und sie decken jeden Knopf auf der Karte ab.
+Im letzten steht neben „Los geht's" ein Knopf, der dich direkt in die
+Kurzanleitung bringt. Wer sie später noch einmal sehen will, findet sie
+wie bisher im Profil unter „Kurzanleitung".
+
+**Die Zurück-Taste beendet jetzt die Einführung.** Bisher tat sie das,
+was sie auf der Karte immer tut: Sie legte PilzBuddy in den Hintergrund.
+Wer die Abdunkelung auf dem gewohnten Weg loswerden wollte, stand also
+plötzlich außerhalb der App. Zurück zählt dabei wie „Überspringen" — wer
+abbricht, hat entschieden.
+
+**Und die Erklärkarte sitzt richtig.** Sie stand rund achtzig Pixel zu
+tief und lag damit im ersten Schritt ausgerechnet auf dem Fadenkreuz, das
+sie erklärt. Auf kleinen Bildschirmen rutschten ihre Knöpfe sogar über
+den oberen Rand hinaus — dort ließ sich die Einführung nur noch durch
+Tippen irgendwohin weiterschalten. Beides ist behoben; passt der Text
+nicht ganz, lässt er sich jetzt scrollen, statt die Knöpfe wegzuschieben.
+
+## Die Karte startet dort, wo du stehst
+
+*29. August 2026 · Version 1.109.0*
+
+Beim Öffnen springt die Karte jetzt einmal zu deiner Position, statt bei
+der Mitte Deutschlands anzufangen. Sie zoomt dabei absichtlich nicht so
+nah heran wie der Knopf „Auf mich zentrieren": Du siehst rund zehn
+Kilometer im Umkreis und damit deine Spots in der Gegend, nicht nur den
+Fleck, auf dem du stehst.
+
+**Einmal, nicht dauernd.** Wenn du danach weiterschiebst, bleibt die Karte
+dort, wo du sie hingeschoben hast — auch wenn dein GPS beim Gehen laufend
+neue Positionen meldet. Und wer schon losgeschoben hat, bevor der erste
+Standort da war, wird nicht mitten in der Bewegung weggezogen.
+
+Hat die App den Standort noch nie gedurft, passiert beim Start nichts —
+gefragt wird weiterhin nur, wenn du selbst auf „Auf mich zentrieren"
+tippst. Danach klappt es bei jedem Start.
+
+## Das Spot-Blatt bleibt unter der Statusleiste
+
+*29. August 2026 · Version 1.108.1*
+
+Das Blatt eines Spots reichte fast bis an den oberen Bildschirmrand —
+nachgemessen sieben Pixel unter der Statusleiste. Wer oben nach dem Griff
+fasste, um es wegzuwischen, zog dabei die Benachrichtigungsleiste herunter.
+Jetzt bleibt darüber ein deutlicher Streifen Karte frei.
+
+**Deine Meldungen tragen künftig die App-Version.** Wenn du in der App
+einen Fehler oder Wunsch meldest, steht jetzt dabei, aus welcher Version
+er kam — sonst lässt sich oft nicht sagen, ob ein Fehler noch besteht oder
+mit dem letzten Update schon behoben wurde. Die Version steht wie der Text
+und dein Benutzername im öffentlichen GitHub-Projekt.
+
+## Eine kurze Tour beim ersten Start
+
+*29. August 2026 · Version 1.108.0*
+
+Beim allerersten Start führt dich die App jetzt in **vier Schritten** über
+die Karte: wie ein Spot entsteht (das Fadenkreuz und „Neuer Spot" gehören
+zusammen), was hinter „Ebenen" liegt, was du unterwegs machen kannst, und
+wozu der Filter da ist. Der jeweils erklärte Knopf wird dabei
+freigestellt, alles andere abgedunkelt.
+
+Sie hält dich nirgends fest: „Überspringen" steht in **jedem** Schritt,
+ein Tipp irgendwohin geht weiter, und die Reiter unten bleiben erreichbar.
+Einmal gesehen — oder übersprungen — kommt sie nicht wieder.
+
+Wer sie noch einmal sehen will, findet sie im Profil unter
+„Kurzanleitung" ganz unten: „Tour auf der Karte zeigen".
+
+## Die App erklärt sich jetzt selbst
+
+*29. August 2026 · Version 1.107.0*
+
+**Neu: eine Kurzanleitung.** Im Profil unter „Über PilzBuddy" steht jetzt
+ein Eintrag „Kurzanleitung" — das Wichtigste in sechs Schritten, mit
+genau den Symbolen, die auch auf der Karte stehen: einen Spot anlegen,
+Fund und Leergang eintragen, was die Karte zeigt, unterwegs, mit Buddies
+teilen, ohne Empfang.
+
+**Wer noch keinen Spot hat, wird nicht mehr allein gelassen.** Auf einer
+leeren Karte steht jetzt, wie der erste Spot entsteht: die Karte
+schieben, bis das Fadenkreuz in der Mitte auf deiner Stelle liegt, dann
+auf „Neuer Spot" tippen. Der Hinweis verschwindet von selbst, sobald dein
+erster Spot steht. Wenn schon Spots von Buddies auf der Karte liegen,
+kommt er gar nicht erst — er würde sie sonst verdecken.
+
+**„Nichts gefunden" wird erklärt.** An einem Spot, an dem noch nichts
+eingetragen ist, steht jetzt eine Zeile darunter: dass ein Leergang
+festhält, dass du da warst und nichts da war.
+
+**Ein falscher Rat ist verschwunden.** Im Profil stand „halte auf der
+Karte gedrückt, um deinen ersten Pilz-Spot anzulegen". Diese Geste lässt
+sich aber seit einer Weile abschalten und ist ab Werk aus — der einzige
+Erklärsatz der App zeigte also ins Leere. Jetzt steht dort der Weg, den es
+wirklich gibt.
+
+## Der Benutzername nimmt keine Mailadresse mehr an
+
+*29. August 2026 · Version 1.106.1*
+
+Beim Registrieren liegt das Feld für die E-Mail direkt unter dem für den
+Benutzernamen, und prompt landet die Adresse manchmal im falschen. Das
+fällt jetzt auf, beim Registrieren wie beim späteren Umbenennen — mit
+einem Hinweis am Feld statt einer Fehlermeldung erst beim Speichern.
+
+Der Grund ist mehr als Ordnungsliebe: Dein Benutzername ist für andere
+sichtbar — in Freundeslisten, an Spots und in der Suche. Eine Adresse
+dort steht damit öffentlich, und ausgerechnet die Freundessuche baut
+darauf, dass Adressen **nicht** öffentlich sind.
+
+## Die Karte merkt sich, was du eingeschaltet hast
+
+*29. August 2026 · Version 1.106.0*
+
+**Deine Ebenen bleiben liegen.** Waldtypen, Höhenlinien, Regen und
+Pilzampel sprangen bisher bei jedem App-Start wieder auf „aus" — das war
+Absicht, damit niemand mit einer vergessenen Ebene dasteht. Seit die Zahl
+am Ebenen-Knopf sagt, was an ist, braucht es diese Vorsicht nicht mehr.
+Was du anschaltest, liegt beim nächsten Start wieder da; was du
+ausschaltest, bleibt aus.
+
+Ein Hinweis für unterwegs: Wer die Regenebene oder die Pilzampel anlässt,
+lädt sie beim Start automatisch mit. Das sind ein paar hundert Kilobyte —
+im Funkloch stört es nicht, am Datenvolumen kann es auffallen. Abschalten
+genügt, dann bleibt es aus.
+
+**Der Ampel-Hinweis verschwindet nicht mehr, wenn man ihn benutzt.** Das
+Banner „An deinem Spot stünde die Ampel günstig" lädt zum Antippen ein —
+und schaltete sich danach bis Mitternacht selbst stumm. Für den nächsten
+App-Start sah das aus, als sei der Hinweis kaputt. Jetzt schaltet ihn nur
+noch das **X** stumm, und das gilt weiter für den ganzen Tag.
+
+**Das Spot-Blatt hat einen Griff bekommen.** Der graue Balken oben lässt
+sich nach unten wischen — damit geht das Blatt zu, ohne dass man daneben
+tippen muss. Außerdem ist es ein Stück niedriger, sodass über ihm immer
+ein Streifen Karte stehen bleibt.
+
+## Weniger Knöpfe auf der Karte — und mehr Karte
+
+*28. August 2026 · Version 1.105.0*
+
+Rechts auf der Karte standen zuletzt zehn Knöpfe übereinander. Auf einem
+normalen Handy waren das zwei Drittel der Bildhöhe, und mit jedem neuen
+Knopf wurden alle anderen ein Stück kleiner.
+
+**Jetzt sind es fünf.** Was die Karte zeigt, liegt zusammen hinter einem
+Knopf **Ebenen**: Waldtypen, Höhenlinien, Regen, Pilzampel, die
+Offline-Karte und das Aktualisieren. Eine Zeile je Ebene, Schalter
+gleich daneben — eine Ebene an- oder auszuschalten kostet dich genau so
+viele Tipps wie vorher. Wer mehr wissen will (Kartenblöcke laden,
+Regenzeitraum wählen, Quellen), tippt die Zeile an und landet im
+bekannten Blatt.
+
+Am Knopf steht eine kleine Zahl: wie viele Ebenen gerade an sind. Welche
+das sind, sagt wie bisher die Legende links unten.
+
+Pilztour und Standort-Teilen liegen zusammen unter **Unterwegs**. Läuft
+eine Tour, erscheint ihr Stopp-Knopf daneben — beenden bleibt ein Tipp.
+
+Unverändert an ihrem Platz: **Filter**, **Meine Position** und **Neuer
+Spot**.
+
+Nebenbei sagt die Offline-Karte jetzt in Worten, woran man ist —
+„Karten aus dem Netz", „Heruntergeladene Regionen" oder „Aktiv, weil
+kein Empfang". Das durchgestrichene Erdball-Symbol konnte den letzten
+Fall nie zeigen.
+
+## Ein Tipp aufs Banner bringt dich jetzt zum Spot auf der Karte
+
+*28. August 2026 · Version 1.104.0*
+
+Die Hinweise oben auf der Karte — „Ampel steht günstig", „Neuer Fund von
+deinem Buddy", „Erinnerung ans Vorjahr" — nannten einen Spot und öffneten
+sein Blatt. Nur blieb die Karte dabei stehen: Blatt zu, und du warst
+wieder da, wo du gestartet bist. Bei einem Spot, der 30 Kilometer weit
+weg liegt, half nur noch der Name.
+
+**Jetzt springt die Karte mit.** Ein Tipp aufs Banner setzt dich über den
+Spot, das Blatt öffnet sich darüber — machst du es zu, liegt der Spot vor
+dir. Herangezoomt wird nur, wenn du weiter draußen warst; wer schon nah
+dran ist, bleibt es.
+
+Und wenn die Ampel an **mehreren** Spots günstig steht, bekommst du sie
+jetzt zur Auswahl statt nur den besten. Bisher öffnete das Banner einen
+davon und war für den Tag verschwunden — die anderen standen zwar in der
+Zahl, aber es führte kein Weg zu ihnen. Solange du noch nicht alle
+angesehen hast, bleibt der Hinweis stehen; wegräumen kannst du ihn wie
+immer mit dem X.
+
+## Die Pilztour zeichnet jetzt auch dann auf, wenn die App zu ist
+
+*28. August 2026 · Version 1.103.0*
+
+Beim ersten Feldtest kam heraus: Solange die App offen war, wurde der
+Weg aufgezeichnet — hat man sie aus der Übersicht gewischt, hörte die
+Aufnahme still auf, obwohl die Benachrichtigung weiterlief. Genau das
+ist behoben.
+
+Die Messung läuft jetzt im Hintergrunddienst selbst und nicht mehr in
+der App. Der Dienst überlebt das Wegwischen; die App muss nicht mehr
+offen bleiben und darf in der Tasche verschwinden.
+
+Außerdem: **Das Symbol der Pilztour trägt jetzt einen Pilzkorb** statt
+eines Wanderstocks.
+
+## Die Pilztour: Der Weg zeichnet mit, und am Ende weißt du, wo du warst
+
+*27. August 2026 · Version 1.102.0*
+
+Auf der Karte gibt es einen neuen Knopf: **Pilztour starten**. Danach
+merkt sich die App deinen Weg — ab Werk alle 15 Sekunden, einstellbar im
+Profil unter „Pilztour: Messabstand" — und zeichnet ihn als Punktspur auf
+die Karte. Funde trägst du unterwegs ein wie immer.
+
+Wenn du auf **Pilztour beenden** tippst, zeigt dir die App, an welchen
+deiner Spots du warst:
+
+- **Abgesucht** — du warst nah dran und lange genug dort. Diese sind
+  angehakt und werden als „nichts gefunden" eingetragen.
+- **Nur vorbeigegangen** oder **nur kurz da** — verblasst, mit dem Grund
+  und der Zahl daneben („34 m", „15 s"). Die sind ausgeschaltet; wenn du
+  dort doch gesucht hast, hakst du sie selbst an.
+
+Stimmt alles, ist es ein Tipp.
+
+**Warum das nützlich ist:** Bisher hat kaum jemand eingetragen, wenn er
+an einem Spot *nichts* gefunden hat — verständlich, man ist gerade
+enttäuscht. Genau diese Information fehlt aber, wenn man später wissen
+will, ob eine Stelle noch trägt. Und die Pilzwetter-Ampel kann sich nur
+an Tagen prüfen lassen, an denen man weiß, dass wirklich gesucht wurde.
+
+**Was dabei nicht passiert:** Der aufgezeichnete Weg verlässt dein
+Telefon nicht. Er liegt lokal, ist vom Google-Backup ausgenommen und
+wird gelöscht, sobald du die Tour abgeschlossen hast. Hochgeladen werden
+nur die Einträge, die du bestätigst.
+
+Solange eine Tour läuft, steht eine Benachrichtigung in der Leiste —
+daran siehst du jederzeit, dass aufgezeichnet wird. Vergisst du das
+Beenden, hört die Aufnahme nach zwölf Stunden von selbst auf.
+
+## Ein Hinweis, wenn das Pilzwetter an einem deiner Spots gut aussieht
+
+*27. August 2026 · Version 1.101.0*
+
+Wer die **Pilzwetter-Ampel** eingeschaltet hat, konnte sie bisher nur
+Spot für Spot ablesen — man musste also selbst nachsehen. Neu ist ein
+zweiter Schalter direkt darunter im Profil: **Beim Start an meinen Spots
+nachsehen**. Ist er an, rechnet die App beim Öffnen der Karte einmal
+durch deine eigenen Spots und zeigt oben einen Hinweis, wenn die Ampel
+irgendwo günstig steht. Antippen öffnet den Spot, bei dem sie am
+deutlichsten dasteht.
+
+Zwei Dinge dazu, damit klar ist, was das ist und was nicht:
+
+- **Es ist ein Hinweis, keine Empfehlung.** Deshalb steht dort „stünde
+  die Ampel günstig" und nicht „geh jetzt los". Die Ampel bewertet das
+  Wetter, nicht ob dort Pilze stehen, und sie ist weiterhin
+  experimentell.
+- **Es geht nichts ins Netz.** Gerechnet wird auf dem Gerät, aus Daten,
+  die ohnehin schon dort liegen — keine deiner Koordinaten verlässt das
+  Telefon. Der Schalter ist trotzdem ab Werk aus, weil die Rechnung beim
+  Start ein wenig Zeit kostet; wer sie nicht will, zahlt sie auch nicht.
+
+Das X am Hinweis blendet ihn bis zum Ende des Tages aus — morgen sind es
+neue Wetterdaten und damit eine neue Aussage.
+
+## Offline-Karten, die sich im WLAN selbst auf den neuen Stand bringen
+
+*26. August 2026 · Version 1.100.0*
+
+Bisher hat PilzBuddy nur Bescheid gesagt, wenn es für eine deiner
+heruntergeladenen Regionen eine neuere Karte gab — nachladen musstest du
+selbst. Auf der Seite „Offline-Karten" gibt es dafür jetzt einen
+Schalter: **Im WLAN von selbst aktualisieren**. Ist er an, holt die App
+eine veraltete Region ohne Zutun, sobald du im WLAN bist und die App
+offen hast.
+
+Ab Werk ist der Schalter aus — eine Regionskarte ist mehrere hundert
+Megabyte groß, und das lädt niemand ungefragt.
+
+Drei Dinge, auf die dabei geachtet wird:
+
+- **Nur was schon da ist.** Der Schalter bringt Regionen auf den neuen
+  Stand, die du selbst heruntergeladen hast. Neue Regionen holt er nie.
+- **Nur wo es nichts kostet.** Ein Handy-Hotspot ist zwar WLAN, kostet
+  aber Datenvolumen — Android weiß das, und PilzBuddy fragt danach.
+  Über Mobilfunk lädt der Schalter grundsätzlich nicht.
+- **Unterwegs hält er an.** Verlässt du das WLAN mitten im Laden, stoppt
+  der Download und macht beim nächsten Mal genau dort weiter, statt
+  deinen Datentarif zu leeren.
+
+Die alte Karte wird außerdem erst ersetzt, wenn die neue vollständig da
+und geprüft ist. Ein abgebrochener Download kann dir also nie eine halbe
+Karte im Wald hinterlassen.
+
+## Ein Pilz in der Statusleiste statt eines weißen Flecks
+
+*26. August 2026 · Version 1.99.5*
+
+Kam eine Meldung von PilzBuddy an — etwa ein Fund eines Buddies an einem
+gemeinsamen Spot —, zeigte Android dafür nur einen weißen Fleck. Grund war
+eine fehlende Angabe in der App: Ohne sie greift Android auf das
+App-Symbol zurück, und weil ein Symbol in der Statusleiste immer
+einfarbig gezeichnet wird, blieb davon nichts als eine weiße Fläche übrig.
+
+Jetzt steht dort ein kleiner Pilz mit freundlichem Gesicht, und in der
+Meldungsansicht ist er grün hinterlegt. Dasselbe Symbol trägt auch die
+Meldung, die beim Herunterladen von Offline-Karten und Walddaten läuft.
+
+## „Code ist unterwegs" — und dann kam keiner
+
+*22. August 2026 · Version 1.99.2 · 1.99.3 und 1.99.4: nur Innenausbau, nichts Sichtbares*
+
+Beim Zurücksetzen des Passworts gibt es unter der Code-Eingabe den Knopf
+„Code nicht angekommen? Erneut senden". Stand das E-Mail-Feld darüber
+leer, meldete die App trotzdem „ein neuer Code ist unterwegs" — verschickt
+wurde aber nichts. Wer darauf gewartet hat, hat vergeblich gewartet.
+
+Jetzt sagt die App in dem Fall, was fehlt: „Bitte eine gültige
+E-Mail-Adresse angeben."
+
+## Höhenlinien: saubere Kurven, die sich nicht mehr kreuzen
+
+*21. August 2026 · Version 1.99.1*
+
+Beim starken Hineinzoomen sahen die Höhenlinien nicht aus wie
+Höhenlinien: lange Geraden statt Kurven, Ringe mit einem Knick, und
+manche Linien liefen quer durch ihre Nachbarn hindurch. Beim Verschieben
+der Karte sprangen sie außerdem gelegentlich auf einen neuen Verlauf.
+
+Alles drei ist behoben:
+
+- **Die Linien folgen jetzt dem Gelände statt einer groben Näherung.**
+  Sie sind glatt, und zwei Linien kreuzen sich nicht mehr — das kann
+  eine Höhenlinie schlicht nicht.
+- **Geschlossene Ringe sind rundum rund.** Vorher blieb an einer
+  zufälligen Stelle eine Ecke stehen.
+- **Beim Verschieben bleiben die Linien liegen.** Sie wandern mit der
+  Karte, statt sich neu zu berechnen.
+
+Nebenbei tauchen beim Hineinzoomen wieder kleine Kuppen und Mulden auf,
+die vorher weggefiltert wurden.
+
+## Höhenlinien: ruhiger, und mit Zahlen dran
+
+*21. August 2026 · Version 1.99.0*
+
+Die Höhenlinien aus der letzten Version waren im Bergland zu dicht — im
+Berchtesgadener Land sah die Karte aus, als hätte jemand sie schraffiert.
+Und ohne Zahlen sagt eine Höhenlinie nur „hier ist es steiler als dort",
+nicht ob es hinauf oder hinunter geht.
+
+Beides ist behoben:
+
+- **Der Abstand richtet sich jetzt nach dem Gelände**, nicht nach der
+  Zoomstufe. Im flachen Land liegen die Linien enger, im Steilhang
+  weiter auseinander — so, dass man sie in beiden Fällen einzeln sieht.
+  Wo selbst der größte Abstand noch zu dicht wäre, zeigt die Karte
+  keine Linien und sagt „erst näher dran".
+- **Etwa alle 100 Höhenmeter trägt eine kräftigere Linie ihre Höhe in
+  Metern.** Die dazwischen zählst du ab, wie auf einer Wanderkarte.
+- **Die Linien sind zarter geworden.** Sie liegen über der Karte, sie
+  sollen sie nicht ersetzen.
+
+## Die Offline-Karte hat ihr Grün zurück
+
+*21. August 2026 · Version 1.98.1*
+
+Auf der heruntergeladenen Karte fehlten Wald, Wiese und Park. Die
+Flächen waren beige wie offenes Feld, und übrig blieben Straßen und
+Wege. Die Daten waren die ganze Zeit da — unser Kartenstil hat sie nur
+nicht gezeichnet. Jetzt ist der Wald wieder grün; beim starken
+Hineinzoomen stehen auch die Namen einzelner Punkte im Gelände wieder
+da (Gipfel, Hütten, Haltestellen).
+
+Und die Wege aus der letzten Version sind deutlich zurückgenommen. Sie
+waren kräftiger geraten als die Straßen, über die sie laufen — im
+Feldgebiet lag ein braunes Netz über allem. Jetzt sind sie zu sehen,
+ohne die Karte zu übertönen: Forstwege weiterhin breiter als schmale
+Pfade, und Pfade erst beim Hineinzoomen, damit die Übersicht ruhig
+bleibt.
+
+Beides betrifft nur die heruntergeladene Karte. Die Online-Karte kommt
+fertig gezeichnet von OpenStreetMap.
+
+## Höhenlinien: siehst du, wo es bergauf geht
+
+*20. August 2026 · Version 1.98.0*
+
+Neu auf der Karte: ein Bergsymbol rechts. Ein Tipp darauf, „Höhenlinien
+einblenden" — und die Karte zeigt das Gelände. Hänge, Mulden, Kuppen,
+Bachtäler. Für die Pilzsuche ist das oft die halbe Miete: Der
+Nordhang ist kühler und feuchter als die Kuppe daneben.
+
+Was du wissen solltest:
+
+- **Die Linien werden auf deinem Gerät gerechnet.** Die Höhendaten
+  stecken schon in der App — es wird nichts nachgeladen, nichts
+  verschickt, und im Funkloch funktioniert es genauso.
+- **Der Abstand wächst, je weiter du herauszoomst**: von 20 Metern nah
+  dran bis 200 Metern in der Übersicht. In der Legende steht, was
+  gerade gilt, und wie hoch es unter dem Fadenkreuz ist. Jede fünfte
+  Linie ist kräftiger, damit du mitzählen kannst.
+- **Ganz weit draußen zeigt die Karte keine Linien** — dort wären sie
+  nur ein Gewirr. Die Legende sagt dann „erst näher dran".
+- **Im Flachland bleibt es fast leer.** Das ist kein Fehler: Wo es
+  keine Höhenunterschiede gibt, gibt es keine Höhenlinien.
+
+Die Daten sind gröber als eine gedruckte Wanderkarte (eine Wabe ist
+etwa 270 Meter breit). Sie zeigen die Form des Geländes, nicht die
+einzelne Böschung.
+
+## Wanderwege sind endlich zu sehen
+
+*20. August 2026 · Version 1.97.0*
+
+Auf der heruntergeladenen Offline-Karte waren bisher fast nur Straßen zu
+erkennen. Die Wege waren die ganze Zeit da — sie wurden nur so blass
+gezeichnet wie eine Hofzufahrt und erst beim starken Hineinzoomen
+überhaupt breiter als ein Haar.
+
+Jetzt haben sie eine eigene Farbe:
+
+- **Forstwege** — die breiten, befahrbaren — kräftig in Ockerbraun. Das
+  sind die, auf denen man in den Wald kommt.
+- **Pfade, Steige, Fußwege und Reitwege** deutlich feiner im selben Ton,
+  damit man die beiden auseinanderhält.
+- Beide erscheinen früher: Du musst nicht mehr so weit hineinzoomen, bis
+  sich etwas zeigt.
+
+Bürgersteige und Fußgängerüberwege an Stadtstraßen fallen dafür weg. Im
+Wald helfen sie nicht, und in der Stadt waren sie nur Gewimmel.
+
+Das betrifft die Offline-Karte und die Karte ohne Empfang. Mit Empfang
+zeichnet OpenStreetMap die Karte wie bisher selbst.
+
+## Die App fragt sparsamer nach
+
+*17. August 2026 · Versionen 1.95.0 und 1.96.0*
+
+Die Karte hat bisher alle 15 Sekunden nachgesehen, ob ein Freund
+gerade seinen Live-Standort teilt — auch wenn du gar keine Freunde
+eingetragen hast, auch nachts in der Hosentasche. Das kostete Akku und
+Datenvolumen für eine Antwort, die fast immer leer war.
+
+Jetzt gilt:
+
+- Ohne angenommene Freundschaft fragt die App gar nicht erst.
+- Mit Freunden, aber ohne aktive Freigabe, schaut sie nur noch alle
+  90 Sekunden nach — eine neue Freigabe erscheint also schlimmstenfalls
+  anderthalb Minuten später.
+- Sobald jemand teilt, gilt wieder der schnelle 15-Sekunden-Takt —
+  beim Verfolgen ändert sich nichts.
+- Im Hintergrund ruht die Abfrage ganz und springt beim Zurückkehren
+  sofort wieder an.
+
+Seit 1.96.0 gilt dasselbe fürs Zurückkehren in die App: Ein kurzer
+Blick woandershin (unter 30 Sekunden) lädt gar nichts mehr neu.
+Nach echter Abwesenheit werden Spots und Freundschaften wie gewohnt
+aufgefrischt; die Suche nach App-Updates und neuen Offline-Karten
+läuft höchstens einmal pro Stunde — beides ändert sich nie im
+Minutentakt. Der Aktualisieren-Knopf auf der Karte lädt weiterhin
+immer alles sofort.
+
+## Das Pilzwetter kennt jetzt die Höhe deines Spots
+
+*17. August 2026 · Version 1.93.0, Nachbesserungen in 1.93.1 und 1.94.0*
+
+Die nächste Wetterstation kann ein paar hundert Höhenmeter über oder
+unter deinem Spot liegen — im Gebirge wurde das Pilzwetter dadurch mal
+zu warm, mal zu kalt gerechnet. Zeitweise stand die Zugspitzen-Station
+für die Täler um sie herum ein.
+
+Jetzt trägt die App eine Höhenkarte in sich (mittlere Geländehöhe in
+etwa 250-m-Waben, ganz Deutschland, Österreich und Schweiz) und
+rechnet die Stationstemperatur auf die Höhe deines Spots um: 0,65 Grad
+je 100 Meter, die bewährte Faustregel der Meteorologie.
+
+- Im Flachland ändert sich nichts — Station und Spot liegen dort auf
+  gleicher Höhe, die Umrechnung ist eine Nullnummer.
+- Wo sie zählt, steht sie dabei: „zu kühl (7,3 °C auf Spothöhe
+  1200 m)".
+- Das Temperatur-Diagramm zeigt weiterhin die echten Messwerte der
+  Station, mit deren Name und Höhe — Messwerte bleiben Messwerte.
+- 1.93.1 zieht die kleine Werte-Tafel unten links auf der Karte nach:
+  Sie rechnete zunächst noch ohne die Höhe und konnte dadurch am
+  Fadenkreuz etwas anderes sagen, als die Kachelfarbe zeigte — danke
+  für die Meldung aus Berchtesgaden.
+- 1.94.0 bringt die Höhe auch in die Kartenfärbung selbst: Bisher
+  bekamen alle Waben im Umkreis von etwa einem Kilometer dieselbe
+  Wetterstufe — im Gebirge liegen dazwischen aber schnell 500
+  Höhenmeter. Jetzt rechnet **jede einzelne Wabe** mit ihrer eigenen
+  Höhe, egal ob grobe oder feine Waben eingestellt sind. Karte,
+  Werte-Tafel und Spot-Ansage können sich damit nicht mehr
+  widersprechen.
+
+Wie alles an der Karte funktioniert das ohne Empfang.
+
+## Woher die Pilzwetter-Formel stammt
+
+*15. August 2026 · Version 1.92.0*
+
+Die Rechenregel hinter dem Pilzwetter — um 13 °C herum ist es am
+besten, und es zählt der Regen der letzten dreieinhalb Wochen — haben
+wir nicht erfunden. Sie stammt aus einer Studie mit zehn Jahren fast
+täglicher Steinpilz-Beobachtung in einem Buchenwald bei Bielefeld.
+Das sagt die App jetzt auch selbst:
+
+- Unter der Pilzwetter-Zeile im Spot-Blatt steht die Quelle in einem
+  Satz.
+- Die vollständige Angabe mit Fundstelle und den ehrlichen
+  Einschränkungen steht im Profil unter „Über PilzBuddy" →
+  „Open-Source-Lizenzen", wo die App auch sonst nennt, woher ihre
+  Karten und Daten kommen.
+
+## Benachrichtigungen sagen jetzt, worum es geht
+
+*13. August 2026 · Version 1.91.0, technische Nacharbeit in 1.91.1*
+
+Bisher stand in einer Meldung „PilzBuddy" und darunter „Neue Funde bei
+deinen Pilzbuddies" — drei Funde sahen aus wie einer, und der Titel
+wiederholte nur den App-Namen, den Android ohnehin anzeigt.
+
+Jetzt steht die Sache oben und die Menge dabei:
+
+- **3 neue Funde bei deinen Buddys** · An 2 Spots
+- **Deine Buddys waren unterwegs** · 2 neue Funde und 1 neuer Spot
+
+Was weiterhin **nicht** drinsteht: wer es war und welche Art. Eine
+Meldung läuft über die Server von Google, und dorthin gehen weder
+Namen noch Fundinhalte — die stehen erst in der App.
+
+## Die Pilzampel ist geprüft — teilweise
+
+*13. August 2026 · Version 1.89.0*
+
+Die Pilzwetter-Ampel lief bisher als „unvalidierte Vorschau". Die Prüfung
+ist jetzt durch: Für rund 12.000 echte Fundmeldungen aus zwanzig Jahren
+wurde nachgerechnet, wie die Ampel am Fundtag stand — und wie an einem
+Vergleichstag am **selben Ort** wenige Wochen daneben. Sie steht an
+Fundtagen deutlich höher. Beim Steinpilz in 73 von 100 Vergleichen.
+
+Was die Prüfung **nicht** zeigen konnte: dass die Ampel für verschiedene
+Arten verschieden gut passt. Beim Hallimasch, der ganz anders wächst,
+passt dieselbe Rechnung genauso gut. Solange das so ist, bleibt es bei
+**einer** Ampel für alle Arten statt einer je Art.
+
+Der Schalter im Profil sagt das jetzt so — und heißt weiter
+„experimentell", weil genau diese Frage offen ist.
+
+## Neuer Paketname — einmal neu installieren
+
+*13. August 2026 · Version 1.88.0 · Anleitung korrigiert in 1.90.0, Nacharbeiten in 1.90.1*
+
+PilzBuddy heißt für Android ab jetzt `de.mcbuchi.pilzbuddy` statt wie
+bisher mit dem Namen des Entwicklers darin. Das musste vor der ersten
+Einreichung im Play Store passieren — danach lässt sich dieser Name nie
+wieder ändern.
+
+**Für dich heißt das einmalig zwei Handgriffe.** Android hält die neue
+Fassung für eine andere App — sie ersetzt die alte also nicht, sondern
+stellt sich daneben:
+
+- Update wie immer über „Neue Version verfügbar" einspielen.
+- Danach stehen kurz **zwei** PilzBuddy-Symbole auf dem Gerät. Die
+  **alte** App löschen (Symbol gedrückt halten → Deinstallieren).
+- In der neuen anmelden — fertig. Alle weiteren Updates laufen wieder
+  wie gewohnt.
+
+**Dein Konto und deine Spots bleiben** — die liegen auf dem Server.
+Verloren gehen die Sachen, die nur auf dem Gerät liegen:
+heruntergeladene Offline-Karten, gespeicherte Einstellungen und
+**Funde, die noch im Ausgangskorb warten**. Wenn dort noch etwas steht
+(das Banner auf der Karte sagt es), gehe vor dem Wechsel einmal mit
+Empfang ins Netz, damit alles gesendet ist. Benachrichtigungen musst du
+in der neuen App einmal wieder einschalten, falls du sie an hattest.
+
+## Vorbereitung für den Play Store
+
+*12. August 2026 · Version 1.87.1*
+
+An der App ändert sich für dich nichts. Damit PilzBuddy in den Play Store
+darf, entstehen ab jetzt zwei Fassungen aus demselben Stand: die hier von
+GitHub — die sich wie gewohnt selbst aktualisiert — und eine für den Store,
+in der genau diese Selbst-Aktualisierung fehlt. Google verbietet sie dort,
+weil im Store der Play Store das Aktualisieren übernimmt.
+
+Wenn PilzBuddy später im Store steht: Ein Wechsel dorthin verlangt einmal
+Deinstallieren und Neuinstallieren, weil die Store-Fassung anders signiert
+ist. Dein Konto und deine Spots liegen auf dem Server und bleiben erhalten;
+neu laden musst du nur heruntergeladene Offline-Karten.
+
+## Benachrichtigungen kommen jetzt richtig an
+
+*12. August 2026 · Version 1.87.0*
+
+Meldungen von Buddies erschienen bisher nur als kleines Symbol in der
+Statusleiste — ohne den Banner, den man von anderen Apps kennt. Grund
+war ein fehlender Benachrichtigungs-Kanal: Ohne ihn legt Android selbst
+einen sehr leisen an. Jetzt gibt es einen eigenen namens **Meldungen**,
+den du in den Systemeinstellungen auch nach deinem Geschmack
+herunterdrehen kannst.
+
+Und wenn eine Meldung eintrifft, während PilzBuddy offen ist, zeigt die
+App sie unten als Einblendung — auch dann, wenn dort gerade eine andere
+Rückmeldung steht.
+
+## Welcher Baum steht da eigentlich?
+
+*12. August 2026 · Version 1.86.0*
+
+Die Waldzeile im Spot-Blatt sagte bisher „Laubwald", „Mischwald" oder
+„Nadelwald". Für die Pilzsuche ist aber genau die nächste Frage die
+wichtige: **welcher** Baum? Fichte oder Kiefer entscheidet zwischen
+Marone und Butterpilz, Buche oder Birke zwischen Steinpilz und
+Birkenpilz.
+
+Ab jetzt steht es da:
+
+- **Bäume: Fichte und Buche** — die beiden häufigsten in der Wabe,
+  benannt in der Reihenfolge, die zum Nadelanteil darüber passt
+- **Einzelne Bäume: Eiche** — am Waldrand, wo es keinen geschlossenen
+  Wald gibt, aber sehr wohl Bäume
+
+Die Angabe stammt aus einer Baumartenkarte des DLR mit Stand 2022 und
+gilt **nur für Deutschland**; in Österreich und der Schweiz bleibt es
+bei der bisherigen Zeile. Sie liegt wie die Waldkarte fest in der App —
+im Wald ohne Empfang steht sie also genauso da wie zu Hause.
+
+
+## Vom Sporenstreuer zum Waldpaten
+
+*11. August 2026 · Version 1.85.0*
+
+Teilen bekommt einen Rang. Wer seinen ersten Spot mit den Buddies teilt,
+ist **Sporenstreuer** — und von da an geht es weiter:
+
+- 10 Spots: **Hyphenspinner**
+- 25: **Myzelweber**
+- 50: **Revierkenner**
+- 100: **Waldpate**
+
+Das Bild ist mit Absicht gewählt: Ein Pilznetz besteht aus Fäden, und
+jeder geteilte Spot knüpft einen davon.
+
+Deinen Rang siehst du im Profil unter „Teilen mit Freunden", den deiner
+Buddies in der Freundesliste. In der Freundessuche steht er **nicht** —
+Fremde müssen nicht wissen, wie aktiv jemand ist.
+
+Zwei Dinge, die uns wichtig waren:
+
+- **Wer nichts teilt, wird nicht abgestempelt.** Bei null steht dort eine
+  Einladung, kein Titel — und schon gar kein Spottname.
+- **Gezählt wird, was wirklich ankommt.** Wer das Teilen abgeschaltet hat,
+  hat keinen Rang, auch mit hundert Spots. Und einzeln ausgenommene Spots
+  zählen nicht mit — dein Geheimspot bleibt geheim, ohne dass es dich
+  etwas kostet.
+
+Wenn du deutlich mehr siehst, als du selbst teilst, sagt das Profil es
+dir einmal ruhig dazu. Weggenommen wird dir nichts.
+
+## Im Funkloch stand der falsche Grund
+
+*11. August 2026 · Version 1.84.3*
+
+Wer ohne Verbindung die Benachrichtigungen einschalten wollte, bekam zu
+lesen, sie seien „nicht erlaubt" — und suchte dann in den
+Android-Einstellungen nach einem Schalter, der längst richtig stand. In
+Wahrheit fehlte nur das Netz.
+
+Jetzt steht da, was wirklich los ist. Und wer die Erlaubnis tatsächlich
+verweigert hat, bekommt weiterhin den Weg in die Einstellungen genannt.
+
+Benachrichtigungen brauchen Verbindung — das ist keine Einschränkung,
+sondern liegt in der Natur der Sache. Alles andere in der App
+funktioniert im Wald weiter ohne.
+
+## Benachrichtigungen kamen nicht an, wenn die App offen war
+
+*11. August 2026 · Version 1.84.2*
+
+Wer auf „Testnachricht senden" tippte, bekam nichts zu sehen — und das
+war kein Zufall, sondern der ungünstigste denkbare Fall: Android zeigt
+eine Benachrichtigung nur an, solange die App **nicht** im Vordergrund
+ist. Beim Tippen auf den Knopf ist sie das zwangsläufig. Die Meldung kam
+an und verschwand spurlos.
+
+Schlimmer war die zweite Hälfte davon: Auch eine **echte** Meldung wäre
+verpufft, wenn du die App zufällig offen hattest — und sie wäre nicht
+nachgekommen, weil sie serverseitig da schon als zugestellt galt.
+
+Jetzt zeigt die App eintreffende Meldungen selbst an, solange du sie
+offen hast.
+
+## Und jetzt melden sie sich auch
+
+*11. August 2026 · Version 1.84.1*
+
+Die Benachrichtigungen aus der vorigen Version haben jetzt einen Anlass.
+Wenn du sie eingeschaltet hast, erfährst du,
+
+- wenn ein Pilzbuddy an einem Spot, den ihr beide seht, einen Fund
+  einträgt,
+- und wenn er einen neuen Spot öffnet.
+
+Zwei Dinge, die dabei bewusst so gebaut sind:
+
+- **Du erfährst nur, was du ohnehin sehen darfst.** Ein Spot, den jemand
+  von der Freigabe ausgenommen hat, meldet sich nicht — und wer das
+  Teilen ganz abschaltet, löst gar keine Meldungen mehr aus.
+- **Zehn Funde auf einem Waldgang sind eine Meldung, nicht zehn.** Die
+  App wartet ab, bis Ruhe eingekehrt ist, und fasst zusammen.
+
+Ein **Leergang** („nichts gefunden") löst nichts aus. Und in der Meldung
+selbst steht weiterhin nie, um welchen Spot oder welche Stelle es geht —
+das siehst du erst beim Öffnen.
+
+## Benachrichtigungen — wenn du sie willst
+
+*11. August 2026 · Version 1.84.0*
+
+Im Profil steht ein neuer Schalter: **Benachrichtigungen**. Er ist aus, und
+er bleibt aus, bis du ihn umlegst. Diese Version baut nur die Leitung —
+gemeldet wird noch nichts. Was du jetzt schon tun kannst: einschalten und
+**„Testnachricht senden"** antippen. Kommt sie an, funktioniert die ganze
+Kette bis zu deinem Gerät.
+
+Drei Dinge, die dir dabei wichtig sein dürften:
+
+- **Der Schalter gilt nur für dieses Gerät.** Auf dem Tablet musst du ihn
+  eigens umlegen, und Ausschalten wirkt sofort.
+- **In einer Meldung steht nie, wo etwas ist.** Kein Fundort, kein
+  Spot-Name — nur ein allgemeiner Hinweis. Die Einzelheiten holt die App
+  erst, wenn du sie öffnest. Der Grund: Eine Benachrichtigung läuft über
+  die Server von Google, und dorthin gehört eine Fundstelle nicht.
+- **Nach der Erlaubnis wird erst gefragt, wenn du den Schalter umlegst** —
+  nicht beim Start.
+
+Was als Nächstes kommt: eine Meldung, wenn ein Pilzbuddy an einem
+gemeinsamen Spot etwas einträgt oder einen neuen Spot öffnet.
+
+## Der Regen-Knopf verrät jetzt auch die Pilzampel
+
+*11. August 2026 · Version 1.83.2*
+
+Hinter dem Tropfen-Knopf auf der Karte sitzen zwei Ebenen: der Regen und
+die Pilzampel. Angezeigt hat er bisher nur den Regen — wer allein die
+Ampel eingeschaltet hatte, sah einen Knopf, der aussah, als wäre nichts
+an, während der halbe Wald leuchtete.
+
+Jetzt zeigt er beides, und zwar unterscheidbar:
+
+- **Nur Regen:** blau mit vollem Tropfen, wie gehabt.
+- **Nur Pilzampel:** violett mit einem Ampelsymbol.
+- **Beides:** blau mit Tropfen und einem violetten Punkt dazu.
+
+## Die Pilzampel malt keine Kacheln mehr
+
+*11. August 2026 · Version 1.83.1*
+
+Bei Garmisch-Partenkirchen und Innsbruck leuchtete ein großes, auffällig
+rechteckiges Stück Wald als „verhalten" — während die Ampel an derselben
+Stelle „ungünstig" sagte. Beides konnte nicht stimmen.
+
+Der Grund: Die Farbe auf der Karte holte sich die Temperatur von der
+nächsten Wetterstation eines ganzen 16-Kilometer-Quadrats, gemessen von
+dessen Mittelpunkt. Der lag am gemeldeten Punkt acht Kilometer entfernt
+und griff zu einer Station, die 264 Meter höher steht — also kühler misst
+und die Bedingungen deutlich besser aussehen lässt. Der Text daneben hatte
+die richtige Station.
+
+Jetzt sucht auch die Karte die Station für jede Stelle einzeln. Farbe und
+Text können sich nicht mehr widersprechen, und die geraden Kanten
+verschwinden. Das betraf nicht nur die Alpen: Bundesweit war knapp ein
+Viertel der leuchtenden Fläche falsch eingefärbt — dort fiel es nur nicht
+auf, weil die Flecken klein und verstreut sind.
+
+Ein Hinweis ist dazugekommen, den die Karte nicht wegrechnen kann: Im
+Gebirge bleibt die Temperatur unsicher, weil die nächste Wetterstation
+Hunderte Höhenmeter tiefer oder höher stehen kann.
+
+## Vorabversionen, wenn du sie willst
+
+*10. August 2026 · Versionen 1.81.0 bis 1.83.0 (1.82.0 und 1.83.0: nur Innenausbau, nichts Sichtbares)*
+
+Im Profil unter „Über PilzBuddy" steht ein neuer Schalter:
+**„Vorabversionen erhalten"**. Er ist aus, und für die allermeisten soll
+er das auch bleiben.
+
+Hintergrund: An PilzBuddy wird laufend gebaut, und jede fertige Änderung
+wird sofort als Vorabversion abgelegt — für dich unsichtbar, denn die App
+bietet dir nur die *freigegebenen* Versionen an. Wer beim Ausprobieren
+helfen will, legt den Schalter um und bekommt dann jeden Zwischenstand
+angeboten.
+
+- Diese Zwischenstände sind **ungetestet** und kommen oft — teils mehrmals
+  am Tag.
+- Der Schalter gilt nur für dieses Gerät.
+- Zurückschalten ist jederzeit möglich. Du behältst die Version, die schon
+  installiert ist, und wirst danach wieder erst bei der nächsten Freigabe
+  gefragt.
+
+## Die leuchtenden Waben verraten jetzt auch den Wald
+
+*10. August 2026 · Version 1.80.0*
+
+Bisher sahen alle Waben, in denen das Wetter stimmte, gleich aus — und
+damit war ausgerechnet dort nicht mehr zu erkennen, ob man in Laub-,
+Misch- oder Nadelwald schaut. Jetzt hat **jede Waldart ihre eigene
+Leuchtfarbe**: Laubwald violett, Mischwald dazwischen, Nadelwald ein
+dunkles Königsblau. Du siehst also mit einem Blick beides — wo das
+Wetter passt *und* in welchem Wald.
+
+- „Günstig" ist ruhiger geworden. Die alte Farbe war so grell, dass sie
+  Wege und Ortsnamen darunter zugedeckt hat.
+- „Verhalten" tritt deutlicher zurück, damit der Blick dorthin geht, wo
+  es sich am ehesten lohnt.
+- Die Legende zeigt jetzt das ganze Raster: drei Waldarten, zwei Stufen.
+- Die Farbauswahl im Regen-Blatt ist entfallen. Türkis war auf der Karte
+  kaum von Wasser zu unterscheiden, und die neuen Farben sind auf die
+  drei Waldarten abgestimmt — eine zweite Familie hätte davon nichts
+  übrig gelassen.
+
+## Funde ohne Empfang gehen nicht mehr verloren
+
+*10. August 2026 · Version 1.79.0*
+
+Bisher brauchte das Eintragen eines Fundes eine Verbindung. Ausgerechnet
+im Wald gibt es die selten — wer dort einen Spot anlegte, bekam „Keine
+Verbindung" und musste sich den Fund merken, bis er zu Hause war.
+
+Ab jetzt landet ein Fund ohne Empfang in einem **Ausgangskorb** auf
+deinem Gerät und geht von allein raus, sobald du wieder Netz hast.
+
+- Der wartende Spot erscheint sofort auf der Karte — blasser und mit
+  einer kleinen Uhr. Du siehst also, wo du schon warst, und legst
+  denselben Spot nicht zweimal an.
+- Oben zeigt ein Hinweis, wie viele Einträge noch warten. Antippen
+  versucht es sofort.
+- Gesendet wird außerdem beim Start der App und sobald die Verbindung
+  zurückkommt — meist musst du gar nichts tun.
+- Wartende Einträge zählen ganz normal mit: in der Statistik, in der
+  Pilzampel und beim Export. Sie sind ja passiert. Nur ändern lassen sie
+  sich erst, wenn sie übertragen sind.
+- Ein wartender Eintrag lässt sich verwerfen, falls du ihn doch nicht
+  willst. Und wenn du dich abmeldest, während noch etwas wartet, fragt
+  die App vorher nach.
+
+Was der Server nicht annimmt, verschwindet nicht still: Solche Einträge
+werden gesondert gemeldet, mit dem Grund.
+
+## Die feine Waldkarte am Stück laden
+
+*10. August 2026 · Version 1.78.0*
+
+Die Waldtypen-Ebene kann seit kurzem feiner hinsehen: Waben von etwa
+100 Metern statt 250. Diese feinen Daten hat die App bisher unterwegs
+nachgeladen — also ausgerechnet dort, wo im Wald selten Empfang ist.
+
+Unter „Offline-Karten" steht jetzt ein Eintrag **Feine Waldkarte**, der
+alles auf einmal holt: rund 26 MB für Deutschland, Österreich und die
+Schweiz. Einmal zu Hause im WLAN antippen, und die feine Stufe ist
+draußen da.
+
+- Der Eintrag zeigt, wie viel schon auf dem Gerät liegt.
+- Anhalten geht jederzeit; was geladen ist, bleibt, und der Rest lässt
+  sich später nachholen.
+- Wird der Platz knapp, löschst du die feinen Daten wieder — die Karte
+  zeigt dann weiter die eingebaute Fassung mit den größeren Waben.
+
+## Updates kommen jetzt gebündelt
+
+*10. August 2026 · Version 1.77.0*
+
+Bisher hat jede einzelne Änderung sofort ein Update ausgelöst — an einem
+fleißigen Tag waren das acht Hinweise für dieselbe App. Ab jetzt sammeln
+sich die Änderungen, und ein Update erscheint erst, wenn ein Stand
+bewusst freigegeben wird. Der Hinweis in der App kommt dann einmal, mit
+allem, was seit dem letzten Mal dazugekommen ist.
+
+Für dich ändert sich sonst nichts: Was du installiert hast, läuft weiter,
+und die Web-Version zeigt denselben freigegebenen Stand wie die App.
+
+## Die Pilzampel leuchtet jetzt IM Wald
+
+*10. August 2026 · Version 1.76.0*
+
+Die eigentliche Frage beim Losfahren ist ja nicht „wo ist Wald" und auch
+nicht „wo ist gutes Wetter", sondern **wo ist beides**. Genau das zeigt
+die Karte jetzt: Der Schalter „Pilzwetter-Ampel" färbt keine eigene
+Fläche mehr über Felder und Städte, sondern lässt die **Waldwaben
+leuchten**, wo das Wetter gerade mitspielt — hell bei „verhalten",
+kräftig bei „günstig", in der Farbe deiner Wahl. Der übrige Wald bleibt
+sichtbar, nur zurückgenommen; sonst hätten die leuchtenden Waben keinen
+Zusammenhang, in dem man sie liest.
+
+Das ist zugleich eine Vereinfachung: Es gibt nur noch **einen** Schalter
+statt zweier Flächen, die sich gegenseitig ausschließen mussten. Und weil
+alles in einem Bild entsteht, liegt nichts mehr übereinander.
+
+- Es sind weiterhin **keine Spots von irgendwem** im Spiel — nur dein
+  Gerät, das Waldgitter und die Wetterdaten.
+- Waldwetter gibt es nur für Deutschland. Außerhalb bleibt der Wald
+  normal eingefärbt; „leuchtet nicht" heißt dort also weder schlecht
+  noch unbekannt.
+- Die Klassen-Auswahl gilt weiter: Wer nur Nadelwald einblendet, sieht
+  auch nur Nadelwald leuchten.
+- Der Ampel-Schalter schaltet die Waldebene mit ein, und wer die
+  Waldebene abschaltet, nimmt die Ampel mit — sie ist ja die Waldkarte
+  in anderen Farben.
+
+## Die Pilzampel bekommt eigene Farben
+
+*9. August 2026 · Version 1.75.0*
+
+Die Ampel-Fläche malte bisher in denselben Grün- und Ockertönen wie die
+Waldkarte — und die will man ja gerade zusammen sehen. Über Laubwald war
+„verhalten" praktisch nicht mehr zu erkennen.
+
+Jetzt bricht die Ampel aus den Erdtönen aus, und **du wählst die Farbe**:
+Im Regen-Blatt stehen unter dem Ampel-Schalter drei Familien zur Wahl —
+**Violett**, **Magenta** und **Türkis**. Die Wahl gilt für die Fläche auf
+der Karte, den Punkt im Spot-Blatt und die Legende, und sie bleibt
+gespeichert. Violett ist voreingestellt: Es ist der einzige Ton, der weder
+in der Karte (Wasser, Wald, Wege) noch in der Waldebene vorkommt.
+
+## Die Waldkarte bleibt beim Rauszoomen stehen
+
+*9. August 2026 · Version 1.74.0*
+
+Die Waben der Waldkarte verschwanden beim Rauszoomen: erst Lücken, dann
+Streifen, und in der Deutschland-Übersicht war gar nichts mehr zu sehen.
+Grund war der Zeichner — Waben, die kleiner als ein Bildpunkt wurden,
+fielen beim Runden einfach heraus.
+
+Jetzt zählt jede Wabe mit der Fläche, die sie bedeckt. Damit stimmt die
+Karte auf jeder Zoomstufe: In der Übersicht sind Harz, Thüringer Wald,
+Bayerischer Wald und die Alpen wieder als das zu erkennen, was sie sind,
+und beim Hineinzoomen wachsen daraus dieselben scharfen Waben wie bisher.
+Nebenbei laufen Wabenränder jetzt weich aus statt zu treppen, und
+zwischen gleichfarbigen Nachbarn ist keine helle Naht mehr.
+
+Und die Karte färbt schneller ein — das Zusammenpacken der Bilder war
+dreimal so aufwendig eingestellt, wie es sein musste. Das merkt man auch
+bei den Regen- und Ampel-Flächen.
+
+**Weniger Datenverbrauch bei den feinen Waben:** Die nachladbaren
+100-m-Waben kommen jetzt erst nah dran — etwa ab Maßstab 1 km, wo man
+sie auch wirklich sieht. Wer mit eingeschalteter Feinstufe auf
+Deutschland herauszoomte, lud bisher nach und nach das ganze Gebiet
+nach (26 MB) für ein Bild, das von der eingebauten Karte nicht zu
+unterscheiden war.
+
+## Zum Ausprobieren: die Pilzwetter-Ampel
+
+*9. August 2026 · Versionen 1.72.0 und 1.73.0*
+
+**Neu in 1.73.0 — die Ampel auf der Karte:** Im Regen-Blatt gibt es
+(bei eingeschalteter Vorschau) den Schalter „Pilzwetter-Ampel". Er
+färbt auf der Karte ein, wo die Wetter-Bedingungen für Steinpilz & Co.
+gerade **günstig** (grün) oder **verhalten** (ocker) sind — ungünstige
+Gegenden bleiben ungefärbt. Zusammen mit der Waldkarte beantwortet das
+die Frage „wo könnte ich noch sammeln?": Wald einblenden, Ampel
+einblenden, hin. Es werden dabei **keine Spots von irgendwem**
+benutzt oder gezeigt — die Fläche ist reines Wetter, gerechnet auf
+deinem Gerät, nur für Deutschland. Eine Regenfläche und die Ampel
+schließen sich gegenseitig aus (beides übereinander wäre unlesbar).
+
+Im Profil gibt es einen neuen Schalter: **„Pilzwetter-Ampel
+(experimentell)"**. Eingeschaltet zeigt das Spot-Blatt (und „Was ist
+hier?") eine Einschätzung in Worten — **ungünstig, verhalten oder
+günstig** —, gerechnet aus dem Regen der letzten 26 Tage und der
+Temperatur der letzten 20 Tage, direkt auf deinem Gerät.
+
+- **Ehrlich bleibt sie:** Die Ampel bewertet die Wetter-**Bedingungen**,
+  nicht ob Pilze dastehen. Sie gilt nur für die sechs Arten, an denen
+  das Modell gerade geprüft wird (Steinpilz & Co.) — für alle anderen
+  sagt sie bewusst nichts. Und sie ist **unvalidiert**: Die Prüfung an
+  echten Funden läuft noch; fällt sie durch, verschwindet die Vorschau
+  wieder.
+- Daneben stehen die Fakten wie bisher: Regen, Temperatur und die
+  Saison der Art — die Saison fließt nicht in die Stufe ein.
+- Das Wetterdiagramm zeigt weiterhin 14 Tage; die zusätzlichen Tage
+  für die Ampel kommen mit den nächsten Daten-Updates automatisch
+  (die erste Wetter-Ladung wächst dadurch auf knapp 2 MB).
+
+## Die Waldkarte kann feiner — wenn du willst
+
+*9. August 2026 · Version 1.71.0*
+
+Im Waldtypen-Blatt gibt es einen neuen Schalter: **„Feine Waben
+(≈ 100 m) nachladen"**. Eingeschaltet holt die App für das sichtbare
+Gebiet eine deutlich feinere Waldkarte aus dem Netz — je Gebiet rund
+1 MB, einmal geladen bleibt es auf dem Gerät. Auch „Wald hier" im
+Spot-Blatt, der Laubfaktor am Fadenkreuz und „Was ist hier?" rechnen
+dann auf den feinen Waben.
+
+- Ohne den Schalter ändert sich nichts: Die eingebaute 250-m-Karte
+  bleibt und funktioniert wie bisher ganz ohne Empfang. Fehlt unterwegs
+  das Netz, springt sie auch bei eingeschaltetem Schalter still ein.
+- Die feine Karte ist nicht nur schärfer, sondern ehrlicher: Bei 250 m
+  macht schon eine Baumreihe die ganze Wabe zu „Wald" — auf 100 m
+  schrumpft der Waldanteil von 48 auf ehrliche 44 Prozent. Werte können
+  sich also leicht ändern; das ist die feinere Messung, keine neuen
+  Daten.
+- Die feinen Karten werden zentral gepflegt und beim vierteljährlichen
+  Daten-Update automatisch erneuert — dafür ist kein App-Update nötig.
+
+## Die Waldkarte hat jetzt Waben
+
+*9. August 2026 · Version 1.70.0*
+
+Die Waldtypen liegen jetzt als **Sechseck-Waben** auf der Karte statt als
+Quadrate — organischer anzusehen, und zwar ehrlich: Die Waben sind nicht
+bloß aufgemalt, sondern werden direkt aus den 10-Meter-Satellitendaten
+berechnet. Jede Wabe deckt dieselbe Fläche ab wie vorher ein Quadrat
+(≈ 250 m), die App wird dadurch nicht größer und nicht langsamer —
+nachgemessen, bevor es gebaut wurde.
+
+Auch „Wald hier" im Spot-Blatt und der Laubfaktor rechnen jetzt auf den
+Waben. An Bestandsgrenzen kann sich dadurch ein Wert leicht ändern —
+das ist die neue Zellform, keine neuen Daten (Stand weiterhin 2024).
+
+## Die Waldkarte wird beim Heranzoomen scharf
+
+*9. August 2026 · Version 1.69.0*
+
+Die Waldtypen-Fläche wird jetzt nur noch für den sichtbaren
+Kartenausschnitt gezeichnet statt für ganz DACH auf einmal. Für dich
+heißt das: Beim Heranzoomen werden die Kacheln **schärfer** statt
+verwaschener, und die App braucht dabei nur noch einen Bruchteil des
+Speichers. Beim Schieben bleibt alles flüssig — neu gezeichnet wird
+erst, wenn du den vorbereiteten Bereich wirklich verlässt.
+
+## Die Waldfarben lagen daneben — jetzt sitzen sie
+
+*9. August 2026 · Version 1.68.1*
+
+Aufmerksamen Augen ist aufgefallen: Am Brocken malte die Karte Laubwald,
+wo die Zahlen völlig richtig „reiner Nadelwald" sagten. Die eingefärbte
+Waldfläche lag je nach Gegend bis zu 26 Kilometer zu weit südlich — ein
+Projektionsfehler beim Zeichnen, der seit Einführung der Ebene bestand.
+Alle Zahlen (Laubfaktor, „Wald hier", Legende) waren davon nie betroffen;
+nur die Farben auf der Karte saßen verschoben. Danke für den Hinweis!
+
+## „Was ist hier?" — für jede Stelle, nicht nur für deine Spots
+
+*9. August 2026 · Version 1.68.0*
+
+Regen, Temperatur und Waldtyp gab es bisher nur dort, wo schon ein Spot
+liegt — also nur für Stellen, an denen du warst. Zum Erkunden brauchst du
+es genau andersherum.
+
+Tipp jetzt auf die kleine Legende links unten auf der Karte: Ein Blatt
+zeigt für die Stelle unter dem Fadenkreuz den Waldtyp, den Laubfaktor im
+Kilometer ringsum, den Regenverlauf der letzten Wochen und die
+Temperaturkurve — dieselben Angaben wie im Spot-Blatt.
+
+Das kostet keine Daten: Alle Werte stammen aus den Gittern, die ohnehin
+schon auf dem Gerät liegen. Deine Position und die betrachtete Stelle
+verlassen das Handy nicht, und im Funkloch steht dort dasselbe wie
+zu Hause.
+
+## Der Laubfaktor misst jetzt einen Kilometer
+
+*9. August 2026 · Version 1.67.0*
+
+Der Wert in der Wald-Legende schaute bisher nur 200 Meter weit um das
+Fadenkreuz — bei Kacheln von rund 250 Metern Kantenlänge war der Umkreis
+also kleiner als ein einziges Kästchen. Herausgekommen sind vier bis sechs
+Kästchen, und der Wert sprang beim Schieben der Karte.
+
+Jetzt zählt der Kilometer ringsum, also rund 70 Kästchen. Die Legende
+schreibt die Reichweite dazu, damit klar ist, worüber die Zahl redet.
+
+## Funde lassen sich korrigieren
+
+*8. August 2026 · Version 1.66.0*
+
+Vertippt, falsches Datum, zweimal dasselbe eingetragen? Tipp im Spot-Blatt
+einfach den Eintrag an: Art, Anzahl, Datum und Notiz lassen sich ändern —
+oder der Eintrag verschwindet einzeln, ohne dass der ganze Spot mit seiner
+Historie dran glauben muss. Das gilt auch für „Nichts gefunden"-Einträge;
+dort lassen sich Datum und Notiz richtigstellen.
+
+Was Pilzfreunde an deinen Spots eingetragen haben, bleibt unangetastet —
+ihre Funde gehören ihnen.
+
+## „Hier warst du letztes Jahr erfolgreich"
+
+*8. August 2026 · Version 1.65.0*
+
+Die Karte erinnert dich jetzt an deine eigenen guten Tage: Hattest du an
+einem Spot **um diese Jahreszeit** in einem früheren Jahr Erfolg,
+erscheint oben ein grüner Hinweis — mit Ort, Art und Jahr. Antippen
+öffnet den Spot.
+
+Das ist keine Vorhersage, sondern deine eigene Geschichte: gerechnet
+allein aus deinen Funden, ohne Netz, auch tief im Wald. Das X blendet
+den Hinweis für die nächsten zwei Wochen aus — die Erinnerung des
+nächsten Zeitfensters kommt dann wieder.
+
+## Die Legende misst jetzt mit
+
+*8. August 2026 · Version 1.64.0*
+
+Die Legende zeigt jetzt die Werte an der Stelle des Fadenkreuzes — als
+Strich direkt auf ihren Skalen, sobald die Karte zum Stehen kommt:
+
+- **Regen:** Bei den Summen-Ebenen steht der Millimeterwert der
+  Kartenmitte im Titel, und ein Strich markiert ihn auf der Farbskala.
+- **Wald:** Die Waldtypen-Legende ist zu einer Skala von Laub bis Nadel
+  geworden. Ein Strich zeigt den **Laubfaktor** im 200-m-Umkreis des
+  Fadenkreuzes (1 = reiner Laubwald, 0 = reiner Nadelwald — Mischwald
+  zählt anteilig), daneben steht, wie viel der Umgebung überhaupt Wald
+  ist. So siehst du beim Verschieben der Karte sofort, ob sich die
+  Fahrt in dieses Waldstück lohnt.
+
+Gerechnet wird bewusst erst, wenn die Karte stillsteht — das Schieben
+selbst bleibt flüssig.
+
+## Wald und Regen zusammen, klarere Farben, Legende auf der Karte
+
+*8. August 2026 · Version 1.63.0*
+
+Gleich drei Wünsche aus dem Feld in einem Update:
+
+- **Neue Waldfarben:** Laubwald ist jetzt herbst-ocker, Mischwald
+  gelbgrün, Nadelwald dunkel blaugrün — die drei sind endlich auf einen
+  Blick zu unterscheiden.
+- **Waldklassen einzeln schaltbar:** Im Waldtypen-Blatt gibt es drei
+  Häkchen. Wer nur wissen will, wo Laubwald steht, blendet den Rest aus.
+- **Regen und Wald gleichzeitig:** Die beiden Ebenen schließen sich
+  nicht mehr aus. Der Regen liegt über dem Wald — und wer es übersichtlich
+  mag, lässt vom Wald nur die eine Klasse stehen, die ihn interessiert.
+- **Legende auf der Karte:** Solange eine Ebene aktiv ist, liegt ihre
+  Legende klein links unten auf der Karte. Das X daran merkt sich das
+  Ausblenden; zurück geht es im Ebenen-Blatt über „Legende in Karte
+  anzeigen".
+
+## Ebene aus heißt jetzt sofort aus
+
+*8. August 2026 · Version 1.62.2*
+
+Wer die Wald- oder Regenebene abgeschaltet hat, sah sie trotzdem noch —
+bis zur nächsten Kartenbewegung. Jetzt verschwindet die Fläche in dem
+Moment, in dem du den Schalter umlegst. Danke für die schnelle
+Rückmeldung aus dem Feld!
+
+## Welcher Wald ist das? Die Karte weiß es jetzt
+
+*8. August 2026 · Versionen 1.62.0 und 1.62.1 (1.62.1: nur aktualisierte Bibliotheken, nichts Sichtbares)*
+
+Wer Sommersteinpilze sucht, will nicht im reinsten Fichtenforst landen.
+Die Karte hat dafür einen neuen Knopf: **Waldtypen** färbt den Wald in
+drei Grüntönen ein — hell für Laub, mittel für Misch, dunkel für Nadel.
+Die Daten kommen aus dem Copernicus-Satellitenprogramm der EU, decken
+Deutschland, Österreich und die Schweiz ab und sind aktuell genug, dass
+die Käferflächen der letzten Jahre nicht mehr als Fichtenwald auftauchen.
+
+Im Spot-Blatt steht dazu eine neue Zeile: **„Wald hier"** nennt den
+Waldtyp an der Stelle, samt Nadelanteil in Prozent. Beides funktioniert
+komplett **offline** — die Waldkarte steckt in der App, es wird nichts
+geladen und nichts gesendet.
+
+Ehrlich gesagt dazu: Das Raster ist 250 m grob. Es zeigt dir, in welche
+Richtung sich die Fahrt lohnt — den einzelnen Buchenhang im Fichtenwald
+zeigt es nicht. Regen- und Waldebene wechseln sich ab, weil beide
+halbtransparent sind und übereinander nichts mehr zu lesen wäre.
+
+## Vollständige Lizenzangaben
+
+*7. August 2026 · Version 1.61.1*
+
+Die Seite „Open-Source-Lizenzen" im Profil nennt jetzt auch die
+**Kartenschrift** und die **Regendaten**. Beide waren längst in der App,
+standen dort aber nicht — bei der Schrift fehlte sogar der Lizenztext
+selbst, obwohl ihre Lizenz genau den verlangt.
+
+Für dich ändert sich am Verhalten der App nichts. Es ist trotzdem kein
+Schönheitsfehler gewesen: Kartendaten, Wetterdaten und Schriften dürfen wir
+nur unter der Bedingung verwenden, dass wir ihre Herkunft nennen.
+
+## Fundorte stapeln sich nicht mehr
+
+*6. August 2026 · Version 1.61.0*
+
+Gehst du fünf Meter weiter und trägst den nächsten Pilz ein, entstand
+bisher ein **zweiter Fundort** — auf der Karte liegen die Marker dann
+übereinander, obwohl es im Wald dieselbe Stelle ist.
+
+Jetzt fragt die App nach: Liegt in **20 m** schon einer deiner Spots,
+kannst du den Fund **dort eintragen** statt einen neuen anzulegen. Willst
+du trotzdem einen zweiten, geht das mit einem Tipp daneben — die
+Entscheidung bleibt bei dir, die App legt nichts still zusammen.
+
+Für das, was sich schon gestapelt hat, gibt es im Profil einen neuen
+Punkt: **„Dicht beieinander"**. Er erscheint nur, wenn es wirklich etwas
+zu tun gibt, listet die betroffenen Paare mit ihrem Abstand und führt sie
+auf Wunsch zusammen — du sagst, welcher Name bleibt.
+
+Ein Fall bleibt außen vor, und zwar mit Absicht: Hat ein Pilz-Buddy an
+einem der beiden Spots eingetragen, wird das Paar nicht angeboten. Seine
+Funde könnten nicht mitwandern und gingen beim Zusammenführen verloren.
+
+## Kein versehentlicher Sprung mehr auf der Karte
+
+*6. August 2026 · Version 1.60.0*
+
+Langes Draufhalten setzte das Fadenkreuz auf die gedrückte Stelle **und**
+zoomte weit heran. Das löste zu leicht aus: Aus der Übersicht landete man
+plötzlich woanders und viel zu nah dran, und der Weg zurück war
+rauszoomen und wiederfinden. **Ab jetzt ist die Geste aus.**
+
+Zum Heranzoomen genügt ein **Doppeltipp** auf die Stelle — das konnte die
+Karte schon immer, es ging nur unter. Das Fadenkreuz stellst du wie bisher
+durchs Schieben ein.
+
+Wer die alte Bedienung mochte, holt sie im Profil unter **„Karte gedrückt
+halten"** zurück; dann arbeitet sie wieder genau wie vorher.
+
+## Zwei Pilze sehen richtiger aus, das Wetter liest sich leichter
+
+*6. August 2026 · Version 1.59.0*
+
+Der **Steinpilz** hat jetzt den dicken, bauchigen Stiel, den er in echt
+auch hat — damit ist er auf der Karte nicht mehr mit der Marone zu
+verwechseln. Der **Samtfußrübling** war bisher grau und sah aus wie
+irgendein Blätterpilz; er ist jetzt honig-orange und steht auf einem
+dünnen dunklen Stiel, genau wie im Winterwald am Totholz.
+
+Im Diagramm unter „Wetter an diesem Spot" liegen jetzt **feine
+Hilfslinien** auf Höhe der Gradzahlen. Du musst einen Punkt der
+Temperaturkurve nicht mehr quer durchs Bild bis zur Achse verfolgen, um
+ihn abzulesen. Die gestrichelte Frostlinie bei 0 °C bleibt dabei die
+auffälligste — sie ist im Herbst die Zahl, auf die es ankommt.
+
+## Mehrere Arten auf einmal — und „nichts gefunden"
+
+*6. August 2026 · Version 1.58.0*
+
+Standen an einem Spot Steinpilze **und** Maronen, musstest du das Blatt
+bisher zweimal ausfüllen. Jetzt legst du mit **„weitere Art"** die
+fertige Zeile ab und tippst gleich die nächste; Datum und Notiz gelten
+für alle. Trägst du nur eine Art ein, ändert sich für dich nichts —
+„Speichern" nimmt die offene Zeile ohnehin mit.
+
+Neu daneben: **„Nichts gefunden"**. Warst du an einem Spot und stand
+dort nichts, kannst du das jetzt festhalten — mit Datum und wenn du
+magst einer Notiz, mehr fragt die App nicht. Solche Einträge zählen
+**nirgends als Fund**: Deine Statistik bleibt, wie sie ist, das
+Pilz-Bild auf der Karte auch, und der Artfilter zeigt den Spot weiterhin
+unter der Art, die dort mal stand.
+
+Warum es das gibt: Die App kennt bisher nur Erfolge. Für eine ehrliche
+Wachstums-Vorhersage fehlt genau die andere Hälfte — „war da, war
+nichts". Ohne sie lässt sich nie prüfen, ob eine Vorhersage stimmt.
+Deine Buddys sehen solche Einträge an geteilten Spots übrigens mit, aber
+sie lösen keine Fund-Meldung aus.
+
+Beides steckt auch im GPX-Export: Deine Leergänge kommen beim
+Wiedereinlesen zurück.
+
+## Deine Spots vollständig sichern und umziehen
+
+*6. August 2026 · Version 1.57.0*
+
+Der GPX-Export im Profil nimmt jetzt **alles** mit: nicht nur die
+Fundorte, sondern jeden einzelnen Fund mit Art, Anzahl, Datum und Notiz,
+dazu die Einstellung „Von Freigabe ausschließen". Liest du die Datei
+wieder ein, steht dein Revier so da, wie du es verlassen hast — auch in
+einem **anderen Konto**. Genau dafür ist es gedacht.
+
+Beim Import erkennt die App eine solche Datei von selbst und zeigt eine
+Liste zum Abhaken: alle auf einmal oder einzeln. Spots, die du schon
+hast, sind vermerkt und nicht angehakt — dieselbe Datei zweimal
+einzuspielen legt also nichts doppelt an. Anhaken kannst du sie trotzdem.
+
+Die Datei bleibt gleichzeitig eine ganz normale GPX-Datei: Jede
+Karten- oder Navi-App zeigt weiterhin deine Wegpunkte mit Namen und
+Fundhistorie. Nebenbei behoben — die Fundliste stand dort bisher als
+Fließtext in einer Zeile, jetzt steht sie untereinander.
+
+**Ein Hinweis, den du vor dem Teilen bekommst:** Weil in der Datei auch
+deine **Notizen** stehen, fragt die App jetzt nach, bevor sie das
+Teilen-Fenster öffnet. Als Sicherung für dich selbst ist das gewollt —
+weitergeben solltest du sie nur, wenn die Notizen jemand lesen darf.
+
+## Wann welche Art gemeldet wird
+
+*5. August 2026 · Version 1.56.0*
+
+Im Spot-Blatt steht jetzt über dem Wetter ein neuer Abschnitt: **„Wann
+diese Art gemeldet wird"** — zwölf Balken, einer je Monat, der laufende
+hervorgehoben, dazu ein Satz wie „Steinpilz wird am häufigsten im August
+bis September gemeldet."
+
+Die Zahlen stammen aus echten Fundmeldungen aus Deutschland, Österreich
+und der Schweiz — rund 300 000 Beobachtungen für die 89 Arten, für die es
+genug davon gibt. Sie sind gegen den allgemeinen Meldeeifer verrechnet:
+Im September und Oktober wird schlicht am meisten gesammelt und gemeldet,
+und ohne diese Korrektur sähe jede Art gleich aus. Danach liegt zum
+Beispiel die Zeit des Pfifferlings im **Juli**, nicht im August.
+
+**Was der Abschnitt nicht ist:** eine Vorhersage. Er beschreibt frühere
+Jahre, nicht dieses Wochenende — es steht kein Prozentzeichen darin und
+keine Bewertung. Ob es sich gerade lohnt, hängt am Wetter, und das ist
+eine andere Frage, an der noch gearbeitet wird.
+
+Drei Dinge, die dazugehören: Die Kurven liegen **in der App**, sind also
+ohne Empfang da und verraten niemandem, wonach du suchst. Arten mit zu
+wenigen Meldungen bekommen bewusst gar keinen Abschnitt statt einer
+Zackenlinie. Und wo ein Name für mehrere Arten steht — „Rotkappe",
+„Hallimasch" —, sagt die App das dazu.
+
+## Die Karte sagt dir, wenn ein Buddy einen Fund eingetragen hat
+
+*5. August 2026 · Version 1.55.0*
+
+Trägt ein Pilz-Buddy einen Fund ein — auf einem deiner Spots oder auf
+einem, den er mit dir geteilt hat —, zeigt die Karte oben ein blaues
+Banner: **„Neuer Fund von …"**. Antippen öffnet direkt den Spot mit dem
+neuesten Fund; das X blendet den Hinweis aus. Beides merkt sich die App
+auf dem Gerät, der Hinweis kommt also nicht nach jedem Neustart wieder.
+
+Es gibt dafür keine Push-Nachrichten und keine E-Mails — der Hinweis
+erscheint nur in der App, und es verlässt dafür kein einziges neues
+Datum dein Gerät.
+
+## Pilz-Buddies können Funde zu geteilten Spots eintragen
+
+*5. August 2026 · Version 1.54.0*
+
+Wenn ein Freund einen Spot mit dir teilt, kannst du dort jetzt **eigene
+Funde eintragen** — dein Fund gehört dir, der Spot weiterhin deinem
+Freund. In der Fundliste steht bei fremden Funden, von wem sie stammen.
+
+Endet die Freundschaft oder das Teilen, sieht jeder wieder nur die
+eigenen Funde — nichts wird gelöscht, und wer sich wieder anfreundet,
+sieht auch die Funde des anderen wieder. Funde dritter Freunde bekommt
+niemand zu sehen: Was du einträgst, sehen nur du und die Besitzerin
+oder der Besitzer des Spots.
+
+Statistik und GPX-Export zählen wie bisher nur deine eigenen Funde.
+
+## Regenkarte ohne Farbblitz, Wetter am Spot aufgeräumt
+
+*5. August 2026 · Version 1.53.0*
+
+Beim Einschalten von **„Letzte 24 Stunden"** oder **„Letzte 30 Tage"**
+blitzte bisher kurz die Karte des Wetterdienstes in fremden Farben auf,
+bevor unsere eigene Darstellung sie ersetzte — samt falscher Legende im
+Regen-Blatt. Das ist bereinigt: Während die Daten laden, bleibt die
+Karte ruhig, und die richtige Legende steht sofort da. Nebenbei spart
+das bei jedem Einschalten einen unnötigen Download von bis zu einem
+halben Megabyte. Kommen gar keine Daten an (kein Empfang), zeigt die
+App wie bisher das Bild des Wetterdienstes samt seiner Legende.
+
+Dazu ein aufgeräumtes Erscheinungsbild im PilzBuddy-Stil, wie man ihn
+aus den Anmelde-Mails kennt: Die Regensummen im Spot-Blatt stehen jetzt
+**in einer cremefarbenen Kachel** mit den Werten fett in Grün, und die
+Überschriften von Regen-Blatt, Legende und Wetter-Abschnitt tragen das
+PilzBuddy-Grün.
+
+## Deine E-Mail-Adresse lässt sich jetzt ändern
+
+*5. August 2026 · Version 1.52.0*
+
+Die dritte neue Konto-Option im Profil: **„E-Mail-Adresse ändern"**.
+Wichtig ist das, weil an der Adresse mehr hängt, als man denkt — Freunde
+finden dich darüber, und der Code bei „Passwort vergessen" geht an genau
+dieses Postfach. Wer sein altes Postfach verliert, wäre sonst irgendwann
+ausgesperrt.
+
+Der Wechsel ist bewusst gründlich abgesichert: Er verlangt dein
+aktuelles Passwort, und danach kommen **zwei Mails mit zwei
+verschiedenen Codes** — eine an die bisherige, eine an die neue Adresse.
+Erst beide Codes zusammen vollziehen den Wechsel. So kann niemand, der
+nur kurz an dein entsperrtes Handy oder an eines deiner Postfächer
+kommt, dein Konto auf eine fremde Adresse umziehen.
+
+## Andere Geräte abmelden
+
+*5. August 2026 · Version 1.51.0*
+
+Im Profil gibt es jetzt **„Andere Geräte abmelden"**. Der Handgriff für
+den Fall, dass ein Handy verloren geht oder ein geteiltes Tablet noch
+angemeldet ist: Nach einer Rückfrage wird die Anmeldung überall beendet
+— nur auf dem Gerät, auf dem du gerade bist, bleibst du drin.
+
+Gut zu wissen: Ein Passwortwechsel allein beendet laufende Anmeldungen
+nicht sofort. Erst dieser Knopf wirft sie wirklich raus.
+
+## Dein Benutzername lässt sich jetzt ändern
+
+*5. August 2026 · Version 1.50.0*
+
+Im Profil gibt es neben „Passwort ändern" jetzt **„Benutzername
+ändern"**. Der Name ist das, worunter Freunde dich in der Suche finden —
+deshalb steht im Dialog auch dabei: Nach der Änderung finden sie dich
+unter dem neuen Namen.
+
+Nebenbei ist eine Lücke geschlossen: Benutzernamen sind jetzt auch dann
+einmalig, wenn sie sich nur in Groß- und Kleinschreibung unterscheiden.
+Ein zweiter „pilzfreund" neben einem „Pilzfreund" wäre für alle, die suchen,
+dasselbe Konto gewesen.
+
+## Wie warm war es an deinem Spot
+
+*4. August 2026 · Version 1.49.0*
+
+Zum Regen im Spot-Blatt kommt jetzt die **Temperatur**: Über den blauen
+Balken liegen dünne Linien — die **Bodentemperatur in 5 cm Tiefe** (dort
+lebt das Pilzgeflecht) und die Tageshöchst- und Tiefstwerte der Luft.
+Beide Achsen sind beschriftet: links Grad, rechts Millimeter. Und an den
+Enden der Zeitskala steht jetzt das Datum, rechts zum Beispiel
+„gestern, 3.8." — damit klar ist, in welche Richtung sie läuft.
+
+Die Werte kommen von der **nächstgelegenen Wetterstation** des Deutschen
+Wetterdienstes, und genau die steht auch dabei: Name, Entfernung und
+Höhe. Die Höhe gehört dazu, weil sie den größten Unterschied macht —
+eine Station 300 Meter tiefer ist gut zwei Grad wärmer, und das rechnet
+die App bewusst nicht heraus, sondern schreibt es dir hin.
+
+Wie beim Regen gilt: Die Suche nach der nächsten Station läuft
+**auf deinem Gerät**. Kein Wetterdienst erfährt, wo deine Spots liegen.
+Die Frage im Spot-Blatt heißt jetzt „Wetterdaten laden" und deckt beides
+ab — wer dem Regen schon zugestimmt hat, bekommt die Temperatur ohne
+neue Frage dazu.
+
+## Der Regen ist jetzt zu lesen
+
+*4. August 2026 · Version 1.48.0*
+
+Die Regensummen auf der Karte sahen bisher so aus: dünne Linien, und
+dazwischen ein Farbton, den man kaum sah. Wer nicht wusste, was gemeint
+ist, konnte es auch nicht herausfinden — eine Legende gab es nicht.
+
+Jetzt sind es **Flächen**. Jedes Band hat seine Farbe, von sandgelb
+(wenig) über grün bis blau (viel), und man erkennt auf einen Blick, wo
+mehr und wo weniger gefallen ist. Die Linien dazwischen sind weg; sie
+werden nicht mehr gebraucht.
+
+Damit klar ist, was die Farben bedeuten, gibt es jetzt **eine Legende
+unten links**. Sie erscheint, sobald du eine Regenebene einschaltest, und
+verschwindet wieder, wenn du sie ausschaltest.
+
+Wie stark die Farbe sein darf, ist auf dem Gerät ausprobiert worden: zu
+blass, und man sieht die Bänder nicht; zu kräftig, und die Ortsnamen
+verschwinden darunter. Der jetzige Wert liegt bewusst dazwischen.
+
+Das **Regenradar** („jetzt" und „in einer Stunde") ist unverändert und
+behält die Farben und die Legende des Wetterdienstes.
+
+## Wie viel Regen an genau diesem Spot — Tag für Tag
+
+*4. August 2026 · Version 1.47.0*
+
+Im Blatt eines Spots steht jetzt ganz unten, wie viel Regen dort gefallen
+ist: als Summe über 7, 14 und 30 Tage — und als **Balken für jeden
+einzelnen der letzten 14 Tage**.
+
+Der Verlauf ist der eigentliche Punkt. Eine Summe kann nicht
+unterscheiden, ob die 40 Millimeter vor elf Tagen fielen oder gestern, und
+für Pilze ist genau das der Unterschied. Darum steht unter den Balken auch
+ein Satz wie „Letzter nennenswerter Regen vor 3 Tagen".
+
+**Deine Fundstelle bleibt geheim.** Das ist keine Nebensache, sondern der
+Grund, warum das Ganze so umständlich gebaut ist: Die App fragt *niemanden*
+nach dem Wetter an deinem Spot. Sie lädt die Messwerte für ganz Deutschland
+herunter und schlägt die Stelle **auf deinem Gerät** nach. Es gibt keine
+Anfrage, in der deine Koordinate steht — auch nicht beim Wetterdienst.
+
+Der Preis dafür sind Daten: Beim ersten Mal rund 0,9 MB, danach täglich ein
+kleines Stück. Deshalb wird vorher gefragt, und erst nach deinem Tippen
+geladen — im Wald gibt man das nicht ungefragt aus. Wer einmal zugestimmt
+hat, wird nicht wieder gefragt.
+
+Zwei Dinge, die dazugehören: Die Messung deckt **nur Deutschland** ab, und
+sie endet **gestern** — der Wetterdienst rechnet ganze Tage ab. Was heute
+vom Himmel kommt, zeigt weiterhin das Regenradar auf der Karte. Liegt ein
+Spot außerhalb der Messung, bleibt der Abschnitt einfach weg statt eine
+leere Zeile zu zeigen.
+
+## Der Regen liegt jetzt in unseren Farben
+
+*4. August 2026 · Version 1.46.0*
+
+Die beiden Regensummen — **letzte 24 Stunden** und **letzte 30 Tage** —
+sehen anders aus als gestern. Statt einer deckenden Fläche liegen dort
+jetzt **Höhenlinien**, so wie auf einer Wanderkarte die Höhe: Jede Linie
+verbindet Orte mit gleich viel Regen, von sandgelb (wenig) über grün bis
+blau (viel). Zwischen den Linien liegt derselbe Ton noch einmal ganz
+zart, damit man auf einen Blick sieht, wo mehr und wo weniger war.
+
+Der Grund ist praktisch. Die alte Fläche legte sich über alles, und beim
+Hineinzoomen waren Wege und Ortsnamen kaum noch zu lesen. Eine Ebene, die
+einen daran hindert, zum Spot zu finden, ist keine Hilfe. Jetzt bleibt
+die Karte darunter vollständig sichtbar.
+
+Je weiter man herauszoomt, desto weniger Linien zeigt die Karte — sonst
+läge über Deutschland ein Netz, in dem nichts mehr zu erkennen wäre. Was
+welche Farbe bedeutet, steht im Regen-Blatt unter der Ebenenwahl.
+
+Nebenbei sind die Daten dabei rund zehnmal kleiner geworden, was im Wald
+am Datenvolumen zählt.
+
+Das **Regenradar** („jetzt" und „in einer Stunde") bleibt unverändert in
+den Farben des Wetterdienstes: Blau-Grün-Gelb-Rot ist die Darstellung,
+die man aus jeder Wetter-App kennt, und daran soll nicht herumgebastelt
+werden.
+
+Wenn die neuen Daten einmal nicht erreichbar sind, erscheint
+stillschweigend wieder die bisherige Darstellung. Die Regenkarte ist eine
+Zugabe und darf nichts kaputt machen.
+
+## Regen auf der Karte
+
+*4. August 2026 · Version 1.45.0*
+
+Der neue Tropfen-Knopf an der Karte legt Regendaten des Deutschen
+Wetterdienstes über die Landschaft. Drei Zeiträume stehen zur Wahl, und
+sie beantworten verschiedene Fragen:
+
+- **Jetzt** und **in einer Stunde** — das Regenradar. Nützlich für die
+  Frage, ob man jetzt losgeht oder lieber nicht.
+- **Letzte 24 Stunden** — wo es seit gestern geregnet hat.
+- **Letzte 30 Tage** — die wichtigste der drei. Daran sieht man, ob der
+  Boden über den Monat wirklich durchfeuchtet wurde, und nicht nur, ob
+  es einmal kurz geschüttet hat.
+
+Bewusst zeigt die Ebene nur **Messwerte** und sagt nirgends „hier stehen
+jetzt Pilze". Was daraus folgt, weißt du für deine Wälder besser als
+jede Formel.
+
+Zwei Dinge, die man wissen sollte: Die Summen gibt es nur für
+Deutschland, und das Radar reicht nicht bis in den Osten Österreichs
+oder den Westen der Schweiz — dort bleibt die Fläche grau, und die
+Legende sagt das auch. Und die Ebene ist beim Start immer aus: Sie lädt
+ein Bild aus dem Netz, und das soll im Wald niemand ungefragt tun.
+
+## Deine Spots sind jetzt auch ohne Empfang da
+
+*4. August 2026 · Version 1.44.0*
+
+Wer die App im Wald **neu startete**, wo kein Netz war, sah bisher eine
+Karte ohne einen einzigen Spot — ohne Hinweis, woran es lag. Genau dort,
+wo die heruntergeladenen Offline-Karten eigentlich helfen sollen.
+
+- Deine eigenen Spots samt Funden liegen jetzt zusätzlich **auf dem Handy**.
+  Ohne Empfang zeigt die Karte diesen Stand, statt leer zu bleiben.
+- Ein Hinweis oben sagt dir dabei, **von wann** die Daten sind — so weißt
+  du, ob der Spot von gestern schon dabei ist.
+- Sobald du wieder Empfang hast, aktualisiert sich alles von selbst und der
+  Hinweis verschwindet.
+- Beim Abmelden wird der Zwischenspeicher gelöscht, und in Googles
+  Handy-Backup landet er nie: Deine Fundstellen bleiben deine.
+
+## Eine neue Karten-Engine — erst zum Ausprobieren, jetzt Standard
+
+*3. August 2026 · Versionen 1.39.0 bis 1.43.1*
+
+Im Profil gibt es einen Schalter **„Neue Karten-Engine"** — nur in der
+Android-App. Er stellt die Karte auf einen anderen Renderer um, der die
+Offline-Karten spürbar flüssiger zeichnet, gerade beim schnellen Zoomen
+und Wischen.
+
+- Seit 1.40.0 zeigt die neue Engine auch **deine Spots, die Positionen
+  deiner Freunde und deinen eigenen Standort** — antippen funktioniert wie
+  gewohnt.
+- Seit 1.41.0 kann sie auch die **Online-Karte**: Mit Empfang kommen die
+  gewohnten OpenStreetMap-Kacheln, ohne Empfang springt sie automatisch
+  auf deine heruntergeladenen Regionen um — nach denselben Regeln wie die
+  bisherige Karte. Maßstab und Kartenhinweis sind auch da. Damit kann die
+  neue Engine alles, was die alte kann.
+- Mit 1.43.1 ist der Download der App wieder **ein Drittel kleiner**
+  (45 statt 67 MB): Im Paket steckten Programmteile für Handy-Prozessoren,
+  auf denen PilzBuddy gar nicht läuft. Sie sind jetzt draußen — an der App
+  selbst ändert sich nichts.
+- Seit 1.43.0 ist die neue Engine **Standard**: Im nachgemessenen
+  Direktvergleich zeichnet sie beim Wischen rund fünfmal so viele Bilder
+  pro Sekunde und braucht unter Dauerlast nur gut ein Drittel des
+  Speichers. Der Schalter bleibt im Profil — wer mag, holt sich damit
+  die bisherige Karte zurück.
+
+## Die Karte friert nicht mehr ein — und bleibt nicht mehr grau
+
+*3. August 2026 · Versionen 1.38.2 und 1.38.3*
+
+Zwei Karten-Fehler, deren Folgen manche schon kannten, sind gefunden und
+behoben:
+
+- Ein seltener Grenzfall bei den Fingergesten konnte die Kartenansicht in
+  einen kaputten Zustand bringen: Die App fror mitten in der Bewegung ein,
+  bis Android sie zum Schließen vorschlug. Der kaputte Zustand wird jetzt
+  an der Wurzel verworfen und kann gar nicht mehr entstehen.
+- Nach einem kurzen Empfangsverlust (U-Bahn, Funkloch am Waldrand) blieben
+  neue Online-Kacheln dauerhaft grau: Nur schon besuchte Gegenden
+  erschienen noch, und erst ein App-Neustart half. Jetzt übersteht die
+  Online-Karte den Wechsel und lädt danach normal weiter.
+
+## Mehrere Pilzarten gleichzeitig filtern
+
+*2. August 2026 · Versionen 1.38.0 und 1.38.1*
+
+Im Filter-Blatt lässt sich jetzt mehr als eine Art anhaken. Wer im Herbst
+sowohl nach Maronen als auch nach Pfifferlingen unterwegs ist, sieht beide
+Sorten Fundstellen auf einer Karte statt nacheinander.
+
+- Angehakt wird durch Antippen, noch einmal antippen nimmt die Art wieder
+  raus.
+- **„Alle Arten"** ganz oben räumt die Auswahl in einem Tipp weg — egal wie
+  viele Häkchen gesetzt sind. „Nur meine Spots" bleibt davon unberührt, das
+  sind zwei getrennte Schalter.
+- Gezeigt wird, was zu **einer** der gewählten Arten passt. Nicht: wo alle
+  gewählten zusammen vorkommen — das wäre fast immer die leere Karte.
+- Oben auf der Karte stehen bei einer oder zwei Arten die Namen, ab drei die
+  Zahl. Sonst wüchse die Zeile über die Karte.
+
+## Zweitnamen: „Totentrompete" findet jetzt auch „Herbsttrompete"
+
+*2. August 2026 · Version 1.37.0*
+
+Viele Pilze haben zwei geläufige Namen, und für die App waren das bisher
+zwei verschiedene Arten. Wer seine Fundstellen als „Totentrompete"
+eingetragen hatte und später nach „Herbsttrompete" filterte, sah sie nicht.
+
+- Beim Eintragen kannst du **beide Namen** tippen. Gespeichert wird immer
+  derselbe — die Hauptbezeichnung. Darunter steht dann, wie der Pilz sonst
+  noch heißt, damit du siehst, dass du richtig lagst.
+- Der Filter auf der Karte, die Zahl der Fundstellen und die Top-Arten im
+  Profil ziehen beide Namen zusammen. Das gilt auch für deine **alten**
+  Funde: Du musst nichts nachtragen.
+- In der Fundliste einer Stelle steht weiterhin, was du damals geschrieben
+  hast. Der Eintrag ist dein Protokoll, den benennen wir nicht nachträglich
+  um.
+- Erkannt werden unter anderem: Totentrompete, Marone, Herrenpilz,
+  Fichtensteinpilz, Riesenschirmling, Fette Henne, Austernpilz,
+  Mairitterling, Butterröhrling, Rötender Wulstling, Flaschenbovist,
+  Riesenstäubling, Nebelgrauer Trichterling, Winterrübling, Rotfüßchen und
+  Spargelpilz.
+
+**Eine Art wechselt die Zuordnung:** „Braunkappe" ist in der App bisher als
+Marone geführt worden. Gemeint ist damit der Riesenträuschling — so heißt er
+auch. Deine Spots mit diesem Namen bekommen deshalb ein anderes Symbol und
+zählen ab jetzt zum Riesenträuschling.
+
+**Der Igelstachelbart sieht endlich aus wie einer.** Er stand bei den
+Baumpilzen und wurde als orange Konsole gezeichnet. Er wächst zwar an Holz,
+ist aber ein weißlicher Knollen mit langen hängenden Stacheln — genau so
+steht er jetzt auf der Karte. „Affenkopfpilz" und „Löwenmähne" werden als
+Namen dafür erkannt.
+
+Auch behoben: Im Profil zählten „Steinpilz" und „steinpilz" als zwei
+verschiedene Arten und standen getrennt untereinander.
+
+## Vier neue Pilzarten — und Hexenröhrlinge, die man unterscheidet
+
+*2. August 2026 · Version 1.36.0*
+
+Vier Arten, die ihr euch über das Rückmeldeformular gewünscht habt, stehen
+jetzt in der Vorschlagsliste: **Netzstieliger Hexenröhrling**,
+**Käppchenmorchel**, **Morchelbecherling** und **Böhmische Verpel**.
+
+Jede hat ein eigenes Kartensymbol bekommen, statt nur das ihrer Gruppe:
+
+- Die beiden **Hexenröhrlinge** sehen jetzt aus, wie sie im Wald aussehen —
+  olivbrauner Hut über roten Poren auf gelbem Stiel. Auseinanderhalten kann
+  man sie am Stiel: rotes Netz beim Netzstieligen, rote Flocken beim
+  Flockenstieligen. Vorher waren beide ein brauner Pilz wie jeder andere,
+  und der sah aus wie ein Steinpilz.
+- Der **Morchelbecherling** steht als offene Schale mit Adern auf der Karte,
+  nicht mehr als Morchelkegel.
+- **Käppchenmorchel** und **Böhmische Verpel** haben beide ihren kleinen Hut
+  auf dem langen blassen Stiel — die eine mit Waben, die andere mit
+  Längsrillen.
+
+Die Verpel lag außerdem in der falschen Schublade und wurde als grauer
+Lamellenpilz gezeichnet. Sie steht jetzt bei den Morcheln und Lorcheln, wo
+sie hingehört.
+
+Dabei ist noch einer aufgefallen: Der **Semmelstoppelpilz** war ebenfalls
+ein grauer Lamellenpilz — obwohl er gar keine Lamellen hat und semmelfarben
+ist. Er hat jetzt seinen flachen, hell gebackenen Hut, und darunter sitzen
+die Stoppeln, die ihm den Namen geben.
+
+**Pilze ohne Lamellen haben jetzt eine eigene Schublade.** Sie hieß bisher
+für alle „Lamellenpilz", und das steht sichtbar am Vorschlag, wenn du eine
+Art eintippst. Für vier stimmte es nicht: Krause Glucke, Semmelstoppelpilz,
+Habichtspilz und Ziegenbart heißen jetzt „Stachel-/Korallenpilz" und sehen
+auch so aus. Die **Krause Glucke** und der **Ziegenbart** werden dabei ohne
+Stiel gezeichnet — die haben nämlich keinen.
+
+**Und die Artenliste ist gewachsen.** Dreizehn geläufige Pilze fehlten
+schlicht: Maipilz, Nelkenschwindling, Rehbrauner Dachpilz,
+Riesenträuschling, Rotfußröhrling, Körnchenröhrling, Grüngefelderter
+Täubling, Speitäubling, Birnenstäubling, Lungenseitling, Habichtspilz,
+Ziegenbart und Scheidenstreifling. Der Scheidenstreifling hat ein eigenes
+Bild bekommen, weil er als Wulstling sonst rot mit weißen Punkten wäre —
+und das ist er gerade nicht.
+
+## Karte nach Pilzart filtern
+
+*2. August 2026 · Version 1.35.0*
+
+- Der neue Knopf mit dem Trichter öffnet ein Blatt mit allen Arten, zu denen
+  du Funde hast — samt Zahl der Fundstellen. Eine antippen, und die Karte
+  zeigt nur noch diese.
+- Gefiltert wird über **alle** Funde einer Stelle, nicht nur den letzten:
+  Wenn du dort einmal Pfifferlinge gefunden hast, findest du sie unter
+  „Pfifferling" wieder — auch wenn zuletzt etwas anderes dort stand.
+- Getrennt davon schaltbar: „Nur meine Spots" blendet die deiner Freunde aus.
+- Solange gefiltert ist, steht das oben auf der Karte, mit einem Kreuz zum
+  Aufheben. Beim nächsten Start liegt wieder alles auf der Karte — ein
+  vergessener Filter, der Fundstellen versteckt, wäre der teurere Fehler.
+
+## Updates wieder in der App
+
+*2. August 2026 · Version 1.34.0 · nur Android, nur die Version von GitHub*
+
+Bisher öffnete „Update" den Browser; die geladene Datei musste man dann
+selbst finden und antippen. Das geht wieder direkt in der App.
+
+- Im Update-Hinweis auf „Jetzt aktualisieren" tippen: Die App lädt die neue
+  Version mit Fortschrittsanzeige und übergibt sie an Android, das wie
+  gewohnt nach der Bestätigung fragt.
+- Beim ersten Mal fragt Android einmalig, ob PilzBuddy Apps installieren
+  darf. Der Dialog führt mit einem Tipp zu dieser Einstellung — danach ist
+  jedes weitere Update ein Tipp.
+- Der Weg über den Browser bleibt daneben stehen. Wenn beim Laden etwas
+  schiefgeht, sagt der Dialog, was los war, und bietet ihn an.
+- Deine Spots und heruntergeladenen Karten bleiben bei einem Update
+  selbstverständlich erhalten.
+
+## Zwei Kleinigkeiten aus dem Wald
+
+*2. August 2026 · Version 1.33.1*
+
+- Beim Anlegen eines **neuen** Spots ist das Artenfeld jetzt leer, statt die
+  zuletzt gemeldete Art vorzuschlagen. Die musste man vorher jedes Mal
+  löschen, wenn der nächste Fund eine andere Art war. Deine eigenen Arten
+  stehen weiter als Knöpfe darüber — ein Tipp statt Tippen. Beim
+  **Wiederbesuch** bleibt die Art des Spots wie bisher vorbelegt.
+- Der Umschalter zwischen Online- und Offline-Karte merkt sich deine Wahl
+  über den Neustart hinweg. Vorher stand die App nach jedem Start wieder auf
+  Online — ausgerechnet dort, wo man sie bewusst umgestellt hatte.
+
+## Versionshistorie in der App
+
+*2. August 2026 · Version 1.33.0*
+
+- Diese Liste gibt es jetzt auch in der App: Profil → „Über PilzBuddy" →
+  „Was ist neu".
+- Sie ist mitgeliefert und braucht keine Verbindung — sie lässt sich also
+  auch im Wald nachlesen.
+
+## Die Karte bleibt sichtbar
+
+*26. und 27. Juli 2026 · Versionen 1.29 bis 1.32.1*
+
+Der Schwerpunkt dieser Woche: Die Karte soll nie als graue Fläche dastehen,
+und sie soll langes Verschieben und Zoomen überstehen, ohne die App
+anzuhalten.
+
+- Wo noch keine Karte geladen ist, liegt jetzt ein Landton statt einer
+  grauen Fläche; einmal geladene Bereiche bleiben zwischengespeichert.
+- Ohne Empfang und im Offline-Modus liegt eine eingebaute Übersichtskarte
+  unter der Karte — statt Leere siehst du Land, Küsten und Grenzen.
+- Die Karte geht deutlich sparsamer mit Speicher um. Vorher konnte langes
+  Verschieben dazu führen, dass Android die App beendet.
+- Beendet sich die App unerwartet, meldet sie beim nächsten Start selbst,
+  woran es lag. Vorher blieb so etwas unbemerkt.
+
+**Behoben:** Die Offline-Karte blieb leer, sobald eine Region fertig
+heruntergeladen war. Beim Abmelden erschien eine Fehlermeldung, obwohl
+nichts schiefgegangen war.
+
+## Konto, Anmeldung und Passwort
+
+*25. und 26. Juli 2026 · Versionen 1.27, 1.28, 1.31.0 und 1.31.1*
+
+Die Anmeldung war der Bereich mit den meisten Sackgassen. Für jeden Fall
+gibt es jetzt einen Weg zurück ins Konto.
+
+- Bei der Registrierung bestätigst du deine E-Mail-Adresse mit einem Code
+  aus der Mail. Damit gehört die Adresse wirklich zum Konto — wichtig, weil
+  die Freundessuche und das Zurücksetzen des Passworts daran hängen.
+- „Passwort vergessen" läuft ebenfalls über einen Zahlencode. Der
+  funktioniert auch dann, wenn du die Mail auf einem anderen Gerät liest.
+- „Passwort ändern" gibt es im Profil; es fragt zur Sicherheit das aktuelle
+  Passwort ab.
+- Beide Mails lassen sich erneut anfordern, mit 60 Sekunden Wartezeit
+  dazwischen.
+- Passt eine ältere App-Version nicht mehr zum Server, sagt die App das
+  jetzt deutlich, statt mit „Internet verfügbar?" zu scheitern.
+
+## Recht, Lizenz und Konto-Löschung
+
+*20. und 21. Juli 2026 · Versionen 1.22 bis 1.26.0*
+
+- Du kannst dein Konto selbst löschen — sofort, ohne Karenzzeit, in der App
+  oder über eine Webseite ohne installierte App.
+- Eine Datenschutzerklärung sagt, was gespeichert wird und was davon
+  öffentlich ist. Sie ist im Profil verlinkt.
+- PilzBuddy steht unter der MIT-Lizenz; die Lizenzen aller verwendeten
+  Bausteine stehen im Profil.
+- Updates lädt jetzt der Browser herunter und du installierst sie selbst.
+  Der eingebaute Installer brauchte dafür Berechtigungen, die eine
+  Karten-App nicht haben sollte.
+- Fehler, die die App abfängt und übersteht, werden gesammelt. Sonst bleibt
+  unbemerkt, was Nutzerinnen und Nutzer stört, ohne dass die App abstürzt.
+
+## Live-Standort teilen
+
+*19. und 20. Juli 2026 · Versionen 1.16 bis 1.21.1*
+
+- Deine eigene Position erscheint als Buddy-Avatar auf der Karte.
+- Den Live-Standort kannst du für 1, 2 oder 4 Stunden mit Freunden teilen.
+  Die Freigabe endet von selbst und lässt sich jederzeit vorher beenden.
+- Unten links steht ein Maßstab, und der Zoom endet dort, wo es keine
+  Kartendaten mehr gibt.
+- Kartendownloads laufen weiter, wenn du zwischendurch die App wechselst.
+
+**Behoben:** Login- und Registrierungsfelder waren für Passwortmanager
+unsichtbar. Die Karte setzte gelegentlich aus. Das Feedback-Banner
+verschwand sofort nach dem Absenden. Die Anmeldedaten landeten im
+Android-Cloud-Backup.
+
+## Import und Export
+
+*19. Juli 2026 · Versionen 1.15 bis 1.16.1*
+
+- GPX-, KML- und KMZ-Dateien aus anderen Karten-Apps importieren; jeder
+  Punkt wird einzeln zu einem Spot, den du vorher noch anpassen kannst.
+- Eigene Spots samt Fundhistorie als GPX exportieren.
+- Art und Funddatum werden aus dem Wegpunkt vorbelegt, soweit sie sich
+  daraus erkennen lassen.
+
+**Behoben:** GPX- und KML-Dateien waren im Android-Dateidialog ausgegraut
+und ließen sich nicht auswählen.
+
+## Offline-Karten
+
+*19. Juli 2026 · Versionen 1.10 bis 1.13.2 · nur Android*
+
+- Karten einzelner Bundesländer im Profil herunterladen. Ohne Empfang
+  schaltet die App von selbst darauf um.
+- Große Downloads lassen sich fortsetzen und laufen weiter, wenn du in der
+  App woanders hin wechselst.
+- Heruntergeladene Karten werden gegen eine Prüfsumme geprüft, damit keine
+  halbe Datei als fertig gilt.
+- Eine Übersichtskarte für Deutschland, Österreich und die Schweiz ist
+  eingebaut. Auch ohne heruntergeladene Region siehst du damit Land statt
+  einer grauen Fläche.
+- Bricht die Verbindung unterwegs ab, gibt der Download nicht mehr auf,
+  sondern nimmt den Faden von selbst wieder auf.
+
+**Behoben:** Der Offline-Karte fehlten die Beschriftungen und die Farben
+für Wald, Wasser und Siedlung.
+
+## Pilz-Icons, Avatare und App-Icon
+
+*18. bis 25. Juli 2026 · Versionen 1.2.1 bis 1.26.4*
+
+- Die Marker zeigen die Pilzgruppe, statt nur „essbar" oder „giftig" zu
+  behaupten. PilzBuddy bestimmt keine Pilze.
+- Eigene Zeichnungen für Pfifferling, Totentrompete, Milchlinge und
+  Maronen-Röhrling.
+- Für das Profil lässt sich ein Pilz-Avatar auswählen.
+- Das App-Icon zeigt die Buddies groß, statt sie klein in der Mitte
+  verschwinden zu lassen.
+
+**Behoben:** In den Listen fehlten die Arten-Icons, und Stiel und
+Kartenansicht waren falsch gezeichnet. Das Diagramm „Funde pro Jahr" hatte
+eine unlesbare Achse.
+
+## Rückmeldungen direkt aus der App
+
+*18. und 19. Juli 2026 · Versionen 1.4 bis 1.9.5*
+
+- Wunsch, Fehler oder eine fehlende Pilzart direkt aus der App melden.
+  Daraus entsteht automatisch ein Eintrag im öffentlichen Projekt — ein
+  Hinweis im Dialog sagt das vorher deutlich.
+- Die Android-App weist auf neue Versionen hin.
+- Auf Wunsch aufgenommen: Violetter Lacktrichterling.
+- Die Daten deiner Freunde aktualisieren sich von selbst. Bei fremden Spots
+  steht, wer sie gefunden hat, und die Farbe zeigt, wem ein Spot gehört.
+
+**Behoben:** Die Karte ließ sich versehentlich verdrehen — die Drehgeste
+ist abgeschaltet. Ein Update konnte die App nach dem Herunterladen zum
+Absturz bringen.
+
+## Der Anfang
+
+*18. Juli 2026 · Versionen 1.0 bis 1.3*
+
+- Pilz-Spots auf der Karte festhalten: Position über ein Fadenkreuz statt
+  mit dem Finger zielen, dazu Art, Anzahl, Funddatum und eine Notiz.
+- Auswahl bekannter Pilzarten mit Kategorien und passenden Icons.
+- Freunde einladen und Spots mit ihnen teilen.
+- Animierte Buddies auf dem Anmeldebildschirm.
+
+## Unter der Haube
+
+Nicht jede Version bringt etwas Sichtbares. Dazwischen liegt das, was man
+erst bemerkt, wenn es fehlt: ein wöchentliches verschlüsseltes Backup der
+Datenbank, automatische Tests vor jeder Veröffentlichung, ein Abgleich
+zwischen App und Datenbank, der falsche Änderungen vor der Auslieferung
+stoppt, und eine wöchentliche Zusammenfassung aller Fehler, die die App
+abgefangen hat.
