@@ -35,7 +35,7 @@ on:
         description: "Which layer to rebuild (empty = w4 and sf)"
         required: false
         type: choice
-        options: ["", "w4", "sf", "daily", "weather"]
+        options: ["", "w4", "sf", "daily", "weather", "model"]
         default: ""
 
 # Never two runs at once — they would race on the shared manifest. Not
@@ -66,6 +66,7 @@ jobs:
         run: |
           python3 tool/rain_grid.py --self-test
           python3 tool/spot_weather.py --self-test
+          python3 tool/model_weather.py --self-test
 
       - name: Pick layers
         id: pick
@@ -80,7 +81,7 @@ jobs:
           case "$SCHEDULE" in
             "17 6 * * *") layers="w4" ;;
             "47 */3 * * *") layers="sf" ;;
-            "23 7 * * *") layers="daily weather" ;;
+            "23 7 * * *") layers="daily weather model" ;;
             *) layers="$LAYER_INPUT" ;;
           esac
           [ -n "$layers" ] || layers="w4 sf"
@@ -99,10 +100,21 @@ jobs:
             --dir build/rain || echo "no manifest yet (first run)"
 
       - name: Build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           for layer in ${{ steps.pick.outputs.layers }}; do
             if [ "$layer" = "weather" ]; then
               python3 tool/spot_weather.py --out build/rain
+            elif [ "$layer" = "model" ]; then
+              # The Alpine model grid (#612). AFTER weather: it appends its
+              # lattice points to the station table of this run. A manual
+              # run of "model" alone needs the table too — fetch it.
+              if [ ! -f build/rain/weather_stations.json.gz ]; then
+                gh release download rain-data --pattern weather_stations.json.gz \
+                  --dir build/rain || echo "no station table yet"
+              fi
+              python3 tool/model_weather.py --out build/rain
             else
               python3 tool/rain_grid.py --layer "$layer" --out build/rain
             fi
@@ -120,6 +132,12 @@ jobs:
         run: |
           for layer in ${{ steps.pick.outputs.layers }}; do
             [ "$layer" = "weather" ] && continue
+            if [ "$layer" = "model" ]; then
+              # Six random lattice points, re-asked one by one: catches a
+              # shifted lattice, swapped max/min, or a stale day file.
+              python3 tool/model_weather.py --verify --out build/rain
+              continue
+            fi
             python3 tool/rain_grid.py --layer "$layer" --verify --out build/rain
           done
 
@@ -153,6 +171,23 @@ jobs:
             fi
           done < published.txt
           echo "Im Stapel: $(wc -l < build/keep.txt) Tage"
+
+      - name: Drop model files the Alpine stack no longer keeps
+        # Same idea, own list and own prefix: `model_keep.txt` comes from
+        # tool/model_weather.py and names rain, tmax, tmin and elevation.
+        if: hashFiles('build/model_keep.txt') != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view rain-data --json assets \
+            --jq '.assets[].name' | grep '^model_' > published_model.txt || true
+          while read -r asset; do
+            if ! grep -qx "$asset" build/model_keep.txt; then
+              echo "Entferne $asset"
+              gh release delete-asset rain-data "$asset" --yes
+            fi
+          done < published_model.txt
+          echo "Modellstapel: $(wc -l < build/model_keep.txt) Dateien"
 
       - name: Mirror the release into a branch the browser can read
         # Release assets carry NO `access-control-allow-origin` header, so

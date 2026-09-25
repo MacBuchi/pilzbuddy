@@ -168,11 +168,39 @@ class RainStackInfo {
 /// schon einmal an Speicherdruck gestorben ist (#142/#151), ist das kein
 /// vertretbarer Preis für vierzehn Zahlen. Gepackt sind es 646 KB, und
 /// ausgepackt wird im Isolate, ein Tag nach dem anderen.
+/// Welcher Tagesstapel: das Radar des DWD (`daily`, seit 1.44.0) oder
+/// das Modellgitter des Alpenraums (`model.rain`, seit 1.212.0, #612).
+/// Beide liegen im selben Ordner; was sie trennt, steht hier — Abschnitt
+/// im Manifest, Dateianfang der Tage, Name des gemerkten Manifests.
+enum RainStackKind {
+  radar('rain_day_', 'stack.json'),
+  model('model_rain_', 'model_stack.json');
+
+  const RainStackKind(this.filePrefix, this.infoFile);
+
+  final String filePrefix;
+  final String infoFile;
+
+  Map<String, dynamic>? sectionOf(Map<String, dynamic> manifest) =>
+      switch (this) {
+        RainStackKind.radar => manifest['daily'] as Map<String, dynamic>?,
+        RainStackKind.model =>
+          (manifest['model'] as Map<String, dynamic>?)?['rain']
+              as Map<String, dynamic>?,
+      };
+}
+
 class RainStackData {
-  const RainStackData({required this.info, required this.days});
+  const RainStackData(
+      {required this.info, required this.days, this.kind = RainStackKind.radar});
 
   final RainStackInfo info;
   final List<({DateTime date, List<int> gzipped})> days;
+
+  /// Welches Instrument — trägt die Herkunft bis in `RainDay.source`.
+  /// Am STAPEL, nicht an seiner Position in einer Liste: Ohne Radar
+  /// stünde das Modell an erster Stelle und hieße sonst „Radar".
+  final RainStackKind kind;
 }
 
 class RainGridRepository {
@@ -279,19 +307,35 @@ class RainGridRepository {
   /// unvollständiges Fenster ohnehin keine Zahl aus.
   Future<RainStackData?> loadDailyStack({
     void Function(int done, int total)? onProgress,
+  }) =>
+      _loadStack(RainStackKind.radar, onProgress: onProgress);
+
+  /// Der Modellstapel des Alpenraums (#612, `tool/model_weather.py`):
+  /// derselbe Weg wie der Radar-Stapel, eigener Abschnitt im Manifest
+  /// (`model.rain`), eigener Dateianfang, eigenes gemerktes Manifest.
+  /// Fehlt der Abschnitt — ältere Manifeste kennen ihn nicht —, gibt es
+  /// eben keinen Modellstapel, und der Radar-Stapel bleibt, was er war.
+  Future<RainStackData?> loadModelStack({
+    void Function(int done, int total)? onProgress,
+  }) =>
+      _loadStack(RainStackKind.model, onProgress: onProgress);
+
+  Future<RainStackData?> _loadStack(
+    RainStackKind kind, {
+    void Function(int done, int total)? onProgress,
   }) async {
     RainStackInfo? info;
     try {
-      info = await _fetchStackInfo();
+      info = await _fetchStackInfo(kind);
     } catch (_) {
       // Still: kein Empfang oder GitHub weg. Unten wird versucht, was auf
       // Platte liegt. Kein `logError` — ein Abruf im Wald ohne Netz ist
       // ein normaler Vorgang (#124/#136).
     }
     if (info != null) {
-      await _rememberStackInfo(info);
+      await _rememberStackInfo(info, kind);
     } else {
-      info = await _lastStackInfo();
+      info = await _lastStackInfo(kind);
     }
     if (info == null) return null;
 
@@ -325,10 +369,11 @@ class RainGridRepository {
     }
     onProgress?.call(info.days.length, info.days.length);
     if (dir != null) {
-      await _pruneStack(dir, {for (final day in info.days) day.file});
+      await _pruneStack(dir, {for (final day in info.days) day.file},
+          prefix: kind.filePrefix);
     }
     if (days.isEmpty) return null;
-    return RainStackData(info: info, days: days);
+    return RainStackData(info: info, days: days, kind: kind);
   }
 
   /// Die Stationstabelle (Temperatur) — als **gepackte** Bytes, `null`,
@@ -419,7 +464,7 @@ class RainGridRepository {
     }
   }
 
-  Future<RainStackInfo?> _fetchStackInfo() async {
+  Future<RainStackInfo?> _fetchStackInfo(RainStackKind kind) async {
     final response = await _client
         .get(Uri.parse('$rainDataUrl/rain_manifest.json'))
         .timeout(const Duration(seconds: 15));
@@ -427,17 +472,21 @@ class RainGridRepository {
       throw HttpException('Manifest: HTTP ${response.statusCode}');
     }
     final json = jsonDecode(response.body) as Map<String, dynamic>;
-    final daily = json['daily'] as Map<String, dynamic>?;
-    return daily == null ? null : RainStackInfo.tryParse(daily);
+    final section = kind.sectionOf(json);
+    return section == null ? null : RainStackInfo.tryParse(section);
   }
 
   /// Tagesdateien wegräumen, die der Stapel nicht mehr führt. Ohne das
   /// wächst das App-Verzeichnis um eine Datei am Tag, für immer.
-  Future<void> _pruneStack(Directory dir, Set<String> keep) async {
+  /// Nur die Tage DIESES Stapels ([prefix]) — der Modellstapel darf die
+  /// Radar-Tage nicht wegräumen und umgekehrt, beide liegen im selben
+  /// Ordner.
+  Future<void> _pruneStack(Directory dir, Set<String> keep,
+      {required String prefix}) async {
     try {
       for (final entry in dir.listSync().whereType<File>()) {
         final name = entry.path.split('/').last;
-        if (!name.startsWith('rain_day_')) continue;
+        if (!name.startsWith(prefix)) continue;
         if (keep.contains(name)) continue;
         await entry.delete();
       }
@@ -446,14 +495,14 @@ class RainGridRepository {
     }
   }
 
-  Future<File> _stackInfoFile() async =>
-      File('${(await _dir()).path}/stack.json');
+  Future<File> _stackInfoFile(RainStackKind kind) async =>
+      File('${(await _dir()).path}/${kind.infoFile}');
 
-  Future<void> _rememberStackInfo(RainStackInfo info) async {
+  Future<void> _rememberStackInfo(RainStackInfo info, RainStackKind kind) async {
     // Ohne Platte gibt es hier nichts zu tun (Web).
     if (!_cachesToDisk) return;
     try {
-      await (await _stackInfoFile()).writeAsString(jsonEncode({
+      await (await _stackInfoFile(kind)).writeAsString(jsonEncode({
         'width': info.width,
         'height': info.height,
         'west': info.west,
@@ -470,11 +519,11 @@ class RainGridRepository {
     }
   }
 
-  Future<RainStackInfo?> _lastStackInfo() async {
+  Future<RainStackInfo?> _lastStackInfo(RainStackKind kind) async {
     // Ohne Platte gibt es hier nichts zu tun (Web).
     if (!_cachesToDisk) return null;
     try {
-      final file = await _stackInfoFile();
+      final file = await _stackInfoFile(kind);
       if (!await file.exists()) return null;
       return RainStackInfo.tryParse(
           jsonDecode(await file.readAsString()) as Map<String, dynamic>);

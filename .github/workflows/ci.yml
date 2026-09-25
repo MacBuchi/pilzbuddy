@@ -81,6 +81,7 @@ jobs:
           python3 tool/symbolize_anr.py --self-test > /dev/null
           python3 tool/rain_grid.py --self-test > /dev/null
           python3 tool/spot_weather.py --self-test > /dev/null
+          python3 tool/model_weather.py --self-test > /dev/null
           python3 tool/season_curves.py --self-test > /dev/null
           python3 tool/ampel_validate.py --self-test > /dev/null
           python3 tool/ampel_diagnose.py --self-test > /dev/null

@@ -165,6 +165,7 @@ WeatherTable tableOf(
     tableOfStations([(lat: lat, lon: lon, meanC: meanC, measured: 28)]);
 
 void main() {
+  _ampelLevelsTests();
   /// Die Stufe der Zelle [x] in der einzigen Zeile — `null` heißt
   /// „keine Aussage" (zu wenige Regentage, keine Station in Reichweite).
   // Die Regen-Tests unten prüfen das Herbstmodell je Zelle gegen
@@ -695,6 +696,62 @@ void main() {
       final good = ampelLevelsFrom(stack, tableOfStations([gappy.last]))!;
       expect(good.levelFor(0, 0, classes: ampelShippedClasses), isNotNull,
           reason: 'die Lage an sich gibt eine Stufe her');
+    });
+  });
+}
+
+/// Der Vorrang der Gitter (#612): Radar zuerst, Modell wo das Radar
+/// nichts sagt — und zwar sowohl AUSSERHALB seiner Box als auch in einer
+/// Zelle ohne Aussage.
+void _ampelLevelsTests() {
+  group('AmpelLevels (#612)', () {
+    // Radar: eine Zelle über 10..13° O, Modell: eine Zelle über 8..16° O,
+    // beide 50..52° N. Konstanter Regen, Station am Ort — jede Zelle hat
+    // eine Aussage, solange die Tabelle eine Station trägt.
+    AmpelLevelGrid grid({required double west, required double east,
+        int mmPerDay = 3, WeatherTable? table}) =>
+        ampelLevelsFrom(
+            gridStackOf(width: 1, height: 1, mmPerDay: mmPerDay,
+                west: west, east: east, north: 52, south: 50),
+            table ?? tableOf())!;
+    final classes = ampelShippedClasses;
+
+    test('außerhalb des Radars antwortet das Modell', () {
+      final levels = AmpelLevels([
+        grid(west: 10, east: 13, mmPerDay: 0),
+        grid(west: 8, east: 16, mmPerDay: 9),
+      ]);
+      // 11° O: im Radar (trocken) → dessen Stufe, nicht die nasse des Modells.
+      expect(levels.levelAt(51, 11, classes: classes),
+          levels.grids.first.levelAt(51, 11, classes: classes));
+      expect(levels.levelAt(51, 11, classes: classes), isNot(AmpelLevel.guenstig));
+      // 9° O: nur das Modell reicht hin.
+      expect(levels.grids.first.levelAt(51, 9, classes: classes), isNull);
+      expect(levels.levelAt(51, 9, classes: classes),
+          levels.grids.last.levelAt(51, 9, classes: classes));
+      expect(levels.levelAt(51, 9, classes: classes), isNotNull);
+    });
+
+    test('eine Radarzelle OHNE Aussage fragt das Modell', () {
+      // Die Station der Radar-Tabelle liegt jenseits der 100 km — die
+      // Zelle liegt im Gitter, hat aber keine Aussage (valid = 0). Das
+      // Modell mit einer Station am Ort antwortet stattdessen.
+      final radarFar = grid(west: 10, east: 13, mmPerDay: 0,
+          table: tableOf(lat: 60, lon: 30));
+      expect(radarFar.levelAt(51, 11, classes: classes), isNull,
+          reason: 'Vorbedingung: das Radar allein sagt hier nichts');
+      final levels = AmpelLevels([radarFar, grid(west: 8, east: 16, mmPerDay: 9)]);
+      expect(levels.rowsAt(51), [0, 0]);
+      expect(levels.levelAt(51, 11, classes: classes),
+          levels.grids.last.levelAt(51, 11, classes: classes));
+      expect(levels.levelAt(51, 11, classes: classes), isNotNull);
+      expect(levels.newest, radarFar.newest);
+    });
+
+    test('nirgends eine Aussage heißt null', () {
+      final levels = AmpelLevels([grid(west: 10, east: 13)]);
+      expect(levels.levelAt(51, 20, classes: classes), isNull);
+      expect(levels.rowsAt(60), [null]);
     });
   });
 }

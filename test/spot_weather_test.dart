@@ -147,6 +147,26 @@ void main() {
   });
 
   group('weatherTableFrom', () {
+    test('ein Modellpunkt (#612) trägt seine Kennung, eine Station nicht', () {
+      // Zwölf Tage, damit beide antreten (mindestens 10 gemessene).
+      final packed = GZipEncoder().encode(utf8.encode(jsonEncode({
+        'days': [for (var d = 1; d <= 12; d++) '2026-09-${d.toString().padLeft(2, '0')}'],
+        'stations': [
+          {'id': 44, 'name': 'Großenkneten', 'lat': 52.9, 'lon': 8.2,
+            'h': 44, 'max': List.filled(12, 20.0), 'min': List.filled(12, 10.0)},
+          {'id': 900123, 'name': 'Modell 46,50° N 11,35° O', 'lat': 46.5,
+            'lon': 11.35, 'h': 283, 'src': kModelStationSource,
+            'max': List.filled(12, 22.0), 'min': List.filled(12, 12.0)},
+        ],
+        'soil': <Object>[],
+      })))!;
+      final table = weatherTableFrom(packed)!;
+      expect(table.air.map((s) => s.model), [false, true]);
+      // Für die Nachbarsuche ist der Modellpunkt eine Station wie jede
+      // andere — Bozen findet ihn, nicht Großenkneten.
+      expect(table.nearestAir(46.4, 11.3)!.station.model, isTrue);
+    });
+
     List<int> packed(Map<String, dynamic> json) =>
         GZipEncoder().encode(utf8.encode(jsonEncode(json)))!;
 

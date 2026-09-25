@@ -18,6 +18,7 @@ import 'package:intl/intl.dart';
 import '../../../core/app_colors.dart';
 import '../../../core/settings.dart';
 import '../../map/rain_data_providers.dart';
+import '../../map/rain_stack.dart';
 import '../../map/spot_weather.dart';
 import 'weather_chart.dart';
 
@@ -36,6 +37,10 @@ String? stationLine(SpotTemperature? temperature) {
   if (temperature == null) return null;
   final air = temperature.air;
   final soil = temperature.soil;
+  // Ein Modellpunkt (#612) heißt „Modell 46,50° N 11,35° O" und trägt
+  // KEIN „Station" davor — niemand hat dort gemessen, und das Blatt
+  // sagt, woher der Wert stammt.
+  final airIsModel = air?.station.model ?? false;
   String describe(({WeatherStation station, double km}) pick) =>
       '${pick.station.name} (${pick.km.round()} km, '
       '${pick.station.height} m ü. NN';
@@ -43,12 +48,34 @@ String? stationLine(SpotTemperature? temperature) {
     if (air.station.name == soil.station.name) {
       return 'Temperatur: Station ${describe(air)}).';
     }
-    return 'Temperatur: ${describe(air)}, Luft) '
+    return 'Temperatur: ${describe(air)}, '
+        '${airIsModel ? 'Luft, Open-Meteo-Modell' : 'Luft'}) '
         'und ${describe(soil)}, Boden).';
   }
-  if (air != null) return 'Lufttemperatur: Station ${describe(air)}).';
+  if (air != null) {
+    return airIsModel
+        ? 'Lufttemperatur: ${describe(air)}, Open-Meteo-Modell, kein '
+            'Messwert).'
+        : 'Lufttemperatur: Station ${describe(air)}).';
+  }
   if (soil != null) return 'Bodentemperatur: Station ${describe(soil)}).';
   return null;
+}
+
+/// Woher die gezeigten Tagessummen stammen — Radar, Modell oder beides.
+/// Gezählt über die ANGEZEIGTEN Tage, damit der Satz zum Diagramm passt.
+String rainSourceLine(RainCourse shown) {
+  final model = shown.modelDays;
+  final measured = shown.measuredDays;
+  if (model == 0) {
+    return 'Tagessummen des Deutschen Wetterdienstes (Radar, nur Deutschland)';
+  }
+  if (model == measured) {
+    return 'Tagessummen aus Modellwerten (Open-Meteo, ICON) — hier gibt es '
+        'kein Radar';
+  }
+  return 'Tagessummen des Deutschen Wetterdienstes, $model von $measured '
+      'Tagen aus Modellwerten (Open-Meteo)';
 }
 
 /// Die Bodenfeuchte-Zeile — oder `null`, wenn keine Station in
@@ -149,10 +176,12 @@ class SpotRainSection extends ConsumerWidget {
             Text(
               // Woher, und bis wann. Beides gehört dazu: Das Tagesprodukt
               // endet gestern, nicht heute — und neben der Temperatur
-              // steht, welches Instrument sie gemessen hat.
-              'Tagessummen des Deutschen Wetterdienstes, bis '
-              '${DateFormat('d.M.').format(data.newest!)} — nur '
-              'Deutschland.${stations == null ? '' : ' $stations'}',
+              // steht, welches Instrument sie gemessen hat. Seit #612
+              // kann der Regen auch aus dem Modellgitter des Alpenraums
+              // kommen; dann steht es hier, Tag für Tag gezählt.
+              '${rainSourceLine(shown)}, bis '
+              '${DateFormat('d.M.').format(data.newest!)}.'
+              '${stations == null ? '' : ' $stations'}',
               style: theme.textTheme.bodySmall
                   ?.copyWith(color: theme.hintColor, fontSize: 11),
             ),

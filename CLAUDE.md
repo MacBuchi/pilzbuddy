@@ -2685,6 +2685,68 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   - **`forest-data` hat dasselbe Problem und ist NICHT gelöst.** Die feinen
     Waldblöcke sind ein Opt-in auf der Offline-Karten-Seite und damit
     Android-Sache; wer sie je im Web anbietet, braucht denselben Spiegel.
+- **Das Modellgitter des Alpenraums** (`tool/model_weather.py`, im
+  selben `rain-data.yml`, #612, seit 1.212.0): Wo Radar und
+  DWD-Stationen enden, kommen Regen und Temperatur aus dem Wettermodell
+  — Open-Meteo, `models=icon_seamless` (ICON-D2 mit 2 km über den
+  Alpen), auf einem festen 12-km-Raster in EPSG:3857 über der Box
+  5,9–17,2° O / 45,6–49,1° N MINUS Deutschland (Polylinie der
+  Südgrenze, `DE_BORDER`; 3 574 Punkte). Sieben Dinge, die man wissen
+  muss:
+  - **Die App fragt Open-Meteo nie.** CI holt feste Rasterpunkte —
+    nichts über einen Nutzer —, die App lädt weiter nur vom eigenen
+    Spiegel. Kein neues Netzziel, keine Änderung an Datenschutzerklärung
+    oder `docs/play-console.md`; die Lizenzseite nennt Open-Meteo (CC BY
+    4.0), `open-meteo.com` steht deshalb als `textOnly` im
+    Datenschutz-Wächter.
+  - **Modellregen ist das validierte Instrument, nicht das Radar.** Die
+    Ampel wurde auf Open-Meteo-Archivdaten gemessen (IFS HRES 9 km,
+    ERA5 davor); RADOLAN in der App ist die Abweichung davon. Das
+    Modellgitter ist also kein Abstieg, und das Modell selbst bleibt
+    Zahl für Zahl unverändert.
+  - **Der Regen ist ein ZWEITER Stapel** (`model.rain` im Manifest,
+    `model_rain_*`, gleiche Kodierung wie `rain_day_*`), und der
+    Vorrang ist EINE Regel: `rainCoursesFromStacks` (Radar zuerst, je
+    Tag und Punkt der erste Wert) für Blatt und Nachlauf, `AmpelLevels`
+    (je Wabe die erste Aussage) für die Fläche. Beide lesen
+    `rainStacksProvider`. Ein Umrastern auf ein Gitter wäre eine dritte
+    Antwort auf „wie viel Regen hier". `RainDay.source` und
+    `RainCourse.modelDays` tragen die Herkunft, das Blatt zählt sie
+    („2 von 14 Tagen aus Modellwerten").
+  - **Die Temperatur kommt als VIRTUELLE STATIONEN** in
+    `weather_stations.json.gz` (`src: "openmeteo"`, id ab 900000,
+    Höhe = Open-Meteos eigene Downscaling-Höhe, Name „Modell 46,50° N
+    11,35° O"). Nachbarsuche, Höhenkorrektur und Ampel-Fläche bleiben
+    unverändert; nur `AirStation.model` und der Satz im Blatt („kein
+    Messwert") kommen dazu. Nebengewinn: Österreich und die Schweiz haben
+    damit einen Punkt in wenigen Kilometern statt einer deutschen
+    Station in 100 km. Holz & Winter bleibt außerhalb Deutschlands grau
+    — keine Bodenfeuchte, klassenspezifisch wie bisher.
+  - **Die Tagesdateien SIND der Zustand.** Rain, tmax, tmin (0,5-°C-
+    Schritte) je Tag plus `model_elevation.bin.gz` liegen im Release
+    `rain-data` wie die Radar-Tage; jeder Lauf holt nur fehlende Tage,
+    neueste zuerst, innerhalb `BUDGET_CALLS` (4 500 je Lauf — Open-Meteo
+    Free: 600/min, 5 000/h, 10 000/Tag; ein Ort für ≤ 7 Tage ist ein
+    Call, vier Wochen drei). Ein leerer Stapel füllt sich über drei bis
+    vier tägliche Läufe; Lücken über Nacht kommen über die
+    Historical-Forecast-API mit festen Daten, der jüngste Block über
+    `past_days`. Beide liefern die archivierten ersten Stunden derselben
+    Modellläufe.
+  - **Reihenfolge im Workflow: `daily weather model`.** Das Werkzeug
+    hängt seine Punkte an die Stationstabelle DIESES Laufs und korrigiert
+    `weather.bytes` (der Cache-Schlüssel der App). Ein Handlauf nur mit
+    `model` holt die Tabelle vorher aus dem Release. Eigene
+    Aufräumliste `model_keep.txt`, eigener Lösch-Schritt für `model_*`.
+    `--verify` fragt sechs zufällige Punkte einzeln nach — die eine
+    Prüfung, die ein verschobenes Raster oder vertauschte Max/Min sieht.
+  - **Die Messbasis dazu** (`docs/pilzampel-pruefachsen.md` #12–#15):
+    Mit CC0/CC BY war die italienische Alpenbox zu dünn (Pfifferling 29
+    Paare, Kontrolle verzerrt). Mit CC BY-NC — **nur für Messungen**,
+    Betreiber 2026-09-25, `--include-nc`, nie für DE, nie für ein Asset —
+    besteht das Pfifferling-Fenster dort (+0,183 [+0,055, +0,328], 142
+    Paare). Für `herbst` ist der Klassen-Hold-out leer (Fenster =
+    Referenz, fünfter Ausgang „leer" seit #616); beschreibend trennt
+    13 °C dort mit AUC 0,63–0,78.
 - **Regen-Wertegitter** (`tool/rain_grid.py` + `.github/workflows/rain-data.yml`):
   Damit die Summen in **unseren** Farben liegen und die Regenmenge am Spot
   beantwortbar wird, ohne dass eine Koordinate das Gerät verlässt, holt CI

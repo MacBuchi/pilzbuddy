@@ -8,18 +8,31 @@
 //
 // Rein und ohne I/O: Was hier steht, lässt sich an einem Mini-Gitter von
 // Hand nachrechnen. Das Laden liegt in `rain_grid_repository.dart`.
+import 'dart:collection';
+
+import '../../data/rain_grid_repository.dart' show RainStackData, RainStackKind;
 import 'rain_grid.dart';
 
 /// Ein Tag des Verlaufs.
+/// Woher ein Tageswert stammt (seit 1.212.0, #612): aus dem Radar des
+/// DWD oder aus dem Modellgitter des Alpenraums (`tool/model_weather.py`).
+/// Das Blatt sagt es dazu — ein Modellwert, der aussieht wie ein
+/// Messwert, wäre eine Behauptung.
+enum RainSource { radar, model }
+
 class RainDay {
-  const RainDay({required this.date, required this.mm});
+  const RainDay(
+      {required this.date, required this.mm, this.source = RainSource.radar});
 
   /// Der Tag, den diese Summe abdeckt (00–24 UTC beim DWD-Produkt).
   final DateTime date;
 
   /// Millimeter an diesem Punkt — `null`, wo keine Messung liegt (der
-  /// Spot liegt außerhalb des Radarverbunds).
+  /// Spot liegt außerhalb des Radarverbunds UND außerhalb des Modellgitters).
   final int? mm;
+
+  /// Das Instrument hinter [mm]; ohne Wert bedeutungslos.
+  final RainSource source;
 }
 
 /// Der Verlauf an einem Punkt, ältester Tag zuerst.
@@ -29,6 +42,13 @@ class RainCourse {
   final List<RainDay> days;
 
   bool get isEmpty => days.isEmpty;
+
+  /// Tage mit Wert — und wie viele davon aus dem Modell kommen. Beides
+  /// zusammen sagt dem Blatt, was es unter das Diagramm schreibt.
+  int get measuredDays => days.where((d) => d.mm != null).length;
+  int get modelDays => days
+      .where((d) => d.mm != null && d.source == RainSource.model)
+      .length;
 
   /// Die letzten [count] Tage als eigener Verlauf. Seit der Stapel die
   /// 26 Ampel-Tage trägt (#256), bleibt die ANZEIGE trotzdem beim
@@ -178,6 +198,67 @@ List<RainCourse> rainCoursesFrom(
   }
 
   return [for (final days in perPoint) RainCourse(days)];
+}
+
+/// Mehrere Stapel in VORRANG-Reihenfolge — das Radar zuerst, dann das
+/// Modellgitter des Alpenraums (#612, seit 1.212.0). Je Tag und Punkt
+/// gewinnt der erste Stapel, der einen Wert hat; ein Tag, den keiner
+/// kennt, bleibt `null`. Die Vereinigung der Tage beider Stapel bildet
+/// die Achse: Das Modell hat oft den jüngsten Tag früher als das Radar,
+/// und ein Spot in Südtirol liegt in gar keinem Radar-Tag.
+///
+/// Warum nicht EIN zusammengeführtes Gitter: Die beiden haben
+/// verschiedene Geometrien (1 km gegen 12 km), und ein Umrastern wäre
+/// eine dritte Antwort auf „wie viel Regen an diesem Punkt".
+List<RainCourse> rainCoursesFromStacks(
+  List<RainStackData> stacks, {
+  required List<({double lat, double lon})> points,
+}) {
+  if (stacks.isEmpty) return [for (final _ in points) const RainCourse([])];
+  final perStack = [
+    for (final stack in stacks)
+      rainCoursesFrom(
+        stack.days,
+        width: stack.info.width,
+        height: stack.info.height,
+        west: stack.info.west,
+        east: stack.info.east,
+        north: stack.info.north,
+        south: stack.info.south,
+        points: points,
+      ),
+  ];
+  final dates = SplayTreeSet<DateTime>();
+  for (final courses in perStack) {
+    for (final day in courses.first.days) {
+      dates.add(day.date);
+    }
+  }
+  final merged = <RainCourse>[];
+  for (var p = 0; p < points.length; p++) {
+    final byDate = [
+      for (final courses in perStack)
+        {for (final day in courses[p].days) day.date: day.mm},
+    ];
+    merged.add(RainCourse([
+      for (final date in dates)
+        () {
+          for (var s = 0; s < stacks.length; s++) {
+            final mm = byDate[s][date];
+            if (mm != null) {
+              return RainDay(
+                  date: date,
+                  mm: mm,
+                  source: stacks[s].kind == RainStackKind.model
+                      ? RainSource.model
+                      : RainSource.radar);
+            }
+          }
+          return RainDay(date: date, mm: null);
+        }(),
+    ]));
+  }
+  return merged;
 }
 
 /// Jeder Punkt fragt über [RainGrid.mmAt] selbst, statt Zeile und Spalte

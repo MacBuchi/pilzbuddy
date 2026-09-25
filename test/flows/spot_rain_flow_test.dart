@@ -42,8 +42,10 @@ void main() {
   const spotLng = 11.0;
 
   /// Ein Stapel über Deutschland: eine Zelle, alle Tage am selben Punkt.
-  RainStackData stackOf(List<int> mmPerDay, {DateTime? firstDay}) =>
+  RainStackData stackOf(List<int> mmPerDay,
+          {DateTime? firstDay, RainStackKind kind = RainStackKind.radar}) =>
       RainStackData(
+        kind: kind,
         info: const RainStackInfo(
           width: 1,
           height: 1,
@@ -199,6 +201,54 @@ void main() {
     expect(find.textContaining('nur Deutschland'), findsOneWidget,
         reason: 'ohne diesen Satz sieht ein leerer Abschnitt in Österreich '
             'nach einem Fehler der App aus');
+  });
+
+  testWidgets('ohne Radar, aber mit Modellgitter (#612): Verlauf da, und '
+      'das Blatt sagt, dass es Modellwerte sind', (tester) async {
+    // Ein Spot in Südtirol liegt in keinem Radar-Tag. Der Modellstapel
+    // deckt ihn — und der Satz unter dem Diagramm darf dann nicht
+    // „Deutscher Wetterdienst" behaupten.
+    final backend = loggedInWithSpot();
+    await pumpApp(tester, backend, extraOverrides: [
+      rainStackLoaderProvider.overrideWithValue(() async => null),
+      modelRainStackLoaderProvider.overrideWithValue(() async => stackOf(
+          [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+          kind: RainStackKind.model)),
+    ]);
+    await openSpot(tester);
+    await acceptWeather(tester);
+    await settleWeather(tester);
+
+    expectSumCell(tester, '7 Tage', '77 mm');
+    expect(find.textContaining('Modellwerten (Open-Meteo'), findsOneWidget);
+    expect(find.textContaining('kein Radar'), findsOneWidget);
+    expect(find.textContaining('nur Deutschland'), findsNothing,
+        reason: 'der Radar-Satz gehört nicht unter einen Modell-Verlauf');
+  });
+
+  testWidgets('Radar und Modell zusammen: das Radar gewinnt, das Blatt '
+      'nennt die Modell-Tage', (tester) async {
+    // Das Radar kennt 12 Tage, das Modell 14 — die zwei fehlenden kommen
+    // aus dem Modell, und das steht als Zahl im Satz.
+    final backend = loggedInWithSpot();
+    await pumpApp(tester, backend, extraOverrides: [
+      rainStackLoaderProvider.overrideWithValue(() async =>
+          stackOf([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+              firstDay: DateTime.utc(2026, 7, 21))),
+      modelRainStackLoaderProvider.overrideWithValue(() async =>
+          stackOf([9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9],
+              firstDay: DateTime.utc(2026, 7, 21),
+              kind: RainStackKind.model)),
+    ]);
+    await openSpot(tester);
+    await acceptWeather(tester);
+    await settleWeather(tester);
+
+    // 7 Tage: die 12 Radar-Tage enden am 1.8., dann zwei Modell-Tage à 9:
+    // 8+9+10+11+12 + 9+9 = 68.
+    expectSumCell(tester, '7 Tage', '68 mm');
+    expect(find.textContaining('2 von 14 Tagen aus Modellwerten'),
+        findsOneWidget);
   });
 
   testWidgets('die Summen stehen in einer Kachel im PilzBuddy-Stil',

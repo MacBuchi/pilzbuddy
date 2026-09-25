@@ -297,6 +297,7 @@ List<Override> overridesFor(FakeBackend backend,
       // ausdrücklicher Zustimmung — aber ein Test, der die erteilt, ginge
       // ohne diese Zeile wirklich zu GitHub.
       rainStackLoaderProvider.overrideWithValue(() async => null),
+      modelRainStackLoaderProvider.overrideWithValue(() async => null),
       // Und für die Stationstabelle (Temperatur am Spot), gleicher Grund.
       weatherTableLoaderProvider.overrideWithValue(() async => null),
       rainImageProviderFactory

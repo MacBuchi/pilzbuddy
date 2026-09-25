@@ -294,6 +294,31 @@ void main() {
       expect(wroteAnything(), isFalse);
     });
 
+    test('der Modellstapel (#612) liest seinen eigenen Abschnitt', () async {
+      final day = GZipEncoder().encode(<int>[1, 0, 0, 0])!;
+      final client = MockClient((request) async {
+        if (request.url.path.endsWith('rain_manifest.json')) {
+          return http.Response(
+              '{"model": {"rain": {"width": 2, "height": 2, "west": 5.9, '
+              '"east": 17.2, "north": 49.1, "south": 45.6, "days": ['
+              '{"date": "2026-09-24T00:00:00Z", '
+              '"file": "model_rain_20260924.bin.gz"}]}}}',
+              200);
+        }
+        expect(request.url.path, endsWith('model_rain_20260924.bin.gz'));
+        return http.Response.bytes(day, 200);
+      });
+      final repo = webRepo(client: client);
+      final model = await repo.loadModelStack();
+      expect(model, isNotNull);
+      expect(model!.info.west, 5.9);
+      expect(model.days.single.date, DateTime.utc(2026, 9, 24));
+      // Ohne `daily` gibt es keinen Radar-Stapel — und umgekehrt kennt ein
+      // älteres Manifest kein `model`.
+      expect(await repo.loadDailyStack(), isNull);
+      expect(wroteAnything(), isFalse);
+    });
+
     test('die Fläche wird nicht geschrieben, sondern abgelehnt', () async {
       // `writeFill` liefert eine `file://`-URL für MapLibre. Die Engine
       // gibt es im Browser nicht — dort nimmt flutter_map dieselben
@@ -310,6 +335,38 @@ void main() {
       expect(await webRepo(client: offline).loadWeatherTable(), isNull);
       expect(await webRepo(client: offline).loadDailyStack(), isNull);
     });
+  });
+
+  test('jeder Stapel räumt nur seine eigenen Tage weg (#612)', () async {
+    // Beide liegen im selben Ordner. Ein Modell-Lauf, der alles außer
+    // seiner Liste löscht, nähme die Radar-Tage mit — und der nächste
+    // Radar-Lauf die Modell-Tage: zwei Stapel, die sich gegenseitig
+    // leeren, ohne Fehlermeldung.
+    final dir = Directory('${base.path}/rain')..createSync(recursive: true);
+    File('${dir.path}/rain_day_20260901.bin.gz').writeAsBytesSync([1]);
+    File('${dir.path}/model_rain_20260901.bin.gz').writeAsBytesSync([1]);
+    final day = GZipEncoder().encode(<int>[1, 0, 0, 0])!;
+    final client = MockClient((request) async {
+      if (request.url.path.endsWith('rain_manifest.json')) {
+        return http.Response(
+            '{"model": {"rain": {"width": 2, "height": 2, "west": 5.9, '
+            '"east": 17.2, "north": 49.1, "south": 45.6, "days": ['
+            '{"date": "2026-09-24T00:00:00Z", '
+            '"file": "model_rain_20260924.bin.gz"}]}}}',
+            200);
+      }
+      return http.Response.bytes(day, 200);
+    });
+    await repo(client: client).loadModelStack();
+    expect(File('${dir.path}/rain_day_20260901.bin.gz').existsSync(), isTrue,
+        reason: 'ein Radar-Tag geht den Modellstapel nichts an');
+    expect(File('${dir.path}/model_rain_20260901.bin.gz').existsSync(),
+        isFalse, reason: 'ein alter Modell-Tag wird weggeräumt');
+    expect(File('${dir.path}/model_rain_20260924.bin.gz').existsSync(),
+        isTrue);
+    expect(File('${dir.path}/model_stack.json').existsSync(), isTrue,
+        reason: 'das gemerkte Manifest des Modellstapels hat einen '
+            'eigenen Namen');
   });
 
   group('die Adresse für den Browser', () {

@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/features/map/rain_grid.dart';
 import 'package:pilzbuddy/features/map/rain_stack.dart';
 
+import 'package:pilzbuddy/data/rain_grid_repository.dart';
 import 'rain_grid_test.dart' show encode;
 
 void main() {
@@ -36,6 +37,82 @@ void main() {
         lat: 51,
         lon: lon,
       );
+
+  group('Radar zuerst, Modell als Rückfall (#612)', () {
+    // Zwei Stapel mit verschiedener Geometrie: das „Radar" 2×1 über
+    // 10..14° O (Zelle links 11°, rechts 13°), das „Modell" 1×1 über
+    // 8..16° O — es deckt also auch 9° O, wo das Radar nichts hat.
+    RainStackData stack(List<int?> radarLeft, {int width = 2,
+        double west = 10, double east = 14,
+        RainStackKind kind = RainStackKind.radar}) => RainStackData(
+          kind: kind,
+          info: RainStackInfo(
+              width: width, height: 1, west: west, east: east,
+              north: 55, south: 47, days: const []),
+          days: [
+            for (final (i, mm) in radarLeft.indexed)
+              (
+                date: DateTime.utc(2026, 7, 21).add(Duration(days: i)),
+                gzipped: encode([
+                  [for (var c = 0; c < width; c++) mm ?? 255]
+                ]),
+              ),
+          ],
+        );
+    final points = [(lat: 51.0, lon: 11.0), (lat: 51.0, lon: 9.0)];
+
+    test('wo das Radar einen Wert hat, gewinnt es; sonst das Modell', () {
+      final radar = stack([5, null, 7]);
+      final model = stack([1, 2, 3, 4],
+          width: 1, west: 8, east: 16, kind: RainStackKind.model);
+      final courses = rainCoursesFromStacks([radar, model], points: points);
+      final inside = courses[0].days;
+      expect([for (final d in inside) d.mm], [5, 2, 7, 4],
+          reason: 'Tag 2 fehlt im Radar (255), Tag 4 kennt nur das Modell');
+      expect([for (final d in inside) d.source], [
+        RainSource.radar, RainSource.model, RainSource.radar, RainSource.model,
+      ]);
+      expect(courses[0].modelDays, 2);
+      expect(courses[0].measuredDays, 4);
+      // Der Punkt bei 9° O liegt außerhalb des Radars — alles Modell.
+      final outside = courses[1].days;
+      expect([for (final d in outside) d.mm], [1, 2, 3, 4]);
+      expect(outside.every((d) => d.source == RainSource.model), isTrue);
+      expect(courses[1].modelDays, 4);
+    });
+
+    test('ein Stapel allein ist der alte Weg, Quelle Radar', () {
+      final radar = stack([5, null, 7]);
+      final only = rainCoursesFromStacks([radar], points: points);
+      final direct = rainCoursesFrom(radar.days,
+          width: 2, height: 1, west: 10, east: 14, north: 55, south: 47,
+          points: points);
+      expect([for (final d in only[0].days) d.mm],
+          [for (final d in direct[0].days) d.mm]);
+      expect(only[0].modelDays, 0);
+      expect(only[1].days.every((d) => d.mm == null), isTrue);
+    });
+
+    test('das Modell allein heißt trotzdem Modell — die Herkunft hängt am '
+        'Stapel, nicht an seiner Position', () {
+      final model = stack([1, 2],
+          width: 1, west: 8, east: 16, kind: RainStackKind.model);
+      final course = rainCoursesFromStacks([model], points: points).first;
+      expect(course.days.every((d) => d.source == RainSource.model), isTrue);
+      expect(course.modelDays, 2);
+    });
+
+    test('ohne Stapel leere Verläufe, ein Tag ohne beide bleibt leer', () {
+      expect(rainCoursesFromStacks(const [], points: points),
+          everyElement(predicate<RainCourse>((c) => c.isEmpty)));
+      final radar = stack([null]);
+      final model = stack([null],
+          width: 1, west: 8, east: 16, kind: RainStackKind.model);
+      final course = rainCoursesFromStacks([radar, model], points: points).first;
+      expect(course.days.single.mm, isNull);
+      expect(course.modelDays, 0);
+    });
+  });
 
   group('Mehrere Punkte in einem Durchgang (#277-Vorarbeit)', () {
     // Der Anlass: rainCourseFrom packte je Punkt ALLE Tage vollständig

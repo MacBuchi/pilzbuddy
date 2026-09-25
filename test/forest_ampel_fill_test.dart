@@ -30,14 +30,15 @@ import 'rain_fill_test.dart' show decodePng;
 /// den Regenfaktor eingestellt (Mittel 13 °C ⇒ Glocke 1,0, der Score
 /// IST der Regenfaktor): 1,0 → günstig, 0,3 → verhalten, 0,1 →
 /// ungünstig. Stationshöhe 0, damit ohne Höhengitter nichts verschiebt.
-AmpelLevelGrid levelsOf(List<List<AmpelLevel?>> rows,
+AmpelLevels levelsOf(List<List<AmpelLevel?>> rows,
     {double west = 10,
     double east = 10.018,
     double north = 50,
     double south = 49.988,
     double meanC = 13.0}) {
   final flat = [for (final row in rows) ...row];
-  return AmpelLevelGrid(
+  return AmpelLevels([
+    AmpelLevelGrid(
     // **Die Regenfaktoren kommen aus den Schwellen, nicht aus dem
     // Kopf.** Bei 13 °C ist die Herbst-Glocke 1,0, der Score also genau
     // der Regenfaktor — jeder Wert hier landet somit in der Stufe, die
@@ -68,7 +69,8 @@ AmpelLevelGrid levelsOf(List<List<AmpelLevel?>> rows,
     north: north,
     south: south,
     newest: DateTime.utc(2026, 8, 9),
-  );
+    ),
+  ]);
 }
 
 void main() {

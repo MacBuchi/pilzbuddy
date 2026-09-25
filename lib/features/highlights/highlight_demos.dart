@@ -151,6 +151,19 @@ final kHighlightDemos = <String, HighlightDemo>{
       ),
     ]),
   ),
+  'alpen-wetter': HighlightDemo(
+    route: '/',
+    script: _demo('alpen-wetter', const [
+      CoachStep(
+        title: 'Auch jenseits der Grenze',
+        text: 'Regen und Ampel liegen wie bisher unter „Ebenen". Außerhalb '
+            'Deutschlands kommen die Zahlen aus dem Wettermodell statt vom '
+            'Radar — im Spot-Blatt steht dann „Modellwerte".',
+        scene: MapCoach.layersSheet,
+        lit: [MapCoach.layersRain],
+      ),
+    ]),
+  ),
   'regen': HighlightDemo(
     route: '/',
     script: _demo('regen', const [

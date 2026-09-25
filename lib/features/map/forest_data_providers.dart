@@ -12,7 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/settings.dart';
 
-import '../ampel/ampel_fill.dart' show AmpelLevelGrid;
+import '../ampel/ampel_fill.dart' show AmpelLevels;
 import '../ampel/ampel_model.dart' show AmpelClass, ampelClassKeyOf;
 import 'elevation_grid.dart' show ElevationGrid;
 import 'elevation_providers.dart' show elevationGridProvider;
@@ -289,7 +289,7 @@ Uint8List _fillCombined(
           List<ForestGrid> grids,
           Set<ForestClass> classes,
           FillWindow window,
-          AmpelLevelGrid levels,
+          AmpelLevels levels,
           List<AmpelClass> ampelClasses,
           ElevationGrid? elevation,
           ProtectedAreas? protected

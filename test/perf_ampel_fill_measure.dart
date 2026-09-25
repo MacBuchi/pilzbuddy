@@ -87,7 +87,7 @@ void main() {
       final watch = Stopwatch()..start();
       forestAmpelFillPng([forest],
           window: window,
-          levels: levels,
+          levels: AmpelLevels([levels]),
           ampelClasses: ampelShippedClasses,
           elevation: withElevation);
       return watch.elapsed;

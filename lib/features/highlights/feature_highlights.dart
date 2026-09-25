@@ -77,6 +77,18 @@ class FeatureHighlight {
 const kFeatureHighlights = <FeatureHighlight>[
   // ─── Highlights ──────────────────────────────────────────────────
   FeatureHighlight(
+    id: 'alpen-wetter',
+    since: '1.212.0',
+    kind: HighlightKind.highlight,
+    tab: HighlightTab.map,
+    icon: Icons.landscape_outlined,
+    title: 'Wetter und Ampel in den Alpen',
+    text: 'Regen, Temperatur und die Pilzwetter-Ampel gibt es jetzt auch '
+        'in Österreich, der Schweiz und Südtirol. Wo kein Radar hinreicht, '
+        'stehen Werte aus dem Wettermodell — das Spot-Blatt sagt es dazu.',
+    target: '/',
+  ),
+  FeatureHighlight(
     id: 'nachrichten',
     since: '1.193.0',
     kind: HighlightKind.highlight,

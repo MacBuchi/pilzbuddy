@@ -37,7 +37,7 @@ import 'dart:typed_data';
 import 'package:flutter/painting.dart' show Color;
 
 import '../../core/app_colors.dart';
-import '../ampel/ampel_fill.dart' show AmpelLevelGrid;
+import '../ampel/ampel_fill.dart' show AmpelLevels;
 import 'elevation_grid.dart' show ElevationGrid;
 import '../ampel/ampel_model.dart' show AmpelClass, AmpelLevel;
 import 'forest_fill_window.dart';
@@ -266,7 +266,7 @@ Uint8List forestFillPngMulti(List<ForestGrid> grids,
 /// Gelegenheiten, die Auswahl zu vergessen.
 Uint8List forestAmpelFillPng(List<ForestGrid> grids,
     {required FillWindow window,
-    required AmpelLevelGrid levels,
+    required AmpelLevels levels,
     required List<AmpelClass> ampelClasses,
     ElevationGrid? elevation,
     Set<ForestClass> classes = allForestClasses,
@@ -298,7 +298,7 @@ const _coverageUnit = 1024;
 /// Die Ampel-Stufen SAMT der Auswahl, mit der sie gelesen werden — die
 /// beiden gehören zusammen, siehe [forestAmpelFillPng].
 typedef _AmpelHighlight = ({
-  AmpelLevelGrid levels,
+  AmpelLevels levels,
   List<AmpelClass> classes,
 });
 
@@ -429,7 +429,7 @@ class _HexCoverage {
       final odd = hy.isOdd ? 0.5 : 0.0;
       final latC = grid.north - latStep * (hy + 2 / 3);
       // Die Ampel-Gitterzeile dieser Wabenzeile — einmal, nicht je Wabe.
-      final ampelRow = highlight?.levels.rowAt(latC);
+      final ampelRow = highlight?.levels.rowsAt(latC);
       final yTop = yOf(latC + rDeg);
       final yUp = yOf(latC + rDeg / 2);
       final yLow = yOf(latC - rDeg / 2);
@@ -535,7 +535,7 @@ class _HexCoverage {
     required double yMid,
     required _AmpelHighlight? highlight,
     required ElevationGrid? elevation,
-    required int? ampelRow,
+    required List<int?>? ampelRow,
     required double rowLat,
     required double lonFirst,
     required double lonStep,
@@ -590,15 +590,14 @@ class _HexCoverage {
   /// ihrem Klassenband in Band 3 bzw. 4 ein. Ohne [highlight] leuchtet
   /// nichts.
   int _litBand(_AmpelHighlight? highlight, ElevationGrid? elevation,
-      int? ampelRow, double lat, double lon) {
+      List<int?>? ampelRow, double lat, double lon) {
     if (highlight == null || ampelRow == null) return -1;
-    final column = highlight.levels.columnAt(lon);
-    if (column == null) return -1;
     // Die Glocke mit der Höhe DIESER Wabe — für die groben Waben ist
     // das derselbe Gitterindex (gleiches Hex-Raster), für die feinen
     // der Mittelpunkt-Nachschlag; beides läuft über denselben Weg,
-    // damit es keinen zweiten gibt.
-    return switch (highlight.levels.levelFor(ampelRow, column,
+    // damit es keinen zweiten gibt. Seit #612 über alle Gitter in
+    // Vorrang-Reihenfolge (Radar, dann Modell) — [AmpelLevels].
+    return switch (highlight.levels.levelForRows(ampelRow, lon,
         classes: highlight.classes,
         heightM: elevation?.heightMetersAt(lat, lon))) {
       AmpelLevel.verhalten => _bandVerhalten,
