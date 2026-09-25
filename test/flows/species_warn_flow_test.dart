@@ -7,6 +7,8 @@
 // Daten: ein Fehler wird dort gemeldet, wo man ihn sieht.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:pilzbuddy/core/errors.dart';
 import 'package:pilzbuddy/features/species/species_detail_screen.dart';
 
 import '../fakes/map_ui.dart';
@@ -158,6 +160,58 @@ void main() {
     expect(report['message'],
         'Hinweis zur Art „Steinpilz": Das Netz ist auch unten weiß.');
     await drainSnackbars(tester);
+  });
+
+  testWidgets('die Artseite geht zu, während der Dialog offen ist — der '
+      'Hinweis kommt trotzdem an, ohne Fehlerbericht', (tester) async {
+    // Wochendigest 2026-W39: „Cannot use ref after the widget was
+    // disposed" in `_ReportButton._report` (1.190.0). Der Dialog liegt
+    // auf dem Root-Navigator, die Artseite darunter nicht — wer sie
+    // verlässt, baut den Knopf ab, und ein `ref.read` NACH dem Dialog
+    // warf. Die Meldung war weg, obwohl „Senden" gedrückt war.
+    final reported = <String>[];
+    setErrorSink((context, _, _) => reported.add(context));
+    addTearDown(() => setErrorSink(null));
+
+    final (backend, _) = loggedInBackend();
+    await pumpApp(tester, backend);
+    await openTab(tester, 'Pilze');
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Art oder wissenschaftlicher Name'), 'Steinpilz');
+    await settle(tester);
+    await tester.tap(find.widgetWithText(ListTile, 'Steinpilz'));
+    await settle(tester);
+
+    await tester.scrollUntilVisible(
+        find.text('Hinweis zu dieser Art melden'), 300,
+        scrollable: find
+            .descendant(
+                of: find.byKey(kSpeciesDetailListKey),
+                matching: find.byType(Scrollable))
+            .first);
+    await settle(tester, frames: 4);
+    await tester.tap(find.text('Hinweis zu dieser Art melden'));
+    await settle(tester);
+    expect(find.text('Hinweis zu „Steinpilz"'), findsOneWidget);
+
+    // Die Seite unter dem Dialog verlassen; der Dialog bleibt stehen.
+    GoRouter.of(tester.element(find.text('Hinweis zu „Steinpilz"')))
+        .go('/pilze');
+    await settle(tester);
+    expect(find.text('Hinweis zu „Steinpilz"'), findsOneWidget,
+        reason: 'der Dialog liegt auf dem Root-Navigator');
+    expect(find.text('Hinweis zu dieser Art melden'), findsNothing,
+        reason: 'die Artseite mit dem Knopf ist abgebaut');
+
+    await tester.enterText(
+        find.byType(TextField).last, 'Das Netz ist auch unten weiß.');
+    await tester.pump();
+    await tester.tap(find.text('Senden'));
+    await settle(tester);
+
+    expect(reported, isEmpty, reason: 'kein Fehlerbericht');
+    expect(backend.feedback.single['message'],
+        'Hinweis zur Art „Steinpilz": Das Netz ist auch unten weiß.');
   });
 
   testWidgets('Abbrechen und leerer Text senden nichts', (tester) async {

@@ -1073,7 +1073,19 @@ class _ReportButtonState extends ConsumerState<_ReportButton> {
     );
   }
 
+  /// Auch hier alles aus `ref` VOR dem Dialog: Wer die Artseite
+  /// verlässt, während der Dialog offen steht (er liegt auf dem
+  /// Root-Navigator, die Seite darunter nicht), baut dieses Widget ab —
+  /// und ein `ref.read` nach dem `await` warf „Cannot use ref after the
+  /// widget was disposed" (Wochendigest 2026-W39, 1.190.0). Der Hinweis
+  /// kam dann nie an, obwohl „Senden" gedrückt war.
   Future<void> _report(BuildContext context, WidgetRef ref) async {
+    final repository = ref.read(feedbackRepositoryProvider);
+    // Ohne Version ist die Meldung immer noch wertvoll — wie beim
+    // Feedback-Banner auf der Karte; deshalb `null` statt Fehler.
+    final versionFuture = ref
+        .read(appVersionProvider.future)
+        .then<String?>((v) => v, onError: (_) => null);
     final result = await _showDialog(context, ref);
     // Nur `null` (Abbrechen) kommt hier ohne Senden an: Leeren Text
     // lässt der Dialog gar nicht erst durch. Bis 1.201.0 stand hier
@@ -1081,14 +1093,8 @@ class _ReportButtonState extends ConsumerState<_ReportButton> {
     if (result == null) return;
     final text = result.text;
     try {
-      String? version;
-      try {
-        version = await ref.read(appVersionProvider.future);
-      } catch (_) {
-        // Ohne Version ist die Meldung immer noch wertvoll — wie beim
-        // Feedback-Banner auf der Karte.
-      }
-      await ref.read(feedbackRepositoryProvider).submit(
+      final version = await versionFuture;
+      await repository.submit(
           FeedbackType.bug, 'Hinweis zur Art „$species": ${text.trim()}',
           appVersion: version,
           photos: result.photos,

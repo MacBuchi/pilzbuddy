@@ -9,7 +9,7 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Die Touren noch einmal, und der neueste Spot obenauf
 
-*25. September 2026 · Version 1.210.1*
+*25. September 2026 · Versionen 1.210.1 und 1.210.2*
 
 - Die Touren kommen **noch einmal für alle** — jetzt mit Startseiten
   und, wo noch nichts da ist, mit Beispielen.
@@ -17,6 +17,8 @@ https://github.com/MacBuchi/pilzbuddy/releases
   der **neueste obenauf**, nicht der älteste.
 - Der **GPX-Export** listet deine Spots in der Reihenfolge, in der du
   sie angelegt hast.
+- Ein **Hinweis zu einer Art** kommt jetzt auch an, wenn du die Artseite
+  verlässt, während der Melde-Dialog noch offen ist.
 
 ## Eine Startseite für jede Tour
 
