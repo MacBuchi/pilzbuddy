@@ -1,6 +1,6 @@
 ---
 name: pilz-release
-description: Einen PilzBuddy-Stand für alle Nutzer freigeben („befördern", „Release", „promoten", „freigeben") — vorher prüfen, was das Neuheiten-Blatt zeigt, ob Touren, Vorführungen und Kurzanleitung noch zur Oberfläche passen und ob der Changelog für Nutzer lesbar ist; dann promote.yml starten und das Ergebnis nachsehen. Auch zu benutzen, wenn nur gefragt wird, was bei der nächsten Freigabe mitkäme.
+description: Einen PilzBuddy-Stand für alle Nutzer freigeben („befördern", „Release", „promoten", „freigeben") — vorher prüfen, was das Neuheiten-Blatt zeigt, ob Touren, Vorführungen und Kurzanleitung noch zur Oberfläche passen und ob der Changelog für Nutzer lesbar ist; dann promote.yml starten, das Ergebnis nachsehen und das App-Dossier im DocuHub des Betreibers nachziehen. Auch zu benutzen, wenn nur gefragt wird, was bei der nächsten Freigabe mitkäme.
 ---
 
 # Freigabe: vom Vorab-Stand zu allen Nutzern
@@ -98,3 +98,35 @@ Danach:
   Version (Pages braucht ein, zwei Minuten).
 - Dem Betreiber sagen, was jetzt bei allen ankommt — und was davon noch
   niemand auf einem echten Gerät gesehen hat.
+
+## 6. Den DocuHub nachziehen
+
+Der Betreiber führt außerhalb des Repos einen DocuHub (Pfad in
+`CLAUDE.local.md`, nie hier — das Repo ist öffentlich). Darin beschreibt
+`apps/pilzbuddy.md` die App fürs ganze Portfolio, und er veraltet still:
+Bis 2026-09-25 stand er auf 1.35.0, während die App bei 1.210 war, und
+behauptete Dinge, die längst anders waren (Pages-Deploy aus
+`release.yml`, ein entfernter Karten-Schalter, eine behobene
+Play-Blockade). Eine Beförderung ist der natürliche Moment, ihn zu
+prüfen — hier ist ohnehin gerade alles gelesen worden, was sich geändert
+hat.
+
+- **Kopfzeile:** stabile Version und Datum der Beförderung,
+  Dateien/Zeilen/Testfälle neu zählen.
+- **Features (§1):** was die Release-Notizen aus Schritt 1 an Neuem
+  bringen, als je eine Zeile — nicht den Changelog abschreiben.
+- **Was nicht mehr stimmt:** Abschnitte, die eine geänderte Stelle
+  beschreiben (CI, Navigation, Karten-Engine, Muster, Schwächen), gegen
+  den Code prüfen und berichtigen oder durchstreichen (`~~…~~` mit ✅ und
+  Version, wie in §13).
+- **Betriebswissen (§14):** letzte Beförderung, Merker-Resets, alles, was
+  Zustand außerhalb des Codes betrifft.
+- **Guidelines:** Hat dieser Stand ein übertragbares Muster gebracht oder
+  eine Falle gefunden, gehört das in die passende Guideline (Skill
+  `docuhub-pflege`), nicht nur ins App-Dossier.
+- Die Versionszeile in der `README.md` des DocuHub mitziehen.
+
+Der DocuHub ist ein lokales Git ohne Remote: selbst committen, mit einer
+Nachricht, die sagt, auf welchen Stand gebracht wurde. Private Angaben
+(Testkonten, Pfade) sind dort richtig aufgehoben — genau dafür gibt es
+ihn.
