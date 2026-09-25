@@ -105,7 +105,7 @@ final kHighlightDemos = <String, HighlightDemo>{
     route: '/pilze',
     script: _demo('pilze-reiter', [
       _pilzeOpenFirst,
-      ...kPilzeTourScript.steps.skip(4),
+      ...kPilzeTourScript.tourSteps.skip(4),
     ]),
   ),
   'fundfotos': HighlightDemo(
@@ -166,7 +166,7 @@ final kHighlightDemos = <String, HighlightDemo>{
   ),
   'spots-reiter': HighlightDemo(
     route: '/spots',
-    script: _demo('spots-reiter', kSpotsTourScript.steps),
+    script: _demo('spots-reiter', kSpotsTourScript.tourSteps),
   ),
   'fundorte': HighlightDemo(
     route: '/',
@@ -219,7 +219,7 @@ final kHighlightDemos = <String, HighlightDemo>{
   'langer-tipp': HighlightDemo(
     route: '/',
     script: _demo('langer-tipp', [
-      kMapTourScript.steps[1],
+      kMapTourScript.tourSteps[1],
       const CoachStep(
         title: 'Vier Wege von hier',
         text: '„Neuer Spot" genau an dieser Stelle, „Was ist hier?", '

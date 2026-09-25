@@ -7,6 +7,23 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Eine Startseite für jede Tour
+
+*25. September 2026 · Version 1.209.0*
+
+- Beim ersten Start begrüßt dich eine **Willkommensseite**, statt dass
+  die Tour sofort losgeht. „Nicht jetzt" fragt beim nächsten Start
+  wieder.
+- **Jede Tour beginnt mit einer Startseite**: ein kleines Bild und zwei
+  Sätze, wofür der Bereich gut ist — danach kommt die Bedienung.
+- Nach der Karte fragt die Tour **„Weiter mit den Spots?"**, dann mit den
+  Pilzen und den Buddys. „Später" beendet sie; die übrigen Bereiche
+  erklären sich dann beim ersten Besuch.
+- Die Karten-Tour nennt zum Schluss die **Bereiche unten** in je einem
+  Halbsatz.
+- Ein zu schneller zweiter Tipp überspringt keinen Schritt mehr, und
+  findet die Tour etwas nicht, sagt sie es, statt still weiterzuspringen.
+
 ## Neuheiten zeigen vor, und Rücksicht auf Einstellungen
 
 *25. September 2026 · Versionen 1.208.0 bis 1.208.2*

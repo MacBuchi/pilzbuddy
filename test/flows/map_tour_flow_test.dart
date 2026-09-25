@@ -15,6 +15,7 @@
 //   7. Am Ende führt ein Knopf in die Kurzanleitung, und von dort lässt
 //      sie sich neu starten.
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/features/coach/coach.dart';
 import 'package:pilzbuddy/features/help/map_tour.dart';
@@ -42,7 +43,10 @@ bool near(Rect a, Rect b) =>
 
 Rect union(Iterable<Rect> rects) => rects.reduce((a, b) => a.expandToInclude(b));
 
-final kTourTitles = [for (final s in kMapTourScript.steps) s.title];
+/// Die Schritte der Bedienung — ohne die Startseite davor.
+final kTourTitles = [for (final s in kMapTourScript.tourSteps) s.title];
+
+final intro = find.byKey(const ValueKey('coach-intro'));
 
 void main() {
   /// Ein Gerät dieser Maße — Oberfläche UND `MediaQuery` (#358).
@@ -59,6 +63,17 @@ void main() {
   }
 
   FakeSettings fresh() => FakeSettings(mapTourSeen: false);
+
+  /// Der erste Start: Willkommensseite, dann „Tour starten".
+  Future<void> pumpFresh(WidgetTester tester, [FakeSettings? settings]) async {
+    await pumpApp(tester, signedIn(), settings: settings ?? fresh());
+    expect(intro, findsOneWidget, reason: 'erst die Willkommensseite');
+    // Die Tippsperre (400 ms nach jedem neuen Schritt): Ein Nutzer, der
+    // blind tippt, bevor die Seite steht, soll nichts auslösen.
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('coach-intro-start')));
+    await settle(tester);
+  }
 
   Future<void> next(WidgetTester tester) async {
     await tester.tap(find.text('Weiter'));
@@ -79,7 +94,7 @@ void main() {
   testWidgets('läuft beim ersten Start an, der Reihe nach, dann nie wieder',
       (tester) async {
     final settings = fresh();
-    await pumpApp(tester, signedIn(), settings: settings);
+    await pumpFresh(tester, settings);
 
     for (final title in kTourTitles) {
       expect(find.text(title), findsOneWidget, reason: 'Schritt „$title"');
@@ -105,7 +120,7 @@ void main() {
     for (final size in [const Size(412, 915), const Size(360, 640)]) {
       useScreen(tester, size);
       await tester.pumpWidget(const SizedBox());
-      await pumpApp(tester, signedIn(), settings: fresh());
+      await pumpFresh(tester);
       final at = ' bei ${size.width}×${size.height}';
       final toolbar = union([
         tester.getRect(tool('Ebenen')),
@@ -176,7 +191,7 @@ void main() {
 
   testWidgets('der lange Druck wird vorgeführt, nicht beschrieben',
       (tester) async {
-    await pumpApp(tester, signedIn(), settings: fresh());
+    await pumpFresh(tester);
     await next(tester);
     expect(find.text('Lange drücken'), findsOneWidget);
     expect(
@@ -193,7 +208,7 @@ void main() {
       (tester) async {
     // Die Überlagerung schluckt jeden Tipp: Liegt das Menü offen und
     // tippt jemand auf „Neuer Spot", geht es nur weiter.
-    await pumpApp(tester, signedIn(), settings: fresh());
+    await pumpFresh(tester);
     await next(tester);
     await next(tester);
     expect(find.text('Neuer Spot, genau hier'), findsOneWidget);
@@ -206,7 +221,7 @@ void main() {
   testWidgets('Überspringen mitten im Menü lässt nichts offen',
       (tester) async {
     final settings = fresh();
-    await pumpApp(tester, signedIn(), settings: settings);
+    await pumpFresh(tester, settings);
     await next(tester);
     await next(tester);
     expect(find.text('Heranzoomen'), findsOneWidget);
@@ -218,7 +233,7 @@ void main() {
   });
 
   testWidgets('Überspringen im Blatt lässt nichts offen', (tester) async {
-    await pumpApp(tester, signedIn(), settings: fresh());
+    await pumpFresh(tester);
     for (var i = 0; i < 5; i++) {
       await next(tester);
     }
@@ -234,7 +249,7 @@ void main() {
     // Zurück-Verteiler bekäme der die Taste, und auf der Karte hieße das,
     // PilzBuddy zu verlassen.
     final settings = fresh();
-    await pumpApp(tester, signedIn(), settings: settings);
+    await pumpFresh(tester, settings);
     await next(tester);
     await next(tester); // Menü offen
     final handled = await tester.binding.handlePopRoute();
@@ -253,7 +268,7 @@ void main() {
     // gibt es nichts zurückzunehmen — die Taste muss bis zum System
     // durch (`handlePopRoute` meldet dann `false`).
     final settings = fresh();
-    await pumpApp(tester, signedIn(), settings: settings);
+    await pumpFresh(tester, settings);
     expect(await tester.binding.handlePopRoute(), isTrue,
         reason: 'während der Tour fängt sie die Taste');
     await settle(tester);
@@ -266,7 +281,7 @@ void main() {
     for (final size in [const Size(412, 915), const Size(360, 640)]) {
       useScreen(tester, size);
       await tester.pumpWidget(const SizedBox());
-      await pumpApp(tester, signedIn(), settings: fresh());
+      await pumpFresh(tester);
 
       for (final title in kTourTitles) {
         expect(find.text(title), findsOneWidget,
@@ -297,8 +312,19 @@ void main() {
 
   testWidgets('der letzte Schritt führt weiter in die Kurzanleitung',
       (tester) async {
-    final settings = fresh();
+    // Nur, wenn die Tour für sich läuft (aus der Kurzanleitung) — beim
+    // ersten Start geht es danach mit den Reitern weiter.
+    final settings = FakeSettings(mapTourSeen: false);
     await pumpApp(tester, signedIn(), settings: settings);
+    await tester.tap(find.byKey(const ValueKey('coach-intro-later')));
+    await settle(tester);
+    ProviderScope.containerOf(tester.element(find.byType(Scaffold).first))
+        .read(coachProvider.notifier)
+        .start(kMapTourScript, onDone: () => settings.mapTourSeen = true);
+    await settle(tester);
+    expect(find.text('Die Karte'), findsOneWidget, reason: 'ihre Startseite');
+    await tester.tap(find.byKey(const ValueKey('coach-intro-start')));
+    await settle(tester);
     for (var i = 0; i < kTourTitles.length - 1; i++) {
       await next(tester);
     }
@@ -341,7 +367,86 @@ void main() {
     await tester.tap(start);
     await settle(tester);
 
+    expect(find.text('Die Karte'), findsOneWidget, reason: 'ihre Startseite');
+    await tester.tap(find.byKey(const ValueKey('coach-intro-start')));
+    await settle(tester);
     expect(find.text(kTourTitles.first), findsOneWidget);
     expect(painter(tester).lit, hasLength(2));
+  });
+
+  testWidgets('„Nicht jetzt" auf der Willkommensseite: beim nächsten Start '
+      'wieder', (tester) async {
+    // Betreiber, 2026-09-25: „jedes Mal".
+    final settings = fresh();
+    await pumpApp(tester, signedIn(), settings: settings);
+    expect(find.text('Willkommen bei PilzBuddy'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('coach-intro-later')));
+    await settle(tester);
+    expect(intro, findsNothing);
+    expect(settings.mapTourSeen, isFalse, reason: 'nicht gesehen');
+
+    await tester.pumpWidget(const SizedBox());
+    await pumpApp(tester, signedIn(), settings: settings);
+    expect(find.text('Willkommen bei PilzBuddy'), findsOneWidget);
+  });
+
+  testWidgets('die Startseite verlangt eine Wahl: ein Tipp daneben tut '
+      'nichts, Zurück heißt „Nicht jetzt"', (tester) async {
+    final settings = fresh();
+    await pumpApp(tester, signedIn(), settings: settings);
+    await tester.tapAt(const Offset(5, 5));
+    await settle(tester);
+    expect(intro, findsOneWidget);
+    expect(await tester.binding.handlePopRoute(), isTrue);
+    await settle(tester);
+    expect(intro, findsNothing);
+    expect(settings.mapTourSeen, isFalse);
+  });
+
+  testWidgets('Bestandsnutzer bekommen keine „Willkommen"-Seite',
+      (tester) async {
+    // Nach dem Zurücksetzen in 1.208.0 sehen auch sie die Tour — aber
+    // „Willkommen bei PilzBuddy" wäre für sie falsch.
+    await pumpApp(tester, signedIn(),
+        settings: FakeSettings(mapTourSeen: false, legacyMapTourSeen: true));
+    expect(intro, findsOneWidget);
+    expect(find.text('Willkommen bei PilzBuddy'), findsNothing);
+  });
+
+  testWidgets('zum Schluss die Bereiche unten, je mit Ring', (tester) async {
+    await pumpFresh(tester);
+    for (var i = 0; i < kTourTitles.length - 1; i++) {
+      await next(tester);
+    }
+    expect(find.text('Unten die Bereiche'), findsOneWidget);
+    final bar = find.byType(NavigationBar);
+    final rings = painter(tester).ring;
+    expect(rings, hasLength(4));
+    for (final label in ['Spots', 'Pilze', 'Buddys', 'Profil']) {
+      final at = tester.getCenter(
+          find.descendant(of: bar, matching: find.text(label)));
+      expect(rings.any((r) => r.contains(at)), isTrue, reason: label);
+    }
+    // Karte ist der Reiter, auf dem man steht — kein Ring.
+    final map = tester.getCenter(
+        find.descendant(of: bar, matching: find.text('Karte')));
+    expect(rings.any((r) => r.contains(map)), isFalse);
+  });
+
+  testWidgets('ein zweiter Tipp gleich danach überspringt nichts',
+      (tester) async {
+    // Feldmeldung 2026-09-25 („scheint einen Schritt direkt zu
+    // überspringen"): Nach „Weiter" steht die neue Blase woanders, und
+    // ein nachwackelnder Finger landete auf IHREM „Weiter".
+    await pumpFresh(tester);
+    expect(find.text(kTourTitles[0]), findsOneWidget);
+    await tester.tap(find.text('Weiter'));
+    await tester.pump(const Duration(milliseconds: 60));
+    await tester.pump(const Duration(milliseconds: 60));
+    await tester.tapAt(const Offset(5, 5)); // irgendwohin, wie ein Nachtippen
+    await tester.pump(const Duration(milliseconds: 60));
+    await settle(tester);
+    expect(find.text(kTourTitles[1]), findsOneWidget,
+        reason: 'genau ein Schritt weiter');
   });
 }

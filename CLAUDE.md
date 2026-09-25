@@ -1337,6 +1337,37 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   Neuinstallation, und der Rückblick fiele weg (Flow-Test mit
   Gegenprobe). Wer wieder zurücksetzt: dieselbe Trennung, und
   `LAST_RESET` in `tool/highlights_preview.py` nachziehen.
+  **Startseiten, Willkommen und die Kette** (seit 1.209.0, Betreiber
+  2026-09-25: „man öffnet die App und es geht sofort los"). Jede Tour
+  beginnt mit einer Startseite (`CoachStep.art`, Bilder in
+  `tour_intro_art.dart`): Bild, WOZU, dann die Wahl. Beim ersten Start
+  ist es die Willkommensseite, danach die Karten-Tour mit einem Schritt
+  zur Leiste unten, danach fragt JEDE Grenze „Weiter mit den Spots?"
+  (`startWelcomeTour`). Sechs Dinge, die man wissen muss:
+  - **„Nicht jetzt"/„Später" ist kein Gesehen** (`CoachNotifier.decline`,
+    `onDecline`): Die Tour fragt beim nächsten Start wieder, JEDES Mal
+    (Betreiber); in derselben Sitzung nicht bei jedem Reiterwechsel
+    (`declinedTabToursProvider`, nur im Speicher). Zurück auf der
+    Startseite heißt „Nicht jetzt", ein Tipp daneben tut nichts.
+  - **Die Willkommens-Tour hat keinen Weg in die Kurzanleitung am Ende**
+    — sonst liefe die Kette gleichzeitig in den nächsten Reiter.
+  - **Bestandsnutzer sehen nicht „Willkommen"** (`kReturningIntro`, über
+    `legacyMapTourSeen`) — nach dem Zurücksetzen in 1.208.0 wäre das
+    falsch.
+  - **Tippsperre, 400 ms nach jedem neuen Schritt** (`_guarded`, Zeit des
+    Takts, nicht der Uhr — im Test wäre `DateTime.now` echt). Feldmeldung
+    „scheint einen Schritt direkt zu überspringen": Die neue Blase steht
+    woanders, ein nachwackelnder Finger traf ihr „Weiter". Tests müssen
+    deshalb nach dem Erscheinen eines Schritts einen Moment warten.
+  - **Ein fehlendes Ziel wird gesagt, nicht übersprungen** — bis 1.208.x
+    ging die Tour nach ~2 s still weiter, auf einem langsameren Gerät
+    sah das wie ein übersprungener Schritt aus.
+  - **Auf der Startseite scrollt nur der Inhalt**, die Wahl bleibt immer
+    im Bild, und das Bild schrumpft mit dem Schirm — auf einem kurzen
+    Schirm lag „Tour starten" sonst unter dem Rand (im Test gesehen).
+  Zähler und „Los geht's" zählen die Startseite nicht mit; Vorführungen
+  übernehmen Schritte über `tourSteps` (ohne Startseite).
+
   **Kurze Touren je Reiter** (seit 1.206.0, `lib/features/help/tab_tours.dart`):
   Spots, Pilze und Buddys, auf derselben Maschine, beim ERSTEN Besuch
   des Reiters. Vier Dinge, die man wissen muss:

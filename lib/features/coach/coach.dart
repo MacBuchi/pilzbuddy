@@ -57,6 +57,9 @@ class CoachStep {
     this.requires = const [],
     this.unless = const [],
     this.scrollIn,
+    this.art,
+    this.chainTitle,
+    this.startLabel,
   });
 
   final String title;
@@ -94,6 +97,22 @@ class CoachStep {
   /// Ziel fehlt, scrollt die Maschine diese Liste weiter — etwa zum
   /// Ampel-Schalter weit unten im Profil.
   final String? scrollIn;
+
+  /// Macht den Schritt zur STARTSEITE einer Tour: eine Karte mit Bild
+  /// und zwei Sätzen, WOFÜR der Bereich gut ist — die Bedienung kommt
+  /// danach (Betreiber, 2026-09-25: „zu jeder Tour eine Startseite …
+  /// schön liebevoll gestaltet"). Sie verlangt eine Wahl: loslegen oder
+  /// „Nicht jetzt"; ein Tipp daneben tut nichts.
+  final WidgetBuilder? art;
+
+  /// Die Überschrift, wenn diese Tour an eine andere anschließt
+  /// („Weiter mit den Spots?") — dort ist sie eine Frage.
+  final String? chainTitle;
+
+  /// Der Knopf zum Loslegen, falls nicht „Zeig's mir".
+  final String? startLabel;
+
+  bool get isIntro => art != null;
 }
 
 /// Ein Ablauf aus Schritten.
@@ -110,6 +129,15 @@ class CoachScript {
   /// Ein Weg weiter im LETZTEN Schritt, etwa in die Kurzanleitung:
   /// (Beschriftung, Route).
   final (String, String)? endLink;
+}
+
+extension CoachScriptSteps on CoachScript {
+  /// Die Schritte ohne Startseite — für Vorführungen, die einen Teil
+  /// einer Tour übernehmen und selbst keine Startseite brauchen.
+  List<CoachStep> get tourSteps => [
+        for (final s in steps)
+          if (!s.isIntro) s,
+      ];
 }
 
 /// Öffnet eine Szene und gibt zurück, wie sie wieder zu schließen ist.
@@ -196,10 +224,16 @@ class _CoachAnchorState extends ConsumerState<CoachAnchor> {
 
 /// Ein laufender Ablauf.
 class CoachRun {
-  const CoachRun(this.script, this.index, {List<int>? shown})
+  const CoachRun(this.script, this.index,
+      {List<int>? shown, this.chained = false})
       : _shown = shown;
   final CoachScript script;
   final int index;
+
+  /// Schließt diese Tour an eine andere an? Dann fragt ihre Startseite
+  /// („Weiter mit …?", „Später"), und der Weg in die Kurzanleitung am
+  /// Ende entfällt — die Kette geht ja weiter.
+  final bool chained;
 
   /// Welche Schritte laufen werden — die übrigen fallen weg (`requires`,
   /// `unless`). Danach richten sich Zähler und „Los geht's": Folgt nur
@@ -212,9 +246,13 @@ class CoachRun {
   CoachStep get step => script.steps[index];
   bool get isLast => _steps.last <= index;
 
-  /// „2 von 3", gezählt über die Schritte, die laufen.
-  int get position => _steps.where((i) => i <= index).length;
-  int get count => _steps.length;
+  /// „2 von 3", gezählt über die Schritte, die laufen — ohne die
+  /// Startseite, die ist keiner.
+  int get position => _counted.where((i) => i <= index).length;
+  int get count => _counted.length;
+  Iterable<int> get _counted => _steps.where((i) => !script.steps[i].isIntro);
+
+  (String, String)? get endLink => chained ? null : script.endLink;
 }
 
 class CoachNotifier extends Notifier<CoachRun?> {
@@ -225,6 +263,8 @@ class CoachNotifier extends Notifier<CoachRun?> {
   List<String> _wanted = const [];
 
   VoidCallback? _onDone;
+  VoidCallback? _onDecline;
+  bool _chained = false;
 
   /// Vorgemerkte Starts (`reserve`): Zählt als belegt, damit in der Zeit
   /// zwischen Tipp und Start keine andere Tour dazwischenkommt.
@@ -242,11 +282,29 @@ class CoachNotifier extends Notifier<CoachRun?> {
 
   /// Startet [script]. [onDone] läuft beim Ende — durchgesehen ODER
   /// übersprungen: Wer abbricht, hat entschieden.
-  void start(CoachScript script, {VoidCallback? onDone}) {
+  ///
+  /// [onDecline] läuft stattdessen, wenn auf der Startseite „Nicht
+  /// jetzt" (bzw. „Später") gewählt wird: Das ist KEIN Gesehen — die Tour
+  /// fragt in der nächsten Sitzung wieder (Betreiber: „jedes Mal").
+  void start(CoachScript script,
+      {VoidCallback? onDone, VoidCallback? onDecline, bool chained = false}) {
     if (_reserved > 0) _reserved--;
     _setScene(null);
     _onDone = onDone;
+    _onDecline = onDecline;
+    _chained = chained;
     _go(CoachRun(script, 0));
+  }
+
+  /// „Nicht jetzt" auf der Startseite.
+  void decline() {
+    if (state == null) return;
+    _setScene(null);
+    state = null;
+    final declined = _onDecline;
+    _onDone = null;
+    _onDecline = null;
+    declined?.call();
   }
 
   /// Gibt eine Vormerkung zurück, aus der nichts wurde.
@@ -270,6 +328,7 @@ class CoachNotifier extends Notifier<CoachRun?> {
     state = null;
     final done = _onDone;
     _onDone = null;
+    _onDecline = null;
     done?.call();
   }
 
@@ -303,7 +362,8 @@ class CoachNotifier extends Notifier<CoachRun?> {
       for (var i = 0; i < steps.length; i++)
         if (i == index || (i != index && _runs(steps[i]))) i,
     ];
-    final next = CoachRun(run.script, index, shown: shown);
+    final next =
+        CoachRun(run.script, index, shown: shown, chained: _chained);
     _setScene(next.step.scene);
     state = next;
   }
@@ -439,16 +499,44 @@ class _CoachOverlayState extends ConsumerState<CoachOverlay>
   List<Rect> _ring = const [];
   CoachRun? _measured;
 
-  /// Wie viele Bilder das Ziel des Schritts schon fehlt. Schließt jemand
-  /// das Menü mit „Zurück", ist es weg — dann geht es weiter, statt
-  /// ewig auf leere Fläche zu zeigen.
+  /// Wie viele Bilder das Ziel des Schritts schon fehlt. Nach rund zwei
+  /// Sekunden sagt die Blase es ([_targetLost]).
+  ///
+  /// **Bis 1.208.x ging die Tour dann von selbst weiter.** Auf einem
+  /// Gerät, das ein Blatt langsamer öffnet als der Test, sah das aus wie
+  /// ein übersprungener Schritt (Feldmeldung 2026-09-25). Ein sichtbarer
+  /// Hinweis ist ehrlicher als ein stiller Sprung, und „Weiter" bleibt
+  /// ja da.
   int _missingFrames = 0;
   static const _maxMissingFrames = 120;
+  bool _targetLost = false;
+
+  /// Wann der laufende Schritt erschien (Zeit des Takts). Tipps davor
+  /// zählen nicht: Nach „Weiter" steht die neue Blase woanders, und ein
+  /// zweiter Tipp oder ein nachwackelnder Finger landete sonst auf IHREM
+  /// „Weiter" — ein Schritt, den man nie gesehen hat.
+  Duration _stepShownAt = Duration.zero;
+  CoachRun? _stepRun;
+  static const _tapGuard = Duration(milliseconds: 400);
+
+  Duration get _now => _clock.lastElapsedDuration ?? Duration.zero;
+
+  /// Führt [action] nur aus, wenn der Schritt lange genug steht.
+  void _guarded(VoidCallback action) {
+    if (_now - _stepShownAt < _tapGuard) return;
+    action();
+  }
 
   ChildBackButtonDispatcher? _back;
 
   Future<bool> _onBack() {
-    ref.read(coachProvider.notifier).finish();
+    // Auf der Startseite heißt Zurück „Nicht jetzt", danach „aufhören".
+    final notifier = ref.read(coachProvider.notifier);
+    if (ref.read(coachProvider)?.step.isIntro ?? false) {
+      notifier.decline();
+    } else {
+      notifier.finish();
+    }
     return SynchronousFuture(true);
   }
 
@@ -514,12 +602,12 @@ class _CoachOverlayState extends ConsumerState<CoachOverlay>
       _scrollOn(step.scrollIn!);
     }
     if (!complete) {
-      if (++_missingFrames > _maxMissingFrames) {
-        _missingFrames = 0;
-        ref.read(coachProvider.notifier).next();
+      if (++_missingFrames > _maxMissingFrames && !_targetLost) {
+        setState(() => _targetLost = true);
       }
     } else {
       _missingFrames = 0;
+      if (_targetLost) setState(() => _targetLost = false);
     }
     if (complete && run != _measured) _revealOffscreen(step.lit, lit);
     if (run == _measured && _same(lit, _lit) && _same(ring, _ring)) return;
@@ -600,6 +688,12 @@ class _CoachOverlayState extends ConsumerState<CoachOverlay>
       return const SizedBox.shrink();
     }
     if (!_clock.isAnimating) _clock.repeat();
+    if (run != _stepRun) {
+      _stepRun = run;
+      _stepShownAt = _now;
+      _missingFrames = 0;
+      _targetLost = false;
+    }
     // Solange der Schritt nicht vermessen ist, wird nur abgedunkelt —
     // keine Aussparung an einer geratenen Stelle. Das dauert ein Bild,
     // bei einer Szene so lange, bis sie steht.
@@ -617,7 +711,11 @@ class _CoachOverlayState extends ConsumerState<CoachOverlay>
           // in der Blase, dieser Tipp bleibt ihm verborgen.
           excludeFromSemantics: true,
           behavior: HitTestBehavior.opaque,
-          onTap: () => ref.read(coachProvider.notifier).next(),
+          // Auf der Startseite tut ein Tipp daneben nichts: Sie verlangt
+          // eine Wahl.
+          onTap: run.step.isIntro
+              ? null
+              : () => _guarded(ref.read(coachProvider.notifier).next),
           child: AnimatedBuilder(
             animation: _clock,
             builder: (context, _) => Stack(
@@ -636,7 +734,10 @@ class _CoachOverlayState extends ConsumerState<CoachOverlay>
                 if (measured && run.step.gesture != CoachGesture.none)
                   _finger(run.step.gesture, ring.isNotEmpty ? ring : lit,
                       constraints.biggest, still: still),
-                _bubble(context, run, lit, ring, constraints.biggest),
+                if (run.step.isIntro)
+                  _intro(context, run, still: still)
+                else
+                  _bubble(context, run, lit, ring, constraints.biggest),
               ],
             ),
           ),
@@ -662,6 +763,102 @@ class _CoachOverlayState extends ConsumerState<CoachOverlay>
           painter: FingerPainter(
               gesture: gesture,
               t: still ? gestureStillFrame(gesture) : _clock.value),
+        ),
+      ),
+    );
+  }
+
+  /// Die Startseite einer Tour: mittig, mit Bild, Wozu und der Wahl.
+  Widget _intro(BuildContext context, CoachRun run, {required bool still}) {
+    final theme = Theme.of(context);
+    final step = run.step;
+    final notifier = ref.read(coachProvider.notifier);
+    final title =
+        run.chained ? (step.chainTitle ?? step.title) : step.title;
+    return Positioned.fill(
+      child: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Card(
+                key: const ValueKey('coach-intro'),
+                elevation: 8,
+                margin: EdgeInsets.zero,
+                clipBehavior: Clip.antiAlias,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24)),
+                child: Semantics(
+                  container: true,
+                  liveRegion: true,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Nur der Inhalt scrollt, die Wahl bleibt immer im
+                        // Bild — auf einem kurzen Schirm lag „Tour starten"
+                        // sonst unter dem Rand (im Test so gesehen).
+                        Flexible(
+                          child: SingleChildScrollView(
+                            child: Column(
+                              children: [
+                                // Das Bild schrumpft mit dem Schirm, statt
+                                // den Text zu verdrängen. „Animationen
+                                // entfernen": Es steht still.
+                                SizedBox(
+                                  height: (MediaQuery.sizeOf(context).height *
+                                          0.2)
+                                      .clamp(80.0, 150.0),
+                                  child: FittedBox(
+                                    child: TickerMode(
+                                      enabled: !still,
+                                      child: ExcludeSemantics(
+                                          child: step.art!(context)),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                Text(title,
+                                    textAlign: TextAlign.center,
+                                    style: theme.textTheme.headlineSmall),
+                                const SizedBox(height: 10),
+                                Text(step.text,
+                                    textAlign: TextAlign.center,
+                                    style: theme.textTheme.bodyLarge),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Wrap(
+                          alignment: WrapAlignment.center,
+                          spacing: 8,
+                          runSpacing: 4,
+                          children: [
+                            TextButton(
+                              key: const ValueKey('coach-intro-later'),
+                              onPressed: () => _guarded(notifier.decline),
+                              child: Text(
+                                  run.chained ? 'Später' : 'Nicht jetzt'),
+                            ),
+                            FilledButton(
+                              key: const ValueKey('coach-intro-start'),
+                              onPressed: () => _guarded(notifier.next),
+                              child: Text(run.chained
+                                  ? 'Weiter'
+                                  : step.startLabel ?? 'Zeig\'s mir'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -701,7 +898,7 @@ class _CoachOverlayState extends ConsumerState<CoachOverlay>
         ? ring.reduce((a, b) => a.expandToInclude(b)).center
         : union?.center;
     final step = run.step;
-    final link = run.isLast ? run.script.endLink : null;
+    final link = run.isLast ? run.endLink : null;
     final placement = _BubblePlacement();
     return Positioned.fill(
       child: CustomSingleChildLayout(
@@ -752,6 +949,16 @@ class _CoachOverlayState extends ConsumerState<CoachOverlay>
                     Flexible(
                       child: SingleChildScrollView(child: Text(step.text)),
                     ),
+                    if (_targetLost) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Das, worauf dieser Schritt zeigt, ist gerade nicht '
+                        'zu sehen. „Weiter" führt zum nächsten.',
+                        key: const ValueKey('coach-target-lost'),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.error),
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     Text('${run.position} von ${run.count}',
                         style: Theme.of(context)
@@ -767,21 +974,21 @@ class _CoachOverlayState extends ConsumerState<CoachOverlay>
                       children: [
                         if (link != null)
                           TextButton(
-                            onPressed: () {
+                            onPressed: () => _guarded(() {
                               ref.read(coachProvider.notifier).finish();
                               widget.onNavigate(link.$2);
-                            },
+                            }),
                             child: Text(link.$1),
                           )
                         else if (!run.isLast)
                           TextButton(
-                            onPressed: () =>
-                                ref.read(coachProvider.notifier).finish(),
+                            onPressed: () => _guarded(
+                                ref.read(coachProvider.notifier).finish),
                             child: const Text('Überspringen'),
                           ),
                         FilledButton(
                           onPressed: () =>
-                              ref.read(coachProvider.notifier).next(),
+                              _guarded(ref.read(coachProvider.notifier).next),
                           child: Text(run.isLast ? 'Los geht\'s' : 'Weiter'),
                         ),
                       ],

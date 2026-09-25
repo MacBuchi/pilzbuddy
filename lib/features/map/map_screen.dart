@@ -42,6 +42,7 @@ import '../spots/widgets/add_find_sheet.dart';
 import '../spots/widgets/find_photo_strip.dart' show shareFreshFindPhoto;
 import '../coach/coach.dart';
 import '../help/map_tour.dart';
+import '../help/tab_tours.dart' show startWelcomeTour;
 import '../highlights/highlight_sheet.dart';
 import '../spots/widgets/spot_detail_sheet.dart';
 import 'live_share_providers.dart';
@@ -204,7 +205,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
         ref.read(safetyNoteSeenProvider.notifier).set(true);
         unawaited(showSafetyNoteDialog(context));
       } else if (!ref.read(mapTourSeenProvider)) {
-        startMapTour(ref);
+        // Mit Willkommensseite und den Reitern danach (#596).
+        startWelcomeTour(ref, GoRouter.of(context));
       } else {
         overlayShown = false;
       }

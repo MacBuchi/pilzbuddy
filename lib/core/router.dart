@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../features/coach/coach.dart';
+import '../features/help/map_tour.dart' show NavCoach;
 import '../data/providers.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/signup_screen.dart';
@@ -195,24 +197,36 @@ class AppShell extends StatelessWidget {
       // hinterlassen.
       resizeToAvoidBottomInset: false,
       body: navigationShell,
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: CoachAnchor(
+        id: NavCoach.bar,
+        child: NavigationBar(
         selectedIndex: navigationShell.currentIndex,
         onDestinationSelected: (index) => navigationShell.goBranch(
           index,
           initialLocation: index == navigationShell.currentIndex,
         ),
+        // Die Anker der Karten-Tour (#596): Sie nennt die Bereiche
+        // zum Schluss, der Ring liegt je Bereich.
         destinations: const [
           NavigationDestination(icon: Icon(Icons.map_outlined), selectedIcon: Icon(Icons.map), label: 'Karte'),
-          NavigationDestination(icon: Icon(Icons.list_alt_outlined), selectedIcon: Icon(Icons.list_alt), label: 'Spots'),
-          NavigationDestination(icon: Icon(Icons.menu_book_outlined), selectedIcon: Icon(Icons.menu_book), label: 'Pilze'),
+          CoachAnchor(
+              id: NavCoach.spots,
+              child: NavigationDestination(icon: Icon(Icons.list_alt_outlined), selectedIcon: Icon(Icons.list_alt), label: 'Spots')),
+          CoachAnchor(
+              id: NavCoach.pilze,
+              child: NavigationDestination(icon: Icon(Icons.menu_book_outlined), selectedIcon: Icon(Icons.menu_book), label: 'Pilze')),
           // Ungelesene Nachrichten (#564) als Punkt am Reiter.
-          NavigationDestination(
-              icon: BuddysNavIcon(selected: false),
-              selectedIcon: BuddysNavIcon(selected: true),
-              label: 'Buddys'),
-          NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Profil'),
+          CoachAnchor(
+              id: NavCoach.buddys,
+              child: NavigationDestination(
+                  icon: BuddysNavIcon(selected: false),
+                  selectedIcon: BuddysNavIcon(selected: true),
+                  label: 'Buddys')),
+          CoachAnchor(
+              id: NavCoach.profile,
+              child: NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Profil')),
         ],
-      ),
+      )),
     );
   }
 }
