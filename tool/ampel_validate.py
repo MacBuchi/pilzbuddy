@@ -2827,13 +2827,24 @@ def class_holdout_clean(row):
     return control_clean(row["mirror_auc"], row.get("mirror_n"))
 
 
-def class_holdout_verdict(rows, members):
+def class_holdout_verdict(rows, members, window=None):
     """Vier Ausgänge, wie beim Kalttest — und „offen" ist nicht „keine".
 
     Eine Art ohne Material oder mit verzerrter Ziehung ist NICHT
     gemessen worden. Das als Fehlschlag zu berichten wäre eine Aussage
     über Daten, die es nicht gibt.
+
+    **Ein fünfter Ausgang, „leer"** (seit 2026-09-25, Lauf für Südtirol):
+    Ist das Fenster der Klasse die Referenz selbst (`herbst` liegt
+    ausgeliefert auf 13 °C), vergleicht der Hold-out 13 °C gegen 13 °C
+    und schreibt bei jeder Art +0,000 — und meldete das als „nicht
+    bestanden, kein Mitglied erreicht die Latte". Das ist kein
+    Fehlschlag der Klasse, sondern ein Vergleich ohne Inhalt; ein
+    Leser hätte daraus gelesen, Steinpilz & Co. reise nicht in die
+    Alpen.
     """
+    if window is not None and abs(window - OPTIMUM_C) < 1e-9:
+        return {"state": "leer", "met": [], "failed": [], "offen": []}
     by_name = {row["name"]: row for row in rows}
     offen, met, failed = [], [], []
     for name in members:
@@ -2891,7 +2902,7 @@ def render_class_holdout_report(rows, countries, key, window, fits,
     """
     klass = AMPEL_CLASSES[key]
     members = klass["members"]
-    verdict_info = class_holdout_verdict(rows, members)
+    verdict_info = class_holdout_verdict(rows, members, window)
     state = verdict_info["state"]
     laender = " und ".join(countries)
     out = [f"# Hold-out der Klasse „{key}“", "",
@@ -2966,7 +2977,20 @@ def render_class_holdout_report(rows, countries, key, window, fits,
             "",
             "## Der Ausgang", ""]
 
-    if state == "offen":
+    if state == "leer":
+        out += [f"**Nicht messbar — das Fenster der Klasse IST die "
+                f"Referenz.** {_optimum_text(window)} °C gegen "
+                f"{OPTIMUM_C:.0f} °C ergibt bei jeder Art +0,000; dieser "
+                "Hold-out prüft, ob ein ABWEICHENDES Fenster reist, und "
+                "hier weicht keines ab.", "",
+                "Was die Tabelle trotzdem sagt: die AUC mit "
+                f"{OPTIMUM_C:.0f} °C je Art ist die Trennschärfe der "
+                f"ausgelieferten Ampel in {laender}, bei der genannten "
+                "Paarzahl und mit der Kontrolle daneben. Ob diese Zahl "
+                "trägt, ist eine andere Frage mit einer anderen Latte "
+                "(`docs/pilzampel-pruefachsen.md`).", "",
+                "**Bis dahin ändert sich nichts an der App.**"]
+    elif state == "offen":
         out += ["**Noch nicht entschieden.** Nicht auswertbar: "
                 + ", ".join(verdict_info["offen"]) + ".", "",
                 "Das ist kein Fehlschlag, sondern eine Lücke — und die "
@@ -5120,6 +5144,14 @@ def self_test():
         [hold_row(a, 0.09), hold_row(b, 0.07)], ["IT"], "herbst_holz",
         fenster, fits, "2026-09-25")
     assert "Alpenraum, nicht Italien" in alpen and "45.6–47.2" in alpen, alpen
+    # Fenster = Referenz: „leer", nicht „nicht bestanden" — genau so
+    # gemeldet für `herbst` (13 °C) in der Alpenbox am 2026-09-25.
+    leer = render_class_holdout_report(
+        [hold_row(a, 0.0), hold_row(b, 0.0)], ["IT"], "herbst_holz",
+        OPTIMUM_C, fits, "2026-09-25")
+    assert "Nicht messbar" in leer and "Nicht bestanden" not in leer, leer
+    assert class_holdout_verdict([hold_row(a, 0.0)], [a], OPTIMUM_C)["state"] == "leer"
+    assert class_holdout_verdict([hold_row(a, 0.0)], [a], 11.0)["state"] == "keine"
     # Die Richtungsaussage steht NACH dem Urteil und nennt sich kein Tor.
     assert gut.index("## Der Ausgang") < gut.index("## Die Richtungsaussage")
     assert "kein Tor" in gut and "kein Beleg" in gut
@@ -6449,7 +6481,7 @@ def main():
             else:
                 print(report)
             print(f"\n  Ausgang: "
-                  f"{class_holdout_verdict(rows, members)['state']}",
+                  f"{class_holdout_verdict(rows, members, window)['state']}",
                   file=sys.stderr)
             return
         wanted = [n.strip() for n in args.only.split(",") if n.strip()]
