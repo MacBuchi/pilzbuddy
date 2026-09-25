@@ -7,6 +7,17 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die Touren noch einmal, und der neueste Spot obenauf
+
+*25. September 2026 · Version 1.210.1*
+
+- Die Touren kommen **noch einmal für alle** — jetzt mit Startseiten
+  und, wo noch nichts da ist, mit Beispielen.
+- Liegen zwei eigene Spots dicht beieinander, liegt auf der Karte jetzt
+  der **neueste obenauf**, nicht der älteste.
+- Der **GPX-Export** listet deine Spots in der Reihenfolge, in der du
+  sie angelegt hast.
+
 ## Eine Startseite für jede Tour
 
 *25. September 2026 · Versionen 1.209.0 bis 1.210.0*

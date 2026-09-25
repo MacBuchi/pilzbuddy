@@ -1336,7 +1336,15 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   sonst hielte die App nach dem Zurücksetzen jeden für eine
   Neuinstallation, und der Rückblick fiele weg (Flow-Test mit
   Gegenprobe). Wer wieder zurücksetzt: dieselbe Trennung, und
-  `LAST_RESET` in `tool/highlights_preview.py` nachziehen.
+  `LAST_RESET` in `tool/highlights_preview.py` nachziehen — aber NUR,
+  wenn auch der Neuheiten-Stand zurückgesetzt wird.
+  **Noch einmal in 1.210.1, nur die Touren** (Betreiber, 2026-09-25,
+  nach Startseiten und Beispielen): `map_tour_seen_3`,
+  `seen_coach_tours_3`. Neuheiten-Stand und „Neu"-Punkte bleiben, also
+  bleibt auch `LAST_RESET`. `legacyMapTourSeen` liest seither ALLE
+  früheren Tour-Schlüssel (`_legacyMapTourSeenKeys`) — beim nächsten
+  Mal kommt der dann alte dazu, sonst hieße ein Nutzer von 1.208 bis
+  1.210 „Willkommen" (`test/settings_tour_reset_test.dart`).
   **Startseiten, Willkommen und die Kette** (seit 1.209.0, Betreiber
   2026-09-25: „man öffnet die App und es geht sofort los"). Jede Tour
   beginnt mit einer Startseite (`CoachStep.art`, Bilder in
