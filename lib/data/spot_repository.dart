@@ -124,7 +124,14 @@ class SpotRepository {
           .select(
               '*, finds(*, author:profiles!finds_author_id_fkey(username, avatar))')
           .eq('owner_id', uid)
-          .order('created_at')
+          // Ältester zuerst, ausdrücklich: postgrest-dart sortiert ohne
+          // Angabe ABSTEIGEND. So war es bis 1.210.0 — der Fake lieferte
+          // aufsteigend, die Tests prüften also eine andere Reihenfolge
+          // als die ausgelieferte. Aufsteigend liegt der neueste Spot auf
+          // der Karte obenauf (zuletzt gezeichnet), die wartenden aus dem
+          // Ausgangskorb folgen hinten, und der GPX-Export ist
+          // chronologisch.
+          .order('created_at', ascending: true)
           .timeout(fetchTimeout);
       return rows.cast<Map<String, dynamic>>();
     }

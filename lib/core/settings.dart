@@ -180,8 +180,8 @@ abstract interface class Settings {
 
   Future<void> setMapTourSeen(bool value);
 
-  /// Hat dieses Gerät die Karten-Tour VOR dem Zurücksetzen in 1.208.0
-  /// gesehen? Nur gelesen, nie geschrieben.
+  /// Hat dieses Gerät die Karten-Tour VOR einem Zurücksetzen gesehen
+  /// (1.208.0, 1.210.1)? Nur gelesen, nie geschrieben.
   ///
   /// **Der Merker hat zwei Aufgaben, und nur eine sollte zurück.** Die
   /// neue Tour (#596) sollen alle sehen, also liest [mapTourSeen] seit
@@ -469,16 +469,23 @@ class PrefsSettings implements Settings {
       ? _prefs.remove(_rainLayerNameKey)
       : _prefs.setString(_rainLayerNameKey, value);
 
-  // `_2` seit 1.208.0: alle sehen die neue Tour (Betreiber, 2026-09-25).
-  static const _mapTourSeenKey = 'map_tour_seen_2';
-  static const _legacyMapTourSeenKey = 'map_tour_seen';
+  // `_2` seit 1.208.0, `_3` seit 1.210.1: alle sehen die Tour noch einmal
+  // (Betreiber, 2026-09-25 — nach Startseiten und Beispielen).
+  static const _mapTourSeenKey = 'map_tour_seen_3';
+
+  /// Die früheren Schlüssel — nur noch für [legacyMapTourSeen]. Wer eine
+  /// davon hat, ist KEIN Neuling: Er sähe sonst „Willkommen" statt „Schön,
+  /// dass du wieder da bist", und der Rückblick hielte ihn für eine
+  /// Neuinstallation. Beim nächsten Zurücksetzen kommt der dann alte
+  /// Schlüssel hier dazu, nicht an seine Stelle.
+  static const _legacyMapTourSeenKeys = ['map_tour_seen', 'map_tour_seen_2'];
 
   @override
   bool get mapTourSeen => _prefs.getBool(_mapTourSeenKey) ?? false;
 
   @override
   bool get legacyMapTourSeen =>
-      _prefs.getBool(_legacyMapTourSeenKey) ?? false;
+      _legacyMapTourSeenKeys.any((key) => _prefs.getBool(key) ?? false);
 
   @override
   Future<void> setMapTourSeen(bool value) =>
@@ -636,7 +643,8 @@ class PrefsSettings implements Settings {
   Future<void> setSeenHighlightIds(Set<String> value) =>
       _prefs.setStringList(_seenHighlightIdsKey, value.toList()..sort());
 
-  static const _seenCoachToursKey = 'seen_coach_tours_2';
+  // `_3` seit 1.210.1, zusammen mit der Karten-Tour zurückgesetzt.
+  static const _seenCoachToursKey = 'seen_coach_tours_3';
 
   @override
   Set<String> get seenCoachTours =>
