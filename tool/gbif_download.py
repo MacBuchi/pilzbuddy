@@ -59,8 +59,8 @@ def cred_paths():
     """Wo nach den Zugangsdaten gesucht wird — aus der Umgebung, nicht
     aus dem Quelltext.
 
-    Bis zum 2026-09-18 standen hier zwei feste Pfade, einer davon im über
-    Nextcloud synchronisierten Austauschordner. Beides gehört nicht in
+    Bis zum 2026-09-18 standen hier zwei feste Pfade, einer davon im
+    synchronisierten Austauschordner. Beides gehört nicht in
     ein öffentliches Repo: der erste, weil er den Aufbau einer fremden
     Maschine beschreibt, der zweite zusätzlich, weil er einen Ort
     empfahl, an dem Geheimnisse nichts verloren haben.

@@ -9,7 +9,7 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Neuheiten zeigen vor, und Rücksicht auf Einstellungen
 
-*25. September 2026 · Version 1.208.0*
+*25. September 2026 · Versionen 1.208.0 und 1.208.1*
 
 - Im Blatt „Neu in PilzBuddy" führt ein Tipp auf eine Zeile die Neuheit
   jetzt gleich vor, wie „Zeig es mir" in Entdecken.
@@ -3655,7 +3655,7 @@ unter dem neuen Namen.
 
 Nebenbei ist eine Lücke geschlossen: Benutzernamen sind jetzt auch dann
 einmalig, wenn sie sich nur in Groß- und Kleinschreibung unterscheiden.
-Ein zweiter „marcus" neben einem „Marcus" wäre für alle, die suchen,
+Ein zweiter „pilzfreund" neben einem „Pilzfreund" wäre für alle, die suchen,
 dasselbe Konto gewesen.
 
 ## Wie warm war es an deinem Spot

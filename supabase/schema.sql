@@ -15,8 +15,8 @@ create table public.profiles (
   created_at timestamptz not null default now()
 );
 -- Einmalig auch über Groß-/Kleinschreibung hinweg (Patch 013): Die
--- Freundessuche matcht per ilike auf das Namens-Präfix, „Marcus" und
--- „marcus" wären für Suchende dasselbe Konto.
+-- Freundessuche matcht per ilike auf das Namens-Präfix, „Pilzfreund" und
+-- „pilzfreund" wären für Suchende dasselbe Konto.
 create unique index profiles_username_lower_key
   on public.profiles (lower(username));
 

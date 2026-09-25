@@ -288,10 +288,10 @@ void main() {
       // search_profiles). Ein Vertipper veröffentlicht damit das
       // Postfach, auf dessen Nicht-Öffentlichkeit die Freundessuche baut.
       for (final tippfehler in [
-        'marcus.bucher@web.de',
+        'pilz.freund@example.org',
         'a@b.de',
         'PILZ@GMAIL.COM',
-        '  marcus@web.de  ',
+        '  pilzfreund@example.org  ',
       ]) {
         expect(usernameProblem(tippfehler), contains('E-Mail-Adresse'),
             reason: '„$tippfehler" sieht aus wie eine Adresse');

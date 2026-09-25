@@ -43,7 +43,7 @@ android {
 
     defaultConfig {
         // Umgedrehte Domain, die dem Betreiber gehört (mcbuchi.de) — und
-        // bewusst OHNE Klarnamen: Bis 1.87.1 stand hier `de.marcusbucher.…`,
+        // bewusst OHNE Klarnamen: Bis 1.87.1 stand hier ein Paketname mit Klarnamen,
         // und der Paketname ist an jedem Gerät und in jedem Store sichtbar.
         //
         // **Ab dem ersten AAB-Upload ist dieser Wert unveränderlich.** Play

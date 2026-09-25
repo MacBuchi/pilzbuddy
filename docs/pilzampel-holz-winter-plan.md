@@ -2,7 +2,7 @@
 
 Stand: 2026-09-20. Plan vor Implementierung; nichts hiervon ist gebaut.
 Grundlage sind die Läufe 11–18 des privaten Labors (`pilzbuddy-lab`,
-Berichte gespiegelt nach `Claude_exchange/Pilzampel-lab/`), gerechnet
+Berichte gespiegelt in den Austauschordner des Betreibers), gerechnet
 gegen `9a8a2c414f` (`feat/ampel-auftrag-3`), Design B, Erkundungs- und
 Testblöcke wie in `docs/pilzampel-auftrag-4.md` §3, seit Lauf 17 um
 AT+CH erweitert.

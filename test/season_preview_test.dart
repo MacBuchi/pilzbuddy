@@ -26,8 +26,10 @@ import 'package:pilzbuddy/features/spots/widgets/species_season_section.dart';
 /// Zweck der Vorschau. Nur für das Bild: Fehlt die Datei, läuft der Test
 /// weiter, dann eben mit Kästchen.
 Future<void> loadRoboto() async {
-  final sdk = Platform.environment['FLUTTER_ROOT'] ??
-      '/Volumes/MacStore/Programming/Flutter/SDK/flutter';
+  // `flutter test` setzt FLUTTER_ROOT selbst; ohne bleibt es bei den
+  // Platzhalterkästchen. Kein fester Pfad: Das Repo ist öffentlich.
+  final sdk = Platform.environment['FLUTTER_ROOT'];
+  if (sdk == null) return;
   final file = File('$sdk/bin/cache/artifacts/material_fonts/Roboto-Regular.ttf');
   if (!file.existsSync()) return;
   final loader = FontLoader('Roboto')

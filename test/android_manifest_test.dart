@@ -65,7 +65,7 @@ Set<(String, String)> _excludes(XmlElement parent) => {
 
 void main() {
   test('Der Paketname ist überall derselbe', () {
-    // Beim Umzug von `de.marcusbucher.…` auf `de.mcbuchi.…` (1.88.0)
+    // Beim Umzug vom Paketnamen mit Klarnamen auf `de.mcbuchi.…` (1.88.0)
     // mussten sechs Stellen gleichzeitig stimmen, und die drei
     // gefährlichsten brechen STILL:
     //
