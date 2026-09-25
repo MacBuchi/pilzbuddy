@@ -149,6 +149,27 @@ class _MapScreenState extends ConsumerState<MapScreen>
         return () {
           if (open) navigator.pop();
         };
+      }))
+      // Die beiden Blätter der Vorführungen aus „Entdecken" (#596):
+      // direkt geöffnet, nicht über `_openTrip`/`_addSpotAt`, die das
+      // Ergebnis auswerten (Tour starten, Spot speichern) — geschlossen
+      // wird mit `null`, also ohne Folgen.
+      ..add(coach.registerScene(MapCoach.tripSheet, () async {
+        final navigator = Navigator.of(context);
+        var open = true;
+        unawaited(showTripSheet(context).whenComplete(() => open = false));
+        return () {
+          if (open) navigator.pop();
+        };
+      }))
+      ..add(coach.registerScene(MapCoach.addSheet, () async {
+        final navigator = Navigator.of(context);
+        var open = true;
+        unawaited(showAddSpotSheet(context, _map.center)
+            .whenComplete(() => open = false));
+        return () {
+          if (open) navigator.pop();
+        };
       }));
     // Der Ausgangskorb (#267) beim Start: Wer gestern im Wald etwas
     // eingetragen hat, soll es heute nicht von Hand losschicken müssen.
@@ -1175,6 +1196,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   // Schließen.
                   if (activeLayers > 0)
                     _Tool(
+                      coachId: MapCoach.hideLayers,
                       tooltip: overlaysHidden
                           ? 'Ebenen einblenden'
                           : 'Ebenen ausblenden',

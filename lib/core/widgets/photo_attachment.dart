@@ -157,13 +157,18 @@ class _PhotoAttachmentState extends State<PhotoAttachment> {
     }
     if (photo == null) {
       return Row(children: [
-        OutlinedButton.icon(
-          key: kAttachPhotoKey,
-          icon: const Icon(Icons.image_outlined, size: 18),
-          label: Text(widget.label),
-          onPressed: widget.pickMany != null && widget.onPickedMany != null
-              ? _pickMany
-              : () => _pick(PhotoSource.gallery),
+        // Nachgeben darf nur die Beschriftung: Im Dialog auf 360 dp
+        // bleiben neben der Kamera gut 180 px (#596, im Test 65 px
+        // Überlauf).
+        Flexible(
+          child: OutlinedButton.icon(
+            key: kAttachPhotoKey,
+            icon: const Icon(Icons.image_outlined, size: 18),
+            label: Text(widget.label, overflow: TextOverflow.ellipsis),
+            onPressed: widget.pickMany != null && widget.onPickedMany != null
+                ? _pickMany
+                : () => _pick(PhotoSource.gallery),
+          ),
         ),
         IconButton(
           key: kAttachPhotoCameraKey,

@@ -50,7 +50,11 @@ class CountField extends StatelessWidget {
                 // Knopf neben Plus und Minus wäre eine weitere Stelle,
                 // die man suchen muss; die Zahl steht ohnehin in der
                 // Mitte und ist das, was man ändern will.
-                InkWell(
+                // Nachgeben darf nur die Zahl: Auf 360 dp ist das Feld
+                // halb so breit wie das Blatt, und Plus/Minus behalten
+                // ihre 48 px (im Test 18 px Überlauf, #596).
+                Flexible(
+                  child: InkWell(
                   onTap: () async {
                     final chosen =
                         await showCountPicker(context, current: count);
@@ -61,9 +65,11 @@ class CountField extends StatelessWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: Text(count?.toString() ?? '–',
+                        maxLines: 1,
+                        overflow: TextOverflow.clip,
                         style: Theme.of(context).textTheme.titleMedium),
                   ),
-                ),
+                )),
                 IconButton(
                   onPressed: () => onChanged((count ?? 0) + 1),
                   icon: const Icon(Icons.add),

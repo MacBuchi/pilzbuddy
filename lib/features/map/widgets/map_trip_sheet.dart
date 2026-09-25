@@ -34,6 +34,8 @@ import 'package:intl/intl.dart';
 
 import '../../../core/app_colors.dart';
 import '../../../core/widgets/sheet_close_button.dart';
+import '../../coach/coach.dart';
+import '../../help/map_tour.dart' show MapCoach;
 import '../../tour/tour_providers.dart';
 import '../../tour/widgets/tour_icon.dart';
 import '../live_share_providers.dart';
@@ -79,7 +81,9 @@ class _TripSheet extends ConsumerWidget {
               ],
             ),
           ),
-          _TripCard(
+          CoachAnchor(
+            id: MapCoach.tripTour,
+            child: _TripCard(
             icon: const MushroomBasketIcon(size: 24),
             colour: AppColors.forestGreen,
             // Die Überschrift bleibt stehen, der Schalter trägt den
@@ -97,7 +101,7 @@ class _TripSheet extends ConsumerWidget {
                     '${tour.points.length} Punkte',
             value: tour != null,
             onTap: () => Navigator.of(context).pop(TripAction.tour),
-          ),
+          )),
           const SizedBox(height: 10),
           _TripCard(
             icon: const SharePinIcon(size: 24),

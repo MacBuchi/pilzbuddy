@@ -21,6 +21,8 @@
 // laden (CLAUDE.md), und das ist an dieser Stelle in Ordnung: Die Seite
 // wird bewusst geöffnet, dieselbe Begründung wie im „Was ist
 // hier?"-Blatt. In der LISTE nebenan hängt nichts davon.
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -106,7 +108,9 @@ class SpeciesDetailScreen extends ConsumerWidget {
       appBar: AppBar(title: Text(detail?.name ?? species)),
       body: detail == null
           ? const _Unknown()
-          : ListView(
+          : CoachAnchor(
+              id: PilzeCoach.detailList,
+              child: ListView(
               key: kSpeciesDetailListKey,
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
               children: [
@@ -140,7 +144,7 @@ class SpeciesDetailScreen extends ConsumerWidget {
                 const _NotAFieldGuide(),
                 _ReportButton(species: detail.name),
               ],
-            ),
+            )),
     );
   }
 }
@@ -1007,23 +1011,70 @@ class _NotAFieldGuide extends StatelessWidget {
 /// HIER — nicht auf der Karte, wo das Feedback-Banner wohnt. Der Knopf
 /// nimmt den Artnamen mit, damit die Meldung beim Bot als Bug-Issue mit
 /// klarem Betreff ankommt (`tool/feedback_bot.py`, Typ `bug`).
-class _ReportButton extends ConsumerWidget {
+class _ReportButton extends ConsumerStatefulWidget {
   const _ReportButton({required this.species});
 
   final String species;
 
-  Future<void> _report(BuildContext context, WidgetRef ref) async {
-    final result = await showDialog<_ReportInput>(
+  @override
+  ConsumerState<_ReportButton> createState() => _ReportButtonState();
+}
+
+class _ReportButtonState extends ConsumerState<_ReportButton> {
+  VoidCallback? _unregisterScene;
+
+  String get species => widget.species;
+
+  @override
+  void initState() {
+    super.initState();
+    // Die Vorführung „Deine Fotos für die Artgalerie" (#596) endet IM
+    // Dialog. Er wird direkt geöffnet, nicht über `_report`: Dessen
+    // Ende sendet, und die Vorführung schließt mit `null`.
+    _unregisterScene = ref
+        .read(coachRegistryProvider)
+        .registerScene(PilzeCoach.report, () async {
+      if (!mounted) return () {};
+      final navigator = Navigator.of(context, rootNavigator: true);
+      var open = true;
+      unawaited(_showDialog(context, ref).whenComplete(() => open = false));
+      return () {
+        if (open) navigator.pop();
+      };
+    });
+  }
+
+  @override
+  void dispose() {
+    _unregisterScene?.call();
+    super.dispose();
+  }
+
+  /// Die Werte werden VOR dem Öffnen gelesen, nicht im `builder`: Der
+  /// baut den Dialog auch beim Schließen noch einmal, und schließt die
+  /// Vorführung (#596) erst den Dialog und gleich danach die Artseite,
+  /// ist dieses Widget dann schon abgebaut — ein `ref.read` von dort
+  /// wirft („deactivated widget's ancestor", im Test so passiert).
+  Future<_ReportInput?> _showDialog(BuildContext context, WidgetRef ref) {
+    final username = ref.read(myProfileProvider).valueOrNull?.username;
+    final pickPhoto = ref.read(photoPickerProvider);
+    final pickPhotos = ref.read(multiPhotoPickerProvider);
+    // Galerie-Größe: Diese Bilder dürfen mit Haken in die Artgalerie,
+    // und das Hochgeladene ist die einzige Kopie.
+    final preparePhoto = ref.read(galleryPhotoPreparerProvider);
+    return showDialog<_ReportInput>(
       context: context,
       builder: (_) => _ReportDialog(
           species: species,
-          username: ref.read(myProfileProvider).valueOrNull?.username,
-          pickPhoto: ref.read(photoPickerProvider),
-          pickPhotos: ref.read(multiPhotoPickerProvider),
-          // Galerie-Größe: Diese Bilder dürfen mit Haken in die
-          // Artgalerie, und das Hochgeladene ist die einzige Kopie.
-          preparePhoto: ref.read(galleryPhotoPreparerProvider)),
+          username: username,
+          pickPhoto: pickPhoto,
+          pickPhotos: pickPhotos,
+          preparePhoto: preparePhoto),
     );
+  }
+
+  Future<void> _report(BuildContext context, WidgetRef ref) async {
+    final result = await _showDialog(context, ref);
     // Nur `null` (Abbrechen) kommt hier ohne Senden an: Leeren Text
     // lässt der Dialog gar nicht erst durch. Bis 1.201.0 stand hier
     // zusätzlich „Text leer ⇒ still zurück" — und nahm die Fotos mit.
@@ -1056,12 +1107,15 @@ class _ReportButton extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => Align(
+  Widget build(BuildContext context) => Align(
         alignment: Alignment.centerLeft,
-        child: TextButton.icon(
-          icon: const Icon(Icons.flag_outlined, size: 18),
-          label: const Text('Hinweis zu dieser Art melden'),
-          onPressed: () => _report(context, ref),
+        child: CoachAnchor(
+          id: PilzeCoach.detailReport,
+          child: TextButton.icon(
+            icon: const Icon(Icons.flag_outlined, size: 18),
+            label: const Text('Hinweis zu dieser Art melden'),
+            onPressed: () => _report(context, ref),
+          ),
         ),
       );
 }
@@ -1159,16 +1213,19 @@ class _ReportDialogState extends State<_ReportDialog> {
               ),
             ),
             const SizedBox(height: 8),
-            PhotoAttachmentList(
-              pick: widget.pickPhoto,
-              pickMany: widget.pickPhotos,
-              prepare: widget.preparePhoto,
-              photos: _photos,
-              max: kFeedbackMaxPhotos,
-              onChanged: (photos) => setState(() {
-                _photos = photos;
-                if (photos.isEmpty) _consent = false;
-              }),
+            CoachAnchor(
+              id: PilzeCoach.reportPhotos,
+              child: PhotoAttachmentList(
+                pick: widget.pickPhoto,
+                pickMany: widget.pickPhotos,
+                prepare: widget.preparePhoto,
+                photos: _photos,
+                max: kFeedbackMaxPhotos,
+                onChanged: (photos) => setState(() {
+                  _photos = photos;
+                  if (photos.isEmpty) _consent = false;
+                }),
+              ),
             ),
             if (_photos.isNotEmpty)
               CheckboxListTile(

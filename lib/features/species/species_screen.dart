@@ -449,10 +449,13 @@ class _EntryTile extends ConsumerWidget {
           if (entry.hasPictures)
             Padding(
               padding: const EdgeInsets.only(left: 6),
-              child: Tooltip(
-                message: 'Bilder vorhanden',
-                child: Icon(Icons.visibility_outlined,
-                    size: 15, color: theme.hintColor),
+              child: _anchor(
+                PilzeCoach.rowEye,
+                Tooltip(
+                  message: 'Bilder vorhanden',
+                  child: Icon(Icons.visibility_outlined,
+                      size: 15, color: theme.hintColor),
+                ),
               ),
             ),
         ],

@@ -24,6 +24,7 @@ import '../../core/widgets/mushroom_icon.dart';
 import '../../core/widgets/safety_note.dart';
 import '../tour/widgets/tour_icon.dart';
 import 'map_tour.dart';
+import '../coach/coach.dart';
 import 'tab_tours.dart';
 
 /// Ein Abschnitt der Anleitung: Symbol, Überschrift, ein bis drei Sätze.
@@ -143,7 +144,9 @@ class HelpScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Kurzanleitung')),
-      body: ListView(
+      body: CoachAnchor(
+          id: HelpCoach.list,
+          child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
         children: [
           Text(
@@ -184,7 +187,9 @@ class HelpScreen extends ConsumerWidget {
           // Die Reiter-Touren (#596) laufen von selbst beim ersten
           // Besuch; hier noch einmal auf Wunsch. Erst der Reiter, dann
           // die Tour — sie startet, sobald er sichtbar ist.
-          Wrap(
+          CoachAnchor(
+          id: HelpCoach.tabTours,
+          child: Wrap(
             spacing: 8,
             runSpacing: 4,
             children: [
@@ -203,7 +208,7 @@ class HelpScreen extends ConsumerWidget {
                   label: Text('Tour: $label'),
                 ),
             ],
-          ),
+          )),
           const SizedBox(height: 8),
           // Alles, was über die sechs Abschnitte hinausgeht (#596) —
           // die Kurzanleitung bleibt kurz, weil es diesen Weg gibt.
@@ -213,7 +218,7 @@ class HelpScreen extends ConsumerWidget {
             label: const Text('Funktionen und Tipps entdecken'),
           ),
         ],
-      ),
+      )),
     );
   }
 }

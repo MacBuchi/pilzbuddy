@@ -514,10 +514,13 @@ class _SpotDetailSheet extends ConsumerWidget {
               // die Server-id (#267). Der Löschen-Knopf daneben kann es
               // trotzdem: Der nimmt dann den Auftrag zurück.
               if (spot.isOwn && !spot.pending)
-                IconButton(
-                  onPressed: () => _edit(context, ref, spot),
-                  icon: const Icon(Icons.edit_location_alt_outlined),
-                  tooltip: 'Spot bearbeiten',
+                CoachAnchor(
+                  id: SpotsCoach.sheetEdit,
+                  child: IconButton(
+                    onPressed: () => _edit(context, ref, spot),
+                    icon: const Icon(Icons.edit_location_alt_outlined),
+                    tooltip: 'Spot bearbeiten',
+                  ),
                 ),
               if (spot.isOwn)
                 IconButton(

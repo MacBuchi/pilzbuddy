@@ -10,7 +10,9 @@ import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show AuthException;
 import 'package:url_launcher/url_launcher.dart';
 
+import '../coach/coach.dart';
 import '../help/map_tour.dart';
+import '../help/tab_tours.dart' show ProfileCoach;
 import '../offline_maps/offline_map_providers.dart';
 import '../../core/app_distribution.dart';
 import '../../core/settings.dart';
@@ -102,7 +104,9 @@ class ProfileScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: ListView(
+      body: CoachAnchor(
+          id: ProfileCoach.list,
+          child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           if (profile != null) ...[
@@ -262,7 +266,9 @@ class ProfileScreen extends ConsumerWidget {
           // Unsichtbar, solange die App keine Application ID hat; ohne
           // verbundenes Konto ändert sich sonst nirgends etwas.
           const InatProfileTile(),
-          SwitchListTile(
+          CoachAnchor(
+          id: ProfileCoach.ampel,
+          child: SwitchListTile(
             contentPadding: EdgeInsets.zero,
             secondary: const Icon(Icons.science_outlined),
             title: const Text('Pilzwetter-Ampel (experimentell)'),
@@ -281,7 +287,7 @@ class ProfileScreen extends ConsumerWidget {
             value: ref.watch(ampelPreviewEnabledProvider),
             onChanged: (value) =>
                 ref.read(ampelPreviewEnabledProvider.notifier).set(value),
-          ),
+          )),
           // Baustein B (#277) — und ein EIGENER Schalter, nicht der der
           // Vorschau darüber. Der Nachlauf braucht das Höhengitter, und
           // dessen 3,4 MB beim Start auszupacken ist genau die Last, die
@@ -403,7 +409,7 @@ class ProfileScreen extends ConsumerWidget {
           const Divider(height: 40),
           _DeleteAccountTile(username: profile?.username),
         ],
-      ),
+      )),
     );
   }
 }

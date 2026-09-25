@@ -19,6 +19,8 @@ import '../../core/errors.dart';
 import '../../data/message_repository.dart';
 import '../../data/providers.dart';
 import '../../models/buddy_message.dart';
+import '../coach/coach.dart';
+import '../help/tab_tours.dart' show BuddysCoach;
 import 'buddy_alias.dart';
 import 'buddy_alias_dialog.dart';
 import 'friend_providers.dart';
@@ -255,7 +257,9 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Expanded(
-                    child: TextField(
+                    child: CoachAnchor(
+          id: BuddysCoach.chatInput,
+          child: TextField(
                       key: kMessageFieldKey,
                       controller: _controller,
                       enabled: canWrite,
@@ -269,7 +273,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
                         counterText: '',
                         isDense: true,
                       ),
-                    ),
+                    )),
                   ),
                   const SizedBox(width: 4),
                   IconButton.filled(

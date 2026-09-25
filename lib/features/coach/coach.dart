@@ -55,6 +55,8 @@ class CoachStep {
     this.scene,
     this.gesture = CoachGesture.none,
     this.requires = const [],
+    this.unless = const [],
+    this.scrollIn,
   });
 
   final String title;
@@ -81,6 +83,17 @@ class CoachStep {
   /// Szene, die dieser Schritt erst öffnet, steht er hier NICHT — der ist
   /// beim Prüfen noch gar nicht da.
   final List<String> requires;
+
+  /// Das Gegenstück: Der Schritt fällt weg, sobald einer dieser Anker da
+  /// ist. So steht neben „Stift am ersten Buddy" ein Ersatzschritt „erst
+  /// einen Buddy finden", und genau einer von beiden läuft.
+  final List<String> unless;
+
+  /// Ein Anker um eine LANGE Liste, in der das Ziel erst beim Scrollen
+  /// gebaut wird (`ListView` baut nur, was fast im Bild ist). Solange das
+  /// Ziel fehlt, scrollt die Maschine diese Liste weiter — etwa zum
+  /// Ampel-Schalter weit unten im Profil.
+  final String? scrollIn;
 }
 
 /// Ein Ablauf aus Schritten.
@@ -100,6 +113,11 @@ class CoachScript {
 }
 
 /// Öffnet eine Szene und gibt zurück, wie sie wieder zu schließen ist.
+///
+/// **Szenen lassen sich schachteln**, über den Schrägstrich in der
+/// Kennung: `pilze.detail/report` ist der Meldedialog AUF der Artseite
+/// `pilze.detail`. Die äußere bleibt offen, solange ein Schritt eine
+/// innere will, und geschlossen wird von innen nach außen.
 typedef CoachSceneOpener = Future<VoidCallback> Function();
 
 /// Wer was anbietet: Anker (Widgets) und Szenen (Menüs, Blätter).
@@ -178,31 +196,62 @@ class _CoachAnchorState extends ConsumerState<CoachAnchor> {
 
 /// Ein laufender Ablauf.
 class CoachRun {
-  const CoachRun(this.script, this.index);
+  const CoachRun(this.script, this.index, {List<int>? shown})
+      : _shown = shown;
   final CoachScript script;
   final int index;
+
+  /// Welche Schritte laufen werden — die übrigen fallen weg (`requires`,
+  /// `unless`). Danach richten sich Zähler und „Los geht's": Folgt nur
+  /// noch ein Ersatzschritt, der wegfällt, ist DIESER der letzte.
+  final List<int>? _shown;
+
+  List<int> get _steps =>
+      _shown ?? [for (var i = 0; i < script.steps.length; i++) i];
+
   CoachStep get step => script.steps[index];
-  bool get isLast => index + 1 >= script.steps.length;
+  bool get isLast => _steps.last <= index;
+
+  /// „2 von 3", gezählt über die Schritte, die laufen.
+  int get position => _steps.where((i) => i <= index).length;
+  int get count => _steps.length;
 }
 
 class CoachNotifier extends Notifier<CoachRun?> {
-  String? _scene;
-  VoidCallback? _closeScene;
+  /// Die offenen Szenen, außen zuerst.
+  final _open = <_OpenScene>[];
+
+  /// Was der laufende Schritt braucht, als Kette von außen nach innen.
+  List<String> _wanted = const [];
+
   VoidCallback? _onDone;
 
-  /// Zählt Szenenwechsel, damit ein spät fertiges Öffnen eines bereits
-  /// verlassenen Schritts nichts mehr anrichtet.
-  int _generation = 0;
+  /// Vorgemerkte Starts (`reserve`): Zählt als belegt, damit in der Zeit
+  /// zwischen Tipp und Start keine andere Tour dazwischenkommt.
+  int _reserved = 0;
 
   @override
   CoachRun? build() => null;
 
+  /// Läuft etwas, oder steht ein Start unmittelbar bevor?
+  bool get busy => state != null || _reserved > 0;
+
+  /// Merkt einen Start vor, der erst nach einem Seitenwechsel kommt —
+  /// sonst startete dort in der Zwischenzeit die Tour des Reiters.
+  void reserve() => _reserved++;
+
   /// Startet [script]. [onDone] läuft beim Ende — durchgesehen ODER
   /// übersprungen: Wer abbricht, hat entschieden.
   void start(CoachScript script, {VoidCallback? onDone}) {
-    _closeCurrentScene();
+    if (_reserved > 0) _reserved--;
+    _setScene(null);
     _onDone = onDone;
     _go(CoachRun(script, 0));
+  }
+
+  /// Gibt eine Vormerkung zurück, aus der nichts wurde.
+  void release() {
+    if (_reserved > 0) _reserved--;
   }
 
   void next() {
@@ -217,58 +266,116 @@ class CoachNotifier extends Notifier<CoachRun?> {
 
   void finish() {
     if (state == null) return;
-    _closeCurrentScene();
+    _setScene(null);
     state = null;
     final done = _onDone;
     _onDone = null;
     done?.call();
   }
 
+  bool _present(String id) {
+    final box = ref
+        .read(coachRegistryProvider)
+        .anchor(id)
+        ?.currentContext
+        ?.findRenderObject();
+    return box is RenderBox && box.hasSize && !box.size.isEmpty;
+  }
+
+  bool _runs(CoachStep step) =>
+      step.requires.every(_present) && !step.unless.any(_present);
+
   void _go(CoachRun run) {
-    final registry = ref.read(coachRegistryProvider);
     // Ein Anker ohne Fläche zählt als fehlend: Ein Abschnitt ohne Inhalt
     // steht oft als `SizedBox.shrink` da, und eine Aussparung der Größe
     // null wäre ein Schritt über nichts.
-    bool present(String id) {
-      final box = registry.anchor(id)?.currentContext?.findRenderObject();
-      return box is RenderBox && box.hasSize && !box.size.isEmpty;
+    final steps = run.script.steps;
+    var index = run.index;
+    while (index < steps.length && !_runs(steps[index])) {
+      index++;
     }
-
-    while (!run.step.requires.every(present)) {
-      if (run.isLast) {
-        finish();
-        return;
-      }
-      run = CoachRun(run.script, run.index + 1);
+    if (index >= steps.length) {
+      finish();
+      return;
     }
-    final wanted = run.step.scene;
-    if (wanted != _scene) {
-      _closeCurrentScene();
-      if (wanted != null) _openScene(wanted);
-    }
-    state = run;
+    // Neu gerechnet bei JEDEM Schritt: Eine Szene kann Anker bringen.
+    final shown = [
+      for (var i = 0; i < steps.length; i++)
+        if (i == index || (i != index && _runs(steps[i]))) i,
+    ];
+    final next = CoachRun(run.script, index, shown: shown);
+    _setScene(next.step.scene);
+    state = next;
   }
 
-  void _openScene(String id) {
-    final open = ref.read(coachRegistryProvider).scene(id);
-    _scene = id;
-    if (open == null) return;
-    final generation = ++_generation;
-    unawaited(open().then((close) {
-      if (generation == _generation && _scene == id) {
-        _closeScene = close;
-      } else {
-        close(); // der Schritt ist schon vorbei
-      }
+  static List<String> _chain(String? id) {
+    if (id == null) return const [];
+    final parts = id.split('/');
+    return [for (var i = 1; i <= parts.length; i++) parts.take(i).join('/')];
+  }
+
+  void _setScene(String? wanted) {
+    final chain = _chain(wanted);
+    var keep = 0;
+    while (keep < _open.length &&
+        keep < chain.length &&
+        _open[keep].id == chain[keep]) {
+      keep++;
+    }
+    // Von innen nach außen: erst der Dialog, dann die Seite darunter.
+    while (_open.length > keep) {
+      _open.removeLast().shut();
+    }
+    _wanted = chain;
+    _openMissing();
+  }
+
+  /// Öffnet die nächste fehlende Szene der Kette — eine nach der anderen,
+  /// die innere erst, wenn die äußere steht.
+  void _openMissing() {
+    if (_open.length >= _wanted.length) return;
+    if (_open.isNotEmpty && !_open.last.ready) return;
+    final id = _wanted[_open.length];
+    final opener = ref.read(coachRegistryProvider).scene(id);
+    // Noch nicht angemeldet: Ihr Besitzer ist vielleicht noch gar nicht
+    // gebaut (ein Reiter, der nie offen war, eine Seite, die gerade
+    // hereinfährt). Die Überlagerung fragt je Bild nach
+    // ([retryScenes]).
+    if (opener == null) return;
+    final scene = _OpenScene(id);
+    _open.add(scene);
+    unawaited(opener().then((close) {
+      scene.opened(close);
+      if (!scene.closed) _openMissing();
     }));
   }
 
-  void _closeCurrentScene() {
-    _generation++;
-    final close = _closeScene;
-    _closeScene = null;
-    _scene = null;
-    close?.call();
+  /// Je Bild aus der Überlagerung — siehe [_openMissing].
+  void retryScenes() {
+    if (state != null) _openMissing();
+  }
+}
+
+class _OpenScene {
+  _OpenScene(this.id);
+  final String id;
+  VoidCallback? _close;
+  bool closed = false;
+
+  bool get ready => _close != null;
+
+  void opened(VoidCallback close) {
+    if (closed) {
+      close(); // der Schritt ist schon vorbei
+    } else {
+      _close = close;
+    }
+  }
+
+  void shut() {
+    closed = true;
+    _close?.call();
+    _close = null;
   }
 }
 
@@ -360,7 +467,15 @@ class _CoachOverlayState extends ConsumerState<CoachOverlay>
     final out = <Rect>[];
     for (final id in ids) {
       final box = registry.anchor(id)?.currentContext?.findRenderObject();
-      if (box is! RenderBox || !box.attached || !box.hasSize) continue;
+      // Ohne Fläche zählt er als fehlend — eine Aussparung der Größe null
+      // wäre ein Schritt über nichts (etwa der Bildstreifen einer Art
+      // ohne Bilder).
+      if (box is! RenderBox ||
+          !box.attached ||
+          !box.hasSize ||
+          box.size.isEmpty) {
+        continue;
+      }
       out.add(MatrixUtils.transformRect(
           box.getTransformTo(overlay), Offset.zero & box.size));
     }
@@ -370,11 +485,15 @@ class _CoachOverlayState extends ConsumerState<CoachOverlay>
   void _measure() {
     final run = ref.read(coachProvider);
     if (run == null || !mounted) return;
+    ref.read(coachProvider.notifier).retryScenes();
     final step = run.step;
     final lit = _rectsOf(step.lit);
     final ring = step.ring == null ? lit : _rectsOf(step.ring!);
     final complete = lit.length == step.lit.length &&
         (step.ring == null || ring.length == step.ring!.length);
+    if (!complete && step.scrollIn != null && _missingFrames.isEven) {
+      _scrollOn(step.scrollIn!);
+    }
     if (!complete) {
       if (++_missingFrames > _maxMissingFrames) {
         _missingFrames = 0;
@@ -390,6 +509,32 @@ class _CoachOverlayState extends ConsumerState<CoachOverlay>
       _lit = complete ? lit : const [];
       _ring = complete ? ring : const [];
     });
+  }
+
+  /// Scrollt die Liste unter [id] ein Stück weiter, damit sie das Ziel
+  /// baut. Jedes zweite Bild, damit dazwischen gebaut werden kann; am
+  /// Ende der Liste läuft die übliche Frist ab ([_maxMissingFrames]).
+  void _scrollOn(String id) {
+    final context = ref.read(coachRegistryProvider).anchor(id)?.currentContext;
+    if (context == null) return;
+    ScrollableState? list;
+    void visit(Element element) {
+      if (list != null) return;
+      if (element is StatefulElement &&
+          element.state is ScrollableState &&
+          (element.state as ScrollableState).position.axis == Axis.vertical) {
+        list = element.state as ScrollableState;
+        return;
+      }
+      element.visitChildren(visit);
+    }
+
+    context.visitChildElements(visit);
+    final position = list?.position;
+    if (position == null || !position.hasContentDimensions) return;
+    if (position.pixels >= position.maxScrollExtent) return;
+    position.jumpTo(math.min(position.maxScrollExtent,
+        position.pixels + position.viewportDimension * 0.9));
   }
 
   /// Holt ein Ziel ins Bild, das in seiner Liste außerhalb liegt — im
@@ -573,7 +718,7 @@ class _CoachOverlayState extends ConsumerState<CoachOverlay>
                       child: SingleChildScrollView(child: Text(step.text)),
                     ),
                     const SizedBox(height: 12),
-                    Text('${run.index + 1} von ${run.script.steps.length}',
+                    Text('${run.position} von ${run.count}',
                         style: Theme.of(context)
                             .textTheme
                             .bodySmall
@@ -744,6 +889,49 @@ class FingerMotion {
         ),
     };
   }
+}
+
+/// Die Geste als kleines, stehendes Bild — auf den Karten in
+/// „Entdecken" (#596). Derselbe Maler wie in der Vorführung, angehalten
+/// im Moment, der die Geste ausmacht: beim Tipp die Welle, beim langen
+/// Druck der halb volle Kreis, beim Wischen die halbe Strecke. Stehend,
+/// weil eine Liste voller laufender Hände unruhig wäre.
+class GesturePreview extends StatelessWidget {
+  const GesturePreview({super.key, required this.gesture, this.size = 44});
+
+  final CoachGesture gesture;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => SizedBox.square(
+        dimension: size,
+        child: CustomPaint(painter: _GesturePreviewPainter(gesture)),
+      );
+}
+
+class _GesturePreviewPainter extends CustomPainter {
+  const _GesturePreviewPainter(this.gesture);
+
+  final CoachGesture gesture;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final t = switch (gesture) {
+      CoachGesture.longPress => 0.6,
+      CoachGesture.swipe => 0.55,
+      _ => 0.4,
+    };
+    // Die Hand ragt von der Kuppe gut 0,8 ihrer Länge nach rechts unten;
+    // die Kuppe sitzt deshalb oben links im Kasten.
+    canvas.save();
+    canvas.translate(size.width * 0.32, size.height * 0.26);
+    canvas.scale(size.width / 150);
+    FingerPainter(gesture: gesture, t: t).paint(canvas, Size.zero);
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_GesturePreviewPainter old) => old.gesture != gesture;
 }
 
 /// Die Hand, die vorführt (Betreiber, 2026-09-24: „der Finger könnte

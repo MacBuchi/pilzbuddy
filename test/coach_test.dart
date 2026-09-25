@@ -139,6 +139,77 @@ void main() {
     expect(find.text('C'), findsOneWidget);
   });
 
+  testWidgets('eine innere Szene lässt die äußere offen', (tester) async {
+    // Artseite und darauf der Meldedialog: Der Dialog darf die Seite
+    // nicht schließen, und zurück zur Seite schließt nur den Dialog.
+    final container = await pumpCoach(tester, const SizedBox.expand());
+    final log = <String>[];
+    final registry = container.read(coachRegistryProvider);
+    for (final id in ['a', 'a/b']) {
+      registry.registerScene(id, () async {
+        log.add('auf $id');
+        return () => log.add('zu $id');
+      });
+    }
+    container.read(coachProvider.notifier).start(const CoachScript(id: 't', steps: [
+      CoachStep(title: 'A', text: 'x', scene: 'a'),
+      CoachStep(title: 'B', text: 'x', scene: 'a/b'),
+      CoachStep(title: 'C', text: 'x', scene: 'a'),
+    ]));
+    await frames(tester);
+    container.read(coachProvider.notifier).next();
+    await frames(tester);
+    container.read(coachProvider.notifier).next();
+    await frames(tester);
+    container.read(coachProvider.notifier).finish();
+    await frames(tester);
+    expect(log, ['auf a', 'auf a/b', 'zu a/b', 'zu a']);
+  });
+
+  testWidgets('eine Szene, die sich erst später anmeldet, geht trotzdem auf',
+      (tester) async {
+    // Die innere Szene meldet ihr Besitzer an, und der entsteht erst,
+    // wenn die äußere steht — etwa ein Knopf AUF der Seite, die die
+    // äußere Szene öffnet.
+    final container = await pumpCoach(tester, const SizedBox.expand());
+    final registry = container.read(coachRegistryProvider);
+    var inner = 0;
+    registry.registerScene('a', () async {
+      Future<void>.delayed(const Duration(milliseconds: 100), () {
+        registry.registerScene('a/b', () async {
+          inner++;
+          return () {};
+        });
+      });
+      return () {};
+    });
+    container.read(coachProvider.notifier).start(const CoachScript(
+        id: 't', steps: [CoachStep(title: 'A', text: 'x', scene: 'a/b')]));
+    await frames(tester, 10);
+    expect(inner, 1);
+  });
+
+  testWidgets('der Zähler und „Los geht\'s" zählen nur, was läuft',
+      (tester) async {
+    final container = await pumpCoach(
+        tester,
+        const Center(
+            child: CoachAnchor(
+                id: 'da', child: SizedBox(width: 50, height: 50))));
+    container.read(coachProvider.notifier).start(const CoachScript(id: 't', steps: [
+      CoachStep(title: 'A', text: 'x', lit: ['da']),
+      CoachStep(title: 'B', text: 'x', lit: ['da']),
+      // Ersatzschritt, der hier wegfällt — B ist also der letzte.
+      CoachStep(title: 'C', text: 'x', unless: ['da']),
+    ]));
+    await frames(tester);
+    expect(find.text('1 von 2'), findsOneWidget);
+    container.read(coachProvider.notifier).next();
+    await frames(tester);
+    expect(find.text('2 von 2'), findsOneWidget);
+    expect(find.text('Los geht\'s'), findsOneWidget);
+  });
+
   group('die Hand', () {
     test('gedrückt wird AUF dem Ziel', () {
       for (final g in [CoachGesture.tap, CoachGesture.longPress]) {
