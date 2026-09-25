@@ -9,7 +9,7 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Eine Startseite für jede Tour
 
-*25. September 2026 · Version 1.209.0*
+*25. September 2026 · Versionen 1.209.0 bis 1.210.0*
 
 - Beim ersten Start begrüßt dich eine **Willkommensseite**, statt dass
   die Tour sofort losgeht. „Nicht jetzt" fragt beim nächsten Start
@@ -23,6 +23,10 @@ https://github.com/MacBuchi/pilzbuddy/releases
   Halbsatz.
 - Ein zu schneller zweiter Tipp überspringt keinen Schritt mehr, und
   findet die Tour etwas nicht, sagt sie es, statt still weiterzuspringen.
+- Noch **keinen Spot, keinen Buddy oder keine Fotos**? Dann zeigen die
+  Touren von Spots und Buddys ein **Beispiel**, damit du trotzdem siehst,
+  wie es aussieht. Es ist als „Beispiel" markiert, wird nirgends
+  gespeichert und ist nach der Tour wieder weg.
 
 ## Neuheiten zeigen vor, und Rücksicht auf Einstellungen
 

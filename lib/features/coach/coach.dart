@@ -121,10 +121,22 @@ class CoachScript {
     required this.id,
     required this.steps,
     this.endLink,
+    this.examples = false,
   });
 
   final String id;
   final List<CoachStep> steps;
+
+  /// Zeigen die Reiter BEISPIELE, wo eigene Daten fehlen? Eine Tour über
+  /// die Spot-Liste ohne einen Spot erklärte sonst nur das Suchfeld
+  /// (Betreiber, 2026-09-25: „er sollte ja dennoch einen Eindruck
+  /// bekommen"). Siehe `features/help/tour_examples.dart`.
+  ///
+  /// Nur für Skripte, die mit einer Startseite beginnen: Die Beispiele
+  /// erscheinen, sobald die Tour läuft, also ein Bild NACH dem Start —
+  /// die Startseite gibt ihnen dieses Bild, bevor der erste Schritt nach
+  /// seinen Ankern fragt.
+  final bool examples;
 
   /// Ein Weg weiter im LETZTEN Schritt, etwa in die Kurzanleitung:
   /// (Beschriftung, Route).
@@ -441,6 +453,10 @@ class _OpenScene {
 
 final coachProvider =
     NotifierProvider<CoachNotifier, CoachRun?>(CoachNotifier.new);
+
+/// Soll ein Reiter gerade Beispiele zeigen ([CoachScript.examples])?
+final coachExamplesProvider = Provider<bool>((ref) =>
+    ref.watch(coachProvider.select((run) => run?.script.examples ?? false)));
 
 /// Blendet [child] für den Bildschirmleser aus, solange eine Tour läuft.
 ///

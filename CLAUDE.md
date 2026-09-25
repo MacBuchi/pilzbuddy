@@ -1368,6 +1368,26 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   Zähler und „Los geht's" zählen die Startseite nicht mit; Vorführungen
   übernehmen Schritte über `tourSteps` (ohne Startseite).
 
+  **Beispiele für leere Konten** (seit 1.210.0, `tour_examples.dart`,
+  Betreiber: „er sollte ja dennoch einen Eindruck bekommen"). Ohne Spot
+  erklärte die Spot-Tour bis dahin nur das Suchfeld — über die Kette lief
+  sie auch ohne Inhalt. Jetzt zeigen Spots und Buddys während ihrer Tour
+  eine Beispielzeile, ein Beispiel-Blatt, einen Beispiel-Buddy und eine
+  Beispiel-Galerie. Drei Regeln:
+  - **Gezeichnet, nie gespeichert** — keine `Spot`-, `Find`- oder
+    `Friendship`-Objekte, kein Provider, kein Cache. Als Modell käme ein
+    Beispiel-Fund in Statistik, Ampel und GPX-Export an.
+  - **Immer „Beispiel"** (`TourExampleBadge`), auch für den
+    Bildschirmleser.
+  - **Nur während der Tour und nur, wo Echtes fehlt**
+    (`CoachScript.examples` → `coachExamplesProvider`). Die Anker sind
+    dieselben wie an der echten Zeile. `examples` gehört nur an Skripte
+    MIT Startseite: Die Beispiele erscheinen ein Bild nach dem Start, und
+    ein erster Schritt mit `requires` fiele sonst sofort weg.
+  Die Spot-Tour wartet deshalb nicht mehr auf einen Spot (`ready`); der
+  Wächter gegen „Tour fällt über die Karte" ist davon unberührt und hat
+  seinen Test behalten.
+
   **Kurze Touren je Reiter** (seit 1.206.0, `lib/features/help/tab_tours.dart`):
   Spots, Pilze und Buddys, auf derselben Maschine, beim ERSTEN Besuch
   des Reiters. Vier Dinge, die man wissen muss:
