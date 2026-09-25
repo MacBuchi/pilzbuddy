@@ -23,6 +23,15 @@ Anlass war `AGENTS.md`: eine zweite Kopie dieser Regeln, seit #485
 veraltet, die beides weiter nannte — entfernt. Eine Kopie von Regeln
 veraltet still, und mit ihr, was nicht mehr darin stehen soll.
 
+**`AGENTS.md` ist seither ein Symlink auf diese Datei** (Codex liest
+`AGENTS.md`, Claude `CLAUDE.md`; eine Quelle, nichts kann veralten). CI
+prüft das im Job „Analyze & Test" — der Claude-Import der Codex-App legt
+sie sonst als umgeschriebene Kopie an („Claude" → „Codex", auch in
+Pfaden). Was für Claude in `CLAUDE.local.md` steht, gehört für Codex in
+die persönliche `~/.codex/AGENTS.md`, nie ins Repo. `.codex/config.toml`
+trägt nur die MCP-Server (iNaturalist) und ist vom Version Guard
+ausgenommen.
+
 ## Workflow
 
 - Kein direkter Push auf `main` (Branch ist geschützt): Feature-Branch
@@ -122,7 +131,7 @@ veraltet still, und mit ihr, was nicht mehr darin stehen soll.
     nackte URL schreiben, ein Test wacht darüber.
 - Version Guard in CI: Code-Änderung ohne Versions-Bump blockiert den Merge
   (Pflicht-Check schlägt fehl); nur `*.md` (außer `CHANGELOG.md`, siehe
-  oben), `.github/`, `store/`, `tool/`
+  oben), `.github/`, `store/`, `tool/`, `.codex/`
   und `supabase/` sind ausgenommen — nichts davon landet je in einem Binary
   (Store-Grafiken stecken in keiner Asset-Liste, siehe `store/README.md`;
   die Skripte in `tool/` laufen nur in CI; SQL und Stack-Config aus

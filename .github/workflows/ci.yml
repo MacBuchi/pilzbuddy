@@ -30,6 +30,17 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+      # AGENTS.md (Codex) ist ein Symlink auf CLAUDE.md, keine Kopie: Eine
+      # Kopie veraltet still, und mit ihr, was nicht mehr darin stehen soll
+      # — so war es mit der alten AGENTS.md (#607). Der Claude-Import der
+      # Codex-App legt sie gern wieder als eigene Datei an; dann wird es
+      # hier rot, statt dass sie still auseinanderläuft.
+      - name: AGENTS.md zeigt auf CLAUDE.md
+        run: |
+          test -L AGENTS.md && test "$(readlink AGENTS.md)" = CLAUDE.md || {
+            echo "::error::AGENTS.md muss ein Symlink auf CLAUDE.md sein (ln -sf CLAUDE.md AGENTS.md)"
+            exit 1
+          }
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
@@ -355,7 +366,8 @@ jobs:
             # einem Binary, soll also kein Release auslösen. (Ein Patch,
             # dessen Schema die App auch nutzt, ändert lib/ mit und bumpt
             # darüber.) Die Checks selbst (schema_check.sh, db_migrate.sh)
-            # laufen davon unberührt weiter.
+            # laufen davon unberührt weiter. .codex/ ist die Projekt-
+            # Einstellung für Codex (MCP-Server) — Werkzeug, kein Binary.
             #
             # CHANGELOG.md ist die Ausnahme von der *.md-Regel: Sie steht in
             # der Asset-Liste (pubspec.yaml) und wird als „Was ist neu" in
@@ -373,7 +385,7 @@ jobs:
             fi
             changed=$(
               {
-                git diff --name-only "$range" -- . ':!*.md' ':!.github' ':!store' ':!tool' ':!supabase' || true
+                git diff --name-only "$range" -- . ':!*.md' ':!.github' ':!store' ':!tool' ':!supabase' ':!.codex' || true
                 git diff --name-only "$range" -- CHANGELOG.md || true
               } | grep -v '^$' || true
             )
