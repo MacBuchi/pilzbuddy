@@ -20,6 +20,60 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/settings.dart';
 import '../coach/coach.dart';
+import 'tour_intro_art.dart';
+
+/// Die Leiste unten — die Karten-Tour nennt ihre Bereiche zum Schluss.
+abstract final class NavCoach {
+  static const bar = 'nav.bar';
+  static const spots = 'nav.spots';
+  static const pilze = 'nav.pilze';
+  static const buddys = 'nav.buddys';
+  static const profile = 'nav.profile';
+}
+
+/// Die Startseite beim ERSTEN Start (Betreiber, 2026-09-25: „zu Beginn der
+/// Tour eine Startseite … man öffnet die App und es geht sofort los").
+/// „Nicht jetzt" fragt beim nächsten Start wieder — jedes Mal.
+const kWelcomeIntro = CoachStep(
+  title: 'Willkommen bei PilzBuddy',
+  text: 'Hier merkst du dir deine Pilzstellen, siehst, wann es sich lohnen '
+      'könnte, und teilst Funde mit Freunden, wenn du willst. Deine Spots '
+      'bleiben privat, bis du sie teilst.',
+  art: welcomeArt,
+  startLabel: 'Tour starten',
+);
+
+/// Dieselbe Stelle für Bestandsnutzer: Seit dem Zurücksetzen in 1.208.0
+/// sehen auch sie die Tour, und „Willkommen" wäre für sie falsch.
+const kReturningIntro = CoachStep(
+  title: 'Eine kurze Tour durch PilzBuddy',
+  text: 'Seit deinem letzten Blick ist einiges dazugekommen. In ein paar '
+      'Schritten: was wo ist und wie es geht — auf der Karte und danach '
+      'in den Bereichen unten.',
+  art: welcomeArt,
+  startLabel: 'Tour starten',
+);
+
+/// Die Startseite, wenn die Karten-Tour aus der Kurzanleitung kommt.
+const kMapIntro = CoachStep(
+  title: 'Die Karte',
+  text: 'Hier legst du Spots an und siehst, was die Gegend verrät: Wald, '
+      'Regen, Höhe und die Pilzampel. Die Tour zeigt die Knöpfe — und was '
+      'dahinter liegt.',
+  art: mapArt,
+);
+
+/// Zum Schluss der Karten-Tour die Bereiche unten, je ein Halbsatz — ihre
+/// eigenen Touren laufen beim ersten Besuch (Betreiber: „nur kurz
+/// erwähnen, nicht die jeweilige Tour starten").
+const kNavStep = CoachStep(
+  title: 'Unten die Bereiche',
+  text: 'Spots: deine Stellen als Liste und Statistik. Pilze: jede Art mit '
+      'Saison und Merkmalen. Buddys: Freunde, Fundfotos und Nachrichten. '
+      'Profil: Einstellungen und die Kurzanleitung.',
+  lit: [NavCoach.bar],
+  ring: [NavCoach.spots, NavCoach.pilze, NavCoach.buddys, NavCoach.profile],
+);
 
 /// Die Anker der Karte — eine Stelle für die Kennungen, damit Skript und
 /// Widgets dieselben Wörter benutzen.
@@ -60,6 +114,7 @@ const kMapTourScript = CoachScript(
   id: 'map',
   endLink: ('Kurzanleitung', '/profile/anleitung'),
   steps: [
+    kMapIntro,
     CoachStep(
       title: 'So entsteht ein Spot',
       // „fein" und „genau" seit #360 (die Karte startet schon bei der
@@ -133,7 +188,23 @@ const kMapTourScript = CoachScript(
       lit: [MapCoach.toolbar],
       ring: [MapCoach.filter, MapCoach.trip, MapCoach.locate],
     ),
+    kNavStep,
   ],
+);
+
+/// Die Karten-Tour beim ersten Start: mit der Willkommensseite statt der
+/// Karten-Startseite. Die Reiter hängt `startWelcomeTour` an — deshalb
+/// OHNE den Weg in die Kurzanleitung am Ende: Sonst liefe die Kette
+/// gleichzeitig in den nächsten Reiter.
+final kWelcomeTourScript = CoachScript(
+  id: 'map',
+  steps: [kWelcomeIntro, ...kMapTourScript.tourSteps],
+);
+
+/// Dasselbe für Bestandsnutzer ([kReturningIntro]).
+final kReturningTourScript = CoachScript(
+  id: 'map',
+  steps: [kReturningIntro, ...kMapTourScript.tourSteps],
 );
 
 /// Startet die Tour und merkt sich danach, dass sie gesehen wurde —

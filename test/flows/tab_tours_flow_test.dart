@@ -49,11 +49,23 @@ String path(WidgetTester tester) => ProviderScope.containerOf(
 
 /// Geht die laufende Tour bis zum Ende durch und sagt, welche Schritte
 /// sie gezeigt hat.
+final intro = find.byKey(const ValueKey('coach-intro'));
+
+/// Geht die laufende Tour bis zum Ende durch und sagt, welche Schritte
+/// sie gezeigt hat — die Startseite mitgezählt (dort „Zeig's mir").
 Future<List<String>> walk(WidgetTester tester, CoachScript script,
     {void Function(String title)? at}) async {
   final shown = <String>[];
+  if (intro.evaluate().isNotEmpty) {
+    final step = script.steps.first;
+    shown.add(find.text(step.title).evaluate().isNotEmpty
+        ? step.title
+        : step.chainTitle!);
+    await tester.tap(find.byKey(const ValueKey('coach-intro-start')));
+    await settle(tester);
+  }
   for (var i = 0; i < 20 && bubble.evaluate().isNotEmpty; i++) {
-    final title = script.steps
+    final title = script.tourSteps
         .map((s) => s.title)
         .firstWhere((t) => find.text(t).evaluate().isNotEmpty);
     shown.add(title);
@@ -177,6 +189,8 @@ void main() {
     backend.addSpot(ownerId: me, name: 'Buchenhang');
     await pumpApp(tester, backend, settings: settings);
     await openTab(tester, 'Spots');
+    await tester.tap(find.byKey(const ValueKey('coach-intro-start')));
+    await settle(tester);
     await tester.tap(find.text('Weiter'));
     await settle(tester);
     expect(find.text('Fund eintragen'), findsOneWidget);
@@ -192,7 +206,7 @@ void main() {
     backend.addSpot(ownerId: me, name: 'Buchenhang');
     await pumpApp(tester, backend,
         settings: FakeSettings(mapTourSeen: false, seenCoachTours: {}));
-    expect(find.text(kMapTourScript.steps.first.title), findsOneWidget);
+    expect(find.text('Willkommen bei PilzBuddy'), findsOneWidget);
     expect(find.text(titleOf(kSpotsTourScript, 0)), findsNothing);
   });
 
@@ -226,7 +240,7 @@ void main() {
     await openTab(tester, 'Buddys');
     final shown = await walk(tester, kBuddysTourScript);
     // Auch die Galerie: ohne Fotos kein Schritt über eine leere Fläche.
-    expect(shown, ['Jemanden einladen', 'Nach Buddys suchen']);
+    expect(shown, ['Deine Buddys', 'Jemanden einladen', 'Nach Buddys suchen']);
     expect(settings.seenCoachTours, contains('buddys'));
   });
 
@@ -293,7 +307,60 @@ void main() {
     await settle(tester);
 
     expect(path(tester), '/friends');
-    expect(find.text('Jemanden einladen'), findsOneWidget);
+    expect(find.text('Deine Buddys'), findsOneWidget, reason: 'Startseite');
+  });
+  testWidgets('„Nicht jetzt" im Reiter: diese Sitzung Ruhe, beim nächsten '
+      'Start wieder', (tester) async {
+    final settings = noTabTours();
+    await pumpApp(tester, signedIn(), settings: settings);
+    await openTab(tester, 'Buddys');
+    expect(find.text('Deine Buddys'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('coach-intro-later')));
+    await settle(tester);
+    expect(intro, findsNothing);
+    expect(settings.seenCoachTours, isNot(contains('buddys')));
+
+    await openTab(tester, 'Karte');
+    await openTab(tester, 'Buddys');
+    expect(intro, findsNothing, reason: 'nicht bei jedem Reiterwechsel');
+
+    await tester.pumpWidget(const SizedBox());
+    await pumpApp(tester, signedIn(), settings: settings);
+    await openTab(tester, 'Buddys');
+    expect(find.text('Deine Buddys'), findsOneWidget,
+        reason: 'nächster Start fragt wieder');
+  });
+
+  testWidgets('erster Start: Karte, dann „Weiter mit den Spots?" — '
+      '„Später" beendet die Kette', (tester) async {
+    signedIn();
+    backend.addSpot(ownerId: me, name: 'Buchenhang', species: 'Steinpilz');
+    final settings = FakeSettings(mapTourSeen: false, seenCoachTours: {});
+    await pumpApp(tester, backend, settings: settings);
+    await walk(tester, kWelcomeTourScript);
+    expect(settings.mapTourSeen, isTrue);
+
+    // Die Kette fragt an der Grenze, statt einfach weiterzulaufen.
+    expect(path(tester), '/spots');
+    expect(find.text('Weiter mit den Spots?'), findsOneWidget);
+    expect(find.text('Später'), findsOneWidget);
+    final shown = await walk(tester, kSpotsTourScript);
+    expect(shown.first, 'Weiter mit den Spots?');
+    expect(settings.seenCoachTours, contains('spots'));
+
+    expect(path(tester), '/pilze');
+    expect(find.text('Weiter mit den Pilzen?'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('coach-intro-later')));
+    await settle(tester);
+    expect(intro, findsNothing);
+    expect(bubble, findsNothing, reason: 'die Kette ist zu Ende');
+    expect(settings.seenCoachTours, isNot(contains('pilze')));
+    expect(settings.seenCoachTours, isNot(contains('buddys')));
+
+    // Die Buddys kamen nicht mehr dran — ihre Tour wartet auf den ersten
+    // Besuch, mit ihrer eigenen Startseite.
+    await openTab(tester, 'Buddys');
+    expect(find.text('Deine Buddys'), findsOneWidget);
   });
 }
 

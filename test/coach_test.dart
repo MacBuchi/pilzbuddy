@@ -102,10 +102,11 @@ void main() {
     expect((opened, closed), (2, 2), reason: 'Überspringen schließt auch');
   });
 
-  testWidgets('fehlt das Ziel dauerhaft, geht es weiter statt ins Leere',
-      (tester) async {
-    // Schließt jemand ein Menü mit „Zurück" an der Tour vorbei, ist sein
-    // Eintrag weg — die Blase soll dann nicht ewig auf nichts zeigen.
+  testWidgets('fehlt das Ziel dauerhaft, sagt die Blase es — statt still '
+      'weiterzuspringen', (tester) async {
+    // Bis 1.208.x ging die Tour nach ~2 s von selbst weiter. Auf einem
+    // Gerät, das ein Blatt langsamer öffnet, sah das aus wie ein
+    // übersprungener Schritt (Feldmeldung 2026-09-25).
     final container = await pumpCoach(tester, const SizedBox.expand());
     var done = false;
     container.read(coachProvider.notifier).start(
@@ -115,10 +116,13 @@ void main() {
         onDone: () => done = true);
     await frames(tester, 3);
     expect(find.text('A'), findsOneWidget);
+    expect(find.byKey(const ValueKey('coach-target-lost')), findsNothing,
+        reason: 'nicht gleich — eine Szene braucht einen Moment');
     await tester.pump(const Duration(seconds: 4));
     await frames(tester, 130);
-    expect(done, isTrue);
-    expect(find.text('A'), findsNothing);
+    expect(done, isFalse);
+    expect(find.text('A'), findsOneWidget, reason: 'der Schritt bleibt');
+    expect(find.byKey(const ValueKey('coach-target-lost')), findsOneWidget);
   });
 
   testWidgets('ein Schritt ohne sein Ziel fällt sofort weg', (tester) async {

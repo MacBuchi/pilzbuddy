@@ -86,12 +86,14 @@ void main() {
         legacyMapTourSeen: true);
     await pumpApp(tester, signedIn(),
         settings: settings, appVersion: kVersion);
-    expect(find.byKey(const ValueKey('coach-bubble')), findsOneWidget,
-        reason: 'die neue Tour');
+    expect(find.byKey(const ValueKey('coach-intro')), findsOneWidget,
+        reason: 'die neue Tour, mit Startseite');
     expect(recapTitle, findsNothing, reason: 'nicht zwei auf einmal');
     expect(settings.highlightsSeenVersion, isNull,
         reason: 'nicht als Neuinstallation gemerkt');
 
+    await tester.tap(find.byKey(const ValueKey('coach-intro-start')));
+    await settle(tester);
     await tester.tap(find.text('Überspringen'));
     await settle(tester);
     await tester.pumpWidget(const SizedBox());
