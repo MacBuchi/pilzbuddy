@@ -129,6 +129,19 @@ void registerMapDataLicense() {
       'sie zeigen dürfen.',
     );
     yield const LicenseEntryWithLineBreaks(
+      ['Modellwetter (Open-Meteo)'],
+      'Außerhalb Deutschlands — in Österreich, der Schweiz, Liechtenstein '
+      'und den italienischen Alpen — kommen Regen und Temperatur am Spot '
+      'und für die Pilzwetter-Ampel aus Wettermodell-Daten von Open-Meteo '
+      '(Modell ICON des Deutschen Wetterdienstes), auf ein festes '
+      '12-km-Raster geholt und wie das Regengitter auf dem Gerät '
+      'nachgeschlagen. Kein Messwert und kein Radar; die App fragt '
+      'Open-Meteo nie selbst, geholt wird in unserer Datenstrecke.\n'
+      'https://open-meteo.com\n\n'
+      'Lizenz: CC BY 4.0.\n'
+      'https://creativecommons.org/licenses/by/4.0/',
+    );
+    yield const LicenseEntryWithLineBreaks(
       ['Waldtypen (Copernicus Land Monitoring Service)'],
       'Die Waldtypen-Ebene der Karte und die „Wald hier"-Zeile im '
       'Spot-Blatt beruhen auf dem Produkt „High Resolution Layer '

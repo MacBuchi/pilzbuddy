@@ -647,6 +647,33 @@ def taxon_key(sci):
     return match["usageKey"]
 
 
+# **CC BY-NC nur für Messungen, nie für ein Asset** (Betreiber,
+# 2026-09-25, #612). Der Bestand filtert Lizenzen lokal; die Saisonkurven
+# und die Fundorte-Ebene nehmen nur CC0 und CC BY, weil sie ausgeliefert
+# werden. Eine Hold-out-MESSUNG liefert nichts aus — nicht-kommerzielle
+# Forschungsnutzung ist von CC BY-NC gedeckt. Der Anlass: In der
+# italienischen Alpenbox liegen unter CC BY-NC etwa 2,5-mal so viele
+# Meldungen unserer Arten wie unter CC0/CC BY (Steinpilz 326 gegen 194,
+# Pfifferling 145 gegen 58, fast alles iNaturalist); mit CC0/CC BY allein
+# blieb der Pfifferling bei 29 Paaren nicht auswertbar.
+#
+# Drei Riegel: (1) nur per `--include-nc`, Vorgabe aus; (2) NIE für
+# Deutschland — die deutsche Anpassung ist die ausgelieferte Basis und
+# bleibt auf CC0/CC BY, sonst wanderte das Fenster mit der Lizenzliste;
+# (3) eigener Cache-Schlüssel, sonst läse ein NC-Lauf eine festgenagelte
+# CC-BY-Liste oder umgekehrt, und keiner merkte es.
+INCLUDE_NC = False
+LICENCES = ("CC0_1_0", "CC_BY_4_0")
+LICENCES_NC = LICENCES + ("CC_BY_NC_4_0",)
+
+
+def licences_for(countries):
+    """Die Lizenzliste einer Ziehung — NC nur im Ausland und nur auf Wunsch."""
+    if INCLUDE_NC and tuple(countries) != ("DE",):
+        return LICENCES_NC
+    return LICENCES
+
+
 def _finds_cache_path(cache_dir, sci, countries=("DE",)):
     safe = "".join(c if c.isalnum() else "_" for c in sci)
     # Deutschland bleibt ohne Zusatz — sonst wären alle vorhandenen
@@ -654,7 +681,9 @@ def _finds_cache_path(cache_dir, sci, countries=("DE",)):
     # ist der Fehler, gegen den diese Dateien überhaupt angelegt wurden.
     if tuple(countries) == ("DE",):
         return os.path.join(cache_dir, f"finds_{safe}.json")
-    return os.path.join(cache_dir, f"finds_{safe}_{'-'.join(countries)}.json")
+    suffix = "_nc" if licences_for(countries) == LICENCES_NC else ""
+    return os.path.join(cache_dir,
+                        f"finds_{safe}_{'-'.join(countries)}{suffix}.json")
 
 
 def fetch_finds(sci, limit=3000, progress=True, cache_dir=None,
@@ -739,10 +768,17 @@ def _finds_from_local(sci, limit, progress, countries):
     # möglicherweise beschnittenen Stichprobe. Vier Blickwinkel sind
     # keine vier unabhängigen Tests.
     limit = None
+    licences = ",".join(f"'{l}'" for l in licences_for(countries))
+    usable = (f"basisOfRecord = 'HUMAN_OBSERVATION' "
+              f"AND license IN ({licences})")
+    if licences_for(countries) == LICENCES:
+        # Derselbe Schnitt wie der Netzweg und die Kurven — wörtlich.
+        assert usable == gbif_local.WHERE_USABLE, (usable,
+                                                   gbif_local.WHERE_USABLE)
     rows = con.execute(
         f"SELECT decimalLatitude, decimalLongitude, year, month, day, "
         f"       recordedBy, countryCode, gbifID "
-        f"FROM occ WHERE {gbif_local.WHERE_USABLE} AND {where} "
+        f"FROM occ WHERE {usable} AND {where} "
         f"  AND countryCode IN ({','.join('?' * len(countries))}) "
         f"  AND year >= ? AND day IS NOT NULL AND month IS NOT NULL "
         f"  AND (coordinateUncertaintyInMeters IS NULL "
@@ -778,7 +814,7 @@ def _fetch_finds_raw(sci, limit=3000, progress=True, countries=("DE",)):
             "basisOfRecord": "HUMAN_OBSERVATION",
             "hasCoordinate": "true",
             "hasGeospatialIssue": "false",
-            "license": ["CC0_1_0", "CC_BY_4_0"],
+            "license": list(licences_for(countries)),
             "year": f"{FIRST_YEAR},2026",
             "limit": 300,
             "offset": offset,
@@ -2881,15 +2917,23 @@ def holdout_region_notes(countries):
     in IT" sagt, behauptete sonst eine Prüfung im Mittelmeerklima, die
     nie stattgefunden hat — und die Zahl daneben gälte für ein Land.
     """
-    if "IT" not in countries:
-        return []
-    box = gbif_download.ALPINE_ITALY
-    return [f"**„IT“ ist hier der Alpenraum, nicht Italien:** Der lokale "
-            f"Bestand trägt italienische Meldungen nur aus der Box "
-            f"{box['west']}–{box['east']}° O, {box['south']}–{box['north']}° N "
-            "(Südtirol, Trentino, Belluno, Sondrio, Aostatal; "
-            "`tool/gbif_download.py`, #612). Die Zahlen unten gelten für "
-            "diese Box.", ""]
+    notes = []
+    if "IT" in countries:
+        box = gbif_download.ALPINE_ITALY
+        notes += [f"**„IT“ ist hier der Alpenraum, nicht Italien:** Der lokale "
+                  f"Bestand trägt italienische Meldungen nur aus der Box "
+                  f"{box['west']}–{box['east']}° O, {box['south']}–{box['north']}° N "
+                  "(Südtirol, Trentino, Belluno, Sondrio, Aostatal; "
+                  "`tool/gbif_download.py`, #612). Die Zahlen unten gelten für "
+                  "diese Box.", ""]
+    if licences_for(countries) == LICENCES_NC:
+        notes += ["**Gemischte Lizenzbasis (`--include-nc`):** Die Ziehung in "
+                  f"{' und '.join(countries)} nimmt zusätzlich Meldungen unter "
+                  "CC BY-NC 4.0 — nur für diese Messung, nie für ein Asset der "
+                  "App; die deutsche Anpassung bleibt auf CC0 und CC BY. "
+                  "Frühere Hold-outs (AT + CH) liefen ohne NC und sind damit "
+                  "nicht Zahl für Zahl vergleichbar.", ""]
+    return notes
 
 
 def render_class_holdout_report(rows, countries, key, window, fits,
@@ -5150,6 +5194,27 @@ def self_test():
         [hold_row(a, 0.0), hold_row(b, 0.0)], ["IT"], "herbst_holz",
         OPTIMUM_C, fits, "2026-09-25")
     assert "Nicht messbar" in leer and "Nicht bestanden" not in leer, leer
+    # CC BY-NC: nur per Schalter, nie für DE, eigener Cache-Schlüssel,
+    # und der Bericht sagt es.
+    global INCLUDE_NC
+    assert licences_for(("IT",)) == LICENCES
+    assert _finds_cache_path("/c", "Boletus edulis", ("IT",)).endswith(
+        "finds_Boletus_edulis_IT.json")
+    INCLUDE_NC = True
+    try:
+        assert licences_for(("IT",)) == LICENCES_NC
+        assert licences_for(("DE",)) == LICENCES, "DE bleibt CC0/CC BY"
+        assert _finds_cache_path("/c", "Boletus edulis", ("IT",)).endswith(
+            "finds_Boletus_edulis_IT_nc.json")
+        assert _finds_cache_path("/c", "Boletus edulis").endswith(
+            "finds_Boletus_edulis.json")
+        nc = render_class_holdout_report(
+            [hold_row(a, 0.09), hold_row(b, 0.07)], ["IT"], "herbst_holz",
+            fenster, fits, "2026-09-25")
+        assert "Gemischte Lizenzbasis" in nc, nc
+    finally:
+        INCLUDE_NC = False
+    assert "Gemischte Lizenzbasis" not in alpen
     assert class_holdout_verdict([hold_row(a, 0.0)], [a], OPTIMUM_C)["state"] == "leer"
     assert class_holdout_verdict([hold_row(a, 0.0)], [a], 11.0)["state"] == "keine"
     # Die Richtungsaussage steht NACH dem Urteil und nennt sich kein Tor.
@@ -6196,7 +6261,7 @@ def render_report(mycorrhizal, wood, crosscheck, fetched_on):
 
 
 def main():
-    global OPEN_METEO, SAMPLE_PER_SPECIES, DEDUPE
+    global OPEN_METEO, SAMPLE_PER_SPECIES, DEDUPE, INCLUDE_NC
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", default=None,
                         help="Bericht schreiben (z. B. docs/…​.md)")
@@ -6229,6 +6294,10 @@ def main():
                         help="Die Schwellen messen statt sie zu setzen — "
                              "als Quantil der Vergleichstage "
                              "(docs/pilzampel-schwellen.md)")
+    parser.add_argument("--include-nc", action="store_true",
+                        help="Meldungen unter CC BY-NC in die AUSLANDS-Ziehung "
+                             "eines Hold-outs nehmen (nur Messung, nie Asset; "
+                             "Deutschland bleibt CC0/CC BY).")
     parser.add_argument("--holdout", default=None,
                         help="Länderkürzel (z. B. AT,CH): in Deutschland "
                              "anpassen, dort prüfen. Braucht --only.")
@@ -6269,6 +6338,11 @@ def main():
     args = parser.parse_args()
     if args.api:
         OPEN_METEO = args.api.rstrip("/")
+    if args.include_nc:
+        if not args.holdout:
+            raise SystemExit("--include-nc gilt nur für einen --holdout: Alles "
+                             "andere ist ausgeliefert oder dessen Grundlage.")
+        INCLUDE_NC = True
         print(f"Archiv-API: {OPEN_METEO}", file=sys.stderr)
     if args.sample is not None:
         SAMPLE_PER_SPECIES = args.sample

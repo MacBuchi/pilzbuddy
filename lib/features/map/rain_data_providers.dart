@@ -212,6 +212,35 @@ final rainStackProvider = FutureProvider<RainStackData?>((ref) async {
   return ref.watch(rainStackLoaderProvider)();
 });
 
+/// Der Modellstapel des Alpenraums (#612) — dieselbe Test-Naht wie
+/// [rainStackLoaderProvider]; das Harness setzt beide auf `null`.
+final modelRainStackLoaderProvider =
+    Provider<Future<RainStackData?> Function()>((ref) {
+  final repository = ref.watch(rainGridRepositoryProvider);
+  return () => repository.loadModelStack();
+});
+
+/// Der geladene Modellstapel — dieselbe Zustimmung wie das Radar: „Wetter
+/// an diesem Spot" ist EIN Angebot, und woher die Zahl kommt, sagt das
+/// Blatt, nicht ein zweiter Dialog.
+final modelRainStackProvider = FutureProvider<RainStackData?>((ref) async {
+  if (!ref.watch(rainCourseEnabledProvider)) return null;
+  return ref.watch(modelRainStackLoaderProvider)();
+});
+
+/// Beide Stapel in VORRANG-Reihenfolge, Radar zuerst — leer ohne
+/// Zustimmung oder wenn keiner ladbar ist. Alle Abnehmer (Verlauf am
+/// Spot, gebündelte Verläufe, Ampel-Fläche) lesen DIESE Liste, damit es
+/// genau einen Vorrang gibt.
+final rainStacksProvider = FutureProvider<List<RainStackData>>((ref) async {
+  // Beide Watches VOR den Awaits (#255/#257).
+  final radarFuture = ref.watch(rainStackProvider.future);
+  final modelFuture = ref.watch(modelRainStackProvider.future);
+  final radar = await radarFuture;
+  final model = await modelFuture;
+  return [?radar, ?model];
+});
+
 /// Der Regenverlauf an einem Punkt.
 ///
 /// Im Isolate: Es sind vierzehn Gitter auszupacken, und das ist
@@ -221,9 +250,9 @@ final rainStackProvider = FutureProvider<RainStackData?>((ref) async {
 final rainCourseProvider =
     FutureProvider.family<RainCourse?, ({double lat, double lon})>(
         (ref, at) async {
-  final stack = await ref.watch(rainStackProvider.future);
-  if (stack == null) return null;
-  return compute(_course, (stack: stack, lat: at.lat, lon: at.lon));
+  final stacks = await ref.watch(rainStacksProvider.future);
+  if (stacks.isEmpty) return null;
+  return compute(_course, (stacks: stacks, lat: at.lat, lon: at.lon));
 });
 
 /// Die Regenverläufe an MEHREREN Punkten — **eine** Dekodierung je Tag
@@ -241,11 +270,11 @@ final rainCourseProvider =
 /// Riverpod würde die Familie bei jedem Neuaufbau neu rechnen.
 final rainCoursesProvider =
     FutureProvider.family<List<RainCourse>?, String>((ref, key) async {
-  final stack = await ref.watch(rainStackProvider.future);
-  if (stack == null) return null;
+  final stacks = await ref.watch(rainStacksProvider.future);
+  if (stacks.isEmpty) return null;
   final points = pointsFromKey(key);
   if (points.isEmpty) return const [];
-  return compute(_courses, (stack: stack, points: points));
+  return compute(_courses, (stacks: stacks, points: points));
 });
 
 /// Punkte → Familienschlüssel. Auf sechs Nachkommastellen gerundet (~11
@@ -273,31 +302,14 @@ List<({double lat, double lon})> pointsFromKey(String key) {
 }
 
 List<RainCourse> _courses(
-        ({RainStackData stack, List<({double lat, double lon})> points})
+        ({List<RainStackData> stacks, List<({double lat, double lon})> points})
             input) =>
-    rainCoursesFrom(
-      input.stack.days,
-      width: input.stack.info.width,
-      height: input.stack.info.height,
-      west: input.stack.info.west,
-      east: input.stack.info.east,
-      north: input.stack.info.north,
-      south: input.stack.info.south,
-      points: input.points,
-    );
+    rainCoursesFromStacks(input.stacks, points: input.points);
 
-RainCourse _course(({RainStackData stack, double lat, double lon}) input) =>
-    rainCourseFrom(
-      input.stack.days,
-      width: input.stack.info.width,
-      height: input.stack.info.height,
-      west: input.stack.info.west,
-      east: input.stack.info.east,
-      north: input.stack.info.north,
-      south: input.stack.info.south,
-      lat: input.lat,
-      lon: input.lon,
-    );
+RainCourse _course(
+        ({List<RainStackData> stacks, double lat, double lon}) input) =>
+    rainCoursesFromStacks(input.stacks,
+        points: [(lat: input.lat, lon: input.lon)]).single;
 
 /// Wie die Stationstabelle beschafft wird. Dieselbe Test-Naht wie
 /// [rainStackLoaderProvider] — ohne sie ginge jeder Flow-Test, der ein

@@ -35,6 +35,10 @@ import '../../core/geo.dart';
 
 /// Eine Wetterstation: Ort, Höhe — und wie viele Tage sie im Fenster
 /// wirklich gemessen hat.
+/// Die Kennung, mit der `tool/model_weather.py` seine Punkte in die
+/// Stationstabelle schreibt. Beide Seiten müssen sie kennen.
+const kModelStationSource = 'openmeteo';
+
 abstract class WeatherStation {
   const WeatherStation({
     required this.name,
@@ -75,10 +79,18 @@ class AirStation extends WeatherStation {
     required super.height,
     required this.max,
     required this.min,
+    this.model = false,
   });
 
   final List<double?> max;
   final List<double?> min;
+
+  /// Ein Punkt des Modellgitters (`src: "openmeteo"`, #612) statt einer
+  /// Messstation: Werte aus ICON auf einem festen 12-km-Raster, die Höhe
+  /// ist die des Modellpunkts. Für die Nachbarsuche und die
+  /// Höhenkorrektur eine Station wie jede andere — nur das Blatt sagt
+  /// dazu, dass niemand gemessen hat.
+  final bool model;
 
   @override
   int get measuredDays => [
@@ -317,6 +329,7 @@ WeatherTable? weatherTableFrom(List<int> gzippedJson) {
         height: station['h'] as int,
         max: max,
         min: min,
+        model: station['src'] == kModelStationSource,
       ));
     }
     final soil = <SoilStation>[];

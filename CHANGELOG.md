@@ -7,6 +7,22 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Wetter und Ampel jetzt auch in den Alpen
+
+*25. September 2026 · Version 1.212.0*
+
+- **Regen und Temperatur am Spot gibt es jetzt auch in Österreich, der
+  Schweiz, Liechtenstein und Südtirol.** Wo das Radar des Deutschen
+  Wetterdienstes nicht hinreicht, kommen die Werte aus dem Wettermodell
+  ICON über Open-Meteo, auf einem festen 12-km-Raster — das Blatt sagt
+  dazu, dass es Modellwerte sind und kein Messwert.
+- Damit rechnet dort auch die **Pilzwetter-Ampel** — Fläche, Legende und
+  Spot-Blatt wie in Deutschland. Die Gruppe „Austernseitling & Co."
+  bleibt außerhalb Deutschlands grau: Für sie fehlt die Bodenfeuchte.
+- In Österreich und der Schweiz liegt die Temperatur jetzt von einem
+  Punkt in wenigen Kilometern Entfernung statt von der nächsten
+  deutschen Station, die oft 100 km weit weg war.
+
 ## Gemeldete Fundorte auch in Südtirol
 
 *25. September 2026 · Version 1.211.0*

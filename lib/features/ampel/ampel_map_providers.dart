@@ -56,20 +56,29 @@ Future<void> setAmpelLayerEnabled(WidgetRef ref, bool value) async {
 /// der Kombi-Ebene. Bewusst OHNE den Ebenen-Schalter in der Bedingung:
 /// Beide Kunden hängen daran, und wer nur die Kombi anschaltet, braucht
 /// dieselben Zahlen.
-final ampelLevelGridProvider = FutureProvider<AmpelLevelGrid?>((ref) async {
+final ampelLevelGridProvider = FutureProvider<AmpelLevels?>((ref) async {
   if (!ref.watch(ampelPreviewEnabledProvider)) return null;
   // Beide Watches VOR den Awaits — die Riverpod-Lehre aus #255/#257.
   // Die Höhe fehlt hier mit ABSICHT: Das Gitter trägt seit dem
   // Berchtesgaden-Befund (2026-08-17) die Zutaten je Regenzelle, und
   // erst der Abnehmer rechnet mit SEINER Höhe — der Zeichner je
   // Waldwabe, die Legende am Fadenkreuz-Punkt.
-  final stackFuture = ref.watch(rainStackProvider.future);
+  //
+  // Seit 1.212.0 (#612) sind es ZWEI Stapel in Vorrang-Reihenfolge —
+  // Radar, dann das Modellgitter des Alpenraums — und je Stapel ein
+  // Zutaten-Gitter; den Vorrang beim Ablesen regelt [AmpelLevels].
+  final stacksFuture = ref.watch(rainStacksProvider.future);
   final tableFuture = ref.watch(weatherTableProvider.future);
-  final stack = await stackFuture;
-  if (stack == null) return null;
+  final stacks = await stacksFuture;
+  if (stacks.isEmpty) return null;
   final table = await tableFuture;
-  return compute(_levels, (stack: stack, table: table));
+  return compute(_levels, (stacks: stacks, table: table));
 });
 
-AmpelLevelGrid? _levels(({RainStackData stack, WeatherTable? table}) input) =>
-    ampelLevelsFrom(input.stack, input.table);
+AmpelLevels? _levels(
+    ({List<RainStackData> stacks, WeatherTable? table}) input) {
+  final grids = [
+    for (final stack in input.stacks) ?ampelLevelsFrom(stack, input.table),
+  ];
+  return grids.isEmpty ? null : AmpelLevels(grids);
+}

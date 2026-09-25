@@ -195,6 +195,10 @@ void main() {
       // Das Höhengitter — dieselbe Lage wie Copernicus/DLR: Asset im
       // Binary, geholt nur in CI (`tool/elevation_grid.py`).
       'dataspace.copernicus.eu',
+      // Das Modellgitter des Alpenraums (#612): geholt nur in CI
+      // (`tool/model_weather.py`), die App liest den eigenen Spiegel. Die
+      // Adresse steht auf der Lizenzseite, weil CC BY die Nennung verlangt.
+      'open-meteo.com',
       // Doku-Links in KOMMENTAREN der Web-Hülle (#110): Sie stehen in
       // `web/sw.js` bzw. `web/flutter_bootstrap.js` als Beleg für eine
       // Entscheidung und werden von niemandem abgerufen — auch nicht auf

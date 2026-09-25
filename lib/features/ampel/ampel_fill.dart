@@ -529,3 +529,49 @@ class AmpelLevelGrid {
         .level;
   }
 }
+
+/// Mehrere Zutaten-Gitter mit VORRANG (#612, seit 1.212.0): das Gitter
+/// aus dem Radar-Stapel zuerst, das aus dem Modellgitter des Alpenraums
+/// als Rückfall. Je Wabe zählt die erste Antwort — eine Zelle, die im
+/// Radar keine Aussage hat (kein Regen bekannt, keine Station), fragt das
+/// Modell; eine Zelle mit Aussage fragt es nie.
+///
+/// Warum nicht ein Gitter: 1 km gegen 12 km, zwei Geometrien. Umrastern
+/// wäre eine dritte Rechnung neben Blatt und Fläche — und #279 verlangt,
+/// dass beide dasselbe sagen. So lesen Blatt (über die
+/// zusammengeführten Verläufe) und Fläche denselben Vorrang.
+class AmpelLevels {
+  const AmpelLevels(this.grids) : assert(grids.length > 0);
+
+  final List<AmpelLevelGrid> grids;
+
+  /// Der Stand des ersten Gitters — Dateiname und Legende.
+  DateTime get newest => grids.first.newest;
+
+  /// Die Stufe an einem Punkt, über alle Gitter — DIE Auswertung für
+  /// Tests und Punkt-Abnehmer; der Wabenzeichner geht über [rowsAt] und
+  /// [levelForRows], weil er die Zeile je Wabenzeile nur einmal rechnet.
+  AmpelLevel? levelAt(double lat, double lon,
+          {required List<AmpelClass> classes, ElevationGrid? elevation}) =>
+      levelForRows(rowsAt(lat), lon,
+          classes: classes, heightM: elevation?.heightMetersAt(lat, lon));
+
+  /// Je Gitter die Zeile dieser Breite — `null`, wo das Gitter nicht
+  /// hinreicht.
+  List<int?> rowsAt(double lat) => [for (final g in grids) g.rowAt(lat)];
+
+  /// Die erste Aussage in Vorrang-Reihenfolge.
+  AmpelLevel? levelForRows(List<int?> rows, double lon,
+      {required List<AmpelClass> classes, int? heightM}) {
+    for (var i = 0; i < grids.length; i++) {
+      final row = rows[i];
+      if (row == null) continue;
+      final column = grids[i].columnAt(lon);
+      if (column == null) continue;
+      final level =
+          grids[i].levelFor(row, column, classes: classes, heightM: heightM);
+      if (level != null) return level;
+    }
+    return null;
+  }
+}
