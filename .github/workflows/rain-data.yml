@@ -114,6 +114,13 @@ jobs:
                 gh release download rain-data --pattern weather_stations.json.gz \
                   --dir build/rain || echo "no station table yet"
               fi
+              # And the PREVIOUS day files: the virtual stations carry 28
+              # days of tmax/tmin, so the tool reads every day the manifest
+              # lists, not only the ones this run fetches. The first run
+              # had no previous days and passed; the first incremental run
+              # failed on the missing files (2026-09-26).
+              gh release download rain-data --pattern 'model_*' \
+                --dir build/rain || echo "no model files yet (first run)"
               python3 tool/model_weather.py --out build/rain
             else
               python3 tool/rain_grid.py --layer "$layer" --out build/rain

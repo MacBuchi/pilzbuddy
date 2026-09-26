@@ -221,7 +221,15 @@ def write_grid(out_dir, name, values, geometry):
 
 
 def read_grid(out_dir, name, geometry):
-    with open(os.path.join(out_dir, name), "rb") as handle:
+    path = os.path.join(out_dir, name)
+    if not os.path.exists(path):
+        # The manifest lists a day this directory does not hold. On an
+        # existing stack the workflow must download `model_*` from the
+        # release first — a stack trace on `open` said none of that.
+        raise SystemExit(f"{name} is in the manifest but not in {out_dir}: "
+                         "a run on an existing stack needs the previous day "
+                         "files (gh release download rain-data --pattern 'model_*')")
+    with open(path, "rb") as handle:
         rows = rain_grid.decode(handle.read(), geometry["width"],
                                 geometry["height"])
     return [b for row in rows for b in row]
