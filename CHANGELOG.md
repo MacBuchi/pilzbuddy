@@ -7,6 +7,15 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Chat: Eingabefeld direkt über der Tastatur
+
+*26. September 2026 · Version 1.212.2*
+
+- Beim Schreiben einer Nachricht stand das Eingabefeld eine
+  Reiterleisten-Höhe über der Tastatur, mit einem leeren Streifen
+  dazwischen. Es sitzt jetzt direkt darüber — in der App und im Browser,
+  und ebenso bei den Suchfeldern in den anderen Reitern.
+
 ## Wetter und Ampel jetzt auch in den Alpen
 
 *25.–26. September 2026 · Versionen 1.212.0–1.212.1*
