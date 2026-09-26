@@ -621,7 +621,9 @@ class RainGridRepository {
           .toList()
         ..sort((a, b) => b.path.compareTo(a.path));
       if (files.isEmpty) return null;
-      return _read(files.first, info);
+      // `await`, damit der catch auch gilt, falls `_read` je wirft (heute
+      // fängt es selbst; Analyzer ab Flutter 3.47, #621).
+      return await _read(files.first, info);
     } catch (_) {
       return null;
     }

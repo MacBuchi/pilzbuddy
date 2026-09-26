@@ -44,7 +44,7 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
-          flutter-version: 3.44.8
+          flutter-version: 3.47.5
           cache: true
       - run: flutter pub get
       - run: flutter analyze
@@ -143,7 +143,7 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
-          flutter-version: 3.44.8
+          flutter-version: 3.47.5
           cache: true
       - run: flutter pub get
       # `--no-web-resources-cdn` ist zweierlei zugleich (#387): Ohne den
@@ -185,7 +185,7 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
-          flutter-version: 3.44.8
+          flutter-version: 3.47.5
           cache: true
       - run: flutter pub get
       # Ohne key.properties fällt der Build auf Debug-Signing zurück —
