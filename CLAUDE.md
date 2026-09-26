@@ -2737,7 +2737,12 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   - **Reihenfolge im Workflow: `daily weather model`.** Das Werkzeug
     hängt seine Punkte an die Stationstabelle DIESES Laufs und korrigiert
     `weather.bytes` (der Cache-Schlüssel der App). Ein Handlauf nur mit
-    `model` holt die Tabelle vorher aus dem Release. Eigene
+    `model` holt die Tabelle vorher aus dem Release. **Jeder Lauf holt
+    vorher die `model_*`-Dateien des Release**: Die virtuellen Stationen
+    tragen 28 Tage, das Werkzeug liest also jeden Tag des Manifests, nicht
+    nur die neu geholten. Der erste Lauf hatte keine Vortage und ging
+    durch, der erste Folgelauf (2026-09-26) scheiterte an den fehlenden
+    Dateien; `test/release_workflow_test.dart` hält den Schritt fest. Eigene
     Aufräumliste `model_keep.txt`, eigener Lösch-Schritt für `model_*`.
     `--verify` fragt sechs zufällige Punkte einzeln nach — die eine
     Prüfung, die ein verschobenes Raster oder vertauschte Max/Min sieht.

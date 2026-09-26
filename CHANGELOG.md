@@ -9,7 +9,7 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Wetter und Ampel jetzt auch in den Alpen
 
-*25. September 2026 · Version 1.212.0*
+*25.–26. September 2026 · Versionen 1.212.0–1.212.1*
 
 - **Regen und Temperatur am Spot gibt es jetzt auch in Österreich, der
   Schweiz, Liechtenstein und Südtirol.** Wo das Radar des Deutschen

@@ -243,6 +243,24 @@ void main() {
     });
   });
 
+  group('Das Modellgitter läuft auf einem BESTEHENDEN Stapel (#612)', () {
+    final rainData = File('.github/workflows/rain-data.yml').readAsStringSync();
+    test('der Bau holt die Vortage aus dem Release, bevor das Werkzeug läuft',
+        () {
+      // Die virtuellen Stationen tragen 28 Tage tmax/tmin, das Werkzeug
+      // liest also JEDEN Tag des Manifests — nicht nur die, die dieser
+      // Lauf holt. Der erste Lauf (kein Vortag) ging durch, der erste
+      // Folgelauf am 2026-09-26 scheiterte an `model_tmax_20260917`.
+      final download = rainData.indexOf("--pattern 'model_*'");
+      final build = rainData.indexOf('python3 tool/model_weather.py --out');
+      expect(download, greaterThan(-1),
+          reason: 'ohne den Download fehlen dem Werkzeug die Vortage');
+      expect(build, greaterThan(-1));
+      expect(download, lessThan(build),
+          reason: 'der Download muss VOR dem Werkzeug stehen');
+    });
+  });
+
   group('Die Web-Vorschau darf sich nicht als echte App ausgeben (#388)', () {
     test('sie markiert sich beim Bauen', () {
       // Ohne dieses Flag fehlten der Streifen „Entwicklungsstand" und der
