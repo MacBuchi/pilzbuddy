@@ -430,16 +430,20 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   ausführbar (die beiden RPCs der App), `pg_net` im Schema `public`
   (lässt sich nicht verschieben) und Leaked Password Protection (siehe
   unten). Wer dort mehr sieht, hat einen neuen Fund.
-- Flutter-Version in CI gepinnt (subosito/flutter-action, aktuell 3.44.8) —
+- Flutter-Version in CI gepinnt (subosito/flutter-action, aktuell 3.47.5) —
   bei lokalem Flutter-Upgrade auch `.github/workflows/*.yml` anpassen. Es
-  sind **sechs** Stellen in vier Dateien: dreimal `ci.yml`, je einmal
-  `release.yml` und `security.yml`, dazu `FLUTTER_VERSION` in
-  `promote.yml`. Der Eintrag in `release.yml` ist nicht nur Build-Sache —
+  sind **sieben** Stellen in fünf Dateien: dreimal `ci.yml`, je einmal
+  `preview.yml`, `release.yml` und `security.yml`, dazu `FLUTTER_VERSION`
+  in `promote.yml` (`preview.yml` fehlte hier bis #621). Vollständig ist
+  die Liste mit `grep -rn "flutter-version\|FLUTTER_VERSION"
+  .github/workflows`. Der Eintrag in `release.yml` ist nicht nur Build-Sache —
   `tool/symbolize_anr.py` liest ihn aus dem TAG, um die passende
   ungestrippte `libflutter.so` zu holen; steht dort die falsche Version,
   sind die nativen Frames stumm falsch benannt.
   Die Drift lokal↔CI ist am 2026-08-11 aufgelöst worden (3.41.2 → 3.44.8,
-  Betreiber: „3.44 soll auch in der CI laufen"). Vorher hieß die Regel,
+  Betreiber: „3.44 soll auch in der CI laufen"). Zweite Drift aufgelöst am
+  2026-09-26 (3.44.8 → 3.47.5, #621): Sie zeigte sich als Analyzer-Warnung
+  (`unawaited_return_in_try_block`), die lokal kam und in CI nicht. Vorher hieß die Regel,
   `pubspec.lock` vor dem Commit zurückzunehmen — das ging nur, solange
   keine neue Abhängigkeit dazukam.
 - Supabase-Keys in `lib/core/supabase_config.dart` sind bewusst öffentlich

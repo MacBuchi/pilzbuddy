@@ -9,7 +9,7 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Chat: Eingabefeld direkt über der Tastatur
 
-*26. September 2026 · Version 1.212.2*
+*26. September 2026 · Versionen 1.212.2–1.212.3*
 
 - Beim Schreiben einer Nachricht stand das Eingabefeld eine
   Reiterleisten-Höhe über der Tastatur, mit einem leeren Streifen
