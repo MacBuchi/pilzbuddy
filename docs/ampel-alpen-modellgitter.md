@@ -24,8 +24,8 @@ Instrument; das Radar in der App ist die Abweichung davon.
 
 ## Was gebaut ist
 
-- **Quelle:** Open-Meteo, `models=icon_seamless` (ICON-D2 2 km über den
-  Alpen, ICON-EU darüber hinaus), `precipitation_sum`,
+- **Quelle:** Open-Meteo, `models=icon_d2` (ICON-D2, 2,2 km),
+  `precipitation_sum`,
   `temperature_2m_max`, `temperature_2m_min`. Free-Tier, nicht
   kommerziell, CC BY 4.0. Lizenzseite der App nennt es.
 - **Raster:** EPSG:3857, 12 km, Box 5,9–17,2° O / 45,6–49,1° N minus

@@ -41,8 +41,11 @@ nothing.
 TWO APIs, ONE DATA SET. Days up to yesterday come from the forecast
 endpoint with `past_days`; older gaps come from the historical-forecast
 endpoint with explicit dates. Both serve the archived first hours of
-the same model runs (`icon_seamless`: ICON-D2 at 2 km over the Alps,
-ICON-EU beyond). Pinned by name — "best match" may change models.
+the same model runs. Pinned to `icon_d2` (ICON-D2, 2.2 km): measured on
+2026-09-26, `icon_seamless` returned the SAME values at every point of
+the box on both endpoints — but it falls back to ICON-EU (7 km) silently
+wherever D2 has no data. Pinned, a missing D2 day is a gap the next run
+fills; unpinned it would be another instrument under the same label.
 
 HOW THE APP SEES IT. Rain: a second day stack (`model_rain_*`), same
 bytes as the radar days; the app falls back per day and per point.
@@ -78,7 +81,7 @@ import spot_weather  # noqa: E402
 
 FORECAST_API = "https://api.open-meteo.com/v1/forecast"
 HISTORY_API = "https://historical-forecast-api.open-meteo.com/v1/forecast"
-MODELS = "icon_seamless"
+MODELS = "icon_d2"
 VARIABLES = ("precipitation_sum", "temperature_2m_max", "temperature_2m_min")
 
 # west, south, east, north — the Alpine box: Aosta valley to the Vienna

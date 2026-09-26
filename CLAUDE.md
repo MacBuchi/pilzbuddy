@@ -2688,8 +2688,10 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
 - **Das Modellgitter des Alpenraums** (`tool/model_weather.py`, im
   selben `rain-data.yml`, #612, seit 1.212.0): Wo Radar und
   DWD-Stationen enden, kommen Regen und Temperatur aus dem Wettermodell
-  — Open-Meteo, `models=icon_seamless` (ICON-D2 mit 2 km über den
-  Alpen), auf einem festen 12-km-Raster in EPSG:3857 über der Box
+  — Open-Meteo, `models=icon_d2` (ICON-D2, 2,2 km; seit dem 2026-09-26
+  gepinnt statt `icon_seamless`, das in der Box dieselben Werte lieferte,
+  ohne D2-Daten aber still auf ICON-EU zurückfiele), auf einem festen
+  12-km-Raster in EPSG:3857 über der Box
   5,9–17,2° O / 45,6–49,1° N MINUS Deutschland (Polylinie der
   Südgrenze, `DE_BORDER`; 3 574 Punkte). Sieben Dinge, die man wissen
   muss:
