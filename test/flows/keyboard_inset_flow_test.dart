@@ -17,6 +17,9 @@
 // Lage, die der Nutzer gesehen hat.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pilzbuddy/core/widgets/keyboard_inset_below_bar.dart';
+import 'package:pilzbuddy/features/friends/conversation_screen.dart';
+import 'package:pilzbuddy/features/friends/friends_screen.dart';
 import 'package:pilzbuddy/features/map/map_screen.dart';
 
 import '../fakes/fake_backend.dart';
@@ -96,5 +99,42 @@ void main() {
 
     expect(mapArea.bottom, moreOrLessEquals(bar.top, epsilon: 0.5),
         reason: 'zwischen Karte und Reiterleiste darf nichts frei bleiben');
+  });
+  testWidgets('das Chat-Feld sitzt direkt über der Tastatur, nicht eine '
+      'Leistenhöhe darüber', (tester) async {
+    // Feldbericht 2026-09-26 (Android, dieselbe Rechnung im Browser): Die
+    // Hülle weicht nicht aus, ihr Body endet über der Reiterleiste. Der
+    // Scaffold des Verlaufs wich trotzdem um die VOLLE Tastaturhöhe aus —
+    // zwischen Feld und Tastatur stand die Leiste als leerer Streifen.
+    final backend = loggedInBackend();
+    final me = backend.currentUserId!;
+    final bert = backend.addUser(username: 'bert');
+    backend.addFriendship(me, bert.id);
+    stuckKeyboard(tester);
+    await pumpApp(tester, backend);
+
+    await openTab(tester, 'Buddys');
+    await tester.ensureVisible(find.byKey(messageButtonKey(bert.id)));
+    await settle(tester);
+    await tester.tap(find.byKey(messageButtonKey(bert.id)));
+    await settle(tester, frames: 12);
+
+    final view = tester.view;
+    final keyboardTop = (view.physicalSize.height - view.viewInsets.bottom) /
+        view.devicePixelRatio;
+    final field = tester.getRect(find.byKey(kMessageFieldKey));
+    final bar = tester.getRect(find.byType(NavigationBar));
+
+    expect(field.bottom, lessThanOrEqualTo(keyboardTop + 0.5),
+        reason: 'das Feld darf nicht unter der Tastatur liegen');
+    expect(keyboardTop - field.bottom, lessThan(bar.height / 2),
+        reason: 'der Abstand zur Tastatur darf nicht die Reiterleiste sein '
+            '(${bar.height} dp)');
+  });
+
+  test('das Inset wird nie negativ und bleibt ohne Leiste unverändert', () {
+    expect(keyboardInsetBelow(300, 80), 220);
+    expect(keyboardInsetBelow(50, 80), 0);
+    expect(keyboardInsetBelow(300, 0), 300);
   });
 }

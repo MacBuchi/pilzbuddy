@@ -14,6 +14,7 @@ import '../features/changelog/changelog_screen.dart';
 import '../features/help/help_screen.dart';
 import '../features/highlights/discover_screen.dart';
 import '../features/friends/conversation_screen.dart';
+import 'widgets/keyboard_inset_below_bar.dart';
 import '../features/friends/friends_screen.dart';
 import '../features/friends/message_providers.dart';
 import '../features/import_export/import_screen.dart';
@@ -196,7 +197,10 @@ class AppShell extends StatelessWidget {
       // zwar strukturell: Was nicht schrumpft, kann keinen Streifen
       // hinterlassen.
       resizeToAvoidBottomInset: false,
-      body: navigationShell,
+      // Und weil sie nicht ausweicht, liegt ihr Body schon eine
+      // Leistenhöhe über dem Rand — ein Reiter-Scaffold darf nur um den
+      // Rest der Tastatur schrumpfen (Chat, 2026-09-26).
+      body: KeyboardInsetBelowBar(child: navigationShell),
       bottomNavigationBar: CoachAnchor(
         id: NavCoach.bar,
         child: NavigationBar(
