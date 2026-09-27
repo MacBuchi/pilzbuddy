@@ -1,0 +1,83 @@
+name: Forest Species EU
+
+# Builds the FALLBACK tree-species grid (#624) from the ForestPaths
+# European Tree Genus Map. See tool/forest_species_eu.py.
+#
+# A sibling of forest-species.yml, not a mode of it: different source
+# (Zenodo, ~3 GB of COG tiles instead of one 524 MB DLR file), a pinned
+# early-access record that must NOT be swapped for a newer version
+# without re-running the #624 measurement, and a mask that leaves out
+# every cell the committed DLR grid already speaks about.
+#
+# Hand-started only. The source is a fixed Zenodo record; a schedule
+# would rebuild identical bytes. The run notes in its summary when a
+# newer ForestPaths version exists.
+#
+# Like the other grids this does NOT publish to a release tag: the grid
+# ships as an APK asset, so it lands in a human-reviewed PR with a
+# version bump and a changelog line.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Fetch ForestPaths tiles and build the fallback grid
+    runs-on: ubuntu-latest
+    # ~3 GB download in ~11 column archives, one gdalwarp onto the
+    # 8.5-gigapixel target raster and the band-wise aggregation over
+    # everything outside Germany. Generous headroom.
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Self-test first
+        run: python3 tool/forest_species_eu.py --self-test > /dev/null
+
+      # Tiles (~3 GB unpacked) and the warped raster sit on disk at the
+      # same time for a while; the runner image's preinstalled SDKs are
+      # the cheapest room to make.
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h .
+
+      # Same declared deviation as the other grids: GDAL mosaics and
+      # reprojects, it never calculates. Aggregation and encoding stay
+      # hand-written and self-tested, and --verify checks against the
+      # warped raster.
+      - name: Install GDAL
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q gdal-bin
+
+      - name: Fetch, warp, aggregate, verify
+        run: python3 tool/forest_species_eu.py fetch --out build/species_eu
+
+      - name: Report the size against the decision rule
+        run: |
+          BYTES=$(python3 -c "import json;print(json.load(open('build/species_eu/forest_species_eu_manifest.json'))['bytes'])")
+          MB=$(python3 -c "print(f'{$BYTES/1e6:.2f}')")
+          echo "Grid: ${MB} MB packed" >> "$GITHUB_STEP_SUMMARY"
+          # Same 4 MB rule as the DLR grid (#227): at or below it ships
+          # as an APK asset; above it is a decision, not a commit.
+          if [ "$BYTES" -gt 4000000 ]; then
+            echo "::warning::${MB} MB exceeds the 4 MB rule from #227 — do not commit this without deciding again."
+            echo "**Above the 4 MB rule from #227** — decide before committing." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload the grid as an artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: forest-species-eu
+          path: |
+            build/species_eu/forest_species_eu.bin.gz
+            build/species_eu/forest_species_eu_manifest.json
+          retention-days: 30
+          if-no-files-found: error

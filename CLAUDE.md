@@ -2407,6 +2407,21 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     Secret), teilt sich aber dessen Geometrie-Code. Er läuft jährlich —
     `workflow_dispatch` verlangt den Workflow auf `main`, ein neues
     Gitter braucht also erst dessen Merge und dann einen Lauf.
+  - **Außerhalb Deutschlands springt ein Rückfall-Gitter ein** (#624,
+    `tool/forest_species_eu.py` + `forest-species-eu.yml`, nur von
+    Hand): die ForestPaths-Gattungskarte (Zenodo 13341104, Vorab-Fassung,
+    CC BY 4.0), gemessen gegen die DLR-Karte. Genannt werden NUR Fichte,
+    Kiefer und Buche — Lärche erkennt sie praktisch nie (1,5 %), Eiche
+    kaum. Die führende Gattung wird trotzdem über ALLE Klassen bestimmt
+    und fällt erst danach weg; sonst wäre ein Lärchenbestand mit drei
+    Fichten eine „Fichte". Jede Wabe, zu der das DLR-Gitter etwas sagt,
+    ist dort 0xFF (Prüfsumme als `mask_sha256`). Eigene Datei, weil die
+    Zeile je Wabe sagen muss, woher sie stammt und dass Lärche darin
+    nicht vorkommen kann. Eine neuere ForestPaths-Fassung meldet der
+    Lauf nur; übernommen wird sie erst nach derselben Messung.
+    **Falle beim lokalen Prüfen:** `_fake_tiff_u8` schreibt die Breite
+    als SHORT — ab 65 536 Pixeln (das volle Raster hat 81 600) läuft sie
+    über, und `verify` meldet Abweichungen, die es nicht gibt.
 - **Höhenlinien auf der Karte** (seit 1.98.0): Dieselben Daten, eine
   zweite Verwendung — die Ebene rechnet Isolinien **auf dem Gerät**
   (`lib/features/map/elevation_contours.dart`) und baut dafür KEINE
