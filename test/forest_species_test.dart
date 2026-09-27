@@ -17,7 +17,8 @@ ForestSpeciesGrid speciesOf(List<List<int>> rows,
         {double west = 10,
         double north = 55,
         double lonStep = _lonStep,
-        double latStep = _latStep}) =>
+        double latStep = _latStep,
+        int referenceYear = 2022}) =>
     ForestSpeciesGrid.decode(
       GZipEncoder().encode(rows.expand((r) => r).toList())!,
       width: rows.first.length,
@@ -26,7 +27,7 @@ ForestSpeciesGrid speciesOf(List<List<int>> rows,
       east: west + rows.first.length * lonStep,
       north: north,
       south: north - rows.length * latStep,
-      referenceYear: 2022,
+      referenceYear: referenceYear,
       hexLonStep: lonStep,
       hexLatStep: latStep,
     );
@@ -240,5 +241,61 @@ void main() {
         expect(species.byteAt(lat, lon), species.values[hy * 4 + hx]);
       }
     }
+  });
+
+  group('Vorrang und Rückfall (#624)', () {
+    // Zwei Gitter über denselben Waben: gemessen (DLR, nur Deutschland)
+    // und geschätzt (ForestPaths). Die Wabe (0,0) ist der Prüfpunkt.
+    ForestSpeciesGrid dlr(int byte) => speciesOf([
+          [byte, byte],
+        ]);
+    ForestSpeciesGrid eu(int byte) => speciesOf([
+          [byte, byte],
+        ], referenceYear: 2020);
+    final (lat, lon) = centerOf(dlr(0), 0, 0);
+
+    test('das DLR-Gitter gewinnt, wo es eine Art nennt', () {
+      final r = forestSpeciesReadingAt(dlr(0x21), eu(0x11), lat, lon)!;
+      expect(r.estimated, isFalse);
+      expect(r.names.broadleaf, Broadleaf.oak);
+      expect(r.referenceYear, 2022);
+    });
+
+    test('„Bäume ohne nennbare Art" und Kronenverlust sind AUSSAGEN', () {
+      // Dort springt die Schätzung nicht ein — die bessere Quelle hat
+      // gesprochen, und 2020 über einer Kahlfläche von 2022 wäre ein
+      // Rückschritt.
+      expect(forestSpeciesReadingAt(dlr(0x00), eu(0x11), lat, lon), isNull);
+      expect(forestSpeciesReadingAt(dlr(speciesCanopyLoss), eu(0x11), lat, lon),
+          isNull);
+    });
+
+    test('wo DLR schweigt, spricht die Schätzung — und sagt es', () {
+      final r =
+          forestSpeciesReadingAt(dlr(speciesNoData), eu(0x11), lat, lon)!;
+      expect(r.estimated, isTrue);
+      expect(r.names, (broadleaf: Broadleaf.beech, conifer: Conifer.spruce));
+      expect(r.referenceYear, 2020);
+      // Außerhalb des DLR-Gitters, und ganz ohne DLR-Gitter, genauso.
+      expect(forestSpeciesReadingAt(null, eu(0x02), lat, lon)!.names.conifer,
+          Conifer.pine);
+    });
+
+    test('die Schätzung nennt NIE Lärche, Eiche, Birke, Erle, Tanne', () {
+      // Das Werkzeug schreibt nichts davon hinein; der Leser verlässt
+      // sich trotzdem nicht darauf. 0x25 = Eiche + Lärche, 0x43 = Erle
+      // + Tanne: nichts Nennbares übrig ⇒ keine Zeile.
+      expect(forestSpeciesReadingAt(null, eu(0x25), lat, lon), isNull);
+      expect(forestSpeciesReadingAt(null, eu(0x43), lat, lon), isNull);
+      // 0x31 = Birke + Fichte: die Fichte bleibt, die Birke fällt weg.
+      final r = forestSpeciesReadingAt(null, eu(0x31), lat, lon)!;
+      expect(r.names, (broadleaf: null, conifer: Conifer.spruce));
+    });
+
+    test('ohne beide Gitter keine Aussage', () {
+      expect(forestSpeciesReadingAt(null, null, lat, lon), isNull);
+      expect(forestSpeciesReadingAt(dlr(speciesNoData), null, lat, lon),
+          isNull);
+    });
   });
 }

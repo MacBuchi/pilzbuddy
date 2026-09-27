@@ -72,7 +72,8 @@ class SpotForestSection extends ConsumerWidget {
   }
 }
 
-/// Die Artenzeile — nur Deutschland, nur wo etwas zu benennen ist.
+/// Die Artenzeile — gemessen in Deutschland (DLR), geschätzt außerhalb
+/// (ForestPaths, #624), und nur wo etwas zu benennen ist.
 ///
 /// Eigenes Widget, damit ein fehlendes Artengitter nur DIESE Zeile
 /// kostet und nicht die Waldzeile darüber.
@@ -91,9 +92,20 @@ class _SpeciesLine extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final grid = ref.watch(forestSpeciesGridProvider).valueOrNull;
-    final names = grid?.at(lat, lon);
-    if (grid == null || names == null) return const SizedBox.shrink();
+    final measuredAsync = ref.watch(forestSpeciesGridProvider);
+    // Erst die Antwort des DLR-Gitters abwarten: Während es lädt, sähe
+    // es aus wie „schweigt", und das Rückfall-Gitter würde an jedem
+    // deutschen Spot mit ausgepackt (im Test so gefunden).
+    if (measuredAsync.isLoading) return const SizedBox.shrink();
+    final measured = measuredAsync.valueOrNull;
+    final byte = measured?.byteAt(lat, lon);
+    // Beobachten ist laden: Das Rückfall-Gitter wird erst angefasst, wo
+    // das DLR-Gitter schweigt — ein Spot in Deutschland packt es nie aus.
+    final dlrSilent = byte == null || byte == speciesNoData;
+    final fallback =
+        dlrSilent ? ref.watch(forestSpeciesEuGridProvider).valueOrNull : null;
+    final reading = forestSpeciesReadingAt(measured, fallback, lat, lon);
+    if (reading == null) return const SizedBox.shrink();
 
     // Wo das Waldgitter „kein Wald" sagt, die Artenkarte aber Bäume
     // kennt, sind es Waldränder — gemessen 3,9 % der Zellen (#227).
@@ -101,11 +113,18 @@ class _SpeciesLine extends ConsumerWidget {
     // Eiche am Wiesenrand ist für einen Sammler ein Hinweis, kein
     // Widerspruch.
     final prefix = isForest ? 'Bäume' : 'Einzelne Bäume';
-    final phrase = speciesPhrase(names, coniferPercent: coniferPercent);
+    final phrase =
+        speciesPhrase(reading.names, coniferPercent: coniferPercent);
+    // Die Schätzung sagt, was sie ist, und was sie nicht sehen kann —
+    // sonst läse sich „Fichte" als „hier keine Lärche" (#624).
+    final source = reading.estimated
+        ? 'Satellitenschätzung, Lärche nicht erkennbar · '
+            'Stand ${reading.referenceYear}'
+        : 'Stand ${reading.referenceYear}';
     return Padding(
       padding: const EdgeInsets.only(top: 2, left: 24),
       child: Text(
-        '$prefix: $phrase · Stand ${grid.referenceYear}',
+        '$prefix: $phrase · $source',
         style: Theme.of(context).textTheme.bodySmall,
       ),
     );

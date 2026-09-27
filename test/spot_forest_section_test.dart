@@ -30,6 +30,8 @@ void main() {
     WidgetTester tester, {
     required int conifer,
     int? speciesByte,
+    int? euByte,
+    void Function()? onEuLoad,
   }) async {
     final forest = forestOf([
       [conifer, conifer],
@@ -45,6 +47,18 @@ void main() {
                 [speciesByte, speciesByte],
                 [speciesByte, speciesByte],
               ], west: 10, north: 55)),
+        // Das Rückfall-Gitter über den LOADER, nicht den Provider: So
+        // läuft die echte Verdrahtung, und der Zähler sieht, ob es
+        // überhaupt angefasst wurde.
+        forestSpeciesEuLoaderProvider.overrideWithValue(() async {
+          onEuLoad?.call();
+          return euByte == null
+              ? null
+              : speciesOf([
+                  [euByte, euByte],
+                  [euByte, euByte],
+                ], west: 10, north: 55, referenceYear: 2020);
+        }),
       ],
       child: const MaterialApp(
         home: Scaffold(body: SpotForestSection(lat: lat, lon: lon)),
@@ -109,5 +123,56 @@ void main() {
     expect(find.textContaining('kein Wald'), findsOneWidget);
     expect(find.textContaining('Bäume'), findsNothing);
     expect(find.textContaining('Kronenverlust'), findsNothing);
+  });
+
+  group('außerhalb Deutschlands: die Schätzung (#624)', () {
+    testWidgets('sagt, dass sie schätzt und Lärche nicht sieht',
+        (tester) async {
+      await pumpSection(tester,
+          conifer: 82, speciesByte: speciesNoData, euByte: 0x11);
+      await tester.pump();
+      expect(
+          find.textContaining('Bäume: Fichte und Buche · Satellitenschätzung, '
+              'Lärche nicht erkennbar · Stand 2020'),
+          findsOneWidget);
+    });
+
+    testWidgets('auch ganz ohne DLR-Gitter', (tester) async {
+      await pumpSection(tester, conifer: 96, speciesByte: null, euByte: 0x02);
+      await tester.pump();
+      expect(find.textContaining('Bäume: Kiefer · Satellitenschätzung'),
+          findsOneWidget);
+    });
+
+    testWidgets('die gemessene Zeile bleibt ohne Zusatz', (tester) async {
+      await pumpSection(tester, conifer: 82, speciesByte: 0x11, euByte: 0x02);
+      await tester.pump();
+      expect(find.textContaining('Bäume: Fichte und Buche · Stand 2022'),
+          findsOneWidget);
+      expect(find.textContaining('Satellitenschätzung'), findsNothing);
+    });
+
+    testWidgets('ein Spot in Deutschland lädt das Rückfall-Gitter nie',
+        (tester) async {
+      // Beobachten ist laden — auch dort, wo DLR „Bäume ohne nennbare
+      // Art" sagt, ist die Frage beantwortet.
+      var loads = 0;
+      await pumpSection(tester,
+          conifer: 82, speciesByte: 0x00, euByte: 0x11, onEuLoad: () => loads++);
+      await tester.pump();
+      expect(loads, 0);
+      expect(find.textContaining('Bäume'), findsNothing);
+    });
+
+    testWidgets('schweigt DLR, wird es geladen', (tester) async {
+      var loads = 0;
+      await pumpSection(tester,
+          conifer: 82,
+          speciesByte: speciesNoData,
+          euByte: 0x11,
+          onEuLoad: () => loads++);
+      await tester.pump();
+      expect(loads, 1);
+    });
   });
 }

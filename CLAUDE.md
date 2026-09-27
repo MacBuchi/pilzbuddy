@@ -2419,6 +2419,18 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     Zeile je Wabe sagen muss, woher sie stammt und dass Lärche darin
     nicht vorkommen kann. Eine neuere ForestPaths-Fassung meldet der
     Lauf nur; übernommen wird sie erst nach derselben Messung.
+    **In der App** (seit 1.213.0) steht die Vorrangregel an EINER Stelle,
+    `forestSpeciesReadingAt`: DLR gewinnt, sobald es irgendetwas sagt —
+    auch „Bäume ohne nennbare Art" (0x00) und Kronenverlust; nur bei
+    0xFF fragt die Zeile die Schätzung, und auch dann nur nach
+    `estimatedBroadleaves`/`estimatedConifers` (der Leser verlässt sich
+    nicht darauf, dass das Asset die Zusage hält). Die Zeile lautet dann
+    „Bäume: Fichte · Satellitenschätzung, Lärche nicht erkennbar · Stand
+    2020". **Die Zeile wartet auf das DLR-Gitter**, bevor sie das zweite
+    anfasst — während es lädt, sähe es wie „schweigt" aus, und jeder
+    deutsche Spot packte das Rückfall-Gitter mit aus (im Test gefunden).
+    Die iNaturalist-Vorauswahl der Bäume bleibt bewusst beim DLR-Gitter:
+    Dort wird eine Schätzung zu einer Angabe in einer fremden Datenbank.
     **Falle beim lokalen Prüfen:** `_fake_tiff_u8` schreibt die Breite
     als SHORT — ab 65 536 Pixeln (das volle Raster hat 81 600) läuft sie
     über, und `verify` meldet Abweichungen, die es nicht gibt.

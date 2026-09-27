@@ -141,26 +141,33 @@ class _ForestLayerSheet extends ConsumerWidget {
                       },
                     ),
                   ],
+                  // Die Quellenangabe scrollt MIT (#624): Fest unter der
+                  // Liste nahm sie ihr mit jeder Zeile Platz weg — mit der
+                  // dritten Zeile rutschte „Mischwald" darunter (vom
+                  // Flow-Test zu #231 gefunden).
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                    child: Text(
+                      // Lizenzpflicht der Quellen — gehört hierher, nicht in
+                      // die Datenschutzerklärung: Die Gitter liegen im APK,
+                      // und die feinen Blöcke (#253) kommen von den
+                      // GitHub-Releases, die dort längst stehen.
+                      //
+                      // Die Baumarten-Zeilen sind CC-BY-Pflicht (#227, #624)
+                      // und nennen zugleich die Abdeckung: gemessen in
+                      // Deutschland, außerhalb nur geschätzt und nur drei
+                      // Gattungen — sonst sähe eine fehlende Lärche in Tirol
+                      // nach einem Fehler der App aus.
+                      '© Europäische Union, Copernicus Land Monitoring Service\n'
+                      'Baumarten Deutschland: © DLR, Tree Species Germany '
+                      '(CC BY 4.0)\n'
+                      'Baumarten sonst: ForestPaths European Tree Genus Map '
+                      '(CC BY 4.0) — geschätzt, nur Fichte, Kiefer und Buche',
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: theme.hintColor),
+                    ),
+                  ),
                 ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-              child: Text(
-                // Lizenzpflicht der Quellen — gehört hierher, nicht in
-                // die Datenschutzerklärung: Die Gitter liegen im APK,
-                // und die feinen Blöcke (#253) kommen von den
-                // GitHub-Releases, die dort längst stehen.
-                //
-                // Die zweite Zeile ist CC-BY-Pflicht (#227) und nennt
-                // zugleich die Abdeckung: Ohne den Zusatz sähe das
-                // Fehlen der Artenzeile in Österreich und der Schweiz
-                // nach einem Fehler der App aus.
-                '© Europäische Union, Copernicus Land Monitoring Service\n'
-                'Baumarten: © DLR, Tree Species Germany (CC BY 4.0) — '
-                'nur Deutschland',
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.hintColor),
               ),
             ),
           ],

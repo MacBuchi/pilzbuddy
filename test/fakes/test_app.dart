@@ -276,6 +276,8 @@ List<Override> overridesFor(FakeBackend backend,
       // Und dieselbe Naht für das Baumarten-Gitter (#227). Kein Gitter
       // heißt: keine Artenzeile im Spot-Blatt.
       forestSpeciesLoaderProvider.overrideWithValue(() async => null),
+      // Ebenso das Rückfall-Gitter außerhalb Deutschlands (#624).
+      forestSpeciesEuLoaderProvider.overrideWithValue(() async => null),
       // Und für die Schutzgebiete (#580): kein Asset heißt keine
       // Schraffur und kein Hinweis. Wer sie prüft, reicht eigene über
       // `extraOverrides` herein.
