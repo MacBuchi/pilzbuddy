@@ -187,3 +187,66 @@ String speciesPhrase(ForestSpeciesNames names, {int? coniferPercent}) {
   final named = parts.whereType<String>().toList();
   return named.join(' und ');
 }
+
+/// Die Gattungen, die das Rückfall-Gitter (#624, ForestPaths) nennen
+/// DARF — gemessen gegen die DLR-Karte: Fichte 76 % (bayerische Alpen
+/// 97 %), Buche 91 % (97 %), Kiefer 76 %. Lärche erkennt die Karte
+/// praktisch nie, Eiche kaum; beide kommen nie aus diesem Gitter.
+///
+/// Das Werkzeug schreibt ohnehin nichts anderes hinein. Die Liste steht
+/// trotzdem hier und wird beim Lesen angewandt: Ein Asset, das diese
+/// Zusage bricht, sähe sonst wie eine Messung aus.
+const estimatedBroadleaves = {Broadleaf.beech};
+const estimatedConifers = {Conifer.spruce, Conifer.pine};
+
+/// Was an einem Punkt über die Bäume gesagt werden kann — und woher.
+///
+/// [estimated] heißt: aus dem Rückfall-Gitter. Die Zeile sagt dann, dass
+/// es eine Satellitenschätzung ist und Lärche darin nicht vorkommen
+/// kann; ohne den Zusatz läse sich „Fichte" als „hier keine Lärche".
+typedef ForestSpeciesReading = ({
+  ForestSpeciesNames names,
+  bool estimated,
+  int referenceYear,
+});
+
+/// Die EINE Vorrangregel zwischen den beiden Gittern.
+///
+/// Das DLR-Gitter gewinnt, sobald es an dem Punkt IRGENDETWAS sagt —
+/// auch „Bäume ohne nennbare Art" (0x00) und „nur Kronenverlust"
+/// (0xFE). Dort springt das Rückfall-Gitter NICHT ein: Die bessere
+/// Quelle hat gesprochen, und eine Schätzung von 2020 über einer
+/// Kahlfläche von 2022 wäre ein Rückschritt. Nur wo es schweigt (0xFF
+/// oder außerhalb), fragt die Zeile das Rückfall-Gitter — beschränkt
+/// auf [estimatedBroadleaves] und [estimatedConifers].
+ForestSpeciesReading? forestSpeciesReadingAt(
+  ForestSpeciesGrid? measured,
+  ForestSpeciesGrid? fallback,
+  double lat,
+  double lon,
+) {
+  final byte = measured?.byteAt(lat, lon);
+  if (measured != null && byte != null && byte != speciesNoData) {
+    final names = measured.at(lat, lon);
+    return names == null
+        ? null
+        : (
+            names: names,
+            estimated: false,
+            referenceYear: measured.referenceYear,
+          );
+  }
+  final raw = fallback?.at(lat, lon);
+  if (fallback == null || raw == null) return null;
+  final broadleaf = estimatedBroadleaves.contains(raw.broadleaf)
+      ? raw.broadleaf
+      : null;
+  final conifer =
+      estimatedConifers.contains(raw.conifer) ? raw.conifer : null;
+  if (broadleaf == null && conifer == null) return null;
+  return (
+    names: (broadleaf: broadleaf, conifer: conifer),
+    estimated: true,
+    referenceYear: fallback.referenceYear,
+  );
+}

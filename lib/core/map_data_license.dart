@@ -162,10 +162,26 @@ void registerMapDataLicense() {
       '„Tree Species Germany" (Stand 2022) des Earth Observation Center '
       'im Deutschen Zentrum für Luft- und Raumfahrt, zusammengefasst auf '
       'dasselbe Wabengitter wie die Waldtypen (≈ 250 m). Die Abdeckung '
-      'ist Deutschland; in Österreich und der Schweiz gibt es die Zeile '
-      'deshalb nicht.\n'
+      'ist Deutschland; außerhalb springt die Schätzung aus dem nächsten '
+      'Eintrag ein.\n'
       '© DLR, Tree Species Germany.\n'
       'https://geoservice.dlr.de/web/maps/eoc:tcde:2022\n\n'
+      'Das Produkt steht unter CC BY 4.0 — die Namensnennung ist die '
+      'Bedingung, unter der wir es zeigen dürfen.\n'
+      'https://creativecommons.org/licenses/by/4.0/',
+    );
+    yield const LicenseEntryWithLineBreaks(
+      ['Baumarten außerhalb Deutschlands (ForestPaths)'],
+      'Außerhalb Deutschlands beruht die Baumarten-Zeile im Spot-Blatt '
+      'auf der „European Tree Genus Map" (Stand 2020, Vorab-Fassung) des '
+      'Projekts ForestPaths, zusammengefasst auf dasselbe Wabengitter '
+      '(≈ 250 m). Es ist eine Schätzung aus Satellitendaten; genannt '
+      'werden nur Fichte, Kiefer und Buche, weil nur diese im Vergleich '
+      'mit der DLR-Karte verlässlich getroffen werden. Lärchen erkennt '
+      'die Karte nicht.\n'
+      'De Keersmaecker, W., Zanaga, D., Senf, C. u. a. (2025): European '
+      'Tree Genus Map 2020 (Early Access Release). Zenodo.\n'
+      'https://doi.org/10.5281/zenodo.13341104\n\n'
       'Das Produkt steht unter CC BY 4.0 — die Namensnennung ist die '
       'Bedingung, unter der wir es zeigen dürfen.\n'
       'https://creativecommons.org/licenses/by/4.0/',

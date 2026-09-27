@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.212.3+316
+version: 1.213.0+317
 
 environment:
   sdk: ^3.11.0
@@ -231,6 +231,12 @@ flutter:
     # verschluckte in 17,6 % der Waldzellen den Mischpartner.
     - assets/forest/forest_species.bin.gz
     - assets/forest/forest_species_manifest.json
+    # Rückfall-Baumartengitter (#624): ForestPaths European Tree Genus
+    # Map 2020, CC BY 4.0, dasselbe Hex-Raster, Deutschland ausgespart
+    # (~2,3 MB). Nennt nur Fichte, Kiefer, Buche. Erzeugt vom Workflow
+    # forest-species-eu.yml (tool/forest_species_eu.py).
+    - assets/forest/forest_species_eu.bin.gz
+    - assets/forest/forest_species_eu_manifest.json
 
     # Höhengitter (#279-Rest): Copernicus DEM GLO-90, dasselbe Hex-Raster
     # wie oben, DACH (~3,4 MB). Erzeugt vom Workflow elevation-data.yml

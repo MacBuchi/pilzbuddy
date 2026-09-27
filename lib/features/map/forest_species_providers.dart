@@ -1,4 +1,5 @@
-// Das Baumarten-Gitter auf dem Gerät (#227).
+// Die Baumarten-Gitter auf dem Gerät: DLR für Deutschland (#227) und
+// das Rückfall-Gitter aus ForestPaths für den Rest (#624).
 //
 // Wie beim Waldtypen-Gitter: Asset im APK, kein Download, keine
 // Zustimmung. Die Frage „welcher Baum steht hier" stellt sich dort, wo
@@ -15,19 +16,32 @@ import 'forest_species.dart';
 /// `forestGridLoaderProvider`: `test/fakes/test_app.dart` überschreibt
 /// sie auf `null`, sonst läse jeder Flow-Test das echte Asset.
 final forestSpeciesLoaderProvider =
-    Provider<Future<ForestSpeciesGrid?> Function()>((ref) => _loadFromAssets);
+    Provider<Future<ForestSpeciesGrid?> Function()>((ref) => _loadDlr);
+
+/// Dieselbe Naht für das Rückfall-Gitter (#624). Die Tests setzen sie
+/// ebenfalls auf `null` — sonst läse jeder Flow-Test ein zweites Asset.
+final forestSpeciesEuLoaderProvider =
+    Provider<Future<ForestSpeciesGrid?> Function()>(
+        (ref) => () => _loadFromAssets(
+              'assets/forest/forest_species_eu_manifest.json',
+              'assets/forest/forest_species_eu.bin.gz',
+            ));
+
+Future<ForestSpeciesGrid?> _loadDlr() => _loadFromAssets(
+      'assets/forest/forest_species_manifest.json',
+      'assets/forest/forest_species.bin.gz',
+    );
 
 /// Lädt Manifest + Gitter aus den Assets, packt im Isolate aus.
 ///
 /// `null` bei jedem Fehler — dieselbe stille Degradation wie überall auf
 /// der Karte. Ohne Gitter fehlt die Artenzeile, mehr passiert nicht;
 /// die Waldzeile darüber steht unabhängig davon.
-Future<ForestSpeciesGrid?> _loadFromAssets() async {
+Future<ForestSpeciesGrid?> _loadFromAssets(
+    String manifestPath, String gridPath) async {
   try {
-    final manifestRaw = await rootBundle
-        .loadString('assets/forest/forest_species_manifest.json');
-    final data =
-        await rootBundle.load('assets/forest/forest_species.bin.gz');
+    final manifestRaw = await rootBundle.loadString(manifestPath);
+    final data = await rootBundle.load(gridPath);
     final bytes =
         data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
     return await compute(_decode, (manifest: manifestRaw, bytes: bytes));
@@ -67,3 +81,9 @@ ForestSpeciesGrid? _decode(({String manifest, Uint8List bytes}) input) {
 /// Das geladene Gitter — einmal je App-Lauf, danach aus dem Cache.
 final forestSpeciesGridProvider = FutureProvider<ForestSpeciesGrid?>(
     (ref) => ref.watch(forestSpeciesLoaderProvider)());
+
+/// Das Rückfall-Gitter (#624) — genauso geladen, nur wo es gebraucht
+/// wird: Beobachtet wird es erst, wenn das DLR-Gitter an einem Punkt
+/// schweigt.
+final forestSpeciesEuGridProvider = FutureProvider<ForestSpeciesGrid?>(
+    (ref) => ref.watch(forestSpeciesEuLoaderProvider)());

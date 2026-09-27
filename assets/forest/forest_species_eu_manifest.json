@@ -1,0 +1,40 @@
+{
+  "source": "ForestPaths European Tree Genus Map (early access)",
+  "license": "CC BY 4.0 \u2014 De Keersmaecker et al., doi:10.5281/zenodo.13341104",
+  "zenodo_record": 13341104,
+  "reference_year": 2020,
+  "lattice": "hex-odd-r",
+  "encoding": "gzip",
+  "width": 3038,
+  "height": 4470,
+  "west": 5.8,
+  "east": 17.3,
+  "north": 55.1,
+  "south": 45.7,
+  "hex_lon_step": 0.003786015,
+  "hex_lat_step": 0.002102809,
+  "cell_factor": 25,
+  "min_tree_share": 0.05,
+  "broadleaf_nibbles": {
+    "1": "Fagus"
+  },
+  "conifer_nibbles": {
+    "1": "Picea",
+    "2": "Pinus"
+  },
+  "never_named": [
+    "Larix",
+    "Quercus",
+    "other needleleaf",
+    "other broadleaf"
+  ],
+  "mask_sha256": "f89717ff1c6e8eacbd0599d38393c5d6fb086e4839ce38d8ae850e8e4861de7c",
+  "bytes": 2252685,
+  "sha256": "97766c74478c5bc307cd2c668e54972779c86b0ded84b2d72ed4117fbeb2cc84",
+  "named_cells": 4508292,
+  "unnamed_tree_cells": 1114006,
+  "no_data_cells": 7957562,
+  "empty_rows": 0,
+  "zenodo_version": "v0.0.1",
+  "tiles": 116
+}

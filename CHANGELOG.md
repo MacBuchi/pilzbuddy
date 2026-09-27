@@ -7,6 +7,21 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Baumarten jetzt auch in Österreich, der Schweiz und Südtirol
+
+*27. September 2026 · Version 1.213.0*
+
+- Die Zeile „Bäume: …" im Spot-Blatt gab es bisher nur in Deutschland.
+  Außerhalb steht sie jetzt auch da — als **Satellitenschätzung** aus
+  einer europaweiten Karte, und das sagt die Zeile dazu.
+- Genannt werden dort nur **Fichte, Kiefer und Buche**. Nur diese drei
+  trifft die Karte verlässlich; das haben wir vorher an der deutschen
+  Karte nachgemessen.
+- **Lärchen erkennt sie nicht.** Steht dort „Fichte", kann trotzdem
+  Lärche dabei sein — gerade in Tirol und Südtirol. Deshalb steht
+  „Lärche nicht erkennbar" gleich in der Zeile.
+- In Deutschland bleibt alles wie bisher.
+
 ## Chat: Eingabefeld direkt über der Tastatur
 
 *26. September 2026 · Versionen 1.212.2–1.212.3*

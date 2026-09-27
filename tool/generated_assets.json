@@ -29,6 +29,17 @@
       "sha256": "1821888100afc57230c423082e4e2b24753962bd095cd71fe82ff04f8dad8e9c",
       "regenerate": "entsteht im selben Lauf wie forest_species.bin.gz — siehe dort"
     },
+    "assets/forest/forest_species_eu.bin.gz": {
+      "sha256": "97766c74478c5bc307cd2c668e54972779c86b0ded84b2d72ed4117fbeb2cc84",
+      "regenerate": "Workflow „Forest Species EU\" von Hand starten, Artefakt forest-species-eu herunterladen, beide Dateien nach assets/forest/ legen. Erst nach einem DLR-Update neu bauen (Maske); eine neuere ForestPaths-Fassung erst nach der Messung aus #624",
+      "checks": {
+        "self_recorded_sha256": "assets/forest/forest_species_eu_manifest.json"
+      }
+    },
+    "assets/forest/forest_species_eu_manifest.json": {
+      "sha256": "ff5984f69e7ed0c7e092f6abb1e4dffb19b00afeab4e56738e2d2be5860e165a",
+      "regenerate": "entsteht im selben Lauf wie forest_species_eu.bin.gz — siehe dort"
+    },
     "assets/map_style/protomaps_light_de.json": {
       "sha256": "30b102ce73221e96110d4d0f567cdaec2e66f91eb17f120e907ef739f3f6d803",
       "regenerate": "Stil mit npm @protomaps/basemaps erzeugen (Flavor LIGHT, lang de), dann python3 tool/transform_map_style.py assets/map_style/protomaps_light_de.json",
