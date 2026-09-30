@@ -7,6 +7,17 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Web-App: alte Stände werden wieder aufgeräumt
+
+*30. September 2026 · Version 1.213.1*
+
+- Die Web-App legt sich für den Start ohne Netz eine Kopie ab. Nach
+  einem Update blieb die alte Kopie oft liegen, statt gelöscht zu
+  werden — mit jedem Update eine vollständige App mehr im Speicher des
+  Browsers. Jetzt geht die alte, sobald die neue vollständig ist.
+- Der Start ohne Netz kommt dabei weiterhin aus EINEM Stand, nie aus
+  einer Mischung von altem und neuem.
+
 ## Baumarten jetzt auch in Österreich, der Schweiz und Südtirol
 
 *27. September 2026 · Version 1.213.0*

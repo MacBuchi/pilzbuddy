@@ -63,6 +63,13 @@ let blockTopUp = false;
 // die Kennung des Nachfüllens trägt; der Browser fragt beim normalen
 // Laden ebenfalls mit ETag nach.
 let notModified = 0;
+// Wie oft das Nachfüllen eine Datei VOLL laden musste, obwohl sie sich
+// nicht geändert hat. Die Zusage ist nicht „viele 304" — bis #628 stand
+// hier `>= 5`, und die Zahl hängt daran, wie viele Assets die Seite beim
+// Update NICHT schon selbst lädt: eine Aussage über die App, nicht über
+// den Worker (TrailBuddy hat davon zwei). Sondern: Nichts Unverändertes
+// wird neu geladen. `flutter_bootstrap.js` ändert sich je Deploy.
+let topUpFull = 0;
 const SHELL_PATHS = new Set([
   '/index.html', '/flutter_bootstrap.js', '/main.dart.js',
   '/manifest.json', '/favicon.png', '/icons/Icon-192.png', '/sw.js',
@@ -91,6 +98,7 @@ const handler = async (req, res) => {
       res.writeHead(304, {etag}).end();
       return;
     }
+    if (req.headers['x-pilzbuddy-topup'] && path !== '/flutter_bootstrap.js') topUpFull++;
     res.writeHead(200, {
       'content-type': TYPES[extname(file)] ?? 'application/octet-stream',
       etag,
@@ -520,10 +528,14 @@ try {
   // Seite holte sonst fast alles selbst, und gemessen wäre nur der Rest.
   await startServer();
   notModified = 0;
+  topUpFull = 0;
   await evaluate(send,
       "navigator.serviceWorker.controller.postMessage({type: 'warm', urls: []})");
   let caches2 = [];
-  for (let i = 0; i < 40; i++) {
+  // Länger als der 30-s-Timeout, den der Worker je Nachfüll-Anfrage hat:
+  // Eine in Schritt 4 hängen gelassene Anfrage kann seine Warteschlange
+  // bis dahin blockieren, und erst danach läuft das Nachfüllen hier (#628).
+  for (let i = 0; i < 80; i++) {
     await sleep(1000);
     caches2 = await evaluate(send, '(async () => (await caches.keys()))()');
     if (caches2.length === 1 && !before.includes(caches2[0])) break;
@@ -531,8 +543,8 @@ try {
   check(caches2.length === 1 && !before.includes(caches2[0]),
       `online räumt der neue Cache den alten ab (jetzt: ${JSON.stringify(caches2)})`);
   // Unverändertes (CanvasKit, Schriften) wird umgelegt, nicht neu geladen.
-  check(notModified >= 5,
-      `unveränderte Dateien kommen per 304 aus dem alten Cache (${notModified}×)`);
+  check(topUpFull === 0,
+      `unverändertes wird umgelegt, nie voll geladen (${notModified}× 304, ${topUpFull}× voll geladen)`);
   await send('Page.navigate', {url});
   await waitFor(send, APP, 'wieder online nach dem Update');
 

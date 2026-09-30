@@ -695,10 +695,25 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     Merker); solange er steht, kommt jeder Rückfall zuerst aus ihm, damit
     ein Start ohne Netz aus EINEM Stand kommt. `topUp` füllt den neuen
     per `If-None-Match` nach — 304 heißt umlegen statt neu laden — und
-    räumt erst dann ab. „Früher" heißt in Anlegereihenfolge VOR dem
-    eigenen Cache — liegt der Cache eines neueren, noch wartenden
-    Workers daneben, mischte der Rückfall sonst zwei Stände, und die
-    Mischung startete ohne Netz nicht (beim Bau gemessen).
+    räumt erst dann ab. „Früher" heißt: ein ANDERER Cache MIT
+    Vollständig-Merker — liegt der Cache eines neueren, noch wartenden
+    Workers daneben (der hat noch keinen), mischte der Rückfall sonst
+    zwei Stände, und die Mischung startete ohne Netz nicht (beim Bau
+    gemessen). **Nie die Reihenfolge von `caches.keys()`** (#628): Bis
+    1.213.0 galt „in Anlegereihenfolge vor dem eigenen", und Chromium
+    liefert die Reihenfolge nicht verlässlich so — der neue Cache hielt
+    sich dann sofort für vollständig, und der alte blieb je Deploy
+    liegen. Gefunden beim Übertragen nach TrailBuddy, wo der Prüfer in
+    CI rot wurde.
+    **Nie `caches.open` auf einen fremden oder womöglich gelöschten
+    Namen**: `open` LEGT AN. Ein abgelöster Worker, der nach dem Löschen
+    seines Caches noch eine Antwort ablegte, erzeugte einen leeren Cache
+    ohne Merker, den nichts mehr entfernte. Nachgeschlagen wird deshalb
+    mit `caches.match(…, {cacheName})`, geschrieben nur hinter
+    `caches.has(CACHE)`, und `sweepZombies` räumt Caches ohne Merker UND
+    ohne Hülle ab. Der Prüfer zählt seither keine 304 mehr (die Zahl
+    maß, wie viel die Seite selbst lädt), sondern verlangt, dass beim
+    Nachfüllen nichts Unverändertes voll geladen wird.
     Drei Fallen beim Prüfen, alle passiert: Ein Update bei HÄNGENDEM
     Netz aktiviert nie (der Browser wartet auf die offenen Anfragen des
     alten Workers), prüft also nur den alten. Wird das Netz erst nach
