@@ -144,4 +144,120 @@ void main() {
         reason: 'Aktualisieren fragt den Kartenserver');
     expect(find.byTooltip('Bereich löschen'), findsOneWidget);
   });
+
+  drawTests();
+}
+
+// Stufe 2b: Zeichnen und Radieren auf der Karte.
+Future<void> _stroke(WidgetTester tester, List<Offset> points) async {
+  final gesture = await tester.startGesture(points.first);
+  for (final p in points.skip(1)) {
+    await gesture.moveTo(p);
+    await tester.pump(const Duration(milliseconds: 16));
+  }
+  await gesture.up();
+  await settle(tester);
+}
+
+void drawTests() {
+  testWidgets(
+      'Auf der Karte bearbeiten: Leiste statt Knopfspalte, umfahren, '
+      'speichern', (tester) async {
+    final store = MemoryAreaStore();
+    await pumpApp(tester, _signedIn(),
+        settings: FakeSettings(newMapEnabled: true),
+        areaStore: store,
+        keepAlive: FakeKeepAlive(),
+        extraOverrides: _host10());
+    await _openAreas(tester);
+    await tester.tap(find.byKey(const ValueKey('areas-edit-on-map')));
+    await settle(tester);
+
+    expect(find.byKey(const ValueKey('area-tool-rail')), findsOneWidget);
+    expect(find.byTooltip('Ebenen'), findsNothing,
+        reason: 'die Leiste ersetzt die Knopfspalte');
+    expect(find.byKey(const ValueKey('area-draw-surface')), findsNothing,
+        reason: 'ohne Werkzeug lässt sich die Karte verschieben');
+
+    await tester.tap(find.byKey(const ValueKey('area-draw-add')));
+    await settle(tester);
+    expect(find.text('Mit dem Finger umfahren, was dazukommen soll'),
+        findsOneWidget);
+    await _stroke(tester, const [
+      Offset(200, 200),
+      Offset(300, 200),
+      Offset(300, 300),
+      Offset(200, 300),
+    ]);
+    expect(find.byKey(const ValueKey('area-draw-surface')), findsNothing,
+        reason: 'nach dem Strich ist das Werkzeug wieder weg');
+
+    await tester.tap(find.byKey(const ValueKey('area-save')));
+    await settle(tester, frames: 10);
+    expect(find.text('Änderungen speichern?'), findsOneWidget);
+    expect(find.textContaining('Kacheln, bis Zoomstufe 10'), findsOneWidget);
+    await tester.enterText(
+        find.byKey(const ValueKey('area-draft-name')), 'Gezeichnet am Weiher');
+    await tester.tap(find.byKey(const ValueKey('area-draft-save')));
+    await settle(tester, frames: 20);
+
+    final area = store.areas.single;
+    expect(area.name, 'Gezeichnet am Weiher');
+    expect(area.shape, isA<TileSetShape>());
+    expect(store.archives, contains(area.id));
+    // Der Entwurf ist leer, die Leiste bleibt offen.
+    expect(find.byKey(const ValueKey('area-tool-rail')), findsOneWidget);
+    final save = tester.widget<IconButton>(
+        find.byKey(const ValueKey('area-save')));
+    expect(save.onPressed, isNull);
+
+    // Wegwischen, was eben gespeichert wurde: ohne Netz, und der
+    // Bereich verschwindet ganz.
+    await tester.tap(find.byKey(const ValueKey('area-draw-remove')));
+    await settle(tester);
+    await _stroke(tester, const [
+      Offset(150, 150),
+      Offset(350, 150),
+      Offset(350, 350),
+      Offset(150, 350),
+    ]);
+    await tester.tap(find.byKey(const ValueKey('area-save')));
+    await settle(tester, frames: 10);
+    expect(find.textContaining('Ganz gelöscht: Gezeichnet am Weiher'),
+        findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('area-draft-save')));
+    await settle(tester, frames: 10);
+    expect(store.areas, isEmpty);
+
+    await tester.tap(find.byKey(const ValueKey('area-close')));
+    await settle(tester);
+    expect(find.byKey(const ValueKey('area-tool-rail')), findsNothing);
+    expect(find.byTooltip('Ebenen'), findsOneWidget);
+  });
+
+  testWidgets('Schließen mit offenem Entwurf fragt nach', (tester) async {
+    await pumpApp(tester, _signedIn(),
+        settings: FakeSettings(newMapEnabled: true),
+        areaStore: MemoryAreaStore(),
+        extraOverrides: _host10());
+    await _openAreas(tester);
+    await tester.tap(find.byKey(const ValueKey('areas-edit-on-map')));
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('area-snapshot')));
+    await settle(tester);
+
+    // Die Zurück-Taste schließt die Leiste statt der App — und fragt.
+    await tester.binding.handlePopRoute();
+    await settle(tester);
+    expect(find.text('Entwurf verwerfen?'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('draft-keep')));
+    await settle(tester);
+    expect(find.byKey(const ValueKey('area-tool-rail')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('area-close')));
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('draft-discard')));
+    await settle(tester);
+    expect(find.byKey(const ValueKey('area-tool-rail')), findsNothing);
+  });
 }

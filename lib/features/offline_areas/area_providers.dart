@@ -33,6 +33,7 @@ import '../offline_maps/pmtiles_tile_provider.dart';
 import 'area_downloader.dart';
 import 'area_plan.dart';
 import 'area_store.dart';
+import 'area_trim.dart';
 
 /// Die Liste aus dem Index, in Speicherreihenfolge.
 class StoredAreasNotifier extends AsyncNotifier<List<StoredArea>> {
@@ -44,6 +45,17 @@ class StoredAreasNotifier extends AsyncNotifier<List<StoredArea>> {
 
   Future<void> delete(String id) async {
     await ref.read(areaStoreProvider).delete(id);
+    await refresh();
+  }
+
+  /// Was der Radierer mit den Bereichen macht — gemessen, ohne Netz.
+  Future<TrimPlan> planTrim(Set<int> removes) async => AreaTrimmer(
+          ref.read(areaStoreProvider))
+      .plan(await future, removes);
+
+  /// Schreibt die betroffenen Bereiche ohne die Kacheln neu.
+  Future<void> applyTrim(TrimPlan plan) async {
+    await AreaTrimmer(ref.read(areaStoreProvider)).apply(plan);
     await refresh();
   }
 }

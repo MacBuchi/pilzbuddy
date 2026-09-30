@@ -696,8 +696,32 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     die Bytes jeder Kachel; der Dialog zeigt die Summe, bevor ein Byte
     fließt. Beim ersten gespeicherten Bereich bittet die App einmal um
     `navigator.storage.persist()` (Muster Ausgangskorb).
-  Zeichnen und Radieren auf der Karte (TrailBuddys Werkzeugleiste) ist
-  Stufe 2b.
+  **Zeichnen und Radieren** (Stufe 2b, seit 1.216.0,
+  `area_draw.dart`, `area_trim.dart`, `area_edit_fill.dart`,
+  `area_tool_rail.dart`): „Auf der Karte bearbeiten" öffnet eine Leiste
+  anstelle der Knopfspalte. Der Entwurf bearbeitet den GANZEN Bestand
+  in Kacheln bei Zoom 13 — dazu nur, was nicht liegt, weg nur, was
+  liegt; gespeichert wird erst das Herausschreiben (ohne Netz, derselbe
+  Schreiber, gegengelesen VOR dem Ersetzen), dann der Download des
+  Neuen. Vier Dinge, die man wissen muss:
+  - **Maske und Entwurf sind EIN Bild**, nicht Polygone wie in
+    TrailBuddy: Die Fassade kann keine Polygone, und der Weg von Wald-
+    und Fundorte-Fläche (Isolate, `overlayPng`, `writeFill`) trägt
+    beide Engines schon. In MapLibre gehört es ZUOBERST — jede andere
+    Fläche wird angehängt (beim Verschieben planen Wald und Fundorte ihr
+    Fenster neu), deshalb legt `_raiseAreaEdit` es danach wieder
+    obenauf. Die Revision des Inhalts steht im Dateinamen, sonst tauscht
+    MapLibre das Bild nicht.
+  - **Die Zeichenfläche liegt nur, solange ein Werkzeug scharf ist**,
+    und fängt dann jede Berührung ab. Nur deshalb stimmt die Umrechnung
+    `unprojectFromBounds` aus `mapIdleBoundsProvider` und der Größe der
+    Fläche: Die Karte steht still. Nach dem Strich ist das Werkzeug weg.
+  - **Die Zurück-Taste schließt die Leiste** (Muster der
+    Hinweis-Maschine, `ChildBackButtonDispatcher` mit Vorrang) — die
+    Karte ist die Wurzel ihres Reiters, Zurück hieße sonst „App raus".
+    Mit Entwurf fragt sie nach.
+  - **Dazunehmen braucht die Neue Karte, Wegnehmen nicht** — dieselbe
+    Linie wie beim Speichern: Liegendes muss man immer loswerden können.
 - **Zwischenspeicher und Ausgangskorb liegen im Browser in IndexedDB**
   (#385 seit 1.115.0, #386 seit 1.116.0). `NoSpotCache`/`NoOutbox` sind
   nicht mehr der Web-Zweig, sondern nur noch der Fall „kein IndexedDB".
