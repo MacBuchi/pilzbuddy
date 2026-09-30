@@ -151,6 +151,20 @@ final kHighlightDemos = <String, HighlightDemo>{
       ),
     ]),
   ),
+  'neue-karte': HighlightDemo(
+    route: '/',
+    script: _demo('neue-karte', const [
+      CoachStep(
+        title: 'Gegenden speichern',
+        text: 'Hier liegen deine gespeicherten Kartenbereiche. Der Stift '
+            'öffnet die Leiste auf der Karte: umfahren, was dazukommen oder '
+            'weg soll, dann speichern.',
+        scene: MapCoach.layersSheet,
+        lit: [MapCoach.layersAreas],
+        scrollIn: MapCoach.layersList,
+      ),
+    ]),
+  ),
   'alpen-wetter': HighlightDemo(
     route: '/',
     script: _demo('alpen-wetter', const [

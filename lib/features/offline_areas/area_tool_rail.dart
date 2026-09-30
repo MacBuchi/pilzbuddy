@@ -337,7 +337,7 @@ class AreaToolHint extends ConsumerWidget {
           ? 'Hell ist gespeichert. Werkzeug wählen, dann umfahren — '
               'dazwischen lässt sich die Karte verschieben.'
           : 'Hell ist gespeichert. Wegnehmen geht immer, dazunehmen nur '
-              'mit „Neue Karte (Vorschau)".',
+              'mit „Neue Karte" im Profil.',
     };
     return Material(
       key: const ValueKey('area-draw-hint'),

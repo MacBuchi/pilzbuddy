@@ -13,7 +13,8 @@
 // keine Kachel hat, liefert sein Archiv nichts, und die Karte darunter
 // scheint durch.
 //
-// **Gespeichert wird nur mit dem Schalter „Neue Karte (Vorschau)"**:
+// **Gespeichert wird nur mit dem Schalter „Neue Karte"** (ab Werk an seit
+// 1.217.0):
 // Die Kacheln kommen vom selben Kartenhost, und solange der eine Vorschau
 // ist, gehört auch das Speichern dazu. Einmal gespeicherte Bereiche
 // zeichnet die Karte unabhängig vom Schalter — sie liegen auf dem Gerät,

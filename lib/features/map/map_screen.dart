@@ -9,6 +9,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../offline_areas/area_auto_update.dart';
 import '../offline_areas/area_draw.dart';
 import '../offline_areas/area_draw_overlay.dart';
 import '../offline_areas/area_tool_rail.dart';
@@ -186,6 +187,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
       // nachzuladen ist (#332). Beim ersten Frame steht der Katalog
       // meist noch aus; dann übernimmt der Listener weiter unten.
       ref.read(mapAutoUpdateProvider.notifier).sync();
+      // Dasselbe für die gespeicherten Kartenbereiche (#630).
+      ref.read(areaAutoUpdateProvider.notifier).sync();
       // Eine Tour, die der Prozess-Kill unterbrochen hat, läuft weiter
       // (#338). Wer im Wald steht und dessen App zwischendurch
       // weggeräumt wurde, hat sie nicht beendet.
@@ -388,6 +391,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
     switch (detail) {
       case MapLayerDetail.offline:
         await context.push('/profile/offline-maps');
+      case MapLayerDetail.areas:
+        await context.push('/profile/areas');
+      case MapLayerDetail.areaTools:
+        openAreaTools(ref);
       case MapLayerDetail.forest:
         await showForestLayerSheet(context);
       case MapLayerDetail.terrain:
@@ -893,6 +900,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
     ref.listen<MapAutoUpdateInputs>(
       mapAutoUpdateInputsProvider,
       (_, _) => ref.read(mapAutoUpdateProvider.notifier).sync(),
+    );
+    // Und für die Kartenbereiche (#630): neuer Stand beim Host, freies
+    // Netz — dieselben Maßstäbe, eigener Schalter.
+    ref.listen<AreaAutoUpdateInputs>(
+      areaAutoUpdateInputsProvider,
+      (_, _) => ref.read(areaAutoUpdateProvider.notifier).sync(),
     );
     // Der Sprung zu einem Spot (#345). Der Karten-Screen ist der EINZIGE
     // Ort, an dem ein Fokus-Wunsch in eine Kamerabewegung wird — alle

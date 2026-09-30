@@ -77,6 +77,18 @@ class FeatureHighlight {
 const kFeatureHighlights = <FeatureHighlight>[
   // ─── Highlights ──────────────────────────────────────────────────
   FeatureHighlight(
+    id: 'neue-karte',
+    since: '1.217.0',
+    kind: HighlightKind.highlight,
+    tab: HighlightTab.map,
+    icon: Icons.download_for_offline_outlined,
+    title: 'Neue Karte, auch ohne Empfang',
+    text: 'Die Karte kommt jetzt vom eigenen Kartenserver, mit '
+        'hervorgehobenen Wegen. Unter „Ebenen" → „Kartenbereiche" '
+        'speicherst du Gegenden für unterwegs — auch in der Web-App.',
+    target: '/',
+  ),
+  FeatureHighlight(
     id: 'alpen-wetter',
     since: '1.212.0',
     kind: HighlightKind.highlight,

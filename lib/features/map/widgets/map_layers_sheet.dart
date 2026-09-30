@@ -40,6 +40,8 @@ import '../../coach/coach.dart';
 import '../../help/map_tour.dart' show MapCoach;
 import '../../ampel/ampel_map_providers.dart';
 import '../../ampel/ampel_providers.dart';
+import '../../offline_areas/area_plan.dart' show formatBytes;
+import '../../offline_areas/area_providers.dart' show storedAreasProvider;
 import '../../offline_maps/offline_map_providers.dart';
 import '../elevation_contour_providers.dart';
 import '../elevation_providers.dart';
@@ -56,7 +58,22 @@ import 'map_legend.dart' show mapIdleCenterProvider;
 /// der Zeit, als sie ein Modus des Regens war. Sie ist seit 1.76.0 ein
 /// Modus der WALDfläche; der Weg ins Regen-Blatt war seither eine
 /// falsche Fährte.
-enum MapLayerDetail { offline, forest, terrain, rain, ampel, gbif, refresh }
+///
+/// `areas` und `areaTools` (#630, seit 1.217.0) sind keine Ebenen, sondern
+/// die beiden Wege zu den gespeicherten Kartenbereichen: die Seite und
+/// die Werkzeugleiste auf der Karte. Bis dahin lagen beide nur im Profil —
+/// wer auf der Karte arbeitet, musste dafür die Karte verlassen.
+enum MapLayerDetail {
+  offline,
+  areas,
+  areaTools,
+  forest,
+  terrain,
+  rain,
+  ampel,
+  gbif,
+  refresh
+}
 
 Future<MapLayerDetail?> showMapLayersSheet(BuildContext context) {
   return showModalBottomSheet<MapLayerDetail>(
@@ -143,7 +160,12 @@ class _MapLayersSheet extends ConsumerWidget {
               ),
             ),
             Flexible(
-              child: ListView(
+              // Die Liste trägt eine Kennung, damit eine Vorführung bis zu
+              // einer Zeile weiter unten scrollen kann (`scrollIn`) — auf
+              // einem kleinen Schirm ist die letzte nicht gebaut.
+              child: CoachAnchor(
+                id: MapCoach.layersList,
+                child: ListView(
                 shrinkWrap: true,
                 padding: const EdgeInsets.only(bottom: 8),
                 children: [
@@ -248,11 +270,50 @@ class _MapLayersSheet extends ConsumerWidget {
                     detail: MapLayerDetail.gbif,
                     colour: AppColors.gbifClassColours['herbst']!,
                   )),
+                  // Ganz unten: keine Ebene mit Schalter, sondern eine Tür —
+                  // und so rutscht keine Ebenen-Zeile aus dem Bild.
+                  const CoachAnchor(
+                      id: MapCoach.layersAreas, child: _AreasRow()),
                 ],
+              ),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Die Kartenbereiche (#630): keine Ebene mit Schalter — die liegen
+/// immer obenauf —, sondern die Tür zur Seite und, über den Stift, zur
+/// Werkzeugleiste auf der Karte. Steht IMMER da: Ohne „Neue Karte" sagt
+/// die Seite, warum sich nichts speichern lässt, und das ist mehr als
+/// eine fehlende Zeile.
+class _AreasRow extends ConsumerWidget {
+  const _AreasRow();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final areas = ref.watch(storedAreasProvider).valueOrNull ?? const [];
+    var bytes = 0;
+    for (final a in areas) {
+      bytes += a.bytes;
+    }
+    return ListTile(
+      key: const ValueKey('layers-areas'),
+      leading: const Icon(Icons.download_for_offline_outlined),
+      title: const Text('Kartenbereiche'),
+      subtitle: Text(areas.isEmpty
+          ? 'Karte für unterwegs ohne Empfang speichern'
+          : '${areas.length} gespeichert · ${formatBytes(bytes)} · liegen '
+              'immer obenauf'),
+      onTap: () => Navigator.of(context).pop(MapLayerDetail.areas),
+      trailing: IconButton(
+        key: const ValueKey('layers-areas-edit'),
+        tooltip: 'Auf der Karte bearbeiten',
+        icon: const Icon(Icons.draw_outlined),
+        onPressed: () => Navigator.of(context).pop(MapLayerDetail.areaTools),
       ),
     );
   }
