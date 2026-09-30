@@ -151,6 +151,10 @@ void main() {
       // Funde — also erst, nachdem jemand verbunden UND gemeldet hat —,
       // und nur mit der öffentlichen Beobachtungsnummer.
       'api.gbif.org',
+      // Die Online-Karte vom eigenen Kartenhost (#630, Stufe 1): erst,
+      // wenn jemand im Profil „Neue Karte (Vorschau)" einschaltet —
+      // `onlineMapProvider` fragt ohne den Schalter nie.
+      'tiles.mcbuchi.de',
     };
 
     /// Ziele, die erst der Nutzer mit einem Tipp öffnet (Lizenz- und

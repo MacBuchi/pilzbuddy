@@ -16,13 +16,25 @@ import 'dart:convert';
 class MapStyleSource {
   const MapStyleSource({
     required this.id,
-    required this.filePath,
+    required String this.filePath,
     required this.minZoom,
     required this.maxZoom,
-  });
+  }) : remoteUrl = null;
+
+  /// Ein Archiv im Netz (#630), das maplibre-native selbst per
+  /// Range-Anfrage liest (`pmtiles://https://…`). Den Zoombereich nennt
+  /// hier das Manifest des Hosts — den Header zu lesen wäre eine Anfrage,
+  /// die die Engine gleich selbst macht.
+  const MapStyleSource.remote({
+    required this.id,
+    required String this.remoteUrl,
+    required this.minZoom,
+    required this.maxZoom,
+  }) : filePath = null;
 
   final String id;
-  final String filePath;
+  final String? filePath;
+  final String? remoteUrl;
   final int minZoom;
   final int maxZoom;
 }
@@ -132,7 +144,9 @@ String composeMapLibreStyle({
     final attribution = attributionOnce('© OpenStreetMap contributors');
     styleSources[source.id] = {
       'type': 'vector',
-      'url': 'pmtiles://file://${source.filePath}',
+      'url': source.remoteUrl != null
+          ? 'pmtiles://${source.remoteUrl}'
+          : 'pmtiles://file://${source.filePath}',
       'minzoom': source.minZoom,
       'maxzoom': source.maxZoom,
       'attribution': ?attribution,

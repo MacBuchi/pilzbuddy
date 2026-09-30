@@ -11,6 +11,7 @@ import '../finite_camera_constraint.dart';
 import '../forest_data_providers.dart';
 import '../gbif_finds_providers.dart';
 import '../map_overlays.dart';
+import '../online_map.dart';
 import '../rain_data_providers.dart';
 import '../rain_layer.dart';
 import 'map_view.dart';
@@ -129,6 +130,12 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
     // Fehlt sie (Ladefehler), bleibt es beim Hintergrundton.
     final baseStyle = ref.watch(baseMapStyleProvider).valueOrNull;
     final offlineActive = offlineStyle != null;
+    // Die Online-Karte vom Kartenhost (#630) — nur mit dem Schalter, und
+    // null heißt: OSM wie bisher. Offline-Regionen gehen vor, wie sie
+    // auch vor OSM gehen.
+    final onlineStyle = offlineActive
+        ? null
+        : ref.watch(onlineMapStyleProvider).valueOrNull;
     // Die Basiskarte NICHT mehr unter die Online-Kacheln legen (#137): Wo
     // eine OSM-Kachel schon liegt und die nächste noch fehlt, standen zwei
     // verschiedene Kartenstile nebeneinander — das sah kaputter aus als die
@@ -136,7 +143,12 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
     // dagegen drin: Dann kommt gar keine Kachel, es gibt also nichts, womit
     // sie sich mischen könnte — und genau dieser Fall (Wald, kein Netz, noch
     // keine Region geladen) war der Anlass für #118.
-    final showBaseMap = offlineActive || ref.watch(noConnectivityProvider);
+    //
+    // Unter der Online-Karte vom Kartenhost liegt sie dagegen immer: Das
+    // ist DERSELBE Kartenstil, #137 betraf zwei verschiedene.
+    final showBaseMap = offlineActive ||
+        onlineStyle != null ||
+        ref.watch(noConnectivityProvider);
     // Die Regenebene liegt auch auf diesem Pfad — er ist der einzige im
     // Web, und die PWA ist ein erklärtes Ziel. Ein Knopf, der nur auf
     // Android etwas tut, wäre ein Fehler ohne Fehlermeldung.
@@ -261,6 +273,19 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
             // Fehlende Kacheln maximal weit durch niedrigere
             // Zoomstufen ersetzen (Ränder der Regionskarten und
             // die eingebaute Übersichts-Basiskarte).
+            maximumTileSubstitutionDifference: 1,
+          )
+        else if (onlineStyle != null)
+          vmt.VectorTileLayer(
+            // Schlüssel an der Quelle, aus demselben Grund wie beim
+            // Offline-Layer (#144): Ein neu geöffnetes Archiv muss einen
+            // frischen Layer bekommen, sonst fragt der alte ein
+            // geschlossenes.
+            key: ValueKey(onlineStyle.tileProviders),
+            tileProviders: onlineStyle.tileProviders,
+            theme: onlineStyle.theme,
+            layerMode: vmt.VectorTileLayerMode.vector,
+            maximumZoom: 19,
             maximumTileSubstitutionDifference: 1,
           )
         else

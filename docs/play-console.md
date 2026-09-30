@@ -28,7 +28,7 @@ Stand: 26. Juli 2026, App-Version 1.32.0+68.
 | Frage | Antwort | Begründung |
 |---|---|---|
 | Erhebt oder teilt deine App die geforderten Nutzerdatentypen? | **Ja** | Konto, Spots, Fehlerberichte |
-| Werden alle Daten bei der Übertragung verschlüsselt? | **Ja** | Alle Endpunkte sind HTTPS: Supabase, `tile.openstreetmap.org`, `github.com`, `api.github.com`, `macbuchi.github.io`, `maps.dwd.de` sowie — **nur in der Web-App, nie im Play-Build** — `raw.githubusercontent.com` für die Regengitter (#365). Kein einziges `http://` im Code. Die Bestätigungs- und Reset-Mails verschickt Supabase serverseitig über Brevo — die App selbst spricht nie mit dem Mail-Anbieter, die Liste bleibt also vollständig |
+| Werden alle Daten bei der Übertragung verschlüsselt? | **Ja** | Alle Endpunkte sind HTTPS: Supabase, `tile.openstreetmap.org`, `github.com`, `api.github.com`, `macbuchi.github.io`, `maps.dwd.de`, `tiles.mcbuchi.de` (nur mit dem Profil-Schalter „Neue Karte (Vorschau)", #630) sowie — **nur in der Web-App, nie im Play-Build** — `raw.githubusercontent.com` für die Regengitter (#365). Kein einziges `http://` im Code. Die Bestätigungs- und Reset-Mails verschickt Supabase serverseitig über Brevo — die App selbst spricht nie mit dem Mail-Anbieter, die Liste bleibt also vollständig |
 | Können Nutzer die Löschung ihrer Daten beantragen? | **Ja** | In-App unter *Profil → Konto löschen* (`delete_own_account()`, sofort, ohne Karenzzeit) **und** ohne installierte App über die URL unten |
 | URL zum Löschen des Kontos | `https://macbuchi.github.io/pilzbuddy/konto-loeschen.html` | |
 | Unabhängige Sicherheitsüberprüfung? | **Nein** | |
@@ -154,6 +154,12 @@ und wandert nicht mit der Karte mit — die Alternative hätte bei jedem
 Verschieben verraten, in welcher Gegend jemand sucht, und das ist bei einer
 App für geheime Fundstellen der falsche Handel. Der Abruf läuft nur, solange
 die Ebene eingeschaltet ist; Vorgabe ist aus.
+
+**Die „Neue Karte" (`tiles.mcbuchi.de`, #630) ebenso wenig.** Sie ist
+dieselbe Sorte Abruf wie die OSM-Kacheln — Kartenkacheln des sichtbaren
+Ausschnitts, technisch mit IP-Adresse —, nur vom eigenen Kartenhost
+(Cloudflare R2, EU) statt von der OpenStreetMap Foundation. Keine neue
+Datenkategorie, keine Weitergabe; ab Werk aus, ein Schalter im Profil.
 
 ### Berechtigungen im Build
 

@@ -509,7 +509,7 @@ final _offlineThemeProvider = FutureProvider<vtr.Theme>((ref) async {
 /// Basiskarte zudecken, wo diese gebraucht wird — an den Rändern der
 /// Regionskarten. Das Style-Asset selbst bleibt unangetastet: Es ist
 /// generiert (siehe CLAUDE.md), gefiltert wird beim Laden.
-final _offlineThemeWithoutBackgroundProvider =
+final offlineThemeWithoutBackgroundProvider =
     FutureProvider<vtr.Theme>((ref) async {
   final styleText =
       await rootBundle.loadString('assets/map_style/protomaps_light_de.json');
@@ -599,7 +599,7 @@ final offlineMapStyleProvider = FutureProvider<OfflineMapStyle?>((ref) async {
     if (tiles == null) return null;
     // Ohne Hintergrund-Ebene: Unter dem Detail-Layer liegt die Basiskarte.
     final theme =
-        await ref.watch(_offlineThemeWithoutBackgroundProvider.future);
+        await ref.watch(offlineThemeWithoutBackgroundProvider.future);
     return OfflineMapStyle(
       theme: theme,
       // Quellname "protomaps" entspricht `sources.protomaps` im Style-JSON.

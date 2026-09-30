@@ -96,6 +96,17 @@ abstract interface class Settings {
 
   Future<void> setAmpelBannerEnabled(bool value);
 
+  /// Kommt die Online-Karte vom eigenen Kartenhost statt von OSM (#630,
+  /// Stufe 1)?
+  ///
+  /// Standardmäßig NEIN, solange sie Vorschau ist: Der Host ist ein neues
+  /// Netzziel, und wie viele Abrufe ein Kartenschwenk kostet, wird erst
+  /// mit dem Schalter gemessen. Aus heißt: keine einzige Anfrage an den
+  /// Host. Gerätelokal wie die übrigen Kartenschalter.
+  bool get newMapEnabled;
+
+  Future<void> setNewMapEnabled(bool value);
+
   /// Lag die Waldebene beim letzten Mal auf der Karte (#349)?
   ///
   /// **Das dreht eine ausdrückliche Entscheidung um** — und zwar zwei
@@ -409,6 +420,15 @@ class PrefsSettings implements Settings {
   @override
   Future<void> setAmpelBannerEnabled(bool value) =>
       _prefs.setBool(_ampelBannerEnabledKey, value);
+
+  static const _newMapEnabledKey = 'new_map_enabled';
+
+  @override
+  bool get newMapEnabled => _prefs.getBool(_newMapEnabledKey) ?? false;
+
+  @override
+  Future<void> setNewMapEnabled(bool value) =>
+      _prefs.setBool(_newMapEnabledKey, value);
 
   static const _forestLayerEnabledKey = 'forest_layer_enabled';
 

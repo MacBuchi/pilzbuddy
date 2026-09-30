@@ -13,6 +13,7 @@ class FakeSettings implements Settings {
     this.mapAutoUpdateEnabled = false,
     this.ampelPreviewEnabled = false,
     this.ampelBannerEnabled = false,
+    this.newMapEnabled = false,
     this.forestLayerEnabled = false,
     this.contourLayerEnabled = false,
     this.gbifLayerEnabled = false,
@@ -164,6 +165,14 @@ class FakeSettings implements Settings {
   @override
   Future<void> setAmpelBannerEnabled(bool value) async {
     ampelBannerEnabled = value;
+  }
+
+  @override
+  bool newMapEnabled;
+
+  @override
+  Future<void> setNewMapEnabled(bool value) async {
+    newMapEnabled = value;
   }
 
   @override

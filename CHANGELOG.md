@@ -7,6 +7,20 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Neue Karte zum Ausprobieren
+
+*30. September 2026 · Version 1.214.0*
+
+- Im Profil gibt es den Schalter **„Neue Karte (Vorschau)"**, ab Werk
+  aus. Eingeschaltet kommt die Online-Karte von unserem eigenen
+  Kartenserver statt von OpenStreetMap — im selben Stil wie die Karte
+  ohne Empfang, mit hervorgehobenen Wald- und Wanderwegen.
+- Sie ist der erste Schritt zu Offline-Karten auch in der Web-App.
+- Klappt beim Kartenserver etwas nicht, erscheint von selbst die
+  bisherige Karte. Ausschalten bringt sie ebenfalls zurück.
+- Die Datenschutzerklärung nennt den neuen Kartenserver. Solange der
+  Schalter aus ist, fragt die App dort nie an.
+
 ## Web-App: alte Stände werden wieder aufgeräumt
 
 *30. September 2026 · Version 1.213.1*

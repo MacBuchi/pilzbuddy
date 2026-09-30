@@ -13,6 +13,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../coach/coach.dart';
 import '../help/map_tour.dart';
 import '../help/tab_tours.dart' show ProfileCoach;
+import '../map/online_map.dart';
 import '../offline_maps/offline_map_providers.dart';
 import '../../core/app_distribution.dart';
 import '../../core/settings.dart';
@@ -189,6 +190,23 @@ class ProfileScreen extends ConsumerWidget {
               onTap: () => context.push('/profile/offline-maps'),
             ),
           ],
+          // Die Online-Karte vom eigenen Kartenhost (#630, Stufe 1) —
+          // eine Vorschau, ab Werk aus. Aus heißt: keine Anfrage an den
+          // Host. An heißt nicht „sicher neu": Kommt vom Host nichts
+          // Brauchbares, zeichnet die Karte still die alte.
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            secondary: const Icon(Icons.layers_outlined),
+            title: const Text('Neue Karte (Vorschau)'),
+            subtitle: const Text(
+                'Die Online-Karte kommt vom eigenen Kartenserver statt von '
+                'OpenStreetMap — im selben Stil wie ohne Empfang, mit '
+                'hervorgehobenen Wegen. Klappt dort etwas nicht, erscheint '
+                'die bisherige Karte.'),
+            value: ref.watch(newMapEnabledProvider),
+            onChanged: (value) =>
+                ref.read(newMapEnabledProvider.notifier).set(value),
+          ),
           // Der Takt der Pilztour (#338). Kein Schalter, sondern eine
           // Wahl — und gerätelokal, weil sie zum Gerät gehört: Ein altes
           // Telefon mit knappem Akku will einen längeren Takt als ein

@@ -16,6 +16,8 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_map/flutter_map.dart' show TileLayer;
+import 'package:pilzbuddy/features/map/online_map.dart';
 import 'package:pilzbuddy/features/offline_maps/offline_map_providers.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart' as vmt;
 
@@ -38,6 +40,11 @@ Override _offlineMapActive() =>
           theme: protomapsTestTheme(),
           tileProviders: vmt.TileProviders({'protomaps': EmptyTileProvider()}),
         ));
+
+/// Das OSM-Raster — nicht „irgendein TileLayer": Die Übersicht im
+/// Raster-Modus bringt intern selbst einen mit.
+Finder get _osm => find.byWidgetPredicate((w) =>
+    w is TileLayer && (w.urlTemplate ?? '').contains('openstreetmap'));
 
 Finder get _baseMap => find.byKey(const ValueKey('base-map'));
 
@@ -81,6 +88,38 @@ void main() {
     await settle(tester);
 
     expect(_baseMap, findsOneWidget);
+  });
+
+  // Die Neue Karte vom Kartenhost (#630): derselbe Kartenstil wie die
+  // Übersicht, also liegt sie darunter — und das OSM-Raster fällt weg.
+  testWidgets('Neue Karte: Vektorkarte statt OSM, Übersicht darunter',
+      (tester) async {
+    await pumpApp(tester, _signedIn(), useRealMap: true, extraOverrides: [
+      _baseMapAvailable(),
+      onlineMapStyleProvider.overrideWith((ref) async => OfflineMapStyle(
+            theme: protomapsTestTheme(),
+            tileProviders:
+                vmt.TileProviders({'protomaps': EmptyTileProvider()}),
+          )),
+    ]);
+    await settle(tester);
+
+    expect(_osm, findsNothing,
+        reason: 'Mit der Neuen Karte kommt keine OSM-Kachel mehr.');
+    expect(_baseMap, findsOneWidget);
+    expect(find.byType(vmt.VectorTileLayer), findsNWidgets(2),
+        reason: 'Übersicht UND die Online-Vektorkarte darüber.');
+  });
+
+  testWidgets('Neue Karte nicht verfügbar ⇒ OSM wie bisher', (tester) async {
+    await pumpApp(tester, _signedIn(), useRealMap: true, extraOverrides: [
+      _baseMapAvailable(),
+      onlineMapStyleProvider.overrideWith((ref) async => null),
+    ]);
+    await settle(tester);
+
+    expect(_osm, findsOneWidget);
+    expect(_baseMap, findsNothing);
   });
 
   testWidgets('Die Basiskarte rendert als Raster, nicht als Vektor',

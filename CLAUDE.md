@@ -630,6 +630,38 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   eigenen mit, und damit sind alle vier Stufen gegangen
   (Übersichtskarte #383, Spots in IndexedDB #385, Ausgangskorb #386,
   Service Worker #387).
+- **Die „Neue Karte" vom eigenen Kartenhost** (#630 Stufe 1, seit
+  1.214.0, `lib/features/map/online_map.dart`): Die Online-Karte liest
+  per Range-Anfrage DASSELBE DACH-Archiv, das TrailBuddy nutzt
+  (`tiles.mcbuchi.de/trailbuddy/dach.json` → `dach-<build>.pmtiles`,
+  Protomaps z0–13, Cloudflare R2). Geschnitten wird dort, in
+  TrailBuddys `map-data.yml`; hier wird nur gelesen. Plan und Stufen
+  stehen in #630. Fünf Dinge, die man wissen muss:
+  - **Hinter einem Schalter, ab Werk AUS** (`newMapEnabledProvider`,
+    Profil „Neue Karte (Vorschau)"). Aus heißt: keine einzige Anfrage an
+    den Host — `test/online_map_test.dart` zählt es, und der
+    Datenschutz-Wächter führt den Host deshalb als `afterConsent`.
+  - **OSM ist der Rückfall, und die Regel steht an EINER Stelle**
+    (`onlineMapProvider`): kein Schalter, kein Empfang, Manifest nicht da
+    oder nicht lesbar, Archiv nicht zu öffnen ⇒ `null` ⇒ beide Engines
+    zeichnen genau das, was sie ohne Schalter zeichnen. Regionen gehen
+    weiter vor.
+  - **Das Archiv wird auch für MapLibre geöffnet**, obwohl MapLibre es
+    selbst liest (`pmtiles://https://…`). Nur so ist „erreichbar"
+    geprüft: Ein Manifest, das kommt, während das Archiv mit 403
+    antwortet (Cloudflares Bot-Abwehr, TrailBuddy #55), ließe MapLibre
+    leere Kacheln zeichnen — ohne Rückfall. Beide Schritte tragen eine
+    Grenze von 10 s, weil MapLibre mit dem Style auf die Antwort wartet.
+  - **Das Manifest schreibt ein anderes Repo.** `MapManifest.fromJson`
+    wirft bei allem, was nicht passt, und der Test hält TrailBuddys
+    heutige Form fest. Ändert TrailBuddy sie, wird die Vorschau zur
+    alten Karte statt zu einer kaputten.
+  - **Die Übersicht liegt UNTER der Neuen Karte** (anders als unter
+    OSM): Es ist derselbe Kartenstil, #137 betraf zwei verschiedene.
+    `test/base_map_layer_test.dart` hält beide Fälle fest.
+  Noch nicht gemessen (Voraussetzung für Stufe 3, „an als Vorgabe"):
+  Abrufe je Kartenschwenk gegen das R2-Kontingent, das sich beide Apps
+  teilen.
 - **Zwischenspeicher und Ausgangskorb liegen im Browser in IndexedDB**
   (#385 seit 1.115.0, #386 seit 1.116.0). `NoSpotCache`/`NoOutbox` sind
   nicht mehr der Web-Zweig, sondern nur noch der Fall „kein IndexedDB".

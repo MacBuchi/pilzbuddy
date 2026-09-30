@@ -42,6 +42,17 @@ class PmTilesVectorTileProvider extends VectorTileProvider {
         archive, archive.header.minZoom, archive.header.maxZoom);
   }
 
+  /// Über das Netz, kachelweise per Range-Anfrage — der Weg der Online-
+  /// Karte vom eigenen Kartenhost (#630). Das Archiv wird nie ganz
+  /// geladen: Header und Wurzelverzeichnis einmal, danach je Kachel ein
+  /// Bereich. Der Host muss dafür 206 und CORS liefern; TrailBuddys
+  /// `map-data.yml` prüft genau das nach jedem Upload.
+  static Future<PmTilesVectorTileProvider> openUri(Uri uri) async {
+    final archive = await PmTilesArchive.fromUri(uri);
+    return PmTilesVectorTileProvider._(
+        archive, archive.header.minZoom, archive.header.maxZoom);
+  }
+
   /// Gibt das Dateihandle des Archivs frei — beim Neuaufbau der
   /// Offline-Quellen aufrufen, sonst leaken Handles (#Karten-Freezes).
   Future<void> close() => _archive.close();
