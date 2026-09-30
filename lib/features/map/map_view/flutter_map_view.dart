@@ -9,6 +9,7 @@ import '../../offline_maps/offline_map_providers.dart';
 import '../elevation_contour_providers.dart';
 import '../finite_camera_constraint.dart';
 import '../forest_data_providers.dart';
+import '../../offline_areas/area_edit_fill.dart';
 import '../gbif_finds_providers.dart';
 import '../map_overlays.dart';
 import '../online_map.dart';
@@ -134,6 +135,8 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
     // Gespeicherte Kartenbereiche (#630, Stufe 2) — zuoberst, immer:
     // siehe `area_providers.dart`.
     final areaStyle = ref.watch(areaMapStyleProvider).valueOrNull;
+    // Maske und Entwurf, solange die Werkzeugleiste offen ist (Stufe 2b).
+    final areaEdit = ref.watch(areaEditFillProvider).valueOrNull;
     // Die Online-Karte vom Kartenhost (#630) — nur mit dem Schalter, und
     // null heißt: OSM wie bisher. Offline-Regionen gehen vor, wie sie
     // auch vor OSM gehen.
@@ -457,6 +460,23 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
                     child: _ContourLabelText(level: label.level),
                   ),
                 ),
+            ],
+          ),
+        // Maske und Entwurf der Kartenbereiche (#630, Stufe 2b): über
+        // allen Flächen, unter Linienzügen und Markern. `none`, weil die
+        // Schraffur aus einzelnen Bildpunkten besteht.
+        if (areaEdit != null)
+          OverlayImageLayer(
+            overlayImages: [
+              OverlayImage(
+                bounds: LatLngBounds(
+                  LatLng(areaEdit.south, areaEdit.west),
+                  LatLng(areaEdit.north, areaEdit.east),
+                ),
+                filterQuality: FilterQuality.none,
+                gaplessPlayback: true,
+                imageProvider: MemoryImage(areaEdit.png),
+              ),
             ],
           ),
         // Linienzüge ganz unten (#340): Sie sind Hintergrund, und ein

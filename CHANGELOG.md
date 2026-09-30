@@ -7,6 +7,20 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Kartenbereiche auf der Karte zeichnen
+
+*30. September 2026 · Version 1.216.0*
+
+- Unter „Kartenbereiche" führt **„Auf der Karte bearbeiten"** zu
+  einer Werkzeugleiste auf der Karte. Hell ist, was schon auf dem
+  Gerät liegt, der Rest ist abgedunkelt.
+- Mit „Fläche dazunehmen" umfährst du mit dem Finger, was dazukommen
+  soll. Mit „Fläche wegnehmen" umfährst oder überwischst du, was weg
+  kann. Der Entwurf ist schraffiert, bis du speicherst, und
+  „Rückgängig" nimmt Schritt für Schritt zurück.
+- Wegnehmen braucht kein Netz: Die Karte wird auf dem Gerät ohne diese
+  Stellen neu geschrieben.
+
 ## Karte für unterwegs speichern — jetzt auch in der Web-App
 
 *30. September 2026 · Version 1.215.0*

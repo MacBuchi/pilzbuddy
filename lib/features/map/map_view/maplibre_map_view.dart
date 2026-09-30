@@ -20,6 +20,7 @@ import 'package:maplibre/maplibre.dart' as ml;
 
 import '../elevation_contour_providers.dart';
 import '../forest_data_providers.dart';
+import '../../offline_areas/area_edit_fill.dart';
 import '../gbif_finds_providers.dart';
 import '../rain_data_providers.dart';
 import '../rain_layer.dart';
@@ -27,6 +28,7 @@ import 'flutter_map_view.dart';
 import 'map_view.dart';
 import 'maplibre_contour_lines.dart';
 import 'maplibre_forest_fill.dart';
+import 'maplibre_area_edit_fill.dart';
 import 'maplibre_gbif_fill.dart';
 import 'maplibre_image_fill.dart' show fillRemovalNeedsNudge;
 import 'maplibre_rain_fill.dart';
@@ -153,6 +155,9 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
   /// Und für die Fundorte (#467) — eigener Merker, gleicher Grund.
   String? _appliedGbifUrl;
 
+  /// Und für Maske und Entwurf der Kartenbereiche (#630, Stufe 2b).
+  String? _appliedAreaEditUrl;
+
   /// Die Kennung der zuletzt gelegten Höhenlinien — Fenster plus
   /// Äquidistanz. Eigener Merker, aus demselben Grund wie bei den
   /// Flächen.
@@ -274,6 +279,41 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
     });
   }
 
+  /// Maske und Entwurf der Kartenbereiche — ZUOBERST. Jede andere
+  /// Fläche wird angehängt und läge danach darüber (beim Verschieben
+  /// planen Wald und Fundorte ihr Fenster neu); deshalb legt
+  /// [_raiseAreaEdit] dieses Bild hinter jeder anderen Änderung noch
+  /// einmal obenauf.
+  void _syncAreaEditFill({bool raise = false}) {
+    final style = _style;
+    if (style == null) return;
+    _fillWork = _fillWork.then((_) async {
+      try {
+        final fill = ref.read(areaEditFillFileProvider).valueOrNull;
+        final before = _appliedAreaEditUrl;
+        if (raise) {
+          if (before == null) return;
+          await style.removeLayer(areaEditFillLayerId);
+          await style.removeSource(areaEditFillSourceId);
+          _appliedAreaEditUrl = null;
+        }
+        _appliedAreaEditUrl = await applyAreaEditFill(style,
+            fill: fill, appliedUrl: _appliedAreaEditUrl);
+        if (fillRemovalNeedsNudge(
+            before: before, after: _appliedAreaEditUrl)) {
+          _nudgeEngine();
+        }
+      } catch (_) {
+        // Wie bei den anderen Flächen: still degradieren. Die Leiste
+        // funktioniert auch ohne Maske, nur sieht man weniger.
+      }
+    });
+  }
+
+  void _raiseAreaEdit() {
+    if (_appliedAreaEditUrl != null) _syncAreaEditFill(raise: true);
+  }
+
   /// Die Höhenlinien — GANZ ANS ENDE derselben Warteschlange.
   ///
   /// Die Reihenfolge ist die Aussage: Angehängt nach beiden Flächen
@@ -353,10 +393,24 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
     // Die Fläche hängt NICHT im Style (Begründung in
     // maplibre_rain_fill.dart) — sie wird nachgetragen, sobald der
     // Provider einen neuen Stand hat.
-    ref.listen(rainFillFileProvider, (previous, next) => _syncRainFill());
-    ref.listen(forestFillFileProvider, (previous, next) => _syncForestFill());
-    ref.listen(gbifFillFileProvider, (previous, next) => _syncGbifFill());
-    ref.listen(contourGeoJsonProvider, (previous, next) => _syncContours());
+    ref.listen(rainFillFileProvider, (previous, next) {
+      _syncRainFill();
+      _raiseAreaEdit();
+    });
+    ref.listen(forestFillFileProvider, (previous, next) {
+      _syncForestFill();
+      _raiseAreaEdit();
+    });
+    ref.listen(gbifFillFileProvider, (previous, next) {
+      _syncGbifFill();
+      _raiseAreaEdit();
+    });
+    ref.listen(contourGeoJsonProvider, (previous, next) {
+      _syncContours();
+      _raiseAreaEdit();
+    });
+    ref.listen(
+        areaEditFillFileProvider, (previous, next) => _syncAreaEditFill());
     // Jeder Wechsel der Regenebene nimmt etwas von der Karte: die Fläche
     // hier, die Linienebenen im LayerManager des Pakets. Beides braucht
     // danach einen Anstoß — siehe [_requestRepaint].
@@ -411,11 +465,14 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
         _appliedForestUrl = null;
         _appliedGbifUrl = null;
         _appliedContourKey = null;
+        _appliedAreaEditUrl = null;
         _syncRainFill();
         _syncForestFill();
         _syncGbifFill();
         // Zuletzt, damit die Linien über den Flächen liegen.
         _syncContours();
+        // Und darüber noch Maske und Entwurf der Kartenbereiche.
+        _syncAreaEditFill();
       },
       onMapCreated: (controller) {
         _ml = controller;

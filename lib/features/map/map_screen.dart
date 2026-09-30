@@ -9,6 +9,9 @@ import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../offline_areas/area_draw.dart';
+import '../offline_areas/area_draw_overlay.dart';
+import '../offline_areas/area_tool_rail.dart';
 import '../offline_maps/offline_map_providers.dart';
 
 import '../../core/errors.dart';
@@ -931,6 +934,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
     // Zustand selbst — anders als bei der Banner-Stummschaltung aus
     // #425, die unsichtbar war und deshalb als Fehler ankam.
     final overlaysHidden = ref.watch(mapOverlaysHiddenProvider);
+    // Die Werkzeugleiste der Kartenbereiche (#630, Stufe 2b).
+    final areaTools = ref.watch(areaToolsOpenProvider);
+    final drawTool =
+        ref.watch(areaDraftProvider.select((draft) => draft?.tool));
+    final idleBounds = ref.watch(mapIdleBoundsProvider);
 
     // Die Tour liegt ÜBER dem Scaffold, nicht in seinem `body` (#350):
     // Die Knopfspalte hängt an `floatingActionButton` und läge sonst
@@ -1030,6 +1038,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 child: MapLegend(onOpenLayers: _openLayers),
               ),
             ),
+            if (!areaTools)
             SafeArea(
               child: Align(
                 alignment: Alignment.topCenter,
@@ -1116,6 +1125,40 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 ),
               ),
             ),
+            // Zeichnen und Radieren (#630, Stufe 2b): Die Fläche liegt nur,
+            // solange ein Werkzeug auf den nächsten Strich wartet, und
+            // fängt dann jede Berührung ab — die Karte steht still, das
+            // Sichtfenster vom letzten Stillstand stimmt also.
+            if (areaTools && drawTool != null && idleBounds != null)
+              Positioned.fill(
+                child: AreaDrawOverlay(
+                  bounds: idleBounds,
+                  tool: drawTool,
+                  onStroke: (keys) {
+                    if (keys == null) {
+                      ref.read(areaDraftProvider.notifier).disarm();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('Die Fläche ist zu groß — '
+                                  'zoome näher heran.')));
+                      return;
+                    }
+                    ref.read(areaDraftProvider.notifier).applyStroke(keys);
+                  },
+                ),
+              ),
+            if (areaTools)
+              const IgnorePointer(
+                child: SafeArea(
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: Padding(
+                      padding: EdgeInsets.only(top: 8, left: 12, right: 12),
+                      child: AreaToolHint(),
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
         // **Warum die Knopfspalte schrumpfen darf** (seit den Höhenlinien,
@@ -1131,7 +1174,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
         // Knopf, und eine scrollende Spalte versteckt ausgerechnet die
         // Ebenen-Schalter oben (am Testschirm nachgestellt: Der
         // Waldtypen-Knopf lag bei y = −20).
-        floatingActionButton: FittedBox(
+        // Solange die Kartenbereiche bearbeitet werden, steht dort ihre
+        // Leiste statt der Knopfspalte (area_tool_rail.dart).
+        floatingActionButton: areaTools
+            ? const AreaToolRail()
+            : FittedBox(
           fit: BoxFit.scaleDown,
           alignment: Alignment.bottomRight,
           child: Column(

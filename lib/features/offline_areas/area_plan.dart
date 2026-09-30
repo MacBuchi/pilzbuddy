@@ -148,6 +148,11 @@ sealed class AreaShape {
   /// Wie viele Kacheln [tiles] liefern würde.
   int countTiles({int minZoom = kAreaMinZoom, required int maxZoom});
 
+  /// Die Kacheln bei Zoom [z] als Schlüssel ([TileSetShape.keyOf]) — die
+  /// Sprache, in der Zeichnen, Radieren und Beschneiden rechnen (#630,
+  /// Stufe 2b).
+  Set<int> keysAt(int z);
+
   Map<String, dynamic> toJson();
 
   static AreaShape fromJson(Map<String, dynamic> j) => switch (j['type']) {
@@ -199,6 +204,12 @@ class RectShape extends AreaShape {
       countTilesCovering(bounds, minZoom: minZoom, maxZoom: maxZoom);
 
   @override
+  Set<int> keysAt(int z) => {
+        for (final t in tilesCovering(bounds, minZoom: z, maxZoom: z))
+          TileSetShape.keyOf(t.x, t.y, z),
+      };
+
+  @override
   Map<String, dynamic> toJson() => {'type': 'rect', 'bounds': bounds.toJson()};
 }
 
@@ -216,7 +227,8 @@ class TileSetShape extends AreaShape {
       (x: key >> zoom, y: key & ((1 << zoom) - 1));
 
   /// Die Kacheln bei Zoom [z] — als Menge, weil Eltern mehrfach kommen.
-  Set<int> _keysAt(int z) {
+  @override
+  Set<int> keysAt(int z) {
     if (z == zoom) return keys;
     if (z < zoom) {
       final d = zoom - z;
@@ -236,14 +248,14 @@ class TileSetShape extends AreaShape {
   @override
   List<TileXYZ> tiles({int minZoom = kAreaMinZoom, required int maxZoom}) => [
         for (var z = minZoom; z <= maxZoom; z++)
-          for (final k in _keysAt(z)) (z: z, x: k >> z, y: k & ((1 << z) - 1)),
+          for (final k in keysAt(z)) (z: z, x: k >> z, y: k & ((1 << z) - 1)),
       ];
 
   @override
   int countTiles({int minZoom = kAreaMinZoom, required int maxZoom}) {
     var count = 0;
     for (var z = minZoom; z <= maxZoom; z++) {
-      count += z > zoom ? keys.length << (2 * (z - zoom)) : _keysAt(z).length;
+      count += z > zoom ? keys.length << (2 * (z - zoom)) : keysAt(z).length;
     }
     return count;
   }

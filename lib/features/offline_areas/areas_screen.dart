@@ -6,8 +6,9 @@
 // aktualisieren, löschen. Bereiche werden nie verdrängt; was bleibt, muss
 // man sehen und loswerden können.
 //
-// Zeichnen und Radieren auf der Karte (TrailBuddys Werkzeugleiste) sind
-// Stufe 2b.
+// Zeichnen und Radieren auf der Karte (TrailBuddys Werkzeugleiste, Stufe
+// 2b) öffnet „Auf der Karte bearbeiten" — die Leiste selbst steht in
+// area_tool_rail.dart.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -23,6 +24,7 @@ import 'area_downloader.dart';
 import 'area_plan.dart';
 import 'area_providers.dart';
 import 'area_store.dart';
+import 'area_tool_rail.dart';
 
 String _buildLabel(String build) => build.length == 8
     ? '${build.substring(6, 8)}.${build.substring(4, 6)}.${build.substring(0, 4)}'
@@ -103,6 +105,23 @@ class AreasScreen extends ConsumerWidget {
                       if (shape != null) {
                         _save(context, ref, shape, 'Um meine Spots');
                       }
+                    },
+            ),
+          ],
+          if (canSave || areas.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              key: const ValueKey('areas-edit-on-map'),
+              icon: const Icon(Icons.draw_outlined),
+              label: const Text('Auf der Karte bearbeiten'),
+              onPressed: download.busy
+                  ? null
+                  : () {
+                      openAreaTools(ref);
+                      // Die Leiste gehört zur Karte — der Wechsel in
+                      // ihren Reiter zeigt sie.
+                      StatefulNavigationShell.maybeOf(context)
+                          ?.goBranch(kMapBranchIndex);
                     },
             ),
           ],
