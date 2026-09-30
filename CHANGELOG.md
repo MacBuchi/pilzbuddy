@@ -7,6 +7,22 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Die neue Karte ist jetzt Standard
+
+*30. September 2026 · Version 1.217.0*
+
+- Die Karte kommt ab jetzt für alle vom eigenen Kartenserver: gleicher
+  Stil wie ohne Empfang, Forst- und Wanderwege gut zu sehen. Wer die
+  bisherige Karte von OpenStreetMap lieber mag, schaltet im Profil
+  **„Neue Karte"** aus.
+- **„Kartenbereiche"** stehen jetzt direkt auf der Karte unter
+  „Ebenen". Der Stift daneben öffnet die Werkzeugleiste zum Zeichnen
+  und Radieren, ohne Umweg über das Profil.
+- Gespeicherte Bereiche bleiben aktuell: Der Kartenstand wird monatlich
+  neu, und die App lädt veraltete Bereiche im WLAN ohne Kosten von
+  selbst nach. Abschaltbar auf der Seite „Kartenbereiche", dort geht es
+  auch von Hand. In der Web-App geht es nur von Hand.
+
 ## Kartenbereiche auf der Karte zeichnen
 
 *30. September 2026 · Version 1.216.0*

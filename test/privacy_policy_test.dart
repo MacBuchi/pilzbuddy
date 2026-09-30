@@ -114,6 +114,10 @@ void main() {
     /// Erklärung stehen.
     const fetched = {
       'tile.openstreetmap.org',
+      // Die Neue Karte vom eigenen Kartenhost (#630): seit Stufe 3
+      // (1.217.0) ab Werk an, also kein `afterConsent` mehr. Aus im
+      // Profil heißt weiter: keine einzige Anfrage (online_map_test).
+      'tiles.mcbuchi.de',
       'api.github.com',
       'github.com',
       // Die Regengitter für die Web-App (#365/#366). Derselbe Anbieter
@@ -151,10 +155,6 @@ void main() {
       // Funde — also erst, nachdem jemand verbunden UND gemeldet hat —,
       // und nur mit der öffentlichen Beobachtungsnummer.
       'api.gbif.org',
-      // Die Online-Karte vom eigenen Kartenhost (#630, Stufe 1): erst,
-      // wenn jemand im Profil „Neue Karte (Vorschau)" einschaltet —
-      // `onlineMapProvider` fragt ohne den Schalter nie.
-      'tiles.mcbuchi.de',
     };
 
     /// Ziele, die erst der Nutzer mit einem Tipp öffnet (Lizenz- und

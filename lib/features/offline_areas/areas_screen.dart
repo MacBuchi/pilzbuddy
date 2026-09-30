@@ -9,6 +9,7 @@
 // Zeichnen und Radieren auf der Karte (TrailBuddys Werkzeugleiste, Stufe
 // 2b) öffnet „Auf der Karte bearbeiten" — die Leiste selbst steht in
 // area_tool_rail.dart.
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -20,6 +21,7 @@ import '../map/forest_data_providers.dart' show mapIdleBoundsProvider;
 import '../map/map_focus.dart';
 import '../map/online_map.dart';
 import '../spots/spot_providers.dart';
+import 'area_auto_update.dart';
 import 'area_downloader.dart';
 import 'area_plan.dart';
 import 'area_providers.dart';
@@ -41,6 +43,7 @@ class AreasScreen extends ConsumerWidget {
     final bounds = ref.watch(mapIdleBoundsProvider);
     final spots = ref.watch(mySpotListProvider);
     final areas = areasAsync.valueOrNull ?? const <StoredArea>[];
+    final stale = {for (final a in ref.watch(staleAreasProvider)) a.id};
     var total = 0;
     for (final a in areas) {
       total += a.bytes;
@@ -63,8 +66,8 @@ class AreasScreen extends ConsumerWidget {
               child: Padding(
                 padding: EdgeInsets.all(12),
                 child: Text(
-                  'Neue Bereiche speichern geht, solange sie Vorschau ist, '
-                  'nur mit „Neue Karte (Vorschau)" im Profil — die Kacheln '
+                  'Neue Bereiche speichern geht nur mit „Neue Karte" im '
+                  'Profil — die Kacheln '
                   'kommen von demselben Kartenserver.',
                 ),
               ),
@@ -157,6 +160,38 @@ class AreasScreen extends ConsumerWidget {
                     ref.read(areaDownloadProvider.notifier).reset(),
               ),
             ),
+          if (stale.isNotEmpty)
+            ListTile(
+              key: const ValueKey('areas-stale'),
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.fiber_new_outlined),
+              title: Text(stale.length == 1
+                  ? 'Für einen Bereich gibt es einen neueren Kartenstand.'
+                  : 'Für ${stale.length} Bereiche gibt es einen neueren '
+                      'Kartenstand.'),
+              trailing: TextButton(
+                key: const ValueKey('areas-update-all'),
+                onPressed: download.busy
+                    ? null
+                    : () => ref
+                        .read(areaAutoUpdateProvider.notifier)
+                        .updateAll(),
+                child: const Text('Aktualisieren'),
+              ),
+            ),
+          // Von selbst geht es nur, wo die App die Kosten der Verbindung
+          // kennt — im Browser gibt es die Auskunft nicht (#332).
+          if (!kIsWeb && areas.isNotEmpty)
+            SwitchListTile(
+              key: const ValueKey('areas-auto-update'),
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Automatisch aktualisieren'),
+              subtitle: const Text('Der Kartenstand wird monatlich neu. '
+                  'Nachgeladen wird nur im WLAN ohne Kosten.'),
+              value: ref.watch(areaAutoUpdateEnabledProvider),
+              onChanged: (value) =>
+                  ref.read(areaAutoUpdateEnabledProvider.notifier).set(value),
+            ),
           const Divider(height: 32),
           Text(
             areas.isEmpty
@@ -166,7 +201,8 @@ class AreasScreen extends ConsumerWidget {
                     'Speicher allerdings räumen.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
-          for (final a in areas) _AreaTile(a, canUpdate: canSave),
+          for (final a in areas)
+            _AreaTile(a, canUpdate: canSave, stale: stale.contains(a.id)),
         ],
       ),
     );
@@ -267,12 +303,15 @@ class _ConfirmDialogState extends State<_ConfirmDialog> {
 }
 
 class _AreaTile extends ConsumerWidget {
-  const _AreaTile(this.area, {required this.canUpdate});
+  const _AreaTile(this.area, {required this.canUpdate, required this.stale});
 
   final StoredArea area;
 
   /// Aktualisieren holt vom Kartenserver, also nur mit dem Schalter.
   final bool canUpdate;
+
+  /// Der Host hat einen neueren Kartenstand.
+  final bool stale;
 
   Future<void> _delete(BuildContext context, WidgetRef ref) async {
     final ok = await showDialog<bool>(
@@ -322,7 +361,8 @@ class _AreaTile extends ConsumerWidget {
       leading: const Icon(Icons.map_outlined),
       title: Text(area.name),
       subtitle: Text('${formatBytes(area.bytes)} · ${area.tiles} Kacheln · '
-          'Stand ${_buildLabel(area.build)}'),
+          'Stand ${_buildLabel(area.build)}'
+          '${stale ? ' · neuerer Stand verfügbar' : ''}'),
       trailing: Row(mainAxisSize: MainAxisSize.min, children: [
         if (canUpdate)
           IconButton(

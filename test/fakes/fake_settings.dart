@@ -11,6 +11,7 @@ class FakeSettings implements Settings {
     this.prereleaseUpdatesEnabled = false,
     this.forestFineEnabled = false,
     this.mapAutoUpdateEnabled = false,
+    this.areaAutoUpdateEnabled = false,
     this.ampelPreviewEnabled = false,
     this.ampelBannerEnabled = false,
     this.newMapEnabled = false,
@@ -125,6 +126,14 @@ class FakeSettings implements Settings {
   @override
   Future<void> setForestFineEnabled(bool value) async {
     forestFineEnabled = value;
+  }
+
+  @override
+  bool areaAutoUpdateEnabled;
+
+  @override
+  Future<void> setAreaAutoUpdateEnabled(bool value) async {
+    areaAutoUpdateEnabled = value;
   }
 
   @override

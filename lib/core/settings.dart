@@ -275,6 +275,17 @@ abstract interface class Settings {
 
   Future<void> setMapAutoUpdateEnabled(bool value);
 
+  /// Gespeicherte Kartenbereiche (#630) im freien Netz von selbst auf den
+  /// neuen Kartenstand bringen, sobald der Kartenhost einen hat (monatlich).
+  ///
+  /// Anders als bei den Regionskarten ab Werk JA: Ein Bereich hat
+  /// höchstens 40 000 Kacheln, meist ein paar zehn MB, und geladen wird
+  /// nur ohne Kosten (dieselbe Prüfung wie #332). Im Browser gibt es diese
+  /// Prüfung nicht — dort bleibt es beim Knopf.
+  bool get areaAutoUpdateEnabled;
+
+  Future<void> setAreaAutoUpdateEnabled(bool value);
+
   /// Bis wann die Spot-Erinnerung stummgeschaltet ist (Baustein C des
   /// Ampel-Konzepts): Das X am Banner setzt den Zeitpunkt ans Ende des
   /// laufenden ±14-Tage-Fensters — dieselbe Erinnerung soll nicht jeden
@@ -424,7 +435,9 @@ class PrefsSettings implements Settings {
   static const _newMapEnabledKey = 'new_map_enabled';
 
   @override
-  bool get newMapEnabled => _prefs.getBool(_newMapEnabledKey) ?? false;
+  // Ab Werk AN seit 1.217.0 (#630, Stufe 3) — vorher eine Vorschau, ab
+  // Werk aus. Wer sie damals ausgeschaltet hat, behält das.
+  bool get newMapEnabled => _prefs.getBool(_newMapEnabledKey) ?? true;
 
   @override
   Future<void> setNewMapEnabled(bool value) =>
@@ -558,6 +571,16 @@ class PrefsSettings implements Settings {
   @override
   Future<void> setForestFineEnabled(bool value) =>
       _prefs.setBool(_forestFineEnabledKey, value);
+
+  static const _areaAutoUpdateEnabledKey = 'area_auto_update_enabled';
+
+  @override
+  bool get areaAutoUpdateEnabled =>
+      _prefs.getBool(_areaAutoUpdateEnabledKey) ?? true;
+
+  @override
+  Future<void> setAreaAutoUpdateEnabled(bool value) =>
+      _prefs.setBool(_areaAutoUpdateEnabledKey, value);
 
   static const _mapAutoUpdateEnabledKey = 'map_auto_update_enabled';
 

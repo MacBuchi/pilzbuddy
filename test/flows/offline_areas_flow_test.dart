@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/features/map/forest_data_providers.dart';
 import 'package:pilzbuddy/features/map/map_view/marker_culling.dart';
 import 'package:pilzbuddy/features/map/online_map.dart';
+import 'package:pilzbuddy/features/offline_areas/area_auto_update.dart';
 import 'package:pilzbuddy/features/offline_areas/area_plan.dart';
 import 'package:pilzbuddy/features/offline_areas/area_providers.dart';
 import 'package:pilzbuddy/features/offline_areas/area_store.dart';
@@ -146,6 +147,7 @@ void main() {
   });
 
   drawTests();
+  layersTests();
 }
 
 // Stufe 2b: Zeichnen und Radieren auf der Karte.
@@ -259,5 +261,86 @@ void drawTests() {
     await tester.tap(find.byKey(const ValueKey('draft-discard')));
     await settle(tester);
     expect(find.byKey(const ValueKey('area-tool-rail')), findsNothing);
+  });
+}
+
+// Stufe 3: der Weg über „Ebenen" und der neuere Kartenstand.
+Future<void> _openLayersRow(WidgetTester tester) async {
+  await tester.tap(find.byTooltip('Ebenen'));
+  await settle(tester);
+  final row = find.byKey(const ValueKey('layers-areas'));
+  // Die letzte Zeile des Blatts — auf dem Testschirm unter dem Rand.
+  await tester.scrollUntilVisible(row, 200,
+      scrollable: find.byType(Scrollable).last);
+  await settle(tester);
+}
+
+void layersTests() {
+  testWidgets('Ebenen → Kartenbereiche: der Stift öffnet die Leiste',
+      (tester) async {
+    await pumpApp(tester, _signedIn(),
+        settings: FakeSettings(newMapEnabled: true),
+        areaStore: MemoryAreaStore(),
+        extraOverrides: _host10());
+    await _openLayersRow(tester);
+    await tester.tap(find.byKey(const ValueKey('layers-areas-edit')));
+    await settle(tester);
+    expect(find.byKey(const ValueKey('area-tool-rail')), findsOneWidget);
+  });
+
+  testWidgets('Ebenen → Kartenbereiche: die Zeile öffnet die Seite',
+      (tester) async {
+    await pumpApp(tester, _signedIn(),
+        areaStore: MemoryAreaStore(), extraOverrides: _host10());
+    await _openLayersRow(tester);
+    await tester.tap(find.byKey(const ValueKey('layers-areas')));
+    await settle(tester);
+    expect(find.byKey(const ValueKey('areas-need-new-map')), findsOneWidget,
+        reason: 'ohne Neue Karte sagt die Seite, warum');
+  });
+
+  testWidgets('neuerer Kartenstand: angezeigt und von Hand nachgeladen',
+      (tester) async {
+    final store = MemoryAreaStore()
+      ..areas = [
+        StoredArea(
+          id: 'a1',
+          name: 'Hausrunde',
+          bounds: const AreaBounds(
+              south: 47.9, west: 11.6, north: 47.95, east: 11.7),
+          minZoom: 8,
+          maxZoom: 10,
+          build: '20260828',
+          tiles: 10,
+          bytes: 1000,
+          savedAt: DateTime.utc(2026, 9, 1),
+        ),
+      ];
+    await pumpApp(tester, _signedIn(),
+        settings: FakeSettings(newMapEnabled: true),
+        areaStore: store,
+        keepAlive: FakeKeepAlive(),
+        extraOverrides: [
+          ..._host10(),
+          // Der Stand des Hosts kommt sonst aus dem Manifest der Online-
+          // Karte; die bleibt hier aus dem Spiel (siehe `_host10`).
+          staleAreasProvider.overrideWith((ref) => staleAreas(
+              ref.watch(storedAreasProvider).valueOrNull ?? const [],
+              '20260928')),
+          areaMapStyleProvider.overrideWith((ref) async => null),
+        ]);
+    await _openAreas(tester);
+    expect(find.byKey(const ValueKey('areas-stale')), findsOneWidget);
+    final staleLine = find.textContaining('neuerer Stand verfügbar');
+    await tester.scrollUntilVisible(staleLine, 200,
+        scrollable: find.byType(Scrollable).last);
+    expect(staleLine, findsOneWidget);
+    await tester.ensureVisible(find.byKey(const ValueKey('areas-update-all')));
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('areas-update-all')));
+    await settle(tester, frames: 20);
+    expect(store.areas.single.build, '20260928');
+    expect(store.areas.single.id, 'a1', reason: 'derselbe Bereich, ersetzt');
+    expect(find.byKey(const ValueKey('areas-stale')), findsNothing);
   });
 }

@@ -97,7 +97,8 @@ final onlineArchiveOpenerProvider =
     Provider<Future<PmTilesVectorTileProvider> Function(Uri)>(
         (ref) => PmTilesVectorTileProvider.openUri);
 
-/// Der Schalter „Neue Karte (Vorschau)". Muster
+/// Der Schalter „Neue Karte" — ab Werk an seit 1.217.0 (#630, Stufe 3),
+/// davor eine Vorschau. Muster
 /// `AmpelBannerEnabledNotifier`: Zustand springt sofort, Speichern läuft
 /// nach, ein Fehler beim Merken wird nur protokolliert.
 class NewMapEnabledNotifier extends Notifier<bool> {

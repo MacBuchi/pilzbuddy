@@ -94,6 +94,10 @@ abstract final class MapCoach {
 
   /// Szene: das Ebenen-Blatt.
   static const layersSheet = 'map.layersSheet';
+  static const layersAreas = 'map.layers.areas';
+
+  /// Die Liste im Ebenen-Blatt — Ziel von `scrollIn`.
+  static const layersList = 'map.layers.list';
   static const layersForest = 'map.layers.forest';
   static const layersRain = 'map.layers.rain';
   static const layersGbif = 'map.layers.gbif';

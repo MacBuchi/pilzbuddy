@@ -659,9 +659,15 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   - **Die Übersicht liegt UNTER der Neuen Karte** (anders als unter
     OSM): Es ist derselbe Kartenstil, #137 betraf zwei verschiedene.
     `test/base_map_layer_test.dart` hält beide Fälle fest.
-  Noch nicht gemessen (Voraussetzung für Stufe 3, „an als Vorgabe"):
-  Abrufe je Kartenschwenk gegen das R2-Kontingent, das sich beide Apps
-  teilen.
+  **Seit 1.217.0 ab Werk AN** (Stufe 3). Der Schalter bleibt als
+  Ausweg („Neue Karte" im Profil, aus ⇒ keine Anfrage an den Host, der
+  Test zählt es weiter); `FakeSettings` steht dagegen auf AUS, damit kein
+  Bestandstest ein Manifest abruft. Datenschutz-Wächter: `fetched` statt
+  `afterConsent`.
+  **Noch nicht gemessen:** Abrufe je Kartenschwenk gegen das
+  R2-Kontingent, das sich beide Apps teilen — aus dieser Umgebung nicht
+  erreichbar; vor der Beförderung am Gerät nachsehen (Cloudflare-
+  Dashboard, Class-B-Operationen).
 - **Gespeicherte Kartenbereiche** (#630 Stufe 2, seit 1.215.0,
   `lib/features/offline_areas/`, übernommen aus TrailBuddy ohne dessen
   Orte): Ein Bereich ist EIN PMTiles-Archiv (Zoom 8 bis zum Zoom des
@@ -722,6 +728,19 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     Mit Entwurf fragt sie nach.
   - **Dazunehmen braucht die Neue Karte, Wegnehmen nicht** — dieselbe
     Linie wie beim Speichern: Liegendes muss man immer loswerden können.
+  **Der Weg liegt unter „Ebenen"** (seit 1.217.0, Feldrückmeldung: „man
+  arbeitet in der Karte, erreicht es aber nur über das Profil"): Die Zeile
+  „Kartenbereiche" öffnet die Seite, ihr Stift die Leiste
+  (`MapLayerDetail.areas`/`areaTools`). Sie steht IMMER da, auch ohne
+  Neue Karte — die Seite sagt dann, warum nichts geht.
+  **Veraltete Bereiche lädt die App nach** (seit 1.217.0,
+  `area_auto_update.dart`): Veraltet heißt `build` älter als
+  `sourceBuild` des Manifests der Online-Karte (kein eigener Abruf). Von
+  selbst nur im freien Netz und im Vordergrund, mit denselben zwei
+  Ausgängen wie #332 — starten UND den eigenen Download anhalten, wenn
+  das freie Netz geht; eigener Schalter `areaAutoUpdateEnabled`, ab Werk
+  AN (ein Bereich ist klein, der Host baut monatlich). Im Browser gibt es
+  keine Kostenauskunft, dort nur „Aktualisieren" auf der Seite.
 - **Zwischenspeicher und Ausgangskorb liegen im Browser in IndexedDB**
   (#385 seit 1.115.0, #386 seit 1.116.0). `NoSpotCache`/`NoOutbox` sind
   nicht mehr der Web-Zweig, sondern nur noch der Fall „kein IndexedDB".
