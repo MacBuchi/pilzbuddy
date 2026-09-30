@@ -7,6 +7,21 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Karte für unterwegs speichern — jetzt auch in der Web-App
+
+*30. September 2026 · Version 1.215.0*
+
+- Mit eingeschalteter **„Neuen Karte (Vorschau)"** gibt es im Profil
+  den Eintrag **„Kartenbereiche"**. Dort speicherst du den aktuellen
+  Kartenausschnitt oder die Umgebung deiner Spots auf dem Gerät. Ohne
+  Empfang bleibt die Karte dort dann scharf, samt Forst- und
+  Wanderwegen.
+- Das geht auf Android und im Browser. Die Größe steht vor dem
+  Speichern da, gemessen und nicht geschätzt.
+- Gespeicherte Bereiche liegen immer obenauf, auch wenn nur ein
+  schwacher Balken Empfang da ist und sonst nichts nachlädt.
+- Die bisherigen Regionskarten auf Android bleiben, wie sie sind.
+
 ## Neue Karte zum Ausprobieren
 
 *30. September 2026 · Version 1.214.0*

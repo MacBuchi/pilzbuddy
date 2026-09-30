@@ -50,6 +50,7 @@ Stand 2026-09-08, nachgesehen im Code, nicht angenommen.
 | Kein Tracking, keine Analyse-SDKs | Die einzige Firebase-Nutzung ist Cloud Messaging (`pubspec.yaml`: `firebase_core`, `firebase_messaging` — kein Analytics, kein Crashlytics) |
 | Serverstandort EU | AWS `eu-west-1` (Irland), Supabase-Dashboard, bestätigt 2026-09-08 |
 | Der Kartenhost `tiles.mcbuchi.de` wird nur mit dem Schalter „Neue Karte" gefragt (#630) | `onlineMapProvider` in `lib/features/map/online_map.dart` gibt ohne `newMapEnabledProvider` sofort `null` zurück, bevor Manifest oder Archiv angefasst werden; `test/online_map_test.dart` zählt die Abrufe. Vorgabe aus: `PrefsSettings.newMapEnabled` |
+| Gespeicherte Kartenbereiche liegen nur auf dem Gerät (#630) | `lib/features/offline_areas/`: Dateien unter `offline_maps/areas/` (in beiden Backup-Ausschlüssen über `offline_maps`), im Browser IndexedDB (`kAreaArchiveStore`); kein Supabase-Zugriff im ganzen Ordner. Gespeichert wird nur mit dem Schalter „Neue Karte" (`areas_screen.dart`, `test/flows/offline_areas_flow_test.dart`) |
 | Im Browser lädt Push einen Baustein von Google | `web/push/firebase-messaging-sw.js`; ausgelöst erst durch `getToken` in `requestPushToken` |
 
 ### Offen — nicht aus dem Code belegbar

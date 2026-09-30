@@ -18,6 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_map/flutter_map.dart' show TileLayer;
 import 'package:pilzbuddy/features/map/online_map.dart';
+import 'package:pilzbuddy/features/offline_areas/area_providers.dart';
 import 'package:pilzbuddy/features/offline_maps/offline_map_providers.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart' as vmt;
 
@@ -120,6 +121,39 @@ void main() {
 
     expect(_osm, findsOneWidget);
     expect(_baseMap, findsNothing);
+  });
+
+  // Gespeicherte Kartenbereiche (#630, Stufe 2): zuoberst, auch über OSM
+  // — im Funkloch mit einem Balken kommt keine OSM-Kachel.
+  testWidgets('Ein gespeicherter Bereich liegt als Schicht über OSM',
+      (tester) async {
+    final areaProviders =
+        vmt.TileProviders({'protomaps': EmptyTileProvider()});
+    await pumpApp(tester, _signedIn(), useRealMap: true, extraOverrides: [
+      _baseMapAvailable(),
+      areaMapStyleProvider.overrideWith((ref) async => OfflineMapStyle(
+            theme: protomapsTestTheme(),
+            tileProviders: areaProviders,
+          )),
+    ]);
+    await settle(tester);
+
+    final area = find.byKey(ValueKey(areaProviders));
+    expect(area, findsOneWidget);
+    expect(_osm, findsOneWidget);
+    // Später im Baum = weiter oben gezeichnet.
+    final order = [
+      for (final e in find
+          .byWidgetPredicate((w) =>
+              w is vmt.VectorTileLayer ||
+              (w is TileLayer &&
+                  (w.urlTemplate ?? '').contains('openstreetmap')))
+          .evaluate())
+        e.widget,
+    ];
+    expect(order.last, isA<vmt.VectorTileLayer>());
+    expect(order.indexWhere((w) => w is TileLayer),
+        lessThan(order.length - 1));
   });
 
   testWidgets('Die Basiskarte rendert als Raster, nicht als Vektor',
