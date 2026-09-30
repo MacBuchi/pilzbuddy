@@ -10,11 +10,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/settings.dart';
 import 'package:pilzbuddy/features/map/map_view/maplibre_style_provider.dart';
+import 'package:pilzbuddy/features/map/online_map.dart';
 import 'package:pilzbuddy/features/map/rain_data_providers.dart';
 import 'package:pilzbuddy/features/map/rain_grid.dart';
 import 'package:pilzbuddy/features/map/rain_layer.dart';
 import 'package:pilzbuddy/features/offline_maps/offline_map_providers.dart';
 import 'package:pilzbuddy/features/offline_maps/offline_map_repository.dart';
+import 'package:pilzbuddy/features/offline_maps/pmtiles_tile_provider.dart';
+import 'dart:io' show File;
 
 import 'fakes/fake_settings.dart';
 
@@ -283,5 +286,72 @@ void main() {
             as Map<String, dynamic>;
     expect((fallback['sources'] as Map).keys, contains('regen'),
         reason: 'ohne Gitter bleibt das DWD-Bild die Rückfalllinie');
+  });
+
+  // Die Neue Karte (#630, Stufe 1): derselbe `onlineMapProvider` wie in
+  // der flutter_map-Engine, und null heißt OSM wie bisher.
+  group('Neue Karte vom Kartenhost', () {
+    Future<Map<String, dynamic>> styleFor({
+      required bool newMap,
+      bool archiveReachable = true,
+      bool offlineEnabled = false,
+      List<InstalledMap> installed = const [],
+    }) async {
+      final gate = Completer<List<InstalledMap>>()..complete(installed);
+      final container = ProviderContainer(overrides: [
+        rainGridLoaderProvider.overrideWithValue((_) async => null),
+        maplibreStyleIoProvider.overrideWithValue(_FakeIo()),
+        installedMapsProvider.overrideWith(() => _GatedInstalledMaps(gate)),
+        settingsProvider.overrideWithValue(FakeSettings(
+            offlineMapEnabled: offlineEnabled, newMapEnabled: newMap)),
+        noConnectivityProvider.overrideWithValue(false),
+        mapManifestLoaderProvider.overrideWithValue(() async =>
+            const MapManifest(
+                file: 'dach-20260928.pmtiles',
+                maxZoom: 13,
+                sourceBuild: '20260928')),
+        onlineArchiveOpenerProvider.overrideWithValue((_) async {
+          if (!archiveReachable) throw StateError('403');
+          return PmTilesVectorTileProvider.openBytes(await File(
+                  'assets/offline_maps/overview_dach.pmtiles')
+              .readAsBytes());
+        }),
+      ]);
+      addTearDown(container.dispose);
+      return jsonDecode((await container.read(maplibreStyleProvider.future))!)
+          as Map<String, dynamic>;
+    }
+
+    test('an + erreichbar: Übersicht unter dem Archiv, KEIN OSM-Raster',
+        () async {
+      final sources = (await styleFor(newMap: true))['sources']
+          as Map<String, dynamic>;
+      expect(sources.keys, ['overview', 'online']);
+      final online = sources['online'] as Map;
+      expect(online['url'],
+          'pmtiles://https://tiles.mcbuchi.de/trailbuddy/dach-20260928.pmtiles');
+      expect(online['maxzoom'], 13,
+          reason: 'Ohne maxzoom fragte MapLibre z14+ an und zeichnete leer '
+              'statt hochskaliert.');
+    });
+
+    test('an, aber Archiv nicht erreichbar ⇒ OSM wie bisher', () async {
+      final sources = (await styleFor(newMap: true, archiveReachable: false))[
+          'sources'] as Map<String, dynamic>;
+      expect(sources.keys, ['osm']);
+    });
+
+    test('aus ⇒ OSM wie bisher', () async {
+      final sources =
+          (await styleFor(newMap: false))['sources'] as Map<String, dynamic>;
+      expect(sources.keys, ['osm']);
+    });
+
+    test('Regionen gehen vor, wie vor OSM', () async {
+      final sources = (await styleFor(
+              newMap: true, offlineEnabled: true, installed: const [_bayern]))[
+          'sources'] as Map<String, dynamic>;
+      expect(sources.keys, ['overview', 'region_de_bayern']);
+    });
   });
 }

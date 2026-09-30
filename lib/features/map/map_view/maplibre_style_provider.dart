@@ -22,6 +22,7 @@ import '../../offline_maps/offline_map_providers.dart';
 import '../rain_data_providers.dart';
 import '../rain_layer.dart';
 import '../map_overlays.dart';
+import '../online_map.dart';
 import 'map_style_composer.dart';
 
 /// Die fünf Unicode-Bereiche, die für deutsche Kartenbeschriftung reichen
@@ -156,7 +157,16 @@ final maplibreStyleProvider = FutureProvider<String?>((ref) async {
   try {
     final offlineActive =
         (manuallyEnabled || noConnectivity) && installed.isNotEmpty;
-    final showOverview = offlineActive || noConnectivity;
+    // Die Online-Karte vom Kartenhost (#630) — derselbe Provider und
+    // dieselbe Regel wie in der flutter_map-Engine: nur mit Schalter,
+    // Regionen gehen vor, und null heißt OSM wie bisher. Geöffnet hat
+    // der Provider das Archiv schon; nur so ist „erreichbar" geprüft,
+    // bevor MapLibre auf leere Kacheln umgestellt wird.
+    final online =
+        offlineActive ? null : await ref.watch(onlineMapProvider.future);
+    // Unter der Online-Karte liegt die Übersicht: derselbe Kartenstil,
+    // #137 betraf zwei verschiedene.
+    final showOverview = offlineActive || noConnectivity || online != null;
 
     final base = jsonDecode(await io.loadBaseStyle()) as Map<String, dynamic>;
     final glyphsUrl = await io.materializeGlyphs();
@@ -170,6 +180,14 @@ final maplibreStyleProvider = FutureProvider<String?>((ref) async {
         filePath: overviewPath,
         minZoom: overviewZoom.min,
         maxZoom: overviewZoom.max,
+      ));
+    }
+    if (online != null) {
+      sources.add(MapStyleSource.remote(
+        id: 'online',
+        remoteUrl: online.manifest.archiveUri.toString(),
+        minZoom: 0,
+        maxZoom: online.manifest.maxZoom,
       ));
     }
     if (offlineActive) {
@@ -189,7 +207,8 @@ final maplibreStyleProvider = FutureProvider<String?>((ref) async {
       glyphsUrl: glyphsUrl,
       backgroundColor: _cssColor(AppColors.mapBackground.toARGB32()),
       sources: sources,
-      rasterSources: offlineActive ? const [] : const [_osmRaster],
+      rasterSources:
+          offlineActive || online != null ? const [] : const [_osmRaster],
       // `DateTime.now()` nur für die Vorhersage-Ebene, siehe rain_layer.dart.
       overlays: [
         // Das DWD-Bild nur im dwd-Zustand: beim Radar immer, bei den
