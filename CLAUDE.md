@@ -745,6 +745,15 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   „Kartenbereiche" öffnet die Seite, ihr Stift die Leiste
   (`MapLayerDetail.areas`/`areaTools`). Sie steht IMMER da, auch ohne
   Neue Karte — die Seite sagt dann, warum nichts geht.
+  **Regionen und Bereiche laufen parallel, abschaltbar** (seit 1.219.0,
+  Betreiber: „erstmal parallel laufen, dass man es in der App umstellen
+  kann" — Stufe 4 wird erst im Feld erprobt, nicht gelöscht):
+  `regionMapsEnabledProvider` (ab Werk AN, Schalter
+  `RegionMapsSwitch` auf beiden Seiten). Aus heißt, die Regionen zählen
+  wie keine — `offlineMapStyleProvider`, der MapLibre-Style,
+  `outdatedMapsProvider` und die Zeile im Ebenen-Blatt fragen denselben
+  Provider; die Dateien bleiben liegen. Der Umkreis um die Spots ist
+  wählbar (1–10 km, `areaSpotRadiusProvider`, gemerkt).
   **Veraltete Bereiche lädt die App nach** (seit 1.217.0,
   `area_auto_update.dart`): Veraltet heißt `build` älter als
   `sourceBuild` des Manifests der Online-Karte (kein eigener Abruf). Von

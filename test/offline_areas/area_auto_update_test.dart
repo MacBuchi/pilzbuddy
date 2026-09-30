@@ -1,12 +1,16 @@
 // Neue Karte ab Werk an und Kartenbereiche auf neuem Stand (#630,
 // Stufe 3): was veraltet ist, wann der Nachlauf startet und wann er
 // anhält, und die Vorgaben der beiden Schalter.
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/settings.dart';
 import 'package:pilzbuddy/features/offline_areas/area_auto_update.dart';
 import 'package:pilzbuddy/features/offline_areas/area_plan.dart';
 import 'package:pilzbuddy/features/offline_areas/area_store.dart';
+import 'package:pilzbuddy/features/offline_maps/offline_map_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../fakes/fake_settings.dart';
 
 StoredArea _area(String id, String build) => StoredArea(
       id: id,
@@ -83,5 +87,25 @@ void main() {
     await settings.setNewMapEnabled(false);
     expect(settings.newMapEnabled, isFalse,
         reason: 'wer sie abschaltet, behält das');
+  });
+
+  test('Regionskarten stillgelegt: kein Regions-Layer, auch mit Schalter', () async {
+    final container = ProviderContainer(overrides: [
+      settingsProvider.overrideWithValue(
+          FakeSettings(offlineMapEnabled: true, regionMapsEnabled: false)),
+    ]);
+    addTearDown(container.dispose);
+    expect(await container.read(offlineMapStyleProvider.future), isNull);
+    expect(container.read(outdatedMapsProvider), isEmpty);
+  });
+
+  test('Vorgaben: Regionskarten an, Umkreis 2 km, gekappt auf 1–10',
+      () async {
+    SharedPreferences.setMockInitialValues({});
+    final settings = PrefsSettings(await SharedPreferences.getInstance());
+    expect(settings.regionMapsEnabled, isTrue);
+    expect(settings.areaSpotRadiusKm, 2);
+    await settings.setAreaSpotRadiusKm(25);
+    expect(settings.areaSpotRadiusKm, 10);
   });
 }

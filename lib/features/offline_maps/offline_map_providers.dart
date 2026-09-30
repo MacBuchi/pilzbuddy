@@ -224,6 +224,32 @@ final offlineMapEnabledProvider =
     NotifierProvider<OfflineMapEnabledNotifier, bool>(
         OfflineMapEnabledNotifier.new);
 
+/// Zeigt die Karte die heruntergeladenen Regionen? Ab Werk ja. Aus heißt:
+/// Die Dateien bleiben liegen, aber die Karte tut, als gäbe es keine —
+/// kein Regions-Layer, kein automatisches Umschalten ohne Empfang, kein
+/// Nachlauf. Offline gelten dann allein die Kartenbereiche (#630). Das
+/// ist die Umstellung, die vor Stufe 4 (Regionen ganz abschaffen) im Feld
+/// erprobt werden soll; ein Schalter statt eines Löschens, damit der Weg
+/// zurück ein Tipp bleibt.
+class RegionMapsEnabledNotifier extends Notifier<bool> {
+  @override
+  bool build() => ref.read(settingsProvider).regionMapsEnabled;
+
+  void set(bool value) {
+    state = value;
+    unawaited(ref
+        .read(settingsProvider)
+        .setRegionMapsEnabled(value)
+        .catchError((Object e, StackTrace stackTrace) {
+      logError('Regionskarten-Schalter merken', e, stackTrace);
+    }));
+  }
+}
+
+final regionMapsEnabledProvider =
+    NotifierProvider<RegionMapsEnabledNotifier, bool>(
+        RegionMapsEnabledNotifier.new);
+
 /// Verbindungsstatus des Geräts (connectivity_plus).
 final connectivityProvider = StreamProvider<List<ConnectivityResult>>(
     (ref) => Connectivity().onConnectivityChanged);
@@ -240,6 +266,8 @@ final noConnectivityProvider = Provider<bool>((ref) {
 /// Das „Karten-Abo": installierte Regionen, für die die Quelle eine
 /// neuere Version anbietet (Vergleich über den Datumsstempel im Namen).
 final outdatedMapsProvider = Provider<List<AvailableMap>>((ref) {
+  // Stillgelegte Regionen lädt der Nachlauf auch nicht nach.
+  if (!ref.watch(regionMapsEnabledProvider)) return const [];
   final installed = ref.watch(installedMapsProvider).valueOrNull ?? const [];
   if (installed.isEmpty) return const [];
   final available = ref.watch(availableMapsProvider).valueOrNull ?? const [];
@@ -591,6 +619,7 @@ final _offlineTileSourceProvider =
 /// Karte: Der Vector-Stack ist Beta, Online-OSM bleibt das Sicherheitsnetz.
 /// Theme und Quellen sind gecacht — dieser Provider selbst macht kein I/O.
 final offlineMapStyleProvider = FutureProvider<OfflineMapStyle?>((ref) async {
+  if (!ref.watch(regionMapsEnabledProvider)) return null;
   final manuallyEnabled = ref.watch(offlineMapEnabledProvider);
   final autoOffline = ref.watch(noConnectivityProvider);
   if (!manuallyEnabled && !autoOffline) return null;

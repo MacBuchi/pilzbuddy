@@ -115,7 +115,9 @@ class _MapLayersSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final hasInstalledMaps =
-        (ref.watch(installedMapsProvider).valueOrNull ?? const []).isNotEmpty;
+        ref.watch(regionMapsEnabledProvider) &&
+            (ref.watch(installedMapsProvider).valueOrNull ?? const [])
+                .isNotEmpty;
     final offlineOnMap =
         ref.watch(offlineMapStyleProvider).valueOrNull != null;
     final autoOffline = ref.watch(noConnectivityProvider);

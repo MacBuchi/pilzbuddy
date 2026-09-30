@@ -6,6 +6,8 @@ import 'package:pilzbuddy/core/settings.dart';
 class FakeSettings implements Settings {
   FakeSettings({
     this.offlineMapEnabled = false,
+    this.regionMapsEnabled = true,
+    this.areaSpotRadiusKm = 2,
     this.mapLegendOpen = true,
     this.rainCourseEnabled = false,
     this.prereleaseUpdatesEnabled = false,
@@ -84,6 +86,22 @@ class FakeSettings implements Settings {
   @override
   Future<void> setSeenHighlightIds(Set<String> value) async {
     seenHighlightIds = {...value};
+  }
+
+  @override
+  bool regionMapsEnabled;
+
+  @override
+  Future<void> setRegionMapsEnabled(bool value) async {
+    regionMapsEnabled = value;
+  }
+
+  @override
+  int areaSpotRadiusKm;
+
+  @override
+  Future<void> setAreaSpotRadiusKm(int value) async {
+    areaSpotRadiusKm = value;
   }
 
   @override

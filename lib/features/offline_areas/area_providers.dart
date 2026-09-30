@@ -27,6 +27,7 @@ import 'package:pmtiles/pmtiles.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart';
 
 import '../../core/errors.dart';
+import '../../core/settings.dart';
 import '../map/online_map.dart';
 import '../offline_maps/download_keep_alive.dart';
 import '../offline_maps/offline_map_providers.dart';
@@ -64,6 +65,28 @@ class StoredAreasNotifier extends AsyncNotifier<List<StoredArea>> {
 final storedAreasProvider =
     AsyncNotifierProvider<StoredAreasNotifier, List<StoredArea>>(
         StoredAreasNotifier.new);
+
+/// Der Umkreis für „Umgebung meiner Spots" in km (1–10, Betreiber
+/// 2026-09-30: „Wunschradius … 1–10 km"). Gemerkt, weil man ihn einmal
+/// passend stellt und nicht bei jedem Bereich neu.
+class AreaSpotRadiusNotifier extends Notifier<int> {
+  @override
+  int build() => ref.read(settingsProvider).areaSpotRadiusKm;
+
+  void set(int km) {
+    final value = km.clamp(1, 10);
+    state = value;
+    unawaited(ref
+        .read(settingsProvider)
+        .setAreaSpotRadiusKm(value)
+        .catchError((Object e, StackTrace stackTrace) {
+      logError('Umkreis der Kartenbereiche merken', e, stackTrace);
+    }));
+  }
+}
+
+final areaSpotRadiusProvider =
+    NotifierProvider<AreaSpotRadiusNotifier, int>(AreaSpotRadiusNotifier.new);
 
 /// Öffnet das Archiv des Hosts für Plan und Download — die Naht für
 /// Tests. Ein EIGENES `PmTilesArchive`, nicht das der Online-Karte: Das

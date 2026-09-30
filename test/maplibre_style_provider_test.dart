@@ -299,6 +299,7 @@ void main() {
       bool archiveReachable = true,
       bool offlineEnabled = false,
       bool noConnectivity = false,
+      bool regionMaps = true,
       List<InstalledMap> installed = const [],
     }) async {
       final gate = Completer<List<InstalledMap>>()..complete(installed);
@@ -307,7 +308,9 @@ void main() {
         maplibreStyleIoProvider.overrideWithValue(_FakeIo()),
         installedMapsProvider.overrideWith(() => _GatedInstalledMaps(gate)),
         settingsProvider.overrideWithValue(FakeSettings(
-            offlineMapEnabled: offlineEnabled, newMapEnabled: newMap)),
+            offlineMapEnabled: offlineEnabled,
+            newMapEnabled: newMap,
+            regionMapsEnabled: regionMaps)),
         noConnectivityProvider.overrideWithValue(noConnectivity),
         mapManifestLoaderProvider.overrideWithValue(() async =>
             const MapManifest(
@@ -363,6 +366,25 @@ void main() {
       final sources = (await styleFor(newMap: false, noConnectivity: true))[
           'sources'] as Map<String, dynamic>;
       expect(sources.keys, ['overview', 'osm']);
+    });
+
+    test('Regionskarten stillgelegt ⇒ sie zählen wie keine (1.219.0)',
+        () async {
+      final sources = (await styleFor(
+              newMap: false,
+              offlineEnabled: true,
+              regionMaps: false,
+              installed: const [_bayern]))['sources'] as Map<String, dynamic>;
+      expect(sources.keys, ['osm'],
+          reason: 'Der Schalter „Regionskarten verwenden" legt sie still, '
+              'auch wenn die Offline-Karte eingeschaltet ist.');
+      final offline = (await styleFor(
+              newMap: false,
+              noConnectivity: true,
+              regionMaps: false,
+              installed: const [_bayern]))['sources'] as Map<String, dynamic>;
+      expect(offline.keys, isNot(contains('region_de_bayern')),
+          reason: 'auch ohne Empfang kein automatisches Umschalten');
     });
 
     test('Regionen gehen vor, wie vor OSM', () async {

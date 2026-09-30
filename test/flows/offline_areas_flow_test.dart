@@ -148,6 +148,7 @@ void main() {
 
   drawTests();
   layersTests();
+  radiusTests();
 }
 
 // Stufe 2b: Zeichnen und Radieren auf der Karte.
@@ -364,5 +365,33 @@ void layersTests() {
     expect(store.areas.single.build, '20260928');
     expect(store.areas.single.id, 'a1', reason: 'derselbe Bereich, ersetzt');
     expect(find.byKey(const ValueKey('areas-stale')), findsNothing);
+  });
+}
+
+// Umkreis und Regionsschalter (1.219.0).
+void radiusTests() {
+  testWidgets('der Umkreis um die Spots lässt sich zwischen 1 und 10 km '
+      'stellen und bleibt gemerkt', (tester) async {
+    final backend = FakeBackend();
+    final me = backend.addUser(username: 'testpilz');
+    backend.signInAs(me.id);
+    backend.addSpot(
+        ownerId: me.id, name: 'Buchenhang', species: 'Steinpilz',
+        lat: 47.92, lng: 11.65);
+    final settings = FakeSettings(newMapEnabled: true, areaSpotRadiusKm: 5);
+    await pumpApp(tester, backend,
+        settings: settings,
+        areaStore: MemoryAreaStore(),
+        extraOverrides: _host10());
+    await _openAreas(tester);
+    expect(find.text('Umgebung meiner Spots speichern (5 km)'),
+        findsOneWidget);
+
+    final slider = find.byKey(const ValueKey('areas-spot-radius'));
+    await tester.drag(slider, const Offset(-1000, 0));
+    await settle(tester);
+    expect(find.text('Umgebung meiner Spots speichern (1 km)'),
+        findsOneWidget);
+    expect(settings.areaSpotRadiusKm, 1);
   });
 }

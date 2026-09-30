@@ -152,7 +152,12 @@ const _osmRaster = MapRasterSource(
 /// #157-Fehlerklasse der alten Engine existiert hier nicht).
 final maplibreStyleProvider = FutureProvider<String?>((ref) async {
   // ANTI-RACE: warten, nicht `valueOrNull` — siehe Kopfkommentar.
-  final installed = await ref.watch(installedMapsProvider.future);
+  final allInstalled = await ref.watch(installedMapsProvider.future);
+  // Stillgelegte Regionen (Schalter „Regionskarten verwenden") zählen wie
+  // keine — dieselbe Regel wie `offlineMapStyleProvider`.
+  final installed = ref.watch(regionMapsEnabledProvider)
+      ? allInstalled
+      : allInstalled.take(0).toList();
   final manuallyEnabled = ref.watch(offlineMapEnabledProvider);
   final noConnectivity = ref.watch(noConnectivityProvider);
   // Ohne Empfang und mit Neuer Karte kein OSM-Raster — dieselbe Regel
