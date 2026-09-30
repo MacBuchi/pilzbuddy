@@ -2760,11 +2760,22 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     `rain-data` wie die Radar-Tage; jeder Lauf holt nur fehlende Tage,
     neueste zuerst, innerhalb `BUDGET_CALLS` (4 500 je Lauf — Open-Meteo
     Free: 600/min, 5 000/h, 10 000/Tag; ein Ort für ≤ 7 Tage ist ein
-    Call, vier Wochen drei). Ein leerer Stapel füllt sich über drei bis
-    vier tägliche Läufe; Lücken über Nacht kommen über die
+    Call, vier Wochen drei). Lücken kommen über die
     Historical-Forecast-API mit festen Daten, der jüngste Block über
     `past_days`. Beide liefern die archivierten ersten Stunden derselben
     Modellläufe.
+    **Ein Lauf holt genau EIN Fenster** (3 574 Punkte fressen das Budget
+    schon mit einem Tag), und im täglichen Lauf ist das immer gestern.
+    Eine ältere Lücke kam deshalb nie dran: Vom 2026-09-26 bis 30 stand
+    der Stapel bei 12 von 28 Tagen, und die Ampel war außerhalb
+    Deutschlands grau (26 Regentage nötig). Seither läuft `model` ein
+    zweites Mal am Tag (`41 18`), findet gestern schon vor und holt die
+    jüngsten acht Tage der Lücke; ohne Lücke fragt er nichts. Zwei
+    holende Läufe müssen eine Stunde auseinander liegen (5 000/h) —
+    `MIN_FETCH_GAP` über `last_fetch` im Manifest, weil der Cron von
+    GitHub Stunden zu spät kommen kann. Der Selbsttest rechnet den
+    Stillstand mit dem ECHTEN Verhältnis von Punkten zu Budget nach;
+    der alte mit 150 Punkten hatte Platz für drei Wochen und sah ihn nie.
   - **Reihenfolge im Workflow: `daily weather model`.** Das Werkzeug
     hängt seine Punkte an die Stationstabelle DIESES Laufs und korrigiert
     `weather.bytes` (der Cache-Schlüssel der App). Ein Handlauf nur mit

@@ -33,10 +33,23 @@ THE QUOTA. Open-Meteo's free tier (non-commercial, CC BY 4.0): 600
 calls a minute, 5 000 an hour, 10 000 a day — where a call is one
 location for up to seven days (two weeks count 1.5–2, four weeks 3).
 Each run therefore fetches only the days that are missing, newest
-first, within a budget (`BUDGET_CALLS`); a fresh stack fills over three
-or four daily runs. Day files are the state: they live in the release
-like the RADOLAN days, and a run that finds nothing missing fetches
-nothing.
+first, within a budget (`BUDGET_CALLS`). Day files are the state: they
+live in the release like the RADOLAN days, and a run that finds nothing
+missing fetches nothing.
+
+ONE REQUEST PER RUN, AND WHAT THAT MEANS. With ~3 600 points a window of
+up to eight days already costs ~3 600–4 100 of the 4 500 — a run fetches
+exactly ONE window. In the daily run that window is always yesterday
+(one day, full price), so an older gap never fits behind it: from
+2026-09-26 to 2026-09-30 the stack stood at 12 of 28 days, grew by one a
+day, and the Ampel (26 rain days, `ampel_fill.dart`) stayed grey in
+Austria and South Tyrol. The workflow therefore runs `model` a second
+time a day (`rain-data.yml`); with yesterday already there, that run
+spends its window on the newest eight days of the gap. Two fetching
+runs must be an hour apart (5 000 an hour), and GitHub's cron can be
+hours late, so `build` skips fetching while the last fetch is younger
+than `MIN_FETCH_GAP` — the next run catches up, a 429 storm would fail
+the whole job.
 
 TWO APIs, ONE DATA SET. Days up to yesterday come from the forecast
 endpoint with `past_days`; older gaps come from the historical-forecast
@@ -114,6 +127,8 @@ LOCATIONS_PER_REQUEST = 100
 # Calls a single run may spend; the hourly limit is 5 000 and the job
 # shares the day with nothing else on this key.
 BUDGET_CALLS = 4_500
+# Two fetching runs closer than this would share one hour of the quota.
+MIN_FETCH_GAP = dt.timedelta(minutes=65)
 STATION_ID_BASE = 900_000
 STATION_SRC = "openmeteo"
 
@@ -392,9 +407,19 @@ def fetch_window(points, start, end, via_past_days, today, chunk=LOCATIONS_PER_R
 
 # --------------------------------------------------------------- build
 
+def too_soon(previous, now):
+    """True while the last run that actually called Open-Meteo is younger
+    than MIN_FETCH_GAP — a second window now would share its hour."""
+    stamp = (previous or {}).get("last_fetch")
+    if not stamp:
+        return False
+    return now - dt.datetime.fromisoformat(stamp) < MIN_FETCH_GAP
+
+
 def build(out_dir, manifest, today=None, get=_get_json, sleep=time.sleep,
-          limit=None, budget=None):
-    today = today or dt.datetime.now(dt.timezone.utc).date()
+          limit=None, budget=None, now=None):
+    now = now or dt.datetime.now(dt.timezone.utc)
+    today = today or now.date()
     geometry, centres = lattice()
     active = [(i, lat, lon) for i, (lat, lon) in enumerate(centres)
               if not in_germany(lat, lon)]
@@ -404,6 +429,12 @@ def build(out_dir, manifest, today=None, get=_get_json, sleep=time.sleep,
     missing = missing_dates(previous, today)
     windows = plan_windows(missing, today, len(active),
                            budget=budget or BUDGET_CALLS)
+    if windows and too_soon(previous, now):
+        print(f"  last fetch {previous['last_fetch']} is under "
+              f"{MIN_FETCH_GAP} ago — the quota's hour is spent, "
+              f"{len(missing)} missing days wait for the next run",
+              file=sys.stderr)
+        windows = []
 
     cells = geometry["width"] * geometry["height"]
     elevation = read_elevation(out_dir, cells) or [None] * cells
@@ -475,6 +506,10 @@ def build(out_dir, manifest, today=None, get=_get_json, sleep=time.sleep,
         "mask": "Germany excluded (polyline of the southern border)",
         "built": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
         "fetched": fetched_days,
+        # Only a run that called the service moves this: a run that found
+        # nothing to do must not push the next real fetch back an hour.
+        "last_fetch": (now.isoformat(timespec="seconds") if windows
+                       else (previous or {}).get("last_fetch")),
         "rain": {**geometry, "days": rain_days},
         "temperature": {**geometry, "days": temp_days},
         "elevation": elevation_entry,
@@ -665,6 +700,29 @@ def self_test():
     full["rain"]["days"].append({"date": "2026-09-20"})
     full["temperature"]["days"].append({"date": "2026-09-20"})
     assert plan_windows(missing_dates(full, today), today, 3000) == []
+    # The stall of 2026-09-26…30, at the REAL ratio of points to budget:
+    # yesterday missing plus an older gap → the run spends its one window
+    # on yesterday and the gap waits. Only a run that finds yesterday
+    # already there reaches the gap — hence the second daily run.
+    points = active
+    held = [d for d in needed_dates(today) if d >= dt.date(2026, 9, 12)
+            and d != dt.date(2026, 9, 25)]
+    stalled = {"rain": {"days": [{"date": d.isoformat()} for d in held]},
+               "temperature": {"days": [{"date": d.isoformat()} for d in held]}}
+    daily = plan_windows(missing_dates(stalled, today), today, points)
+    assert daily == [(dt.date(2026, 9, 25), dt.date(2026, 9, 25), True)], daily
+    stalled["rain"]["days"].append({"date": "2026-09-25"})
+    stalled["temperature"]["days"].append({"date": "2026-09-25"})
+    catch_up = plan_windows(missing_dates(stalled, today), today, points)
+    assert len(catch_up) == 1 and not catch_up[0][2], catch_up
+    start, end, _ = catch_up[0]
+    assert end == dt.date(2026, 9, 11), "newest day of the gap first"
+    assert (end - start).days + 1 >= 7, "a catch-up run moves a week at least"
+    # Two fetching runs inside one hour would share the hourly quota.
+    t0 = dt.datetime(2026, 9, 26, 7, 30, tzinfo=dt.timezone.utc)
+    assert not too_soon(None, t0) and not too_soon({"last_fetch": None}, t0)
+    assert too_soon({"last_fetch": t0.isoformat()}, t0 + dt.timedelta(minutes=30))
+    assert not too_soon({"last_fetch": t0.isoformat()}, t0 + dt.timedelta(minutes=70))
     # An end-to-end build against a fake service, then the station rows.
     tmp = tempfile.mkdtemp()
 
@@ -692,8 +750,9 @@ def self_test():
     # week waits for the next run — the cut the real first run makes.
     section, keep, active_pts, elevation = build(
         tmp, manifest, today=today, get=fake_get, sleep=lambda _: None,
-        limit=150, budget=450)
+        limit=150, budget=450, now=t0)
     assert section["points"] == 150
+    assert section["last_fetch"] == t0.isoformat(timespec="seconds")
     assert 7 <= len(section["rain"]["days"]) < TEMP_DAYS, len(section["rain"]["days"])
     assert section["rain"]["days"][-1]["date"] == "2026-09-25"
     assert all(f in keep for f in (section["rain"]["days"][0]["file"], ELEVATION_FILE))
@@ -736,15 +795,25 @@ def self_test():
         calls.append(url)
         return fake_get(url, params)
 
+    # Half an hour later: the gap is known, but the hour is spent.
+    early, _, _, _ = build(tmp, manifest, today=today, get=counting_get,
+                           sleep=lambda _: None, limit=150, budget=450,
+                           now=t0 + dt.timedelta(minutes=30))
+    assert calls == [], "no second window inside the hour"
+    assert early["rain"]["days"] == before["rain"]["days"], "days carried over"
+    assert early["last_fetch"] == before["last_fetch"], \
+        "a run that fetched nothing does not move the clock"
     section2, _, _, _ = build(tmp, manifest, today=today, get=counting_get,
-                              sleep=lambda _: None, limit=150, budget=450)
+                              sleep=lambda _: None, limit=150, budget=450,
+                              now=t0 + dt.timedelta(hours=2))
     assert len(calls) == 2, "the oldest week comes now, via history"
     assert calls[0] == HISTORY_API
     assert len(section2["rain"]["days"]) == TEMP_DAYS
     assert section2["rain"]["days"][-1] == before["rain"]["days"][-1], \
         "unchanged days are carried over, not rebuilt"
     section3, _, _, _ = build(tmp, manifest, today=today, get=counting_get,
-                              sleep=lambda _: None, limit=150, budget=450)
+                              sleep=lambda _: None, limit=150, budget=450,
+                              now=t0 + dt.timedelta(hours=2, minutes=5))
     assert len(calls) == 2 and section3["rain"]["days"] == section2["rain"]["days"]
     # Verify against the fake service agrees with the grids it built.
     verify(tmp, manifest, sample=3, get=fake_get, seed=1)
