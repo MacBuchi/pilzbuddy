@@ -20,6 +20,8 @@ import '../../data/browser_storage.dart';
 import '../map/forest_data_providers.dart' show mapIdleBoundsProvider;
 import '../map/map_focus.dart';
 import '../map/online_map.dart';
+import '../offline_maps/offline_map_providers.dart' show installedMapsProvider;
+import '../offline_maps/region_maps_switch.dart';
 import '../spots/spot_providers.dart';
 import 'area_auto_update.dart';
 import 'area_downloader.dart';
@@ -42,6 +44,7 @@ class AreasScreen extends ConsumerWidget {
     final canSave = ref.watch(newMapEnabledProvider);
     final bounds = ref.watch(mapIdleBoundsProvider);
     final spots = ref.watch(mySpotListProvider);
+    final radius = ref.watch(areaSpotRadiusProvider);
     final areas = areasAsync.valueOrNull ?? const <StoredArea>[];
     final stale = {for (final a in ref.watch(staleAreasProvider)) a.id};
     var total = 0;
@@ -98,13 +101,13 @@ class AreasScreen extends ConsumerWidget {
             OutlinedButton.icon(
               key: const ValueKey('areas-save-spots'),
               icon: const Icon(Icons.place_outlined),
-              label: Text('Umgebung meiner Spots speichern '
-                  '(${kAreaSpotRadiusKm.round()} km)'),
+              label: Text('Umgebung meiner Spots speichern ($radius km)'),
               onPressed: download.busy || spots.isEmpty
                   ? null
                   : () {
                       final shape = AreaShape.aroundPoints(
-                          [for (final s in spots) LatLng(s.lat, s.lng)]);
+                          [for (final s in spots) LatLng(s.lat, s.lng)],
+                          radiusKm: radius.toDouble());
                       if (shape != null) {
                         _save(context, ref, shape, 'Um meine Spots');
                       }
@@ -128,6 +131,35 @@ class AreasScreen extends ConsumerWidget {
                     },
             ),
           ],
+          if (canSave && spots.isNotEmpty)
+            Row(
+              children: [
+                const Text('Umkreis'),
+                Expanded(
+                  child: Slider(
+                    key: const ValueKey('areas-spot-radius'),
+                    value: radius.toDouble(),
+                    min: 1,
+                    max: 10,
+                    divisions: 9,
+                    label: '$radius km',
+                    onChanged: download.busy
+                        ? null
+                        : (v) => ref
+                            .read(areaSpotRadiusProvider.notifier)
+                            .set(v.round()),
+                  ),
+                ),
+                Text('$radius km'),
+              ],
+            ),
+          // Regionen und Kartenbereiche laufen parallel (#630) — auch
+          // von hier aus lassen sich die Regionen stilllegen, um ohne
+          // sie zu vergleichen.
+          if (!kIsWeb &&
+              (ref.watch(installedMapsProvider).valueOrNull?.isNotEmpty ??
+                  false))
+            const RegionMapsSwitch(),
           if (download.phase == AreaDownloadPhase.planning)
             const ListTile(
               leading: SizedBox(

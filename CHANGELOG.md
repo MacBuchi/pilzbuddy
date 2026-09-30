@@ -7,6 +7,18 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Umkreis nach Wunsch, Regionskarten abschaltbar
+
+*30. September 2026 · Version 1.219.0*
+
+- Beim Speichern der **Umgebung deiner Spots** wählst du den Umkreis
+  jetzt selbst, zwischen 1 und 10 km. Die App merkt sich die Wahl.
+- Regionskarten und Kartenbereiche laufen nebeneinander. Mit
+  **„Regionskarten verwenden"** (auf beiden Seiten) legst du die
+  Regionen still, ohne sie zu löschen: Die Karte zeigt dann ohne
+  Empfang nur deine Kartenbereiche, und ein Tipp holt die Regionen
+  zurück.
+
 ## Kartenbereiche per Knopf, Buddy-Spots ohne Empfang
 
 *30. September 2026 · Version 1.218.0*

@@ -24,6 +24,20 @@ abstract interface class Settings {
 
   Future<void> setOfflineMapEnabled(bool value);
 
+  /// Zeigt die Karte heruntergeladene Regionskarten (Android)? Ab Werk
+  /// JA. Seit 1.219.0 laufen Regionen und Kartenbereiche (#630) parallel,
+  /// und dieser Schalter legt die Regionen still, ohne sie zu löschen
+  /// (Betreiber, 2026-09-30: „erstmal parallel laufen, dass man es in der
+  /// App umstellen kann").
+  bool get regionMapsEnabled;
+
+  Future<void> setRegionMapsEnabled(bool value);
+
+  /// Umkreis in km für „Umgebung meiner Spots speichern" (#630), 1–10.
+  int get areaSpotRadiusKm;
+
+  Future<void> setAreaSpotRadiusKm(int value);
+
   /// Bisherige Karten-Engine (flutter_map) statt der neuen (MapLibre)?
   /// Ist die Legende aktiver Ebenen AUSGEKLAPPT? (#231)
   ///
@@ -377,6 +391,25 @@ class PrefsSettings implements Settings {
   const PrefsSettings(this._prefs);
 
   final SharedPreferences _prefs;
+
+  static const _regionMapsEnabledKey = 'region_maps_enabled';
+
+  @override
+  bool get regionMapsEnabled => _prefs.getBool(_regionMapsEnabledKey) ?? true;
+
+  @override
+  Future<void> setRegionMapsEnabled(bool value) =>
+      _prefs.setBool(_regionMapsEnabledKey, value);
+
+  static const _areaSpotRadiusKey = 'area_spot_radius_km';
+
+  @override
+  int get areaSpotRadiusKm =>
+      (_prefs.getInt(_areaSpotRadiusKey) ?? 2).clamp(1, 10);
+
+  @override
+  Future<void> setAreaSpotRadiusKm(int value) =>
+      _prefs.setInt(_areaSpotRadiusKey, value.clamp(1, 10));
 
   static const _offlineMapEnabledKey = 'offline_map_enabled';
 

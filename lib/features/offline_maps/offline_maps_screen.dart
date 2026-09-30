@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/errors.dart';
 import '../map/forest_preload_providers.dart';
 import 'offline_map_providers.dart';
+import 'region_maps_switch.dart';
 import 'offline_map_repository.dart';
 import 'region_catalog.dart';
 import '../../core/app_colors.dart';
@@ -143,6 +144,9 @@ class _OfflineMapsScreenState extends ConsumerState<OfflineMapsScreen> {
                 ),
               ),
             ),
+            // Regionen und Kartenbereiche laufen parallel (#630); hier
+            // lassen sich die Regionen stilllegen, ohne sie zu löschen.
+            const RegionMapsSwitch(),
             const SizedBox(height: 8),
             for (final map in available)
               _mapTile(map, installedByKey[map.key]),

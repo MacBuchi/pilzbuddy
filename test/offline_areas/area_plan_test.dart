@@ -110,4 +110,12 @@ void main() {
     expect(formatBytes(12400000), '12,4 MB');
     expect(formatBytes(2800000000), '2,80 GB');
   });
+
+  test('der Umkreis ist wählbar: 5 km umfasst mehr Kacheln als 1 km', () {
+    const p = LatLng(47.9, 11.6);
+    final one = AreaShape.aroundPoints([p], radiusKm: 1)!;
+    final five = AreaShape.aroundPoints([p], radiusKm: 5)!;
+    expect(five.keys.length, greaterThan(one.keys.length));
+    expect(five.keys.containsAll(one.keys), isTrue);
+  });
 }
