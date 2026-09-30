@@ -12,6 +12,7 @@ import 'package:latlong2/latlong.dart';
 import '../offline_areas/area_auto_update.dart';
 import '../offline_areas/area_draw.dart';
 import '../offline_areas/area_draw_overlay.dart';
+import '../offline_areas/area_providers.dart' show storedAreasProvider;
 import '../offline_areas/area_tool_rail.dart';
 import '../offline_maps/offline_map_providers.dart';
 
@@ -58,6 +59,7 @@ import 'widgets/map_layers_sheet.dart';
 import 'widgets/map_trip_sheet.dart';
 import 'map_view/camera_tour.dart';
 import 'map_overlays.dart';
+import 'online_map.dart' show newMapEnabledProvider;
 import 'map_view/map_view.dart';
 import 'position_provider.dart';
 import 'spot_filter.dart';
@@ -952,6 +954,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final drawTool =
         ref.watch(areaDraftProvider.select((draft) => draft?.tool));
     final idleBounds = ref.watch(mapIdleBoundsProvider);
+    final showAreaTool = ref.watch(newMapEnabledProvider) ||
+        (ref.watch(storedAreasProvider).valueOrNull?.isNotEmpty ?? false);
 
     // Die Tour liegt ÜBER dem Scaffold, nicht in seinem `body` (#350):
     // Die Knopfspalte hängt an `floatingActionButton` und läge sonst
@@ -1271,6 +1275,18 @@ class _MapScreenState extends ConsumerState<MapScreen>
                             : Icons.layers_clear_outlined,
                         color: overlaysHidden ? AppColors.warmBrown : null,
                       ),
+                    ),
+                  // Kartenbereiche (#630): ein Tipp, und die Leiste zum
+                  // Zeichnen und Radieren liegt auf der Karte — Feld-
+                  // rückmeldung „nicht zu verschachtelt". Nur, wo es
+                  // etwas zu tun gibt: mit der Neuen Karte (speichern)
+                  // oder wenn schon Bereiche liegen (radieren).
+                  if (showAreaTool)
+                    _Tool(
+                      coachId: MapCoach.areas,
+                      tooltip: 'Kartenbereiche',
+                      onPressed: () => openAreaTools(ref),
+                      child: const Icon(Icons.download_for_offline_outlined),
                     ),
                   _Tool(
                     coachId: MapCoach.filter,

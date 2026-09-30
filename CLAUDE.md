@@ -659,6 +659,14 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   - **Die Übersicht liegt UNTER der Neuen Karte** (anders als unter
     OSM): Es ist derselbe Kartenstil, #137 betraf zwei verschiedene.
     `test/base_map_layer_test.dart` hält beide Fälle fest.
+  - **Ohne Empfang kein OSM-Rückfall, wenn die Neue Karte gewählt ist**
+    (`osmFallbackAllowedProvider`, seit 1.218.0; Feldbefund in der PWA:
+    „die alte Online-Karte hat sich teils geladen"). Die Annahme aus
+    #118, ohne Netz komme keine OSM-Kachel, stimmt nicht: Browser- und
+    Platten-Cache geben einzelne alte heraus, ein Flickenteppich im
+    fremden Stil. Mit Empfang bleibt OSM der Rückfall für einen
+    unerreichbaren Host; wer die Neue Karte AUS hat, behält das alte
+    Verhalten.
   **Seit 1.217.0 ab Werk AN** (Stufe 3). Der Schalter bleibt als
   Ausweg („Neue Karte" im Profil, aus ⇒ keine Anfrage an den Host, der
   Test zählt es weiter); `FakeSettings` steht dagegen auf AUS, damit kein
@@ -728,8 +736,12 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     Mit Entwurf fragt sie nach.
   - **Dazunehmen braucht die Neue Karte, Wegnehmen nicht** — dieselbe
     Linie wie beim Speichern: Liegendes muss man immer loswerden können.
-  **Der Weg liegt unter „Ebenen"** (seit 1.217.0, Feldrückmeldung: „man
-  arbeitet in der Karte, erreicht es aber nur über das Profil"): Die Zeile
+  **Der Weg liegt auf der Karte** (seit 1.217.0, Feldrückmeldung: „man
+  arbeitet in der Karte, erreicht es aber nur über das Profil" und „nicht
+  zu verschachtelt"): ein eigener Knopf in der Leiste rechts
+  (`MapCoach.areas`, nur mit Neuer Karte oder liegenden Bereichen) öffnet
+  die Werkzeugleiste direkt, die ihrerseits zur Liste führt. Unter
+  „Ebenen" steht zusätzlich die Zeile
   „Kartenbereiche" öffnet die Seite, ihr Stift die Leiste
   (`MapLayerDetail.areas`/`areaTools`). Sie steht IMMER da, auch ohne
   Neue Karte — die Seite sagt dann, warum nichts geht.
@@ -758,6 +770,15 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   - **Fester Schlüssel, Konto IM Eintrag** — wie in der Datei. Nach der
     Nutzer-id zu schlüsseln wäre naheliegend, ließe aber die Spots jedes
     früher angemeldeten Kontos im Browser liegen.
+  - **Zwei Fächer seit 1.217.0** (`SpotCacheSlot`): eigene Spots und die
+    geteilten der Buddys — Feldbefund „die Buddy-Spots waren nicht
+    offline verfügbar". Bis dahin sagte die Datenschutzerklärung
+    ausdrücklich, dass Freundes-Spots NICHT gespeichert werden; der Satz
+    ist im selben PR ersetzt. Getrennte Fächer, weil beide getrennt
+    abgerufen werden und ein Abruf nie die Kopie des anderen
+    überschreiben darf; `clear()` räumt beide. Grenze, benannt: Eine
+    zurückgenommene Freigabe verschwindet erst beim nächsten Abruf MIT
+    Empfang.
   - **`idb_shim` ist DIREKTE Abhängigkeit**, obwohl `vector_map_tiles` es
     ohnehin mitbringt (dieselbe Begründung wie bei `executor_lib`: nicht
     an einer exakt gepinnten Beta hängen). Der Nebengewinn ist der Test:

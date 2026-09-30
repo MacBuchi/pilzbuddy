@@ -155,6 +155,9 @@ final maplibreStyleProvider = FutureProvider<String?>((ref) async {
   final installed = await ref.watch(installedMapsProvider.future);
   final manuallyEnabled = ref.watch(offlineMapEnabledProvider);
   final noConnectivity = ref.watch(noConnectivityProvider);
+  // Ohne Empfang und mit Neuer Karte kein OSM-Raster — dieselbe Regel
+  // wie in der flutter_map-Engine (`osmFallbackAllowedProvider`).
+  final osmAllowed = ref.watch(osmFallbackAllowedProvider);
   final io = ref.watch(maplibreStyleIoProvider);
   // Dasselbe Anti-Race wie bei den Regionen: warten, damit der erste
   // Style die gespeicherten Bereiche schon kennt. Ein unlesbarer Bereich
@@ -218,8 +221,9 @@ final maplibreStyleProvider = FutureProvider<String?>((ref) async {
       glyphsUrl: glyphsUrl,
       backgroundColor: _cssColor(AppColors.mapBackground.toARGB32()),
       sources: sources,
-      rasterSources:
-          offlineActive || online != null ? const [] : const [_osmRaster],
+      rasterSources: offlineActive || online != null || !osmAllowed
+          ? const []
+          : const [_osmRaster],
       // Die gespeicherten Kartenbereiche (#630) zuoberst, immer — siehe
       // `area_providers.dart`. Zoombereich aus dem Index: Der Download hat
       // Index und Archiv aus demselben Plan geschrieben.

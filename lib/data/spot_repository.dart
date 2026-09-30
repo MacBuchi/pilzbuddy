@@ -157,13 +157,37 @@ class SpotRepository {
   /// jeweilige Besitzer freigegeben hat; ohne Detail-Freigabe kommen von
   /// seinen Funden keine — die EIGENEN am Freundes-Spot liefert
   /// `finds_author_all` immer (Patch 014).
+  ///
+  /// Ohne Empfang aus dem Zwischenspeicher, eigenes Fach neben den
+  /// eigenen Spots (seit 1.217.0, Feldbefund: im Wald fehlten sie). Es
+  /// ist nur, was der Besitzer ohnehin mit diesem Gerät teilt — und es
+  /// wird beim Abmelden mit geräumt. Eine beendete Freundschaft
+  /// verschwindet beim nächsten Abruf MIT Empfang.
   Future<List<Spot>> fetchFriendSpots() async {
-    final rows = await _client
-        .from('spots')
-        .select(
-            '*, finds(*, author:profiles!finds_author_id_fkey(username, avatar)), profiles(username, avatar)')
-        .neq('owner_id', _uid);
-    return rows.map((r) => Spot.fromJson(r, currentUserId: _uid)).toList();
+    final uid = _uid;
+    Future<List<Map<String, dynamic>>> fetch() async {
+      final rows = await _client
+          .from('spots')
+          .select(
+              '*, finds(*, author:profiles!finds_author_id_fkey(username, avatar)), profiles(username, avatar)')
+          .neq('owner_id', uid)
+          .timeout(fetchTimeout);
+      return rows.cast<Map<String, dynamic>>();
+    }
+
+    final cache = _cache;
+    final result = cache == null
+        ? (rows: await fetch(), cachedAt: null)
+        : await fetchSpotRowsWithCache(
+            fetch: fetch,
+            cache: cache,
+            uid: uid,
+            now: DateTime.now(),
+            slot: SpotCacheSlot.friends,
+          );
+    return [
+      for (final row in result.rows) Spot.fromJson(row, currentUserId: uid),
+    ];
   }
 
   /// Neuer Spot samt seiner ersten Einträge. Mehrere, weil an einem Ort

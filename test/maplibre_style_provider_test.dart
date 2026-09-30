@@ -298,6 +298,7 @@ void main() {
       required bool newMap,
       bool archiveReachable = true,
       bool offlineEnabled = false,
+      bool noConnectivity = false,
       List<InstalledMap> installed = const [],
     }) async {
       final gate = Completer<List<InstalledMap>>()..complete(installed);
@@ -307,7 +308,7 @@ void main() {
         installedMapsProvider.overrideWith(() => _GatedInstalledMaps(gate)),
         settingsProvider.overrideWithValue(FakeSettings(
             offlineMapEnabled: offlineEnabled, newMapEnabled: newMap)),
-        noConnectivityProvider.overrideWithValue(false),
+        noConnectivityProvider.overrideWithValue(noConnectivity),
         mapManifestLoaderProvider.overrideWithValue(() async =>
             const MapManifest(
                 file: 'dach-20260928.pmtiles',
@@ -348,6 +349,20 @@ void main() {
       final sources =
           (await styleFor(newMap: false))['sources'] as Map<String, dynamic>;
       expect(sources.keys, ['osm']);
+    });
+
+    test('an + kein Empfang ⇒ NUR die Übersicht, kein OSM-Raster '
+        '(Feldbefund 1.216.0: alte Kacheln aus dem Cache dazwischen)',
+        () async {
+      final sources = (await styleFor(newMap: true, noConnectivity: true))[
+          'sources'] as Map<String, dynamic>;
+      expect(sources.keys, ['overview']);
+    });
+
+    test('aus + kein Empfang ⇒ wie bisher Übersicht unter OSM', () async {
+      final sources = (await styleFor(newMap: false, noConnectivity: true))[
+          'sources'] as Map<String, dynamic>;
+      expect(sources.keys, ['overview', 'osm']);
     });
 
     test('Regionen gehen vor, wie vor OSM', () async {

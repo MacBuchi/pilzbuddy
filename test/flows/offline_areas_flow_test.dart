@@ -288,6 +288,28 @@ void layersTests() {
     expect(find.byKey(const ValueKey('area-tool-rail')), findsOneWidget);
   });
 
+  testWidgets('der Knopf rechts öffnet die Leiste direkt — und nur, wo es '
+      'etwas zu tun gibt', (tester) async {
+    await pumpApp(tester, _signedIn(),
+        settings: FakeSettings(newMapEnabled: true),
+        areaStore: MemoryAreaStore(),
+        extraOverrides: _host10());
+    await tester.tap(find.byTooltip('Kartenbereiche'));
+    await settle(tester);
+    expect(find.byKey(const ValueKey('area-tool-rail')), findsOneWidget);
+    // Aus der Leiste zur Liste der Bereiche.
+    await tester.tap(find.byKey(const ValueKey('area-manage')));
+    await settle(tester);
+    expect(find.text('Noch kein Bereich gespeichert.'), findsOneWidget);
+  });
+
+  testWidgets('ohne Neue Karte und ohne Bereich: kein Knopf rechts',
+      (tester) async {
+    await pumpApp(tester, _signedIn(),
+        areaStore: MemoryAreaStore(), extraOverrides: _host10());
+    expect(find.byTooltip('Kartenbereiche'), findsNothing);
+  });
+
   testWidgets('Ebenen → Kartenbereiche: die Zeile öffnet die Seite',
       (tester) async {
     await pumpApp(tester, _signedIn(),

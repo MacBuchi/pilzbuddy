@@ -15,7 +15,8 @@ import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 /// Web (kein App-Verzeichnis), volle Platte und fehlende Rechte.
 class _BrokenCache implements SpotCache {
   @override
-  Future<CachedSpotRows?> read({required String uid}) async =>
+  Future<CachedSpotRows?> read(
+          {required String uid, SpotCacheSlot slot = SpotCacheSlot.mine}) async =>
       throw const FileSystemException('kaputt');
 
   @override
@@ -23,6 +24,7 @@ class _BrokenCache implements SpotCache {
     required String uid,
     required List<Map<String, dynamic>> rows,
     required DateTime savedAt,
+    SpotCacheSlot slot = SpotCacheSlot.mine,
   }) async =>
       throw const FileSystemException('kaputt');
 
@@ -112,6 +114,28 @@ void main() {
       expect(await cache.read(uid: 'u1'), isNull);
     });
 
+    test('Buddy-Spots liegen im eigenen Fach und gehen beim Abmelden mit '
+        '(1.217.0)', () async {
+      await cache.write(uid: 'u1', rows: [row('s1')], savedAt: savedAt);
+      await cache.write(
+          uid: 'u1',
+          rows: [row('b1', owner: 'u2')],
+          savedAt: savedAt,
+          slot: SpotCacheSlot.friends);
+
+      expect((await cache.read(uid: 'u1'))!.rows.single['id'], 's1',
+          reason: 'ein Abruf der Buddy-Spots überschreibt nie die eigenen');
+      expect(
+          (await cache.read(uid: 'u1', slot: SpotCacheSlot.friends))!
+              .rows
+              .single['id'],
+          'b1');
+
+      await cache.clear();
+      expect(await cache.read(uid: 'u1', slot: SpotCacheSlot.friends), isNull);
+      expect(await cache.read(uid: 'u1'), isNull);
+    });
+
     test('clear ohne vorhandene Datei wirft nicht', () async {
       await cache.clear();
     });
@@ -158,6 +182,26 @@ void main() {
       expect(result.rows.single['id'], 's1');
       expect(result.cachedAt, savedAt,
           reason: 'Das Alter muss mitkommen — die Karte sagt es dazu.');
+    });
+
+    test('ohne Empfang kommen die Buddy-Spots aus IHREM Fach', () async {
+      await cache.write(uid: 'u1', rows: [row('s1')], savedAt: savedAt);
+      await fetchSpotRowsWithCache(
+        fetch: () async => [row('b1', owner: 'u2')],
+        cache: cache,
+        uid: 'u1',
+        now: savedAt,
+        slot: SpotCacheSlot.friends,
+      );
+      final result = await fetchSpotRowsWithCache(
+        fetch: () async => throw const SocketException('kein Netz'),
+        cache: cache,
+        uid: 'u1',
+        now: DateTime.utc(2026, 9, 13),
+        slot: SpotCacheSlot.friends,
+      );
+      expect(result.rows.single['id'], 'b1');
+      expect(result.cachedAt, savedAt);
     });
 
     test('ohne Empfang UND ohne Zwischenspeicher fliegt der Fehler weiter',

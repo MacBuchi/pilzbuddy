@@ -83,6 +83,7 @@ abstract final class MapCoach {
   static const toolbar = 'map.toolbar';
   static const layers = 'map.layers';
   static const filter = 'map.filter';
+  static const areas = 'map.areas';
   static const trip = 'map.trip';
   static const locate = 'map.locate';
 
