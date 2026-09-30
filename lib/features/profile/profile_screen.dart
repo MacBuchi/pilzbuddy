@@ -14,6 +14,7 @@ import '../coach/coach.dart';
 import '../help/map_tour.dart';
 import '../help/tab_tours.dart' show ProfileCoach;
 import '../map/online_map.dart';
+import '../offline_areas/area_providers.dart';
 import '../offline_maps/offline_map_providers.dart';
 import '../../core/app_distribution.dart';
 import '../../core/settings.dart';
@@ -207,6 +208,22 @@ class ProfileScreen extends ConsumerWidget {
             onChanged: (value) =>
                 ref.read(newMapEnabledProvider.notifier).set(value),
           ),
+          // Gespeicherte Kartenbereiche (#630, Stufe 2) — auf ALLEN
+          // Plattformen, anders als die Regionskarten darüber. Sichtbar,
+          // sobald die Neue Karte an ist (speichern geht nur mit ihr) oder
+          // schon ein Bereich liegt (der soll sich immer löschen lassen).
+          if (ref.watch(newMapEnabledProvider) ||
+              (ref.watch(storedAreasProvider).valueOrNull?.isNotEmpty ??
+                  false))
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.download_for_offline_outlined),
+              title: const Text('Kartenbereiche'),
+              subtitle: const Text(
+                  'Karte für eine Gegend speichern — auch in der Web-App'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push('/profile/areas'),
+            ),
           // Der Takt der Pilztour (#338). Kein Schalter, sondern eine
           // Wahl — und gerätelokal, weil sie zum Gerät gehört: Ein altes
           // Telefon mit knappem Akku will einen längeren Takt als ein

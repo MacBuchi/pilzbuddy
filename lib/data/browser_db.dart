@@ -11,8 +11,9 @@ import 'package:idb_shim/idb_shim.dart';
 /// Eine Datenbank für die ganze App.
 const kBrowserDbName = 'pilzbuddy';
 
-/// v1: `spot_cache` (#385). v2: `outbox` (#386).
-const kBrowserDbVersion = 2;
+/// v1: `spot_cache` (#385). v2: `outbox` (#386). v3: gespeicherte
+/// Kartenbereiche (#630).
+const kBrowserDbVersion = 3;
 
 /// Der Zwischenspeicher der eigenen Spots (`spot_cache_idb.dart`).
 const kSpotCacheStore = 'spot_cache';
@@ -20,7 +21,19 @@ const kSpotCacheStore = 'spot_cache';
 /// Der Ausgangskorb (`outbox_idb.dart`).
 const kOutboxStore = 'outbox';
 
-const _stores = [kSpotCacheStore, kOutboxStore];
+/// Der Index der gespeicherten Kartenbereiche (ein Eintrag, die Liste
+/// als JSON-Text; `area_store_idb.dart`).
+const kAreaIndexStore = 'area_index';
+
+/// Die Archive je Bereich (Schlüssel: Bereichs-Id, Wert: Bytes).
+const kAreaArchiveStore = 'area_archives';
+
+const _stores = [
+  kSpotCacheStore,
+  kOutboxStore,
+  kAreaIndexStore,
+  kAreaArchiveStore,
+];
 
 /// Der geteilte Zugang zur Datenbank: EINE Verbindung je Sitzung, egal
 /// wie viele Speicher sie benutzen.

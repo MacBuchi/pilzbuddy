@@ -14,6 +14,9 @@ import 'package:pilzbuddy/features/map/online_map.dart';
 import 'package:pilzbuddy/features/map/rain_data_providers.dart';
 import 'package:pilzbuddy/features/map/rain_grid.dart';
 import 'package:pilzbuddy/features/map/rain_layer.dart';
+import 'package:pilzbuddy/features/offline_areas/area_plan.dart';
+import 'package:pilzbuddy/features/offline_areas/area_providers.dart';
+import 'package:pilzbuddy/features/offline_areas/area_store.dart';
 import 'package:pilzbuddy/features/offline_maps/offline_map_providers.dart';
 import 'package:pilzbuddy/features/offline_maps/offline_map_repository.dart';
 import 'package:pilzbuddy/features/offline_maps/pmtiles_tile_provider.dart';
@@ -353,5 +356,40 @@ void main() {
           'sources'] as Map<String, dynamic>;
       expect(sources.keys, ['overview', 'region_de_bayern']);
     });
+  });
+
+  // Gespeicherte Kartenbereiche (#630, Stufe 2): zuoberst, mit und ohne
+  // Neue Karte, auch über OSM.
+  test('ein gespeicherter Bereich liegt über dem OSM-Raster', () async {
+    final gate = Completer<List<InstalledMap>>()..complete(const []);
+    final area = StoredArea(
+      id: 'a1',
+      name: 'Hausrunde',
+      bounds:
+          const AreaBounds(south: 47.9, west: 11.6, north: 47.95, east: 11.7),
+      minZoom: 8,
+      maxZoom: 13,
+      build: '20260928',
+      tiles: 10,
+      bytes: 1000,
+      savedAt: DateTime.utc(2026, 9, 30),
+    );
+    final container = ProviderContainer(overrides: [
+      rainGridLoaderProvider.overrideWithValue((_) async => null),
+      maplibreStyleIoProvider.overrideWithValue(_FakeIo()),
+      installedMapsProvider.overrideWith(() => _GatedInstalledMaps(gate)),
+      settingsProvider.overrideWithValue(FakeSettings()),
+      noConnectivityProvider.overrideWithValue(false),
+      areaArchivePathsProvider.overrideWith((ref) async =>
+          [(area: area, path: '/fake/offline_maps/areas/a1.pmtiles')]),
+    ]);
+    addTearDown(container.dispose);
+    final style =
+        jsonDecode((await container.read(maplibreStyleProvider.future))!)
+            as Map<String, dynamic>;
+    expect((style['sources'] as Map).keys, ['osm', 'area_a1']);
+    final ids =
+        [for (final l in style['layers'] as List) (l as Map)['id'] as String];
+    expect(ids.indexOf('area_a1/earth'), greaterThan(ids.indexOf('osm')));
   });
 }

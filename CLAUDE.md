@@ -662,6 +662,42 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   Noch nicht gemessen (Voraussetzung für Stufe 3, „an als Vorgabe"):
   Abrufe je Kartenschwenk gegen das R2-Kontingent, das sich beide Apps
   teilen.
+- **Gespeicherte Kartenbereiche** (#630 Stufe 2, seit 1.215.0,
+  `lib/features/offline_areas/`, übernommen aus TrailBuddy ohne dessen
+  Orte): Ein Bereich ist EIN PMTiles-Archiv (Zoom 8 bis zum Zoom des
+  Hosts), geschrieben auf dem Gerät von `pmtiles_writer.dart` aus
+  Kacheln, die per Range aus dem Archiv der Neuen Karte kommen (Bytes
+  unverändert, dieselbe Kompression). Der eigene Schreiber ist hier
+  erlaubt, weil auf dem Gerät kein `pmtiles extract` läuft; jedes Archiv
+  wird sofort mit dem Leser beider Engines zurückgelesen (Zählung plus
+  Stichprobe), sonst kommt es nie in den Index. Auf Android Dateien unter
+  `offline_maps/areas/` (in beiden Backup-Ausschlüssen), im Browser
+  IndexedDB (`kAreaIndexStore`/`kAreaArchiveStore`, `kBrowserDbVersion`
+  3). Fünf Dinge, die man wissen muss:
+  - **Auf ALLEN Plattformen**, anders als die Regionskarten — das war
+    der Anlass von #630. Die Regionskarten bleiben bis Stufe 4 daneben.
+  - **Gespeichert wird nur mit der Neuen Karte** (Schalter, s. o.): Die
+    Kacheln kommen vom selben Host, und solange der Vorschau ist, gehört
+    das Speichern dazu. Liegende Bereiche zeichnet die Karte immer, und
+    der Profileintrag bleibt, solange einer liegt — Löschen muss gehen.
+  - **Bereiche liegen ZUOBERST, immer** — über OSM, der Neuen Karte und
+    den Regionen, mit und ohne Empfang (TrailBuddy #82: im Funkloch mit
+    einem Balken kommen Online-Kacheln nie, eine Regel „nur ohne
+    Empfang" greift dort nicht). In MapLibre heißt das `topSources` im
+    Composer, NACH dem Raster; sonst deckte OSM sie zu. Über OSM stehen
+    damit zwei Kartenstile nebeneinander (#137) — bewusst hingenommen,
+    denn wer Bereiche speichert, hat die Neue Karte ohnehin an.
+  - **Zwei Formen**: der Kartenausschnitt (`RectShape`, aus
+    `mapIdleBoundsProvider`) und die Umgebung der eigenen Spots
+    (`AreaShape.aroundPoints`, 2 km je Spot, Kachelmenge statt Rechteck —
+    verstreute Spots wären sonst vor allem Land dazwischen). Obergrenze
+    40 000 Kacheln je Bereich.
+  - **Größe vorher ist eine Messung**: Das Verzeichnis des Archivs nennt
+    die Bytes jeder Kachel; der Dialog zeigt die Summe, bevor ein Byte
+    fließt. Beim ersten gespeicherten Bereich bittet die App einmal um
+    `navigator.storage.persist()` (Muster Ausgangskorb).
+  Zeichnen und Radieren auf der Karte (TrailBuddys Werkzeugleiste) ist
+  Stufe 2b.
 - **Zwischenspeicher und Ausgangskorb liegen im Browser in IndexedDB**
   (#385 seit 1.115.0, #386 seit 1.116.0). `NoSpotCache`/`NoOutbox` sind
   nicht mehr der Web-Zweig, sondern nur noch der Fall „kein IndexedDB".

@@ -19,6 +19,7 @@ import '../features/friends/friends_screen.dart';
 import '../features/friends/message_providers.dart';
 import '../features/import_export/import_screen.dart';
 import '../features/map/map_screen.dart';
+import '../features/offline_areas/areas_screen.dart';
 import '../features/offline_maps/offline_maps_screen.dart';
 import '../features/profile/profile_screen.dart';
 import '../features/species/species_detail_screen.dart';
@@ -146,6 +147,9 @@ final routerProvider = Provider<GoRouter>((ref) {
                       path: 'offline-maps',
                       builder: (context, state) =>
                           const OfflineMapsScreen()),
+                  GoRoute(
+                      path: 'areas',
+                      builder: (context, state) => const AreasScreen()),
                   GoRoute(
                       path: 'import',
                       builder: (context, state) => const ImportScreen()),

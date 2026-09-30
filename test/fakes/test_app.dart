@@ -31,6 +31,7 @@ import 'package:pilzbuddy/features/map/map_view/map_view.dart';
 import 'package:pilzbuddy/features/map/position_provider.dart';
 import 'package:pilzbuddy/features/map/rain_data_providers.dart';
 import 'package:pilzbuddy/features/map/rain_layer.dart';
+import 'package:pilzbuddy/features/offline_areas/area_store.dart';
 import 'package:pilzbuddy/features/offline_maps/download_keep_alive.dart';
 import 'package:pilzbuddy/features/offline_maps/offline_map_providers.dart';
 import 'package:pilzbuddy/core/photo_providers.dart';
@@ -128,6 +129,7 @@ List<Override> overridesFor(FakeBackend backend,
         FakePhotoPicker? photoPicker,
         FakeFindPhotoRepository? findPhotos,
         FakeInat? inat,
+        MemoryAreaStore? areaStore,
         bool useRealMap = false,
         List<Override> extra = const []}) =>
     [
@@ -165,6 +167,9 @@ List<Override> overridesFor(FakeBackend backend,
       // Ohne diesen Override fragt FileSpotCache path_provider nach dem
       // App-Verzeichnis — den Kanal gibt es im Widget-Test nicht.
       spotCacheProvider.overrideWithValue(spotCache ?? FakeSpotCache()),
+      // Gespeicherte Kartenbereiche (#630): im Speicher — die echte
+      // Ablage bräuchte `path_provider` bzw. IndexedDB.
+      areaStoreProvider.overrideWithValue(areaStore ?? MemoryAreaStore()),
       // Und derselbe Grund für den Ausgangskorb (#267): `FileOutbox`
       // fragt path_provider nach dem App-Verzeichnis. Ohne diesen
       // Override bliebe der Abruf der eigenen Spots hängen — er liest
@@ -368,6 +373,7 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
     FakePhotoPicker? photoPicker,
     FakeFindPhotoRepository? findPhotos,
     FakeInat? inat,
+    MemoryAreaStore? areaStore,
     bool useRealMap = false,
     // Fester Monat (September) statt `DateTime.now()`: Seit dem
     // Saison-Tor je Klasse (#495) hinge sonst jeder Legenden- und
@@ -388,6 +394,7 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
         tourStore: tourStore,
         tourFix: tourFix,
         tourBridge: tourBridge,
+        areaStore: areaStore,
         appConfig: appConfig,
         appVersion: appVersion,
         position: position,

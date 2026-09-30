@@ -12,6 +12,7 @@ import '../forest_data_providers.dart';
 import '../gbif_finds_providers.dart';
 import '../map_overlays.dart';
 import '../online_map.dart';
+import '../../offline_areas/area_providers.dart';
 import '../rain_data_providers.dart';
 import '../rain_layer.dart';
 import 'map_view.dart';
@@ -130,6 +131,9 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
     // Fehlt sie (Ladefehler), bleibt es beim Hintergrundton.
     final baseStyle = ref.watch(baseMapStyleProvider).valueOrNull;
     final offlineActive = offlineStyle != null;
+    // Gespeicherte Kartenbereiche (#630, Stufe 2) — zuoberst, immer:
+    // siehe `area_providers.dart`.
+    final areaStyle = ref.watch(areaMapStyleProvider).valueOrNull;
     // Die Online-Karte vom Kartenhost (#630) — nur mit dem Schalter, und
     // null heißt: OSM wie bisher. Offline-Regionen gehen vor, wie sie
     // auch vor OSM gehen.
@@ -307,6 +311,21 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
             // kurz blass ist.
             keepBuffer: 2,
             panBuffer: 1,
+          ),
+        // Die gespeicherten Kartenbereiche ÜBER jeder anderen Karte
+        // (TrailBuddy #82): Im Funkloch mit einem Balken kommen die
+        // Online-Kacheln nie, und eine Regel „nur ohne Empfang" griffe
+        // dort nicht. Wo ein Bereich keine Kachel hat, liefert er nichts,
+        // und die Karte darunter scheint durch. Schlüssel an der Quelle
+        // wie beim Offline-Layer (#144).
+        if (areaStyle != null)
+          vmt.VectorTileLayer(
+            key: ValueKey(areaStyle.tileProviders),
+            tileProviders: areaStyle.tileProviders,
+            theme: areaStyle.theme,
+            layerMode: vmt.VectorTileLayerMode.vector,
+            maximumZoom: 19,
+            maximumTileSubstitutionDifference: 1,
           ),
         // Die Waldtypen-Fläche (#213) — VOR den Regen-Overlays, damit
         // der Regen beim Kombinieren (#232) obenauf liegt: Er ist die

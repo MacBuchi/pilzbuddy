@@ -182,6 +182,45 @@ void main() {
     expect(layers.last['source'], 'osm');
   });
 
+  test('gespeicherte Kartenbereiche (#630) liegen ÜBER dem Raster, unter den '
+      'Overlays — im Funkloch sollen sie gewinnen, auch über OSM', () {
+    const area = MapStyleSource(
+        id: 'area_a1',
+        filePath: '/data/app/offline_maps/areas/a1.pmtiles',
+        minZoom: 8,
+        maxZoom: 13);
+    final style = jsonDecode(composeMapLibreStyle(
+      baseStyle: _baseStyle(),
+      glyphsUrl: 'file:///glyphs/{fontstack}/{range}.pbf',
+      backgroundColor: '#e2dfda',
+      sources: const [_overview],
+      rasterSources: const [_osm],
+      topSources: const [area],
+      overlays: const [_radar],
+    )) as Map<String, dynamic>;
+    final sources = style['sources'] as Map<String, dynamic>;
+    expect((sources['area_a1'] as Map)['url'],
+        'pmtiles://file:///data/app/offline_maps/areas/a1.pmtiles');
+    expect((sources['area_a1'] as Map)['minzoom'], 8);
+    final ids =
+        [for (final l in style['layers'] as List) (l as Map)['id'] as String];
+    expect(ids.indexOf('area_a1/earth'), greaterThan(ids.indexOf('osm')));
+    expect(ids.indexOf('regenradar'), greaterThan(ids.indexOf('area_a1/places')));
+  });
+
+  test('eine entfernte Quelle (Neue Karte, #630) liest MapLibre per https',
+      () {
+    final style = _compose(sources: const [
+      MapStyleSource.remote(
+          id: 'online',
+          remoteUrl: 'https://tiles.example.org/dach-20260928.pmtiles',
+          minZoom: 0,
+          maxZoom: 13),
+    ]);
+    expect(((style['sources'] as Map)['online'] as Map)['url'],
+        'pmtiles://https://tiles.example.org/dach-20260928.pmtiles');
+  });
+
   test('gleiche Attribution steht nur an EINER Quelle — sonst stapelt das '
       'Attributions-Widget je Quelle eine identische Zeile', () {
     final style = jsonDecode(composeMapLibreStyle(

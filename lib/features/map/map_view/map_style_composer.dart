@@ -105,6 +105,7 @@ String composeMapLibreStyle({
   required String backgroundColor,
   required List<MapStyleSource> sources,
   List<MapRasterSource> rasterSources = const [],
+  List<MapStyleSource> topSources = const [],
   List<MapImageOverlay> overlays = const [],
 }) {
   final baseLayers = baseStyle['layers'] as List<dynamic>? ?? const [];
@@ -170,6 +171,25 @@ String composeMapLibreStyle({
       'type': 'raster',
       'source': raster.id,
     });
+  }
+
+  // Die gespeicherten Kartenbereiche (#630) ÜBER dem Raster: Sie sollen
+  // gerade dort gewinnen, wo die Online-Kachel im Funkloch nie kommt —
+  // auch über OSM, das sonst als oberste Kartenschicht jede Vektorebene
+  // zudeckte. Wo ein Bereich keine Kachel hat, bleibt die Fläche leer,
+  // und darunter scheint durch.
+  for (final source in topSources) {
+    final attribution = attributionOnce('© OpenStreetMap contributors');
+    styleSources[source.id] = {
+      'type': 'vector',
+      'url': source.remoteUrl != null
+          ? 'pmtiles://${source.remoteUrl}'
+          : 'pmtiles://file://${source.filePath}',
+      'minzoom': source.minZoom,
+      'maxzoom': source.maxZoom,
+      'attribution': ?attribution,
+    };
+    layers.addAll(_layersFor(baseLayers, source.id));
   }
 
   // Overlays zuletzt = zuoberst: Sie liegen ÜBER Basis-Raster und

@@ -23,6 +23,8 @@ import '../rain_data_providers.dart';
 import '../rain_layer.dart';
 import '../map_overlays.dart';
 import '../online_map.dart';
+import '../../offline_areas/area_providers.dart';
+import '../../offline_areas/area_store.dart' show StoredArea;
 import 'map_style_composer.dart';
 
 /// Die fünf Unicode-Bereiche, die für deutsche Kartenbeschriftung reichen
@@ -154,6 +156,15 @@ final maplibreStyleProvider = FutureProvider<String?>((ref) async {
   final manuallyEnabled = ref.watch(offlineMapEnabledProvider);
   final noConnectivity = ref.watch(noConnectivityProvider);
   final io = ref.watch(maplibreStyleIoProvider);
+  // Dasselbe Anti-Race wie bei den Regionen: warten, damit der erste
+  // Style die gespeicherten Bereiche schon kennt. Ein unlesbarer Bereich
+  // nimmt der Karte nicht den Rest.
+  var areaPaths = const <({StoredArea area, String path})>[];
+  try {
+    areaPaths = await ref.watch(areaArchivePathsProvider.future);
+  } catch (e, stackTrace) {
+    logError('Kartenbereiche für den Style lesen', e, stackTrace);
+  }
   try {
     final offlineActive =
         (manuallyEnabled || noConnectivity) && installed.isNotEmpty;
@@ -209,6 +220,18 @@ final maplibreStyleProvider = FutureProvider<String?>((ref) async {
       sources: sources,
       rasterSources:
           offlineActive || online != null ? const [] : const [_osmRaster],
+      // Die gespeicherten Kartenbereiche (#630) zuoberst, immer — siehe
+      // `area_providers.dart`. Zoombereich aus dem Index: Der Download hat
+      // Index und Archiv aus demselben Plan geschrieben.
+      topSources: [
+        for (final entry in areaPaths)
+          MapStyleSource(
+            id: 'area_${entry.area.id}',
+            filePath: entry.path,
+            minZoom: entry.area.minZoom,
+            maxZoom: entry.area.maxZoom,
+          ),
+      ],
       // `DateTime.now()` nur für die Vorhersage-Ebene, siehe rain_layer.dart.
       overlays: [
         // Das DWD-Bild nur im dwd-Zustand: beim Radar immer, bei den
