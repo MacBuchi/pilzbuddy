@@ -40,15 +40,33 @@ typedef SpotRowsResult = ({
 /// (CLAUDE.md) — sie darf aber niemals einen erfolgreichen Abruf
 /// kaputtmachen.
 abstract interface class SpotCache {
-  Future<CachedSpotRows?> read({required String uid});
+  Future<CachedSpotRows?> read(
+      {required String uid, SpotCacheSlot slot = SpotCacheSlot.mine});
 
   Future<void> write({
     required String uid,
     required List<Map<String, dynamic>> rows,
     required DateTime savedAt,
+    SpotCacheSlot slot = SpotCacheSlot.mine,
   });
 
+  /// Räumt ALLE Fächer — beim Abmelden hat keines davon etwas auf dem
+  /// Gerät verloren.
   Future<void> clear();
+}
+
+/// Welche Liste: die eigenen Spots oder die der Buddys (seit 1.217.0 —
+/// Feldbefund: „die Buddy-Spots waren nicht offline verfügbar"). Zwei
+/// Fächer statt einer gemeinsamen Liste, weil beide getrennt abgerufen
+/// werden und ein Abruf nie die Kopie des anderen überschreiben darf.
+enum SpotCacheSlot {
+  mine('my_spots'),
+  friends('friend_spots');
+
+  const SpotCacheSlot(this.key);
+
+  /// Dateiname (Android, mit `.json`) bzw. Schlüssel (IndexedDB).
+  final String key;
 }
 
 /// Die Ablage-Form: EIN JSON-Text, egal wohin er wandert.
@@ -98,11 +116,11 @@ class FileSpotCache implements SpotCache {
   /// kann — die Datei enthält die geheimen Fundstellen.
   static const dirName = 'spot_cache';
 
-  Future<File> _file() async {
+  Future<File> _file(SpotCacheSlot slot) async {
     final base = _baseDirOverride ?? await getApplicationSupportDirectory();
     final dir = Directory('${base.path}/$dirName');
     if (!await dir.exists()) await dir.create(recursive: true);
-    return File('${dir.path}/my_spots.json');
+    return File('${dir.path}/${slot.key}.json');
   }
 
   /// Schreibt über `.part` + `rename`: Ein Abbruch mitten im Schreiben
@@ -114,9 +132,10 @@ class FileSpotCache implements SpotCache {
     required String uid,
     required List<Map<String, dynamic>> rows,
     required DateTime savedAt,
+    SpotCacheSlot slot = SpotCacheSlot.mine,
   }) async {
     try {
-      final file = await _file();
+      final file = await _file(slot);
       final temp = File('${file.path}.part');
       await temp.writeAsString(
           encodeSpotCache(uid: uid, rows: rows, savedAt: savedAt));
@@ -133,9 +152,10 @@ class FileSpotCache implements SpotCache {
   /// keine gibt, sie zu einem anderen Konto gehören oder die Datei
   /// unlesbar ist.
   @override
-  Future<CachedSpotRows?> read({required String uid}) async {
+  Future<CachedSpotRows?> read(
+      {required String uid, SpotCacheSlot slot = SpotCacheSlot.mine}) async {
     try {
-      final file = await _file();
+      final file = await _file(slot);
       if (!await file.exists()) return null;
       return decodeSpotCache(await file.readAsString(), uid: uid);
     } catch (_) {
@@ -152,8 +172,10 @@ class FileSpotCache implements SpotCache {
   @override
   Future<void> clear() async {
     try {
-      final file = await _file();
-      if (await file.exists()) await file.delete();
+      for (final slot in SpotCacheSlot.values) {
+        final file = await _file(slot);
+        if (await file.exists()) await file.delete();
+      }
     } catch (_) {
       // Siehe write(): Ein Löschfehler darf das Abmelden nicht aufhalten.
     }
@@ -172,13 +194,16 @@ class NoSpotCache implements SpotCache {
   const NoSpotCache();
 
   @override
-  Future<CachedSpotRows?> read({required String uid}) async => null;
+  Future<CachedSpotRows?> read(
+          {required String uid, SpotCacheSlot slot = SpotCacheSlot.mine}) async =>
+      null;
 
   @override
   Future<void> write({
     required String uid,
     required List<Map<String, dynamic>> rows,
     required DateTime savedAt,
+    SpotCacheSlot slot = SpotCacheSlot.mine,
   }) async {}
 
   @override
@@ -195,6 +220,7 @@ Future<SpotRowsResult> fetchSpotRowsWithCache({
   required SpotCache cache,
   required String uid,
   required DateTime now,
+  SpotCacheSlot slot = SpotCacheSlot.mine,
 }) async {
   final List<Map<String, dynamic>> rows;
   try {
@@ -206,7 +232,7 @@ Future<SpotRowsResult> fetchSpotRowsWithCache({
     // Geräte stillschweigend Veraltetes, und niemand erführe vom
     // kaputten Deployment (Lehre aus Issue #80).
     if (!looksOffline(error)) rethrow;
-    final cached = await _quietly(() => cache.read(uid: uid));
+    final cached = await _quietly(() => cache.read(uid: uid, slot: slot));
     // Ohne Kopie bleibt der Fehler ein Fehler: Eine leere Liste sähe aus
     // wie „du hast keine Spots" und wäre eine Lüge.
     if (cached == null) rethrow;
@@ -220,7 +246,7 @@ Future<SpotRowsResult> fetchSpotRowsWithCache({
   // Offline-Kopie ist ein optionales Feature und darf still degradieren
   // (CLAUDE.md); der Abruf selbst ist der Kernpfad.
   await _quietly(() async {
-    await cache.write(uid: uid, rows: rows, savedAt: now);
+    await cache.write(uid: uid, rows: rows, savedAt: now, slot: slot);
     return null;
   });
   return (rows: rows, cachedAt: null);

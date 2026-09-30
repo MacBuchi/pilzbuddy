@@ -48,19 +48,22 @@ class IndexedDbSpotCache implements SpotCache {
   /// Datei auf Android. Nach der Nutzer-id zu schlüsseln wäre verlockend,
   /// hinterließe aber die Spots jedes früher angemeldeten Kontos im
   /// Browser liegen; so überschreibt der nächste Abruf sie.
-  static const _key = 'my_spots';
+  /// Seit 1.217.0 je Fach ein Schlüssel ([SpotCacheSlot.key]); der
+  /// eigene heißt weiter `my_spots`.
 
   @override
   Future<void> write({
     required String uid,
     required List<Map<String, dynamic>> rows,
     required DateTime savedAt,
+    SpotCacheSlot slot = SpotCacheSlot.mine,
   }) async {
     try {
       await _db.writeStore(
           kSpotCacheStore,
           (store) => store.put(
-              encodeSpotCache(uid: uid, rows: rows, savedAt: savedAt), _key));
+              encodeSpotCache(uid: uid, rows: rows, savedAt: savedAt),
+              slot.key));
     } catch (_) {
       // Kein Platz, gesperrter Speicher, privater Modus: Dann gibt es
       // eben keine Offline-Kopie. Siehe FileSpotCache.write().
@@ -69,10 +72,11 @@ class IndexedDbSpotCache implements SpotCache {
   }
 
   @override
-  Future<CachedSpotRows?> read({required String uid}) async {
+  Future<CachedSpotRows?> read(
+      {required String uid, SpotCacheSlot slot = SpotCacheSlot.mine}) async {
     try {
       final value = await _db.readStore(
-          kSpotCacheStore, (store) => store.getObject(_key));
+          kSpotCacheStore, (store) => store.getObject(slot.key));
       if (value is! String) return null;
       return decodeSpotCache(value, uid: uid);
     } catch (_) {

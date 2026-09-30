@@ -11,6 +11,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/app_colors.dart';
 import '../../data/browser_storage.dart';
@@ -178,6 +179,8 @@ class _AreaToolRailState extends ConsumerState<AreaToolRail> {
             button('area-save', 'Speichern', Icons.download_done,
                 empty || busy ? null : () => _save(draft),
                 primary: true),
+            button('area-manage', 'Gespeicherte Bereiche', Icons.list_alt,
+                () => context.push('/profile/areas')),
             button('area-close', 'Schließen', Icons.close,
                 () => closeAreaTools(context, ref)),
           ],

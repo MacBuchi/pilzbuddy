@@ -7,6 +7,17 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Kartenbereiche per Knopf, Buddy-Spots ohne Empfang
+
+*30. September 2026 · Version 1.218.0*
+
+- **„Kartenbereiche"** haben einen eigenen Knopf rechts auf der Karte:
+  ein Tipp, und die Werkzeugleiste zum Zeichnen und Radieren liegt
+  bereit. Von dort geht es auch zur Liste der gespeicherten Bereiche.
+- **Die Spots deiner Buddys sind jetzt auch ohne Empfang da** — wie
+  deine eigenen, als Kopie auf dem Gerät, die beim Abmelden gelöscht
+  wird.
+
 ## Die neue Karte ist jetzt Standard
 
 *30. September 2026 · Version 1.217.0*

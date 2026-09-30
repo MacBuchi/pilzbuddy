@@ -728,8 +728,12 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     Mit Entwurf fragt sie nach.
   - **Dazunehmen braucht die Neue Karte, Wegnehmen nicht** — dieselbe
     Linie wie beim Speichern: Liegendes muss man immer loswerden können.
-  **Der Weg liegt unter „Ebenen"** (seit 1.217.0, Feldrückmeldung: „man
-  arbeitet in der Karte, erreicht es aber nur über das Profil"): Die Zeile
+  **Der Weg liegt auf der Karte** (seit 1.217.0, Feldrückmeldung: „man
+  arbeitet in der Karte, erreicht es aber nur über das Profil" und „nicht
+  zu verschachtelt"): ein eigener Knopf in der Leiste rechts
+  (`MapCoach.areas`, nur mit Neuer Karte oder liegenden Bereichen) öffnet
+  die Werkzeugleiste direkt, die ihrerseits zur Liste führt. Unter
+  „Ebenen" steht zusätzlich die Zeile
   „Kartenbereiche" öffnet die Seite, ihr Stift die Leiste
   (`MapLayerDetail.areas`/`areaTools`). Sie steht IMMER da, auch ohne
   Neue Karte — die Seite sagt dann, warum nichts geht.
@@ -758,6 +762,15 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   - **Fester Schlüssel, Konto IM Eintrag** — wie in der Datei. Nach der
     Nutzer-id zu schlüsseln wäre naheliegend, ließe aber die Spots jedes
     früher angemeldeten Kontos im Browser liegen.
+  - **Zwei Fächer seit 1.217.0** (`SpotCacheSlot`): eigene Spots und die
+    geteilten der Buddys — Feldbefund „die Buddy-Spots waren nicht
+    offline verfügbar". Bis dahin sagte die Datenschutzerklärung
+    ausdrücklich, dass Freundes-Spots NICHT gespeichert werden; der Satz
+    ist im selben PR ersetzt. Getrennte Fächer, weil beide getrennt
+    abgerufen werden und ein Abruf nie die Kopie des anderen
+    überschreiben darf; `clear()` räumt beide. Grenze, benannt: Eine
+    zurückgenommene Freigabe verschwindet erst beim nächsten Abruf MIT
+    Empfang.
   - **`idb_shim` ist DIREKTE Abhängigkeit**, obwohl `vector_map_tiles` es
     ohnehin mitbringt (dieselbe Begründung wie bei `executor_lib`: nicht
     an einer exakt gepinnten Beta hängen). Der Nebengewinn ist der Test:
