@@ -153,6 +153,9 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
     //
     // Unter der Online-Karte vom Kartenhost liegt sie dagegen immer: Das
     // ist DERSELBE Kartenstil, #137 betraf zwei verschiedene.
+    // Ohne Empfang und mit Neuer Karte kein OSM (siehe
+    // `osmFallbackAllowedProvider`) — dann liegt nur die Übersicht.
+    final osmAllowed = ref.watch(osmFallbackAllowedProvider);
     final showBaseMap = offlineActive ||
         onlineStyle != null ||
         ref.watch(noConnectivityProvider);
@@ -295,7 +298,7 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
             maximumZoom: 19,
             maximumTileSubstitutionDifference: 1,
           )
-        else
+        else if (osmAllowed)
           TileLayer(
             urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
             userAgentPackageName: 'de.mcbuchi.pilzbuddy',

@@ -17,6 +17,9 @@ https://github.com/MacBuchi/pilzbuddy/releases
 - **Die Spots deiner Buddys sind jetzt auch ohne Empfang da** — wie
   deine eigenen, als Kopie auf dem Gerät, die beim Abmelden gelöscht
   wird.
+- Ohne Empfang schieben sich keine alten Kartenstücke im anderen Stil
+  mehr dazwischen. Mit der neuen Karte bleibt es dann bei der Übersicht
+  und deinen gespeicherten Bereichen.
 
 ## Die neue Karte ist jetzt Standard
 

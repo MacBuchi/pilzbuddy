@@ -23,6 +23,7 @@ import 'package:pilzbuddy/features/offline_maps/offline_map_providers.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart' as vmt;
 
 import 'fakes/fake_backend.dart';
+import 'fakes/fake_settings.dart';
 import 'fakes/test_app.dart';
 import 'fakes/vector_map_fakes.dart';
 
@@ -110,6 +111,23 @@ void main() {
     expect(_baseMap, findsOneWidget);
     expect(find.byType(vmt.VectorTileLayer), findsNWidgets(2),
         reason: 'Übersicht UND die Online-Vektorkarte darüber.');
+  });
+
+  testWidgets(
+      'Neue Karte ohne Empfang: KEIN OSM, nur die Übersicht (Feldbefund '
+      '1.216.0 — der Browser gab alte OSM-Kacheln aus dem Cache)',
+      (tester) async {
+    await pumpApp(tester, _signedIn(),
+        useRealMap: true,
+        settings: FakeSettings(newMapEnabled: true),
+        connectivity: const [ConnectivityResult.none],
+        extraOverrides: [_baseMapAvailable()]);
+    await settle(tester);
+
+    expect(_osm, findsNothing,
+        reason: 'Ein Flickenteppich im fremden Stil über der Übersicht ist '
+            'genau die Mischung, die #137 verbietet.');
+    expect(_baseMap, findsOneWidget);
   });
 
   testWidgets('Neue Karte nicht verfügbar ⇒ OSM wie bisher', (tester) async {

@@ -659,6 +659,14 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   - **Die Übersicht liegt UNTER der Neuen Karte** (anders als unter
     OSM): Es ist derselbe Kartenstil, #137 betraf zwei verschiedene.
     `test/base_map_layer_test.dart` hält beide Fälle fest.
+  - **Ohne Empfang kein OSM-Rückfall, wenn die Neue Karte gewählt ist**
+    (`osmFallbackAllowedProvider`, seit 1.218.0; Feldbefund in der PWA:
+    „die alte Online-Karte hat sich teils geladen"). Die Annahme aus
+    #118, ohne Netz komme keine OSM-Kachel, stimmt nicht: Browser- und
+    Platten-Cache geben einzelne alte heraus, ein Flickenteppich im
+    fremden Stil. Mit Empfang bleibt OSM der Rückfall für einen
+    unerreichbaren Host; wer die Neue Karte AUS hat, behält das alte
+    Verhalten.
   **Seit 1.217.0 ab Werk AN** (Stufe 3). Der Schalter bleibt als
   Ausweg („Neue Karte" im Profil, aus ⇒ keine Anfrage an den Host, der
   Test zählt es weiter); `FakeSettings` steht dagegen auf AUS, damit kein

@@ -119,6 +119,23 @@ class NewMapEnabledNotifier extends Notifier<bool> {
 final newMapEnabledProvider =
     NotifierProvider<NewMapEnabledNotifier, bool>(NewMapEnabledNotifier.new);
 
+/// Darf die OSM-Karte als Rückfall zeichnen? NICHT, wenn die Neue Karte
+/// gewählt ist und kein Empfang besteht (Feldbefund 1.216.0, PWA im
+/// Flugmodus: „die alte Online-Karte hat sich teils geladen").
+///
+/// Ohne Empfang fällt die Neue Karte weg (`onlineMapProvider` ⇒ null),
+/// und bis hierher hieß null überall „OSM wie bisher". Offline liefert
+/// OSM aber nicht NICHTS, wie #118 annahm: Der Browser (und auf Android
+/// der Platten-Cache) gibt einzelne alte Kacheln heraus — ein
+/// Flickenteppich im fremden Stil über der Übersicht und neben den
+/// gespeicherten Bereichen, genau die Mischung, die #137 verbietet. Wer
+/// die Neue Karte gewählt hat, bekommt ohne Empfang deshalb nur, was im
+/// eigenen Stil vorliegt: Übersicht und Bereiche. Mit Empfang bleibt OSM
+/// der Rückfall für einen unerreichbaren Host. Beide Engines lesen diese
+/// eine Regel.
+final osmFallbackAllowedProvider = Provider<bool>((ref) =>
+    !(ref.watch(newMapEnabledProvider) && ref.watch(noConnectivityProvider)));
+
 /// Die Online-Karte vom Host: Manifest plus GEÖFFNETES Archiv.
 class OnlineMap {
   const OnlineMap({required this.manifest, required this.tiles});
