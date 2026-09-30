@@ -174,6 +174,11 @@ void main() {
     final tile = find.text('Entdecken');
     await tester.scrollUntilVisible(tile, 300,
         scrollable: find.byType(Scrollable).first);
+    // `scrollUntilVisible` hält an, sobald die Zeile GEBAUT ist — seit
+    // dem Schalter „Neue Karte" (#630) lag sie dann knapp unter dem
+    // Bildrand, und der Tipp ging daneben.
+    await tester.ensureVisible(tile);
+    await settle(tester);
     await tester.tap(tile);
     await settle(tester);
 
