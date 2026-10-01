@@ -2541,8 +2541,9 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   Quelle ist die DLR-Karte „Tree Species Germany" 2022 (10 m, CC BY 4.0,
   offener HTTP-Download ohne Konto); die Nennung steht im Wald-Blatt
   neben der Copernicus-Zeile, zusammen mit der Abdeckung — **nur
-  Deutschland**, sonst sähe die fehlende Zeile in Österreich nach einem
-  Fehler aus.
+  Deutschland**. Außerhalb sprechen seit 1.213.0 bzw. 1.221.0 die
+  beiden Gitter weiter unten (ForestPaths, WSL); jede Quelle nennt im
+  Blatt ihre eigene Abdeckung.
   Vier Dinge, die man wissen muss:
   - **Dasselbe Hex-Gitter wie das Waldgitter**, Zelle für Zelle: gleiche
     Box, gleiche Warp-Größe, gleicher Zellfaktor. Die App schlägt beide
@@ -2611,7 +2612,10 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
       wird im Workflow vor der ersten Anfrage maskiert. Auf einem
       Feature-Branch committet der Workflow das Gitter selbst (Artefakte
       sind aus der Cloud-Umgebung nicht abrufbar), auf `main` lädt er es
-      als Artefakt hoch.
+      als Artefakt hoch. **Neu bauen** (neue Kartenfassung): Branch
+      `feat/ch-tree-species` von `main` anlegen und das Werkzeug
+      anfassen — nur auf diesen Namen hört der Push-Auslöser —, dann
+      PR mit Versions-Bump.
     - **Nur das Rechteck um die Schweiz** liegt im Asset (`x0`/`y0`/
       `width`/`height`); gefunden wird die Wabe über das GANZE Raster
       (`hexNearestCell` mit `grid_width`/`grid_height`), dann

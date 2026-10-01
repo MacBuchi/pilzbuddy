@@ -9,7 +9,7 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Baumarten in der Schweiz — alle, die im Wald stehen
 
-*1. Oktober 2026 · Version 1.221.0*
+*1. Oktober 2026 · Versionen 1.221.0, 1.221.1*
 
 - In der Schweiz nennt das Spot-Blatt die Bäume jetzt aus der
   **Baumartenkarte der Eidgenössischen Forschungsanstalt WSL** statt aus
@@ -19,6 +19,8 @@ https://github.com/MacBuchi/pilzbuddy/releases
 - Neu dabei sind unter anderem **Edelkastanie, Tanne, Arve,
   Bergföhre**, Esche, Bergahorn, Trauben- und Stieleiche. Lärchen kennt
   die Karte nicht, und die Zeile sagt das dazu.
+- Unter „Entdecken" stand noch, die Bäume gebe es nur für Deutschland.
+  Das ist berichtigt.
 
 ## Regen der letzten 7, 14 und 30 Tage — auch in den Alpen
 
