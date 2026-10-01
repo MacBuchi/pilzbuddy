@@ -75,11 +75,13 @@ gzip, 255 = keine Daten).
 - Die Auswerteskripte nutzen numpy, xarray, h5py, rasterio und pyproj
   und liegen nicht im Repo. Für den Einbau sind sie nicht die Vorlage,
   siehe „Was der Einbau braucht“.
-- **Nicht gemessen:** der 30-Tage-Abruf von OPERA. Zwischen 12:00 und
-  12:40 MESZ fiel die Leitung des Rechners auf 0,4–7 KB/s, bei allen
-  Hosts (auch GitHub). OPERA ist unten nur strukturell bewertet; das
-  Urteil hängt nicht an der fehlenden Zahl (keine österreichischen und
-  italienischen Radare im Komposit).
+- **OPERA nachgemessen:** Der 30-Tage-Abruf scheiterte zunächst an der
+  Leitung des Rechners (0,4–7 KB/s bei allen Hosts). Nachgeholt am
+  selben Tag auf einem GitHub-Runner: 720 von 720 Stundendateien, keine
+  fehlende Stunde, 2,1 s je Datei (#646, Kommentar
+  https://github.com/MacBuchi/pilzbuddy/issues/646#issuecomment-5930869089,
+  Dateien auf dem Branch `measure/opera-alps`). Der Flächenvergleich
+  gegen die lokal vorliegenden Gitter ist danach hier gerechnet.
 
 ## Die Quellen im Einzelnen
 
@@ -178,6 +180,8 @@ gegen SPARTACUS, Abbruch bei systematischer Abweichung.
 | Verzug | ~10 min (Datei 12:00 am 12:10 geschrieben) |
 | Lizenz | CC BY 4.0 (im Dateikopf: `license = https://creativecommons.org/licenses/by/4.0/`), Rechte bei EUMETNET |
 | **Ausschlussgrund** | Im Komposit vom 2026-09-24 12:00 stecken 164 Radare — **kein österreichisches, kein italienisches** (Liste `how/nodes`). Österreich und Norditalien sieht OPERA nur vom Rand aus deutschen, Schweizer, tschechischen und slowenischen Radaren, ohne Stationsangleich. In der Schweiz ist RprelimD die bessere Quelle. |
+| **Gemessen** (26 Tage, Raster) | Österreich gegen INCA 0,81 / r 0,36 (1 391 Punkte) — nördlich 47,3° N 0,93 / r 0,60, südlich 0,37 / r 0,26. Schweiz gegen RprelimD 0,72 / r 0,45. Italien gegen DPC 0,50 / r 0,57. Störechos ungefiltert: bis 1 143 mm in 26 Tagen (Karawanken), 531 mm westlich von Innsbruck. |
+| **Gemessen** (Orte, 26 Tage) | Salzburg 69, Kufstein 46, Gmunden 101, Zell am See 86, Innsbruck **110** (INCA 66), Bregenz 41, Bozen **12** (INCA 60), Brixen 17, Chur **2** (RprelimD 22), Luzern 24, Davos 44 mm |
 
 ### Italien: Regionaldienste (nicht gemessen)
 
@@ -450,9 +454,10 @@ derselben Collection. Das wäre ein eigenes Issue nach diesem.
 
 ## Offen
 
-- **OPERA ungemessen** (Leitung ausgefallen). Das Urteil steht trotzdem,
-  weil die Radare fehlen; eine Nachmessung lohnt erst, wenn GeoSphere
-  oder DPC ihre Radare einspeisen.
+- **OPERA:** gemessen und ausgeschlossen (siehe Quellentabelle).
+  Nördlich des Alpenhauptkamms brauchbar, dort deckt INCA aber besser;
+  südlich und im Schweizer Inneren viel zu trocken, dazu Störechos.
+  Neu prüfen erst, wenn GeoSphere oder DPC ihre Radare einspeisen.
 - **DPC-Historie:** ab 2026-05-15 — fester Beginn oder rollierend?
   Nachmessen Mitte November. Für den Betrieb egal, der Stapel hält seine
   Tage selbst.
