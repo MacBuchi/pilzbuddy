@@ -364,6 +364,10 @@ Abstand grob über die Breite):
 
 ## Empfehlung
 
+**Entschieden** (Betreiber, 2026-10-01): Einbau nach dieser Empfehlung,
+einschließlich der geänderten Reihenfolge; die Wahl der Landesgrenzen
+liegt beim Einbau (siehe unten).
+
 **Reihenfolge je Tag und Punkt:**
 
 1. **Nationale Messung, nur im eigenen Land:**
@@ -393,6 +397,21 @@ Länderzuordnung würde in Italien INCA vor DPC gewinnen oder in Österreich
 DPC einspringen. Die Zuordnung gehört in den CI-Bau, nicht in die App:
 Jede Quelle wird vor dem Kodieren auf ihr Land beschnitten, die Stapel
 sind dann disjunkt, und die App braucht keine Länder zu kennen.
+
+**Landesgrenzen: Natural Earth 1:10m, Admin-0.** Public Domain, also
+keine weitere Lizenz und keine Namensnennung — OSM-Grenzen wären ODbL
+und eine Zeile mehr auf der Lizenzseite, die amtlichen Grenzen (BEV,
+swisstopo, ISTAT) drei Quellen mit drei Lizenzen. Die Lagegenauigkeit
+von einigen hundert Metern reicht für 1-km-Zellen, und ein Fehler um
+eine Zelle kostet nichts: An den Grenzen sind sich die Quellen einig
+(Bregenz 45/46/47 mm, Tabelle oben). Die Gültigkeitsmasken der Produkte
+taugen nicht, weil jedes Produkt über seine Grenze hinausreicht. Die
+Maske wird nur in CI gebraucht, nie in der App: einmal mit der
+Standardbibliothek erzeugt (Punkt-in-Polygon auf dem 1-km-Raster),
+eingecheckt unter `tool/` mit Prüfsumme, und ein Selbsttest prüft
+Grenzorte (Bregenz AT, Vaduz LI, Como IT, Brixen IT, Chur CH,
+Konstanz DE). Damit hängt der tägliche Lauf nicht an einem weiteren
+Download.
 
 **Temperatur ist nicht Teil dieser Empfehlung**, aber dieselben Dienste
 liefern sie: INCA `T2M` stündlich, MeteoSchweiz `TmaxD`/`TminD` in
@@ -440,8 +459,8 @@ derselben Collection. Das wäre ein eigenes Issue nach diesem.
 - **RprelimD gegen RhiresD:** Wie stark die endgültigen Werte von den
   vorläufigen abweichen, ist ungemessen. Für 26 Tage Rückblick reicht
   das vorläufige Gitter; ein Nachtausch wäre ein späteres Thema.
-- **Länderzuordnung:** Quelle der Maske (Natural Earth, OSM-Grenzen, oder
-  die Gültigkeitsmasken der Produkte) ist zu entscheiden.
+- **Länderzuordnung:** entschieden — Natural Earth 1:10m (siehe
+  Empfehlung).
 - **Regionaldienste Italiens:** Lizenzen von ARPA Lombardia, FVG,
   Piemonte und Aostatal nicht geprüft — nicht nötig, solange DPC trägt.
 
@@ -476,8 +495,11 @@ derselben Collection. Das wäre ein eigenes Issue nach diesem.
 > - `--verify`: INCA 26-day sums at random points against SPARTACUS v3
 >   (`spartacus-v3-1d-1km`); fail on systematic deviation. RprelimD and
 >   DPC: spot checks of single days against a second download.
-> - Country mask for the clipping (decide the source: Natural Earth,
->   OSM boundaries, or product validity masks).
+> - Country mask for the clipping: Natural Earth 1:10m admin-0 (public
+>   domain), rasterised once with the stdlib (point-in-polygon on the
+>   1 km Mercator grid) and committed under `tool/` with a checksum;
+>   self-test on border towns (Bregenz AT, Vaduz LI, Como IT, Brixen IT,
+>   Chur CH, Konstanz DE). Not shipped in the app.
 > - App: precedence per day and point becomes **national (home country)
 >   > DWD radar > model** in `rainCoursesFromStacks` and `AmpelLevels`.
 >   `RainDay.source` gains the national sources; the sheet names them
