@@ -1,0 +1,101 @@
+name: Forest Species CH
+
+# Builds the Swiss tree-species grid from the "Tree species map of
+# Switzerland" (WSL / UZH, EnviDat, CC BY-SA 4.0). See
+# tool/forest_species_ch.py for the cell format and the 10 % rule.
+#
+# The map is not public: access was granted on request, and the share
+# link lives only in the secret CH_TREE_SPECIES_URL. Its token is masked
+# before the first request and never written to a file in the repo.
+#
+# Unlike the other grids this run COMMITS the two files when it runs on
+# a feature branch: this environment cannot download workflow
+# artifacts, and the source can only be read here. On main (hand-started
+# yearly) it uploads them as an artifact instead — main is protected,
+# and an asset change belongs in a reviewed PR with a version bump.
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/ch-tree-species]
+    paths:
+      - tool/forest_species_ch.py
+      - .github/workflows/forest-species-ch.yml
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Download the Swiss map and build the grid
+    runs-on: ubuntu-latest
+    # ~100 MB download, one warp of the Swiss window, ~1 min counting.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Self-test first
+        run: python3 tool/forest_species_ch.py --self-test
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h .
+
+      # Same declared deviation as the other grids: GDAL reprojects, it
+      # never calculates. Counting and encoding stay hand-written and
+      # self-tested.
+      - name: Install GDAL
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q gdal-bin
+
+      - name: Download raster and legend
+        env:
+          SHARE_URL: ${{ secrets.CH_TREE_SPECIES_URL }}
+        run: |
+          if [ -z "$SHARE_URL" ]; then echo "::error::secret CH_TREE_SPECIES_URL missing"; exit 1; fi
+          TOKEN="${SHARE_URL##*/s/}"; TOKEN="${TOKEN%%/*}"
+          echo "::add-mask::$TOKEN"
+          BASE="${SHARE_URL%%/index.php*}"
+          # File by file over WebDAV — the zip endpoint answers with an
+          # XML error for this share.
+          mkdir -p share
+          for f in tree_species_map_aoa_raster_labels.txt tree_species_map_aoa_raster.tif; do
+            curl -sS -f -u "$TOKEN:" "$BASE/public.php/webdav/$f" -o "share/$f"
+          done
+          ls -la share
+
+      - name: Build the grid
+        run: |
+          python3 tool/forest_species_ch.py build \
+            --source share/tree_species_map_aoa_raster.tif \
+            --labels share/tree_species_map_aoa_raster_labels.txt \
+            --out build/ch
+
+      - name: Commit the grid to the feature branch
+        if: github.ref != 'refs/heads/main'
+        run: |
+          cp build/ch/forest_species_ch.bin.gz build/ch/forest_species_ch_manifest.json assets/forest/
+          git add assets/forest/forest_species_ch.bin.gz assets/forest/forest_species_ch_manifest.json
+          if git diff --cached --quiet; then
+            echo "Grid unchanged." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore(forest): build the Swiss tree-species grid"
+          git push
+
+      - name: Upload the grid as an artifact
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v7
+        with:
+          name: forest-species-ch
+          path: |
+            build/ch/forest_species_ch.bin.gz
+            build/ch/forest_species_ch_manifest.json
+          retention-days: 30

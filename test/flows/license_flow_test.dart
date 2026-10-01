@@ -25,6 +25,8 @@ const _attributedAssets = <String, String>{
   'assets/forest/forest_species_manifest.json': 'DLR',
   'assets/forest/forest_species_eu.bin.gz': 'ForestPaths',
   'assets/forest/forest_species_eu_manifest.json': 'ForestPaths',
+  'assets/forest/forest_species_ch.bin.gz': 'Baumarten Schweiz (WSL)',
+  'assets/forest/forest_species_ch_manifest.json': 'Baumarten Schweiz (WSL)',
   'assets/elevation/elevation.bin.gz': 'Copernicus DEM',
   'assets/elevation/elevation_manifest.json': 'Copernicus DEM',
   'assets/gbif/gbif_finds.bin.gz': 'GBIF',

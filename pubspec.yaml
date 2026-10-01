@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.220.1+326
+version: 1.221.0+327
 
 environment:
   sdk: ^3.11.0
@@ -237,6 +237,8 @@ flutter:
     # forest-species-eu.yml (tool/forest_species_eu.py).
     - assets/forest/forest_species_eu.bin.gz
     - assets/forest/forest_species_eu_manifest.json
+    - assets/forest/forest_species_ch.bin.gz
+    - assets/forest/forest_species_ch_manifest.json
 
     # Höhengitter (#279-Rest): Copernicus DEM GLO-90, dasselbe Hex-Raster
     # wie oben, DACH (~3,4 MB). Erzeugt vom Workflow elevation-data.yml

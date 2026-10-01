@@ -72,8 +72,8 @@ class SpotForestSection extends ConsumerWidget {
   }
 }
 
-/// Die Artenzeile — gemessen in Deutschland (DLR), geschätzt außerhalb
-/// (ForestPaths, #624), und nur wo etwas zu benennen ist.
+/// Die Artenzeile — gemessen in Deutschland (DLR) und der Schweiz (WSL),
+/// geschätzt sonst (ForestPaths, #624), und nur wo etwas zu benennen ist.
 ///
 /// Eigenes Widget, damit ein fehlendes Artengitter nur DIESE Zeile
 /// kostet und nicht die Waldzeile darüber.
@@ -94,18 +94,32 @@ class _SpeciesLine extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final measuredAsync = ref.watch(forestSpeciesGridProvider);
     // Erst die Antwort des DLR-Gitters abwarten: Während es lädt, sähe
-    // es aus wie „schweigt", und das Rückfall-Gitter würde an jedem
+    // es aus wie „schweigt", und das nächste Gitter würde an jedem
     // deutschen Spot mit ausgepackt (im Test so gefunden).
     if (measuredAsync.isLoading) return const SizedBox.shrink();
     final measured = measuredAsync.valueOrNull;
     final byte = measured?.byteAt(lat, lon);
-    // Beobachten ist laden: Das Rückfall-Gitter wird erst angefasst, wo
-    // das DLR-Gitter schweigt — ein Spot in Deutschland packt es nie aus.
+    // Beobachten ist laden: Jedes weitere Gitter wird erst angefasst, wo
+    // das vorige schweigt — ein Spot in Deutschland packt keins davon
+    // aus, einer in der Schweiz nicht ForestPaths.
     final dlrSilent = byte == null || byte == speciesNoData;
-    final fallback =
-        dlrSilent ? ref.watch(forestSpeciesEuGridProvider).valueOrNull : null;
-    final reading = forestSpeciesReadingAt(measured, fallback, lat, lon);
-    if (reading == null) return const SizedBox.shrink();
+    final swissAsync =
+        dlrSilent ? ref.watch(forestSpeciesChGridProvider) : null;
+    if (swissAsync?.isLoading ?? false) return const SizedBox.shrink();
+    final swiss = swissAsync?.valueOrNull;
+    final swissSilent = swiss?.at(lat, lon) == null;
+    final fallback = dlrSilent && swissSilent
+        ? ref.watch(forestSpeciesEuGridProvider).valueOrNull
+        : null;
+    final line = treeSpeciesLineAt(
+      dlr: measured,
+      swiss: swiss,
+      forestPaths: fallback,
+      lat: lat,
+      lon: lon,
+      coniferPercent: coniferPercent,
+    );
+    if (line == null) return const SizedBox.shrink();
 
     // Wo das Waldgitter „kein Wald" sagt, die Artenkarte aber Bäume
     // kennt, sind es Waldränder — gemessen 3,9 % der Zellen (#227).
@@ -113,18 +127,22 @@ class _SpeciesLine extends ConsumerWidget {
     // Eiche am Wiesenrand ist für einen Sammler ein Hinweis, kein
     // Widerspruch.
     final prefix = isForest ? 'Bäume' : 'Einzelne Bäume';
-    final phrase =
-        speciesPhrase(reading.names, coniferPercent: coniferPercent);
-    // Die Schätzung sagt, was sie ist, und was sie nicht sehen kann —
-    // sonst läse sich „Fichte" als „hier keine Lärche" (#624).
-    final source = reading.estimated
-        ? 'Satellitenschätzung, Lärche nicht erkennbar · '
-            'Stand ${reading.referenceYear}'
-        : 'Stand ${reading.referenceYear}';
+    // Jede Quelle sagt, was sie ist und was sie nicht sehen kann — sonst
+    // läse sich „Fichte" als „hier keine Lärche" (#624). Die Schweizer
+    // Karte kennt Lärche gar nicht.
+    final source = switch (line.source) {
+      TreeSpeciesSource.dlr => 'Stand ${line.referenceYear}',
+      TreeSpeciesSource.swiss =>
+        'Baumartenkarte Schweiz, Lärche nicht erfasst · '
+            'Stand ${line.referenceYear}',
+      TreeSpeciesSource.forestPaths =>
+        'Satellitenschätzung, Lärche nicht erkennbar · '
+            'Stand ${line.referenceYear}',
+    };
     return Padding(
       padding: const EdgeInsets.only(top: 2, left: 24),
       child: Text(
-        '$prefix: $phrase · $source',
+        '$prefix: ${joinTreeNames(line.names)} · $source',
         style: Theme.of(context).textTheme.bodySmall,
       ),
     );
