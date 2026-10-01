@@ -77,6 +77,19 @@ class FeatureHighlight {
 const kFeatureHighlights = <FeatureHighlight>[
   // ─── Highlights ──────────────────────────────────────────────────
   FeatureHighlight(
+    id: 'regen-gemessen',
+    since: '1.222.0',
+    kind: HighlightKind.highlight,
+    tab: HighlightTab.map,
+    icon: Icons.water_drop_outlined,
+    title: 'Gemessener Regen in den Alpen',
+    text: 'In Österreich, der Schweiz und Norditalien kommt der Regen jetzt '
+        'aus den Messungen der Wetterdienste dieser Länder statt aus dem '
+        'Wettermodell. An den Grenzen gehen die Messungen weich ineinander '
+        'über — auf der Karte, im Spot-Blatt und in der Ampel.',
+    target: '/',
+  ),
+  FeatureHighlight(
     id: 'regen-rueckblick',
     since: '1.220.0',
     kind: HighlightKind.highlight,
@@ -108,7 +121,7 @@ const kFeatureHighlights = <FeatureHighlight>[
     icon: Icons.landscape_outlined,
     title: 'Wetter und Ampel in den Alpen',
     text: 'Regen, Temperatur und die Pilzwetter-Ampel gibt es jetzt auch '
-        'in Österreich, der Schweiz und Südtirol. Wo kein Radar hinreicht, '
+        'in Österreich, der Schweiz und Südtirol. Wo nichts gemessen wird, '
         'stehen Werte aus dem Wettermodell — das Spot-Blatt sagt es dazu.',
     target: '/',
   ),

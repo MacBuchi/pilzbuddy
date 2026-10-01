@@ -7,6 +7,27 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Gemessener Regen in Österreich, der Schweiz und Norditalien
+
+*2. Oktober 2026 · Version 1.222.0*
+
+- Jenseits der deutschen Grenze kam der Regen bisher aus dem
+  **Wettermodell**. Jetzt kommt er aus den **Messungen der Wetterdienste**
+  dieser Länder: GeoSphere Austria für Österreich, MeteoSchweiz für die
+  Schweiz und Liechtenstein, der Zivilschutz (Radar-DPC) für
+  Norditalien. In Österreich lag das Modell im Mittel rund ein Fünftel
+  zu niedrig.
+- An den **Grenzen** gehen die Messungen auf rund 30 km weich ineinander
+  über, auch in das Radar des Deutschen Wetterdienstes. Es gibt keine
+  Kante mehr, und nichts wird doppelt gezählt.
+- Das gilt überall gleich: auf der **Regen-Karte**, im **Spot-Blatt** und
+  in der **Pilzwetter-Ampel**.
+- Unter dem Regen-Diagramm im Spot-Blatt steht, **welcher Wetterdienst**
+  gemessen hat — und wo an der Grenze mehrere beteiligt sind, steht das
+  auch.
+- Wo keiner dieser Dienste misst, etwa in Slowenien, bleibt es beim
+  Wettermodell.
+
 ## Baumarten in der Schweiz — alle, die im Wald stehen
 
 *1. Oktober 2026 · Versionen 1.221.0, 1.221.1*

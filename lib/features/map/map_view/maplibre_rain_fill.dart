@@ -15,12 +15,16 @@ import 'maplibre_image_fill.dart';
 const rainFillSourceId = 'regen-flaeche';
 const rainFillLayerId = 'regen-flaeche';
 
-/// Die Summenfläche des Alpenraums aus dem Modell-Stapel — eine eigene
+/// Die Summenfläche des Alpenraums — gemessen aus dem Alpenstapel
+/// (#646), wo er etwas sagt, sonst aus dem Modell-Stapel. Eine eigene
 /// Quelle, weil sie ein anderes Gitter mit anderen Grenzen ist. Die
-/// Reihenfolge zur Radarfläche ist gleichgültig: Die Modellmaske spart
-/// Deutschland aus, die beiden überdecken sich nicht.
-const modelRainFillSourceId = 'regen-modell';
-const modelRainFillLayerId = 'regen-modell';
+/// Reihenfolge zur Radarfläche ist gleichgültig: Jede spart aus, was die
+/// andere zeigt, die beiden überdecken sich nicht.
+///
+/// Die Kennung heißt seit 1.212.0 so und bleibt: Sie steht nur im Stil
+/// der laufenden Karte, ein neuer Name brächte nichts.
+const alpineRainFillSourceId = 'regen-modell';
+const alpineRainFillLayerId = 'regen-modell';
 
 /// `linear`, **anders als beim DWD-Bild**, und die Abweichung ist eine
 /// bewusste Kehrtwende: Seit die Fläche die Aussage trägt (1.48.0),
@@ -35,7 +39,7 @@ const rainFillResampling = 'linear';
 /// Verhalten wie [applyImageFill], siehe dort.
 ///
 /// [sourceId]/[layerId] wählen die Fläche: die Radar- bzw. W4-Fläche
-/// (Vorgabe) oder die des Alpenraums ([modelRainFillSourceId]).
+/// (Vorgabe) oder die des Alpenraums ([alpineRainFillSourceId]).
 Future<String?> applyRainFill(
   ml.StyleController style, {
   required ({String url, RainFill fill})? fill,

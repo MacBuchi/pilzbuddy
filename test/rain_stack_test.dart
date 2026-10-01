@@ -4,6 +4,8 @@
 // und genau deshalb wird sie hier von Hand nachgerechnet. Was NICHT
 // einfach ist: was passieren soll, wenn ein Tag fehlt. Eine Summe über
 // unvollständige Tage sieht aus wie eine vollständige und ist zu klein.
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/features/map/rain_grid.dart';
 import 'package:pilzbuddy/features/map/rain_stack.dart';
@@ -111,6 +113,91 @@ void main() {
       final course = rainCoursesFromStacks([radar, model], points: points).first;
       expect(course.days.single.mm, isNull);
       expect(course.modelDays, 0);
+    });
+  });
+
+  group('Alpenstapel zuerst, dann Radar, dann Modell (#646)', () {
+    // Alles 2×1 über 10..14° O: links (11°) liegt der Alpenstapel, rechts
+    // (13°) ist er leer — wie im deutschen Landesinneren, wo er 255
+    // trägt und das Radar antworten soll.
+    List<({DateTime date, List<int> gzipped})> days(
+            List<(int, int)> values) =>
+        [
+          for (final (i, (left, right)) in values.indexed)
+            (
+              date: DateTime.utc(2026, 9, 1).add(Duration(days: i)),
+              gzipped: encode([
+                [left, right]
+              ]),
+            ),
+        ];
+    RainStackData stackOf(RainStackKind kind, List<(int, int)> values,
+            {List<(int, int)> origins = const []}) =>
+        RainStackData(
+          kind: kind,
+          info: const RainStackInfo(
+              width: 2, height: 1, west: 10, east: 14, north: 55,
+              south: 47, days: []),
+          days: days(values),
+          origins: days(origins),
+        );
+    final points = [(lat: 51.0, lon: 11.0), (lat: 51.0, lon: 13.0)];
+
+    test('der Alpenstapel gewinnt, wo er etwas sagt; sonst das Radar', () {
+      final alps = stackOf(RainStackKind.alps, [(9, 255), (8, 255)],
+          origins: [
+            (AlpsOrigin.inca | AlpsOrigin.radar, 0),
+            (AlpsOrigin.inca, 0),
+          ]);
+      final radar = stackOf(RainStackKind.radar, [(1, 2), (1, 3)]);
+      final model = stackOf(RainStackKind.model, [(5, 5), (5, 5)]);
+      final courses =
+          rainCoursesFromStacks([alps, radar, model], points: points);
+
+      final border = courses[0];
+      expect([for (final d in border.days) d.mm], [9, 8]);
+      expect(border.days.every((d) => d.source == RainSource.alps), isTrue);
+      expect([for (final d in border.days) d.origin],
+          [AlpsOrigin.inca | AlpsOrigin.radar, AlpsOrigin.inca],
+          reason: 'die Herkunft wird an derselben Zelle gelesen wie der '
+              'Wert');
+      expect(border.alpsDays, 2);
+      expect(border.alpsOrigin, AlpsOrigin.inca | AlpsOrigin.radar);
+
+      final inland = courses[1];
+      expect([for (final d in inland.days) d.mm], [2, 3],
+          reason: 'im Landesinneren ist der Alpenstapel leer, das Radar '
+              'antwortet — nicht das Modell');
+      expect(inland.days.every((d) => d.source == RainSource.radar), isTrue);
+      expect(inland.alpsDays, 0);
+    });
+
+    test('ohne Herkunftsdatei gilt die Zahl trotzdem, nur ohne Bits', () {
+      final alps = stackOf(RainStackKind.alps, [(9, 255)]);
+      final course =
+          rainCoursesFromStacks([alps], points: points).first.days.single;
+      expect(course.mm, 9);
+      expect(course.source, RainSource.alps);
+      expect(course.origin, 0);
+    });
+
+    test('die Bits sind dieselben wie im Werkzeug', () {
+      // `tool/alps_rain.py` schreibt sie, die App liest sie. Zwei Listen
+      // derselben Zahlen laufen still auseinander, wenn niemand beide
+      // liest.
+      final tool = File('tool/alps_rain.py').readAsStringSync();
+      final bits = RegExp(r'SOURCE_BITS = \{([^}]*)\}').firstMatch(tool)!;
+      final pairs = {
+        for (final m in RegExp(r'"(\w+)": (\d+)').allMatches(bits[1]!))
+          m[1]!: int.parse(m[2]!),
+      };
+      expect(pairs, {
+        'inca': AlpsOrigin.inca,
+        'rprelimd': AlpsOrigin.rprelimd,
+        'dpc': AlpsOrigin.dpc,
+        'radar': AlpsOrigin.radar,
+        'model': AlpsOrigin.model,
+      });
     });
   });
 

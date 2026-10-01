@@ -369,6 +369,112 @@ void main() {
             'eigenen Namen');
   });
 
+  group('der gemessene Alpenstapel (#646)', () {
+    String manifest(String sha, String originSha) =>
+        '{"alps": {"rain": {"width": 2, "height": 2, "west": 5.9, '
+        '"east": 17.2, "north": 49.1, "south": 45.6, "days": ['
+        '{"date": "2026-09-30", "file": "alps_rain_20260930.bin.gz", '
+        '"sha256": "$sha", "origin": {"file": '
+        '"alps_origin_20260930.bin.gz", "sha256": "$originSha"}}]}}}';
+
+    test('liest seinen Abschnitt samt Herkunftsbits', () async {
+      final value = GZipEncoder().encode(<int>[7, 0, 0, 0])!;
+      final bits = GZipEncoder().encode(<int>[1, 0, 0, 0])!;
+      final client = MockClient((request) async {
+        final path = request.url.path;
+        if (path.endsWith('rain_manifest.json')) {
+          return http.Response(manifest('a' * 64, 'b' * 64), 200);
+        }
+        if (path.endsWith('alps_origin_20260930.bin.gz')) {
+          return http.Response.bytes(bits, 200);
+        }
+        expect(path, endsWith('alps_rain_20260930.bin.gz'));
+        return http.Response.bytes(value, 200);
+      });
+      final stack = await repo(client: client).loadAlpsStack();
+      expect(stack, isNotNull);
+      expect(stack!.kind, RainStackKind.alps);
+      expect(stack.days.single.gzipped, value);
+      expect(stack.origins.single.gzipped, bits);
+    });
+
+    test('ein neu gemischter Tag wird neu geladen, obwohl er gleich heißt',
+        () async {
+      // CI mischt einen Tag erneut, sobald GeoSphere oder MeteoSchweiz
+      // nachliefern — der Dateiname bleibt. Ging der Zwischenspeicher
+      // nach dem Namen, behielte das Gerät den halb gemischten Stand.
+      var sha = '1' * 64;
+      var payload = 3;
+      final downloads = <String>[];
+      final client = MockClient((request) async {
+        final path = request.url.path;
+        if (path.endsWith('rain_manifest.json')) {
+          return http.Response(manifest(sha, 'c' * 64), 200);
+        }
+        downloads.add(path.split('/').last);
+        return http.Response.bytes(
+            GZipEncoder().encode(<int>[payload, 0, 0, 0])!, 200);
+      });
+      await repo(client: client).loadAlpsStack();
+      expect(downloads, hasLength(2));
+
+      // Unverändert: nichts wird nachgeladen.
+      downloads.clear();
+      await repo(client: client).loadAlpsStack();
+      expect(downloads, isEmpty);
+
+      // Neu gemischt: nur der Tag, nicht die unveränderte Herkunft.
+      sha = '2' * 64;
+      payload = 9;
+      final stack = await repo(client: client).loadAlpsStack();
+      expect(downloads, ['alps_rain_20260930.bin.gz']);
+      expect(GZipDecoder().decodeBytes(stack!.days.single.gzipped).first, 9);
+
+      final left = Directory('${base.path}/rain')
+          .listSync()
+          .map((e) => e.path.split('/').last)
+          .toSet();
+      expect(left, {
+        'alps_stack.json',
+        'alps_rain_20260930_222222222222.bin.gz',
+        'alps_origin_20260930_cccccccccccc.bin.gz',
+      }, reason: 'der alte Stand geht, das gemerkte Manifest bleibt — '
+          'es fängt ebenfalls mit „alps_" an');
+    });
+
+    test('ohne Empfang kommt derselbe Stand von Platte', () async {
+      final value = GZipEncoder().encode(<int>[5, 0, 0, 0])!;
+      final online = MockClient((request) async =>
+          request.url.path.endsWith('rain_manifest.json')
+              ? http.Response(manifest('d' * 64, 'e' * 64), 200)
+              : http.Response.bytes(value, 200));
+      await repo(client: online).loadAlpsStack();
+
+      final offline = MockClient((_) async => throw const SocketException(''));
+      final stack = await repo(client: offline).loadAlpsStack();
+      expect(stack!.days.single.gzipped, value);
+      expect(stack.origins, hasLength(1),
+          reason: 'das gemerkte Manifest trägt die Herkunft mit');
+    });
+  });
+
+  test('Radar- und Modelltage behalten ihren Namen auf Platte', () {
+    // Sie werden nie neu geschrieben, tragen im Manifest aber trotzdem
+    // eine Prüfsumme. Stünde die im Namen, lüde jedes Gerät nach dem
+    // Update beide Stapel ein zweites Mal.
+    final json = {
+      'date': '2026-09-01',
+      'file': 'rain_day_20260901.bin.gz',
+      'sha256': 'f' * 64,
+    };
+    expect(RainStackDay.fromJson(json).cacheName, 'rain_day_20260901.bin.gz');
+    expect(RainStackDay.fromJson(json, versioned: true).cacheName,
+        'rain_day_20260901_ffffffffffff.bin.gz');
+    expect(RainStackKind.radar.versioned, isFalse);
+    expect(RainStackKind.model.versioned, isFalse);
+    expect(RainStackKind.alps.versioned, isTrue);
+  });
+
   group('die Adresse für den Browser', () {
     test('zeigt nicht auf die Release-Anhänge', () {
       // Gemessen am 2026-09-02: `github.com/…/releases/download/…`

@@ -51,10 +51,12 @@ void main() {
   Future<void> settleRain(WidgetTester tester, RainLayer layer) async {
     final container = containerOf(tester);
     await tester.runAsync(() async {
-      // Die Modellsumme zuerst: Die Fläche rechnet neu, sobald sie da
-      // ist (Übergang am Radarrand), und dieser Neubau muss hier laufen,
-      // nicht in der Test-Zone.
+      // Modell- und Alpensumme zuerst: Die Fläche rechnet neu, sobald
+      // sie da sind (Übergang am Radarrand, Aussparung unter dem
+      // Alpenstapel), und dieser Neubau muss hier laufen, nicht in der
+      // Test-Zone.
       await container.read(modelRainSumProvider(layer).future);
+      await container.read(alpsRainSumProvider(layer).future);
       await container.read(rainContoursProvider(layer).future);
       await container.read(rainFillProvider(layer).future);
     });
@@ -468,9 +470,10 @@ void main() {
     final container = containerOf(tester);
     await tester.runAsync(() async {
       await container.read(modelRainSumProvider(layer).future);
+      await container.read(alpsRainSumProvider(layer).future);
       await container.read(rainContoursProvider(layer).future);
       await container.read(rainFillProvider(layer).future);
-      await container.read(modelRainFillProvider.future);
+      await container.read(alpineRainFillProvider.future);
     });
     await settle(tester);
   }
@@ -576,6 +579,7 @@ void main() {
     // käme nie zurück.
     await tester.runAsync(() async {
       await containerOf(tester).read(modelRainSumProvider(RainLayer.last30d).future);
+      await containerOf(tester).read(alpsRainSumProvider(RainLayer.last30d).future);
       await containerOf(tester).read(modelStackRunProvider(RainLayer.last30d).future);
     });
     await openLayerSheet(tester, 'Regen');
@@ -595,6 +599,7 @@ void main() {
 
   test('Spot-Blatt „30 Tage": außerhalb Deutschlands die Modellsumme', () async {
     final container = ProviderContainer(overrides: [
+      alpsRainStackLoaderProvider.overrideWithValue(() async => null),
       rainCourseEnabledProvider.overrideWith((ref) => true),
       rainGridLoaderProvider.overrideWithValue((_) async => coneGrid()),
       modelRainStackLoaderProvider
@@ -613,6 +618,7 @@ void main() {
     // Seiten läuft trotzdem über dieselbe Woche (Bildschirmfoto
     // 2026-10-01: ein Tag Versatz an der Grenze).
     final container = ProviderContainer(overrides: [
+      alpsRainStackLoaderProvider.overrideWithValue(() async => null),
       rainStackLoaderProvider
           .overrideWithValue(() async => stackOf(26, mm: 1)),
       modelRainStackLoaderProvider.overrideWithValue(() async => RainStackData(

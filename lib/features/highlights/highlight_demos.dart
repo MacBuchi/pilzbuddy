@@ -165,13 +165,26 @@ final kHighlightDemos = <String, HighlightDemo>{
       ),
     ]),
   ),
+  'regen-gemessen': HighlightDemo(
+    route: '/',
+    script: _demo('regen-gemessen', const [
+      CoachStep(
+        title: 'Woher der Regen kommt',
+        text: 'Unter „Regen" liegen die Summen jetzt auch in den Alpen aus '
+            'Messungen. Im Spot-Blatt steht unter dem Diagramm, welcher '
+            'Wetterdienst gemessen hat.',
+        scene: MapCoach.layersSheet,
+        lit: [MapCoach.layersRain],
+      ),
+    ]),
+  ),
   'regen-rueckblick': HighlightDemo(
     route: '/',
     script: _demo('regen-rueckblick', const [
       CoachStep(
         title: 'Zeitraum wählen',
-        text: 'Unter „Regen" stehen jetzt 7, 14 und 30 Tage. Außerhalb '
-            'Deutschlands rechnet die App die Summe aus dem Wettermodell.',
+        text: 'Unter „Regen" stehen jetzt 7, 14 und 30 Tage — in '
+            'Deutschland und im ganzen Alpenraum.',
         scene: MapCoach.layersSheet,
         lit: [MapCoach.layersRain],
       ),
@@ -182,9 +195,9 @@ final kHighlightDemos = <String, HighlightDemo>{
     script: _demo('alpen-wetter', const [
       CoachStep(
         title: 'Auch jenseits der Grenze',
-        text: 'Regen und Ampel liegen wie bisher unter „Ebenen". Außerhalb '
-            'Deutschlands kommen die Zahlen aus dem Wettermodell statt vom '
-            'Radar — im Spot-Blatt steht dann „Modellwerte".',
+        text: 'Regen und Ampel liegen wie bisher unter „Ebenen". Wo kein '
+            'Wetterdienst misst, kommen die Zahlen aus dem Wettermodell — im '
+            'Spot-Blatt steht dann „Modellwerte".',
         scene: MapCoach.layersSheet,
         lit: [MapCoach.layersRain],
       ),
