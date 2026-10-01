@@ -922,6 +922,17 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   ab**. Die Prüfungen in `test/web_shell_test.dart` fangen nur die Fallen,
   die man im Diff übersieht — eine falsche Entscheidung im Worker sehen
   sie nicht.
+  **„Beim ersten Versuch rot, beim zweiten grün" war kein Zufall**
+  (behoben 2026-10-01): zwei Zeitfehler des PRÜFERS, beide nur auf einem
+  langsamen Runner. Der Vorlauf von Schritt 1 räumte nach 2 s aus der
+  Seite ab, während der Worker noch installierte („0 im Cache"); jetzt
+  räumt `Storage.clearDataForOrigin` vor dem ersten Laden. Und Chrome
+  schickt die erste Update-Prüfung nach dem Installieren erst rund eine
+  Minute später ab; je nach Tempo fiel diese Minute in den 30-s-Rahmen
+  des neuen Deploys, der jetzt 120 s hat. Nachstellen lässt sich ein
+  langsamer Runner mit `CPU_SLOW=6 node tool/check_service_worker.mjs
+  build/web` — damit war vorher jeder Lauf rot. Wer dort wieder rot
+  sieht: erst so nachstellen, nicht neu starten.
 - **Die Web-Fassung lädt Roboto von `fonts.gstatic.com`** — gemessen am
   2026-09-04, bei jedem Seitenaufruf und vor jeder Anmeldung. Das ist
   Flutters Vorgabe für die Standardschrift und hat mit CanvasKit nichts zu
