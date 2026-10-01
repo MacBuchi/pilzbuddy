@@ -117,7 +117,7 @@ DE_BORDER = [
     (13.45, 48.55), (13.84, 48.77),
 ]
 
-RAIN_DAYS = rain_grid.DAILY["days"]      # 26 — the Ampel's rain window
+RAIN_DAYS = 26                           # the Ampel's rain window
 TEMP_DAYS = spot_weather.DAYS            # 28 — the station table's window
 # How many days the stack holds: the Ampel needs 26 rain days and the
 # station table 28 temperature days, and since 1.220.0 the app sums the

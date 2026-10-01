@@ -39,13 +39,16 @@ on:
     # fetch while the last one is under an hour old (the cron above can
     # be hours late).
     - cron: "41 18 * * *"
+    # The measured Alpine stack (#646) rides on both model runs: it
+    # blends the model in, and MeteoSwiss publishes day D only at D+1
+    # 12:17 UTC, so the evening run is the one that completes Switzerland.
   workflow_dispatch:
     inputs:
       layer:
         description: "Which layer to rebuild (empty = w4 and sf)"
         required: false
         type: choice
-        options: ["", "w4", "sf", "daily", "weather", "model"]
+        options: ["", "w4", "sf", "daily", "weather", "model", "alps"]
         default: ""
 
 # Never two runs at once — they would race on the shared manifest. Not
@@ -64,7 +67,8 @@ jobs:
     runs-on: ubuntu-latest
     # The daily run now also walks two station networks (~900 small ZIPs,
     # sequential with retries) on top of the day grids.
-    timeout-minutes: 35
+    # The first run of the Alpine stack fetches and warps 3 x 30 days.
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@v7
 
@@ -77,6 +81,7 @@ jobs:
           python3 tool/rain_grid.py --self-test
           python3 tool/spot_weather.py --self-test
           python3 tool/model_weather.py --self-test
+          python3 tool/alps_rain.py --self-test
 
       - name: Pick layers
         id: pick
@@ -91,8 +96,8 @@ jobs:
           case "$SCHEDULE" in
             "17 6 * * *") layers="w4" ;;
             "47 */3 * * *") layers="sf" ;;
-            "23 7 * * *") layers="daily weather model" ;;
-            "41 18 * * *") layers="model" ;;
+            "23 7 * * *") layers="daily weather model alps" ;;
+            "41 18 * * *") layers="model alps" ;;
             *) layers="$LAYER_INPUT" ;;
           esac
           [ -n "$layers" ] || layers="w4 sf"
@@ -133,6 +138,23 @@ jobs:
               gh release download rain-data --pattern 'model_*' \
                 --dir build/rain || echo "no model files yet (first run)"
               python3 tool/model_weather.py --out build/rain
+            elif [ "$layer" = "alps" ]; then
+              # The measured Alpine stack (#646), AFTER daily and model:
+              # it blends both in. GDAL only reprojects (tool/alps_rain.py).
+              command -v gdalwarp >/dev/null || {
+                sudo apt-get update -qq
+                sudo apt-get install -y -qq gdal-bin >/dev/null
+              }
+              # Day files of earlier runs, read but not re-uploaded: the
+              # radar and model days the blend needs, and the national
+              # days a changed input makes it blend again.
+              mkdir -p build/inputs
+              for pattern in 'rain_day_*' 'model_rain_*' 'at_rain_*' \
+                             'ch_rain_*' 'it_rain_*'; do
+                gh release download rain-data --pattern "$pattern" \
+                  --dir build/inputs --skip-existing || true
+              done
+              python3 tool/alps_rain.py --out build/rain --inputs build/inputs
             else
               python3 tool/rain_grid.py --layer "$layer" --out build/rain
             fi
@@ -150,6 +172,13 @@ jobs:
         run: |
           for layer in ${{ steps.pick.outputs.layers }}; do
             [ "$layer" = "weather" ] && continue
+            if [ "$layer" = "alps" ]; then
+              # Freshness per source, the blend's bounds on real data,
+              # and INCA against GeoSphere's station grid SPARTACUS.
+              python3 tool/alps_rain.py --verify --out build/rain \
+                --inputs build/inputs
+              continue
+            fi
             if [ "$layer" = "model" ]; then
               # Six random lattice points, re-asked one by one: catches a
               # shifted lattice, swapped max/min, or a stale day file.
@@ -206,6 +235,24 @@ jobs:
             fi
           done < published_model.txt
           echo "Modellstapel: $(wc -l < build/model_keep.txt) Dateien"
+
+      - name: Drop Alpine files the measured stack no longer keeps
+        # Own list, five prefixes: the three national sources, the
+        # blended days and their origin planes (tool/alps_rain.py).
+        if: hashFiles('build/alps_keep.txt') != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view rain-data --json assets --jq '.assets[].name' \
+            | grep -E '^(at_rain|ch_rain|it_rain|alps_rain|alps_origin)_' \
+            > published_alps.txt || true
+          while read -r asset; do
+            if ! grep -qx "$asset" build/alps_keep.txt; then
+              echo "Entferne $asset"
+              gh release delete-asset rain-data "$asset" --yes
+            fi
+          done < published_alps.txt
+          echo "Alpenstapel: $(wc -l < build/alps_keep.txt) Dateien"
 
       - name: Mirror the release into a branch the browser can read
         # Release assets carry NO `access-control-allow-origin` header, so

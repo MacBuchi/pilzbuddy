@@ -398,9 +398,81 @@ dasselbe Land ist genau das, was dem Radarstapel mit `--verify` gegen
 **Warum „nur im eigenen Land“:** Die Gitter reichen alle über die
 Grenzen, und jenseits davon taugen sie wenig (Tabelle oben). Ohne eine
 Länderzuordnung würde in Italien INCA vor DPC gewinnen oder in Österreich
-DPC einspringen. Die Zuordnung gehört in den CI-Bau, nicht in die App:
-Jede Quelle wird vor dem Kodieren auf ihr Land beschnitten, die Stapel
-sind dann disjunkt, und die App braucht keine Länder zu kennen.
+DPC einspringen. Die Zuordnung gehört in den CI-Bau, nicht in die App.
+
+**An den Grenzen gemischt, nicht geschnitten** (Betreiber, 2026-10-01:
+„über die Landesgrenzen keine scharfe Kante … wie gaußscher
+Weichzeichner bzw. Crossfade“, und die Ampel soll dieselben Daten
+nutzen, ohne Dopplung durch Überlappung). Disjunkt beschnittene Stapel
+hätten an jeder Grenze eine Kante — in der Regenfläche UND in der
+Ampel, denn beide lesen denselben Vorrang. Gebaut ist deshalb EIN
+gemischter Stapel `alps_rain_*` (`tool/alps_rain.py`):
+
+- Jede Zelle gehört einer Quelle (Land aus der Maske; Deutschland →
+  DWD-Radar, alle übrigen Länder → Modell). Zwei Übergaben vorher: Das
+  Grenzband Italiens geht an die Nachbarn, DPC hat damit AN der Grenze
+  schon das Gewicht 0 (DPC in AT 0,38, in CH 0,44 — oben). Und
+  Deutschland, Österreich und die Schweiz reichen um dasselbe Band in
+  die Modell-Länder hinein — das Modell hat innerhalb der drei nie
+  Gewicht.
+- Die Zuordnung wird weichgezeichnet: drei Kastenfilter von 17 Zellen
+  (≈ Gauß, σ ≈ 6 km), Übergang über ≈ 32 km, 10–90 % auf ≈ 15 km.
+  Ein weichgezeichneter Satz von Anteilen, die überall 1 ergeben, ergibt
+  wieder überall 1: **Zwei Quellen können sich nicht addieren.**
+- Endet eine Quelle mitten im Band (RprelimD hinter Como, das Radar bei
+  47,2° N), läuft ihr Gewicht über dieselbe Strecke aus, statt an der
+  Datenkante abzureißen. Das Gewicht geht zuerst an die übrigen
+  Messungen, ans Modell nur, wo keine Messung mehr trägt.
+- Ergebnis ist überall ein gewichtetes Mittel: nie über der größten,
+  nie unter der kleinsten beteiligten Quelle.
+
+Geprüft im Selbsttest auf der ECHTEN Maske: Alle Quellen mit demselben
+Feld müssen exakt dieses Feld ergeben, auch an jeder Grenze (der
+Dopplungstest, auf Anregung des Betreibers mit der echten Grenze statt
+einer erfundenen); und konstante Quellen von 10 bis 60 mm dürfen
+zwischen Nachbarzellen höchstens 3 mm springen. Gegenprobe: ohne die
+Normierung ändern sich 62 598 Zellen, mit „erste Quelle gewinnt“
+springt es um 50 mm. Daneben wird je Tag eine Herkunftsebene
+`alps_origin_*` geschrieben (ein Bit je Quelle mit mindestens 5 %
+Anteil), damit die App am Spot sagen kann, woher der Wert kommt.
+
+**Probelauf auf den 30 echten Tagen** (2026-08-31…09-29, die Dateien
+der Messung oben, `gdalwarp` lokal durch rasterio mit demselben GDAL
+ersetzt): Bau 209 s für 3 × 30 Quelltage und 30 Mischtage, gemischte
+Tage 5–89 KB. `--verify` danach:
+
+| Prüfung | Ergebnis |
+|---|---|
+| Mischung, 381 Zellen des jüngsten Tages | 0 außerhalb ihrer Quellen, 0 im Landesinneren ungleich der Landesquelle |
+| INCA / SPARTACUS, Österreich | Median 1,03, r 0,90 |
+| INCA / RprelimD, gemeinsames Band | Median 1,12, r 0,71 |
+| RprelimD / DPC, gemeinsames Band | Median 0,92, r 0,87 |
+
+14-Tage-Summe (09-16…09-29) auf dem ganzen Raster: Mit „erste Quelle
+gewinnt“ gab es 163 Sprünge über 30 mm zwischen Nachbarzellen, gemischt
+keinen; das 99,9-%-Perzentil der Nachbarsprünge fiel von 12 auf 8 mm.
+
+**Zwei GDAL-Fallen, beide vom Probelauf gefunden:**
+
+- **INCA ist `int32` mit `scale_factor` 0,001**, und `gdalwarp` kopiert
+  die rohen Ganzzahlen. Ergebnis: an jedem Tag 254 mm (der Deckel) und
+  INCA beim 3,9-Fachen von SPARTACUS. Das Werkzeug liest Faktor und
+  Versatz mit `gdalinfo -json` und rechnet sie in Python heraus.
+- **Die Zeilen von INCA kamen gespiegelt an**, obwohl die Lage plausibel
+  aussah: Der Median gegen SPARTACUS lag bei 0,98, die Korrelation bei
+  −0,10. Beide NetCDF-Dateien speichern ihre Zeilen von Süd nach Nord.
+  `GDAL_NETCDF_BOTTOMUP` dreht in GDAL 3.12 die DATEN jeder Datei, die
+  gemeldete Geotransformation aber nicht — RprelimD und SPARTACUS melden
+  „Norden oben“, INCA „Süden oben“. Das Werkzeug wählt den Schalter
+  deshalb nach der gemeldeten Lage (`orientation`), und `--verify`
+  prüft seither neben dem Median die Korrelation: Ein gespiegeltes
+  Gitter hat einen unauffälligen Median.
+
+Die App setzt den gemischten Stapel nur VOR Radar und Modell; in
+Deutschland enthält er nur das Grenzband, dessen Innenrand schon reines
+Radar ist. Der Radarstapel hält dafür seit #646 30 statt 26 Tage, wie
+Modell und Alpenstapel — sonst fehlte dem Band an den vier ältesten
+Tagen das Radar.
 
 **Landesgrenzen: Natural Earth 1:10m, Admin-0.** Public Domain, also
 keine weitere Lizenz und keine Namensnennung — OSM-Grenzen wären ODbL
@@ -429,11 +501,12 @@ derselben Collection. Das wäre ein eigenes Issue nach diesem.
   (09-16, 09-10). 26 Tage also rund 1 MB — weniger als der Radarstapel.
 - **Lesen in CI:** INCA, SPARTACUS und RprelimD sind NetCDF4 (HDF5),
   DPC GeoTIFF mit deflate. Die Standardbibliothek liest beides nicht.
-  `gdalwarp` kann alle drei direkt auf EPSG:3857 bringen und als
-  unkomprimiertes GeoTIFF schreiben, das der vorhandene Leser in
-  `tool/rain_grid.py` schon versteht — das ist Umprojizieren und
-  Zusammensetzen, also die erlaubte GDAL-Rolle. GeoJSON von GeoSphere
-  wäre stdlib-lesbar, aber 38 MB je Tag.
+  `gdalwarp` bringt alle drei direkt auf EPSG:3857 und schreibt ein
+  unkomprimiertes GeoTIFF, dessen Kopf derselbe Leser prüft wie in
+  `tool/rain_grid.py` (`tiff_tags`); die Stunden summiert
+  `tool/alps_rain.py` Kachel für Kachel. Das ist Umprojizieren, also
+  die erlaubte GDAL-Rolle. GeoJSON von GeoSphere wäre stdlib-lesbar,
+  aber 38 MB je Tag.
 - **Abrufe je Lauf:** INCA 1 (je Tag), RprelimD 2, DPC 2 —
   Nachfüllen von 26 Tagen ≈ 130 Anfragen, alle unter den gemessenen
   Grenzen. Keine Nutzerkoordinate, nur feste Boxen.
@@ -448,7 +521,7 @@ derselben Collection. Das wäre ein eigenes Issue nach diesem.
 |---|---|---|
 | GeoSphere INCA, SPARTACUS | CC BY 4.0 | Urheber „GeoSphere Austria“, Datensatz mit DOI (INCA https://doi.org/10.60669/6akt-5p05, SPARTACUS https://doi.org/10.60669/5cqg-p427), Lizenzlink, Hinweis auf Änderung („zu Tagessummen addiert, auf 1 mm gerundet, umprojiziert“). |
 | MeteoSchweiz RprelimD | CC BY 4.0 | „Meteorological and climatological data provided by MeteoSwiss may only be reproduced and redistributed if the source is acknowledged (Quelle: MeteoSchweiz; …)“ — also **„Quelle: MeteoSchweiz“**. Außerdem: „you must ensure that it does not appear as if MeteoSwiss supports you or your use in particular.“ (https://opendatadocs.meteoswiss.ch/general/terms-of-use) |
-| DPC Merging | **CC BY-SA** | Quelle **„Radar-DPC“**; abgeleitete Werke unter derselben Lizenz. Deshalb **eigene Dateien** (`it_rain_*`) mit eigener Quellenangabe, nie mit INCA- oder MeteoSchweiz-Werten in einer Datei vermischt — sonst stünde die gemischte Datei unter BY-SA. Das ist ein weiterer Grund für einen Stapel je Quelle. |
+| DPC Merging | **CC BY-SA** | Quelle **„Radar-DPC“**; abgeleitete Werke unter derselben Lizenz. Die Rohtage liegen als **eigene Dateien** (`it_rain_*`). Der gemischte Stapel `alps_rain_*` enthält im Grenzband DPC-Werte und steht deshalb **als Ganzes unter CC BY-SA 4.0** (Betreiber, 2026-10-01: lieber das als eine zweite Mischstelle in der App; die CC-BY-Quellen dürfen unter BY-SA bearbeitet werden). Er ist eine eigene Datei neben der App und kein Teil eines Binaries. |
 | EUMETNET OPERA (falls je) | CC BY 4.0 | „EUMETNET OPERA“, Lizenzlink |
 | E-OBS | NC | nicht verwendbar |
 
@@ -465,7 +538,13 @@ derselben Collection. Das wäre ein eigenes Issue nach diesem.
   vorläufigen abweichen, ist ungemessen. Für 26 Tage Rückblick reicht
   das vorläufige Gitter; ein Nachtausch wäre ein späteres Thema.
 - **Länderzuordnung:** entschieden — Natural Earth 1:10m (siehe
-  Empfehlung).
+  Empfehlung), an den Grenzen gemischt statt geschnitten.
+- **INCA-Stundenstempel:** Ob `RR` um 00:00 die Stunde davor oder danach
+  meint, ist nicht nachgelesen; summiert werden die Stempel 00–23, die im
+  Versatztest bei 0 am besten passten. Höchstens eine Stunde je Tag.
+- **06–06-Tage im Band:** RprelimD rechnet 06–06 UTC, die Nachbarn
+  00–24. Im Grenzband werden also um sechs Stunden versetzte Tage
+  gemischt; über 7 bis 30 Tage hebt sich das bis auf die Ränder auf.
 - **Regionaldienste Italiens:** Lizenzen von ARPA Lombardia, FVG,
   Piemonte und Aostatal nicht geprüft — nicht nötig, solange DPC trägt.
 

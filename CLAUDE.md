@@ -151,6 +151,7 @@ Ordner (`~/pilzbuddy-ampel2000/COWORK.md`).
 | **Open-Meteo** | historisches Wetter für die Ampel-Validierung | **JA, eigene Instanz** — `docs/pilzampel-openmeteo-lokal.md` |
 | **GBIF** | Saisonkurven, Fund-Stichproben, Artenfenster | **JA, als Download** — `tool/gbif_download.py`, seit 2026-09-16 |
 | **DWD** (WCS/GeoServer) | Regengitter | NEIN — `tool/rain_grid.py`, läuft nur in CI |
+| **GeoSphere, MeteoSchweiz, DPC** | gemessener Regen Alpenraum, an den Grenzen gemischt (#646) | NEIN — `tool/alps_rain.py`, läuft nur in CI; Begründung `docs/regendaten-alpenraum.md` |
 | **Copernicus / DLR** | Wald-, Höhen-, Baumartengitter | NEIN — eigene Workflows, `workflow_dispatch` |
 | **Supabase** | Datenbank, Auth | **JA für Tests** — `supabase start`, siehe Schema Dry Run |
 
