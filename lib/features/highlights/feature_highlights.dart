@@ -77,6 +77,18 @@ class FeatureHighlight {
 const kFeatureHighlights = <FeatureHighlight>[
   // ─── Highlights ──────────────────────────────────────────────────
   FeatureHighlight(
+    id: 'regen-rueckblick',
+    since: '1.220.0',
+    kind: HighlightKind.highlight,
+    tab: HighlightTab.map,
+    icon: Icons.water_drop_outlined,
+    title: 'Regen der letzten 7, 14 und 30 Tage',
+    text: 'Die Regen-Ebene zeigt jetzt, wie viel in der letzten Woche, den '
+        'letzten zwei Wochen und dem letzten Monat gefallen ist — auch in '
+        'Österreich, der Schweiz und Südtirol.',
+    target: '/',
+  ),
+  FeatureHighlight(
     id: 'neue-karte',
     since: '1.217.0',
     kind: HighlightKind.highlight,
@@ -172,7 +184,7 @@ const kFeatureHighlights = <FeatureHighlight>[
     icon: Icons.water_drop_outlined,
     title: 'Regen auf der Karte',
     text: 'Unter „Ebenen" liegen das Regenradar für jetzt und die nächste '
-        'Stunde und die Summen der letzten 24 Stunden und 30 Tage. Im '
+        'Stunde und die Summen der letzten 7, 14 und 30 Tage. Im '
         'Spot-Blatt siehst du den Regen an genau dieser Stelle, Tag für Tag.',
     target: '/',
   ),

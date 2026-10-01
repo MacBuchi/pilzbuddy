@@ -25,6 +25,11 @@ Future<void> openMapLayers(WidgetTester tester) async {
 /// „Höhenlinien", „Regen", „Pilzampel".
 Future<void> openLayerSheet(WidgetTester tester, String layer) async {
   await openMapLayers(tester);
+  // Ins Bild holen, bevor getippt wird: Seit fünf Regen-Chips (1.220.0)
+  // bricht deren Zeile in der breiten Testschrift um, und die Zeilen
+  // darunter rutschen an den Blattrand — der Tipp ginge sonst daneben.
+  await tester.ensureVisible(layerRow(layer));
+  await settle(tester);
   await tester.tap(layerRow(layer));
   await settle(tester);
 }

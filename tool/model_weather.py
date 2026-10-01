@@ -119,6 +119,11 @@ DE_BORDER = [
 
 RAIN_DAYS = rain_grid.DAILY["days"]      # 26 — the Ampel's rain window
 TEMP_DAYS = spot_weather.DAYS            # 28 — the station table's window
+# How many days the stack holds: the Ampel needs 26 rain days and the
+# station table 28 temperature days, and since 1.220.0 the app sums the
+# rain over 7, 14 and 30 days on the map (rain_sum.dart) — the 30-day
+# map was empty beyond the German border, where RADOLAN-W4 ends.
+STACK_DAYS = max(TEMP_DAYS, 30)
 NO_DATA = rain_grid.NO_DATA              # 255, same marker as the radar
 TEMP_OFFSET_C = 50.0                     # byte 0 = -50 °C, 254 = +77 °C
 TEMP_STEP_C = 0.5
@@ -273,10 +278,11 @@ def read_elevation(out_dir, count):
 # ------------------------------------------------------------ planning
 
 def needed_dates(today):
-    """Every date the stacks should hold: the last TEMP_DAYS complete days
-    (yesterday backwards). Rain needs 26 of them, temperature all 28."""
+    """Every date the stacks should hold: the last STACK_DAYS complete days
+    (yesterday backwards). The Ampel needs 26 rain days, the station
+    table 28 temperature days, the app's 30-day rain sum all 30."""
     yesterday = today - dt.timedelta(days=1)
-    return [yesterday - dt.timedelta(days=i) for i in range(TEMP_DAYS)]
+    return [yesterday - dt.timedelta(days=i) for i in range(STACK_DAYS)]
 
 
 def missing_dates(previous, today):
@@ -681,7 +687,7 @@ def self_test():
     # Planning: nothing there → newest window first, cut to the budget.
     today = dt.date(2026, 9, 26)
     missing = missing_dates(None, today)
-    assert len(missing) == TEMP_DAYS and missing[0] == dt.date(2026, 9, 25)
+    assert len(missing) == STACK_DAYS and missing[0] == dt.date(2026, 9, 25)
     planned = plan_windows(missing, today, points=3000, budget=4500)
     assert len(planned) == 1, planned
     start, end, via_past = planned[0]
@@ -762,7 +768,9 @@ def self_test():
     assert grid[index] == rain_byte((lat + lon) % 7), (grid[index], lat, lon)
     assert grid[0] == NO_DATA or 0 in [a[0] for a in active_pts]
     # Station rows: aligned to the table's days, null where the stack has none.
-    table_days = [d.isoformat() for d in reversed(needed_dates(today))]
+    # The station table carries TEMP_DAYS, the stack STACK_DAYS — the
+    # rows follow the table.
+    table_days = [d.isoformat() for d in reversed(needed_dates(today))][-TEMP_DAYS:]
     rows = virtual_stations(tmp, section, table_days, active_pts, elevation)
     assert len(rows) == 150 and rows[0]["src"] == STATION_SRC
     assert rows[0]["id"] == STATION_ID_BASE + active_pts[0][0]
@@ -808,7 +816,7 @@ def self_test():
                               now=t0 + dt.timedelta(hours=2))
     assert len(calls) == 2, "the oldest week comes now, via history"
     assert calls[0] == HISTORY_API
-    assert len(section2["rain"]["days"]) == TEMP_DAYS
+    assert len(section2["rain"]["days"]) == STACK_DAYS
     assert section2["rain"]["days"][-1] == before["rain"]["days"][-1], \
         "unchanged days are carried over, not rebuilt"
     section3, _, _, _ = build(tmp, manifest, today=today, get=counting_get,

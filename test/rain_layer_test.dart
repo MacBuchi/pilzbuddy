@@ -26,8 +26,11 @@ void main() {
         'dwd:Niederschlagsradar');
     expect(params(rainLayerUrl(RainLayer.inOneHour, now: now)!)['layers'],
         'dwd:Niederschlagsradar');
-    expect(params(rainLayerUrl(RainLayer.last24h, now: now)!)['layers'],
-        'dwd:SF-Produkt');
+    // 7 und 14 Tage haben kein DWD-Produkt — sie kommen aus den
+    // Tagesgittern, und es gibt kein Bild, auf das sie zurückfallen.
+    expect(rainLayerUrl(RainLayer.last7d, now: now), isNull);
+    expect(rainLayerUrl(RainLayer.last14d, now: now), isNull);
+    expect(rainLegendUrl(RainLayer.last7d), isNull);
     expect(params(rainLayerUrl(RainLayer.last30d, now: now)!)['layers'],
         'dwd:RADOLAN-W4');
   });
@@ -94,7 +97,7 @@ void main() {
 
     test('die Summenprodukte decken Deutschland ab, das Radar den '
         'DACH-Ausschnitt der Übersichtskarte', () {
-      expect(RainLayer.last30d.bounds, RainLayer.last24h.bounds);
+      expect(RainLayer.last30d.bounds, RainLayer.last7d.bounds);
       expect(RainLayer.now.bounds, RainLayer.inOneHour.bounds);
       // Sylt (55,0 N) und Oberstdorf (47,4 N) müssen drin liegen, sonst
       // fehlt Nutzern am Rand die Ebene.
@@ -112,8 +115,6 @@ void main() {
           reason: 'Ohne TIME liefert der Dienst seinen eigenen aktuellen '
               'Stand — der ist immer vorhanden, auch bei falsch gehender '
               'Geräteuhr.');
-      expect(params(rainLayerUrl(RainLayer.last24h, now: now)!),
-          isNot(contains('time')));
       expect(params(rainLayerUrl(RainLayer.last30d, now: now)!),
           isNot(contains('time')));
       expect(params(rainLayerUrl(RainLayer.inOneHour, now: now)!),

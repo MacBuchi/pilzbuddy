@@ -147,6 +147,16 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
   /// ohne dass jemand sie entfernt hätte — deshalb wird sie bei jedem
   /// Style-Laden zurückgesetzt und neu gelegt.
   String? _appliedFillUrl;
+  String? _appliedModelFillUrl;
+
+  /// Die unterste liegende Regenfläche — darunter gehören Wald und
+  /// Fundorte. Die Alpenfläche liegt immer unter der Radarfläche (siehe
+  /// [_syncModelRainFill]), also ist sie, wenn sie liegt, die unterste.
+  String? get _lowestRainLayerId => _appliedModelFillUrl != null
+      ? modelRainFillLayerId
+      : _appliedFillUrl != null
+          ? rainFillLayerId
+          : null;
 
   /// Dasselbe für die Waldfläche (#213) — eigener Merker, weil beide
   /// Ebenen unabhängig kommen und gehen.
@@ -228,6 +238,34 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
     });
   }
 
+  /// Die Summenfläche des Alpenraums — derselbe Weg wie
+  /// [_syncRainFill], eigene Quelle.
+  void _syncModelRainFill() {
+    final style = _style;
+    if (style == null) return;
+    final fill = ref.read(modelRainFillFileProvider).valueOrNull;
+    _fillWork = _fillWork.then((_) async {
+      try {
+        final before = _appliedModelFillUrl;
+        _appliedModelFillUrl = await applyRainFill(style,
+            fill: fill,
+            appliedUrl: _appliedModelFillUrl,
+            sourceId: modelRainFillSourceId,
+            layerId: modelRainFillLayerId,
+            // Unter die Radarfläche, falls die schon liegt: So bleibt
+            // die Reihenfolge Wald < Alpen < Radar fest, egal wer zuerst
+            // fertig ist.
+            belowLayerId: _appliedFillUrl != null ? rainFillLayerId : null);
+        if (fillRemovalNeedsNudge(
+            before: before, after: _appliedModelFillUrl)) {
+          _nudgeEngine();
+        }
+      } catch (_) {
+        // Wie bei der Radarfläche: still, die Karte bleibt.
+      }
+    });
+  }
+
   void _syncForestFill() {
     final style = _style;
     if (style == null) return;
@@ -243,7 +281,7 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
             // nichts zu tun: Ein späterer Regen wird angehängt und
             // liegt damit von selbst über dem Wald.
             belowLayerId:
-                _appliedFillUrl != null ? rainFillLayerId : null);
+                _lowestRainLayerId);
         if (fillRemovalNeedsNudge(
             before: before, after: _appliedForestUrl)) {
           _nudgeEngine();
@@ -268,7 +306,7 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
             // flüchtige Information. Über dem Wald liegen die Scheiben
             // von selbst, weil sie später angehängt werden.
             belowLayerId:
-                _appliedFillUrl != null ? rainFillLayerId : null);
+                _lowestRainLayerId);
         if (fillRemovalNeedsNudge(
             before: before, after: _appliedGbifUrl)) {
           _nudgeEngine();
@@ -397,6 +435,10 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
       _syncRainFill();
       _raiseAreaEdit();
     });
+    ref.listen(modelRainFillFileProvider, (previous, next) {
+      _syncModelRainFill();
+      _raiseAreaEdit();
+    });
     ref.listen(forestFillFileProvider, (previous, next) {
       _syncForestFill();
       _raiseAreaEdit();
@@ -462,11 +504,13 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
       onStyleLoaded: (style) {
         _style = style;
         _appliedFillUrl = null;
+        _appliedModelFillUrl = null;
         _appliedForestUrl = null;
         _appliedGbifUrl = null;
         _appliedContourKey = null;
         _appliedAreaEditUrl = null;
         _syncRainFill();
+        _syncModelRainFill();
         _syncForestFill();
         _syncGbifFill();
         // Zuletzt, damit die Linien über den Flächen liegen.

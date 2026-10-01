@@ -84,9 +84,17 @@ List<int> rainLevelsAtZoom(List<int> levels, double zoom) {
 /// Messwertebene — das verlangen die Anzeigeregeln dieser Planung.
 const rainLevels30d = [10, 20, 30, 40, 50, 75, 100, 150];
 
-/// Dieselben Stufen für die 24-Stunden-Summe. Anderer Wertebereich:
-/// Ein Landregen bringt 10–20 mm am Tag, ein Gewitter 40.
-const rainLevels24h = [1, 2, 5, 10, 20, 30, 50];
+/// Dieselben Stufen für die 7-Tage-Summe, nach demselben Muster dem
+/// Wertebereich nachgebildet. Gemessen am 2026-09-30 (eine trockene
+/// Woche): Radar Median 1 mm, 95 % unter 17 mm, Maximum 52 mm; Modell
+/// im Alpenraum Median 1 mm, Maximum 34 mm. Eine nasse Woche bringt
+/// 30–60 mm — dafür sind die oberen Stufen da.
+const rainLevels7d = [2, 5, 10, 15, 20, 30, 40, 60];
+
+/// Dieselben Stufen für die 14-Tage-Summe. Gemessen am 2026-09-30:
+/// Radar Median 11 mm, 95 % unter 35 mm, Maximum 85 mm; Modell Median
+/// 7 mm, Maximum 65 mm.
+const rainLevels14d = [5, 10, 15, 20, 30, 40, 60, 80];
 
 /// Zieht die Höhenlinien durch das Regengitter.
 ///

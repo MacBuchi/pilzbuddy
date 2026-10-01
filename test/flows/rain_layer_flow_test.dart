@@ -14,9 +14,12 @@ import 'package:pilzbuddy/features/map/rain_grid.dart';
 import 'package:pilzbuddy/features/map/rain_layer.dart';
 
 import '../fakes/fake_backend.dart';
+import '../fakes/fake_settings.dart';
 import '../fakes/map_ui.dart';
 import '../fakes/test_app.dart';
-import '../rain_grid_test.dart' show gridOf;
+import 'package:pilzbuddy/data/rain_grid_repository.dart';
+
+import '../rain_grid_test.dart' show encode, gridOf;
 
 void main() {
   FakeBackend loggedIn() {
@@ -81,13 +84,13 @@ void main() {
     await openLayerSheet(tester, 'Regen');
 
     // Ohne Ebene keine Legende und kein Geltungsbereich.
-    expect(find.textContaining('Nur Deutschland'), findsNothing);
+    expect(find.textContaining('Deutschland: Radar des DWD'), findsNothing);
 
-    await tester.tap(find.text('Letzte 24 Stunden'));
+    await tester.tap(find.text('Letzte 7 Tage'));
     await settle(tester);
     await scrollSheet(tester);
 
-    expect(find.textContaining('Nur Deutschland'), findsOneWidget,
+    expect(find.textContaining('Deutschland: Radar des DWD'), findsOneWidget,
         reason: 'Ohne diesen Satz sieht eine leere Fläche in Österreich '
             'nach einem Fehler der App aus.');
   });
@@ -356,9 +359,9 @@ void main() {
     expect(container.read(rainLayerProvider), RainLayer.off);
 
     await openMapLayers(tester);
-    await tester.tap(rainChip('24 h'));
+    await tester.tap(rainChip('7 Tage'));
     await settle(tester);
-    expect(container.read(rainLayerProvider), RainLayer.last24h,
+    expect(container.read(rainLayerProvider), RainLayer.last7d,
         reason: 'ein Chip schaltet die Ebene an und setzt den Zeitraum');
 
     await tester.tap(rainChip('Jetzt'));
@@ -376,9 +379,9 @@ void main() {
     final container = containerOf(tester);
 
     await openMapLayers(tester);
-    await tester.tap(rainChip('24 h'));
+    await tester.tap(rainChip('7 Tage'));
     await settle(tester);
-    expect(container.read(rainLayerProvider), RainLayer.last24h);
+    expect(container.read(rainLayerProvider), RainLayer.last7d);
 
     await tester.tap(layerSwitch('Regen'));
     await settle(tester);
@@ -386,7 +389,7 @@ void main() {
 
     await tester.tap(layerSwitch('Regen'));
     await settle(tester);
-    expect(container.read(rainLayerProvider), RainLayer.last24h,
+    expect(container.read(rainLayerProvider), RainLayer.last7d,
         reason: 'aus und wieder an landet dort, wo man war — nicht auf '
             'einer Vorgabe, die man nie gewählt hat');
   });
@@ -402,7 +405,7 @@ void main() {
 
     await tester.tap(layerSwitch('Regen'));
     await settle(tester);
-    for (final label in ['Jetzt', '+1 h', '24 h', '30 Tage']) {
+    for (final label in ['Jetzt', '+1 h', '7 Tage', '14 Tage', '30 Tage']) {
       expect(tester.widget<ChoiceChip>(rainChip(label)).selected, isFalse,
           reason: '$label darf ausgeschaltet nicht ausgewählt aussehen');
     }
@@ -421,5 +424,173 @@ void main() {
     await settle(tester);
     expect(find.text('Karte aktualisiert'), findsOneWidget,
         reason: 'der Knopf tut, was die Zeile tat');
+  });
+
+  // ── 7, 14 und 30 Tage aus den Tagesgittern (1.220.0) ─────────────
+
+  /// Ein Stapel von [days] Tagen, jeder Tag überall [mm] — als Radar
+  /// 4×4 über 10..14° O, als Modell 2×2 über 14..17° O (südöstlich des
+  /// Radars, wie der Alpenraum neben Deutschland).
+  RainStackData stackOf(int days, {int mm = 3, bool model = false}) {
+    final size = model ? 2 : 4;
+    return RainStackData(
+      kind: model ? RainStackKind.model : RainStackKind.radar,
+      info: RainStackInfo(
+          width: size,
+          height: size,
+          west: model ? 14 : 10,
+          east: model ? 17 : 14,
+          north: model ? 48 : 52,
+          south: model ? 46 : 48,
+          days: const []),
+      days: [
+        for (var i = 0; i < days; i++)
+          (
+            date: DateTime(2026, 9, 1 + i),
+            gzipped: encode([
+              for (var y = 0; y < size; y++) [for (var x = 0; x < size; x++) mm]
+            ]),
+          ),
+      ],
+    );
+  }
+
+  Future<void> settleSums(WidgetTester tester, RainLayer layer) async {
+    final container = containerOf(tester);
+    await tester.runAsync(() async {
+      await container.read(rainContoursProvider(layer).future);
+      await container.read(rainFillProvider(layer).future);
+      await container.read(modelRainFillProvider.future);
+    });
+    await settle(tester);
+  }
+
+  testWidgets('Radar und „+1 h" laden keinen Tagesstapel', (tester) async {
+    // Beobachten ist laden: Der Radar-Stapel ist bis zu 26 Dateien, und
+    // wer das Radar ansieht, hat keine davon bestellt.
+    var radarCalls = 0;
+    var modelCalls = 0;
+    await pumpApp(tester, loggedIn(), useRealMap: true, extraOverrides: [
+      rainStackLoaderProvider.overrideWithValue(() async {
+        radarCalls++;
+        return stackOf(26);
+      }),
+      modelRainStackLoaderProvider.overrideWithValue(() async {
+        modelCalls++;
+        return stackOf(30, model: true);
+      }),
+    ]);
+    final container = containerOf(tester);
+    for (final layer in [RainLayer.now, RainLayer.inOneHour]) {
+      container.read(rainLayerProvider.notifier).set(layer);
+      await settle(tester);
+    }
+    expect(radarCalls, 0);
+    expect(modelCalls, 0);
+
+    container.read(rainLayerProvider.notifier).set(RainLayer.last7d);
+    await settleSums(tester, RainLayer.last7d);
+    expect(radarCalls, 1, reason: 'die Wahl von 7 Tagen IST die Bestellung');
+    expect(modelCalls, 1);
+  });
+
+  testWidgets('7 Tage: Radar- und Alpenfläche aus den Tagesgittern',
+      (tester) async {
+    await pumpApp(tester, loggedIn(), useRealMap: true, extraOverrides: [
+      rainStackLoaderProvider.overrideWithValue(() async => stackOf(26)),
+      modelRainStackLoaderProvider
+          .overrideWithValue(() async => stackOf(30, model: true)),
+    ]);
+    final container = containerOf(tester);
+    container.read(rainLayerProvider.notifier).set(RainLayer.last7d);
+    await settleSums(tester, RainLayer.last7d);
+
+    final grid = await tester.runAsync(
+        () => container.read(rainGridProvider(RainLayer.last7d).future));
+    expect(grid!.mmAt(50, 12), 7 * 3, reason: 'sieben Tage zu je 3 mm');
+    expect(container.read(rainPaintProvider(RainLayer.last7d)),
+        RainPaint.own);
+
+    final images = [
+      for (final layer
+          in tester.widgetList<OverlayImageLayer>(find.byType(OverlayImageLayer)))
+        ...layer.overlayImages.cast<OverlayImage>(),
+    ];
+    expect(images, hasLength(2),
+        reason: 'Deutschland aus dem Radar, der Alpenraum aus dem Modell — '
+            'und kein DWD-Bild, das gibt es für 7 Tage nicht');
+    expect(images.every((i) => i.imageProvider is MemoryImage), isTrue);
+    expect(images.first.bounds.west, 14,
+        reason: 'die Alpenfläche liegt UNTER der Radarfläche');
+    expect(images.last.bounds.west, 10);
+  });
+
+  testWidgets('30 Tage: W4 in Deutschland, dazu die Summe im Alpenraum',
+      (tester) async {
+    await pumpApp(tester, loggedIn(), useRealMap: true, extraOverrides: [
+      ...withGrid(),
+      modelRainStackLoaderProvider
+          .overrideWithValue(() async => stackOf(30, mm: 4, model: true)),
+    ]);
+    final container = containerOf(tester);
+    container.read(rainLayerProvider.notifier).set(RainLayer.last30d);
+    await settleSums(tester, RainLayer.last30d);
+
+    final model = await tester
+        .runAsync(() => container.read(modelRainSumProvider(30).future));
+    expect(model!.mmAt(47, 15.5), 120);
+    final images = [
+      for (final layer
+          in tester.widgetList<OverlayImageLayer>(find.byType(OverlayImageLayer)))
+        ...layer.overlayImages.cast<OverlayImage>(),
+    ];
+    expect(images, hasLength(2));
+    expect(images.last.bounds.north, coneGrid().north,
+        reason: 'darüber das W4-Gitter, wie bisher');
+  });
+
+  testWidgets('Fehlen Modelltage, sagt das Blatt es statt leer zu bleiben',
+      (tester) async {
+    // Der Anlass dieser Ebene: eine leere 30-Tage-Karte in Tirol, die
+    // nach einem Fehler aussah.
+    await pumpApp(tester, loggedIn(), extraOverrides: [
+      modelRainStackLoaderProvider
+          .overrideWithValue(() async => stackOf(28, model: true)),
+    ]);
+    containerOf(tester).read(rainLayerProvider.notifier).set(RainLayer.last30d);
+    // Erst rechnen, dann das Blatt öffnen: Startete das Blatt die
+    // Rechnung, liefe sie in der Test-Zone, und ein Warten in `runAsync`
+    // käme nie zurück.
+    await tester.runAsync(() async {
+      await containerOf(tester).read(modelRainSumProvider(30).future);
+      await containerOf(tester).read(modelStackRunProvider.future);
+    });
+    await openLayerSheet(tester, 'Regen');
+    await settle(tester);
+    await scrollSheet(tester);
+    expect(find.textContaining('erst 28 von 30 Tagen'), findsOneWidget);
+  });
+
+  testWidgets('Eine gemerkte 24-Stunden-Ebene wird zu 30 Tagen',
+      (tester) async {
+    await pumpApp(tester, loggedIn(),
+        settings: FakeSettings(rainLayerName: 'last24h'));
+    expect(containerOf(tester).read(rainLayerProvider), RainLayer.last30d,
+        reason: 'die Ebene gibt es seit 1.220.0 nicht mehr — wer sie an '
+            'hatte, soll nicht plötzlich gar keinen Regen sehen');
+  });
+
+  test('Spot-Blatt „30 Tage": außerhalb Deutschlands die Modellsumme', () async {
+    final container = ProviderContainer(overrides: [
+      rainCourseEnabledProvider.overrideWith((ref) => true),
+      rainGridLoaderProvider.overrideWithValue((_) async => coneGrid()),
+      modelRainStackLoaderProvider
+          .overrideWithValue(() async => stackOf(30, mm: 2, model: true)),
+    ]);
+    addTearDown(container.dispose);
+    expect(await container.read(
+            rainMonthAtProvider((lat: 47.0, lon: 15.5)).future),
+        60,
+        reason: 'in Tirol schweigt W4 — die Zahl kommt aus dem Modell');
   });
 }

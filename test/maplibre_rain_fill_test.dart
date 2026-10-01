@@ -128,6 +128,34 @@ void main() {
             'die Höhenlinien sind weg, die Marker sind Flutter-Widgets');
   });
 
+  test('die Alpenfläche ist eine eigene Quelle UNTER der Radarfläche '
+      '(1.220.0)', () async {
+    // Zwei Gitter mit verschiedenen Grenzen — eine Quelle könnte nur
+    // eins tragen. Und die Radarfläche bleibt oben, wer auch zuerst
+    // fertig wird.
+    final style = RecordingStyle();
+    await applyRainFill(style, fill: fillAt('file:///radar.png'), appliedUrl: null);
+    final url = await applyRainFill(style,
+        fill: fillAt('file:///modell.png', west: 5.9, east: 17.2),
+        appliedUrl: null,
+        sourceId: modelRainFillSourceId,
+        layerId: modelRainFillLayerId,
+        belowLayerId: rainFillLayerId);
+    expect(url, 'file:///modell.png');
+    expect(style.getLayerIds(),
+        containsAll([rainFillLayerId, modelRainFillLayerId]));
+    expect(style.below[modelRainFillLayerId], rainFillLayerId);
+    expect(modelRainFillSourceId, isNot(rainFillSourceId));
+
+    // Wegnehmen räumt nur die eigene.
+    await applyRainFill(style,
+        fill: null,
+        appliedUrl: 'file:///modell.png',
+        sourceId: modelRainFillSourceId,
+        layerId: modelRainFillLayerId);
+    expect(style.getLayerIds(), [rainFillLayerId]);
+  });
+
   test('tauscht einen neuen Messstand aus, statt ihn danebenzulegen',
       () async {
     final style = RecordingStyle();

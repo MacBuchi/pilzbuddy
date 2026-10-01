@@ -15,6 +15,13 @@ import 'maplibre_image_fill.dart';
 const rainFillSourceId = 'regen-flaeche';
 const rainFillLayerId = 'regen-flaeche';
 
+/// Die Summenfläche des Alpenraums aus dem Modell-Stapel — eine eigene
+/// Quelle, weil sie ein anderes Gitter mit anderen Grenzen ist. Die
+/// Reihenfolge zur Radarfläche ist gleichgültig: Die Modellmaske spart
+/// Deutschland aus, die beiden überdecken sich nicht.
+const modelRainFillSourceId = 'regen-modell';
+const modelRainFillLayerId = 'regen-modell';
+
 /// `linear`, **anders als beim DWD-Bild**, und die Abweichung ist eine
 /// bewusste Kehrtwende: Seit die Fläche die Aussage trägt (1.48.0),
 /// traten bei 55 % Deckkraft die 1-km-Treppenstufen an jeder Bandgrenze
@@ -26,15 +33,21 @@ const rainFillResampling = 'linear';
 
 /// Hängt die Regenfläche ein, tauscht sie aus oder nimmt sie weg —
 /// Verhalten wie [applyImageFill], siehe dort.
+///
+/// [sourceId]/[layerId] wählen die Fläche: die Radar- bzw. W4-Fläche
+/// (Vorgabe) oder die des Alpenraums ([modelRainFillSourceId]).
 Future<String?> applyRainFill(
   ml.StyleController style, {
   required ({String url, RainFill fill})? fill,
   required String? appliedUrl,
+  String sourceId = rainFillSourceId,
+  String layerId = rainFillLayerId,
+  String? belowLayerId,
 }) =>
     applyImageFill(
       style,
-      sourceId: rainFillSourceId,
-      layerId: rainFillLayerId,
+      sourceId: sourceId,
+      layerId: layerId,
       fill: fill == null
           ? null
           : (
@@ -46,4 +59,5 @@ Future<String?> applyRainFill(
             ),
       appliedUrl: appliedUrl,
       resampling: rainFillResampling,
+      belowLayerId: belowLayerId,
     );

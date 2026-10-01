@@ -54,9 +54,18 @@ enum RainLayer {
   /// die es nicht gibt. „+1 h" liegt in jedem Fall im Fenster.
   inOneHour,
 
-  /// `dwd:SF-Produkt` — gleitende 24-Stunden-Summe angeeichter
-  /// Radardaten, stündlich neu.
-  last24h,
+  /// Summe der letzten sieben Tage, gerechnet aus den Tagesgittern
+  /// (`rain_sum.dart`): Radar in Deutschland, Wettermodell im Alpenraum.
+  /// Der DWD hat dafür kein Produkt, es gibt also kein DWD-Bild.
+  ///
+  /// Ersetzt seit 1.220.0 die gleitende 24-Stunden-Summe
+  /// (`dwd:SF-Produkt`, Betreiber 2026-10-01: „Die letzten 24h brauchen
+  /// wir nicht") — für die Frage „ist der Boden feucht" ist ein Tag zu
+  /// kurz, und gestern zeigt der Verlauf am Spot ohnehin.
+  last7d,
+
+  /// Dasselbe über vierzehn Tage.
+  last14d,
 
   /// `dwd:RADOLAN-W4` — auf 30 Tage aufsummierte angeeichte Radardaten,
   /// täglich neu. Das ist die Größe, mit der Pilzsammler tatsächlich
@@ -96,7 +105,7 @@ extension RainLayerInfo on RainLayer {
   String? get dwdLayer => switch (this) {
         RainLayer.off => null,
         RainLayer.now || RainLayer.inOneHour => 'dwd:Niederschlagsradar',
-        RainLayer.last24h => 'dwd:SF-Produkt',
+        RainLayer.last7d || RainLayer.last14d => null,
         RainLayer.last30d => 'dwd:RADOLAN-W4',
       };
 
@@ -109,12 +118,13 @@ extension RainLayerInfo on RainLayer {
         RainLayer.off => 'Aus',
         RainLayer.now => 'Jetzt',
         RainLayer.inOneHour => 'In einer Stunde',
-        RainLayer.last24h => 'Letzte 24 Stunden',
+        RainLayer.last7d => 'Letzte 7 Tage',
+        RainLayer.last14d => 'Letzte 14 Tage',
         RainLayer.last30d => 'Letzte 30 Tage',
       };
 
   /// Dieselbe Aussage in Chip-Breite — für die Zeitraum-Zeile im
-  /// Ebenen-Blatt, wo vier Auswahlen nebeneinander stehen müssen.
+  /// Ebenen-Blatt, wo fünf Auswahlen nebeneinander stehen müssen.
   ///
   /// Bewusst ein zweiter Text und keine Abkürzungsregel auf [label]:
   /// „Letzte 24 Stunden" auf „24 h" zu kürzen ginge automatisch, „In
@@ -124,7 +134,8 @@ extension RainLayerInfo on RainLayer {
         RainLayer.off => 'Aus',
         RainLayer.now => 'Jetzt',
         RainLayer.inOneHour => '+1 h',
-        RainLayer.last24h => '24 h',
+        RainLayer.last7d => '7 Tage',
+        RainLayer.last14d => '14 Tage',
         RainLayer.last30d => '30 Tage',
       };
 
@@ -132,7 +143,8 @@ extension RainLayerInfo on RainLayer {
         RainLayer.off => 'Karte ohne Regen',
         RainLayer.now => 'Radar, alle fünf Minuten neu',
         RainLayer.inOneHour => 'Radarvorhersage',
-        RainLayer.last24h => 'Gleitende Summe, stündlich neu',
+        RainLayer.last7d || RainLayer.last14d =>
+          'Summe der Tageswerte, täglich neu',
         RainLayer.last30d => 'Summe, täglich neu — die Größe, an der man '
             'sieht, ob der Boden durchfeuchtet ist',
       };
@@ -148,7 +160,8 @@ extension RainLayerInfo on RainLayer {
           'Deutschland und Grenzgebiete. Im Osten Österreichs und im Westen '
               'der Schweiz reicht das Radar nicht hin — dort bleibt die '
               'Fläche grau.',
-        _ => 'Nur Deutschland.',
+        _ => 'Deutschland: Radar des DWD. Österreich, Schweiz und '
+            'Südtirol: Wettermodell ICON-D2 (12-km-Raster), kein Messwert.',
       };
 
   /// Halbtransparent: Der Regen liegt ÜBER der Landschaft, nicht statt
@@ -249,7 +262,7 @@ double _mercatorY(double lat) =>
 /// hinaus gemerkt, siehe [Settings.rainLayerName].
 ///
 /// Eigener Notifier statt `RememberedFlag`, weil hier keine Wahrheit
-/// zwischen zwei Werten liegt, sondern zwischen fünf.
+/// zwischen zwei Werten liegt, sondern zwischen sechs.
 class RainLayerNotifier extends Notifier<RainLayer> {
   /// Der zuletzt gewählte Zeitraum — das, was [toggle] wieder anschaltet.
   ///
@@ -269,8 +282,12 @@ class RainLayerNotifier extends Notifier<RainLayer> {
     final name = ref.read(settingsProvider).rainLayerName;
     // Ein unbekannter Name fällt auf „aus" zurück: Wer einen Enum-Wert
     // umbenennt, soll die Karte nicht mit einer Ausnahme begrüßen.
-    final layer = RainLayer.values
-        .firstWhere((l) => l.name == name, orElse: () => RainLayer.off);
+    // `last24h` gab es bis 1.219.0; wer sie gemerkt hatte, bekommt die
+    // 30 Tage — dieselbe Vorgabe wie [_lastChoice].
+    final layer = name == 'last24h'
+        ? RainLayer.last30d
+        : RainLayer.values
+            .firstWhere((l) => l.name == name, orElse: () => RainLayer.off);
     if (layer != RainLayer.off) _lastChoice = layer;
     return layer;
   }
@@ -278,7 +295,7 @@ class RainLayerNotifier extends Notifier<RainLayer> {
   /// An/Aus für den Schalter im Ebenen-Blatt.
   ///
   /// Der Schalter ist erst seit der Zeitraum-Zeile vertretbar: Solange
-  /// die vier Chips daneben stehen, denkt sich „an" keinen unsichtbaren
+  /// die Chips daneben stehen, denkt sich „an" keinen unsichtbaren
   /// Modus aus — die Wahl steht in derselben Zeile.
   void toggle() =>
       set(state == RainLayer.off ? _lastChoice : RainLayer.off);

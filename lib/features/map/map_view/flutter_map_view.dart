@@ -173,6 +173,9 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
     // 5-Minuten-Takt lässt sich nicht vorberechnen.
     final rainPaint = ref.watch(rainPaintProvider(rainLayer));
     final rainFill = ref.watch(rainFillProvider(rainLayer)).value;
+    // Die Summe im Alpenraum (Modell-Stapel) — unabhängig vom
+    // Dreizustand: Auch das DWD-Bild endet an der Grenze.
+    final modelRainFill = ref.watch(modelRainFillProvider).valueOrNull;
     final contours = ref.watch(elevationContoursProvider).valueOrNull;
     final contourLabels = ref.watch(contourLabelsProvider);
     final rainUrl = rainPaint == RainPaint.dwd
@@ -413,6 +416,20 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
         // Was hier fehlt und auf MapLibre steht: die Millimeterzahlen in
         // der Karte. flutter_map kennt keine Beschriftung entlang einer
         // Linie; auf diesem Pfad trägt die Legende die Bedeutung allein.
+        if (modelRainFill != null)
+          OverlayImageLayer(
+            overlayImages: [
+              OverlayImage(
+                bounds: LatLngBounds(
+                  LatLng(modelRainFill.south, modelRainFill.west),
+                  LatLng(modelRainFill.north, modelRainFill.east),
+                ),
+                filterQuality: FilterQuality.medium,
+                gaplessPlayback: true,
+                imageProvider: MemoryImage(modelRainFill.png),
+              ),
+            ],
+          ),
         if (rainPaint == RainPaint.own && rainFill != null)
           OverlayImageLayer(
             overlayImages: [
