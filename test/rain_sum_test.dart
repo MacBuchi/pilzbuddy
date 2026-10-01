@@ -113,4 +113,57 @@ void main() {
         reason: 'eine obere Zelle ohne Daten deckt nichts ab');
     expect(maskCovered(lower, null).values, [5, 5]);
   });
+
+  test('endet an einem festgelegten Tag, nicht am jüngsten', () {
+    // Vier Tage 1..4 mm; bis zum dritten Tag summiert: 2 + 3.
+    final stack = stackOf([(1, 1), (2, 2), (3, 3), (4, 4)]);
+    final sum = rainSumGrid(stack, 2, endDay: DateTime(2026, 9, 3))!;
+    expect(sum.values, [5, 5]);
+    expect(sum.measured, DateTime(2026, 9, 3));
+    expect(rainStackRunLength(stack, endDay: DateTime(2026, 9, 3)), 3);
+    expect(rainSumGrid(stack, 2, endDay: DateTime(2026, 9, 9)), isNull,
+        reason: 'ein Ende, das der Stapel nicht trägt, ist eine Lücke');
+  });
+
+  group('Übergang am Radarrand', () {
+    // Oben eine Zeile von 60 Zellen: links 40 mm „Radar", die letzten
+    // zehn ohne Daten (dort endet die Abdeckung). Unten überall 10 mm
+    // „Modell" auf derselben Fläche.
+    RainGrid row(List<int> values) => RainGrid.decode(
+          encode([values]),
+          width: values.length,
+          height: 1,
+          west: 10,
+          east: 16,
+          north: 47.2,
+          south: 47.1,
+          measured: DateTime(2026, 9, 30),
+        );
+    final upper = row([for (var x = 0; x < 60; x++) x < 50 ? 40 : rainNoData]);
+    final model = row([for (var x = 0; x < 60; x++) 10]);
+
+    test('weit vom Rand bleibt der Radarwert, am Rand fast das Modell', () {
+      final out = blendEdge(upper, model, band: 20).values;
+      expect(out.sublist(0, 25), everyElement(40),
+          reason: 'mehr als 20 Zellen vom Rand: unberührt');
+      expect(out[49], lessThan(13), reason: 'letzte Zelle vor dem Rand');
+      for (var x = 30; x < 49; x++) {
+        expect(out[x], greaterThanOrEqualTo(out[x + 1]),
+            reason: 'der Übergang fällt stetig zum Modell hin');
+      }
+      expect(out.sublist(50), everyElement(rainNoData),
+          reason: 'jenseits des Rands zeichnet die Modellfläche selbst');
+    });
+
+    test('ohne Modell an der Stelle bleibt der Radarwert', () {
+      final noModel = row([for (var x = 0; x < 60; x++) rainNoData]);
+      expect(blendEdge(upper, noModel, band: 20).values, upper.values);
+      expect(blendEdge(upper, null).values, upper.values);
+    });
+
+    test('die Zahl am Spot liest weiter das rohe Gitter', () {
+      blendEdge(upper, model, band: 20);
+      expect(upper.values[49], 40, reason: 'das Eingangsgitter bleibt');
+    });
+  });
 }

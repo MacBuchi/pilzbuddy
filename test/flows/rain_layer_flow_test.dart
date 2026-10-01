@@ -51,6 +51,10 @@ void main() {
   Future<void> settleRain(WidgetTester tester, RainLayer layer) async {
     final container = containerOf(tester);
     await tester.runAsync(() async {
+      // Die Modellsumme zuerst: Die Fläche rechnet neu, sobald sie da
+      // ist (Übergang am Radarrand), und dieser Neubau muss hier laufen,
+      // nicht in der Test-Zone.
+      await container.read(modelRainSumProvider(layer).future);
       await container.read(rainContoursProvider(layer).future);
       await container.read(rainFillProvider(layer).future);
     });
@@ -431,7 +435,12 @@ void main() {
   /// Ein Stapel von [days] Tagen, jeder Tag überall [mm] — als Radar
   /// 4×4 über 10..14° O, als Modell 2×2 über 14..17° O (südöstlich des
   /// Radars, wie der Alpenraum neben Deutschland).
-  RainStackData stackOf(int days, {int mm = 3, bool model = false}) {
+  RainStackData stackOf(int days,
+      {int mm = 3, bool model = false, DateTime? last}) {
+    // Der jüngste Tag: ohne Angabe der 1. September plus [days] − 1.
+    final first = last == null
+        ? DateTime(2026, 9, 1)
+        : DateTime(last.year, last.month, last.day - days + 1);
     final size = model ? 2 : 4;
     return RainStackData(
       kind: model ? RainStackKind.model : RainStackKind.radar,
@@ -446,7 +455,7 @@ void main() {
       days: [
         for (var i = 0; i < days; i++)
           (
-            date: DateTime(2026, 9, 1 + i),
+            date: DateTime(first.year, first.month, first.day + i),
             gzipped: encode([
               for (var y = 0; y < size; y++) [for (var x = 0; x < size; x++) mm]
             ]),
@@ -458,6 +467,7 @@ void main() {
   Future<void> settleSums(WidgetTester tester, RainLayer layer) async {
     final container = containerOf(tester);
     await tester.runAsync(() async {
+      await container.read(modelRainSumProvider(layer).future);
       await container.read(rainContoursProvider(layer).future);
       await container.read(rainFillProvider(layer).future);
       await container.read(modelRainFillProvider.future);
@@ -530,14 +540,17 @@ void main() {
     await pumpApp(tester, loggedIn(), useRealMap: true, extraOverrides: [
       ...withGrid(),
       modelRainStackLoaderProvider
-          .overrideWithValue(() async => stackOf(30, mm: 4, model: true)),
+          // Endet am letzten vollen Tag des W4-Gitters (gemessen am
+          // 3. August): beide Seiten der Grenze meinen dieselben Tage.
+          .overrideWithValue(() async =>
+              stackOf(30, mm: 4, model: true, last: DateTime(2026, 8, 2))),
     ]);
     final container = containerOf(tester);
     container.read(rainLayerProvider.notifier).set(RainLayer.last30d);
     await settleSums(tester, RainLayer.last30d);
 
     final model = await tester
-        .runAsync(() => container.read(modelRainSumProvider(30).future));
+        .runAsync(() => container.read(modelRainSumProvider(RainLayer.last30d).future));
     expect(model!.mmAt(47, 15.5), 120);
     final images = [
       for (final layer
@@ -562,8 +575,8 @@ void main() {
     // Rechnung, liefe sie in der Test-Zone, und ein Warten in `runAsync`
     // käme nie zurück.
     await tester.runAsync(() async {
-      await containerOf(tester).read(modelRainSumProvider(30).future);
-      await containerOf(tester).read(modelStackRunProvider.future);
+      await containerOf(tester).read(modelRainSumProvider(RainLayer.last30d).future);
+      await containerOf(tester).read(modelStackRunProvider(RainLayer.last30d).future);
     });
     await openLayerSheet(tester, 'Regen');
     await settle(tester);
@@ -585,12 +598,46 @@ void main() {
       rainCourseEnabledProvider.overrideWith((ref) => true),
       rainGridLoaderProvider.overrideWithValue((_) async => coneGrid()),
       modelRainStackLoaderProvider
-          .overrideWithValue(() async => stackOf(30, mm: 2, model: true)),
+          .overrideWithValue(() async =>
+              stackOf(30, mm: 2, model: true, last: DateTime(2026, 8, 2))),
     ]);
     addTearDown(container.dispose);
     expect(await container.read(
             rainMonthAtProvider((lat: 47.0, lon: 15.5)).future),
         60,
         reason: 'in Tirol schweigt W4 — die Zahl kommt aus dem Modell');
+  });
+
+  test('Radar- und Modellsumme enden am selben Tag', () async {
+    // Das Modell ist vier Tage weiter als das Radar — die Summe beider
+    // Seiten läuft trotzdem über dieselbe Woche (Bildschirmfoto
+    // 2026-10-01: ein Tag Versatz an der Grenze).
+    final container = ProviderContainer(overrides: [
+      rainStackLoaderProvider
+          .overrideWithValue(() async => stackOf(26, mm: 1)),
+      modelRainStackLoaderProvider.overrideWithValue(() async => RainStackData(
+            kind: RainStackKind.model,
+            info: const RainStackInfo(
+                width: 1, height: 1, west: 14, east: 17, north: 48,
+                south: 46, days: []),
+            days: [
+              // 1 mm je Tag, nur der letzte (30.9.) bringt 50 mm.
+              for (var i = 0; i < 30; i++)
+                (
+                  date: DateTime(2026, 9, 1 + i),
+                  gzipped: encode([
+                    [i == 29 ? 50 : 1]
+                  ]),
+                ),
+            ],
+          )),
+    ]);
+    addTearDown(container.dispose);
+    expect(await container.read(rainSumEndProvider(RainLayer.last7d).future),
+        DateTime(2026, 9, 26));
+    final model = await container
+        .read(modelRainSumProvider(RainLayer.last7d).future);
+    expect(model!.values.single, 7,
+        reason: 'der 30.9. liegt jenseits des Radar-Stands und zählt nicht');
   });
 }
