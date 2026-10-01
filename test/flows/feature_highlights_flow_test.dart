@@ -187,8 +187,8 @@ void main() {
     // Gesehenes ohne Punkt, Ungesehenes mit — beides auf dem ersten
     // Bildschirm (Karte ist die erste Gruppe), sonst prüfte findsNothing
     // eine Zeile, die gar nicht gebaut ist.
-    expect(find.byKey(const ValueKey('discover-pilzampel')), findsOneWidget);
-    expect(badgeIn('pilzampel'), findsOneWidget);
+    expect(find.byKey(const ValueKey('discover-regen-rueckblick')), findsOneWidget);
+    expect(badgeIn('regen-rueckblick'), findsOneWidget);
     expect(settings.seenHighlightIds,
         containsAll(kFeatureHighlights.map((h) => h.id)));
 
@@ -196,7 +196,7 @@ void main() {
     await settle(tester);
     await tester.tap(tile);
     await settle(tester);
-    expect(find.byKey(const ValueKey('discover-pilzampel')), findsOneWidget);
-    expect(badgeIn('pilzampel'), findsNothing);
+    expect(find.byKey(const ValueKey('discover-regen-rueckblick')), findsOneWidget);
+    expect(badgeIn('regen-rueckblick'), findsNothing);
   });
 }
