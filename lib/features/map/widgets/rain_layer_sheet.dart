@@ -168,7 +168,7 @@ class _Details extends ConsumerWidget {
           const SizedBox(height: 6),
           Text(layer.coverage, style: theme.textTheme.bodySmall),
           if (rainSumDaysFor(layer) case final days?)
-            _AlpineStatus(days: days),
+            _AlpineStatus(layer: layer, days: days),
           const SizedBox(height: 12),
           if (paint != RainPaint.dwd)
             _OwnLegend(levels: rainLevelsFor(layer))
@@ -210,17 +210,18 @@ class _Details extends ConsumerWidget {
 /// und genau daraus ist diese Ebene entstanden (2026-10-01). Ist die
 /// Summe da, sagt `coverage` schon alles.
 class _AlpineStatus extends ConsumerWidget {
-  const _AlpineStatus({required this.days});
+  const _AlpineStatus({required this.layer, required this.days});
 
+  final RainLayer layer;
   final int days;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final sum = ref.watch(modelRainSumProvider(days));
+    final sum = ref.watch(modelRainSumProvider(layer));
     if (sum.isLoading || sum.valueOrNull != null) {
       return const SizedBox.shrink();
     }
-    final run = ref.watch(modelStackRunProvider).valueOrNull;
+    final run = ref.watch(modelStackRunProvider(layer)).valueOrNull;
     final text = run == null || run == 0
         ? 'Alpenraum: Modellwerte gerade nicht verfügbar.'
         : 'Alpenraum: erst $run von $days Tagen da — '

@@ -9,7 +9,7 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Regen der letzten 7, 14 und 30 Tage — auch in den Alpen
 
-*1. Oktober 2026 · Version 1.220.0*
+*1. Oktober 2026 · Version 1.220.0, 1.220.1*
 
 - Die Regen-Ebene zeigt jetzt drei Rückblicke: **7 Tage, 14 Tage und
   30 Tage**. Die Summe der letzten 24 Stunden ist dafür weggefallen.
@@ -20,6 +20,10 @@ https://github.com/MacBuchi/pilzbuddy/releases
   stammen, und solange noch Tage fehlen, steht es dort auch.
 - Im Spot-Blatt steht die 30-Tage-Summe damit auch für Spots jenseits
   der Grenze.
+- Am Rand der Radarabdeckung in Österreich gab es eine scharfe Kante.
+  Radar und Wettermodell rechnen jetzt über **dieselben Tage** (vorher
+  lag das Modell einen Tag weiter), und auf rund 25 km gehen beide
+  Werte ineinander über.
 
 ## Umkreis nach Wunsch, Regionskarten abschaltbar
 

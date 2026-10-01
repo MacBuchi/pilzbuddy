@@ -117,21 +117,60 @@ final rainPaintProvider = Provider.family<RainPaint, RainLayer>((ref, layer) {
 /// Radar-Stapel ([rainSumGrid], im Isolate) — der DWD hat dafür kein
 /// Produkt. Über DIESEN Provider laufen danach Bänder, Fläche, Datei und
 /// Legende unverändert, für alle drei Zeiträume derselbe Weg.
-final rainGridProvider = FutureProvider.family<RainGrid?, RainLayer>(
+final FutureProviderFamily<RainGrid?, RainLayer> rainGridProvider =
+    FutureProvider.family<RainGrid?, RainLayer>(
   (ref, layer) async {
     final key = rainGridKeyFor(layer);
     if (key == null) return null;
     if (layer == RainLayer.last30d) {
       return ref.watch(rainGridLoaderProvider)(key);
     }
-    final stack = await ref.watch(radarStackLoadedProvider.future);
+    // Beide Watches VOR den Awaits (#255/#257).
+    final stackFuture = ref.watch(radarStackLoadedProvider.future);
+    final endFuture = ref.watch(rainSumEndProvider(layer).future);
+    final stack = await stackFuture;
     if (stack == null) return null;
-    return compute(_sum, (stack: stack, days: rainSumDaysFor(layer)!));
+    final end = await endFuture;
+    return compute(
+        _sum, (stack: stack, days: rainSumDaysFor(layer)!, end: end));
   },
 );
 
-RainGrid? _sum(({RainStackData stack, int days}) input) =>
-    rainSumGrid(input.stack, input.days);
+RainGrid? _sum(({RainStackData stack, int days, DateTime? end}) input) =>
+    rainSumGrid(input.stack, input.days, endDay: input.end);
+
+/// Der letzte Tag, über den Radar- und Modellsumme einer Ebene laufen —
+/// der ÄLTERE der beiden Stände, damit beide Seiten der Grenze dieselbe
+/// Woche meinen (Bildschirmfoto 2026-10-01: Das Modell war einen Tag
+/// weiter als das Radar).
+///
+/// 30 Tage: W4 lässt sich nicht verschieben, also folgt nur das Modell
+/// dessen letztem vollen Tag (gemessen wird gegen 6 Uhr UTC, die Summe
+/// reicht damit bis gestern). `null` heißt „jeder nimmt seinen jüngsten".
+final FutureProviderFamily<DateTime?, RainLayer> rainSumEndProvider =
+    FutureProvider.family<DateTime?, RainLayer>((ref, layer) async {
+  if (rainSumDaysFor(layer) == null) return null;
+  final modelFuture = ref.watch(modelStackLoadedProvider.future);
+  final DateTime? upperEnd;
+  if (layer == RainLayer.last30d) {
+    final w4 = await ref.watch(rainGridProvider(layer).future);
+    upperEnd = w4 == null ? null : rainLastFullDay(w4.measured);
+  } else {
+    final radar = await ref.watch(radarStackLoadedProvider.future);
+    upperEnd = radar == null ? null : rainStackNewest(radar);
+  }
+  final model = await modelFuture;
+  final modelEnd = model == null ? null : rainStackNewest(model);
+  if (upperEnd == null) return modelEnd;
+  if (modelEnd == null) return upperEnd;
+  return modelEnd.isBefore(upperEnd) ? modelEnd : upperEnd;
+});
+
+/// Der letzte volle Tag einer gleitenden Summe, die zu [measured] endet.
+DateTime rainLastFullDay(DateTime measured) {
+  final utc = measured.toUtc();
+  return DateTime(utc.year, utc.month, utc.day - 1);
+}
 
 /// Die Höhenlinien der aktiven Ebene.
 ///
@@ -164,9 +203,19 @@ List<ContourLine> _contours(({RainGrid grid, List<int> levels}) input) =>
 /// geladen wird es also einmal und zweimal ausgewertet.
 final rainFillProvider = FutureProvider.family<RainFill?, RainLayer>(
     (ref, layer) async {
+  // Die Modellsumme NICHT abwarten, sondern nehmen, was da ist: Ohne
+  // Empfang kann der Modell-Stapel lange brauchen, und das eigene Gitter
+  // soll deshalb nicht warten. Kommt sie später, rechnet der Provider
+  // neu — dann mit Übergang. Watch VOR dem Await (#255/#257).
+  final model = rainSumDaysFor(layer) == null
+      ? null
+      : ref.watch(modelRainSumProvider(layer)).valueOrNull;
   final grid = await ref.watch(rainGridProvider(layer).future);
   if (grid == null) return null;
-  final png = await compute(_fill, (grid: grid, levels: rainLevelsFor(layer)));
+  // Am Rand der Radarabdeckung zum Modell hin übergeblendet
+  // ([blendEdge]) — nur das Bild, die Zahl am Spot bleibt roh.
+  final png = await compute(
+      _fill, (grid: grid, model: model, levels: rainLevelsFor(layer)));
   return RainFill(
     png: png,
     west: grid.west,
@@ -222,8 +271,9 @@ final rainFillFileProvider =
   return url == null ? null : (url: url, fill: fill);
 });
 
-Uint8List _fill(({RainGrid grid, List<int> levels}) input) =>
-    rainFillPng(input.grid, levels: input.levels);
+Uint8List _fill(
+        ({RainGrid grid, RainGrid? model, List<int> levels}) input) =>
+    rainFillPng(blendEdge(input.grid, input.model), levels: input.levels);
 
 // ---------------------------------------------------------------------
 // Der Tagesverlauf am Spot
@@ -298,17 +348,30 @@ final modelStackLoadedProvider = FutureProvider<RainStackData?>(
 /// Flächen überdecken sich also nicht — dieselbe Teilung wie bei der
 /// Ampel, nur ohne dass eine Zelle wählen muss.
 final modelRainSumProvider =
-    FutureProvider.family<RainGrid?, int>((ref, days) async {
-  final stack = await ref.watch(modelStackLoadedProvider.future);
+    FutureProvider.family<RainGrid?, RainLayer>((ref, layer) async {
+  final days = rainSumDaysFor(layer);
+  if (days == null) return null;
+  final stackFuture = ref.watch(modelStackLoadedProvider.future);
+  final endFuture = ref.watch(rainSumEndProvider(layer).future);
+  final stack = await stackFuture;
   if (stack == null) return null;
-  return compute(_sum, (stack: stack, days: days));
+  final end = await endFuture;
+  return compute(_sum, (stack: stack, days: days, end: end));
 });
 
 /// Wie viele Modelltage lückenlos liegen — für den Satz im Blatt, wenn
 /// die Summe noch fehlt. `null`, wenn es gar keinen Stapel gibt.
-final modelStackRunProvider = FutureProvider<int?>((ref) async {
-  final stack = await ref.watch(modelStackLoadedProvider.future);
-  return stack == null ? null : rainStackRunLength(stack);
+///
+/// Gezählt ab dem gemeinsamen letzten Tag ([rainSumEndProvider]) — vom
+/// jüngsten Modelltag aus gezählt stünde „30 von 30" neben einer Fläche,
+/// die fehlt, weil ein Tag am anderen Ende noch nicht da ist.
+final modelStackRunProvider =
+    FutureProvider.family<int?, RainLayer>((ref, layer) async {
+  final stackFuture = ref.watch(modelStackLoadedProvider.future);
+  final endFuture = ref.watch(rainSumEndProvider(layer).future);
+  final stack = await stackFuture;
+  if (stack == null) return null;
+  return rainStackRunLength(stack, endDay: await endFuture);
 });
 
 /// Die Modellfläche der GEZEICHNETEN Ebene — `null` bei Radar, aus,
@@ -320,10 +383,9 @@ final modelStackRunProvider = FutureProvider<int?>((ref) async {
 /// Engines.
 final modelRainFillProvider = FutureProvider<RainFill?>((ref) async {
   final layer = ref.watch(drawnRainLayerProvider);
-  final days = rainSumDaysFor(layer);
-  if (days == null) return null;
+  if (rainSumDaysFor(layer) == null) return null;
   // Beide Watches VOR den Awaits (#255/#257).
-  final modelFuture = ref.watch(modelRainSumProvider(days).future);
+  final modelFuture = ref.watch(modelRainSumProvider(layer).future);
   final upperFuture = ref.watch(rainGridProvider(layer).future);
   final grid = await modelFuture;
   if (grid == null) return null;
@@ -492,6 +554,7 @@ final rainMonthAtProvider =
   // Außerhalb Deutschlands: die Summe des Modell-Stapels, dieselbe Zahl,
   // die die Ebene dort zeichnet. Sonst stünde in Tirol eine Fläche auf
   // der Karte und im Blatt nichts.
-  final model = await ref.watch(modelRainSumProvider(30).future);
+  final model =
+      await ref.watch(modelRainSumProvider(RainLayer.last30d).future);
   return model?.mmAt(at.lat, at.lon);
 });

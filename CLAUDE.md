@@ -2863,6 +2863,23 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     `modelRainStackProvider` behalten das Tor des Spot-Dialogs und lesen
     daraus — einmal geladen für alle. Radar und „+1 h" laden nichts
     (Flow-Test zählt es).
+  - **An der Kante der Radarabdeckung** (seit 1.220.1, Bildschirmfoto
+    des Betreibers): Das Radar endet in Österreich an geraden Linien
+    (≈ 47,2° N, ≈ 13,8–14° O — ein Rechteck in der Projektion des
+    Verbunds), und die Karte zeigte dort eine scharfe Kante. Zwei
+    Ursachen, zwei Mittel: **Beide Summen enden am selben Tag**
+    (`rainSumEndProvider`, der ältere Stand; bei 30 Tagen der letzte
+    volle Tag von W4) — der Versatz um EINEN Tag machte den größten
+    Teil aus, weil am 16.09. ein kräftiger Regentag auf der einen Seite
+    drin war und auf der anderen nicht (Kufstein 14 Tage: 47 gegen 14 mm
+    mit Versatz, 47 gegen 42 ohne). Und **25 km Übergang**
+    (`blendEdge`): je Radarzelle nach Abstand zur Abdeckungsgrenze
+    zum Modell hin gemischt, NUR im Bild wie das Glätten; die Zahl am
+    Spot bleibt roh. Die Fläche wartet dafür NICHT auf die Modellsumme
+    (`valueOrNull`), sie rechnet neu, sobald die da ist — sonst hinge das
+    W4-Bild ohne Empfang am Modell-Stapel. Folge für Tests: Die
+    Modellsumme zuerst in `runAsync` lesen, sonst läuft der Neubau in
+    der Test-Zone und das Warten kehrt nie zurück.
   - **Der `sf`-Bau in `rain-data.yml` bleibt vorerst**: Die stabilen
     Clients lesen `rain_sf.bin.gz` bis zur Beförderung weiter. Danach
     darf der Layer aus `tool/rain_grid.py` und dem Workflow raus. Eine
