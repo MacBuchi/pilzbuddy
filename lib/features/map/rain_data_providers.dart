@@ -15,6 +15,7 @@ import 'rain_grid.dart';
 import 'rain_layer.dart';
 import 'map_overlays.dart';
 import 'rain_stack.dart';
+import 'rain_sum.dart';
 import 'spot_weather.dart';
 
 final rainGridRepositoryProvider = Provider<RainGridRepository>(
@@ -30,15 +31,31 @@ final rainGridLoaderProvider = Provider<Future<RainGrid?> Function(String)>(
 /// 5-Minuten-Takt lässt sich nicht vorberechnen, und dort bleibt es beim
 /// DWD-Bild in DWD-Farben — die Konvention, die jeder aus Wetter-Apps
 /// kennt.
+///
+/// Für 7 und 14 Tage ist der Schlüssel nur noch ein NAME (Dateiname der
+/// Fläche): Das Gitter dazu kommt nicht vom Server, sondern aus dem
+/// Radar-Stapel ([rainGridProvider]).
 String? rainGridKeyFor(RainLayer layer) => switch (layer) {
-      RainLayer.last24h => 'sf',
+      RainLayer.last7d => 'd7',
+      RainLayer.last14d => 'd14',
       RainLayer.last30d => 'w4',
       _ => null,
     };
 
+/// Über wie viele Tage die Ebene summiert — `null` für Radar und aus.
+int? rainSumDaysFor(RainLayer layer) => switch (layer) {
+      RainLayer.last7d => 7,
+      RainLayer.last14d => 14,
+      RainLayer.last30d => 30,
+      _ => null,
+    };
+
 /// Die Höhenstufen der Ebene.
-List<int> rainLevelsFor(RainLayer layer) =>
-    layer == RainLayer.last24h ? rainLevels24h : rainLevels30d;
+List<int> rainLevelsFor(RainLayer layer) => switch (layer) {
+      RainLayer.last7d => rainLevels7d,
+      RainLayer.last14d => rainLevels14d,
+      _ => rainLevels30d,
+    };
 
 /// Wer die aktive Regenebene zeichnet — und damit, welche Legende gilt.
 ///
@@ -69,6 +86,16 @@ final rainPaintProvider = Provider.family<RainPaint, RainLayer>((ref, layer) {
   // Gitter-Provider je zu instanziieren. Bei `off` ist der Wert egal —
   // rainLayerUrl(off) ist null, und die Legenden prüfen die Ebene selbst.
   if (rainGridKeyFor(layer) == null) return RainPaint.dwd;
+  // 7 und 14 Tage haben kein DWD-Bild, auf das sie zurückfallen
+  // könnten — die Bänder entscheiden dort nichts. Eigene Farben, sobald
+  // das Gitter feststeht; fehlt es, liegt eben nichts (und das Blatt
+  // zeigt trotzdem die eigene Legende statt einer leeren DWD-Stelle).
+  // Über die Bänder zu gehen hieße: ein Feld ohne Bandgrenze (überall
+  // dieselbe Stufe) zeichnete gar nichts.
+  if (layer.dwdLayer == null) {
+    final grid = ref.watch(rainGridProvider(layer));
+    return grid.hasValue || grid.hasError ? RainPaint.own : RainPaint.pending;
+  }
   final contours = ref.watch(rainContoursProvider(layer));
   // `hasError` VOR `hasValue`: Riverpod behält bei Fehlern den Vorwert —
   // der darf nicht als `own` durchgehen. Ein Fehler entstünde nur aus
@@ -85,13 +112,26 @@ final rainPaintProvider = Provider.family<RainPaint, RainLayer>((ref, layer) {
 
 /// Das rohe Wertegitter der aktiven Ebene — `null`, wenn es für sie
 /// keines gibt oder nichts geladen werden konnte.
+///
+/// 30 Tage: RADOLAN-W4 vom Server. 7 und 14 Tage: die Summe aus dem
+/// Radar-Stapel ([rainSumGrid], im Isolate) — der DWD hat dafür kein
+/// Produkt. Über DIESEN Provider laufen danach Bänder, Fläche, Datei und
+/// Legende unverändert, für alle drei Zeiträume derselbe Weg.
 final rainGridProvider = FutureProvider.family<RainGrid?, RainLayer>(
   (ref, layer) async {
     final key = rainGridKeyFor(layer);
     if (key == null) return null;
-    return ref.watch(rainGridLoaderProvider)(key);
+    if (layer == RainLayer.last30d) {
+      return ref.watch(rainGridLoaderProvider)(key);
+    }
+    final stack = await ref.watch(radarStackLoadedProvider.future);
+    if (stack == null) return null;
+    return compute(_sum, (stack: stack, days: rainSumDaysFor(layer)!));
   },
 );
+
+RainGrid? _sum(({RainStackData stack, int days}) input) =>
+    rainSumGrid(input.stack, input.days);
 
 /// Die Höhenlinien der aktiven Ebene.
 ///
@@ -206,10 +246,22 @@ final rainStackLoaderProvider =
 final rainCourseEnabledProvider = StateProvider<bool>(
     (ref) => ref.watch(settingsProvider).rainCourseEnabled);
 
+/// Der Radar-Stapel, geladen OHNE Blick auf die Zustimmung — einmal für
+/// alle Abnehmer.
+///
+/// Zwei Wege führen hierher, und beide sind eine Zustimmung: der Verlauf
+/// am Spot über [rainStackProvider] (Dialog „Wetter an diesem Spot") und
+/// die Regenebene „7/14 Tage" — wer sie anschaltet, fordert die Tage an,
+/// so wie die 30 Tage das W4-Gitter. Getrennt, damit kein Abnehmer den
+/// Stapel ein zweites Mal lädt. Beobachtet wird er nur hinter einem der
+/// beiden Tore: Beobachten ist laden.
+final radarStackLoadedProvider = FutureProvider<RainStackData?>(
+    (ref) => ref.watch(rainStackLoaderProvider)());
+
 /// Der geladene Stapel — `null`, solange niemand zugestimmt hat.
 final rainStackProvider = FutureProvider<RainStackData?>((ref) async {
   if (!ref.watch(rainCourseEnabledProvider)) return null;
-  return ref.watch(rainStackLoaderProvider)();
+  return ref.watch(radarStackLoadedProvider.future);
 });
 
 /// Der Modellstapel des Alpenraums (#612) — dieselbe Test-Naht wie
@@ -225,8 +277,88 @@ final modelRainStackLoaderProvider =
 /// Blatt, nicht ein zweiter Dialog.
 final modelRainStackProvider = FutureProvider<RainStackData?>((ref) async {
   if (!ref.watch(rainCourseEnabledProvider)) return null;
-  return ref.watch(modelRainStackLoaderProvider)();
+  return ref.watch(modelStackLoadedProvider.future);
 });
+
+/// Der Modell-Stapel ohne Tor — dieselbe Trennung wie
+/// [radarStackLoadedProvider], aus demselben Grund.
+final modelStackLoadedProvider = FutureProvider<RainStackData?>(
+    (ref) => ref.watch(modelRainStackLoaderProvider)());
+
+// ---------------------------------------------------------------------
+// Die Summen im Alpenraum
+// ---------------------------------------------------------------------
+
+/// Die Summe der letzten [days] Tage aus dem Modell-Stapel — `null`,
+/// solange er sie nicht lückenlos trägt.
+///
+/// Warum es das gibt: RADOLAN-W4 und der Radar-Stapel enden an der
+/// deutschen Grenze, in Tirol war die Ebene „30 Tage" leer (Betreiber,
+/// 2026-10-01). Die Modellmaske spart Deutschland aus, die beiden
+/// Flächen überdecken sich also nicht — dieselbe Teilung wie bei der
+/// Ampel, nur ohne dass eine Zelle wählen muss.
+final modelRainSumProvider =
+    FutureProvider.family<RainGrid?, int>((ref, days) async {
+  final stack = await ref.watch(modelStackLoadedProvider.future);
+  if (stack == null) return null;
+  return compute(_sum, (stack: stack, days: days));
+});
+
+/// Wie viele Modelltage lückenlos liegen — für den Satz im Blatt, wenn
+/// die Summe noch fehlt. `null`, wenn es gar keinen Stapel gibt.
+final modelStackRunProvider = FutureProvider<int?>((ref) async {
+  final stack = await ref.watch(modelStackLoadedProvider.future);
+  return stack == null ? null : rainStackRunLength(stack);
+});
+
+/// Die Modellfläche der GEZEICHNETEN Ebene — `null` bei Radar, aus,
+/// oder solange die Tage fehlen.
+///
+/// UNGEGLÄTTET, anders als die Radarfläche: Eine Zelle sind hier 12 km,
+/// ein 3×3-Mittel verschmierte über 36 km und zöge Täler an den Grat.
+/// Weich wird das Bild trotzdem — durch das lineare Resampling beider
+/// Engines.
+final modelRainFillProvider = FutureProvider<RainFill?>((ref) async {
+  final layer = ref.watch(drawnRainLayerProvider);
+  final days = rainSumDaysFor(layer);
+  if (days == null) return null;
+  // Beide Watches VOR den Awaits (#255/#257).
+  final modelFuture = ref.watch(modelRainSumProvider(days).future);
+  final upperFuture = ref.watch(rainGridProvider(layer).future);
+  final grid = await modelFuture;
+  if (grid == null) return null;
+  // Wo Radar oder W4 schon etwas sagen, schweigt das Modell — sonst
+  // lägen an der Grenze zwei Flächen übereinander ([maskCovered]).
+  final upper = await upperFuture;
+  final png = await compute(_rawFill,
+      (grid: grid, upper: upper, levels: rainLevelsFor(layer)));
+  return RainFill(
+    png: png,
+    west: grid.west,
+    east: grid.east,
+    north: grid.north,
+    south: grid.south,
+    measured: grid.measured,
+  );
+});
+
+/// Dieselbe Fläche als Datei für MapLibre — Muster [rainFillFileProvider].
+/// Der Zeitraum steht im Dateinamen: 7 und 14 Tage haben denselben
+/// jüngsten Tag, und gleicher Name hieße altes Bild.
+final modelRainFillFileProvider =
+    FutureProvider<({String url, RainFill fill})?>((ref) async {
+  final layer = ref.watch(drawnRainLayerProvider);
+  final fill = await ref.watch(modelRainFillProvider.future);
+  if (fill == null) return null;
+  final url = await ref.watch(rainGridRepositoryProvider).writeFill(
+      'model_${rainGridKeyFor(layer)}', fill.measured, fill.png);
+  return url == null ? null : (url: url, fill: fill);
+});
+
+Uint8List _rawFill(
+        ({RainGrid grid, RainGrid? upper, List<int> levels}) input) =>
+    rainFillPng(maskCovered(input.grid, input.upper),
+        levels: input.levels, smooth: false);
 
 /// Beide Stapel in VORRANG-Reihenfolge, Radar zuerst — leer ohne
 /// Zustimmung oder wenn keiner ladbar ist. Alle Abnehmer (Verlauf am
@@ -355,5 +487,11 @@ final rainMonthAtProvider =
     FutureProvider.family<int?, ({double lat, double lon})>((ref, at) async {
   if (!ref.watch(rainCourseEnabledProvider)) return null;
   final grid = await ref.watch(rainGridProvider(RainLayer.last30d).future);
-  return grid?.mmAt(at.lat, at.lon);
+  final measured = grid?.mmAt(at.lat, at.lon);
+  if (measured != null) return measured;
+  // Außerhalb Deutschlands: die Summe des Modell-Stapels, dieselbe Zahl,
+  // die die Ebene dort zeichnet. Sonst stünde in Tirol eine Fläche auf
+  // der Karte und im Blatt nichts.
+  final model = await ref.watch(modelRainSumProvider(30).future);
+  return model?.mmAt(at.lat, at.lon);
 });

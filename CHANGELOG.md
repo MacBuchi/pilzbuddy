@@ -7,6 +7,20 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Regen der letzten 7, 14 und 30 Tage — auch in den Alpen
+
+*1. Oktober 2026 · Version 1.220.0*
+
+- Die Regen-Ebene zeigt jetzt drei Rückblicke: **7 Tage, 14 Tage und
+  30 Tage**. Die Summe der letzten 24 Stunden ist dafür weggefallen.
+- **In Österreich, der Schweiz und Südtirol** war die 30-Tage-Karte
+  bisher leer, weil die Messung des Deutschen Wetterdienstes an der
+  Grenze endet. Dort rechnet die App die Summe jetzt selbst aus den
+  Tageswerten des Wettermodells. Im Regen-Blatt steht, woher die Werte
+  stammen, und solange noch Tage fehlen, steht es dort auch.
+- Im Spot-Blatt steht die 30-Tage-Summe damit auch für Spots jenseits
+  der Grenze.
+
 ## Umkreis nach Wunsch, Regionskarten abschaltbar
 
 *30. September 2026 · Version 1.219.0*

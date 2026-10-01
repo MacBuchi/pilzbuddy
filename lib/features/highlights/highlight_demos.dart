@@ -165,6 +165,18 @@ final kHighlightDemos = <String, HighlightDemo>{
       ),
     ]),
   ),
+  'regen-rueckblick': HighlightDemo(
+    route: '/',
+    script: _demo('regen-rueckblick', const [
+      CoachStep(
+        title: 'Zeitraum wählen',
+        text: 'Unter „Regen" stehen jetzt 7, 14 und 30 Tage. Außerhalb '
+            'Deutschlands rechnet die App die Summe aus dem Wettermodell.',
+        scene: MapCoach.layersSheet,
+        lit: [MapCoach.layersRain],
+      ),
+    ]),
+  ),
   'alpen-wetter': HighlightDemo(
     route: '/',
     script: _demo('alpen-wetter', const [
@@ -184,7 +196,7 @@ final kHighlightDemos = <String, HighlightDemo>{
       CoachStep(
         title: 'Regen einblenden',
         text: 'Radar für jetzt und die nächste Stunde, dazu die Summen über '
-            '24 Stunden und 30 Tage. Im Spot-Blatt steht der Regen an genau '
+            '7, 14 und 30 Tage. Im Spot-Blatt steht der Regen an genau '
             'dieser Stelle.',
         scene: MapCoach.layersSheet,
         lit: [MapCoach.layersRain],

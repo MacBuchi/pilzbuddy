@@ -436,7 +436,7 @@ void main() {
 
   group('Höhenstufen', () {
     test('sind aufsteigend und ohne Wertung benannt', () {
-      for (final levels in [rainLevels30d, rainLevels24h]) {
+      for (final levels in [rainLevels30d, rainLevels14d, rainLevels7d]) {
         expect(levels, isNotEmpty);
         for (var i = 1; i < levels.length; i++) {
           expect(levels[i], greaterThan(levels[i - 1]));

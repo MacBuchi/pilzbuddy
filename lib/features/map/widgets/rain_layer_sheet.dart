@@ -124,9 +124,13 @@ class _RainLayerSheet extends ConsumerWidget {
                 // darauf — die Summen kommen als Rohwerte und werden von
                 // uns quantisiert, geglättet und neu eingefärbt. Beim
                 // Radar liegt das Bild des DWD unverändert auf der Karte.
-                current == RainLayer.last24h || current == RainLayer.last30d
-                    ? 'Datenbasis: Deutscher Wetterdienst, '
-                        'Werte verändert'
+                //
+                // Die Summen tragen seit 1.220.0 im Alpenraum Werte von
+                // Open-Meteo (CC BY 4.0) — die Nennung gehört dorthin, wo
+                // die Werte zu sehen sind.
+                rainSumDaysFor(current) != null
+                    ? 'Datenbasis: Deutscher Wetterdienst, Open-Meteo '
+                        '(CC BY 4.0), Werte verändert'
                     : 'Daten: Deutscher Wetterdienst',
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: theme.hintColor),
@@ -163,6 +167,8 @@ class _Details extends ConsumerWidget {
           Text(layer.description, style: theme.textTheme.bodyMedium),
           const SizedBox(height: 6),
           Text(layer.coverage, style: theme.textTheme.bodySmall),
+          if (rainSumDaysFor(layer) case final days?)
+            _AlpineStatus(days: days),
           const SizedBox(height: 12),
           if (paint != RainPaint.dwd)
             _OwnLegend(levels: rainLevelsFor(layer))
@@ -194,6 +200,34 @@ class _Details extends ConsumerWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+/// Ein Satz, solange die Summe im Alpenraum fehlt — sonst nichts.
+///
+/// Ohne ihn sähe die leere Fläche in Tirol wieder wie ein Fehler aus,
+/// und genau daraus ist diese Ebene entstanden (2026-10-01). Ist die
+/// Summe da, sagt `coverage` schon alles.
+class _AlpineStatus extends ConsumerWidget {
+  const _AlpineStatus({required this.days});
+
+  final int days;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sum = ref.watch(modelRainSumProvider(days));
+    if (sum.isLoading || sum.valueOrNull != null) {
+      return const SizedBox.shrink();
+    }
+    final run = ref.watch(modelStackRunProvider).valueOrNull;
+    final text = run == null || run == 0
+        ? 'Alpenraum: Modellwerte gerade nicht verfügbar.'
+        : 'Alpenraum: erst $run von $days Tagen da — '
+            'die Fläche erscheint, sobald alle vorliegen.';
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Text(text, style: Theme.of(context).textTheme.bodySmall),
     );
   }
 }

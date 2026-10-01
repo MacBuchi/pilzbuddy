@@ -132,10 +132,10 @@ void main() {
     await tester.tapAt(const Offset(20, 20));
     await settle(tester);
     await openLayerSheet(tester, 'Regen');
-    await tester.tap(find.text('Letzte 24 Stunden'));
+    await tester.tap(find.text('Letzte 7 Tage'));
     await settle(tester);
     expect(container.read(forestLayerEnabledProvider), isTrue);
-    expect(container.read(rainLayerProvider), RainLayer.last24h);
+    expect(container.read(rainLayerProvider), RainLayer.last7d);
   });
 
   testWidgets('abgewählte Klassen verschwinden aus Fläche und Legende '

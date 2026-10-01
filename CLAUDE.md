@@ -2843,6 +2843,30 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   „neues Netzziel ⇒ Datenschutzerklärung im selben PR" als Wächter:
   Jeder Host, der in `lib/` auftaucht und dort nicht eingeordnet ist,
   macht CI rot.
+  **Seit 1.220.0 Rückblick 7, 14 und 30 Tage, die 24 h sind weg**
+  (Betreiber, 2026-10-01; Anlass: „30 Tage" war in Tirol leer, weil W4
+  an der Grenze endet). Drei Dinge, die man wissen muss:
+  - **7 und 14 Tage rechnet die App** (`rain_sum.dart`) aus den
+    Tagesgittern, die ohnehin auf dem Gerät liegen: Radar-Stapel für
+    Deutschland über `rainGridProvider` (damit laufen Bänder, Fläche,
+    Datei und Legende unverändert), Modell-Stapel für den Alpenraum als
+    ZWEITE Fläche (`modelRainFillProvider`, MapLibre-Quelle
+    `regen-modell` unter `regen-flaeche`). Bei 30 Tagen bleibt in
+    Deutschland W4, nur die Alpenfläche kommt dazu. Die Modellmaske spart
+    Deutschland aus, die Flächen überdecken sich nicht. Eine Summe gibt
+    es nur über LÜCKENLOSE Tage, eine Zelle mit fehlendem Tag bleibt
+    leer — wie `sumOfLast` am Spot. Das Modell wird NICHT geglättet
+    (12-km-Zellen, 3×3 wären 36 km).
+  - **Die gewählte Ebene ist die Zustimmung** zum Laden der Stapel, wie
+    bei W4. Deshalb gibt es `radarStackLoadedProvider` /
+    `modelStackLoadedProvider` ohne Tor; `rainStackProvider` und
+    `modelRainStackProvider` behalten das Tor des Spot-Dialogs und lesen
+    daraus — einmal geladen für alle. Radar und „+1 h" laden nichts
+    (Flow-Test zählt es).
+  - **Der `sf`-Bau in `rain-data.yml` bleibt vorerst**: Die stabilen
+    Clients lesen `rain_sf.bin.gz` bis zur Beförderung weiter. Danach
+    darf der Layer aus `tool/rain_grid.py` und dem Workflow raus. Eine
+    gemerkte `last24h` wird beim Lesen zu `last30d`.
 - **Release-Anhänge sind aus dem Browser NICHT abrufbar** (#365/#366, seit
   1.111.0): `github.com/…/releases/download/…` schickt keinen
   `access-control-allow-origin`-Header, und der naheliegende Umweg über die
@@ -2932,6 +2956,10 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     GitHub Stunden zu spät kommen kann. Der Selbsttest rechnet den
     Stillstand mit dem ECHTEN Verhältnis von Punkten zu Budget nach;
     der alte mit 150 Punkten hatte Platz für drei Wochen und sah ihn nie.
+  - **Der Stapel hält 30 Tage** (`STACK_DAYS`, seit 1.220.0), nicht
+    mehr 28: Die Ampel braucht 26 Regentage, die Stationstabelle 28
+    Temperaturtage, die Regen-Ebene „30 Tage" im Alpenraum alle 30. Die
+    virtuellen Stationen nehmen weiter nur die 28 Tage der Tabelle.
   - **Reihenfolge im Workflow: `daily weather model`.** Das Werkzeug
     hängt seine Punkte an die Stationstabelle DIESES Laufs und korrigiert
     `weather.bytes` (der Cache-Schlüssel der App). Ein Handlauf nur mit
