@@ -203,6 +203,12 @@ void main() {
       // (`tool/model_weather.py`), die App liest den eigenen Spiegel. Die
       // Adresse steht auf der Lizenzseite, weil CC BY die Nennung verlangt.
       'open-meteo.com',
+      // Der gemessene Alpenstapel (#646): geholt nur in CI
+      // (`tool/alps_rain.py`), die App liest den eigenen Spiegel. Die
+      // Nutzungsbedingungen von MeteoSchweiz stehen auf der Lizenzseite,
+      // weil sie die Quellenangabe vorschreiben; GeoSphere läuft über
+      // `doi.org`, DPC über `creativecommons.org`.
+      'opendatadocs.meteoswiss.ch',
       // Doku-Links in KOMMENTAREN der Web-Hülle (#110): Sie stehen in
       // `web/sw.js` bzw. `web/flutter_bootstrap.js` als Beleg für eine
       // Entscheidung und werden von niemandem abgerufen — auch nicht auf

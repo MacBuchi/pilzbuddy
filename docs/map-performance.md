@@ -823,3 +823,41 @@ Wiederholen: drei Ebenen anschalten, dann
 `adb shell input tap <x> <y>` auf den Vorhang-Knopf und in einer Schleife
 `adb exec-out screencap` mit Zeitstempeln — die Schrittweite ist der
 `screencap` selbst.
+
+## Nachtrag 2026-10-02: Der gemessene Alpenstapel (#646, 1.222.0)
+
+Ein dritter Tagesstapel, und zwar einer in Radargröße: 1258 × 576
+Zellen je Tag (1 km, Web Mercator über 5,9–17,2° O / 45,6–49,1° N).
+Ampel, Summenfläche und Verlauf am Spot rechnen ihn zusätzlich zu Radar
+und Modell. Gemessen mit `test/perf_alps_stack_measure.dart` an den
+echten 30 Tagen des ersten Laufs (2026-09-01…09-30), Apple M1 Max,
+Debug-VM, Median aus drei bis fünf Läufen:
+
+| Was | Zeit |
+|---|---|
+| Download, einmalig | 798 KB Tage + 273 KB Herkunft, danach ~30 KB am Tag |
+| Summe 7 / 14 / 30 Tage | 74 / 132 / 258 ms |
+| Fläche 14 Tage (Gitter + PNG) | 41 ms |
+| Ampel-Zutaten, Regenteil (26 Tage) | 304 ms |
+| Verlauf an EINEM Spot, mit Herkunft | 483 ms |
+| Verläufe an 19 Spots, mit Herkunft | 469 ms |
+| Verläufe an 19 Spots, ohne Herkunft | 300 ms |
+
+Drei Dinge daraus:
+
+- **Alles läuft im Isolate**, wie Radar und Modell; der Hauptfaden
+  sieht nur die fertigen Gitter.
+- **Die Herkunft kostet fast so viel wie die Werte**: Sie ist ein
+  zweites Gitter derselben Größe je Tag. Gelesen wird sie deshalb nur
+  dort, wo jemand die Quellenzeile liest, im Spot-Blatt.
+  Der Ampel-Nachlauf (`rainCoursesProvider`) lässt sie weg
+  (`withOrigin: false`): 300 statt 469 ms für 19 Spots.
+- **Der Einzelverlauf hängt am Auspacken, nicht an der Zahl der
+  Punkte**: Ein Spot kostet so viel wie neunzehn. Billiger ginge es nur
+  mit zeilenweisem Auspacken, weil das Zeilen-Delta nur die eigene Zeile
+  braucht. Gzip muss aber trotzdem ganz durch. Für ein Blatt, das sich
+  öffnet und dann rechnet, ist eine halbe Sekunde auf diesem Rechner
+  hinnehmbar. Auf dem Pixel nachmessen, bevor jemand umbaut.
+
+Der Speicher bleibt bei der Regel des Radarstapels: gepackt im Speicher
+(1,1 MB), entpackt immer nur EIN Tag (725 KB).

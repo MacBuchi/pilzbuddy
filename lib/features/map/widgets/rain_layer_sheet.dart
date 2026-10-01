@@ -126,11 +126,15 @@ class _RainLayerSheet extends ConsumerWidget {
                 // Radar liegt das Bild des DWD unverändert auf der Karte.
                 //
                 // Die Summen tragen seit 1.220.0 im Alpenraum Werte von
-                // Open-Meteo (CC BY 4.0) — die Nennung gehört dorthin, wo
-                // die Werte zu sehen sind.
+                // Open-Meteo (CC BY 4.0), seit #646 die gemessenen der
+                // drei Landesdienste — die Nennung gehört dorthin, wo die
+                // Werte zu sehen sind. Die gemischte Fläche ist als Ganzes
+                // CC BY-SA, weil Radar-DPC es ist; das steht mit dabei.
                 rainSumDaysFor(current) != null
-                    ? 'Datenbasis: Deutscher Wetterdienst, Open-Meteo '
-                        '(CC BY 4.0), Werte verändert'
+                    ? 'Datenbasis: Deutscher Wetterdienst, GeoSphere '
+                        'Austria, MeteoSchweiz, Radar-DPC, Open-Meteo; '
+                        'Alpenraum gemischt unter CC BY-SA 4.0, Werte '
+                        'verändert'
                     : 'Daten: Deutscher Wetterdienst',
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: theme.hintColor),
@@ -217,13 +221,19 @@ class _AlpineStatus extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Gemessen oder Modell — eine der beiden Summen reicht für die
+    // Fläche ([alpineRainFillProvider]).
+    final measured = ref.watch(alpsRainSumProvider(layer));
     final sum = ref.watch(modelRainSumProvider(layer));
+    if (measured.isLoading || measured.valueOrNull != null) {
+      return const SizedBox.shrink();
+    }
     if (sum.isLoading || sum.valueOrNull != null) {
       return const SizedBox.shrink();
     }
     final run = ref.watch(modelStackRunProvider(layer)).valueOrNull;
     final text = run == null || run == 0
-        ? 'Alpenraum: Modellwerte gerade nicht verfügbar.'
+        ? 'Alpenraum: Werte gerade nicht verfügbar.'
         : 'Alpenraum: erst $run von $days Tagen da — '
             'die Fläche erscheint, sobald alle vorliegen.';
     return Padding(

@@ -151,6 +151,7 @@ final FutureProviderFamily<DateTime?, RainLayer> rainSumEndProvider =
     FutureProvider.family<DateTime?, RainLayer>((ref, layer) async {
   if (rainSumDaysFor(layer) == null) return null;
   final modelFuture = ref.watch(modelStackLoadedProvider.future);
+  final alpsFuture = ref.watch(alpsStackLoadedProvider.future);
   final DateTime? upperEnd;
   if (layer == RainLayer.last30d) {
     final w4 = await ref.watch(rainGridProvider(layer).future);
@@ -160,10 +161,15 @@ final FutureProviderFamily<DateTime?, RainLayer> rainSumEndProvider =
     upperEnd = radar == null ? null : rainStackNewest(radar);
   }
   final model = await modelFuture;
-  final modelEnd = model == null ? null : rainStackNewest(model);
-  if (upperEnd == null) return modelEnd;
-  if (modelEnd == null) return upperEnd;
-  return modelEnd.isBefore(upperEnd) ? modelEnd : upperEnd;
+  final alps = await alpsFuture;
+  // Der früheste der jüngsten Tage: Alle Flächen enden am selben Tag,
+  // sonst steht an ihrer Naht ein Tag Unterschied (1.220.1).
+  DateTime? end = upperEnd;
+  for (final stack in [?model, ?alps]) {
+    final newest = rainStackNewest(stack);
+    if (newest != null && (end == null || newest.isBefore(end))) end = newest;
+  }
+  return end;
 });
 
 /// Der letzte volle Tag einer gleitenden Summe, die zu [measured] endet.
@@ -207,15 +213,19 @@ final rainFillProvider = FutureProvider.family<RainFill?, RainLayer>(
   // Empfang kann der Modell-Stapel lange brauchen, und das eigene Gitter
   // soll deshalb nicht warten. Kommt sie später, rechnet der Provider
   // neu — dann mit Übergang. Watch VOR dem Await (#255/#257).
-  final model = rainSumDaysFor(layer) == null
-      ? null
-      : ref.watch(modelRainSumProvider(layer)).valueOrNull;
+  final sums = rainSumDaysFor(layer) != null;
+  final model =
+      sums ? ref.watch(modelRainSumProvider(layer)).valueOrNull : null;
+  // Wo der gemessene Alpenstapel etwas sagt, schweigt die Radarfläche —
+  // auch im deutschen Grenzband, wo er die schon gemischte Zahl trägt
+  // (#646). Ebenso nicht abgewartet: Er kommt, wenn er kommt.
+  final alps = sums ? ref.watch(alpsRainSumProvider(layer)).valueOrNull : null;
   final grid = await ref.watch(rainGridProvider(layer).future);
   if (grid == null) return null;
   // Am Rand der Radarabdeckung zum Modell hin übergeblendet
   // ([blendEdge]) — nur das Bild, die Zahl am Spot bleibt roh.
-  final png = await compute(
-      _fill, (grid: grid, model: model, levels: rainLevelsFor(layer)));
+  final png = await compute(_fill,
+      (grid: grid, model: model, alps: alps, levels: rainLevelsFor(layer)));
   return RainFill(
     png: png,
     west: grid.west,
@@ -223,6 +233,10 @@ final rainFillProvider = FutureProvider.family<RainFill?, RainLayer>(
     north: grid.north,
     south: grid.south,
     measured: grid.measured,
+    // Dieselbe Ebene sieht mit und ohne die beiden anderen Flächen
+    // anders aus, bei gleichem Messtag — MapLibre tauscht ein Bild nur
+    // bei neuem Namen.
+    variant: '${model == null ? '' : 'm'}${alps == null ? '' : 'a'}',
   );
 });
 
@@ -235,6 +249,7 @@ class RainFill {
     required this.north,
     required this.south,
     required this.measured,
+    this.variant = '',
   });
 
   final Uint8List png;
@@ -246,6 +261,10 @@ class RainFill {
   /// Der Messzeitpunkt des zugrunde liegenden Gitters — er unterscheidet
   /// zwei Flächen derselben Ebene und wird deshalb zum Dateinamen.
   final DateTime measured;
+
+  /// Was außer dem Messtag in den Dateinamen gehört: welche anderen
+  /// Flächen in diese hineingerechnet sind.
+  final String variant;
 }
 
 /// Dieselbe Fläche, aber als Datei auf Platte — der Weg für MapLibre,
@@ -267,13 +286,15 @@ final rainFillFileProvider =
   if (fill == null) return null;
   final url = await ref
       .watch(rainGridRepositoryProvider)
-      .writeFill(key, fill.measured, fill.png);
+      .writeFill(key, fill.measured, fill.png, variant: fill.variant);
   return url == null ? null : (url: url, fill: fill);
 });
 
 Uint8List _fill(
-        ({RainGrid grid, RainGrid? model, List<int> levels}) input) =>
-    rainFillPng(blendEdge(input.grid, input.model), levels: input.levels);
+        ({RainGrid grid, RainGrid? model, RainGrid? alps, List<int> levels})
+            input) =>
+    rainFillPng(maskCovered(blendEdge(input.grid, input.model), input.alps),
+        levels: input.levels);
 
 // ---------------------------------------------------------------------
 // Der Tagesverlauf am Spot
@@ -335,6 +356,26 @@ final modelRainStackProvider = FutureProvider<RainStackData?>((ref) async {
 final modelStackLoadedProvider = FutureProvider<RainStackData?>(
     (ref) => ref.watch(modelRainStackLoaderProvider)());
 
+/// Der gemessene Alpenstapel (#646) — dieselbe Test-Naht wie die beiden
+/// anderen; das Harness setzt alle drei auf `null`.
+final alpsRainStackLoaderProvider =
+    Provider<Future<RainStackData?> Function()>((ref) {
+  final repository = ref.watch(rainGridRepositoryProvider);
+  return () => repository.loadAlpsStack();
+});
+
+/// Der Alpenstapel ohne Tor — dieselbe Trennung wie
+/// [radarStackLoadedProvider], aus demselben Grund.
+final alpsStackLoadedProvider = FutureProvider<RainStackData?>(
+    (ref) => ref.watch(alpsRainStackLoaderProvider)());
+
+/// Der Alpenstapel hinter der Zustimmung „Wetter an diesem Spot" — EIN
+/// Angebot für alle drei Stapel, woher die Zahl kommt, sagt das Blatt.
+final alpsRainStackProvider = FutureProvider<RainStackData?>((ref) async {
+  if (!ref.watch(rainCourseEnabledProvider)) return null;
+  return ref.watch(alpsStackLoadedProvider.future);
+});
+
 // ---------------------------------------------------------------------
 // Die Summen im Alpenraum
 // ---------------------------------------------------------------------
@@ -374,26 +415,51 @@ final modelStackRunProvider =
   return rainStackRunLength(stack, endDay: await endFuture);
 });
 
-/// Die Modellfläche der GEZEICHNETEN Ebene — `null` bei Radar, aus,
-/// oder solange die Tage fehlen.
+/// Die Summe der letzten [days] Tage aus dem gemessenen Alpenstapel
+/// (#646) — `null`, solange er sie nicht lückenlos trägt. Muster
+/// [modelRainSumProvider].
+final alpsRainSumProvider =
+    FutureProvider.family<RainGrid?, RainLayer>((ref, layer) async {
+  final days = rainSumDaysFor(layer);
+  if (days == null) return null;
+  final stackFuture = ref.watch(alpsStackLoadedProvider.future);
+  final endFuture = ref.watch(rainSumEndProvider(layer).future);
+  final stack = await stackFuture;
+  if (stack == null) return null;
+  final end = await endFuture;
+  return compute(_sum, (stack: stack, days: days, end: end));
+});
+
+/// Die Fläche des Alpenraums der GEZEICHNETEN Ebene — `null` bei Radar,
+/// aus, oder solange weder Alpenstapel noch Modell die Tage tragen.
 ///
-/// UNGEGLÄTTET, anders als die Radarfläche: Eine Zelle sind hier 12 km,
-/// ein 3×3-Mittel verschmierte über 36 km und zöge Täler an den Grat.
-/// Weich wird das Bild trotzdem — durch das lineare Resampling beider
-/// Engines.
-final modelRainFillProvider = FutureProvider<RainFill?>((ref) async {
+/// Gemessen, wo der Alpenstapel etwas sagt, sonst Modell
+/// ([alpineFillGrid]). Geglättet wie die Radarfläche, sobald sie in der
+/// 1-km-Geometrie des Alpenstapels liegt — sonst stünde an der inneren
+/// Kante des deutschen Grenzbands eine geglättete gegen eine rohe
+/// Fläche. Die reine Modellfläche bleibt UNGEGLÄTTET: Eine Zelle sind
+/// dort 12 km, ein 3×3-Mittel verschmierte über 36 km und zöge Täler an
+/// den Grat; weich wird sie durch das lineare Resampling beider Engines.
+final alpineRainFillProvider = FutureProvider<RainFill?>((ref) async {
   final layer = ref.watch(drawnRainLayerProvider);
   if (rainSumDaysFor(layer) == null) return null;
-  // Beide Watches VOR den Awaits (#255/#257).
+  // Alle Watches VOR den Awaits (#255/#257).
+  final alpsFuture = ref.watch(alpsRainSumProvider(layer).future);
   final modelFuture = ref.watch(modelRainSumProvider(layer).future);
   final upperFuture = ref.watch(rainGridProvider(layer).future);
-  final grid = await modelFuture;
-  if (grid == null) return null;
+  final alps = await alpsFuture;
+  final model = await modelFuture;
+  if (alps == null && model == null) return null;
   // Wo Radar oder W4 schon etwas sagen, schweigt das Modell — sonst
   // lägen an der Grenze zwei Flächen übereinander ([maskCovered]).
   final upper = await upperFuture;
-  final png = await compute(_rawFill,
-      (grid: grid, upper: upper, levels: rainLevelsFor(layer)));
+  final png = await compute(_alpineFill, (
+    alps: alps,
+    model: model,
+    upper: upper,
+    levels: rainLevelsFor(layer),
+  ));
+  final grid = (alps ?? model)!;
   return RainFill(
     png: png,
     west: grid.west,
@@ -401,38 +467,51 @@ final modelRainFillProvider = FutureProvider<RainFill?>((ref) async {
     north: grid.north,
     south: grid.south,
     measured: grid.measured,
+    variant: alps == null ? 'o' : 'm',
   );
 });
 
 /// Dieselbe Fläche als Datei für MapLibre — Muster [rainFillFileProvider].
 /// Der Zeitraum steht im Dateinamen: 7 und 14 Tage haben denselben
 /// jüngsten Tag, und gleicher Name hieße altes Bild.
-final modelRainFillFileProvider =
+final alpineRainFillFileProvider =
     FutureProvider<({String url, RainFill fill})?>((ref) async {
   final layer = ref.watch(drawnRainLayerProvider);
-  final fill = await ref.watch(modelRainFillProvider.future);
+  final fill = await ref.watch(alpineRainFillProvider.future);
   if (fill == null) return null;
   final url = await ref.watch(rainGridRepositoryProvider).writeFill(
-      'model_${rainGridKeyFor(layer)}', fill.measured, fill.png);
+      'alpine_${rainGridKeyFor(layer)}', fill.measured, fill.png,
+      variant: fill.variant);
   return url == null ? null : (url: url, fill: fill);
 });
 
-Uint8List _rawFill(
-        ({RainGrid grid, RainGrid? upper, List<int> levels}) input) =>
-    rainFillPng(maskCovered(input.grid, input.upper),
-        levels: input.levels, smooth: false);
+Uint8List _alpineFill(
+        ({
+          RainGrid? alps,
+          RainGrid? model,
+          RainGrid? upper,
+          List<int> levels,
+        }) input) =>
+    rainFillPng(
+        alpineFillGrid(alps: input.alps, model: input.model, upper: input.upper)!,
+        levels: input.levels,
+        smooth: input.alps != null);
 
-/// Beide Stapel in VORRANG-Reihenfolge, Radar zuerst — leer ohne
-/// Zustimmung oder wenn keiner ladbar ist. Alle Abnehmer (Verlauf am
-/// Spot, gebündelte Verläufe, Ampel-Fläche) lesen DIESE Liste, damit es
-/// genau einen Vorrang gibt.
+/// Alle Stapel in VORRANG-Reihenfolge — gemessener Alpenstapel (#646),
+/// Radar, Modell —, leer ohne Zustimmung oder wenn keiner ladbar ist.
+/// Alle Abnehmer (Verlauf am Spot, gebündelte Verläufe, Ampel-Fläche)
+/// lesen DIESE Liste, damit es genau einen Vorrang gibt. Warum der
+/// Alpenstapel vor dem Radar steht, obwohl er es enthält, steht an
+/// `rainCoursesFromStacks`.
 final rainStacksProvider = FutureProvider<List<RainStackData>>((ref) async {
-  // Beide Watches VOR den Awaits (#255/#257).
+  // Alle Watches VOR den Awaits (#255/#257).
+  final alpsFuture = ref.watch(alpsRainStackProvider.future);
   final radarFuture = ref.watch(rainStackProvider.future);
   final modelFuture = ref.watch(modelRainStackProvider.future);
+  final alps = await alpsFuture;
   final radar = await radarFuture;
   final model = await modelFuture;
-  return [?radar, ?model];
+  return [?alps, ?radar, ?model];
 });
 
 /// Der Regenverlauf an einem Punkt.
@@ -498,7 +577,10 @@ List<({double lat, double lon})> pointsFromKey(String key) {
 List<RainCourse> _courses(
         ({List<RainStackData> stacks, List<({double lat, double lon})> points})
             input) =>
-    rainCoursesFromStacks(input.stacks, points: input.points);
+    // Ohne Herkunft: Die gebündelten Verläufe füttern den Ampel-Nachlauf,
+    // der keine Quellenzeile zeigt.
+    rainCoursesFromStacks(input.stacks,
+        points: input.points, withOrigin: false);
 
 RainCourse _course(
         ({List<RainStackData> stacks, double lat, double lon}) input) =>
@@ -539,7 +621,8 @@ final spotTemperatureProvider =
   return table?.at(at.lat, at.lon);
 });
 
-/// Die 30-Tage-Summe an einem Punkt, aus dem vorhandenen W4-Gitter.
+/// Die 30-Tage-Summe an einem Punkt, aus dem vorhandenen W4-Gitter —
+/// im Alpenraum und im deutschen Grenzband aus dem Alpenstapel (#646).
 ///
 /// Warum nicht aus dem Stapel: dreißig Tagesraster wären rund 1,5 MB,
 /// und der DWD rechnet diese Summe ohnehin selbst. Warum überhaupt: Es
@@ -548,13 +631,16 @@ final spotTemperatureProvider =
 final rainMonthAtProvider =
     FutureProvider.family<int?, ({double lat, double lon})>((ref, at) async {
   if (!ref.watch(rainCourseEnabledProvider)) return null;
-  final grid = await ref.watch(rainGridProvider(RainLayer.last30d).future);
-  final measured = grid?.mmAt(at.lat, at.lon);
-  if (measured != null) return measured;
-  // Außerhalb Deutschlands: die Summe des Modell-Stapels, dieselbe Zahl,
-  // die die Ebene dort zeichnet. Sonst stünde in Tirol eine Fläche auf
-  // der Karte und im Blatt nichts.
-  final model =
-      await ref.watch(modelRainSumProvider(RainLayer.last30d).future);
-  return model?.mmAt(at.lat, at.lon);
+  // Derselbe Vorrang wie die Fläche (#646): Alpenstapel, W4, Modell —
+  // sonst stünde im Grenzband im Blatt eine andere Zahl als auf der
+  // Karte. Alle Watches VOR den Awaits (#255/#257).
+  const layer = RainLayer.last30d;
+  final alpsFuture = ref.watch(alpsRainSumProvider(layer).future);
+  final gridFuture = ref.watch(rainGridProvider(layer).future);
+  final modelFuture = ref.watch(modelRainSumProvider(layer).future);
+  for (final future in [alpsFuture, gridFuture, modelFuture]) {
+    final value = (await future)?.mmAt(at.lat, at.lon);
+    if (value != null) return value;
+  }
+  return null;
 });

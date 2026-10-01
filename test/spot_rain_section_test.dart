@@ -50,6 +50,54 @@ void main() {
           'Tagessummen des Deutschen Wetterdienstes, 1 von 3 Tagen aus '
           'Modellwerten (Open-Meteo)');
     });
+    group('gemessen im Alpenraum (#646)', () {
+      RainDay alps(int origin, {int day = 1}) => RainDay(
+          date: DateTime.utc(2026, 9, day),
+          mm: 4,
+          source: RainSource.alps,
+          origin: origin);
+      test('ein Landesdienst allein', () {
+        expect(
+            rainSourceLine(RainCourse([
+              alps(AlpsOrigin.inca),
+              alps(AlpsOrigin.inca, day: 2),
+            ])),
+            'Tagessummen gemessen: GeoSphere Austria');
+      });
+      test('an der Grenze: alle Beteiligten und das Wort „gemischt"', () {
+        expect(
+            rainSourceLine(RainCourse([
+              alps(AlpsOrigin.inca | AlpsOrigin.radar),
+              alps(AlpsOrigin.rprelimd | AlpsOrigin.inca, day: 2),
+            ])),
+            'Tagessummen gemessen: GeoSphere Austria, MeteoSchweiz und '
+            'Deutscher Wetterdienst, an der Grenze gemischt');
+      });
+      test('Modellanteil wird gezählt, nicht verschwiegen', () {
+        expect(
+            rainSourceLine(RainCourse([
+              alps(AlpsOrigin.dpc | AlpsOrigin.model),
+              alps(AlpsOrigin.dpc, day: 2),
+              RainDay(
+                  date: DateTime.utc(2026, 9, 3),
+                  mm: 1,
+                  source: RainSource.model),
+            ])),
+            'Tagessummen gemessen: Radar-DPC, 2 von 3 Tagen mit '
+            'Modellwerten (Open-Meteo)');
+      });
+      test('wo keiner misst, bleibt es beim Modellsatz', () {
+        // Slowenien: Der Alpenstapel trägt dort nur das Modell.
+        expect(
+            rainSourceLine(RainCourse([alps(AlpsOrigin.model)])),
+            'Tagessummen aus Modellwerten (Open-Meteo, ICON) — hier gibt es '
+            'kein Radar');
+      });
+      test('ohne Herkunftsdatei: gemessen, ohne Namen zu raten', () {
+        expect(rainSourceLine(RainCourse([alps(0)])),
+            'Tagessummen gemessen: Messnetze des Alpenraums');
+      });
+    });
     test('ein Modellpunkt heißt nicht Station', () {
       const at = SpotTemperature(
         days: [],

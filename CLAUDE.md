@@ -2900,11 +2900,12 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   - **7 und 14 Tage rechnet die App** (`rain_sum.dart`) aus den
     Tagesgittern, die ohnehin auf dem Gerät liegen: Radar-Stapel für
     Deutschland über `rainGridProvider` (damit laufen Bänder, Fläche,
-    Datei und Legende unverändert), Modell-Stapel für den Alpenraum als
-    ZWEITE Fläche (`modelRainFillProvider`, MapLibre-Quelle
-    `regen-modell` unter `regen-flaeche`). Bei 30 Tagen bleibt in
-    Deutschland W4, nur die Alpenfläche kommt dazu. Die Modellmaske spart
-    Deutschland aus, die Flächen überdecken sich nicht. Eine Summe gibt
+    Datei und Legende unverändert), der Alpenraum als ZWEITE Fläche
+    (`alpineRainFillProvider`, MapLibre-Quelle `regen-modell` unter
+    `regen-flaeche`; seit 1.222.0 gemessen aus dem Alpenstapel, das
+    Modell nur noch, wo keiner misst — siehe „Der gemessene
+    Alpenstapel"). Bei 30 Tagen bleibt in Deutschland W4, nur die
+    Alpenfläche kommt dazu. Die Flächen überdecken sich nicht. Eine Summe gibt
     es nur über LÜCKENLOSE Tage, eine Zelle mit fehlendem Tag bleibt
     leer — wie `sumOfLast` am Spot. Das Modell wird NICHT geglättet
     (12-km-Zellen, 3×3 wären 36 km).
@@ -2987,8 +2988,8 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     Zahl für Zahl unverändert.
   - **Der Regen ist ein ZWEITER Stapel** (`model.rain` im Manifest,
     `model_rain_*`, gleiche Kodierung wie `rain_day_*`), und der
-    Vorrang ist EINE Regel: `rainCoursesFromStacks` (Radar zuerst, je
-    Tag und Punkt der erste Wert) für Blatt und Nachlauf, `AmpelLevels`
+    Vorrang ist EINE Regel: `rainCoursesFromStacks` (seit 1.222.0
+    Alpenstapel, Radar, Modell; je Tag und Punkt der erste Wert) für Blatt und Nachlauf, `AmpelLevels`
     (je Wabe die erste Aussage) für die Fläche. Beide lesen
     `rainStacksProvider`. Ein Umrastern auf ein Gitter wäre eine dritte
     Antwort auf „wie viel Regen hier". `RainDay.source` und
@@ -3048,6 +3049,40 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     Paare). Für `herbst` ist der Klassen-Hold-out leer (Fenster =
     Referenz, fünfter Ausgang „leer" seit #616); beschreibend trennt
     13 °C dort mit AUC 0,63–0,78.
+- **Der gemessene Alpenstapel** (`tool/alps_rain.py`, im selben
+  `rain-data.yml`, #646, Daten seit #650, App seit 1.222.0): GeoSphere
+  INCA (AT), MeteoSchweiz RprelimD (CH+LI) und Radar-DPC (IT), in CI zu
+  EINEM Stapel `alps_rain_*` gemischt — samt Radar und Modell im
+  Grenzband. Herleitung und Messung stehen in
+  `docs/regendaten-alpenraum.md`. Sechs Dinge, die man wissen muss:
+  - **Gemischt wird in CI, nie in der App.** Die Länderzuordnung wird
+    weichgezeichnet (~30 km), die Gewichte summieren je Zelle exakt zu
+    1; der Selbsttest prüft das an der ECHTEN Grenze (gleiches Feld rein
+    ⇒ gleiches Feld raus). Eine zweite Mischstelle in der App wäre eine
+    zweite Antwort auf „wie viel Regen hier".
+  - **Vorrang Alpenstapel > Radar > Modell**, an EINER Stelle
+    (`rainStacksProvider`, Test `rain_stacks_order_test.dart`). Im
+    deutschen Landesinneren ist der Stapel leer (255), dort antwortet
+    das Radar mit demselben Wert. Die Ampel liest dieselbe Liste.
+  - **Die Fläche**: `alpineFillGrid` — gemessen, wo der Stapel etwas
+    sagt, sonst Modell (bilinear in 1 km), aber nur, wo auch Radar/W4
+    schweigen; die Radarfläche spart den Stapel ihrerseits aus. Jede
+    Zelle genau einmal (Test). Die MapLibre-Quelle heißt weiter
+    `regen-modell`.
+  - **CC BY-SA als Ganzes** (Betreiber, 2026-10-01): Radar-DPC steht
+    unter BY-SA, also die Mischung auch. Sie liegt als eigene Datei im
+    Release, nie im Binary; Lizenzseite und Regen-Blatt nennen es.
+  - **Ein Tag wird unter GLEICHEM Namen neu gemischt**, sobald eine
+    Landesquelle nachliefert (GeoSphere/DPC nach zwei, MeteoSchweiz nach
+    drei Tagen). Der Zwischenspeicher der App trägt deshalb die
+    Prüfsumme im Namen (`RainStackDay.cacheName`) — NUR beim
+    Alpenstapel, obwohl auch Radar- und Modelltage eine im Manifest
+    tragen: Sonst lüde jedes Gerät nach dem Update beide Stapel neu.
+  - **Die Herkunftsbits** (`alps_origin_*`, `AlpsOrigin`) sagen dem
+    Spot-Blatt, wer gemessen hat. Sie kosten fast so viel wie die Werte;
+    der Ampel-Nachlauf lässt sie weg (`withOrigin: false`, Messung in
+    `docs/map-performance.md`). Bits und Werkzeug hält ein Test
+    zusammen.
 - **Regen-Wertegitter** (`tool/rain_grid.py` + `.github/workflows/rain-data.yml`):
   Damit die Summen in **unseren** Farben liegen und die Regenmenge am Spot
   beantwortbar wird, ohne dass eine Koordinate das Gerät verlässt, holt CI

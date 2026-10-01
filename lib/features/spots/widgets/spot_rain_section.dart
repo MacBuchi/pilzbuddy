@@ -62,21 +62,63 @@ String? stationLine(SpotTemperature? temperature) {
   return null;
 }
 
-/// Woher die gezeigten Tagessummen stammen — Radar, Modell oder beides.
-/// Gezählt über die ANGEZEIGTEN Tage, damit der Satz zum Diagramm passt.
+/// Woher die gezeigten Tagessummen stammen — Radar, Modell, die
+/// Messnetze des Alpenraums oder eine Mischung. Gezählt über die
+/// ANGEZEIGTEN Tage, damit der Satz zum Diagramm passt.
 String rainSourceLine(RainCourse shown) {
-  final model = shown.modelDays;
   final measured = shown.measuredDays;
-  if (model == 0) {
-    return 'Tagessummen des Deutschen Wetterdienstes (Radar, nur Deutschland)';
+  if (shown.alpsDays == 0) {
+    final model = shown.modelDays;
+    if (model == 0) {
+      return 'Tagessummen des Deutschen Wetterdienstes (Radar, nur '
+          'Deutschland)';
+    }
+    if (model == measured) return _modelOnly;
+    return 'Tagessummen des Deutschen Wetterdienstes, $model von $measured '
+        'Tagen aus Modellwerten (Open-Meteo)';
   }
-  if (model == measured) {
-    return 'Tagessummen aus Modellwerten (Open-Meteo, ICON) — hier gibt es '
-        'kein Radar';
+  // Der Alpenstapel (#646): Wer beigetragen hat, sagen seine
+  // Herkunftsbits; Tage aus Radar und Modell zählen mit, wo der Stapel
+  // an einem Tag nichts hatte.
+  var bits = shown.alpsOrigin;
+  var modelDays = 0;
+  for (final day in shown.days) {
+    if (day.mm == null) continue;
+    switch (day.source) {
+      case RainSource.radar:
+        bits |= AlpsOrigin.radar;
+      case RainSource.model:
+        modelDays++;
+      case RainSource.alps:
+        if (day.origin & AlpsOrigin.model != 0) modelDays++;
+    }
   }
-  return 'Tagessummen des Deutschen Wetterdienstes, $model von $measured '
-      'Tagen aus Modellwerten (Open-Meteo)';
+  final names = [
+    if (bits & AlpsOrigin.inca != 0) 'GeoSphere Austria',
+    if (bits & AlpsOrigin.rprelimd != 0) 'MeteoSchweiz',
+    if (bits & AlpsOrigin.dpc != 0) 'Radar-DPC',
+    if (bits & AlpsOrigin.radar != 0) 'Deutscher Wetterdienst',
+  ];
+  // Die Herkunftsdateien fehlen (Netz): Dann wissen wir nur, dass es
+  // der gemessene Stapel war.
+  if (shown.alpsOrigin == 0 && bits & AlpsOrigin.national == 0) {
+    names.insert(0, 'Messnetze des Alpenraums');
+  }
+  if (names.isEmpty) return _modelOnly;
+  final who = names.length == 1
+      ? names.single
+      : '${names.sublist(0, names.length - 1).join(', ')} und ${names.last}';
+  final blended = names.length > 1 ? ', an der Grenze gemischt' : '';
+  final model = modelDays == 0
+      ? ''
+      : modelDays == measured
+          ? ', mit Modellwerten (Open-Meteo)'
+          : ', $modelDays von $measured Tagen mit Modellwerten (Open-Meteo)';
+  return 'Tagessummen gemessen: $who$blended$model';
 }
+
+const _modelOnly = 'Tagessummen aus Modellwerten (Open-Meteo, ICON) — hier '
+    'gibt es kein Radar';
 
 /// Die Bodenfeuchte-Zeile — oder `null`, wenn keine Station in
 /// Reichweite ist oder sie im Fenster nichts gemessen hat.

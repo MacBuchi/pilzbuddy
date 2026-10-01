@@ -138,21 +138,21 @@ void main() {
     final url = await applyRainFill(style,
         fill: fillAt('file:///modell.png', west: 5.9, east: 17.2),
         appliedUrl: null,
-        sourceId: modelRainFillSourceId,
-        layerId: modelRainFillLayerId,
+        sourceId: alpineRainFillSourceId,
+        layerId: alpineRainFillLayerId,
         belowLayerId: rainFillLayerId);
     expect(url, 'file:///modell.png');
     expect(style.getLayerIds(),
-        containsAll([rainFillLayerId, modelRainFillLayerId]));
-    expect(style.below[modelRainFillLayerId], rainFillLayerId);
-    expect(modelRainFillSourceId, isNot(rainFillSourceId));
+        containsAll([rainFillLayerId, alpineRainFillLayerId]));
+    expect(style.below[alpineRainFillLayerId], rainFillLayerId);
+    expect(alpineRainFillSourceId, isNot(rainFillSourceId));
 
     // Wegnehmen räumt nur die eigene.
     await applyRainFill(style,
         fill: null,
         appliedUrl: 'file:///modell.png',
-        sourceId: modelRainFillSourceId,
-        layerId: modelRainFillLayerId);
+        sourceId: alpineRainFillSourceId,
+        layerId: alpineRainFillLayerId);
     expect(style.getLayerIds(), [rainFillLayerId]);
   });
 

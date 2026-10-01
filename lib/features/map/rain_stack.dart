@@ -13,16 +13,35 @@ import 'dart:collection';
 import '../../data/rain_grid_repository.dart' show RainStackData, RainStackKind;
 import 'rain_grid.dart';
 
-/// Ein Tag des Verlaufs.
 /// Woher ein Tageswert stammt (seit 1.212.0, #612): aus dem Radar des
-/// DWD oder aus dem Modellgitter des Alpenraums (`tool/model_weather.py`).
-/// Das Blatt sagt es dazu — ein Modellwert, der aussieht wie ein
-/// Messwert, wäre eine Behauptung.
-enum RainSource { radar, model }
+/// DWD, aus dem Modellgitter des Alpenraums (`tool/model_weather.py`)
+/// oder aus dem gemessenen Alpenstapel (#646, `tool/alps_rain.py`). Das
+/// Blatt sagt es dazu — ein Modellwert, der aussieht wie ein Messwert,
+/// wäre eine Behauptung.
+enum RainSource { radar, model, alps }
 
+/// Die Herkunftsbits des Alpenstapels (`alps_origin_*`): je Quelle ein
+/// Bit, gesetzt, wo sie mindestens 5 % zum Wert beiträgt. Dieselben
+/// Zahlen wie `SOURCE_BITS` in `tool/alps_rain.py` — ein Test liest
+/// beide Seiten.
+abstract final class AlpsOrigin {
+  static const inca = 1;
+  static const rprelimd = 2;
+  static const dpc = 4;
+  static const radar = 8;
+  static const model = 16;
+
+  /// Die drei Landesquellen — was den Alpenstapel zur MESSUNG macht.
+  static const national = inca | rprelimd | dpc;
+}
+
+/// Ein Tag des Verlaufs.
 class RainDay {
   const RainDay(
-      {required this.date, required this.mm, this.source = RainSource.radar});
+      {required this.date,
+      required this.mm,
+      this.source = RainSource.radar,
+      this.origin = 0});
 
   /// Der Tag, den diese Summe abdeckt (00–24 UTC beim DWD-Produkt).
   final DateTime date;
@@ -33,6 +52,10 @@ class RainDay {
 
   /// Das Instrument hinter [mm]; ohne Wert bedeutungslos.
   final RainSource source;
+
+  /// Nur bei [RainSource.alps]: die Quellen dieses Werts als Bits
+  /// ([AlpsOrigin]); 0, wo die Herkunftsdatei fehlt.
+  final int origin;
 }
 
 /// Der Verlauf an einem Punkt, ältester Tag zuerst.
@@ -49,6 +72,21 @@ class RainCourse {
   int get modelDays => days
       .where((d) => d.mm != null && d.source == RainSource.model)
       .length;
+
+  /// Tage aus dem gemessenen Alpenstapel.
+  int get alpsDays => days
+      .where((d) => d.mm != null && d.source == RainSource.alps)
+      .length;
+
+  /// Alle Quellen der Alpentage zusammen ([AlpsOrigin]) — wer zum
+  /// gezeigten Verlauf beigetragen hat, nicht wer an welchem Tag.
+  int get alpsOrigin {
+    var bits = 0;
+    for (final day in days) {
+      if (day.mm != null && day.source == RainSource.alps) bits |= day.origin;
+    }
+    return bits;
+  }
 
   /// Die letzten [count] Tage als eigener Verlauf. Seit der Stapel die
   /// 26 Ampel-Tage trägt (#256), bleibt die ANZEIGE trotzdem beim
@@ -167,9 +205,12 @@ List<RainCourse> rainCoursesFrom(
   required double north,
   required double south,
   required List<({double lat, double lon})> points,
+  RainSource source = RainSource.radar,
+  List<({DateTime date, List<int> gzipped})> origins = const [],
 }) {
   final sorted = [...days]..sort((a, b) => a.date.compareTo(b.date));
   final perPoint = [for (final _ in points) <RainDay>[]];
+  final originOf = {for (final o in origins) o.date: o.gzipped};
 
   for (final day in sorted) {
     // Ein Tag, der sich nicht auspacken lässt, wird zu einem Tag ohne
@@ -192,27 +233,65 @@ List<RainCourse> rainCoursesFrom(
       grid = null;
     }
 
+    // Die Herkunft hat dieselbe Geometrie wie der Wert und wird genauso
+    // gelesen — ein Byte je Zelle, nur Bits statt Millimeter.
+    RainGrid? bits;
+    final packed = originOf[day.date];
+    if (packed != null) {
+      try {
+        bits = RainGrid.decode(
+          packed,
+          width: width,
+          height: height,
+          west: west,
+          east: east,
+          north: north,
+          south: south,
+          measured: day.date,
+        );
+      } catch (_) {
+        bits = null;
+      }
+    }
+
     for (var i = 0; i < points.length; i++) {
-      perPoint[i].add(RainDay(date: day.date, mm: _valueAt(grid, points[i])));
+      perPoint[i].add(RainDay(
+        date: day.date,
+        mm: _valueAt(grid, points[i]),
+        source: source,
+        origin: _valueAt(bits, points[i]) ?? 0,
+      ));
     }
   }
 
   return [for (final days in perPoint) RainCourse(days)];
 }
 
-/// Mehrere Stapel in VORRANG-Reihenfolge — das Radar zuerst, dann das
-/// Modellgitter des Alpenraums (#612, seit 1.212.0). Je Tag und Punkt
-/// gewinnt der erste Stapel, der einen Wert hat; ein Tag, den keiner
-/// kennt, bleibt `null`. Die Vereinigung der Tage beider Stapel bildet
+/// Mehrere Stapel in VORRANG-Reihenfolge — der gemessene Alpenstapel
+/// (#646), dann das Radar, dann das Modellgitter des Alpenraums (#612).
+/// Je Tag und Punkt gewinnt der erste Stapel, der einen Wert hat; ein
+/// Tag, den keiner kennt, bleibt `null`.
+///
+/// Der Alpenstapel zuerst, obwohl er das Radar enthält: Er trägt im
+/// deutschen Grenzband die schon gemischte Zahl und ist im Landesinneren
+/// leer — dort antwortet das Radar mit demselben Wert, den die Mischung
+/// dort hätte. Eine Zelle wählt also nie zwischen zwei Messungen, die
+/// Mischung hat das in CI schon getan. Die Vereinigung der Tage beider Stapel bildet
 /// die Achse: Das Modell hat oft den jüngsten Tag früher als das Radar,
 /// und ein Spot in Südtirol liegt in gar keinem Radar-Tag.
 ///
 /// Warum nicht EIN zusammengeführtes Gitter: Die beiden haben
 /// verschiedene Geometrien (1 km gegen 12 km), und ein Umrastern wäre
 /// eine dritte Antwort auf „wie viel Regen an diesem Punkt".
+///
+/// [withOrigin]: ob die Herkunftsbits des Alpenstapels mitgelesen werden.
+/// Das verdoppelt dort die Dekodierungen (gemessen: 19 Spots 492 ms
+/// statt der Hälfte, `docs/map-performance.md`) und lohnt nur, wo jemand
+/// die Quellenzeile liest — im Spot-Blatt, nicht im Ampel-Nachlauf.
 List<RainCourse> rainCoursesFromStacks(
   List<RainStackData> stacks, {
   required List<({double lat, double lon})> points,
+  bool withOrigin = true,
 }) {
   if (stacks.isEmpty) return [for (final _ in points) const RainCourse([])];
   final perStack = [
@@ -226,6 +305,12 @@ List<RainCourse> rainCoursesFromStacks(
         north: stack.info.north,
         south: stack.info.south,
         points: points,
+        source: switch (stack.kind) {
+          RainStackKind.radar => RainSource.radar,
+          RainStackKind.model => RainSource.model,
+          RainStackKind.alps => RainSource.alps,
+        },
+        origins: withOrigin ? stack.origins : const [],
       ),
   ];
   final dates = SplayTreeSet<DateTime>();
@@ -238,21 +323,14 @@ List<RainCourse> rainCoursesFromStacks(
   for (var p = 0; p < points.length; p++) {
     final byDate = [
       for (final courses in perStack)
-        {for (final day in courses[p].days) day.date: day.mm},
+        {for (final day in courses[p].days) day.date: day},
     ];
     merged.add(RainCourse([
       for (final date in dates)
         () {
           for (var s = 0; s < stacks.length; s++) {
-            final mm = byDate[s][date];
-            if (mm != null) {
-              return RainDay(
-                  date: date,
-                  mm: mm,
-                  source: stacks[s].kind == RainStackKind.model
-                      ? RainSource.model
-                      : RainSource.radar);
-            }
+            final day = byDate[s][date];
+            if (day?.mm != null) return day!;
           }
           return RainDay(date: date, mm: null);
         }(),

@@ -261,6 +261,47 @@ void main() {
     });
   });
 
+  group('Der gemessene Alpenstapel mischt, was es schon gibt (#646)', () {
+    final rainData = File('.github/workflows/rain-data.yml').readAsStringSync();
+    test('er läuft NACH Radar und Modell', () {
+      // `tool/alps_rain.py` mischt die Radar- und Modelltage DIESES Laufs
+      // ein. Stünde `alps` davor, mischte er die von gestern — und der
+      // jüngste Tag fehlte im Grenzband.
+      for (final line in rainData.split('\n')) {
+        final layers = RegExp(r'layers="([^"]*)"').firstMatch(line)?[1];
+        if (layers == null || !layers.contains('alps')) continue;
+        final order = layers.split(' ');
+        expect(order.last, 'alps', reason: line.trim());
+      }
+      expect(rainData, contains('layers="daily weather model alps"'));
+    });
+
+    test('der Bau holt alle Eingangstage, bevor das Werkzeug läuft', () {
+      // Ein Tag wird nur neu gemischt, wenn sich seine Eingänge ändern;
+      // dafür braucht das Werkzeug die Tage früherer Läufe — Radar,
+      // Modell und die drei Landesquellen.
+      final build = rainData.indexOf('python3 tool/alps_rain.py --out');
+      expect(build, greaterThan(-1));
+      for (final pattern in [
+        'rain_day_*',
+        'model_rain_*',
+        'at_rain_*',
+        'ch_rain_*',
+        'it_rain_*',
+      ]) {
+        final download = rainData.indexOf("'$pattern'");
+        expect(download, greaterThan(-1), reason: pattern);
+        expect(download, lessThan(build), reason: '$pattern VOR dem Werkzeug');
+      }
+    });
+
+    test('aufgeräumt wird nur, was die Liste des Werkzeugs nicht führt', () {
+      // Ohne eigene Liste räumte der Schritt die Tage weg, die der Lauf
+      // gar nicht angefasst hat — und der nächste Lauf mischte ohne sie.
+      expect(rainData, contains("hashFiles('build/alps_keep.txt')"));
+    });
+  });
+
   group('Die Web-Vorschau darf sich nicht als echte App ausgeben (#388)', () {
     test('sie markiert sich beim Bauen', () {
       // Ohne dieses Flag fehlten der Streifen „Entwicklungsstand" und der

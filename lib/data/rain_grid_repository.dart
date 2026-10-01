@@ -132,16 +132,17 @@ class RainStackInfo {
   final double east;
   final double north;
   final double south;
-  final List<({DateTime date, String file})> days;
+  final List<RainStackDay> days;
 
-  static RainStackInfo? tryParse(Map<String, dynamic> json) {
+  /// [versioned]: ob die Prüfsumme in den Namen auf Platte gehört —
+  /// nur beim Alpenstapel ([RainStackKind.versioned]).
+  static RainStackInfo? tryParse(Map<String, dynamic> json,
+      {bool versioned = false}) {
     try {
       final days = [
         for (final day in json['days'] as List)
-          (
-            date: DateTime.parse((day as Map)['date'] as String),
-            file: day['file'] as String,
-          ),
+          RainStackDay.fromJson(day as Map<String, dynamic>,
+              versioned: versioned),
       ]..sort((a, b) => a.date.compareTo(b.date));
       if (days.isEmpty) return null;
       return RainStackInfo(
@@ -161,6 +162,75 @@ class RainStackInfo {
   }
 }
 
+/// Ein Tag des Stapels, wie das Manifest ihn nennt.
+///
+/// [sha256] und [origin] trägt nur der gemessene Alpenstapel (#646):
+/// Dort wird ein Tag in CI NEU gemischt, sobald eine Landesquelle
+/// nachkommt (GeoSphere und DPC liefern nach zwei Tagen, MeteoSchweiz
+/// nach drei), und behält dabei seinen Dateinamen. Ein Zwischenspeicher,
+/// der nach dem Namen geht, hielte den halb gemischten Stand für immer —
+/// deshalb steht die Prüfsumme im Namen auf Platte ([cacheName]).
+/// Radar- und Modelltage werden nie neu geschrieben und behalten ihren
+/// Namen, obwohl auch sie eine Prüfsumme im Manifest tragen; sonst lüde
+/// jedes Gerät nach dem Update beide Stapel neu.
+class RainStackDay {
+  const RainStackDay({
+    required this.date,
+    required this.file,
+    this.sha256,
+    this.origin,
+    this.originSha256,
+  });
+
+  factory RainStackDay.fromJson(Map<String, dynamic> json,
+      {bool versioned = false}) {
+    final origin = json['origin'];
+    return RainStackDay(
+      date: DateTime.parse(json['date'] as String),
+      file: json['file'] as String,
+      // Radar- und Modelltage tragen im Manifest ebenfalls eine
+      // Prüfsumme — sie wird dort bewusst NICHT gelesen.
+      sha256: versioned ? json['sha256'] as String? : null,
+      // Im Manifest ein Objekt, im gemerkten Manifest flach — beide
+      // Formen lesen, damit der Weg ohne Empfang denselben Stapel sieht.
+      origin: origin is Map ? origin['file'] as String? : origin as String?,
+      originSha256: origin is Map
+          ? origin['sha256'] as String?
+          : json['origin_sha256'] as String?,
+    );
+  }
+
+  final DateTime date;
+  final String file;
+  final String? sha256;
+
+  /// Die Herkunftsdatei des Tages (`alps_origin_*`): je Zelle ein Bit je
+  /// Quelle mit mindestens 5 % Anteil.
+  final String? origin;
+  final String? originSha256;
+
+  String get cacheName => _versioned(file, sha256);
+  String? get originCacheName =>
+      origin == null ? null : _versioned(origin!, originSha256);
+
+  Map<String, Object?> toJson() => {
+        'date': date.toIso8601String(),
+        'file': file,
+        if (sha256 != null) 'sha256': sha256,
+        if (origin != null) 'origin': origin,
+        if (originSha256 != null) 'origin_sha256': originSha256,
+      };
+
+  static String _versioned(String file, String? sha) {
+    if (sha == null || sha.length < 12) return file;
+    const suffix = '.bin.gz';
+    final stem = file.endsWith(suffix)
+        ? file.substring(0, file.length - suffix.length)
+        : file;
+    return '${stem}_${sha.substring(0, 12)}$suffix';
+  }
+}
+
 /// Der geladene Stapel: die Geometrie und je Tag die **gepackten** Bytes.
 ///
 /// Gepackt mit Absicht. Entpackt wären es 14 × 752 000 Zellen, also gut
@@ -168,18 +238,28 @@ class RainStackInfo {
 /// schon einmal an Speicherdruck gestorben ist (#142/#151), ist das kein
 /// vertretbarer Preis für vierzehn Zahlen. Gepackt sind es 646 KB, und
 /// ausgepackt wird im Isolate, ein Tag nach dem anderen.
-/// Welcher Tagesstapel: das Radar des DWD (`daily`, seit 1.44.0) oder
-/// das Modellgitter des Alpenraums (`model.rain`, seit 1.212.0, #612).
-/// Beide liegen im selben Ordner; was sie trennt, steht hier — Abschnitt
-/// im Manifest, Dateianfang der Tage, Name des gemerkten Manifests.
+/// Welcher Tagesstapel: das Radar des DWD (`daily`, seit 1.44.0), das
+/// Modellgitter des Alpenraums (`model.rain`, seit 1.212.0, #612) oder
+/// der gemessene, an den Grenzen gemischte Alpenstapel (`alps.rain`,
+/// #646). Alle liegen im selben Ordner; was sie trennt, steht hier —
+/// Abschnitt im Manifest, Dateianfang der Tage, Name des gemerkten
+/// Manifests.
 enum RainStackKind {
   radar('rain_day_', 'stack.json'),
-  model('model_rain_', 'model_stack.json');
+  model('model_rain_', 'model_stack.json'),
+  alps('alps_', 'alps_stack.json');
 
   const RainStackKind(this.filePrefix, this.infoFile);
 
+  /// Für den gemessenen Stapel `alps_` statt `alps_rain_`: Die
+  /// Herkunftsdateien (`alps_origin_*`) gehören ihm ebenso, und das
+  /// Aufräumen geht nach dem Anfang.
   final String filePrefix;
   final String infoFile;
+
+  /// Ob ein Tag unter gleichem Namen neu geschrieben werden kann — dann
+  /// steht seine Prüfsumme im Namen auf Platte ([RainStackDay]).
+  bool get versioned => this == RainStackKind.alps;
 
   Map<String, dynamic>? sectionOf(Map<String, dynamic> manifest) =>
       switch (this) {
@@ -187,15 +267,28 @@ enum RainStackKind {
         RainStackKind.model =>
           (manifest['model'] as Map<String, dynamic>?)?['rain']
               as Map<String, dynamic>?,
+        RainStackKind.alps =>
+          (manifest['alps'] as Map<String, dynamic>?)?['rain']
+              as Map<String, dynamic>?,
       };
 }
 
 class RainStackData {
-  const RainStackData(
-      {required this.info, required this.days, this.kind = RainStackKind.radar});
+  const RainStackData({
+    required this.info,
+    required this.days,
+    this.kind = RainStackKind.radar,
+    this.origins = const [],
+  });
 
   final RainStackInfo info;
   final List<({DateTime date, List<int> gzipped})> days;
+
+  /// Nur beim Alpenstapel: je Tag die gepackten Herkunftsbits
+  /// ([alpsOriginBits]). Ein Tag ohne Herkunftsdatei hat hier keinen
+  /// Eintrag — die Zahl gilt trotzdem, nur die Quellenzeile wird
+  /// allgemeiner.
+  final List<({DateTime date, List<int> gzipped})> origins;
 
   /// Welches Instrument — trägt die Herkunft bis in `RainDay.source`.
   /// Am STAPEL, nicht an seiner Position in einer Liste: Ohne Radar
@@ -320,6 +413,16 @@ class RainGridRepository {
   }) =>
       _loadStack(RainStackKind.model, onProgress: onProgress);
 
+  /// Der gemessene Alpenstapel (#646, `tool/alps_rain.py`): GeoSphere,
+  /// MeteoSchweiz und DPC, an den Grenzen mit Radar und Modell gemischt.
+  /// Derselbe Weg wie die beiden anderen, dazu je Tag die Herkunftsbits.
+  /// Fehlt der Abschnitt — ältere Manifeste kennen ihn nicht —, gibt es
+  /// keinen Alpenstapel, und Radar und Modell bleiben, was sie waren.
+  Future<RainStackData?> loadAlpsStack({
+    void Function(int done, int total)? onProgress,
+  }) =>
+      _loadStack(RainStackKind.alps, onProgress: onProgress);
+
   Future<RainStackData?> _loadStack(
     RainStackKind kind, {
     void Function(int done, int total)? onProgress,
@@ -344,36 +447,59 @@ class RainGridRepository {
     // getrennte Schleifen wären zwei Antworten auf „was ist der Stapel".
     final dir = _cachesToDisk ? await _dir() : null;
     final days = <({DateTime date, List<int> gzipped})>[];
+    final origins = <({DateTime date, List<int> gzipped})>[];
     for (final (index, day) in info.days.indexed) {
       onProgress?.call(index, info.days.length);
-      final file = dir == null ? null : File('${dir.path}/${day.file}');
-      List<int>? bytes;
-      if (file != null && await file.exists()) {
-        try {
-          bytes = await file.readAsBytes();
-        } catch (_) {
-          // Datei verschwunden oder unlesbar — behandeln wie „nicht da".
-        }
-      }
-      if (bytes == null) {
-        try {
-          bytes = await _download('$rainDataUrl/${day.file}');
-          await file?.writeAsBytes(bytes, flush: true);
-        } catch (_) {
-          // Dieser Tag fehlt eben. Weitermachen: Ein Verlauf mit einer
-          // Lücke ist brauchbar, ein Abbruch nicht.
-          continue;
-        }
-      }
+      final bytes = await _stackFile(dir, day.file, day.cacheName);
+      // Dieser Tag fehlt eben. Weitermachen: Ein Verlauf mit einer
+      // Lücke ist brauchbar, ein Abbruch nicht.
+      if (bytes == null) continue;
       days.add((date: day.date, gzipped: bytes));
+      final origin = day.origin;
+      if (origin != null) {
+        // Ohne Herkunft gilt die Zahl trotzdem — nur die Quellenzeile
+        // im Blatt wird allgemeiner.
+        final bits = await _stackFile(dir, origin, day.originCacheName!);
+        if (bits != null) origins.add((date: day.date, gzipped: bits));
+      }
     }
     onProgress?.call(info.days.length, info.days.length);
     if (dir != null) {
-      await _pruneStack(dir, {for (final day in info.days) day.file},
+      await _pruneStack(
+          dir,
+          {
+            kind.infoFile,
+            for (final day in info.days) ...[
+              day.cacheName,
+              ?day.originCacheName,
+            ],
+          },
           prefix: kind.filePrefix);
     }
     if (days.isEmpty) return null;
-    return RainStackData(info: info, days: days, kind: kind);
+    return RainStackData(
+        info: info, days: days, kind: kind, origins: origins);
+  }
+
+  /// Eine Datei des Stapels: von Platte unter [cacheName], sonst aus dem
+  /// Netz unter [file] — `null`, wenn beides nichts hergibt.
+  Future<List<int>?> _stackFile(
+      Directory? dir, String file, String cacheName) async {
+    final cached = dir == null ? null : File('${dir.path}/$cacheName');
+    if (cached != null && await cached.exists()) {
+      try {
+        return await cached.readAsBytes();
+      } catch (_) {
+        // Datei verschwunden oder unlesbar — behandeln wie „nicht da".
+      }
+    }
+    try {
+      final bytes = await _download('$rainDataUrl/$file');
+      await cached?.writeAsBytes(bytes, flush: true);
+      return bytes;
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Die Stationstabelle (Temperatur) — als **gepackte** Bytes, `null`,
@@ -473,7 +599,9 @@ class RainGridRepository {
     }
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     final section = kind.sectionOf(json);
-    return section == null ? null : RainStackInfo.tryParse(section);
+    return section == null
+        ? null
+        : RainStackInfo.tryParse(section, versioned: kind.versioned);
   }
 
   /// Tagesdateien wegräumen, die der Stapel nicht mehr führt. Ohne das
@@ -509,10 +637,7 @@ class RainGridRepository {
         'east': info.east,
         'north': info.north,
         'south': info.south,
-        'days': [
-          for (final day in info.days)
-            {'date': day.date.toIso8601String(), 'file': day.file},
-        ],
+        'days': [for (final day in info.days) day.toJson()],
       }));
     } catch (_) {
       // Ohne gemerktes Manifest fehlt nur der Weg ohne Empfang.
@@ -526,7 +651,8 @@ class RainGridRepository {
       final file = await _stackInfoFile(kind);
       if (!await file.exists()) return null;
       return RainStackInfo.tryParse(
-          jsonDecode(await file.readAsString()) as Map<String, dynamic>);
+          jsonDecode(await file.readAsString()) as Map<String, dynamic>,
+          versioned: kind.versioned);
     } catch (_) {
       return null;
     }

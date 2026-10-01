@@ -160,8 +160,13 @@ extension RainLayerInfo on RainLayer {
           'Deutschland und Grenzgebiete. Im Osten Österreichs und im Westen '
               'der Schweiz reicht das Radar nicht hin — dort bleibt die '
               'Fläche grau.',
-        _ => 'Deutschland: Radar des DWD. Österreich, Schweiz und '
-            'Südtirol: Wettermodell ICON-D2 (12-km-Raster), kein Messwert.',
+        // Seit #646 gemessen: Die drei Landesdienste decken ihr Land,
+        // an den Grenzen gemischt. Das Modell bleibt nur, wo keiner misst
+        // (Slowenien, Rand der Box) — deshalb steht es noch da.
+        _ => 'Deutschland: Radar des DWD. Österreich: GeoSphere, Schweiz '
+            'und Liechtenstein: MeteoSchweiz, Norditalien: Radar-DPC — '
+            'gemessen, an den Grenzen gemischt. Wo keiner misst: '
+            'Wettermodell ICON-D2.',
       };
 
   /// Halbtransparent: Der Regen liegt ÜBER der Landschaft, nicht statt

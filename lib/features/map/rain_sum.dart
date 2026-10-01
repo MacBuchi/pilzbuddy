@@ -265,3 +265,78 @@ int _dayKey(DateTime date) {
   final utc = DateTime.utc(date.year, date.month, date.day);
   return utc.millisecondsSinceEpoch ~/ Duration.millisecondsPerDay;
 }
+
+/// Die Fläche des Alpenraums (#646): der gemessene Alpenstapel, wo er
+/// etwas sagt, sonst das Modell — und zwar nur dort, wo auch Radar oder
+/// W4 ([upper]) schweigen. Dieselbe Vorrangregel wie am Spot
+/// (`rainCoursesFromStacks`), nur für Summen: Alpenstapel, dann Radar,
+/// dann Modell.
+///
+/// Ohne Alpenstapel bleibt es bei der Modellfläche von 1.220.0 —
+/// [maskCovered] unter dem Radar, in der 12-km-Geometrie des Modells.
+/// Mit ihm liegt die Fläche in SEINER Geometrie (1 km), und das Modell
+/// wird bilinear hineingelesen: Nach Zelle gelesen stünden dort
+/// 12-km-Klötze, die die Engine nicht mehr weichzeichnen kann, weil das
+/// Bild jetzt 1 km auflöst.
+///
+/// Wo der Alpenstapel einen Wert hat, wird [upper] nicht gefragt — die
+/// Radarfläche spart diese Zellen ihrerseits aus (`maskCovered` mit dem
+/// Alpenstapel als oberer Fläche). Beide Seiten zusammen decken jede
+/// Zelle höchstens einmal.
+RainGrid? alpineFillGrid(
+    {required RainGrid? alps, required RainGrid? model, RainGrid? upper}) {
+  if (alps == null) return model == null ? null : maskCovered(model, upper);
+  final w = alps.width;
+  final h = alps.height;
+  final out = Uint8List.fromList(alps.values);
+  if (model != null) {
+    for (var y = 0; y < h; y++) {
+      final lat = alps.latAtRow(y + 0.5);
+      for (var x = 0; x < w; x++) {
+        final i = y * w + x;
+        if (out[i] != rainNoData) continue;
+        final lon = alps.lonAtColumn(x + 0.5);
+        if (upper?.mmAt(lat, lon) != null) continue;
+        final value = bilinearMmAt(model, lat, lon);
+        if (value != null) out[i] = value;
+      }
+    }
+  }
+  return RainGrid(
+    values: out,
+    width: w,
+    height: h,
+    west: alps.west,
+    east: alps.east,
+    north: alps.north,
+    south: alps.south,
+    measured: alps.measured,
+  );
+}
+
+/// Der Wert an einem Punkt, zwischen den vier nächsten Zellmitten
+/// gemittelt (in Mercator, wie das Gitter liegt). Fehlt eine der vier,
+/// gilt die Zelle, in der der Punkt liegt — am Rand der Daten lieber
+/// ein Klotz als ein Wert, der eine Lücke als 0 mm mitmittelt.
+int? bilinearMmAt(RainGrid grid, double lat, double lon) {
+  final nearest = grid.mmAt(lat, lon);
+  if (nearest == null) return null;
+  final top = mercatorY(grid.north);
+  final bottom = mercatorY(grid.south);
+  final fx = (lon - grid.west) / (grid.east - grid.west) * grid.width - 0.5;
+  final fy = (mercatorY(lat) - top) / (bottom - top) * grid.height - 0.5;
+  final x0 = fx.floor();
+  final y0 = fy.floor();
+  if (x0 < 0 || y0 < 0 || x0 + 1 >= grid.width || y0 + 1 >= grid.height) {
+    return nearest;
+  }
+  final a = grid.at(x0, y0);
+  final b = grid.at(x0 + 1, y0);
+  final c = grid.at(x0, y0 + 1);
+  final d = grid.at(x0 + 1, y0 + 1);
+  if (a == null || b == null || c == null || d == null) return nearest;
+  final tx = fx - x0;
+  final ty = fy - y0;
+  final value = (a * (1 - tx) + b * tx) * (1 - ty) + (c * (1 - tx) + d * tx) * ty;
+  return value.round().clamp(0, rainMaxMm);
+}

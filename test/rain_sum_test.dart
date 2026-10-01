@@ -166,4 +166,81 @@ void main() {
       expect(upper.values[49], 40, reason: 'das Eingangsgitter bleibt');
     });
   });
+
+  group('die Fläche des Alpenraums (#646)', () {
+    RainGrid grid(List<int> values,
+            {double west = 10, double east = 14}) =>
+        RainGrid.decode(
+          encode([values]),
+          width: values.length,
+          height: 1,
+          west: west,
+          east: east,
+          north: 47.2,
+          south: 47.1,
+          measured: DateTime(2026, 9, 30),
+        );
+
+    test('gemessen, wo der Alpenstapel etwas sagt — sonst Modell, aber '
+        'nur, wo auch das Radar schweigt', () {
+      // Vier Zellen 10..14° O (Mitten 10,5 / 11,5 / 12,5 / 13,5).
+      final alps = grid([30, rainNoData, rainNoData, rainNoData]);
+      final model = grid([7, 7, 7, 7]);
+      // Das Radar deckt nur 11..12° O.
+      final upper = grid([20], west: 11, east: 12);
+      final out = alpineFillGrid(alps: alps, model: model, upper: upper)!;
+      expect(out.values, [30, rainNoData, 7, 7],
+          reason: 'Zelle 1 gemessen; Zelle 2 gehört der Radarfläche; '
+              'Zellen 3 und 4 kennt nur das Modell');
+      expect(out.width, alps.width, reason: 'die Geometrie des Alpenstapels');
+    });
+
+    test('die Radarfläche spart den Alpenstapel aus — jede Zelle genau '
+        'einmal', () {
+      final alps = grid([30, 31, rainNoData, rainNoData]);
+      final radar = grid([20, 20, 20, rainNoData]);
+      final radarShown = maskCovered(radar, alps).values;
+      final alpineShown =
+          alpineFillGrid(alps: alps, model: grid([7, 7, 7, 7]), upper: radar)!
+              .values;
+      for (var i = 0; i < 4; i++) {
+        final drawn = [radarShown[i], alpineShown[i]]
+            .where((v) => v != rainNoData)
+            .length;
+        expect(drawn, 1, reason: 'Zelle $i: genau eine Fläche');
+      }
+    });
+
+    test('ohne Alpenstapel bleibt es bei der Modellfläche von 1.220.0', () {
+      final model = grid([7, 7]);
+      final upper = grid([20], west: 12, east: 14);
+      expect(alpineFillGrid(alps: null, model: model, upper: upper)!.values,
+          maskCovered(model, upper).values);
+      expect(alpineFillGrid(alps: null, model: null), isNull);
+    });
+
+    test('das Modell wird zwischen den Zellmitten gemittelt', () {
+      // 2×2 Modellzellen 10..14° O, je Spalte 0 und 40 mm (Mitten 11°
+      // und 13°); gefragt wird in der Mitte zwischen beiden Zeilen.
+      RainGrid square(List<int> row) => RainGrid.decode(
+            encode([row, row]),
+            width: 2,
+            height: 2,
+            west: 10,
+            east: 14,
+            north: 48,
+            south: 46,
+            measured: DateTime(2026, 9, 30),
+          );
+      final middle = latFromMercatorY((mercatorY(48) + mercatorY(46)) / 2);
+      final model = square([0, 40]);
+      expect(bilinearMmAt(model, middle, 12), 20, reason: 'genau dazwischen');
+      expect(bilinearMmAt(model, middle, 11), 0);
+      expect(bilinearMmAt(model, middle, 12.5), 30);
+      final gap = square([rainNoData, 40]);
+      expect(bilinearMmAt(gap, middle, 12.5), 40,
+          reason: 'eine Lücke wird nicht als 0 mm mitgemittelt');
+      expect(bilinearMmAt(gap, middle, 11.5), isNull);
+    });
+  });
 }

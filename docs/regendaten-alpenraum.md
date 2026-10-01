@@ -527,6 +527,15 @@ derselben Collection. Das wäre ein eigenes Issue nach diesem.
 
 ## Offen
 
+- **Stand:** Datenstrecke seit #650 (erster Lauf 2026-10-01, `--verify`
+  grün mit GDAL 3.8 auf dem Runner, die elf Orte auf wenige mm wie
+  oben), App seit 1.222.0.
+- **30 Tage in Deutschland:** Dort bleibt die Fläche W4; das deutsche
+  Grenzband trägt dagegen die Mischung, und die rechnet mit dem
+  Radar-TAGESstapel. An der inneren Kante des Bands (rund 24 km
+  landeinwärts) können beide um einige Millimeter auseinanderliegen.
+  Bei 7 und 14 Tagen nicht, dort ist es dasselbe Radar. Am Gerät
+  ansehen, bevor jemand etwas daran ändert.
 - **OPERA:** gemessen und ausgeschlossen (siehe Quellentabelle).
   Nördlich des Alpenhauptkamms brauchbar, dort deckt INCA aber besser;
   südlich und im Schweizer Inneren viel zu trocken, dazu Störechos.

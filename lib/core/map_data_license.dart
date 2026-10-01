@@ -128,15 +128,45 @@ void registerMapDataLicense() {
       '– Version 2.0; die Namensnennung ist die Bedingung, unter der wir '
       'sie zeigen dürfen.',
     );
+    // Drei Landesdienste, eine gemischte Datei (#646). Die Pflichten je
+    // Quelle stehen in `docs/regendaten-alpenraum.md` („Lizenzpflichten“)
+    // — Wortlaut „Quelle: MeteoSchweiz“ und „Radar-DPC“ sind dort
+    // vorgeschrieben, nicht gewählt.
+    yield const LicenseEntryWithLineBreaks(
+      ['Gemessener Regen Alpenraum (GeoSphere Austria, MeteoSchweiz, '
+          'Radar-DPC)'],
+      'In Österreich, der Schweiz, Liechtenstein und Norditalien kommen '
+      'die Regensummen am Spot, die Regenfläche und der Regen der '
+      'Pilzwetter-Ampel aus den gemessenen Niederschlagsgittern der '
+      'Landesdienste. Wir haben sie zu Tagessummen addiert, auf 1 mm '
+      'gerundet, auf ein gemeinsames 1-km-Raster umprojiziert und an den '
+      'Landesgrenzen über rund 30 km ineinander übergeblendet, dort auch '
+      'mit dem Radar des Deutschen Wetterdienstes und mit Modellwerten '
+      'von Open-Meteo.\n\n'
+      'Österreich: GeoSphere Austria, INCA (1 km, stündlich), CC BY 4.0.\n'
+      'https://doi.org/10.60669/6akt-5p05\n\n'
+      'Schweiz und Liechtenstein: Quelle: MeteoSchweiz, RprelimD, '
+      'CC BY 4.0. MeteoSchweiz unterstützt diese App nicht und hat sie '
+      'nicht geprüft.\n'
+      'https://opendatadocs.meteoswiss.ch/general/terms-of-use\n\n'
+      'Italien: Radar-DPC (Dipartimento della Protezione Civile), '
+      'Merging CUM24, CC BY-SA 4.0.\n'
+      'https://creativecommons.org/licenses/by-sa/4.0/\n\n'
+      'Weil Radar-DPC unter CC BY-SA steht, steht auch die gemischte '
+      'Datei als Ganzes unter CC BY-SA 4.0. Sie liegt öffentlich neben '
+      'der App (Dateien alps_rain_*):\n'
+      'https://github.com/MacBuchi/pilzbuddy/releases/tag/rain-data',
+    );
     yield const LicenseEntryWithLineBreaks(
       ['Modellwetter (Open-Meteo)'],
       'Außerhalb Deutschlands — in Österreich, der Schweiz, Liechtenstein '
-      'und den italienischen Alpen — kommen Regen und Temperatur am Spot '
-      'und für die Pilzwetter-Ampel aus Wettermodell-Daten von Open-Meteo '
-      '(Modell ICON des Deutschen Wetterdienstes), auf ein festes '
-      '12-km-Raster geholt und wie das Regengitter auf dem Gerät '
-      'nachgeschlagen. Kein Messwert und kein Radar; die App fragt '
-      'Open-Meteo nie selbst, geholt wird in unserer Datenstrecke.\n'
+      'und den italienischen Alpen — kommt die Temperatur am Spot und für '
+      'die Pilzwetter-Ampel aus Wettermodell-Daten von Open-Meteo (Modell '
+      'ICON des Deutschen Wetterdienstes), auf ein festes 12-km-Raster '
+      'geholt und wie das Regengitter auf dem Gerät nachgeschlagen; der '
+      'Regen nur dort, wo kein Landesdienst misst, und an den Rändern der '
+      'Messgebiete in der Mischung. Kein Messwert und kein Radar; die App '
+      'fragt Open-Meteo nie selbst, geholt wird in unserer Datenstrecke.\n'
       'https://open-meteo.com\n\n'
       'Lizenz: CC BY 4.0.\n'
       'https://creativecommons.org/licenses/by/4.0/',

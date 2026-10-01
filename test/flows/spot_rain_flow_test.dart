@@ -125,6 +125,11 @@ void main() {
       await container.read(rainCourseProvider((lat: lat, lon: lon)).future);
       await container
           .read(spotTemperatureProvider((lat: lat, lon: lon)).future);
+      // Die 30-Tage-Zahl fragt seit #646 erst den Alpenstapel, dann W4,
+      // dann das Modell. Entstünde die Kette erst beim nächsten Bild,
+      // liefe sie in der Test-Zone, und ein späteres Warten in `runAsync`
+      // käme nie zurück (im Lauf gesehen).
+      await container.read(rainMonthAtProvider((lat: lat, lon: lon)).future);
     });
     await settle(tester);
   }

@@ -147,13 +147,13 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
   /// ohne dass jemand sie entfernt hätte — deshalb wird sie bei jedem
   /// Style-Laden zurückgesetzt und neu gelegt.
   String? _appliedFillUrl;
-  String? _appliedModelFillUrl;
+  String? _appliedAlpineFillUrl;
 
   /// Die unterste liegende Regenfläche — darunter gehören Wald und
   /// Fundorte. Die Alpenfläche liegt immer unter der Radarfläche (siehe
-  /// [_syncModelRainFill]), also ist sie, wenn sie liegt, die unterste.
-  String? get _lowestRainLayerId => _appliedModelFillUrl != null
-      ? modelRainFillLayerId
+  /// [_syncAlpineRainFill]), also ist sie, wenn sie liegt, die unterste.
+  String? get _lowestRainLayerId => _appliedAlpineFillUrl != null
+      ? alpineRainFillLayerId
       : _appliedFillUrl != null
           ? rainFillLayerId
           : null;
@@ -240,24 +240,24 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
 
   /// Die Summenfläche des Alpenraums — derselbe Weg wie
   /// [_syncRainFill], eigene Quelle.
-  void _syncModelRainFill() {
+  void _syncAlpineRainFill() {
     final style = _style;
     if (style == null) return;
-    final fill = ref.read(modelRainFillFileProvider).valueOrNull;
+    final fill = ref.read(alpineRainFillFileProvider).valueOrNull;
     _fillWork = _fillWork.then((_) async {
       try {
-        final before = _appliedModelFillUrl;
-        _appliedModelFillUrl = await applyRainFill(style,
+        final before = _appliedAlpineFillUrl;
+        _appliedAlpineFillUrl = await applyRainFill(style,
             fill: fill,
-            appliedUrl: _appliedModelFillUrl,
-            sourceId: modelRainFillSourceId,
-            layerId: modelRainFillLayerId,
+            appliedUrl: _appliedAlpineFillUrl,
+            sourceId: alpineRainFillSourceId,
+            layerId: alpineRainFillLayerId,
             // Unter die Radarfläche, falls die schon liegt: So bleibt
             // die Reihenfolge Wald < Alpen < Radar fest, egal wer zuerst
             // fertig ist.
             belowLayerId: _appliedFillUrl != null ? rainFillLayerId : null);
         if (fillRemovalNeedsNudge(
-            before: before, after: _appliedModelFillUrl)) {
+            before: before, after: _appliedAlpineFillUrl)) {
           _nudgeEngine();
         }
       } catch (_) {
@@ -435,8 +435,8 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
       _syncRainFill();
       _raiseAreaEdit();
     });
-    ref.listen(modelRainFillFileProvider, (previous, next) {
-      _syncModelRainFill();
+    ref.listen(alpineRainFillFileProvider, (previous, next) {
+      _syncAlpineRainFill();
       _raiseAreaEdit();
     });
     ref.listen(forestFillFileProvider, (previous, next) {
@@ -504,13 +504,13 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
       onStyleLoaded: (style) {
         _style = style;
         _appliedFillUrl = null;
-        _appliedModelFillUrl = null;
+        _appliedAlpineFillUrl = null;
         _appliedForestUrl = null;
         _appliedGbifUrl = null;
         _appliedContourKey = null;
         _appliedAreaEditUrl = null;
         _syncRainFill();
-        _syncModelRainFill();
+        _syncAlpineRainFill();
         _syncForestFill();
         _syncGbifFill();
         // Zuletzt, damit die Linien über den Flächen liegen.
