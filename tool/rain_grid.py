@@ -79,10 +79,16 @@ LAYERS = {
 # shorter window on the device instead would have meant a device model
 # that differs from the validated one — exactly the drift the validation
 # exists to prevent.
+#
+# 30 since #646: the blended Alpine stack (tool/alps_rain.py) mixes the
+# radar into the band along the Austrian and Swiss border, and it holds
+# 30 days like the model. With 26 radar days the four oldest blended
+# days had no radar in that band, and the 30-day sum showed a seam where
+# the band meets RADOLAN-W4. The Ampel still takes its 26 from the end.
 DAILY = {
     "coverage": "dwd__SF-Produkt_(0-24)",
     "label": "Tagessummen",
-    "days": 26,
+    "days": 30,
 }
 
 NO_DATA = 255  # in the quantised grid; the DWD marks it as -1.0 or NaN
@@ -159,20 +165,20 @@ def coverage_url(coverage, when, bounds):
     )
 
 
-def read_geotiff(data):
-    """Minimal GeoTIFF reader: one band, 64 bit float, tiled, uncompressed.
+def tiff_tags(data):
+    """Byte order and tags of a 64 bit float, tiled, uncompressed TIFF.
 
-    That is exactly what this WCS emits. Anything else is rejected loudly
-    instead of decoded wrongly — a raster misread as the wrong sample
-    format still produces numbers, and numbers get shipped.
+    Shared with tool/alps_rain.py, which reads 24 hourly bands of the same
+    shape one tile at a time. Everything but the band count is checked
+    here, so a second reader cannot be laxer than this one.
     """
     if data[:2] not in (b"MM", b"II"):
         raise SystemExit("not a TIFF (did the service return an XML error?)")
     order = ">" if data[:2] == b"MM" else "<"
     offset = struct.unpack(order + "I", data[4:8])[0]
     count = struct.unpack(order + "H", data[offset:offset + 2])[0]
-    sizes = {1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 11: 4, 12: 8}
-    formats = {1: "B", 3: "H", 4: "I", 11: "f", 12: "d"}
+    sizes = {1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 11: 4, 12: 8, 16: 8}
+    formats = {1: "B", 3: "H", 4: "I", 11: "f", 12: "d", 16: "Q"}
     tags = {}
     for i in range(count):
         entry = data[offset + 2 + i * 12:offset + 14 + i * 12]
@@ -187,6 +193,19 @@ def read_geotiff(data):
         raise SystemExit("expected 64 bit IEEE float samples")
     if tags.get(259, [1])[0] != 1:
         raise SystemExit("expected an uncompressed raster")
+    if 322 not in tags:
+        raise SystemExit("expected a tiled raster")
+    return order, tags
+
+
+def read_geotiff(data):
+    """Minimal GeoTIFF reader: one band, 64 bit float, tiled, uncompressed.
+
+    That is exactly what this WCS emits. Anything else is rejected loudly
+    instead of decoded wrongly — a raster misread as the wrong sample
+    format still produces numbers, and numbers get shipped.
+    """
+    order, tags = tiff_tags(data)
     if tags.get(277, [1])[0] != 1:
         raise SystemExit("expected a single band")
 
