@@ -69,7 +69,7 @@ dependencies:
   # gepinnten Beta hängen. Der Nebengewinn ist die Testbarkeit:
   # `newIdbFactoryMemory()` fährt dieselbe Implementierung auf der
   # Dart-VM, wo es keinen Browser gibt.
-  idb_shim: ^2.9.2
+  idb_shim: ^2.9.9
   # Die Browser-Schnittstellen (`navigator.storage`) für den Ausgangskorb
   # im Web (#386) — reine Bindungen des Dart-Teams, im Android-Build nie
   # kompiliert (bedingter Import in lib/data/browser_storage.dart).
@@ -83,13 +83,13 @@ dependencies:
   flutter_foreground_task: ^11.0.3
 
   # Standort (GPS)
-  geolocator: ^14.0.2
+  geolocator: ^14.1.1
 
   # Backend (Auth + Datenbank)
   supabase_flutter: ^2.17.2
 
   # State-Management & Routing
-  flutter_riverpod: ^2.6.1
+  flutter_riverpod: ^3.4.3
   go_router: ^18.0.1
 
   # Datumsformate & Statistik-Charts
@@ -136,8 +136,8 @@ dependencies:
   # Push ist ein NEBENFEATURE: Jeder Fehlerpfad in `push_messaging.dart`
   # endet in „kein Token", und ein kaputtes Firebase-Projekt darf die App
   # nicht am Starten hindern — dieselbe Linie wie beim Update-Check.
-  firebase_core: ^4.14.0
-  firebase_messaging: ^16.6.0
+  firebase_core: ^4.15.0
+  firebase_messaging: ^16.7.0
 
   # Funde an iNaturalist melden (#553) — und über iNaturalist an GBIF.
   # `flutter_web_auth_2` öffnet die Anmeldung in einem Custom Tab und
