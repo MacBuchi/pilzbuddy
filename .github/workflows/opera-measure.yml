@@ -1,0 +1,31 @@
+name: OPERA Measure
+
+# One-off measurement for docs/regendaten-alpenraum.md (#645, #646): the
+# EUMETNET OPERA 1-h accumulation composite at our places and the Alpine
+# model lattice. Lives only on the branch measure/opera-alps; it commits
+# its CSVs back to that branch. Never merged.
+on:
+  push:
+    branches: [measure/opera-alps]
+    paths: [measure/opera_measure.py, .github/workflows/opera-measure.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+      - run: pip install -q numpy h5py pyproj
+      - name: Measure
+        run: python3 measure/opera_measure.py --out measure
+      - name: Commit the numbers to this branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add measure/opera_places.csv measure/opera_lattice.csv measure/opera_summary.json
+          git commit -m "measure: OPERA ACRR daily sums 2026-08-31..09-29" || exit 0
+          git push
