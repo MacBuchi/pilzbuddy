@@ -923,6 +923,17 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   ab**. Die Prüfungen in `test/web_shell_test.dart` fangen nur die Fallen,
   die man im Diff übersieht — eine falsche Entscheidung im Worker sehen
   sie nicht.
+  **„Beim ersten Versuch rot, beim zweiten grün" war kein Zufall**
+  (behoben 2026-10-01): zwei Zeitfehler des PRÜFERS, beide nur auf einem
+  langsamen Runner. Der Vorlauf von Schritt 1 räumte nach 2 s aus der
+  Seite ab, während der Worker noch installierte („0 im Cache"); jetzt
+  räumt `Storage.clearDataForOrigin` vor dem ersten Laden. Und Chrome
+  schickt die erste Update-Prüfung nach dem Installieren erst rund eine
+  Minute später ab; je nach Tempo fiel diese Minute in den 30-s-Rahmen
+  des neuen Deploys, der jetzt 120 s hat. Nachstellen lässt sich ein
+  langsamer Runner mit `CPU_SLOW=6 node tool/check_service_worker.mjs
+  build/web` — damit war vorher jeder Lauf rot. Wer dort wieder rot
+  sieht: erst so nachstellen, nicht neu starten.
 - **Die Web-Fassung lädt Roboto von `fonts.gstatic.com`** — gemessen am
   2026-09-04, bei jedem Seitenaufruf und vor jeder Anmeldung. Das ist
   Flutters Vorgabe für die Standardschrift und hat mit CanvasKit nichts zu
@@ -2542,8 +2553,9 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   Quelle ist die DLR-Karte „Tree Species Germany" 2022 (10 m, CC BY 4.0,
   offener HTTP-Download ohne Konto); die Nennung steht im Wald-Blatt
   neben der Copernicus-Zeile, zusammen mit der Abdeckung — **nur
-  Deutschland**, sonst sähe die fehlende Zeile in Österreich nach einem
-  Fehler aus.
+  Deutschland**. Außerhalb sprechen seit 1.213.0 bzw. 1.221.0 die
+  beiden Gitter weiter unten (ForestPaths, WSL); jede Quelle nennt im
+  Blatt ihre eigene Abdeckung.
   Vier Dinge, die man wissen muss:
   - **Dasselbe Hex-Gitter wie das Waldgitter**, Zelle für Zelle: gleiche
     Box, gleiche Warp-Größe, gleicher Zellfaktor. Die App schlägt beide
@@ -2612,7 +2624,10 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
       wird im Workflow vor der ersten Anfrage maskiert. Auf einem
       Feature-Branch committet der Workflow das Gitter selbst (Artefakte
       sind aus der Cloud-Umgebung nicht abrufbar), auf `main` lädt er es
-      als Artefakt hoch.
+      als Artefakt hoch. **Neu bauen** (neue Kartenfassung): Branch
+      `feat/ch-tree-species` von `main` anlegen und das Werkzeug
+      anfassen — nur auf diesen Namen hört der Push-Auslöser —, dann
+      PR mit Versions-Bump.
     - **Nur das Rechteck um die Schweiz** liegt im Asset (`x0`/`y0`/
       `width`/`height`); gefunden wird die Wabe über das GANZE Raster
       (`hexNearestCell` mit `grid_width`/`grid_height`), dann

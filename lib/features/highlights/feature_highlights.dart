@@ -172,8 +172,9 @@ const kFeatureHighlights = <FeatureHighlight>[
     icon: Icons.forest_outlined,
     title: 'Welcher Wald ist das?',
     text: 'Unter „Ebenen" färbt die Karte Laub-, Nadel- und Mischwald ein. '
-        'Im Spot-Blatt steht außerdem, welche Bäume dort wachsen — für '
-        'Deutschland.',
+        'Im Spot-Blatt steht außerdem, welche Bäume dort wachsen — in '
+        'Deutschland und der Schweiz aus Baumartenkarten, im übrigen '
+        'Alpenraum geschätzt.',
     target: '/',
   ),
   FeatureHighlight(
