@@ -14,7 +14,7 @@ import 'package:pilzbuddy/features/map/forest_species_providers.dart';
 import 'package:pilzbuddy/features/spots/widgets/spot_forest_section.dart';
 
 import 'forest_grid_test.dart' show forestOf;
-import 'forest_species_test.dart' show speciesOf;
+import 'forest_species_test.dart' show speciesOf, swissOf, swissValue;
 
 void main() {
   // Der Mittelpunkt der ersten Zelle des ARTENGITTERS. Das ist der
@@ -32,6 +32,8 @@ void main() {
     int? speciesByte,
     int? euByte,
     void Function()? onEuLoad,
+    int? swiss,
+    void Function()? onChLoad,
   }) async {
     final forest = forestOf([
       [conifer, conifer],
@@ -59,11 +61,23 @@ void main() {
                   [euByte, euByte],
                 ], west: 10, north: 55, referenceYear: 2020);
         }),
+        forestSpeciesChLoaderProvider.overrideWithValue(() async {
+          onChLoad?.call();
+          return swiss == null
+              ? null
+              : swissOf([
+                  [swiss, swiss],
+                  [swiss, swiss],
+                ], gridHeight: 2);
+        }),
       ],
       child: const MaterialApp(
         home: Scaffold(body: SpotForestSection(lat: lat, lon: lon)),
       ),
     ));
+    await tester.pump();
+    // Die Gitter laden nacheinander (DLR, Schweiz, ForestPaths — jedes
+    // erst, wo das vorige schweigt); ein Bild je Stufe.
     await tester.pump();
   }
 
@@ -173,6 +187,59 @@ void main() {
           onEuLoad: () => loads++);
       await tester.pump();
       expect(loads, 1);
+    });
+  });
+
+  group('Schweiz: die WSL-Karte (seit 1.221.0)', () {
+    final chestnutSpruce =
+        swissValue([SwissTree.chestnut, SwissTree.spruce, SwissTree.beech]);
+
+    testWidgets('nennt alle Arten nach Anteil und sagt, woher', (tester) async {
+      await pumpSection(tester,
+          conifer: 30, speciesByte: speciesNoData, swiss: chestnutSpruce,
+          euByte: 0x11);
+      await tester.pump();
+      expect(
+          find.textContaining('Bäume: Edelkastanie, Fichte und Buche · '
+              'Baumartenkarte Schweiz, Lärche nicht erfasst · Stand 2020'),
+          findsOneWidget);
+      expect(find.textContaining('Satellitenschätzung'), findsNothing);
+    });
+
+    testWidgets('wo sie spricht, wird ForestPaths nicht geladen',
+        (tester) async {
+      var euLoads = 0;
+      await pumpSection(tester,
+          conifer: 30,
+          speciesByte: speciesNoData,
+          swiss: swissCoveredNone,
+          euByte: 0x11,
+          onEuLoad: () => euLoads++);
+      await tester.pump();
+      expect(euLoads, 0);
+      expect(find.textContaining('Bäume'), findsNothing,
+          reason: 'Wald ohne nennbare Art: die bessere Quelle hat gesprochen');
+    });
+
+    testWidgets('schweigt sie, spricht ForestPaths', (tester) async {
+      await pumpSection(tester,
+          conifer: 82, speciesByte: speciesNoData, swiss: 0, euByte: 0x11);
+      await tester.pump();
+      await tester.pump();
+      expect(find.textContaining('Satellitenschätzung'), findsOneWidget);
+    });
+
+    testWidgets('ein Spot in Deutschland lädt sie nie', (tester) async {
+      var chLoads = 0;
+      await pumpSection(tester,
+          conifer: 82,
+          speciesByte: 0x11,
+          swiss: chestnutSpruce,
+          onChLoad: () => chLoads++);
+      await tester.pump();
+      expect(chLoads, 0);
+      expect(find.textContaining('Bäume: Fichte und Buche · Stand 2022'),
+          findsOneWidget);
     });
   });
 }

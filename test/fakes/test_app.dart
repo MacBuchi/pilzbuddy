@@ -283,6 +283,7 @@ List<Override> overridesFor(FakeBackend backend,
       forestSpeciesLoaderProvider.overrideWithValue(() async => null),
       // Ebenso das Rückfall-Gitter außerhalb Deutschlands (#624).
       forestSpeciesEuLoaderProvider.overrideWithValue(() async => null),
+      forestSpeciesChLoaderProvider.overrideWithValue(() async => null),
       // Und für die Schutzgebiete (#580): kein Asset heißt keine
       // Schraffur und kein Hinweis. Wer sie prüft, reicht eigene über
       // `extraOverrides` herein.

@@ -153,7 +153,8 @@ class _ForestLayerSheet extends ConsumerWidget {
                       // und die feinen Blöcke (#253) kommen von den
                       // GitHub-Releases, die dort längst stehen.
                       //
-                      // Die Baumarten-Zeilen sind CC-BY-Pflicht (#227, #624)
+                      // Die Baumarten-Zeilen sind CC-BY-Pflicht (#227, #624,
+                      // die Schweiz CC BY-SA)
                       // und nennen zugleich die Abdeckung: gemessen in
                       // Deutschland, außerhalb nur geschätzt und nur drei
                       // Gattungen — sonst sähe eine fehlende Lärche in Tirol
@@ -161,6 +162,9 @@ class _ForestLayerSheet extends ConsumerWidget {
                       '© Europäische Union, Copernicus Land Monitoring Service\n'
                       'Baumarten Deutschland: © DLR, Tree Species Germany '
                       '(CC BY 4.0)\n'
+                      'Baumarten Schweiz: WSL, Tree species map of '
+                      'Switzerland (CC BY-SA 4.0, zusammengefasst) — ohne '
+                      'Lärche\n'
                       'Baumarten sonst: ForestPaths European Tree Genus Map '
                       '(CC BY 4.0) — geschätzt, nur Fichte, Kiefer und Buche',
                       style: theme.textTheme.bodySmall

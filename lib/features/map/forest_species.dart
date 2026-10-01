@@ -180,12 +180,15 @@ class ForestSpeciesGrid {
 /// zuerst der Nadelbaum, sonst zuerst der Laubbaum. Eine feste
 /// Reihenfolge läse sich in der einen Hälfte der Fälle verkehrt herum
 /// („Fichte und Buche" für einen Buchenwald mit ein paar Fichten).
-String speciesPhrase(ForestSpeciesNames names, {int? coniferPercent}) {
+String speciesPhrase(ForestSpeciesNames names, {int? coniferPercent}) =>
+    joinTreeNames(speciesNames(names, coniferPercent: coniferPercent));
+
+/// Die Namen aus [speciesPhrase] als Liste, in derselben Reihenfolge.
+List<String> speciesNames(ForestSpeciesNames names, {int? coniferPercent}) {
   final parts = (coniferPercent ?? 0) >= 50
       ? [names.conifer?.label, names.broadleaf?.label]
       : [names.broadleaf?.label, names.conifer?.label];
-  final named = parts.whereType<String>().toList();
-  return named.join(' und ');
+  return parts.whereType<String>().toList();
 }
 
 /// Die Gattungen, die das Rückfall-Gitter (#624, ForestPaths) nennen
@@ -248,5 +251,224 @@ ForestSpeciesReading? forestSpeciesReadingAt(
     names: (broadleaf: broadleaf, conifer: conifer),
     estimated: true,
     referenceYear: fallback.referenceYear,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Schweiz: die Baumartenkarte der WSL (seit 1.221.0)
+// ---------------------------------------------------------------------------
+
+/// Die 15 Arten der Schweizer Karte, in der Reihenfolge ihrer
+/// Quellwerte (`tool/forest_species_ch.py`, `SPECIES`). Lärche fehlt —
+/// die Karte kennt sie nicht, und die Zeile sagt das.
+///
+/// Die Namen folgen dem DLR-Gitter, wo es dieselbe Art meint (Fichte,
+/// Tanne, Kiefer, Buche, Birke), damit über die Grenze hinweg dasselbe
+/// Wort für denselben Baum steht. Eichen und Erlen bleiben getrennt: Die
+/// Karte unterscheidet sie, und für die Pilzsuche ist die Grauerle am
+/// Bach etwas anderes als die Schwarzerle im Bruch.
+enum SwissTree {
+  fir('Tanne'),
+  sycamore('Bergahorn'),
+  blackAlder('Schwarzerle'),
+  greyAlder('Grauerle'),
+  birch('Birke'),
+  chestnut('Edelkastanie'),
+  beech('Buche'),
+  ash('Esche'),
+  spruce('Fichte'),
+  stonePine('Arve'),
+  mountainPine('Bergföhre'),
+  pine('Kiefer'),
+  sessileOak('Traubeneiche'),
+  pedunculateOak('Stieleiche'),
+  rowan('Vogelbeere');
+
+  const SwissTree(this.label);
+  final String label;
+}
+
+/// Halbbytes je Wabe im Schweizer Gitter — der Vertrag mit dem Werkzeug.
+const swissTreeSlots = 6;
+
+/// „Wald, aber keine Art benennbar" (nur außerhalb des Modellbereichs
+/// oder mit lückenhafter Zeitreihe). Kann keine echte Liste sein: Sie
+/// hieße sechsmal dieselbe Art.
+const swissCoveredNone = 0xFFFFFF;
+
+/// Das Schweizer Artengitter: drei Bytes je Wabe, nur das Rechteck um
+/// die Schweiz, auf demselben Hex-Raster wie Wald- und DLR-Gitter.
+class SwissSpeciesGrid {
+  const SwissSpeciesGrid({
+    required this.values,
+    required this.gridWidth,
+    required this.gridHeight,
+    required this.x0,
+    required this.y0,
+    required this.width,
+    required this.height,
+    required this.west,
+    required this.east,
+    required this.north,
+    required this.south,
+    required this.referenceYear,
+    required this.hexLonStep,
+    required this.hexLatStep,
+  });
+
+  /// `width * height * 3` Bytes, zeilenweise von Nord nach Süd.
+  final Uint8List values;
+
+  /// Maße des GANZEN Hex-Rasters — gebraucht, damit die Zuordnung Punkt
+  /// → Wabe dieselbe ist wie in den anderen Gittern ([hexNearestCell]).
+  final int gridWidth;
+  final int gridHeight;
+
+  /// Das gespeicherte Rechteck darin.
+  final int x0;
+  final int y0;
+  final int width;
+  final int height;
+
+  final double west;
+  final double east;
+  final double north;
+  final double south;
+  final int referenceYear;
+  final double hexLonStep;
+  final double hexLatStep;
+
+  factory SwissSpeciesGrid.decode(
+    List<int> gzipped, {
+    required int gridWidth,
+    required int gridHeight,
+    required int x0,
+    required int y0,
+    required int width,
+    required int height,
+    required double west,
+    required double east,
+    required double north,
+    required double south,
+    required int referenceYear,
+    required double hexLonStep,
+    required double hexLatStep,
+  }) {
+    final flat = GZipDecoder().decodeBytes(gzipped);
+    if (flat.length != width * height * 3) {
+      throw FormatException('Schweizer Artengitter hat ${flat.length} Bytes, '
+          'erwartet ${width * height * 3}');
+    }
+    return SwissSpeciesGrid(
+      values: Uint8List.fromList(flat),
+      gridWidth: gridWidth,
+      gridHeight: gridHeight,
+      x0: x0,
+      y0: y0,
+      width: width,
+      height: height,
+      west: west,
+      east: east,
+      north: north,
+      south: south,
+      referenceYear: referenceYear,
+      hexLonStep: hexLonStep,
+      hexLatStep: hexLatStep,
+    );
+  }
+
+  /// Der rohe Drei-Byte-Wert, oder `null` außerhalb des Rechtecks.
+  int? valueAt(double lat, double lon) {
+    if (lat > north || lat < south || lon < west || lon > east) return null;
+    final cell = hexNearestCell(
+      u: (lon - west) / hexLonStep,
+      v: (north - lat) / hexLatStep,
+      width: gridWidth,
+      height: gridHeight,
+    );
+    if (cell == null) return null;
+    final x = cell.$1 - x0;
+    final y = cell.$2 - y0;
+    if (x < 0 || y < 0 || x >= width || y >= height) return null;
+    final i = (y * width + x) * 3;
+    return values[i] << 16 | values[i + 1] << 8 | values[i + 2];
+  }
+
+  /// Die Arten an einem Punkt, nach Anteil sortiert.
+  ///
+  /// `null`: die Karte sagt hier nichts (außerhalb, zu wenig Wald) — dann
+  /// darf das Rückfall-Gitter sprechen. Leere Liste: Wald, aber keine Art
+  /// benennbar — dann schweigt die Zeile, ohne Rückfall.
+  List<SwissTree>? at(double lat, double lon) {
+    final value = valueAt(lat, lon);
+    if (value == null || value == 0) return null;
+    if (value == swissCoveredNone) return const [];
+    final out = <SwissTree>[];
+    for (var slot = 0; slot < swissTreeSlots; slot++) {
+      final nibble = (value >> (4 * (swissTreeSlots - 1 - slot))) & 0xF;
+      if (nibble == 0) break;
+      // 1..15 sind alle gültig — es gibt genau 15 Arten.
+      out.add(SwissTree.values[nibble - 1]);
+    }
+    return out;
+  }
+}
+
+/// Woher die Artenzeile an einem Punkt kommt.
+enum TreeSpeciesSource { dlr, swiss, forestPaths }
+
+/// Die fertige Aussage für die Zeile: Namen in Lesereihenfolge, Quelle,
+/// Stand.
+typedef TreeSpeciesLine = ({
+  List<String> names,
+  TreeSpeciesSource source,
+  int referenceYear,
+});
+
+/// „Fichte", „Fichte und Buche", „Fichte, Tanne und Buche".
+String joinTreeNames(List<String> names) => names.length < 2
+    ? names.join()
+    : '${names.sublist(0, names.length - 1).join(', ')} und ${names.last}';
+
+/// Die EINE Vorrangregel über alle drei Gitter: DLR, dann die Schweizer
+/// Karte, dann ForestPaths.
+///
+/// Wer an einem Punkt etwas sagt, hat gesprochen — auch „Bäume ohne
+/// nennbare Art". Dort springt das nächste Gitter NICHT ein: Die bessere
+/// Quelle hat gesprochen (dieselbe Regel wie in [forestSpeciesReadingAt],
+/// das die beiden äußeren Stufen weiter allein trägt).
+///
+/// [coniferPercent] ordnet nur die zwei Namen aus DLR und ForestPaths
+/// ([speciesPhrase]); die Schweizer Liste ist schon nach Anteil sortiert.
+TreeSpeciesLine? treeSpeciesLineAt({
+  required ForestSpeciesGrid? dlr,
+  required SwissSpeciesGrid? swiss,
+  required ForestSpeciesGrid? forestPaths,
+  required double lat,
+  required double lon,
+  int? coniferPercent,
+}) {
+  final byte = dlr?.byteAt(lat, lon);
+  final dlrSpoke = byte != null && byte != speciesNoData;
+  if (!dlrSpoke) {
+    final trees = swiss?.at(lat, lon);
+    if (swiss != null && trees != null) {
+      if (trees.isEmpty) return null;
+      return (
+        names: [for (final t in trees) t.label],
+        source: TreeSpeciesSource.swiss,
+        referenceYear: swiss.referenceYear,
+      );
+    }
+  }
+  final reading =
+      forestSpeciesReadingAt(dlr, dlrSpoke ? null : forestPaths, lat, lon);
+  if (reading == null) return null;
+  return (
+    names: speciesNames(reading.names, coniferPercent: coniferPercent),
+    source: reading.estimated
+        ? TreeSpeciesSource.forestPaths
+        : TreeSpeciesSource.dlr,
+    referenceYear: reading.referenceYear,
   );
 }

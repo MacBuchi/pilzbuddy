@@ -1,5 +1,6 @@
-// Die Baumarten-Gitter auf dem Gerät: DLR für Deutschland (#227) und
-// das Rückfall-Gitter aus ForestPaths für den Rest (#624).
+// Die Baumarten-Gitter auf dem Gerät: DLR für Deutschland (#227), die
+// Baumartenkarte der WSL für die Schweiz (seit 1.221.0) und das
+// Rückfall-Gitter aus ForestPaths für den Rest (#624).
 //
 // Wie beim Waldtypen-Gitter: Asset im APK, kein Download, keine
 // Zustimmung. Die Frage „welcher Baum steht hier" stellt sich dort, wo
@@ -26,6 +27,60 @@ final forestSpeciesEuLoaderProvider =
               'assets/forest/forest_species_eu_manifest.json',
               'assets/forest/forest_species_eu.bin.gz',
             ));
+
+/// Dieselbe Naht für das Schweizer Gitter. Auch sie steht in den Tests
+/// auf `null` — ein drittes Asset in jedem Flow-Test wäre Last ohne
+/// Aussage.
+final forestSpeciesChLoaderProvider =
+    Provider<Future<SwissSpeciesGrid?> Function()>((ref) => _loadSwiss);
+
+Future<SwissSpeciesGrid?> _loadSwiss() async {
+  try {
+    final manifestRaw = await rootBundle
+        .loadString('assets/forest/forest_species_ch_manifest.json');
+    final data = await rootBundle.load('assets/forest/forest_species_ch.bin.gz');
+    final bytes =
+        data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+    return await compute(
+        _decodeSwiss, (manifest: manifestRaw, bytes: bytes));
+  } catch (_) {
+    // Fehlendes/kaputtes Asset ⇒ in der Schweiz spricht ForestPaths,
+    // wie vor 1.221.0. Begründung bei [_loadFromAssets].
+    return null;
+  }
+}
+
+SwissSpeciesGrid? _decodeSwiss(({String manifest, Uint8List bytes}) input) {
+  try {
+    final manifest = jsonDecode(input.manifest) as Map<String, dynamic>;
+    // Nur das bekannte Format — eine andere Halbbyte-Zahl je Wabe hieße,
+    // dass jede Liste an der falschen Stelle beginnt.
+    if (manifest['lattice'] != 'hex-odd-r') return null;
+    if (manifest['encoding'] != 'gzip') return null;
+    if (manifest['cell_bytes'] != 3) return null;
+    if (manifest['slots'] != swissTreeSlots) return null;
+    final species = (manifest['species'] as List).length;
+    if (species != SwissTree.values.length) return null;
+    return SwissSpeciesGrid.decode(
+      input.bytes,
+      gridWidth: manifest['grid_width'] as int,
+      gridHeight: manifest['grid_height'] as int,
+      x0: manifest['x0'] as int,
+      y0: manifest['y0'] as int,
+      width: manifest['width'] as int,
+      height: manifest['height'] as int,
+      west: (manifest['west'] as num).toDouble(),
+      east: (manifest['east'] as num).toDouble(),
+      north: (manifest['north'] as num).toDouble(),
+      south: (manifest['south'] as num).toDouble(),
+      referenceYear: manifest['reference_year'] as int,
+      hexLonStep: (manifest['hex_lon_step'] as num).toDouble(),
+      hexLatStep: (manifest['hex_lat_step'] as num).toDouble(),
+    );
+  } catch (_) {
+    return null;
+  }
+}
 
 Future<ForestSpeciesGrid?> _loadDlr() => _loadFromAssets(
       'assets/forest/forest_species_manifest.json',
@@ -87,3 +142,7 @@ final forestSpeciesGridProvider = FutureProvider<ForestSpeciesGrid?>(
 /// schweigt.
 final forestSpeciesEuGridProvider = FutureProvider<ForestSpeciesGrid?>(
     (ref) => ref.watch(forestSpeciesEuLoaderProvider)());
+
+/// Das Schweizer Gitter — beobachtet erst, wo das DLR-Gitter schweigt.
+final forestSpeciesChGridProvider = FutureProvider<SwissSpeciesGrid?>(
+    (ref) => ref.watch(forestSpeciesChLoaderProvider)());

@@ -39,6 +39,42 @@ ForestSpeciesGrid speciesOf(List<List<int>> rows,
       grid.west + grid.hexLonStep * (hx + 0.5 + (hy.isOdd ? 0.5 : 0)),
     );
 
+/// Ein Schweizer Gitter: [rows] sind die Drei-Byte-Werte je Wabe, das
+/// Rechteck liegt ab ([x0], [y0]) in einem größeren Hex-Raster — wie im
+/// Asset, wo nur der Ausschnitt um die Schweiz gespeichert ist.
+SwissSpeciesGrid swissOf(List<List<int>> rows,
+    {int x0 = 0, int y0 = 0, int gridWidth = 2, int gridHeight = 1}) {
+  final bytes = <int>[
+    for (final v in rows.expand((r) => r)) ...[v >> 16, v >> 8 & 0xFF, v & 0xFF]
+  ];
+  return SwissSpeciesGrid.decode(
+    GZipEncoder().encode(bytes)!,
+    gridWidth: gridWidth,
+    gridHeight: gridHeight,
+    x0: x0,
+    y0: y0,
+    width: rows.first.length,
+    height: rows.length,
+    west: 10,
+    east: 10 + gridWidth * _lonStep,
+    north: 55,
+    south: 55 - gridHeight * _latStep,
+    referenceYear: 2020,
+    hexLonStep: _lonStep,
+    hexLatStep: _latStep,
+  );
+}
+
+/// Sechs Halbbytes aus Quellwerten (0..14), wie `pack_species` im
+/// Werkzeug.
+int swissValue(List<SwissTree> trees) {
+  var v = 0;
+  for (final (slot, t) in trees.indexed) {
+    v |= (t.index + 1) << (4 * (swissTreeSlots - 1 - slot));
+  }
+  return v;
+}
+
 void main() {
   group('Format', () {
     test('packt schlicht gzip aus — OHNE Zeilen-Delta', () {
@@ -296,6 +332,112 @@ void main() {
       expect(forestSpeciesReadingAt(null, null, lat, lon), isNull);
       expect(forestSpeciesReadingAt(dlr(speciesNoData), null, lat, lon),
           isNull);
+    });
+  });
+
+  group('Schweiz (seit 1.221.0)', () {
+    final (lat, lon) = centerOf(speciesOf([[0, 0]]), 0, 0);
+    final (lat1, lon1) = centerOf(speciesOf([[0, 0]]), 1, 0);
+
+    test('liest die Liste in Anteilsreihenfolge, bis zur ersten Null', () {
+      final v = swissValue([SwissTree.spruce, SwissTree.fir, SwissTree.beech]);
+      expect(v, 0x917000);
+      expect(swissOf([[v, 0]]).at(lat, lon),
+          [SwissTree.spruce, SwissTree.fir, SwissTree.beech]);
+    });
+
+    test('alle sechs Plätze und die Vogelbeere (Halbbyte 15)', () {
+      final six = [
+        SwissTree.rowan,
+        SwissTree.chestnut,
+        SwissTree.stonePine,
+        SwissTree.mountainPine,
+        SwissTree.sessileOak,
+        SwissTree.blackAlder,
+      ];
+      expect(swissOf([[swissValue(six), 0]]).at(lat, lon), six);
+    });
+
+    test('0 heißt „keine Aussage", 0xFFFFFF „Wald ohne nennbare Art"', () {
+      final grid = swissOf([[0, swissCoveredNone]]);
+      expect(grid.at(lat, lon), isNull);
+      expect(grid.at(lat1, lon1), isEmpty);
+    });
+
+    test('das Rechteck sitzt im ganzen Raster, nicht an dessen Ecke', () {
+      // Gespeichert ist nur Wabe (1,0); (0,0) liegt außerhalb.
+      final v = swissValue([SwissTree.chestnut]);
+      final grid = swissOf([[v]], x0: 1);
+      expect(grid.at(lat1, lon1), [SwissTree.chestnut]);
+      expect(grid.at(lat, lon), isNull);
+    });
+
+    test('falsche Länge wird abgelehnt', () {
+      expect(
+        () => SwissSpeciesGrid.decode(GZipEncoder().encode([1, 2])!,
+            gridWidth: 1,
+            gridHeight: 1,
+            x0: 0,
+            y0: 0,
+            width: 1,
+            height: 1,
+            west: 10,
+            east: 11,
+            north: 55,
+            south: 54,
+            referenceYear: 2020,
+            hexLonStep: _lonStep,
+            hexLatStep: _latStep),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('Aufzählung: Kommas und ein „und"', () {
+      expect(joinTreeNames(['Fichte']), 'Fichte');
+      expect(joinTreeNames(['Fichte', 'Buche']), 'Fichte und Buche');
+      expect(joinTreeNames(['Fichte', 'Tanne', 'Buche']),
+          'Fichte, Tanne und Buche');
+    });
+
+    group('Vorrang über alle drei Gitter', () {
+      ForestSpeciesGrid dlr(int byte) => speciesOf([[byte, byte]]);
+      ForestSpeciesGrid eu(int byte) =>
+          speciesOf([[byte, byte]], referenceYear: 2020);
+      final chestnut = swissOf([
+        [swissValue([SwissTree.chestnut, SwissTree.beech]), 0]
+      ]);
+
+      TreeSpeciesLine? line(ForestSpeciesGrid? d, SwissSpeciesGrid? ch,
+              ForestSpeciesGrid? fp) =>
+          treeSpeciesLineAt(
+              dlr: d, swiss: ch, forestPaths: fp, lat: lat, lon: lon);
+
+      test('DLR vor der Schweiz, wo es spricht — auch ohne Art', () {
+        expect(line(dlr(0x11), chestnut, eu(0x02))!.source,
+            TreeSpeciesSource.dlr);
+        expect(line(dlr(0x00), chestnut, eu(0x02)), isNull);
+      });
+
+      test('die Schweiz vor ForestPaths', () {
+        final l = line(dlr(speciesNoData), chestnut, eu(0x02))!;
+        expect(l.source, TreeSpeciesSource.swiss);
+        expect(l.names, ['Edelkastanie', 'Buche']);
+        expect(l.referenceYear, 2020);
+        expect(line(null, chestnut, eu(0x02))!.source,
+            TreeSpeciesSource.swiss);
+      });
+
+      test('„Wald ohne nennbare Art" ist eine Aussage — kein Rückfall', () {
+        final none = swissOf([[swissCoveredNone, 0]]);
+        expect(line(null, none, eu(0x02)), isNull);
+      });
+
+      test('schweigt die Schweiz, spricht ForestPaths', () {
+        final empty = swissOf([[0, 0]]);
+        expect(line(null, empty, eu(0x02))!.source,
+            TreeSpeciesSource.forestPaths);
+        expect(line(null, null, eu(0x02))!.names, ['Kiefer']);
+      });
     });
   });
 }

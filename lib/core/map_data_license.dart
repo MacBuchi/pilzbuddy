@@ -162,8 +162,8 @@ void registerMapDataLicense() {
       '„Tree Species Germany" (Stand 2022) des Earth Observation Center '
       'im Deutschen Zentrum für Luft- und Raumfahrt, zusammengefasst auf '
       'dasselbe Wabengitter wie die Waldtypen (≈ 250 m). Die Abdeckung '
-      'ist Deutschland; außerhalb springt die Schätzung aus dem nächsten '
-      'Eintrag ein.\n'
+      'ist Deutschland; in der Schweiz gilt die Karte der WSL, sonst '
+      'springt die Schätzung aus ForestPaths ein.\n'
       '© DLR, Tree Species Germany.\n'
       'https://geoservice.dlr.de/web/maps/eoc:tcde:2022\n\n'
       'Das Produkt steht unter CC BY 4.0 — die Namensnennung ist die '
@@ -171,8 +171,25 @@ void registerMapDataLicense() {
       'https://creativecommons.org/licenses/by/4.0/',
     );
     yield const LicenseEntryWithLineBreaks(
+      ['Baumarten Schweiz (WSL)'],
+      'In der Schweiz beruht die Baumarten-Zeile im Spot-Blatt auf der '
+      '„Tree species map of Switzerland" (Stand 2020) der Eidgenössischen '
+      'Forschungsanstalt WSL. Wir haben sie verändert: zusammengefasst auf '
+      'dasselbe Wabengitter (≈ 250 m), genannt wird je Wabe jede Art mit '
+      'mindestens 10 % Anteil. Lärchen enthält die Karte nicht.\n'
+      'Koch, T., Hobi, M., Morsdorf, F., Waser, L. (2024): Tree species '
+      'map of Switzerland. EnviDat.\n'
+      'https://doi.org/10.16904/envidat.506\n\n'
+      'Das Produkt steht unter CC BY-SA 4.0. Das Gitter in der App ist '
+      'ein daraus abgeleitetes Werk und steht deshalb unter derselben '
+      'Lizenz; es liegt als eigene Datei vor '
+      '(assets/forest/forest_species_ch.bin.gz).\n'
+      'https://creativecommons.org/licenses/by-sa/4.0/',
+    );
+    yield const LicenseEntryWithLineBreaks(
       ['Baumarten außerhalb Deutschlands (ForestPaths)'],
-      'Außerhalb Deutschlands beruht die Baumarten-Zeile im Spot-Blatt '
+      'Außerhalb Deutschlands und der Schweiz beruht die Baumarten-Zeile '
+      'im Spot-Blatt '
       'auf der „European Tree Genus Map" (Stand 2020, Vorab-Fassung) des '
       'Projekts ForestPaths, zusammengefasst auf dasselbe Wabengitter '
       '(≈ 250 m). Es ist eine Schätzung aus Satellitendaten; genannt '

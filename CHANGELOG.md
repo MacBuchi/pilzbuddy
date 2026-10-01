@@ -7,6 +7,19 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Baumarten in der Schweiz — alle, die im Wald stehen
+
+*1. Oktober 2026 · Version 1.221.0*
+
+- In der Schweiz nennt das Spot-Blatt die Bäume jetzt aus der
+  **Baumartenkarte der Eidgenössischen Forschungsanstalt WSL** statt aus
+  der groben Satellitenschätzung. Es stehen **alle Arten** da, die in der
+  Umgebung des Spots mindestens ein Zehntel ausmachen, die häufigste
+  zuerst — zum Beispiel „Edelkastanie, Fichte und Buche".
+- Neu dabei sind unter anderem **Edelkastanie, Tanne, Arve,
+  Bergföhre**, Esche, Bergahorn, Trauben- und Stieleiche. Lärchen kennt
+  die Karte nicht, und die Zeile sagt das dazu.
+
 ## Regen der letzten 7, 14 und 30 Tage — auch in den Alpen
 
 *1. Oktober 2026 · Version 1.220.0, 1.220.1*

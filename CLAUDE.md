@@ -2590,6 +2590,41 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     **Falle beim lokalen Prüfen:** `_fake_tiff_u8` schreibt die Breite
     als SHORT — ab 65 536 Pixeln (das volle Raster hat 81 600) läuft sie
     über, und `verify` meldet Abweichungen, die es nicht gibt.
+  - **In der Schweiz spricht seit 1.221.0 die WSL-Karte** („Tree species
+    map of Switzerland", Koch et al. 2024, 10 m, Stand 2020,
+    `tool/forest_species_ch.py` + `forest-species-ch.yml`), zwischen DLR
+    und ForestPaths: `treeSpeciesLineAt` ist die EINE Vorrangregel über
+    alle drei Gitter. Fünf Dinge, die man wissen muss:
+    - **Alle Arten je Wabe, nicht nur die führende** (Betreiber,
+      2026-10-01): jede mit ≥ 10 % der benannten Pixel, nach Anteil
+      sortiert, sechs Halbbytes in drei Bytes. 5 % wäre bei 76 %
+      Pixel-Trefferquote Rauschen, 20 % schnitte Mischbestände ab
+      (gemessen: bei 10 % 1–6 Arten je Wabe, 0,19 MB). Erreicht keine
+      Art 10 %, steht die führende trotzdem da — eine leere Liste wäre 0,
+      und 0 heißt „keine Aussage", dann spräche ForestPaths.
+    - **CC BY-SA, deshalb eine eigene Datei** — das Gitter ist ein
+      abgeleitetes Werk (Auskunft der Autorin) und steht unter derselben
+      Lizenz; die Lizenzseite sagt es. Nie mit DLR- oder
+      ForestPaths-Werten in eine Datei mischen.
+    - **Die Quelle ist nicht öffentlich**: Zugang auf Anfrage, der
+      Freigabelink liegt nur im Secret `CH_TREE_SPECIES_URL`, sein Token
+      wird im Workflow vor der ersten Anfrage maskiert. Auf einem
+      Feature-Branch committet der Workflow das Gitter selbst (Artefakte
+      sind aus der Cloud-Umgebung nicht abrufbar), auf `main` lädt er es
+      als Artefakt hoch.
+    - **Nur das Rechteck um die Schweiz** liegt im Asset (`x0`/`y0`/
+      `width`/`height`); gefunden wird die Wabe über das GANZE Raster
+      (`hexNearestCell` mit `grid_width`/`grid_height`), dann
+      verschoben. `test/forest_species_ch_asset_test.dart` hält das Raster
+      gegen das DLR-Gitter fest.
+    - **Lärche fehlt in der Karte**, die Zeile sagt „Lärche nicht
+      erfasst". Die Namen folgen dem DLR-Gitter, wo es dieselbe Art meint
+      (Tanne, Kiefer, Birke).
+    **Falle beim Bau** (2026-10-01): Die erste Messung hing stundenlang,
+    weil `summarize` je Wabe `min()` über alle 700 000 Waben neu rechnete
+    — quadratisch. Gefunden mit `faulthandler.dump_traceback_later` an
+    einem gleich großen künstlichen Raster (`gdal_create`), nicht am
+    Warp, den alle zuerst verdächtigt hatten.
 - **Höhenlinien auf der Karte** (seit 1.98.0): Dieselben Daten, eine
   zweite Verwendung — die Ebene rechnet Isolinien **auf dem Gerät**
   (`lib/features/map/elevation_contours.dart`) und baut dafür KEINE
