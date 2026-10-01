@@ -55,6 +55,7 @@ const _bundledSources = <String>[
   'Copernicus Land Monitoring Service',
   'DLR',
   'ForestPaths',
+  'Baumarten Schweiz (WSL)',
   'Copernicus DEM',
   'Wikimedia Commons',
   'Schutzgebiete (OpenStreetMap)',

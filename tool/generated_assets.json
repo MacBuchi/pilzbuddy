@@ -40,6 +40,17 @@
       "sha256": "ff5984f69e7ed0c7e092f6abb1e4dffb19b00afeab4e56738e2d2be5860e165a",
       "regenerate": "entsteht im selben Lauf wie forest_species_eu.bin.gz — siehe dort"
     },
+    "assets/forest/forest_species_ch.bin.gz": {
+      "sha256": "3f7dc7b91f8fe8812698574abfeaa96436e8d35aae69fee18fae4fdf11984c71",
+      "regenerate": "Workflow „Forest Species CH\" laufen lassen (braucht das Secret CH_TREE_SPECIES_URL): auf einem Feature-Branch committet er beide Dateien selbst, auf main liegen sie im Artefakt forest-species-ch",
+      "checks": {
+        "self_recorded_sha256": "assets/forest/forest_species_ch_manifest.json"
+      }
+    },
+    "assets/forest/forest_species_ch_manifest.json": {
+      "sha256": "ceabd9611ac01858853dd71ee83cf6e4683fc476818dfa86293dea00edf77503",
+      "regenerate": "entsteht im selben Lauf wie forest_species_ch.bin.gz — siehe dort"
+    },
     "assets/map_style/protomaps_light_de.json": {
       "sha256": "30b102ce73221e96110d4d0f567cdaec2e66f91eb17f120e907ef739f3f6d803",
       "regenerate": "Stil mit npm @protomaps/basemaps erzeugen (Flavor LIGHT, lang de), dann python3 tool/transform_map_style.py assets/map_style/protomaps_light_de.json",
