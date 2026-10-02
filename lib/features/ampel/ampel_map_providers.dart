@@ -1,7 +1,7 @@
 // Die Pilzwetter-Fläche auf der Karte: Schalter, Rechnung, Datei —
 // dieselbe Dreiteilung wie Regen- und Waldfläche.
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/bounded_compute.dart';
 
 import '../../data/rain_grid_repository.dart' show RainStackData;
 import '../../core/settings.dart';
@@ -72,7 +72,7 @@ final ampelLevelGridProvider = FutureProvider<AmpelLevels?>((ref) async {
   final stacks = await stacksFuture;
   if (stacks.isEmpty) return null;
   final table = await tableFuture;
-  return compute(_levels, (stacks: stacks, table: table));
+  return boundedCompute(_levels, (stacks: stacks, table: table));
 });
 
 AmpelLevels? _levels(

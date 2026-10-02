@@ -21,6 +21,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/map_worker.dart';
 import '../map/forest_data_providers.dart' show mapIdleBoundsProvider;
 import '../map/forest_fill_window.dart';
 import '../map/overlay_png.dart';
@@ -188,8 +189,11 @@ final areaEditFillProvider = FutureProvider<AreaEditFill?>((ref) async {
   final draft = ref.watch(areaDraftProvider);
   final adds = draft?.adds ?? const <int>{};
   final removes = draft?.removes ?? const <int>{};
-  final png = await compute(_paint,
-      (window: window, stored: stored, adds: adds, removes: removes));
+  // Im Zeichen-Isolate (#641). Der Bestand ändert sich selten und liegt
+  // dort als Fach; der Entwurf ist klein und reist mit.
+  final png = await runOnMapWorker(ref, 'areaEdit', _paint,
+      (window: window, adds: adds, removes: removes),
+      slots: {'areaStored': stored});
   final revision = [
     stored.length,
     Object.hashAllUnordered(stored),
@@ -201,15 +205,13 @@ final areaEditFillProvider = FutureProvider<AreaEditFill?>((ref) async {
   return AreaEditFill(png: png, window: window, revision: revision);
 });
 
-Uint8List _paint(
-        ({
-          FillWindow window,
-          Set<int> stored,
-          Set<int> adds,
-          Set<int> removes
-        }) i) =>
+Uint8List _paint(MapWorkerSlots slots,
+        ({FillWindow window, Set<int> adds, Set<int> removes}) i) =>
     areaEditFillPng(
-        window: i.window, stored: i.stored, adds: i.adds, removes: i.removes);
+        window: i.window,
+        stored: slots.get<Set<int>>('areaStored'),
+        adds: i.adds,
+        removes: i.removes);
 
 /// Dasselbe Bild als Datei — der Weg für MapLibre.
 final areaEditFillFileProvider =

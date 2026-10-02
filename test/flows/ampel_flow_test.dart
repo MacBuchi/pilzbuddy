@@ -234,6 +234,11 @@ void main() {
     await tester.runAsync(() async {
       const at = (lat: spotLat, lon: spotLng);
       await container.read(rainCourseProvider(at).future);
+      // Die Legende hat seit #641 einen eigenen Weg fürs Fadenkreuz
+      // (`autoDispose`): hier in der echten Zone anlegen UND festhalten,
+      // sonst legt ihn erst die Legende in der Fake-Zone an.
+      container.listen(legendRainCourseProvider(at), (_, _) {});
+      await container.read(legendRainCourseProvider(at).future);
       await container.read(spotTemperatureProvider(at).future);
       await container.read(elevationAtProvider(at).future);
     });

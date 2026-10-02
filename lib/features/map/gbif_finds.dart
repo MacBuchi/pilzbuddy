@@ -26,7 +26,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:archive/archive.dart';
+import '../../core/gunzip.dart';
 
 /// Eine Art im Asset — der deutsche Name ist der aus `kBekannteArten`,
 /// so lässt sich die Zeile ohne Nachschlagen dem Filter und der
@@ -139,7 +139,7 @@ class GbifFinds {
       throw FormatException('Unerwartete Spalten $columns');
     }
     final n = manifest['records'] as int;
-    final flat = Uint8List.fromList(GZipDecoder().decodeBytes(gzipped));
+    final flat = Uint8List.fromList(gunzip(gzipped));
     if (flat.length != n * 9) {
       throw FormatException(
           'Fundorte haben ${flat.length} Bytes, erwartet ${n * 9}');

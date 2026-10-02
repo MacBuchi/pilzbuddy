@@ -20,7 +20,7 @@
 // gewählten — dieser Leser kann beide und lehnt alles andere ab.
 import 'dart:typed_data';
 
-import 'package:archive/archive.dart';
+import '../../core/gunzip.dart';
 
 import 'forest_grid.dart' show hexNearestCell;
 
@@ -83,7 +83,7 @@ class ElevationGrid {
     if (encoding != 'gzip' && encoding != 'gzip+row-delta') {
       throw FormatException('Höhengitter mit fremder Kodierung: $encoding');
     }
-    final flat = GZipDecoder().decodeBytes(gzipped);
+    final flat = gunzip(gzipped);
     if (flat.length != width * height) {
       throw FormatException(
           'Höhengitter hat ${flat.length} Bytes, erwartet ${width * height}');

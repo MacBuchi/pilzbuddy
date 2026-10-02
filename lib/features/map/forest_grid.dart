@@ -22,7 +22,7 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:archive/archive.dart';
+import '../../core/gunzip.dart';
 
 /// „Hier wissen wir nichts" — außerhalb der Abdeckung der Quelle.
 const forestNoData = 255;
@@ -124,7 +124,7 @@ class ForestGrid {
     double? hexLonStep,
     double? hexLatStep,
   }) {
-    final flat = GZipDecoder().decodeBytes(gzipped);
+    final flat = gunzip(gzipped);
     if (flat.length != width * height) {
       throw FormatException(
           'Waldgitter hat ${flat.length} Bytes, erwartet ${width * height}');

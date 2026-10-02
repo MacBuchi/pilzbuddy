@@ -10,6 +10,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/bounded_compute.dart';
+import '../../core/map_worker.dart';
 import '../../core/settings.dart';
 
 import '../ampel/ampel_fill.dart' show AmpelLevels;
@@ -74,7 +76,7 @@ Future<ForestGrid?> _loadFromAssets() async {
     final data = await rootBundle.load('assets/forest/forest_grid.bin.gz');
     final bytes = data.buffer
         .asUint8List(data.offsetInBytes, data.lengthInBytes);
-    return await compute(_decode, (manifest: manifestRaw, bytes: bytes));
+    return await boundedCompute(_decode, (manifest: manifestRaw, bytes: bytes));
   } catch (_) {
     // Fehlendes/kaputtes Asset ⇒ keine Ebene. Begründung oben.
     return null;
@@ -221,23 +223,37 @@ final forestFillProvider = FutureProvider<ForestFillImage?>((ref) async {
   // halb fein, halb grob wäre eine sichtbare Naht aus zwei Wabengrößen
   // mitten im Bild.
   if (blocks != null && blocks.covers(window)) {
-    final grids = blocks.gridsFor(window);
-    final png = levels == null
-        ? await compute(_fillFine, (
-            grids: grids,
-            classes: classes,
-            window: window,
-            protected: protected
-          ))
-        : await compute(_fillCombined, (
-            grids: grids,
-            classes: classes,
-            window: window,
-            levels: levels,
-            ampelClasses: ampelClasses!,
-            elevation: elevation,
-            protected: protected
-          ));
+    // Im Zeichen-Isolate (#641). Die Blöcke gehen EINZELN als Fächer
+    // einer Familie hinüber: Die Menge ist je Fenster neu zusammengestellt,
+    // die Blöcke darin sind aber dieselben Objekte — gesendet wird also
+    // nur, was neu ins Bild kommt, und was hinausfällt, gibt das Isolate
+    // frei.
+    final blockSlots = {
+      for (final block in blocks.catalog.blocksIntersecting(
+        west: window.west,
+        east: window.east,
+        north: window.north,
+        south: window.south,
+      ))
+        '$_blockFamily${block.file}': ?blocks.loaded[block.file],
+    };
+    final png = await runOnMapWorker(
+      ref,
+      'forest',
+      levels == null ? _fillFine : _fillCombinedFine,
+      (
+        classes: classes,
+        window: window,
+        ampelClasses: ampelClasses,
+        blocks: blockSlots.keys.toList(),
+      ),
+      slots: {
+        ...blockSlots,
+        'protected': protected,
+        'ampelLevels': ?levels,
+        if (levels != null) 'elevation': elevation,
+      },
+    );
     return ForestFillImage(
       png: png,
       west: window.west,
@@ -253,22 +269,23 @@ final forestFillProvider = FutureProvider<ForestFillImage?>((ref) async {
     );
   }
 
-  final png = levels == null
-      ? await compute(_fill, (
-          grid: grid,
-          classes: classes,
-          window: window,
-          protected: protected
-        ))
-      : await compute(_fillCombined, (
-          grids: [grid],
-          classes: classes,
-          window: window,
-          levels: levels,
-          ampelClasses: ampelClasses!,
-          elevation: elevation,
-          protected: protected
-        ));
+  final png = await runOnMapWorker(
+    ref,
+    'forest',
+    levels == null ? _fill : _fillCombined,
+    (
+      classes: classes,
+      window: window,
+      ampelClasses: ampelClasses,
+      blocks: const <String>[],
+    ),
+    slots: {
+      'forest': grid,
+      'protected': protected,
+      'ampelLevels': ?levels,
+      if (levels != null) 'elevation': elevation,
+    },
+  );
   return ForestFillImage(
     png: png,
     west: window.west,
@@ -284,48 +301,46 @@ final forestFillProvider = FutureProvider<ForestFillImage?>((ref) async {
   );
 });
 
-Uint8List _fillCombined(
-        ({
-          List<ForestGrid> grids,
-          Set<ForestClass> classes,
-          FillWindow window,
-          AmpelLevels levels,
-          List<AmpelClass> ampelClasses,
-          ElevationGrid? elevation,
-          ProtectedAreas? protected
-        }) input) =>
-    forestAmpelFillPng(input.grids,
-        window: input.window,
-        levels: input.levels,
-        ampelClasses: input.ampelClasses,
-        elevation: input.elevation,
-        classes: input.classes,
-        protected: input.protected);
+/// Was je Auftrag hinübergeht — klein; die Gitter liegen in Fächern.
+typedef ForestFillParams = ({
+  Set<ForestClass> classes,
+  FillWindow window,
+  List<AmpelClass>? ampelClasses,
+  List<String> blocks,
+});
 
-Uint8List _fill(
-        ({
-          ForestGrid grid,
-          Set<ForestClass> classes,
-          FillWindow window,
-          ProtectedAreas? protected
-        }) input) =>
-    forestFillPng(input.grid,
-        classes: input.classes,
-        window: input.window,
-        protected: input.protected);
+const _blockFamily = 'forestBlock#';
 
-Uint8List _fillFine(
-        ({
-          List<ForestGrid> grids,
-          Set<ForestClass> classes,
-          FillWindow window,
-          ProtectedAreas? protected
-        }) input) =>
-    forestFillPngMulti(input.grids,
-        classes: input.classes,
-        window: input.window,
-        protected: input.protected);
+List<ForestGrid> _blocksOf(MapWorkerSlots slots, ForestFillParams p) =>
+    [for (final key in p.blocks) slots.get<ForestGrid>(key)];
 
+Uint8List _fillCombined(MapWorkerSlots slots, ForestFillParams p) =>
+    _combined(slots, [slots.get<ForestGrid>('forest')], p);
+
+Uint8List _fillCombinedFine(MapWorkerSlots slots, ForestFillParams p) =>
+    _combined(slots, _blocksOf(slots, p), p);
+
+Uint8List _combined(
+        MapWorkerSlots slots, List<ForestGrid> grids, ForestFillParams p) =>
+    forestAmpelFillPng(grids,
+        window: p.window,
+        levels: slots.get<AmpelLevels>('ampelLevels'),
+        ampelClasses: p.ampelClasses!,
+        elevation: slots.get<ElevationGrid?>('elevation'),
+        classes: p.classes,
+        protected: slots.get<ProtectedAreas?>('protected'));
+
+Uint8List _fill(MapWorkerSlots slots, ForestFillParams p) =>
+    forestFillPng(slots.get<ForestGrid>('forest'),
+        classes: p.classes,
+        window: p.window,
+        protected: slots.get<ProtectedAreas?>('protected'));
+
+Uint8List _fillFine(MapWorkerSlots slots, ForestFillParams p) =>
+    forestFillPngMulti(_blocksOf(slots, p),
+        classes: p.classes,
+        window: p.window,
+        protected: slots.get<ProtectedAreas?>('protected'));
 
 /// Der „Stand" für den Dateinamen der Fläche — kodiert Jahr UND
 /// Klassenwahl.

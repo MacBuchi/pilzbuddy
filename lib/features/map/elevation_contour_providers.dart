@@ -4,9 +4,9 @@
 // Aufgeteilt wie beim Wald (`forest_data_providers.dart`): Die Rechnung
 // steht flutter-frei in `elevation_contours.dart`, hier steht nur, WANN
 // sie läuft.
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/map_worker.dart';
 import '../../core/settings.dart';
 
 import 'elevation_contours.dart';
@@ -99,17 +99,16 @@ final elevationContoursProvider =
   if (window == null) return null;
   final grid = await ref.watch(elevationGridProvider.future);
   if (grid == null) return null;
-  return compute(
-      _contours, (grid: grid, window: window, metersPerPixel: metersPerPixel));
+  // Im Zeichen-Isolate (#641): Das Höhengitter (13,6 MB) liegt dort im
+  // selben Fach wie für das Leuchten der Ampel — einmal hinüber für beide.
+  return runOnMapWorker(ref, 'contours', _contours,
+      (window: window, metersPerPixel: metersPerPixel),
+      slots: {'elevation': grid});
 });
 
-ElevationContours? _contours(
-        ({
-          ElevationGrid grid,
-          FillWindow window,
-          double metersPerPixel
-        }) input) =>
-    contourLinesFor(input.grid,
+ElevationContours? _contours(MapWorkerSlots slots,
+        ({FillWindow window, double metersPerPixel}) input) =>
+    contourLinesFor(slots.get<ElevationGrid>('elevation'),
         window: input.window, metersPerPixel: input.metersPerPixel);
 
 /// „Erst näher dran" — die Ebene ist an, aber es liegt nichts auf der
@@ -160,11 +159,11 @@ final contourGeoJsonProvider =
     FutureProvider<({String normal, String index, String key})?>((ref) async {
   final contours = await ref.watch(elevationContoursProvider.future);
   if (contours == null || contours.lines.isEmpty) return null;
-  return compute(_geoJson, contours);
+  return runOnMapWorker(ref, 'contourGeoJson', _geoJson, contours);
 });
 
 ({String normal, String index, String key}) _geoJson(
-        ElevationContours contours) =>
+        MapWorkerSlots slots, ElevationContours contours) =>
     (
       normal: contourGeoJson(contours.lines, index: false),
       index: contourGeoJson(contours.lines, index: true),

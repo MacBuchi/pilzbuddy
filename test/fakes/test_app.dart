@@ -11,6 +11,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:pilzbuddy/core/map_worker.dart';
 import 'package:pilzbuddy/app.dart';
 import 'package:pilzbuddy/core/app_info.dart';
 import 'package:pilzbuddy/core/push_messaging.dart';
@@ -241,6 +242,17 @@ List<Override> overridesFor(FakeBackend backend,
           multiPhotoPickerProvider.overrideWithValue(picker.many),
         ];
       }(),
+      // Das Zeichen-Isolate der Karte (#641) rechnet hier je Auftrag über
+      // `compute`, wie die Ebenen es bis 1.222.4 taten — ein dauerhaftes
+      // Isolate, das in der FakeAsync-Zone gestartet wird, meldet sich
+      // dort nie zurück. Ohne wartende Spuren, aus demselben Grund: Ein
+      // hängender Auftrag hielte jeden späteren derselben Ebene fest.
+      // Spur, Fächer und Neustart prüft `test/map_worker_test.dart`.
+      mapWorkerProvider.overrideWith((ref) {
+        final worker = MapWorker.compute(serialLanes: false);
+        ref.onDispose(worker.dispose);
+        return worker;
+      }),
       photoPreparerProvider.overrideWithValue((bytes) async => preparePhoto(bytes)),
       galleryPhotoPreparerProvider
           .overrideWithValue((bytes) async => prepareGalleryPhoto(bytes)),

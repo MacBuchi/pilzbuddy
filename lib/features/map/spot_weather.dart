@@ -29,7 +29,7 @@
 import 'dart:convert';
 import 'dart:math' as math;
 
-import 'package:archive/archive.dart';
+import '../../core/gunzip.dart';
 
 import '../../core/geo.dart';
 
@@ -299,7 +299,7 @@ class SpotTemperature {
 WeatherTable? weatherTableFrom(List<int> gzippedJson) {
   try {
     final json = jsonDecode(
-            utf8.decode(GZipDecoder().decodeBytes(gzippedJson)))
+            utf8.decode(gunzip(gzippedJson)))
         as Map<String, dynamic>;
     final days = [
       for (final day in json['days'] as List) DateTime.parse(day as String),
