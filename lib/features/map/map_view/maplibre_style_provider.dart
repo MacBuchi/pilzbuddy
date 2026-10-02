@@ -23,6 +23,7 @@ import '../rain_data_providers.dart';
 import '../rain_layer.dart';
 import '../map_overlays.dart';
 import '../online_map.dart';
+import '../online_tile_server.dart';
 import '../../offline_areas/area_providers.dart';
 import '../../offline_areas/area_store.dart' show StoredArea;
 import 'map_style_composer.dart';
@@ -202,12 +203,28 @@ final maplibreStyleProvider = FutureProvider<String?>((ref) async {
       ));
     }
     if (online != null) {
-      sources.add(MapStyleSource.remote(
-        id: 'online',
-        remoteUrl: online.manifest.archiveUri.toString(),
-        minZoom: 0,
-        maxZoom: online.manifest.maxZoom,
-      ));
+      // Über den Kachel-Server der App (#659): Header und Verzeichnisse
+      // einmal, jede Kachel einmal, über Neustarts hinweg abgelegt. Läuft
+      // er nicht, liest MapLibre das Archiv wie bisher selbst.
+      String? tilesUrl;
+      try {
+        tilesUrl = await ref.watch(onlineTilesUrlProvider.future);
+      } catch (e, stackTrace) {
+        logError('Kachel-Server für den Style', e, stackTrace);
+      }
+      sources.add(tilesUrl != null
+          ? MapStyleSource.tiles(
+              id: 'online',
+              tilesUrl: tilesUrl,
+              minZoom: 0,
+              maxZoom: online.manifest.maxZoom,
+            )
+          : MapStyleSource.remote(
+              id: 'online',
+              remoteUrl: online.manifest.archiveUri.toString(),
+              minZoom: 0,
+              maxZoom: online.manifest.maxZoom,
+            ));
     }
     if (offlineActive) {
       for (final map in installed) {

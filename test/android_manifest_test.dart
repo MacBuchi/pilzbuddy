@@ -444,6 +444,34 @@ void main() {
         '@xml/full_backup_content');
   });
 
+  test('Klartext nur zum Kachel-Server auf Loopback (#659)', () {
+    final app = _load('android/app/src/main/AndroidManifest.xml')
+        .rootElement
+        .findElements('application')
+        .single;
+    expect(app.getAttribute('android:networkSecurityConfig'),
+        '@xml/network_security_config',
+        reason: 'ohne Ausnahme blockiert Android http auch zu 127.0.0.1 — '
+            'MapLibre zeichnete leere Kacheln');
+    expect(app.getAttribute('android:usesCleartextTraffic'), isNull,
+        reason: 'Klartext überall wäre die falsche Ausnahme');
+
+    final config =
+        _load('android/app/src/main/res/xml/network_security_config.xml')
+            .rootElement;
+    expect(
+        config.findElements('base-config').single
+            .getAttribute('cleartextTrafficPermitted'),
+        'false');
+    final allowed = [
+      for (final d in config.findElements('domain-config'))
+        if (d.getAttribute('cleartextTrafficPermitted') == 'true')
+          for (final domain in d.findElements('domain'))
+            (domain.innerText.trim(), domain.getAttribute('includeSubdomains')),
+    ];
+    expect(allowed, [('127.0.0.1', 'false')]);
+  });
+
   test('Backup-Regeln ab Android 12 schließen Session und Karten aus', () {
     final rules = _load('android/app/src/main/res/xml/backup_rules.xml')
         .rootElement;

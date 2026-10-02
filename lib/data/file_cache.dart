@@ -33,6 +33,7 @@ class BoundedFileCache {
     required this.dirName,
     required this.maxBytes,
     this.enabled = !kIsWeb,
+    this.baseDirectory,
   });
 
   /// Unterordner im App-Support-Verzeichnis.
@@ -45,7 +46,22 @@ class BoundedFileCache {
   /// Test der Weg, ohne Plattform-Kanal auszukommen.
   final bool enabled;
 
+  /// Statt des App-Support-Verzeichnisses — für Tests, die echte Dateien
+  /// brauchen (`path_provider` gibt es auf der Test-VM nicht).
+  final Directory? baseDirectory;
+
   Directory? _dir;
+
+  /// Die Belegung, wie sie das letzte Aufräumen gezählt hat, fortgeschrieben
+  /// bei jedem Ablegen. `null` heißt: noch nie gezählt.
+  ///
+  /// Gezählt wird erst, wenn die Grenze überschritten sein KÖNNTE. Bis
+  /// #659 las jedes Ablegen das ganze Verzeichnis samt `stat` je Datei —
+  /// bei Bildern unerheblich, bei über tausend Kartenkacheln und Dutzenden
+  /// Ablagen je Schwenk Arbeit im Main-Isolate, die niemand braucht.
+  /// Eine Datei, die jemand anderes entfernt, macht die Zahl zu hoch; das
+  /// kostet höchstens ein Aufräumen zu früh, und das zählt neu.
+  int? _total;
 
   /// Dateiname zu einem Schlüssel. Schrägstriche werden Unterstriche:
   /// Ein Schlüssel wie `<uid>/<id>.jpg` soll keinen Unterordner anlegen,
@@ -56,7 +72,7 @@ class BoundedFileCache {
     if (!enabled) return null;
     if (_dir != null) return _dir;
     try {
-      final base = await getApplicationSupportDirectory();
+      final base = baseDirectory ?? await getApplicationSupportDirectory();
       _dir = Directory('${base.path}/$dirName');
       await _dir!.create(recursive: true);
       return _dir;
@@ -94,8 +110,21 @@ class BoundedFileCache {
     final dir = await _cacheDir();
     if (dir == null) return;
     try {
-      await File('${dir.path}/${fileNameFor(key)}')
-          .writeAsBytes(bytes, flush: true);
+      final file = File('${dir.path}/${fileNameFor(key)}');
+      final replaced = _total != null && await file.exists()
+          ? await file.length()
+          : 0;
+      // Erst daneben schreiben, dann umbenennen: Ein Abbruch mitten im
+      // Schreiben hinterlässt sonst eine halbe Datei, die beim nächsten
+      // Lesen als ganze gilt.
+      final part = File('${file.path}.part');
+      await part.writeAsBytes(bytes, flush: true);
+      await part.rename(file.path);
+      final known = _total;
+      if (known != null) {
+        _total = known - replaced + bytes.length;
+        if (_total! <= maxBytes) return;
+      }
       await _prune(dir);
     } catch (e, s) {
       logError('Bild ablegen', e, s);
@@ -113,14 +142,18 @@ class BoundedFileCache {
         files.add((file: entry, size: stat.size, seen: stat.accessed));
       }
       var total = files.fold<int>(0, (sum, f) => sum + f.size);
+      _total = total;
       if (total <= maxBytes) return;
       files.sort((a, b) => a.seen.compareTo(b.seen));
       for (final f in files) {
         if (total <= maxBytes) break;
         await f.file.delete();
         total -= f.size;
+        _total = total;
       }
     } catch (e, s) {
+      // Ungezählt weiter: Beim nächsten Ablegen wird neu gezählt.
+      _total = null;
       logError('Bildspeicher aufräumen', e, s);
     }
   }

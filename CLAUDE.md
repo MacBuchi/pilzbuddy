@@ -668,15 +668,38 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     fremden Stil. Mit Empfang bleibt OSM der Rückfall für einen
     unerreichbaren Host; wer die Neue Karte AUS hat, behält das alte
     Verhalten.
+  - **MapLibre bekommt die Kacheln von der App, nicht vom Host**
+    (#659, seit 1.222.4, `online_tile_server.dart`). `pmtiles://https://…`
+    holte vor jeder Kachel den Header, jede Kachel 2- bis 3-mal und nach
+    dem Neustart alles neu: 50 R2-Operationen je Start, gemessen über
+    einen Zähl-Proxy (#630). Ein Server NUR auf Loopback liefert jetzt
+    aus dem Archiv, das `onlineMapProvider` ohnehin öffnet; danach sind
+    es 8 bzw. 2 im bekannten Gebiet. Vier Dinge:
+    - **Klartext nur zu `127.0.0.1`** (`network_security_config.xml`);
+      ohne die Ausnahme blockiert Android ab API 28 auch Loopback, und
+      MapLibre zeichnet leer, ohne Fehler.
+    - **Der Speicher liegt im Cache-Verzeichnis** (`getTemporaryDirectory`,
+      64 MB): nie im Backup, vom System räumbar. Archivdateien tragen
+      das Datum im Namen, abgelegte Kacheln brauchen nie eine Nachfrage.
+    - **Ausgeliefert wird gzip, wie es im Archiv liegt** — kein
+      Entpacken im Main-Isolate, kein weiteres Isolate (#641).
+    - **Startet der Server nicht, bleibt `pmtiles://`.** Ob es überhaupt
+      eine Neue Karte gibt, entscheidet weiter nur `onlineMapProvider`.
+    Wer misst: Mess-Build mit `kMapTilesBase` auf `127.0.0.1:8099`,
+    dort ein Proxy, der weiterleitet und je Anfrage eine Zeile schreibt,
+    dazu `adb reverse tcp:8099 tcp:8099`. Zahlen in
+    `docs/map-performance.md`.
   **Seit 1.217.0 ab Werk AN** (Stufe 3). Der Schalter bleibt als
   Ausweg („Neue Karte" im Profil, aus ⇒ keine Anfrage an den Host, der
   Test zählt es weiter); `FakeSettings` steht dagegen auf AUS, damit kein
   Bestandstest ein Manifest abruft. Datenschutz-Wächter: `fetched` statt
   `afterConsent`.
-  **Noch nicht gemessen:** Abrufe je Kartenschwenk gegen das
-  R2-Kontingent, das sich beide Apps teilen — aus dieser Umgebung nicht
-  erreichbar; vor der Beförderung am Gerät nachsehen (Cloudflare-
-  Dashboard, Class-B-Operationen).
+  **Gemessen am 2026-10-02** (#630, #659): Jede Anfrage an den Host ist
+  eine R2-Class-B-Operation (`cf-cache-status: DYNAMIC`, das Archiv ist
+  zu groß für den Edge-Cache). Seit dem Kachel-Server sind es etwa 8 je
+  Erststart, 2 je weiterem Start und 1 je neuer Kachel; das
+  Freikontingent (10 Mio./Monat, mit TrailBuddy geteilt) ist damit weit
+  weg. Was der Host von TrailBuddy zählt, ist dort nicht gemessen.
 - **Gespeicherte Kartenbereiche** (#630 Stufe 2, seit 1.215.0,
   `lib/features/offline_areas/`, übernommen aus TrailBuddy ohne dessen
   Orte): Ein Bereich ist EIN PMTiles-Archiv (Zoom 8 bis zum Zoom des
