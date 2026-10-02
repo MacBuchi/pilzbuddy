@@ -664,20 +664,46 @@ class _CoachOverlayState extends ConsumerState<CoachOverlay>
   /// Spot-Blatt stehen die Eintrage-Knöpfe unter einer langen
   /// Fundliste. Einmal je Schritt; danach misst jedes Bild nach, und die
   /// Aussparung fährt mit.
+  ///
+  /// „Außerhalb" heißt außerhalb des SICHTBEREICHS jeder Liste, in der
+  /// das Ziel steckt, nicht nur außerhalb des Bildschirms (#643, aus
+  /// TrailBuddy #143): Endet eine Liste über festen Knöpfen, liegt eine
+  /// Zeile knapp darunter im Bild, aber unter den Knöpfen — sichtbar für
+  /// den alten Vergleich, für den Nutzer nicht.
   void _revealOffscreen(List<String> ids, List<Rect> rects) {
-    final bounds = Offset.zero & (_box.currentContext?.size ?? Size.zero);
+    final overlay = _box.currentContext?.findRenderObject() as RenderBox?;
+    if (overlay == null || !overlay.attached) return;
     final registry = ref.read(coachRegistryProvider);
     for (var i = 0; i < rects.length && i < ids.length; i++) {
-      if (bounds.contains(rects[i].topLeft) &&
-          bounds.contains(rects[i].bottomRight - const Offset(1, 1))) {
-        continue;
-      }
       final context = registry.anchor(ids[i])?.currentContext;
       if (context == null || Scrollable.maybeOf(context) == null) continue;
+      final visible = _visibleArea(context, overlay);
+      if (visible.contains(rects[i].topLeft) &&
+          visible.contains(rects[i].bottomRight - const Offset(1, 1))) {
+        continue;
+      }
       // Weit oben, damit darunter Platz für die Blase bleibt.
       unawaited(Scrollable.ensureVisible(context,
           alignment: 0.15, duration: const Duration(milliseconds: 300)));
     }
+  }
+
+  /// Der Bildschirm, geschnitten mit dem Sichtbereich jeder Liste um
+  /// [context] — von innen nach außen, denn eine Zeile kann in einer
+  /// waagerechten Liste stecken, die selbst in einer senkrechten steht
+  /// (Bildstreifen der Artseite).
+  Rect _visibleArea(BuildContext context, RenderBox overlay) {
+    var area = Offset.zero & overlay.size;
+    var scrollable = Scrollable.maybeOf(context);
+    while (scrollable != null) {
+      final box = scrollable.context.findRenderObject();
+      if (box is RenderBox && box.attached && box.hasSize) {
+        area = area.intersect(MatrixUtils.transformRect(
+            box.getTransformTo(overlay), Offset.zero & box.size));
+      }
+      scrollable = Scrollable.maybeOf(scrollable.context);
+    }
+    return area;
   }
 
   static bool _same(List<Rect> a, List<Rect> b) {
@@ -896,6 +922,9 @@ class _CoachOverlayState extends ConsumerState<CoachOverlay>
     // Text scrollt, die Knöpfe nie (bei 360×640 waren 157 und 210 zu
     // wenig: Im Test ist die Schrift breit, die Knöpfe brechen in zwei
     // Zeilen um).
+    // TrailBuddy hebt das auf 260 (#143, größerer Titel). Hier NICHT
+    // übernommen (#643): Bei 360×640 deckte die Blase dann das
+    // Fadenkreuz zu („So entsteht ein Spot", map_tour_flow_test).
     const minRoom = 240.0;
     final free = (below ? spaceBelow : spaceAbove) - pad - 24;
     // Passt sie weder darüber noch darunter — ein hohes, schmales Ziel

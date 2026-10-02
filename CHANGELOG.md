@@ -7,6 +7,15 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Touren zeigen nicht mehr unter die Knöpfe
+
+*2. Oktober 2026 · Version 1.222.3*
+
+- Zeigte eine Tour oder „Zeig es mir" auf eine Zeile ganz unten in
+  einem Blatt, konnte die Zeile **unter den festen Knöpfen** liegen —
+  die Blase wies dann auf etwas, das man weder sah noch antippen
+  konnte. Jetzt rollt das Blatt die Zeile erst nach oben ins Bild.
+
 ## Goldröhrling mit eigenen Fundfotos
 
 *2. Oktober 2026 · Version 1.222.2*
