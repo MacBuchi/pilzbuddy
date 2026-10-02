@@ -57,6 +57,24 @@ class PmTilesVectorTileProvider extends VectorTileProvider {
   /// Offline-Quellen aufrufen, sonst leaken Handles (#Karten-Freezes).
   Future<void> close() => _archive.close();
 
+  /// Liegen die Kacheln gzip-komprimiert im Archiv? Gilt für das ganze
+  /// Archiv (Header), nicht je Kachel.
+  bool get tilesGzipped =>
+      _archive.header.tileCompression == Compression.gzip;
+
+  /// Die Kachel so, wie sie im Archiv liegt — UNentpackt, für den
+  /// Kachel-Server der App (#659), der sie mit `Content-Encoding`
+  /// weiterreicht. `null`: Das Archiv hat an dieser Stelle keine Kachel.
+  /// Ein geschlossenes Archiv wirft (`StateError`), wie bei [provide].
+  Future<Uint8List?> rawTile(int z, int x, int y) async {
+    final t = await _archive.tile(ZXY(z, x, y).toTileId());
+    try {
+      return Uint8List.fromList(t.compressedBytes());
+    } on TileNotFoundException {
+      return null;
+    }
+  }
+
   @override
   Future<Uint8List> provide(TileIdentity tile) async {
     try {

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Klartext NUR zu 127.0.0.1 (#659): Die Kacheln der Neuen Karte liefert
+  ein Server IN der App (online_tile_server.dart, nur Loopback) an
+  MapLibre aus. Ohne diese Ausnahme blockiert Android ab API 28 jede
+  http-Anfrage, auch die an das eigene Gerät — MapLibre zeichnete dann
+  leere Kacheln, ohne Fehlermeldung.
+
+  Für alles andere bleibt es beim Standard: kein Klartext.
+  test/android_manifest_test.dart hält beides fest.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false"/>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+    </domain-config>
+</network-security-config>

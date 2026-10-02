@@ -7,6 +7,18 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Neue Karte lädt jede Kachel nur einmal
+
+*2. Oktober 2026 · Version 1.222.4*
+
+- Die **Neue Karte** holt jede Kachel jetzt nur noch **einmal** vom
+  Kartenserver und legt sie auf dem Telefon ab. Vorher lud die Karte
+  bei jedem Start alles neu und manche Kacheln doppelt und dreifach —
+  rund 50 Abrufe je Start, jetzt sind es im bekannten Gebiet zwei.
+- Die Karte steht dadurch schneller, und es geht weniger Datenvolumen
+  durch die Leitung. Bis zu 64 MB Kacheln bleiben liegen; Android darf
+  sie bei Platzmangel selbst wegräumen.
+
 ## Touren zeigen nicht mehr unter die Knöpfe
 
 *2. Oktober 2026 · Version 1.222.3*

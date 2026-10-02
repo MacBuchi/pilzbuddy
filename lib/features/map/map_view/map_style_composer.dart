@@ -19,7 +19,8 @@ class MapStyleSource {
     required String this.filePath,
     required this.minZoom,
     required this.maxZoom,
-  }) : remoteUrl = null;
+  })  : remoteUrl = null,
+        tilesUrl = null;
 
   /// Ein Archiv im Netz (#630), das maplibre-native selbst per
   /// Range-Anfrage liest (`pmtiles://https://…`). Den Zoombereich nennt
@@ -30,11 +31,26 @@ class MapStyleSource {
     required String this.remoteUrl,
     required this.minZoom,
     required this.maxZoom,
-  }) : filePath = null;
+  })  : filePath = null,
+        tilesUrl = null;
+
+  /// Kacheln, die die App SELBST ausliefert (#659,
+  /// `online_tile_server.dart`): eine gewöhnliche Kachel-Vorlage statt
+  /// `pmtiles://`. maplibre-native liest ein entferntes Archiv ohne
+  /// jeden Zwischenspeicher — Header vor jeder Kachel, jede Kachel
+  /// mehrfach, nach dem Neustart alles noch einmal (gemessen in #630).
+  const MapStyleSource.tiles({
+    required this.id,
+    required String this.tilesUrl,
+    required this.minZoom,
+    required this.maxZoom,
+  })  : filePath = null,
+        remoteUrl = null;
 
   final String id;
   final String? filePath;
   final String? remoteUrl;
+  final String? tilesUrl;
   final int minZoom;
   final int maxZoom;
 }
@@ -143,15 +159,7 @@ String composeMapLibreStyle({
     // Rechtspflicht (ODbL): der Text hängt an der Quelle, das
     // SourceAttribution-Widget zeigt ihn dauerhaft an.
     final attribution = attributionOnce('© OpenStreetMap contributors');
-    styleSources[source.id] = {
-      'type': 'vector',
-      'url': source.remoteUrl != null
-          ? 'pmtiles://${source.remoteUrl}'
-          : 'pmtiles://file://${source.filePath}',
-      'minzoom': source.minZoom,
-      'maxzoom': source.maxZoom,
-      'attribution': ?attribution,
-    };
+    styleSources[source.id] = _vectorSource(source, attribution);
     layers.addAll(_layersFor(baseLayers, source.id));
   }
 
@@ -180,15 +188,7 @@ String composeMapLibreStyle({
   // und darunter scheint durch.
   for (final source in topSources) {
     final attribution = attributionOnce('© OpenStreetMap contributors');
-    styleSources[source.id] = {
-      'type': 'vector',
-      'url': source.remoteUrl != null
-          ? 'pmtiles://${source.remoteUrl}'
-          : 'pmtiles://file://${source.filePath}',
-      'minzoom': source.minZoom,
-      'maxzoom': source.maxZoom,
-      'attribution': ?attribution,
-    };
+    styleSources[source.id] = _vectorSource(source, attribution);
     layers.addAll(_layersFor(baseLayers, source.id));
   }
 
@@ -229,6 +229,24 @@ String composeMapLibreStyle({
     'sources': styleSources,
     'layers': layers,
   });
+}
+
+/// Eine Vektorquelle im Style — Archiv auf Platte, Archiv im Netz oder
+/// Kachel-Vorlage der App, siehe [MapStyleSource].
+Map<String, dynamic> _vectorSource(MapStyleSource source, String? attribution) {
+  final tilesUrl = source.tilesUrl;
+  return {
+    'type': 'vector',
+    if (tilesUrl != null)
+      'tiles': [tilesUrl]
+    else
+      'url': source.remoteUrl != null
+          ? 'pmtiles://${source.remoteUrl}'
+          : 'pmtiles://file://${source.filePath}',
+    'minzoom': source.minZoom,
+    'maxzoom': source.maxZoom,
+    'attribution': ?attribution,
+  };
 }
 
 /// Kopiert alle Nicht-background-Ebenen des Basis-Styles auf eine Quelle

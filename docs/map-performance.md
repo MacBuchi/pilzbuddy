@@ -861,3 +861,46 @@ Drei Dinge daraus:
 
 Der Speicher bleibt bei der Regel des Radarstapels: gepackt im Speicher
 (1,1 MB), entpackt immer nur EIN Tag (725 KB).
+
+## Nachtrag 2026-10-02: Jede Kachel der Neuen Karte nur einmal (#659, 1.222.4)
+
+Gezählt über einen lokalen Zähl-Proxy vor `tiles.mcbuchi.de`. Der
+Mess-Build zeigt mit `kMapTilesBase` auf `127.0.0.1:8099`, `adb reverse`
+leitet weiter, und jede Zeile im Proxy ist eine R2-Class-B-Operation
+(`cf-cache-status: DYNAMIC`). Gemessen auf dem Pixel XL (vorher) und
+dem Emulator Pixel 7 Pro API 36 (vorher und nachher).
+
+| Was | `pmtiles://` (bis 1.222.3) | Kachel-Server der App |
+|---|---|---|
+| Kaltstart, leerer Speicher | 50–55 (14–16 verschieden) | **8** |
+| Kaltstart, gleiches Gebiet | 50–51 | **2** (Manifest + Archiv-Header) |
+| 8 Schwenks | ~6 je neuer Kachel | **7** (6 Kacheln, 1 Verzeichnis) |
+| doppelte Bereiche | Header 24×, Wurzelverzeichnis 5×, jede Kachel 2–3× | **keine** |
+| Ebenen umschalten | 0 | 0 |
+
+Woher die Wiederholungen kamen, ist geklärt (#658): Der Style wird
+genau einmal gesetzt, kein `setStyle`. Die Wellen erzeugt
+maplibre-native selbst, weil die `pmtiles://`-Quelle weder Header noch
+Verzeichnisse aufhebt und gleiche Kachel-Anfragen nicht zusammenführt.
+
+Der Kachel-Server (`lib/features/map/online_tile_server.dart`) liest aus
+demselben `PmTilesArchive`, das `onlineMapProvider` für die
+Erreichbarkeitsprüfung ohnehin öffnet:
+
+- Header und Verzeichnisse hält das Paket im Speicher.
+- Laufende Abrufe führt der Server zusammen.
+- Abgelegt wird in einem `BoundedFileCache` im Cache-Verzeichnis des
+  Systems (64 MB).
+
+Ausgeliefert werden die gzip-Bytes unverändert, also wird im
+Main-Isolate nichts entpackt.
+
+Hochgerechnet mit den Annahmen aus #630 (zwei Starts plus 30 neue
+Kacheln je aktivem Tag): vorher ≈ 300, jetzt ≈ 40–50 Operationen je
+Nutzer und Tag, im bekannten Gebiet eher 5.
+
+`BoundedFileCache` zählt das Verzeichnis seither nicht mehr bei jedem
+Ablegen, sondern schreibt die Belegung fort und zählt erst neu, wenn
+die Grenze überschritten sein könnte. Bei über tausend Kacheln wären es
+sonst Dutzende Verzeichnis-Durchläufe samt `stat` je Schwenk im
+Main-Isolate gewesen (#641).

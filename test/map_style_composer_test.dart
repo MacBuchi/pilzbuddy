@@ -221,6 +221,22 @@ void main() {
         'pmtiles://https://tiles.example.org/dach-20260928.pmtiles');
   });
 
+  test('Kacheln der App (#659) stehen als Vorlage im Style, ohne url', () {
+    final style = _compose(sources: const [
+      MapStyleSource.tiles(
+          id: 'online',
+          tilesUrl: 'http://127.0.0.1:4711/dach-20261001/{z}/{x}/{y}.pbf',
+          minZoom: 0,
+          maxZoom: 13),
+    ]);
+    final online = (style['sources'] as Map)['online'] as Map;
+    expect(online['type'], 'vector');
+    expect(online['tiles'],
+        ['http://127.0.0.1:4711/dach-20261001/{z}/{x}/{y}.pbf']);
+    expect(online.containsKey('url'), isFalse);
+    expect(online['maxzoom'], 13);
+  });
+
   test('gleiche Attribution steht nur an EINER Quelle — sonst stapelt das '
       'Attributions-Widget je Quelle eine identische Zeile', () {
     final style = jsonDecode(composeMapLibreStyle(

@@ -11,6 +11,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/settings.dart';
 import 'package:pilzbuddy/features/map/map_view/maplibre_style_provider.dart';
 import 'package:pilzbuddy/features/map/online_map.dart';
+import 'package:pilzbuddy/features/map/online_tile_server.dart';
+import 'package:pilzbuddy/data/file_cache.dart';
 import 'package:pilzbuddy/features/map/rain_data_providers.dart';
 import 'package:pilzbuddy/features/map/rain_grid.dart';
 import 'package:pilzbuddy/features/map/rain_layer.dart';
@@ -20,7 +22,7 @@ import 'package:pilzbuddy/features/offline_areas/area_store.dart';
 import 'package:pilzbuddy/features/offline_maps/offline_map_providers.dart';
 import 'package:pilzbuddy/features/offline_maps/offline_map_repository.dart';
 import 'package:pilzbuddy/features/offline_maps/pmtiles_tile_provider.dart';
-import 'dart:io' show File;
+import 'dart:io' show Directory, File;
 
 import 'fakes/fake_settings.dart';
 
@@ -301,6 +303,7 @@ void main() {
       bool noConnectivity = false,
       bool regionMaps = true,
       List<InstalledMap> installed = const [],
+      OnlineTileServer? tileServer,
     }) async {
       final gate = Completer<List<InstalledMap>>()..complete(installed);
       final container = ProviderContainer(overrides: [
@@ -323,6 +326,7 @@ void main() {
                   'assets/offline_maps/overview_dach.pmtiles')
               .readAsBytes());
         }),
+        onlineTileServerProvider.overrideWith((ref) async => tileServer),
       ]);
       addTearDown(container.dispose);
       return jsonDecode((await container.read(maplibreStyleProvider.future))!)
@@ -340,6 +344,27 @@ void main() {
       expect(online['maxzoom'], 13,
           reason: 'Ohne maxzoom fragte MapLibre z14+ an und zeichnete leer '
               'statt hochskaliert.');
+    });
+
+    test('mit Kachel-Server (#659): Vorlage auf Loopback statt pmtiles://',
+        () async {
+      final tmp = await Directory.systemTemp.createTemp('style_tiles');
+      addTearDown(() => tmp.delete(recursive: true));
+      final server = OnlineTileServer(
+          cache: BoundedFileCache(
+              dirName: 'map_tile_cache', maxBytes: 1 << 20, baseDirectory: tmp));
+      await server.start();
+      addTearDown(server.close);
+      final online = (await styleFor(newMap: true, tileServer: server))[
+          'sources']['online'] as Map;
+      expect(online.containsKey('url'), isFalse,
+          reason: 'pmtiles:// hieße: Header vor jeder Kachel, jede Kachel '
+              'mehrfach, nach dem Neustart alles neu (#630)');
+      expect(online['tiles'], [
+        matches(RegExp(
+            r'^http://127\.0\.0\.1:\d+/dach-20260928/\{z\}/\{x\}/\{y\}\.pbf$'))
+      ]);
+      expect(online['maxzoom'], 13);
     });
 
     test('an, aber Archiv nicht erreichbar ⇒ OSM wie bisher', () async {
