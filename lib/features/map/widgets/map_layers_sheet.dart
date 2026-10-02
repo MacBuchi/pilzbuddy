@@ -371,10 +371,11 @@ class _RainRow extends ConsumerWidget {
     final mm = (on &&
             centre != null &&
             ref.watch(rainPaintProvider(layer)) != RainPaint.dwd)
-        ? ref
-            .watch(rainGridProvider(layer))
-            .valueOrNull
-            ?.mmAt(centre.latitude, centre.longitude)
+        ? ref.watch(rainMmAtProvider((
+            layer: layer,
+            lat: centre.latitude,
+            lon: centre.longitude,
+          )))
         : null;
 
     return Column(

@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/data/rain_grid_repository.dart';
 import 'package:pilzbuddy/features/map/rain_data_providers.dart';
 import 'package:pilzbuddy/features/map/rain_grid.dart';
+import 'package:pilzbuddy/features/map/rain_layer.dart';
 
 import 'rain_grid_test.dart' show encode;
 
@@ -91,5 +92,88 @@ void main() {
         await container
             .read(rainMonthAtProvider((lat: 47.5, lon: 10.5)).future),
         60);
+  });
+
+  group('Ablesung am Fadenkreuz (#652)', () {
+    // Legende und Ebenen-Blatt: bis 1.222.0 nur das Radargitter, im
+    // Alpenraum stand die Skala ohne Strich.
+    final w4 = RainGrid.decode(
+      encode([
+        [99]
+      ]),
+      width: 1,
+      height: 1,
+      west: 10,
+      east: 11,
+      north: 48,
+      south: 47,
+      measured: DateTime.utc(2026, 10, 1, 5, 50),
+    );
+    RainStackData alpsOf(int mm) => RainStackData(
+          kind: RainStackKind.alps,
+          info: const RainStackInfo(
+              width: 1, height: 1, west: 10, east: 11, north: 48, south: 47,
+              days: []),
+          days: [
+            for (var i = 0; i < 30; i++)
+              (
+                date: DateTime(2026, 9, 1 + i),
+                gzipped: encode([
+                  [mm]
+                ]),
+              ),
+          ],
+        );
+
+    Future<int?> readingAt(
+      RainLayer layer, {
+      RainGrid? radar,
+      RainStackData? alps,
+      void Function()? onAlpsLoad,
+    }) async {
+      final container = ProviderContainer(overrides: [
+        rainGridLoaderProvider.overrideWithValue((_) async => radar),
+        rainStackLoaderProvider.overrideWithValue(() async => null),
+        modelRainStackLoaderProvider.overrideWithValue(() async => null),
+        alpsRainStackLoaderProvider.overrideWithValue(() async {
+          onAlpsLoad?.call();
+          return alps;
+        }),
+      ]);
+      addTearDown(container.dispose);
+      const at = (lat: 47.5, lon: 10.5);
+      final reading =
+          rainMmAtProvider((layer: layer, lat: at.lat, lon: at.lon));
+      final sub = container.listen(reading, (_, _) {});
+      addTearDown(sub.close);
+      await container.read(alpsRainSumProvider(layer).future);
+      await container.read(rainGridProvider(layer).future);
+      await container.read(modelRainSumProvider(layer).future);
+      return container.read(reading);
+    }
+
+    test('der Alpenstapel geht vor W4', () async {
+      expect(await readingAt(RainLayer.last30d, radar: w4, alps: alpsOf(2)),
+          60);
+    });
+
+    test('ohne Radargitter spricht der Alpenstapel', () async {
+      expect(await readingAt(RainLayer.last30d, alps: alpsOf(2)), 60);
+    });
+
+    test('schweigt der Alpenstapel, spricht W4', () async {
+      expect(await readingAt(RainLayer.last30d, radar: w4), 99);
+    });
+
+    test('Radar jetzt lädt keinen Alpenstapel', () async {
+      // Dort liegt das DWD-Bild, eine Ablesung gibt es nicht — und die
+      // Frage danach darf keinen Tagesstapel holen.
+      var loads = 0;
+      expect(
+          await readingAt(RainLayer.now,
+              radar: w4, alps: alpsOf(2), onAlpsLoad: () => loads++),
+          isNull);
+      expect(loads, 0);
+    });
   });
 }
