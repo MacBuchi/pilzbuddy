@@ -2865,6 +2865,57 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
   für **zwei** gleichzeitige Layer gelten). Dort steht auch die Auflösung
   der Karten-ANRs (#151, Live-Messung 2026-08-02): Die Stellschrauben
   waren die falsche Achse, siehe Kamera-Wächter direkt hierunter.
+- **Hintergrundrechnungen: ein Zeichen-Isolate und eine Grenze** (#641,
+  seit 1.222.5, `lib/core/map_worker.dart`, `lib/core/bounded_compute.dart`).
+  Bis 1.222.4 startete jede fensterabhängige Ebene (Wald/Ampel,
+  Fundorte, Höhenlinien, Bereichs-Entwurf) je Kamera-Stillstand ein
+  neues `compute`, nichts wurde abgebrochen, und jedes nahm seine Gitter
+  mit — mit allen Ebenen rund 42 MB je Schwenk, kopiert AUF DEM
+  HAUPTTHREAD. Auf dem Pixel XL lagen beim Schwenken im Mittel 2,4 Kerne
+  unter Workern; der ANR stand in `IsolateGroup::IncreaseMutatorCount`.
+  Fünf Dinge, die man wissen muss:
+  - **Fensterabhängiges läuft über `runOnMapWorker`**: ein dauerhaftes
+    Isolate, seriell, je Spur gewinnt der neueste Auftrag, ein
+    verworfener Provider sagt seinen wartenden Auftrag ab. Gitter liegen
+    dort in FÄCHERN und gehen nur bei neuem Objekt (`identical`) hinüber;
+    gleicher Fachname heißt dasselbe Objekt (Wald und Höhenlinien teilen
+    `elevation`). Fächer mit `#` sind eine Familie: Nennt ein Auftrag
+    eines, werden die anderen freigegeben (feine Waldblöcke je Fenster).
+  - **Alles andere über `boundedCompute`** (höchstens 2 zugleich).
+    `test/bounded_compute_guard_test.dart` verbietet nacktes
+    `compute`/`Isolate.run` in `lib/`.
+  - **Auch unveränderliche Listen werden kopiert** —
+    `asUnmodifiableView()` hilft nicht (nachgemessen, 200 MB ≈ 20 ms auf
+    dem Mac). Teilen ohne Kopie gibt es zwischen Isolates nicht, nur
+    Übergeben (`TransferableTypedData`, so kommen die PNGs zurück).
+  - **Es fällt nie ganz aus**: Fehler trifft nur den Auftrag; stirbt das
+    Isolate, startet das nächste und bekommt die Fächer neu; nach drei
+    Toden oder ohne Isolate (Browser) rechnet der Rest über
+    `boundedCompute`. `MapWorkerSuperseded` ist kein Befund
+    (`worthReporting`).
+  - **Im Widget-Test rechnet der Worker über `compute`, ohne Spuren**
+    (`test/fakes/test_app.dart`), und die Grenze ist unter
+    `FLUTTER_TEST` aus: Ein Isolate aus der FakeAsync-Zone meldet sich
+    nie zurück und hielte Spur oder Platz für immer. Spur, Fächer und
+    Neustart prüft `test/map_worker_test.dart` mit echten Isolates.
+  - **Der Regenverlauf am Fadenkreuz hat einen eigenen Weg**
+    (`legendRainCourseProvider`, `autoDispose`, Spur im Zeichen-Isolate,
+    Stapel als Fach). Er war der größte Einzelposten: je Stillstand ein
+    neuer Punkt, je Punkt rund 120 ausgepackte Tagesgitter (~85 MB
+    Müll), 4–10 s auf dem Pixel XL, nie abgesagt. Das Spot-Blatt bleibt
+    beim Einzelweg `rainCourseProvider`; gerechnet wird mit derselben
+    Funktion. Flow-Tests, die die Legende prüfen, legen den Provider
+    in `runAsync` an UND halten ihn (`container.listen`).
+  - **Entpackt wird mit `gunzip`** (`lib/core/gunzip.dart`): nativ
+    über `dart:io` (am Mac gut 4× schneller als `package:archive`, der
+    Regenverlauf fiel damit auf 0,7–0,9 s), im Browser weiter
+    `package:archive`. **Streng**: Beide Entpacker liefern bei einem
+    abgeschnittenen Strom still den Teil bis zum Abbruch; `gunzip`
+    vergleicht mit der Länge im gzip-Abspann und wirft. Nie wieder
+    `GZipDecoder` direkt.
+  Offen und eigenes Thema: Die Waldfläche MIT Ampel braucht auf dem
+  Pixel XL 5–6 s je Bild — das ist der Zeichner selbst, nicht der Weg.
+  Messung vorher/nachher in `docs/map-performance.md`.
 - **Kamera-Wächter** (`FiniteCameraConstraint` in
   `lib/features/map/finite_camera_constraint.dart`, seit 1.38.2): verwirft
   NaN-/Infinity-Kamerazustände aus Gesten-Grenzfällen an der einzigen

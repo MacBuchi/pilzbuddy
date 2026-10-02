@@ -26,7 +26,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:archive/archive.dart';
+import '../../core/gunzip.dart';
 
 import 'forest_grid.dart' show hexNearestCell;
 
@@ -146,7 +146,7 @@ class ProtectedAreas {
     }
     final width = manifest['width'] as int;
     final height = manifest['height'] as int;
-    final raw = GZipDecoder().decodeBytes(gzipped);
+    final raw = gunzip(gzipped);
     final data = ByteData.sublistView(Uint8List.fromList(raw));
     final rows = <Uint16List>[];
     var o = 0;

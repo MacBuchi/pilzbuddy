@@ -16,7 +16,7 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:archive/archive.dart';
+import '../../core/gunzip.dart';
 
 import 'contours.dart';
 
@@ -78,7 +78,7 @@ class RainGrid {
     required double south,
     required DateTime measured,
   }) {
-    final flat = GZipDecoder().decodeBytes(gzipped);
+    final flat = gunzip(gzipped);
     if (flat.length != width * height) {
       throw FormatException(
           'Gitter hat ${flat.length} Bytes, erwartet ${width * height}');

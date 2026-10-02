@@ -6,6 +6,8 @@
 // Aufgabe haben — die Regensumme am Spot, die ohne Linien auskommt.
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/bounded_compute.dart';
+import '../../core/map_worker.dart';
 
 import '../../core/settings.dart';
 import '../../data/rain_grid_repository.dart';
@@ -131,7 +133,7 @@ final FutureProviderFamily<RainGrid?, RainLayer> rainGridProvider =
     final stack = await stackFuture;
     if (stack == null) return null;
     final end = await endFuture;
-    return compute(
+    return boundedCompute(
         _sum, (stack: stack, days: rainSumDaysFor(layer)!, end: end));
   },
 );
@@ -188,7 +190,7 @@ final rainContoursProvider =
     FutureProvider.family<List<ContourLine>, RainLayer>((ref, layer) async {
   final grid = await ref.watch(rainGridProvider(layer).future);
   if (grid == null) return const [];
-  return compute(_contours, (grid: grid, levels: rainLevelsFor(layer)));
+  return boundedCompute(_contours, (grid: grid, levels: rainLevelsFor(layer)));
 });
 
 List<ContourLine> _contours(({RainGrid grid, List<int> levels}) input) =>
@@ -224,7 +226,7 @@ final rainFillProvider = FutureProvider.family<RainFill?, RainLayer>(
   if (grid == null) return null;
   // Am Rand der Radarabdeckung zum Modell hin übergeblendet
   // ([blendEdge]) — nur das Bild, die Zahl am Spot bleibt roh.
-  final png = await compute(_fill,
+  final png = await boundedCompute(_fill,
       (grid: grid, model: model, alps: alps, levels: rainLevelsFor(layer)));
   return RainFill(
     png: png,
@@ -397,7 +399,7 @@ final modelRainSumProvider =
   final stack = await stackFuture;
   if (stack == null) return null;
   final end = await endFuture;
-  return compute(_sum, (stack: stack, days: days, end: end));
+  return boundedCompute(_sum, (stack: stack, days: days, end: end));
 });
 
 /// Wie viele Modelltage lückenlos liegen — für den Satz im Blatt, wenn
@@ -427,7 +429,7 @@ final alpsRainSumProvider =
   final stack = await stackFuture;
   if (stack == null) return null;
   final end = await endFuture;
-  return compute(_sum, (stack: stack, days: days, end: end));
+  return boundedCompute(_sum, (stack: stack, days: days, end: end));
 });
 
 /// Die Fläche des Alpenraums der GEZEICHNETEN Ebene — `null` bei Radar,
@@ -453,7 +455,7 @@ final alpineRainFillProvider = FutureProvider<RainFill?>((ref) async {
   // Wo Radar oder W4 schon etwas sagen, schweigt das Modell — sonst
   // lägen an der Grenze zwei Flächen übereinander ([maskCovered]).
   final upper = await upperFuture;
-  final png = await compute(_alpineFill, (
+  final png = await boundedCompute(_alpineFill, (
     alps: alps,
     model: model,
     upper: upper,
@@ -525,8 +527,36 @@ final rainCourseProvider =
         (ref, at) async {
   final stacks = await ref.watch(rainStacksProvider.future);
   if (stacks.isEmpty) return null;
-  return compute(_course, (stacks: stacks, lat: at.lat, lon: at.lon));
+  return boundedCompute(_course, (stacks: stacks, lat: at.lat, lon: at.lon));
 });
+
+/// Der Regenverlauf am FADENKREUZ — der Weg der Legende (#641).
+///
+/// Dieselbe Rechnung wie [rainCourseProvider], aber über das
+/// Zeichen-Isolate: Die Legende fragt bei JEDEM Kamera-Stillstand einen
+/// neuen Punkt, und der Einzelweg nahm dafür jedes Mal alle Stapel mit
+/// (bis zu 90 Tagesgitter) und rechnete auch für Punkte zu Ende, an denen
+/// die Karte längst nicht mehr stand. Auf dem Pixel XL lief das noch 15 s
+/// nach dem letzten Schwenk. Hier liegen die Stapel als Fach im Isolate,
+/// der neueste Punkt gewinnt, und ein verlassener Punkt (`autoDispose`)
+/// sagt seinen wartenden Auftrag ab.
+///
+/// Das Spot-Blatt bleibt beim Einzelweg: Es fragt einen Punkt, und es
+/// soll nicht hinter einer Kartenfläche warten.
+final legendRainCourseProvider = FutureProvider.autoDispose
+    .family<RainCourse?, ({double lat, double lon})>((ref, at) async {
+  final stacks = await ref.watch(rainStacksProvider.future);
+  if (stacks.isEmpty) return null;
+  return runOnMapWorker(ref, 'legendRainCourse', _courseAt, at,
+      slots: {'rainStacks': stacks});
+});
+
+RainCourse _courseAt(MapWorkerSlots slots, ({double lat, double lon}) at) =>
+    _course((
+      stacks: slots.get<List<RainStackData>>('rainStacks'),
+      lat: at.lat,
+      lon: at.lon,
+    ));
 
 /// Die Regenverläufe an MEHREREN Punkten — **eine** Dekodierung je Tag
 /// für alle zusammen.
@@ -547,7 +577,7 @@ final rainCoursesProvider =
   if (stacks.isEmpty) return null;
   final points = pointsFromKey(key);
   if (points.isEmpty) return const [];
-  return compute(_courses, (stacks: stacks, points: points));
+  return boundedCompute(_courses, (stacks: stacks, points: points));
 });
 
 /// Punkte → Familienschlüssel. Auf sechs Nachkommastellen gerundet (~11
@@ -607,7 +637,7 @@ final weatherTableProvider = FutureProvider<WeatherTable?>((ref) async {
   if (!ref.watch(rainCourseEnabledProvider)) return null;
   final bytes = await ref.watch(weatherTableLoaderProvider)();
   if (bytes == null) return null;
-  return compute(weatherTableFrom, bytes);
+  return boundedCompute(weatherTableFrom, bytes);
 });
 
 /// Die Temperatur an einem Punkt: je Netz (Luft, Boden) die nächste

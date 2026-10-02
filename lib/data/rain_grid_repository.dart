@@ -12,10 +12,10 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import '../core/gunzip.dart';
 
 import '../features/map/rain_grid.dart';
 
@@ -562,7 +562,7 @@ class RainGridRepository {
         // liegen bleiben und jeden weiteren Versuch vergiften (dasselbe
         // Muster wie beim Gitter). Die inhaltliche Prüfung macht der
         // Parser im Isolate des Aufrufers.
-        GZipDecoder().decodeBytes(bytes);
+        gunzip(bytes);
         if (cached != null) {
           await cached.writeAsBytes(bytes, flush: true);
           await _pruneOthers(cached.path, prefix: 'weather_');

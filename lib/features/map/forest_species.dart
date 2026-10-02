@@ -21,7 +21,7 @@
 // statt still falsch ausgepackt.
 import 'dart:typed_data';
 
-import 'package:archive/archive.dart';
+import '../../core/gunzip.dart';
 
 import 'forest_grid.dart' show hexNearestCell;
 
@@ -112,7 +112,7 @@ class ForestSpeciesGrid {
     required double hexLonStep,
     required double hexLatStep,
   }) {
-    final flat = GZipDecoder().decodeBytes(gzipped);
+    final flat = gunzip(gzipped);
     if (flat.length != width * height) {
       throw FormatException(
           'Artengitter hat ${flat.length} Bytes, erwartet ${width * height}');
@@ -354,7 +354,7 @@ class SwissSpeciesGrid {
     required double hexLonStep,
     required double hexLatStep,
   }) {
-    final flat = GZipDecoder().decodeBytes(gzipped);
+    final flat = gunzip(gzipped);
     if (flat.length != width * height * 3) {
       throw FormatException('Schweizer Artengitter hat ${flat.length} Bytes, '
           'erwartet ${width * height * 3}');

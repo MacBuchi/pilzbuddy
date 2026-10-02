@@ -215,7 +215,8 @@ class MapLegend extends ConsumerWidget {
         const <({AmpelClass klass, AmpelReading reading, String? now})>[];
     if (showAmpel && center != null) {
       final at = (lat: center.latitude, lon: center.longitude);
-      final course = ref.watch(rainCourseProvider(at));
+      // Eigener Weg fürs Fadenkreuz (#641): neuester Punkt gewinnt.
+      final course = ref.watch(legendRainCourseProvider(at));
       final temperature = ref.watch(spotTemperatureProvider(at));
       final spotHeight = ref.watch(elevationAtProvider(at));
       if (!course.isLoading &&

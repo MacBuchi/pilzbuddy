@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'map_worker.dart' show MapWorkerSuperseded;
 import 'photo_pipeline.dart';
 
 /// Empfänger für Fehlerberichte. `main()` hängt hier das Schreiben nach
@@ -87,6 +88,9 @@ void logError(String context, Object error, [StackTrace? stackTrace]) {
 bool worthReporting(Object error) =>
     error is! CancellationException &&
     error is! NotSignedInException &&
+    // Ein abgesagter Auftrag des Zeichen-Isolates (#641): Ein neuerer
+    // derselben Ebene hat ihn ersetzt — der Normalfall beim Schwenken.
+    error is! MapWorkerSuperseded &&
     !looksOffline(error);
 
 /// Es gibt gerade keine angemeldete Sitzung.

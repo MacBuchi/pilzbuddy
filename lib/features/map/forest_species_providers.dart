@@ -10,6 +10,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/bounded_compute.dart';
 
 import 'forest_species.dart';
 
@@ -41,7 +42,7 @@ Future<SwissSpeciesGrid?> _loadSwiss() async {
     final data = await rootBundle.load('assets/forest/forest_species_ch.bin.gz');
     final bytes =
         data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
-    return await compute(
+    return await boundedCompute(
         _decodeSwiss, (manifest: manifestRaw, bytes: bytes));
   } catch (_) {
     // Fehlendes/kaputtes Asset ⇒ in der Schweiz spricht ForestPaths,
@@ -99,7 +100,7 @@ Future<ForestSpeciesGrid?> _loadFromAssets(
     final data = await rootBundle.load(gridPath);
     final bytes =
         data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
-    return await compute(_decode, (manifest: manifestRaw, bytes: bytes));
+    return await boundedCompute(_decode, (manifest: manifestRaw, bytes: bytes));
   } catch (_) {
     // Fehlendes/kaputtes Asset ⇒ keine Artenzeile. Begründung oben.
     return null;

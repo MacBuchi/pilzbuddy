@@ -17,10 +17,10 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart' show sha256;
-import 'package:flutter/foundation.dart' show compute;
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
+import '../core/bounded_compute.dart';
 import '../features/map/forest_blocks.dart';
 import '../features/map/forest_grid.dart';
 
@@ -162,7 +162,7 @@ class ForestBlockRepository {
       }
     }
 
-    final grid = await compute(_decode, (
+    final grid = await boundedCompute(_decode, (
       bytes: bytes,
       width: info.width,
       height: info.height,

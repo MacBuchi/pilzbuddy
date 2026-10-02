@@ -12,6 +12,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/bounded_compute.dart';
+import '../../core/map_worker.dart';
 import '../../core/settings.dart';
 import 'forest_data_providers.dart' show mapIdleBoundsProvider;
 import 'forest_fill_window.dart';
@@ -51,7 +53,7 @@ Future<GbifFinds?> _loadFromAssets() async {
     final data = await rootBundle.load('assets/gbif/gbif_finds.bin.gz');
     final bytes =
         data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
-    return await compute(_decode, (manifest: manifest, bytes: bytes));
+    return await boundedCompute(_decode, (manifest: manifest, bytes: bytes));
   } catch (_) {
     // Fehlendes/kaputtes Asset ⇒ keine Ebene. Begründung oben.
     return null;
@@ -135,8 +137,11 @@ final gbifFillProvider = FutureProvider<GbifFillImage?>((ref) async {
       ? const <String>{}
       : filterKey.classes.split('|').toSet();
   final paint = gbifPaintFor(finds, species: species, classes: classes);
-  final png = await compute(
-      _fill, (finds: finds, window: window, paint: paint));
+  // Im Zeichen-Isolate (#641): Die Meldungen (1,3 MB) liegen dort als
+  // Fach und gehen einmal hinüber, nicht je Schwenk.
+  final png = await runOnMapWorker(
+      ref, 'gbif', _fill, (window: window, paint: paint),
+      slots: {'gbifFinds': finds});
   return GbifFillImage(
     png: png,
     west: window.west,
@@ -149,9 +154,10 @@ final gbifFillProvider = FutureProvider<GbifFillImage?>((ref) async {
   );
 });
 
-Uint8List _fill(
-        ({GbifFinds finds, FillWindow window, GbifPaint paint}) input) =>
-    gbifFillPng(input.finds, window: input.window, paint: input.paint);
+Uint8List _fill(MapWorkerSlots slots,
+        ({FillWindow window, GbifPaint paint}) input) =>
+    gbifFillPng(slots.get<GbifFinds>('gbifFinds'),
+        window: input.window, paint: input.paint);
 
 /// Dieselbe Fläche als Datei — der Weg für MapLibre (`image`-Quelle
 /// nimmt eine URL). Über [RainGridRepository.writeFill] wie der Wald;

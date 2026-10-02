@@ -7,6 +7,23 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Karte bleibt flüssig, auch mit vielen Ebenen
+
+*2. Oktober 2026 · Version 1.222.5*
+
+- Mit **Ampel, Wald, Höhenlinien und Fundorten gleichzeitig** rechnete
+  das Telefon nach jedem Verschieben der Karte für jede Ebene ein neues
+  Bild — und die Bilder für Stellen, an denen man längst nicht mehr war,
+  rechneten weiter. Auf älteren Telefonen konnte die App dabei hängen
+  bleiben („App reagiert nicht").
+- Jetzt rechnet die Karte nur noch das Bild für die Stelle, an der sie
+  **gerade steht**. Die Karten-Daten liegen dafür einmal bereit, statt
+  bei jedem Verschieben neu kopiert zu werden. Das spart Akku und
+  Speicher, und die Karte bleibt beim Schieben ruhig.
+- Die **Pilzampel in der Legende** steht nach dem Verschieben deutlich
+  schneller da: Auf einem älteren Telefon dauerte sie bis zu zehn
+  Sekunden, jetzt etwa eine.
+
 ## Neue Karte lädt jede Kachel nur einmal
 
 *2. Oktober 2026 · Version 1.222.4*

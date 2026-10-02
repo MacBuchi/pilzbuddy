@@ -9,6 +9,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'bounded_compute.dart';
 
 import 'photo_pipeline.dart';
 
@@ -79,9 +80,9 @@ final multiPhotoPickerProvider =
 typedef PhotoPreparer = Future<PreparedPhoto> Function(Uint8List bytes);
 
 final photoPreparerProvider =
-    Provider<PhotoPreparer>((ref) => (bytes) => compute(preparePhoto, bytes));
+    Provider<PhotoPreparer>((ref) => (bytes) => boundedCompute(preparePhoto, bytes));
 
 /// Dasselbe in Galerie-Größe — nur für den Art-Hinweis, dessen Bilder
 /// mit Einwilligung in die Artgalerie dürfen ([prepareGalleryPhoto]).
 final galleryPhotoPreparerProvider = Provider<PhotoPreparer>(
-    (ref) => (bytes) => compute(prepareGalleryPhoto, bytes));
+    (ref) => (bytes) => boundedCompute(prepareGalleryPhoto, bytes));

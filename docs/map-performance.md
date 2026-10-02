@@ -904,3 +904,29 @@ Ablegen, sondern schreibt die Belegung fort und zählt erst neu, wenn
 die Grenze überschritten sein könnte. Bei über tausend Kacheln wären es
 sonst Dutzende Verzeichnis-Durchläufe samt `stat` je Schwenk im
 Main-Isolate gewesen (#641).
+
+## Nachtrag 2026-10-02: Zeichen-Isolate, Grenze, natives Entpacken (#641, 1.222.5)
+
+Pixel XL, offline, Ampel + Wald + Regen 14 Tage, Kaltstart, dann 24
+Schwenks und 3 Doppeltipps (identisches Skript), Perfetto 90 s.
+
+| | 1.222.4 | 1.222.5 |
+|---|---|---|
+| Dart-Worker-CPU gesamt | 172 s | 57 s |
+| beim Schwenken belegt | 2,8–3,2 Kerne | 0,4–1,4 Kerne |
+| Worker-Threads (verschieden) | 50 | 20 |
+| Last nach dem letzten Schwenk | ~3 s | keine |
+| Speicher-Spitze (PSS) | 599 MB | 601 MB |
+| Speicher in Ruhe (PSS) | 510 MB | 559 MB (nach dem Ruhe-Ende) |
+
+Je Auftrag gemessen (Mess-Build, Laufzeit im Isolate):
+
+- Regenverlauf am Fadenkreuz (Legende): **4,3–9,7 s** mit
+  `package:archive`, **0,7–0,9 s** mit nativem zlib. Er packt je Punkt
+  rund 120 Tagesgitter aus (~85 MB).
+- Waldfläche mit Ampel: **5,1–6,0 s** je Bild — der Zeichner selbst,
+  offen.
+
+Offen: die +49 MB in Ruhe. Das Ruhe-Ende des Isolates gab 17 MB frei
+(576 → 559 MB); der Rest ist nicht zugeordnet.
+
