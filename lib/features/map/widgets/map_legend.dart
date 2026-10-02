@@ -196,10 +196,11 @@ class MapLegend extends ConsumerWidget {
         ? forest.broadleafFactorAround(center.latitude, center.longitude)
         : null;
     final rainMm = (showRain && center != null)
-        ? ref
-            .watch(rainGridProvider(rainLayer))
-            .valueOrNull
-            ?.mmAt(center.latitude, center.longitude)
+        ? ref.watch(rainMmAtProvider((
+            layer: rainLayer,
+            lat: center.latitude,
+            lon: center.longitude,
+          )))
         : null;
     // Das Pilzwetter am Fadenkreuz — dieselbe pure Rechnung wie im
     // Spot-Blatt, auf denselben Providern. SAMT Spothöhe: Die Legende

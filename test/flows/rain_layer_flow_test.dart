@@ -9,9 +9,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:pilzbuddy/features/map/rain_data_providers.dart';
 import 'package:pilzbuddy/features/map/rain_grid.dart';
 import 'package:pilzbuddy/features/map/rain_layer.dart';
+import 'package:pilzbuddy/features/map/widgets/map_legend.dart'
+    show mapIdleCenterProvider;
 
 import '../fakes/fake_backend.dart';
 import '../fakes/fake_settings.dart';
@@ -536,6 +539,53 @@ void main() {
     expect(images.first.bounds.west, 14,
         reason: 'die Alpenfläche liegt UNTER der Radarfläche');
     expect(images.last.bounds.west, 10);
+  });
+
+  testWidgets('die Legende liest am Fadenkreuz denselben Vorrang wie die '
+      'Fläche (#652)', (tester) async {
+    // Bis 1.222.0 las sie nur das Radargitter: im Alpenraum eine Skala
+    // ohne Strich, obwohl die Fläche dort Regen zeigte.
+    final alps = RainStackData(
+      kind: RainStackKind.alps,
+      info: const RainStackInfo(
+          width: 4, height: 4, west: 10, east: 14, north: 48, south: 46,
+          days: []),
+      days: [
+        for (var i = 0; i < 30; i++)
+          (
+            date: DateTime(2026, 9, 1 + i),
+            gzipped: encode([
+              for (var y = 0; y < 4; y++) [for (var x = 0; x < 4; x++) 5]
+            ]),
+          ),
+      ],
+    );
+    await pumpApp(tester, loggedIn(), useRealMap: true, extraOverrides: [
+      rainStackLoaderProvider.overrideWithValue(() async => stackOf(26)),
+      modelRainStackLoaderProvider
+          .overrideWithValue(() async => stackOf(30, model: true)),
+      alpsRainStackLoaderProvider.overrideWithValue(() async => alps),
+    ]);
+    final container = containerOf(tester);
+    container.read(rainLayerProvider.notifier).set(RainLayer.last7d);
+    await settleSums(tester, RainLayer.last7d);
+
+    Future<void> centreAt(double lat, double lon) async {
+      container.read(mapIdleCenterProvider.notifier).state = LatLng(lat, lon);
+      await settle(tester);
+    }
+
+    await centreAt(47, 12);
+    expect(find.byKey(const Key('legend-rain-marker')), findsOneWidget,
+        reason: 'der Strich auf der Skala — genau er fehlte');
+    expect(find.textContaining('hier 35 mm'), findsOneWidget,
+        reason: 'südlich des Radars: der Alpenstapel, 7 × 5 mm');
+    await centreAt(47, 15.5);
+    expect(find.textContaining('hier 21 mm'), findsOneWidget,
+        reason: 'wo keiner misst: das Modell, 7 × 3 mm');
+    await centreAt(50, 12);
+    expect(find.textContaining('hier 21 mm'), findsOneWidget,
+        reason: 'im Landesinneren: das Radar');
   });
 
   testWidgets('30 Tage: W4 in Deutschland, dazu die Summe im Alpenraum',

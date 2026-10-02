@@ -644,3 +644,27 @@ final rainMonthAtProvider =
   }
   return null;
 });
+
+/// Die Ablesung am Fadenkreuz für Legende und Ebenen-Blatt — derselbe
+/// Vorrang wie die Fläche (#646, #652): Alpenstapel, dann Radar bzw. W4,
+/// dann Modell. Bis 1.222.0 lasen beide nur das Radargitter, und im
+/// Alpenraum stand die Skala ohne Strich da.
+///
+/// Lädt eine vorrangige Quelle noch, bleibt es bei `null` statt bei der
+/// nächsten: Sonst spränge die Zahl im Grenzband vom Radar- auf den
+/// Mischwert. Bei Radar und „+1 h" geben beide Summen sofort `null`
+/// (`days == null`), ohne einen Stapel anzufassen.
+final rainMmAtProvider = Provider.family<int?,
+    ({RainLayer layer, double lat, double lon})>((ref, at) {
+  for (final source in [
+    alpsRainSumProvider(at.layer),
+    rainGridProvider(at.layer),
+    modelRainSumProvider(at.layer),
+  ]) {
+    final grid = ref.watch(source);
+    if (grid.isLoading && !grid.hasValue) return null;
+    final value = grid.valueOrNull?.mmAt(at.lat, at.lon);
+    if (value != null) return value;
+  }
+  return null;
+});

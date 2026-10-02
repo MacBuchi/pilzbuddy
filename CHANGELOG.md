@@ -9,7 +9,7 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Gemessener Regen in Österreich, der Schweiz und Norditalien
 
-*2. Oktober 2026 · Version 1.222.0*
+*2. Oktober 2026 · Versionen 1.222.0, 1.222.1*
 
 - Jenseits der deutschen Grenze kam der Regen bisher aus dem
   **Wettermodell**. Jetzt kommt er aus den **Messungen der Wetterdienste**
@@ -27,6 +27,8 @@ https://github.com/MacBuchi/pilzbuddy/releases
   auch.
 - Wo keiner dieser Dienste misst, etwa in Slowenien, bleibt es beim
   Wettermodell.
+- Die **Legende** zeigt den Regen am Fadenkreuz jetzt auch im
+  Alpenraum an — bisher stand die Skala dort ohne Strich da.
 
 ## Baumarten in der Schweiz — alle, die im Wald stehen
 
