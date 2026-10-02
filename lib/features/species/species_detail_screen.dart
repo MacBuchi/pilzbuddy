@@ -57,9 +57,9 @@ import 'species_photo_view.dart';
 /// Die Karte mit der Einstufung DIESER Art — siehe [_Edibility].
 /// Eine Kachel im Bildstreifen, benannt nach dem BILD.
 ///
-/// **Nicht nach der Art.** Eine Art bringt bis zu drei Bilder mit, und
-/// drei Geschwister mit demselben `ValueKey` sind kein Schluessel mehr:
-/// `getTopLeft` findet dann drei Treffer und bricht ab. Der Asset-Pfad
+/// **Nicht nach der Art.** Eine Art bringt bis zu fünf Bilder mit, und
+/// Geschwister mit demselben `ValueKey` sind kein Schluessel mehr:
+/// `getTopLeft` findet dann mehrere Treffer und bricht ab. Der Asset-Pfad
 /// ist je Kachel eindeutig.
 Key pictureTileKey(String asset) => ValueKey('bild-$asset');
 

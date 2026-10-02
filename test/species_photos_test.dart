@@ -181,12 +181,12 @@ void main() {
       }
     });
 
-    test('zwei bis drei Bilder je Art — nicht eines, nicht zwanzig', () {
+    test('bis zu fünf Bilder je Art — nicht zwanzig', () {
       // **Die Zahl IST die Regel.** Ein Bild zeigt einen Einzelfall und
       // lädt dazu ein, ihn für die Art zu halten; zu viele machen aus der
       // Seite eine Galerie, durch die niemand scrollt.
       for (final entry in speciesPortraits.entries) {
-        expect(entry.value.length, inInclusiveRange(1, 3), reason: entry.key);
+        expect(entry.value.length, inInclusiveRange(1, kMaxPortraits), reason: entry.key);
       }
     });
 

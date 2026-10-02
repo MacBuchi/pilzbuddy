@@ -137,15 +137,17 @@ const speciesPhotos = <String, SpeciesPhoto>{
 /// **Die meisten Arten haben keines**, und das ist der Normalfall: Bilder
 /// gibt es zu den Paaren, bei denen eine Verwechslung teuer ist.
 /// Zweitnamen lösen sich auf wie überall.
-/// Die Porträts je Art — zwei bis drei Bilder, waagerecht durchblätterbar.
+/// Die Porträts je Art — bis zu [kMaxPortraits] Bilder, waagerecht
+/// durchblätterbar.
 ///
 /// **Das ist bewusst etwas anderes als [speciesPhotos].** Dort gilt „zwei
 /// oder keines", weil ein einzelnes Bild eine Verwechslung nicht
 /// auflösen kann. Hier geht es nicht ums Unterscheiden, sondern ums
 /// Wiedererkennen: wie die Art überhaupt aussieht. Dafür ist ein Bild zu
-/// wenig und zwanzig sind zu viel — zwei bis drei zeigen, wie stark sich
+/// wenig und zwanzig sind zu viel — mehrere zeigen, wie stark sich
 /// Farbe und Form mit Alter und Wetter ändern (Betreiber, 2026-09-22:
-/// „wir können auch 2-3 Bilder je nehmen").
+/// „wir können auch 2-3 Bilder je nehmen"; seit 2026-10-02 bis zu fünf,
+/// Anlass waren fünf brauchbare Goldröhrling-Aufnahmen, #654/#655).
 ///
 /// **Alle Aufnahmen stammen vom Betreiber selbst.** Das ist der Grund,
 /// warum es sie überhaupt gibt: Auf Commons ist die Bestimmung nicht
@@ -158,6 +160,10 @@ const speciesPhotos = <String, SpeciesPhoto>{
 /// die weiteren zeigen eine andere Ansicht oder ein anderes Alter: beim
 /// Parasol Seitenansicht, Doppelring und junger Paukenschläger, beim
 /// Falschen Pfifferling drei Blickwinkel auf dieselbe Gruppe.
+/// Höchstens so viele Porträts je Art. Eine Reihe ist „best of", nicht
+/// „wer zuerst kam" — siehe Skill `pilz-fotos`.
+const kMaxPortraits = 5;
+
 const speciesPortraits = <String, List<SpeciesPhoto>>{
   'Fliegenpilz': [
     (
@@ -810,13 +816,44 @@ const speciesPortraits = <String, List<SpeciesPhoto>>{
       source: 'https://commons.wikimedia.org/wiki/File:Bolet_Orange_01.jpg',
     ),
   ],
+  // Eigene Aufnahmen (#654, #655): Unterseite mit Ring und genetzter
+  // Stielspitze, eine Gruppe im Lärchen-Grasland, der Längsschnitt, der
+  // Hut von oben, der rotbraun gefleckte Stiel unter dem Ring.
   'Goldröhrling': [
     (
-      asset: 'assets/species/goldroehrling-1.webp',
-      author: 'Holger Krisp',
-      licence: 'CC BY 3.0',
-      licenceUrl: 'https://creativecommons.org/licenses/by/3.0',
-      source: 'https://commons.wikimedia.org/wiki/File:Gold-R%C3%B6hrling_Suillus_grevillei.jpg',
+      asset: 'assets/species/goldroehrling-2.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+    (
+      asset: 'assets/species/goldroehrling-3.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+    (
+      asset: 'assets/species/goldroehrling-4.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+    (
+      asset: 'assets/species/goldroehrling-5.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
+    (
+      asset: 'assets/species/goldroehrling-6.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
     ),
   ],
   'Habichtspilz': [
