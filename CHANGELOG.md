@@ -7,6 +7,17 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Goldröhrling mit eigenen Fundfotos
+
+*2. Oktober 2026 · Version 1.222.2*
+
+- Die Seite des **Goldröhrlings** zeigt jetzt **fünf eigene Fundfotos**
+  statt eines Lehrbuchbilds: die gelbe Unterseite mit Ring, eine Gruppe
+  im Gras unter Lärchen, den Längsschnitt, den Hut von oben und den
+  rotbraun gefleckten Stiel.
+- Eine Art kann jetzt bis zu **fünf** Fotos in ihrer Bilderreihe haben
+  statt drei.
+
 ## Gemessener Regen in Österreich, der Schweiz und Norditalien
 
 *2. Oktober 2026 · Versionen 1.222.0, 1.222.1*

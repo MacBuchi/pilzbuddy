@@ -1968,8 +1968,8 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
       Verwechslungspartner aus weitertippt, landete mitten auf dessen
       Seite statt oben bei Namen und Einstufung. Gefunden hat das ein
       Test, der eigentlich etwas anderes prüfen sollte.
-  - **Porträts je Art** (`speciesPortraits`, seit 1.170.0): zwei bis
-    drei EIGENE Aufnahmen des Betreibers je Art, waagerecht
+  - **Porträts je Art** (`speciesPortraits`, seit 1.170.0): bis zu
+    fünf EIGENE Aufnahmen des Betreibers je Art, waagerecht
     durchblätterbar, für 14 Arten. Fünf Dinge, die man wissen muss:
     - **Das ist etwas anderes als das Bildpaar, und beide bleiben.**
       Beim Paar gilt „zwei oder keines", weil ein einzelnes Bild eine
@@ -1977,7 +1977,8 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
       Frage — wie die Art überhaupt aussieht —, und dafür ist ein Bild
       zu wenig: Farbe und Form ändern sich mit Alter und Wetter
       (Betreiber, 2026-09-22: „wir können auch 2-3 Bilder je nehmen").
-      Ein Test hält die Spanne 1 bis 3 fest.
+      Ein Test hält die Spanne fest, seit 2026-10-02 1 bis 5
+      (`kMaxPortraits`, Betreiber; vorher 1 bis 3).
     - **Eigene Fundbilder schlagen Lehrbuchbilder**, und das ist
       gemessen, nicht behauptet: Das Reizker-Foto des Betreibers trug
       die Stielgrübchen, die unsere Merkmalstabelle dem Edelreizker

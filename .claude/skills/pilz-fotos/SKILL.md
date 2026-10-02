@@ -214,7 +214,8 @@ beantworten verschiedene Fragen:
 - `speciesPhotos` — **ein** Bild je Art, für die Vergleichspaare. Dort
   gilt „zwei oder keines": Ein einzelnes Bild löst eine Verwechslung
   nicht auf.
-- `speciesPortraits` — **ein bis drei** Bilder je Art, die Porträtreihe.
+- `speciesPortraits` — **ein bis fünf** Bilder je Art (`kMaxPortraits`,
+  bis 2026-10-02 drei), die Porträtreihe.
   Sie beantwortet „wie sieht die Art überhaupt aus", und dafür ist ein
   Bild zu wenig, weil Farbe und Form mit Alter und Wetter wechseln.
 
@@ -227,7 +228,7 @@ umbenannt).
 dritte Bildquelle anlegt, hängt sie dort ein; ein nicht genanntes
 CC-BY-Bild ist ein Lizenzverstoß, und der fiele sonst niemandem auf.
 
-**Die Obergrenze von drei heißt „best of", nicht „wer zuerst kam".**
+**Die Obergrenze von fünf heißt „best of", nicht „wer zuerst kam".**
 Ein neues Bild darf ein altes verdrängen, wenn es mehr zeigt — beim
 Fichtenreizker (#568) flog der Hut von oben für das Schnittbild mit
 Milch und Grünen raus, weil nur das den Pilz wirklich erkennbar macht.
