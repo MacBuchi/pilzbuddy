@@ -217,6 +217,47 @@ void main() {
     expect(find.text('Los geht\'s'), findsOneWidget);
   });
 
+  testWidgets('ein Ziel unter festen Knöpfen wird in seine Liste gescrollt',
+      (tester) async {
+    // #643 (aus TrailBuddy #143): Die Liste endet über einer Knopfleiste.
+    // Zeile 5 liegt im Bild, aber unter den Knöpfen — für einen Vergleich
+    // nur mit dem Bildschirm „sichtbar", für den Nutzer nicht.
+    final container = await pumpCoach(
+      tester,
+      Column(children: [
+        Expanded(
+          child: ListView(children: [
+            for (var i = 0; i < 12; i++)
+              i == 5
+                  ? const CoachAnchor(
+                      id: 'zeile',
+                      child: SizedBox(key: Key('zeile'), height: 100))
+                  : const SizedBox(height: 100),
+          ]),
+        ),
+        const SizedBox(key: Key('knoepfe'), height: 120),
+      ]),
+    );
+    // Außerhalb des Sichtbereichs der Liste gilt die Zeile dem Finder als
+    // „offstage", obwohl sie gebaut und im Bild ist — genau der Fall.
+    final row = find.byKey(const Key('zeile'), skipOffstage: false);
+    final buttons = tester.getRect(find.byKey(const Key('knoepfe')));
+    final screen =
+        Offset.zero & tester.view.physicalSize / tester.view.devicePixelRatio;
+    final before = tester.getRect(row);
+    expect(screen.contains(before.center), isTrue,
+        reason: 'die Vorgabe: im Bild …');
+    expect(before.overlaps(buttons), isTrue, reason: '… aber verdeckt');
+
+    container.read(coachProvider.notifier).start(const CoachScript(
+        id: 't', steps: [CoachStep(title: 'T', text: 'x', lit: ['zeile'])]));
+    await frames(tester, 12);
+    final after = tester.getRect(row);
+    expect(after.bottom, lessThanOrEqualTo(buttons.top),
+        reason: 'über den Knöpfen, also erreichbar');
+    expect(painter(tester).lit.single, rectMoreOrLessEquals(after));
+  });
+
   testWidgets('„Animationen entfernen": Ring und Hand stehen still',
       (tester) async {
     tester.platformDispatcher.accessibilityFeaturesTestValue =
