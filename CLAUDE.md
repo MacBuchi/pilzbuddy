@@ -2913,6 +2913,11 @@ Zähler und Nenner zugleich; die Auswertung passiert danach lokal.
     abgeschnittenen Strom still den Teil bis zum Abbruch; `gunzip`
     vergleicht mit der Länge im gzip-Abspann und wirft. Nie wieder
     `GZipDecoder` direkt.
+  - **Die Ruhe-PSS nach dem Ende des Isolates erst nach einem Bild
+    messen.** Die Kopien der Fächer sind dann Müll, abgeräumt wird aber
+    erst über `NotifyIdle` nach dem nächsten gezeichneten Bild; ein
+    `send-trim-memory` räumt nicht ab. Ohne das sah es nach +50 MB aus
+    (`docs/map-performance.md`).
   Offen und eigenes Thema: Die Waldfläche MIT Ampel braucht auf dem
   Pixel XL 5–6 s je Bild — das ist der Zeichner selbst, nicht der Weg.
   Messung vorher/nachher in `docs/map-performance.md`.

@@ -917,7 +917,7 @@ Schwenks und 3 Doppeltipps (identisches Skript), Perfetto 90 s.
 | Worker-Threads (verschieden) | 50 | 20 |
 | Last nach dem letzten Schwenk | ~3 s | keine |
 | Speicher-Spitze (PSS) | 599 MB | 601 MB |
-| Speicher in Ruhe (PSS) | 510 MB | 559 MB (nach dem Ruhe-Ende) |
+| Speicher in Ruhe (PSS) | 488–548 MB | 508 MB (nach Ruhe-Ende und dem nächsten Bild) |
 
 Je Auftrag gemessen (Mess-Build, Laufzeit im Isolate):
 
@@ -927,6 +927,19 @@ Je Auftrag gemessen (Mess-Build, Laufzeit im Isolate):
 - Waldfläche mit Ampel: **5,1–6,0 s** je Bild — der Zeichner selbst,
   offen.
 
-Offen: die +49 MB in Ruhe. Das Ruhe-Ende des Isolates gab 17 MB frei
-(576 → 559 MB); der Rest ist nicht zugeordnet.
+**Die scheinbaren +50 MB in Ruhe sind Müll, kein Leck** (nachgemessen
+2026-10-02, je zwei Läufe, offline). Solange das Zeichen-Isolate lebt,
+liegen seine Fächer als Kopie im Heap — „Private Other" 170 statt
+113–145 MB. Nach dem Ruhe-Ende (Logzeile im Mess-Build, 60 s nach dem
+letzten Auftrag) bleibt die Zahl trotzdem stehen, auch nach
+`am send-trim-memory … RUNNING_LOW`: `Dart_NotifyLowMemory` leert nur
+Seiten-Caches und räumt nicht ab, und die Speicherbereinigung läuft in
+Flutter über `NotifyIdle` nach einem gezeichneten Bild — nach dem
+Ruhe-Ende zeichnet niemand. Ein Reiterwechsel ohne Kartenbewegung
+reichte: 170 → 110 MB „Private Other", PSS 591 → 508 MB, das Isolate
+startete dabei nicht neu. Gegenprobe: derselbe Build mit erzwungenem
+Rückfall (`boundedCompute`, kein dauerhaftes Isolate) ruhte bei
+503–511 MB. Wer die Ruhe-PSS misst, löst danach also ein Bild aus;
+ein Trim beweist nichts. Die Streuung zwischen zwei gleichen Läufen
+liegt bei rund 40 MB (1.222.4: 506 und 548).
 
