@@ -1,0 +1,2430 @@
+{
+  "alps": {
+    "attribution": [
+      "GeoSphere Austria (CC BY 4.0, https://doi.org/10.60669/6akt-5p05)",
+      "Quelle: MeteoSchweiz (CC BY 4.0)",
+      "Radar-DPC (CC BY-SA 4.0)",
+      "Deutscher Wetterdienst (GeoNutzV)",
+      "Open-Meteo (CC BY 4.0)"
+    ],
+    "blend": {
+      "box": 17,
+      "feather": 24,
+      "mask": "alps_countries.bin.gz",
+      "mask_sha256": "b5450cf0526bc8896548aa746413389cf155cea09014f88031810654510a7b36",
+      "origin_bits": {
+        "dpc": 4,
+        "inca": 1,
+        "model": 16,
+        "radar": 8,
+        "rprelimd": 2
+      },
+      "passes": 3,
+      "shift": 24
+    },
+    "built": "2026-10-03T21:43:57+00:00",
+    "licence": "CC BY-SA 4.0",
+    "rain": {
+      "days": [
+        {
+          "bytes": 16426,
+          "date": "2026-09-03",
+          "file": "alps_rain_20260903.bin.gz",
+          "inputs": {
+            "dpc": "809119bba14dd8b7c7b3e6c59fbdaf5714db2d81d277f22b3ee21501449e29e7",
+            "inca": "81dcd99a538457d095712d895fe9c07aa6123dbe04ed499fe34e2f47bd443610",
+            "model": "42275d936e661c062aa84d6115f30fe764964f0217eed70872231c2ebbaab05b",
+            "radar": "22cbb2d7dc96ade985275f591d698f5ab8b9169054139d9de0847f9d6e589b73",
+            "rprelimd": "7a31c5e4b7adc86e243d488730832c953d9547ba368b51f7593cdd48fc87c493"
+          },
+          "max_mm": 37,
+          "origin": {
+            "bytes": 9311,
+            "file": "alps_origin_20260903.bin.gz",
+            "sha256": "ffa9e94f0700c4c7956057a11d3dedea6f90288733ca75d6592b3cc9774ccfa5"
+          },
+          "sha256": "5ec64caf23de92295aa707d344c16d4b4fbbda8fff89b77df2ddefaa76e7ff45",
+          "valid_percent": 77.7
+        },
+        {
+          "bytes": 3818,
+          "date": "2026-09-04",
+          "file": "alps_rain_20260904.bin.gz",
+          "inputs": {
+            "dpc": "1b6b0997d50c91bcf32d0350c21affdef7cfe2ae5b83ebc10498fba411864de2",
+            "inca": "e887aa5fa599ee87fadfafaa2c155aaf90cf037c10dfbc0a8918575231a6e2b2",
+            "model": "8cf04b9268093ce306144f2b03e833ada7aeeb0f6ac1466c3276c53123dc6dbd",
+            "radar": "f4e5dc30f465bd37eeb2dd2929d3e15b6d6b9422b76901dc3c73eff593c21258",
+            "rprelimd": "6353460e14dc322a9d93a664ea82f6557dabbb19cef340033a9ffd7a55fd8646"
+          },
+          "max_mm": 7,
+          "origin": {
+            "bytes": 9333,
+            "file": "alps_origin_20260904.bin.gz",
+            "sha256": "a9834f2df7e8e3c0c09ff1890fae9af5976e5d0233d7ab2f5e8bce48dd8e941f"
+          },
+          "sha256": "ebe972a80ae4c44f125d696c164d69a61077923d2fac4618d9d153fba773a7c5",
+          "valid_percent": 77.7
+        },
+        {
+          "bytes": 33013,
+          "date": "2026-09-05",
+          "file": "alps_rain_20260905.bin.gz",
+          "inputs": {
+            "dpc": "d5ddd1393bedb123765477e422997c14317ad12df785a7a8a6cec73c7c7e48c4",
+            "inca": "779bba4636b36821cac32b8fd447100806cc8a546aa8966fdeb384ebf4dc00a6",
+            "model": "7094325f75fe285b69e51373083ff804b588bfd58ab1e1423281ed5732e3f3da",
+            "radar": "2efff49703ff8d543de3abd0b084f1243ebfa8d279cb8bbcde0bad4135c622a6",
+            "rprelimd": "4db278b4d16fb22cf4360fec06e2a52b5ae93482dd9885d228055c1e4c9f66aa"
+          },
+          "max_mm": 46,
+          "origin": {
+            "bytes": 9255,
+            "file": "alps_origin_20260905.bin.gz",
+            "sha256": "ad4f279d2031c600f0de2fa1dae0f06a63badeeb652e6ab30db0001a80205ab5"
+          },
+          "sha256": "5e46fb4a7ded16348d03c1001535f481838744ba740aad7f4a0e08c33d1ef3e1",
+          "valid_percent": 77.7
+        },
+        {
+          "bytes": 4498,
+          "date": "2026-09-06",
+          "file": "alps_rain_20260906.bin.gz",
+          "inputs": {
+            "dpc": "36cf361d76dfda8de99afda622e9465dea8770b534efa06c0234c58d38118f34",
+            "inca": "474d0cf562fc7ab12af02cd5caf623ed6dad6358b00d836f9495b985a6eac743",
+            "model": "8e751b2c2c7a4b3ca399c56878f963611ab9fa56570479f4133ad9f0134c84fe",
+            "radar": "94ea03f3cab07e6abf73ad32d9b7958e465278c2e75e6b3c5107cd0d7642acd1",
+            "rprelimd": "882e0bb5a7fe58dbd0262807da6afcc46f3ab84d0b95e8fd6f18816c0c3600ed"
+          },
+          "max_mm": 13,
+          "origin": {
+            "bytes": 9333,
+            "file": "alps_origin_20260906.bin.gz",
+            "sha256": "ced90b9283994c357c37db3b3046650fea07277e6a512a421fab045196699ac3"
+          },
+          "sha256": "f828ece9ef16b4cad3ac01c9f3cd286073ab854809e8b222de4502ca62bd15e7",
+          "valid_percent": 77.7
+        },
+        {
+          "bytes": 33420,
+          "date": "2026-09-07",
+          "file": "alps_rain_20260907.bin.gz",
+          "inputs": {
+            "dpc": "2d1f4940fc9105bf598a12b862b2b8d9d352d9afd9ac96b1b5a0e042f3080669",
+            "inca": "add169f5339c54f7607d887a5fe8f425693591041914abc38dcc4be45f375439",
+            "model": "89bd326674b70de0692acffc9f04bd0d2108e7d6f88b3d07bfd0001deb20258d",
+            "radar": "a3823a61deab8c980e158bd1a723c5e08ec3d93522b3d7c40f1348b633ec4ccd",
+            "rprelimd": "fcdc53c7e36e5ed169c9719defc98c7f0822651ca3bec3d45a03444e7480177d"
+          },
+          "max_mm": 46,
+          "origin": {
+            "bytes": 9222,
+            "file": "alps_origin_20260907.bin.gz",
+            "sha256": "8fecc9b7ac426edf33edd00d858f81bac87316394046d8978b9b941876e5b97d"
+          },
+          "sha256": "2b6afd6dec9aa766632d75c39d87673e064949d70ea3b796b7dad54ba1feb8db",
+          "valid_percent": 77.7
+        },
+        {
+          "bytes": 47152,
+          "date": "2026-09-08",
+          "file": "alps_rain_20260908.bin.gz",
+          "inputs": {
+            "dpc": "a74abb2bbfc2d821cab742c362623407c69f5ef16b2348ebff57f8cc17c21e9d",
+            "inca": "12df6c404a0baff6c011c6b08ea6cae305d96b913c0e3e7a6349bc99c8bfbecc",
+            "model": "0d98066f7196b9d8a63c41229d946de3a843081b9ff8517e937f14dc0669787f",
+            "radar": "49b0e1feee77cfd71896dcb10cf878804f9f459ec58d3dbae07dc7127eda144a",
+            "rprelimd": "36852a9ca8a3c217a8b2fa2cd1ee124768abed35ef713228c33d99cb4fcd370c"
+          },
+          "max_mm": 91,
+          "origin": {
+            "bytes": 9219,
+            "file": "alps_origin_20260908.bin.gz",
+            "sha256": "5ff2f05b9d2d16d24c99a64a6cd77317de4c31c57311715418bdb0227d52cc0b"
+          },
+          "sha256": "2f4124062685cacc1bb0fce5c8b07b76f8fdf982d2f5da1aaf27eb5ee7096dfe",
+          "valid_percent": 77.7
+        },
+        {
+          "bytes": 118931,
+          "date": "2026-09-09",
+          "file": "alps_rain_20260909.bin.gz",
+          "inputs": {
+            "dpc": "9aa113112498a2766db9f6eed96ba5b3cbb0ab7bbacfd9aa1fbb7a024e7be760",
+            "inca": "8207ca3b68fd72c6a1adbd009ab4fa909e751b3922f4dedbc603ad64d212302b",
+            "model": "446726ebc17247a6788d194c90a0c2ab1584966837361355a992607551c0b2c3",
+            "radar": "c2c6ada69e6e4b7568d01e82cebb14d50e1d775cf698317413d749df2a3bbf95",
+            "rprelimd": "6b9f71405064349cd6143f3aa5571c6f02202524fc62acd473f4189fa8742576"
+          },
+          "max_mm": 139,
+          "origin": {
+            "bytes": 9196,
+            "file": "alps_origin_20260909.bin.gz",
+            "sha256": "fe3f311a79a0d2c11561a6c795d059bce6cfa1a7b7255e86348bed999258830d"
+          },
+          "sha256": "95dc672b8a781a0422a413f9109e8bce06e80708cafcacabb90b4284fb200a74",
+          "valid_percent": 77.7
+        },
+        {
+          "bytes": 79288,
+          "date": "2026-09-10",
+          "file": "alps_rain_20260910.bin.gz",
+          "inputs": {
+            "dpc": "cd453a284a4eb53302bd7f8464719efd0291141d7afb82933d481d8ca5f575c7",
+            "inca": "ebe62e7da8fbcf9dc553f6cc4d35b4a43bb803d47676abca481268144f7d43aa",
+            "model": "7e79d3e144bd27c6471da1fa0c1ebb6a215bd9d63e3a26e7c6bd676c006e9de5",
+            "radar": "1c14da79c4ca79ed0563c16108fa003be9e7b2a80415762687586fbc0e108216",
+            "rprelimd": "9cb4002bd6a6da517ace5b29ce2eac9fa0904d9b73c481ca65803ff575b77e2e"
+          },
+          "max_mm": 208,
+          "origin": {
+            "bytes": 9333,
+            "file": "alps_origin_20260910.bin.gz",
+            "sha256": "c0bf13dd2c1f8aba6780419bf1b4a29e8f563ae297dbfa49b2893bec12d2e65a"
+          },
+          "sha256": "fc7c5c7f8aba4758d904feaef52246265899d967b315503f13e5074c2596bece",
+          "valid_percent": 77.7
+        },
+        {
+          "bytes": 51342,
+          "date": "2026-09-11",
+          "file": "alps_rain_20260911.bin.gz",
+          "inputs": {
+            "dpc": "0075b3d93ba07ebd640c329676901e209b23820e8b352fc2257e2d859a432e35",
+            "inca": "05d6b768b99a2b0426433802bf58671c92d36ebdafa388e1645476804e9aedd7",
+            "model": "e5618cd90c8ce3a94f373a635d78635960ac24115f3574913347b56638ba3ba9",
+            "radar": "cececd26f5fb5b00af993a9f43f0ae6dd4a8ea7fcb1007ccb5205dcfe5e06d4c",
+            "rprelimd": "adbac494b1bd35d0c96a17d100cd3fd4d95b671fc42fd7316790b610e610a8c5"
+          },
+          "max_mm": 60,
+          "origin": {
+            "bytes": 9311,
+            "file": "alps_origin_20260911.bin.gz",
+            "sha256": "cd5d61f1764232a27129772c1e97bcdb3e40ceda8807fc125ac33bd70a6ed9b4"
+          },
+          "sha256": "2a8dc90c137b6b709004f3344612d4fd5980233fc899245a1be3116258b2c40f",
+          "valid_percent": 77.7
+        },
+        {
+          "bytes": 5743,
+          "date": "2026-09-12",
+          "file": "alps_rain_20260912.bin.gz",
+          "inputs": {
+            "dpc": "36f1e773f1ff08574af7ea7b5467ccbc61e289afa83edc862daae53e45c91f67",
+            "inca": "45bb161b1bde3c73a1c1afcd8472276b71908c98df02b5d836b9faad6af0d270",
+            "model": "244ff0982d82b302d5ef98f0ff3b9ed83bcaa3274f3ed0d8c9ad435c4783b374",
+            "radar": "4ca2e59d0328cae6e1c235eef28819fd98968023bf1e17acce4cf3b9ddd51a37",
+            "rprelimd": "4a1b70a81511507e7db43fdf6bead1c5eb7fc67d036406c547a908f69df5b478"
+          },
+          "max_mm": 7,
+          "origin": {
+            "bytes": 9333,
+            "file": "alps_origin_20260912.bin.gz",
+            "sha256": "9a1ddd33cabff55c014258029c9fc6c05c9d4eaba2f0b8b2c2c52e71322e4fb5"
+          },
+          "sha256": "6b501656f8d26f17f4fdd7e69c7c15dadda9abc8250602cd8b928ba76381c544",
+          "valid_percent": 77.7
+        },
+        {
+          "bytes": 45511,
+          "date": "2026-09-13",
+          "file": "alps_rain_20260913.bin.gz",
+          "inputs": {
+            "dpc": "be144eccb00295be74619e279f494c04338470d3f21c0f5c4c548edcb58988d6",
+            "inca": "a38246bde5ae21a28d9aec95f795d41f0b7f45404b191b8ef695dacf3026e37c",
+            "model": "23f42c45f16a887c2564b29f3abb067bab26da58d63a196fc863fd76f4053807",
+            "radar": "f5da0905924f04e99eeea356e764c4841306335fb2bf83901e8d9ed917899233",
+            "rprelimd": "9a49e6bd1510020c26860caa6cfa18f1545a1bf98a71c4ca4403eba6061fc965"
+          },
+          "max_mm": 31,
+          "origin": {
+            "bytes": 9247,
+            "file": "alps_origin_20260913.bin.gz",
+            "sha256": "7e720f9778594f23f891897c0009cae7e15afe54bf6adc0c0e4bd838282a8508"
+          },
+          "sha256": "59a1d42fd65a85beda19c3f52c90a905f819d37beba141ea30c4d565f65779f7",
+          "valid_percent": 77.7
+        },
+        {
+          "bytes": 55381,
+          "date": "2026-09-14",
+          "file": "alps_rain_20260914.bin.gz",
+          "inputs": {
+            "dpc": "21825af4f1c1bf1f58df28478cd7ab7b571e79d2689708efd11253d3b2bcf244",
+            "inca": "0900362edbd67a04286192a749ead555e12f91dce981094774c3a437bd18759a",
+            "model": "f65373d33fa35edbe3cfd15ffc4bd746f94c562c2a5439f4e9972d9cf7b94057",
+            "radar": "eb731b723e1928c2cb27eeef980913296cff66bd9a069c52c1a78baf9f464e10",
+            "rprelimd": "f36212ac7070b3ef81d71f53fe8948e1afac32ce24854daae5ea696573a2e691"
+          },
+          "max_mm": 36,
+          "origin": {
+            "bytes": 9310,
+            "file": "alps_origin_20260914.bin.gz",
+            "sha256": "9df0ca225f00a6078fc7d8cce5bf201175b546b2ff098e8f4f721a3519751719"
+          },
+          "sha256": "b2348f4f2a9255f5c20ce146c196c71d858c77230d134132fdc47e73d7482081",
+          "valid_percent": 77.7
+        },
+        {
+          "bytes": 3454,
+          "date": "2026-09-15",
+          "file": "alps_rain_20260915.bin.gz",
+          "inputs": {
+            "dpc": "f6c0c0bb6691b8a376cb302ea9aea45b10ae620fc3bd4a7c23ed3cb1a43c3619",
+            "inca": "e107cbeed499dcb002964e46ed58b395799bda23a8e5abd3fc089e8e5aa39df4",
+            "model": "797d0d5d5c37f9ae5e218f7bdee997b89bad5285bd55c7ed9836b440d9297373",
+            "radar": "96cd84cb67f5b1407152c279ed205eb1adde1b7454a2bb60f23db5684201a3b8",
+            "rprelimd": "b2712e0f76a939b18edf15e6d3db6bfbfcb087cd4fdff4f76c6d5c99554ea7d3"
+          },
+          "max_mm": 27,
+          "origin": {
+            "bytes": 9333,
+            "file": "alps_origin_20260915.bin.gz",
+            "sha256": "9aea9d759931303d6ca3a6482b2e15a859688f7a1d31506834ce8733f9ade6ff"
+          },
+          "sha256": "b1d6eade7cc116d5679b591fa653c70c3288cadcfd2251b9469228e268d784d3",
+          "valid_percent": 77.7
+        },
+        {
+          "bytes": 78891,
+          "date": "2026-09-16",
+          "file": "alps_rain_20260916.bin.gz",
+          "inputs": {
+            "dpc": "e84150437b1c9f37045dbe0cb5cc8854f6147419de3941149488a45b69d84dd4",
+            "inca": "638222f3e5fe450e46b151963bd6c8696d59fd99b269ac7859e32edec8bcb2dc",
+            "model": "1c5dd251c5e5abb98d7163a6d80f27fec1fe4ada322c73924ffe25fbd579cd6a",
+            "radar": "241d9617f24888e065c1f8d2caeec7e14a65cfbc161d0c0a1da6d41656f08d02",
+            "rprelimd": "26cf2116735dc4cc53c284919c6b7a321ef3d018065c8695b65ad838f298749c"
+          },
+          "max_mm": 75,
+          "origin": {
+            "bytes": 9311,
+            "file": "alps_origin_20260916.bin.gz",
+            "sha256": "e42c16ef8a6ef5cfaa7d35958e46bad43d22f51c22a11e44b9af37a94c436c30"
+          },
+          "sha256": "c05b1924fc128e9b2ff19d4e26711de589e3e4fa85c0071ef935d35ed0f66210",
+          "valid_percent": 77.7
+        },
+        {
+          "bytes": 60257,
+          "date": "2026-09-17",
+          "file": "alps_rain_20260917.bin.gz",
+          "inputs": {
+            "dpc": "e68f95216b29c3e6bd5f9e1264dbe75aa489f86147eb4351c99bd0a6cd69f8e0",
+            "inca": "9b8a95fa9dc847d79b401d13fb1edbff5681bf7fd039d071d21b5f6b871d5b35",
+            "model": "57defd937a862f8e3a5619604acc0f236e1af08d906303e451b0cf255c08d197",
+            "radar": "ab0552878486ee9d8b0872d8dd36487a320538683f717a97dc17325203309d0a",
+            "rprelimd": "5998564f98d09571e8d38982a8062533ffab8906261857678bf344e3eb982182"
+          },
+          "max_mm": 82,
+          "origin": {
+            "bytes": 9311,
+            "file": "alps_origin_20260917.bin.gz",
+            "sha256": "1403813112fbd9ca8250a5444483f2b489ede7dd4f6e9e3263d361132b41d3cf"
+          },
+          "sha256": "1edc3504ae9519eb781733d55033a8745530f4b88ab713e945a18dc467763d49",
+          "valid_percent": 77.7
+        },
+        {
+          "bytes": 26919,
+          "date": "2026-09-18",
+          "file": "alps_rain_20260918.bin.gz",
+          "inputs": {
+            "dpc": "f140e7b1f48261acee10cea5689fdf59567aae8ee8800fdf777310ec0a9443f4",
+            "inca": "b6e1ab1bdadce95261dce4399f176a8e4c0d1ad74b4f90c566ba583c6f40be63",
+            "model": "2c88f7fe84685a88fbeb2f20a5f845fd4ebeb7fb058875a48fe9efd6068428e6",
+            "radar": "8be707aae570adc9383d62158e26030305ec03721b54374788b9d43875fe69f8",
+            "rprelimd": "e668334463f01e0df26d067e24b691c3decc087652c619f7fa08ecd306302384"
+          },
+          "max_mm": 55,
+          "origin": {
+            "bytes": 9333,
+            "file": "alps_origin_20260918.bin.gz",
+            "sha256": "fbbaa36dff04f8ebd0eba575bbf4d946184cdf4d294dbf183a5658545ef42146"
+          },
+          "sha256": "457ad7b65c4c0f0dc310fc93312661e64b0ace9bd5c79fa11253c3b2ede9ed98",
+          "valid_percent": 77.7
+        },
+        {
+          "bytes": 8590,
+          "date": "2026-09-19",
+          "file": "alps_rain_20260919.bin.gz",
+          "inputs": {
+            "dpc": "6a00d0896595b316abc9844eb34b8f688e51a6615286aebe8379b52cf46ddaba",
+            "inca": "78779403ea0078e2b8a81a30808c9c36a6b84177139c9a9596553a4d8e3a761b",
+            "model": "891e17ba211379bdfecfbd08dd326cbd595e8416459bbfdbdbfb636b178f6770",
+            "radar": "9d9b6a4123c1af0d4418073adb1ebe316b29a4d4182e9a9d5d7da8f74f9863f5",
+            "rprelimd": "11255127356b49cec63a5b3143dd06ef022d8553b3a2c861f8a9af6bead3dbcf"
+          },
+          "max_mm": 32,
+          "origin": {
+            "bytes": 9333,
+            "file": "alps_origin_20260919.bin.gz",
+            "sha256": "4e3ae01186c169929f7b77ced17d6599011fe04f207d357915eaaee7696a9f57"
+          },
+          "sha256": "f992517badb8747d5c67c3408c3bc7d70665b1b392c1a5db63ca1d6562940461",
+          "valid_percent": 77.7
+        },
+        {
+          "bytes": 8496,
+          "date": "2026-09-20",
+          "file": "alps_rain_20260920.bin.gz",
+          "inputs": {
+            "dpc": "2e0ec4eea783a396f28acb5f0101c05cc8c368d283a523e1d6cb34ab89b9cbd1",
+            "inca": "9133888a0f4f04c31d692fe90b1fe797a196ea96f85efab3ca252b2283226b75",
+            "model": "45382e4ba9c35ad0aa883e0cbf685f3dd594c5ffd48ccba8dee6b5390fd8ebca",
+            "radar": "93886a4cc80f9645021b34d9b7d391bc041bc1f7d9ad1bd2a65f15c4c2bdbb4b",
+            "rprelimd": "7111125d7e36d1740dad5ec78f31bfc6ce55f09b99eeacdfe12a6234930dc121"
+          },
+          "max_mm": 10,
+          "origin": {
+            "bytes": 9311,
+            "file": "alps_origin_20260920.bin.gz",
+            "sha256": "f32d903029ec2fec18fc1301ac49266188263ffe8d86c7e5931faa88237c5e20"
+          },
+          "sha256": "86461f2a1122365d0e7fc9c1bf5e4b771f3a5536c5bd7c35c0c13d1ef817185e",
+          "valid_percent": 77.7
+        },
+        {
+          "bytes": 15072,
+          "date": "2026-09-21",
+          "file": "alps_rain_20260921.bin.gz",
+          "inputs": {
+            "dpc": "1fc7fcd71e547871a1e492dc15fba4a326c253e241216e91e230e18eb5260773",
+            "inca": "f18594e7ffcf50ff677e82e97e2d084b7917e7e4bb986d8d84ee7c7918e6066b",
+            "model": "76cb242243c0bbae2a83a9d12b688b6a5660c19d8067875ed4a38e5e285bc1d4",
+            "radar": "bd055d75b05ba321fb2bce2c9d3fe17348e4ae124ddc6864c02c372a0f6ff09e",
+            "rprelimd": "dffffc0ac283c50f67e8ffb133ae8fcbfac1a900dd756cf40e3587418d96de78"
+          },
+          "max_mm": 17,
+          "origin": {
+            "bytes": 9311,
+            "file": "alps_origin_20260921.bin.gz",
+            "sha256": "766d6b560996565aba00f5741d14421fe4f72c50e86aa3c7e5913d544af3890b"
+          },
+          "sha256": "6c5b72aa8bcfd617bdb59294f87212a8448a575069b491bfcaadd9fbc27a17a7",
+          "valid_percent": 77.7
+        },
+        {
+          "bytes": 13417,
+          "date": "2026-09-22",
+          "file": "alps_rain_20260922.bin.gz",
+          "inputs": {
+            "dpc": "3cdafb32909f118cab5ea994ed7c454d9375539a2482f28a7e54f8e6ded921cb",
+            "inca": "d5d70698535df036f3943b9e5d775f0bfdc9a3f03e0ceee31b7eaf0df070e7fb",
+            "model": "65fa0a14b502376bc64a35d1413d05c9d03923c6ee863581575218b85a4a058d",
+            "radar": "349124e8ad754ccd2d55d1274900e5c4a5ace72444bb4c5db163c68dc6d51701",
+            "rprelimd": "cdb827eae0df42860000387927f1a1de5e17d8e222b633324054145d0e05870e"
+          },
+          "max_mm": 19,
+          "origin": {
+            "bytes": 9333,
+            "file": "alps_origin_20260922.bin.gz",
+            "sha256": "2264c673960f2ccbcd55174afdff195818cea09137d7d14cb73818e67e1ba23d"
+          },
+          "sha256": "e5be0ce9a97e33c5bc288781a7041b1a8706f131d60a6a4e0d8a5254769054e5",
+          "valid_percent": 77.7
+        },
+        {
+          "bytes": 2591,
+          "date": "2026-09-23",
+          "file": "alps_rain_20260923.bin.gz",
+          "inputs": {
+            "dpc": "66a0d59ccf9cf4c28ea3eee2e67896fb13b0e919b5c13a203a04ae001fb15f13",
+            "inca": "fe030b92d74d9c046aca1ffad376a39639368ddd3940abb18ec0e6fa080c0389",
+            "model": "d7ffb56989ced48be96cbe8230fcd12496632d830f0eb7abcb9b30c2afca3c33",
+            "radar": "c3a8993ded0411634396c9220b0926899308c7411d32601cad0a1817aa189166",
+            "rprelimd": "96f0385c5b9884afc8636b161588d715022a3617c285a3fe9c7018a4a3f5d09f"
+          },
+          "max_mm": 10,
+          "origin": {
+            "bytes": 9333,
+            "file": "alps_origin_20260923.bin.gz",
+            "sha256": "cdecb9d553cab6a3f728ad1b15b9f21be4877e8de6746f40750e275b5712ea9a"
+          },
+          "sha256": "a406bf6c47c17a8e509ffcf5b3ed48a3704855b826a3462ca69e0f11037db91b",
+          "valid_percent": 77.7
+        },
+        {
+          "bytes": 46398,
+          "date": "2026-09-24",
+          "file": "alps_rain_20260924.bin.gz",
+          "inputs": {
+            "dpc": "3d40173e7ab302b961f4aa284b6069f6e771bd8c484ac2b343474683df0316af",
+            "inca": "ce423d150256fb989cfc0f9260549e08b7fe512e4aa6067cc800ab9b258f5b31",
+            "model": "39a28b208c64dba13a2869ecf2219e69f777f4bf3675caf837a63072b6eddc92",
+            "radar": "554d6a9712ceefdf28d2a3ff6f4abeca5e62ad0e4c5bcb1b192673db0ad4f581",
+            "rprelimd": "5aeceec657eddc12b92eacda12414c1576b476dc4eb689f6a52105df323da7f2"
+          },
+          "max_mm": 36,
+          "origin": {
+            "bytes": 9307,
+            "file": "alps_origin_20260924.bin.gz",
+            "sha256": "298a39ae4affd0df8165a342c590138b2039219deb4b9c8a7398f569c27eb174"
+          },
+          "sha256": "d5b2856aeb7707985cbb7dd3ab9503789eaaea21423f11a49bbb9dea487a435f",
+          "valid_percent": 77.7
+        },
+        {
+          "bytes": 2657,
+          "date": "2026-09-25",
+          "file": "alps_rain_20260925.bin.gz",
+          "inputs": {
+            "dpc": "3df03f55db1c3e0ff1d7598af85161cf3cf7ca2e6eda5009de7815eb42261e32",
+            "inca": "7085f2ae32f112ee39585968546cc675f56069f7c624835a33f3b00ad83da183",
+            "model": "6107aedb90e97cb4074024268437d9d835b724043d9361c0e39d067d352d77df",
+            "radar": "44b3034482e5830416e884c06bae006913728aa04a29acf016bd89e4e8cd307f",
+            "rprelimd": "a9fc46e1e6b5bba29cad2c53f1f3b7c336549c9cb241a097b6fa2d5c23ae13c9"
+          },
+          "max_mm": 3,
+          "origin": {
+            "bytes": 9329,
+            "file": "alps_origin_20260925.bin.gz",
+            "sha256": "7727961729ce4178fcdfec549d1ce3fd0c239fb2bff08acc1d7f70bed523ef2d"
+          },
+          "sha256": "7711260f5bb9252082e2bb75b49b5a5a46170c38bd0110c6e072b3c33ac24e44",
+          "valid_percent": 77.7
+        },
+        {
+          "bytes": 2145,
+          "date": "2026-09-26",
+          "file": "alps_rain_20260926.bin.gz",
+          "inputs": {
+            "dpc": "81f19da7617fbe963a2cb9ff5add361e8361a1a676f05b586cc0850e2d1ce204",
+            "inca": "b926f8a08000a4643574d372490e170d8f2e0a3f9226fc4ae73dc8f05f967862",
+            "model": "6b80769dd738f016bb78e19c492e5d3bc84c3dabfa79c86c7a1ff0d24453ecd1",
+            "radar": "76bc81b95a59aa6a49b5f3de4f16372f5c0b849b9a8b1239a2d8f8a858a41cf3",
+            "rprelimd": "da38f64586d3c9074d9372f9a5a0b926ff58d3c9292347ece0adf6b4040888f7"
+          },
+          "max_mm": 1,
+          "origin": {
+            "bytes": 9329,
+            "file": "alps_origin_20260926.bin.gz",
+            "sha256": "88dee4a3a8f69216a87b9a9aa472d8405dd462f14e947c80467087b5591790b2"
+          },
+          "sha256": "c97bcd52f0fc43c2c39f0ee9fb7b874f8ec82b4835778b033ea571ad3660908e",
+          "valid_percent": 77.7
+        },
+        {
+          "bytes": 2618,
+          "date": "2026-09-27",
+          "file": "alps_rain_20260927.bin.gz",
+          "inputs": {
+            "dpc": "36f9b7575e9cda478d631721182ec2b05e842c760a596f3e558a0dd954d838d4",
+            "inca": "098929b9e97bf00d967a986334c55531c06701e97453d1b9936f0368fc1e4b4f",
+            "model": "9de85a673917ea8c8507131c9fb2594d6a8481e0492637fe8c3c49b6293a2f79",
+            "radar": "8b05f63b9d04124bf36a1b46b4d544be97fafaf29e5d738fad882515ddb59cc9",
+            "rprelimd": "a2cd9947044ad0d0933eff3995942bf744d4f4b9cb046d53acbe5e9c23388c4e"
+          },
+          "max_mm": 22,
+          "origin": {
+            "bytes": 9329,
+            "file": "alps_origin_20260927.bin.gz",
+            "sha256": "9bfe8c1e8abf0be950578bf64faab48c30e88a447981872b2875ff458f564b66"
+          },
+          "sha256": "fbb26f8a3cc00cff59cde0ac3faa727ac5b1caf8d694cf5b8900316d91a938fa",
+          "valid_percent": 77.7
+        },
+        {
+          "bytes": 2228,
+          "date": "2026-09-28",
+          "file": "alps_rain_20260928.bin.gz",
+          "inputs": {
+            "dpc": "ae53420c351c43148715bb570e8029cde7af3e34d1b0dd21567b732d5e807500",
+            "inca": "d57b211d143d403019de53f5029544eda339f553306803faa5eff484a98dea24",
+            "model": "7c13a9a285128146e1adea7b53ce979e355b595772c7a891bd164af616efb43f",
+            "radar": "8b88e936f8f4a23374db5482c13e1cbc6104830863cc60bfbf67b799b2a2b904",
+            "rprelimd": "53e0adbadf9abbaebc5fb40ada9df88afe1c4a29147c063f7007e86a608406fc"
+          },
+          "max_mm": 1,
+          "origin": {
+            "bytes": 9329,
+            "file": "alps_origin_20260928.bin.gz",
+            "sha256": "88d32b0f78c4c41b5cd591b1f162337f67c840ec40f43926c431b2965f9bfeab"
+          },
+          "sha256": "e3d107bce2617d7fcaa75ad6b41e4798e2cdb2a32b817a5a4cfb6c1be1a3b0be",
+          "valid_percent": 77.7
+        },
+        {
+          "bytes": 2557,
+          "date": "2026-09-29",
+          "file": "alps_rain_20260929.bin.gz",
+          "inputs": {
+            "dpc": "dfbe68f291368403c17a70634babc62a9e87f2840b0c3f0455a5310fbb08118b",
+            "inca": "64a66ebc880132c6f1d73fd25e8173fbda691058b404b284176f9c74dfb2e8f9",
+            "model": "60ce0257156d4278a30036928ff2a68abb34f1616625451b10441bf31923888a",
+            "radar": "26c66cae2a39d5b5cf3d189a0a0faef01eb22749d1636ccf7fc06d7a96786b03",
+            "rprelimd": "df92376c7d7f5c16c6dcfaf77570c2f096202e89b6cef7e8638f8c08cd42f101"
+          },
+          "max_mm": 4,
+          "origin": {
+            "bytes": 9333,
+            "file": "alps_origin_20260929.bin.gz",
+            "sha256": "9dc66b0c8baa25c3a93a97f220faffcbeeded2497fdde55a2deec5eb93169489"
+          },
+          "sha256": "35b8abbe47572ac9fcf1a8b18ca76cfccc85fb2bca87ffe2bcf71de4a8ded374",
+          "valid_percent": 77.7
+        },
+        {
+          "bytes": 5161,
+          "date": "2026-09-30",
+          "file": "alps_rain_20260930.bin.gz",
+          "inputs": {
+            "dpc": "fbef439ecdb39aa560816d7f4d512ab89d0fa2bcf2d731e67ac82d5b2dbb7cc9",
+            "inca": "5a060d7b76c995516c89a51648aa94305a829bdbd383d79325ad86a6970e68d7",
+            "model": "85e4e7aeae4e0828f985a23c5700de17f86d683b17cba3557f909139adcff95b",
+            "radar": "3a65a94fc8397fe715d0c037fa3ca5b1860e23f29b7c53ccb2631275d3c12fb8",
+            "rprelimd": "c1683b67641d0cf38edbc7d893eaa1535d1f74b8df111ab6685c225d4f1f9aad"
+          },
+          "max_mm": 6,
+          "origin": {
+            "bytes": 9333,
+            "file": "alps_origin_20260930.bin.gz",
+            "sha256": "4bded334068bb3d65215d66737ef9885197fed7eda7c202829c5e8df78d320fa"
+          },
+          "sha256": "85554cca1c88384b65c8527d5627f201f503c14aec3fcfd4c2864c768d2064fc",
+          "valid_percent": 77.7
+        },
+        {
+          "bytes": 30639,
+          "date": "2026-10-01",
+          "file": "alps_rain_20261001.bin.gz",
+          "inputs": {
+            "dpc": "53c0786d4514dc36c02987b974cd4db03774674f1c38e58449bcb9e98ca2923a",
+            "inca": "ddf48e93d2b5eccf0eb37a7e7bd997662668b7a216abbd7b623e55c4ac04bea4",
+            "model": "52bd4db0f27a17c836fd9ca857004b1e8df5a460d6eb461c7634db6b3729c835",
+            "radar": "b20582af9a0204e7249ca8148ffd866c856ea7f85e66b99dcb027664035420ba",
+            "rprelimd": "a54b7c2bd95f86f1d8911459355d95873c4143a4804a6651603d77e9b97f5565"
+          },
+          "max_mm": 35,
+          "origin": {
+            "bytes": 9219,
+            "file": "alps_origin_20261001.bin.gz",
+            "sha256": "be98b1d85dc09cc1db4bf26c20a3c4e7ce3b30fc77256381e8d7af614d6e0d11"
+          },
+          "sha256": "55b9ec648d7e6f107032dcd7494394497c53b9d90fe56e2fdf0caf1411b095d7",
+          "valid_percent": 77.7
+        },
+        {
+          "bytes": 11607,
+          "date": "2026-10-02",
+          "file": "alps_rain_20261002.bin.gz",
+          "inputs": {
+            "dpc": "a6479377995d741daf017af259a94864c09b836a9183d8a0a1834ededebc72e5",
+            "inca": "15266232cf91c778e8ee96c5dc6522cf4483f70b04f12a77a9821f4f451a166f",
+            "model": "da20537a4b12b36e47b4b2142a4139c17bc2e8fa8449dfb6c4785605e4b32830",
+            "radar": "24bf684bbff38f17a64f58839adf125e2e0ab322d4325bea4ea1b550f594c11e",
+            "rprelimd": "867711946a634c6d89722f337e2b5db58d9ac60885fac861c04354791bb03fd0"
+          },
+          "max_mm": 25,
+          "origin": {
+            "bytes": 9333,
+            "file": "alps_origin_20261002.bin.gz",
+            "sha256": "893cb4172c0c61dd479a67336a01119cb6043f2381119641c650d875ba14ae0b"
+          },
+          "sha256": "1574221e3330b74bef310b319512d8bc6aff6b11c338008c09298aa8468b81fb",
+          "valid_percent": 77.7
+        }
+      ],
+      "east": 17.200806,
+      "height": 576,
+      "north": 49.1,
+      "south": 45.596024,
+      "west": 5.9,
+      "width": 1258
+    },
+    "sources": {
+      "dpc": {
+        "days": [
+          {
+            "bytes": 2832,
+            "date": "2026-09-03",
+            "file": "it_rain_20260903.bin.gz",
+            "max_mm": 4,
+            "sha256": "809119bba14dd8b7c7b3e6c59fbdaf5714db2d81d277f22b3ee21501449e29e7",
+            "valid_percent": 36.0
+          },
+          {
+            "bytes": 2351,
+            "date": "2026-09-04",
+            "file": "it_rain_20260904.bin.gz",
+            "max_mm": 4,
+            "sha256": "1b6b0997d50c91bcf32d0350c21affdef7cfe2ae5b83ebc10498fba411864de2",
+            "valid_percent": 36.0
+          },
+          {
+            "bytes": 9021,
+            "date": "2026-09-05",
+            "file": "it_rain_20260905.bin.gz",
+            "max_mm": 41,
+            "sha256": "d5ddd1393bedb123765477e422997c14317ad12df785a7a8a6cec73c7c7e48c4",
+            "valid_percent": 36.0
+          },
+          {
+            "bytes": 2460,
+            "date": "2026-09-06",
+            "file": "it_rain_20260906.bin.gz",
+            "max_mm": 13,
+            "sha256": "36cf361d76dfda8de99afda622e9465dea8770b534efa06c0234c58d38118f34",
+            "valid_percent": 36.0
+          },
+          {
+            "bytes": 21530,
+            "date": "2026-09-07",
+            "file": "it_rain_20260907.bin.gz",
+            "max_mm": 56,
+            "sha256": "2d1f4940fc9105bf598a12b862b2b8d9d352d9afd9ac96b1b5a0e042f3080669",
+            "valid_percent": 36.0
+          },
+          {
+            "bytes": 20701,
+            "date": "2026-09-08",
+            "file": "it_rain_20260908.bin.gz",
+            "max_mm": 51,
+            "sha256": "a74abb2bbfc2d821cab742c362623407c69f5ef16b2348ebff57f8cc17c21e9d",
+            "valid_percent": 36.0
+          },
+          {
+            "bytes": 58147,
+            "date": "2026-09-09",
+            "file": "it_rain_20260909.bin.gz",
+            "max_mm": 121,
+            "sha256": "9aa113112498a2766db9f6eed96ba5b3cbb0ab7bbacfd9aa1fbb7a024e7be760",
+            "valid_percent": 36.0
+          },
+          {
+            "bytes": 61234,
+            "date": "2026-09-10",
+            "file": "it_rain_20260910.bin.gz",
+            "max_mm": 233,
+            "sha256": "cd453a284a4eb53302bd7f8464719efd0291141d7afb82933d481d8ca5f575c7",
+            "valid_percent": 46.9
+          },
+          {
+            "bytes": 18202,
+            "date": "2026-09-11",
+            "file": "it_rain_20260911.bin.gz",
+            "max_mm": 37,
+            "sha256": "0075b3d93ba07ebd640c329676901e209b23820e8b352fc2257e2d859a432e35",
+            "valid_percent": 42.3
+          },
+          {
+            "bytes": 2206,
+            "date": "2026-09-12",
+            "file": "it_rain_20260912.bin.gz",
+            "max_mm": 1,
+            "sha256": "36f1e773f1ff08574af7ea7b5467ccbc61e289afa83edc862daae53e45c91f67",
+            "valid_percent": 42.3
+          },
+          {
+            "bytes": 16764,
+            "date": "2026-09-13",
+            "file": "it_rain_20260913.bin.gz",
+            "max_mm": 13,
+            "sha256": "be144eccb00295be74619e279f494c04338470d3f21c0f5c4c548edcb58988d6",
+            "valid_percent": 42.3
+          },
+          {
+            "bytes": 19673,
+            "date": "2026-09-14",
+            "file": "it_rain_20260914.bin.gz",
+            "max_mm": 19,
+            "sha256": "21825af4f1c1bf1f58df28478cd7ab7b571e79d2689708efd11253d3b2bcf244",
+            "valid_percent": 42.3
+          },
+          {
+            "bytes": 2690,
+            "date": "2026-09-15",
+            "file": "it_rain_20260915.bin.gz",
+            "max_mm": 27,
+            "sha256": "f6c0c0bb6691b8a376cb302ea9aea45b10ae620fc3bd4a7c23ed3cb1a43c3619",
+            "valid_percent": 42.3
+          },
+          {
+            "bytes": 45939,
+            "date": "2026-09-16",
+            "file": "it_rain_20260916.bin.gz",
+            "max_mm": 113,
+            "sha256": "e84150437b1c9f37045dbe0cb5cc8854f6147419de3941149488a45b69d84dd4",
+            "valid_percent": 42.3
+          },
+          {
+            "bytes": 36709,
+            "date": "2026-09-17",
+            "file": "it_rain_20260917.bin.gz",
+            "max_mm": 92,
+            "sha256": "e68f95216b29c3e6bd5f9e1264dbe75aa489f86147eb4351c99bd0a6cd69f8e0",
+            "valid_percent": 42.3
+          },
+          {
+            "bytes": 27235,
+            "date": "2026-09-18",
+            "file": "it_rain_20260918.bin.gz",
+            "max_mm": 55,
+            "sha256": "f140e7b1f48261acee10cea5689fdf59567aae8ee8800fdf777310ec0a9443f4",
+            "valid_percent": 42.3
+          },
+          {
+            "bytes": 2913,
+            "date": "2026-09-19",
+            "file": "it_rain_20260919.bin.gz",
+            "max_mm": 11,
+            "sha256": "6a00d0896595b316abc9844eb34b8f688e51a6615286aebe8379b52cf46ddaba",
+            "valid_percent": 42.3
+          },
+          {
+            "bytes": 2579,
+            "date": "2026-09-20",
+            "file": "it_rain_20260920.bin.gz",
+            "max_mm": 2,
+            "sha256": "2e0ec4eea783a396f28acb5f0101c05cc8c368d283a523e1d6cb34ab89b9cbd1",
+            "valid_percent": 42.3
+          },
+          {
+            "bytes": 3163,
+            "date": "2026-09-21",
+            "file": "it_rain_20260921.bin.gz",
+            "max_mm": 17,
+            "sha256": "1fc7fcd71e547871a1e492dc15fba4a326c253e241216e91e230e18eb5260773",
+            "valid_percent": 42.3
+          },
+          {
+            "bytes": 2458,
+            "date": "2026-09-22",
+            "file": "it_rain_20260922.bin.gz",
+            "max_mm": 7,
+            "sha256": "3cdafb32909f118cab5ea994ed7c454d9375539a2482f28a7e54f8e6ded921cb",
+            "valid_percent": 42.3
+          },
+          {
+            "bytes": 2462,
+            "date": "2026-09-23",
+            "file": "it_rain_20260923.bin.gz",
+            "max_mm": 6,
+            "sha256": "66a0d59ccf9cf4c28ea3eee2e67896fb13b0e919b5c13a203a04ae001fb15f13",
+            "valid_percent": 42.3
+          },
+          {
+            "bytes": 19260,
+            "date": "2026-09-24",
+            "file": "it_rain_20260924.bin.gz",
+            "max_mm": 37,
+            "sha256": "3d40173e7ab302b961f4aa284b6069f6e771bd8c484ac2b343474683df0316af",
+            "valid_percent": 42.3
+          },
+          {
+            "bytes": 2192,
+            "date": "2026-09-25",
+            "file": "it_rain_20260925.bin.gz",
+            "max_mm": 0,
+            "sha256": "3df03f55db1c3e0ff1d7598af85161cf3cf7ca2e6eda5009de7815eb42261e32",
+            "valid_percent": 42.3
+          },
+          {
+            "bytes": 2266,
+            "date": "2026-09-26",
+            "file": "it_rain_20260926.bin.gz",
+            "max_mm": 10,
+            "sha256": "81f19da7617fbe963a2cb9ff5add361e8361a1a676f05b586cc0850e2d1ce204",
+            "valid_percent": 42.3
+          },
+          {
+            "bytes": 2724,
+            "date": "2026-09-27",
+            "file": "it_rain_20260927.bin.gz",
+            "max_mm": 22,
+            "sha256": "36f9b7575e9cda478d631721182ec2b05e842c760a596f3e558a0dd954d838d4",
+            "valid_percent": 42.3
+          },
+          {
+            "bytes": 2349,
+            "date": "2026-09-28",
+            "file": "it_rain_20260928.bin.gz",
+            "max_mm": 2,
+            "sha256": "ae53420c351c43148715bb570e8029cde7af3e34d1b0dd21567b732d5e807500",
+            "valid_percent": 42.3
+          },
+          {
+            "bytes": 2661,
+            "date": "2026-09-29",
+            "file": "it_rain_20260929.bin.gz",
+            "max_mm": 2,
+            "sha256": "dfbe68f291368403c17a70634babc62a9e87f2840b0c3f0455a5310fbb08118b",
+            "valid_percent": 42.3
+          },
+          {
+            "bytes": 4940,
+            "date": "2026-09-30",
+            "file": "it_rain_20260930.bin.gz",
+            "max_mm": 10,
+            "sha256": "fbef439ecdb39aa560816d7f4d512ab89d0fa2bcf2d731e67ac82d5b2dbb7cc9",
+            "valid_percent": 42.3
+          },
+          {
+            "bytes": 16499,
+            "date": "2026-10-01",
+            "file": "it_rain_20261001.bin.gz",
+            "max_mm": 35,
+            "sha256": "53c0786d4514dc36c02987b974cd4db03774674f1c38e58449bcb9e98ca2923a",
+            "valid_percent": 42.3
+          },
+          {
+            "bytes": 9600,
+            "date": "2026-10-02",
+            "file": "it_rain_20261002.bin.gz",
+            "max_mm": 19,
+            "sha256": "a6479377995d741daf017af259a94864c09b836a9183d8a0a1834ededebc72e5",
+            "valid_percent": 42.3
+          }
+        ],
+        "label": "Radar-DPC, Merging CUM24",
+        "licence": "CC BY-SA 4.0"
+      },
+      "inca": {
+        "days": [
+          {
+            "bytes": 20254,
+            "date": "2026-09-03",
+            "file": "at_rain_20260903.bin.gz",
+            "max_mm": 48,
+            "sha256": "81dcd99a538457d095712d895fe9c07aa6123dbe04ed499fe34e2f47bd443610",
+            "valid_percent": 73.5
+          },
+          {
+            "bytes": 5644,
+            "date": "2026-09-04",
+            "file": "at_rain_20260904.bin.gz",
+            "max_mm": 23,
+            "sha256": "e887aa5fa599ee87fadfafaa2c155aaf90cf037c10dfbc0a8918575231a6e2b2",
+            "valid_percent": 73.5
+          },
+          {
+            "bytes": 45211,
+            "date": "2026-09-05",
+            "file": "at_rain_20260905.bin.gz",
+            "max_mm": 85,
+            "sha256": "779bba4636b36821cac32b8fd447100806cc8a546aa8966fdeb384ebf4dc00a6",
+            "valid_percent": 73.5
+          },
+          {
+            "bytes": 2366,
+            "date": "2026-09-06",
+            "file": "at_rain_20260906.bin.gz",
+            "max_mm": 3,
+            "sha256": "474d0cf562fc7ab12af02cd5caf623ed6dad6358b00d836f9495b985a6eac743",
+            "valid_percent": 73.5
+          },
+          {
+            "bytes": 36868,
+            "date": "2026-09-07",
+            "file": "at_rain_20260907.bin.gz",
+            "max_mm": 51,
+            "sha256": "add169f5339c54f7607d887a5fe8f425693591041914abc38dcc4be45f375439",
+            "valid_percent": 73.5
+          },
+          {
+            "bytes": 44912,
+            "date": "2026-09-08",
+            "file": "at_rain_20260908.bin.gz",
+            "max_mm": 107,
+            "sha256": "12df6c404a0baff6c011c6b08ea6cae305d96b913c0e3e7a6349bc99c8bfbecc",
+            "valid_percent": 73.5
+          },
+          {
+            "bytes": 123698,
+            "date": "2026-09-09",
+            "file": "at_rain_20260909.bin.gz",
+            "max_mm": 145,
+            "sha256": "8207ca3b68fd72c6a1adbd009ab4fa909e751b3922f4dedbc603ad64d212302b",
+            "valid_percent": 73.5
+          },
+          {
+            "bytes": 75254,
+            "date": "2026-09-10",
+            "file": "at_rain_20260910.bin.gz",
+            "max_mm": 138,
+            "sha256": "ebe62e7da8fbcf9dc553f6cc4d35b4a43bb803d47676abca481268144f7d43aa",
+            "valid_percent": 73.5
+          },
+          {
+            "bytes": 52820,
+            "date": "2026-09-11",
+            "file": "at_rain_20260911.bin.gz",
+            "max_mm": 49,
+            "sha256": "05d6b768b99a2b0426433802bf58671c92d36ebdafa388e1645476804e9aedd7",
+            "valid_percent": 73.5
+          },
+          {
+            "bytes": 6088,
+            "date": "2026-09-12",
+            "file": "at_rain_20260912.bin.gz",
+            "max_mm": 7,
+            "sha256": "45bb161b1bde3c73a1c1afcd8472276b71908c98df02b5d836b9faad6af0d270",
+            "valid_percent": 73.5
+          },
+          {
+            "bytes": 54096,
+            "date": "2026-09-13",
+            "file": "at_rain_20260913.bin.gz",
+            "max_mm": 25,
+            "sha256": "a38246bde5ae21a28d9aec95f795d41f0b7f45404b191b8ef695dacf3026e37c",
+            "valid_percent": 73.5
+          },
+          {
+            "bytes": 68006,
+            "date": "2026-09-14",
+            "file": "at_rain_20260914.bin.gz",
+            "max_mm": 53,
+            "sha256": "0900362edbd67a04286192a749ead555e12f91dce981094774c3a437bd18759a",
+            "valid_percent": 73.5
+          },
+          {
+            "bytes": 2410,
+            "date": "2026-09-15",
+            "file": "at_rain_20260915.bin.gz",
+            "max_mm": 13,
+            "sha256": "e107cbeed499dcb002964e46ed58b395799bda23a8e5abd3fc089e8e5aa39df4",
+            "valid_percent": 73.5
+          },
+          {
+            "bytes": 79624,
+            "date": "2026-09-16",
+            "file": "at_rain_20260916.bin.gz",
+            "max_mm": 60,
+            "sha256": "638222f3e5fe450e46b151963bd6c8696d59fd99b269ac7859e32edec8bcb2dc",
+            "valid_percent": 73.5
+          },
+          {
+            "bytes": 58897,
+            "date": "2026-09-17",
+            "file": "at_rain_20260917.bin.gz",
+            "max_mm": 66,
+            "sha256": "9b8a95fa9dc847d79b401d13fb1edbff5681bf7fd039d071d21b5f6b871d5b35",
+            "valid_percent": 73.5
+          },
+          {
+            "bytes": 24021,
+            "date": "2026-09-18",
+            "file": "at_rain_20260918.bin.gz",
+            "max_mm": 25,
+            "sha256": "b6e1ab1bdadce95261dce4399f176a8e4c0d1ad74b4f90c566ba583c6f40be63",
+            "valid_percent": 73.5
+          },
+          {
+            "bytes": 5097,
+            "date": "2026-09-19",
+            "file": "at_rain_20260919.bin.gz",
+            "max_mm": 7,
+            "sha256": "78779403ea0078e2b8a81a30808c9c36a6b84177139c9a9596553a4d8e3a761b",
+            "valid_percent": 73.5
+          },
+          {
+            "bytes": 10009,
+            "date": "2026-09-20",
+            "file": "at_rain_20260920.bin.gz",
+            "max_mm": 10,
+            "sha256": "9133888a0f4f04c31d692fe90b1fe797a196ea96f85efab3ca252b2283226b75",
+            "valid_percent": 73.5
+          },
+          {
+            "bytes": 15717,
+            "date": "2026-09-21",
+            "file": "at_rain_20260921.bin.gz",
+            "max_mm": 15,
+            "sha256": "f18594e7ffcf50ff677e82e97e2d084b7917e7e4bb986d8d84ee7c7918e6066b",
+            "valid_percent": 73.5
+          },
+          {
+            "bytes": 14425,
+            "date": "2026-09-22",
+            "file": "at_rain_20260922.bin.gz",
+            "max_mm": 19,
+            "sha256": "d5d70698535df036f3943b9e5d775f0bfdc9a3f03e0ceee31b7eaf0df070e7fb",
+            "valid_percent": 73.5
+          },
+          {
+            "bytes": 2772,
+            "date": "2026-09-23",
+            "file": "at_rain_20260923.bin.gz",
+            "max_mm": 10,
+            "sha256": "fe030b92d74d9c046aca1ffad376a39639368ddd3940abb18ec0e6fa080c0389",
+            "valid_percent": 73.5
+          },
+          {
+            "bytes": 53671,
+            "date": "2026-09-24",
+            "file": "at_rain_20260924.bin.gz",
+            "max_mm": 36,
+            "sha256": "ce423d150256fb989cfc0f9260549e08b7fe512e4aa6067cc800ab9b258f5b31",
+            "valid_percent": 73.5
+          },
+          {
+            "bytes": 3046,
+            "date": "2026-09-25",
+            "file": "at_rain_20260925.bin.gz",
+            "max_mm": 3,
+            "sha256": "7085f2ae32f112ee39585968546cc675f56069f7c624835a33f3b00ad83da183",
+            "valid_percent": 73.5
+          },
+          {
+            "bytes": 2420,
+            "date": "2026-09-26",
+            "file": "at_rain_20260926.bin.gz",
+            "max_mm": 6,
+            "sha256": "b926f8a08000a4643574d372490e170d8f2e0a3f9226fc4ae73dc8f05f967862",
+            "valid_percent": 73.5
+          },
+          {
+            "bytes": 3104,
+            "date": "2026-09-27",
+            "file": "at_rain_20260927.bin.gz",
+            "max_mm": 86,
+            "sha256": "098929b9e97bf00d967a986334c55531c06701e97453d1b9936f0368fc1e4b4f",
+            "valid_percent": 73.5
+          },
+          {
+            "bytes": 4633,
+            "date": "2026-09-28",
+            "file": "at_rain_20260928.bin.gz",
+            "max_mm": 130,
+            "sha256": "d57b211d143d403019de53f5029544eda339f553306803faa5eff484a98dea24",
+            "valid_percent": 73.5
+          },
+          {
+            "bytes": 3405,
+            "date": "2026-09-29",
+            "file": "at_rain_20260929.bin.gz",
+            "max_mm": 14,
+            "sha256": "64a66ebc880132c6f1d73fd25e8173fbda691058b404b284176f9c74dfb2e8f9",
+            "valid_percent": 73.5
+          },
+          {
+            "bytes": 2564,
+            "date": "2026-09-30",
+            "file": "at_rain_20260930.bin.gz",
+            "max_mm": 6,
+            "sha256": "5a060d7b76c995516c89a51648aa94305a829bdbd383d79325ad86a6970e68d7",
+            "valid_percent": 73.5
+          },
+          {
+            "bytes": 22240,
+            "date": "2026-10-01",
+            "file": "at_rain_20261001.bin.gz",
+            "max_mm": 39,
+            "sha256": "ddf48e93d2b5eccf0eb37a7e7bd997662668b7a216abbd7b623e55c4ac04bea4",
+            "valid_percent": 73.5
+          },
+          {
+            "bytes": 27841,
+            "date": "2026-10-02",
+            "file": "at_rain_20261002.bin.gz",
+            "max_mm": 48,
+            "sha256": "15266232cf91c778e8ee96c5dc6522cf4483f70b04f12a77a9821f4f451a166f",
+            "valid_percent": 73.5
+          }
+        ],
+        "doi": "10.60669/6akt-5p05",
+        "label": "GeoSphere Austria, INCA",
+        "licence": "CC BY 4.0"
+      },
+      "rprelimd": {
+        "days": [
+          {
+            "bytes": 2858,
+            "date": "2026-09-03",
+            "file": "ch_rain_20260903.bin.gz",
+            "max_mm": 1,
+            "sha256": "7a31c5e4b7adc86e243d488730832c953d9547ba368b51f7593cdd48fc87c493",
+            "valid_percent": 18.6
+          },
+          {
+            "bytes": 2908,
+            "date": "2026-09-04",
+            "file": "ch_rain_20260904.bin.gz",
+            "max_mm": 1,
+            "sha256": "6353460e14dc322a9d93a664ea82f6557dabbb19cef340033a9ffd7a55fd8646",
+            "valid_percent": 18.6
+          },
+          {
+            "bytes": 4395,
+            "date": "2026-09-05",
+            "file": "ch_rain_20260905.bin.gz",
+            "max_mm": 8,
+            "sha256": "4db278b4d16fb22cf4360fec06e2a52b5ae93482dd9885d228055c1e4c9f66aa",
+            "valid_percent": 18.6
+          },
+          {
+            "bytes": 5038,
+            "date": "2026-09-06",
+            "file": "ch_rain_20260906.bin.gz",
+            "max_mm": 5,
+            "sha256": "882e0bb5a7fe58dbd0262807da6afcc46f3ab84d0b95e8fd6f18816c0c3600ed",
+            "valid_percent": 18.6
+          },
+          {
+            "bytes": 4771,
+            "date": "2026-09-07",
+            "file": "ch_rain_20260907.bin.gz",
+            "max_mm": 3,
+            "sha256": "fcdc53c7e36e5ed169c9719defc98c7f0822651ca3bec3d45a03444e7480177d",
+            "valid_percent": 18.6
+          },
+          {
+            "bytes": 27441,
+            "date": "2026-09-08",
+            "file": "ch_rain_20260908.bin.gz",
+            "max_mm": 47,
+            "sha256": "36852a9ca8a3c217a8b2fa2cd1ee124768abed35ef713228c33d99cb4fcd370c",
+            "valid_percent": 18.6
+          },
+          {
+            "bytes": 25175,
+            "date": "2026-09-09",
+            "file": "ch_rain_20260909.bin.gz",
+            "max_mm": 47,
+            "sha256": "6b9f71405064349cd6143f3aa5571c6f02202524fc62acd473f4189fa8742576",
+            "valid_percent": 18.6
+          },
+          {
+            "bytes": 8786,
+            "date": "2026-09-10",
+            "file": "ch_rain_20260910.bin.gz",
+            "max_mm": 23,
+            "sha256": "9cb4002bd6a6da517ace5b29ce2eac9fa0904d9b73c481ca65803ff575b77e2e",
+            "valid_percent": 18.6
+          },
+          {
+            "bytes": 3046,
+            "date": "2026-09-11",
+            "file": "ch_rain_20260911.bin.gz",
+            "max_mm": 3,
+            "sha256": "adbac494b1bd35d0c96a17d100cd3fd4d95b671fc42fd7316790b610e610a8c5",
+            "valid_percent": 18.6
+          },
+          {
+            "bytes": 2825,
+            "date": "2026-09-12",
+            "file": "ch_rain_20260912.bin.gz",
+            "max_mm": 1,
+            "sha256": "4a1b70a81511507e7db43fdf6bead1c5eb7fc67d036406c547a908f69df5b478",
+            "valid_percent": 18.6
+          },
+          {
+            "bytes": 14567,
+            "date": "2026-09-13",
+            "file": "ch_rain_20260913.bin.gz",
+            "max_mm": 26,
+            "sha256": "9a49e6bd1510020c26860caa6cfa18f1545a1bf98a71c4ca4403eba6061fc965",
+            "valid_percent": 18.6
+          },
+          {
+            "bytes": 3495,
+            "date": "2026-09-14",
+            "file": "ch_rain_20260914.bin.gz",
+            "max_mm": 3,
+            "sha256": "f36212ac7070b3ef81d71f53fe8948e1afac32ce24854daae5ea696573a2e691",
+            "valid_percent": 18.6
+          },
+          {
+            "bytes": 3730,
+            "date": "2026-09-15",
+            "file": "ch_rain_20260915.bin.gz",
+            "max_mm": 4,
+            "sha256": "b2712e0f76a939b18edf15e6d3db6bfbfcb087cd4fdff4f76c6d5c99554ea7d3",
+            "valid_percent": 18.6
+          },
+          {
+            "bytes": 23144,
+            "date": "2026-09-16",
+            "file": "ch_rain_20260916.bin.gz",
+            "max_mm": 76,
+            "sha256": "26cf2116735dc4cc53c284919c6b7a321ef3d018065c8695b65ad838f298749c",
+            "valid_percent": 18.6
+          },
+          {
+            "bytes": 4177,
+            "date": "2026-09-17",
+            "file": "ch_rain_20260917.bin.gz",
+            "max_mm": 8,
+            "sha256": "5998564f98d09571e8d38982a8062533ffab8906261857678bf344e3eb982182",
+            "valid_percent": 18.6
+          },
+          {
+            "bytes": 7129,
+            "date": "2026-09-18",
+            "file": "ch_rain_20260918.bin.gz",
+            "max_mm": 42,
+            "sha256": "e668334463f01e0df26d067e24b691c3decc087652c619f7fa08ecd306302384",
+            "valid_percent": 18.6
+          },
+          {
+            "bytes": 2795,
+            "date": "2026-09-19",
+            "file": "ch_rain_20260919.bin.gz",
+            "max_mm": 0,
+            "sha256": "11255127356b49cec63a5b3143dd06ef022d8553b3a2c861f8a9af6bead3dbcf",
+            "valid_percent": 18.6
+          },
+          {
+            "bytes": 2795,
+            "date": "2026-09-20",
+            "file": "ch_rain_20260920.bin.gz",
+            "max_mm": 0,
+            "sha256": "7111125d7e36d1740dad5ec78f31bfc6ce55f09b99eeacdfe12a6234930dc121",
+            "valid_percent": 18.6
+          },
+          {
+            "bytes": 2795,
+            "date": "2026-09-21",
+            "file": "ch_rain_20260921.bin.gz",
+            "max_mm": 0,
+            "sha256": "dffffc0ac283c50f67e8ffb133ae8fcbfac1a900dd756cf40e3587418d96de78",
+            "valid_percent": 18.6
+          },
+          {
+            "bytes": 2795,
+            "date": "2026-09-22",
+            "file": "ch_rain_20260922.bin.gz",
+            "max_mm": 0,
+            "sha256": "cdb827eae0df42860000387927f1a1de5e17d8e222b633324054145d0e05870e",
+            "valid_percent": 18.6
+          },
+          {
+            "bytes": 2817,
+            "date": "2026-09-23",
+            "file": "ch_rain_20260923.bin.gz",
+            "max_mm": 1,
+            "sha256": "96f0385c5b9884afc8636b161588d715022a3617c285a3fe9c7018a4a3f5d09f",
+            "valid_percent": 18.6
+          },
+          {
+            "bytes": 2813,
+            "date": "2026-09-24",
+            "file": "ch_rain_20260924.bin.gz",
+            "max_mm": 1,
+            "sha256": "5aeceec657eddc12b92eacda12414c1576b476dc4eb689f6a52105df323da7f2",
+            "valid_percent": 18.6
+          },
+          {
+            "bytes": 2795,
+            "date": "2026-09-25",
+            "file": "ch_rain_20260925.bin.gz",
+            "max_mm": 0,
+            "sha256": "a9fc46e1e6b5bba29cad2c53f1f3b7c336549c9cb241a097b6fa2d5c23ae13c9",
+            "valid_percent": 18.6
+          },
+          {
+            "bytes": 2795,
+            "date": "2026-09-26",
+            "file": "ch_rain_20260926.bin.gz",
+            "max_mm": 0,
+            "sha256": "da38f64586d3c9074d9372f9a5a0b926ff58d3c9292347ece0adf6b4040888f7",
+            "valid_percent": 18.6
+          },
+          {
+            "bytes": 2795,
+            "date": "2026-09-27",
+            "file": "ch_rain_20260927.bin.gz",
+            "max_mm": 0,
+            "sha256": "a2cd9947044ad0d0933eff3995942bf744d4f4b9cb046d53acbe5e9c23388c4e",
+            "valid_percent": 18.6
+          },
+          {
+            "bytes": 2795,
+            "date": "2026-09-28",
+            "file": "ch_rain_20260928.bin.gz",
+            "max_mm": 0,
+            "sha256": "53e0adbadf9abbaebc5fb40ada9df88afe1c4a29147c063f7007e86a608406fc",
+            "valid_percent": 18.6
+          },
+          {
+            "bytes": 2795,
+            "date": "2026-09-29",
+            "file": "ch_rain_20260929.bin.gz",
+            "max_mm": 0,
+            "sha256": "df92376c7d7f5c16c6dcfaf77570c2f096202e89b6cef7e8638f8c08cd42f101",
+            "valid_percent": 18.6
+          },
+          {
+            "bytes": 3602,
+            "date": "2026-09-30",
+            "file": "ch_rain_20260930.bin.gz",
+            "max_mm": 2,
+            "sha256": "c1683b67641d0cf38edbc7d893eaa1535d1f74b8df111ab6685c225d4f1f9aad",
+            "valid_percent": 18.6
+          },
+          {
+            "bytes": 23485,
+            "date": "2026-10-01",
+            "file": "ch_rain_20261001.bin.gz",
+            "max_mm": 32,
+            "sha256": "a54b7c2bd95f86f1d8911459355d95873c4143a4804a6651603d77e9b97f5565",
+            "valid_percent": 18.6
+          },
+          {
+            "bytes": 3499,
+            "date": "2026-10-02",
+            "file": "ch_rain_20261002.bin.gz",
+            "max_mm": 5,
+            "sha256": "867711946a634c6d89722f337e2b5db58d9ac60885fac861c04354791bb03fd0",
+            "valid_percent": 18.6
+          }
+        ],
+        "label": "Quelle: MeteoSchweiz, RprelimD",
+        "licence": "CC BY 4.0"
+      }
+    }
+  },
+  "daily": {
+    "coverage": "dwd__SF-Produkt_(0-24)",
+    "days": [
+      {
+        "bytes": 63223,
+        "date": "2026-09-03",
+        "file": "rain_day_20260903.bin.gz",
+        "max_mm": 28.2,
+        "sha256": "22cbb2d7dc96ade985275f591d698f5ab8b9169054139d9de0847f9d6e589b73",
+        "time": "2026-09-03T00:00:00.000Z",
+        "wet_percent": 43.8
+      },
+      {
+        "bytes": 121556,
+        "date": "2026-09-04",
+        "file": "rain_day_20260904.bin.gz",
+        "max_mm": 55.5,
+        "sha256": "f4e5dc30f465bd37eeb2dd2929d3e15b6d6b9422b76901dc3c73eff593c21258",
+        "time": "2026-09-04T00:00:00.000Z",
+        "wet_percent": 68.7
+      },
+      {
+        "bytes": 98644,
+        "date": "2026-09-05",
+        "file": "rain_day_20260905.bin.gz",
+        "max_mm": 32.3,
+        "sha256": "2efff49703ff8d543de3abd0b084f1243ebfa8d279cb8bbcde0bad4135c622a6",
+        "time": "2026-09-05T00:00:00.000Z",
+        "wet_percent": 64.3
+      },
+      {
+        "bytes": 9539,
+        "date": "2026-09-06",
+        "file": "rain_day_20260906.bin.gz",
+        "max_mm": 7.6,
+        "sha256": "94ea03f3cab07e6abf73ad32d9b7958e465278c2e75e6b3c5107cd0d7642acd1",
+        "time": "2026-09-06T00:00:00.000Z",
+        "wet_percent": 3.9
+      },
+      {
+        "bytes": 42928,
+        "date": "2026-09-07",
+        "file": "rain_day_20260907.bin.gz",
+        "max_mm": 24.6,
+        "sha256": "a3823a61deab8c980e158bd1a723c5e08ec3d93522b3d7c40f1348b633ec4ccd",
+        "time": "2026-09-07T00:00:00.000Z",
+        "wet_percent": 29.2
+      },
+      {
+        "bytes": 100623,
+        "date": "2026-09-08",
+        "file": "rain_day_20260908.bin.gz",
+        "max_mm": 38.0,
+        "sha256": "49b0e1feee77cfd71896dcb10cf878804f9f459ec58d3dbae07dc7127eda144a",
+        "time": "2026-09-08T00:00:00.000Z",
+        "wet_percent": 51.2
+      },
+      {
+        "bytes": 98535,
+        "date": "2026-09-09",
+        "file": "rain_day_20260909.bin.gz",
+        "max_mm": 39.6,
+        "sha256": "c2c6ada69e6e4b7568d01e82cebb14d50e1d775cf698317413d749df2a3bbf95",
+        "time": "2026-09-09T00:00:00.000Z",
+        "wet_percent": 59.4
+      },
+      {
+        "bytes": 11657,
+        "date": "2026-09-10",
+        "file": "rain_day_20260910.bin.gz",
+        "max_mm": 29.5,
+        "sha256": "1c14da79c4ca79ed0563c16108fa003be9e7b2a80415762687586fbc0e108216",
+        "time": "2026-09-10T00:00:00.000Z",
+        "wet_percent": 4.4
+      },
+      {
+        "bytes": 35813,
+        "date": "2026-09-11",
+        "file": "rain_day_20260911.bin.gz",
+        "max_mm": 19.9,
+        "sha256": "cececd26f5fb5b00af993a9f43f0ae6dd4a8ea7fcb1007ccb5205dcfe5e06d4c",
+        "time": "2026-09-11T00:00:00.000Z",
+        "wet_percent": 24.3
+      },
+      {
+        "bytes": 37790,
+        "date": "2026-09-12",
+        "file": "rain_day_20260912.bin.gz",
+        "max_mm": 13.3,
+        "sha256": "4ca2e59d0328cae6e1c235eef28819fd98968023bf1e17acce4cf3b9ddd51a37",
+        "time": "2026-09-12T00:00:00.000Z",
+        "wet_percent": 31.0
+      },
+      {
+        "bytes": 124859,
+        "date": "2026-09-13",
+        "file": "rain_day_20260913.bin.gz",
+        "max_mm": 36.6,
+        "sha256": "f5da0905924f04e99eeea356e764c4841306335fb2bf83901e8d9ed917899233",
+        "time": "2026-09-13T00:00:00.000Z",
+        "wet_percent": 76.1
+      },
+      {
+        "bytes": 21839,
+        "date": "2026-09-14",
+        "file": "rain_day_20260914.bin.gz",
+        "max_mm": 14.7,
+        "sha256": "eb731b723e1928c2cb27eeef980913296cff66bd9a069c52c1a78baf9f464e10",
+        "time": "2026-09-14T00:00:00.000Z",
+        "wet_percent": 11.5
+      },
+      {
+        "bytes": 34208,
+        "date": "2026-09-15",
+        "file": "rain_day_20260915.bin.gz",
+        "max_mm": 29.8,
+        "sha256": "96cd84cb67f5b1407152c279ed205eb1adde1b7454a2bb60f23db5684201a3b8",
+        "time": "2026-09-15T00:00:00.000Z",
+        "wet_percent": 14.8
+      },
+      {
+        "bytes": 159540,
+        "date": "2026-09-16",
+        "file": "rain_day_20260916.bin.gz",
+        "max_mm": 57.8,
+        "sha256": "241d9617f24888e065c1f8d2caeec7e14a65cfbc161d0c0a1da6d41656f08d02",
+        "time": "2026-09-16T00:00:00.000Z",
+        "wet_percent": 81.1
+      },
+      {
+        "bytes": 46243,
+        "date": "2026-09-17",
+        "file": "rain_day_20260917.bin.gz",
+        "max_mm": 36.8,
+        "sha256": "ab0552878486ee9d8b0872d8dd36487a320538683f717a97dc17325203309d0a",
+        "time": "2026-09-17T00:00:00.000Z",
+        "wet_percent": 30.1
+      },
+      {
+        "bytes": 26250,
+        "date": "2026-09-18",
+        "file": "rain_day_20260918.bin.gz",
+        "max_mm": 21.8,
+        "sha256": "8be707aae570adc9383d62158e26030305ec03721b54374788b9d43875fe69f8",
+        "time": "2026-09-18T00:00:00.000Z",
+        "wet_percent": 15.5
+      },
+      {
+        "bytes": 24826,
+        "date": "2026-09-19",
+        "file": "rain_day_20260919.bin.gz",
+        "max_mm": 17.5,
+        "sha256": "9d9b6a4123c1af0d4418073adb1ebe316b29a4d4182e9a9d5d7da8f74f9863f5",
+        "time": "2026-09-19T00:00:00.000Z",
+        "wet_percent": 14.8
+      },
+      {
+        "bytes": 96940,
+        "date": "2026-09-20",
+        "file": "rain_day_20260920.bin.gz",
+        "max_mm": 24.3,
+        "sha256": "93886a4cc80f9645021b34d9b7d391bc041bc1f7d9ad1bd2a65f15c4c2bdbb4b",
+        "time": "2026-09-20T00:00:00.000Z",
+        "wet_percent": 68.5
+      },
+      {
+        "bytes": 23725,
+        "date": "2026-09-21",
+        "file": "rain_day_20260921.bin.gz",
+        "max_mm": 13.2,
+        "sha256": "bd055d75b05ba321fb2bce2c9d3fe17348e4ae124ddc6864c02c372a0f6ff09e",
+        "time": "2026-09-21T00:00:00.000Z",
+        "wet_percent": 12.3
+      },
+      {
+        "bytes": 3951,
+        "date": "2026-09-22",
+        "file": "rain_day_20260922.bin.gz",
+        "max_mm": 1.9,
+        "sha256": "349124e8ad754ccd2d55d1274900e5c4a5ace72444bb4c5db163c68dc6d51701",
+        "time": "2026-09-22T00:00:00.000Z",
+        "wet_percent": 0.2
+      },
+      {
+        "bytes": 45918,
+        "date": "2026-09-23",
+        "file": "rain_day_20260923.bin.gz",
+        "max_mm": 27.9,
+        "sha256": "c3a8993ded0411634396c9220b0926899308c7411d32601cad0a1817aa189166",
+        "time": "2026-09-23T00:00:00.000Z",
+        "wet_percent": 28.1
+      },
+      {
+        "bytes": 64197,
+        "date": "2026-09-24",
+        "file": "rain_day_20260924.bin.gz",
+        "max_mm": 28.7,
+        "sha256": "554d6a9712ceefdf28d2a3ff6f4abeca5e62ad0e4c5bcb1b192673db0ad4f581",
+        "time": "2026-09-24T00:00:00.000Z",
+        "wet_percent": 39.4
+      },
+      {
+        "bytes": 4410,
+        "date": "2026-09-25",
+        "file": "rain_day_20260925.bin.gz",
+        "max_mm": 4.7,
+        "sha256": "44b3034482e5830416e884c06bae006913728aa04a29acf016bd89e4e8cd307f",
+        "time": "2026-09-25T00:00:00.000Z",
+        "wet_percent": 0.8
+      },
+      {
+        "bytes": 5187,
+        "date": "2026-09-26",
+        "file": "rain_day_20260926.bin.gz",
+        "max_mm": 18.8,
+        "sha256": "76bc81b95a59aa6a49b5f3de4f16372f5c0b849b9a8b1239a2d8f8a858a41cf3",
+        "time": "2026-09-26T00:00:00.000Z",
+        "wet_percent": 0.9
+      },
+      {
+        "bytes": 6154,
+        "date": "2026-09-27",
+        "file": "rain_day_20260927.bin.gz",
+        "max_mm": 4.2,
+        "sha256": "8b05f63b9d04124bf36a1b46b4d544be97fafaf29e5d738fad882515ddb59cc9",
+        "time": "2026-09-27T00:00:00.000Z",
+        "wet_percent": 1.8
+      },
+      {
+        "bytes": 23732,
+        "date": "2026-09-28",
+        "file": "rain_day_20260928.bin.gz",
+        "max_mm": 18.5,
+        "sha256": "8b88e936f8f4a23374db5482c13e1cbc6104830863cc60bfbf67b799b2a2b904",
+        "time": "2026-09-28T00:00:00.000Z",
+        "wet_percent": 12.4
+      },
+      {
+        "bytes": 20111,
+        "date": "2026-09-29",
+        "file": "rain_day_20260929.bin.gz",
+        "max_mm": 47.1,
+        "sha256": "26c66cae2a39d5b5cf3d189a0a0faef01eb22749d1636ccf7fc06d7a96786b03",
+        "time": "2026-09-29T00:00:00.000Z",
+        "wet_percent": 6.9
+      },
+      {
+        "bytes": 23681,
+        "date": "2026-09-30",
+        "file": "rain_day_20260930.bin.gz",
+        "max_mm": 13.0,
+        "sha256": "3a65a94fc8397fe715d0c037fa3ca5b1860e23f29b7c53ccb2631275d3c12fb8",
+        "time": "2026-09-30T00:00:00.000Z",
+        "wet_percent": 11.6
+      },
+      {
+        "bytes": 119518,
+        "date": "2026-10-01",
+        "file": "rain_day_20261001.bin.gz",
+        "max_mm": 49.5,
+        "sha256": "b20582af9a0204e7249ca8148ffd866c856ea7f85e66b99dcb027664035420ba",
+        "time": "2026-10-01T00:00:00.000Z",
+        "wet_percent": 57.9
+      },
+      {
+        "bytes": 54195,
+        "date": "2026-10-02",
+        "file": "rain_day_20261002.bin.gz",
+        "max_mm": 33.9,
+        "sha256": "24bf684bbff38f17a64f58839adf125e2e0ab322d4325bea4ea1b550f594c11e",
+        "time": "2026-10-02T00:00:00.000Z",
+        "wet_percent": 34.1
+      }
+    ],
+    "east": 16.71504,
+    "height": 940,
+    "label": "Tagessummen",
+    "north": 55.054403,
+    "south": 46.832788,
+    "west": 4.512403,
+    "width": 800
+  },
+  "layers": {
+    "sf": {
+      "bytes": 3334,
+      "coverage": "dwd__SF-Produkt",
+      "east": 15.525283,
+      "file": "rain_sf.bin.gz",
+      "height": 891,
+      "label": "24 Stunden",
+      "layer": "sf",
+      "max_mm": 1.2,
+      "measured": "2026-10-03T20:50:00.000Z",
+      "median_mm": 0.0,
+      "north": 54.902517,
+      "sha256": "9fb6a4c3171a474608bc8212e99b8f933f8f619f50361bbed517a64a3bc18728",
+      "south": 47.117919,
+      "west": 4.649682,
+      "width": 713
+    },
+    "w4": {
+      "bytes": 200107,
+      "coverage": "dwd__RADOLAN-W4",
+      "east": 15.174457,
+      "file": "rain_w4.bin.gz",
+      "height": 883,
+      "label": "30 Tage",
+      "layer": "w4",
+      "max_mm": 148.5,
+      "measured": "2026-10-03T05:50:00.000Z",
+      "median_mm": 37.7,
+      "north": 54.902517,
+      "sha256": "5d049bd0c898395142ea2ec8c4ef3c150226aa324571b8e79fe25a28b5a48a2b",
+      "south": 47.193698,
+      "west": 5.732666,
+      "width": 619
+    }
+  },
+  "model": {
+    "api": "https://api.open-meteo.com/v1/forecast",
+    "built": "2026-10-03T21:43:05+00:00",
+    "cell_m": 12000,
+    "elevation": {
+      "bytes": 5946,
+      "file": "model_elevation.bin.gz",
+      "sha256": "51833b2d8d81d0488c4f6cb384e910fd55c120a8f6997c74df56725b818ef73e"
+    },
+    "fetched": [],
+    "last_fetch": "2026-10-03T12:50:09+00:00",
+    "licence": "CC BY 4.0",
+    "mask": "Germany excluded (polyline of the southern border)",
+    "points": 3574,
+    "rain": {
+      "days": [
+        {
+          "bytes": 438,
+          "date": "2026-09-03",
+          "file": "model_rain_20260903.bin.gz",
+          "max_mm": 27,
+          "sha256": "42275d936e661c062aa84d6115f30fe764964f0217eed70872231c2ebbaab05b",
+          "wet_percent": 12.3
+        },
+        {
+          "bytes": 180,
+          "date": "2026-09-04",
+          "file": "model_rain_20260904.bin.gz",
+          "max_mm": 7,
+          "sha256": "8cf04b9268093ce306144f2b03e833ada7aeeb0f6ac1466c3276c53123dc6dbd",
+          "wet_percent": 1.3
+        },
+        {
+          "bytes": 639,
+          "date": "2026-09-05",
+          "file": "model_rain_20260905.bin.gz",
+          "max_mm": 22,
+          "sha256": "7094325f75fe285b69e51373083ff804b588bfd58ab1e1423281ed5732e3f3da",
+          "wet_percent": 27.7
+        },
+        {
+          "bytes": 109,
+          "date": "2026-09-06",
+          "file": "model_rain_20260906.bin.gz",
+          "max_mm": 0,
+          "sha256": "8e751b2c2c7a4b3ca399c56878f963611ab9fa56570479f4133ad9f0134c84fe",
+          "wet_percent": 0.0
+        },
+        {
+          "bytes": 854,
+          "date": "2026-09-07",
+          "file": "model_rain_20260907.bin.gz",
+          "max_mm": 47,
+          "sha256": "89bd326674b70de0692acffc9f04bd0d2108e7d6f88b3d07bfd0001deb20258d",
+          "wet_percent": 27.5
+        },
+        {
+          "bytes": 873,
+          "date": "2026-09-08",
+          "file": "model_rain_20260908.bin.gz",
+          "max_mm": 61,
+          "sha256": "0d98066f7196b9d8a63c41229d946de3a843081b9ff8517e937f14dc0669787f",
+          "wet_percent": 23.8
+        },
+        {
+          "bytes": 2394,
+          "date": "2026-09-09",
+          "file": "model_rain_20260909.bin.gz",
+          "max_mm": 116,
+          "sha256": "446726ebc17247a6788d194c90a0c2ab1584966837361355a992607551c0b2c3",
+          "wet_percent": 96.1
+        },
+        {
+          "bytes": 1751,
+          "date": "2026-09-10",
+          "file": "model_rain_20260910.bin.gz",
+          "max_mm": 210,
+          "sha256": "7e79d3e144bd27c6471da1fa0c1ebb6a215bd9d63e3a26e7c6bd676c006e9de5",
+          "wet_percent": 71.5
+        },
+        {
+          "bytes": 1212,
+          "date": "2026-09-11",
+          "file": "model_rain_20260911.bin.gz",
+          "max_mm": 61,
+          "sha256": "e5618cd90c8ce3a94f373a635d78635960ac24115f3574913347b56638ba3ba9",
+          "wet_percent": 52.2
+        },
+        {
+          "bytes": 190,
+          "date": "2026-09-12",
+          "file": "model_rain_20260912.bin.gz",
+          "max_mm": 9,
+          "sha256": "244ff0982d82b302d5ef98f0ff3b9ed83bcaa3274f3ed0d8c9ad435c4783b374",
+          "wet_percent": 1.1
+        },
+        {
+          "bytes": 978,
+          "date": "2026-09-13",
+          "file": "model_rain_20260913.bin.gz",
+          "max_mm": 18,
+          "sha256": "23f42c45f16a887c2564b29f3abb067bab26da58d63a196fc863fd76f4053807",
+          "wet_percent": 46.8
+        },
+        {
+          "bytes": 1291,
+          "date": "2026-09-14",
+          "file": "model_rain_20260914.bin.gz",
+          "max_mm": 23,
+          "sha256": "f65373d33fa35edbe3cfd15ffc4bd746f94c562c2a5439f4e9972d9cf7b94057",
+          "wet_percent": 52.1
+        },
+        {
+          "bytes": 109,
+          "date": "2026-09-15",
+          "file": "model_rain_20260915.bin.gz",
+          "max_mm": 0,
+          "sha256": "797d0d5d5c37f9ae5e218f7bdee997b89bad5285bd55c7ed9836b440d9297373",
+          "wet_percent": 0.0
+        },
+        {
+          "bytes": 1462,
+          "date": "2026-09-16",
+          "file": "model_rain_20260916.bin.gz",
+          "max_mm": 64,
+          "sha256": "1c5dd251c5e5abb98d7163a6d80f27fec1fe4ada322c73924ffe25fbd579cd6a",
+          "wet_percent": 53.7
+        },
+        {
+          "bytes": 1394,
+          "date": "2026-09-17",
+          "file": "model_rain_20260917.bin.gz",
+          "max_mm": 65,
+          "sha256": "57defd937a862f8e3a5619604acc0f236e1af08d906303e451b0cf255c08d197",
+          "wet_percent": 62.8
+        },
+        {
+          "bytes": 726,
+          "date": "2026-09-18",
+          "file": "model_rain_20260918.bin.gz",
+          "max_mm": 29,
+          "sha256": "2c88f7fe84685a88fbeb2f20a5f845fd4ebeb7fb058875a48fe9efd6068428e6",
+          "wet_percent": 24.3
+        },
+        {
+          "bytes": 333,
+          "date": "2026-09-19",
+          "file": "model_rain_20260919.bin.gz",
+          "max_mm": 33,
+          "sha256": "891e17ba211379bdfecfbd08dd326cbd595e8416459bbfdbdbfb636b178f6770",
+          "wet_percent": 6.5
+        },
+        {
+          "bytes": 315,
+          "date": "2026-09-20",
+          "file": "model_rain_20260920.bin.gz",
+          "max_mm": 4,
+          "sha256": "45382e4ba9c35ad0aa883e0cbf685f3dd594c5ffd48ccba8dee6b5390fd8ebca",
+          "wet_percent": 14.1
+        },
+        {
+          "bytes": 317,
+          "date": "2026-09-21",
+          "file": "model_rain_20260921.bin.gz",
+          "max_mm": 4,
+          "sha256": "76cb242243c0bbae2a83a9d12b688b6a5660c19d8067875ed4a38e5e285bc1d4",
+          "wet_percent": 8.5
+        },
+        {
+          "bytes": 316,
+          "date": "2026-09-22",
+          "file": "model_rain_20260922.bin.gz",
+          "max_mm": 4,
+          "sha256": "65fa0a14b502376bc64a35d1413d05c9d03923c6ee863581575218b85a4a058d",
+          "wet_percent": 6.3
+        },
+        {
+          "bytes": 109,
+          "date": "2026-09-23",
+          "file": "model_rain_20260923.bin.gz",
+          "max_mm": 0,
+          "sha256": "d7ffb56989ced48be96cbe8230fcd12496632d830f0eb7abcb9b30c2afca3c33",
+          "wet_percent": 0.0
+        },
+        {
+          "bytes": 1074,
+          "date": "2026-09-24",
+          "file": "model_rain_20260924.bin.gz",
+          "max_mm": 34,
+          "sha256": "39a28b208c64dba13a2869ecf2219e69f777f4bf3675caf837a63072b6eddc92",
+          "wet_percent": 51.5
+        },
+        {
+          "bytes": 109,
+          "date": "2026-09-25",
+          "file": "model_rain_20260925.bin.gz",
+          "max_mm": 0,
+          "sha256": "6107aedb90e97cb4074024268437d9d835b724043d9361c0e39d067d352d77df",
+          "wet_percent": 0.0
+        },
+        {
+          "bytes": 109,
+          "date": "2026-09-26",
+          "file": "model_rain_20260926.bin.gz",
+          "max_mm": 0,
+          "sha256": "6b80769dd738f016bb78e19c492e5d3bc84c3dabfa79c86c7a1ff0d24453ecd1",
+          "wet_percent": 0.0
+        },
+        {
+          "bytes": 109,
+          "date": "2026-09-27",
+          "file": "model_rain_20260927.bin.gz",
+          "max_mm": 0,
+          "sha256": "9de85a673917ea8c8507131c9fb2594d6a8481e0492637fe8c3c49b6293a2f79",
+          "wet_percent": 0.0
+        },
+        {
+          "bytes": 120,
+          "date": "2026-09-28",
+          "file": "model_rain_20260928.bin.gz",
+          "max_mm": 2,
+          "sha256": "7c13a9a285128146e1adea7b53ce979e355b595772c7a891bd164af616efb43f",
+          "wet_percent": 0.1
+        },
+        {
+          "bytes": 127,
+          "date": "2026-09-29",
+          "file": "model_rain_20260929.bin.gz",
+          "max_mm": 4,
+          "sha256": "60ce0257156d4278a30036928ff2a68abb34f1616625451b10441bf31923888a",
+          "wet_percent": 0.2
+        },
+        {
+          "bytes": 220,
+          "date": "2026-09-30",
+          "file": "model_rain_20260930.bin.gz",
+          "max_mm": 8,
+          "sha256": "85e4e7aeae4e0828f985a23c5700de17f86d683b17cba3557f909139adcff95b",
+          "wet_percent": 2.6
+        },
+        {
+          "bytes": 668,
+          "date": "2026-10-01",
+          "file": "model_rain_20261001.bin.gz",
+          "max_mm": 38,
+          "sha256": "52bd4db0f27a17c836fd9ca857004b1e8df5a460d6eb461c7634db6b3729c835",
+          "wet_percent": 19.8
+        },
+        {
+          "bytes": 436,
+          "date": "2026-10-02",
+          "file": "model_rain_20261002.bin.gz",
+          "max_mm": 24,
+          "sha256": "da20537a4b12b36e47b4b2142a4139c17bc2e8fa8449dfb6c4785605e4b32830",
+          "wet_percent": 9.8
+        }
+      ],
+      "east": 17.218773,
+      "height": 48,
+      "north": 49.1,
+      "south": 45.596024,
+      "west": 5.9,
+      "width": 105
+    },
+    "source": "Open-Meteo, model icon_d2",
+    "temperature": {
+      "days": [
+        {
+          "date": "2026-09-03",
+          "tmax": {
+            "bytes": 2400,
+            "file": "model_tmax_20260903.bin.gz",
+            "sha256": "af91901a11b86a103e2170d40c8a87295febec60a72eaf950c6084d7f81c64c1"
+          },
+          "tmin": {
+            "bytes": 2271,
+            "file": "model_tmin_20260903.bin.gz",
+            "sha256": "af77b7c2b9dffc8aea3fe4a234292b7a0aef5a1255016e7115d87e10cfca0567"
+          }
+        },
+        {
+          "date": "2026-09-04",
+          "tmax": {
+            "bytes": 2377,
+            "file": "model_tmax_20260904.bin.gz",
+            "sha256": "2daf63ff909526c0d547124efc7397782cedb11cc9036d7d934475eaacc8a965"
+          },
+          "tmin": {
+            "bytes": 2235,
+            "file": "model_tmin_20260904.bin.gz",
+            "sha256": "4018839a57eb4c0c5b58583d0632c81022b5e2ba6a8b00ea39842ad5e493e00f"
+          }
+        },
+        {
+          "date": "2026-09-05",
+          "tmax": {
+            "bytes": 2390,
+            "file": "model_tmax_20260905.bin.gz",
+            "sha256": "f75fd79089df77155c18b594f06bf3ef4bd082d447a255c99ca53674177481a3"
+          },
+          "tmin": {
+            "bytes": 2292,
+            "file": "model_tmin_20260905.bin.gz",
+            "sha256": "d29ff4f754c357d9f98f71d8ff9f6560171c738dfbb1de95b0b738021508f150"
+          }
+        },
+        {
+          "date": "2026-09-06",
+          "tmax": {
+            "bytes": 2373,
+            "file": "model_tmax_20260906.bin.gz",
+            "sha256": "f826835c3cd9c33d4fab9dba4b7e93d7cd55937f06328669fd33be2e165caf52"
+          },
+          "tmin": {
+            "bytes": 2272,
+            "file": "model_tmin_20260906.bin.gz",
+            "sha256": "9452c9bbd94569bf6a879ba240f7d878ab77fa58a854770e53fbd6f6808709b7"
+          }
+        },
+        {
+          "date": "2026-09-07",
+          "tmax": {
+            "bytes": 2377,
+            "file": "model_tmax_20260907.bin.gz",
+            "sha256": "fb48c15367434b2c3261fa45fea9958ed07b705a9b87068914e2c310190405f3"
+          },
+          "tmin": {
+            "bytes": 2309,
+            "file": "model_tmin_20260907.bin.gz",
+            "sha256": "13ed908239f11e13e590931fea80263d7f53e3176a1752e8955f5ac8d5bd74bc"
+          }
+        },
+        {
+          "date": "2026-09-08",
+          "tmax": {
+            "bytes": 2399,
+            "file": "model_tmax_20260908.bin.gz",
+            "sha256": "2b8b7c861727755c9be0adc4e33a553d87525f360c90bbfd2ca80105050ea78d"
+          },
+          "tmin": {
+            "bytes": 2331,
+            "file": "model_tmin_20260908.bin.gz",
+            "sha256": "ff1081f84bdc0bea182129fe7bc84968e1d36d6f118c273f3013036a1da352a3"
+          }
+        },
+        {
+          "date": "2026-09-09",
+          "tmax": {
+            "bytes": 2330,
+            "file": "model_tmax_20260909.bin.gz",
+            "sha256": "28b7df386ab049070ab1b5cddb5540f78d1030459c6dfff15d3deda89797a452"
+          },
+          "tmin": {
+            "bytes": 2331,
+            "file": "model_tmin_20260909.bin.gz",
+            "sha256": "ee6f58877bb477e4b38da10e45c4c39a20beeb23cce82d319f1e3db99608a775"
+          }
+        },
+        {
+          "date": "2026-09-10",
+          "tmax": {
+            "bytes": 2307,
+            "file": "model_tmax_20260910.bin.gz",
+            "sha256": "232bdcd650bb906cc7283248b7fadefebc164d007c944abf383f9bad19400cea"
+          },
+          "tmin": {
+            "bytes": 2239,
+            "file": "model_tmin_20260910.bin.gz",
+            "sha256": "b5bb3c328eec5ee7969a4c68d2ea26740a7483026d270ba8482610ec18ea99d3"
+          }
+        },
+        {
+          "date": "2026-09-11",
+          "tmax": {
+            "bytes": 2348,
+            "file": "model_tmax_20260911.bin.gz",
+            "sha256": "228f89996fbdaf8ebf2c5f51ad93302792c364d160c33628b08ea39069799a41"
+          },
+          "tmin": {
+            "bytes": 2246,
+            "file": "model_tmin_20260911.bin.gz",
+            "sha256": "331ab5935945fce9246aaf9a9214e9136ef46f01ea748634114d301803498761"
+          }
+        },
+        {
+          "date": "2026-09-12",
+          "tmax": {
+            "bytes": 2368,
+            "file": "model_tmax_20260912.bin.gz",
+            "sha256": "e38456b9e36fec4e18d962ce9e0389cf205c758a49fedb90d632a2b80f47d064"
+          },
+          "tmin": {
+            "bytes": 2275,
+            "file": "model_tmin_20260912.bin.gz",
+            "sha256": "e1472ec29ee2314c8eab3b0594a5cb833c942c6693b9a10ae8c9fab49676f8f3"
+          }
+        },
+        {
+          "date": "2026-09-13",
+          "tmax": {
+            "bytes": 2353,
+            "file": "model_tmax_20260913.bin.gz",
+            "sha256": "b650bc3344bd00e37ef53c838e30b36ba408c115cedad96e0af27a4f9a904688"
+          },
+          "tmin": {
+            "bytes": 2266,
+            "file": "model_tmin_20260913.bin.gz",
+            "sha256": "a224a10cbc471004dc14f1d94e14e7579d84d125d18d333f7c7d7b13f9fdd9e5"
+          }
+        },
+        {
+          "date": "2026-09-14",
+          "tmax": {
+            "bytes": 2414,
+            "file": "model_tmax_20260914.bin.gz",
+            "sha256": "d0938d4f2b522ab881767d03b03b6638561dc07a96eb1ef359b4b8d119fdcd94"
+          },
+          "tmin": {
+            "bytes": 2258,
+            "file": "model_tmin_20260914.bin.gz",
+            "sha256": "e74b7dbac36b2582bac8a36548094ad8a4e664e7d9c59e51b4ba38e9ede17716"
+          }
+        },
+        {
+          "date": "2026-09-15",
+          "tmax": {
+            "bytes": 2335,
+            "file": "model_tmax_20260915.bin.gz",
+            "sha256": "7175d49e71bacfa0ce12bac28ec93efa29604d07c2c4cf07219398553ad2d448"
+          },
+          "tmin": {
+            "bytes": 2252,
+            "file": "model_tmin_20260915.bin.gz",
+            "sha256": "610342adc43ed21b4478fc4f6dd8fb3ddfa684718a539dd7f928ff4cfb489fa5"
+          }
+        },
+        {
+          "date": "2026-09-16",
+          "tmax": {
+            "bytes": 2361,
+            "file": "model_tmax_20260916.bin.gz",
+            "sha256": "4b62527d78bf807a7eb10c19ed10fa8366ccca52d17654e97555cafe38c8e4c3"
+          },
+          "tmin": {
+            "bytes": 2338,
+            "file": "model_tmin_20260916.bin.gz",
+            "sha256": "cd1c2052c50cd7aae31944c2f327fc8920757500706352c6273d6ee7b5437843"
+          }
+        },
+        {
+          "date": "2026-09-17",
+          "tmax": {
+            "bytes": 2339,
+            "file": "model_tmax_20260917.bin.gz",
+            "sha256": "a4400a8f1cfc9bbb421206bcc6345f98a71d682c1cebb7d06224faffb46d6ffe"
+          },
+          "tmin": {
+            "bytes": 2302,
+            "file": "model_tmin_20260917.bin.gz",
+            "sha256": "26feb769da57ed78ee96021b6416f46628e52ffe5e847a5378d098a8f168a98d"
+          }
+        },
+        {
+          "date": "2026-09-18",
+          "tmax": {
+            "bytes": 2343,
+            "file": "model_tmax_20260918.bin.gz",
+            "sha256": "60676bd05d90162055abb42a78b76545e324905a07e493884386a86903fcd745"
+          },
+          "tmin": {
+            "bytes": 2296,
+            "file": "model_tmin_20260918.bin.gz",
+            "sha256": "9a4c3d4b1e05307168cbaa100d09ec8779dab1155807bb96059aa0b02e3af0ee"
+          }
+        },
+        {
+          "date": "2026-09-19",
+          "tmax": {
+            "bytes": 2346,
+            "file": "model_tmax_20260919.bin.gz",
+            "sha256": "5194bdc8791f101e883489dc232673eb502c26c9f9b782db906f3ca4534f7289"
+          },
+          "tmin": {
+            "bytes": 2286,
+            "file": "model_tmin_20260919.bin.gz",
+            "sha256": "3cfab466e378a5214ef76bce605b07fef9891b486c6be0f45b85aefdb1dbf151"
+          }
+        },
+        {
+          "date": "2026-09-20",
+          "tmax": {
+            "bytes": 2333,
+            "file": "model_tmax_20260920.bin.gz",
+            "sha256": "b937c3f7f7a0f4f2d1c11d5e00c9ea18379f7dd2c2ce53f5d884acc74361df45"
+          },
+          "tmin": {
+            "bytes": 2292,
+            "file": "model_tmin_20260920.bin.gz",
+            "sha256": "85cc408133a6d9d1d5c6f9be95f1b8ba01827318a4bc3481fda22ff40db20cc9"
+          }
+        },
+        {
+          "date": "2026-09-21",
+          "tmax": {
+            "bytes": 2348,
+            "file": "model_tmax_20260921.bin.gz",
+            "sha256": "3ba7c1fb33f7743abffc4ffa3a1bee4118f85cb9332c10222033cb02eced0cbb"
+          },
+          "tmin": {
+            "bytes": 2302,
+            "file": "model_tmin_20260921.bin.gz",
+            "sha256": "fd539c6d70644dbec84dbda61b7e940d4d70ddf57b5d1761db77f7596f085906"
+          }
+        },
+        {
+          "date": "2026-09-22",
+          "tmax": {
+            "bytes": 2376,
+            "file": "model_tmax_20260922.bin.gz",
+            "sha256": "a480eecbc664578246441f838e64a7885ebb333332410eaf65d7c360c3b50f8b"
+          },
+          "tmin": {
+            "bytes": 2280,
+            "file": "model_tmin_20260922.bin.gz",
+            "sha256": "2ed1219c08e24c6a06930b72884c0585f17fadca94bceee1fc837955ea7765c2"
+          }
+        },
+        {
+          "date": "2026-09-23",
+          "tmax": {
+            "bytes": 2314,
+            "file": "model_tmax_20260923.bin.gz",
+            "sha256": "3dbd8f2cc00158f6ad7e86cfb53225d13c8ec42542936ba34710ed9d37991d93"
+          },
+          "tmin": {
+            "bytes": 2287,
+            "file": "model_tmin_20260923.bin.gz",
+            "sha256": "9ab8cc33fd669c3ed2b0bc13251f35646aaddac56d0f4a8a3cc5301fa9fcdf5a"
+          }
+        },
+        {
+          "date": "2026-09-24",
+          "tmax": {
+            "bytes": 2355,
+            "file": "model_tmax_20260924.bin.gz",
+            "sha256": "bec8e59fd7cf55604c627664b583b9776f60c8c5a514126b30e2ccd04a22b761"
+          },
+          "tmin": {
+            "bytes": 2319,
+            "file": "model_tmin_20260924.bin.gz",
+            "sha256": "d0ed6cc95701870d80c41638ad9371b936152f3c79234bb5bb40e704548798fb"
+          }
+        },
+        {
+          "date": "2026-09-25",
+          "tmax": {
+            "bytes": 2321,
+            "file": "model_tmax_20260925.bin.gz",
+            "sha256": "8514c10a027e266f3199141d94387411464bc1db300ce604a2ffab4bc8a80e27"
+          },
+          "tmin": {
+            "bytes": 2256,
+            "file": "model_tmin_20260925.bin.gz",
+            "sha256": "e81e69bcc502f0318be4cf7a5e35e0d171ac1d360d3650e4c01d246dfbd1bf27"
+          }
+        },
+        {
+          "date": "2026-09-26",
+          "tmax": {
+            "bytes": 2297,
+            "file": "model_tmax_20260926.bin.gz",
+            "sha256": "1db736850c8ce7f620f5a7cb459f37e058d754ebeac1ed5c0ba0bc8668e87b10"
+          },
+          "tmin": {
+            "bytes": 2286,
+            "file": "model_tmin_20260926.bin.gz",
+            "sha256": "6bdf258a7bebe512b80a244c57b285082caffae26119fcbdfb82a17fa0d629f2"
+          }
+        },
+        {
+          "date": "2026-09-27",
+          "tmax": {
+            "bytes": 2312,
+            "file": "model_tmax_20260927.bin.gz",
+            "sha256": "2ba797bc400bd6280f29e6dd466fce3927e01508981ee0b18db18869611b2dd6"
+          },
+          "tmin": {
+            "bytes": 2317,
+            "file": "model_tmin_20260927.bin.gz",
+            "sha256": "7f062633e09edcd196cf448bd4b6be414ae0220df40b0261df29189444f50e6d"
+          }
+        },
+        {
+          "date": "2026-09-28",
+          "tmax": {
+            "bytes": 2303,
+            "file": "model_tmax_20260928.bin.gz",
+            "sha256": "2175071fa9a71610924e96b5ffb0e61a8e188328820e23a76cb9832d4aed9c74"
+          },
+          "tmin": {
+            "bytes": 2301,
+            "file": "model_tmin_20260928.bin.gz",
+            "sha256": "5f0a1a24bee92a23b7112750565ff4fb409336a46e45a0f73914adc0d7b027d2"
+          }
+        },
+        {
+          "date": "2026-09-29",
+          "tmax": {
+            "bytes": 2334,
+            "file": "model_tmax_20260929.bin.gz",
+            "sha256": "1e2467d45d33e6fa3430fa82c15c69c6ed9959897587c39cb2ae202dda4a353f"
+          },
+          "tmin": {
+            "bytes": 2358,
+            "file": "model_tmin_20260929.bin.gz",
+            "sha256": "1fd1b1246cfeea1d30beaeda241344817448aa80411ec711e6a298400e7ee94f"
+          }
+        },
+        {
+          "date": "2026-09-30",
+          "tmax": {
+            "bytes": 2369,
+            "file": "model_tmax_20260930.bin.gz",
+            "sha256": "15e42042d620a29f26b72fed53e216d3226aaee78137795df36b97009fc3fecf"
+          },
+          "tmin": {
+            "bytes": 2393,
+            "file": "model_tmin_20260930.bin.gz",
+            "sha256": "ab617c7a9cf1238b2f7113b30c4c2a8eb98f424e597b5628d45061290eab5aa1"
+          }
+        },
+        {
+          "date": "2026-10-01",
+          "tmax": {
+            "bytes": 2362,
+            "file": "model_tmax_20261001.bin.gz",
+            "sha256": "4c1288e5e6a80ca6e776eceab1e60c2246668cffbafba51ceb2d08649fe031b2"
+          },
+          "tmin": {
+            "bytes": 2371,
+            "file": "model_tmin_20261001.bin.gz",
+            "sha256": "47c932823c804fd343c10f2bc1c8a5934f9154ee906e0272840938240d9922e7"
+          }
+        },
+        {
+          "date": "2026-10-02",
+          "tmax": {
+            "bytes": 2331,
+            "file": "model_tmax_20261002.bin.gz",
+            "sha256": "0440cee91432e943896fe8b1049b5ab1a1e292253953aa384a8fe72edfc03e07"
+          },
+          "tmin": {
+            "bytes": 2350,
+            "file": "model_tmin_20261002.bin.gz",
+            "sha256": "5a33505e0cc6910dbb62980c8a236407fb3eb3ba3651ff991321632eff947284"
+          }
+        }
+      ],
+      "east": 17.218773,
+      "height": 48,
+      "north": 49.1,
+      "south": 45.596024,
+      "west": 5.9,
+      "width": 105
+    }
+  },
+  "weather": {
+    "bytes": 331482,
+    "days": [
+      "2026-09-05",
+      "2026-09-06",
+      "2026-09-07",
+      "2026-09-08",
+      "2026-09-09",
+      "2026-09-10",
+      "2026-09-11",
+      "2026-09-12",
+      "2026-09-13",
+      "2026-09-14",
+      "2026-09-15",
+      "2026-09-16",
+      "2026-09-17",
+      "2026-09-18",
+      "2026-09-19",
+      "2026-09-20",
+      "2026-09-21",
+      "2026-09-22",
+      "2026-09-23",
+      "2026-09-24",
+      "2026-09-25",
+      "2026-09-26",
+      "2026-09-27",
+      "2026-09-28",
+      "2026-09-29",
+      "2026-09-30",
+      "2026-10-01",
+      "2026-10-02"
+    ],
+    "file": "weather_stations.json.gz",
+    "model_points": 3574,
+    "moisture": 483,
+    "moisture_days": [
+      "2026-09-07",
+      "2026-09-08",
+      "2026-09-09",
+      "2026-09-10",
+      "2026-09-11",
+      "2026-09-12",
+      "2026-09-13",
+      "2026-09-14",
+      "2026-09-15",
+      "2026-09-16",
+      "2026-09-17",
+      "2026-09-18",
+      "2026-09-19",
+      "2026-09-20",
+      "2026-09-21",
+      "2026-09-22",
+      "2026-09-23",
+      "2026-09-24",
+      "2026-09-25",
+      "2026-09-26",
+      "2026-09-27",
+      "2026-09-28",
+      "2026-09-29",
+      "2026-09-30",
+      "2026-10-01",
+      "2026-10-02"
+    ],
+    "skipped": 137,
+    "soil": 293,
+    "stations": 464
+  }
+}
