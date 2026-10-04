@@ -225,6 +225,7 @@ const kBekannteArten = <KnownSpecies>[
   KnownSpecies('Ziegelroter Risspilz', _son, sci: 'Inosperma erubescens'),
   KnownSpecies('Grünling', _son, sci: 'Tricholoma equestre'),
   KnownSpecies('Violetter Lacktrichterling', _son, sci: 'Laccaria amethystina'), // via In-App-Wunsch
+  KnownSpecies('Gelbporiger raufuß', _son), // via In-App-Wunsch
 ];
 
 /// Findet eine bekannte Pilzart in einem Freitext (z. B. dem Punktnamen
