@@ -87,6 +87,7 @@ jobs:
           python3 tool/feedback_bot.py --test-insert "Violetter Lacktrichterling" > /dev/null
           python3 tool/symbolize_anr.py --self-test > /dev/null
           python3 tool/session_status.py --self-test > /dev/null
+          python3 tool/context_nudge.py --self-test > /dev/null
           python3 tool/rain_grid.py --self-test > /dev/null
           python3 tool/spot_weather.py --self-test > /dev/null
           python3 tool/model_weather.py --self-test > /dev/null

@@ -89,3 +89,8 @@ in den Plan schreiben („fertig, wenn …"), nicht abfragen.
    `.github/pull_request_template.md`, Checkliste ehrlich abhaken, im Text
    nennen, welche Gegenprobe gefahren wurde. `Closes #N` in den PR-Body
    (nur der Body verknüpft — `github-flow` §2). Gemergt wird vom Menschen.
+8. **Schnitt anbieten:** Ist die Aufgabe mit dem PR erledigt, die Antwort
+   mit einem Satz schließen: „Guter Moment für `/rename <thema>` und
+   `/clear`." Was danach noch zählt (Merge abwarten, Nacharbeit), gehört
+   vorher ins Memory oder ins Issue — nicht in den Verlauf, der gleich
+   verschwindet. Abschnitt „Compact instructions" in der Root-`CLAUDE.md`.

@@ -378,3 +378,21 @@ in dem der Code liegt — nicht wieder hierher.
   stehen), `onTapOnly`, `textOnly`. Zwei Punkte sind aus dem Code NICHT
   belegbar und stehen dort als offen: der Supabase-Serverstandort
   (Dashboard) und die Impressumsfrage.
+
+## Compact instructions
+
+Kontext und Sitzungen (2026-10-06). `/compact` und `/clear` kann nur der
+Betreiber auslösen; `tool/context_nudge.py` sagt ihm, wann es sich lohnt
+(Kontext ab 200k je 100k-Stufe, nach über 60 min Pause, nach
+`gh pr create`). Der Agent wiederholt den Rat am Ende einer Antwort, wenn
+die Aufgabe damit abgeschlossen ist. Faustregel: **Aufgabe fertig →
+`/rename`, dann `/clear`** (kostet nichts; Ordner-CLAUDE.md und Lagebild
+bringen den Kontext neu mit). **Gleiche Aufgabe, Kontext zu groß →
+`/compact`** (liest selbst den ganzen Verlauf, ist also nicht gratis).
+
+Beim Zusammenfassen BEHALTEN: Issue- und PR-Nummern, Branch, jede
+Entscheidung und Vorgabe des Betreibers im Wortlaut, offene Punkte und
+Zusagen („melde mich, wenn …"), geänderte Dateien, welche Tests und
+Gegenproben gelaufen sind und mit welchem Ergebnis, Messwerte.
+WEGLASSEN: Dateiinhalte und Tool-Ausgaben, die sich neu lesen lassen,
+verworfene Suchwege, Inhalte der Ordner-CLAUDE.md (laden neu).
