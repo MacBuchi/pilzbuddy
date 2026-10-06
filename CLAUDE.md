@@ -102,7 +102,7 @@ ausgenommen.
     nackte URL schreiben, ein Test wacht darüber.
 - Version Guard in CI: Code-Änderung ohne Versions-Bump blockiert den Merge
   (Pflicht-Check schlägt fehl); nur `*.md` (außer `CHANGELOG.md`, siehe
-  oben), `.github/`, `store/`, `tool/`, `.codex/`
+  oben), `.github/`, `store/`, `tool/`, `.codex/`, `.claude/`
   und `supabase/` sind ausgenommen — nichts davon landet je in einem Binary
   (Store-Grafiken stecken in keiner Asset-Liste, siehe `store/README.md`;
   die Skripte in `tool/` laufen nur in CI; SQL und Stack-Config aus
@@ -222,6 +222,7 @@ in dem der Code liegt — nicht wieder hierher.
 | `lib/features/spots/CLAUDE.md` | Reiter „Spots“ (#509) · Vormerkung (#499) · Fundfotos, Kudos, Feedback-Bilder (#532, #525) · Fundstellen weit vom Spot (#475) · Spot an Navi-App übergeben (#367) |
 | `lib/features/inat/CLAUDE.md` | Melden an iNaturalist/GBIF (#553) |
 | `lib/features/friends/CLAUDE.md` | Nachrichten zwischen Buddys (#564) · Aliase für Buddys (#567) |
+| `test/CLAUDE.md` | Gegenprobe und ihre drei Lügen · Widget-Test-Fallen (Bildschirmgröße, echte Hülle, pumpApp-Neustart, Plattform-Kanäle, TabBarView) · analysis_options.yaml |
 | `tool/CLAUDE.md` | Erzeugte Assets (#226) · Baumarten-Gitter DLR/ForestPaths/WSL (#227, #624) · Release-Anhänge nicht im Browser, rain-data-mirror (#365) · Modellgitter Alpenraum (#612) · Gemessener Alpenstapel (#646) · Regen-Wertegitter (DWD WCS) |
 
 ## Code-Konventionen
@@ -377,3 +378,21 @@ in dem der Code liegt — nicht wieder hierher.
   stehen), `onTapOnly`, `textOnly`. Zwei Punkte sind aus dem Code NICHT
   belegbar und stehen dort als offen: der Supabase-Serverstandort
   (Dashboard) und die Impressumsfrage.
+
+## Compact instructions
+
+Kontext und Sitzungen (2026-10-06). `/compact` und `/clear` kann nur der
+Betreiber auslösen; `tool/context_nudge.py` sagt ihm, wann es sich lohnt
+(Kontext ab 200k je 100k-Stufe, nach über 60 min Pause, nach
+`gh pr create`). Der Agent wiederholt den Rat am Ende einer Antwort, wenn
+die Aufgabe damit abgeschlossen ist. Faustregel: **Aufgabe fertig →
+`/rename`, dann `/clear`** (kostet nichts; Ordner-CLAUDE.md und Lagebild
+bringen den Kontext neu mit). **Gleiche Aufgabe, Kontext zu groß →
+`/compact`** (liest selbst den ganzen Verlauf, ist also nicht gratis).
+
+Beim Zusammenfassen BEHALTEN: Issue- und PR-Nummern, Branch, jede
+Entscheidung und Vorgabe des Betreibers im Wortlaut, offene Punkte und
+Zusagen („melde mich, wenn …"), geänderte Dateien, welche Tests und
+Gegenproben gelaufen sind und mit welchem Ergebnis, Messwerte.
+WEGLASSEN: Dateiinhalte und Tool-Ausgaben, die sich neu lesen lassen,
+verworfene Suchwege, Inhalte der Ordner-CLAUDE.md (laden neu).

@@ -86,6 +86,8 @@ jobs:
           python3 tool/highlights_preview.py --self-test > /dev/null
           python3 tool/feedback_bot.py --test-insert "Violetter Lacktrichterling" > /dev/null
           python3 tool/symbolize_anr.py --self-test > /dev/null
+          python3 tool/session_status.py --self-test > /dev/null
+          python3 tool/context_nudge.py --self-test > /dev/null
           python3 tool/rain_grid.py --self-test > /dev/null
           python3 tool/spot_weather.py --self-test > /dev/null
           python3 tool/model_weather.py --self-test > /dev/null
@@ -395,7 +397,7 @@ jobs:
             fi
             changed=$(
               {
-                git diff --name-only "$range" -- . ':!*.md' ':!.github' ':!store' ':!tool' ':!supabase' ':!.codex' || true
+                git diff --name-only "$range" -- . ':!*.md' ':!.github' ':!store' ':!tool' ':!supabase' ':!.codex' ':!.claude' || true
                 git diff --name-only "$range" -- CHANGELOG.md || true
               } | grep -v '^$' || true
             )
