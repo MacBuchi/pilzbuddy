@@ -41,6 +41,13 @@ jobs:
             echo "::error::AGENTS.md muss ein Symlink auf CLAUDE.md sein (ln -sf CLAUDE.md AGENTS.md)"
             exit 1
           }
+      # Die Technik-Notizen liegen je Ordner in einer eigenen CLAUDE.md;
+      # der Index in der Root-Datei ist der Weg dorthin (für Codex der
+      # einzige). Prüft Index ⇔ Dateien und die Größe der Root-Datei.
+      - name: Agenten-Regeln vollständig verteilt
+        run: |
+          python3 tool/agent_docs.py --self-test
+          python3 tool/agent_docs.py
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
