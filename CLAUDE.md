@@ -102,7 +102,7 @@ ausgenommen.
     nackte URL schreiben, ein Test wacht darüber.
 - Version Guard in CI: Code-Änderung ohne Versions-Bump blockiert den Merge
   (Pflicht-Check schlägt fehl); nur `*.md` (außer `CHANGELOG.md`, siehe
-  oben), `.github/`, `store/`, `tool/`, `.codex/`
+  oben), `.github/`, `store/`, `tool/`, `.codex/`, `.claude/`
   und `supabase/` sind ausgenommen — nichts davon landet je in einem Binary
   (Store-Grafiken stecken in keiner Asset-Liste, siehe `store/README.md`;
   die Skripte in `tool/` laufen nur in CI; SQL und Stack-Config aus
@@ -222,6 +222,7 @@ in dem der Code liegt — nicht wieder hierher.
 | `lib/features/spots/CLAUDE.md` | Reiter „Spots“ (#509) · Vormerkung (#499) · Fundfotos, Kudos, Feedback-Bilder (#532, #525) · Fundstellen weit vom Spot (#475) · Spot an Navi-App übergeben (#367) |
 | `lib/features/inat/CLAUDE.md` | Melden an iNaturalist/GBIF (#553) |
 | `lib/features/friends/CLAUDE.md` | Nachrichten zwischen Buddys (#564) · Aliase für Buddys (#567) |
+| `test/CLAUDE.md` | Gegenprobe und ihre drei Lügen · Widget-Test-Fallen (Bildschirmgröße, echte Hülle, pumpApp-Neustart, Plattform-Kanäle, TabBarView) · analysis_options.yaml |
 | `tool/CLAUDE.md` | Erzeugte Assets (#226) · Baumarten-Gitter DLR/ForestPaths/WSL (#227, #624) · Release-Anhänge nicht im Browser, rain-data-mirror (#365) · Modellgitter Alpenraum (#612) · Gemessener Alpenstapel (#646) · Regen-Wertegitter (DWD WCS) |
 
 ## Code-Konventionen
