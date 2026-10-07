@@ -38,7 +38,8 @@ in den Plan schreiben („fertig, wenn …"), nicht abfragen.
 2. **Issue lesen, mit allen Kommentaren:** `gh issue view N --comments`.
    Entscheidungen des Betreibers stehen oft im TEXT des Issues und gelten
    vor einem späteren Plan-Kommentar (so bei #553). Verlinkte Issues und
-   PRs kurz mitlesen.
+   PRs kurz mitlesen. Im Fahrplan #673 nachsehen, an welcher Stelle es
+   steht und was davor kommt.
 3. **Branch frisch von `origin/main`:**
    `git fetch origin && git switch -c feat/<thema> origin/main`
    (`fix/`, `chore/` …). Nie vom lokalen `main` und nie von einem Branch,
@@ -89,6 +90,8 @@ in den Plan schreiben („fertig, wenn …"), nicht abfragen.
    `.github/pull_request_template.md`, Checkliste ehrlich abhaken, im Text
    nennen, welche Gegenprobe gefahren wurde. `Closes #N` in den PR-Body
    (nur der Body verknüpft — `github-flow` §2). Gemergt wird vom Menschen.
+   Im Fahrplan #673 den Punkt abhaken und PR-Nummer samt Version
+   dahinterschreiben (direkt im Issue, ohne PR).
 8. **Schnitt anbieten:** Ist die Aufgabe mit dem PR erledigt, die Antwort
    mit einem Satz schließen: „Guter Moment für `/rename <thema>` und
    `/clear`." Was danach noch zählt (Merge abwarten, Nacharbeit), gehört

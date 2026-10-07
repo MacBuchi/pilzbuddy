@@ -40,6 +40,14 @@ ausgenommen.
 - Sprache: Auf GitHub wird Englisch gesprochen — Commit-Messages, PR-Titel und
   -Beschreibungen, Issues und Kommentare auf Englisch. Deutsch bleibt für
   UI-Strings, Nutzer-Doku (README) und die Kommunikation mit dem Betreiber.
+- **Der Fahrplan ist #673** (Betreiber, 2026-10-07, Muster TrailBuddy
+  #156): Reihenfolge, Stand und Einordnung neuer Issues werden dort direkt
+  gepflegt, ohne PR; jedes eingeplante Issue hängt als Sub-Issue daran,
+  jeder PR hakt seinen Punkt ab. Neue Issues sortiert die Issue-Triage
+  selbst ein — Claude NENNT nur den Abschnitt (unsichtbare Marke im
+  Kommentar), `tool/roadmap_sort.py` schreibt die eine Zeile und prüft,
+  dass sonst nichts geändert ist; Einzelheiten in `.github/CLAUDE.md`.
+  Umsortieren, Zusammenlegen und Streichen bleibt beim Betreiber.
 - **Zwei Release-Kanäle, ein Branch** (#262, seit 1.77.0): Ein
   Versions-Bump in `pubspec.yaml` auf `main` (beide Teile erhöhen, z. B.
   `1.0.1+2`) taggt weiterhin `v<version>` und baut die signierte APK —

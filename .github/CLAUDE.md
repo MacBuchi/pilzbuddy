@@ -64,6 +64,31 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
   Claude GitHub App (github.com/apps/claude). Bot-Issues werden per workflow_dispatch triagiert
   (GITHUB_TOKEN-Events triggern keine Folge-Workflows). Temporär aus:
   `gh workflow disable "Claude Issue Triage"`.
+  **Danach sortiert derselbe Lauf das Issue in den Fahrplan #673 ein**
+  (Schritt „Sort into the roadmap", seit 2026-10-07). Vier Dinge, die man
+  wissen muss:
+  - **Claude schreibt den Fahrplan NICHT.** Es hängt an seinen Kommentar
+    `<!-- roadmap: Stage 2 | summary -->`; eine feste Python-Zeile
+    (`tool/roadmap_sort.py`) fügt daraus genau EINE Zeile ans Ende des
+    Abschnitts und prüft per Diff, dass sonst nichts anders ist. Grund:
+    Claude hat den Issue-Text im Kontext, und der kommt aus dem
+    In-App-Formular. Dürfte es den Fahrplan bearbeiten, könnte ein
+    Issue-Text ihn umschreiben lassen — so ist der schlimmste Fall eine
+    falsch einsortierte Zeile.
+  - **Im Zweifel die Inbox.** Ohne Marke (Triage gescheitert, Secret
+    fehlt), mit unbekanntem Abschnitt oder mit einer Marke von einem
+    Menschen landet das Issue unter `### Inbox`, beschriftet mit seinem
+    Titel. Der Schritt läuft mit `if: always()` — ein neues Issue geht
+    nie ungeplant verloren. Steht `#N` schon im Fahrplan, passiert nichts.
+  - **Die Nummer steht dreimal**: `ROADMAP_ISSUE` im Workflow, das
+    `if:` des Jobs (dort gibt es kein `env`) und `CLAUDE.md`. Der
+    Selbsttest von `roadmap_sort.py` hält alle drei zusammen; ein neuer
+    Fahrplan heißt alle drei umstellen.
+  - **Kein Schutz gegen gleichzeitige Schreiber.** Der Fahrplan wird
+    unmittelbar vor dem Schreiben frisch geholt, das Fenster ist eine
+    Sekunde. Zwei Issues im selben Augenblick oder eine Handbearbeitung
+    genau dann können eine Änderung verlieren — die Bearbeitungshistorie
+    des Issues hat sie.
 
 - Feedback-Bot (`.github/workflows/feedback.yml` + `tool/feedback_bot.py`,
   Cron alle 2 h): macht aus In-App-Feedback GitHub-Issues (Features) bzw.
