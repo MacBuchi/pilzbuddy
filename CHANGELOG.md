@@ -7,6 +7,20 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Herbsttrompete & Co. nur noch in Deutschland
+
+*7. Oktober 2026 · Version 1.222.7*
+
+- Das Pilzwetter für **Herbsttrompete & Co.** ist nur an Funden in
+  Deutschland geprüft. Nahe der Grenze rechnete es trotzdem mit einer
+  deutschen Messstelle für die Bodenfeuchte, die bis zu 100 km entfernt
+  stehen durfte — in den Vogesen etwa mit einer Station jenseits des
+  Rheintals.
+- Jetzt muss diese Messstelle höchstens **30 km** entfernt sein. In
+  Deutschland ändert sich damit fast nichts; weiter im Ausland bleibt
+  die Gruppe grau und sagt warum. **Austernseitling & Co.** rechnet wie
+  bisher, diese Gruppe ist auch in Österreich und der Schweiz geprüft.
+
 ## Pilzwetter widerspricht sich nicht mehr beim Regen
 
 *7. Oktober 2026 · Version 1.222.6*

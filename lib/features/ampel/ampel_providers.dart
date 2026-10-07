@@ -239,6 +239,14 @@ AmpelReading ampelReadingFrom(
           'keine Bodenfeuchte-Station in Reichweite (100 km)',
           classSpecific: true);
     }
+    // Enger als die 100 km der Tabelle, wo die Klasse es verlangt
+    // (#665): Herbsttrompete & Co. ist nur für Deutschland belegt.
+    if (pick.km > logit.maxMoistureKm) {
+      return AmpelReading.grau(
+          'nur für Deutschland geprüft (keine Bodenfeuchte-Station '
+          'näher als ${logit.maxMoistureKm.round()} km)',
+          classSpecific: true);
+    }
     moistureMean = ampelMoistureMean(pick.station.bfgl);
     if (moistureMean == null) {
       return const AmpelReading.grau(

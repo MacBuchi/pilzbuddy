@@ -195,8 +195,12 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
     unverändert; nur `AirStation.model` und der Satz im Blatt („kein
     Messwert") kommen dazu. Nebengewinn: Österreich und die Schweiz haben
     damit einen Punkt in wenigen Kilometern statt einer deutschen
-    Station in 100 km. Holz & Winter bleibt außerhalb Deutschlands grau
-    — keine Bodenfeuchte, klassenspezifisch wie bisher.
+    Station in 100 km. Die Logit-Klassen brauchen dazu die Bodenfeuchte,
+    und die gibt es nur von DWD-Stationen: Im Landesinneren von AT/CH
+    bleiben sie grau, an der Grenze rechnen sie mit einer deutschen
+    Station — Austernseitling & Co. bis 100 km (so auch gemessen),
+    Herbsttrompete & Co. nur bis 30 km (#665). Eine Feuchte fürs
+    Ausland ist #676.
   - **Die Tagesdateien SIND der Zustand.** Rain, tmax, tmin (0,5-°C-
     Schritte) je Tag plus `model_elevation.bin.gz` liegen im Release
     `rain-data` wie die Radar-Tage; jeder Lauf holt nur fehlende Tage,

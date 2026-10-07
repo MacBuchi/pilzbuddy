@@ -94,6 +94,7 @@ class AmpelLogit {
     required this.moisture,
     required this.moistureTemp,
     required this.milder,
+    this.maxMoistureKm = double.infinity,
   });
 
   final double rain;
@@ -102,6 +103,16 @@ class AmpelLogit {
   final double moisture;
   final double moistureTemp;
   final double milder;
+
+  /// Wie weit die Bodenfeuchtestation höchstens weg sein darf (#665).
+  /// Unendlich heißt: Es gilt die Reichweite der Tabelle
+  /// (`WeatherTable.maxStationKm`, 100 km). Enger nur für eine Klasse,
+  /// die NUR für Deutschland belegt ist: Alle Feuchtestationen stehen
+  /// in Deutschland, ein enger Radius hält die Klasse also im Land,
+  /// ohne dass die App eine Landesgrenze kennt. Eine ganze Zahl, weil
+  /// die Fläche den Abstand auf volle Kilometer aufrundet speichert —
+  /// so fallen Blatt und Fläche an derselben Stelle.
+  final double maxMoistureKm;
 
   /// Braucht diese Klasse die Minima-Reihe? Eine Konstante 0 heißt: Das
   /// Merkmal ist nicht Teil des Modells, und die Reihe darf fehlen.
@@ -304,11 +315,22 @@ const ampelHolzWinterClass = (
 /// (Cantharellales; der Pfifferling gehört botanisch dazu, in den Daten
 /// aber zu sich selbst). Auf den DE-Testblöcken angenommen (+0,417
 /// [+0,131, +0,769]), **reist aber nicht** nach AT/CH (+0,047 [−0,058,
-/// +0,129]) — dort liegt die nächste Bodenfeuchtestation ohnehin jenseits
-/// der 100 km, die Klasse bleibt dort grau. Nur für Deutschland belegt;
-/// aufgenommen, weil die App vor allem dort läuft (Betreiber 2026-09-20).
-/// Die Herbsttrompete ist dafür aus „Steinpilz & Co." ausgezogen, wo sie
-/// gegen dieses Logit gesichert verlor.
+/// +0,129]). Nur für Deutschland belegt; aufgenommen, weil die App vor
+/// allem dort läuft (Betreiber 2026-09-20). Die Herbsttrompete ist dafür
+/// aus „Steinpilz & Co." ausgezogen, wo sie gegen dieses Logit gesichert
+/// verlor.
+///
+/// **Deshalb 30 km statt 100 km bis zur Feuchtestation** (#665,
+/// Betreiber 2026-10-07). Die 100 km der Tabelle hielten die Klasse nur
+/// im Landesinneren von AT/CH grau; an der Grenze griff sie über den
+/// Rhein (Vogesen → Müllheim, 65 km). Gemessen am 2026-10-07 gegen die
+/// 482 Stationen der DWD-Liste auf einem Raster über Deutschland:
+/// Median 11,9 km, P99 27,3 km, weitester Punkt 48 km (Grafschaft
+/// Bentheim) — mit 30 km bleiben 0,43 % der Fläche Deutschlands grau.
+/// Jenseits der Grenze rechnet ein Streifen weiter (Straßburg 20 km,
+/// Basel 14, Salzburg 10, Bregenz 9, Innsbruck 25 km); Colmar (36) und
+/// die Vogesen (70) sind grau. Die echte Antwort ist eine Feuchte, die
+/// es auch im Ausland gibt (#676).
 const ampelCantharellalesClass = (
   name: 'Herbsttrompete & Co.',
   optimumC: null,
@@ -323,6 +345,7 @@ const ampelCantharellalesClass = (
     // Kein „milder": für diese Klasse nie gemessen (Labor 24 galt den
     // acht Holz- und Winterarten). Null heißt: keine Minima nötig.
     milder: 0.0,
+    maxMoistureKm: 30,
   ),
 );
 
@@ -414,6 +437,7 @@ String? ampelClassKeyOf(AmpelClass klass) {
   required double meanC,
   required List<AmpelClass> classes,
   double? moistureMean,
+  double? moistureKm,
   double? milder,
 }) {
   var best = (
@@ -425,6 +449,7 @@ String? ampelClassKeyOf(AmpelClass klass) {
         rainFactor: rainFactor,
         meanC: meanC,
         moistureMean: moistureMean,
+        moistureKm: moistureKm,
         milder: milder);
     // Eine Logit-Klasse ohne Bodenfeuchte (oder ohne die Minima, die
     // ihr „milder" braucht) sagt nichts — sie zählt hier nicht mit,
@@ -441,11 +466,15 @@ String? ampelClassKeyOf(AmpelClass klass) {
 /// Der Score EINER Klasse aus fertigen Zutaten — Glocke oder Logit.
 /// `null`, wenn eine Logit-Klasse ohne Bodenfeuchte gefragt wird — oder
 /// ohne [milder], wo ihr Logit es braucht ([AmpelLogit.needsMilder]).
+/// Ebenso, wenn die Feuchtestation weiter weg ist als
+/// [AmpelLogit.maxMoistureKm] — [moistureKm] ist ihr Abstand; `null`
+/// heißt unbekannt und prüft nichts (Tests, die nur die Formel meinen).
 double? ampelScoreFor(
   AmpelClass klass, {
   required double rainFactor,
   required double meanC,
   double? moistureMean,
+  double? moistureKm,
   double? milder,
 }) {
   final logit = klass.logit;
@@ -453,6 +482,7 @@ double? ampelScoreFor(
     return rainFactor * ampelBellOfMean(meanC, optimumC: klass.optimumC!);
   }
   if (moistureMean == null) return null;
+  if (moistureKm != null && moistureKm > logit.maxMoistureKm) return null;
   return logit.score(
       rainFactor: rainFactor,
       meanC: meanC,

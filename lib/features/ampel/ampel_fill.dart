@@ -308,6 +308,7 @@ AmpelLevelGrid? ampelLevelsFrom(RainStackData stack, WeatherTable? table) {
   final cellValid = Uint8List(width * height);
   final cellMoisture = Float32List(width * height);
   final cellMoistureValid = Uint8List(width * height);
+  final cellMoistureKm = Uint8List(width * height);
   final cellMilder = Float32List(width * height);
   final cellMilderValid = Uint8List(width * height);
   final cellLon = Float64List(width);
@@ -365,6 +366,10 @@ AmpelLevelGrid? ampelLevelsFrom(RainStackData stack, WeatherTable? table) {
             moistureAnswers[bestMoisture] == 1) {
           cellMoisture[i] = moistureMean[bestMoisture];
           cellMoistureValid[i] = 1;
+          // Aufgerundet auf volle km (≤ 100, passt in ein Byte): Gegen
+          // eine ganzzahlige Grenze fällt die Zelle damit genau dort,
+          // wo das Blatt mit dem echten Abstand fällt.
+          cellMoistureKm[i] = bestMoistureKm.ceil();
         }
       }
     }
@@ -376,6 +381,7 @@ AmpelLevelGrid? ampelLevelsFrom(RainStackData stack, WeatherTable? table) {
     valid: cellValid,
     moistureMean: cellMoisture,
     moistureValid: cellMoistureValid,
+    moistureKm: cellMoistureKm,
     milder: cellMilder,
     milderValid: cellMilderValid,
     width: width,
@@ -398,6 +404,7 @@ class AmpelLevelGrid {
     required this.valid,
     this.moistureMean,
     this.moistureValid,
+    this.moistureKm,
     this.milder,
     this.milderValid,
     required this.width,
@@ -428,6 +435,11 @@ class AmpelLevelGrid {
   /// `null` in Gittern ohne Feuchtenetz (ältere Tabellen, Tests).
   final Float32List? moistureMean;
   final Uint8List? moistureValid;
+
+  /// Der Abstand zu dieser Feuchtestation, aufgerundet auf volle km —
+  /// für die Klassen mit engerem Radius ([AmpelLogit.maxMoistureKm],
+  /// #665). `null` heißt unbekannt und prüft nichts.
+  final Uint8List? moistureKm;
 
   /// „Milder" der nächsten Luftstation je Zelle (°C, [ampelMilderOf])
   /// und ob es eins gibt — die vierte Zutat der Klasse Holz & Winter
@@ -525,6 +537,7 @@ class AmpelLevelGrid {
             meanC: mean,
             classes: classes,
             moistureMean: moisture,
+            moistureKm: moisture == null ? null : moistureKm?[i].toDouble(),
             milder: milderK)
         .level;
   }

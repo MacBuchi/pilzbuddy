@@ -251,6 +251,56 @@ void main() {
         reason: 'keine Temperatur, keine Aussage — kein geratener Wert');
   });
 
+  test(
+      'Herbsttrompete & Co. braucht die Feuchtestation in 30 km, '
+      'Austernseitling & Co. reicht 100 km — Fläche wie Blatt (#665)', () {
+    // Die Station steht über Zelle 0 (10,5° O); Zelle 1 (11,5° O) liegt
+    // ≈ 70 km weg — innerhalb der 100 km der Tabelle, jenseits der 30 km
+    // der Klasse, die nur für Deutschland belegt ist. Fünf Millimeter am
+    // Tag, damit beide Klassen dort überhaupt eine Stufe hätten.
+    final stack = stackOf([
+      List.filled(26, 5),
+      List.filled(26, 5),
+      List.filled(26, 5),
+    ]);
+    final table = tableOf(lat: 51, lon: 10.5);
+    final grid = ampelLevelsFrom(stack, table)!;
+    AmpelLevel? cell(int x, AmpelClass klass) =>
+        grid.levelFor(0, x, classes: [klass]);
+
+    expect(cell(1, ampelHolzWinterClass), isNotNull,
+        reason: 'Vorbedingung: in 70 km rechnet die Klasse, die reist');
+    expect(cell(1, ampelCantharellalesClass), isNull,
+        reason: '70 km sind mehr als die 30 km der Klasse');
+    expect(cell(0, ampelCantharellalesClass), isNotNull,
+        reason: 'an der Station rechnet sie — die Grenze schneidet, '
+            'nicht die Klasse');
+
+    // Das Blatt am selben Punkt sagt dasselbe, mit Grund.
+    RainCourse courseAt(double lat, double lon) => rainCourseFrom(
+          stack.days,
+          width: stack.info.width,
+          height: stack.info.height,
+          west: stack.info.west,
+          east: stack.info.east,
+          north: stack.info.north,
+          south: stack.info.south,
+          lat: lat,
+          lon: lon,
+        );
+    final far = ampelReadingFrom(courseAt(51, 11.5), table.at(51, 11.5),
+        klass: ampelCantharellalesClass);
+    expect(far.isGrau, isTrue);
+    expect(far.reason, contains('nur für Deutschland geprüft'));
+    expect(far.classSpecific, isTrue,
+        reason: 'die anderen Klassen rechnen dort weiter');
+    expect(
+        ampelReadingFrom(courseAt(51, 11.5), table.at(51, 11.5),
+                klass: ampelHolzWinterClass)
+            .isGrau,
+        isFalse);
+  });
+
   test('ganz ohne Stationstabelle gibt es keine Ebene', () {
     expect(ampelLevelsFrom(stackOf([List.filled(26, 5)]), null), isNull);
   });
