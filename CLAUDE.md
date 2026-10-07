@@ -48,6 +48,11 @@ ausgenommen.
   Kommentar), `tool/roadmap_sort.py` schreibt die eine Zeile und prüft,
   dass sonst nichts geändert ist; Einzelheiten in `.github/CLAUDE.md`.
   Umsortieren, Zusammenlegen und Streichen bleibt beim Betreiber.
+  **„Der Plan“, „Fahrplan“, „weiter im Plan“ heißt #673** — auch nach
+  `/clear`, und bevor nach einer Plandatei oder dem Verlauf gesucht wird.
+  Dort den nächsten offenen Punkt nehmen (Lagebild nennt die ersten drei),
+  bei „Entscheidung nötig“ erst fragen. Ein Sitzungsplan, der länger als
+  die Sitzung gelten soll, gehört als Kommentar ins Issue des Punkts.
 - **Zwei Release-Kanäle, ein Branch** (#262, seit 1.77.0): Ein
   Versions-Bump in `pubspec.yaml` auf `main` (beide Teile erhöhen, z. B.
   `1.0.1+2`) taggt weiterhin `v<version>` und baut die signierte APK —
