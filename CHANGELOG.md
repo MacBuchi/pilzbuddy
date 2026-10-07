@@ -7,6 +7,18 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Pilzwetter widerspricht sich nicht mehr beim Regen
+
+*7. Oktober 2026 · Version 1.222.6*
+
+- Bei **Austernseitling & Co.** und **Herbsttrompete & Co.** stand
+  manchmal „günstig" und gleich darunter „Regen: zu trocken". Für diese
+  Pilze gleichen Wärme und Bodenfeuchte wenig Regen aus — beides konnte
+  also stimmen, las sich aber wie ein Widerspruch.
+- Dort steht jetzt nur noch, **wie viel** Regen fiel: „wenig", „mäßig"
+  oder „reichlich". Bei Steinpilz, Pfifferling und Co. bleibt
+  „zu trocken" — da entscheidet der Regen die Stufe wirklich.
+
 ## Karte bleibt flüssig, auch mit vielen Ebenen
 
 *2. Oktober 2026 · Version 1.222.5*

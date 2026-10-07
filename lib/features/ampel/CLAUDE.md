@@ -263,6 +263,16 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
     **Was bleibt:** „experimentell" ist ein eigenes Stück im Chip, nicht
     Teil des Textes — dort würde es als Erstes abgeschnitten. Lieber ein
     gekürzter Ortsname als ein gekürzter Vorbehalt.
+  - **Ein Urteilswort nur, wo die Zutat die Stufe entscheidet** (#663,
+    seit 1.222.6). Die Fakten-Zeile (`_components` in
+    `spots/widgets/ampel_section.dart`) sagt bei der Glocke „Regen: zu
+    trocken" und „Temperatur: zu kühl" — dort ist der Score ein PRODUKT,
+    eine schwache Zutat zieht ihn wirklich herunter. Das Logit rechnet
+    additiv; Austernseitling & Co. ist schon ab F ≈ 0,15 „günstig", und
+    „zu trocken" darunter las sich als Widerspruch. Bei Logit-Klassen
+    steht deshalb nur die Menge („wenig / mäßig / reichlich") bzw. die
+    Zahl. Ein neues Wort in der Zeile an derselben Frage messen: Kann
+    die Stufe ihm widersprechen?
   - **Das X schaltet nur für die SITZUNG stumm** (#425, seit 1.128.1) —
     vorher bis Tagesende, mit der Begründung „morgen sind es andere
     Daten und damit eine andere Aussage". Die stimmt weiter; ungeprüft
