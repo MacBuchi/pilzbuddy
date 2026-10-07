@@ -5,6 +5,12 @@ name: Claude Issue Triage
 # implementation happens exclusively via an explicit @claude approval
 # comment by the maintainer (see claude.yml).
 #
+# Afterwards the issue is sorted into the roadmap (#673, `ROADMAP_ISSUE`).
+# Claude only NAMES the section, as an invisible marker in its comment;
+# `tool/roadmap_sort.py` writes the one line and checks that nothing else
+# changed. The issue text is untrusted input, and Claude must not be the
+# one editing the roadmap with it in context.
+#
 # Note: issues created by the feedback bot (GITHUB_TOKEN) do not emit
 # workflow-triggering `issues: opened` events — the bot therefore
 # dispatches this workflow explicitly with the issue number.
@@ -26,11 +32,17 @@ concurrency:
 
 permissions:
   contents: read # read the code to localize probable causes
-  issues: write # set labels, post the triage comment
+  issues: write # set labels, post the triage comment, edit the roadmap
   id-token: write
+
+env:
+  ROADMAP_ISSUE: "673"
+  ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
 
 jobs:
   triage:
+    # The roadmap itself is neither triaged nor sorted into itself.
+    if: format('{0}', github.event.issue.number || inputs.issue_number) != '673'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -80,14 +92,73 @@ jobs:
                - Bei Bugs: wahrscheinliche Ursache mit Datei-/Zeilenangaben
                - Umsetzungsvorschlag: betroffene Dateien, geplanter Ansatz,
                  geschätzter Umfang (S/M/L), Risiken
-               - Always end with exactly this line:
+               - Then this line:
                  "Antworte mit '@claude setz das wie vorgeschlagen um' für die
                  Umsetzung, oder beschreibe Änderungswünsche."
+               - As the very LAST line, the roadmap marker from step 6.
+            6. Roadmap: read the roadmap with
+               `gh issue view ${{ env.ROADMAP_ISSUE }} --json body`. Pick the
+               `### ` section this issue fits best (a stage by topic; bugs
+               from the field usually into the first stage that collects
+               field reports). If none fits clearly, pick `Inbox`. End your
+               comment with exactly one line of this form (HTML comment,
+               invisible on GitHub):
+                 <!-- roadmap: <start of the section heading, e.g. Stage 2> | <one-line English summary, max 100 chars> | <cloud|local|operator> -->
+               The last field says where the NEXT step can be done (legend
+               at the top of the roadmap):
+               - cloud: in a Claude Code cloud session — code, docs, CI,
+                 tools with network access; verified by CI (that container
+                 has no Flutter).
+               - local: only on the operator's machine — device or adb
+                 measurement, the local GBIF database, the local Open-Meteo
+                 instance, the key folder.
+               - operator: only the operator — a decision, a dashboard or
+                 console setting, an account or registration.
+               When the first step is an open decision, it is operator.
+               Do NOT edit the roadmap yourself; a later workflow step
+               inserts the line from this marker.
 
             STRICTLY FORBIDDEN in this workflow: modifying code, creating
-            branches, commits or pull requests. Analyze, label and comment
+            branches, commits or pull requests, editing any issue other than
+            ISSUE_NUMBER. Analyze, label and comment
             only. If the issue is unclear, label needs-info and ask for the
             missing details in the comment instead of proposing a plan.
           claude_args: |
             --allowedTools "Read,Grep,Glob,Bash(gh issue view:*),Bash(gh issue edit:*),Bash(gh issue comment:*),Bash(gh label create:*),Bash(gh label list:*)"
             --max-turns 15
+      # Runs even when the triage failed: an issue without a marker lands in
+      # the inbox under its title, so nothing new goes unplanned.
+      - name: Sort into the roadmap
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$REPO/issues/$ISSUE_NUMBER" > issue.json
+          if [ "$(jq -r '.pull_request != null' issue.json)" = true ]; then
+            echo "#$ISSUE_NUMBER is a pull request, not sorted."
+            exit 0
+          fi
+          gh api --paginate "repos/$REPO/issues/$ISSUE_NUMBER/comments" \
+            | jq -s 'add // []' > comments.json
+          # Fetched right before the write: the operator may have edited it
+          # while the triage ran.
+          gh api "repos/$REPO/issues/$ROADMAP_ISSUE" --jq .body > roadmap.md
+          status=0
+          python3 tool/roadmap_sort.py sort roadmap.md issue.json \
+            comments.json "$ISSUE_NUMBER" > roadmap-new.md || status=$?
+          if [ "$status" = 0 ]; then
+            gh api -X PATCH "repos/$REPO/issues/$ROADMAP_ISSUE" \
+              -F body=@roadmap-new.md --silent
+            line=$(grep -E "^- \[ \] #$ISSUE_NUMBER( |$)" roadmap-new.md)
+            echo "Sorted into #$ROADMAP_ISSUE: $line" >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$status" != 3 ]; then
+            exit "$status"
+          fi
+          # Sub-issue link; fails harmlessly when the issue already has a
+          # parent (then it is planned elsewhere, the line still says where).
+          id=$(jq -r .id issue.json)
+          gh api -X POST "repos/$REPO/issues/$ROADMAP_ISSUE/sub_issues" \
+            -F sub_issue_id="$id" --silent \
+            || echo "::warning::#$ISSUE_NUMBER not linked as a sub-issue of #$ROADMAP_ISSUE"

@@ -40,6 +40,26 @@ ausgenommen.
 - Sprache: Auf GitHub wird Englisch gesprochen — Commit-Messages, PR-Titel und
   -Beschreibungen, Issues und Kommentare auf Englisch. Deutsch bleibt für
   UI-Strings, Nutzer-Doku (README) und die Kommunikation mit dem Betreiber.
+- **Der Fahrplan ist #673** (Betreiber, 2026-10-07, Muster TrailBuddy
+  #156): Reihenfolge, Stand und Einordnung neuer Issues werden dort direkt
+  gepflegt, ohne PR; jedes eingeplante Issue hängt als Sub-Issue daran,
+  jeder PR hakt seinen Punkt ab. Neue Issues sortiert die Issue-Triage
+  selbst ein — Claude NENNT nur den Abschnitt (unsichtbare Marke im
+  Kommentar), `tool/roadmap_sort.py` schreibt die eine Zeile und prüft,
+  dass sonst nichts geändert ist; Einzelheiten in `.github/CLAUDE.md`.
+  Umsortieren, Zusammenlegen und Streichen bleibt beim Betreiber.
+  **„Der Plan“, „Fahrplan“, „weiter im Plan“ heißt #673** — auch nach
+  `/clear`, und bevor nach einer Plandatei oder dem Verlauf gesucht wird.
+  Dort den nächsten offenen Punkt nehmen (Lagebild nennt die ersten drei),
+  bei „Entscheidung nötig“ erst fragen. **Jeder Punkt trägt ein Zeichen,
+  wo der nächste Schritt geht** (Legende im Issue): ☁️ Cloud-Sitzung
+  (Code, Doku, CI; geprüft von CI, Flutter fehlt im Container), 💻 Rechner
+  des Betreibers (Gerät, lokale GBIF-DB, lokales Open-Meteo,
+  Schlüsselordner), 👤 Betreiber (Entscheidung, Dashboard, Konto). In
+  einer Cloud-Sitzung heißt „weiter im Plan“ der erste ☁️-Punkt; das
+  Lagebild nennt ihn eigens. Ändert sich der Ort (Entscheidung gefallen,
+  Messung liegt vor), das Zeichen im Issue mitziehen. Ein Sitzungsplan, der länger als
+  die Sitzung gelten soll, gehört als Kommentar ins Issue des Punkts.
 - **Zwei Release-Kanäle, ein Branch** (#262, seit 1.77.0): Ein
   Versions-Bump in `pubspec.yaml` auf `main` (beide Teile erhöhen, z. B.
   `1.0.1+2`) taggt weiterhin `v<version>` und baut die signierte APK —

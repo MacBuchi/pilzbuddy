@@ -55,7 +55,8 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
 
 ## Play Store — offene Blocker
 
-Fahrplan und Reihenfolge: Issue #92. Stand 2026-07-26 — noch offen:
+Reihenfolge des Store-Starts: Issue #92 (im Fahrplan #673 eine eigene
+Stufe). Stand 2026-07-26 — noch offen:
 
 Im Repo steckt kein Blocker mehr, und auch die Grafiken sind fertig
 (`store/`: Icon 512×512, Feature-Grafik 1024×500, fünf Screenshots
