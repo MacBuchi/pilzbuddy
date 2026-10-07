@@ -5,10 +5,14 @@ Die Issue-Triage (`.github/workflows/claude-issue-triage.yml`) entscheidet,
 WOHIN ein neues Issue gehört, schreibt den Fahrplan aber nicht selbst: Sie
 hängt an ihren Kommentar eine unsichtbare Marke
 
-    <!-- roadmap: Stage 2 | one-line summary in English -->
+    <!-- roadmap: Stage 2 | one-line summary in English | cloud -->
 
-und dieses Skript fügt daraus genau EINE Zeile `- [ ] #N summary` am Ende
-des genannten Abschnitts ein. Der Grund für die Trennung: Die Triage liest
+und dieses Skript fügt daraus genau EINE Zeile `- [ ] #N ☁️ summary` am
+Ende des genannten Abschnitts ein. Das dritte Feld sagt, WO der nächste
+Schritt gehen kann (`WHERE`): in einer Cloud-Sitzung, nur am Rechner des
+Betreibers oder nur durch den Betreiber selbst. Fehlt es oder ist es
+unbekannt, bleibt die Zeile ohne Zeichen — „nicht eingeschätzt“ ist
+ehrlicher als ein geratenes ☁️. Der Grund für die Trennung: Die Triage liest
 Titel und Text des Issues, und die kommen aus dem In-App-Formular, also
 von irgendwem. Dürfte die KI den Fahrplan schreiben, könnte ein Issue-Text
 ihn über sie umschreiben lassen. So kann der schlimmste Fall eine falsch
@@ -43,8 +47,11 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 WORKFLOW = ROOT / ".github/workflows/claude-issue-triage.yml"
 INBOX = "Inbox"
 MAX_SUMMARY = 110
-MARKER = re.compile(r"<!--\s*roadmap:\s*([^|>]*?)\s*(?:\|\s*(.*?))?\s*-->",
-                    re.S)
+# Legende steht im Kopf von #673; dieselben drei Zeichen liest das
+# Lagebild (`tool/session_status.py`).
+WHERE = {"cloud": "☁️", "local": "💻", "operator": "👤"}
+MARKER = re.compile(r"<!--\s*roadmap:\s*([^|>]*?)\s*"
+                    r"(?:\|\s*([^|>]*?)\s*)?(?:\|\s*([^|>]*?)\s*)?-->", re.S)
 
 
 def _lines(text):
@@ -67,7 +74,7 @@ def _clean(text):
 
 
 def marker_from(comments):
-    """(Abschnitt, Zusammenfassung) aus dem jüngsten Bot-Kommentar."""
+    """(Abschnitt, Zusammenfassung, Ort) aus dem jüngsten Bot-Kommentar."""
     for comment in reversed(comments):
         user = comment.get("user") or {}
         if user.get("type") != "Bot" and not user.get(
@@ -75,9 +82,10 @@ def marker_from(comments):
             continue
         found = MARKER.findall(comment.get("body") or "")
         if found:
-            section, summary = found[-1]
-            return _clean(section), _clean(summary)
-    return None, None
+            section, summary, where = found[-1]
+            return (_clean(section), _clean(summary),
+                    WHERE.get(_clean(where).casefold()))
+    return None, None, None
 
 
 def _section_start(lines, section):
@@ -93,7 +101,7 @@ def _section_start(lines, section):
     return None
 
 
-def insert(roadmap, issue, section, summary):
+def insert(roadmap, issue, section, summary, where=None):
     """Neuer Fahrplantext, oder None mit Grund."""
     lines = _lines(roadmap)
     if re.search(r"#%d(?!\d)" % issue, roadmap):
@@ -111,7 +119,7 @@ def insert(roadmap, issue, section, summary):
     for i in range(start + 1, end):
         if lines[i].startswith("- ["):
             at = i + 1
-    line = "- [ ] #%d %s" % (issue, summary)
+    line = "- [ ] #%d %s%s" % (issue, where + " " if where else "", summary)
     new = lines[:at] + [line] + lines[at:]
     return "\n".join(new) + "\n", None
 
@@ -132,10 +140,10 @@ def check(before, after, issue):
 
 
 def sort(roadmap, issue_json, comments, number):
-    section, summary = marker_from(comments)
+    section, summary, where = marker_from(comments)
     if not summary:
         summary = _clean(issue_json.get("title")) or "(no title)"
-    new, reason = insert(roadmap, number, section or INBOX, summary)
+    new, reason = insert(roadmap, number, section or INBOX, summary, where)
     if new is None:
         return None, reason
     if not check(roadmap, new, number):
@@ -167,6 +175,15 @@ def _self_test():
     expect("stage 1, after the last item",
            "- [x] 2. #11 done\n- [ ] #99 Map shows nothing\n\n### Stage 10"
            in new)
+    new, _ = sort(road, issue, com(bot, "<!-- roadmap: Stage 1 | Fix it | "
+                                        "Cloud -->"), 99)
+    expect("where: cloud", "- [ ] #99 ☁️ Fix it\n" in new)
+    new, _ = sort(road, issue, com(bot, "<!-- roadmap: Stage 1 | Fix it | "
+                                        "operator -->"), 99)
+    expect("where: operator", "- [ ] #99 👤 Fix it\n" in new)
+    new, _ = sort(road, issue, com(bot, "<!-- roadmap: Stage 1 | Fix it | "
+                                        "moon -->"), 99)
+    expect("where: unknown leaves no sign", "- [ ] #99 Fix it\n" in new)
     new, _ = sort(road, issue, com(bot, "<!-- roadmap: stage 10 | x -->"), 99)
     expect("stage 10 is not stage 1", "#13 later\n- [ ] #99 x\n" in new)
     new, _ = sort(road, issue, com(bot, "kein Marker"), 99)

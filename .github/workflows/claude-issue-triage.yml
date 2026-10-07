@@ -103,7 +103,18 @@ jobs:
                field reports). If none fits clearly, pick `Inbox`. End your
                comment with exactly one line of this form (HTML comment,
                invisible on GitHub):
-                 <!-- roadmap: <start of the section heading, e.g. Stage 2> | <one-line English summary, max 100 chars> -->
+                 <!-- roadmap: <start of the section heading, e.g. Stage 2> | <one-line English summary, max 100 chars> | <cloud|local|operator> -->
+               The last field says where the NEXT step can be done (legend
+               at the top of the roadmap):
+               - cloud: in a Claude Code cloud session — code, docs, CI,
+                 tools with network access; verified by CI (that container
+                 has no Flutter).
+               - local: only on the operator's machine — device or adb
+                 measurement, the local GBIF database, the local Open-Meteo
+                 instance, the key folder.
+               - operator: only the operator — a decision, a dashboard or
+                 console setting, an account or registration.
+               When the first step is an open decision, it is operator.
                Do NOT edit the roadmap yourself; a later workflow step
                inserts the line from this marker.
 

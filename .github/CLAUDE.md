@@ -65,7 +65,7 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
   (GITHUB_TOKEN-Events triggern keine Folge-Workflows). Temporär aus:
   `gh workflow disable "Claude Issue Triage"`.
   **Danach sortiert derselbe Lauf das Issue in den Fahrplan #673 ein**
-  (Schritt „Sort into the roadmap", seit 2026-10-07). Vier Dinge, die man
+  (Schritt „Sort into the roadmap", seit 2026-10-07). Fünf Dinge, die man
   wissen muss:
   - **Claude schreibt den Fahrplan NICHT.** Es hängt an seinen Kommentar
     `<!-- roadmap: Stage 2 | summary -->`; eine feste Python-Zeile
@@ -75,6 +75,10 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
     In-App-Formular. Dürfte es den Fahrplan bearbeiten, könnte ein
     Issue-Text ihn umschreiben lassen — so ist der schlimmste Fall eine
     falsch einsortierte Zeile.
+  - **Das dritte Feld der Marke ist der Ort** (`cloud`/`local`/
+    `operator` → ☁️/💻/👤 hinter der Nummer, `WHERE` in
+    `roadmap_sort.py`). Fehlt es oder ist es unbekannt, bleibt die Zeile
+    ohne Zeichen — „nicht eingeschätzt“ statt eines geratenen ☁️.
   - **Im Zweifel die Inbox.** Ohne Marke (Triage gescheitert, Secret
     fehlt), mit unbekanntem Abschnitt oder mit einer Marke von einem
     Menschen landet das Issue unter `### Inbox`, beschriftet mit seinem

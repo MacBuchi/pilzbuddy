@@ -27,10 +27,11 @@ import re
 import subprocess
 import sys
 
-from roadmap_sort import ROADMAP_ISSUE
+from roadmap_sort import ROADMAP_ISSUE, WHERE
 
 NET_TIMEOUT_S = 5
 ROADMAP_NEXT = 3  # so viele offene Punkte nennt das Lagebild
+CLOUD = WHERE["cloud"]
 
 
 def run(args, timeout=NET_TIMEOUT_S):
@@ -115,6 +116,13 @@ def report(branch, fetched, behind, ahead, dirty, main_version, bumps,
             lines.append(f"  - {item[:140]}")
         if not items:
             lines.append("  - keine offenen Punkte in den Stufen")
+        cloud = [i for i in items if CLOUD in i]
+        if cloud and cloud[0] not in items[:ROADMAP_NEXT]:
+            lines.append(f"  Nächster {CLOUD}-Punkt (in einer Cloud-Sitzung "
+                         f"machbar): {cloud[0][:140]}")
+        elif not cloud and items:
+            lines.append(f"  Kein offener {CLOUD}-Punkt — alles Nächste "
+                         "braucht den Rechner oder den Betreiber")
         if inbox:
             lines.append(f"  Inbox: {inbox} Issue(s) noch nicht eingeordnet")
     return "\n".join(lines)
@@ -168,6 +176,13 @@ def self_test():
     r = report("feat/y", True, 0, 0, 0, None, None, roadmap_summary(road))
     assert "Fahrplan #673" in r and "weiter im Plan" in r, r
     assert "  - 2. #2 offen" in r and "Inbox: 1" in r and "#4" not in r, r
+    assert "Nächster" not in r and "Kein offener" in r, r
+    later = (["1. #5 💻 a", "2. #6 👤 b", "3. #7 💻 c", "4. #8 ☁️ d"], 0)
+    r = report("feat/y", True, 0, 0, 0, None, None, later)
+    assert "Nächster ☁️-Punkt (in einer Cloud-Sitzung machbar): 4. #8" in r, r
+    near = (["1. #8 ☁️ d", "2. #6 👤 b"], 0)
+    r = report("feat/y", True, 0, 0, 0, None, None, near)
+    assert "Nächster" not in r and "Kein offener" not in r, r
     r = report("feat/y", True, 0, 0, 0, None, None, None)
     assert "nicht abrufbar" in r and "issues/673" in r, r
     print("session_status self-test ok")
