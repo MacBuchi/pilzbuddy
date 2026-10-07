@@ -324,11 +324,22 @@ class AmpelSection extends ConsumerWidget {
   String _components(
       AmpelReading reading, AmpelClass klass, String? species) {
     final rain = reading.rainFactor!;
+    // **Ein Urteil nur dort, wo der Regen die Stufe entscheidet** (#663).
+    // In der Glocke ist der Score Regen × Temperatur: Unter 0,33 ist er
+    // klein, egal wie die Temperatur steht — „zu trocken" heißt dort
+    // wirklich „aus". Das Logit rechnet den Regen ADDITIV als
+    // 0,1915 · ln F; Temperatur und Bodenfeuchte gleichen ihn aus, und
+    // Austernseitling & Co. ist schon ab F ≈ 0,15 „günstig". Neben einer
+    // solchen Stufe las sich „zu trocken" als Widerspruch (Vogesen,
+    // 2026-10). Dort steht deshalb nur die MENGE, ohne „zu".
+    final logitClass = reading.tempFactor == null;
     final rainWord = rain >= 0.66
-        ? 'gut'
+        ? (logitClass ? 'reichlich' : 'gut')
         : rain >= 0.33
             ? 'mäßig'
-            : 'zu trocken';
+            : logitClass
+                ? 'wenig'
+                : 'zu trocken';
     final mean = reading.tempMeanC!;
     var meanText =
         '${mean.toStringAsFixed(1).replaceAll('.', ',')} °C';

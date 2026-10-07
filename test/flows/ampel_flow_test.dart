@@ -77,7 +77,10 @@ void main() {
   /// Tage wie die echte Tabelle seit dem 2026-09-21: Mit 20 bliebe
   /// „Austernseitling & Co." ohne ihr „milder"-Fenster grau.
   List<int> weatherBytes(
-      {int days = 28, double meanC = 13.0, bool withMoisture = false}) {
+      {int days = 28,
+      double meanC = 13.0,
+      bool withMoisture = false,
+      double moisture = 60.0}) {
     String iso(DateTime d) => '${d.year.toString().padLeft(4, '0')}-'
         '${d.month.toString().padLeft(2, '0')}-'
         '${d.day.toString().padLeft(2, '0')}';
@@ -122,7 +125,7 @@ void main() {
             'lon': 11.0,
             'h': 316,
             'name': 'Feuchtestation',
-            'bfgl': List.filled(26, 60.0),
+            'bfgl': List.filled(26, moisture),
           },
         ],
       },
@@ -162,7 +165,9 @@ void main() {
     double meanC = 13.0,
     int month = 9,
     bool withMoisture = false,
+    double moisture = 60.0,
     int weatherDays = 28,
+    int rainMm = 5,
   }) async {
     // Ein flaches Höhengitter über dem ganzen Testfenster — nur wenn
     // der Test eine Spothöhe verlangt; sonst bleibt die Basis-Naht aus
@@ -198,13 +203,15 @@ void main() {
       month: month,
       extraOverrides: [
         rainStackLoaderProvider
-            .overrideWithValue(() async => stackOf(days: stackDays)),
+            .overrideWithValue(
+                () async => stackOf(days: stackDays, mm: rainMm)),
         weatherTableLoaderProvider
             .overrideWithValue(() async =>
                 weatherBytes(
                     days: weatherDays,
                     meanC: meanC,
-                    withMoisture: withMoisture)),
+                    withMoisture: withMoisture,
+                    moisture: moisture)),
         if (elevation != null)
           elevationLoaderProvider.overrideWithValue(() async => elevation),
       ],
@@ -1008,6 +1015,43 @@ void main() {
           findsOneWidget);
       expect(find.textContaining('Bodenfeuchte: 60 % nFK'), findsOneWidget);
       expect(find.textContaining('keine Aussage'), findsNothing);
+    });
+
+    testWidgets(
+        'Logit-Klasse (#663): wenig Regen und trotzdem „günstig" — die '
+        'Zeile sagt „wenig", nicht „zu trocken"', (tester) async {
+      // Der Fall aus den Vogesen: 1 mm an 26 Tagen ⇒ F = 26/87 ≈ 0,30,
+      // unter der 0,33 der Glocke. Bei 13 °C und 28 % nFK steht das
+      // Logit trotzdem bei ≈ 0,62 > 0,558 — „günstig". Konstante Minima,
+      // „milder" trägt 0 bei.
+      await pumpWithWeather(
+          tester, loggedInWithSpot(species: 'Austernseitling'),
+          preview: true,
+          withMoisture: true,
+          moisture: 28,
+          rainMm: 1,
+          month: 12);
+      await openSpot(tester);
+      await acceptAndSettle(tester);
+      // Erst die Stufe: Ohne sie bewiese das fehlende „zu trocken"
+      // nichts über den Widerspruch.
+      expect(find.textContaining(': günstig'), findsOneWidget);
+      expect(find.textContaining('für Austernseitling'), findsOneWidget);
+      expect(find.textContaining('Regen (26 Tage): wenig'), findsOneWidget);
+      expect(find.textContaining('zu trocken'), findsNothing);
+    });
+
+    testWidgets(
+        'Glocken-Klasse (#663): dieselbe Regenmenge bleibt „zu trocken"',
+        (tester) async {
+      // Gegenstück: In der Glocke ist F ≈ 0,30 wirklich „aus" — dort
+      // bleibt das Urteil stehen.
+      await pumpWithWeather(tester, loggedInWithSpot(),
+          preview: true, rainMm: 1);
+      await openSpot(tester);
+      await acceptAndSettle(tester);
+      expect(find.textContaining('Regen (26 Tage): zu trocken'),
+          findsOneWidget);
     });
 
     testWidgets('eine ausgenommene Art fällt aus dem Spot-Blatt',
