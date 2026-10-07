@@ -165,9 +165,24 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
   gepinnt statt `icon_seamless`, das in der Box dieselben Werte lieferte,
   ohne D2-Daten aber still auf ICON-EU zurückfiele), auf einem festen
   12-km-Raster in EPSG:3857 über der Box
-  5,9–17,2° O / 45,6–49,1° N MINUS Deutschland (Polylinie der
-  Südgrenze, `DE_BORDER`; 3 574 Punkte). Sieben Dinge, die man wissen
-  muss:
+  5,9–17,2° O / 45,6–49,1° N MINUS Deutschland (Polygon
+  `DE_POLYGON`: West- und Südgrenze; 3 943 Punkte). Acht Dinge, die man
+  wissen muss:
+  - **Deutschland ist ein Polygon, keine Breite je Länge** (#664, seit
+    2026-10-07). Vorher war es nur die Südgrenze, gelesen als „nördlich
+    davon ist Deutschland“ — und sie begann mit einer Waagerechten bei
+    47,56° N westlich von Basel. Elsass, Vogesen und Südlothringen
+    hatten damit keinen Punkt; die Temperatur kam aus 55 km Entfernung
+    bei Belfort. Nebenbei falsch war ein Streifen Innviertel östlich der
+    Salzach (die Grenze läuft dort nach Westen zurück, das verträgt
+    „Breite je Länge“ nicht). Der Selbsttest prüft jetzt Orte auf BEIDEN
+    Seiten von Rhein und Salzach, und dass ein einzelner Tag ins Budget
+    passt (`active <= BUDGET_CALLS`) — sonst käme nicht einmal gestern.
+    **Neue Punkte füllen sich von selbst:** Ältere Tagesdateien tragen
+    dort 255, nachgeholt wird nichts (`missing_dates` zählt Tage, nicht
+    Punkte). Die virtuelle Station tritt nach 10 Tagen an, der
+    Modellregen trägt die Ampel nach 26 Tagen; bis dahin bleibt es dort,
+    wie es war.
   - **Die App fragt Open-Meteo nie.** CI holt feste Rasterpunkte —
     nichts über einen Nutzer —, die App lädt weiter nur vom eigenen
     Spiegel. Kein neues Netzziel, keine Änderung an Datenschutzerklärung
@@ -210,13 +225,13 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
     Historical-Forecast-API mit festen Daten, der jüngste Block über
     `past_days`. Beide liefern die archivierten ersten Stunden derselben
     Modellläufe.
-    **Ein Lauf holt genau EIN Fenster** (3 574 Punkte fressen das Budget
+    **Ein Lauf holt genau EIN Fenster** (3 943 Punkte fressen das Budget
     schon mit einem Tag), und im täglichen Lauf ist das immer gestern.
     Eine ältere Lücke kam deshalb nie dran: Vom 2026-09-26 bis 30 stand
     der Stapel bei 12 von 28 Tagen, und die Ampel war außerhalb
     Deutschlands grau (26 Regentage nötig). Seither läuft `model` ein
     zweites Mal am Tag (`41 18`), findet gestern schon vor und holt die
-    jüngsten acht Tage der Lücke; ohne Lücke fragt er nichts. Zwei
+    jüngsten sieben Tage der Lücke (bis #664 acht); ohne Lücke fragt er nichts. Zwei
     holende Läufe müssen eine Stunde auseinander liegen (5 000/h) —
     `MIN_FETCH_GAP` über `last_fetch` im Manifest, weil der Cron von
     GitHub Stunden zu spät kommen kann. Der Selbsttest rechnet den
