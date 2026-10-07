@@ -30,7 +30,7 @@ on:
     # fits both.
     - cron: "23 7 * * *"
     # The Alpine model grid a second time (#612). One run fetches ONE
-    # window (~3 600 points eat the 4 500 budget), and in the run above
+    # window (~3 900 points eat the 4 500 budget), and in the run above
     # that window is always yesterday — an older gap never got a turn,
     # and the stack sat at 12 of 28 days (2026-09-26…30), the Ampel grey
     # outside Germany. This run finds yesterday done and spends its

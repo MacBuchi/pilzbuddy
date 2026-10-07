@@ -29,7 +29,8 @@ Instrument; das Radar in der App ist die Abweichung davon.
   `temperature_2m_max`, `temperature_2m_min`. Free-Tier, nicht
   kommerziell, CC BY 4.0. Lizenzseite der App nennt es.
 - **Raster:** EPSG:3857, 12 km, Box 5,9–17,2° O / 45,6–49,1° N minus
-  Deutschland (Polylinie der Südgrenze). 105 × 48 Zellen, 3 574 Punkte.
+  Deutschland (Polygon `DE_POLYGON`). 105 × 48 Zellen, 3 943 Punkte
+  (bis #664: 3 574 — die Südgrenze allein ließ Elsass und Vogesen aus).
   Derselbe Mercator-Aufbau wie der Radar-Stapel — `RainGrid.mmAt` liest
   beide.
 - **Zustand = Tagesdateien im Release `rain-data`:** `model_rain_*`,

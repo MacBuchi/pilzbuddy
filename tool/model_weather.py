@@ -22,11 +22,11 @@ our own release mirror; no new network target, no coordinate leaves a
 device (the rule that put the grids on the device in the first place).
 
 THE LATTICE. A regular grid in EPSG:3857, 12 km cells, over the box
-5.9–17.2 E / 45.6–49.1 N, MINUS Germany (an approximate polyline of the
-German southern border, see `DE_BORDER`). Mercator, because the app's
+5.9–17.2 E / 45.6–49.1 N, MINUS Germany (an approximate polygon, see
+`DE_POLYGON`). Mercator, because the app's
 `RainGrid.mmAt` maps rows in Mercator — the model grid is read by the
 very same Dart code as the radar grid, nothing new to get wrong. About
-3 000 points. A point on the wrong side of the polyline simply gets the
+3 900 points. A point on the wrong side of the border simply gets the
 other instrument; both are honest.
 
 THE QUOTA. Open-Meteo's free tier (non-commercial, CC BY 4.0): 600
@@ -37,15 +37,15 @@ first, within a budget (`BUDGET_CALLS`). Day files are the state: they
 live in the release like the RADOLAN days, and a run that finds nothing
 missing fetches nothing.
 
-ONE REQUEST PER RUN, AND WHAT THAT MEANS. With ~3 600 points a window of
-up to eight days already costs ~3 600–4 100 of the 4 500 — a run fetches
+ONE REQUEST PER RUN, AND WHAT THAT MEANS. With ~3 900 points a window of
+up to seven days already costs ~3 900 of the 4 500 — a run fetches
 exactly ONE window. In the daily run that window is always yesterday
 (one day, full price), so an older gap never fits behind it: from
 2026-09-26 to 2026-09-30 the stack stood at 12 of 28 days, grew by one a
 day, and the Ampel (26 rain days, `ampel_fill.dart`) stayed grey in
 Austria and South Tyrol. The workflow therefore runs `model` a second
 time a day (`rain-data.yml`); with yesterday already there, that run
-spends its window on the newest eight days of the gap. Two fetching
+spends its window on the newest seven days of the gap. Two fetching
 runs must be an hour apart (5 000 an hour), and GitHub's cron can be
 hours late, so `build` skips fetching while the last fetch is younger
 than `MIN_FETCH_GAP` — the next run catches up, a 429 storm would fail
@@ -104,18 +104,36 @@ VARIABLES = ("precipitation_sum", "temperature_2m_max", "temperature_2m_min")
 BOX = (5.9, 45.6, 17.2, 49.1)
 CELL_M = 12_000
 
-# The German southern border as a polyline (lon, lat), west to east.
-# Points NORTH of it and west of its last vertex are Germany and get no
-# model value — there the DWD radar and stations are the instrument.
-# Approximate on purpose: Basel, Lake Constance, Lindau, Füssen,
-# Garmisch, Kufstein, Salzburg, Braunau, Passau, Bavarian Forest.
+# Germany inside the box, as a polygon (lon, lat). Points INSIDE it get
+# no model value — there the DWD radar and stations are the instrument.
+# Approximate on purpose (12 km cells), three parts:
+#   - the western border, north to south: the Lauter from Sarreguemines
+#     to Lauterbourg, then the Rhine down to Basel;
+#   - the southern border (`DE_BORDER`): Basel, Lake Constance, Lindau,
+#     Füssen, Garmisch, Kufstein, Salzburg, Braunau, Passau, Bavarian
+#     Forest;
+#   - a closure north of the box.
+# Until #664 this was the southern border alone, read as "the latitude
+# at this longitude", starting with a straight line west of Basel — so
+# everything north of 47.56° N from the box edge to the Rhine counted as
+# Germany: Alsace, the Vosges and southern Lorraine had no model points,
+# and their temperature came from a point 55 km south near Belfort.
+# East of the last vertex (13.84° E) is Austria and Czechia, as before.
+DE_WEST = [
+    (7.05, 49.12), (7.18, 49.12), (7.38, 49.13), (7.56, 49.10),
+    (7.94, 49.04), (8.23, 48.97), (8.11, 48.82), (7.92, 48.69),
+    (7.80, 48.57), (7.70, 48.32), (7.58, 48.03), (7.53, 47.81),
+    (7.50, 47.69), (7.59, 47.59),
+]
 DE_BORDER = [
-    (5.9, 47.56), (7.59, 47.56), (9.2, 47.66), (9.69, 47.54), (9.9, 47.56),
+    (7.59, 47.56), (9.2, 47.66), (9.69, 47.54), (9.9, 47.56),
     (10.0, 47.53), (10.35, 47.30), (10.6, 47.57), (11.1, 47.42),
     (11.4, 47.42), (11.7, 47.58), (12.2, 47.62), (12.8, 47.68),
-    (13.0, 47.83), (12.93, 48.0), (12.75, 48.12), (13.0, 48.26),
+    (13.0, 47.83), (12.93, 47.94), (12.78, 48.06), (12.85, 48.17),
+    (12.89, 48.21), (13.03, 48.26),
     (13.45, 48.55), (13.84, 48.77),
 ]
+DE_POLYGON = DE_WEST + DE_BORDER + [(13.84, 50.0), (7.05, 50.0)]
 
 RAIN_DAYS = 26                           # the Ampel's rain window
 TEMP_DAYS = spot_weather.DAYS            # 28 — the station table's window
@@ -176,20 +194,19 @@ def lattice(box=BOX, cell_m=CELL_M):
     return geometry, centres
 
 
-def border_lat(lon, border=DE_BORDER):
-    """The German border's latitude at this longitude, or None east of it."""
-    if lon < border[0][0] or lon > border[-1][0]:
-        return None
-    for (x0, y0), (x1, y1) in zip(border, border[1:]):
-        if x0 <= lon <= x1:
-            t = 0 if x1 == x0 else (lon - x0) / (x1 - x0)
-            return y0 + t * (y1 - y0)
-    return None
+def in_polygon(lat, lon, polygon):
+    """Even-odd ray casting; a point exactly on an edge may go either way,
+    which at 12 km cells is no question anyone asks."""
+    inside = False
+    for (x0, y0), (x1, y1) in zip(polygon, polygon[1:] + polygon[:1]):
+        if (y0 > lat) != (y1 > lat):
+            if lon < x0 + (lat - y0) * (x1 - x0) / (y1 - y0):
+                inside = not inside
+    return inside
 
 
 def in_germany(lat, lon):
-    limit = border_lat(lon)
-    return limit is not None and lat > limit
+    return in_polygon(lat, lon, DE_POLYGON)
 
 
 def cell_index(geometry, lat, lon):
@@ -509,7 +526,7 @@ def build(out_dir, manifest, today=None, get=_get_json, sleep=time.sleep,
         "api": FORECAST_API,
         "cell_m": CELL_M,
         "points": len(active),
-        "mask": "Germany excluded (polyline of the southern border)",
+        "mask": "Germany excluded (approximate polygon)",
         "built": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
         "fetched": fetched_days,
         # Only a run that called the service moves this: a run that found
@@ -676,8 +693,21 @@ def self_test():
                            ("Burghausen", 48.16, 12.83), ("Passau", 48.574, 13.46),
                            ("Lindau", 47.55, 9.69)):
         assert in_germany(lat, lon), name
+    # Alsace, the Vosges and Lorraine are France (#664): until then the
+    # southern border alone, read west of Basel, made them Germany.
+    for name, lat, lon in (("Colmar", 48.08, 7.36), ("Straßburg", 48.58, 7.75),
+                           ("Gérardmer", 48.07, 6.88), ("Mulhouse", 47.75, 7.34),
+                           ("Haguenau", 48.82, 7.79), ("Belfort", 47.64, 6.86),
+                           ("Saint-Dié", 48.29, 6.95), ("Innviertel", 48.16, 12.92)):
+        assert not in_germany(lat, lon), name
+    for name, lat, lon in (("Offenburg", 48.47, 7.94), ("Breisach", 48.03, 7.60),
+                           ("Lörrach", 47.61, 7.66), ("Karlsruhe", 49.01, 8.40),
+                           ("Bad Bergzabern", 49.10, 8.00), ("Simbach", 48.27, 13.02)):
+        assert in_germany(lat, lon), name
     active = sum(1 for lat, lon in centres if not in_germany(lat, lon))
-    assert 2000 < active < 4000, active
+    # One run fetches one window; a single day must fit the budget, or
+    # yesterday itself would never be fetched.
+    assert 3800 < active <= BUDGET_CALLS, active
     # Temperature bytes: half degrees, both ends clamped, no-data kept.
     assert temp_value(temp_byte(12.3)) == 12.5
     assert temp_value(temp_byte(-7.75)) in (-7.5, -8.0)
