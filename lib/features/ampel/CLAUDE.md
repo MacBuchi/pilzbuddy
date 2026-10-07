@@ -273,6 +273,19 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
     steht deshalb nur die Menge („wenig / mäßig / reichlich") bzw. die
     Zahl. Ein neues Wort in der Zeile an derselben Frage messen: Kann
     die Stufe ihm widersprechen?
+  - **Die Bodenfeuchte kennt keine Landesgrenze, nur einen Abstand**
+    (#665, seit 1.222.7). Alle Feuchtestationen stehen in Deutschland;
+    wie weit eine Logit-Klasse ins Ausland reicht, entscheidet allein
+    `AmpelLogit.maxMoistureKm`. Austernseitling & Co. behält die 100 km
+    der Tabelle — die Klasse reist, und der AT/CH-Hold-out lief mit
+    genau dieser Regel. Herbsttrompete & Co. reist nicht und bekommt
+    30 km: in Deutschland 0,43 % der Fläche grau, im Ausland ein Streifen
+    (Straßburg, Basel, Salzburg, Innsbruck rechnen; Colmar, Vogesen
+    nicht). Gemessen gegen die DWD-Stationsliste auf einem Raster über
+    den Natural-Earth-Umriss; Zahlen am Kommentar der Klasse. Blatt
+    (`ampel_providers.dart`, echter Abstand) und Fläche
+    (`AmpelLevelGrid.moistureKm`, aufgerundete km) prüfen dieselbe
+    Grenze — eine ganze Zahl, sonst fallen sie an verschiedenen Stellen.
   - **Das X schaltet nur für die SITZUNG stumm** (#425, seit 1.128.1) —
     vorher bis Tagesende, mit der Begründung „morgen sind es andere
     Daten und damit eine andere Aussage". Die stimmt weiter; ungeprüft

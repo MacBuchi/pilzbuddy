@@ -340,6 +340,21 @@ void main() {
       expect(mit.klass, ampelHolzWinterClass);
     });
 
+    test('die Feuchtestation darf bei Herbsttrompete & Co. höchstens 30 km '
+        'weg sein, bei Austernseitling & Co. gilt die Tabelle (#665)', () {
+      // Absolut, nicht aus der Konstante: Die Zahl ist gegen die
+      // DWD-Stationsliste gemessen (0,43 % Deutschlands grau).
+      expect(ampelCantharellalesClass.logit.maxMoistureKm, 30);
+      expect(ampelHolzWinterClass.logit.maxMoistureKm, double.infinity);
+      double? score(AmpelClass klass, double? km) => ampelScoreFor(klass,
+          rainFactor: 1.0, meanC: 13, moistureMean: 40, moistureKm: km, milder: 0);
+      expect(score(ampelCantharellalesClass, 30), isNotNull);
+      expect(score(ampelCantharellalesClass, 31), isNull);
+      expect(score(ampelHolzWinterClass, 99), isNotNull);
+      // Ohne bekannten Abstand prüft die Formel nichts.
+      expect(score(ampelCantharellalesClass, null), isNotNull);
+    });
+
     test('die Schwellen liegen auf der Skala von s, nicht auf 0…1', () {
       // Herbsttrompete & Co.: verhalten ab 2,191 — eine Glocke käme da nie
       // hin. Wer die Skalen vergleicht, vergleicht Zentimeter mit Grad.
