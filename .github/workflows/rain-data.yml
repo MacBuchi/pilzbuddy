@@ -29,15 +29,13 @@ on:
     # also yesterday (CDC updates around 08:30 UTC+2), so one cadence
     # fits both.
     - cron: "23 7 * * *"
-    # The Alpine model grid a second time (#612). One run fetches ONE
-    # window (~3 900 points eat the 4 500 budget), and in the run above
-    # that window is always yesterday — an older gap never got a turn,
-    # and the stack sat at 12 of 28 days (2026-09-26…30), the Ampel grey
-    # outside Germany. This run finds yesterday done and spends its
-    # window on the gap; with nothing missing it calls nothing. Two
-    # fetches a day stay under Open-Meteo's 10 000; the tool skips the
-    # fetch while the last one is under an hour old (the cron above can
-    # be hours late).
+    # The Alpine model grid a second time (#612). Added when the public
+    # quota allowed ONE window per run (the stack sat at 12 of 28 days,
+    # 2026-09-26…30). Since #631 the model comes from a self-hosted
+    # container and a run fills every gap, so this run matters again only
+    # when the container is down and the public fallback is quota-bound
+    # (the tool skips a public fetch under an hour after the last one).
+    # It stays for the Alpine stack below.
     - cron: "41 18 * * *"
     # The measured Alpine stack (#646) rides on both model runs: it
     # blends the model in, and MeteoSwiss publishes day D only at D+1
@@ -125,6 +123,41 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # A self-hosted Open-Meteo server (#631) for soil and model: it
+          # reads the open S3 bucket on demand — no sync, no key, no quota.
+          # Pinned by digest: the image lab run 25 (soil) and the ICON-D2
+          # parity check of 2026-10-08 (model) measured against
+          # (docs/pilzampel-openmeteo-lokal.md); a new one is a new
+          # instrument and gets measured first.
+          OPEN_METEO_IMAGE="ghcr.io/open-meteo/open-meteo@sha256:e1517a01a061fd96e2a9017d022c5809bb51725bcd733bcbed435e7ea32dd9da"
+          # Starts the container once per job and waits until `$1` (a
+          # path and query a layer needs) answers. Returns non-zero instead
+          # of exiting: each layer decides what a dead container means.
+          open_meteo_up() {
+            if [ -z "$(docker ps -q --filter name=^open-meteo$)" ]; then
+              # The image does not run as root; on the runner the bind
+              # mount belongs to the runner user, and without write access
+              # the server cannot create its cache file and exits — seen
+              # on the first branch run as five minutes of "connection
+              # refused" (Docker Desktop on a Mac does not show this).
+              mkdir -p "$RUNNER_TEMP/open-meteo"
+              chmod 777 "$RUNNER_TEMP/open-meteo"
+              docker run -d --name open-meteo -p 127.0.0.1:8080:8080 \
+                -v "$RUNNER_TEMP/open-meteo:/app/data" \
+                -e REMOTE_DATA_DIRECTORY=https://openmeteo.s3.amazonaws.com/data/ \
+                -e CACHE_SIZE=2GB \
+                "$OPEN_METEO_IMAGE" serve --env production --hostname 0.0.0.0 --port 8080 \
+                || return 1
+            fi
+            for i in $(seq 1 60); do
+              curl -fs "http://127.0.0.1:8080$1" >/dev/null && return 0
+              [ "$(docker inspect -f '{{.State.Running}}' open-meteo)" = true ] || break
+              sleep 5
+            done
+            docker ps -a --filter name=open-meteo
+            docker logs open-meteo
+            return 1
+          }
           for layer in ${{ steps.pick.outputs.layers }}; do
             if [ "$layer" = "weather" ]; then
               python3 tool/spot_weather.py --out build/rain
@@ -143,40 +176,24 @@ jobs:
               # failed on the missing files (2026-09-26).
               gh release download rain-data --pattern 'model_*' \
                 --dir build/rain || echo "no model files yet (first run)"
-              python3 tool/model_weather.py --out build/rain
+              # From the container (#631): no quota, so one run fills every
+              # missing day — a lattice change or an outage is one run, not
+              # four days of grey Ampel. Parity with the public API measured
+              # 2026-10-08 (18 000 daily values, zero differences). If the
+              # container does not come up, the public service within its
+              # quota: a gap closes slower, but yesterday still comes.
+              if open_meteo_up "/v1/forecast?latitude=47.3&longitude=11.4&daily=precipitation_sum&models=icon_d2&past_days=1&forecast_days=1"; then
+                python3 tool/model_weather.py --out build/rain \
+                  --api http://127.0.0.1:8080/v1/forecast --source "$OPEN_METEO_IMAGE"
+              else
+                echo "::warning::Open-Meteo container did not come up — model grid from the public API, within its quota"
+                python3 tool/model_weather.py --out build/rain
+              fi
             elif [ "$layer" = "soil" ]; then
-              # Soil moisture 7–28 cm from ERA5-Land (#676), fetched from
-              # a self-hosted Open-Meteo container (#631): ~9 800 points
-              # would be two days of the public free tier. The container
-              # reads the open S3 bucket on demand — no sync, no key.
-              # Pinned by digest: the image lab run 25 measured against
-              # (docs/pilzampel-openmeteo-lokal.md); a new one is a new
-              # instrument and gets measured first.
-              image="ghcr.io/open-meteo/open-meteo@sha256:e1517a01a061fd96e2a9017d022c5809bb51725bcd733bcbed435e7ea32dd9da"
-              # The image does not run as root; on the runner the bind
-              # mount belongs to the runner user, and without write access
-              # the server cannot create its cache file and exits — seen
-              # on the first branch run as five minutes of "connection
-              # refused" (Docker Desktop on a Mac does not show this).
-              mkdir -p "$RUNNER_TEMP/open-meteo"
-              chmod 777 "$RUNNER_TEMP/open-meteo"
-              docker run -d --name open-meteo -p 127.0.0.1:8080:8080 \
-                -v "$RUNNER_TEMP/open-meteo:/app/data" \
-                -e REMOTE_DATA_DIRECTORY=https://openmeteo.s3.amazonaws.com/data/ \
-                -e CACHE_SIZE=2GB \
-                "$image" serve --env production --hostname 0.0.0.0 --port 8080
-              ready=""
-              for i in $(seq 1 60); do
-                if curl -fs "http://127.0.0.1:8080/v1/archive?latitude=50&longitude=10&start_date=2026-01-01&end_date=2026-01-01&daily=soil_moisture_7_to_28cm_mean&models=era5_land" \
-                    >/dev/null; then
-                  ready=1; break
-                fi
-                [ "$(docker inspect -f '{{.State.Running}}' open-meteo)" = true ] || break
-                sleep 5
-              done
-              if [ -z "$ready" ]; then
-                docker ps -a --filter name=open-meteo
-                docker logs open-meteo
+              # Soil moisture 7–28 cm from ERA5-Land (#676), from the
+              # container: ~9 800 points would be two days of the public
+              # free tier. No public fallback for the same reason.
+              if ! open_meteo_up "/v1/archive?latitude=50&longitude=10&start_date=2026-01-01&end_date=2026-01-01&daily=soil_moisture_7_to_28cm_mean&models=era5_land"; then
                 echo "::error::Open-Meteo container did not come up"
                 exit 1
               fi
@@ -185,7 +202,7 @@ jobs:
               gh release download rain-data --pattern 'soil_*' \
                 --dir build/rain || echo "no soil files yet (first run)"
               python3 tool/soil_moisture.py --out build/rain \
-                --api http://127.0.0.1:8080/v1/archive --source "$image"
+                --api http://127.0.0.1:8080/v1/archive --source "$OPEN_METEO_IMAGE"
               docker logs --tail 20 open-meteo
             elif [ "$layer" = "alps" ]; then
               # The measured Alpine stack (#646), AFTER daily and model:

@@ -2,6 +2,8 @@
 """Model weather for the Alpine region beyond the DWD's reach (#612).
 
     python3 tool/model_weather.py --out build/rain        # build / top up
+    python3 tool/model_weather.py --out build/rain \
+        --api http://127.0.0.1:8080/v1/forecast       # self-hosted (#631)
     python3 tool/model_weather.py --out build/rain --verify
     python3 tool/model_weather.py --self-test             # no network
 
@@ -50,6 +52,21 @@ runs must be an hour apart (5 000 an hour), and GitHub's cron can be
 hours late, so `build` skips fetching while the last fetch is younger
 than `MIN_FETCH_GAP` — the next run catches up, a 429 storm would fail
 the whole job.
+
+THE CONTAINER (#631). All of the above is the PUBLIC path, and it stays
+the default: a tool that silently talks to localhost produces numbers
+nobody can recompute (`docs/pilzampel-openmeteo-lokal.md`). With
+`--api` the workflow points both paths at its own Open-Meteo container
+(the image `soil_moisture.py` uses, reading the open S3 bucket), which
+answers `past_days` and explicit dates on the same `/v1/forecast`. There
+is no quota there: no budget, no pacing, no `MIN_FETCH_GAP`, so a run
+fills every missing day — a lattice change or a week-long outage is one
+run instead of four days. Measured 2026-10-08 before switching: 200
+random lattice points over 30 days, both paths, 18 000 daily values and
+the elevations — zero differences to the public API. `last_fetch` moves
+only on a public fetch: it guards the public quota, which a container
+run does not touch. `--verify` keeps asking the PUBLIC service, so the
+container never confirms itself.
 
 TWO APIs, ONE DATA SET. Days up to yesterday come from the forecast
 endpoint with `past_days`; older gaps come from the historical-forecast
@@ -383,11 +400,13 @@ def _get_json(url, params, tries=5):
 
 
 def fetch_window(points, start, end, via_past_days, today, chunk=LOCATIONS_PER_REQUEST,
-                 get=_get_json, sleep=time.sleep):
+                 get=_get_json, sleep=time.sleep, api=None):
     """{date: {index: (rain, tmax, tmin)}} plus elevation per index.
 
     `points` is a list of (index, lat, lon). Requests carry `chunk`
-    locations each and are paced to stay under 600 calls a minute.
+    locations each and are paced to stay under 600 calls a minute —
+    unless `api` names a self-hosted instance, which serves both paths
+    on one endpoint and has no quota to pace for.
     """
     days = (end - start).days + 1
     result = {}
@@ -404,11 +423,11 @@ def fetch_window(points, start, end, via_past_days, today, chunk=LOCATIONS_PER_R
         if via_past_days:
             params["past_days"] = (today - start).days
             params["forecast_days"] = 1
-            url = FORECAST_API
+            url = api or FORECAST_API
         else:
             params["start_date"] = start.isoformat()
             params["end_date"] = end.isoformat()
-            url = HISTORY_API
+            url = api or HISTORY_API
         payload = get(url, params)
         answers = payload if isinstance(payload, list) else [payload]
         if len(answers) != len(batch):
@@ -424,7 +443,8 @@ def fetch_window(points, start, end, via_past_days, today, chunk=LOCATIONS_PER_R
                     daily[VARIABLES[0]][i], daily[VARIABLES[1]][i],
                     daily[VARIABLES[2]][i])
         # 600 calls a minute: a chunk of 100 locations × weight(days).
-        sleep(60.0 * chunk * call_weight(days) / 600.0)
+        if not api:
+            sleep(60.0 * chunk * call_weight(days) / 600.0)
     return result, elevation
 
 
@@ -440,7 +460,7 @@ def too_soon(previous, now):
 
 
 def build(out_dir, manifest, today=None, get=_get_json, sleep=time.sleep,
-          limit=None, budget=None, now=None):
+          limit=None, budget=None, now=None, api=None, source=None):
     now = now or dt.datetime.now(dt.timezone.utc)
     today = today or now.date()
     geometry, centres = lattice()
@@ -450,9 +470,10 @@ def build(out_dir, manifest, today=None, get=_get_json, sleep=time.sleep,
         active = active[:limit]
     previous = manifest.get("model")
     missing = missing_dates(previous, today)
+    # Self-hosted: no quota, so no budget and no hour to wait for.
     windows = plan_windows(missing, today, len(active),
-                           budget=budget or BUDGET_CALLS)
-    if windows and too_soon(previous, now):
+                           budget=math.inf if api else budget or BUDGET_CALLS)
+    if windows and not api and too_soon(previous, now):
         print(f"  last fetch {previous['last_fetch']} is under "
               f"{MIN_FETCH_GAP} ago — the quota's hour is spent, "
               f"{len(missing)} missing days wait for the next run",
@@ -466,7 +487,7 @@ def build(out_dir, manifest, today=None, get=_get_json, sleep=time.sleep,
         print(f"  {start} … {end} for {len(active)} points "
               f"({'past_days' if via_past else 'history'})", file=sys.stderr)
         values, elev = fetch_window(active, start, end, via_past, today,
-                                    get=get, sleep=sleep)
+                                    get=get, sleep=sleep, api=api)
         for index, e in elev.items():
             if e is not None:
                 elevation[index] = e
@@ -523,15 +544,19 @@ def build(out_dir, manifest, today=None, get=_get_json, sleep=time.sleep,
     section = {
         "source": "Open-Meteo, model " + MODELS,
         "licence": "CC BY 4.0",
-        "api": FORECAST_API,
+        "api": api or FORECAST_API,
+        # What answered: the container image (pinned by digest in the
+        # workflow) or the public service.
+        "instrument": source or api or "public API",
         "cell_m": CELL_M,
         "points": len(active),
         "mask": "Germany excluded (approximate polygon)",
         "built": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
         "fetched": fetched_days,
-        # Only a run that called the service moves this: a run that found
-        # nothing to do must not push the next real fetch back an hour.
-        "last_fetch": (now.isoformat(timespec="seconds") if windows
+        # Only a run that called the PUBLIC service moves this: a run that
+        # found nothing to do, or fetched from the container, must not
+        # push the next public fetch back an hour.
+        "last_fetch": (now.isoformat(timespec="seconds") if windows and not api
                        else (previous or {}).get("last_fetch")),
         "rain": {**geometry, "days": rain_days},
         "temperature": {**geometry, "days": temp_days},
@@ -789,6 +814,8 @@ def self_test():
         limit=150, budget=450, now=t0)
     assert section["points"] == 150
     assert section["last_fetch"] == t0.isoformat(timespec="seconds")
+    # Without --api the public service is the instrument (no silent localhost).
+    assert section["api"] == FORECAST_API and section["instrument"] == "public API"
     assert 7 <= len(section["rain"]["days"]) < TEMP_DAYS, len(section["rain"]["days"])
     assert section["rain"]["days"][-1]["date"] == "2026-09-25"
     assert all(f in keep for f in (section["rain"]["days"][0]["file"], ELEVATION_FILE))
@@ -855,6 +882,39 @@ def self_test():
     assert len(calls) == 2 and section3["rain"]["days"] == section2["rain"]["days"]
     # Verify against the fake service agrees with the grids it built.
     verify(tmp, manifest, sample=3, get=fake_get, seed=1)
+    # Self-hosted (#631): an empty stack fills in ONE run, inside the hour
+    # of a public fetch, every call to the container, no pacing — and the
+    # public clock stays where it was. Verify still asks the public API.
+    local = "http://127.0.0.1:8080/v1/forecast"
+    tmp2 = tempfile.mkdtemp()
+    manifest2 = {"model": {"last_fetch": t0.isoformat(timespec="seconds")}}
+    calls.clear()
+    slept = []
+    section4, _, _, _ = build(tmp2, manifest2, today=today, get=counting_get,
+                              sleep=slept.append, limit=150, budget=450,
+                              now=t0 + dt.timedelta(minutes=10), api=local,
+                              source="ghcr.io/open-meteo/open-meteo@sha256:test")
+    assert calls and set(calls) == {local}, set(calls)
+    assert slept == [], "no pacing against the container"
+    assert len(section4["rain"]["days"]) == STACK_DAYS, len(section4["rain"]["days"])
+    assert len(section4["temperature"]["days"]) == STACK_DAYS
+    assert section4["last_fetch"] == t0.isoformat(timespec="seconds")
+    assert section4["api"] == local
+    assert section4["instrument"].endswith("@sha256:test")
+    # A gap in the middle comes via explicit dates — from the container too.
+    for kind in ("rain", "temperature"):
+        manifest2["model"][kind]["days"] = [
+            d for d in manifest2["model"][kind]["days"] if d["date"] != "2026-09-20"]
+    calls.clear()
+    section5, _, _, _ = build(tmp2, manifest2, today=today, get=counting_get,
+                              sleep=slept.append, limit=150, api=local,
+                              now=t0 + dt.timedelta(minutes=20))
+    assert calls and set(calls) == {local}, set(calls)
+    assert section5["fetched"] == ["2026-09-20"], section5["fetched"]
+    assert len(section5["rain"]["days"]) == STACK_DAYS
+    calls.clear()
+    verify(tmp2, manifest2, sample=3, get=counting_get, seed=2)
+    assert calls == [HISTORY_API] * 3, calls
     print(f"Selbsttest ok — {geometry['width']}×{geometry['height']} Zellen, "
           f"{active} Punkte außerhalb Deutschlands")
 
@@ -869,6 +929,10 @@ def main():
     parser.add_argument("--limit", type=int, default=None,
                         help="only the first N lattice points (trial runs)")
     parser.add_argument("--budget", type=float, default=BUDGET_CALLS)
+    parser.add_argument("--api", help="self-hosted /v1/forecast endpoint for both paths "
+                        "(#631); default: the public service, within its quota")
+    parser.add_argument("--source", help="what the manifest names as instrument, "
+                        "e.g. the container image")
     args = parser.parse_args()
     if args.self_test:
         self_test()
@@ -882,7 +946,8 @@ def main():
         verify(args.out, manifest)
         return
     section, keep, active, elevation = build(args.out, manifest,
-                                             limit=args.limit, budget=args.budget)
+                                             limit=args.limit, budget=args.budget,
+                                             api=args.api, source=args.source)
     table_days = manifest.get("weather", {}).get("days")
     rows = []
     if table_days:
@@ -898,6 +963,7 @@ def main():
         f"{len(section['temperature']['days'])} Temperaturtage)\n\n"
         f"- Punkte: {section['points']} (12 km, außerhalb Deutschlands)\n"
         f"- Neu geholt: {', '.join(section['fetched']) or 'nichts'}\n"
+        f"- Quelle: {section['instrument']}\n"
         f"- Virtuelle Stationen in der Tabelle: {len(rows)}"
         + (f" ({size / 1024:.0f} KB gesamt)\n" if rows else " (keine Tabelle in diesem Lauf)\n")
     )
