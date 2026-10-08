@@ -37,7 +37,7 @@ import 'dart:typed_data';
 import 'package:flutter/painting.dart' show Color;
 
 import '../../core/app_colors.dart';
-import '../ampel/ampel_fill.dart' show AmpelLevels;
+import '../ampel/ampel_fill.dart' show AmpelLevels, AmpelRowLevels;
 import 'elevation_grid.dart' show ElevationGrid;
 import '../ampel/ampel_model.dart' show AmpelClass, AmpelLevel;
 import 'forest_fill_window.dart';
@@ -397,6 +397,8 @@ class _HexCoverage {
     final rDeg = latStep / 1.5; // Umkreisradius in Grad Breite
     final lonSpan = window.east - window.west;
     final wPx = lonStep / lonSpan * width;
+    final directHeight =
+        elevation != null && elevation.sharesLatticeWith(grid);
 
     // Byte -> Band (0 Laub, 1 Misch, 2 Nadel) oder -1 für „trägt nichts
     // bei": kein Wald, keine Daten, abgewählte Klasse (#231). Einmal
@@ -429,7 +431,11 @@ class _HexCoverage {
       final odd = hy.isOdd ? 0.5 : 0.0;
       final latC = grid.north - latStep * (hy + 2 / 3);
       // Die Ampel-Gitterzeile dieser Wabenzeile — einmal, nicht je Wabe.
-      final ampelRow = highlight?.levels.rowsAt(latC);
+      // Das Gedächtnis lebt, solange die Zeilen gleich bleiben: Eine
+      // 1-km-Wetterzeile überspannt mehrere Wabenzeilen (#662).
+      final ampelRow = highlight == null
+          ? null
+          : _rowLevelsFor(highlight, highlight.levels.rowsAt(latC));
       final yTop = yOf(latC + rDeg);
       final yUp = yOf(latC + rDeg / 2);
       final yLow = yOf(latC - rDeg / 2);
@@ -446,8 +452,8 @@ class _HexCoverage {
             // Sechseckfläche = 0,75 · Breite · Höhe.
             area: 0.75 * wPx * (yBot - yTop),
             yMid: (yTop + yBot) / 2,
-            highlight: highlight,
             elevation: elevation,
+            directHeight: directHeight,
             ampelRow: ampelRow,
             rowLat: latC,
             lonFirst: lonFirst,
@@ -464,7 +470,11 @@ class _HexCoverage {
         final band = bandOf[grid.values[rowBase + hx]];
         if (band < 0) continue;
         if (cx + wPx / 2 <= 0 || cx - wPx / 2 >= width) continue;
-        final lit = _litBand(highlight, elevation, ampelRow, latC, lonC);
+        final lit = ampelRow == null
+            ? -1
+            : _litBand(ampelRow,
+                _heightOf(elevation, directHeight, rowBase + hx, latC, lonC),
+                lonC);
         // Am MITTELPUNKT der Wabe, wie das Leuchten: Eine Waldwabe ist
         // ganz Schutzgebiet oder gar nicht. Die feinen 100-m-Blöcke
         // liegen auf einem anderen Raster, deshalb über die Koordinate
@@ -533,9 +543,9 @@ class _HexCoverage {
     required double wPx,
     required double area,
     required double yMid,
-    required _AmpelHighlight? highlight,
     required ElevationGrid? elevation,
-    required List<int?>? ampelRow,
+    required bool directHeight,
+    required AmpelRowLevels? ampelRow,
     required double rowLat,
     required double lonFirst,
     required double lonStep,
@@ -558,7 +568,11 @@ class _HexCoverage {
     for (var hx = hx0; hx <= hx1; hx++, cx += wPx, lonC += lonStep) {
       final band = bandOf[grid.values[rowBase + hx]];
       if (band < 0) continue;
-      final lit = _litBand(highlight, elevation, ampelRow, rowLat, lonC);
+      final lit = ampelRow == null
+          ? -1
+          : _litBand(ampelRow,
+              _heightOf(elevation, directHeight, rowBase + hx, rowLat, lonC),
+              lonC);
       final px = cx.floor();
       if (px < -1 || px >= width) continue;
       final tx = cx - px;
@@ -585,21 +599,47 @@ class _HexCoverage {
     }
   }
 
+  /// Das Gedächtnis der aktuellen Ampel-Zeilen, über Wabenzeilen und
+  /// Gitter hinweg — neu nur, wenn sich eine Zeile ändert.
+  AmpelRowLevels? _rowLevels;
+
+  AmpelRowLevels _rowLevelsFor(_AmpelHighlight highlight, List<int?> rows) {
+    final current = _rowLevels;
+    if (current != null &&
+        identical(current.levels, highlight.levels) &&
+        identical(current.classes, highlight.classes) &&
+        current.matches(rows)) {
+      return current;
+    }
+    return _rowLevels =
+        AmpelRowLevels(highlight.levels, rows, classes: highlight.classes);
+  }
+
+  /// Die Höhe der Wabe mit dem Index [cell] (Mittelpunkt [lat]/[lon]).
+  /// Liegt das Waldgitter auf dem Raster des Höhengitters (das grobe
+  /// tut es), ist es derselbe Index — sonst (feine Blöcke) der
+  /// Nachschlag am Mittelpunkt. Beide liefern dieselbe Zahl;
+  /// `test/ampel_fill_test.dart` rechnet es über das ganze Gitter nach.
+  /// Auf dem Pixel XL kostete der Nachschlag im Übersichtszoom
+  /// 1,7–2,3 s je Bild (#662).
+  static int? _heightOf(ElevationGrid? elevation, bool direct, int cell,
+          double lat, double lon) =>
+      elevation == null
+          ? null
+          : direct
+              ? elevation.heightMetersOfCell(cell)
+              : elevation.heightMetersAt(lat, lon);
+
   /// Das LEUCHT-Band einer Wabe, oder -1 für „leuchtet nicht": Wo das
   /// Wetter mindestens „verhalten" ist, zahlt die Wabe zusätzlich zu
   /// ihrem Klassenband in Band 3 bzw. 4 ein. Ohne [highlight] leuchtet
   /// nichts.
-  int _litBand(_AmpelHighlight? highlight, ElevationGrid? elevation,
-      List<int?>? ampelRow, double lat, double lon) {
-    if (highlight == null || ampelRow == null) return -1;
-    // Die Glocke mit der Höhe DIESER Wabe — für die groben Waben ist
-    // das derselbe Gitterindex (gleiches Hex-Raster), für die feinen
-    // der Mittelpunkt-Nachschlag; beides läuft über denselben Weg,
-    // damit es keinen zweiten gibt. Seit #612 über alle Gitter in
-    // Vorrang-Reihenfolge (Radar, dann Modell) — [AmpelLevels].
-    return switch (highlight.levels.levelForRows(ampelRow, lon,
-        classes: highlight.classes,
-        heightM: elevation?.heightMetersAt(lat, lon))) {
+  int _litBand(AmpelRowLevels ampelRow, int? heightM, double lon) {
+    // Die Glocke mit der Höhe DIESER Wabe ([_heightOf]). Seit #612 über
+    // alle Gitter in Vorrang-Reihenfolge (Radar, dann Modell) —
+    // [AmpelLevels]; seit #662 mit Gedächtnis je Zelle und Höhe, das
+    // nichts anders rechnet, nur nichts doppelt ([AmpelRowLevels]).
+    return switch (ampelRow.at(lon, heightM: heightM)) {
       AmpelLevel.verhalten => _bandVerhalten,
       AmpelLevel.guenstig => _bandGuenstig,
       // „ungünstig" und „keine Aussage" sind hier dasselbe: Die Wabe

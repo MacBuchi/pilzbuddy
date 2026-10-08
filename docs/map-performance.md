@@ -925,7 +925,7 @@ Je Auftrag gemessen (Mess-Build, Laufzeit im Isolate):
   `package:archive`, **0,7–0,9 s** mit nativem zlib. Er packt je Punkt
   rund 120 Tagesgitter aus (~85 MB).
 - Waldfläche mit Ampel: **5,1–6,0 s** je Bild — der Zeichner selbst,
-  offen.
+  seit 1.222.8 gut 2 s (nächster Nachtrag, #662).
 
 **Die scheinbaren +50 MB in Ruhe sind Müll, kein Leck** (nachgemessen
 2026-10-02, je zwei Läufe, offline). Solange das Zeichen-Isolate lebt,
@@ -943,3 +943,48 @@ Rückfall (`boundedCompute`, kein dauerhaftes Isolate) ruhte bei
 ein Trim beweist nichts. Die Streuung zwischen zwei gleichen Läufen
 liegt bei rund 40 MB (1.222.4: 506 und 548).
 
+## Nachtrag 2026-10-08: Waldfläche mit Ampel (#662, 1.222.8)
+
+Pixel XL, Release, offline, Kaltstart, Übersichtsfenster 1046×1536 px
+über 447 km (Wabe 0,62 px), Ampel + Wald + Höhengitter. Mess-Build mit
+Laufzeiten je Phase im Zeichen-Isolate.
+
+Erst die Phasen, dann die Entscheidung. Vorher:
+
+| Phase | Zeit |
+|---|---|
+| Waben einsammeln, Ampel + Höhe | 4,4–6,0 s |
+| davon ohne Höhenkorrektur | 2,7–3,7 s |
+| nur Wald, ohne Ampel | 0,14–0,17 s |
+| Gitter auflösen | < 0,12 s |
+| PNG packen (`package:archive`) | 0,75–0,9 s |
+| **Bild gesamt** | **4,9–6,9 s** |
+
+Die Zeit steckte also nicht im Wald, sondern in zwei Nachschlägen je
+Wabe: der Höhe (`hexNearestCell` über die Koordinate, 1,7–2,3 s) und
+der Ampelstufe (drei Regengitter, Vorrangregel, vier Klassen).
+
+| Fassung (Kaltstart) | Einsammeln | PNG | Bild gesamt |
+|---|---|---|---|
+| 1.222.7 | 4 870 ms | 786 ms | **5 730 ms** |
+| + Höhe per Direktindex, Gedächtnis je Regenzelle und Höhe | 1 965 | 967 | 3 047 |
+| + Vergleich mit der letzten Abfrage, PNG über natives zlib | 1 824–1 879 | 227–243 | **2 140–2 190** |
+
+- **Höhe per Direktindex**: Höhen- und Waldgitter liegen auf demselben
+  Wabenraster (`ElevationGrid.sharesLatticeWith`), Wabe `i` ist dort
+  Wabe `i` hier. Die PNG-Größe blieb danach byte-gleich (2 311 594) —
+  das Bild ist dasselbe.
+- **Gedächtnis** (`AmpelRowLevels`): je Wabenzeile ein Schlüssel aus den
+  Spalten der drei Regengitter und der Höhe. Rund ein Drittel der
+  Abfragen verfehlt es, weil die Höhe von Wabe zu Wabe springt — das ist
+  der größte Teil der restlichen Zeit.
+- **Verworfen, gemessen**: eine Tabelle je Regenzelle mit einem Fach je
+  20-m-Höhenstufe statt des Map-Schlüssels. Am Mac gleich schnell, auf
+  dem Pixel XL in zwei Läufen mit Abkühlpause 3,0 statt 1,85 s
+  Einsammeln.
+- **PNG nativ** (`lib/core/zlib_deflate.dart`, Muster `gunzip`): die
+  gepackten Bytes unterscheiden sich zwischen den Wegen, die
+  ausgepackten Bildzeilen nicht (`test/zlib_deflate_test.dart`).
+
+**Das Ziel von #662 (< 1,5 s) ist damit nicht erreicht**; das Issue
+bleibt für den Rest offen.

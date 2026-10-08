@@ -576,15 +576,114 @@ class AmpelLevels {
   /// Die erste Aussage in Vorrang-Reihenfolge.
   AmpelLevel? levelForRows(List<int?> rows, double lon,
       {required List<AmpelClass> classes, int? heightM}) {
+    final columns = Int32List(grids.length);
+    for (var i = 0; i < grids.length; i++) {
+      columns[i] = rows[i] == null ? -1 : (grids[i].columnAt(lon) ?? -1);
+    }
+    return _levelForCells(rows, columns, classes: classes, heightM: heightM);
+  }
+
+  /// Der Vorrang über fertige Zellen — `-1` in [columns] heißt „dieses
+  /// Gitter reicht hier nicht hin". EINZIGER Ort der Vorrang-Regel; auch
+  /// [AmpelRowLevels] fragt hier.
+  AmpelLevel? _levelForCells(List<int?> rows, Int32List columns,
+      {required List<AmpelClass> classes, int? heightM}) {
     for (var i = 0; i < grids.length; i++) {
       final row = rows[i];
-      if (row == null) continue;
-      final column = grids[i].columnAt(lon);
-      if (column == null) continue;
+      final column = columns[i];
+      if (row == null || column < 0) continue;
       final level =
           grids[i].levelFor(row, column, classes: classes, heightM: heightM);
       if (level != null) return level;
     }
     return null;
+  }
+}
+
+/// [AmpelLevels.levelForRows] für EINE Breite, mit Gedächtnis (#662).
+///
+/// Die Kombi-Ebene fragt im Übersichtszoom Millionen Waben ab; auf dem
+/// Pixel XL kostete die Auswertung allein 2,6–3,5 s je Bild. Dabei fallen
+/// benachbarte Waben fast immer in dieselbe Wetterzelle (1 km gegen
+/// ~250 m) und auf dieselbe Höhenstufe (20 m) — und die Stufe hängt NUR
+/// von Zelle, Höhe und Gruppenauswahl ab. Das Gedächtnis rechnet also
+/// nichts anders, es rechnet Gleiches nicht zweimal: Schlüssel sind die
+/// Zellen ALLER Gitter samt Höhe, die Antwort kommt aus
+/// [AmpelLevels._levelForCells] wie ohne Gedächtnis. Die #279-Regel
+/// (Fläche und Blatt sagen dasselbe) bleibt damit unberührt.
+///
+/// Es gilt für eine Gitterzeile je Gitter ([rows]); der Zeichner legt
+/// ein neues an, sobald sich eine davon ändert — das hält es klein.
+class AmpelRowLevels {
+  AmpelRowLevels(this.levels, this.rows, {required this.classes})
+      : _columns = Int32List(levels.grids.length),
+        _keyed = _keyFits(levels);
+
+  final AmpelLevels levels;
+  final List<int?> rows;
+  final List<AmpelClass> classes;
+  final Int32List _columns;
+
+  /// Ob der Schlüssel in eine Ganzzahl passt, die auch im Browser
+  /// (53 Bit) exakt bleibt. Sonst rechnet jede Abfrage direkt.
+  final bool _keyed;
+
+  /// Schlüssel -> Stufe als `index + 1`, 0 für „keine Aussage".
+  final Map<int, int> _memo = {};
+
+  /// Der zuletzt gefragte Schlüssel samt Antwort — vor der Map, weil
+  /// die Nachbarwabe meist denselben trifft und ein Vergleich billiger
+  /// ist als ein Nachschlag (auf dem Pixel XL zählte das, #662).
+  int _lastKey = -1;
+  int _lastValue = 0;
+
+  /// Höhen außerhalb dieser Spanne werden nicht gemerkt (die Gitter
+  /// liefern 0–5100 m).
+  static const _heightSpan = 8192;
+
+  static bool _keyFits(AmpelLevels levels) {
+    var span = _heightSpan + 1.0;
+    for (final grid in levels.grids) {
+      span *= grid.width + 1;
+    }
+    return span < 9007199254740992; // 2^53
+  }
+
+  /// Ob [rows] dieselben Zeilen sind — dann taugt dieses Gedächtnis.
+  bool matches(List<int?> other) {
+    if (other.length != rows.length) return false;
+    for (var i = 0; i < rows.length; i++) {
+      if (other[i] != rows[i]) return false;
+    }
+    return true;
+  }
+
+  AmpelLevel? at(double lon, {int? heightM}) {
+    final grids = levels.grids;
+    var key = 0;
+    for (var i = 0; i < grids.length; i++) {
+      final column =
+          rows[i] == null ? -1 : (grids[i].columnAt(lon) ?? -1);
+      _columns[i] = column;
+      key = key * (grids[i].width + 1) + column + 1;
+    }
+    final h = heightM == null ? 0 : heightM + 1;
+    if (!_keyed || h < 0 || h > _heightSpan) {
+      return levels._levelForCells(rows, _columns,
+          classes: classes, heightM: heightM);
+    }
+    key = key * (_heightSpan + 1) + h;
+    if (key != _lastKey) {
+      _lastKey = key;
+      final known = _memo[key];
+      if (known != null) {
+        _lastValue = known;
+      } else {
+        final level = levels._levelForCells(rows, _columns,
+            classes: classes, heightM: heightM);
+        _memo[key] = _lastValue = level == null ? 0 : level.index + 1;
+      }
+    }
+    return _lastValue == 0 ? null : AmpelLevel.values[_lastValue - 1];
   }
 }
