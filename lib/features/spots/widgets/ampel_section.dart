@@ -328,8 +328,8 @@ class AmpelSection extends ConsumerWidget {
     // In der Glocke ist der Score Regen × Temperatur: Unter 0,33 ist er
     // klein, egal wie die Temperatur steht — „zu trocken" heißt dort
     // wirklich „aus". Das Logit rechnet den Regen ADDITIV als
-    // 0,1915 · ln F; Temperatur und Bodenfeuchte gleichen ihn aus, und
-    // Austernseitling & Co. ist schon ab F ≈ 0,15 „günstig". Neben einer
+    // 0,1732 · ln F; die Temperatur gleicht ihn aus, und Austernseitling
+    // & Co. ist bei 13 °C schon ab F ≈ 0,26 „verhalten" (#676). Neben einer
     // solchen Stufe las sich „zu trocken" als Widerspruch (Vogesen,
     // 2026-10). Dort steht deshalb nur die MENGE, ohne „zu".
     final logitClass = reading.tempFactor == null;

@@ -268,7 +268,8 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
     `spots/widgets/ampel_section.dart`) sagt bei der Glocke „Regen: zu
     trocken" und „Temperatur: zu kühl" — dort ist der Score ein PRODUKT,
     eine schwache Zutat zieht ihn wirklich herunter. Das Logit rechnet
-    additiv; Austernseitling & Co. ist schon ab F ≈ 0,15 „günstig", und
+    additiv; Austernseitling & Co. war mit den alten Konstanten schon ab
+    F ≈ 0,15 „günstig" (seit #676 bei 13 °C ab F ≈ 0,26 „verhalten"), und
     „zu trocken" darunter las sich als Widerspruch. Bei Logit-Klassen
     steht deshalb nur die Menge („wenig / mäßig / reichlich") bzw. die
     Zahl. Ein neues Wort in der Zeile an derselben Frage messen: Kann
@@ -276,9 +277,9 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
   - **Die Bodenfeuchte kennt keine Landesgrenze, nur einen Abstand**
     (#665, seit 1.222.7). Alle Feuchtestationen stehen in Deutschland;
     wie weit eine Logit-Klasse ins Ausland reicht, entscheidet allein
-    `AmpelLogit.maxMoistureKm`. Austernseitling & Co. behält die 100 km
-    der Tabelle — die Klasse reist, und der AT/CH-Hold-out lief mit
-    genau dieser Regel. Herbsttrompete & Co. reist nicht und bekommt
+    `AmpelLogit.maxMoistureKm`. Austernseitling & Co. brauchte bis
+    1.222.x die 100 km der Tabelle und braucht seit #676 gar keine
+    Station mehr (siehe nächster Punkt). Herbsttrompete & Co. reist nicht und bekommt
     30 km: in Deutschland 0,43 % der Fläche grau, im Ausland ein Streifen
     (Straßburg, Basel, Salzburg, Innsbruck rechnen; Colmar, Vogesen
     nicht). Gemessen gegen die DWD-Stationsliste auf einem Raster über
@@ -286,6 +287,28 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
     (`ampel_providers.dart`, echter Abstand) und Fläche
     (`AmpelLevelGrid.moistureKm`, aufgerundete km) prüfen dieselbe
     Grenze — eine ganze Zahl, sonst fallen sie an verschiedenen Stellen.
+  - **Austernseitling & Co. rechnet ohne Bodenfeuchte** (#676, seit
+    1.223.0, Labor 25/26, Betreiber 2026-10-08: „Ohne Feuchte"). Labor 25
+    stellte die DWD-Feuchte gegen ERA5-Land in drei Schichten: Für diese
+    Klasse trägt die Feuchte aus keiner Quelle etwas — das Placebo
+    (Feuchte je Stratum vertauscht) gewann in AT/CH fast so viel wie
+    ERA5; der Gewinn dort war „rechnet statt grau", nicht die Feuchte.
+    Labor 26: ohne die beiden Feuchtekonstanten in DE −0,007 n.s., keine
+    Art schlechter, in AT/CH gegen „grau jenseits 100 km" ▲. Drei Dinge,
+    die man wissen muss:
+    - **Zwei Nullen heißen „keine Reihe nötig"** (`AmpelLogit.needsMoisture`,
+      wie `needsMilder`): Dann zählen weder Reihe noch Abstand, Blatt
+      und Fläche rechnen die Klasse überall, wo Regen und Temperatur
+      antworten — in AT, CH und der Alpenbox über das Modellgitter.
+    - **Die Schwellen sind auf einer anderen Skala** (0,099 / 0,255 statt
+      0,387 / 0,558): Ohne Feuchtespalten verschiebt sich `s` als Ganzes.
+      Gemessen auf ALLEN P1-Strata, nicht nur denen mit DWD-Station —
+      wie die App jetzt rechnet. Herbsttrompete & Co. kam bei derselben
+      Messung unverändert heraus (Gegenprobe der Messung).
+    - **Der Preis ist ehrlich zu nennen:** AUC auf dem Testteil 0,576 →
+      0,555, ohne gesicherten Verlust in der Log-Likelihood. Wer die
+      Klasse wieder mit einer Feuchte versucht, misst gegen das Placebo,
+      nicht gegen „grau" — sonst gewinnt wieder nur das Rechnen an sich.
   - **Das X schaltet nur für die SITZUNG stumm** (#425, seit 1.128.1) —
     vorher bis Tagesende, mit der Begründung „morgen sind es andere
     Daten und damit eine andere Aussage". Die stimmt weiter; ungeprüft

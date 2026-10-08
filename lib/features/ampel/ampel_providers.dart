@@ -230,9 +230,11 @@ AmpelReading ampelReadingFrom(
   // (26 Tage, vollständig). Ohne sie gibt es keine Stufe — kein
   // Ersatzwert, kein Rückfall auf die Glocke: Die Klasse ist mit genau
   // dieser Größe validiert und mit keiner anderen.
+  // Seit #676 nur, wo die Klasse sie überhaupt braucht
+  // ([AmpelLogit.needsMoisture]) — Holz & Winter rechnet ohne.
   final logit = klass.logit;
   double? moistureMean;
-  if (logit != null) {
+  if (logit != null && logit.needsMoisture) {
     final pick = temperature?.moisture;
     if (pick == null) {
       return const AmpelReading.grau(
@@ -286,7 +288,7 @@ AmpelReading ampelReadingFrom(
       : logit.score(
           rainFactor: rainFactor,
           meanC: tempMeanC,
-          moistureMean: moistureMean!,
+          moistureMean: moistureMean,
           milder: milder)!;
   return AmpelReading(
     level: ampelLevelOf(score, klass: klass),

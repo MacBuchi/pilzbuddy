@@ -76,26 +76,38 @@ KLASSEN = {
         "members": ["Austernseitling", "Judasohr", "Krause Glucke", "Leberpilz",
                     "Lungenseitling", "Rehbrauner Dachpilz", "Samtfußrübling",
                     "Schwefelporling"],
-        # Aus `24-testbloecke-abfolge.md` (Labor, Kandidat K6_5): Fit auf
-        # allen DACH-Trainingsstrata der acht Arten, Reihenfolge wie
-        # SPALTEN. Bis 2026-09-21 die fuenf aus `18-testteil-dach.md`
-        # (0.1882, 0.1321, -0.00446, 0.00220, -0.000442).
-        "koeffizienten": (0.1915, 0.1350, -0.004712, 0.002383, -0.0004888, 0.04193),
+        # **Ohne Bodenfeuchte** seit 2026-10-08 (#676, Labor 25/26,
+        # Betreiber: „Ohne Feuchte"): Fit auf allen DACH-Trainingsstrata
+        # der acht Arten ohne die beiden Feuchtespalten, Reihenfolge wie
+        # SPALTEN. Labor 25 zeigte, dass die Feuchte dieser Klasse aus
+        # keiner Quelle etwas bringt (das Placebo gewinnt in AT/CH fast
+        # gleich viel); Labor 26 auf den Testbloecken: DE −0,007
+        # [−0,031, +0,018] gegen das Logit mit DWD-Feuchte, keine Art
+        # schlechter, AT/CH gegen „grau jenseits 100 km" +0,017 [+0,003,
+        # +0,031]. Bis 1.222.x die sechs aus `24-testbloecke-abfolge.md`
+        # (0.1915, 0.1350, -0.004712, 0.002383, -0.0004888, 0.04193).
+        "koeffizienten": (0.1732, 0.06921, -0.003344, 0.0, 0.0, 0.03819),
         # Die Schwellen — gemessen mit `--schwellen` (Design B, P1, 2000
         # Zuege), hier gepinnt; der Lauf prueft sie bei jedem Mal nach.
         # Neu gezogen am 2026-09-21 unter der sechsten Konstante (vorher
         # 0,454 / 0,606 unter fuenf). Baender: verhalten [0,378, 0,396],
         # guenstig [0,551, 0,566]; 23 200 Kontrolltage.
-        "verhalten": 0.387,
-        "guenstig": 0.558,
-        "schwellen_quelle": "Design B, P1, pinned (2026-09-21), docs/pilzampel-logit-schwellen.md",
-        "gilt": "DE",
+        # Neu gezogen am 2026-10-08 ohne Feuchte (#676), auf ALLEN
+        # P1-Strata statt nur denen mit DWD-Station. Vorher 0,387 / 0,558
+        # unter sechs Konstanten. Die Skala ist eine andere — ohne die
+        # Feuchtespalten verschiebt sich `s` als Ganzes.
+        "verhalten": 0.099,
+        "guenstig": 0.255,
+        "schwellen_quelle": "Design B, P1, pinned (2026-10-08), docs/pilzampel-logit-schwellen.md",
+        "gilt": "DE+AT+CH",
         "confirmed": True,
         "why": "Phase G auf DE-Test +0,402 [+0,255, +0,596], AT/CH-Test "
                "+0,206 [+0,081, +0,352], gegen die Klimatologie +0,020 "
                "[+0,000, +0,038] — Labor 15/16/18 (2026-09-20); milder "
                "auf den Testbloecken +0,007 [+0,001, +0,013] — Labor 24 "
-               "(2026-09-21)",
+               "(2026-09-21); ohne Feuchte DE −0,007 [−0,031, +0,018], "
+               "AT/CH gegen grau +0,017 [+0,003, +0,031] — Labor 26 "
+               "(2026-10-08)",
     },
     "cantharellales": {
         "dart": "ampelCantharellalesClass",
@@ -179,16 +191,24 @@ def milder(tmin, fenster=MILDER_FENSTER, jung=MILDER_JUNG):
 
 
 def merkmale(regen, temp, feuchte, tmin=None):
-    """Die sechs Spalten (Reihenfolge SPALTEN) oder `None` bei Luecke in
-    Temperatur oder Feuchte. Die Spalte `milder` ist fuer sich `None`,
-    wenn die Minima fehlen — ob das den Score kostet, entscheidet die
-    Konstante der Klasse (`score`)."""
+    """Die sechs Spalten (Reihenfolge SPALTEN) oder `None` ohne
+    Temperatur. Feuchte (`feuchte`, `feuchte_x_temp`) und `milder` sind
+    fuer sich `None`, wenn ihre Reihe fehlt oder eine Luecke hat — ob das
+    den Score kostet, entscheidet die Konstante der Klasse (`score`):
+    Holz & Winter rechnet seit #676 ohne Feuchte, Herbsttrompete & Co.
+    ohne Minima."""
     t = temperatur_mittel(temp)
-    m = feuchte_mittel(feuchte)
-    if t is None or m is None:
+    if t is None:
         return None
+    m = feuchte_mittel(feuchte)
     log_f = math.log(max(av.rain_factor(regen), REGEN_BODEN))
-    return (log_f, t, t * t, m, m * t, milder(tmin))
+    return (log_f, t, t * t, m, None if m is None else m * t, milder(tmin))
+
+
+def braucht_feuchte(koeffizienten):
+    """Wie `AmpelLogit.needsMoisture`: Zwei Nullen heissen „keine Reihe
+    noetig" — dann zaehlt auch keine Feuchtestation."""
+    return koeffizienten[3] != 0 or koeffizienten[4] != 0
 
 
 def score(regen, temp, feuchte, koeffizienten, tmin=None):
@@ -196,7 +216,8 @@ def score(regen, temp, feuchte, koeffizienten, tmin=None):
     die die Klasse braucht.
 
     `regen`: 26 Tageswerte mm, Vortag zuerst. `temp`: 20 Tageswerte °C,
-    Vortag zuerst. `feuchte`: 26 Tageswerte % nFK, Vortag zuerst. `tmin`:
+    Vortag zuerst. `feuchte`: 26 Tageswerte % nFK, Vortag zuerst — nur
+    Pflicht, wo die Klasse sie braucht (`braucht_feuchte`). `tmin`:
     28 Tagesminima °C, Vortag zuerst — nur Pflicht, wo die Konstante fuer
     `milder` nicht 0 ist; eine Klasse ohne das Merkmal rechnet ohne die
     Reihe, statt an ihr zu scheitern.
@@ -460,7 +481,15 @@ def messe_schwellen(key, cache_dir, bestand, rounds=2000, seed=42,
             continue
         p1 = [s for s in gezogen["samples"] if s["year"] > av.FIT_UNTIL_YEAR]
         p1 = mit_koordinate(p1, finds)
-        strata, km = mit_bodenfeuchte(p1, bestand)
+        if braucht_feuchte(klasse["koeffizienten"]):
+            strata, km = mit_bodenfeuchte(p1, bestand)
+        else:
+            # Ohne Feuchte zaehlt auch keine Station: alle Strata, wie die
+            # App, die die Klasse dann ueberall rechnet.
+            strata = [dict(s, feuchte=None,
+                           feuchte_controls=[None] * len(s["controls"]))
+                      for s in p1]
+            km = []
         tage = schwellen_tage(strata, klasse["koeffizienten"])
         n_kontroll = sum(len(v) for v in tage.values())
         mitglieder[art] = {"funde": len(strata), "kontrolltage": n_kontroll,
@@ -468,9 +497,10 @@ def messe_schwellen(key, cache_dir, bestand, rounds=2000, seed=42,
                            "km": sorted(km)[len(km) // 2] if km else None,
                            "unter_grenze": len(strata) < min_funde}
         if progress:
+            station = ("ohne Station" if mitglieder[art]["km"] is None
+                       else f"Station im Median {mitglieder[art]['km']:.0f} km")
             print(f"  {art}: {len(strata)} Funde auf P1, {n_kontroll} "
-                  f"Kontrolltage, Station im Median "
-                  f"{mitglieder[art]['km'] or float('nan'):.0f} km", file=sys.stderr)
+                  f"Kontrolltage, {station}", file=sys.stderr)
         if strata:
             arten.append(ad.schwellen_gewichte(tage))
     if not arten:
@@ -507,8 +537,10 @@ def schreibe_bericht(ergebnisse, pfad):
       "Abschnitt 1). Vergleichstage nach Design B (gleicher Ort, gleiches "
       "Datum, anderes Jahr), Quantile 50 % / 80 %, jedes Fundjahr und jede "
       "Art gleich schwer, Jahres-Bootstrap mit 2000 Zügen. Die "
-      "Bodenfeuchte kommt von der nächsten DWD-Station (`BFGL_AG`), "
-      "26-Tage-Mittel — genau so, wie die App sie holt. Das Merkmal "
+      "Bodenfeuchte kommt — bei einer Klasse, die sie braucht — von der "
+      "nächsten DWD-Station (`BFGL_AG`), 26-Tage-Mittel, genau so, wie "
+      "die App sie holt; eine Klasse ohne Feuchte (seit #676 Holz & "
+      "Winter) rechnet auf allen Strata, ohne Station. Das Merkmal "
       "„milder“ (Tagesminima der jüngsten 5 Tage gegen die Tage 6–28, "
       "seit 2026-09-21) kommt aus den Minima des gepinnten Datensatzes an "
       "der Fundkoordinate; die App nimmt dafür die nächste Luftstation — "
@@ -516,6 +548,8 @@ def schreibe_bericht(ergebnisse, pfad):
     for key, e in ergebnisse.items():
         klasse = KLASSEN[key]
         w(f"## {klasse['label']} (`{key}`)\n")
+        if not braucht_feuchte(klasse["koeffizienten"]):
+            w("Ohne Bodenfeuchte: keine Station, alle Strata auf P1.\n")
         w("| Art | Funde P1 | Kontrolltage | Fundjahre | Station (Median) |")
         w("|---|--:|--:|--:|--:|")
         for art, m in e["mitglieder"].items():
@@ -523,8 +557,9 @@ def schreibe_bericht(ergebnisse, pfad):
                 w(f"| {art} | — | — | — | {m['fehler']} |")
                 continue
             warn = " ⚠" if m["unter_grenze"] else ""
+            station = "—" if m["km"] is None else f"{m['km']:.0f} km"
             w(f"| {art}{warn} | {m['funde']} | {m['kontrolltage']} | {m['jahre']} | "
-              f"{m['km']:.0f} km |")
+              f"{station} |")
         w("")
         w("| Stufe | gepinnt | gemessen | 95 % |")
         w("|---|--:|--:|---|")
@@ -610,6 +645,19 @@ def self_test():
     assert abs(score(regen, temp, feuchte, k0, tmin=tmin) - (soll - 0.3)) < 1e-12
     assert merkmale(regen, temp, feuchte)[5] is None
     assert merkmale(regen, temp, feuchte, tmin)[5] == 3.0
+    # **Ohne Feuchte** (#676): zwei Nullen heissen „keine Reihe noetig",
+    # eine fehlende oder lueckige Reihe kostet dann nichts; wo die Klasse
+    # sie braucht, bleibt es bei „kein Score".
+    kf = (k[0], k[1], k[2], 0.0, 0.0, k[5])
+    ohne_feuchte = soll - 1.2 + 0.48
+    assert not braucht_feuchte(kf) and braucht_feuchte(k)
+    assert abs(score(regen, temp, None, kf, tmin=tmin) - ohne_feuchte) < 1e-12
+    assert abs(score(regen, temp, feuchte[:25], kf, tmin=tmin) - ohne_feuchte) < 1e-12
+    assert abs(score(regen, temp, feuchte, kf, tmin=tmin) - ohne_feuchte) < 1e-12
+    assert score(regen, temp, None, k, tmin=tmin) is None
+    assert merkmale(regen, temp, None, tmin)[3:5] == (None, None)
+    assert not braucht_feuchte(KLASSEN["holz_winter"]["koeffizienten"])
+    assert braucht_feuchte(KLASSEN["cantharellales"]["koeffizienten"])
     assert KLASSEN["cantharellales"]["koeffizienten"][5] == 0.0
     assert KLASSEN["holz_winter"]["koeffizienten"][5] != 0.0
     # Stufen wie in Dart.

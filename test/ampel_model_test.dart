@@ -213,7 +213,7 @@ void main() {
 
   group('Logit-Klassen spiegeln tool/ampel_logit_klasse.py', () {
     // Fixtures aus `python3 tool/ampel_logit_klasse.py --fixtures`
-    // (2026-09-21, seit der sechsten Konstante), nicht von Hand
+    // (2026-10-08, Holz & Winter seit #676 ohne Feuchte), nicht von Hand
     // gerechnet.
     final regen20 = [20.0, ...List.filled(25, 0.0)];
     final m60 = List<double?>.filled(26, 60.0);
@@ -227,7 +227,7 @@ void main() {
       expect(
           ampelHolzWinterClass.logit.score(
               rainFactor: f, meanC: 8.0, moistureMean: 60.0, milder: 3.0),
-          closeTo(0.6565497379317509, 1e-9));
+          closeTo(0.31311601049493065, 1e-9));
       expect(
           ampelCantharellalesClass.logit.score(
               rainFactor: f, meanC: 8.0, moistureMean: 60.0, milder: 3.0),
@@ -239,7 +239,7 @@ void main() {
               meanC: 3.0,
               moistureMean: 90.0,
               milder: 3.0),
-          closeTo(-0.751959135925079, 1e-9));
+          closeTo(-0.9043192143197059, 1e-9));
       expect(
           ampelCantharellalesClass.logit.score(
               rainFactor: 1.0, meanC: 13.0, moistureMean: 40.0, milder: 0.0),
@@ -247,12 +247,12 @@ void main() {
       expect(
           ampelHolzWinterClass.logit.score(
               rainFactor: 1.0, meanC: 13.0, moistureMean: 40.0, milder: 0.0),
-          closeTo(0.7998160000000001, 1e-9));
-      // Kälter zuletzt: −2 °C senkt den Score um 5 × 0,04193.
+          closeTo(0.33459399999999984, 1e-9));
+      // Kälter zuletzt: −2 °C senkt den Score um 5 × 0,03819.
       expect(
           ampelHolzWinterClass.logit.score(
               rainFactor: f, meanC: 8.0, moistureMean: 60.0, milder: -2.0),
-          closeTo(0.4468997379317509, 1e-9));
+          closeTo(0.12216601049493067, 1e-9));
       expect(ampelMoistureMean(m60), 60.0);
     });
 
@@ -324,26 +324,60 @@ void main() {
       expect(ampelMoistureMean([0.0, ...List<double?>.filled(26, 60)]), 60.0);
     });
 
-    test('ohne Bodenfeuchte zählt eine Logit-Klasse nicht mit', () {
-      // Satter Regen bei 13 °C und 60 % nFK: günstig. Ohne Feuchte fällt
-      // die Klasse aus der Wahl, statt mit einem Ersatzwert zu rechnen.
+    test('ohne Bodenfeuchte zählt eine Logit-Klasse nicht mit, die sie '
+        'braucht', () {
+      // Ohne Feuchte fällt Herbsttrompete & Co. aus der Wahl, statt mit
+      // einem Ersatzwert zu rechnen.
+      expect(ampelCantharellalesClass.logit.needsMoisture, isTrue);
       final ohne = ampelBestOf(
-          rainFactor: 1.0, meanC: 13, classes: const [ampelHolzWinterClass]);
+          rainFactor: 1.0,
+          meanC: 13,
+          classes: const [ampelCantharellalesClass]);
       expect(ohne.level, isNull);
-      expect(ampelScoreFor(ampelHolzWinterClass, rainFactor: 1.0, meanC: 13),
+      expect(
+          ampelScoreFor(ampelCantharellalesClass, rainFactor: 1.0, meanC: 13),
           isNull);
       final mit = ampelBestOf(
           rainFactor: 1.0,
           meanC: 13,
+          classes: const [ampelCantharellalesClass],
+          moistureMean: 60);
+      expect(mit.level, isNotNull);
+      expect(mit.klass, ampelCantharellalesClass);
+    });
+
+    test('Holz & Winter rechnet ohne Bodenfeuchte und ohne Station (#676)',
+        () {
+      // Zwei Nullen heißen „keine Reihe nötig" — wie bei „milder". Satter
+      // Regen bei 13 °C: günstig, mit oder ohne Feuchte, nah oder fern.
+      expect(ampelHolzWinterClass.logit.needsMoisture, isFalse);
+      final ohne = ampelBestOf(
+          rainFactor: 1.0,
+          meanC: 13,
           classes: const [ampelHolzWinterClass],
-          moistureMean: 60,
           milder: 0);
-      expect(mit.level, AmpelLevel.guenstig);
-      expect(mit.klass, ampelHolzWinterClass);
+      expect(ohne.level, AmpelLevel.guenstig);
+      expect(ohne.klass, ampelHolzWinterClass);
+      final ohneScore = ampelScoreFor(ampelHolzWinterClass,
+          rainFactor: 1.0, meanC: 13, milder: 0);
+      expect(ohneScore, isNotNull);
+      expect(
+          ampelScoreFor(ampelHolzWinterClass,
+              rainFactor: 1.0,
+              meanC: 13,
+              moistureMean: 95,
+              moistureKm: 500,
+              milder: 0),
+          ohneScore,
+          reason: 'die Feuchte und ihr Abstand ändern nichts');
+      expect(
+          ampelHolzWinterClass.logit
+              .score(rainFactor: 1.0, meanC: 13, milder: 0),
+          ohneScore);
     });
 
     test('die Feuchtestation darf bei Herbsttrompete & Co. höchstens 30 km '
-        'weg sein, bei Austernseitling & Co. gilt die Tabelle (#665)', () {
+        'weg sein, Austernseitling & Co. braucht keine (#665, #676)', () {
       // Absolut, nicht aus der Konstante: Die Zahl ist gegen die
       // DWD-Stationsliste gemessen (0,43 % Deutschlands grau).
       expect(ampelCantharellalesClass.logit.maxMoistureKm, 30);
@@ -353,6 +387,8 @@ void main() {
       expect(score(ampelCantharellalesClass, 30), isNotNull);
       expect(score(ampelCantharellalesClass, 31), isNull);
       expect(score(ampelHolzWinterClass, 99), isNotNull);
+      expect(score(ampelHolzWinterClass, 400), isNotNull,
+          reason: 'ohne Feuchte zählt kein Abstand (#676)');
       // Ohne bekannten Abstand prüft die Formel nichts.
       expect(score(ampelCantharellalesClass, null), isNotNull);
     });
@@ -444,7 +480,9 @@ void main() {
   group('AmpelCellInputs rechnet wie vor #662', () {
     // Die Fassung von 1.222.8, Wort für Wort: Score je Klasse und die
     // Gleichstandsregel. Der Umbau auf vorbereitete Zellzutaten (#662)
-    // darf keine einzige Zahl ändern — Gleichheit, nicht closeTo.
+    // darf keine einzige Zahl ändern — Gleichheit, nicht closeTo. Einzige
+    // Änderung seither: Feuchte und Abstand zählen nur, wo die Klasse
+    // die Feuchte braucht (#676).
     double? oldScore(AmpelClass klass,
         {required double rainFactor,
         required double meanC,
@@ -455,15 +493,19 @@ void main() {
       if (logit == null) {
         return rainFactor * ampelBellOfMean(meanC, optimumC: klass.optimumC!);
       }
-      if (moistureMean == null) return null;
-      if (moistureKm != null && moistureKm > logit.maxMoistureKm) return null;
+      if (logit.needsMoisture) {
+        if (moistureMean == null) return null;
+        if (moistureKm != null && moistureKm > logit.maxMoistureKm) {
+          return null;
+        }
+      }
       if (milder == null && logit.needsMilder) return null;
       final logRain = math.log(math.max(rainFactor, ampelLogitRainFloor));
       return logit.rain * logRain +
           logit.temp * meanC +
           logit.temp2 * meanC * meanC +
-          logit.moisture * moistureMean +
-          logit.moistureTemp * moistureMean * meanC +
+          logit.moisture * (moistureMean ?? 0) +
+          logit.moistureTemp * (moistureMean ?? 0) * meanC +
           logit.milder * (milder ?? 0);
     }
 

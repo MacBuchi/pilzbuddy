@@ -302,3 +302,26 @@ transparent bleiben, was wozu gehört.“ Freigabe zum Bau am 2026-09-21.
 Sprung in den Kartenfilter) — das wäre ein zweiter Einstieg in den
 Filter mit eigener Zustandsfrage; wenn er gewünscht ist, ist er ein
 eigener Schritt.
+
+## Nachtrag 2026-10-08 — Holz & Winter ohne Bodenfeuchte (#676)
+
+Labor 25 hat die Bodenfeuchte beider Logit-Klassen gegen ERA5-Land in
+drei Schichten (0–7, 7–28, 28–100 cm) gestellt, Labor 26 Holz & Winter
+ganz ohne Feuchte. Entscheidung des Betreibers: **„Ohne Feuchte"** für
+Holz & Winter, ERA5-Land 7–28 cm für Herbsttrompete & Co. („Bauen", als
+einzige Quelle in ganz DACH).
+
+- **Holz & Winter (1.223.0):** In Labor 25 gewann das Placebo
+  (Feuchte je Stratum vertauscht) in AT/CH fast so viel wie ERA5 — der
+  Gewinn dort war „rechnet statt grau", nicht die Feuchte. Ohne die
+  beiden Feuchtekonstanten (Labor 26) in DE −0,007 [−0,031, +0,018] je
+  Stratum gegen das Logit mit DWD-Feuchte, keine Art schlechter, AT/CH
+  gegen „grau jenseits 100 km" +0,017 [+0,003, +0,031] ▲. Konstanten
+  0,1732 · ln F + 0,06921 · T − 0,003344 · T² + 0,03819 · milder,
+  Schwellen 0,099 / 0,255 (`docs/pilzampel-logit-schwellen.md`). AUC
+  auf dem Testteil 0,576 → 0,555.
+- **Die Naht kostet nichts:** ERA5-Land hinkt ~5 Tage; die fehlenden
+  Tage mit dem letzten Wert fortzuschreiben änderte keine Schicht
+  messbar (≤ 0,003). Ein Vorhersagemodell braucht das Gitter nicht.
+- **Offen:** das ERA5-Feuchtegitter in CI (eigene Open-Meteo-Instanz im
+  Job, Kern von #631) und danach Herbsttrompete & Co. darauf.

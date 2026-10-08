@@ -408,6 +408,9 @@ void main() {
     container.read(ampelLayerEnabledProvider.notifier).state = true;
     container.read(mapIdleCenterProvider.notifier).state =
         const LatLng(spotLat, spotLng);
+    // Austernseitling & Co. rechnet seit #676 ohne Bodenfeuchte überall
+    // mit — dieser Test meint die Glockenklassen und ihre Höhe.
+    container.read(spotFilterProvider.notifier).toggleClass('holz_winter');
     await settle(tester);
 
     // Erst die Gegenrichtung: Die Legende ist überhaupt da und zeigt
@@ -444,6 +447,9 @@ void main() {
     container.read(ampelLayerEnabledProvider.notifier).state = true;
     container.read(mapIdleCenterProvider.notifier).state =
         const LatLng(spotLat, spotLng);
+    // Austernseitling & Co. rechnet seit #676 ohne Bodenfeuchte überall
+    // mit — dieser Test meint die Glockenklassen und ihre Höhe.
+    container.read(spotFilterProvider.notifier).toggleClass('holz_winter');
     await settle(tester);
 
     expect(find.text('am Fadenkreuz'), findsOneWidget);
@@ -545,6 +551,9 @@ void main() {
     container.read(ampelLayerEnabledProvider.notifier).state = true;
     container.read(mapIdleCenterProvider.notifier).state =
         const LatLng(spotLat, spotLng);
+    // Austernseitling & Co. rechnet seit #676 ohne Bodenfeuchte überall
+    // mit — dieser Test meint die Glockenklassen und ihre Höhe.
+    container.read(spotFilterProvider.notifier).toggleClass('holz_winter');
     await settle(tester);
 
     // Aufbau wie im Test darüber: Station 316 m auf 920 m gerechnet
@@ -1000,10 +1009,13 @@ void main() {
 
     testWidgets(
         '„milder" (#497): mit 28 Tagen rechnet Austernseitling & Co. und '
-        'nennt die Nächte', (tester) async {
+        'nennt die Nächte — auch ohne Feuchtestation (#676)', (tester) async {
+      // Ohne Feuchtestation in der Tabelle: Seit #676 braucht die Klasse
+      // keine, das Blatt darf nicht mehr „keine Bodenfeuchte-Station"
+      // sagen.
       await pumpWithWeather(
           tester, loggedInWithSpot(species: 'Austernseitling'),
-          preview: true, withMoisture: true, month: 12);
+          preview: true, month: 12);
       await openSpot(tester);
       await acceptAndSettle(tester);
       expect(find.textContaining('für Austernseitling'), findsOneWidget);
@@ -1013,16 +1025,21 @@ void main() {
           find.textContaining(
               'Nächte zuletzt: wie in den drei Wochen davor'),
           findsOneWidget);
-      expect(find.textContaining('Bodenfeuchte: 60 % nFK'), findsOneWidget);
+      // Die Zutatenzeile der Ampel („Bodenfeuchte: 60 % nFK"), nicht die
+      // Wetterzeile der Station darüber („Bodenfeuchte 0–60 cm: …").
+      expect(find.textContaining('Bodenfeuchte: '), findsNothing,
+          reason: 'Austernseitling & Co. rechnet seit #676 ohne Feuchte — '
+              'eine Zutat, die nicht eingeht, steht nicht da');
       expect(find.textContaining('keine Aussage'), findsNothing);
     });
 
     testWidgets(
-        'Logit-Klasse (#663): wenig Regen und trotzdem „günstig" — die '
+        'Logit-Klasse (#663): wenig Regen und trotzdem „verhalten" — die '
         'Zeile sagt „wenig", nicht „zu trocken"', (tester) async {
       // Der Fall aus den Vogesen: 1 mm an 26 Tagen ⇒ F = 26/87 ≈ 0,30,
-      // unter der 0,33 der Glocke. Bei 13 °C und 28 % nFK steht das
-      // Logit trotzdem bei ≈ 0,62 > 0,558 — „günstig". Konstante Minima,
+      // unter der 0,33 der Glocke. Bei 13 °C steht das Logit trotzdem
+      // bei ≈ 0,125 > 0,099 — „verhalten" (seit #676 ohne Feuchte; mit
+      // den alten Konstanten war es „günstig"). Konstante Minima,
       // „milder" trägt 0 bei.
       await pumpWithWeather(
           tester, loggedInWithSpot(species: 'Austernseitling'),
@@ -1035,7 +1052,7 @@ void main() {
       await acceptAndSettle(tester);
       // Erst die Stufe: Ohne sie bewiese das fehlende „zu trocken"
       // nichts über den Widerspruch.
-      expect(find.textContaining(': günstig'), findsOneWidget);
+      expect(find.textContaining(': verhalten'), findsOneWidget);
       expect(find.textContaining('für Austernseitling'), findsOneWidget);
       expect(find.textContaining('Regen (26 Tage): wenig'), findsOneWidget);
       expect(find.textContaining('zu trocken'), findsNothing);
