@@ -67,9 +67,13 @@ class ProtectedArea {
   }
 
   /// Namen, die ihre Art schon selbst sagen — auch auf Französisch,
-  /// Italienisch und Ungarisch, weil Grenzgebiete so heißen.
+  /// Italienisch und Ungarisch, weil Grenzgebiete so heißen. Tiroler
+  /// Sonderschutzgebiete (#623) stehen als `Naturschutzgebiet` im Gitter
+  /// und tragen ihr eigenes Wort im Namen — sonst hieße es
+  /// „Naturschutzgebiet „Silzer Innau“", und das ist es nicht.
   static final _carriesKind = RegExp(
-      r'naturschutzgebiet|nationalpark|kernzone|schutzzone|naturreservat'
+      r'naturschutzgebiet|sonderschutzgebiet|nationalpark|kernzone|schutzzone'
+      r'|naturreservat'
       r'|r[ée]serve naturelle|riserva naturale|parco nazionale|nemzeti park'
       r'|národní park',
       caseSensitive: false);

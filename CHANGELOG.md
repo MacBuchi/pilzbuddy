@@ -7,6 +7,24 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Schutzgebiete in Tirol nach den amtlichen Grenzen
+
+*8. Oktober 2026 · Version 1.224.2*
+
+- In Tirol kommen die Schutzgebiete jetzt aus den Daten des Landes statt
+  aus OpenStreetMap. Dort fehlte vieles: fast das ganze
+  Naturschutzgebiet Karwendel, der Tiroler Lech, der Tschirgant und die
+  Sonderschutzgebiete an den Innauen. Sie sind jetzt schraffiert, und
+  beim Eintragen steht der Hinweis.
+- Umgekehrt warnt die App nicht mehr in der Außenzone des Nationalparks
+  Hohe Tauern und in den Ruhegebieten der Stubaier und Ötztaler Alpen.
+  Für sie gilt dasselbe wie für Landschaftsschutzgebiete: Dort ist
+  Sammeln in der Regel erlaubt, maßgeblich sind die Schilder vor Ort.
+  Gewarnt wird weiter in der Kernzone des Nationalparks.
+- In Südtirol gibt es noch keine Schutzgebietsdaten. Kein Hinweis heißt
+  dort nicht, dass Sammeln erlaubt ist; es gelten eigene Regeln
+  (Sammeltage, Mengen).
+
 ## Kurzanleitung zeigt den neuen Weg für Karten ohne Empfang
 
 *8. Oktober 2026 · Version 1.224.1*

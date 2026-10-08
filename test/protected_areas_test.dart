@@ -133,5 +133,9 @@ void main() {
         'Národní park Šumava');
     expect(label(ProtectedKind.nationalPark, ''), 'Nationalpark',
         reason: 'ohne Namen die Art allein, keine leeren Anführungszeichen');
+    // Tirol (#623): Ein Sonderschutzgebiet steht als Naturschutzgebiet im
+    // Gitter, ist aber keins — sein Name sagt die Art.
+    expect(label(ProtectedKind.natureReserve, 'Sonderschutzgebiet Silzer Innau'),
+        'Sonderschutzgebiet Silzer Innau');
   });
 }
