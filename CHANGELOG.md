@@ -7,6 +7,20 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Austernseitling & Co. jetzt auch in Österreich und der Schweiz
+
+*8. Oktober 2026 · Version 1.223.0*
+
+- Das Pilzwetter für Austernseitling, Judasohr, Krause Glucke,
+  Schwefelporling und die anderen Holz- und Winterpilze braucht keine
+  Bodenfeuchte-Messstation mehr. Bisher blieb die Gruppe in Österreich,
+  der Schweiz und Südtirol grau, weil es solche Stationen nur in
+  Deutschland gibt. Jetzt rechnet sie überall, wo es Regen und
+  Temperatur gibt.
+- Eine Auswertung über viele tausend Fundmeldungen hat gezeigt, dass
+  die Bodenfeuchte für diese Pilze keinen Unterschied macht: In
+  Deutschland ist die Vorhersage ohne sie genauso gut wie mit ihr.
+
 ## Pilzwetter auf der Karte schneller
 
 *8. Oktober 2026 · Versionen 1.222.8 und 1.222.9*

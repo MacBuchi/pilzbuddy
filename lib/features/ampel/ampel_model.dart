@@ -71,6 +71,11 @@ const ampelMilderFreshDays = 5;
 /// `D` „milder": das Mittel der Tagesminima der letzten fünf Tage minus
 /// das der Tage 6 bis 28, in °C (seit 1.160.0, `docs/pilzampel-frost-plan.md`).
 ///
+/// **Eine Konstante 0 heißt „keine Reihe nötig"** — für „milder"
+/// ([needsMilder]) wie für die Feuchte ([needsMoisture], seit #676:
+/// Holz & Winter rechnet ohne Bodenfeuchte und damit auch ohne
+/// Feuchtestation in Reichweite).
+///
 /// **Warum kein weiteres Fenster:** Für Holz- und Winterpilze verliert
 /// die Glocke bei jedem Optimum gesichert gegen dieses Logit, weil „je
 /// kälter, desto besser" mit einer Glocke nicht darstellbar ist.
@@ -118,18 +123,25 @@ class AmpelLogit {
   /// Merkmal ist nicht Teil des Modells, und die Reihe darf fehlen.
   bool get needsMilder => milder != 0;
 
+  /// Braucht diese Klasse die Bodenfeuchte? Zwei Nullen heißen: Die
+  /// Feuchte ist nicht Teil des Modells — dann zählen weder die Reihe
+  /// noch der Abstand zur Station ([maxMoistureKm]), und die Klasse
+  /// rechnet überall, wo es Regen und Temperatur gibt (#676).
+  bool get needsMoisture => moisture != 0 || moistureTemp != 0;
+
   /// Die lineare Vorhersage `s` aus fertigen Zutaten — `null`, wenn die
-  /// Klasse „milder" braucht und [milder] fehlt. Kein Ersatzwert: Ein
-  /// Merkmal, das nicht gemessen ist, ist keins.
+  /// Klasse „milder" oder die Feuchte braucht und sie fehlt. Kein
+  /// Ersatzwert: Ein Merkmal, das nicht gemessen ist, ist keins.
   double? score({
     required double rainFactor,
     required double meanC,
-    required double moistureMean,
+    double? moistureMean,
     double? milder,
   }) {
     if (milder == null && needsMilder) return null;
+    if (moistureMean == null && needsMoisture) return null;
     return scoreOfLogRain(ampelLogRain(rainFactor),
-        meanC: meanC, moistureMean: moistureMean, milder: milder ?? 0);
+        meanC: meanC, moistureMean: moistureMean ?? 0, milder: milder ?? 0);
   }
 
   /// [score] mit schon gezogenem Logarithmus des Regenfaktors
@@ -181,13 +193,15 @@ class AmpelCellInputs {
       return rainFactor * ampelBellOfMean(meanC, optimumC: klass.optimumC!);
     }
     final moisture = moistureMean;
-    if (moisture == null) return null;
-    final km = moistureKm;
-    if (km != null && km > logit.maxMoistureKm) return null;
+    if (logit.needsMoisture) {
+      if (moisture == null) return null;
+      final km = moistureKm;
+      if (km != null && km > logit.maxMoistureKm) return null;
+    }
     final nights = milder;
     if (nights == null && logit.needsMilder) return null;
     return logit.scoreOfLogRain(logRain,
-        meanC: meanC, moistureMean: moisture, milder: nights ?? 0);
+        meanC: meanC, moistureMean: moisture ?? 0, milder: nights ?? 0);
   }
 
   /// Die beste Stufe bei [meanC] samt Klasse — siehe [ampelBestOf].
@@ -386,18 +400,35 @@ const ampelSommerClass = (
 /// 0,00220, −0,000442 aus `18-testteil-dach.md`). Schwellen Design B
 /// auf P1, unter der sechsten Konstante neu gezogen am 2026-09-21
 /// (`docs/pilzampel-logit-schwellen.md`; vorher 0,454 / 0,606).
+///
+/// **Seit #676 ohne Bodenfeuchte** (Labor 25/26, Betreiber 2026-10-08:
+/// „Ohne Feuchte"). Labor 25 hat die DWD-Feuchte gegen ERA5-Land in drei
+/// Schichten gestellt: Für diese Klasse trägt die Feuchte aus KEINER
+/// Quelle etwas — das Placebo (Feuchte je Stratum vertauscht) gewann in
+/// AT/CH fast so viel wie ERA5. Labor 26 auf den Testblöcken: ohne die
+/// beiden Feuchtekonstanten in DE −0,007 [−0,031, +0,018] je Stratum,
+/// keine Art schlechter, in AT/CH gegen das bisherige „grau jenseits
+/// 100 km" +0,017 [+0,003, +0,031] ▲. Der Preis: AUC 0,576 → 0,555 auf
+/// dem Testteil, ohne gesicherten Verlust in der Log-Likelihood. Damit
+/// rechnet die Klasse überall, wo es Regen und Temperatur gibt — in
+/// AT, CH und der Alpenbox über das Modellgitter. Bis 1.222.x: 0,1915,
+/// 0,1350, −0,004712, 0,002383, −0,0004888, 0,04193.
 const ampelHolzWinterClass = (
   name: 'Austernseitling & Co.',
   optimumC: null,
-  verhaltenAbove: 0.387,
-  guenstigAbove: 0.558,
+  // Neu gezogen am 2026-10-08 ohne Feuchte, auf allen P1-Strata (#676;
+  // vorher 0,387 / 0,558) — ohne die Feuchtespalten verschiebt sich `s`.
+  verhaltenAbove: 0.099,
+  guenstigAbove: 0.255,
   logit: AmpelLogit(
-    rain: 0.1915,
-    temp: 0.1350,
-    temp2: -0.004712,
-    moisture: 0.002383,
-    moistureTemp: -0.0004888,
-    milder: 0.04193,
+    rain: 0.1732,
+    temp: 0.06921,
+    temp2: -0.003344,
+    // Ohne Bodenfeuchte (#676): zwei Nullen heißen „keine Reihe nötig",
+    // die Klasse rechnet damit auch ohne Feuchtestation in Reichweite.
+    moisture: 0.0,
+    moistureTemp: 0.0,
+    milder: 0.03819,
   ),
 );
 
