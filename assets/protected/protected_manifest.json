@@ -2,10 +2,18 @@
 "source":"OpenStreetMap (Geofabrik-Auszüge)",
 "licence":"ODbL 1.0",
 "attribution":"© OpenStreetMap-Mitwirkende",
+"official":{
+"tirol":{
+"licence":"CC BY 4.0",
+"attribution":"Land Tirol – data.tirol.gv.at",
+"areas":92
+}
+},
 "extracts":{
-"germany":"2026-09-22T20:22:59Z",
-"austria":"2026-09-22T20:22:59Z",
-"switzerland":"2026-09-22T20:22:59Z"
+"germany":"2026-10-06T20:21:06Z",
+"austria":"2026-10-08T20:21:06Z",
+"switzerland":"2026-10-08T20:21:06Z",
+"tirol":"2026-10-08T23:49:34Z"
 },
 "lattice":"hex-odd-r",
 "width":3038,
@@ -17,9 +25,9 @@
 "hex_lon_step":0.003786015,
 "hex_lat_step":0.002102809,
 "encoding":"gzip-runs-u16le",
-"cells_marked":754417,
-"bytes":321338,
-"sha256":"05a95e47194e0b5eb07ed1febd97d5dea2b25492e2fbcbc6ea47a49fda1f2f5f",
+"cells_marked":748130,
+"bytes":322798,
+"sha256":"890eb2a65d5ff3e43f288f3584fc9ffe7a1acde014ff805ad410f5f4d448818c",
 "areas":[
 {
 "kind":"Naturschutzgebiet",
@@ -108,6 +116,10 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"Bornstein"
+},
+{
+"kind":"Naturschutzgebiet",
+"name":"Sandtrockenrasen in der Kapellenmoorniederung"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -267,6 +279,10 @@
 },
 {
 "kind":"Naturschutzgebiet",
+"name":"Heidefläche Koopmannsberg"
+},
+{
+"kind":"Naturschutzgebiet",
 "name":"Heronger Buschberge, Wankumer Heide"
 },
 {
@@ -318,8 +334,8 @@
 "name":"Bodenmöser"
 },
 {
-"kind":"Nationalpark",
-"name":"Nationalpark Bayerischer Wald"
+"kind":"Naturschutzgebiet",
+"name":"Ehrwalder Becken"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -328,6 +344,10 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"Kerbtal am Mührenknapp"
+},
+{
+"kind":"Naturschutzgebiet",
+"name":"Tiroler Lech"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -408,6 +428,10 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"Großes Engelsmeer"
+},
+{
+"kind":"Naturschutzgebiet",
+"name":"Trockene Sandlebensräume im ehemaligen Sandabbau Windhöhe"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -551,10 +575,6 @@
 },
 {
 "kind":"Naturschutzgebiet",
-"name":"Frauenschuhgebiet"
-},
-{
-"kind":"Naturschutzgebiet",
 "name":"Haardtrand - Am Klausental"
 },
 {
@@ -628,10 +648,6 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"5er Obstwiese"
-},
-{
-"kind":"Naturschutzgebiet",
-"name":"Naturwiese für Bienen & Co"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -784,6 +800,10 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"Wümmeniederung mit Rodau, Wiedau und Trochelbach"
+},
+{
+"kind":"Naturschutzgebiet",
+"name":"Söller Wiesen Pufferzone"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -1515,6 +1535,10 @@
 },
 {
 "kind":"Naturschutzgebiet",
+"name":"Gaisau Kernzone"
+},
+{
+"kind":"Naturschutzgebiet",
 "name":"Hailerer Sonnenberg"
 },
 {
@@ -1620,6 +1644,10 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"Madbachtal"
+},
+{
+"kind":"Naturschutzgebiet",
+"name":"Reither Moor"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -1752,6 +1780,10 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"Leckfeld"
+},
+{
+"kind":"Naturschutzgebiet",
+"name":"Sonderschutzgebiet Mieminger und Rietzer Innauen"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -2143,6 +2175,10 @@
 },
 {
 "kind":"Naturschutzgebiet",
+"name":"Tütenvenn"
+},
+{
+"kind":"Naturschutzgebiet",
 "name":"Quellbäche des Uthsbaches"
 },
 {
@@ -2152,10 +2188,6 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"NSG Bergwiesengesellschaften bei Hohegeiß"
-},
-{
-"kind":"Naturschutzgebiet",
-"name":"Tütenvenn"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -3795,6 +3827,10 @@
 },
 {
 "kind":"Naturschutzgebiet",
+"name":"Fleckenshölzer"
+},
+{
+"kind":"Naturschutzgebiet",
 "name":"Marpetal mit Passade und Zuflüsse"
 },
 {
@@ -3852,10 +3888,6 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"Wehrbachtal"
-},
-{
-"kind":"Naturschutzgebiet",
-"name":"Fleckenshölzer"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -4235,6 +4267,10 @@
 },
 {
 "kind":"Naturschutzgebiet",
+"name":"Loar"
+},
+{
+"kind":"Naturschutzgebiet",
 "name":"NSG Lainsitzniederung"
 },
 {
@@ -4504,10 +4540,6 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"Rempel"
-},
-{
-"kind":"Naturschutzgebiet",
-"name":"Kufsteiner und Langkampfener Innauen (Naturschutzgebiet)"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -6279,6 +6311,10 @@
 },
 {
 "kind":"Naturschutzgebiet",
+"name":"Fragenstein"
+},
+{
+"kind":"Naturschutzgebiet",
 "name":"Gornhofer Egelsee"
 },
 {
@@ -6296,10 +6332,6 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"Laubholzbestand „Im Dümpel“"
-},
-{
-"kind":"Naturschutzgebiet",
-"name":"Fragenstein"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -7555,6 +7587,10 @@
 },
 {
 "kind":"Naturschutzgebiet",
+"name":"Gutsforst Stovern, Abt. 54 und 56"
+},
+{
+"kind":"Naturschutzgebiet",
 "name":"Kobersfelsen"
 },
 {
@@ -7871,6 +7907,10 @@
 },
 {
 "kind":"Naturschutzgebiet",
+"name":"Loruper Beeketal"
+},
+{
+"kind":"Naturschutzgebiet",
 "name":"Frankenloch bei Heldra"
 },
 {
@@ -8152,10 +8192,6 @@
 {
 "kind":"Kernzone",
 "name":"Kleines Zehme"
-},
-{
-"kind":"Nationalpark",
-"name":""
 },
 {
 "kind":"Naturschutzgebiet",
@@ -8448,6 +8484,10 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"Veybach zwischen Breitenbenden und Satzvey"
+},
+{
+"kind":"Nationalpark",
+"name":""
 },
 {
 "kind":"Naturschutzgebiet",
@@ -8944,6 +8984,10 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"Tännig"
+},
+{
+"kind":"Naturschutzgebiet",
+"name":"Gaisau Pufferzone"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -11479,11 +11523,11 @@
 },
 {
 "kind":"Naturschutzgebiet",
-"name":"Biebersdorfer Wiesen"
+"name":"Börstig bei Hallstadt"
 },
 {
 "kind":"Naturschutzgebiet",
-"name":"Börstig bei Hallstadt"
+"name":"Biebersdorfer Wiesen"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -11536,6 +11580,10 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"Hässeler Weiher von Neuenhaßlau"
+},
+{
+"kind":"Naturschutzgebiet",
+"name":"Kufsteiner und Langkampfener Innauen"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -12319,6 +12367,10 @@
 },
 {
 "kind":"Naturschutzgebiet",
+"name":"Moor am Schwarzsee"
+},
+{
+"kind":"Naturschutzgebiet",
 "name":"Habighorster Wiesental"
 },
 {
@@ -12388,10 +12440,6 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"Töpker Teich"
-},
-{
-"kind":"Naturschutzgebiet",
-"name":"Naturschutzgebiet Kauns-Kaunerberg-Faggen"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -12468,6 +12516,10 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"Obere Ihleniederung"
+},
+{
+"kind":"Naturschutzgebiet",
+"name":"Kauns-Kaunerberg-Faggen"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -13051,7 +13103,7 @@
 },
 {
 "kind":"Naturschutzgebiet",
-"name":"Brölbach-Aue Auf dem Auel bei Hombrug-Bröl"
+"name":"Brölbach-Aue Auf dem Auel bei Homburg-Bröl"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -13216,6 +13268,10 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"Bruderlöcher"
+},
+{
+"kind":"Naturschutzgebiet",
+"name":"Söller Wiesen Kernzone"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -13608,6 +13664,10 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"Oberer Berg"
+},
+{
+"kind":"Naturschutzgebiet",
+"name":"Sonderschutzgebiet Kranebitter Innau"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -16183,6 +16243,10 @@
 },
 {
 "kind":"Naturschutzgebiet",
+"name":"NSG Muschelkalksteilhänge am Emberg"
+},
+{
+"kind":"Naturschutzgebiet",
 "name":"Lichtenauer Rheinniederung"
 },
 {
@@ -16232,10 +16296,6 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"Fehlingsbleck"
-},
-{
-"kind":"Naturschutzgebiet",
-"name":"NSG Muschelkalksteilhänge am Emberg"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -17448,10 +17508,6 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"Isselniederung"
-},
-{
-"kind":"Naturschutzgebiet",
-"name":"Gaisau"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -18743,10 +18799,6 @@
 },
 {
 "kind":"Naturschutzgebiet",
-"name":"Eich von Niederbrechen"
-},
-{
-"kind":"Naturschutzgebiet",
 "name":"Flachsee"
 },
 {
@@ -18760,6 +18812,10 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"Bierbachtal zwischen Hollnich und Masthorn"
+},
+{
+"kind":"Naturschutzgebiet",
+"name":"Eich von Niederbrechen"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -19232,10 +19288,6 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"Naturwaldreservat Gansbrunn"
-},
-{
-"kind":"Naturschutzgebiet",
-"name":"Sandwater"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -20407,6 +20459,10 @@
 },
 {
 "kind":"Naturschutzgebiet",
+"name":"Ringstedter See"
+},
+{
+"kind":"Naturschutzgebiet",
 "name":"Basaltsteinbruch Eudenberg"
 },
 {
@@ -20436,10 +20492,6 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"Juliusplate"
-},
-{
-"kind":"Naturschutzgebiet",
-"name":"Ringstedter See"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -20479,15 +20531,19 @@
 },
 {
 "kind":"Naturschutzgebiet",
+"name":"Engelswand"
+},
+{
+"kind":"Naturschutzgebiet",
 "name":"Schmalwert von Biebesheim"
 },
 {
 "kind":"Naturschutzgebiet",
-"name":"Naturschutzgebiet Engelswand"
+"name":"Gerkerather Wald"
 },
 {
 "kind":"Naturschutzgebiet",
-"name":"Gerkerather Wald"
+"name":"Antelsberg bei Tarrenz"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -21059,11 +21115,11 @@
 },
 {
 "kind":"Naturschutzgebiet",
-"name":"Ammerschlucht im Bereich des Scheibum"
+"name":"Finkenfeld"
 },
 {
 "kind":"Naturschutzgebiet",
-"name":"Finkenfeld"
+"name":"Ammerschlucht im Bereich des Scheibum"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -22731,6 +22787,10 @@
 },
 {
 "kind":"Naturschutzgebiet",
+"name":"Sinesbrunn"
+},
+{
+"kind":"Naturschutzgebiet",
 "name":"Altenberg und Aggertalhöhlen"
 },
 {
@@ -23107,11 +23167,11 @@
 },
 {
 "kind":"Naturschutzgebiet",
-"name":"De Diepen"
+"name":"Martinswand"
 },
 {
 "kind":"Naturschutzgebiet",
-"name":"Martinswand"
+"name":"De Diepen"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -23815,11 +23875,11 @@
 },
 {
 "kind":"Naturschutzgebiet",
-"name":"Rosengarten"
+"name":"Barkenkuhlen im Ipweger Moor"
 },
 {
 "kind":"Naturschutzgebiet",
-"name":"Barkenkuhlen im Ipweger Moor"
+"name":"Rosengarten"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -24332,6 +24392,10 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"Moosheide Obercrinitz"
+},
+{
+"kind":"Naturschutzgebiet",
+"name":"Schwemm"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -24916,6 +24980,10 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"Möhnetal"
+},
+{
+"kind":"Naturschutzgebiet",
+"name":"Afrigal"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -25915,11 +25983,11 @@
 },
 {
 "kind":"Naturschutzgebiet",
-"name":"Steinriegellandschaft zwischen Weikersheim und Elpersheim"
+"name":"Kiesgrube Flerzheim"
 },
 {
 "kind":"Naturschutzgebiet",
-"name":"Kiesgrube Flerzheim"
+"name":"Steinriegellandschaft zwischen Weikersheim und Elpersheim"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -26659,10 +26727,6 @@
 },
 {
 "kind":"Naturschutzgebiet",
-"name":"Zurndorfer Eichenwald"
-},
-{
-"kind":"Naturschutzgebiet",
 "name":"Lerautal bei Leuchtenberg"
 },
 {
@@ -26696,6 +26760,10 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"Düdinger Möser"
+},
+{
+"kind":"Naturschutzgebiet",
+"name":"Zurndorfer Eichenwald"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -26943,11 +27011,11 @@
 },
 {
 "kind":"Naturschutzgebiet",
-"name":"Rabeninsel und Saaleaue bei Böllberg"
+"name":"Bunner Masuren"
 },
 {
 "kind":"Naturschutzgebiet",
-"name":"Bunner Masuren"
+"name":"Rabeninsel und Saaleaue bei Böllberg"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -27760,10 +27828,6 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"Bisten"
-},
-{
-"kind":"Naturschutzgebiet",
-"name":"Ruhegebiet Siebeler"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -32119,6 +32183,10 @@
 },
 {
 "kind":"Naturschutzgebiet",
+"name":"Tschirgant-Bergsturz"
+},
+{
+"kind":"Naturschutzgebiet",
 "name":"Schavener Heide"
 },
 {
@@ -33147,7 +33215,7 @@
 },
 {
 "kind":"Naturschutzgebiet",
-"name":"Wöhrdener Loch"
+"name":"Wöhrdener Loch/Speicherkoog Dithmarschen"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -34059,10 +34127,6 @@
 },
 {
 "kind":"Naturschutzgebiet",
-"name":"Naturschutzgebiet Arnspitze"
-},
-{
-"kind":"Naturschutzgebiet",
 "name":"Bucher Brack-Bölsdorfer Haken"
 },
 {
@@ -34375,7 +34439,7 @@
 },
 {
 "kind":"Naturschutzgebiet",
-"name":"Naturschutzgebiet Vilsalpsee"
+"name":"Vilsalpsee"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -34542,6 +34606,10 @@
 "name":"Wustrow"
 },
 {
+"kind":"Kernzone",
+"name":"Nationalpark Hohe Tauern Kernzone"
+},
+{
 "kind":"Naturschutzgebiet",
 "name":"Saupark"
 },
@@ -34615,7 +34683,7 @@
 },
 {
 "kind":"Naturschutzgebiet",
-"name":"Naturschutzgebiet Valsertal"
+"name":"Valsertal"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -34906,6 +34974,10 @@
 "name":"Nationalpark Hohe Tauern"
 },
 {
+"kind":"Naturschutzgebiet",
+"name":"Karwendel"
+},
+{
 "kind":"Nationalpark",
 "name":"Nationalpark Vorpommersche Boddenlandschaft"
 },
@@ -34920,6 +34992,10 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"Sylter Außenriff – Östliche Deutsche Bucht"
+},
+{
+"kind":"Naturschutzgebiet",
+"name":"Gaisau"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -34975,6 +35051,10 @@
 },
 {
 "kind":"Naturschutzgebiet",
+"name":"Hünengrab \"Opferstein\""
+},
+{
+"kind":"Naturschutzgebiet",
 "name":"Biodiversitätsfläche Weineggstrasse"
 },
 {
@@ -34987,7 +35067,15 @@
 },
 {
 "kind":"Naturschutzgebiet",
+"name":"Großsteingrab Börger"
+},
+{
+"kind":"Naturschutzgebiet",
 "name":"Uferschwalben"
+},
+{
+"kind":"Naturschutzgebiet",
+"name":"Regenrückhaltebecken Westfalenstraße"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -35099,6 +35187,10 @@
 },
 {
 "kind":"Naturschutzgebiet",
+"name":"Sandrasen im Wegeseitenraum südlich Tannenkamp"
+},
+{
+"kind":"Naturschutzgebiet",
 "name":"Möller-See"
 },
 {
@@ -35128,6 +35220,10 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"NSG Schiebestandweiher"
+},
+{
+"kind":"Naturschutzgebiet",
+"name":"Waterholl"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -35203,6 +35299,10 @@
 },
 {
 "kind":"Naturschutzgebiet",
+"name":"Steenhus (Steingrab)"
+},
+{
+"kind":"Naturschutzgebiet",
 "name":"Ems-Altwasser Hünteler Bach"
 },
 {
@@ -35224,6 +35324,10 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"Brengenborg"
+},
+{
+"kind":"Naturschutzgebiet",
+"name":"Sandseggen-Pionierrasen in der Kapellenmoorniederung"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -35299,7 +35403,15 @@
 },
 {
 "kind":"Naturschutzgebiet",
+"name":"Brachen, Kleingewässer und Gehölzbestände westlich Steide"
+},
+{
+"kind":"Naturschutzgebiet",
 "name":"Ems-Altwasser"
+},
+{
+"kind":"Naturschutzgebiet",
+"name":"Sand-Magerrasen Bunker 22/0"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -35328,6 +35440,10 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"Quäckenberg-Gröneort, Kleingewässer in der Delschloot-Niederung südwestlich Neuvrees"
+},
+{
+"kind":"Naturschutzgebiet",
+"name":"Magerrasen-Rest in der Kapellenmoorniederung"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -35371,6 +35487,10 @@
 },
 {
 "kind":"Naturschutzgebiet",
+"name":"Hügel mit Buche und Steingrab „Im Töppen“"
+},
+{
+"kind":"Naturschutzgebiet",
 "name":"Seeecke"
 },
 {
@@ -35396,6 +35516,10 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"Teich Lockriede"
+},
+{
+"kind":"Naturschutzgebiet",
+"name":"Hochstaudensumpf in der Kapellenmoorniederung"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -35543,6 +35667,10 @@
 },
 {
 "kind":"Naturschutzgebiet",
+"name":"Steider Marsch"
+},
+{
+"kind":"Naturschutzgebiet",
 "name":"Waldschwaigsee-Insel"
 },
 {
@@ -35580,10 +35708,6 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"Palmenbuck"
-},
-{
-"kind":"Naturschutzgebiet",
-"name":"Innsbrucker Küchenschelle"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -35667,6 +35791,10 @@
 },
 {
 "kind":"Naturschutzgebiet",
+"name":"Innsbrucker Küchenschelle"
+},
+{
+"kind":"Naturschutzgebiet",
 "name":"Flutrasen"
 },
 {
@@ -35712,6 +35840,10 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"Marskoppeln III"
+},
+{
+"kind":"Naturschutzgebiet",
+"name":"Heide in der Kapellenmoorniederung"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -35784,6 +35916,10 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"Erlengrund"
+},
+{
+"kind":"Naturschutzgebiet",
+"name":"Gewässer westlich Windhöhe"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -36024,6 +36160,10 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"Am Brunnen II"
+},
+{
+"kind":"Naturschutzgebiet",
+"name":"Verlandendes Kleingewässer in der Agrarlandschaft „Langes Feld“ nordwestlich Vrees"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -36359,6 +36499,10 @@
 },
 {
 "kind":"Naturschutzgebiet",
+"name":"Schwingrasenmoor in der Kapellenmoorniederung"
+},
+{
+"kind":"Naturschutzgebiet",
 "name":"Geologisches Denkmal"
 },
 {
@@ -36536,6 +36680,10 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"E+E Projekt Bergwiesen"
+},
+{
+"kind":"Naturschutzgebiet",
+"name":"Überschwemmungsbereich am Kapellenmoorgraben"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -36719,6 +36867,10 @@
 },
 {
 "kind":"Naturschutzgebiet",
+"name":"Ehemaliger Sandabbau südlich Tannenkamp"
+},
+{
+"kind":"Naturschutzgebiet",
 "name":"Hellenkrügel"
 },
 {
@@ -36736,6 +36888,10 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"Feldgehölz Almenscheid"
+},
+{
+"kind":"Naturschutzgebiet",
+"name":"Naturnaher Abschnitt des Werpeloher Grenzgrabens"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -36892,6 +37048,14 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"GLB Dorfstattwiese"
+},
+{
+"kind":"Naturschutzgebiet",
+"name":"Gewässer im ehemaligen Sandabbau Windhöhe"
+},
+{
+"kind":"Naturschutzgebiet",
+"name":"Sandentnahmestelle östlich Windhöhe"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -37284,6 +37448,10 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"Leifkenstadt"
+},
+{
+"kind":"Naturschutzgebiet",
+"name":"Tiefer-Wald"
 },
 {
 "kind":"Naturschutzgebiet",
@@ -38059,6 +38227,10 @@
 },
 {
 "kind":"Naturschutzgebiet",
+"name":"Osternbrink"
+},
+{
+"kind":"Naturschutzgebiet",
 "name":"Heilenbecker Tal"
 },
 {
@@ -38619,10 +38791,6 @@
 },
 {
 "kind":"Naturschutzgebiet",
-"name":"Piller Moor"
-},
-{
-"kind":"Naturschutzgebiet",
 "name":"Réserve naturelle du Banné"
 },
 {
@@ -39087,10 +39255,6 @@
 },
 {
 "kind":"Naturschutzgebiet",
-"name":"Filz"
-},
-{
-"kind":"Naturschutzgebiet",
 "name":"Ravensburg"
 },
 {
@@ -39431,6 +39595,10 @@
 },
 {
 "kind":"Naturschutzgebiet",
+"name":"Sonderschutzgebiet Silzer Innau"
+},
+{
+"kind":"Naturschutzgebiet",
 "name":"Heberberg"
 },
 {
@@ -39528,6 +39696,10 @@
 {
 "kind":"Naturschutzgebiet",
 "name":"Kleiner Kranichsee, Butterwegmoor und Henneberger Hang"
+},
+{
+"kind":"Naturschutzgebiet",
+"name":"Naturschutzgebiet Valsertal"
 }
 ]
 }
