@@ -34,7 +34,9 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  # write only for the hand-started run on a feature branch, which
+  # commits the grid there (below); PR and schedule runs never push.
+  contents: write
 
 jobs:
   build:
@@ -81,12 +83,32 @@ jobs:
             echo '```'
             python3 tool/protected_areas.py report --out build/protected
             echo '```'
-          } | tee -a "$GITHUB_STEP_SUMMARY"
+          } | tee -a "$GITHUB_STEP_SUMMARY" build/protected/report.txt
 
       - name: Build the grid
         run: |
           python3 tool/protected_areas.py build --out build/protected \
             --assets build/protected/assets | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # Same pattern as forest-species-ch.yml: artifacts cannot be fetched
+      # from a cloud session, so a hand-started run on a feature branch
+      # commits the grid there; the classification counts ride in the
+      # commit message. main is protected and an asset change needs a
+      # reviewed PR with a version bump, so main and PR runs only upload.
+      - name: Commit the grid to the feature branch
+        if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'
+        run: |
+          cp build/protected/assets/protected_grid.bin.gz build/protected/assets/protected_manifest.json assets/protected/
+          git add assets/protected/protected_grid.bin.gz assets/protected/protected_manifest.json
+          if git diff --cached --quiet; then
+            echo "Grid unchanged." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          { echo "chore(protected): rebuild the protected-area grid"; echo; grep -E '^(AMTLICH|WARNT)' build/protected/report.txt || true; } > "$RUNNER_TEMP/msg.txt"
+          git commit -q -F "$RUNNER_TEMP/msg.txt"
+          git push
 
       - name: Upload the grid as an artifact
         uses: actions/upload-artifact@v7
