@@ -457,7 +457,16 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
   PNG über natives zlib (`zlibDeflate`). Lehre: Eine Fach-Tabelle je
   Regenzelle statt der Map war auf dem Gerät 1,6× langsamer, am Mac
   gleich schnell — über Tempo entscheidet nur das Gerät.
-  Ziel < 1,5 s noch offen. Messung in `docs/map-performance.md`.
+  **1.222.9: ~1,5 s, Folgebilder ~0,5 s.** Drei Dinge dazu: Zellkontext
+  (`AmpelCellInputs`, Zutaten einmal je Zelle statt je Höhe); im
+  Übersichtszoom (Wabe < 1 px) die Höhe in 100-m-Stufen
+  (`ampelOverviewHeightStepM`, die eine Ausnahme von #279); und ein
+  Byte je Wabe über Bilder hinweg (`AmpelHexMemo`, verworfen bei neuem
+  Stufen-Gitter, anderer Auswahl nach Inhalt, anderem Höhengitter).
+  **Keine Map mit Hunderttausenden Einträgen über ein Bild hinaus
+  halten**: Sie machte das erste Bild 0,25 s langsamer
+  (Speicherbereinigung), das Byte-Feld nicht. Messung in
+  `docs/map-performance.md`.
 
 - **Kamera-Wächter** (`FiniteCameraConstraint` in
   `lib/features/map/finite_camera_constraint.dart`, seit 1.38.2): verwirft

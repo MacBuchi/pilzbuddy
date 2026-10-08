@@ -503,12 +503,24 @@ class AmpelLevelGrid {
   AmpelLevel? levelFor(int row, int column,
       {required List<AmpelClass> classes, int? heightM}) {
     final i = row * width + column;
-    if (valid[i] == 0) return null;
+    return inputsAt(i)?.bestLevel(meanAt(i, heightM), classes);
+  }
+
+  /// Das Temperaturmittel der Zelle [i], auf [heightM] verschoben —
+  /// `null` heißt unkorrigiert.
+  double meanAt(int i, int? heightM) {
     var mean = meanC[i].toDouble();
     if (heightM != null) {
       mean += lapseCorrectionK(
           stationHeightM: stationHeightM[i], targetHeightM: heightM);
     }
+    return mean;
+  }
+
+  /// Die höhenunabhängigen Zutaten der Zelle [i] — `null`, wo die Zelle
+  /// keine Aussage hat. Mit [meanAt] zusammen genau [levelFor].
+  AmpelCellInputs? inputsAt(int i) {
+    if (valid[i] == 0) return null;
     // **Die Fläche zeigt das MAXIMUM über alle Klassen** (Betreiber,
     // 2026-09-12). Sie kennt keine Art, kann aber jede ausgelieferte
     // Klasse rechnen; die Aussage lautet „für mindestens eine Gruppe
@@ -529,17 +541,13 @@ class AmpelLevelGrid {
     final moisture = moistureValid != null && moistureValid![i] == 1
         ? moistureMean![i].toDouble()
         : null;
-    final milderK = milderValid != null && milderValid![i] == 1
-        ? milder![i].toDouble()
-        : null;
-    return ampelBestOf(
-            rainFactor: rainFactor[i],
-            meanC: mean,
-            classes: classes,
-            moistureMean: moisture,
-            moistureKm: moisture == null ? null : moistureKm?[i].toDouble(),
-            milder: milderK)
-        .level;
+    return AmpelCellInputs(
+        rainFactor: rainFactor[i],
+        moistureMean: moisture,
+        moistureKm: moisture == null ? null : moistureKm?[i].toDouble(),
+        milder: milderValid != null && milderValid![i] == 1
+            ? milder![i].toDouble()
+            : null);
   }
 }
 
@@ -587,17 +595,47 @@ class AmpelLevels {
   /// Gitter reicht hier nicht hin". EINZIGER Ort der Vorrang-Regel; auch
   /// [AmpelRowLevels] fragt hier.
   AmpelLevel? _levelForCells(List<int?> rows, Int32List columns,
+          {required List<AmpelClass> classes, int? heightM}) =>
+      _answerFor(rows, columns, classes: classes, heightM: heightM)?.level;
+
+  /// Wer antwortet, und was: das erste Gitter mit einer Aussage, samt
+  /// Zelle und Zutaten. `null`, wenn keins antwortet.
+  ///
+  /// **Ob ein Gitter antwortet, hängt nicht von der Höhe ab** — sie geht
+  /// nur über das Temperaturmittel in die Scores ein, und `null` kommt
+  /// allein aus fehlenden Zutaten (keine Aussage in der Zelle, keine
+  /// Bodenfeuchte, keine Minima). Darauf baut [AmpelRowLevels]: Es fragt
+  /// hier einmal je Zelle und rechnet weitere Höhen direkt an der
+  /// gefundenen Zelle (#662).
+  _AmpelAnswer? _answerFor(List<int?> rows, Int32List columns,
       {required List<AmpelClass> classes, int? heightM}) {
-    for (var i = 0; i < grids.length; i++) {
-      final row = rows[i];
-      final column = columns[i];
+    for (var g = 0; g < grids.length; g++) {
+      final row = rows[g];
+      final column = columns[g];
       if (row == null || column < 0) continue;
-      final level =
-          grids[i].levelFor(row, column, classes: classes, heightM: heightM);
-      if (level != null) return level;
+      final grid = grids[g];
+      final cell = row * grid.width + column;
+      final inputs = grid.inputsAt(cell);
+      if (inputs == null) continue;
+      final level = inputs.bestLevel(grid.meanAt(cell, heightM), classes);
+      if (level != null) return _AmpelAnswer(grid, cell, inputs, level);
     }
     return null;
   }
+}
+
+/// Eine Antwort von [AmpelLevels._answerFor].
+class _AmpelAnswer {
+  const _AmpelAnswer(this.grid, this.cell, this.inputs, this.level);
+
+  final AmpelLevelGrid grid;
+  final int cell;
+  final AmpelCellInputs inputs;
+  final AmpelLevel level;
+
+  /// Die Stufe derselben Zelle bei einer anderen Höhe.
+  AmpelLevel? levelAt(int? heightM, List<AmpelClass> classes) =>
+      inputs.bestLevel(grid.meanAt(cell, heightM), classes);
 }
 
 /// [AmpelLevels.levelForRows] für EINE Breite, mit Gedächtnis (#662).
@@ -672,6 +710,7 @@ class AmpelRowLevels {
       return levels._levelForCells(rows, _columns,
           classes: classes, heightM: heightM);
     }
+    final cellKey = key;
     key = key * (_heightSpan + 1) + h;
     if (key != _lastKey) {
       _lastKey = key;
@@ -679,11 +718,61 @@ class AmpelRowLevels {
       if (known != null) {
         _lastValue = known;
       } else {
-        final level = levels._levelForCells(rows, _columns,
-            classes: classes, heightM: heightM);
+        final level = _levelOfCell(cellKey, heightM);
         _memo[key] = _lastValue = level == null ? 0 : level.index + 1;
       }
     }
     return _lastValue == 0 ? null : AmpelLevel.values[_lastValue - 1];
   }
+
+  /// Die zuletzt aufgelöste Zelle (Schlüssel ohne Höhe) und wer dort
+  /// antwortet — `null` heißt: keins.
+  int _answerKey = -1;
+  _AmpelAnswer? _answer;
+
+  /// Die Stufe der Zelle [cellKey] bei [heightM]. Neu aufgelöst wird
+  /// nur, wenn die Zelle wechselt; weitere Höhen derselben Zelle rechnen
+  /// an der Antwort weiter ([AmpelLevels._answerFor] erklärt, warum das
+  /// dieselbe Zahl ist).
+  AmpelLevel? _levelOfCell(int cellKey, int? heightM) {
+    if (cellKey != _answerKey) {
+      _answerKey = cellKey;
+      _answer = levels._answerFor(rows, _columns,
+          classes: classes, heightM: heightM);
+      return _answer?.level;
+    }
+    return _answer?.levelAt(heightM, classes);
+  }
 }
+
+/// Ob zwei Gruppenauswahlen dieselben Klassen nennen, nach INHALT —
+/// die Auswahl reist je Auftrag als Kopie ins Zeichen-Isolate (#641),
+/// gleiche Werte in anderen Objekten, auch das Logit. Für das
+/// Ampel-Gedächtnis der Fläche über Bilder hinweg (#662).
+bool ampelSameClasses(List<AmpelClass> a, List<AmpelClass> b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    final x = a[i];
+    final y = b[i];
+    if (x.name != y.name ||
+        x.optimumC != y.optimumC ||
+        x.verhaltenAbove != y.verhaltenAbove ||
+        x.guenstigAbove != y.guenstigAbove ||
+        !_sameLogit(x.logit, y.logit)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool _sameLogit(AmpelLogit? a, AmpelLogit? b) =>
+    identical(a, b) ||
+    (a != null &&
+        b != null &&
+        a.rain == b.rain &&
+        a.temp == b.temp &&
+        a.temp2 == b.temp2 &&
+        a.moisture == b.moisture &&
+        a.moistureTemp == b.moistureTemp &&
+        a.milder == b.milder &&
+        a.maxMoistureKm == b.maxMoistureKm);

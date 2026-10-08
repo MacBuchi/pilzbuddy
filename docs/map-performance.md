@@ -925,7 +925,7 @@ Je Auftrag gemessen (Mess-Build, Laufzeit im Isolate):
   `package:archive`, **0,7–0,9 s** mit nativem zlib. Er packt je Punkt
   rund 120 Tagesgitter aus (~85 MB).
 - Waldfläche mit Ampel: **5,1–6,0 s** je Bild — der Zeichner selbst,
-  seit 1.222.8 gut 2 s (nächster Nachtrag, #662).
+  seit 1.222.8 gut 2 s, seit 1.222.9 ~1,5 s (Nachträge #662).
 
 **Die scheinbaren +50 MB in Ruhe sind Müll, kein Leck** (nachgemessen
 2026-10-02, je zwei Läufe, offline). Solange das Zeichen-Isolate lebt,
@@ -986,5 +986,64 @@ der Ampelstufe (drei Regengitter, Vorrangregel, vier Klassen).
   gepackten Bytes unterscheiden sich zwischen den Wegen, die
   ausgepackten Bildzeilen nicht (`test/zlib_deflate_test.dart`).
 
-**Das Ziel von #662 (< 1,5 s) ist damit nicht erreicht**; das Issue
-bleibt für den Rest offen.
+**Das Ziel von #662 (< 1,5 s) war damit nicht erreicht** — der Rest
+folgt im nächsten Nachtrag (1.222.9).
+
+## Nachtrag 2026-10-08 (2): Was nach 1.222.8 übrig war (#662, 1.222.9)
+
+Gleiches Gerät, gleicher Aufbau. Erst wieder gemessen, dann gebaut: Ein
+Mess-Build zeichnete jedes Übersichtsbild nach dem echten noch einmal
+mit abgeschalteten Teilen.
+
+| Teil von „Waben einsammeln" (1.222.8) | ms |
+|---|---|
+| Wabenschleife + Höhe (Ampel kehrt sofort zurück) | 210–290 |
+| + Gitterspalten und Schlüssel | +80–150 |
+| + Map nachschlagen/eintragen, ohne zu rechnen | +240–270 |
+| + bei Fehlschlag: Vorranggitter, Zutaten, Höhenkorrektur | +~480 |
+| + bei Fehlschlag: die vier Klassen | +~720–820 |
+| **gesamt** | **1 800–1 900** |
+
+2,12 Mio Abfragen je Bild, 783 000 davon Fehlschläge: im Mittel sechs
+20-m-Höhenstufen je Wetterzelle, jede eine eigene Rechnung. Der zuvor
+geplante Hebel (Gitterspalten je Wabenspalte merken) hätte höchstens
+0,1 s gebracht und ist entfallen.
+
+| Fassung (Kaltstart) | Einsammeln | Bild gesamt | Folgebild |
+|---|---|---|---|
+| 1.222.8 | 1 800–1 950 ms | 2 140–2 310 ms | — |
+| + Zellkontext | 1 345–1 431 | 1 691–1 838 | — |
+| + Höhe in 100-m-Stufen im Übersichtszoom | 1 004–1 100 | 1 367–1 464 | — |
+| + Gedächtnis als Map je Zelle (verworfen) | 1 247–1 331 | 1 633–1 704 | 893–949 |
+| **+ Gedächtnis als Byte je Wabe = 1.222.9** | 1 047–1 199 | **1 338–1 578** | **426–643** |
+
+- **Zellkontext** (`AmpelCellInputs`): Was nicht von der Höhe abhängt —
+  welches Gitter antwortet, die Zutaten, `ln F` des Logits —, einmal je
+  Zelle statt je Zelle und Höhe. Die Regel bleibt an einer Stelle:
+  `ampelBestOf` und `ampelScoreFor` bauen ihre Zutaten ebenfalls
+  darüber, und ein Test vergleicht über 20 000 Zufallszutaten mit der
+  alten Fassung auf Gleichheit, nicht auf `closeTo`.
+- **100-m-Stufen** nur, wo eine Wabe kleiner als ein Pixel ist
+  (`ampelOverviewHeightStepM`, Betreiber 2026-10-08) — die eine
+  bewusste Ausnahme von #279. Die Bildgröße änderte sich dadurch um
+  368 Bytes von 2,2 MB.
+- **Die Map je Zelle über Bilder hinweg machte das ERSTE Bild 0,25 s
+  langsamer**: 440 000 Einträge mit Ganzzahl-Schlüsseln über 2³⁰ sind
+  auf dem Telefon Hunderttausende kleiner Objekte, die die
+  Speicherbereinigung immer wieder anfasst. Kleinere Schlüssel gehen
+  nicht — die drei Regengitter sind 1258, 800 und 105 Spalten breit,
+  allein ihr Produkt liegt bei 10⁸ (gemessen: Höhe in 20-m-Stufen
+  statt Metern änderte nichts). Stattdessen **ein Byte je Wabe**
+  (`AmpelHexMemo`): ein flaches Feld, für die Speicherbereinigung ein
+  Objekt, 13,6 MB fürs grobe Gitter, solange das Zeichen-Isolate lebt
+  (es endet nach 60 s Ruhe). Obergrenze 32 MB über alle Gitter.
+- **Folgebild** heißt: dasselbe Fenster noch einmal (426–643 ms) oder
+  nach einem Schwenk (426–601 ms, zwei Schwenks).
+- **Erst Wald, dann Ampel** ist nicht gebaut (Betreiber 2026-10-08):
+  Beim Schwenken bleibt das alte Bild ohnehin stehen, es hülfe nur beim
+  ersten Erscheinen — und das Zeichen-Isolate rechnet nacheinander, die
+  Farben kämen 0,5 s später.
+
+Messbedingungen wie oben; Streuung zwischen Kaltstarts rund 0,1 s. Das
+Mess-Build ist nicht eingecheckt (Zeiten je Phase per `print`, jedes
+Bild doppelt).

@@ -322,6 +322,217 @@ void main() {
         AmpelLevel.guenstig);
   });
 
+  test('ein neuer Wetterstand malt neu — das Gedächtnis hält nichts fest',
+      () {
+    // Das Ampel-Gedächtnis lebt über Bilder hinweg (#662). Mit neuem
+    // Stufen-Gitter muss es verworfen werden; sonst malte der neue Tag
+    // die Stufen des alten.
+    List<int> draw(AmpelLevel level) => forestAmpelFillPng(
+          [forest],
+          ampelClasses: ampelShippedClasses,
+          window: window,
+          levels: levelsOf([
+            [level],
+          ]),
+        );
+    final good = draw(AmpelLevel.guenstig);
+    final bad = draw(AmpelLevel.unguenstig);
+    expect(bad, isNot(good));
+    expect(draw(AmpelLevel.guenstig), good);
+  });
+
+  group('Übersichtszoom rechnet die Höhe in 100-m-Stufen (#662)', () {
+    test('Rundung: nächste Stufe, null bleibt null', () {
+      expect(ampelOverviewHeightM(null), isNull);
+      expect(ampelOverviewHeightM(0), 0);
+      expect(ampelOverviewHeightM(40), 0);
+      expect(ampelOverviewHeightM(60), 100);
+      expect(ampelOverviewHeightM(1240), 1200);
+      expect(ampelOverviewHeightM(1260), 1300);
+      // Die Höhen liegen auf 20-m-Stufen: höchstens 40 m daneben.
+      for (var h = 0; h <= 5100; h += 20) {
+        expect((ampelOverviewHeightM(h)! - h).abs(), lessThanOrEqualTo(40));
+      }
+    });
+
+    // Ein Mittel, bei dem die Stufe zwischen 1200 und 1240 m kippt —
+    // gesucht statt getippt, damit der Test die Schwellen nicht kennen
+    // muss. Station auf 0 m, eine Zelle über der ganzen Box.
+    final (levels, _) = () {
+      for (var meanC = 0.0; meanC < 30; meanC += 0.01) {
+        final candidate = levelsOf([
+          [AmpelLevel.guenstig],
+        ], meanC: meanC);
+        AmpelLevel? at(int h) => candidate.levelForRows(
+            candidate.rowsAt(49.994), 10.009,
+            classes: ampelShippedClasses, heightM: h);
+        if (at(1200) == AmpelLevel.guenstig &&
+            at(1240) != AmpelLevel.guenstig &&
+            at(1300) != AmpelLevel.guenstig) {
+          return (candidate, meanC);
+        }
+      }
+      throw StateError('kein Kippunkt gefunden');
+    }();
+
+    ElevationGrid flat(int heightM) => ElevationGrid(
+          values: Uint8List.fromList(List.filled(36, heightM ~/ 20)),
+          width: 6,
+          height: 6,
+          west: 10,
+          east: 10.018,
+          north: 50,
+          south: 49.988,
+          hexLonStep: 0.003,
+          hexLatStep: 0.002,
+        );
+
+    List<int> image(FillWindow window, int heightM) => forestAmpelFillPng(
+          [forest],
+          ampelClasses: ampelShippedClasses,
+          window: window,
+          levels: levels,
+          elevation: flat(heightM),
+        );
+
+    test('weit draußen: 1240 m malt wie 1200 m, 1300 m nicht', () {
+      // 4 px über 0,018° — eine Wabe (0,004°) ist 0,9 px breit.
+      const overview = FillWindow(
+          west: 10, east: 10.018, north: 50, south: 49.988,
+          width: 4, height: 3);
+      expect(image(overview, 1240), image(overview, 1200));
+      expect(image(overview, 1300), isNot(image(overview, 1200)));
+    });
+
+    test('nah dran: jede 20-m-Stufe zählt, wie im Blatt', () {
+      expect(image(window, 1240), isNot(image(window, 1200)));
+    });
+
+    test('Übersicht und Nahansicht merken sich getrennt (AmpelHexMemo)',
+        () {
+      // Dasselbe Höhengitter-OBJEKT für beide Bilder: Das Gedächtnis
+      // bleibt also stehen, und die Nahansicht darf nicht lesen, was die
+      // Übersicht mit gerundeter Höhe gemerkt hat.
+      const overview = FillWindow(
+          west: 10, east: 10.018, north: 50, south: 49.988,
+          width: 4, height: 3);
+      final shared = flat(1240);
+      List<int> draw(FillWindow w, ElevationGrid e) => forestAmpelFillPng(
+            [forest],
+            ampelClasses: ampelShippedClasses,
+            window: w,
+            levels: levels,
+            elevation: e,
+          );
+      final fresh = draw(window, flat(1240));
+      draw(overview, shared);
+      final generation = ampelFillMemo.generation;
+      expect(draw(window, shared), fresh);
+      expect(ampelFillMemo.generation, generation,
+          reason: 'das Gedächtnis war wirklich im Spiel');
+    });
+  });
+
+  group('AmpelHexMemo (#662)', () {
+    final levels = levelsOf([
+      [AmpelLevel.guenstig],
+    ]);
+    final elevation = ElevationGrid(
+      values: Uint8List(36),
+      width: 6,
+      height: 6,
+      west: 10,
+      east: 10.018,
+      north: 50,
+      south: 49.988,
+      hexLonStep: 0.003,
+      hexLatStep: 0.002,
+    );
+
+    test('bleibt bei gleichen Zutaten, die Auswahl als Kopie', () {
+      final memo = AmpelHexMemo()
+        ..prepare(levels, ampelShippedClasses, elevation);
+      final bits = memo.bitsFor(forest)..[3] = 7;
+      final generation = memo.generation;
+      memo.prepare(levels, List.of(ampelShippedClasses), elevation);
+      expect(memo.generation, generation);
+      expect(identical(memo.bitsFor(forest), bits), isTrue);
+      expect(memo.bitsFor(forest)[3], 7);
+    });
+
+    test('verwirft bei neuem Wetter, anderer Auswahl, anderem Höhengitter',
+        () {
+      final memo = AmpelHexMemo()
+        ..prepare(levels, ampelShippedClasses, elevation);
+      var generation = memo.generation;
+      void expectCleared(String reason) {
+        expect(memo.generation, generation + 1, reason: reason);
+        expect(memo.bitsFor(forest).every((b) => b == 0), isTrue,
+            reason: reason);
+        memo.bitsFor(forest)[0] = 5;
+        generation = memo.generation;
+      }
+
+      memo.bitsFor(forest)[0] = 5;
+      memo.prepare(levelsOf([
+        [AmpelLevel.guenstig],
+      ]), ampelShippedClasses, elevation);
+      expectCleared('neues Stufen-Gitter, auch mit gleichen Werten');
+      final current = levelsOf([
+        [AmpelLevel.guenstig],
+      ]);
+      memo.prepare(current, ampelShippedClasses, elevation);
+      generation = memo.generation;
+      memo.bitsFor(forest)[0] = 5;
+      memo.prepare(current, [ampelShippedClasses.first], elevation);
+      expectCleared('andere Gruppenauswahl');
+      memo.prepare(current, [ampelShippedClasses.first], null);
+      expectCleared('ohne Höhengitter');
+    });
+
+    test('verwirft, wenn es zu groß würde', () {
+      final memo = AmpelHexMemo(maxBytes: forest.values.length * 2 - 1)
+        ..prepare(levels, ampelShippedClasses, elevation);
+      memo.bitsFor(forest)[0] = 5;
+      final generation = memo.generation;
+      memo.bitsFor(gemischt);
+      expect(memo.generation, generation + 1);
+      expect(memo.bitsFor(forest)[0], 0);
+    });
+
+    test('ein Folgebild nach dem Schwenk malt wie neu gerechnet', () {
+      final shifted = FillWindow(
+          west: window.west + 0.006,
+          east: window.east + 0.006,
+          north: window.north,
+          south: window.south,
+          width: window.width,
+          height: window.height);
+      final mixed = levelsOf([
+        [AmpelLevel.guenstig, AmpelLevel.verhalten, null],
+        [AmpelLevel.unguenstig, AmpelLevel.guenstig, AmpelLevel.verhalten],
+      ], east: 10.024);
+      List<int> draw(FillWindow w, AmpelLevels l) => forestAmpelFillPng(
+            [forest],
+            ampelClasses: ampelShippedClasses,
+            window: w,
+            levels: l,
+            elevation: elevation,
+          );
+      draw(window, mixed);
+      final generation = ampelFillMemo.generation;
+      final warm = draw(shifted, mixed);
+      expect(ampelFillMemo.generation, generation);
+      // Kalt: ein gleichwertiges, aber neues Stufen-Gitter verwirft.
+      final cold = draw(shifted, levelsOf([
+        [AmpelLevel.guenstig, AmpelLevel.verhalten, null],
+        [AmpelLevel.unguenstig, AmpelLevel.guenstig, AmpelLevel.verhalten],
+      ], east: 10.024));
+      expect(ampelFillMemo.generation, generation + 1);
+      expect(warm, cold);
+    });
+  });
+
   test('abgewählte Klassen leuchten auch nicht (#231)', () {
     // Die Teil-Ebenen bleiben die Teil-Ebenen: Wer nur Nadelwald
     // einblendet, will auch im Kombi-Modus keinen leuchtenden

@@ -9,13 +9,19 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Pilzwetter auf der Karte schneller
 
-*8. Oktober 2026 · Version 1.222.8*
+*8. Oktober 2026 · Versionen 1.222.8 und 1.222.9*
 
 - Die Waldfläche mit eingefärbtem Pilzwetter erscheint deutlich
   schneller, vor allem auf älteren Telefonen und wenn weit
   herausgezoomt ist. Auf einem älteren Testgerät dauerte ein Bild der
-  ganzen Übersicht bisher fast sechs Sekunden, jetzt gut zwei. Was die
-  Karte zeigt, ändert sich dadurch nicht.
+  ganzen Übersicht bisher fast sechs Sekunden, jetzt etwa anderthalb.
+- Nach dem Verschieben der Karte ist die Fläche meist in einer halben
+  Sekunde wieder da: Was schon einmal gerechnet war, merkt sich die
+  App, bis neue Wetterdaten kommen.
+- Weit herausgezoomt rechnet die Fläche die Geländehöhe in
+  100-Meter-Stufen statt in 20-Meter-Stufen. Ganz selten leuchtet
+  dadurch ein einzelner Fleck anders als die Ablesung genau an dieser
+  Stelle; beim Hineinzoomen gilt wieder die genaue Höhe.
 
 ## Herbsttrompete & Co. nur noch in Deutschland
 
