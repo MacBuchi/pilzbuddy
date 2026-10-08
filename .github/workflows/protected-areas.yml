@@ -2,7 +2,8 @@ name: Protected Areas
 
 # Builds the protected-area grid (#580) from OpenStreetMap: the places in
 # Germany, Austria and Switzerland where picking mushrooms is forbidden
-# (nature reserves, national parks, core zones). See
+# (nature reserves, national parks, core zones) — inside Tirol from the
+# Land's official data instead (#623). See
 # tool/protected_areas.py for the rule and the byte contract.
 #
 # Runs in CI rather than locally because of the download: 6.2 GB of
@@ -66,6 +67,12 @@ jobs:
             --pbf build/osm/germany-latest.osm.pbf \
                   build/osm/austria-latest.osm.pbf \
                   build/osm/switzerland-latest.osm.pbf
+
+      # Tirol from the Land's own data (#623, CC BY 4.0): inside the
+      # Land's boundary these replace OSM. Fetched after the extract,
+      # which also cut out the boundary.
+      - name: Fetch the official protected areas
+        run: python3 tool/protected_areas.py fetch-official --out build/protected
 
       - name: Report what warns and what stays silent
         run: |
