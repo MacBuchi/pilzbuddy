@@ -153,17 +153,33 @@ jobs:
               # (docs/pilzampel-openmeteo-lokal.md); a new one is a new
               # instrument and gets measured first.
               image="ghcr.io/open-meteo/open-meteo@sha256:e1517a01a061fd96e2a9017d022c5809bb51725bcd733bcbed435e7ea32dd9da"
+              # The image does not run as root; on the runner the bind
+              # mount belongs to the runner user, and without write access
+              # the server cannot create its cache file and exits — seen
+              # on the first branch run as five minutes of "connection
+              # refused" (Docker Desktop on a Mac does not show this).
               mkdir -p "$RUNNER_TEMP/open-meteo"
+              chmod 777 "$RUNNER_TEMP/open-meteo"
               docker run -d --name open-meteo -p 127.0.0.1:8080:8080 \
                 -v "$RUNNER_TEMP/open-meteo:/app/data" \
                 -e REMOTE_DATA_DIRECTORY=https://openmeteo.s3.amazonaws.com/data/ \
                 -e CACHE_SIZE=2GB \
                 "$image" serve --env production --hostname 0.0.0.0 --port 8080
+              ready=""
               for i in $(seq 1 60); do
-                curl -fs "http://127.0.0.1:8080/v1/archive?latitude=50&longitude=10&start_date=2026-01-01&end_date=2026-01-01&daily=soil_moisture_7_to_28cm_mean&models=era5_land" \
-                  >/dev/null && break
+                if curl -fs "http://127.0.0.1:8080/v1/archive?latitude=50&longitude=10&start_date=2026-01-01&end_date=2026-01-01&daily=soil_moisture_7_to_28cm_mean&models=era5_land" \
+                    >/dev/null; then
+                  ready=1; break
+                fi
+                [ "$(docker inspect -f '{{.State.Running}}' open-meteo)" = true ] || break
                 sleep 5
               done
+              if [ -z "$ready" ]; then
+                docker ps -a --filter name=open-meteo
+                docker logs open-meteo
+                echo "::error::Open-Meteo container did not come up"
+                exit 1
+              fi
               # The earlier days: verify reads the newest, which a run
               # that finds nothing new did not write.
               gh release download rain-data --pattern 'soil_*' \
