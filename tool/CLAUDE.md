@@ -212,10 +212,10 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
     damit einen Punkt in wenigen Kilometern statt einer deutschen
     Station in 100 km. Austernseitling & Co. rechnet seit #676 ohne
     Bodenfeuchte und damit überall mit. Herbsttrompete & Co. braucht
-    sie, und die gibt es bisher nur von DWD-Stationen: im Landesinneren
-    von AT/CH grau, an der Grenze bis 30 km mit einer deutschen Station
-    (#665). Ihre Feuchte für ganz DACH kommt aus ERA5-Land (#676, siehe
-    „Bodenfeuchte-Gitter“ unten).
+    sie und bekommt sie seit 1.224.0 für ganz DACH aus ERA5-Land (#676,
+    siehe „Bodenfeuchte-Gitter“ unten). Die Stationstabelle trägt seit
+    dem Abschluss von #676 keine Bodenfeuchte mehr (`BFGL_AG` ist raus,
+    nachdem 1.224.1 stabil war).
   - **Die Tagesdateien SIND der Zustand.** Rain, tmax, tmin (0,5-°C-
     Schritte) je Tag plus `model_elevation.bin.gz` liegen im Release
     `rain-data` wie die Radar-Tage; jeder Lauf holt nur fehlende Tage,
@@ -301,7 +301,10 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
   `rain-data.yml`, eigener Cron `53 9`, #676, Daten seit #682; die App
   liest es seit 1.224.0, `lib/features/map/soil_moisture_grid.dart`): ERA5-Land 7–28 cm (m³/m³) für Deutschland und die
   Alpenbox, EINE Quelle für ganz DACH statt DWD-`BFGL_AG` (Betreiber,
-  2026-10-08: „am besten nur eine Quelle"). Messung und Herleitung im
+  2026-10-08: „am besten nur eine Quelle"). Der DWD-Abschnitt
+  `moisture` der Stationstabelle (`tool/spot_weather.py`) ist seither
+  entfernt; ältere Clients als 1.224.0 zeigen Herbsttrompete & Co. bis
+  zum Update grau. Messung und Herleitung im
   Labor, Lauf 25 (Kurzfassung in #676). Sechs Dinge, die man wissen muss:
   - **Geholt aus einer eigenen Open-Meteo-Instanz im Job** (Kern von
     #631): `docker run` des Images, gepinnt per Digest, das liest den
