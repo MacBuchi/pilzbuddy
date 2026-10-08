@@ -183,6 +183,7 @@ void main() {
       'www.gbif.org',
       'creativecommons.org',
       'land.copernicus.eu',
+      'cds.climate.copernicus.eu',
       // Die Baumartenkarte (#227) — dieselbe Lage wie Copernicus: Das
       // Gitter liegt im Binary, geholt wird nur in CI
       // (`tool/forest_species.py`). Die Adresse steht in der

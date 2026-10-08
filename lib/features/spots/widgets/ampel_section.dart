@@ -178,7 +178,7 @@ class AmpelSection extends ConsumerWidget {
     // Grau ist eine Aussage über den ORT (keine Regendaten, keine
     // Station) und trifft damit alle Arten gleich — einmal sagen reicht.
     // **Grau ist seit 1.151.0 eine Eigenschaft der ZEILE, nicht des
-    // Blocks.** Eine Logit-Klasse ohne Bodenfeuchte-Station ist grau,
+    // Blocks.** Eine Logit-Klasse ohne Bodenfeuchte ist grau,
     // während „Steinpilz & Co." am selben Spot rechnet; erst wenn keine
     // Zeile eine Stufe hat, steht der eine graue Satz mit dem Grund.
     final mitStufe = [
@@ -369,7 +369,9 @@ class AmpelSection extends ConsumerWidget {
       'Regen ($ampelRainWindow Tage): $rainWord',
       'Temperatur: $tempWord',
       if (reading.moistureMean case final moisture?)
-        'Bodenfeuchte: ${moisture.round()} % nFK',
+        // m³/m³ aus ERA5-Land (#676), als Volumenprozent wie im
+        // Regen-Abschnitt — das 26-Tage-Mittel, mit dem die Stufe rechnet.
+        'Bodenfeuchte: ${(moisture * 100).round()} Vol.-%',
       if (reading.milderK case final milder?) ampelMilderWord(milder),
     ];
     final curve = seasonCurveFor(species);

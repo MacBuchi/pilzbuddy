@@ -7,6 +7,24 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Herbsttrompete & Co. jetzt auch in Österreich und der Schweiz
+
+*8. Oktober 2026 · Version 1.224.0*
+
+- Das Pilzwetter für Herbsttrompete, Semmelstoppelpilz und
+  Trompetenpfifferling rechnet jetzt in ganz Deutschland, Österreich,
+  der Schweiz und Südtirol. Bisher brauchte es eine Messstation für die
+  Bodenfeuchte in höchstens 30 km Entfernung, und die gibt es nur in
+  Deutschland.
+- Die Bodenfeuchte kommt dafür aus einem europaweiten Rechenmodell
+  (ERA5-Land von Copernicus) statt von den Stationen. In Deutschland
+  sagt die Vorhersage damit dasselbe wie vorher, in Österreich und der
+  Schweiz trifft sie die Fundtage besser als gar keine.
+- Im Spot-Blatt steht die Bodenfeuchte jetzt in Volumenprozent und aus
+  derselben Quelle, mit der das Pilzwetter rechnet. Die Werte laufen
+  rund fünf Tage hinterher; bis dahin rechnet die App mit dem letzten
+  Stand weiter.
+
 ## Austernseitling & Co. jetzt auch in Österreich und der Schweiz
 
 *8. Oktober 2026 · Version 1.223.0*

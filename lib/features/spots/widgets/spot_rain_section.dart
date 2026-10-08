@@ -120,22 +120,22 @@ String rainSourceLine(RainCourse shown) {
 const _modelOnly = 'Tagessummen aus Modellwerten (Open-Meteo, ICON) — hier '
     'gibt es kein Radar';
 
-/// Die Bodenfeuchte-Zeile — oder `null`, wenn keine Station in
-/// Reichweite ist oder sie im Fenster nichts gemessen hat.
+/// Die Bodenfeuchte-Zeile — oder `null`, wenn das Gitter hier nichts
+/// hat (außerhalb von Deutschland und Alpenraum, über Wasser).
 ///
-/// Prozent nutzbarer Feldkapazität ist eine je Boden NORMIERTE Größe:
-/// 100 % heißt „so viel Wasser, wie dieser Boden den Pflanzen halten
-/// kann", unabhängig davon, ob Sand oder Lehm. Deshalb steht die Zahl
-/// ohne Umrechnung da — und mit Datum, weil das Produkt ein bis zwei
-/// Tage hinterherläuft.
+/// Seit #676 aus dem ERA5-Land-Gitter, 7–28 cm — dieselbe Quelle, mit
+/// der Herbsttrompete & Co. rechnet (Betreiber 2026-10-08: „Beides aufs
+/// Gitter"). Zwei Feuchtezahlen aus zwei Quellen im selben Blatt wären
+/// zwei Antworten auf dieselbe Frage. In Volumenprozent (m³/m³ × 100):
+/// anders als die % nutzbarer Feldkapazität der DWD-Station bis 1.223.x
+/// ist das NICHT je Boden normiert — 30 % sind auf Sand nass und auf
+/// Lehm mäßig. Mit Datum, weil ERA5-Land rund fünf Tage nachläuft.
 String? moistureLine(SpotTemperature? temperature) {
-  final pick = temperature?.moisture;
-  final value = pick?.station.latest;
-  final newest = temperature?.moistureNewest;
-  if (pick == null || value == null || newest == null) return null;
-  return 'Bodenfeuchte 0–60 cm: ${value.round()} % der nutzbaren '
-      'Feldkapazität (${DateFormat('d.M.').format(newest)}, Station '
-      '${pick.station.name}, ${pick.km.round()} km).';
+  final soil = temperature?.moisture;
+  final value = soil?.latest;
+  if (soil == null || value == null) return null;
+  return 'Bodenfeuchte 7–28 cm: ${(value * 100).round()} Vol.-% '
+      '(${DateFormat('d.M.').format(soil.newest)}, ERA5-Land, Copernicus).';
 }
 
 class SpotRainSection extends ConsumerWidget {
