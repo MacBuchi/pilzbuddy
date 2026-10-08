@@ -243,7 +243,7 @@ in dem der Code liegt — nicht wieder hierher.
 | `lib/features/inat/CLAUDE.md` | Melden an iNaturalist/GBIF (#553) |
 | `lib/features/friends/CLAUDE.md` | Nachrichten zwischen Buddys (#564) · Aliase für Buddys (#567) |
 | `test/CLAUDE.md` | Gegenprobe und ihre drei Lügen · Widget-Test-Fallen (Bildschirmgröße, echte Hülle, pumpApp-Neustart, Plattform-Kanäle, TabBarView) · analysis_options.yaml |
-| `tool/CLAUDE.md` | Erzeugte Assets (#226) · Baumarten-Gitter DLR/ForestPaths/WSL (#227, #624) · Release-Anhänge nicht im Browser, rain-data-mirror (#365) · Modellgitter Alpenraum (#612) · Gemessener Alpenstapel (#646) · Regen-Wertegitter (DWD WCS) |
+| `tool/CLAUDE.md` | Erzeugte Assets (#226) · Baumarten-Gitter DLR/ForestPaths/WSL (#227, #624) · Release-Anhänge nicht im Browser, rain-data-mirror (#365) · Modellgitter Alpenraum (#612) · Gemessener Alpenstapel (#646) · Bodenfeuchte-Gitter ERA5-Land (#676) · Regen-Wertegitter (DWD WCS) |
 
 ## Code-Konventionen
 
