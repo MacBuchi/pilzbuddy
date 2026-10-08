@@ -7,6 +7,14 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Kurzanleitung zeigt den neuen Weg für Karten ohne Empfang
+
+*8. Oktober 2026 · Version 1.224.1*
+
+- Die Kurzanleitung im Profil schickte für Karten ohne Empfang noch zu
+  den alten Regionskarten. Sie nennt jetzt die Kartenbereiche unter
+  „Ebenen", die auch in der Web-App funktionieren.
+
 ## Pilzwetter für Holz- und Herbstpilze jetzt auch in Österreich und der Schweiz
 
 *7. und 8. Oktober 2026 · Versionen 1.222.7, 1.223.0 und 1.224.0*

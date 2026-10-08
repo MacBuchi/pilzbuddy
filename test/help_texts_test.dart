@@ -158,4 +158,20 @@ void main() {
           reason: 'die App nennt einen Zweck, den die Erklärung nicht kennt');
     }
   });
+
+  test('Die Kurzanleitung schickt für Karten ohne Empfang dorthin, wo es '
+      'den Weg gibt', () {
+    // Bis 1.224.0 stand dort „Profil → Offline-Karten → Region
+    // herunterladen" — der alte, nur auf Android vorhandene Weg, obwohl
+    // seit 1.217.0 die Kartenbereiche unter „Ebenen" gelten (auch Web).
+    // Kein Anker-Test sieht so etwas: Er prüft Ziele, nicht Wortlaut.
+    final help = read('lib/features/help/help_screen.dart');
+    expect(help, contains('„Ebenen" → „Kartenbereiche"'));
+    expect(help, isNot(contains('deine Region herunter')));
+    expect(
+        read('lib/features/map/widgets/map_layers_sheet.dart'),
+        contains("Text('Kartenbereiche')"),
+        reason: 'der Eintrag, den die Anleitung nennt, muss im '
+            'Ebenen-Blatt stehen');
+  });
 }
