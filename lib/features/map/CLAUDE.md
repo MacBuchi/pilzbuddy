@@ -449,9 +449,15 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
     erst über `NotifyIdle` nach dem nächsten gezeichneten Bild; ein
     `send-trim-memory` räumt nicht ab. Ohne das sah es nach +50 MB aus
     (`docs/map-performance.md`).
-  Offen und eigenes Thema: Die Waldfläche MIT Ampel braucht auf dem
-  Pixel XL 5–6 s je Bild — das ist der Zeichner selbst, nicht der Weg.
-  Messung vorher/nachher in `docs/map-performance.md`.
+  **Waldfläche MIT Ampel** (#662, 1.222.8): 5,7 → 2,1 s je Übersichtsbild
+  auf dem Pixel XL. Höhe per Direktindex, wenn Höhen- und Waldgitter
+  dasselbe Raster haben (`sharesLatticeWith`); Ampelstufe über ein
+  Gedächtnis je Zeile (`AmpelRowLevels`), dessen Rechnung dieselbe
+  Vorrangregel ist wie `levelForRows` (`_levelForCells`, eine Stelle);
+  PNG über natives zlib (`zlibDeflate`). Lehre: Eine Fach-Tabelle je
+  Regenzelle statt der Map war auf dem Gerät 1,6× langsamer, am Mac
+  gleich schnell — über Tempo entscheidet nur das Gerät.
+  Ziel < 1,5 s noch offen. Messung in `docs/map-performance.md`.
 
 - **Kamera-Wächter** (`FiniteCameraConstraint` in
   `lib/features/map/finite_camera_constraint.dart`, seit 1.38.2): verwirft

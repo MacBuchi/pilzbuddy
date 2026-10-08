@@ -7,6 +7,7 @@
 // (`forestAmpelFillPng`, siehe `forest_ampel_fill_test.dart`). Geprüft
 // wird deshalb das Stufen-Gitter, nicht mehr das Bild.
 import 'dart:convert';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
@@ -802,6 +803,85 @@ void _ampelLevelsTests() {
       final levels = AmpelLevels([grid(west: 10, east: 13)]);
       expect(levels.levelAt(51, 20, classes: classes), isNull);
       expect(levels.rowsAt(60), [null]);
+    });
+  });
+
+  // #662: Das Gedächtnis der Kombi-Ebene darf nichts ANDERS rechnen, nur
+  // nichts doppelt. Drei Gitter in Vorrang (verschiedene Ausdehnung und
+  // Auflösung), jede Zelle mit eigenen Zutaten, Lücken ohne Aussage und
+  // ohne Bodenfeuchte — und jede Abfrage zweimal, damit die zweite aus
+  // dem Gedächtnis kommt.
+  group('AmpelRowLevels (#662)', () {
+    AmpelLevelGrid randomGrid(Random random,
+        {required int width, required int height,
+        required double west, required double east}) {
+      final cells = width * height;
+      Float32List floats(double Function() f) =>
+          Float32List.fromList([for (var i = 0; i < cells; i++) f()]);
+      Uint8List bytes(int Function() f) =>
+          Uint8List.fromList([for (var i = 0; i < cells; i++) f()]);
+      return AmpelLevelGrid(
+        rainFactor: floats(() => random.nextDouble() * 1.2),
+        meanC: floats(() => 4 + random.nextDouble() * 16),
+        stationHeightM: Int16List.fromList(
+            [for (var i = 0; i < cells; i++) random.nextInt(1500)]),
+        valid: bytes(() => random.nextInt(5) == 0 ? 0 : 1),
+        moistureMean: floats(() => random.nextDouble() * 100),
+        moistureValid: bytes(() => random.nextInt(4) == 0 ? 0 : 1),
+        moistureKm: bytes(() => random.nextInt(120)),
+        milder: floats(() => random.nextDouble() * 4 - 2),
+        milderValid: bytes(() => random.nextInt(3) == 0 ? 0 : 1),
+        width: width,
+        height: height,
+        west: west,
+        east: east,
+        north: 52,
+        south: 50,
+        newest: DateTime.utc(2026, 10, 1),
+      );
+    }
+
+    test('gleiche Stufe wie ohne Gedächtnis, auch beim zweiten Fragen', () {
+      final random = Random(662);
+      final levels = AmpelLevels([
+        randomGrid(random, width: 40, height: 30, west: 9, east: 12),
+        randomGrid(random, width: 12, height: 8, west: 8, east: 14),
+        randomGrid(random, width: 5, height: 4, west: 7, east: 15),
+      ]);
+      for (final classes in [
+        ampelShippedClasses,
+        [ampelShippedClasses.first],
+        [ampelShippedClasses.last],
+      ]) {
+        for (var lat = 50.01; lat < 52; lat += 0.137) {
+          final rows = levels.rowsAt(lat);
+          final memo = AmpelRowLevels(levels, rows, classes: classes);
+          for (var pass = 0; pass < 2; pass++) {
+            for (var lon = 6.5; lon < 15.5; lon += 0.031) {
+              for (final heightM in [null, 0, 240, 250, 260, 1180, 2400, 5100]) {
+                expect(memo.at(lon, heightM: heightM),
+                    levels.levelForRows(rows, lon,
+                        classes: classes, heightM: heightM),
+                    reason: 'lat $lat lon $lon h $heightM pass $pass');
+              }
+            }
+          }
+        }
+      }
+    });
+
+    test('erkennt seine Zeilen wieder', () {
+      final random = Random(1);
+      final levels = AmpelLevels([
+        randomGrid(random, width: 4, height: 4, west: 9, east: 12),
+        randomGrid(random, width: 2, height: 2, west: 8, east: 14),
+      ]);
+      final memo = AmpelRowLevels(levels, [1, 0],
+          classes: ampelShippedClasses);
+      expect(memo.matches([1, 0]), isTrue);
+      expect(memo.matches([2, 0]), isFalse);
+      expect(memo.matches([1, null]), isFalse);
+      expect(memo.matches([1]), isFalse);
     });
   });
 }

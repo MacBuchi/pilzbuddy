@@ -1,12 +1,15 @@
 // PNG-Schreiber für die Bild-Overlays der Karte — aus `rain_fill.dart`
 // herausgezogen, als mit dem Waldgitter (#213) der zweite Nutzer kam.
 //
-// Reines Dart samt PNG-Kodierung (zlib und CRC aus `package:archive`, das
-// für den KMZ-Import ohnehin im Projekt liegt) — damit läuft es im
-// Isolate, im Web und im Test, ohne `dart:ui` und ohne Canvas.
+// Reines Dart samt PNG-Kodierung (CRC aus `package:archive`, das für den
+// KMZ-Import ohnehin im Projekt liegt; zlib seit #662 über
+// `zlibDeflate`, nativ außer im Browser) — damit läuft es im Isolate, im
+// Web und im Test, ohne `dart:ui` und ohne Canvas.
 import 'dart:typed_data';
 
-import 'package:archive/archive.dart';
+import 'package:archive/archive.dart' show getCrc32;
+
+import '../../core/zlib_deflate.dart';
 
 /// Baut ein RGBA-PNG aus fertigen Scanlines.
 ///
@@ -31,8 +34,7 @@ Uint8List overlayPng(int width, int height, Uint8List scanlines) {
   ihdr[8] = 8; // Bittiefe
   ihdr[9] = 6; // RGBA
   header.add(pngChunk('IHDR', ihdr));
-  header.add(pngChunk('IDAT',
-      Uint8List.fromList(const ZLibEncoder().encode(scanlines, level: 1))));
+  header.add(pngChunk('IDAT', zlibDeflate(scanlines, level: 1)));
   header.add(pngChunk('IEND', Uint8List(0)));
   return header.toBytes();
 }

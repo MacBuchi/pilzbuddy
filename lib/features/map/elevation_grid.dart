@@ -22,7 +22,7 @@ import 'dart:typed_data';
 
 import '../../core/gunzip.dart';
 
-import 'forest_grid.dart' show hexNearestCell;
+import 'forest_grid.dart' show ForestGrid, hexNearestCell;
 
 /// „Hier wissen wir nichts" — kommt nur in Randzellen vor.
 const elevationNoData = 0xFF;
@@ -112,6 +112,27 @@ class ElevationGrid {
       hexLonStep: hexLonStep,
       hexLatStep: hexLatStep,
     );
+  }
+
+  /// Ob [grid] auf DEMSELBEN Wabenraster liegt — dann ist Wabe `i` dort
+  /// Wabe `i` hier, und [heightMetersOfCell] ersetzt den Nachschlag über
+  /// die Koordinate (#662). Für das grobe Waldgitter gilt das (beide aus
+  /// demselben Raster gebaut), für die feinen 100-m-Blöcke nicht.
+  bool sharesLatticeWith(ForestGrid grid) =>
+      grid.width == width &&
+      grid.height == height &&
+      grid.west == west &&
+      grid.north == north &&
+      grid.hexLonStep == hexLonStep &&
+      grid.hexLatStep == hexLatStep;
+
+  /// Die Höhe der Wabe mit dem Index `hy * width + hx` — dieselbe Zahl,
+  /// die [heightMetersAt] an ihrem Mittelpunkt liefert, ohne die Suche
+  /// nach der nächsten Wabe. Auf dem Pixel XL kostete diese Suche im
+  /// Übersichtszoom 1,7–2,3 s je Bild (#662).
+  int? heightMetersOfCell(int index) {
+    final byte = values[index];
+    return byte == elevationNoData ? null : byte * elevationQuantM;
   }
 
   /// Die mittlere Geländehöhe der Wabe an einem Punkt in Metern —
