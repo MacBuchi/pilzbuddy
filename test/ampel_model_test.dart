@@ -10,6 +10,8 @@
 //   av = importlib.util.module_from_spec(spec); spec.loader.exec_module(av)
 //   print(av.rain_factor([20.0]+[0.0]*25))  # usw.
 //   EOF
+import 'dart:math' as math;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/species_edibility.dart';
 import 'package:pilzbuddy/features/ampel/ampel_model.dart';
@@ -439,4 +441,101 @@ void main() {
     }
   });
 
+  group('AmpelCellInputs rechnet wie vor #662', () {
+    // Die Fassung von 1.222.8, Wort für Wort: Score je Klasse und die
+    // Gleichstandsregel. Der Umbau auf vorbereitete Zellzutaten (#662)
+    // darf keine einzige Zahl ändern — Gleichheit, nicht closeTo.
+    double? oldScore(AmpelClass klass,
+        {required double rainFactor,
+        required double meanC,
+        double? moistureMean,
+        double? moistureKm,
+        double? milder}) {
+      final logit = klass.logit;
+      if (logit == null) {
+        return rainFactor * ampelBellOfMean(meanC, optimumC: klass.optimumC!);
+      }
+      if (moistureMean == null) return null;
+      if (moistureKm != null && moistureKm > logit.maxMoistureKm) return null;
+      if (milder == null && logit.needsMilder) return null;
+      final logRain = math.log(math.max(rainFactor, ampelLogitRainFloor));
+      return logit.rain * logRain +
+          logit.temp * meanC +
+          logit.temp2 * meanC * meanC +
+          logit.moisture * moistureMean +
+          logit.moistureTemp * moistureMean * meanC +
+          logit.milder * (milder ?? 0);
+    }
+
+    test('Score, Stufe und Klasse über Zufallszutaten', () {
+      final random = math.Random(662);
+      final subsets = [
+        ampelShippedClasses,
+        [for (final c in ampelShippedClasses) if (c.logit != null) c],
+        [for (final c in ampelShippedClasses) if (c.logit == null) c],
+        ampelShippedClasses.reversed.toList(),
+      ];
+      for (var n = 0; n < 20000; n++) {
+        final rainFactor = random.nextInt(10) == 0
+            ? 0.0
+            : random.nextDouble() * 1.3;
+        final meanC = -5 + random.nextDouble() * 30;
+        final moisture =
+            random.nextInt(4) == 0 ? null : random.nextDouble() * 120;
+        final km = random.nextInt(4) == 0
+            ? null
+            : random.nextInt(130).toDouble();
+        final milder =
+            random.nextInt(3) == 0 ? null : random.nextDouble() * 6 - 3;
+        for (final klass in ampelShippedClasses) {
+          expect(
+              ampelScoreFor(klass,
+                  rainFactor: rainFactor,
+                  meanC: meanC,
+                  moistureMean: moisture,
+                  moistureKm: km,
+                  milder: milder),
+              oldScore(klass,
+                  rainFactor: rainFactor,
+                  meanC: meanC,
+                  moistureMean: moisture,
+                  moistureKm: km,
+                  milder: milder));
+        }
+        for (final classes in subsets) {
+          AmpelLevel? oldLevel;
+          var oldKlass = classes.first;
+          for (final klass in classes) {
+            final score = oldScore(klass,
+                rainFactor: rainFactor,
+                meanC: meanC,
+                moistureMean: moisture,
+                moistureKm: km,
+                milder: milder);
+            if (score == null) continue;
+            final level = ampelLevelOf(score, klass: klass);
+            if (level.index > (oldLevel?.index ?? -1)) {
+              oldLevel = level;
+              oldKlass = klass;
+            }
+          }
+          final best = ampelBestOf(
+              rainFactor: rainFactor,
+              meanC: meanC,
+              classes: classes,
+              moistureMean: moisture,
+              moistureKm: km,
+              milder: milder);
+          expect(best.level, oldLevel);
+          expect(best.klass, oldKlass);
+          final inputs = AmpelCellInputs(
+              rainFactor: rainFactor,
+              moistureMean: moisture,
+              moistureKm: km,
+              milder: milder);
+          expect(inputs.bestLevel(meanC, classes), oldLevel);
+        }
+      }
+    });
+  });
 }

@@ -37,7 +37,8 @@ import 'dart:typed_data';
 import 'package:flutter/painting.dart' show Color;
 
 import '../../core/app_colors.dart';
-import '../ampel/ampel_fill.dart' show AmpelLevels, AmpelRowLevels;
+import '../ampel/ampel_fill.dart'
+    show AmpelLevels, AmpelRowLevels, ampelSameClasses;
 import 'elevation_grid.dart' show ElevationGrid;
 import '../ampel/ampel_model.dart' show AmpelClass, AmpelLevel;
 import 'forest_fill_window.dart';
@@ -63,6 +64,30 @@ const hatchStripePx = 6;
 
 /// Deckkraft ZWISCHEN den Streifen, als Anteil der normalen.
 const hatchGapShare = 0.25;
+
+/// Die Höhenstufe, mit der die Ampel im ÜBERSICHTSZOOM rechnet — dort,
+/// wo eine Wabe kleiner als ein Pixel ist (#662, Betreiber 2026-10-08).
+///
+/// Sonst geht die Höhe in 20-m-Stufen ein, wie im Blatt. Im
+/// Übersichtszoom hatte eine 1-km-Wetterzelle im Mittel sechs
+/// verschiedene davon, und jede kostete eine eigene Rechnung — auf dem
+/// Pixel XL der größte Posten des Bilds. Auf 100 m gerundet ist die
+/// Temperaturkorrektur höchstens 0,26 K anders (40 m, die Höhen liegen
+/// auf 20-m-Stufen); eine Wabe kann dadurch an einer Stufengrenze
+/// anders leuchten, als das Blatt an genau diesem Punkt sagt. **Das ist
+/// die eine bewusste Ausnahme von „Fläche und Blatt sagen dasselbe"
+/// (#279)**, und sie gilt nur, solange eine Wabe nicht einmal ein
+/// Pixel groß ist. Bewusst nicht eine Höhe je Wetterzelle: Die
+/// Modellzellen im Alpenraum sind 12 km groß, Tal und Gipfel würden zu
+/// einem Block.
+const ampelOverviewHeightStepM = 100;
+
+/// [heightM] auf die nächste [ampelOverviewHeightStepM]-Stufe gerundet.
+int? ampelOverviewHeightM(int? heightM) => heightM == null
+    ? null
+    : (heightM + ampelOverviewHeightStepM ~/ 2) ~/
+        ampelOverviewHeightStepM *
+        ampelOverviewHeightStepM;
 
 /// Ab dieser Wabenbreite im Bild wird schraffiert. Darunter wären die
 /// Streifen breiter als die Gebiete, und der Nachschlag je Wabe liefe im
@@ -274,12 +299,88 @@ Uint8List forestAmpelFillPng(List<ForestGrid> grids,
   final coverage =
       _HexCoverage(window, bandCount: 5, protected: protected);
   final highlight = (levels: levels, classes: ampelClasses);
+  ampelFillMemo.prepare(levels, ampelClasses, elevation);
   for (final grid in grids) {
     coverage.add(grid, classes, highlight: highlight, elevation: elevation);
   }
   return overlayPng(
       window.width, window.height, coverage.resolveCombined());
 }
+
+/// Das Ampel-Gedächtnis dieses Isolates über Bilder hinweg (#662) — im
+/// Zeichen-Isolate eins für alle Aufträge.
+final ampelFillMemo = AmpelHexMemo();
+
+/// Was jede Wabe beim letzten Bild geleuchtet hat: EIN Byte je Wabe
+/// eines Waldgitters, 2 Bit für den Übersichtszoom (Höhe in
+/// [ampelOverviewHeightStepM]-Stufen) und 2 Bit für die Nahansicht —
+/// 0 heißt „noch nicht gerechnet", sonst [_codeOfLit].
+///
+/// Nach einem Schwenk liegt der größte Teil des Fensters schon darin;
+/// die Wabe kostet dann ein Byte statt einer Ampel-Auswertung. Es
+/// rechnet nichts anders, es merkt sich nur, was dieselben Zutaten
+/// ergeben haben — und wird verworfen, sobald eine davon wechselt:
+/// neues Stufen-Gitter (neuer Tag), andere Gruppenauswahl (nach Inhalt,
+/// [ampelSameClasses]), anderes Höhengitter.
+///
+/// **Bewusst ein flaches Byte-Feld und keine Map je Zelle.** Die Map
+/// (440 000 Einträge im Übersichtsbild) war auf dem Pixel XL für das
+/// ERSTE Bild 0,25 s teurer — Hunderttausende kleine Objekte, die die
+/// Speicherbereinigung immer wieder anfasst. Ein Byte-Feld ist für sie
+/// ein einziges Objekt. Das grobe Gitter kostet so 13,6 MB, solange das
+/// Isolate lebt (es endet nach 60 s Ruhe, #641); die Weak-Zuordnung
+/// ([Expando]) lässt das Feld eines feinen Blocks mit dem Block gehen.
+class AmpelHexMemo {
+  AmpelHexMemo({this.maxBytes = 32 << 20});
+
+  /// Mehr Bytes, und alles wird verworfen — zählt alle Gitter.
+  final int maxBytes;
+
+  AmpelLevels? _levels;
+  List<AmpelClass> _classes = const [];
+  ElevationGrid? _elevation;
+  Expando<Uint8List> _byGrid = Expando();
+  var _bytes = 0;
+
+  /// Wie oft verworfen wurde — für Tests.
+  int get generation => _generation;
+  var _generation = 0;
+
+  /// Am Anfang jedes Ampel-Bilds.
+  void prepare(AmpelLevels levels, List<AmpelClass> classes,
+      ElevationGrid? elevation) {
+    if (identical(levels, _levels) &&
+        identical(elevation, _elevation) &&
+        ampelSameClasses(classes, _classes)) {
+      return;
+    }
+    _clear();
+    _levels = levels;
+    _classes = classes;
+    _elevation = elevation;
+  }
+
+  /// Das Feld für [grid], bei Bedarf neu (alles auf „noch nicht").
+  Uint8List bitsFor(ForestGrid grid) {
+    final known = _byGrid[grid];
+    if (known != null) return known;
+    final size = grid.values.length;
+    if (_bytes + size > maxBytes) _clear();
+    _bytes += size;
+    return _byGrid[grid] = Uint8List(size);
+  }
+
+  void _clear() {
+    _byGrid = Expando();
+    _bytes = 0;
+    _generation++;
+  }
+}
+
+/// Das Leucht-Band als Code im [AmpelHexMemo]: 1 leuchtet nicht, 2
+/// verhalten, 3 günstig.
+int _codeOfLit(int lit) => lit < 0 ? 1 : lit - _bandVerhalten + 2;
+int _litOfCode(int code) => code == 1 ? -1 : code - 2 + _bandVerhalten;
 
 /// Deckung als Festkomma: [_coverageUnit] Einheiten sind ein GANZES
 /// Pixel. `Uint16` statt `Float32` halbiert den Puffer (14 statt 28 MB
@@ -399,6 +500,8 @@ class _HexCoverage {
     final wPx = lonStep / lonSpan * width;
     final directHeight =
         elevation != null && elevation.sharesLatticeWith(grid);
+    // Was jede Wabe beim letzten Bild ergab (#662) — nur mit Ampel.
+    final known = highlight == null ? null : ampelFillMemo.bitsFor(grid);
 
     // Byte -> Band (0 Laub, 1 Misch, 2 Nadel) oder -1 für „trägt nichts
     // bei": kein Wald, keine Daten, abgewählte Klasse (#231). Einmal
@@ -455,6 +558,7 @@ class _HexCoverage {
             elevation: elevation,
             directHeight: directHeight,
             ampelRow: ampelRow,
+            known: known,
             rowLat: latC,
             lonFirst: lonFirst,
             lonStep: lonStep);
@@ -470,11 +574,19 @@ class _HexCoverage {
         final band = bandOf[grid.values[rowBase + hx]];
         if (band < 0) continue;
         if (cx + wPx / 2 <= 0 || cx - wPx / 2 >= width) continue;
-        final lit = ampelRow == null
-            ? -1
-            : _litBand(ampelRow,
-                _heightOf(elevation, directHeight, rowBase + hx, latC, lonC),
-                lonC);
+        // Nahansicht: die oberen 2 Bit im Gedächtnis.
+        var lit = -1;
+        if (ampelRow != null) {
+          final cell = rowBase + hx;
+          final code = known![cell] >> 2 & 3;
+          if (code != 0) {
+            lit = _litOfCode(code);
+          } else {
+            lit = _litBand(ampelRow,
+                _heightOf(elevation, directHeight, cell, latC, lonC), lonC);
+            known[cell] |= _codeOfLit(lit) << 2;
+          }
+        }
         // Am MITTELPUNKT der Wabe, wie das Leuchten: Eine Waldwabe ist
         // ganz Schutzgebiet oder gar nicht. Die feinen 100-m-Blöcke
         // liegen auf einem anderen Raster, deshalb über die Koordinate
@@ -546,6 +658,7 @@ class _HexCoverage {
     required ElevationGrid? elevation,
     required bool directHeight,
     required AmpelRowLevels? ampelRow,
+    required Uint8List? known,
     required double rowLat,
     required double lonFirst,
     required double lonStep,
@@ -568,11 +681,23 @@ class _HexCoverage {
     for (var hx = hx0; hx <= hx1; hx++, cx += wPx, lonC += lonStep) {
       final band = bandOf[grid.values[rowBase + hx]];
       if (band < 0) continue;
-      final lit = ampelRow == null
-          ? -1
-          : _litBand(ampelRow,
-              _heightOf(elevation, directHeight, rowBase + hx, rowLat, lonC),
+      // Im Übersichtszoom in 100-m-Stufen ([ampelOverviewHeightStepM]);
+      // die unteren 2 Bit im Gedächtnis.
+      var lit = -1;
+      if (ampelRow != null) {
+        final cell = rowBase + hx;
+        final code = known![cell] & 3;
+        if (code != 0) {
+          lit = _litOfCode(code);
+        } else {
+          lit = _litBand(
+              ampelRow,
+              ampelOverviewHeightM(_heightOf(
+                  elevation, directHeight, cell, rowLat, lonC)),
               lonC);
+          known[cell] |= _codeOfLit(lit);
+        }
+      }
       final px = cx.floor();
       if (px < -1 || px >= width) continue;
       final tx = cx - px;

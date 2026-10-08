@@ -128,13 +128,103 @@ class AmpelLogit {
     double? milder,
   }) {
     if (milder == null && needsMilder) return null;
-    final logRain = math.log(math.max(rainFactor, ampelLogitRainFloor));
-    return rain * logRain +
-        temp * meanC +
-        temp2 * meanC * meanC +
-        moisture * moistureMean +
-        moistureTemp * moistureMean * meanC +
-        this.milder * (milder ?? 0);
+    return scoreOfLogRain(ampelLogRain(rainFactor),
+        meanC: meanC, moistureMean: moistureMean, milder: milder ?? 0);
+  }
+
+  /// [score] mit schon gezogenem Logarithmus des Regenfaktors
+  /// ([ampelLogRain]) — für die Fläche, die eine Zelle bei mehreren
+  /// Höhen rechnet und den Logarithmus nur einmal zieht (#662). Dieselbe
+  /// Summe in derselben Reihenfolge, also dieselbe Zahl.
+  double scoreOfLogRain(double logRain,
+          {required double meanC,
+          required double moistureMean,
+          required double milder}) =>
+      rain * logRain +
+      temp * meanC +
+      temp2 * meanC * meanC +
+      moisture * moistureMean +
+      moistureTemp * moistureMean * meanC +
+      this.milder * milder;
+}
+
+/// `ln F` des Logits, mit der Untergrenze [ampelLogitRainFloor].
+double ampelLogRain(double rainFactor) =>
+    math.log(math.max(rainFactor, ampelLogitRainFloor));
+
+/// Die Zutaten EINER Zelle, die nicht von der Höhe abhängen (#662).
+///
+/// Die Fläche rechnet eine Wetterzelle im Übersichtszoom für mehrere
+/// Höhen — im Mittel sechs 20-m-Stufen je Zelle; auf dem Pixel XL
+/// kostete das Vorbereiten je Höhe rund 0,5 s je Bild. Die Höhe geht
+/// nur über das Temperaturmittel ein ([best] bekommt es fertig
+/// verschoben). Die Regeln stehen hier und NUR hier: [ampelBestOf] und
+/// [ampelScoreFor] bauen ihre Zutaten ebenfalls hierüber.
+class AmpelCellInputs {
+  AmpelCellInputs({
+    required this.rainFactor,
+    this.moistureMean,
+    this.moistureKm,
+    this.milder,
+  }) : logRain = ampelLogRain(rainFactor);
+
+  final double rainFactor;
+  final double logRain;
+  final double? moistureMean;
+  final double? moistureKm;
+  final double? milder;
+
+  /// Der Score einer Klasse bei [meanC] — siehe [ampelScoreFor].
+  double? scoreFor(AmpelClass klass, double meanC) {
+    final logit = klass.logit;
+    if (logit == null) {
+      return rainFactor * ampelBellOfMean(meanC, optimumC: klass.optimumC!);
+    }
+    final moisture = moistureMean;
+    if (moisture == null) return null;
+    final km = moistureKm;
+    if (km != null && km > logit.maxMoistureKm) return null;
+    final nights = milder;
+    if (nights == null && logit.needsMilder) return null;
+    return logit.scoreOfLogRain(logRain,
+        meanC: meanC, moistureMean: moisture, milder: nights ?? 0);
+  }
+
+  /// Die beste Stufe bei [meanC] samt Klasse — siehe [ampelBestOf].
+  ({AmpelLevel? level, AmpelClass klass}) best(
+      double meanC, List<AmpelClass> classes) {
+    final packed = _bestPacked(meanC, classes);
+    return packed < 0
+        ? (level: null, klass: classes.first)
+        : (level: AmpelLevel.values[packed & 3], klass: classes[packed >> 2]);
+  }
+
+  /// Nur die Stufe von [best] — ohne den Record, den die Fläche je
+  /// Abfrage nicht braucht.
+  AmpelLevel? bestLevel(double meanC, List<AmpelClass> classes) {
+    final packed = _bestPacked(meanC, classes);
+    return packed < 0 ? null : AmpelLevel.values[packed & 3];
+  }
+
+  /// Die Regel von [ampelBestOf] als eine Zahl: Klassenindex · 4 +
+  /// Stufenindex, `-1` wenn keine Klasse antworten kann.
+  int _bestPacked(double meanC, List<AmpelClass> classes) {
+    var best = -1;
+    var bestLevel = -1;
+    for (var k = 0; k < classes.length; k++) {
+      final klass = classes[k];
+      final score = scoreFor(klass, meanC);
+      // Eine Logit-Klasse ohne Bodenfeuchte (oder ohne die Minima, die
+      // ihr „milder" braucht) sagt nichts — sie zählt hier nicht mit,
+      // statt mit einem Ersatzwert zu rechnen.
+      if (score == null) continue;
+      final level = ampelLevelOf(score, klass: klass).index;
+      if (level > bestLevel) {
+        bestLevel = level;
+        best = k << 2 | level;
+      }
+    }
+    return best;
   }
 }
 
@@ -440,27 +530,12 @@ String? ampelClassKeyOf(AmpelClass klass) {
   double? moistureKm,
   double? milder,
 }) {
-  var best = (
-    level: null as AmpelLevel?,
-    klass: classes.first,
-  );
-  for (final klass in classes) {
-    final score = ampelScoreFor(klass,
-        rainFactor: rainFactor,
-        meanC: meanC,
-        moistureMean: moistureMean,
-        moistureKm: moistureKm,
-        milder: milder);
-    // Eine Logit-Klasse ohne Bodenfeuchte (oder ohne die Minima, die
-    // ihr „milder" braucht) sagt nichts — sie zählt hier nicht mit,
-    // statt mit einem Ersatzwert zu rechnen.
-    if (score == null) continue;
-    final level = ampelLevelOf(score, klass: klass);
-    if (level.index > (best.level?.index ?? -1)) {
-      best = (level: level, klass: klass);
-    }
-  }
-  return best;
+  return AmpelCellInputs(
+          rainFactor: rainFactor,
+          moistureMean: moistureMean,
+          moistureKm: moistureKm,
+          milder: milder)
+      .best(meanC, classes);
 }
 
 /// Der Score EINER Klasse aus fertigen Zutaten — Glocke oder Logit.
@@ -476,19 +551,13 @@ double? ampelScoreFor(
   double? moistureMean,
   double? moistureKm,
   double? milder,
-}) {
-  final logit = klass.logit;
-  if (logit == null) {
-    return rainFactor * ampelBellOfMean(meanC, optimumC: klass.optimumC!);
-  }
-  if (moistureMean == null) return null;
-  if (moistureKm != null && moistureKm > logit.maxMoistureKm) return null;
-  return logit.score(
-      rainFactor: rainFactor,
-      meanC: meanC,
-      moistureMean: moistureMean,
-      milder: milder);
-}
+}) =>
+    AmpelCellInputs(
+            rainFactor: rainFactor,
+            moistureMean: moistureMean,
+            moistureKm: moistureKm,
+            milder: milder)
+        .scoreFor(klass, meanC);
 
 /// **Nur Arten einer BESTÄTIGTEN Klasse stehen hier.** Hallimasch und
 /// Stockschwämmchen haben ein gemessenes Fenster (11,5 °C) und in

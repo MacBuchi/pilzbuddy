@@ -883,5 +883,58 @@ void _ampelLevelsTests() {
       expect(memo.matches([1, null]), isFalse);
       expect(memo.matches([1]), isFalse);
     });
+
+    group('ampelSameClasses (Gedächtnis über Bilder, #662)', () {
+      // Die Auswahl reist je Auftrag als KOPIE ins Zeichen-Isolate —
+      // gleiche Werte, andere Objekte, auch das Logit.
+      List<AmpelClass> copied(List<AmpelClass> classes) => [
+            for (final c in classes)
+              (
+                name: c.name,
+                optimumC: c.optimumC,
+                verhaltenAbove: c.verhaltenAbove,
+                guenstigAbove: c.guenstigAbove,
+                logit: c.logit == null
+                    ? null
+                    : AmpelLogit(
+                        rain: c.logit!.rain,
+                        temp: c.logit!.temp,
+                        temp2: c.logit!.temp2,
+                        moisture: c.logit!.moisture,
+                        moistureTemp: c.logit!.moistureTemp,
+                        milder: c.logit!.milder,
+                        maxMoistureKm: c.logit!.maxMoistureKm),
+              ),
+          ];
+
+      test('eine Kopie ist dieselbe Auswahl', () {
+        expect(ampelSameClasses(ampelShippedClasses,
+            copied(ampelShippedClasses)), isTrue);
+      });
+
+      test('andere Klassen, andere Reihenfolge, anderer Wert: nicht', () {
+        expect(ampelSameClasses(ampelShippedClasses,
+            [ampelShippedClasses.first]), isFalse);
+        expect(ampelSameClasses(ampelShippedClasses,
+            ampelShippedClasses.reversed.toList()), isFalse);
+        final changed = copied(ampelShippedClasses);
+        final logit = changed.last.logit!;
+        changed.last = (
+          name: changed.last.name,
+          optimumC: changed.last.optimumC,
+          verhaltenAbove: changed.last.verhaltenAbove,
+          guenstigAbove: changed.last.guenstigAbove,
+          logit: AmpelLogit(
+              rain: logit.rain,
+              temp: logit.temp,
+              temp2: logit.temp2,
+              moisture: logit.moisture,
+              moistureTemp: logit.moistureTemp,
+              milder: logit.milder,
+              maxMoistureKm: logit.maxMoistureKm + 1),
+        );
+        expect(ampelSameClasses(ampelShippedClasses, changed), isFalse);
+      });
+    });
   });
 }

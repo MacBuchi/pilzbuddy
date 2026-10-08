@@ -335,6 +335,13 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
     `test/forest_ampel_fill_test.dart`; Messung (316→733 ms Debug im
     teuersten Fall, Isolate) in `docs/map-performance.md`, nachgeprüft
     von `test/perf_ampel_fill_measure.dart`.
+    **Die eine Ausnahme** (#662, Betreiber 2026-10-08): Ist eine Wabe
+    kleiner als ein Pixel (Übersichtszoom), rechnet die Fläche die Höhe
+    in 100-m-Stufen (`ampelOverviewHeightStepM` in `forest_fill.dart`,
+    höchstens 40 m = 0,26 K daneben). Dort kann eine Wabe an einer
+    Stufengrenze anders leuchten als das Blatt am selben Punkt; nah dran
+    gilt die Regel wieder ohne Ausnahme. Nicht eine Höhe je Wetterzelle —
+    die Modellzellen im Alpenraum sind 12 km groß.
   - **Das Diagramm zeigt weiter ROHE Stationswerte** (beschriftet mit
     Station + Höhe) — nur die Ampel-Zeile rechnet um und sagt es ab
     ~0,3 K dazu („auf Spothöhe 1200 m"); darunter bleibt der Zusatz
