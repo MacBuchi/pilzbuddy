@@ -166,7 +166,7 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
   ohne D2-Daten aber still auf ICON-EU zurückfiele), auf einem festen
   12-km-Raster in EPSG:3857 über der Box
   5,9–17,2° O / 45,6–49,1° N MINUS Deutschland (Polygon
-  `DE_POLYGON`: West- und Südgrenze; 3 943 Punkte). Acht Dinge, die man
+  `DE_POLYGON`: West- und Südgrenze; 3 943 Punkte). Neun Dinge, die man
   wissen muss:
   - **Deutschland ist ein Polygon, keine Breite je Länge** (#664, seit
     2026-10-07). Vorher war es nur die Südgrenze, gelesen als „nördlich
@@ -237,6 +237,31 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
     GitHub Stunden zu spät kommen kann. Der Selbsttest rechnet den
     Stillstand mit dem ECHTEN Verhältnis von Punkten zu Budget nach;
     der alte mit 150 Punkten hatte Platz für drei Wochen und sah ihn nie.
+    **Das alles gilt seit #631 nur noch für den Rückfall** (nächster
+    Punkt).
+  - **Geholt wird aus dem eigenen Open-Meteo-Container** (#631, seit
+    2026-10-08): derselbe Container wie beim Bodenfeuchte-Gitter
+    (`open_meteo_up` im Workflow, ein Image, per Digest gepinnt),
+    `--api http://127.0.0.1:8080/v1/forecast` — er beantwortet `past_days`
+    UND feste Daten auf demselben Pfad. Ohne Kontingent gibt es kein
+    Budget, kein Pacing und kein `MIN_FETCH_GAP`: Ein Lauf füllt jede
+    Lücke. Gemessen vor der Umstellung (`tool/model_parity_check.py`):
+    200 Zufallspunkte × 30 Tage, beide Pfade, 18 000 Tageswerte plus die
+    Höhen — **null Abweichungen** zur öffentlichen API. Der volle Neubau
+    (3 943 Punkte × 30 Tage, kalter Cache) dauerte 2 min 32 s, der Cache
+    wuchs auf 2,1 GB. Drei Dinge daran:
+    - **Kommt der Container nicht hoch, holt der Lauf öffentlich** —
+      mit Budget und Stundenwächter wie vorher. Gestern kommt dann noch,
+      eine Lücke schließt sich langsamer. Beim Bodenfeuchte-Gitter gibt
+      es diesen Rückfall nicht (9 800 Punkte sprengen das Kontingent).
+    - **`last_fetch` wandert nur bei einem ÖFFENTLICHEN Abruf.** Er
+      bewacht das öffentliche Kontingent, das ein Container-Lauf nicht
+      berührt; sonst sperrte ein Container-Lauf den Rückfall eine Stunde.
+    - **`--verify` fragt weiter die öffentliche API**, und
+      `model_parity_check.py` kostet öffentliches Kontingent (~4,3 Calls
+      je Punkt). Aus einer Cloud-Sitzung ist das Kontingent schnell weg —
+      der Ausgang ist geteilt, am 2026-10-08 kam nach der Messung nur
+      noch 429. Ein neues Image wird mit dem Werkzeug neu gemessen.
   - **Der Stapel hält 30 Tage** (`STACK_DAYS`, seit 1.220.0), nicht
     mehr 28: Die Ampel braucht 26 Regentage, die Stationstabelle 28
     Temperaturtage, die Regen-Ebene „30 Tage" im Alpenraum alle 30. Die
@@ -306,8 +331,9 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
   entfernt; ältere Clients als 1.224.0 zeigen Herbsttrompete & Co. bis
   zum Update grau. Messung und Herleitung im
   Labor, Lauf 25 (Kurzfassung in #676). Sechs Dinge, die man wissen muss:
-  - **Geholt aus einer eigenen Open-Meteo-Instanz im Job** (Kern von
-    #631): `docker run` des Images, gepinnt per Digest, das liest den
+  - **Geholt aus einer eigenen Open-Meteo-Instanz im Job** (#631; seit
+    2026-10-08 holt auch das Modellgitter daraus, `open_meteo_up` im
+    Workflow startet sie einmal je Job): `docker run` des Images, gepinnt per Digest, das liest den
     offenen S3-Bucket bei Bedarf. ~9 800 Punkte wären zwei Tage des
     öffentlichen Kontingents je Lauf. Lokal braucht der volle erste Lauf
     (41 Tage) gut eine halbe Minute. Ein neues Image ist ein neues

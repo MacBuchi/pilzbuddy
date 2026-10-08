@@ -163,6 +163,23 @@ statt Remote —, führt vorher `tool/openmeteo_local_check.py` aus. Die
 Zusage „dasselbe Instrument" ist der Grund, warum Cache und neue Läufe in
 einer Tabelle stehen dürfen; sie gilt nur, solange sie gemessen ist.
 
+## Dasselbe für ICON-D2 im Modellgitter (#631)
+
+Seit dem 2026-10-08 holt `rain-data.yml` das Alpen-Modellgitter
+(`tool/model_weather.py`, `models=icon_d2`) aus demselben Container wie
+die Bodenfeuchte. Vorher gemessen mit `tool/model_parity_check.py`:
+genau die Anfragen des Werkzeugs, an Container und öffentliche API.
+
+| Pfad | Tage | Punkte | Tageswerte | Abweichung | Höhen |
+|---|---|--:|--:|--:|--:|
+| `past_days` | 2026-10-01 … 10-07 | 200 | 4 200 | **0** | **0** |
+| feste Daten (historical-forecast) | 2026-09-08 … 09-30 | 200 | 13 800 | **0** | **0** |
+
+Der Bucket hält ICON-D2 mindestens bis Anfang August 2026 zurück, und
+gestern war um 22 Uhr UTC vollständig. Voller Neubau, 3 943 Punkte × 30
+Tage mit kaltem Cache: 2 min 32 s, Cache danach 2,1 GB. Image-Digest
+`e1517a01…`, wie bei der Bodenfeuchte.
+
 ## Offen
 
 - **`models=` pinnen.** Damit wird der Drift erst deutbar, und die
