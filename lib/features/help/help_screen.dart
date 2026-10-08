@@ -129,9 +129,9 @@ const kHelpSteps = <HelpStep>[
     title: 'Ohne Empfang',
     text: 'Deine Spots liest die App auch offline. Neue Spots und Funde '
         'wandern in einen Ausgangskorb und gehen los, sobald du wieder '
-        'Empfang hast. Damit auch die Karte etwas zeigt, lädst du im '
-        'Profil unter „Offline-Karten" deine Region herunter — am '
-        'besten zu Hause im WLAN.',
+        'Empfang hast. Damit auch die Karte etwas zeigt, speicherst du '
+        'unter „Ebenen" → „Kartenbereiche" die Gegenden, in die du '
+        'gehst — am besten zu Hause im WLAN.',
   ),
 ];
 
