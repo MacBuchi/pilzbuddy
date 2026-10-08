@@ -87,8 +87,13 @@ jobs:
 
       - name: Build the grid
         run: |
+          # --previous: a large area that (nearly) vanished against the
+          # committed grid fails the run — a half-edited OSM relation
+          # dropped the Bayerischer Wald national park once (#623).
+          set -o pipefail
           python3 tool/protected_areas.py build --out build/protected \
-            --assets build/protected/assets | tee -a "$GITHUB_STEP_SUMMARY"
+            --assets build/protected/assets --previous assets/protected \
+            | tee -a "$GITHUB_STEP_SUMMARY"
 
       # Same pattern as forest-species-ch.yml: artifacts cannot be fetched
       # from a cloud session, so a hand-started run on a feature branch

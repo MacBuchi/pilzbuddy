@@ -551,7 +551,8 @@ def assign(split, width, height):
     return grid, areas
 
 
-def build(out_dir, assets_dir, forest_manifest):
+def build(out_dir, assets_dir, forest_manifest, previous=None,
+          allow_loss=False):
     assert_matches_forest_grid(forest_manifest)
     lat_c = lattice()
     _, _, lon_step, lat_step, width, height = lat_c
@@ -639,7 +640,68 @@ def build(out_dir, assets_dir, forest_manifest):
         fh.write("\n")
     print(f"{len(areas)} Gebiete, {marked} Waben markiert, "
           f"Gitter {len(payload) / 1024:.0f} KB")
+    if previous and not allow_loss:
+        check_losses(previous, assets_dir, mask)
     return manifest
+
+
+# Ab wie vielen Waben (≈ 0,054 km² je Wabe, also ~54 km²) ein Gebiet
+# nicht still verschwinden darf, und welcher Anteil verloren gehen darf.
+LOSS_MIN_CELLS = 1000
+LOSS_MAX_SHARE = 0.5
+
+
+def cells_per_area(assets_dir, outside=frozenset()):
+    """{(kind, name): Waben} eines fertigen Gitters, ohne die Waben in
+    `outside` (dort hat eine amtliche Quelle OSM ersetzt)."""
+    m = json.load(open(os.path.join(assets_dir, "protected_manifest.json")))
+    runs = decode_runs(gzip.decompress(
+        open(os.path.join(assets_dir, "protected_grid.bin.gz"), "rb").read()),
+        m["height"])
+    out = {}
+    for hy, row in enumerate(runs):
+        for x0, n, idx in row:
+            a = m["areas"][idx - 1]
+            key = (a["kind"], a["name"])
+            k = n if not outside else sum(
+                1 for hx in range(x0, x0 + n) if (hx, hy) not in outside)
+            out[key] = out.get(key, 0) + k
+    return out
+
+
+def losses(before, after):
+    """Große Gebiete, die mehr als `LOSS_MAX_SHARE` ihrer Waben verloren
+    haben — [(kind, name, vorher, nachher)], größte zuerst.
+
+    Anlass (#623, 2026-10-08): Der Geofabrik-Auszug Deutschland vom
+    2026-10-06 erwischte die Relation des Nationalparks Bayerischer Wald
+    mitten in einer Bearbeitung, osmium baute aus ihr keine Fläche, und
+    der Nationalpark fehlte im Gitter — ohne Fehlermeldung. Der
+    Asset-Test hätte es erst nach dem Commit gesehen."""
+    lost = []
+    for key, n in before.items():
+        if n < LOSS_MIN_CELLS:
+            continue
+        now = after.get(key, 0)
+        if now < n * (1 - LOSS_MAX_SHARE):
+            lost.append((*key, n, now))
+    return sorted(lost, key=lambda x: -x[2])
+
+
+def check_losses(previous_dir, new_dir, mask):
+    """Bricht ab, wenn gegenüber dem bisherigen Gitter ein großes Gebiet
+    (fast) verschwunden ist. Waben im amtlichen Bereich zählen nicht —
+    dort verschwindet OSM mit Absicht."""
+    if not os.path.exists(os.path.join(previous_dir, "protected_manifest.json")):
+        return
+    lost = losses(cells_per_area(previous_dir, mask),
+                  cells_per_area(new_dir, mask))
+    for kind, name, n, now in lost:
+        print(f"VERLOREN {kind:18} {name[:50]:50} {n:6} → {now:6} Waben")
+    if lost:
+        sys.exit(f"{len(lost)} große Gebiete verloren — OSM-Stand prüfen "
+                 "(halb bearbeitete Relation?), dann neu bauen oder mit "
+                 "--allow-loss bewusst übernehmen")
 
 
 def encode_runs(grid, width, height):
@@ -821,6 +883,14 @@ def self_test():
     assert tirol_name("NPKZ", "Hohe Tauern Kernzone") == \
         "Nationalpark Hohe Tauern Kernzone"
     _self_test_official_mask()
+    # Verluste: Ein großes Gebiet, das (fast) verschwindet, fällt auf; ein
+    # kleines oder eines, das nur schrumpft, nicht.
+    big = LOSS_MIN_CELLS
+    before = {("Nationalpark", "A"): big, ("Nationalpark", "B"): big,
+              ("Naturschutzgebiet", "klein"): big - 1}
+    after = {("Nationalpark", "B"): big * 0.6}
+    assert losses(before, after) == [("Nationalpark", "A", big, 0)], \
+        losses(before, after)
     print("protected_areas self-test passed (no network)")
 
 
@@ -868,6 +938,9 @@ def main():
     b.add_argument("--assets", required=True)
     b.add_argument("--forest-manifest",
                    default="assets/forest/forest_manifest.json")
+    b.add_argument("--previous",
+                   help="bisheriges Gitter; große Verluste brechen ab")
+    b.add_argument("--allow-loss", action="store_true")
     fo = sub.add_parser("fetch-official")
     fo.add_argument("--out", required=True)
     lk = sub.add_parser("lookup")
@@ -883,7 +956,8 @@ def main():
     elif args.cmd == "report":
         report(args.out)
     elif args.cmd == "build":
-        build(args.out, args.assets, args.forest_manifest)
+        build(args.out, args.assets, args.forest_manifest, args.previous,
+              args.allow_loss)
     elif args.cmd == "lookup":
         lookup(args.assets, [tuple(map(float, p.split(","))) for p in args.points])
     else:
