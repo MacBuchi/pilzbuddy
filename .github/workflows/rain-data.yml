@@ -42,13 +42,17 @@ on:
     # The measured Alpine stack (#646) rides on both model runs: it
     # blends the model in, and MeteoSwiss publishes day D only at D+1
     # 12:17 UTC, so the evening run is the one that completes Switzerland.
+    # Soil moisture from ERA5-Land (#676), its own run: it starts an
+    # Open-Meteo container, which no other layer needs, and ERA5-Land
+    # grows by one day a day with a five-day lag — any hour will do.
+    - cron: "53 9 * * *"
   workflow_dispatch:
     inputs:
       layer:
         description: "Which layer to rebuild (empty = w4 and sf)"
         required: false
         type: choice
-        options: ["", "w4", "sf", "daily", "weather", "model", "alps"]
+        options: ["", "w4", "sf", "daily", "weather", "model", "alps", "soil"]
         default: ""
 
 # Never two runs at once — they would race on the shared manifest. Not
@@ -82,6 +86,7 @@ jobs:
           python3 tool/spot_weather.py --self-test
           python3 tool/model_weather.py --self-test
           python3 tool/alps_rain.py --self-test
+          python3 tool/soil_moisture.py --self-test
 
       - name: Pick layers
         id: pick
@@ -98,6 +103,7 @@ jobs:
             "47 */3 * * *") layers="sf" ;;
             "23 7 * * *") layers="daily weather model alps" ;;
             "41 18 * * *") layers="model alps" ;;
+            "53 9 * * *") layers="soil" ;;
             *) layers="$LAYER_INPUT" ;;
           esac
           [ -n "$layers" ] || layers="w4 sf"
@@ -138,6 +144,49 @@ jobs:
               gh release download rain-data --pattern 'model_*' \
                 --dir build/rain || echo "no model files yet (first run)"
               python3 tool/model_weather.py --out build/rain
+            elif [ "$layer" = "soil" ]; then
+              # Soil moisture 7–28 cm from ERA5-Land (#676), fetched from
+              # a self-hosted Open-Meteo container (#631): ~9 800 points
+              # would be two days of the public free tier. The container
+              # reads the open S3 bucket on demand — no sync, no key.
+              # Pinned by digest: the image lab run 25 measured against
+              # (docs/pilzampel-openmeteo-lokal.md); a new one is a new
+              # instrument and gets measured first.
+              image="ghcr.io/open-meteo/open-meteo@sha256:e1517a01a061fd96e2a9017d022c5809bb51725bcd733bcbed435e7ea32dd9da"
+              # The image does not run as root; on the runner the bind
+              # mount belongs to the runner user, and without write access
+              # the server cannot create its cache file and exits — seen
+              # on the first branch run as five minutes of "connection
+              # refused" (Docker Desktop on a Mac does not show this).
+              mkdir -p "$RUNNER_TEMP/open-meteo"
+              chmod 777 "$RUNNER_TEMP/open-meteo"
+              docker run -d --name open-meteo -p 127.0.0.1:8080:8080 \
+                -v "$RUNNER_TEMP/open-meteo:/app/data" \
+                -e REMOTE_DATA_DIRECTORY=https://openmeteo.s3.amazonaws.com/data/ \
+                -e CACHE_SIZE=2GB \
+                "$image" serve --env production --hostname 0.0.0.0 --port 8080
+              ready=""
+              for i in $(seq 1 60); do
+                if curl -fs "http://127.0.0.1:8080/v1/archive?latitude=50&longitude=10&start_date=2026-01-01&end_date=2026-01-01&daily=soil_moisture_7_to_28cm_mean&models=era5_land" \
+                    >/dev/null; then
+                  ready=1; break
+                fi
+                [ "$(docker inspect -f '{{.State.Running}}' open-meteo)" = true ] || break
+                sleep 5
+              done
+              if [ -z "$ready" ]; then
+                docker ps -a --filter name=open-meteo
+                docker logs open-meteo
+                echo "::error::Open-Meteo container did not come up"
+                exit 1
+              fi
+              # The earlier days: verify reads the newest, which a run
+              # that finds nothing new did not write.
+              gh release download rain-data --pattern 'soil_*' \
+                --dir build/rain || echo "no soil files yet (first run)"
+              python3 tool/soil_moisture.py --out build/rain \
+                --api http://127.0.0.1:8080/v1/archive --source "$image"
+              docker logs --tail 20 open-meteo
             elif [ "$layer" = "alps" ]; then
               # The measured Alpine stack (#646), AFTER daily and model:
               # it blends both in. GDAL only reprojects (tool/alps_rain.py).
@@ -179,6 +228,12 @@ jobs:
                 --inputs build/inputs
               continue
             fi
+            if [ "$layer" = "soil" ]; then
+              # Six random cells against the PUBLIC archive API — the
+              # container is not asked to confirm itself.
+              python3 tool/soil_moisture.py --verify --out build/rain
+              continue
+            fi
             if [ "$layer" = "model" ]; then
               # Six random lattice points, re-asked one by one: catches a
               # shifted lattice, swapped max/min, or a stale day file.
@@ -188,14 +243,23 @@ jobs:
             python3 tool/rain_grid.py --layer "$layer" --verify --out build/rain
           done
 
+      # Everything below writes the release or its mirror — only from
+      # main. A manual run on a branch (gh workflow run --ref) builds and
+      # verifies, so a new layer can be timed on the real runner without
+      # a branch publishing into what every app reads.
       - name: Publish
+        if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release view rain-data >/dev/null 2>&1 || \
             gh release create rain-data \
               --title "Regen-Gitter" \
-              --notes "Niederschlagssummen des Deutschen Wetterdienstes als Wertegitter, ein Byte je Quadratkilometer (Datenbasis: DWD, GeoNutzV). Wird mehrmals täglich überschrieben — die Release-Beschreibung gehört zur Datenstrecke, nicht zu einer App-Version."
+              --notes "Wettergitter für PilzBuddy."
+          # The notes name every source, and are rewritten each run so a
+          # new layer cannot leave them behind (they said "DWD" alone
+          # until the soil layer came, three sources later).
+          gh release edit rain-data --notes "Wettergitter für PilzBuddy, mehrmals täglich überschrieben — die Beschreibung gehört zur Datenstrecke, nicht zu einer App-Version. Datenbasis: Deutscher Wetterdienst (GeoNutzV); GeoSphere Austria (CC BY 4.0); MeteoSchweiz (CC BY 4.0); Dipartimento della Protezione Civile (CC BY-SA 4.0); Open-Meteo (CC BY 4.0); enthält modifizierte Copernicus-Climate-Change-Service-Informationen (ERA5-Land, Bodenfeuchte)."
           # Only what this run actually built is in build/rain: the daily
           # stack carries unchanged days over without downloading them.
           gh release upload rain-data build/rain/* --clobber
@@ -205,7 +269,7 @@ jobs:
         # Without this the release grows by one file a day forever. The
         # list comes from the tool, not from a date-shaped glob here —
         # the tool is what decides how long the stack is.
-        if: hashFiles('build/keep.txt') != ''
+        if: github.ref == 'refs/heads/main' && hashFiles('build/keep.txt') != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -222,7 +286,7 @@ jobs:
       - name: Drop model files the Alpine stack no longer keeps
         # Same idea, own list and own prefix: `model_keep.txt` comes from
         # tool/model_weather.py and names rain, tmax, tmin and elevation.
-        if: hashFiles('build/model_keep.txt') != ''
+        if: github.ref == 'refs/heads/main' && hashFiles('build/model_keep.txt') != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -239,7 +303,7 @@ jobs:
       - name: Drop Alpine files the measured stack no longer keeps
         # Own list, five prefixes: the three national sources, the
         # blended days and their origin planes (tool/alps_rain.py).
-        if: hashFiles('build/alps_keep.txt') != ''
+        if: github.ref == 'refs/heads/main' && hashFiles('build/alps_keep.txt') != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -254,7 +318,24 @@ jobs:
           done < published_alps.txt
           echo "Alpenstapel: $(wc -l < build/alps_keep.txt) Dateien"
 
+      - name: Drop soil files the stack no longer keeps
+        # Own list, own prefix: `soil_keep.txt` from tool/soil_moisture.py.
+        if: github.ref == 'refs/heads/main' && hashFiles('build/soil_keep.txt') != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view rain-data --json assets \
+            --jq '.assets[].name' | grep '^soil_' > published_soil.txt || true
+          while read -r asset; do
+            if ! grep -qx "$asset" build/soil_keep.txt; then
+              echo "Entferne $asset"
+              gh release delete-asset rain-data "$asset" --yes
+            fi
+          done < published_soil.txt
+          echo "Bodenfeuchte: $(wc -l < build/soil_keep.txt) Tage"
+
       - name: Mirror the release into a branch the browser can read
+        if: github.ref == 'refs/heads/main'
         # Release assets carry NO `access-control-allow-origin` header, so
         # a browser cannot fetch them at all — not even via the API, whose
         # 302 does carry CORS while the redirect target does not, and the

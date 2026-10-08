@@ -214,7 +214,8 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
     Bodenfeuchte und damit überall mit. Herbsttrompete & Co. braucht
     sie, und die gibt es bisher nur von DWD-Stationen: im Landesinneren
     von AT/CH grau, an der Grenze bis 30 km mit einer deutschen Station
-    (#665). Eine Feuchte fürs Ausland (ERA5-Land) ist #676.
+    (#665). Ihre Feuchte für ganz DACH kommt aus ERA5-Land (#676, siehe
+    „Bodenfeuchte-Gitter“ unten).
   - **Die Tagesdateien SIND der Zustand.** Rain, tmax, tmin (0,5-°C-
     Schritte) je Tag plus `model_elevation.bin.gz` liegen im Release
     `rain-data` wie die Radar-Tage; jeder Lauf holt nur fehlende Tage,
@@ -295,6 +296,48 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
     der Ampel-Nachlauf lässt sie weg (`withOrigin: false`, Messung in
     `docs/map-performance.md`). Bits und Werkzeug hält ein Test
     zusammen.
+
+- **Bodenfeuchte-Gitter** (`tool/soil_moisture.py`, im selben
+  `rain-data.yml`, eigener Cron `53 9`, #676, Daten seit PR B; die App
+  liest es ab PR C): ERA5-Land 7–28 cm (m³/m³) für Deutschland und die
+  Alpenbox, EINE Quelle für ganz DACH statt DWD-`BFGL_AG` (Betreiber,
+  2026-10-08: „am besten nur eine Quelle"). Messung und Herleitung im
+  Labor, Lauf 25 (Kurzfassung in #676). Sechs Dinge, die man wissen muss:
+  - **Geholt aus einer eigenen Open-Meteo-Instanz im Job** (Kern von
+    #631): `docker run` des Images, gepinnt per Digest, das liest den
+    offenen S3-Bucket bei Bedarf. ~9 800 Punkte wären zwei Tage des
+    öffentlichen Kontingents je Lauf. Lokal braucht der volle erste Lauf
+    (41 Tage) gut eine halbe Minute. Ein neues Image ist ein neues
+    Instrument und wird vorher gemessen (`docs/pilzampel-openmeteo-lokal.md`).
+  - **`--api` ist für den Bau Pflicht**, eine Vorgabe gibt es nicht:
+    Weder still localhost noch still das öffentliche Kontingent.
+    `--verify` fragt immer die ÖFFENTLICHE Archiv-API, sechs Zellen des
+    jüngsten Tags. Der Container bestätigt sich also nicht selbst.
+  - **Raster 0,1° in Länge und Breite, jede Zellmitte auf einem
+    ERA5-Land-Punkt**, kein Mercator: Hier wird nichts gezeichnet, die App
+    schlägt nur nach (`floor((lon − west) / 0,1)`). Gefragt wird nur in
+    der Deutschland-Box und der Alpenbox, sonst 255. Über dem Meer
+    liefert ERA5-Land nichts. An der Küste rastet Open-Meteo auf die
+    nächste Landzelle ein, zwei Rasterpunkte können also dieselbe
+    Modellzelle tragen.
+  - **Ein Byte, 0,003 m³/m³ je Stufe** (254 = 0,762, 255 = keine Daten),
+    Zeilen-Delta + gzip wie beim Regen. Gemessen am Gitter 2026-09: Der
+    höchste Wert ist 0,72. Nach dem 26-Tage-Mittel verschiebt die Rundung
+    das Klassen-Logit im Median um 0,002, höchstens um 0,019 (bei 15 °C).
+    Die Schwellen liegen 0,76 auseinander.
+  - **Der Stapel trägt nur ECHTE Tage**, 30 Stück (26 Fenster plus
+    Reserve). `soil.newest` im Manifest nennt den jüngsten. ERA5-Land
+    hängt ~5 Tage nach. Das Fortschreiben bis gestern macht die APP:
+    genau diese Naht hat Lauf 25 gemessen (≤ 0,003 Log-Lik. je Stratum),
+    und ein in CI fortgeschriebener Tag sähe in der Datei gemessen aus.
+    Ein halb gefüllter Tag kommt nicht in den Stapel, der nächste Lauf
+    fragt ihn neu.
+  - **Veröffentlicht wird nur von `main`.** Alle schreibenden Schritte des
+    Workflows tragen `if: github.ref == 'refs/heads/main'`. Ein Handstart
+    auf einem Branch (`gh workflow run rain-data.yml --ref <branch> -f
+    layer=soil`) baut und prüft also nur. So lässt sich eine neue Schicht
+    auf dem echten Runner messen, ohne dass ein Branch in das Release
+    schreibt, das jede App liest.
 
 - **Regen-Wertegitter** (`tool/rain_grid.py` + `.github/workflows/rain-data.yml`):
   Damit die Summen in **unseren** Farben liegen und die Regenmenge am Spot
