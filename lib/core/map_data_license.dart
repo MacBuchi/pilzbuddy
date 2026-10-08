@@ -171,6 +171,28 @@ void registerMapDataLicense() {
       'Lizenz: CC BY 4.0.\n'
       'https://creativecommons.org/licenses/by/4.0/',
     );
+    // Die Bodenfeuchte (#676, seit 1.224.0): ERA5-Land des Copernicus
+    // Climate Change Service, über Open-Meteo in unserer Datenstrecke
+    // geholt. Die C3S-Lizenz verlangt den Satz „Contains modified
+    // Copernicus Climate Change Service information" und den
+    // Haftungsausschluss für EU und ECMWF — beides steht hier wörtlich.
+    yield const LicenseEntryWithLineBreaks(
+      ['Bodenfeuchte (Copernicus ERA5-Land)'],
+      'Die Bodenfeuchte im Spot-Blatt und für die Pilzwetter-Ampel '
+      '(Herbsttrompete & Co.) kommt aus ERA5-Land, 7–28 cm Tiefe, in '
+      'Deutschland, Österreich, der Schweiz, Liechtenstein und den '
+      'italienischen Alpen. Wir haben sie über Open-Meteo als Tageswerte '
+      'auf ein 0,1°-Raster geholt und auf 0,003 m³/m³ gerundet; die App '
+      'mittelt 26 Tage und schreibt die letzten Tage fort, bis neue '
+      'Daten kommen. Die App fragt die Dienste nie selbst.\n\n'
+      'Contains modified Copernicus Climate Change Service information '
+      '2026. Neither the European Commission nor ECMWF is responsible '
+      'for any use that may be made of the Copernicus information or '
+      'data it contains.\n'
+      'https://cds.climate.copernicus.eu\n\n'
+      'Über Open-Meteo, CC BY 4.0.\n'
+      'https://open-meteo.com',
+    );
     yield const LicenseEntryWithLineBreaks(
       ['Waldtypen (Copernicus Land Monitoring Service)'],
       'Die Waldtypen-Ebene der Karte und die „Wald hier"-Zeile im '

@@ -11,6 +11,7 @@ import '../../core/map_worker.dart';
 
 import '../../core/settings.dart';
 import '../../data/rain_grid_repository.dart';
+import '../spots/spot_providers.dart' show todayProvider;
 import 'rain_contours.dart';
 import 'rain_fill.dart';
 import 'rain_grid.dart';
@@ -18,6 +19,7 @@ import 'rain_layer.dart';
 import 'map_overlays.dart';
 import 'rain_stack.dart';
 import 'rain_sum.dart';
+import 'soil_moisture_grid.dart';
 import 'spot_weather.dart';
 
 final rainGridRepositoryProvider = Provider<RainGridRepository>(
@@ -371,6 +373,33 @@ final alpsRainStackLoaderProvider =
 final alpsStackLoadedProvider = FutureProvider<RainStackData?>(
     (ref) => ref.watch(alpsRainStackLoaderProvider)());
 
+/// Der Bodenfeuchtestapel (#676) — dieselbe Test-Naht wie die drei
+/// Regenstapel; das Harness setzt ihn auf `null`.
+final soilStackLoaderProvider =
+    Provider<Future<RainStackData?> Function()>((ref) {
+  final repository = ref.watch(rainGridRepositoryProvider);
+  return () => repository.loadSoilStack();
+});
+
+/// Die Bodenfeuchte, gemittelt bis gestern — hinter derselben
+/// Zustimmung wie Regen und Temperatur („Wetter an diesem Spot"), denn
+/// sie kommt aus demselben Release. `null` ohne Zustimmung oder ohne
+/// Stapel; ein zu alter Stand kommt MIT zurück
+/// ([SoilMoistureWindow.stale]), damit das Blatt sagen kann, warum.
+final soilMoistureProvider = FutureProvider<SoilMoistureWindow?>((ref) async {
+  if (!ref.watch(rainCourseEnabledProvider)) return null;
+  // Alle Watches VOR den Awaits (#255/#257).
+  final today = ref.watch(todayProvider);
+  final stack = await ref.watch(soilStackLoaderProvider)();
+  if (stack == null) return null;
+  final end = DateTime(today.year, today.month, today.day - 1);
+  return boundedCompute(
+      _soilWindow, (stack: stack, end: end));
+});
+
+SoilMoistureWindow? _soilWindow(({RainStackData stack, DateTime end}) input) =>
+    soilMoistureWindowFrom(input.stack, input.end);
+
 /// Der Alpenstapel hinter der Zustimmung „Wetter an diesem Spot" — EIN
 /// Angebot für alle drei Stapel, woher die Zahl kommt, sagt das Blatt.
 final alpsRainStackProvider = FutureProvider<RainStackData?>((ref) async {
@@ -647,8 +676,12 @@ final weatherTableProvider = FutureProvider<WeatherTable?>((ref) async {
 final spotTemperatureProvider =
     FutureProvider.family<SpotTemperature?, ({double lat, double lon})>(
         (ref, at) async {
-  final table = await ref.watch(weatherTableProvider.future);
-  return table?.at(at.lat, at.lon);
+  // Beide Watches VOR den Awaits (#255/#257).
+  final tableFuture = ref.watch(weatherTableProvider.future);
+  final soilFuture = ref.watch(soilMoistureProvider.future);
+  final table = await tableFuture;
+  final soil = await soilFuture;
+  return table?.at(at.lat, at.lon, soil: soil?.at(at.lat, at.lon));
 });
 
 /// Die 30-Tage-Summe an einem Punkt, aus dem vorhandenen W4-Gitter —

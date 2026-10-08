@@ -7,6 +7,7 @@ import '../../data/rain_grid_repository.dart' show RainStackData;
 import '../../core/settings.dart';
 import '../map/forest_data_providers.dart';
 import '../map/rain_data_providers.dart';
+import '../map/soil_moisture_grid.dart';
 import '../map/spot_weather.dart';
 import 'ampel_fill.dart';
 import 'ampel_providers.dart';
@@ -69,16 +70,24 @@ final ampelLevelGridProvider = FutureProvider<AmpelLevels?>((ref) async {
   // Zutaten-Gitter; den Vorrang beim Ablesen regelt [AmpelLevels].
   final stacksFuture = ref.watch(rainStacksProvider.future);
   final tableFuture = ref.watch(weatherTableProvider.future);
+  final soilFuture = ref.watch(soilMoistureProvider.future);
   final stacks = await stacksFuture;
   if (stacks.isEmpty) return null;
   final table = await tableFuture;
-  return boundedCompute(_levels, (stacks: stacks, table: table));
+  final soil = await soilFuture;
+  return boundedCompute(
+      _levels, (stacks: stacks, table: table, soil: soil));
 });
 
 AmpelLevels? _levels(
-    ({List<RainStackData> stacks, WeatherTable? table}) input) {
+    ({
+      List<RainStackData> stacks,
+      WeatherTable? table,
+      SoilMoistureWindow? soil,
+    }) input) {
   final grids = [
-    for (final stack in input.stacks) ?ampelLevelsFrom(stack, input.table),
+    for (final stack in input.stacks)
+      ?ampelLevelsFrom(stack, input.table, soil: input.soil),
   ];
   return grids.isEmpty ? null : AmpelLevels(grids);
 }

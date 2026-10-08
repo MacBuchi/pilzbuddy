@@ -19,6 +19,7 @@ import 'package:pilzbuddy/features/ampel/ampel_providers.dart';
 import 'package:pilzbuddy/features/map/elevation_grid.dart';
 import 'package:pilzbuddy/features/map/rain_grid.dart';
 import 'package:pilzbuddy/features/map/rain_stack.dart';
+import 'package:pilzbuddy/features/map/soil_moisture_grid.dart';
 import 'package:pilzbuddy/features/map/spot_weather.dart';
 
 import 'rain_grid_test.dart' show encode;
@@ -127,33 +128,59 @@ WeatherTable tableOfStations(List<TestStation> stations) {
         },
     ],
     'soil': const [],
-    // **Seit 1.151.0 auch das Feuchtenetz**, an denselben Punkten und mit
-    // einem festen Wert: So rechnen Fläche und Blatt auch die
-    // Logit-Klassen — und der Walker unten prüft sie mit (#279).
-    'moisture_days': [
-      for (var i = 0; i < 26; i++)
-        iso(DateTime.utc(2026, 7, 1).add(Duration(days: i))),
-    ],
-    'moisture': [
-      for (final (index, station) in stations.indexed)
-        {
-          'id': index + 1,
-          'lat': station.lat,
-          'lon': station.lon,
-          'h': 300,
-          'name': 'Feuchtestation ${index + 1}',
-          'bfgl': List.filled(26, testMoistureNfk),
-        },
-    ],
   };
   return weatherTableFrom(
       GZipEncoder().encode(utf8.encode(jsonEncode(json)))!)!;
 }
 
-/// Die Bodenfeuchte aller Teststationen, in % nFK — ein mittlerer Wert,
-/// bei dem „Austernseitling & Co." über die Temperatur alle drei Stufen
-/// erreicht (13 °C günstig, 19 °C verhalten, 26 °C ungünstig).
-const testMoistureNfk = 55.0;
+/// Die Bodenfeuchte des Testgebiets in m³/m³ (ERA5-Land, seit #676):
+/// EINE Zelle über allem, was die Tests rechnen. Mit Feuchte rechnen
+/// Fläche und Blatt auch Herbsttrompete & Co. — und der Walker unten
+/// prüft sie mit (#279).
+const testMoisture = 0.30;
+
+/// Ein Feuchtefenster aus Zellen nebeneinander, je 1° breit ab [west],
+/// eine Zeile über 45–56° N; `null` heißt „keine Daten".
+SoilMoistureWindow soilWindowOf(List<double?> values,
+    {double west = 0, DateTime? newest}) {
+  final end = DateTime(2026, 10, 7);
+  return SoilMoistureWindow(
+    end: end,
+    newest: newest ?? DateTime(2026, 10, 2),
+    width: values.length,
+    height: 1,
+    west: west,
+    east: west + values.length,
+    north: 56,
+    south: 45,
+    means: Float32List.fromList(
+        [for (final v in values) v ?? double.nan]),
+    latest: Uint8List.fromList([
+      for (final v in values)
+        v == null ? soilMoistureNoData : (v / soilMoistureStep).round()
+    ]),
+  );
+}
+
+/// Feuchte überall im Testgebiet: eine Zelle über 10° W bis 30° O.
+final testSoil = SoilMoistureWindow(
+  end: DateTime(2026, 10, 7),
+  newest: DateTime(2026, 10, 2),
+  width: 1,
+  height: 1,
+  west: -10,
+  east: 30,
+  north: 60,
+  south: 30,
+  means: Float32List.fromList([testMoisture]),
+  latest: Uint8List.fromList([(testMoisture / soilMoistureStep).round()]),
+);
+
+/// [ampelLevelsFrom] mit der Testfeuchte — so rechnen die Tests, was
+/// die App rechnet, ohne dass jeder Aufruf sie nennen muss.
+AmpelLevelGrid? levelsFrom(RainStackData stack, WeatherTable? table,
+        {SoilMoistureWindow? soil}) =>
+    ampelLevelsFrom(stack, table, soil: soil ?? testSoil);
 
 /// Eine einzelne Luftstation mit konstantem Tagesmittel [meanC].
 ///
@@ -172,7 +199,7 @@ void main() {
   // Die Regen-Tests unten prüfen das Herbstmodell je Zelle gegen
   // `ampelLevelOf(klass: ampelHerbstClass, …)` — also auch nur mit ihm.
   // Seit die Testtabelle ein Feuchtenetz trägt (1.151.0), rechneten alle
-  // Klassen mit, und „Austernseitling & Co." hebt bei 13 °C und 55 % nFK
+  // Klassen mit, und „Austernseitling & Co." hebt bei 13 °C
   // schon wenig Regen auf „verhalten".
   AmpelLevel? levelOf(AmpelLevelGrid grid, int x) =>
       grid.levelFor(0, x, classes: const [ampelHerbstClass]);
@@ -186,7 +213,7 @@ void main() {
       List.filled(26, 1),
       List.filled(26, 0),
     ];
-    final grid = ampelLevelsFrom(stackOf(series), tableOf())!;
+    final grid = levelsFrom(stackOf(series), tableOf())!;
     expect(grid.width, 3);
 
     for (final (x, cell) in series.indexed) {
@@ -208,7 +235,7 @@ void main() {
     // weglässt, malt beide gleich.
     final young = [...List.filled(18, 0), ...List.filled(8, 8)];
     final old = [...List.filled(8, 8), ...List.filled(18, 0)];
-    final grid = ampelLevelsFrom(stackOf([young, old]), tableOf())!;
+    final grid = levelsFrom(stackOf([young, old]), tableOf())!;
     final expectedYoung = ampelLevelOf(klass: ampelHerbstClass, ampelRainFactor(
         [for (final mm in young.reversed) mm.toDouble()]));
     final expectedOld = ampelLevelOf(klass: ampelHerbstClass, ampelRainFactor(
@@ -230,7 +257,7 @@ void main() {
 
   test('die Temperatur dämpft: 27 °C macht aus sattem Regen ungünstig',
       () {
-    final grid = ampelLevelsFrom(
+    final grid = levelsFrom(
         stackOf([List.filled(26, 5)]), tableOf(meanC: 27))!;
     expect(levelOf(grid, 0), AmpelLevel.unguenstig,
         reason: 'Glocke bei 27 °C ≈ 0,0004 — Score unter jeder Schwelle');
@@ -240,42 +267,43 @@ void main() {
     // 25 statt 26 Tage: Die Altersgewichte wären still verschoben —
     // dieselbe Strenge wie die graue Sektion, heilt sich am Folgetag.
     expect(
-        ampelLevelsFrom(
+        levelsFrom(
             stackOf([List.filled(25, 5)], days: 25), tableOf()),
         isNull);
   });
 
   test('ohne Station in 100 km bleibt die Zelle transparent', () {
-    final grid = ampelLevelsFrom(
+    final grid = levelsFrom(
         stackOf([List.filled(26, 5)]), tableOf(lat: 40, lon: 3))!;
     expect(levelOf(grid, 0), isNull,
         reason: 'keine Temperatur, keine Aussage — kein geratener Wert');
   });
 
   test(
-      'Herbsttrompete & Co. braucht die Feuchtestation in 30 km, '
-      'Austernseitling & Co. reicht 100 km — Fläche wie Blatt (#665)', () {
-    // Die Station steht über Zelle 0 (10,5° O); Zelle 1 (11,5° O) liegt
-    // ≈ 70 km weg — innerhalb der 100 km der Tabelle, jenseits der 30 km
-    // der Klasse, die nur für Deutschland belegt ist. Fünf Millimeter am
-    // Tag, damit beide Klassen dort überhaupt eine Stufe hätten.
+      'Herbsttrompete & Co. rechnet, wo das Gitter Feuchte hat, und ist '
+      'sonst grau — Fläche wie Blatt (#676)', () {
+    // Zwei Feuchtezellen: über Zelle 0 (10,5° O) ein Wert, über Zelle 1
+    // (11,5° O) keiner — wie jenseits der Alpenbox oder über Wasser.
+    // Fünf Millimeter am Tag, damit beide Klassen überhaupt eine Stufe
+    // hätten. Keine Station, kein Abstand: Seit #676 entscheidet allein
+    // das Gitter.
     final stack = stackOf([
       List.filled(26, 5),
       List.filled(26, 5),
       List.filled(26, 5),
     ]);
-    final table = tableOf(lat: 51, lon: 10.5);
-    final grid = ampelLevelsFrom(stack, table)!;
+    final table = tableOf();
+    final soil = soilWindowOf([testMoisture, null, testMoisture], west: 10);
+    final grid = levelsFrom(stack, table, soil: soil)!;
     AmpelLevel? cell(int x, AmpelClass klass) =>
         grid.levelFor(0, x, classes: [klass]);
 
     expect(cell(1, ampelHolzWinterClass), isNotNull,
-        reason: 'Vorbedingung: in 70 km rechnet die Klasse, die reist');
+        reason: 'Vorbedingung: die Klasse ohne Feuchte rechnet dort');
     expect(cell(1, ampelCantharellalesClass), isNull,
-        reason: '70 km sind mehr als die 30 km der Klasse');
-    expect(cell(0, ampelCantharellalesClass), isNotNull,
-        reason: 'an der Station rechnet sie — die Grenze schneidet, '
-            'nicht die Klasse');
+        reason: 'ohne Feuchte im Gitter keine Stufe');
+    expect(cell(0, ampelCantharellalesClass), isNotNull);
+    expect(cell(2, ampelCantharellalesClass), isNotNull);
 
     // Das Blatt am selben Punkt sagt dasselbe, mit Grund.
     RainCourse courseAt(double lat, double lon) => rainCourseFrom(
@@ -289,21 +317,45 @@ void main() {
           lat: lat,
           lon: lon,
         );
-    final far = ampelReadingFrom(courseAt(51, 11.5), table.at(51, 11.5),
+    SpotTemperature? at(double lat, double lon, SoilMoistureWindow soil) =>
+        table.at(lat, lon, soil: soil.at(lat, lon));
+    final far = ampelReadingFrom(courseAt(51, 11.5), at(51, 11.5, soil),
         klass: ampelCantharellalesClass);
     expect(far.isGrau, isTrue);
-    expect(far.reason, contains('nur für Deutschland geprüft'));
+    expect(far.reason, contains('keine Bodenfeuchte für diesen Ort'));
     expect(far.classSpecific, isTrue,
         reason: 'die anderen Klassen rechnen dort weiter');
     expect(
-        ampelReadingFrom(courseAt(51, 11.5), table.at(51, 11.5),
+        ampelReadingFrom(courseAt(51, 11.5), at(51, 11.5, soil),
                 klass: ampelHolzWinterClass)
             .isGrau,
         isFalse);
+    final near = ampelReadingFrom(courseAt(51, 10.5), at(51, 10.5, soil),
+        klass: ampelCantharellalesClass);
+    expect(near.isGrau, isFalse);
+    expect(near.moistureMean, closeTo(testMoisture, 1e-6));
+
+    // **Zu alt** (mehr als acht Tage fortgeschrieben): grau in Fläche
+    // UND Blatt, mit Stand im Grund.
+    final stale = soilWindowOf([testMoisture, testMoisture, testMoisture],
+        west: 10, newest: DateTime(2026, 9, 28));
+    expect(stale.stale, isTrue, reason: 'Vorbedingung: 9 Tage');
+    final staleGrid = levelsFrom(stack, table, soil: stale)!;
+    expect(staleGrid.levelFor(0, 0, classes: const [ampelCantharellalesClass]),
+        isNull);
+    final old = ampelReadingFrom(courseAt(51, 10.5), at(51, 10.5, stale),
+        klass: ampelCantharellalesClass);
+    expect(old.reason, 'Bodenfeuchte-Daten zu alt (Stand 28.9.)');
+    expect(old.classSpecific, isTrue);
+
+    // Ohne geladenes Gitter: grau mit eigenem Grund.
+    final none = ampelReadingFrom(courseAt(51, 10.5), table.at(51, 10.5),
+        klass: ampelCantharellalesClass);
+    expect(none.reason, 'keine Bodenfeuchte-Daten geladen');
   });
 
   test('ganz ohne Stationstabelle gibt es keine Ebene', () {
-    expect(ampelLevelsFrom(stackOf([List.filled(26, 5)]), null), isNull);
+    expect(levelsFrom(stackOf([List.filled(26, 5)]), null), isNull);
   });
 
   // --- Fläche und Blatt dürfen sich nicht widersprechen (#279) --------
@@ -349,7 +401,8 @@ void main() {
       // Seit 1.140.0 zeigen Fläche und Blatt das Maximum über alle
       // Klassen, und ein Test, der das hier von Hand nachrechnet, prüfte
       // nur noch sich selbst.
-      return ampelBestReadingFrom(course, table.at(lat, lon),
+      return ampelBestReadingFrom(
+              course, table.at(lat, lon, soil: testSoil.at(lat, lon)),
               classes: classes,
               spotHeightM: elevation?.heightMetersAt(lat, lon))
           .reading
@@ -430,7 +483,7 @@ void main() {
       // sind zwei Gelegenheiten, sie zu vergessen.
       final stack = stackForArea();
       final table = tableOfStations(threeBands);
-      final grid = ampelLevelsFrom(stack, table)!;
+      final grid = levelsFrom(stack, table)!;
       final eingeengt =
           walkAndCompare(stack, table, grid, classes: const [ampelHerbstClass]);
       expect(eingeengt.length, greaterThan(1),
@@ -456,7 +509,7 @@ void main() {
     test('an jeder Zellmitte dieselbe Stufe wie im Spot-Blatt', () {
       final stack = stackForArea();
       final table = tableOfStations(threeBands);
-      final grid = ampelLevelsFrom(stack, table)!;
+      final grid = levelsFrom(stack, table)!;
 
       expect(walkAndCompare(stack, table, grid), hasLength(3),
           reason: 'die Lage muss alle drei Stufen hergeben, sonst '
@@ -484,7 +537,7 @@ void main() {
         'gilt die Zelle', () {
       final stack = stackForArea();
       final table = tableOfStations(threeBands);
-      final grid = ampelLevelsFrom(stack, table)!;
+      final grid = levelsFrom(stack, table)!;
       final probe = probeOf(stack);
 
       // Genau der gemeldete Fall, als Bedingung formuliert: Zellmitte
@@ -546,7 +599,7 @@ void main() {
       // EIN Gitter — die Höhe geht seit dem Berchtesgaden-Befund nicht
       // mehr in den Bau ein, sondern in die Auswertung: `levelAt` mit
       // Höhengitter ist exakt der Weg des Wabenzeichners.
-      final grid = ampelLevelsFrom(stack, table)!;
+      final grid = levelsFrom(stack, table)!;
 
       final probe = probeOf(stack);
       final seen = <AmpelLevel?>{};
@@ -656,7 +709,7 @@ void main() {
       expect(table.nearestAir(centreLat, centreLon)?.station.name,
           'Teststation 1');
 
-      final grid = ampelLevelsFrom(stack, table)!;
+      final grid = levelsFrom(stack, table)!;
       expect(walkAndCompare(stack, table, grid).length, greaterThan(1),
           reason: 'ohne Stufenwechsel wäre der Vergleich zahnlos');
     });
@@ -683,7 +736,7 @@ void main() {
       final stack = stackForArea();
       final table = tableOfStations(dense);
       expect(table.air, hasLength(36), reason: '42 minus das 2×3-Loch');
-      final grid = ampelLevelsFrom(stack, table)!;
+      final grid = levelsFrom(stack, table)!;
 
       expect(walkAndCompare(stack, table, grid).length, greaterThan(1),
           reason: 'ohne Stufenwechsel wäre der Vergleich zahnlos');
@@ -699,7 +752,7 @@ void main() {
       final stack = stackForArea();
       final table = tableOfStations(
           [(lat: 51.15, lon: 10.25, meanC: 13, measured: 20)]);
-      final grid = ampelLevelsFrom(stack, table)!;
+      final grid = levelsFrom(stack, table)!;
       expect(walkAndCompare(stack, table, grid,
               classes: const [ampelHolzWinterClass]),
           equals({null}),
@@ -712,7 +765,7 @@ void main() {
       final full = tableOfStations(
           [(lat: 51.15, lon: 10.25, meanC: 13, measured: 28)]);
       expect(
-          walkAndCompare(stack, full, ampelLevelsFrom(stack, full)!,
+          walkAndCompare(stack, full, levelsFrom(stack, full)!,
               classes: const [ampelHolzWinterClass]),
           isNot(contains(null)));
     });
@@ -730,7 +783,7 @@ void main() {
         (lat: 51.0, lon: 10.4, meanC: 13, measured: 28),
       ];
       final table = tableOfStations(gappy);
-      final grid = ampelLevelsFrom(stack, table)!;
+      final grid = levelsFrom(stack, table)!;
       final probe = probeOf(stack);
       final lat = probe.latAtRow(0.5);
       final lon = probe.lonAtColumn(0.5);
@@ -744,7 +797,7 @@ void main() {
       // Und die Gegenprobe: Ohne die lückige davor stünde hier sehr
       // wohl eine Stufe — sonst prüfte der Test nur, dass irgendetwas
       // transparent ist.
-      final good = ampelLevelsFrom(stack, tableOfStations([gappy.last]))!;
+      final good = levelsFrom(stack, tableOfStations([gappy.last]))!;
       expect(good.levelFor(0, 0, classes: ampelShippedClasses), isNotNull,
           reason: 'die Lage an sich gibt eine Stufe her');
     });
@@ -761,7 +814,7 @@ void _ampelLevelsTests() {
     // eine Aussage, solange die Tabelle eine Station trägt.
     AmpelLevelGrid grid({required double west, required double east,
         int mmPerDay = 3, WeatherTable? table}) =>
-        ampelLevelsFrom(
+        levelsFrom(
             gridStackOf(width: 1, height: 1, mmPerDay: mmPerDay,
                 west: west, east: east, north: 52, south: 50),
             table ?? tableOf())!;
@@ -826,9 +879,8 @@ void _ampelLevelsTests() {
         stationHeightM: Int16List.fromList(
             [for (var i = 0; i < cells; i++) random.nextInt(1500)]),
         valid: bytes(() => random.nextInt(5) == 0 ? 0 : 1),
-        moistureMean: floats(() => random.nextDouble() * 100),
+        moistureMean: floats(() => random.nextDouble() * 0.6),
         moistureValid: bytes(() => random.nextInt(4) == 0 ? 0 : 1),
-        moistureKm: bytes(() => random.nextInt(120)),
         milder: floats(() => random.nextDouble() * 4 - 2),
         milderValid: bytes(() => random.nextInt(3) == 0 ? 0 : 1),
         width: width,
@@ -902,8 +954,7 @@ void _ampelLevelsTests() {
                         temp2: c.logit!.temp2,
                         moisture: c.logit!.moisture,
                         moistureTemp: c.logit!.moistureTemp,
-                        milder: c.logit!.milder,
-                        maxMoistureKm: c.logit!.maxMoistureKm),
+                        milder: c.logit!.milder),
               ),
           ];
 
@@ -929,9 +980,8 @@ void _ampelLevelsTests() {
               temp: logit.temp,
               temp2: logit.temp2,
               moisture: logit.moisture,
-              moistureTemp: logit.moistureTemp,
-              milder: logit.milder,
-              maxMoistureKm: logit.maxMoistureKm + 1),
+              moistureTemp: logit.moistureTemp + 1,
+              milder: logit.milder),
         );
         expect(ampelSameClasses(ampelShippedClasses, changed), isFalse);
       });

@@ -96,7 +96,7 @@ class AmpelReading {
   /// Umrechnung eine Erwähnung wert ist.
   final double? heightCorrectionK;
 
-  /// Das 26-Tage-Mittel der Bodenfeuchte (% nFK) — nur bei einer
+  /// Das 26-Tage-Mittel der Bodenfeuchte (m³/m³, ERA5-Land) — nur bei einer
   /// Logit-Klasse gefüllt; die Glocke fragt nicht danach.
   final double? moistureMean;
 
@@ -226,33 +226,31 @@ AmpelReading ampelReadingFrom(
         'Temperaturreihe der Station zu lückig');
   }
 
-  // **Eine Logit-Klasse braucht die Bodenfeuchte der nächsten Station**
-  // (26 Tage, vollständig). Ohne sie gibt es keine Stufe — kein
+  // **Eine Logit-Klasse braucht die Bodenfeuchte am Punkt** (26 Tage,
+  // ERA5-Land-Gitter, seit #676). Ohne sie gibt es keine Stufe — kein
   // Ersatzwert, kein Rückfall auf die Glocke: Die Klasse ist mit genau
-  // dieser Größe validiert und mit keiner anderen.
-  // Seit #676 nur, wo die Klasse sie überhaupt braucht
-  // ([AmpelLogit.needsMoisture]) — Holz & Winter rechnet ohne.
+  // dieser Größe validiert und mit keiner anderen. Nur, wo die Klasse
+  // sie überhaupt braucht ([AmpelLogit.needsMoisture]) — Holz & Winter
+  // rechnet ohne.
   final logit = klass.logit;
   double? moistureMean;
   if (logit != null && logit.needsMoisture) {
-    final pick = temperature?.moisture;
-    if (pick == null) {
-      return const AmpelReading.grau(
-          'keine Bodenfeuchte-Station in Reichweite (100 km)',
+    final soil = temperature?.moisture;
+    if (soil == null) {
+      return const AmpelReading.grau('keine Bodenfeuchte-Daten geladen',
           classSpecific: true);
     }
-    // Enger als die 100 km der Tabelle, wo die Klasse es verlangt
-    // (#665): Herbsttrompete & Co. ist nur für Deutschland belegt.
-    if (pick.km > logit.maxMoistureKm) {
+    if (soil.stale) {
       return AmpelReading.grau(
-          'nur für Deutschland geprüft (keine Bodenfeuchte-Station '
-          'näher als ${logit.maxMoistureKm.round()} km)',
+          'Bodenfeuchte-Daten zu alt (Stand '
+          '${soil.newest.day}.${soil.newest.month}.)',
           classSpecific: true);
     }
-    moistureMean = ampelMoistureMean(pick.station.bfgl);
+    moistureMean = soil.mean;
     if (moistureMean == null) {
       return const AmpelReading.grau(
-          'Bodenfeuchte-Reihe der Station unvollständig',
+          'keine Bodenfeuchte für diesen Ort (nur Deutschland und '
+          'Alpenraum)',
           classSpecific: true);
     }
   }
