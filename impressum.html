@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<!--
+  Anbieterkennzeichnung nach § 5 DDG (#110).
+
+  **Warum es sie gibt.** Die Ausnahme „rein privat" trägt hier nicht: Ein
+  dauerhaft im Play Store angebotener Dienst gilt als öffentliches
+  Angebot, und „geschäftsmäßig" verlangt keine Gewinnabsicht. Die
+  Abwägung stand von 2026-09-08 bis 2026-09-21 offen und ist zugunsten
+  der Seite entschieden worden — ein Impressum kostet eine Datei, sein
+  Fehlen eine Abmahnung.
+
+  **Zwei Dinge fehlen mit Absicht.** Ein Link auf die EU-Streitschlichtung
+  gehört nicht hinein: Die OS-Plattform ist im Juli 2025 abgeschaltet
+  worden, ein toter Pflichtlink wäre schlechter als keiner. Und ein
+  Verantwortlicher nach § 18 Abs. 2 MStV entfällt, dafür bräuchte es
+  journalistisch-redaktionelle Inhalte.
+
+  **Der Sicherheitshinweis steht NICHT hier.** „PilzBuddy bestimmt keine
+  Pilze" lebt an genau einer Stelle (`lib/core/widgets/safety_note.dart`)
+  und wird von dort aus in den Erststart-Dialog und die Kurzanleitung
+  gereicht. Eine zweite Fassung auf dieser Seite liefe irgendwann
+  auseinander — bei einer Pilz-App die teuerste Sorte Dopplung.
+
+  Liegt wie die Schwesterseiten als echte Datei neben der Web-App und
+  wird vor dem SPA-Fallback (404.html) ausgeliefert.
+-->
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PilzBuddy — Impressum</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      line-height: 1.6;
+      max-width: 42rem;
+      margin: 0 auto;
+      padding: 2rem 1.25rem 4rem;
+      color: #2e2a26;
+      background: #fdf6e3;
+    }
+    h1 { font-size: 1.6rem; margin-bottom: .25rem; }
+    h2 { font-size: 1.15rem; margin-top: 2rem; }
+    .lead { color: #6d5c4d; margin-top: 0; }
+    address { font-style: normal; }
+    .note {
+      background: #f6ecd2;
+      border-left: 4px solid #c8a165;
+      padding: .75rem 1rem;
+      margin: 1.5rem 0;
+      border-radius: 0 6px 6px 0;
+    }
+    a { color: #2e7d32; }
+    @media (prefers-color-scheme: dark) {
+      body { color: #ece5db; background: #221f1c; }
+      .lead { color: #b6a795; }
+      .note { background: #2e2a25; border-left-color: #8d6e63; }
+      a { color: #81c784; }
+    }
+  </style>
+</head>
+<body>
+  <h1>🍄 PilzBuddy — Impressum</h1>
+  <p class="lead">Anbieterkennzeichnung nach § 5 DDG.</p>
+
+  <h2>Anbieter</h2>
+  <address>
+    Marcus Bucher<br>
+    Schumannstr. 7<br>
+    74906 Bad Rappenau<br>
+    Deutschland
+  </address>
+
+  <h2>Kontakt</h2>
+  <p>E-Mail: <a href="mailto:pilzbuddy@proton.me">pilzbuddy@proton.me</a></p>
+  <p>Eine Telefonnummer gibt es nicht. Anfragen werden über die
+    E-Mail-Adresse beantwortet; das ist der Weg, der auch für
+    Auskunftsersuchen nach Art. 15 DSGVO gilt.</p>
+
+  <div class="note">
+    <strong>PilzBuddy ist ein privates Projekt ohne Gewinnabsicht:</strong>
+    keine Werbung, keine In-App-Käufe, keine Bezahlfunktionen. Der
+    Quelltext ist offen und liegt unter der MIT-Lizenz auf
+    <a href="https://github.com/MacBuchi/pilzbuddy">GitHub</a>.
+  </div>
+
+  <h2>Weiter</h2>
+  <p>
+    <a href="datenschutz.html">Datenschutzerklärung</a> — was gespeichert
+    wird, wohin es geht und wie lange es bleibt.<br>
+    <a href="konto-loeschen.html">Konto löschen</a> — auch ohne
+    installierte App.
+  </p>
+
+  <p><a href="./">← Zurück zu PilzBuddy</a></p>
+</body>
+</html>
