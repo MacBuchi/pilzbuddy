@@ -274,19 +274,40 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
     steht deshalb nur die Menge („wenig / mäßig / reichlich") bzw. die
     Zahl. Ein neues Wort in der Zeile an derselben Frage messen: Kann
     die Stufe ihm widersprechen?
-  - **Die Bodenfeuchte kennt keine Landesgrenze, nur einen Abstand**
-    (#665, seit 1.222.7). Alle Feuchtestationen stehen in Deutschland;
-    wie weit eine Logit-Klasse ins Ausland reicht, entscheidet allein
-    `AmpelLogit.maxMoistureKm`. Austernseitling & Co. brauchte bis
-    1.222.x die 100 km der Tabelle und braucht seit #676 gar keine
-    Station mehr (siehe nächster Punkt). Herbsttrompete & Co. reist nicht und bekommt
-    30 km: in Deutschland 0,43 % der Fläche grau, im Ausland ein Streifen
-    (Straßburg, Basel, Salzburg, Innsbruck rechnen; Colmar, Vogesen
-    nicht). Gemessen gegen die DWD-Stationsliste auf einem Raster über
-    den Natural-Earth-Umriss; Zahlen am Kommentar der Klasse. Blatt
-    (`ampel_providers.dart`, echter Abstand) und Fläche
-    (`AmpelLevelGrid.moistureKm`, aufgerundete km) prüfen dieselbe
-    Grenze — eine ganze Zahl, sonst fallen sie an verschiedenen Stellen.
+  - **Die Bodenfeuchte kommt aus dem ERA5-Land-Gitter, nicht von einer
+    Station** (#676, seit 1.224.0, Labor 25, Betreiber 2026-10-08:
+    „Bauen", „am besten nur eine Quelle"). Bis 1.223.x nahm
+    Herbsttrompete & Co. die nächste DWD-Station in höchstens 30 km
+    (#665) und war in AT/CH grau. Jetzt schlagen Blatt und Fläche
+    denselben Wert nach (`map/soil_moisture_grid.dart`, Stapel `soil_*`
+    aus `tool/soil_moisture.py`, Einzelheiten in `tool/CLAUDE.md`).
+    Fünf Dinge, die man wissen muss:
+    - **Andere Größe, andere Konstanten, andere Schwellen.** `M` ist
+      jetzt m³/m³ (7–28 cm), nicht % nFK (0–60 cm). Die fünf Konstanten
+      sind der Fit E1 aus Labor 25, die Schwellen neu gemessen
+      (2,652 / 3,306 statt 2,191 / 2,952; `tool/ampel_logit_klasse.py
+      --schwellen`, Feuchte aus `smoist` des gepinnten Datensatzes).
+      Austernseitling & Co. kam bei derselben Messung unverändert
+      heraus — die Gegenprobe der Messung.
+    - **Das Fenster endet gestern, und die App schreibt fort.** ERA5-Land
+      hängt ~5 Tage nach; die fehlenden Tage tragen den Wert des
+      jüngsten echten (genau die Naht aus Labor 25, ≤ 0,003). Höchstens
+      **8 Tage** (Betreiber 2026-10-08), darüber grau mit „Bodenfeuchte-
+      Daten zu alt (Stand …)". Eine Lücke MITTEN im Fenster heißt „kein
+      Mittel", wie überall.
+    - **Kein Abstand mehr** — `maxMoistureKm` und `moistureKm` sind weg.
+      Außerhalb der Gitterboxen (Deutschland, Alpenbox) oder über Wasser
+      steht 255, die Klasse ist dort grau („keine Bodenfeuchte für
+      diesen Ort").
+    - **Die Feuchte reist über `SpotTemperature.moisture`**, nicht als
+      eigener Parameter: Vier Aufrufer (Blatt, Legende, Banner-Scan,
+      Fläche) bekommen `(course, temperature)`; ein fünfter Wert wäre
+      vier Stellen, ihn zu vergessen. `spotTemperatureProvider` hängt
+      ihn an; die Fläche bekommt das Fenster selbst
+      (`ampelLevelsFrom(…, soil:)`).
+    - **Der DWD-Abschnitt der Stationstabelle wird nicht mehr gelesen**,
+      `tool/spot_weather.py` schreibt ihn aber weiter, solange stabile
+      Stände ihn brauchen. Aufräumen erst nach der Beförderung.
   - **Austernseitling & Co. rechnet ohne Bodenfeuchte** (#676, seit
     1.223.0, Labor 25/26, Betreiber 2026-10-08: „Ohne Feuchte"). Labor 25
     stellte die DWD-Feuchte gegen ERA5-Land in drei Schichten: Für diese
@@ -304,7 +325,8 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
       0,387 / 0,558): Ohne Feuchtespalten verschiebt sich `s` als Ganzes.
       Gemessen auf ALLEN P1-Strata, nicht nur denen mit DWD-Station —
       wie die App jetzt rechnet. Herbsttrompete & Co. kam bei derselben
-      Messung unverändert heraus (Gegenprobe der Messung).
+      Messung unverändert heraus (Gegenprobe der Messung; seit 1.224.0
+      ist es umgekehrt, siehe oben).
     - **Der Preis ist ehrlich zu nennen:** AUC auf dem Testteil 0,576 →
       0,555, ohne gesicherten Verlust in der Log-Likelihood. Wer die
       Klasse wieder mit einer Feuchte versucht, misst gegen das Placebo,

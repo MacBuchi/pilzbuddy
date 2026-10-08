@@ -21,6 +21,7 @@ import '../../core/geo.dart' show distanceKm;
 import '../../data/rain_grid_repository.dart' show RainStackData;
 import '../map/elevation_grid.dart';
 import '../map/rain_grid.dart';
+import '../map/soil_moisture_grid.dart' show SoilMoistureWindow;
 import '../map/spot_weather.dart';
 import 'ampel_model.dart';
 import 'ampel_providers.dart' show ampelMinRainDays, ampelMinTempDays;
@@ -95,7 +96,13 @@ class AmpelFill {
 /// in den Alpen 500 Höhenmeter überspannen; eine je Zelle fertig
 /// gerechnete Stufe konnte dort der Punkt-Ablesung des Blatts nie
 /// überall zustimmen, egal wie sie korrigiert war.
-AmpelLevelGrid? ampelLevelsFrom(RainStackData stack, WeatherTable? table) {
+///
+/// [soil] ist die Bodenfeuchte aus dem ERA5-Land-Gitter (#676) — je
+/// Zelle nachgeschlagen an der Zellmitte, mit derselben Regel wie im
+/// Blatt ([SoilMoistureWindow.meanAt]). `null` heißt: keine Feuchte,
+/// die Logit-Klassen, die sie brauchen, bleiben ohne Antwort.
+AmpelLevelGrid? ampelLevelsFrom(RainStackData stack, WeatherTable? table,
+    {SoilMoistureWindow? soil}) {
   final info = stack.info;
   final width = info.width;
   final height = info.height;
@@ -199,28 +206,6 @@ AmpelLevelGrid? ampelLevelsFrom(RainStackData stack, WeatherTable? table) {
   }
   if (competing.isEmpty) return null;
 
-  // **Die Bodenfeuchte-Stationen, dasselbe Muster** (seit 2026-09-20 für
-  // die Logit-Klassen): je Station EIN 26-Tage-Mittel, `answers` sagt,
-  // ob die Reihe vollständig war. Wer antritt, entscheidet wieder
-  // `competes`; wer antworten kann, steht getrennt daneben — sonst
-  // griffe die Fläche zur übernächsten Station, das Blatt nicht (#279).
-  final moistureStations = table?.moisture ?? const <MoistureStation>[];
-  final moistureLat = Float64List(moistureStations.length);
-  final moistureLon = Float64List(moistureStations.length);
-  final moistureMean = Float64List(moistureStations.length);
-  final moistureAnswers = Uint8List(moistureStations.length);
-  final moistureCompeting = <int>[];
-  for (var s = 0; s < moistureStations.length; s++) {
-    final station = moistureStations[s];
-    if (!station.competes) continue;
-    moistureLat[s] = station.lat;
-    moistureLon[s] = station.lon;
-    final mean = ampelMoistureMean(station.bfgl);
-    moistureMean[s] = mean ?? 0;
-    moistureAnswers[s] = mean == null ? 0 : 1;
-    moistureCompeting.add(s);
-  }
-
   final blocksX = (width + ampelTempBlockCells - 1) ~/ ampelTempBlockCells;
   final blocksY = (height + ampelTempBlockCells - 1) ~/ ampelTempBlockCells;
   final probe = RainGrid(
@@ -289,9 +274,6 @@ AmpelLevelGrid? ampelLevelsFrom(RainStackData stack, WeatherTable? table) {
   final airCandidates = candidatesFor(stationLat, stationLon, competing);
   final candidateStart = airCandidates.start;
   final candidateOf = airCandidates.of;
-  final moisture = moistureCompeting.isEmpty
-      ? null
-      : candidatesFor(moistureLat, moistureLon, moistureCompeting);
 
   // Die Zutaten je Zelle. `valid` 0 heißt „keine Aussage" — zu wenige
   // Regentage, keine Station in Reichweite oder eine zu lückige
@@ -308,7 +290,6 @@ AmpelLevelGrid? ampelLevelsFrom(RainStackData stack, WeatherTable? table) {
   final cellValid = Uint8List(width * height);
   final cellMoisture = Float32List(width * height);
   final cellMoistureValid = Uint8List(width * height);
-  final cellMoistureKm = Uint8List(width * height);
   final cellMilder = Float32List(width * height);
   final cellMilderValid = Uint8List(width * height);
   final cellLon = Float64List(width);
@@ -343,34 +324,14 @@ AmpelLevelGrid? ampelLevelsFrom(RainStackData stack, WeatherTable? table) {
       cellValid[i] = 1;
       cellMilder[i] = stationMilder[best];
       cellMilderValid[i] = milderAnswers[best];
-      // Die Feuchtestation ist ein eigenes Netz: die nächste antretende,
-      // in Reichweite, mit vollständiger Reihe — sonst bleibt die Zelle
-      // für die Logit-Klassen ohne Antwort, und die Glocken-Klassen
-      // rechnen weiter.
+      // Die Bodenfeuchte kommt aus ihrem eigenen Gitter (0,1°), nicht
+      // von einer Station: nachschlagen an der Zellmitte, wie das Blatt
+      // am Spot. Ohne Wert bleibt die Zelle für die Logit-Klassen, die
+      // sie brauchen, ohne Antwort; die anderen rechnen weiter.
+      final moisture = soil?.meanAt(lat, cellLon[x]);
       if (moisture != null) {
-        var bestMoistureKm = double.infinity;
-        var bestMoisture = -1;
-        for (var c = moisture.start[block];
-            c < moisture.start[block + 1];
-            c++) {
-          final s = moisture.of[c];
-          final km =
-              distanceKm(lat, cellLon[x], moistureLat[s], moistureLon[s]);
-          if (km < bestMoistureKm) {
-            bestMoistureKm = km;
-            bestMoisture = s;
-          }
-        }
-        if (bestMoisture >= 0 &&
-            bestMoistureKm <= WeatherTable.maxStationKm &&
-            moistureAnswers[bestMoisture] == 1) {
-          cellMoisture[i] = moistureMean[bestMoisture];
-          cellMoistureValid[i] = 1;
-          // Aufgerundet auf volle km (≤ 100, passt in ein Byte): Gegen
-          // eine ganzzahlige Grenze fällt die Zelle damit genau dort,
-          // wo das Blatt mit dem echten Abstand fällt.
-          cellMoistureKm[i] = bestMoistureKm.ceil();
-        }
+        cellMoisture[i] = moisture;
+        cellMoistureValid[i] = 1;
       }
     }
   }
@@ -381,7 +342,6 @@ AmpelLevelGrid? ampelLevelsFrom(RainStackData stack, WeatherTable? table) {
     valid: cellValid,
     moistureMean: cellMoisture,
     moistureValid: cellMoistureValid,
-    moistureKm: cellMoistureKm,
     milder: cellMilder,
     milderValid: cellMilderValid,
     width: width,
@@ -404,7 +364,6 @@ class AmpelLevelGrid {
     required this.valid,
     this.moistureMean,
     this.moistureValid,
-    this.moistureKm,
     this.milder,
     this.milderValid,
     required this.width,
@@ -430,16 +389,11 @@ class AmpelLevelGrid {
   /// keine Station, Stationsreihe lückig).
   final Uint8List valid;
 
-  /// Das 26-Tage-Mittel der Bodenfeuchte der nächsten Station je Zelle
-  /// (% nFK) und ob es eins gibt — die dritte Zutat der Logit-Klassen.
-  /// `null` in Gittern ohne Feuchtenetz (ältere Tabellen, Tests).
+  /// Das 26-Tage-Mittel der Bodenfeuchte je Zelle (m³/m³, ERA5-Land,
+  /// #676) und ob es eins gibt — die dritte Zutat der Logit-Klassen.
+  /// `null` in Gittern ohne Feuchte (Tests).
   final Float32List? moistureMean;
   final Uint8List? moistureValid;
-
-  /// Der Abstand zu dieser Feuchtestation, aufgerundet auf volle km —
-  /// für die Klassen mit engerem Radius ([AmpelLogit.maxMoistureKm],
-  /// #665). `null` heißt unbekannt und prüft nichts.
-  final Uint8List? moistureKm;
 
   /// „Milder" der nächsten Luftstation je Zelle (°C, [ampelMilderOf])
   /// und ob es eins gibt — die vierte Zutat der Klasse Holz & Winter
@@ -544,7 +498,6 @@ class AmpelLevelGrid {
     return AmpelCellInputs(
         rainFactor: rainFactor[i],
         moistureMean: moisture,
-        moistureKm: moisture == null ? null : moistureKm?[i].toDouble(),
         milder: milderValid != null && milderValid![i] == 1
             ? milder![i].toDouble()
             : null);
@@ -774,5 +727,4 @@ bool _sameLogit(AmpelLogit? a, AmpelLogit? b) =>
         a.temp2 == b.temp2 &&
         a.moisture == b.moisture &&
         a.moistureTemp == b.moistureTemp &&
-        a.milder == b.milder &&
-        a.maxMoistureKm == b.maxMoistureKm);
+        a.milder == b.milder);

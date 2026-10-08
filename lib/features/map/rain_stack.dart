@@ -309,6 +309,10 @@ List<RainCourse> rainCoursesFromStacks(
           RainStackKind.radar => RainSource.radar,
           RainStackKind.model => RainSource.model,
           RainStackKind.alps => RainSource.alps,
+          // Der Bodenfeuchtestapel ist kein Regen und kommt nie hierher
+          // (`rainStacksProvider` führt ihn nicht).
+          RainStackKind.soil =>
+            throw ArgumentError('Bodenfeuchte ist kein Regenstapel'),
         },
         origins: withOrigin ? stack.origins : const [],
       ),

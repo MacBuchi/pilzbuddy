@@ -66,15 +66,15 @@ const ampelMilderFreshDays = 5;
 /// Der zweite Rechenkern der Ampel (seit 2026-09-20,
 /// `docs/pilzampel-holz-winter-plan.md`): ein bedingtes Logit mit sechs
 /// Konstanten über `ln F`, `T`, `T²`, `M`, `M·T` und `D` — `F` der
-/// Regenfaktor, `T` das 20-Tage-Mittel in °C, `M` die Bodenfeuchte der
-/// nächsten DWD-Station in % nutzbarer Feldkapazität, 26-Tage-Mittel,
+/// Regenfaktor, `T` das 20-Tage-Mittel in °C, `M` die Bodenfeuchte
+/// 7–28 cm aus ERA5-Land in m³/m³, 26-Tage-Mittel am Punkt (seit #676;
+/// bis 1.223.x die nächste DWD-Station in % nutzbarer Feldkapazität),
 /// `D` „milder": das Mittel der Tagesminima der letzten fünf Tage minus
 /// das der Tage 6 bis 28, in °C (seit 1.160.0, `docs/pilzampel-frost-plan.md`).
 ///
 /// **Eine Konstante 0 heißt „keine Reihe nötig"** — für „milder"
 /// ([needsMilder]) wie für die Feuchte ([needsMoisture], seit #676:
-/// Holz & Winter rechnet ohne Bodenfeuchte und damit auch ohne
-/// Feuchtestation in Reichweite).
+/// Holz & Winter rechnet ohne Bodenfeuchte).
 ///
 /// **Warum kein weiteres Fenster:** Für Holz- und Winterpilze verliert
 /// die Glocke bei jedem Optimum gesichert gegen dieses Logit, weil „je
@@ -99,7 +99,6 @@ class AmpelLogit {
     required this.moisture,
     required this.moistureTemp,
     required this.milder,
-    this.maxMoistureKm = double.infinity,
   });
 
   final double rain;
@@ -109,24 +108,14 @@ class AmpelLogit {
   final double moistureTemp;
   final double milder;
 
-  /// Wie weit die Bodenfeuchtestation höchstens weg sein darf (#665).
-  /// Unendlich heißt: Es gilt die Reichweite der Tabelle
-  /// (`WeatherTable.maxStationKm`, 100 km). Enger nur für eine Klasse,
-  /// die NUR für Deutschland belegt ist: Alle Feuchtestationen stehen
-  /// in Deutschland, ein enger Radius hält die Klasse also im Land,
-  /// ohne dass die App eine Landesgrenze kennt. Eine ganze Zahl, weil
-  /// die Fläche den Abstand auf volle Kilometer aufrundet speichert —
-  /// so fallen Blatt und Fläche an derselben Stelle.
-  final double maxMoistureKm;
-
   /// Braucht diese Klasse die Minima-Reihe? Eine Konstante 0 heißt: Das
   /// Merkmal ist nicht Teil des Modells, und die Reihe darf fehlen.
   bool get needsMilder => milder != 0;
 
   /// Braucht diese Klasse die Bodenfeuchte? Zwei Nullen heißen: Die
-  /// Feuchte ist nicht Teil des Modells — dann zählen weder die Reihe
-  /// noch der Abstand zur Station ([maxMoistureKm]), und die Klasse
-  /// rechnet überall, wo es Regen und Temperatur gibt (#676).
+  /// Feuchte ist nicht Teil des Modells — dann zählt die Reihe nicht,
+  /// und die Klasse rechnet überall, wo es Regen und Temperatur gibt
+  /// (#676).
   bool get needsMoisture => moisture != 0 || moistureTemp != 0;
 
   /// Die lineare Vorhersage `s` aus fertigen Zutaten — `null`, wenn die
@@ -176,14 +165,12 @@ class AmpelCellInputs {
   AmpelCellInputs({
     required this.rainFactor,
     this.moistureMean,
-    this.moistureKm,
     this.milder,
   }) : logRain = ampelLogRain(rainFactor);
 
   final double rainFactor;
   final double logRain;
   final double? moistureMean;
-  final double? moistureKm;
   final double? milder;
 
   /// Der Score einer Klasse bei [meanC] — siehe [ampelScoreFor].
@@ -193,11 +180,7 @@ class AmpelCellInputs {
       return rainFactor * ampelBellOfMean(meanC, optimumC: klass.optimumC!);
     }
     final moisture = moistureMean;
-    if (logit.needsMoisture) {
-      if (moisture == null) return null;
-      final km = moistureKm;
-      if (km != null && km > logit.maxMoistureKm) return null;
-    }
+    if (moisture == null && logit.needsMoisture) return null;
     final nights = milder;
     if (nights == null && logit.needsMilder) return null;
     return logit.scoreOfLogRain(logRain,
@@ -246,8 +229,8 @@ class AmpelCellInputs {
 /// [ampelMilderFreshDays] Tage minus das Mittel der Tage danach bis
 /// [ampelMilderWindow], aus der Stationsreihe (ältester Tag zuerst) —
 /// `null`, wenn die Reihe kürzer ist oder im Fenster eine Lücke hat.
-/// Dieselbe Regel wie [ampelMoistureMean] und wie das Labor gerechnet
-/// hat: Ein Stratum mit Lücke fiel weg, also gibt es hier keins aus
+/// Dieselbe Regel wie das Bodenfeuchte-Mittel und wie das Labor
+/// gerechnet hat: Ein Stratum mit Lücke fiel weg, also gibt es hier keins aus
 /// halben Fenstern. Die Höhenkorrektur kürzt sich in der Differenz
 /// heraus — die Aufrufer geben die ROHEN Stationsminima herein.
 double? ampelMilderOf(List<double?> minsOldestFirst) {
@@ -279,23 +262,6 @@ String ampelMilderWord(double milderK) {
       'als in den drei Wochen davor';
 }
 
-/// Das 26-Tage-Mittel der Bodenfeuchte aus der Stationsreihe (ältester
-/// Tag zuerst) — `null`, wenn die Reihe kürzer ist oder im Fenster eine
-/// Lücke hat. Kein Mittel aus halben Fenstern: Eine erfundene Feuchte
-/// wäre eine erfundene Beobachtung (dieselbe Regel wie `feuchte_mittel`
-/// im Werkzeug).
-double? ampelMoistureMean(List<double?> bfglOldestFirst) {
-  if (bfglOldestFirst.length < ampelMoistureWindow) return null;
-  final window =
-      bfglOldestFirst.sublist(bfglOldestFirst.length - ampelMoistureWindow);
-  var sum = 0.0;
-  for (final value in window) {
-    if (value == null) return null;
-    sum += value;
-  }
-  return sum / ampelMoistureWindow;
-}
-
 /// Eine Ampel-Klasse ist **ein Temperaturfenster** — die beiden
 /// Schwellen sind kein zweiter freier Parameter, sondern fallen daraus:
 /// das 50-%- und das 80-%-Quantil der Score-Verteilung, die dieses
@@ -316,7 +282,7 @@ typedef AmpelClass = ({
   double guenstigAbove,
 
   /// `null` heißt Glocke; sonst rechnet die Klasse mit diesem Logit und
-  /// braucht dafür die Bodenfeuchte der nächsten Station — ohne sie
+  /// braucht dafür, was es braucht (Bodenfeuchte, Minima) — ohne das
   /// bleibt sie grau, nirgends wird ein Ersatzwert eingesetzt.
   AmpelLogit? logit,
 });
@@ -435,38 +401,37 @@ const ampelHolzWinterClass = (
 /// **Herbsttrompete & Co. — die Leistlinge und der Stoppelpilz**
 /// (Cantharellales; der Pfifferling gehört botanisch dazu, in den Daten
 /// aber zu sich selbst). Auf den DE-Testblöcken angenommen (+0,417
-/// [+0,131, +0,769]), **reist aber nicht** nach AT/CH (+0,047 [−0,058,
-/// +0,129]). Nur für Deutschland belegt; aufgenommen, weil die App vor
-/// allem dort läuft (Betreiber 2026-09-20). Die Herbsttrompete ist dafür
+/// [+0,131, +0,769]); mit der DWD-Feuchte reiste sie nicht nach AT/CH
+/// (+0,047 [−0,058, +0,129]) und galt nur für Deutschland (Betreiber
+/// 2026-09-20). Die Herbsttrompete ist dafür
 /// aus „Steinpilz & Co." ausgezogen, wo sie gegen dieses Logit gesichert
 /// verlor.
 ///
-/// **Deshalb 30 km statt 100 km bis zur Feuchtestation** (#665,
-/// Betreiber 2026-10-07). Die 100 km der Tabelle hielten die Klasse nur
-/// im Landesinneren von AT/CH grau; an der Grenze griff sie über den
-/// Rhein (Vogesen → Müllheim, 65 km). Gemessen am 2026-10-07 gegen die
-/// 482 Stationen der DWD-Liste auf einem Raster über Deutschland:
-/// Median 11,9 km, P99 27,3 km, weitester Punkt 48 km (Grafschaft
-/// Bentheim) — mit 30 km bleiben 0,43 % der Fläche Deutschlands grau.
-/// Jenseits der Grenze rechnet ein Streifen weiter (Straßburg 20 km,
-/// Basel 14, Salzburg 10, Bregenz 9, Innsbruck 25 km); Colmar (36) und
-/// die Vogesen (70) sind grau. Die echte Antwort ist eine Feuchte, die
-/// es auch im Ausland gibt (#676).
+/// **Seit #676 mit ERA5-Land-Bodenfeuchte in ganz DACH** (Labor 25,
+/// Betreiber 2026-10-08: „Bauen", „am besten nur eine Quelle"). Bis
+/// 1.223.x rechnete die Klasse mit der nächsten DWD-Station in höchstens
+/// 30 km (#665) und war in AT/CH grau. Neu gefittet auf ERA5-Land
+/// 7–28 cm (m³/m³): auf den DE-Testblöcken −0,008 n.s. gegen die
+/// DWD-Feuchte, keine Art schlechter; in AT/CH gegen „grau" +0,144
+/// [−0,059, +0,334], AUC 0,684 statt 0,586 — vorn, aber NICHT gesichert
+/// (320 Teststrata aus wenigen Fundjahren). Die Schwellen sind neu
+/// gemessen (Design B, P1, `docs/pilzampel-logit-schwellen.md`): 2,652 /
+/// 3,306 statt 2,191 / 2,952 — eine andere Skala, weil `M` jetzt eine
+/// andere Größe ist.
 const ampelCantharellalesClass = (
   name: 'Herbsttrompete & Co.',
   optimumC: null,
-  verhaltenAbove: 2.191,
-  guenstigAbove: 2.952,
+  verhaltenAbove: 2.652,
+  guenstigAbove: 3.306,
   logit: AmpelLogit(
-    rain: 0.1039,
-    temp: 0.1547,
-    temp2: -0.01399,
-    moisture: 0.00333,
-    moistureTemp: 0.002237,
+    rain: -0.0368583,
+    temp: -0.0928386,
+    temp2: -0.00978573,
+    moisture: 4.94857,
+    moistureTemp: 0.903891,
     // Kein „milder": für diese Klasse nie gemessen (Labor 24 galt den
     // acht Holz- und Winterarten). Null heißt: keine Minima nötig.
     milder: 0.0,
-    maxMoistureKm: 30,
   ),
 );
 
@@ -558,36 +523,25 @@ String? ampelClassKeyOf(AmpelClass klass) {
   required double meanC,
   required List<AmpelClass> classes,
   double? moistureMean,
-  double? moistureKm,
   double? milder,
 }) {
   return AmpelCellInputs(
-          rainFactor: rainFactor,
-          moistureMean: moistureMean,
-          moistureKm: moistureKm,
-          milder: milder)
+          rainFactor: rainFactor, moistureMean: moistureMean, milder: milder)
       .best(meanC, classes);
 }
 
 /// Der Score EINER Klasse aus fertigen Zutaten — Glocke oder Logit.
 /// `null`, wenn eine Logit-Klasse ohne Bodenfeuchte gefragt wird — oder
 /// ohne [milder], wo ihr Logit es braucht ([AmpelLogit.needsMilder]).
-/// Ebenso, wenn die Feuchtestation weiter weg ist als
-/// [AmpelLogit.maxMoistureKm] — [moistureKm] ist ihr Abstand; `null`
-/// heißt unbekannt und prüft nichts (Tests, die nur die Formel meinen).
 double? ampelScoreFor(
   AmpelClass klass, {
   required double rainFactor,
   required double meanC,
   double? moistureMean,
-  double? moistureKm,
   double? milder,
 }) =>
     AmpelCellInputs(
-            rainFactor: rainFactor,
-            moistureMean: moistureMean,
-            moistureKm: moistureKm,
-            milder: milder)
+            rainFactor: rainFactor, moistureMean: moistureMean, milder: milder)
         .scoreFor(klass, meanC);
 
 /// **Nur Arten einer BESTÄTIGTEN Klasse stehen hier.** Hallimasch und
@@ -798,12 +752,24 @@ AmpelLevel ampelLevelOf(double score, {required AmpelClass klass}) {
 }
 
 /// Wie die Legende das Fenster einer Klasse nennt: die Zahl bei der
-/// Glocke, die Zutaten beim Logit.
-String ampelClassWindowWord(AmpelClass klass) => klass.optimumC == null
-    ? (klass.logit!.needsMilder
-        ? 'Regen, Temperatur, Bodenfeuchte und Nächte'
-        : 'Regen, Temperatur und Bodenfeuchte')
-    : '${klass.optimumC!.toStringAsFixed(1).replaceAll('.', ',')} °C';
+/// Glocke, die Zutaten beim Logit — die, die wirklich eingehen
+/// ([AmpelLogit.needsMoisture], [AmpelLogit.needsMilder]). Bis 1.223.x
+/// stand bei Austernseitling & Co. noch „Bodenfeuchte", obwohl die
+/// Gruppe seit #676 ohne rechnet.
+String ampelClassWindowWord(AmpelClass klass) {
+  final optimum = klass.optimumC;
+  if (optimum != null) {
+    return '${optimum.toStringAsFixed(1).replaceAll('.', ',')} °C';
+  }
+  final logit = klass.logit!;
+  final parts = [
+    'Regen',
+    'Temperatur',
+    if (logit.needsMoisture) 'Bodenfeuchte',
+    if (logit.needsMilder) 'Nächte',
+  ];
+  return '${parts.sublist(0, parts.length - 1).join(', ')} und ${parts.last}';
+}
 
 /// Das Wort zur Stufe — die EINE Stelle für die Beschriftung.
 String ampelLevelWord(AmpelLevel level) => switch (level) {

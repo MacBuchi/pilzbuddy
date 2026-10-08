@@ -244,10 +244,16 @@ class RainStackDay {
 /// #646). Alle liegen im selben Ordner; was sie trennt, steht hier —
 /// Abschnitt im Manifest, Dateianfang der Tage, Name des gemerkten
 /// Manifests.
+///
+/// Dazu seit #676 die Bodenfeuchte (`soil`, ERA5-Land): kein Regen, aber
+/// derselbe Weg — gleiches Manifest, gleiches Format, gleiches Aufräumen.
+/// Ein zweiter Lader daneben wäre ein zweiter Ort, an dem ein Stand ohne
+/// Empfang kleben bleibt.
 enum RainStackKind {
   radar('rain_day_', 'stack.json'),
   model('model_rain_', 'model_stack.json'),
-  alps('alps_', 'alps_stack.json');
+  alps('alps_', 'alps_stack.json'),
+  soil('soil_', 'soil_stack.json');
 
   const RainStackKind(this.filePrefix, this.infoFile);
 
@@ -270,6 +276,7 @@ enum RainStackKind {
         RainStackKind.alps =>
           (manifest['alps'] as Map<String, dynamic>?)?['rain']
               as Map<String, dynamic>?,
+        RainStackKind.soil => manifest['soil'] as Map<String, dynamic>?,
       };
 }
 
@@ -422,6 +429,12 @@ class RainGridRepository {
     void Function(int done, int total)? onProgress,
   }) =>
       _loadStack(RainStackKind.alps, onProgress: onProgress);
+
+  /// Der Bodenfeuchtestapel (#676, `tool/soil_moisture.py`): 30 echte
+  /// Tage ERA5-Land 7–28 cm, ~6 KB je Tag. Fehlt der Abschnitt — ältere
+  /// Manifeste kennen ihn nicht —, gibt es keine Bodenfeuchte, und
+  /// Herbsttrompete & Co. ist grau.
+  Future<RainStackData?> loadSoilStack() => _loadStack(RainStackKind.soil);
 
   Future<RainStackData?> _loadStack(
     RainStackKind kind, {

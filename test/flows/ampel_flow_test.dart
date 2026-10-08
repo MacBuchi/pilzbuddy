@@ -15,6 +15,7 @@ import 'package:pilzbuddy/data/rain_grid_repository.dart';
 import 'package:pilzbuddy/features/ampel/ampel_map_providers.dart';
 import 'package:pilzbuddy/features/ampel/ampel_model.dart';
 import 'package:pilzbuddy/features/ampel/ampel_species_exclusion.dart';
+import 'package:pilzbuddy/features/map/soil_moisture_grid.dart';
 import 'package:pilzbuddy/features/map/forest_data_providers.dart'
     show
         ForestFillImage,
@@ -76,11 +77,7 @@ void main() {
   /// [meanC] verschiebt beide Enden, das Mittel bleibt ihr Wert. 28
   /// Tage wie die echte Tabelle seit dem 2026-09-21: Mit 20 bliebe
   /// „Austernseitling & Co." ohne ihr „milder"-Fenster grau.
-  List<int> weatherBytes(
-      {int days = 28,
-      double meanC = 13.0,
-      bool withMoisture = false,
-      double moisture = 60.0}) {
+  List<int> weatherBytes({int days = 28, double meanC = 13.0}) {
     String iso(DateTime d) => '${d.year.toString().padLeft(4, '0')}-'
         '${d.month.toString().padLeft(2, '0')}-'
         '${d.day.toString().padLeft(2, '0')}';
@@ -110,25 +107,6 @@ void main() {
           'soil': [for (var i = 0; i < days; i++) 15.0],
         },
       ],
-      // Nur auf Wunsch eine Feuchtestation: Mit ihr rechnen auch die
-      // Logit-Klassen, und die Bestandstests kennen die Legende ohne
-      // sie. Feste 26 Tage, fester Wert — wie `tableOf` im Fill-Test.
-      if (withMoisture) ...{
-        'moisture_days': [
-          for (var i = 0; i < 26; i++)
-            iso(DateTime.utc(2026, 7, 1).add(Duration(days: i))),
-        ],
-        'moisture': [
-          {
-            'id': 7,
-            'lat': 51.1,
-            'lon': 11.0,
-            'h': 316,
-            'name': 'Feuchtestation',
-            'bfgl': List.filled(26, moisture),
-          },
-        ],
-      },
     };
     return GZipEncoder().encode(utf8.encode(jsonEncode(json)))!;
   }
@@ -165,7 +143,7 @@ void main() {
     double meanC = 13.0,
     int month = 9,
     bool withMoisture = false,
-    double moisture = 60.0,
+    double moisture = 0.30,
     int weatherDays = 28,
     int rainMm = 5,
   }) async {
@@ -207,11 +185,25 @@ void main() {
                 () async => stackOf(days: stackDays, mm: rainMm)),
         weatherTableLoaderProvider
             .overrideWithValue(() async =>
-                weatherBytes(
-                    days: weatherDays,
-                    meanC: meanC,
-                    withMoisture: withMoisture,
-                    moisture: moisture)),
+                weatherBytes(days: weatherDays, meanC: meanC)),
+        // Nur auf Wunsch Bodenfeuchte (ERA5-Land-Gitter, #676): Mit ihr
+        // rechnet auch Herbsttrompete & Co., und die Bestandstests kennen
+        // die Legende ohne sie. EINE Zelle über dem ganzen Testfenster,
+        // fester Wert — wie `testSoil` im Fill-Test.
+        if (withMoisture)
+          soilMoistureProvider.overrideWith((ref) async => SoilMoistureWindow(
+                end: DateTime(2026, 10, 7),
+                newest: DateTime(2026, 10, 2),
+                width: 1,
+                height: 1,
+                west: 5,
+                east: 17,
+                north: 56,
+                south: 45,
+                means: Float32List.fromList([moisture]),
+                latest: Uint8List.fromList(
+                    [(moisture / soilMoistureStep).round()]),
+              )),
         if (elevation != null)
           elevationLoaderProvider.overrideWithValue(() async => elevation),
       ],
@@ -1025,8 +1017,8 @@ void main() {
           find.textContaining(
               'Nächte zuletzt: wie in den drei Wochen davor'),
           findsOneWidget);
-      // Die Zutatenzeile der Ampel („Bodenfeuchte: 60 % nFK"), nicht die
-      // Wetterzeile der Station darüber („Bodenfeuchte 0–60 cm: …").
+      // Die Zutatenzeile der Ampel („Bodenfeuchte: 30 Vol.-%"), nicht die
+      // Wetterzeile darüber („Bodenfeuchte 7–28 cm: …").
       expect(find.textContaining('Bodenfeuchte: '), findsNothing,
           reason: 'Austernseitling & Co. rechnet seit #676 ohne Feuchte — '
               'eine Zutat, die nicht eingeht, steht nicht da');
@@ -1045,7 +1037,6 @@ void main() {
           tester, loggedInWithSpot(species: 'Austernseitling'),
           preview: true,
           withMoisture: true,
-          moisture: 28,
           rainMm: 1,
           month: 12);
       await openSpot(tester);
@@ -1056,6 +1047,38 @@ void main() {
       expect(find.textContaining('für Austernseitling'), findsOneWidget);
       expect(find.textContaining('Regen (26 Tage): wenig'), findsOneWidget);
       expect(find.textContaining('zu trocken'), findsNothing);
+    });
+
+    testWidgets(
+        'Herbsttrompete & Co. rechnet mit der Feuchte aus dem Gitter und '
+        'nennt sie in Vol.-% — Ampel und Wetterzeile dieselbe Quelle (#676)',
+        (tester) async {
+      await pumpWithWeather(
+          tester, loggedInWithSpot(species: 'Herbsttrompete'),
+          preview: true, withMoisture: true);
+      await openSpot(tester);
+      await acceptAndSettle(tester);
+      expect(find.textContaining('für Herbsttrompete'), findsOneWidget);
+      expect(find.textContaining('keine Aussage'), findsNothing);
+      expect(find.textContaining('Bodenfeuchte: 30 Vol.-%'), findsOneWidget);
+      expect(
+          find.textContaining(
+              'Bodenfeuchte 7–28 cm: 30 Vol.-% (2.10., ERA5-Land, Copernicus)'),
+          findsOneWidget);
+    });
+
+    testWidgets(
+        'Herbsttrompete & Co. ohne Bodenfeuchte: grau mit Grund (#676)',
+        (tester) async {
+      await pumpWithWeather(
+          tester, loggedInWithSpot(species: 'Herbsttrompete'),
+          preview: true);
+      await openSpot(tester);
+      await acceptAndSettle(tester);
+      expect(
+          find.textContaining(
+              'keine Aussage — keine Bodenfeuchte-Daten geladen'),
+          findsOneWidget);
     });
 
     testWidgets(

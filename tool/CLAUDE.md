@@ -298,8 +298,8 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
     zusammen.
 
 - **Bodenfeuchte-Gitter** (`tool/soil_moisture.py`, im selben
-  `rain-data.yml`, eigener Cron `53 9`, #676, Daten seit PR B; die App
-  liest es ab PR C): ERA5-Land 7–28 cm (m³/m³) für Deutschland und die
+  `rain-data.yml`, eigener Cron `53 9`, #676, Daten seit #682; die App
+  liest es seit 1.224.0, `lib/features/map/soil_moisture_grid.dart`): ERA5-Land 7–28 cm (m³/m³) für Deutschland und die
   Alpenbox, EINE Quelle für ganz DACH statt DWD-`BFGL_AG` (Betreiber,
   2026-10-08: „am besten nur eine Quelle"). Messung und Herleitung im
   Labor, Lauf 25 (Kurzfassung in #676). Sechs Dinge, die man wissen muss:

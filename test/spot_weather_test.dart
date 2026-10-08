@@ -10,6 +10,7 @@ import 'package:archive/archive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/features/map/rain_data_providers.dart';
+import 'package:pilzbuddy/features/map/soil_moisture_grid.dart';
 import 'package:pilzbuddy/features/map/spot_weather.dart';
 
 void main() {
@@ -251,106 +252,25 @@ void main() {
         },
       ];
 
-    test('liest die Bodenfeuchte mit ihrer EIGENEN Tagesliste', () {
-      final table = weatherTableFrom(packed(withMoisture()))!;
-      expect(table.moistureDays,
-          [DateTime.parse('2026-07-31'), DateTime.parse('2026-08-01')]);
-      expect(table.moisture.single.bfgl, [77.0, null]);
-      expect(table.moisture.single.latest, 77.0);
-      // Die Feuchte-Tage sind NICHT die Luft-Tage — ein Leser, der die
-      // Reihe an `days` misst, würfe sie als falsch lang weg.
-      expect(table.days, hasLength(3));
-    });
-
-    test('ein alter Stand ohne Feuchte bleibt lesbar', () {
-      final table = weatherTableFrom(packed(asset()))!;
-      expect(table.moisture, isEmpty);
-      expect(table.moistureDays, isEmpty);
-      // Die Luftstation der Fixture hat nur drei Tage und tritt nicht an —
-      // gefragt ist hier nur, dass das Feuchtenetz leer bleibt.
-      expect(table.nearestMoisture(52.9, 8.2), isNull);
-    });
-
-    test('eine Feuchte-Reihe falscher Länge wird übersprungen', () {
-      final broken = withMoisture();
-      (broken['moisture'] as List).single['bfgl'] = [1.0, 2.0, 3.0];
-      final table = weatherTableFrom(packed(broken))!;
-      expect(table.moisture, isEmpty);
+    test('der DWD-Feuchteabschnitt wird seit #676 überlesen', () {
+      // Die Tabelle trägt ihn weiter, solange ältere App-Stände ihn
+      // lesen — diese App rechnet mit dem ERA5-Land-Gitter.
+      final mit = weatherTableFrom(packed(withMoisture()))!;
+      final ohne = weatherTableFrom(packed(asset()))!;
+      expect(mit.days, ohne.days);
+      expect(mit.air.length, ohne.air.length);
     });
   });
 
-  group('moisture', () {
-    MoistureStation moistureAt(double lat, double lon,
-            {String name = 'Feuchtestation', List<double?>? bfgl}) =>
-        MoistureStation(
-          name: name,
-          lat: lat,
-          lon: lon,
-          height: 100,
-          bfgl: bfgl ?? filled(26, 60),
-        );
-    final moistureDays = [
-      for (var i = 0; i < 26; i++) DateTime.utc(2026, 7, 1 + i),
-    ];
+  group('Bodenfeuchte aus dem Gitter (#676)', () {
+    final soil = SpotSoilMoisture(
+        mean: 0.3, latest: 0.31, newest: DateTime(2026, 10, 2), stale: false);
 
-    test('die nächste Feuchtestation ist ein eigenes Netz', () {
-      final table = WeatherTable(
-        days: days,
-        air: [airAt(51.1, 11)],
-        soil: const [],
-        moistureDays: moistureDays,
-        moisture: [
-          moistureAt(53, 11, name: 'Fern'),
-          moistureAt(51.3, 11, name: 'Nah'),
-        ],
-      );
-      final at = table.at(51, 11)!;
-      expect(at.moisture!.station.name, 'Nah');
-      expect(at.air!.station.lat, 51.1);
-      expect(table.nearestMoisture(51, 11)!.station.name, 'Nah');
-    });
-
-    test('zu wenige gemessene Tage — die Station tritt nicht an', () {
-      final table = WeatherTable(
-        days: days,
-        air: const [],
-        soil: const [],
-        moistureDays: moistureDays,
-        moisture: [
-          moistureAt(51.05, 11,
-              name: 'Lückig', bfgl: [...filled(5, 60), ...filled(21, 0).map((_) => null)]),
-          moistureAt(51.3, 11, name: 'Ganz'),
-        ],
-      );
-      expect(table.nearestMoisture(51, 11)!.station.name, 'Ganz');
-    });
-
-    test('jenseits der Reichweite keine Antwort — AT/CH bleiben ohne', () {
-      final table = WeatherTable(
-        days: days,
-        air: const [],
-        soil: const [],
-        moistureDays: moistureDays,
-        moisture: [moistureAt(50.0, 10.0)],
-      );
-      // Wien liegt rund 500 km entfernt.
-      expect(table.nearestMoisture(48.2, 16.4), isNull);
-      expect(table.at(48.2, 16.4), isNull);
-    });
-
-    test('der jüngste Wert und sein Tag, nicht der letzte Platz', () {
-      final at = SpotTemperature(
-        days: days,
-        air: null,
-        soil: null,
-        moisture: (
-          station: moistureAt(51, 11, bfgl: [...filled(24, 60), 71, null]),
-          km: 12.4,
-        ),
-        moistureDays: moistureDays,
-      );
-      expect(at.moisture!.station.latest, 71);
-      expect(at.moistureNewest, DateTime.utc(2026, 7, 25));
+    test('die Feuchte allein reicht für einen Eintrag', () {
+      final table = WeatherTable(days: days, air: const [], soil: const []);
+      expect(table.at(51, 11), isNull);
+      final at = table.at(51, 11, soil: soil)!;
+      expect(at.moisture, same(soil));
       expect(at.isEmpty, isFalse);
     });
   });

@@ -4,8 +4,8 @@
 **Warum eine eigene Datei.** `ampel_validate.py` kennt Klassen als
 Temperaturfenster: ein Optimum, eine Glocke, zwei Schwellen als Quantile.
 Die Klasse für Holz- und Winterpilze ist kein Fenster — sie ist ein
-bedingtes Logit mit sechs Konstanten und der Bodenfeuchte der nächsten
-DWD-Station (`docs/pilzampel-holz-winter-plan.md`; die sechste,
+bedingtes Logit mit sechs Konstanten (`docs/pilzampel-holz-winter-plan.md`;
+seit #676 mit ERA5-Land-Bodenfeuchte statt DWD-Station; die sechste,
 „milder", seit Labor 24 — `docs/pilzampel-frost-plan.md`). Sie in die
 Fenster-Maschinerie zu pressen hiesse, an sechzig Stellen „wenn Fenster,
 sonst …" zu schreiben. Hier steht sie EINMAL, und `ampel_model.dart`
@@ -15,10 +15,10 @@ Fixtures, die `--fixtures` erzeugt.
 Was hier definiert ist:
   - die Klassen (Konstanten, Mitglieder, Schwellen, Beleg),
   - der Score `s` — exakt die Rechnung der App,
-  - die DWD-Bodenfeuchte (`BFGL_AG`) fuer die Rueckwaertsrechnung: die
-    historischen Stationsdateien, die naechste Station per Grosskreis,
-    das 26-Tage-Fenster VOR einem Tag — dieselbe Regel wie in der App
-    (`WeatherTable.nearestMoisture`) und im Labor (`lab/dwd_boden.py`),
+  - die Bodenfeuchte fuer die Rueckwaertsrechnung: ERA5-Land 7–28 cm
+    (m³/m³, `smoist` im gepinnten Datensatz) an der Fundkoordinate, das
+    26-Tage-Mittel VOR einem Tag — dieselbe Groesse wie das Gitter, aus
+    dem die App liest (`tool/soil_moisture.py`, #676), und wie Labor 25,
   - die Schwellenmessung: Design B auf P1 (DE ab 2019), Quantile 50 % /
     80 % der `s`-Verteilung an Vergleichstagen, jedes Fundjahr gleich
     schwer, jede Art gleich schwer, Jahres-Bootstrap — dieselben
@@ -33,13 +33,11 @@ Nur Standardbibliothek, wie alles in `tool/`.
 """
 
 import argparse
-import gzip
 import json
 import math
 import os
 import re
 import sys
-import urllib.request
 from datetime import date
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -113,24 +111,34 @@ KLASSEN = {
         "dart": "ampelCantharellalesClass",
         "label": "Herbsttrompete & Co.",
         "members": ["Herbsttrompete", "Semmelstoppelpilz", "Trompetenpfifferling"],
-        # Aus `15-testteil.md` (Labor): Fit auf allen DE-Erkundungsstrata
-        # der drei Arten. Ohne „milder" (0): Das Merkmal ist fuer diese
-        # Klasse nie gemessen worden, und eine Null braucht keine Reihe.
-        "koeffizienten": (0.1039, 0.1547, -0.01399, 0.00333, 0.002237, 0.0),
-        # Bänder: verhalten [2,035, 2,339], guenstig [2,861, 3,032] — die
-        # Skala ist die von `s`, nicht die 0…1 der Glocke.
-        "verhalten": 2.191,
-        "guenstig": 2.952,
-        "schwellen_quelle": "Design B, P1, pinned (2026-09-20), docs/pilzampel-logit-schwellen.md",
-        # **Nur fuer Deutschland belegt** (Betreiber 2026-09-20: „die App
-        # ist hauptsaechlich auf Deutschland ausgelegt"): auf dem DE-Test
-        # angenommen, reist aber nicht nach AT/CH — dort bleibt die
-        # Klasse ohnehin ohne Bodenfeuchte (Station > 100 km).
-        "gilt": "DE",
+        # **ERA5-Land 7–28 cm statt DWD `BFGL_AG`** seit 2026-10-08 (#676,
+        # Labor 25, Kandidat E1; Betreiber: „Bauen", „am besten nur eine
+        # Quelle"): Fit auf allen DACH-Trainingsstrata der drei Arten,
+        # Feuchte in m³/m³. Auf den Testbloecken DE −0,008 n.s. gegen die
+        # DWD-Feuchte, keine Art schlechter; AT/CH gegen „grau jenseits
+        # 30 km" +0,144 [−0,059, +0,334], AUC 0,684 gegen 0,586 — nicht
+        # gesichert (320 Teststrata). Die Naht (ERA5-Land haengt ~5 Tage
+        # nach, die App schreibt fort) kostet ≤ 0,003 je Stratum. Bis
+        # 1.223.x: (0.1039, 0.1547, -0.01399, 0.00333, 0.002237, 0.0) auf
+        # % nFK, aus `15-testteil.md`. Ohne „milder" (0): fuer diese Klasse
+        # nie gemessen.
+        "koeffizienten": (-0.0368583, -0.0928386, -0.00978573, 4.94857,
+                          0.903891, 0.0),
+        # Die Skala ist die von `s`, nicht die 0…1 der Glocke. Gemessen am
+        # 2026-10-08 auf allen 612 P1-Funden (jeder hat ein lueckenloses
+        # ERA5-Fenster, keine Station, kein Abstand); Baender: verhalten
+        # [2,535, 2,774], guenstig [3,225, 3,362]; 3 051 Kontrolltage.
+        # Bis 1.223.x unter DWD-Feuchte 2,191 / 2,952.
+        "verhalten": 2.652,
+        "guenstig": 3.306,
+        "schwellen_quelle": "Design B, P1, pinned (2026-10-08), docs/pilzampel-logit-schwellen.md",
+        # Seit #676 mit ERA5-Land in ganz DACH; der Beleg fuer AT/CH ist
+        # „nicht schlechter, eher besser", nicht gesichert.
+        "gilt": "DE+AT+CH",
         "confirmed": True,
-        "why": "Phase G auf DE-Test +0,417 [+0,131, +0,769]; AT/CH "
-               "+0,047 [-0,058, +0,129] (reist nicht) — Labor 15/16 "
-               "(2026-09-20)",
+        "why": "Phase G auf DE-Test +0,417 [+0,131, +0,769] — Labor 15/16 "
+               "(2026-09-20); ERA5-Land statt DWD: DE −0,008 n.s., AT/CH "
+               "gegen grau +0,144 [−0,059, +0,334] — Labor 25 (2026-10-08)",
     },
 }
 
@@ -216,7 +224,7 @@ def score(regen, temp, feuchte, koeffizienten, tmin=None):
     die die Klasse braucht.
 
     `regen`: 26 Tageswerte mm, Vortag zuerst. `temp`: 20 Tageswerte °C,
-    Vortag zuerst. `feuchte`: 26 Tageswerte % nFK, Vortag zuerst — nur
+    Vortag zuerst. `feuchte`: 26 Tageswerte m³/m³ (ERA5-Land), Vortag zuerst — nur
     Pflicht, wo die Klasse sie braucht (`braucht_feuchte`). `tmin`:
     28 Tagesminima °C, Vortag zuerst — nur Pflicht, wo die Konstante fuer
     `milder` nicht 0 ist; eine Klasse ohne das Merkmal rechnet ohne die
@@ -245,140 +253,6 @@ def stufe(s, klasse):
     if s >= klasse["verhalten"]:
         return 1
     return 0
-
-
-# --- DWD-Bodenfeuchte fuer die Rueckwaertsrechnung ---------------------------
-
-DWD_BASIS = ("https://opendata.dwd.de/climate_environment/CDC/derived_germany/"
-             "soil/daily")
-DWD_FELD = "BFGL_AG"
-DWD_VERZEICHNIS = os.path.expanduser("~/pilzbuddy-dwd-boden")
-ERDRADIUS_KM = 6371.0
-
-
-def _hole(url, ziel):
-    with urllib.request.urlopen(url, timeout=60) as r:
-        daten = r.read()
-    tmp = ziel + ".part"
-    with open(tmp, "wb") as f:
-        f.write(daten)
-    os.replace(tmp, ziel)
-
-
-def dwd_stationen(verzeichnis=DWD_VERZEICHNIS, holen=True):
-    """`[(id, lat, lon, hoehe, name)]` aus den Stationslisten beider
-    Sammlungen; holt sie, wenn sie fehlen."""
-    aus = {}
-    for art in ("historical", "recent"):
-        pfad = os.path.join(verzeichnis, f"stations_{art}.txt")
-        if not os.path.isfile(pfad):
-            if not holen:
-                continue
-            os.makedirs(verzeichnis, exist_ok=True)
-            _hole(f"{DWD_BASIS}/{art}/derived_germany_soil_daily_{art}_stations_list.txt",
-                  pfad)
-        for zeile in open(pfad, encoding="latin-1").read().splitlines()[1:]:
-            teile = [t.strip() for t in zeile.split(";")]
-            if len(teile) < 5 or not teile[0].isdigit():
-                continue
-            sid = int(teile[0])
-            aus[sid] = (sid, float(teile[2]), float(teile[3]),
-                        float(teile[1]), teile[4])
-    return [aus[k] for k in sorted(aus)]
-
-
-def _lies_datei(pfad):
-    """`{ordinal: wert}` einer Stationsdatei; Fehlwerte (< 0) fehlen."""
-    aus = {}
-    with gzip.open(pfad, "rt", encoding="latin-1") as f:
-        kopf = [t.strip() for t in f.readline().split(";")]
-        spalte = kopf.index(DWD_FELD)
-        for zeile in f:
-            teile = zeile.split(";")
-            if len(teile) <= spalte:
-                continue
-            d = teile[1].strip()
-            try:
-                wert = float(teile[spalte])
-            except ValueError:
-                continue
-            if wert < 0 or len(d) != 8:
-                continue
-            aus[date(int(d[:4]), int(d[4:6]), int(d[6:8])).toordinal()] = wert
-    return aus
-
-
-def dwd_reihe(sid, verzeichnis=DWD_VERZEICHNIS, holen=True):
-    """`{"first": ordinal, "werte": [float|None, …]}` — historical und
-    recent zusammengelegt; `None`, wenn es die Station nirgends gibt."""
-    punkte = {}
-    for art in ("historical", "recent"):
-        name = f"derived_germany_soil_daily_{art}_v2_{sid}.txt.gz"
-        pfad = os.path.join(verzeichnis, art, name)
-        if not os.path.isfile(pfad) and holen:
-            os.makedirs(os.path.dirname(pfad), exist_ok=True)
-            try:
-                _hole(f"{DWD_BASIS}/{art}/{name}", pfad)
-            except Exception:  # noqa: BLE001 — Station ohne diese Sammlung
-                continue
-        if os.path.isfile(pfad):
-            punkte.update(_lies_datei(pfad))
-    if not punkte:
-        return None
-    first, last = min(punkte), max(punkte)
-    werte = [None] * (last - first + 1)
-    for o, v in punkte.items():
-        werte[o - first] = v
-    return {"first": first, "werte": werte}
-
-
-def dwd_naechste(lat, lon, stationen):
-    """`(id, km)` der naechsten Station — Grosskreis, sonst nichts (wie
-    `WeatherTable._nearest`, ohne die 100-km-Grenze: die Rueckwaerts-
-    rechnung soll auch sagen, WIE weit es war)."""
-    la, lo = math.radians(lat), math.radians(lon)
-    best, best_km = None, float("inf")
-    for sid, s_lat, s_lon, _, _ in stationen:
-        p, q = math.radians(s_lat), math.radians(s_lon)
-        d = (math.sin((p - la) / 2) ** 2
-             + math.cos(la) * math.cos(p) * math.sin((q - lo) / 2) ** 2)
-        km = 2 * ERDRADIUS_KM * math.asin(math.sqrt(d))
-        if km < best_km:
-            best, best_km = sid, km
-    return best, best_km
-
-
-def dwd_fenster(reihe, jahr, tag, laenge=FEUCHTE_FENSTER):
-    """Die `laenge` Tage VOR (jahr, tag) — `tag` 0-basiert wie
-    `av.day_index` —, juengster zuerst; `None` bei Luecke. Dieselbe
-    Konvention wie `ampel_basis.window_of`."""
-    if reihe is None:
-        return None
-    ende = date(jahr, 1, 1).toordinal() + tag - reihe["first"]
-    if ende - laenge < 0 or ende > len(reihe["werte"]):
-        return None
-    w = reihe["werte"][ende - laenge:ende]
-    if any(v is None for v in w):
-        return None
-    return list(reversed(w))
-
-
-class DwdBestand:
-    """Stationsliste plus faul geladene Reihen."""
-
-    def __init__(self, verzeichnis=DWD_VERZEICHNIS, holen=True):
-        self.verzeichnis = verzeichnis
-        self.holen = holen
-        self.liste = dwd_stationen(verzeichnis, holen)
-        self._reihen = {}
-
-    def naechste(self, lat, lon):
-        return dwd_naechste(lat, lon, self.liste)
-
-    def reihe(self, sid):
-        if sid not in self._reihen:
-            self._reihen[sid] = dwd_reihe(sid, self.verzeichnis, self.holen)
-        return self._reihen[sid]
 
 
 # --- Ziehung: Strata mit Koordinate und Bodenfeuchte -------------------------
@@ -411,22 +285,21 @@ def mit_koordinate(samples, finds):
     return aus
 
 
-def mit_bodenfeuchte(samples, bestand):
-    """Bodenfeuchte-Fenster fuer Fund und Kontrollen; Strata mit Luecke
-    fallen weg. Gibt `(strata, km_liste)` zurueck."""
-    aus, km_liste = [], []
+def mit_bodenfeuchte(samples):
+    """Bodenfeuchte-Fenster fuer Fund und Kontrollen aus `smoist` des
+    gepinnten Datensatzes (ERA5-Land 7–28 cm, 28 Tage, Vortag zuerst) —
+    an der Fundkoordinate, wie die App am Spot im Gitter nachschlaegt.
+    Strata mit Luecke fallen weg; die ersten 26 Werte zaehlen
+    (`feuchte_mittel`)."""
+    aus = []
     for s in samples:
-        sid, km = bestand.naechste(s["lat"], s["lon"])
-        reihe = bestand.reihe(sid)
-        fund = dwd_fenster(reihe, s["year"], s["found_day"])
-        kontrollen = [dwd_fenster(reihe, j, t)
-                      for j, t in zip(s["control_years"], s["control_days"])]
-        if fund is None or any(k is None for k in kontrollen):
+        fund = (s.get("extra") or {}).get("smoist")
+        extras = s.get("extra_controls") or [None] * len(s["controls"])
+        kontrollen = [(e or {}).get("smoist") for e in extras]
+        if any(feuchte_mittel(f) is None for f in [fund] + kontrollen):
             continue
-        km_liste.append(km)
-        aus.append(dict(s, feuchte=fund, feuchte_controls=kontrollen,
-                        station=sid, km=km))
-    return aus, km_liste
+        aus.append(dict(s, feuchte=fund, feuchte_controls=kontrollen))
+    return aus
 
 
 # --- Schwellen: Design B auf P1 ----------------------------------------------
@@ -458,7 +331,7 @@ def schwellen_tage(strata, koeffizienten):
     return aus
 
 
-def messe_schwellen(key, cache_dir, bestand, rounds=2000, seed=42,
+def messe_schwellen(key, cache_dir, rounds=2000, seed=42,
                     min_funde=None, progress=True):
     """Die beiden Schwellen einer Logit-Klasse auf P1 — `{punkt, band,
     n, mitglieder: {art: {...}}}` oder `None`."""
@@ -482,25 +355,22 @@ def messe_schwellen(key, cache_dir, bestand, rounds=2000, seed=42,
         p1 = [s for s in gezogen["samples"] if s["year"] > av.FIT_UNTIL_YEAR]
         p1 = mit_koordinate(p1, finds)
         if braucht_feuchte(klasse["koeffizienten"]):
-            strata, km = mit_bodenfeuchte(p1, bestand)
+            strata = mit_bodenfeuchte(p1)
         else:
-            # Ohne Feuchte zaehlt auch keine Station: alle Strata, wie die
-            # App, die die Klasse dann ueberall rechnet.
+            # Ohne Feuchte: alle Strata, wie die App, die die Klasse dann
+            # ueberall rechnet.
             strata = [dict(s, feuchte=None,
                            feuchte_controls=[None] * len(s["controls"]))
                       for s in p1]
-            km = []
         tage = schwellen_tage(strata, klasse["koeffizienten"])
         n_kontroll = sum(len(v) for v in tage.values())
         mitglieder[art] = {"funde": len(strata), "kontrolltage": n_kontroll,
                            "jahre": len(tage),
-                           "km": sorted(km)[len(km) // 2] if km else None,
+                           "p1": len(p1),
                            "unter_grenze": len(strata) < min_funde}
         if progress:
-            station = ("ohne Station" if mitglieder[art]["km"] is None
-                       else f"Station im Median {mitglieder[art]['km']:.0f} km")
-            print(f"  {art}: {len(strata)} Funde auf P1, {n_kontroll} "
-                  f"Kontrolltage, {station}", file=sys.stderr)
+            print(f"  {art}: {len(strata)} von {len(p1)} Funden auf P1, "
+                  f"{n_kontroll} Kontrolltage", file=sys.stderr)
         if strata:
             arten.append(ad.schwellen_gewichte(tage))
     if not arten:
@@ -537,10 +407,12 @@ def schreibe_bericht(ergebnisse, pfad):
       "Abschnitt 1). Vergleichstage nach Design B (gleicher Ort, gleiches "
       "Datum, anderes Jahr), Quantile 50 % / 80 %, jedes Fundjahr und jede "
       "Art gleich schwer, Jahres-Bootstrap mit 2000 Zügen. Die "
-      "Bodenfeuchte kommt — bei einer Klasse, die sie braucht — von der "
-      "nächsten DWD-Station (`BFGL_AG`), 26-Tage-Mittel, genau so, wie "
-      "die App sie holt; eine Klasse ohne Feuchte (seit #676 Holz & "
-      "Winter) rechnet auf allen Strata, ohne Station. Das Merkmal "
+      "Bodenfeuchte kommt — bei einer Klasse, die sie braucht — seit #676 "
+      "aus ERA5-Land 7–28 cm (m³/m³, `smoist` des gepinnten Datensatzes) "
+      "an der Fundkoordinate, 26-Tage-Mittel; die App schlägt denselben "
+      "Wert im Gitter von `tool/soil_moisture.py` nach. Ein Fund ohne "
+      "lückenloses Fenster fällt weg. Eine Klasse ohne Feuchte (Holz & "
+      "Winter) rechnet auf allen Strata. Das Merkmal "
       "„milder“ (Tagesminima der jüngsten 5 Tage gegen die Tage 6–28, "
       "seit 2026-09-21) kommt aus den Minima des gepinnten Datensatzes an "
       "der Fundkoordinate; die App nimmt dafür die nächste Luftstation — "
@@ -549,17 +421,18 @@ def schreibe_bericht(ergebnisse, pfad):
         klasse = KLASSEN[key]
         w(f"## {klasse['label']} (`{key}`)\n")
         if not braucht_feuchte(klasse["koeffizienten"]):
-            w("Ohne Bodenfeuchte: keine Station, alle Strata auf P1.\n")
-        w("| Art | Funde P1 | Kontrolltage | Fundjahre | Station (Median) |")
+            w("Ohne Bodenfeuchte: alle Strata auf P1.\n")
+        else:
+            w("Bodenfeuchte ERA5-Land 7–28 cm an der Fundkoordinate.\n")
+        w("| Art | Funde P1 | mit Fenster | Kontrolltage | Fundjahre |")
         w("|---|--:|--:|--:|--:|")
         for art, m in e["mitglieder"].items():
             if "fehler" in m:
                 w(f"| {art} | — | — | — | {m['fehler']} |")
                 continue
             warn = " ⚠" if m["unter_grenze"] else ""
-            station = "—" if m["km"] is None else f"{m['km']:.0f} km"
-            w(f"| {art}{warn} | {m['funde']} | {m['kontrolltage']} | {m['jahre']} | "
-              f"{station} |")
+            w(f"| {art}{warn} | {m['p1']} | {m['funde']} | {m['kontrolltage']} | "
+              f"{m['jahre']} |")
         w("")
         w("| Stufe | gepinnt | gemessen | 95 % |")
         w("|---|--:|--:|---|")
@@ -583,7 +456,8 @@ def fixtures():
     """Eingaben und Sollwerte fuer `test/ampel_model_test.dart`."""
     regen = [20.0] + [0.0] * 25
     temp = [8.0] * 20
-    feuchte = [60.0] * 26
+    # Bodenfeuchte in m³/m³ (ERA5-Land, seit #676).
+    feuchte = [0.30] * 26
     # Minima: fuenf milde Naechte nach 23 kalten — milder = +3 °C.
     tmin3 = [2.0] * 5 + [-1.0] * 23
     aus = {}
@@ -591,15 +465,15 @@ def fixtures():
         k = klasse["koeffizienten"]
         aus[key] = {
             "koeffizienten": list(k),
-            "s_regen20_t8_m60_milder3": score(regen, temp, feuchte, k, tmin=tmin3),
-            "s_trocken_t3_m90_milder3": score([0.0] * 26, [3.0] * 20, [90.0] * 26, k,
-                                              tmin=tmin3),
-            "s_gleichmaessig_t13_m40_milder0": score([87 / 26] * 26, [13.0] * 20,
-                                                     [40.0] * 26, k, tmin=[4.0] * 28),
-            "s_regen20_t8_m60_milderMinus2": score(regen, temp, feuchte, k,
-                                                   tmin=[-3.0] * 5 + [-1.0] * 23),
+            "s_regen20_t8_m030_milder3": score(regen, temp, feuchte, k, tmin=tmin3),
+            "s_trocken_t3_m045_milder3": score([0.0] * 26, [3.0] * 20, [0.45] * 26, k,
+                                               tmin=tmin3),
+            "s_gleichmaessig_t13_m020_milder0": score([87 / 26] * 26, [13.0] * 20,
+                                                      [0.20] * 26, k, tmin=[4.0] * 28),
+            "s_regen20_t8_m030_milderMinus2": score(regen, temp, feuchte, k,
+                                                    tmin=[-3.0] * 5 + [-1.0] * 23),
         }
-    aus["merkmale_regen20_t8_m60_milder3"] = list(merkmale(regen, temp, feuchte, tmin3))
+    aus["merkmale_regen20_t8_m030_milder3"] = list(merkmale(regen, temp, feuchte, tmin3))
     return aus
 
 
@@ -678,35 +552,6 @@ def self_test():
     for klasse in KLASSEN.values():
         assert len(klasse["koeffizienten"]) == len(SPALTEN)
 
-    # DWD-Fenster: Wert = Index, Tag 40 -> die 3 Tage davor 39, 38, 37.
-    first = date(2020, 1, 1).toordinal()
-    reihe = {"first": first, "werte": [float(i) for i in range(400)]}
-    assert dwd_fenster(reihe, 2020, 40, 3) == [39.0, 38.0, 37.0]
-    assert dwd_fenster(reihe, 2020, 2, 3) is None
-    assert dwd_fenster(reihe, 2021, 100, 3) is None
-    loch = {"first": first, "werte": reihe["werte"][:38] + [None] + reihe["werte"][39:]}
-    assert dwd_fenster(loch, 2020, 40, 3) is None
-    assert dwd_fenster(None, 2020, 40, 3) is None
-    # Naechste Station: reine Distanz.
-    st = [(1, 50.0, 8.0, 100.0, "A"), (2, 52.0, 10.0, 100.0, "B")]
-    sid, km = dwd_naechste(50.1, 8.1, st)
-    assert sid == 1 and 10 < km < 15, (sid, km)
-    assert dwd_naechste(51.9, 9.9, st)[0] == 2
-    # Datei lesen: Fehlwert und Datumsluecke.
-    import tempfile
-    tmp = tempfile.mkdtemp()
-    os.makedirs(os.path.join(tmp, "historical"))
-    with gzip.open(os.path.join(tmp, "historical",
-                                "derived_germany_soil_daily_historical_v2_7.txt.gz"),
-                   "wt", encoding="latin-1") as fh:
-        fh.write("Stationsindex;Datum;TS05;BFGS_AG;BFGL_AG;eor\n"
-                 "  7;20200101;  1.0;  70;   80;eor\n"
-                 "  7;20200102;  1.0;  70; -999;eor\n"
-                 "  7;20200104;  1.0;  70;   82;eor\n")
-    r = dwd_reihe(7, tmp, holen=False)
-    assert r["first"] == first and r["werte"] == [80.0, None, None, 82.0], r
-    assert dwd_reihe(8, tmp, holen=False) is None
-
     # Koordinaten-Zuordnung: uebersprungener Fund verschiebt nichts.
     finds = [{"year": 2010, "month": 7, "day": 19, "lat": 50.1, "lon": 8.1},
              {"year": 2010, "month": 8, "day": 8, "lat": 51.1, "lon": 9.1},
@@ -718,23 +563,20 @@ def self_test():
     assert [s["lat"] for s in zu] == [50.1, 52.1], zu
     assert mit_koordinate([{"year": 2011, "found_day": 5}], finds) == []
 
-    # Bodenfeuchte an Strata: Kontrolle i bekommt (control_years[i],
-    # control_days[i]); eine Luecke wirft das Stratum heraus.
-    class _B:
-        liste = st
-
-        def naechste(self, lat, lon):
-            return 1, 3.0
-
-        def reihe(self, sid):
-            return reihe
-    s = {"year": 2020, "found_day": 40, "lat": 50, "lon": 8,
-         "controls": [("r", "t"), ("r", "t")],
-         "control_years": [2020, 2020], "control_days": [50, 1]}
-    voll, km = mit_bodenfeuchte([dict(s, control_days=[50, 60])], _B())
-    assert len(voll) == 1 and voll[0]["feuchte"][:2] == [39.0, 38.0]
-    assert voll[0]["feuchte_controls"][1][0] == 59.0
-    assert mit_bodenfeuchte([s], _B())[0] == []   # Tag 1 hat keine 26 Tage davor
+    # Bodenfeuchte an Strata: `smoist` aus Fund und Kontrollen; eine
+    # Luecke in irgendeinem Fenster wirft das Stratum heraus, Werte nach
+    # dem 26. Tag zaehlen nicht.
+    s = {"year": 2020, "controls": [("r", "t"), ("r", "t")],
+         "extra": {"smoist": [0.3] * 26 + [None, None]},
+         "extra_controls": [{"smoist": [0.2] * 28}, {"smoist": [0.25] * 28}]}
+    voll = mit_bodenfeuchte([s])
+    assert len(voll) == 1 and abs(feuchte_mittel(voll[0]["feuchte"]) - 0.3) < 1e-12
+    assert [round(feuchte_mittel(f), 12) for f in voll[0]["feuchte_controls"]] == [0.2, 0.25]
+    loch = dict(s, extra_controls=[{"smoist": [0.2] * 10 + [None] + [0.2] * 17},
+                                   {"smoist": [0.25] * 28}])
+    assert mit_bodenfeuchte([loch]) == []
+    assert mit_bodenfeuchte([dict(s, extra_controls=None)]) == []
+    assert mit_bodenfeuchte([dict(s, extra={})]) == []
 
     # **Der Spiegel in Dart, Zahl fuer Zahl** — wie `ampel_validate
     # --self-test` fuer die Glockenklassen: Konstanten, Schwellen und
@@ -790,7 +632,6 @@ def main():
     # die oeffentliche API, bis ins Stundenlimit.
     parser.add_argument("--no-dedupe", action="store_true",
                         help="Doppelmeldungen behalten (nicht der Labor-Stand)")
-    parser.add_argument("--dwd-dir", default=DWD_VERZEICHNIS)
     parser.add_argument("--rounds", type=int, default=2000)
     parser.add_argument("--bericht", default="docs/pilzampel-logit-schwellen.md")
     args = parser.parse_args()
@@ -806,11 +647,10 @@ def main():
         av.DEDUPE = not args.no_dedupe
         if args.api:
             av.OPEN_METEO = args.api.rstrip("/")
-        bestand = DwdBestand(args.dwd_dir)
         ergebnisse, befunde = {}, []
         for key in ([args.klasse] if args.klasse else KLASSEN):
             print(f"{KLASSEN[key]['label']} ({key})", file=sys.stderr)
-            e = messe_schwellen(key, args.cache_dir, bestand, rounds=args.rounds)
+            e = messe_schwellen(key, args.cache_dir, rounds=args.rounds)
             if e is None:
                 print("  keine Kontrolltage", file=sys.stderr)
                 continue

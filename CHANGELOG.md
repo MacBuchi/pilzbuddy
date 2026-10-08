@@ -15,19 +15,30 @@ https://github.com/MacBuchi/pilzbuddy/releases
   den alten Regionskarten. Sie nennt jetzt die Kartenbereiche unter
   „Ebenen", die auch in der Web-App funktionieren.
 
-## Austernseitling & Co. jetzt auch in Österreich und der Schweiz
+## Pilzwetter für Holz- und Herbstpilze jetzt auch in Österreich und der Schweiz
 
-*8. Oktober 2026 · Version 1.223.0*
+*7. und 8. Oktober 2026 · Versionen 1.222.7, 1.223.0 und 1.224.0*
 
-- Das Pilzwetter für Austernseitling, Judasohr, Krause Glucke,
-  Schwefelporling und die anderen Holz- und Winterpilze braucht keine
-  Bodenfeuchte-Messstation mehr. Bisher blieb die Gruppe in Österreich,
-  der Schweiz und Südtirol grau, weil es solche Stationen nur in
-  Deutschland gibt. Jetzt rechnet sie überall, wo es Regen und
-  Temperatur gibt.
-- Eine Auswertung über viele tausend Fundmeldungen hat gezeigt, dass
-  die Bodenfeuchte für diese Pilze keinen Unterschied macht: In
-  Deutschland ist die Vorhersage ohne sie genauso gut wie mit ihr.
+- Das Pilzwetter für **Austernseitling & Co.** (Austernseitling,
+  Judasohr, Krause Glucke, Schwefelporling und die anderen Holz- und
+  Winterpilze) und für **Herbsttrompete & Co.** (Herbsttrompete,
+  Semmelstoppelpilz, Trompetenpfifferling) rechnet jetzt in ganz
+  Deutschland, Österreich, der Schweiz und Südtirol. Bisher blieben
+  beide Gruppen außerhalb Deutschlands oft grau, weil sie eine
+  Messstation für die Bodenfeuchte brauchten, und die gibt es nur in
+  Deutschland.
+- **Austernseitling & Co.** braucht gar keine Bodenfeuchte mehr: Eine
+  Auswertung über viele tausend Fundmeldungen hat gezeigt, dass sie für
+  diese Pilze keinen Unterschied macht.
+- **Herbsttrompete & Co.** nimmt die Bodenfeuchte jetzt aus einem
+  europaweiten Rechenmodell (ERA5-Land von Copernicus) statt von den
+  Stationen. In Deutschland sagt die Vorhersage damit dasselbe wie
+  vorher, in Österreich und der Schweiz trifft sie die Fundtage besser
+  als gar keine.
+- Im Spot-Blatt steht die Bodenfeuchte jetzt in Volumenprozent und aus
+  derselben Quelle, mit der das Pilzwetter rechnet. Die Werte laufen
+  rund fünf Tage hinterher; bis dahin rechnet die App mit dem letzten
+  Stand weiter.
 
 ## Pilzwetter auf der Karte schneller
 
@@ -44,20 +55,6 @@ https://github.com/MacBuchi/pilzbuddy/releases
   100-Meter-Stufen statt in 20-Meter-Stufen. Ganz selten leuchtet
   dadurch ein einzelner Fleck anders als die Ablesung genau an dieser
   Stelle; beim Hineinzoomen gilt wieder die genaue Höhe.
-
-## Herbsttrompete & Co. nur noch in Deutschland
-
-*7. Oktober 2026 · Version 1.222.7*
-
-- Das Pilzwetter für **Herbsttrompete & Co.** ist nur an Funden in
-  Deutschland geprüft. Nahe der Grenze rechnete es trotzdem mit einer
-  deutschen Messstelle für die Bodenfeuchte, die bis zu 100 km entfernt
-  stehen durfte — in den Vogesen etwa mit einer Station jenseits des
-  Rheintals.
-- Jetzt muss diese Messstelle höchstens **30 km** entfernt sein. In
-  Deutschland ändert sich damit fast nichts; weiter im Ausland bleibt
-  die Gruppe grau und sagt warum. **Austernseitling & Co.** rechnet wie
-  bisher, diese Gruppe ist auch in Österreich und der Schweiz geprüft.
 
 ## Pilzwetter widerspricht sich nicht mehr beim Regen
 
