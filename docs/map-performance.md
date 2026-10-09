@@ -1047,3 +1047,53 @@ geplante Hebel (Gitterspalten je Wabenspalte merken) hätte höchstens
 Messbedingungen wie oben; Streuung zwischen Kaltstarts rund 0,1 s. Das
 Mess-Build ist nicht eingecheckt (Zeiten je Phase per `print`, jedes
 Bild doppelt).
+
+## Nachtrag 2026-10-09: Die PWA im Browser, und was `--wasm` brachte (#689, #690)
+
+Erste Messung der Web-Karte HINTER der Anmeldung. Aufbau: Chromium
+(Playwright) in der Cloud-Sitzung, Handyformat 412 × 860, DPR 2, Touch,
+Testkonto, Start im Schwarzwald. Fünf Touch-Wischer à ~170 px im
+Abstand von 2,5 s. Gezählt: Long Tasks (`PerformanceObserver`) und
+Bildabstände über `requestAnimationFrame`. Die Ebenen (Waldtypen +
+Höhenlinien) werden VOR dem Laden über `flutter.forest_layer_enabled` /
+`flutter.contour_layer_enabled` gesetzt; über die Oberfläche geschaltet
+verschiebt sich die Knopfleiste, und Klicks treffen den falschen Knopf.
+„4×" ist `Emulation.setCPUThrottlingRate` (grob ein Mittelklasse-Handy).
+Grafik läuft in SwiftShader (Software-GL) — WebGL-Anteile sind dadurch
+überzeichnet, CanvasKit/Skia selbst ist auf jedem Gerät CPU-Arbeit.
+
+Vorher: Live-Seite 1.224.1, dart2js + CanvasKit. Nachher: Vorschau mit
+`--wasm` (dart2wasm + skwasm, einfädig — Pages schickt kein COOP/COEP),
+`main.dart.wasm` im Lauf nachgewiesen. Beide mit warmem Kachel-Cache;
+der erste Lauf mit kaltem Cache ist nicht vergleichbar (1× ohne Ebenen:
+34 s blockiert) und fehlt deshalb.
+
+| Lauf | Phase | blockiert vorher | nachher | längster Task vorher | nachher |
+|---|---|--:|--:|--:|--:|
+| 1×, ohne Ebenen | 5 Wischer | 16,6–16,9 s | **13,2–13,4 s** | 1,6–1,7 s | **0,17–0,18 s** |
+| 1×, Wald + Höhenlinien | Start | 12–14 s | 8,2–8,7 s | 2,8–3,6 s | 3,0–3,2 s |
+| 1×, Wald + Höhenlinien | 5 Wischer | 10,6–11,0 s | 9,3 s | 1,9 s | 1,8 s |
+| 4×, ohne Ebenen | Start | 44 s | 29 s | 5,0 s | 1,5 s |
+| 4×, ohne Ebenen | 5 Wischer | 76 s | **62 s** | 2,1 s | **0,7 s** |
+| 4×, Wald + Höhenlinien | Start | 65 s | 48 s | **14,1 s** | **14,2 s** |
+| 4×, Wald + Höhenlinien | 5 Wischer | 53 s | 40 s | 6,7 s | 6,8 s |
+
+Das CPU-Profil der Wischer (vorher, 1×, ohne Ebenen) erklärt die Form:
+`canvaskit.wasm` 9,9 s, `main.dart.js` 3,8 s, GC 2,4 s, WebGL ~2,2 s.
+Mit Ebenen liegt Dart vorn (5,2 s gegen 4,7 s).
+
+Was daraus folgt:
+
+- **`--wasm` nimmt die langen Blöcke aus dem Schwenken** — der längste
+  Task fällt um eine Größenordnung, die Summe nur um ~20 %. Das passt
+  zum Profil: Schneller wird der Dart-Teil, gezeichnet wird weiter mit
+  Skia auf dem UI-Thread. Die Summe beim Schwenken ist ein Fall für
+  MapLibre GL JS im Web (Hebel C in #689).
+- **Der Ebenen-Hänger beim Start bleibt gleich (14 s bei 4×).** Das ist
+  die Raster-Arbeit von Wald und Höhenlinien, die im Browser mangels
+  Isolate auf dem Hauptthread läuft (`MapWorker` → `_ComputeBackend`).
+  Ein schnellerer Compiler ändert daran nichts; das ist Hebel B
+  (Web-Worker-Backend).
+- **Streuung:** Der Start schwankt zwischen Läufen um den Faktor 2–3
+  (1× ohne Ebenen nachher: 4,7 und 13,4 s), die Wischer kaum. Vergleiche
+  nur Wischer gegen Wischer und jeweils mehrere Läufe.
