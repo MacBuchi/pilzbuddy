@@ -15,6 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/bounded_compute.dart';
 import '../../core/map_worker.dart';
 import '../../core/settings.dart';
+import '../../core/gunzip.dart';
 import 'forest_data_providers.dart' show mapIdleBoundsProvider;
 import 'forest_fill_window.dart';
 import 'gbif_fill.dart';
@@ -53,6 +54,7 @@ Future<GbifFinds?> _loadFromAssets() async {
     final data = await rootBundle.load('assets/gbif/gbif_finds.bin.gz');
     final bytes =
         data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+    await preInflate(bytes); // im Browser nativ ausgepackt (#689)
     return await boundedCompute(_decode, (manifest: manifest, bytes: bytes));
   } catch (_) {
     // Fehlendes/kaputtes Asset ⇒ keine Ebene. Begründung oben.

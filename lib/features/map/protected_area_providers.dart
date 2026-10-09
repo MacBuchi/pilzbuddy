@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/bounded_compute.dart';
+import '../../core/gunzip.dart';
 
 import 'protected_areas.dart';
 
@@ -28,6 +29,7 @@ Future<ProtectedAreas?> _loadFromAssets() async {
         await rootBundle.load('assets/protected/protected_grid.bin.gz');
     final bytes =
         data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+    await preInflate(bytes); // im Browser nativ ausgepackt (#689)
     return await boundedCompute(_decode, (manifest: manifest, bytes: bytes));
   } catch (_) {
     // Fehlendes/kaputtes Asset ⇒ keine Schutzgebiete. Begründung oben.

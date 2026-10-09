@@ -63,11 +63,13 @@ jobs:
       # (genau so in #383 passiert). Es geht nur für assetfreien Code:
       # Der Chrome-Runner liefert keine Assets, ein `rootBundle.load`
       # endet dort im Timeout. Hier prüfen sie Zwischenspeicher und
-      # Ausgangskorb gegen das echte IndexedDB des Browsers.
+      # Ausgangskorb gegen das echte IndexedDB des Browsers, dazu das
+      # native Entpacken über `DecompressionStream` (#689).
       - name: Web-Test auf dart2js
         run: |
           flutter test --platform chrome \
-            test/spot_cache_idb_test.dart test/outbox_idb_test.dart
+            test/spot_cache_idb_test.dart test/outbox_idb_test.dart \
+            test/gunzip_stream_web_test.dart
       # Jedes mitgelieferte Artbild braucht seine große Fassung auf dem
       # Branch species-photos (#537). Mit #541 kamen 34 Bilder ohne sie,
       # und niemand merkte es: Die Vergrößerung zeigt dann still das
