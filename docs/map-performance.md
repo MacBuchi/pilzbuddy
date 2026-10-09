@@ -1100,3 +1100,50 @@ Was daraus folgt:
 - **Streuung:** Der Start schwankt zwischen Läufen um den Faktor 2–3
   (1× ohne Ebenen nachher: 4,7 und 13,4 s), die Wischer kaum. Vergleiche
   nur Wischer gegen Wischer und jeweils mehrere Läufe.
+
+## Nachtrag 2026-10-09: B1 — der Browser packt aus (#689, #693)
+
+Woraus der Ebenen-Hänger beim Start besteht, zeigt ein CPU-Profil
+(`Profiler` über CDP, ab Navigation 40 s, Live-Seite 1×, mit gegen ohne
+Wald + Höhenlinien). Die Ebenen bringen rund **12 s Dart** mit; die
+heißen Funktionen gegen `main.dart.js` zurückgelesen (die minifizierten
+Namen tragen die Fehlertexte der Dekodierer):
+
+| Posten | Zeit |
+|---|--:|
+| `package:archive` entpackt (Waldgitter 3,1 s, Höhe 2,4 s, je samt Lesen) | ~5,1 s |
+| Waldfläche: Waben malen | ~1,7 s |
+| Waldfläche: PNG packen (`package:archive`) | ~1,4 s |
+
+Daraus B1, ohne Worker: Die Asset-Lader geben die gzip-Bytes vor dem
+`boundedCompute` an `DecompressionStream` (`preInflate`), und die
+Overlay-PNGs schreibt der Browser ungepackt (Stored-Blöcke). Gemessen
+auf der Vorschau 1.224.3 (Wasm) gegen die Vorschau 1.224.1, gleicher
+Aufbau wie oben; je ein Live-Lauf lief parallel, wie bei der
+Vorher-Messung:
+
+| Lauf | Größe | vorher (`--wasm`) | B1 |
+|---|---|--:|--:|
+| 1×, Start mit Ebenen | Dart im Profil | 8,4 s | 5,1–6,7 s |
+| 1×, Start mit Ebenen | Long Tasks > 300 ms, Summe | 16,6 s | 6,0–9,0 s |
+| 1×, Start mit Ebenen | längster Task | 4,1 s | **2,1–2,2 s** |
+| 4×, Start mit Ebenen | blockiert | 48 s | 34–38 s |
+| 4×, Start mit Ebenen | längster Task | **14,2 s** | **3,4–5,7 s** |
+| 4×, 5 Wischer mit Ebenen | längster Task | 6,8 s | 4,4–4,7 s |
+
+Zum Vergleich ohne Ebenen (1×): Dart 2,9 s. Was die Ebenen beim Start
+noch kosten, sind damit rund 2–4 s statt 5,5 s — Waben malen,
+Höhenlinien, Schutzgebiets-Schraffur, alles weiter auf dem Hauptthread.
+
+Was daraus folgt:
+
+- **Der 14-s-Block ist weg**, der längste Hänger gedrosselt jetzt
+  3–6 s. Entpacken war der größte Posten und kostete im Browser keinen
+  Worker, nur die richtige API.
+- **Nicht erfasst:** Regen- und Ampel-Stapel packen weiter in Dart aus,
+  ihre Tagesgitter liegen gepackt in `RainStackData` und werden erst in
+  der Rechnung geöffnet. Die Ampel-Vorschau mit Wald ist deshalb nicht
+  schneller geworden; gemessen ist sie hier nicht.
+- **Der Rest ist Rechenarbeit** (Waben, Linien) — der Fall für B2, den
+  echten Web Worker. Ob er sich lohnt, entscheidet der Abstand zu
+  „ohne Ebenen": bei 1× rund 2–4 s Dart.
