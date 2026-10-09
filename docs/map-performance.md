@@ -1072,11 +1072,14 @@ der erste Lauf mit kaltem Cache ist nicht vergleichbar (1× ohne Ebenen:
 |---|---|--:|--:|--:|--:|
 | 1×, ohne Ebenen | 5 Wischer | 16,6–16,9 s | **13,2–13,4 s** | 1,6–1,7 s | **0,17–0,18 s** |
 | 1×, Wald + Höhenlinien | Start | 12–14 s | 8,2–8,7 s | 2,8–3,6 s | 3,0–3,2 s |
-| 1×, Wald + Höhenlinien | 5 Wischer | 10,6–11,0 s | 9,3 s | 1,9 s | 1,8 s |
+| 1×, Wald + Höhenlinien | 5 Wischer | 10,6–11,0 s | 9,3 s ¹ | 1,9 s | 1,8 s |
 | 4×, ohne Ebenen | Start | 44 s | 29 s | 5,0 s | 1,5 s |
 | 4×, ohne Ebenen | 5 Wischer | 76 s | **62 s** | 2,1 s | **0,7 s** |
 | 4×, Wald + Höhenlinien | Start | 65 s | 48 s | **14,1 s** | **14,2 s** |
 | 4×, Wald + Höhenlinien | 5 Wischer | 53 s | 40 s | 6,7 s | 6,8 s |
+
+¹ Ein zweiter Lauf direkt nach dem Kaltstart-Lauf kam auf 21,5 s;
+der Cache war da noch nicht für alle Ebenen-Kacheln warm.
 
 Das CPU-Profil der Wischer (vorher, 1×, ohne Ebenen) erklärt die Form:
 `canvaskit.wasm` 9,9 s, `main.dart.js` 3,8 s, GC 2,4 s, WebGL ~2,2 s.
