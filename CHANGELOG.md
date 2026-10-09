@@ -21,9 +21,10 @@ https://github.com/MacBuchi/pilzbuddy/releases
   Für sie gilt dasselbe wie für Landschaftsschutzgebiete: Dort ist
   Sammeln in der Regel erlaubt, maßgeblich sind die Schilder vor Ort.
   Gewarnt wird weiter in der Kernzone des Nationalparks.
-- In Südtirol gibt es noch keine Schutzgebietsdaten. Kein Hinweis heißt
-  dort nicht, dass Sammeln erlaubt ist; es gelten eigene Regeln
-  (Sammeltage, Mengen).
+- In Südtirol gibt es noch keine Schutzgebietsdaten. Damit das nicht
+  wie „Sammeln erlaubt" aussieht, steht beim Eintragen dort jetzt ein
+  Satz: Es gelten eigene Regeln (etwa Sammeltage und Mengen), und
+  Schutzgebiete sind noch nicht erfasst.
 
 ## Kurzanleitung zeigt den neuen Weg für Karten ohne Empfang
 

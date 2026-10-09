@@ -157,7 +157,10 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
     und LI; die Nachbarländer im Raster sind leer. Deshalb steht nirgends
     „kein Schutzgebiet". Südtirol wartet auf die Auskunft der Provinz
     (#623 Teil B) — die Sammelregeln dort sind andere, und geraten wird
-    nicht.
+    nicht. Bis dahin steht beim Eintragen dort ein Satz, der sagt, WAS
+    fehlt (`south_tyrol.dart`, Provinzumriss aus OSM, ~1 km; Betreiber
+    2026-10-09). Kommen die Daten, fällt der Satz für Stellen MIT Gebiet
+    von selbst weg — für die übrigen ist dann neu zu entscheiden.
   - **In Tirol amtliche Daten statt OSM** (#623, seit 1.224.2, Betreiber
     2026-10-08: „ersetzen"): Innerhalb der Landesgrenze verliert OSM
     jede Wabe, deren Mittelpunkt dort liegt; es zählen nur die 92
