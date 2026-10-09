@@ -90,7 +90,7 @@ class _ForegroundServiceKeepAlive implements DownloadKeepAlive {
       // deshalb ist ein abgelehnter Dialog kein Grund abzubrechen.
       await FlutterForegroundTask.requestNotificationPermission();
       // Seit flutter_foreground_task 9 WIRFT `startService` nicht mehr,
-      // ein Fehlschlag kommt nur im Ergebnis — bis 1.224.3 ging er hier
+      // ein Fehlschlag kommt nur im Ergebnis — bis 1.224.4 ging er hier
       // still unter (gefunden in TrailBuddy #292).
       final result = await FlutterForegroundTask.startService(
         serviceId: _serviceId,

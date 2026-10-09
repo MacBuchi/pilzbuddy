@@ -2,7 +2,8 @@ name: Protected Areas
 
 # Builds the protected-area grid (#580) from OpenStreetMap: the places in
 # Germany, Austria and Switzerland where picking mushrooms is forbidden
-# (nature reserves, national parks, core zones). See
+# (nature reserves, national parks, core zones) — inside Tirol from the
+# Land's official data instead (#623). See
 # tool/protected_areas.py for the rule and the byte contract.
 #
 # Runs in CI rather than locally because of the download: 6.2 GB of
@@ -33,7 +34,9 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  # write only for the hand-started run on a feature branch, which
+  # commits the grid there (below); PR and schedule runs never push.
+  contents: write
 
 jobs:
   build:
@@ -67,6 +70,12 @@ jobs:
                   build/osm/austria-latest.osm.pbf \
                   build/osm/switzerland-latest.osm.pbf
 
+      # Tirol from the Land's own data (#623, CC BY 4.0): inside the
+      # Land's boundary these replace OSM. Fetched after the extract,
+      # which also cut out the boundary.
+      - name: Fetch the official protected areas
+        run: python3 tool/protected_areas.py fetch-official --out build/protected
+
       - name: Report what warns and what stays silent
         run: |
           {
@@ -74,12 +83,37 @@ jobs:
             echo '```'
             python3 tool/protected_areas.py report --out build/protected
             echo '```'
-          } | tee -a "$GITHUB_STEP_SUMMARY"
+          } | tee -a "$GITHUB_STEP_SUMMARY" build/protected/report.txt
 
       - name: Build the grid
         run: |
+          # --previous: a large area that (nearly) vanished against the
+          # committed grid fails the run — a half-edited OSM relation
+          # dropped the Bayerischer Wald national park once (#623).
+          set -o pipefail
           python3 tool/protected_areas.py build --out build/protected \
-            --assets build/protected/assets | tee -a "$GITHUB_STEP_SUMMARY"
+            --assets build/protected/assets --previous assets/protected \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # Same pattern as forest-species-ch.yml: artifacts cannot be fetched
+      # from a cloud session, so a hand-started run on a feature branch
+      # commits the grid there; the classification counts ride in the
+      # commit message. main is protected and an asset change needs a
+      # reviewed PR with a version bump, so main and PR runs only upload.
+      - name: Commit the grid to the feature branch
+        if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'
+        run: |
+          cp build/protected/assets/protected_grid.bin.gz build/protected/assets/protected_manifest.json assets/protected/
+          git add assets/protected/protected_grid.bin.gz assets/protected/protected_manifest.json
+          if git diff --cached --quiet; then
+            echo "Grid unchanged." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          { echo "chore(protected): rebuild the protected-area grid"; echo; grep -E '^(AMTLICH|WARNT)' build/protected/report.txt || true; } > "$RUNNER_TEMP/msg.txt"
+          git commit -q -F "$RUNNER_TEMP/msg.txt"
+          git push
 
       - name: Upload the grid as an artifact
         uses: actions/upload-artifact@v7

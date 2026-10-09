@@ -9,11 +9,30 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Fehlstart im Hintergrund wird gemeldet
 
-*9. Oktober 2026 · Version 1.224.4*
+*9. Oktober 2026 · Version 1.224.5*
 
 - Startet der Hintergrunddienst für Karten-Downloads oder die Pilztour
   nicht, steht das jetzt im Fehlerbericht. Bisher ging so ein Fehlstart
   unbemerkt unter. Sichtbar ändert sich nichts.
+
+## Schutzgebiete in Tirol nach den amtlichen Grenzen
+
+*9. Oktober 2026 · Version 1.224.4*
+
+- In Tirol kommen die Schutzgebiete jetzt aus den Daten des Landes statt
+  aus OpenStreetMap. Dort fehlte vieles: fast das ganze
+  Naturschutzgebiet Karwendel, der Tiroler Lech, der Tschirgant und die
+  Sonderschutzgebiete an den Innauen. Sie sind jetzt schraffiert, und
+  beim Eintragen steht der Hinweis.
+- Umgekehrt warnt die App nicht mehr in der Außenzone des Nationalparks
+  Hohe Tauern und in den Ruhegebieten der Stubaier und Ötztaler Alpen.
+  Für sie gilt dasselbe wie für Landschaftsschutzgebiete: Dort ist
+  Sammeln in der Regel erlaubt, maßgeblich sind die Schilder vor Ort.
+  Gewarnt wird weiter in der Kernzone des Nationalparks.
+- In Südtirol gibt es noch keine Schutzgebietsdaten. Damit das nicht
+  wie „Sammeln erlaubt" aussieht, steht beim Eintragen dort jetzt ein
+  Satz: Es gelten eigene Regeln (etwa Sammeltage und Mengen), und
+  Schutzgebiete sind noch nicht erfasst.
 
 ## Web-App: Wald und Höhenlinien bremsen den Start weniger
 

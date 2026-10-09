@@ -45,12 +45,30 @@ KLEINERE — sein Name ist der genauere („Wutachschlucht" statt
 „Naturpark Südschwarzwald" gäbe es ohnehin nicht, aber „Kernzone" statt
 „Nationalpark").
 
-Quelle: Geofabrik-Auszüge (OSM, ODbL 1.0). Die Nennung gehört in die App.
+**Tirol aus amtlichen Daten** (#623, Betreiber 2026-10-08): Innerhalb
+der Landesgrenze zählen NUR die Schutzgebiete des Landes Tirol (TNSchG
+2005, CC BY 4.0, „Land Tirol – data.tirol.gv.at"); OSM wird dort
+ausgeblendet, damit nie zwei Quellen über dieselbe Fläche streiten. Der
+Abgleich am 2026-10-08 gegen das reine OSM-Gitter: 77 % der amtlichen
+Naturschutzgebietsfläche fehlten (fast das ganze NSG Karwendel, Tiroler
+Lech, Tschirgant, alle drei Sonderschutzgebiete), dafür warnte es in der
+ganzen Außenzone des Nationalparks Hohe Tauern und in großen Teilen der
+Ruhegebiete Stubaier und Ötztaler Alpen. Warnen: Naturschutz- und
+Sonderschutzgebiete, Kernzone des Nationalparks. Still:
+Landschaftsschutz- und Ruhegebiete, geschützte Landschaftsteile, die
+Außenzone (siehe [classify_tirol]). „In Tirol" heißt: Mittelpunkt der
+Wabe in der Landesgrenze aus OSM (`admin_level=4`, aus demselben
+Österreich-Auszug). Weitere Länder folgen demselben Muster
+(`OFFICIAL`).
+
+Quelle: Geofabrik-Auszüge (OSM, ODbL 1.0), in Tirol das Land Tirol
+(CC BY 4.0). Beide Nennungen gehören in die App.
 
 Nutzung:
   python3 tool/protected_areas.py --self-test
   python3 tool/protected_areas.py extract --pbf de.pbf at.pbf ch.pbf \\
       --out build/protected
+  python3 tool/protected_areas.py fetch-official --out build/protected
   python3 tool/protected_areas.py report --out build/protected
   python3 tool/protected_areas.py build --out build/protected \\
       --assets assets/protected
@@ -68,6 +86,9 @@ import re
 import struct
 import subprocess
 import sys
+import time
+import urllib.parse
+import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from forest_grid import BOUNDS, CELL_FACTOR, WARP_HEIGHT, WARP_WIDTH, hex_metrics  # noqa: E402
@@ -259,6 +280,136 @@ def classify(tags):
 
 
 # ---------------------------------------------------------------------------
+# Amtliche Daten (#623) — ersetzen OSM innerhalb ihres Landes
+# ---------------------------------------------------------------------------
+
+SONDERSCHUTZGEBIET = "Sonderschutzgebiet"
+
+# Je Land: woher die Flächen kommen, aus welchem Geofabrik-Auszug die
+# Landesgrenze stammt und wie sie dort heißt. Der Schlüssel steht in den
+# Dateinamen und in `extracts` des Manifests.
+OFFICIAL = {
+    "tirol": {
+        "url": "https://services3.arcgis.com/hG7UfxX49PQ8XkXh/arcgis/rest/"
+               "services/Schutzgebiete_Umwelt/FeatureServer/0/query",
+        "extract": "austria",
+        "boundary": "Tirol",
+        "licence": "CC BY 4.0",
+        "attribution": "Land Tirol – data.tirol.gv.at",
+    },
+}
+
+
+def classify_tirol(objekt):
+    """Die Art eines Tiroler Gebiets nach dem Feld `OBJEKT` — sonst None.
+
+    Betreiber, 2026-10-08 (#623): Naturschutzgebiete (NSG) und
+    Sonderschutzgebiete (SSG, dort ist jeder Eingriff verboten) warnen,
+    ebenso die Kernzone des Nationalparks Hohe Tauern (NPKZ). Still
+    bleiben Landschaftsschutzgebiete (LSG), Ruhegebiete (RG),
+    geschützte Landschaftsteile (GLT) und die Außenzone (NPAZ) — dieselbe
+    Regel wie bei OSM in #580. Ein unbekanntes Kürzel schweigt; [report]
+    zählt es, damit es auffällt."""
+    return {"NSG": NATURE_RESERVE, "SSG": NATURE_RESERVE,
+            "NPKZ": CORE_ZONE}.get((objekt or "").strip().upper())
+
+
+def tirol_name(objekt, name):
+    """Der Name, den die App zeigt. Das Land führt ihn ohne Art
+    („Karwendel"); die App setzt „Naturschutzgebiet" davor. Ein
+    Sonderschutzgebiet ist aber keins, deshalb trägt es seine Art selbst
+    im Namen (`label` in `protected_areas.dart` erkennt das Wort)."""
+    name = (name or "").strip()
+    objekt = (objekt or "").strip().upper()
+    if objekt == "SSG" and SONDERSCHUTZGEBIET.lower() not in name.lower():
+        return f"{SONDERSCHUTZGEBIET} {name}".strip()
+    if objekt == "NPKZ" and "nationalpark" not in name.lower():
+        return f"Nationalpark {name}".strip()
+    return name
+
+
+def fetch_official(out_dir):
+    """Holt die amtlichen Flächen je Land (ArcGIS-Feature-Dienst, WGS84,
+    GeoJSON) nach `<land>.official.geojson` und trägt den Abrufzeitpunkt
+    in `stamps.json` ein. Bricht ab, wenn der Dienst weniger liefert als
+    er zählt — ein halbes Land sähe in der App wie „kein Schutzgebiet"
+    aus."""
+    os.makedirs(out_dir, exist_ok=True)
+    stamps_path = os.path.join(out_dir, "stamps.json")
+    stamps = json.load(open(stamps_path)) if os.path.exists(stamps_path) else {}
+    for key, cfg in OFFICIAL.items():
+        def get(params):
+            q = urllib.parse.urlencode({"where": "1=1", **params})
+            with urllib.request.urlopen(f"{cfg['url']}?{q}", timeout=300) as r:
+                return json.load(r)
+        expected = get({"returnCountOnly": "true", "f": "json"})["count"]
+        feats = []
+        while True:
+            page = get({"outFields": "OBJEKT,NAME", "outSR": "4326",
+                        "f": "geojson", "resultOffset": len(feats),
+                        "resultRecordCount": 500})
+            feats += page.get("features") or []
+            more = (page.get("exceededTransferLimit")
+                    or (page.get("properties") or {}).get(
+                        "exceededTransferLimit"))
+            if not more or not page.get("features"):
+                break
+        if len(feats) != expected or not feats:
+            sys.exit(f"{key}: {len(feats)} Flächen geholt, der Dienst "
+                     f"zählt {expected}")
+        json.dump({"type": "FeatureCollection", "features": feats},
+                  open(os.path.join(out_dir, f"{key}.official.geojson"), "w"))
+        stamps[key] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        print(f"{key}: {len(feats)} Flächen")
+    json.dump(stamps, open(stamps_path, "w"), indent=1)
+
+
+def official_features(out_dir):
+    """(land, feature) aus den geholten amtlichen Dateien."""
+    for key in OFFICIAL:
+        path = os.path.join(out_dir, f"{key}.official.geojson")
+        if os.path.exists(path):
+            for f in json.load(open(path))["features"]:
+                yield key, f
+
+
+def boundary_rings(out_dir, key, lat_c):
+    """Die Landesgrenze als Ringe im (u, v)-Raum — alle Teilflächen
+    (Osttirol hängt nicht am Rest)."""
+    path = os.path.join(out_dir, f"{key}.boundary.geojsonseq")
+    if not os.path.exists(path):
+        sys.exit(f"{key}: amtliche Daten, aber keine Landesgrenze ({path}) — "
+                 "ohne sie warnte OSM im Land weiter mit")
+    rings = []
+    for line in open(path):
+        line = line.strip()
+        if not line:
+            continue
+        f = json.loads(line)
+        for poly in polygons(f["geometry"]):
+            rings.append([[to_uv(lon, lat, lat_c) for lon, lat in ring]
+                          for ring in poly])
+    if not rings:
+        sys.exit(f"{key}: Landesgrenze ist leer")
+    return rings
+
+
+def official_mask(out_dir, lat_c, width, height):
+    """Alle Waben, deren MITTELPUNKT in einem Land mit amtlichen Daten
+    liegt — dort hat OSM nichts zu sagen. Nur Mittelpunkte: Eine
+    Grenzwabe gehört zur Hälfte dem Nachbarn, und ein bayerisches
+    Naturschutzgebiet an der Grenze soll seine Randwabe behalten."""
+    mask = set()
+    for key in OFFICIAL:
+        if not os.path.exists(os.path.join(out_dir, f"{key}.official.geojson")):
+            continue
+        for rings in boundary_rings(out_dir, key, lat_c):
+            inner, _ = rasterize_split(rings, width, height)
+            mask |= inner
+    return mask
+
+
+# ---------------------------------------------------------------------------
 # Ablauf
 # ---------------------------------------------------------------------------
 
@@ -281,6 +432,9 @@ def extract(pbfs, out_dir):
              "-x", "print_record_separator=false",
              "-o", os.path.join(out_dir, f"{key}.geojsonseq"), filtered],
             check=True)
+        for okey, cfg in OFFICIAL.items():
+            if cfg["extract"] == key:
+                extract_boundary(pbf, out_dir, okey, cfg["boundary"])
         stamp = subprocess.run(
             ["osmium", "fileinfo", "-g",
              "header.option.osmosis_replication_timestamp", pbf],
@@ -291,9 +445,40 @@ def extract(pbfs, out_dir):
     return stamps
 
 
+def extract_boundary(pbf, out_dir, key, name):
+    """Die Landesgrenze (`admin_level=4`, `name`) aus dem Auszug nach
+    `<key>.boundary.geojsonseq` — für [official_mask]."""
+    filtered = os.path.join(out_dir, f"{key}.admin.osm.pbf")
+    subprocess.run(
+        ["osmium", "tags-filter", "--overwrite", "-o", filtered, pbf,
+         "r/admin_level=4"], check=True)
+    every = os.path.join(out_dir, f"{key}.admin.geojsonseq")
+    subprocess.run(
+        ["osmium", "export", "--overwrite", "-f", "geojsonseq",
+         "--geometry-types=polygon", "-x", "print_record_separator=false",
+         "-o", every, filtered], check=True)
+    kept = []
+    for line in open(every):
+        line = line.strip()
+        if not line:
+            continue
+        props = json.loads(line).get("properties") or {}
+        if (props.get("boundary") == "administrative"
+                and props.get("admin_level") == "4"
+                and props.get("name") == name):
+            kept.append(line)
+    if len(kept) != 1:
+        sys.exit(f"{key}: {len(kept)} Landesgrenzen „{name}“ gefunden, "
+                 "erwartet genau eine")
+    with open(os.path.join(out_dir, f"{key}.boundary.geojsonseq"), "w") as fh:
+        fh.write(kept[0] + "\n")
+
+
 def features(out_dir):
     for fn in sorted(os.listdir(out_dir)):
-        if not fn.endswith(".geojsonseq"):
+        if not fn.endswith(".geojsonseq") or fn.count(".") != 1:
+            # Nur `<auszug>.geojsonseq`; die Landesgrenzen
+            # (`<land>.boundary.geojsonseq`) sind keine Schutzgebiete.
             continue
         country = fn.split(".")[0]
         for line in open(os.path.join(out_dir, fn)):
@@ -324,6 +509,13 @@ def report(out_dir):
             kept[(country, kind)] += 1
         else:
             dropped[(country, title or "-", tags.get("protect_class", "-"))] += 1
+    official = collections.Counter()
+    for key, f in official_features(out_dir):
+        props = f.get("properties") or {}
+        objekt = props.get("OBJEKT") or "-"
+        official[(key, objekt, classify_tirol(objekt) or "schweigt")] += 1
+    for (key, objekt, kind), n in sorted(official.items()):
+        print(f"AMTLICH {key:12} {objekt:6} {kind:18} {n}")
     for (c, k), n in sorted(kept.items()):
         print(f"WARNT   {c:12} {k:18} {n}")
     for (c, t, pc), n in dropped.most_common(30):
@@ -359,7 +551,8 @@ def assign(split, width, height):
     return grid, areas
 
 
-def build(out_dir, assets_dir, forest_manifest):
+def build(out_dir, assets_dir, forest_manifest, previous=None,
+          allow_loss=False):
     assert_matches_forest_grid(forest_manifest)
     lat_c = lattice()
     _, _, lon_step, lat_step, width, height = lat_c
@@ -380,11 +573,27 @@ def build(out_dir, assets_dir, forest_manifest):
             rings = [[to_uv(lon, lat, lat_c) for lon, lat in ring]
                      for ring in poly]
             candidates.append((area_uv(rings), kind,
-                               (props.get("name") or "").strip(), rings))
+                               (props.get("name") or "").strip(), rings,
+                               "osm"))
+    for key, f in official_features(out_dir):
+        props = f.get("properties") or {}
+        kind = classify_tirol(props.get("OBJEKT"))
+        if not kind:
+            continue
+        name = tirol_name(props.get("OBJEKT"), props.get("NAME"))
+        for poly in polygons(f["geometry"]):
+            rings = [[to_uv(p[0], p[1], lat_c) for p in ring] for ring in poly]
+            candidates.append((area_uv(rings), kind, name, rings, key))
+    # Innerhalb eines Landes mit amtlichen Daten verliert OSM jede Wabe.
+    mask = official_mask(out_dir, lat_c, width, height)
     # Kleinere zuerst: Wer schon eine Wabe hat, behält sie.
     candidates.sort(key=lambda c: c[0])
-    split = [(kind, name, *rasterize_split(rings, width, height))
-             for _, kind, name, rings in candidates]
+    split = []
+    for _, kind, name, rings, origin in candidates:
+        inner, edge = rasterize_split(rings, width, height)
+        if origin == "osm" and mask:
+            inner, edge = inner - mask, edge - mask
+        split.append((kind, name, inner, edge))
     grid, areas = assign(split, width, height)
     payload = gzip.compress(encode_runs(grid, width, height),
                             compresslevel=9, mtime=0)
@@ -400,6 +609,15 @@ def build(out_dir, assets_dir, forest_manifest):
         "source": "OpenStreetMap (Geofabrik-Auszüge)",
         "licence": "ODbL 1.0",
         "attribution": "© OpenStreetMap-Mitwirkende",
+        # Länder, in denen statt OSM amtliche Daten stehen (#623).
+        "official": {
+            key: {"licence": cfg["licence"],
+                  "attribution": cfg["attribution"],
+                  "areas": sum(1 for k, _ in official_features(out_dir)
+                               if k == key)}
+            for key, cfg in OFFICIAL.items()
+            if os.path.exists(os.path.join(out_dir,
+                                           f"{key}.official.geojson"))},
         "extracts": stamps,
         "lattice": "hex-odd-r",
         "width": width,
@@ -422,7 +640,71 @@ def build(out_dir, assets_dir, forest_manifest):
         fh.write("\n")
     print(f"{len(areas)} Gebiete, {marked} Waben markiert, "
           f"Gitter {len(payload) / 1024:.0f} KB")
+    if previous and not allow_loss:
+        check_losses(previous, assets_dir, mask)
     return manifest
+
+
+# Ab wie vielen Waben (≈ 0,054 km² je Wabe, also ~54 km²) ein Gebiet
+# nicht still verschwinden darf, und welcher Anteil verloren gehen darf.
+LOSS_MIN_CELLS = 1000
+LOSS_MAX_SHARE = 0.5
+
+
+def cells_per_area(assets_dir, outside=frozenset()):
+    """{(kind, name): Waben} eines fertigen Gitters, ohne die Waben in
+    `outside` (dort hat eine amtliche Quelle OSM ersetzt)."""
+    m = json.load(open(os.path.join(assets_dir, "protected_manifest.json")))
+    runs = decode_runs(gzip.decompress(
+        open(os.path.join(assets_dir, "protected_grid.bin.gz"), "rb").read()),
+        m["height"])
+    out = {}
+    for hy, row in enumerate(runs):
+        for x0, n, idx in row:
+            a = m["areas"][idx - 1]
+            key = (a["kind"], a["name"])
+            k = n if not outside else sum(
+                1 for hx in range(x0, x0 + n) if (hx, hy) not in outside)
+            out[key] = out.get(key, 0) + k
+    return out
+
+
+def losses(before, after):
+    """Große Gebiete, die mehr als `LOSS_MAX_SHARE` ihrer Waben verloren
+    haben — [(kind, name, vorher, nachher)], größte zuerst.
+
+    Anlass (#623, 2026-10-08): Der Geofabrik-Auszug Deutschland vom
+    2026-10-06 erwischte die Relation des Nationalparks Bayerischer Wald
+    mitten in einer Bearbeitung, osmium baute aus ihr keine Fläche, und
+    der Nationalpark fehlte im Gitter — ohne Fehlermeldung. Der
+    Asset-Test hätte es erst nach dem Commit gesehen."""
+    lost = []
+    for key, n in before.items():
+        if n < LOSS_MIN_CELLS:
+            continue
+        now = after.get(key, 0)
+        if now < n * (1 - LOSS_MAX_SHARE):
+            lost.append((*key, n, now))
+    return sorted(lost, key=lambda x: -x[2])
+
+
+def check_losses(previous_dir, new_dir, mask):
+    """Bricht ab, wenn gegenüber dem bisherigen Gitter ein großes Gebiet
+    (fast) verschwunden ist. Waben im amtlichen Bereich zählen nicht —
+    dort verschwindet OSM mit Absicht."""
+    if not os.path.exists(os.path.join(previous_dir, "protected_manifest.json")):
+        return
+    lost = losses(cells_per_area(previous_dir, mask),
+                  cells_per_area(new_dir, mask))
+    # In CI als Annotation: Das Log ist aus einer Cloud-Sitzung nicht
+    # lesbar, die Annotationen des Laufs schon.
+    tag = "::error::" if os.environ.get("GITHUB_ACTIONS") else ""
+    for kind, name, n, now in lost:
+        print(f"{tag}VERLOREN {kind} „{name}“: {n} → {now} Waben")
+    if lost:
+        sys.exit(f"{len(lost)} große Gebiete verloren — OSM-Stand prüfen "
+                 "(halb bearbeitete Relation?), dann neu bauen oder mit "
+                 "--allow-loss bewusst übernehmen")
 
 
 def encode_runs(grid, width, height):
@@ -593,7 +875,56 @@ def self_test():
             assert nearest_cell(u, hy + 2 / 3, w, h) == (hx, hy)
     west, north, lon_step, lat_step, width, height = lattice()
     assert (width, height) == (3038, 4470), (width, height)
+    # Tirol (#623): warnen nur NSG, SSG und die Kernzone.
+    ct = classify_tirol
+    assert ct("NSG") == NATURE_RESERVE and ct("SSG") == NATURE_RESERVE
+    assert ct("NPKZ") == CORE_ZONE
+    for still in ("LSG", "RG", "GLT", "NPAZ", "", None, "XYZ"):
+        assert ct(still) is None, still
+    assert tirol_name("NSG", "Karwendel") == "Karwendel"
+    assert tirol_name("SSG", "Silzer Innau") == "Sonderschutzgebiet Silzer Innau"
+    assert tirol_name("NPKZ", "Hohe Tauern Kernzone") == \
+        "Nationalpark Hohe Tauern Kernzone"
+    _self_test_official_mask()
+    # Verluste: Ein großes Gebiet, das (fast) verschwindet, fällt auf; ein
+    # kleines oder eines, das nur schrumpft, nicht.
+    big = LOSS_MIN_CELLS
+    before = {("Nationalpark", "A"): big, ("Nationalpark", "B"): big,
+              ("Naturschutzgebiet", "klein"): big - 1}
+    after = {("Nationalpark", "B"): big * 0.6}
+    assert losses(before, after) == [("Nationalpark", "A", big, 0)], \
+        losses(before, after)
     print("protected_areas self-test passed (no network)")
+
+
+def _self_test_official_mask():
+    """Im Land mit amtlichen Daten schweigt OSM, daneben nicht — am
+    echten Raster mit einem künstlichen „Tirol" um Innsbruck."""
+    import tempfile
+    lat_c = lattice()
+    _, _, _, _, width, height = lat_c
+    box = [[11.0, 47.0], [11.6, 47.0], [11.6, 47.4], [11.0, 47.4],
+           [11.0, 47.0]]
+    with tempfile.TemporaryDirectory() as d:
+        with open(os.path.join(d, "tirol.boundary.geojsonseq"), "w") as fh:
+            fh.write(json.dumps({"type": "Feature", "properties": {},
+                                 "geometry": {"type": "Polygon",
+                                              "coordinates": [box]}}) + "\n")
+        assert not official_mask(d, lat_c, width, height), \
+            "ohne amtliche Datei bleibt OSM überall"
+        json.dump({"type": "FeatureCollection", "features": []},
+                  open(os.path.join(d, "tirol.official.geojson"), "w"))
+        mask = official_mask(d, lat_c, width, height)
+        inside = nearest_cell(*to_uv(11.3, 47.2, lat_c), width, height)
+        outside = nearest_cell(*to_uv(11.8, 47.2, lat_c), width, height)
+        assert inside in mask and outside not in mask
+        os.remove(os.path.join(d, "tirol.boundary.geojsonseq"))
+        try:
+            official_mask(d, lat_c, width, height)
+        except SystemExit:
+            pass
+        else:
+            raise AssertionError("amtliche Daten ohne Landesgrenze muss abbrechen")
 
 
 def main():
@@ -610,6 +941,11 @@ def main():
     b.add_argument("--assets", required=True)
     b.add_argument("--forest-manifest",
                    default="assets/forest/forest_manifest.json")
+    b.add_argument("--previous",
+                   help="bisheriges Gitter; große Verluste brechen ab")
+    b.add_argument("--allow-loss", action="store_true")
+    fo = sub.add_parser("fetch-official")
+    fo.add_argument("--out", required=True)
     lk = sub.add_parser("lookup")
     lk.add_argument("--assets", required=True)
     lk.add_argument("points", nargs="+", help="lat,lon")
@@ -618,10 +954,13 @@ def main():
         self_test()
     elif args.cmd == "extract":
         extract(args.pbf, args.out)
+    elif args.cmd == "fetch-official":
+        fetch_official(args.out)
     elif args.cmd == "report":
         report(args.out)
     elif args.cmd == "build":
-        build(args.out, args.assets, args.forest_manifest)
+        build(args.out, args.assets, args.forest_manifest, args.previous,
+              args.allow_loss)
     elif args.cmd == "lookup":
         lookup(args.assets, [tuple(map(float, p.split(","))) for p in args.points])
     else:
