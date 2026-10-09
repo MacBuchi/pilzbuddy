@@ -30,6 +30,10 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const TYPES = {
   '.html': 'text/html',
   '.js': 'application/javascript',
+  // Der Wasm-Build (#689) lädt `main.dart.mjs` per `import()` — ein
+  // Modul ohne JavaScript-Typ lehnt der Browser ab („Failed to fetch
+  // dynamically imported module"). GitHub Pages liefert `.mjs` korrekt.
+  '.mjs': 'application/javascript',
   '.json': 'application/json',
   '.wasm': 'application/wasm',
   '.png': 'image/png',

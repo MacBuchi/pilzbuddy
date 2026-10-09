@@ -164,7 +164,11 @@ jobs:
       # www.gstatic.com — offline tot, und die IP jedes Besuchers ginge an
       # Google, bevor irgendetwas eingeschaltet wurde. Die Dateien liegen
       # ohnehin schon im Build, der Flag kostet also nichts.
-      - run: flutter build web --release --base-href /pilzbuddy/ --no-web-resources-cdn
+      # `--wasm` (#689): dart2wasm + skwasm für Browser mit WasmGC, der
+      # Loader fällt sonst von selbst auf den dart2js-Build zurück (beide
+      # liegen im Ordner). Gilt in allen drei Web-Builds (ci, promote,
+      # preview) — CI soll genau das bauen, was ausgeliefert wird.
+      - run: flutter build web --release --wasm --base-href /pilzbuddy/ --no-web-resources-cdn
       # Der Service Worker ist die riskanteste Stelle der PWA: Er
       # entscheidet, ob die App ohne Netz startet, und ein Fehler darin
       # ist von außen unsichtbar — `flutter analyze` sieht die Datei
