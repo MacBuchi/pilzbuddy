@@ -440,7 +440,14 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
   - **Entpackt wird mit `gunzip`** (`lib/core/gunzip.dart`): nativ
     über `dart:io` (am Mac gut 4× schneller als `package:archive`, der
     Regenverlauf fiel damit auf 0,7–0,9 s), im Browser weiter
-    `package:archive`. **Streng**: Beide Entpacker liefern bei einem
+    `package:archive` — außer für die Asset-Gitter (Wald, Höhe,
+    Schutzgebiete, Fundorte, Baumarten): Deren Lader rufen vor dem
+    `boundedCompute` `preInflate`, das im Browser `DecompressionStream`
+    auspacken lässt und das Ergebnis am gepackten Objekt bereitlegt
+    (#689; live waren das gut 5 s des Start-Hängers). Neuer Asset-Lader:
+    dieselbe Zeile davor, sonst packt der Browser wieder in Dart aus.
+    Die Overlay-PNGs schreibt der Browser seit #689 UNGEPACKT
+    (`zlib_deflate_web.dart`) — sie gehen dort nie durchs Netz. **Streng**: Beide Entpacker liefern bei einem
     abgeschnittenen Strom still den Teil bis zum Abbruch; `gunzip`
     vergleicht mit der Länge im gzip-Abspann und wirft. Nie wieder
     `GZipDecoder` direkt.

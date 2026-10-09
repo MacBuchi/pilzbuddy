@@ -11,6 +11,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/bounded_compute.dart';
+import '../../core/gunzip.dart';
 
 import 'forest_species.dart';
 
@@ -42,6 +43,7 @@ Future<SwissSpeciesGrid?> _loadSwiss() async {
     final data = await rootBundle.load('assets/forest/forest_species_ch.bin.gz');
     final bytes =
         data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+    await preInflate(bytes); // im Browser nativ ausgepackt (#689)
     return await boundedCompute(
         _decodeSwiss, (manifest: manifestRaw, bytes: bytes));
   } catch (_) {
@@ -100,6 +102,7 @@ Future<ForestSpeciesGrid?> _loadFromAssets(
     final data = await rootBundle.load(gridPath);
     final bytes =
         data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+    await preInflate(bytes); // im Browser nativ ausgepackt (#689)
     return await boundedCompute(_decode, (manifest: manifestRaw, bytes: bytes));
   } catch (_) {
     // Fehlendes/kaputtes Asset ⇒ keine Artenzeile. Begründung oben.

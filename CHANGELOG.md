@@ -7,6 +7,15 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Web-App: Wald und Höhenlinien bremsen den Start weniger
+
+*9. Oktober 2026 · Version 1.224.3*
+
+- In der Web-App hing die Karte beim Start mit eingeschaltetem Wald
+  oder Höhenlinien mehrere Sekunden lang. Die Kartendaten packt jetzt
+  der Browser selbst aus, und die Waldfläche wird ohne den teuren
+  Packschritt gezeichnet. Die Android-App ist davon nicht betroffen.
+
 ## Kurzanleitung zeigt den neuen Weg für Karten ohne Empfang
 
 *8. Oktober 2026 · Version 1.224.1*

@@ -50,4 +50,16 @@ void main() {
     final data = png.sublist(idat + 8, idat + 8 + length);
     expect(const ZLibDecoder().decodeBytes(data), scanlines);
   });
+
+  test('im Browser ungepackt: Stored-Blöcke über mehrere Blöcke (#689)', () {
+    for (final n in [0, 1, 65535, 65536, 200000]) {
+      final raw = overlayLike(n, n);
+      final packed = web.zlibDeflate(raw, level: 1);
+      final blocks = n == 0 ? 1 : (n + 65534) ~/ 65535;
+      // Kopf 2, je Block 5, Daten, Adler-32 4 — nichts gepackt.
+      expect(packed.length, 2 + blocks * 5 + n + 4, reason: '$n');
+      expect(const ZLibDecoder().decodeBytes(packed), raw, reason: '$n');
+      expect(zlib.decode(packed), raw, reason: '$n');
+    }
+  });
 }

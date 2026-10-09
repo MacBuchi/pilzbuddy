@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/bounded_compute.dart';
 import '../../core/map_worker.dart';
 import '../../core/settings.dart';
+import '../../core/gunzip.dart';
 
 import '../ampel/ampel_fill.dart' show AmpelLevels;
 import '../ampel/ampel_model.dart' show AmpelClass, ampelClassKeyOf;
@@ -76,6 +77,7 @@ Future<ForestGrid?> _loadFromAssets() async {
     final data = await rootBundle.load('assets/forest/forest_grid.bin.gz');
     final bytes = data.buffer
         .asUint8List(data.offsetInBytes, data.lengthInBytes);
+    await preInflate(bytes); // im Browser nativ ausgepackt (#689)
     return await boundedCompute(_decode, (manifest: manifestRaw, bytes: bytes));
   } catch (_) {
     // Fehlendes/kaputtes Asset ⇒ keine Ebene. Begründung oben.

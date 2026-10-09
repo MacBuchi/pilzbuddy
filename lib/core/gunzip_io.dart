@@ -10,3 +10,7 @@ Uint8List gunzip(List<int> gzipped) {
   checkGzipLength(gzipped, bytes);
   return bytes;
 }
+
+/// Nur im Browser tut das etwas (`gunzip_stream_web.dart`); hier packt
+/// `gunzip` ohnehin nativ aus, und zwar im Isolate.
+Future<void> preInflate(Uint8List gzipped) async {}
