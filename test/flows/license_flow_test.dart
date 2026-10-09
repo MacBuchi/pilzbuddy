@@ -59,6 +59,9 @@ const _bundledSources = <String>[
   'Copernicus DEM',
   'Wikimedia Commons',
   'Schutzgebiete (OpenStreetMap)',
+  // Tirol aus amtlichen Daten (#623), CC BY 4.0 — steckt im selben
+  // Asset, braucht aber die eigene Nennung.
+  'Schutzgebiete Tirol (Land Tirol)',
 ];
 
 /// Die Asset-Einträge aus `pubspec.yaml`. Bewusst per Regex statt mit dem

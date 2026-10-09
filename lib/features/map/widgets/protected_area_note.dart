@@ -16,13 +16,20 @@
 // Österreich und die Schweiz ab (samt Liechtenstein), in den
 // Nachbarländern gibt es keine. Deshalb steht hier nie ein Satz wie
 // „kein Schutzgebiet" — der Baustein verschwindet einfach.
+//
+// **Ausnahme Südtirol** (#623, Zwischenlösung bis zur Antwort der
+// Provinz): Dort steht ein Satz, der sagt, WAS fehlt — eigene
+// Sammelregeln, keine erfassten Schutzgebiete. Er rät keine Regel und
+// nennt kein Gebiet; begründet in `south_tyrol.dart`.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../protected_area_providers.dart';
+import '../south_tyrol.dart';
 
 const kProtectedAreaNoteKey = Key('protected-area-note');
+const kSouthTyrolNoteKey = Key('south-tyrol-note');
 
 class ProtectedAreaNote extends ConsumerWidget {
   const ProtectedAreaNote({super.key, required this.at});
@@ -36,8 +43,33 @@ class ProtectedAreaNote extends ConsumerWidget {
     // Asset gelesen werden — einmal je App-Lauf.
     final areas = ref.watch(protectedAreasProvider).valueOrNull;
     final area = areas?.areaAt(at.latitude, at.longitude);
-    if (area == null) return const SizedBox.shrink();
     final theme = Theme.of(context);
+    if (area == null) {
+      if (!inSouthTyrol(at.latitude, at.longitude)) {
+        return const SizedBox.shrink();
+      }
+      return Padding(
+        key: kSouthTyrolNoteKey,
+        padding: const EdgeInsets.only(top: 8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.info_outline,
+                size: 16, color: theme.colorScheme.onSurfaceVariant),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                'In Südtirol gelten eigene Regeln fürs Pilze sammeln '
+                '(etwa Sammeltage und Mengen), und Schutzgebiete sind '
+                'hier noch nicht erfasst — maßgeblich ist die '
+                'Beschilderung vor Ort.',
+                style: theme.textTheme.bodySmall,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     return Padding(
       key: kProtectedAreaNoteKey,
       padding: const EdgeInsets.only(top: 8),

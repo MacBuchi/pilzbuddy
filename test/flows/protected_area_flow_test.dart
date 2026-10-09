@@ -6,9 +6,12 @@
 // aber nicht der Fundstelle; und einer, der das Speichern verhindert —
 // der Betreiber wollte ausdrücklich keine Bevormundung.
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:pilzbuddy/features/map/protected_area_providers.dart';
 import 'package:pilzbuddy/features/map/protected_areas.dart';
+import 'package:pilzbuddy/features/map/south_tyrol.dart';
 import 'package:pilzbuddy/features/map/widgets/protected_area_note.dart';
 
 import '../fakes/fake_backend.dart';
@@ -83,6 +86,52 @@ void main() {
     expect(find.text('Neuer Pilz-Spot'), findsOneWidget);
     expect(find.byKey(kProtectedAreaNoteKey), findsNothing);
     expect(find.textContaining('Schutzgebiet'), findsNothing);
+  });
+
+  testWidgets('in Südtirol sagt der Hinweis, was fehlt (#623)',
+      (tester) async {
+    // Für Südtirol gibt es keine Schutzgebietsdaten. Schweigen läse sich
+    // dort wie „erlaubt", deshalb steht ein Satz über die eigenen Regeln.
+    // Direkt am Baustein: Ein Spot in Südtirol läge außerhalb des
+    // Kartenausschnitts der Test-App und wäre nicht antippbar.
+    Future<void> noteAt(LatLng at) async {
+      await tester.pumpWidget(ProviderScope(
+        overrides: withReserve,
+        child: MaterialApp(
+            home: Scaffold(body: ProtectedAreaNote(at: at))),
+      ));
+      await settle(tester);
+    }
+
+    await noteAt(const LatLng(46.55, 11.42)); // Ritten
+    expect(find.byKey(kSouthTyrolNoteKey), findsOneWidget);
+    expect(find.textContaining('In Südtirol gelten eigene Regeln'),
+        findsOneWidget);
+    expect(find.textContaining('noch nicht erfasst'), findsOneWidget);
+    expect(find.byKey(kProtectedAreaNoteKey), findsNothing,
+        reason: 'kein Gebiet genannt — es gibt dort keine Daten');
+
+    // Gegenrichtung: nördlich des Brenners (Tirol) steht nichts davon.
+    await noteAt(const LatLng(47.26, 11.39));
+    expect(find.byKey(kSouthTyrolNoteKey), findsNothing);
+  });
+
+  test('Südtirol-Umriss: Orte drinnen und knapp draußen', () {
+    // Drinnen: Bozen, Meran, Sterzing, Sexten, Reschen, Salurn (der
+    // südlichste Ort). Draußen: Innsbruck, Nauders und Lienz (Tirol),
+    // Trient, Cortina, Livigno — alle in wenigen Kilometern Abstand.
+    for (final (lat, lon) in const [
+      (46.498, 11.354), (46.67, 11.16), (46.89, 11.43),
+      (46.70, 12.35), (46.83, 10.52), (46.24, 11.20),
+    ]) {
+      expect(inSouthTyrol(lat, lon), isTrue, reason: '$lat,$lon');
+    }
+    for (final (lat, lon) in const [
+      (47.26, 11.39), (46.89, 10.50), (46.83, 12.77),
+      (46.07, 11.12), (46.54, 12.14), (46.54, 10.13),
+    ]) {
+      expect(inSouthTyrol(lat, lon), isFalse, reason: '$lat,$lon');
+    }
   });
 
   testWidgets('„Fund eintragen" an einem Spot im Schutzgebiet zeigt ihn auch',

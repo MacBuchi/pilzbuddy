@@ -109,12 +109,26 @@ void registerMapDataLicense() {
       'Eintragen beruhen auf den in OpenStreetMap erfassten '
       'Naturschutzgebieten, Nationalparks und Kernzonen in Deutschland, '
       'Österreich, der Schweiz und Liechtenstein, zusammengefasst auf ein '
-      'Wabengitter (≈ 250 m).\n'
+      'Wabengitter (≈ 250 m). In Tirol stattdessen auf den amtlichen '
+      'Daten des Landes (siehe dort).\n'
       '© OpenStreetMap-Mitwirkende, lizenziert unter der Open Data '
       'Commons Open Database License (ODbL) 1.0.\n'
       'https://www.openstreetmap.org/copyright\n\n'
       'Die Daten sind keine Rechtsauskunft: Was in einem Gebiet gilt, '
       'regelt dessen Verordnung und die Beschilderung vor Ort.',
+    );
+    // Tirol aus den amtlichen Daten des Landes (#623): CC BY 4.0 verlangt
+    // die Nennung in genau diesem Wortlaut („Datenquelle: Land Tirol –
+    // data.tirol.gv.at"). Innerhalb Tirols ersetzen sie OSM.
+    yield const LicenseEntryWithLineBreaks(
+      ['Schutzgebiete Tirol (Land Tirol)'],
+      'In Tirol beruhen Schraffur und Hinweis auf den Schutzgebieten nach '
+      'dem Tiroler Naturschutzgesetz 2005: Naturschutzgebiete, '
+      'Sonderschutzgebiete und die Kernzone des Nationalparks Hohe '
+      'Tauern, zusammengefasst auf dasselbe Wabengitter.\n'
+      'Datenquelle: Land Tirol – data.tirol.gv.at\n'
+      'Lizenz: Creative Commons Namensnennung 4.0 International '
+      '(CC BY 4.0), https://creativecommons.org/licenses/by/4.0/',
     );
     yield const LicenseEntryWithLineBreaks(
       ['Regendaten (Deutscher Wetterdienst)'],

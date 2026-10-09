@@ -137,7 +137,7 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
   und „Neuer Spot"/„Fund eintragen" sagen es in einem Satz. Beides liest
   EIN Gitter (`lib/features/map/protected_areas.dart`, gebaut von
   `tool/protected_areas.py` aus OSM, Workflow `protected-areas.yml`).
-  Sechs Dinge, die man wissen muss:
+  Sieben Dinge, die man wissen muss:
   - **Die Regel hat der Betreiber entschieden** (2026-09-23):
     Naturschutzgebiete, Nationalparks, Kernzonen — auch Flächen, die nur
     `leisure=nature_reserve` tragen. NICHT Landschaftsschutzgebiete,
@@ -155,7 +155,23 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
     Gebiet gilt, regelt dessen Verordnung, nicht die App.
   - **Schweigen heißt nicht „erlaubt".** Daten gibt es für DE, AT, CH
     und LI; die Nachbarländer im Raster sind leer. Deshalb steht nirgends
-    „kein Schutzgebiet".
+    „kein Schutzgebiet". Südtirol wartet auf die Auskunft der Provinz
+    (#623 Teil B) — die Sammelregeln dort sind andere, und geraten wird
+    nicht. Bis dahin steht beim Eintragen dort ein Satz, der sagt, WAS
+    fehlt (`south_tyrol.dart`, Provinzumriss aus OSM, ~1 km; Betreiber
+    2026-10-09). Kommen die Daten, fällt der Satz für Stellen MIT Gebiet
+    von selbst weg — für die übrigen ist dann neu zu entscheiden.
+  - **In Tirol amtliche Daten statt OSM** (#623, seit 1.224.4, Betreiber
+    2026-10-08: „ersetzen"): Innerhalb der Landesgrenze verliert OSM
+    jede Wabe, deren Mittelpunkt dort liegt; es zählen nur die 92
+    Flächen des Landes (CC BY 4.0, eigener Eintrag auf der Lizenzseite).
+    Warnen: NSG, SSG, Nationalpark-Kernzone; still: LSG, Ruhegebiet,
+    GLT, Außenzone. Anlass war der Abgleich: OSM verfehlte 77 % der
+    NSG-Fläche (Karwendel fast ganz) und warnte in der ganzen Außenzone
+    Hohe Tauern. Sonderschutzgebiete stehen als `Naturschutzgebiet` im
+    Gitter und tragen das Wort im Namen; `label` erkennt es. Weitere
+    Länder: Eintrag in `OFFICIAL` (`tool/protected_areas.py`) samt
+    Einordnung je Kategorie.
   - **Läufe je Zeile statt ein Wert je Zelle**: 0,6 statt 27 MB im
     Speicher, und das volle Gitter wird nie ausgepackt. Die Schraffur
     schlägt je Wabe am MITTELPUNKT nach (wie das Leuchten), erst ab
