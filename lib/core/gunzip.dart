@@ -8,5 +8,7 @@
 // Tagesgitter auspackt.
 //
 // Auf Android ist es deshalb `dart:io`s zlib (nativ, dieselben Bytes);
-// im Browser gibt es `dart:io` nicht, dort bleibt `package:archive`.
-export 'gunzip_web.dart' if (dart.library.io) 'gunzip_io.dart';
+// im Browser gibt es `dart:io` nicht, dort bleibt `package:archive` —
+// außer für die großen Gitter, die der Lader vorher mit `preInflate`
+// dem Browser zum Auspacken gibt (#689, `gunzip_stream_web.dart`).
+export 'gunzip_stream_web.dart' if (dart.library.io) 'gunzip_io.dart';

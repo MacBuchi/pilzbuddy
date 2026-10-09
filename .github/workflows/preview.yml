@@ -59,7 +59,7 @@ jobs:
       # Google, bevor irgendetwas eingeschaltet wurde. Die Dateien liegen
       # ohnehin schon im Build, der Flag kostet also nichts.
       - run: |
-          flutter build web --release \
+          flutter build web --release --wasm \
             --base-href /pilzbuddy-preview/ \
             --no-web-resources-cdn \
             --dart-define=PREVIEW_BUILD=true

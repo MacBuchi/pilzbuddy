@@ -9,7 +9,7 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Schutzgebiete in Tirol nach den amtlichen Grenzen
 
-*8. Oktober 2026 · Version 1.224.2*
+*9. Oktober 2026 · Version 1.224.4*
 
 - In Tirol kommen die Schutzgebiete jetzt aus den Daten des Landes statt
   aus OpenStreetMap. Dort fehlte vieles: fast das ganze
@@ -25,6 +25,15 @@ https://github.com/MacBuchi/pilzbuddy/releases
   wie „Sammeln erlaubt" aussieht, steht beim Eintragen dort jetzt ein
   Satz: Es gelten eigene Regeln (etwa Sammeltage und Mengen), und
   Schutzgebiete sind noch nicht erfasst.
+
+## Web-App: Wald und Höhenlinien bremsen den Start weniger
+
+*9. Oktober 2026 · Version 1.224.3*
+
+- In der Web-App hing die Karte beim Start mit eingeschaltetem Wald
+  oder Höhenlinien mehrere Sekunden lang. Die Kartendaten packt jetzt
+  der Browser selbst aus, und die Waldfläche wird ohne den teuren
+  Packschritt gezeichnet. Die Android-App ist davon nicht betroffen.
 
 ## Kurzanleitung zeigt den neuen Weg für Karten ohne Empfang
 

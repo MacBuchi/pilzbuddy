@@ -47,4 +47,25 @@ void main() {
       expect(() => unpack(cut), throwsFormatException);
     }
   });
+
+  test('Bereitgelegtes nimmt gunzip genau einmal (#689)', () {
+    final raw = Uint8List(1000)..fillRange(0, 1000, 5);
+    final gz = Uint8List.fromList(gzip.encode(raw));
+    final prepared = Uint8List.fromList(raw);
+    web.rememberInflated(gz, prepared);
+    expect(web.debugInflatedReady(gz), isTrue);
+    expect(identical(web.gunzip(gz), prepared), isTrue);
+    expect(web.debugInflatedReady(gz), isFalse);
+    expect(identical(web.gunzip(gz), prepared), isFalse);
+  });
+
+  test('Bereitgelegtes mit falscher Länge bleibt nicht liegen (#689)', () {
+    // Der native Weg prüft wie `gunzip` gegen den Abspann — sonst
+    // schlüpfte ein abgeschnittener Strom an der Prüfung vorbei.
+    final raw = Uint8List(1000)..fillRange(0, 1000, 5);
+    final gz = Uint8List.fromList(gzip.encode(raw));
+    web.rememberInflated(gz, Uint8List(999));
+    expect(web.debugInflatedReady(gz), isFalse);
+    expect(web.gunzip(gz), raw);
+  });
 }

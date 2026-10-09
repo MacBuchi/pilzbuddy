@@ -3,8 +3,8 @@
 //
 // Reines Dart samt PNG-Kodierung (CRC aus `package:archive`, das für den
 // KMZ-Import ohnehin im Projekt liegt; zlib seit #662 über
-// `zlibDeflate`, nativ außer im Browser) — damit läuft es im Isolate, im
-// Web und im Test, ohne `dart:ui` und ohne Canvas.
+// `zlibDeflate`, nativ, im Browser seit #689 ungepackt) — damit läuft
+// es im Isolate, im Web und im Test, ohne `dart:ui` und ohne Canvas.
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart' show getCrc32;

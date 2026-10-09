@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/bounded_compute.dart';
+import '../../core/gunzip.dart';
 
 import 'elevation_grid.dart';
 
@@ -28,6 +29,7 @@ Future<ElevationGrid?> _loadFromAssets() async {
     final data = await rootBundle.load('assets/elevation/elevation.bin.gz');
     final bytes =
         data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+    await preInflate(bytes); // im Browser nativ ausgepackt (#689)
     return await boundedCompute(_decode, (manifest: manifestRaw, bytes: bytes));
   } catch (_) {
     // Fehlendes/kaputtes Asset ⇒ keine Korrektur. Begründung oben.
