@@ -696,8 +696,11 @@ def check_losses(previous_dir, new_dir, mask):
         return
     lost = losses(cells_per_area(previous_dir, mask),
                   cells_per_area(new_dir, mask))
+    # In CI als Annotation: Das Log ist aus einer Cloud-Sitzung nicht
+    # lesbar, die Annotationen des Laufs schon.
+    tag = "::error::" if os.environ.get("GITHUB_ACTIONS") else ""
     for kind, name, n, now in lost:
-        print(f"VERLOREN {kind:18} {name[:50]:50} {n:6} → {now:6} Waben")
+        print(f"{tag}VERLOREN {kind} „{name}“: {n} → {now} Waben")
     if lost:
         sys.exit(f"{len(lost)} große Gebiete verloren — OSM-Stand prüfen "
                  "(halb bearbeitete Relation?), dann neu bauen oder mit "
