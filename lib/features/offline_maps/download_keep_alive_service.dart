@@ -89,7 +89,10 @@ class _ForegroundServiceKeepAlive implements DownloadKeepAlive {
       // Ohne die Berechtigung läuft der Service trotzdem, nur unsichtbar —
       // deshalb ist ein abgelehnter Dialog kein Grund abzubrechen.
       await FlutterForegroundTask.requestNotificationPermission();
-      await FlutterForegroundTask.startService(
+      // Seit flutter_foreground_task 9 WIRFT `startService` nicht mehr,
+      // ein Fehlschlag kommt nur im Ergebnis — bis 1.224.4 ging er hier
+      // still unter (gefunden in TrailBuddy #292).
+      final result = await FlutterForegroundTask.startService(
         serviceId: _serviceId,
         // Je Start entschieden, nicht fest verdrahtet (#338): Ein
         // Karten-Download nennt `dataSync`, eine Pilztour `location`.
@@ -116,6 +119,9 @@ class _ForegroundServiceKeepAlive implements DownloadKeepAlive {
         notificationText: text,
         callback: startDownloadKeepAlive,
       );
+      if (result case ServiceRequestFailure(:final error)) {
+        logError('Karten-Download: Foreground-Service starten', error, StackTrace.current);
+      }
     } catch (e, stackTrace) {
       // Der Download ist wichtiger als die Benachrichtigung: schlägt der
       // Service fehl, läuft eben nur im Vordergrund weiter.

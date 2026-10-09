@@ -7,6 +7,14 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Fehlstart im Hintergrund wird gemeldet
+
+*9. Oktober 2026 · Version 1.224.5*
+
+- Startet der Hintergrunddienst für Karten-Downloads oder die Pilztour
+  nicht, steht das jetzt im Fehlerbericht. Bisher ging so ein Fehlstart
+  unbemerkt unter. Sichtbar ändert sich nichts.
+
 ## Schutzgebiete in Tirol nach den amtlichen Grenzen
 
 *9. Oktober 2026 · Version 1.224.4*
