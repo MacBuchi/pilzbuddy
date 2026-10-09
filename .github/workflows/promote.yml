@@ -164,7 +164,7 @@ jobs:
       # www.gstatic.com — offline tot, und die IP jedes Besuchers ginge an
       # Google, bevor irgendetwas eingeschaltet wurde. Die Dateien liegen
       # ohnehin schon im Build, der Flag kostet also nichts.
-      - run: flutter build web --release --base-href /pilzbuddy/ --no-web-resources-cdn
+      - run: flutter build web --release --wasm --base-href /pilzbuddy/ --no-web-resources-cdn
       # SPA-Fallback: GitHub Pages liefert 404.html bei Deep-Links
       # (/friends etc.).
       - run: cp build/web/index.html build/web/404.html
