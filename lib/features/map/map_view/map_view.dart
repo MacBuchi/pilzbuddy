@@ -6,10 +6,11 @@ import 'package:latlong2/latlong.dart';
 import 'flutter_map_view.dart';
 import 'marker_culling.dart' show MapViewBounds;
 export 'marker_culling.dart' show MapViewBounds;
-// Web darf `package:maplibre` nie sehen — der Stub liefert dieselbe
-// Signatur, die Engine-Wahl unten verzweigt dank `!kIsWeb` nie dorthin.
-import 'maplibre_view_stub.dart'
-    if (dart.library.io) 'maplibre_map_view.dart';
+// Seit #689 (Hebel C) auch im Web-Build: MapLibre GL JS ist dort ein
+// Versuch hinter `?maplibre=1` (maplibre_web.dart). Den Web-Teil des
+// Pakets hatte der Build ohnehin schon (Plugin-Registrant).
+import 'maplibre_map_view.dart' show createMapLibreMapView;
+import 'maplibre_web.dart' show webMapLibreRequested;
 
 /// Engine-neutrale Fassade der Kartenansicht.
 ///
@@ -237,7 +238,8 @@ typedef MapViewBuilder = Widget Function(
 );
 
 /// Die Engine-Wahl: **Android MapLibre, Web flutter_map** — seit #433
-/// ohne Schalter dazwischen.
+/// ohne Schalter dazwischen. Ausnahme seit #689: Ein Browser, der
+/// `?maplibre=1` gewählt hat, bekommt MapLibre GL JS ([webMapLibreProvider]).
 ///
 /// `kIsWeb` ist eine Kompilierzeit-Konstante, die Verzweigung also in
 /// jedem Build schon entschieden. Der Profil-Schalter davor war ein
@@ -256,7 +258,7 @@ typedef MapViewBuilder = Widget Function(
 /// geprüft werden, direkt mit [FlutterMapView] — die MapLibre-Platform-
 /// View ist im Widget-Test nicht renderbar, ihr Gate ist das Gerät.
 final mapViewBuilderProvider = Provider<MapViewBuilder>((ref) {
-  if (!kIsWeb) {
+  if (!kIsWeb || ref.watch(webMapLibreProvider)) {
     return (config, controller, markers) => createMapLibreMapView(
         config: config, controller: controller, markers: markers);
   }
@@ -266,6 +268,13 @@ final mapViewBuilderProvider = Provider<MapViewBuilder>((ref) {
         markers: markers,
       );
 });
+
+/// Hat dieser Browser den MapLibre-Versuch gewählt (#689, Hebel C)?
+///
+/// Einmal je Sitzung gelesen — umgeschaltet wird über die Adresse, also
+/// mit einem Neuladen. Außerhalb des Browsers immer `false`, gefragt wird
+/// dort ohnehin nicht (`!kIsWeb` entscheidet vorher).
+final webMapLibreProvider = Provider<bool>((ref) => webMapLibreRequested());
 
 /// Das Fassaden-Widget, das `MapScreen` einbaut.
 class MapView extends ConsumerWidget {

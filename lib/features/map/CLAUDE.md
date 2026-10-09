@@ -367,6 +367,44 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
   Die folgenden flutter_map-Notizen (Stellschrauben, Kamera-Wächter,
   TileProvider-Lebenszyklus) gelten für diesen Rückfall- und den
   Web-Pfad.
+  **Seit 1.224.6 gibt es MapLibre auch im Browser — als VERSUCH** (#689,
+  Hebel C): MapLibre GL JS statt flutter_map, nur mit `?maplibre=1` in der
+  Adresse (gerätelokal gemerkt, `?maplibre=0` nimmt es zurück;
+  `maplibre_web.dart`). Ab Werk ändert sich nichts. Der bedingte Import
+  ist weg — den Web-Teil des Pakets hatte der Build über den
+  Plugin-Registranten ohnehin. Sechs Dinge, die man wissen muss, alle am
+  lokalen Prüfstand gefunden (eigene Einstiegsdatei mit nur der Fassade,
+  Wasm-Build, Chromium):
+  - **Die Bibliothek liegt in `web/maplibre/`, nie auf einem CDN**
+    (Datenschutz, offline), und wird erst geladen, wenn die Ansicht baut
+    (`mapLibreJsReadyProvider`). Lädt sie nicht ⇒ flutter_map.
+  - **Klicks: Die Karte ist ein HTML-Element und nimmt sie zuerst.**
+    Knöpfe darüber wären tot. Zwei Mittel: `MapOverlayGuard` (ein
+    `PointerInterceptor`) um jedes feste Bedienelement — um das
+    SICHTBARE Widget, nie um `Align`/`SafeArea`, sonst nimmt der Fänger
+    der Karte jede Geste; und für Routen darüber (Blatt im Reiter-
+    Navigator, Dialog im Wurzel-Navigator) schaltet die Ansicht nach
+    jedem Bild `pointer-events` der Karte ab (`_syncCover`). Am Prüfstand
+    nachgewiesen: Knopf, Dialog-OK, danach wieder Gesten.
+  - **Der lange Tipp kommt als `contextmenu`** (`MapEventSecondaryClick`),
+    nicht als `MapEventLongClick`.
+  - **`installedMapsProvider` wirft im Browser** (`path_provider`). Der
+    Style wurde damit zum Fehler, und die Ansicht fiel STILL auf
+    flutter_map zurück — von außen sah der Versuch aus, als liefe er.
+    Der Style-Provider fragt deshalb zuerst `offlineMapsSupportedProvider`.
+  - **Bilder als `blob:`-URL** (`object_url.dart` in `writeFill`), je
+    Ebene eine, die vorige wird freigegeben.
+  - **Übersicht und Glyphen per URL aus den Assets** (Range-Anfragen auf
+    Pages: 206, nachgemessen). Grenze: Der Service Worker legt
+    Teilanfragen nicht ab — ohne Netz gibt es die Übersicht in diesem
+    Weg nicht, anders als bei flutter_map (liest das Asset ganz).
+  - **Was fehlt**: gespeicherte Kartenbereiche (liegen im Browser in
+    IndexedDB, MapLibre bräuchte dafür ein `addProtocol`), und die Neue
+    Karte geht ohne den Kachel-Server (#659) direkt per `pmtiles://` an
+    den Host — die JS-Bibliothek hält Header und Verzeichnisse selbst im
+    Speicher, gezählt ist das noch nicht.
+  Gemessen in `docs/map-performance.md`; ob der Versuch zur Vorgabe wird,
+  entscheidet der Betreiber nach Feldtest und Messung mit Konto (#689).
 
 - **`alignment` bedeutet in den beiden Karten-Engines das GEGENTEIL**
   (#409, behoben in 1.123.0): Beide nehmen ein `Alignment` und rechnen

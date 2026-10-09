@@ -60,6 +60,7 @@ import 'widgets/map_trip_sheet.dart';
 import 'map_view/camera_tour.dart';
 import 'map_overlays.dart';
 import 'online_map.dart' show newMapEnabledProvider;
+import 'map_view/map_overlay_guard.dart';
 import 'map_view/map_view.dart';
 import 'position_provider.dart';
 import 'spot_filter.dart';
@@ -1052,7 +1053,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
             SafeArea(
               child: Align(
                 alignment: Alignment.bottomLeft,
-                child: MapLegend(onOpenLayers: _openLayers),
+                // Im Browser mit MapLibre ein Klickfänger darum (#689,
+                // map_overlay_guard.dart) — wie bei Banner und Knöpfen.
+                child: MapOverlayGuard(
+                    child: MapLegend(onOpenLayers: _openLayers)),
               ),
             ),
             if (!areaTools)
@@ -1061,6 +1065,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 alignment: Alignment.topCenter,
                 child: Padding(
                   padding: const EdgeInsets.only(top: 8, left: 12, right: 12),
+                  child: MapOverlayGuard(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -1139,6 +1144,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                         ),
                     ],
                   ),
+                  ),
                 ),
               ),
             ),
@@ -1148,6 +1154,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
             // Sichtfenster vom letzten Stillstand stimmt also.
             if (areaTools && drawTool != null && idleBounds != null)
               Positioned.fill(
+                child: MapOverlayGuard(
                 child: AreaDrawOverlay(
                   bounds: idleBounds,
                   tool: drawTool,
@@ -1162,6 +1169,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     }
                     ref.read(areaDraftProvider.notifier).applyStroke(keys);
                   },
+                ),
                 ),
               ),
             if (areaTools)
@@ -1193,7 +1201,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
         // Waldtypen-Knopf lag bei y = −20).
         // Solange die Kartenbereiche bearbeitet werden, steht dort ihre
         // Leiste statt der Knopfspalte (area_tool_rail.dart).
-        floatingActionButton: areaTools
+        floatingActionButton: MapOverlayGuard(
+          child: areaTools
             ? const AreaToolRail()
             : FittedBox(
           fit: BoxFit.scaleDown,
@@ -1371,6 +1380,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
               ],
             ],
           ),
+        ),
         ),
       ),
       ],

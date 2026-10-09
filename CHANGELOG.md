@@ -7,6 +7,16 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Web-App: neue Kartentechnik zum Ausprobieren
+
+*9. Oktober 2026 · Version 1.224.6*
+
+- In der Web-App lässt sich die Karte versuchsweise mit derselben
+  Technik zeichnen wie in der Android-App. Sie soll beim Verschieben
+  deutlich flüssiger laufen. Ab Werk ändert sich nichts; wer es testen
+  will, hängt einmal ?maplibre=1 an die Adresse (?maplibre=0 schaltet
+  zurück). Gespeicherte Kartenbereiche fehlen in diesem Versuch noch.
+
 ## Fehlstart im Hintergrund wird gemeldet
 
 *9. Oktober 2026 · Version 1.224.5*

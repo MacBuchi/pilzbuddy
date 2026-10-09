@@ -46,10 +46,13 @@ class _FakeIo extends MapLibreStyleIo {
         ],
       });
 
+  /// Im Browser liefert die echte I/O eine URL statt eines Pfads (#689).
+  String overviewPath = '/fake/offline_maps/overview_dach.pmtiles';
+
   @override
   Future<String> materializeOverview() async {
     if (failOverview) throw StateError('Asset kaputt');
-    return '/fake/offline_maps/overview_dach.pmtiles';
+    return overviewPath;
   }
 
   @override
@@ -132,6 +135,53 @@ void main() {
     final sources = style['sources'] as Map<String, dynamic>;
     expect((sources['overview'] as Map)['maxzoom'], 7);
     expect((sources['region_de_bayern'] as Map)['maxzoom'], 15);
+  });
+
+  test('Im Browser (#689): Übersicht als URL ⇒ pmtiles://https://, '
+      'nicht pmtiles://file://', () async {
+    // Ohne die Weiche läse MapLibre GL JS `pmtiles://file://https://…` —
+    // eine Adresse, die es nicht gibt, und die Übersicht bliebe leer.
+    final (container, io, gate) = makeContainer();
+    const url = 'https://example.org/pilzbuddy/assets/assets/'
+        'offline_maps/overview_dach.pmtiles';
+    io.overviewPath = url;
+    gate.complete(const [_bayern]);
+    final style =
+        jsonDecode((await container.read(maplibreStyleProvider.future))!)
+            as Map<String, dynamic>;
+    final sources = style['sources'] as Map<String, dynamic>;
+    expect((sources['overview'] as Map)['url'], 'pmtiles://$url');
+    expect((sources['overview'] as Map)['maxzoom'], 7,
+        reason: 'Der Zoombereich kommt auch hier aus dem Header — '
+            'gelesen über dieselbe URL');
+    expect(io.readHeaders, contains(url));
+    // Die Region bleibt eine Datei — die Weiche gilt nur der Übersicht.
+    expect((sources['region_de_bayern'] as Map)['url'],
+        startsWith('pmtiles://file://'));
+  });
+
+  test('Ohne Regionskarten (Browser) wird die Regionsliste nie gelesen',
+      () async {
+    // Im Browser scheitert `installedMapsProvider` an `path_provider`
+    // (#689, am Prüfstand gefunden): Der Style wurde zum Fehler, und die
+    // Ansicht fiel still auf flutter_map zurück. Die Liste hier wird nie
+    // fertig — der Style darf trotzdem nicht auf sie warten.
+    final container = ProviderContainer(overrides: [
+      rainGridLoaderProvider.overrideWithValue((_) async => null),
+      maplibreStyleIoProvider.overrideWithValue(_FakeIo()),
+      installedMapsProvider
+          .overrideWith(() => _GatedInstalledMaps(Completer())),
+      settingsProvider.overrideWithValue(FakeSettings(offlineMapEnabled: true)),
+      noConnectivityProvider.overrideWithValue(false),
+      offlineMapsSupportedProvider.overrideWithValue(false),
+    ]);
+    addTearDown(container.dispose);
+    final style = await container
+        .read(maplibreStyleProvider.future)
+        .timeout(const Duration(seconds: 5));
+    final sources =
+        (jsonDecode(style!) as Map<String, dynamic>)['sources'] as Map;
+    expect(sources.keys.where((k) => '$k'.startsWith('region_')), isEmpty);
   });
 
   test('I/O-Fehler ⇒ null statt Wurf (Engine fällt auf flutter_map zurück)',

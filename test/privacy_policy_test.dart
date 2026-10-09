@@ -166,6 +166,12 @@ void main() {
       'www.openstreetmap.org',
       'www.dwd.de',
       'play.google.com',
+      // Steht in der selbst gehosteten MapLibre-GL-JS-Bibliothek
+      // (`web/maplibre/`, #689) — als Ziel des Logo- und des
+      // Attributions-Links. Beide Bedienelemente baut die App nicht ein
+      // (`attributionControl: false`, kein Logo), die Bibliothek lädt von
+      // dort nichts nach.
+      'maplibre.org',
     };
 
     /// Ziele, die nur als **Text** vorkommen und nicht einmal tippbar
