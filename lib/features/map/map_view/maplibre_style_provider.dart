@@ -11,6 +11,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
@@ -19,6 +20,7 @@ import 'package:pmtiles/pmtiles.dart';
 import '../../../core/app_colors.dart';
 import '../../../core/errors.dart';
 import '../../offline_maps/offline_map_providers.dart';
+import '../../offline_maps/offline_map_repository.dart' show InstalledMap;
 import '../rain_data_providers.dart';
 import '../rain_layer.dart';
 import '../map_overlays.dart';
@@ -56,10 +58,23 @@ class MapLibreStyleIo {
     return target;
   }
 
+  /// Im Browser gibt es keine Platte, aber die Assets liegen unter
+  /// `assets/` neben der Seite — MapLibre GL JS liest sie von dort
+  /// (#689). Absolut, weil MapLibre relative URLs nicht gegen die
+  /// `<base href>` auflöst; `Uri.base` trägt Freigabe- und Vorschaupfad.
+  static String _webAsset(String assetPath) =>
+      Uri.base.resolve('assets/$assetPath').toString();
+
   /// Materialisiert die DACH-Übersicht und liefert ihren Pfad. Bewusst
   /// derselbe Zielpfad wie `_openBundledOverview` beim Canvas-Renderer —
   /// beide Engines teilen sich die eine Datei auf Platte.
+  ///
+  /// Im Browser die URL des Assets (#689): GitHub Pages beantwortet
+  /// Range-Anfragen mit 206, nachgemessen am 2026-10-09, und der Service
+  /// Worker lässt Teilanfragen durch. Grenze: Ohne Netz kommt die
+  /// Übersicht so NICHT — Teilanfragen legt der Worker nicht ab.
   Future<String> materializeOverview() async {
+    if (kIsWeb) return _webAsset('assets/offline_maps/overview_dach.pmtiles');
     final dir = await getApplicationSupportDirectory();
     final file = await _materialize(
       'assets/offline_maps/overview_dach.pmtiles',
@@ -70,6 +85,11 @@ class MapLibreStyleIo {
 
   /// Materialisiert die Glyph-PBFs und liefert die Glyphs-URL-Vorlage.
   Future<String> materializeGlyphs() async {
+    // Im Browser direkt aus den Assets; die Platzhalter erst nach dem
+    // Auflösen anhängen, sonst kodiert `Uri` die Klammern.
+    if (kIsWeb) {
+      return '${_webAsset('assets/map_glyphs/')}{fontstack}/{range}.pbf';
+    }
     final dir = await getApplicationSupportDirectory();
     for (final stack in _fontStacks) {
       for (final range in _glyphRanges) {
@@ -84,7 +104,10 @@ class MapLibreStyleIo {
   /// eingebetteten Metadaten, die nachweislich lügen (siehe
   /// MapStyleSource).
   Future<({int min, int max})> readZoomRange(String path) async {
-    final archive = await PmTilesArchive.fromFile(File(path));
+    // Eine URL (Browser, #689) liest nur den Header per Range-Anfrage.
+    final archive = isRemoteArchive(path)
+        ? await PmTilesArchive.fromUri(Uri.parse(path))
+        : await PmTilesArchive.fromFile(File(path));
     try {
       return (min: archive.header.minZoom, max: archive.header.maxZoom);
     } finally {
@@ -92,6 +115,11 @@ class MapLibreStyleIo {
     }
   }
 }
+
+/// Ist [path] eine Adresse statt eines Dateipfads? Im Browser liefert
+/// [MapLibreStyleIo.materializeOverview] eine URL (#689).
+bool isRemoteArchive(String path) =>
+    path.startsWith('https://') || path.startsWith('http://');
 
 final maplibreStyleIoProvider =
     Provider<MapLibreStyleIo>((ref) => MapLibreStyleIo());
@@ -153,7 +181,11 @@ const _osmRaster = MapRasterSource(
 /// #157-Fehlerklasse der alten Engine existiert hier nicht).
 final maplibreStyleProvider = FutureProvider<String?>((ref) async {
   // ANTI-RACE: warten, nicht `valueOrNull` — siehe Kopfkommentar.
-  final allInstalled = await ref.watch(installedMapsProvider.future);
+  // Im Browser gibt es keine Regionskarten (#496) — und keine Platte:
+  // `installedMapsProvider` scheitert dort an `path_provider` (#689).
+  final allInstalled = ref.watch(offlineMapsSupportedProvider)
+      ? await ref.watch(installedMapsProvider.future)
+      : const <InstalledMap>[];
   // Stillgelegte Regionen (Schalter „Regionskarten verwenden") zählen wie
   // keine — dieselbe Regel wie `offlineMapStyleProvider`.
   final installed = ref.watch(regionMapsEnabledProvider)
@@ -195,12 +227,19 @@ final maplibreStyleProvider = FutureProvider<String?>((ref) async {
     if (showOverview) {
       final overviewPath = await io.materializeOverview();
       final overviewZoom = await io.readZoomRange(overviewPath);
-      sources.add(MapStyleSource(
-        id: 'overview',
-        filePath: overviewPath,
-        minZoom: overviewZoom.min,
-        maxZoom: overviewZoom.max,
-      ));
+      sources.add(isRemoteArchive(overviewPath)
+          ? MapStyleSource.remote(
+              id: 'overview',
+              remoteUrl: overviewPath,
+              minZoom: overviewZoom.min,
+              maxZoom: overviewZoom.max,
+            )
+          : MapStyleSource(
+              id: 'overview',
+              filePath: overviewPath,
+              minZoom: overviewZoom.min,
+              maxZoom: overviewZoom.max,
+            ));
     }
     if (online != null) {
       // Über den Kachel-Server der App (#659): Header und Verzeichnisse

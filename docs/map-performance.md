@@ -1147,3 +1147,49 @@ Was daraus folgt:
 - **Der Rest ist Rechenarbeit** (Waben, Linien) — der Fall für B2, den
   echten Web Worker. Ob er sich lohnt, entscheidet der Abstand zu
   „ohne Ebenen": bei 1× rund 2–4 s Dart.
+
+## Nachtrag 2026-10-09: C — MapLibre GL JS im Browser (#689, 1.224.6)
+
+Versuch hinter `?maplibre=1`, ab Werk unverändert. Gemessen NICHT auf
+der Vorschau (in der Sitzung lagen keine Zugangsdaten), sondern an einem
+**lokalen Prüfstand**: eigene Einstiegsdatei, die nur die Kartenfassade
+mit den echten Providern zeigt (keine Spots, keine Ebenen, keine
+Anmeldung), gebaut mit Flutter 3.47.5 wie CI (`--release --wasm`),
+ausgeliefert von einem Node-Server mit Range-Unterstützung wie Pages.
+Chromium 1194 (Playwright), 412 × 860, DPR 2, Touch, SwiftShader.
+Start bei 47,95° N / 8,1° O, Zoom 10, Neue Karte vom Kartenhost; externe
+Anfragen gingen über `curl` (Proxy der Sitzung). Fünf Touch-Wischer à
+~190 px, 2,5 s Abstand (×Drosselung). **Beide Engines aus DEMSELBEN
+Build**, umgeschaltet nur über den Parameter. Je zwei Läufe:
+
+| Lauf | Phase | flutter_map blockiert | MapLibre GL JS blockiert | längster Task flutter_map | MapLibre |
+|---|---|--:|--:|--:|--:|
+| 1× | Laden (25 s) | 20,8–23,2 s | **0,5–0,6 s** | 3,1–4,0 s | 0,16–0,19 s |
+| 1× | 5 Wischer | 32,9–42,4 s ¹ | **0,4–1,2 s** | 3,3–3,8 s | 0,4–1,3 s |
+| 4× | Laden (100 s) | 63–66 s | **3,2–3,3 s** | 3,6–3,7 s | 0,55–0,72 s |
+| 4× | 5 Wischer | 51–69 s | **0,9 s** | 3,4–3,7 s | 0,6 s |
+
+¹ Der erste 1×-Lauf überschnitt sich mit einem `flutter test`-Lauf.
+
+Externe Anfragen je Lauf: flutter_map 45–47, MapLibre 14 (Kacheln der
+Neuen Karte per Range; die JS-Bibliothek hält Header und Verzeichnisse
+im Speicher).
+
+Die flutter_map-Werte liegen über denen der Live-Messung oben (dort 1×
+13 s für die Wischer) — anderer Ausschnitt, Zoom 10 statt Übersicht,
+Kacheln über `curl`. Verglichen wird deshalb nur innerhalb dieses
+Prüfstands.
+
+Was daraus folgt:
+
+- **Das Schwenken verlässt den Hauptthread.** Was bei flutter_map
+  Skia-Arbeit im UI-Thread war, macht MapLibre GL JS in WebGL und in
+  eigenen Workern; übrig bleibt ein Bruchteil (Flutter zeichnet je
+  Bewegung die Bedienelemente über der Karte neu).
+- **Noch nicht gemessen:** mit Konto (Spots als `WidgetLayer`-Marker,
+  die je Bild positioniert werden), mit Ebenen (die Bilder entstehen
+  weiter auf dem Hauptthread, das ist B2) und auf einem echten Telefon.
+  Das ist der nächste Schritt, auf der Vorschau mit `?maplibre=1`.
+- **Bekannte Lücken des Versuchs:** gespeicherte Kartenbereiche fehlen,
+  die Übersicht gibt es ohne Netz nicht (Teilanfragen legt der Service
+  Worker nicht ab). Einzelheiten in `lib/features/map/CLAUDE.md`.

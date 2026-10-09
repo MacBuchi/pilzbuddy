@@ -4,8 +4,14 @@
 // `maplibre`) statt per Canvas auf dem UI-Isolate — der Kern der
 // „Lupo → Porsche"-Migration. In dieser Stufe (PR 3) bewusst NUR die
 // rohe Offline-Karte: keine Marker, keine Online-Kacheln — der
-// Opt-in-Schalter im Profil sagt das ehrlich dazu. Web sieht diese Datei
-// nie (bedingter Import in map_view.dart).
+// Opt-in-Schalter im Profil sagt das ehrlich dazu.
+//
+// Seit #689 (Hebel C) läuft dieselbe Ansicht versuchsweise auch im
+// Browser, dort mit MapLibre GL JS (`?maplibre=1`, maplibre_web.dart).
+// Drei Unterschiede stehen hier: Die Bibliothek wird erst nachgeladen
+// ([mapLibreJsReadyProvider]), der lange Tipp kommt als
+// `contextmenu` an, und Bilder und Archive sind URLs statt Dateien (das
+// regeln Style-Provider und `writeFill`).
 //
 // Die Widget-Shell bleibt bewusst dumm: Platform-Views sind im
 // Widget-Test nicht renderbar, ihr Gate ist das Gerät. Alles Prüfbare
@@ -13,7 +19,9 @@
 // Style-Provider (maplibre_style_provider.dart).
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart' show SchedulerBinding;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:maplibre/maplibre.dart' as ml;
@@ -33,10 +41,14 @@ import 'maplibre_gbif_fill.dart';
 import 'maplibre_image_fill.dart' show fillRemovalNeedsNudge;
 import 'maplibre_rain_fill.dart';
 import 'maplibre_style_provider.dart';
+import 'maplibre_web.dart' show loadMapLibreJs, setMapLibrePointerEvents;
 import 'marker_culling.dart';
 
-/// Bau-Funktion für die Engine-Wahl in `map_view.dart` — Stub und echte
-/// Datei müssen dieselbe Signatur exportieren (bedingter Import).
+/// Ist MapLibre GL JS geladen? Im Browser einmal je Sitzung, sobald die
+/// Ansicht das erste Mal baut; außerhalb immer `true` (Stub).
+final mapLibreJsReadyProvider = FutureProvider<bool>((ref) => loadMapLibreJs());
+
+/// Bau-Funktion für die Engine-Wahl in `map_view.dart`.
 Widget createMapLibreMapView({
   required MapViewConfig config,
   required MapViewController controller,
@@ -383,12 +395,45 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
   void initState() {
     super.initState();
     widget.controller.attach(this);
+    if (kIsWeb) {
+      _webActive = this;
+      if (!_coverHookInstalled) {
+        _coverHookInstalled = true;
+        SchedulerBinding.instance
+            .addPersistentFrameCallback((_) => _webActive?._syncCover());
+      }
+    }
   }
 
   @override
   void dispose() {
+    if (identical(_webActive, this)) _webActive = null;
     widget.controller.detach(this);
     super.dispose();
+  }
+
+  // Im Browser: Liegt etwas als Route über der Karte (Blatt, Dialog),
+  // nimmt die Karte keine Klicks an — sonst landeten sie bei ihr statt
+  // beim Knopf (#689, siehe `setMapLibrePointerEvents`).
+  //
+  // Geprüft nach jedem gezeichneten Bild statt über einen Beobachter:
+  // Blätter gehen im Navigator des Karten-Reiters auf (dann ist die
+  // eigene Route nicht mehr oben), Dialoge im Wurzel-Navigator (dann
+  // lässt der sich zurücknehmen, sonst trägt er nur die Hülle). Beides
+  // öffnet sich mit einer Animation, also mit Bildern. Ein Rückruf je
+  // Bild lässt sich nicht abmelden, deshalb EINER für alle Ansichten.
+  static bool _coverHookInstalled = false;
+  static _MapLibreMapViewState? _webActive;
+  bool? _covered;
+
+  void _syncCover() {
+    if (!mounted) return;
+    final route = ModalRoute.of(context);
+    final covered = !(route?.isCurrent ?? true) ||
+        (Navigator.maybeOf(context, rootNavigator: true)?.canPop() ?? false);
+    if (covered == _covered) return;
+    _covered = covered;
+    setMapLibrePointerEvents(!covered);
   }
 
   // MapViewCameraDelegate — die Kamera der Fassade.
@@ -462,6 +507,20 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
     ref.listen(
         gbifLayerEnabledProvider, (previous, next) => _requestRepaint());
 
+    if (kIsWeb) {
+      // Im Browser erst die Bibliothek (#689). Lädt sie nicht, gilt
+      // dieselbe Rückfalllinie wie ohne Style.
+      final js = ref.watch(mapLibreJsReadyProvider);
+      if (js.hasError || js.valueOrNull == false) {
+        return FlutterMapView(
+          config: widget.config,
+          controller: widget.controller,
+          markers: widget.markers,
+        );
+      }
+      if (!js.hasValue) return ColoredBox(color: widget.config.backgroundColor);
+    }
+
     final styleAsync = ref.watch(maplibreStyleProvider);
     final style = styleAsync.valueOrNull;
     if (styleAsync.hasError || (styleAsync.hasValue && style == null)) {
@@ -533,6 +592,14 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
             .addPostFrameCallback((_) => _updateVisibleBounds());
       },
       onEvent: (event) {
+        // Im Browser meldet MapLibre GL JS keinen langen Tipp; dort kommt
+        // er als `contextmenu` an (Chrome auf dem Telefon löst es beim
+        // Halten aus, am Rechner der Rechtsklick). Dieselbe Umrechnung.
+        if (kIsWeb && event is ml.MapEventSecondaryClick) {
+          widget.config.onLongPress?.call(
+              LatLng(event.point.lat.toDouble(), event.point.lon.toDouble()),
+              _globalOf(event.screenPoint));
+        }
         if (event is ml.MapEventLongClick) {
           widget.config.onLongPress?.call(
               LatLng(event.point.lat.toDouble(), event.point.lon.toDouble()),

@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.224.5+345
+version: 1.224.6+346
 
 environment:
   sdk: ^3.11.0
@@ -61,6 +61,11 @@ dependencies:
   # bewusst. Web sieht das Paket nie (bedingter Import in
   # lib/features/map/map_view/map_view.dart).
   maplibre: 0.3.5
+  # Klickfänger über der MapLibre-Fläche im Browser (#689, Versuch mit
+  # MapLibre GL JS): Ein HTML-Element unter Flutter nimmt sonst jeden
+  # Klick, Knöpfe darüber wären tot (map_overlay_guard.dart). Vorher schon
+  # transitiv über `maplibre`; direkt, weil der Code darauf aufbaut.
+  pointer_interceptor: ^0.10.1+2
   path_provider: ^2.1.5
   # Zwischenspeicher im Browser (#385): IndexedDB hinter einer
   # plattformneutralen Schnittstelle. Direkt statt nur transitiv über

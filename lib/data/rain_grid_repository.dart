@@ -11,11 +11,13 @@
 // der Datenschutzerklärung.
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import '../core/gunzip.dart';
+import '../core/object_url.dart';
 
 import '../features/map/rain_grid.dart';
 
@@ -806,10 +808,17 @@ class RainGridRepository {
   /// neuer Ausschnitt verdrängt also die alten.
   Future<String?> writeFill(String layer, DateTime measured, List<int> png,
       {String variant = ''}) async {
-    // Nur die MapLibre-Strecke braucht eine Datei-URL, und die gibt es
-    // im Browser nicht — dort nimmt flutter_map dieselben Bytes direkt
-    // als `MemoryImage`.
-    if (!_cachesToDisk) return null;
+    // Nur die MapLibre-Strecke braucht eine URL. Im Browser gibt es
+    // keine Datei — flutter_map nimmt dort dieselben Bytes direkt als
+    // `MemoryImage`, und MapLibre (Versuch #689, `?maplibre=1`) bekommt
+    // eine `blob:`-URL. Gerufen wird das nur, solange die MapLibre-Ansicht
+    // zuhört; die flutter_map-Engine legt hier keine Kopie an.
+    if (!_cachesToDisk) {
+      if (!kIsWeb) return null;
+      return objectUrlFor(
+          'fill_$layer', png is Uint8List ? png : Uint8List.fromList(png),
+          type: 'image/png');
+    }
     try {
       final dir = await _dir();
       final stamp =
