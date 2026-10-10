@@ -1134,6 +1134,9 @@ typedef _ReportInput = ({
 
 const kGalleryConsentKey = Key('gallery-consent');
 const kReportSendKey = Key('species-report-send');
+const kGalleryConsentAskKey = Key('gallery-consent-ask');
+const kGalleryConsentAskYesKey = Key('gallery-consent-ask-yes');
+const kGalleryConsentAskNoKey = Key('gallery-consent-ask-no');
 
 class _ReportDialog extends StatefulWidget {
   const _ReportDialog({
@@ -1178,6 +1181,57 @@ class _ReportDialogState extends State<_ReportDialog> {
   /// grau ([kFeedbackMinChars]). Bis 1.201.0 war der Knopf immer aktiv,
   /// und ohne Text verschwand die Meldung samt Fotos wortlos.
   bool get _canSend => _text.text.trim().length >= kFeedbackMinChars;
+
+  /// Der Satz, dem man zustimmt — im Haken UND in der Nachfrage beim
+  /// Senden derselbe, damit beide dasselbe meinen.
+  String get _consentText =>
+      'Ich habe ${_photos.length == 1 ? 'das Foto' : 'die Fotos'} '
+      'selbst gemacht. PilzBuddy darf '
+      '${_photos.length == 1 ? 'es' : 'sie'} in der Artgalerie '
+      'zeigen — unter $kGalleryPhotoLicence, mit '
+      '${widget.username == null ? 'meinem Benutzernamen' : '„${widget.username}"'} '
+      'als Urheber.';
+
+  /// Mit Bild, aber ohne Haken fragt „Senden" einmal nach (Betreiber,
+  /// 2026-10-10: „hab schon 2x einfach vergessen, den zu setzen"). Der
+  /// Haken bleibt ab Werk AUS — vorab gesetzt wäre er keine Einwilligung;
+  /// die Nachfrage holt sie aktiv ein. Wer die Nachfrage wegtippt, landet
+  /// wieder im Dialog, gesendet wird dann nichts.
+  Future<void> _send() async {
+    var consent = _consent && _photos.isNotEmpty;
+    if (_photos.isNotEmpty && !consent) {
+      final answer = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          key: kGalleryConsentAskKey,
+          title: Text(_photos.length == 1
+              ? 'Foto auch für die Artgalerie?'
+              : 'Fotos auch für die Artgalerie?'),
+          content: Text('$_consentText\n\nOhne Freigabe sieht nur der '
+              'Entwickler ${_photos.length == 1 ? 'das Bild' : 'die Bilder'}.'),
+          actions: [
+            TextButton(
+              key: kGalleryConsentAskNoKey,
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Ohne Freigabe senden'),
+            ),
+            FilledButton(
+              key: kGalleryConsentAskYesKey,
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Freigeben und senden'),
+            ),
+          ],
+        ),
+      );
+      if (answer == null || !mounted) return;
+      consent = answer;
+    }
+    Navigator.of(context).pop((
+      text: _text.text,
+      photos: _photos,
+      consent: consent,
+    ));
+  }
 
   @override
   void dispose() {
@@ -1241,13 +1295,7 @@ class _ReportDialogState extends State<_ReportDialog> {
                 dense: true,
                 value: _consent,
                 onChanged: (v) => setState(() => _consent = v ?? false),
-                title: Text(
-                    'Ich habe ${_photos.length == 1 ? 'das Foto' : 'die Fotos'} '
-                    'selbst gemacht. PilzBuddy darf '
-                    '${_photos.length == 1 ? 'es' : 'sie'} in der Artgalerie '
-                    'zeigen — unter $kGalleryPhotoLicence, mit '
-                    '${widget.username == null ? 'meinem Benutzernamen' : '„${widget.username}"'} '
-                    'als Urheber.'),
+                title: Text(_consentText),
                 subtitle: const Text('Freiwillig. Ohne Haken sieht nur der '
                     'Entwickler die Bilder. Ob eines übernommen wird, '
                     'entscheidet er nach Ansicht.'),
@@ -1262,13 +1310,7 @@ class _ReportDialogState extends State<_ReportDialog> {
           ),
           FilledButton(
             key: kReportSendKey,
-            onPressed: _canSend
-                ? () => Navigator.of(context).pop((
-                      text: _text.text,
-                      photos: _photos,
-                      consent: _consent && _photos.isNotEmpty,
-                    ))
-                : null,
+            onPressed: _canSend ? _send : null,
             child: const Text('Senden'),
           ),
         ],

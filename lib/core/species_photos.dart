@@ -1011,11 +1011,11 @@ const speciesPortraits = <String, List<SpeciesPhoto>>{
   ],
   'Rotfußröhrling': [
     (
-      asset: 'assets/species/rotfussroehrling-1.webp',
+      asset: 'assets/species/rotfussroehrling-2.webp',
       author: 'Holger Krisp',
       licence: 'CC BY 3.0',
       licenceUrl: 'https://creativecommons.org/licenses/by/3.0',
-      source: 'https://commons.wikimedia.org/wiki/File:Mold_boletus_chrysenteron_rotfussroehrling.jpg',
+      source: 'https://commons.wikimedia.org/wiki/File:Boletus-chrysenteron-rotfussr%C3%B6hrling.jpg',
     ),
   ],
   'Sandröhrling': [

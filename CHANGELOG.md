@@ -7,6 +7,18 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Artbilder: Nachfrage beim Senden, neues Bild zum Rotfußröhrling
+
+*10. Oktober 2026 · Version 1.224.7*
+
+- Wer einen Hinweis zu einer Art mit Foto schickt, aber den Haken für
+  die Artgalerie nicht gesetzt hat, wird beim Senden einmal gefragt, ob
+  die Fotos auch in die Artgalerie dürfen. Ohne Freigabe sieht sie wie
+  bisher nur der Entwickler.
+- Der Rotfußröhrling hatte ein Bild von einem verschimmelten Exemplar.
+  Jetzt zeigt es zwei frische Pilze mit olivbraunem Hut, rotem Stiel und
+  gelben Röhren.
+
 ## Web-App: neue Kartentechnik zum Ausprobieren
 
 *9. Oktober 2026 · Version 1.224.6*
