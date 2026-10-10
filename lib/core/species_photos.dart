@@ -412,6 +412,13 @@ const speciesPortraits = <String, List<SpeciesPhoto>>{
       licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
       source: 'Eigene Aufnahme',
     ),
+    (
+      asset: 'assets/species/falscherpfifferling-4.webp',
+      author: 'MacBuchi',
+      licence: 'CC BY-SA 4.0',
+      licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+      source: 'Eigene Aufnahme',
+    ),
   ],
   'Krause Glucke': [
     (
