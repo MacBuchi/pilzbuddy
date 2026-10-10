@@ -7,13 +7,15 @@
 // (PerformanceObserver 'longtask') und Bildlücken über 50 ms
 // (requestAnimationFrame), getrennt nach Phase.
 //
-//   PILZ_TEST_EMAIL=… PILZ_TEST_PASSWORD=… \
+//   PB_EMAIL=… PB_PASSWORD=… \
 //   NODE_EXTRA_CA_CERTS=/pfad/zum/ca-bundle.crt \
 //   node tool/web_map_probe.mjs [--engine flutter|maplibre] [--throttle 1|4]
 //                               [--layers] [--runs N] [--url URL]
 //                               [--screenshot datei.png]
 //
-// Die Zugangsdaten kommen NUR aus der Umgebung — ein Testkonto, nie das
+// Die Zugangsdaten kommen NUR aus der Umgebung (dieselben Namen wie in
+// seed_screenshot_data.py; das Testkonto steht im Austauschordner des
+// Betreibers, in der Cloud als Umgebungsvariable) — ein Testkonto, nie das
 // eigene. Angemeldet wird über GoTrue (Passwort-Grant) aus der Seite
 // heraus; die Sitzung landet unter dem Schlüssel, den supabase_flutter
 // im Web liest (`sb-<projekt>-auth-token`), danach lädt die App neu.
@@ -55,10 +57,10 @@ const loadSeconds = 55 * throttle;
 const panGapMs = 2500 * throttle;
 const settleMs = 5000 * throttle;
 
-const email = process.env.PILZ_TEST_EMAIL;
-const password = process.env.PILZ_TEST_PASSWORD;
+const email = process.env.PB_EMAIL;
+const password = process.env.PB_PASSWORD;
 if (!email || !password) {
-  console.error('PILZ_TEST_EMAIL und PILZ_TEST_PASSWORD fehlen in der Umgebung.');
+  console.error('PB_EMAIL und PB_PASSWORD fehlen in der Umgebung.');
   process.exit(2);
 }
 if (!['flutter', 'maplibre'].includes(engine)) {
