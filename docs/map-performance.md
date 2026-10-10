@@ -1193,3 +1193,82 @@ Was daraus folgt:
 - **Bekannte Lücken des Versuchs:** gespeicherte Kartenbereiche fehlen,
   die Übersicht gibt es ohne Netz nicht (Teilanfragen legt der Service
   Worker nicht ab). Einzelheiten in `lib/features/map/CLAUDE.md`.
+
+## Nachtrag 2026-10-10: C auf der Vorschau, mit Konto (#689, 1.224.6)
+
+Der Schritt, der oben offen war: MapLibre GL JS gegen flutter_map auf
+der **Vorschau 1.224.6** (`main.dart.wasm` in jedem Lauf nachgewiesen),
+**angemeldet** mit einem Konto mit Spots, beide Engines aus demselben
+Build über `?maplibre=1` / `?maplibre=0`. Gemessen auf dem Rechner des
+Betreibers: Chromium 140 headless (Playwright), 412 × 860, DPR 2, Touch,
+Standort 47,95° N / 8,1° O, Grafik in SwiftShader wie oben. Die
+Anmeldung lag in einem eigenen Browserprofil; Willkommen,
+Sicherheitshinweis und Neuheiten über `localStorage` als gesehen
+markiert, die Ebenen ebenso. Ablauf je Lauf: Laden (25 s × Drosselung),
+dann fünf Touch-Wischer à 190 px über CDP, 2,5 s × Drosselung Abstand.
+Ein Aufwärmlauf je Engine vorab, danach die Engines abwechselnd, je zwei
+Läufe. Gezählt: Long Tasks (Summe „blockiert" und längster Task).
+
+**Nicht mit den Tabellen oben vergleichbar** — anderer Rechner (deutlich
+schnellere CPU als die Cloud-Sitzung), anderer Ausschnitt. Verglichen
+wird nur innerhalb dieser Tabelle.
+
+| Lauf | Phase | flutter_map blockiert | MapLibre blockiert | längster Task flutter_map | MapLibre |
+|---|---|--:|--:|--:|--:|
+| 1×, ohne Ebenen | Laden | 5,5–5,7 s | **2,1 s** | 0,50 s | 0,55–0,57 s |
+| 1×, ohne Ebenen | 5 Wischer | 31,7–32,0 s | **2,2–2,9 s** | 0,32–0,33 s | 0,25 s |
+| 1×, Wald + Höhenlinien | Laden | 6,7–6,8 s | **2,5 s** | 0,51 s | 0,55–0,56 s |
+| 1×, Wald + Höhenlinien | 5 Wischer | 36,1 s | **8,0–8,1 s** | 0,59–0,62 s | 0,24–0,25 s |
+| 4×, ohne Ebenen | Laden | 9,0–9,9 s | **3,6–3,8 s** | 0,70–0,72 s | 0,63–0,65 s |
+| 4×, ohne Ebenen | 5 Wischer | 41,6–42,4 s | **6,0–6,6 s** | 0,41 s | 0,27–0,28 s |
+| 4×, Wald + Höhenlinien | Laden | 13,3–13,9 s | **4,5–5,8 s** | 1,94–1,98 s | 0,61–0,70 s |
+| 4×, Wald + Höhenlinien | 5 Wischer | 49,2–49,4 s | **13,0 s** | 1,62–1,63 s | 0,34–0,46 s |
+
+Externe Anfragen je Lauf (Kacheln, Supabase, alles außerhalb der
+Vorschau): flutter_map 71–72, MapLibre 20–21.
+
+**Gleiche Zoomzahl heißt NICHT gleiche Fläche.** Beide Engines bekommen
+dieselbe Startzoomstufe, MapLibre rechnet aber in 512er-Kacheln
+(`map_view.dart`, `onCameraIdle`) — es zeigt eine Stufe näher, ein
+Viertel der Fläche (Maßstab 5 km auf ~195 px gegen 8 km auf ~155 px).
+Auf Android ist das seit jeher so. Für den Vergleich ist es eine
+Schieflage zugunsten von MapLibre, deshalb eine Kontrollreihe: MapLibre
+nach dem Laden per Zwei-Finger-Geste eine Stufe hinaus (Ausschnitt
+Hornberg–Todtnau wie bei flutter_map), dann dieselben Wischer.
+
+| Lauf | MapLibre gleiche Fläche, 5 Wischer blockiert | längster Task |
+|---|--:|--:|
+| 1×, ohne Ebenen | 7,0–8,4 s | 0,11–0,33 s |
+| 4×, ohne Ebenen | 9,3–9,4 s | 0,12–0,15 s |
+
+Mit Ebenen griff die Geste in allen vier Läufen nicht (die Karte
+verschob sich leicht, der Zoom blieb) — diese Läufe sind keine
+Kontrolle und fehlen. Ob Pinch-Zoom mit Wald + Höhenlinien im Browser
+auch von Hand hakt, ist offen.
+
+Zwei weitere Beobachtungen:
+
+- **Die Gesten selbst kamen bei flutter_map verspätet an.** CDP wartet
+  je Touch-Ereignis, bis der Renderer es angenommen hat. Die Wischphase
+  dauerte deshalb bei 1× 45–47 s (flutter_map) gegen 22–24 s (MapLibre),
+  geplant waren ~16 s; bei 4× 98–101 s gegen 68–72 s (geplant ~61 s).
+  Das ist die Verzögerung, die ein Finger spürt.
+- **Bei MapLibre erscheinen die Ebenen später.** Nach 25 s Laden zeigte
+  MapLibre Legende und Karte, aber weder Waben noch Höhenlinien; sie
+  standen erst nach den Wischern. Die Ebenen-Arbeit fällt dort also
+  in die Wischphase — ein Grund, warum MapLibre mit Ebenen beim Wischen
+  8 s statt 2–3 s blockiert. Die Bilder entstehen in beiden Engines auf
+  dem Hauptthread (B2).
+
+Was daraus folgt:
+
+- **Beim Schwenken blockiert MapLibre 4–5× weniger** als flutter_map,
+  bei gleicher Fläche (1×: 32 → 7–8 s, 4×: 42 → 9 s), und bei
+  derselben Zoomzahl 4–14× weniger. Die Anfragen fallen von 71 auf 20.
+- **Mit Ebenen bleibt ein Rest von 8–13 s**, der nicht an der Engine
+  hängt, sondern am Malen der Overlay-Bilder — B2 (Web Worker) würde
+  ihn in beiden Engines treffen.
+- **Offen vor einer Entscheidung über die Vorgabe:** Messung auf einem
+  echten Telefon (Betreiber), Pinch-Zoom mit Ebenen von Hand prüfen,
+  und die bekannten Lücken des Versuchs (gespeicherte Kartenbereiche,
+  Übersicht ohne Netz; `lib/features/map/CLAUDE.md`).
