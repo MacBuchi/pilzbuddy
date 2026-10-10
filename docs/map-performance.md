@@ -1272,3 +1272,56 @@ Was daraus folgt:
   echten Telefon (Betreiber), Pinch-Zoom mit Ebenen von Hand prüfen,
   und die bekannten Lücken des Versuchs (gespeicherte Kartenbereiche,
   Übersicht ohne Netz; `lib/features/map/CLAUDE.md`).
+
+## Nachtrag 2026-10-10: C auf einem echten Telefon (#689, 1.224.6)
+
+Dieselbe Vorschau 1.224.6 (Wasm), dasselbe Konto, beide Engines über
+`?maplibre=1/0` — diesmal in **Chrome 144 auf dem Pixel XL** (Android 10,
+Adreno 530, 4 GB), ferngesteuert über CDP (`adb forward` auf
+`chrome_devtools_remote`, Playwright `connectOverCDP`). Viewport
+411 × 603 CSS-px, DPR 3,5, keine Drosselung (das Gerät ist die
+Drosselung). Standort per CDP auf 47,95° N / 8,1° O, Ausschnitt wie
+oben. Ablauf je Lauf: Chrome beenden und neu starten, Laden (60 s),
+dann fünf Touch-Wischer à 190 px, 4 s Abstand. Gezählt wie oben: Long
+Tasks. Je zwei Läufe, die Engines abwechselnd.
+
+| Lauf | Phase | flutter_map blockiert | MapLibre blockiert | längster Task flutter_map | MapLibre |
+|---|---|--:|--:|--:|--:|
+| ohne Ebenen | Laden | 6,2–8,5 s | **2,9–3,9 s** | 0,35–0,56 s | 0,48–0,71 s |
+| ohne Ebenen | 5 Wischer | 11,3–11,6 s¹ | **0,6–0,8 s** | 0,39–0,54 s | 0,12–0,18 s |
+| Wald + Höhenlinien | Laden | 13,4–14,0 s | **6,0–6,2 s** | **3,3–3,4 s** | 0,81–0,91 s |
+| Wald + Höhenlinien | 5 Wischer | 18,4–22,1 s¹ | **1,6–1,8 s** | 1,67–1,73 s | 0,26–0,28 s |
+
+Externe Anfragen je Lauf: flutter_map 63–64, MapLibre 19–20. Die
+Wischphase (geplant 25 s) dauerte bei flutter_map 33–39 s, bei
+MapLibre 27–29 s — die verspäteten Touch-Ereignisse wie am Rechner.
+
+¹ **Die Wischer kamen bei flutter_map auf dem Telefon nicht sauber
+an.** Bildschirmfotos nach jedem Wischer zeigen: Der erste ging
+verloren, die folgenden schoben die Karte weit über 190 px hinaus
+(einmal bis Basel). Kurzes Festhalten vor dem Loslassen änderte daran
+nichts. Am Rechner bewegte dasselbe Skript die Karte korrekt, und bei
+MapLibre auf dem Telefon auch (Netto ein Wischer nach links). flutter_map
+hat damit mehr Fläche geladen; seine Wischwerte sind eine Obergrenze.
+Ob das am Skript liegt oder ein echter Finger dasselbe erlebt, ist
+offen — von Hand prüfen. Die Ladephase ist davon nicht berührt.
+
+**Zwei-Finger-Geste:** Die skriptierte Geste griff bei MapLibre auf dem
+Telefon weder mit noch ohne Ebenen (am Rechner ohne Ebenen schon). Eine
+Kontrollreihe „gleiche Fläche" gibt es vom Telefon deshalb nicht;
+Pinch-Zoom bleibt eine Handprüfung.
+
+Was daraus folgt:
+
+- **Die Rangfolge vom Rechner hält auf dem Telefon.** Beim Laden
+  blockiert MapLibre gut halb so lange (ohne Ebenen 3–4 s gegen
+  6–8 s, mit Ebenen 6 s gegen 13–14 s). Der längste Task mit Ebenen
+  fällt von 3,3 s auf 0,9 s — das ist der Moment, in dem die Seite auf
+  nichts reagiert.
+- **Beim Wischen bleibt MapLibre unter 2 s für fünf Wischer**, auch mit
+  Ebenen. Anders als in Headless-Chromium standen die Ebenen auf dem
+  Telefon schon nach dem Laden (die echte GPU), die Ebenen-Arbeit fiel
+  also nicht in die Wischphase.
+- **Offen vor der Entscheidung über die Vorgabe:** Pinch-Zoom und
+  Wischen von Hand auf dem Telefon, mit `?maplibre=1` und `?maplibre=0`;
+  die bekannten Lücken des Versuchs (`lib/features/map/CLAUDE.md`).
