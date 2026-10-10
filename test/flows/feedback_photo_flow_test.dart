@@ -156,6 +156,9 @@ void main() {
     await tester.pump(); // „Senden“ wird erst mit dem nächsten Frame aktiv
     await tester.tap(find.text('Senden'));
     await settle(tester);
+    // Ohne Haken fragt „Senden" nach (1.224.7) — hier ohne Freigabe.
+    await tester.tap(find.byKey(kGalleryConsentAskNoKey));
+    await settle(tester);
 
     final row = backend.feedback.single;
     expect(row['type'], 'bug');
@@ -309,8 +312,76 @@ void main() {
     await tester.pump(); // „Senden“ wird erst mit dem nächsten Frame aktiv
     await tester.tap(find.text('Senden'));
     await settle(tester);
+    await tester.tap(find.byKey(kGalleryConsentAskNoKey));
+    await settle(tester);
     expect(backend.feedback.single['photo_consent'], isFalse);
     await drainSnackbars(tester);
+  });
+
+  group('Nachfrage beim Senden ohne Haken (Betreiber, 2026-10-10)', () {
+    Future<void> sendWithoutTick(WidgetTester tester) async {
+      await openSpeciesReport(tester);
+      await attach(tester);
+      await tester.enterText(find.byType(TextField).first, 'Mein Fund');
+      await tester.pump(); // „Senden“ wird erst mit dem nächsten Frame aktiv
+      await tester.tap(find.byKey(kReportSendKey));
+      await settle(tester);
+    }
+
+    testWidgets('fragt, statt still ohne Freigabe zu senden — und „Freigeben" '
+        'gilt als Einwilligung', (tester) async {
+      final (backend, _) = loggedInBackend();
+      await pumpApp(tester, backend,
+          photoPicker: FakePhotoPicker(dirtyJpeg()));
+      await sendWithoutTick(tester);
+
+      expect(find.byKey(kGalleryConsentAskKey), findsOneWidget);
+      expect(backend.feedback, isEmpty,
+          reason: 'vor der Antwort geht nichts raus');
+      expect(
+          find.descendant(
+              of: find.byKey(kGalleryConsentAskKey),
+              matching: find.textContaining('„testpilz" als Urheber')),
+          findsOneWidget,
+          reason: 'dieselbe Erklärung wie am Haken, mit dem Namen');
+
+      await tester.tap(find.byKey(kGalleryConsentAskYesKey));
+      await settle(tester);
+      expect(backend.feedback.single['photo_consent'], isTrue);
+      await drainSnackbars(tester);
+    });
+
+    testWidgets('weggetippt: zurück im Dialog, nichts gesendet',
+        (tester) async {
+      final (backend, _) = loggedInBackend();
+      await pumpApp(tester, backend,
+          photoPicker: FakePhotoPicker(dirtyJpeg()));
+      await sendWithoutTick(tester);
+
+      await tester.tapAt(const Offset(4, 4)); // neben die Nachfrage
+      await settle(tester);
+      expect(find.byKey(kGalleryConsentAskKey), findsNothing);
+      expect(find.byKey(kReportSendKey), findsOneWidget,
+          reason: 'der Meldedialog steht noch, Text und Bild mit ihm');
+      expect(backend.feedback, isEmpty);
+    });
+
+    testWidgets('ohne Bild keine Nachfrage', (tester) async {
+      // Mit Haken ebenfalls keine — das hält der Test „Galerie-Einwilligung"
+      // oben fest: Er sendet nach dem Haken direkt und erwartet die Zeile.
+      final (backend, _) = loggedInBackend();
+      await pumpApp(tester, backend,
+          photoPicker: FakePhotoPicker(dirtyJpeg()));
+      await openSpeciesReport(tester);
+      await tester.enterText(find.byType(TextField).first, 'Nur Text');
+      await tester.pump(); // „Senden“ wird erst mit dem nächsten Frame aktiv
+      await tester.tap(find.byKey(kReportSendKey));
+      await settle(tester);
+      expect(find.byKey(kGalleryConsentAskKey), findsNothing);
+      expect(backend.feedback, hasLength(1),
+          reason: 'ohne Bild gibt es nichts zu fragen');
+      await drainSnackbars(tester);
+    });
   });
 
   testWidgets('Art-Hinweis: „Senden" ist nur aktiv, wenn danach wirklich '
@@ -359,6 +430,8 @@ void main() {
     await settle(tester);
     expect(sendEnabled(), isTrue);
     await tester.tap(find.byKey(kReportSendKey));
+    await settle(tester);
+    await tester.tap(find.byKey(kGalleryConsentAskNoKey));
     await settle(tester);
     expect(backend.feedback, hasLength(1));
     expect(backend.feedbackPhotoObjects, hasLength(1),

@@ -179,6 +179,12 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
     die eigenen Aufnahmen (ein Test hält Dialog, Galerie und Bot
     zusammen); Urheber ist der Benutzername, festgehalten im Issue zum
     Zeitpunkt der Meldung. Übernommen wird weiter nur nach Ansicht.
+    **Ohne Haken fragt „Senden" einmal nach** (seit 1.224.7; Betreiber,
+    2026-10-10: zweimal vergessen, den Haken zu setzen). Der Haken
+    bleibt ab Werk AUS — vorab gesetzt wäre er keine Einwilligung —,
+    die Nachfrage holt sie aktiv ein, mit demselben Satz wie am Haken
+    (`_consentText`). Weggetippt heißt: zurück in den Dialog, nichts
+    gesendet; „Ohne Freigabe senden" sendet wie bisher.
     **Art-Hinweise laden in Galerie-Größe hoch** (seit 1.199.0, Patch
     035): 2048er Kante, Qualität 85 (`prepareGalleryPhoto`,
     `galleryPhotoPreparerProvider`), allgemeines Feedback bleibt bei
