@@ -40,6 +40,13 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
     `ServiceWorker.deliverPushMessage`, Freigabe und Vorschau
     nebeneinander. Gestellt ist genau eines — der Fokus, weil ein
     kopfloser Chrome `WindowClient.focused` nie wahr meldet.
+    **Falle beim Prüfen: `getNotifications()` löscht in Chrome, was
+    gespeichert, aber noch nicht angezeigt ist.** Wer auf eine Meldung
+    wartet, indem er abfragt, verliert sie gelegentlich, obwohl
+    `showNotification` Erfolg meldet (rund jeder zwanzigste Lauf; dichtes
+    Abfragen beim Zeigen: 16 von 40 verloren, gemessen in TrailBuddy
+    #291). Der Prüfer zählt deshalb im Worker mit, wann `showNotification`
+    fertig ist, und liest erst danach, einmal (#691).
   Den Worker frischt die App bei jedem Start auf (`update()`): Sein
   Scope wird nie angesteuert, der Browser sähe sonst höchstens einmal
   am Tag nach. Tote Tokens räumt `send-push` selbst ab („unregistered"),
