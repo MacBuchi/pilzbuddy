@@ -100,6 +100,11 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
   Auf demselben Tick läuft der **Fehlerbericht-Digest**: ein Issue pro
   ISO-Woche (Label `ops`, Titel `Error reports JJJJ-Wnn`), das bei jedem
   Lauf neu geschrieben statt kommentiert wird; keine Fehler ⇒ kein Issue.
+  **Ein geschlossenes Wochen-Issue bleibt zu** (`digest_action`): Der Bot
+  sucht auch unter den geschlossenen und öffnet es nur wieder, wenn die
+  Zahl der Berichte gestiegen ist. Vorher suchte er nur offene, und jedes
+  „Close when triaged" mitten in der Woche brachte zwei Stunden später
+  eine Kopie — neun Wochen mit zwei oder drei Issues (W41: #687, #696).
   Dazu die 90-Tage-Bereinigung von `error_reports`. Beides liegt hier und
   nicht in einem eigenen Workflow, weil Zeitplan, service_role-Key und
   GitHub-Token schon da sind — und `error_reports` bewusst keine

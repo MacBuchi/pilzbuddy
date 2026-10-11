@@ -264,6 +264,37 @@ def print_past_digest(week: str) -> None:
     print(digest_body(rows, week))
 
 
+def reported_count(body: str | None) -> int | None:
+    """The report count in a digest body's first line, None if absent."""
+    match = re.match(r"(\d+) caught errors? reached", body or "")
+    return int(match.group(1)) if match else None
+
+
+def digest_action(existing: list[dict], title: str, count: int) -> tuple[str, int | None]:
+    """What to do with this week's issue: create, edit, reopen or skip.
+
+    Looks at closed issues too. Searching only the open ones turned every
+    "close when triaged" during the week into a fresh copy two hours later
+    — nine weeks with two or three issues each (W41: #687, then #696). A
+    closed digest stays closed while the count is the same — the reports
+    in it are triaged — and is reopened when new ones arrived, because
+    those are not. Rows only grow within a week (the purge takes rows
+    older than 90 days), so a higher count means new reports; the count
+    rather than the whole body, which GitHub may store with other line
+    endings. Port of TrailBuddy's fix for its #298.
+    """
+    matches = [i for i in existing if i["title"] == title]
+    open_match = next((i for i in matches if i.get("state", "OPEN").upper() == "OPEN"), None)
+    if open_match:
+        return "edit", open_match["number"]
+    if not matches:
+        return "create", None
+    newest = max(matches, key=lambda i: i["number"])
+    if reported_count(newest.get("body")) == count:
+        return "skip", newest["number"]
+    return "reopen", newest["number"]
+
+
 def report_error_digest() -> None:
     """One issue per ISO week, rewritten in place on every two-hourly tick.
 
@@ -286,17 +317,21 @@ def report_error_digest() -> None:
                     "--description", "Betrieb, Monitoring, Backups"],
                    capture_output=True, text=True)
 
-    existing = json.loads(run("gh", "issue", "list", "--state", "open",
+    existing = json.loads(run("gh", "issue", "list", "--state", "all",
                               "--label", "ops", "--limit", "50",
-                              "--json", "number,title") or "[]")
-    match = next((i for i in existing if i["title"] == title), None)
-    if match:
-        run("gh", "issue", "edit", str(match["number"]), "--body", body)
-        print(f"Error digest updated: {title} ({len(rows)} reports)")
-    else:
+                              "--json", "number,title,state,body") or "[]")
+    action, number = digest_action(existing, title, len(rows))
+    if action == "create":
         run("gh", "issue", "create", "--title", title, "--body", body,
             "--label", "ops")
         print(f"Error digest created: {title} ({len(rows)} reports)")
+    elif action == "skip":
+        print(f"Error digest #{number} closed as triaged, no new reports: {title}")
+    else:
+        run("gh", "issue", "edit", str(number), "--body", body)
+        if action == "reopen":
+            run("gh", "issue", "reopen", str(number))
+        print(f"Error digest {action}ed: {title} ({len(rows)} reports)")
 
 
 def purge_error_reports() -> None:
@@ -724,6 +759,24 @@ def self_test_digest() -> None:
     assert (start.year, start.month, start.day) == (2026, 7, 20), start
     assert (end - start).days == 7, (start, end)
     assert _stamp(start) == "2026-07-20T00:00:00Z", _stamp(start)
+
+    # Das Wochen-Issue: ein offenes wird neu geschrieben, ein
+    # geschlossenes bleibt zu, solange nichts Neues kam, und geht wieder
+    # auf, wenn doch — nie ein zweites Issue für dieselbe Woche (#696,
+    # eine Kopie von #687).
+    assert reported_count(body) == 3, reported_count(body)
+    assert reported_count("") is None and reported_count(None) is None
+    title = "Error reports 2026-W41"
+    closed = {"number": 687, "title": title, "state": "CLOSED", "body": body}
+    other = {"number": 666, "title": "Error reports 2026-W40", "state": "OPEN", "body": body}
+    assert digest_action([], title, 3) == ("create", None)
+    assert digest_action([other], title, 3) == ("create", None)
+    assert digest_action([closed, other], title, 3) == ("skip", 687)
+    assert digest_action([closed], title, 4) == ("reopen", 687)
+    assert digest_action([dict(closed, state="OPEN")], title, 4) == ("edit", 687)
+    copy = {"number": 696, "title": title, "state": "OPEN", "body": body}
+    assert digest_action([copy, closed], title, 3) == ("edit", 696)
+    assert digest_action([dict(copy, state="CLOSED"), closed], title, 3) == ("skip", 696)
 
     print(body)
     print("\nself-test passed (no network, nothing written)")
