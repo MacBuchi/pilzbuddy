@@ -76,7 +76,12 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
   zu groß für den Edge-Cache). Seit dem Kachel-Server sind es etwa 8 je
   Erststart, 2 je weiterem Start und 1 je neuer Kachel; das
   Freikontingent (10 Mio./Monat, mit TrailBuddy geteilt) ist damit weit
-  weg. Was der Host von TrailBuddy zählt, ist dort nicht gemessen.
+  weg. **TrailBuddy gemessen am 2026-10-18** (#630, Pixel XL, `dev`-Flavor
+  gegen denselben Zähl-Proxy): Kaltstart 5 (nur Manifeste, Kacheln
+  bleiben dort über Neustarts liegen), erster Sprung zur Position 14,
+  je neuem Kachelfeld etwa 2 (Karte + Wege). Hochgerechnet ≈ 95 je
+  Nutzertag gegen ≈ 40 bei uns; das Freikontingent reicht für etwa
+  2 400 tägliche Nutzer in JEDER App zugleich.
 
 - **Gemeldete Fundorte (GBIF) als Kartenebene** (#467, seit 1.154.0):
   je Meldung einer unserer Arten EINE Scheibe in der Größe ihrer
