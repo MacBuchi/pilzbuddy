@@ -109,20 +109,27 @@ class SpotRepository {
   /// dann soll die Offline-Kopie zügig einspringen.
   static const fetchTimeout = Duration(seconds: 10);
 
+  /// Die Spalten der eigenen Spots: alles, dazu die Funde samt Autor. Der
+  /// kommt als benannter Embed über den FK-Namen mit — seit Patch 014
+  /// können auch Buddies an eigenen Spots Funde haben, und die Fundliste
+  /// nennt dann, von wem einer stammt. EINE Konstante für den Vollabruf
+  /// und das Nachholen einzelner Spots (#706): Zwei Fassungen lieferten
+  /// zwei Zeilenformen in denselben Zwischenspeicher.
+  static const _mySpotsSelect =
+      '*, finds(*, author:profiles!finds_author_id_fkey(username, avatar))';
+
   String get _uid => _client.requireUid;
 
   /// Eigene Spots. Ohne Empfang kommen sie aus dem Zwischenspeicher —
-  /// siehe `spot_cache.dart` für den Grund.
-  Future<SpotsSnapshot> fetchMySpots() async {
+  /// siehe `spot_cache.dart` für den Grund. [afterWrite] sagt, was gerade
+  /// geschrieben wurde; fällt der Abruf auf die Kopie zurück, werden genau
+  /// diese Spots einzeln nachgeholt (#706, Begründung dort).
+  Future<SpotsSnapshot> fetchMySpots({SpotWrite? afterWrite}) async {
     final uid = _uid;
     Future<List<Map<String, dynamic>>> fetch() async {
-      // Der Autor kommt als benannter Embed über den FK-Namen mit —
-      // seit Patch 014 können auch Buddies an eigenen Spots Funde haben,
-      // und die Fundliste nennt dann, von wem einer stammt.
       final rows = await _client
           .from('spots')
-          .select(
-              '*, finds(*, author:profiles!finds_author_id_fkey(username, avatar))')
+          .select(_mySpotsSelect)
           .eq('owner_id', uid)
           // Ältester zuerst, ausdrücklich: postgrest-dart sortiert ohne
           // Angabe ABSTEIGEND. So war es bis 1.210.0 — der Fake lieferte
@@ -136,6 +143,19 @@ class SpotRepository {
       return rows.cast<Map<String, dynamic>>();
     }
 
+    // Dieselben Spalten, dieselbe Ordnung, nur die genannten ids — und
+    // nur eigene: Das Fach ist das der eigenen Spots.
+    Future<List<Map<String, dynamic>>> fetchRows(Set<String> ids) async {
+      final rows = await _client
+          .from('spots')
+          .select(_mySpotsSelect)
+          .eq('owner_id', uid)
+          .inFilter('id', ids.toList())
+          .order('created_at', ascending: true)
+          .timeout(fetchTimeout);
+      return rows.cast<Map<String, dynamic>>();
+    }
+
     final cache = _cache;
     final result = cache == null
         ? (rows: await fetch(), cachedAt: null)
@@ -144,6 +164,8 @@ class SpotRepository {
             cache: cache,
             uid: uid,
             now: DateTime.now(),
+            afterWrite: afterWrite,
+            fetchRows: fetchRows,
           );
     return (
       spots: [
@@ -270,7 +292,10 @@ class SpotRepository {
   /// das biologische Datum und die Größe, an der später gerechnet wird
   /// (#199); wann die Zeile eingefügt wurde, ist keine Eigenschaft des
   /// Fundes.
-  Future<void> restoreSpot({
+  ///
+  /// Liefert die id des neuen Spots — `restoreSpots` merkt sie sich für
+  /// den Zwischenspeicher (#706).
+  Future<String> restoreSpot({
     required double lat,
     required double lng,
     String? name,
@@ -288,7 +313,9 @@ class SpotRepository {
         })
         .select('id')
         .single();
-    await addFinds(spotId: spot['id'] as String, finds: finds);
+    final id = spot['id'] as String;
+    await addFinds(spotId: id, finds: finds);
+    return id;
   }
 
   /// Legt Einträge an einem Spot an. Der Artname wird dabei auf die

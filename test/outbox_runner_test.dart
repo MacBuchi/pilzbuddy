@@ -90,7 +90,9 @@ void main() {
 
   test('ein leerer Korb tut nichts', () async {
     final s = setup([]);
-    expect(await s.runner.run(uid: 'me'), (sent: 0, remaining: 0, failed: 0));
+    final result = await s.runner.run(uid: 'me');
+    expect((result.sent, result.remaining, result.failed), (0, 0, 0));
+    expect(result.touched, isEmpty);
   });
 
   test('alles geht raus und der Korb ist danach leer', () async {
@@ -219,6 +221,47 @@ void main() {
     expect(s.outbox.jobs.last.failure, contains('Spot'));
   });
 
+  test('der Lauf nennt die Server-ids der berührten Spots (#706)', () async {
+    // Ein gesendeter Spot ist aus dem Korb heraus, in der alten Kopie aber
+    // noch nicht drin. Ohne diese ids könnte der Neuabruf ihn beim
+    // Rückfall auf den Zwischenspeicher nicht einzeln nachholen — und er
+    // verschwände von der Karte, obwohl er auf dem Server liegt.
+    final s = setup([spotJob('a'), findsJob('c', spotId: 'srv-x')]);
+
+    final result = await s.runner.run(uid: 'me');
+
+    expect(result.sent, 2);
+    expect(result.touched, {'server-a', 'srv-x'},
+        reason: 'der neue Spot unter seiner SERVER-id, der bestehende über '
+            'seinen Fund — jeder Weg für sich');
+  });
+
+  test('ein Fund an einem noch wartenden Spot nennt dessen SERVER-id',
+      () async {
+    // Die lokale Auftragskennung „a" kennt der Server nicht; nachgeholt
+    // werden kann nur, was er unter seiner id liefert.
+    final s = setup([
+      spotJob('a'),
+      findsJob('b', spotId: 'a', spotIsPending: true),
+    ]);
+
+    final result = await s.runner.run(uid: 'me');
+
+    expect(result.sent, 2);
+    expect(result.touched, {'server-a'});
+  });
+
+  test('was liegen bleibt, zählt nicht als berührt', () async {
+    final s = setup([spotJob('a')],
+        repository: _RecordingRepository(
+            onSpot: (_) => const SocketException('kein Netz')));
+
+    final result = await s.runner.run(uid: 'me');
+
+    expect(result.sent, 0);
+    expect(result.touched, isEmpty);
+  });
+
   test('zwei Läufe gleichzeitig senden nichts doppelt', () async {
     // Verbindungsrückkehr und Banner-Tipp können zusammenfallen.
     final gate = Completer<void>();
@@ -229,7 +272,7 @@ void main() {
 
     final first = slow.run(uid: 'me');
     final second = await slow.run(uid: 'me');
-    expect(second, (sent: 0, remaining: 0, failed: 0),
+    expect((second.sent, second.remaining, second.failed), (0, 0, 0),
         reason: 'der zweite Lauf darf nicht mitmischen');
     gate.complete();
     expect((await first).sent, 1);

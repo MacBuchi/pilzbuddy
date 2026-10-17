@@ -57,6 +57,35 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
   `persist()`), und der Stub auf Android sagt `true` — ein Warnhinweis
   über ein Dateisystem wäre schlicht falsch.
 
+- **Der Rückfall auf den Zwischenspeicher ist nie älter als das
+  Geschriebene** (#706, seit 1.224.8): Die Kopie schreibt nur ein
+  erfolgreicher Vollabruf. Feldbefund bei „ein Balken": Der kleine
+  Schreibzugriff ging durch, der große Neuabruf (alle Spots samt Funden
+  und Autoren, `fetchTimeout` 10 s) nicht — `looksOffline`, Rückfall, und
+  die Kopie war von VOR dem Schreiben. Der neue Spot stand weder dort noch
+  im Ausgangskorb und verschwand von der Karte; `reloadAfterWrite` meldete
+  „frisch", die Oberfläche „gespeichert". Am deutlichsten beim Korb: Der
+  Spot war blass sichtbar, wurde bei kurzem Empfang gesendet — und war weg.
+  Gelöschtes kam wieder, Verlegtes sprang zurück. Jetzt sagt
+  `MySpotsNotifier` dem Abruf, was geschrieben wurde (`afterWrite`:
+  berührte und entfernte Spot-ids, aus jedem Schreibweg und aus
+  `OutboxRunResult.touched`), und `fetchSpotRowsWithCache` holt beim
+  Rückfall genau diese Spots einzeln nach — wenige Kilobyte, die durch
+  denselben Empfang passen —, setzt sie in die Kopie ein (`patchSpotRows`)
+  und schreibt sie zurück. Mit Empfang passiert nichts davon. Drei Dinge:
+  - **Scheitert auch das Nachholen, wirft der Abruf.** Dann meldet
+    `reloadAfterWrite` `false`, und die Oberfläche sagt „gespeichert —
+    sichtbar, sobald die Liste wieder lädt". Ein Stand von vor dem
+    Schreiben darf nie als frisch durchgehen.
+  - **Die Merkliste lebt im Speicher.** Erst ein frischer Abruf oder ein
+    gelungenes Nachholen leert sie. Nach einem Neustart ohne Empfang zählt
+    die Kopie — ist das Nachholen davor gescheitert, fehlt der Spot dort,
+    bis ein Abruf gelingt. Benannte Grenze.
+  - **Nur das eigene Fach.** Funde an Buddy-Spots laden deren Liste
+    getrennt neu; dort gilt der alte Rückfall. Eine berührte id, die der
+    Server nicht liefert, fällt aus der Kopie (gelöscht — oder ein
+    Freundes-Spot, der nie hineingehörte).
+
 - Beendigungsgründe (`lib/data/exit_info_repository.dart` + `exit_reporting.dart`,
   Issue #147): Beim Start liest die App über einen MethodChannel Androids
   eigene Historie (`getHistoricalProcessExitReasons`, ab Android 11, keine

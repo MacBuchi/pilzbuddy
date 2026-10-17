@@ -7,6 +7,22 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Spots bleiben bei schwachem Empfang sichtbar
+
+*17. Oktober 2026 · Version 1.224.8*
+
+- Wer bei sehr wenig Empfang einen Spot oder Fund eintrug, sah ihn
+  danach manchmal nicht mehr auf der Karte, obwohl er gespeichert war:
+  Das Speichern kam durch, das Neuladen der ganzen Liste nicht, und die
+  App zeigte den älteren Stand aus dem Zwischenspeicher. Besonders
+  Einträge, die aus dem Ausgangskorb nachgesendet wurden, verschwanden
+  so. Jetzt holt die App in diesem Fall nur den geänderten Spot nach und
+  merkt ihn sich auch für den nächsten Start ohne Empfang. Klappt auch
+  das nicht, sagt die Meldung, dass der Eintrag gespeichert ist und
+  erscheint, sobald die Liste wieder lädt. Dasselbe gilt für gelöschte
+  und verschobene Spots, die sonst kurz wieder auftauchen oder
+  zurückspringen konnten.
+
 ## Artbilder: Nachfrage beim Senden, neue Bilder
 
 *10. Oktober 2026 · Version 1.224.7*

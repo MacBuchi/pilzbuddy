@@ -153,6 +153,161 @@ void main() {
     });
   });
 
+  group('fetchSpotRowsWithCache nach einem Schreibvorgang (#706)', () {
+    // Der Fall aus dem Feld: Der kleine Schreibzugriff ging durch, der
+    // große Neuabruf nicht — und die Kopie ist von VOR dem Schreiben.
+    Future<List<Map<String, dynamic>>> offline() async =>
+        throw const SocketException('kein Netz');
+
+    test('ein neuer Spot wird einzeln nachgeholt und in die Kopie geschrieben',
+        () async {
+      await cache.write(uid: 'u1', rows: [row('s1')], savedAt: savedAt);
+      final asked = <Set<String>>[];
+
+      final result = await fetchSpotRowsWithCache(
+        fetch: offline,
+        cache: cache,
+        uid: 'u1',
+        now: DateTime.utc(2026, 9, 13),
+        afterWrite: (touched: {'s2'}, removed: const {}),
+        fetchRows: (ids) async {
+          asked.add(ids);
+          return [row('s2')];
+        },
+      );
+
+      expect([for (final r in result.rows) r['id']], ['s1', 's2'],
+          reason: 'der neue Spot hinten — er ist der jüngste');
+      expect(asked, [{'s2'}], reason: 'nur die berührte id, eine Anfrage');
+      expect(result.cachedAt, savedAt,
+          reason: 'der Rest der Liste ist weiter von damals');
+      final cached = (await cache.read(uid: 'u1'))!;
+      expect([for (final r in cached.rows) r['id']], ['s1', 's2'],
+          reason: 'auch ein Neustart ohne Empfang zeigt ihn');
+      expect(cached.savedAt, savedAt);
+    });
+
+    test('ein geänderter Spot ersetzt seine Zeile an derselben Stelle',
+        () async {
+      await cache.write(
+          uid: 'u1',
+          rows: [row('s1'), row('s2'), row('s3')],
+          savedAt: savedAt);
+
+      final result = await fetchSpotRowsWithCache(
+        fetch: offline,
+        cache: cache,
+        uid: 'u1',
+        now: DateTime.utc(2026, 9, 13),
+        afterWrite: (touched: {'s2'}, removed: const {}),
+        fetchRows: (ids) async => [row('s2')..['name'] = 'Verlegt'],
+      );
+
+      expect([for (final r in result.rows) r['id']], ['s1', 's2', 's3'],
+          reason: 'die Reihenfolge ist die Zeichen-Stapelung der Karte');
+      expect(result.rows[1]['name'], 'Verlegt');
+    });
+
+    test('Gelöschtes verschwindet aus der Kopie — ohne eine Anfrage',
+        () async {
+      await cache.write(
+          uid: 'u1', rows: [row('s1'), row('s2')], savedAt: savedAt);
+
+      final result = await fetchSpotRowsWithCache(
+        fetch: offline,
+        cache: cache,
+        uid: 'u1',
+        now: DateTime.utc(2026, 9, 13),
+        afterWrite: (touched: const {}, removed: {'s1'}),
+        fetchRows: (ids) async => fail('nichts nachzuholen'),
+      );
+
+      expect([for (final r in result.rows) r['id']], ['s2']);
+      expect([for (final r in (await cache.read(uid: 'u1'))!.rows) r['id']],
+          ['s2'],
+          reason: 'sonst käme er beim nächsten Rückfall wieder');
+    });
+
+    test('was der Server nicht mehr liefert, fällt weg', () async {
+      // Von einem anderen Gerät gelöscht — oder ein Freundes-Spot, dessen
+      // Fund hier geschrieben wurde und der in dieses Fach nie gehörte.
+      await cache.write(
+          uid: 'u1', rows: [row('s1'), row('s2')], savedAt: savedAt);
+
+      final result = await fetchSpotRowsWithCache(
+        fetch: offline,
+        cache: cache,
+        uid: 'u1',
+        now: DateTime.utc(2026, 9, 13),
+        afterWrite: (touched: {'s1', 'fremd'}, removed: const {}),
+        fetchRows: (ids) async => const [],
+      );
+
+      expect([for (final r in result.rows) r['id']], ['s2']);
+    });
+
+    test('scheitert auch das Nachholen, fliegt der Fehler weiter', () async {
+      // Der Stand von vor dem Schreiben darf NICHT als Ergebnis
+      // durchgehen: `reloadAfterWrite` meldete sonst „frisch" und die
+      // Oberfläche „gespeichert" — über einer Karte ohne den Spot.
+      await cache.write(uid: 'u1', rows: [row('s1')], savedAt: savedAt);
+
+      await expectLater(
+        fetchSpotRowsWithCache(
+          fetch: offline,
+          cache: cache,
+          uid: 'u1',
+          now: DateTime.utc(2026, 9, 13),
+          afterWrite: (touched: {'s2'}, removed: const {}),
+          fetchRows: (_) async => throw const SocketException('immer noch'),
+        ),
+        throwsA(isA<SocketException>()),
+      );
+      expect([for (final r in (await cache.read(uid: 'u1'))!.rows) r['id']],
+          ['s1'],
+          reason: 'die Kopie bleibt, wie sie war');
+    });
+
+    test('mit Empfang wird nichts nachgeholt', () async {
+      var asked = 0;
+
+      final result = await fetchSpotRowsWithCache(
+        fetch: () async => [row('s1'), row('s2')],
+        cache: cache,
+        uid: 'u1',
+        now: savedAt,
+        afterWrite: (touched: {'s2'}, removed: const {}),
+        fetchRows: (_) async {
+          asked++;
+          return const [];
+        },
+      );
+
+      expect(asked, 0, reason: 'der Vollabruf hat alles');
+      expect(result.cachedAt, isNull);
+    });
+
+    test('ohne Schreibvorgang ändert sich am Rückfall nichts', () async {
+      await cache.write(uid: 'u1', rows: [row('s1')], savedAt: savedAt);
+      var asked = 0;
+
+      final result = await fetchSpotRowsWithCache(
+        fetch: offline,
+        cache: cache,
+        uid: 'u1',
+        now: DateTime.utc(2026, 9, 13),
+        afterWrite: (touched: const {}, removed: const {}),
+        fetchRows: (_) async {
+          asked++;
+          return const [];
+        },
+      );
+
+      expect(asked, 0);
+      expect(result.rows.single['id'], 's1');
+    });
+  });
+
   group('fetchSpotRowsWithCache', () {
     test('Erfolg: Zeilen kommen aus dem Netz und landen im Speicher',
         () async {

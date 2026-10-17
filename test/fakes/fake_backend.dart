@@ -19,6 +19,7 @@ import 'package:pilzbuddy/data/friend_repository.dart';
 import 'package:pilzbuddy/data/push_repository.dart';
 import 'package:pilzbuddy/data/live_share_repository.dart';
 import 'package:pilzbuddy/data/profile_repository.dart';
+import 'package:pilzbuddy/data/spot_cache.dart';
 import 'package:pilzbuddy/data/spot_repository.dart';
 import 'package:pilzbuddy/models/find.dart';
 import 'package:pilzbuddy/data/tour_track_repository.dart';
@@ -850,8 +851,15 @@ class FakeSpotRepository implements SpotRepository {
   /// ließe sich der Fall gar nicht nachstellen.
   Object nextFetchError = const SocketException('kein Netz (Fake)');
 
+  /// Was der letzte Abruf als `afterWrite` bekam — damit ein Test beweisen
+  /// kann, dass jeder Schreibweg des Notifiers seine Spot-ids nennt (#706).
+  /// Was der echte Abruf damit beim Rückfall macht, prüft
+  /// `spot_cache_test.dart`; dieser Fake fällt nie zurück.
+  SpotWrite? lastAfterWrite;
+
   @override
-  Future<SpotsSnapshot> fetchMySpots() async {
+  Future<SpotsSnapshot> fetchMySpots({SpotWrite? afterWrite}) async {
+    lastAfterWrite = afterWrite;
     if (failNextFetch) {
       failNextFetch = false;
       throw nextFetchError;
@@ -963,7 +971,7 @@ class FakeSpotRepository implements SpotRepository {
   /// (falscher Spaltenname), steht `tool/schema_check.sh` mit den
   /// Schreibspalten von `spots` und `finds`.
   @override
-  Future<void> restoreSpot({
+  Future<String> restoreSpot({
     required double lat,
     required double lng,
     String? name,
@@ -977,6 +985,7 @@ class FakeSpotRepository implements SpotRepository {
         name: name,
         sharingExcluded: sharingExcluded);
     await addFinds(spotId: id, finds: finds);
+    return id;
   }
 
   /// Spiegelt `SpotRepository.addFinds`: gespeichert wird die

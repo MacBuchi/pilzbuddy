@@ -294,12 +294,12 @@ class MapBanners extends ConsumerWidget {
     final result = await ref.read(mySpotsProvider.notifier).sendOutbox();
     messenger.showSnackBar(SnackBar(
       content: Text(switch (result) {
-        (sent: 0, remaining: _, failed: _) =>
+        (sent: 0, remaining: _, failed: _, touched: _) =>
           'Noch keine Verbindung — deine Einträge warten weiter.',
-        (sent: final sent, remaining: 0, failed: _) => sent == 1
+        (sent: final sent, remaining: 0, failed: _, touched: _) => sent == 1
             ? 'Eintrag übertragen 🍄'
             : '$sent Einträge übertragen 🍄',
-        (sent: final sent, remaining: final rest, failed: _) =>
+        (sent: final sent, remaining: final rest, failed: _, touched: _) =>
           '$sent übertragen, $rest warten noch.',
       }),
     ));
