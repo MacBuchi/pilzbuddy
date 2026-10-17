@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/data/providers.dart';
+import 'package:pilzbuddy/data/spot_repository.dart' show NewFind;
 import 'package:pilzbuddy/features/spots/spot_providers.dart';
 
 import '../fakes/fake_backend.dart';
@@ -96,6 +97,97 @@ void main() {
     expect(cache.cleared, isTrue);
     expect(backend.currentUserId, isNull,
         reason: 'Das Aufräumen darf das Abmelden nicht verhindern.');
+  });
+
+  group('Nach einem Schreibvorgang weiß der Abruf, was er nachholen muss '
+      '(#706)', () {
+    // Der Notifier nennt dem Abruf die berührten Spot-ids. Was der Abruf
+    // damit beim Rückfall auf den Zwischenspeicher tut, beweist
+    // spot_cache_test.dart — hier geht es um die Übergabe über jeden Weg.
+    NewFind steinpilz() =>
+        NewFind(species: 'Steinpilz', foundOn: DateTime(2026, 10, 1));
+
+    Future<(ProviderContainer, FakeBackend, FakeSpotRepository)> start(
+        WidgetTester tester) async {
+      final (backend, repo) = signedInWithSpot();
+      await pumpApp(tester, backend, extraOverrides: [
+        spotRepositoryProvider.overrideWithValue(repo),
+      ]);
+      final container = ProviderScope.containerOf(
+          tester.element(find.byType(Scaffold).first));
+      return (container, backend, repo);
+    }
+
+    testWidgets('ein neuer Spot: seine Server-id — und nach dem frischen '
+        'Abruf nichts mehr', (tester) async {
+      final (container, backend, repo) = await start(tester);
+      final notifier = container.read(mySpotsProvider.notifier);
+
+      final fresh =
+          await notifier.addSpot(lat: 48.2, lng: 11.6, finds: [steinpilz()]);
+      await settle(tester);
+
+      expect(fresh, isTrue);
+      final newId = backend.spots.last.id;
+      expect(repo.lastAfterWrite!.touched, {newId});
+      expect(repo.lastAfterWrite!.removed, isEmpty);
+
+      container.invalidate(mySpotsProvider);
+      await settle(tester);
+      expect(repo.lastAfterWrite!.touched, isEmpty,
+          reason: 'der Abruf war frisch — nichts mehr nachzuholen');
+    });
+
+    testWidgets('Löschen nennt die id als entfernt', (tester) async {
+      final (container, backend, repo) = await start(tester);
+      final spotId = backend.spots.single.id;
+
+      await container.read(mySpotsProvider.notifier).deleteSpot(spotId);
+      await settle(tester);
+
+      expect(repo.lastAfterWrite!.removed, {spotId});
+      expect(repo.lastAfterWrite!.touched, isEmpty);
+    });
+
+    testWidgets('scheitert das Neuladen, bleibt es für den nächsten Anlauf '
+        'gemerkt', (tester) async {
+      final (container, backend, repo) = await start(tester);
+      final notifier = container.read(mySpotsProvider.notifier);
+
+      repo.failNextFetch = true;
+      final fresh =
+          await notifier.addSpot(lat: 48.2, lng: 11.6, finds: [steinpilz()]);
+      await settle(tester);
+      expect(fresh, isFalse,
+          reason: 'die Oberfläche hängt dann den Hinweis an (#371)');
+
+      container.invalidate(mySpotsProvider);
+      await settle(tester);
+      expect(repo.lastAfterWrite!.touched, {backend.spots.last.id},
+          reason: 'erst ein gelungener Abruf löst die Merkliste');
+    });
+
+    testWidgets('aus dem Ausgangskorb gesendet: die SERVER-id des Spots',
+        (tester) async {
+      // Der Fall, der „nicht MEHR sichtbar" am besten erklärt: Der Spot war
+      // blass sichtbar, der Korb schickt ihn bei kurzem Empfang, der Auftrag
+      // ist weg — und der Neuabruf fällt auf die alte Kopie zurück.
+      final (container, backend, repo) = await start(tester);
+      final notifier = container.read(mySpotsProvider.notifier);
+
+      backend.offline = true;
+      await notifier.addSpot(lat: 48.2, lng: 11.6, finds: [steinpilz()]);
+      await settle(tester);
+      expect(backend.spots, hasLength(1),
+          reason: 'liegt im Korb, nicht auf dem Server');
+      backend.offline = false;
+
+      final result = await notifier.sendOutbox();
+      await settle(tester);
+
+      expect(result.sent, 1);
+      expect(repo.lastAfterWrite!.touched, {backend.spots.last.id});
+    });
   });
 
   testWidgets('Ein fehlgeschlagener Refresh löscht die Spots NICHT',

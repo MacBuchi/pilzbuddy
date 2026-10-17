@@ -19,7 +19,18 @@ import 'outbox.dart';
 import 'spot_repository.dart';
 
 /// Was ein Lauf bewirkt hat — die Grundlage der Rückmeldung.
-typedef OutboxRunResult = ({int sent, int remaining, int failed});
+/// Was ein Lauf gebracht hat — und [touched]: die Server-ids der Spots,
+/// an denen etwas geschrieben wurde (neu angelegte und die, an denen Funde
+/// hängen). `MySpotsNotifier` reicht sie an den Neuabruf weiter, damit ein
+/// Rückfall auf den Zwischenspeicher sie einzeln nachholt (#706) — sonst
+/// verschwände ein gerade gesendeter Spot von der Karte: aus dem Korb
+/// heraus, in der alten Kopie noch nicht drin.
+typedef OutboxRunResult = ({
+  int sent,
+  int remaining,
+  int failed,
+  Set<String> touched,
+});
 
 class OutboxRunner {
   OutboxRunner({required this.repository, required this.outbox});
@@ -41,7 +52,7 @@ class OutboxRunner {
   var _running = false;
 
   Future<OutboxRunResult> run({required String uid}) async {
-    if (_running) return (sent: 0, remaining: 0, failed: 0);
+    if (_running) return (sent: 0, remaining: 0, failed: 0, touched: const <String>{});
     _running = true;
     try {
       return await _run(uid: uid);
@@ -52,7 +63,7 @@ class OutboxRunner {
 
   Future<OutboxRunResult> _run({required String uid}) async {
     final jobs = await outbox.read(uid: uid);
-    if (jobs.isEmpty) return (sent: 0, remaining: 0, failed: 0);
+    if (jobs.isEmpty) return (sent: 0, remaining: 0, failed: 0, touched: const <String>{});
 
     final remaining = <OutboxJob>[];
     // Kennung des Spot-Auftrags → echte id, für die Funde dahinter.
@@ -60,6 +71,7 @@ class OutboxRunner {
     // Spot-Aufträge, die endgültig gescheitert sind: Ihre Funde haben
     // keinen Ort mehr und dürfen nicht ewig weiterversuchen.
     final lostSpots = <String>{};
+    final touched = <String>{};
     var sent = 0;
     var stopped = false;
 
@@ -103,8 +115,10 @@ class OutboxRunner {
               expectedSpecies: job.expectedSpecies,
             );
             resolved[job.id] = id;
+            touched.add(id);
           case NewFindsJob():
             await repository.addFinds(spotId: job.spotId, finds: job.finds);
+            touched.add(job.spotId);
         }
         sent++;
       } catch (error) {
@@ -133,6 +147,7 @@ class OutboxRunner {
       sent: sent,
       remaining: remaining.length,
       failed: remaining.where((job) => job.failure != null).length,
+      touched: touched,
     );
   }
 

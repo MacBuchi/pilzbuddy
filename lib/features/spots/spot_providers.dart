@@ -25,6 +25,34 @@ import '../../core/read_after_write.dart';
 /// stehen als `pending` mit in der Liste.
 class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox>
     with ReadAfterWrite<SpotsWithOutbox> {
+  /// Was seit dem letzten frischen Stand auf dem Server geschrieben wurde
+  /// (#706): Spot-ids, die neu zu lesen sind, und gelöschte. `build()`
+  /// reicht beides an den Abruf weiter — fällt der auf den Zwischenspeicher
+  /// zurück, holt er genau diese Spots einzeln nach, statt den Stand von
+  /// VOR dem Schreiben zu zeigen. Geleert, sobald ein Abruf frisch war
+  /// oder das Nachholen gelungen ist; sonst bleibt es für den nächsten
+  /// Anlauf. Lebt nur im Speicher: Nach einem Neustart zählt die Kopie.
+  final _touched = <String>{};
+  final _removed = <String>{};
+
+  void _noteWrite(
+      {Iterable<String> touched = const [],
+      Iterable<String> removed = const []}) {
+    _touched.addAll(touched);
+    _removed.addAll(removed);
+  }
+
+  /// Der eigene Spot, an dem dieser Eintrag hängt — `null` an einem
+  /// Freundes-Spot (#190); dessen Liste lädt ohnehin getrennt neu.
+  String? _spotOfFind(String findId) {
+    for (final spot in state.valueOrNull?.spots ?? const <Spot>[]) {
+      if (spot.entriesSorted.any((entry) => entry.id == findId)) {
+        return spot.id;
+      }
+    }
+    return null;
+  }
+
   @override
   Future<SpotsWithOutbox> build() async {
     // Bei Login/Logout automatisch neu laden.
@@ -37,7 +65,14 @@ class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox>
         pending: const <OutboxJob>[]
       );
     }
-    final snapshot = await ref.read(spotRepositoryProvider).fetchMySpots();
+    final write = (touched: {..._touched}, removed: {..._removed});
+    final snapshot = await ref
+        .read(spotRepositoryProvider)
+        .fetchMySpots(afterWrite: write);
+    // Frisch vom Netz oder nachgeholt — was geschrieben war, ist drin.
+    // Wirft der Abruf, kommt es hier nicht an und bleibt gemerkt.
+    _touched.removeAll(write.touched);
+    _removed.removeAll(write.removed);
     // Der Korb wird IMMER gelesen, auch wenn die Spots frisch aus dem
     // Netz kamen: Ein Auftrag kann liegen bleiben, während der Abruf
     // längst wieder geht (etwa nach einer Ablehnung des Servers).
@@ -127,7 +162,7 @@ class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox>
       expectedSpecies: expectedSpecies,
     );
     try {
-      await ref.read(spotRepositoryProvider).addSpot(
+      final id = await ref.read(spotRepositoryProvider).addSpot(
             lat: job.lat,
             lng: job.lng,
             name: job.name,
@@ -135,6 +170,7 @@ class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox>
             clientId: job.id,
             expectedSpecies: job.expectedSpecies,
           );
+      _noteWrite(touched: [id]);
     } catch (error, stackTrace) {
       await _queueIfOffline(error, stackTrace, job);
     }
@@ -173,6 +209,7 @@ class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox>
         ids = await ref
             .read(spotRepositoryProvider)
             .addFinds(spotId: spotId, finds: job.finds);
+        _noteWrite(touched: [spotId]);
       } catch (error, stackTrace) {
         await _queueIfOffline(error, stackTrace, job);
       }
@@ -195,15 +232,19 @@ class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox>
     required NewFind find,
     required FindPosition? position,
   }) async {
+    final spotId = _spotOfFind(findId);
     await ref
         .read(spotRepositoryProvider)
         .updateFind(findId: findId, find: find, position: position);
+    if (spotId != null) _noteWrite(touched: [spotId]);
     ref.invalidate(friendSpotsProvider);
     await reloadAfterWrite('Spots neu laden');
   }
 
   Future<void> deleteFind(String findId) async {
+    final spotId = _spotOfFind(findId);
     await ref.read(spotRepositoryProvider).deleteFind(findId);
+    if (spotId != null) _noteWrite(touched: [spotId]);
     ref.invalidate(friendSpotsProvider);
     await reloadAfterWrite('Spots neu laden');
   }
@@ -225,13 +266,14 @@ class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox>
     var created = 0;
     try {
       for (final spot in spots) {
-        await repository.restoreSpot(
+        final id = await repository.restoreSpot(
           lat: spot.lat,
           lng: spot.lng,
           name: spot.name,
           sharingExcluded: spot.sharingExcluded,
           finds: spot.finds,
         );
+        _noteWrite(touched: [id]);
         created++;
       }
     } finally {
@@ -247,6 +289,7 @@ class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox>
     await ref
         .read(spotRepositoryProvider)
         .mergeSpots(intoId: intoId, fromId: fromId);
+    _noteWrite(touched: [intoId], removed: [fromId]);
     await reloadAfterWrite('Spots neu laden');
   }
 
@@ -256,8 +299,11 @@ class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox>
   /// Tippen im Banner. Doppelläufe hält der Runner selbst auseinander.
   Future<OutboxRunResult> sendOutbox() async {
     final uid = ref.read(currentUserIdProvider);
-    if (uid == null) return (sent: 0, remaining: 0, failed: 0);
+    if (uid == null) {
+      return (sent: 0, remaining: 0, failed: 0, touched: const <String>{});
+    }
     final result = await ref.read(outboxRunnerProvider).run(uid: uid);
+    _noteWrite(touched: result.touched);
     if (result.sent > 0 || result.remaining > 0) {
       await reloadAfterWrite('Spots neu laden');
     }
@@ -288,6 +334,7 @@ class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox>
   Future<void> deleteSpot(String spotId) async {
     if (_isPending(spotId)) return discardJob(spotId);
     await ref.read(spotRepositoryProvider).deleteSpot(spotId);
+    _noteWrite(removed: [spotId]);
     await reloadAfterWrite('Spots neu laden');
   }
 
@@ -318,6 +365,7 @@ class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox>
         lng: lng,
         resetOffsetConfirmation: resetOffsetConfirmation,
         expectedSpecies: expectedSpecies);
+    _noteWrite(touched: [spotId]);
     return reloadAfterWrite('Spots neu laden');
   }
 
@@ -339,6 +387,7 @@ class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox>
         lng: lng,
         resetOffsetConfirmation: true);
     await repository.pinFindsToSpot(spotId);
+    _noteWrite(touched: [spotId]);
     ref.invalidate(friendSpotsProvider);
     return reloadAfterWrite('Spots neu laden');
   }
@@ -363,6 +412,7 @@ class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox>
         lng: lng,
         resetOffsetConfirmation: true);
     await repository.pinFindsToSpot(spot.id);
+    _noteWrite(touched: [spot.id]);
     ref.invalidate(friendSpotsProvider);
     return reloadAfterWrite('Spots neu laden');
   }
@@ -370,11 +420,13 @@ class MySpotsNotifier extends AsyncNotifier<SpotsWithOutbox>
   /// „So gewollt" (#475) — der Besitzer nimmt die Warnung vom Spot.
   Future<void> confirmOffset(String spotId) async {
     await ref.read(spotRepositoryProvider).confirmOffset(spotId);
+    _noteWrite(touched: [spotId]);
     await reloadAfterWrite('Spots neu laden');
   }
 
   Future<void> setSharingExcluded(String spotId, bool excluded) async {
     await ref.read(spotRepositoryProvider).setSharingExcluded(spotId, excluded);
+    _noteWrite(touched: [spotId]);
     await reloadAfterWrite('Spots neu laden');
   }
 }

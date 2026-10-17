@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/update_check.dart';
 import 'package:pilzbuddy/data/providers.dart';
+import 'package:pilzbuddy/data/spot_cache.dart' show SpotWrite;
 import 'package:pilzbuddy/data/spot_repository.dart' show SpotsSnapshot;
 import 'package:pilzbuddy/features/map/resume_refresh.dart';
 import '../fakes/fake_backend.dart';
@@ -21,9 +22,9 @@ class _CountingSpotRepository extends FakeSpotRepository {
   int fetches = 0;
 
   @override
-  Future<SpotsSnapshot> fetchMySpots() {
+  Future<SpotsSnapshot> fetchMySpots({SpotWrite? afterWrite}) {
     fetches++;
-    return super.fetchMySpots();
+    return super.fetchMySpots(afterWrite: afterWrite);
   }
 }
 

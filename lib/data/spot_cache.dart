@@ -35,6 +35,11 @@ typedef SpotRowsResult = ({
   DateTime? cachedAt,
 });
 
+/// Was ein Schreibvorgang auf dem Server berührt hat: die Spot-ids, die
+/// danach neu zu lesen sind ([touched]), und die, die es nicht mehr gibt
+/// ([removed]). Siehe [fetchSpotRowsWithCache], Parameter `afterWrite`.
+typedef SpotWrite = ({Set<String> touched, Set<String> removed});
+
 /// Alle Methoden sind **total: sie werfen nie**. Eine fehlende
 /// Offline-Kopie ist ein optionales Feature, das still degradieren darf
 /// (CLAUDE.md) — sie darf aber niemals einen erfolgreichen Abruf
@@ -215,12 +220,32 @@ class NoSpotCache implements SpotCache {
 /// Als freie Funktion und nicht im Repository, damit die Regel ohne
 /// Supabase prüfbar ist: [fetch] ist im Test einfach eine Funktion, die
 /// wirft.
+///
+/// **Nach einem Schreibvorgang ist der Rückfall nie älter als das
+/// Geschriebene** (#706). Die Kopie trägt den Stand des letzten
+/// erfolgreichen Vollabrufs. Geht bei wenig Empfang der kleine
+/// Schreibzugriff durch und der große Neuabruf (alle Spots samt Funden
+/// und Autoren) ins Zeitlimit, stünde hier der Stand von VOR dem
+/// Schreiben: Der neue Spot wäre weder in der Liste noch im Ausgangskorb
+/// und verschwände von der Karte, während die Oberfläche „gespeichert"
+/// meldet. Deshalb nennt der Aufrufer in [afterWrite], was er berührt
+/// hat, und [fetchRows] holt genau diese Zeilen nach — eine Anfrage von
+/// wenigen Kilobyte, die durch denselben schwachen Empfang passt, an dem
+/// die ganze Liste scheitert. Das Ergebnis wird in die Kopie eingesetzt
+/// ([patchSpotRows]) und so auch ZURÜCKGESCHRIEBEN: Ein Neustart ohne
+/// Empfang zeigt den Spot dann ebenfalls. Scheitert auch das Nachholen,
+/// fliegt der Fehler weiter — `reloadAfterWrite` meldet dann
+/// „gespeichert, sichtbar sobald die Liste wieder lädt" statt eines
+/// frischen Stands, der keiner ist. Mit Empfang wird [fetchRows] nie
+/// gerufen.
 Future<SpotRowsResult> fetchSpotRowsWithCache({
   required Future<List<Map<String, dynamic>>> Function() fetch,
   required SpotCache cache,
   required String uid,
   required DateTime now,
   SpotCacheSlot slot = SpotCacheSlot.mine,
+  SpotWrite? afterWrite,
+  Future<List<Map<String, dynamic>>> Function(Set<String> ids)? fetchRows,
 }) async {
   final List<Map<String, dynamic>> rows;
   try {
@@ -236,7 +261,25 @@ Future<SpotRowsResult> fetchSpotRowsWithCache({
     // Ohne Kopie bleibt der Fehler ein Fehler: Eine leere Liste sähe aus
     // wie „du hast keine Spots" und wäre eine Lüge.
     if (cached == null) rethrow;
-    return (rows: cached.rows, cachedAt: cached.savedAt);
+    if (afterWrite == null ||
+        (afterWrite.touched.isEmpty && afterWrite.removed.isEmpty)) {
+      return (rows: cached.rows, cachedAt: cached.savedAt);
+    }
+    // Nachholen, was gerade geschrieben wurde — bewusst NICHT still:
+    // Scheitert das, ist die Kopie älter als das Geschriebene, und das
+    // muss der Aufrufer erfahren (s. o.).
+    final fresh = afterWrite.touched.isEmpty
+        ? const <Map<String, dynamic>>[]
+        : await (fetchRows ??
+            (throw ArgumentError.notNull('fetchRows')))(afterWrite.touched);
+    final patched = patchSpotRows(cached.rows, afterWrite, fresh);
+    // Die Kopie behält ihr Datum: Der Rest der Liste ist weiter von damals.
+    await _quietly(() async {
+      await cache.write(
+          uid: uid, rows: patched, savedAt: cached.savedAt, slot: slot);
+      return null;
+    });
+    return (rows: patched, cachedAt: cached.savedAt);
   }
   // Der Erfolgspfad ist zugleich die einzige Schreibstelle: Alle
   // Mutationen laufen über `invalidateSelf()` und landen wieder hier.
@@ -250,6 +293,36 @@ Future<SpotRowsResult> fetchSpotRowsWithCache({
     return null;
   });
   return (rows: rows, cachedAt: null);
+}
+
+/// Setzt das Ergebnis eines Schreibvorgangs in zwischengespeicherte Zeilen
+/// ein. Pur, damit die Regel für sich prüfbar ist:
+/// - eine berührte id, die [fresh] liefert, ersetzt ihre alte Zeile an
+///   derselben Stelle (die Reihenfolge ist die Zeichen-Stapelung der Karte);
+/// - eine neue id kommt hinten an — sie ist die jüngste, und die Liste ist
+///   nach `created_at` aufsteigend sortiert;
+/// - [SpotWrite.removed] und berührte ids, die der Server NICHT mehr
+///   liefert, fallen weg (gelöscht — oder ein Freundes-Spot, der in dieses
+///   Fach nie gehörte).
+List<Map<String, dynamic>> patchSpotRows(
+  List<Map<String, dynamic>> rows,
+  SpotWrite write,
+  List<Map<String, dynamic>> fresh,
+) {
+  final byId = {for (final row in fresh) row['id'] as String: row};
+  final result = <Map<String, dynamic>>[];
+  for (final row in rows) {
+    final id = row['id'] as String;
+    if (write.removed.contains(id)) continue;
+    if (write.touched.contains(id)) {
+      final replacement = byId.remove(id);
+      if (replacement != null) result.add(replacement);
+      continue;
+    }
+    result.add(row);
+  }
+  result.addAll(byId.values);
+  return result;
 }
 
 /// Führt einen Zwischenspeicher-Zugriff aus und schluckt jeden Fehler.
