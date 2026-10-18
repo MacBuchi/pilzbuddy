@@ -21,6 +21,7 @@ import 'forest_fill_window.dart';
 import 'gbif_fill.dart';
 import 'gbif_finds.dart';
 import 'map_overlays.dart';
+import 'map_worker_tasks.dart';
 import 'rain_data_providers.dart' show rainGridRepositoryProvider;
 import 'spot_filter.dart' show spotFilterProvider;
 
@@ -142,7 +143,7 @@ final gbifFillProvider = FutureProvider<GbifFillImage?>((ref) async {
   // Im Zeichen-Isolate (#641): Die Meldungen (1,3 MB) liegen dort als
   // Fach und gehen einmal hinüber, nicht je Schwenk.
   final png = await runOnMapWorker(
-      ref, 'gbif', _fill, (window: window, paint: paint),
+      ref, 'gbif', gbifFillTask, (window: window, paint: paint),
       slots: {'gbifFinds': finds});
   return GbifFillImage(
     png: png,
@@ -155,11 +156,6 @@ final gbifFillProvider = FutureProvider<GbifFillImage?>((ref) async {
     fetchedOn: finds.fetchedOn,
   );
 });
-
-Uint8List _fill(MapWorkerSlots slots,
-        ({FillWindow window, GbifPaint paint}) input) =>
-    gbifFillPng(slots.get<GbifFinds>('gbifFinds'),
-        window: input.window, paint: input.paint);
 
 /// Dieselbe Fläche als Datei — der Weg für MapLibre (`image`-Quelle
 /// nimmt eine URL). Über [RainGridRepository.writeFill] wie der Wald;

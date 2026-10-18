@@ -6,13 +6,15 @@
 // sie läuft.
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/bounded_compute.dart';
 import '../../core/map_worker.dart';
 import '../../core/settings.dart';
 
+import 'contours.dart' show ContourLine;
 import 'elevation_contours.dart';
-import 'elevation_grid.dart';
 import 'elevation_providers.dart';
 import 'map_overlays.dart';
+import 'map_worker_tasks.dart' show contoursTask;
 import 'forest_data_providers.dart' show mapIdleBoundsProvider;
 import 'forest_fill_window.dart';
 
@@ -101,15 +103,10 @@ final elevationContoursProvider =
   if (grid == null) return null;
   // Im Zeichen-Isolate (#641): Das Höhengitter (13,6 MB) liegt dort im
   // selben Fach wie für das Leuchten der Ampel — einmal hinüber für beide.
-  return runOnMapWorker(ref, 'contours', _contours,
+  return runOnMapWorker(ref, 'contours', contoursTask,
       (window: window, metersPerPixel: metersPerPixel),
       slots: {'elevation': grid});
 });
-
-ElevationContours? _contours(MapWorkerSlots slots,
-        ({FillWindow window, double metersPerPixel}) input) =>
-    contourLinesFor(slots.get<ElevationGrid>('elevation'),
-        window: input.window, metersPerPixel: input.metersPerPixel);
 
 /// „Erst näher dran" — die Ebene ist an, aber es liegt nichts auf der
 /// Karte, weil der Maßstab zu grob für dieses Gelände ist.
@@ -151,21 +148,22 @@ final contourLabelsProvider = Provider<List<ContourLabel>>((ref) {
 
 /// Die Linien als GeoJSON — nur für die MapLibre-Strecke.
 ///
-/// Eigener Provider und eigener Isolate-Lauf: Bei 40 000 Punkten sind
-/// das ein paar Hunderttausend Zeichen, und die gehören nicht auf den
-/// UI-Thread. Genau dieselbe Trennung wie beim Wald zwischen Fläche und
-/// `forestFillFileProvider`.
+/// Gerechnet im selben Auftrag wie die Linien ([contoursTask], #689 B2):
+/// Bei 40 000 Punkten sind das ein paar Hunderttausend Zeichen, und die
+/// gehören nicht auf den UI-Thread. Ein eigener Auftrag schickte die
+/// Linien dafür zurück in den Worker — im Browser kodiert, auf dem
+/// Hauptthread. Fehlt das GeoJSON (Linien von woanders), rechnet ein
+/// einzelnes `boundedCompute` es nach.
 final contourGeoJsonProvider =
     FutureProvider<({String normal, String index, String key})?>((ref) async {
   final contours = await ref.watch(elevationContoursProvider.future);
   if (contours == null || contours.lines.isEmpty) return null;
-  return runOnMapWorker(ref, 'contourGeoJson', _geoJson, contours);
+  final ({String normal, String index}) geoJson =
+      contours.geoJson ?? await boundedCompute(_geoJson, contours.lines);
+  return (normal: geoJson.normal, index: geoJson.index, key: contours.key);
 });
 
-({String normal, String index, String key}) _geoJson(
-        MapWorkerSlots slots, ElevationContours contours) =>
-    (
-      normal: contourGeoJson(contours.lines, index: false),
-      index: contourGeoJson(contours.lines, index: true),
-      key: contours.key,
+({String normal, String index}) _geoJson(List<ContourLine> lines) => (
+      normal: contourGeoJson(lines, index: false),
+      index: contourGeoJson(lines, index: true),
     );

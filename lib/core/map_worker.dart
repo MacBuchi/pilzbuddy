@@ -25,8 +25,13 @@
 // der nächste startet ein neues und schickt die Fächer erneut. Lässt es
 // sich nicht starten oder stirbt es [kMapWorkerMaxDeaths]-mal, rechnet der
 // Rest der Sitzung über `boundedCompute` — langsamer, aber nie gar nicht.
-// Im Browser gibt es keine Isolates; dort rechnet derselbe Weg im
-// Hauptthread, wie `compute` es dort ohnehin tut.
+//
+// Im Browser gibt es keine Isolates. Dort rechnet seit #689 (B2) ein Web
+// Worker (`map_worker.js`, ohne Flutter übersetzt aus
+// `lib/map_worker_main.dart`) — mit denselben Spuren, Fächern und
+// Rückfällen. Weil dorthin nur Bytes reisen, nennt jede Rechnung ihre
+// Codecs ([MapWorkerTask], `features/map/map_worker_tasks.dart`). Lädt der
+// Worker nicht, rechnet der Hauptthread wie bis 1.225.x.
 import 'dart:async';
 import 'dart:isolate';
 
@@ -34,10 +39,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'bounded_compute.dart';
+import 'map_worker_task.dart';
+import 'map_worker_transport.dart';
+import 'map_worker_web_stub.dart'
+    if (dart.library.js_interop) 'map_worker_web.dart';
 
-/// Die Rechnung eines Auftrags. Muss eine top-level- oder statische
-/// Funktion sein — sie reist in ein anderes Isolate.
-typedef MapWorkerFn<P, R> = R Function(MapWorkerSlots slots, P params);
+export 'map_worker_task.dart' show MapWorkerFn, MapWorkerSlots, MapWorkerTask;
 
 /// Stirbt das Isolate so oft, rechnet der Rest der Sitzung ohne.
 const kMapWorkerMaxDeaths = 3;
@@ -48,14 +55,6 @@ const kMapWorkerMaxDeaths = 3;
 /// nächste Auftrag startet ein neues und kopiert die Fächer EINMAL —
 /// statt bei jedem Schwenk wie bis 1.222.4.
 const kMapWorkerIdleTimeout = Duration(seconds: 60);
-
-/// Die Fächer, wie die Rechnung sie sieht.
-class MapWorkerSlots {
-  const MapWorkerSlots(this._slots);
-  final Map<String, Object?> _slots;
-
-  T get<T>(String name) => _slots[name] as T;
-}
 
 /// Ein Auftrag wurde abgesagt, bevor er lief — ein neuerer derselben Spur
 /// hat ihn ersetzt, oder sein Provider ist verworfen. Kein Befund
@@ -112,10 +111,12 @@ class _Lane {
   MapWorkerJob<Object?>? pending;
 }
 
+typedef _Task = MapWorkerTask<Object?, Object?>;
+
 /// Wohin ein Auftrag gerechnet wird.
 abstract class _Backend {
   Future<Object?> execute(
-      Function fn, Object? params, Map<String, Object?> slots);
+      _Task task, Object? params, Map<String, Object?> slots);
   void dispose();
 }
 
@@ -123,12 +124,28 @@ abstract class _Backend {
 class MapWorker {
   MapWorker._(this._backend, {required this.serialLanes});
 
-  /// Das dauerhafte Isolate — im Browser der Rückfall.
+  /// Das dauerhafte Isolate — im Browser der Web Worker, und wo es den
+  /// nicht gibt, der Rückfall.
   factory MapWorker.isolate(
+      {Duration idleTimeout = kMapWorkerIdleTimeout}) {
+    if (!kIsWeb) {
+      return MapWorker._(_ChannelBackend(_IsolateTransport.new, idleTimeout),
+          serialLanes: true);
+    }
+    final web = createWebWorkerTransport();
+    return MapWorker._(
+        web == null
+            ? _ComputeBackend()
+            : _ChannelBackend(() => web, idleTimeout),
+        serialLanes: true);
+  }
+
+  /// Über eine eigene Leitung — für den Test, der den Weg des Browsers
+  /// (Codecs statt Objekte) auf der VM nachfährt.
+  @visibleForTesting
+  factory MapWorker.transport(MapWorkerTransport Function() open,
           {Duration idleTimeout = kMapWorkerIdleTimeout}) =>
-      kIsWeb
-          ? MapWorker._(_ComputeBackend(), serialLanes: true)
-          : MapWorker._(_IsolateBackend(idleTimeout), serialLanes: true);
+      MapWorker._(_ChannelBackend(open, idleTimeout), serialLanes: true);
 
   /// Jeder Auftrag einzeln über `boundedCompute`, mit den Gittern im
   /// Gepäck. [serialLanes] `false` ist der Weg der Widget-Tests: Dort
@@ -161,12 +178,12 @@ class MapWorker {
   /// aktuellen Fensters, nicht alle je gesehenen.
   MapWorkerJob<R> submit<P, R>(
     String lane,
-    MapWorkerFn<P, R> fn,
+    MapWorkerTask<P, R> task,
     P params, {
     Map<String, Object?> slots = const {},
   }) {
     final l = _lanes.putIfAbsent(lane, _Lane.new);
-    final job = MapWorkerJob<R>._(l, () => _execute(fn, params, slots));
+    final job = MapWorkerJob<R>._(l, () => _execute(task, params, slots));
     if (!serialLanes || l.running == null) {
       _start(l, job);
     } else {
@@ -177,15 +194,15 @@ class MapWorker {
   }
 
   Future<Object?> _execute(
-      Function fn, Object? params, Map<String, Object?> slots) async {
+      _Task task, Object? params, Map<String, Object?> slots) async {
     if (_disposed) throw const MapWorkerSuperseded();
     try {
-      return await _backend.execute(fn, params, slots);
+      return await _backend.execute(task, params, slots);
     } on _BackendUnavailable {
       // Das Isolate startet nicht (mehr): Rest der Sitzung ohne.
       _backend.dispose();
       _backend = _ComputeBackend();
-      return _backend.execute(fn, params, slots);
+      return _backend.execute(task, params, slots);
     }
   }
 
@@ -209,21 +226,21 @@ class MapWorker {
   @visibleForTesting
   int get debugSlotTransfers {
     final b = _backend;
-    return b is _IsolateBackend ? b.slotTransfers : 0;
+    return b is _ChannelBackend ? b.slotTransfers : 0;
   }
 
   /// Welche Fächer gerade im Isolate liegen — für den Test.
   @visibleForTesting
   Set<String> get debugSlotsHeld {
     final b = _backend;
-    return b is _IsolateBackend ? b._sent.keys.toSet() : const {};
+    return b is _ChannelBackend ? b._sent.keys.toSet() : const {};
   }
 
   /// Wie oft das Isolate in Ruhe beendet wurde — für den Test.
   @visibleForTesting
   int get debugRetirements {
     final b = _backend;
-    return b is _IsolateBackend ? b.retirements : 0;
+    return b is _ChannelBackend ? b.retirements : 0;
   }
 
   /// Rechnet die Sitzung über den Rückfall statt über das Isolate?
@@ -244,12 +261,12 @@ class MapWorker {
 Future<R> runOnMapWorker<P, R>(
   Ref ref,
   String lane,
-  MapWorkerFn<P, R> fn,
+  MapWorkerTask<P, R> task,
   P params, {
   Map<String, Object?> slots = const {},
 }) {
   final job =
-      ref.read(mapWorkerProvider).submit(lane, fn, params, slots: slots);
+      ref.read(mapWorkerProvider).submit(lane, task, params, slots: slots);
   ref.onDispose(job.cancel);
   return job.result;
 }
@@ -268,8 +285,8 @@ class _CustomBackend implements _Backend {
 
   @override
   Future<Object?> execute(
-          Function fn, Object? params, Map<String, Object?> slots) =>
-      _execute(fn, params, slots);
+          _Task task, Object? params, Map<String, Object?> slots) =>
+      _execute(task.fn, params, slots);
 
   @override
   void dispose() {}
@@ -281,8 +298,8 @@ class _CustomBackend implements _Backend {
 class _ComputeBackend implements _Backend {
   @override
   Future<Object?> execute(
-          Function fn, Object? params, Map<String, Object?> slots) =>
-      boundedCompute(_runOnce, (fn: fn, params: params, slots: slots));
+          _Task task, Object? params, Map<String, Object?> slots) =>
+      boundedCompute(_runOnce, (fn: task.fn, params: params, slots: slots));
 
   @override
   void dispose() {}
@@ -294,38 +311,39 @@ Object? _runOnce(
     (input.fn as dynamic)(MapWorkerSlots(input.slots), input.params);
 
 // ---------------------------------------------------------------------------
-// Das Isolate.
+// Die dauerhafte Gegenseite — Isolate oder Web Worker.
 
 class _BackendUnavailable implements Exception {}
 
-class _IsolateBackend implements _Backend {
-  _IsolateBackend(this._idleTimeout);
+class _ChannelBackend implements _Backend {
+  _ChannelBackend(this._newTransport, this._idleTimeout);
 
+  final MapWorkerTransport Function() _newTransport;
   final Duration _idleTimeout;
   Timer? _idle;
-  Isolate? _isolate;
-  SendPort? _toWorker;
-  ReceivePort? _fromWorker;
+  MapWorkerTransport? _transport;
   Future<void>? _starting;
-  Completer<SendPort>? _handshake;
   int _deaths = 0;
   int _nextId = 0;
   final _open = <int, Completer<Object?>>{};
 
-  /// Was im Isolate liegt — je Fach das zuletzt gesendete Objekt.
+  /// Was drüben liegt — je Fach das zuletzt gesendete Objekt.
   final _sent = <String, Object?>{};
 
   /// Wie oft ein Fach hinüberging — nur für den Test.
-  @visibleForTesting
   int slotTransfers = 0;
+
+  /// Wie oft die Gegenseite in Ruhe beendet wurde — für den Test.
+  int retirements = 0;
 
   @override
   Future<Object?> execute(
-      Function fn, Object? params, Map<String, Object?> slots) async {
+      _Task task, Object? params, Map<String, Object?> slots) async {
     if (_deaths >= kMapWorkerMaxDeaths) throw _BackendUnavailable();
+    _idle?.cancel();
     await (_starting ??= _spawn());
-    final port = _toWorker;
-    if (port == null) throw _BackendUnavailable();
+    final transport = _transport;
+    if (transport == null) throw _BackendUnavailable();
     final families = {
       for (final key in slots.keys)
         if (key.contains('#')) key.substring(0, key.indexOf('#') + 1),
@@ -336,7 +354,7 @@ class _IsolateBackend implements _Backend {
           if (!slots.containsKey(key) && families.any(key.startsWith)) key,
       ];
       for (final key in stale) {
-        port.send(['drop', key]);
+        transport.drop(key);
         _sent.remove(key);
       }
     }
@@ -345,90 +363,59 @@ class _IsolateBackend implements _Backend {
           identical(_sent[entry.key], entry.value)) {
         continue;
       }
-      port.send(['slot', entry.key, entry.value]);
+      transport.slot(task, entry.key, entry.value);
       _sent[entry.key] = entry.value;
       slotTransfers++;
     }
     final id = _nextId++;
     final done = Completer<Object?>();
     _open[id] = done;
-    port.send(['job', id, fn, params]);
+    transport.job(id, task, params);
     return done.future.whenComplete(_armIdle);
   }
 
   void _armIdle() {
-    if (_open.isNotEmpty || _isolate == null) return;
+    if (_open.isNotEmpty || _transport == null) return;
     _idle?.cancel();
     _idle = Timer(_idleTimeout, _retire);
   }
 
-  /// Ruhe: Isolate beenden, Fächer vergessen. Kein Tod — der Port wird
-  /// VOR dem Beenden geschlossen, die Ausgangsmeldung zählt also nicht.
+  /// Ruhe: Gegenseite beenden, Fächer vergessen. Kein Tod — die Leitung
+  /// meldet nach `close` nichts mehr.
   void _retire() {
     if (_open.isNotEmpty) return;
-    _fromWorker?.close();
-    _fromWorker = null;
-    _isolate?.kill(priority: Isolate.immediate);
-    _isolate = null;
-    _toWorker = null;
+    _transport?.close();
+    _transport = null;
     _starting = null;
-    _handshake = null;
     _sent.clear();
     retirements++;
   }
 
-  /// Wie oft das Isolate in Ruhe beendet wurde — für den Test.
-  int retirements = 0;
-
   Future<void> _spawn() async {
-    final from = ReceivePort();
-    final handshake = _handshake = Completer<SendPort>();
-    from.listen((message) {
-      if (message is SendPort) {
-        if (!handshake.isCompleted) handshake.complete(message);
-        return;
-      }
-      if (message == null) {
-        _died(); // onExit
-        return;
-      }
-      final m = message as List;
-      final done = _open.remove(m[0] as int);
-      if (done == null) return;
-      if (m[1] == true) {
-        final value = m[2];
-        done.complete(value is TransferableTypedData
-            ? value.materialize().asUint8List()
-            : value);
-      } else {
-        done.completeError(MapWorkerError(m[2] as String, m[3] as String));
-      }
-    });
+    final transport = _newTransport();
     try {
-      _isolate = await Isolate.spawn(_workerMain, from.sendPort,
-          onExit: from.sendPort, debugName: 'map_worker');
-      _fromWorker = from;
-      _toWorker = await handshake.future;
+      await transport.open((
+        result: (id, value) => _open.remove(id)?.complete(value),
+        error: (id, message, stack) => _open
+            .remove(id)
+            ?.completeError(MapWorkerError(message, stack)),
+        died: () => _died(transport),
+      ));
+      _transport = transport;
     } catch (_) {
-      // Kein Isolate zu haben ist kein Fehler der App: Der Rückfall
+      // Keine Gegenseite zu haben ist kein Fehler der App: Der Rückfall
       // rechnet weiter (siehe MapWorker._execute).
-      from.close();
+      transport.close();
       _deaths = kMapWorkerMaxDeaths;
     }
   }
 
-  void _died() {
+  void _died(MapWorkerTransport transport) {
+    // Eine Leitung, die schon ersetzt ist, zählt nicht mehr.
+    if (_transport != null && !identical(_transport, transport)) return;
     _deaths++;
-    // Vor dem Händedruck gestorben: Wer auf den Start wartet, soll es
-    // erfahren, statt für immer zu warten.
-    final handshake = _handshake;
-    if (handshake != null && !handshake.isCompleted) {
-      handshake.completeError(const MapWorkerDied());
-    }
-    _fromWorker?.close();
-    _fromWorker = null;
-    _toWorker = null;
-    _isolate = null;
+    transport.close();
+    _transport = null;
     _starting = null;
     _sent.clear();
     final open = _open.values.toList();
@@ -441,16 +428,80 @@ class _IsolateBackend implements _Backend {
   @override
   void dispose() {
     _idle?.cancel();
-    _isolate?.kill(priority: Isolate.immediate);
-    _isolate = null;
-    _fromWorker?.close();
-    _fromWorker = null;
-    _toWorker = null;
+    _transport?.close();
+    _transport = null;
     _deaths = kMapWorkerMaxDeaths;
     for (final done in _open.values) {
       done.completeError(const MapWorkerSuperseded());
     }
     _open.clear();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Das Isolate.
+
+class _IsolateTransport implements MapWorkerTransport {
+  Isolate? _isolate;
+  SendPort? _toWorker;
+  ReceivePort? _fromWorker;
+
+  @override
+  Future<void> open(MapWorkerReplies replies) async {
+    final from = _fromWorker = ReceivePort();
+    final handshake = Completer<SendPort>();
+    from.listen((message) {
+      if (message is SendPort) {
+        if (!handshake.isCompleted) handshake.complete(message);
+        return;
+      }
+      if (message == null) {
+        // onExit. Vor dem Händedruck gestorben: Wer auf den Start wartet,
+        // soll es erfahren, statt für immer zu warten.
+        if (!handshake.isCompleted) {
+          handshake.completeError(const MapWorkerDied());
+        }
+        replies.died();
+        return;
+      }
+      final m = message as List;
+      final id = m[0] as int;
+      if (m[1] == true) {
+        final value = m[2];
+        replies.result(
+            id,
+            value is TransferableTypedData
+                ? value.materialize().asUint8List()
+                : value);
+      } else {
+        replies.error(id, m[2] as String, m[3] as String);
+      }
+    });
+    _isolate = await Isolate.spawn(_workerMain, from.sendPort,
+        onExit: from.sendPort, debugName: 'map_worker');
+    _toWorker = await handshake.future;
+  }
+
+  @override
+  void slot(_Task task, String name, Object? value) =>
+      _toWorker?.send(['slot', name, value]);
+
+  @override
+  void drop(String name) => _toWorker?.send(['drop', name]);
+
+  @override
+  void job(int id, _Task task, Object? params) =>
+      _toWorker?.send(['job', id, task.fn, params]);
+
+  /// Der Port wird VOR dem Beenden geschlossen — die Ausgangsmeldung
+  /// zählt so nicht als Tod.
+  @override
+  void close() {
+    _fromWorker?.close();
+    _fromWorker = null;
+    _isolate?.kill(priority: Isolate.immediate);
+    _isolate = null;
+    _toWorker = null;
   }
 }
 

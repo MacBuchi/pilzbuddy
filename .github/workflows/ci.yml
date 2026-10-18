@@ -65,11 +65,20 @@ jobs:
       # endet dort im Timeout. Hier prüfen sie Zwischenspeicher und
       # Ausgangskorb gegen das echte IndexedDB des Browsers, dazu das
       # native Entpacken über `DecompressionStream` (#689).
+      # Dazu der Zeichen-Worker (#689, B2) als echter Web Worker — einmal
+      # mit passender, einmal mit fremder Kennung. Nur auf dart2js: Unter
+      # `--wasm` isoliert der Testlauf die Seite (COEP), und dort lehnt
+      # Chrome ein Worker-Skript ohne eigenen COEP-Kopf ab. GitHub Pages
+      # isoliert nicht; den Wasm-Weg prüft der Kommentar im Test.
       - name: Web-Test auf dart2js
         run: |
+          dart compile js -O2 --no-source-maps \
+            -o test/map_worker_js/map_worker.js lib/map_worker_main.dart
+          dart compile js -O2 --no-source-maps -DMAP_WORKER_BUILD=fremd \
+            -o test/map_worker_js/fremd.js lib/map_worker_main.dart
           flutter test --platform chrome \
             test/spot_cache_idb_test.dart test/outbox_idb_test.dart \
-            test/gunzip_stream_web_test.dart
+            test/gunzip_stream_web_test.dart test/map_worker_web_test.dart
       # Jedes mitgelieferte Artbild braucht seine große Fassung auf dem
       # Branch species-photos (#537). Mit #541 kamen 34 Bilder ohne sie,
       # und niemand merkte es: Die Vergrößerung zeigt dann still das
@@ -161,6 +170,10 @@ jobs:
           flutter-version: 3.47.5
           cache: true
       - run: flutter pub get
+      # Eine Kennung für App UND Zeichen-Worker (#689, B2): Passt die
+      # Kennung in `map_worker.js` nicht zur App (HTTP-Cache nach einem
+      # Deploy), rechnet die App selbst. lib/core/map_worker_build.dart.
+      - run: echo "MAP_WORKER_BUILD=$(git rev-parse --short=12 HEAD)" >> "$GITHUB_ENV"
       # `--no-web-resources-cdn` ist zweierlei zugleich (#387): Ohne den
       # Flag holt der Loader CanvasKit (~1,5 MB) von
       # www.gstatic.com — offline tot, und die IP jedes Besuchers ginge an
@@ -170,7 +183,16 @@ jobs:
       # Loader fällt sonst von selbst auf den dart2js-Build zurück (beide
       # liegen im Ordner). Gilt in allen drei Web-Builds (ci, promote,
       # preview) — CI soll genau das bauen, was ausgeliefert wird.
-      - run: flutter build web --release --wasm --base-href /pilzbuddy/ --no-web-resources-cdn
+      - run: flutter build web --release --wasm --base-href /pilzbuddy/ --no-web-resources-cdn --dart-define=MAP_WORKER_BUILD="$MAP_WORKER_BUILD"
+      # Der Web Worker des Zeichen-Wegs (#689, B2): Wald, Ampel, Fundorte,
+      # Höhenlinien und Regenverlauf rechnen im Browser dort statt auf dem
+      # Hauptthread. Eigenes Programm ohne Flutter; fehlt er, rechnet die
+      # App wie bis 1.225.x selbst.
+      - run: |
+          dart compile js -O2 --no-source-maps \
+            -DMAP_WORKER_BUILD="$MAP_WORKER_BUILD" \
+            -o build/web/map_worker.js lib/map_worker_main.dart
+          rm -f build/web/map_worker.js.deps
       # Der Service Worker ist die riskanteste Stelle der PWA: Er
       # entscheidet, ob die App ohne Netz startet, und ein Fehler darin
       # ist von außen unsichtbar — `flutter analyze` sieht die Datei

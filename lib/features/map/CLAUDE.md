@@ -432,10 +432,10 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
     Geprüft am Prüfstand (Wasm, Chromium): alle drei Quellen liefern,
     offline nach vorgewärmtem Service Worker Übersicht und Bereich,
     keine `pmtiles://`-Anfrage mehr.
-  Gemessen in `docs/map-performance.md`. Was nach dem Umlegen bleibt:
-  Die Karte friert mit Ebenen zeitweise noch ein — das ist das Zeichnen
-  der Überlagerungen auf dem Hauptthread, Hebel B2 (Web Worker), für
-  beide Engines.
+  Gemessen in `docs/map-performance.md`. Was nach dem Umlegen blieb —
+  die Karte fror mit Ebenen zeitweise ein, weil die Überlagerungen auf
+  dem Hauptthread gemalt wurden — ist seit 1.226.0 Sache des Web
+  Workers (B2, siehe „Hintergrundrechnungen").
 
 - **`alignment` bedeutet in den beiden Karten-Engines das GEGENTEIL**
   (#409, behoben in 1.123.0): Beide nehmen ein `Alignment` und rechnen
@@ -506,8 +506,7 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
     Übergeben (`TransferableTypedData`, so kommen die PNGs zurück).
   - **Es fällt nie ganz aus**: Fehler trifft nur den Auftrag; stirbt das
     Isolate, startet das nächste und bekommt die Fächer neu; nach drei
-    Toden oder ohne Isolate (Browser) rechnet der Rest über
-    `boundedCompute`. `MapWorkerSuperseded` ist kein Befund
+    Toden oder ohne Gegenseite rechnet der Rest über `boundedCompute`. `MapWorkerSuperseded` ist kein Befund
     (`worthReporting`).
   - **Im Widget-Test rechnet der Worker über `compute`, ohne Spuren**
     (`test/fakes/test_app.dart`), und die Grenze ist unter
@@ -536,16 +535,50 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
     abgeschnittenen Strom still den Teil bis zum Abbruch; `gunzip`
     vergleicht mit der Länge im gzip-Abspann und wirft. Nie wieder
     `GZipDecoder` direkt.
+  - **Im Browser rechnet ein Web Worker** (#689, B2, seit 1.226.0,
+    `core/map_worker_web.dart`, Programm `lib/map_worker_main.dart`,
+    gebaut als `build/web/map_worker.js` in ci/preview/promote).
+    Spuren, Fächer, Ruhe und Tode regelt `MapWorker` für Isolate und
+    Worker gleich (`MapWorkerTransport`). Fünf Dinge, die man wissen muss:
+    - **Eine Rechnung ist eine `MapWorkerTask`** mit Kennung und je einem
+      Codec für Eingabe, Ergebnis und jedes Fach (`core/wire.dart`), und
+      sie steht in `map_worker_tasks.dart` im Register `mapWorkerTasks`.
+      In einen Worker reisen keine Funktionen und keine Dart-Objekte, nur
+      ein übergebener `ArrayBuffer`. Ein Codec, der ein Feld vergisst,
+      rechnet im Browser still etwas anderes —
+      `test/map_worker_wire_test.dart` vergleicht deshalb jede Rechnung
+      direkt gegen über Codecs (Bild gegen Bild) und jedes Feld einzeln;
+      ein neuer Typ braucht dort seinen Rundlauf.
+    - **App und Worker tragen dieselbe Build-Kennung**
+      (`MAP_WORKER_BUILD`, Commit). Sie steht in der Worker-Adresse und
+      in seiner ersten Meldung; passt sie nicht (HTTP-Cache nach einem
+      Deploy, zehn Minuten auf Pages), rechnet die App selbst. Lokal ist
+      sie leer.
+    - **Lädt der Worker nicht, rechnet der Hauptthread** wie bis 1.225.x
+      (Bereitschaft 15 s). Der Service Worker legt `map_worker.js?v=…`
+      im Laufzeit-Cache ab; in `SHELL` steht er nicht, weil der Start
+      ihn nicht braucht und die Adresse je Build wechselt.
+    - **Höhenlinien und ihr GeoJSON sind EIN Auftrag** (`contoursTask`,
+      `ElevationContours.geoJson`). Ein zweiter schickte die Linien dafür
+      im Browser kodiert zurück in den Worker.
+    - **Nachgewiesen im echten Chrome** (`test/map_worker_web_test.dart`,
+      CI-Schritt „Web-Test auf dart2js"): Der Testlauf liefert Dateien
+      unter `test/<ordner>/` aus, nicht `build/` und keine versteckten
+      Ordner — CI übersetzt den Worker deshalb nach
+      `test/map_worker_js/`. **Nur dart2js:** Unter `--wasm` isoliert der
+      Testlauf die Seite (COEP), und Chrome lehnt dort ein Worker-Skript
+      ohne eigenen COEP-Kopf ab; der Test fällt dann sauber zurück. Pages
+      isoliert nicht. Wasm-App mit Worker auf einer Seite ohne COEP ist
+      beim Bau von Hand geprüft (bytegleiches Bild aus dem Worker).
   - **Die Rechnungen bleiben ohne Flutter** (#689, B2, seit 1.225.1):
-    Im Browser sollen sie in einem Web Worker laufen, der ohne Flutter
-    übersetzt wird. Darum liegen Farben als ARGB in
+    Der Worker wird ohne Flutter übersetzt. Darum liegen Farben als ARGB in
     `core/overlay_argb.dart` (`AppColors` baut daraus), `MapViewBounds`,
     die Regenstapel-Typen (`data/rain_stack_data.dart`), die
     Ampel-Mindesttage (`ampel_model.dart`), Kachelschlüssel und Maler des
     Bereichs-Entwurfs (`offline_areas/area_tile_key.dart`,
     `area_edit_png.dart`) in reinen Dateien. `test/map_worker_imports_test.dart`
-    läuft den Importbaum ab den Rechnungen ab, wie der Browser ihn sieht;
-    eine neue Rechnung gehört in seine Wurzelliste.
+    läuft den Importbaum ab Worker und Register ab, wie der Browser ihn
+    sieht.
   - **Die Ruhe-PSS nach dem Ende des Isolates erst nach einem Bild
     messen.** Die Kopien der Fächer sind dann Müll, abgeräumt wird aber
     erst über `NotifyIdle` nach dem nächsten gezeichneten Bild; ein

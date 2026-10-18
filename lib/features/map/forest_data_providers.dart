@@ -15,9 +15,7 @@ import '../../core/map_worker.dart';
 import '../../core/settings.dart';
 import '../../core/gunzip.dart';
 
-import '../ampel/ampel_fill.dart' show AmpelLevels;
 import '../ampel/ampel_model.dart' show AmpelClass, ampelClassKeyOf;
-import 'elevation_grid.dart' show ElevationGrid;
 import 'elevation_providers.dart' show elevationGridProvider;
 import '../ampel/ampel_map_providers.dart'
     show ampelLayerEnabledProvider, ampelLevelGridProvider;
@@ -27,9 +25,9 @@ import 'forest_fill.dart';
 import 'forest_fill_window.dart';
 import 'forest_grid.dart';
 import 'map_overlays.dart';
+import 'map_worker_tasks.dart';
 import 'map_view/marker_culling.dart' show MapViewBounds;
 import 'protected_area_providers.dart' show protectedAreasProvider;
-import 'protected_areas.dart' show ProtectedAreas;
 import 'rain_data_providers.dart' show rainGridRepositoryProvider;
 import 'spot_filter.dart' show activeAmpelClassesProvider;
 
@@ -237,12 +235,12 @@ final forestFillProvider = FutureProvider<ForestFillImage?>((ref) async {
         north: window.north,
         south: window.south,
       ))
-        '$_blockFamily${block.file}': ?blocks.loaded[block.file],
+        '$forestBlockFamily${block.file}': ?blocks.loaded[block.file],
     };
     final png = await runOnMapWorker(
       ref,
       'forest',
-      levels == null ? _fillFine : _fillCombinedFine,
+      levels == null ? forestFillFineTask : forestAmpelFillFineTask,
       (
         classes: classes,
         window: window,
@@ -274,7 +272,7 @@ final forestFillProvider = FutureProvider<ForestFillImage?>((ref) async {
   final png = await runOnMapWorker(
     ref,
     'forest',
-    levels == null ? _fill : _fillCombined,
+    levels == null ? forestFillTask : forestAmpelFillTask,
     (
       classes: classes,
       window: window,
@@ -302,47 +300,6 @@ final forestFillProvider = FutureProvider<ForestFillImage?>((ref) async {
     hatched: protected != null,
   );
 });
-
-/// Was je Auftrag hinübergeht — klein; die Gitter liegen in Fächern.
-typedef ForestFillParams = ({
-  Set<ForestClass> classes,
-  FillWindow window,
-  List<AmpelClass>? ampelClasses,
-  List<String> blocks,
-});
-
-const _blockFamily = 'forestBlock#';
-
-List<ForestGrid> _blocksOf(MapWorkerSlots slots, ForestFillParams p) =>
-    [for (final key in p.blocks) slots.get<ForestGrid>(key)];
-
-Uint8List _fillCombined(MapWorkerSlots slots, ForestFillParams p) =>
-    _combined(slots, [slots.get<ForestGrid>('forest')], p);
-
-Uint8List _fillCombinedFine(MapWorkerSlots slots, ForestFillParams p) =>
-    _combined(slots, _blocksOf(slots, p), p);
-
-Uint8List _combined(
-        MapWorkerSlots slots, List<ForestGrid> grids, ForestFillParams p) =>
-    forestAmpelFillPng(grids,
-        window: p.window,
-        levels: slots.get<AmpelLevels>('ampelLevels'),
-        ampelClasses: p.ampelClasses!,
-        elevation: slots.get<ElevationGrid?>('elevation'),
-        classes: p.classes,
-        protected: slots.get<ProtectedAreas?>('protected'));
-
-Uint8List _fill(MapWorkerSlots slots, ForestFillParams p) =>
-    forestFillPng(slots.get<ForestGrid>('forest'),
-        classes: p.classes,
-        window: p.window,
-        protected: slots.get<ProtectedAreas?>('protected'));
-
-Uint8List _fillFine(MapWorkerSlots slots, ForestFillParams p) =>
-    forestFillPngMulti(_blocksOf(slots, p),
-        classes: p.classes,
-        window: p.window,
-        protected: slots.get<ProtectedAreas?>('protected'));
 
 /// Der „Stand" für den Dateinamen der Fläche — kodiert Jahr UND
 /// Klassenwahl.
