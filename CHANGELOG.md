@@ -22,9 +22,10 @@ https://github.com/MacBuchi/pilzbuddy/releases
 - Auch Wald, Höhe, Schutzgebiete und Fundorte packt die Web-App beim
   Start jetzt nebenher aus. In den ersten Sekunden nach dem Öffnen ist
   sie damit seltener blockiert.
-- Die schaukelnden Pilze auf der Anmeldeseite kosten kaum noch
-  Rechenzeit: Sie werden einmal gezeichnet und danach nur noch gedreht.
-  Die Anmeldeseite reagiert dadurch flüssiger, vor allem in der Web-App.
+- Die Pilze auf der Anmeldeseite schaukeln nur noch einmal kurz und
+  stehen dann still — vorher schaukelten sie endlos und hielten die
+  Web-App dabei dauernd beschäftigt. Antippen lässt sie noch einmal
+  schaukeln.
 - Falls die neue Karte auf deinem Gerät Probleme macht: Mit ?maplibre=0
   am Ende der Adresse (also https://macbuchi.github.io/pilzbuddy/?maplibre=0)
   kommt die bisherige Karte zurück, mit ?maplibre=1 wieder die neue.

@@ -58,4 +58,39 @@ void main() {
     expect(_picture(pageBoundary), same(pagePicture),
         reason: 'die Seite wird je Takt neu gezeichnet');
   });
+
+  testWidgets(
+      'nach einem Schwung stehen die Pilze still und gerade — '
+      'Antippen weckt sie für eine Runde', (tester) async {
+    await tester.pumpWidget(const MaterialApp(
+      home: Scaffold(body: Center(child: BuddyMushrooms(height: 110))),
+    ));
+    // Im ersten Bild ist der Ausschlag 0 — das ist „gerade“. Beide Pilze,
+    // denn der kleine schwingt versetzt und bliebe ohne Auslaufen schief
+    // stehen.
+    final icons = find.byType(MushroomIcon);
+    List<Offset> pose() => [
+          for (final e in icons.evaluate())
+            tester.getTopLeft(find.byWidget(e.widget)),
+        ];
+    final upright = pose();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(tester.binding.hasScheduledFrame, isTrue,
+        reason: 'die Pilze schaukeln nach dem Öffnen');
+    expect(pose(), isNot(upright));
+
+    await tester.pump(const Duration(seconds: 2));
+    // Kein Bild mehr angefordert: Die Seite kostet in Ruhe nichts.
+    expect(tester.binding.hasScheduledFrame, isFalse,
+        reason: 'die Animation läuft nach dem Schwung weiter');
+    expect(pose(), upright, reason: 'ein Pilz bleibt schief stehen');
+
+    await tester.tap(icons.first);
+    await tester.pump(); // das erste Bild startet die Uhr der Animation
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(pose(), isNot(upright), reason: 'Antippen weckt die Pilze nicht');
+    await tester.pump(const Duration(seconds: 2));
+    expect(tester.binding.hasScheduledFrame, isFalse);
+    expect(pose(), upright);
+  });
 }
