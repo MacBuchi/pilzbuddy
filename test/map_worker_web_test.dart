@@ -21,9 +21,13 @@
 @TestOn('browser')
 library;
 
+import 'dart:convert';
+import 'dart:js_interop';
 import 'dart:typed_data';
 
+import 'package:archive/archive.dart' show GZipEncoder;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:web/web.dart' as web;
 import 'package:pilzbuddy/core/map_worker.dart';
 import 'package:pilzbuddy/core/map_worker_web.dart';
 import 'package:pilzbuddy/features/map/forest_fill.dart' show allForestClasses;
@@ -82,6 +86,57 @@ void main() {
     expect(worker.debugUsesFallback, isFalse);
     expect(worker.debugSlotTransfers, 2,
         reason: 'Wald und Schutzgebiete gingen EINMAL hinüber');
+  });
+
+  test('der Worker lädt ein Gitter selbst: fetch, nativ entpackt, als Fach',
+      () async {
+    // Wie im Build, nur über eine blob:-Adresse statt eines Assets — der
+    // Testlauf liefert `assets/` nicht aus. Bewiesen wird der ganze Weg
+    // drüben: Abruf, DecompressionStream, Dekodierer, Fach, und dass das
+    // Gitter danach nie vom Hauptthread hinübergeht (#689, B3).
+    final deltas = Uint8List(forest.values.length);
+    for (var y = 0; y < forest.height; y++) {
+      var previous = 0;
+      for (var x = 0; x < forest.width; x++) {
+        final v = forest.values[y * forest.width + x];
+        deltas[y * forest.width + x] = (v - previous) & 0xFF;
+        previous = v;
+      }
+    }
+    final gz = Uint8List.fromList(GZipEncoder().encode(deltas)!);
+    final url = web.URL.createObjectURL(
+        web.Blob(<web.BlobPart>[gz.toJS].toJS));
+    addTearDown(() => web.URL.revokeObjectURL(url));
+    final manifest = jsonEncode({
+      'lattice': 'hex-odd-r',
+      'width': forest.width,
+      'height': forest.height,
+      'west': forest.west,
+      'east': forest.east,
+      'north': forest.north,
+      'south': forest.south,
+      'reference_year': forest.referenceYear,
+      'hex_lon_step': forest.hexLonStep,
+      'hex_lat_step': forest.hexLatStep,
+    });
+
+    final transport = WebWorkerTransport('map_worker_js/map_worker.js');
+    final worker = MapWorker.transport(() => transport, loadsAssets: true);
+    addTearDown(worker.dispose);
+    final loaded = await worker.loadAsset(forestLoad,
+        slot: 'forest', manifest: manifest, url: url);
+    expect(loaded!.values, forest.values);
+    expect(transport.resultsFromWorker, 1, reason: 'aus dem Worker');
+
+    final loadedSlots = {'forest': loaded, 'protected': null};
+    expect(
+        await worker
+            .submit('wald', forestFillTask, params, slots: loadedSlots)
+            .result,
+        direct);
+    expect(worker.debugSlotTransfers, 1,
+        reason: 'nur die Schutzgebiete gingen hinüber, der Wald lag dort');
+    expect(worker.debugUsesFallback, isFalse);
   });
 
   test('ein Fehler im Worker trifft nur seinen Auftrag', () async {

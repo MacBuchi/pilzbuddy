@@ -22,6 +22,20 @@ abstract class MapWorkerTransport {
   void drop(String name);
   void job(int id, MapWorkerTask<Object?, Object?> task, Object? params);
 
+  /// Kann die Gegenseite Gitter selbst laden ([MapWorkerLoad], #689 B3)?
+  /// Nur der Web Worker — ein Isolate bekäme die Bytes doch wieder vom
+  /// Hauptthread, und auf dem Gerät kostet das nichts Spürbares.
+  bool get loadsAssets;
+
+  /// Lädt [url] drüben, dekodiert mit [load] und legt das Gitter als Fach
+  /// [slot] ab. Antwortet über `result` — mit dem Gitter, wenn [reply],
+  /// sonst mit `null`.
+  void load(int id, MapWorkerLoad<Object?> load,
+      {String? slot,
+      required String manifest,
+      required String url,
+      required bool reply});
+
   /// Beendet die Gegenseite, OHNE danach noch `died` zu melden.
   void close();
 }

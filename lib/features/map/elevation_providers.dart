@@ -1,60 +1,35 @@
 // Das Höhengitter auf dem Gerät — Asset im APK, kein Download, keine
 // Zustimmung, exakt das Muster von `forest_species_providers.dart`:
 // Die Temperaturkorrektur soll dort funktionieren, wo kein Empfang ist.
-import 'dart:convert';
-
-import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/bounded_compute.dart';
-import '../../core/gunzip.dart';
+import '../../core/map_worker.dart';
 
+import 'asset_grid_loader.dart';
 import 'elevation_grid.dart';
+import 'map_worker_tasks.dart';
 
 /// Wie das Gitter beschafft wird — die Test-Naht:
 /// `test/fakes/test_app.dart` überschreibt sie auf `null`, sonst läse
 /// jeder Flow-Test das echte Asset.
 final elevationLoaderProvider =
-    Provider<Future<ElevationGrid?> Function()>((ref) => _loadFromAssets);
+    Provider<Future<ElevationGrid?> Function()>((ref) {
+  final worker = ref.watch(mapWorkerProvider);
+  return () => _loadFromAssets(worker);
+});
 
 /// Lädt Manifest + Gitter aus den Assets, packt im Isolate aus.
 ///
 /// `null` bei jedem Fehler — stille Degradation wie überall auf der
 /// Karte: Ohne Höhengitter rechnet die Temperatur wie bisher
 /// unkorrigiert weiter, und die Stationshöhe steht ja daneben.
-Future<ElevationGrid?> _loadFromAssets() async {
+Future<ElevationGrid?> _loadFromAssets(MapWorker worker) async {
   try {
-    final manifestRaw =
-        await rootBundle.loadString('assets/elevation/elevation_manifest.json');
-    final data = await rootBundle.load('assets/elevation/elevation.bin.gz');
-    final bytes =
-        data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
-    await preInflate(bytes); // im Browser nativ ausgepackt (#689)
-    return await boundedCompute(_decode, (manifest: manifestRaw, bytes: bytes));
+    return await loadAssetGrid(worker, elevationLoad,
+        manifestPath: 'assets/elevation/elevation_manifest.json',
+        gridPath: 'assets/elevation/elevation.bin.gz',
+        slot: 'elevation');
   } catch (_) {
     // Fehlendes/kaputtes Asset ⇒ keine Korrektur. Begründung oben.
-    return null;
-  }
-}
-
-ElevationGrid? _decode(({String manifest, Uint8List bytes}) input) {
-  try {
-    final manifest = jsonDecode(input.manifest) as Map<String, dynamic>;
-    if (manifest['lattice'] != 'hex-odd-r') return null;
-    if (manifest['quant_m'] != elevationQuantM) return null;
-    return ElevationGrid.decode(
-      input.bytes,
-      encoding: manifest['encoding'] as String,
-      width: manifest['width'] as int,
-      height: manifest['height'] as int,
-      west: (manifest['west'] as num).toDouble(),
-      east: (manifest['east'] as num).toDouble(),
-      north: (manifest['north'] as num).toDouble(),
-      south: (manifest['south'] as num).toDouble(),
-      hexLonStep: (manifest['hex_lon_step'] as num).toDouble(),
-      hexLatStep: (manifest['hex_lat_step'] as num).toDouble(),
-    );
-  } catch (_) {
     return null;
   }
 }

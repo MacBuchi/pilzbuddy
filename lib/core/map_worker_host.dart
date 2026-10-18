@@ -1,14 +1,19 @@
 // Die Gegenseite des Zeichen-Wegs im Web Worker (#689, B2) — ohne
 // Browser-Bezug, damit der Test sie auf der VM fahren kann. Die Hülle,
 // die Nachrichten annimmt und verschickt, ist `lib/map_worker_main.dart`.
+import 'dart:typed_data';
+
 import 'map_worker_task.dart';
 import 'wire.dart';
 
 class MapWorkerHost {
-  MapWorkerHost(Iterable<MapWorkerTask<Object?, Object?>> tasks)
-      : _tasks = {for (final t in tasks) t.id: t};
+  MapWorkerHost(Iterable<MapWorkerTask<Object?, Object?>> tasks,
+      [Iterable<MapWorkerLoad<Object?>> loads = const []])
+      : _tasks = {for (final t in tasks) t.id: t},
+        _loads = {for (final l in loads) l.id: l};
 
   final Map<String, MapWorkerTask<Object?, Object?>> _tasks;
+  final Map<String, MapWorkerLoad<Object?>> _loads;
   final _slots = <String, Object?>{};
 
   /// Fächer, die nicht zu lesen waren — der nächste Auftrag sagt es,
@@ -34,6 +39,44 @@ class MapWorkerHost {
   void drop(String name) {
     _slots.remove(name);
     _broken.remove(name);
+  }
+
+  /// Dekodiert ein selbst geladenes Gitter (#689, B3) und legt es als
+  /// Fach [slot] ab — ohne Fach nur dekodiert. Gibt das kodierte Ergebnis
+  /// zurück, wenn [reply]; beim Wiederherstellen nach einer Ruhe hat die
+  /// App es schon. Ein `null`-Gitter (Asset unbekannt oder kaputt) räumt
+  /// das Fach. Wirft, was die Dekodierung wirft — dann ist das Fach
+  /// kaputt, und der nächste Auftrag sagt es.
+  WireBytes? load(String loadId, String? slot, String manifest,
+      Uint8List gzipped, {required bool reply}) {
+    final load =
+        _loads[loadId] ?? (throw StateError('Laden $loadId kennt der Worker nicht'));
+    final Object? value;
+    try {
+      value = load.call(manifest, gzipped);
+    } catch (e) {
+      if (slot != null) {
+        _slots.remove(slot);
+        _broken[slot] = '$e';
+      }
+      rethrow;
+    }
+    if (slot != null) {
+      _broken.remove(slot);
+      if (value == null) {
+        _slots.remove(slot);
+      } else {
+        _slots[slot] = value;
+      }
+    }
+    return reply ? load.encodeResult(value) : null;
+  }
+
+  /// Ein Fach, dessen Laden scheiterte — für die Leitung, die das Laden
+  /// nicht selbst ausführt (Abruf fehlgeschlagen).
+  void markBroken(String slot, String reason) {
+    _slots.remove(slot);
+    _broken[slot] = reason;
   }
 
   /// Rechnet und gibt das kodierte Ergebnis zurück. Wirft, was die

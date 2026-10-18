@@ -16,6 +16,7 @@ import '../../data/rain_stack_data.dart';
 import '../ampel/ampel_fill.dart' show AmpelLevelGrid, AmpelLevels;
 import '../ampel/ampel_model.dart' show AmpelClass, AmpelLogit;
 import '../offline_areas/area_edit_png.dart';
+import 'asset_grid_decoders.dart';
 import 'contours.dart' show ContourLine;
 import 'elevation_contours.dart';
 import 'elevation_grid.dart';
@@ -37,6 +38,31 @@ final mapWorkerTasks = <MapWorkerTask<Object?, Object?>>[
   areaEditFillTask,
   contoursTask,
   legendRainCourseTask,
+];
+
+// ---------------------------------------------------------------------------
+// Asset-Gitter, die der Worker im Browser selbst lädt (#689, B3). Der
+// Fachname, unter dem er sie ablegt, ist der, unter dem die Rechnungen sie
+// lesen — das Laden ersetzt das Hinüberschicken.
+
+const forestLoad = MapWorkerLoad<ForestGrid?>('forestAsset', decodeForestAsset,
+    result: WireNullable(forestGridCodec));
+const elevationLoad = MapWorkerLoad<ElevationGrid?>(
+    'elevationAsset', decodeElevationAsset,
+    result: WireNullable(elevationGridCodec));
+const protectedLoad = MapWorkerLoad<ProtectedAreas?>(
+    'protectedAsset', decodeProtectedAsset,
+    result: WireNullable(protectedAreasCodec));
+const gbifFindsLoad = MapWorkerLoad<GbifFinds?>(
+    'gbifFindsAsset', decodeGbifFindsAsset,
+    result: WireNullable(gbifFindsCodec));
+
+/// Alle Ladeaufträge — die zweite Tabelle des Workers.
+final mapWorkerLoads = <MapWorkerLoad<Object?>>[
+  forestLoad,
+  elevationLoad,
+  protectedLoad,
+  gbifFindsLoad,
 ];
 
 // ---------------------------------------------------------------------------

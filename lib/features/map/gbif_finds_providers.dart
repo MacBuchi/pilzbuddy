@@ -9,13 +9,10 @@
 // seit dieser Ebene sind es zwei, und die #154-Regel trägt beide: Was
 // die Karte enger macht, steht im Filter-Chip.
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/bounded_compute.dart';
 import '../../core/map_worker.dart';
 import '../../core/settings.dart';
-import '../../core/gunzip.dart';
 import 'forest_data_providers.dart' show mapIdleBoundsProvider;
 import 'forest_fill_window.dart';
 import 'gbif_fill.dart';
@@ -24,6 +21,7 @@ import 'map_overlays.dart';
 import 'map_worker_tasks.dart';
 import 'rain_data_providers.dart' show rainGridRepositoryProvider;
 import 'spot_filter.dart' show spotFilterProvider;
+import 'asset_grid_loader.dart';
 
 /// Ob die Fundorte auf der Karte liegen — über den Neustart hinaus
 /// gemerkt, wie Wald und Höhenlinien (Begründung bei
@@ -40,7 +38,10 @@ final gbifLayerEnabledProvider = NotifierProvider<RememberedFlag, bool>(
 /// `forestGridLoaderProvider`: `test/fakes/test_app.dart` überschreibt
 /// sie auf `null`, sonst läse jeder Flow-Test das echte Asset.
 final gbifFindsLoaderProvider =
-    Provider<Future<GbifFinds?> Function()>((ref) => _loadFromAssets);
+    Provider<Future<GbifFinds?> Function()>((ref) {
+  final worker = ref.watch(mapWorkerProvider);
+  return () => _loadFromAssets(worker);
+});
 
 /// Lädt Manifest + Spalten aus den Assets, packt im Isolate aus.
 ///
@@ -48,25 +49,14 @@ final gbifFindsLoaderProvider =
 /// der Karte: Ein kaputtes Asset ist ein Baufehler, den
 /// `test/gbif_finds_test.dart` mit dem echten Asset fängt, kein
 /// Laufzeitereignis. Ohne Asset fehlt die Ebene, und das Blatt sagt es.
-Future<GbifFinds?> _loadFromAssets() async {
+Future<GbifFinds?> _loadFromAssets(MapWorker worker) async {
   try {
-    final manifest =
-        await rootBundle.loadString('assets/gbif/gbif_finds_manifest.json');
-    final data = await rootBundle.load('assets/gbif/gbif_finds.bin.gz');
-    final bytes =
-        data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
-    await preInflate(bytes); // im Browser nativ ausgepackt (#689)
-    return await boundedCompute(_decode, (manifest: manifest, bytes: bytes));
+    return await loadAssetGrid(worker, gbifFindsLoad,
+        manifestPath: 'assets/gbif/gbif_finds_manifest.json',
+        gridPath: 'assets/gbif/gbif_finds.bin.gz',
+        slot: 'gbifFinds');
   } catch (_) {
     // Fehlendes/kaputtes Asset ⇒ keine Ebene. Begründung oben.
-    return null;
-  }
-}
-
-GbifFinds? _decode(({String manifest, Uint8List bytes}) input) {
-  try {
-    return GbifFinds.decode(input.bytes, input.manifest);
-  } catch (_) {
     return null;
   }
 }

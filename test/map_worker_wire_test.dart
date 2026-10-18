@@ -51,13 +51,21 @@ class _Loopback implements MapWorkerTransport {
   MapWorkerReplies? _replies;
   int jobs = 0;
 
+  /// Wie oft ein Fach hinüberging — selbst geladene sollen das nie.
+  int slots = 0;
+
+  /// Jedes Laden: ob es antworten sollte (false = wiederhergestellt).
+  final loads = <({String slot, bool reply})>[];
+
   @override
   Future<void> open(MapWorkerReplies replies) async => _replies = replies;
 
   @override
   void slot(MapWorkerTask<Object?, Object?> task, String name,
-          Object? value) =>
-      host.slot(task.id, name, task.slotCodec(name).encode(value));
+          Object? value) {
+    slots++;
+    host.slot(task.id, name, task.slotCodec(name).encode(value));
+  }
 
   @override
   void drop(String name) => host.drop(name);
@@ -70,6 +78,32 @@ class _Loopback implements MapWorkerTransport {
       try {
         _replies!.result(id, task.decodeResult(host.run(task.id, encoded)));
       } catch (e, s) {
+        _replies!.error(id, '$e', '$s');
+      }
+    });
+  }
+
+  @override
+  bool get loadsAssets => true;
+
+  /// Wie die Hülle in `map_worker_main.dart`: holt die Datei (hier vom
+  /// Dateisystem statt per `fetch`) und dekodiert im Host — der Reihe
+  /// nach mit den Aufträgen, wie der Worker seine Nachrichten abarbeitet.
+  @override
+  void load(int id, MapWorkerLoad<Object?> load,
+      {String? slot,
+      required String manifest,
+      required String url,
+      required bool reply}) {
+    loads.add((slot: slot ?? '', reply: reply));
+    scheduleMicrotask(() {
+      try {
+        final out = host.load(load.id, slot, manifest,
+            File(url).readAsBytesSync(),
+            reply: reply);
+        _replies!.result(id, out == null ? null : load.decodeResult(out));
+      } catch (e, s) {
+        if (slot != null) host.markBroken(slot, '$e');
         _replies!.error(id, '$e', '$s');
       }
     });
@@ -591,6 +625,186 @@ void main() {
         ampelClasses: null,
         blocks: const <String>[],
       ), {'forest': forest, 'protected': null});
+    });
+  });
+
+  group('Selbst geladene Gitter (#689, B3)', () {
+    // Im Browser lädt der Worker die großen Asset-Gitter selbst, damit sie
+    // den Hauptthread nie berühren. Bewiesen wird: Er dekodiert dasselbe
+    // wie die App, das Gitter liegt danach als Fach drüben und geht NIE
+    // vom Hauptthread hinüber — auch nach einer Ruhe nicht, dann lädt er
+    // es neu.
+    const assets = {
+      'forest': ('assets/forest/forest_manifest.json',
+          'assets/forest/forest_grid.bin.gz'),
+      'elevation': ('assets/elevation/elevation_manifest.json',
+          'assets/elevation/elevation.bin.gz'),
+      'protected': ('assets/protected/protected_manifest.json',
+          'assets/protected/protected_grid.bin.gz'),
+      'gbifFinds': ('assets/gbif/gbif_finds_manifest.json',
+          'assets/gbif/gbif_finds.bin.gz'),
+    };
+    final loads = {
+      'forest': forestLoad,
+      'elevation': elevationLoad,
+      'protected': protectedLoad,
+      'gbifFinds': gbifFindsLoad,
+    };
+    String manifestOf(String slot) =>
+        File(assets[slot]!.$1).readAsStringSync();
+
+    late MapWorkerHost host;
+    late _Loopback loopback;
+    late MapWorker worker;
+    setUp(() {
+      host = MapWorkerHost(mapWorkerTasks, mapWorkerLoads);
+      loopback = _Loopback(host);
+      worker = MapWorker.transport(() => loopback,
+          idleTimeout: const Duration(milliseconds: 100), loadsAssets: true);
+    });
+    tearDown(() => worker.dispose());
+
+    Future<Object?> loadSlot(String slot) => worker.loadAsset(loads[slot]!,
+        slot: slot, manifest: manifestOf(slot), url: assets[slot]!.$2);
+
+    test('jedes echte Asset: drüben dekodiert wie hier, liegt dann als Fach',
+        () async {
+      for (final slot in assets.keys) {
+        final load = loads[slot]!;
+        final direct = load.decode(
+            manifestOf(slot), File(assets[slot]!.$2).readAsBytesSync());
+        expect(direct, isNotNull, reason: '$slot: das Asset dekodiert');
+        final viaWorker = await loadSlot(slot);
+        final a = load.encodeResult(direct), b = load.encodeResult(viaWorker);
+        expect(b.buffer.asUint8List(0, b.length),
+            a.buffer.asUint8List(0, a.length),
+            reason: slot);
+      }
+      expect(host.slotNames, assets.keys.toSet());
+      expect(loopback.slots, 0);
+    });
+
+    test('ein Auftrag mit dem geladenen Gitter schickt es nicht hinüber',
+        () async {
+      final forest = await loadSlot('forest') as ForestGrid;
+      final protected = await loadSlot('protected');
+      const window = FillWindow(
+          west: 9.0, east: 9.4, north: 49.3, south: 49.0,
+          width: 240, height: 160);
+      final params = (
+        classes: allForestClasses,
+        window: window,
+        ampelClasses: null,
+        blocks: const <String>[],
+      );
+      final slots = {'forest': forest, 'protected': protected};
+      final viaWorker =
+          await worker.submit('probe', forestFillTask, params, slots: slots)
+              .result;
+      await worker.submit('probe', forestFillTask, params, slots: slots).result;
+      expect(loopback.slots, 0, reason: 'Wald und Schutzgebiete lagen drüben');
+      expect(loopback.loads.where((l) => !l.reply), isEmpty,
+          reason: 'und werden nicht je Auftrag neu geladen');
+      expect(viaWorker,
+          forestFillTask.run(MapWorkerSlots(slots), params),
+          reason: 'dasselbe Bild wie hier gerechnet');
+    });
+
+    test('nach einer Ruhe lädt der Worker das Fach neu, statt es zu bekommen',
+        () async {
+      final protected = await loadSlot('protected') as ProtectedAreas;
+      final forest = await loadSlot('forest') as ForestGrid;
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      expect(worker.debugRetirements, 1);
+      // Ein echter Worker wäre jetzt beendet; der Host der Test-Leitung
+      // lebt weiter und vergisst seine Fächer deshalb von Hand.
+      host.drop('forest');
+      host.drop('protected');
+
+      final params = (
+        classes: allForestClasses,
+        window: const FillWindow(
+            west: 9.0, east: 9.4, north: 49.3, south: 49.0,
+            width: 120, height: 80),
+        ampelClasses: null,
+        blocks: const <String>[],
+      );
+      await worker.submit('probe', forestFillTask, params,
+          slots: {'forest': forest, 'protected': protected}).result;
+      expect(loopback.slots, 0, reason: 'kein Gitter vom Hauptthread');
+      expect(loopback.loads.where((l) => !l.reply).map((l) => l.slot),
+          unorderedEquals(['forest', 'protected']));
+    });
+
+    test('scheitert das Neuladen, trifft es einen Auftrag, danach geht das Fach '
+        'wieder hinüber', () async {
+      final tmp = await Directory.systemTemp.createTemp('load');
+      addTearDown(() => tmp.delete(recursive: true));
+      final copy = File('${tmp.path}/protected.bin.gz');
+      File(assets['protected']!.$2).copySync(copy.path);
+      final protected = await worker.loadAsset(protectedLoad,
+          slot: 'protected',
+          manifest: manifestOf('protected'),
+          url: copy.path) as ProtectedAreas;
+      final forest = await loadSlot('forest') as ForestGrid;
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      host.drop('protected');
+      copy.deleteSync();
+
+      final params = (
+        classes: allForestClasses,
+        window: const FillWindow(
+            west: 9.0, east: 9.4, north: 49.3, south: 49.0,
+            width: 120, height: 80),
+        ampelClasses: null,
+        blocks: const <String>[],
+      );
+      final slots = {'forest': forest, 'protected': protected};
+      await expectLater(
+          worker.submit('probe', forestFillTask, params, slots: slots).result,
+          throwsA(isA<MapWorkerError>()));
+      await worker.submit('probe', forestFillTask, params, slots: slots)
+          .result;
+      expect(loopback.slots, 1, reason: 'Schutzgebiete gingen als Fach');
+    });
+
+    test('ein kaputtes Asset kommt als Fehler, nicht als stilles Gitter',
+        () async {
+      await expectLater(
+          worker.loadAsset(forestLoad,
+              slot: 'forest', manifest: '{', url: assets['forest']!.$2),
+          completion(isNull),
+          reason: 'der Dekodierer gibt null — dann liegt auch kein Fach');
+      expect(host.slotNames, isNot(contains('forest')));
+      await expectLater(
+          worker.loadAsset(forestLoad,
+              slot: 'forest',
+              manifest: manifestOf('forest'),
+              url: 'gibt/es/nicht.bin.gz'),
+          throwsA(isA<MapWorkerError>()));
+    });
+
+    test('ohne Web Worker lädt niemand drüben — der Aufrufer lädt selbst',
+        () async {
+      for (final w in [MapWorker.compute(), MapWorker.transport(() => loopback)]) {
+        expect(w.loadsAssets, isFalse);
+        await expectLater(
+            w.loadAsset(forestLoad,
+                slot: 'forest', manifest: '{}', url: 'x'),
+            throwsA(isA<MapWorkerCannotLoad>()));
+        w.dispose();
+      }
+    });
+
+    test('jedes Laden steht im Register und legt ab, wo die Rechnungen lesen',
+        () {
+      final ids = [for (final l in mapWorkerLoads) l.id];
+      expect(ids.toSet(), hasLength(ids.length));
+      expect(mapWorkerLoads, unorderedEquals(loads.values));
+      final read = {
+        for (final t in mapWorkerTasks) ...t.slots.keys,
+      };
+      expect(read, containsAll(loads.keys));
     });
   });
 
