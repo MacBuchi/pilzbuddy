@@ -7,15 +7,19 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
-## Web-App: neue Kartentechnik kann jetzt alles
+## Web-App: schnellere Karte
 
-*18. Oktober 2026 · Version 1.224.9*
+*18. Oktober 2026 · Versionen 1.224.9 und 1.225.0*
 
-- Im Versuch mit der neuen Kartentechnik in der Web-App (?maplibre=1)
-  erscheinen jetzt auch die gespeicherten Kartenbereiche, und die
-  Übersichtskarte ist auch ohne Empfang da. Die Kacheln der Neuen Karte
-  holt die App dabei selbst und merkt sich, was sie schon hat. Damit
-  kann der Versuch so viel wie die bisherige Web-Karte.
+- Die Karte in der Web-App zeichnet jetzt mit derselben Technik wie die
+  Android-App. Wischen und Zoomen ruckeln deutlich weniger, und die Karte
+  ist nach dem Öffnen schneller da. Gespeicherte Kartenbereiche und die
+  Übersichtskarte gibt es auch hier ohne Empfang.
+- Mit eingeschaltetem Wald oder Höhenlinien kann die Karte im Browser
+  noch kurz stocken; daran arbeiten wir als Nächstes.
+- Falls die neue Karte auf deinem Gerät Probleme macht: Mit ?maplibre=0
+  am Ende der Adresse (also https://macbuchi.github.io/pilzbuddy/?maplibre=0)
+  kommt die bisherige Karte zurück, mit ?maplibre=1 wieder die neue.
 
 ## Spots bleiben bei schwachem Empfang sichtbar
 

@@ -6,8 +6,9 @@
 // rohe Offline-Karte: keine Marker, keine Online-Kacheln — der
 // Opt-in-Schalter im Profil sagt das ehrlich dazu.
 //
-// Seit #689 (Hebel C) läuft dieselbe Ansicht versuchsweise auch im
-// Browser, dort mit MapLibre GL JS (`?maplibre=1`, maplibre_web.dart).
+// Seit #689 (Hebel C) läuft dieselbe Ansicht auch im Browser, dort mit
+// MapLibre GL JS (Vorgabe seit 1.225.0, `?maplibre=0` wählt ab,
+// maplibre_web.dart).
 // Drei Unterschiede stehen hier: Die Bibliothek wird erst nachgeladen
 // ([mapLibreJsReadyProvider]), der lange Tipp kommt als
 // `contextmenu` an, und Bilder und Archive sind URLs statt Dateien (das

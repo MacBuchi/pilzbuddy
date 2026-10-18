@@ -6,8 +6,8 @@ import 'package:latlong2/latlong.dart';
 import 'flutter_map_view.dart';
 import 'marker_culling.dart' show MapViewBounds;
 export 'marker_culling.dart' show MapViewBounds;
-// Seit #689 (Hebel C) auch im Web-Build: MapLibre GL JS ist dort ein
-// Versuch hinter `?maplibre=1` (maplibre_web.dart). Den Web-Teil des
+// Seit #689 (Hebel C) auch im Web-Build: MapLibre GL JS ist dort seit
+// 1.225.0 die Vorgabe, `?maplibre=0` der Ausstieg (maplibre_web.dart). Den Web-Teil des
 // Pakets hatte der Build ohnehin schon (Plugin-Registrant).
 import 'maplibre_map_view.dart' show createMapLibreMapView;
 import 'maplibre_web.dart' show webMapLibreRequested;
@@ -237,9 +237,11 @@ typedef MapViewBuilder = Widget Function(
   MapViewMarkers markers,
 );
 
-/// Die Engine-Wahl: **Android MapLibre, Web flutter_map** — seit #433
-/// ohne Schalter dazwischen. Ausnahme seit #689: Ein Browser, der
-/// `?maplibre=1` gewählt hat, bekommt MapLibre GL JS ([webMapLibreProvider]).
+/// Die Engine-Wahl: **MapLibre überall** — Android seit #433 ohne
+/// Schalter, der Browser seit 1.225.0 (#689) mit MapLibre GL JS. Ausnahme:
+/// Ein Browser, der `?maplibre=0` gewählt hat, bekommt flutter_map
+/// ([webMapLibreProvider]); ebenso, wenn die Bibliothek nicht lädt
+/// (`mapLibreJsReadyProvider`).
 ///
 /// `kIsWeb` ist eine Kompilierzeit-Konstante, die Verzweigung also in
 /// jedem Build schon entschieden. Der Profil-Schalter davor war ein
@@ -269,7 +271,8 @@ final mapViewBuilderProvider = Provider<MapViewBuilder>((ref) {
       );
 });
 
-/// Hat dieser Browser den MapLibre-Versuch gewählt (#689, Hebel C)?
+/// Zeichnet dieser Browser mit MapLibre GL JS (#689, Hebel C)? Vorgabe
+/// ja, `?maplibre=0` wählt ab.
 ///
 /// Einmal je Sitzung gelesen — umgeschaltet wird über die Adresse, also
 /// mit einem Neuladen. Außerhalb des Browsers immer `false`, gefragt wird

@@ -810,7 +810,7 @@ class RainGridRepository {
       {String variant = ''}) async {
     // Nur die MapLibre-Strecke braucht eine URL. Im Browser gibt es
     // keine Datei — flutter_map nimmt dort dieselben Bytes direkt als
-    // `MemoryImage`, und MapLibre (Versuch #689, `?maplibre=1`) bekommt
+    // `MemoryImage`, und MapLibre GL JS (#689, Web-Vorgabe) bekommt
     // eine `blob:`-URL. Gerufen wird das nur, solange die MapLibre-Ansicht
     // zuhört; die flutter_map-Engine legt hier keine Kopie an.
     if (!_cachesToDisk) {

@@ -183,8 +183,8 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
   `web/datenschutz.html` nennt es seit 1.117.0. Abstellen hieße Roboto
   mitliefern und im Theme setzen — eigenes Issue, eigene Größenfrage.
   Nebenkosten, die bleiben: `assets/map_glyphs/` (984 KB) landet im
-  Web-Build und wird dort nur gelesen, wenn ein Browser den
-  MapLibre-Versuch gewählt hat (#689, `?maplibre=1`). Flutter kennt keine
+  Web-Build und wird dort gelesen, seit MapLibre GL JS die Web-Vorgabe
+  ist (#689, 1.225.0; mit `?maplibre=0` nicht). Flutter kennt keine
   plattformabhängigen Asset-Listen.
 
 - **`web/maplibre/` ist fremder Code, unverändert aus npm** (#689):
@@ -192,7 +192,8 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
   `web/maplibre/README.md`. Selbst gehostet, weil ein CDN ein neues
   Netzziel wäre. Der Datenschutz-Wächter liest die Dateien mit und fand
   `maplibre.org` (Logo-/Attributions-Link, den die App nicht einbaut,
-  `onTapOnly`). Geladen wird nur mit gewählter Engine, also landet die
-  Bibliothek auch nur dann im Cache des Service Workers. Die Version
+  `onTapOnly`). Geladen wird erst, wenn die Karte baut (nicht beim Start),
+  und dann landet die Bibliothek im Cache des Service Workers — seit
+  1.225.0 die Vorgabe, mit `?maplibre=0` nie. Die Version
   folgt dem Paket `maplibre` (0.3.5 ⇒ GL JS 5), nie allein.
 

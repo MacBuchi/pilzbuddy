@@ -1348,3 +1348,13 @@ Die Übersicht kommt damit ohne Netz, weil der Service Worker das ganze
 Asset ablegt (`web/sw.js` überspringt nur Anfragen mit `Range`).
 Blockierzeiten wurden nicht neu gemessen; das Protokoll ändert nur, wer
 die Bytes liefert, nicht wer zeichnet.
+
+## Nachtrag 2026-10-18: MapLibre GL JS ist die Web-Vorgabe (#689, 1.225.0)
+
+Entschieden vom Betreiber am 2026-10-17 nach dem Handtest auf dem Pixel
+XL (90 s echte Gesten: 73,8 s blockiert mit flutter_map gegen 29,6 s mit
+MapLibre, Pinch eingeschlossen bedienbar) und nachdem die drei Lücken
+geschlossen waren (Nachtrag oben). `?maplibre=0` wählt flutter_map und
+bleibt gemerkt — der Notausgang, und der Weg, beide Engines im selben
+Build weiter zu vergleichen. Offen bleibt das zeitweise Einfrieren mit
+Ebenen: das Zeichnen der Überlagerungen auf dem Hauptthread, Hebel B2.
