@@ -2,6 +2,7 @@
 // komplette App gegen das In-Memory-Backend (siehe test/fakes/).
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pilzbuddy/core/widgets/buddy_mushrooms.dart';
 import 'package:pilzbuddy/core/widgets/form_notice.dart';
 
 import '../fakes/fake_backend.dart';
@@ -55,6 +56,7 @@ void main() {
     final backend = FakeBackend()
       ..addUser(username: 'testpilz', password: 'PilzTest#2026!');
     await pumpApp(tester, backend);
+    expect(find.byType(BuddyMushrooms), findsOneWidget);
 
     await tester.enterText(
         find.widgetWithText(TextField, 'E-Mail'), 'testpilz@test.de');
@@ -65,6 +67,9 @@ void main() {
 
     expect(find.text('Neuer Spot'), findsOneWidget);
     expect(backend.currentUserId, isNotNull);
+    // Die Anmeldeseite ist abgebaut, nicht nur verdeckt — ihre schaukelnden
+    // Pilze ticken nach der Anmeldung nicht unsichtbar weiter (#689, B3).
+    expect(find.byType(BuddyMushrooms, skipOffstage: false), findsNothing);
   });
 
   testWidgets('Registrierung meldet direkt an und landet auf der Karte',
