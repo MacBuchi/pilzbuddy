@@ -1,8 +1,12 @@
 import 'dart:async';
 import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
+import 'dart:typed_data';
 
 import 'package:web/web.dart' as web;
+
+import '../../../core/gunzip_stream_web.dart';
+import '../app_tile_protocol.dart';
 
 /// Gerätelokal wie die Kartenschalter — aber nicht in den
 /// SharedPreferences, weil es einen Versuch steuert und keine Einstellung
@@ -86,5 +90,57 @@ void setMapLibrePointerEvents(bool enabled) {
     }
   } catch (_) {
     // Ohne DOM-Zugriff bleibt es beim Standard: Die Karte nimmt Klicks.
+  }
+}
+
+/// Meldet das Kachel-Protokoll der App bei MapLibre GL JS an (#689,
+/// `app_tile_protocol.dart`). `false`, wenn die Bibliothek fehlt oder die
+/// Anmeldung scheitert — dann bleibt der Style bei `pmtiles://`.
+///
+/// Gepackte Kacheln packt der Browser aus (`DecompressionStream`), nicht
+/// Dart: Das Ergebnis geht als `ArrayBuffer` unverändert an MapLibre, und
+/// der Hauptthread wartet nur. Eine fehlende Kachel ist ein leerer Puffer
+/// — wie beim `pmtiles`-Protokoll, MapLibre zeichnet dort nichts.
+bool registerAppTileProtocol(Future<AppTile?> Function(String url) load) {
+  try {
+    final maplibregl = globalContext['maplibregl'] as JSObject?;
+    if (maplibregl == null) return false;
+    JSPromise<JSObject> handler(JSObject params, JSAny? abort) {
+      Future<JSObject> serve() async {
+        final url = (params['url'] as JSString).toDart;
+        final tile = await load(url);
+        final JSArrayBuffer data;
+        if (tile == null) {
+          data = JSArrayBuffer(0);
+        } else if (tile.gzip) {
+          data = await _inflate(tile.bytes);
+        } else {
+          // Kopie: Ein Ausschnitt eines größeren Puffers gäbe MapLibre
+          // sonst den ganzen Puffer.
+          data = Uint8List.fromList(tile.bytes).buffer.toJS;
+        }
+        return JSObject()..['data'] = data;
+      }
+
+      return serve().toJS;
+    }
+
+    maplibregl.callMethod('addProtocol'.toJS, kAppTileScheme.toJS, handler.toJS);
+    return true;
+  } catch (_) {
+    // Ältere Bibliothek ohne `addProtocol` oder kein DOM: Der Style nimmt
+    // dann die bisherigen Wege, die Karte bleibt dieselbe.
+    return false;
+  }
+}
+
+Future<JSArrayBuffer> _inflate(Uint8List gzipped) async {
+  try {
+    return await inflateNatively(gzipped);
+  } catch (_) {
+    // Kein `DecompressionStream` (Safari < 16.4): langsamer in Dart, aber
+    // dieselben Bytes. Kaputte Daten werfen hier noch einmal — MapLibre
+    // lässt die Kachel dann leer.
+    return Uint8List.fromList(gunzip(gzipped)).buffer.toJS;
   }
 }

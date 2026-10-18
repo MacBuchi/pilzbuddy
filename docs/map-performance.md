@@ -1325,3 +1325,26 @@ Was daraus folgt:
 - **Offen vor der Entscheidung über die Vorgabe:** Pinch-Zoom und
   Wischen von Hand auf dem Telefon, mit `?maplibre=1` und `?maplibre=0`;
   die bekannten Lücken des Versuchs (`lib/features/map/CLAUDE.md`).
+
+## Nachtrag 2026-10-18: Die drei Lücken von MapLibre GL JS geschlossen (#689, 1.224.9)
+
+Vor dem Umlegen der Web-Vorgabe holt MapLibre GL JS alle Vektorkacheln
+über ein eigenes Protokoll von der App (`pilzbuddy://`,
+`lib/features/map/app_tile_protocol.dart`). Geprüft an einem Prüfstand
+wie oben (nur die Fassade, `--release --wasm`, Node-Server mit Range,
+Chromium/Playwright, 412 × 860, Start 47,95° N / 8,1° O, Zoom 9, Neue
+Karte an, ein Bereich im Speicher):
+
+| Prüfung | Ergebnis |
+|---|---|
+| Protokoll angemeldet | ja |
+| Kacheln über das Protokoll | Übersicht 1, Neue Karte 2, Bereich 1 — keine leer |
+| `pmtiles://`-Anfragen von MapLibre | keine mehr |
+| Anfragen an den Kartenhost | 4 Range-Anfragen an das Archiv plus Manifest (Dart-Leser) |
+| Übersicht-Asset | zweimal GANZ geladen (Bereich des Prüfstands + Style), keine Range |
+| Offline (Service Worker vorgewärmt, Netz aus, neu geladen) | Übersicht und Bereich gezeichnet |
+
+Die Übersicht kommt damit ohne Netz, weil der Service Worker das ganze
+Asset ablegt (`web/sw.js` überspringt nur Anfragen mit `Range`).
+Blockierzeiten wurden nicht neu gemessen; das Protokoll ändert nur, wer
+die Bytes liefert, nicht wer zeichnet.

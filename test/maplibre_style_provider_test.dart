@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/settings.dart';
 import 'package:pilzbuddy/features/map/map_view/maplibre_style_provider.dart';
+import 'package:pilzbuddy/features/map/app_tile_protocol.dart';
 import 'package:pilzbuddy/features/map/online_map.dart';
 import 'package:pilzbuddy/features/map/online_tile_server.dart';
 import 'package:pilzbuddy/data/file_cache.dart';
@@ -54,6 +55,12 @@ class _FakeIo extends MapLibreStyleIo {
     if (failOverview) throw StateError('Asset kaputt');
     return overviewPath;
   }
+
+  /// Die echte Übersicht, aus der Datei statt aus dem Asset-Bundle.
+  @override
+  Future<PmTilesVectorTileProvider> openOverviewTiles() async =>
+      PmTilesVectorTileProvider.openBytes(
+          await File('assets/offline_maps/overview_dach.pmtiles').readAsBytes());
 
   @override
   Future<String> materializeGlyphs() async =>
@@ -503,5 +510,103 @@ void main() {
     final ids =
         [for (final l in style['layers'] as List) (l as Map)['id'] as String];
     expect(ids.indexOf('area_a1/earth'), greaterThan(ids.indexOf('osm')));
+  });
+
+  // Im Browser (#689): Alle drei Quellen über das Kachel-Protokoll der
+  // App — die drei Lücken, die MapLibre GL JS gegenüber flutter_map hatte.
+  group('Kachel-Protokoll im Browser', () {
+    Future<(Map<String, dynamic>, AppTileRouter)> browserStyle({
+      required bool noConnectivity,
+    }) async {
+      final overview = await File('assets/offline_maps/overview_dach.pmtiles')
+          .readAsBytes();
+      final area = StoredArea(
+        id: 'a1',
+        name: 'Hausrunde',
+        bounds: const AreaBounds(
+            south: 47.9, west: 11.6, north: 47.95, east: 11.7),
+        minZoom: 8,
+        maxZoom: 13,
+        build: '20260928',
+        tiles: 10,
+        bytes: 1000,
+        savedAt: DateTime.utc(2026, 9, 30),
+      );
+      final router = AppTileRouter();
+      final container = ProviderContainer(overrides: [
+        rainGridLoaderProvider.overrideWithValue((_) async => null),
+        maplibreStyleIoProvider.overrideWithValue(_FakeIo()),
+        offlineMapsSupportedProvider.overrideWithValue(false),
+        settingsProvider.overrideWithValue(FakeSettings(newMapEnabled: true)),
+        noConnectivityProvider.overrideWithValue(noConnectivity),
+        mapManifestLoaderProvider.overrideWithValue(() async =>
+            const MapManifest(
+                file: 'dach-20260928.pmtiles',
+                maxZoom: 13,
+                sourceBuild: '20260928')),
+        onlineArchiveOpenerProvider.overrideWithValue(
+            (_) async => PmTilesVectorTileProvider.openBytes(overview)),
+        appTileRouterProvider.overrideWith((ref) async => router),
+        // Im Browser hat ein Bereich keinen Pfad — nur Bytes aus IndexedDB.
+        areaArchivePathsProvider.overrideWith((ref) async => const []),
+        openedAreasProvider.overrideWith((ref) async => [
+              (
+                area: area,
+                provider: await PmTilesVectorTileProvider.openBytes(overview)
+              )
+            ]),
+      ]);
+      addTearDown(container.dispose);
+      final style =
+          jsonDecode((await container.read(maplibreStyleProvider.future))!)
+              as Map<String, dynamic>;
+      return (style, router);
+    }
+
+    test('Übersicht, Neue Karte und Bereich zeigen auf pilzbuddy://, keine '
+        'auf pmtiles://', () async {
+      final (style, _) = await browserStyle(noConnectivity: false);
+      final sources = style['sources'] as Map<String, dynamic>;
+      expect(sources.keys, ['overview', 'online', 'area_a1']);
+      expect((sources['overview'] as Map)['tiles'],
+          ['pilzbuddy://overview/{z}/{x}/{y}'],
+          reason: 'Übersicht ganz aus dem Asset — sonst ohne Netz leer');
+      expect((sources['online'] as Map)['tiles'],
+          ['pilzbuddy://online-dach-20260928/{z}/{x}/{y}'],
+          reason: 'Neue Karte über die App, nicht an R2 vorbei');
+      expect((sources['area_a1'] as Map)['tiles'],
+          ['pilzbuddy://area-a1-20260928-10/{z}/{x}/{y}'],
+          reason: 'Bereich aus IndexedDB — vorher fehlte er ganz');
+      expect(jsonEncode(sources), isNot(contains('pmtiles://')));
+      expect((sources['overview'] as Map)['maxzoom'], 7);
+      expect((sources['online'] as Map)['maxzoom'], 13);
+      expect((sources['area_a1'] as Map)['maxzoom'], 13);
+    });
+
+    test('der Router liefert genau die Kacheln, die der Style nennt',
+        () async {
+      final (style, router) = await browserStyle(noConnectivity: false);
+      for (final id in ['overview', 'online', 'area_a1']) {
+        final template =
+            ((style['sources'] as Map)[id] as Map)['tiles'][0] as String;
+        final tile = await router.load(template
+            .replaceAll('{z}', '0')
+            .replaceAll('{x}', '0')
+            .replaceAll('{y}', '0'));
+        expect(tile, isNotNull, reason: '$id: z0 liegt in jedem Archiv');
+        expect(tile!.gzip, isTrue);
+        expect(tile.bytes.take(2), [0x1f, 0x8b],
+            reason: '$id: gepackt wie im Archiv, der Browser packt aus');
+      }
+    });
+
+    test('ohne Empfang: Übersicht über das Protokoll, Bereich bleibt',
+        () async {
+      final (style, _) = await browserStyle(noConnectivity: true);
+      final sources = style['sources'] as Map<String, dynamic>;
+      expect(sources.keys, ['overview', 'area_a1']);
+      expect((sources['overview'] as Map)['tiles'],
+          ['pilzbuddy://overview/{z}/{x}/{y}']);
+    });
   });
 }

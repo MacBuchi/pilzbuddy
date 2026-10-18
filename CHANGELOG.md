@@ -7,6 +7,16 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Web-App: neue Kartentechnik kann jetzt alles
+
+*18. Oktober 2026 · Version 1.224.9*
+
+- Im Versuch mit der neuen Kartentechnik in der Web-App (?maplibre=1)
+  erscheinen jetzt auch die gespeicherten Kartenbereiche, und die
+  Übersichtskarte ist auch ohne Empfang da. Die Kacheln der Neuen Karte
+  holt die App dabei selbst und merkt sich, was sie schon hat. Damit
+  kann der Versuch so viel wie die bisherige Web-Karte.
+
 ## Spots bleiben bei schwachem Empfang sichtbar
 
 *17. Oktober 2026 · Version 1.224.8*

@@ -399,15 +399,36 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
     Der Style-Provider fragt deshalb zuerst `offlineMapsSupportedProvider`.
   - **Bilder als `blob:`-URL** (`object_url.dart` in `writeFill`), je
     Ebene eine, die vorige wird freigegeben.
-  - **Übersicht und Glyphen per URL aus den Assets** (Range-Anfragen auf
-    Pages: 206, nachgemessen). Grenze: Der Service Worker legt
-    Teilanfragen nicht ab — ohne Netz gibt es die Übersicht in diesem
-    Weg nicht, anders als bei flutter_map (liest das Asset ganz).
-  - **Was fehlt**: gespeicherte Kartenbereiche (liegen im Browser in
-    IndexedDB, MapLibre bräuchte dafür ein `addProtocol`), und die Neue
-    Karte geht ohne den Kachel-Server (#659) direkt per `pmtiles://` an
-    den Host — die JS-Bibliothek hält Header und Verzeichnisse selbst im
-    Speicher, gezählt ist das noch nicht.
+  - **Glyphen per URL aus den Assets** (Range-Anfragen auf Pages: 206,
+    nachgemessen).
+  - **Alle Vektorkacheln über ein eigenes Protokoll** (seit 1.224.9,
+    `app_tile_protocol.dart`): Der Style nennt
+    `pilzbuddy://<quelle>/{z}/{x}/{y}`, `maplibregl.addProtocol` reicht
+    jede Anfrage an `AppTileRouter`, und der liest aus denselben
+    Archiv-Lesern wie flutter_map. Das schloss die drei Lücken, die vor
+    dem Umlegen der Vorgabe offen waren: **Übersicht** ganz aus dem Asset
+    (vorher per Range — der Service Worker legt Teilanfragen nicht ab,
+    ohne Netz blieb sie leer), **gespeicherte Bereiche** aus IndexedDB
+    (fehlten ganz), **Neue Karte** aus dem Archiv von
+    `onlineMapProvider` statt `pmtiles://` an der App vorbei, mit
+    Zusammenlegen gleicher Anfragen, gemerkten Lücken und 16 MB Speicher
+    (kein dauerhafter Speicher — den hat flutter_map im Browser auch
+    nicht). Drei Dinge, die man wissen muss:
+    - **Der Stand steht im Schlüssel** (`online-<build>`,
+      `area-<id>-<build>-<kacheln>`): Ein bearbeiteter Bereich behält
+      seine Id, und MapLibre hält Kacheln je Adresse.
+    - **Entpackt der Browser** (`inflateNatively`, `DecompressionStream`),
+      der `ArrayBuffer` geht unverändert an MapLibre; ohne
+      `DecompressionStream` packt Dart aus. Eine fehlende Kachel ist ein
+      leerer Puffer, wie beim `pmtiles`-Protokoll.
+    - **`whenComplete(() => map.remove(k))` hängt für immer**: Der
+      Pfeil gibt die entfernte Future zurück, `whenComplete` wartet auf
+      sich selbst. Im Router deshalb ein Block-Rumpf — so beim Bau
+      passiert, jeder Kachel-Test lief in den Timeout.
+    Scheitert die Anmeldung, bleibt der Style bei den alten Wegen.
+    Geprüft am Prüfstand (Wasm, Chromium): alle drei Quellen liefern,
+    offline nach vorgewärmtem Service Worker Übersicht und Bereich,
+    keine `pmtiles://`-Anfrage mehr.
   Gemessen in `docs/map-performance.md`; ob der Versuch zur Vorgabe wird,
   entscheidet der Betreiber nach Feldtest und Messung mit Konto (#689).
 

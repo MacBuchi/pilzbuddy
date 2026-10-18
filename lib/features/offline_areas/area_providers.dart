@@ -247,6 +247,33 @@ Future<PmTilesVectorTileProvider?> _openArea(
   return PmTilesVectorTileProvider.openBytes(bytes);
 }
 
+/// Die gespeicherten Bereiche, jeder als offenes Archiv — für die
+/// flutter_map-Engine und für MapLibre im Browser (#689), wo es keine
+/// Datei gibt und die Bytes aus IndexedDB kommen. Ein Bereich, der nicht
+/// aufgeht, fehlt; der Rest bleibt.
+final openedAreasProvider = FutureProvider<
+    List<({StoredArea area, PmTilesVectorTileProvider provider})>>((ref) async {
+  final areas = await ref.watch(storedAreasProvider.future);
+  final store = ref.watch(areaStoreProvider);
+  final open = ref.watch(areaArchiveOpenerProvider);
+  final opened = <({StoredArea area, PmTilesVectorTileProvider provider})>[];
+  ref.onDispose(() {
+    for (final entry in opened) {
+      entry.provider.close();
+    }
+  });
+  for (final area in areas) {
+    try {
+      final provider = await open(store, area);
+      if (provider != null) opened.add((area: area, provider: provider));
+    } catch (e, s) {
+      // Ein Bereich, der nicht aufgeht, nimmt der Karte nicht den Rest.
+      logError('Kartenbereich öffnen', e, s);
+    }
+  }
+  return opened;
+});
+
 /// Mehrere Bereiche als EINE Kachelquelle: Die erste, die die Kachel
 /// hat, liefert; keine ⇒ 404 wie bei einer Kachel außerhalb.
 class MultiAreaTileProvider extends VectorTileProvider {
@@ -301,23 +328,10 @@ class MultiAreaTileProvider extends VectorTileProvider {
 /// wenn es keine gibt oder keiner aufgeht. Thema OHNE `background`, damit
 /// die Karte darunter durchscheint, wo kein Bereich liegt.
 final areaMapStyleProvider = FutureProvider<OfflineMapStyle?>((ref) async {
-  final areas = await ref.watch(storedAreasProvider.future);
-  if (areas.isEmpty) return null;
-  final store = ref.watch(areaStoreProvider);
-  final open = ref.watch(areaArchiveOpenerProvider);
-  final opened = <({StoredArea area, PmTilesVectorTileProvider provider})>[];
-  for (final area in areas) {
-    try {
-      final provider = await open(store, area);
-      if (provider != null) opened.add((area: area, provider: provider));
-    } catch (e, s) {
-      // Ein Bereich, der nicht aufgeht, nimmt der Karte nicht den Rest.
-      logError('Kartenbereich öffnen', e, s);
-    }
-  }
+  final opened = await ref.watch(openedAreasProvider.future);
   if (opened.isEmpty) return null;
+  // Geschlossen werden die Archive von [openedAreasProvider].
   final multi = MultiAreaTileProvider(opened);
-  ref.onDispose(multi.close);
   final theme = await ref.watch(offlineThemeWithoutBackgroundProvider.future);
   return OfflineMapStyle(
       theme: theme, tileProviders: TileProviders({'protomaps': multi}));
