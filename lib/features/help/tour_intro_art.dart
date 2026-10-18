@@ -112,7 +112,9 @@ class _SwayState extends State<_Sway> with SingleTickerProviderStateMixin {
           alignment: Alignment.bottomCenter,
           child: child,
         ),
-        child: widget.child,
+        // Das Bild einmal zeichnen, je Takt nur drehen (#689, B3; wie
+        // `BuddyMushrooms`).
+        child: RepaintBoundary(child: widget.child),
       );
 }
 

@@ -35,34 +35,48 @@ class _BuddyMushroomsState extends State<BuddyMushrooms>
     final big = widget.height;
     final small = widget.height * 0.62;
 
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, _) {
-        final t = _controller.value * 2 * math.pi;
-        // Sanftes Schaukeln um die Stielbasis, leicht phasenversetzt —
-        // wie zwei Freunde, die nebeneinander im Wind stehen.
-        final swayBig = math.sin(t) * 0.045;
-        final swaySmall = math.sin(t + 1.3) * 0.06;
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Transform.rotate(
-              angle: swayBig,
-              alignment: Alignment.bottomCenter,
-              child: MushroomIcon(
-                  seed: 42, size: big, group: SpeciesGroup.roehrlinge),
-            ),
-            const SizedBox(width: 4),
-            Transform.rotate(
-              angle: swaySmall,
-              alignment: Alignment.bottomCenter,
-              child: MushroomIcon(
-                  seed: 43, size: small, group: SpeciesGroup.wulstlinge),
-            ),
-          ],
-        );
-      },
+    // Zwei Grenzen, damit das Schaukeln billig bleibt (#689, B3): Die
+    // äußere hält die Seite (Anmeldeformular, Update-Text) aus dem
+    // Neuzeichnen heraus, die inneren halten das fertige Pilzbild fest —
+    // je Bild ändert sich nur noch der Drehwinkel. Vorher zeichnete jeder
+    // Takt beide Pilze samt Seite neu; im Web hielt das den Hauptthread
+    // zu ~60 % beschäftigt, ein Tipp auf der Anmeldeseite wartete 72–96 ms.
+    return RepaintBoundary(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          // Sanftes Schaukeln um die Stielbasis, leicht phasenversetzt —
+          // wie zwei Freunde, die nebeneinander im Wind stehen.
+          _sway(
+            amount: 0.045,
+            phase: 0,
+            child: MushroomIcon(
+                seed: 42, size: big, group: SpeciesGroup.roehrlinge),
+          ),
+          const SizedBox(width: 4),
+          _sway(
+            amount: 0.06,
+            phase: 1.3,
+            child: MushroomIcon(
+                seed: 43, size: small, group: SpeciesGroup.wulstlinge),
+          ),
+        ],
+      ),
     );
   }
+
+  Widget _sway(
+          {required double amount,
+          required double phase,
+          required Widget child}) =>
+      AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) => Transform.rotate(
+          angle: math.sin(_controller.value * 2 * math.pi + phase) * amount,
+          alignment: Alignment.bottomCenter,
+          child: child,
+        ),
+        child: RepaintBoundary(child: child),
+      );
 }
