@@ -33,8 +33,9 @@
 // bewusst dort: Er wartet nur auf Ein- und Ausgabe, und ein eigenes Isolate
 // wäre ein weiterer Mutator in der Gruppe, an der der ANR aus #641 hing.
 //
-// Nur Android: Im Browser zeichnet flutter_map, und das liest das Archiv
-// ohnehin in Dart (`PmTilesVectorTileProvider`).
+// Nur Android: Im Browser gibt es keinen Server; dort reicht MapLibre GL JS
+// die Kacheln über ein eigenes Protokoll an die App (`app_tile_protocol.dart`,
+// #689), flutter_map liest das Archiv ohnehin in Dart.
 import 'dart:async';
 import 'dart:io';
 

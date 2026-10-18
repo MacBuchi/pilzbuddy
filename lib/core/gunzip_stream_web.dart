@@ -25,17 +25,25 @@ export 'gunzip_web.dart' show gunzip;
 /// desselben Objekts bereit. Wirft nie.
 Future<void> preInflate(Uint8List gzipped) async {
   try {
-    final inflate = web.DecompressionStream('gzip');
-    final blob = web.Blob(<web.BlobPart>[gzipped.toJS].toJS);
-    final stream = blob.stream().pipeThrough(web.ReadableWritablePair(
-      readable: inflate.readable,
-      writable: inflate.writable,
-    ));
-    final buffer = await web.Response(stream).arrayBuffer().toDart;
+    final buffer = await inflateNatively(gzipped);
     rememberInflated(gzipped, buffer.toDart.asUint8List());
   } catch (_) {
     // Kein `DecompressionStream` (Safari < 16.4) oder kaputte Daten:
     // Dann packt `gunzip` selbst aus und meldet den Fehler dort, wo er
     // bisher auch auffiel. Siehe Kopf der Datei.
   }
+}
+
+/// Packt [gzipped] mit `DecompressionStream` aus und liefert den
+/// `ArrayBuffer` so, wie der Browser ihn hergibt — für Empfänger in JS
+/// (MapLibre-Kacheln, #689) ohne Umweg über eine Dart-Liste. Wirft, wenn
+/// der Browser es nicht kann oder die Daten kaputt sind.
+Future<JSArrayBuffer> inflateNatively(Uint8List gzipped) {
+  final inflate = web.DecompressionStream('gzip');
+  final blob = web.Blob(<web.BlobPart>[gzipped.toJS].toJS);
+  final stream = blob.stream().pipeThrough(web.ReadableWritablePair(
+    readable: inflate.readable,
+    writable: inflate.writable,
+  ));
+  return web.Response(stream).arrayBuffer().toDart;
 }

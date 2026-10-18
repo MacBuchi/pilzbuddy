@@ -26,9 +26,11 @@ import '../rain_layer.dart';
 import '../map_overlays.dart';
 import '../online_map.dart';
 import '../online_tile_server.dart';
+import '../app_tile_protocol.dart';
+import '../../offline_maps/pmtiles_tile_provider.dart';
 import '../../offline_areas/area_providers.dart';
-import '../../offline_areas/area_store.dart' show StoredArea;
 import 'map_style_composer.dart';
+import 'maplibre_web.dart' show loadMapLibreJs, registerAppTileProtocol;
 
 /// Die fünf Unicode-Bereiche, die für deutsche Kartenbeschriftung reichen
 /// (Lücke bewusst: `Failed to load glyph range 1024-1279` für z. B.
@@ -100,6 +102,26 @@ class MapLibreStyleIo {
     return 'file://${dir.path}/map_glyphs/{fontstack}/{range}.pbf';
   }
 
+  Future<PmTilesVectorTileProvider>? _overviewTiles;
+
+  /// Die Übersicht als offenes Archiv für das Kachel-Protokoll im Browser
+  /// (#689) — ganz aus dem Asset gelesen, wie bei flutter_map. Nur so legt
+  /// der Service Worker sie ab und sie kommt auch ohne Netz; die
+  /// Range-Anfragen des `pmtiles://`-Wegs legt er nicht ab. Einmal je
+  /// Sitzung: Die 8,6 MB bleiben ohnehin im Speicher.
+  Future<PmTilesVectorTileProvider> openOverviewTiles() =>
+      _overviewTiles ??= () async {
+        try {
+          final data = await rootBundle
+              .load('assets/offline_maps/overview_dach.pmtiles');
+          return await PmTilesVectorTileProvider.openBytes(data.buffer
+              .asUint8List(data.offsetInBytes, data.lengthInBytes));
+        } catch (_) {
+          _overviewTiles = null; // beim nächsten Style neu versuchen
+          rethrow;
+        }
+      }();
+
   /// Liest min/max Zoom aus dem PMTiles-ARCHIV-HEADER — nie aus den
   /// eingebetteten Metadaten, die nachweislich lügen (siehe
   /// MapStyleSource).
@@ -123,6 +145,17 @@ bool isRemoteArchive(String path) =>
 
 final maplibreStyleIoProvider =
     Provider<MapLibreStyleIo>((ref) => MapLibreStyleIo());
+
+/// Das Kachel-Protokoll der App für MapLibre GL JS (#689,
+/// `app_tile_protocol.dart`) — null außerhalb des Browsers (dort gibt es
+/// Dateien und den Kachel-Server auf Loopback) und wenn die Anmeldung
+/// scheitert; dann bleibt der Style bei den bisherigen Wegen.
+final appTileRouterProvider = FutureProvider<AppTileRouter?>((ref) async {
+  if (!kIsWeb) return null;
+  if (!await loadMapLibreJs()) return null;
+  final router = AppTileRouter();
+  return registerAppTileProtocol(router.load) ? router : null;
+});
 
 /// CSS-Farbwert für den Style — aus derselben Konstante wie die
 /// flutter_map-Engine, damit die Landflächen beider Engines gleich aussehen.
@@ -200,9 +233,44 @@ final maplibreStyleProvider = FutureProvider<String?>((ref) async {
   // Dasselbe Anti-Race wie bei den Regionen: warten, damit der erste
   // Style die gespeicherten Bereiche schon kennt. Ein unlesbarer Bereich
   // nimmt der Karte nicht den Rest.
-  var areaPaths = const <({StoredArea area, String path})>[];
+  AppTileRouter? router;
   try {
-    areaPaths = await ref.watch(areaArchivePathsProvider.future);
+    router = await ref.watch(appTileRouterProvider.future);
+  } catch (e, stackTrace) {
+    logError('Kachel-Protokoll für den Style', e, stackTrace);
+  }
+  // Die Quellen hinter dem Protokoll, gesammelt beim Bauen und erst ganz
+  // am Ende übergeben — siehe [AppTileRouter.replaceSources].
+  final appSources = <String, AppTileSource>{};
+  var areaSources = const <MapStyleSource>[];
+  try {
+    if (router != null) {
+      // Im Browser gibt es keine Dateien: die Bytes aus IndexedDB, über
+      // das Protokoll. Stand und Kachelzahl im Schlüssel — ein bearbeiteter
+      // Bereich behält seine Id, MapLibre bräuchte sonst neue Kacheln
+      // unter alter Adresse.
+      areaSources = [
+        for (final entry in await ref.watch(openedAreasProvider.future))
+          _appSource(
+            appSources,
+            styleId: 'area_${entry.area.id}',
+            key: 'area-${entry.area.id}-${entry.area.build}-${entry.area.tiles}',
+            tiles: entry.provider,
+            minZoom: entry.area.minZoom,
+            maxZoom: entry.area.maxZoom,
+          ),
+      ];
+    } else {
+      areaSources = [
+        for (final entry in await ref.watch(areaArchivePathsProvider.future))
+          MapStyleSource(
+            id: 'area_${entry.area.id}',
+            filePath: entry.path,
+            minZoom: entry.area.minZoom,
+            maxZoom: entry.area.maxZoom,
+          ),
+      ];
+    }
   } catch (e, stackTrace) {
     logError('Kartenbereiche für den Style lesen', e, stackTrace);
   }
@@ -224,7 +292,17 @@ final maplibreStyleProvider = FutureProvider<String?>((ref) async {
     final glyphsUrl = await io.materializeGlyphs();
 
     final sources = <MapStyleSource>[];
-    if (showOverview) {
+    if (showOverview && router != null) {
+      final overview = await io.openOverviewTiles();
+      sources.add(_appSource(
+        appSources,
+        styleId: 'overview',
+        key: 'overview',
+        tiles: overview,
+        minZoom: overview.minimumZoom,
+        maxZoom: overview.maximumZoom,
+      ));
+    } else if (showOverview) {
       final overviewPath = await io.materializeOverview();
       final overviewZoom = await io.readZoomRange(overviewPath);
       sources.add(isRemoteArchive(overviewPath)
@@ -241,7 +319,20 @@ final maplibreStyleProvider = FutureProvider<String?>((ref) async {
               maxZoom: overviewZoom.max,
             ));
     }
-    if (online != null) {
+    if (online != null && router != null) {
+      // Im Browser über das Protokoll: dasselbe Archiv, das
+      // `onlineMapProvider` geöffnet hat, statt `pmtiles://` an R2 vorbei
+      // an der App. Der Stand im Schlüssel, wie beim Kachel-Server.
+      sources.add(_appSource(
+        appSources,
+        styleId: 'online',
+        key: 'online-${online.manifest.file.replaceAll('.pmtiles', '')}',
+        tiles: online.tiles,
+        minZoom: 0,
+        maxZoom: online.manifest.maxZoom,
+        remote: true,
+      ));
+    } else if (online != null) {
       // Über den Kachel-Server der App (#659): Header und Verzeichnisse
       // einmal, jede Kachel einmal, über Neustarts hinweg abgelegt. Läuft
       // er nicht, liest MapLibre das Archiv wie bisher selbst.
@@ -277,6 +368,7 @@ final maplibreStyleProvider = FutureProvider<String?>((ref) async {
       }
     }
 
+    router?.replaceSources(appSources);
     return composeMapLibreStyle(
       baseStyle: base,
       glyphsUrl: glyphsUrl,
@@ -288,15 +380,7 @@ final maplibreStyleProvider = FutureProvider<String?>((ref) async {
       // Die gespeicherten Kartenbereiche (#630) zuoberst, immer — siehe
       // `area_providers.dart`. Zoombereich aus dem Index: Der Download hat
       // Index und Archiv aus demselben Plan geschrieben.
-      topSources: [
-        for (final entry in areaPaths)
-          MapStyleSource(
-            id: 'area_${entry.area.id}',
-            filePath: entry.path,
-            minZoom: entry.area.minZoom,
-            maxZoom: entry.area.maxZoom,
-          ),
-      ],
+      topSources: areaSources,
       // `DateTime.now()` nur für die Vorhersage-Ebene, siehe rain_layer.dart.
       overlays: [
         // Das DWD-Bild nur im dwd-Zustand: beim Radar immer, bei den
@@ -317,3 +401,24 @@ final maplibreStyleProvider = FutureProvider<String?>((ref) async {
     return null;
   }
 });
+
+/// Meldet [tiles] unter [key] für das Kachel-Protokoll an und liefert die
+/// Style-Quelle mit der passenden Vorlage.
+MapStyleSource _appSource(
+  Map<String, AppTileSource> appSources, {
+  required String styleId,
+  required String key,
+  required PmTilesVectorTileProvider tiles,
+  required int minZoom,
+  required int maxZoom,
+  bool remote = false,
+}) {
+  appSources[key] =
+      AppTileSource(tiles.rawTile, gzip: tiles.tilesGzipped, remote: remote);
+  return MapStyleSource.tiles(
+    id: styleId,
+    tilesUrl: AppTileRouter.urlTemplate(key),
+    minZoom: minZoom,
+    maxZoom: maxZoom,
+  );
+}
