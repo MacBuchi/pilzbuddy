@@ -1,9 +1,9 @@
 # MapLibre GL JS und PMTiles — selbst gehostet (#689, Hebel C)
 
-Die Web-Karte kann versuchsweise mit MapLibre GL JS zeichnen statt mit
-flutter_map (`?maplibre=1`, siehe `lib/features/map/CLAUDE.md`). Das
+Die Web-Karte zeichnet seit 1.225.0 mit MapLibre GL JS statt mit
+flutter_map (`?maplibre=0` wählt ab, siehe `lib/features/map/CLAUDE.md`). Das
 Paket `maplibre` erwartet dafür die globalen Objekte `maplibregl` und
-`pmtiles`; geladen werden sie erst, wenn die Engine gewählt ist
+`pmtiles`; geladen werden sie erst, wenn die Karte baut
 (`maplibre_web_browser.dart`), nie beim Start.
 
 **Selbst gehostet, nie von einem CDN**: Ein CDN wäre ein neues Netzziel

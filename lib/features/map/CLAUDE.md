@@ -347,9 +347,8 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
   MapLibre (nativer Renderer, `maplibre` 0.3.5 exakt gepinnt) hinter der
   MapView-Fassade (`lib/features/map/map_view/`); Grundlage ist der
   nachgemessene Direktvergleich in `docs/map-performance.md`
-  (Wiederholung: `tool/measure_map.sh`). Web rendert weiterhin
-  flutter_map (bedingter Import, Web-Build sieht `package:maplibre`
-  nie).
+  (Wiederholung: `tool/measure_map.sh`). Web rendert seit 1.225.0
+  ebenfalls mit MapLibre (GL JS, siehe unten); davor flutter_map.
   **Seit 1.146.0 (#433) gibt es dazwischen keinen Schalter mehr.** Das
   Profil-Opt-out (`classicMapEnabled`) war als befristete Rückfalllinie
   gedacht, und die Frist ist um: zehn Wochendigests ohne einen einzigen
@@ -372,10 +371,14 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
   Die folgenden flutter_map-Notizen (Stellschrauben, Kamera-Wächter,
   TileProvider-Lebenszyklus) gelten für diesen Rückfall- und den
   Web-Pfad.
-  **Seit 1.224.6 gibt es MapLibre auch im Browser — als VERSUCH** (#689,
-  Hebel C): MapLibre GL JS statt flutter_map, nur mit `?maplibre=1` in der
-  Adresse (gerätelokal gemerkt, `?maplibre=0` nimmt es zurück;
-  `maplibre_web.dart`). Ab Werk ändert sich nichts. Der bedingte Import
+  **Seit 1.224.6 gibt es MapLibre auch im Browser, seit 1.225.0 als
+  VORGABE** (#689, Hebel C; Betreiber 2026-10-17 nach Handtest auf dem
+  Pixel XL): MapLibre GL JS statt flutter_map. `?maplibre=0` in der
+  Adresse wählt flutter_map und wird gerätelokal gemerkt (Wert `'0'`
+  unter `pilzbuddy.web_maplibre`), `?maplibre=1` nimmt das zurück; ein
+  `'1'` aus der Versuchszeit heißt dasselbe wie die Vorgabe
+  (`maplibre_web.dart`). Lädt die Bibliothek nicht, zeichnet weiter
+  flutter_map — der Rückfall bleibt deshalb im Web-Build. Der bedingte Import
   ist weg — den Web-Teil des Pakets hatte der Build über den
   Plugin-Registranten ohnehin. Sechs Dinge, die man wissen muss, alle am
   lokalen Prüfstand gefunden (eigene Einstiegsdatei mit nur der Fassade,
@@ -429,8 +432,10 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
     Geprüft am Prüfstand (Wasm, Chromium): alle drei Quellen liefern,
     offline nach vorgewärmtem Service Worker Übersicht und Bereich,
     keine `pmtiles://`-Anfrage mehr.
-  Gemessen in `docs/map-performance.md`; ob der Versuch zur Vorgabe wird,
-  entscheidet der Betreiber nach Feldtest und Messung mit Konto (#689).
+  Gemessen in `docs/map-performance.md`. Was nach dem Umlegen bleibt:
+  Die Karte friert mit Ebenen zeitweise noch ein — das ist das Zeichnen
+  der Überlagerungen auf dem Hauptthread, Hebel B2 (Web Worker), für
+  beide Engines.
 
 - **`alignment` bedeutet in den beiden Karten-Engines das GEGENTEIL**
   (#409, behoben in 1.123.0): Beide nehmen ein `Alignment` und rechnen

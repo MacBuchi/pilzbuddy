@@ -7,28 +7,37 @@ import 'package:web/web.dart' as web;
 
 import '../../../core/gunzip_stream_web.dart';
 import '../app_tile_protocol.dart';
+import 'maplibre_web_choice.dart';
 
 /// Gerätelokal wie die Kartenschalter — aber nicht in den
-/// SharedPreferences, weil es einen Versuch steuert und keine Einstellung
-/// ist, die das Profil kennt.
+/// SharedPreferences, weil es ein Notausgang ist und keine Einstellung,
+/// die das Profil kennt.
 const _flagKey = 'pilzbuddy.web_maplibre';
 
-/// Hat dieser Browser MapLibre GL JS gewählt?
+/// Zeichnet dieser Browser mit MapLibre GL JS?
 ///
-/// `?maplibre=1` schaltet ein, `?maplibre=0` aus; beides wird gemerkt,
-/// damit der Schalter einen Neustart der PWA übersteht (die startet ohne
-/// Parameter). Ohne Speicher (privater Modus) gilt nur der Parameter.
+/// **Ja, außer er hat abgewählt** (Vorgabe seit 1.225.0, Betreiber
+/// 2026-10-17). `?maplibre=0` wählt flutter_map und wird gemerkt, damit
+/// der Ausstieg einen Neustart der PWA übersteht (die startet ohne
+/// Parameter); `?maplibre=1` nimmt ihn zurück. Ein `'1'` aus der
+/// Versuchszeit bleibt gültig, es heißt dasselbe wie die Vorgabe. Ohne
+/// Speicher (privater Modus) gilt nur der Parameter.
 bool webMapLibreRequested() {
   final param = Uri.base.queryParameters['maplibre'];
   try {
     final storage = web.window.localStorage;
-    if (param == '1') storage.setItem(_flagKey, '1');
-    if (param == '0') storage.removeItem(_flagKey);
-    return storage.getItem(_flagKey) == '1';
+    final stored =
+        storedMapLibreChoice(param, storage.getItem(_flagKey));
+    if (stored == null) {
+      storage.removeItem(_flagKey);
+    } else {
+      storage.setItem(_flagKey, stored);
+    }
+    return mapLibreChosen(stored);
   } catch (_) {
     // Kein `localStorage` (privater Modus, gesperrte Website-Daten):
-    // Dann zählt der Parameter allein. Die Vorgabe bleibt flutter_map.
-    return param == '1';
+    // Dann zählt der Parameter allein. Die Vorgabe bleibt MapLibre.
+    return mapLibreChosen(storedMapLibreChoice(param, null));
   }
 }
 
@@ -57,7 +66,7 @@ Future<bool> _load() async {
     return globalContext.has('maplibregl') && globalContext.has('pmtiles');
   } catch (_) {
     // Datei fehlt oder Netz weg: Die Ansicht fällt auf flutter_map
-    // zurück — ein Versuch nimmt niemandem die Karte.
+    // zurück — eine fehlende Bibliothek nimmt niemandem die Karte.
     return false;
   }
 }

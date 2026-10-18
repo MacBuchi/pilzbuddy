@@ -1,6 +1,6 @@
 // Bedienelemente über der Karte im Browser bedienbar halten (#689).
 //
-// Mit MapLibre GL JS (`?maplibre=1`) ist die Karte ein HTML-Element, und
+// Mit MapLibre GL JS (Web-Vorgabe seit 1.225.0) ist die Karte ein HTML-Element, und
 // das nimmt jeden Klick, bevor Flutter ihn sieht — ein Knopf darüber wäre
 // tot, ein Tipp auf ihn schöbe die Karte. `PointerInterceptor` legt ein
 // leeres Element in Größe des Kinds dazwischen (Paket

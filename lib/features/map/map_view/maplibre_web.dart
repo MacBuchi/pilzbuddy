@@ -1,11 +1,10 @@
 // MapLibre GL JS im Browser — Schalter und Lader (#689, Hebel C).
 //
-// Ein VERSUCH: Ab Werk zeichnet die Web-Karte weiter flutter_map. Mit
-// `?maplibre=1` in der Adresse wählt ein Browser MapLibre GL JS und merkt
-// sich das (`?maplibre=0` nimmt es zurück). So lassen sich beide Engines
-// im selben Build messen und im Feld vergleichen, und ein Merge ändert
-// für niemanden etwas. Warum und was gemessen wird: #689,
-// `docs/map-performance.md`.
+// Seit 1.225.0 die VORGABE im Browser (Betreiber 2026-10-17, nach
+// Messung am Prüfstand und auf dem Pixel XL). `?maplibre=0` in der Adresse
+// wählt flutter_map und wird gemerkt (`?maplibre=1` nimmt es zurück) — der
+// Notausgang, und weiter der Weg, beide Engines im selben Build zu messen.
+// Warum und was gemessen wurde: #689, `docs/map-performance.md`.
 //
 // Der Web-Weg ist die Vorgabe, `dart.library.io` wählt den Stub — wie bei
 // `browser_storage.dart`.
