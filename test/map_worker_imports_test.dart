@@ -1,7 +1,7 @@
 // Die Rechnungen des Zeichen-Wegs bleiben ohne Flutter (#689, B2).
 //
-// Im Browser sollen Wald, Ampel, Fundorte, Höhenlinien, Regenverlauf und
-// der Bereichs-Entwurf in einem Web Worker gemalt werden. Der wird als
+// Im Browser werden Wald, Ampel, Fundorte, Höhenlinien, Regenverlauf und
+// der Bereichs-Entwurf in einem Web Worker gemalt (`map_worker.js`). Der wird als
 // eigenes Programm übersetzt (`dart compile js`), und dort gibt es weder
 // Flutter noch `dart:ui` — ein einziger Import an der falschen Stelle,
 // und der Worker baut nicht mehr. Bis 1.225.0 hingen alle sieben
@@ -16,8 +16,13 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// Die Dateien, deren Funktionen der Zeichen-Weg rechnet.
+/// Der Worker selbst und das Register seiner Rechnungen — seit B2 ist der
+/// Baum ab hier genau das, was `dart compile js` übersetzt. Die
+/// Malerdateien stehen zusätzlich da, damit eine Rechnung, die noch nicht
+/// im Register steht, trotzdem bewacht ist.
 const _roots = [
+  'lib/map_worker_main.dart',
+  'lib/features/map/map_worker_tasks.dart',
   'lib/features/map/forest_fill.dart',
   'lib/features/map/forest_blocks.dart',
   'lib/features/map/gbif_fill.dart',

@@ -46,6 +46,10 @@ jobs:
           cache: true
       - run: flutter pub get
 
+      # Eine Kennung für App UND Zeichen-Worker (#689, B2): Passt die
+      # Kennung in `map_worker.js` nicht zur App (HTTP-Cache nach einem
+      # Deploy), rechnet die App selbst. lib/core/map_worker_build.dart.
+      - run: echo "MAP_WORKER_BUILD=$(git rev-parse --short=12 HEAD)" >> "$GITHUB_ENV"
       # `--base-href` zeigt auf das VORSCHAU-Repo, nicht auf /pilzbuddy/.
       # Steht hier die falsche Adresse, lädt die Seite ihre eigenen Assets
       # nicht und bleibt weiß — ohne Fehlermeldung.
@@ -60,9 +64,19 @@ jobs:
       # ohnehin schon im Build, der Flag kostet also nichts.
       - run: |
           flutter build web --release --wasm \
+            --dart-define=MAP_WORKER_BUILD="$MAP_WORKER_BUILD" \
             --base-href /pilzbuddy-preview/ \
             --no-web-resources-cdn \
             --dart-define=PREVIEW_BUILD=true
+      # Der Web Worker des Zeichen-Wegs (#689, B2): Wald, Ampel, Fundorte,
+      # Höhenlinien und Regenverlauf rechnen im Browser dort statt auf dem
+      # Hauptthread. Eigenes Programm ohne Flutter; fehlt er, rechnet die
+      # App wie bis 1.225.x selbst.
+      - run: |
+          dart compile js -O2 --no-source-maps \
+            -DMAP_WORKER_BUILD="$MAP_WORKER_BUILD" \
+            -o build/web/map_worker.js lib/map_worker_main.dart
+          rm -f build/web/map_worker.js.deps
       # SPA-Fallback wie in promote.yml: Pages liefert 404.html bei
       # Deep-Links (/friends etc.).
       - run: cp build/web/index.html build/web/404.html

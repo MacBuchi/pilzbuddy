@@ -46,3 +46,7 @@ app.*.map.json
 
 # Private Hinweise für Agents (Pfade auf dem Rechner des Betreibers)
 CLAUDE.local.md
+
+# Der übersetzte Zeichen-Worker für den Chrome-Test (#689, B2) — CI baut
+# ihn vor `flutter test --platform chrome` neu.
+/test/map_worker_js/

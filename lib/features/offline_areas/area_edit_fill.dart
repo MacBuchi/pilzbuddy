@@ -24,9 +24,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/map_worker.dart';
 import '../map/forest_data_providers.dart' show mapIdleBoundsProvider;
 import '../map/forest_fill_window.dart';
+import '../map/map_worker_tasks.dart' show areaEditFillTask;
 import '../map/rain_data_providers.dart' show rainGridRepositoryProvider;
 import 'area_draw.dart';
-import 'area_edit_png.dart';
 
 export 'area_edit_png.dart';
 
@@ -90,7 +90,7 @@ final areaEditFillProvider = FutureProvider<AreaEditFill?>((ref) async {
   final removes = draft?.removes ?? const <int>{};
   // Im Zeichen-Isolate (#641). Der Bestand ändert sich selten und liegt
   // dort als Fach; der Entwurf ist klein und reist mit.
-  final png = await runOnMapWorker(ref, 'areaEdit', _paint,
+  final png = await runOnMapWorker(ref, 'areaEdit', areaEditFillTask,
       (window: window, adds: adds, removes: removes),
       slots: {'areaStored': stored});
   final revision = [
@@ -103,14 +103,6 @@ final areaEditFillProvider = FutureProvider<AreaEditFill?>((ref) async {
   ].map((v) => (v & 0x7fffffff).toRadixString(36)).join('-');
   return AreaEditFill(png: png, window: window, revision: revision);
 });
-
-Uint8List _paint(MapWorkerSlots slots,
-        ({FillWindow window, Set<int> adds, Set<int> removes}) i) =>
-    areaEditFillPng(
-        window: i.window,
-        stored: slots.get<Set<int>>('areaStored'),
-        adds: i.adds,
-        removes: i.removes);
 
 /// Dasselbe Bild als Datei — der Weg für MapLibre.
 final areaEditFillFileProvider =

@@ -11,28 +11,48 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/errors.dart';
 import 'package:pilzbuddy/core/bounded_compute.dart';
 import 'package:pilzbuddy/core/map_worker.dart';
+import 'package:pilzbuddy/core/wire.dart';
 
 /// Wartet im Isolate, bis die Datei existiert — so lässt sich ein laufender
 /// Auftrag festhalten, ohne dass beide Seiten Speicher teilen.
-int _waitForFile(MapWorkerSlots slots, String path) {
+int _waitForFileFn(MapWorkerSlots slots, String path) {
   while (!File(path).existsSync()) {
     sleep(const Duration(milliseconds: 5));
   }
   return -1;
 }
 
-int _echo(MapWorkerSlots slots, int n) => n;
+int _echoFn(MapWorkerSlots slots, int n) => n;
 
-int _sumSlot(MapWorkerSlots slots, int extra) =>
+int _sumSlotFn(MapWorkerSlots slots, int extra) =>
     slots.get<Uint8List>('grid').fold<int>(0, (a, b) => a + b) + extra;
 
-Uint8List _image(MapWorkerSlots slots, int n) => Uint8List(n)..fillRange(0, n, 7);
+Uint8List _imageFn(MapWorkerSlots slots, int n) =>
+    Uint8List(n)..fillRange(0, n, 7);
 
-int _boom(MapWorkerSlots slots, int _) => throw StateError('kaputt');
+int _boomFn(MapWorkerSlots slots, int _) => throw StateError('kaputt');
 
-int _die(MapWorkerSlots slots, int _) {
+int _dieFn(MapWorkerSlots slots, int _) {
   Isolate.exit();
 }
+
+// Die Codecs liest im Isolate niemand; sie sind trotzdem echt, damit
+// dieselben Aufträge auch über die Codec-Leitung laufen könnten.
+const _int = WireFn<int>(_writeInt, _readInt);
+void _writeInt(WireWriter w, int v) => w.int64(v);
+int _readInt(WireReader r) => r.int64();
+
+const _waitForFile = MapWorkerTask<String, int>('wait', _waitForFileFn,
+    params: wireString, result: _int);
+const _echo =
+    MapWorkerTask<int, int>('echo', _echoFn, params: _int, result: _int);
+const _sumSlot = MapWorkerTask<int, int>('sum', _sumSlotFn,
+    params: _int, result: _int, slots: {'grid': WireSlot(wireBytes)});
+const _image = MapWorkerTask<int, Uint8List>('image', _imageFn,
+    params: _int, result: wireBytes);
+const _boom =
+    MapWorkerTask<int, int>('boom', _boomFn, params: _int, result: _int);
+const _die = MapWorkerTask<int, int>('die', _dieFn, params: _int, result: _int);
 
 void main() {
   late Directory tmp;

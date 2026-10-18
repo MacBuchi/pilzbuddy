@@ -604,6 +604,7 @@ class ElevationContours {
     required this.lines,
     required this.equidistanceM,
     required this.key,
+    this.geoJson,
   });
 
   final List<ContourLine> lines;
@@ -616,6 +617,11 @@ class ElevationContours {
   /// Fenster plus Äquidistanz — die Kennung, auf der die MapLibre-Seite
   /// idempotent ist.
   final String key;
+
+  /// Dieselben Linien als GeoJSON ([contourGeoJson]) — im SELBEN Auftrag
+  /// gerechnet (#689, B2): Ein zweiter schickte die Linien dafür erst
+  /// zurück in den Worker. `null` heißt „nicht mitgerechnet".
+  final ({String normal, String index})? geoJson;
 }
 
 /// Zieht die Höhenlinien für ein Fenster. Das ist die Funktion, die im

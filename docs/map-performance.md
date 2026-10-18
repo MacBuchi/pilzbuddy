@@ -1358,3 +1358,32 @@ geschlossen waren (Nachtrag oben). `?maplibre=0` wählt flutter_map und
 bleibt gemerkt — der Notausgang, und der Weg, beide Engines im selben
 Build weiter zu vergleichen. Offen bleibt das zeitweise Einfrieren mit
 Ebenen: das Zeichnen der Überlagerungen auf dem Hauptthread, Hebel B2.
+
+## Nachtrag 2026-10-18: B2, Zeichen-Worker im Browser (#689, 1.226.0)
+
+Seit 1.226.0 malen Wald, Ampel, Fundorte, Höhenlinien, Bereichs-Entwurf
+und Regenverlauf im Browser in einem Web Worker statt auf dem
+Hauptthread (`lib/features/map/CLAUDE.md`, „Hintergrundrechnungen").
+
+Gemessen auf dem Pixel XL in Chrome, angemeldet auf der **Vorschau**,
+MapLibre GL JS (Vorgabe), Wald + Höhenlinien an, mit
+`tool/phone_map_bench.mjs`: Chrome neu gestartet, 60 s Laden, dann fünf
+lange Wischer (800 px, abwechselnd hin und zurück, 4 s Abstand) über
+`adb shell input swipe`. Gezählt: Long Tasks.
+
+**Falle beim Messen:** CDP-Touch-Ereignisse (`Input.dispatchTouchEvent`)
+bewegen MapLibre GL JS auf dem Gerät nicht — drei Läufe sahen nach
+„beim Wischen nichts zu tun" aus (0,3–0,5 s), weil die Karte stand. Und
+ein Wisch, der auf der Knopfleiste oder der Legende beginnt, bewegt sie
+ebenso wenig. Das Werkzeug speichert deshalb ein Bild nach dem ersten
+Wisch.
+
+| Stand | Phase | Long Tasks | blockiert | längster Task |
+|---|---|--:|--:|--:|
+| 1.225.1 (vorher), Lauf 1 | Laden 60 s | 37 | 8,7 s | 1,92 s |
+| 1.225.1 (vorher), Lauf 2 | Laden 60 s | 32 | 8,8 s | 1,92 s |
+| 1.225.1 (vorher), Lauf 1 | 5 Wischer | 43 | 7,7 s | 0,84 s |
+| 1.225.1 (vorher), Lauf 2 | 5 Wischer | 57 | 8,7 s | 0,94 s |
+
+Die Nachher-Zeilen folgen, sobald 1.226.0 auf der Vorschau liegt
+(derselbe Ablauf, derselbe Ausschnitt).

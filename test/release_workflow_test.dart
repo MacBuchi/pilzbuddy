@@ -33,6 +33,35 @@ void main() {
   // Besuchers ginge an Google, bevor irgendetwas eingeschaltet wurde.
   // Ohne den Prüfschritt merkt niemand, wenn der Service Worker aufhört
   // zu tragen (#387).
+  // Der Zeichen-Worker (#689, B2) ist ein eigenes Programm neben der App.
+  // Fehlt er im Build, rechnet die App still auf dem Hauptthread — kein
+  // Fehler, nur wieder das Ruckeln. Und tragen App und Worker nicht
+  // dieselbe Kennung, lehnt die App ihn ab: Beide Hälften gehören in
+  // JEDEN Web-Build.
+  group('Der Zeichen-Worker im Web-Build (#689, B2)', () {
+    test('alle drei Web-Builds übersetzen ihn mit derselben Kennung', () {
+      for (final MapEntry(key: name, value: yaml) in {
+        'ci.yml': ci,
+        'promote.yml': promote,
+        'preview.yml': preview,
+      }.entries) {
+        expect(yaml, contains('MAP_WORKER_BUILD=\$(git rev-parse'),
+            reason: name);
+        expect(yaml, contains('--dart-define=MAP_WORKER_BUILD="\$MAP_WORKER_BUILD"'),
+            reason: '$name: die App kennt die Kennung');
+        expect(yaml, contains('dart compile js -O2'), reason: name);
+        expect(yaml, contains('-DMAP_WORKER_BUILD="\$MAP_WORKER_BUILD"'),
+            reason: '$name: der Worker kennt dieselbe');
+        expect(yaml,
+            contains('-o build/web/map_worker.js lib/map_worker_main.dart'),
+            reason: '$name: Name und Ort, die map_worker_web.dart lädt');
+        final build = yaml.indexOf('flutter build web');
+        expect(yaml.indexOf('-o build/web/map_worker.js'), greaterThan(build),
+            reason: '$name: nach dem App-Build, der räumt build/web');
+      }
+    });
+  });
+
   group('Der Offline-Start der Web-App (#387)', () {
     test('alle drei Web-Builds holen CanvasKit aus dem eigenen Build', () {
       for (final MapEntry(key: name, value: yaml) in {
@@ -70,6 +99,7 @@ void main() {
     const files = [
       'test/spot_cache_idb_test.dart',
       'test/outbox_idb_test.dart',
+      'test/map_worker_web_test.dart',
     ];
 
     test('ci.yml ruft sie auf dart2js auf', () {
@@ -77,6 +107,14 @@ void main() {
       for (final file in files) {
         expect(ci, contains(file));
       }
+    });
+
+    test('der Zeichen-Worker-Test bekommt seine beiden Worker gebaut', () {
+      // Ohne sie fiele jeder Fall auf den Hauptthread zurück — der
+      // Nachweis „rechnet im Worker" wäre rot, die Gegenprobe still grün.
+      expect(ci, contains('-o test/map_worker_js/map_worker.js'));
+      expect(ci, contains('-DMAP_WORKER_BUILD=fremd'));
+      expect(ci, contains('-o test/map_worker_js/fremd.js'));
     });
 
     test('und die Dateien gibt es', () {

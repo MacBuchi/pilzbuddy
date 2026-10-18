@@ -17,6 +17,7 @@ import 'rain_fill.dart';
 import 'rain_grid.dart';
 import 'rain_layer.dart';
 import 'map_overlays.dart';
+import 'map_worker_tasks.dart' show legendRainCourseTask;
 import 'rain_stack.dart';
 import 'rain_sum.dart';
 import 'soil_moisture_grid.dart';
@@ -576,16 +577,9 @@ final legendRainCourseProvider = FutureProvider.autoDispose
     .family<RainCourse?, ({double lat, double lon})>((ref, at) async {
   final stacks = await ref.watch(rainStacksProvider.future);
   if (stacks.isEmpty) return null;
-  return runOnMapWorker(ref, 'legendRainCourse', _courseAt, at,
+  return runOnMapWorker(ref, 'legendRainCourse', legendRainCourseTask, at,
       slots: {'rainStacks': stacks});
 });
-
-RainCourse _courseAt(MapWorkerSlots slots, ({double lat, double lon}) at) =>
-    _course((
-      stacks: slots.get<List<RainStackData>>('rainStacks'),
-      lat: at.lat,
-      lon: at.lon,
-    ));
 
 /// Die Regenverläufe an MEHREREN Punkten — **eine** Dekodierung je Tag
 /// für alle zusammen.
