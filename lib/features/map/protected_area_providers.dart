@@ -1,17 +1,19 @@
 // Laden der Schutzgebiete (#580) — Muster wie beim Waldgitter.
-import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/bounded_compute.dart';
-import '../../core/gunzip.dart';
+import '../../core/map_worker.dart';
 
+import 'asset_grid_loader.dart';
+import 'map_worker_tasks.dart';
 import 'protected_areas.dart';
 
 /// Wie die Schutzgebiete beschafft werden — die Test-Naht:
 /// `test/fakes/test_app.dart` überschreibt sie auf `null`, sonst läse
 /// jeder Flow-Test das echte Asset.
 final protectedAreasLoaderProvider =
-    Provider<Future<ProtectedAreas?> Function()>((ref) => _loadFromAssets);
+    Provider<Future<ProtectedAreas?> Function()>((ref) {
+  final worker = ref.watch(mapWorkerProvider);
+  return () => _loadFromAssets(worker);
+});
 
 /// Lädt Manifest und Läufe aus den Assets, packt im Isolate aus.
 ///
@@ -21,26 +23,14 @@ final protectedAreasLoaderProvider =
 /// ist keins". Deshalb prüft `test/protected_areas_asset_test.dart`, dass
 /// das echte Asset lädt — ein kaputtes Asset ist ein Baufehler und soll
 /// in CI auffallen, nicht im Wald.
-Future<ProtectedAreas?> _loadFromAssets() async {
+Future<ProtectedAreas?> _loadFromAssets(MapWorker worker) async {
   try {
-    final manifest = await rootBundle
-        .loadString('assets/protected/protected_manifest.json');
-    final data =
-        await rootBundle.load('assets/protected/protected_grid.bin.gz');
-    final bytes =
-        data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
-    await preInflate(bytes); // im Browser nativ ausgepackt (#689)
-    return await boundedCompute(_decode, (manifest: manifest, bytes: bytes));
+    return await loadAssetGrid(worker, protectedLoad,
+        manifestPath: 'assets/protected/protected_manifest.json',
+        gridPath: 'assets/protected/protected_grid.bin.gz',
+        slot: 'protected');
   } catch (_) {
     // Fehlendes/kaputtes Asset ⇒ keine Schutzgebiete. Begründung oben.
-    return null;
-  }
-}
-
-ProtectedAreas? _decode(({String manifest, Uint8List bytes}) input) {
-  try {
-    return ProtectedAreas.decode(input.bytes, input.manifest);
-  } on FormatException {
     return null;
   }
 }

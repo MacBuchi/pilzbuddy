@@ -1408,3 +1408,36 @@ Was daraus folgt:
   Spots), den der Worker nicht trifft.
 - Damit ist B2 abgeschlossen und #689 erledigt; was am Start bleibt,
   wäre ein eigenes Thema.
+
+## Nachtrag 2026-10-18: B3 — Asset-Gitter im Worker laden (#689, 1.226.1)
+
+Der Betreiber nutzte 1.226.0 als PWA so nicht: Das Menü reagierte beim
+Laden teils nicht. Ein CPU-Profil auf dem Pixel XL (lokaler Build mit
+`--no-strip-wasm`) zeigte in den ersten acht Sekunden einen Hauptthread,
+der zu rund 80 % belegt war — darin `ForestGrid.decode` (~0,6 s), ein
+`Uint8List.fromList` über eine JS-gestützte Liste (~0,5 s, je Element
+über die Wasm/JS-Grenze), weitere Dekodierer (~0,5 s), Textlayout,
+Shader. Ursache: Die einmaligen Asset-Dekodierungen liefen über
+`compute`, und das rechnet im Browser auf dem Hauptthread. B2 hatte nur
+das Malen verlagert.
+
+Seit 1.226.1 lädt der Worker Wald, Höhe, Schutzgebiete und Fundorte
+selbst. Gemessen über denselben lokalen Server (`adb reverse`), beide
+Builds mit Flutter 3.47.5 `--release --wasm`, angemeldet, Wald +
+Höhenlinien an, `tool/phone_map_bench.mjs`:
+
+| Stand | Lauf | Laden blockiert | längster Task | 5 Wischer blockiert |
+|---|--:|--:|--:|--:|
+| main (1.226.0) | 1 | 5,6 s | 0,93 s | 3,1 s |
+| main (1.226.0) | 2 | 4,8 s | 0,81 s | 3,0 s |
+| B3 (1.226.1) | 1 | 3,3 s | 0,44 s | 3,5 s |
+| B3 (1.226.1) | 2 | 3,2 s | 0,35 s | 1,9 s |
+
+Das neue Kriterium (`tool/phone_tap_bench.mjs`, Wartezeit eines Tipps
+während der ersten 15 s, Ziel < 50 ms) erreicht es NICHT: Die längste
+Wartezeit lag in vier Läufen je Stand bei 477–851 ms (main) und
+442–647 ms (B3), Tipps mit ≥ 50 ms Wartezeit 7–12 gegen 7–11. Die
+Ausreißer liegen in den Sekunden 1–5 und kommen aus Flutters eigenem
+Start (erste Bilder, Text, Shader) und MapLibre, nicht mehr aus den
+Gittern. In Ruhe kostet ein Tipp auf die Karte selbst ~100 ms Antwort
+bei < 30 ms Wartezeit.

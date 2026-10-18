@@ -561,6 +561,28 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
     - **Höhenlinien und ihr GeoJSON sind EIN Auftrag** (`contoursTask`,
       `ElevationContours.geoJson`). Ein zweiter schickte die Linien dafür
       im Browser kodiert zurück in den Worker.
+    - **Die großen Asset-Gitter lädt der Worker selbst** (#689, B3, seit
+      1.226.1, `MapWorkerLoad`, `asset_grid_loader.dart`): Wald, Höhe,
+      Schutzgebiete und Fundorte holt er per `fetch`, packt sie nativ aus,
+      dekodiert sie (`asset_grid_decoders.dart`, ohne Flutter) und legt
+      sie als Fach ab; die App bekommt eine Kopie. Grund: Im Browser
+      rechnet `compute` auf dem Hauptthread, und jede große Byte-Menge
+      zwischen Wasm und JavaScript kostet dort zusätzlich (JS-gestützte
+      `Uint8List`s werden je Element über die Grenze gelesen). Gemessen
+      auf dem Pixel XL: Laden blockiert 4,8–5,6 → 3,2–3,3 s, längster
+      Task 0,8–0,9 → 0,35–0,44 s. Drei Dinge, die man wissen muss:
+      - **Ein geladenes Fach geht nie vom Hauptthread hinüber.** Nach
+        Ruhe oder Tod lädt der Worker es neu (`_origins` in
+        `MapWorker`); scheitert das, geht es beim nächsten Auftrag wieder
+        als Fach.
+      - **Der Worker arbeitet seine Nachrichten STRENG der Reihe nach ab**,
+        auch während ein Laden aufs Netz wartet — sonst fände ein Auftrag
+        nach dem Laden sein Fach nicht.
+      - **Neuer Asset-Lader: über `loadAssetGrid`**, mit dem Fachnamen,
+        unter dem die Rechnungen lesen. Ohne Worker (Gerät, Rückfall)
+        lädt er wie vorher über `boundedCompute`. Die Baumarten-Gitter
+        laufen noch nicht darüber (erst im Spot-Blatt geladen, nicht beim
+        Start).
     - **Nachgewiesen im echten Chrome** (`test/map_worker_web_test.dart`,
       CI-Schritt „Web-Test auf dart2js"): Der Testlauf liefert Dateien
       unter `test/<ordner>/` aus, nicht `build/` und keine versteckten

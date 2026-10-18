@@ -33,7 +33,8 @@ class WebWorkerTransport implements MapWorkerTransport {
 
   final String url;
   web.Worker? _worker;
-  final _tasks = <int, MapWorkerTask<Object?, Object?>>{};
+  /// Je offener Nummer, wie ihr Ergebnis zu lesen ist.
+  final _readers = <int, ({String id, Object? Function(WireBytes) read})>{};
 
   /// Wie viele Ergebnisse aus dem Worker kamen — der Nachweis im Test,
   /// dass wirklich DORT gerechnet wurde.
@@ -60,17 +61,20 @@ class WebWorkerTransport implements MapWorkerTransport {
         return;
       }
       final id = (head! as JSNumber).toDartInt;
-      final task = _tasks.remove(id);
-      if (task == null) return;
+      final reader = _readers.remove(id);
+      if (reader == null) return;
       if ((m[1]! as JSBoolean).toDart) {
         final Object? value;
         try {
-          value = task.decodeResult((
-            buffer: (m[2]! as JSArrayBuffer).toDart,
-            length: (m[3]! as JSNumber).toDartInt,
-          ));
+          // Ohne Puffer: ein Laden ohne Antwort (Fach wiederhergestellt).
+          value = m[2] == null
+              ? null
+              : reader.read((
+                  buffer: (m[2]! as JSArrayBuffer).toDart,
+                  length: (m[3]! as JSNumber).toDartInt,
+                ));
         } catch (e, s) {
-          replies.error(id, 'Ergebnis von ${task.id} nicht lesbar: $e', '$s');
+          replies.error(id, 'Ergebnis von ${reader.id} nicht lesbar: $e', '$s');
           return;
         }
         resultsFromWorker++;
@@ -116,15 +120,36 @@ class WebWorkerTransport implements MapWorkerTransport {
 
   @override
   void job(int id, MapWorkerTask<Object?, Object?> task, Object? params) {
-    _tasks[id] = task;
+    _readers[id] = (id: task.id, read: task.decodeResult);
     _post(['job'.toJS, id.toJS, task.id.toJS], task.encodeParams(params));
+  }
+
+  @override
+  bool get loadsAssets => true;
+
+  @override
+  void load(int id, MapWorkerLoad<Object?> load,
+      {String? slot,
+      required String manifest,
+      required String url,
+      required bool reply}) {
+    _readers[id] = (id: load.id, read: load.decodeResult);
+    _worker?.postMessage(<JSAny?>[
+      'load'.toJS,
+      id.toJS,
+      load.id.toJS,
+      slot?.toJS,
+      manifest.toJS,
+      url.toJS,
+      reply.toJS,
+    ].toJS);
   }
 
   @override
   void close() {
     final worker = _worker;
     _worker = null;
-    _tasks.clear();
+    _readers.clear();
     worker?.terminate();
   }
 }

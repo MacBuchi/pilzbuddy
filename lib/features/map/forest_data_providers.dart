@@ -4,16 +4,11 @@
 // Zustimmung: Das Gitter liegt als Asset im APK — die Frage „in welchen
 // Wald fahre ich" stellt sich gern dort, wo kein Empfang ist, und ein
 // Asset kostet niemanden Datenvolumen.
-import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/bounded_compute.dart';
 import '../../core/map_worker.dart';
 import '../../core/settings.dart';
-import '../../core/gunzip.dart';
 
 import '../ampel/ampel_model.dart' show AmpelClass, ampelClassKeyOf;
 import 'elevation_providers.dart' show elevationGridProvider;
@@ -30,6 +25,7 @@ import 'map_view/marker_culling.dart' show MapViewBounds;
 import 'protected_area_providers.dart' show protectedAreasProvider;
 import 'rain_data_providers.dart' show rainGridRepositoryProvider;
 import 'spot_filter.dart' show activeAmpelClassesProvider;
+import 'asset_grid_loader.dart';
 
 /// Ob die Waldebene auf der Karte liegt — seit #349 über den Neustart
 /// hinaus gemerkt.
@@ -59,7 +55,10 @@ final forestClassesProvider =
 /// drei Regen-Loader: `test/fakes/test_app.dart` überschreibt sie auf
 /// `null`, sonst läse jeder Flow-Test echte Assets.
 final forestGridLoaderProvider =
-    Provider<Future<ForestGrid?> Function()>((ref) => _loadFromAssets);
+    Provider<Future<ForestGrid?> Function()>((ref) {
+  final worker = ref.watch(mapWorkerProvider);
+  return () => _loadFromAssets(worker);
+});
 
 /// Lädt Manifest + Gitter aus den Assets, packt im Isolate aus.
 ///
@@ -68,45 +67,14 @@ final forestGridLoaderProvider =
 /// mit dem echten Asset fängt (Phase C), kein Laufzeitereignis, das dem
 /// Sammler eine Fehlermeldung wert wäre. Ohne Gitter fehlt die Ebene
 /// still, der FAB erscheint gar nicht erst.
-Future<ForestGrid?> _loadFromAssets() async {
+Future<ForestGrid?> _loadFromAssets(MapWorker worker) async {
   try {
-    final manifestRaw =
-        await rootBundle.loadString('assets/forest/forest_manifest.json');
-    final data = await rootBundle.load('assets/forest/forest_grid.bin.gz');
-    final bytes = data.buffer
-        .asUint8List(data.offsetInBytes, data.lengthInBytes);
-    await preInflate(bytes); // im Browser nativ ausgepackt (#689)
-    return await boundedCompute(_decode, (manifest: manifestRaw, bytes: bytes));
+    return await loadAssetGrid(worker, forestLoad,
+        manifestPath: 'assets/forest/forest_manifest.json',
+        gridPath: 'assets/forest/forest_grid.bin.gz',
+        slot: 'forest');
   } catch (_) {
     // Fehlendes/kaputtes Asset ⇒ keine Ebene. Begründung oben.
-    return null;
-  }
-}
-
-ForestGrid? _decode(({String manifest, Uint8List bytes}) input) {
-  try {
-    final manifest = jsonDecode(input.manifest) as Map<String, dynamic>;
-    // Nur bekannte Gitterformen: Ein unbekanntes `lattice` heißt, das
-    // Asset ist neuer als die App — dann lieber keine Ebene als eine
-    // falsch zugeordnete (Quadrat-Lesart auf Hex-Daten läge überall
-    // ein halbes Hex daneben, still).
-    final lattice = manifest['lattice'] as String?;
-    if (lattice != null && lattice != 'hex-odd-r') return null;
-    return ForestGrid.decode(
-      input.bytes,
-      width: manifest['width'] as int,
-      height: manifest['height'] as int,
-      west: (manifest['west'] as num).toDouble(),
-      east: (manifest['east'] as num).toDouble(),
-      north: (manifest['north'] as num).toDouble(),
-      south: (manifest['south'] as num).toDouble(),
-      referenceYear: manifest['reference_year'] as int,
-      hexLonStep:
-          lattice == null ? null : (manifest['hex_lon_step'] as num).toDouble(),
-      hexLatStep:
-          lattice == null ? null : (manifest['hex_lat_step'] as num).toDouble(),
-    );
-  } catch (_) {
     return null;
   }
 }

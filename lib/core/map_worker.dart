@@ -44,7 +44,16 @@ import 'map_worker_transport.dart';
 import 'map_worker_web_stub.dart'
     if (dart.library.js_interop) 'map_worker_web.dart';
 
-export 'map_worker_task.dart' show MapWorkerFn, MapWorkerSlots, MapWorkerTask;
+export 'map_worker_task.dart'
+    show MapWorkerFn, MapWorkerLoad, MapWorkerSlots, MapWorkerTask;
+
+/// Die Gegenseite kann nicht selbst laden (Isolate, Rückfall, kein
+/// Worker) — der Aufrufer lädt dann wie bisher selbst. Kein Befund.
+class MapWorkerCannotLoad implements Exception {
+  const MapWorkerCannotLoad();
+  @override
+  String toString() => 'MapWorkerCannotLoad';
+}
 
 /// Stirbt das Isolate so oft, rechnet der Rest der Sitzung ohne.
 const kMapWorkerMaxDeaths = 3;
@@ -129,14 +138,16 @@ class MapWorker {
   factory MapWorker.isolate(
       {Duration idleTimeout = kMapWorkerIdleTimeout}) {
     if (!kIsWeb) {
-      return MapWorker._(_ChannelBackend(_IsolateTransport.new, idleTimeout),
+      return MapWorker._(
+          _ChannelBackend(_IsolateTransport.new, idleTimeout,
+              loadsAssets: false),
           serialLanes: true);
     }
     final web = createWebWorkerTransport();
     return MapWorker._(
         web == null
             ? _ComputeBackend()
-            : _ChannelBackend(() => web, idleTimeout),
+            : _ChannelBackend(() => web, idleTimeout, loadsAssets: true),
         serialLanes: true);
   }
 
@@ -144,8 +155,11 @@ class MapWorker {
   /// (Codecs statt Objekte) auf der VM nachfährt.
   @visibleForTesting
   factory MapWorker.transport(MapWorkerTransport Function() open,
-          {Duration idleTimeout = kMapWorkerIdleTimeout}) =>
-      MapWorker._(_ChannelBackend(open, idleTimeout), serialLanes: true);
+          {Duration idleTimeout = kMapWorkerIdleTimeout,
+          bool loadsAssets = false}) =>
+      MapWorker._(
+          _ChannelBackend(open, idleTimeout, loadsAssets: loadsAssets),
+          serialLanes: true);
 
   /// Jeder Auftrag einzeln über `boundedCompute`, mit den Gittern im
   /// Gepäck. [serialLanes] `false` ist der Weg der Widget-Tests: Dort
@@ -203,6 +217,34 @@ class MapWorker {
       _backend.dispose();
       _backend = _ComputeBackend();
       return _backend.execute(task, params, slots);
+    }
+  }
+
+  /// Kann die Gegenseite Gitter selbst laden ([loadAsset])? Nur der Web
+  /// Worker, solange er nicht ausgefallen ist.
+  bool get loadsAssets {
+    final b = _backend;
+    return !_disposed && b is _ChannelBackend && b.loadsAssets;
+  }
+
+  /// Lässt die Gegenseite [url] laden, mit [load] dekodieren und das
+  /// Gitter als Fach [slot] ablegen (#689, B3). Das zurückgegebene Gitter
+  /// gilt danach als drüben: Ein Auftrag, der es als [slot] nennt, schickt
+  /// es nicht noch einmal — und nach einer Ruhe oder einem Neustart lädt
+  /// die Gegenseite es wieder selbst, statt es vom Hauptthread zu bekommen.
+  ///
+  /// Wirft [MapWorkerCannotLoad], wenn es keine solche Gegenseite gibt;
+  /// was die Dekodierung drüben wirft, kommt als [MapWorkerError].
+  Future<R> loadAsset<R>(MapWorkerLoad<R> load,
+      {String? slot, required String manifest, required String url}) async {
+    final b = _backend;
+    if (!loadsAssets || b is! _ChannelBackend) {
+      throw const MapWorkerCannotLoad();
+    }
+    try {
+      return await b.load(load, slot, manifest, url) as R;
+    } on _BackendUnavailable {
+      throw const MapWorkerCannotLoad();
     }
   }
 
@@ -315,10 +357,25 @@ Object? _runOnce(
 
 class _BackendUnavailable implements Exception {}
 
+/// Wie ein selbst geladenes Fach wiederherzustellen ist — und welches
+/// Objekt die App dafür hält.
+typedef _Origin = ({
+  MapWorkerLoad<Object?> load,
+  String manifest,
+  String url,
+  Object value,
+});
+
 class _ChannelBackend implements _Backend {
-  _ChannelBackend(this._newTransport, this._idleTimeout);
+  _ChannelBackend(this._newTransport, this._idleTimeout,
+      {required this.loadsAssets});
 
   final MapWorkerTransport Function() _newTransport;
+  final bool loadsAssets;
+
+  /// Fächer, die die Gegenseite selbst geladen hat. Überdauern Ruhe und
+  /// Tod: Danach lädt sie sie neu, statt sie vom Hauptthread zu bekommen.
+  final _origins = <String, _Origin>{};
   final Duration _idleTimeout;
   Timer? _idle;
   MapWorkerTransport? _transport;
@@ -363,6 +420,13 @@ class _ChannelBackend implements _Backend {
           identical(_sent[entry.key], entry.value)) {
         continue;
       }
+      final origin = _origins[entry.key];
+      if (origin != null && identical(origin.value, entry.value)) {
+        _restore(transport, entry.key, origin);
+        _sent[entry.key] = entry.value;
+        continue;
+      }
+      _origins.remove(entry.key);
       transport.slot(task, entry.key, entry.value);
       _sent[entry.key] = entry.value;
       slotTransfers++;
@@ -372,6 +436,53 @@ class _ChannelBackend implements _Backend {
     _open[id] = done;
     transport.job(id, task, params);
     return done.future.whenComplete(_armIdle);
+  }
+
+  /// Lädt ein selbst geladenes Fach drüben neu. Die Gegenseite arbeitet
+  /// ihre Nachrichten der Reihe nach ab, der folgende Auftrag findet es
+  /// also vor. Scheitert das Laden, geht es beim nächsten Mal wieder als
+  /// Fach hinüber.
+  void _restore(MapWorkerTransport transport, String slot, _Origin origin) {
+    final id = _nextId++;
+    final done = Completer<Object?>();
+    _open[id] = done;
+    done.future.then<void>((_) {}, onError: (Object e) {
+      if (e is! MapWorkerError) return; // Tod: beim nächsten Mal neu laden
+      if (identical(_origins[slot], origin)) _origins.remove(slot);
+      _sent.remove(slot);
+    }).whenComplete(_armIdle);
+    transport.load(id, origin.load,
+        slot: slot, manifest: origin.manifest, url: origin.url, reply: false);
+  }
+
+  Future<Object?> load(MapWorkerLoad<Object?> load, String? slot,
+      String manifest, String url) async {
+    if (_deaths >= kMapWorkerMaxDeaths) throw _BackendUnavailable();
+    _idle?.cancel();
+    await (_starting ??= _spawn());
+    final transport = _transport;
+    if (transport == null || !transport.loadsAssets) {
+      throw _BackendUnavailable();
+    }
+    if (slot != null) {
+      // Drüben wird das Fach ersetzt — was vorher dort lag, gilt nicht mehr.
+      _sent.remove(slot);
+      _origins.remove(slot);
+    }
+    final id = _nextId++;
+    final done = Completer<Object?>();
+    _open[id] = done;
+    transport.load(id, load,
+        slot: slot, manifest: manifest, url: url, reply: true);
+    final value = await done.future.whenComplete(_armIdle);
+    // Ist die Leitung inzwischen eine andere (Tod), liegt das Fach dort
+    // nicht — dann hilft die Herkunft, es beim nächsten Auftrag zu laden.
+    if (slot != null && value != null) {
+      _origins[slot] =
+          (load: load, manifest: manifest, url: url, value: value);
+      if (identical(_transport, transport)) _sent[slot] = value;
+    }
+    return value;
   }
 
   void _armIdle() {
@@ -488,6 +599,17 @@ class _IsolateTransport implements MapWorkerTransport {
 
   @override
   void drop(String name) => _toWorker?.send(['drop', name]);
+
+  @override
+  bool get loadsAssets => false;
+
+  @override
+  void load(int id, MapWorkerLoad<Object?> load,
+          {String? slot,
+          required String manifest,
+          required String url,
+          required bool reply}) =>
+      throw UnsupportedError('Das Isolate lädt nicht selbst');
 
   @override
   void job(int id, _Task task, Object? params) =>

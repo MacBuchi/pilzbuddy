@@ -1,5 +1,7 @@
 // Was eine Rechnung des Zeichen-Wegs ist — ohne Flutter, weil der Web
 // Worker (#689, B2) dieselbe Beschreibung liest wie die App.
+import 'dart:typed_data';
+
 import 'wire.dart';
 
 /// Die Rechnung eines Auftrags. Muss eine top-level- oder statische
@@ -62,6 +64,33 @@ class MapWorkerTask<P, R> {
   WireBytes encodeParams(Object? value) => params.encode(value as P);
   Object? decodeParams(WireBytes bytes) =>
       params.decode(bytes.buffer, bytes.length);
+  WireBytes encodeResult(Object? value) => result.encode(value as R);
+  Object? decodeResult(WireBytes bytes) =>
+      result.decode(bytes.buffer, bytes.length);
+}
+
+/// Ein Gitter, das der Worker SELBST lädt (#689, B3): Er holt die gepackte
+/// Datei über ihre Adresse, packt sie aus, dekodiert sie mit [decode] und
+/// legt das Ergebnis als Fach ab. Im Browser ist das der Weg, auf dem die
+/// großen Asset-Gitter den Hauptthread nie berühren — dort kostet jede
+/// Byte-Menge, die zwischen Wasm und JavaScript wandert, Zeit auf ihm,
+/// und `compute` rechnet ohnehin dort.
+class MapWorkerLoad<R> {
+  const MapWorkerLoad(this.id, this.decode, {required this.result});
+
+  /// Eindeutig über alle Ladeaufträge — der Worker schlägt darüber nach.
+  final String id;
+
+  /// Manifest (JSON-Text) und die GEPACKTEN Bytes rein, Gitter raus.
+  /// Muss top-level sein; auf dem Gerät läuft sie über `boundedCompute`.
+  final R Function(String manifest, Uint8List gzipped) decode;
+  final WireCodec<R> result;
+
+  Object? call(String manifest, Uint8List gzipped) =>
+      decode(manifest, gzipped);
+
+  Function get fn => decode;
+
   WireBytes encodeResult(Object? value) => result.encode(value as R);
   Object? decodeResult(WireBytes bytes) =>
       result.decode(bytes.buffer, bytes.length);
