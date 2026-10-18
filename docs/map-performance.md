@@ -1384,6 +1384,27 @@ Wisch.
 | 1.225.1 (vorher), Lauf 2 | Laden 60 s | 32 | 8,8 s | 1,92 s |
 | 1.225.1 (vorher), Lauf 1 | 5 Wischer | 43 | 7,7 s | 0,84 s |
 | 1.225.1 (vorher), Lauf 2 | 5 Wischer | 57 | 8,7 s | 0,94 s |
+| 1.226.0 (nachher), Lauf 1 | Laden 60 s | 35 | 7,9 s | 1,01 s |
+| 1.226.0 (nachher), Lauf 2 | Laden 60 s | 38 | 6,9 s | 1,12 s |
+| 1.226.0 (nachher), Lauf 1 | 5 Wischer | 64 | 5,1 s | 0,16 s |
+| 1.226.0 (nachher), Lauf 2 | 5 Wischer | 64 | 5,0 s | 0,14 s |
 
-Die Nachher-Zeilen folgen, sobald 1.226.0 auf der Vorschau liegt
-(derselbe Ablauf, derselbe Ausschnitt).
+Nachher gemessen am 2026-10-18 auf der Vorschau 1.226.0, derselbe
+Ablauf, derselbe Ausschnitt; `map_worker.js?v=8abf8585c0d0` in beiden
+Läufen geladen, das Bild nach dem ersten Wisch zeigt die bewegte Karte.
+
+Was daraus folgt:
+
+- **Der längste Task beim Wischen fällt von 0,84–0,94 s auf
+  0,14–0,16 s** — das ist der Gewinn, den man spürt: kein Bild hält
+  die Karte mehr spürbar an. Die Zahl der Tasks steigt (43–57 → 64),
+  weil der Hauptthread jetzt nur noch fertige Bilder einhängt, viele
+  kleine statt weniger großer.
+- **Blockiert beim Wischen 7,7–8,7 s → 5,0–5,1 s** (rund −40 %). Der
+  Rest ist MapLibre selbst und das Einhängen der Bilder, nicht mehr
+  das Malen.
+- **Beim Laden weniger** (8,7–8,8 → 6,9–7,9 s, längster Task 1,92 →
+  1,0–1,1 s): dort dominiert der Start der App (Wasm, Anmeldung,
+  Spots), den der Worker nicht trifft.
+- Damit ist B2 abgeschlossen und #689 erledigt; was am Start bleibt,
+  wäre ein eigenes Thema.
