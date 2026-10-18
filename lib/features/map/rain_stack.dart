@@ -10,7 +10,7 @@
 // Hand nachrechnen. Das Laden liegt in `rain_grid_repository.dart`.
 import 'dart:collection';
 
-import '../../data/rain_grid_repository.dart' show RainStackData, RainStackKind;
+import '../../data/rain_stack_data.dart' show RainStackData, RainStackKind;
 import 'rain_grid.dart';
 
 /// Woher ein Tageswert stammt (seit 1.212.0, #612): aus dem Radar des

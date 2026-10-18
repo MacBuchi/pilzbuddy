@@ -61,7 +61,8 @@ import '../elevation_contour_providers.dart';
 import '../forest_data_providers.dart';
 import '../forest_fill.dart'
     show ampelGuenstigAlpha, ampelVerhaltenAlpha, hatchGapShare;
-import '../gbif_fill.dart' show gbifClassColour, gbifClassCountsFrom;
+import '../gbif_colours.dart';
+import '../gbif_fill.dart' show gbifClassCountsFrom;
 import '../gbif_finds_providers.dart'
     show gbifFilterKeyProvider, gbifFindsProvider, gbifLayerEnabledProvider;
 import 'gbif_around_section.dart' show gbifAroundRadiusM;

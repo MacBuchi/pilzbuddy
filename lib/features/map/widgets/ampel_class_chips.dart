@@ -11,7 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../ampel/ampel_model.dart' show ampelClasses;
-import '../gbif_fill.dart' show gbifClassColour;
+import '../gbif_colours.dart';
 import '../spot_filter.dart';
 
 /// **Ab Werk sind alle an** (Betreiberauflage), und genau dieser Zustand

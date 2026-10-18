@@ -26,7 +26,7 @@ import 'contours.dart';
 import 'elevation_grid.dart';
 import 'forest_fill_window.dart';
 import 'forest_grid.dart' show hexNearestCell;
-import 'map_view/marker_culling.dart' show MapViewBounds;
+import 'map_view/map_view_bounds.dart';
 
 /// „Hier wissen wir nichts" im abgetasteten Feld.
 ///

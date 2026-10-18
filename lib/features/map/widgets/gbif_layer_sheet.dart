@@ -9,7 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/widgets/sheet_close_button.dart';
 
-import '../gbif_fill.dart';
+import '../gbif_colours.dart';
 import '../gbif_finds_providers.dart';
 import '../spot_filter.dart' show spotFilterProvider;
 import 'ampel_class_chips.dart';

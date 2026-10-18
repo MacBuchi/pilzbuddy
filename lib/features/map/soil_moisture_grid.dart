@@ -9,7 +9,7 @@
 // Ein Byte je Zelle, 0,003 m³/m³ je Stufe, 255 = keine Daten.
 import 'dart:typed_data';
 
-import '../../data/rain_grid_repository.dart' show RainStackData;
+import '../../data/rain_stack_data.dart' show RainStackData;
 import '../ampel/ampel_model.dart' show ampelMoistureWindow;
 import 'rain_grid.dart';
 

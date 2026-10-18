@@ -536,6 +536,16 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
     abgeschnittenen Strom still den Teil bis zum Abbruch; `gunzip`
     vergleicht mit der Länge im gzip-Abspann und wirft. Nie wieder
     `GZipDecoder` direkt.
+  - **Die Rechnungen bleiben ohne Flutter** (#689, B2, seit 1.225.1):
+    Im Browser sollen sie in einem Web Worker laufen, der ohne Flutter
+    übersetzt wird. Darum liegen Farben als ARGB in
+    `core/overlay_argb.dart` (`AppColors` baut daraus), `MapViewBounds`,
+    die Regenstapel-Typen (`data/rain_stack_data.dart`), die
+    Ampel-Mindesttage (`ampel_model.dart`), Kachelschlüssel und Maler des
+    Bereichs-Entwurfs (`offline_areas/area_tile_key.dart`,
+    `area_edit_png.dart`) in reinen Dateien. `test/map_worker_imports_test.dart`
+    läuft den Importbaum ab den Rechnungen ab, wie der Browser ihn sieht;
+    eine neue Rechnung gehört in seine Wurzelliste.
   - **Die Ruhe-PSS nach dem Ende des Isolates erst nach einem Bild
     messen.** Die Kopien der Fächer sind dann Müll, abgeräumt wird aber
     erst über `NotifyIdle` nach dem nächsten gezeichneten Bild; ein

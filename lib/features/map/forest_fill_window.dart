@@ -13,7 +13,7 @@
 // soll ohne Karte testbar sein.
 import 'dart:math' as math;
 
-import 'map_view/marker_culling.dart' show MapViewBounds;
+import 'map_view/map_view_bounds.dart';
 import 'rain_grid.dart' show mercatorY;
 
 /// Ein geplanter Bildausschnitt: geographische Box plus Pixelmaße.
