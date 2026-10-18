@@ -9,7 +9,7 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Web-App: schnellere Karte
 
-*18. Oktober 2026 · Versionen 1.224.9 und 1.225.0*
+*18. Oktober 2026 · Versionen 1.224.9 bis 1.225.1*
 
 - Die Karte in der Web-App zeichnet jetzt mit derselben Technik wie die
   Android-App. Wischen und Zoomen ruckeln deutlich weniger, und die Karte

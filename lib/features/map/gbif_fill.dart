@@ -38,9 +38,8 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:flutter/painting.dart' show Color;
 
-import '../../core/app_colors.dart';
+import '../../core/overlay_argb.dart';
 import '../ampel/ampel_model.dart' show ampelClassFor, ampelClassKeyOf;
 import 'forest_fill_window.dart';
 import 'gbif_finds.dart';
@@ -81,7 +80,7 @@ typedef GbifPaint = ({Int32List colours, Uint8List allowed});
 /// alle**, wie dort. Die Klassenwahl greift auf die Ampel-Klasse der
 /// Art; eine Art OHNE Klasse fällt bei gesetzter Klassenwahl heraus,
 /// wie beim Ampel-Filter der Spots. Die Farbe kommt aus
-/// [AppColors.gbifClassColours], grau für Arten ohne Klasse.
+/// [OverlayArgb.gbifClassColours], grau für Arten ohne Klasse.
 GbifPaint gbifPaintFor(GbifFinds finds,
     {Set<String> species = const {}, Set<String> classes = const {}}) {
   final colours = Int32List(finds.species.length);
@@ -89,7 +88,7 @@ GbifPaint gbifPaintFor(GbifFinds finds,
   for (var i = 0; i < finds.species.length; i++) {
     final name = finds.species[i].name;
     final key = gbifClassKeyFor(name);
-    colours[i] = gbifClassColour(key).toARGB32();
+    colours[i] = OverlayArgb.gbifClassColour(key);
     allowed[i] =
         gbifShown(name, key, species: species, classes: classes) ? 1 : 0;
   }
@@ -340,9 +339,3 @@ class _Canvas {
     return out;
   }
 }
-
-/// Die Farbe einer Ampel-Klasse in der Legende — dieselbe Tabelle wie
-/// beim Malen, damit Legende und Fläche nie zwei Töne zeigen.
-Color gbifClassColour(String? classKey) => classKey == null
-    ? AppColors.gbifNoClass
-    : AppColors.gbifClassColours[classKey] ?? AppColors.gbifNoClass;

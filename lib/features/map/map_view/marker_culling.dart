@@ -9,22 +9,7 @@
 // Idle-Momenten bewegt die Engine die schon eingebauten Marker selbst.
 import '../map_view/map_view.dart';
 
-/// Sichtfenster in Grad — engine-neutral, damit die Funktion nicht am
-/// maplibre-Typ `LngLatBounds` hängt (Web-Build!) und im Test ohne
-/// Platform-View prüfbar ist.
-class MapViewBounds {
-  const MapViewBounds({
-    required this.west,
-    required this.east,
-    required this.south,
-    required this.north,
-  });
-
-  final double west;
-  final double east;
-  final double south;
-  final double north;
-}
+export 'map_view_bounds.dart';
 
 /// Filtert Marker auf das Sichtfenster plus Rand.
 ///

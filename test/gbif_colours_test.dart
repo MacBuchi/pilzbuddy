@@ -8,6 +8,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pilzbuddy/core/app_colors.dart';
+import 'package:pilzbuddy/features/map/gbif_colours.dart';
 import 'package:pilzbuddy/features/map/gbif_fill.dart';
 
 /// Farbabstand in CIELAB (ΔE76) — grob, aber gut genug, um „zwei

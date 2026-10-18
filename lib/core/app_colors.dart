@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'overlay_argb.dart';
+
 /// Design-Tokens der PilzBuddy-Palette — DIE eine Quelle für die im
 /// Design-Regelwerk (.claude/skills/pilz-designer/SKILL.md) definierten
 /// Farben. Gruppen-/Arten-Paletten der Pilz-Icons bleiben bewusst als
@@ -84,9 +86,10 @@ abstract final class AppColors {
   /// Regenkarte „30 mm" hieß, darf auf der Waldkarte nicht „Misch"
   /// heißen. Abstand zu [forestGreen] (Besitz-Ellipse der Marker!)
   /// halten Ocker- bzw. Blauanteil.
-  static const forestBroadleaf = Color(0xFFD98E32); // Herbst-Ocker
-  static const forestMixed = Color(0xFF8AB84E); // Gelbgrün
-  static const forestConifer = Color(0xFF173F38); // dunkles Blaugrün
+  /// Werte in [OverlayArgb] (ohne Flutter, für den Web Worker, #689).
+  static const forestBroadleaf = Color(OverlayArgb.forestBroadleaf);
+  static const forestMixed = Color(OverlayArgb.forestMixed);
+  static const forestConifer = Color(OverlayArgb.forestConifer);
 
   /// Die Temperaturlinien im Wetterdiagramm am Spot. Boden ist der
   /// erdige Marken-Braunton und die pilz-relevante Hauptlinie; die
@@ -134,10 +137,10 @@ abstract final class AppColors {
   /// Zum Kartenwasser (`#80deea`, 188° Cyan) bleiben ~40° und ein
   /// großer Helligkeitsabstand — an genau dieser Nähe war die früher
   /// wählbare Türkis-Familie gescheitert.
-  static const ampelCombined = <(Color, Color)>[
-    (Color(0xFF9B61DD), Color(0xFF840FD8)), // Laub
-    (Color(0xFF6858DD), Color(0xFF5412C0)), // Misch
-    (Color(0xFF3C61C5), Color(0xFF0E2093)), // Nadel
+  /// Werte in [OverlayArgb.ampelCombined].
+  static final ampelCombined = <(Color, Color)>[
+    for (final (mild, strong) in OverlayArgb.ampelCombined)
+      (Color(mild), Color(strong)),
   ];
 
   /// Dieselbe Familie als Punkt und Wort im Spot-Blatt — dort ist keine
@@ -171,15 +174,15 @@ abstract final class AppColors {
   /// Waldblöcke — beides keine Flächen, die mit den Scheiben
   /// verwechselbar wären: das eine ein Symbol, das andere ein Opt-in.
   /// `test/gbif_colours_test.dart` rechnet die Abstände nach.
-  static const gbifClassColours = <String, Color>{
-    'herbst': Color(0xFFC62828), // Steinpilz & Co. — Rot
-    'sommer': Color(0xFFF9A825), // Pfifferling — Gelb
-    'holz_winter': Color(0xFF1E88E5), // Austernseitling & Co. — Blau
-    'cantharellales': Color(0xFF00897B), // Herbsttrompete & Co. — Türkis
+  /// Werte in [OverlayArgb.gbifClassColours].
+  static final gbifClassColours = <String, Color>{
+    for (final MapEntry(:key, :value)
+        in OverlayArgb.gbifClassColours.entries)
+      key: Color(value),
   };
 
   /// Arten ohne Ampel-Klasse: ein neutrales Grau, das nichts behauptet.
-  static const gbifNoClass = Color(0xFF616161);
+  static const gbifNoClass = Color(OverlayArgb.gbifNoClass);
 
   /// Das „!"-Abzeichen am Spot-Marker (#475): Fundstellen weit vom Spot,
   /// noch nicht bestätigt. Ein Orange, das auf der Karte weder Herbst-

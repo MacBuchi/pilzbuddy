@@ -800,3 +800,14 @@ AmpelClass? ampelClassFor(String? species) {
 
 /// Darf für [species] überhaupt eine Stufe gezeigt werden?
 bool ampelValidatedFor(String? species) => ampelClassFor(species) != null;
+
+/// So viele der 26 Regentage müssen eine Messung haben, sonst gibt es
+/// eine graue Ampel statt einer Stufe: Das Werkzeug rechnet Fehltage
+/// als 0 mm — bei vollständigen Open-Meteo-Reihen harmlos, bei einem
+/// löchrigen Radarrand eine still zu niedrige Feuchte.
+const ampelMinRainDays = 24;
+
+/// Und so viele der 20 Temperaturtage — die Glocke überspringt
+/// Fehltage, aber ein Mittel aus einer Handvoll Tagen ist kein
+/// 20-Tage-Mittel mehr.
+const ampelMinTempDays = 14;

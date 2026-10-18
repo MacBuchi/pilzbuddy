@@ -16,6 +16,10 @@ import 'dart:math' as math;
 import 'package:latlong2/latlong.dart';
 import 'package:pmtiles/pmtiles.dart' show ZXY;
 
+import 'area_tile_key.dart';
+
+export 'area_tile_key.dart' show kAreaShapeZoom;
+
 /// Unter Zoom 8 liegt die mitgelieferte Übersicht (Zoom 0–7), die hat
 /// jedes Gerät. Ein Bereich beginnt darüber.
 const kAreaMinZoom = 8;
@@ -31,11 +35,6 @@ const kAreaMaxTiles = 40000;
 /// TrailBuddys 1 km entlang der Trails, weil ein Spot ein Punkt ist und
 /// man auf dem Weg dorthin auch Karte braucht.
 const kAreaSpotRadiusKm = 2.0;
-
-/// Der Zoom, in dem eine [TileSetShape] ihre Kacheln merkt — fest, damit
-/// die Form nicht vom Zoom des Hosts abhängt: Ein höherer Zoom des
-/// Archivs sind die Kinder dieser Kacheln, ein niedrigerer die Eltern.
-const kAreaShapeZoom = 13;
 
 /// Ein Rahmen in Grad, Süden/Westen/Norden/Osten.
 class AreaBounds {
@@ -221,7 +220,7 @@ class TileSetShape extends AreaShape {
   final int zoom;
   final Set<int> keys;
 
-  static int keyOf(int x, int y, int zoom) => (x << zoom) | y;
+  static int keyOf(int x, int y, int zoom) => areaTileKey(x, y, zoom);
 
   ({int x, int y}) _xy(int key) =>
       (x: key >> zoom, y: key & ((1 << zoom) - 1));

@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart' show GZipDecoder;
-import 'package:flutter/foundation.dart' show visibleForTesting;
 
 import 'gunzip_check.dart';
 
@@ -24,8 +23,8 @@ void rememberInflated(Uint8List gzipped, Uint8List out) {
 /// Liegt für [gzipped] schon Ausgepacktes bereit? Für den Browser-Test,
 /// der zeigen muss, dass der native Weg lief und nicht still der
 /// Rückfall (test/CLAUDE.md, „Ein grüner Chrome-Lauf allein beweist
-/// nichts").
-@visibleForTesting
+/// nichts"). Nur für Tests — ohne `@visibleForTesting`, weil diese
+/// Datei auch im Web Worker läuft, der ohne Flutter übersetzt wird (#689).
 bool debugInflatedReady(Uint8List gzipped) => _inflated[gzipped] != null;
 
 /// Packt gzip aus — im Browser in Dart, `dart:io` fehlt dort. Hat

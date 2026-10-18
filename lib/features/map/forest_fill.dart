@@ -34,9 +34,7 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:flutter/painting.dart' show Color;
-
-import '../../core/app_colors.dart';
+import '../../core/overlay_argb.dart';
 import '../ampel/ampel_fill.dart'
     show AmpelLevels, AmpelRowLevels, ampelSameClasses;
 import 'elevation_grid.dart' show ElevationGrid;
@@ -216,21 +214,21 @@ Uint8List _paletteFor(int alpha, Set<ForestClass> classes) {
     if (forestClass == ForestClass.none || !classes.contains(forestClass)) {
       continue; // durchsichtig
     }
-    final Color colour;
+    final int colour;
     switch (forestClass) {
       case ForestClass.none:
         continue; // oben schon behandelt — der Vollständigkeit halber
       case ForestClass.broadleaf:
-        colour = AppColors.forestBroadleaf;
+        colour = OverlayArgb.forestBroadleaf;
       case ForestClass.mixed:
-        colour = AppColors.forestMixed;
+        colour = OverlayArgb.forestMixed;
       case ForestClass.conifer:
-        colour = AppColors.forestConifer;
+        colour = OverlayArgb.forestConifer;
     }
     final offset = value * 4;
-    palette[offset] = (colour.r * 255).round();
-    palette[offset + 1] = (colour.g * 255).round();
-    palette[offset + 2] = (colour.b * 255).round();
+    palette[offset] = argbRed(colour);
+    palette[offset + 1] = argbGreen(colour);
+    palette[offset + 2] = argbBlue(colour);
     palette[offset + 3] = alpha;
   }
   return palette;
@@ -266,7 +264,7 @@ Uint8List forestFillPngMulti(List<ForestGrid> grids,
 /// Zeichner beantworten, der beim Malen jeder Wabe ihr Wetter kennt.
 ///
 /// **Die leuchtende Wabe behält ihre Waldklasse** (seit 1.80.0): Sie
-/// bekommt den gesetzten Ton aus [AppColors.ampelCombined] für ihr Paar
+/// bekommt den gesetzten Ton aus [OverlayArgb.ampelCombined] für ihr Paar
 /// (Klasse, Stufe) — Laub violett, Nadel königsblau, Misch dazwischen.
 /// Bis 1.79.0 trug jede leuchtende Wabe denselben Ton, die Waldklasse
 /// war also genau dort weg, wo man sie wissen will. Warum eine Tabelle
@@ -418,7 +416,7 @@ const forestCombinedAlpha = 95;
 /// Ausdrucksweise, sonst überschreiben sie sich: Bis 1.79.0 trug der
 /// Farbton beides, und weil er nur einer sein kann, gewann das Wetter
 /// und der Wald verschwand. Innerhalb einer Spalte von
-/// [AppColors.ampelCombined] bleibt der Ton deshalb derselbe, nur
+/// [OverlayArgb.ampelCombined] bleibt der Ton deshalb derselbe, nur
 /// heller/dichter — die Bedeutung bleibt geordnet, weil das
 /// KRÄFTIGERE „besser" heißt.
 ///
@@ -809,16 +807,16 @@ class _HexCoverage {
   /// [colours] und [alphas] haben je [bandCount] Einträge: Die
   /// Kombi-Ebene malt ihre Waldbänder schwächer als ihre Leuchtbänder,
   /// also gehört die Deckkraft ans Band und nicht ans Bild.
-  Uint8List resolve(List<Color> colours, List<int> alphas) {
+  Uint8List resolve(List<int> colours, List<int> alphas) {
     final width = window.width;
     final rows = window.height;
     final red = Uint8List(bandCount);
     final green = Uint8List(bandCount);
     final blue = Uint8List(bandCount);
     for (var i = 0; i < bandCount; i++) {
-      red[i] = (colours[i].r * 255).round();
-      green[i] = (colours[i].g * 255).round();
-      blue[i] = (colours[i].b * 255).round();
+      red[i] = argbRed(colours[i]);
+      green[i] = argbGreen(colours[i]);
+      blue[i] = argbBlue(colours[i]);
     }
 
     final raw = Uint8List(rows * (width * 4 + 1));
@@ -861,7 +859,7 @@ class _HexCoverage {
   /// der deckungsstärksten Waldklasse (Bänder 0–2) und der
   /// deckungsstärksten Wetterstufe (Bänder 3–4 gegen den nicht
   /// leuchtenden Rest). Erst das Paar ergibt die Farbe — nachgeschlagen
-  /// in [AppColors.ampelCombined], nicht gemischt.
+  /// in [OverlayArgb.ampelCombined], nicht gemischt.
   ///
   /// Warum nicht neun Bänder für die neun Zustände: Klasse und Stufe
   /// sind unabhängig, also reichen 3 + 2. Neun kosteten beim größten
@@ -883,7 +881,7 @@ class _HexCoverage {
     final blue = Uint8List(9);
     final alphas = Uint8List(9);
     for (var band = 0; band < 3; band++) {
-      final (mild, strong) = AppColors.ampelCombined[band];
+      final (mild, strong) = OverlayArgb.ampelCombined[band];
       final colours = [_forestBandColours[band], mild, strong];
       const levelAlphas = [
         forestCombinedAlpha,
@@ -892,9 +890,9 @@ class _HexCoverage {
       ];
       for (var level = 0; level < 3; level++) {
         final i = band * 3 + level;
-        red[i] = (colours[level].r * 255).round();
-        green[i] = (colours[level].g * 255).round();
-        blue[i] = (colours[level].b * 255).round();
+        red[i] = argbRed(colours[level]);
+        green[i] = argbGreen(colours[level]);
+        blue[i] = argbBlue(colours[level]);
         alphas[i] = levelAlphas[level];
       }
     }
@@ -946,7 +944,7 @@ class _HexCoverage {
 
 /// Die drei Klassenfarben in Bandreihenfolge.
 const _forestBandColours = [
-  AppColors.forestBroadleaf,
-  AppColors.forestMixed,
-  AppColors.forestConifer,
+  OverlayArgb.forestBroadleaf,
+  OverlayArgb.forestMixed,
+  OverlayArgb.forestConifer,
 ];

@@ -12,7 +12,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../gbif_fill.dart' show gbifClassColour;
+import '../gbif_colours.dart';
 import '../../ampel/ampel_model.dart' show ampelClassFor, ampelClassKeyOf;
 import '../gbif_finds_providers.dart';
 

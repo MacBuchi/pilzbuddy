@@ -11,7 +11,7 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import '../../data/rain_grid_repository.dart' show RainStackData;
+import '../../data/rain_stack_data.dart' show RainStackData;
 import 'rain_grid.dart';
 
 /// Wie viele Tage der Stapel ab seinem jüngsten LÜCKENLOS trägt.

@@ -18,13 +18,12 @@
 import 'dart:typed_data';
 
 import '../../core/geo.dart' show distanceKm;
-import '../../data/rain_grid_repository.dart' show RainStackData;
+import '../../data/rain_stack_data.dart' show RainStackData;
 import '../map/elevation_grid.dart';
 import '../map/rain_grid.dart';
 import '../map/soil_moisture_grid.dart' show SoilMoistureWindow;
 import '../map/spot_weather.dart';
 import 'ampel_model.dart';
-import 'ampel_providers.dart' show ampelMinRainDays, ampelMinTempDays;
 
 /// Deckkraft wie die Regenfläche — dieselbe Messung, dieselbe
 /// Obergrenze: Die Karte darunter muss lesbar bleiben.
