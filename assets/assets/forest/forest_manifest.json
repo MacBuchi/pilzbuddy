@@ -1,0 +1,19 @@
+{
+  "source": "Copernicus HRL Dominant Leaf Type",
+  "reference_year": 2024,
+  "lattice": "hex-odd-r",
+  "width": 3038,
+  "height": 4470,
+  "west": 5.8,
+  "east": 17.3,
+  "north": 55.1,
+  "south": 45.7,
+  "hex_lon_step": 0.003786015,
+  "hex_lat_step": 0.002102809,
+  "cell_factor": 25,
+  "tree_threshold": 0.2,
+  "bytes": 5912590,
+  "sha256": "cfe0a271424209db8973f230d528425b9d925d327a76f087ea517d9b8aac3c9d",
+  "forest_percent": 47.8,
+  "median_conifer_percent": 46
+}

@@ -1,0 +1,23 @@
+{
+  "source": "Copernicus DEM GLO-90",
+  "license": "\u00a9 DLR e.V. 2010\u20132014 und \u00a9 Airbus Defence and Space GmbH 2014\u20132018, bereitgestellt unter COPERNICUS durch die Europ\u00e4ische Union und die ESA",
+  "lattice": "hex-odd-r",
+  "encoding": "gzip+row-delta",
+  "quant_m": 20,
+  "width": 3038,
+  "height": 4470,
+  "west": 5.8,
+  "east": 17.3,
+  "north": 55.1,
+  "south": 45.7,
+  "hex_lon_step": 0.003786015,
+  "hex_lat_step": 0.002102809,
+  "cell_factor": 25,
+  "bytes": 3402995,
+  "sha256": "da3f024ab054d87bf35ce9ab67aa2ed2d718fa78be5884eb16247d22afa9c9b1",
+  "no_data_cells": 2235,
+  "empty_rows": 0,
+  "min_m": 0,
+  "max_m": 4740,
+  "mean_m": 403.0
+}
