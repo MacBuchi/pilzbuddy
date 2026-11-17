@@ -14,7 +14,9 @@ This is the measurement that has to pass before the workflow builds the
 grid from a container, and again before it moves to a new image: a new
 image is a new instrument. 2026-10-08, image digest e1517a01…: 200
 points × 30 days, 18 000 daily values plus the elevations, zero
-differences on both paths.
+differences on both paths. 2026-11-17: that image no longer passes (the
+bucket's ICON-D2 grid changed, #727); digest bf94e8b3…, 40 points × 30
+days, 0 differences.
 
 Costs public quota: about `points × 4.3` calls (one per point for the
 week, ~3.3 for the 23 older days). Keep `--points` under ~1 000 and run
