@@ -1441,3 +1441,37 @@ Ausreißer liegen in den Sekunden 1–5 und kommen aus Flutters eigenem
 Start (erste Bilder, Text, Shader) und MapLibre, nicht mehr aus den
 Gittern. In Ruhe kostet ein Tipp auf die Karte selbst ~100 ms Antwort
 bei < 30 ms Wartezeit.
+
+## Nachtrag 2026-11-18: B3 — Ampel-Stufen im Worker (#689, 1.226.3)
+
+Mit Wald + Ampel (die übliche Wahl des Betreibers) blockierte
+`ampelLevelGridProvider` den Hauptthread im Browser 12,9–13,3 s am Stück
+(Profil vom 2026-10-18): `boundedCompute` ist dort ein `compute` auf dem
+Hauptthread. Seit 1.226.3 rechnet der Worker die Stufen
+(`ampelLevelsTask`) und behält sie als Fach für die Ampel-Fläche.
+
+Pixel XL, Chrome, angemeldet, beide Builds lokal (`--release --wasm`,
+eigener Server ohne HTTP-Cache, `adb reverse`), `BENCH_LAYERS=forest,ampel
+node tool/phone_tap_bench.mjs`, je drei Läufe, Regenstapel nach dem ersten
+Lauf im Zwischenspeicher:
+
+| Stand | Lauf | Tipps ≥ 300 ms | längste Antwort | längste Wartezeit |
+|---|--:|--:|--:|--:|
+| main (1.226.2) | 1 | 13 | 13,8 s | 13,7 s |
+| main (1.226.2) | 2 | 10 | 14,9 s | 14,8 s |
+| main (1.226.2) | 3 | 14 | 15,3 s | 15,2 s |
+| B3 (1.226.3) | 1 | 2 | 0,57 s | 0,51 s |
+| B3 (1.226.3) | 2 | 2 | 0,82 s | 0,57 s |
+| B3 (1.226.3) | 3 | 3 | 1,67 s | 1,54 s |
+
+Auf main kommen ab Sekunde 7 alle Tipps erst nach dem Block an (der
+Verlauf fällt von 15 s in Sekundenschritten ab: Sie warteten alle auf
+dasselbe Ende). Mit B3 liegt der Median beim Laden bei 96–112 ms, so viel
+wie ein Tipp auf die Karte in Ruhe. Die Ausreißer (0,5–1,7 s) stehen in
+den ersten Sekunden bzw. einmal mitten im Lauf — das ist der Rest aus dem
+Profil vom 2026-10-18 (Flutters Start, MapLibre), nicht mehr die Ampel.
+Die Ampel-Fläche war in beiden Ständen gezeichnet (Bildschirmfoto nach
+dem Lauf, Worker-Kennung `?v=` geprüft).
+
+Nebenbefund, in beiden Ständen gleich: Die Legende zeigt bei fertig
+gezeichneter Ampel-Fläche weiter „Pilzampel · rechnet …".

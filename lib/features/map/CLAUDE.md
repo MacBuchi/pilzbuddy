@@ -539,7 +539,7 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
     `core/map_worker_web.dart`, Programm `lib/map_worker_main.dart`,
     gebaut als `build/web/map_worker.js` in ci/preview/promote).
     Spuren, Fächer, Ruhe und Tode regelt `MapWorker` für Isolate und
-    Worker gleich (`MapWorkerTransport`). Fünf Dinge, die man wissen muss:
+    Worker gleich (`MapWorkerTransport`). Sechs Dinge, die man wissen muss:
     - **Eine Rechnung ist eine `MapWorkerTask`** mit Kennung und je einem
       Codec für Eingabe, Ergebnis und jedes Fach (`core/wire.dart`), und
       sie steht in `map_worker_tasks.dart` im Register `mapWorkerTasks`.
@@ -583,6 +583,22 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
         lädt er wie vorher über `boundedCompute`. Die Baumarten-Gitter
         laufen noch nicht darüber (erst im Spot-Blatt geladen, nicht beim
         Start).
+    - **Die Ampel-Stufen rechnet im Browser der Worker** (#689, B3, seit
+      1.226.3, `ampelLevelsTask`): 26 Entpackungen je Stapel plus eine
+      Stationssuche je Zelle blockierten den Hauptthread mit Wald +
+      Ampel 13 s am Stück (Tippen wartete bis 17 s). Auf dem Gerät
+      bleibt es bei `boundedCompute` — das Zeichen-Isolate rechnet der
+      Reihe nach, die Ampel davor hielte jede Wald-Fläche auf. Zwei
+      Dinge, die man wissen muss:
+      - **Das Ergebnis bleibt drüben** (`MapWorkerTask.resultSlot`): Die
+        Ampel-Fläche nennt danach dasselbe Objekt als Fach
+        `ampelLevels`, es geht also nicht hin, zurück und wieder hin.
+        Beim Abgeben vergisst `MapWorker` das Fach, bis das Ergebnis da
+        ist — ein Auftrag dazwischen, der noch das alte Objekt nennt,
+        schickt es mit, statt drüben schon das neue zu lesen (Test mit
+        zwei Spuren in `map_worker_test.dart`).
+      - **Stationstabelle und Bodenfeuchte reisen als Fach**; Lücken der
+        Tageswerte als NaN — die Tabelle kommt aus JSON und kennt keins.
     - **Nachgewiesen im echten Chrome** (`test/map_worker_web_test.dart`,
       CI-Schritt „Web-Test auf dart2js"): Der Testlauf liefert Dateien
       unter `test/<ordner>/` aus, nicht `build/` und keine versteckten

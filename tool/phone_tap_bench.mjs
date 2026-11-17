@@ -13,7 +13,8 @@
 // Chrome angemeldet, `adb shell svc power stayon usb`). BENCH_URL setzt
 // eine andere Adresse (lokaler Build über `adb reverse`), BENCH_STORAGE
 // eine JSON-Datei mit localStorage-Einträgen, die vor dem Neuladen
-// gesetzt werden (die Anmeldung hängt am Origin).
+// gesetzt werden (die Anmeldung hängt am Origin). BENCH_LAYERS wählt die
+// Ebenen (`forest,ampel`, `forest,contour`, …; ab Werk Wald + Höhenlinien).
 //
 // Die Event-Timing-API meldet nur Ereignisse ab 16 ms. Ein Tipp ohne
 // Eintrag war also schneller; gezählt wird er über einen eigenen
@@ -66,7 +67,22 @@ if (STORAGE) {
   const o = JSON.parse(readFileSync(STORAGE, 'utf8'));
   await evaluate(`(()=>{const o=${JSON.stringify(o)}; for (const k in o) localStorage.setItem(k,o[k]); return 1})()`);
 }
-await evaluate(`localStorage.setItem('flutter.forest_layer_enabled', 'true'); localStorage.setItem('flutter.contour_layer_enabled', 'true'); 1`);
+// Welche Ebenen an sind. Ab Werk Wald + Höhenlinien wie bis #714; die
+// Ampel braucht dazu Vorschau und Wetter-Zustimmung — genau die Kette,
+// die `setAmpelLayerEnabled` in der App schaltet.
+const LAYERS = (process.env.BENCH_LAYERS ?? 'forest,contour').split(',');
+const layerKeys = {
+  forest: ['forest_layer_enabled'],
+  contour: ['contour_layer_enabled'],
+  gbif: ['gbif_layer_enabled'],
+  ampel: ['ampel_layer_enabled', 'ampel_preview_enabled', 'rain_course_enabled'],
+};
+for (const [layer, keys] of Object.entries(layerKeys)) {
+  for (const k of keys) {
+    if (k === 'rain_course_enabled' && !LAYERS.includes(layer)) continue;
+    await evaluate(`localStorage.setItem('flutter.${k}', '${LAYERS.includes(layer)}'); 1`);
+  }
+}
 const W = await evaluate('innerWidth'), H = await evaluate('innerHeight'), dpr = await evaluate('devicePixelRatio');
 // Freier Kartenteil: links, unter dem Erinnerungsbanner, über der Legende.
 const cx = Math.round(W * 0.1), cy = Math.round(H * 0.3);

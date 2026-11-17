@@ -1,7 +1,10 @@
 // Die Pilzwetter-Fläche auf der Karte: Schalter, Rechnung, Datei —
 // dieselbe Dreiteilung wie Regen- und Waldfläche.
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/bounded_compute.dart';
+import '../../core/map_worker.dart' show runOnMapWorker;
+import '../map/map_worker_tasks.dart' show ampelLevelsTask;
 
 import '../../data/rain_grid_repository.dart' show RainStackData;
 import '../../core/settings.dart';
@@ -75,19 +78,27 @@ final ampelLevelGridProvider = FutureProvider<AmpelLevels?>((ref) async {
   if (stacks.isEmpty) return null;
   final table = await tableFuture;
   final soil = await soilFuture;
+  // Im Browser ist `boundedCompute` ein `compute` auf dem Hauptthread —
+  // dort blockierte diese Rechnung ihn 13 s am Stück (#689, B3). Der Web
+  // Worker rechnet sie stattdessen und behält das Ergebnis für die
+  // Ampel-Fläche. Auf dem Gerät bleibt es beim eigenen Isolate je
+  // Rechnung: Das Zeichen-Isolate rechnet der Reihe nach, und die Ampel
+  // davor hielte jede Wald-Fläche auf.
+  if (kIsWeb) {
+    return runOnMapWorker(ref, 'ampelLevels', ampelLevelsTask, null, slots: {
+      'rainStacks': stacks,
+      'weatherTable': table,
+      'soilMoisture': soil,
+    });
+  }
   return boundedCompute(
       _levels, (stacks: stacks, table: table, soil: soil));
 });
 
 AmpelLevels? _levels(
-    ({
-      List<RainStackData> stacks,
-      WeatherTable? table,
-      SoilMoistureWindow? soil,
-    }) input) {
-  final grids = [
-    for (final stack in input.stacks)
-      ?ampelLevelsFrom(stack, input.table, soil: input.soil),
-  ];
-  return grids.isEmpty ? null : AmpelLevels(grids);
-}
+        ({
+          List<RainStackData> stacks,
+          WeatherTable? table,
+          SoilMoistureWindow? soil,
+        }) input) =>
+    ampelLevelsOf(input.stacks, input.table, input.soil);

@@ -33,7 +33,14 @@ import 'package:pilzbuddy/core/map_worker_web.dart';
 import 'package:pilzbuddy/features/map/forest_fill.dart' show allForestClasses;
 import 'package:pilzbuddy/features/map/forest_fill_window.dart';
 import 'package:pilzbuddy/features/map/forest_grid.dart';
+import 'package:pilzbuddy/data/rain_stack_data.dart';
+import 'package:pilzbuddy/features/ampel/ampel_model.dart'
+    show ampelShippedClasses;
 import 'package:pilzbuddy/features/map/map_worker_tasks.dart';
+import 'package:pilzbuddy/features/map/spot_weather.dart'
+    show AirStation, WeatherTable;
+
+import 'rain_grid_test.dart' show encode;
 
 void main() {
   final forest = ForestGrid(
@@ -136,6 +143,74 @@ void main() {
         direct);
     expect(worker.debugSlotTransfers, 1,
         reason: 'nur die Schutzgebiete gingen hinüber, der Wald lag dort');
+    expect(worker.debugUsesFallback, isFalse);
+  });
+
+  test('die Ampel-Stufen rechnen im Worker und bleiben dort als Fach '
+      '(#689, B3)', () async {
+    // Bis 1.226.x blockierte genau diese Rechnung im Browser den
+    // Hauptthread 13 s am Stück. Bewiesen wird: Die Antwort kommt aus dem
+    // Worker, sie gleicht der direkten Rechnung, und die Ampel-Fläche
+    // danach schickt die Stufen nicht wieder hinüber.
+    final stacks = [
+      RainStackData(
+        info: const RainStackInfo(
+            width: 3, height: 2, west: 9.5, east: 10.5, north: 50.5,
+            south: 49.5, days: []),
+        days: [
+          for (var i = 0; i < 26; i++)
+            (
+              date: DateTime.utc(2026, 10, 1).add(Duration(days: i)),
+              gzipped: encode([
+                [i % 4, 2, 9],
+                [0, 5, 3],
+              ]),
+            ),
+        ],
+      ),
+    ];
+    final table = WeatherTable(
+      days: [
+        for (var i = 0; i < 28; i++)
+          DateTime.utc(2026, 9, 29).add(Duration(days: i)),
+      ],
+      air: [
+        AirStation(name: 'A', lat: 50, lon: 10, height: 300,
+            max: List.filled(28, 17.0), min: List.filled(28, 9.0)),
+      ],
+      soil: const [],
+    );
+    final ampelSlots = {
+      'rainStacks': stacks,
+      'weatherTable': table,
+      'soilMoisture': null,
+    };
+    final expected =
+        ampelLevelsTask.run(MapWorkerSlots(ampelSlots), null)!;
+
+    final (:worker, :transport) = await start('map_worker_js/map_worker.js');
+    final levels = (await worker
+        .submit('ampel', ampelLevelsTask, null, slots: ampelSlots)
+        .result)!;
+    expect(transport.resultsFromWorker, 1, reason: 'aus dem Worker');
+    expect(
+        [for (final g in levels.grids) [g.rainFactor, g.meanC, g.valid]],
+        [for (final g in expected.grids) [g.rainFactor, g.meanC, g.valid]]);
+
+    final sent = worker.debugSlotTransfers;
+    await worker.submit('wald', forestAmpelFillTask, (
+      classes: allForestClasses,
+      window: params.window,
+      ampelClasses: ampelShippedClasses,
+      blocks: const <String>[],
+    ), slots: {
+      'forest': forest,
+      'protected': null,
+      'ampelLevels': levels,
+      'elevation': null,
+    }).result;
+    expect(worker.debugSlotTransfers - sent, 3,
+        reason: 'Wald, Schutzgebiete, Höhe — die Stufen lagen schon drüben');
     expect(worker.debugUsesFallback, isFalse);
   });
 

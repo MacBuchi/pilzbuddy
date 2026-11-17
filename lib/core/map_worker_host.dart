@@ -86,8 +86,9 @@ class MapWorkerHost {
       throw StateError('Fach nicht lesbar: ${_broken.entries.first}');
     }
     final task = _task(taskId);
-    return task.encodeResult(
-        task.call(MapWorkerSlots(_slots), task.decodeParams(params)));
+    final result = task.call(MapWorkerSlots(_slots), task.decodeParams(params));
+    keepResult(_slots, task.resultSlot, result);
+    return task.encodeResult(result);
   }
 
   /// Welche Fächer gerade liegen — für den Test.
