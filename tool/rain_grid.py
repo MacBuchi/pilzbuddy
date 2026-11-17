@@ -165,8 +165,13 @@ def coverage_url(coverage, when, bounds):
     )
 
 
-def tiff_tags(data):
-    """Byte order and tags of a 64 bit float, tiled, uncompressed TIFF.
+def tiff_tags(data, allowed_bits=(64,)):
+    """Byte order and tags of a 32/64 bit float, tiled, uncompressed TIFF.
+
+    `allowed_bits` is what the CALLER can decode: tool/alps_rain.py reads
+    its own Float64 warp output and keeps the default; `read_geotiff`
+    below takes the DWD's raw answer and allows 32 as well (the WCS
+    switched from Float64 to Float32 in early November 2026).
 
     Shared with tool/alps_rain.py, which reads 24 hourly bands of the same
     shape one tile at a time. Everything but the band count is checked
@@ -189,8 +194,10 @@ def tiff_tags(data):
         fmt = formats.get(kind)
         tags[tag] = list(struct.unpack(order + fmt * n, raw)) if fmt else raw
 
-    if tags.get(258, [0])[0] != 64 or tags.get(339, [0])[0] != 3:
-        raise SystemExit("expected 64 bit IEEE float samples")
+    if tags.get(258, [0])[0] not in allowed_bits or tags.get(339, [0])[0] != 3:
+        raise SystemExit("expected "
+                         + " or ".join(str(b) for b in allowed_bits)
+                         + " bit IEEE float samples")
     if tags.get(259, [1])[0] != 1:
         raise SystemExit("expected an uncompressed raster")
     if 322 not in tags:
@@ -199,23 +206,26 @@ def tiff_tags(data):
 
 
 def read_geotiff(data):
-    """Minimal GeoTIFF reader: one band, 64 bit float, tiled, uncompressed.
+    """Minimal GeoTIFF reader: one band, 32 or 64 bit float, tiled,
+    uncompressed.
 
-    That is exactly what this WCS emits. Anything else is rejected loudly
+    That is what this WCS emits (64 bit until early November 2026, 32 bit
+    since — the rain-data runs failed for days on exactly that). Anything else is rejected loudly
     instead of decoded wrongly — a raster misread as the wrong sample
     format still produces numbers, and numbers get shipped.
     """
-    order, tags = tiff_tags(data)
+    order, tags = tiff_tags(data, allowed_bits=(32, 64))
     if tags.get(277, [1])[0] != 1:
         raise SystemExit("expected a single band")
+    code, size = ("f", 4) if tags[258][0] == 32 else ("d", 8)
 
     width, height = tags[256][0], tags[257][0]
     tile_w, tile_h = tags[322][0], tags[323][0]
     grid = [[float("nan")] * width for _ in range(height)]
     across = (width + tile_w - 1) // tile_w
     for i, start in enumerate(tags[324]):
-        values = struct.unpack(order + "d" * (tile_w * tile_h),
-                               data[start:start + tile_w * tile_h * 8])
+        values = struct.unpack(order + code * (tile_w * tile_h),
+                               data[start:start + tile_w * tile_h * size])
         tx, ty = (i % across) * tile_w, (i // across) * tile_h
         for row in range(tile_h):
             y = ty + row
@@ -230,8 +240,12 @@ def read_geotiff(data):
 def _has_value(v):
     # NaN pads the tiles beyond the coverage; -1.0 is the DWD's own
     # "outside the radar composite" marker. Both mean "we do not know",
-    # and -1 mm of rain would otherwise quantise to something.
-    return v == v and v > -0.5
+    # and -1 mm of rain would otherwise quantise to something. Since the
+    # switch to Float32 (November 2026) the service also sends -999 and
+    # 65535 for "no value" — measured 2026-11-16: 95 103 cells of 65535
+    # in the Germany box, which would have been clamped to 254 mm of rain.
+    # No real sum comes near 60000 mm.
+    return v == v and -0.5 < v < 60000
 
 
 def crop(grid):
@@ -567,6 +581,23 @@ def verify_daily(out_dir, samples=8):
             "service — is the day being requested the day being stored?")
 
 
+def _feature_value(properties):
+    """The one measured number of a GetFeatureInfo answer.
+
+    The property was `GRAY_INDEX` until the DWD relaunched its coverages
+    in November 2026; it is now named after the product (`SF_HDF5`,
+    `W4_HDF5`) next to a `TIME` string. Taking "the one number" rather
+    than a new name keeps the next rename from blinding the check again,
+    and a value that means "no data" counts as no answer.
+    """
+    numbers = [v for k, v in properties.items()
+               if k != "TIME" and isinstance(v, (int, float))
+               and not isinstance(v, bool)]
+    if len(numbers) != 1 or not _has_value(numbers[0]):
+        return None
+    return numbers[0]
+
+
 def _feature_info(coverage, lat, lon, when=None):
     layer = coverage.replace("__", ":")
     x, y = _to_x(lon), _to_y(lat)
@@ -578,7 +609,7 @@ def _feature_info(coverage, lat, lon, when=None):
            + f"&bbox={x - 150:.1f},{y - 150:.1f},{x + 150:.1f},{y + 150:.1f}")
     try:
         features = json.loads(_fetch(url, timeout=30))["features"]
-        return features[0]["properties"]["GRAY_INDEX"] if features else None
+        return _feature_value(features[0]["properties"]) if features else None
     except Exception:
         return None
 
@@ -625,11 +656,13 @@ def self_test():
 
     # Quantisation: the two "no data" spellings, the clamp, and rounding.
     assert _quantise(float("nan")) == NO_DATA
+    assert _quantise(-999.0) == NO_DATA
+    assert _quantise(65535.0) == NO_DATA, "the Float32 'no value' marker"
     assert _quantise(-1.0) == NO_DATA
     assert _quantise(0.0) == 0
     assert _quantise(37.4) == 37
     assert _quantise(37.6) == 38
-    assert _quantise(1e9) == MAX_MM
+    assert _quantise(5000.0) == MAX_MM
 
     # The projection helpers. Not against numbers copied out of this same
     # code — that proves nothing. Against two things from outside it: the
@@ -664,8 +697,19 @@ def self_test():
 
     # Anything this reader was not written for must be refused rather
     # than decoded into numbers that look fine and are not.
+    # 32 bit floats are what the DWD sends since November 2026; the values
+    # here are exact in float32, so the comparison stays strict.
+    grid32, _ = read_geotiff(_fake_tiff(values, 4, 2, bits=32))
+    assert [row[:5] for row in grid32[:3]] == values, grid32
+    # alps_rain keeps the strict default: it decodes Float64 only.
+    try:
+        tiff_tags(_fake_tiff(values, 4, 2, bits=32))
+    except SystemExit:
+        pass
+    else:
+        raise AssertionError("tiff_tags default must stay 64 bit only")
     for label, kwargs in (
-        ("32 bit floats", {"bits": 32}),
+        ("16 bit samples", {"bits": 16}),
         ("integer samples", {"sample_format": 2}),
         ("LZW compression", {"compression": 5}),
         ("three bands", {"samples": 3}),
@@ -681,6 +725,13 @@ def self_test():
         except SystemExit:
             continue
         raise AssertionError("a non-TIFF was accepted")
+
+    assert _feature_value({"GRAY_INDEX": 3.5}) == 3.5
+    assert _feature_value({"SF_HDF5": 3.1, "TIME": "2026-11-16T21:50:00Z"}) == 3.1
+    assert _feature_value({"W4_HDF5": 0, "TIME": "x"}) == 0
+    assert _feature_value({"SF_HDF5": 65535.0, "TIME": "x"}) is None
+    assert _feature_value({"TIME": "x"}) is None
+    assert _feature_value({"a": 1.0, "b": 2.0}) is None, "ambiguous"
 
     _self_test_daily()
     print("rain_grid self-test: ok")
@@ -785,7 +836,8 @@ def _fake_tiff(values, tile_w, tile_h, bits=64, sample_format=3,
                     y, x = ty * tile_h + row, tx * tile_w + col
                     cells.append(values[y][x] if y < height and x < width
                                  else 0.0)
-            tiles.append(struct.pack(">" + "d" * len(cells), *cells))
+            tiles.append(struct.pack(">" + ("f" if bits == 32 else "d")
+                                     * len(cells), *cells))
 
     transform = [1.0, 0, 0, 100.0, 0, -1.0, 0, 900.0] + [0.0] * 8
     entries = [(256, 4, [width]), (257, 4, [height]), (258, 3, [bits]),

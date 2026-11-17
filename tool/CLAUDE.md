@@ -368,6 +368,14 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
     auf dem echten Runner messen, ohne dass ein Branch in das Release
     schreibt, das jede App liest.
 
+- **DWD-Format hat sich geändert (2026-11, #725):** Der WCS liefert seit
+  Anfang November **Float32** statt Float64, „kein Wert" als `-999` und
+  `65535` (nicht mehr nur `-1`), und die GetFeatureInfo-Eigenschaft heißt
+  `SF_HDF5`/`W4_HDF5` statt `GRAY_INDEX`. Der strenge Reader lehnte das ab,
+  und die Läufe scheiterten tagelang. `tiff_tags(allowed_bits=…)`: der
+  DWD-Reader erlaubt 32 und 64, `alps_rain` (eigene Float64-Warps) bleibt
+  bei 64. Erster Griff bei „Regen kommt nicht an": letzte Läufe von
+  `rain-data.yml` ansehen, die Fehlerzeile steht vor `##[error]`.
 - **Regen-Wertegitter** (`tool/rain_grid.py` + `.github/workflows/rain-data.yml`):
   Damit die Summen in **unseren** Farben liegen und die Regenmenge am Spot
   beantwortbar wird, ohne dass eine Koordinate das Gerät verlässt, holt CI
