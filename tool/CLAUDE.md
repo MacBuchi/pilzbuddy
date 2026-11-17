@@ -262,6 +262,15 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
       je Punkt). Aus einer Cloud-Sitzung ist das Kontingent schnell weg —
       der Ausgang ist geteilt, am 2026-10-08 kam nach der Messung nur
       noch 429. Ein neues Image wird mit dem Werkzeug neu gemessen.
+      **Ein gepinntes Image altert, auch ohne dass man es anfasst**
+      (#727, 2026-11-17): Der Bucket stellte sein ICON-D2-Raster um, das
+      Image vom 2026-10-08 rastete danach auf eine Nachbarzelle (1–2 K im
+      Tagesmaximum), `--verify` brach den Lauf ab — der Alpen-Modelllayer
+      blieb stehen, das war der „Regen nicht bis heute“ aus #725. Der
+      Verify hat getan, was er soll; die Abhilfe war ein neuer Pin
+      (`bf94e8b3…`) nach Paritätsmessung, nie eine weitere Toleranz.
+      Bei der nächsten Abweichung zuerst `latest` lokal starten und den
+      auffälligen Punkt gegen die öffentliche API halten.
   - **Der Stapel hält 30 Tage** (`STACK_DAYS`, seit 1.220.0), nicht
     mehr 28: Die Ampel braucht 26 Regentage, die Stationstabelle 28
     Temperaturtage, die Regen-Ebene „30 Tage" im Alpenraum alle 30. Die

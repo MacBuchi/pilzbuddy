@@ -178,7 +178,14 @@ genau die Anfragen des Werkzeugs, an Container und öffentliche API.
 Der Bucket hält ICON-D2 mindestens bis Anfang August 2026 zurück, und
 gestern war um 22 Uhr UTC vollständig. Voller Neubau, 3 943 Punkte × 30
 Tage mit kaltem Cache: 2 min 32 s, Cache danach 2,1 GB. Image-Digest
-`e1517a01…`, wie bei der Bodenfeuchte.
+`e1517a01…`, wie bei der Bodenfeuchte — **bis 2026-11-17, dann
+`bf94e8b3…`** (#727): Der Bucket änderte sein ICON-D2-Raster, das alte
+Image rastete Punkte auf eine andere Zelle ein (47,048/15,548 →
+47,040/15,540 statt 47,0469/15,5566, 1–2 K Unterschied im Tagesmaximum;
+schon bei Daten vom 2026-10-18 sichtbar). Das neue Image
+(gebaut 2026-11-03) rastet wie die öffentliche API: 40 Punkte × 30 Tage,
+3 600 Werte, 0 Abweichungen roh und als Byte, Höhen gleich. Das alte
+Image, gleiche Messung mit 20 Punkten: Abweichungen.
 
 ## Offen
 

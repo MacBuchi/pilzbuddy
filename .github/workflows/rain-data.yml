@@ -125,11 +125,12 @@ jobs:
         run: |
           # A self-hosted Open-Meteo server (#631) for soil and model: it
           # reads the open S3 bucket on demand — no sync, no key, no quota.
-          # Pinned by digest: the image lab run 25 (soil) and the ICON-D2
-          # parity check of 2026-10-08 (model) measured against
-          # (docs/pilzampel-openmeteo-lokal.md); a new one is a new
-          # instrument and gets measured first.
-          OPEN_METEO_IMAGE="ghcr.io/open-meteo/open-meteo@sha256:e1517a01a061fd96e2a9017d022c5809bb51725bcd733bcbed435e7ea32dd9da"
+          # Pinned by digest: the image the ICON-D2 parity check of
+          # 2026-11-17 (model) measured against (docs/pilzampel-openmeteo-lokal.md);
+          # a new one is a new instrument and gets measured first. The
+          # previous pin (e1517a01…, 2026-10-08) snapped ICON-D2 points
+          # to a different cell once the bucket's grid changed (#727).
+          OPEN_METEO_IMAGE="ghcr.io/open-meteo/open-meteo@sha256:bf94e8b39761b59a91bd04bb926b3834cad00eaf71f1aa64b2fd17fbe987846a"
           # Starts the container once per job and waits until `$1` (a
           # path and query a layer needs) answers. Returns non-zero instead
           # of exiting: each layer decides what a dead container means.
