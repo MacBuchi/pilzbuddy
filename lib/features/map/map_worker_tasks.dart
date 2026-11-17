@@ -13,7 +13,8 @@ import 'package:latlong2/latlong.dart';
 import '../../core/map_worker_task.dart';
 import '../../core/wire.dart';
 import '../../data/rain_stack_data.dart';
-import '../ampel/ampel_fill.dart' show AmpelLevelGrid, AmpelLevels;
+import '../ampel/ampel_fill.dart'
+    show AmpelLevelGrid, AmpelLevels, ampelLevelsOf;
 import '../ampel/ampel_model.dart' show AmpelClass, AmpelLogit;
 import '../offline_areas/area_edit_png.dart';
 import 'asset_grid_decoders.dart';
@@ -27,6 +28,8 @@ import 'gbif_fill.dart';
 import 'gbif_finds.dart';
 import 'protected_areas.dart';
 import 'rain_stack.dart';
+import 'soil_moisture_grid.dart' show SoilMoistureWindow;
+import 'spot_weather.dart' show AirStation, SoilStation, WeatherTable;
 
 /// Alle Rechnungen — die Tabelle des Workers.
 final mapWorkerTasks = <MapWorkerTask<Object?, Object?>>[
@@ -38,6 +41,7 @@ final mapWorkerTasks = <MapWorkerTask<Object?, Object?>>[
   areaEditFillTask,
   contoursTask,
   legendRainCourseTask,
+  ampelLevelsTask,
 ];
 
 // ---------------------------------------------------------------------------
@@ -222,7 +226,7 @@ const legendRainCourseTask = MapWorkerTask<RainPoint, RainCourse>(
     'legendRainCourse', _courseAt,
     params: WireFn(_writePoint, _readPoint),
     result: rainCourseCodec,
-    slots: {'rainStacks': WireSlot(WireList(rainStackDataCodec))});
+    slots: {'rainStacks': _rainStacksSlot});
 
 RainCourse _courseAt(MapWorkerSlots slots, RainPoint at) =>
     rainCoursesFromStacks(slots.get<List<RainStackData>>('rainStacks'),
@@ -233,6 +237,33 @@ void _writePoint(WireWriter w, RainPoint p) => w
   ..float64(p.lon);
 
 RainPoint _readPoint(WireReader r) => (lat: r.float64(), lon: r.float64());
+
+/// Der Regenstapel als Fach — Legende und Ampel teilen ihn.
+const _rainStacksSlot = WireSlot(WireList(rainStackDataCodec));
+
+/// Die Ampel-Stufen (#689, B3): 26 Entpackungen je Stapel und eine
+/// Stationssuche je Zelle. Im Browser rechnete das bis 1.226.x auf dem
+/// Hauptthread und blockierte ihn 13 s am Stück. Das Ergebnis bleibt als
+/// Fach `ampelLevels` im Worker — die Ampel-Fläche liest es dort, ohne
+/// dass es noch einmal hinübergeht.
+const ampelLevelsTask = MapWorkerTask<Null, AmpelLevels?>(
+    'ampelLevels', _ampelLevels,
+    params: WireFn(_writeNothing, _readNothing),
+    result: WireNullable(ampelLevelsCodec),
+    resultSlot: 'ampelLevels',
+    slots: {
+      'rainStacks': _rainStacksSlot,
+      'weatherTable': WireSlot(WireNullable(weatherTableCodec)),
+      'soilMoisture': WireSlot(WireNullable(soilMoistureWindowCodec)),
+    });
+
+AmpelLevels? _ampelLevels(MapWorkerSlots slots, Null _) => ampelLevelsOf(
+    slots.get<List<RainStackData>>('rainStacks'),
+    slots.get<WeatherTable?>('weatherTable'),
+    slots.get<SoilMoistureWindow?>('soilMoisture'));
+
+void _writeNothing(WireWriter w, Null _) {}
+Null _readNothing(WireReader r) => null;
 
 // ---------------------------------------------------------------------------
 // Codecs der Typen. Jeder schreibt ALLE Felder — eine Rechnung, die im
@@ -545,6 +576,80 @@ RainCourse _readCourse(WireReader r) => RainCourse(r.list(() => RainDay(
       source: RainSource.values[r.u8()],
       origin: r.int64(),
     )));
+
+/// Tageswerte mit Lücken als EINE Zahlenfolge, NaN für „nicht gemeldet" —
+/// die Tabelle selbst kennt kein NaN, sie kommt aus JSON.
+Float64List _gappy(List<double?> v) => Float64List.fromList(
+    [for (final x in v) x ?? double.nan]);
+List<double?> _ungappy(Float64List v) =>
+    [for (final x in v) x.isNaN ? null : x];
+
+const weatherTableCodec = WireFn<WeatherTable>(_writeTable, _readTable);
+void _writeTable(WireWriter w, WeatherTable t) => w
+  ..list(t.days, w.dateTime)
+  ..list(
+      t.air,
+      (s) => w
+        ..string(s.name)
+        ..float64(s.lat)
+        ..float64(s.lon)
+        ..int64(s.height)
+        ..float64s(_gappy(s.max))
+        ..float64s(_gappy(s.min))
+        ..boolean(s.model))
+  ..list(
+      t.soil,
+      (s) => w
+        ..string(s.name)
+        ..float64(s.lat)
+        ..float64(s.lon)
+        ..int64(s.height)
+        ..float64s(_gappy(s.soil)));
+WeatherTable _readTable(WireReader r) => WeatherTable(
+      days: r.list(r.dateTime),
+      air: r.list(() => AirStation(
+            name: r.string(),
+            lat: r.float64(),
+            lon: r.float64(),
+            height: r.int64(),
+            max: _ungappy(r.float64s()),
+            min: _ungappy(r.float64s()),
+            model: r.boolean(),
+          )),
+      soil: r.list(() => SoilStation(
+            name: r.string(),
+            lat: r.float64(),
+            lon: r.float64(),
+            height: r.int64(),
+            soil: _ungappy(r.float64s()),
+          )),
+    );
+
+const soilMoistureWindowCodec =
+    WireFn<SoilMoistureWindow>(_writeSoil, _readSoil);
+void _writeSoil(WireWriter w, SoilMoistureWindow s) => w
+  ..dateTime(s.end)
+  ..dateTime(s.newest)
+  ..int64(s.width)
+  ..int64(s.height)
+  ..float64(s.west)
+  ..float64(s.east)
+  ..float64(s.north)
+  ..float64(s.south)
+  ..float32s(s.means)
+  ..bytes(s.latest);
+SoilMoistureWindow _readSoil(WireReader r) => SoilMoistureWindow(
+      end: r.dateTime(),
+      newest: r.dateTime(),
+      width: r.int64(),
+      height: r.int64(),
+      west: r.float64(),
+      east: r.float64(),
+      north: r.float64(),
+      south: r.float64(),
+      means: r.float32s(),
+      latest: r.bytes(),
+    );
 
 /// Punkte als EINE Zahlenfolge statt je ein Objekt — bei 40 000 Punkten
 /// der Unterschied zwischen einem Feld und 80 000 Einträgen.

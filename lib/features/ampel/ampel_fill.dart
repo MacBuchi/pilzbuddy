@@ -81,6 +81,17 @@ class AmpelFill {
   final DateTime newest;
 }
 
+/// Die Stufen über alle Stapel in Vorrang-Reihenfolge (#612) — `null`,
+/// wenn keiner ein Gitter ergibt. Die eine Rechnung hinter
+/// `ampelLevelGridProvider`, im Isolate wie im Web Worker.
+AmpelLevels? ampelLevelsOf(List<RainStackData> stacks, WeatherTable? table,
+    SoilMoistureWindow? soil) {
+  final grids = [
+    for (final stack in stacks) ?ampelLevelsFrom(stack, table, soil: soil),
+  ];
+  return grids.isEmpty ? null : AmpelLevels(grids);
+}
+
 /// Dasselbe Ergebnis eine Stufe früher: die STUFE je Zelle, noch ohne
 /// Farbe. Zwei Kunden — die Fläche oben und die Kombi-Ebene „Wald +
 /// Pilzwetter" (dort fragt jede Waldwabe ihren Mittelpunkt ab).

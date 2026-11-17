@@ -29,7 +29,15 @@ class MapWorkerTask<P, R> {
     required this.params,
     required this.result,
     this.slots = const {},
+    this.resultSlot,
   });
+
+  /// Legt die Gegenseite das Ergebnis zusätzlich als dieses Fach ab
+  /// (#689, B3)? Dann gilt das zurückgekommene Objekt als drüben: Ein
+  /// späterer Auftrag, der es unter diesem Namen nennt, schickt es nicht
+  /// noch einmal. So wandern die Ampel-Stufen nicht hin, zurück und
+  /// wieder hin.
+  final String? resultSlot;
 
   /// Eindeutig über alle Rechnungen — der Worker schlägt darüber nach.
   final String id;
@@ -40,6 +48,14 @@ class MapWorkerTask<P, R> {
   /// Je Fachname ein Codec. Ein Name mit `#` am Ende steht für eine
   /// Familie (`forestBlock#`): Er gilt für jedes Fach, das so beginnt.
   final Map<String, WireCodec<Object?>> slots;
+
+  /// Liest diese Rechnung das Fach [name] (auch als Mitglied einer
+  /// Familie)?
+  bool readsSlot(String name) {
+    if (slots.containsKey(name)) return true;
+    final hash = name.indexOf('#');
+    return hash >= 0 && slots.containsKey(name.substring(0, hash + 1));
+  }
 
   /// Der Codec für das Fach [name].
   WireCodec<Object?> slotCodec(String name) {
@@ -67,6 +83,17 @@ class MapWorkerTask<P, R> {
   WireBytes encodeResult(Object? value) => result.encode(value as R);
   Object? decodeResult(WireBytes bytes) =>
       result.decode(bytes.buffer, bytes.length);
+}
+
+/// Legt ein Ergebnis als Fach [slot] ab ([MapWorkerTask.resultSlot]);
+/// `null` räumt das Fach. Isolate und Web Worker teilen diese Regel.
+void keepResult(Map<String, Object?> slots, String? slot, Object? result) {
+  if (slot == null) return;
+  if (result == null) {
+    slots.remove(slot);
+  } else {
+    slots[slot] = result;
+  }
 }
 
 /// Ein Gitter, das der Worker SELBST lädt (#689, B3): Er holt die gepackte

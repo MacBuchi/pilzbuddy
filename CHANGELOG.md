@@ -9,7 +9,7 @@ https://github.com/MacBuchi/pilzbuddy/releases
 
 ## Web-App: schnellere Karte
 
-*18. Oktober 2026 · Versionen 1.224.9 bis 1.226.2*
+*18. November 2026 · Versionen 1.224.9 bis 1.226.3*
 
 - Die Karte in der Web-App zeichnet jetzt mit derselben Technik wie die
   Android-App. Wischen und Zoomen ruckeln deutlich weniger, und die Karte
@@ -22,6 +22,9 @@ https://github.com/MacBuchi/pilzbuddy/releases
 - Auch Wald, Höhe, Schutzgebiete und Fundorte packt die Web-App beim
   Start jetzt nebenher aus. In den ersten Sekunden nach dem Öffnen ist
   sie damit seltener blockiert.
+- Mit eingeschaltetem Pilzwetter hing die Web-App nach dem Öffnen
+  bis zu einer Viertelminute, Menü und Knöpfe reagierten nicht. Die
+  Pilzwetter-Rechnung läuft jetzt ebenfalls nebenher.
 - Die Pilze auf der Anmeldeseite schaukeln nur noch einmal kurz und
   stehen dann still — vorher schaukelten sie endlos und hielten die
   Web-App dabei dauernd beschäftigt. Antippen lässt sie noch einmal

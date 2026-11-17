@@ -387,6 +387,10 @@ class _ChannelBackend implements _Backend {
   /// Was drüben liegt — je Fach das zuletzt gesendete Objekt.
   final _sent = <String, Object?>{};
 
+  /// Je Ergebnisfach ([MapWorkerTask.resultSlot]) der jüngste abgegebene
+  /// Auftrag — nur dessen Ergebnis darf als „liegt drüben" gelten.
+  final _keptGeneration = <String, int>{};
+
   /// Wie oft ein Fach hinüberging — nur für den Test.
   int slotTransfers = 0;
 
@@ -431,11 +435,32 @@ class _ChannelBackend implements _Backend {
       _sent[entry.key] = entry.value;
       slotTransfers++;
     }
+    final keep = task.resultSlot;
+    // Drüben wird das Fach gleich ersetzt. Bis das Ergebnis da ist, gilt
+    // es als unbekannt — ein Auftrag dazwischen, der noch das alte Objekt
+    // nennt, schickt es also wieder mit, statt drüben das neue zu lesen.
+    int? generation;
+    if (keep != null) {
+      _sent.remove(keep);
+      generation = _keptGeneration[keep] = (_keptGeneration[keep] ?? 0) + 1;
+    }
     final id = _nextId++;
     final done = Completer<Object?>();
     _open[id] = done;
     transport.job(id, task, params);
-    return done.future.whenComplete(_armIdle);
+    final value = await done.future.whenComplete(_armIdle);
+    // Hat inzwischen ein anderer Auftrag das Fach gefüllt, liegt drüben
+    // DESSEN Objekt; nach einem Tod liegt dort gar nichts; und läuft ein
+    // jüngerer Auftrag mit demselben Ergebnisfach, überschreibt er es
+    // gleich wieder.
+    if (keep != null &&
+        _keptGeneration[keep] == generation &&
+        !_sent.containsKey(keep) &&
+        identical(_transport, transport) &&
+        value != null) {
+      _sent[keep] = value;
+    }
+    return value;
   }
 
   /// Lädt ein selbst geladenes Fach drüben neu. Die Gegenseite arbeitet
@@ -613,7 +638,7 @@ class _IsolateTransport implements MapWorkerTransport {
 
   @override
   void job(int id, _Task task, Object? params) =>
-      _toWorker?.send(['job', id, task.fn, params]);
+      _toWorker?.send(['job', id, task.fn, params, task.resultSlot]);
 
   /// Der Port wird VOR dem Beenden geschlossen — die Ausgangsmeldung
   /// zählt so nicht als Tod.
@@ -644,6 +669,7 @@ void _workerMain(SendPort toMain) {
         try {
           // ignore: avoid_dynamic_calls
           final Object? result = (m[2] as dynamic)(view, m[3]);
+          keepResult(slots, m[4] as String?, result);
           toMain.send([
             id,
             true,

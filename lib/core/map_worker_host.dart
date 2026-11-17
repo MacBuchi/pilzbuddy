@@ -82,12 +82,17 @@ class MapWorkerHost {
   /// Rechnet und gibt das kodierte Ergebnis zurück. Wirft, was die
   /// Rechnung wirft.
   WireBytes run(String taskId, WireBytes params) {
-    if (_broken.isNotEmpty) {
-      throw StateError('Fach nicht lesbar: ${_broken.entries.first}');
-    }
     final task = _task(taskId);
-    return task.encodeResult(
-        task.call(MapWorkerSlots(_slots), task.decodeParams(params)));
+    // Nur Fächer, die DIESE Rechnung liest: Ein kaputtes Fundorte-Gitter
+    // darf die Ampel nicht für die ganze Sitzung mitnehmen.
+    for (final broken in _broken.entries) {
+      if (task.readsSlot(broken.key)) {
+        throw StateError('Fach nicht lesbar: $broken');
+      }
+    }
+    final result = task.call(MapWorkerSlots(_slots), task.decodeParams(params));
+    keepResult(_slots, task.resultSlot, result);
+    return task.encodeResult(result);
   }
 
   /// Welche Fächer gerade liegen — für den Test.

@@ -31,7 +31,10 @@ import 'package:pilzbuddy/features/map/map_worker_tasks.dart';
 import 'package:pilzbuddy/features/map/protected_areas.dart';
 import 'package:pilzbuddy/features/offline_areas/area_tile_key.dart';
 import 'package:pilzbuddy/features/map/rain_stack.dart';
+import 'package:pilzbuddy/features/map/soil_moisture_grid.dart';
+import 'package:pilzbuddy/features/map/spot_weather.dart';
 
+import 'ampel_fill_test.dart' show gridStackOf, tableOfStations, testSoil;
 import 'elevation_contours_test.dart' show elevationOf;
 import 'forest_ampel_fill_test.dart' show levelsOf;
 import 'forest_grid_test.dart' show hexOf;
@@ -259,6 +262,54 @@ void main() {
           [grid.rainFactor, grid.meanC, grid.stationHeightM, grid.valid,
             grid.moistureMean, grid.moistureValid, grid.milder,
             grid.milderValid, 2, 1, 6, 17, 55, 45, grid.newest]);
+    });
+
+    test('Stationstabelle samt Lücken und Modellpunkt', () {
+      final table = WeatherTable(
+        days: [DateTime.utc(2026, 10, 1), DateTime.utc(2026, 10, 2)],
+        air: const [
+          AirStation(name: 'Garmisch', lat: 47.48, lon: 11.06, height: 719,
+              max: [12.5, null], min: [null, -0.25]),
+          AirStation(name: 'Modell', lat: 46.5, lon: 11.3, height: 1800,
+              max: [8, 9], min: [1, 2], model: true),
+        ],
+        soil: const [
+          SoilStation(name: 'Boden', lat: 50, lon: 10, height: -3,
+              soil: [null, 7.5]),
+        ],
+      );
+      final t = roundTrip(weatherTableCodec, table);
+      expect(t.days, table.days);
+      expect([for (final s in t.air)
+                [s.name, s.lat, s.lon, s.height, s.max, s.min, s.model]], [
+        ['Garmisch', 47.48, 11.06, 719, [12.5, null], [null, -0.25], false],
+        ['Modell', 46.5, 11.3, 1800, [8, 9], [1, 2], true],
+      ]);
+      expect([for (final s in t.soil)
+                [s.name, s.lat, s.lon, s.height, s.soil]], [
+        ['Boden', 50, 10, -3, [null, 7.5]],
+      ]);
+    });
+
+    test('Bodenfeuchte-Fenster samt Lücke', () {
+      final soil = SoilMoistureWindow(
+        end: DateTime(2026, 10, 7),
+        newest: DateTime.utc(2026, 10, 2),
+        width: 2,
+        height: 1,
+        west: 5,
+        east: 17,
+        north: 56,
+        south: 45,
+        means: Float32List.fromList([0.25, double.nan]),
+        latest: Uint8List.fromList([12, 255]),
+      );
+      final s = roundTrip(soilMoistureWindowCodec, soil);
+      expect(
+          [s.end, s.newest, s.width, s.height, s.west, s.east, s.north,
+            s.south, s.means[0], s.means[1].isNaN, s.latest],
+          [soil.end, soil.newest, 2, 1, 5, 17, 56, 45, 0.25, true,
+            [12, 255]]);
     });
 
     test('Wald-Auftrag mit allen ausgelieferten Ampel-Klassen', () {
@@ -609,6 +660,56 @@ void main() {
           {'rainStacks': stacks});
     });
 
+    test('Ampel-Stufen: dasselbe wie direkt, und das Ergebnis bleibt drüben '
+        'für die Fläche (#689, B3)', () async {
+      final stacks = [
+        gridStackOf(width: 6, height: 4, west: forest.west, east: forest.east,
+            north: forest.north, south: forest.south),
+        gridStackOf(width: 3, height: 2, mmPerDay: 7, west: forest.west,
+            east: forest.east, north: forest.north, south: forest.south),
+      ];
+      final table = tableOfStations([
+        (lat: forest.north, lon: forest.west, meanC: 12, measured: 28),
+        (lat: forest.south, lon: forest.east, meanC: 15, measured: 28),
+      ]);
+      final slots = {
+        'rainStacks': stacks,
+        'weatherTable': table,
+        'soilMoisture': testSoil,
+      };
+      final direct = ampelLevelsTask.run(MapWorkerSlots(slots), null);
+      expect(direct?.grids, hasLength(2), reason: 'beide Stapel rechnen');
+      await same(ampelLevelsTask, null, slots);
+
+      // Was die App danach tut: die Fläche mit DEM Objekt, das zurückkam.
+      final levels = (await worker
+          .submit('ampel', ampelLevelsTask, null, slots: slots)
+          .result)!;
+      final sentBefore = loopback.slots;
+      final params = (
+        classes: allForestClasses,
+        window: window,
+        ampelClasses: ampelShippedClasses,
+        blocks: const <String>[],
+      );
+      await worker.submit('wald', forestAmpelFillTask, params, slots: {
+        'forest': forest,
+        'protected': protected,
+        'ampelLevels': levels,
+        'elevation': elevation,
+      }).result;
+      expect(loopback.slots - sentBefore, 3,
+          reason: 'Wald, Schutzgebiete, Höhe — die Stufen lagen schon drüben');
+      expect(host.slotNames, contains('ampelLevels'));
+
+      // Ohne Stapel kein Gitter — und dann auch kein Fach mehr drüben.
+      expect(await worker.submit('ampel', ampelLevelsTask, null, slots: {
+        ...slots,
+        'rainStacks': <RainStackData>[],
+      }).result, isNull);
+      expect(host.slotNames, isNot(contains('ampelLevels')));
+    });
+
     test('ein Fehler im Worker trifft nur den Auftrag', () async {
       await expectLater(
           worker.submit('probe', forestFillTask, (
@@ -766,6 +867,31 @@ void main() {
       await worker.submit('probe', forestFillTask, params, slots: slots)
           .result;
       expect(loopback.slots, 1, reason: 'Schutzgebiete gingen als Fach');
+    });
+
+    test('ein kaputtes Fach trifft nur die Rechnungen, die es lesen',
+        () async {
+      // Scheitert drüben das Laden der Fundorte, soll die Ampel weiter
+      // rechnen — sie liest das Fach nie. Vorher warf JEDER Auftrag.
+      host.markBroken('gbifFinds', 'Abruf gescheitert');
+      final stacks = [gridStackOf(width: 2, height: 2)];
+      expect(
+          await worker.submit('ampel', ampelLevelsTask, null, slots: {
+            'rainStacks': stacks,
+            'weatherTable': tableOfStations(
+                [(lat: 51, lon: 11.5, meanC: 13, measured: 28)]),
+            'soilMoisture': null,
+          }).result,
+          isNotNull);
+      await expectLater(
+          worker.submit('gbif', gbifFillTask, (
+            window: const FillWindow(
+                west: 10, east: 11, north: 52, south: 51,
+                width: 10, height: 10),
+            paint: (colours: Int32List(0), allowed: Uint8List(0)),
+          )).result,
+          throwsA(isA<MapWorkerError>()),
+          reason: 'wer das Fach liest, erfährt es weiter');
     });
 
     test('ein kaputtes Asset kommt als Fehler, nicht als stilles Gitter',

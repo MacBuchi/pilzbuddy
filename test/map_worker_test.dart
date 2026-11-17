@@ -54,6 +54,10 @@ const _boom =
     MapWorkerTask<int, int>('boom', _boomFn, params: _int, result: _int);
 const _die = MapWorkerTask<int, int>('die', _dieFn, params: _int, result: _int);
 
+/// Ein Bild, das drüben als Fach „grid" liegen bleibt (#689, B3).
+const _keptImage = MapWorkerTask<int, Uint8List>('keptImage', _imageFn,
+    params: _int, result: wireBytes, resultSlot: 'grid');
+
 void main() {
   late Directory tmp;
   setUp(() async => tmp = await Directory.systemTemp.createTemp('map_worker'));
@@ -110,6 +114,54 @@ void main() {
         await worker.submit('wald', _sumSlot, 0, slots: {'grid': other}).result,
         10);
     expect(worker.debugSlotTransfers, 2);
+  });
+
+  group('Ergebnis bleibt als Fach drüben (#689, B3)', () {
+    test('wer das Ergebnis danach nennt, schickt es nicht noch einmal',
+        () async {
+      final worker = MapWorker.isolate();
+      addTearDown(worker.dispose);
+      final kept = await worker.submit('ampel', _keptImage, 4).result;
+      expect(await worker.submit('wald', _sumSlot, 1, slots: {'grid': kept})
+          .result, 4 * 7 + 1);
+      expect(worker.debugSlotTransfers, 0,
+          reason: 'das Ergebnis lag schon drüben');
+    });
+
+    test('ein Auftrag mit dem ALTEN Objekt, abgegeben während das neue '
+        'rechnet, liest das alte', () async {
+      final worker = MapWorker.isolate();
+      addTearDown(worker.dispose);
+      final old = Uint8List.fromList([1, 2, 3]);
+      expect(await worker.submit('wald', _sumSlot, 0, slots: {'grid': old})
+          .result, 6);
+      final fresh = worker.submit('ampel', _keptImage, 4);
+      // Andere Spur, also sofort abgegeben — drüben steht das Ergebnis
+      // davor in der Reihe und hätte das Fach schon ersetzt.
+      final sum = worker.submit('wald', _sumSlot, 0, slots: {'grid': old});
+      expect(await sum.result, 6);
+      expect(await worker.submit('wald', _sumSlot, 0,
+          slots: {'grid': await fresh.result}).result, 28);
+      expect(worker.debugSlotTransfers, 3,
+          reason: 'alt, alt noch einmal, und das Ergebnis selbst — weil '
+              'drüben inzwischen wieder das alte lag');
+    });
+
+    test('zwei Ergebnis-Aufträge zugleich: nur das jüngere gilt als drüben',
+        () async {
+      final worker = MapWorker.isolate();
+      addTearDown(worker.dispose);
+      // Zwei Spuren, also beide sofort abgegeben; drüben überschreibt B
+      // das Fach nach A.
+      final a = worker.submit('ampel1', _keptImage, 2);
+      final b = worker.submit('ampel2', _keptImage, 5);
+      final first = await a.result;
+      await b.result;
+      expect(await worker.submit('wald', _sumSlot, 0,
+          slots: {'grid': first}).result, 2 * 7,
+          reason: 'A muss hinübergehen — drüben liegt B');
+      expect(worker.debugSlotTransfers, 1);
+    });
   });
 
   test('ein Bild kommt unverändert zurück', () async {
