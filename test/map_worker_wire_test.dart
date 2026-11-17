@@ -869,6 +869,31 @@ void main() {
       expect(loopback.slots, 1, reason: 'Schutzgebiete gingen als Fach');
     });
 
+    test('ein kaputtes Fach trifft nur die Rechnungen, die es lesen',
+        () async {
+      // Scheitert drüben das Laden der Fundorte, soll die Ampel weiter
+      // rechnen — sie liest das Fach nie. Vorher warf JEDER Auftrag.
+      host.markBroken('gbifFinds', 'Abruf gescheitert');
+      final stacks = [gridStackOf(width: 2, height: 2)];
+      expect(
+          await worker.submit('ampel', ampelLevelsTask, null, slots: {
+            'rainStacks': stacks,
+            'weatherTable': tableOfStations(
+                [(lat: 51, lon: 11.5, meanC: 13, measured: 28)]),
+            'soilMoisture': null,
+          }).result,
+          isNotNull);
+      await expectLater(
+          worker.submit('gbif', gbifFillTask, (
+            window: const FillWindow(
+                west: 10, east: 11, north: 52, south: 51,
+                width: 10, height: 10),
+            paint: (colours: Int32List(0), allowed: Uint8List(0)),
+          )).result,
+          throwsA(isA<MapWorkerError>()),
+          reason: 'wer das Fach liest, erfährt es weiter');
+    });
+
     test('ein kaputtes Asset kommt als Fehler, nicht als stilles Gitter',
         () async {
       await expectLater(

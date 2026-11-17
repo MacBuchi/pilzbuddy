@@ -387,6 +387,10 @@ class _ChannelBackend implements _Backend {
   /// Was drüben liegt — je Fach das zuletzt gesendete Objekt.
   final _sent = <String, Object?>{};
 
+  /// Je Ergebnisfach ([MapWorkerTask.resultSlot]) der jüngste abgegebene
+  /// Auftrag — nur dessen Ergebnis darf als „liegt drüben" gelten.
+  final _keptGeneration = <String, int>{};
+
   /// Wie oft ein Fach hinüberging — nur für den Test.
   int slotTransfers = 0;
 
@@ -435,15 +439,22 @@ class _ChannelBackend implements _Backend {
     // Drüben wird das Fach gleich ersetzt. Bis das Ergebnis da ist, gilt
     // es als unbekannt — ein Auftrag dazwischen, der noch das alte Objekt
     // nennt, schickt es also wieder mit, statt drüben das neue zu lesen.
-    if (keep != null) _sent.remove(keep);
+    int? generation;
+    if (keep != null) {
+      _sent.remove(keep);
+      generation = _keptGeneration[keep] = (_keptGeneration[keep] ?? 0) + 1;
+    }
     final id = _nextId++;
     final done = Completer<Object?>();
     _open[id] = done;
     transport.job(id, task, params);
     final value = await done.future.whenComplete(_armIdle);
     // Hat inzwischen ein anderer Auftrag das Fach gefüllt, liegt drüben
-    // DESSEN Objekt; und nach einem Tod liegt dort gar nichts.
+    // DESSEN Objekt; nach einem Tod liegt dort gar nichts; und läuft ein
+    // jüngerer Auftrag mit demselben Ergebnisfach, überschreibt er es
+    // gleich wieder.
     if (keep != null &&
+        _keptGeneration[keep] == generation &&
         !_sent.containsKey(keep) &&
         identical(_transport, transport) &&
         value != null) {

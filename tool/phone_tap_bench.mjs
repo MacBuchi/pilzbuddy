@@ -77,10 +77,16 @@ const layerKeys = {
   gbif: ['gbif_layer_enabled'],
   ampel: ['ampel_layer_enabled', 'ampel_preview_enabled', 'rain_course_enabled'],
 };
+// Ohne BENCH_LAYERS nur einschalten, wie bis #714 — sonst schaltete die
+// Vorgabe Ebenen der Sitzung aus und verschöbe den Vergleich mit alten
+// Zahlen.
+const explicit = process.env.BENCH_LAYERS != null;
 for (const [layer, keys] of Object.entries(layerKeys)) {
+  const on = LAYERS.includes(layer);
+  if (!on && !explicit) continue;
   for (const k of keys) {
-    if (k === 'rain_course_enabled' && !LAYERS.includes(layer)) continue;
-    await evaluate(`localStorage.setItem('flutter.${k}', '${LAYERS.includes(layer)}'); 1`);
+    if (k === 'rain_course_enabled' && !on) continue;
+    await evaluate(`localStorage.setItem('flutter.${k}', '${on}'); 1`);
   }
 }
 const W = await evaluate('innerWidth'), H = await evaluate('innerHeight'), dpr = await evaluate('devicePixelRatio');

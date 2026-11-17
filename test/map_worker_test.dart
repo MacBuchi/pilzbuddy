@@ -146,6 +146,22 @@ void main() {
           reason: 'alt, alt noch einmal, und das Ergebnis selbst — weil '
               'drüben inzwischen wieder das alte lag');
     });
+
+    test('zwei Ergebnis-Aufträge zugleich: nur das jüngere gilt als drüben',
+        () async {
+      final worker = MapWorker.isolate();
+      addTearDown(worker.dispose);
+      // Zwei Spuren, also beide sofort abgegeben; drüben überschreibt B
+      // das Fach nach A.
+      final a = worker.submit('ampel1', _keptImage, 2);
+      final b = worker.submit('ampel2', _keptImage, 5);
+      final first = await a.result;
+      await b.result;
+      expect(await worker.submit('wald', _sumSlot, 0,
+          slots: {'grid': first}).result, 2 * 7,
+          reason: 'A muss hinübergehen — drüben liegt B');
+      expect(worker.debugSlotTransfers, 1);
+    });
   });
 
   test('ein Bild kommt unverändert zurück', () async {

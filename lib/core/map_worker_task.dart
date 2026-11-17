@@ -49,6 +49,14 @@ class MapWorkerTask<P, R> {
   /// Familie (`forestBlock#`): Er gilt für jedes Fach, das so beginnt.
   final Map<String, WireCodec<Object?>> slots;
 
+  /// Liest diese Rechnung das Fach [name] (auch als Mitglied einer
+  /// Familie)?
+  bool readsSlot(String name) {
+    if (slots.containsKey(name)) return true;
+    final hash = name.indexOf('#');
+    return hash >= 0 && slots.containsKey(name.substring(0, hash + 1));
+  }
+
   /// Der Codec für das Fach [name].
   WireCodec<Object?> slotCodec(String name) {
     final exact = slots[name];
