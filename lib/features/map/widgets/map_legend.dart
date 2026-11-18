@@ -62,6 +62,7 @@ import '../forest_data_providers.dart';
 import '../forest_fill.dart'
     show ampelGuenstigAlpha, ampelVerhaltenAlpha, hatchGapShare;
 import '../gbif_colours.dart';
+import '../legend_ampel_state.dart';
 import '../gbif_fill.dart' show gbifClassCountsFrom;
 import '../gbif_finds_providers.dart'
     show gbifFilterKeyProvider, gbifFindsProvider, gbifLayerEnabledProvider;
@@ -212,6 +213,7 @@ class MapLegend extends ConsumerWidget {
     // baut: `ampelReadingFrom` verlangt die Höhe nicht per Typ, der
     // Flow-Test „die Legende rechnet mit derselben Höhe" ist das Netz.
     AmpelReading? ampelAt;
+    var ampelState = LegendAmpelState.loading;
     var ampelByClass =
         const <({AmpelClass klass, AmpelReading reading, String? now})>[];
     if (showAmpel && center != null) {
@@ -257,6 +259,13 @@ class MapLegend extends ConsumerWidget {
             ),
         ];
       }
+      ampelState = legendAmpelStateOf(
+        consent: ref.watch(rainCourseEnabledProvider),
+        course: course,
+        temperature: temperature,
+        height: spotHeight,
+        reading: ampelAt,
+      );
     }
 
     // Dieselbe Auswahl wie die Fläche: Eine abgewählte Gruppe liegt nicht
@@ -272,6 +281,7 @@ class MapLegend extends ConsumerWidget {
     final zones = (
       showAmpel: showAmpel,
       ampel: ampelAt,
+      ampelState: ampelState,
       ampelByClass: ampelByClass,
       showRain: showRain,
       rainLayer: rainLayer,
@@ -341,6 +351,7 @@ class MapLegend extends ConsumerWidget {
 typedef LegendZones = ({
   bool showAmpel,
   AmpelReading? ampel,
+  LegendAmpelState ampelState,
 
   /// Jede ausgelieferte Klasse einzeln am Fadenkreuz — nur die
   /// AUSGEKLAPPTE Legende zeigt sie (Betreiber, 2026-09-12). Die
@@ -814,6 +825,7 @@ class _LegendPanel extends StatelessWidget {
               // größte Posten der Höhe.
               _AmpelSection(
                   reading: zones.ampel,
+                  state: zones.ampelState,
                   byClass: zones.ampelByClass,
                   forest: zones.showForest
                       ? (classes: zones.forestClasses, around: zones.around)
@@ -1022,13 +1034,43 @@ double? rainMarkerFraction(int mm, List<int> levels) {
 /// eine Legende mit nur zwei Chips würde das Blau über Nadelwald
 /// unerklärt lassen, und wer die Skala nicht kennt, liest Blau als
 /// „mehr" statt als „Nadelwald".
+/// „Wetter laden" in der Kopfzeile (#732): Ohne Zustimmung rechnet die
+/// Ampel nie, und ein „rechnet …" darüber wartete für immer. Ein Tipp
+/// gibt dieselbe Zustimmung wie das Spot-Blatt.
+class _AmpelConsentButton extends ConsumerWidget {
+  const _AmpelConsentButton();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return TextButton(
+      key: const Key('legend-ampel-consent'),
+      style: TextButton.styleFrom(
+        visualDensity: VisualDensity.compact,
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        minimumSize: const Size(0, 32),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        textStyle: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600),
+      ),
+      onPressed: () => enableRainCourse(ref),
+      child: const Text('Wetter laden'),
+    );
+  }
+}
+
 class _AmpelSection extends StatelessWidget {
   const _AmpelSection(
-      {required this.reading, required this.byClass, this.forest});
+      {required this.reading,
+      required this.state,
+      required this.byClass,
+      this.forest});
 
   /// Das Maximum über die Klassen — dieselbe Antwort, die die Fläche
   /// malt.
   final AmpelReading? reading;
+
+  /// Was die Kopfzeile rechts sagt (#732) — „rechnet …" nur, solange
+  /// wirklich etwas lädt.
+  final LegendAmpelState state;
 
   /// Jede ausgelieferte Klasse einzeln, für die Detailzeilen.
   final List<({AmpelClass klass, AmpelReading reading, String? now})>
@@ -1095,14 +1137,31 @@ class _AmpelSection extends StatelessWidget {
                       fontSize: 10.5)),
             ),
             const SizedBox(width: 4),
-            Text(
-              level == null ? 'rechnet …' : ampelLevelWord(level),
-              key: const Key('legend-ampel-here'),
-              style: theme.textTheme.labelSmall
-                  ?.copyWith(color: AppColors.barkBrown, fontSize: 10.5),
-            ),
+            if (state == LegendAmpelState.needsConsent)
+              const _AmpelConsentButton()
+            else
+              Text(
+                legendAmpelWord(state, level),
+                key: const Key('legend-ampel-here'),
+                style: theme.textTheme.labelSmall
+                    ?.copyWith(color: AppColors.barkBrown, fontSize: 10.5),
+              ),
           ],
         ),
+        // „keine Aussage" allein lässt raten, warum — der Grund steht in
+        // der Ablesung („keine Wetterstation in Reichweite", „Regenreihe
+        // zu lückig …") und gehört dazu, klein und unter der Zeile.
+        if (state == LegendAmpelState.noStatement && reading?.reason != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 2, left: 26),
+            child: Text(
+              reading!.reason!,
+              key: const Key('legend-ampel-reason'),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: small,
+            ),
+          ),
         const SizedBox(height: 5),
         Row(
           mainAxisSize: MainAxisSize.min,
