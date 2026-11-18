@@ -581,6 +581,61 @@ void main() {
         reason: 'ein- und ausgeklappt dürfen nicht zwei Urteile fällen');
   });
 
+  testWidgets('ohne Wetter-Zustimmung bietet die Legende sie an, statt '
+      'ewig zu rechnen (#732)', (tester) async {
+    // So lokal in #689 gesehen: Ampel-Fläche gemerkt an, Zustimmung
+    // nicht — der Stapel bleibt leer, die Ampel rechnet nie, und die
+    // Kopfzeile sagte für immer „rechnet …".
+    final settings = FakeSettings(ampelPreviewEnabled: true);
+    await pumpApp(tester, loggedInWithSpot(), settings: settings);
+    final container = ProviderScope.containerOf(
+        tester.element(find.byType(Scaffold).first));
+    container.read(ampelLayerEnabledProvider.notifier).state = true;
+    container.read(mapIdleCenterProvider.notifier).state =
+        const LatLng(spotLat, spotLng);
+    await settle(tester);
+
+    final consent = find.byKey(const Key('legend-ampel-consent'));
+    expect(consent, findsOneWidget,
+        reason: 'ohne Zustimmung muss die Kopfzeile sie anbieten');
+    expect(find.text('rechnet …'), findsNothing,
+        reason: 'ohne Zustimmung rechnet nichts — „rechnet …" wartete '
+            'auf etwas, das nie kommt');
+
+    await tester.tap(consent);
+    await tester.pump();
+    expect(container.read(rainCourseEnabledProvider), isTrue);
+    expect(settings.rainCourseEnabled, isTrue,
+        reason: 'gemerkt, sonst fragte die Legende nach dem Neustart wieder');
+  });
+
+  testWidgets('graue Ablesung: die Legende sagt „keine Aussage" und warum '
+      '(#732)', (tester) async {
+    // 14 Tage im Stapel (der Live-Stand vor dem Ampel-Fenster): Die
+    // Ablesung ist grau mit Grund. Bis 1.226.3 stand darüber „rechnet …".
+    await pumpWithWeather(tester, loggedInWithSpot(),
+        preview: true, stackDays: 14);
+    await openSpot(tester);
+    await acceptAndSettle(tester);
+    await tester.tapAt(const Offset(20, 20)); // Blatt schließen
+    await settle(tester);
+
+    final container = ProviderScope.containerOf(
+        tester.element(find.byType(Scaffold).first));
+    container.read(ampelLayerEnabledProvider.notifier).state = true;
+    container.read(mapIdleCenterProvider.notifier).state =
+        const LatLng(spotLat, spotLng);
+    await settle(tester);
+
+    expect(hereWord('keine Aussage'), findsOneWidget,
+        reason: 'fertig gerechnet und grau ist eine Antwort, kein Laden');
+    expect(find.text('rechnet …'), findsNothing);
+    final reason = tester.widget<Text>(
+        find.byKey(const Key('legend-ampel-reason')));
+    expect(reason.data, contains('erst 14 von 26 Tagen'),
+        reason: '„keine Aussage" allein lässt raten, warum');
+  });
+
   testWidgets('ohne Schalter existiert die Sektion nicht', (tester) async {
     await pumpWithWeather(tester, loggedInWithSpot(), preview: false);
     await openSpot(tester);

@@ -7,6 +7,19 @@ Neuesten zuerst. Dieselbe Liste steht in der App im Profil unter
 Die technische Fassung mit allen Einzelheiten liegt in den GitHub-Releases:
 https://github.com/MacBuchi/pilzbuddy/releases
 
+## Legende: Pilzwetter sagt, was los ist
+
+*18. November 2026 · Version 1.226.4*
+
+- In der Kartenlegende stand beim Pilzwetter manchmal für immer
+  „rechnet …“, obwohl längst nichts mehr gerechnet wurde. Jetzt steht
+  dort „rechnet …“ nur, solange wirklich noch Daten geladen werden.
+- Fehlen die Wetterdaten, weil sie noch nie geladen wurden, steht dort
+  ein Knopf „Wetter laden“. Ein Tipp darauf lädt sie, wie im Spot-Blatt.
+- Kann die Ampel an der Stelle nichts sagen, steht dort „keine Aussage“
+  und darunter der Grund, zum Beispiel, dass keine Wetterstation in der
+  Nähe ist. Ging beim Laden etwas schief, steht dort „keine Daten“.
+
 ## Web-App: schnellere Karte
 
 *18. November 2026 · Versionen 1.224.9 bis 1.226.3*

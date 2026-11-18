@@ -322,6 +322,17 @@ final rainStackLoaderProvider =
 final rainCourseEnabledProvider = StateProvider<bool>(
     (ref) => ref.watch(settingsProvider).rainCourseEnabled);
 
+/// Die Zustimmung geben — für die Sitzung UND gemerkt.
+///
+/// Drei Stellen bieten sie an (Spot-Blatt, Ampel-Schalter, Legende seit
+/// #732); eine Kopie, die nur den Provider setzt, fragte nach dem
+/// Neustart wieder.
+Future<void> enableRainCourse(WidgetRef ref) async {
+  if (ref.read(rainCourseEnabledProvider)) return;
+  ref.read(rainCourseEnabledProvider.notifier).state = true;
+  await ref.read(settingsProvider).setRainCourseEnabled(true);
+}
+
 /// Der Radar-Stapel, geladen OHNE Blick auf die Zustimmung — einmal für
 /// alle Abnehmer.
 ///

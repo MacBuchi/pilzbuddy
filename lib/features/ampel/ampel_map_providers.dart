@@ -51,9 +51,7 @@ Future<void> setAmpelLayerEnabled(WidgetRef ref, bool value) async {
   ref.read(ampelLayerEnabledProvider.notifier).set(value);
   if (!value) return;
   ref.read(forestLayerEnabledProvider.notifier).set(true);
-  if (ref.read(rainCourseEnabledProvider)) return;
-  ref.read(rainCourseEnabledProvider.notifier).state = true;
-  await ref.read(settingsProvider).setRainCourseEnabled(true);
+  await enableRainCourse(ref);
 }
 
 /// Die Ampel-Stufen je Zelle — die gemeinsame Rechnung der Fläche und

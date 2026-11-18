@@ -16,7 +16,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/app_colors.dart';
-import '../../../core/settings.dart';
 import '../../map/rain_data_providers.dart';
 import '../../map/rain_stack.dart';
 import '../../map/spot_weather.dart';
@@ -241,10 +240,7 @@ class SpotRainSection extends ConsumerWidget {
     );
   }
 
-  Future<void> _accept(WidgetRef ref) async {
-    ref.read(rainCourseEnabledProvider.notifier).state = true;
-    await ref.read(settingsProvider).setRainCourseEnabled(true);
-  }
+  Future<void> _accept(WidgetRef ref) => enableRainCourse(ref);
 }
 
 /// Die Frage vor dem ersten Laden.

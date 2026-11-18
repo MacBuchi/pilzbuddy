@@ -641,6 +641,19 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
   (Speicherbereinigung), das Byte-Feld nicht. Messung in
   `docs/map-performance.md`.
 
+- **„rechnet …“ heißt nur Laden** (#732, seit 1.226.4,
+  `legend_ampel_state.dart`): Die Kopfzeile der Ampel in der Legende
+  stand bis 1.226.3 bei JEDER fehlenden Stufe auf „rechnet …“ — ohne
+  Wetter-Zustimmung, nach einem Fehler und bei grauer Ablesung für immer.
+  Jetzt fünf Zustände aus einer reinen Funktion: Laden (auch ein
+  abgelöster Worker-Auftrag, `MapWorkerSuperseded`), „Wetter laden“ als
+  Knopf (`enableRainCourse`, dieselbe Zustimmung wie Spot-Blatt und
+  Ampel-Schalter), „keine Daten“, „keine Aussage“ samt Grund, Stufe.
+  Lehre aus dem Anlass: Der Befund „Fläche fertig, Legende rechnet“ aus
+  #730 war sehr wahrscheinlich eine GRAUE Ablesung — die Radar-Tage für
+  Deutschland fehlten damals (#731). Ein Ladewort über einer fertigen
+  Antwort versteckt einen Datenausfall.
+
 - **Kamera-Wächter** (`FiniteCameraConstraint` in
   `lib/features/map/finite_camera_constraint.dart`, seit 1.38.2): verwirft
   NaN-/Infinity-Kamerazustände aus Gesten-Grenzfällen an der einzigen
