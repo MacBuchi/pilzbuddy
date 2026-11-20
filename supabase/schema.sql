@@ -1161,6 +1161,8 @@ end;
 $$;
 revoke all on function public.ops_health(text) from public;
 grant execute on function public.ops_health(text) to anon;
+-- nur anon: den Supabase-Default-Grant an authenticated entzieht Patch 039
+revoke execute on function public.ops_health(text) from authenticated;
 
 insert into public.applied_patches (filename) values
   ('patch_001_anfragen_namen.sql'),
@@ -1200,5 +1202,6 @@ insert into public.applied_patches (filename) values
   ('patch_035_feedback_bild_groesse.sql'),
   ('patch_036_function_search_path.sql'),
   ('patch_037_rls_ohne_policy.sql'),
-  ('patch_038_ops_health.sql')
+  ('patch_038_ops_health.sql'),
+  ('patch_039_ops_health_nur_anon.sql')
 on conflict do nothing;
