@@ -134,9 +134,11 @@ oben“ können in eine andere Teildatei zeigen — der Index sagt, in welche.
   wird behoben, auch wenn es nur INFO ist — ein Fund, der für immer
   stehen bleibt, übertönt den nächsten echten: fester `search_path`
   (Patch 036), Sperr-Policy `using (false)` statt „RLS ohne Policy"
-  (Patch 037). Dauerhaft stehen bleiben genau vier, alle bewusst:
+  (Patch 037). Dauerhaft stehen bleiben genau fünf, alle bewusst:
   `delete_own_account` und `search_profiles` für `authenticated`
-  ausführbar (die beiden RPCs der App), `pg_net` im Schema `public`
+  ausführbar (die beiden RPCs der App), `ops_health` für `anon`
+  ausführbar (Statusabfrage für den Betreiber, Token-geschützt, nur Zählwerte;
+  Patch 038), `pg_net` im Schema `public`
   (lässt sich nicht verschieben) und Leaked Password Protection (siehe
   unten). Wer dort mehr sieht, hat einen neuen Fund.
 
