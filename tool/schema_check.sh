@@ -396,6 +396,10 @@ check_rpc_protected "search_profiles-RPC" "search_profiles" '{"query":"schema-ch
 # aufrufbar sein. Deshalb nicht mit check_rpc — der würde den erwarteten
 # 403 als Fehler werten.
 check_rpc_protected "delete_own_account-RPC" "delete_own_account" '{}'
+# Statusabfrage für den Betreiber (Patch 038): für anon ausführbar, aber nur mit
+# dem richtigen Token. Ein falscher Token muss mit 42501 abprallen – kommt
+# eine Antwort mit Zahlen zurück, wäre die Token-Prüfung kaputt.
+check_rpc_protected "ops_health-RPC ohne gültigen Token" "ops_health" '{"p_token":"schema-check"}'
 
 if [ "$fail" -ne 0 ]; then
   echo "::error::Live-Schema passt nicht zu den App-Queries. Fehlt ein supabase/patch_NNN_*.sql bzw. wurde er noch nicht eingespielt (tool/db_migrate.sh, Secret SUPABASE_DB_URL)?"

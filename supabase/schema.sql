@@ -1096,6 +1096,7 @@ revoke all on function app_internal.messages_on_unfriend() from public, anon, au
 create trigger friendships_delete_messages
   after delete on public.friendships
   for each row execute function app_internal.messages_on_unfriend();
+
 -- Aliase (Patch 032): Ende der Freundschaft löscht sie beider Seiten.
 create or replace function app_internal.aliases_on_unfriend()
 returns trigger language plpgsql security definer set search_path = public as $$
@@ -1112,6 +1113,54 @@ create trigger friendships_delete_aliases
   for each row execute function app_internal.aliases_on_unfriend();
 select cron.schedule('buddy-messages-sweep', '17 3 * * *',
                      $cron$delete from public.buddy_messages where expires_at < now()$cron$);
+
+-- Statusabfrage für den Betreiber (Patch 038): Zählwerte hinter Token, Begründung im Kopf des Patches.
+create table if not exists app_internal.ops_config (
+  id boolean primary key default true check (id),
+  token_sha256 text not null check (token_sha256 ~ '^[0-9a-f]{64}$'),
+  updated_at timestamptz not null default now()
+);
+alter table app_internal.ops_config enable row level security;
+create policy ops_config_no_client on app_internal.ops_config
+  for all to anon, authenticated using (false) with check (false);
+revoke all on table app_internal.ops_config from public, anon, authenticated;
+
+create or replace function public.ops_health(p_token text)
+returns jsonb
+language plpgsql stable security definer set search_path = '' as $$
+declare
+  v_hash text;
+begin
+  select c.token_sha256 into v_hash from app_internal.ops_config c where c.id;
+  if v_hash is null or p_token is null
+     or encode(sha256(convert_to(p_token, 'UTF8')), 'hex') <> v_hash then
+    raise exception 'forbidden' using errcode = '42501';
+  end if;
+  return jsonb_build_object(
+    'db_size_mb', pg_database_size(current_database()) / 1048576,
+    'errors_24h', (select count(*) from public.error_reports
+                    where created_at > now() - interval '24 hours'),
+    'errors_7d', (select count(*) from public.error_reports
+                   where created_at > now() - interval '7 days'),
+    'feedback_open', (select count(*) from public.feedback where processed_at is null),
+    'feedback_7d', (select count(*) from public.feedback
+                     where created_at > now() - interval '7 days'),
+    'devices_active_7d', (select count(*) from public.push_devices
+                           where last_seen_at > now() - interval '7 days'),
+    'push_stuck', (select count(*) from app_internal.push_outbox
+                    where due_at < now() - interval '1 hour'),
+    'push_last_at', null,
+    'min_version', (select minimum_supported_version from public.app_config where id),
+    'extra', jsonb_build_array(
+      jsonb_build_array('Nutzer', (select count(*) from public.profiles)),
+      jsonb_build_array('Funde (7 Tage)', (select count(*) from public.finds
+                                            where created_at > now() - interval '7 days')),
+      jsonb_build_array('Spots', (select count(*) from public.spots)))
+  );
+end;
+$$;
+revoke all on function public.ops_health(text) from public;
+grant execute on function public.ops_health(text) to anon;
 
 insert into public.applied_patches (filename) values
   ('patch_001_anfragen_namen.sql'),
@@ -1150,5 +1199,6 @@ insert into public.applied_patches (filename) values
   ('patch_034_galerie_einwilligung.sql'),
   ('patch_035_feedback_bild_groesse.sql'),
   ('patch_036_function_search_path.sql'),
-  ('patch_037_rls_ohne_policy.sql')
+  ('patch_037_rls_ohne_policy.sql'),
+  ('patch_038_ops_health.sql')
 on conflict do nothing;
